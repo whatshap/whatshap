@@ -78,17 +78,18 @@ for line in vcfFile.readlines() :
 		# ... etc. in cases where we have unphased data; so keep this
 		# in mind also -- murray
 	if not het:
-		#print("not a heterozygous snp for any of the individuals, snp %s" % (tk[1]), file=sys.stderr)
+		print("not a heterozygous snp for any of the individuals, snp %s" % (tk[1]), file=sys.stderr)
 		#% (individual, tk[1]), file=sys.stderr)
 		continue
 	else: # found a heterozygous snp for the individual
-		snpPos[i] = [int(tk[1]),tk[3],tk[4]]
+		snpPos[i] = [int(tk[1]), tk[3], tk[4]]
+		#print('snpPos:', snpPos, file=sys.stderr)
 		for index in [x[0] for x in indices]:
 			if tk[index] == '.|1': tk[index] = '0|1' # just to disambiguate what
 			if tk[index] == '1|.' : tk[index] = '1|0' # was mentioned above
 			snpPos[i].append(tk[index])
 		#print(snpPos[i])
-		i+=1
+		i += 1
 
 lSnps = len(snpPos)
 print('Read %d SNPs on chromosome %s'%(lSnps,chromosome), file=sys.stderr)
@@ -125,6 +126,12 @@ if target_tid < 0:
     #fName = pf + "-" + str(e) + ".ends"
     #rgF[e] = open(fName,"w");
 
+
+print('=' * 100)
+print('reading BAM')
+print('=' * 100)
+
+
 # now we loop through the bam file
 i=0 # to keep track of position in snpPos array (which is in order)
 # the assumption is that reads in samFile are ordered by position
@@ -142,51 +149,52 @@ for read in samFile.fetch() :
 	if read.mapq < 20: continue
 	# only reads with a nonempty cigar string (i.e., mapped) are considered
 	cigar = read.cigar
-	if cigar :
-		#f = rgF[rgMap[read.opt('RG')]]
-		pos = int(read.pos)+1
-		l = len(read.seq) # length of read
+	if not cigar:
+		continue
+	#f = rgF[rgMap[read.opt('RG')]]
+	pos = int(read.pos)+1
+	l = len(read.seq) # length of read
 
-		# since reads are ordered by position, we need not consider
-		# positions that are too small
-		while i < lSnps and snpPos[i][0] < pos : i+=1
+	# since reads are ordered by position, we need not consider
+	# positions that are too small
+	while i < lSnps and snpPos[i][0] < pos : i+=1
 
-		c=0 # hit count
-		j=i # another index into snpPos
-		p=pos # another index into position on the reference
-		s=0 # absolute index into the read string [0..len(read)]
-		# assuming that CIGAR contains only M,I,D,S
-		fl = read.qname
-		#print('Processing read', fl, file=sys.stderr)
-		for cigar_op, length in cigar :
-			#print('  cigar:', cigar_op, length, file=sys.stderr)
-			if cigar_op == 0 : # we're in a matching subregion
-				s_next = s + length
-				p_next = p + length
-				r = p+length # size of this subregion
-				while j < lSnps and snpPos[j][0] < p : j+=1
-				while j < lSnps and p < r :
-					if snpPos[j][0] == p : # we have a hit
-						if read.seq[s] == snpPos[j][1] : al = '0'
-						elif read.seq[s] == snpPos[j][2] : al = '1'
-						else : al = 'E' # for "error" (keep for stats purposes)
-						fl += " : " + str(p) + " " + str(read.seq[s]) + " " + al + " " + str(ord(read.qual[s])-33) # 34 is the phred score offset in bam files
-						c+=1
-						j+=1
-					s+=1 # advance both read and reference
-					p+=1
-				s = s_next
-				p = p_next
-			elif cigar_op == 1 : # an insertion
-				s+=length
-			elif cigar_op == 2 : # a deletion
-				p+=length
-			elif cigar_op == 4 : # soft clipping
-				s+=length
-			elif cigar_op == 5 : # hard clipping
-				pass
-			else :
-				print("error: invalid cigar operation:", cigar_op)
-				sys.exit(1)
-		fl += " # " + str(c) + " " + str(read.mapq) + " " + "NA"
-		if(c>0) : print(fl)
+	c=0 # hit count
+	j=i # another index into snpPos
+	p=pos # another index into position on the reference
+	s=0 # absolute index into the read string [0..len(read)]
+	# assuming that CIGAR contains only M,I,D,S
+	fl = read.qname
+	#print('Processing read', fl, file=sys.stderr)
+	for cigar_op, length in cigar :
+		#print('  cigar:', cigar_op, length, file=sys.stderr)
+		if cigar_op == 0 : # we're in a matching subregion
+			s_next = s + length
+			p_next = p + length
+			r = p+length # size of this subregion
+			while j < lSnps and snpPos[j][0] < p : j+=1
+			while j < lSnps and p < r :
+				if snpPos[j][0] == p : # we have a hit
+					if read.seq[s] == snpPos[j][1] : al = '0'
+					elif read.seq[s] == snpPos[j][2] : al = '1'
+					else : al = 'E' # for "error" (keep for stats purposes)
+					fl += " : " + str(p) + " " + str(read.seq[s]) + " " + al + " " + str(ord(read.qual[s])-33) # 34 is the phred score offset in bam files
+					c += 1
+					j += 1
+				s += 1 # advance both read and reference
+				p += 1
+			s = s_next
+			p = p_next
+		elif cigar_op == 1 : # an insertion
+			s += length
+		elif cigar_op == 2 : # a deletion
+			p += length
+		elif cigar_op == 4 : # soft clipping
+			s += length
+		elif cigar_op == 5 : # hard clipping
+			pass
+		else :
+			print("error: invalid cigar operation:", cigar_op)
+			sys.exit(1)
+	fl += " # " + str(c) + " " + str(read.mapq) + " " + "NA"
+	if(c>0) : print(fl)
