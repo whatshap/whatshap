@@ -65,11 +65,15 @@ for line in vcfFile.readlines() :
 	#print(tk[index], file=sys.stderr)
 	het = False
 	for index in [x[0] for x in indices]:
-		het = het or tk[index] == '0|1' or tk[index] == '1|0'
+		hetinfo = tk[index].split(':')[0]
+		het = het or hetinfo in ['0|1', '1|0', '.|1', '1|.', '0/1', '1/0']
+		# TODO 1/1 and 1/2
+
+		#het = het or tk[index] == '0|1' or tk[index] == '1|0'
 		# note: the "." means "0" in the simulated Venter dataset, but
 		# it can also mean "don't know" in certain contexts, so you
 		# may have to come back to this line of code -- murray
-		het = het or tk[index] == '.|1' or tk[index] == '1|.'
+		#het = het or tk[index] == '.|1' or tk[index] == '1|.'
 		# note also that we may need also to consider "0/1", "./1"
 		# ... etc. in cases where we have unphased data; so keep this
 		# in mind also -- murray
