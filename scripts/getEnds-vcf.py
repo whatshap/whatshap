@@ -218,7 +218,19 @@ def read_bam(path):
 		fl += " # " + str(c) + " " + str(read.mapq) + " " + "NA"
 		if c > 0: print(fl)
 
-# output:
-# read.qname,
+# output columns:
+# - read.qname
+# - for each SNP that is on this read:
+#   - space, colon, space
+#   - position
+#   - read base at this position
+#   - '0' or '1': 0 for reference allele, 1 for alt allele
+#   - base quality at this position
+# - finally
+#   - space, hash, space
+#   - no. of SNPs for this read
+#   - mapping quality
+#   - "NA"
+
 
 read_bam(bam)
