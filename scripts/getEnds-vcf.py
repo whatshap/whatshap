@@ -102,6 +102,8 @@ def parse_vcf(path):
 
 snpPos = parse_vcf(vcfName)
 
+# snpPos is a list. each entry is a list: [pos, ref, alt, hetinfo]
+
 print(len(snpPos))
 
 lSnps = len(snpPos)
@@ -143,12 +145,10 @@ def read_bam(path):
 
 
 	# now we loop through the bam file
-	i=0 # to keep track of position in snpPos array (which is in order)
+	i = 0 # to keep track of position in snpPos array (which is in order)
 	# the assumption is that reads in samFile are ordered by position
 	# one can use samFile.fetch() for doing that
-	counter=0 # for testing
 	for read in samFile.fetch() :
-		counter += 1
 		if read.tid != target_tid: continue
 		# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
 		if read.flag & 2048 != 0:
@@ -157,37 +157,46 @@ def read_bam(path):
 		if read.is_secondary: continue
 		if read.is_unmapped: continue
 		if read.mapq < 20: continue
+
 		# only reads with a nonempty cigar string (i.e., mapped) are considered
 		cigar = read.cigar
 		if not cigar:
 			continue
 		#f = rgF[rgMap[read.opt('RG')]]
+		# convert from BAM zero-based coords to 1-based
 		pos = int(read.pos)+1
-		l = len(read.seq) # length of read
 
 		# since reads are ordered by position, we need not consider
 		# positions that are too small
-		while i < lSnps and snpPos[i][0] < pos : i+=1
+		while i < lSnps and snpPos[i][0] < pos:
+			i += 1
 
-		c=0 # hit count
-		j=i # another index into snpPos
-		p=pos # another index into position on the reference
-		s=0 # absolute index into the read string [0..len(read)]
+		c = 0 # hit count
+		j = i # another index into snpPos
+		p = pos
+		s = 0 # absolute index into the read string [0..len(read)]
 		# assuming that CIGAR contains only M,I,D,S
 		fl = read.qname
 		#print('Processing read', fl, file=sys.stderr)
-		for cigar_op, length in cigar :
+		for cigar_op, length in cigar:
 			#print('  cigar:', cigar_op, length, file=sys.stderr)
-			if cigar_op == 0 : # we're in a matching subregion
+			if cigar_op == 0:  # MATCH/MISMATCH # we're in a matching subregion
 				s_next = s + length
 				p_next = p + length
-				r = p+length # size of this subregion
-				while j < lSnps and snpPos[j][0] < p : j+=1
-				while j < lSnps and p < r :
-					if snpPos[j][0] == p : # we have a hit
-						if read.seq[s] == snpPos[j][1] : al = '0'
-						elif read.seq[s] == snpPos[j][2] : al = '1'
-						else : al = 'E' # for "error" (keep for stats purposes)
+				r = p + length  # size of this subregion
+				# skip over all SNPs that come before this region
+				while j < lSnps and snpPos[j][0] < p:
+					j += 1
+				# iterate over all positions in this subregion and
+				# check whether any of them coincide with one of the SNPs ('hit')
+				while j < lSnps and p < r:
+					if snpPos[j][0] == p: # we have a hit
+						if read.seq[s] == snpPos[j][1]:
+							al = '0'  # REF allele
+						elif read.seq[s] == snpPos[j][2]:
+							al = '1'  # ALT allele
+						else:
+							al = 'E' # for "error" (keep for stats purposes)
 						fl += " : " + str(p) + " " + str(read.seq[s]) + " " + al + " " + str(ord(read.qual[s])-33) # 34 is the phred score offset in bam files
 						c += 1
 						j += 1
@@ -203,11 +212,13 @@ def read_bam(path):
 				s += length
 			elif cigar_op == 5 : # hard clipping
 				pass
-			else :
+			else:
 				print("error: invalid cigar operation:", cigar_op)
 				sys.exit(1)
 		fl += " # " + str(c) + " " + str(read.mapq) + " " + "NA"
-		if(c>0) : print(fl)
+		if c > 0: print(fl)
 
+# output:
+# read.qname,
 
 read_bam(bam)
