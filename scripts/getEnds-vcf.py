@@ -24,71 +24,85 @@ chromosome = sys.argv[3]
 individuals = sys.argv[4:] #individuals = "A21c" or = "A2a A2b", etc.
 
 
-# vcf file
-if vcfName.split(".")[len(vcfName.split("."))-1] == "gz" :
-	vcfFile = gzip.open(vcfName,"r") # file is gz'd
-else : vcfFile = open(vcfName,"r") # else it is not
+def parse_vcf(path):
+	# vcf file
+	if path.split(".")[len(path.split("."))-1] == "gz" :
+		vcfFile = gzip.open(path,"r") # file is gz'd
+	else : vcfFile = open(path,"r") # else it is not
 
-snpPos = []
-index = -1
-indices = []
-for line in vcfFile.readlines() :
-	line = line.strip()
-	if line[:2] == '##':
-		#print("header line", file=sys.stderr)
-		continue
-	tk = line.split()
-	if tk[0] == '#CHROM':
-		print("Determining indices", file=sys.stderr)
-		for j, item in enumerate(tk):
-			if item in individuals:
-				indices.append((j,item))
-				#break
-		if len(indices) == 0:
-			print("Error: none of the individuals found in vcf", file=sys.stderr)
-			sys.exit(1)
-		else:
-			outstring = "Found individuals "
-			for indtup in indices:
-				outstring += "%s " % (indtup[1])
-			outstring += "in columns "
-			for indtup in indices:
-				outstring += "%d " % (indtup[0])
-			print(outstring, file=sys.stderr)
-		continue
-	if tk[0] != chromosome:
-		continue
-	if len(tk[3]) != 1 or len(tk[4]) != 1: # no snp in vcf
-		#print("No Snp line found, %s" % (tk[1]), file=sys.stderr) # just to avoid polluting stderr
-		continue
-	#print(tk[index], file=sys.stderr)
-	het = False
-	for index in [x[0] for x in indices]:
-		hetinfo = tk[index].split(':')[0]
-		het = het or hetinfo in ['0|1', '1|0', '.|1', '1|.', '0/1', '1/0']
-		# TODO 1/1 and 1/2
-
-		#het = het or tk[index] == '0|1' or tk[index] == '1|0'
-		# note: the "." means "0" in the simulated Venter dataset, but
-		# it can also mean "don't know" in certain contexts, so you
-		# may have to come back to this line of code -- murray
-		#het = het or tk[index] == '.|1' or tk[index] == '1|.'
-		# note also that we may need also to consider "0/1", "./1"
-		# ... etc. in cases where we have unphased data; so keep this
-		# in mind also -- murray
-	if not het:
-		print("not a heterozygous snp for any of the individuals, snp %s" % (tk[1]), file=sys.stderr)
-		#% (individual, tk[1]), file=sys.stderr)
-		continue
-	else: # found a heterozygous snp for the individual
-		snp_info = [int(tk[1]), tk[3], tk[4]]
-		#print('snpPos:', snpPos, file=sys.stderr)
+	snpPos = []
+	index = -1
+	indices = []
+	for line in vcfFile.readlines() :
+		line = line.strip()
+		if line[:2] == '##':
+			#print("header line", file=sys.stderr)
+			continue
+		tk = line.split()
+		if tk[0] == '#CHROM':
+			print("Determining indices", file=sys.stderr)
+			for j, item in enumerate(tk):
+				if item in individuals:
+					indices.append((j,item))
+					#break
+			if len(indices) == 0:
+				print("Error: none of the individuals found in vcf", file=sys.stderr)
+				sys.exit(1)
+			else:
+				outstring = "Found individuals "
+				for indtup in indices:
+					outstring += "%s " % (indtup[1])
+				outstring += "in columns "
+				for indtup in indices:
+					outstring += "%d " % (indtup[0])
+				print(outstring, file=sys.stderr)
+			continue
+		if tk[0] != chromosome:
+			continue
+		if len(tk[3]) != 1 or len(tk[4]) != 1: # no snp in vcf
+			#print("No Snp line found, %s" % (tk[1]), file=sys.stderr) # just to avoid polluting stderr
+			continue
+		#print(tk[index], file=sys.stderr)
+		het = False
 		for index in [x[0] for x in indices]:
-			if tk[index] == '.|1': tk[index] = '0|1' # just to disambiguate what
-			if tk[index] == '1|.' : tk[index] = '1|0' # was mentioned above
-			snp_info.append(tk[index])
-		#print(snpPos[i])
-		snpPos.append(snp_info)
+			hetinfo = tk[index].split(':')[0]
+			het = het or hetinfo in ['0|1', '1|0', '.|1', '1|.', '0/1', '1/0']
+			# TODO 1/1 and 1/2
+
+			#het = het or tk[index] == '0|1' or tk[index] == '1|0'
+			# note: the "." means "0" in the simulated Venter dataset, but
+			# it can also mean "don't know" in certain contexts, so you
+			# may have to come back to this line of code -- murray
+			#het = het or tk[index] == '.|1' or tk[index] == '1|.'
+			# note also that we may need also to consider "0/1", "./1"
+			# ... etc. in cases where we have unphased data; so keep this
+			# in mind also -- murray
+		if not het:
+			print("not a heterozygous snp for any of the individuals, snp %s" % (tk[1]), file=sys.stderr)
+			#% (individual, tk[1]), file=sys.stderr)
+			continue
+		else: # found a heterozygous snp for the individual
+
+			# tk[0]: chrom
+			# tk[1]: pos
+			# tk[2]: id
+			# tk[3]: ref
+			# tk[4]: alt
+			snp_info = [int(tk[1]), tk[3], tk[4]]
+			#print('snpPos:', snpPos, file=sys.stderr)
+			for index in [x[0] for x in indices]:
+				v = tk[index].split(':')[0]
+				if v in ('.|1', '0/1'): v = '0|1' # just to disambiguate what
+				elif v in ('1|.', '1/0'): v = '1|0' # was mentioned above
+				snp_info.append(v)
+			#print(snpPos[i])
+			snpPos.append(snp_info)
+
+	return snpPos
+
+snpPos = parse_vcf(vcfName)
+
+print(len(snpPos))
 
 lSnps = len(snpPos)
 print('Read %d SNPs on chromosome %s'%(lSnps,chromosome), file=sys.stderr)
