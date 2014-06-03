@@ -29,8 +29,7 @@ if vcfName.split(".")[len(vcfName.split("."))-1] == "gz" :
 	vcfFile = gzip.open(vcfName,"r") # file is gz'd
 else : vcfFile = open(vcfName,"r") # else it is not
 
-snpPos = {}
-i=0
+snpPos = []
 index = -1
 indices = []
 for line in vcfFile.readlines() :
@@ -82,14 +81,14 @@ for line in vcfFile.readlines() :
 		#% (individual, tk[1]), file=sys.stderr)
 		continue
 	else: # found a heterozygous snp for the individual
-		snpPos[i] = [int(tk[1]), tk[3], tk[4]]
+		snp_info = [int(tk[1]), tk[3], tk[4]]
 		#print('snpPos:', snpPos, file=sys.stderr)
 		for index in [x[0] for x in indices]:
 			if tk[index] == '.|1': tk[index] = '0|1' # just to disambiguate what
 			if tk[index] == '1|.' : tk[index] = '1|0' # was mentioned above
-			snpPos[i].append(tk[index])
+			snp_info.append(tk[index])
 		#print(snpPos[i])
-		i += 1
+		snpPos.append(snp_info)
 
 lSnps = len(snpPos)
 print('Read %d SNPs on chromosome %s'%(lSnps,chromosome), file=sys.stderr)
