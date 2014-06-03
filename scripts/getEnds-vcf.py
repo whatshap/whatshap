@@ -111,103 +111,103 @@ print('Read %d SNPs on chromosome %s'%(lSnps,chromosome), file=sys.stderr)
 
 #sys.exit(0)
 
-# bam file
 
-# first we get some header info, etc.
-samFile = pysam.Samfile(bam,"rb")
+def read_bam(path):
+	# bam file
 
-target_tid = samFile.gettid(chromosome)
-if target_tid < 0:
-	print('Error chromosome unknown in BAM file', file=sys.stderr)
-	sys.exit(1)
+	# first we get some header info, etc.
+	samFile = pysam.Samfile(path,"rb")
 
-#rgMap = {} # get mapping from each read tech to its group
-#for r in samFile.header['RG'] :
-    #rgMap[r['ID']] = r['SM']
-#if(len(rgMap)==0) :
-    #print("error : no read groups in BAM header")
-    #print("exiting ...")
-    #sys.exit(0)
+	target_tid = samFile.gettid(chromosome)
+	if target_tid < 0:
+		print('Error chromosome unknown in BAM file', file=sys.stderr)
+		sys.exit(1)
 
-#rgs = [] # get the (set of) unique read groups
-#for k in rgMap.keys() :
-    #rgs.insert(0,rgMap[k])
-#rgs = sorted(set(rgs))
+	#rgMap = {} # get mapping from each read tech to its group
+	#for r in samFile.header['RG'] :
+		#rgMap[r['ID']] = r['SM']
+	#if(len(rgMap)==0) :
+		#print("error : no read groups in BAM header")
+		#print("exiting ...")
+		#sys.exit(0)
 
-#rgF = {} # a file for each read group
-#for e in rgs :
-    #fName = pf + "-" + str(e) + ".ends"
-    #rgF[e] = open(fName,"w");
+	#rgs = [] # get the (set of) unique read groups
+	#for k in rgMap.keys() :
+		#rgs.insert(0,rgMap[k])
+	#rgs = sorted(set(rgs))
 
-
-print('=' * 100)
-print('reading BAM')
-print('=' * 100)
+	#rgF = {} # a file for each read group
+	#for e in rgs :
+		#fName = pf + "-" + str(e) + ".ends"
+		#rgF[e] = open(fName,"w");
 
 
-# now we loop through the bam file
-i=0 # to keep track of position in snpPos array (which is in order)
-# the assumption is that reads in samFile are ordered by position
-# one can use samFile.fetch() for doing that 
-counter=0 # for testing
-for read in samFile.fetch() :
-	counter += 1
-	if read.tid != target_tid: continue
-	# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
-	if read.flag & 2048 != 0:
-		#print('Skipping additional alignment for read ', read.qname)
-		continue
-	if read.is_secondary: continue
-	if read.is_unmapped: continue
-	if read.mapq < 20: continue
-	# only reads with a nonempty cigar string (i.e., mapped) are considered
-	cigar = read.cigar
-	if not cigar:
-		continue
-	#f = rgF[rgMap[read.opt('RG')]]
-	pos = int(read.pos)+1
-	l = len(read.seq) # length of read
+	# now we loop through the bam file
+	i=0 # to keep track of position in snpPos array (which is in order)
+	# the assumption is that reads in samFile are ordered by position
+	# one can use samFile.fetch() for doing that
+	counter=0 # for testing
+	for read in samFile.fetch() :
+		counter += 1
+		if read.tid != target_tid: continue
+		# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
+		if read.flag & 2048 != 0:
+			#print('Skipping additional alignment for read ', read.qname)
+			continue
+		if read.is_secondary: continue
+		if read.is_unmapped: continue
+		if read.mapq < 20: continue
+		# only reads with a nonempty cigar string (i.e., mapped) are considered
+		cigar = read.cigar
+		if not cigar:
+			continue
+		#f = rgF[rgMap[read.opt('RG')]]
+		pos = int(read.pos)+1
+		l = len(read.seq) # length of read
 
-	# since reads are ordered by position, we need not consider
-	# positions that are too small
-	while i < lSnps and snpPos[i][0] < pos : i+=1
+		# since reads are ordered by position, we need not consider
+		# positions that are too small
+		while i < lSnps and snpPos[i][0] < pos : i+=1
 
-	c=0 # hit count
-	j=i # another index into snpPos
-	p=pos # another index into position on the reference
-	s=0 # absolute index into the read string [0..len(read)]
-	# assuming that CIGAR contains only M,I,D,S
-	fl = read.qname
-	#print('Processing read', fl, file=sys.stderr)
-	for cigar_op, length in cigar :
-		#print('  cigar:', cigar_op, length, file=sys.stderr)
-		if cigar_op == 0 : # we're in a matching subregion
-			s_next = s + length
-			p_next = p + length
-			r = p+length # size of this subregion
-			while j < lSnps and snpPos[j][0] < p : j+=1
-			while j < lSnps and p < r :
-				if snpPos[j][0] == p : # we have a hit
-					if read.seq[s] == snpPos[j][1] : al = '0'
-					elif read.seq[s] == snpPos[j][2] : al = '1'
-					else : al = 'E' # for "error" (keep for stats purposes)
-					fl += " : " + str(p) + " " + str(read.seq[s]) + " " + al + " " + str(ord(read.qual[s])-33) # 34 is the phred score offset in bam files
-					c += 1
-					j += 1
-				s += 1 # advance both read and reference
-				p += 1
-			s = s_next
-			p = p_next
-		elif cigar_op == 1 : # an insertion
-			s += length
-		elif cigar_op == 2 : # a deletion
-			p += length
-		elif cigar_op == 4 : # soft clipping
-			s += length
-		elif cigar_op == 5 : # hard clipping
-			pass
-		else :
-			print("error: invalid cigar operation:", cigar_op)
-			sys.exit(1)
-	fl += " # " + str(c) + " " + str(read.mapq) + " " + "NA"
-	if(c>0) : print(fl)
+		c=0 # hit count
+		j=i # another index into snpPos
+		p=pos # another index into position on the reference
+		s=0 # absolute index into the read string [0..len(read)]
+		# assuming that CIGAR contains only M,I,D,S
+		fl = read.qname
+		#print('Processing read', fl, file=sys.stderr)
+		for cigar_op, length in cigar :
+			#print('  cigar:', cigar_op, length, file=sys.stderr)
+			if cigar_op == 0 : # we're in a matching subregion
+				s_next = s + length
+				p_next = p + length
+				r = p+length # size of this subregion
+				while j < lSnps and snpPos[j][0] < p : j+=1
+				while j < lSnps and p < r :
+					if snpPos[j][0] == p : # we have a hit
+						if read.seq[s] == snpPos[j][1] : al = '0'
+						elif read.seq[s] == snpPos[j][2] : al = '1'
+						else : al = 'E' # for "error" (keep for stats purposes)
+						fl += " : " + str(p) + " " + str(read.seq[s]) + " " + al + " " + str(ord(read.qual[s])-33) # 34 is the phred score offset in bam files
+						c += 1
+						j += 1
+					s += 1 # advance both read and reference
+					p += 1
+				s = s_next
+				p = p_next
+			elif cigar_op == 1 : # an insertion
+				s += length
+			elif cigar_op == 2 : # a deletion
+				p += length
+			elif cigar_op == 4 : # soft clipping
+				s += length
+			elif cigar_op == 5 : # hard clipping
+				pass
+			else :
+				print("error: invalid cigar operation:", cigar_op)
+				sys.exit(1)
+		fl += " # " + str(c) + " " + str(read.mapq) + " " + "NA"
+		if(c>0) : print(fl)
+
+
+read_bam(bam)
