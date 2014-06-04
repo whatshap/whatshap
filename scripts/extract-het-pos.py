@@ -36,7 +36,7 @@ def main():
 		position = int(fields[1])
 		ref = fields[3]
 		alt = fields[4]
-		genotype = fields[9]
+		genotype = fields[9].split(':')[0]
 		if chromosome != target_chromosome: continue
 		if len(ref) != 1: continue
 		if len(alt) != 1: continue
