@@ -21,27 +21,31 @@ def main():
 		sys.exit(0)
 
 	t = e.split()
-	n = t[0] # name
+	name = t[0]
 	count = 0
 	mapq = 0
-	u = 0
-	snps = {}  # snps array
-	for i in range(len(t)) :
-		if t[i] == ":" :
+	is_unique = 0
+	snps = {}  # map position to a list [base, allele, quality]
+
+	# parse the first line
+	for i in range(len(t)):
+		if t[i] == ":":
 			snps[t[i+1]] = [t[i+2], t[i+3], t[i+4]]
 			# store snp position and its [base, allele, quality]
 		if t[i] == "#" :
 			count = int(t[i+1]) # count
 			mapq = int(t[i+2]) # mapping quality
-			u = t[i+3] # unique flag ('U' is for unique, 'R' is for repetitive, adopted from BWA XT tag)
+			is_unique = t[i+3] # unique flag ('U' is for unique, 'R' is for repetitive, adopted from BWA XT tag)
 
+	# parse the remaining lines
 	while True:
 		ep = f.readline() # get second end
-		if not ep: # no ep : end e is unpaired
+		if not ep: # no ep: end e is unpaired
+			print('not ep!', file=sys.stderr)
 			if count > 1: # so simply print end e
 				for p in sorted(snps.keys()) : # careful: the default is lists in no particular order, but we want snps to be ordered on their fragment
 					print(p + " " + snps[p][0] + " " + snps[p][1] + " " + snps[p][2] + " : ", end='')
-				print("# " + str(mapq) + " : " + u)
+				print("# " + str(mapq) + " : " + is_unique)
 			break
 
 		tp = ep.split()
@@ -56,9 +60,9 @@ def main():
 			if tp[i] == "#" :
 				cp = int(tp[i+1]) # count
 				mp = int(tp[i+2]) # mapq
-				up = tp[i+3] # unique or not, see u above
+				up = tp[i+3] # unique or not, see is_unique above
 
-		if n == np : # end e pairs up with end ep
+		if name == np : # end e pairs up with end ep
 			# output merged pair (a read)
 			uup = 0
 			if (count+cp)>1 :
@@ -67,8 +71,8 @@ def main():
 				print("-- : ", end='') # add a symbol for gap in paired-end reads
 				for p in sorted(sp.keys()) :
 					print(p + " " + sp[p][0] + " " + sp[p][1] + " " + sp[p][2] + " : ", end='')
-				uup = "%s %s" % (u,up)
-	#            if u == up == 'U': # uniquely mapped if both ends are
+				uup = "%s %s" % (is_unique,up)
+	#            if is_unique == up == 'U': # uniquely mapped if both ends are
 	#                uup = 'U'
 	#            else:
 	#                uup = 'R'
@@ -80,10 +84,10 @@ def main():
 			if not e:
 				break
 			t = e.split()
-			n = t[0]
+			name = t[0]
 			count = 0
 			mapq = 0
-			u = 0
+			is_unique = 0
 			snps = {}
 			for i in range(len(t)):
 				if t[i] == ":":
@@ -91,18 +95,18 @@ def main():
 				if t[i] == "#":
 					count = int(t[i+1])
 					mapq = int(t[i+2])
-					u = t[i+3]
+					is_unique = t[i+3]
 		else:
 			if count > 1: # simply print end
 				for p in sorted(snps.keys()) :
 					print(p + " " + snps[p][0] + " " + snps[p][1] + " " + snps[p][2] + " : ", end='')
-				print("# " + str(mapq) + " : " + u)
+				print("# " + str(mapq) + " : " + is_unique)
 			e = ep # and use ep for end of next iter
-			n = np
+			name = np
 			count = cp
 			mapq = mp
 			snps = sp
-			u = up
+			is_unique = up
 
 
 if __name__ == '__main__':
