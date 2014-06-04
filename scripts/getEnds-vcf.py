@@ -104,8 +104,6 @@ snpPos = parse_vcf(vcfName)
 
 # snpPos is a list. each entry is a list: [pos, ref, alt, hetinfo]
 
-print(len(snpPos))
-
 lSnps = len(snpPos)
 print('Read %d SNPs on chromosome %s'%(lSnps,chromosome), file=sys.stderr)
 #for i in range(len(snpPos)) :
