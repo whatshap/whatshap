@@ -7,6 +7,23 @@ from __future__ import print_function
 import sys
 
 
+def parse_line(line):
+	t = line.split()
+	name = t[0]
+	count = 0
+	mapq = 0
+	is_unique = 0
+	snps = {}
+	for i in range(len(t)):
+		if t[i] == ":":
+			snps[t[i+1]] = [t[i+2], t[i+3], t[i+4]]
+		if t[i] == "#":
+			count = int(t[i+1])
+			mapq = int(t[i+2])  # mapping quality
+			is_unique = t[i+3]  # unique flag ('U' is for unique, 'R' is for repetitive, adopted from BWA XT tag)
+	return name, count, mapq, is_unique, snps
+
+
 def main():
 	if len(sys.argv) < 2 :
 		print("usage : " + str(sys.argv[0]) + " endsFile")
@@ -20,47 +37,23 @@ def main():
 		print("file is empty")
 		sys.exit(0)
 
-	t = e.split()
-	name = t[0]
-	count = 0
-	mapq = 0
-	is_unique = 0
-	snps = {}  # map position to a list [base, allele, quality]
-
+	# snps maps a position to a list [base, allele, quality]
 	# parse the first line
-	for i in range(len(t)):
-		if t[i] == ":":
-			snps[t[i+1]] = [t[i+2], t[i+3], t[i+4]]
-			# store snp position and its [base, allele, quality]
-		if t[i] == "#" :
-			count = int(t[i+1]) # count
-			mapq = int(t[i+2]) # mapping quality
-			is_unique = t[i+3] # unique flag ('U' is for unique, 'R' is for repetitive, adopted from BWA XT tag)
+	name, count, mapq, is_unique, snps = parse_line(e)
 
 	# parse the remaining lines
 	while True:
 		ep = f.readline() # get second end
 		if not ep: # no ep: end e is unpaired
-			print('not ep!', file=sys.stderr)
+			# seems we are at EOF
 			if count > 1: # so simply print end e
 				for p in sorted(snps.keys()) : # careful: the default is lists in no particular order, but we want snps to be ordered on their fragment
 					print(p + " " + snps[p][0] + " " + snps[p][1] + " " + snps[p][2] + " : ", end='')
 				print("# " + str(mapq) + " : " + is_unique)
 			break
 
-		tp = ep.split()
-		np = tp[0]
-		cp = 0
-		mp = 0
-		up = 0
-		sp = {}
-		for i in range(len(tp)) :
-			if tp[i] == ":" :
-				sp[tp[i+1]] = [tp[i+2], tp[i+3], tp[i+4]] # pos and [base,allele,qual]
-			if tp[i] == "#" :
-				cp = int(tp[i+1]) # count
-				mp = int(tp[i+2]) # mapq
-				up = tp[i+3] # unique or not, see is_unique above
+		# everything with the 'p' suffix is from the second (paired) read
+		np, cp, mp, up, sp = parse_line(ep)
 
 		if name == np : # end e pairs up with end ep
 			# output merged pair (a read)
@@ -83,19 +76,8 @@ def main():
 			e = f.readline()
 			if not e:
 				break
-			t = e.split()
-			name = t[0]
-			count = 0
-			mapq = 0
-			is_unique = 0
-			snps = {}
-			for i in range(len(t)):
-				if t[i] == ":":
-					snps[t[i+1]] = [t[i+2], t[i+3], t[i+4]]
-				if t[i] == "#":
-					count = int(t[i+1])
-					mapq = int(t[i+2])
-					is_unique = t[i+3]
+
+			name, count, mapq, is_unique, snps = parse_line(e)
 		else:
 			if count > 1: # simply print end
 				for p in sorted(snps.keys()) :
