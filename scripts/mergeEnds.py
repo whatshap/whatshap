@@ -4,6 +4,12 @@ from __future__ import print_function
 # quick script to merge the (sorted) ends output to get a reads output
 # -- Murray Patterson
 
+"""
+Marcel's comments:
+- snps.keys() orders by string value, is that intended?
+
+"""
+
 import sys
 
 
@@ -21,6 +27,7 @@ def parse_line(line):
 			count = int(t[i+1])
 			mapq = int(t[i+2])  # mapping quality
 			is_unique = t[i+3]  # unique flag ('U' is for unique, 'R' is for repetitive, adopted from BWA XT tag)
+	assert count == len(snps)
 	return name, count, mapq, is_unique, snps
 
 
@@ -55,11 +62,11 @@ def main():
 		# everything with the 'p' suffix is from the second (paired) read
 		np, cp, mp, up, sp = parse_line(ep)
 
-		if name == np : # end e pairs up with end ep
+		if name == np: # end e pairs up with end ep
 			# output merged pair (a read)
 			uup = 0
-			if (count+cp)>1 :
-				for p in sorted(snps.keys()) :
+			if count + cp > 1:
+				for p in sorted(snps.keys()):
 					print(p + " " + snps[p][0] + " " + snps[p][1] + " " + snps[p][2] + " : ", end='')
 				print("-- : ", end='') # add a symbol for gap in paired-end reads
 				for p in sorted(sp.keys()) :
@@ -83,6 +90,8 @@ def main():
 				for p in sorted(snps.keys()) :
 					print(p + " " + snps[p][0] + " " + snps[p][1] + " " + snps[p][2] + " : ", end='')
 				print("# " + str(mapq) + " : " + is_unique)
+			else:
+				print('not printing', snps, file=sys.stderr)
 			e = ep # and use ep for end of next iter
 			name = np
 			count = cp
