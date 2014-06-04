@@ -22,26 +22,26 @@ def main():
 
 	t = e.split()
 	n = t[0] # name
-	c = 0
-	m = 0
+	count = 0
+	mapq = 0
 	u = 0
-	s = {}  # snps array
+	snps = {}  # snps array
 	for i in range(len(t)) :
 		if t[i] == ":" :
-			s[t[i+1]] = [t[i+2], t[i+3], t[i+4]]
+			snps[t[i+1]] = [t[i+2], t[i+3], t[i+4]]
 			# store snp position and its [base, allele, quality]
 		if t[i] == "#" :
-			c = int(t[i+1]) # count
-			m = int(t[i+2]) # mapping quality
+			count = int(t[i+1]) # count
+			mapq = int(t[i+2]) # mapping quality
 			u = t[i+3] # unique flag ('U' is for unique, 'R' is for repetitive, adopted from BWA XT tag)
 
 	while True:
 		ep = f.readline() # get second end
-		if not ep : # no ep : end e is unpaired
-			if c>1 : # so simply print end e
-				for p in sorted(s.keys()) : # careful: the default is lists in no particular order, but we want snps to be ordered on their fragment
-					print(p + " " + s[p][0] + " " + s[p][1] + " " + s[p][2] + " : ", end='')
-				print("# " + str(m) + " : " + u)
+		if not ep: # no ep : end e is unpaired
+			if count > 1: # so simply print end e
+				for p in sorted(snps.keys()) : # careful: the default is lists in no particular order, but we want snps to be ordered on their fragment
+					print(p + " " + snps[p][0] + " " + snps[p][1] + " " + snps[p][2] + " : ", end='')
+				print("# " + str(mapq) + " : " + u)
 			break
 
 		tp = ep.split()
@@ -52,7 +52,7 @@ def main():
 		sp = {}
 		for i in range(len(tp)) :
 			if tp[i] == ":" :
-				sp[tp[i+1]] = [tp[i+2],tp[i+3],tp[i+4]] # pos and [base,allele,qual]
+				sp[tp[i+1]] = [tp[i+2], tp[i+3], tp[i+4]] # pos and [base,allele,qual]
 			if tp[i] == "#" :
 				cp = int(tp[i+1]) # count
 				mp = int(tp[i+2]) # mapq
@@ -61,9 +61,9 @@ def main():
 		if n == np : # end e pairs up with end ep
 			# output merged pair (a read)
 			uup = 0
-			if (c+cp)>1 :
-				for p in sorted(s.keys()) :
-					print(p + " " + s[p][0] + " " + s[p][1] + " " + s[p][2] + " : ", end='')
+			if (count+cp)>1 :
+				for p in sorted(snps.keys()) :
+					print(p + " " + snps[p][0] + " " + snps[p][1] + " " + snps[p][2] + " : ", end='')
 				print("-- : ", end='') # add a symbol for gap in paired-end reads
 				for p in sorted(sp.keys()) :
 					print(p + " " + sp[p][0] + " " + sp[p][1] + " " + sp[p][2] + " : ", end='')
@@ -72,7 +72,7 @@ def main():
 	#                uup = 'U'
 	#            else:
 	#                uup = 'R'
-				print("# " + str(m) + " " + str(mp) + " : " + uup) # old: str((m+mp)/2.0) + " " + uup
+				print("# " + str(mapq) + " " + str(mp) + " : " + uup) # old: str((mapq+mp)/2.0) + " " + uup
 				# note: replace avg of mapq's and display both
 
 			# get new end for next iter
@@ -81,27 +81,27 @@ def main():
 				break
 			t = e.split()
 			n = t[0]
-			c = 0
-			m = 0
+			count = 0
+			mapq = 0
 			u = 0
-			s = {}
+			snps = {}
 			for i in range(len(t)):
 				if t[i] == ":":
-					s[t[i+1]] = [t[i+2],t[i+3],t[i+4]]
+					snps[t[i+1]] = [t[i+2], t[i+3], t[i+4]]
 				if t[i] == "#":
-					c = int(t[i+1])
-					m = int(t[i+2])
+					count = int(t[i+1])
+					mapq = int(t[i+2])
 					u = t[i+3]
 		else:
-			if c > 1: # simply print end
-				for p in sorted(s.keys()) :
-					print(p + " " + s[p][0] + " " + s[p][1] + " " + s[p][2] + " : ", end='')
-				print("# " + str(m) + " : " + u)
+			if count > 1: # simply print end
+				for p in sorted(snps.keys()) :
+					print(p + " " + snps[p][0] + " " + snps[p][1] + " " + snps[p][2] + " : ", end='')
+				print("# " + str(mapq) + " : " + u)
 			e = ep # and use ep for end of next iter
 			n = np
-			c = cp
-			m = mp
-			s = sp
+			count = cp
+			mapq = mp
+			snps = sp
 			u = up
 
 
