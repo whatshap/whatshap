@@ -12,19 +12,8 @@ import sys
 import pysam
 import gzip
 
-if len(sys.argv) < 5:
-	print("usage : " + str(sys.argv[0]) + " [bam file] [.vcf file] [chromosome] [VCF individual(s)]", file=sys.stderr)
-	sys.exit(1)
 
-# NOTE: we assume that there are only M,I,D,S (no N,H,P,=,X) in any
-# CIGAR alignment of the bam file
-bam = sys.argv[1] #bam = "/data1/gonl/chr22.bam"
-vcfName = sys.argv[2] #vcfName = "gonl.release4.chr22.annotated.vcf.gz"
-chromosome = sys.argv[3] 
-individuals = sys.argv[4:] #individuals = "A21c" or = "A2a A2b", etc.
-
-
-def parse_vcf(path):
+def parse_vcf(path, chromosome, individuals):
 	# vcf file
 	if path.split(".")[len(path.split("."))-1] == "gz" :
 		vcfFile = gzip.open(path,"r") # file is gz'd
@@ -100,19 +89,8 @@ def parse_vcf(path):
 
 	return snpPos
 
-snpPos = parse_vcf(vcfName)
 
-# snpPos is a list. each entry is a list: [pos, ref, alt, hetinfo]
-
-lSnps = len(snpPos)
-print('Read %d SNPs on chromosome %s'%(lSnps,chromosome), file=sys.stderr)
-#for i in range(len(snpPos)) :
-    #print(snpPos[i])
-
-#sys.exit(0)
-
-
-def read_bam(path):
+def read_bam_and_print_result(path, chromosome, snpPos):
 	# bam file
 
 	# first we get some header info, etc.
@@ -141,6 +119,8 @@ def read_bam(path):
 		#fName = pf + "-" + str(e) + ".ends"
 		#rgF[e] = open(fName,"w");
 
+
+	lSnps = len(snpPos)
 
 	# now we loop through the bam file
 	i = 0 # to keep track of position in snpPos array (which is in order)
@@ -230,5 +210,32 @@ def read_bam(path):
 #   - mapping quality
 #   - "NA"
 
+def main():
 
-read_bam(bam)
+	if len(sys.argv) < 5:
+		print("usage : " + str(sys.argv[0]) + " [bam file] [.vcf file] [chromosome] [VCF individual(s)]", file=sys.stderr)
+		sys.exit(1)
+
+	# NOTE: we assume that there are only M,I,D,S (no N,H,P,=,X) in any
+	# CIGAR alignment of the bam file
+	bam = sys.argv[1] #bam = "/data1/gonl/chr22.bam"
+	vcfName = sys.argv[2] #vcfName = "gonl.release4.chr22.annotated.vcf.gz"
+	chromosome = sys.argv[3]
+	individuals = sys.argv[4:] #individuals = "A21c" or = "A2a A2b", etc.
+
+	snpPos = parse_vcf(vcfName, chromosome, individuals)
+
+	# snpPos is a list. each entry is a list: [pos, ref, alt, hetinfo]
+
+	lSnps = len(snpPos)
+	print('Read %d SNPs on chromosome %s'%(lSnps,chromosome), file=sys.stderr)
+	#for i in range(len(snpPos)) :
+		#print(snpPos[i])
+
+	#sys.exit(0)
+
+	read_bam_and_print_result(bam, chromosome, snpPos)
+
+
+if __name__ == '__main__':
+	main()
