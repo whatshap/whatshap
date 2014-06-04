@@ -19,11 +19,14 @@ class CoverageMonitor:
 	'''TODO: This is a most simple, naive implementation. Could do this smarter.'''
 	def __init__(self, length):
 		self.coverage = [0] * length
+
 	def max_coverage_in_range(self, begin, end):
 		return max(self.coverage[begin:end])
+
 	def add_read(self, begin, end):
 		for i in xrange(begin,end):
 			self.coverage[i] += 1
+
 
 def position_set(read_list):
 	result = set()
@@ -32,10 +35,12 @@ def position_set(read_list):
 			result.add(pos)
 	return result
 
+
 def read_cmp(read_record1, read_record2):
 	read1, suffix1, line1 = read_record1
 	read2, suffix2, line2 = read_record2
 	return cmp(read1[0][0], read2[0][0])
+
 
 def main():
 	parser = OptionParser(usage=usage)
@@ -51,7 +56,7 @@ def main():
 	output_prefix = args[1]
 	
 	position_list = wif_to_position_list(input_filename)
-	print('Found %d SNP positions'%len(position_list), file=sys.stderr)
+	print('Found %d SNP positions' % len(position_list), file=sys.stderr)
 	
 	# dictionary to map SNP position to its index
 	position_to_index = dict((position,index) for index,position in enumerate(position_list))
@@ -97,6 +102,7 @@ def main():
 		for read, suffix, line in read_list:
 			print(line, file=slice_file)
 		slice_file.close()
+
 
 if __name__ == '__main__':
 	sys.exit(main())
