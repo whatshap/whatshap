@@ -45,6 +45,12 @@ def main():
 				haplotype[position_to_index[pos]] = str(bit)
 			else:
 				print('Warning: super read contains unknown SNP position:', pos, file=sys.stderr)
+		for i, p, h in zip(range(len(position_list)), position_list, haplotype):
+			print(p, h)
+			if connected and i < len(position_list) - 1 and not connected[i] and haplotype[i] != '-' and haplotype[i+1] != '-':
+				print('---')
+
+
 		# If information on "SNP deserts" is available, then input "|" symbols to separate unconnected components
 		if connected != None:
 			for i in xrange(len(connected) - 1, -1, -1):
@@ -52,5 +58,6 @@ def main():
 					haplotype.insert(i+1, '|')
 		print(''.join(haplotype))
 
+
 if __name__ == '__main__':
-	sys.exit(main())
+	main()
