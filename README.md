@@ -12,6 +12,12 @@ E notation. It can introduce rounding errors and should therefore only be used
 when necessary, see <http://stackoverflow.com/questions/1255782/>.
 
 
+GATK's phased VCF
+-----------------
+
+	awk 'length($4) == 1 && length($5) == 1 { print($2, $10)}' scaffold221-gatk-phased.vcf|cut -d: -f1
+
+
 Herring example
 ---------------
 
@@ -41,7 +47,8 @@ sorted-pre-wif
 --------------
 
 * same as above, but sorted by read name
-* stable sort is used, that is, identically named reads are sorted by position
+* stable sort is used, that is, identically named reads are sorted in the same way they were
+  output by the getEnds script
 
 wif
 ---
