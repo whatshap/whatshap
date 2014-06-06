@@ -62,4 +62,4 @@ wif
 result.txt
 ----------
 
-* two lines are output. they are equivalent: swap 0 and 1 in the first and you get the second.
+* two lines are output. If option "--all_het" is used when calling dp, they are equivalent: swap 0 and 1 in the first and you get the second; if not, some positions might be identified as homozygous. 
