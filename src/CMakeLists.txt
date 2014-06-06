@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 2.6) 
 
-find_package(Boost 1.36 COMPONENTS program_options iostreams unit_test_framework REQUIRED)
+find_package(Boost 1.36 COMPONENTS program_options REQUIRED)
 
 add_executable (dp
   entry.h
