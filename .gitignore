@@ -3,3 +3,6 @@ venv
 *.pyc
 *~
 .*.kate-swp
+.snakemake/
+data/
+tmp/
