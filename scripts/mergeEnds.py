@@ -91,7 +91,8 @@ def main():
 					print(p + " " + snps[p][0] + " " + snps[p][1] + " " + snps[p][2] + " : ", end='')
 				print("# " + str(mapq) + " : " + is_unique)
 			else:
-				print('not printing', snps, file=sys.stderr)
+				pass
+				#print('not printing', snps, file=sys.stderr)
 			e = ep # and use ep for end of next iter
 			name = np
 			count = cp
