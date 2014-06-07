@@ -6,6 +6,8 @@ Only the first sample is considered.
 
 Only SNPs are considered (indels are treated as if they did not exist).
 Homozygous calls are also ignored.
+
+TODO make sure this works when there's more than one chromosome in the VCF
 """
 import sys
 import argparse
