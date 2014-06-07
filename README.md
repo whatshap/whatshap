@@ -18,18 +18,28 @@ GATK's phased VCF
 	awk 'length($4) == 1 && length($5) == 1 { print($2, $10)}' scaffold221-gatk-phased.vcf|cut -d: -f1
 
 
+Fix scaffold221
+---------------
+
+(perhaps unnecessary)
+
+	samtools view -h scaffold221.bam | awk -vOFS="\t" '!/^@/ && $7=="*"{$8=0;$2=or($2,8)};1'|samtools view -bS - > scaffold221-fixed-tmp.bam
+	picard-tools FixMateInformation I=scaffold221-fixed.bam O=scaffold221-fixed.bam
+
+
 Herring example
 ---------------
 
 	mkdir build && cd build && cmake ../src && make && cd ..
-	scripts/getEnds-vcf.py scaffold221-moleculo.bam scaffold221.vcf scaffold221 sill2 > scaffold221.pre-wif
-	sort -k1,1 --stable scaffold221.pre-wif > scaffold221.sorted-pre-wif
-	scripts/mergeEnds.py scaffold221.sorted-pre-wif | sort -k 1,1 -n > scaffold221.wif
-	shuf scaffold221.wif > scaffold221.shuffled-wif
-	scripts/tobis-slicer.py -H 20 scaffold221.shuffled-wif scaffold221.slice
-	build/dp --all_het scaffold221.slice.00.wif > scaffold221.super-reads.wif
-	scripts/extract-het-pos.py scaffold221 scaffold221.vcf > scaffold221.positions
-	scripts/superread-to-haplotype.py -O scaffold221.wif scaffold221.super-reads.wif scaffold221.positions > result.txt
+
+	scripts/getEnds-vcf.py data/scaffold221-moleculo.bam data/scaffold221.vcf scaffold221 sill2 > scaffold221.pre-wif
+	sort -k1,1 --stable data/scaffold221.pre-wif > data/scaffold221.sorted-pre-wif
+	scripts/mergeEnds.py data/scaffold221.sorted-pre-wif | sort -k 1,1 -n > data/scaffold221.wif
+	shuf scaffold221.wif > data/scaffold221.shuffled-wif
+	scripts/tobis-slicer.py -H 20 data/scaffold221.shuffled-wif data/scaffold221.slice
+	build/dp --all_het data/scaffold221.slice.00.wif > data/scaffold221.super-reads.wif
+	scripts/extract-het-pos.py scaffold221 data/scaffold221.vcf > data/scaffold221.positions
+	scripts/superread-to-haplotype.py -O data/scaffold221.wif data/scaffold221.super-reads.wif data/scaffold221.positions > result.txt
 
 
 pre-wif
@@ -62,4 +72,22 @@ wif
 result.txt
 ----------
 
-* two lines are output. If option "--all_het" is used when calling dp, they are equivalent: swap 0 and 1 in the first and you get the second; if not, some positions might be identified as homozygous. 
+* two lines are output. If option "--all_het" is used when calling dp, they are equivalent: swap 0 and 1 in the first and you get the second; if not, some positions might be identified as homozygous.
+
+
+Experimental setup
+------------------
+
+* Call variants (with freebayes) on scaffold221 (1.2 Mbp) of the herring assembly, using all available reads:
+	* mate-pair reads (insert sizes 2k, 5k, 10k, 20k)
+	* 2x100 paired-end reads (insert sizes 180, 500, 800)
+	* 2x150 MiSeq PE reads
+	* Moleculo
+* Use the following subsets of data for phasing:
+	* Moleculo only
+	* Moleculo and mate pairs
+	* Mate pairs only (?)
+* Phase with GATK's ReadBackedPhasing
+* Phase with whatshap
+
+	freebayes -m 1 -f scaffold221.fasta scaffold221-all.bam > scaffold221.vcf
