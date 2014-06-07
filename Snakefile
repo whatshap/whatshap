@@ -62,7 +62,7 @@ rule extract_het_pos:
 		'/usr/bin/python scripts/extract-het-pos.py {wildcards.chrom} {input.vcf} > {output}'
 
 rule superread_to_haplotype:
-	input: wif='tmp/{chrom}-{subset}.wif', superwif='tmp/{chrom}-{subset}.super-reads.wif', positions='tmp/{chrom}.positions'
+	input: wif='tmp/{chrom}-{subset}.slice.00.wif', superwif='tmp/{chrom}-{subset}.super-reads.wif', positions='tmp/{chrom}.positions'
 	output: 'result/{chrom}-{subset}.txt'
 	shell:
 		'/usr/bin/python scripts/superread-to-haplotype.py -O {input.wif} {input.superwif} {input.positions} > {output}'
