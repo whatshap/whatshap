@@ -10,30 +10,28 @@ tailored toward processing GoNL vcf files -- Alex Schoenhuth
 from __future__ import print_function
 import sys
 import pysam
+import vcf
 import gzip
 
-
 def parse_vcf(path, chromosome, individuals):
-	# vcf file
-	if path.split(".")[len(path.split("."))-1] == "gz" :
-		vcfFile = gzip.open(path,"r") # file is gz'd
-	else : vcfFile = open(path,"r") # else it is not
+
+
 
 	snpPos = []
 	index = -1
-	indices = []
-	for line in vcfFile.readlines() :
-		line = line.strip()
-		if line[:2] == '##':
-			#print("header line", file=sys.stderr)
+	indices = None
+	for record in vcf.Reader(filename=path):
+		if record.CHROM != chromosome:
+			# TODO use .fetch to avoid iterating over entire file
 			continue
-		tk = line.split()
-		if tk[0] == '#CHROM':
-			print("Determining indices", file=sys.stderr)
-			for j, item in enumerate(tk):
-				if item in individuals:
-					indices.append((j,item))
-					#break
+		if not record.is_snp:
+			continue
+		if len(record.ALT) != 1:
+			print("reading VCFs with multiple ALTs not correctly implemented", file=sys.stderr)
+			continue
+
+		if indices is None:
+			indices = [ (i, call.sample) for i, call in enumerate(record.samples) if call.sample in individuals ]
 			if len(indices) == 0:
 				print("Error: none of the individuals found in vcf", file=sys.stderr)
 				sys.exit(1)
@@ -45,17 +43,22 @@ def parse_vcf(path, chromosome, individuals):
 				for indtup in indices:
 					outstring += "%d " % (indtup[0])
 				print(outstring, file=sys.stderr)
-			continue
-		if tk[0] != chromosome:
-			continue
-		if len(tk[3]) != 1 or len(tk[4]) != 1: # no snp in vcf
-			#print("No Snp line found, %s" % (tk[1]), file=sys.stderr) # just to avoid polluting stderr
-			continue
-		#print(tk[index], file=sys.stderr)
+
 		het = False
 		for index in [x[0] for x in indices]:
-			hetinfo = tk[index].split(':')[0]
-			het = het or hetinfo in ['0|1', '1|0', '.|1', '1|.', '0/1', '1/0']
+			call = record.samples[index]
+
+			if False:
+				print(
+					'pos {:10d}'.format(record.start),
+					'alleles:', record.alleles,
+					call.gt_alleles,
+					'phased:', int(call.phased),
+					'het:', int(call.is_het),
+					'bases:', call.gt_bases
+				)
+
+			het = het or call.is_het
 			# TODO 1/1 and 1/2
 
 			#het = het or tk[index] == '0|1' or tk[index] == '1|0'
@@ -67,24 +70,22 @@ def parse_vcf(path, chromosome, individuals):
 			# ... etc. in cases where we have unphased data; so keep this
 			# in mind also -- murray
 		if not het:
-			print("not a heterozygous snp for any of the individuals, snp %s" % (tk[1]), file=sys.stderr)
+			print("not a heterozygous snp for any of the individuals, snp %s" % (record.POS), file=sys.stderr)
 			#% (individual, tk[1]), file=sys.stderr)
 			continue
 		else: # found a heterozygous snp for the individual
 
-			# tk[0]: chrom
-			# tk[1]: pos
-			# tk[2]: id
-			# tk[3]: ref
-			# tk[4]: alt
-			snp_info = [int(tk[1]), tk[3], tk[4]]
-			#print('snpPos:', snpPos, file=sys.stderr)
+			# TODO deal with len(ALT) > 1
+			snp_info = [record.POS, record.REF, record.ALT[0]]
 			for index in [x[0] for x in indices]:
+				"""
+				TODO
 				v = tk[index].split(':')[0]
 				if v in ('.|1', '0/1'): v = '0|1' # just to disambiguate what
 				elif v in ('1|.', '1/0'): v = '1|0' # was mentioned above
 				snp_info.append(v)
-			#print(snpPos[i])
+				"""
+				snp_info.append('XXX')
 			snpPos.append(snp_info)
 
 	return snpPos
