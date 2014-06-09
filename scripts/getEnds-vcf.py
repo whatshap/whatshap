@@ -264,8 +264,8 @@ def merge_ends_and_print_result(variants):
 			# seems we are at EOF
 			if count > 1: # so simply print end e
 				for p in sorted(snps.keys()) : # careful: the default is lists in no particular order, but we want snps to be ordered on their fragment
-					print(p + " " + snps[p][0] + " " + snps[p][1] + " " + snps[p][2] + " : ", end='')
-				print("# " + str(mapq) + " : " + is_unique)
+					print(p, snps[p][0], snps[p][1], snps[p][2], ": ", end='')
+				print("#", mapq, ":", is_unique)
 			break
 
 		# everything with the 'p' suffix is from the second (paired) read
@@ -276,16 +276,16 @@ def merge_ends_and_print_result(variants):
 			uup = 0
 			if count + cp > 1:
 				for p in sorted(snps.keys()):
-					print(p + " " + snps[p][0] + " " + snps[p][1] + " " + snps[p][2] + " : ", end='')
+					print(p, snps[p][0], snps[p][1], snps[p][2], ": ", end='')
 				print("-- : ", end='') # add a symbol for gap in paired-end reads
 				for p in sorted(sp.keys()) :
-					print(p + " " + sp[p][0] + " " + sp[p][1] + " " + sp[p][2] + " : ", end='')
+					print(p, sp[p][0], sp[p][1], sp[p][2], ": ", end='')
 				uup = "%s %s" % (is_unique,up)
 	#            if is_unique == up == 'U': # uniquely mapped if both ends are
 	#                uup = 'U'
 	#            else:
 	#                uup = 'R'
-				print("# " + str(mapq) + " " + str(mp) + " : " + uup) # old: str((mapq+mp)/2.0) + " " + uup
+				print("#", mapq, mp, ":", uup) # old: str((mapq+mp)/2.0) + " " + uup
 				# note: replace avg of mapq's and display both
 
 			# get new end for next iter
@@ -296,9 +296,9 @@ def merge_ends_and_print_result(variants):
 			name, count, mapq, is_unique, snps = parse_line(e)
 		else:
 			if count > 1: # simply print end
-				for p in sorted(snps.keys()) :
-					print(p + " " + snps[p][0] + " " + snps[p][1] + " " + snps[p][2] + " : ", end='')
-				print("# " + str(mapq) + " : " + is_unique)
+				for p in sorted(snps.keys()):
+					print(p, snps[p][0], snps[p][1], snps[p][2], ": ", end='')
+				print("#", mapq, ":", is_unique)
 			else:
 				pass
 				#print('not printing', snps, file=sys.stderr)
