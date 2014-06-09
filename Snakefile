@@ -7,6 +7,31 @@ SUBSETS = ['moleculo', 'mp', 'moleculomp']
 rule all:
 	input: expand('result/{chrom}-{subset}.txt', chrom=CHROMOSOMES, subset=SUBSETS)
 
+rule rgmp_list:
+	'Create list of matepair read groups'
+	output: rgs='tmp/rgs-mp.txt'
+	run:
+		with open(output.rgs, 'w') as f:
+			for rg in '10k 20ka 20kb 20kc 5k bgi2ka bgi2kb'.split():
+				print(rg, file=f)
+
+rule fix_unmapped_mates:
+	"""Mark mates as unmapped if the reference they are mapped to is set to "*".
+	"""
+	input: bam='data/scaffold221-unfixed.bam'
+	output: bam='data/scaffold221.bam'
+	shell:
+		"""samtools view -h {input.bam} | awk -vOFS="\t" '!/^@/ && $7=="*"{{$8=0;$2=or($2,8)}};1' | samtools view -bS - > {output.bam}"""
+		#picard-tools FixMateInformation I=scaffold221-fixed-tmp.bam O=scaffold221-fixed.bam
+
+
+rule mpbam:
+	'Create the mate-pair BAM file'
+	input: bam='data/{chrom}.bam', rgs='tmp/rgs-mp.txt'
+	output: bam='data/{chrom}-mp.bam'
+	run:
+		shell('samtools view -b -R {input.rgs} {input.bam} > {output.bam}')
+
 rule merge_moleculomp:
 	input: bam1='data/{chrom}-moleculo.bam', bam2='data/{chrom}-mp.bam'
 	output: bam='data/{chrom}-moleculomp.bam'
