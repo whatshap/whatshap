@@ -9,14 +9,17 @@ tailored toward processing GoNL vcf files -- Alex Schoenhuth
 """
 from __future__ import print_function
 import sys
+from collections import namedtuple
+try:
+	from sqt import HelpfulArgumentParser as ArgumentParser
+except:
+	from argparse import ArgumentParser
 import pysam
 import vcf
 import gzip
 
-def parse_vcf(path, chromosome, individuals):
 
-
-
+def parse_vcf(path, chromosome, sample_names):
 	snpPos = []
 	index = -1
 	indices = None
@@ -31,12 +34,12 @@ def parse_vcf(path, chromosome, individuals):
 			continue
 
 		if indices is None:
-			indices = [ (i, call.sample) for i, call in enumerate(record.samples) if call.sample in individuals ]
+			indices = [ (i, call.sample) for i, call in enumerate(record.samples) if call.sample in sample_names ]
 			if len(indices) == 0:
-				print("Error: none of the individuals found in vcf", file=sys.stderr)
+				print("Error: none of the sample names found in vcf", file=sys.stderr)
 				sys.exit(1)
 			else:
-				outstring = "Found individuals "
+				outstring = "Found samples "
 				for indtup in indices:
 					outstring += "%s " % (indtup[1])
 				outstring += "in columns "
@@ -70,7 +73,7 @@ def parse_vcf(path, chromosome, individuals):
 			# ... etc. in cases where we have unphased data; so keep this
 			# in mind also -- murray
 		if not het:
-			print("not a heterozygous snp for any of the individuals, snp %s" % (record.POS), file=sys.stderr)
+			print("not a heterozygous SNP for any of the samples, SNP %s" % (record.POS), file=sys.stderr)
 			#% (individual, tk[1]), file=sys.stderr)
 			continue
 		else: # found a heterozygous snp for the individual
@@ -91,19 +94,27 @@ def parse_vcf(path, chromosome, individuals):
 	return snpPos
 
 
-def read_bam_and_print_result(path, chromosome, snpPos):
-	# bam file
+# list of variants that belong to a single read
+ReadVariantList = namedtuple('ReadVariantList', 'name mapq variants')
+
+# a single variant on a read
+ReadVariant = namedtuple('ReadVariant', 'position base allele quality')
+
+
+def read_bam(path, chromosome, snpPos, mapq_threshold=20):
+	# NOTE: we assume that there are only M,I,D,S (no N,H,P,=,X) in any
+	# CIGAR alignment of the bam file
 
 	# first we get some header info, etc.
-	samFile = pysam.Samfile(path,"rb")
+	samfile = pysam.Samfile(path, "rb")
 
-	target_tid = samFile.gettid(chromosome)
+	target_tid = samfile.gettid(chromosome)
 	if target_tid < 0:
-		print('Error chromosome unknown in BAM file', file=sys.stderr)
+		print('ERROR: chromosome unknown in BAM file', file=sys.stderr)
 		sys.exit(1)
 
 	#rgMap = {} # get mapping from each read tech to its group
-	#for r in samFile.header['RG'] :
+	#for r in samfile.header['RG'] :
 		#rgMap[r['ID']] = r['SM']
 	#if(len(rgMap)==0) :
 		#print("error : no read groups in BAM header")
@@ -121,21 +132,25 @@ def read_bam_and_print_result(path, chromosome, snpPos):
 		#rgF[e] = open(fName,"w");
 
 
-	lSnps = len(snpPos)
+	# resulting list of ReadVariantList objects
+	result = []
 
 	# now we loop through the bam file
 	i = 0 # to keep track of position in snpPos array (which is in order)
-	# the assumption is that reads in samFile are ordered by position
-	# one can use samFile.fetch() for doing that
-	for read in samFile.fetch() :
+	# the assumption is that reads in samfile are ordered by position
+	# one can use samfile.fetch() for doing that
+	for read in samfile:
 		if read.tid != target_tid: continue
 		# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
 		if read.flag & 2048 != 0:
-			#print('Skipping additional alignment for read ', read.qname)
+			# print('Skipping additional alignment for read ', read.qname)
 			continue
-		if read.is_secondary: continue
-		if read.is_unmapped: continue
-		if read.mapq < 20: continue
+		if read.is_secondary:
+			continue
+		if read.is_unmapped:
+			continue
+		if read.mapq < mapq_threshold:
+			continue
 
 		# only reads with a nonempty cigar string (i.e., mapped) are considered
 		cigar = read.cigar
@@ -143,19 +158,19 @@ def read_bam_and_print_result(path, chromosome, snpPos):
 			continue
 		#f = rgF[rgMap[read.opt('RG')]]
 		# convert from BAM zero-based coords to 1-based
-		pos = int(read.pos)+1
+		pos = int(read.pos) + 1
 
 		# since reads are ordered by position, we need not consider
 		# positions that are too small
-		while i < lSnps and snpPos[i][0] < pos:
+		while i < len(snpPos) and snpPos[i][0] < pos:
 			i += 1
 
-		c = 0 # hit count
-		j = i # another index into snpPos
+		c = 0  # hit count
+		j = i  # another index into snpPos
 		p = pos
-		s = 0 # absolute index into the read string [0..len(read)]
+		s = 0  # absolute index into the read string [0..len(read)]
 		# assuming that CIGAR contains only M,I,D,S
-		fl = read.qname
+		variants = []
 		#print('Processing read', fl, file=sys.stderr)
 		for cigar_op, length in cigar:
 			#print('  cigar:', cigar_op, length, file=sys.stderr)
@@ -164,11 +179,11 @@ def read_bam_and_print_result(path, chromosome, snpPos):
 				p_next = p + length
 				r = p + length  # size of this subregion
 				# skip over all SNPs that come before this region
-				while j < lSnps and snpPos[j][0] < p:
+				while j < len(snpPos) and snpPos[j][0] < p:
 					j += 1
 				# iterate over all positions in this subregion and
 				# check whether any of them coincide with one of the SNPs ('hit')
-				while j < lSnps and p < r:
+				while j < len(snpPos) and p < r:
 					if snpPos[j][0] == p: # we have a hit
 						base = read.seq[s:s+1].decode()
 						if base == snpPos[j][1]:
@@ -177,7 +192,8 @@ def read_bam_and_print_result(path, chromosome, snpPos):
 							al = '1'  # ALT allele
 						else:
 							al = 'E' # for "error" (keep for stats purposes)
-						fl += " : " + str(p) + " " + str(base) + " " + al + " " + str(ord(read.qual[s:s+1])-33) # 34 is the phred score offset in bam files
+						rv = ReadVariant(position=p, base=base, allele=al, quality=ord(read.qual[s:s+1])-33)
+						variants.append(rv)
 						c += 1
 						j += 1
 					s += 1 # advance both read and reference
@@ -195,8 +211,20 @@ def read_bam_and_print_result(path, chromosome, snpPos):
 			else:
 				print("error: invalid cigar operation:", cigar_op)
 				sys.exit(1)
-		fl += " # " + str(c) + " " + str(read.mapq) + " " + "NA"
-		if c > 0: print(fl)
+
+		#fl += " # " + str(c) + " " + str(read.mapq) + " " + "NA"
+		if c > 0:
+			rvl = ReadVariantList(name=read.qname, mapq=read.mapq, variants=variants)
+			result.append(rvl)
+	return result
+
+
+def print_wif(reads):
+	for read in reads:
+		print(read.name, end='')
+		for variant in read.variants:
+			print(' : {position} {base} {allele} {quality}'.format(**vars(variant)), end='')
+		print(" # {} {} NA".format(len(read.variants), read.mapq))
 
 # output columns:
 # - read.qname
@@ -213,30 +241,21 @@ def read_bam_and_print_result(path, chromosome, snpPos):
 #   - "NA"
 
 def main():
+	parser = ArgumentParser(description=__doc__)
+	parser.add_argument('bam', metavar='BAM', help='BAM file')
+	parser.add_argument('vcf', metavar='VCF', help='VCF file')
+	parser.add_argument('chromosome', help='chromosome to consider')
+	parser.add_argument('samples', metavar='sample', nargs='+', help='name(s) of the samples to consider')
+	args = parser.parse_args()
 
-	if len(sys.argv) < 5:
-		print("usage : " + str(sys.argv[0]) + " [bam file] [.vcf file] [chromosome] [VCF individual(s)]", file=sys.stderr)
-		sys.exit(1)
-
-	# NOTE: we assume that there are only M,I,D,S (no N,H,P,=,X) in any
-	# CIGAR alignment of the bam file
-	bam = sys.argv[1] #bam = "/data1/gonl/chr22.bam"
-	vcfName = sys.argv[2] #vcfName = "gonl.release4.chr22.annotated.vcf.gz"
-	chromosome = sys.argv[3]
-	individuals = sys.argv[4:] #individuals = "A21c" or = "A2a A2b", etc.
-
-	snpPos = parse_vcf(vcfName, chromosome, individuals)
+	snpPos = parse_vcf(args.vcf, args.chromosome, args.samples)
 
 	# snpPos is a list. each entry is a list: [pos, ref, alt, hetinfo]
 
-	lSnps = len(snpPos)
-	print('Read %d SNPs on chromosome %s'%(lSnps,chromosome), file=sys.stderr)
-	#for i in range(len(snpPos)) :
-		#print(snpPos[i])
+	print('Read %d SNPs on chromosome %s' % (len(snpPos), args.chromosome), file=sys.stderr)
 
-	#sys.exit(0)
-
-	read_bam_and_print_result(bam, chromosome, snpPos)
+	reads_with_variants = read_bam(args.bam, args.chromosome, snpPos)
+	print_wif(reads_with_variants)
 
 
 if __name__ == '__main__':
