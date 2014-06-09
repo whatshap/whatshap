@@ -240,27 +240,43 @@ def parse_line(line):
 	return name, count, mapq, is_unique, snps
 """
 
+def parse_line(it):
+	tmp = next(it)
+	name = tmp.name
+	count = len(tmp.variants)
+	mapq = tmp.mapq
+	is_unique = 'NA'  # TODO
+	# TODO remove str()
+	snps = dict((str(snp.position), (snp.base, snp.allele, snp.quality)) for snp in tmp.variants)
+	return name, count, mapq, is_unique, snps
+
+
 def merge_ends_and_print_result(variants):
-	if len(sys.argv) < 2 :
-		print("usage : " + str(sys.argv[0]) + " endsFile")
-		sys.exit(0)
-
-	f = open(sys.argv[1],"r")
-
-	# get first end
-	e = f.readline()
-	if not e :
-		print("file is empty")
-		sys.exit(0)
-
 	# snps maps a position to a list [base, allele, quality]
 	# parse the first line
-	name, count, mapq, is_unique, snps = parse_line(e)
 
-	# parse the remaining lines
-	while True:
-		ep = f.readline() # get second end
-		if not ep: # no ep: end e is unpaired
+	prev_record = None
+	for record in variants:
+
+		if prev_record and prev_record.name == record.name:
+			# found a paired-end read
+			record = merge_reads(record, prev_record)
+		else:
+			# print out previous record here
+			# may be merged or not
+			if len(record.variants) > 1:
+				...
+
+		prev_record = record
+
+
+	name, count, mapq, is_unique, snps = parse_line(it)
+		try:
+			# everything with the 'p' suffix is from the second (paired) read
+			np, cp, mp, up, sp = parse_line(it)
+			tmp = next(it)
+		except StopIteration:
+			# no ep: end e is unpaired
 			# seems we are at EOF
 			if count > 1: # so simply print end e
 				for p in sorted(snps.keys()) : # careful: the default is lists in no particular order, but we want snps to be ordered on their fragment
@@ -268,10 +284,7 @@ def merge_ends_and_print_result(variants):
 				print("#", mapq, ":", is_unique)
 			break
 
-		# everything with the 'p' suffix is from the second (paired) read
-		np, cp, mp, up, sp = parse_line(ep)
-
-		if name == np: # end e pairs up with end ep
+		if name == np:  # end e pairs up with end ep
 			# output merged pair (a read)
 			uup = 0
 			if count + cp > 1:
@@ -288,12 +301,12 @@ def merge_ends_and_print_result(variants):
 				print("#", mapq, mp, ":", uup) # old: str((mapq+mp)/2.0) + " " + uup
 				# note: replace avg of mapq's and display both
 
+			assert False
 			# get new end for next iter
-			e = f.readline()
-			if not e:
+			try:
+				name, count, mapq, is_unique, snps = parse_line(bobbel)
+			except StopIteration:
 				break
-
-			name, count, mapq, is_unique, snps = parse_line(e)
 		else:
 			if count > 1: # simply print end
 				for p in sorted(snps.keys()):
@@ -302,13 +315,12 @@ def merge_ends_and_print_result(variants):
 			else:
 				pass
 				#print('not printing', snps, file=sys.stderr)
-			e = ep # and use ep for end of next iter
+			#e = ep # and use ep for end of next iter
 			name = np
 			count = cp
 			mapq = mp
 			snps = sp
 			is_unique = up
-
 
 
 def print_wif(reads):

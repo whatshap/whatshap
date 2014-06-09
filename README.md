@@ -3,6 +3,11 @@ WhatsHap
 
 This repository is for Marcel's changes.
 
+To Do
+-----
+
+* rename getEnds-vcf.py
+* build sorting into getEnds-vcf.py
 
 Notes
 -----
@@ -10,6 +15,16 @@ Notes
 `sort -g` is like `-n`, but can also sort floating point numbers and knows about
 E notation. It can introduce rounding errors and should therefore only be used
 when necessary, see <http://stackoverflow.com/questions/1255782/>.
+
+
+Phasing in VCFs
+---------------
+
+* originally only via 0|1 and 1|0 etc per entry
+* then a 'phase set' (PS) added to INFO field: entries with same PS are in same set of phased genotypes
+* GATK's ReadBackedPhasing in newer versions use the 'HP' tag instead, see
+  https://gatkforums.broadinstitute.org/discussion/4226/
+  https://gatkforums.broadinstitute.org/discussion/4038/
 
 
 GATK's phased VCF
@@ -24,7 +39,7 @@ Fix scaffold221
 (perhaps unnecessary)
 
 	samtools view -h scaffold221.bam | awk -vOFS="\t" '!/^@/ && $7=="*"{$8=0;$2=or($2,8)};1'|samtools view -bS - > scaffold221-fixed-tmp.bam
-	picard-tools FixMateInformation I=scaffold221-fixed.bam O=scaffold221-fixed.bam
+	picard-tools FixMateInformation I=scaffold221-fixed-tmp.bam O=scaffold221-fixed.bam
 
 
 Herring example
