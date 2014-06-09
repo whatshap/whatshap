@@ -50,14 +50,8 @@ rule getends:
 	shell:
 		'venv/bin/python scripts/getEnds-vcf.py {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.prewif}'
 
-rule sortprewif:
-	input: '{f}.pre-wif'
-	output: '{f}.sorted-pre-wif'
-	shell:
-		'LC_ALL=C sort -k1,1 --stable {input} > {output}'
-
 rule mergeends:
-	input: '{f}.sorted-pre-wif'
+	input: '{f}.pre-wif'
 	output: '{f}.wif'
 	shell:
 		'/usr/bin/python scripts/mergeEnds.py {input} | LC_ALL=C sort -k 1,1 -n > {output}'

@@ -6,6 +6,8 @@ set of positions per line); and also splits ends into their
 respective read groups -- Murray Patterson
 
 tailored toward processing GoNL vcf files -- Alex Schoenhuth
+
+output is sorted by read name
 """
 from __future__ import print_function
 import sys
@@ -253,6 +255,9 @@ def main():
 	print('Read %d SNPs on chromosome %s' % (len(variants), args.chromosome), file=sys.stderr)
 
 	reads_with_variants = read_bam(args.bam, args.chromosome, variants)
+
+	# sort by read name
+	reads_with_variants.sort(key=lambda r: r.name)
 	print_wif(reads_with_variants)
 
 
