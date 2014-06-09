@@ -54,13 +54,13 @@ rule sortprewif:
 	input: '{f}.pre-wif'
 	output: '{f}.sorted-pre-wif'
 	shell:
-		'sort -k1,1 --stable {input} > {output}'
+		'LC_ALL=C sort -k1,1 --stable {input} > {output}'
 
 rule mergeends:
 	input: '{f}.sorted-pre-wif'
 	output: '{f}.wif'
 	shell:
-		'/usr/bin/python scripts/mergeEnds.py {input} | sort -k 1,1 -n > {output}'
+		'/usr/bin/python scripts/mergeEnds.py {input} | LC_ALL=C sort -k 1,1 -n > {output}'
 
 rule shuffle:
 	input: '{f}.wif'
