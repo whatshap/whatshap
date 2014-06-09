@@ -20,7 +20,7 @@ import gzip
 
 
 def parse_vcf(path, chromosome, sample_names):
-	snpPos = []
+	variants = []
 	index = -1
 	indices = None
 	for record in vcf.Reader(filename=path):
@@ -89,9 +89,9 @@ def parse_vcf(path, chromosome, sample_names):
 				snp_info.append(v)
 				"""
 				snp_info.append('XXX')
-			snpPos.append(snp_info)
+			variants.append(snp_info)
 
-	return snpPos
+	return variants
 
 
 # list of variants that belong to a single read
@@ -101,7 +101,7 @@ ReadVariantList = namedtuple('ReadVariantList', 'name mapq variants')
 ReadVariant = namedtuple('ReadVariant', 'position base allele quality')
 
 
-def read_bam(path, chromosome, snpPos, mapq_threshold=20):
+def read_bam(path, chromosome, variants, mapq_threshold=20):
 	# NOTE: we assume that there are only M,I,D,S (no N,H,P,=,X) in any
 	# CIGAR alignment of the bam file
 
@@ -136,7 +136,7 @@ def read_bam(path, chromosome, snpPos, mapq_threshold=20):
 	result = []
 
 	# now we loop through the bam file
-	i = 0 # to keep track of position in snpPos array (which is in order)
+	i = 0 # to keep track of position in variants array (which is in order)
 	# the assumption is that reads in samfile are ordered by position
 	# one can use samfile.fetch() for doing that
 	for read in samfile:
@@ -162,15 +162,15 @@ def read_bam(path, chromosome, snpPos, mapq_threshold=20):
 
 		# since reads are ordered by position, we need not consider
 		# positions that are too small
-		while i < len(snpPos) and snpPos[i][0] < pos:
+		while i < len(variants) and variants[i][0] < pos:
 			i += 1
 
 		c = 0  # hit count
-		j = i  # another index into snpPos
+		j = i  # another index into variants
 		p = pos
 		s = 0  # absolute index into the read string [0..len(read)]
 		# assuming that CIGAR contains only M,I,D,S
-		variants = []
+		read_variants = []
 		#print('Processing read', fl, file=sys.stderr)
 		for cigar_op, length in cigar:
 			#print('  cigar:', cigar_op, length, file=sys.stderr)
@@ -179,21 +179,21 @@ def read_bam(path, chromosome, snpPos, mapq_threshold=20):
 				p_next = p + length
 				r = p + length  # size of this subregion
 				# skip over all SNPs that come before this region
-				while j < len(snpPos) and snpPos[j][0] < p:
+				while j < len(variants) and variants[j][0] < p:
 					j += 1
 				# iterate over all positions in this subregion and
 				# check whether any of them coincide with one of the SNPs ('hit')
-				while j < len(snpPos) and p < r:
-					if snpPos[j][0] == p: # we have a hit
+				while j < len(variants) and p < r:
+					if variants[j][0] == p: # we have a hit
 						base = read.seq[s:s+1].decode()
-						if base == snpPos[j][1]:
+						if base == variants[j][1]:
 							al = '0'  # REF allele
-						elif base == snpPos[j][2]:
+						elif base == variants[j][2]:
 							al = '1'  # ALT allele
 						else:
 							al = 'E' # for "error" (keep for stats purposes)
 						rv = ReadVariant(position=p, base=base, allele=al, quality=ord(read.qual[s:s+1])-33)
-						variants.append(rv)
+						read_variants.append(rv)
 						c += 1
 						j += 1
 					s += 1 # advance both read and reference
@@ -214,7 +214,7 @@ def read_bam(path, chromosome, snpPos, mapq_threshold=20):
 
 		#fl += " # " + str(c) + " " + str(read.mapq) + " " + "NA"
 		if c > 0:
-			rvl = ReadVariantList(name=read.qname, mapq=read.mapq, variants=variants)
+			rvl = ReadVariantList(name=read.qname, mapq=read.mapq, variants=read_variants)
 			result.append(rvl)
 	return result
 
@@ -248,13 +248,11 @@ def main():
 	parser.add_argument('samples', metavar='sample', nargs='+', help='name(s) of the samples to consider')
 	args = parser.parse_args()
 
-	snpPos = parse_vcf(args.vcf, args.chromosome, args.samples)
+	variants = parse_vcf(args.vcf, args.chromosome, args.samples)
 
-	# snpPos is a list. each entry is a list: [pos, ref, alt, hetinfo]
+	print('Read %d SNPs on chromosome %s' % (len(variants), args.chromosome), file=sys.stderr)
 
-	print('Read %d SNPs on chromosome %s' % (len(snpPos), args.chromosome), file=sys.stderr)
-
-	reads_with_variants = read_bam(args.bam, args.chromosome, snpPos)
+	reads_with_variants = read_bam(args.bam, args.chromosome, variants)
 	print_wif(reads_with_variants)
 
 
