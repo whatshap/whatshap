@@ -23,7 +23,7 @@ rule getends:
 	input: bam='data/{chrom}-{subset}.bam', bai='data/{chrom}-{subset}.bam.bai', vcf='data/{chrom}.vcf'
 	output: prewif='tmp/{chrom}-{subset}.pre-wif'
 	shell:
-		'/usr/bin/python scripts/getEnds-vcf.py {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.prewif}'
+		'scripts/getEnds-vcf.py {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.prewif}'
 
 rule sortprewif:
 	input: '{f}.pre-wif'

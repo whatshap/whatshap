@@ -1,12 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
+"""
+gets the heterozygous snp positions from a vcf file, and then
+gathers those snps that coincide with each read end (one read end's
+set of positions per line); and also splits ends into their
+respective read groups -- Murray Patterson
 
-# gets the heterozygous snp positions from a vcf file, and then
-# gathers those snps that coincide with each read end (one read end's
-# set of positions per line); and also splits ends into their
-# respective read groups -- Murray Patterson
-
-# tailored toward processing GoNL vcf files -- Alex Schoenhuth
-
+tailored toward processing GoNL vcf files -- Alex Schoenhuth
+"""
 from __future__ import print_function
 import sys
 import pysam
@@ -169,13 +169,14 @@ def read_bam_and_print_result(path, chromosome, snpPos):
 				# check whether any of them coincide with one of the SNPs ('hit')
 				while j < lSnps and p < r:
 					if snpPos[j][0] == p: # we have a hit
-						if read.seq[s] == snpPos[j][1]:
+						base = read.seq[s:s+1].decode()
+						if base == snpPos[j][1]:
 							al = '0'  # REF allele
-						elif read.seq[s] == snpPos[j][2]:
+						elif base == snpPos[j][2]:
 							al = '1'  # ALT allele
 						else:
 							al = 'E' # for "error" (keep for stats purposes)
-						fl += " : " + str(p) + " " + str(read.seq[s]) + " " + al + " " + str(ord(read.qual[s])-33) # 34 is the phred score offset in bam files
+						fl += " : " + str(p) + " " + str(base) + " " + al + " " + str(ord(read.qual[s:s+1])-33) # 34 is the phred score offset in bam files
 						c += 1
 						j += 1
 					s += 1 # advance both read and reference
