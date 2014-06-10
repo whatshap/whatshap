@@ -35,7 +35,7 @@ string bit_rep(unsigned int a, unsigned int len) {
   }
   
   return s;
-}	     
+}
 
 void output_vector(const vector<unsigned int> * v) {
   for(int j=v->size()-1; j>= 0; --j) {
@@ -155,9 +155,9 @@ void DPTable::compute_table(ColumnReader * column_reader) {
         cost_computer.update_partitioning(bit_changed);
       } else {
         cost_computer.set_partitioning(iterator->get_partition());
-	if(next_column.get() == 0) { // only if we're at the last column
-	  running_optimal_score_index = iterator->get_index(); // default to first
-	}
+        if(next_column.get() == 0) { // only if we're at the last column
+          running_optimal_score_index = iterator->get_index(); // default to first
+        }
       }
 
       unsigned int cost = 0;
@@ -176,7 +176,7 @@ void DPTable::compute_table(ColumnReader * column_reader) {
 #ifdef DB
       cout << " + " << cost_computer.get_cost() << " = " << cost << " -> " << iterator->get_index() << " [" << bit_rep(iterator->get_index(), current_indexer->get_read_ids()->size()) << "]";
       if(next_column.get()!=0) {
-	cout << " -> " << iterator->get_forward_projection() << " [" << bit_rep(iterator->get_forward_projection(), current_indexer->get_forward_projection_width()) << "]";
+        cout << " -> " << iterator->get_forward_projection() << " [" << bit_rep(iterator->get_forward_projection(), current_indexer->get_forward_projection_width()) << "]";
       }
       cout << endl;
 #endif
@@ -184,20 +184,20 @@ void DPTable::compute_table(ColumnReader * column_reader) {
       dp_column[iterator->get_index()] = cost;
       // if not last DP column, then update forward projection column and backtrace column
       if (next_column.get() == 0) {
-	// update running optimal score index
-	if (cost < dp_column[running_optimal_score_index]) {
-	  running_optimal_score_index = iterator->get_index();
-	}
+        // update running optimal score index
+        if (cost < dp_column[running_optimal_score_index]) {
+          running_optimal_score_index = iterator->get_index();
+        }
       } else {
         unsigned int forward_index = iterator->get_forward_projection();
         if (current_projection_column->at(forward_index) > cost) {
           current_projection_column->at(forward_index) = cost;
 #ifdef HALF_TABLE
-	  forward_index = min(forward_index, iterator->get_forward_dual_projection());
-	  // ensure that we pass the smaller of the two indexes,
-	  // because backtrace_column is half the size of
-	  // current_projection_column (which is symmetric, hence this
-	  // dual computation)
+          forward_index = min(forward_index, iterator->get_forward_dual_projection());
+          // ensure that we pass the smaller of the two indexes,
+          // because backtrace_column is half the size of
+          // current_projection_column (which is symmetric, hence this
+          // dual computation)
 #endif
           backtrace_column->at(forward_index) = iterator->get_index();
         }
@@ -373,7 +373,7 @@ auto_ptr<vector<bool> > DPTable::get_optimal_partitioning() {
     for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {
       unsigned int index = index_path->at(i);
       if((index & mask) == 0) { // id at this index is in p0 (i.e., in the part.)
-	partitioning->at(indexers[i]->get_read_ids()->at(j)) = true;
+        partitioning->at(indexers[i]->get_read_ids()->at(j)) = true;
       }
       mask = mask << 1;
     }
