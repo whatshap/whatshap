@@ -251,61 +251,56 @@ def parse_line(it):
 	return name, count, mapq, is_unique, snps
 
 
-def merge_ends_and_print_result(variants):
-	it = iter(variants)
-	# snps maps a position to a list [base, allele, quality]
-	# parse the first line
 
-	name, count, mapq, is_unique, snps = parse_line(it)
-	while True:
-		try:
-			# everything with the 'p' suffix is from the second (paired) read
-			np, cp, mp, up, sp = parse_line(it)
-		except StopIteration:
-			# no ep: end e is unpaired
-			# seems we are at EOF
-			if count > 1: # so simply print end e
-				for p in sorted(snps.keys()) : # careful: the default is lists in no particular order, but we want snps to be ordered on their fragment
-					print(p, snps[p][0], snps[p][1], snps[p][2], ": ", end='')
-				print("#", mapq, ":", is_unique)
-			break
+def group_by_name(reads_with_variants):
+	"""
+	Group an input list of reads into a list of lists where each
+	sublist is a slice of the input list that contains reads with the same name.
 
-		if name == np:  # end e pairs up with end ep
-			# output merged pair (a read)
-			uup = 0
-			if count + cp > 1:
-				for p in sorted(snps.keys()):
-					print(p, snps[p][0], snps[p][1], snps[p][2], ": ", end='')
-				print("-- : ", end='') # add a symbol for gap in paired-end reads
-				for p in sorted(sp.keys()) :
-					print(p, sp[p][0], sp[p][1], sp[p][2], ": ", end='')
-				uup = "%s %s" % (is_unique,up)
-	#            if is_unique == up == 'U': # uniquely mapped if both ends are
-	#                uup = 'U'
-	#            else:
-	#                uup = 'R'
-				print("#", mapq, mp, ":", uup) # old: str((mapq+mp)/2.0) + " " + uup
-				# note: replace avg of mapq's and display both
+	Example (only read names are shown here):
+	['A', 'A', 'B', 'C', 'C']
+	->
+	[['A', 'A'], ['B'], ['C', 'C']]
+	"""
+	result = []
+	prev = None
+	current = []
+	for read in reads_with_variants:
+		if prev and read.name != prev.name:
+			result.append(current)
+			current = []
+		current.append(read)
+		prev = read
+	result.append(current)
+	return result
 
-			# get new end for next iter
-			try:
-				name, count, mapq, is_unique, snps = parse_line(it)
-			except StopIteration:
-				break
+
+def merge_reads(reads_with_variants, mincount=2):
+	grouped_reads = group_by_name(reads_with_variants)
+
+	for group in grouped_reads:
+		count = sum(len(read.variants) for read in group)
+		if count < mincount:
+			continue
+		if len(group) == 1:
+			read = group[0]
+			snps = dict((str(snp.position), (snp.base, snp.allele, snp.quality)) for snp in read.variants)
+			for p in sorted(snps.keys()):
+				print(p, snps[p][0], snps[p][1], snps[p][2], ": ", end='')
+			print("#", read.mapq, ":", 'NA')  # NA used to be is_unique
+		elif len(group) == 2:
+			read = group[0]
+			snps = dict((str(snp.position), (snp.base, snp.allele, snp.quality)) for snp in read.variants)
+			for p in sorted(snps.keys()):
+				print(p, snps[p][0], snps[p][1], snps[p][2], ": ", end='')
+			print("-- : ", end='') # add a symbol for gap in paired-end reads
+			read = group[1]
+			sp = dict((str(snp.position), (snp.base, snp.allele, snp.quality)) for snp in read.variants)
+			for p in sorted(sp.keys()) :
+				print(p, sp[p][0], sp[p][1], sp[p][2], ": ", end='')
+			print("#", group[0].mapq, group[1].mapq, ":", "NA", "NA")
 		else:
-			if count > 1: # simply print end
-				for p in sorted(snps.keys()):
-					print(p, snps[p][0], snps[p][1], snps[p][2], ": ", end='')
-				print("#", mapq, ":", is_unique)
-			else:
-				pass
-				#print('not printing', snps, file=sys.stderr)
-			#e = ep # and use ep for end of next iter
-			name = np
-			count = cp
-			mapq = mp
-			snps = sp
-			is_unique = up
+			assert len(group) <= 2, "More than two reads with the same name found"
 
 
 def print_wif(reads):
@@ -346,7 +341,7 @@ def main():
 	# sort by read name
 	reads_with_variants.sort(key=lambda r: r.name)
 	#print_wif(reads_with_variants)
-	merge_ends_and_print_result(reads_with_variants)
+	merge_reads(reads_with_variants)
 
 
 if __name__ == '__main__':
