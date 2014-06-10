@@ -5,7 +5,6 @@
 
 #include "columncostcomputer.h"
 #include "dptable.h"
-#include "slicer.h"
 
 //#define HALF_TABLE // switch on to use the trick that uses half the memory (when this is complete, it will be this by default)
 //#define DB // db

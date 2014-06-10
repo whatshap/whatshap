@@ -20,23 +20,5 @@ add_executable (dp
   dp.cpp
 )
 
-add_executable (slice
-  activelist.h
-  activelist.cpp
-  activelistdelegator.h
-  activelistdelegator.cpp
-  slicer.h
-  slicer.cpp
-  dicer.h
-  dicer.cpp
-  slice.cpp  
-)
-
-add_executable (dice
-  dicer.h
-  dicer.cpp
-  dice.cpp
-)
-
 target_link_libraries(dp ${CMAKE_THREAD_LIBS_INIT} ${Boost_LIBRARIES})
-install(TARGETS dp slice dice RUNTIME DESTINATION bin)
+install(TARGETS dp RUNTIME DESTINATION bin)
