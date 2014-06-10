@@ -245,37 +245,36 @@ def grouped_by_name(reads_with_variants):
 
 
 def merge_reads(reads, mincount=2):
+	result = []
 	for group in grouped_by_name(reads):
 		count = sum(len(read.variants) for read in group)
 		if count < mincount:
 			continue
 		if len(group) == 1:
-			read = group[0]
-			for variant in read.variants:
-				print(variant.position, variant.base, variant.allele, variant.quality, ": ", end='')
-			print("#", read.mapq, ":", 'NA')  # NA used to be is_unique
+			result.append(group[0])
 		elif len(group) == 2:
-			read1 = group[0]
-			for variant in read1.variants:
-				print(variant.position, variant.base, variant.allele, variant.quality, ": ", end='')
-
-			print("-- : ", end='') # add a symbol for gap in paired-end reads
-
-			read2 = group[1]
-			for variant in read2.variants:
-				print(variant.position, variant.base, variant.allele, variant.quality, ": ", end='')
-
-			print("#", 0, 0, ":", "NA", "NA")  # read1.mapq, read2.mapq,
+			merged_variants = group[0].variants + [None] + group[1].variants
+			merged_read = ReadVariantList(name=group[0].name, mapq=(group[0].mapq, group[1].mapq), variants=merged_variants)
+			result.append(merged_read)
 		else:
 			assert len(group) <= 2, "More than two reads with the same name found"
+	return result
 
 
 def print_wif(reads):
 	for read in reads:
-		#print(read.name, end='')
+		paired = False
 		for variant in read.variants:
-			print(' : {position} {base} {allele} {quality}'.format(**vars(variant)), end='')
-		print(" # {} {} NA".format(len(read.variants), read.mapq))
+			if variant is None:
+				# this is a marker used between paired-end reads
+				print('-- : ', end='')
+				paired = True
+			else:
+				print('{position} {base} {allele} {quality} : '.format(**vars(variant)), end='')
+		if paired:
+			print("# {} {} : NA NA".format(read.mapq[0], read.mapq[1]))
+		else:
+			print("# {} : NA".format(read.mapq))
 
 # output columns:
 # - read.qname
@@ -307,7 +306,7 @@ def main():
 
 	reads_with_variants.sort(key=lambda read: read.name)
 	reads = merge_reads(reads_with_variants)
-	#print_wif(reads)
+	print_wif(reads)
 
 
 if __name__ == '__main__':
