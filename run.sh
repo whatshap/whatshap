@@ -12,13 +12,8 @@ echo ${prefix}
 # Extract reads from (sorted and indexed) BAM files 
 # TODO: only uses data that is already phased according to VCF, 
 #       i.e. ignores genotypes with "/" (rather than "|")
-getEnds-vcf.py ${bam} ${vcf} ${chromosome} ${individual} > ${prefix}.pre-wif
-
-# Sort pre-wif file to "pair up" reads
-sort -k1,1 -s ${prefix}.pre-wif > ${prefix}.sorted-pre-wif
-
-# Merge lines for two reads in a pair and sort by position: create a WIF
-mergeEnds.py ${prefix}.sorted-pre-wif | sort -k 1,1 -g > ${prefix}.wif
+# this will also pair up paired-end reads and sort the file by position
+getEnds-vcf.py ${bam} ${vcf} ${chromosome} ${individual} > ${prefix}.wif
 
 # Randomly shuffle WIF file (expected by slicer)
 shuf ${prefix}.wif > ${prefix}.shuffled-wif

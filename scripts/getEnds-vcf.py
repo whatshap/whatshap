@@ -9,7 +9,6 @@ tailored toward processing GoNL vcf files -- Alex Schoenhuth
 
 output is sorted by read name
 """
-from __future__ import print_function
 import sys
 from collections import namedtuple
 try:
@@ -19,6 +18,14 @@ except:
 import pysam
 import vcf
 import gzip
+
+
+# list of variants that belong to a single read
+# The variants attribute is a list of ReadVariant objects (see below).
+ReadVariantList = namedtuple('ReadVariantList', 'name mapq variants')
+
+# a single variant on a read
+ReadVariant = namedtuple('ReadVariant', 'position base allele quality')
 
 
 def parse_vcf(path, chromosome, sample_names):
@@ -96,13 +103,6 @@ def parse_vcf(path, chromosome, sample_names):
 	return variants
 
 
-# list of variants that belong to a single read
-ReadVariantList = namedtuple('ReadVariantList', 'name mapq variants')
-
-# a single variant on a read
-ReadVariant = namedtuple('ReadVariant', 'position base allele quality')
-
-
 def read_bam(path, chromosome, variants, mapq_threshold=20):
 	# NOTE: we assume that there are only M,I,D,S (no N,H,P,=,X) in any
 	# CIGAR alignment of the bam file
@@ -132,7 +132,6 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 	#for e in rgs :
 		#fName = pf + "-" + str(e) + ".ends"
 		#rgF[e] = open(fName,"w");
-
 
 	# resulting list of ReadVariantList objects
 	result = []
@@ -214,7 +213,6 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 				print("error: invalid cigar operation:", cigar_op)
 				sys.exit(1)
 
-		#fl += " # " + str(c) + " " + str(read.mapq) + " " + "NA"
 		if c > 0:
 			rvl = ReadVariantList(name=read.qname, mapq=read.mapq, variants=read_variants)
 			result.append(rvl)
@@ -266,7 +264,7 @@ def print_wif(reads):
 		paired = False
 		for variant in read.variants:
 			if variant is None:
-				# this is a marker used between paired-end reads
+				# this marker is used between paired-end reads
 				print('-- : ', end='')
 				paired = True
 			else:
