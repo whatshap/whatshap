@@ -221,38 +221,7 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 	return result
 
 
-"""
-def parse_line(line):
-	t = line.split()
-	name = t[0]
-	count = 0
-	mapq = 0
-	is_unique = 0
-	snps = {}
-	for i in range(len(t)):
-		if t[i] == ":":
-			snps[t[i+1]] = [t[i+2], t[i+3], t[i+4]]
-		if t[i] == "#":
-			count = int(t[i+1])
-			mapq = int(t[i+2])  # mapping quality
-			is_unique = t[i+3]  # unique flag ('U' is for unique, 'R' is for repetitive, adopted from BWA XT tag)
-	assert count == len(snps)
-	return name, count, mapq, is_unique, snps
-"""
-
-def parse_line(it):
-	tmp = next(it)
-	name = tmp.name
-	count = len(tmp.variants)
-	mapq = tmp.mapq
-	is_unique = 'NA'  # TODO
-	# TODO remove str()
-	snps = dict((str(snp.position), (snp.base, snp.allele, snp.quality)) for snp in tmp.variants)
-	return name, count, mapq, is_unique, snps
-
-
-
-def group_by_name(reads_with_variants):
+def grouped_by_name(reads_with_variants):
 	"""
 	Group an input list of reads into a list of lists where each
 	sublist is a slice of the input list that contains reads with the same name.
@@ -275,30 +244,31 @@ def group_by_name(reads_with_variants):
 	return result
 
 
-def merge_reads(reads_with_variants, mincount=2):
-	grouped_reads = group_by_name(reads_with_variants)
-
-	for group in grouped_reads:
+def merge_reads(reads, mincount=2):
+	for group in grouped_by_name(reads):
 		count = sum(len(read.variants) for read in group)
 		if count < mincount:
 			continue
 		if len(group) == 1:
 			read = group[0]
-			snps = dict((str(snp.position), (snp.base, snp.allele, snp.quality)) for snp in read.variants)
-			for p in sorted(snps.keys()):
-				print(p, snps[p][0], snps[p][1], snps[p][2], ": ", end='')
+			variants = sorted(read.variants, key=lambda v: v.position)
+			for variant in variants:
+				print(variant.position, variant.base, variant.allele, variant.quality, ": ", end='')
 			print("#", read.mapq, ":", 'NA')  # NA used to be is_unique
 		elif len(group) == 2:
-			read = group[0]
-			snps = dict((str(snp.position), (snp.base, snp.allele, snp.quality)) for snp in read.variants)
-			for p in sorted(snps.keys()):
-				print(p, snps[p][0], snps[p][1], snps[p][2], ": ", end='')
+			read1 = group[0]
+			variants1 = sorted(read1.variants, key=lambda v: v.position)
+			for variant in variants1:
+				print(variant.position, variant.base, variant.allele, variant.quality, ": ", end='')
+
 			print("-- : ", end='') # add a symbol for gap in paired-end reads
-			read = group[1]
-			sp = dict((str(snp.position), (snp.base, snp.allele, snp.quality)) for snp in read.variants)
-			for p in sorted(sp.keys()) :
-				print(p, sp[p][0], sp[p][1], sp[p][2], ": ", end='')
-			print("#", group[0].mapq, group[1].mapq, ":", "NA", "NA")
+
+			read2 = group[1]
+			variants2 = sorted(read2.variants, key=lambda v: v.position)
+			for variant in variants2:
+				print(variant.position, variant.base, variant.allele, variant.quality, ": ", end='')
+
+			print("#", read1.mapq, read2.mapq, ":", "NA", "NA")
 		else:
 			assert len(group) <= 2, "More than two reads with the same name found"
 
@@ -338,10 +308,9 @@ def main():
 
 	reads_with_variants = read_bam(args.bam, args.chromosome, variants)
 
-	# sort by read name
-	reads_with_variants.sort(key=lambda r: r.name)
-	#print_wif(reads_with_variants)
-	merge_reads(reads_with_variants)
+	reads_with_variants.sort(key=lambda read: read.name)
+	reads = merge_reads(reads_with_variants)
+	#print_wif(reads)
 
 
 if __name__ == '__main__':
