@@ -252,29 +252,15 @@ def parse_line(it):
 
 
 def merge_ends_and_print_result(variants):
+	it = iter(variants)
 	# snps maps a position to a list [base, allele, quality]
 	# parse the first line
 
-	prev_record = None
-	for record in variants:
-
-		if prev_record and prev_record.name == record.name:
-			# found a paired-end read
-			record = merge_reads(record, prev_record)
-		else:
-			# print out previous record here
-			# may be merged or not
-			if len(record.variants) > 1:
-				...
-
-		prev_record = record
-
-
 	name, count, mapq, is_unique, snps = parse_line(it)
+	while True:
 		try:
 			# everything with the 'p' suffix is from the second (paired) read
 			np, cp, mp, up, sp = parse_line(it)
-			tmp = next(it)
 		except StopIteration:
 			# no ep: end e is unpaired
 			# seems we are at EOF
@@ -301,10 +287,9 @@ def merge_ends_and_print_result(variants):
 				print("#", mapq, mp, ":", uup) # old: str((mapq+mp)/2.0) + " " + uup
 				# note: replace avg of mapq's and display both
 
-			assert False
 			# get new end for next iter
 			try:
-				name, count, mapq, is_unique, snps = parse_line(bobbel)
+				name, count, mapq, is_unique, snps = parse_line(it)
 			except StopIteration:
 				break
 		else:
