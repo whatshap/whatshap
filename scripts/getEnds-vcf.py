@@ -251,31 +251,28 @@ def merge_reads(reads, mincount=2):
 			continue
 		if len(group) == 1:
 			read = group[0]
-			variants = sorted(read.variants, key=lambda v: v.position)
-			for variant in variants:
+			for variant in read.variants:
 				print(variant.position, variant.base, variant.allele, variant.quality, ": ", end='')
 			print("#", read.mapq, ":", 'NA')  # NA used to be is_unique
 		elif len(group) == 2:
 			read1 = group[0]
-			variants1 = sorted(read1.variants, key=lambda v: v.position)
-			for variant in variants1:
+			for variant in read1.variants:
 				print(variant.position, variant.base, variant.allele, variant.quality, ": ", end='')
 
 			print("-- : ", end='') # add a symbol for gap in paired-end reads
 
 			read2 = group[1]
-			variants2 = sorted(read2.variants, key=lambda v: v.position)
-			for variant in variants2:
+			for variant in read2.variants:
 				print(variant.position, variant.base, variant.allele, variant.quality, ": ", end='')
 
-			print("#", read1.mapq, read2.mapq, ":", "NA", "NA")
+			print("#", 0, 0, ":", "NA", "NA")  # read1.mapq, read2.mapq,
 		else:
 			assert len(group) <= 2, "More than two reads with the same name found"
 
 
 def print_wif(reads):
 	for read in reads:
-		print(read.name, end='')
+		#print(read.name, end='')
 		for variant in read.variants:
 			print(' : {position} {base} {allele} {quality}'.format(**vars(variant)), end='')
 		print(" # {} {} NA".format(len(read.variants), read.mapq))
