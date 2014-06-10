@@ -10,16 +10,17 @@ tailored toward processing GoNL vcf files -- Alex Schoenhuth
 output is sorted by read name
 """
 import sys
+import random
+import gzip
 from collections import namedtuple
 try:
 	from sqt import HelpfulArgumentParser as ArgumentParser
 except:
 	from argparse import ArgumentParser
 import pysam
-import gzip
 import vcf
 
-from wifreader import read_wif, wif_to_position_list
+#from wifreader import read_wif, wif_to_position_list
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -263,6 +264,30 @@ def merge_reads(reads, mincount=2):
 	return result
 
 
+def filter_reads(reads):
+	"""Return a new list in which reads are omitted that fulfill at least one the
+	these conditions:
+	- one of the read's variants' alleles is 'E'
+	- variant positions are not strictly monotically increasing.
+	"""
+	result = []
+	for read in reads:
+		prev_pos = -1
+		for variant in read.variants:
+			if variant is None:
+				continue
+			if not prev_pos < variant.position:
+				break
+			if variant.allele == 'E':
+				break
+			assert variant.base in 'ACGT01-X', 'variant.base={!r}'.format(variant.base)
+			prev_pos = variant.position
+		else:
+			# only executed when no break occurred
+			result.append(read)
+	return result
+
+
 class CoverageMonitor:
 	'''TODO: This is a most simple, naive implementation. Could do this smarter.'''
 	def __init__(self, length):
@@ -272,38 +297,20 @@ class CoverageMonitor:
 		return max(self.coverage[begin:end])
 
 	def add_read(self, begin, end):
-		for i in xrange(begin,end):
+		for i in range(begin, end):
 			self.coverage[i] += 1
 
 
-def position_set(read_list):
-	result = set()
-	for read, suffix, line in read_list:
-		for pos, nucleotide, bit, quality in read:
-			result.add(pos)
-	return result
+def position_set(reads):
+	positions = set()
+	for read in reads:
+		positions.update(variant.position for variant in read.variants if variant is not None)
+	return positions
 
 
-def read_cmp(read_record1, read_record2):
-	read1, suffix1, line1 = read_record1
-	read2, suffix2, line2 = read_record2
-	return cmp(read1[0][0], read2[0][0])
-
-
-def slicer():
-	parser = OptionParser(usage=usage)
-	parser.add_option("-H", action="store", dest="slice_height", default=15, type=int,
-			help='Maximal height (i.e. coverage) of each slice (default: 15).')
-
-	(options, args) = parser.parse_args()
-	if len(args) != 2:
-		parser.print_help()
-		sys.exit(1)
-
-	input_filename = args[0]
-	output_prefix = args[1]
-
-	position_list = wif_to_position_list(input_filename)
+def slicer(reads, max_coverage, output_prefix=None):
+	#output_prefix = args[1]
+	position_list = sorted(position_set(reads))
 	print('Found %d SNP positions' % len(position_list), file=sys.stderr)
 
 	# dictionary to map SNP position to its index
@@ -315,21 +322,24 @@ def slicer():
 	slice_coverages = [CoverageMonitor(len(position_list))]
 	skipped_reads = 0
 	accessible_positions = set()
-	for read, suffix, line in read_wif(input_filename):
+	for read in reads:
+
 		# Skip reads that cover only one SNP
-		if len(read) < 2:
+		if len(read.variants) < 2:
 			skipped_reads += 1
 			continue
-		for pos, nucleotide, bit, quality in read:
-			accessible_positions.add(pos)
-		begin = position_to_index[read[0][0]]
-		end = position_to_index[read[-1][0]] + 1
+		for variant in read.variants:
+			if variant is None:
+				continue
+			accessible_positions.add(variant.position)
+		begin = position_to_index[read.variants[0].position]
+		end = position_to_index[read.variants[-1].position] + 1
 		slice_id = 0
 		while True:
 			# Does current read fit into this slice?
-			if slice_coverages[slice_id].max_coverage_in_range(begin, end) < options.slice_height:
-				slice_coverages[slice_id].add_read(begin,end)
-				slices[slice_id].append((read, suffix, line))
+			if slice_coverages[slice_id].max_coverage_in_range(begin, end) < max_coverage:
+				slice_coverages[slice_id].add_read(begin, end)
+				slices[slice_id].append(read)
 				break
 			else:
 				slice_id += 1
@@ -337,20 +347,24 @@ def slicer():
 				if slice_id == len(slices):
 					slices.append([])
 					slice_coverages.append(CoverageMonitor(len(position_list)))
-	print('Skipped %d reads that only covered one SNP ...'%skipped_reads, file=sys.stderr)
+	print('Skipped %d reads that only covered one SNP ...' % skipped_reads, file=sys.stderr)
+
 	unphasable_snps = len(position_list) - len(accessible_positions)
-	print('... %d out of %d SNP positions (%f%%) where only covered by such reads and are thus unphasable'%(unphasable_snps, len(position_list), unphasable_snps*100.0/len(position_list)), file=sys.stderr)
+	print('... {} out of {} SNP positions ({:.1%}) were only covered by such '
+		'reads and are thus unphasable'.format(unphasable_snps, len(position_list),
+		unphasable_snps / len(position_list)), file=sys.stderr)
 	# sort slices
 	for read_list in slices:
-		read_list.sort(cmp=read_cmp)
+		read_list.sort(key=lambda r: r.variants[0].position)
 	for slice_id, read_list in enumerate(slices):
 		positions_covered = len(position_set(read_list))
 		print('Slice %d contains %d reads and covers %d of %d SNP positions (%f%%)'%(slice_id, len(read_list), positions_covered, len(position_list), positions_covered*100.0/len(position_list)), file=sys.stderr)
-		slice_file = open('{0}.{1:02}.wif'.format(output_prefix, slice_id), 'w')
-		for read, suffix, line in read_list:
-			print(line, file=slice_file)
-		slice_file.close()
-
+		if output_prefix is not None:
+			assert False, 'Does not work'
+			with open('{0}.{1:02}.wif'.format(output_prefix, slice_id), 'w') as slice_file:
+				for read, suffix, line in read_list:
+					print(line, file=slice_file)
+	return slices
 
 
 def print_wif(reads):
@@ -384,6 +398,10 @@ def print_wif(reads):
 
 def main():
 	parser = ArgumentParser(description=__doc__)
+
+	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
+		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
+	parser.add_argument('--seed', default=123, type=int, help='random seed (default: %(default)s)')
 	parser.add_argument('bam', metavar='BAM', help='BAM file')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('chromosome', help='chromosome to consider')
@@ -400,11 +418,17 @@ def main():
 	reads = merge_reads(reads_with_variants)
 
 	# sort by position of first variant
-	reads.sort(key=lambda read: read.variants[0].position)
+	#reads.sort(key=lambda read: read.variants[0].position)
 
 
+	# shuffle
+	random.seed(args.seed)
+	random.shuffle(reads)
 
-	print_wif(reads)
+	filtered_reads = filter_reads(reads)
+	print('Filtered reads:', len(reads) - len(filtered_reads), file=sys.stderr)
+	slices = slicer(filtered_reads, args.max_coverage)
+	print_wif(slices[0])
 
 
 if __name__ == '__main__':

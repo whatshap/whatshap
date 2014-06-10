@@ -46,21 +46,9 @@ rule index_bam:
 
 rule getends:
 	input: bam='data/{chrom}-{subset}.bam', bai='data/{chrom}-{subset}.bam.bai', vcf='data/{chrom}.vcf'
-	output: wif='tmp/{chrom}-{subset}.wif'
+	output: wif='tmp/{chrom}-{subset}.slice.00.wif'
 	shell:
-		'venv/bin/python scripts/getEnds-vcf.py {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.wif}'
-
-rule shuffle:
-	input: '{f}.wif'
-	output: '{f}.shuffled-wif'
-	shell:
-		'shuf {input} > {output}'
-
-rule slicer:
-	input: '{f}.shuffled-wif'
-	output: '{f}.slice.00.wif'
-	shell:
-		'/usr/bin/python scripts/tobis-slicer.py -H 20 {input} {wildcards.f}.slice'
+		'venv/bin/python scripts/getEnds-vcf.py -H 20 {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.wif}'
 
 rule dp:
 	input: '{f}.slice.00.wif'
