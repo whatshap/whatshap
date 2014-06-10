@@ -46,12 +46,12 @@ rule index_bam:
 
 rule getends:
 	input: bam='data/{chrom}-{subset}.bam', bai='data/{chrom}-{subset}.bam.bai', vcf='data/{chrom}.vcf'
-	output: wif='tmp/{chrom}-{subset}.slice.00.wif'
+	output: wif='tmp/{chrom}-{subset}.wif'
 	shell:
-		'venv/bin/python scripts/getEnds-vcf.py -H 20 {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.wif}'
+		'venv/bin/python scripts/whatshap.py -H 20 {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.wif}'
 
 rule dp:
-	input: '{f}.slice.00.wif'
+	input: '{f}.wif'
 	output: '{f}.super-reads.wif'
 	shell:
 		'build/dp --all_het {input} > {output}'
@@ -63,7 +63,7 @@ rule extract_het_pos:
 		'/usr/bin/python scripts/extract-het-pos.py {wildcards.chrom} {input.vcf} > {output}'
 
 rule superread_to_haplotype:
-	input: wif='tmp/{chrom}-{subset}.slice.00.wif', superwif='tmp/{chrom}-{subset}.super-reads.wif', positions='tmp/{chrom}.positions'
+	input: wif='tmp/{chrom}-{subset}.wif', superwif='tmp/{chrom}-{subset}.super-reads.wif', positions='tmp/{chrom}.positions'
 	output: 'result/{chrom}-{subset}.txt'
 	shell:
 		'/usr/bin/python scripts/superread-to-haplotype.py -O {input.wif} {input.superwif} {input.positions} > {output}'
