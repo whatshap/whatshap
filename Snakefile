@@ -46,15 +46,9 @@ rule index_bam:
 
 rule getends:
 	input: bam='data/{chrom}-{subset}.bam', bai='data/{chrom}-{subset}.bam.bai', vcf='data/{chrom}.vcf'
-	output: unsortedwif='tmp/{chrom}-{subset}.unsorted-wif'
+	output: wif='tmp/{chrom}-{subset}.wif'
 	shell:
-		'venv/bin/python scripts/getEnds-vcf.py {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.unsortedwif}'
-
-rule sort_merged_ends:
-	input: '{f}.unsorted-wif'
-	output: '{f}.wif'
-	shell:
-		'LC_ALL=C sort -k 1,1 -n {input} > {output}'
+		'venv/bin/python scripts/getEnds-vcf.py {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.wif}'
 
 rule shuffle:
 	input: '{f}.wif'

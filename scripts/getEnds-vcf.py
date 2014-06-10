@@ -306,6 +306,10 @@ def main():
 
 	reads_with_variants.sort(key=lambda read: read.name)
 	reads = merge_reads(reads_with_variants)
+
+	# sort by position of first variant
+	# the long tuple emulates sort -k1,1 -n
+	reads.sort(key=lambda read: (read.variants[0].position, read.variants[0].base, read.variants[0].allele, read.variants[0].quality))
 	print_wif(reads)
 
 
