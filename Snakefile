@@ -1,5 +1,7 @@
 # kate: syntax Python;
 
+GATK = 'java -Xmx6G -jar GenomeAnalysisTK.jar'
+
 SAMPLE = 'sill2'
 CHROMOSOMES = ['scaffold221']
 SUBSETS = ['moleculo', 'mp', 'moleculomp0.1']
@@ -73,3 +75,48 @@ rule superread_to_haplotype:
 	output: 'result/{chrom}-{subset}.txt'
 	shell:
 		'/usr/bin/python scripts/superread-to-haplotype.py -O {input.wif} {input.superwif} {input.positions} > {output}'
+
+
+## GATK
+
+rule CreateSequenceDict:
+	output: '{base}.dict'
+	input: '{base}.fasta'
+	resources: time=5
+	shell:
+		"picard-tools CreateSequenceDictionary R={input} O={output}"
+
+
+rule faidx:
+	output: '{base}.fasta.fai'
+	input: '{base}.fasta'
+	shell:
+		"samtools faidx {input}"
+
+
+rule ReadBackedPhasing:
+	output:
+		vcf='tmp/gatkphased-{chrom}-{subset}.vcf',
+		idx='tmp/gatkphased-{chrom}-{subset}.vcf.idx'
+	input:
+		vcf='data/{chrom}.vcf',
+		ref='data/{chrom}.fasta',
+		fai='data/{chrom}.fasta.fai',
+		dictionary='data/{chrom}.dict',
+		bam='data/{chrom}-{subset}.bam',
+		bai='data/{chrom}-{subset}.bam.bai'
+	log: 'tmp/gatkphased-{chrom}-{subset}.log'
+	shell:
+		r"""
+		{GATK} \
+			-T ReadBackedPhasing \
+			-R {input.ref} \
+			-I {input.bam} \
+			-L {input.vcf} \
+			--variant {input.vcf} \
+			-o {output.vcf}.incomplete.vcf \
+			--maxPhaseSites 10 \
+			--phaseQualityThresh 20.0 >& {log} && \
+		mv {output.vcf}.incomplete.vcf {output.vcf} && \
+		mv {output.vcf}.incomplete.vcf.idx {output.idx}
+		"""
