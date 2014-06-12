@@ -12,19 +12,25 @@ To Do/Ideas
     * find connected components
 * Are non-uniquely mapping reads used? (They probably should not be)
 
+
 Notes
 -----
 
-`sort -g` is like `-n`, but can also sort floating point numbers and knows about
-E notation. It can introduce rounding errors and should therefore only be used
-when necessary, see <http://stackoverflow.com/questions/1255782/>.
-
+* `sort -g` is like `-n`, but can also sort floating point numbers and knows about
+  E notation. It can introduce rounding errors and should therefore only be used
+  when necessary, see <http://stackoverflow.com/questions/1255782/>.
+* There is a step in which variants are re-discovered in the BAM file. This may
+  fail when the variant caller has used some type of re-alignment (as
+  freebayes does). Would be better to integrate this into the variant caller or
+  to get the information out of it. This applies only to indels, which are not
+  supported right now anyway.
 
 Phasing in VCFs
 ---------------
 
 * originally only via 0|1 and 1|0 etc per entry
-* then a 'phase set' (PS) added to INFO field: entries with same PS are in same set of phased genotypes
+* then a 'phase set' (PS) added to INFO field: entries with same PS are in same
+set of phased genotypes
 * GATK's ReadBackedPhasing in newer versions use the 'HP' tag instead, see
   https://gatkforums.broadinstitute.org/discussion/4226/
   https://gatkforums.broadinstitute.org/discussion/4038/
