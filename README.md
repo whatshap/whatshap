@@ -3,11 +3,14 @@ WhatsHap
 
 This repository is for Marcel's changes.
 
-To Do
------
+To Do/Ideas
+-----------
 
-* rename getEnds-vcf.py
-* build sorting into getEnds-vcf.py
+* Determine best possible phasing that could be achieved:
+    * look at covered heterozygous SNPs
+    * use only read pairs that cover at least two heterozygous SNPs
+    * find connected components
+* Are non-uniquely mapping reads used? (They probably should not be)
 
 Notes
 -----

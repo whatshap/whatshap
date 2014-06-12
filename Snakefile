@@ -2,7 +2,7 @@
 
 SAMPLE = 'sill2'
 CHROMOSOMES = ['scaffold221']
-SUBSETS = ['moleculo', 'mp', 'moleculomp']
+SUBSETS = ['moleculo', 'mp', 'moleculomp0.1']
 
 rule all:
 	input: expand('result/{chrom}-{subset}.txt', chrom=CHROMOSOMES, subset=SUBSETS)
@@ -14,6 +14,12 @@ rule rgmp_list:
 		with open(output.rgs, 'w') as f:
 			for rg in '10k 20ka 20kb 20kc 5k bgi2ka bgi2kb'.split():
 				print(rg, file=f)
+
+rule subsample_mp:
+	input: bam='data/scaffold221-mp.bam'
+	output: bam='data/scaffold221-mp{frac}.bam'
+	shell:
+		"samtools view -b {input.bam} -s {wildcards.frac} > {output.bam}"
 
 rule fix_unmapped_mates:
 	"""Mark mates as unmapped if the reference they are mapped to is set to "*".
@@ -33,8 +39,8 @@ rule mpbam:
 		shell('samtools view -b -R {input.rgs} {input.bam} > {output.bam}')
 
 rule merge_moleculomp:
-	input: bam1='data/{chrom}-moleculo.bam', bam2='data/{chrom}-mp.bam'
-	output: bam='data/{chrom}-moleculomp.bam'
+	input: bam1='data/{chrom}-moleculo.bam', bam2='data/{chrom}-mp{x}.bam'
+	output: bam='data/{chrom}-moleculomp{x}.bam'
 	shell:
 		'picard-tools MergeSamFiles I={input.bam1} I={input.bam2} O={output.bam}'
 
