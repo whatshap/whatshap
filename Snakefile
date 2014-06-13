@@ -64,17 +64,11 @@ rule dp:
 	shell:
 		'build/dp --all_het {input} > {output}'
 
-rule extract_het_pos:
-	input: vcf='data/{chrom}.vcf'
-	output: 'tmp/{chrom}.positions'
-	shell:
-		'/usr/bin/python scripts/extract-het-pos.py {wildcards.chrom} {input.vcf} > {output}'
-
 rule superread_to_haplotype:
-	input: wif='tmp/{chrom}-{subset}.wif', superwif='tmp/{chrom}-{subset}.super-reads.wif', positions='tmp/{chrom}.positions'
+	input: wif='tmp/{chrom}-{subset}.wif', superwif='tmp/{chrom}-{subset}.super-reads.wif', vcf='data/{chrom}.vcf'
 	output: 'result/{chrom}-{subset}.txt'
 	shell:
-		'/usr/bin/python scripts/superread-to-haplotype.py -O {input.wif} {input.superwif} {input.positions} > {output}'
+		'/usr/bin/python scripts/superread-to-haplotype.py -O {input.wif} {input.superwif} {input.vcf} {wildcards.chrom} > {output}'
 
 
 ## GATK
