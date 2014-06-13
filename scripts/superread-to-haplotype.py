@@ -47,7 +47,7 @@ def main():
 			help='WIF with original reads. If given, a "|" will be put between any two non-gap positions in the haplotype that are not jointly covered by at least on read.')
 
 	(options, args) = parser.parse_args()
-	if len(args) != 3:
+	if len(args) != 1:
 		parser.print_help()
 		sys.exit(1)
 
@@ -57,11 +57,13 @@ def main():
 
 	position_list = read_positions(vcf_filename, chromosome)
 	position_list.sort()
+	#position_list = list(map(int, '10 20 30 40 50 60 90 100 110 140 150 160 170 180 190'.split()))
+
 	position_to_index = dict((position,index) for index,position in enumerate(position_list))
 	print('Read %d SNP positions from "%s"' % (len(position_list), vcf_filename), file=sys.stderr)
 
 	connected = None
-	if options.original_reads != None:
+	if options.original_reads is not None:
 		connected = determine_connectivity(options.original_reads, position_list)
 
 	for read, suffix, line in read_wif(superread_filename):

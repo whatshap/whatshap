@@ -12,6 +12,7 @@ To Do/Ideas
     * find connected components
 * Are non-uniquely mapping reads used? (They probably should not be)
 * Evaluation. Is this relevant?: http://nar.oxfordjournals.org/content/40/5/2041
+* Use record.start (0-based) instead of record.POS
 
 Notes
 -----

@@ -31,7 +31,7 @@ def read_wif(filename):
 				break
 			read.append((pos, nucleotide, bit, quality))
 			last_pos = pos
-		if skip_read: 
+		if skip_read:
 			skipped_reads += 1
 			continue
 		yield read, suffix, line
