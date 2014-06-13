@@ -68,7 +68,7 @@ rule superread_to_haplotype:
 	input: wif='tmp/{chrom}-{subset}.wif', superwif='tmp/{chrom}-{subset}.super-reads.wif', vcf='data/{chrom}.vcf'
 	output: 'result/{chrom}-{subset}.txt'
 	shell:
-		'/usr/bin/python scripts/superread-to-haplotype.py -O {input.wif} {input.superwif} {input.vcf} {wildcards.chrom} > {output}'
+		'venv/bin/python scripts/superread-to-haplotype.py -O {input.wif} {input.superwif} {input.vcf} {wildcards.chrom} > {output}'
 
 
 ## GATK

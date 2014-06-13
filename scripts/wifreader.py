@@ -1,7 +1,5 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
-from __future__ import print_function, division
 import sys
 #from bitarray import bitarray
 
@@ -64,6 +62,6 @@ def determine_connectivity(wif_filename, position_list):
 			end = position_to_index[read[-1][0]]
 		except KeyError:
 			continue
-		for i in xrange(start,end):
+		for i in range(start,end):
 			b[i] = True
 	return b

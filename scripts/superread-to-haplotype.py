@@ -1,7 +1,5 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python3
 
-from __future__ import print_function, division
 from optparse import OptionParser, OptionGroup
 import sys
 import os
@@ -73,7 +71,7 @@ def main():
 				haplotype[position_to_index[pos]] = str(bit)
 			else:
 				print('Warning: super read contains unknown SNP position:', pos, file=sys.stderr)
-		for i, p, h in zip(range(len(position_list)), position_list, haplotype):
+		for i, (p, h) in enumerate(zip(position_list, haplotype)):
 			print(p, h)
 			if connected and i < len(position_list) - 1 and not connected[i] and haplotype[i] != '-' and haplotype[i+1] != '-':
 				print('---')
@@ -81,7 +79,7 @@ def main():
 
 		# If information on "SNP deserts" is available, then input "|" symbols to separate unconnected components
 		if connected != None:
-			for i in xrange(len(connected) - 1, -1, -1):
+			for i in range(len(connected) - 1, -1, -1):
 				if (not connected[i]) and (haplotype[i] != '-') and (haplotype[i+1] != '-'):
 					haplotype.insert(i+1, '|')
 		print(''.join(haplotype))
