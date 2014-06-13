@@ -3,11 +3,16 @@
 gets the heterozygous snp positions from a vcf file, and then
 gathers those snps that coincide with each read end (one read end's
 set of positions per line); and also splits ends into their
-respective read groups -- Murray Patterson
+respective read groups
 
-tailored toward processing GoNL vcf files -- Alex Schoenhuth
+Citation:
 
-output is sorted by read name
+    Murray Patterson, Tobias Marschall, Nadia Pisanti, Leo van Iersel,
+    Leen Stougie, Gunnar W. Klau, Alexander Schönhuth.
+
+    WhatsHap: Haplotype Assembly for Future-Generation Sequencing Reads.
+
+    http://dx.doi.org/10.1007/978-3-319-05269-4_19
 """
 import sys
 import random
@@ -395,6 +400,7 @@ def print_wif(reads):
 #   - no. of SNPs for this read
 #   - mapping quality
 #   - "NA"
+
 
 def main():
 	parser = ArgumentParser(description=__doc__)
