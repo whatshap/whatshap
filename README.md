@@ -11,14 +11,11 @@ To Do/Ideas
     * use only read pairs that cover at least two heterozygous SNPs
     * find connected components
 * Are non-uniquely mapping reads used? (They probably should not be)
-
+* Evaluation. Is this relevant?: http://nar.oxfordjournals.org/content/40/5/2041
 
 Notes
 -----
 
-* `sort -g` is like `-n`, but can also sort floating point numbers and knows about
-  E notation. It can introduce rounding errors and should therefore only be used
-  when necessary, see <http://stackoverflow.com/questions/1255782/>.
 * There is a step in which variants are re-discovered in the BAM file. This may
   fail when the variant caller has used some type of re-alignment (as
   freebayes does). Would be better to integrate this into the variant caller or
