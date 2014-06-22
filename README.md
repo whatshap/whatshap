@@ -13,6 +13,9 @@ To Do/Ideas
 * Are non-uniquely mapping reads used? (They probably should not be)
 * Evaluation. Is this relevant?: http://nar.oxfordjournals.org/content/40/5/2041
 * Use record.start (0-based) instead of record.POS
+* lines like this are output by phasedblocks.py:
+scaffold250     Phasing exon    8223    8222    .       +       .       gene_id "8222"; transcript_id "8222.1";
+
 
 Notes
 -----
