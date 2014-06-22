@@ -112,7 +112,7 @@ def parse_hp_tags(path):
 	total = 0
 	# count 'phase block names'
 	blocks = Counter()
-	block_starts = dict()
+	#block_starts = dict()
 	prev_name = None
 	prev_record = None
 	for record in vcf.Reader(filename=path):
@@ -130,7 +130,7 @@ def parse_hp_tags(path):
 		if not call.is_het:
 			continue
 
-		if True:  # for debugging
+		if False:  # for debugging
 			print(
 				'{:10d}'.format(record.start),
 				'alleles:', record.alleles,
@@ -144,21 +144,23 @@ def parse_hp_tags(path):
 			continue
 
 		assert len(call.data.HP) == 2
+
 		# call.data.HP is something like: ['550267-1', '550267-2']
 		name = call.data.HP[0].split('-')[0]
-		blocks[name] += 1
+		blocks[(record.CHROM, name)] += 1
 
-		if prev_name != name:
+		if prev_name != name or prev_record.CHROM != record.CHROM:
 			if prev_name is not None:
 				# new block found - output the previous one
-				gtf.write(record.CHROM, this_block_start, prev_record.POS, prev_name)
+				gtf.write(prev_record.CHROM, block_start, prev_record.POS, prev_name)
 
 			#if name in block_starts:
 				#print('FOUND not connected block')
 			#else:
 				#block_starts[name] = record.POS
-			this_block_start = record.POS
+			block_start = record.POS
 			prev_name = name
+
 		prev_record = record
 		n += 1
 
