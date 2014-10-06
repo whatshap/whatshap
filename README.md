@@ -1,11 +1,10 @@
 WhatsHap
 ========
 
-This repository is for Marcel's changes.
-
 To Do/Ideas
 -----------
 
+* Unit tests.
 * Determine best possible phasing that could be achieved:
     * look at covered heterozygous SNPs
     * use only read pairs that cover at least two heterozygous SNPs
@@ -25,6 +24,7 @@ Notes
   freebayes does). Would be better to integrate this into the variant caller or
   to get the information out of it. This applies only to indels, which are not
   supported right now anyway.
+
 
 Phasing in VCFs
 ---------------

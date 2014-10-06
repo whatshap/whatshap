@@ -6,8 +6,21 @@ SAMPLE = 'sill2'
 CHROMOSOMES = ['scaffold221']
 SUBSETS = ['moleculo', 'moleculomp0.1']  # perhaps: moleculomp, mp, mp0.1
 
+"""
+Expected input files:
+- raw/scaffold221.vcf
+- raw/scaffold221-moleculo.bam
+- raw/scaffold221-unfixed.bam
+"""
+
+
 rule all:
 	input: expand('result/{chrom}-{subset}.txt', chrom=CHROMOSOMES, subset=SUBSETS)
+
+rule symlink:
+	input: 'raw/scaffold221{file}'
+	output: 'data/scaffold221{file,(-moleculo.bam|-unfixed.bam|.vcf)}'
+	shell: 'ln -s ../{input} {output}'
 
 rule rgmp_list:
 	'Create list of matepair read groups'
