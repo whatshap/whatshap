@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 """
+Read a VCF and a BAM file and write a WIF file to standard output.
+The WIF file is ready to be read by the 'dp' program.
+
+(old description:
 gets the heterozygous snp positions from a vcf file, and then
 gathers those snps that coincide with each read end (one read end's
 set of positions per line); and also splits ends into their
-respective read groups
-
-Citation:
+respective read groups)
 
 
 TODO
 * parse_vcf should return a list of namedtuple objects
-
+* Work on all chromosomes (and optionally on a specified one only)
+* Call dp program ourselves
+* Merge with superread-to-haplotypes.py
 
 """
+import logging
 import sys
 import random
 import gzip
@@ -24,20 +29,28 @@ except:
 import pysam
 import vcf
 
-#from wifreader import read_wif, wif_to_position_list
-
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
+logger = logging.getLogger(__name__)
 
-# list of variants that belong to a single read
+# List of variants that belong to a single read.
 # The variants attribute is a list of ReadVariant objects (see below).
 ReadVariantList = namedtuple('ReadVariantList', 'name mapq variants')
 
-# a single variant on a read
+# A single variant on a read.
 ReadVariant = namedtuple('ReadVariant', 'position base allele quality')
 
 
 def parse_vcf(path, chromosome, sample_names):
+	"""
+	Read a VCF and return a list of variants. Each entry in the returned list is
+	a list [position, reference_allele, alternative_allele].
+
+	path -- Path to VCF file
+	chromosome -- Chromosome to work on
+	sample_names -- A list of sample names (strings). Extract only calls
+		belonging to a sample that occurs in this list.
+	"""
 	variants = []
 	index = -1
 	indices = None
@@ -48,13 +61,13 @@ def parse_vcf(path, chromosome, sample_names):
 		if not record.is_snp:
 			continue
 		if len(record.ALT) != 1:
-			print("reading VCFs with multiple ALTs not correctly implemented", file=sys.stderr)
+			logger.warn("reading VCFs with multiple ALTs not correctly implemented")
 			continue
 
 		if indices is None:
 			indices = [ (i, call.sample) for i, call in enumerate(record.samples) if call.sample in sample_names ]
 			if len(indices) == 0:
-				print("Error: none of the sample names found in vcf", file=sys.stderr)
+				logger.errore("none of the sample names found in vcf")
 				sys.exit(1)
 			else:
 				outstring = "Found samples "
@@ -63,7 +76,7 @@ def parse_vcf(path, chromosome, sample_names):
 				outstring += "in columns "
 				for indtup in indices:
 					outstring += "%d " % (indtup[0])
-				print(outstring, file=sys.stderr)
+				logger.info(outstring)
 
 		het = False
 		for index in [x[0] for x in indices]:
@@ -91,7 +104,7 @@ def parse_vcf(path, chromosome, sample_names):
 			# ... etc. in cases where we have unphased data; so keep this
 			# in mind also -- murray
 		if not het:
-			print("not a heterozygous SNP for any of the samples, SNP %s" % (record.POS), file=sys.stderr)
+			logger.warn("Not a heterozygous SNP for any of the samples, SNP %s", record.POS)
 			#% (individual, tk[1]), file=sys.stderr)
 			continue
 		else: # found a heterozygous snp for the individual
@@ -113,6 +126,13 @@ def parse_vcf(path, chromosome, sample_names):
 
 
 def read_bam(path, chromosome, variants, mapq_threshold=20):
+	"""
+	path -- path to BAM file
+	chromosome -- name of chromosome to work on.
+	variants --
+
+	Return a list of ReadVariantList objects.
+	"""
 	# NOTE: we assume that there are only M,I,D,S (no N,H,P,=,X) in any
 	# CIGAR alignment of the bam file
 
@@ -121,7 +141,8 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 
 	target_tid = samfile.gettid(chromosome)
 	if target_tid < 0:
-		print('ERROR: chromosome unknown in BAM file', file=sys.stderr)
+		logger.error('Chromosome "%d" unknown in BAM file', chromosome)
+		# TODO raise an exception instead?
 		sys.exit(1)
 
 	#rgMap = {} # get mapping from each read tech to its group
@@ -219,7 +240,7 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 			elif cigar_op == 5 : # hard clipping
 				pass
 			else:
-				print("error: invalid cigar operation:", cigar_op)
+				logger.error("Invalid cigar operation:", cigar_op)
 				sys.exit(1)
 
 		if c > 0:
@@ -315,7 +336,7 @@ def position_set(reads):
 def slicer(reads, max_coverage, output_prefix=None):
 	#output_prefix = args[1]
 	position_list = sorted(position_set(reads))
-	print('Found %d SNP positions' % len(position_list), file=sys.stderr)
+	logger.info('Found %d SNP positions', len(position_list))
 
 	# dictionary to map SNP position to its index
 	position_to_index = dict((position,index) for index,position in enumerate(position_list))
@@ -351,18 +372,20 @@ def slicer(reads, max_coverage, output_prefix=None):
 				if slice_id == len(slices):
 					slices.append([])
 					slice_coverages.append(CoverageMonitor(len(position_list)))
-	print('Skipped %d reads that only covered one SNP ...' % skipped_reads, file=sys.stderr)
+	logger.info('Skipped %d reads that only covered one SNP ...', skipped_reads)
 
 	unphasable_snps = len(position_list) - len(accessible_positions)
-	print('... {} out of {} SNP positions ({:.1%}) were only covered by such '
-		'reads and are thus unphasable'.format(unphasable_snps, len(position_list),
-		unphasable_snps / len(position_list)), file=sys.stderr)
+	logger.info('... %d out of %d SNP positions (%.1d%%) were only covered by such '
+		'reads and are thus unphasable', unphasable_snps, len(position_list),
+		100. * unphasable_snps / len(position_list))
 	# sort slices
 	for read_list in slices:
 		read_list.sort(key=lambda r: r.variants[0].position)
 	for slice_id, read_list in enumerate(slices):
 		positions_covered = len(position_set(read_list))
-		print('Slice %d contains %d reads and covers %d of %d SNP positions (%f%%)'%(slice_id, len(read_list), positions_covered, len(position_list), positions_covered*100.0/len(position_list)), file=sys.stderr)
+		logger.info('Slice %d contains %d reads and covers %d of %d SNP positions (%f%%)',
+			  slice_id, len(read_list), positions_covered, len(position_list),
+			  positions_covered * 100.0 / len(position_list))
 		if output_prefix is not None:
 			assert False, 'Does not work'
 			with open('{0}.{1:02}.wif'.format(output_prefix, slice_id), 'w') as slice_file:
@@ -402,20 +425,20 @@ def print_wif(reads):
 
 
 def main():
+	logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
 	parser = ArgumentParser(description=__doc__)
-
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
-	parser.add_argument('--seed', default=123, type=int, help='random seed (default: %(default)s)')
+	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
 	parser.add_argument('bam', metavar='BAM', help='BAM file')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
-	parser.add_argument('chromosome', help='chromosome to consider')
-	parser.add_argument('samples', metavar='sample', nargs='+', help='name(s) of the samples to consider')
+	parser.add_argument('chromosome', help='Chromosome to work on')
+	parser.add_argument('samples', metavar='SAMPLE', nargs='+', help='Name(s) of the samples to consider')
 	args = parser.parse_args()
 
 	variants = parse_vcf(args.vcf, args.chromosome, args.samples)
 
-	print('Read %d SNPs on chromosome %s' % (len(variants), args.chromosome), file=sys.stderr)
+	logger.info('Read %d SNPs on chromosome %s', len(variants), args.chromosome)
 
 	reads_with_variants = read_bam(args.bam, args.chromosome, variants)
 
@@ -425,13 +448,12 @@ def main():
 	# sort by position of first variant
 	#reads.sort(key=lambda read: read.variants[0].position)
 
-
 	# shuffle
 	random.seed(args.seed)
 	random.shuffle(reads)
 
 	filtered_reads = filter_reads(reads)
-	print('Filtered reads:', len(reads) - len(filtered_reads), file=sys.stderr)
+	logger.info('Filtered reads: %d', len(reads) - len(filtered_reads))
 	slices = slicer(filtered_reads, args.max_coverage)
 	print_wif(slices[0])
 
