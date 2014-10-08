@@ -1,6 +1,22 @@
 WhatsHap
 ========
 
+Compilation/Building
+--------------------
+
+Create virtualenv in `venv` subfolder:
+
+	virtualenv -p /usr/bin/python3 venv
+
+Install the requirements:
+
+	venv/bin/pip install -r requirements.txt
+
+Compile C++ sources:
+
+	mkdir build && cd build && cmake ../src && make
+
+
 To Do/Ideas
 -----------
 
@@ -12,8 +28,9 @@ To Do/Ideas
 * Are non-uniquely mapping reads used? (They probably should not be)
 * Evaluation. Is this relevant?: http://nar.oxfordjournals.org/content/40/5/2041
 * Use record.start (0-based) instead of record.POS
-* lines like this are output by phasedblocks.py:
+* lines like this are output by phasedblocks.py (note start > stop coord):
 scaffold250     Phasing exon    8223    8222    .       +       .       gene_id "8222"; transcript_id "8222.1";
+* remove reads that represent a subset of another one
 
 
 Notes
@@ -50,21 +67,6 @@ Fix scaffold221
 
 	samtools view -h scaffold221.bam | awk -vOFS="\t" '!/^@/ && $7=="*"{$8=0;$2=or($2,8)};1'|samtools view -bS - > scaffold221-fixed-tmp.bam
 	picard-tools FixMateInformation I=scaffold221-fixed-tmp.bam O=scaffold221-fixed.bam
-
-
-Herring example
----------------
-
-	mkdir build && cd build && cmake ../src && make && cd ..
-
-	scripts/getEnds-vcf.py data/scaffold221-moleculo.bam data/scaffold221.vcf scaffold221 sill2 > scaffold221.pre-wif
-	sort -k1,1 --stable data/scaffold221.pre-wif > data/scaffold221.sorted-pre-wif
-	scripts/mergeEnds.py data/scaffold221.sorted-pre-wif | sort -k 1,1 -n > data/scaffold221.wif
-	shuf scaffold221.wif > data/scaffold221.shuffled-wif
-	scripts/tobis-slicer.py -H 20 data/scaffold221.shuffled-wif data/scaffold221.slice
-	build/dp --all_het data/scaffold221.slice.00.wif > data/scaffold221.super-reads.wif
-	scripts/extract-het-pos.py scaffold221 data/scaffold221.vcf > data/scaffold221.positions
-	scripts/superread-to-haplotype.py -O data/scaffold221.wif data/scaffold221.super-reads.wif data/scaffold221.positions > result.txt
 
 
 pre-wif
