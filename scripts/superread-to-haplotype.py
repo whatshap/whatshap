@@ -10,7 +10,11 @@ import vcf
 
 __author__ = "Tobias Marschall"
 
-usage = """%prog [options] <super-reads.wif> <vcf> <chromosome>
+usage = """%prog [options] <super-reads.wif> [<vcf> <chromosome>]
+
+If vcf and chromosome are given, list of positions is determined from that.
+If not, all positions are in super-reads.wif are used (TODO I don't know if
+that makes sense, added it to be able to work with a toy example.)
 
 Reads <super-reads.wif> and a list of SNP positions to output and prints
 the haplotype (wrt to these positions) as given by the super read. A dash (-)
@@ -47,20 +51,24 @@ def main():
 			help='WIF with original reads. If given, a "|" will be put between any two non-gap positions in the haplotype that are not jointly covered by at least on read.')
 
 	(options, args) = parser.parse_args()
-	if len(args) != 1:
+	if len(args) not in [1, 3]:
 		parser.print_help()
 		sys.exit(1)
 
 	superread_filename = args[0]
-	vcf_filename = args[1]
-	chromosome = args[2]
 
-	position_list = read_positions(vcf_filename, chromosome)
-	position_list.sort()
-	#position_list = list(map(int, '10 20 30 40 50 60 90 100 110 140 150 160 170 180 190'.split()))
+	if len(args) == 1:
+		# TODO does this make sense?
+		position_list = wif_to_position_list(superread_filename)
+		print('Read %d SNP positions from "%s"' % (len(position_list), superread_filename), file=sys.stderr)
+	else:
+		vcf_filename = args[1]
+		chromosome = args[2]
+		position_list = read_positions(vcf_filename, chromosome)
+		position_list.sort()
+		print('Read %d SNP positions from "%s"' % (len(position_list), vcf_filename), file=sys.stderr)
 
 	position_to_index = dict((position,index) for index,position in enumerate(position_list))
-	print('Read %d SNP positions from "%s"' % (len(position_list), vcf_filename), file=sys.stderr)
 
 	connected = None
 	if options.original_reads is not None:
