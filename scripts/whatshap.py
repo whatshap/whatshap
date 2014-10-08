@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Read a VCF and a BAM file and write a WIF file to standard output.
-The WIF file is ready to be read by the 'dp' program.
+The WIF file is ready to be used as input for the 'dp' program.
 
 (old description:
 gets the heterozygous snp positions from a vcf file, and then
@@ -128,7 +128,7 @@ def parse_vcf(path, chromosome, sample_names):
 def read_bam(path, chromosome, variants, mapq_threshold=20):
 	"""
 	path -- path to BAM file
-	chromosome -- name of chromosome to work on.
+	chromosome -- name of chromosome to work on
 	variants --
 
 	Return a list of ReadVariantList objects.
@@ -141,7 +141,7 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 
 	target_tid = samfile.gettid(chromosome)
 	if target_tid < 0:
-		logger.error('Chromosome "%d" unknown in BAM file', chromosome)
+		logger.error('Chromosome "%s" unknown in BAM file', chromosome)
 		# TODO raise an exception instead?
 		sys.exit(1)
 
@@ -189,6 +189,7 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 			continue
 		#f = rgF[rgMap[read.opt('RG')]]
 		# convert from BAM zero-based coords to 1-based
+		# TODO use 0-based coordinates instead
 		pos = int(read.pos) + 1
 
 		# since reads are ordered by position, we need not consider
@@ -202,7 +203,6 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 		s = 0  # absolute index into the read string [0..len(read)]
 		# assuming that CIGAR contains only M,I,D,S
 		read_variants = []
-		#print('Processing read', fl, file=sys.stderr)
 		for cigar_op, length in cigar:
 			#print('  cigar:', cigar_op, length, file=sys.stderr)
 			if cigar_op == 0:  # MATCH/MISMATCH # we're in a matching subregion
@@ -231,16 +231,16 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 					p += 1
 				s = s_next
 				p = p_next
-			elif cigar_op == 1 : # an insertion
+			elif cigar_op == 1:  # an insertion
 				s += length
-			elif cigar_op == 2 : # a deletion
+			elif cigar_op == 2:  # a deletion
 				p += length
-			elif cigar_op == 4 : # soft clipping
+			elif cigar_op == 4:  # soft clipping
 				s += length
-			elif cigar_op == 5 : # hard clipping
+			elif cigar_op == 5:  # hard clipping
 				pass
 			else:
-				logger.error("Invalid cigar operation:", cigar_op)
+				logger.error("Invalid cigar operation: %d", cigar_op)
 				sys.exit(1)
 
 		if c > 0:
@@ -273,6 +273,23 @@ def grouped_by_name(reads_with_variants):
 
 
 def merge_reads(reads, mincount=2):
+	"""
+	Merge reads that occur twice (according to their name) into a single read.
+	This is relevant for paired-end or mate pair reads.
+
+	The ``variants`` attribute of a merged read contains the variants lists of
+	both reads, separated by "None". For a merged read, the ``mapq`` attribute
+	is a tuple consisting of the two original mapping qualities.
+
+	Reads that occur only once are returned unchanged (unless mincount
+		applies).
+
+	mincount -- If the number of variants on a read occurring once or the
+		total number of variants on a paired-end read is lower than this
+		value, the read (or read pair) is discarded.
+
+	TODO mincount filtering should be done in a different function.
+	"""
 	result = []
 	for group in grouped_by_name(reads):
 		count = sum(len(read.variants) for read in group)
@@ -290,9 +307,12 @@ def merge_reads(reads, mincount=2):
 
 
 def filter_reads(reads):
-	"""Return a new list in which reads are omitted that fulfill at least one the
+	"""
+	Return a new list in which reads are omitted that fulfill at least one the
 	these conditions:
+
 	- one of the read's variants' alleles is 'E'
+
 	- variant positions are not strictly monotically increasing.
 	"""
 	result = []
@@ -437,11 +457,9 @@ def main():
 	args = parser.parse_args()
 
 	variants = parse_vcf(args.vcf, args.chromosome, args.samples)
-
 	logger.info('Read %d SNPs on chromosome %s', len(variants), args.chromosome)
 
 	reads_with_variants = read_bam(args.bam, args.chromosome, variants)
-
 	reads_with_variants.sort(key=lambda read: read.name)
 	reads = merge_reads(reads_with_variants)
 
