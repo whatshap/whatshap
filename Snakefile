@@ -75,13 +75,13 @@ rule whatshap:
 		super_wif='data/{chrom}-{subset}.super-reads.wif',
 		wif='data/{chrom}-{subset}.wif'
 	shell:
-		'{PYTHON} scripts/whatshap.py --all-het -H 20 --wif {output.wif} {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.super_wif}'
+		'{PYTHON} whatshap/whatshap.py --all-het -H 20 --wif {output.wif} {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.super_wif}'
 
 rule superread_to_haplotype:
 	input: wif='data/{chrom}-{subset}.wif', superwif='data/{chrom}-{subset}.super-reads.wif', vcf='data/{chrom}.vcf'
 	output: 'result/{chrom}-{subset}.txt'
 	shell:
-		'{PYTHON} scripts/superread-to-haplotype.py -O {input.wif} {input.superwif} {input.vcf} {wildcards.chrom} > {output}'
+		'{PYTHON} whatshap/superread-to-haplotype.py -O {input.wif} {input.superwif} {input.vcf} {wildcards.chrom} > {output}'
 
 
 ## GATK
