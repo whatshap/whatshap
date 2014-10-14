@@ -18,11 +18,9 @@ Expected input files:
 rule all:
 	input: expand('result/{chrom}-{subset}.txt', chrom=CHROMOSOMES, subset=SUBSETS)
 
-
 rule clean:
 	shell:
 		"rm -f result/* data/*"
-
 
 rule symlink:
 	input: 'raw/scaffold221{file}'
@@ -52,7 +50,6 @@ rule fix_unmapped_mates:
 		"""samtools view -h {input.bam} | awk -vOFS="\t" '!/^@/ && $7=="*"{{$8=0;$2=or($2,8)}};1' | samtools view -bS - > {output.bam}"""
 		#picard-tools FixMateInformation I=scaffold221-fixed-tmp.bam O=scaffold221-fixed.bam
 
-
 rule mpbam:
 	'Create the mate-pair BAM file'
 	input: bam='data/{chrom}.bam', rgs='data/rgs-mp.txt'
@@ -72,14 +69,13 @@ rule index_bam:
 	shell:
 		'samtools index {input}'
 
-rule getends:
+rule whatshap:
 	input: bam='data/{chrom}-{subset}.bam', bai='data/{chrom}-{subset}.bam.bai', vcf='data/{chrom}.vcf'
 	output:
 		super_wif='data/{chrom}-{subset}.super-reads.wif',
 		wif='data/{chrom}-{subset}.wif'
 	shell:
 		'{PYTHON} scripts/whatshap.py --all-het -H 20 --wif {output.wif} {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.super_wif}'
-
 
 rule superread_to_haplotype:
 	input: wif='data/{chrom}-{subset}.wif', superwif='data/{chrom}-{subset}.super-reads.wif', vcf='data/{chrom}.vcf'

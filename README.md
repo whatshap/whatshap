@@ -6,15 +6,17 @@ Compilation/Building
 
 Create virtualenv in `venv` subfolder:
 
-	virtualenv -p /usr/bin/python3 venv
+    virtualenv -p /usr/bin/python3 venv
 
 Install the requirements:
 
-	venv/bin/pip install -r requirements.txt
+    venv/bin/pip install -r requirements.txt
 
 Compile C++ sources:
 
-	mkdir build && cd build && cmake ../src && make
+    mkdir build && cd build && cmake ../src && make
+
+Then unpack raw.tgz (make sure that folder `raw` is created) and run snakemake.
 
 
 To Do/Ideas
@@ -30,7 +32,9 @@ To Do/Ideas
 * Use record.start (0-based) instead of record.POS
 * lines like this are output by phasedblocks.py (note start > stop coord):
 scaffold250     Phasing exon    8223    8222    .       +       .       gene_id "8222"; transcript_id "8222.1";
-* remove reads that represent a subset of another one
+* Remove reads that represent a subset of another one
+* Extend the example data set to at least two scaffolds
+* Current C++ code uses an iterator over matrix columns as input
 
 
 Notes
@@ -41,7 +45,7 @@ Notes
   freebayes does). Would be better to integrate this into the variant caller or
   to get the information out of it. This applies only to indels, which are not
   supported right now anyway.
-
+* Input format for HapCompass: http://www.brown.edu/Research/Istrail_Lab/resources/hapcompass_manual.html#sec11
 
 Phasing in VCFs
 ---------------
