@@ -15,6 +15,7 @@ TODO
 * Work on all chromosomes (and optionally on a specified one only)
 * Call dp program ourselves
 * Merge with superread-to-haplotypes.py
+* Perhaps simplify slice_reads() such that it only creates and returns one slice
 
 """
 import logging
@@ -308,7 +309,7 @@ def merge_reads(reads, mincount=2):
 
 def filter_reads(reads):
 	"""
-	Return a new list in which reads are omitted that fulfill at least one the
+	Return a new list in which reads are omitted that fulfill at least one of
 	these conditions:
 
 	- one of the read's variants' alleles is 'E'
@@ -328,7 +329,7 @@ def filter_reads(reads):
 			assert variant.base in 'ACGT01-X', 'variant.base={!r}'.format(variant.base)
 			prev_pos = variant.position
 		else:
-			# only executed when no break occurred
+			# executed when no break occurred above
 			result.append(read)
 	return result
 
@@ -347,19 +348,30 @@ class CoverageMonitor:
 
 
 def position_set(reads):
+	"""
+	Return a set of all variant positions that occur within a list of reads.
+
+	reads -- a list of ReadVariantList objects
+	"""
 	positions = set()
 	for read in reads:
 		positions.update(variant.position for variant in read.variants if variant is not None)
 	return positions
 
 
-def slicer(reads, max_coverage, output_prefix=None):
-	#output_prefix = args[1]
+def slice_reads(reads, max_coverage):
+	"""
+	TODO document this
+	TODO document that fragment (not read) coverage is used
+
+	max_coverage --
+	reads -- a list of ReadVariantList objects
+	"""
 	position_list = sorted(position_set(reads))
 	logger.info('Found %d SNP positions', len(position_list))
 
 	# dictionary to map SNP position to its index
-	position_to_index = dict((position,index) for index,position in enumerate(position_list))
+	position_to_index = { position: index for index, position in enumerate(position_list) }
 
 	# List of slices, start with one empty slice ...
 	slices = [[]]
@@ -368,7 +380,6 @@ def slicer(reads, max_coverage, output_prefix=None):
 	skipped_reads = 0
 	accessible_positions = set()
 	for read in reads:
-
 		# Skip reads that cover only one SNP
 		if len(read.variants) < 2:
 			skipped_reads += 1
@@ -392,7 +403,7 @@ def slicer(reads, max_coverage, output_prefix=None):
 				if slice_id == len(slices):
 					slices.append([])
 					slice_coverages.append(CoverageMonitor(len(position_list)))
-	logger.info('Skipped %d reads that only covered one SNP ...', skipped_reads)
+	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
 
 	unphasable_snps = len(position_list) - len(accessible_positions)
 	logger.info('... %d out of %d SNP positions (%.1d%%) were only covered by such '
@@ -406,11 +417,7 @@ def slicer(reads, max_coverage, output_prefix=None):
 		logger.info('Slice %d contains %d reads and covers %d of %d SNP positions (%f%%)',
 			  slice_id, len(read_list), positions_covered, len(position_list),
 			  positions_covered * 100.0 / len(position_list))
-		if output_prefix is not None:
-			assert False, 'Does not work'
-			with open('{0}.{1:02}.wif'.format(output_prefix, slice_id), 'w') as slice_file:
-				for read, suffix, line in read_list:
-					print(line, file=slice_file)
+
 	return slices
 
 
@@ -472,7 +479,7 @@ def main():
 
 	filtered_reads = filter_reads(reads)
 	logger.info('Filtered reads: %d', len(reads) - len(filtered_reads))
-	slices = slicer(filtered_reads, args.max_coverage)
+	slices = slice_reads(filtered_reads, args.max_coverage)
 	print_wif(slices[0])
 
 
