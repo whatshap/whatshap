@@ -35,7 +35,9 @@ scaffold250     Phasing exon    8223    8222    .       +       .       gene_id 
 * Remove reads that represent a subset of another one
 * Extend the example data set to at least two scaffolds
 * Current C++ code uses an iterator over matrix columns as input
-
+* Parallelize by working on multiple chromosomes in parallel
+* Determine connected components first, then run algorithm in parallel on all
+  of them (need to find conn. comp. also afterwards)
 
 Notes
 -----
@@ -52,7 +54,7 @@ Phasing in VCFs
 
 * originally only via 0|1 and 1|0 etc per entry
 * then a 'phase set' (PS) added to INFO field: entries with same PS are in same
-set of phased genotypes
+  set of phased genotypes
 * GATK's ReadBackedPhasing in newer versions use the 'HP' tag instead, see
   https://gatkforums.broadinstitute.org/discussion/4226/
   https://gatkforums.broadinstitute.org/discussion/4038/
