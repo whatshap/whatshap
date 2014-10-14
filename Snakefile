@@ -18,6 +18,12 @@ Expected input files:
 rule all:
 	input: expand('result/{chrom}-{subset}.txt', chrom=CHROMOSOMES, subset=SUBSETS)
 
+
+rule clean:
+	shell:
+		"rm -f tmp/* result/* data/*"
+
+
 rule symlink:
 	input: 'raw/scaffold221{file}'
 	output: 'data/scaffold221{file,(-moleculo.bam|-unfixed.bam|.vcf)}'
