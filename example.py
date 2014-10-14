@@ -21,7 +21,6 @@ bits = { '0': 'A', '1': 'C', 'E': 'G' }
 with open('example.wif', 'w') as f:
 	quality = 22
 	for line in s.split('\n'):
-		#print(repr(line))
 		s = ''
 		for pos, c in enumerate(line, 1):
 			if c == ' ':
@@ -29,7 +28,7 @@ with open('example.wif', 'w') as f:
 			print('{} {} {} {} : '.format(pos*10, bits[c], c, quality), end='', file=f)
 		print('# 55 : NA', file=f)
 
-print('Creating an "example.wif" file with the following contents:')
+print('Creating an "example.wif" file with the following content:')
 with open('example.wif') as f:
 	print(f.read())
 

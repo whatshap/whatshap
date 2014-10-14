@@ -9,12 +9,8 @@ gathers those snps that coincide with each read end (one read end's
 set of positions per line); and also splits ends into their
 respective read groups)
 
-
 TODO
 * parse_vcf should return a list of namedtuple objects
-* Work on all chromosomes (and optionally on a specified one only)
-* Call dp program ourselves
-* Merge with superread-to-haplotypes.py
 * Perhaps simplify slice_reads() such that it only creates and returns one slice
 
 """

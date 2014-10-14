@@ -22,9 +22,4 @@ scripts/whatshap.py --all-het -H ${slice_coverage} ${bam} ${vcf} ${chromosome} $
 # TODO: also treats "1/." as heterozygous right now
 extract-het-pos.py ${chromosome} ${vcf} > ${prefix}.positions
 
-# Turn WIF format into a "haplotype string", where 
-#  0: ref allele
-#  1: alt allele
-#  -: unphasable: no coverage of read that covers at least 2 SNPs
-#  X: unphasable: there is coverage, but still not phasable (tie)
 superread-to-haplotype.py -O ${prefix}.wif ${prefix}.super-reads.wif ${prefix}.positions > ${prefix}.haplotypes

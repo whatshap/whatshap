@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
+"""
+Turn WIF format into a "haplotype string", where
 
+ 0: ref allele
+ 1: alt allele
+ -: unphasable: no coverage of read that covers at least 2 SNPs
+ X: unphasable: there is coverage, but still not phasable (tie)
+"""
 from optparse import OptionParser, OptionGroup
 import sys
 import os
 from wifreader import read_wif, wif_to_position_list, determine_connectivity
 #from bitarray import bitarray
 import vcf
-
 
 __author__ = "Tobias Marschall"
 
@@ -18,7 +24,8 @@ that makes sense, added it to be able to work with a toy example.)
 
 Reads <super-reads.wif> and a list of SNP positions to output and prints
 the haplotype (wrt to these positions) as given by the super read. A dash (-)
-is printed for positions about which the super read does not make a statement."""
+is printed for positions about which the super read does not make a statement.
+"""
 
 
 allowed_dna_chars = frozenset('ACGTNacgtn')
