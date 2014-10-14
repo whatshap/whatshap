@@ -21,7 +21,7 @@ rule all:
 
 rule clean:
 	shell:
-		"rm -f tmp/* result/* data/*"
+		"rm -f result/* data/*"
 
 
 rule symlink:
@@ -31,7 +31,7 @@ rule symlink:
 
 rule rgmp_list:
 	'Create list of matepair read groups'
-	output: rgs='tmp/rgs-mp.txt'
+	output: rgs='data/rgs-mp.txt'
 	run:
 		with open(output.rgs, 'w') as f:
 			for rg in '10k 20ka 20kb 20kc 5k bgi2ka bgi2kb'.split():
@@ -55,7 +55,7 @@ rule fix_unmapped_mates:
 
 rule mpbam:
 	'Create the mate-pair BAM file'
-	input: bam='data/{chrom}.bam', rgs='tmp/rgs-mp.txt'
+	input: bam='data/{chrom}.bam', rgs='data/rgs-mp.txt'
 	output: bam='data/{chrom}-mp.bam'
 	run:
 		shell('samtools view -b -R {input.rgs} {input.bam} > {output.bam}')
@@ -74,7 +74,7 @@ rule index_bam:
 
 rule getends:
 	input: bam='data/{chrom}-{subset}.bam', bai='data/{chrom}-{subset}.bam.bai', vcf='data/{chrom}.vcf'
-	output: wif='tmp/{chrom}-{subset}.wif'
+	output: wif='data/{chrom}-{subset}.wif'
 	shell:
 		'{PYTHON} scripts/whatshap.py -H 20 {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.wif}'
 
@@ -85,7 +85,7 @@ rule dp:
 		'build/dp --all_het {input} > {output}'
 
 rule superread_to_haplotype:
-	input: wif='tmp/{chrom}-{subset}.wif', superwif='tmp/{chrom}-{subset}.super-reads.wif', vcf='data/{chrom}.vcf'
+	input: wif='data/{chrom}-{subset}.wif', superwif='data/{chrom}-{subset}.super-reads.wif', vcf='data/{chrom}.vcf'
 	output: 'result/{chrom}-{subset}.txt'
 	shell:
 		'{PYTHON} scripts/superread-to-haplotype.py -O {input.wif} {input.superwif} {input.vcf} {wildcards.chrom} > {output}'
@@ -110,8 +110,8 @@ rule faidx:
 
 rule ReadBackedPhasing:
 	output:
-		vcf='tmp/gatkphased-{chrom}-{subset}.vcf',
-		idx='tmp/gatkphased-{chrom}-{subset}.vcf.idx'
+		vcf='data/gatkphased-{chrom}-{subset}.vcf',
+		idx='data/gatkphased-{chrom}-{subset}.vcf.idx'
 	input:
 		vcf='data/{chrom}.vcf',
 		ref='data/{chrom}.fasta',
@@ -119,7 +119,7 @@ rule ReadBackedPhasing:
 		dictionary='data/{chrom}.dict',
 		bam='data/{chrom}-{subset}.bam',
 		bai='data/{chrom}-{subset}.bam.bai'
-	log: 'tmp/gatkphased-{chrom}-{subset}.log'
+	log: 'data/gatkphased-{chrom}-{subset}.log'
 	shell:
 		r"""
 		{GATK} \
