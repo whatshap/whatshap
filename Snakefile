@@ -1,6 +1,7 @@
 # kate: syntax Python;
 
 GATK = 'java -Xmx6G -jar GenomeAnalysisTK.jar'
+PYTHON = 'venv/bin/python'  # Must be Python 3
 
 SAMPLE = 'sill2'
 CHROMOSOMES = ['scaffold221']
@@ -69,7 +70,7 @@ rule getends:
 	input: bam='data/{chrom}-{subset}.bam', bai='data/{chrom}-{subset}.bam.bai', vcf='data/{chrom}.vcf'
 	output: wif='tmp/{chrom}-{subset}.wif'
 	shell:
-		'venv/bin/python scripts/whatshap.py -H 20 {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.wif}'
+		'{PYTHON} scripts/whatshap.py -H 20 {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.wif}'
 
 rule dp:
 	input: '{f}.wif'
@@ -81,7 +82,7 @@ rule superread_to_haplotype:
 	input: wif='tmp/{chrom}-{subset}.wif', superwif='tmp/{chrom}-{subset}.super-reads.wif', vcf='data/{chrom}.vcf'
 	output: 'result/{chrom}-{subset}.txt'
 	shell:
-		'venv/bin/python scripts/superread-to-haplotype.py -O {input.wif} {input.superwif} {input.vcf} {wildcards.chrom} > {output}'
+		'{PYTHON} scripts/superread-to-haplotype.py -O {input.wif} {input.superwif} {input.vcf} {wildcards.chrom} > {output}'
 
 
 ## GATK
