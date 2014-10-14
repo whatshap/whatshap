@@ -23,6 +23,8 @@ import sys
 import random
 import gzip
 from collections import namedtuple
+from tempfile import NamedTemporaryFile
+import subprocess
 try:
 	from sqt import HelpfulArgumentParser as ArgumentParser
 except:
@@ -457,6 +459,9 @@ def main():
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
 	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
+	parser.add_argument('--all-het', action='store_true', default=False,
+		help='Assume all positions to be heterozygous (that is, fully trust SNP calls).')
+	parser.add_argument('--wif', metavar='WIF', default=None, help='Write intermediate WIF file')
 	parser.add_argument('bam', metavar='BAM', help='BAM file')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('chromosome', help='Chromosome to work on')
@@ -480,8 +485,21 @@ def main():
 	filtered_reads = filter_reads(reads)
 	logger.info('Filtered reads: %d', len(reads) - len(filtered_reads))
 	slices = slice_reads(filtered_reads, args.max_coverage)
-	print_wif(slices[0], sys.stdout)
 
+	if args.wif is not None:
+		wif_path = args.wif
+		wif_file = open(wif_path, 'wt')
+	else:
+		wif_file = NamedTemporaryFile(mode='wt', suffix='.wif', prefix='whatshap-', delete=False)
+		wif_path = wif_file.name
+	with wif_file as wif:
+		print_wif(slices[0], wif)
+		logger.info('WIF written to %s', wif_path)
+
+	dp_cmdline = ['build/dp'] + (['--all_het'] if args.all_het else []) + [wif_path]
+	logger.info('Running %s', ' '.join(dp_cmdline))
+	output = subprocess.check_output(dp_cmdline, shell=False).decode()
+	print(output, end='')
 
 
 if __name__ == '__main__':

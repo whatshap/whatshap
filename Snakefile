@@ -74,15 +74,12 @@ rule index_bam:
 
 rule getends:
 	input: bam='data/{chrom}-{subset}.bam', bai='data/{chrom}-{subset}.bam.bai', vcf='data/{chrom}.vcf'
-	output: wif='data/{chrom}-{subset}.wif'
+	output:
+		super_wif='data/{chrom}-{subset}.super-reads.wif',
+		wif='data/{chrom}-{subset}.wif'
 	shell:
-		'{PYTHON} scripts/whatshap.py -H 20 {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.wif}'
+		'{PYTHON} scripts/whatshap.py --all-het -H 20 --wif {output.wif} {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.super_wif}'
 
-rule dp:
-	input: '{f}.wif'
-	output: '{f}.super-reads.wif'
-	shell:
-		'build/dp --all_het {input} > {output}'
 
 rule superread_to_haplotype:
 	input: wif='data/{chrom}-{subset}.wif', superwif='data/{chrom}-{subset}.super-reads.wif', vcf='data/{chrom}.vcf'

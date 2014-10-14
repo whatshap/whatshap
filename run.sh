@@ -13,12 +13,10 @@ echo ${prefix}
 # TODO: only uses data that is already phased according to VCF, 
 #       i.e. ignores genotypes with "/" (rather than "|")
 # this will also pair up paired-end reads and sort the file by position
-whatshap.py -H ${slice_coverage} ${bam} ${vcf} ${chromosome} ${individual} > ${prefix}.wif
-
-# Run WhatsHap core algorithm. Using "--all_het" tells the algorithm
+# Run WhatsHap core algorithm. Using "--all-het" tells the algorithm
 # to "trust" the SNP caller; i.e. assume all considered SNP positions
 # to be heterozygous.
-dp --all_het ${prefix}.wif > ${prefix}.super-reads.wif
+scripts/whatshap.py --all-het -H ${slice_coverage} ${bam} ${vcf} ${chromosome} ${individual} > ${prefix}.super-reads.wif
 
 # Extract positions of heterozygous SNPS 
 # TODO: also treats "1/." as heterozygous right now
