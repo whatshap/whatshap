@@ -7,3 +7,5 @@ venv
 data/
 tmp/
 *.bak
+MANIFEST
+raw/
