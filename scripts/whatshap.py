@@ -414,27 +414,27 @@ def slice_reads(reads, max_coverage):
 		read_list.sort(key=lambda r: r.variants[0].position)
 	for slice_id, read_list in enumerate(slices):
 		positions_covered = len(position_set(read_list))
-		logger.info('Slice %d contains %d reads and covers %d of %d SNP positions (%f%%)',
+		logger.info('Slice %d contains %d reads and covers %d of %d SNP positions (%.1f%%)',
 			  slice_id, len(read_list), positions_covered, len(position_list),
 			  positions_covered * 100.0 / len(position_list))
 
 	return slices
 
 
-def print_wif(reads):
+def print_wif(reads, file):
 	for read in reads:
 		paired = False
 		for variant in read.variants:
 			if variant is None:
 				# this marker is used between paired-end reads
-				print('-- : ', end='')
+				print('-- : ', end='', file=file)
 				paired = True
 			else:
-				print('{position} {base} {allele} {quality} : '.format(**vars(variant)), end='')
+				print('{position} {base} {allele} {quality} : '.format(**vars(variant)), end='', file=file)
 		if paired:
-			print("# {} {} : NA NA".format(read.mapq[0], read.mapq[1]))
+			print("# {} {} : NA NA".format(read.mapq[0], read.mapq[1]), file=file)
 		else:
-			print("# {} : NA".format(read.mapq))
+			print("# {} : NA".format(read.mapq), file=file)
 
 # output columns:
 # - read.qname
@@ -480,7 +480,8 @@ def main():
 	filtered_reads = filter_reads(reads)
 	logger.info('Filtered reads: %d', len(reads) - len(filtered_reads))
 	slices = slice_reads(filtered_reads, args.max_coverage)
-	print_wif(slices[0])
+	print_wif(slices[0], sys.stdout)
+
 
 
 if __name__ == '__main__':
