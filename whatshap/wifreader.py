@@ -29,7 +29,7 @@ def read_wif(filename):
 			if not last_pos < pos:
 				skip_read = True
 				break
-			read.append((pos, nucleotide, bit, quality))
+			read.append((pos-1, nucleotide, bit, quality))
 			last_pos = pos
 		if skip_read:
 			skipped_reads += 1

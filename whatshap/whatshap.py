@@ -19,7 +19,7 @@ Output:
 
 TODO
 * Perhaps simplify slice_reads() such that it only creates and returns one slice
-
+* allow only one sample name to be passed to parse_vcf
 """
 import logging
 import sys
@@ -83,7 +83,7 @@ def parse_vcf(path, chromosome, sample_names):
 		if indices is None:
 			indices = [ (i, call.sample) for i, call in enumerate(record.samples) if call.sample in sample_names ]
 			if len(indices) == 0:
-				logger.error("none of the sample names found in vcf")
+				logger.error("None of the sample names found in vcf")
 				sys.exit(1)
 			else:
 				outstring = "Found samples "
@@ -119,11 +119,11 @@ def parse_vcf(path, chromosome, sample_names):
 			# ... etc. in cases where we have unphased data; so keep this
 			# in mind also -- murray
 		if not het:
-			logger.warn("Not a heterozygous SNP for any of the samples, SNP %s", record.POS)
+			logger.warn("Not a heterozygous SNP for any of the samples, SNP %s", record.start + 1)
 			continue
 		else:
 			# found a heterozygous snp for the individual
-			yield Variant(position=record.POS, reference_allele=record.REF,
+			yield Variant(position=record.start, reference_allele=record.REF,
 				 alternative_allele=record.ALT[0])
 			for index, _ in indices:
 				"""
@@ -147,6 +147,7 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 	# CIGAR alignment of the bam file
 
 	# first we get some header info, etc.
+	# TODO use a context manager
 	samfile = pysam.Samfile(path, "rb")
 
 	target_tid = samfile.gettid(chromosome)
@@ -192,15 +193,11 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 			continue
 		if read.mapq < mapq_threshold:
 			continue
-
-		# only reads with a nonempty cigar string (i.e., mapped) are considered
 		cigar = read.cigar
 		if not cigar:
 			continue
 		#f = rgF[rgMap[read.opt('RG')]]
-		# convert from BAM zero-based coords to 1-based
-		# TODO use 0-based coordinates instead
-		pos = int(read.pos) + 1
+		pos = read.pos
 
 		# since reads are ordered by position, we need not consider
 		# positions that are too small
@@ -211,7 +208,6 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 		j = i  # another index into variants
 		p = pos
 		s = 0  # absolute index into the read string [0..len(read)]
-		# assuming that CIGAR contains only M,I,D,S
 		read_variants = []
 		for cigar_op, length in cigar:
 			#print('  cigar:', cigar_op, length, file=sys.stderr)
@@ -250,7 +246,7 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 			elif cigar_op == 5:  # hard clipping
 				pass
 			else:
-				logger.error("Invalid cigar operation: %d", cigar_op)
+				logger.error("Invalid CIGAR operation: %d", cigar_op)
 				sys.exit(1)
 		if c > 0:
 			rvl = ReadVariantList(name=read.qname, mapq=read.mapq, variants=read_variants)
@@ -414,12 +410,15 @@ def slice_reads(reads, max_coverage):
 	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
 
 	unphasable_snps = len(position_list) - len(accessible_positions)
-	logger.info('... %d out of %d SNP positions (%.1d%%) were only covered by such '
-		'reads and are thus unphasable', unphasable_snps, len(position_list),
+	logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
+		'connecting them to another variant and are thus unphasable',
+		unphasable_snps, len(position_list),
 		100. * unphasable_snps / len(position_list))
-	# sort slices
+
+	# Sort each slice
 	for read_list in slices:
 		read_list.sort(key=lambda r: r.variants[0].position)
+	# Print stats
 	for slice_id, read_list in enumerate(slices):
 		positions_covered = len(position_set(read_list))
 		logger.info('Slice %d contains %d reads and covers %d of %d SNP positions (%.1f%%)',
@@ -460,7 +459,7 @@ def superread_to_haplotype(superread_path, position_list, original_reads):
 			else:
 				logger.warn('Super read contains unknown SNP position: %d', pos)
 		for i, (p, h) in enumerate(zip(position_list, haplotype)):
-			print(p, h)
+			print(p+1, h)
 			if connected and i < len(position_list) - 1 and not connected[i] and haplotype[i] != '-' and haplotype[i+1] != '-':
 				print('---')
 
@@ -480,7 +479,12 @@ def print_wif(reads, file):
 				print('-- : ', end='', file=file)
 				paired = True
 			else:
-				print('{position} {base} {allele} {quality} : '.format(**vars(variant)), end='', file=file)
+				print('{position} {base} {allele} {quality} : '.format(
+						position=variant.position + 1,
+						base=variant.base,
+						allele=variant.allele,
+						quality=variant.quality),
+					end='', file=file)
 		if paired:
 			print("# {} {} : NA NA".format(read.mapq[0], read.mapq[1]), file=file)
 		else:
