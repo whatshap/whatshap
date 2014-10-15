@@ -435,7 +435,7 @@ def determine_connectivity(wif_filename, position_list):
 	#b = bitarray(len(position_list)-1)
 	#b.setall(0)
 	b = [False]*(len(position_list)-1)
-	for read, suffix, line in read_wif(wif_filename):
+	for read, suffix, _ in read_wif(wif_filename):
 		try:
 			start = position_to_index[read[0][0]]
 			end = position_to_index[read[-1][0]]
@@ -451,7 +451,7 @@ def superread_to_haplotype(superread_path, position_list, original_reads):
 	position_to_index = dict((position,index) for index, position in enumerate(position_list))
 	connected = determine_connectivity(original_reads, position_list)
 
-	for read, suffix, line in read_wif(superread_path):
+	for read, suffix, _ in read_wif(superread_path):
 		haplotype = ['-'] * len(position_list)
 		for pos, nucleotide, bit, quality in read:
 			if pos in position_to_index:
@@ -540,13 +540,12 @@ def main():
 		# sort by position of first variant
 		#reads.sort(key=lambda read: read.variants[0].position)
 
-		# shuffle
 		random.seed(args.seed)
 		random.shuffle(reads)
-
-		filtered_reads = filter_reads(reads)
-		logger.info('Filtered reads: %d', len(reads) - len(filtered_reads))
-		slices = slice_reads(filtered_reads, args.max_coverage)
+		unfiltered_length = len(reads)
+		reads = filter_reads(reads)
+		logger.info('Filtered reads: %d', unfiltered_length - len(reads))
+		reads = slice_reads(reads, args.max_coverage)[0]
 
 		if args.wif is not None:
 			wif_path = args.wif
@@ -555,7 +554,7 @@ def main():
 			wif_file = NamedTemporaryFile(mode='wt', suffix='.wif', prefix='whatshap-', delete=False)
 			wif_path = wif_file.name
 		with wif_file as wif:
-			print_wif(slices[0], wif)
+			print_wif(reads, wif)
 			logger.info('WIF written to %s', wif_path)
 
 		dp_cmdline = ['build/dp'] + (['--all_het'] if args.all_het else []) + [wif_path]
