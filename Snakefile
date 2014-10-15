@@ -70,18 +70,16 @@ rule index_bam:
 		'samtools index {input}'
 
 rule whatshap:
-	input: bam='data/{chrom}-{subset}.bam', bai='data/{chrom}-{subset}.bam.bai', vcf='data/{chrom}.vcf'
+	input:
+		bam='data/{chrom}-{subset}.bam',
+		bai='data/{chrom}-{subset}.bam.bai',
+		vcf='data/{chrom}.vcf'
 	output:
 		super_wif='data/{chrom}-{subset}.super-reads.wif',
-		wif='data/{chrom}-{subset}.wif'
+		wif='data/{chrom}-{subset}.wif',
+		txt='result/{chrom}-{subset}.txt'
 	shell:
-		'{PYTHON} whatshap/whatshap.py --all-het -H 20 --wif {output.wif} {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.super_wif}'
-
-rule superread_to_haplotype:
-	input: wif='data/{chrom}-{subset}.wif', superwif='data/{chrom}-{subset}.super-reads.wif', vcf='data/{chrom}.vcf'
-	output: 'result/{chrom}-{subset}.txt'
-	shell:
-		'{PYTHON} whatshap/superread-to-haplotype.py -O {input.wif} {input.superwif} {input.vcf} {wildcards.chrom} > {output}'
+		'{PYTHON} whatshap/whatshap.py --all-het -H 20 --wif {output.wif} --superwif {output.super_wif} {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.txt}'
 
 
 ## GATK

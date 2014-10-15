@@ -9,6 +9,14 @@ gathers those snps that coincide with each read end (one read end's
 set of positions per line); and also splits ends into their
 respective read groups)
 
+Output:
+"haplotype string", where
+
+ 0: ref allele
+ 1: alt allele
+ -: unphasable: no coverage of read that covers at least 2 SNPs
+ X: unphasable: there is coverage, but still not phasable (tie)
+
 TODO
 * parse_vcf should return a list of namedtuple objects
 * Perhaps simplify slice_reads() such that it only creates and returns one slice
@@ -21,12 +29,15 @@ import gzip
 from collections import namedtuple
 from tempfile import NamedTemporaryFile
 import subprocess
+from io import StringIO
 try:
 	from sqt import HelpfulArgumentParser as ArgumentParser
 except:
 	from argparse import ArgumentParser
 import pysam
 import vcf
+
+from wifreader import read_wif, wif_to_position_list
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -419,6 +430,48 @@ def slice_reads(reads, max_coverage):
 	return slices
 
 
+def determine_connectivity(wif_filename, position_list):
+	'''Reads WIF of original reads and return a bitarray where bit i says whether
+	positions i and i+1 are jointly covered by a read.'''
+	position_to_index = dict((position,index) for index,position in enumerate(position_list))
+	#b = bitarray(len(position_list)-1)
+	#b.setall(0)
+	b = [False]*(len(position_list)-1)
+	for read, suffix, line in read_wif(wif_filename):
+		try:
+			start = position_to_index[read[0][0]]
+			end = position_to_index[read[-1][0]]
+		except KeyError:
+			continue
+		for i in range(start,end):
+			b[i] = True
+	return b
+
+
+def superread_to_haplotype(superread_path, position_list, original_reads):
+	position_list = sorted(position_list)
+	position_to_index = dict((position,index) for index, position in enumerate(position_list))
+	connected = determine_connectivity(original_reads, position_list)
+
+	for read, suffix, line in read_wif(superread_path):
+		haplotype = ['-'] * len(position_list)
+		for pos, nucleotide, bit, quality in read:
+			if pos in position_to_index:
+				haplotype[position_to_index[pos]] = str(bit)
+			else:
+				logger.warn('Super read contains unknown SNP position: %d', pos)
+		for i, (p, h) in enumerate(zip(position_list, haplotype)):
+			print(p, h)
+			if connected and i < len(position_list) - 1 and not connected[i] and haplotype[i] != '-' and haplotype[i+1] != '-':
+				print('---')
+
+		# If information on "SNP deserts" is available, then input "|" symbols to separate unconnected components
+		for i in range(len(connected) - 1, -1, -1):
+			if (not connected[i]) and (haplotype[i] != '-') and (haplotype[i+1] != '-'):
+				haplotype.insert(i+1, '|')
+		print(''.join(haplotype))
+
+
 def print_wif(reads, file):
 	for read in reads:
 		paired = False
@@ -458,6 +511,7 @@ def main():
 	parser.add_argument('--all-het', action='store_true', default=False,
 		help='Assume all positions to be heterozygous (that is, fully trust SNP calls).')
 	parser.add_argument('--wif', metavar='WIF', default=None, help='Write intermediate WIF file')
+	parser.add_argument('--superwif', metavar='WIF', default=None, help='Write intermediate super WIF file')
 	parser.add_argument('bam', metavar='BAM', help='BAM file')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('chromosome', help='Chromosome to work on')
@@ -494,8 +548,20 @@ def main():
 
 	dp_cmdline = ['build/dp'] + (['--all_het'] if args.all_het else []) + [wif_path]
 	logger.info('Running %s', ' '.join(dp_cmdline))
-	output = subprocess.check_output(dp_cmdline, shell=False).decode()
-	print(output, end='')
+	superread_result = subprocess.check_output(dp_cmdline, shell=False).decode()
+
+	if args.superwif is not None:
+		superwif_path = args.superwif
+		superwif_file = open(superwif_path, 'wt')
+	else:
+		superwif_file = NamedTemporaryFile(mode='wt', suffix='.superwif', prefix='whatshap-', delete=False)
+		superwif_path = superwif_file.name
+	with superwif_file as wif:
+		wif.write(superread_result)
+		logger.info('Super WIF written to %s', superwif_path)
+
+	positions = [ variant[0] for variant in variants ]
+	superread_to_haplotype(superwif_path, positions, wif_path)
 
 
 if __name__ == '__main__':

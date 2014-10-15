@@ -46,22 +46,3 @@ def wif_to_position_list(filename):
 	position_list = list(position_set)
 	position_list.sort()
 	return position_list
-
-# slapped this one in here to avoid creating another .pyc file -- it
-# also fits okay here, I think -- Murray Patterson, Nov 2013
-def determine_connectivity(wif_filename, position_list):
-	'''Reads WIF of original reads and return a bitarray where bit i says whether 
-	positions i and i+1 are jointly covered by a read.'''
-	position_to_index = dict((position,index) for index,position in enumerate(position_list))
-	#b = bitarray(len(position_list)-1)
-	#b.setall(0)
-	b = [False]*(len(position_list)-1)
-	for read, suffix, line in read_wif(wif_filename):
-		try:
-			start = position_to_index[read[0][0]]
-			end = position_to_index[read[-1][0]]
-		except KeyError:
-			continue
-		for i in range(start,end):
-			b[i] = True
-	return b
