@@ -75,8 +75,12 @@ Fix scaffold221
 	picard-tools FixMateInformation I=scaffold221-fixed-tmp.bam O=scaffold221-fixed.bam
 
 
-pre-wif
--------
+File formats
+============
+
+
+pre-wif (unused)
+----------------
 
 * one line per read
 * for each read, list all the SNPs from the VCF file that intersect the region the read maps to
@@ -86,8 +90,8 @@ pre-wif
     * whether the read supports the REF allele (0) or the ALT allele (1)
     * base quality
 
-sorted-pre-wif
---------------
+sorted-pre-wif (unused)
+-----------------------
 
 * same as above, but sorted by read name
 * stable sort is used, that is, identically named reads are sorted in the same way they were
@@ -96,16 +100,30 @@ sorted-pre-wif
 wif
 ---
 
-* contains data from above, but paired-end reads are merged into one line
-* single-end reads are output mostly unchanged
-* read name is discarded
-* only reads with a count of at least 2 (after merging) are kept
+* one line per read
+* for each read, list all the SNPs from the VCF file that intersect the region the read maps to
+* for each SNP, put in its
+    * position (on the reference)
+    * base (nucleotide) that is actually in the read
+    * whether the read supports the REF allele (0) or the ALT allele (1)
+    * base quality
+    * a colon (`:`)
+* last two fields in every line contain mapping quality (??) and other stuff
+* paired-end reads appear on one line, separated by the marker `--`
+* reads or read pairs that cover only one variant are discarded
+
+
+super-wif
+---------
+...
 
 
 result.txt
 ----------
 
-* two lines are output. If option "--all_het" is used when calling dp, they are equivalent: swap 0 and 1 in the first and you get the second; if not, some positions might be identified as homozygous.
+* two lines are output. If option "--all_het" is used when calling dp, they are
+  equivalent: swap 0 and 1 in the first and you get the second; if not, some
+  positions might be identified as homozygous.
 
 
 Experimental setup
