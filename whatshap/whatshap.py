@@ -36,8 +36,6 @@ except:
 import pysam
 import vcf
 
-from wifreader import read_wif, wif_to_position_list
-
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
 logger = logging.getLogger(__name__)
@@ -49,9 +47,9 @@ ReadVariantList = namedtuple('ReadVariantList', 'name mapq variants')
 # A single variant on a read.
 ReadVariant = namedtuple('ReadVariant', 'position base allele quality')
 
-#Variant = namedtuple('Variant', 'position reference_allele alternative_allele')
+#VcfVariant = namedtuple('VcfVariant', 'position reference_allele alternative_allele')
 
-class Variant:
+class VcfVariant:
 	def __init__(self, position, reference_allele, alternative_allele):
 		self.position = position
 		self.reference_allele = reference_allele
@@ -61,7 +59,7 @@ class Variant:
 def parse_vcf(path, chromosome, sample_names):
 	"""
 	Read a VCF and return a list of variants. Each entry in the returned list is
-	a list of Variant objects.
+	a list of VcfVariant objects.
 
 	path -- Path to VCF file
 	chromosome -- Chromosome to work on
@@ -123,7 +121,7 @@ def parse_vcf(path, chromosome, sample_names):
 			continue
 		else:
 			# found a heterozygous snp for the individual
-			yield Variant(position=record.start, reference_allele=record.REF,
+			yield VcfVariant(position=record.start, reference_allele=record.REF,
 				 alternative_allele=record.ALT[0])
 			for index, _ in indices:
 				"""
@@ -428,6 +426,43 @@ def slice_reads(reads, max_coverage):
 	return slices
 
 
+def read_wif(filename):
+	'''Returns an iterator that returns lists ([(pos,nucleotide,0/1,quality),..], suffix, original_line)'''
+	skipped_reads = 0
+	total_reads = 0
+	for line in open(filename):
+		line = line.strip()
+		total_reads += 1
+		fields = [x.strip() for x in line.split(':')]
+		assert len(fields) > 2
+		assert fields[-2].startswith('#')
+		suffix = fields[-2:]
+		fields = fields[:-2]
+		read = []
+		skip_read = False
+		last_pos = -1
+		for field in fields:
+			if field == '--': continue
+			tokens = field.split()
+			assert len(tokens) == 4
+			if tokens[2] == 'E':
+				skip_read = True
+				break
+			pos, nucleotide, bit, quality = int(tokens[0]), tokens[1], tokens[2], int(tokens[3])
+			assert nucleotide in ['A', 'C', 'G', 'T', '0', '1', '-', 'X']
+			if not last_pos < pos:
+				skip_read = True
+				break
+			read.append((pos-1, nucleotide, bit, quality))
+			last_pos = pos
+		if skip_read:
+			skipped_reads += 1
+			continue
+		yield read
+	if skipped_reads > 0:
+		logger.warn('read_wif(%s): skipped %d out of %d reads.', filename, skipped_reads, total_reads)
+
+
 def determine_connectivity(wif_filename, position_list):
 	'''Reads WIF of original reads and return a bitarray where bit i says whether
 	positions i and i+1 are jointly covered by a read.'''
@@ -435,7 +470,7 @@ def determine_connectivity(wif_filename, position_list):
 	#b = bitarray(len(position_list)-1)
 	#b.setall(0)
 	b = [False]*(len(position_list)-1)
-	for read, suffix, _ in read_wif(wif_filename):
+	for read in read_wif(wif_filename):
 		try:
 			start = position_to_index[read[0][0]]
 			end = position_to_index[read[-1][0]]
@@ -451,7 +486,7 @@ def superread_to_haplotype(superread_path, position_list, original_reads):
 	position_to_index = dict((position,index) for index, position in enumerate(position_list))
 	connected = determine_connectivity(original_reads, position_list)
 
-	for read, suffix, _ in read_wif(superread_path):
+	for read in read_wif(superread_path):
 		haplotype = ['-'] * len(position_list)
 		for pos, nucleotide, bit, quality in read:
 			if pos in position_to_index:
