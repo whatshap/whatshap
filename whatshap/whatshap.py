@@ -18,7 +18,6 @@ Output:
  X: unphasable: there is coverage, but still not phasable (tie)
 
 TODO
-* parse_vcf should return a list of namedtuple objects
 * Perhaps simplify slice_reads() such that it only creates and returns one slice
 
 """
@@ -50,11 +49,19 @@ ReadVariantList = namedtuple('ReadVariantList', 'name mapq variants')
 # A single variant on a read.
 ReadVariant = namedtuple('ReadVariant', 'position base allele quality')
 
+#Variant = namedtuple('Variant', 'position reference_allele alternative_allele')
+
+class Variant:
+	def __init__(self, position, reference_allele, alternative_allele):
+		self.position = position
+		self.reference_allele = reference_allele
+		self.alternative_allele = alternative_allele
+
 
 def parse_vcf(path, chromosome, sample_names):
 	"""
 	Read a VCF and return a list of variants. Each entry in the returned list is
-	a list [position, reference_allele, alternative_allele].
+	a list of Variant objects.
 
 	path -- Path to VCF file
 	chromosome -- Chromosome to work on
@@ -71,13 +78,12 @@ def parse_vcf(path, chromosome, sample_names):
 		if not record.is_snp:
 			continue
 		if len(record.ALT) != 1:
-			logger.warn("reading VCFs with multiple ALTs not correctly implemented")
+			logger.warn("Reading VCFs with multiple ALTs not implemented")
 			continue
-
 		if indices is None:
 			indices = [ (i, call.sample) for i, call in enumerate(record.samples) if call.sample in sample_names ]
 			if len(indices) == 0:
-				logger.errore("none of the sample names found in vcf")
+				logger.error("none of the sample names found in vcf")
 				sys.exit(1)
 			else:
 				outstring = "Found samples "
@@ -89,9 +95,8 @@ def parse_vcf(path, chromosome, sample_names):
 				logger.info(outstring)
 
 		het = False
-		for index in [x[0] for x in indices]:
+		for index, _ in indices:
 			call = record.samples[index]
-
 			if False:
 				print(
 					'pos {:10d}'.format(record.start),
@@ -115,31 +120,26 @@ def parse_vcf(path, chromosome, sample_names):
 			# in mind also -- murray
 		if not het:
 			logger.warn("Not a heterozygous SNP for any of the samples, SNP %s", record.POS)
-			#% (individual, tk[1]), file=sys.stderr)
 			continue
-		else: # found a heterozygous snp for the individual
-
-			# TODO deal with len(ALT) > 1
-			snp_info = [record.POS, record.REF, record.ALT[0]]
-			for index in [x[0] for x in indices]:
+		else:
+			# found a heterozygous snp for the individual
+			yield Variant(position=record.POS, reference_allele=record.REF,
+				 alternative_allele=record.ALT[0])
+			for index, _ in indices:
 				"""
-				TODO
+				# TODO what was this originally supposed to do?
 				v = tk[index].split(':')[0]
 				if v in ('.|1', '0/1'): v = '0|1' # just to disambiguate what
 				elif v in ('1|.', '1/0'): v = '1|0' # was mentioned above
 				snp_info.append(v)
 				"""
-				snp_info.append('XXX')
-			variants.append(snp_info)
-
-	return variants
 
 
 def read_bam(path, chromosome, variants, mapq_threshold=20):
 	"""
 	path -- path to BAM file
 	chromosome -- name of chromosome to work on
-	variants --
+	variants -- list of Variant objects (obtained from VCF with parse_vcf)
 
 	Return a list of ReadVariantList objects.
 	"""
@@ -204,7 +204,7 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 
 		# since reads are ordered by position, we need not consider
 		# positions that are too small
-		while i < len(variants) and variants[i][0] < pos:
+		while i < len(variants) and variants[i].position < pos:
 			i += 1
 
 		c = 0  # hit count
@@ -220,16 +220,16 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 				p_next = p + length
 				r = p + length  # size of this subregion
 				# skip over all SNPs that come before this region
-				while j < len(variants) and variants[j][0] < p:
+				while j < len(variants) and variants[j].position < p:
 					j += 1
 				# iterate over all positions in this subregion and
 				# check whether any of them coincide with one of the SNPs ('hit')
 				while j < len(variants) and p < r:
-					if variants[j][0] == p: # we have a hit
+					if variants[j].position == p: # we have a hit
 						base = read.seq[s:s+1].decode()
-						if base == variants[j][1]:
+						if base == variants[j].reference_allele:
 							al = '0'  # REF allele
-						elif base == variants[j][2]:
+						elif base == variants[j].alternative_allele:
 							al = '1'  # ALT allele
 						else:
 							al = 'E' # for "error" (keep for stats purposes)
@@ -252,7 +252,6 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 			else:
 				logger.error("Invalid cigar operation: %d", cigar_op)
 				sys.exit(1)
-
 		if c > 0:
 			rvl = ReadVariantList(name=read.qname, mapq=read.mapq, variants=read_variants)
 			result.append(rvl)
@@ -518,7 +517,7 @@ def main():
 	parser.add_argument('samples', metavar='SAMPLE', nargs='+', help='Name(s) of the samples to consider')
 	args = parser.parse_args()
 
-	variants = parse_vcf(args.vcf, args.chromosome, args.samples)
+	variants = list(parse_vcf(args.vcf, args.chromosome, args.samples))
 	logger.info('Read %d SNPs on chromosome %s', len(variants), args.chromosome)
 
 	reads_with_variants = read_bam(args.bam, args.chromosome, variants)
@@ -560,7 +559,7 @@ def main():
 		wif.write(superread_result)
 		logger.info('Super WIF written to %s', superwif_path)
 
-	positions = [ variant[0] for variant in variants ]
+	positions = [ variant.position for variant in variants ]
 	superread_to_haplotype(superwif_path, positions, wif_path)
 
 
