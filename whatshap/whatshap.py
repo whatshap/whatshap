@@ -463,14 +463,16 @@ def read_wif(filename):
 		logger.warn('read_wif(%s): skipped %d out of %d reads.', filename, skipped_reads, total_reads)
 
 
-def determine_connectivity(wif_filename, position_list):
-	'''Reads WIF of original reads and return a bitarray where bit i says whether
-	positions i and i+1 are jointly covered by a read.'''
+def determine_connectivity(reads, position_list):
+	"""
+	Return a bitarray where bit i says whether positions i and i+1 are jointly
+	covered by a read.
+	"""
 	position_to_index = dict((position,index) for index,position in enumerate(position_list))
 	#b = bitarray(len(position_list)-1)
 	#b.setall(0)
 	b = [False]*(len(position_list)-1)
-	for read in read_wif(wif_filename):  # TODO do not read a file here
+	for read in reads:
 		variants = read.variants
 		try:
 			start = position_to_index[variants[0].position]
@@ -482,12 +484,12 @@ def determine_connectivity(wif_filename, position_list):
 	return b
 
 
-def superread_to_haplotype(superread_path, position_list, original_reads):
+def superread_to_haplotype(superreads, position_list, original_reads):
 	position_list = sorted(position_list)
 	position_to_index = dict((position,index) for index, position in enumerate(position_list))
 	connected = determine_connectivity(original_reads, position_list)
 
-	for read in read_wif(superread_path):
+	for read in superreads:
 		haplotype = ['-'] * len(position_list)
 		for variant in read.variants:
 			if variant.position in position_to_index:
@@ -541,6 +543,41 @@ def print_wif(reads, file):
 #   - "NA"
 
 
+def phase_reads(reads, all_het=False, wif=None, superwif=None):
+	"""
+	Phase reads, return superreads.
+
+	Intermediate files are written to wif and superwif. If the parameters are
+	None, a name for the temporary files is made up.
+	"""
+	if wif is not None:
+		wif_path = wif
+		wif_file = open(wif_path, 'wt')
+	else:
+		wif_file = NamedTemporaryFile(mode='wt', suffix='.wif', prefix='whatshap-', delete=False)
+		wif_path = wif_file.name
+	with wif_file as wif:
+		print_wif(reads, wif)
+		logger.info('WIF written to %s', wif_path)
+
+	dp_cmdline = ['build/dp'] + (['--all_het'] if all_het else []) + [wif_path]
+	logger.info('Running %s', ' '.join(dp_cmdline))
+	superread_result = subprocess.check_output(dp_cmdline, shell=False).decode()
+
+	if superwif is not None:
+		superwif_path = superwif
+		superwif_file = open(superwif_path, 'wt')
+	else:
+		superwif_file = NamedTemporaryFile(mode='wt', suffix='.superwif', prefix='whatshap-', delete=False)
+		superwif_path = superwif_file.name
+	with superwif_file as wif:
+		wif.write(superread_result)
+		logger.info('Super WIF written to %s', superwif_path)
+
+	superreads = read_wif(superwif_path)
+	return superreads
+
+
 def main():
 	logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
 	parser = ArgumentParser(description=__doc__)
@@ -582,36 +619,13 @@ def main():
 		reads = filter_reads(reads)
 		logger.info('Filtered reads: %d', unfiltered_length - len(reads))
 		reads = slice_reads(reads, args.max_coverage)[0]
-
-		if args.wif is not None:
-			wif_path = args.wif
-			wif_file = open(wif_path, 'wt')
-		else:
-			wif_file = NamedTemporaryFile(mode='wt', suffix='.wif', prefix='whatshap-', delete=False)
-			wif_path = wif_file.name
-		with wif_file as wif:
-			print_wif(reads, wif)
-			logger.info('WIF written to %s', wif_path)
-
-		dp_cmdline = ['build/dp'] + (['--all_het'] if args.all_het else []) + [wif_path]
-		logger.info('Running %s', ' '.join(dp_cmdline))
-		superread_result = subprocess.check_output(dp_cmdline, shell=False).decode()
-
-		if args.superwif is not None:
-			superwif_path = args.superwif
-			superwif_file = open(superwif_path, 'wt')
-		else:
-			superwif_file = NamedTemporaryFile(mode='wt', suffix='.superwif', prefix='whatshap-', delete=False)
-			superwif_path = superwif_file.name
-		with superwif_file as wif:
-			wif.write(superread_result)
-			logger.info('Super WIF written to %s', superwif_path)
+		superreads = phase_reads(reads, all_het=args.all_het, wif=args.wif, superwif=args.superwif)
 	else:
-		superwif_path = args.resume_superwif
-		wif_path = args.resume_wif
+		reads = read_wif(args.resume_wif)
+		superreads = read_wif(args.resume_superwif)
 
 	positions = [ variant.position for variant in variants ]
-	superread_to_haplotype(superwif_path, positions, wif_path)
+	superread_to_haplotype(superreads, positions, reads)
 
 
 if __name__ == '__main__':
