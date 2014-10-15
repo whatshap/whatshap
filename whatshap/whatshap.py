@@ -514,54 +514,66 @@ def main():
 	parser.add_argument('--all-het', action='store_true', default=False,
 		help='Assume all positions to be heterozygous (that is, fully trust SNP calls).')
 	parser.add_argument('--wif', metavar='WIF', default=None, help='Write intermediate WIF file')
-	parser.add_argument('--superwif', metavar='WIF', default=None, help='Write intermediate super WIF file')
+	parser.add_argument('--superwif', metavar='SUPERWIF', default=None,
+		help='Write intermediate SUPERWIF file')
+	parser.add_argument('--resume-wif', metavar='WIF', default=None,
+		help='Do not compute WIF, but read it from WIF.')
+	parser.add_argument('--resume-superwif', metavar='SUPERWIF', default=None,
+		help='Do not compute super WIF, but read it from SUPERWIF.')
 	parser.add_argument('bam', metavar='BAM', help='BAM file')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('chromosome', help='Chromosome to work on')
 	parser.add_argument('samples', metavar='SAMPLE', nargs='+', help='Name(s) of the samples to consider')
 	args = parser.parse_args()
 
+	if bool(args.resume_superwif) != bool(args.resume_wif):
+		parser.error('When resuming, both --resume-wif and --resume-superwif '
+			'are required.')
 	variants = list(parse_vcf(args.vcf, args.chromosome, args.samples))
 	logger.info('Read %d SNPs on chromosome %s', len(variants), args.chromosome)
 
-	reads_with_variants = read_bam(args.bam, args.chromosome, variants)
-	reads_with_variants.sort(key=lambda read: read.name)
-	reads = merge_reads(reads_with_variants)
+	if args.resume_wif is None:
+		reads_with_variants = read_bam(args.bam, args.chromosome, variants)
+		reads_with_variants.sort(key=lambda read: read.name)
+		reads = merge_reads(reads_with_variants)
 
-	# sort by position of first variant
-	#reads.sort(key=lambda read: read.variants[0].position)
+		# sort by position of first variant
+		#reads.sort(key=lambda read: read.variants[0].position)
 
-	# shuffle
-	random.seed(args.seed)
-	random.shuffle(reads)
+		# shuffle
+		random.seed(args.seed)
+		random.shuffle(reads)
 
-	filtered_reads = filter_reads(reads)
-	logger.info('Filtered reads: %d', len(reads) - len(filtered_reads))
-	slices = slice_reads(filtered_reads, args.max_coverage)
+		filtered_reads = filter_reads(reads)
+		logger.info('Filtered reads: %d', len(reads) - len(filtered_reads))
+		slices = slice_reads(filtered_reads, args.max_coverage)
 
-	if args.wif is not None:
-		wif_path = args.wif
-		wif_file = open(wif_path, 'wt')
+		if args.wif is not None:
+			wif_path = args.wif
+			wif_file = open(wif_path, 'wt')
+		else:
+			wif_file = NamedTemporaryFile(mode='wt', suffix='.wif', prefix='whatshap-', delete=False)
+			wif_path = wif_file.name
+		with wif_file as wif:
+			print_wif(slices[0], wif)
+			logger.info('WIF written to %s', wif_path)
+
+		dp_cmdline = ['build/dp'] + (['--all_het'] if args.all_het else []) + [wif_path]
+		logger.info('Running %s', ' '.join(dp_cmdline))
+		superread_result = subprocess.check_output(dp_cmdline, shell=False).decode()
+
+		if args.superwif is not None:
+			superwif_path = args.superwif
+			superwif_file = open(superwif_path, 'wt')
+		else:
+			superwif_file = NamedTemporaryFile(mode='wt', suffix='.superwif', prefix='whatshap-', delete=False)
+			superwif_path = superwif_file.name
+		with superwif_file as wif:
+			wif.write(superread_result)
+			logger.info('Super WIF written to %s', superwif_path)
 	else:
-		wif_file = NamedTemporaryFile(mode='wt', suffix='.wif', prefix='whatshap-', delete=False)
-		wif_path = wif_file.name
-	with wif_file as wif:
-		print_wif(slices[0], wif)
-		logger.info('WIF written to %s', wif_path)
-
-	dp_cmdline = ['build/dp'] + (['--all_het'] if args.all_het else []) + [wif_path]
-	logger.info('Running %s', ' '.join(dp_cmdline))
-	superread_result = subprocess.check_output(dp_cmdline, shell=False).decode()
-
-	if args.superwif is not None:
-		superwif_path = args.superwif
-		superwif_file = open(superwif_path, 'wt')
-	else:
-		superwif_file = NamedTemporaryFile(mode='wt', suffix='.superwif', prefix='whatshap-', delete=False)
-		superwif_path = superwif_file.name
-	with superwif_file as wif:
-		wif.write(superread_result)
-		logger.info('Super WIF written to %s', superwif_path)
+		superwif_path = args.resume_superwif
+		wif_path = args.resume_wif
 
 	positions = [ variant.position for variant in variants ]
 	superread_to_haplotype(superwif_path, positions, wif_path)

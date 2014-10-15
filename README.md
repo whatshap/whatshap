@@ -141,3 +141,14 @@ Experimental setup
 * Phase with whatshap
 
 	freebayes -m 1 -f scaffold221.fasta scaffold221-all.bam > scaffold221.vcf
+
+
+Testing
+-------
+
+    venv/bin/python whatshap/whatshap.py --all-het -H 20 --wif data/scaffold221-moleculo.wif --superwif data/scaffold221-moleculo.superwif data/scaffold221-moleculo.bam data/scaffold221.vcf scaffold221 sill2 > result.txt
+
+afterwards:
+
+    venv/bin/python whatshap/whatshap.py --resume-wif data/scaffold221-moleculo.wif --resume-superwif data/scaffold221-moleculo.superwif data/scaffold221-moleculo.bam data/scaffold221.vcf scaffold221 sill2 > result.txt
+
