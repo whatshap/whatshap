@@ -438,7 +438,7 @@ def read_wif(filename):
 		assert fields[-2].startswith('#')
 		suffix = fields[-2:]
 		fields = fields[:-2]
-		read = []
+		variants = []
 		skip_read = False
 		last_pos = -1
 		for field in fields:
@@ -453,12 +453,12 @@ def read_wif(filename):
 			if not last_pos < pos:
 				skip_read = True
 				break
-			read.append((pos-1, nucleotide, bit, quality))
+			variants.append(ReadVariant(position=pos-1, base=nucleotide, allele=bit, quality=quality))
 			last_pos = pos
 		if skip_read:
 			skipped_reads += 1
 			continue
-		yield read
+		yield ReadVariantList(name=None, mapq=None, variants=variants)
 	if skipped_reads > 0:
 		logger.warn('read_wif(%s): skipped %d out of %d reads.', filename, skipped_reads, total_reads)
 
@@ -470,10 +470,11 @@ def determine_connectivity(wif_filename, position_list):
 	#b = bitarray(len(position_list)-1)
 	#b.setall(0)
 	b = [False]*(len(position_list)-1)
-	for read in read_wif(wif_filename):
+	for read in read_wif(wif_filename):  # TODO do not read a file here
+		variants = read.variants
 		try:
-			start = position_to_index[read[0][0]]
-			end = position_to_index[read[-1][0]]
+			start = position_to_index[variants[0].position]
+			end = position_to_index[variants[-1].position]
 		except KeyError:
 			continue
 		for i in range(start,end):
@@ -488,11 +489,11 @@ def superread_to_haplotype(superread_path, position_list, original_reads):
 
 	for read in read_wif(superread_path):
 		haplotype = ['-'] * len(position_list)
-		for pos, nucleotide, bit, quality in read:
-			if pos in position_to_index:
-				haplotype[position_to_index[pos]] = str(bit)
+		for variant in read.variants:
+			if variant.position in position_to_index:
+				haplotype[position_to_index[variant.position]] = str(variant.allele)
 			else:
-				logger.warn('Super read contains unknown SNP position: %d', pos)
+				logger.warn('Super read contains unknown SNP position: %d', variant.position)
 		for i, (p, h) in enumerate(zip(position_list, haplotype)):
 			print(p+1, h)
 			if connected and i < len(position_list) - 1 and not connected[i] and haplotype[i] != '-' and haplotype[i+1] != '-':
