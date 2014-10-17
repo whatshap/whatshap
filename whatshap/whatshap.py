@@ -316,7 +316,7 @@ def filter_reads(reads):
 
 	- one of the read's variants' alleles is 'E'
 
-	- variant positions are not strictly monotically increasing.
+	- variant positions are not strictly monotonically increasing.
 	"""
 	result = []
 	for read in reads:
@@ -508,6 +508,94 @@ def superread_to_haplotype(superreads, position_list, original_reads):
 		print(''.join(haplotype))
 
 
+class Node:
+	def __init__(self, value, parent):
+		self.value = value
+		self.parent = parent
+
+	def __repr__(self):
+		return "Node(value={}, parent={})".format(self.value, self.parent)
+
+
+class ComponentFinder:
+	"""
+	This implements a variant of the Union-Find algorithm, but without the
+	"union by rank" strategy since we want the smallest node to be the
+	representative.
+
+	TODO
+	It's probably possible to use union by rank and still have the
+	representative be the smallest node (possibly need to keep track of the
+	minimum somewhere).
+
+	We probably should not worry too much since there is already logarithmic
+	overhead due to dictionary lookups.
+	"""
+	def __init__(self, values):
+		self.nodes = { x: Node(x, None) for x in values }
+
+	def merge(self, x, y):
+		assert x != y
+		x_root = self._find_node(x)
+		y_root = self._find_node(y)
+
+		if x_root is y_root:
+			return
+
+		# Merge, making sure that the node with the smaller value is the
+		# new parent.
+		if x_root.value < y_root.value:
+			y_root.parent = x_root
+		else:
+			x_root.parent = y_root
+
+	def _find_node(self, x):
+		node = root = self.nodes[x]
+		while root.parent is not None:
+			root = root.parent
+
+		# compression path
+		while node.parent is not None:
+			node.parent, node = root, node.parent
+		return root
+
+	def find(self, x):
+		"""
+		Return which component x belongs to, identified by the smallest value.
+		"""
+		return self._find_node(x).value
+
+	def print(self):
+		for x in sorted(self.nodes):
+			print(x, ':', self.nodes[x], 'is represented by', self._find_node(x))
+
+
+def find_components(superreads, position_list, reads):
+	"""
+	TODO For what do we need position_list?
+	"""
+	assert len(superreads) == 2
+	assert len(superreads[0].variants) == len(superreads[1].variants)
+	superread = superreads[0]
+	all_phased_positions = set(v.position for v in superread.variants if v.allele in '01')
+	position_list = sorted(position_list)
+	component_finder = ComponentFinder(position_list)
+	# A component is identified by the position of its leftmost variant.
+
+	for read in reads:
+		positions = [ v.position for v in read.variants if v.position in all_phased_positions ]
+
+		for position in positions[1:]:
+			component_finder.merge(positions[0], position)
+
+	for p in position_list:
+		if p in all_phased_positions:
+			comp = component_finder.find(p)
+			print(p, comp, "--------" if comp == p else "")
+		else:
+			print(p, "unphased")
+
+
 def print_wif(reads, file):
 	for read in reads:
 		paired = False
@@ -624,8 +712,12 @@ def main():
 		reads = read_wif(args.resume_wif)
 		superreads = read_wif(args.resume_superwif)
 
+	superreads = list(superreads)
 	positions = [ variant.position for variant in variants ]
-	superread_to_haplotype(superreads, positions, reads)
+	if False:
+		superread_to_haplotype(superreads, positions, reads)
+	else:
+		find_components(superreads, positions, reads)
 
 
 if __name__ == '__main__':
