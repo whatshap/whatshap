@@ -62,7 +62,7 @@ setup(
 	author_email = '',
 	url = '',
 	description = '',
-	license = '',
+	license = 'MIT',
 	ext_modules = extensions,
 	packages = ['whatshap'],
 	#scripts = ['bin/...'],
@@ -70,7 +70,7 @@ setup(
 		"Development Status :: 2 - Pre-Alpha",
 		"Environment :: Console",
 		"Intended Audience :: Science/Research",
-		#"License :: OSI Approved :: MIT License", ???
+		"License :: OSI Approved :: MIT License",
 		"Natural Language :: English",
 		#"Programming Language :: Cython",
 		"Programming Language :: Python",
