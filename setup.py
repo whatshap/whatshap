@@ -20,7 +20,8 @@ if sys.version_info < (3, 3):
 	sys.exit(1)
 
 
-use_cython = False  # TODO not os.path.exists('whatshap/_somefile.c')
+use_cython = not os.path.exists('whatshap/_core.cpp') or (
+	os.path.getmtime('whatshap/_core.pyx') > os.path.getmtime('whatshap/_core.cpp'))
 
 if '--cython' in sys.argv:
 	use_cython = True
@@ -46,9 +47,8 @@ if use_cython:
 
 	from Cython.Build import cythonize
 
-ext = '.pyx' if use_cython else '.c'
+ext = '.pyx' if use_cython else '.cpp'
 
-# TODO add your extensions here
 extensions = [
 	Extension('whatshap._core', sources=['whatshap/_core' + ext]),
 ]
@@ -72,7 +72,7 @@ setup(
 		"Intended Audience :: Science/Research",
 		"License :: OSI Approved :: MIT License",
 		"Natural Language :: English",
-		#"Programming Language :: Cython",
+		"Programming Language :: Cython",
 		"Programming Language :: Python",
 		"Programming Language :: Python :: 3",
 		"Topic :: Scientific/Engineering :: Bio-Informatics"
