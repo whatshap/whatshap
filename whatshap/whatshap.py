@@ -442,7 +442,9 @@ def read_wif(filename):
 		skip_read = False
 		last_pos = -1
 		for field in fields:
-			if field == '--': continue
+			if field == '--':
+				variants.append(None)
+				continue
 			tokens = field.split()
 			assert len(tokens) == 4
 			if tokens[2] == 'E':
@@ -583,7 +585,7 @@ def find_components(superreads, position_list, reads, vcfpath):
 	# A component is identified by the position of its leftmost variant.
 
 	for read in reads:
-		positions = [ v.position for v in read.variants if v.position in all_phased_positions ]
+		positions = [ v.position for v in read.variants if v is not None and v.position in all_phased_positions ]
 
 		for position in positions[1:]:
 			component_finder.merge(positions[0], position)
