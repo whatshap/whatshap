@@ -50,7 +50,7 @@ ext = '.pyx' if use_cython else '.c'
 
 # TODO add your extensions here
 extensions = [
-	# Extension('whatshap._myextension', sources=['whatshap/_myextension' + ext]),
+	Extension('whatshap._core', sources=['whatshap/_core' + ext]),
 ]
 if use_cython:
 	extensions = cythonize(extensions)
