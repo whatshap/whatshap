@@ -595,6 +595,8 @@ def find_components(superreads, position_list, reads, vcfpath):
 		else:
 			print(p, "unphased")
 
+	return
+
 	vcf_reader = vcf.Reader(filename=vcfpath)
 	vcf_writer = vcf.Writer(sys.stdout, vcf_reader)
 	print(vcf_reader.formats)
