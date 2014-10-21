@@ -570,7 +570,7 @@ class ComponentFinder:
 			print(x, ':', self.nodes[x], 'is represented by', self._find_node(x))
 
 
-def find_components(superreads, position_list, reads):
+def find_components(superreads, position_list, reads, vcfpath):
 	"""
 	TODO For what do we need position_list?
 	"""
@@ -594,6 +594,27 @@ def find_components(superreads, position_list, reads):
 			print(p, comp, "--------" if comp == p else "")
 		else:
 			print(p, "unphased")
+
+	vcf_reader = vcf.Reader(filename=vcfpath)
+	vcf_writer = vcf.Writer(sys.stdout, vcf_reader)
+	print(vcf_reader.formats)
+	vcf_reader.formats['HP'] = vcf.parser._Format(id='GT', num=None, type='String', desc='Phasing haplotype identifier')
+	#vcf_reader.formats['PQ'] = Format(id='PQ', num=1, type='Float', desc='Phasing quality')
+
+	"""
+	GATK uses this:
+	##FORMAT=<ID=HP,Number=.,Type=String,Description="Read-backed phasing haplotype identifiers">
+    ##FORMAT=<ID=PQ,Number=1,Type=Float,Description="Read-backed phasing quality">
+	"""
+	for record in vcf_reader:
+		# Current PyVCF does not make it very easy to modify records/calls.
+		record.add_format('HP')
+		if record.FORMAT not in vcf_reader._format_cache:
+			vcf_reader._format_cache[record.FORMAT] = vcf_reader._parse_sample_format(record.FORMAT)
+		samp_fmt = vcf_reader._format_cache[record.FORMAT]
+		call = record.samples[0]
+		call.data = samp_fmt(*(call.data + ('put_phasing_info_here',)))
+		vcf_writer.write_record(record)
 
 
 def print_wif(reads, file):
@@ -633,10 +654,14 @@ def print_wif(reads, file):
 
 def phase_reads(reads, all_het=False, wif=None, superwif=None):
 	"""
-	Phase reads, return superreads.
+	Phase reads, return superreads. This function runs the phasing algorithm
+	by creating a temporary WIF file, running the 'dp' binary and then
+	parsing the created "super reads" output file.
 
-	Intermediate files are written to wif and superwif. If the parameters are
-	None, a name for the temporary files is made up.
+	Intermediate files are written to the paths named by wif and superwif. If
+	the parameters are None, a name for the temporary files is made up.
+
+	TODO The temporary files are *not* deleted.
 	"""
 	if wif is not None:
 		wif_path = wif
@@ -717,7 +742,7 @@ def main():
 	if False:
 		superread_to_haplotype(superreads, positions, reads)
 	else:
-		find_components(superreads, positions, reads)
+		find_components(superreads, positions, reads, args.vcf)
 
 
 if __name__ == '__main__':
