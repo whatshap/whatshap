@@ -5,8 +5,6 @@
 #include <cassert>
 #include <string.h>
 
-#include <boost/program_options.hpp>
-
 #include "columnreader.h"
 #include "dptable.h"
 
@@ -14,14 +12,13 @@
 #define MAX_COVERAGE 32
 
 using namespace std;
-namespace po = boost::program_options;
 
 // helper functions to output a haplotype (resp., pair of super-reads)
 void output_haplotype(auto_ptr<DPTable::haplotype_t> h, ostream & os);
 void output_super_reads(auto_ptr<DPTable::read_t> r, ostream & os, bool suppress_undecidable);
 string string_rep(Entry::allele_t allele); // get string representation of allele
 
-void usage(const char* name, const po::options_description& options_desc) {
+/*void usage(const char* name, const po::options_description& options_desc) {
 	cerr << "Usage: " << name << " [options] <input.wif>" << endl;
 	cerr << endl;
 	cerr << "Reads input (in WIF format) and output two resulting \"super reads\" to stdout" << endl;
@@ -30,8 +27,9 @@ void usage(const char* name, const po::options_description& options_desc) {
 	cerr << options_desc << endl;
 	exit(1);
 }
-
+*/
 // MAIN
+/*
 int main(int argc, char * const argv[]) {
 	string haplotype_filename = "";
 	bool all_heterozygous = false;
@@ -69,22 +67,18 @@ int main(int argc, char * const argv[]) {
 
   //cout << "optimal score : " << dp_table.get_optimal_score() << endl;
 
-  /*
-  cout << "index path ..." << endl << endl;
-  auto_ptr<vector<unsigned int> > index_path = dp_table.get_index_path();
-  for(size_t i=0; i< index_path->size(); ++i) {
-    cout << "index " << i << " : " << index_path->at(i) << endl;
-  }
-  cout << endl;
-  */
+//   cout << "index path ..." << endl << endl;
+//   auto_ptr<vector<unsigned int> > index_path = dp_table.get_index_path();
+//   for(size_t i=0; i< index_path->size(); ++i) {
+//     cout << "index " << i << " : " << index_path->at(i) << endl;
+//   }
+//   cout << endl;
 
   //auto_ptr<vector<bool> > partitioning = dp_table.get_optimal_partitioning();
 
-  /*
-  for (size_t i=0; i<partitioning->size(); ++i) {
-    cout << "Read " << i << " --> Haplotype " << (partitioning->at(i)?"0":"1") << endl;
-  }
-  */
+//   for (size_t i=0; i<partitioning->size(); ++i) {
+//     cout << "Read " << i << " --> Haplotype " << (partitioning->at(i)?"0":"1") << endl;
+//   }
 
 	// output super-reads
 	auto_ptr<DPTable::read_t> r = dp_table.get_super_reads(new ColumnReader(inputfilename,max_c,unweighted));
@@ -109,6 +103,7 @@ int main(int argc, char * const argv[]) {
 
 	return 0;
 }
+*/
 
 /****************************************************************/
 // function definitions
