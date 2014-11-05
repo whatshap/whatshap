@@ -107,6 +107,11 @@ def phase_reads(reads, all_het=False, wif=None, superwif=None):
 
 	TODO The temporary files are *not* deleted.
 	"""
+	if not reads:
+		return [
+			ReadVariantList(name=None, mapq=None, variants=[]),
+			ReadVariantList(name=None, mapq=None, variants=[])
+		]
 	if wif is not None:
 		wif_path = wif
 		wif_file = open(wif_path, 'wt')
