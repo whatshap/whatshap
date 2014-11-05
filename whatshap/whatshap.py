@@ -3,15 +3,6 @@
 Read a VCF and a BAM file and write a WIF file to standard output.
 The WIF file is ready to be used as input for the 'dp' program.
 
-(old description:
-gets the heterozygous snp positions from a vcf file, and then
-gathers those snps that coincide with each read end (one read end's
-set of positions per line); and also splits ends into their
-respective read groups)
-
-Output:
-"haplotype string", where
-
  0: ref allele
  1: alt allele
  -: unphasable: no coverage of read that covers at least 2 SNPs
@@ -41,6 +32,7 @@ logger = logging.getLogger(__name__)
 #VcfVariant = namedtuple('VcfVariant', 'position reference_allele alternative_allele')
 
 class VcfVariant:
+	"""A variant in a VCF file"""
 	def __init__(self, position, reference_allele, alternative_allele):
 		self.position = position
 		self.reference_allele = reference_allele
@@ -60,7 +52,16 @@ def parse_vcf(path, chromosome, sample_names):
 	variants = []
 	index = -1
 	indices = None
-	for record in vcf.Reader(filename=path):
+
+	vcf_reader = vcf.Reader(filename=path)
+	samples = vcf_reader.samples
+	logger.info("Samples in the VCF: %s", ', '.join(samples))
+	if len(samples) > 1:
+		logger.warn("More than one sample found in the VCF file, will work only on the first (%s)", samples[0])
+
+	sample = samples[0]
+
+	for record in vcf_reader:
 		if record.CHROM != chromosome:
 			# TODO use .fetch to avoid iterating over entire file
 			continue
@@ -72,7 +73,7 @@ def parse_vcf(path, chromosome, sample_names):
 		if indices is None:
 			indices = [ (i, call.sample) for i, call in enumerate(record.samples) if call.sample in sample_names ]
 			if len(indices) == 0:
-				logger.error("None of the sample names found in vcf")
+				logger.error("None of the sample names found in VCF file.")
 				sys.exit(1)
 			else:
 				outstring = "Found samples "
@@ -132,7 +133,7 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 
 	Return a list of ReadVariantList objects.
 	"""
-	# NOTE: we assume that there are only M,I,D,S (no N,H,P,=,X) in any
+	# NOTE: we assume that there are only M,I,D,S,H (no N,P,=,X) in any
 	# CIGAR alignment of the bam file
 
 	# first we get some header info, etc.
