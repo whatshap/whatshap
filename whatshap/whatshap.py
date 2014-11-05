@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
-Read a VCF and a BAM file and write a WIF file to standard output.
-The WIF file is ready to be used as input for the 'dp' program.
+Read a VCF and a BAM file and phase the variants.
 
  0: ref allele
  1: alt allele
@@ -39,13 +38,13 @@ class VcfVariant:
 		self.alternative_allele = alternative_allele
 
 
-def parse_vcf(path, chromosome, sample_names):
+def parse_vcf(path, sample_names):
 	"""
-	Read a VCF and return a list of variants. Each entry in the returned list is
-	a list of VcfVariant objects.
+	Read a VCF and yield tuples (chromosome, variants) where chromosome is
+	the name of a chromosome and variants is a list of VcfVariant objects that
+	represent the variants on that chromosome.
 
 	path -- Path to VCF file
-	chromosome -- Chromosome to work on
 	sample_names -- A list of sample names (strings). Extract only calls
 		belonging to a sample that occurs in this list.
 	"""
@@ -57,18 +56,21 @@ def parse_vcf(path, chromosome, sample_names):
 	samples = vcf_reader.samples
 	logger.info("Samples in the VCF: %s", ', '.join(samples))
 	if len(samples) > 1:
-		logger.warn("More than one sample found in the VCF file, will work only on the first (%s)", samples[0])
-
+		pass
+		#logger.warn("More than one sample found in the VCF file, will work only on the first (%s)", samples[0])
 	sample = samples[0]
 
+	prev_chromosome = None
 	for record in vcf_reader:
-		if record.CHROM != chromosome:
-			# TODO use .fetch to avoid iterating over entire file
-			continue
+		if record.CHROM != prev_chromosome:
+			if prev_chromosome is not None:
+				yield (prev_chromosome, variants)
+			prev_chromosome = record.CHROM
+			variants = []
 		if not record.is_snp:
 			continue
 		if len(record.ALT) != 1:
-			logger.warn("Reading VCFs with multiple ALTs not implemented")
+			logger.warn("Reading VCFs with multiple ALTs not implemented.")
 			continue
 		if indices is None:
 			indices = [ (i, call.sample) for i, call in enumerate(record.samples) if call.sample in sample_names ]
@@ -113,8 +115,11 @@ def parse_vcf(path, chromosome, sample_names):
 			continue
 		else:
 			# found a heterozygous snp for the individual
-			yield VcfVariant(position=record.start, reference_allele=record.REF,
-				 alternative_allele=record.ALT[0])
+			v = VcfVariant(
+					position=record.start,
+					reference_allele=record.REF,
+					alternative_allele=record.ALT[0])
+			variants.append(v)
 			for index, _ in indices:
 				"""
 				# TODO what was this originally supposed to do?
@@ -123,6 +128,8 @@ def parse_vcf(path, chromosome, sample_names):
 				elif v in ('1|.', '1/0'): v = '1|0' # was mentioned above
 				snp_info.append(v)
 				"""
+	if prev_chromosome is not None:
+		yield (prev_chromosome, variants)
 
 
 def read_bam(path, chromosome, variants, mapq_threshold=20):
@@ -401,10 +408,11 @@ def slice_reads(reads, max_coverage):
 	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
 
 	unphasable_snps = len(position_list) - len(accessible_positions)
-	logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
-		'connecting them to another variant and are thus unphasable',
-		unphasable_snps, len(position_list),
-		100. * unphasable_snps / len(position_list))
+	if position_list:
+		logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
+			'connecting them to another variant and are thus unphasable',
+			unphasable_snps, len(position_list),
+			100. * unphasable_snps / len(position_list))
 
 	# Sort each slice
 	for read_list in slices:
@@ -412,9 +420,10 @@ def slice_reads(reads, max_coverage):
 	# Print stats
 	for slice_id, read_list in enumerate(slices):
 		positions_covered = len(position_set(read_list))
-		logger.info('Slice %d contains %d reads and covers %d of %d SNP positions (%.1f%%)',
-			  slice_id, len(read_list), positions_covered, len(position_list),
-			  positions_covered * 100.0 / len(position_list))
+		if position_list:
+			logger.info('Slice %d contains %d reads and covers %d of %d SNP positions (%.1f%%)',
+				slice_id, len(read_list), positions_covered, len(position_list),
+				positions_covered * 100.0 / len(position_list))
 
 	return slices
 
@@ -585,31 +594,30 @@ def main():
 		help='Assume all positions to be heterozygous (that is, fully trust SNP calls).')
 	parser.add_argument('bam', metavar='BAM', help='BAM file')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
-	parser.add_argument('chromosome', help='Chromosome to work on')
 	parser.add_argument('samples', metavar='SAMPLE', nargs='+', help='Name(s) of the samples to consider')
 	args = parser.parse_args()
 
-	variants = list(parse_vcf(args.vcf, args.chromosome, args.samples))
-	logger.info('Read %d SNPs on chromosome %s', len(variants), args.chromosome)
+	for chromosome, variants in parse_vcf(args.vcf, args.samples):
+		logger.info('Read %d SNPs on chromosome %s', len(variants), chromosome)
 
-	reads_with_variants = read_bam(args.bam, args.chromosome, variants)
-	reads_with_variants.sort(key=lambda read: read.name)
-	reads = merge_reads(reads_with_variants)
+		reads_with_variants = read_bam(args.bam, chromosome, variants)
+		reads_with_variants.sort(key=lambda read: read.name)
+		reads = merge_reads(reads_with_variants)
 
-	# sort by position of first variant
-	#reads.sort(key=lambda read: read.variants[0].position)
+		# sort by position of first variant
+		#reads.sort(key=lambda read: read.variants[0].position)
 
-	random.seed(args.seed)
-	random.shuffle(reads)
-	unfiltered_length = len(reads)
-	reads = filter_reads(reads)
-	logger.info('Filtered reads: %d', unfiltered_length - len(reads))
-	reads = slice_reads(reads, args.max_coverage)[0]
-	superreads = phase_reads(reads, all_het=args.all_het)
+		random.seed(args.seed)
+		random.shuffle(reads)
+		unfiltered_length = len(reads)
+		reads = filter_reads(reads)
+		logger.info('Filtered reads: %d', unfiltered_length - len(reads))
+		reads = slice_reads(reads, args.max_coverage)[0]
+		superreads = phase_reads(reads, all_het=args.all_het)
 
-	superreads = list(superreads)
-	positions = [ variant.position for variant in variants ]
-	if False:
-		superread_to_haplotype(superreads, positions, reads)
-	else:
-		find_components(superreads, positions, reads, args.vcf)
+		superreads = list(superreads)
+		positions = [ variant.position for variant in variants ]
+		if False:
+			superread_to_haplotype(superreads, positions, reads)
+		else:
+			find_components(superreads, positions, reads, args.vcf)
