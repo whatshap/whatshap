@@ -79,7 +79,7 @@ rule whatshap:
 		wif='data/{chrom}-{subset}.wif',
 		txt='result/{chrom}-{subset}.txt'
 	shell:
-		'{PYTHON} whatshap/whatshap.py --all-het -H 20 --wif {output.wif} --superwif {output.super_wif} {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.txt}'
+		'{PYTHON} -m whatshap --all-het -H 20 --wif {output.wif} --superwif {output.super_wif} {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.txt}'
 
 
 ## GATK
