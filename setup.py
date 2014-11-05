@@ -13,7 +13,7 @@ from distutils.version import LooseVersion
 
 from whatshap import __version__
 
-MIN_CYTHON_VERSION = '0.15'
+MIN_CYTHON_VERSION = '0.17'
 
 if sys.version_info < (3, 3):
 	sys.stdout.write("At least Python 3.3 is required.\n")
