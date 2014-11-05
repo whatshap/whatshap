@@ -240,6 +240,7 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 		if c > 0:
 			rvl = ReadVariantList(name=read.qname, mapq=read.mapq, variants=read_variants)
 			result.append(rvl)
+	samfile.close()
 	return result
 
 
