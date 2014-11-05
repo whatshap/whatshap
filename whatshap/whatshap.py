@@ -32,7 +32,7 @@ except:
 import pysam
 import vcf
 
-from .phase import phase_reads, ReadVariantList, ReadVariant, read_wif
+from .phase import phase_reads, ReadVariantList, ReadVariant
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -582,43 +582,29 @@ def main():
 	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
 	parser.add_argument('--all-het', action='store_true', default=False,
 		help='Assume all positions to be heterozygous (that is, fully trust SNP calls).')
-	parser.add_argument('--wif', metavar='WIF', default=None, help='Write intermediate WIF file')
-	parser.add_argument('--superwif', metavar='SUPERWIF', default=None,
-		help='Write intermediate SUPERWIF file')
-	parser.add_argument('--resume-wif', metavar='WIF', default=None,
-		help='Do not compute WIF, but read it from WIF.')
-	parser.add_argument('--resume-superwif', metavar='SUPERWIF', default=None,
-		help='Do not compute super WIF, but read it from SUPERWIF.')
 	parser.add_argument('bam', metavar='BAM', help='BAM file')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('chromosome', help='Chromosome to work on')
 	parser.add_argument('samples', metavar='SAMPLE', nargs='+', help='Name(s) of the samples to consider')
 	args = parser.parse_args()
 
-	if bool(args.resume_superwif) != bool(args.resume_wif):
-		parser.error('When resuming, both --resume-wif and --resume-superwif '
-			'are required.')
 	variants = list(parse_vcf(args.vcf, args.chromosome, args.samples))
 	logger.info('Read %d SNPs on chromosome %s', len(variants), args.chromosome)
 
-	if args.resume_wif is None:
-		reads_with_variants = read_bam(args.bam, args.chromosome, variants)
-		reads_with_variants.sort(key=lambda read: read.name)
-		reads = merge_reads(reads_with_variants)
+	reads_with_variants = read_bam(args.bam, args.chromosome, variants)
+	reads_with_variants.sort(key=lambda read: read.name)
+	reads = merge_reads(reads_with_variants)
 
-		# sort by position of first variant
-		#reads.sort(key=lambda read: read.variants[0].position)
+	# sort by position of first variant
+	#reads.sort(key=lambda read: read.variants[0].position)
 
-		random.seed(args.seed)
-		random.shuffle(reads)
-		unfiltered_length = len(reads)
-		reads = filter_reads(reads)
-		logger.info('Filtered reads: %d', unfiltered_length - len(reads))
-		reads = slice_reads(reads, args.max_coverage)[0]
-		superreads = phase_reads(reads, all_het=args.all_het, wif=args.wif, superwif=args.superwif)
-	else:
-		reads = read_wif(args.resume_wif)
-		superreads = read_wif(args.resume_superwif)
+	random.seed(args.seed)
+	random.shuffle(reads)
+	unfiltered_length = len(reads)
+	reads = filter_reads(reads)
+	logger.info('Filtered reads: %d', unfiltered_length - len(reads))
+	reads = slice_reads(reads, args.max_coverage)[0]
+	superreads = phase_reads(reads, all_het=args.all_het)
 
 	superreads = list(superreads)
 	positions = [ variant.position for variant in variants ]
