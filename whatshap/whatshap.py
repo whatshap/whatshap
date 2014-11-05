@@ -577,7 +577,7 @@ def find_components(superreads, position_list, reads, vcfpath):
 
 def main():
 	logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
-	parser = ArgumentParser(description=__doc__)
+	parser = ArgumentParser(prog='whatshap', description=__doc__)
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
 	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
