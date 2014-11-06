@@ -11,6 +11,7 @@ import logging
 from tempfile import NamedTemporaryFile
 import subprocess
 from io import StringIO
+from .core import Read,ReadSet
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +96,19 @@ def print_wif(reads, file):
 #   - mapping quality
 #   - "NA"
 
+def read_to_coreread(read):
+	if type(read.mapq) is int:
+		coreread = Read(read.name, read.mapq)
+	elif type(read.mapq) is tuple:
+		coreread = Read(read.name, min(read.mapq))
+	else:
+		assert False, 'Strange MAPQ'
+	for variant in read.variants:
+		# TODO: Why can a variant be None??
+		if variant is None: continue
+		assert variant.allele in ['0','1'], 'Unknown allele: {}'.format(variant.allele)
+		coreread.addVariant(variant.position, variant.base, int(variant.allele), variant.quality)
+	return coreread
 
 def phase_reads(reads, all_het=False, wif=None, superwif=None):
 	"""
@@ -112,6 +126,12 @@ def phase_reads(reads, all_het=False, wif=None, superwif=None):
 			ReadVariantList(name=None, mapq=None, variants=[]),
 			ReadVariantList(name=None, mapq=None, variants=[])
 		]
+	# Transform given reads into a core.ReadSet
+	read_set = ReadSet()
+	for read in reads:
+		read_set.add(read_to_coreread(read))
+	read_set.finalize()
+	print(read_set)
 	if wif is not None:
 		wif_path = wif
 		wif_file = open(wif_path, 'wt')
