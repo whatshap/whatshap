@@ -34,6 +34,7 @@ cdef extern from "../src/readset.h":
 		ReadSet() except +
 		void add(Read*)
 		string toString()
+		void finalize()
 
 cdef class PyReadSet:
 	cdef ReadSet *thisptr
@@ -44,4 +45,6 @@ cdef class PyReadSet:
 	def add(self, PyRead read):
 		self.thisptr.add(new Read(read.thisptr[0]))
 	def __str__(self):
-		return str(self.thisptr.toString())
+		return self.thisptr.toString().decode('utf-8')
+	def finalize(self):
+		self.thisptr.finalize()
