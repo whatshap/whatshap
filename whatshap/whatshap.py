@@ -1,16 +1,6 @@
 #!/usr/bin/env python3
 """
-Read a VCF and a BAM file and write a WIF file to standard output.
-The WIF file is ready to be used as input for the 'dp' program.
-
-(old description:
-gets the heterozygous snp positions from a vcf file, and then
-gathers those snps that coincide with each read end (one read end's
-set of positions per line); and also splits ends into their
-respective read groups)
-
-Output:
-"haplotype string", where
+Read a VCF and a BAM file and phase the variants.
 
  0: ref allele
  1: alt allele
@@ -25,10 +15,6 @@ import logging
 import sys
 import random
 import gzip
-from collections import namedtuple
-from tempfile import NamedTemporaryFile
-import subprocess
-from io import StringIO
 try:
 	from sqt import HelpfulArgumentParser as ArgumentParser
 except:
@@ -36,52 +22,60 @@ except:
 import pysam
 import vcf
 
+from .phase import phase_reads, ReadVariantList, ReadVariant
+
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
 logger = logging.getLogger(__name__)
 
-# List of variants that belong to a single read.
-# The variants attribute is a list of ReadVariant objects (see below).
-ReadVariantList = namedtuple('ReadVariantList', 'name mapq variants')
-
-# A single variant on a read.
-ReadVariant = namedtuple('ReadVariant', 'position base allele quality')
-
 #VcfVariant = namedtuple('VcfVariant', 'position reference_allele alternative_allele')
 
 class VcfVariant:
+	"""A variant in a VCF file"""
 	def __init__(self, position, reference_allele, alternative_allele):
 		self.position = position
 		self.reference_allele = reference_allele
 		self.alternative_allele = alternative_allele
 
 
-def parse_vcf(path, chromosome, sample_names):
+def parse_vcf(path, sample_names):
 	"""
-	Read a VCF and return a list of variants. Each entry in the returned list is
-	a list of VcfVariant objects.
+	Read a VCF and yield tuples (chromosome, variants) where chromosome is
+	the name of a chromosome and variants is a list of VcfVariant objects that
+	represent the variants on that chromosome.
 
 	path -- Path to VCF file
-	chromosome -- Chromosome to work on
 	sample_names -- A list of sample names (strings). Extract only calls
 		belonging to a sample that occurs in this list.
 	"""
 	variants = []
 	index = -1
 	indices = None
-	for record in vcf.Reader(filename=path):
-		if record.CHROM != chromosome:
-			# TODO use .fetch to avoid iterating over entire file
-			continue
+
+	vcf_reader = vcf.Reader(filename=path)
+	samples = vcf_reader.samples
+	logger.info("Samples in the VCF: %s", ', '.join(samples))
+	if len(samples) > 1:
+		pass
+		#logger.warn("More than one sample found in the VCF file, will work only on the first (%s)", samples[0])
+	sample = samples[0]
+
+	prev_chromosome = None
+	for record in vcf_reader:
+		if record.CHROM != prev_chromosome:
+			if prev_chromosome is not None:
+				yield (prev_chromosome, variants)
+			prev_chromosome = record.CHROM
+			variants = []
 		if not record.is_snp:
 			continue
 		if len(record.ALT) != 1:
-			logger.warn("Reading VCFs with multiple ALTs not implemented")
+			logger.warn("Reading VCFs with multiple ALTs not implemented.")
 			continue
 		if indices is None:
 			indices = [ (i, call.sample) for i, call in enumerate(record.samples) if call.sample in sample_names ]
 			if len(indices) == 0:
-				logger.error("None of the sample names found in vcf")
+				logger.error("None of the sample names found in VCF file.")
 				sys.exit(1)
 			else:
 				outstring = "Found samples "
@@ -121,8 +115,11 @@ def parse_vcf(path, chromosome, sample_names):
 			continue
 		else:
 			# found a heterozygous snp for the individual
-			yield VcfVariant(position=record.start, reference_allele=record.REF,
-				 alternative_allele=record.ALT[0])
+			v = VcfVariant(
+					position=record.start,
+					reference_allele=record.REF,
+					alternative_allele=record.ALT[0])
+			variants.append(v)
 			for index, _ in indices:
 				"""
 				# TODO what was this originally supposed to do?
@@ -131,6 +128,8 @@ def parse_vcf(path, chromosome, sample_names):
 				elif v in ('1|.', '1/0'): v = '1|0' # was mentioned above
 				snp_info.append(v)
 				"""
+	if prev_chromosome is not None:
+		yield (prev_chromosome, variants)
 
 
 def read_bam(path, chromosome, variants, mapq_threshold=20):
@@ -141,7 +140,7 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 
 	Return a list of ReadVariantList objects.
 	"""
-	# NOTE: we assume that there are only M,I,D,S (no N,H,P,=,X) in any
+	# NOTE: we assume that there are only M,I,D,S,H (no N,P,=,X) in any
 	# CIGAR alignment of the bam file
 
 	# first we get some header info, etc.
@@ -249,6 +248,7 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 		if c > 0:
 			rvl = ReadVariantList(name=read.qname, mapq=read.mapq, variants=read_variants)
 			result.append(rvl)
+	samfile.close()
 	return result
 
 
@@ -408,10 +408,11 @@ def slice_reads(reads, max_coverage):
 	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
 
 	unphasable_snps = len(position_list) - len(accessible_positions)
-	logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
-		'connecting them to another variant and are thus unphasable',
-		unphasable_snps, len(position_list),
-		100. * unphasable_snps / len(position_list))
+	if position_list:
+		logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
+			'connecting them to another variant and are thus unphasable',
+			unphasable_snps, len(position_list),
+			100. * unphasable_snps / len(position_list))
 
 	# Sort each slice
 	for read_list in slices:
@@ -419,50 +420,12 @@ def slice_reads(reads, max_coverage):
 	# Print stats
 	for slice_id, read_list in enumerate(slices):
 		positions_covered = len(position_set(read_list))
-		logger.info('Slice %d contains %d reads and covers %d of %d SNP positions (%.1f%%)',
-			  slice_id, len(read_list), positions_covered, len(position_list),
-			  positions_covered * 100.0 / len(position_list))
+		if position_list:
+			logger.info('Slice %d contains %d reads and covers %d of %d SNP positions (%.1f%%)',
+				slice_id, len(read_list), positions_covered, len(position_list),
+				positions_covered * 100.0 / len(position_list))
 
 	return slices
-
-
-def read_wif(filename):
-	'''Returns an iterator that returns lists ([(pos,nucleotide,0/1,quality),..], suffix, original_line)'''
-	skipped_reads = 0
-	total_reads = 0
-	for line in open(filename):
-		line = line.strip()
-		total_reads += 1
-		fields = [x.strip() for x in line.split(':')]
-		assert len(fields) > 2
-		assert fields[-2].startswith('#')
-		suffix = fields[-2:]
-		fields = fields[:-2]
-		variants = []
-		skip_read = False
-		last_pos = -1
-		for field in fields:
-			if field == '--':
-				variants.append(None)
-				continue
-			tokens = field.split()
-			assert len(tokens) == 4
-			if tokens[2] == 'E':
-				skip_read = True
-				break
-			pos, nucleotide, bit, quality = int(tokens[0]), tokens[1], tokens[2], int(tokens[3])
-			assert nucleotide in ['A', 'C', 'G', 'T', '0', '1', '-', 'X']
-			if not last_pos < pos:
-				skip_read = True
-				break
-			variants.append(ReadVariant(position=pos-1, base=nucleotide, allele=bit, quality=quality))
-			last_pos = pos
-		if skip_read:
-			skipped_reads += 1
-			continue
-		yield ReadVariantList(name=None, mapq=None, variants=variants)
-	if skipped_reads > 0:
-		logger.warn('read_wif(%s): skipped %d out of %d reads.', filename, skipped_reads, total_reads)
 
 
 def determine_connectivity(reads, position_list):
@@ -621,109 +584,23 @@ def find_components(superreads, position_list, reads, vcfpath):
 		vcf_writer.write_record(record)
 
 
-def print_wif(reads, file):
-	for read in reads:
-		paired = False
-		for variant in read.variants:
-			if variant is None:
-				# this marker is used between paired-end reads
-				print('-- : ', end='', file=file)
-				paired = True
-			else:
-				print('{position} {base} {allele} {quality} : '.format(
-						position=variant.position + 1,
-						base=variant.base,
-						allele=variant.allele,
-						quality=variant.quality),
-					end='', file=file)
-		if paired:
-			print("# {} {} : NA NA".format(read.mapq[0], read.mapq[1]), file=file)
-		else:
-			print("# {} : NA".format(read.mapq), file=file)
-
-# output columns:
-# - read.qname
-# - for each SNP that is on this read:
-#   - space, colon, space
-#   - position
-#   - read base at this position
-#   - '0' or '1': 0 for reference allele, 1 for alt allele
-#   - base quality at this position
-# - finally
-#   - space, hash, space
-#   - no. of SNPs for this read
-#   - mapping quality
-#   - "NA"
-
-
-def phase_reads(reads, all_het=False, wif=None, superwif=None):
-	"""
-	Phase reads, return superreads. This function runs the phasing algorithm
-	by creating a temporary WIF file, running the 'dp' binary and then
-	parsing the created "super reads" output file.
-
-	Intermediate files are written to the paths named by wif and superwif. If
-	the parameters are None, a name for the temporary files is made up.
-
-	TODO The temporary files are *not* deleted.
-	"""
-	if wif is not None:
-		wif_path = wif
-		wif_file = open(wif_path, 'wt')
-	else:
-		wif_file = NamedTemporaryFile(mode='wt', suffix='.wif', prefix='whatshap-', delete=False)
-		wif_path = wif_file.name
-	with wif_file as wif:
-		print_wif(reads, wif)
-		logger.info('WIF written to %s', wif_path)
-
-	dp_cmdline = ['build/dp'] + (['--all_het'] if all_het else []) + [wif_path]
-	logger.info('Running %s', ' '.join(dp_cmdline))
-	superread_result = subprocess.check_output(dp_cmdline, shell=False).decode()
-
-	if superwif is not None:
-		superwif_path = superwif
-		superwif_file = open(superwif_path, 'wt')
-	else:
-		superwif_file = NamedTemporaryFile(mode='wt', suffix='.superwif', prefix='whatshap-', delete=False)
-		superwif_path = superwif_file.name
-	with superwif_file as wif:
-		wif.write(superread_result)
-		logger.info('Super WIF written to %s', superwif_path)
-
-	superreads = read_wif(superwif_path)
-	return superreads
-
-
 def main():
 	logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
-	parser = ArgumentParser(description=__doc__)
+	parser = ArgumentParser(prog='whatshap', description=__doc__)
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
 	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
 	parser.add_argument('--all-het', action='store_true', default=False,
 		help='Assume all positions to be heterozygous (that is, fully trust SNP calls).')
-	parser.add_argument('--wif', metavar='WIF', default=None, help='Write intermediate WIF file')
-	parser.add_argument('--superwif', metavar='SUPERWIF', default=None,
-		help='Write intermediate SUPERWIF file')
-	parser.add_argument('--resume-wif', metavar='WIF', default=None,
-		help='Do not compute WIF, but read it from WIF.')
-	parser.add_argument('--resume-superwif', metavar='SUPERWIF', default=None,
-		help='Do not compute super WIF, but read it from SUPERWIF.')
 	parser.add_argument('bam', metavar='BAM', help='BAM file')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
-	parser.add_argument('chromosome', help='Chromosome to work on')
 	parser.add_argument('samples', metavar='SAMPLE', nargs='+', help='Name(s) of the samples to consider')
 	args = parser.parse_args()
 
-	if bool(args.resume_superwif) != bool(args.resume_wif):
-		parser.error('When resuming, both --resume-wif and --resume-superwif '
-			'are required.')
-	variants = list(parse_vcf(args.vcf, args.chromosome, args.samples))
-	logger.info('Read %d SNPs on chromosome %s', len(variants), args.chromosome)
+	for chromosome, variants in parse_vcf(args.vcf, args.samples):
+		logger.info('Read %d SNPs on chromosome %s', len(variants), chromosome)
 
-	if args.resume_wif is None:
-		reads_with_variants = read_bam(args.bam, args.chromosome, variants)
+		reads_with_variants = read_bam(args.bam, chromosome, variants)
 		reads_with_variants.sort(key=lambda read: read.name)
 		reads = merge_reads(reads_with_variants)
 
@@ -736,18 +613,11 @@ def main():
 		reads = filter_reads(reads)
 		logger.info('Filtered reads: %d', unfiltered_length - len(reads))
 		reads = slice_reads(reads, args.max_coverage)[0]
-		superreads = phase_reads(reads, all_het=args.all_het, wif=args.wif, superwif=args.superwif)
-	else:
-		reads = read_wif(args.resume_wif)
-		superreads = read_wif(args.resume_superwif)
+		superreads = phase_reads(reads, all_het=args.all_het)
 
-	superreads = list(superreads)
-	positions = [ variant.position for variant in variants ]
-	if False:
-		superread_to_haplotype(superreads, positions, reads)
-	else:
-		find_components(superreads, positions, reads, args.vcf)
-
-
-if __name__ == '__main__':
-	main()
+		superreads = list(superreads)
+		positions = [ variant.position for variant in variants ]
+		if False:
+			superread_to_haplotype(superreads, positions, reads)
+		else:
+			find_components(superreads, positions, reads, args.vcf)

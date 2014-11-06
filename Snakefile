@@ -4,27 +4,27 @@ GATK = 'java -Xmx6G -jar GenomeAnalysisTK.jar'
 PYTHON = 'venv/bin/python'  # Must be Python 3
 
 SAMPLE = 'sill2'
-CHROMOSOMES = ['scaffold221']
 SUBSETS = ['moleculo', 'moleculomp0.1']  # perhaps: moleculomp, mp, mp0.1
 
 """
 Expected input files:
-- raw/scaffold221.vcf
-- raw/scaffold221-moleculo.bam
-- raw/scaffold221-unfixed.bam
+- raw/variants.vcf
+- raw/moleculo.bam
+- raw/bgi-unfixed.bam
 """
 
 
 rule all:
-	input: expand('result/{chrom}-{subset}.txt', chrom=CHROMOSOMES, subset=SUBSETS)
+	input: expand('result/{subset}.txt', subset=SUBSETS)
+
 
 rule clean:
 	shell:
 		"rm -f result/* data/*"
 
 rule symlink:
-	input: 'raw/scaffold221{file}'
-	output: 'data/scaffold221{file,(-moleculo.bam|-unfixed.bam|.vcf)}'
+	input: 'raw/{file}'
+	output: 'data/{file,(moleculo.bam|bgi-unfixed.bam|variants.vcf)}'
 	shell: 'ln -s ../{input} {output}'
 
 rule rgmp_list:
@@ -35,31 +35,31 @@ rule rgmp_list:
 			for rg in '10k 20ka 20kb 20kc 5k bgi2ka bgi2kb'.split():
 				print(rg, file=f)
 
-rule subsample_mp:
-	input: bam='data/scaffold221-mp.bam'
-	output: bam='data/scaffold221-mp{frac}.bam'
+rule subsample_matepairs:
+	input: bam='data/matepairs.bam'
+	output: bam='data/matepairs{frac}.bam'
 	shell:
 		"samtools view -b {input.bam} -s {wildcards.frac} > {output.bam}"
 
 rule fix_unmapped_mates:
 	"""Mark mates as unmapped if the reference they are mapped to is set to "*".
 	"""
-	input: bam='data/scaffold221-unfixed.bam'
-	output: bam='data/scaffold221.bam'
+	input: bam='data/bgi-unfixed.bam'
+	output: bam='data/bgi.bam'
 	shell:
 		"""samtools view -h {input.bam} | awk -vOFS="\t" '!/^@/ && $7=="*"{{$8=0;$2=or($2,8)}};1' | samtools view -bS - > {output.bam}"""
 		#picard-tools FixMateInformation I=scaffold221-fixed-tmp.bam O=scaffold221-fixed.bam
 
 rule mpbam:
 	'Create the mate-pair BAM file'
-	input: bam='data/{chrom}.bam', rgs='data/rgs-mp.txt'
-	output: bam='data/{chrom}-mp.bam'
+	input: bam='data/bgi.bam', rgs='data/rgs-mp.txt'
+	output: bam='data/matepairs.bam'
 	run:
 		shell('samtools view -b -R {input.rgs} {input.bam} > {output.bam}')
 
 rule merge_moleculomp:
-	input: bam1='data/{chrom}-moleculo.bam', bam2='data/{chrom}-mp{x}.bam'
-	output: bam='data/{chrom}-moleculomp{x}.bam'
+	input: bam1='data/moleculo.bam', bam2='data/matepairs{x}.bam'
+	output: bam='data/moleculomp{x}.bam'
 	shell:
 		'picard-tools MergeSamFiles I={input.bam1} I={input.bam2} O={output.bam}'
 
@@ -71,15 +71,13 @@ rule index_bam:
 
 rule whatshap:
 	input:
-		bam='data/{chrom}-{subset}.bam',
-		bai='data/{chrom}-{subset}.bam.bai',
-		vcf='data/{chrom}.vcf'
+		bam='data/{subset}.bam',
+		bai='data/{subset}.bam.bai',
+		vcf='data/variants.vcf'
 	output:
-		super_wif='data/{chrom}-{subset}.super-reads.wif',
-		wif='data/{chrom}-{subset}.wif',
-		txt='result/{chrom}-{subset}.txt'
+		txt='result/{subset}.txt'
 	shell:
-		'{PYTHON} whatshap/whatshap.py --all-het -H 20 --wif {output.wif} --superwif {output.super_wif} {input.bam} {input.vcf} {wildcards.chrom} {SAMPLE} > {output.txt}'
+		'{PYTHON} -m whatshap --all-het -H 20 {input.bam} {input.vcf} {SAMPLE} > {output.txt}'
 
 
 ## GATK
@@ -101,16 +99,16 @@ rule faidx:
 
 rule ReadBackedPhasing:
 	output:
-		vcf='data/gatkphased-{chrom}-{subset}.vcf',
-		idx='data/gatkphased-{chrom}-{subset}.vcf.idx'
+		vcf='data/gatkphased-{subset}.vcf',
+		idx='data/gatkphased-{subset}.vcf.idx'
 	input:
-		vcf='data/{chrom}.vcf',
-		ref='data/{chrom}.fasta',
-		fai='data/{chrom}.fasta.fai',
-		dictionary='data/{chrom}.dict',
-		bam='data/{chrom}-{subset}.bam',
-		bai='data/{chrom}-{subset}.bam.bai'
-	log: 'data/gatkphased-{chrom}-{subset}.log'
+		vcf='data/variants.vcf',
+		ref='data/ref.fasta',
+		fai='data/ref.fasta.fai',
+		dictionary='data/ref.dict',
+		bam='data/{subset}.bam',
+		bai='data/{subset}.bam.bai'
+	log: 'data/gatkphased-{subset}.log'
 	shell:
 		r"""
 		{GATK} \
