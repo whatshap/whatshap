@@ -1,4 +1,6 @@
 #include <sstream>
+#include <algorithm> 
+#include <stdexcept>
 
 #include "read.h"
 
@@ -20,4 +22,24 @@ string Read::toString() {
 
 void Read::addVariant(int position, char base, int allele, int quality) {
 	variants.push_back(enriched_entry_t(position, base, allele, quality));
+}
+
+void Read::sortVariants() {
+	sort(variants.begin(), variants.end(), entry_comparator_t());
+}
+
+int Read::firstPosition() const {
+	if (variants.size() == 0) throw std::runtime_error("No variants present");
+	return variants[0].position;
+}
+
+int Read::lastPosition() const {
+	if (variants.size() == 0) throw std::runtime_error("No variants present");
+	return variants[variants.size()-1].position;
+}
+
+void Read::setID(int id) {
+	for (size_t i=0; i<variants.size(); ++i) {
+		variants[i].entry.set_read_id(id);
+	}
 }
