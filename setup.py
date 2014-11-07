@@ -20,40 +20,72 @@ if sys.version_info < (3, 3):
 	sys.exit(1)
 
 
-use_cython = not os.path.exists('whatshap/_core.cpp') or (
-	os.path.getmtime('whatshap/_core.pyx') > os.path.getmtime('whatshap/_core.cpp'))
+def out_of_date(extensions):
+	"""
+	Check whether any pyx source is newer than the corresponding generated
+	C(++) source or whether any C(++) source is missing.
+	"""
+	for extension in extensions:
+		for pyx in extension.sources:
+			path, ext = os.path.splitext(pyx)
+			if ext not in ('.pyx', '.py'):
+				continue
+			csource = path + ('.cpp' if extension.language == 'c++' else '.c')
+			if not os.path.exists(csource) or (
+				os.path.getmtime(pyx) > os.path.getmtime(csource)):
+				return True
+	return False
 
-if '--cython' in sys.argv:
-	use_cython = True
-	sys.argv.remove('--cython')
 
-# Try to find out whether a recent enough Cython is installed.
-# If it is not, fall back to using the pre-compiled C sources.
-# Pre-compiled sources are available only in the official releases,
-# not within the Git repository.
-if use_cython:
+def no_cythonize(extensions, **_ignore):
+	"""
+	Change file extensions from .pyx to .c or .cpp.
+
+	Copied from Cython documentation
+	"""
+	for extension in extensions:
+		sources = []
+		for sfile in extension.sources:
+			path, ext = os.path.splitext(sfile)
+			if ext in ('.pyx', '.py'):
+				if extension.language == 'c++':
+					ext = '.cpp'
+				else:
+					ext = '.c'
+				sfile = path + ext
+			sources.append(sfile)
+		extension.sources[:] = sources
+	return extensions
+
+
+def cythonize_if_necessary(extensions):
+	if '--cython' in sys.argv:
+		sys.argv.remove('--cython')
+	elif out_of_date(extensions):
+		sys.stdout.write('At least one C source file is missing or out of date.\n')
+	else:
+		return no_cythonize(extensions)
+
 	try:
 		from Cython import __version__ as cyversion
 	except ImportError:
 		sys.stdout.write(
-			"ERROR: Cython is not installed. Install at least Cython >= " + str(MIN_CYTHON_VERSION) +
-		    " to continue.\n")
+			"ERROR: Cython is not installed. Install at least Cython version " +
+			str(MIN_CYTHON_VERSION) + " to continue.\n")
 		sys.exit(1)
 	if LooseVersion(cyversion) < LooseVersion(MIN_CYTHON_VERSION):
 		sys.stdout.write(
-			"Error: Your Cython is at version '" + str(cyversion) +
+			"ERROR: Your Cython is at version '" + str(cyversion) +
 			"', but at least version " + str(MIN_CYTHON_VERSION) + " is required.\n")
 		sys.exit(1)
 
 	from Cython.Build import cythonize
-
-ext = '.pyx' if use_cython else '.cpp'
+	return cythonize(extensions)
 
 extensions = [
-	Extension('whatshap._core', sources=['whatshap/_core' + ext]),
+	Extension('whatshap._core', sources=['whatshap/_core.pyx']),
 ]
-if use_cython:
-	extensions = cythonize(extensions)
+extensions = cythonize_if_necessary(extensions)
 
 setup(
 	name = 'whatshap',
