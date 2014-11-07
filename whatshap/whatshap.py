@@ -240,10 +240,8 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 				p += length
 			elif cigar_op == 4:  # soft clipping
 				s += length
-			elif cigar_op == 5:  # hard clipping
+			elif cigar_op == 5 or cigar_op == 6:  # hard clipping or padding
 				pass
-			#elif cigar_op == 6:  # padding
-			#	pass
 			else:
 				logger.error("Unsupported CIGAR operation: %d", cigar_op)
 				sys.exit(1)
