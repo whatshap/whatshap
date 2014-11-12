@@ -9,3 +9,4 @@ tmp/
 *.bak
 MANIFEST
 raw/
+doc/_build

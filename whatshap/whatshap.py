@@ -140,8 +140,9 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 
 	Return a list of ReadVariantList objects.
 	"""
-	# NOTE: we assume that there are only M,I,D,S,H (no N,P,=,X) in any
-	# CIGAR alignment of the bam file
+	# The mapping of CIGAR operators to numbers is:
+	# MIDNSHPX= => 012345678
+
 
 	# first we get some header info, etc.
 	# TODO use a context manager
@@ -207,8 +208,7 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 		s = 0  # absolute index into the read string [0..len(read)]
 		read_variants = []
 		for cigar_op, length in cigar:
-			#print('  cigar:', cigar_op, length, file=sys.stderr)
-			if cigar_op == 0:  # MATCH/MISMATCH # we're in a matching subregion
+			if cigar_op in (0, 7, 8):  # we're in a matching subregion
 				s_next = s + length
 				p_next = p + length
 				r = p + length  # size of this subregion
@@ -236,14 +236,14 @@ def read_bam(path, chromosome, variants, mapq_threshold=20):
 				p = p_next
 			elif cigar_op == 1:  # an insertion
 				s += length
-			elif cigar_op == 2:  # a deletion
+			elif cigar_op == 2 or cigar_op == 3:  # a deletion or a reference skip
 				p += length
 			elif cigar_op == 4:  # soft clipping
 				s += length
-			elif cigar_op == 5:  # hard clipping
+			elif cigar_op == 5 or cigar_op == 6:  # hard clipping or padding
 				pass
 			else:
-				logger.error("Invalid CIGAR operation: %d", cigar_op)
+				logger.error("Unsupported CIGAR operation: %d", cigar_op)
 				sys.exit(1)
 		if c > 0:
 			rvl = ReadVariantList(name=read.qname, mapq=read.mapq, variants=read_variants)
