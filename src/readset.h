@@ -5,7 +5,9 @@
 #include <vector>
 
 #include "read.h"
-  
+
+class ColumnIterator;
+
 class ReadSet {
 public:
 	ReadSet();
@@ -15,6 +17,9 @@ public:
 	/** Sorts reads and variants within reads and assigns unique read identifiers. 
 	 *  After calling finalize(), the read set becomes "frozen" and cannot be modified. **/
 	void finalize();
+	/** Returns the set of SNP positions. Can only be called after finalization. */
+	const std::vector<unsigned int>* get_positions() const;
+	unsigned int get_read_count() const;
 	std::string toString();
 private:
 	typedef struct read_comparator_t {
@@ -25,7 +30,9 @@ private:
 	} read_comparator_t;
 
 	std::vector<Read*> reads;
+	std::vector<unsigned int>* positions;
 	bool finalized;
+	friend class ColumnIterator;
 };
 
 #endif
