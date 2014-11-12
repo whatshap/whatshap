@@ -5,7 +5,6 @@
 #include <cassert>
 #include <string.h>
 
-#include "columnreader.h"
 #include "dptable.h"
 
 // effectively the max coverage we can handle (due to the size of a byte)

@@ -5,7 +5,7 @@
 #include <memory>
 
 #include "columnindexingscheme.h"
-#include "columnreader.h"
+#include "columniterator.h"
 #include "entry.h"
 
 class DPTable {
@@ -18,8 +18,7 @@ private:
   // backtrace_table[x][i] indicates the index in table x from which the
   // i-th entry in the forward projection of table x comes from
   std::vector<std::vector<unsigned int>* > backtrace_table;
-  // the largest id (row of the input matrix)
-  unsigned int ids_size;
+  unsigned int read_count;
   // helper function to pull read ids out of read column
   std::auto_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<Entry *>& entries);
   bool all_heterozygous;
@@ -31,7 +30,7 @@ public:
    *                          reads suggest a homozygous site. */
   DPTable(bool all_heterozygous = false);
   
-  void compute_table(ColumnReader * column_reader);
+  void compute_table(ColumnIterator * column_iterator);
   
   unsigned int get_optimal_score();
   
@@ -40,12 +39,12 @@ public:
 
   // returns the haplotype for the reads (needs the input file again)
   typedef std::vector<std::vector<Entry::allele_t> > haplotype_t;
-  std::auto_ptr<haplotype_t> get_haplotype(ColumnReader * column_reader);
-  std::auto_ptr<haplotype_t> get_raw_haplotype(ColumnReader * column_reader);
+  std::auto_ptr<haplotype_t> get_haplotype(ColumnIterator * column_iterator);
+  std::auto_ptr<haplotype_t> get_raw_haplotype(ColumnIterator * column_iterator);
 
   // returns the two super-reads for the reads (see above)
   typedef std::vector<std::vector<Entry *> > read_t;
-  std::auto_ptr<read_t> get_super_reads(ColumnReader * column_reader);
+  std::auto_ptr<read_t> get_super_reads(ColumnIterator * column_iterator);
 
   // returns optimal partitioning of the reads
   std::auto_ptr<std::vector<bool> > get_optimal_partitioning();
@@ -56,7 +55,7 @@ public:
   std::auto_ptr<std::vector<unsigned int> > get_index_path_HALF_TABLE();
 
   // returns the haplotype for the reads (needs the file again)
-  std::auto_ptr<haplotype_t> get_haplotype_HALF_TABLE(ColumnReader & column_reader);
+  std::auto_ptr<haplotype_t> get_haplotype_HALF_TABLE(ColumnIterator & column_iterator);
 
 };
 

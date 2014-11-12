@@ -13,6 +13,7 @@ using namespace std;
 
 DPTable::DPTable(bool all_heterozygous) {
   this->all_heterozygous = all_heterozygous;
+  this->read_count = 0;
 }
 
 auto_ptr<vector<unsigned int> > DPTable::extract_read_ids(const vector<Entry *>& entries) {
@@ -54,7 +55,7 @@ void output_vector_enum(const vector<unsigned int> * v, unsigned int len) {
 }
 #endif
 
-void DPTable::compute_table(ColumnReader * column_reader) {
+void DPTable::compute_table(ColumnIterator * column_iterator) {
   
   if(!indexers.empty()) { // clear indexers, if present
     for(size_t i=0; i<indexers.size(); ++i) {
@@ -70,13 +71,13 @@ void DPTable::compute_table(ColumnReader * column_reader) {
     backtrace_table.resize(0);
   }
   
-  if (!column_reader->has_next()) return;
+  if (!column_iterator->has_next()) return;
   
   unsigned int n = 0;
   auto_ptr<vector<Entry *> > current_column(0);
   auto_ptr<vector<Entry *> > next_column(0);
   // get the next column ahead of time
-  next_column = column_reader->get_next();
+  next_column = column_iterator->get_next();
   auto_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_column);
   ColumnIndexingScheme* next_indexer = new ColumnIndexingScheme(0,*next_read_ids);
   indexers.push_back(next_indexer);
@@ -86,7 +87,7 @@ void DPTable::compute_table(ColumnReader * column_reader) {
   unsigned int running_optimal_score_index; // optimal score and its index
   double pi = 0.05; // percentage of columns processed
   double pc = pi;
-  unsigned int nc = column_reader->num_cols();
+  unsigned int nc = column_iterator->get_column_count();
   while(next_indexer != 0) {
     // move on projection column
     previous_projection_column = current_projection_column;
@@ -95,8 +96,8 @@ void DPTable::compute_table(ColumnReader * column_reader) {
     auto_ptr<vector<unsigned int> > current_read_ids = next_read_ids;
     ColumnIndexingScheme* current_indexer = next_indexer;
     // peek ahead and get the next column
-    if (column_reader->has_next()) {
-      next_column = column_reader->get_next();
+    if (column_iterator->has_next()) {
+      next_column = column_iterator->get_next();
       next_read_ids = extract_read_ids(*next_column);
       next_indexer = new ColumnIndexingScheme(current_indexer,*next_read_ids);
       current_indexer->set_next_column(next_indexer);
@@ -104,7 +105,7 @@ void DPTable::compute_table(ColumnReader * column_reader) {
     } else {
       assert(next_column.get() == 0);
       assert(next_read_ids.get() == 0);
-      ids_size = column_reader->num_rows();
+      read_count = column_iterator->get_read_count();
       next_indexer = 0;
     }
     // reserve memory for the DP column
@@ -266,9 +267,9 @@ auto_ptr<vector<unsigned int> > DPTable::get_index_path() {
   return index_path;
 }
 
-auto_ptr<DPTable::haplotype_t> DPTable::get_haplotype(ColumnReader * column_reader) {
+auto_ptr<DPTable::haplotype_t> DPTable::get_haplotype(ColumnIterator * column_iterator) {
 
-  auto_ptr<DPTable::read_t> s = get_super_reads(column_reader);
+  auto_ptr<DPTable::read_t> s = get_super_reads(column_iterator);
   unsigned int c_len = s->at(0).size();
   vector<Entry::allele_t> h0(c_len);
   vector<Entry::allele_t> h1(c_len);
@@ -287,9 +288,9 @@ auto_ptr<DPTable::haplotype_t> DPTable::get_haplotype(ColumnReader * column_read
 }
 
 // what used to be 'get_haplotype', but this is a more accurate name
-auto_ptr<DPTable::haplotype_t> DPTable::get_raw_haplotype(ColumnReader * column_reader) {
+auto_ptr<DPTable::haplotype_t> DPTable::get_raw_haplotype(ColumnIterator * column_iterator) {
 
-  auto_ptr<DPTable::read_t> s = get_super_reads(column_reader);
+  auto_ptr<DPTable::read_t> s = get_super_reads(column_iterator);
   unsigned int c_len = s->at(0).size();
   unsigned int p_len = s->at(0)[c_len-1]->get_read_id();
   vector<Entry::allele_t> h0(p_len);
@@ -317,24 +318,24 @@ auto_ptr<DPTable::haplotype_t> DPTable::get_raw_haplotype(ColumnReader * column_
   return h;
 }
 
-auto_ptr<DPTable::read_t> DPTable::get_super_reads(ColumnReader * column_reader) {
+auto_ptr<DPTable::read_t> DPTable::get_super_reads(ColumnIterator * column_iterator) {
 
   auto_ptr<DPTable::read_t> r = auto_ptr<DPTable::read_t>(new DPTable::read_t);
 
-  if(!column_reader->has_next()) return r;
+  if(!column_iterator->has_next()) return r;
 
-  const vector<unsigned int> * positions = column_reader->get_positions();
+  const vector<unsigned int> * positions = column_iterator->get_positions();
 
   unsigned int c_len = positions->size();
   vector<Entry *> r0(c_len);
   vector<Entry *> r1(c_len);
 
-  // run through the file again with the column_reader
+  // run through the file again with the column_iterator
   unsigned int i = 0; // column index
   auto_ptr<vector<unsigned int> > index_path = get_index_path();
-  while(column_reader->has_next()) {
+  while(column_iterator->has_next()) {
     unsigned int index = index_path->at(i);
-    auto_ptr<vector<Entry *> > column = column_reader->get_next();
+    auto_ptr<vector<Entry *> > column = column_iterator->get_next();
     ColumnCostComputer cost_computer(*column, all_heterozygous);
     cost_computer.set_partitioning(index);
 
@@ -367,7 +368,7 @@ auto_ptr<vector<bool> > DPTable::get_optimal_partitioning() {
   }
   */
 
-  auto_ptr<vector<bool> > partitioning = auto_ptr<vector<bool> >(new vector<bool>(ids_size,false));
+  auto_ptr<vector<bool> > partitioning = auto_ptr<vector<bool> >(new vector<bool>(read_count,false));
   for(size_t i=0; i< index_path->size(); ++i) {
     unsigned int mask = 1; // mask to pass over the partitioning (i.e., index)
     for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {
@@ -401,20 +402,20 @@ auto_ptr<vector<unsigned int> > DPTable::get_index_path_HALF_TABLE() {
   return index_path;
 }
 
-auto_ptr<DPTable::haplotype_t> DPTable::get_haplotype_HALF_TABLE(ColumnReader & column_reader) {
+auto_ptr<DPTable::haplotype_t> DPTable::get_haplotype_HALF_TABLE(ColumnIterator & column_iterator) {
 
   auto_ptr<DPTable::haplotype_t> h = auto_ptr<DPTable::haplotype_t>(new DPTable::haplotype_t);
 
-  if(!column_reader.has_next()) return h;
+  if(!column_iterator.has_next()) return h;
 
-  const vector<unsigned int> * positions = column_reader.get_positions();
+  const vector<unsigned int> * positions = column_iterator.get_positions();
 
   unsigned int p_len = positions->size();
   unsigned int c_len = positions->at(p_len-1);
   vector<Entry::allele_t> h0(c_len);
   vector<Entry::allele_t> h1(c_len);
 
-  // run through the file again with the column_reader
+  // run through the file again with the column_iterator
   unsigned int j = positions->at(0)-1; // position index
   auto_ptr<vector<unsigned int> > index_path = get_index_path();
 
@@ -423,7 +424,7 @@ auto_ptr<DPTable::haplotype_t> DPTable::get_haplotype_HALF_TABLE(ColumnReader & 
   unsigned int previous_index = -1;
 
   auto_ptr<ColumnIndexingIterator> iterator = indexers[0]->get_iterator();
-  auto_ptr<vector<Entry *> > column = column_reader.get_next();
+  auto_ptr<vector<Entry *> > column = column_iterator.get_next();
   unsigned int index = index_path->at(0);
   
   // start off the haplotype
@@ -434,7 +435,7 @@ auto_ptr<DPTable::haplotype_t> DPTable::get_haplotype_HALF_TABLE(ColumnReader & 
   ++j; // next position
   
   for(unsigned int i= 1; i < p_len; ++i) { // for each column i
-    assert(column_reader.has_next());
+    assert(column_iterator.has_next());
 
     while(j < positions->at(i)-1) { // fill gaps with '-'s
       h0[j] = Entry::BLANK;
@@ -449,7 +450,7 @@ auto_ptr<DPTable::haplotype_t> DPTable::get_haplotype_HALF_TABLE(ColumnReader & 
     
     // get new stuff
     iterator = indexers[i]->get_iterator();
-    column = column_reader.get_next();    
+    column = column_iterator.get_next();    
     index = index_path->at(i);
 
     // db
