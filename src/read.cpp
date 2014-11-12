@@ -1,6 +1,7 @@
 #include <sstream>
 #include <algorithm> 
 #include <stdexcept>
+#include <cassert>
 
 #include "read.h"
 
@@ -41,5 +42,12 @@ int Read::lastPosition() const {
 void Read::setID(int id) {
 	for (size_t i=0; i<variants.size(); ++i) {
 		variants[i].entry.set_read_id(id);
+	}
+}
+
+void Read::addPositionsToSet(std::unordered_set<unsigned int>* set) {
+	assert(set != 0);
+	for (size_t i=0; i<variants.size(); ++i) {
+		set->insert(variants[i].position);
 	}
 }

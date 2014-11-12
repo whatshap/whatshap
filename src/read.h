@@ -3,9 +3,10 @@
 
 #include <string>
 #include <vector>
+#include <unordered_set>
 
 #include "entry.h"
-  
+
 class Read {
 public:
 	Read(const std::string& name, int mapq);
@@ -18,6 +19,8 @@ public:
 	/** Returns the position of the last variant. **/
 	int lastPosition() const;
 	void setID(int id);
+	/** Add all positions contained in this read to the given set. */
+	void addPositionsToSet(std::unordered_set<unsigned int>* set);
 private:
 	typedef struct enriched_entry_t {
 		Entry entry;
