@@ -3,11 +3,7 @@
 
 from libcpp.string cimport string
 
-#print 'hello world'
-cdef extern from "../src/dptable.h":
-	cdef cppclass DPTable:
-		DPTable(bool) except +
-
+# ====== Read ======
 cdef extern from "../src/read.h":
 	cdef cppclass Read:
 		Read(string, int) except +
@@ -30,6 +26,7 @@ cdef class PyRead:
 		self.thisptr.addVariant(position, ord(base[0]), allele, quality)
 	# TODO: add getters
 
+# ====== ReadSet ======
 cdef extern from "../src/readset.h":
 	cdef cppclass ReadSet:
 		ReadSet() except +
@@ -50,3 +47,26 @@ cdef class PyReadSet:
 	def finalize(self):
 		self.thisptr.finalize()
 	# TODO: add getters
+
+# ====== ColumnIterator ======
+cdef extern from "../src/columniterator.h":
+	cdef cppclass ColumnIterator:
+		ColumnIterator(ReadSet) except +
+
+# ====== DPTable ======
+cdef extern from "../src/dptable.h":
+	cdef cppclass DPTable:
+		DPTable(bool) except +
+		void compute_table(ColumnIterator*);
+
+cdef class PyDPTable:
+	cdef DPTable *thisptr
+	def __cinit__(self, all_heterozygous, PyReadSet readset):
+		self.thisptr = new DPTable(all_heterozygous)
+		cdef ColumnIterator* iterator = new ColumnIterator(readset.thisptr[0])
+		print('CALLING compute_table BEGIN')
+		self.thisptr.compute_table(iterator)
+		print('CALLING compute_table END')
+		del iterator
+	def __dealloc__(self):
+		del self.thisptr
