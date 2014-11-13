@@ -56,7 +56,6 @@ void output_vector_enum(const vector<unsigned int> * v, unsigned int len) {
 #endif
 
 void DPTable::compute_table(ColumnIterator * column_iterator) {
-  
   if(!indexers.empty()) { // clear indexers, if present
     for(size_t i=0; i<indexers.size(); ++i) {
       delete indexers[i];
@@ -217,10 +216,6 @@ void DPTable::compute_table(ColumnIterator * column_iterator) {
     // add newly computed backtrace_table column
     backtrace_table.push_back(backtrace_column);
 
-    // free memory for entries
-    for (size_t j=0; j<current_column->size(); ++j) {
-      delete current_column->at(j);
-    }
     ++n;
 
     // db
