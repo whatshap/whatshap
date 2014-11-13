@@ -19,7 +19,7 @@ public:
 	unsigned int get_read_count(); 
 	bool has_next();
 	/** Ownership of Entry objects remains with the ColumnIterator. Pointers
-	 *  remain valid only until the next call to get_next().
+	 *  remain valid only until iterator is destructed.
 	 */
 	std::auto_ptr<std::vector<const Entry*> > get_next();
 	const std::vector<unsigned int>* get_positions();
@@ -37,6 +37,7 @@ private:
 	/** Index of the read that is to be examined next. */
 	int next_read_index;
 	std::list<active_read_t> active_reads;
+	std::vector<Entry*> blank_entries;
 };
 
 #endif
