@@ -11,7 +11,7 @@ import logging
 from tempfile import NamedTemporaryFile
 import subprocess
 from io import StringIO
-from .core import Read,ReadSet
+from .core import Read,ReadSet,DPTable
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +141,12 @@ def phase_reads(reads, all_het=False, wif=None, superwif=None):
 	with wif_file as wif:
 		print_wif(reads, wif)
 		logger.info('WIF written to %s', wif_path)
-
+		
+	dp_table = DPTable(all_het, read_set)
+	# TODO: support for obtaining the haplotypes from the DPTable (in the form of two core.Reads
+	import sys
+	sys.exit(1)
+		
 	dp_cmdline = ['build/dp'] + (['--all_het'] if all_het else []) + [wif_path]
 	logger.info('Running %s', ' '.join(dp_cmdline))
 	superread_result = subprocess.check_output(dp_cmdline, shell=False).decode()
