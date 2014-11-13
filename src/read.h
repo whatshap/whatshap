@@ -19,8 +19,12 @@ public:
 	/** Returns the position of the last variant. **/
 	int lastPosition() const;
 	void setID(int id);
+	int getID() const;
 	/** Add all positions contained in this read to the given set. */
 	void addPositionsToSet(std::unordered_set<unsigned int>* set);
+	int getPosition(size_t variant_idx) const;
+	const Entry* getEntry(size_t variant_idx) const;
+	int getVariantCount() const;
 private:
 	typedef struct enriched_entry_t {
 		Entry entry;
@@ -38,6 +42,7 @@ private:
 
 	std::string name;
 	int mapq;
+	int id;
 	std::vector<enriched_entry_t> variants;
 };
 

@@ -8,6 +8,7 @@
 using namespace std;
 
 Read::Read(const std::string& name, int mapq) : name(name), mapq(mapq) {
+	this->id = -1;
 }
 
 string Read::toString() {
@@ -40,9 +41,14 @@ int Read::lastPosition() const {
 }
 
 void Read::setID(int id) {
+	this->id = id;
 	for (size_t i=0; i<variants.size(); ++i) {
 		variants[i].entry.set_read_id(id);
 	}
+}
+
+int Read::getID() const {
+	return id;
 }
 
 void Read::addPositionsToSet(std::unordered_set<unsigned int>* set) {
@@ -50,4 +56,16 @@ void Read::addPositionsToSet(std::unordered_set<unsigned int>* set) {
 	for (size_t i=0; i<variants.size(); ++i) {
 		set->insert(variants[i].position);
 	}
+}
+
+int Read::getPosition(size_t variant_idx) const {
+	return variants[variant_idx].position;
+}
+
+const Entry* Read::getEntry(size_t variant_idx) const {
+	return &(variants[variant_idx].entry);
+}
+
+int Read::getVariantCount() const {
+	return variants.size();
 }
