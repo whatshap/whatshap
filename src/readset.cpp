@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <algorithm>
 #include <unordered_set>
+#include <iomanip>
 
 #include "readset.h"
 
@@ -28,7 +29,7 @@ string ReadSet::toString() {
 	ostringstream oss;
 	oss << "ReadSet:" << endl;
 	for (size_t i=0; i<reads.size(); ++i) {
-		oss << "  " << reads[i]->toString() << endl;
+		oss << "  " << setw(5) << i << ' ' << reads[i]->toString() << endl;
 	}
 	return oss.str();
 }
