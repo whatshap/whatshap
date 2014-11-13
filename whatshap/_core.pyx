@@ -28,6 +28,7 @@ cdef class PyRead:
 	def addVariant(self, int position, str base, int allele, int quality):
 		assert len(base) == 1
 		self.thisptr.addVariant(position, ord(base[0]), allele, quality)
+	# TODO: add getters
 
 cdef extern from "../src/readset.h":
 	cdef cppclass ReadSet:
@@ -48,3 +49,4 @@ cdef class PyReadSet:
 		return self.thisptr.toString().decode('utf-8')
 	def finalize(self):
 		self.thisptr.finalize()
+	# TODO: add getters
