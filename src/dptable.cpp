@@ -16,7 +16,7 @@ DPTable::DPTable(bool all_heterozygous) {
   this->read_count = 0;
 }
 
-auto_ptr<vector<unsigned int> > DPTable::extract_read_ids(const vector<Entry *>& entries) {
+auto_ptr<vector<unsigned int> > DPTable::extract_read_ids(const vector<const Entry *>& entries) {
   auto_ptr<vector<unsigned int> > read_ids(new vector<unsigned int>());
   for (size_t i=0; i<entries.size(); ++i) {
     read_ids->push_back(entries[i]->get_read_id());
@@ -74,8 +74,8 @@ void DPTable::compute_table(ColumnIterator * column_iterator) {
   if (!column_iterator->has_next()) return;
   
   unsigned int n = 0;
-  auto_ptr<vector<Entry *> > current_column(0);
-  auto_ptr<vector<Entry *> > next_column(0);
+  auto_ptr<vector<const Entry *> > current_column(0);
+  auto_ptr<vector<const Entry *> > next_column(0);
   // get the next column ahead of time
   next_column = column_iterator->get_next();
   auto_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_column);
@@ -327,15 +327,15 @@ auto_ptr<DPTable::read_t> DPTable::get_super_reads(ColumnIterator * column_itera
   const vector<unsigned int> * positions = column_iterator->get_positions();
 
   unsigned int c_len = positions->size();
-  vector<Entry *> r0(c_len);
-  vector<Entry *> r1(c_len);
+  vector<Entry*> r0(c_len);
+  vector<Entry*> r1(c_len);
 
   // run through the file again with the column_iterator
   unsigned int i = 0; // column index
   auto_ptr<vector<unsigned int> > index_path = get_index_path();
   while(column_iterator->has_next()) {
     unsigned int index = index_path->at(i);
-    auto_ptr<vector<Entry *> > column = column_iterator->get_next();
+    auto_ptr<vector<const Entry *> > column = column_iterator->get_next();
     ColumnCostComputer cost_computer(*column, all_heterozygous);
     cost_computer.set_partitioning(index);
 
@@ -420,11 +420,11 @@ auto_ptr<DPTable::haplotype_t> DPTable::get_haplotype_HALF_TABLE(ColumnIterator 
   auto_ptr<vector<unsigned int> > index_path = get_index_path();
 
   auto_ptr<ColumnIndexingIterator> previous_iterator(0);
-  auto_ptr<vector<Entry *> > previous_column(0);
+  auto_ptr<vector<const Entry *> > previous_column(0);
   unsigned int previous_index = -1;
 
   auto_ptr<ColumnIndexingIterator> iterator = indexers[0]->get_iterator();
-  auto_ptr<vector<Entry *> > column = column_iterator.get_next();
+  auto_ptr<vector<const Entry *> > column = column_iterator.get_next();
   unsigned int index = index_path->at(0);
   
   // start off the haplotype

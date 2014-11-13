@@ -20,7 +20,7 @@ private:
   std::vector<std::vector<unsigned int>* > backtrace_table;
   unsigned int read_count;
   // helper function to pull read ids out of read column
-  std::auto_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<Entry *>& entries);
+  std::auto_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
   bool all_heterozygous;
 
 public:

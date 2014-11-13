@@ -29,11 +29,11 @@ bool ColumnIterator::has_next() {
 	n < set.positions->size();
 }
 
-auto_ptr<vector<Entry*> > ColumnIterator::get_next() {
-	int next_pos = set.positions->at(n);
+auto_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 	// check which of the current reads remain active
 	// TODO
 	// check which new reads might become active
 	// TODO
 	n += 1;
+	//return result;
 }

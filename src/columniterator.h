@@ -18,7 +18,10 @@ public:
 	/** Returns the total number of reads. */
 	unsigned int get_read_count(); 
 	bool has_next();
-	std::auto_ptr<std::vector<Entry*> > get_next();
+	/** Ownership of Entry objects remains with the ColumnIterator. Pointers
+	 *  remain valid only until the next call to get_next().
+	 */
+	std::auto_ptr<std::vector<const Entry*> > get_next();
 	const std::vector<unsigned int>* get_positions();
 
 private:

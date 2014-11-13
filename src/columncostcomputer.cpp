@@ -3,7 +3,7 @@
 
 using namespace std;
 
-ColumnCostComputer::ColumnCostComputer(const std::vector<Entry*>& column, bool all_heterozygous) : column(column), all_heterozygous(all_heterozygous) {
+ColumnCostComputer::ColumnCostComputer(const std::vector<const Entry*>& column, bool all_heterozygous) : column(column), all_heterozygous(all_heterozygous) {
   cost_partition1[0] = 0;
   cost_partition1[1] = 0;
   cost_partition2[0] = 0;
@@ -18,7 +18,7 @@ void ColumnCostComputer::set_partitioning(unsigned int partitioning) {
   cost_partition2[0] = 0;
   cost_partition2[1] = 0;
   this->partitioning = partitioning;
-  for (vector<Entry*>::const_iterator it = column.begin(); it != column.end(); ++it) {
+  for (vector<const Entry*>::const_iterator it = column.begin(); it != column.end(); ++it) {
     bool entry_in_partition1 = (partitioning & ((unsigned int)1)) == 0;
     switch ((*it)->get_allele_type()) {
       case Entry::MAJOR_ALLELE:
