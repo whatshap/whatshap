@@ -23,6 +23,9 @@ private:
   std::auto_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
   bool all_heterozygous;
 
+  // helper function to compute the optimal path through the backtrace table
+  std::auto_ptr<std::vector<unsigned int> > get_index_path();
+
 public:
   /** Constructor. 
    *  @param all_heterozygous If true, then the "all heterozygous" assumption is made;
@@ -34,9 +37,6 @@ public:
   
   unsigned int get_optimal_score();
   
-  // helper function to compute the optimal path through the backtrace table
-  std::auto_ptr<std::vector<unsigned int> > get_index_path();
-
   // returns the haplotype for the reads (needs the input file again)
   typedef std::vector<std::vector<Entry::allele_t> > haplotype_t;
   std::auto_ptr<haplotype_t> get_haplotype(ColumnIterator * column_iterator);
