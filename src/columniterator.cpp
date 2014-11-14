@@ -23,7 +23,7 @@ unsigned int ColumnIterator::get_column_count() {
 }
 
 unsigned int ColumnIterator::get_read_count() {
-	return set.get_read_count();
+	return set.size();
 }
 
 const vector<unsigned int>* ColumnIterator::get_positions() {

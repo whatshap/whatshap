@@ -19,7 +19,7 @@ public:
 	void finalize();
 	/** Returns the set of SNP positions. Can only be called after finalization. */
 	const std::vector<unsigned int>* get_positions() const;
-	unsigned int get_read_count() const;
+	unsigned int size() const;
 	std::string toString();
 private:
 	typedef struct read_comparator_t {

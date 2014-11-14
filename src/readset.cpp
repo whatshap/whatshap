@@ -55,6 +55,6 @@ const vector<unsigned int>* ReadSet::get_positions() const {
 	return positions;
 }
 
-unsigned int ReadSet::get_read_count() const {
+unsigned int ReadSet::size() const {
 	return reads.size();
 }
