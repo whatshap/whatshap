@@ -59,7 +59,23 @@ void Read::addPositionsToSet(std::unordered_set<unsigned int>* set) {
 }
 
 int Read::getPosition(size_t variant_idx) const {
+	assert(variant_idx < variants.size());
 	return variants[variant_idx].position;
+}
+
+char Read::getBase(size_t variant_idx) const {
+	assert(variant_idx < variants.size());
+	return variants[variant_idx].base;
+}
+
+int Read::getAllele(size_t variant_idx) const {
+	assert(variant_idx < variants.size());
+	return variants[variant_idx].entry.get_allele_type();
+}
+
+int Read::getBaseQuality(size_t variant_idx) const {
+	assert(variant_idx < variants.size());
+	return variants[variant_idx].entry.get_phred_score();
 }
 
 const Entry* Read::getEntry(size_t variant_idx) const {
@@ -68,4 +84,12 @@ const Entry* Read::getEntry(size_t variant_idx) const {
 
 int Read::getVariantCount() const {
 	return variants.size();
+}
+
+const string& Read::getName() const {
+	return name;
+}
+
+int Read::getMapq() const {
+	return mapq;
 }

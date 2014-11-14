@@ -58,3 +58,7 @@ const vector<unsigned int>* ReadSet::get_positions() const {
 unsigned int ReadSet::size() const {
 	return reads.size();
 }
+
+Read* ReadSet::get(int i) const {
+	return reads[i];
+}

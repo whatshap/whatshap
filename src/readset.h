@@ -21,6 +21,8 @@ public:
 	const std::vector<unsigned int>* get_positions() const;
 	unsigned int size() const;
 	std::string toString();
+	/** Access a read in the set. Ownership stays with the ReadSet. */
+	Read* get(int i) const;
 private:
 	typedef struct read_comparator_t {
 		read_comparator_t() {}

@@ -23,8 +23,13 @@ public:
 	/** Add all positions contained in this read to the given set. */
 	void addPositionsToSet(std::unordered_set<unsigned int>* set);
 	int getPosition(size_t variant_idx) const;
+	char getBase(size_t variant_idx) const;
+	int getAllele(size_t variant_idx) const;
+	int getBaseQuality(size_t variant_idx) const;
 	const Entry* getEntry(size_t variant_idx) const;
 	int getVariantCount() const;
+	const std::string& getName() const;
+	int getMapq() const;
 private:
 	typedef struct enriched_entry_t {
 		Entry entry;
