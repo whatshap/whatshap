@@ -104,22 +104,23 @@ def read_to_coreread(read):
 	else:
 		assert False, 'Strange MAPQ'
 	for variant in read.variants:
-		# TODO: Why can a variant be None??
+		# variant is None when there was a "--" in the wif file, which seperates
+		# the two parts of a read pair. Not needed in Read/ReadSet.
 		if variant is None: continue
 		assert variant.allele in ['0','1'], 'Unknown allele: {}'.format(variant.allele)
 		coreread.addVariant(variant.position, variant.base, int(variant.allele), variant.quality)
 	return coreread
 
+def coreread_to_read(coreread):
+	read = ReadVariantList(name=coreread.getName(), mapq=coreread.getMapq(), variants=[])
+	for position, base, allele, quality in coreread:
+		read.variants.append(ReadVariant(position=position, base=base, allele=str(allele), quality=quality))
+	return read
+
 def phase_reads(reads, all_het=False, wif=None, superwif=None):
 	"""
 	Phase reads, return superreads. This function runs the phasing algorithm
-	by creating a temporary WIF file, running the 'dp' binary and then
-	parsing the created "super reads" output file.
-
-	Intermediate files are written to the paths named by wif and superwif. If
-	the parameters are None, a name for the temporary files is made up.
-
-	TODO The temporary files are *not* deleted.
+	via the C++ wrapper.
 	"""
 	if not reads:
 		return [
@@ -130,36 +131,13 @@ def phase_reads(reads, all_het=False, wif=None, superwif=None):
 	read_set = ReadSet()
 	for read in reads:
 		read_set.add(read_to_coreread(read))
+	# Finalizing a read set will sort reads, variants within reads and assign unique read IDs.
 	read_set.finalize()
-	print(read_set)
-	if wif is not None:
-		wif_path = wif
-		wif_file = open(wif_path, 'wt')
-	else:
-		wif_file = NamedTemporaryFile(mode='wt', suffix='.wif', prefix='whatshap-', delete=False)
-		wif_path = wif_file.name
-	with wif_file as wif:
-		print_wif(reads, wif)
-		logger.info('WIF written to %s', wif_path)
-		
-	dp_table = DPTable(all_het, read_set)
-	# TODO: support for obtaining the haplotypes from the DPTable (in the form of two core.Reads
-	import sys
-	sys.exit(1)
-		
-	dp_cmdline = ['build/dp'] + (['--all_het'] if all_het else []) + [wif_path]
-	logger.info('Running %s', ' '.join(dp_cmdline))
-	superread_result = subprocess.check_output(dp_cmdline, shell=False).decode()
 
-	if superwif is not None:
-		superwif_path = superwif
-		superwif_file = open(superwif_path, 'wt')
-	else:
-		superwif_file = NamedTemporaryFile(mode='wt', suffix='.superwif', prefix='whatshap-', delete=False)
-		superwif_path = superwif_file.name
-	with superwif_file as wif:
-		wif.write(superread_result)
-		logger.info('Super WIF written to %s', superwif_path)
-
-	superreads = read_wif(superwif_path)
-	return superreads
+	# Run the core algorithm: construct DP table ...
+	dp_table = DPTable(read_set, all_het)
+	# ... and do the backtrace to get the solution
+	superreads = dp_table.getSuperReads()
+	
+	# Convert corereads back to "regular" reads
+	return  [coreread_to_read(superread) for superread in superreads]
