@@ -7,6 +7,8 @@
 #include "columnindexingscheme.h"
 #include "columniterator.h"
 #include "entry.h"
+#include "read.h"
+#include "readset.h"
 
 class DPTable {
 private:
@@ -33,13 +35,14 @@ public:
    *                          reads suggest a homozygous site. */
   DPTable(bool all_heterozygous = false);
   
-  void compute_table(ColumnIterator * column_iterator);
+  void compute_table(ColumnIterator* column_iterator);
   
   unsigned int get_optimal_score();
   
-  // returns the two super-reads for the reads (see above)
-  typedef std::vector<std::vector<Entry *> > read_t;
-  std::auto_ptr<read_t> get_super_reads(ColumnIterator * column_iterator);
+  /** Computes optimal haplotypes and adds them (in the form of "super reads") to 
+   *  the given read_set.
+   */
+  void get_super_reads(ColumnIterator* column_iterator, ReadSet* output_read_set);
 
   // returns optimal partitioning of the reads
   std::auto_ptr<std::vector<bool> > get_optimal_partitioning();

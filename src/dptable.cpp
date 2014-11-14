@@ -262,40 +262,31 @@ auto_ptr<vector<unsigned int> > DPTable::get_index_path() {
   return index_path;
 }
 
-auto_ptr<DPTable::read_t> DPTable::get_super_reads(ColumnIterator * column_iterator) {
+void DPTable::get_super_reads(ColumnIterator* column_iterator, ReadSet* output_read_set) {
+  assert(output_read_set != 0);
+  assert(column_iterator->has_next());
 
-  auto_ptr<DPTable::read_t> r = auto_ptr<DPTable::read_t>(new DPTable::read_t);
+  const vector<unsigned int>* positions = column_iterator->get_positions();
 
-  if(!column_iterator->has_next()) return r;
-
-  const vector<unsigned int> * positions = column_iterator->get_positions();
-
-  unsigned int c_len = positions->size();
-  vector<Entry*> r0(c_len);
-  vector<Entry*> r1(c_len);
+  Read* r0 = new Read("superread0", -1);
+  Read* r1 = new Read("superread1", -1);
 
   // run through the file again with the column_iterator
   unsigned int i = 0; // column index
   auto_ptr<vector<unsigned int> > index_path = get_index_path();
-  while(column_iterator->has_next()) {
+  while (column_iterator->has_next()) {
     unsigned int index = index_path->at(i);
     auto_ptr<vector<const Entry *> > column = column_iterator->get_next();
     ColumnCostComputer cost_computer(*column, all_heterozygous);
     cost_computer.set_partitioning(index);
 
-    // yes, I abuse slightly Entry in using read_id for a position,
-    // but it's just the perfect object to represent a snp position of
-    // a .wif file.  Perhaps we can generalize Entry by naming the
-    // read_id field 'info' or 'tag' or something
-    r0[i] = new Entry(positions->at(i), cost_computer.get_allele(0), cost_computer.get_weight(0));
-    r1[i] = new Entry(positions->at(i), cost_computer.get_allele(1), cost_computer.get_weight(1));
+    r0->addVariant(positions->at(i), '?', cost_computer.get_allele(0), cost_computer.get_weight(0));
+    r1->addVariant(positions->at(i), '?', cost_computer.get_allele(1), cost_computer.get_weight(1));
     ++i; // next column
   }
 
-  r->push_back(r0);
-  r->push_back(r1);
-
-  return r;
+  output_read_set->add(r0);
+  output_read_set->add(r1);
 }
 
 auto_ptr<vector<bool> > DPTable::get_optimal_partitioning() {
