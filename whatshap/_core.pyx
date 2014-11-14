@@ -1,5 +1,5 @@
 # distutils: language = c++
-# distutils: sources = src/activelist.cpp src/activelistdelegator.cpp src/columncostcomputer.cpp src/columnindexingiterator.cpp src/columnindexingscheme.cpp src/dp.cpp src/dptable.cpp src/entry.cpp src/graycodes.cpp src/read.cpp src/readset.cpp src/columniterator.cpp
+# distutils: sources = src/columncostcomputer.cpp src/columnindexingiterator.cpp src/columnindexingscheme.cpp src/dp.cpp src/dptable.cpp src/entry.cpp src/graycodes.cpp src/read.cpp src/readset.cpp src/columniterator.cpp
 
 from libcpp.string cimport string
 
