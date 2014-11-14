@@ -11,9 +11,11 @@
 
 using namespace std;
 
-DPTable::DPTable(bool all_heterozygous) {
+DPTable::DPTable(const ReadSet* read_set, bool all_heterozygous) {
+  this->read_set = read_set;
   this->all_heterozygous = all_heterozygous;
   this->read_count = 0;
+  compute_table();
 }
 
 auto_ptr<vector<unsigned int> > DPTable::extract_read_ids(const vector<const Entry *>& entries) {
@@ -55,7 +57,8 @@ void output_vector_enum(const vector<unsigned int> * v, unsigned int len) {
 }
 #endif
 
-void DPTable::compute_table(ColumnIterator * column_iterator) {
+void DPTable::compute_table() {
+  ColumnIterator column_iterator(*read_set);
   if(!indexers.empty()) { // clear indexers, if present
     for(size_t i=0; i<indexers.size(); ++i) {
       delete indexers[i];
@@ -70,13 +73,13 @@ void DPTable::compute_table(ColumnIterator * column_iterator) {
     backtrace_table.resize(0);
   }
   
-  if (!column_iterator->has_next()) return;
+  if (!column_iterator.has_next()) return;
   
   unsigned int n = 0;
   auto_ptr<vector<const Entry *> > current_column(0);
   auto_ptr<vector<const Entry *> > next_column(0);
   // get the next column ahead of time
-  next_column = column_iterator->get_next();
+  next_column = column_iterator.get_next();
   auto_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_column);
   ColumnIndexingScheme* next_indexer = new ColumnIndexingScheme(0,*next_read_ids);
   indexers.push_back(next_indexer);
@@ -86,7 +89,7 @@ void DPTable::compute_table(ColumnIterator * column_iterator) {
   unsigned int running_optimal_score_index; // optimal score and its index
   double pi = 0.05; // percentage of columns processed
   double pc = pi;
-  unsigned int nc = column_iterator->get_column_count();
+  unsigned int nc = column_iterator.get_column_count();
   while(next_indexer != 0) {
     // move on projection column
     previous_projection_column = current_projection_column;
@@ -95,8 +98,8 @@ void DPTable::compute_table(ColumnIterator * column_iterator) {
     auto_ptr<vector<unsigned int> > current_read_ids = next_read_ids;
     ColumnIndexingScheme* current_indexer = next_indexer;
     // peek ahead and get the next column
-    if (column_iterator->has_next()) {
-      next_column = column_iterator->get_next();
+    if (column_iterator.has_next()) {
+      next_column = column_iterator.get_next();
       next_read_ids = extract_read_ids(*next_column);
       next_indexer = new ColumnIndexingScheme(current_indexer,*next_read_ids);
       current_indexer->set_next_column(next_indexer);
@@ -104,7 +107,7 @@ void DPTable::compute_table(ColumnIterator * column_iterator) {
     } else {
       assert(next_column.get() == 0);
       assert(next_read_ids.get() == 0);
-      read_count = column_iterator->get_read_count();
+      read_count = column_iterator.get_read_count();
       next_indexer = 0;
     }
     // reserve memory for the DP column
@@ -262,11 +265,11 @@ auto_ptr<vector<unsigned int> > DPTable::get_index_path() {
   return index_path;
 }
 
-void DPTable::get_super_reads(ColumnIterator* column_iterator, ReadSet* output_read_set) {
+void DPTable::get_super_reads(ReadSet* output_read_set) {
   assert(output_read_set != 0);
-  assert(column_iterator->has_next());
 
-  const vector<unsigned int>* positions = column_iterator->get_positions();
+  ColumnIterator column_iterator(*read_set);
+  const vector<unsigned int>* positions = column_iterator.get_positions();
 
   Read* r0 = new Read("superread0", -1);
   Read* r1 = new Read("superread1", -1);
@@ -274,9 +277,9 @@ void DPTable::get_super_reads(ColumnIterator* column_iterator, ReadSet* output_r
   // run through the file again with the column_iterator
   unsigned int i = 0; // column index
   auto_ptr<vector<unsigned int> > index_path = get_index_path();
-  while (column_iterator->has_next()) {
+  while (column_iterator.has_next()) {
     unsigned int index = index_path->at(i);
-    auto_ptr<vector<const Entry *> > column = column_iterator->get_next();
+    auto_ptr<vector<const Entry *> > column = column_iterator.get_next();
     ColumnCostComputer cost_computer(*column, all_heterozygous);
     cost_computer.set_partitioning(index);
 

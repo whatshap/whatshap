@@ -12,6 +12,7 @@
 
 class DPTable {
 private:
+  const ReadSet* read_set;
   // vector of indexingschemes
   std::vector<ColumnIndexingScheme*> indexers;
   // optimal score and its index in the rightmost DP table column
@@ -28,21 +29,23 @@ private:
   // helper function to compute the optimal path through the backtrace table
   std::auto_ptr<std::vector<unsigned int> > get_index_path();
 
+  void compute_table();
+
 public:
-  /** Constructor. 
+  /** Constructor.
+   *  @param read_set DP table is constructed for the contained reads. Ownership is retained
+   *                  by caller. Pointer must remain valid during the lifetime of this DPTable.
    *  @param all_heterozygous If true, then the "all heterozygous" assumption is made;
    *                          i.e., all positions are forced to be heterozygous even when
    *                          reads suggest a homozygous site. */
-  DPTable(bool all_heterozygous = false);
-  
-  void compute_table(ColumnIterator* column_iterator);
-  
+  DPTable(const ReadSet* read_set, bool all_heterozygous = false);
+ 
   unsigned int get_optimal_score();
   
   /** Computes optimal haplotypes and adds them (in the form of "super reads") to 
    *  the given read_set.
    */
-  void get_super_reads(ColumnIterator* column_iterator, ReadSet* output_read_set);
+  void get_super_reads(ReadSet* output_read_set);
 
   // returns optimal partitioning of the reads
   std::auto_ptr<std::vector<bool> > get_optimal_partitioning();

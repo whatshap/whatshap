@@ -56,17 +56,12 @@ cdef extern from "../src/columniterator.h":
 # ====== DPTable ======
 cdef extern from "../src/dptable.h":
 	cdef cppclass DPTable:
-		DPTable(bool) except +
-		void compute_table(ColumnIterator*);
+		DPTable(ReadSet*, bool) except +
+		void compute_table()
 
 cdef class PyDPTable:
 	cdef DPTable *thisptr
 	def __cinit__(self, all_heterozygous, PyReadSet readset):
-		self.thisptr = new DPTable(all_heterozygous)
-		cdef ColumnIterator* iterator = new ColumnIterator(readset.thisptr[0])
-		print('CALLING compute_table BEGIN')
-		self.thisptr.compute_table(iterator)
-		print('CALLING compute_table END')
-		del iterator
+		self.thisptr = new DPTable(readset.thisptr, all_heterozygous)
 	def __dealloc__(self):
 		del self.thisptr
