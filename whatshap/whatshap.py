@@ -428,51 +428,6 @@ def slice_reads(reads, max_coverage):
 	return slices
 
 
-def determine_connectivity(reads, position_list):
-	"""
-	Return a bitarray where bit i says whether positions i and i+1 are jointly
-	covered by a read.
-	"""
-	position_to_index = dict((position,index) for index,position in enumerate(position_list))
-	#b = bitarray(len(position_list)-1)
-	#b.setall(0)
-	b = [False]*(len(position_list)-1)
-	for read in reads:
-		variants = read.variants
-		try:
-			start = position_to_index[variants[0].position]
-			end = position_to_index[variants[-1].position]
-		except KeyError:
-			continue
-		for i in range(start,end):
-			b[i] = True
-	return b
-
-
-def superread_to_haplotype(superreads, position_list, original_reads):
-	position_list = sorted(position_list)
-	position_to_index = dict((position,index) for index, position in enumerate(position_list))
-	connected = determine_connectivity(original_reads, position_list)
-
-	for read in superreads:
-		haplotype = ['-'] * len(position_list)
-		for variant in read.variants:
-			if variant.position in position_to_index:
-				haplotype[position_to_index[variant.position]] = str(variant.allele)
-			else:
-				logger.warn('Super read contains unknown SNP position: %d', variant.position)
-		for i, (p, h) in enumerate(zip(position_list, haplotype)):
-			print(p+1, h)
-			if connected and i < len(position_list) - 1 and not connected[i] and haplotype[i] != '-' and haplotype[i+1] != '-':
-				print('---')
-
-		# If information on "SNP deserts" is available, then input "|" symbols to separate unconnected components
-		for i in range(len(connected) - 1, -1, -1):
-			if (not connected[i]) and (haplotype[i] != '-') and (haplotype[i+1] != '-'):
-				haplotype.insert(i+1, '|')
-		print(''.join(haplotype))
-
-
 class Node:
 	def __init__(self, value, parent):
 		self.value = value
@@ -617,7 +572,4 @@ def main():
 
 		superreads = list(superreads)
 		positions = [ variant.position for variant in variants ]
-		if False:
-			superread_to_haplotype(superreads, positions, reads)
-		else:
-			find_components(superreads, positions, reads, args.vcf)
+		find_components(superreads, positions, reads, args.vcf)
