@@ -12,9 +12,9 @@ Install the requirements:
 
     venv/bin/pip install -r requirements.txt
 
-Compile C++ sources:
+Compile whatshap:
 
-    mkdir build && cd build && cmake ../src && make
+    venv/bin/python3 setup.py build_ext -i
 
 Then unpack raw.tgz (make sure that folder `raw` is created) and run snakemake.
 
@@ -80,56 +80,8 @@ Example (edited excerpt):
   https://gatkforums.broadinstitute.org/discussion/4038/
 
 
-Fix scaffold221
----------------
-
-(perhaps unnecessary)
-
-	samtools view -h scaffold221.bam | awk -vOFS="\t" '!/^@/ && $7=="*"{$8=0;$2=or($2,8)};1'|samtools view -bS - > scaffold221-fixed-tmp.bam
-	picard-tools FixMateInformation I=scaffold221-fixed-tmp.bam O=scaffold221-fixed.bam
-
-
 File formats
 ============
-
-
-pre-wif (unused)
-----------------
-
-* one line per read
-* for each read, list all the SNPs from the VCF file that intersect the region the read maps to
-* for each SNP, put in its
-    * position (on the reference)
-    * base (nucleotide) that is actually in the read
-    * whether the read supports the REF allele (0) or the ALT allele (1)
-    * base quality
-
-sorted-pre-wif (unused)
------------------------
-
-* same as above, but sorted by read name
-* stable sort is used, that is, identically named reads are sorted in the same way they were
-  output by the getEnds script
-
-wif
----
-
-* one line per read
-* for each read, list all the SNPs from the VCF file that intersect the region the read maps to
-* for each SNP, put in its
-    * position (on the reference)
-    * base (nucleotide) that is actually in the read
-    * whether the read supports the REF allele (0) or the ALT allele (1)
-    * base quality
-    * a colon (`:`)
-* last two fields in every line contain mapping quality (??) and other stuff
-* paired-end reads appear on one line, separated by the marker `--`
-* reads or read pairs that cover only one variant are discarded
-
-
-super-wif
----------
-...
 
 
 result.txt
@@ -156,14 +108,3 @@ Experimental setup
 * Phase with whatshap
 
 	freebayes -m 1 -f scaffold221.fasta scaffold221-all.bam > scaffold221.vcf
-
-
-Testing
--------
-
-    venv/bin/python whatshap/whatshap.py --all-het -H 20 --wif data/scaffold221-moleculo.wif --superwif data/scaffold221-moleculo.superwif data/scaffold221-moleculo.bam data/scaffold221.vcf scaffold221 sill2 > result.txt
-
-afterwards:
-
-    venv/bin/python whatshap/whatshap.py --resume-wif data/scaffold221-moleculo.wif --resume-superwif data/scaffold221-moleculo.superwif data/scaffold221-moleculo.bam data/scaffold221.vcf scaffold221 sill2 > result.txt
-
