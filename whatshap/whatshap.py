@@ -533,7 +533,7 @@ class PhasedVcfWriter:
 	"""
 	Read in a VCF file and write it back out with added phasing information.
 	"""
-	def __init__(self, in_path, out_path=None, out_file=sys.stdout):
+	def __init__(self, in_path, command_line, out_path=None, out_file=sys.stdout):
 		"""
 		in_path -- Path to input VCF, used as template.
 
@@ -546,6 +546,12 @@ class PhasedVcfWriter:
 		##FORMAT=<ID=HP,Number=.,Type=String,Description="Read-backed phasing haplotype identifiers">
 		##FORMAT=<ID=PQ,Number=1,Type=Float,Description="Read-backed phasing quality">
 		"""
+		# FreeBayes adds phasing=none to its VCF output - remove that.
+		self._reader.metadata['phasing'] = []
+		self._reader.metadata['phosing'] = []
+		if 'commandline' not in self._reader.metadata:
+			self._reader.metadata['commandline'] = []
+		self._reader.metadata['commandline'].append('"(whatshap ' + __version__ + ') ' + command_line + '"')
 		self._reader.formats['HP'] = vcf.parser._Format(id='HP', num=None, type='String', desc='Phasing haplotype identifier')
 		# TODO
 		self._reader.formats['PQ'] = vcf.parser._Format(id='PQ', num=1, type='Float', desc='Phasing quality')
@@ -608,7 +614,8 @@ def main():
 
 	start_time = time.time()
 	bam_reader = BamReader(args.bam, mapq_threshold=args.mapping_quality)
-	vcf_writer = PhasedVcfWriter(in_path=args.vcf, out_file=sys.stdout)
+	command_line = ' '.join(sys.argv[1:])
+	vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=args.vcf, out_file=sys.stdout)
 	for chromosome, variants, records in parse_vcf(args.vcf, [args.sample]):
 		logger.info('Read %d variants on chromosome %s', len(variants), chromosome)
 		reads_with_variants = bam_reader.read(chromosome, variants, args.sample)
