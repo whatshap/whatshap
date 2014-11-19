@@ -550,7 +550,7 @@ class PhasedVcfWriter:
 	def _format_phasing_info(self, component, phase):
 		assert phase in '01'
 		phase = int(phase)
-		return '{}-{},{}-{}'.format(component, phase + 1, component, 2 - phase)
+		return '{}-{},{}-{}'.format(component + 1, phase + 1, component + 1, 2 - phase)
 
 	def write(self, records, superreads, components):
 		"""
