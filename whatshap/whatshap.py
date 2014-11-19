@@ -19,6 +19,7 @@ import logging
 import sys
 import random
 import gzip
+import time
 from collections import defaultdict
 try:
 	from sqt import HelpfulArgumentParser as ArgumentParser
@@ -604,6 +605,7 @@ def main():
 	args = parser.parse_args()
 	random.seed(args.seed)
 
+	start_time = time.time()
 	bam_reader = BamReader(args.bam, mapq_threshold=args.mapping_quality)
 	vcf_writer = PhasedVcfWriter(in_path=args.vcf, out_file=sys.stdout)
 	for chromosome, variants, records in parse_vcf(args.vcf, [args.sample]):
@@ -627,3 +629,4 @@ def main():
 		vcf_writer.write(records, superreads, components)
 	vcf_writer.close()
 	bam_reader.close()
+	logger.info('Elapsed time: %.1fs', time.time() - start_time)
