@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
-Read a VCF and a BAM file and phase the variants.
-
+Read a VCF and a BAM file and phase the variants. The phased VCF is written to
+standard output.
+"""
+"""
  0: ref allele
  1: alt allele
  -: unphasable: no coverage of read that covers at least 2 SNPs
@@ -64,9 +66,11 @@ def parse_vcf(path, sample_names):
 	for record in vcf_reader:
 		if record.CHROM != prev_chromosome:
 			if prev_chromosome is not None:
-				yield (prev_chromosome, variants)
+				yield (prev_chromosome, variants, records)
 			prev_chromosome = record.CHROM
 			variants = []
+			records = []
+		records.append(record)
 		if not record.is_snp:
 			continue
 		if len(record.ALT) != 1:
@@ -129,7 +133,7 @@ def parse_vcf(path, sample_names):
 				snp_info.append(v)
 				"""
 	if prev_chromosome is not None:
-		yield (prev_chromosome, variants)
+		yield (prev_chromosome, variants, records)
 
 
 def read_bam(path, chromosome, variants, mapq_threshold=20):
@@ -275,7 +279,7 @@ def grouped_by_name(reads_with_variants):
 	return result
 
 
-def merge_reads(reads, mincount=2):
+def merge_paired_reads(reads, mincount=2):
 	"""
 	Merge reads that occur twice (according to their name) into a single read.
 	This is relevant for paired-end or mate pair reads.
@@ -490,53 +494,91 @@ class ComponentFinder:
 			print(x, ':', self.nodes[x], 'is represented by', self._find_node(x))
 
 
-def find_components(superreads, position_list, reads, vcfpath):
+def find_components(superreads, reads):
 	"""
-	TODO For what do we need position_list?
 	"""
 	assert len(superreads) == 2
 	assert len(superreads[0].variants) == len(superreads[1].variants)
-	superread = superreads[0]
-	all_phased_positions = set(v.position for v in superread.variants if v.allele in '01')
-	position_list = sorted(position_list)
-	component_finder = ComponentFinder(position_list)
+	phased_variants = superreads[0].variants
+	phased_positions = [ v.position for v in phased_variants if v.allele in '01' ]  # TODO set()
+
+	assert phased_positions == sorted(phased_positions)
+	#phased_positions = { v.position: v.allele for v in phased_variants if v.allele in '01' }
+
+	# Find connected components.
 	# A component is identified by the position of its leftmost variant.
-
+	component_finder = ComponentFinder(phased_positions)
+	phased_positions = set(phased_positions)
 	for read in reads:
-		positions = [ v.position for v in read.variants if v is not None and v.position in all_phased_positions ]
-
+		positions = [ v.position for v in read.variants if v is not None and v.position in phased_positions ]
 		for position in positions[1:]:
 			component_finder.merge(positions[0], position)
+	components = { position : component_finder.find(position) for position in phased_positions }
+	logger.info('No. of variants considered for phasing: %d', len(phased_variants))
+	logger.info('No. of variants that were phased: %d', len(phased_positions))
+	logger.info('No. of components: %d', len(set(components.values())))
+	return components
 
-	for p in position_list:
-		if p in all_phased_positions:
-			comp = component_finder.find(p)
-			print(p, comp, "--------" if comp == p else "")
+
+class PhasedVcfWriter:
+	"""
+	Read in a VCF file and write it back out with added phasing information.
+	"""
+	def __init__(self, in_path, out_path=None, out_file=sys.stdout):
+		"""
+		in_path -- Path to input VCF, used as template.
+
+		out_file -- File-like object to which VCF is written.
+		out_path -- Path to output VCF. If set, it overrides out_file.
+		"""
+		self._reader = vcf.Reader(filename=in_path)
+		"""
+		TODO add this to the header (copied from GATK):
+		##FORMAT=<ID=HP,Number=.,Type=String,Description="Read-backed phasing haplotype identifiers">
+		##FORMAT=<ID=PQ,Number=1,Type=Float,Description="Read-backed phasing quality">
+		"""
+		self._reader.formats['HP'] = vcf.parser._Format(id='HP', num=None, type='String', desc='Phasing haplotype identifier')
+		# TODO
+		self._reader.formats['PQ'] = vcf.parser._Format(id='PQ', num=1, type='Float', desc='Phasing quality')
+
+		if out_path:
+			self._writer = vcf.Writer(filename=out_path, template=self._reader)
 		else:
-			print(p, "unphased")
+			self._writer = vcf.Writer(sys.stdout, template=self._reader)
+		logger.info('Formats: %s', self._reader.formats)
 
-	return
+	def _format_phasing_info(self, component, phase):
+		assert phase in '01'
+		phase = int(phase)
+		return '{}-{},{}-{}'.format(component, phase + 1, component, 2 - phase)
 
-	vcf_reader = vcf.Reader(filename=vcfpath)
-	vcf_writer = vcf.Writer(sys.stdout, vcf_reader)
-	print(vcf_reader.formats)
-	vcf_reader.formats['HP'] = vcf.parser._Format(id='GT', num=None, type='String', desc='Phasing haplotype identifier')
-	#vcf_reader.formats['PQ'] = Format(id='PQ', num=1, type='Float', desc='Phasing quality')
+	def write(self, records, superreads, components):
+		"""
+		Add phasing information to all variants on a single chromosome.
 
-	"""
-	GATK uses this:
-	##FORMAT=<ID=HP,Number=.,Type=String,Description="Read-backed phasing haplotype identifiers">
-    ##FORMAT=<ID=PQ,Number=1,Type=Float,Description="Read-backed phasing quality">
-	"""
-	for record in vcf_reader:
-		# Current PyVCF does not make it very easy to modify records/calls.
-		record.add_format('HP')
-		if record.FORMAT not in vcf_reader._format_cache:
-			vcf_reader._format_cache[record.FORMAT] = vcf_reader._parse_sample_format(record.FORMAT)
-		samp_fmt = vcf_reader._format_cache[record.FORMAT]
-		call = record.samples[0]
-		call.data = samp_fmt(*(call.data + ('put_phasing_info_here',)))
-		vcf_writer.write_record(record)
+		records -- Vcf._Record objects
+		"""
+		# TODO don’t use dicts for *everything* ...
+		phases = { v.position: v.allele for v in superreads[0].variants if v.allele in '01' }
+		for record in records:  #self._reader:
+			if record.start not in components:
+				# Phasing info not available, just copy record
+				self._writer.write_record(record)
+				continue
+			# Current PyVCF does not make it very easy to modify records/calls.
+			record.add_format('HP')
+			if record.FORMAT not in self._reader._format_cache:
+				self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
+			samp_fmt = self._reader._format_cache[record.FORMAT]
+			call = record.samples[0]
+
+			phasing_info = self._format_phasing_info(components[record.start], phases[record.start])
+			call.data = samp_fmt(*(call.data + (phasing_info,)))
+			self._writer.write_record(record)
+
+	def close(self):
+		#self._reader.close()
+		self._writer.close()
 
 
 def main():
@@ -551,18 +593,18 @@ def main():
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('samples', metavar='SAMPLE', nargs='+', help='Name(s) of the samples to consider')
 	args = parser.parse_args()
+	random.seed(args.seed)
 
-	for chromosome, variants in parse_vcf(args.vcf, args.samples):
-		logger.info('Read %d SNPs on chromosome %s', len(variants), chromosome)
-
+	vcf_writer = PhasedVcfWriter(in_path=args.vcf, out_file=sys.stdout)
+	for chromosome, variants, records in parse_vcf(args.vcf, args.samples):
+		logger.info('Read %d variants on chromosome %s', len(variants), chromosome)
 		reads_with_variants = read_bam(args.bam, chromosome, variants)
 		reads_with_variants.sort(key=lambda read: read.name)
-		reads = merge_reads(reads_with_variants)
+		reads = merge_paired_reads(reads_with_variants)
 
 		# sort by position of first variant
 		#reads.sort(key=lambda read: read.variants[0].position)
 
-		random.seed(args.seed)
 		random.shuffle(reads)
 		unfiltered_length = len(reads)
 		reads = filter_reads(reads)
@@ -571,5 +613,6 @@ def main():
 		superreads = phase_reads(reads, all_het=args.all_het)
 
 		superreads = list(superreads)
-		positions = [ variant.position for variant in variants ]
-		find_components(superreads, positions, reads, args.vcf)
+		components = find_components(superreads, reads)
+		vcf_writer.write(records, superreads, components)
+	vcf_writer.close()
