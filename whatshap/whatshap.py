@@ -12,7 +12,9 @@ standard output.
 TODO
 * Perhaps simplify slice_reads() such that it only creates and returns one slice
 * allow only one sample name to be passed to parse_vcf
+* it would be cleaner to not open the input VCF twice
 """
+import os
 import logging
 import sys
 import random
@@ -115,7 +117,7 @@ def parse_vcf(path, sample_names):
 			# ... etc. in cases where we have unphased data; so keep this
 			# in mind also -- murray
 		if not het:
-			logger.warn("Not a heterozygous SNP for any of the samples, SNP %s", record.start + 1)
+			logger.warn("Not a heterozygous SNP for any of the samples, position %s", record.start + 1)
 			continue
 		else:
 			# found a heterozygous snp for the individual
@@ -136,124 +138,133 @@ def parse_vcf(path, sample_names):
 		yield (prev_chromosome, variants, records)
 
 
-def read_bam(path, chromosome, variants, mapq_threshold=20):
+class BamReader:
 	"""
-	path -- path to BAM file
-	chromosome -- name of chromosome to work on
-	variants -- list of Variant objects (obtained from VCF with parse_vcf)
-
-	Return a list of ReadVariantList objects.
+	Associate variants with reads.
 	"""
-	# The mapping of CIGAR operators to numbers is:
-	# MIDNSHPX= => 012345678
+	def __init__(self, path, mapq_threshold=20):
+		"""
+		path -- path to BAM file
+		"""
+		if not os.path.exists(path + '.bai'):
+			logger.info('Creating BAM index')
+			pysam.index(path)
+		self._samfile = pysam.Samfile(path)
+		self._mapq_threshold = mapq_threshold
 
+	def read(self, chromosome, variants):
+		"""
+		chromosome -- name of chromosome to work on
+		variants -- list of Variant objects (obtained from VCF with parse_vcf)
 
-	# first we get some header info, etc.
-	# TODO use a context manager
-	samfile = pysam.Samfile(path, "rb")
+		Return a list of ReadVariantList objects.
+		"""
+		# The mapping of CIGAR operators to numbers is:
+		# MIDNSHPX= => 012345678
 
-	target_tid = samfile.gettid(chromosome)
-	if target_tid < 0:
-		logger.error('Chromosome "%s" unknown in BAM file', chromosome)
-		# TODO raise an exception instead?
-		sys.exit(1)
+		#rgMap = {} # get mapping from each read tech to its group
+		#for r in samfile.header['RG'] :
+			#rgMap[r['ID']] = r['SM']
+		#if(len(rgMap)==0) :
+			#print("error : no read groups in BAM header")
+			#print("exiting ...")
+			#sys.exit(0)
 
-	#rgMap = {} # get mapping from each read tech to its group
-	#for r in samfile.header['RG'] :
-		#rgMap[r['ID']] = r['SM']
-	#if(len(rgMap)==0) :
-		#print("error : no read groups in BAM header")
-		#print("exiting ...")
-		#sys.exit(0)
+		#rgs = [] # get the (set of) unique read groups
+		#for k in rgMap.keys() :
+			#rgs.insert(0,rgMap[k])
+		#rgs = sorted(set(rgs))
 
-	#rgs = [] # get the (set of) unique read groups
-	#for k in rgMap.keys() :
-		#rgs.insert(0,rgMap[k])
-	#rgs = sorted(set(rgs))
+		#rgF = {} # a file for each read group
+		#for e in rgs :
+			#fName = pf + "-" + str(e) + ".ends"
+			#rgF[e] = open(fName,"w");
 
-	#rgF = {} # a file for each read group
-	#for e in rgs :
-		#fName = pf + "-" + str(e) + ".ends"
-		#rgF[e] = open(fName,"w");
+		# resulting list of ReadVariantList objects
+		result = []
 
-	# resulting list of ReadVariantList objects
-	result = []
+		# now we loop through the bam file
+		i = 0 # to keep track of position in variants array (which is in order)
+		# the assumption is that reads in samfile are ordered by position
+		# one can use samfile.fetch() for doing that
+		for read in self._samfile.fetch(chromosome):
+			# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
+			if read.flag & 2048 != 0:
+				# print('Skipping additional alignment for read ', read.qname)
+				continue
+			if read.is_secondary:
+				continue
+			if read.is_unmapped:
+				continue
+			if read.mapq < self._mapq_threshold:
+				continue
+			cigar = read.cigar
+			if not cigar:
+				continue
+			#f = rgF[rgMap[read.opt('RG')]]
+			pos = read.pos
 
-	# now we loop through the bam file
-	i = 0 # to keep track of position in variants array (which is in order)
-	# the assumption is that reads in samfile are ordered by position
-	# one can use samfile.fetch() for doing that
-	for read in samfile:
-		if read.tid != target_tid: continue
-		# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
-		if read.flag & 2048 != 0:
-			# print('Skipping additional alignment for read ', read.qname)
-			continue
-		if read.is_secondary:
-			continue
-		if read.is_unmapped:
-			continue
-		if read.mapq < mapq_threshold:
-			continue
-		cigar = read.cigar
-		if not cigar:
-			continue
-		#f = rgF[rgMap[read.opt('RG')]]
-		pos = read.pos
+			# since reads are ordered by position, we need not consider
+			# positions that are too small
+			while i < len(variants) and variants[i].position < pos:
+				i += 1
 
-		# since reads are ordered by position, we need not consider
-		# positions that are too small
-		while i < len(variants) and variants[i].position < pos:
-			i += 1
-
-		c = 0  # hit count
-		j = i  # another index into variants
-		p = pos
-		s = 0  # absolute index into the read string [0..len(read)]
-		read_variants = []
-		for cigar_op, length in cigar:
-			if cigar_op in (0, 7, 8):  # we're in a matching subregion
-				s_next = s + length
-				p_next = p + length
-				r = p + length  # size of this subregion
-				# skip over all SNPs that come before this region
-				while j < len(variants) and variants[j].position < p:
-					j += 1
-				# iterate over all positions in this subregion and
-				# check whether any of them coincide with one of the SNPs ('hit')
-				while j < len(variants) and p < r:
-					if variants[j].position == p: # we have a hit
-						base = read.seq[s:s+1].decode()
-						if base == variants[j].reference_allele:
-							al = '0'  # REF allele
-						elif base == variants[j].alternative_allele:
-							al = '1'  # ALT allele
-						else:
-							al = 'E' # for "error" (keep for stats purposes)
-						rv = ReadVariant(position=p, base=base, allele=al, quality=ord(read.qual[s:s+1])-33)
-						read_variants.append(rv)
-						c += 1
+			c = 0  # hit count
+			j = i  # another index into variants
+			p = pos
+			s = 0  # absolute index into the read string [0..len(read)]
+			read_variants = []
+			for cigar_op, length in cigar:
+				if cigar_op in (0, 7, 8):  # we're in a matching subregion
+					s_next = s + length
+					p_next = p + length
+					r = p + length  # size of this subregion
+					# skip over all SNPs that come before this region
+					while j < len(variants) and variants[j].position < p:
 						j += 1
-					s += 1 # advance both read and reference
-					p += 1
-				s = s_next
-				p = p_next
-			elif cigar_op == 1:  # an insertion
-				s += length
-			elif cigar_op == 2 or cigar_op == 3:  # a deletion or a reference skip
-				p += length
-			elif cigar_op == 4:  # soft clipping
-				s += length
-			elif cigar_op == 5 or cigar_op == 6:  # hard clipping or padding
-				pass
-			else:
-				logger.error("Unsupported CIGAR operation: %d", cigar_op)
-				sys.exit(1)
-		if c > 0:
-			rvl = ReadVariantList(name=read.qname, mapq=read.mapq, variants=read_variants)
-			result.append(rvl)
-	samfile.close()
-	return result
+					# iterate over all positions in this subregion and
+					# check whether any of them coincide with one of the SNPs ('hit')
+					while j < len(variants) and p < r:
+						if variants[j].position == p: # we have a hit
+							base = read.seq[s:s+1].decode()
+							if base == variants[j].reference_allele:
+								al = '0'  # REF allele
+							elif base == variants[j].alternative_allele:
+								al = '1'  # ALT allele
+							else:
+								al = 'E' # for "error" (keep for stats purposes)
+							rv = ReadVariant(position=p, base=base, allele=al, quality=ord(read.qual[s:s+1])-33)
+							read_variants.append(rv)
+							c += 1
+							j += 1
+						s += 1 # advance both read and reference
+						p += 1
+					s = s_next
+					p = p_next
+				elif cigar_op == 1:  # an insertion
+					s += length
+				elif cigar_op == 2 or cigar_op == 3:  # a deletion or a reference skip
+					p += length
+				elif cigar_op == 4:  # soft clipping
+					s += length
+				elif cigar_op == 5 or cigar_op == 6:  # hard clipping or padding
+					pass
+				else:
+					logger.error("Unsupported CIGAR operation: %d", cigar_op)
+					sys.exit(1)
+			if c > 0:
+				rvl = ReadVariantList(name=read.qname, mapq=read.mapq, variants=read_variants)
+				result.append(rvl)
+		return result
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self, *args):
+		self.close()
+
+	def close(self):
+		self._samfile.close()
 
 
 def grouped_by_name(reads_with_variants):
@@ -586,6 +597,8 @@ def main():
 	parser = ArgumentParser(prog='whatshap', description=__doc__)
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
+	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',
+		default=20, type=int, help='Minimum mapping quality')
 	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
 	parser.add_argument('--all-het', action='store_true', default=False,
 		help='Assume all positions to be heterozygous (that is, fully trust SNP calls).')
@@ -595,10 +608,11 @@ def main():
 	args = parser.parse_args()
 	random.seed(args.seed)
 
+	bam_reader = BamReader(args.bam, mapq_threshold=args.mapping_quality)
 	vcf_writer = PhasedVcfWriter(in_path=args.vcf, out_file=sys.stdout)
 	for chromosome, variants, records in parse_vcf(args.vcf, args.samples):
 		logger.info('Read %d variants on chromosome %s', len(variants), chromosome)
-		reads_with_variants = read_bam(args.bam, chromosome, variants)
+		reads_with_variants = bam_reader.read(chromosome, variants)
 		reads_with_variants.sort(key=lambda read: read.name)
 		reads = merge_paired_reads(reads_with_variants)
 
@@ -616,3 +630,4 @@ def main():
 		components = find_components(superreads, reads)
 		vcf_writer.write(records, superreads, components)
 	vcf_writer.close()
+	bam_reader.close()
