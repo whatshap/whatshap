@@ -19,6 +19,7 @@ import logging
 import sys
 import random
 import gzip
+from collections import defaultdict
 try:
 	from sqt import HelpfulArgumentParser as ArgumentParser
 except:
@@ -44,9 +45,10 @@ class VcfVariant:
 
 def parse_vcf(path, sample_names):
 	"""
-	Read a VCF and yield tuples (chromosome, variants) where chromosome is
+	Read a VCF and yield tuples (chromosome, variants, records) where chromosome is
 	the name of a chromosome and variants is a list of VcfVariant objects that
-	represent the variants on that chromosome.
+	represent the variants on that chromosome. records is the list of
+	vcf._Record objects.
 
 	path -- Path to VCF file
 	sample_names -- A list of sample names (strings). Extract only calls
@@ -147,47 +149,40 @@ class BamReader:
 		path -- path to BAM file
 		"""
 		if not os.path.exists(path + '.bai'):
-			logger.info('Creating BAM index')
+			logger.info('BAM index not found, creating it now.')
 			pysam.index(path)
 		self._samfile = pysam.Samfile(path)
 		self._mapq_threshold = mapq_threshold
+		self._initialize_sample_to_group_ids()
 
-	def read(self, chromosome, variants):
+	def _initialize_sample_to_group_ids(self):
+		"""
+		Return a dictionary that maps a sample name to a set of read group ids.
+		"""
+		read_groups = self._samfile.header['RG']  # a list of dicts
+		logger.debug('Read groups in SAM header: %s', read_groups)
+		samples = defaultdict(list)
+		for read_group in read_groups:
+			samples[read_group['SM']].append(read_group['ID'])
+		self._sample_to_group_ids = {
+			id: frozenset(values) for id, values in samples.items() }
+
+	def read(self, chromosome, variants, sample):
 		"""
 		chromosome -- name of chromosome to work on
 		variants -- list of Variant objects (obtained from VCF with parse_vcf)
 
 		Return a list of ReadVariantList objects.
 		"""
-		# The mapping of CIGAR operators to numbers is:
-		# MIDNSHPX= => 012345678
-
-		#rgMap = {} # get mapping from each read tech to its group
-		#for r in samfile.header['RG'] :
-			#rgMap[r['ID']] = r['SM']
-		#if(len(rgMap)==0) :
-			#print("error : no read groups in BAM header")
-			#print("exiting ...")
-			#sys.exit(0)
-
-		#rgs = [] # get the (set of) unique read groups
-		#for k in rgMap.keys() :
-			#rgs.insert(0,rgMap[k])
-		#rgs = sorted(set(rgs))
-
-		#rgF = {} # a file for each read group
-		#for e in rgs :
-			#fName = pf + "-" + str(e) + ".ends"
-			#rgF[e] = open(fName,"w");
+		read_groups = self._sample_to_group_ids[sample]
 
 		# resulting list of ReadVariantList objects
 		result = []
 
-		# now we loop through the bam file
 		i = 0 # to keep track of position in variants array (which is in order)
-		# the assumption is that reads in samfile are ordered by position
-		# one can use samfile.fetch() for doing that
 		for read in self._samfile.fetch(chromosome):
+			if not read.opt('RG') in read_groups:
+				continue
 			# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
 			if read.flag & 2048 != 0:
 				# print('Skipping additional alignment for read ', read.qname)
@@ -201,7 +196,6 @@ class BamReader:
 			cigar = read.cigar
 			if not cigar:
 				continue
-			#f = rgF[rgMap[read.opt('RG')]]
 			pos = read.pos
 
 			# since reads are ordered by position, we need not consider
@@ -215,6 +209,8 @@ class BamReader:
 			s = 0  # absolute index into the read string [0..len(read)]
 			read_variants = []
 			for cigar_op, length in cigar:
+				# The mapping of CIGAR operators to numbers is:
+				# MIDNSHPX= => 012345678
 				if cigar_op in (0, 7, 8):  # we're in a matching subregion
 					s_next = s + length
 					p_next = p + length
@@ -604,15 +600,15 @@ def main():
 		help='Assume all positions to be heterozygous (that is, fully trust SNP calls).')
 	parser.add_argument('bam', metavar='BAM', help='BAM file')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
-	parser.add_argument('samples', metavar='SAMPLE', nargs='+', help='Name(s) of the samples to consider')
+	parser.add_argument('sample', metavar='SAMPLE', help='Name of the sample to consider.')
 	args = parser.parse_args()
 	random.seed(args.seed)
 
 	bam_reader = BamReader(args.bam, mapq_threshold=args.mapping_quality)
 	vcf_writer = PhasedVcfWriter(in_path=args.vcf, out_file=sys.stdout)
-	for chromosome, variants, records in parse_vcf(args.vcf, args.samples):
+	for chromosome, variants, records in parse_vcf(args.vcf, [args.sample]):
 		logger.info('Read %d variants on chromosome %s', len(variants), chromosome)
-		reads_with_variants = bam_reader.read(chromosome, variants)
+		reads_with_variants = bam_reader.read(chromosome, variants, args.sample)
 		reads_with_variants.sort(key=lambda read: read.name)
 		reads = merge_paired_reads(reads_with_variants)
 
