@@ -288,7 +288,7 @@ def grouped_by_name(reads_with_variants):
 	return result
 
 
-def merge_paired_reads(reads, mincount=2):
+def merge_paired_reads(reads):
 	"""
 	Merge reads that occur twice (according to their name) into a single read.
 	This is relevant for paired-end or mate pair reads.
@@ -297,20 +297,10 @@ def merge_paired_reads(reads, mincount=2):
 	both reads, separated by "None". For a merged read, the ``mapq`` attribute
 	is a tuple consisting of the two original mapping qualities.
 
-	Reads that occur only once are returned unchanged (unless mincount
-		applies).
-
-	mincount -- If the number of variants on a read occurring once or the
-		total number of variants on a paired-end read is lower than this
-		value, the read (or read pair) is discarded.
-
-	TODO mincount filtering should be done in a different function.
+	Reads that occur only once are returned unchanged.
 	"""
 	result = []
 	for group in grouped_by_name(reads):
-		count = sum(len(read.variants) for read in group)
-		if count < mincount:
-			continue
 		if len(group) == 1:
 			result.append(group[0])
 		elif len(group) == 2:
@@ -322,7 +312,7 @@ def merge_paired_reads(reads, mincount=2):
 	return result
 
 
-def filter_reads(reads):
+def filter_reads(reads, mincount=2):
 	"""
 	Return a new list in which reads are omitted that fulfill at least one of
 	these conditions:
@@ -330,6 +320,10 @@ def filter_reads(reads):
 	- one of the read's variants' alleles is 'E'
 
 	- variant positions are not strictly monotonically increasing.
+
+	mincount -- If the number of variants on a read occurring once or the
+		total number of variants on a paired-end read is lower than this
+		value, the read (or read pair) is discarded.
 	"""
 	result = []
 	for read in reads:
@@ -345,7 +339,8 @@ def filter_reads(reads):
 			prev_pos = variant.position
 		else:
 			# executed when no break occurred above
-			result.append(read)
+			if len(read.variants) >= mincount:
+				result.append(read)
 	return result
 
 
