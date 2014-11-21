@@ -21,14 +21,11 @@ import random
 import gzip
 import time
 from collections import defaultdict
-try:
-	from sqt import HelpfulArgumentParser as ArgumentParser
-except:
-	from argparse import ArgumentParser
 import pysam
 import vcf
 
 from . import __version__
+from .args import HelpfulArgumentParser as ArgumentParser
 from .phase import phase_reads, ReadVariantList, ReadVariant
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -593,7 +590,8 @@ class PhasedVcfWriter:
 
 def main():
 	logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
-	parser = ArgumentParser(prog='whatshap', description=__doc__, version=__version__)
+	parser = ArgumentParser(prog='whatshap', description=__doc__)
+	parser.add_argument('--version', action='version', version=__version__)
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
 	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',
