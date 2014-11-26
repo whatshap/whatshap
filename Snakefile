@@ -27,14 +27,6 @@ rule symlink:
 	output: 'data/{file,(moleculo.bam|bgi-unfixed.bam|variants.vcf)}'
 	shell: 'ln -s ../{input} {output}'
 
-rule rgmp_list:
-	'Create list of matepair read groups'
-	output: rgs='data/rgs-mp.txt'
-	run:
-		with open(output.rgs, 'w') as f:
-			for rg in '10k 20ka 20kb 20kc 5k bgi2ka bgi2kb'.split():
-				print(rg, file=f)
-
 rule subsample_matepairs:
 	input: bam='data/matepairs.bam'
 	output: bam='data/matepairs{frac}.bam'
@@ -52,7 +44,7 @@ rule fix_unmapped_mates:
 
 rule mpbam:
 	'Create the mate-pair BAM file'
-	input: bam='data/bgi.bam', rgs='data/rgs-mp.txt'
+	input: bam='data/bgi.bam', rgs='raw/mp-rgs.txt'
 	output: bam='data/matepairs.bam'
 	run:
 		shell('samtools view -b -R {input.rgs} {input.bam} > {output.bam}')
