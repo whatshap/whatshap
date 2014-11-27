@@ -147,7 +147,9 @@ class BamReader:
 		"""
 		path -- path to BAM file
 		"""
-		if not os.path.exists(path + '.bai'):
+		bai1 = path + '.bai'
+		bai2 = os.path.splitext(path)[0] + '.bai'
+		if not os.path.exists(bai1) and not os.path.exists(bai2):
 			logger.info('BAM index not found, creating it now.')
 			pysam.index(path)
 		self._samfile = pysam.Samfile(path)
