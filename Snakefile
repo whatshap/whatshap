@@ -77,7 +77,7 @@ rule whatshap:
 	output:
 		txt='result/{subset}.txt'
 	shell:
-		'{PYTHON} -m whatshap --all-het -H 20 {input.bam} {input.vcf} {SAMPLE} > {output.txt}'
+		'{PYTHON} -m whatshap --all-het -H 20 {input.vcf} {input.bam} {SAMPLE} > {output.txt}'
 
 
 ## GATK

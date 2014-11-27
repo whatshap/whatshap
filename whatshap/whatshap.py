@@ -601,8 +601,8 @@ def main():
 	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
 	parser.add_argument('--all-het', action='store_true', default=False,
 		help='Assume all positions to be heterozygous (that is, fully trust SNP calls).')
-	parser.add_argument('bam', metavar='BAM', help='BAM file')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
+	parser.add_argument('bam', metavar='BAM', help='BAM file')
 	parser.add_argument('sample', metavar='SAMPLE', help='Name of the sample to consider.')
 	args = parser.parse_args()
 	random.seed(args.seed)
