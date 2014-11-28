@@ -10,7 +10,6 @@ import sys
 import os.path
 from distutils.core import setup, Extension
 from distutils.version import LooseVersion
-
 from whatshap import __version__
 
 MIN_CYTHON_VERSION = '0.17'
@@ -83,7 +82,7 @@ def cythonize_if_necessary(extensions):
 	return cythonize(extensions)
 
 extensions = [
-	Extension('whatshap._core', sources=['whatshap/_core.pyx'], extra_compile_args=["-std=c++0x"],),
+	Extension('whatshap._core', sources=['whatshap/_core.pyx'], language='c++', extra_compile_args=["-std=c++0x"],),
 ]
 extensions = cythonize_if_necessary(extensions)
 
