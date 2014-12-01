@@ -42,34 +42,45 @@ class VcfVariant:
 		self.alternative_allele = alternative_allele
 
 
-def parse_vcf(path, sample_names):
+class SampleNotFoundError(Exception):
+	pass
+
+
+def parse_vcf(path, sample=None):
 	"""
-	Read a VCF and yield tuples (chromosome, variants, records) where chromosome is
-	the name of a chromosome and variants is a list of VcfVariant objects that
-	represent the variants on that chromosome. records is the list of
-	vcf._Record objects.
+	Read a VCF and yield tuples (sample, chromosome, variants, records) for each
+	chromosome for which there are variants in the VCF. chromosome is
+	the name of the chromosome; variants is a list of VcfVariant objects that
+	represent the variants; records is the list of vcf._Record objects.
 
 	path -- Path to VCF file
-	sample_names -- A list of sample names (strings). Extract only calls
-		belonging to a sample that occurs in this list.
+	sample -- The name of the sample whose calls should be extracted. If
+		set to None, calls of the first sample are extracted.
 	"""
+	vcf_reader = vcf.Reader(filename=path)
+	samples = vcf_reader.samples
+	logger.info("Samples names found in the VCF: %s", ', '.join(samples))
+	if sample is None:
+		sample = samples[0]
+		sample_index = 0
+		if len(samples) > 1:
+			logger.warn("More than one sample found in the VCF file, will work "
+				"only on the first one (%s).", sample)
+	else:
+		try:
+			sample_index = samples.index(sample)
+		except ValueError:
+			logger.error("Requested sample %r not found in VCF.", sample)
+			raise SampleNotFoundError()
+
 	variants = []
 	index = -1
 	indices = None
-
-	vcf_reader = vcf.Reader(filename=path)
-	samples = vcf_reader.samples
-	logger.info("Samples in the VCF: %s", ', '.join(samples))
-	if len(samples) > 1:
-		pass
-		#logger.warn("More than one sample found in the VCF file, will work only on the first (%s)", samples[0])
-	sample = samples[0]
-
 	prev_chromosome = None
 	for record in vcf_reader:
 		if record.CHROM != prev_chromosome:
 			if prev_chromosome is not None:
-				yield (prev_chromosome, variants, records)
+				yield (sample, prev_chromosome, variants, records)
 			prev_chromosome = record.CHROM
 			variants = []
 			records = []
@@ -79,64 +90,23 @@ def parse_vcf(path, sample_names):
 		if len(record.ALT) != 1:
 			logger.warn("Reading VCFs with multiple ALTs not implemented.")
 			continue
-		if indices is None:
-			indices = [ (i, call.sample) for i, call in enumerate(record.samples) if call.sample in sample_names ]
-			if len(indices) == 0:
-				logger.error("None of the sample names found in VCF file.")
-				sys.exit(1)
-			else:
-				outstring = "Found samples "
-				for indtup in indices:
-					outstring += "%s " % (indtup[1])
-				outstring += "in columns "
-				for indtup in indices:
-					outstring += "%d " % (indtup[0])
-				logger.info(outstring)
 
-		het = False
-		for index, _ in indices:
-			call = record.samples[index]
-			if False:
-				print(
-					'pos {:10d}'.format(record.start),
-					'alleles:', record.alleles,
-					call.gt_alleles,
-					'phased:', int(call.phased),
-					'het:', int(call.is_het),
-					'bases:', call.gt_bases
-				)
-
-			het = het or call.is_het
-			# TODO 1/1 and 1/2
-
-			#het = het or tk[index] == '0|1' or tk[index] == '1|0'
-			# note: the "." means "0" in the simulated Venter dataset, but
-			# it can also mean "don't know" in certain contexts, so you
-			# may have to come back to this line of code -- murray
-			#het = het or tk[index] == '.|1' or tk[index] == '1|.'
-			# note also that we may need also to consider "0/1", "./1"
-			# ... etc. in cases where we have unphased data; so keep this
-			# in mind also -- murray
-		if not het:
+		call = record.samples[sample_index]
+		logging.debug("Call %s:%d %s→%s (Alleles: %s, %s; Het: %s; gt_bases; %s)",
+			record.CHROM, record.start + 1,
+			record.REF, record.ALT,
+			record.alleles, call.gt_alleles, call.is_het, call.gt_bases)
+		if not call.is_het:
 			logger.warn("Not a heterozygous SNP for any of the samples, position %s", record.start + 1)
 			continue
-		else:
-			# found a heterozygous snp for the individual
-			v = VcfVariant(
-					position=record.start,
-					reference_allele=record.REF,
-					alternative_allele=record.ALT[0])
-			variants.append(v)
-			for index, _ in indices:
-				"""
-				# TODO what was this originally supposed to do?
-				v = tk[index].split(':')[0]
-				if v in ('.|1', '0/1'): v = '0|1' # just to disambiguate what
-				elif v in ('1|.', '1/0'): v = '1|0' # was mentioned above
-				snp_info.append(v)
-				"""
+		# found a heterozygous variant for the sample
+		v = VcfVariant(
+			position=record.start,
+			reference_allele=record.REF,
+			alternative_allele=record.ALT[0])
+		variants.append(v)
 	if prev_chromosome is not None:
-		yield (prev_chromosome, variants, records)
+		yield (sample, prev_chromosome, variants, records)
 
 
 class BamReader:
@@ -554,7 +524,7 @@ class PhasedVcfWriter:
 			self._writer = vcf.Writer(filename=out_path, template=self._reader)
 		else:
 			self._writer = vcf.Writer(sys.stdout, template=self._reader)
-		logger.info('Formats: %s', self._reader.formats)
+		logger.debug('Formats: %s', self._reader.formats)
 
 	def _format_phasing_info(self, component, phase):
 		assert phase in '01'
@@ -601,9 +571,11 @@ def main():
 	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
 	parser.add_argument('--all-het', action='store_true', default=False,
 		help='Assume all positions to be heterozygous (that is, fully trust SNP calls).')
+	parser.add_argument('--sample', metavar='SAMPLE', default=None,
+		help='Name of a sample to phase. If not given, only the first sample '
+			'in the input VCF is phased.')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('bam', metavar='BAM', help='BAM file')
-	parser.add_argument('sample', metavar='SAMPLE', help='Name of the sample to consider.')
 	args = parser.parse_args()
 	random.seed(args.seed)
 
@@ -611,9 +583,9 @@ def main():
 	bam_reader = BamReader(args.bam, mapq_threshold=args.mapping_quality)
 	command_line = ' '.join(sys.argv[1:])
 	vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=args.vcf, out_file=sys.stdout)
-	for chromosome, variants, records in parse_vcf(args.vcf, [args.sample]):
+	for sample, chromosome, variants, records in parse_vcf(args.vcf, args.sample):
 		logger.info('Read %d variants on chromosome %s', len(variants), chromosome)
-		reads_with_variants = bam_reader.read(chromosome, variants, args.sample)
+		reads_with_variants = bam_reader.read(chromosome, variants, sample)
 		reads_with_variants.sort(key=lambda read: read.name)
 		reads = merge_paired_reads(reads_with_variants)
 
