@@ -95,9 +95,9 @@ rule ReadBackedPhasing:
 		idx='data/gatkphased-{subset}.vcf.idx'
 	input:
 		vcf='data/variants.vcf',
-		ref='data/ref.fasta',
-		fai='data/ref.fasta.fai',
-		dictionary='data/ref.dict',
+		ref='raw/ref.fasta',
+		fai='raw/ref.fasta.fai',
+		dictionary='raw/ref.dict',
 		bam='data/{subset}.bam',
 		bai='data/{subset}.bam.bai'
 	log: 'data/gatkphased-{subset}.log'
