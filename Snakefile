@@ -67,9 +67,9 @@ rule whatshap:
 		bai='data/{subset}.bam.bai',
 		vcf='data/variants.vcf'
 	output:
-		txt='result/{subset}.txt'
+		vcf='result/{subset}.vcf'
 	shell:
-		'{PYTHON} -m whatshap --all-het -H 20 {input.vcf} {input.bam} {SAMPLE} > {output.txt}'
+		'{PYTHON} -m whatshap --all-het -H 20 {input.vcf} {input.bam} {SAMPLE} > {output.vcf}'
 
 
 ## GATK
