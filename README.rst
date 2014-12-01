@@ -26,7 +26,7 @@ To Do/Ideas
 * Are non-uniquely mapping reads used? (They probably should not be)
 * Evaluation. Is this relevant?: http://nar.oxfordjournals.org/content/40/5/2041
 * lines like this are output by phasedblocks.py (note start > stop coord):
-scaffold250     Phasing exon    8223    8222    .       +       .       gene_id "8222"; transcript_id "8222.1";
+        scaffold250     Phasing exon    8223    8222    .       +       .       gene_id "8222"; transcript_id "8222.1";
 * Remove reads that represent a subset of another one
 * Extend the example data set to at least two scaffolds
 * Current C++ code uses an iterator over matrix columns as input
@@ -54,12 +54,12 @@ Phasing in VCFs
 GATK VCF phasing syntax
 -----------------------
 
-It adds these format tags:
+It adds these format tags::
 
     ##FORMAT=<ID=HP,Number=.,Type=String,Description="Read-backed phasing haplotype identifiers">
     ##FORMAT=<ID=PQ,Number=1,Type=Float,Description="Read-backed phasing quality">
 
-Example (edited excerpt):
+Example (edited excerpt)::
 
 	24  G T 4399.41 GT:AO:DP:GQ:HP:PL:QA:QR:RO      0/1:136:181:99:   24-1,24-2   :4413,0,1289:5040:1568:42
 	72  T G 4229.54 GT:AO:DP:GQ:HP:PL:PQ:QA:QR:RO   0/1:133:199:99:   24-1,24-2   :4244,0,1991:  35.77  :4783:2280:65
