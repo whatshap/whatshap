@@ -1,14 +1,11 @@
 """
 Phasing.
 
-* ReadVariant and ReadVariantList don’t really belong here. TODO: Use core.Read and core.ReadSet everywhere.
+* ReadVariant and ReadVariantList don’t really belong here.
 """
 from collections import namedtuple
 import logging
-from tempfile import NamedTemporaryFile
-import subprocess
-from io import StringIO
-from .core import Read,ReadSet,DPTable
+from .core import Read, ReadSet, DPTable
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +15,7 @@ ReadVariantList = namedtuple('ReadVariantList', 'name mapq variants')
 
 # A single variant on a read.
 ReadVariant = namedtuple('ReadVariant', 'position base allele quality')
+
 
 def read_to_coreread(read):
 	if type(read.mapq) is int:
@@ -30,9 +28,10 @@ def read_to_coreread(read):
 		# variant is None when there was a "--" in the wif file, which seperates
 		# the two parts of a read pair. Not needed in Read/ReadSet.
 		if variant is None: continue
-		assert variant.allele in ['0','1'], 'Unknown allele: {}'.format(variant.allele)
+		assert variant.allele in ['0', '1'], 'Unknown allele: {}'.format(variant.allele)
 		coreread.addVariant(variant.position, variant.base, int(variant.allele), variant.quality)
 	return coreread
+
 
 def coreread_to_read(coreread):
 	read = ReadVariantList(name=coreread.getName(), mapq=coreread.getMapq(), variants=[])
@@ -40,7 +39,8 @@ def coreread_to_read(coreread):
 		read.variants.append(ReadVariant(position=position, base=base, allele=str(allele), quality=quality))
 	return read
 
-def phase_reads(reads, all_het=False, wif=None, superwif=None):
+
+def phase_reads(reads, all_het=False):
 	"""
 	Phase reads, return superreads. This function runs the phasing algorithm
 	via the C++ wrapper.
