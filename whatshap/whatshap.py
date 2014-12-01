@@ -142,17 +142,20 @@ class BamReader:
 		"""
 		chromosome -- name of chromosome to work on
 		variants -- list of Variant objects (obtained from VCF with parse_vcf)
+		sample -- name of sample to work on. If None, read group information is
+			ignored and all reads in the file are used.
 
 		Return a list of ReadVariantList objects.
 		"""
-		read_groups = self._sample_to_group_ids[sample]
+		if sample is not None:
+			read_groups = self._sample_to_group_ids[sample]
 
 		# resulting list of ReadVariantList objects
 		result = []
 
 		i = 0 # to keep track of position in variants array (which is in order)
 		for read in self._samfile.fetch(chromosome):
-			if not read.opt('RG') in read_groups:
+			if sample is not None and not read.opt('RG') in read_groups:
 				continue
 			# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
 			if read.flag & 2048 != 0:
@@ -571,6 +574,9 @@ def main():
 	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
 	parser.add_argument('--all-het', action='store_true', default=False,
 		help='Assume all positions to be heterozygous (that is, fully trust SNP calls).')
+	parser.add_argument('--ignore-read-groups', default=False, action='store_true',
+		help='Ignore read groups in BAM header and assume all reads come '
+		'from the same sample.')
 	parser.add_argument('--sample', metavar='SAMPLE', default=None,
 		help='Name of a sample to phase. If not given, only the first sample '
 			'in the input VCF is phased.')
@@ -585,6 +591,8 @@ def main():
 	vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=args.vcf, out_file=sys.stdout)
 	for sample, chromosome, variants, records in parse_vcf(args.vcf, args.sample):
 		logger.info('Read %d variants on chromosome %s', len(variants), chromosome)
+		if args.ignore_read_groups:
+			sample = None
 		reads_with_variants = bam_reader.read(chromosome, variants, sample)
 		reads_with_variants.sort(key=lambda read: read.name)
 		reads = merge_paired_reads(reads_with_variants)
