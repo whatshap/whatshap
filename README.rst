@@ -1,6 +1,21 @@
 WhatsHap
 ========
 
+WhatsHap is a software for phasing genomic variants using DNA sequencing
+reads, also called *haplotype assembly*. It is especially suitable for long reads,
+but works also well with short reads.
+
+The WhatsHap algorithm has been described in this publication:
+
+    Murray Patterson, Tobias Marschall, Nadia Pisanti, Leo van Iersel,
+    Leen Stougie, Gunnar W. Klau, Alexander Schönhuth.
+    `WhatsHap: Haplotype Assembly for Future-Generation Sequencing
+    Reads <http://dx.doi.org/10.1007/978-3-319-05269-4_19>`_
+
+The version of WhatsHap you find here is the result of further development
+focused on making the software easy and straightforward to use. WhatsHap is now
+Open Source software under the MIT license and we welcome contributions.
+
 
 Links
 -----
@@ -14,25 +29,6 @@ Links
 
 Various notes
 =============
-
-To Do/Ideas
------------
-
-* Unit tests.
-* Determine best possible phasing that could be achieved:
-    * look at covered heterozygous SNPs
-    * use only read pairs that cover at least two heterozygous SNPs
-    * find connected components
-* Are non-uniquely mapping reads used? (They probably should not be)
-* Evaluation. Is this relevant?: http://nar.oxfordjournals.org/content/40/5/2041
-* lines like this are output by phasedblocks.py (note start > stop coord):
-        scaffold250     Phasing exon    8223    8222    .       +       .       gene_id "8222"; transcript_id "8222.1";
-* Remove reads that represent a subset of another one
-* Extend the example data set to at least two scaffolds
-* Current C++ code uses an iterator over matrix columns as input
-* Parallelize by working on multiple chromosomes in parallel
-* Determine connected components first, then run algorithm in parallel on all
-  of them (need to find conn. comp. also afterwards)
 
 Notes
 -----
