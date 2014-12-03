@@ -9,7 +9,7 @@ Table of contents
 
    installation
    guide
-   changes
+   notes
 
 
 ..
