@@ -25,7 +25,7 @@ Open Source software under the MIT license and we welcome contributions.
 Links
 -----
 
-* `Bitbucket page <https://bitbucket.org/marcelm/whatshap/>`_
+* `Bitbucket page <https://bitbucket.org/whatshap/whatshap/>`_
 * `Read the documentation online <https://whatshap.readthedocs.org/>`_.
   Offline documentation is available in the ``doc/`` subdirectory in the
   repository and in the downloaded tar distribution.
