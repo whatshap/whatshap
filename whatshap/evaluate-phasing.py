@@ -1,14 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from __future__ import print_function, division
-from optparse import OptionParser, OptionGroup
+from argparse import ArgumentParser
 import sys
+import vcf
+from collections import defaultdict
 
-usage = """%prog [options] <predicted.haplo> <true.haplo>
-
-Compares a predicted to a true haplotype. The predicted haplotype may contain
-gap ("-") or break ("|") symbols while the true haplotype is expected not to."""
+# TODO: diffstats and evaluatephasings can be simplified a lot. We don't need to process "|" and "-" symbols any more
 
 def diffstats(predhap, truehap, truehap_offset):
 	"""true hap is supposed to be the true pair of haplotypes,
@@ -165,63 +163,134 @@ def evaluatephasings(phasings):
 			#oldswitches += 1
 			
 	return flips, switches, homo, hetero, deserts, ambiguous, correct, oldswitches
-		
+
+def read_truth_vcf(filename):
+	"""Reads VCF with true phasing and returns a dict mapping (chr,pos) --> genotype. That 
+	dict will contain one entry per heterozygous SNP."""
+	vcf_reader = vcf.Reader(filename)
+	samples = vcf_reader.samples
+	assert len(samples) == 1, 'Expected exactly one sample in truth VCF'
+	result = {}
+	for record in vcf_reader:
+		if not record.is_snp:
+			continue
+		if len(record.ALT) != 1:
+			continue
+		call = record.samples[0]
+		if not call.is_het:
+			continue
+		genotype = call.data.GT
+		assert genotype in ['0|1', '1|0'], 'Expecting all SNPs to be phased (in "|" notation) in truth file'
+		result[(record.CHROM, record.POS)] = genotype
+	return result
+
+def parse_hp(HP):
+	"""Parse HP field from VCF record and returns (id,genotype), where
+	genotype is in "|"-notation."""
+	assert len(HP) == 2
+	fields = [[int(x) for x in s.split('-')] for s in HP]
+	assert fields[0][0] == fields[1][0]
+	block_id = fields[0][0]
+	genotype = '{}|{}'.format(fields[0][1]-1,fields[1][1]-1)
+	assert genotype in ['0|1', '1|0']
+	return block_id, genotype
+
+def read_phased_vcf(filename):
+	"""Reads VCF as output by whatshap and returns a tuple: (phased, unphased, blocks), where
+	"phased" and "unphased" give the number of phased/unphased heterozygous SNPs and "blocks"
+	is a dict with one entry for each phased block, mapping (chromosome,block-ID) --> [(pos,gt),..]"""
+	vcf_reader = vcf.Reader(filename)
+	samples = vcf_reader.samples
+	assert len(samples) == 1, 'Expected exactly one sample in phased VCF'
+	blocks = defaultdict(list)
+	phased = 0
+	unphased = 0
+	for record in vcf_reader:
+		if not record.is_snp:
+			continue
+		if len(record.ALT) != 1:
+			continue
+		call = record.samples[0]
+		if not call.is_het:
+			continue
+		if hasattr(call.data,'HP'):
+			phased += 1
+			block_id, genotype = parse_hp(call.data.HP)
+			blocks[(record.CHROM, block_id)].append((record.POS,genotype))
+		else:
+			unphased += 1
+	return phased, unphased, blocks
+
 def main():
-	parser = OptionParser(usage=usage)
+	parser = ArgumentParser(prog='evaluate-phasing', description=__doc__)
+	parser.add_argument('-v', dest='verbose', action='store_true', default=False,
+		help='Be (very) verbose and output statistics on every single phased block.')
+	parser.add_argument('truthvcf', metavar='truthvcf',
+		help='VCF with true phasing')
+	parser.add_argument('predictedvcf', metavar='predictedvcf',
+		help='VCF with predicted phasing as output by Whatshap')
 
-	(options, args) = parser.parse_args()
-	if len(args) != 2:
-		parser.print_help()
-		sys.exit(1)
+	args = parser.parse_args()
 
-	hap1 = open(args[0], 'r').readlines()
-	hap2 = open(args[1], 'r').readlines()
-
-	hap1 = [x.strip() for x in hap1]
-	hap2 = [x.strip() for x in hap2]
-
-	assert len(hap1[0].replace('|','')) == len(hap1[1].replace('|',''))
-	assert len(hap2[0]) == len(hap2[1])
-
-	print(len(hap1[0].replace('|','')), len(hap2[0]))
-
-	# again, we need this offset in case predhap starts further down than first pos
-	#start_pos = int(open(args[2],'r').readline().split()[0])
-	#positions = [int(x) for x in open(args[3],'r')]
-	offset = 0
-	#if len(hap1[0].replace('|','')) < len(positions) : # haplo is shorter
-		#for p in positions :
-			#if p == start_pos : break
-			#offset += 1
-
-	switches0, homoerrors0, heteroerrors0, gaperrors0, breaks0, unphasable0, ambiguous0, correct0, phasings = diffstats(hap1, hap2, offset)
-	#phasings = diffstats(hap1, hap2, offset)[-1]
+	truth = read_truth_vcf(open(args.truthvcf))
 	
-	flips, switches1, homoerrors1, heteroerrors1, unphasable1, ambiguous1, correct1, oldswitches = evaluatephasings(phasings)
-	# I think this is a more meaningful definition of fragments, no?
-	fragments1 = filter(lambda x:len(x)>0,hap1[0].replace('|','-').split('-'))
-	fragments2 = filter(lambda x:len(x)>0,hap1[1].replace('|','-').split('-'))
-	# was :
-	#fragments1 = hap1[0].replace('|','-').split('-')
-	#fragments2 = hap1[1].replace('|','-').split('-')
-	# which is not meaningful, i.e., '00--0-'.split('-') = ['00', '', '0', '']
-	print("Number of fragments in predicted haplotype1:", len(fragments1))
-	print("Number of fragments in predicted haplotype2:", len(fragments2))
-	print("Average fragment length in predicted haplotype1:", float(sum(len(f) for f in fragments1)) / float(len(fragments1)))
-	print("Average fragment length in predicted haplotype2:", float(sum(len(f) for f in fragments2)) / float(len(fragments2)))
-	print("Breaks: ", breaks0)
-	print("Gaps in predicted haplotype: ", gaperrors0)
-	print("======= Breakdown of SNPs into categories =======")
-	print("Total SNP positions: ", len(hap2[0]))
-	print("Correctly phased: ", correct1)
-	print("Unphasable (due to gaps or breaks): ", unphasable1)
-	print("Ambiguous (due to equal amounts of 0's and 1's in parts of partition): ", ambiguous1)
-	print("Switch errors: ", switches1)
-	print("Flip errors: ", flips)
-	print("Truth hetero, but predicted homo: ", homoerrors1)
-	print("Truth homo, but predicted hetero: ", heteroerrors1) 
+	print('Read {} SNPs from file with true phasing'.format(len(truth)))
 	
+	phased, unphased, phased_blocks = read_phased_vcf(open(args.predictedvcf))
 	
+	print('Read {} SNPs from file with predicted phasing'.format(phased+unphased))
+	
+	print('Phased SNPs: {}'.format(phased))
+	print('Unphased SNPs: {}'.format(unphased))
+	print('Number of blocks: {}'.format(len(phased_blocks)))
+	print('  --> Unphasable due to being first in a block: {}'.format(len(phased_blocks)))
+	
+	block_list = list(phased_blocks.keys())
+	block_list.sort()
+	correct_total = 0
+	switches_total = 0
+	flips_total = 0
+	homoerrors_total = 0
+	heteroerrors_total = 0
+	for (chromosome,block_id) in block_list:
+		block = phased_blocks[(chromosome,block_id)]
+		truehap = ['','']
+		predhap = ['','']
+		for pos, pred_gt in block:
+			predhap[0] += pred_gt[0]
+			predhap[1] += pred_gt[2]
+			assert (chromosome, pos) in truth, 'Positions in truth VCF and predictions VCF do not match'
+			true_gt = truth[(chromosome, pos)]
+			truehap[0] += true_gt[0]
+			truehap[1] += true_gt[2]
+		switches0, homoerrors0, heteroerrors0, gaperrors0, breaks0, unphasable0, ambiguous0, correct0, phasings = diffstats(predhap, truehap, 0)
+		flips, switches1, homoerrors1, heteroerrors1, unphasable1, ambiguous1, correct1, oldswitches = evaluatephasings(phasings)
+		assert unphasable1 == 1
+		assert ambiguous1 == 0
+		if args.verbose:
+			print('-'*100)
+			print('Block ID:', block_id)
+			print('True block:     ', truehap[0])
+			print('Predicted block:', predhap[0])
+			print("Phasings:", ''.join(phasings))
+			print("Correctly phased: ", correct1)
+			print("Unphasable (due to gaps or breaks): ", unphasable1)
+			print("Switch errors: ", switches1)
+			print("Flip errors: ", flips)
+			print("Truth hetero, but predicted homo: ", homoerrors1)
+			print("Truth homo, but predicted hetero: ", heteroerrors1)
+		correct_total += correct1
+		switches_total += switches1
+		flips_total += flips
+		homoerrors_total += homoerrors1
+		heteroerrors_total += heteroerrors1
+	print('='*100)
+	print('Evaluation of blocks:')
+	print("Correctly phased: ", correct_total)
+	print("Switch errors: ", switches_total)
+	print("Flip errors: ", flips_total)
+	print("Truth hetero, but predicted homo: ", homoerrors_total)
+	print("Truth homo, but predicted hetero: ", heteroerrors_total)
 
 if __name__ == '__main__':
 	sys.exit(main())
