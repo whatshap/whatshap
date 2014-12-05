@@ -1,3 +1,5 @@
+![whatshap_logo.png](https://bitbucket.org/repo/8AjxBd/images/3378940113-whatshap_logo.png)
+
 WhatsHap
 ========
 
