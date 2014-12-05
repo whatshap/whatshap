@@ -21,6 +21,7 @@ import random
 import gzip
 import time
 from collections import defaultdict
+from contextlib import ExitStack, closing
 import pysam
 import vcf
 
@@ -473,6 +474,7 @@ class ComponentFinder:
 def find_components(superreads, reads):
 	"""
 	"""
+	logger.info('Finding components ...')
 	assert len(superreads) == 2
 	assert len(superreads[0].variants) == len(superreads[1].variants)
 	phased_variants = superreads[0].variants
@@ -500,7 +502,7 @@ class PhasedVcfWriter:
 	"""
 	Read in a VCF file and write it back out with added phasing information.
 	"""
-	def __init__(self, in_path, command_line, out_path=None, out_file=sys.stdout):
+	def __init__(self, in_path, command_line, out_file=sys.stdout):
 		"""
 		in_path -- Path to input VCF, used as template.
 
@@ -522,10 +524,7 @@ class PhasedVcfWriter:
 		# TODO
 		self._reader.formats['PQ'] = vcf.parser._Format(id='PQ', num=1, type='Float', desc='Phasing quality')
 
-		if out_path:
-			self._writer = vcf.Writer(filename=out_path, template=self._reader)
-		else:
-			self._writer = vcf.Writer(sys.stdout, template=self._reader)
+		self._writer = vcf.Writer(out_file, template=self._reader)
 		logger.debug('Formats: %s', self._reader.formats)
 
 	def _format_phasing_info(self, component, phase):
@@ -557,15 +556,13 @@ class PhasedVcfWriter:
 			call.data = samp_fmt(*(call.data + (phasing_info,)))
 			self._writer.write_record(record)
 
-	def close(self):
-		#self._reader.close()
-		self._writer.close()
-
 
 def main():
 	logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 	parser = ArgumentParser(prog='whatshap', description=__doc__)
 	parser.add_argument('--version', action='version', version=__version__)
+	parser.add_argument('-o', '--output', default=None,
+		help='Output VCF file. If omitted, use standard output.')
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
 	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',
@@ -585,30 +582,34 @@ def main():
 	random.seed(args.seed)
 
 	start_time = time.time()
-	bam_reader = BamReader(args.bam, mapq_threshold=args.mapping_quality)
-	command_line = ' '.join(sys.argv[1:])
-	vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=args.vcf, out_file=sys.stdout)
-	for sample, chromosome, variants, records in parse_vcf(args.vcf, args.sample):
-		logger.info('Read %d variants on chromosome %s', len(variants), chromosome)
-		if args.ignore_read_groups:
-			sample = None
-		reads_with_variants = bam_reader.read(chromosome, variants, sample)
-		reads_with_variants.sort(key=lambda read: read.name)
-		reads = merge_paired_reads(reads_with_variants)
+	with ExitStack() as stack:
+		bam_reader = stack.enter_context(closing(BamReader(args.bam, mapq_threshold=args.mapping_quality)))
+		if args.output is not None:
+			out_file = stack.enter_context(open(args.output, 'w'))
+		else:
+			out_file = sys.stdout
+		command_line = ' '.join(sys.argv[1:])
+		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=args.vcf, out_file=out_file)
+		for sample, chromosome, variants, records in parse_vcf(args.vcf, args.sample):
+			logger.info('Read %d variants on chromosome %s', len(variants), chromosome)
+			if args.ignore_read_groups:
+				sample = None
+			reads_with_variants = bam_reader.read(chromosome, variants, sample)
+			reads_with_variants.sort(key=lambda read: read.name)
+			reads = merge_paired_reads(reads_with_variants)
 
-		# sort by position of first variant
-		#reads.sort(key=lambda read: read.variants[0].position)
+			# sort by position of first variant
+			#reads.sort(key=lambda read: read.variants[0].position)
 
-		random.shuffle(reads)
-		unfiltered_length = len(reads)
-		reads = filter_reads(reads)
-		logger.info('Filtered reads: %d', unfiltered_length - len(reads))
-		reads = slice_reads(reads, args.max_coverage)[0]
-		superreads = phase_reads(reads, all_het=args.all_het)
+			random.shuffle(reads)
+			unfiltered_length = len(reads)
+			reads = filter_reads(reads)
+			logger.info('Filtered reads: %d', unfiltered_length - len(reads))
+			reads = slice_reads(reads, args.max_coverage)[0]
+			superreads = phase_reads(reads, all_het=args.all_het)
 
-		superreads = list(superreads)
-		components = find_components(superreads, reads)
-		vcf_writer.write(records, superreads, components)
-	vcf_writer.close()
-	bam_reader.close()
+			superreads = list(superreads)
+			components = find_components(superreads, reads)
+			vcf_writer.write(records, superreads, components)
+
 	logger.info('Elapsed time: %.1fs', time.time() - start_time)
