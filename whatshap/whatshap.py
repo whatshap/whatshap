@@ -20,6 +20,7 @@ import sys
 import random
 import gzip
 import time
+import itertools
 from collections import defaultdict
 from contextlib import ExitStack, closing
 import pysam
@@ -49,10 +50,10 @@ class SampleNotFoundError(Exception):
 
 def parse_vcf(path, sample=None):
 	"""
-	Read a VCF and yield tuples (sample, chromosome, variants, records) for each
+	Read a VCF and yield tuples (sample, chromosome, variants) for each
 	chromosome for which there are variants in the VCF. chromosome is
-	the name of the chromosome; variants is a list of VcfVariant objects that
-	represent the variants; records is the list of vcf._Record objects.
+	the name of the chromosome, and variants is a list of VcfVariant objects that
+	represent the variants.
 
 	path -- Path to VCF file
 	sample -- The name of the sample whose calls should be extracted. If
@@ -60,7 +61,7 @@ def parse_vcf(path, sample=None):
 	"""
 	vcf_reader = vcf.Reader(filename=path)
 	samples = vcf_reader.samples
-	logger.info("Samples names found in the VCF: %s", ', '.join(samples))
+	logger.info("Found %d samples in the VCF file.", len(samples))
 	if sample is None:
 		sample = samples[0]
 		sample_index = 0
@@ -81,11 +82,9 @@ def parse_vcf(path, sample=None):
 	for record in vcf_reader:
 		if record.CHROM != prev_chromosome:
 			if prev_chromosome is not None:
-				yield (sample, prev_chromosome, variants, records)
+				yield (sample, prev_chromosome, variants)
 			prev_chromosome = record.CHROM
 			variants = []
-			records = []
-		records.append(record)
 		if not record.is_snp:
 			continue
 		if len(record.ALT) != 1:
@@ -107,7 +106,7 @@ def parse_vcf(path, sample=None):
 			alternative_allele=record.ALT[0])
 		variants.append(v)
 	if prev_chromosome is not None:
-		yield (sample, prev_chromosome, variants, records)
+		yield (sample, prev_chromosome, variants)
 
 
 class BamReader:
@@ -501,20 +500,19 @@ def find_components(superreads, reads):
 class PhasedVcfWriter:
 	"""
 	Read in a VCF file and write it back out with added phasing information.
+	Phasing is written into HP and PQ tags, compatible with GATK’s
+	ReadBackedPhasing.
+
+	Avoid reading in full chromosomes as that uses too much memory for
+	multi-sample VCFs.
 	"""
 	def __init__(self, in_path, command_line, out_file=sys.stdout):
 		"""
 		in_path -- Path to input VCF, used as template.
-
+		command_line -- A string that will be added as a VCF header entry.
 		out_file -- File-like object to which VCF is written.
-		out_path -- Path to output VCF. If set, it overrides out_file.
 		"""
 		self._reader = vcf.Reader(filename=in_path)
-		"""
-		TODO add this to the header (copied from GATK):
-		##FORMAT=<ID=HP,Number=.,Type=String,Description="Read-backed phasing haplotype identifiers">
-		##FORMAT=<ID=PQ,Number=1,Type=Float,Description="Read-backed phasing quality">
-		"""
 		# FreeBayes adds phasing=none to its VCF output - remove that.
 		self._reader.metadata['phasing'] = []
 		if 'commandline' not in self._reader.metadata:
@@ -526,21 +524,38 @@ class PhasedVcfWriter:
 
 		self._writer = vcf.Writer(out_file, template=self._reader)
 		logger.debug('Formats: %s', self._reader.formats)
+		self._unprocessed_record = None
+		self._reader_iter = iter(self._reader)
 
 	def _format_phasing_info(self, component, phase):
 		assert phase in '01'
 		phase = int(phase)
 		return '{}-{},{}-{}'.format(component + 1, phase + 1, component + 1, 2 - phase)
 
-	def write(self, records, superreads, components):
+	def write(self, chromosome, superreads, components):
 		"""
 		Add phasing information to all variants on a single chromosome.
-
-		records -- Vcf._Record objects
 		"""
+		assert self._unprocessed_record is None or (self._unprocessed_record.CHROM == chromosome)
+
 		# TODO don’t use dicts for *everything* ...
 		phases = { v.position: v.allele for v in superreads[0].variants if v.allele in '01' }
-		for record in records:  #self._reader:
+		if self._unprocessed_record is not None:
+			records_iter = itertools.chain([self._unprocessed_record], self._reader_iter)
+		else:
+			records_iter = self._reader_iter
+		n = 0
+		while True:
+			try:
+				record = next(records_iter)
+			except StopIteration:
+				break
+			n += 1
+			if record.CHROM != chromosome:
+				# save it for later
+				self._unprocessed_record = record
+				assert n != 1
+				break
 			if record.start not in components:
 				# Phasing info not available, just copy record
 				self._writer.write_record(record)
@@ -551,7 +566,6 @@ class PhasedVcfWriter:
 				self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
 			samp_fmt = self._reader._format_cache[record.FORMAT]
 			call = record.samples[0]
-
 			phasing_info = self._format_phasing_info(components[record.start], phases[record.start])
 			call.data = samp_fmt(*(call.data + (phasing_info,)))
 			self._writer.write_record(record)
@@ -590,7 +604,7 @@ def main():
 			out_file = sys.stdout
 		command_line = ' '.join(sys.argv[1:])
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=args.vcf, out_file=out_file)
-		for sample, chromosome, variants, records in parse_vcf(args.vcf, args.sample):
+		for sample, chromosome, variants in parse_vcf(args.vcf, args.sample):
 			logger.info('Read %d variants on chromosome %s', len(variants), chromosome)
 			if args.ignore_read_groups:
 				sample = None
@@ -606,10 +620,10 @@ def main():
 			reads = filter_reads(reads)
 			logger.info('Filtered reads: %d', unfiltered_length - len(reads))
 			reads = slice_reads(reads, args.max_coverage)[0]
+			logger.info('Phasing the variants ...')
 			superreads = phase_reads(reads, all_het=args.all_het)
-
-			superreads = list(superreads)
 			components = find_components(superreads, reads)
-			vcf_writer.write(records, superreads, components)
+			logger.info('Writing chromosome %s ...', chromosome)
+			vcf_writer.write(chromosome, superreads, components)
 
 	logger.info('Elapsed time: %.1fs', time.time() - start_time)
