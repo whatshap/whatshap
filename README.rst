@@ -1,4 +1,5 @@
-![whatshap_logo.png](https://bitbucket.org/repo/8AjxBd/images/3378940113-whatshap_logo.png)
+.. image:: https://bitbucket.org/repo/8AjxBd/images/3378940113-whatshap_logo.png
+    :height: 150px
 
 WhatsHap
 ========
