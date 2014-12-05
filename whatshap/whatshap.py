@@ -515,7 +515,6 @@ class PhasedVcfWriter:
 		"""
 		# FreeBayes adds phasing=none to its VCF output - remove that.
 		self._reader.metadata['phasing'] = []
-		self._reader.metadata['phosing'] = []
 		if 'commandline' not in self._reader.metadata:
 			self._reader.metadata['commandline'] = []
 		self._reader.metadata['commandline'].append('"(whatshap ' + __version__ + ') ' + command_line + '"')
@@ -564,7 +563,7 @@ class PhasedVcfWriter:
 
 
 def main():
-	logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
+	logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 	parser = ArgumentParser(prog='whatshap', description=__doc__)
 	parser.add_argument('--version', action='version', version=__version__)
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
