@@ -11,8 +11,9 @@ standard output.
 
 TODO
 * Perhaps simplify slice_reads() such that it only creates and returns one slice
-* allow only one sample name to be passed to parse_vcf
 * it would be cleaner to not open the input VCF twice
+* convert parse_vcf to a class so that we can access VCF header info before
+  starting to iterate (sample names)
 """
 import os
 import logging
@@ -532,11 +533,15 @@ class PhasedVcfWriter:
 		phase = int(phase)
 		return '{}-{},{}-{}'.format(component + 1, phase + 1, component + 1, 2 - phase)
 
-	def write(self, chromosome, superreads, components):
+	def write(self, chromosome, sample, superreads, components):
 		"""
-		Add phasing information to all variants on a single chromosome.
+		Add phasing information to all variants on a single chromosome of a
+		sample.
 		"""
 		assert self._unprocessed_record is None or (self._unprocessed_record.CHROM == chromosome)
+
+		# TODO move sample parameter into the constructor
+		sample_index = self._reader.samples.index(sample)
 
 		# TODO don’t use dicts for *everything* ...
 		phases = { v.position: v.allele for v in superreads[0].variants if v.allele in '01' }
@@ -565,9 +570,14 @@ class PhasedVcfWriter:
 			if record.FORMAT not in self._reader._format_cache:
 				self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
 			samp_fmt = self._reader._format_cache[record.FORMAT]
-			call = record.samples[0]
-			phasing_info = self._format_phasing_info(components[record.start], phases[record.start])
-			call.data = samp_fmt(*(call.data + (phasing_info,)))
+
+			# Set HP tag for all samples
+			for i, call in enumerate(record.samples):
+				if i == sample_index:
+					phasing_info = self._format_phasing_info(components[record.start], phases[record.start])
+				else:
+					phasing_info = None
+				call.data = samp_fmt(*(call.data + (phasing_info,)))
 			self._writer.write_record(record)
 
 
@@ -625,6 +635,6 @@ def main():
 			superreads = phase_reads(reads, all_het=args.all_het)
 			components = find_components(superreads, reads)
 			logger.info('Writing chromosome %s ...', chromosome)
-			vcf_writer.write(chromosome, superreads, components)
+			vcf_writer.write(chromosome, sample, superreads, components)
 
 	logger.info('Elapsed time: %.1fs', time.time() - start_time)
