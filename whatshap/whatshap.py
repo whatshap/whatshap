@@ -608,6 +608,7 @@ def main():
 			logger.info('Read %d variants on chromosome %s', len(variants), chromosome)
 			if args.ignore_read_groups:
 				sample = None
+			logger.info('Reading the BAM file ...')
 			reads_with_variants = bam_reader.read(chromosome, variants, sample)
 			reads_with_variants.sort(key=lambda read: read.name)
 			reads = merge_paired_reads(reads_with_variants)
