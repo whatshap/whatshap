@@ -8,7 +8,7 @@ always run.
 """
 import sys
 import os.path
-from distutils.core import setup, Extension
+from setuptools import setup, Extension
 from distutils.version import LooseVersion
 from whatshap import __version__
 
@@ -97,7 +97,7 @@ setup(
 	ext_modules = extensions,
 	packages = ['whatshap'],
 	#scripts = ['bin/...'],
-	#install_requires = ['pysam', 'PyVCF'],
+	install_requires = ['pysam', 'PyVCF'],
 	classifiers = [
 		"Development Status :: 2 - Pre-Alpha",
 		"Environment :: Console",
