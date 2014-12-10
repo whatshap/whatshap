@@ -197,7 +197,7 @@ class BamReader:
 					# check whether any of them coincide with one of the SNPs ('hit')
 					while j < len(variants) and p < r:
 						if variants[j].position == p: # we have a hit
-							base = read.seq[s:s+1].decode()
+							base = read.seq[s:s+1]
 							if base == variants[j].reference_allele:
 								al = '0'  # REF allele
 							elif base == variants[j].alternative_allele:

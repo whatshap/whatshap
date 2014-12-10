@@ -104,7 +104,7 @@ setup(
 	ext_modules = extensions,
 	packages = ['whatshap'],
 	#scripts = ['bin/...'],
-	install_requires = ['pysam', 'PyVCF'],
+	install_requires = ['pysam>=0.8.1', 'PyVCF'],
 	classifiers = [
 		"Development Status :: 2 - Pre-Alpha",
 		"Environment :: Console",
