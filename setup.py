@@ -15,6 +15,7 @@ from whatshap import __version__
 MIN_CYTHON_VERSION = '0.17'
 
 if sys.version_info < (3, 3):
+	# We use some Python 3.3 functions, such as contextlib.ExitStack
 	sys.stdout.write("At least Python 3.3 is required.\n")
 	sys.exit(1)
 
@@ -82,7 +83,13 @@ def cythonize_if_necessary(extensions):
 	return cythonize(extensions)
 
 extensions = [
-	Extension('whatshap._core', sources=['whatshap/_core.pyx'], language='c++', extra_compile_args=["-std=c++0x"],),
+	Extension('whatshap._core',
+		sources=['whatshap/_core.pyx',
+			'src/columncostcomputer.cpp', 'src/columnindexingiterator.cpp',
+			'src/columnindexingscheme.cpp', 'src/dptable.cpp',
+			'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',
+			'src/readset.cpp', 'src/columniterator.cpp'
+		], language='c++', extra_compile_args=["-std=c++0x"],),
 ]
 extensions = cythonize_if_necessary(extensions)
 
