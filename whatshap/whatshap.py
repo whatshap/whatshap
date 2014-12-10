@@ -607,7 +607,11 @@ def main():
 
 	start_time = time.time()
 	with ExitStack() as stack:
-		bam_reader = stack.enter_context(closing(BamReader(args.bam, mapq_threshold=args.mapping_quality)))
+		try:
+			bam_reader = stack.enter_context(closing(BamReader(args.bam, mapq_threshold=args.mapping_quality)))
+		except OSError as e:
+			logging.error(e)
+			sys.exit(1)
 		if args.output is not None:
 			out_file = stack.enter_context(open(args.output, 'w'))
 		else:
