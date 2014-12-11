@@ -103,7 +103,7 @@ setup(
 	license = 'MIT',
 	ext_modules = extensions,
 	packages = ['whatshap'],
-	#scripts = ['bin/...'],
+	scripts = ['bin/whatshap', 'bin/phase2gtf'],
 	install_requires = ['pysam>=0.8.1', 'PyVCF'],
 	classifiers = [
 		"Development Status :: 2 - Pre-Alpha",

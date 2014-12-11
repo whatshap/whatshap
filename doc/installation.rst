@@ -58,7 +58,7 @@ virtualenv. This sequence of commands should work::
 
 Then you can run WhatsHap like this::
 
-	venv/bin/python3 -m whatshap --help
+	venv/bin/whatshap --help
 
 
 Ubuntu 12.04 LTS
