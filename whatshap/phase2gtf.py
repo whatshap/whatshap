@@ -10,9 +10,6 @@ could be phased. If there are nonadjacent variants that belong to the same
 block, there will be multiple "exons" connected with an arrow (in IGV).
 """
 """
-* Statistics are written to stderr (no. of blocks,
-  average length of blocks, etc.)
-
 TODO
 * Only the first sample is considered.
 * Only SNPs are considered (indels are treated as if they did not exist).
@@ -23,11 +20,12 @@ import logging
 import sys
 from collections import Counter
 import vcf
-from argparse import ArgumentParser
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
 
 __author__ = 'Marcel Martin'
 
 logger = logging.getLogger(__name__)
+
 
 def frequency_median(frequencies):
 	"""
@@ -195,7 +193,8 @@ def parse_hp_tags(path, gtfpath=None):
 def main():
 	logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
 
-	parser = ArgumentParser(description=__doc__)
+	parser = ArgumentParser(prog='phase2gtf', description=__doc__,
+		formatter_class=RawDescriptionHelpFormatter)
 	#parser.add_argument('--pipeslash', action='store_true',
 		#help='Parse the pipe/slash notation instead of HP tag.')
 	parser.add_argument('--gtf', default=None,
