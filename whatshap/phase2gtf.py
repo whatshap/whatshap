@@ -18,7 +18,7 @@ TODO
 import logging
 import sys
 from collections import Counter
-import vcf
+from .vcf import vcf_sample_reader
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 
 __author__ = 'Marcel Martin'
@@ -129,7 +129,10 @@ def parse_pipe_notation(path):
 		printe('singletons (unphased variants not within a block):', singletons)
 
 
-def parse_hp_tags(path):
+def parse_hp_tags(path, sample):
+	"""
+	sample -- None means: use the first sample
+	"""
 	gtf = GtfWriter(sys.stdout)
 	n_phased = 0
 	n_records = 0
@@ -139,10 +142,8 @@ def parse_hp_tags(path):
 	prev_block_name = None
 	prev_record = None
 
-	for record in vcf.Reader(filename=path):
+	for sample, record, call in vcf_sample_reader(path, sample):
 		n_records += 1
-		assert len(record.samples) == 1
-		call = record.samples[0]  # TODO allow to select a sample
 
 		# GATK 3.1 does not support phasing sites with more than
 		# two alleles, so there should not be phasing information.
@@ -193,13 +194,16 @@ def main():
 
 	parser = ArgumentParser(prog='phase2gtf', description=__doc__,
 		formatter_class=RawDescriptionHelpFormatter)
+	parser.add_argument('--sample', metavar='SAMPLE', default=None,
+		help='Name of the sample to process. If not given, use first sample '
+			'found in VCF.')
 	parser.add_argument('vcf', help='VCF file')
 	args = parser.parse_args()
 
 	#if args.pipeslash:
 		#parse_pipe_notation(args.vcf)
 	#else:
-	parse_hp_tags(args.vcf)
+	parse_hp_tags(args.vcf, args.sample)
 
 
 if __name__ == '__main__':
