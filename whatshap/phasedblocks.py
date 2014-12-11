@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 """
-Read a VCF file and annotate phased blocks.
+Read phasing information from a VCF, print statistics and write out a GTF file
+that describes the found blocks.
 
+The GTF file can be loaded into IGV. Since a block of phased variants is not
+necessarily contiguos, each block is modelled as a "gene" in the GTF file that
+can have multiple "exons". Each exon marks a set of adjacent variants which all
+could be phased. If there are nonadjacent variants that belong to the same
+block, there will be multiple "exons" connected with an arrow (in IGV).
+"""
+"""
 * Statistics are written to stderr (no. of blocks,
   average length of blocks, etc.)
 
-* A GTF file is created which describes the location of phased blocks.
-  The file can be loaded into IGV. Since the blocks are
-  not necessarily contiguous, a block can be made up of
-  multiple "exons".
-
 TODO
-* The GTF is always written to 'out.gtf'.
 * Only the first sample is considered.
 * Only SNPs are considered (indels are treated as if they did not exist).
 * Homozygous calls are also ignored.
-* make sure this works when there's more than one chromosome in the VCF
 * factor out common code of parse_hp_tags and parse_pipe_notation
 """
 import logging
@@ -49,7 +50,11 @@ class GtfWriter:
 		self._file = open(path, 'w')
 
 	def write(self, chromosome, start, stop, name):
-		print(chromosome, 'Phasing', 'exon', start+1, stop, '.', '+', '.',
+		"""
+		Write a feature to the GTF. start is 0-based.
+		"""
+		assert start < stop
+		print(chromosome, 'Phasing', 'exon', start + 1, stop, '.', '+', '.',
 			'gene_id "{}"; transcript_id "{}.1";'.format(name, name),
 			sep='\t', file=self._file)
 
@@ -121,97 +126,87 @@ def parse_pipe_notation(path):
 
 	printe('considered variants:', n)
 	printe('blocks:', len(block_lengths))
-	printe('longest block:', max(block_lengths))
-	printe('shortest block:', min(block_lengths))
-	printe('average block: {:.2f}'.format(sum(block_lengths) / len(block_lengths)))
-	printe('singletons (unphased variants not within a block):', singletons)
+	if blocks:
+		printe('longest block:', max(block_lengths))
+		printe('shortest block:', min(block_lengths))
+		printe('average block: {:.2f}'.format(sum(block_lengths) / len(block_lengths)))
+		printe('singletons (unphased variants not within a block):', singletons)
 
 
-def parse_hp_tags(path):
-	gtf = GtfWriter('out.gtf')
-	n = 0
-	total = 0
-	# count 'phase block names'
-	blocks = Counter()
-	#block_starts = dict()
-	prev_name = None
+def parse_hp_tags(path, gtfpath=None):
+	gtf = GtfWriter(gtfpath) if gtfpath else None
+	n_phased = 0
+	n_records = 0
+	blocks = Counter()  # maps (chromosome, block_name) tuples to variant counts
+
+	prev_phased = False
+	prev_block_name = None
 	prev_record = None
-	for record in vcf.Reader(filename=path):
-		total += 1
-		if not record.is_snp:
-			continue
-		call = record.samples[0]
-		if len(record.ALT) > 1:
-			# GATK 3.1 does not support phasing sites with more than
-			# two alleles, so there should not be phasing information.
-			# See https://gatkforums.broadinstitute.org/discussion/4038 .
-			assert not hasattr(call.data, 'HP')
-			continue
-		assert len(record.samples) == 1
-		if not call.is_het:
-			continue
 
-		if False:  # for debugging
-			print(
-				'{:10d}'.format(record.start),
-				'alleles:', record.alleles,
-				call.gt_alleles,
-				'phased:', int(call.phased),
-				'het:', int(call.is_het),
-				'bases:', call.gt_bases
-			)
+	for record in vcf.Reader(filename=path):
+		n_records += 1
+		assert len(record.samples) == 1
+		call = record.samples[0]  # TODO allow to select a sample
+
+		# GATK 3.1 does not support phasing sites with more than
+		# two alleles, so there should not be phasing information.
+		# See https://gatkforums.broadinstitute.org/discussion/4038 .
+		assert not (len(record.ALT) > 1 and hasattr(call.data, 'HP'))
+		assert not (not call.is_het and hasattr(call.data, 'HP')), "HP tag for homozygous variant found"
 
 		if not hasattr(call.data, 'HP'):
-			continue
+			block_name = None
+		else:
+			assert len(call.data.HP) == 2
+			# call.data.HP is something like: ['550267-1', '550267-2']
+			block_name = call.data.HP[0].split('-')[0]
+			blocks[(record.CHROM, block_name)] += 1
+			n_phased += 1
 
-		assert len(call.data.HP) == 2
+		if prev_block_name != block_name or prev_record.CHROM != record.CHROM:
+			# some type of transition is occurring here
+			if prev_block_name is not None:
+				# phased block has ended at previous variant
+				if gtf:
+					gtf.write(prev_record.CHROM, block_start, prev_record.start + 1, prev_block_name)
+			if block_name is not None:
+				# phased block starts
+				block_start = record.start
 
-		# call.data.HP is something like: ['550267-1', '550267-2']
-		name = call.data.HP[0].split('-')[0]
-		blocks[(record.CHROM, name)] += 1
-
-		if prev_name != name or prev_record.CHROM != record.CHROM:
-			if prev_name is not None:
-				# new block found - output the previous one
-				gtf.write(prev_record.CHROM, block_start, prev_record.POS, prev_name)
-
-			#if name in block_starts:
-				#print('FOUND not connected block')
-			#else:
-				#block_starts[name] = record.POS
-			block_start = record.POS
-			prev_name = name
-
+		prev_block_name = block_name
 		prev_record = record
-		n += 1
 
 	# print statistics
 	def printe(*args, **kwargs):
 		kwargs['file'] = sys.stderr
 		print(*args, **kwargs)
 
+	printe('Variants in VCF:', n_records)
+	printe('Usable variants with phasing information:', n_phased)
+
 	printe('blocks:', blocks)
-	printe('Total records in VCF:', total)
-	printe('Considered variants: ', n)
 	printe('No. of phased blocks:', len(blocks))
-	printe('Largest block:    ', max(blocks.values()))
-	printe('Median block size:', sorted(blocks.values())[len(blocks) // 2])
-	printe('Smallest block:   ', min(blocks.values()))
+	if blocks:
+		printe('Largest block:    ', max(blocks.values()))
+		printe('Median block size:', sorted(blocks.values())[len(blocks) // 2])
+		printe('Smallest block:   ', min(blocks.values()))
 
 
 def main():
 	logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
 
 	parser = ArgumentParser(description=__doc__)
-	parser.add_argument('--hp', action='store_true',
-		help='Parse the HP tag (output by GATK) instead of pipe/slash notation.')
+	#parser.add_argument('--pipeslash', action='store_true',
+		#help='Parse the pipe/slash notation instead of HP tag.')
+	parser.add_argument('--gtf', default=None,
+		help='Write a GTF file visualizing the phased blocks.')
 	parser.add_argument('vcf', help='VCF file')
 	args = parser.parse_args()
 
-	if args.hp:
-		parse_hp_tags(args.vcf)
-	else:
-		parse_pipe_notation(args.vcf)
+	#if args.pipeslash:
+		#parse_pipe_notation(args.vcf)
+	#else:
+	parse_hp_tags(args.vcf, gtfpath=args.gtf)
 
 
 if __name__ == '__main__':
