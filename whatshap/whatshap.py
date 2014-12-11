@@ -581,7 +581,15 @@ class PhasedVcfWriter:
 			self._writer.write_record(record)
 
 
+def ensure_pysam_version():
+	from pysam import __version__ as pysam_version
+	from distutils.version import LooseVersion
+	if LooseVersion(pysam_version) < LooseVersion("0.8.1"):
+		sys.exit("You need to use pysam >= 0.8.1 with WhatsHap")
+
+
 def main():
+	ensure_pysam_version()
 	logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 	parser = ArgumentParser(prog='whatshap', description=__doc__)
 	parser.add_argument('--version', action='version', version=__version__)
