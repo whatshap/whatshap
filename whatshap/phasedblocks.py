@@ -22,12 +22,26 @@ import logging
 import sys
 from collections import Counter
 import vcf
-from sqt import HelpfulArgumentParser
-from sqt.math import frequency_median
+from argparse import ArgumentParser
 
 __author__ = 'Marcel Martin'
 
 logger = logging.getLogger(__name__)
+
+def frequency_median(frequencies):
+	"""
+	Given a dictionary of frequencies, return the median.
+	If the total no. of values is odd, the left of both
+	middle values is returned.
+	"""
+	m = 0  # partial sum
+	middle = (1 + sum(frequencies.values())) // 2
+	for length in sorted(frequencies):
+		m += frequencies[length]
+		if m >= middle:
+			return length
+	# never reached
+	assert False
 
 
 class GtfWriter:
@@ -188,7 +202,7 @@ def parse_hp_tags(path):
 def main():
 	logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
 
-	parser = HelpfulArgumentParser(description=__doc__)
+	parser = ArgumentParser(description=__doc__)
 	parser.add_argument('--hp', action='store_true',
 		help='Parse the HP tag (output by GATK) instead of pipe/slash notation.')
 	parser.add_argument('vcf', help='VCF file')
