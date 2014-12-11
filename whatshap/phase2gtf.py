@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Read phasing information from a VCF, print statistics and write out a GTF file
-that describes the found blocks.
+to standard output that describes the found blocks.
 
 The GTF file can be loaded into IGV. Since a block of phased variants is not
 necessarily contiguos, each block is modelled as a "gene" in the GTF file that
@@ -12,7 +12,6 @@ block, there will be multiple "exons" connected with an arrow (in IGV).
 """
 TODO
 * Only the first sample is considered.
-* Only SNPs are considered (indels are treated as if they did not exist).
 * Homozygous calls are also ignored.
 * factor out common code of parse_hp_tags and parse_pipe_notation
 """
@@ -44,8 +43,8 @@ def frequency_median(frequencies):
 
 
 class GtfWriter:
-	def __init__(self, path):
-		self._file = open(path, 'w')
+	def __init__(self, file):
+		self._file = file
 
 	def write(self, chromosome, start, stop, name):
 		"""
@@ -56,10 +55,9 @@ class GtfWriter:
 			'gene_id "{}"; transcript_id "{}.1";'.format(name, name),
 			sep='\t', file=self._file)
 
-#chr1	Cufflinks	exon	11810	11844	.	+	.	gene_id "XLOC_000001"; transcript_id "CUFF.83.1";
-
 
 def parse_pipe_notation(path):
+	assert False, "This has not been updated to print a GTF"
 	n = 0
 	block_start = None
 	singletons = 0
@@ -131,8 +129,8 @@ def parse_pipe_notation(path):
 		printe('singletons (unphased variants not within a block):', singletons)
 
 
-def parse_hp_tags(path, gtfpath=None):
-	gtf = GtfWriter(gtfpath) if gtfpath else None
+def parse_hp_tags(path):
+	gtf = GtfWriter(sys.stdout)
 	n_phased = 0
 	n_records = 0
 	blocks = Counter()  # maps (chromosome, block_name) tuples to variant counts
@@ -180,9 +178,9 @@ def parse_hp_tags(path, gtfpath=None):
 		print(*args, **kwargs)
 
 	printe('Variants in VCF:', n_records)
-	printe('Usable variants with phasing information:', n_phased)
+	printe('Variants with phasing information:', n_phased)
 
-	printe('blocks:', blocks)
+	#printe('blocks:', blocks)
 	printe('No. of phased blocks:', len(blocks))
 	if blocks:
 		printe('Largest block:    ', max(blocks.values()))
@@ -195,17 +193,13 @@ def main():
 
 	parser = ArgumentParser(prog='phase2gtf', description=__doc__,
 		formatter_class=RawDescriptionHelpFormatter)
-	#parser.add_argument('--pipeslash', action='store_true',
-		#help='Parse the pipe/slash notation instead of HP tag.')
-	parser.add_argument('--gtf', default=None,
-		help='Write a GTF file visualizing the phased blocks.')
 	parser.add_argument('vcf', help='VCF file')
 	args = parser.parse_args()
 
 	#if args.pipeslash:
 		#parse_pipe_notation(args.vcf)
 	#else:
-	parse_hp_tags(args.vcf, gtfpath=args.gtf)
+	parse_hp_tags(args.vcf)
 
 
 if __name__ == '__main__':
