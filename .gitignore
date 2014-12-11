@@ -10,3 +10,4 @@ tmp/
 MANIFEST
 raw/
 doc/_build
+dist/
