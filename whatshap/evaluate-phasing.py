@@ -252,8 +252,11 @@ def main():
 	flips_total = 0
 	homoerrors_total = 0
 	heteroerrors_total = 0
+	blocks_larger_1 = 0
 	for (chromosome,block_id) in block_list:
 		block = phased_blocks[(chromosome,block_id)]
+		if len(block) >= 2:
+			blocks_larger_1 += 1
 		truehap = ['','']
 		predhap = ['','']
 		for pos, pred_gt in block:
@@ -286,6 +289,7 @@ def main():
 		heteroerrors_total += heteroerrors1
 	print('='*100)
 	print('Evaluation of blocks:')
+	print('Number of blocks with at least 2 SNPs:', blocks_larger_1)
 	print("Correctly phased: ", correct_total)
 	print("Switch errors: ", switches_total)
 	print("Flip errors: ", flips_total)
