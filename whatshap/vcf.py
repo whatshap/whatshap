@@ -6,6 +6,7 @@ import logging
 import itertools
 import vcf
 from . import __version__
+
 logger = logging.getLogger(__name__)
 
 #VcfVariant = namedtuple('VcfVariant', 'position reference_allele alternative_allele')
@@ -73,15 +74,14 @@ def parse_vcf(path, sample=None):
 			variants = []
 		if not record.is_snp:
 			continue
-		if len(record.ALT) != 1:
-			logger.warn("Reading VCFs with multiple ALTs not implemented.")
-			continue
-		logging.debug("Call %s:%d %s→%s (Alleles: %s, %s; Het: %s; gt_bases; %s)",
+		logger.debug("Call %s:%d %s→%s (Alleles: %s, %s; Het: %s; gt_bases; %s)",
 			record.CHROM, record.start + 1,
 			record.REF, record.ALT,
 			record.alleles, call.gt_alleles, call.is_het, call.gt_bases)
+		if len(record.ALT) != 1:
+			logger.warn("Reading VCFs with multiple ALTs not implemented.")
+			continue
 		if not call.is_het:
-			logger.warn("Not a heterozygous SNP for any of the samples, position %s", record.start + 1)
 			continue
 		# found a heterozygous variant for the sample
 		v = VcfVariant(
