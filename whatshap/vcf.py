@@ -160,17 +160,24 @@ class PhasedVcfWriter:
 				# Phasing info not available, just copy record
 				self._writer.write_record(record)
 				continue
-			# Current PyVCF does not make it very easy to modify records/calls.
-			record.add_format('HP')
-			if record.FORMAT not in self._reader._format_cache:
-				self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
-			samp_fmt = self._reader._format_cache[record.FORMAT]
 
+			# Current PyVCF does not make it very easy to modify records/calls.
+			if 'HP' not in record.FORMAT.split(':'):
+				record.add_format('HP')
+				if record.FORMAT not in self._reader._format_cache:
+					self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
+			samp_fmt = self._reader._format_cache[record.FORMAT]
 			# Set HP tag for all samples
 			for i, call in enumerate(record.samples):
 				if i == sample_index:
+					# Set or overwrite HP tag
 					phasing_info = self._format_phasing_info(components[record.start], phases[record.start])
-				else:
-					phasing_info = None
-				call.data = samp_fmt(*(call.data + (phasing_info,)))
+					values = vars(call.data)
+					values['HP'] = phasing_info
+					call.data = samp_fmt(**values)
+				elif not hasattr(call.data, 'HP'):
+					# HP tag missing, set it to "."
+					values = vars(call.data)
+					values['HP'] = None
+					call.data = samp_fmt(**values)
 			self._writer.write_record(record)
