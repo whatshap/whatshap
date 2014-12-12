@@ -72,22 +72,19 @@ def parse_vcf(path, sample=None):
 				yield (sample, prev_chromosome, variants)
 			prev_chromosome = record.CHROM
 			variants = []
-		if not record.is_snp:
-			continue
-		logger.debug("Call %s:%d %s→%s (Alleles: %s, %s; Het: %s; gt_bases; %s)",
+		alleles = [ str(record.alleles[int(s)]) for s in call.gt_alleles ]
+		logger.debug("Call %s:%d %s→%s (Alleles: %s)",
 			record.CHROM, record.start + 1,
 			record.REF, record.ALT,
-			record.alleles, call.gt_alleles, call.is_het, call.gt_bases)
-		if len(record.ALT) != 1:
-			logger.warn("Reading VCFs with multiple ALTs not implemented.")
+			alleles)
+		if not record.is_snp or not call.is_het:
 			continue
-		if not call.is_het:
-			continue
+		assert len(alleles) == 2
 		# found a heterozygous variant for the sample
 		v = VcfVariant(
 			position=record.start,
-			reference_allele=record.REF,
-			alternative_allele=record.ALT[0])
+			reference_allele=alleles[0],
+			alternative_allele=alleles[1])
 		variants.append(v)
 	if prev_chromosome is not None:
 		yield (sample, prev_chromosome, variants)
@@ -115,7 +112,6 @@ class PhasedVcfWriter:
 			self._reader.metadata['commandline'] = []
 		self._reader.metadata['commandline'].append('"(whatshap ' + __version__ + ') ' + command_line + '"')
 		self._reader.formats['HP'] = vcf.parser._Format(id='HP', num=None, type='String', desc='Phasing haplotype identifier')
-		# TODO
 		self._reader.formats['PQ'] = vcf.parser._Format(id='PQ', num=1, type='Float', desc='Phasing quality')
 
 		self._writer = vcf.Writer(out_file, template=self._reader)

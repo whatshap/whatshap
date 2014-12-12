@@ -11,8 +11,6 @@ block, there will be multiple "exons" connected with an arrow (in IGV).
 """
 """
 TODO
-* Only the first sample is considered.
-* Homozygous calls are also ignored.
 * factor out common code of parse_hp_tags and parse_pipe_notation
 """
 import logging
@@ -144,11 +142,6 @@ def parse_hp_tags(path, sample):
 
 	for sample, record, call in vcf_sample_reader(path, sample):
 		n_records += 1
-
-		# GATK 3.1 does not support phasing sites with more than
-		# two alleles, so there should not be phasing information.
-		# See https://gatkforums.broadinstitute.org/discussion/4038 .
-		assert not (len(record.ALT) > 1 and hasattr(call.data, 'HP'))
 		assert not (not call.is_het and hasattr(call.data, 'HP')), "HP tag for homozygous variant found"
 
 		if not hasattr(call.data, 'HP'):
