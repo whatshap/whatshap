@@ -122,6 +122,7 @@ class PhasedVcfWriter:
 		logger.debug('Formats: %s', self._reader.formats)
 		self._unprocessed_record = None
 		self._reader_iter = iter(self._reader)
+		self._hp_found_warned = False
 
 	def _format_phasing_info(self, component, phase):
 		assert phase in '01'
@@ -170,6 +171,11 @@ class PhasedVcfWriter:
 			# Set HP tag for all samples
 			for i, call in enumerate(record.samples):
 				if i == sample_index:
+					if (hasattr(call.data, 'HP') and call.data.HP is not None
+							and not self._hp_found_warned):
+						logger.warn('Ignoring existing phasing information '
+							'found in input VCF (HP tag exists).')
+						self._hp_found_warned = True
 					# Set or overwrite HP tag
 					phasing_info = self._format_phasing_info(components[record.start], phases[record.start])
 					values = vars(call.data)
