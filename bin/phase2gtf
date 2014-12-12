@@ -4,5 +4,5 @@ try:
 except ImportError:
 	pass
 
-from whatshap.phase2gtf import main
+from whatshap.scripts.phase2gtf import main
 main()

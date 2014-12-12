@@ -26,10 +26,10 @@ from collections import defaultdict
 from contextlib import ExitStack, closing
 import pysam
 
-from .vcf import parse_vcf, PhasedVcfWriter
-from . import __version__
-from .args import HelpfulArgumentParser as ArgumentParser
-from .phase import phase_reads, ReadVariantList, ReadVariant
+from ..vcf import parse_vcf, PhasedVcfWriter
+from .. import __version__
+from ..args import HelpfulArgumentParser as ArgumentParser
+from ..phase import phase_reads, ReadVariantList, ReadVariant
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 

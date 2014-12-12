@@ -2,9 +2,7 @@
 try:
 	import _preamble
 except ImportError:
-	print('import error')
 	pass
-import sys
 
-from whatshap.whatshap import main
+from whatshap.scripts.whatshap import main
 main()

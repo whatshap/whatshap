@@ -18,7 +18,7 @@ TODO
 import logging
 import sys
 from collections import Counter
-from .vcf import vcf_sample_reader
+from ..vcf import vcf_sample_reader
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 
 __author__ = 'Marcel Martin'
