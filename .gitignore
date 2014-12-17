@@ -11,3 +11,5 @@ MANIFEST
 raw/
 doc/_build
 dist/
+whatshap.egg-info/
+.tox
