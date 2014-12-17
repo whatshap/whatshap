@@ -103,7 +103,7 @@ setup(
 	description = 'phase genomic variants using DNA sequencing reads',
 	license = 'MIT',
 	ext_modules = extensions,
-	packages = ['whatshap'],
+	packages = ['whatshap', 'whatshap.scripts'],
 	scripts = ['bin/whatshap', 'bin/phase2gtf'],
 	install_requires = ['pysam>=0.8.1', 'PyVCF'],
 	classifiers = [
