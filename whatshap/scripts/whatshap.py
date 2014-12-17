@@ -35,6 +35,62 @@ __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel M
 
 logger = logging.getLogger(__name__)
 
+
+def find_alleles(variants, start, read):
+	"""
+
+	"""
+	pos = read.pos
+	cigar = read.cigar
+
+	c = 0  # hit count
+	j = start  # index into variants list
+	p = pos
+	s = 0  # absolute index into the read string [0..len(read)]
+	read_variants = []
+	for cigar_op, length in cigar:
+		# The mapping of CIGAR operators to numbers is:
+		# MIDNSHPX= => 012345678
+		if cigar_op in (0, 7, 8):  # we're in a matching subregion
+			s_next = s + length
+			p_next = p + length
+			r = p + length  # size of this subregion
+			# skip over all SNPs that come before this region
+			while j < len(variants) and variants[j].position < p:
+				j += 1
+			# iterate over all positions in this subregion and
+			# check whether any of them coincide with one of the SNPs ('hit')
+			while j < len(variants) and p < r:
+				if variants[j].position == p:  # we have a hit
+					base = read.seq[s:s+1]
+					if base == variants[j].reference_allele:
+						al = '0'  # REF allele
+					elif base == variants[j].alternative_allele:
+						al = '1'  # ALT allele
+					else:
+						al = 'E' # for "error" (keep for stats purposes)
+					rv = ReadVariant(position=p, base=base, allele=al, quality=ord(read.qual[s:s+1])-33)
+					read_variants.append(rv)
+					c += 1
+					j += 1
+				s += 1 # advance both read and reference
+				p += 1
+			s = s_next
+			p = p_next
+		elif cigar_op == 1:  # an insertion
+			s += length
+		elif cigar_op == 2 or cigar_op == 3:  # a deletion or a reference skip
+			p += length
+		elif cigar_op == 4:  # soft clipping
+			s += length
+		elif cigar_op == 5 or cigar_op == 6:  # hard clipping or padding
+			pass
+		else:
+			logger.error("Unsupported CIGAR operation: %d", cigar_op)
+			sys.exit(1)
+	return read_variants
+
+
 class BamReader:
 	"""
 	Associate variants with reads.
@@ -79,7 +135,7 @@ class BamReader:
 		# resulting list of ReadVariantList objects
 		result = []
 
-		i = 0 # to keep track of position in variants array (which is in order)
+		i = 0  # keep track of position in variants array (which is in order)
 		for read in self._samfile.fetch(chromosome):
 			if sample is not None and not read.opt('RG') in read_groups:
 				continue
@@ -93,62 +149,15 @@ class BamReader:
 				continue
 			if read.mapq < self._mapq_threshold:
 				continue
-			cigar = read.cigar
-			if not cigar:
+			if not read.cigar:
 				continue
-			pos = read.pos
 
 			# since reads are ordered by position, we need not consider
 			# positions that are too small
-			while i < len(variants) and variants[i].position < pos:
+			while i < len(variants) and variants[i].position < read.pos:
 				i += 1
-
-			c = 0  # hit count
-			j = i  # another index into variants
-			p = pos
-			s = 0  # absolute index into the read string [0..len(read)]
-			read_variants = []
-			for cigar_op, length in cigar:
-				# The mapping of CIGAR operators to numbers is:
-				# MIDNSHPX= => 012345678
-				if cigar_op in (0, 7, 8):  # we're in a matching subregion
-					s_next = s + length
-					p_next = p + length
-					r = p + length  # size of this subregion
-					# skip over all SNPs that come before this region
-					while j < len(variants) and variants[j].position < p:
-						j += 1
-					# iterate over all positions in this subregion and
-					# check whether any of them coincide with one of the SNPs ('hit')
-					while j < len(variants) and p < r:
-						if variants[j].position == p: # we have a hit
-							base = read.seq[s:s+1]
-							if base == variants[j].reference_allele:
-								al = '0'  # REF allele
-							elif base == variants[j].alternative_allele:
-								al = '1'  # ALT allele
-							else:
-								al = 'E' # for "error" (keep for stats purposes)
-							rv = ReadVariant(position=p, base=base, allele=al, quality=ord(read.qual[s:s+1])-33)
-							read_variants.append(rv)
-							c += 1
-							j += 1
-						s += 1 # advance both read and reference
-						p += 1
-					s = s_next
-					p = p_next
-				elif cigar_op == 1:  # an insertion
-					s += length
-				elif cigar_op == 2 or cigar_op == 3:  # a deletion or a reference skip
-					p += length
-				elif cigar_op == 4:  # soft clipping
-					s += length
-				elif cigar_op == 5 or cigar_op == 6:  # hard clipping or padding
-					pass
-				else:
-					logger.error("Unsupported CIGAR operation: %d", cigar_op)
-					sys.exit(1)
-			if c > 0:
+			read_variants = find_alleles(variants, i, read)
+			if read_variants:
 				rvl = ReadVariantList(name=read.qname, mapq=read.mapq, variants=read_variants)
 				result.append(rvl)
 		return result
