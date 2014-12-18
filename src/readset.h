@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "read.h"
+#include "indexset.h"
 
 class ColumnIterator;
 
@@ -23,6 +24,10 @@ public:
 	std::string toString();
 	/** Access a read in the set. Ownership stays with the ReadSet. */
 	Read* get(int i) const;
+	/** Creates a subset of reads as given by the set of indices. Note that this
+	 *  creates a COPY of each read.
+	 */
+	ReadSet* subset(const IndexSet* indices) const;
 private:
 	typedef struct read_comparator_t {
 		read_comparator_t() {}

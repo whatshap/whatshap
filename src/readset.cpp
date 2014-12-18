@@ -62,3 +62,13 @@ unsigned int ReadSet::size() const {
 Read* ReadSet::get(int i) const {
 	return reads[i];
 }
+
+ReadSet* ReadSet::subset(const IndexSet* indices) const {
+	ReadSet* result = new ReadSet();
+	IndexSet::const_iterator it = indices->begin();
+	for (; it != indices->end(); ++it) {
+		result->add(new Read(*(reads[*it])));
+	}
+	result->finalize();
+	return result;
+}

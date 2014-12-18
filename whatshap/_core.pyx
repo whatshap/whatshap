@@ -85,6 +85,7 @@ cdef extern from "../src/readset.h":
 		int size()
 		void finalize()
 		Read* get(int)
+		ReadSet* subset(IndexSet*)
 
 cdef class PyReadSet:
 	cdef ReadSet *thisptr
@@ -112,6 +113,12 @@ cdef class PyReadSet:
 		return read
 	def finalize(self):
 		self.thisptr.finalize()
+	def subset(self, PyIndexSet index_set):
+		# TODO: is there a way of avoiding to unecessarily creating/destroying a ReadSet object?
+		result = PyReadSet()
+		del result.thisptr
+		result.thisptr = self.thisptr.subset(index_set.thisptr)
+		return result
 
 # ====== ColumnIterator ======
 cdef extern from "../src/columniterator.h":
