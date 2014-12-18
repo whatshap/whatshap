@@ -43,6 +43,10 @@ installed Cython into the virtualenv before installing WhatsHap::
 	venv/bin/pip3 install Cython
 	venv/bin/pip3 install https://bitbucket.org/whatshap/whatshap/get/master.tar.gz
 
+If you get errors while installing Cython, try to add
+``--install-option="--no-cython-compile"`` to the command, see also
+`issue 43 <https://bitbucket.org/whatshap/whatshap/issue/43/>`_.
+
 
 Development installation
 ------------------------
