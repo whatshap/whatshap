@@ -22,7 +22,7 @@ size_t IndexSet::size() const {
 	return set.size();
 }
 
-string IndexSet::toString() {
+string IndexSet::toString() const {
 	ostringstream oss;
 	oss << '{';
 	bool is_first = true;
@@ -37,4 +37,12 @@ string IndexSet::toString() {
 	}
 	oss << '}';
 	return oss.str();
+}
+
+IndexSet::const_iterator IndexSet::begin() const {
+	return set.begin();
+}
+
+IndexSet::const_iterator IndexSet::end() const {
+	return set.end();
 }
