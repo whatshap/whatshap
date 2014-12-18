@@ -30,7 +30,7 @@ from ..vcf import parse_vcf, PhasedVcfWriter
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
 from ..phase import ReadVariantList, ReadVariant, read_to_coreread
-from ..core import Read, ReadSet, DPTable
+from ..core import Read, ReadSet, DPTable, IndexSet
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -267,13 +267,14 @@ class CoverageMonitor:
 
 def position_set(reads):
 	"""
+	TODO creating a wrapper for ReadSet.get_positions would obsolete this function (and save runtime)
 	Return a set of all variant positions that occur within a list of reads.
 
 	reads -- a list of ReadVariantList objects
 	"""
 	positions = set()
 	for read in reads:
-		positions.update(variant.position for variant in read.variants if variant is not None)
+		positions.update(position for position, base, allele, quality in read)
 	return positions
 
 
@@ -285,6 +286,9 @@ def slice_reads(reads, max_coverage):
 	max_coverage --
 	reads -- a list of ReadVariantList objects
 	"""
+	shuffled_indices = list(range(len(reads)))
+	random.shuffle(shuffled_indices)
+
 	position_list = sorted(position_set(reads))
 	logger.info('Found %d SNP positions', len(position_list))
 
@@ -292,34 +296,35 @@ def slice_reads(reads, max_coverage):
 	position_to_index = { position: index for index, position in enumerate(position_list) }
 
 	# List of slices, start with one empty slice ...
-	slices = [[]]
+	slices = [IndexSet()]
 	# ... and the corresponding coverages along each slice
 	slice_coverages = [CoverageMonitor(len(position_list))]
 	skipped_reads = 0
 	accessible_positions = set()
-	for read in reads:
+	for index in shuffled_indices:
+		read = reads[index]
 		# Skip reads that cover only one SNP
-		if len(read.variants) < 2:
+		if len(read) < 2:
 			skipped_reads += 1
 			continue
-		for variant in read.variants:
-			if variant is None:
-				continue
-			accessible_positions.add(variant.position)
-		begin = position_to_index[read.variants[0].position]
-		end = position_to_index[read.variants[-1].position] + 1
+		for position, base, allele, quality in read:
+			accessible_positions.add(position)
+		first_position, first_base, first_allele, first_quality = read[0]
+		last_position, last_base, last_allele, last_quality = read[len(read)-1]
+		begin = position_to_index[first_position]
+		end = position_to_index[last_position] + 1
 		slice_id = 0
 		while True:
 			# Does current read fit into this slice?
 			if slice_coverages[slice_id].max_coverage_in_range(begin, end) < max_coverage:
 				slice_coverages[slice_id].add_read(begin, end)
-				slices[slice_id].append(read)
+				slices[slice_id].add(index)
 				break
 			else:
 				slice_id += 1
 				# do we have to create a new slice?
 				if slice_id == len(slices):
-					slices.append([])
+					slices.append(IndexSet())
 					slice_coverages.append(CoverageMonitor(len(position_list)))
 	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
 
@@ -330,18 +335,11 @@ def slice_reads(reads, max_coverage):
 			unphasable_snps, len(position_list),
 			100. * unphasable_snps / len(position_list))
 
-	# Sort each slice
-	for read_list in slices:
-		read_list.sort(key=lambda r: r.variants[0].position)
 	# Print stats
-	for slice_id, read_list in enumerate(slices):
-		positions_covered = len(position_set(read_list))
-		if position_list:
-			logger.info('Slice %d contains %d reads and covers %d of %d SNP positions (%.1f%%)',
-				slice_id, len(read_list), positions_covered, len(position_list),
-				positions_covered * 100.0 / len(position_list))
+	for slice_id, index_set in enumerate(slices):
+		logger.info('Slice %d contains %d reads', slice_id, len(index_set))
 
-	return slices
+	return reads.subset(slices[0])
 
 
 class Node:
@@ -488,25 +486,26 @@ def main():
 			# sort by position of first variant
 			#reads.sort(key=lambda read: read.variants[0].position)
 
-			random.shuffle(reads)
 			unfiltered_length = len(reads)
 			reads = filter_reads(reads)
 			logger.info('Filtered reads: %d', unfiltered_length - len(reads))
-			reads = slice_reads(reads, args.max_coverage)[0]
-			logger.info('Phasing the variants ...')
-			
+
 			# Transform reads into core reads
 			core_reads = ReadSet()
 			for read in reads:
 				core_reads.add(read_to_coreread(read))
 			# Finalizing a read set will sort reads, variants within reads and assign unique read IDs.
 			core_reads.finalize()
+			
+			sliced_reads = slice_reads(core_reads, args.max_coverage)
+			logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
+			
 			# Run the core algorithm: construct DP table ...
-			dp_table = DPTable(core_reads, args.all_het)
+			dp_table = DPTable(sliced_reads, args.all_het)
 			# ... and do the backtrace to get the solution
 			superreads = dp_table.getSuperReads()
 
-			components = find_components(superreads, core_reads)
+			components = find_components(superreads, sliced_reads)
 			logger.info('Writing chromosome %s ...', chromosome)
 			vcf_writer.write(chromosome, sample, superreads, components)
 
