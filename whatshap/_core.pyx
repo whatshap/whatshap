@@ -1,7 +1,8 @@
 # distutils: language = c++
-# distutils: sources = src/columncostcomputer.cpp src/columnindexingiterator.cpp src/columnindexingscheme.cpp src/dptable.cpp src/entry.cpp src/graycodes.cpp src/read.cpp src/readset.cpp src/columniterator.cpp
+# distutils: sources = src/columncostcomputer.cpp src/columnindexingiterator.cpp src/columnindexingscheme.cpp src/dptable.cpp src/entry.cpp src/graycodes.cpp src/read.cpp src/readset.cpp src/columniterator.cpp src/indexset.cpp
 
 from libcpp.string cimport string
+from libcpp cimport bool
 
 # ====== Read ======
 cdef extern from "../src/read.h":
@@ -135,3 +136,26 @@ cdef class PyDPTable:
 		self.thisptr.get_super_reads(result.thisptr)
 		return result
 
+# ====== IndexSet ======
+cdef extern from "../src/indexset.h":
+	cdef cppclass IndexSet:
+		IndexSet() except +
+		bool contains(int)
+		void add(int)
+		int size()
+		string toString()
+
+cdef class PyIndexSet:
+	cdef IndexSet *thisptr
+	def __cinit__(self):
+		self.thisptr = new IndexSet()
+	def __dealloc__(self):
+		del self.thisptr
+	def __str__(self):
+		return self.thisptr.toString().decode('utf-8')
+	def __len__(self):
+		return self.thisptr.size()
+	def contains(self, index):
+		return self.thisptr.contains(index)
+	def add(self,index):
+		self.thisptr.add(index)
