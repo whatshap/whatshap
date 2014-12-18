@@ -29,7 +29,8 @@ import pysam
 from ..vcf import parse_vcf, PhasedVcfWriter
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
-from ..phase import phase_reads, ReadVariantList, ReadVariant
+from ..phase import ReadVariantList, ReadVariant, read_to_coreread
+from ..core import Read, ReadSet, DPTable
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -410,23 +411,21 @@ def find_components(superreads, reads):
 	"""
 	logger.info('Finding components ...')
 	assert len(superreads) == 2
-	assert len(superreads[0].variants) == len(superreads[1].variants)
-	phased_variants = superreads[0].variants
-	phased_positions = [ v.position for v in phased_variants if v.allele in '01' ]  # TODO set()
+	assert len(superreads[0]) == len(superreads[1])
 
+	phased_positions = [ position for position, base, allele, quality in superreads[0] if allele in [0,1] ]  # TODO set()
 	assert phased_positions == sorted(phased_positions)
-	#phased_positions = { v.position: v.allele for v in phased_variants if v.allele in '01' }
 
 	# Find connected components.
 	# A component is identified by the position of its leftmost variant.
 	component_finder = ComponentFinder(phased_positions)
 	phased_positions = set(phased_positions)
 	for read in reads:
-		positions = [ v.position for v in read.variants if v is not None and v.position in phased_positions ]
+		positions = [ position for position, base, allele, quality in read if position in phased_positions ]
 		for position in positions[1:]:
 			component_finder.merge(positions[0], position)
 	components = { position : component_finder.find(position) for position in phased_positions }
-	logger.info('No. of variants considered for phasing: %d', len(phased_variants))
+	logger.info('No. of variants considered for phasing: %d', len(superreads[0]))
 	logger.info('No. of variants that were phased: %d', len(phased_positions))
 	logger.info('No. of components: %d', len(set(components.values())))
 	return components
@@ -495,8 +494,19 @@ def main():
 			logger.info('Filtered reads: %d', unfiltered_length - len(reads))
 			reads = slice_reads(reads, args.max_coverage)[0]
 			logger.info('Phasing the variants ...')
-			superreads = phase_reads(reads, all_het=args.all_het)
-			components = find_components(superreads, reads)
+			
+			# Transform reads into core reads
+			core_reads = ReadSet()
+			for read in reads:
+				core_reads.add(read_to_coreread(read))
+			# Finalizing a read set will sort reads, variants within reads and assign unique read IDs.
+			core_reads.finalize()
+			# Run the core algorithm: construct DP table ...
+			dp_table = DPTable(core_reads, args.all_het)
+			# ... and do the backtrace to get the solution
+			superreads = dp_table.getSuperReads()
+
+			components = find_components(superreads, core_reads)
 			logger.info('Writing chromosome %s ...', chromosome)
 			vcf_writer.write(chromosome, sample, superreads, components)
 

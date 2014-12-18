@@ -121,8 +121,7 @@ class PhasedVcfWriter:
 		self._hp_found_warned = False
 
 	def _format_phasing_info(self, component, phase):
-		assert phase in '01'
-		phase = int(phase)
+		assert phase in [0,1]
 		return '{}-{},{}-{}'.format(component + 1, phase + 1, component + 1, 2 - phase)
 
 	def write(self, chromosome, sample, superreads, components):
@@ -136,7 +135,7 @@ class PhasedVcfWriter:
 		sample_index = self._reader.samples.index(sample)
 
 		# TODO don’t use dicts for *everything* ...
-		phases = { v.position: v.allele for v in superreads[0].variants if v.allele in '01' }
+		phases = { position: allele for position, base, allele, quality in superreads[0] if allele in [0,1] }
 		if self._unprocessed_record is not None:
 			records_iter = itertools.chain([self._unprocessed_record], self._reader_iter)
 		else:
