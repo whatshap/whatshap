@@ -72,6 +72,7 @@ cdef extern from "../src/readset.h":
 		string toString()
 		int size()
 		void finalize()
+		bool isFinalized()
 		Read* get(int)
 		ReadSet* subset(IndexSet*)
 
@@ -94,8 +95,14 @@ cdef class PyReadSet:
 		if isinstance(key,slice):
 			raise NotImplementedError, 'ReadSet doesnt support slices'
 		assert isinstance(key, int)
-		read = PyFrozenRead()
-		read.thisptr = self.thisptr.get(key)
+		cdef PyFrozenRead read = None
+		if self.thisptr.isFinalized():
+			read = PyFrozenRead()
+			read.thisptr = self.thisptr.get(key)
+		else:
+			read = PyRead('',0)
+			read.thisptr = self.thisptr.get(key)
+			read.ownsptr = False
 		return read
 	def finalize(self):
 		self.thisptr.finalize()
