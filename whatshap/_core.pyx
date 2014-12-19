@@ -19,29 +19,34 @@ cdef extern from "../src/read.h":
 		int getBaseQuality(int)
 		int getVariantCount()
 
-cdef class PyRead:
+cdef class PyFrozenRead:
 	cdef Read *thisptr
-	def __cinit__(self, str name, int mapq):
-		# TODO: Is this the best way to handle string arguments?
-		cdef string _name = name.encode('UTF-8')
-		self.thisptr = new Read(_name, mapq)
+	cdef bool ownsptr
+	def __cinit__(self):
+		self.thisptr = NULL
+		self.ownsptr = False
 	def __dealloc__(self):
-		del self.thisptr
+		if self.ownsptr:
+			assert self.thisptr != NULL
+			del self.thisptr
 	def __str__(self):
+		assert self.thisptr != NULL
 		return self.thisptr.toString().decode('utf-8')
-	def addVariant(self, int position, str base, int allele, int quality):
-		assert len(base) == 1
-		self.thisptr.addVariant(position, ord(base[0]), allele, quality)
 	def getMapq(self):
+		assert self.thisptr != NULL
 		return self.thisptr.getMapq()
 	def getName(self):
+		assert self.thisptr != NULL
 		return self.thisptr.getName().decode('utf-8')
 	def __iter__(self):
+		assert self.thisptr != NULL
 		for i in range(len(self)): 
 			yield self[i]
 	def __len__(self):
+		assert self.thisptr != NULL
 		return self.thisptr.getVariantCount()
 	def __getitem__(self, key):
+		assert self.thisptr != NULL
 		if isinstance(key,slice):
 			raise NotImplementedError, 'Read doesnt support slices'
 		assert isinstance(key, int)
@@ -49,32 +54,15 @@ cdef class PyRead:
 			raise IndexError, 'Index out of bounds: {}'.format(key)
 		return (self.thisptr.getPosition(key), chr(self.thisptr.getBase(key)), self.thisptr.getAllele(key),  self.thisptr.getBaseQuality(key))
 
-# TODO: This is (almost) a subset of PyRead. Find a smart way to avoid duplicate code.
-cdef class PyFrozenRead:
-	cdef Read *thisptr
-	def __cinit__(self):
-		self.thisptr = NULL
-	def __dealloc__(self):
-		pass
-	def __str__(self):
-		assert self.thisptr != NULL
-		return self.thisptr.toString().decode('utf-8')
-	def getMapq(self):
-		return self.thisptr.getMapq()
-	def getName(self):
-		return self.thisptr.getName().decode('utf-8')
-	def __iter__(self):
-		for i in range(len(self)): 
-			yield self[i]
-	def __len__(self):
-		return self.thisptr.getVariantCount()
-	def __getitem__(self, key):
-		if isinstance(key,slice):
-			raise NotImplementedError, 'Read doesnt support slices'
-		assert isinstance(key, int)
-		if not (0 <= key < self.thisptr.getVariantCount()):
-			raise IndexError, 'Index out of bounds: {}'.format(key)
-		return (self.thisptr.getPosition(key), chr(self.thisptr.getBase(key)), self.thisptr.getAllele(key),  self.thisptr.getBaseQuality(key))
+cdef class PyRead(PyFrozenRead):
+	def __cinit__(self, str name, int mapq):
+		# TODO: Is this the best way to handle string arguments?
+		cdef string _name = name.encode('UTF-8')
+		self.thisptr = new Read(_name, mapq)
+		self.ownsptr = True
+	def addVariant(self, int position, str base, int allele, int quality):
+		assert len(base) == 1
+		self.thisptr.addVariant(position, ord(base[0]), allele, quality)
 
 # ====== ReadSet ======
 cdef extern from "../src/readset.h":
