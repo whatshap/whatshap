@@ -29,7 +29,8 @@ public:
 	const Entry* getEntry(size_t variant_idx) const;
 	int getVariantCount() const;
 	const std::string& getName() const;
-	int getMapq() const;
+	const std::vector<int>& getMapqs() const;
+	void addMapq(int mapq);
 private:
 	typedef struct enriched_entry_t {
 		Entry entry;
@@ -46,7 +47,7 @@ private:
 	} entry_comparator_t;
 
 	std::string name;
-	int mapq;
+	std::vector<int> mapqs;
 	int id;
 	std::vector<enriched_entry_t> variants;
 };

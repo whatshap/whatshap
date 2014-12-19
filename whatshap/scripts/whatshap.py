@@ -161,9 +161,13 @@ class BamReader:
 				i += 1
 			try:
 				core_read = result.getByName(bam_read.qname)
+				former_length = len(core_read)
 				find_alleles(variants, i, bam_read, core_read)
+				# If variants on the current (part of the) read have been added,
+				# then also record its MAPQ
+				if len(core_read) > former_length:
+					core_read.addMapq(bam_read.mapq)
 			except KeyError:
-				# TODO: right now, we only store MAPQs of first read (of the same name)
 				core_read = Read(bam_read.qname, bam_read.mapq)
 				find_alleles(variants, i, bam_read, core_read)
 				# only add new read if it contained at least one variant

@@ -2,6 +2,7 @@
 # distutils: sources = src/columncostcomputer.cpp src/columnindexingiterator.cpp src/columnindexingscheme.cpp src/dptable.cpp src/entry.cpp src/graycodes.cpp src/read.cpp src/readset.cpp src/columniterator.cpp src/indexset.cpp
 
 from libcpp.string cimport string
+from libcpp.vector cimport vector
 from libcpp cimport bool
 
 # ====== Read ======
@@ -12,7 +13,8 @@ cdef extern from "../src/read.h":
 		string toString()
 		void addVariant(int, char, int, int)
 		string getName()
-		int getMapq()
+		vector[int] getMapqs()
+		void addMapq(int)
 		int getPosition(int)
 		char getBase(int)
 		int getAllele(int)
@@ -32,9 +34,9 @@ cdef class PyFrozenRead:
 	def __str__(self):
 		assert self.thisptr != NULL
 		return self.thisptr.toString().decode('utf-8')
-	def getMapq(self):
+	def getMapqs(self):
 		assert self.thisptr != NULL
-		return self.thisptr.getMapq()
+		return tuple(self.thisptr.getMapqs())
 	def getName(self):
 		assert self.thisptr != NULL
 		return self.thisptr.getName().decode('utf-8')
@@ -63,6 +65,8 @@ cdef class PyRead(PyFrozenRead):
 	def addVariant(self, int position, str base, int allele, int quality):
 		assert len(base) == 1
 		self.thisptr.addVariant(position, ord(base[0]), allele, quality)
+	def addMapq(self, int mapq):
+		self.thisptr.addMapq(mapq)
 
 # ====== ReadSet ======
 cdef extern from "../src/readset.h":

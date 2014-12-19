@@ -7,13 +7,18 @@
 
 using namespace std;
 
-Read::Read(const std::string& name, int mapq) : name(name), mapq(mapq) {
+Read::Read(const std::string& name, int mapq) : name(name), mapqs(1, mapq) {
 	this->id = -1;
 }
 
 string Read::toString() {
 	ostringstream oss;
-	oss << name << " " << mapq << " (";
+	oss << name << " (";
+	for (size_t i=0; i<mapqs.size(); ++i) {
+		if (i>0) oss << ",";
+		oss << mapqs[i];
+	}
+	oss << ") (";
 	for (size_t i=0; i<variants.size(); ++i) {
 		if (i>0) oss << ";";
 		oss << "[" << variants[i].position << "," << variants[i].base << "," << variants[i].entry << "]";
@@ -97,6 +102,10 @@ const string& Read::getName() const {
 	return name;
 }
 
-int Read::getMapq() const {
-	return mapq;
+const vector<int>& Read::getMapqs() const {
+	return mapqs;
+}
+
+void Read::addMapq(int mapq) {
+	mapqs.push_back(mapq);
 }
