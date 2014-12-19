@@ -29,7 +29,6 @@ import pysam
 from ..vcf import parse_vcf, PhasedVcfWriter
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
-from ..phase import ReadVariantList, ReadVariant, read_to_coreread
 from ..core import Read, ReadSet, DPTable, IndexSet
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
