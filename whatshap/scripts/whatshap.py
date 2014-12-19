@@ -195,20 +195,6 @@ class CoverageMonitor:
 		for i in range(begin, end):
 			self.coverage[i] += 1
 
-
-def position_set(reads):
-	"""
-	TODO creating a wrapper for ReadSet.get_positions would obsolete this function (and save runtime)
-	Return a set of all variant positions that occur within a list of reads.
-
-	reads -- a ReadSet
-	"""
-	positions = set()
-	for read in reads:
-		positions.update(position for position, base, allele, quality in read)
-	return positions
-
-
 def slice_reads(reads, max_coverage):
 	"""
 	Iterate over all read in random order and greedily retain those reads whose
@@ -221,7 +207,7 @@ def slice_reads(reads, max_coverage):
 	shuffled_indices = list(range(len(reads)))
 	random.shuffle(shuffled_indices)
 
-	position_list = sorted(position_set(reads))
+	position_list = reads.getPositions()
 	logger.info('Found %d SNP positions', len(position_list))
 
 	# dictionary to map SNP position to its index

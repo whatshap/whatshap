@@ -80,6 +80,7 @@ cdef extern from "../src/readset.h":
 		Read* get(int)
 		Read* getByName(string)
 		ReadSet* subset(IndexSet*)
+		vector[unsigned int]* get_positions()
 
 cdef class PyReadSet:
 	cdef ReadSet *thisptr
@@ -131,6 +132,8 @@ cdef class PyReadSet:
 		del result.thisptr
 		result.thisptr = self.thisptr.subset(index_set.thisptr)
 		return result
+	def getPositions(self):
+		return self.thisptr.get_positions()[0]
 
 # ====== ColumnIterator ======
 cdef extern from "../src/columniterator.h":
