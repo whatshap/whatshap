@@ -50,6 +50,10 @@ void ReadSet::finalize() {
 	finalized = true;
 }
 
+bool ReadSet::isFinalized() const {
+	return finalized;
+}
+
 const vector<unsigned int>* ReadSet::get_positions() const {
 	if (!finalized) throw std::runtime_error("ReadSet::get_positions: can only be called after finalization");
 	return positions;

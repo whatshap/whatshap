@@ -18,6 +18,7 @@ public:
 	/** Sorts reads and variants within reads and assigns unique read identifiers. 
 	 *  After calling finalize(), the read set becomes "frozen" and cannot be modified. **/
 	void finalize();
+	bool isFinalized() const;
 	/** Returns the set of SNP positions. Can only be called after finalization. */
 	const std::vector<unsigned int>* get_positions() const;
 	unsigned int size() const;
