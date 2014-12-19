@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "read.h"
 #include "indexset.h"
@@ -25,6 +26,8 @@ public:
 	std::string toString();
 	/** Access a read in the set. Ownership stays with the ReadSet. */
 	Read* get(int i) const;
+	/** Access a read in the set by its name. Ownership stays with the ReadSet. */
+	Read* getByName(std::string name) const;
 	/** Creates a subset of reads as given by the set of indices. Note that this
 	 *  creates a COPY of each read.
 	 */
@@ -38,6 +41,9 @@ private:
 	} read_comparator_t;
 
 	std::vector<Read*> reads;
+	// Maps names of reads it their index in the "reads" vector
+	typedef std::unordered_map<std::string,size_t> read_name_map_t;
+	read_name_map_t read_name_map;
 	std::vector<unsigned int>* positions;
 	bool finalized;
 	friend class ColumnIterator;

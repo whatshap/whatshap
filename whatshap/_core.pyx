@@ -74,6 +74,7 @@ cdef extern from "../src/readset.h":
 		void finalize()
 		bool isFinalized()
 		Read* get(int)
+		Read* getByName(string)
 		ReadSet* subset(IndexSet*)
 
 cdef class PyReadSet:
@@ -104,6 +105,20 @@ cdef class PyReadSet:
 			read.thisptr = self.thisptr.get(key)
 			read.ownsptr = False
 		return read
+	def getByName(self, name):
+		cdef string _name = name.encode('UTF-8')
+		cdef Read* cread = self.thisptr.getByName(_name)
+		cdef PyFrozenRead read = None
+		if cread == NULL:
+			raise KeyError(name)
+		else:
+			if self.thisptr.isFinalized():
+				read = PyFrozenRead()
+			else:
+				read = PyRead('',0)
+			read.thisptr = cread
+			read.ownsptr = False
+			return read
 	def finalize(self):
 		self.thisptr.finalize()
 	def subset(self, PyIndexSet index_set):
