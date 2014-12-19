@@ -28,6 +28,13 @@ void Read::addVariant(int position, char base, int allele, int quality) {
 
 void Read::sortVariants() {
 	sort(variants.begin(), variants.end(), entry_comparator_t());
+	for (size_t i=1; i<variants.size(); ++i) {
+		if (variants[i-1].position == variants[i].position) {
+			ostringstream oss;
+			oss << "Duplicate variant in read " << name << " at position " << variants[i].position;
+			throw std::runtime_error(oss.str());
+		}
+	}
 }
 
 int Read::firstPosition() const {
