@@ -40,10 +40,27 @@ string ReadSet::toString() {
 
 void ReadSet::finalize() {
 	if (finalized) throw std::runtime_error("Cannot finalize a finalized ReadSet");
+	
+	// Filter reads: only retain those with at least 2 variants
+	vector<Read*> filtered_reads;
+	for (size_t i=0; i<reads.size(); ++i) {
+		if (reads[i]->getVariantCount() >= 2) {
+			filtered_reads.push_back(reads[i]);
+		} else {
+			delete reads[i];
+		}
+	}
+	reads.assign(filtered_reads.begin(), filtered_reads.end());
+	
+	// Sort the variants in the remaining reads
 	for (size_t i=0; i<reads.size(); ++i) {
 		reads[i]->sortVariants();
 	}
+	
+	// Sort the reads by position
 	sort(reads.begin(), reads.end(), read_comparator_t());
+	
+	// Create set of covered positions and update read_name_map
 	unordered_set<unsigned int> position_set;
 	read_name_map.clear();
 	for (size_t i=0; i<reads.size(); ++i) {
