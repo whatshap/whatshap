@@ -37,18 +37,19 @@ __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel M
 logger = logging.getLogger(__name__)
 
 
-def find_alleles(variants, start, read):
+def find_alleles(variants, start, bam_read, core_read):
 	"""
-
+	Checks whether the bam_read covers some of the variants in variants[start:] and, if so,
+	adds this information to the given core_read object.
 	"""
-	pos = read.pos
-	cigar = read.cigar
+	pos = bam_read.pos
+	cigar = bam_read.cigar
 
 	c = 0  # hit count
 	j = start  # index into variants list
 	p = pos
 	s = 0  # absolute index into the read string [0..len(read)]
-	read_variants = []
+	errors = 0
 	for cigar_op, length in cigar:
 		# The mapping of CIGAR operators to numbers is:
 		# MIDNSHPX= => 012345678
@@ -63,15 +64,16 @@ def find_alleles(variants, start, read):
 			# check whether any of them coincide with one of the SNPs ('hit')
 			while j < len(variants) and p < r:
 				if variants[j].position == p:  # we have a hit
-					base = read.seq[s:s+1]
+					base = bam_read.seq[s:s+1]
+					al = None
 					if base == variants[j].reference_allele:
-						al = '0'  # REF allele
+						al = 0  # REF allele
 					elif base == variants[j].alternative_allele:
-						al = '1'  # ALT allele
+						al = 1  # ALT allele
 					else:
-						al = 'E' # for "error" (keep for stats purposes)
-					rv = ReadVariant(position=p, base=base, allele=al, quality=ord(read.qual[s:s+1])-33)
-					read_variants.append(rv)
+						errors += 1
+					if al != None:
+						core_read.addVariant(p, base, al, ord(bam_read.qual[s:s+1])-33)
 					c += 1
 					j += 1
 				s += 1 # advance both read and reference
@@ -89,7 +91,7 @@ def find_alleles(variants, start, read):
 		else:
 			logger.error("Unsupported CIGAR operation: %d", cigar_op)
 			sys.exit(1)
-	return read_variants
+	return errors
 
 
 class BamReader:
@@ -128,39 +130,45 @@ class BamReader:
 		sample -- name of sample to work on. If None, read group information is
 			ignored and all reads in the file are used.
 
-		Return a list of ReadVariantList objects.
+		Returns (finalized) ReadSet object.
 		"""
 		if sample is not None:
 			read_groups = self._sample_to_group_ids[sample]
 
-		# resulting list of ReadVariantList objects
-		result = []
+		# resulting set of reads
+		result = ReadSet()
 
 		i = 0  # keep track of position in variants array (which is in order)
-		for read in self._samfile.fetch(chromosome):
-			if sample is not None and not read.opt('RG') in read_groups:
+		for bam_read in self._samfile.fetch(chromosome):
+			if sample is not None and not bam_read.opt('RG') in read_groups:
 				continue
 			# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
-			if read.flag & 2048 != 0:
-				# print('Skipping additional alignment for read ', read.qname)
+			if bam_read.flag & 2048 != 0:
+				# print('Skipping additional alignment for read ', bam_read.qname)
 				continue
-			if read.is_secondary:
+			if bam_read.is_secondary:
 				continue
-			if read.is_unmapped:
+			if bam_read.is_unmapped:
 				continue
-			if read.mapq < self._mapq_threshold:
+			if bam_read.mapq < self._mapq_threshold:
 				continue
-			if not read.cigar:
+			if not bam_read.cigar:
 				continue
 
 			# since reads are ordered by position, we need not consider
 			# positions that are too small
-			while i < len(variants) and variants[i].position < read.pos:
+			while i < len(variants) and variants[i].position < bam_read.pos:
 				i += 1
-			read_variants = find_alleles(variants, i, read)
-			if read_variants:
-				rvl = ReadVariantList(name=read.qname, mapq=read.mapq, variants=read_variants)
-				result.append(rvl)
+			try:
+				core_read = result.getByName(bam_read.qname)
+				find_alleles(variants, i, bam_read, core_read)
+			except KeyError:
+				# TODO: right now, we only store MAPQs of first read (of the same name)
+				core_read = Read(bam_read.qname, bam_read.mapq)
+				find_alleles(variants, i, bam_read, core_read)
+				# only add new read if it contained at least one variant
+				if len(core_read) > 0:
+					result.add(core_read)
 		return result
 
 	def __enter__(self):
@@ -171,86 +179,6 @@ class BamReader:
 
 	def close(self):
 		self._samfile.close()
-
-
-def grouped_by_name(reads_with_variants):
-	"""
-	Group an input list of reads into a list of lists where each
-	sublist is a slice of the input list that contains reads with the same name.
-
-	Example (only read names are shown here):
-	['A', 'A', 'B', 'C', 'C']
-	->
-	[['A', 'A'], ['B'], ['C', 'C']]
-	"""
-	result = []
-	prev = None
-	current = []
-	for read in reads_with_variants:
-		if prev and read.name != prev.name:
-			result.append(current)
-			current = []
-		current.append(read)
-		prev = read
-	result.append(current)
-	return result
-
-
-def merge_paired_reads(reads):
-	"""
-	Merge reads that occur twice (according to their name) into a single read.
-	This is relevant for paired-end or mate pair reads.
-
-	The ``variants`` attribute of a merged read contains the variants lists of
-	both reads, separated by "None". For a merged read, the ``mapq`` attribute
-	is a tuple consisting of the two original mapping qualities.
-
-	Reads that occur only once are returned unchanged.
-	"""
-	result = []
-	for group in grouped_by_name(reads):
-		if len(group) == 1:
-			result.append(group[0])
-		elif len(group) == 2:
-			merged_variants = group[0].variants + [None] + group[1].variants
-			merged_read = ReadVariantList(name=group[0].name, mapq=(group[0].mapq, group[1].mapq), variants=merged_variants)
-			result.append(merged_read)
-		else:
-			assert len(group) <= 2, "More than two reads with the same name found"
-	return result
-
-
-def filter_reads(reads, mincount=2):
-	"""
-	Return a new list in which reads are omitted that fulfill at least one of
-	these conditions:
-
-	- one of the read's variants' alleles is 'E'
-
-	- variant positions are not strictly monotonically increasing.
-
-	mincount -- If the number of variants on a read occurring once or the
-		total number of variants on a paired-end read is lower than this
-		value, the read (or read pair) is discarded.
-	"""
-	result = []
-	for read in reads:
-		prev_pos = -1
-		for variant in read.variants:
-			if variant is None:
-				continue
-			if not prev_pos < variant.position:
-				break
-			if variant.allele == 'E':
-				break
-			assert variant.base in 'ACGT01-X', 'variant.base={!r}'.format(variant.base)
-			prev_pos = variant.position
-		else:
-			# executed when no break occurred above
-			if len(read.variants) >= mincount:
-				result.append(read)
-	return result
-
 
 class CoverageMonitor:
 	'''TODO: This is a most simple, naive implementation. Could do this smarter.'''
@@ -479,25 +407,11 @@ def main():
 			if args.ignore_read_groups:
 				sample = None
 			logger.info('Reading the BAM file ...')
-			reads_with_variants = bam_reader.read(chromosome, variants, sample)
-			reads_with_variants.sort(key=lambda read: read.name)
-			reads = merge_paired_reads(reads_with_variants)
-
-			# sort by position of first variant
-			#reads.sort(key=lambda read: read.variants[0].position)
-
-			unfiltered_length = len(reads)
-			reads = filter_reads(reads)
-			logger.info('Filtered reads: %d', unfiltered_length - len(reads))
-
-			# Transform reads into core reads
-			core_reads = ReadSet()
-			for read in reads:
-				core_reads.add(read_to_coreread(read))
-			# Finalizing a read set will sort reads, variants within reads and assign unique read IDs.
-			core_reads.finalize()
 			
-			sliced_reads = slice_reads(core_reads, args.max_coverage)
+			reads = bam_reader.read(chromosome, variants, sample)
+			reads.finalize()
+			
+			sliced_reads = slice_reads(reads, args.max_coverage)
 			logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 			
 			# Run the core algorithm: construct DP table ...
