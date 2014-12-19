@@ -87,9 +87,7 @@ cdef class PyReadSet:
 		return self.thisptr.toString().decode('utf-8')
 	def __iter__(self):
 		for i in range(self.thisptr.size()):
-			read = PyFrozenRead()
-			read.thisptr = self.thisptr.get(i)
-			yield read
+			yield self[i]
 	def __len__(self):
 		return self.thisptr.size()
 	def __getitem__(self, key):
