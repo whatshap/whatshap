@@ -202,7 +202,7 @@ def position_set(reads):
 	TODO creating a wrapper for ReadSet.get_positions would obsolete this function (and save runtime)
 	Return a set of all variant positions that occur within a list of reads.
 
-	reads -- a list of ReadVariantList objects
+	reads -- a ReadSet
 	"""
 	positions = set()
 	for read in reads:
@@ -212,11 +212,12 @@ def position_set(reads):
 
 def slice_reads(reads, max_coverage):
 	"""
-	TODO document this
-	TODO document that fragment (not read) coverage is used
+	Iterate over all read in random order and greedily retain those reads whose
+	addition does not lead to a local physical coverage exceeding the given threshold.
+	Return a ReadSet containing the retained reads.
 
-	max_coverage --
-	reads -- a list of ReadVariantList objects
+	max_coverage -- Slicing ensures that the (physical) coverage does not exceed max_coverage anywhere along the chromosome.
+	reads -- a ReadSet
 	"""
 	shuffled_indices = list(range(len(reads)))
 	random.shuffle(shuffled_indices)
