@@ -1,7 +1,7 @@
 include whatshap/_core.pyx
 include src/read.h src/entry.h src/readset.h src/columniterator.h src/dptable.h
 include src/columnindexingscheme.h src/columncostcomputer.h
-include src/columnindexingiterator.h src/graycodes.h
+include src/columnindexingiterator.h src/graycodes.h src/indexset.h
 include doc/*.rst
 include doc/conf.py
 include doc/Makefile

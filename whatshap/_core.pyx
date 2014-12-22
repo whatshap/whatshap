@@ -1,5 +1,7 @@
-# distutils: language = c++
-# distutils: sources = src/columncostcomputer.cpp src/columnindexingiterator.cpp src/columnindexingscheme.cpp src/dptable.cpp src/entry.cpp src/graycodes.cpp src/read.cpp src/readset.cpp src/columniterator.cpp src/indexset.cpp
+# Do not use the distutils directives here, but configure everything in
+# setup.py, such as language and sources. It would work during development, but
+# during a regular installation, the module will be compiled from the
+# pre-generated .c file and the .pyx file is not read.
 
 from libcpp.string cimport string
 from libcpp.vector cimport vector

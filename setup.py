@@ -89,7 +89,7 @@ extensions = [
 			'src/columncostcomputer.cpp', 'src/columnindexingiterator.cpp',
 			'src/columnindexingscheme.cpp', 'src/dptable.cpp',
 			'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',
-			'src/readset.cpp', 'src/columniterator.cpp'
+			'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp'
 		], language='c++', extra_compile_args=["-std=c++0x"],),
 ]
 extensions = cythonize_if_necessary(extensions)
