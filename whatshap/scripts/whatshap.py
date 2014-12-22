@@ -271,17 +271,17 @@ class Node:
 
 class ComponentFinder:
 	"""
+	Find connected components. A ComponentFinder is initialized with a list of
+	values. These are initially partitioned such that each value is in a
+	separate set. By calling merge(x, y), the two sets containing values x and
+	y are merged. Calling find(x) returns a "representative" value of the set
+	that value x is in. x and y are in the same set iff find(x) == find(y).
+	The representative is always the minimum value of the set.
+
 	This implements a variant of the Union-Find algorithm, but without the
 	"union by rank" strategy since we want the smallest node to be the
-	representative.
-
-	TODO
-	It's probably possible to use union by rank and still have the
-	representative be the smallest node (possibly need to keep track of the
-	minimum somewhere).
-
-	We probably should not worry too much since there is already logarithmic
-	overhead due to dictionary lookups.
+	representative. It could perhaps be optimized, but this function is not
+	the current bottleneck.
 	"""
 	def __init__(self, values):
 		self.nodes = { x: Node(x, None) for x in values }
@@ -294,7 +294,7 @@ class ComponentFinder:
 		if x_root is y_root:
 			return
 
-		# Merge, making sure that the node with the smaller value is the
+		# Merge while making sure that the node with the smaller value is the
 		# new parent.
 		if x_root.value < y_root.value:
 			y_root.parent = x_root
@@ -351,7 +351,7 @@ def ensure_pysam_version():
 	from pysam import __version__ as pysam_version
 	from distutils.version import LooseVersion
 	if LooseVersion(pysam_version) < LooseVersion("0.8.1"):
-		sys.exit("You need to use pysam >= 0.8.1 with WhatsHap")
+		sys.exit("You need to use WhatsHap with pysam >= 0.8.1")
 
 
 def main():
