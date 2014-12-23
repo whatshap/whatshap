@@ -31,7 +31,7 @@ const vector<unsigned int>* ColumnIterator::get_positions() {
 }
 
 bool ColumnIterator::has_next() {
-	return n < set.positions->size();
+	return n < set.get_positions()->size();
 }
 
 auto_ptr<vector<const Entry*> > ColumnIterator::get_next() {
