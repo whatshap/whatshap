@@ -38,8 +38,8 @@ logger = logging.getLogger(__name__)
 
 def find_alleles(variants, start, bam_read, core_read):
 	"""
-	Checks whether the bam_read covers some of the variants in variants[start:] and, if so,
-	adds this information to the given core_read object.
+	Check whether the bam_read covers some of the variants in variants[start:] and, if so,
+	add this information to the given core_read object.
 	"""
 	pos = bam_read.pos
 	cigar = bam_read.cigar
@@ -129,7 +129,7 @@ class BamReader:
 		sample -- name of sample to work on. If None, read group information is
 			ignored and all reads in the file are used.
 
-		Returns (finalized) ReadSet object.
+		Return a (finalized) ReadSet object.
 		"""
 		if sample is not None:
 			read_groups = self._sample_to_group_ids[sample]
@@ -154,7 +154,7 @@ class BamReader:
 			if not bam_read.cigar:
 				continue
 
-			# since reads are ordered by position, we need not consider
+			# since reads are ordered by position, we do not need to consider
 			# positions that are too small
 			while i < len(variants) and variants[i].position < bam_read.pos:
 				i += 1
@@ -183,6 +183,7 @@ class BamReader:
 	def close(self):
 		self._samfile.close()
 
+
 class CoverageMonitor:
 	'''TODO: This is a most simple, naive implementation. Could do this smarter.'''
 	def __init__(self, length):
@@ -194,6 +195,7 @@ class CoverageMonitor:
 	def add_read(self, begin, end):
 		for i in range(begin, end):
 			self.coverage[i] += 1
+
 
 def slice_reads(reads, max_coverage):
 	"""
@@ -325,11 +327,11 @@ class ComponentFinder:
 def find_components(superreads, reads):
 	"""
 	"""
-	logger.info('Finding components ...')
+	logger.info('Finding connected components ...')
 	assert len(superreads) == 2
 	assert len(superreads[0]) == len(superreads[1])
 
-	phased_positions = [ position for position, base, allele, quality in superreads[0] if allele in [0,1] ]  # TODO set()
+	phased_positions = [ position for position, base, allele, quality in superreads[0] if allele in [0, 1] ]  # TODO set()
 	assert phased_positions == sorted(phased_positions)
 
 	# Find connected components.
@@ -351,7 +353,7 @@ def ensure_pysam_version():
 	from pysam import __version__ as pysam_version
 	from distutils.version import LooseVersion
 	if LooseVersion(pysam_version) < LooseVersion("0.8.1"):
-		sys.exit("You need to use WhatsHap with pysam >= 0.8.1")
+		sys.exit("WhatsHap requires pysam >= 0.8.1")
 
 
 def main():
@@ -397,20 +399,20 @@ def main():
 			if args.ignore_read_groups:
 				sample = None
 			logger.info('Reading the BAM file ...')
-			
+
 			reads = bam_reader.read(chromosome, variants, sample)
 			reads.finalize()
-			
+
 			sliced_reads = slice_reads(reads, args.max_coverage)
 			logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
-			
+
 			# Run the core algorithm: construct DP table ...
 			dp_table = DPTable(sliced_reads, args.all_het)
 			# ... and do the backtrace to get the solution
 			superreads = dp_table.getSuperReads()
 
 			components = find_components(superreads, sliced_reads)
-			logger.info('Writing chromosome %s ...', chromosome)
+			logger.info('Writing phased variants on chromosome %s ...', chromosome)
 			vcf_writer.write(chromosome, sample, superreads, components)
 
 	logger.info('Elapsed time: %.1fs', time.time() - start_time)

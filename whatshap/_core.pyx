@@ -122,7 +122,7 @@ cdef class PyReadSet:
 
 	def __getitem__(self, key):
 		if isinstance(key, slice):
-			raise NotImplementedError('ReadSet doesnt support slices')
+			raise NotImplementedError('ReadSet does not support slices')
 		assert isinstance(key, int)
 		cdef PyFrozenRead read = None
 		if self.thisptr.isFinalized():
