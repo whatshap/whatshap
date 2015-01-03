@@ -13,6 +13,7 @@ def test_readset():
 
 def test_empty_readset():
 	rs = ReadSet()
-	# TODO Segfault in the following line
+	rs.finalize()
 	dp_table = DPTable(rs, all_heterozygous=False)
+	# TODO C++ exception in the following line
 	superreads = dp_table.getSuperReads()
