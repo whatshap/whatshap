@@ -12,17 +12,17 @@ cdef extern from "../src/read.h":
 	cdef cppclass Read:
 		Read(string, int) except +
 		Read(Read) except +
-		string toString()
-		void addVariant(int, char, int, int)
-		string getName()
-		vector[int] getMapqs()
-		void addMapq(int)
-		int getPosition(int)
-		char getBase(int)
-		int getAllele(int)
-		int getBaseQuality(int)
-		int getVariantCount()
-		void sortVariants()
+		string toString() except +
+		void addVariant(int, char, int, int) except +
+		string getName() except +
+		vector[int] getMapqs() except +
+		void addMapq(int) except +
+		int getPosition(int) except +
+		char getBase(int) except +
+		int getAllele(int) except +
+		int getBaseQuality(int) except +
+		int getVariantCount() except +
+		void sortVariants() except +
 
 
 cdef class PyFrozenRead:
@@ -91,14 +91,15 @@ cdef class PyRead(PyFrozenRead):
 cdef extern from "../src/readset.h":
 	cdef cppclass ReadSet:
 		ReadSet() except +
-		void add(Read*)
-		string toString()
-		int size()
-		void finalize()
-		bool isFinalized()
-		Read* get(int)
-		Read* getByName(string)
-		ReadSet* subset(IndexSet*)
+		void add(Read*) except +
+		string toString() except +
+		int size() except +
+		void finalize() except +
+		bool isFinalized() except +
+		Read* get(int) except +
+		Read* getByName(string) except +
+		ReadSet* subset(IndexSet*) except +
+		# TODO: Check why adding "except +" here doesn't compile
 		vector[unsigned int]* get_positions()
 
 
@@ -177,8 +178,8 @@ cdef extern from "../src/columniterator.h":
 cdef extern from "../src/dptable.h":
 	cdef cppclass DPTable:
 		DPTable(ReadSet*, bool) except +
-		void compute_table()
-		void get_super_reads(ReadSet*)
+		void compute_table() except +
+		void get_super_reads(ReadSet*) except +
 
 
 cdef class PyDPTable:
@@ -200,10 +201,10 @@ cdef class PyDPTable:
 cdef extern from "../src/indexset.h":
 	cdef cppclass IndexSet:
 		IndexSet() except +
-		bool contains(int)
-		void add(int)
-		int size()
-		string toString()
+		bool contains(int) except +
+		void add(int) except +
+		int size() except +
+		string toString() except +
 
 
 cdef class PyIndexSet:
