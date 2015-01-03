@@ -22,6 +22,7 @@ cdef extern from "../src/read.h":
 		int getAllele(int)
 		int getBaseQuality(int)
 		int getVariantCount()
+		void sortVariants()
 
 
 cdef class PyFrozenRead:
@@ -81,6 +82,9 @@ cdef class PyRead(PyFrozenRead):
 
 	def addMapq(self, int mapq):
 		self.thisptr.addMapq(mapq)
+
+	def sort(self):
+		self.thisptr.sortVariants()
 
 
 # ====== ReadSet ======
