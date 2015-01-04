@@ -273,19 +273,23 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
 
   Read* r0 = new Read("superread0", -1);
   Read* r1 = new Read("superread1", -1);
+  
+  if (backtrace_table.empty()) {
+    assert(!column_iterator.has_next());
+  } else {
+    // run through the file again with the column_iterator
+    unsigned int i = 0; // column index
+    auto_ptr<vector<unsigned int> > index_path = get_index_path();
+    while (column_iterator.has_next()) {
+      unsigned int index = index_path->at(i);
+      auto_ptr<vector<const Entry *> > column = column_iterator.get_next();
+      ColumnCostComputer cost_computer(*column, all_heterozygous);
+      cost_computer.set_partitioning(index);
 
-  // run through the file again with the column_iterator
-  unsigned int i = 0; // column index
-  auto_ptr<vector<unsigned int> > index_path = get_index_path();
-  while (column_iterator.has_next()) {
-    unsigned int index = index_path->at(i);
-    auto_ptr<vector<const Entry *> > column = column_iterator.get_next();
-    ColumnCostComputer cost_computer(*column, all_heterozygous);
-    cost_computer.set_partitioning(index);
-
-    r0->addVariant(positions->at(i), '?', cost_computer.get_allele(0), cost_computer.get_weight(0));
-    r1->addVariant(positions->at(i), '?', cost_computer.get_allele(1), cost_computer.get_weight(1));
-    ++i; // next column
+      r0->addVariant(positions->at(i), '?', cost_computer.get_allele(0), cost_computer.get_weight(0));
+      r1->addVariant(positions->at(i), '?', cost_computer.get_allele(1), cost_computer.get_weight(1));
+      ++i; // next column
+    }
   }
 
   output_read_set->add(r0);
