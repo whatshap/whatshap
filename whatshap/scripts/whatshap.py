@@ -266,6 +266,8 @@ def slice_reads(reads, max_coverage):
 
 def find_components(superreads, reads):
 	"""
+	Return a dict that maps each position to the component it is in. A
+	component is identified by the position of its leftmost variant.
 	"""
 	logger.info('Finding connected components ...')
 	assert len(superreads) == 2
@@ -285,8 +287,28 @@ def find_components(superreads, reads):
 	components = { position : component_finder.find(position) for position in phased_positions }
 	logger.info('No. of variants considered for phasing: %d', len(superreads[0]))
 	logger.info('No. of variants that were phased: %d', len(phased_positions))
-	logger.info('No. of components: %d', len(set(components.values())))
 	return components
+
+
+def best_case_blocks(reads):
+	"""
+	Given a list of core reads, determine the number of phased blocks that
+	would result if each variant were actually phased.
+
+	Return the number of connected components.
+	"""
+	positions = set()
+	for read in reads:
+		for position, _, _, _ in read:
+			positions.add(position)
+	component_finder = ComponentFinder(positions)
+	for read in reads:
+		read_positions = [ position for position, _, _, _ in read ]
+		for position in read_positions[1:]:
+			component_finder.merge(read_positions[0], position)
+	# A dict that maps each position to the component it is in.
+	components = { component_finder.find(position) for position in positions }
+	return len(components)
 
 
 def ensure_pysam_version():
@@ -344,6 +366,8 @@ def main():
 			reads.finalize()
 
 			sliced_reads = slice_reads(reads, args.max_coverage)
+			logger.info('Best-case phasing would result in %d phased blocks (%d with slicing)',
+				best_case_blocks(reads), best_case_blocks(sliced_reads))
 			logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 
 			# Run the core algorithm: construct DP table ...
@@ -352,6 +376,7 @@ def main():
 			superreads = dp_table.getSuperReads()
 
 			components = find_components(superreads, sliced_reads)
+			logger.info('No. of phased blocks: %d', len(set(components.values())))
 			logger.info('Writing phased variants on chromosome %s ...', chromosome)
 			vcf_writer.write(chromosome, sample, superreads, components)
 
