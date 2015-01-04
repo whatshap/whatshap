@@ -18,7 +18,6 @@ def test_readset():
 	r.addVariant(101, 'C', 0, 18)
 	rs.add(r)
 
-	# TODO This entry is automatically filtered out when added to the ReadSet.
 	r = Read('Read B', 0)
 	r.addVariant(100, 'C', 0, 23)
 	rs.add(r)
@@ -29,7 +28,7 @@ def test_readset():
 	rs.add(r)
 
 	rs.finalize()
-	assert len(rs) == 2
+	assert len(rs) == 3
 
 
 def test_phase_empty_readset():
