@@ -113,6 +113,10 @@ cdef class PyReadSet:
 		del self.thisptr
 
 	def add(self, PyRead read):
+		"""Adds a read to the set. 
+		WARNING: this will internally create a copy of the wrapped C++ Read object,
+		so that subsequent changes to the Read don't affect the 
+		newly created copy that is added to the ReadSet."""
 		self.thisptr.add(new Read(read.thisptr[0]))
 
 	def __str__(self):
