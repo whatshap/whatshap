@@ -13,6 +13,12 @@ def test_read():
 	r.sort()
 	assert r.isSorted()
 
+	assert 100 in r
+	assert 23 in r
+	assert not 22 in r
+	assert not 24 in r
+	assert not 1000 in r
+	assert not -1000 in r
 
 def test_empty_readset():
 	rs = ReadSet()

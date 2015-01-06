@@ -74,6 +74,14 @@ cdef class PyRead:
 		if not (0 <= key < self.thisptr.getVariantCount()):
 			raise IndexError('Index out of bounds: {}'.format(key))
 		return (self.thisptr.getPosition(key), chr(self.thisptr.getBase(key)), self.thisptr.getAllele(key), self.thisptr.getBaseQuality(key))
+		
+	def __contains__(self, position):
+		assert self.thisptr != NULL
+		assert isinstance(position, int)
+		for var_pos, base, allele, quality in self:
+			if var_pos == position:
+				return True
+		return False
 
 	def addVariant(self, int position, str base, int allele, int quality):
 		assert self.thisptr != NULL
