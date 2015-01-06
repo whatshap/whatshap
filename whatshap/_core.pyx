@@ -189,12 +189,22 @@ cdef class PyDPTable:
 	cdef DPTable *thisptr
 
 	def __cinit__(self, PyReadSet readset, all_heterozygous):
+		"""Build the DP table from the given read set which is assumed to be sorted;
+		that is, the variants in each read must be sorted by position and the reads
+		in the read set must also be sorted (by position of their left-most variant).
+		"""
 		self.thisptr = new DPTable(readset.thisptr, all_heterozygous)
 
 	def __dealloc__(self):
 		del self.thisptr
 
 	def getSuperReads(self):
+		"""Obtain optimal-score haplotypes.
+		IMPORTANT: The ReadSet given at construction time must not have been altered.
+		DPTable retained a pointer to this set and will access it again. If it has
+		been altered, behavior is undefined.
+		TODO: Change that.
+		"""
 		result = PyReadSet()
 		self.thisptr.get_super_reads(result.thisptr)
 		return result
