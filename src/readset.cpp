@@ -36,16 +36,9 @@ string ReadSet::toString() {
 	return oss.str();
 }
 
-void ReadSet::finalize() {
-	if (finalized) throw std::runtime_error("Cannot finalize a finalized ReadSet");
-	
-	// Sort the variants in the remaining reads
-	for (size_t i=0; i<reads.size(); ++i) {
-		reads[i]->sortVariants();
-	}
-	
+void ReadSet::sort() {
 	// Sort the reads by position
-	sort(reads.begin(), reads.end(), read_comparator_t());
+	std::sort(reads.begin(), reads.end(), read_comparator_t());
 	
 	// Update read_name_map
 	read_name_map.clear();
@@ -53,6 +46,18 @@ void ReadSet::finalize() {
 		reads[i]->setID(i);
 		read_name_map[reads[i]->getName()] = i;
 	}
+}
+
+void ReadSet::finalize() {
+	if (finalized) throw std::runtime_error("Cannot finalize a finalized ReadSet");
+
+	// Sort the variants in the remaining reads
+	for (size_t i=0; i<reads.size(); ++i) {
+		reads[i]->sortVariants();
+	}
+
+	this->sort();
+
 	finalized = true;
 }
 
@@ -66,7 +71,7 @@ vector<unsigned int>* ReadSet::get_positions() const {
 		reads[i]->addPositionsToSet(&position_set);
 	}
 	vector<unsigned int>* positions = new vector<unsigned int>(position_set.begin(), position_set.end());
-	sort(positions->begin(), positions->end());
+	std::sort(positions->begin(), positions->end());
 	return positions;
 }
 

@@ -21,6 +21,8 @@ public:
 	 * "frozen" and cannot be modified. 
 	 **/
 	void finalize();
+	/** Sort reads by first variant position. */
+	void sort();
 	bool isFinalized() const;
 	/** Returns the set of SNP positions. To create this set,
 	 *  this method iterates over all contained reads.

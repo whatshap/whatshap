@@ -94,6 +94,7 @@ cdef extern from "../src/readset.h":
 		void add(Read*) except +
 		string toString() except +
 		int size() except +
+		void sort() except +
 		void finalize() except +
 		bool isFinalized() except +
 		Read* get(int) except +
@@ -157,6 +158,12 @@ cdef class PyReadSet:
 			read.thisptr = cread
 			read.ownsptr = False
 			return read
+
+	def sort(self):
+		"""Sort contained reads by the position of the first variant they contain. Note that 
+		this is not necessarily the variant with the lowest position, unless sort() has been 
+		called on all contained reads. Ties are resolved by comparing the read name."""
+		self.thisptr.sort()
 
 	def finalize(self):
 		self.thisptr.finalize()
