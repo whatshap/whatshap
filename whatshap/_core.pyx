@@ -24,14 +24,20 @@ cdef extern from "../src/read.h":
 		int getVariantCount() except +
 		void sortVariants() except +
 
-
-cdef class PyFrozenRead:
+cdef class PyRead:
 	cdef Read *thisptr
 	cdef bool ownsptr
 
-	def __cinit__(self):
-		self.thisptr = NULL
-		self.ownsptr = False
+	def __cinit__(self, str name = None, int mapq = 0):
+		cdef string _name = ''
+		if name is None:
+			self.thisptr = NULL
+			self.ownsptr = False
+		else:
+			# TODO: Is this the best way to handle string arguments?
+			_name = name.encode('UTF-8')
+			self.thisptr = new Read(_name, mapq)
+			self.ownsptr = True
 
 	def __dealloc__(self):
 		if self.ownsptr:
@@ -68,22 +74,17 @@ cdef class PyFrozenRead:
 			raise IndexError('Index out of bounds: {}'.format(key))
 		return (self.thisptr.getPosition(key), chr(self.thisptr.getBase(key)), self.thisptr.getAllele(key), self.thisptr.getBaseQuality(key))
 
-
-cdef class PyRead(PyFrozenRead):
-	def __cinit__(self, str name, int mapq):
-		# TODO: Is this the best way to handle string arguments?
-		cdef string _name = name.encode('UTF-8')
-		self.thisptr = new Read(_name, mapq)
-		self.ownsptr = True
-
 	def addVariant(self, int position, str base, int allele, int quality):
+		assert self.thisptr != NULL
 		assert len(base) == 1
 		self.thisptr.addVariant(position, ord(base[0]), allele, quality)
 
 	def addMapq(self, int mapq):
+		assert self.thisptr != NULL
 		self.thisptr.addMapq(mapq)
 
 	def sort(self):
+		assert self.thisptr != NULL
 		self.thisptr.sortVariants()
 
 
@@ -132,21 +133,18 @@ cdef class PyReadSet:
 		if isinstance(key, slice):
 			raise NotImplementedError('ReadSet does not support slices')
 		assert isinstance(key, int)
-		cdef PyRead read = PyRead('', 0)
+		cdef PyRead read = PyRead()
 		read.thisptr = self.thisptr.get(key)
-		read.ownsptr = False
 		return read
 
 	def getByName(self, name):
 		cdef string _name = name.encode('UTF-8')
 		cdef Read* cread = self.thisptr.getByName(_name)
-		cdef PyFrozenRead read = None
+		cdef PyRead read = PyRead()
 		if cread == NULL:
 			raise KeyError(name)
 		else:
-			read = PyRead('', 0)
 			read.thisptr = cread
-			read.ownsptr = False
 			return read
 
 	def sort(self):
