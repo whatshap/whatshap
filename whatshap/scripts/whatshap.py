@@ -74,7 +74,10 @@ def find_alleles(variants, start, bam_read, core_read):
 					else:
 						errors += 1
 					if al != None:
-						core_read.addVariant(p, base, al, ord(bam_read.qual[s:s+1])-33)
+						# Just ignore duplicate variants encountered when two reads in a pair overlap
+						# TODO: Handle this case properly
+						if not p in core_read:
+							core_read.addVariant(p, base, al, ord(bam_read.qual[s:s+1])-33)
 					c += 1
 					j += 1
 				s += 1 # advance both read and reference
