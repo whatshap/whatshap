@@ -62,6 +62,9 @@ auto_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 			throw std::runtime_error("ColumnIterator: reads in ReadSet are not sorted.");
 		}
 		if (read_start == next_pos) {
+			if (!set.get(next_read_index)->isSorted()) {
+				throw std::runtime_error("ColumnIterator: encountered read with unsorted variants.");
+			}
 			active_reads.push_back(active_read_t(next_read_index));
 			next_read_index += 1;
 		} else {
