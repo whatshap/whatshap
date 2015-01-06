@@ -22,8 +22,10 @@ public:
 	 **/
 	void finalize();
 	bool isFinalized() const;
-	/** Returns the set of SNP positions. Can only be called after finalization. */
-	const std::vector<unsigned int>* get_positions() const;
+	/** Returns the set of SNP positions. To create this set,
+	 *  this method iterates over all contained reads.
+	 *  Caller owns the returned pointer. */
+	std::vector<unsigned int>* get_positions() const;
 	unsigned int size() const;
 	std::string toString();
 	/** Access a read in the set. Ownership stays with the ReadSet. */
@@ -46,9 +48,7 @@ private:
 	// Maps names of reads it their index in the "reads" vector
 	typedef std::unordered_map<std::string,size_t> read_name_map_t;
 	read_name_map_t read_name_map;
-	std::vector<unsigned int>* positions;
 	bool finalized;
-	friend class ColumnIterator;
 };
 
 #endif

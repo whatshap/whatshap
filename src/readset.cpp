@@ -10,14 +10,12 @@ using namespace std;
 
 ReadSet::ReadSet() {
 	this->finalized = false;
-	this->positions = 0;
 }
 
 ReadSet::~ReadSet() {
 	for (size_t i=0; i<reads.size(); ++i) {
 		delete reads[i];
 	}
-	if (positions != 0) delete positions;
 }
 
 void ReadSet::add(Read* read) {
@@ -49,16 +47,12 @@ void ReadSet::finalize() {
 	// Sort the reads by position
 	sort(reads.begin(), reads.end(), read_comparator_t());
 	
-	// Create set of covered positions and update read_name_map
-	unordered_set<unsigned int> position_set;
+	// Update read_name_map
 	read_name_map.clear();
 	for (size_t i=0; i<reads.size(); ++i) {
 		reads[i]->setID(i);
-		reads[i]->addPositionsToSet(&position_set);
 		read_name_map[reads[i]->getName()] = i;
 	}
-	positions = new vector<unsigned int>(position_set.begin(), position_set.end());
-	sort(positions->begin(), positions->end());
 	finalized = true;
 }
 
@@ -66,8 +60,13 @@ bool ReadSet::isFinalized() const {
 	return finalized;
 }
 
-const vector<unsigned int>* ReadSet::get_positions() const {
-	if (!finalized) throw std::runtime_error("ReadSet::get_positions: can only be called after finalization");
+vector<unsigned int>* ReadSet::get_positions() const {
+	unordered_set<unsigned int> position_set;
+	for (size_t i=0; i<reads.size(); ++i) {
+		reads[i]->addPositionsToSet(&position_set);
+	}
+	vector<unsigned int>* positions = new vector<unsigned int>(position_set.begin(), position_set.end());
+	sort(positions->begin(), positions->end());
 	return positions;
 }
 

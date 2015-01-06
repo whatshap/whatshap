@@ -169,7 +169,10 @@ cdef class PyReadSet:
 		return result
 
 	def getPositions(self):
-		return self.thisptr.get_positions()[0]
+		cdef vector[unsigned int]* v = self.thisptr.get_positions()
+		result = list(v[0])
+		del v
+		return result
 
 
 # ====== ColumnIterator ======
