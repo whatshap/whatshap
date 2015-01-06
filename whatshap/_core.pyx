@@ -23,6 +23,7 @@ cdef extern from "../src/read.h":
 		int getBaseQuality(int) except +
 		int getVariantCount() except +
 		void sortVariants() except +
+		bool isSorted() except +
 
 cdef class PyRead:
 	cdef Read *thisptr
@@ -87,6 +88,9 @@ cdef class PyRead:
 		assert self.thisptr != NULL
 		self.thisptr.sortVariants()
 
+	def isSorted(self):
+		assert self.thisptr != NULL
+		return self.thisptr.isSorted()
 
 # ====== ReadSet ======
 cdef extern from "../src/readset.h":

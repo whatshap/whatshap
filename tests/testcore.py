@@ -5,6 +5,14 @@ def test_read():
 	assert r.getName() == "name"
 	assert r.getMapqs()[0] == 15
 
+	assert r.isSorted()
+
+	r.addVariant(100, 'A', 1, 37)
+	r.addVariant(23, 'T', 0, 99)
+	assert not r.isSorted()
+	r.sort()
+	assert r.isSorted()
+
 
 def test_empty_readset():
 	rs = ReadSet()

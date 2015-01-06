@@ -31,6 +31,7 @@ public:
 	const std::string& getName() const;
 	const std::vector<int>& getMapqs() const;
 	void addMapq(int mapq);
+	bool isSorted() const;
 private:
 	typedef struct enriched_entry_t {
 		Entry entry;

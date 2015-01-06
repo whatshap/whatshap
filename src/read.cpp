@@ -109,3 +109,13 @@ const vector<int>& Read::getMapqs() const {
 void Read::addMapq(int mapq) {
 	mapqs.push_back(mapq);
 }
+
+bool Read::isSorted() const {
+	entry_comparator_t comparator;
+	for (size_t i=1; i<variants.size(); ++i) {
+		if (!comparator(variants[i-1],variants[i])) {
+			return false;
+		}
+	}
+	return true;
+}
