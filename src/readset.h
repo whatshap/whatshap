@@ -16,14 +16,8 @@ public:
 	virtual ~ReadSet();
 	/** Ownership of pointer is transferred from caller to the ReadSet. */
 	void add(Read* read);
-	/** Only retains reads with at least two variants, sorts reads and variants within reads
-	 *  and assigns unique read identifiers. After calling finalize(), the read set becomes 
-	 * "frozen" and cannot be modified. 
-	 **/
-	void finalize();
 	/** Sort reads by first variant position. */
 	void sort();
-	bool isFinalized() const;
 	/** Returns the set of SNP positions. To create this set,
 	 *  this method iterates over all contained reads.
 	 *  Caller owns the returned pointer. */
@@ -63,7 +57,6 @@ private:
 	// Maps names of reads it their index in the "reads" vector
 	typedef std::unordered_map<std::string,size_t> read_name_map_t;
 	read_name_map_t read_name_map;
-	bool finalized;
 };
 
 #endif

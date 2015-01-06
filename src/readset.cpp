@@ -9,7 +9,6 @@
 using namespace std;
 
 ReadSet::ReadSet() {
-	this->finalized = false;
 }
 
 ReadSet::~ReadSet() {
@@ -19,7 +18,6 @@ ReadSet::~ReadSet() {
 }
 
 void ReadSet::add(Read* read) {
-	if (finalized) throw std::runtime_error("Cannot add to finalized ReadSet");
 	if (read_name_map.find(read->getName()) != read_name_map.end()) {
 		throw std::runtime_error("ReadSet::add: duplicate read name.");
 	}
@@ -46,23 +44,6 @@ void ReadSet::sort() {
 		reads[i]->setID(i);
 		read_name_map[reads[i]->getName()] = i;
 	}
-}
-
-void ReadSet::finalize() {
-	if (finalized) throw std::runtime_error("Cannot finalize a finalized ReadSet");
-
-	// Sort the variants in the remaining reads
-	for (size_t i=0; i<reads.size(); ++i) {
-		reads[i]->sortVariants();
-	}
-
-	this->sort();
-
-	finalized = true;
-}
-
-bool ReadSet::isFinalized() const {
-	return finalized;
 }
 
 vector<unsigned int>* ReadSet::get_positions() const {
@@ -98,6 +79,5 @@ ReadSet* ReadSet::subset(const IndexSet* indices) const {
 	for (; it != indices->end(); ++it) {
 		result->add(new Read(*(reads[*it])));
 	}
-	result->finalize();
 	return result;
 }

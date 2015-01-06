@@ -95,8 +95,6 @@ cdef extern from "../src/readset.h":
 		string toString() except +
 		int size() except +
 		void sort() except +
-		void finalize() except +
-		bool isFinalized() except +
 		Read* get(int) except +
 		Read* getByName(string) except +
 		ReadSet* subset(IndexSet*) except +
@@ -134,14 +132,9 @@ cdef class PyReadSet:
 		if isinstance(key, slice):
 			raise NotImplementedError('ReadSet does not support slices')
 		assert isinstance(key, int)
-		cdef PyFrozenRead read = None
-		if self.thisptr.isFinalized():
-			read = PyFrozenRead()
-			read.thisptr = self.thisptr.get(key)
-		else:
-			read = PyRead('', 0)
-			read.thisptr = self.thisptr.get(key)
-			read.ownsptr = False
+		cdef PyRead read = PyRead('', 0)
+		read.thisptr = self.thisptr.get(key)
+		read.ownsptr = False
 		return read
 
 	def getByName(self, name):
@@ -151,10 +144,7 @@ cdef class PyReadSet:
 		if cread == NULL:
 			raise KeyError(name)
 		else:
-			if self.thisptr.isFinalized():
-				read = PyFrozenRead()
-			else:
-				read = PyRead('', 0)
+			read = PyRead('', 0)
 			read.thisptr = cread
 			read.ownsptr = False
 			return read
@@ -164,9 +154,6 @@ cdef class PyReadSet:
 		this is not necessarily the variant with the lowest position, unless sort() has been 
 		called on all contained reads. Ties are resolved by comparing the read name."""
 		self.thisptr.sort()
-
-	def finalize(self):
-		self.thisptr.finalize()
 
 	def subset(self, PyIndexSet index_set):
 		# TODO: is there a way of avoiding to unecessarily creating/destroying a ReadSet object?

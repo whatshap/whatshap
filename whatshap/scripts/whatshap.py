@@ -131,7 +131,7 @@ class BamReader:
 		sample -- name of sample to work on. If None, read group information is
 			ignored and all reads in the file are used.
 
-		Return a (finalized) ReadSet object.
+		Return a ReadSet object.
 		"""
 		if sample is not None:
 			read_groups = self._sample_to_group_ids[sample]
@@ -363,7 +363,13 @@ def main():
 			logger.info('Reading the BAM file ...')
 
 			reads = bam_reader.read(chromosome, variants, sample)
-			reads.finalize()
+			
+			# Sort the variants stored in each read
+			# TODO: Check whether this is already ensured by construction
+			for read in reads:
+				read.sort()
+			# Sort reads in read set by position
+			reads.sort()
 
 			sliced_reads = slice_reads(reads, args.max_coverage)
 			logger.info('Best-case phasing would result in %d phased blocks (%d with slicing)',

@@ -1,12 +1,12 @@
 #include <cassert>
 #include <unordered_set>
+#include <stdexcept>
 
 #include "columniterator.h"
 
 using namespace std;
 
 ColumnIterator::ColumnIterator(const ReadSet& set) : set(set) {
-	assert(set.isFinalized());
 	this->n = 0;
 	this->next_read_index = 0;
 	this->positions = set.get_positions();
@@ -58,7 +58,9 @@ auto_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 	// check which new reads might become active
 	while (next_read_index < set.size()) {
 		int read_start = set.get(next_read_index)->firstPosition();
-		assert(read_start >= next_pos);
+		if (read_start < next_pos) {
+			throw std::runtime_error("ColumnIterator: reads in ReadSet are not sorted.");
+		}
 		if (read_start == next_pos) {
 			active_reads.push_back(active_read_t(next_read_index));
 			next_read_index += 1;

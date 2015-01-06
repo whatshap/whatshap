@@ -31,7 +31,7 @@ def test_readset():
 	assert rs[1].getName() == 'Read B'
 	assert rs[2].getName() == 'Read C'
 
-	rs.finalize()
+	rs.sort()
 
 	# should be sorted after finalization
 	assert rs[0].getName() == 'Read C'
@@ -63,6 +63,5 @@ def test_readset():
 
 def test_phase_empty_readset():
 	rs = ReadSet()
-	rs.finalize()
 	dp_table = DPTable(rs, all_heterozygous=False)
 	superreads = dp_table.getSuperReads()
