@@ -40,7 +40,20 @@ private:
 	typedef struct read_comparator_t {
 		read_comparator_t() {}
 		bool operator()(const Read* r1, const Read* r2) {
-			return r1->firstPosition() < r2->firstPosition();
+			// if both reads don't have variants, then ressort to compare names
+			if ((r1->getVariantCount() == 0) && (r2->getVariantCount() == 0)) {
+				return r1->getName() < r2->getName();
+			}
+			// put reads with no variants first in the set
+			if (r1->getVariantCount() == 0) return true;
+			if (r2->getVariantCount() == 0) return false;
+			// standard case: sort by positions
+			if (r1->firstPosition() != r2->firstPosition()) {
+				return r1->firstPosition() < r2->firstPosition();
+			} else {
+				// otherwise ressort to comparing name
+				return r1->getName() < r2->getName();
+			}
 		}
 	} read_comparator_t;
 
