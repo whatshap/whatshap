@@ -144,20 +144,31 @@ cdef class PyReadSet:
 	def __getitem__(self, key):
 		if isinstance(key, slice):
 			raise NotImplementedError('ReadSet does not support slices')
-		assert isinstance(key, int)
+		cdef string name = ''
+		cdef Read* cread = NULL
 		cdef PyRead read = PyRead()
-		read.thisptr = self.thisptr.get(key)
+		if isinstance(key, int):
+			read.thisptr = self.thisptr.get(key)
+		elif isinstance(key, str):
+			name = key.encode('UTF-8')
+			cread = self.thisptr.getByName(name)
+			if cread == NULL:
+				raise KeyError(key)
+			else:
+				read.thisptr = cread
+		else:
+			assert False, 'Invalid key: {}'.format(key)
 		return read
 
-	def getByName(self, name):
-		cdef string _name = name.encode('UTF-8')
-		cdef Read* cread = self.thisptr.getByName(_name)
-		cdef PyRead read = PyRead()
-		if cread == NULL:
-			raise KeyError(name)
-		else:
-			read.thisptr = cread
-			return read
+	#def getByName(self, name):
+		#cdef string _name = name.encode('UTF-8')
+		#cdef Read* cread = self.thisptr.getByName(_name)
+		#cdef PyRead read = PyRead()
+		#if cread == NULL:
+			#raise KeyError(name)
+		#else:
+			#read.thisptr = cread
+			#return read
 
 	def sort(self):
 		"""Sort contained reads by the position of the first variant they contain. Note that 

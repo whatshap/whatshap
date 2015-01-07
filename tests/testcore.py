@@ -56,17 +56,17 @@ def test_readset():
 
 	assert rs.getPositions() == [99,100,101,105]
 
-	r = rs.getByName('Read A')
+	r = rs['Read A']
 	assert r.getName() == 'Read A'
 	assert r.getMapqs() == (56,), str(r.getMapqs())
 
-	r = rs.getByName('Read B')
+	r = rs['Read B']
 	assert r.getName() == 'Read B'
 	assert r.getMapqs() == (0,)
 
 	try:
 		# Should raise a KeyError for non-existing read name
-		r = rs.getByName('foo')
+		r = rs['foo']
 		assert False
 	except KeyError:
 		pass

@@ -164,7 +164,7 @@ class BamReader:
 			while i < len(variants) and variants[i].position < bam_read.pos:
 				i += 1
 			try:
-				core_read = result.getByName(bam_read.qname)
+				core_read = result[bam_read.qname]
 				former_length = len(core_read)
 				find_alleles(variants, i, bam_read, core_read)
 				# If variants on the current (part of the) read have been added,
