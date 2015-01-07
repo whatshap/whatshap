@@ -64,6 +64,16 @@ Then you can run WhatsHap like this::
 
 	venv/bin/whatshap --help
 
+Development installation (alternative)
+--------------------------------------
+Alternatively, if you do not want to use virtualenv, you can do the following::
+
+	git clone https://bitbucket.org/whatshap/whatshap.git
+	cd whatshap
+	python3 setup.py build_ext -i --cython
+	./bin/whatshap
+
+This requires Cython, pysam, and pyvcf to be installed.
 
 Ubuntu 12.04 LTS
 ----------------
