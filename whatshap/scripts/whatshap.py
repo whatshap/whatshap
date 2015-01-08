@@ -46,7 +46,6 @@ def find_alleles(variants, start, bam_read, core_read):
 	pos = bam_read.pos
 	cigar = bam_read.cigar
 
-	c = 0  # hit count
 	j = start  # index into variants list
 	p = pos
 	s = 0  # absolute index into the read string [0..len(read)]
@@ -73,12 +72,11 @@ def find_alleles(variants, start, bam_read, core_read):
 						al = 1  # ALT allele
 					else:
 						errors += 1
-					if al != None:
+					if al is not None:
 						# Just ignore duplicate variants encountered when two reads in a pair overlap
 						# TODO: Handle this case properly
 						if not p in core_read:
 							core_read.addVariant(p, base, al, ord(bam_read.qual[s:s+1])-33)
-					c += 1
 					j += 1
 				s += 1 # advance both read and reference
 				p += 1
