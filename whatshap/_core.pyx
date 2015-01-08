@@ -7,6 +7,11 @@ from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp cimport bool
 
+from collections import namedtuple
+
+# A single variant on a read.
+Variant = namedtuple('Variant', 'position base allele quality')
+
 # ====== Read ======
 cdef extern from "../src/read.h":
 	cdef cppclass Read:
@@ -60,28 +65,39 @@ cdef class PyRead:
 			return self.thisptr.getName().decode('utf-8')
 
 	def __iter__(self):
+		"""Iterate over all variants in this read"""
 		assert self.thisptr != NULL
 		for i in range(len(self)): 
 			yield self[i]
 
 	def __len__(self):
+		"""Return number of variants in this read"""
 		assert self.thisptr != NULL
 		return self.thisptr.getVariantCount()
 
 	def __getitem__(self, key):
+		"""Return Variant object at the given integer index"""
 		assert self.thisptr != NULL
 		if isinstance(key, slice):
 			raise NotImplementedError("Read does not support slices")
 		assert isinstance(key, int)
 		if not (0 <= key < self.thisptr.getVariantCount()):
 			raise IndexError('Index out of bounds: {}'.format(key))
-		return (self.thisptr.getPosition(key), chr(self.thisptr.getBase(key)), self.thisptr.getAllele(key), self.thisptr.getBaseQuality(key))
-		
+		return Variant(
+			position=self.thisptr.getPosition(key),
+			base=chr(self.thisptr.getBase(key)),
+			allele=self.thisptr.getAllele(key),
+			quality=self.thisptr.getBaseQuality(key)
+		)
+
 	def __contains__(self, position):
+		"""Return whether this read contains a variant at the given position.
+		A linear search is used.
+		"""
 		assert self.thisptr != NULL
 		assert isinstance(position, int)
-		for var_pos, base, allele, quality in self:
-			if var_pos == position:
+		for variant in self:
+			if variant.position == position:
 				return True
 		return False
 

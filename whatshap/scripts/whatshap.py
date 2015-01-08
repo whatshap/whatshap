@@ -230,8 +230,8 @@ def slice_reads(reads, max_coverage):
 		if len(read) < 2:
 			skipped_reads += 1
 			continue
-		for position, base, allele, quality in read:
-			accessible_positions.add(position)
+		for variant in read:
+			accessible_positions.add(variant.position)
 		first_position, first_base, first_allele, first_quality = read[0]
 		last_position, last_base, last_allele, last_quality = read[len(read)-1]
 		begin = position_to_index[first_position]
@@ -274,7 +274,7 @@ def find_components(superreads, reads):
 	assert len(superreads) == 2
 	assert len(superreads[0]) == len(superreads[1])
 
-	phased_positions = [ position for position, base, allele, quality in superreads[0] if allele in [0, 1] ]  # TODO set()
+	phased_positions = [ variant.position for variant in superreads[0] if variant.allele in [0, 1] ]  # TODO set()
 	assert phased_positions == sorted(phased_positions)
 
 	# Find connected components.
@@ -282,7 +282,7 @@ def find_components(superreads, reads):
 	component_finder = ComponentFinder(phased_positions)
 	phased_positions = set(phased_positions)
 	for read in reads:
-		positions = [ position for position, base, allele, quality in read if position in phased_positions ]
+		positions = [ variant.position for variant in read if variant.position in phased_positions ]
 		for position in positions[1:]:
 			component_finder.merge(positions[0], position)
 	components = { position : component_finder.find(position) for position in phased_positions }
@@ -300,11 +300,11 @@ def best_case_blocks(reads):
 	"""
 	positions = set()
 	for read in reads:
-		for position, _, _, _ in read:
-			positions.add(position)
+		for variant in read:
+			positions.add(variant.position)
 	component_finder = ComponentFinder(positions)
 	for read in reads:
-		read_positions = [ position for position, _, _, _ in read ]
+		read_positions = [ variant.position for variant in read ]
 		for position in read_positions[1:]:
 			component_finder.merge(read_positions[0], position)
 	# A dict that maps each position to the component it is in.

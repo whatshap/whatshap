@@ -1,5 +1,5 @@
 from nose.tools import raises
-from whatshap.core import Read, DPTable, ReadSet
+from whatshap.core import Read, DPTable, ReadSet, Variant
 
 def test_read():
 	r = Read("name", 15)
@@ -20,6 +20,17 @@ def test_read():
 	assert not 24 in r
 	assert not 1000 in r
 	assert not -1000 in r
+
+
+def test_read_iteration():
+	r = Read("name", 15)
+	r.add_variant(100, 'A', 1, 37)
+	r.add_variant(23, 'T', 0, 99)
+	variants = list(r)
+	assert variants == [
+		Variant(position=100, base='A', allele=1, quality=37),
+		Variant(position=23, base='T', allele=0, quality=99),
+	]
 
 
 def test_empty_readset():
