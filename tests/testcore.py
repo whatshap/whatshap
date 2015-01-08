@@ -1,3 +1,4 @@
+from nose.tools import raises
 from whatshap.core import Read, DPTable, ReadSet
 
 def test_read():
@@ -65,15 +66,18 @@ def test_readset():
 	assert r.name == 'Read B'
 	assert r.mapqs == (0,)
 
-	try:
-		# Should raise a KeyError for non-existing read name
-		r = rs['foo']
-		assert False
-	except KeyError:
-		pass
 
-	# TODO: Test subset method
+@raises(KeyError)
+def test_non_existing_read_name():
+	rs = ReadSet()
+	r = Read('Read A', 56)
+	r.add_variant(100, 'A', 1, 37)
+	r.add_variant(101, 'C', 0, 18)
+	rs.add(r)
+	rs['foo']
 
+
+# TODO: Test subset method
 
 
 def test_phase_empty_readset():
