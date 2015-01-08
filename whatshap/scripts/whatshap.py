@@ -31,6 +31,7 @@ from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, IndexSet
 from ..graph import ComponentFinder
+from ..readselect import ComponentFinder2
 
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -211,6 +212,13 @@ def slice_reads(reads, max_coverage):
 	max_coverage -- Slicing ensures that the (physical) coverage does not exceed max_coverage anywhere along the chromosome.
 	reads -- a ReadSet
 	"""
+
+
+	  # Only trying to include readselect.py in whatshap
+
+	a=[0,2,3,4]
+	component_finder2 = ComponentFinder2(a)
+
 	shuffled_indices = list(range(len(reads)))
 	random.shuffle(shuffled_indices)
 
