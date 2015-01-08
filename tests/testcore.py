@@ -26,11 +26,29 @@ def test_read_iteration():
 	r = Read("name", 15)
 	r.add_variant(100, 'A', 1, 37)
 	r.add_variant(23, 'T', 0, 99)
+	v1 = Variant(position=100, base='A', allele=1, quality=37)
+	v2 = Variant(position=23, base='T', allele=0, quality=99)
 	variants = list(r)
-	assert variants == [
-		Variant(position=100, base='A', allele=1, quality=37),
-		Variant(position=23, base='T', allele=0, quality=99),
-	]
+	assert variants == [v1, v2]
+	# negative indices
+	assert r[-1] == v2
+	assert r[-2] == v1
+
+
+@raises(IndexError)
+def test_read_indexerror1():
+	r = Read("name", 15)
+	r.add_variant(100, 'A', 1, 37)
+	r.add_variant(23, 'T', 0, 99)
+	r[2]
+
+
+@raises(IndexError)
+def test_read_indexerror2():
+	r = Read("name", 15)
+	r.add_variant(100, 'A', 1, 37)
+	r.add_variant(23, 'T', 0, 99)
+	r[-3]
 
 
 def test_empty_readset():

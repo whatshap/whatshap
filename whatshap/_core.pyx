@@ -81,8 +81,11 @@ cdef class PyRead:
 		if isinstance(key, slice):
 			raise NotImplementedError("Read does not support slices")
 		assert isinstance(key, int)
-		if not (0 <= key < self.thisptr.getVariantCount()):
+		cdef int n = self.thisptr.getVariantCount()
+		if not (-n <= key < n):
 			raise IndexError('Index out of bounds: {}'.format(key))
+		if key < 0:
+			key = n + key
 		return Variant(
 			position=self.thisptr.getPosition(key),
 			base=chr(self.thisptr.getBase(key)),
