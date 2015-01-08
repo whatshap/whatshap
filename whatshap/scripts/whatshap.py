@@ -76,7 +76,7 @@ def find_alleles(variants, start, bam_read, core_read):
 						# Just ignore duplicate variants encountered when two reads in a pair overlap
 						# TODO: Handle this case properly
 						if not p in core_read:
-							core_read.addVariant(p, base, al, ord(bam_read.qual[s:s+1])-33)
+							core_read.add_variant(p, base, al, ord(bam_read.qual[s:s+1])-33)
 					j += 1
 				s += 1 # advance both read and reference
 				p += 1
@@ -212,7 +212,7 @@ def slice_reads(reads, max_coverage):
 	shuffled_indices = list(range(len(reads)))
 	random.shuffle(shuffled_indices)
 
-	position_list = reads.getPositions()
+	position_list = reads.get_positions()
 	logger.info('Found %d SNP positions', len(position_list))
 
 	# dictionary to map SNP position to its index
@@ -380,7 +380,7 @@ def main():
 			# Run the core algorithm: construct DP table ...
 			dp_table = DPTable(sliced_reads, args.all_het)
 			# ... and do the backtrace to get the solution
-			superreads = dp_table.getSuperReads()
+			superreads = dp_table.get_super_reads()
 
 			components = find_components(superreads, sliced_reads)
 			logger.info('No. of phased blocks: %d', len(set(components.values())))

@@ -49,11 +49,11 @@ cdef class PyRead:
 		assert self.thisptr != NULL
 		return self.thisptr.toString().decode('utf-8')
 
-	def getMapqs(self):
+	def get_mapqs(self):
 		assert self.thisptr != NULL
 		return tuple(self.thisptr.getMapqs())
 
-	def getName(self):
+	def get_name(self):
 		assert self.thisptr != NULL
 		return self.thisptr.getName().decode('utf-8')
 
@@ -83,12 +83,12 @@ cdef class PyRead:
 				return True
 		return False
 
-	def addVariant(self, int position, str base, int allele, int quality):
+	def add_variant(self, int position, str base, int allele, int quality):
 		assert self.thisptr != NULL
 		assert len(base) == 1
 		self.thisptr.addVariant(position, ord(base[0]), allele, quality)
 
-	def addMapq(self, int mapq):
+	def add_mapq(self, int mapq):
 		assert self.thisptr != NULL
 		self.thisptr.addMapq(mapq)
 
@@ -96,7 +96,7 @@ cdef class PyRead:
 		assert self.thisptr != NULL
 		self.thisptr.sortVariants()
 
-	def isSorted(self):
+	def is_sorted(self):
 		assert self.thisptr != NULL
 		return self.thisptr.isSorted()
 
@@ -160,7 +160,7 @@ cdef class PyReadSet:
 			assert False, 'Invalid key: {}'.format(key)
 		return read
 
-	#def getByName(self, name):
+	#def get_by_name(self, name):
 		#cdef string _name = name.encode('UTF-8')
 		#cdef Read* cread = self.thisptr.getByName(_name)
 		#cdef PyRead read = PyRead()
@@ -183,7 +183,7 @@ cdef class PyReadSet:
 		result.thisptr = self.thisptr.subset(index_set.thisptr)
 		return result
 
-	def getPositions(self):
+	def get_positions(self):
 		cdef vector[unsigned int]* v = self.thisptr.get_positions()
 		result = list(v[0])
 		del v
@@ -217,7 +217,7 @@ cdef class PyDPTable:
 	def __dealloc__(self):
 		del self.thisptr
 
-	def getSuperReads(self):
+	def get_super_reads(self):
 		"""Obtain optimal-score haplotypes.
 		IMPORTANT: The ReadSet given at construction time must not have been altered.
 		DPTable retained a pointer to this set and will access it again. If it has
