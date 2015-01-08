@@ -76,7 +76,11 @@ def find_alleles(variants, start, bam_read, core_read):
 						# Just ignore duplicate variants encountered when two reads in a pair overlap
 						# TODO: Handle this case properly
 						if not p in core_read:
-							core_read.add_variant(p, base, al, ord(bam_read.qual[s:s+1])-33)
+							# Do not use bam_read.qual here as it is extremely slow.
+							# If we ever decide to be compatible with older pysam
+							# versions, cache bam_read.qual somewhere - do not
+							# access it within this loop (3x slower otherwise).
+							core_read.add_variant(p, base, al, bam_read.query_qualities[s])
 					j += 1
 				s += 1 # advance both read and reference
 				p += 1
