@@ -2,16 +2,16 @@ from whatshap.core import Read, DPTable, ReadSet
 
 def test_read():
 	r = Read("name", 15)
-	assert r.get_name() == "name"
-	assert r.get_mapqs()[0] == 15
+	assert r.name == "name"
+	assert r.mapqs[0] == 15
 
-	assert r.is_sorted()
+	assert r.is_sorted
 
 	r.add_variant(100, 'A', 1, 37)
 	r.add_variant(23, 'T', 0, 99)
-	assert not r.is_sorted()
+	assert not r.is_sorted
 	r.sort()
-	assert r.is_sorted()
+	assert r.is_sorted
 
 	assert 100 in r
 	assert 23 in r
@@ -42,28 +42,28 @@ def test_readset():
 	r.add_variant(105, 'T', 0, 14)
 	rs.add(r)
 
-	assert rs[0].get_name() == 'Read A'
-	assert rs[1].get_name() == 'Read B'
-	assert rs[2].get_name() == 'Read C'
+	assert rs[0].name == 'Read A'
+	assert rs[1].name == 'Read B'
+	assert rs[2].name == 'Read C'
 
 	rs.sort()
 
 	# should be sorted after finalization
-	assert rs[0].get_name() == 'Read C'
-	assert rs[1].get_name() == 'Read A'
-	assert rs[2].get_name() == 'Read B'
+	assert rs[0].name == 'Read C'
+	assert rs[1].name == 'Read A'
+	assert rs[2].name == 'Read B'
 
 	assert len(rs) == 3
 
 	assert rs.get_positions() == [99, 100, 101, 105]
 
 	r = rs['Read A']
-	assert r.get_name() == 'Read A'
-	assert r.get_mapqs() == (56,), str(r.get_mapqs())
+	assert r.name == 'Read A'
+	assert r.mapqs == (56,), str(r.mapqs)
 
 	r = rs['Read B']
-	assert r.get_name() == 'Read B'
-	assert r.get_mapqs() == (0,)
+	assert r.name == 'Read B'
+	assert r.mapqs == (0,)
 
 	try:
 		# Should raise a KeyError for non-existing read name

@@ -49,13 +49,15 @@ cdef class PyRead:
 		assert self.thisptr != NULL
 		return self.thisptr.toString().decode('utf-8')
 
-	def get_mapqs(self):
-		assert self.thisptr != NULL
-		return tuple(self.thisptr.getMapqs())
+	property mapqs:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return tuple(self.thisptr.getMapqs())
 
-	def get_name(self):
-		assert self.thisptr != NULL
-		return self.thisptr.getName().decode('utf-8')
+	property name:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getName().decode('utf-8')
 
 	def __iter__(self):
 		assert self.thisptr != NULL
@@ -96,9 +98,10 @@ cdef class PyRead:
 		assert self.thisptr != NULL
 		self.thisptr.sortVariants()
 
-	def is_sorted(self):
-		assert self.thisptr != NULL
-		return self.thisptr.isSorted()
+	property is_sorted:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.isSorted()
 
 # ====== ReadSet ======
 cdef extern from "../src/readset.h":
