@@ -40,50 +40,45 @@ logger = logging.getLogger(__name__)
 
 def find_alleles(variants, start, bam_read, core_read):
 	"""
-	Check whether the bam_read covers some of the variants in variants[start:] and, if so,
-	add this information to the given core_read object.
+	Check whether the bam_read covers some of the variants in variants[start:]
+	and, if so, add this information to the given core_read object.
 	"""
-	pos = bam_read.pos
-	cigar = bam_read.cigar
-
 	j = start  # index into variants list
-	p = pos
-	s = 0  # absolute index into the read string [0..len(read)]
+	p = bam_read.pos
+	s = 0  # index into the read string
+
 	errors = 0
-	for cigar_op, length in cigar:
+	for cigar_op, length in bam_read.cigar:
 		# The mapping of CIGAR operators to numbers is:
 		# MIDNSHPX= => 012345678
-		if cigar_op in (0, 7, 8):  # we're in a matching subregion
+		if cigar_op in (0, 7, 8):  # we are in a matching region
 			s_next = s + length
 			p_next = p + length
-			r = p + length  # size of this subregion
-			# skip over all SNPs that come before this region
+			# Skip over all variants that come before this region
 			while j < len(variants) and variants[j].position < p:
 				j += 1
-			# iterate over all positions in this subregion and
-			# check whether any of them coincide with one of the SNPs ('hit')
-			while j < len(variants) and p < r:
-				if variants[j].position == p:  # we have a hit
-					base = bam_read.seq[s:s+1]
-					al = None
-					if base == variants[j].reference_allele:
-						al = 0  # REF allele
-					elif base == variants[j].alternative_allele:
-						al = 1  # ALT allele
-					else:
-						errors += 1
-					if al is not None:
-						# Just ignore duplicate variants encountered when two reads in a pair overlap
-						# TODO: Handle this case properly
-						if not p in core_read:
-							# Do not use bam_read.qual here as it is extremely slow.
-							# If we ever decide to be compatible with older pysam
-							# versions, cache bam_read.qual somewhere - do not
-							# access it within this loop (3x slower otherwise).
-							core_read.add_variant(p, base, al, bam_read.query_qualities[s])
-					j += 1
-				s += 1 # advance both read and reference
-				p += 1
+
+			# Iterate over all variants that are in this region
+			while j < len(variants) and variants[j].position < p_next:
+				offset = variants[j].position - p
+				base = bam_read.seq[s + offset]
+				allele = None
+				if base == variants[j].reference_allele:
+					allele = 0
+				elif base == variants[j].alternative_allele:
+					allele = 1
+				else:
+					errors += 1
+				if allele is not None:
+					# Just ignore duplicate variants encountered when two reads in a pair overlap
+					# TODO: Handle this case properly
+					if not variants[j].position in core_read:
+						# Do not use bam_read.qual here as it is extremely slow.
+						# If we ever decide to be compatible with older pysam
+						# versions, cache bam_read.qual somewhere - do not
+						# access it within this loop (3x slower otherwise).
+						core_read.add_variant(variants[j].position, base, allele, bam_read.query_qualities[s + offset])
+				j += 1
 			s = s_next
 			p = p_next
 		elif cigar_op == 1:  # an insertion
