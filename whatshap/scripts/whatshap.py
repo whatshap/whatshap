@@ -236,10 +236,8 @@ def slice_reads(reads, max_coverage):
 			continue
 		for variant in read:
 			accessible_positions.add(variant.position)
-		first_position, first_base, first_allele, first_quality = read[0]
-		last_position, last_base, last_allele, last_quality = read[-1]
-		begin = position_to_index[first_position]
-		end = position_to_index[last_position] + 1
+		begin = position_to_index[read[0].position]
+		end = position_to_index[read[-1].position] + 1
 		slice_id = 0
 		while True:
 			# Does current read fit into this slice?
