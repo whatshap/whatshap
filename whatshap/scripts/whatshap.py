@@ -167,7 +167,7 @@ class BamReader:
 				# If variants on the current (part of the) read have been added,
 				# then also record its MAPQ
 				if len(core_read) > former_length:
-					core_read.addMapq(bam_read.mapq)
+					core_read.add_mapq(bam_read.mapq)
 			except KeyError:
 				core_read = Read(bam_read.qname, bam_read.mapq)
 				find_alleles(variants, i, bam_read, core_read)
