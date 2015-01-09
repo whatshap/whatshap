@@ -38,15 +38,18 @@ __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel M
 logger = logging.getLogger(__name__)
 
 
-def find_alleles(variants, start, bam_read, core_read):
+def covered_variants(variants, start, bam_read):
 	"""
-	Check whether the bam_read covers some of the variants in variants[start:]
-	and, if so, add this information to the given core_read object.
+	Find the variants that are covered by the given bam_read and return a
+	core.Read instance that represents those variants. The instance may be
+	empty.
+
+	start -- index of the first variant (in the variants list) to check
 	"""
+	core_read = Read(bam_read.qname, bam_read.mapq)
 	j = start  # index into variants list
 	ref_pos = bam_read.pos  # position relative to reference
 	query_pos = 0  # position relative to read
-
 	errors = 0
 	for cigar_op, length in bam_read.cigar:
 		# The mapping of CIGAR operators to numbers is:
@@ -66,16 +69,16 @@ def find_alleles(variants, start, bam_read, core_read):
 				elif base == variants[j].alternative_allele:
 					allele = 1
 				else:
+					# TODO this variable is unused
 					errors += 1
 				if allele is not None:
-					# Just ignore duplicate variants encountered when two reads in a pair overlap
-					# TODO: Handle this case properly
-					if not variants[j].position in core_read:
-						# Do not use bam_read.qual here as it is extremely slow.
-						# If we ever decide to be compatible with older pysam
-						# versions, cache bam_read.qual somewhere - do not
-						# access it within this loop (3x slower otherwise).
-						core_read.add_variant(variants[j].position, base, allele, bam_read.query_qualities[query_pos + offset])
+					# TODO this assertion should be removed
+					assert variants[j].position not in core_read
+					# Do not use bam_read.qual here as it is extremely slow.
+					# If we ever decide to be compatible with older pysam
+					# versions, cache bam_read.qual somewhere - do not
+					# access it within this loop (3x slower otherwise).
+					core_read.add_variant(variants[j].position, base, allele, bam_read.query_qualities[query_pos + offset])
 				j += 1
 			query_pos += length
 			ref_pos += length
@@ -90,7 +93,7 @@ def find_alleles(variants, start, bam_read, core_read):
 		else:
 			logger.error("Unsupported CIGAR operation: %d", cigar_op)
 			sys.exit(1)
-	return errors
+	return core_read
 
 
 class BamReader:
@@ -134,8 +137,9 @@ class BamReader:
 		if sample is not None:
 			read_groups = self._sample_to_group_ids[sample]
 
-		# resulting set of reads
-		result = ReadSet()
+		# Map read name to a list of Read objects. The list has two entries
+		# if it is a paired-end read, one entry if the read is single-end.
+		reads = defaultdict(list)
 
 		i = 0  # keep track of position in variants array (which is in order)
 		for bam_read in self._samfile.fetch(chromosome):
@@ -154,24 +158,84 @@ class BamReader:
 			if not bam_read.cigar:
 				continue
 
-			# since reads are ordered by position, we do not need to consider
-			# positions that are too small
+			# Skip variants that are to the left of this read.
 			while i < len(variants) and variants[i].position < bam_read.pos:
 				i += 1
-			try:
-				core_read = result[bam_read.qname]
-				former_length = len(core_read)
-				find_alleles(variants, i, bam_read, core_read)
-				# If variants on the current (part of the) read have been added,
-				# then also record its MAPQ
-				if len(core_read) > former_length:
-					core_read.add_mapq(bam_read.mapq)
-			except KeyError:
-				core_read = Read(bam_read.qname, bam_read.mapq)
-				find_alleles(variants, i, bam_read, core_read)
-				# only add new read if it contained at least one variant
-				if len(core_read) > 0:
-					result.add(core_read)
+
+			core_read = covered_variants(variants, i, bam_read)
+			# Only add new read if it covers at least one variant.
+			if core_read:
+				reads[bam_read.qname].append(core_read)
+
+		# Prepare resulting set of reads.
+		read_set = ReadSet()
+
+		for readlist in reads.values():
+			assert 0 < len(readlist) <= 2
+			if len(readlist) == 1:
+				read_set.add(readlist[0])
+			else:
+				read_set.add(self._merge_pair(*readlist))
+		return read_set
+
+	def _merge_pair(self, read1, read2):
+		"""
+		Merge the two ends of a paired-end read into a single core.Read. Also
+		takes care of self-overlapping read pairs.
+
+		TODO this can be simplified as soon as
+		- we know that variants in a read are sorted,
+		- a variant in a read can be modified.
+		"""
+		assert not read1 or not read2 or read1[0].position <= read2[0].position, \
+			"Read2 must not be left of read1"
+		if read2:
+			result = Read(read1.name, read1.mapqs[0])
+			result.add_mapq(read2.mapqs[0])
+		else:
+			return read1
+
+		i1 = 0
+		i2 = 0
+
+		def add1():
+			result.add_variant(read1[i1].position, read1[i1].base, read1[i1].allele, read1[i1].quality)
+
+		def add2():
+			result.add_variant(read2[i2].position, read2[i2].base, read2[i2].allele, read2[i2].quality)
+
+		while i1 < len(read1) or i2 < len(read2):
+			if i1 == len(read1):
+				add2()
+				i2 += 1
+				continue
+			if i2 == len(read2):
+				add1()
+				i1 += 1
+				continue
+			variant1 = read1[i1]
+			variant2 = read2[i2]
+			if variant2.position < variant1.position:
+				add2()
+				i2 += 1
+			elif variant2.position > variant1.position:
+				add1()
+				i1 += 1
+			else:
+				# Variant on self-overlapping read pair
+				assert read1[i1].position == read2[i2].position
+				# If both alleles agree, merge into single variant and add up qualities
+				if read1[i1].allele == read2[i2].allele:
+					quality = read1[i1].quality + read2[i2].quality
+					result.add_variant(read1[i1].position, read1[i1].base, read1[i1].allele, quality)
+				else:
+					# Otherwise, take variant with highest base quality and discard the other.
+					if read1[i1].quality >= read2[i2].quality:
+						add1()
+					else:
+						add2()
+				i1 += 1
+				i2 += 1
 		return result
 
 	def __enter__(self):
