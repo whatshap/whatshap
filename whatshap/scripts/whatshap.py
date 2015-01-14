@@ -364,7 +364,7 @@ def main():
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
 	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',
-		default=20, type=int, help='Minimum mapping quality')
+		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
 	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
 	parser.add_argument('--all-het', action='store_true', default=False,
 		help='Assume all positions to be heterozygous (that is, fully trust SNP calls).')
