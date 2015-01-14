@@ -96,11 +96,11 @@ def covered_variants(variants, start, bam_read):
 	return core_read
 
 
-class BamReader:
+class SampleBamReader:
 	"""
-	Associate variants with reads.
+	Read only those reads from a BAM file that belong to a specified sample.
 	"""
-	def __init__(self, path, mapq_threshold=20):
+	def __init__(self, path):
 		"""
 		path -- path to BAM file
 		"""
@@ -110,20 +110,39 @@ class BamReader:
 			logger.info('BAM index not found, creating it now.')
 			pysam.index(path)
 		self._samfile = pysam.Samfile(path)
-		self._mapq_threshold = mapq_threshold
 		self._initialize_sample_to_group_ids()
 
 	def _initialize_sample_to_group_ids(self):
 		"""
-		Return a dictionary that maps a sample name to a set of read group ids.
+		Create a dictionary that maps a sample name to a set of read group ids.
 		"""
 		read_groups = self._samfile.header['RG']  # a list of dicts
-		logger.debug('Read groups in SAM header: %s', read_groups)
+		logger.debug('Read groups in BAM header: %s', read_groups)
 		samples = defaultdict(list)
 		for read_group in read_groups:
 			samples[read_group['SM']].append(read_group['ID'])
 		self._sample_to_group_ids = {
 			id: frozenset(values) for id, values in samples.items() }
+
+	def fetch(self, reference, sample):
+		if sample is None:
+			return self._file.fetch(reference)
+		read_groups = self._sample_to_group_ids[sample]
+		for bam_read in self._samfile.fetch(reference):
+			if bam_read.opt('RG') in read_groups:
+				yield bam_read
+
+	def close(self):
+		self._samfile.close()
+
+
+class BamReader:
+	"""
+	Associate variants with reads.
+	"""
+	def __init__(self, path, mapq_threshold=20):
+		self._mapq_threshold = mapq_threshold
+		self._reader = SampleBamReader(path)
 
 	def read(self, chromosome, variants, sample):
 		"""
@@ -134,26 +153,21 @@ class BamReader:
 
 		Return a ReadSet object.
 		"""
-		if sample is not None:
-			read_groups = self._sample_to_group_ids[sample]
-
 		# Map read name to a list of Read objects. The list has two entries
 		# if it is a paired-end read, one entry if the read is single-end.
 		reads = defaultdict(list)
 
 		i = 0  # keep track of position in variants array (which is in order)
-		for bam_read in self._samfile.fetch(chromosome):
-			if sample is not None and not bam_read.opt('RG') in read_groups:
-				continue
+		for bam_read in self._reader.fetch(reference=chromosome, sample=sample):
 			# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
 			if bam_read.flag & 2048 != 0:
 				# print('Skipping additional alignment for read ', bam_read.qname)
 				continue
+			if bam_read.mapq < self._mapq_threshold:
+				continue
 			if bam_read.is_secondary:
 				continue
 			if bam_read.is_unmapped:
-				continue
-			if bam_read.mapq < self._mapq_threshold:
 				continue
 			if not bam_read.cigar:
 				continue
@@ -245,7 +259,7 @@ class BamReader:
 		self.close()
 
 	def close(self):
-		self._samfile.close()
+		self._reader.close()
 
 
 class CoverageMonitor:
