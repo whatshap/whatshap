@@ -30,7 +30,7 @@ from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, IndexSet
 from ..graph import ComponentFinder
-from ..bam import SampleBamReader
+from ..bam import MultiBamReader, SampleBamReader
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -99,9 +99,12 @@ class BamReader:
 	"""
 	Associate variants with reads.
 	"""
-	def __init__(self, path, mapq_threshold=20):
+	def __init__(self, paths, mapq_threshold=20):
 		self._mapq_threshold = mapq_threshold
-		self._reader = SampleBamReader(path)
+		if len(paths) == 1:
+			self._reader = SampleBamReader(paths[0])
+		else:
+			self._reader = MultiBamReader(paths)
 
 	def read(self, chromosome, variants, sample):
 		"""
@@ -372,7 +375,7 @@ def main():
 		help='Name of a sample to phase. If not given, only the first sample '
 			'in the input VCF is phased.')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
-	parser.add_argument('bam', metavar='BAM', help='BAM file')
+	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
 	args = parser.parse_args()
 	random.seed(args.seed)
 

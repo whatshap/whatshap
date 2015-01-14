@@ -1,6 +1,7 @@
 import os
 import pysam
 import logging
+import heapq
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)
@@ -43,3 +44,67 @@ class SampleBamReader:
 
 	def close(self):
 		self._samfile.close()
+
+
+class ComparableAlignedSegment:
+	"""
+	Heapsort wants to be able to use the less than operator. Native
+	AlignedSegment instances do not support this.
+	"""
+	def __init__(self, aligned_segment):
+		self.segment = aligned_segment
+
+	def __lt__(self, other):
+		self_id = self.segment.reference_id
+		self_pos = self.segment.reference_start
+		other_id = other.segment.reference_id
+		other_pos = other.segment.reference_start
+		return self_id < other_id or (
+			self_id == other_id and self_pos < other_pos)
+
+
+class MultiBamReader:
+	"""
+	Read multiple sorted BAM files and merge them on the fly.
+
+	To avoid needing to handle renaming of duplicate read groups, this class
+	just allows to specify a desired sample name. Doing that filtering here
+	is much easier.
+	"""
+
+	def __init__(self, paths):
+		self._readers = []
+		for path in paths:
+			self._readers.append(SampleBamReader(path))
+
+	def fetch(self, reference=None, sample=None):
+		"""
+		Yield reads from the specified region in all the opened BAM files,
+		merging them on the fly. Each BAM file must have a BAI index.
+
+		If a sample name is given, only reads that belong to that sample are
+		returned (the RG tags of each read and the RG header are used for that).
+		"""
+		def make_comparable(reader):
+			for segment in reader.fetch(reference, sample):
+				yield ComparableAlignedSegment(segment)
+		iterators = []
+		for r in self._readers:
+			iterators.append(make_comparable(r))
+		for it in heapq.merge(*iterators):
+			yield it.segment
+
+	def close(self):
+		for f in self._readers:
+			f.close()
+
+
+if __name__ == '__main__':
+	import sys
+	# merge given BAM files and write them into out.bam
+	mb = MultiBam(sys.argv[1:])
+	out = Samfile('out.bam', 'wb', template=mb._files[0])
+	for r in mb.fetch():
+		out.write(r)
+	mb.close()
+	out.close()
