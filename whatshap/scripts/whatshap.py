@@ -161,12 +161,9 @@ class BamReader:
 		Merge the two ends of a paired-end read into a single core.Read. Also
 		takes care of self-overlapping read pairs.
 
-		TODO this can be simplified as soon as
-		- we know that variants in a read are sorted,
-		- a variant in a read can be modified.
+		TODO this can be simplified as soon as a variant in a read can be
+		modified.
 		"""
-		assert not read1 or not read2 or read1[0].position <= read2[0].position, \
-			"Read2 must not be left of read1"
 		if read2:
 			result = Read(read1.name, read1.mapqs[0])
 			result.add_mapq(read2.mapqs[0])
