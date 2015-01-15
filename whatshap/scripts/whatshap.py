@@ -22,6 +22,7 @@ import random
 import gzip
 import time
 import itertools
+import platform
 from collections import defaultdict
 try:
 	from contextlib import ExitStack, closing
@@ -379,6 +380,7 @@ def main():
 	random.seed(args.seed)
 
 	start_time = time.time()
+	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
 		try:
 			bam_reader = stack.enter_context(closing(BamReader(args.bam, mapq_threshold=args.mapping_quality)))
@@ -391,12 +393,12 @@ def main():
 			out_file = sys.stdout
 		command_line = ' '.join(sys.argv[1:])
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=args.vcf, out_file=out_file)
-		for sample, chromosome, variants in parse_vcf(args.vcf, args.sample):
-			logger.info('Read %d variants on chromosome %s', len(variants), chromosome)
+		vcf_reader = parse_vcf(args.vcf, args.sample)
+		for sample, chromosome, variants in vcf_reader:
+			logger.info('%d variants on chromosome %s', len(variants), chromosome)
 			if args.ignore_read_groups:
 				sample = None
 			logger.info('Reading the BAM file ...')
-
 			reads = bam_reader.read(chromosome, variants, sample)
 			
 			# Sort the variants stored in each read
