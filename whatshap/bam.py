@@ -36,7 +36,12 @@ class SampleBamReader:
 
 	def fetch(self, reference, sample):
 		if sample is None:
-			return self._file.fetch(reference)
+			# PY32
+			# Starting with Python 3.3, this loop could be replaced with
+			# 'return self._file.fetch(reference)'
+			for i in self._file.fetch(reference):
+				yield i
+			return
 		read_groups = self._sample_to_group_ids[sample]
 		for bam_read in self._samfile.fetch(reference):
 			if bam_read.opt('RG') in read_groups:

@@ -15,10 +15,14 @@ from whatshap import __version__
 
 MIN_CYTHON_VERSION = '0.17'
 
-if sys.version_info < (3, 3):
-	# We use some Python 3.3 functions, such as contextlib.ExitStack
-	sys.stdout.write("At least Python 3.3 is required.\n")
+if sys.version_info < (3, 2):
+	sys.stdout.write("At least Python 3.2 is required.\n")
 	sys.exit(1)
+if sys.version_info < (3, 3):
+	# need backport of contextlib.ExitStack in Python 3.2
+	extra_install_requires = ['contextlib2']
+else:
+	extra_install_requires = []
 
 
 def out_of_date(extensions):
@@ -105,7 +109,7 @@ setup(
 	ext_modules = extensions,
 	packages = ['whatshap', 'whatshap.scripts'],
 	scripts = ['bin/whatshap', 'bin/phase2gtf'],
-	install_requires = ['pysam>=0.8.1', 'PyVCF'],
+	install_requires = ['pysam>=0.8.1', 'PyVCF'] + extra_install_requires,
 	classifiers = [
 		"Development Status :: 2 - Pre-Alpha",
 		"Environment :: Console",

@@ -23,8 +23,10 @@ import gzip
 import time
 import itertools
 from collections import defaultdict
-from contextlib import ExitStack, closing
-
+try:
+	from contextlib import ExitStack, closing
+except ImportError:
+	from contextlib2 import ExitStack, closing  # PY32
 from ..vcf import parse_vcf, PhasedVcfWriter
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
