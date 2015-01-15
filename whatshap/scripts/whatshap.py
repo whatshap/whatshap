@@ -293,9 +293,9 @@ def slice_reads(reads, max_coverage):
 			unphasable_snps, len(position_list),
 			100. * unphasable_snps / len(position_list))
 
-	# Print stats
-	for slice_id, index_set in enumerate(slices):
-		logger.info('Slice %d contains %d reads', slice_id, len(index_set))
+	if reads:
+		logger.info('After coverage reduction: Using %d of %d (%.1f%%) reads',
+			len(slices[0]), len(reads), 100. * len(slices[0]) / len(reads))
 
 	return reads.subset(slices[0])
 
@@ -305,7 +305,7 @@ def find_components(superreads, reads):
 	Return a dict that maps each position to the component it is in. A
 	component is identified by the position of its leftmost variant.
 	"""
-	logger.info('Finding connected components ...')
+	logger.debug('Finding connected components ...')
 	assert len(superreads) == 2
 	assert len(superreads[0]) == len(superreads[1])
 
@@ -380,6 +380,12 @@ def main():
 	random.seed(args.seed)
 
 	start_time = time.time()
+	class Statistics:
+		pass
+	stats = Statistics()
+	stats.n_phased_blocks = 0
+	stats.n_best_case_blocks = 0
+	stats.n_best_case_blocks_cov = 0
 	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
 		try:
@@ -395,11 +401,13 @@ def main():
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=args.vcf, out_file=out_file)
 		vcf_reader = parse_vcf(args.vcf, args.sample)
 		for sample, chromosome, variants in vcf_reader:
-			logger.info('%d variants on chromosome %s', len(variants), chromosome)
+			logger.info('Working on chromosome %s', chromosome)
+			logger.info('Read %d variants', len(variants))
 			if args.ignore_read_groups:
 				sample = None
 			logger.info('Reading the BAM file ...')
 			reads = bam_reader.read(chromosome, variants, sample)
+			logger.info('%d reads found', len(reads))
 			
 			# Sort the variants stored in each read
 			# TODO: Check whether this is already ensured by construction
@@ -409,8 +417,12 @@ def main():
 			reads.sort()
 
 			sliced_reads = slice_reads(reads, args.max_coverage)
-			logger.info('Best-case phasing would result in %d phased blocks (%d with slicing)',
-				best_case_blocks(reads), best_case_blocks(sliced_reads))
+			n_best_case_blocks = best_case_blocks(reads)
+			n_best_case_blocks_cov = best_case_blocks(sliced_reads)
+			stats.n_best_case_blocks += n_best_case_blocks
+			stats.n_best_case_blocks_cov += n_best_case_blocks_cov
+			logger.info('Best-case phasing would result in %d phased blocks (%d with coverage reduction)',
+				n_best_case_blocks, n_best_case_blocks_cov)
 			logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 
 			# Run the core algorithm: construct DP table ...
@@ -419,8 +431,14 @@ def main():
 			superreads = dp_table.get_super_reads()
 
 			components = find_components(superreads, sliced_reads)
-			logger.info('No. of phased blocks: %d', len(set(components.values())))
-			logger.info('Writing phased variants on chromosome %s ...', chromosome)
+			n_phased_blocks = len(set(components.values()))
+			stats.n_phased_blocks += n_phased_blocks
+			logger.info('No. of phased blocks: %d', n_phased_blocks)
 			vcf_writer.write(chromosome, sample, superreads, components)
+			logger.info('Chromosome %s finished', chromosome)
 
+	logger.info('== SUMMARY ==')
+	logger.info('Best-case phasing would result in %d phased blocks (%d with coverage reduction)',
+				stats.n_best_case_blocks, stats.n_best_case_blocks_cov)
+	logger.info('Actual number of phased blocks: %d', stats.n_phased_blocks)
 	logger.info('Elapsed time: %.1fs', time.time() - start_time)
