@@ -16,8 +16,9 @@ TODO
 import logging
 import sys
 from collections import Counter
-from ..vcf import vcf_sample_reader
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
+from time import time
+from ..vcf import vcf_sample_reader
 
 __author__ = 'Marcel Martin'
 
@@ -139,7 +140,7 @@ def parse_hp_tags(path, sample):
 	prev_phased = False
 	prev_block_name = None
 	prev_record = None
-
+	last_time = time()
 	for sample, record, call in vcf_sample_reader(path, sample):
 		n_records += 1
 		assert not (not call.is_het and hasattr(call.data, 'HP')), "HP tag for homozygous variant found"
@@ -163,6 +164,9 @@ def parse_hp_tags(path, sample):
 				# phased block starts
 				block_start = record.start
 
+		if n_records % 10000 == 0 and time() - last_time > 10:
+			logger.info('%s records processed', n_records)
+			last_time = time()
 		prev_block_name = block_name
 		prev_record = record
 
