@@ -18,6 +18,16 @@ DPTable::DPTable(const ReadSet* read_set, bool all_heterozygous) {
   compute_table();
 }
 
+DPTable::~DPTable() {
+  for(size_t i=0; i<indexers.size(); ++i) {
+    delete indexers[i];
+  }
+
+  for(size_t i=0; i<backtrace_table.size(); ++i) {
+    delete backtrace_table[i];
+  }
+}
+
 auto_ptr<vector<unsigned int> > DPTable::extract_read_ids(const vector<const Entry *>& entries) {
   auto_ptr<vector<unsigned int> > read_ids(new vector<unsigned int>());
   for (size_t i=0; i<entries.size(); ++i) {

@@ -40,6 +40,8 @@ public:
    *                          reads suggest a homozygous site. */
   DPTable(const ReadSet* read_set, bool all_heterozygous = false);
  
+  ~DPTable();
+
   unsigned int get_optimal_score();
   
   /** Computes optimal haplotypes and adds them (in the form of "super reads") to 
