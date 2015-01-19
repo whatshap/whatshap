@@ -179,11 +179,18 @@ def parse_hp_tags(path, sample):
 	printe('Variants with phasing information:', n_phased)
 
 	#printe('blocks:', blocks)
-	printe('No. of phased blocks:', len(blocks))
-	if blocks:
-		printe('Largest block:    ', max(blocks.values()))
-		printe('Median block size:', sorted(blocks.values())[len(blocks) // 2])
-		printe('Smallest block:   ', min(blocks.values()))
+	for remove_ones in False, True:
+		block_sizes = list(blocks.values())
+		block_sizes.sort()
+		if remove_ones:
+			printe('\nSame as above, but ignoring blocks of size 1')
+			block_sizes = [ size for size in block_sizes if size > 1 ]
+		printe('No. of phased blocks:', len(block_sizes))
+		if block_sizes:
+			printe('Median block size: ', block_sizes[len(block_sizes) // 2])
+			printe('Average block size: {:.2f}'.format(sum(block_sizes) / len(block_sizes)))
+			printe('Largest block:     ', block_sizes[-1])
+			printe('Smallest block:    ', block_sizes[0])
 
 
 def main():
