@@ -153,7 +153,7 @@ def parse_hp_tags(path, sample):
 			blocks[(record.CHROM, block_name)] += 1
 			n_phased += 1
 
-		if prev_block_name != block_name or prev_record.CHROM != record.CHROM:
+		if prev_block_name != block_name or (prev_record is not None and prev_record.CHROM != record.CHROM):
 			# some type of transition is occurring here
 			if prev_block_name is not None:
 				# phased block has ended at previous variant
