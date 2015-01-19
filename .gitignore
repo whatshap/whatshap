@@ -1,5 +1,5 @@
-build
-venv
+build/
+venv*/
 *.pyc
 *~
 .*.kate-swp

@@ -6,7 +6,7 @@ to standard output that describes the found blocks.
 The GTF file can be loaded into IGV. Since a block of phased variants is not
 necessarily contiguos, each block is modelled as a "gene" in the GTF file that
 can have multiple "exons". Each exon marks a set of adjacent variants which all
-could be phased. If there are nonadjacent variants that belong to the same
+are phased. If there are nonadjacent variants that belong to the same
 block, there will be multiple "exons" connected with an arrow (in IGV).
 """
 """
