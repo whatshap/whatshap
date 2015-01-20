@@ -8,6 +8,8 @@ necessarily contiguos, each block is modelled as a "gene" in the GTF file that
 can have multiple "exons". Each exon marks a set of adjacent variants which all
 are phased. If there are nonadjacent variants that belong to the same
 block, there will be multiple "exons" connected with an arrow (in IGV).
+
+The statistics printed at the end exclude blocks of size 1.
 """
 """
 TODO
@@ -164,33 +166,35 @@ def parse_hp_tags(path, sample):
 				# phased block starts
 				block_start = record.start
 
-		if n_records % 10000 == 0 and time() - last_time > 10:
+		if n_records % 10000 == 0 and time() - last_time > 20:
 			logger.info('%s records processed', n_records)
 			last_time = time()
+		if n_records == 100000:
+			break
 		prev_block_name = block_name
 		prev_record = record
-
+	logger.info('%s records processed', n_records)
 	# print statistics
 	def printe(*args, **kwargs):
 		kwargs['file'] = sys.stderr
 		print(*args, **kwargs)
 
-	printe('Variants in VCF:', n_records)
-	printe('Variants with phasing information:', n_phased)
+	block_sizes = list(blocks.values())
+	block_sizes.sort()
+	n_singletons = sum(1 for size in block_sizes if size == 1)
+	block_sizes = [ size for size in block_sizes if size > 1 ]
 
-	#printe('blocks:', blocks)
-	for remove_ones in False, True:
-		block_sizes = list(blocks.values())
-		block_sizes.sort()
-		if remove_ones:
-			printe('\nSame as above, but ignoring blocks of size 1')
-			block_sizes = [ size for size in block_sizes if size > 1 ]
-		printe('No. of phased blocks:', len(block_sizes))
-		if block_sizes:
-			printe('Median block size: ', block_sizes[len(block_sizes) // 2])
-			printe('Average block size: {:.2f}'.format(sum(block_sizes) / len(block_sizes)))
-			printe('Largest block:     ', block_sizes[-1])
-			printe('Smallest block:    ', block_sizes[0])
+	WIDTH = 25
+	printe('Variants in VCF:'.rjust(WIDTH), '{:6d}'.format(n_records))
+	printe('No. of phased variants:'.rjust(WIDTH), '{:6d}'.format(sum(block_sizes)))
+	printe('No. of unphased variants:'.rjust(WIDTH), '{:6d}'.format(n_records - n_phased), '(not considered below)')
+	printe('No. of singletons:'.rjust(WIDTH), '{:6d}'.format(n_singletons), '(not considered below)')
+	printe('No. of blocks:'.rjust(WIDTH), '{:6d}'.format(len(block_sizes)))
+	if block_sizes:
+		printe('Median block size:'.rjust(WIDTH), '{:6d}'.format(block_sizes[len(block_sizes) // 2]))
+		printe('Average block size:'.rjust(WIDTH), '{:9.2f}'.format(sum(block_sizes) / len(block_sizes)))
+		printe('Largest block:'.rjust(WIDTH), '{:6d}'.format(block_sizes[-1]))
+		printe('Smallest block:'.rjust(WIDTH), '{:6d}'.format(block_sizes[0]))
 
 
 def main():
