@@ -169,8 +169,6 @@ def parse_hp_tags(path, sample):
 		if n_records % 10000 == 0 and time() - last_time > 20:
 			logger.info('%s records processed', n_records)
 			last_time = time()
-		if n_records == 100000:
-			break
 		prev_block_name = block_name
 		prev_record = record
 	logger.info('%s records processed', n_records)
