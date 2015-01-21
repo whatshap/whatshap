@@ -32,11 +32,11 @@ ColumnIndexingScheme::ColumnIndexingScheme(const ColumnIndexingScheme* previous_
 }
 
 unsigned int ColumnIndexingScheme::column_size() {
-  return ((unsigned int)1) << read_ids.size();
+  return ((unsigned int)1) << read_ids.size()-1;
 }
 
 unsigned int ColumnIndexingScheme::forward_projection_size() {
-  return ((unsigned int)1) << forward_projection_mask->size();
+  return ((unsigned int)1) << forward_projection_mask->size()-1;
 }
 
 unsigned int ColumnIndexingScheme::get_forward_projection_width() {
