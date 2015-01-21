@@ -18,7 +18,7 @@ GrayCodes::GrayCodes(int length) {
 }
 
 bool GrayCodes::has_next() {
-  return i < length;
+  return i < length-1;
 }
 
 GrayCodes::int_t GrayCodes::get_next(int* changed_bit) {
