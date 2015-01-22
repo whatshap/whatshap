@@ -10,7 +10,6 @@ ColumnIndexingIterator::ColumnIndexingIterator(const ColumnIndexingScheme* paren
   this->graycodes = new GrayCodes(parent->read_ids.size());
   this->index = -1;
   this->forward_projection = -1;
-  this->forward_dual_projection = -1; // used for HALF_TABLE
 }
 
 ColumnIndexingIterator::~ColumnIndexingIterator() {
@@ -31,7 +30,6 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
     assert(index == 0);
     if (parent->forward_projection_mask != 0) {
       forward_projection = 0;
-      //forward_dual_projection = (((unsigned int)1) << parent->forward_projection_width)-1;
     }
   } else {
     if (parent->forward_projection_mask != 0) {
@@ -39,7 +37,6 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
       int bit_index = parent->forward_projection_mask->at(graycode_bit_changed);
       if (bit_index >= 0) {
 	forward_projection = forward_projection ^ (((unsigned int)1) << bit_index);
-	//forward_dual_projection = forward_dual_projection ^ (((unsigned int)1) << bit_index);
       }
     }
   }
@@ -51,11 +48,6 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
 unsigned int ColumnIndexingIterator::get_forward_projection() {
   assert(index >= 0);
   return forward_projection;
-}
-
-unsigned int ColumnIndexingIterator::get_forward_dual_projection() {
-  assert(index >= 0);
-  return forward_dual_projection;
 }
 
 unsigned int ColumnIndexingIterator::get_backward_projection() {
@@ -80,45 +72,4 @@ unsigned int ColumnIndexingIterator::index_backward_projection(unsigned int i) {
   assert(i < (((unsigned int)1) << parent->read_ids.size()));
 
   return i & ((((unsigned int)1) << parent->backward_projection_width) -1);
-}
-
-// in the HALF_TABLE case
-
-unsigned int ColumnIndexingIterator::dual_index_backward_projection(unsigned int i) {
-  assert(i >= 0); // assert the proper boundaries
-  assert(i < (((unsigned int)1) << parent->read_ids.size()));
-  
-  // return backward projection of the dual
-  return dual_index(i) & ((((unsigned int)1) << parent->backward_projection_width) -1);
-}
-
-unsigned int ColumnIndexingIterator::dual_index(unsigned int i) {
-  assert(i >= 0);
-  assert(i < (((unsigned int)1) << parent->read_ids.size()));
-
-  unsigned int dual_i = i;
-  unsigned int s = 1;
-  for(int j=0; j< parent->read_ids.size(); ++j) { // compute the dual of i
-    dual_i = dual_i ^ s;
-    s = s << 1;
-  }
-
-  return dual_i;
-}
-
-unsigned int ColumnIndexingIterator::index_forward_projection(unsigned int i) {
-  assert(i >= 0);
-  assert(i < (((unsigned int)1) << parent->read_ids.size()));
-
-  unsigned int i_forward_projection = 0;
-  unsigned int s = 1;
-  for(int j=0; j< parent->read_ids.size(); ++j) {
-    unsigned int m = parent->forward_projection_mask->at(j);
-    if(m != -1) {
-      unsigned int s = (((unsigned int)1) << m);
-      i_forward_projection += (s&i);
-    }
-  }
-  
-  return i_forward_projection;
 }
