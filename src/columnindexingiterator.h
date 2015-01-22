@@ -11,7 +11,6 @@ private:
   GrayCodes* graycodes;
   unsigned int index;
   unsigned int forward_projection;
-  unsigned int forward_dual_projection; // the dual of the forward projection
 
 public:
   ColumnIndexingIterator(const ColumnIndexingScheme* parent);
@@ -31,9 +30,6 @@ public:
   /** Index of the projection of the current read set onto the intersection between current and next read set. */
   unsigned int get_forward_projection();
 
-  /** Index of the dual of the forward projection (above) */
-  unsigned int get_forward_dual_projection();
-
   /** Index of the projection of the current read set onto the intersection between previous and the current read set. */
   unsigned int get_backward_projection();
 
@@ -47,17 +43,6 @@ public:
 
   /** get index's backward projection (given index i), so that we don't have to iterate up to it, just to get it */
   unsigned int index_backward_projection(unsigned int i);
-
-  // used in the backtracking in the HALF_TABLE case
-
-  /** get index's dual's backward projection (see above) */
-  unsigned int dual_index_backward_projection(unsigned int i);
-
-  /** get index's dual */
-  unsigned int dual_index(unsigned int i);
-
-  /** get index's dual's forward projection (see above) */
-  unsigned int index_forward_projection(unsigned int i);
 
 };
 
