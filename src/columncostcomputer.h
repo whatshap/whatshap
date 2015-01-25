@@ -7,14 +7,18 @@
 #include "columnindexingiterator.h"
 
 class ColumnCostComputer {
+
 private:
+
   const std::vector<const Entry*>& column;
   // cost_partitionX[Y] is the cost of flipping all entries in the partition X to Y for Y = 0,1.
   unsigned int cost_partition1[2];
   unsigned int cost_partition2[2];
   unsigned int partitioning;
   bool all_heterozygous;
+
 public:
+
   ColumnCostComputer(const std::vector<const Entry*>& column, bool all_heterozygous = false);
   
   void set_partitioning(unsigned int partitioning);

@@ -6,13 +6,16 @@
 class ColumnIndexingScheme;
 
 class ColumnIndexingIterator {
+
 private:
+
   const ColumnIndexingScheme* parent;
   GrayCodes* graycodes;
   unsigned int index;
   unsigned int forward_projection;
 
 public:
+
   ColumnIndexingIterator(const ColumnIndexingScheme* parent);
   virtual ~ColumnIndexingIterator();
   

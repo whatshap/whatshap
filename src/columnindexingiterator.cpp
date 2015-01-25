@@ -6,6 +6,7 @@ using namespace std;
 
 ColumnIndexingIterator::ColumnIndexingIterator(const ColumnIndexingScheme* parent) {
   assert(parent != 0);
+
   this->parent = parent;
   this->graycodes = new GrayCodes(parent->read_ids.size());
   this->index = -1;
@@ -42,7 +43,9 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
     if (parent->forward_projection_mask != 0) {
       forward_projection = 0;
     }
-  } else {
+  }
+  else {
+
     if (parent->forward_projection_mask != 0) {
       // index of bit in the forward_projection
       int bit_index = parent->forward_projection_mask->at(graycode_bit_changed);

@@ -5,26 +5,33 @@
 using namespace std;
 
 ColumnIndexingScheme::ColumnIndexingScheme(const ColumnIndexingScheme* previous_column, const std::vector<unsigned int>& read_ids) : read_ids(read_ids) {
+
   this->previous_column = previous_column;
   this->next_column = 0;
+
   // assert that read ids are ordered
   for (size_t i=0; i<read_ids.size()-1; ++i) {
     assert(read_ids[i] < read_ids[i+1]);
   }
+
   this->forward_projection_mask = 0;
   this->backward_projection_width = 0;
   this->forward_projection_width = 0;
+
   if (previous_column != 0) {
     int i = 0;
     int j = 0;
     while ((i<previous_column->read_ids.size()) && (j<read_ids.size())) {
+
       if (previous_column->read_ids[i] == read_ids[j]) {
         backward_projection_width += 1;
         i += 1;
         j += 1;
-      } else if (previous_column->read_ids[i] < read_ids[j]) {
+      }
+      else if (previous_column->read_ids[i] < read_ids[j]) {
         i += 1;
-      } else {
+      }
+      else {
         j += 1;
       }
     }
@@ -48,23 +55,29 @@ unsigned int ColumnIndexingScheme::get_backward_projection_width() {
 }
 
 void ColumnIndexingScheme::set_next_column(const ColumnIndexingScheme* next_column) {
+
   assert(next_column != 0);
   this->next_column = next_column;
+
   if (forward_projection_mask != 0) delete forward_projection_mask;
   forward_projection_width = 0;
   forward_projection_mask = new vector<unsigned int>(read_ids.size(),-1);
   int i = 0;
   int j = 0;
   int n = 0;
+
   while ((i<next_column->read_ids.size()) && (j<read_ids.size())) {
+
     if (next_column->read_ids[i] == read_ids[j]) {
       forward_projection_mask->at(j) = n;
       n += 1;
       i += 1;
       j += 1;
-    } else if (next_column->read_ids[i] < read_ids[j]) {
+    }
+    else if (next_column->read_ids[i] < read_ids[j]) {
       i += 1;
-    } else {
+    }
+    else {
       j += 1;
     }
   }

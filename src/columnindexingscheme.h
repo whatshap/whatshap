@@ -7,10 +7,13 @@
 class ColumnIndexingIterator;
 
 class ColumnIndexingScheme {
+
 private:
+
   std::vector<unsigned int> read_ids;
   const ColumnIndexingScheme* previous_column;
   const ColumnIndexingScheme* next_column;
+
   unsigned int backward_projection_width;
   unsigned int forward_projection_width;
   std::vector<unsigned int>* forward_projection_mask;
