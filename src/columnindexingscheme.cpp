@@ -36,7 +36,7 @@ unsigned int ColumnIndexingScheme::column_size() {
 }
 
 unsigned int ColumnIndexingScheme::forward_projection_size() {
-  return ((unsigned int)1) << forward_projection_mask->size()-1;
+  return ((unsigned int)1) << forward_projection_width-1;
 }
 
 unsigned int ColumnIndexingScheme::get_forward_projection_width() {
@@ -69,7 +69,7 @@ void ColumnIndexingScheme::set_next_column(const ColumnIndexingScheme* next_colu
     }
   }
 
-  forward_projection_width = n+1;
+  forward_projection_width = n;
 }
 
 auto_ptr<ColumnIndexingIterator> ColumnIndexingScheme::get_iterator() {

@@ -20,6 +20,17 @@ bool ColumnIndexingIterator::has_next() {
   return graycodes->has_next();
 }
 
+// auxilliary function that returns the complement of unsigned int i
+// with respect to a width, should its most significant bit be 1
+// (i.e., it is 1 at bit index width), otherwise it returns i
+unsigned int wrapped(unsigned int i, unsigned int width) {
+
+  if((i >> (width-1)) == 1)
+    return ~i & ((((unsigned int)1) << width) -1);
+
+  return i;
+}
+
 void ColumnIndexingIterator::advance(int* bit_changed) {
   assert(graycodes->has_next());
 
@@ -38,6 +49,7 @@ void ColumnIndexingIterator::advance(int* bit_changed) {
       if (bit_index >= 0) {
 	forward_projection = forward_projection ^ (((unsigned int)1) << bit_index);
       }
+      forward_projection = wrapped(forward_projection, parent->forward_projection_width);
     }
   }
   if (bit_changed != 0) {
@@ -52,7 +64,7 @@ unsigned int ColumnIndexingIterator::get_forward_projection() {
 
 unsigned int ColumnIndexingIterator::get_backward_projection() {
   assert(index >= 0);
-  return index & ((((unsigned int)1)<<parent->backward_projection_width) - 1);
+  return wrapped(index & ((((unsigned int)1)<<parent->backward_projection_width) - 1), parent->backward_projection_width);
 }
 
 unsigned int ColumnIndexingIterator::get_index() {
@@ -71,5 +83,5 @@ unsigned int ColumnIndexingIterator::index_backward_projection(unsigned int i) {
   assert(i >= 0); // assert the proper boundaries
   assert(i < (((unsigned int)1) << parent->read_ids.size()));
 
-  return i & ((((unsigned int)1) << parent->backward_projection_width) -1);
+  return wrapped(i & ((((unsigned int)1) << parent->backward_projection_width) -1), parent->backward_projection_width);
 }
