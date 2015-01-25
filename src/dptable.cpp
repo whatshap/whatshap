@@ -6,7 +6,7 @@
 #include "columncostcomputer.h"
 #include "dptable.h"
 
-//#define DB // db
+#define DB // db
 
 using namespace std;
 
@@ -74,7 +74,6 @@ void DPTable::compute_table() {
   
   if (!column_iterator.has_next()) return;
   
-  unsigned int n = 0;
   auto_ptr<vector<const Entry *> > current_column(0);
   auto_ptr<vector<const Entry *> > next_column(0);
   // get the next column ahead of time
@@ -86,9 +85,7 @@ void DPTable::compute_table() {
   auto_ptr<vector<unsigned int> > current_projection_column(0);
   unsigned int running_optimal_score;
   unsigned int running_optimal_score_index; // optimal score and its index
-  double pi = 0.05; // percentage of columns processed
-  double pc = pi;
-  unsigned int nc = column_iterator.get_column_count();
+
   while(next_indexer != 0) {
     // move on projection column
     previous_projection_column = current_projection_column;
@@ -114,6 +111,9 @@ void DPTable::compute_table() {
     vector<unsigned int>* backtrace_column = 0;
     // if not last column, reserve memory for forward projections column
     if (next_column.get() != 0) {
+#ifdef DB
+      cout << "allocate current projection / backtrace columns of size : " << current_indexer->forward_projection_size() << endl << endl;
+#endif
       current_projection_column = auto_ptr<vector<unsigned int> >(new vector<unsigned int>(current_indexer->forward_projection_size(), numeric_limits<unsigned int>::max()));
       backtrace_column = new vector<unsigned int>(current_indexer->forward_projection_size(), numeric_limits<unsigned int>::max());
     }
@@ -124,7 +124,7 @@ void DPTable::compute_table() {
 
     // db
 #ifdef DB
-    cout << "previous projection column (costs) :" << endl << endl;
+    cout << "previous projection column, costs :" << endl << endl;
     if(previous_projection_column.get()!=0) {
       output_vector_enum(previous_projection_column.get(),current_indexer->get_backward_projection_width());
     }
@@ -132,13 +132,13 @@ void DPTable::compute_table() {
 
     cout << "row ids : ";
     output_vector(current_indexer->get_read_ids());
-    cout << "(pivot)" << endl;
 
-    cout << "column size : " << current_indexer->column_size() << endl;
+    cout << " .. column size : " << current_indexer->column_size() << endl;
     
     cout << "forward projection mask : ";
     if(next_column.get()!=0) {
       output_vector(current_indexer->get_forward_projection_mask());
+      cout << " .. width : " << current_indexer->get_forward_projection_width();
     }
     cout << endl;
 
@@ -205,24 +205,6 @@ void DPTable::compute_table() {
 
     // add newly computed backtrace_table column
     backtrace_table.push_back(backtrace_column);
-
-    ++n;
-
-    // db
-    /*
-    for(size_t j=0;j<current_column->size(); ++j) {
-      cout << dp_column->at(j) << endl;
-    }
-    cout << endl;
-    */
-
-    // completion percentage output
-    /*
-    if((double(n)/double(nc)) > pc) {
-      cout << int(pc*100.0) << " %" << endl;
-      pc += pi;
-    }
-    */
   }
 
   // store optimal score for table at end of computation
@@ -282,16 +264,6 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
 auto_ptr<vector<bool> > DPTable::get_optimal_partitioning() {
 
   auto_ptr<vector<unsigned int> > index_path = get_index_path();
-
-  // db
-  /*
-  for(size_t i=0; i< index_path.size(); ++i) {
-    cout << "index : " << index_path[i] << " " << endl;
-    for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {
-      cout << indexers[i]->get_read_ids()->at(j) << endl;
-    }
-  }
-  */
 
   auto_ptr<vector<bool> > partitioning = auto_ptr<vector<bool> >(new vector<bool>(read_count,false));
   for(size_t i=0; i< index_path->size(); ++i) {
