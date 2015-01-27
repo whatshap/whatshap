@@ -1,3 +1,4 @@
+import textwrap
 from nose.tools import raises
 from whatshap.core import Read, DPTable, ReadSet, Variant
 
@@ -113,3 +114,60 @@ def test_phase_empty_readset():
 	rs = ReadSet()
 	dp_table = DPTable(rs, all_heterozygous=False)
 	superreads = dp_table.get_super_reads()
+
+
+def phase_from_string(s):
+	"""
+	Phase the reads specified via the string s and return the result as a
+	pair of strings.
+	"""
+	s = textwrap.dedent(s).strip()
+	bits = { '0': 'A', '1': 'C', 'E': 'G' }
+	rs = ReadSet()
+	for index, line in enumerate(s.split('\n'), 1):
+		read = Read('Read {}'.format(index), 50)
+		for pos, c in enumerate(line, 1):
+			if c == ' ':
+				continue
+			read.add_variant(position=pos * 10, base=bits[c], allele=int(c), quality=22)
+		rs.add(read)
+
+	print(rs)
+	dp_table = DPTable(rs, all_heterozygous=True)
+	superreads = dp_table.get_super_reads()
+	assert len(superreads) == 2
+	assert len(superreads[0]) == len(superreads[1])
+	for v1, v2 in zip(*superreads):
+		assert v1.position == v2.position
+	print()
+	print(superreads[0])
+	print(superreads[1])
+	result = tuple(''.join(str(v.allele) for v in sr) for sr in superreads)
+	print('Result:')
+	print(result[0])
+	print(result[1])
+	return result
+
+
+def test_phase():
+	reads = """
+	 10
+	 010
+	 010
+	"""
+	s1, s2 = phase_from_string(reads)
+	assert (s1 == '101' and s2 == '010') or (s1 == '010' and s2 == '101')
+
+
+# TODO
+def test_phase2():
+	IN = """
+	 0011  1101
+	  1100 00101
+	   1001 01010
+	"""
+	IN = """
+	 0011  11010
+	  1100 00101
+	   1001001010
+	"""
