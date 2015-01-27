@@ -142,7 +142,7 @@ def phase_from_string(s):
 	print()
 	print(superreads[0])
 	print(superreads[1])
-	result = tuple(''.join(str(v.allele) for v in sr) for sr in superreads)
+	result = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
 	print('Result:')
 	print(result[0])
 	print(result[1])
@@ -156,18 +156,14 @@ def test_phase():
 	 010
 	"""
 	s1, s2 = phase_from_string(reads)
-	assert (s1 == '101' and s2 == '010') or (s1 == '010' and s2 == '101')
+	assert s1 == '010' and s2 == '101'
 
 
-# TODO
-def test_phase2():
-	IN = """
+def test_phase_switch_error():
+	reads = """
 	 0011  1101
 	  1100 00101
 	   1001 01010
 	"""
-	IN = """
-	 0011  11010
-	  1100 00101
-	   1001001010
-	"""
+	s1, s2 = phase_from_string(reads)
+	assert s1 == '000110110101' and s2 == '111001001010'
