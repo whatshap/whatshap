@@ -182,17 +182,17 @@ def parse_hp_tags(path, sample):
 	n_singletons = sum(1 for size in block_sizes if size == 1)
 	block_sizes = [ size for size in block_sizes if size > 1 ]
 
-	WIDTH = 25
-	printe('Variants in VCF:'.rjust(WIDTH), '{:6d}'.format(n_records))
-	printe('No. of phased variants:'.rjust(WIDTH), '{:6d}'.format(sum(block_sizes)))
-	printe('No. of unphased variants:'.rjust(WIDTH), '{:6d}'.format(n_records - n_phased), '(not considered below)')
-	printe('No. of singletons:'.rjust(WIDTH), '{:6d}'.format(n_singletons), '(not considered below)')
-	printe('No. of blocks:'.rjust(WIDTH), '{:6d}'.format(len(block_sizes)))
+	WIDTH = 20
+	printe('Variants in VCF:'.rjust(WIDTH), '{:7d}'.format(n_records))
+	printe('Phased:'.rjust(WIDTH), '{:7d}'.format(sum(block_sizes)))
+	printe('Unphased:'.rjust(WIDTH), '{:7d}'.format(n_records - n_phased), '(not considered below)')
+	printe('No. of singletons:'.rjust(WIDTH), '{:7d}'.format(n_singletons), '(not considered below)')
+	printe('No. of blocks:'.rjust(WIDTH), '{:7d}'.format(len(block_sizes)))
 	if block_sizes:
-		printe('Median block size:'.rjust(WIDTH), '{:6d}'.format(block_sizes[len(block_sizes) // 2]))
-		printe('Average block size:'.rjust(WIDTH), '{:9.2f}'.format(sum(block_sizes) / len(block_sizes)))
-		printe('Largest block:'.rjust(WIDTH), '{:6d}'.format(block_sizes[-1]))
-		printe('Smallest block:'.rjust(WIDTH), '{:6d}'.format(block_sizes[0]))
+		printe('Median block size:'.rjust(WIDTH), '{:7d}'.format(block_sizes[len(block_sizes) // 2]))
+		printe('Average block size:'.rjust(WIDTH), '{:10.2f}'.format(sum(block_sizes) / len(block_sizes)))
+		printe('Largest block:'.rjust(WIDTH), '{:7d}'.format(block_sizes[-1]))
+		printe('Smallest block:'.rjust(WIDTH), '{:7d}'.format(block_sizes[0]))
 
 
 def main():
