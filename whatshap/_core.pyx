@@ -223,6 +223,7 @@ cdef extern from "../src/dptable.h":
 		DPTable(ReadSet*, bool) except +
 		void get_super_reads(ReadSet*) except +
 		int get_optimal_score() except +
+		vector[bool]* get_optimal_partitioning()
 
 
 cdef class PyDPTable:
@@ -252,6 +253,14 @@ cdef class PyDPTable:
 	def get_optimal_cost(self):
 		"""Returns the cost resulting from solving the Minimum Error Correction (MEC) problem."""
 		return self.thisptr.get_optimal_score()
+
+	def get_optimal_partitioning(self):
+		"""Returns a list of the same size as the read set, where each entry is either 0 or 1,
+		telling whether the corresponding read is in partition 0 or in partition 1,"""
+		cdef vector[bool]* p = self.thisptr.get_optimal_partitioning()
+		result = [0 if x else 1 for x in p[0]]
+		del p
+		return result
 
 # ====== IndexSet ======
 cdef extern from "../src/indexset.h":
