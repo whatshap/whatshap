@@ -115,12 +115,7 @@ def test_phase_empty_readset():
 	dp_table = DPTable(rs, all_heterozygous=False)
 	superreads = dp_table.get_super_reads()
 
-
-def phase_from_string(s):
-	"""
-	Phase the reads specified via the string s and return the result as a
-	pair of strings.
-	"""
+def string_to_readset(s):
 	s = textwrap.dedent(s).strip()
 	bits = { '0': 'A', '1': 'C', 'E': 'G' }
 	rs = ReadSet()
@@ -131,8 +126,13 @@ def phase_from_string(s):
 				continue
 			read.add_variant(position=pos * 10, base=bits[c], allele=int(c), quality=1)
 		rs.add(read)
-
 	print(rs)
+	return rs
+
+def phase(rs):
+	"""
+	Phase given reads and return the result as a pair of strings.
+	"""
 	dp_table = DPTable(rs, all_heterozygous=True)
 	superreads = dp_table.get_super_reads()
 	assert len(superreads) == 2
@@ -151,15 +151,73 @@ def phase_from_string(s):
 	return result, cost
 
 
+def flip_cost(variant, target_value):
+	"""Returns cost of flipping the given read variant to target_value."""
+	if variant.allele == target_value:
+		return 0
+	else:
+		return variant.quality
+
+def column_cost(variants, possible_assignments):
+	"""Compute cost for one position."""
+	costs = []
+	for allele1, allele2 in possible_assignments:
+		cost1 = sum(flip_cost(v,allele1) for v in variants[0])
+		cost2 = sum(flip_cost(v,allele2) for v in variants[1])
+		costs.append(cost1 + cost2)
+	return min(costs)
+
+
+def brute_force_phase(read_set, all_heterozygous):
+	"""Solves MEC by enumerating all possible bipartitions."""
+	assert len(read_set) < 10, "Too many reads for brute force"
+	positions = read_set.get_positions()
+	if all_heterozygous:
+		possible_assignments = [(0,1), (1,0)]
+	else:
+		possible_assignments = [(0,0), (0,1), (1,0), (1,1)]
+	# bit i in "partition" encodes to which set read i belongs
+	best_partition = None
+	best_cost = None
+	solution_count = 0
+	for partition in range(2**len(read_set)):
+		print('Looking at partition {{:0>{}b}}'.format(len(read_set)).format(partition))
+		# compute cost induced by that partition
+		cost = 0
+		for p in positions:
+			# find variants covering this position
+			variants = [[],[]]
+			for n, read in enumerate(read_set):
+				i = (partition >> n) & 1
+				for variant in read:
+					if variant.position == p:
+						variants[i].append(variant)
+			c = column_cost(variants, possible_assignments)
+			print('    position: {}, variants: {} --> cost = {}'.format(p, str(variants), c))
+			cost += c
+		print('  --> cost for this partitioning:', cost)
+		if (best_cost is None) or (cost < best_cost):
+			best_partition = partition
+			best_cost = cost
+			solution_count = 1
+		elif cost == best_cost:
+			solution_count += 1
+	# Each partition has its inverse with the same cost
+	assert solution_count % 2 == 0
+	return best_cost
+
 def test_phase():
 	reads = """
 	 10
 	 010
 	 010
 	"""
-	(s1, s2), cost = phase_from_string(reads)
+	rs = string_to_readset(reads)
+	(s1, s2), cost = phase(rs)
+	expected_cost = brute_force_phase(rs, True)
+	print('expected cost:', expected_cost)
 	assert s1 == '010' and s2 == '101'
-	assert cost == 0
+	assert cost == expected_cost
 
 
 def test_phase_switch_error():
@@ -169,7 +227,8 @@ def test_phase_switch_error():
 	  00 00101
 	  001 0101
 	"""
-	(s1, s2), cost = phase_from_string(reads)
+	rs = string_to_readset(reads)
+	(s1, s2), cost = phase(rs)
 	assert s1 == '00100101' and s2 == '11011010'
 
 	# This does not:
@@ -178,5 +237,6 @@ def test_phase_switch_error():
 	  00 00101
 	  001 01010
 	"""
-	(s1, s2), cost = phase_from_string(reads)
+	rs = string_to_readset(reads)
+	(s1, s2), cost = phase(rs)
 	assert s1 == '001001010' and s2 == '110110101'
