@@ -15,7 +15,8 @@ If you use WhatsHap, please cite:
     `WhatsHap: Haplotype Assembly for Future-Generation Sequencing
     Reads <http://dx.doi.org/10.1007/978-3-319-05269-4_19>`_.
     Proceedings of ACM 18th Annual International Conference on Research in
-    Computational Biology (RECOMB), 237-249, 2014.
+    Computational Biology (RECOMB), 237-249, 2014. 
+    (A self-archived version can be found `here <https://bioinf.mpi-inf.mpg.de/homepage/publications.php?&account=marschal>`_)
 
 The version of WhatsHap you find here is the result of further development
 focused on making the software easy and straightforward to use. WhatsHap is now
