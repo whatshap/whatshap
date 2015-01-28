@@ -129,30 +129,6 @@ def string_to_readset(s):
 	print(rs)
 	return rs
 
-def phase(rs):
-	"""
-	Phase given reads and return the result as a pair of strings.
-	"""
-	dp_table = DPTable(rs, all_heterozygous=True)
-	superreads = dp_table.get_super_reads()
-	assert len(superreads) == 2
-	assert len(superreads[0]) == len(superreads[1])
-	for v1, v2 in zip(*superreads):
-		assert v1.position == v2.position
-	print()
-	print(superreads[0])
-	print(superreads[1])
-	result = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
-	cost = dp_table.get_optimal_cost()
-	partitioning = dp_table.get_optimal_partitioning()
-	print(partitioning)
-	print('Result:')
-	print(result[0])
-	print(result[1])
-	print('Cost:', cost)
-	return result, cost
-
-
 def flip_cost(variant, target_value):
 	"""Returns cost of flipping the given read variant to target_value."""
 	if variant.allele == target_value:
