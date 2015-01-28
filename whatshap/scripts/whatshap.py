@@ -389,6 +389,7 @@ def main():
 	class Statistics:
 		pass
 	stats = Statistics()
+	stats.n_homozygous = 0
 	stats.n_phased_blocks = 0
 	stats.n_best_case_blocks = 0
 	stats.n_best_case_blocks_cov = 0
@@ -436,10 +437,18 @@ def main():
 			# ... and do the backtrace to get the solution
 			superreads = dp_table.get_super_reads()
 
+			n_homozygous = sum(1 for v1, v2 in zip(*superreads)
+				if v1.allele == v2.allele and v1.allele in (0, 1))
+			stats.n_homozygous += n_homozygous
+
 			components = find_components(superreads, sliced_reads)
 			n_phased_blocks = len(set(components.values()))
 			stats.n_phased_blocks += n_phased_blocks
 			logger.info('No. of phased blocks: %d', n_phased_blocks)
+			if args.all_heterozygous:
+				assert n_homozygous == 0
+			else:
+				logger.info('No. of heterozygous variants determined to be homozygous: %d', n_homozygous)
 			vcf_writer.write(chromosome, sample, superreads, components)
 			logger.info('Chromosome %s finished', chromosome)
 
@@ -447,4 +456,8 @@ def main():
 	logger.info('Best-case phasing would result in %d phased blocks (%d with coverage reduction)',
 				stats.n_best_case_blocks, stats.n_best_case_blocks_cov)
 	logger.info('Actual number of phased blocks: %d', stats.n_phased_blocks)
+	if args.all_heterozygous:
+		assert stats.n_homozygous == 0
+	else:
+		logger.info('No. of heterozygous variants determined to be homozygous: %d', stats.n_homozygous)
 	logger.info('Elapsed time: %.1fs', time.time() - start_time)
