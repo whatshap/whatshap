@@ -217,12 +217,12 @@ cdef extern from "../src/columniterator.h":
 	cdef cppclass ColumnIterator:
 		ColumnIterator(ReadSet) except +
 
-
 # ====== DPTable ======
 cdef extern from "../src/dptable.h":
 	cdef cppclass DPTable:
 		DPTable(ReadSet*, bool) except +
 		void get_super_reads(ReadSet*) except +
+		int get_optimal_score() except +
 
 
 cdef class PyDPTable:
@@ -249,6 +249,9 @@ cdef class PyDPTable:
 		self.thisptr.get_super_reads(result.thisptr)
 		return result
 
+	def get_optimal_cost(self):
+		"""Returns the cost resulting from solving the Minimum Error Correction (MEC) problem."""
+		return self.thisptr.get_optimal_score()
 
 # ====== IndexSet ======
 cdef extern from "../src/indexset.h":

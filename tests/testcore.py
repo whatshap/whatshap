@@ -129,7 +129,7 @@ def phase_from_string(s):
 		for pos, c in enumerate(line, 1):
 			if c == ' ':
 				continue
-			read.add_variant(position=pos * 10, base=bits[c], allele=int(c), quality=22)
+			read.add_variant(position=pos * 10, base=bits[c], allele=int(c), quality=1)
 		rs.add(read)
 
 	print(rs)
@@ -143,10 +143,12 @@ def phase_from_string(s):
 	print(superreads[0])
 	print(superreads[1])
 	result = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
+	cost = dp_table.get_optimal_cost()
 	print('Result:')
 	print(result[0])
 	print(result[1])
-	return result
+	print('Cost:', cost)
+	return result, cost
 
 
 def test_phase():
@@ -155,8 +157,9 @@ def test_phase():
 	 010
 	 010
 	"""
-	s1, s2 = phase_from_string(reads)
+	(s1, s2), cost = phase_from_string(reads)
 	assert s1 == '010' and s2 == '101'
+	assert cost == 0
 
 
 def test_phase_switch_error():
@@ -166,7 +169,7 @@ def test_phase_switch_error():
 	  00 00101
 	  001 0101
 	"""
-	s1, s2 = phase_from_string(reads)
+	(s1, s2), cost = phase_from_string(reads)
 	assert s1 == '00100101' and s2 == '11011010'
 
 	# This does not:
@@ -175,5 +178,5 @@ def test_phase_switch_error():
 	  00 00101
 	  001 01010
 	"""
-	s1, s2 = phase_from_string(reads)
+	(s1, s2), cost = phase_from_string(reads)
 	assert s1 == '001001010' and s2 == '110110101'
