@@ -306,10 +306,15 @@ def find_components(superreads, reads):
 	component is identified by the position of its leftmost variant.
 	"""
 	logger.debug('Finding connected components ...')
-	assert len(superreads) == 2
-	assert len(superreads[0]) == len(superreads[1])
 
-	phased_positions = [ variant.position for variant in superreads[0] if variant.allele in [0, 1] ]  # TODO set()
+	# The variant.allele attribute can be either 0 (major allele), 1 (minor allele),
+	# or 3 (equal scores). If all_heterozygous is on (default), we can get
+	# the combinations 0/1, 1/0 and 3/3 (the latter means: unphased).
+	# If all_heterozygous is off, we can also get all other combinations.
+	# In both cases, we are interested only in 0/1 and 1/0.
+	phased_positions = [ v1.position for v1, v2 in zip(*superreads)
+		if (v1.allele, v2.allele) in ((0, 1), (1, 0))
+	]
 	assert phased_positions == sorted(phased_positions)
 
 	# Find connected components.
