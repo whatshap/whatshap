@@ -366,8 +366,9 @@ def main():
 	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',
 		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
 	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
-	parser.add_argument('--all-het', action='store_true', default=False,
-		help='Assume all positions to be heterozygous (that is, fully trust SNP calls).')
+	parser.add_argument('--distrust-genotypes', dest='all_heterozygous',
+		action='store_false', default=True,
+		help='Allow switching variants from hetero- to homozygous in an optimal solution (see documentation).')
 	parser.add_argument('--ignore-read-groups', default=False, action='store_true',
 		help='Ignore read groups in BAM header and assume all reads come '
 		'from the same sample.')
@@ -426,7 +427,7 @@ def main():
 			logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 
 			# Run the core algorithm: construct DP table ...
-			dp_table = DPTable(sliced_reads, args.all_het)
+			dp_table = DPTable(sliced_reads, args.all_heterozygous)
 			# ... and do the backtrace to get the solution
 			superreads = dp_table.get_super_reads()
 
