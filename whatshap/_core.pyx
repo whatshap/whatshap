@@ -222,7 +222,6 @@ cdef extern from "../src/columniterator.h":
 cdef extern from "../src/dptable.h":
 	cdef cppclass DPTable:
 		DPTable(ReadSet*, bool) except +
-		void compute_table() except +
 		void get_super_reads(ReadSet*) except +
 
 
