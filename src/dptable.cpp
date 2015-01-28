@@ -11,10 +11,11 @@
 
 using namespace std;
 
-DPTable::DPTable(const ReadSet* read_set, bool all_heterozygous) {
+DPTable::DPTable(ReadSet* read_set, bool all_heterozygous) {
   this->read_set = read_set;
   this->all_heterozygous = all_heterozygous;
   this->read_count = 0;
+  read_set->reassignReadIds();
   compute_table();
 }
 

@@ -41,7 +41,6 @@ void ReadSet::sort() {
 	// Update read_name_map
 	read_name_map.clear();
 	for (size_t i=0; i<reads.size(); ++i) {
-		reads[i]->setID(i);
 		read_name_map[reads[i]->getName()] = i;
 	}
 }
@@ -80,4 +79,10 @@ ReadSet* ReadSet::subset(const IndexSet* indices) const {
 		result->add(new Read(*(reads[*it])));
 	}
 	return result;
+}
+
+void ReadSet::reassignReadIds() {
+	for (size_t i=0; i<reads.size(); ++i) {
+		reads[i]->setID(i);
+	}
 }

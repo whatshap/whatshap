@@ -12,7 +12,7 @@
 
 class DPTable {
 private:
-  const ReadSet* read_set;
+  ReadSet* read_set;
   // vector of indexingschemes
   std::vector<ColumnIndexingScheme*> indexers;
   // optimal score and its index in the rightmost DP table column
@@ -38,7 +38,7 @@ public:
    *  @param all_heterozygous If true, then the "all heterozygous" assumption is made;
    *                          i.e., all positions are forced to be heterozygous even when
    *                          reads suggest a homozygous site. */
-  DPTable(const ReadSet* read_set, bool all_heterozygous = false);
+  DPTable(ReadSet* read_set, bool all_heterozygous = false);
  
   ~DPTable();
 

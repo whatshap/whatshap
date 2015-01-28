@@ -32,6 +32,9 @@ public:
 	 *  creates a COPY of each read.
 	 */
 	ReadSet* subset(const IndexSet* indices) const;
+	/** Assigns read_ids to all instances of Entry stored in the reads such that
+	 *  each read_id matches the index of the corresponding read in the ReadSet. */
+	void reassignReadIds();
 private:
 	typedef struct read_comparator_t {
 		read_comparator_t() {}
