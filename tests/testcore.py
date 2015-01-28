@@ -275,3 +275,8 @@ def test_phase4():
 	"""
 	s1, s2 = compare_phasing(reads, True)
 
+#TODO: test cases for weighted version (all base qualities are set to 1 right now)
+
+#TODO: test cases to test "ties" (equals scores)
+
+#TODO: test cases for all_heterozygous off
