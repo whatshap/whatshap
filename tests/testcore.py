@@ -144,6 +144,8 @@ def phase(rs):
 	print(superreads[1])
 	result = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
 	cost = dp_table.get_optimal_cost()
+	partitioning = dp_table.get_optimal_partitioning()
+	print(partitioning)
 	print('Result:')
 	print(result[0])
 	print(result[1])
@@ -204,39 +206,72 @@ def brute_force_phase(read_set, all_heterozygous):
 			solution_count += 1
 	# Each partition has its inverse with the same cost
 	assert solution_count % 2 == 0
-	return best_cost
+	return best_cost, [(best_partition>>x) & 1 for x in range(len(read_set))], solution_count//2
 
-def test_phase():
+def compare_phasing(reads, all_heterozygous):
+	"""Compares DPTable based phasing to brute force phasing and returns string representation of superreads."""
+	rs = string_to_readset(reads)
+	dp_table = DPTable(rs, all_heterozygous)
+	superreads = dp_table.get_super_reads()
+	assert len(superreads) == 2
+	assert len(superreads[0]) == len(superreads[1])
+	for v1, v2 in zip(*superreads):
+		assert v1.position == v2.position
+	result = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
+	cost = dp_table.get_optimal_cost()
+	partition = dp_table.get_optimal_partitioning()
+	expected_cost, expected_partition, solution_count = brute_force_phase(rs, all_heterozygous)
+	inverse_partition = [1-p for p in partition]
+	print()
+	print(superreads[0])
+	print(superreads[1])
+	print('Partition:', partition)
+	print('Expected: ', expected_partition)
+	print('Result:')
+	print(result[0])
+	print(result[1])
+	print('Cost:', cost)
+	assert (partition == expected_partition) or (inverse_partition == expected_partition)
+	assert solution_count == 1
+	assert cost == expected_cost
+	# TODO: compute expected haplotypes based on expected_partition and compare to superreads
+	return result
+
+
+def test_phase1():
 	reads = """
 	 10
 	 010
 	 010
 	"""
-	rs = string_to_readset(reads)
-	(s1, s2), cost = phase(rs)
-	expected_cost = brute_force_phase(rs, True)
-	print('expected cost:', expected_cost)
+	s1, s2 = compare_phasing(reads, True)
 	assert s1 == '010' and s2 == '101'
-	assert cost == expected_cost
 
 
-def test_phase_switch_error():
-	# This works:
+def test_phase2():
 	reads = """
 	  1  11010
 	  00 00101
 	  001 0101
 	"""
-	rs = string_to_readset(reads)
-	(s1, s2), cost = phase(rs)
+	s1, s2 = compare_phasing(reads, True)
 	assert s1 == '00100101' and s2 == '11011010'
 
-	# This does not:
+def test_phase3():
 	reads = """
 	  1  11010
 	  00 00101
 	  001 01010
 	"""
-	rs = string_to_readset(reads)
-	(s1, s2), cost = phase(rs)
+	s1, s2 = compare_phasing(reads, True)
 	assert s1 == '001001010' and s2 == '110110101'
+
+def test_phase4():
+	reads = """
+	  1  11010
+	  00 00101
+	  001 01110
+	   1    111
+	"""
+	s1, s2 = compare_phasing(reads, True)
+
