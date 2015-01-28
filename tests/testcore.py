@@ -160,10 +160,20 @@ def test_phase():
 
 
 def test_phase_switch_error():
+	# This works:
 	reads = """
-	 0011  1101
-	  1100 00101
-	   1001 01010
+	  1  11010
+	  00 00101
+	  001 0101
 	"""
 	s1, s2 = phase_from_string(reads)
-	assert s1 == '000110110101' and s2 == '111001001010'
+	assert s1 == '00100101' and s2 == '11011010'
+
+	# This does not:
+	reads = """
+	  1  11010
+	  00 00101
+	  001 01010
+	"""
+	s1, s2 = phase_from_string(reads)
+	assert s1 == '001001010' and s2 == '110110101'
