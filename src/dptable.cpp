@@ -307,7 +307,7 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
   output_read_set->add(r1);
 }
 
-auto_ptr<vector<bool> > DPTable::get_optimal_partitioning() {
+vector<bool>* DPTable::get_optimal_partitioning() {
 
   auto_ptr<vector<unsigned int> > index_path = get_index_path();
 
@@ -321,7 +321,7 @@ auto_ptr<vector<bool> > DPTable::get_optimal_partitioning() {
   }
   */
 
-  auto_ptr<vector<bool> > partitioning = auto_ptr<vector<bool> >(new vector<bool>(read_count,false));
+  vector<bool>* partitioning = new vector<bool>(read_count,false);
   for(size_t i=0; i< index_path->size(); ++i) {
     unsigned int mask = 1; // mask to pass over the partitioning (i.e., index)
     for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {

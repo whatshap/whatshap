@@ -49,8 +49,9 @@ public:
    */
   void get_super_reads(ReadSet* output_read_set);
 
-  // returns optimal partitioning of the reads
-  std::auto_ptr<std::vector<bool> > get_optimal_partitioning();
+  /** Performs a backtrace through the DP table and returns optimal partitioning of the reads.
+   *  Pointer ownership is transferred to caller. */
+  std::vector<bool>* get_optimal_partitioning();
 };
 
 #endif
