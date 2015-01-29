@@ -4,7 +4,7 @@ venv*/
 *~
 .*.kate-swp
 .snakemake/
-data/
+^data/
 tmp/
 *.bak
 MANIFEST
@@ -14,3 +14,4 @@ dist/
 whatshap.egg-info/
 .tox
 .idea
+*.bam.bai
