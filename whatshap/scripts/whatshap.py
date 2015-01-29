@@ -98,9 +98,9 @@ def covered_variants(variants, start, bam_read):
 	return core_read
 
 
-class BamReader:
+class ReadSetReader:
 	"""
-	Associate variants with reads.
+	Associate VCF variants with BAM reads.
 	"""
 	def __init__(self, paths, mapq_threshold=20):
 		self._mapq_threshold = mapq_threshold
@@ -359,12 +359,106 @@ def ensure_pysam_version():
 		sys.exit("WhatsHap requires pysam >= 0.8.1")
 
 
+def run_whatshap(bam, vcf,
+		output=sys.stdout, sample=None, ignore_read_groups=False,
+		mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123):
+	"""
+	Run WhatsHap.
+
+	bam -- list of paths to BAM files
+	vcf -- path to input VCF
+	output -- path to output VCF or sys.stdout
+	sample -- name of sample to phase. None means: phase first found sample.
+	ignore_read_groups
+	mapping_quality -- discard reads below this mapping quality
+	max_coverage
+	all_heterozygous
+	seed -- seed for random numbers
+	"""
+	random.seed(seed)
+
+	start_time = time.time()
+	class Statistics:
+		pass
+	stats = Statistics()
+	stats.n_homozygous = 0
+	stats.n_phased_blocks = 0
+	stats.n_best_case_blocks = 0
+	stats.n_best_case_blocks_cov = 0
+	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
+	with ExitStack() as stack:
+		try:
+			bam_reader = stack.enter_context(closing(ReadSetReader(bam, mapq_threshold=mapping_quality)))
+		except OSError as e:
+			logging.error(e)
+			sys.exit(1)
+		if output is not sys.stdout:
+			output = stack.enter_context(open(output, 'w'))
+		command_line = ' '.join(sys.argv[1:])
+		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=vcf, out_file=output)
+		vcf_reader = parse_vcf(vcf, sample)
+		for sample, chromosome, variants in vcf_reader:
+			logger.info('Working on chromosome %s', chromosome)
+			logger.info('Read %d variants', len(variants))
+			if ignore_read_groups:
+				sample = None
+			logger.info('Reading the BAM file ...')
+			reads = bam_reader.read(chromosome, variants, sample)
+			logger.info('%d reads found', len(reads))
+
+			# Sort the variants stored in each read
+			# TODO: Check whether this is already ensured by construction
+			for read in reads:
+				read.sort()
+			# Sort reads in read set by position
+			reads.sort()
+
+			sliced_reads = slice_reads(reads, max_coverage)
+			n_best_case_blocks = best_case_blocks(reads)
+			n_best_case_blocks_cov = best_case_blocks(sliced_reads)
+			stats.n_best_case_blocks += n_best_case_blocks
+			stats.n_best_case_blocks_cov += n_best_case_blocks_cov
+			logger.info('Best-case phasing would result in %d phased blocks (%d with coverage reduction)',
+				n_best_case_blocks, n_best_case_blocks_cov)
+			logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
+
+			# Run the core algorithm: construct DP table ...
+			dp_table = DPTable(sliced_reads, all_heterozygous)
+			# ... and do the backtrace to get the solution
+			superreads = dp_table.get_super_reads()
+
+			n_homozygous = sum(1 for v1, v2 in zip(*superreads)
+				if v1.allele == v2.allele and v1.allele in (0, 1))
+			stats.n_homozygous += n_homozygous
+
+			components = find_components(superreads, sliced_reads)
+			n_phased_blocks = len(set(components.values()))
+			stats.n_phased_blocks += n_phased_blocks
+			logger.info('No. of phased blocks: %d', n_phased_blocks)
+			if all_heterozygous:
+				assert n_homozygous == 0
+			else:
+				logger.info('No. of heterozygous variants determined to be homozygous: %d', n_homozygous)
+			vcf_writer.write(chromosome, sample, superreads, components)
+			logger.info('Chromosome %s finished', chromosome)
+
+	logger.info('== SUMMARY ==')
+	logger.info('Best-case phasing would result in %d phased blocks (%d with coverage reduction)',
+				stats.n_best_case_blocks, stats.n_best_case_blocks_cov)
+	logger.info('Actual number of phased blocks: %d', stats.n_phased_blocks)
+	if all_heterozygous:
+		assert stats.n_homozygous == 0
+	else:
+		logger.info('No. of heterozygous variants determined to be homozygous: %d', stats.n_homozygous)
+	logger.info('Elapsed time: %.1fs', time.time() - start_time)
+
+
 def main():
 	ensure_pysam_version()
 	logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 	parser = ArgumentParser(prog='whatshap', description=__doc__)
 	parser.add_argument('--version', action='version', version=__version__)
-	parser.add_argument('-o', '--output', default=None,
+	parser.add_argument('-o', '--output', default=sys.stdout,
 		help='Output VCF file. If omitted, use standard output.')
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
@@ -382,82 +476,6 @@ def main():
 			'in the input VCF is phased.')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
+
 	args = parser.parse_args()
-	random.seed(args.seed)
-
-	start_time = time.time()
-	class Statistics:
-		pass
-	stats = Statistics()
-	stats.n_homozygous = 0
-	stats.n_phased_blocks = 0
-	stats.n_best_case_blocks = 0
-	stats.n_best_case_blocks_cov = 0
-	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
-	with ExitStack() as stack:
-		try:
-			bam_reader = stack.enter_context(closing(BamReader(args.bam, mapq_threshold=args.mapping_quality)))
-		except OSError as e:
-			logging.error(e)
-			sys.exit(1)
-		if args.output is not None:
-			out_file = stack.enter_context(open(args.output, 'w'))
-		else:
-			out_file = sys.stdout
-		command_line = ' '.join(sys.argv[1:])
-		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=args.vcf, out_file=out_file)
-		vcf_reader = parse_vcf(args.vcf, args.sample)
-		for sample, chromosome, variants in vcf_reader:
-			logger.info('Working on chromosome %s', chromosome)
-			logger.info('Read %d variants', len(variants))
-			if args.ignore_read_groups:
-				sample = None
-			logger.info('Reading the BAM file ...')
-			reads = bam_reader.read(chromosome, variants, sample)
-			logger.info('%d reads found', len(reads))
-			
-			# Sort the variants stored in each read
-			# TODO: Check whether this is already ensured by construction
-			for read in reads:
-				read.sort()
-			# Sort reads in read set by position
-			reads.sort()
-
-			sliced_reads = slice_reads(reads, args.max_coverage)
-			n_best_case_blocks = best_case_blocks(reads)
-			n_best_case_blocks_cov = best_case_blocks(sliced_reads)
-			stats.n_best_case_blocks += n_best_case_blocks
-			stats.n_best_case_blocks_cov += n_best_case_blocks_cov
-			logger.info('Best-case phasing would result in %d phased blocks (%d with coverage reduction)',
-				n_best_case_blocks, n_best_case_blocks_cov)
-			logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
-
-			# Run the core algorithm: construct DP table ...
-			dp_table = DPTable(sliced_reads, args.all_heterozygous)
-			# ... and do the backtrace to get the solution
-			superreads = dp_table.get_super_reads()
-
-			n_homozygous = sum(1 for v1, v2 in zip(*superreads)
-				if v1.allele == v2.allele and v1.allele in (0, 1))
-			stats.n_homozygous += n_homozygous
-
-			components = find_components(superreads, sliced_reads)
-			n_phased_blocks = len(set(components.values()))
-			stats.n_phased_blocks += n_phased_blocks
-			logger.info('No. of phased blocks: %d', n_phased_blocks)
-			if args.all_heterozygous:
-				assert n_homozygous == 0
-			else:
-				logger.info('No. of heterozygous variants determined to be homozygous: %d', n_homozygous)
-			vcf_writer.write(chromosome, sample, superreads, components)
-			logger.info('Chromosome %s finished', chromosome)
-
-	logger.info('== SUMMARY ==')
-	logger.info('Best-case phasing would result in %d phased blocks (%d with coverage reduction)',
-				stats.n_best_case_blocks, stats.n_best_case_blocks_cov)
-	logger.info('Actual number of phased blocks: %d', stats.n_phased_blocks)
-	if args.all_heterozygous:
-		assert stats.n_homozygous == 0
-	else:
-		logger.info('No. of heterozygous variants determined to be homozygous: %d', stats.n_homozygous)
-	logger.info('Elapsed time: %.1fs', time.time() - start_time)
+	run_whatshap(**vars(args))
