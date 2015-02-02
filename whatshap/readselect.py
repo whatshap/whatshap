@@ -5,11 +5,11 @@
 
 #include the Coverage Monitor...
 
-
+#Looking if heapq is possible to manage the heap or not especially  id the runtime changes,,
 # Redefine ComponentFinder by using max value and also the rank (not sure)
 #implement heuristic
 #return Readset in the former representation
-#Erase SNPS which are unphasable
+#Erase SNPS which are unphasable -Not Erase out of structure but counted
 
 import math
 
@@ -40,6 +40,8 @@ class CovMonitor:
 
 
 
+
+
 class Bestreads:
 	#Value is the read
 	#parent is the vcf_variant
@@ -54,13 +56,16 @@ class Bestreads:
 		d = {}
 		for i in range(0, len(self.parent)):
 			d[i] = []
+
+
 		#indexing the reads
 		readindices = list(range(len(self.value)))
 		#indexing the vcf_variants
 		vcf_indices = {position: index for index, position in enumerate(self.parent)}
+		#print('vcf indicies')
+		#print(vcf_indices)
 		skipped_reads = 0
 		#if we want to see which SNPs are unphasable need to compute all SNP positions between begin and end position.which may contribute to coverage but not to phasability
-		possible_reads = set()
 
 		for index in readindices:
 			read = self.value[index]
@@ -69,13 +74,6 @@ class Bestreads:
 			if len(read) < 2:
 				skipped_reads += 1
 				continue
-
-			b_position, b_base, b_allele, b_quality = read[0]
-			e_position, e_base, e_allele, e_quality = read[len(read) - 1]
-			begin = vcf_indices[b_position]
-			#version of whatshap.py by end +1
-			#TODO the difference between the 2 methods
-			end = vcf_indices[e_position]
 
 			#score for the sorting of best reads
 			realscore = 0
@@ -97,157 +95,178 @@ class Bestreads:
 		return d
 
 #Implement this method
-#readselect.score_selection(heapstructure,max_coverage)
+
+	#Size of the heapstorage or mor precise the number of variants which were still active...
+	def heapstoragesize(self,heapstorage):
+		size=0
+		for i in range(0,len(heapstorage)):
+			if not self.is_Empty(heapstorage[i]):
+				size +=1
+		return size
 
 
-	def heapcon(self, SNP_map):
+	def heapcon(self, SNP_map,max_coverage):
 		#Storage for the heaps of the SNP variants
 		heapstorage=[]
+		unphasable_SNP_positions= 0
+
+
 
 		for i in range(0,len(SNP_map)):
+
+
 			helpheap=self.create_new_heap(SNP_map[i])
 			heapstorage.insert(i,helpheap)
 			#actualmax=self.find_max(helpheap)
+			if self.is_Empty(SNP_map[i]):
+				unphasable_SNP_positions +=1
 
 
-		#out = [heapstorage,actualmax]
+
 		#TESTING
 		#only for testing
-		testarray_for_heap_analysis = {}
-		testarray_for_heap_analysis[0] = [[1, 2, [0, 1]], [2, 2, [0, 1]], [5, 4, [0, 1, 2, 3]], [6, 3, [0, 1, 2]],[7, 4, [0, 1, 2, 3]]]
-		testarray_for_heap_analysis[1] = [[1, 2, [0, 1]], [2, 2, [0, 1]], [3, 2, [1, 2]], [4, 3, [1, 2, 3]], [5, 4, [0, 1, 2, 3]], [6, 3, [0, 1, 2]], [7, 4, [0, 1, 2, 3]]]
-		testarray_for_heap_analysis[2] = [[3, 2, [1, 2]], [4, 3, [1, 2, 3]], [5, 4, [0, 1, 2, 3]], [6, 3, [0, 1, 2]], [7, 4, [0, 1, 2, 3]]]
-		testarray_for_heap_analysis[3] = [[4, 3, [1, 2, 3]], [5, 4, [0, 1, 2, 3]], [7, 4, [0, 1, 2, 3]]]
+		#testarray_for_heap_analysis = {}
+		#testarray_for_heap_analysis[0] = [[1, 2, [0, 1]], [2, 2, [0, 1]], [5, 4, [0, 1, 2, 3]], [6, 3, [0, 1, 2]],[7, 4, [0, 1, 2, 3]]]
+		#testarray_for_heap_analysis[1] = [[1, 2, [0, 1]], [2, 2, [0, 1]], [3, 2, [1, 2]], [4, 3, [1, 2, 3]], [5, 4, [0, 1, 2, 3]], [6, 3, [0, 1, 2]], [7, 4, [0, 1, 2, 3]]]
+		#testarray_for_heap_analysis[2] = [[3, 2, [1, 2]], [4, 3, [1, 2, 3]], [5, 4, [0, 1, 2, 3]], [6, 3, [0, 1, 2]], [7, 4, [0, 1, 2, 3]]]
+		#testarray_for_heap_analysis[3] = [[4, 3, [1, 2, 3]], [5, 4, [0, 1, 2, 3]], [7, 4, [0, 1, 2, 3]]]
+		#testarray_for_heap_analysis[4]= [[8,9,[4]]]
+		#testarray_for_heap_analysis[5]=[]
 
 
-		selected_reads=self.score_selection(testarray_for_heap_analysis,5)
+		#for i in range(0,len(testarray_for_heap_analysis)):
+		#	helpheap=self.create_new_heap(testarray_for_heap_analysis[i])
+		#	heapstorage.insert(i,helpheap)
 
+		selected_reads2=self.score_selection(heapstorage,max_coverage)
 
-
-
-
-
-
-		return heapstorage
+		print('Found %d  unphasable SNPs ' % unphasable_SNP_positions)
+		return selected_reads2
 
 	#TODO Need to assert somewhere that if less Reads than coverage...?
 	def score_selection(self,heap,max_coverage):
-
-
-		#For testing
-		setted_coverage= 4
 
 		# ... and the corresponding coverages along each slice
 		coverages = CovMonitor(len(self.parent))
 
 		#Storage of the selected reads
 		bestreads=[]
+		nextiteration=[[]for i in range(len(heap))]
+		bestreads2=[]
+
+		Going_on=True
+
+
+		while Going_on:
+
+			while self.heapstoragesize(heap)!= 0 and Going_on:
+
+				(heap,nextiteration,bestreads,coverages,Going_on)=self.get_max_read(max_coverage,heap,nextiteration,bestreads,coverages,Going_on)
+
+#TODO between here the union find algorithm
+			#Maybe distinguish between real covered SNPs and SNPS that are only covered but are actually unphasable
+
+			while self.heapstoragesize(nextiteration)!=0 and Going_on:
+				(nextiteration,heap,bestreads2,coverages,Going_on)=self.get_max_read(max_coverage,nextiteration,heap,bestreads2,coverages,Going_on)
+
+
+		selected=bestreads+bestreads2
+
+		return selected
+
+
+	def get_max_read(self,max_coverage,oldheap,newheap,bestreads,cmonitor,Going_on):
+
 
 		#current global maximal read
-		globalmax = [0,0,[]]
+		globalmax = [0,-1,[]]
 		#current SNP variants which includes the maximum read
 		maxindex=[]
 		#SNP variant where globalmax is actual the maximum
 		maxvalue=-1
 
-		#TODO put it in one method no code copy to method below
-		for i in range(0,len(heap)):
-			print('i')
-			print(i)
-			if not self.is_Empty(heap[i]):
-				actualmax=self.find_max(heap[i])
-				if actualmax[1]> globalmax[1]:
-					globalmax=actualmax
-					maxindex=globalmax[2]
-					maxvalue=i
-
-
-		begin=globalmax[2][0]
-		end= globalmax[2][len(globalmax[2])-1]
-
-		nextiteration=[0]*(len(heap)-1)
-
-		if coverages.max_coverage_in_range(begin,end) < setted_coverage:
-			coverages.add_read(begin,end)
-
-
-
-			#over all variants which also iniclude this selected read erase the read out of the heap
-			for l in maxindex:
-				posindex= heap[l].index(globalmax)
-				del heap[l][posindex]
-				self.max_new_heapify(heap[l],posindex)
-
-
-
-			maxindex.remove(maxvalue)
-			bestreads.append(globalmax)
-			self.Extract_new_Max(heap[maxvalue])
-			self.Shift_down(heap[maxvalue])
-			nextiteration.insert(maxvalue,heap[maxvalue])
-			heap[maxvalue]=[]
-
-
-		#1 iteration already  done
-		numbervariants=len(heap)-1
-		#search exactly number of variants time for the best read so that each SNP should be  covered once.
-		while numbervariants!= 0:
-			(heap,nextiteration,bestreads,coverages)=self.get_max_read(setted_coverage,heap,nextiteration,bestreads,coverages)
-			#print('while')
-			#print(heap)
-			#print(nextiteration)
-			#print(bestreads)
-			#print(coverages.max_coverage_in_range(0,len(self.parent)))
-			numbervariants -=1
-
-
-		return bestreads
-
-
-	def get_max_read(self,max_coverage,oldheap,newheap,bestreads,cmonitor):
-		#current global maximal read
-		globalmax = [0,0,[]]
-		#current SNP variants which includes the maximum read
-		maxindex=[]
-		#SNP variant where globalmax is actual the maximum
-		maxvalue=-1
 
 		for i in range(0,len(oldheap)):
-			print('i')
-			print(i)
 			if not self.is_Empty(oldheap[i]):
 				actualmax=self.find_max(oldheap[i])
+
+
+#Set globalmax score to -1 because else the score 0 is not possible to see.
 				if actualmax[1]> globalmax[1]:
 					#print('max found')
 					globalmax=actualmax
 					maxindex=globalmax[2]
+
 					maxvalue=i
+
 			else:
 				continue
 
-		if globalmax!=[0,0,[]]:
+		#TODO if globalmax is found otherwise ?????
+		if globalmax!=[0,-1,[]]:
 
 			begin=globalmax[2][0]
-			end= globalmax[2][len(globalmax[2])-1]
+			end= globalmax[2][len(globalmax[2])-1]+1
+
 
 			if cmonitor.max_coverage_in_range(begin,end) < max_coverage:
 				cmonitor.add_read(begin,end)
+				#print('read added')
 
+				bestreads.append(globalmax)
+
+				#Go over all variants which are covered by this read
+				#not -1 because this would accesss the last element of the list
+				posindex=-10
+				secposindex=-10
 				for l in maxindex:
-
 					if not self.is_Empty(oldheap[l]):
-						posindex= oldheap[l].index(globalmax)
-						del oldheap[l][posindex]
+						#Go over the heaps of each variant
+						for j in range(0,len(oldheap[l])):
+							#Compare if they are the same Read by the Read indices
+							if oldheap[l][j][0]== globalmax[0]:
+								posindex = j
+								#print(posindex)
+						#only delete the read if found (by paired end reads not essentially in the read also in the heap of the covered SNP variant)
+						if posindex != -1:
+							del oldheap[l][posindex]
+
+						self.Shift_down(oldheap[l])
 						self.max_new_heapify(oldheap[l],posindex)
 
-				maxindex.remove(maxvalue)
-				bestreads.append(globalmax)
-				self.Extract_new_Max(oldheap[maxvalue])
-				self.Shift_down(oldheap[maxvalue])
-				newheap.insert(maxvalue,oldheap[maxvalue])
-				oldheap[maxvalue]=[]
+					#Same for newheap because covered SNP could already be moved in the second heapstructure
 
-		out=[oldheap,newheap,bestreads,cmonitor]
+					else:
+						#if l <= len(newheap):
+							#print('ZU klein ')
+						if not self.is_Empty(newheap[l]):
+							for j in range(0,len(newheap[l])):
+								if newheap[l][j][0]== globalmax[0]:
+									secposindex = j
+									#print(secposindex)
+							if secposindex!= -1:
+								del newheap[l][secposindex]
+							self.Shift_down(newheap[l])
+							self.max_new_heapify(newheap[l],secposindex)
+
+
+
+				maxindex.remove(maxvalue)
+				#only need to to if in the heap something is left... after removing the globalmax
+				if not self.is_Empty(oldheap[maxvalue]):
+
+					#TODO is not needed the same is already done by posindex maybe use this method..
+					#self.Extract_new_Max(oldheap[maxvalue])
+					newheap.pop(maxvalue)
+					newheap.insert(maxvalue,oldheap[maxvalue])
+					oldheap[maxvalue]=[]
+
+
+		if cmonitor.max_coverage_in_range(0,len(oldheap)) == max_coverage:
+			Going_on=False
+
+		out=[oldheap,newheap,bestreads,cmonitor,Going_on]
+
 		return out
 
 
@@ -308,7 +327,7 @@ class Bestreads:
 
 
 
-
+	#TODO include here if heap is empty needed ?
 	#find the maximum item of a max-heap
 	def find_max(self, H):
 		h = H[0]
@@ -359,8 +378,8 @@ class Bestreads:
 		for i in range(0,len(H)):
 			if H[i][1]!= 0 :
 				H[i][1]-=1
-			else :
-				print('Score already below 0')
+			#else :
+				#print('Score already below 0')
 				#Nothing to be done only for information...
 				#TODO better solution .... Remove node out of HEAP ?
 
