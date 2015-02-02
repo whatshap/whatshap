@@ -31,7 +31,7 @@ from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, IndexSet
 from ..graph import ComponentFinder
-from ..readselect import ComponentFinder2
+from ..readselect import Bestreads
 
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -203,6 +203,9 @@ class CoverageMonitor:
 			self.coverage[i] += 1
 
 
+
+
+
 def slice_reads(reads, max_coverage):
 	"""
 	Iterate over all read in random order and greedily retain those reads whose
@@ -214,10 +217,37 @@ def slice_reads(reads, max_coverage):
 	"""
 
 
-	  # Only trying to include readselect.py in whatshap
+	#Same as below but renamed from position list to vcf_variant_list
+	vcf_variant_list = reads.getPositions()
 
-	a=[0,2,3,4]
-	component_finder2 = ComponentFinder2(a)
+
+	#TODO Not sure if sorting is needed
+	vcf_new_list = sorted(vcf_variant_list)
+
+	readselect= Bestreads(reads,vcf_variant_list)
+	SNP_map=readselect.snp_map_construction()
+
+
+	selected_reads=readselect.heapcon(SNP_map,max_coverage)
+	print('selected reads')
+	print(selected_reads)
+	readset=[IndexSet()]
+
+	for i in range(0,len(selected_reads)):
+		readset[0].add(selected_reads[i][0])
+
+		print('Readset')
+		print(selected_reads[i][0])
+
+	selecte_readset=reads.subset(readset[0])
+
+
+	#should return ReadSet structure or at least the indices of the choosen reads...
+
+
+
+	#former approach
+	'''
 
 	shuffled_indices = list(range(len(reads)))
 	random.shuffle(shuffled_indices)
@@ -240,6 +270,8 @@ def slice_reads(reads, max_coverage):
 		if len(read) < 2:
 			skipped_reads += 1
 			continue
+		#print('Read index of  former implementation')
+		#print(index)
 		for position, base, allele, quality in read:
 			accessible_positions.add(position)
 		first_position, first_base, first_allele, first_quality = read[0]
@@ -273,7 +305,8 @@ def slice_reads(reads, max_coverage):
 		logger.info('Slice %d contains %d reads', slice_id, len(index_set))
 
 	return reads.subset(slices[0])
-
+	'''
+	return selecte_readset
 
 def find_components(superreads, reads):
 	"""
