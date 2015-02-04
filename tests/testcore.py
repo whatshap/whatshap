@@ -2,6 +2,7 @@ import textwrap
 from nose.tools import raises
 from whatshap.core import Read, DPTable, ReadSet, Variant
 
+
 def test_read():
 	r = Read("name", 15)
 	assert r.name == "name"
@@ -115,6 +116,7 @@ def test_phase_empty_readset():
 	dp_table = DPTable(rs, all_heterozygous=False)
 	superreads = dp_table.get_super_reads()
 
+
 def string_to_readset(s):
 	s = textwrap.dedent(s).strip()
 	bits = { '0': 'A', '1': 'C', 'E': 'G' }
@@ -129,12 +131,14 @@ def string_to_readset(s):
 	print(rs)
 	return rs
 
+
 def flip_cost(variant, target_value):
 	"""Returns cost of flipping the given read variant to target_value."""
 	if variant.allele == target_value:
 		return 0
 	else:
 		return variant.quality
+
 
 def column_cost(variants, possible_assignments):
 	"""Compute cost for one position."""
@@ -183,6 +187,7 @@ def brute_force_phase(read_set, all_heterozygous):
 	# Each partition has its inverse with the same cost
 	assert solution_count % 2 == 0
 	return best_cost, [(best_partition>>x) & 1 for x in range(len(read_set))], solution_count//2
+
 
 def compare_phasing(reads, all_heterozygous):
 	"""Compares DPTable based phasing to brute force phasing and returns string representation of superreads."""
@@ -233,6 +238,7 @@ def test_phase2():
 	s1, s2 = compare_phasing(reads, True)
 	assert s1 == '00100101' and s2 == '11011010'
 
+
 def test_phase3():
 	reads = """
 	  1  11010
@@ -241,6 +247,7 @@ def test_phase3():
 	"""
 	s1, s2 = compare_phasing(reads, True)
 	assert s1 == '001001010' and s2 == '110110101'
+
 
 def test_phase4():
 	reads = """
