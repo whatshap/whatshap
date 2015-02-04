@@ -22,6 +22,7 @@ from whatshap._core import PyIndexSet as IndexSet
 
 
 #Not possible to import
+#TODO: Move CoverageMonitor to separate file coverage.py
 class CovMonitor:
 	'''TODO: This is a most simple, naive implementation. Could do this smarter.'''
 	def __init__(self, length):
@@ -45,13 +46,17 @@ class CovMonitor:
 class Bestreads:
 	#Value is the read
 	#parent is the vcf_variant
+	# TODO: rename "value" --> readset and "parent" --> positions (for example)
 	def __init__(self, value, parent):
 		self.value = value
 		self.parent = parent
 
 
-	#Builds the structure for the variant to Read mapping
 	def snp_map_construction(self):
+		'''Builds the structure for the variant to Read mapping.
+		TODO: say what "the structure" is exactly
+		'''
+
 		#set up an empty dictionary with the length of the vcf variants
 		d = {}
 		for i in range(0, len(self.parent)):
@@ -82,19 +87,20 @@ class Bestreads:
 
 			#for the reads and the vcf indices
 			for j in range(0, (len(read))):
+				#TODO: don't iterate, query dictionary vcf_indices[position]
 				for k in range(0, len(vcf_indices)):
+					#TODO: use named tuples after merge with master branch: read[j].position
 					#looking exactly which SNPS are covered in the read
 					if (read[j][0]) == (self.parent[k]):
 						realset.append(k)
 						realscore += 1
+			# TODO: subtract SNPs covered physically, but not sequenced
 
 			helptupel = [index, realscore, realset]
 			for m in range(0, len(realset)):
 				d[realset[m]].append(helptupel)
 
 		return d
-
-#Implement this method
 
 	#Size of the heapstorage or mor precise the number of variants which were still active...
 	def heapstoragesize(self,heapstorage):
