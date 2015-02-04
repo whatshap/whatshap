@@ -129,15 +129,7 @@ class Bestreads:
 
 
 
-		#TESTING
-		#only for testing
-		#testarray_for_heap_analysis = {}
-		#testarray_for_heap_analysis[0] = [[1, 2, [0, 1]], [2, 2, [0, 1]], [5, 4, [0, 1, 2, 3]], [6, 3, [0, 1, 2]],[7, 4, [0, 1, 2, 3]]]
-		#testarray_for_heap_analysis[1] = [[1, 2, [0, 1]], [2, 2, [0, 1]], [3, 2, [1, 2]], [4, 3, [1, 2, 3]], [5, 4, [0, 1, 2, 3]], [6, 3, [0, 1, 2]], [7, 4, [0, 1, 2, 3]]]
-		#testarray_for_heap_analysis[2] = [[3, 2, [1, 2]], [4, 3, [1, 2, 3]], [5, 4, [0, 1, 2, 3]], [6, 3, [0, 1, 2]], [7, 4, [0, 1, 2, 3]]]
-		#testarray_for_heap_analysis[3] = [[4, 3, [1, 2, 3]], [5, 4, [0, 1, 2, 3]], [7, 4, [0, 1, 2, 3]]]
-		#testarray_for_heap_analysis[4]= [[8,9,[4]]]
-		#testarray_for_heap_analysis[5]=[]
+
 
 
 		#for i in range(0,len(testarray_for_heap_analysis)):
