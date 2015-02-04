@@ -26,7 +26,7 @@ class SampleBamReader:
 		"""
 		Create a dictionary that maps a sample name to a set of read group ids.
 		"""
-		read_groups = self._samfile.header['RG']  # a list of dicts
+		read_groups = self._samfile.header.get('RG', [])  # a list of dicts
 		logger.debug('Read groups in BAM header: %s', read_groups)
 		samples = defaultdict(list)
 		for read_group in read_groups:
@@ -35,11 +35,14 @@ class SampleBamReader:
 			id: frozenset(values) for id, values in samples.items() }
 
 	def fetch(self, reference, sample):
+		"""
+		Raise KeyError if sample not found among samples named in RG header.
+		"""
 		if sample is None:
 			# PY32
 			# Starting with Python 3.3, this loop could be replaced with
-			# 'return self._file.fetch(reference)'
-			for i in self._file.fetch(reference):
+			# 'return self._samfile.fetch(reference)'
+			for i in self._samfile.fetch(reference):
 				yield i
 			return
 		read_groups = self._sample_to_group_ids[sample]

@@ -28,7 +28,7 @@ def vcf_sample_reader(path, sample=None):
 	Read only a single sample from a VCF.
 	If sample is None, the first sample is used.
 
-	Yield tuples (record, call).
+	Yield tuples (sample, record, call).
 	"""
 	vcf_reader = vcf.Reader(filename=path)
 	samples = vcf_reader.samples
@@ -45,6 +45,7 @@ def vcf_sample_reader(path, sample=None):
 		except ValueError:
 			logger.error("Requested sample %r not found in VCF.", sample)
 			raise SampleNotFoundError()
+	assert sample is not None
 	for record in vcf_reader:
 		call = record.samples[sample_index]
 		yield sample, record, call

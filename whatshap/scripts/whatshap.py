@@ -390,7 +390,7 @@ def run_whatshap(bam, vcf,
 		try:
 			bam_reader = stack.enter_context(closing(ReadSetReader(bam, mapq_threshold=mapping_quality)))
 		except OSError as e:
-			logging.error(e)
+			logger.error(e)
 			sys.exit(1)
 		if output is not sys.stdout:
 			output = stack.enter_context(open(output, 'w'))
@@ -400,10 +400,14 @@ def run_whatshap(bam, vcf,
 		for sample, chromosome, variants in vcf_reader:
 			logger.info('Working on chromosome %s', chromosome)
 			logger.info('Read %d variants', len(variants))
-			if ignore_read_groups:
-				sample = None
+			bam_sample = None if ignore_read_groups else sample
 			logger.info('Reading the BAM file ...')
-			reads = bam_reader.read(chromosome, variants, sample)
+			try:
+				reads = bam_reader.read(chromosome, variants, bam_sample)
+			except KeyError:  # TODO use separate Exception class
+				logger.error("Sample %r is not among the read groups (RG tags) "
+					"in the BAM header.", bam_sample)
+				sys.exit(1)
 			logger.info('%d reads found', len(reads))
 
 			# Sort the variants stored in each read
@@ -467,13 +471,14 @@ def main():
 	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
 	parser.add_argument('--distrust-genotypes', dest='all_heterozygous',
 		action='store_false', default=True,
-		help='Allow switching variants from hetero- to homozygous in an optimal solution (see documentation).')
+		help='Allow switching variants from hetero- to homozygous in an '
+		'optimal solution (see documentation).')
 	parser.add_argument('--ignore-read-groups', default=False, action='store_true',
 		help='Ignore read groups in BAM header and assume all reads come '
 		'from the same sample.')
 	parser.add_argument('--sample', metavar='SAMPLE', default=None,
-		help='Name of a sample to phase. If not given, only the first sample '
-			'in the input VCF is phased.')
+		help='Name of a sample to phase. If not given, the first sample in the '
+		'input VCF is phased.')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
 
