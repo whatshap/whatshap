@@ -39,3 +39,12 @@ def test_construction():
 	#testarray_for_heap_analysis[3] = [[4, 3, [1, 2, 3]], [5, 4, [0, 1, 2, 3]], [7, 4, [0, 1, 2, 3]]]
 	#testarray_for_heap_analysis[4]= [[8,9,[4]]]
 	#testarray_for_heap_analysis[5]=[]
+
+def test_comparison():
+	pq=PriorityQueue()
+
+	pq.push(50,'a')
+	pq.push(40,'b')
+
+
+	assert pq.getscore(1)== 50
