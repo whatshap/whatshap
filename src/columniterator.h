@@ -38,6 +38,7 @@ private:
 	int next_read_index;
 	std::list<active_read_t> active_reads;
 	std::vector<Entry*> blank_entries;
+	std::vector<unsigned int>* positions;
 };
 
 #endif

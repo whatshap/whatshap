@@ -1,23 +1,28 @@
 """
-Following Cython's recommendations: If pre-generated .c extension files are
-found, then Cython is not run, even if it is installed.
+While we use Cython as programming language for the extension modules, we
+follow Cython's recommendation to distribute pre-generated .c/.cpp files.
+Thus, Cython does not need to be installed on the user installing WhatsHap.
 Pass --cython on the command line to force Cython to be run.
 
-If .c files are not found, such as in a fresh Git checkout, then Cython is
-always run.
+If the .c/.cpp files are not found, such as in a fresh Git checkout, then
+Cython is always run.
 """
 import sys
 import os.path
-from distutils.core import setup, Extension
+from setuptools import setup, Extension
 from distutils.version import LooseVersion
-
 from whatshap import __version__
 
 MIN_CYTHON_VERSION = '0.17'
 
-if sys.version_info < (3, 3):
-	sys.stdout.write("At least Python 3.3 is required.\n")
+if sys.version_info < (3, 2):
+	sys.stdout.write("At least Python 3.2 is required.\n")
 	sys.exit(1)
+if sys.version_info < (3, 3):
+	# need backport of contextlib.ExitStack in Python 3.2
+	extra_install_requires = ['contextlib2']
+else:
+	extra_install_requires = []
 
 
 def out_of_date(extensions):
@@ -83,7 +88,13 @@ def cythonize_if_necessary(extensions):
 	return cythonize(extensions)
 
 extensions = [
-	Extension('whatshap._core', sources=['whatshap/_core.pyx'], extra_compile_args=["-std=c++0x"],),
+	Extension('whatshap._core',
+		sources=['whatshap/_core.pyx',
+			'src/columncostcomputer.cpp', 'src/columnindexingiterator.cpp',
+			'src/columnindexingscheme.cpp', 'src/dptable.cpp',
+			'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',
+			'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp'
+		], language='c++', extra_compile_args=["-std=c++0x"],),
 ]
 extensions = cythonize_if_necessary(extensions)
 
@@ -92,12 +103,13 @@ setup(
 	version = __version__,
 	author = '',
 	author_email = '',
-	url = '',
-	description = '',
+	url = 'https://bitbucket.org/whatshap/whatshap/',
+	description = 'phase genomic variants using DNA sequencing reads',
 	license = 'MIT',
 	ext_modules = extensions,
-	packages = ['whatshap'],
-	#scripts = ['bin/...'],
+	packages = ['whatshap', 'whatshap.scripts'],
+	scripts = ['bin/whatshap', 'bin/phase2gtf'],
+	install_requires = ['pysam>=0.8.1', 'PyVCF'] + extra_install_requires,
 	classifiers = [
 		"Development Status :: 2 - Pre-Alpha",
 		"Environment :: Console",

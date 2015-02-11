@@ -38,6 +38,10 @@ ColumnIndexingScheme::ColumnIndexingScheme(const ColumnIndexingScheme* previous_
   }
 }
 
+ColumnIndexingScheme::~ColumnIndexingScheme() {
+  if (forward_projection_mask != 0) delete forward_projection_mask;
+}
+
 unsigned int ColumnIndexingScheme::column_size() {
   return ((unsigned int)1) << read_ids.size()-1;
 }

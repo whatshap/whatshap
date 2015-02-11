@@ -9,20 +9,20 @@
 using namespace std;
 
 ReadSet::ReadSet() {
-	this->finalized = false;
-	this->positions = 0;
 }
 
 ReadSet::~ReadSet() {
 	for (size_t i=0; i<reads.size(); ++i) {
 		delete reads[i];
 	}
-	if (positions != 0) delete positions;
 }
 
 void ReadSet::add(Read* read) {
-	if (finalized) throw std::runtime_error("Cannot add to finalized ReadSet");
+	if (read_name_map.find(read->getName()) != read_name_map.end()) {
+		throw std::runtime_error("ReadSet::add: duplicate read name.");
+	}
 	reads.push_back(read);
+	read_name_map[read->getName()] = reads.size() - 1;
 }
 
 string ReadSet::toString() {
@@ -34,24 +34,24 @@ string ReadSet::toString() {
 	return oss.str();
 }
 
-void ReadSet::finalize() {
-	if (finalized) throw std::runtime_error("Cannot finalize a finalized ReadSet");
+void ReadSet::sort() {
+	// Sort the reads by position
+	std::sort(reads.begin(), reads.end(), read_comparator_t());
+	
+	// Update read_name_map
+	read_name_map.clear();
 	for (size_t i=0; i<reads.size(); ++i) {
-		reads[i]->sortVariants();
+		read_name_map[reads[i]->getName()] = i;
 	}
-	sort(reads.begin(), reads.end(), read_comparator_t());
-	unordered_set<unsigned int> position_set;
-	for (size_t i=0; i<reads.size(); ++i) {
-		reads[i]->setID(i);
-		reads[i]->addPositionsToSet(&position_set);
-	}
-	positions = new vector<unsigned int>(position_set.begin(), position_set.end());
-	sort(positions->begin(), positions->end());
-	finalized = true;
 }
 
-const vector<unsigned int>* ReadSet::get_positions() const {
-	if (!finalized) throw std::runtime_error("ReadSet::get_positions: can only be called after finalization");
+vector<unsigned int>* ReadSet::get_positions() const {
+	unordered_set<unsigned int> position_set;
+	for (size_t i=0; i<reads.size(); ++i) {
+		reads[i]->addPositionsToSet(&position_set);
+	}
+	vector<unsigned int>* positions = new vector<unsigned int>(position_set.begin(), position_set.end());
+	std::sort(positions->begin(), positions->end());
 	return positions;
 }
 
@@ -61,4 +61,28 @@ unsigned int ReadSet::size() const {
 
 Read* ReadSet::get(int i) const {
 	return reads[i];
+}
+
+Read* ReadSet::getByName(std::string name) const {
+	read_name_map_t::const_iterator it = read_name_map.find(name);
+	if (it == read_name_map.end()) {
+		return 0;
+	} else {
+		return reads[it->second];
+	}
+}
+
+ReadSet* ReadSet::subset(const IndexSet* indices) const {
+	ReadSet* result = new ReadSet();
+	IndexSet::const_iterator it = indices->begin();
+	for (; it != indices->end(); ++it) {
+		result->add(new Read(*(reads[*it])));
+	}
+	return result;
+}
+
+void ReadSet::reassignReadIds() {
+	for (size_t i=0; i<reads.size(); ++i) {
+		reads[i]->setID(i);
+	}
 }

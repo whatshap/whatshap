@@ -1,0 +1,8 @@
+#!/usr/bin/env python3
+try:
+	import _preamble
+except ImportError:
+	pass
+
+from whatshap.scripts.whatshap import main
+main()

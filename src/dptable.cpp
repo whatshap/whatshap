@@ -10,11 +10,22 @@
 
 using namespace std;
 
-DPTable::DPTable(const ReadSet* read_set, bool all_heterozygous) {
+DPTable::DPTable(ReadSet* read_set, bool all_heterozygous) {
   this->read_set = read_set;
   this->all_heterozygous = all_heterozygous;
   this->read_count = 0;
+  read_set->reassignReadIds();
   compute_table();
+}
+
+DPTable::~DPTable() {
+  for(size_t i=0; i<indexers.size(); ++i) {
+    delete indexers[i];
+  }
+
+  for(size_t i=0; i<backtrace_table.size(); ++i) {
+    delete backtrace_table[i];
+  }
 }
 
 auto_ptr<vector<unsigned int> > DPTable::extract_read_ids(const vector<const Entry *>& entries) {
@@ -278,31 +289,45 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
 
   Read* r0 = new Read("superread0", -1);
   Read* r1 = new Read("superread1", -1);
+  
+  if (backtrace_table.empty()) {
+    assert(!column_iterator.has_next());
+  } else {
+    // run through the file again with the column_iterator
+    unsigned int i = 0; // column index
+    auto_ptr<vector<unsigned int> > index_path = get_index_path();
+    while (column_iterator.has_next()) {
+      unsigned int index = index_path->at(i);
+      auto_ptr<vector<const Entry *> > column = column_iterator.get_next();
+      ColumnCostComputer cost_computer(*column, all_heterozygous);
+      cost_computer.set_partitioning(index);
 
-  // run through the file again with the column_iterator
-  unsigned int i = 0; // column index
-  auto_ptr<vector<unsigned int> > index_path = get_index_path();
-  while (column_iterator.has_next()) {
-
-    unsigned int index = index_path->at(i);
-    auto_ptr<vector<const Entry *> > column = column_iterator.get_next();
-    ColumnCostComputer cost_computer(*column, all_heterozygous);
-    cost_computer.set_partitioning(index);
-
-    r0->addVariant(positions->at(i), '?', cost_computer.get_allele(0), cost_computer.get_weight(0));
-    r1->addVariant(positions->at(i), '?', cost_computer.get_allele(1), cost_computer.get_weight(1));
-    ++i; // next column
+      r0->addVariant(positions->at(i), '?', cost_computer.get_allele(0), cost_computer.get_weight(0));
+      r1->addVariant(positions->at(i), '?', cost_computer.get_allele(1), cost_computer.get_weight(1));
+      ++i; // next column
+    }
   }
 
   output_read_set->add(r0);
   output_read_set->add(r1);
 }
 
-auto_ptr<vector<bool> > DPTable::get_optimal_partitioning() {
+vector<bool>* DPTable::get_optimal_partitioning() {
 
   auto_ptr<vector<unsigned int> > index_path = get_index_path();
 
-  auto_ptr<vector<bool> > partitioning = auto_ptr<vector<bool> >(new vector<bool>(read_count,false));
+  // db
+  /*
+  for(size_t i=0; i< index_path.size(); ++i) {
+    cout << "index : " << index_path[i] << " " << endl;
+    for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {
+      cout << indexers[i]->get_read_ids()->at(j) << endl;
+    }
+  }
+  */
+
+  vector<bool>* partitioning = new vector<bool>(read_count,false);
+
   for(size_t i=0; i< index_path->size(); ++i) {
 
     unsigned int mask = 1; // mask to pass over the partitioning (i.e., index)

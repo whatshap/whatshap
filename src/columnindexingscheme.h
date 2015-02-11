@@ -25,6 +25,8 @@ public:
    */
   ColumnIndexingScheme(const ColumnIndexingScheme* previous_column, const std::vector<unsigned int>& read_ids);
 
+  ~ColumnIndexingScheme();
+
   /** Set pointer to indexing scheme of next column. MUST be called before the getIterator 
    *  method is called. */
   void set_next_column(const ColumnIndexingScheme* next_column);

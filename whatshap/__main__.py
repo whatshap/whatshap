@@ -1,3 +1,3 @@
-from whatshap.whatshap import main
+from whatshap.scripts.whatshap import main
 main()
 
