@@ -14,8 +14,6 @@ class PriorityQueue:
 		# Item stored with score in a tupel where the score is always the first position..
 		newindex = len(self.heap)
 		self.heap.insert(newindex, (score, item))
-		print('ITEM')
-		print(item)
 		self.positions[item] = newindex
 		self.parent_check_and_swap(newindex)
 
@@ -74,15 +72,15 @@ class PriorityQueue:
 		#looks if heap is only one element then no need restore heap property
 		if len(self.heap)>1:
 			#remember last element, max element and their  items
-			latest_element=self.heap[len(self.heap)-1]
+			last_element=self.heap[len(self.heap)-1]
 
 			item_latest=self.getitem(len(self.heap)-1)
 			item_max=self.getitem(0)
 
-			ma_element =self.heap.pop(0)
+			max_element =self.heap.pop(0)
 
 			self.heap.pop(len(self.heap)-1)
-			self.heap.insert(0,latest_element)
+			self.heap.insert(0,last_element)
 
 			self.positions[item_latest]= 0
 			self.positions.pop(item_max)
@@ -91,9 +89,9 @@ class PriorityQueue:
 
 		else:
 			self.positions.pop(self.getitem(0))
-			ma_element=self.heap.pop(0)
+			max_element=self.heap.pop(0)
 
-		return ma_element
+		return max_element
 
 
 
@@ -135,8 +133,7 @@ class PriorityQueue:
 		else:
 			return False
 
-	# Indexes of parent, left and right child maybe also coded by bitshifting
-
+	#TODO maybe code it via bitshifting
 	def hparent(self, index):
 		''''returns the index of the parent node in the heap depending on the given index'''
 		return (math.ceil(index / 2) - 1)
