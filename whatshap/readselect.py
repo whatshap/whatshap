@@ -30,10 +30,14 @@ class Bestreads:
 		la = PriorityQueue()
 		print('LALALALALa')
 		print(la)
-		self.priorityqueue_construction(la)
+		(pq,SNP_dict)= self.priorityqueue_construction(la)
+
+		#TODO Set max_coverage to 15 also need to call the methods elsewhere
+		self.read_selection(pq,SNP_dict, 15)
 
 	def priorityqueue_construction(self, priorityqueue):
 		'''Constructiong of the priority queue for the readset, so that each read is in the priority queue and sorted by their score'''
+		#TODO rename d
 		d = {}
 		for i in range(0, len(self.positions)):
 			d[i] = []
@@ -74,14 +78,231 @@ class Bestreads:
 			covered_SNPs = tuple(SNPset)
 			#print('SNP list')
 			#print(SNP_list)
+
 			priorityqueue.push(score,(index,covered_SNPs))
+			if index == 62:
+				print('INDEX pushed ')
 			helptupel = tuple([index, score, covered_SNPs])
 			for m in range(0, len(covered_SNPs)):
 				d[covered_SNPs[m]].append(helptupel)
 
 
+		print('dicetory')
+		print(d)
 
-#Only need to store which SNPs ar covered by which read
+		return (priorityqueue,d)
+
+
+
+	#TODO Need to assert somewhere that if less Reads than coverage...?
+	def read_selection(self, pq,SNP_dict, max_coverage):
+		'''Selects the best reads out of the readset depending on the assigned score till max_coverage is reached'''
+		#print('SNP_dict')
+		#print(SNP_dict)
+
+		# coverage over the SNPs
+		coverages = CovMonitor(len(self.positions))
+
+		selected_reads = []
+
+		while not pq.isEmpty():
+			print('while SNP_dict')
+			print(SNP_dict)
+			(read,SNPs)=pq.getitem(0)
+			score=pq.getscore(0)
+			extracted_read= pq.pop()
+			print('Extracted REad')
+			print(extracted_read)
+			#readitem= extracted_read[1]
+
+			begin = SNPs[0]
+			end = SNPs [len(SNPs) - 1] + 1
+			#print(begin)
+			#print(end)
+			if coverages.max_coverage_in_range(begin, end) < max_coverage:
+				coverages.add_read(begin, end)
+				print('read added')
+
+				selected_reads.append(read)
+			#Reducing the score of all reads covering the same SNPS as the selected read
+			for i in range(0,len(SNPs)):
+				print('covered SNP i')
+				print(SNPs[i])
+				#print(SNPs[i])
+				SNP_reads= SNP_dict[SNPs[i]]
+				print('SNP reads')
+				print(SNP_reads)
+				#print('First Read')
+				#print(SNP_reads[0][0])
+
+				for r in SNP_reads:
+					#print('R')
+					#print(r)
+					tupelread= (r[0],r[2])
+					#print('Tupelread')
+					#print(tupelread)
+					#print('read')
+					#print(read)
+
+#TODO erase out of this dictionary of SNP - read the already extracted reads
+
+#Delete Extracted read out of all SNP varianst
+
+					if tupelread ==(read,SNPs):
+						print('EQUALITY SHOULD HERE REMOVE ITEM ')
+						#print('SNP_reads before')
+						#print(SNP_reads)
+						#print('SNPs_reads[0]')
+						#print(SNP_reads[0])
+						#print('Länge of SNP_reads')
+						#print(len(SNP_reads))
+
+
+						#TODO MACHT ES NICHT IMMER::::::
+						print('Should be removed from SNP_reads.....')
+						print(SNP_reads[0])
+						to_be_reamoved= (read,score,SNPs)
+						print('to be removed')
+						print(to_be_reamoved)
+						SNP_reads.remove(to_be_reamoved)
+						#SNP_reads.remove(SNP_reads[0])
+
+
+
+					#del SNP_reads[(read,score,SNPs)]
+						#SNP_reads[(read,score,SNPS)] == None
+						#print('SNP_reads after')
+						#print(SNP_reads)
+
+
+
+					if tupelread != (read,SNPs):
+						print('IN IF ')
+						readindex= pq.get_index(tupelread)
+						#print('Readindex')
+						#print(readindex)
+				#for r in range(0,len(SNP_reads)):
+					#gets me only the index of the read
+				#	pq.change_score(self,SNP_reads [r][0], old score -1 ....):
+
+				#for r in self.
+
+
+
+
+
+			#begin=0
+			#end=
+			#if coverages.max_coverage_in_range(begin,end)< max_coverage:
+			#	selected_reads.append(extracted_read)
+
+
+
+		return selected_reads
+
+
+		'''
+		#current global maximal read
+		globalmax = [0, -1, []]
+		#current SNP variants which includes the maximum read
+		maxindex = []
+		#SNP variant where globalmax is actual the maximum
+		maxvalue = -1
+
+		for i in range(0, len(oldheap)):
+			if not self.is_Empty(oldheap[i]):
+				actualmax = self.find_max(oldheap[i])
+
+
+				#Set globalmax score to -1 because else the score 0 is not possible to see.
+				if actualmax[1] > globalmax[1]:
+					#print('max found')
+					globalmax = actualmax
+					maxindex = globalmax[2]
+
+					maxvalue = i
+
+			else:
+				continue
+
+		#TODO if globalmax is found otherwise ?????
+		if globalmax != [0, -1, []]:
+
+			begin = globalmax[2][0]
+			end = globalmax[2][len(globalmax[2]) - 1] + 1
+
+			if cmonitor.max_coverage_in_range(begin, end) < max_coverage:
+				cmonitor.add_read(begin, end)
+				#print('read added')
+
+				bestreads.append(globalmax)
+
+				#Go over all variants which are covered by this read
+				#not -1 because this would accesss the last element of the list
+				posindex = -10
+				secposindex = -10
+				for l in maxindex:
+					if not self.is_Empty(oldheap[l]):
+						#Go over the heaps of each variant
+						for j in range(0, len(oldheap[l])):
+							#Compare if they are the same Read by the Read indices
+							if oldheap[l][j][0] == globalmax[0]:
+								posindex = j
+							#print(posindex)
+						#only delete the read if found (by paired end reads not essentially in the read also in the heap of the covered SNP variant)
+						if posindex != -1:
+							del oldheap[l][posindex]
+
+						self.Shift_down(oldheap[l])
+						self.max_new_heapify(oldheap[l], posindex)
+
+					#Same for newheap because covered SNP could already be moved in the second heapstructure
+
+					else:
+						#if l <= len(newheap):
+						#print('ZU klein ')
+						if not self.is_Empty(newheap[l]):
+							for j in range(0, len(newheap[l])):
+								if newheap[l][j][0] == globalmax[0]:
+									secposindex = j
+								#print(secposindex)
+							if secposindex != -1:
+								del newheap[l][secposindex]
+							self.Shift_down(newheap[l])
+							self.max_new_heapify(newheap[l], secposindex)
+
+				maxindex.remove(maxvalue)
+				#only need to to if in the heap something is left... after removing the globalmax
+				if not self.is_Empty(oldheap[maxvalue]):
+					#TODO is not needed the same is already done by posindex maybe use this method..
+					#self.Extract_new_Max(oldheap[maxvalue])
+					newheap.pop(maxvalue)
+					newheap.insert(maxvalue, oldheap[maxvalue])
+					oldheap[maxvalue] = []
+
+		if cmonitor.max_coverage_in_range(0, len(oldheap)) == max_coverage:
+			Going_on = False
+
+		out = [oldheap, newheap, bestreads, cmonitor, Going_on]
+		'''
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#Only need to store which SNPs are covered by which read
 
 
 

@@ -16,10 +16,20 @@ class PriorityQueue:
 		self.heap.insert(newindex, (score, item))
 		self.positions[item] = newindex
 		self.parent_check_and_swap(newindex)
-
+		#print('Push item')
+		#print(item)
+		if item[0]==62:
+			print('&§ found')
+			print(self.positions)
 		#TODO Need to look to children not necessary if only pushed to parent.
 		#self.child_check_and_swap(newindex)
 
+	def get_index (self,item):
+		#print('Positions')
+		#print(self.positions)
+		#print('Length of Positions')
+		#print(len(self.positions))
+		return self.positions[item]
 
 
 	def swap(self, f_index, s_index):
