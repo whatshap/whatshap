@@ -3,8 +3,31 @@ import pysam
 import logging
 import heapq
 from collections import defaultdict
+import subprocess
 
 logger = logging.getLogger(__name__)
+
+
+class BamIndexingError(Exception):
+	pass
+
+
+def index_bam(path):
+	"""
+	pysam.index fails silently on errors (such as when the input BAM file is not
+	sorted). This function tries to always raise a BamIndexingError if something
+	went wrong.
+	"""
+	po = subprocess.Popen(['samtools', 'index', path],
+		stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+	outs, errs = po.communicate()
+	# samtools index also fails silently, at least in version 0.1.19 that comes
+	# with Ubuntu 14.10, so to detect an error, we also inspect what it prints
+	# on standard error.
+	assert outs == ''
+	if po.returncode != 0 or errs != '':
+		raise BamIndexingError(errs)
+
 
 class SampleBamReader:
 	"""
@@ -14,11 +37,14 @@ class SampleBamReader:
 		"""
 		path -- path to BAM file
 		"""
+		# Raise an exception early if file does not exist or is not accessible.
+		with open(path):
+			pass
 		bai1 = path + '.bai'
 		bai2 = os.path.splitext(path)[0] + '.bai'
 		if not os.path.exists(bai1) and not os.path.exists(bai2):
 			logger.info('BAM index not found, creating it now.')
-			pysam.index(path)
+			index_bam(path)
 		self._samfile = pysam.Samfile(path)
 		self._initialize_sample_to_group_ids()
 
