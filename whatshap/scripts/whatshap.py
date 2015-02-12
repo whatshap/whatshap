@@ -33,7 +33,7 @@ from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, IndexSet
 from ..graph import ComponentFinder
-from ..bam import MultiBamReader, SampleBamReader
+from ..bam import MultiBamReader, SampleBamReader, BamIndexingError
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -389,7 +389,7 @@ def run_whatshap(bam, vcf,
 	with ExitStack() as stack:
 		try:
 			bam_reader = stack.enter_context(closing(ReadSetReader(bam, mapq_threshold=mapping_quality)))
-		except OSError as e:
+		except (OSError, BamIndexingError) as e:
 			logger.error(e)
 			sys.exit(1)
 		if output is not sys.stdout:
