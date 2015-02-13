@@ -171,6 +171,9 @@ def parse_hp_tags(path, sample):
 			last_time = time()
 		prev_block_name = block_name
 		prev_record = record
+	if prev_block_name is not None:
+		if gtf:
+			gtf.write(prev_record.CHROM, block_start, prev_record.start + 1, prev_block_name)
 	logger.info('%s records processed', n_records)
 	# print statistics
 	def printe(*args, **kwargs):
