@@ -12,6 +12,10 @@ class BamIndexingError(Exception):
 	pass
 
 
+class SampleNotFoundError(Exception):
+	pass
+
+
 def index_bam(path):
 	"""
 	pysam.index fails silently on errors (such as when the input BAM file is not
@@ -71,7 +75,10 @@ class SampleBamReader:
 			for i in self._samfile.fetch(reference):
 				yield i
 			return
-		read_groups = self._sample_to_group_ids[sample]
+		try:
+			read_groups = self._sample_to_group_ids[sample]
+		except KeyError:
+			raise SampleNotFoundError()
 		for bam_read in self._samfile.fetch(reference):
 			if bam_read.opt('RG') in read_groups:
 				yield bam_read
