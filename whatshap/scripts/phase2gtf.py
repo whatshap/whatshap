@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Read phasing information from a VCF, print statistics and write out a GTF file
-to standard output that describes the found blocks.
+Read phasing information from a VCF and print out statistics. Optionally,
+write out a GTF file that describes the found blocks.
 
 The GTF file can be loaded into IGV. Since a block of phased variants is not
 necessarily contiguos, each block is modelled as a "gene" in the GTF file that
@@ -130,11 +130,10 @@ def parse_pipe_notation(path):
 		printe('singletons (unphased variants not within a block):', singletons)
 
 
-def parse_hp_tags(path, sample):
+def parse_hp_tags(path, sample, gtfwriter=None):
 	"""
 	sample -- None means: use the first sample
 	"""
-	gtf = GtfWriter(sys.stdout)
 	n_phased = 0
 	n_records = 0
 	blocks = Counter()  # maps (chromosome, block_name) tuples to variant counts
@@ -160,8 +159,8 @@ def parse_hp_tags(path, sample):
 			# some type of transition is occurring here
 			if prev_block_name is not None:
 				# phased block has ended at previous variant
-				if gtf:
-					gtf.write(prev_record.CHROM, block_start, prev_record.start + 1, prev_block_name)
+				if gtfwriter:
+					gtfwriter.write(prev_record.CHROM, block_start, prev_record.start + 1, prev_block_name)
 				block_lengths[(prev_record.CHROM, prev_block_name)] += prev_record.start + 1 - block_start
 			if block_name is not None:
 				# phased block starts
@@ -177,58 +176,63 @@ def parse_hp_tags(path, sample):
 			gtf.write(prev_record.CHROM, block_start, prev_record.start + 1, prev_block_name)
 		block_lengths[(prev_record.CHROM, prev_block_name)] += prev_record.start + 1 - block_start
 	logger.info('%s records processed', n_records)
-	# print statistics
-	def printe(*args, **kwargs):
-		kwargs['file'] = sys.stderr
-		print(*args, **kwargs)
 
+	# Print statistics
 	block_sizes = sorted(blocks.values())
 	n_singletons = sum(1 for size in block_sizes if size == 1)
 	block_sizes = [ size for size in block_sizes if size > 1 ]
 	block_lengths = sorted(l for l in block_lengths.values() if l > 1)
 
 	WIDTH = 21
-	printe('Variants in VCF:'.rjust(WIDTH), '{:8d}'.format(n_records))
-	printe('Phased:'.rjust(WIDTH), '{:8d}'.format(sum(block_sizes)))
-	printe('Unphased:'.rjust(WIDTH), '{:8d}'.format(n_records - n_phased), '(not considered below)')
-	printe('Singletons:'.rjust(WIDTH), '{:8d}'.format(n_singletons), '(not considered below)')
-	printe('Blocks:'.rjust(WIDTH), '{:8d}'.format(len(block_sizes)))
+	print('Variants in VCF:'.rjust(WIDTH), '{:8d}'.format(n_records))
+	print('Phased:'.rjust(WIDTH), '{:8d}'.format(sum(block_sizes)))
+	print('Unphased:'.rjust(WIDTH), '{:8d}'.format(n_records - n_phased), '(not considered below)')
+	print('Singletons:'.rjust(WIDTH), '{:8d}'.format(n_singletons), '(not considered below)')
+	print('Blocks:'.rjust(WIDTH), '{:8d}'.format(len(block_sizes)))
 	if block_sizes:
-		printe()
-		printe('Block sizes (no. of variants)')
-		printe('Median block size:'.rjust(WIDTH), '{:8d}    variants'.format(
+		print()
+		print('Block sizes (no. of variants)')
+		print('Median block size:'.rjust(WIDTH), '{:8d}    variants'.format(
 			block_sizes[len(block_sizes) // 2]))
-		printe('Average block size:'.rjust(WIDTH), '{:11.2f} variants'.format(
+		print('Average block size:'.rjust(WIDTH), '{:11.2f} variants'.format(
 			sum(block_sizes) / len(block_sizes)))
-		printe('Largest block:'.rjust(WIDTH), '{:8d}    variants'.format(block_sizes[-1]))
-		printe('Smallest block:'.rjust(WIDTH), '{:8d}    variants'.format(block_sizes[0]))
+		print('Largest block:'.rjust(WIDTH), '{:8d}    variants'.format(block_sizes[-1]))
+		print('Smallest block:'.rjust(WIDTH), '{:8d}    variants'.format(block_sizes[0]))
 
 	if block_lengths:
-		printe()
-		printe('Block lengths (basepairs)')
-		printe('Median block length:'.rjust(WIDTH), '{:8d}    bp'.format(
+		print()
+		print('Block lengths (basepairs)')
+		print('Median block length:'.rjust(WIDTH), '{:8d}    bp'.format(
 			block_lengths[len(block_lengths) // 2]))
-		printe('Average block length:'.rjust(WIDTH), '{:11.2f} bp'.format(
+		print('Average block length:'.rjust(WIDTH), '{:11.2f} bp'.format(
 			sum(block_lengths) / len(block_lengths)))
-		printe('Longest block:'.rjust(WIDTH), '{:8d}    bp'.format(block_lengths[-1]))
-		printe('Shortest block:'.rjust(WIDTH), '{:8d}    bp'.format(block_lengths[0]))
+		print('Longest block:'.rjust(WIDTH), '{:8d}    bp'.format(block_lengths[-1]))
+		print('Shortest block:'.rjust(WIDTH), '{:8d}    bp'.format(block_lengths[0]))
 
 
 def main():
 	logging.basicConfig(level=logging.DEBUG, format='%(levelname)s: %(message)s')
 
-	parser = ArgumentParser(prog='phase2gtf', description=__doc__,
+	parser = ArgumentParser(prog='phasingstats', description=__doc__,
 		formatter_class=RawDescriptionHelpFormatter)
+	parser.add_argument('--gtf', default=None,
+		help='Write phased blocks to GTF file.')
 	parser.add_argument('--sample', metavar='SAMPLE', default=None,
 		help='Name of the sample to process. If not given, use first sample '
 			'found in VCF.')
 	parser.add_argument('vcf', help='VCF file')
 	args = parser.parse_args()
 
+	gtfwriter = None
+	if args.gtf:
+		gtf_file = open(args.gtf, 'wt')
+		gtfwriter = GtfWriter(gtf_file)
 	#if args.pipeslash:
 		#parse_pipe_notation(args.vcf)
 	#else:
-	parse_hp_tags(args.vcf, args.sample)
+	parse_hp_tags(args.vcf, args.sample, gtfwriter)
+	if gtfwriter:
+		gtf_file.close()
 
 
 if __name__ == '__main__':
