@@ -184,6 +184,7 @@ def parse_hp_tags(path, sample, gtfwriter=None):
 	block_lengths = sorted(l for l in block_lengths.values() if l > 1)
 
 	WIDTH = 21
+	print('Phasing statistics for', path)
 	print('Variants in VCF:'.rjust(WIDTH), '{:8d}'.format(n_records))
 	print('Phased:'.rjust(WIDTH), '{:8d}'.format(sum(block_sizes)))
 	print('Unphased:'.rjust(WIDTH), '{:8d}'.format(n_records - n_phased), '(not considered below)')
@@ -202,6 +203,7 @@ def parse_hp_tags(path, sample, gtfwriter=None):
 	if block_lengths:
 		print()
 		print('Block lengths (basepairs)')
+		print('Sum of lengths:'.rjust(WIDTH), '{:8d}    bp'.format(sum(block_lengths)))
 		print('Median block length:'.rjust(WIDTH), '{:8d}    bp'.format(
 			block_lengths[len(block_lengths) // 2]))
 		print('Average block length:'.rjust(WIDTH), '{:11.2f} bp'.format(
