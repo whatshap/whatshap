@@ -185,7 +185,7 @@ def parse_hp_tags(path, sample):
 	block_sizes = sorted(blocks.values())
 	n_singletons = sum(1 for size in block_sizes if size == 1)
 	block_sizes = [ size for size in block_sizes if size > 1 ]
-	block_lengths = sorted(block_lengths.values())
+	block_lengths = sorted(l for l in block_lengths.values() if l > 1)
 
 	WIDTH = 21
 	printe('Variants in VCF:'.rjust(WIDTH), '{:8d}'.format(n_records))
