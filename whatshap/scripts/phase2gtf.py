@@ -17,7 +17,7 @@ TODO
 """
 import logging
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 from time import time
 from ..vcf import vcf_sample_reader
@@ -138,7 +138,7 @@ def parse_hp_tags(path, sample):
 	n_phased = 0
 	n_records = 0
 	blocks = Counter()  # maps (chromosome, block_name) tuples to variant counts
-
+	block_lengths = defaultdict(int)
 	prev_phased = False
 	prev_block_name = None
 	prev_record = None
@@ -162,6 +162,7 @@ def parse_hp_tags(path, sample):
 				# phased block has ended at previous variant
 				if gtf:
 					gtf.write(prev_record.CHROM, block_start, prev_record.start + 1, prev_block_name)
+				block_lengths[(prev_record.CHROM, prev_block_name)] += prev_record.start + 1 - block_start
 			if block_name is not None:
 				# phased block starts
 				block_start = record.start
@@ -174,28 +175,43 @@ def parse_hp_tags(path, sample):
 	if prev_block_name is not None:
 		if gtf:
 			gtf.write(prev_record.CHROM, block_start, prev_record.start + 1, prev_block_name)
+		block_lengths[(prev_record.CHROM, prev_block_name)] += prev_record.start + 1 - block_start
 	logger.info('%s records processed', n_records)
 	# print statistics
 	def printe(*args, **kwargs):
 		kwargs['file'] = sys.stderr
 		print(*args, **kwargs)
 
-	block_sizes = list(blocks.values())
-	block_sizes.sort()
+	block_sizes = sorted(blocks.values())
 	n_singletons = sum(1 for size in block_sizes if size == 1)
 	block_sizes = [ size for size in block_sizes if size > 1 ]
+	block_lengths = sorted(block_lengths.values())
 
-	WIDTH = 20
-	printe('Variants in VCF:'.rjust(WIDTH), '{:7d}'.format(n_records))
-	printe('Phased:'.rjust(WIDTH), '{:7d}'.format(sum(block_sizes)))
-	printe('Unphased:'.rjust(WIDTH), '{:7d}'.format(n_records - n_phased), '(not considered below)')
-	printe('No. of singletons:'.rjust(WIDTH), '{:7d}'.format(n_singletons), '(not considered below)')
-	printe('No. of blocks:'.rjust(WIDTH), '{:7d}'.format(len(block_sizes)))
+	WIDTH = 21
+	printe('Variants in VCF:'.rjust(WIDTH), '{:8d}'.format(n_records))
+	printe('Phased:'.rjust(WIDTH), '{:8d}'.format(sum(block_sizes)))
+	printe('Unphased:'.rjust(WIDTH), '{:8d}'.format(n_records - n_phased), '(not considered below)')
+	printe('Singletons:'.rjust(WIDTH), '{:8d}'.format(n_singletons), '(not considered below)')
+	printe('Blocks:'.rjust(WIDTH), '{:8d}'.format(len(block_sizes)))
 	if block_sizes:
-		printe('Median block size:'.rjust(WIDTH), '{:7d}'.format(block_sizes[len(block_sizes) // 2]))
-		printe('Average block size:'.rjust(WIDTH), '{:10.2f}'.format(sum(block_sizes) / len(block_sizes)))
-		printe('Largest block:'.rjust(WIDTH), '{:7d}'.format(block_sizes[-1]))
-		printe('Smallest block:'.rjust(WIDTH), '{:7d}'.format(block_sizes[0]))
+		printe()
+		printe('Block sizes (no. of variants)')
+		printe('Median block size:'.rjust(WIDTH), '{:8d}    variants'.format(
+			block_sizes[len(block_sizes) // 2]))
+		printe('Average block size:'.rjust(WIDTH), '{:11.2f} variants'.format(
+			sum(block_sizes) / len(block_sizes)))
+		printe('Largest block:'.rjust(WIDTH), '{:8d}    variants'.format(block_sizes[-1]))
+		printe('Smallest block:'.rjust(WIDTH), '{:8d}    variants'.format(block_sizes[0]))
+
+	if block_lengths:
+		printe()
+		printe('Block lengths (basepairs)')
+		printe('Median block length:'.rjust(WIDTH), '{:8d}    bp'.format(
+			block_lengths[len(block_lengths) // 2]))
+		printe('Average block length:'.rjust(WIDTH), '{:11.2f} bp'.format(
+			sum(block_lengths) / len(block_lengths)))
+		printe('Longest block:'.rjust(WIDTH), '{:8d}    bp'.format(block_lengths[-1]))
+		printe('Shortest block:'.rjust(WIDTH), '{:8d}    bp'.format(block_lengths[0]))
 
 
 def main():
