@@ -33,7 +33,7 @@ from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, IndexSet
 from ..graph import ComponentFinder
-from ..bam import MultiBamReader, SampleBamReader, BamIndexingError
+from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -404,7 +404,7 @@ def run_whatshap(bam, vcf,
 			logger.info('Reading the BAM file ...')
 			try:
 				reads = bam_reader.read(chromosome, variants, bam_sample)
-			except KeyError:  # TODO use separate Exception class
+			except SampleNotFoundError:
 				logger.error("Sample %r is not among the read groups (RG tags) "
 					"in the BAM header.", bam_sample)
 				sys.exit(1)
