@@ -113,6 +113,9 @@ void DPTable::compute_table() {
 
   unsigned int running_optimal_score;
   unsigned int running_optimal_score_index; // optimal score and its index
+  //double pi = 0.05; // percentage of columns processed
+  //double pc = pi;
+  //unsigned int nc = column_iterator.get_column_count();
 
 #ifdef DB
   int i = 0;
