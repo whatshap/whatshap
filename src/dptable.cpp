@@ -6,7 +6,7 @@
 #include "columncostcomputer.h"
 #include "dptable.h"
 
-#define DB // db
+//#define DB // db
 
 using namespace std;
 
@@ -114,6 +114,9 @@ void DPTable::compute_table() {
   unsigned int running_optimal_score;
   unsigned int running_optimal_score_index; // optimal score and its index
 
+#ifdef DB
+  int i = 0;
+#endif
   while(next_indexer != 0) {
 
     // move on projection column
@@ -146,7 +149,10 @@ void DPTable::compute_table() {
     // if not last column, reserve memory for forward projections column
     if (next_column.get() != 0) {
 #ifdef DB
-      cout << "allocate current projection / backtrace columns of size : " << current_indexer->forward_projection_size() << endl << endl;
+      cout << i << " : " << endl;
+      ++i;
+      cout << "allocate current projection / backtrace columns of size : " << current_indexer->forward_projection_size() << endl;
+      cout << "forward projection width : " << current_indexer->get_forward_projection_width() << endl << endl;
 #endif
 
       current_projection_column = auto_ptr<vector<unsigned int> >(new vector<unsigned int>(current_indexer->forward_projection_size(), numeric_limits<unsigned int>::max()));
@@ -213,7 +219,7 @@ void DPTable::compute_table() {
 #ifdef DB
       cout << " + " << cost_computer.get_cost() << " = " << cost << " -> " << iterator->get_index() << " [" << bit_rep(iterator->get_index(), current_indexer->get_read_ids()->size()) << "]";
       if(next_column.get()!=0) {
-        cout << " -> " << iterator->get_forward_projection() << " [" << bit_rep(iterator->get_forward_projection(), current_indexer->get_forward_projection_width()) << "]";
+        cout << " -> " << iterator->get_forward_projection() << " [" << bit_rep(iterator->get_forward_projection(), current_indexer->get_forward_projection_width()) << "]";// fpw = " << current_indexer->get_forward_projection_width();
       }
       cout << endl;
 #endif
