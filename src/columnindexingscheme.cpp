@@ -47,7 +47,7 @@ unsigned int ColumnIndexingScheme::column_size() {
 }
 
 unsigned int ColumnIndexingScheme::forward_projection_size() {
-  return ((unsigned int)1) << forward_projection_width-1;
+  return ((unsigned int)1) << forward_projection_mask->size()-1;
 }
 
 unsigned int ColumnIndexingScheme::get_forward_projection_width() {
