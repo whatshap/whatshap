@@ -32,6 +32,8 @@ from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, IndexSet
 from ..graph import ComponentFinder
 from ..readselect import Bestreads
+from ..coverage import CovMonitor
+from ..priorityqueue import PriorityQueue
 
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -190,6 +192,8 @@ class BamReader:
 		self._samfile.close()
 
 
+#TODO erase if not needed anymore
+
 class CoverageMonitor:
 	'''TODO: This is a most simple, naive implementation. Could do this smarter.'''
 	def __init__(self, length):
@@ -216,34 +220,27 @@ def slice_reads(reads, max_coverage):
 	reads -- a ReadSet
 	"""
 
-
 	#Same as below but renamed from position list to vcf_variant_list
 	vcf_variant_list = reads.getPositions()
-
 
 	#TODO Not sure if sorting is needed
 	vcf_new_list = sorted(vcf_variant_list)
 
 	readselect= Bestreads(reads,vcf_variant_list)
-	SNP_map=readselect.snp_map_construction()
+	pq=PriorityQueue()
+	(pq,SNPdictionary)=readselect.priorityqueue_construction(pq)
 
+	selectedreads= readselect.read_selection(pq,SNPdictionary,max_coverage)
 
-	selected_reads=readselect.heapcon(SNP_map,max_coverage)
-	print('selected reads')
-	print(selected_reads)
 	readset=[IndexSet()]
 
-	for i in range(0,len(selected_reads)):
-		readset[0].add(selected_reads[i][0])
-
-		print('Readset')
-		print(selected_reads[i][0])
-
+	for i in range(0,len(selectedreads)):
+		readset[0].add (selectedreads[i])
 	selecte_readset=reads.subset(readset[0])
 
 
-	#should return ReadSet structure or at least the indices of the choosen reads...
-
+	print('Selected reads ')
+	print(selecte_readset)
 
 
 	#former approach
@@ -306,7 +303,9 @@ def slice_reads(reads, max_coverage):
 
 	return reads.subset(slices[0])
 	'''
+
 	return selecte_readset
+
 
 def find_components(superreads, reads):
 	"""

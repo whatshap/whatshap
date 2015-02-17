@@ -1,13 +1,12 @@
 import math
 
-#TODO : Important to use tuples instead of lists of SNPs because llist are unhasable for the dictionary
+#Important to use tuples instead of lists of SNPs because llist are unhasable for the dictionary
 
 class PriorityQueue:
 	def __init__(self):
 		'''initializes a priority queue with an empty list and an empty dictionary'''
 		self.positions = {}
 		self.heap = []
-
 
 	def push(self, score, item):
 		'''Add item with given score to the heap.'''
@@ -16,20 +15,12 @@ class PriorityQueue:
 		self.heap.insert(newindex, (score, item))
 		self.positions[item] = newindex
 		self.parent_check_and_swap(newindex)
-		#print('Push item')
-		#print(item)
-		if item[0]==62:
-			print('&§ found')
-			print(self.positions)
-		#TODO Need to look to children not necessary if only pushed to parent.
-		#self.child_check_and_swap(newindex)
 
 	def get_index (self,item):
-		#print('Positions')
-		#print(self.positions)
-		#print('Length of Positions')
-		#print(len(self.positions))
+		'''returns intern index of the searched item'''
 		return self.positions[item]
+
+
 
 
 	def swap(self, f_index, s_index):
@@ -49,19 +40,18 @@ class PriorityQueue:
 
 
 	def parent_check_and_swap(self, index):
-		''' Check if score of item at given index is higher than the score of the parent and swaps the nodes till priority
-		queue property is restored'''
+		''' recursive method to check if score of item at given index is higher than the score of the parent
+		and swaps the nodes till priorityqueue property is restored'''
 		parentindex = self.hparent(index)
 		if parentindex!= index and parentindex >=0 :
 			if self.getscore(parentindex) < self.getscore(index) :
-
 				self.swap(parentindex, index)
 				self.parent_check_and_swap(parentindex)
 
 
 	def child_check_and_swap(self,index):
-		'''Check if score of item at given index is lower than the score of its children, therefore need to swap position with
-		children'''
+		'''Check if score of item at given index is lower than the score of its children,
+		 therefore need to swap position with its children'''
 		rchildindex=self.hright(index)
 		lchildindex=self.hleft(index)
 		if rchildindex!= index and rchildindex < len(self.heap):
@@ -76,8 +66,7 @@ class PriorityQueue:
 
 
 	def pop(self):
-		'''Removes the item with largest score and returns it as (score, item).'''
-		#Gives maximal item in the priority queue , erases it from the queue and updates the scores and indices'''
+		'''Removes the item with largest score and returns it as tupel of (score, item).'''
 
 		#looks if heap is only one element then no need restore heap property
 		if len(self.heap)>1:
@@ -107,10 +96,11 @@ class PriorityQueue:
 
 
 	def change_score(self, item, new_score):
-		'''Changes the score of the given item.'''
+		'''Changes the score of the given item to the new assigned score.'''
 		position=self.positions[item]
 		old_score= self.getscore(position)
 		self.heap.pop(position)
+
 		self.heap.insert(position,(new_score,item))
 
 		# Differentiate between increasing and decreasing score
