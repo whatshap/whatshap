@@ -258,8 +258,7 @@ def slice_reads(reads, max_coverage):
 	"""
 
 	#Same as below but renamed from position list to vcf_variant_list
-	vcf_variant_list = reads.getPositions()
-
+	vcf_variant_list= reads.get_positions()
 	#TODO Not sure if sorting is needed
 	vcf_new_list = sorted(vcf_variant_list)
 
