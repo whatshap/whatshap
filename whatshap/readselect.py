@@ -28,19 +28,20 @@ class Bestreads:
 		self.readset = readset
 		self.positions = positions
 		la = PriorityQueue()
-		print('LALALALALa')
-		print(la)
 		(pq,SNP_dict)= self.priorityqueue_construction(la)
 
 		#TODO Set max_coverage to 15 also need to call the methods elsewhere
-		self.read_selection(pq,SNP_dict, 15)
+		readselection=self.read_selection(pq,SNP_dict, 15)
+		print('READSELECTION')
+		print(readselection)
+
 
 	def priorityqueue_construction(self, priorityqueue):
-		'''Constructiong of the priority queue for the readset, so that each read is in the priority queue and sorted by their score'''
-		#TODO rename d
-		d = {}
+		'''Constructiong of the priority queue for the readset, so that each read is in the priority queue and
+		sorted by their score'''
+		SNP_read_map = {}
 		for i in range(0, len(self.positions)):
-			d[i] = []
+			SNP_read_map[i] = []
 
 		#indexing the reads
 		readindices = list(range(len(self.readset)))
@@ -76,29 +77,19 @@ class Bestreads:
 				score = score - ((SNPset[len(SNPset)-1] - SNPset[0]+1)-len(SNPset))
 
 			covered_SNPs = tuple(SNPset)
-			#print('SNP list')
-			#print(SNP_list)
 
 			priorityqueue.push(score,(index,covered_SNPs))
-			if index == 62:
-				print('INDEX pushed ')
-			helptupel = tuple([index, score, covered_SNPs])
+			helptupel = tuple([index,covered_SNPs])
 			for m in range(0, len(covered_SNPs)):
-				d[covered_SNPs[m]].append(helptupel)
+				SNP_read_map[covered_SNPs[m]].append(helptupel)
 
-
-		print('dicetory')
-		print(d)
-
-		return (priorityqueue,d)
+		return (priorityqueue,SNP_read_map)
 
 
 
 	#TODO Need to assert somewhere that if less Reads than coverage...?
 	def read_selection(self, pq,SNP_dict, max_coverage):
 		'''Selects the best reads out of the readset depending on the assigned score till max_coverage is reached'''
-		#print('SNP_dict')
-		#print(SNP_dict)
 
 		# coverage over the SNPs
 		coverages = CovMonitor(len(self.positions))
@@ -106,95 +97,53 @@ class Bestreads:
 		selected_reads = []
 
 		while not pq.isEmpty():
-			print('while SNP_dict')
-			print(SNP_dict)
-			(read,SNPs)=pq.getitem(0)
-			score=pq.getscore(0)
-			extracted_read= pq.pop()
-			print('Extracted REad')
-			print(extracted_read)
-			#readitem= extracted_read[1]
 
+			#read, SNPs and score are the readindex, covering SNPS and score of the maximal extracted read..
+			(read,SNPs)=pq.getitem(0)
+			#Do not need to store, because we also need SNPs.....
+			#TODO maybe include SNPs into priority queue storage in item and then pop  would not need to do it twice.
+			pq.pop()
+
+			#Setting coverage of extracted read
 			begin = SNPs[0]
 			end = SNPs [len(SNPs) - 1] + 1
-			#print(begin)
-			#print(end)
 			if coverages.max_coverage_in_range(begin, end) < max_coverage:
 				coverages.add_read(begin, end)
-				print('read added')
-
 				selected_reads.append(read)
+
 			#Reducing the score of all reads covering the same SNPS as the selected read
 			for i in range(0,len(SNPs)):
-				print('covered SNP i')
-				print(SNPs[i])
-				#print(SNPs[i])
 				SNP_reads= SNP_dict[SNPs[i]]
-				print('SNP reads')
-				print(SNP_reads)
-				#print('First Read')
-				#print(SNP_reads[0][0])
 
-				for r in SNP_reads:
-					#print('R')
-					#print(r)
-					tupelread= (r[0],r[2])
-					#print('Tupelread')
-					#print(tupelread)
-					#print('read')
-					#print(read)
+				j=0
+				#if it is the extracted read, then remove it from the list, else decrease the score by 1.
+				while j< len(SNP_reads):
+					r=SNP_reads[j]
 
 #TODO erase out of this dictionary of SNP - read the already extracted reads
+					if r ==(read,SNPs):
+						removable_read= (read,SNPs)
+						SNP_reads.remove(removable_read)
 
-#Delete Extracted read out of all SNP varianst
-
-					if tupelread ==(read,SNPs):
-						print('EQUALITY SHOULD HERE REMOVE ITEM ')
-						#print('SNP_reads before')
-						#print(SNP_reads)
-						#print('SNPs_reads[0]')
-						#print(SNP_reads[0])
-						#print('Länge of SNP_reads')
-						#print(len(SNP_reads))
-
-
-						#TODO MACHT ES NICHT IMMER::::::
-						print('Should be removed from SNP_reads.....')
-						print(SNP_reads[0])
-						to_be_reamoved= (read,score,SNPs)
-						print('to be removed')
-						print(to_be_reamoved)
-						SNP_reads.remove(to_be_reamoved)
-						#SNP_reads.remove(SNP_reads[0])
+					else:
+						readindex= pq.get_index(r)
+						old_score=pq.getscore(readindex)
+						newscore= old_score -1
+		#TODO need to set a minium for the score ?
+						pq.change_score(r,newscore)
 
 
+						#TODO No Need to replace, if score is not stored anymore
+						#former_read=(r[0],r[1])
 
-					#del SNP_reads[(read,score,SNPs)]
-						#SNP_reads[(read,score,SNPS)] == None
-						#print('SNP_reads after')
-						#print(SNP_reads)
-
-
-
-					if tupelread != (read,SNPs):
-						print('IN IF ')
-						readindex= pq.get_index(tupelread)
-						#print('Readindex')
-						#print(readindex)
-				#for r in range(0,len(SNP_reads)):
-					#gets me only the index of the read
-				#	pq.change_score(self,SNP_reads [r][0], old score -1 ....):
-
-				#for r in self.
+						#Index, score, SNPS
+						#new_read= (r[0],r[1])
 
 
+						#SNP_reads.remove(former_read)
 
-
-
-			#begin=0
-			#end=
-			#if coverages.max_coverage_in_range(begin,end)< max_coverage:
-			#	selected_reads.append(extracted_read)
+						#SNP_reads.insert(j ,new_read)#   (new_read)
+						j +=1
 
 
 
