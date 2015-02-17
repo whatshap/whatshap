@@ -16,11 +16,6 @@ class PriorityQueue:
 		self.positions[item] = newindex
 		self.parent_check_and_swap(newindex)
 
-	def get_index (self,item):
-		'''returns intern index of the searched item'''
-		return self.positions[item]
-
-
 
 
 	def swap(self, f_index, s_index):
@@ -119,6 +114,12 @@ class PriorityQueue:
 		'''Return the score of the element at this index in the heap'''
 		(score, item) = self.heap[index]
 		return item
+
+	def get_index (self,item):
+		'''returns intern index of the searched item'''
+		return self.positions[item]
+
+
 
 
 	def __len__(self):

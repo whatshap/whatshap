@@ -1,5 +1,6 @@
 
 from whatshap.readselect import Bestreads
+from ..core import Read, ReadSet, DPTable, IndexSet
 
 def test_priority_construction():
     vcf_indices = {}
@@ -24,3 +25,6 @@ def test_priority_construction():
 
 
 def test_read_selection(self, pq,SNP_dict, max_coverage):
+
+
+    Bestreads(readset,vcf_indices)

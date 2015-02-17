@@ -27,6 +27,11 @@ class Bestreads:
 		'''Initialize with the readset containing all reads and the positions which are the SNP variants'''
 		self.readset = readset
 		self.positions = positions
+		print('self.positions')
+		print(self.positions)
+		print('self.readset')
+		print(self.readset)
+
 
 
 
@@ -78,6 +83,7 @@ class Bestreads:
 			pq_item = tuple([index,covered_SNPs])
 			for m in range(0, len(covered_SNPs)):
 				SNP_read_map[covered_SNPs[m]].append(pq_item)
+		print("Number of skipped reads:", skipped_reads)
 
 		return (priorityqueue,SNP_read_map)
 
