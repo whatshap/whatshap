@@ -7,7 +7,7 @@ Requirements
 ------------
 
 WhatsHap is implemented in C++ and Python. You need to have a C++ compiler,
-Python 3.3 (or later) and the corresponding Python header files. In Ubuntu,
+Python 3.2 (or later) and the corresponding Python header files. In Ubuntu,
 make sure the packages ``build-essential`` and ``python3-dev`` are installed.
 
 
@@ -64,38 +64,38 @@ Then you can run WhatsHap like this::
 
 	venv/bin/whatshap --help
 
+
 Development installation (alternative)
 --------------------------------------
+
 Alternatively, if you do not want to use virtualenv, you can do the following::
 
 	git clone https://bitbucket.org/whatshap/whatshap.git
 	cd whatshap
 	python3 setup.py build_ext -i --cython
-	./bin/whatshap
+	bin/whatshap
 
 This requires Cython, pysam, and pyvcf to be installed.
 
-Ubuntu 12.04 LTS
-----------------
 
-This Ubuntu release does not have a recent enough Python, so you need to install
-it first. From a freshly installed Ubuntu 12.04, you would need to do this
-first::
+Installing other Python versions in Ubuntu
+------------------------------------------
+
+Ubuntu comes with one default Python 3 version, and in order to test WhatsHap
+with other Python versions (3.2, 3.3 and 3.4), use the “deadsnakes” repository.
+Ensure you have the following packages::
 
 	sudo apt-get install build-essential python-software-properties
 
-Then get and install Python 3.3 (or choose 3.4)::
+Then get and install the desired Python versions. For example, for Python 3.2::
 
 	sudo add-apt-repository ppa:fkrull/deadsnakes
 	sudo apt-get update
-	sudo apt-get install python3.3-dev python3-setuptools
+	sudo apt-get install python3.2-dev python3-setuptools
 
-Then install pip and virtualenv. (Since they are so essential, we use sudo to
-install them system-wide, but you can also install them into your $HOME by
-omitting the sudo and adding the ``--user`` option instead)::
+If pip and virtualenv are not available, install them (Since they are so essential,
+we use sudo to install them system-wide, but you can also install them into
+your $HOME by omitting the sudo and adding the ``--user`` option instead)::
 
 	sudo easy_install3 pip
 	sudo pip3 install virtualenv
-
-Then continue with the regular or development instructions above to install
-WhatsHap.

@@ -12,7 +12,7 @@
 
 class DPTable {
 private:
-  const ReadSet* read_set;
+  ReadSet* read_set;
   // vector of indexingschemes
   std::vector<ColumnIndexingScheme*> indexers;
   // optimal score and its index in the rightmost DP table column
@@ -38,8 +38,10 @@ public:
    *  @param all_heterozygous If true, then the "all heterozygous" assumption is made;
    *                          i.e., all positions are forced to be heterozygous even when
    *                          reads suggest a homozygous site. */
-  DPTable(const ReadSet* read_set, bool all_heterozygous = false);
+  DPTable(ReadSet* read_set, bool all_heterozygous = false);
  
+  ~DPTable();
+
   unsigned int get_optimal_score();
   
   /** Computes optimal haplotypes and adds them (in the form of "super reads") to 
@@ -47,8 +49,9 @@ public:
    */
   void get_super_reads(ReadSet* output_read_set);
 
-  // returns optimal partitioning of the reads
-  std::auto_ptr<std::vector<bool> > get_optimal_partitioning();
+  /** Performs a backtrace through the DP table and returns optimal partitioning of the reads.
+   *  Pointer ownership is transferred to caller. */
+  std::vector<bool>* get_optimal_partitioning();
 };
 
 #endif

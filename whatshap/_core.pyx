@@ -7,6 +7,11 @@ from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp cimport bool
 
+from collections import namedtuple
+
+# A single variant on a read.
+Variant = namedtuple('Variant', 'position base allele quality')
+
 # ====== Read ======
 cdef extern from "../src/read.h":
 	cdef cppclass Read:
@@ -49,46 +54,62 @@ cdef class PyRead:
 		assert self.thisptr != NULL
 		return self.thisptr.toString().decode('utf-8')
 
-	def getMapqs(self):
-		assert self.thisptr != NULL
-		return tuple(self.thisptr.getMapqs())
+	property mapqs:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return tuple(self.thisptr.getMapqs())
 
-	def getName(self):
-		assert self.thisptr != NULL
-		return self.thisptr.getName().decode('utf-8')
+	property name:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getName().decode('utf-8')
 
 	def __iter__(self):
+		"""Iterate over all variants in this read"""
 		assert self.thisptr != NULL
 		for i in range(len(self)): 
 			yield self[i]
 
 	def __len__(self):
+		"""Return number of variants in this read"""
 		assert self.thisptr != NULL
 		return self.thisptr.getVariantCount()
 
 	def __getitem__(self, key):
+		"""Return Variant object at the given integer index"""
 		assert self.thisptr != NULL
 		if isinstance(key, slice):
 			raise NotImplementedError("Read does not support slices")
 		assert isinstance(key, int)
-		if not (0 <= key < self.thisptr.getVariantCount()):
+		cdef int n = self.thisptr.getVariantCount()
+		if not (-n <= key < n):
 			raise IndexError('Index out of bounds: {}'.format(key))
-		return (self.thisptr.getPosition(key), chr(self.thisptr.getBase(key)), self.thisptr.getAllele(key), self.thisptr.getBaseQuality(key))
-		
+		if key < 0:
+			key = n + key
+		return Variant(
+			position=self.thisptr.getPosition(key),
+			base=chr(self.thisptr.getBase(key)),
+			allele=self.thisptr.getAllele(key),
+			quality=self.thisptr.getBaseQuality(key)
+		)
+
 	def __contains__(self, position):
+		"""Return whether this read contains a variant at the given position.
+		A linear search is used.
+		"""
 		assert self.thisptr != NULL
 		assert isinstance(position, int)
-		for var_pos, base, allele, quality in self:
-			if var_pos == position:
+		for variant in self:
+			if variant.position == position:
 				return True
 		return False
 
-	def addVariant(self, int position, str base, int allele, int quality):
+	def add_variant(self, int position, str base, int allele, int quality):
 		assert self.thisptr != NULL
 		assert len(base) == 1
 		self.thisptr.addVariant(position, ord(base[0]), allele, quality)
 
-	def addMapq(self, int mapq):
+	def add_mapq(self, int mapq):
 		assert self.thisptr != NULL
 		self.thisptr.addMapq(mapq)
 
@@ -96,9 +117,10 @@ cdef class PyRead:
 		assert self.thisptr != NULL
 		self.thisptr.sortVariants()
 
-	def isSorted(self):
-		assert self.thisptr != NULL
-		return self.thisptr.isSorted()
+	property is_sorted:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.isSorted()
 
 # ====== ReadSet ======
 cdef extern from "../src/readset.h":
@@ -160,7 +182,7 @@ cdef class PyReadSet:
 			assert False, 'Invalid key: {}'.format(key)
 		return read
 
-	#def getByName(self, name):
+	#def get_by_name(self, name):
 		#cdef string _name = name.encode('UTF-8')
 		#cdef Read* cread = self.thisptr.getByName(_name)
 		#cdef PyRead read = PyRead()
@@ -183,7 +205,7 @@ cdef class PyReadSet:
 		result.thisptr = self.thisptr.subset(index_set.thisptr)
 		return result
 
-	def getPositions(self):
+	def get_positions(self):
 		cdef vector[unsigned int]* v = self.thisptr.get_positions()
 		result = list(v[0])
 		del v
@@ -195,13 +217,13 @@ cdef extern from "../src/columniterator.h":
 	cdef cppclass ColumnIterator:
 		ColumnIterator(ReadSet) except +
 
-
 # ====== DPTable ======
 cdef extern from "../src/dptable.h":
 	cdef cppclass DPTable:
 		DPTable(ReadSet*, bool) except +
-		void compute_table() except +
 		void get_super_reads(ReadSet*) except +
+		int get_optimal_score() except +
+		vector[bool]* get_optimal_partitioning()
 
 
 cdef class PyDPTable:
@@ -217,7 +239,7 @@ cdef class PyDPTable:
 	def __dealloc__(self):
 		del self.thisptr
 
-	def getSuperReads(self):
+	def get_super_reads(self):
 		"""Obtain optimal-score haplotypes.
 		IMPORTANT: The ReadSet given at construction time must not have been altered.
 		DPTable retained a pointer to this set and will access it again. If it has
@@ -228,6 +250,17 @@ cdef class PyDPTable:
 		self.thisptr.get_super_reads(result.thisptr)
 		return result
 
+	def get_optimal_cost(self):
+		"""Returns the cost resulting from solving the Minimum Error Correction (MEC) problem."""
+		return self.thisptr.get_optimal_score()
+
+	def get_optimal_partitioning(self):
+		"""Returns a list of the same size as the read set, where each entry is either 0 or 1,
+		telling whether the corresponding read is in partition 0 or in partition 1,"""
+		cdef vector[bool]* p = self.thisptr.get_optimal_partitioning()
+		result = [0 if x else 1 for x in p[0]]
+		del p
+		return result
 
 # ====== IndexSet ======
 cdef extern from "../src/indexset.h":

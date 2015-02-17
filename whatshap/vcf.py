@@ -28,11 +28,11 @@ def vcf_sample_reader(path, sample=None):
 	Read only a single sample from a VCF.
 	If sample is None, the first sample is used.
 
-	Yield tuples (record, call).
+	Yield tuples (sample, record, call).
 	"""
 	vcf_reader = vcf.Reader(filename=path)
 	samples = vcf_reader.samples
-	logger.info("Found %d samples in the VCF file.", len(samples))
+	logger.info("Found %d sample(s) in the VCF file.", len(samples))
 	if sample is None:
 		sample = samples[0]
 		sample_index = 0
@@ -45,6 +45,7 @@ def vcf_sample_reader(path, sample=None):
 		except ValueError:
 			logger.error("Requested sample %r not found in VCF.", sample)
 			raise SampleNotFoundError()
+	assert sample is not None
 	for record in vcf_reader:
 		call = record.samples[sample_index]
 		yield sample, record, call
@@ -73,10 +74,12 @@ def parse_vcf(path, sample=None):
 			prev_chromosome = record.CHROM
 			variants = []
 		alleles = [ str(record.alleles[int(s)]) for s in call.gt_alleles ]
+		"""
 		logger.debug("Call %s:%d %s→%s (Alleles: %s)",
 			record.CHROM, record.start + 1,
 			record.REF, record.ALT,
 			alleles)
+		"""
 		if not record.is_snp or not call.is_het:
 			continue
 		assert len(alleles) == 2

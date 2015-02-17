@@ -11,11 +11,22 @@
 
 using namespace std;
 
-DPTable::DPTable(const ReadSet* read_set, bool all_heterozygous) {
+DPTable::DPTable(ReadSet* read_set, bool all_heterozygous) {
   this->read_set = read_set;
   this->all_heterozygous = all_heterozygous;
   this->read_count = 0;
+  read_set->reassignReadIds();
   compute_table();
+}
+
+DPTable::~DPTable() {
+  for(size_t i=0; i<indexers.size(); ++i) {
+    delete indexers[i];
+  }
+
+  for(size_t i=0; i<backtrace_table.size(); ++i) {
+    delete backtrace_table[i];
+  }
 }
 
 auto_ptr<vector<unsigned int> > DPTable::extract_read_ids(const vector<const Entry *>& entries) {
@@ -90,6 +101,9 @@ void DPTable::compute_table() {
   double pi = 0.05; // percentage of columns processed
   double pc = pi;
   unsigned int nc = column_iterator.get_column_count();
+#ifdef DB
+  int i = 0;
+#endif
   while(next_indexer != 0) {
     // move on projection column
     previous_projection_column = current_projection_column;
@@ -115,6 +129,14 @@ void DPTable::compute_table() {
     vector<unsigned int>* backtrace_column = 0;
     // if not last column, reserve memory for forward projections column
     if (next_column.get() != 0) {
+#ifdef DB
+      cout << i << " : " << endl;
+      ++i;
+      cout << "allocate current projection / backtrace columns of size : " << current_indexer->forward_projection_size() << endl;
+      cout << "forward projection width : " << current_indexer->get_forward_projection_width() << endl << endl;
+#endif
+
+
       current_projection_column = auto_ptr<vector<unsigned int> >(new vector<unsigned int>(current_indexer->forward_projection_size(), numeric_limits<unsigned int>::max()));
       // NOTE: forward projection size will always be even
 #ifdef HALF_TABLE
@@ -138,13 +160,13 @@ void DPTable::compute_table() {
 
     cout << "row ids : ";
     output_vector(current_indexer->get_read_ids());
-    cout << "(pivot)" << endl;
 
-    cout << "column size : " << current_indexer->column_size() << endl;
+    cout << " .. column size : " << current_indexer->column_size() << endl;
     
     cout << "forward projection mask : ";
     if(next_column.get()!=0) {
       output_vector(current_indexer->get_forward_projection_mask());
+      cout << " .. width : " << current_indexer->get_forward_projection_width();
     }
     cout << endl;
 
@@ -179,7 +201,7 @@ void DPTable::compute_table() {
 #ifdef DB
       cout << " + " << cost_computer.get_cost() << " = " << cost << " -> " << iterator->get_index() << " [" << bit_rep(iterator->get_index(), current_indexer->get_read_ids()->size()) << "]";
       if(next_column.get()!=0) {
-        cout << " -> " << iterator->get_forward_projection() << " [" << bit_rep(iterator->get_forward_projection(), current_indexer->get_forward_projection_width()) << "]";
+        cout << " -> " << iterator->get_forward_projection() << " [" << bit_rep(iterator->get_forward_projection(), current_indexer->get_forward_projection_width()) << "]";// fpw = " << current_indexer->get_forward_projection_width();
       }
       cout << endl;
 #endif
@@ -296,7 +318,7 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
   output_read_set->add(r1);
 }
 
-auto_ptr<vector<bool> > DPTable::get_optimal_partitioning() {
+vector<bool>* DPTable::get_optimal_partitioning() {
 
   auto_ptr<vector<unsigned int> > index_path = get_index_path();
 
@@ -310,7 +332,7 @@ auto_ptr<vector<bool> > DPTable::get_optimal_partitioning() {
   }
   */
 
-  auto_ptr<vector<bool> > partitioning = auto_ptr<vector<bool> >(new vector<bool>(read_count,false));
+  vector<bool>* partitioning = new vector<bool>(read_count,false);
   for(size_t i=0; i< index_path->size(); ++i) {
     unsigned int mask = 1; // mask to pass over the partitioning (i.e., index)
     for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {

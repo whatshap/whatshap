@@ -22,18 +22,22 @@ import random
 import gzip
 import time
 import itertools
+import platform
 from collections import defaultdict
-from contextlib import ExitStack, closing
-import pysam
-
+try:
+	from contextlib import ExitStack, closing
+except ImportError:
+	from contextlib2 import ExitStack, closing  # PY32
 from ..vcf import parse_vcf, PhasedVcfWriter
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, IndexSet
 from ..graph import ComponentFinder
+
 from ..readselect import Bestreads
 from ..coverage import CovMonitor
 from ..priorityqueue import PriorityQueue
+from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError
 
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -41,94 +45,74 @@ __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel M
 logger = logging.getLogger(__name__)
 
 
-def find_alleles(variants, start, bam_read, core_read):
+def covered_variants(variants, start, bam_read):
 	"""
-	Check whether the bam_read covers some of the variants in variants[start:] and, if so,
-	add this information to the given core_read object.
-	"""
-	pos = bam_read.pos
-	cigar = bam_read.cigar
+	Find the variants that are covered by the given bam_read and return a
+	core.Read instance that represents those variants. The instance may be
+	empty.
 
-	c = 0  # hit count
+	start -- index of the first variant (in the variants list) to check
+	"""
+	core_read = Read(bam_read.qname, bam_read.mapq)
 	j = start  # index into variants list
-	p = pos
-	s = 0  # absolute index into the read string [0..len(read)]
+	ref_pos = bam_read.pos  # position relative to reference
+	query_pos = 0  # position relative to read
 	errors = 0
-	for cigar_op, length in cigar:
+	for cigar_op, length in bam_read.cigar:
 		# The mapping of CIGAR operators to numbers is:
 		# MIDNSHPX= => 012345678
-		if cigar_op in (0, 7, 8):  # we're in a matching subregion
-			s_next = s + length
-			p_next = p + length
-			r = p + length  # size of this subregion
-			# skip over all SNPs that come before this region
-			while j < len(variants) and variants[j].position < p:
+		if cigar_op in (0, 7, 8):  # we are in a matching region
+			# Skip variants that come before this region
+			while j < len(variants) and variants[j].position < ref_pos:
 				j += 1
-			# iterate over all positions in this subregion and
-			# check whether any of them coincide with one of the SNPs ('hit')
-			while j < len(variants) and p < r:
-				if variants[j].position == p:  # we have a hit
-					base = bam_read.seq[s:s+1]
-					al = None
-					if base == variants[j].reference_allele:
-						al = 0  # REF allele
-					elif base == variants[j].alternative_allele:
-						al = 1  # ALT allele
-					else:
-						errors += 1
-					if al != None:
-						# Just ignore duplicate variants encountered when two reads in a pair overlap
-						# TODO: Handle this case properly
-						if not p in core_read:
-							core_read.addVariant(p, base, al, ord(bam_read.qual[s:s+1])-33)
-					c += 1
-					j += 1
-				s += 1 # advance both read and reference
-				p += 1
-			s = s_next
-			p = p_next
+
+			# Iterate over all variants that are in this region
+			while j < len(variants) and variants[j].position < ref_pos + length:
+				offset = variants[j].position - ref_pos
+				base = bam_read.seq[query_pos + offset]
+				allele = None
+				if base == variants[j].reference_allele:
+					allele = 0
+				elif base == variants[j].alternative_allele:
+					allele = 1
+				else:
+					# TODO this variable is unused
+					errors += 1
+				if allele is not None:
+					# TODO this assertion should be removed
+					assert variants[j].position not in core_read
+					# Do not use bam_read.qual here as it is extremely slow.
+					# If we ever decide to be compatible with older pysam
+					# versions, cache bam_read.qual somewhere - do not
+					# access it within this loop (3x slower otherwise).
+					core_read.add_variant(variants[j].position, base, allele, bam_read.query_qualities[query_pos + offset])
+				j += 1
+			query_pos += length
+			ref_pos += length
 		elif cigar_op == 1:  # an insertion
-			s += length
+			query_pos += length
 		elif cigar_op == 2 or cigar_op == 3:  # a deletion or a reference skip
-			p += length
+			ref_pos += length
 		elif cigar_op == 4:  # soft clipping
-			s += length
+			query_pos += length
 		elif cigar_op == 5 or cigar_op == 6:  # hard clipping or padding
 			pass
 		else:
 			logger.error("Unsupported CIGAR operation: %d", cigar_op)
 			sys.exit(1)
-	return errors
+	return core_read
 
 
-class BamReader:
+class ReadSetReader:
 	"""
-	Associate variants with reads.
+	Associate VCF variants with BAM reads.
 	"""
-	def __init__(self, path, mapq_threshold=20):
-		"""
-		path -- path to BAM file
-		"""
-		bai1 = path + '.bai'
-		bai2 = os.path.splitext(path)[0] + '.bai'
-		if not os.path.exists(bai1) and not os.path.exists(bai2):
-			logger.info('BAM index not found, creating it now.')
-			pysam.index(path)
-		self._samfile = pysam.Samfile(path)
+	def __init__(self, paths, mapq_threshold=20):
 		self._mapq_threshold = mapq_threshold
-		self._initialize_sample_to_group_ids()
-
-	def _initialize_sample_to_group_ids(self):
-		"""
-		Return a dictionary that maps a sample name to a set of read group ids.
-		"""
-		read_groups = self._samfile.header['RG']  # a list of dicts
-		logger.debug('Read groups in SAM header: %s', read_groups)
-		samples = defaultdict(list)
-		for read_group in read_groups:
-			samples[read_group['SM']].append(read_group['ID'])
-		self._sample_to_group_ids = {
-			id: frozenset(values) for id, values in samples.items() }
+		if len(paths) == 1:
+			self._reader = SampleBamReader(paths[0])
+		else:
+			self._reader = MultiBamReader(paths)
 
 	def read(self, chromosome, variants, sample):
 		"""
@@ -139,47 +123,100 @@ class BamReader:
 
 		Return a ReadSet object.
 		"""
-		if sample is not None:
-			read_groups = self._sample_to_group_ids[sample]
-
-		# resulting set of reads
-		result = ReadSet()
+		# Map read name to a list of Read objects. The list has two entries
+		# if it is a paired-end read, one entry if the read is single-end.
+		reads = defaultdict(list)
 
 		i = 0  # keep track of position in variants array (which is in order)
-		for bam_read in self._samfile.fetch(chromosome):
-			if sample is not None and not bam_read.opt('RG') in read_groups:
-				continue
+		for bam_read in self._reader.fetch(reference=chromosome, sample=sample):
 			# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
 			if bam_read.flag & 2048 != 0:
 				# print('Skipping additional alignment for read ', bam_read.qname)
+				continue
+			if bam_read.mapq < self._mapq_threshold:
 				continue
 			if bam_read.is_secondary:
 				continue
 			if bam_read.is_unmapped:
 				continue
-			if bam_read.mapq < self._mapq_threshold:
-				continue
 			if not bam_read.cigar:
 				continue
 
-			# since reads are ordered by position, we do not need to consider
-			# positions that are too small
+			# Skip variants that are to the left of this read.
 			while i < len(variants) and variants[i].position < bam_read.pos:
 				i += 1
-			try:
-				core_read = result[bam_read.qname]
-				former_length = len(core_read)
-				find_alleles(variants, i, bam_read, core_read)
-				# If variants on the current (part of the) read have been added,
-				# then also record its MAPQ
-				if len(core_read) > former_length:
-					core_read.addMapq(bam_read.mapq)
-			except KeyError:
-				core_read = Read(bam_read.qname, bam_read.mapq)
-				find_alleles(variants, i, bam_read, core_read)
-				# only add new read if it contained at least one variant
-				if len(core_read) > 0:
-					result.add(core_read)
+
+			core_read = covered_variants(variants, i, bam_read)
+			# Only add new read if it covers at least one variant.
+			if core_read:
+				reads[bam_read.qname].append(core_read)
+
+		# Prepare resulting set of reads.
+		read_set = ReadSet()
+
+		for readlist in reads.values():
+			assert 0 < len(readlist) <= 2
+			if len(readlist) == 1:
+				read_set.add(readlist[0])
+			else:
+				read_set.add(self._merge_pair(*readlist))
+		return read_set
+
+	def _merge_pair(self, read1, read2):
+		"""
+		Merge the two ends of a paired-end read into a single core.Read. Also
+		takes care of self-overlapping read pairs.
+
+		TODO this can be simplified as soon as a variant in a read can be
+		modified.
+		"""
+		if read2:
+			result = Read(read1.name, read1.mapqs[0])
+			result.add_mapq(read2.mapqs[0])
+		else:
+			return read1
+
+		i1 = 0
+		i2 = 0
+
+		def add1():
+			result.add_variant(read1[i1].position, read1[i1].base, read1[i1].allele, read1[i1].quality)
+
+		def add2():
+			result.add_variant(read2[i2].position, read2[i2].base, read2[i2].allele, read2[i2].quality)
+
+		while i1 < len(read1) or i2 < len(read2):
+			if i1 == len(read1):
+				add2()
+				i2 += 1
+				continue
+			if i2 == len(read2):
+				add1()
+				i1 += 1
+				continue
+			variant1 = read1[i1]
+			variant2 = read2[i2]
+			if variant2.position < variant1.position:
+				add2()
+				i2 += 1
+			elif variant2.position > variant1.position:
+				add1()
+				i1 += 1
+			else:
+				# Variant on self-overlapping read pair
+				assert read1[i1].position == read2[i2].position
+				# If both alleles agree, merge into single variant and add up qualities
+				if read1[i1].allele == read2[i2].allele:
+					quality = read1[i1].quality + read2[i2].quality
+					result.add_variant(read1[i1].position, read1[i1].base, read1[i1].allele, quality)
+				else:
+					# Otherwise, take variant with highest base quality and discard the other.
+					if read1[i1].quality >= read2[i2].quality:
+						add1()
+					else:
+						add2()
+				i1 += 1
+				i2 += 1
 		return result
 
 	def __enter__(self):
@@ -189,7 +226,7 @@ class BamReader:
 		self.close()
 
 	def close(self):
-		self._samfile.close()
+		self._reader.close()
 
 
 #TODO erase if not needed anymore
@@ -249,7 +286,7 @@ def slice_reads(reads, max_coverage):
 	shuffled_indices = list(range(len(reads)))
 	random.shuffle(shuffled_indices)
 
-	position_list = reads.getPositions()
+	position_list = reads.get_positions()
 	logger.info('Found %d SNP positions', len(position_list))
 
 	# dictionary to map SNP position to its index
@@ -267,14 +304,11 @@ def slice_reads(reads, max_coverage):
 		if len(read) < 2:
 			skipped_reads += 1
 			continue
-		#print('Read index of  former implementation')
-		#print(index)
-		for position, base, allele, quality in read:
-			accessible_positions.add(position)
-		first_position, first_base, first_allele, first_quality = read[0]
-		last_position, last_base, last_allele, last_quality = read[len(read)-1]
-		begin = position_to_index[first_position]
-		end = position_to_index[last_position] + 1
+
+		for variant in read:
+			accessible_positions.add(variant.position)
+		begin = position_to_index[read[0].position]
+		end = position_to_index[read[-1].position] + 1
 		slice_id = 0
 		while True:
 			# Does current read fit into this slice?
@@ -297,9 +331,9 @@ def slice_reads(reads, max_coverage):
 			unphasable_snps, len(position_list),
 			100. * unphasable_snps / len(position_list))
 
-	# Print stats
-	for slice_id, index_set in enumerate(slices):
-		logger.info('Slice %d contains %d reads', slice_id, len(index_set))
+	if reads:
+		logger.info('After coverage reduction: Using %d of %d (%.1f%%) reads',
+			len(slices[0]), len(reads), 100. * len(slices[0]) / len(reads))
 
 	return reads.subset(slices[0])
 	'''
@@ -312,11 +346,16 @@ def find_components(superreads, reads):
 	Return a dict that maps each position to the component it is in. A
 	component is identified by the position of its leftmost variant.
 	"""
-	logger.info('Finding connected components ...')
-	assert len(superreads) == 2
-	assert len(superreads[0]) == len(superreads[1])
+	logger.debug('Finding connected components ...')
 
-	phased_positions = [ position for position, base, allele, quality in superreads[0] if allele in [0, 1] ]  # TODO set()
+	# The variant.allele attribute can be either 0 (major allele), 1 (minor allele),
+	# or 3 (equal scores). If all_heterozygous is on (default), we can get
+	# the combinations 0/1, 1/0 and 3/3 (the latter means: unphased).
+	# If all_heterozygous is off, we can also get all other combinations.
+	# In both cases, we are interested only in 0/1 and 1/0.
+	phased_positions = [ v1.position for v1, v2 in zip(*superreads)
+		if (v1.allele, v2.allele) in ((0, 1), (1, 0))
+	]
 	assert phased_positions == sorted(phased_positions)
 
 	# Find connected components.
@@ -324,7 +363,7 @@ def find_components(superreads, reads):
 	component_finder = ComponentFinder(phased_positions)
 	phased_positions = set(phased_positions)
 	for read in reads:
-		positions = [ position for position, base, allele, quality in read if position in phased_positions ]
+		positions = [ variant.position for variant in read if variant.position in phased_positions ]
 		for position in positions[1:]:
 			component_finder.merge(positions[0], position)
 	components = { position : component_finder.find(position) for position in phased_positions }
@@ -342,11 +381,11 @@ def best_case_blocks(reads):
 	"""
 	positions = set()
 	for read in reads:
-		for position, _, _, _ in read:
-			positions.add(position)
+		for variant in read:
+			positions.add(variant.position)
 	component_finder = ComponentFinder(positions)
 	for read in reads:
-		read_positions = [ position for position, _, _, _ in read ]
+		read_positions = [ variant.position for variant in read ]
 		for position in read_positions[1:]:
 			component_finder.merge(read_positions[0], position)
 	# A dict that maps each position to the component it is in.
@@ -361,52 +400,57 @@ def ensure_pysam_version():
 		sys.exit("WhatsHap requires pysam >= 0.8.1")
 
 
-def main():
-	ensure_pysam_version()
-	logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
-	parser = ArgumentParser(prog='whatshap', description=__doc__)
-	parser.add_argument('--version', action='version', version=__version__)
-	parser.add_argument('-o', '--output', default=None,
-		help='Output VCF file. If omitted, use standard output.')
-	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
-		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
-	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',
-		default=20, type=int, help='Minimum mapping quality')
-	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
-	parser.add_argument('--all-het', action='store_true', default=False,
-		help='Assume all positions to be heterozygous (that is, fully trust SNP calls).')
-	parser.add_argument('--ignore-read-groups', default=False, action='store_true',
-		help='Ignore read groups in BAM header and assume all reads come '
-		'from the same sample.')
-	parser.add_argument('--sample', metavar='SAMPLE', default=None,
-		help='Name of a sample to phase. If not given, only the first sample '
-			'in the input VCF is phased.')
-	parser.add_argument('vcf', metavar='VCF', help='VCF file')
-	parser.add_argument('bam', metavar='BAM', help='BAM file')
-	args = parser.parse_args()
-	random.seed(args.seed)
+def run_whatshap(bam, vcf,
+		output=sys.stdout, sample=None, ignore_read_groups=False,
+		mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123):
+	"""
+	Run WhatsHap.
+
+	bam -- list of paths to BAM files
+	vcf -- path to input VCF
+	output -- path to output VCF or sys.stdout
+	sample -- name of sample to phase. None means: phase first found sample.
+	ignore_read_groups
+	mapping_quality -- discard reads below this mapping quality
+	max_coverage
+	all_heterozygous
+	seed -- seed for random numbers
+	"""
+	random.seed(seed)
 
 	start_time = time.time()
+	class Statistics:
+		pass
+	stats = Statistics()
+	stats.n_homozygous = 0
+	stats.n_phased_blocks = 0
+	stats.n_best_case_blocks = 0
+	stats.n_best_case_blocks_cov = 0
+	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
 		try:
-			bam_reader = stack.enter_context(closing(BamReader(args.bam, mapq_threshold=args.mapping_quality)))
-		except OSError as e:
-			logging.error(e)
+			bam_reader = stack.enter_context(closing(ReadSetReader(bam, mapq_threshold=mapping_quality)))
+		except (OSError, BamIndexingError) as e:
+			logger.error(e)
 			sys.exit(1)
-		if args.output is not None:
-			out_file = stack.enter_context(open(args.output, 'w'))
-		else:
-			out_file = sys.stdout
+		if output is not sys.stdout:
+			output = stack.enter_context(open(output, 'w'))
 		command_line = ' '.join(sys.argv[1:])
-		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=args.vcf, out_file=out_file)
-		for sample, chromosome, variants in parse_vcf(args.vcf, args.sample):
-			logger.info('Read %d variants on chromosome %s', len(variants), chromosome)
-			if args.ignore_read_groups:
-				sample = None
+		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=vcf, out_file=output)
+		vcf_reader = parse_vcf(vcf, sample)
+		for sample, chromosome, variants in vcf_reader:
+			logger.info('Working on chromosome %s', chromosome)
+			logger.info('Read %d variants', len(variants))
+			bam_sample = None if ignore_read_groups else sample
 			logger.info('Reading the BAM file ...')
+			try:
+				reads = bam_reader.read(chromosome, variants, bam_sample)
+			except SampleNotFoundError:
+				logger.error("Sample %r is not among the read groups (RG tags) "
+					"in the BAM header.", bam_sample)
+				sys.exit(1)
+			logger.info('%d reads found', len(reads))
 
-			reads = bam_reader.read(chromosome, variants, sample)
-			
 			# Sort the variants stored in each read
 			# TODO: Check whether this is already ensured by construction
 			for read in reads:
@@ -414,19 +458,70 @@ def main():
 			# Sort reads in read set by position
 			reads.sort()
 
-			sliced_reads = slice_reads(reads, args.max_coverage)
-			logger.info('Best-case phasing would result in %d phased blocks (%d with slicing)',
-				best_case_blocks(reads), best_case_blocks(sliced_reads))
+			sliced_reads = slice_reads(reads, max_coverage)
+			n_best_case_blocks = best_case_blocks(reads)
+			n_best_case_blocks_cov = best_case_blocks(sliced_reads)
+			stats.n_best_case_blocks += n_best_case_blocks
+			stats.n_best_case_blocks_cov += n_best_case_blocks_cov
+			logger.info('Best-case phasing would result in %d phased blocks (%d with coverage reduction)',
+				n_best_case_blocks, n_best_case_blocks_cov)
 			logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 
 			# Run the core algorithm: construct DP table ...
-			dp_table = DPTable(sliced_reads, args.all_het)
+			dp_table = DPTable(sliced_reads, all_heterozygous)
 			# ... and do the backtrace to get the solution
-			superreads = dp_table.getSuperReads()
+			superreads = dp_table.get_super_reads()
+
+			n_homozygous = sum(1 for v1, v2 in zip(*superreads)
+				if v1.allele == v2.allele and v1.allele in (0, 1))
+			stats.n_homozygous += n_homozygous
 
 			components = find_components(superreads, sliced_reads)
-			logger.info('No. of phased blocks: %d', len(set(components.values())))
-			logger.info('Writing phased variants on chromosome %s ...', chromosome)
+			n_phased_blocks = len(set(components.values()))
+			stats.n_phased_blocks += n_phased_blocks
+			logger.info('No. of phased blocks: %d', n_phased_blocks)
+			if all_heterozygous:
+				assert n_homozygous == 0
+			else:
+				logger.info('No. of heterozygous variants determined to be homozygous: %d', n_homozygous)
 			vcf_writer.write(chromosome, sample, superreads, components)
+			logger.info('Chromosome %s finished', chromosome)
 
+	logger.info('== SUMMARY ==')
+	logger.info('Best-case phasing would result in %d phased blocks (%d with coverage reduction)',
+				stats.n_best_case_blocks, stats.n_best_case_blocks_cov)
+	logger.info('Actual number of phased blocks: %d', stats.n_phased_blocks)
+	if all_heterozygous:
+		assert stats.n_homozygous == 0
+	else:
+		logger.info('No. of heterozygous variants determined to be homozygous: %d', stats.n_homozygous)
 	logger.info('Elapsed time: %.1fs', time.time() - start_time)
+
+
+def main():
+	ensure_pysam_version()
+	logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+	parser = ArgumentParser(prog='whatshap', description=__doc__)
+	parser.add_argument('--version', action='version', version=__version__)
+	parser.add_argument('-o', '--output', default=sys.stdout,
+		help='Output VCF file. If omitted, use standard output.')
+	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
+		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
+	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',
+		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
+	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
+	parser.add_argument('--distrust-genotypes', dest='all_heterozygous',
+		action='store_false', default=True,
+		help='Allow switching variants from hetero- to homozygous in an '
+		'optimal solution (see documentation).')
+	parser.add_argument('--ignore-read-groups', default=False, action='store_true',
+		help='Ignore read groups in BAM header and assume all reads come '
+		'from the same sample.')
+	parser.add_argument('--sample', metavar='SAMPLE', default=None,
+		help='Name of a sample to phase. If not given, the first sample in the '
+		'input VCF is phased.')
+	parser.add_argument('vcf', metavar='VCF', help='VCF file')
+	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
+
+	args = parser.parse_args()
+	run_whatshap(**vars(args))
