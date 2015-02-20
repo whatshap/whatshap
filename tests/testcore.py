@@ -118,16 +118,21 @@ def test_phase_empty_readset():
 	superreads = dp_table.get_super_reads()
 
 
-def string_to_readset(s):
+def string_to_readset(s, w = None):
 	s = textwrap.dedent(s).strip()
+	if w is not None:
+		w = textwrap.dedent(w).strip().split('\n')
 	bits = { '0': 'A', '1': 'C', 'E': 'G' }
 	rs = ReadSet()
-	for index, line in enumerate(s.split('\n'), 1):
-		read = Read('Read {}'.format(index), 50)
-		for pos, c in enumerate(line, 1):
+	for index, line in enumerate(s.split('\n')):
+		read = Read('Read {}'.format(index+1), 50)
+		for pos, c in enumerate(line):
 			if c == ' ':
 				continue
-			read.add_variant(position=pos * 10, base=bits[c], allele=int(c), quality=1)
+			q = 1
+			if w is not None:
+				q = int(w[index][pos])
+			read.add_variant(position=(pos+1) * 10, base=bits[c], allele=int(c), quality=q)
 		rs.add(read)
 	print(rs)
 	return rs
@@ -170,7 +175,6 @@ def column_cost(variants, possible_assignments):
 	for i in range(2):
 		if ambiguous[i]:
 			best_assignment[i] = 3
-	print('     ', ', '.join('{}-->{}'.format(str(possible_assignments[i]),c) for c,i in l[:ties]), ambiguous, best_assignment)
 	return min_cost, best_assignment
 
 
@@ -219,9 +223,9 @@ def brute_force_phase(read_set, all_heterozygous):
 	return best_cost, [(best_partition>>x) & 1 for x in range(len(read_set))], solution_count//2, haplotype1, haplotype2
 
 
-def compare_phasing(reads, all_heterozygous):
+def compare_phasing(reads, all_heterozygous, weights = None):
 	"""Compares DPTable based phasing to brute force phasing and returns string representation of superreads."""
-	rs = string_to_readset(reads)
+	rs = string_to_readset(reads, weights)
 	dp_table = DPTable(rs, all_heterozygous)
 	superreads = dp_table.get_super_reads()
 	assert len(superreads) == 2
@@ -317,4 +321,19 @@ def test_phase5():
 	compare_phasing(reads, True)
 	compare_phasing(reads, False)
 
-#TODO: test cases for weighted version (all base qualities are set to 1 right now)
+
+def test_weighted_phasing1():
+	reads = """
+	  1  11010
+	  00 00101
+	  001 01110
+	   1    111
+	"""
+	weights = """
+	  2  13112
+	  11 23359
+	  223 56789
+	   2    111
+	"""
+	compare_phasing(reads, True, weights)
+	compare_phasing(reads, False, weights)
