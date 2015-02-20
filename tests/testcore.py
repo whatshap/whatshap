@@ -290,5 +290,27 @@ def test_phase4():
 	compare_phasing(reads, True)
 	compare_phasing(reads, False)
 
+def test_phase4():
+	reads = """
+	  1  11010
+	  00 00101
+	  001 01110
+	   1    111
+	"""
+	compare_phasing(reads, True)
+	compare_phasing(reads, False)
+
+def test_phase5():
+	reads = """
+	  0             0
+	  110111111111
+	  00100
+	       0001000000
+	       000
+	        10100
+	              101
+	"""
+	compare_phasing(reads, True)
+	compare_phasing(reads, False)
 
 #TODO: test cases for weighted version (all base qualities are set to 1 right now)
