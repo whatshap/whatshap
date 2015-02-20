@@ -1,5 +1,6 @@
 import textwrap
 from nose.tools import raises
+from collections import defaultdict
 from whatshap.core import Read, DPTable, ReadSet, Variant
 
 
@@ -139,15 +140,36 @@ def flip_cost(variant, target_value):
 	else:
 		return variant.quality
 
+def is_ambiguous(assignments):
+	sets = [set(), set()]
+	for assignment in assignments:
+		for s, allele in zip(sets, assignment):
+			s.add(allele)
+	return [len(s) > 1 for s in sets]
 
 def column_cost(variants, possible_assignments):
-	"""Compute cost for one position."""
+	"""Compute cost for one position and return the minimum cost assignment. 
+	Returns ('X','X') if minimum is not unique (i.e. a "tie")."""
 	costs = []
 	for allele1, allele2 in possible_assignments:
 		cost1 = sum(flip_cost(v,allele1) for v in variants[0])
 		cost2 = sum(flip_cost(v,allele2) for v in variants[1])
 		costs.append(cost1 + cost2)
-	return min(costs)
+	l = [(cost,i) for i, cost in enumerate(costs)]
+	l.sort()
+	min_cost = l[0][0]
+	best_assignment = list(possible_assignments[l[0][1]])
+	# check for ties
+	counts = defaultdict(int)
+	for cost, index in l:
+		counts[cost] += 1
+	ties = counts[min_cost]
+	ambiguous = is_ambiguous([possible_assignments[i] for cost,i in l[:ties]])
+	for i in range(2):
+		if ambiguous[i]:
+			best_assignment[i] = 3
+	print('     ', ', '.join('{}-->{}'.format(str(possible_assignments[i]),c) for c,i in l[:ties]), ambiguous, best_assignment)
+	return min_cost, best_assignment
 
 
 def brute_force_phase(read_set, all_heterozygous):
@@ -161,11 +183,13 @@ def brute_force_phase(read_set, all_heterozygous):
 	# bit i in "partition" encodes to which set read i belongs
 	best_partition = None
 	best_cost = None
+	best_haplotypes = None
 	solution_count = 0
 	for partition in range(2**len(read_set)):
 		print('Looking at partition {{:0>{}b}}'.format(len(read_set)).format(partition))
 		# compute cost induced by that partition
 		cost = 0
+		haplotypes = []
 		for p in positions:
 			# find variants covering this position
 			variants = [[],[]]
@@ -174,19 +198,23 @@ def brute_force_phase(read_set, all_heterozygous):
 				for variant in read:
 					if variant.position == p:
 						variants[i].append(variant)
-			c = column_cost(variants, possible_assignments)
+			c, assignment = column_cost(variants, possible_assignments)
 			print('    position: {}, variants: {} --> cost = {}'.format(p, str(variants), c))
 			cost += c
+			haplotypes.append(assignment)
 		print('  --> cost for this partitioning:', cost)
 		if (best_cost is None) or (cost < best_cost):
 			best_partition = partition
 			best_cost = cost
+			best_haplotypes = haplotypes
 			solution_count = 1
 		elif cost == best_cost:
 			solution_count += 1
 	# Each partition has its inverse with the same cost
 	assert solution_count % 2 == 0
-	return best_cost, [(best_partition>>x) & 1 for x in range(len(read_set))], solution_count//2
+	haplotype1 = ''.join([str(allele1) for allele1, allele2 in best_haplotypes])
+	haplotype2 = ''.join([str(allele2) for allele1, allele2 in best_haplotypes])
+	return best_cost, [(best_partition>>x) & 1 for x in range(len(read_set))], solution_count//2, haplotype1, haplotype2
 
 
 def compare_phasing(reads, all_heterozygous):
@@ -198,25 +226,28 @@ def compare_phasing(reads, all_heterozygous):
 	assert len(superreads[0]) == len(superreads[1])
 	for v1, v2 in zip(*superreads):
 		assert v1.position == v2.position
-	result = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
+	haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
 	cost = dp_table.get_optimal_cost()
 	partition = dp_table.get_optimal_partitioning()
-	expected_cost, expected_partition, solution_count = brute_force_phase(rs, all_heterozygous)
+	expected_cost, expected_partition, solution_count, expected_haplotype1, expected_haplotype2 = brute_force_phase(rs, all_heterozygous)
 	inverse_partition = [1-p for p in partition]
 	print()
 	print(superreads[0])
 	print(superreads[1])
 	print('Partition:', partition)
 	print('Expected: ', expected_partition)
-	print('Result:')
-	print(result[0])
-	print(result[1])
+	print('Haplotypes:')
+	print(haplotypes[0])
+	print(haplotypes[1])
+	print('Expected Haplotypes:')
+	print(expected_haplotype1)
+	print(expected_haplotype2)
 	print('Cost:', cost)
+	print('Expected cost:', expected_cost)
 	assert (partition == expected_partition) or (inverse_partition == expected_partition)
 	assert solution_count == 1
 	assert cost == expected_cost
-	# TODO: compute expected haplotypes based on expected_partition and compare to superreads
-	return result
+	assert (haplotypes == (expected_haplotype1, expected_haplotype2)) or (haplotypes == (expected_haplotype2, expected_haplotype1))
 
 
 def test_phase1():
@@ -225,8 +256,8 @@ def test_phase1():
 	 010
 	 010
 	"""
-	s1, s2 = compare_phasing(reads, True)
-	assert s1 == '010' and s2 == '101'
+	compare_phasing(reads, True)
+	compare_phasing(reads, False)
 
 
 def test_phase2():
@@ -235,8 +266,8 @@ def test_phase2():
 	  00 00101
 	  001 0101
 	"""
-	s1, s2 = compare_phasing(reads, True)
-	assert s1 == '00100101' and s2 == '11011010'
+	compare_phasing(reads, True)
+	compare_phasing(reads, False)
 
 
 def test_phase3():
@@ -245,8 +276,8 @@ def test_phase3():
 	  00 00101
 	  001 01010
 	"""
-	s1, s2 = compare_phasing(reads, True)
-	assert s1 == '001001010' and s2 == '110110101'
+	compare_phasing(reads, True)
+	compare_phasing(reads, False)
 
 
 def test_phase4():
@@ -256,10 +287,8 @@ def test_phase4():
 	  001 01110
 	   1    111
 	"""
-	s1, s2 = compare_phasing(reads, True)
+	compare_phasing(reads, True)
+	compare_phasing(reads, False)
+
 
 #TODO: test cases for weighted version (all base qualities are set to 1 right now)
-
-#TODO: test cases to test "ties" (equals scores)
-
-#TODO: test cases for all_heterozygous off
