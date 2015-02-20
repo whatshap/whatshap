@@ -140,12 +140,14 @@ def flip_cost(variant, target_value):
 	else:
 		return variant.quality
 
+
 def is_ambiguous(assignments):
 	sets = [set(), set()]
 	for assignment in assignments:
 		for s, allele in zip(sets, assignment):
 			s.add(allele)
 	return [len(s) > 1 for s in sets]
+
 
 def column_cost(variants, possible_assignments):
 	"""Compute cost for one position and return the minimum cost assignment. 
@@ -290,6 +292,7 @@ def test_phase4():
 	compare_phasing(reads, True)
 	compare_phasing(reads, False)
 
+
 def test_phase4():
 	reads = """
 	  1  11010
@@ -299,6 +302,7 @@ def test_phase4():
 	"""
 	compare_phasing(reads, True)
 	compare_phasing(reads, False)
+
 
 def test_phase5():
 	reads = """
