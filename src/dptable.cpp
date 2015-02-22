@@ -266,7 +266,8 @@ void DPTable::compute_table() {
 }
 
 unsigned int DPTable::get_optimal_score() {
-  if (backtrace_table.empty()) throw runtime_error("Empty backtrace table");
+  //if (backtrace_table.empty()) throw runtime_error("Empty backtrace table");
+  if (backtrace_table.empty()) return 0;
   return optimal_score;
 }
 
