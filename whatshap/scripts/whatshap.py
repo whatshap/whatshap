@@ -428,8 +428,13 @@ def run_whatshap(bam, vcf,
 
 			# Run the core algorithm: construct DP table ...
 			dp_table = DPTable(sliced_reads, all_heterozygous)
+			# get the mec score
+			mec_score = dp_table.get_optimal_cost()
 			# ... and do the backtrace to get the solution
 			superreads = dp_table.get_super_reads()
+
+                        # output the MEC score of phasing
+			logger.info('MEC score of phasing: %d', mec_score)
 
 			n_homozygous = sum(1 for v1, v2 in zip(*superreads)
 				if v1.allele == v2.allele and v1.allele in (0, 1))
