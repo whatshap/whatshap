@@ -229,23 +229,6 @@ class ReadSetReader:
 		self._reader.close()
 
 
-#TODO erase if not needed anymore
-
-class CoverageMonitor:
-	'''TODO: This is a most simple, naive implementation. Could do this smarter.'''
-	def __init__(self, length):
-		self.coverage = [0] * length
-
-	def max_coverage_in_range(self, begin, end):
-		return max(self.coverage[begin:end])
-
-	def add_read(self, begin, end):
-		for i in range(begin, end):
-			self.coverage[i] += 1
-
-
-
-
 
 def slice_reads(reads, max_coverage):
 	"""
@@ -259,8 +242,7 @@ def slice_reads(reads, max_coverage):
 
 	#Same as below but renamed from position list to vcf_variant_list
 	vcf_variant_list= reads.get_positions()
-	#TODO Not sure if sorting is needed
-	vcf_new_list = sorted(vcf_variant_list)
+
 
 	readselect= Bestreads(reads,vcf_variant_list)
 	pq=PriorityQueue()
@@ -274,9 +256,6 @@ def slice_reads(reads, max_coverage):
 		readset[0].add (selectedreads[i])
 	selecte_readset=reads.subset(readset[0])
 
-
-	print('Selected reads ')
-	print(selecte_readset)
 
 
 	#former approach

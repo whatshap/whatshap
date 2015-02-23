@@ -27,12 +27,6 @@ class Bestreads:
 		'''Initialize with the readset containing all reads and the positions which are the SNP variants'''
 		self.readset = readset
 		self.positions = positions
-		print('self.positions')
-		print(self.positions)
-		print('self.readset')
-		print(self.readset)
-
-
 
 
 	def priorityqueue_construction(self, priorityqueue):
@@ -67,7 +61,7 @@ class Bestreads:
 			#for the reads and the vcf indices
 			for j in range(0, (len(read))):
 				#TODO: use named tuples after merge with master branch: read[j].position
-				variant_index= vcf_indices.get(read[j][0])
+				variant_index= vcf_indices.get(read[j].position)
 				if variant_index!= None:
 					SNPset.append(variant_index)
 					score += 1
@@ -101,7 +95,6 @@ class Bestreads:
 
 		while not pq.isEmpty():
 			(read,SNPs)=pq.getitem(0)
-			#TODO maybe include SNPs into priority queue storage in item and then pop  would not need to do it twice.
 			pq.pop()
 
 			#Setting coverage of extracted read
