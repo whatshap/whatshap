@@ -2,6 +2,12 @@ import math
 
 #Important to use tuples instead of lists of SNPs because llist are unhasable for the dictionary
 
+# TODO: prefix with underscore: getscore, getitem, get_index, hparent, hleft, hright, swaps
+
+# TODO: isEmpty --> is_empty
+
+# TODO: in general, see https://www.python.org/dev/peps/pep-0008
+
 class PriorityQueue:
 	def __init__(self):
 		'''initializes a priority queue with an empty list and an empty dictionary'''
@@ -14,7 +20,7 @@ class PriorityQueue:
 		newindex = len(self.heap)
 		self.heap.insert(newindex, (score, item))
 		self.positions[item] = newindex
-		self.parent_check_and_swap(newindex)
+		self._sift_up(newindex)
 
 
 
@@ -34,29 +40,33 @@ class PriorityQueue:
 		self.heap[s_index] = firstitem
 
 
-	def parent_check_and_swap(self, index):
+	def _sift_up(self, index):
 		''' recursive method to check if score of item at given index is higher than the score of the parent
 		and swaps the nodes till priorityqueue property is restored'''
 		parentindex = self.hparent(index)
-		if parentindex!= index and parentindex >=0 :
+		assert parentindex != index
+		if parentindex >=0 :
 			if self.getscore(parentindex) < self.getscore(index) :
 				self.swap(parentindex, index)
-				self.parent_check_and_swap(parentindex)
+				self._sift_up(parentindex)
 
 
-	def child_check_and_swap(self,index):
+	def _sift_down(self,index):
 		'''Check if score of item at given index is lower than the score of its children,
 		 therefore need to swap position with its children'''
 		rchildindex=self.hright(index)
 		lchildindex=self.hleft(index)
-		if rchildindex!= index and rchildindex < len(self.heap):
+		assert rchildindex != index
+		assert lchildindex != index
+		# TODO: only exchange with (at most) one child; compare children first
+		if rchildindex < len(self.heap):
 			if self.getscore(rchildindex)> self.getscore(index):
 				self.swap(rchildindex,index)
-				self.child_check_and_swap(rchildindex)
-		if lchildindex != index and lchildindex < len(self.heap):
+				self._sift_down(rchildindex)
+		if lchildindex < len(self.heap):
 			if self.getscore(lchildindex)> self.getscore(index):
 				self.swap(lchildindex,index)
-				self.child_check_and_swap(lchildindex)
+				self._sift_down(lchildindex)
 
 
 
@@ -79,7 +89,7 @@ class PriorityQueue:
 			self.positions[item_latest]= 0
 			self.positions.pop(item_max)
 
-			self.child_check_and_swap(0)
+			self._sift_down(0)
 
 		else:
 			self.positions.pop(self.getitem(0))
@@ -100,9 +110,9 @@ class PriorityQueue:
 
 		# Differentiate between increasing and decreasing score
 		if old_score<new_score:
-			self.parent_check_and_swap(position)
+			self._sift_up(position)
 		else:
-			self.child_check_and_swap(position)
+			self._sift_down(position)	
 
 
 	def getscore(self, index):

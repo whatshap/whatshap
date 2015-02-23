@@ -32,12 +32,11 @@ class Bestreads:
 	def priorityqueue_construction(self, priorityqueue):
 		'''Constructiong of the priority queue for the readset, so that each read is in the priority queue and
 		sorted by their score'''
+		# TODO: use list instead of dict
 		SNP_read_map = {}
 		for i in range(0, len(self.positions)):
 			SNP_read_map[i] = []
 
-		#indexing the reads
-		readindices = list(range(len(self.readset)))
 		#dictionary to map the SNP positions to an index
 		vcf_indices = {position: index for index, position in enumerate(self.positions)}
 
@@ -46,8 +45,7 @@ class Bestreads:
 		#if we want to see which SNPs are unphasable need to compute all
 		# SNP positions between begin and end position.which may contribute to coverage but not to phasability
 
-		for index in readindices:
-			read = self.readset[index]
+		for index, read in self.readset:
 
 			if len(read) < 2:
 				skipped_reads += 1
@@ -73,7 +71,9 @@ class Bestreads:
 
 			covered_SNPs = tuple(SNPset)
 
+			# TODO: is should be sufficient to only store the index: priorityqueue.push(score,index)
 			priorityqueue.push(score,(index,covered_SNPs))
+			# TODO: ... also here
 			pq_item = tuple([index,covered_SNPs])
 			for m in range(0, len(covered_SNPs)):
 				SNP_read_map[covered_SNPs[m]].append(pq_item)
