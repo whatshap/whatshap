@@ -47,6 +47,7 @@ class Bestreads:
 
 		for index, read in self.readset:
 
+
 			if len(read) < 2:
 				skipped_reads += 1
 				continue
@@ -93,8 +94,8 @@ class Bestreads:
 
 		selected_reads = []
 
-		while not pq.isEmpty():
-			(read,SNPs)=pq.getitem(0)
+		while not pq.is_empty():
+			(read,SNPs)=pq._getitem(0)
 			pq.pop()
 
 			#Setting coverage of extracted read
@@ -117,8 +118,8 @@ class Bestreads:
 						removable_read= (read,SNPs)
 						SNP_reads.remove(removable_read)
 					else:
-						readindex= pq.get_index(r)
-						old_score=pq.getscore(readindex)
+						readindex= pq._get_index(r)
+						old_score=pq._getscore(readindex)
 						newscore= old_score -1
 						#TODO need to set a minium for the score ?
 						pq.change_score(r,newscore)

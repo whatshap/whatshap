@@ -239,7 +239,7 @@ def slice_reads(reads, max_coverage):
 	max_coverage -- Slicing ensures that the (physical) coverage does not exceed max_coverage anywhere along the chromosome.
 	reads -- a ReadSet
 	"""
-
+	'''
 	#Same as below but renamed from position list to vcf_variant_list
 	vcf_variant_list= reads.get_positions()
 
@@ -255,11 +255,11 @@ def slice_reads(reads, max_coverage):
 	for i in range(0,len(selectedreads)):
 		readset[0].add (selectedreads[i])
 	selecte_readset=reads.subset(readset[0])
-
+	'''
 
 
 	#former approach
-	'''
+
 
 	shuffled_indices = list(range(len(reads)))
 	random.shuffle(shuffled_indices)
@@ -270,10 +270,13 @@ def slice_reads(reads, max_coverage):
 	# dictionary to map SNP position to its index
 	position_to_index = { position: index for index, position in enumerate(position_list) }
 
+	print('position_To index dictionary')
+	print(position_to_index)
+	print(position_to_index[19995370])
 	# List of slices, start with one empty slice ...
 	slices = [IndexSet()]
 	# ... and the corresponding coverages along each slice
-	slice_coverages = [CoverageMonitor(len(position_list))]
+	slice_coverages = [CovMonitor(len(position_list))]
 	skipped_reads = 0
 	accessible_positions = set()
 	for index in shuffled_indices:
@@ -299,7 +302,7 @@ def slice_reads(reads, max_coverage):
 				# do we have to create a new slice?
 				if slice_id == len(slices):
 					slices.append(IndexSet())
-					slice_coverages.append(CoverageMonitor(len(position_list)))
+					slice_coverages.append(CovMonitor(len(position_list)))
 	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
 
 	unphasable_snps = len(position_list) - len(accessible_positions)
@@ -317,7 +320,7 @@ def slice_reads(reads, max_coverage):
 	'''
 
 	return selecte_readset
-
+	'''
 
 def find_components(superreads, reads):
 	"""
@@ -331,6 +334,27 @@ def find_components(superreads, reads):
 	# the combinations 0/1, 1/0 and 3/3 (the latter means: unphased).
 	# If all_heterozygous is off, we can also get all other combinations.
 	# In both cases, we are interested only in 0/1 and 1/0.
+	print('SUPERREADS')
+	print(superreads.get_positions() )
+	print(superreads.__sizeof__())
+	print(len(superreads))
+	print('SUPERREADS OF  0')
+	print(superreads[0][0].position)
+	print('SUPERREADs 2')
+	print((zip(*superreads)).__sizeof__())
+	#r1,r2)= tuple(zip(*superreads))
+	#for r1, r2 in zip(*superreads):
+	#	print('R')
+	#	print(r1)
+#		print('R')
+	#	print(r2)
+
+	print(r1.allele )
+	#print(r2.allele )
+
+
+
+
 	phased_positions = [ v1.position for v1, v2 in zip(*superreads)
 		if (v1.allele, v2.allele) in ((0, 1), (1, 0))
 	]
