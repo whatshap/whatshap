@@ -24,17 +24,17 @@ class PriorityQueue:
 
 
 
-	def swap(self, f_index, s_index):
+	def _swap(self, f_index, s_index):
 		'''swaps the position of the nodes in the priority queue from first index(f_index)and second index(s_index)'''
 
 		firstitem = self.heap[f_index]
-		firstpos = self.positions[self.getitem(f_index)]
+		firstpos = self.positions[self._getitem(f_index)]
 
 		seconditem = self.heap[s_index]
-		secpos= self.positions[self.getitem(s_index)]
+		secpos= self.positions[self._getitem(s_index)]
 
-		self.positions[self.getitem(f_index)] =secpos
-		self.positions[self.getitem(s_index)] =firstpos
+		self.positions[self._getitem(f_index)] =secpos
+		self.positions[self._getitem(s_index)] =firstpos
 
 		self.heap[f_index] = seconditem
 		self.heap[s_index] = firstitem
@@ -43,29 +43,29 @@ class PriorityQueue:
 	def _sift_up(self, index):
 		''' recursive method to check if score of item at given index is higher than the score of the parent
 		and swaps the nodes till priorityqueue property is restored'''
-		parentindex = self.hparent(index)
+		parentindex = self._hparent(index)
 		assert parentindex != index
 		if parentindex >=0 :
-			if self.getscore(parentindex) < self.getscore(index) :
-				self.swap(parentindex, index)
+			if self._getscore(parentindex) < self._getscore(index) :
+				self._swap(parentindex, index)
 				self._sift_up(parentindex)
 
 
 	def _sift_down(self,index):
 		'''Check if score of item at given index is lower than the score of its children,
 		 therefore need to swap position with its children'''
-		rchildindex=self.hright(index)
-		lchildindex=self.hleft(index)
+		rchildindex=self._hright(index)
+		lchildindex=self._hleft(index)
 		assert rchildindex != index
 		assert lchildindex != index
 		# TODO: only exchange with (at most) one child; compare children first
 		if rchildindex < len(self.heap):
-			if self.getscore(rchildindex)> self.getscore(index):
-				self.swap(rchildindex,index)
+			if self._getscore(rchildindex)> self._getscore(index):
+				self._swap(rchildindex,index)
 				self._sift_down(rchildindex)
 		if lchildindex < len(self.heap):
-			if self.getscore(lchildindex)> self.getscore(index):
-				self.swap(lchildindex,index)
+			if self._getscore(lchildindex)> self._getscore(index):
+				self._swap(lchildindex,index)
 				self._sift_down(lchildindex)
 
 
@@ -78,8 +78,8 @@ class PriorityQueue:
 			#remember last element, max element and their  items
 			last_element=self.heap[len(self.heap)-1]
 
-			item_latest=self.getitem(len(self.heap)-1)
-			item_max=self.getitem(0)
+			item_latest=self._getitem(len(self.heap)-1)
+			item_max=self._getitem(0)
 
 			max_element =self.heap.pop(0)
 
@@ -92,7 +92,7 @@ class PriorityQueue:
 			self._sift_down(0)
 
 		else:
-			self.positions.pop(self.getitem(0))
+			self.positions.pop(self._getitem(0))
 			max_element=self.heap.pop(0)
 
 		return max_element
@@ -103,7 +103,7 @@ class PriorityQueue:
 	def change_score(self, item, new_score):
 		'''Changes the score of the given item to the new assigned score.'''
 		position=self.positions[item]
-		old_score= self.getscore(position)
+		old_score= self.get_score_by_item(item)
 		self.heap.pop(position)
 
 		self.heap.insert(position,(new_score,item))
@@ -115,20 +115,23 @@ class PriorityQueue:
 			self._sift_down(position)	
 
 
-	def getscore(self, index):
+	def _getscore(self, index):
 		'''Return the score of the element at this index in the heap'''
 		(score, item) = self.heap[index]
 		return score
 
-	def getitem(self, index):
+	def _getitem(self, index):
 		'''Return the score of the element at this index in the heap'''
 		(score, item) = self.heap[index]
 		return item
 
-	def get_index (self,item):
+	def _get_index (self,item):
 		'''returns intern index of the searched item'''
 		return self.positions[item]
 
+	def get_score_by_item(self,item):
+		(score,item) = self.heap[self._get_index(item)]
+		return score
 
 
 
@@ -137,7 +140,7 @@ class PriorityQueue:
 		return len(self.heap)
 
 
-	def isEmpty(self):
+	def is_empty(self):
 		'''Return if actual Priority Queue is Empty'''
 		if len(self) == 0:
 			return True
@@ -145,17 +148,18 @@ class PriorityQueue:
 			return False
 
 	#TODO maybe code it via bitshifting
-	def hparent(self, index):
+
+	def _hparent(self, index):
 		''''returns the index of the parent node in the heap depending on the given index'''
 		return (math.ceil(index / 2) - 1)
 
 
-	def hleft(self, index):
+	def _hleft(self, index):
 		'''return the index of the left child in the heap depending on the given index'''
 		return (math.ceil(2 * index) + 1)
 
 
-	def hright(self, index):
+	def _hright(self, index):
 		'''return the index of the right child in the heap depending on the given index'''
 		return (math.ceil(2 * index) + 2)
 

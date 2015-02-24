@@ -21,7 +21,7 @@ from whatshap._core import PyIndexSet as IndexSet
 from whatshap.priorityqueue import PriorityQueue
 from whatshap.coverage import CovMonitor
 
-
+# TODO: Turn class into function
 class Bestreads:
 	def __init__(self, readset, positions):
 		'''Initialize with the readset containing all reads and the positions which are the SNP variants'''
@@ -45,7 +45,7 @@ class Bestreads:
 		#if we want to see which SNPs are unphasable need to compute all
 		# SNP positions between begin and end position.which may contribute to coverage but not to phasability
 
-		for index, read in self.readset:
+		for index, read in enumerate(self.readset):
 
 
 			if len(read) < 2:
@@ -95,7 +95,8 @@ class Bestreads:
 		selected_reads = []
 
 		while not pq.is_empty():
-			(read,SNPs)=pq._getitem(0)
+			(read,SNPs)=pq._getitem(0)# TODO: don't use getitem here (only pop)
+
 			pq.pop()
 
 			#Setting coverage of extracted read
