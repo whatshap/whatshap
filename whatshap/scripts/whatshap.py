@@ -229,7 +229,7 @@ class ReadSetReader:
 		self._reader.close()
 
 
-
+# TODO: this function should be in readselect.py
 def slice_reads(reads, max_coverage):
 	"""
 	Iterate over all read in random order and greedily retain those reads whose
