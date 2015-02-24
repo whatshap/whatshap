@@ -23,6 +23,7 @@ import gzip
 import time
 import itertools
 import platform
+
 from collections import defaultdict
 try:
 	from contextlib import ExitStack, closing
@@ -33,8 +34,9 @@ from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, IndexSet
 from ..graph import ComponentFinder
+from ..readselect import readselection
 
-from ..readselect import Bestreads
+#from ..readselect import Bestreads
 from ..coverage import CovMonitor
 from ..priorityqueue import PriorityQueue
 from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError
@@ -231,6 +233,8 @@ class ReadSetReader:
 
 # TODO: this function should be in readselect.py
 def slice_reads(reads, max_coverage):
+
+
 	"""
 	Iterate over all read in random order and greedily retain those reads whose
 	addition does not lead to a local physical coverage exceeding the given threshold.
@@ -239,6 +243,12 @@ def slice_reads(reads, max_coverage):
 	max_coverage -- Slicing ensures that the (physical) coverage does not exceed max_coverage anywhere along the chromosome.
 	reads -- a ReadSet
 	"""
+
+
+	vcf_variant_list= reads.get_positions()
+	selection_of_reads =readselection(reads,vcf_variant_list)
+
+#
 	'''
 	#Same as below but renamed from position list to vcf_variant_list
 	vcf_variant_list= reads.get_positions()
@@ -270,9 +280,6 @@ def slice_reads(reads, max_coverage):
 	# dictionary to map SNP position to its index
 	position_to_index = { position: index for index, position in enumerate(position_list) }
 
-	print('position_To index dictionary')
-	print(position_to_index)
-	print(position_to_index[19995370])
 	# List of slices, start with one empty slice ...
 	slices = [IndexSet()]
 	# ... and the corresponding coverages along each slice
@@ -334,27 +341,6 @@ def find_components(superreads, reads):
 	# the combinations 0/1, 1/0 and 3/3 (the latter means: unphased).
 	# If all_heterozygous is off, we can also get all other combinations.
 	# In both cases, we are interested only in 0/1 and 1/0.
-	print('SUPERREADS')
-	print(superreads.get_positions() )
-	print(superreads.__sizeof__())
-	print(len(superreads))
-	print('SUPERREADS OF  0')
-	print(superreads[0][0].position)
-	print('SUPERREADs 2')
-	print((zip(*superreads)).__sizeof__())
-	#r1,r2)= tuple(zip(*superreads))
-	#for r1, r2 in zip(*superreads):
-	#	print('R')
-	#	print(r1)
-#		print('R')
-	#	print(r2)
-
-	print(r1.allele )
-	#print(r2.allele )
-
-
-
-
 	phased_positions = [ v1.position for v1, v2 in zip(*superreads)
 		if (v1.allele, v2.allele) in ((0, 1), (1, 0))
 	]

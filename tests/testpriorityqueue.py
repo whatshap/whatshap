@@ -75,5 +75,30 @@ def test_read_construction():
 	pq.change_score((4,(1,2,3)),1)
 	assert pq.pop()== (3,(6,(0,1,2)))
 
-
+def test_privat_methods():
+	pq=PriorityQueue()
+	pq.push(10,'A')
+	pq.push(9,'B')
+	pq.push(8,'C')
+	pq.push(7,'D')
+	pq.push(6,'E')
+	pq.push(5,'F')
+	pq.push(4,'G')
+	assert len(pq) == 7
+	pq._swap(0,6)
+	assert pq.pop()== (4,'G')
+	pq._sift_up(5)
+	assert pq.pop()==(10,'A')
+	pq.push(50,'H')
+	assert pq._get_score(0) == 50
+	assert pq._get_item(0) == 'H'
+	assert pq._get_index('H') == 0
+	assert pq.get_score_by_item('D')== 7
+	pq.pop()
+	pq.pop()
+	pq.pop()
+	pq.pop()
+	pq.pop()
+	pq.pop()
+	assert pq.is_empty()
 
