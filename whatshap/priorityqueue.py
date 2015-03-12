@@ -2,9 +2,6 @@ import math
 
 #Important to use tuples instead of lists of SNPs because llist are unhasable for the dictionary
 
-# TODO: prefix with underscore: getscore, getitem, get_index, hparent, hleft, hright, swaps
-
-# TODO: isEmpty --> is_empty
 
 # TODO: in general, see https://www.python.org/dev/peps/pep-0008
 
@@ -140,12 +137,18 @@ class PriorityQueue:
 
 	def _get_index (self,item):
 		'''returns intern index of the searched item'''
-		return self.positions[item]
+		#changed from position zugriff to get in order to get None instead of the keyerror
+		return self.positions.get(item)
 
 	def get_score_by_item(self,item):
-		'''returns actual score of the given item '''
-		(score,item) = self.heap[self._get_index(item)]
-		return score
+		'''returns actual score of the given item or None if item is not in the heap '''
+		#catch here when item is not in the heap anymore (could occure by pop)
+		#TODO : Maybe fix this with an error message when trying to call the method (as well as by change_score)
+		if self._get_index(item) != None:
+			(score,item) = self.heap[self._get_index(item)]
+			return score
+		else:
+			return None
 
 
 
@@ -153,9 +156,12 @@ class PriorityQueue:
 		'''Length of  Priority Queue is equal to the length of the stored heap'''
 		return len(self.heap)
 
+#TODO does not work, because if called in the readselect.py  we don't get a boolean instead we get an object of the following type
+	# <bound method PriorityQueue.is_empty of <whatshap.priorityqueue.PriorityQueue object at 0xb6610eec>>
 
 	def is_empty(self):
 		'''Return if actual Priority Queue is Empty'''
+		print('is empty length because does not work correctly')
 		if len(self) == 0:
 			return True
 		else:

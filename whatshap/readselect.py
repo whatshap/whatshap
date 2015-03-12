@@ -21,116 +21,7 @@ from whatshap._core import PyIndexSet as IndexSet
 from whatshap.priorityqueue import PriorityQueue
 from whatshap.coverage import CovMonitor
 
-# TODO: Turn class into function
-
-
-#def __init__(self, readset, positions):
-#	'''Initialize with the readset containing all reads and the positions which are the SNP variants'''
-#	self.readset = readset
-#	self.positions = positions
-
-
-def priorityqueue_construction(self, priorityqueue):
-	'''Constructiong of the priority queue for the readset, so that each read is in the priority queue and
-	sorted by their score'''
-	# TODO: use list instead of dict
-	SNP_read_map = {}
-	for i in range(0, len(self.positions)):
-		SNP_read_map[i] = []
-
-	#dictionary to map the SNP positions to an index
-	vcf_indices = {position: index for index, position in enumerate(self.positions)}
-
-
-	skipped_reads = 0
-	#if we want to see which SNPs are unphasable need to compute all
-	# SNP positions between begin and end position.which may contribute to coverage but not to phasability
-
-	for index, read in enumerate(self.readset):
-
-
-		if len(read) < 2:
-			skipped_reads += 1
-			continue
-
-		#score for the sorting of best reads
-		score = 0
-		#set containing for each read which variants are covered by the read
-		SNPset = []
-
-		#for the reads and the vcf indices
-		for j in range(0, (len(read))):
-			#TODO: use named tuples after merge with master branch: read[j].position
-			variant_index= vcf_indices.get(read[j].position)
-			if variant_index!= None:
-				SNPset.append(variant_index)
-				score += 1
-
-		#Check for paired end reads and then
-		# changed score subtract SNPs covered physically, but not sequenced
-		if len(SNPset)!= (SNPset[len(SNPset)-1] - SNPset[0]+1):
-			score = score - ((SNPset[len(SNPset)-1] - SNPset[0]+1)-len(SNPset))
-
-		covered_SNPs = tuple(SNPset)
-
-		# TODO: is should be sufficient to only store the index: priorityqueue.push(score,index)
-		priorityqueue.push(score,(index,covered_SNPs))
-		# TODO: ... also here
-		pq_item = tuple([index,covered_SNPs])
-		for m in range(0, len(covered_SNPs)):
-			SNP_read_map[covered_SNPs[m]].append(pq_item)
-	print("Number of skipped reads:", skipped_reads)
-
-	return (priorityqueue,SNP_read_map)
-
-
-
 #TODO Need to assert somewhere that if less Reads than coverage...?
-#TODO insert the bridging .....
-def read_selection(self, pq,SNP_dict, max_coverage):
-	'''Selects the best reads out of the readset depending on the assigned score till max_coverage is reached'''
-
-	# coverage over the SNPs
-	coverages = CovMonitor(len(self.positions))
-
-	selected_reads = []
-
-	while not pq.is_empty():
-		(read,SNPs)=pq._getitem(0)# TODO: don't use getitem here (only pop)
-
-		(score,item)=pq.pop()
-		print('item')
-		print(item)
-
-		#Setting coverage of extracted read
-		begin = SNPs[0]
-		end = SNPs [len(SNPs) - 1] + 1
-		if coverages.max_coverage_in_range(begin, end) < max_coverage:
-			coverages.add_read(begin, end)
-			selected_reads.append(read)
-
-		#Reducing the score of all reads covering the same SNPS as the selected read
-		for i in range(0,len(SNPs)):
-			SNP_reads= SNP_dict[SNPs[i]]
-
-			j=0
-			#if it is the extracted read, then remove it from the list, else decrease the score by 1.
-			while j< len(SNP_reads):
-				r=SNP_reads[j]
-
-				if r ==(read,SNPs):
-					removable_read= (read,SNPs)
-					SNP_reads.remove(removable_read)
-				else:
-					readindex= pq._get_index(r)
-					old_score=pq._getscore(readindex)
-					newscore= old_score -1
-					#TODO need to set a minium for the score ?
-					pq.change_score(r,newscore)
-					j +=1
-
-	return selected_reads
-
 
 
 def __pq_construction_out_of_given_reads( priorityqueue,readset,positions,SNP_read_map):
@@ -142,72 +33,170 @@ def __pq_construction_out_of_given_reads( priorityqueue,readset,positions,SNP_re
 
 
 	skipped_reads = 0
-	#if we want to see which SNPs are unphasable need to compute all
-	# SNP positions between begin and end position.which may contribute to coverage but not to phasability
+	phasable_SNPs = 0
+	#TODO if we want to see which SNPs are unphasable need to compute all
+	#TODO  SNP positions between begin and end position.which may contribute to coverage but not to phasability
 
 	for index, read in enumerate(readset):
-		#print('INDEX')
-		#print(index)
-		#print('READ')
-		#print(read)
-
 		#filter out reads which cover only one variant
 		if len(read) < 2:
 			skipped_reads += 1
 			continue
+		else:
+			phasable_SNPs +=1
 
 		#score for the sorting of best reads
 		score = 0
 		#set containing for each read which variants are covered by the read
 		SNPset = []
 
-		#for the reads and the vcf indices
-		#gives the following : Variant(position=19995634, base='A', allele=0, quality=36)
-
+		#look in the dictionary if the found position corresponds to a variantif yes increase the score
 		for pos in read:
 			variant_index=vcf_indices.get(pos.position)
 			if variant_index!= None:
 				SNPset.append(variant_index)
 				score += 1
 
-		#Check for paired end reads and then
-		# changed score subtract SNPs covered physically, but not sequenced
+		#decrease score if SNPs covered physically, but are not sequenced (e.g. paired_end)
 		if len(SNPset)!= (SNPset[len(SNPset)-1] - SNPset[0]+1):
 			score = score - ((SNPset[len(SNPset)-1] - SNPset[0]+1)-len(SNPset))
 
-		covered_SNPs = tuple(SNPset)
-		print('covered SNPs')
-		print(covered_SNPs)
-
-
-#		# TODO: is should be sufficient to only store the index: priorityqueue.push(score,index)
 		priorityqueue.push(score,index)
-#		# TODO: ... also here
 		pq_item = index
-		for m in range(0, len(covered_SNPs)):
-			SNP_read_map[covered_SNPs[m]].append(pq_item)
-	print("Number of skipped reads:", skipped_reads)
-	print('SNP_read_map at the end')
-	print(SNP_read_map)
+		for m in range(0, len(SNPset)):
+			SNP_read_map[SNPset[m]].append(pq_item)
 
-	return (priorityqueue,SNP_read_map)
+	return (priorityqueue,SNP_read_map,phasable_SNPs,vcf_indices)
+
+def slice_read_selection(pq,coverages,already_covered_SNPS,selected_reads,phasable_SNPs,MAX_cvo,readset,Vcf_indices,SNP_read_map):
+	'''Extraction of a set of read indices, where each SNP should be covered at least once, if coverage, or reads are allowing it '''
+	#reads selected in this run
+	#actual_selection=[]
+
+	#TODO add an additional condition like if number covered SNPS equal phasable SNPS
+	while len(pq)!= 0:
+		#TODO ISEMPTY does not work
+
+		(max_score,max_item)= pq.pop()
+
+		if not max_item in selected_reads:
+			extracted_read=readset[max_item]
+			uncovered_SNP= False
+			#look if positions covered by this reads are already covered or not
+			for pos in extracted_read:
+				#TODO could be done easier
+				if pos in already_covered_SNPS:
+					continue
+				else:
+					uncovered_SNP=True
+					break
+			#only if at least one position is not covered so the boolean is true then we could add the read if he suits into the coverage
+			#Need for begin and end the vcf_index and not the correct position
+			#TODO therefore maybe change the Coverage_MOnitor int the coverage.py
+
+			begin=Vcf_indices.get(extracted_read[0].position)
+			end= Vcf_indices.get(extracted_read[len(extracted_read)-1].position)
+
+			if uncovered_SNP and coverages.max_coverage_in_range(begin,end)<MAX_cvo:
+				coverages.add_read(begin,end)
+				#selected_reads includes only the read indices of the selected reads ....
+				selected_reads.append(max_item)
+
+				#again go over the positions in the read and add them to the already_covered_SNP list
+				for pos in extracted_read:
+					already_covered_SNPS.add(pos.position)
+
+					#for extracted read decrease score of every other read which covers one of the other SNPS.
+					to_decrease_score=SNP_read_map[Vcf_indices.get(pos.position)]
+
+					#find difference between to_decrease_score and  selected_reads
+					#changing to set
+					#TODO maybe also possible to do this in the first place
+					selected_read_set = set(selected_reads)
+					decrease_set = set(to_decrease_score)
+
+					#NEED EXACTLY TO HAVE THE ELEMENT OF THE SNP_READ_MAP WIthoiut the already selected reads
+					d_set=decrease_set.difference(selected_read_set)
+
+					#TODO need to look if element is in the heap at all ...... Catched it with None
+					for element in d_set:
+						oldscore=pq.get_score_by_item(element)
+						if oldscore != None:
+							pq.change_score(element,oldscore-1)
+						else:
+							print('Current element not anymore member of the priority queue  ')
+
+	return  (selected_reads,coverages)
 
 
-
-
-def readselection(readset, positions):
+def readselection(readset, positions,max_cov):
 	'''The whole readselection should work in this method'''
-	# TODO: use list instead of dict
+
 	SNP_read_map = []
 	for i in range(0, len(positions)):
 		SNP_read_map.append([])
-	print('SNP_read_map')
-	print(SNP_read_map)
 	pq=PriorityQueue()
 
-	#(pq,SNPdictionary)=readselect.priorityqueue_construction(pq)
-	(pq,SNP_read_map)=__pq_construction_out_of_given_reads( pq,readset,positions,SNP_read_map)
-	
+	#Construction of SNP_read mapping and priority queue
+	(pq,SNP_read_map,phasbale_SNPs,vcf_indices)=__pq_construction_out_of_given_reads( pq,readset,positions,SNP_read_map)
+
+	#Beginning to select the reads
+
+	#Initialize the Cov Monitor and the list of read indices which are selected..
+	coverages = CovMonitor(len(positions))
+
+	#TODO Look if we could also use there a set instead of an array
 	selected_reads= []
-	print('In MAin of readselect')
+	#Use as set
+	already_covered_SNPs=set()
+
+
+	(sliced_selected_reads,coverages)= slice_read_selection(pq,coverages,already_covered_SNPs,selected_reads,phasbale_SNPs,max_cov,readset,vcf_indices,SNP_read_map)
+	print('selected_reads')
+	print(selected_reads)
+	new_set=readset
+	print(readset)
+	print(len(readset))
+	new_read_index_set= [i for i in range(0,len(readset))]
+	print('new_read_index_set')
+	print(new_read_index_set)
+	#Now intersection
+
+	#(sliced_selected_reads,coverages)= slice_read_selection(pq,coverages,already_covered_SNPs,selected_reads,phasbale_SNPs,max_cov,readset,vcf_indices,SNP_read_map)
+
+
+
+
+
+
+
+
+
+	#gives only one sclice of the reads (so where every read should be covered at least once)
+	loop_integer= max_cov
+	#while loop_integer!=0 :
+	#	#TODO have to do :
+	#	#slice the reads
+	#	#do the block finding
+	#	#build up a new pq with the readset without the selected reads
+	#
+	#
+	#	(sliced_selected_reads,coverages)= slice_read_selection(pq,coverages,already_covered_SNPs,selected_reads,phasbale_SNPs,max_cov,readset,vcf_indices,SNP_read_map)
+	#	loop_integer -=1
+
+
+	#out= slice_read_selection(pq,coverages,already_covered_SNPs,selected_reads,phasbale_SNPs,max_cov,readset,vcf_indices,SNP_read_map)
+
+
+#TODO insert the bridging .....
+
+	#while True:
+		#Need to find out if pq changes in this method or if by using this method the pq has changed, therefore we
+		#need to construct the pq again (maybe without the already selected reads)
+
+		#slice_selection(pq,coverages,already_covered_SNPs,selected_reads,phasbale_SNPs,max_cov,readset,vcf_indices,SNP_read_map)
+
+
+
+
 	return selected_reads
