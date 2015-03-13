@@ -224,7 +224,9 @@ cdef extern from "../src/dptable.h":
 		void get_super_reads(ReadSet*) except +
 		int get_optimal_score() except +
 		vector[bool]* get_optimal_partitioning()
-
+	
+		
+		
 
 cdef class PyDPTable:
 	cdef DPTable *thisptr
@@ -235,7 +237,7 @@ cdef class PyDPTable:
 		in the read set must also be sorted (by position of their left-most variant).
 		"""
 		self.thisptr = new DPTable(readset.thisptr, all_heterozygous)
-
+	
 	def __dealloc__(self):
 		del self.thisptr
 
@@ -262,6 +264,53 @@ cdef class PyDPTable:
 		del p
 		return result
 
+		
+# ====== DPTable_whitecodes ======
+cdef extern from "../src/dptable_whitecodes.h":
+	cdef cppclass DPTable_whitecodes:
+		DPTable_whitecodes(ReadSet*,vector[bool],bool) except +
+		void get_super_reads(ReadSet*) except +
+		int get_optimal_score() except +
+		vector[bool]* get_optimal_partitioning()
+	
+		
+		
+
+cdef class PyDPTable_whitecodes:
+	cdef DPTable_whitecodes *thisptr
+
+	def __cinit__(self, PyReadSet readset, indx, all_heterozygous):
+		"""Build the DP table from the given read set which is assumed to be sorted;
+		that is, the variants in each read must be sorted by position and the reads
+		in the read set must also be sorted (by position of their left-most variant).
+		"""
+		self.thisptr = new DPTable_whitecodes(readset.thisptr, indx, all_heterozygous)
+	
+	def __dealloc__(self):
+		del self.thisptr
+
+	def get_super_reads(self):
+		"""Obtain optimal-score haplotypes.
+		IMPORTANT: The ReadSet given at construction time must not have been altered.
+		DPTable retained a pointer to this set and will access it again. If it has
+		been altered, behavior is undefined.
+		TODO: Change that.
+		"""
+		result = PyReadSet()
+		self.thisptr.get_super_reads(result.thisptr)
+		return result
+
+	def get_optimal_cost(self):
+		"""Returns the cost resulting from solving the Minimum Error Correction (MEC) problem."""
+		return self.thisptr.get_optimal_score()
+
+	def get_optimal_partitioning(self):
+		"""Returns a list of the same size as the read set, where each entry is either 0 or 1,
+		telling whether the corresponding read is in partition 0 or in partition 1,"""
+		cdef vector[bool]* p = self.thisptr.get_optimal_partitioning()
+		result = [0 if x else 1 for x in p[0]]
+		del p
+		return result
 # ====== IndexSet ======
 cdef extern from "../src/indexset.h":
 	cdef cppclass IndexSet:

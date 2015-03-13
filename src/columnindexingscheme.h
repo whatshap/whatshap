@@ -14,6 +14,7 @@ private:
   unsigned int backward_projection_width;
   unsigned int forward_projection_width;
   std::vector<unsigned int>* forward_projection_mask;
+  int decimalindx;
 
 public:
 
@@ -29,6 +30,8 @@ public:
   void set_next_column(const ColumnIndexingScheme* next_column);
   
   std::auto_ptr<ColumnIndexingIterator> get_iterator();
+std::auto_ptr<ColumnIndexingIterator> get_iterator_3(int decimalindx);  
+
   
   unsigned int column_size();
 

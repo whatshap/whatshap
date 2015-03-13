@@ -79,6 +79,10 @@ void ColumnIndexingScheme::set_next_column(const ColumnIndexingScheme* next_colu
 auto_ptr<ColumnIndexingIterator> ColumnIndexingScheme::get_iterator() {
   return auto_ptr<ColumnIndexingIterator>(new ColumnIndexingIterator(this));
 }
+auto_ptr<ColumnIndexingIterator> ColumnIndexingScheme::get_iterator_3(int decimalindx) {
+  return auto_ptr<ColumnIndexingIterator>(new ColumnIndexingIterator(this, decimalindx));
+}
+
 
 const vector<unsigned int> * ColumnIndexingScheme::get_read_ids() {
   return &(this->read_ids);

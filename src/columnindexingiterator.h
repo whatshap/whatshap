@@ -2,6 +2,7 @@
 #define COLUMN_INDEXING_ITERATOR_H
 
 #include "graycodes.h"
+#include "whitecodes.h"
 
 class ColumnIndexingScheme;
 
@@ -9,15 +10,19 @@ class ColumnIndexingIterator {
 private:
   const ColumnIndexingScheme* parent;
   GrayCodes* graycodes;
+  WhiteCodes* whitecodes;
   unsigned int index;
   unsigned int forward_projection;
   unsigned int forward_dual_projection; // the dual of the forward projection
 
 public:
   ColumnIndexingIterator(const ColumnIndexingScheme* parent);
+  
+  ColumnIndexingIterator(const ColumnIndexingScheme* parent, int decimalindx);
   virtual ~ColumnIndexingIterator();
   
   bool has_next();
+  bool has_next_2();
   
   /** Move to next index (i.e. DP table row).  
    *
@@ -27,6 +32,8 @@ public:
    *  referenced variable; if not, -1 is written.
    */
   void advance(int* bit_changed = 0);
+  
+  void advance_2(int** bit_changed, int decimalindx);
   
   /** Index of the projection of the current read set onto the intersection between current and next read set. */
   unsigned int get_forward_projection();
