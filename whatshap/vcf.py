@@ -18,6 +18,10 @@ class VcfVariant:
 		self.reference_allele = reference_allele
 		self.alternative_allele = alternative_allele
 
+	def __str__(self):
+		return "VcfVariant(pos={}, ref={}, alt={})".format(self.position+1,
+			self.reference_allele, self.alternative_allele)
+
 
 class SampleNotFoundError(Exception):
 	pass
@@ -51,7 +55,7 @@ def vcf_sample_reader(path, sample=None):
 		yield sample, record, call
 
 
-def parse_vcf(path, sample=None):
+def parse_vcf(path, indels=False, sample=None):
 	"""
 	Read a VCF and yield tuples (sample, chromosome, variants) for each
 	chromosome for which there are variants in the VCF. chromosome is
@@ -59,14 +63,17 @@ def parse_vcf(path, sample=None):
 	represent the variants.
 
 	path -- Path to VCF file
+	indels -- Whether to include also insertions and deletions in the list of
+		variants. Include only SNPs if set to False.
 	sample -- The name of the sample whose calls should be extracted. If
 		set to None, calls of the first sample are extracted.
 	"""
-
 	variants = []
 	index = -1
 	indices = None
 	prev_chromosome = None
+	n_indels = 0
+	n_snps = 0
 	for sample, record, call in vcf_sample_reader(path, sample):
 		if record.CHROM != prev_chromosome:
 			if prev_chromosome is not None:
@@ -80,15 +87,33 @@ def parse_vcf(path, sample=None):
 			record.REF, record.ALT,
 			alleles)
 		"""
-		if not record.is_snp or not call.is_het:
+		if not call.is_het:
 			continue
 		assert len(alleles) == 2
-		# found a heterozygous variant for the sample
-		v = VcfVariant(
-			position=record.start,
-			reference_allele=alleles[0],
-			alternative_allele=alleles[1])
-		variants.append(v)
+
+		# Normalize variants in which the first two bases are identical,
+		# such as CTG -> CTAAA (which is changed to TG -> TAAA).
+		a0, a1 = alleles[0:2]
+		pos = record.start
+		while len(a0) >= 2 and len(a1) >= 2 and a0[0:2] == a1[0:2]:
+			a0, a1 = a0[1:], a1[1:]
+			pos += 1
+		assert a0 != a1
+		v = VcfVariant(position=pos, reference_allele=a0, alternative_allele=a1)
+		if len(a0) == 1 and len(a1) == 1:
+			n_snps += 1
+			variants.append(v)
+			continue
+		if not indels:
+			continue
+
+		if a0[0] == a1[0] and ((len(a0) == 1) != (len(a1) == 1)):
+			n_indels += 1
+			variants.append(v)
+			continue
+		# Something like GCG -> TCT or CTCTC -> CA occurred.
+		logger.warn('Complex variant found, skipping: %s', v)
+	logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s", n_snps, n_indels)
 	if prev_chromosome is not None:
 		yield (sample, prev_chromosome, variants)
 
