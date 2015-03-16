@@ -100,9 +100,9 @@ def parse_vcf(path, indels=False, sample=None):
 			a0, a1 = a0[1:], a1[1:]
 			pos += 1
 		assert a0 != a1
-		v = VcfVariant(position=pos, reference_allele=a0, alternative_allele=a1)
 		if len(a0) == 1 and len(a1) == 1:
 			n_snps += 1
+			v = VcfVariant(position=pos, reference_allele=a0, alternative_allele=a1)
 			variants.append(v)
 			continue
 		if not indels:
@@ -110,9 +110,13 @@ def parse_vcf(path, indels=False, sample=None):
 
 		if a0[0] == a1[0] and ((len(a0) == 1) != (len(a1) == 1)):
 			n_indels += 1
+			v = VcfVariant(position=pos+1, reference_allele=a0[1:], alternative_allele=a1[1:])
 			variants.append(v)
 			continue
+
 		# Something like GCG -> TCT or CTCTC -> CA occurred.
+		# TODO deal with complex variants
+		# v = VcfVariant(position=pos, reference_allele=a0, alternative_allele=a1)
 		n_complex += 1
 	logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s. Skipped %s complex variants.", n_snps, n_indels, n_complex)
 	if prev_chromosome is not None:
