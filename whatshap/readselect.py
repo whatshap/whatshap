@@ -25,9 +25,9 @@ from .graph import ComponentFinder
 #TODO Need to assert somewhere that if less Reads than coverage...?
 
 
-def __pq_construction_out_of_given_reads( priorityqueue,readset,positions,SNP_read_map):
+def __pq_construction_out_of_given_reads( priorityqueue,readset,positions,SNP_read_map,bool_SNP_const):
 	'''Constructiong of the priority queue for the readset, so that each read is in the priority queue and
-	sorted by their score'''
+	sorted by their score, and the given boolean says if the SNP_read_map has to be constructed.'''
 
 	#dictionary to map the SNP positions to an index
 	vcf_indices = {position: index for index, position in enumerate(positions)}
@@ -64,8 +64,10 @@ def __pq_construction_out_of_given_reads( priorityqueue,readset,positions,SNP_re
 
 		priorityqueue.push(score,index)
 		pq_item = index
-		for m in range(0, len(SNPset)):
-			SNP_read_map[SNPset[m]].append(pq_item)
+
+		if bool_SNP_const:
+			for m in range(0, len(SNPset)):
+				SNP_read_map[SNPset[m]].append(pq_item)
 
 	return (priorityqueue,SNP_read_map,phasable_SNPs,vcf_indices)
 
@@ -155,42 +157,52 @@ def building_up_final_readset(new_readset_subset,sliced_selected_reads,final_sel
 	return final_selected_reads
 
 
-def find_new_blocks(actual_reads,all_possible_reads,component_finder):
+def find_new_blocks(actual_reads,all_possible_reads,component_finder,reads):
+	'''Insert the new found reads into the Component finder and returns it and the corresponding components'''
+	for i in actual_reads:
+		read= reads[i]
+		#same code as in find_components....
+		#need here a list and not a se with {}
+		read_positions= [variant.position for variant in read if variant.position in all_possible_reads]
+		#print('Read positions')
+		#print(read_positions)
+		for position in read_positions[1:]:
+			component_finder.merge(read_positions[0], position)
 
 
+	components={position : component_finder.find(position) for position in all_possible_reads}
 
 	return (component_finder,components)
 
 
-def init_blocking(actual_reads, former_selected_reads,vcf_indices,reads):
+def init_blocking(vcf_indices):
+	'''Initialization of the Component finder with all phasable SNPS'''
 	all_possible_positions= vcf_indices.keys()
 	#initializations done elsewhere because here it should be iteratively adding the new found reads into the already
 	#existing component finder data structure....
 	component_finder=ComponentFinder(all_possible_positions)
 
-	print('component_finder')
+	#print('component_finder')
 	#print(component_finder)
-	print('VCF positions ')
+	#print('VCF positions ')
 	#print(vcf_indices.keys())
-	for i in actual_reads:
-		read= reads[i]
+	#for i in actual_reads:
+	#	read= reads[i]
 		#same code as in find_components....
 		#need here a list and not a se with {}
-		read_positions= [variant.position for variant in read if variant.position in all_possible_positions]
-		print('Read positions')
-		print(read_positions)
-		for position in read_positions[1:]:
-			component_finder.merge(read_positions[0], position)
+	#	read_positions= [variant.position for variant in read if variant.position in all_possible_positions]
+	#	print('Read positions')
+	#	print(read_positions)
+	#	for position in read_positions[1:]:
+	#		component_finder.merge(read_positions[0], position)
 
 		#print(reads[i])
-	components={position : component_finder.find(position) for position in all_possible_positions}
-	print('Components')
-	print(components)
+	#components={position : component_finder.find(position) for position in all_possible_positions}
+	#print('Components')
+	#print(components)
 
 	#TODO it does not work here because a component _finder is always new initialized....
 
-
-	print('Here')
 	return (component_finder,all_possible_positions)
 
 
@@ -276,7 +288,70 @@ def best_case_blocks(reads):
 
 
 
+def find_bridging_read(com_values,SNP_read_map,readset,actual_reads,component_finder,vcf_indices):
+	#Testing if double occurence work
+	Test_set1_= set([1,2,3,4,5])
+	Test_set2_=set([6,7,8,9,4])
+	Check_set= Test_set1_ & Test_set2_
+	#print('Test')
+	#print(Check_set)
+	#print('SNP Read Map')
 
+	#print(SNP_read_map)
+	all_list= [item for sublist in SNP_read_map for item in sublist]
+	print('all_list.sort()')
+	print(all_list)
+
+	newlist=[]
+	double_list=[]
+	for i in all_list:
+		if i not in newlist:
+			newlist.append(i)
+		else:
+			double_list.append(i)
+	print('Double List')
+	print(double_list)
+	print(len(double_list))
+	print(len(set(double_list)))
+	print('Newlist')
+	print(newlist)
+	print(len(newlist))
+
+	#TODO At the moment in both sets the double and the newlist the length is equal this means there is no read which covers
+	#TODO 2 representatives and is not added already to the components
+
+
+	new_reads= []
+	#print('FIND BRIDGING')
+	representatives=[vcf_indices[val] for val in com_values]
+	#print('Representatives')
+	#print(representatives)
+	#alle möglichen reads rausfinden die die Representatnen abdecken, dabei die ohne Reads rauswerfen
+	SNP_map_of_reps= [SNP_read_map[vcf] for vcf in representatives if SNP_read_map[vcf]!= []]
+
+	#print('All lists')
+	#print(all_list)
+
+	#print('SNP_map_of_reps')
+	#print(SNP_map_of_reps)
+
+	Double_occurence_set= set()
+
+#TODO Could not work in this because one set is empty
+	for reas_list in SNP_map_of_reps:
+		new_set=set(reas_list)
+		Double_occurence_set= Double_occurence_set & new_set
+
+		#print('Double occurence set')
+		#print(Double_occurence_set)
+
+
+		#print(val)
+		#print(vcf_indices[val])
+		#print(SNP_read_map[vcf_indices[val]])
+		#print(SNP_read_map)
+		lal=0
+	return new_reads
 
 
 
@@ -294,10 +369,13 @@ def readselection(readset, positions,max_cov):
 	SNP_read_map = []
 	for i in range(0, len(positions)):
 		SNP_read_map.append([])
+
+
+
 	pq=PriorityQueue()
 
 	#Construction of SNP_read mapping and priority queue
-	(pq,SNP_read_map,phasbale_SNPs,vcf_indices)=__pq_construction_out_of_given_reads( pq,readset,positions,SNP_read_map)
+	(pq,SNP_read_map,phasbale_SNPs,vcf_indices)=__pq_construction_out_of_given_reads( pq,readset,positions,SNP_read_map,True)
 
 	#Beginning to select the reads
 
@@ -323,7 +401,22 @@ def readselection(readset, positions,max_cov):
 
 
 	#TODO - Has to know that the indices are shifting now, because the readset has differed....
+
+
+	#TODO Do the initialization before the loop
+	(component_finder,all_possible_positions)=init_blocking(vcf_indices)
+	print('In while loop SNP READ MAP AFTER INITIALIZATION')
+	print(SNP_read_map)
+
+	#For testing  only one iteration
+	#loop_integer=1
+
 	while loop_integer!=0 :
+		print('In while loop SNP READ MAP AFTER INITIALIZATION')
+		print(SNP_read_map)
+
+
+
 	#	#TODO have to do :
 	#	#slice the reads
 	#	#do the block finding
@@ -347,14 +440,18 @@ def readselection(readset, positions,max_cov):
 		#print('SELECTED READS')
 		#print(selected_reads)
 		#TODO here do the bridging
-
-		(component_finder,all_possible_positions)=init_blocking(actual_reads,former_selected_reads,vcf_indices,readset)
-		(component_finder,components)=find_new_blocks(actual_reads,all_possible_positions,component_finder)
+		(component_finder,components)=find_new_blocks(actual_reads,all_possible_positions,component_finder,readset)
 
 		print('Components')
-		print(components)
-
-
+		print(components.keys())
+		com_values= set(components.values())
+		print(com_values)
+		#for val in com_values:
+		#print(val)
+		#print(vcf_indices[val])
+		#print(SNP_read_map[vcf_indices[val]])
+			#print(SNP_read_map)
+		New_reads=find_bridging_read(com_values,SNP_read_map,readset,actual_reads,component_finder,vcf_indices)
 		#TODO SAME AS ABOVE NOT NEEDED
 		#new_readset_subset = readset.subset(create_new_readset(readset,sliced_selected_reads))
 
@@ -364,7 +461,7 @@ def readselection(readset, positions,max_cov):
 
 		#final_selected_reads.add(tuple(sliced_selected_reads))
 		#Construction of SNP_read mapping and priority queue
-		(pq,SNP_read_map,phasbale_SNPs,vcf_indices)=__pq_construction_out_of_given_reads( pq,new_readset_subset,positions,SNP_read_map)
+		(pq,SNP_read_map,phasbale_SNPs,vcf_indices)=__pq_construction_out_of_given_reads( pq,new_readset_subset,positions,SNP_read_map,False)
 
 		#print('Coverage')
 		#print(coverages.max_coverage_in_range(0,len(vcf_indices)))
