@@ -316,8 +316,8 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
       ColumnCostComputer cost_computer(*column, all_heterozygous);
       cost_computer.set_partitioning(index);
 
-      r0->addVariant(positions->at(i), '?', cost_computer.get_allele(0), cost_computer.get_weight(0));
-      r1->addVariant(positions->at(i), '?', cost_computer.get_allele(1), cost_computer.get_weight(1));
+      r0->addVariant(positions->at(i), cost_computer.get_allele(0), cost_computer.get_weight(0));
+      r1->addVariant(positions->at(i), cost_computer.get_allele(1), cost_computer.get_weight(1));
       ++i; // next column
     }
   }

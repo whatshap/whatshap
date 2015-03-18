@@ -1,5 +1,5 @@
 #include <sstream>
-#include <algorithm> 
+#include <algorithm>
 #include <stdexcept>
 #include <cassert>
 
@@ -21,14 +21,14 @@ string Read::toString() {
 	oss << ") (";
 	for (size_t i=0; i<variants.size(); ++i) {
 		if (i>0) oss << ";";
-		oss << "[" << variants[i].position << "," << variants[i].base << "," << variants[i].entry << "]";
+		oss << "[" << variants[i].position << "," << variants[i].entry << "]";
 	}
 	oss << ")";
 	return oss.str();
 }
 
-void Read::addVariant(int position, char base, int allele, int quality) {
-	variants.push_back(enriched_entry_t(position, base, allele, quality));
+void Read::addVariant(int position, int allele, int quality) {
+	variants.push_back(enriched_entry_t(position, allele, quality));
 }
 
 void Read::sortVariants() {
@@ -75,17 +75,12 @@ int Read::getPosition(size_t variant_idx) const {
 	return variants[variant_idx].position;
 }
 
-char Read::getBase(size_t variant_idx) const {
-	assert(variant_idx < variants.size());
-	return variants[variant_idx].base;
-}
-
 int Read::getAllele(size_t variant_idx) const {
 	assert(variant_idx < variants.size());
 	return variants[variant_idx].entry.get_allele_type();
 }
 
-int Read::getBaseQuality(size_t variant_idx) const {
+int Read::getVariantQuality(size_t variant_idx) const {
 	assert(variant_idx < variants.size());
 	return variants[variant_idx].entry.get_phred_score();
 }

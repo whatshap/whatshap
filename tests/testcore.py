@@ -10,8 +10,8 @@ def test_read():
 
 	assert r.is_sorted
 
-	r.add_variant(100, 'A', 1, 37)
-	r.add_variant(23, 'T', 0, 99)
+	r.add_variant(100, 1, 37)
+	r.add_variant(23, 0, 99)
 	assert not r.is_sorted
 	r.sort()
 	assert r.is_sorted
@@ -26,10 +26,10 @@ def test_read():
 
 def test_read_iteration():
 	r = Read("name", 15)
-	r.add_variant(100, 'A', 1, 37)
-	r.add_variant(23, 'T', 0, 99)
-	v1 = Variant(position=100, base='A', allele=1, quality=37)
-	v2 = Variant(position=23, base='T', allele=0, quality=99)
+	r.add_variant(100, 1, 37)
+	r.add_variant(23, 0, 99)
+	v1 = Variant(position=100, allele=1, quality=37)
+	v2 = Variant(position=23, allele=0, quality=99)
 	variants = list(r)
 	assert variants == [v1, v2]
 	# negative indices
@@ -40,16 +40,16 @@ def test_read_iteration():
 @raises(IndexError)
 def test_read_indexerror1():
 	r = Read("name", 15)
-	r.add_variant(100, 'A', 1, 37)
-	r.add_variant(23, 'T', 0, 99)
+	r.add_variant(100, 1, 37)
+	r.add_variant(23, 0, 99)
 	r[2]
 
 
 @raises(IndexError)
 def test_read_indexerror2():
 	r = Read("name", 15)
-	r.add_variant(100, 'A', 1, 37)
-	r.add_variant(23, 'T', 0, 99)
+	r.add_variant(100, 1, 37)
+	r.add_variant(23, 0, 99)
 	r[-3]
 
 
@@ -61,17 +61,17 @@ def test_empty_readset():
 def test_readset():
 	rs = ReadSet()
 	r = Read('Read A', 56)
-	r.add_variant(100, 'A', 1, 37)
-	r.add_variant(101, 'C', 0, 18)
+	r.add_variant(100, 1, 37)
+	r.add_variant(101, 0, 18)
 	rs.add(r)
 
 	r = Read('Read B', 0)
-	r.add_variant(101, 'C', 0, 23)
+	r.add_variant(101, 0, 23)
 	rs.add(r)
 
 	r = Read('Read C', 17)
-	r.add_variant(99, 'G', 1, 27)
-	r.add_variant(105, 'T', 0, 14)
+	r.add_variant(99, 1, 27)
+	r.add_variant(105, 0, 14)
 	rs.add(r)
 
 	assert rs[0].name == 'Read A'
@@ -102,8 +102,8 @@ def test_readset():
 def test_non_existing_read_name():
 	rs = ReadSet()
 	r = Read('Read A', 56)
-	r.add_variant(100, 'A', 1, 37)
-	r.add_variant(101, 'C', 0, 18)
+	r.add_variant(100, 1, 37)
+	r.add_variant(101, 0, 18)
 	rs.add(r)
 	rs['foo']
 

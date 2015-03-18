@@ -80,7 +80,7 @@ def covered_variants(variants, start, bam_read):
 					# If we ever decide to be compatible with older pysam
 					# versions, cache bam_read.qual somewhere - do not
 					# access it within this loop (3x slower otherwise).
-					core_read.add_variant(variants[j].position, base, allele, bam_read.query_qualities[query_pos + offset])
+					core_read.add_variant(variants[j].position, allele, bam_read.query_qualities[query_pos + offset])
 				j += 1
 			query_pos += length
 			ref_pos += length
@@ -175,10 +175,10 @@ class ReadSetReader:
 		i2 = 0
 
 		def add1():
-			result.add_variant(read1[i1].position, read1[i1].base, read1[i1].allele, read1[i1].quality)
+			result.add_variant(read1[i1].position, read1[i1].allele, read1[i1].quality)
 
 		def add2():
-			result.add_variant(read2[i2].position, read2[i2].base, read2[i2].allele, read2[i2].quality)
+			result.add_variant(read2[i2].position, read2[i2].allele, read2[i2].quality)
 
 		while i1 < len(read1) or i2 < len(read2):
 			if i1 == len(read1):
@@ -203,7 +203,7 @@ class ReadSetReader:
 				# If both alleles agree, merge into single variant and add up qualities
 				if read1[i1].allele == read2[i2].allele:
 					quality = read1[i1].quality + read2[i2].quality
-					result.add_variant(read1[i1].position, read1[i1].base, read1[i1].allele, quality)
+					result.add_variant(read1[i1].position, read1[i1].allele, quality)
 				else:
 					# Otherwise, take variant with highest base quality and discard the other.
 					if read1[i1].quality >= read2[i2].quality:

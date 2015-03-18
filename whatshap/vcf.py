@@ -163,7 +163,7 @@ class PhasedVcfWriter:
 		sample_index = self._reader.samples.index(sample)
 
 		# TODO don’t use dicts for *everything* ...
-		phases = { position: allele for position, base, allele, quality in superreads[0] if allele in [0,1] }
+		phases = { variant.position: variant.allele for variant in superreads[0] if variant.allele in [0,1] }
 		if self._unprocessed_record is not None:
 			records_iter = itertools.chain([self._unprocessed_record], self._reader_iter)
 		else:
