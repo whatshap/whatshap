@@ -247,7 +247,9 @@ def slice_reads(reads, max_coverage):
 
 	vcf_variant_list= reads.get_positions()
 	selection_of_reads =readselection(reads,vcf_variant_list,max_coverage )
-
+	print('Selection of REads ')
+	print(selection_of_reads)
+	print(len(selection_of_reads))
 #
 	'''
 	#Same as below but renamed from position list to vcf_variant_list
