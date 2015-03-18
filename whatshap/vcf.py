@@ -74,6 +74,7 @@ def parse_vcf(path, indels=False, sample=None):
 	prev_chromosome = None
 	n_indels = 0
 	n_snps = 0
+	n_complex = 0
 	for sample, record, call in vcf_sample_reader(path, sample):
 		if record.CHROM != prev_chromosome:
 			if prev_chromosome is not None:
@@ -112,8 +113,8 @@ def parse_vcf(path, indels=False, sample=None):
 			variants.append(v)
 			continue
 		# Something like GCG -> TCT or CTCTC -> CA occurred.
-		logger.warn('Complex variant found, skipping: %s', v)
-	logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s", n_snps, n_indels)
+		n_complex += 1
+	logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s. Skipped %s complex variants.", n_snps, n_indels, n_complex)
 	if prev_chromosome is not None:
 		yield (sample, prev_chromosome, variants)
 
