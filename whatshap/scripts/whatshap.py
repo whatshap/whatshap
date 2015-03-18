@@ -250,9 +250,9 @@ def slice_reads(reads, max_coverage):
 	random.shuffle(shuffled_indices)
 
 	position_list = reads.get_positions()
-	logger.info('Found %d SNP positions', len(position_list))
+	logger.info('Found %d variant positions', len(position_list))
 
-	# dictionary to map SNP position to its index
+	# dictionary to map variant position to its index
 	position_to_index = { position: index for index, position in enumerate(position_list) }
 
 	# List of slices, start with one empty slice ...
@@ -263,7 +263,7 @@ def slice_reads(reads, max_coverage):
 	accessible_positions = set()
 	for index in shuffled_indices:
 		read = reads[index]
-		# Skip reads that cover only one SNP
+		# Skip reads that cover only one variant
 		if len(read) < 2:
 			skipped_reads += 1
 			continue
@@ -284,15 +284,15 @@ def slice_reads(reads, max_coverage):
 				if slice_id == len(slices):
 					slices.append(IndexSet())
 					slice_coverages.append(CoverageMonitor(len(position_list)))
-	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
+	logger.info('Skipped %d reads that only cover one variant', skipped_reads)
 	informative_reads = len(reads) - skipped_reads
 
-	unphasable_snps = len(position_list) - len(accessible_positions)
+	unphasable_variants = len(position_list) - len(accessible_positions)
 	if position_list:
 		logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
 			'connecting them to another variant and are thus unphasable',
-			unphasable_snps, len(position_list),
-			100. * unphasable_snps / len(position_list))
+			unphasable_variants, len(position_list),
+			100. * unphasable_variants / len(position_list))
 
 	if reads:
 		logger.info('After coverage reduction: Using %d of %d (%.1f%%) reads that cover two or more SNPs',
