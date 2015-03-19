@@ -12,6 +12,7 @@
 #Erase SNPS which are unphasable -Not Erase out of structure but counted
 
 import math
+from collections import defaultdict
 
 from whatshap._core import PyRead as Read
 from whatshap._core import PyReadSet as ReadSet
@@ -24,27 +25,30 @@ from .graph import ComponentFinder
 
 #TODO Need to assert somewhere that if less Reads than coverage...?
 
-
-def __pq_construction_out_of_given_reads( priorityqueue,readset,positions,SNP_read_map,bool_SNP_const):
-	'''Constructiong of the priority queue for the readset, so that each read is in the priority queue and
-	sorted by their score, and the given boolean says if the SNP_read_map has to be constructed.'''
-
-	#dictionary to map the SNP positions to an index
+def _construct_indexes(readset):
+	positions = readset.get_positions()
 	vcf_indices = {position: index for index, position in enumerate(positions)}
+	SNP_read_map = defaultdict(list)
+	for index, read in enumerate(readset):
+		for variant in read:
+			snp_index = vcf_indices[variant.position]
+			SNP_read_map[snp_index].append(index)
+	return positions, vcf_indices, SNP_read_map
+			
+		
 
+def __pq_construction_out_of_given_reads(readset, read_indices, vcf_indices):
+	'''Constructiong of the priority queue for the readset, so that each read is in the priority queue and
+	sorted by their score, and the given boolean says if the SNP_read_map has to be constructed. Will only
+	use reads whose indices are given in read_indices (and will ignores the rest).'''
 
-	skipped_reads = 0
-	phasable_SNPs = 0
+	priorityqueue = PriorityQueue()
+
 	#TODO if we want to see which SNPs are unphasable need to compute all
 	#TODO  SNP positions between begin and end position.which may contribute to coverage but not to phasability
 
-	for index, read in enumerate(readset):
-		#filter out reads which cover only one variant
-		if len(read) < 2:
-			skipped_reads += 1
-			continue
-		else:
-			phasable_SNPs +=1
+	for index in read_indices:
+		read = readset[index]
 
 	#TODO decrease the readset by the not necessary reads which cover only 1 or which are already selected
 
@@ -65,62 +69,61 @@ def __pq_construction_out_of_given_reads( priorityqueue,readset,positions,SNP_re
 			score = score - ((SNPset[len(SNPset)-1] - SNPset[0]+1)-len(SNPset))
 
 		priorityqueue.push(score,index)
-		pq_item = index
 
-		if bool_SNP_const:
-			for m in range(0, len(SNPset)):
-				SNP_read_map[SNPset[m]].append(pq_item)
+	return priorityqueue
 
-	return (priorityqueue,SNP_read_map,phasable_SNPs,vcf_indices)
-
-def slice_read_selection(pq,coverages,already_covered_SNPS,selected_reads,phasable_SNPs,MAX_cvo,readset,Vcf_indices,SNP_read_map):
+def slice_read_selection(pq,coverages,MAX_cvo,readset,Vcf_indices,SNP_read_map):
 	'''Extraction of a set of read indices, where each SNP should be covered at least once, if coverage, or reads are allowing it '''
 	#Intern list for storing the actual selected reads
-	intern_list=[]
+	already_covered_SNPs=set()
+	# reads that are seleted in this slice
+	reads_in_slice = set()
+	reads_violating_coverage = set()
 	#TODO add an additional condition like if number covered SNPS equal phasable SNPS then big pq are reduced
 	while len(pq)!= 0:
 		#TODO ISEMPTY does not work
 		(max_score,max_item)= pq.pop()
-		if not max_item in selected_reads:
-			extracted_read=readset[max_item]
-			uncovered_SNP= False
-			#look if positions covered by this reads are already covered or not
+		extracted_read=readset[max_item]
+		covers_new_snp = False
+		#look if positions covered by this reads are already covered or not
+		for pos in extracted_read:
+			if pos.position  in already_covered_SNPS:
+				continue
+			else:
+				covers_new_snp=True
+				break
+		#only if at least one position is not covered so the boolean is true then we could add the read if he suits into the coverage
+		#Need for begin and end the vcf_index and not the correct position
+		#TODO therefore maybe change the Coverage_MOnitor int the coverage.py
+		begin=Vcf_indices.get(extracted_read[0].position)
+		end= Vcf_indices.get(extracted_read[len(extracted_read)-1].position)
+		if coverages.max_coverage_in_range(begin,end) >= MAX_cvo:
+			reads_violating_coverage.add(max_item)
+		elif covers_new_snp:
+			coverages.add_read(begin,end)
+			#selected_reads includes only the read indices of the selected reads  where max_item is the index....
+			selected_reads.add(max_item)
+			reads_in_slice.append(max_item)
+
+			#again go over the positions in the read and add them to the already_covered_SNP list
 			for pos in extracted_read:
-				if pos.position  in already_covered_SNPS:
-					continue
-				else:
-					uncovered_SNP=True
-					break
-			#only if at least one position is not covered so the boolean is true then we could add the read if he suits into the coverage
-			#Need for begin and end the vcf_index and not the correct position
-			#TODO therefore maybe change the Coverage_MOnitor int the coverage.py
-			begin=Vcf_indices.get(extracted_read[0].position)
-			end= Vcf_indices.get(extracted_read[len(extracted_read)-1].position)
-			if uncovered_SNP and coverages.max_coverage_in_range(begin,end)<MAX_cvo:
-				coverages.add_read(begin,end)
-				#selected_reads includes only the read indices of the selected reads  where max_item is the index....
-				selected_reads.append(max_item)
-				intern_list.append(max_item)
+				already_covered_SNPS.add(pos.position)
 
-				#again go over the positions in the read and add them to the already_covered_SNP list
-				for pos in extracted_read:
-					already_covered_SNPS.add(pos.position)
+				#for extracted read decrease score of every other read which covers one of the other SNPS.
+				to_decrease_score=SNP_read_map[Vcf_indices.get(pos.position)]
 
-					#for extracted read decrease score of every other read which covers one of the other SNPS.
-					to_decrease_score=SNP_read_map[Vcf_indices.get(pos.position)]
+				#find difference between to_decrease_score and selected_reads in order to not to try to decrease score by selected reads
+				#TODO maybe also possible to do this in the first place by getting another readset than the origin
+				selected_read_set = set(selected_reads)
+				decrease_set = set(to_decrease_score)
+				d_set=decrease_set.difference(selected_read_set)
 
-					#find difference between to_decrease_score and selected_reads in order to not to try to decrease score by selected reads
-					#TODO maybe also possible to do this in the first place by getting another readset than the origin
-					selected_read_set = set(selected_reads)
-					decrease_set = set(to_decrease_score)
-					d_set=decrease_set.difference(selected_read_set)
-
-					#TODO need to look if element is in the heap at all ...... Catched it with None
-					for element in d_set:
-						oldscore=pq.get_score_by_item(element)
-						if oldscore != None:
-							pq.change_score(element,oldscore-1)
-	return  (intern_list,selected_reads,coverages)
+				#TODO need to look if element is in the heap at all ...... Catched it with None
+				for element in d_set:
+					oldscore=pq.get_score_by_item(element)
+					if oldscore != None:
+						pq.change_score(element,oldscore-1)
+	return reads_in_slice, reads_violating_coverage
 
 #TODO at the moment not used
 def create_new_readset(readset,erasing_indices):
@@ -145,26 +148,6 @@ def building_up_final_readset(new_readset_subset,sliced_selected_reads,final_sel
 	#print('final_selected_reads')
 	#print(final_selected_reads)
 	return final_selected_reads
-
-
-def find_new_blocks(actual_reads,all_possible_reads,component_finder,reads):
-	'''Insert the new found reads into the Component finder and returns it and the corresponding components'''
-	for i in actual_reads:
-		read= reads[i]
-		read_positions= [variant.position for variant in read if variant.position in all_possible_reads]
-		for position in read_positions[1:]:
-			component_finder.merge(read_positions[0], position)
-	components={position : component_finder.find(position) for position in all_possible_reads}
-	return (component_finder,components)
-
-
-def init_blocking(vcf_indices):
-	'''Initialization of the Component finder with all phasable SNPS'''
-	all_possible_positions= vcf_indices.keys()
-	#initializations done elsewhere because here it should be iteratively adding the new found reads into the already
-	#existing component finder data structure....
-	component_finder=ComponentFinder(all_possible_positions)
-	return (component_finder,all_possible_positions)
 
 
 
@@ -247,7 +230,7 @@ def analyse_bridging_reads(bridging_reads, readset, selected_reads,component_fin
 						read_positions.append(pos.position)
 					if Cov_Monitor.max_coverage_in_range(begin, end ) < max_cov:
 						Cov_Monitor.add_read(begin,end)
-						selected_reads.append(index)
+						selected_reads.add(index)
 			for pos in read_positions[1:]:
 				component_finder.merge(read_positions[0],pos)
 
@@ -266,19 +249,9 @@ def analyse_bridging_reads(bridging_reads, readset, selected_reads,component_fin
 
 
 
-def readselection(readset, positions,max_cov):
+def readselection(readset, max_cov, bridging = True):
 	'''The whole readselection should work in this method'''
-
-	SNP_read_map = []
-	for i in range(0, len(positions)):
-		SNP_read_map.append([])
-
-
-
-	pq=PriorityQueue()
-
-	#Construction of SNP_read mapping and priority queue
-	(pq,SNP_read_map,phasbale_SNPs,vcf_indices)=__pq_construction_out_of_given_reads( pq,readset,positions,SNP_read_map,True)
+	positions, vcf_indices, SNP_read_map = _construct_indexes(readset)
 
 	#Initialization of Coverage Monitor
 	coverages = CovMonitor(len(positions))
@@ -286,53 +259,55 @@ def readselection(readset, positions,max_cov):
 	#TODO Look if we could also use there a set instead of an array not yet used
 	final_selected_reads=ReadSet()
 
-	#break parameter for the loop
-	#TODO maybe better parameter could be found
-	loop_integer= max_cov
+	# indices of reads that have been selected
+	selected_reads = set()
 
-	#TODO change the pure index Set to a reduced read set to reduce runtime.
-	#If done : 	#TODO - Has to know that the indices are shifting now, because the readset has differed....
-	new_readset_subset=readset
+	# indices of reads that could (potentially) still be selected
+	undecided_reads = set( i for i, read in enumerate(readset) if len(read) >= 2 )
 
-	#TODO Look if we could also use there a set instead of an array
-	selected_reads= []
+	component_finder = ComponentFinder(positions)
 
-	final_read_set= set()
-	#Initialization of the Somponent_finder
-	(component_finder,all_possible_positions)=init_blocking(vcf_indices)
+	while len(undecided_reads) > 0:
+		pq = __pq_construction_out_of_given_reads(readset, undecided_reads, vcf_indices)
 
+		reads_in_slice, reads_violating_coverage = slice_read_selection(pq,coverages,max_cov,new_readset_subset,vcf_indices,SNP_read_map)
+		selected_reads.update(reads_in_slice)
+		undecided_reads -= reads_in_slice
+		undecided_reads -= reads_violating_coverage
 
-	while loop_integer!=0 :
-	# TODO maybe not needed to minimize the qp?
-		#set includes the covered positions
-		already_covered_SNPs=set()
-		#TODO have to differ between REads added only in this round and all reads till there but has to be done in slice_read_selection
-		(actual_reads,selected_reads,coverages)= slice_read_selection(pq,coverages,already_covered_SNPs,selected_reads,phasbale_SNPs,max_cov,new_readset_subset,vcf_indices,SNP_read_map)
+		# Update component finder with newly selected reads
+		for read_index in reads_in_slice:
+			read = readset[read_index]
+			read_positions = [variant.position for variant in read]
+			for position in read_positions[1:]:
+				component_finder.merge(read_positions[0], position)
+		#components={position : component_finder.find(position) for position in all_possible_reads}
+	
 		#TODO maybe NOT NEEDED because of checkout what was already selected
 		#final_selected_reads=building_up_final_readset(new_readset_subset,sliced_selected_reads,final_selected_reads,original_readset)
 
-		for slice in selected_reads:
-			final_read_set.add(slice)
+		if bridging:
+			pq = __pq_construction_out_of_given_reads(readset, undecided_reads, vcf_indices)
+			while not pq.is_empty():
+				score, read_index = pq.pop()
+				read = readset[read_index]
+				covered_blocks = set(component_finder.find(pos.position) for pos in read)
+				
+				# TODO: check coverage (potentially remove from undecided_reads)
+				
+				# skip read if it only covers one block
+				if len(covered_blocks) < 2:
+					continue
+				
+				# TODO: add to selected, remove from undecided, add to coverage monitor, update component_finder
 
-		#find components
-		(component_finder,components)=find_new_blocks(actual_reads,all_possible_positions,component_finder,readset)
-		com_values= set(components.values())
-
-		#TODO does not work
-		#New_reads=find_bridging_read(com_values,SNP_read_map,readset,actual_reads,component_finder,vcf_indices)
-		bridges_reads=new_bridging(readset,selected_reads,component_finder)
-
-		(selction,coverages,selected_reads,component_finder)=analyse_bridging_reads(bridges_reads, readset, selected_reads,component_finder,coverages,vcf_indices, SNP_read_map,actual_reads)
-		print('Selection of bridging')
-		print(selction)
+			#print('Selection of bridging')
+			#print(selction)
 
 		#TODO SAME AS ABOVE NOT NEEDED
 		#new_readset_subset = readset.subset(create_new_readset(readset,sliced_selected_reads))
 
-		#Construction of SNP_read mapping and priority queue without SNP_map
-		(pq,SNP_read_map,phasbale_SNPs,vcf_indices)=__pq_construction_out_of_given_reads( pq,new_readset_subset,positions,SNP_read_map,False)
 
-		loop_integer -=1
 		#print('Components at the end')
 		#print(components)
 		#print(set(components.keys()))
@@ -341,71 +316,3 @@ def readselection(readset, positions,max_cov):
 		#print(len(set(components.values())))
 
 	return (selected_reads,components.keys(),components.values())
-
-
-
-def readselection_without_bridging(readset, positions,max_cov):
-	'''The whole readselection should work in this method'''
-
-	SNP_read_map = []
-	for i in range(0, len(positions)):
-		SNP_read_map.append([])
-
-
-
-	pq=PriorityQueue()
-
-	#Construction of SNP_read mapping and priority queue
-	(pq,SNP_read_map,phasbale_SNPs,vcf_indices)=__pq_construction_out_of_given_reads( pq,readset,positions,SNP_read_map,True)
-
-	#Initialization of Coverage Monitor
-	coverages = CovMonitor(len(positions))
-
-	#TODO Look if we could also use there a set instead of an array not yet used
-	final_selected_reads=ReadSet()
-
-	#break parameter for the loop
-	#TODO maybe better parameter could be found
-	loop_integer= max_cov
-
-	#TODO change the pure index Set to a reduced read set to reduce runtime.
-	#If done : 	#TODO - Has to know that the indices are shifting now, because the readset has differed....
-	new_readset_subset=readset
-
-	#TODO Look if we could also use there a set instead of an array
-	selected_reads= []
-
-	final_read_set= set()
-	#Initialization of the Somponent_finder
-	(component_finder,all_possible_positions)=init_blocking(vcf_indices)
-
-
-	while loop_integer!=0 :
-	# TODO maybe not needed to minimize the qp?
-		#set includes the covered positions
-		already_covered_SNPs=set()
-		#TODO have to differ between REads added only in this round and all reads till there but has to be done in slice_read_selection
-		(actual_reads,selected_reads,coverages)= slice_read_selection(pq,coverages,already_covered_SNPs,selected_reads,phasbale_SNPs,max_cov,new_readset_subset,vcf_indices,SNP_read_map)
-		#TODO maybe NOT NEEDED because of checkout what was already selected
-		#final_selected_reads=building_up_final_readset(new_readset_subset,sliced_selected_reads,final_selected_reads,original_readset)
-
-		for slice in selected_reads:
-			final_read_set.add(slice)
-
-		#find components
-		(component_finder,components)=find_new_blocks(actual_reads,all_possible_positions,component_finder,readset)
-		com_values= set(components.values())
-
-		#Construction of SNP_read mapping and priority queue without SNP_map
-		(pq,SNP_read_map,phasbale_SNPs,vcf_indices)=__pq_construction_out_of_given_reads( pq,new_readset_subset,positions,SNP_read_map,False)
-
-		loop_integer -=1
-		#print('Components at the end')
-		#print(components)
-		#print(set(components.keys()))
-		#print(len(set(components.keys())))
-		#print(set(components.values()))
-		#print(len(set(components.values())))
-
-	return (selected_reads,components.keys(),components.values())
-

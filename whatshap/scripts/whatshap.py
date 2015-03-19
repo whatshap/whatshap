@@ -35,7 +35,6 @@ from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, IndexSet
 from ..graph import ComponentFinder
 from ..readselect import readselection
-from ..readselect import readselection_without_bridging
 
 #from ..readselect import Bestreads
 from ..coverage import CovMonitor
@@ -246,8 +245,7 @@ def slice_reads(reads, max_coverage):
 	"""
 
 
-	vcf_variant_list= reads.get_positions()
-	(selection_of_reads,com_keys,com_vals) =readselection(reads,vcf_variant_list,max_coverage )
+	(selection_of_reads,com_keys,com_vals) =readselection(reads,max_coverage )
 	select = [IndexSet()]
 	for i in selection_of_reads:
 		select[0].add(i)
@@ -256,7 +254,7 @@ def slice_reads(reads, max_coverage):
 	#print('read_selection')
 	#print(read_selection)
 
-	(selection_of_reads_without,com_keys_withou,com_vals_without) =readselection_without_bridging(reads,vcf_variant_list,max_coverage )
+	(selection_of_reads_without,com_keys_withou,com_vals_without) =readselection(reads,max_coverage, False)
 	readselect_set= set(selection_of_reads)
 	readselect_without_set= set(selection_of_reads_without)
 	print('Difference in Reads')
