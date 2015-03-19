@@ -201,29 +201,28 @@ def find_bridging_read(com_values,SNP_read_map,vcf_indices):
 
 
 
-def new_bridging (com_values,readset,selected_reads,component_finder):
+def new_bridging (readset,selected_reads,component_finder):
 	'''
-	:param com_values: Components from the actual component_Finder
 	:param readset: original Readset
 	:param selected_reads: at the moment selected read indices
 	:param component_finder: actual component finder
 	:return: list of read indices which build up bridges between the given components
 	'''
-	outlist =[]
+	outlist = []
 	#Here only looking at the positions themselves
 	for index, read in enumerate(readset):
-		covers_positions= 0
-		#looks if read has a bridge and is not already selected
-		for pos in read :
-			if component_finder.find(pos.position) in com_values and index not in selected_reads:
-				covers_positions+= 1
+		covered_blocks = set(component_finder.find(pos.position) for pos in read)
+		
+		# skip read if it only covers one block
+		if len(covered_blocks) < 2:
+			continue
+		
+		# skip read if it has already been selected
+		if index in selected_reads:
+			continue
 
-		if covers_positions>= 2:
-			outlist.append(index)
+		outlist.append(index)
 
-		print('Former components')
-		print(com_values)
-		print(len(com_values))
 	return outlist
 
 
@@ -321,7 +320,7 @@ def readselection(readset, positions,max_cov):
 
 		#TODO does not work
 		#New_reads=find_bridging_read(com_values,SNP_read_map,readset,actual_reads,component_finder,vcf_indices)
-		bridges_reads=new_bridging(com_values,readset,selected_reads,component_finder)
+		bridges_reads=new_bridging(readset,selected_reads,component_finder)
 
 		(selction,coverages,selected_reads,component_finder)=analyse_bridging_reads(bridges_reads, readset, selected_reads,component_finder,coverages,vcf_indices, SNP_read_map,actual_reads)
 		print('Selection of bridging')
