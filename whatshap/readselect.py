@@ -221,12 +221,16 @@ def new_bridging (com_values,readset,selected_reads,component_finder):
 		if covers_positions>= 2:
 			outlist.append(index)
 
+		print('Former components')
+		print(com_values)
+		print(len(com_values))
 	return outlist
 
 
 
 def analyse_bridging_reads(bridging_reads, readset, selected_reads,component_finder,Cov_Monitor,vcf_indices,components,max_cov):
-	''' looks at the extracted bridging reads and only select those which suit into the Coverage Monitor and only 1 read for each bridge	'''
+	'''	looks at the extracted bridging reads and only select those which suit into the Coverage Monitor and only 1 read for each bridge	'''
+
 	found_bridge= set()
 	selction = []
 	for index in bridging_reads:
@@ -234,6 +238,7 @@ def analyse_bridging_reads(bridging_reads, readset, selected_reads,component_fin
 		for pos in read:
 			read_positions=[]
 			for comp in components:
+				#TODO Here Maybe find more than one bridge to one component .....
 				if pos.position == comp and pos.position not in found_bridge:
 					found_bridge.add(pos.position)
 					selction.append(index)
@@ -249,7 +254,11 @@ def analyse_bridging_reads(bridging_reads, readset, selected_reads,component_fin
 
 	new_components={position : component_finder.find(position) for position in vcf_indices.keys()}
 
-	return selction
+	print('New Components after bridging')
+	print(set(new_components.values()))
+	print(len(set(new_components.values())))
+
+	return (selction,Cov_Monitor,selected_reads,component_finder)
 
 
 
@@ -314,8 +323,9 @@ def readselection(readset, positions,max_cov):
 		#New_reads=find_bridging_read(com_values,SNP_read_map,readset,actual_reads,component_finder,vcf_indices)
 		bridges_reads=new_bridging(com_values,readset,selected_reads,component_finder)
 
-		analyse_bridging_reads(bridges_reads, readset, selected_reads,component_finder,coverages,vcf_indices, SNP_read_map,actual_reads)
-
+		(selction,coverages,selected_reads,component_finder)=analyse_bridging_reads(bridges_reads, readset, selected_reads,component_finder,coverages,vcf_indices, SNP_read_map,actual_reads)
+		print('Selection of bridging')
+		print(selction)
 
 		#TODO SAME AS ABOVE NOT NEEDED
 		#new_readset_subset = readset.subset(create_new_readset(readset,sliced_selected_reads))
@@ -324,12 +334,12 @@ def readselection(readset, positions,max_cov):
 		(pq,SNP_read_map,phasbale_SNPs,vcf_indices)=__pq_construction_out_of_given_reads( pq,new_readset_subset,positions,SNP_read_map,False)
 
 		loop_integer -=1
-		print('Components at the end')
-		print(components)
-		print(set(components.keys()))
-		print(len(set(components.keys())))
-		print(set(components.values()))
-		print(len(set(components.values())))
+		#print('Components at the end')
+		#print(components)
+		#print(set(components.keys()))
+		#print(len(set(components.keys())))
+		#print(set(components.values()))
+		#print(len(set(components.values())))
 
 	return (selected_reads,components.keys(),components.values())
 
@@ -387,26 +397,16 @@ def readselection_without_bridging(readset, positions,max_cov):
 		(component_finder,components)=find_new_blocks(actual_reads,all_possible_positions,component_finder,readset)
 		com_values= set(components.values())
 
-		#TODO does not work
-		#New_reads=find_bridging_read(com_values,SNP_read_map,readset,actual_reads,component_finder,vcf_indices)
-		#bridges_reads=new_bridging(com_values,readset,selected_reads,component_finder)
-
-		#analyse_bridging_reads(bridges_reads, readset, selected_reads,component_finder,coverages,vcf_indices, SNP_read_map,actual_reads)
-
-
-		#TODO SAME AS ABOVE NOT NEEDED
-		#new_readset_subset = readset.subset(create_new_readset(readset,sliced_selected_reads))
-
 		#Construction of SNP_read mapping and priority queue without SNP_map
 		(pq,SNP_read_map,phasbale_SNPs,vcf_indices)=__pq_construction_out_of_given_reads( pq,new_readset_subset,positions,SNP_read_map,False)
 
 		loop_integer -=1
-		print('Components at the end')
-		print(components)
-		print(set(components.keys()))
-		print(len(set(components.keys())))
-		print(set(components.values()))
-		print(len(set(components.values())))
+		#print('Components at the end')
+		#print(components)
+		#print(set(components.keys()))
+		#print(len(set(components.keys())))
+		#print(set(components.values()))
+		#print(len(set(components.values())))
 
 	return (selected_reads,components.keys(),components.values())
 

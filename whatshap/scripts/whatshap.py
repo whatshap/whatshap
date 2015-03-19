@@ -266,22 +266,22 @@ def slice_reads(reads, max_coverage):
 	#print('Com_ keys')
 	#print(com_keys)
 	#Set of components
-	original_com_keys= set(com_keys)
-	print(original_com_keys)
-	without_com_keys = set(com_keys_withou)
-	print(without_com_keys)
+	#original_com_keys= set(com_keys)
+	#print(original_com_keys)
+	#without_com_keys = set(com_keys_withou)
+	#print(without_com_keys)
 
-	original_com_vals= set(com_vals)
-	without_com_vals = set(com_vals_without)
-	print(original_com_vals)
-	print(without_com_vals)
+	#original_com_vals= set(com_vals)
+	#without_com_vals = set(com_vals_without)
+	#print(original_com_vals)
+	#print(without_com_vals)
 
 
-	print('First the keys, than the vals')
-	print(original_com_keys-without_com_keys)
-	print(without_com_keys-original_com_keys)
-	print(original_com_vals-without_com_vals)
-	print(without_com_vals-original_com_vals)
+	#print('First the keys, than the vals')
+	#print(original_com_keys-without_com_keys)
+	#print(without_com_keys-original_com_keys)
+	#print(original_com_vals-without_com_vals)
+	#print(without_com_vals-original_com_vals)
 
 
 	#print('Selection of REads ')
