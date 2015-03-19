@@ -331,4 +331,82 @@ def readselection(readset, positions,max_cov):
 		print(set(components.values()))
 		print(len(set(components.values())))
 
-	return selected_reads
+	return (selected_reads,components.keys(),components.values())
+
+
+
+def readselection_without_bridging(readset, positions,max_cov):
+	'''The whole readselection should work in this method'''
+
+	SNP_read_map = []
+	for i in range(0, len(positions)):
+		SNP_read_map.append([])
+
+
+
+	pq=PriorityQueue()
+
+	#Construction of SNP_read mapping and priority queue
+	(pq,SNP_read_map,phasbale_SNPs,vcf_indices)=__pq_construction_out_of_given_reads( pq,readset,positions,SNP_read_map,True)
+
+	#Initialization of Coverage Monitor
+	coverages = CovMonitor(len(positions))
+
+	#TODO Look if we could also use there a set instead of an array not yet used
+	final_selected_reads=ReadSet()
+
+	#break parameter for the loop
+	#TODO maybe better parameter could be found
+	loop_integer= max_cov
+
+	#TODO change the pure index Set to a reduced read set to reduce runtime.
+	#If done : 	#TODO - Has to know that the indices are shifting now, because the readset has differed....
+	new_readset_subset=readset
+
+	#TODO Look if we could also use there a set instead of an array
+	selected_reads= []
+
+	final_read_set= set()
+	#Initialization of the Somponent_finder
+	(component_finder,all_possible_positions)=init_blocking(vcf_indices)
+
+
+	while loop_integer!=0 :
+	# TODO maybe not needed to minimize the qp?
+		#set includes the covered positions
+		already_covered_SNPs=set()
+		#TODO have to differ between REads added only in this round and all reads till there but has to be done in slice_read_selection
+		(actual_reads,selected_reads,coverages)= slice_read_selection(pq,coverages,already_covered_SNPs,selected_reads,phasbale_SNPs,max_cov,new_readset_subset,vcf_indices,SNP_read_map)
+		#TODO maybe NOT NEEDED because of checkout what was already selected
+		#final_selected_reads=building_up_final_readset(new_readset_subset,sliced_selected_reads,final_selected_reads,original_readset)
+
+		for slice in selected_reads:
+			final_read_set.add(slice)
+
+		#find components
+		(component_finder,components)=find_new_blocks(actual_reads,all_possible_positions,component_finder,readset)
+		com_values= set(components.values())
+
+		#TODO does not work
+		#New_reads=find_bridging_read(com_values,SNP_read_map,readset,actual_reads,component_finder,vcf_indices)
+		#bridges_reads=new_bridging(com_values,readset,selected_reads,component_finder)
+
+		#analyse_bridging_reads(bridges_reads, readset, selected_reads,component_finder,coverages,vcf_indices, SNP_read_map,actual_reads)
+
+
+		#TODO SAME AS ABOVE NOT NEEDED
+		#new_readset_subset = readset.subset(create_new_readset(readset,sliced_selected_reads))
+
+		#Construction of SNP_read mapping and priority queue without SNP_map
+		(pq,SNP_read_map,phasbale_SNPs,vcf_indices)=__pq_construction_out_of_given_reads( pq,new_readset_subset,positions,SNP_read_map,False)
+
+		loop_integer -=1
+		print('Components at the end')
+		print(components)
+		print(set(components.keys()))
+		print(len(set(components.keys())))
+		print(set(components.values()))
+		print(len(set(components.values())))
+
+	return (selected_reads,components.keys(),components.values())
+

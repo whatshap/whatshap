@@ -35,6 +35,7 @@ from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, IndexSet
 from ..graph import ComponentFinder
 from ..readselect import readselection
+from ..readselect import readselection_without_bridging
 
 #from ..readselect import Bestreads
 from ..coverage import CovMonitor
@@ -246,10 +247,46 @@ def slice_reads(reads, max_coverage):
 
 
 	vcf_variant_list= reads.get_positions()
-	selection_of_reads =readselection(reads,vcf_variant_list,max_coverage )
-	print('Selection of REads ')
-	print(selection_of_reads)
-	print(len(selection_of_reads))
+	(selection_of_reads,com_keys,com_vals) =readselection(reads,vcf_variant_list,max_coverage )
+	select = [IndexSet()]
+	for i in selection_of_reads:
+		select[0].add(i)
+	read_selection=reads.subset(select[0])
+
+	#print('read_selection')
+	#print(read_selection)
+
+	(selection_of_reads_without,com_keys_withou,com_vals_without) =readselection_without_bridging(reads,vcf_variant_list,max_coverage )
+	readselect_set= set(selection_of_reads)
+	readselect_without_set= set(selection_of_reads_without)
+	print('Difference in Reads')
+	print(readselect_set-readselect_without_set)
+	print(readselect_without_set-readselect_set)
+
+	#print('Com_ keys')
+	#print(com_keys)
+	#Set of components
+	original_com_keys= set(com_keys)
+	print(original_com_keys)
+	without_com_keys = set(com_keys_withou)
+	print(without_com_keys)
+
+	original_com_vals= set(com_vals)
+	without_com_vals = set(com_vals_without)
+	print(original_com_vals)
+	print(without_com_vals)
+
+
+	print('First the keys, than the vals')
+	print(original_com_keys-without_com_keys)
+	print(without_com_keys-original_com_keys)
+	print(original_com_vals-without_com_vals)
+	print(without_com_vals-original_com_vals)
+
+
+	#print('Selection of REads ')
+	#print(selection_of_reads)
+	#print(len(selection_of_reads))
 #
 	'''
 	#Same as below but renamed from position list to vcf_variant_list
@@ -272,7 +309,7 @@ def slice_reads(reads, max_coverage):
 
 	#former approach
 
-
+	'''
 	shuffled_indices = list(range(len(reads)))
 	random.shuffle(shuffled_indices)
 
@@ -328,8 +365,8 @@ def slice_reads(reads, max_coverage):
 	return reads.subset(slices[0])
 	'''
 
-	return selecte_readset
-	'''
+	return read_selection
+
 
 def find_components(superreads, reads):
 	"""
