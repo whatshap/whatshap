@@ -87,14 +87,13 @@ def slice_read_selection(pq,coverages,MAX_cvo,readset,Vcf_indices,SNP_read_map):
 		covers_new_snp = False
 		#look if positions covered by this reads are already covered or not
 		for pos in extracted_read:
-			if pos.position  in already_covered_SNPS:
+			if pos.position  in already_covered_SNPs:
 				continue
 			else:
 				covers_new_snp=True
 				break
 		#only if at least one position is not covered so the boolean is true then we could add the read if he suits into the coverage
 		#Need for begin and end the vcf_index and not the correct position
-		#TODO therefore maybe change the Coverage_MOnitor int the coverage.py
 		begin=Vcf_indices.get(extracted_read[0].position)
 		end= Vcf_indices.get(extracted_read[len(extracted_read)-1].position)
 		if coverages.max_coverage_in_range(begin,end) >= MAX_cvo:
@@ -102,19 +101,21 @@ def slice_read_selection(pq,coverages,MAX_cvo,readset,Vcf_indices,SNP_read_map):
 		elif covers_new_snp:
 			coverages.add_read(begin,end)
 			#selected_reads includes only the read indices of the selected reads  where max_item is the index....
-			selected_reads.add(max_item)
-			reads_in_slice.append(max_item)
+			#selected_reads.add(max_item)
+			reads_in_slice.add(max_item)
 
 			#again go over the positions in the read and add them to the already_covered_SNP list
 			for pos in extracted_read:
-				already_covered_SNPS.add(pos.position)
+				already_covered_SNPs.add(pos.position)
 
 				#for extracted read decrease score of every other read which covers one of the other SNPS.
 				to_decrease_score=SNP_read_map[Vcf_indices.get(pos.position)]
 
 				#find difference between to_decrease_score and selected_reads in order to not to try to decrease score by selected reads
 				#TODO maybe also possible to do this in the first place by getting another readset than the origin
-				selected_read_set = set(selected_reads)
+
+				#TODO Maybe also include the already selected read and not only the sliced reads
+				selected_read_set = set(reads_in_slice)
 				decrease_set = set(to_decrease_score)
 				d_set=decrease_set.difference(selected_read_set)
 
@@ -125,65 +126,7 @@ def slice_read_selection(pq,coverages,MAX_cvo,readset,Vcf_indices,SNP_read_map):
 						pq.change_score(element,oldscore-1)
 	return reads_in_slice, reads_violating_coverage
 
-#TODO at the moment not used
-def create_new_readset(readset,erasing_indices):
-	'''returns given a readset and a list of indices which are to erased out od the readset and returns the corresponding IndexSet'''
-	new_set= IndexSet()
-	readset_indices= set (i for i in range(0,len(readset)))
-	for j in readset_indices:
-		if j not in erasing_indices:
-			new_set.add(j)
-	return new_set
-
-
-#TODO Setting up another readset does not work, maybe not needed
-def building_up_final_readset(new_readset_subset,sliced_selected_reads,final_selected_reads,original_readset):
-	'''out of a given Readset (new_readset_subset) and selected indices, build up a readset in final_selected_reads'''
-	#for i in sliced_selected_reads:
-	#	read= new_readset_subset[i]
-	#
-	#	print('Found read')
-	#	print(read)
-	#	final_selected_reads.push(read)
-	#print('final_selected_reads')
-	#print(final_selected_reads)
-	return final_selected_reads
-
-
-
-
-#TODO At the moment not needed
-def find_bridging_read(com_values,SNP_read_map,vcf_indices):
-	'''for the actual components, the readset and the componentfinder , find reads which build bridges between the components'''
-	all_list= [item for sublist in SNP_read_map for item in sublist]
-
-	newlist=[]
-	double_list=[]
-	for i in all_list:
-		if i not in newlist:
-			newlist.append(i)
-		else:
-			double_list.append(i)
-
-	#TODO At the moment in both sets the double and the newlist the length is equal this means there is no read which covers
-	#TODO 2 representatives and is not added already to the components
-
-
-	new_reads= []
-	representatives=[vcf_indices[val] for val in com_values]
-
-	SNP_map_of_reps= [SNP_read_map[vcf] for vcf in representatives if SNP_read_map[vcf]!= []]
-
-	Double_occurence_set= set()
-
-	#TODO Could not work in this because one set is empty
-	for reas_list in SNP_map_of_reps:
-		new_set=set(reas_list)
-		Double_occurence_set= Double_occurence_set & new_set
-	return new_reads
-
-
-
+#Not Needed
 def new_bridging (readset,selected_reads,component_finder):
 	'''
 	:param readset: original Readset
@@ -209,7 +152,7 @@ def new_bridging (readset,selected_reads,component_finder):
 	return outlist
 
 
-
+#Not needed
 def analyse_bridging_reads(bridging_reads, readset, selected_reads,component_finder,Cov_Monitor,vcf_indices,components,max_cov):
 	'''	looks at the extracted bridging reads and only select those which suit into the Coverage Monitor and only 1 read for each bridge	'''
 
@@ -256,9 +199,6 @@ def readselection(readset, max_cov, bridging = True):
 	#Initialization of Coverage Monitor
 	coverages = CovMonitor(len(positions))
 
-	#TODO Look if we could also use there a set instead of an array not yet used
-	final_selected_reads=ReadSet()
-
 	# indices of reads that have been selected
 	selected_reads = set()
 
@@ -269,8 +209,7 @@ def readselection(readset, max_cov, bridging = True):
 
 	while len(undecided_reads) > 0:
 		pq = __pq_construction_out_of_given_reads(readset, undecided_reads, vcf_indices)
-
-		reads_in_slice, reads_violating_coverage = slice_read_selection(pq,coverages,max_cov,new_readset_subset,vcf_indices,SNP_read_map)
+		reads_in_slice, reads_violating_coverage = slice_read_selection(pq,coverages,max_cov,readset,vcf_indices,SNP_read_map)
 		selected_reads.update(reads_in_slice)
 		undecided_reads -= reads_in_slice
 		undecided_reads -= reads_violating_coverage
@@ -281,10 +220,8 @@ def readselection(readset, max_cov, bridging = True):
 			read_positions = [variant.position for variant in read]
 			for position in read_positions[1:]:
 				component_finder.merge(read_positions[0], position)
+		#Only for checking
 		#components={position : component_finder.find(position) for position in all_possible_reads}
-	
-		#TODO maybe NOT NEEDED because of checkout what was already selected
-		#final_selected_reads=building_up_final_readset(new_readset_subset,sliced_selected_reads,final_selected_reads,original_readset)
 
 		if bridging:
 			pq = __pq_construction_out_of_given_reads(readset, undecided_reads, vcf_indices)
@@ -294,25 +231,38 @@ def readselection(readset, max_cov, bridging = True):
 				covered_blocks = set(component_finder.find(pos.position) for pos in read)
 				
 				# TODO: check coverage (potentially remove from undecided_reads)
-				
+
+				#Coverage Monitor
+				begin=vcf_indices.get(read[0].position)
+				end=vcf_indices.get(read[len(read)-1].position)
+				if coverages.max_coverage_in_range(begin, end ) > max_cov:
+					undecided_reads.remove(read_index)
+					continue
 				# skip read if it only covers one block
 				if len(covered_blocks) < 2:
 					continue
-				
+				selected_reads.add(read_index)
+				#Coverage Monitor
+				#begin=vcf_indices.get(read[0].position)
+				#end=vcf_indices.get(read[len(read)-1].position)
+				#if coverages.max_coverage_in_range(begin, end ) < max_cov:
+				coverages.add_read(begin,end)
+				undecided_reads.remove(read_index)
+				#Update Component_finder
+				read_pos= [variant.position for variant in read]
+				for pos_in_read in read_pos[1:]:
+					component_finder.merge(read_pos[0],pos_in_read)
+
+
+
+
+
 				# TODO: add to selected, remove from undecided, add to coverage monitor, update component_finder
 
 			#print('Selection of bridging')
 			#print(selction)
 
-		#TODO SAME AS ABOVE NOT NEEDED
-		#new_readset_subset = readset.subset(create_new_readset(readset,sliced_selected_reads))
 
 
-		#print('Components at the end')
-		#print(components)
-		#print(set(components.keys()))
-		#print(len(set(components.keys())))
-		#print(set(components.values()))
-		#print(len(set(components.values())))
 
-	return (selected_reads,components.keys(),components.values())
+	return selected_reads

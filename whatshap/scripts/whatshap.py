@@ -245,7 +245,7 @@ def slice_reads(reads, max_coverage):
 	"""
 
 
-	(selection_of_reads,com_keys,com_vals) =readselection(reads,max_coverage )
+	selection_of_reads =readselection(reads,max_coverage )
 	select = [IndexSet()]
 	for i in selection_of_reads:
 		select[0].add(i)
@@ -254,7 +254,7 @@ def slice_reads(reads, max_coverage):
 	#print('read_selection')
 	#print(read_selection)
 
-	(selection_of_reads_without,com_keys_withou,com_vals_without) =readselection(reads,max_coverage, False)
+	selection_of_reads_without =readselection(reads,max_coverage, False)
 	readselect_set= set(selection_of_reads)
 	readselect_without_set= set(selection_of_reads_without)
 	print('Difference in Reads')
