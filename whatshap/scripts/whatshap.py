@@ -285,6 +285,7 @@ def slice_reads(reads, max_coverage):
 					slices.append(IndexSet())
 					slice_coverages.append(CoverageMonitor(len(position_list)))
 	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
+	informative_reads = len(reads) - skipped_reads
 
 	unphasable_snps = len(position_list) - len(accessible_positions)
 	if position_list:
@@ -294,8 +295,8 @@ def slice_reads(reads, max_coverage):
 			100. * unphasable_snps / len(position_list))
 
 	if reads:
-		logger.info('After coverage reduction: Using %d of %d (%.1f%%) reads',
-			len(slices[0]), len(reads), 100. * len(slices[0]) / len(reads))
+		logger.info('After coverage reduction: Using %d of %d (%.1f%%) reads that cover two or more SNPs',
+			len(slices[0]), informative_reads, (100. * len(slices[0]) / informative_reads if informative_reads > 0 else float('nan')) )
 
 	return reads.subset(slices[0])
 
