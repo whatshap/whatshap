@@ -433,7 +433,7 @@ def run_whatshap(bam, vcf,
 			# ... and do the backtrace to get the solution
 			superreads = dp_table.get_super_reads()
 
-                        # output the MEC score of phasing
+			# output the MEC score of phasing
 			logger.info('MEC score of phasing: %d', mec_score)
 
 			n_homozygous = sum(1 for v1, v2 in zip(*superreads)
