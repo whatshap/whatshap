@@ -278,6 +278,9 @@ unsigned int DPTable::get_optimal_score() {
 auto_ptr<vector<unsigned int> > DPTable::get_index_path() {
 
   auto_ptr<vector<unsigned int> > index_path = auto_ptr<vector<unsigned int> >(new vector<unsigned int>(indexers.size()));
+  if (indexers.size() == 0) {
+    return index_path;
+  }
   unsigned int index = optimal_score_index;
   index_path->at(indexers.size()-1) = index;
   for(size_t i = indexers.size()-1; i > 0; --i) { // backtrack through table
