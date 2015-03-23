@@ -1,7 +1,6 @@
-import textwrap
 from nose.tools import raises
-from collections import defaultdict
 from whatshap.core import Read, DPTable, ReadSet, Variant
+from phasingutils import string_to_readset, brute_force_phase
 
 
 def test_read():
@@ -116,111 +115,6 @@ def test_phase_empty_readset():
 	rs = ReadSet()
 	dp_table = DPTable(rs, all_heterozygous=False)
 	superreads = dp_table.get_super_reads()
-
-
-def string_to_readset(s, w = None):
-	s = textwrap.dedent(s).strip()
-	if w is not None:
-		w = textwrap.dedent(w).strip().split('\n')
-	bits = { '0': 'A', '1': 'C', 'E': 'G' }
-	rs = ReadSet()
-	for index, line in enumerate(s.split('\n')):
-		read = Read('Read {}'.format(index+1), 50)
-		for pos, c in enumerate(line):
-			if c == ' ':
-				continue
-			q = 1
-			if w is not None:
-				q = int(w[index][pos])
-			read.add_variant(position=(pos+1) * 10, base=bits[c], allele=int(c), quality=q)
-		rs.add(read)
-	print(rs)
-	return rs
-
-
-def flip_cost(variant, target_value):
-	"""Returns cost of flipping the given read variant to target_value."""
-	if variant.allele == target_value:
-		return 0
-	else:
-		return variant.quality
-
-
-def is_ambiguous(assignments):
-	sets = [set(), set()]
-	for assignment in assignments:
-		for s, allele in zip(sets, assignment):
-			s.add(allele)
-	return [len(s) > 1 for s in sets]
-
-
-def column_cost(variants, possible_assignments):
-	"""Compute cost for one position and return the minimum cost assignment. 
-	Returns ('X','X') if minimum is not unique (i.e. a "tie")."""
-	costs = []
-	for allele1, allele2 in possible_assignments:
-		cost1 = sum(flip_cost(v,allele1) for v in variants[0])
-		cost2 = sum(flip_cost(v,allele2) for v in variants[1])
-		costs.append(cost1 + cost2)
-	l = [(cost,i) for i, cost in enumerate(costs)]
-	l.sort()
-	min_cost = l[0][0]
-	best_assignment = list(possible_assignments[l[0][1]])
-	# check for ties
-	counts = defaultdict(int)
-	for cost, index in l:
-		counts[cost] += 1
-	ties = counts[min_cost]
-	ambiguous = is_ambiguous([possible_assignments[i] for cost,i in l[:ties]])
-	for i in range(2):
-		if ambiguous[i]:
-			best_assignment[i] = 3
-	return min_cost, best_assignment
-
-
-def brute_force_phase(read_set, all_heterozygous):
-	"""Solves MEC by enumerating all possible bipartitions."""
-	assert len(read_set) < 10, "Too many reads for brute force"
-	positions = read_set.get_positions()
-	if all_heterozygous:
-		possible_assignments = [(0,1), (1,0)]
-	else:
-		possible_assignments = [(0,0), (0,1), (1,0), (1,1)]
-	# bit i in "partition" encodes to which set read i belongs
-	best_partition = None
-	best_cost = None
-	best_haplotypes = None
-	solution_count = 0
-	for partition in range(2**len(read_set)):
-		print('Looking at partition {{:0>{}b}}'.format(len(read_set)).format(partition))
-		# compute cost induced by that partition
-		cost = 0
-		haplotypes = []
-		for p in positions:
-			# find variants covering this position
-			variants = [[],[]]
-			for n, read in enumerate(read_set):
-				i = (partition >> n) & 1
-				for variant in read:
-					if variant.position == p:
-						variants[i].append(variant)
-			c, assignment = column_cost(variants, possible_assignments)
-			print('    position: {}, variants: {} --> cost = {}'.format(p, str(variants), c))
-			cost += c
-			haplotypes.append(assignment)
-		print('  --> cost for this partitioning:', cost)
-		if (best_cost is None) or (cost < best_cost):
-			best_partition = partition
-			best_cost = cost
-			best_haplotypes = haplotypes
-			solution_count = 1
-		elif cost == best_cost:
-			solution_count += 1
-	# Each partition has its inverse with the same cost
-	assert solution_count % 2 == 0
-	haplotype1 = ''.join([str(allele1) for allele1, allele2 in best_haplotypes])
-	haplotype2 = ''.join([str(allele2) for allele1, allele2 in best_haplotypes])
-	return best_cost, [(best_partition>>x) & 1 for x in range(len(read_set))], solution_count//2, haplotype1, haplotype2
 
 
 def compare_phasing(reads, all_heterozygous, weights = None):
