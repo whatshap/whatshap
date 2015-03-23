@@ -1,6 +1,6 @@
-import textwrap
 from nose.tools import raises
 from whatshap.core import Read, DPTable, ReadSet, Variant
+from phasingutils import string_to_readset, brute_force_phase
 
 
 def test_read():
@@ -117,106 +117,37 @@ def test_phase_empty_readset():
 	superreads = dp_table.get_super_reads()
 
 
-def string_to_readset(s):
-	s = textwrap.dedent(s).strip()
-	bits = { '0': 'A', '1': 'C', 'E': 'G' }
-	rs = ReadSet()
-	for index, line in enumerate(s.split('\n'), 1):
-		read = Read('Read {}'.format(index), 50)
-		for pos, c in enumerate(line, 1):
-			if c == ' ':
-				continue
-			read.add_variant(position=pos * 10, base=bits[c], allele=int(c), quality=1)
-		rs.add(read)
-	print(rs)
-	return rs
-
-
-def flip_cost(variant, target_value):
-	"""Returns cost of flipping the given read variant to target_value."""
-	if variant.allele == target_value:
-		return 0
-	else:
-		return variant.quality
-
-
-def column_cost(variants, possible_assignments):
-	"""Compute cost for one position."""
-	costs = []
-	for allele1, allele2 in possible_assignments:
-		cost1 = sum(flip_cost(v,allele1) for v in variants[0])
-		cost2 = sum(flip_cost(v,allele2) for v in variants[1])
-		costs.append(cost1 + cost2)
-	return min(costs)
-
-
-def brute_force_phase(read_set, all_heterozygous):
-	"""Solves MEC by enumerating all possible bipartitions."""
-	assert len(read_set) < 10, "Too many reads for brute force"
-	positions = read_set.get_positions()
-	if all_heterozygous:
-		possible_assignments = [(0,1), (1,0)]
-	else:
-		possible_assignments = [(0,0), (0,1), (1,0), (1,1)]
-	# bit i in "partition" encodes to which set read i belongs
-	best_partition = None
-	best_cost = None
-	solution_count = 0
-	for partition in range(2**len(read_set)):
-		print('Looking at partition {{:0>{}b}}'.format(len(read_set)).format(partition))
-		# compute cost induced by that partition
-		cost = 0
-		for p in positions:
-			# find variants covering this position
-			variants = [[],[]]
-			for n, read in enumerate(read_set):
-				i = (partition >> n) & 1
-				for variant in read:
-					if variant.position == p:
-						variants[i].append(variant)
-			c = column_cost(variants, possible_assignments)
-			print('    position: {}, variants: {} --> cost = {}'.format(p, str(variants), c))
-			cost += c
-		print('  --> cost for this partitioning:', cost)
-		if (best_cost is None) or (cost < best_cost):
-			best_partition = partition
-			best_cost = cost
-			solution_count = 1
-		elif cost == best_cost:
-			solution_count += 1
-	# Each partition has its inverse with the same cost
-	assert solution_count % 2 == 0
-	return best_cost, [(best_partition>>x) & 1 for x in range(len(read_set))], solution_count//2
-
-
-def compare_phasing(reads, all_heterozygous):
+def compare_phasing(reads, all_heterozygous, weights = None):
 	"""Compares DPTable based phasing to brute force phasing and returns string representation of superreads."""
-	rs = string_to_readset(reads)
+	rs = string_to_readset(reads, weights)
 	dp_table = DPTable(rs, all_heterozygous)
 	superreads = dp_table.get_super_reads()
 	assert len(superreads) == 2
 	assert len(superreads[0]) == len(superreads[1])
 	for v1, v2 in zip(*superreads):
 		assert v1.position == v2.position
-	result = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
+	haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
 	cost = dp_table.get_optimal_cost()
 	partition = dp_table.get_optimal_partitioning()
-	expected_cost, expected_partition, solution_count = brute_force_phase(rs, all_heterozygous)
+	expected_cost, expected_partition, solution_count, expected_haplotype1, expected_haplotype2 = brute_force_phase(rs, all_heterozygous)
 	inverse_partition = [1-p for p in partition]
 	print()
 	print(superreads[0])
 	print(superreads[1])
 	print('Partition:', partition)
 	print('Expected: ', expected_partition)
-	print('Result:')
-	print(result[0])
-	print(result[1])
+	print('Haplotypes:')
+	print(haplotypes[0])
+	print(haplotypes[1])
+	print('Expected Haplotypes:')
+	print(expected_haplotype1)
+	print(expected_haplotype2)
 	print('Cost:', cost)
+	print('Expected cost:', expected_cost)
 	assert (partition == expected_partition) or (inverse_partition == expected_partition)
 	assert solution_count == 1
 	assert cost == expected_cost
-	# TODO: compute expected haplotypes based on expected_partition and compare to superreads
-	return result
+	assert (haplotypes == (expected_haplotype1, expected_haplotype2)) or (haplotypes == (expected_haplotype2, expected_haplotype1))
 
 
 def test_phase1():
@@ -225,8 +156,8 @@ def test_phase1():
 	 010
 	 010
 	"""
-	s1, s2 = compare_phasing(reads, True)
-	assert s1 == '010' and s2 == '101'
+	compare_phasing(reads, True)
+	compare_phasing(reads, False)
 
 
 def test_phase2():
@@ -235,8 +166,8 @@ def test_phase2():
 	  00 00101
 	  001 0101
 	"""
-	s1, s2 = compare_phasing(reads, True)
-	assert s1 == '00100101' and s2 == '11011010'
+	compare_phasing(reads, True)
+	compare_phasing(reads, False)
 
 
 def test_phase3():
@@ -245,8 +176,8 @@ def test_phase3():
 	  00 00101
 	  001 01010
 	"""
-	s1, s2 = compare_phasing(reads, True)
-	assert s1 == '001001010' and s2 == '110110101'
+	compare_phasing(reads, True)
+	compare_phasing(reads, False)
 
 
 def test_phase4():
@@ -256,10 +187,47 @@ def test_phase4():
 	  001 01110
 	   1    111
 	"""
-	s1, s2 = compare_phasing(reads, True)
+	compare_phasing(reads, True)
+	compare_phasing(reads, False)
 
-#TODO: test cases for weighted version (all base qualities are set to 1 right now)
 
-#TODO: test cases to test "ties" (equals scores)
+def test_phase4():
+	reads = """
+	  1  11010
+	  00 00101
+	  001 01110
+	   1    111
+	"""
+	compare_phasing(reads, True)
+	compare_phasing(reads, False)
 
-#TODO: test cases for all_heterozygous off
+
+def test_phase5():
+	reads = """
+	  0             0
+	  110111111111
+	  00100
+	       0001000000
+	       000
+	        10100
+	              101
+	"""
+	compare_phasing(reads, True)
+	compare_phasing(reads, False)
+
+
+def test_weighted_phasing1():
+	reads = """
+	  1  11010
+	  00 00101
+	  001 01110
+	   1    111
+	"""
+	weights = """
+	  2  13112
+	  11 23359
+	  223 56789
+	   2    111
+	"""
+	compare_phasing(reads, True, weights)
+	compare_phasing(reads, False, weights)

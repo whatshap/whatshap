@@ -234,19 +234,12 @@ class ReadSetReader:
 
 def slice_reads(reads, max_coverage):
 	""" Iterate over all reads and by assigning the reads a score depending on its utility a selection of reads
-	is returend which ensures that the physical coverage does not exceed the given may_coverage.
-	"""
-
-	"""
-	Iterate over all read in random order and greedily retain those reads whose
-	addition does not lead to a local physical coverage exceeding the given threshold.
+	is returend which ensures that the physical coverage does not exceed the given max_coverage.
 	Return a ReadSet containing the retained reads.
 
 	max_coverage -- Slicing ensures that the (physical) coverage does not exceed max_coverage anywhere along the chromosome.
 	reads -- a ReadSet
 	"""
-
-
 	selection_of_reads, with_comp =readselection(reads,max_coverage )
 	select = [IndexSet()]
 	for i in selection_of_reads:
@@ -284,6 +277,19 @@ def slice_reads(reads, max_coverage):
 	#print('Differences in the components first with and without than without and with ')
 	#print(vals_with-vals_without)
 	#print(vals_without-vals_with)
+	
+	# TODO: Adapt/reactivate the following code for a richer output
+	#logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
+	#informative_reads = len(reads) - skipped_reads
+	#unphasable_snps = len(position_list) - len(accessible_positions)
+	#if position_list:
+		#logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
+			#'connecting them to another variant and are thus unphasable',
+			#unphasable_snps, len(position_list),
+			#100. * unphasable_snps / len(position_list))
+	#if reads:
+		#logger.info('After coverage reduction: Using %d of %d (%.1f%%) reads that cover two or more SNPs',
+			#len(slices[0]), informative_reads, (100. * len(slices[0]) / informative_reads if informative_reads > 0 else float('nan')) )
 
 	return read_selection
 
@@ -324,7 +330,7 @@ def best_case_blocks(reads):
 	Given a list of core reads, determine the number of phased blocks that
 	would result if each variant were actually phased.
 
-	Return the number of connected components.
+	Return the number of connected components and non-singleton components.
 	"""
 	positions = set()
 	for read in reads:
@@ -335,9 +341,12 @@ def best_case_blocks(reads):
 		read_positions = [ variant.position for variant in read ]
 		for position in read_positions[1:]:
 			component_finder.merge(read_positions[0], position)
-	# A dict that maps each position to the component it is in.
-	components = { component_finder.find(position) for position in positions }
-	return len(components)
+	# A dict that maps each component to the number of SNPs it contains
+	component_sizes = defaultdict(int)
+	for position in positions:
+		component_sizes[component_finder.find(position)] += 1
+	non_singletons = [ component for component, size in component_sizes.items() if size > 1]
+	return len(component_sizes), len(non_singletons)
 
 
 def ensure_pysam_version():
@@ -372,7 +381,9 @@ def run_whatshap(bam, vcf,
 	stats.n_homozygous = 0
 	stats.n_phased_blocks = 0
 	stats.n_best_case_blocks = 0
+	stats.n_best_case_nonsingleton_blocks = 0
 	stats.n_best_case_blocks_cov = 0
+	stats.n_best_case_nonsingleton_blocks_cov = 0
 	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
 		try:
@@ -406,18 +417,27 @@ def run_whatshap(bam, vcf,
 			reads.sort()
 
 			sliced_reads = slice_reads(reads, max_coverage)
-			n_best_case_blocks = best_case_blocks(reads)
-			n_best_case_blocks_cov = best_case_blocks(sliced_reads)
+			n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(reads)
+			n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(sliced_reads)
 			stats.n_best_case_blocks += n_best_case_blocks
+			stats.n_best_case_nonsingleton_blocks += n_best_case_nonsingleton_blocks
 			stats.n_best_case_blocks_cov += n_best_case_blocks_cov
-			logger.info('Best-case phasing would result in %d phased blocks (%d with coverage reduction)',
-				n_best_case_blocks, n_best_case_blocks_cov)
+			stats.n_best_case_nonsingleton_blocks_cov += n_best_case_nonsingleton_blocks_cov
+			logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
+				n_best_case_nonsingleton_blocks, n_best_case_blocks)
+			logger.info('... after coverage reduction: %d non-singleton phased blocks (%d in total)',
+				n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
 			logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 
 			# Run the core algorithm: construct DP table ...
 			dp_table = DPTable(sliced_reads, all_heterozygous)
+			# get the mec score
+			mec_score = dp_table.get_optimal_cost()
 			# ... and do the backtrace to get the solution
 			superreads = dp_table.get_super_reads()
+
+			# output the MEC score of phasing
+			logger.info('MEC score of phasing: %d', mec_score)
 
 			n_homozygous = sum(1 for v1, v2 in zip(*superreads)
 				if v1.allele == v2.allele and v1.allele in (0, 1))
@@ -435,9 +455,10 @@ def run_whatshap(bam, vcf,
 			logger.info('Chromosome %s finished', chromosome)
 
 	logger.info('== SUMMARY ==')
-	logger.info('Best-case phasing would result in %d phased blocks (%d with coverage reduction)',
-				stats.n_best_case_blocks, stats.n_best_case_blocks_cov)
-	logger.info('Actual number of phased blocks: %d', stats.n_phased_blocks)
+	logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
+		stats.n_best_case_nonsingleton_blocks, stats.n_best_case_blocks)
+	logger.info('... after coverage reduction: %d non-singleton phased blocks (%d in total)',
+		stats.n_best_case_nonsingleton_blocks_cov, stats.n_best_case_blocks_cov)
 	if all_heterozygous:
 		assert stats.n_homozygous == 0
 	else:

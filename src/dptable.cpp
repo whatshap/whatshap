@@ -83,8 +83,13 @@ void DPTable::compute_table() {
     }
     backtrace_table.resize(0);
   }
-  
-  if (!column_iterator.has_next()) return;
+
+  // empty read-set, nothing to phase, so MEC score is 0
+  if (!column_iterator.has_next()) {
+    optimal_score = 0;
+    optimal_score_index = 0;
+    return;
+  }  
   
   unsigned int n = 0;
   auto_ptr<vector<const Entry *> > current_column(0);
@@ -266,13 +271,16 @@ void DPTable::compute_table() {
 }
 
 unsigned int DPTable::get_optimal_score() {
-  if (backtrace_table.empty()) throw runtime_error("Empty backtrace table");
+  //if (backtrace_table.empty()) throw runtime_error("Empty backtrace table");
   return optimal_score;
 }
 
 auto_ptr<vector<unsigned int> > DPTable::get_index_path() {
 
   auto_ptr<vector<unsigned int> > index_path = auto_ptr<vector<unsigned int> >(new vector<unsigned int>(indexers.size()));
+  if (indexers.size() == 0) {
+    return index_path;
+  }
   unsigned int index = optimal_score_index;
   index_path->at(indexers.size()-1) = index;
   for(size_t i = indexers.size()-1; i > 0; --i) { // backtrack through table
