@@ -231,9 +231,11 @@ class ReadSetReader:
 		self._reader.close()
 
 
-# TODO: this function should be in readselect.py
-def slice_reads(reads, max_coverage):
 
+def slice_reads(reads, max_coverage):
+	""" Iterate over all reads and by assigning the reads a score depending on its utility a selection of reads
+	is returend which ensures that the physical coverage does not exceed the given may_coverage.
+	"""
 
 	"""
 	Iterate over all read in random order and greedily retain those reads whose
@@ -245,123 +247,43 @@ def slice_reads(reads, max_coverage):
 	"""
 
 
-	selection_of_reads =readselection(reads,max_coverage )
+	selection_of_reads, with_comp =readselection(reads,max_coverage )
 	select = [IndexSet()]
 	for i in selection_of_reads:
 		select[0].add(i)
 	read_selection=reads.subset(select[0])
 
-	#print('read_selection')
-	#print(read_selection)
 
-	selection_of_reads_without =readselection(reads,max_coverage, False)
+	selection_of_reads_without, without_comp =readselection(reads,max_coverage, False)
 	readselect_set= set(selection_of_reads)
 	readselect_without_set= set(selection_of_reads_without)
-	print('Difference in Reads')
-	print(readselect_set-readselect_without_set)
-	print(readselect_without_set-readselect_set)
 
-	#print('Com_ keys')
-	#print(com_keys)
-	#Set of components
-	#original_com_keys= set(com_keys)
-	#print(original_com_keys)
-	#without_com_keys = set(com_keys_withou)
-	#print(without_com_keys)
+	vals_with= set(with_comp.values())
+	vals_without = set(without_comp.values())
 
-	#original_com_vals= set(com_vals)
-	#without_com_vals = set(com_vals_without)
-	#print(original_com_vals)
-	#print(without_com_vals)
+	#print('Difference in Reads 1 ')
+	#print(readselect_set-readselect_without_set)
+	#print('Difference in Reads 2 ')
+	#print(readselect_without_set-readselect_set)
+	#print('Length of readselection with bridging')
+	#print(len(readselect_set))
+	#print('Length of readselection without bridging')
+	#print(len(readselect_without_set))
 
+	#print('Com_ keys with bridging')
+	#print(with_comp.keys())
+	#print('Com_ keys without bridging')
+	#print(without_comp.keys())
+	#print('Com_ vals with bridging')
 
-	#print('First the keys, than the vals')
-	#print(original_com_keys-without_com_keys)
-	#print(without_com_keys-original_com_keys)
-	#print(original_com_vals-without_com_vals)
-	#print(without_com_vals-original_com_vals)
+	#print(len(set(with_comp.values())))
+	#print('Com_ vals without bridging')
 
+	#print(len(set(without_comp.values())))
 
-	#print('Selection of REads ')
-	#print(selection_of_reads)
-	#print(len(selection_of_reads))
-#
-	'''
-	#Same as below but renamed from position list to vcf_variant_list
-	vcf_variant_list= reads.get_positions()
-
-
-	readselect= Bestreads(reads,vcf_variant_list)
-	pq=PriorityQueue()
-	(pq,SNPdictionary)=readselect.priorityqueue_construction(pq)
-
-	selectedreads= readselect.read_selection(pq,SNPdictionary,max_coverage)
-
-	readset=[IndexSet()]
-
-	for i in range(0,len(selectedreads)):
-		readset[0].add (selectedreads[i])
-	selecte_readset=reads.subset(readset[0])
-	'''
-
-
-	#former approach
-
-	'''
-	shuffled_indices = list(range(len(reads)))
-	random.shuffle(shuffled_indices)
-
-	position_list = reads.get_positions()
-	logger.info('Found %d SNP positions', len(position_list))
-
-	# dictionary to map SNP position to its index
-	position_to_index = { position: index for index, position in enumerate(position_list) }
-
-	# List of slices, start with one empty slice ...
-	slices = [IndexSet()]
-	# ... and the corresponding coverages along each slice
-	slice_coverages = [CovMonitor(len(position_list))]
-	skipped_reads = 0
-	accessible_positions = set()
-	for index in shuffled_indices:
-		read = reads[index]
-		# Skip reads that cover only one SNP
-		if len(read) < 2:
-			skipped_reads += 1
-			continue
-
-		for variant in read:
-			accessible_positions.add(variant.position)
-		begin = position_to_index[read[0].position]
-		end = position_to_index[read[-1].position] + 1
-		slice_id = 0
-		while True:
-			# Does current read fit into this slice?
-			if slice_coverages[slice_id].max_coverage_in_range(begin, end) < max_coverage:
-				slice_coverages[slice_id].add_read(begin, end)
-				slices[slice_id].add(index)
-				break
-			else:
-				slice_id += 1
-				# do we have to create a new slice?
-				if slice_id == len(slices):
-					slices.append(IndexSet())
-					slice_coverages.append(CovMonitor(len(position_list)))
-	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
-
-	unphasable_snps = len(position_list) - len(accessible_positions)
-	if position_list:
-		logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
-			'connecting them to another variant and are thus unphasable',
-			unphasable_snps, len(position_list),
-			100. * unphasable_snps / len(position_list))
-
-	if reads:
-		logger.info('After coverage reduction: Using %d of %d (%.1f%%) reads',
-			len(slices[0]), len(reads), 100. * len(slices[0]) / len(reads))
-
-	return reads.subset(slices[0])
-	'''
+	#print('Differences in the components first with and without than without and with ')
+	#print(vals_with-vals_without)
+	#print(vals_without-vals_with)
 
 	return read_selection
 

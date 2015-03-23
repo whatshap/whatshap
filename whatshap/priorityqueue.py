@@ -156,12 +156,8 @@ class PriorityQueue:
 		'''Length of  Priority Queue is equal to the length of the stored heap'''
 		return len(self.heap)
 
-#TODO does not work, because if called in the readselect.py  we don't get a boolean instead we get an object of the following type
-	# <bound method PriorityQueue.is_empty of <whatshap.priorityqueue.PriorityQueue object at 0xb6610eec>>
-
 	def is_empty(self):
 		'''Return if actual Priority Queue is Empty'''
-		print('is empty length because does not work correctly')
 		if len(self) == 0:
 			return True
 		else:
