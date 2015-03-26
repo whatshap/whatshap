@@ -133,3 +133,75 @@ def test_is_empty():
 	assert not pq.is_empty()
 	pq.pop()
 	assert pq.is_empty()
+
+
+def test_tuple_score():
+	pq= PriorityQueue()
+	assert pq.is_empty()
+	pq.push((4,0,2),'A')
+	(score,item ) = pq.pop()
+	assert score== (4,0,2)
+	assert item=='A'
+	pq.push((1,0,2),'B')
+	pq.push((2,0,2),'C')
+	pq.push((3,0,2),'D')
+	pq.push((40,0,2),'E')
+	pq.push((0,0,2),'F')
+	pq.push((50,0,2),'G')
+	(score,item )=pq.pop()
+	assert score == (50,0,2)
+	assert item =='G'
+	(score,item )=pq.pop()
+	assert score == (40,0,2)
+	assert item =='E'
+	(score,item )=pq.pop()
+	assert score == (3,0,2)
+	assert item =='D'
+	(score,item )=pq.pop()
+	assert score == (2,0,2)
+	assert item =='C'
+	pq.pop()
+	pq.pop()
+	assert pq.is_empty()
+
+def test_tuple_score_sorting():
+	pq= PriorityQueue()
+	pq.push((10,0,0),'B')
+	pq.push((10,2,6),'C')
+	pq.push((10,3,2),'D')
+	pq.push((10,4,3),'E')
+	pq.push((10,2,2),'F')
+	pq.push((10,0,2),'G')
+	(score,item ) = pq.pop()
+	assert score== (10,4,3)
+	assert item=='E'
+	(score,item ) = pq.pop()
+	assert score== (10,3,2)
+	assert item=='D'
+	(score,item ) = pq.pop()
+	assert score== (10,2,6)
+	assert item=='C'
+	(score,item ) = pq.pop()
+	assert score== (10,2,2)
+	assert item=='F'
+	(score,item ) = pq.pop()
+	assert score== (10,0,2)
+	assert item=='G'
+	pq.push((1,10,4),'X')
+	pq.push((5,0,6),'Y')
+	pq.push((1,8,2),'Z')
+	pq.change_score('Y',(100,100,100))
+	pq.change_score('Z',(0,0,0))
+	(score,item ) = pq.pop()
+	assert score== (100,100,100)
+	assert item=='Y'
+	(score,item ) = pq.pop()
+	assert score== (10,0,0)
+	assert item=='B'
+	(score,item ) = pq.pop()
+	assert score== (1,10,4)
+	assert item=='X'
+	(score,item ) = pq.pop()
+	assert score== (0,0,0)
+	assert item=='Z'
+	assert pq.is_empty()
