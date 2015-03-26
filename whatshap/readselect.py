@@ -92,7 +92,7 @@ def slice_read_selection(pq,coverages,max_cov,readset,vcf_indices,SNP_read_map):
 				break
 		#only if at least one position is not covered then we could add the read if he does not break the max coverage
 		begin=vcf_indices.get(extracted_read[0].position)
-		end= vcf_indices.get(extracted_read[len(extracted_read)-1].position)
+		end= vcf_indices.get(extracted_read[len(extracted_read)-1].position) +1
 		if coverages.max_coverage_in_range(begin,end) >= max_cov:
 			reads_violating_coverage.add(max_item)
 		elif covers_new_snp:
@@ -168,7 +168,7 @@ def analyse_bridging_reads(bridging_reads, readset, selected_reads,component_fin
 					found_bridge.add(pos.position)
 					selction.append(index)
 					begin=vcf_indices.get(read[0].position)
-					end=vcf_indices.get(read[len(read)-1].position)
+					end=vcf_indices.get(read[len(read)-1].position)+1
 					if pos.position in vcf_indices.keys():
 						read_positions.append(pos.position)
 					if Cov_Monitor.max_coverage_in_range(begin, end ) < max_cov:
@@ -239,7 +239,7 @@ def readselection(readset, max_cov, bridging = True):
 
 				#Coverage Monitor
 				begin=vcf_indices.get(read[0].position)
-				end=vcf_indices.get(read[len(read)-1].position)
+				end=vcf_indices.get(read[len(read)-1].position)+1
 				print('For REad 0 print the coverage')
 				print(coverages.max_coverage_in_range(begin, end ))
 				if coverages.max_coverage_in_range(begin, end ) >= max_cov:

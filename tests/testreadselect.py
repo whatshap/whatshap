@@ -53,7 +53,7 @@ def test_components_of_readselection():
 	""")
 	selected_reads, new_components = readselection(reads, max_cov = 2, bridging= False)
 	assert selected_reads == set([0,1,2,3])
-	assert len(new_components.values()) == 2
+	assert len(set(new_components.values())) == 2
 	selected_reads, new_components = readselection(reads, max_cov = 2, bridging= True)
 	assert selected_reads == set([0,1,6])
-	assert len(new_components.values()) == 1
+	assert len(set(new_components.values())) == 1
