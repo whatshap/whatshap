@@ -240,14 +240,21 @@ def slice_reads(reads, max_coverage):
 	max_coverage -- Slicing ensures that the (physical) coverage does not exceed max_coverage anywhere along the chromosome.
 	reads -- a ReadSet
 	"""
-	selection_of_reads, with_comp =readselection(reads,max_coverage )
+	selection_of_reads, with_comp , statistic_with =readselection(reads,max_coverage )
+
+	#showing stats
+	(skipped_reads)=statistic_with
 	select = [IndexSet()]
 	for i in selection_of_reads:
 		select[0].add(i)
 	read_selection=reads.subset(select[0])
 
+	#TODO maybe statistic also with and without bridging ...
 
-	selection_of_reads_without, without_comp =readselection(reads,max_coverage, False)
+
+
+
+	selection_of_reads_without, without_comp ,statistic_without=readselection(reads,max_coverage, False)
 	readselect_set= set(selection_of_reads)
 	readselect_without_set= set(selection_of_reads_without)
 
@@ -271,15 +278,25 @@ def slice_reads(reads, max_coverage):
 
 	#print(len(set(with_comp.values())))
 	#print('Com_ vals without bridging')
-
 	#print(len(set(without_comp.values())))
 
-	#print('Differences in the components first with and without than without and with ')
-	#print(vals_with-vals_without)
-	#print(vals_without-vals_with)
-	
+	if len(set(without_comp.values())) != len(set(with_comp.values())):
+		print('Differences in the components first with and without than without and with ')
+		print(vals_with-vals_without)
+		print(vals_without-vals_with)
+	logger.info('Found %d components with bridging and %d components without bridging',len(set(with_comp.values())), len(set(without_comp.values())))
+
+
+
+
 	# TODO: Adapt/reactivate the following code for a richer output
-	#logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
+	position_list = reads.get_positions()
+	logger.info('Found %d variant positions', len(position_list))
+	variants_not_covered= len(position_list)-len(read_selection.get_positions())
+	logger.info('%d out of %d variant positions do not have a read',variants_not_covered,len(position_list) )
+	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
+
+
 	#informative_reads = len(reads) - skipped_reads
 	#unphasable_snps = len(position_list) - len(accessible_positions)
 	#if position_list:

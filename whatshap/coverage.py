@@ -7,8 +7,6 @@ class CovMonitor:
 
 	def __init__(self, length):
 		self.coverage = [0] * length
-		print('INIT COVERAGE')
-		print(self.coverage)
 
 	def max_coverage_in_range(self, begin, end):
 		return max(self.coverage[begin:end])
