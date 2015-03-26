@@ -96,12 +96,6 @@ def slice_read_selection(pq,coverages,max_cov,readset,vcf_indices,SNP_read_map):
 		if coverages.max_coverage_in_range(begin,end) >= max_cov:
 			reads_violating_coverage.add(max_item)
 		elif covers_new_snp:
-			print('Added read item and coverage')
-			print(max_item)
-			print('Begin and end ')
-			print(begin)
-			print(end)
-			print(coverages.max_coverage_in_range(begin,end))
 			coverages.add_read(begin,end)
 			reads_in_slice.add(max_item)
 
@@ -122,8 +116,6 @@ def slice_read_selection(pq,coverages,max_cov,readset,vcf_indices,SNP_read_map):
 					oldscore=pq.get_score_by_item(element)
 					if oldscore != None:
 						pq.change_score(element,oldscore-1)
-		print('In while loop covered SNPs')
-		print(already_covered_SNPs)
 	return reads_in_slice, reads_violating_coverage
 
 #Not Needed
@@ -192,7 +184,6 @@ def analyse_bridging_reads(bridging_reads, readset, selected_reads,component_fin
 
 
 def readselection(readset, max_cov, bridging = True):
-	print('STARTING OF READSELECTION')
 	'''Return the selected readindices which do not violate the maximal coverage, and additionally usage of a boolean for deciding if
 	 the bridging is needed or not.'''
 
@@ -212,9 +203,7 @@ def readselection(readset, max_cov, bridging = True):
 
 	while len(undecided_reads) > 0:
 		pq = __pq_construction_out_of_given_reads(readset, undecided_reads, vcf_indices)
-		print('Now in sliced_Reads')
 		reads_in_slice, reads_violating_coverage = slice_read_selection(pq,coverages,max_cov,readset,vcf_indices,SNP_read_map)
-		print('End of slice reads')
 		selected_reads.update(reads_in_slice)
 		undecided_reads -= reads_in_slice
 		undecided_reads -= reads_violating_coverage
@@ -228,8 +217,6 @@ def readselection(readset, max_cov, bridging = True):
 
 		if bridging:
 			pq = __pq_construction_out_of_given_reads(readset, undecided_reads, vcf_indices)
-			print('PQ is not empty')
-			print(pq.is_empty())
 			while not pq.is_empty():
 				score, read_index = pq.pop()
 				read = readset[read_index]
@@ -240,8 +227,6 @@ def readselection(readset, max_cov, bridging = True):
 				#Coverage Monitor
 				begin=vcf_indices.get(read[0].position)
 				end=vcf_indices.get(read[len(read)-1].position)+1
-				print('For REad 0 print the coverage')
-				print(coverages.max_coverage_in_range(begin, end ))
 				if coverages.max_coverage_in_range(begin, end ) >= max_cov:
 					undecided_reads.remove(read_index)
 					continue
@@ -250,17 +235,8 @@ def readselection(readset, max_cov, bridging = True):
 				if len(covered_blocks) < 2:
 					continue
 				selected_reads.add(read_index)
-				print('Added read to bridging')
-				print(read_index)
-				print('Coverage before bridged read inserted')
-				print(coverages.max_coverage_in_range(begin, end ))
 
 				coverages.add_read(begin,end)
-				print('Begin and end ')
-				print(begin)
-				print(end)
-				print('Coverage after bridged read inserted')
-				print(coverages.max_coverage_in_range(begin, end ))
 
 				undecided_reads.remove(read_index)
 				#Update Component_finder
