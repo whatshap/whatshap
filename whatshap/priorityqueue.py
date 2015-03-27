@@ -15,7 +15,7 @@ class PriorityQueue:
 		'''Add item with given score to the heap.'''
 		# Item stored with score in a tupel where the score is always the first position..
 		newindex = len(self.heap)
-		self.heap.insert(newindex, (score, item))
+		self.heap.append((score, item))
 		self.positions[item] = newindex
 		self._sift_up(newindex)
 
@@ -88,15 +88,15 @@ class PriorityQueue:
 			#remember last element, max element and their  items
 			last_element=self.heap[len(self.heap)-1]
 
-			item_latest=self._get_item(len(self.heap)-1)
-			item_max=self._get_item(0)
+			score_list, item_last = self.heap[-1]
 
-			max_element =self.heap.pop(0)
+			max_element = self.heap[0]
+			score_max, item_max = max_element
+			
+			self.heap[0] = self.heap[-1]
+			self.heap.pop()
 
-			self.heap.pop(len(self.heap)-1)
-			self.heap.insert(0,last_element)
-
-			self.positions[item_latest]= 0
+			self.positions[item_last]= 0
 			self.positions.pop(item_max)
 
 			self._sift_down(0)
@@ -112,11 +112,10 @@ class PriorityQueue:
 
 	def change_score(self, item, new_score):
 		'''Changes the score of the given item to the new assigned score.'''
-		position=self.positions[item]
-		old_score= self.get_score_by_item(item)
-		self.heap.pop(position)
+		position = self.positions[item]
 
-		self.heap.insert(position,(new_score,item))
+		old_score, item = self.heap[position]
+		self.heap[position] = (new_score, item)
 
 		# Differentiate between increasing and decreasing score
 		if old_score<new_score:
