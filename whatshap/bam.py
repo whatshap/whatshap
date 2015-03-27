@@ -2,6 +2,7 @@ import os
 import pysam
 import logging
 import heapq
+import gzip
 from collections import defaultdict
 import subprocess
 
@@ -22,6 +23,15 @@ def index_bam(path):
 	sorted). This function tries to always raise a BamIndexingError if something
 	went wrong.
 	"""
+	# unfortunately, some versions of samtools index also fail silently on
+	# corrupt BAM files. Before running it, we check the format manually.
+
+	try:
+		with gzip.GzipFile(path, 'rb') as bamfile:
+			if bamfile.read(4) != b'BAM\1':
+				raise BamIndexingError("{!r} is not a BAM file (header not found)".format(path))
+	except OSError as e:
+		raise BamIndexingError("{!r} is not a BAM file".format(path))
 	po = subprocess.Popen(['samtools', 'index', path],
 		stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 	outs, errs = po.communicate()
