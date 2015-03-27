@@ -285,12 +285,12 @@ def slice_reads(reads, max_coverage):
 
 
 
-	selection_of_reads_without, without_comp ,statistic_without=readselection(reads,max_coverage, False)
-	readselect_set= set(selection_of_reads)
-	readselect_without_set= set(selection_of_reads_without)
+	#selection_of_reads_without, without_comp ,statistic_without=readselection(reads,max_coverage, False)
+	#readselect_set= set(selection_of_reads)
+	#readselect_without_set= set(selection_of_reads_without)
 
-	vals_with= set(with_comp.values())
-	vals_without = set(without_comp.values())
+	#vals_with= set(with_comp.values())
+	#vals_without = set(without_comp.values())
 
 	#print('Difference in Reads 1 ')
 	#print(readselect_set-readselect_without_set)
@@ -311,11 +311,11 @@ def slice_reads(reads, max_coverage):
 	#print('Com_ vals without bridging')
 	#print(len(set(without_comp.values())))
 
-	if len(set(without_comp.values())) != len(set(with_comp.values())):
-		print('Differences in the components first with and without than without and with ')
-		print(vals_with-vals_without)
-		print(vals_without-vals_with)
-	logger.info('Found %d components with bridging and %d components without bridging',len(set(with_comp.values())), len(set(without_comp.values())))
+	#if len(set(without_comp.values())) != len(set(with_comp.values())):
+		#print('Differences in the components first with and without than without and with ')
+		#print(vals_with-vals_without)
+		#print(vals_without-vals_with)
+	#logger.info('Found %d components with bridging and %d components without bridging',len(set(with_comp.values())), len(set(without_comp.values())))
 
 
 
