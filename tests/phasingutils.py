@@ -7,7 +7,6 @@ def string_to_readset(s, w = None):
 	s = textwrap.dedent(s).strip()
 	if w is not None:
 		w = textwrap.dedent(w).strip().split('\n')
-	bits = { '0': 'A', '1': 'C', 'E': 'G' }
 	rs = ReadSet()
 	for index, line in enumerate(s.split('\n')):
 		read = Read('Read {}'.format(index+1), 50)
@@ -17,7 +16,7 @@ def string_to_readset(s, w = None):
 			q = 1
 			if w is not None:
 				q = int(w[index][pos])
-			read.add_variant(position=(pos+1) * 10, base=bits[c], allele=int(c), quality=q)
+			read.add_variant(position=(pos+1) * 10, allele=int(c), quality=q)
 		rs.add(read)
 	print(rs)
 	return rs
@@ -40,7 +39,7 @@ def is_ambiguous(assignments):
 
 
 def column_cost(variants, possible_assignments):
-	"""Compute cost for one position and return the minimum cost assignment. 
+	"""Compute cost for one position and return the minimum cost assignment.
 	Returns ('X','X') if minimum is not unique (i.e. a "tie")."""
 	costs = []
 	for allele1, allele2 in possible_assignments:

@@ -56,10 +56,12 @@ def covered_variants(variants, start, bam_read):
 	start -- index of the first variant (in the variants list) to check
 	"""
 	core_read = Read(bam_read.qname, bam_read.mapq)
-	j = start  # index into variants list
+	i = 0  # index into CIGAR
+	j = start  # index into variants
 	ref_pos = bam_read.pos  # position relative to reference
 	query_pos = 0  # position relative to read
 	errors = 0
+
 	for cigar_op, length in bam_read.cigar:
 		# The mapping of CIGAR operators to numbers is:
 		# MIDNSHPX= => 012345678
@@ -70,28 +72,57 @@ def covered_variants(variants, start, bam_read):
 
 			# Iterate over all variants that are in this region
 			while j < len(variants) and variants[j].position < ref_pos + length:
-				offset = variants[j].position - ref_pos
-				base = bam_read.seq[query_pos + offset]
-				allele = None
-				if base == variants[j].reference_allele:
-					allele = 0
-				elif base == variants[j].alternative_allele:
-					allele = 1
+				if len(variants[j].reference_allele) == len(variants[j].alternative_allele) == 1:
+					# Variant is a SNP
+					offset = variants[j].position - ref_pos
+					base = bam_read.seq[query_pos + offset]
+					allele = None
+					if base == variants[j].reference_allele:
+						allele = 0
+					elif base == variants[j].alternative_allele:
+						allele = 1
+					else:
+						# TODO this variable is unused
+						errors += 1
+					if allele is not None:
+						# TODO
+						# Fix this: we can actually have indel and SNP
+						# calls at identical positions. For now, ignore the
+						# second variant.
+						if variants[j].position in core_read:
+							logger.debug("Found two variants at identical positions. Ignoring the second one: %s", variants[j])
+						else:
+							# Do not use bam_read.qual here as it is extremely slow.
+							# If we ever decide to be compatible with older pysam
+							# versions, cache bam_read.qual somewhere - do not
+							# access it within this loop (3x slower otherwise).
+							core_read.add_variant(variants[j].position, allele, bam_read.query_qualities[query_pos + offset])
+				elif len(variants[j].reference_allele) == 0:
+					assert len(variants[j].alternative_allele) > 0
+					# This variant is an insertion. Since we are in a region of
+					# matches, the insertion was *not* observed (reference allele).
+					qual = 30  #  TODO average qualities of "not inserted" bases?
+					core_read.add_variant(variants[j].position, allele=0, quality=qual)
+				elif len(variants[j].alternative_allele) == 0:
+					assert len(variants[j].reference_allele) > 0
+					# This variant is a deletion.
 				else:
-					# TODO this variable is unused
-					errors += 1
-				if allele is not None:
-					# TODO this assertion should be removed
-					assert variants[j].position not in core_read
-					# Do not use bam_read.qual here as it is extremely slow.
-					# If we ever decide to be compatible with older pysam
-					# versions, cache bam_read.qual somewhere - do not
-					# access it within this loop (3x slower otherwise).
-					core_read.add_variant(variants[j].position, base, allele, bam_read.query_qualities[query_pos + offset])
+					print("strange variant", variants[j])
+					assert False
 				j += 1
 			query_pos += length
 			ref_pos += length
 		elif cigar_op == 1:  # an insertion
+			# Skip variants that come before this region
+			while j < len(variants) and variants[j].position < ref_pos:
+				j += 1
+			if j < len(variants) and variants[j].position == ref_pos and \
+					len(variants[j].reference_allele) == 0 and \
+					variants[j].alternative_allele == bam_read.seq[query_pos:query_pos + length]:
+				qual = 30  # TODO
+				assert variants[j].position not in core_read
+				core_read.add_variant(variants[j].position, allele=1, quality=qual)
+				j += 1
 			query_pos += length
 		elif cigar_op == 2 or cigar_op == 3:  # a deletion or a reference skip
 			ref_pos += length
@@ -182,10 +213,10 @@ class ReadSetReader:
 		i2 = 0
 
 		def add1():
-			result.add_variant(read1[i1].position, read1[i1].base, read1[i1].allele, read1[i1].quality)
+			result.add_variant(read1[i1].position, read1[i1].allele, read1[i1].quality)
 
 		def add2():
-			result.add_variant(read2[i2].position, read2[i2].base, read2[i2].allele, read2[i2].quality)
+			result.add_variant(read2[i2].position, read2[i2].allele, read2[i2].quality)
 
 		while i1 < len(read1) or i2 < len(read2):
 			if i1 == len(read1):
@@ -210,7 +241,7 @@ class ReadSetReader:
 				# If both alleles agree, merge into single variant and add up qualities
 				if read1[i1].allele == read2[i2].allele:
 					quality = read1[i1].quality + read2[i2].quality
-					result.add_variant(read1[i1].position, read1[i1].base, read1[i1].allele, quality)
+					result.add_variant(read1[i1].position, read1[i1].allele, quality)
 				else:
 					# Otherwise, take variant with highest base quality and discard the other.
 					if read1[i1].quality >= read2[i2].quality:
@@ -296,7 +327,6 @@ def slice_reads(reads, max_coverage):
 	logger.info('%d out of %d variant positions do not have a read',variants_not_covered,len(position_list) )
 	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
 
-
 	#informative_reads = len(reads) - skipped_reads
 	#unphasable_snps = len(position_list) - len(accessible_positions)
 	#if position_list:
@@ -374,7 +404,7 @@ def ensure_pysam_version():
 
 
 def run_whatshap(bam, vcf,
-		output=sys.stdout, sample=None, ignore_read_groups=False,
+		output=sys.stdout, sample=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123):
 	"""
 	Run WhatsHap.
@@ -412,7 +442,7 @@ def run_whatshap(bam, vcf,
 			output = stack.enter_context(open(output, 'w'))
 		command_line = ' '.join(sys.argv[1:])
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=vcf, out_file=output)
-		vcf_reader = parse_vcf(vcf, sample)
+		vcf_reader = parse_vcf(vcf, sample=sample, indels=indels)
 		for sample, chromosome, variants in vcf_reader:
 			logger.info('Working on chromosome %s', chromosome)
 			logger.info('Read %d variants', len(variants))
@@ -495,6 +525,8 @@ def main():
 	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',
 		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
 	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
+	parser.add_argument('--indels', dest='indels', default=False, action='store_true',
+		help='Also phase indels (default: do not phase indels)')
 	parser.add_argument('--distrust-genotypes', dest='all_heterozygous',
 		action='store_false', default=True,
 		help='Allow switching variants from hetero- to homozygous in an '

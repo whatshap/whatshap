@@ -74,6 +74,7 @@ def parse_vcf(path, indels=False, sample=None):
 	prev_chromosome = None
 	n_indels = 0
 	n_snps = 0
+	n_complex = 0
 	for sample, record, call in vcf_sample_reader(path, sample):
 		if record.CHROM != prev_chromosome:
 			if prev_chromosome is not None:
@@ -99,9 +100,9 @@ def parse_vcf(path, indels=False, sample=None):
 			a0, a1 = a0[1:], a1[1:]
 			pos += 1
 		assert a0 != a1
-		v = VcfVariant(position=pos, reference_allele=a0, alternative_allele=a1)
 		if len(a0) == 1 and len(a1) == 1:
 			n_snps += 1
+			v = VcfVariant(position=pos, reference_allele=a0, alternative_allele=a1)
 			variants.append(v)
 			continue
 		if not indels:
@@ -109,11 +110,15 @@ def parse_vcf(path, indels=False, sample=None):
 
 		if a0[0] == a1[0] and ((len(a0) == 1) != (len(a1) == 1)):
 			n_indels += 1
+			v = VcfVariant(position=pos+1, reference_allele=a0[1:], alternative_allele=a1[1:])
 			variants.append(v)
 			continue
+
 		# Something like GCG -> TCT or CTCTC -> CA occurred.
-		logger.warn('Complex variant found, skipping: %s', v)
-	logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s", n_snps, n_indels)
+		# TODO deal with complex variants
+		# v = VcfVariant(position=pos, reference_allele=a0, alternative_allele=a1)
+		n_complex += 1
+	logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s. Skipped %s complex variants.", n_snps, n_indels, n_complex)
 	if prev_chromosome is not None:
 		yield (sample, prev_chromosome, variants)
 
@@ -163,7 +168,7 @@ class PhasedVcfWriter:
 		sample_index = self._reader.samples.index(sample)
 
 		# TODO don’t use dicts for *everything* ...
-		phases = { position: allele for position, base, allele, quality in superreads[0] if allele in [0,1] }
+		phases = { variant.position: variant.allele for variant in superreads[0] if variant.allele in [0,1] }
 		if self._unprocessed_record is not None:
 			records_iter = itertools.chain([self._unprocessed_record], self._reader_iter)
 		else:

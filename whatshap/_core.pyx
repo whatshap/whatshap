@@ -10,7 +10,7 @@ from libcpp cimport bool
 from collections import namedtuple
 
 # A single variant on a read.
-Variant = namedtuple('Variant', 'position base allele quality')
+Variant = namedtuple('Variant', 'position allele quality')
 
 # ====== Read ======
 cdef extern from "../src/read.h":
@@ -18,14 +18,13 @@ cdef extern from "../src/read.h":
 		Read(string, int) except +
 		Read(Read) except +
 		string toString() except +
-		void addVariant(int, char, int, int) except +
+		void addVariant(int, int, int) except +
 		string getName() except +
 		vector[int] getMapqs() except +
 		void addMapq(int) except +
 		int getPosition(int) except +
-		char getBase(int) except +
 		int getAllele(int) except +
-		int getBaseQuality(int) except +
+		int getVariantQuality(int) except +
 		int getVariantCount() except +
 		void sortVariants() except +
 		bool isSorted() except +
@@ -88,9 +87,8 @@ cdef class PyRead:
 			key = n + key
 		return Variant(
 			position=self.thisptr.getPosition(key),
-			base=chr(self.thisptr.getBase(key)),
 			allele=self.thisptr.getAllele(key),
-			quality=self.thisptr.getBaseQuality(key)
+			quality=self.thisptr.getVariantQuality(key)
 		)
 
 	def __contains__(self, position):
@@ -104,10 +102,9 @@ cdef class PyRead:
 				return True
 		return False
 
-	def add_variant(self, int position, str base, int allele, int quality):
+	def add_variant(self, int position, int allele, int quality):
 		assert self.thisptr != NULL
-		assert len(base) == 1
-		self.thisptr.addVariant(position, ord(base[0]), allele, quality)
+		self.thisptr.addVariant(position, allele, quality)
 
 	def add_mapq(self, int mapq):
 		assert self.thisptr != NULL

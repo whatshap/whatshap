@@ -12,7 +12,7 @@ public:
 	Read(const std::string& name, int mapq);
 	virtual ~Read() {}
 	std::string toString();
-	void addVariant(int position, char base, int allele, int quality);
+	void addVariant(int position, int allele, int quality);
 	void sortVariants();
 	/** Returns the position of the first variant. **/
 	int firstPosition() const;
@@ -23,9 +23,8 @@ public:
 	/** Add all positions contained in this read to the given set. */
 	void addPositionsToSet(std::unordered_set<unsigned int>* set);
 	int getPosition(size_t variant_idx) const;
-	char getBase(size_t variant_idx) const;
 	int getAllele(size_t variant_idx) const;
-	int getBaseQuality(size_t variant_idx) const;
+	int getVariantQuality(size_t variant_idx) const;
 	const Entry* getEntry(size_t variant_idx) const;
 	int getVariantCount() const;
 	const std::string& getName() const;
@@ -36,8 +35,8 @@ private:
 	typedef struct enriched_entry_t {
 		Entry entry;
 		int position;
-		char base;
-		enriched_entry_t(int position, char base, int allele, int quality) : entry(0,Entry::allele_t(allele),quality), position(position), base(base) {}
+		enriched_entry_t(int position, int allele, int quality) :
+			entry(0,Entry::allele_t(allele),quality), position(position) {}
 	} enriched_entry_t;
 	
 	typedef struct entry_comparator_t {
