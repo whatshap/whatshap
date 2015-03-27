@@ -205,8 +205,6 @@ def readselection(readset, max_cov, bridging = True):
 	number_unuseful_reads = len(readset)- len(undecided_reads)
 
 
-	#initialize the component finder
-	component_finder = ComponentFinder(positions)
 	loop = 0
 	while len(undecided_reads) > 0:
 		pq = __pq_construction_out_of_given_reads(readset, undecided_reads, vcf_indices)
@@ -215,7 +213,8 @@ def readselection(readset, max_cov, bridging = True):
 		undecided_reads -= reads_in_slice
 		undecided_reads -= reads_violating_coverage
 
-		# Update component finder with newly selected reads
+		# Create new component finder from reads just selected
+		component_finder = ComponentFinder(positions)
 		for read_index in reads_in_slice:
 			read = readset[read_index]
 			read_positions = [variant.position for variant in read]
