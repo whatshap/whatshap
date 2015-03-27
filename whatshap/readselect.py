@@ -12,6 +12,7 @@
 #Erase SNPS which are unphasable -Not Erase out of structure but counted
 
 import math
+import logging
 from collections import defaultdict
 
 from whatshap._core import PyRead as Read
@@ -22,6 +23,8 @@ from whatshap._core import PyIndexSet as IndexSet
 from whatshap.priorityqueue import PriorityQueue
 from whatshap.coverage import CovMonitor
 from .graph import ComponentFinder
+
+logger = logging.getLogger(__name__)
 
 #TODO Need to assert somewhere that if less Reads than coverage...?
 
@@ -189,6 +192,8 @@ def readselection(readset, max_cov, bridging = True):
 
 	positions, vcf_indices, SNP_read_map = _construct_indexes(readset)
 
+	logger.info('Running read selection for %d reads covering %d variants (bridging %s)', len(readset), len(positions), 'ON' if bridging else 'OFF')
+
 	#initialization of Coverage Monitor
 	coverages = CovMonitor(len(positions))
 
@@ -204,14 +209,8 @@ def readselection(readset, max_cov, bridging = True):
 	component_finder = ComponentFinder(positions)
 	loop = 0
 	while len(undecided_reads) > 0:
-		print('Undecided Reads in iterationloop')
-		print(loop)
-
-
 		pq = __pq_construction_out_of_given_reads(readset, undecided_reads, vcf_indices)
 		reads_in_slice, reads_violating_coverage = slice_read_selection(pq,coverages,max_cov,readset,vcf_indices,SNP_read_map)
-		print('Number of reads selected in slicing')
-		print(len(reads_in_slice))
 		selected_reads.update(reads_in_slice)
 		undecided_reads -= reads_in_slice
 		undecided_reads -= reads_violating_coverage
@@ -223,8 +222,8 @@ def readselection(readset, max_cov, bridging = True):
 			for position in read_positions[1:]:
 				component_finder.merge(read_positions[0], position)
 
+		number_bridging_reads= 0
 		if bridging:
-			number_bridging_reads= 0
 			pq = __pq_construction_out_of_given_reads(readset, undecided_reads, vcf_indices)
 			while not pq.is_empty():
 				score, read_index = pq.pop()
@@ -253,9 +252,8 @@ def readselection(readset, max_cov, bridging = True):
 				read_pos= [variant.position for variant in read]
 				for pos_in_read in read_pos[1:]:
 					component_finder.merge(read_pos[0],pos_in_read)
-			print('Number of bridging reads')
-			print(number_bridging_reads)
 		loop +=1
+		logger.info('... iteration %d: selected %d reads to cover positions and %d for bridging; %d reads left undecided', loop, len(reads_in_slice), number_bridging_reads, len(undecided_reads))
 
 	#for Debugging
 	new_components={position : component_finder.find(position) for position in vcf_indices.keys()}
