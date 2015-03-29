@@ -154,28 +154,28 @@ class ReadSetReader:
 		reads = defaultdict(list)
 
 		i = 0  # keep track of position in variants array (which is in order)
-		for bam_read in self._reader.fetch(reference=chromosome, sample=sample):
+		for alignment in self._reader.fetch(reference=chromosome, sample=sample):
 			# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
-			if bam_read.flag & 2048 != 0:
-				# print('Skipping additional alignment for read ', bam_read.qname)
+			if alignment.bam_alignment.flag & 2048 != 0:
+				# print('Skipping additional alignment for read ', alignment.bam_alignment.qname)
 				continue
-			if bam_read.mapq < self._mapq_threshold:
+			if alignment.bam_alignment.mapq < self._mapq_threshold:
 				continue
-			if bam_read.is_secondary:
+			if alignment.bam_alignment.is_secondary:
 				continue
-			if bam_read.is_unmapped:
+			if alignment.bam_alignment.is_unmapped:
 				continue
-			if not bam_read.cigar:
+			if not alignment.bam_alignment.cigar:
 				continue
 
 			# Skip variants that are to the left of this read.
-			while i < len(variants) and variants[i].position < bam_read.pos:
+			while i < len(variants) and variants[i].position < alignment.bam_alignment.pos:
 				i += 1
 
-			core_read = covered_variants(variants, i, bam_read)
+			core_read = covered_variants(variants, i, alignment.bam_alignment)
 			# Only add new read if it covers at least one variant.
 			if core_read:
-				reads[bam_read.qname].append(core_read)
+				reads[alignment.bam_alignment.qname].append(core_read)
 
 		# Prepare resulting set of reads.
 		read_set = ReadSet()

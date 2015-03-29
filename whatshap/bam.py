@@ -3,10 +3,12 @@ import pysam
 import logging
 import heapq
 import gzip
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import subprocess
 
 logger = logging.getLogger(__name__)
+
+AlignmentWithSourceID = namedtuple('AlignmentWithSourceID', ['source_id', 'bam_alignment'])
 
 
 class BamIndexingError(Exception):
@@ -47,7 +49,7 @@ class SampleBamReader:
 	"""
 	Read only those reads from a BAM file that belong to a specified sample.
 	"""
-	def __init__(self, path):
+	def __init__(self, path, source_id = 0):
 		"""
 		path -- path to BAM file
 		"""
@@ -59,6 +61,7 @@ class SampleBamReader:
 		if not os.path.exists(bai1) and not os.path.exists(bai2):
 			logger.info('BAM index not found, creating it now.')
 			index_bam(path)
+		self.source_id = source_id
 		self._samfile = pysam.Samfile(path)
 		self._initialize_sample_to_group_ids()
 
@@ -77,6 +80,8 @@ class SampleBamReader:
 	def fetch(self, reference, sample):
 		"""
 		Raise KeyError if sample not found among samples named in RG header.
+		Yield instances of AlignmentWithSourceID, with source_id value given
+		at construction time.
 		"""
 		if sample is None:
 			# PY32
@@ -91,7 +96,7 @@ class SampleBamReader:
 			raise SampleNotFoundError()
 		for bam_read in self._samfile.fetch(reference):
 			if bam_read.opt('RG') in read_groups:
-				yield bam_read
+				yield AlignmentWithSourceID(self.source_id, bam_read)
 
 	def close(self):
 		self._samfile.close()
@@ -102,8 +107,9 @@ class ComparableAlignedSegment:
 	Heapsort wants to be able to use the less than operator. Native
 	AlignedSegment instances do not support this.
 	"""
-	def __init__(self, aligned_segment):
+	def __init__(self, aligned_segment, source_id):
 		self.segment = aligned_segment
+		self.source_id = source_id
 
 	def __lt__(self, other):
 		self_id = self.segment.reference_id
@@ -111,7 +117,8 @@ class ComparableAlignedSegment:
 		other_id = other.segment.reference_id
 		other_pos = other.segment.reference_start
 		return self_id < other_id or (
-			self_id == other_id and self_pos < other_pos)
+			self_id == other_id and self_pos < other_pos) or (
+			self_id == other_id and self_pos == other_pos and self.source_id < other.source_id)
 
 
 class MultiBamReader:
@@ -133,17 +140,20 @@ class MultiBamReader:
 		Yield reads from the specified region in all the opened BAM files,
 		merging them on the fly. Each BAM file must have a BAI index.
 
+		Yields instances of AlignmentWithSourceID, where source_id corrsponds to 
+		index of BAM file name given at construction time.
+
 		If a sample name is given, only reads that belong to that sample are
 		returned (the RG tags of each read and the RG header are used for that).
 		"""
 		def make_comparable(reader):
-			for segment in reader.fetch(reference, sample):
-				yield ComparableAlignedSegment(segment)
+			for alignment in reader.fetch(reference, sample):
+				yield ComparableAlignedSegment(alignment.bam_alignment, alignment.source_id)
 		iterators = []
 		for r in self._readers:
 			iterators.append(make_comparable(r))
 		for it in heapq.merge(*iterators):
-			yield it.segment
+			yield AlignmentWithSourceID(it.source_id, it.segment)
 
 	def close(self):
 		for f in self._readers:
