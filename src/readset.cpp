@@ -18,11 +18,12 @@ ReadSet::~ReadSet() {
 }
 
 void ReadSet::add(Read* read) {
-	if (read_name_map.find(read->getName()) != read_name_map.end()) {
+	name_and_source_id_t name_and_source_id = name_and_source_id_t(read->getName(), read->getSourceID());
+	if (read_name_map.find(name_and_source_id) != read_name_map.end()) {
 		throw std::runtime_error("ReadSet::add: duplicate read name.");
 	}
 	reads.push_back(read);
-	read_name_map[read->getName()] = reads.size() - 1;
+	read_name_map[name_and_source_id] = reads.size() - 1;
 }
 
 string ReadSet::toString() {
@@ -41,7 +42,7 @@ void ReadSet::sort() {
 	// Update read_name_map
 	read_name_map.clear();
 	for (size_t i=0; i<reads.size(); ++i) {
-		read_name_map[reads[i]->getName()] = i;
+		read_name_map[name_and_source_id_t(reads[i]->getName(), reads[i]->getSourceID())] = i;
 	}
 }
 
@@ -63,8 +64,8 @@ Read* ReadSet::get(int i) const {
 	return reads[i];
 }
 
-Read* ReadSet::getByName(std::string name) const {
-	read_name_map_t::const_iterator it = read_name_map.find(name);
+Read* ReadSet::getByName(std::string name, int source_id) const {
+	read_name_map_t::const_iterator it = read_name_map.find(name_and_source_id_t(name,source_id));
 	if (it == read_name_map.end()) {
 		return 0;
 	} else {

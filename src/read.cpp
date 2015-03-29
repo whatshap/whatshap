@@ -7,7 +7,7 @@
 
 using namespace std;
 
-Read::Read(const std::string& name, int mapq) : name(name), mapqs(1, mapq) {
+Read::Read(const std::string& name, int mapq, int source_id) : name(name), mapqs(1, mapq), source_id(source_id) {
 	this->id = -1;
 }
 
@@ -75,14 +75,29 @@ int Read::getPosition(size_t variant_idx) const {
 	return variants[variant_idx].position;
 }
 
+void Read::setPosition(size_t variant_idx, int position) {
+	assert(variant_idx < variants.size());
+	variants[variant_idx].position = position;
+}
+
 int Read::getAllele(size_t variant_idx) const {
 	assert(variant_idx < variants.size());
 	return variants[variant_idx].entry.get_allele_type();
 }
 
+void Read::setAllele(size_t variant_idx, int allele) {
+	assert(variant_idx < variants.size());
+	variants[variant_idx].entry.set_allele_type((Entry::allele_t)allele);
+}
+
 int Read::getVariantQuality(size_t variant_idx) const {
 	assert(variant_idx < variants.size());
 	return variants[variant_idx].entry.get_phred_score();
+}
+
+void Read::setVariantQuality(size_t variant_idx, int quality) {
+	assert(variant_idx < variants.size());
+	variants[variant_idx].entry.set_phred_score(quality);
 }
 
 const Entry* Read::getEntry(size_t variant_idx) const {
@@ -103,6 +118,10 @@ const vector<int>& Read::getMapqs() const {
 
 void Read::addMapq(int mapq) {
 	mapqs.push_back(mapq);
+}
+
+int Read::getSourceID() const {
+	return source_id;
 }
 
 bool Read::isSorted() const {

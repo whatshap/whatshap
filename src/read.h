@@ -9,7 +9,7 @@
 
 class Read {
 public:
-	Read(const std::string& name, int mapq);
+	Read(const std::string& name, int mapq, int source_id);
 	virtual ~Read() {}
 	std::string toString();
 	void addVariant(int position, int allele, int quality);
@@ -23,13 +23,17 @@ public:
 	/** Add all positions contained in this read to the given set. */
 	void addPositionsToSet(std::unordered_set<unsigned int>* set);
 	int getPosition(size_t variant_idx) const;
+	void setPosition(size_t variant_idx, int position);
 	int getAllele(size_t variant_idx) const;
+	void setAllele(size_t variant_idx, int allele);
 	int getVariantQuality(size_t variant_idx) const;
+	void setVariantQuality(size_t variant_idx, int quality);
 	const Entry* getEntry(size_t variant_idx) const;
 	int getVariantCount() const;
 	const std::string& getName() const;
 	const std::vector<int>& getMapqs() const;
 	void addMapq(int mapq);
+	int getSourceID() const;
 	bool isSorted() const;
 private:
 	typedef struct enriched_entry_t {
@@ -48,6 +52,7 @@ private:
 
 	std::string name;
 	std::vector<int> mapqs;
+	int source_id;
 	int id;
 	std::vector<enriched_entry_t> variants;
 };

@@ -15,7 +15,7 @@ Variant = namedtuple('Variant', 'position allele quality')
 # ====== Read ======
 cdef extern from "../src/read.h":
 	cdef cppclass Read:
-		Read(string, int) except +
+		Read(string, int, int) except +
 		Read(Read) except +
 		string toString() except +
 		void addVariant(int, int, int) except +
@@ -23,17 +23,21 @@ cdef extern from "../src/read.h":
 		vector[int] getMapqs() except +
 		void addMapq(int) except +
 		int getPosition(int) except +
+		void setPosition(int, int)  except +
 		int getAllele(int) except +
+		void setAllele(int, int) except +
 		int getVariantQuality(int) except +
+		void setVariantQuality(int, int) except +
 		int getVariantCount() except +
 		void sortVariants() except +
 		bool isSorted() except +
+		int getSourceID() except +
 
 cdef class PyRead:
 	cdef Read *thisptr
 	cdef bool ownsptr
 
-	def __cinit__(self, str name = None, int mapq = 0):
+	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0):
 		cdef string _name = ''
 		if name is None:
 			self.thisptr = NULL
@@ -41,7 +45,7 @@ cdef class PyRead:
 		else:
 			# TODO: Is this the best way to handle string arguments?
 			_name = name.encode('UTF-8')
-			self.thisptr = new Read(_name, mapq)
+			self.thisptr = new Read(_name, mapq, source_id)
 			self.ownsptr = True
 
 	def __dealloc__(self):
@@ -62,6 +66,11 @@ cdef class PyRead:
 		def __get__(self):
 			assert self.thisptr != NULL
 			return self.thisptr.getName().decode('utf-8')
+
+	property source_id:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getSourceID()
 
 	def __iter__(self):
 		"""Iterate over all variants in this read"""
@@ -90,6 +99,19 @@ cdef class PyRead:
 			allele=self.thisptr.getAllele(key),
 			quality=self.thisptr.getVariantQuality(key)
 		)
+
+	def __setitem__(self, index, variant):
+		assert self.thisptr != NULL
+		cdef int n = self.thisptr.getVariantCount()
+		if not (-n <= index < n):
+			raise IndexError('Index out of bounds: {}'.format(index))
+		if index < 0:
+			index = n + index
+		if not isinstance(variant, Variant):
+			raise ValueError('Expected instance of Variant, but found {}'.format(type(variant)))
+		self.thisptr.setPosition(index, variant.position)
+		self.thisptr.setAllele(index, variant.allele)
+		self.thisptr.setVariantQuality(index, variant.quality)
 
 	def __contains__(self, position):
 		"""Return whether this read contains a variant at the given position.
@@ -128,7 +150,7 @@ cdef extern from "../src/readset.h":
 		int size() except +
 		void sort() except +
 		Read* get(int) except +
-		Read* getByName(string) except +
+		Read* getByName(string, int) except +
 		ReadSet* subset(IndexSet*) except +
 		# TODO: Check why adding "except +" here doesn't compile
 		vector[unsigned int]* get_positions()
@@ -169,8 +191,11 @@ cdef class PyReadSet:
 		if isinstance(key, int):
 			read.thisptr = self.thisptr.get(key)
 		elif isinstance(key, str):
-			name = key.encode('UTF-8')
-			cread = self.thisptr.getByName(name)
+			raise NotImplementedError('Querying a ReadSet by read name is deprecated, please query by (source_id, name) instead')
+		elif isinstance(key, tuple) and (len(key) == 2) and (isinstance(key[0],int) and isinstance(key[1],str)):
+			source_id = key[0]
+			name = key[1].encode('UTF-8')
+			cread = self.thisptr.getByName(name, source_id)
 			if cread == NULL:
 				raise KeyError(key)
 			else:

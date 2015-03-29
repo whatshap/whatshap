@@ -301,8 +301,8 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
   ColumnIterator column_iterator(*read_set);
   const vector<unsigned int>* positions = column_iterator.get_positions();
 
-  Read* r0 = new Read("superread0", -1);
-  Read* r1 = new Read("superread1", -1);
+  Read* r0 = new Read("superread0", -1, 0);
+  Read* r1 = new Read("superread1", -1, 0);
   
   if (backtrace_table.empty()) {
     assert(!column_iterator.has_next());

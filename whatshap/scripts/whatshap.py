@@ -47,7 +47,7 @@ __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel M
 logger = logging.getLogger(__name__)
 
 
-def covered_variants(variants, start, bam_read):
+def covered_variants(variants, start, bam_read, source_id):
 	"""
 	Find the variants that are covered by the given bam_read and return a
 	core.Read instance that represents those variants. The instance may be
@@ -55,7 +55,7 @@ def covered_variants(variants, start, bam_read):
 
 	start -- index of the first variant (in the variants list) to check
 	"""
-	core_read = Read(bam_read.qname, bam_read.mapq)
+	core_read = Read(bam_read.qname, bam_read.mapq, source_id)
 	i = 0  # index into CIGAR
 	j = start  # index into variants
 	ref_pos = bam_read.pos  # position relative to reference
@@ -161,28 +161,28 @@ class ReadSetReader:
 		reads = defaultdict(list)
 
 		i = 0  # keep track of position in variants array (which is in order)
-		for bam_read in self._reader.fetch(reference=chromosome, sample=sample):
+		for alignment in self._reader.fetch(reference=chromosome, sample=sample):
 			# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
-			if bam_read.flag & 2048 != 0:
-				# print('Skipping additional alignment for read ', bam_read.qname)
+			if alignment.bam_alignment.flag & 2048 != 0:
+				# print('Skipping additional alignment for read ', alignment.bam_alignment.qname)
 				continue
-			if bam_read.mapq < self._mapq_threshold:
+			if alignment.bam_alignment.mapq < self._mapq_threshold:
 				continue
-			if bam_read.is_secondary:
+			if alignment.bam_alignment.is_secondary:
 				continue
-			if bam_read.is_unmapped:
+			if alignment.bam_alignment.is_unmapped:
 				continue
-			if not bam_read.cigar:
+			if not alignment.bam_alignment.cigar:
 				continue
 
 			# Skip variants that are to the left of this read.
-			while i < len(variants) and variants[i].position < bam_read.pos:
+			while i < len(variants) and variants[i].position < alignment.bam_alignment.pos:
 				i += 1
 
-			core_read = covered_variants(variants, i, bam_read)
+			core_read = covered_variants(variants, i, alignment.bam_alignment, alignment.source_id)
 			# Only add new read if it covers at least one variant.
 			if core_read:
-				reads[bam_read.qname].append(core_read)
+				reads[(alignment.source_id, alignment.bam_alignment.qname)].append(core_read)
 
 		# Prepare resulting set of reads.
 		read_set = ReadSet()
@@ -204,7 +204,7 @@ class ReadSetReader:
 		modified.
 		"""
 		if read2:
-			result = Read(read1.name, read1.mapqs[0])
+			result = Read(read1.name, read1.mapqs[0], read1.source_id)
 			result.add_mapq(read2.mapqs[0])
 		else:
 			return read1

@@ -71,7 +71,8 @@ def test_readset():
 
 	r = Read('Read C', 17)
 	r.add_variant(99, 1, 27)
-	r.add_variant(105, 0, 14)
+	r.add_variant(80, 1, 17)
+	r[1] = Variant(position=105, allele=0, quality=14)
 	rs.add(r)
 
 	assert rs[0].name == 'Read A'
@@ -89,13 +90,29 @@ def test_readset():
 
 	assert rs.get_positions() == [99, 100, 101, 105]
 
-	r = rs['Read A']
+	r = rs[(0,'Read A')]
 	assert r.name == 'Read A'
 	assert r.mapqs == (56,), str(r.mapqs)
 
-	r = rs['Read B']
+	r = rs[(0,'Read B')]
 	assert r.name == 'Read B'
 	assert r.mapqs == (0,)
+
+	r = rs[(0,'Read C')]
+	assert r.name == 'Read C'
+	assert r.mapqs == (17,)
+	assert len(r) == 2
+	assert r[0] == Variant(position=99, allele=1, quality=27)
+	assert r[1] == Variant(position=105, allele=0, quality=14)
+
+def test_readset2():
+	rs = ReadSet()
+	rs.add(Read('Read A', 1, 23))
+	rs.add(Read('Read A', 2, 70))
+	rs.add(Read('Read B', 3, 23))
+	assert rs[(23,'Read A')].mapqs == (1,)
+	assert rs[(70,'Read A')].mapqs == (2,)
+	assert rs[(23,'Read B')].mapqs == (3,)
 
 
 @raises(KeyError)
@@ -105,7 +122,17 @@ def test_non_existing_read_name():
 	r.add_variant(100, 1, 37)
 	r.add_variant(101, 0, 18)
 	rs.add(r)
-	rs['foo']
+	rs[(0,'foo')]
+
+
+@raises(KeyError)
+def test_non_existing_read_name2():
+	rs = ReadSet()
+	r = Read('Read A', 56, 1)
+	r.add_variant(100, 1, 37)
+	r.add_variant(101, 0, 18)
+	rs.add(r)
+	rs[(2,'Read A')]
 
 
 # TODO: Test subset method
