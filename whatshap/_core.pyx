@@ -15,7 +15,7 @@ Variant = namedtuple('Variant', 'position allele quality')
 # ====== Read ======
 cdef extern from "../src/read.h":
 	cdef cppclass Read:
-		Read(string, int) except +
+		Read(string, int, int) except +
 		Read(Read) except +
 		string toString() except +
 		void addVariant(int, int, int) except +
@@ -33,7 +33,7 @@ cdef class PyRead:
 	cdef Read *thisptr
 	cdef bool ownsptr
 
-	def __cinit__(self, str name = None, int mapq = 0):
+	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0):
 		cdef string _name = ''
 		if name is None:
 			self.thisptr = NULL
@@ -41,7 +41,7 @@ cdef class PyRead:
 		else:
 			# TODO: Is this the best way to handle string arguments?
 			_name = name.encode('UTF-8')
-			self.thisptr = new Read(_name, mapq)
+			self.thisptr = new Read(_name, mapq, source_id)
 			self.ownsptr = True
 
 	def __dealloc__(self):
