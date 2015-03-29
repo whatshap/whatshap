@@ -28,6 +28,7 @@ cdef extern from "../src/read.h":
 		int getVariantCount() except +
 		void sortVariants() except +
 		bool isSorted() except +
+		int getSourceID() except +
 
 cdef class PyRead:
 	cdef Read *thisptr
@@ -62,6 +63,11 @@ cdef class PyRead:
 		def __get__(self):
 			assert self.thisptr != NULL
 			return self.thisptr.getName().decode('utf-8')
+
+	property source_id:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getSourceID()
 
 	def __iter__(self):
 		"""Iterate over all variants in this read"""
