@@ -128,7 +128,7 @@ cdef extern from "../src/readset.h":
 		int size() except +
 		void sort() except +
 		Read* get(int) except +
-		Read* getByName(string) except +
+		Read* getByName(string, int) except +
 		ReadSet* subset(IndexSet*) except +
 		# TODO: Check why adding "except +" here doesn't compile
 		vector[unsigned int]* get_positions()
@@ -169,8 +169,11 @@ cdef class PyReadSet:
 		if isinstance(key, int):
 			read.thisptr = self.thisptr.get(key)
 		elif isinstance(key, str):
-			name = key.encode('UTF-8')
-			cread = self.thisptr.getByName(name)
+			raise NotImplementedError('Querying a ReadSet by read name is deprecated, please query by (source_id, name) instead')
+		elif isinstance(key, tuple) and (len(key) == 2) and (isinstance(key[0],int) and isinstance(key[1],str)):
+			source_id = key[0]
+			name = key[1].encode('UTF-8')
+			cread = self.thisptr.getByName(name, source_id)
 			if cread == NULL:
 				raise KeyError(key)
 			else:
