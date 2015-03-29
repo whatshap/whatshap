@@ -132,8 +132,8 @@ class MultiBamReader:
 
 	def __init__(self, paths):
 		self._readers = []
-		for path in paths:
-			self._readers.append(SampleBamReader(path))
+		for source_id, path in enumerate(paths):
+			self._readers.append(SampleBamReader(path, source_id))
 
 	def fetch(self, reference=None, sample=None):
 		"""
