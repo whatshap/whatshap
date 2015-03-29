@@ -23,8 +23,11 @@ public:
 	/** Add all positions contained in this read to the given set. */
 	void addPositionsToSet(std::unordered_set<unsigned int>* set);
 	int getPosition(size_t variant_idx) const;
+	void setPosition(size_t variant_idx, int position);
 	int getAllele(size_t variant_idx) const;
+	void setAllele(size_t variant_idx, int allele);
 	int getVariantQuality(size_t variant_idx) const;
+	void setVariantQuality(size_t variant_idx, int quality);
 	const Entry* getEntry(size_t variant_idx) const;
 	int getVariantCount() const;
 	const std::string& getName() const;

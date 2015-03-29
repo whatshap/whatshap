@@ -23,8 +23,11 @@ cdef extern from "../src/read.h":
 		vector[int] getMapqs() except +
 		void addMapq(int) except +
 		int getPosition(int) except +
+		void setPosition(int, int)  except +
 		int getAllele(int) except +
+		void setAllele(int, int) except +
 		int getVariantQuality(int) except +
+		void setVariantQuality(int, int) except +
 		int getVariantCount() except +
 		void sortVariants() except +
 		bool isSorted() except +
@@ -96,6 +99,19 @@ cdef class PyRead:
 			allele=self.thisptr.getAllele(key),
 			quality=self.thisptr.getVariantQuality(key)
 		)
+
+	def __setitem__(self, index, variant):
+		assert self.thisptr != NULL
+		cdef int n = self.thisptr.getVariantCount()
+		if not (-n <= index < n):
+			raise IndexError('Index out of bounds: {}'.format(index))
+		if index < 0:
+			index = n + index
+		if not isinstance(variant, Variant):
+			raise ValueError('Expected instance of Variant, but found {}'.format(type(variant)))
+		self.thisptr.setPosition(index, variant.position)
+		self.thisptr.setAllele(index, variant.allele)
+		self.thisptr.setVariantQuality(index, variant.quality)
 
 	def __contains__(self, position):
 		"""Return whether this read contains a variant at the given position.

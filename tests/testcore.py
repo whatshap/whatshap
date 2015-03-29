@@ -71,7 +71,8 @@ def test_readset():
 
 	r = Read('Read C', 17)
 	r.add_variant(99, 1, 27)
-	r.add_variant(105, 0, 14)
+	r.add_variant(80, 1, 17)
+	r[1] = Variant(position=105, allele=0, quality=14)
 	rs.add(r)
 
 	assert rs[0].name == 'Read A'
@@ -97,6 +98,12 @@ def test_readset():
 	assert r.name == 'Read B'
 	assert r.mapqs == (0,)
 
+	r = rs[(0,'Read C')]
+	assert r.name == 'Read C'
+	assert r.mapqs == (17,)
+	assert len(r) == 2
+	assert r[0] == Variant(position=99, allele=1, quality=27)
+	assert r[1] == Variant(position=105, allele=0, quality=14)
 
 def test_readset2():
 	rs = ReadSet()
