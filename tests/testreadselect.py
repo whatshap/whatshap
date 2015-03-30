@@ -24,6 +24,17 @@ def test_selection():
 	#the bridging starts
 	assert selected_reads == set([1,3,5,7]), str(selected_reads)
 
+def test_selection2():
+	reads = string_to_readset("""
+	  1111
+	     111
+	     1  111
+	     1     11
+	    1      11
+	""")
+	selected_reads, new_components,stats = readselection(reads, max_cov = 4, bridging = False)
+	assert selected_reads == set([0,1,2,3]), str(selected_reads)
+
 
 def test_bridging():
 	reads = string_to_readset("""
