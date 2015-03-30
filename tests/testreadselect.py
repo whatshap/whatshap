@@ -41,6 +41,7 @@ def test_bridging():
 	#Not sure why 0 is there selected and not 1...
 	assert selected_reads == set([0,3,5,6])
 
+###Does not work for the tuple score
 def test_components_of_readselection():
 	reads = string_to_readset("""
 	  111
@@ -52,8 +53,24 @@ def test_components_of_readselection():
 	   1   1
 	""")
 	selected_reads, new_components,stats = readselection(reads, max_cov = 2, bridging= False)
+	print('Output of the tests')
+	print(selected_reads)
+	print(new_components)
 	assert selected_reads == set([0,1,2,3])
 	assert len(set(new_components.values())) == 2
 	selected_reads, new_components,stats = readselection(reads, max_cov = 2, bridging= True)
 	assert selected_reads == set([0,1,6])
 	assert len(set(new_components.values())) == 1
+
+
+
+def test_tuple_scores():
+	reads = string_to_readset("""
+	  111
+	     000
+	  00
+	      00
+	    1
+	       1
+	   1   1
+	""")

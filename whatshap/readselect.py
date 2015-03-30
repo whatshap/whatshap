@@ -241,6 +241,8 @@ def readselection(readset, max_cov, bridging=True):
 
 	# indices of reads that could (potentially) still be selected ,do not consider thes read which only cover one SNP
 	undecided_reads = set(i for i, read in enumerate(readset) if len(read) >= 2)
+	#print('Undecided REads')
+	#print(undecided_reads)
 	number_unuseful_reads = len(readset) - len(undecided_reads)
 
 	loop = 0
@@ -258,9 +260,17 @@ def readselection(readset, max_cov, bridging=True):
 			read = readset[read_index]
 			read_positions = [variant.position for variant in read]
 			for position in read_positions[1:]:
+				print('WHAT is merged')
+				print(read_positions[0])
+				print(read_positions)
 				component_finder.merge(read_positions[0], position)
 
 		bridging_reads = set()
+		print('Before brdiging ')
+		print(selected_reads)
+		before_bridging_components = {position: component_finder.find(position) for position in vcf_indices.keys()}
+		print('Actual components before briding ')
+		print(before_bridging_components)
 		if bridging:
 			pq = __pq_construction_out_of_given_reads(readset, undecided_reads, vcf_indices)
 			while not pq.is_empty():
