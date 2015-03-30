@@ -98,10 +98,21 @@ def covered_variants(variants, start, bam_read, source_id):
 					core_read.add_variant(variants[j].position, allele=0, quality=qual)
 				elif len(variants[j].alternative_allele) == 0:
 					assert len(variants[j].reference_allele) > 0
-					# This variant is a deletion.
+					# This variant is a deletion that was not observed.
+					# Add it only if the next variant is not located 'within'
+					# the deletion.
+					deletion_end = variants[j].position + len(variants[j].reference_allele)
+					if not (j + 1 < len(variants) and variants[j+1].position < deletion_end):
+						qual = 30  # TODO
+						core_read.add_variant(variants[j].position, allele=0, quality=qual)
+					else:
+						logger.info('Skipped a deletion overlapping another variant at pos. %d', variants[j].position)
+						# Also skip all variants that this deletion overlaps
+						while j + 1 < len(variants) and variants[j+1].position < deletion_end:
+							j += 1
+						# One additional j += 1 is done below
 				else:
-					print("strange variant", variants[j])
-					assert False
+					assert False, "Strange variant: {}".format(variants[j])
 				j += 1
 			query_pos += length
 			ref_pos += length
@@ -117,7 +128,31 @@ def covered_variants(variants, start, bam_read, source_id):
 				core_read.add_variant(variants[j].position, allele=1, quality=qual)
 				j += 1
 			query_pos += length
-		elif cigar_op == 2 or cigar_op == 3:  # a deletion or a reference skip
+		elif cigar_op == 2:  # a deletion
+			# Skip variants that come before this region
+			while j < len(variants) and variants[j].position < ref_pos:
+				j += 1
+			# We only check the length of the deletion, not the sequence
+			# that gets deleted since we don’t have the reference available.
+			# (We could parse the MD tag if it exists.)
+			if j < len(variants) and variants[j].position == ref_pos and \
+					len(variants[j].alternative_allele) == 0 and \
+					len(variants[j].reference_allele) == length:
+				qual = 30  # TODO
+				deletion_end = variants[j].position + len(variants[j].reference_allele)
+				if not (j + 1 < len(variants) and variants[j+1].position < deletion_end):
+					qual = 30  # TODO
+					assert variants[j].position not in core_read
+					core_read.add_variant(variants[j].position, allele=1, quality=qual)
+				else:
+					logger.info('Skipped a deletion overlapping another variant at pos. %d', variants[j].position)
+					# Also skip all variants that this deletion overlaps
+					while j + 1 < len(variants) and variants[j+1].position < deletion_end:
+						j += 1
+					# One additional j += 1 is done below
+				j += 1
+			ref_pos += length
+		elif cigar_op == 3:  # a reference skip
 			ref_pos += length
 		elif cigar_op == 4:  # soft clipping
 			query_pos += length
