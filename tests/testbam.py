@@ -6,7 +6,7 @@ def test_read():
 	reads = list(sbr.fetch('ref', 'sample'))
 	assert len(reads) == 1
 	read = reads[0]
-	assert read.opt('RG') == '1'
+	assert read.bam_alignment.opt('RG') == '1'
 
 
 @raises(SampleNotFoundError)

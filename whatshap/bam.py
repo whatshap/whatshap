@@ -87,8 +87,8 @@ class SampleBamReader:
 			# PY32
 			# Starting with Python 3.3, this loop could be replaced with
 			# 'return self._samfile.fetch(reference)'
-			for i in self._samfile.fetch(reference):
-				yield i
+			for bam_read in self._samfile.fetch(reference):
+				yield AlignmentWithSourceID(self.source_id, bam_read)
 			return
 		try:
 			read_groups = self._sample_to_group_ids[sample]
