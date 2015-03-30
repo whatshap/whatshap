@@ -184,6 +184,16 @@ def analyse_bridging_reads(bridging_reads, readset, selected_reads,component_fin
 	return (selction,Cov_Monitor,selected_reads,component_finder)
 
 
+def format_read_source_stats(readset, indices):
+	"""Creates a string giving information on the source_ids of the reads with the given indices."""
+	if len(indices) == 0:
+		return 'n/a'
+	source_id_counts = defaultdict(int)
+	for i in indices:
+		source_id_counts[readset[i].source_id] += 1
+	present_ids = list(source_id_counts.keys())
+	present_ids.sort()
+	return ', '.join('{}:{}'.format(source_id,count) for source_id,count in source_id_counts.items())
 
 
 def readselection(readset, max_cov, bridging = True):
@@ -221,7 +231,7 @@ def readselection(readset, max_cov, bridging = True):
 			for position in read_positions[1:]:
 				component_finder.merge(read_positions[0], position)
 
-		number_bridging_reads= 0
+		bridging_reads = set()
 		if bridging:
 			pq = __pq_construction_out_of_given_reads(readset, undecided_reads, vcf_indices)
 			while not pq.is_empty():
@@ -241,7 +251,7 @@ def readselection(readset, max_cov, bridging = True):
 				# skip read if it only covers one block
 				if len(covered_blocks) < 2:
 					continue
-				number_bridging_reads +=1
+				bridging_reads.add(read_index)
 				selected_reads.add(read_index)
 
 				coverages.add_read(begin,end)
@@ -252,7 +262,9 @@ def readselection(readset, max_cov, bridging = True):
 				for pos_in_read in read_pos[1:]:
 					component_finder.merge(read_pos[0],pos_in_read)
 		loop +=1
-		logger.info('... iteration %d: selected %d reads to cover positions and %d for bridging; %d reads left undecided', loop, len(reads_in_slice), number_bridging_reads, len(undecided_reads))
+		logger.info('... iteration %d: selected %d reads (source: %s) to cover positions and %d reads (source: %s) for bridging; %d reads left undecided', 
+			loop, len(reads_in_slice), format_read_source_stats(readset, reads_in_slice), len(bridging_reads), format_read_source_stats(readset, bridging_reads), len(undecided_reads)
+		)
 
 	#for Debugging
 	new_components={position : component_finder.find(position) for position in vcf_indices.keys()}
