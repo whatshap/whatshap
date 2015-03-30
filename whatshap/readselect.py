@@ -43,11 +43,14 @@ def _construct_indexes(readset):
 
 def _update_score_for_reads(former_score, readset, index, already_covered_SNPs):
 	'''updatest the score of the read, depending on how many reads are already covered'''
+	print('Already_covere_SNPS in  update')
+	print(already_covered_SNPs)
 
 	(first_score, second_score, quality) = former_score
 	read = readset[index]
 	for pos in read:
 		if pos.position not in already_covered_SNPs:
+			print('Score updated')
 			first_score -= 1
 	return (first_score, second_score, quality)
 
@@ -108,7 +111,12 @@ def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_
 	reads_violating_coverage = set()
 	#TODO add an additional condition like if number covered SNPS equal phasable SNPS then big pq are reduced unnecessary because pq already includes only the undicided ones....
 	while not pq.is_empty():
+		SNPS_Covered_for_this_read=set()
 		(max_score, max_item) = pq.pop()
+		print('POPED ITEM')
+		print(max_item)
+		print(max_score)
+		#newly_covered_positione=set()
 		extracted_read = readset[max_item]
 		covers_new_snp = False
 		#look if positions covered by this reads are already covered or not
@@ -117,7 +125,8 @@ def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_
 				continue
 			else:
 				covers_new_snp = True
-				break
+				SNPS_Covered_for_this_read.add(pos.position)
+				#break
 		#only if at least one position is not covered then we could add the read if he does not break the max coverage
 		begin = vcf_indices.get(extracted_read[0].position)
 		end = vcf_indices.get(extracted_read[len(extracted_read) - 1].position) + 1
@@ -127,89 +136,49 @@ def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_
 			coverages.add_read(begin, end)
 			reads_in_slice.add(max_item)
 
+			reads_whose_score_has_to_be_updated = set()
+
 			#again go over the positions in the read and add them to the already_covered_SNP list
 			for pos in extracted_read:
 				already_covered_SNPs.add(pos.position)
+				#if pos.position not in already_covered_SNPs:
+				#	newly_covered_positione.add(pos.position)
 
 				#for extracted read decrease score of every other read which covers one of the other SNPS.
 				to_decrease_score = SNP_read_map[vcf_indices.get(pos.position)]
+				#print('Actural to decrease score  ')
+				#print(to_decrease_score)
+				new_to_decrease = set(to_decrease_score)
+				#One set which includes all reads selected in this one extraction step whose score has to be updated
+				reads_whose_score_has_to_be_updated.update(new_to_decrease)
+				#print('REads update score')
+				#print(reads_whose_score_has_to_be_updated)
+
+#TODO Maybe do this out of the for-loop - THIS SHOULD BE THE ERROR
 
 				#find difference between to_decrease_score and selected_reads in order to not to try to decrease score by selected reads
-				selected_read_set = set(reads_in_slice)
-				decrease_set = set(to_decrease_score)
-				d_set = decrease_set.difference(selected_read_set)
+			selected_read_set = set(reads_in_slice)
+			decrease_set = reads_whose_score_has_to_be_updated
+			d_set = decrease_set.difference(selected_read_set)
 
-				#Catch with None if element is not in the priorityqueue
-				for element in d_set:
-					oldscore = pq.get_score_by_item(element)
-					if oldscore != None:
-						newscore = _update_score_for_reads(oldscore, readset, element, already_covered_SNPs)
-						pq.change_score(element, newscore)
+			#Need to only decrease the score of the read which cover a newly detected SNP. Therefore difference:
+			newly_covered= SNPS_Covered_for_this_read - already_covered_SNPs
+			print('Newly_covered')
+			print(SNPS_Covered_for_this_read)
+			print('already_covered_SNPs')
+			print(already_covered_SNPs)
+			print(newly_covered)
+
+
+
+			#Catch with None if element is not in the priorityqueue
+			for element in d_set:
+				oldscore = pq.get_score_by_item(element)
+				if oldscore != None:
+					newscore = _update_score_for_reads(oldscore, readset, element, newly_covered)
+					pq.change_score(element, newscore)
 	return reads_in_slice, reads_violating_coverage
 
-
-#Not Needed
-def new_bridging(readset, selected_reads, component_finder):
-	'''
-    :param readset: original Readset
-    :param selected_reads: at the moment selected read indices
-    :param component_finder: actual component finder
-    :return: list of read indices which build up bridges between the given components
-    '''
-	outlist = []
-	#Here only looking at the positions themselves
-	for index, read in enumerate(readset):
-		covered_blocks = set(component_finder.find(pos.position) for pos in read)
-
-		# skip read if it only covers one block
-		if len(covered_blocks) < 2:
-			continue
-
-		# skip read if it has already been selected
-		if index in selected_reads:
-			continue
-
-		outlist.append(index)
-
-	return outlist
-
-
-#Not needed
-def analyse_bridging_reads(bridging_reads, readset, selected_reads, component_finder, Cov_Monitor, vcf_indices,
-						   components, max_cov):
-	'''	looks at the extracted bridging reads and only select those which suit into the Coverage Monitor and only 1 read for each bridge	'''
-
-	found_bridge = set()
-	selction = []
-	for index in bridging_reads:
-		read = readset[index]
-		for pos in read:
-			read_positions = []
-			for comp in components:
-				#TODO Here Maybe find more than one bridge to one component .....
-				if pos.position == comp and pos.position not in found_bridge:
-					found_bridge.add(pos.position)
-					selction.append(index)
-					begin = vcf_indices.get(read[0].position)
-					end = vcf_indices.get(read[len(read) - 1].position) + 1
-					if pos.position in vcf_indices.keys():
-						read_positions.append(pos.position)
-					if Cov_Monitor.max_coverage_in_range(begin, end) < max_cov:
-						#print('Added read index')
-						#print(index)
-						Cov_Monitor.add_read(begin, end)
-
-						selected_reads.add(index)
-			for pos in read_positions[1:]:
-				component_finder.merge(read_positions[0], pos)
-
-	new_components = {position: component_finder.find(position) for position in vcf_indices.keys()}
-
-	#print('New Components after bridging')
-	#print(set(new_components.values()))
-	#print(len(set(new_components.values())))
-
-	return (selction, Cov_Monitor, selected_reads, component_finder)
 
 
 def format_read_source_stats(readset, indices):
@@ -260,17 +229,9 @@ def readselection(readset, max_cov, bridging=True):
 			read = readset[read_index]
 			read_positions = [variant.position for variant in read]
 			for position in read_positions[1:]:
-				print('WHAT is merged')
-				print(read_positions[0])
-				print(read_positions)
 				component_finder.merge(read_positions[0], position)
 
 		bridging_reads = set()
-		print('Before brdiging ')
-		print(selected_reads)
-		before_bridging_components = {position: component_finder.find(position) for position in vcf_indices.keys()}
-		print('Actual components before briding ')
-		print(before_bridging_components)
 		if bridging:
 			pq = __pq_construction_out_of_given_reads(readset, undecided_reads, vcf_indices)
 			while not pq.is_empty():

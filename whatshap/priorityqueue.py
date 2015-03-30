@@ -4,7 +4,7 @@ import math
 
 
 # TODO: in general, see https://www.python.org/dev/peps/pep-0008
-
+#TODO : convert this into a cython class because of runtime.
 class PriorityQueue:
 	def __init__(self):
 		'''initializes a priority queue with an empty list and an empty dictionary'''
