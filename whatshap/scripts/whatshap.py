@@ -25,9 +25,9 @@ import itertools
 import platform
 from collections import defaultdict
 try:
-	from contextlib import ExitStack, closing
+	from contextlib import ExitStack
 except ImportError:
-	from contextlib2 import ExitStack, closing  # PY32
+	from contextlib2 import ExitStack  # PY32
 from ..vcf import parse_vcf, PhasedVcfWriter
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
@@ -425,7 +425,7 @@ def run_whatshap(bam, vcf,
 	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
 		try:
-			bam_reader = stack.enter_context(closing(ReadSetReader(bam, mapq_threshold=mapping_quality)))
+			bam_reader = stack.enter_context(ReadSetReader(bam, mapq_threshold=mapping_quality))
 		except (OSError, BamIndexingError) as e:
 			logger.error(e)
 			sys.exit(1)
