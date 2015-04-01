@@ -422,6 +422,41 @@ def best_case_blocks(reads):
 	return len(component_sizes), len(non_singletons)
 
 
+class StageTimer:
+	"""Measure run times of different stages of the program"""
+	def __init__(self):
+		self._start = dict()
+		self._elapsed = defaultdict(float)
+
+	def start(self, stage):
+		"""Start measuring elapsed time for a stage"""
+		self._start[stage] = time.time()
+
+	def stop(self, stage):
+		"""Stop measuring elapsed time for a stage."""
+		t = time.time() - self._start[stage]
+		self._elapsed[stage] += t
+		return t
+
+	def elapsed(self, stage):
+		"""
+		Return total time spent in a stage, which is the sum of the time spans
+		between calls to start() and stop(). If the timer is currently running,
+		its current invocation is not counted.
+		"""
+		return self._elapsed[stage]
+
+	def total(self):
+		"""Return sum of all times"""
+		return sum(self._elapsed.values())
+
+	#@contextmanager
+	#def __call__(self, stage):
+		#self.start(stage)
+		#yield
+		#self.stop(stage)
+
+
 def ensure_pysam_version():
 	from pysam import __version__ as pysam_version
 	from distutils.version import LooseVersion
@@ -447,10 +482,11 @@ def run_whatshap(bam, vcf,
 	"""
 	random.seed(seed)
 
-	start_time = time.time()
 	class Statistics:
 		pass
 	stats = Statistics()
+	timers = StageTimer()
+	timers.start('overall')
 	stats.n_homozygous = 0
 	stats.n_phased_blocks = 0
 	stats.n_best_case_blocks = 0
@@ -472,19 +508,24 @@ def run_whatshap(bam, vcf,
 		haplotype_bam_writer = None
 		if haplotype_bams_prefix is not None:
 			haplotype_bam_writer = HaplotypeBamWriter(bam, haplotype_bams_prefix, sample)
+		timers.start('parse_vcf')
 		for sample, chromosome, variants in vcf_reader:
+			timers.stop('parse_vcf')
 			logger.info('Working on chromosome %s', chromosome)
 			logger.info('Read %d variants', len(variants))
 			bam_sample = None if ignore_read_groups else sample
 			logger.info('Reading the BAM file ...')
 			try:
+				timers.start('read_bam')
 				reads = bam_reader.read(chromosome, variants, bam_sample)
+				bam_time = timers.stop('read_bam')
 			except SampleNotFoundError:
 				logger.error("Sample %r is not among the read groups (RG tags) "
 					"in the BAM header.", bam_sample)
 				sys.exit(1)
-			logger.info('%d reads found', len(reads))
+			logger.info('Read %d reads in %.1f s', len(reads), bam_time)
 
+			timers.start('slice')
 			# Sort the variants stored in each read
 			# TODO: Check whether this is already ensured by construction
 			for read in reads:
@@ -493,6 +534,7 @@ def run_whatshap(bam, vcf,
 			reads.sort()
 
 			sliced_reads = slice_reads(reads, max_coverage)
+			timers.stop('slice')
 			n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(reads)
 			n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(sliced_reads)
 			stats.n_best_case_blocks += n_best_case_blocks
@@ -503,8 +545,9 @@ def run_whatshap(bam, vcf,
 				n_best_case_nonsingleton_blocks, n_best_case_blocks)
 			logger.info('... after coverage reduction: %d non-singleton phased blocks (%d in total)',
 				n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
-			logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 
+			logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
+			timers.start('phase')
 			# Run the core algorithm: construct DP table ...
 			dp_table = DPTable(sliced_reads, all_heterozygous)
 			# get the mec score
@@ -518,6 +561,7 @@ def run_whatshap(bam, vcf,
 			n_homozygous = sum(1 for v1, v2 in zip(*superreads)
 				if v1.allele == v2.allele and v1.allele in (0, 1))
 			stats.n_homozygous += n_homozygous
+			timers.stop('phase')
 
 			components = find_components(superreads, sliced_reads)
 			n_phased_blocks = len(set(components.values()))
@@ -527,12 +571,15 @@ def run_whatshap(bam, vcf,
 				assert n_homozygous == 0
 			else:
 				logger.info('No. of heterozygous variants determined to be homozygous: %d', n_homozygous)
+			timers.start('write_vcf')
 			vcf_writer.write(chromosome, sample, superreads, components)
+			timers.stop('write_vcf')
 			if haplotype_bam_writer is not None:
 				logger.info('Writing used reads to haplotype-specific BAM files')
 				haplotype_bam_writer.write(sliced_reads, dp_table.get_optimal_partitioning(), chromosome)
 			logger.info('Chromosome %s finished', chromosome)
-
+			timers.start('parse_vcf')
+		timers.stop('parse_vcf')
 	logger.info('== SUMMARY ==')
 	logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
 		stats.n_best_case_nonsingleton_blocks, stats.n_best_case_blocks)
@@ -542,7 +589,14 @@ def run_whatshap(bam, vcf,
 		assert stats.n_homozygous == 0
 	else:
 		logger.info('No. of heterozygous variants determined to be homozygous: %d', stats.n_homozygous)
-	logger.info('Elapsed time: %.1fs', time.time() - start_time)
+	timers.stop('overall')
+	logger.info('Time spent reading BAM: %6.1f s', timers.elapsed('read_bam'))
+	logger.info('Time spent parsing VCF: %6.1f s', timers.elapsed('parse_vcf'))
+	logger.info('Time spent slicing:     %6.1f s', timers.elapsed('slice'))
+	logger.info('Time spent phasing:     %6.1f s', timers.elapsed('phase'))
+	logger.info('Time spent writing VCF: %6.1f s', timers.elapsed('write_vcf'))
+	logger.info('Time spent on rest:     %6.1f s', 2 * timers.elapsed('overall') - timers.total())
+	logger.info('Total elapsed time:     %6.1f s', timers.elapsed('overall'))
 
 
 def main():
