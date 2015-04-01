@@ -23,7 +23,8 @@ import gzip
 import time
 import itertools
 import platform
-from collections import defaultdict
+from collections import defaultdict, Counter
+from contextlib import contextmanager
 try:
 	from contextlib import ExitStack
 except ImportError:
@@ -180,6 +181,12 @@ class ReadSetReader:
 
 		Return a ReadSet object.
 		"""
+		# Since variants are identified by position, positions must be unique.
+		if __debug__ and variants:
+			varposc = Counter(variant.position for variant in variants)
+			pos, count = varposc.most_common()[0]
+			assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
+
 		# Map read name to a list of Read objects. The list has two entries
 		# if it is a paired-end read, one entry if the read is single-end.
 		reads = defaultdict(list)
