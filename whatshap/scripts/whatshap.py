@@ -446,11 +446,11 @@ class StageTimer:
 		"""Return sum of all times"""
 		return sum(self._elapsed.values())
 
-	#@contextmanager
-	#def __call__(self, stage):
-		#self.start(stage)
-		#yield
-		#self.stop(stage)
+	@contextmanager
+	def __call__(self, stage):
+		self.start(stage)
+		yield
+		self.stop(stage)
 
 
 def ensure_pysam_version():
@@ -521,16 +521,16 @@ def run_whatshap(bam, vcf,
 				sys.exit(1)
 			logger.info('Read %d reads in %.1f s', len(reads), bam_time)
 
-			timers.start('slice')
-			# Sort the variants stored in each read
-			# TODO: Check whether this is already ensured by construction
-			for read in reads:
-				read.sort()
-			# Sort reads in read set by position
-			reads.sort()
+			with timers('slice'):
+				# Sort the variants stored in each read
+				# TODO: Check whether this is already ensured by construction
+				for read in reads:
+					read.sort()
+				# Sort reads in read set by position
+				reads.sort()
 
-			sliced_reads = slice_reads(reads, max_coverage)
-			timers.stop('slice')
+				sliced_reads = slice_reads(reads, max_coverage)
+
 			n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(reads)
 			n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(sliced_reads)
 			stats.n_best_case_blocks += n_best_case_blocks
@@ -542,22 +542,21 @@ def run_whatshap(bam, vcf,
 			logger.info('... after coverage reduction: %d non-singleton phased blocks (%d in total)',
 				n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
 
-			logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
-			timers.start('phase')
-			# Run the core algorithm: construct DP table ...
-			dp_table = DPTable(sliced_reads, all_heterozygous)
-			# get the mec score
-			mec_score = dp_table.get_optimal_cost()
-			# ... and do the backtrace to get the solution
-			superreads = dp_table.get_super_reads()
+			with timers('phase'):
+				logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
+				# Run the core algorithm: construct DP table ...
+				dp_table = DPTable(sliced_reads, all_heterozygous)
+				# get the mec score
+				mec_score = dp_table.get_optimal_cost()
+				# ... and do the backtrace to get the solution
+				superreads = dp_table.get_super_reads()
 
-			# output the MEC score of phasing
-			logger.info('MEC score of phasing: %d', mec_score)
+				# output the MEC score of phasing
+				logger.info('MEC score of phasing: %d', mec_score)
 
-			n_homozygous = sum(1 for v1, v2 in zip(*superreads)
-				if v1.allele == v2.allele and v1.allele in (0, 1))
-			stats.n_homozygous += n_homozygous
-			timers.stop('phase')
+				n_homozygous = sum(1 for v1, v2 in zip(*superreads)
+					if v1.allele == v2.allele and v1.allele in (0, 1))
+				stats.n_homozygous += n_homozygous
 
 			components = find_components(superreads, sliced_reads)
 			n_phased_blocks = len(set(components.values()))
@@ -567,9 +566,10 @@ def run_whatshap(bam, vcf,
 				assert n_homozygous == 0
 			else:
 				logger.info('No. of heterozygous variants determined to be homozygous: %d', n_homozygous)
-			timers.start('write_vcf')
-			vcf_writer.write(chromosome, sample, superreads, components)
-			timers.stop('write_vcf')
+
+			with timers('write_vcf'):
+				vcf_writer.write(chromosome, sample, superreads, components)
+
 			if haplotype_bam_writer is not None:
 				logger.info('Writing used reads to haplotype-specific BAM files')
 				haplotype_bam_writer.write(sliced_reads, dp_table.get_optimal_partitioning(), chromosome)
