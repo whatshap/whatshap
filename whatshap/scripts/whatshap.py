@@ -53,7 +53,6 @@ def covered_variants(variants, start, bam_read, source_id):
 	j = start  # index into variants
 	ref_pos = bam_read.pos  # position relative to reference
 	query_pos = 0  # position relative to read
-	errors = 0
 
 	for cigar_op, length in bam_read.cigar:
 		# The mapping of CIGAR operators to numbers is:
@@ -74,9 +73,6 @@ def covered_variants(variants, start, bam_read, source_id):
 						allele = 0
 					elif base == variants[j].alternative_allele:
 						allele = 1
-					else:
-						# TODO this variable is unused
-						errors += 1
 					if allele is not None:
 						# TODO
 						# Fix this: we can actually have indel and SNP
