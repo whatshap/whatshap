@@ -595,9 +595,25 @@ def run_whatshap(bam, vcf,
 	logger.info('Total elapsed time:     %6.1f s', timers.elapsed('overall'))
 
 
+class NiceFormatter(logging.Formatter):
+	"""
+	Do not prefix "INFO:" to info-level log messages (but do it for all other
+	levels).
+
+	Based on http://stackoverflow.com/a/9218261/715090 .
+	"""
+	def format(self, record):
+		if record.levelno != logging.INFO:
+			record.msg = '{}: {}'.format(record.levelname, record.msg)
+		return super().format(record)
+
+
 def main():
 	ensure_pysam_version()
-	logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+	logger.setLevel(logging.INFO)
+	handler = logging.StreamHandler()
+	handler.setFormatter(NiceFormatter())
+	logger.addHandler(handler)
 	parser = ArgumentParser(prog='whatshap', description=__doc__)
 	parser.add_argument('--version', action='version', version=__version__)
 	parser.add_argument('-o', '--output', default=sys.stdout,
