@@ -33,7 +33,7 @@ from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, IndexSet
 from ..graph import ComponentFinder
-from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError
+from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -431,7 +431,7 @@ def ensure_pysam_version():
 
 def run_whatshap(bam, vcf,
 		output=sys.stdout, sample=None, ignore_read_groups=False, indels=True,
-		mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123):
+		mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123, haplotype_bams_prefix=None):
 	"""
 	Run WhatsHap.
 
@@ -469,6 +469,9 @@ def run_whatshap(bam, vcf,
 		command_line = ' '.join(sys.argv[1:])
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=vcf, out_file=output)
 		vcf_reader = parse_vcf(vcf, sample=sample, indels=indels)
+		haplotype_bam_writer = None
+		if haplotype_bams_prefix is not None:
+			haplotype_bam_writer = HaplotypeBamWriter(bam, haplotype_bams_prefix, sample)
 		for sample, chromosome, variants in vcf_reader:
 			logger.info('Working on chromosome %s', chromosome)
 			logger.info('Read %d variants', len(variants))
@@ -525,6 +528,9 @@ def run_whatshap(bam, vcf,
 			else:
 				logger.info('No. of heterozygous variants determined to be homozygous: %d', n_homozygous)
 			vcf_writer.write(chromosome, sample, superreads, components)
+			if haplotype_bam_writer is not None:
+				logger.info('Writing used reads to haplotype-specific BAM files')
+				haplotype_bam_writer.write(sliced_reads, dp_table.get_optimal_partitioning(), chromosome)
 			logger.info('Chromosome %s finished', chromosome)
 
 	logger.info('== SUMMARY ==')
@@ -563,6 +569,10 @@ def main():
 	parser.add_argument('--sample', metavar='SAMPLE', default=None,
 		help='Name of a sample to phase. If not given, the first sample in the '
 		'input VCF is phased.')
+	parser.add_argument('--haplotype-bams', dest='haplotype_bams_prefix', default=None,
+		help='Write reads that have been used for phasing to haplotype specific BAM files. '
+		'Expects <filename-prefix> as parameter and creates files <filename-prefix>.1.bam '
+		'and <filename-prefix>.2.bam')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
 

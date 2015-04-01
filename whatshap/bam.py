@@ -160,6 +160,40 @@ class MultiBamReader:
 			f.close()
 
 
+class HaplotypeBamWriter:
+	'''Write haplotype specific BAM files of reads used for phasing.'''
+
+	def __init__(self, input_bams, output_prefix, sample):
+		# TODO: Take care of header: add all read groups and double check SQs, etc.
+		assert len(input_bams) > 0
+		template = pysam.AlignmentFile(input_bams[0], 'rb')
+		self._outputfiles = [pysam.AlignmentFile('{}.{}.bam'.format(output_prefix,i), 'wb', template=template) for i in [1,2]]
+		self.sample = sample
+		if len(input_bams) == 1:
+			self._reader = SampleBamReader(input_bams[0])
+		else:
+			logger.warning('Writing haplotype-specific BAM files for multiple input BAM files but proper resolution of name clashes not yet implemented.')
+			self._reader = MultiBamReader(input_bams)
+
+	def write(self, readset, bipartition, chromosome):
+		'''Write all reads in the given readset to the two output files according to the 
+		given bipartition. Expect reads to be from the given chromosome.'''
+		assert len(readset) == len(bipartition)
+		read_indices = { (r.source_id,r.name): i for i, r in enumerate(readset) }
+		for alignment in self._reader.fetch(reference=chromosome, sample=self.sample):
+			if alignment.bam_alignment.flag & 2048 != 0:
+				continue
+			if alignment.bam_alignment.is_secondary:
+				continue
+			read_id = (alignment.source_id, alignment.bam_alignment.qname)
+			if read_id not in read_indices:
+				continue
+			target = bipartition[read_indices[read_id]]
+			assert target in [0,1]
+			# TODO: for multiple BAM files, translate read name and read group IDs
+			self._outputfiles[target].write(alignment.bam_alignment)
+
+
 if __name__ == '__main__':
 	import sys
 	# merge given BAM files and write them into out.bam
