@@ -616,6 +616,8 @@ def main():
 	logger.addHandler(handler)
 	parser = ArgumentParser(prog='whatshap', description=__doc__)
 	parser.add_argument('--version', action='version', version=__version__)
+	parser.add_argument('--debug', action='store_true', default=False,
+		help='Show more verbose output')
 	parser.add_argument('-o', '--output', default=sys.stdout,
 		help='Output VCF file. If omitted, use standard output.')
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
@@ -643,4 +645,6 @@ def main():
 	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
 
 	args = parser.parse_args()
+	logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
+	del args.debug
 	run_whatshap(**vars(args))
