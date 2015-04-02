@@ -60,11 +60,14 @@ def parse_vcf(path, indels=False, sample=None):
 	Read a VCF and yield tuples (sample, chromosome, variants) for each
 	chromosome for which there are variants in the VCF. chromosome is
 	the name of the chromosome, and variants is a list of VcfVariant objects that
-	represent the variants.
+	represent all heterozygous variants.
 
 	path -- Path to VCF file
+
 	indels -- Whether to include also insertions and deletions in the list of
 		variants. Include only SNPs if set to False.
+		TODO this should always be enabled since deletions can 'overlap' other variants
+
 	sample -- The name of the sample whose calls should be extracted. If
 		set to None, calls of the first sample are extracted.
 	"""
@@ -91,26 +94,26 @@ def parse_vcf(path, indels=False, sample=None):
 		if not call.is_het:
 			continue
 		assert len(alleles) == 2
+		ref, alt = alleles[0:2]
 
-		# Normalize variants in which the first two bases are identical,
-		# such as CTG -> CTAAA (which is changed to TG -> TAAA).
-		a0, a1 = alleles[0:2]
+		# Normalize variants in which the first two bases are identical.
+		# For example, CTG -> CTAAA is changed to TG -> TAAA.
 		pos = record.start
-		while len(a0) >= 2 and len(a1) >= 2 and a0[0:2] == a1[0:2]:
-			a0, a1 = a0[1:], a1[1:]
+		while len(ref) >= 2 and len(alt) >= 2 and ref[0:2] == alt[0:2]:
+			ref, alt = ref[1:], alt[1:]
 			pos += 1
-		assert a0 != a1
-		if len(a0) == 1 and len(a1) == 1:
+		assert ref != alt
+		if len(ref) == 1 and len(alt) == 1:
 			n_snps += 1
-			v = VcfVariant(position=pos, reference_allele=a0, alternative_allele=a1)
+			v = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
 			variants.append(v)
 			continue
 		if not indels:
 			continue
 
-		if a0[0] == a1[0] and ((len(a0) == 1) != (len(a1) == 1)):
+		if ref[0] == alt[0] and ((len(ref) == 1) != (len(alt) == 1)):
 			n_indels += 1
-			v = VcfVariant(position=pos+1, reference_allele=a0[1:], alternative_allele=a1[1:])
+			v = VcfVariant(position=pos+1, reference_allele=ref[1:], alternative_allele=alt[1:])
 			variants.append(v)
 			continue
 
