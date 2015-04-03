@@ -95,6 +95,10 @@ extensions = [
 			'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',
 			'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp'
 		], language='c++', extra_compile_args=["-std=c++0x"],),
+	Extension('whatshap.priorityqueue',
+		sources=['whatshap/priorityqueue.pyx'], 
+		language='c++', extra_compile_args=["-std=c++0x"],
+	),
 ]
 extensions = cythonize_if_necessary(extensions)
 
