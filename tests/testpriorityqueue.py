@@ -19,6 +19,7 @@ def test_queue2():
 	pq.push(2, ord('c'))
 	pq.push(30, ord('d'))
 	assert len(pq) == 4
+	assert pq.get_score_by_item(ord('d')) == 30
 	assert pq.pop() == (50, ord('b'))
 	assert pq.pop() == (30, ord('d'))
 	assert pq.pop() == (2, ord('c'))
@@ -106,6 +107,9 @@ def test_tuple_score():
 	pq.push((50,0,2),ord('G'))
 	(score,item )=pq.pop()
 	assert score == (50,0,2)
+	assert pq.get_score_by_item(ord('E')) == (40,0,2)
+	assert pq.get_score_by_item(ord('F')) == (0,0,2)
+	assert pq.get_score_by_item(ord('D')) == (3,0,2)
 	assert item ==ord('G')
 	(score,item )=pq.pop()
 	assert score == (40,0,2)
