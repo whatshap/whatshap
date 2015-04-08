@@ -6,30 +6,31 @@ from libcpp.pair cimport pair
 from libcpp cimport bool
 
 ctypedef vector[int] priority_type
+ctypedef priority_type* priority_type_ptr
 ctypedef int item_type
-ctypedef pair[priority_type,item_type] queue_entry_type
+ctypedef pair[priority_type_ptr,item_type] queue_entry_type
 
-cdef bool _vector_score_lower(priority_type& first, priority_type& second):
-	for i in range(min(first.size(), second.size())):
-		if first[i] < second[i]:
+cdef bool _vector_score_lower(priority_type_ptr first, priority_type_ptr second):
+	for i in range(min(first[0].size(), second[0].size())):
+		if first[0][i] < second[0][i]:
 			return True
-		if first[i] > second[i]:
+		if first[0][i] > second[0][i]:
 			return False
-	if first.size() < second.size(): 
+	if first[0].size() < second[0].size(): 
 		return True
 	else:
 		return False
 
-cdef priority_type _pyscore_to_vector(score):
-	cdef priority_type result
+cdef priority_type_ptr _pyscore_to_vector(score):
+	cdef priority_type_ptr result = new priority_type()
 	if isinstance(score,int):
-		result.push_back(score)
+		result[0].push_back(score)
 	else:
 		try:
 			for i in score:
 				if not isinstance(i,int):
 					raise
-				result.push_back(i)
+				result[0].push_back(i)
 		except:
 			raise ValueError('Score parameter must be either int, or an iterable object yielding ints')
 	return result
@@ -53,6 +54,10 @@ cdef class PriorityQueue:
 	cdef vector[queue_entry_type] heap
 	cdef unordered_map[item_type,int] positions
 
+	def __dealloc__(self):
+		for i in range(self.heap.size()):
+			del self.heap[i].first
+	
 	cpdef push(self, score, int item):
 		'''Add item with given score to the heap.'''
 		# Item stored with score in a tupel where the score is always the first position..
@@ -137,16 +142,18 @@ cdef class PriorityQueue:
 			self.positions.erase(first_entry.second)
 
 			self._sift_down(0)
-		cdef priority_type score = first_entry.first
+		cdef priority_type_ptr score = first_entry.first
 		cdef item_type item = first_entry.second
-		if score.size() == 1:
-			return score[0], item
+		if score[0].size() == 1:
+			result = (score[0][0], item)
 		else:
-			return tuple(score), item
+			result = tuple(score[0]), item
+		del score
+		return result
 
 	def change_score(self, item_type item, new_score):
 		'''Changes the score of the given item to the new assigned score.'''
-		cdef priority_type c_new_score = _pyscore_to_vector(new_score)
+		cdef priority_type_ptr c_new_score = _pyscore_to_vector(new_score)
 		position = self.positions[item]
 
 		c_old_score = self.heap[position].first
@@ -158,14 +165,19 @@ cdef class PriorityQueue:
 		else:
 			self._sift_down(position)
 
+		del c_old_score
+
 	def get_score_by_item(self, item):
 		'''returns actual score of the given item or None if item is not in the heap '''
+		cdef unordered_map[item_type,int].iterator it = self.positions.find(item)
+		if it == self.positions.end():
+			return None
 		cdef queue_entry_type entry = self.heap[self.positions[item]]
-		cdef priority_type score = entry.first
-		if score.size() == 1:
-			return score[0]
+		cdef priority_type_ptr score = entry.first
+		if score[0].size() == 1:
+			return score[0][0]
 		else:
-			return tuple(score)
+			return tuple(score[0])
 
 	def __len__(self):
 		'''Length of  Priority Queue is equal to the length of the stored heap'''
@@ -175,8 +187,4 @@ cdef class PriorityQueue:
 		'''Return if actual Priority Queue is Empty'''
 		return self.heap.size() == 0
 
-	def __str__(self):
-		return 'Heap: {}'.format(str(self.heap))
-		#for i in range(self.heap.size()):
-			
 
