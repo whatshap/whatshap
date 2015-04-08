@@ -43,14 +43,14 @@ def _construct_indexes(readset):
 
 def _update_score_for_reads(former_score, readset, index, already_covered_SNPs):
 	'''updatest the score of the read, depending on how many reads are already covered'''
-	print('Already_covere_SNPS in  update')
-	print(already_covered_SNPs)
+	#print('Already_covere_SNPS in  update')
+	#print(already_covered_SNPs)
 
 	(first_score, second_score, quality) = former_score
 	read = readset[index]
 	for pos in read:
 		if pos.position not in already_covered_SNPs:
-			print('Score updated')
+			#print('Score updated')
 			first_score -= 1
 	return (first_score, second_score, quality)
 
@@ -113,9 +113,9 @@ def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_
 	while not pq.is_empty():
 		SNPS_Covered_for_this_read=set()
 		(max_score, max_item) = pq.pop()
-		print('POPED ITEM')
-		print(max_item)
-		print(max_score)
+		#print('POPED ITEM')
+		#print(max_item)
+		#print(max_score)
 		#newly_covered_positione=set()
 		extracted_read = readset[max_item]
 		covers_new_snp = False
@@ -163,11 +163,11 @@ def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_
 
 			#Need to only decrease the score of the read which cover a newly detected SNP. Therefore difference:
 			newly_covered= SNPS_Covered_for_this_read - already_covered_SNPs
-			print('Newly_covered')
-			print(SNPS_Covered_for_this_read)
-			print('already_covered_SNPs')
-			print(already_covered_SNPs)
-			print(newly_covered)
+			#print('Newly_covered')
+			#print(SNPS_Covered_for_this_read)
+			#print('already_covered_SNPs')
+			#print(already_covered_SNPs)
+			#print(newly_covered)
 
 
 
