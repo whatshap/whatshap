@@ -42,14 +42,11 @@ def _construct_indexes(readset):
 
 def _update_score_for_reads(former_score, readset, index, already_covered_SNPs):
 	'''updatest the score of the read, depending on how many reads are already covered'''
-	#print('Already_covere_SNPS in  update')
-	#print(already_covered_SNPs)
 
 	(first_score, second_score, quality) = former_score
 	read = readset[index]
 	for pos in read:
 		if pos.position not in already_covered_SNPs:
-			#print('Score updated')
 			first_score -= 1
 	return (first_score, second_score, quality)
 
@@ -57,18 +54,15 @@ def _update_score_for_reads(former_score, readset, index, already_covered_SNPs):
 def _compute_score_for_read(readset, index, vcf_indices):
 	'''Method for computing the score for a read independently'''
 	#TODO At the moment tuple (new- bad ,good -bad, min(qualities))
-	#bad and bad score stays the same, new changes by decrease of score if variant is already covered
-
 	read = readset[index]
-
+	#TODO look if the initial values is reasonable
 	#initialize minimal quality by high value, good_score by 0  and bad_score by 0 .
 	min_quality = 1000
 	good_score = 0
 	bad_score = 0
 	covered_SNPS = []
 	for pos in read:
-		#TODO Need some acess through name quality...
-		quality = pos[2]
+		quality=pos.quality
 		min_quality = min(min_quality, quality)
 		SNP_covered = vcf_indices.get(pos.position)
 		if SNP_covered != None :
@@ -79,7 +73,7 @@ def _compute_score_for_read(readset, index, vcf_indices):
 	if len(covered_SNPS) != (covered_SNPS[len(covered_SNPS) - 1] - covered_SNPS[0] + 1):
 		bad_score = (covered_SNPS[len(covered_SNPS) - 1] - covered_SNPS[0] + 1) - len(covered_SNPS)
 
-	#TODO initially new_score is the same as good _score only later  new score gets updated
+	#initially new_score is the same as good_score, but new_score is updated later
 	return (good_score - bad_score, good_score - bad_score, min_quality)
 
 
@@ -105,21 +99,11 @@ def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_
 	'''Extraction of a set of read indices, where each SNP should be covered at least once, if coverage, or reads are allowing it '''
 	#Intern list for storing the actual selected reads
 	already_covered_SNPs = set()
-	# reads that are seleted in this slice
 	reads_in_slice = set()
 	reads_violating_coverage = set()
-	#TODO add an additional condition like if number covered SNPS equal phasable SNPS then big pq are reduced unnecessary because pq already includes only the undicided ones....
 	while not pq.is_empty():
-		#Last_roun_covered_SNPs= set()
-		#for i in already_covered_SNPs:
-		#	Last_roun_covered_SNPs.add(i)
-
-
 		SNPS_Covered_for_this_read=set()
 		(max_score, max_item) = pq.pop()
-
-		#print(max_score)
-		#newly_covered_positione=set()
 		extracted_read = readset[max_item]
 		covers_new_snp = False
 		#look if positions covered by this reads are already covered or not
@@ -128,10 +112,8 @@ def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_
 				continue
 			else:
 				covers_new_snp = True
+				#stores the positions the read covers
 				SNPS_Covered_for_this_read.add(pos.position)
-				#break
-		print('SNPS covered for this read ')
-		print(SNPS_Covered_for_this_read)
 		#only if at least one position is not covered then we could add the read if he does not break the max coverage
 		begin = vcf_indices.get(extracted_read[0].position)
 		end = vcf_indices.get(extracted_read[len(extracted_read) - 1].position) + 1
@@ -140,29 +122,19 @@ def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_
 		elif covers_new_snp:
 			coverages.add_read(begin, end)
 			reads_in_slice.add(max_item)
-			#for pos in extracted_read:
-			#	SNPS_Covered_for_this_read.add(pos.position)
-			#print('Position this read covers')
-			#print(SNPS_Covered_for_this_read)
-
 			reads_whose_score_has_to_be_updated = set()
 
 			#again go over the positions in the read and add them to the already_covered_SNP list
 
-			#Here the set SNPs covered_for _ this read exists:
+			#Only the positions in the read which cover new SNPs are analysed
 			for pos in SNPS_Covered_for_this_read:
 				already_covered_SNPs.add(pos)
-				need_to_decrease_score= SNP_read_map[vcf_indices.get(pos)]
-				reads_whose_score_has_to_be_updated.update(need_to_decrease_score)
-
-
+				reads_whose_score_has_to_be_updated.update(SNP_read_map[vcf_indices.get(pos)])
 
 			#find difference between to_decrease_score and selected_reads in order to not to try to decrease score by selected reads
 			selected_read_set = set(reads_in_slice)
 			decrease_set = reads_whose_score_has_to_be_updated
 			d_set = decrease_set.difference(selected_read_set)
-			print('D set ')
-			print(d_set)
 
 			#Catch with None if element is not in the priorityqueue
 			for element in d_set:
@@ -203,8 +175,7 @@ def readselection(readset, max_cov, bridging=True):
 
 	# indices of reads that could (potentially) still be selected ,do not consider thes read which only cover one SNP
 	undecided_reads = set(i for i, read in enumerate(readset) if len(read) >= 2)
-	#print('Undecided REads')
-	#print(undecided_reads)
+
 	number_unuseful_reads = len(readset) - len(undecided_reads)
 
 	loop = 0
@@ -263,13 +234,6 @@ def readselection(readset, max_cov, bridging=True):
 
 	#for Debugging
 	new_components = {position: component_finder.find(position) for position in vcf_indices.keys()}
-	#print('New componentes')
-	#print(new_components)
-	#print('Length of components')
-	#print(len(new_components))
-
-	#statistic for logger in whatshap:
-    #1. number_unuseful_reads do skipped reads
 	stats = (number_unuseful_reads)
 
 	return selected_reads, new_components, stats
