@@ -4,7 +4,6 @@
 # Heap implemented for storage of Reads - Done
 
 # include the Coverage Monitor...
-
 #Looking if heapq is possible to manage the heap or not especially  id the runtime changes,,
 # Redefine ComponentFinder by using max value and also the rank (not sure)
 #implement heuristic
@@ -43,14 +42,14 @@ def _construct_indexes(readset):
 
 def _update_score_for_reads(former_score, readset, index, already_covered_SNPs):
 	'''updatest the score of the read, depending on how many reads are already covered'''
-	print('Already_covere_SNPS in  update')
-	print(already_covered_SNPs)
+	#print('Already_covere_SNPS in  update')
+	#print(already_covered_SNPs)
 
 	(first_score, second_score, quality) = former_score
 	read = readset[index]
 	for pos in read:
 		if pos.position not in already_covered_SNPs:
-			print('Score updated')
+			#print('Score updated')
 			first_score -= 1
 	return (first_score, second_score, quality)
 
@@ -111,11 +110,16 @@ def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_
 	reads_violating_coverage = set()
 	#TODO add an additional condition like if number covered SNPS equal phasable SNPS then big pq are reduced unnecessary because pq already includes only the undicided ones....
 	while not pq.is_empty():
+		#Last_roun_covered_SNPs= set()
+		#for i in already_covered_SNPs:
+		#	Last_roun_covered_SNPs.add(i)
+
+
 		SNPS_Covered_for_this_read=set()
 		(max_score, max_item) = pq.pop()
 		print('POPED ITEM')
 		print(max_item)
-		print(max_score)
+		#print(max_score)
 		#newly_covered_positione=set()
 		extracted_read = readset[max_item]
 		covers_new_snp = False
@@ -127,6 +131,8 @@ def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_
 				covers_new_snp = True
 				SNPS_Covered_for_this_read.add(pos.position)
 				#break
+		print('SNPS covered for this read ')
+		print(SNPS_Covered_for_this_read)
 		#only if at least one position is not covered then we could add the read if he does not break the max coverage
 		begin = vcf_indices.get(extracted_read[0].position)
 		end = vcf_indices.get(extracted_read[len(extracted_read) - 1].position) + 1
@@ -135,47 +141,35 @@ def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_
 		elif covers_new_snp:
 			coverages.add_read(begin, end)
 			reads_in_slice.add(max_item)
+			#for pos in extracted_read:
+			#	SNPS_Covered_for_this_read.add(pos.position)
+			#print('Position this read covers')
+			#print(SNPS_Covered_for_this_read)
 
 			reads_whose_score_has_to_be_updated = set()
 
 			#again go over the positions in the read and add them to the already_covered_SNP list
-			for pos in extracted_read:
-				already_covered_SNPs.add(pos.position)
-				#if pos.position not in already_covered_SNPs:
-				#	newly_covered_positione.add(pos.position)
 
-				#for extracted read decrease score of every other read which covers one of the other SNPS.
-				to_decrease_score = SNP_read_map[vcf_indices.get(pos.position)]
-				#print('Actural to decrease score  ')
-				#print(to_decrease_score)
-				new_to_decrease = set(to_decrease_score)
-				#One set which includes all reads selected in this one extraction step whose score has to be updated
-				reads_whose_score_has_to_be_updated.update(new_to_decrease)
-				#print('REads update score')
-				#print(reads_whose_score_has_to_be_updated)
 
-#TODO Maybe do this out of the for-loop - THIS SHOULD BE THE ERROR
+			#Here the set SNPs covered_for _ this read exists:
+			for pos in SNPS_Covered_for_this_read:
+				already_covered_SNPs.add(pos)
+				need_to_decrease_score= SNP_read_map[vcf_indices.get(pos)]
+				reads_whose_score_has_to_be_updated.update(need_to_decrease_score)
 
-				#find difference between to_decrease_score and selected_reads in order to not to try to decrease score by selected reads
+
+			#find difference between to_decrease_score and selected_reads in order to not to try to decrease score by selected reads
 			selected_read_set = set(reads_in_slice)
 			decrease_set = reads_whose_score_has_to_be_updated
 			d_set = decrease_set.difference(selected_read_set)
-
-			#Need to only decrease the score of the read which cover a newly detected SNP. Therefore difference:
-			newly_covered= SNPS_Covered_for_this_read - already_covered_SNPs
-			print('Newly_covered')
-			print(SNPS_Covered_for_this_read)
-			print('already_covered_SNPs')
-			print(already_covered_SNPs)
-			print(newly_covered)
-
-
+			print('D set ')
+			print(d_set)
 
 			#Catch with None if element is not in the priorityqueue
 			for element in d_set:
 				oldscore = pq.get_score_by_item(element)
 				if oldscore != None:
-					newscore = _update_score_for_reads(oldscore, readset, element, newly_covered)
+					newscore = _update_score_for_reads(oldscore, readset, element, SNPS_Covered_for_this_read)
 					pq.change_score(element, newscore)
 	return reads_in_slice, reads_violating_coverage
 
