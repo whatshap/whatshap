@@ -40,9 +40,19 @@ cdef int _parent(int index):
 	return (index - 1) // 2
 
 
+#cdef int _left_child(int index):
+#	'''return the index of the left child in the heap depending on the given index'''
+#	return (2 * index) + 1
+
 cdef int _left_child(int index):
 	'''return the index of the left child in the heap depending on the given index'''
-	return (2 * index) + 1
+	return (index << 1) + 1
+
+
+
+#cdef int _right_child(int index):
+#	'''return the index of the right child in the heap depending on the given index'''
+#	return (index << 1) + 2
 
 
 cdef int _right_child(int index):
