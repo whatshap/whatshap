@@ -23,23 +23,21 @@ import gzip
 import time
 import itertools
 import platform
-
-from collections import defaultdict
+from collections import defaultdict, Counter
+from contextlib import contextmanager
 try:
-	from contextlib import ExitStack, closing
+	from contextlib import ExitStack
 except ImportError:
-	from contextlib2 import ExitStack, closing  # PY32
+	from contextlib2 import ExitStack  # PY32
 from ..vcf import parse_vcf, PhasedVcfWriter
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, IndexSet
 from ..graph import ComponentFinder
 from ..readselect import readselection
-
-#from ..readselect import Bestreads
 from ..coverage import CovMonitor
 from ..priorityqueue import PriorityQueue
-from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError
+from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
 
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -60,7 +58,6 @@ def covered_variants(variants, start, bam_read, source_id):
 	j = start  # index into variants
 	ref_pos = bam_read.pos  # position relative to reference
 	query_pos = 0  # position relative to read
-	errors = 0
 
 	for cigar_op, length in bam_read.cigar:
 		# The mapping of CIGAR operators to numbers is:
@@ -81,9 +78,6 @@ def covered_variants(variants, start, bam_read, source_id):
 						allele = 0
 					elif base == variants[j].alternative_allele:
 						allele = 1
-					else:
-						# TODO this variable is unused
-						errors += 1
 					if allele is not None:
 						# TODO
 						# Fix this: we can actually have indel and SNP
@@ -105,10 +99,21 @@ def covered_variants(variants, start, bam_read, source_id):
 					core_read.add_variant(variants[j].position, allele=0, quality=qual)
 				elif len(variants[j].alternative_allele) == 0:
 					assert len(variants[j].reference_allele) > 0
-					# This variant is a deletion.
+					# This variant is a deletion that was not observed.
+					# Add it only if the next variant is not located 'within'
+					# the deletion.
+					deletion_end = variants[j].position + len(variants[j].reference_allele)
+					if not (j + 1 < len(variants) and variants[j+1].position < deletion_end):
+						qual = 30  # TODO
+						core_read.add_variant(variants[j].position, allele=0, quality=qual)
+					else:
+						logger.info('Skipped a deletion overlapping another variant at pos. %d', variants[j].position)
+						# Also skip all variants that this deletion overlaps
+						while j + 1 < len(variants) and variants[j+1].position < deletion_end:
+							j += 1
+						# One additional j += 1 is done below
 				else:
-					print("strange variant", variants[j])
-					assert False
+					assert False, "Strange variant: {}".format(variants[j])
 				j += 1
 			query_pos += length
 			ref_pos += length
@@ -124,7 +129,31 @@ def covered_variants(variants, start, bam_read, source_id):
 				core_read.add_variant(variants[j].position, allele=1, quality=qual)
 				j += 1
 			query_pos += length
-		elif cigar_op == 2 or cigar_op == 3:  # a deletion or a reference skip
+		elif cigar_op == 2:  # a deletion
+			# Skip variants that come before this region
+			while j < len(variants) and variants[j].position < ref_pos:
+				j += 1
+			# We only check the length of the deletion, not the sequence
+			# that gets deleted since we don’t have the reference available.
+			# (We could parse the MD tag if it exists.)
+			if j < len(variants) and variants[j].position == ref_pos and \
+					len(variants[j].alternative_allele) == 0 and \
+					len(variants[j].reference_allele) == length:
+				qual = 30  # TODO
+				deletion_end = variants[j].position + len(variants[j].reference_allele)
+				if not (j + 1 < len(variants) and variants[j+1].position < deletion_end):
+					qual = 30  # TODO
+					assert variants[j].position not in core_read
+					core_read.add_variant(variants[j].position, allele=1, quality=qual)
+				else:
+					logger.info('Skipped a deletion overlapping another variant at pos. %d', variants[j].position)
+					# Also skip all variants that this deletion overlaps
+					while j + 1 < len(variants) and variants[j+1].position < deletion_end:
+						j += 1
+					# One additional j += 1 is done below
+				j += 1
+			ref_pos += length
+		elif cigar_op == 3:  # a reference skip
 			ref_pos += length
 		elif cigar_op == 4:  # soft clipping
 			query_pos += length
@@ -156,6 +185,12 @@ class ReadSetReader:
 
 		Return a ReadSet object.
 		"""
+		# Since variants are identified by position, positions must be unique.
+		if __debug__ and variants:
+			varposc = Counter(variant.position for variant in variants)
+			pos, count = varposc.most_common()[0]
+			assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
+
 		# Map read name to a list of Read objects. The list has two entries
 		# if it is a paired-end read, one entry if the read is single-end.
 		reads = defaultdict(list)
@@ -396,6 +431,41 @@ def best_case_blocks(reads):
 	return len(component_sizes), len(non_singletons)
 
 
+class StageTimer:
+	"""Measure run times of different stages of the program"""
+	def __init__(self):
+		self._start = dict()
+		self._elapsed = defaultdict(float)
+
+	def start(self, stage):
+		"""Start measuring elapsed time for a stage"""
+		self._start[stage] = time.time()
+
+	def stop(self, stage):
+		"""Stop measuring elapsed time for a stage."""
+		t = time.time() - self._start[stage]
+		self._elapsed[stage] += t
+		return t
+
+	def elapsed(self, stage):
+		"""
+		Return total time spent in a stage, which is the sum of the time spans
+		between calls to start() and stop(). If the timer is currently running,
+		its current invocation is not counted.
+		"""
+		return self._elapsed[stage]
+
+	def total(self):
+		"""Return sum of all times"""
+		return sum(self._elapsed.values())
+
+	@contextmanager
+	def __call__(self, stage):
+		self.start(stage)
+		yield
+		self.stop(stage)
+
+
 def ensure_pysam_version():
 	from pysam import __version__ as pysam_version
 	from distutils.version import LooseVersion
@@ -405,7 +475,7 @@ def ensure_pysam_version():
 
 def run_whatshap(bam, vcf,
 		output=sys.stdout, sample=None, ignore_read_groups=False, indels=True,
-		mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123):
+		mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123, haplotype_bams_prefix=None):
 	"""
 	Run WhatsHap.
 
@@ -421,10 +491,11 @@ def run_whatshap(bam, vcf,
 	"""
 	random.seed(seed)
 
-	start_time = time.time()
 	class Statistics:
 		pass
 	stats = Statistics()
+	timers = StageTimer()
+	timers.start('overall')
 	stats.n_homozygous = 0
 	stats.n_phased_blocks = 0
 	stats.n_best_case_blocks = 0
@@ -434,7 +505,7 @@ def run_whatshap(bam, vcf,
 	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
 		try:
-			bam_reader = stack.enter_context(closing(ReadSetReader(bam, mapq_threshold=mapping_quality)))
+			bam_reader = stack.enter_context(ReadSetReader(bam, mapq_threshold=mapping_quality))
 		except (OSError, BamIndexingError) as e:
 			logger.error(e)
 			sys.exit(1)
@@ -443,27 +514,36 @@ def run_whatshap(bam, vcf,
 		command_line = ' '.join(sys.argv[1:])
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=vcf, out_file=output)
 		vcf_reader = parse_vcf(vcf, sample=sample, indels=indels)
+		haplotype_bam_writer = None
+		if haplotype_bams_prefix is not None:
+			haplotype_bam_writer = HaplotypeBamWriter(bam, haplotype_bams_prefix, sample)
+		timers.start('parse_vcf')
 		for sample, chromosome, variants in vcf_reader:
+			timers.stop('parse_vcf')
 			logger.info('Working on chromosome %s', chromosome)
 			logger.info('Read %d variants', len(variants))
 			bam_sample = None if ignore_read_groups else sample
 			logger.info('Reading the BAM file ...')
 			try:
+				timers.start('read_bam')
 				reads = bam_reader.read(chromosome, variants, bam_sample)
+				bam_time = timers.stop('read_bam')
 			except SampleNotFoundError:
 				logger.error("Sample %r is not among the read groups (RG tags) "
 					"in the BAM header.", bam_sample)
 				sys.exit(1)
-			logger.info('%d reads found', len(reads))
+			logger.info('Read %d reads in %.1f s', len(reads), bam_time)
 
-			# Sort the variants stored in each read
-			# TODO: Check whether this is already ensured by construction
-			for read in reads:
-				read.sort()
-			# Sort reads in read set by position
-			reads.sort()
+			with timers('slice'):
+				# Sort the variants stored in each read
+				# TODO: Check whether this is already ensured by construction
+				for read in reads:
+					read.sort()
+				# Sort reads in read set by position
+				reads.sort()
 
-			sliced_reads = slice_reads(reads, max_coverage)
+				sliced_reads = slice_reads(reads, max_coverage)
+
 			n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(reads)
 			n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(sliced_reads)
 			stats.n_best_case_blocks += n_best_case_blocks
@@ -474,21 +554,22 @@ def run_whatshap(bam, vcf,
 				n_best_case_nonsingleton_blocks, n_best_case_blocks)
 			logger.info('... after coverage reduction: %d non-singleton phased blocks (%d in total)',
 				n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
-			logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 
-			# Run the core algorithm: construct DP table ...
-			dp_table = DPTable(sliced_reads, all_heterozygous)
-			# get the mec score
-			mec_score = dp_table.get_optimal_cost()
-			# ... and do the backtrace to get the solution
-			superreads = dp_table.get_super_reads()
+			with timers('phase'):
+				logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
+				# Run the core algorithm: construct DP table ...
+				dp_table = DPTable(sliced_reads, all_heterozygous)
+				# get the mec score
+				mec_score = dp_table.get_optimal_cost()
+				# ... and do the backtrace to get the solution
+				superreads = dp_table.get_super_reads()
 
-			# output the MEC score of phasing
-			logger.info('MEC score of phasing: %d', mec_score)
+				# output the MEC score of phasing
+				logger.info('MEC score of phasing: %d', mec_score)
 
-			n_homozygous = sum(1 for v1, v2 in zip(*superreads)
-				if v1.allele == v2.allele and v1.allele in (0, 1))
-			stats.n_homozygous += n_homozygous
+				n_homozygous = sum(1 for v1, v2 in zip(*superreads)
+					if v1.allele == v2.allele and v1.allele in (0, 1))
+				stats.n_homozygous += n_homozygous
 
 			components = find_components(superreads, sliced_reads)
 			n_phased_blocks = len(set(components.values()))
@@ -498,9 +579,16 @@ def run_whatshap(bam, vcf,
 				assert n_homozygous == 0
 			else:
 				logger.info('No. of heterozygous variants determined to be homozygous: %d', n_homozygous)
-			vcf_writer.write(chromosome, sample, superreads, components)
-			logger.info('Chromosome %s finished', chromosome)
 
+			with timers('write_vcf'):
+				vcf_writer.write(chromosome, sample, superreads, components)
+
+			if haplotype_bam_writer is not None:
+				logger.info('Writing used reads to haplotype-specific BAM files')
+				haplotype_bam_writer.write(sliced_reads, dp_table.get_optimal_partitioning(), chromosome)
+			logger.info('Chromosome %s finished', chromosome)
+			timers.start('parse_vcf')
+		timers.stop('parse_vcf')
 	logger.info('== SUMMARY ==')
 	logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
 		stats.n_best_case_nonsingleton_blocks, stats.n_best_case_blocks)
@@ -510,14 +598,39 @@ def run_whatshap(bam, vcf,
 		assert stats.n_homozygous == 0
 	else:
 		logger.info('No. of heterozygous variants determined to be homozygous: %d', stats.n_homozygous)
-	logger.info('Elapsed time: %.1fs', time.time() - start_time)
+	timers.stop('overall')
+	logger.info('Time spent reading BAM: %6.1f s', timers.elapsed('read_bam'))
+	logger.info('Time spent parsing VCF: %6.1f s', timers.elapsed('parse_vcf'))
+	logger.info('Time spent slicing:     %6.1f s', timers.elapsed('slice'))
+	logger.info('Time spent phasing:     %6.1f s', timers.elapsed('phase'))
+	logger.info('Time spent writing VCF: %6.1f s', timers.elapsed('write_vcf'))
+	logger.info('Time spent on rest:     %6.1f s', 2 * timers.elapsed('overall') - timers.total())
+	logger.info('Total elapsed time:     %6.1f s', timers.elapsed('overall'))
+
+
+class NiceFormatter(logging.Formatter):
+	"""
+	Do not prefix "INFO:" to info-level log messages (but do it for all other
+	levels).
+
+	Based on http://stackoverflow.com/a/9218261/715090 .
+	"""
+	def format(self, record):
+		if record.levelno != logging.INFO:
+			record.msg = '{}: {}'.format(record.levelname, record.msg)
+		return super().format(record)
 
 
 def main():
 	ensure_pysam_version()
-	logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+	logger.setLevel(logging.INFO)
+	handler = logging.StreamHandler()
+	handler.setFormatter(NiceFormatter())
+	logger.addHandler(handler)
 	parser = ArgumentParser(prog='whatshap', description=__doc__)
 	parser.add_argument('--version', action='version', version=__version__)
+	parser.add_argument('--debug', action='store_true', default=False,
+		help='Show more verbose output')
 	parser.add_argument('-o', '--output', default=sys.stdout,
 		help='Output VCF file. If omitted, use standard output.')
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
@@ -537,8 +650,13 @@ def main():
 	parser.add_argument('--sample', metavar='SAMPLE', default=None,
 		help='Name of a sample to phase. If not given, the first sample in the '
 		'input VCF is phased.')
+	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
+		help='Write reads that have been used for phasing to haplotype-specific BAM files. '
+		'Creates PREFIX.1.bam and PREFIX.2.bam')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
 
 	args = parser.parse_args()
+	logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
+	del args.debug
 	run_whatshap(**vars(args))

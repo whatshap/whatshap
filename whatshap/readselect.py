@@ -117,8 +117,7 @@ def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_
 
 		SNPS_Covered_for_this_read=set()
 		(max_score, max_item) = pq.pop()
-		print('POPED ITEM')
-		print(max_item)
+
 		#print(max_score)
 		#newly_covered_positione=set()
 		extracted_read = readset[max_item]
@@ -150,12 +149,12 @@ def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_
 
 			#again go over the positions in the read and add them to the already_covered_SNP list
 
-
 			#Here the set SNPs covered_for _ this read exists:
 			for pos in SNPS_Covered_for_this_read:
 				already_covered_SNPs.add(pos)
 				need_to_decrease_score= SNP_read_map[vcf_indices.get(pos)]
 				reads_whose_score_has_to_be_updated.update(need_to_decrease_score)
+
 
 
 			#find difference between to_decrease_score and selected_reads in order to not to try to decrease score by selected reads

@@ -1,11 +1,11 @@
 """
 While we use Cython as programming language for the extension modules, we
 follow Cython's recommendation to distribute pre-generated .c/.cpp files.
-Thus, Cython does not need to be installed on the user installing WhatsHap.
-Pass --cython on the command line to force Cython to be run.
+Thus, Cython does not need to be installed on the machine of the user installing
+WhatsHap. Pass --cython on the command line to force Cython to be run.
 
-If the .c/.cpp files are not found, such as in a fresh Git checkout, then
-Cython is always run.
+If the .c/.cpp files are not found or out of date, such as in a fresh Git
+checkout, then Cython is always run.
 """
 import sys
 import os.path
@@ -19,7 +19,7 @@ if sys.version_info < (3, 2):
 	sys.stdout.write("At least Python 3.2 is required.\n")
 	sys.exit(1)
 if sys.version_info < (3, 3):
-	# need backport of contextlib.ExitStack in Python 3.2
+	# need backport of contextlib.ExitStack
 	extra_install_requires = ['contextlib2']
 else:
 	extra_install_requires = []
@@ -95,6 +95,10 @@ extensions = [
 			'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',
 			'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp'
 		], language='c++', extra_compile_args=["-std=c++0x"],),
+	Extension('whatshap.priorityqueue',
+		sources=['whatshap/priorityqueue.pyx'], 
+		language='c++', extra_compile_args=["-std=c++0x"],
+	),
 ]
 extensions = cythonize_if_necessary(extensions)
 
