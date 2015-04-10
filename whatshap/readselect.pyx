@@ -1,36 +1,47 @@
-# TODO
-# Class Reads where access through SNP position -DONE in SNP MAP
-# implement readscore - DONE in combined method to build up SNP MAP which include the readscore
-# Heap implemented for storage of Reads - Done
-
-# include the Coverage Monitor...
-#Looking if heapq is possible to manage the heap or not especially  id the runtime changes,,
-# Redefine ComponentFinder by using max value and also the rank (not sure)
-#implement heuristic
-#return Readset in the former representation
-#Erase SNPS which are unphasable -Not Erase out of structure but counted
-
+import math
 import logging
+#TODO at the moment no possibility to have a cplusplus type of defaultdict
 from collections import defaultdict
 
-from whatshap._core import PyRead as Read
-from whatshap._core import PyReadSet as ReadSet
-from whatshap._core import PyDPTable as DPTable
-from whatshap._core import PyIndexSet as IndexSet
-#from whatshap.scripts.whatshap import CoverageMonitor as CovMonitor
+
 from whatshap.priorityqueue import PriorityQueue
 from whatshap.coverage import CovMonitor
 from .graph import ComponentFinder
+
+from libcpp.vector cimport vector
+from libcpp.unordered_map cimport unordered_map
+from libcpp.pair cimport pair
+from libcpp cimport bool
+from libcpp cimport tuple
+
+#ctypedef vector[int] priority_type
+#ctypedef priority_type* priority_type_ptr
+ctypedef int index_type
+#For a read we have position,allele and quality score
+ctypedef vector[int, string, int] item
+ctypedef vector[item] read_type
+ctypedef vector[int] SNP_positions_type
+ctypedef vector[read_set_type] read_set_type
+#ctypedef pair[priority_type_ptr,item_type] queue_entry_type
+#For SNP_ read _MAP need ordere map
+ctypedef pair[int, priority_type ]  variant_map_type
+#TODO at the moment specially for the tuple score
+ctypedef tuple<int,int,int> score_type
+
+
 
 logger = logging.getLogger(__name__)
 
 #TODO Need to assert somewhere that if less Reads than coverage...?
 
-def _construct_indexes(readset):
+cdef _construct_indexes(read_set_type readset):
 	''' The parameter readset: is the given ReadSet and returns, all possible variant positions, the vcf_index_ mapping
     and the SNP_read_map'''
-	positions = readset.get_positions()
-	vcf_indices = {position: index for index, position in enumerate(positions)}
+    cdef index_type index, snp_index
+    cdef read_type read
+
+	SNP_positions_type positions = readset.get_positions()
+	unordered_map vcf_indices = {position: index for index, position in enumerate(positions)}
 	SNP_read_map = defaultdict(list)
 	for index, read in enumerate(readset):
 		for variant in read:
@@ -39,11 +50,11 @@ def _construct_indexes(readset):
 	return positions, vcf_indices, SNP_read_map
 
 
-def _update_score_for_reads(former_score, readset, index, already_covered_SNPs):
+cdef score_type _update_score_for_reads(score_type former_score,read_set_type readset,index_type index,SNP_positions_type already_covered_SNPs):
 	'''updatest the score of the read, depending on how many reads are already covered'''
-
+    cdef int pos
 	(first_score, second_score, quality) = former_score
-	read = readset[index]
+	read_type read = readset[index]
 	for pos in read:
 		if pos.position not in already_covered_SNPs:
 			first_score -= 1
@@ -76,7 +87,7 @@ def _compute_score_for_read(readset, index, vcf_indices):
 	return (good_score - bad_score, good_score - bad_score, min_quality)
 
 
-def __pq_construction_out_of_given_reads(readset, read_indices, vcf_indices):
+cdef PriorityQueue __pq_construction_out_of_given_reads(readset, read_indices, vcf_indices):
 	'''Constructiong of the priority queue out of the readset and the undicided read_indices,
      so that each read is in the priority queue and sorted by their score.'''
 
@@ -145,7 +156,7 @@ def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_
 
 
 
-def format_read_source_stats(readset, indices):
+cdef void format_read_source_stats(readset, indices):
 	"""Creates a string giving information on the source_ids of the reads with the given indices."""
 	if len(indices) == 0:
 		return 'n/a'
