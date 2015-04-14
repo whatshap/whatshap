@@ -26,7 +26,8 @@ ctypedef vector[read_set_type] read_set_type
 #For SNP_ read _MAP need ordere map
 ctypedef pair[int, priority_type ]  variant_map_type
 #TODO at the moment specially for the tuple score
-ctypedef tuple<int,int,int> score_type
+ctypedef vector[int] score_type
+#former tuple <int, int,int> did not work
 
 
 
@@ -37,12 +38,13 @@ logger = logging.getLogger(__name__)
 cdef _construct_indexes(read_set_type readset):
 	''' The parameter readset: is the given ReadSet and returns, all possible variant positions, the vcf_index_ mapping
     and the SNP_read_map'''
-    cdef index_type index, snp_index
+    cdef index_type index,snp_index
     cdef read_type read
 
 	SNP_positions_type positions = readset.get_positions()
 	unordered_map vcf_indices = {position: index for index, position in enumerate(positions)}
-	SNP_read_map = defaultdict(list)
+	dict SNP_read_map = <dict>defaultdict(vector[int])
+
 	for index, read in enumerate(readset):
 		for variant in read:
 			snp_index = vcf_indices[variant.position]
@@ -52,18 +54,22 @@ cdef _construct_indexes(read_set_type readset):
 
 cdef score_type _update_score_for_reads(score_type former_score,read_set_type readset,index_type index,SNP_positions_type already_covered_SNPs):
 	'''updatest the score of the read, depending on how many reads are already covered'''
-    cdef int pos
+    cdef int pos, first_score,second_score,quality
+    cdef read_type read
 	(first_score, second_score, quality) = former_score
-	read_type read = readset[index]
+	read = readset[index]
 	for pos in read:
 		if pos.position not in already_covered_SNPs:
 			first_score -= 1
 	return (first_score, second_score, quality)
 
 
-def _compute_score_for_read(readset, index, vcf_indices):
+cdef score_type _compute_score_for_read(read_set_type readset,index_type  index,unordered_map vcf_indices):
 	'''Method for computing the score for a read independently'''
 	#TODO At the moment tuple (new- bad ,good -bad, min(qualities))
+	cdef read_type read
+	cdef int min_quality, good_score,bad_score,
+	cdef SNP_positions_type covered_SNPS
 	read = readset[index]
 	#TODO look if the initial values is reasonable
 	#initialize minimal quality by high value, good_score by 0  and bad_score by 0 .
@@ -87,12 +93,15 @@ def _compute_score_for_read(readset, index, vcf_indices):
 	return (good_score - bad_score, good_score - bad_score, min_quality)
 
 
-cdef PriorityQueue __pq_construction_out_of_given_reads(readset, read_indices, vcf_indices):
+cdef PriorityQueue __pq_construction_out_of_given_reads(read_set_type readset,SNP_positions_type read_indices,unordered_map vcf_indices):
 	'''Constructiong of the priority queue out of the readset and the undicided read_indices,
      so that each read is in the priority queue and sorted by their score.'''
 
 	#Maybe combine the method with the compute score method, but for the moment the score computation should be independent
-
+	cdef PriorityQueue priorityqueue
+	cdef int index
+	cdef read_type read
+	cdef score_type computed_score
 	priorityqueue = PriorityQueue()
 
 	for index in read_indices:
@@ -105,9 +114,17 @@ cdef PriorityQueue __pq_construction_out_of_given_reads(readset, read_indices, v
 
 #TODO Here the pq already includes only the undecided reads....
 
-def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_map):
+cdef slice_read_selection(PriorityQueue pq, coverages, int  max_cov,read_set_type readset, unordered_map vcf_indices,dict SNP_read_map):
 	'''Extraction of a set of read indices, where each SNP should be covered at least once, if coverage, or reads are allowing it '''
 	#Intern list for storing the actual selected reads
+	cdef SNP_positions_type already_covered_SNPs
+	cdef set<int> reads_in_slice , reads_violating_coverage, SNPS_Covered_for_this_read, reads_whose_score_has_to_be_updated, decrease_set,d_set
+	cdef int max_score, max_item , begin , end, element,
+	cdef read_type extracted_read
+	cdef bool covers_new_snp
+	cdef score_type oldscore, newscore
+
+
 	already_covered_SNPs = set()
 	reads_in_slice = set()
 	reads_violating_coverage = set()
@@ -156,8 +173,10 @@ def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_
 
 
 
-cdef void format_read_source_stats(readset, indices):
+cdef void format_read_source_stats(read_set_type readset,SNP_positions_type indices):
 	"""Creates a string giving information on the source_ids of the reads with the given indices."""
+	cdef int i
+
 	if len(indices) == 0:
 		return 'n/a'
 	source_id_counts = defaultdict(int)
@@ -168,9 +187,20 @@ cdef void format_read_source_stats(readset, indices):
 	return ', '.join('{}:{}'.format(source_id, count) for source_id, count in source_id_counts.items())
 
 
-def readselection(readset, max_cov, bridging=True):
+cdef readselection(read_set_type readset,int  max_cov,bool bridging=True):
 	'''Return the selected readindices which do not violate the maximal coverage, and additionally usage of a boolean for deciding if
      the bridging is needed or not.'''
+	cdef SNP_positions_type positions
+    cdef unordered_map 	vcf_indices
+	cdef dict SNP_read_map
+	cdef set<int> selected_reads, bridging_reads
+	cdef int number_unuseful_reads, loop, read_index, score, read_index, begin, end
+	cdef PriorityQueue pq
+	cdef SNP_positions_type undecided_reads
+	cdef read_type read
+
+
+
 
 	positions, vcf_indices, SNP_read_map = _construct_indexes(readset)
 

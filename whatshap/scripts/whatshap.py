@@ -306,6 +306,12 @@ def slice_reads(reads, max_coverage):
 	max_coverage -- Slicing ensures that the (physical) coverage does not exceed max_coverage anywhere along the chromosome.
 	reads -- a ReadSet
 	"""
+	import cProfile
+	profiler=cProfile.Profile()
+	profiler.runcall(readselection,reads,max_coverage)
+	profiler.dump_stats('wh.prof')
+
+
 	selection_of_reads, with_comp , statistic_with =readselection(reads,max_coverage )
 
 	#showing stats
