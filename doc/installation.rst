@@ -28,7 +28,7 @@ Regular installation
 --------------------
 
 There is currently no release of WhatsHap, so you need to install it from the
-Bitbucket repository instead. Make sure you also have installed Cython::
+Git repository instead. Make sure you also have installed Cython::
 
 	pip3 install --user Cython
 	pip3 install --user https://bitbucket.org/whatshap/whatshap/get/master.tar.gz
@@ -39,8 +39,8 @@ be dropped when there is a first release.
 You can also use a virtualenv instead, but you need to make sure that you have
 installed Cython into the virtualenv before installing WhatsHap::
 
-	virtualenv -p python3 venv
-	venv/bin/pip3 install Cython
+	virtualenv -p python3 venv  # Creates a virtualenv in the directory 'venv'
+	venv/bin/pip3 install Cython   # Installs Cython into the virtualenv
 	venv/bin/pip3 install https://bitbucket.org/whatshap/whatshap/get/master.tar.gz
 
 If you get errors while installing Cython, try to add
@@ -57,12 +57,19 @@ virtualenv. This sequence of commands should work::
 	git clone https://bitbucket.org/whatshap/whatshap
 	cd whatshap
 	virtualenv -p python3 venv
-	venv/bin/pip3 install Cython
+	venv/bin/pip3 install Cython nose
 	venv/bin/python3 setup.py develop
 
 Then you can run WhatsHap like this::
 
 	venv/bin/whatshap --help
+
+The tests can be run like this::
+
+	venv/bin/nosetests
+
+If you use a nosetests binary from your system, it is usually called
+`nosetests3`.
 
 
 Development installation (alternative)
