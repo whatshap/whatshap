@@ -306,20 +306,23 @@ def slice_reads(reads, max_coverage):
 	max_coverage -- Slicing ensures that the (physical) coverage does not exceed max_coverage anywhere along the chromosome.
 	reads -- a ReadSet
 	"""
-	import cProfile
-	profiler=cProfile.Profile()
-	profiler.runcall(readselection,reads,max_coverage)
-	profiler.dump_stats('wh.prof')
+	#import cProfile
+	#profiler=cProfile.Profile()
+	#profiler.runcall(Readselection.readselection,reads,max_coverage)
+	#profiler.dump_stats('wh.prof')
 
 
-	selection_of_reads, with_comp , statistic_with =readselection(reads,max_coverage )
+
+	#selection_of_reads, with_comp , statistic_with =readselection(reads,max_coverage )
+	#selection_of_reads, with_comp , statistic_with =Readselection.readselection(reads,max_coverage )
+	statistic_with =readselection(reads,max_coverage )
 
 	#showing stats
-	(skipped_reads)=statistic_with
-	select = [IndexSet()]
-	for i in selection_of_reads:
-		select[0].add(i)
-	read_selection=reads.subset(select[0])
+	#(skipped_reads)=statistic_with
+	#select = [IndexSet()]
+	#for i in selection_of_reads:
+	#	select[0].add(i)
+	#read_selection=reads.subset(select[0])
 
 	#TODO maybe statistic also with and without bridging ...
 
@@ -359,14 +362,17 @@ def slice_reads(reads, max_coverage):
 	#logger.info('Found %d components with bridging and %d components without bridging',len(set(with_comp.values())), len(set(without_comp.values())))
 
 
-
+#TODO : AB hier auskommentiert
 
 	# TODO: Adapt/reactivate the following code for a richer output
-	position_list = reads.get_positions()
-	logger.info('Found %d variant positions', len(position_list))
-	variants_not_covered= len(position_list)-len(read_selection.get_positions())
-	logger.info('%d out of %d variant positions do not have a read',variants_not_covered,len(position_list) )
-	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
+#	position_list = reads.get_positions()
+#	logger.info('Found %d variant positions', len(position_list))
+#	variants_not_covered= len(position_list)-len(read_selection.get_positions())
+#	logger.info('%d out of %d variant positions do not have a read',variants_not_covered,len(position_list) )
+#	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
+
+
+
 
 	#informative_reads = len(reads) - skipped_reads
 	#unphasable_snps = len(position_list) - len(accessible_positions)

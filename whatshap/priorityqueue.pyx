@@ -5,10 +5,10 @@ from libcpp.unordered_map cimport unordered_map
 from libcpp.pair cimport pair
 from libcpp cimport bool
 
-ctypedef vector[int] priority_type
-ctypedef priority_type* priority_type_ptr
-ctypedef int item_type
-ctypedef pair[priority_type_ptr,item_type] queue_entry_type
+#ctypedef vector[int] priority_type
+#ctypedef priority_type* priority_type_ptr
+#ctypedef int item_type
+#ctypedef pair[priority_type_ptr,item_type] queue_entry_type
 
 cdef bool _vector_score_lower(priority_type_ptr first, priority_type_ptr second):
 	for i in range(min(first[0].size(), second[0].size())):
@@ -134,7 +134,7 @@ cdef class PriorityQueue:
 				self._swap(lchildindex, index)
 				self._sift_down(lchildindex)
 
-	def pop(self):
+	cpdef  pop(self):
 		'''Removes the item with largest score and returns it as tupel of (score, item).'''
 		if self.heap.size() == 0:
 			raise IndexError('PriorityQueue empty.')
