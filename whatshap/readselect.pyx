@@ -39,6 +39,18 @@ cdef priority_type_ptr _update_score_for_reads(priority_type_ptr former_score, R
 	return result
 
 
+def _compute_score_depending_on_quality_only (readset,index,vcf_indices):
+	'''Method which computes anothe readscore depending only in the quality,mor precisely the
+	score of the read is the average quality in the read over all SNP positions covered by the read'''
+	read= readset[index]
+	#min_quality= 1000
+	actual_quality= 0
+	for pos in enumerate:
+		quality= pos.quality
+		actual_quality += quality
+	return (actual_quality/ len(read))
+
+
 cdef priority_type_ptr _compute_score_for_read(ReadSet* readset, int index, vcf_indices):
 	'''Compute the score for one read, assuming no other reads have been selected so far
 	(after selecting reads, scores can be updated using _update_score_for_reads).
