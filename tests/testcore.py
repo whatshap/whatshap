@@ -176,6 +176,14 @@ def compare_phasing(reads, all_heterozygous, weights = None):
 	assert cost == expected_cost
 	assert (haplotypes == (expected_haplotype1, expected_haplotype2)) or (haplotypes == (expected_haplotype2, expected_haplotype1))
 
+# this causes error in halftable ... very trial bug
+def test_phase_trivial() :
+	reads = """
+          1
+           1
+        """
+	compare_phasing(reads, True)
+
 
 def test_phase1():
 	reads = """
