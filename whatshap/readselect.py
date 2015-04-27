@@ -51,6 +51,19 @@ def _update_score_for_reads(former_score, readset, index, already_covered_SNPs):
 	return (first_score, second_score, quality)
 
 
+def _compute_score_depedning_on_quality_only (readset,index,vcf_indices):
+	'''Method which computes anothe readscore depending only in the quality,mor precisely the
+	score of the read is the average quality in the read over all SNP positions covered by the read'''
+	read= readset[index]
+	#min_quality= 1000
+	actual_quality= 0
+	for pos in enumerate:
+		quality= pos.quality
+		actual_quality += quality
+	return (actual_quality/ len(read))
+
+
+
 def _compute_score_for_read(readset, index, vcf_indices):
 	'''Method for computing the score for a read independently'''
 	#TODO At the moment tuple (new- bad ,good -bad, min(qualities))
