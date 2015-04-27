@@ -27,7 +27,7 @@ public:
 	/** Access a read in the set. Ownership stays with the ReadSet. */
 	Read* get(int i) const;
 	/** Access a read in the set by its name. Ownership stays with the ReadSet. */
-	Read* getByName(std::string name) const;
+	Read* getByName(std::string name, int source_id) const;
 	/** Creates a subset of reads as given by the set of indices. Note that this
 	 *  creates a COPY of each read.
 	 */
@@ -56,9 +56,24 @@ private:
 		}
 	} read_comparator_t;
 
+	typedef struct name_and_source_id_t {
+		name_and_source_id_t(std::string name, int source_id) : name(name), source_id(source_id) {}
+		bool operator==(const name_and_source_id_t& other) const {
+			return (name.compare(other.name) == 0) && (source_id == other.source_id);
+		}
+		std::string name;
+		int source_id;
+	} name_and_source_id_t;
+
+	typedef struct name_and_source_id_hasher_t {
+		std::size_t operator()(const name_and_source_id_t& x) const {
+			return (std::hash<std::string>()(x.name)) ^ (std::hash<int>()(x.source_id));
+		}
+	} name_and_source_id_hasher_t;
+
 	std::vector<Read*> reads;
 	// Maps names of reads it their index in the "reads" vector
-	typedef std::unordered_map<std::string,size_t> read_name_map_t;
+	typedef std::unordered_map<name_and_source_id_t,size_t,name_and_source_id_hasher_t> read_name_map_t;
 	read_name_map_t read_name_map;
 };
 

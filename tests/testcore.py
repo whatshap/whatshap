@@ -1,7 +1,6 @@
-import textwrap
 from nose.tools import raises
-from collections import defaultdict
 from whatshap.core import Read, DPTable, ReadSet, Variant
+from phasingutils import string_to_readset, brute_force_phase
 
 
 def test_read():
@@ -11,8 +10,8 @@ def test_read():
 
 	assert r.is_sorted
 
-	r.add_variant(100, 'A', 1, 37)
-	r.add_variant(23, 'T', 0, 99)
+	r.add_variant(100, 1, 37)
+	r.add_variant(23, 0, 99)
 	assert not r.is_sorted
 	r.sort()
 	assert r.is_sorted
@@ -27,10 +26,10 @@ def test_read():
 
 def test_read_iteration():
 	r = Read("name", 15)
-	r.add_variant(100, 'A', 1, 37)
-	r.add_variant(23, 'T', 0, 99)
-	v1 = Variant(position=100, base='A', allele=1, quality=37)
-	v2 = Variant(position=23, base='T', allele=0, quality=99)
+	r.add_variant(100, 1, 37)
+	r.add_variant(23, 0, 99)
+	v1 = Variant(position=100, allele=1, quality=37)
+	v2 = Variant(position=23, allele=0, quality=99)
 	variants = list(r)
 	assert variants == [v1, v2]
 	# negative indices
@@ -41,16 +40,16 @@ def test_read_iteration():
 @raises(IndexError)
 def test_read_indexerror1():
 	r = Read("name", 15)
-	r.add_variant(100, 'A', 1, 37)
-	r.add_variant(23, 'T', 0, 99)
+	r.add_variant(100, 1, 37)
+	r.add_variant(23, 0, 99)
 	r[2]
 
 
 @raises(IndexError)
 def test_read_indexerror2():
 	r = Read("name", 15)
-	r.add_variant(100, 'A', 1, 37)
-	r.add_variant(23, 'T', 0, 99)
+	r.add_variant(100, 1, 37)
+	r.add_variant(23, 0, 99)
 	r[-3]
 
 
@@ -62,17 +61,18 @@ def test_empty_readset():
 def test_readset():
 	rs = ReadSet()
 	r = Read('Read A', 56)
-	r.add_variant(100, 'A', 1, 37)
-	r.add_variant(101, 'C', 0, 18)
+	r.add_variant(100, 1, 37)
+	r.add_variant(101, 0, 18)
 	rs.add(r)
 
 	r = Read('Read B', 0)
-	r.add_variant(101, 'C', 0, 23)
+	r.add_variant(101, 0, 23)
 	rs.add(r)
 
 	r = Read('Read C', 17)
-	r.add_variant(99, 'G', 1, 27)
-	r.add_variant(105, 'T', 0, 14)
+	r.add_variant(99, 1, 27)
+	r.add_variant(80, 1, 17)
+	r[1] = Variant(position=105, allele=0, quality=14)
 	rs.add(r)
 
 	assert rs[0].name == 'Read A'
@@ -90,23 +90,49 @@ def test_readset():
 
 	assert rs.get_positions() == [99, 100, 101, 105]
 
-	r = rs['Read A']
+	r = rs[(0,'Read A')]
 	assert r.name == 'Read A'
 	assert r.mapqs == (56,), str(r.mapqs)
 
-	r = rs['Read B']
+	r = rs[(0,'Read B')]
 	assert r.name == 'Read B'
 	assert r.mapqs == (0,)
+
+	r = rs[(0,'Read C')]
+	assert r.name == 'Read C'
+	assert r.mapqs == (17,)
+	assert len(r) == 2
+	assert r[0] == Variant(position=99, allele=1, quality=27)
+	assert r[1] == Variant(position=105, allele=0, quality=14)
+
+def test_readset2():
+	rs = ReadSet()
+	rs.add(Read('Read A', 1, 23))
+	rs.add(Read('Read A', 2, 70))
+	rs.add(Read('Read B', 3, 23))
+	assert rs[(23,'Read A')].mapqs == (1,)
+	assert rs[(70,'Read A')].mapqs == (2,)
+	assert rs[(23,'Read B')].mapqs == (3,)
 
 
 @raises(KeyError)
 def test_non_existing_read_name():
 	rs = ReadSet()
 	r = Read('Read A', 56)
-	r.add_variant(100, 'A', 1, 37)
-	r.add_variant(101, 'C', 0, 18)
+	r.add_variant(100, 1, 37)
+	r.add_variant(101, 0, 18)
 	rs.add(r)
-	rs['foo']
+	rs[(0,'foo')]
+
+
+@raises(KeyError)
+def test_non_existing_read_name2():
+	rs = ReadSet()
+	r = Read('Read A', 56, 1)
+	r.add_variant(100, 1, 37)
+	r.add_variant(101, 0, 18)
+	rs.add(r)
+	rs[(2,'Read A')]
 
 
 # TODO: Test subset method
@@ -116,111 +142,6 @@ def test_phase_empty_readset():
 	rs = ReadSet()
 	dp_table = DPTable(rs, all_heterozygous=False)
 	superreads = dp_table.get_super_reads()
-
-
-def string_to_readset(s, w = None):
-	s = textwrap.dedent(s).strip()
-	if w is not None:
-		w = textwrap.dedent(w).strip().split('\n')
-	bits = { '0': 'A', '1': 'C', 'E': 'G' }
-	rs = ReadSet()
-	for index, line in enumerate(s.split('\n')):
-		read = Read('Read {}'.format(index+1), 50)
-		for pos, c in enumerate(line):
-			if c == ' ':
-				continue
-			q = 1
-			if w is not None:
-				q = int(w[index][pos])
-			read.add_variant(position=(pos+1) * 10, base=bits[c], allele=int(c), quality=q)
-		rs.add(read)
-	print(rs)
-	return rs
-
-
-def flip_cost(variant, target_value):
-	"""Returns cost of flipping the given read variant to target_value."""
-	if variant.allele == target_value:
-		return 0
-	else:
-		return variant.quality
-
-
-def is_ambiguous(assignments):
-	sets = [set(), set()]
-	for assignment in assignments:
-		for s, allele in zip(sets, assignment):
-			s.add(allele)
-	return [len(s) > 1 for s in sets]
-
-
-def column_cost(variants, possible_assignments):
-	"""Compute cost for one position and return the minimum cost assignment. 
-	Returns ('X','X') if minimum is not unique (i.e. a "tie")."""
-	costs = []
-	for allele1, allele2 in possible_assignments:
-		cost1 = sum(flip_cost(v,allele1) for v in variants[0])
-		cost2 = sum(flip_cost(v,allele2) for v in variants[1])
-		costs.append(cost1 + cost2)
-	l = [(cost,i) for i, cost in enumerate(costs)]
-	l.sort()
-	min_cost = l[0][0]
-	best_assignment = list(possible_assignments[l[0][1]])
-	# check for ties
-	counts = defaultdict(int)
-	for cost, index in l:
-		counts[cost] += 1
-	ties = counts[min_cost]
-	ambiguous = is_ambiguous([possible_assignments[i] for cost,i in l[:ties]])
-	for i in range(2):
-		if ambiguous[i]:
-			best_assignment[i] = 3
-	return min_cost, best_assignment
-
-
-def brute_force_phase(read_set, all_heterozygous):
-	"""Solves MEC by enumerating all possible bipartitions."""
-	assert len(read_set) < 10, "Too many reads for brute force"
-	positions = read_set.get_positions()
-	if all_heterozygous:
-		possible_assignments = [(0,1), (1,0)]
-	else:
-		possible_assignments = [(0,0), (0,1), (1,0), (1,1)]
-	# bit i in "partition" encodes to which set read i belongs
-	best_partition = None
-	best_cost = None
-	best_haplotypes = None
-	solution_count = 0
-	for partition in range(2**len(read_set)):
-		print('Looking at partition {{:0>{}b}}'.format(len(read_set)).format(partition))
-		# compute cost induced by that partition
-		cost = 0
-		haplotypes = []
-		for p in positions:
-			# find variants covering this position
-			variants = [[],[]]
-			for n, read in enumerate(read_set):
-				i = (partition >> n) & 1
-				for variant in read:
-					if variant.position == p:
-						variants[i].append(variant)
-			c, assignment = column_cost(variants, possible_assignments)
-			print('    position: {}, variants: {} --> cost = {}'.format(p, str(variants), c))
-			cost += c
-			haplotypes.append(assignment)
-		print('  --> cost for this partitioning:', cost)
-		if (best_cost is None) or (cost < best_cost):
-			best_partition = partition
-			best_cost = cost
-			best_haplotypes = haplotypes
-			solution_count = 1
-		elif cost == best_cost:
-			solution_count += 1
-	# Each partition has its inverse with the same cost
-	assert solution_count % 2 == 0
-	haplotype1 = ''.join([str(allele1) for allele1, allele2 in best_haplotypes])
-	haplotype2 = ''.join([str(allele2) for allele1, allele2 in best_haplotypes])
-	return best_cost, [(best_partition>>x) & 1 for x in range(len(read_set))], solution_count//2, haplotype1, haplotype2
 
 
 def compare_phasing(reads, all_heterozygous, weights = None):

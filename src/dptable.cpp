@@ -96,8 +96,13 @@ void DPTable::compute_table() {
 
     backtrace_table.resize(0);
   }
-  
-  if (!column_iterator.has_next()) return;
+
+  // empty read-set, nothing to phase, so MEC score is 0
+  if (!column_iterator.has_next()) {
+    optimal_score = 0;
+    optimal_score_index = 0;
+    return;
+  }  
   
   auto_ptr<vector<const Entry *> > current_column(0);
   auto_ptr<vector<const Entry *> > next_column(0);
@@ -266,15 +271,17 @@ void DPTable::compute_table() {
 }
 
 unsigned int DPTable::get_optimal_score() {
-  if (backtrace_table.empty())
-    throw runtime_error("Empty backtrace table");
 
+  //if (backtrace_table.empty()) throw runtime_error("Empty backtrace table");
   return optimal_score;
 }
 
 auto_ptr<vector<unsigned int> > DPTable::get_index_path() {
 
   auto_ptr<vector<unsigned int> > index_path = auto_ptr<vector<unsigned int> >(new vector<unsigned int>(indexers.size()));
+  if (indexers.size() == 0) {
+    return index_path;
+  }
   unsigned int index = optimal_score_index;
   index_path->at(indexers.size()-1) = index;
 
@@ -296,8 +303,8 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
   ColumnIterator column_iterator(*read_set);
   const vector<unsigned int>* positions = column_iterator.get_positions();
 
-  Read* r0 = new Read("superread0", -1);
-  Read* r1 = new Read("superread1", -1);
+  Read* r0 = new Read("superread0", -1, 0);
+  Read* r1 = new Read("superread1", -1, 0);
   
   if (backtrace_table.empty()) {
     assert(!column_iterator.has_next());
@@ -311,8 +318,8 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
       ColumnCostComputer cost_computer(*column, all_heterozygous);
       cost_computer.set_partitioning(index);
 
-      r0->addVariant(positions->at(i), '?', cost_computer.get_allele(0), cost_computer.get_weight(0));
-      r1->addVariant(positions->at(i), '?', cost_computer.get_allele(1), cost_computer.get_weight(1));
+      r0->addVariant(positions->at(i), cost_computer.get_allele(0), cost_computer.get_weight(0));
+      r1->addVariant(positions->at(i), cost_computer.get_allele(1), cost_computer.get_weight(1));
       ++i; // next column
     }
   }

@@ -1,5 +1,5 @@
 #include <sstream>
-#include <algorithm> 
+#include <algorithm>
 #include <stdexcept>
 #include <cassert>
 
@@ -7,7 +7,7 @@
 
 using namespace std;
 
-Read::Read(const std::string& name, int mapq) : name(name), mapqs(1, mapq) {
+Read::Read(const std::string& name, int mapq, int source_id) : name(name), mapqs(1, mapq), source_id(source_id) {
 	this->id = -1;
 }
 
@@ -21,14 +21,14 @@ string Read::toString() {
 	oss << ") (";
 	for (size_t i=0; i<variants.size(); ++i) {
 		if (i>0) oss << ";";
-		oss << "[" << variants[i].position << "," << variants[i].base << "," << variants[i].entry << "]";
+		oss << "[" << variants[i].position << "," << variants[i].entry << "]";
 	}
 	oss << ")";
 	return oss.str();
 }
 
-void Read::addVariant(int position, char base, int allele, int quality) {
-	variants.push_back(enriched_entry_t(position, base, allele, quality));
+void Read::addVariant(int position, int allele, int quality) {
+	variants.push_back(enriched_entry_t(position, allele, quality));
 }
 
 void Read::sortVariants() {
@@ -75,9 +75,9 @@ int Read::getPosition(size_t variant_idx) const {
 	return variants[variant_idx].position;
 }
 
-char Read::getBase(size_t variant_idx) const {
+void Read::setPosition(size_t variant_idx, int position) {
 	assert(variant_idx < variants.size());
-	return variants[variant_idx].base;
+	variants[variant_idx].position = position;
 }
 
 int Read::getAllele(size_t variant_idx) const {
@@ -85,9 +85,19 @@ int Read::getAllele(size_t variant_idx) const {
 	return variants[variant_idx].entry.get_allele_type();
 }
 
-int Read::getBaseQuality(size_t variant_idx) const {
+void Read::setAllele(size_t variant_idx, int allele) {
+	assert(variant_idx < variants.size());
+	variants[variant_idx].entry.set_allele_type((Entry::allele_t)allele);
+}
+
+int Read::getVariantQuality(size_t variant_idx) const {
 	assert(variant_idx < variants.size());
 	return variants[variant_idx].entry.get_phred_score();
+}
+
+void Read::setVariantQuality(size_t variant_idx, int quality) {
+	assert(variant_idx < variants.size());
+	variants[variant_idx].entry.set_phred_score(quality);
 }
 
 const Entry* Read::getEntry(size_t variant_idx) const {
@@ -108,6 +118,10 @@ const vector<int>& Read::getMapqs() const {
 
 void Read::addMapq(int mapq) {
 	mapqs.push_back(mapq);
+}
+
+int Read::getSourceID() const {
+	return source_id;
 }
 
 bool Read::isSorted() const {
