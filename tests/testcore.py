@@ -180,6 +180,7 @@ def compare_phasing(reads, all_heterozygous, weights = None):
 def test_phase_trivial() :
 	reads = """
           1
+          00
            1
         """
 	compare_phasing(reads, True)
