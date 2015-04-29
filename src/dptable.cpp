@@ -6,7 +6,7 @@
 #include "columncostcomputer.h"
 #include "dptable.h"
 
-//#define DB // db
+#define DB // db
 
 using namespace std;
 
@@ -293,6 +293,13 @@ auto_ptr<vector<unsigned int> > DPTable::get_index_path() {
       index_path->at(i-1) = index;
     }
   }
+
+  //db
+#ifdef DB
+  cout << "index path :" << endl;
+  output_vector(index_path.get());
+  cout << endl;
+#endif
 
   return index_path;
 }
