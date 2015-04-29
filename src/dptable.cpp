@@ -144,11 +144,9 @@ void DPTable::compute_table() {
 
       current_projection_column = auto_ptr<vector<unsigned int> >(new vector<unsigned int>(current_indexer->forward_projection_size(), numeric_limits<unsigned int>::max()));
       // NOTE: forward projection size will always be even
-#ifdef HALF_TABLE
-      backtrace_column = new vector<unsigned int>((current_indexer->forward_projection_size()>>1), numeric_limits<unsigned int>::max());
-#else
+
       backtrace_column = new vector<unsigned int>(current_indexer->forward_projection_size(), numeric_limits<unsigned int>::max());
-#endif
+
     }
 
     // do the actual compution on current column
@@ -222,13 +220,6 @@ void DPTable::compute_table() {
         unsigned int forward_index = iterator->get_forward_projection();
         if (current_projection_column->at(forward_index) > cost) {
           current_projection_column->at(forward_index) = cost;
-#ifdef HALF_TABLE
-          forward_index = min(forward_index, iterator->get_forward_dual_projection());
-          // ensure that we pass the smaller of the two indexes,
-          // because backtrace_column is half the size of
-          // current_projection_column (which is symmetric, hence this
-          // dual computation)
-#endif
           backtrace_column->at(forward_index) = iterator->get_index();
         }
       }
