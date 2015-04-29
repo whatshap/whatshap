@@ -283,6 +283,13 @@ auto_ptr<vector<unsigned int> > DPTable::get_index_path() {
     }
   }
 
+  //db
+#ifdef DB
+  cout << "index path : " << endl;
+  output_vector(index_path.get());
+  cout << endl;
+#endif
+
   return index_path;
 }
 
@@ -322,14 +329,14 @@ vector<bool>* DPTable::get_optimal_partitioning() {
   auto_ptr<vector<unsigned int> > index_path = get_index_path();
 
   // db
-  /*
-  for(size_t i=0; i< index_path.size(); ++i) {
-    cout << "index : " << index_path[i] << " " << endl;
+#ifdef DB
+  for(size_t i=0; i< index_path->size(); ++i) {
+    cout << "index : " << index_path->at(i) << " " << endl;
     for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {
       cout << indexers[i]->get_read_ids()->at(j) << endl;
     }
   }
-  */
+#endif
 
   vector<bool>* partitioning = new vector<bool>(read_count,false);
   for(size_t i=0; i< index_path->size(); ++i) {
