@@ -6,7 +6,7 @@
 #include "columncostcomputer.h"
 #include "dptable.h"
 
-#define DB // db
+//#define DB // db
 
 using namespace std;
 
@@ -338,28 +338,35 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
 vector<bool>* DPTable::get_optimal_partitioning() {
 
   auto_ptr<vector<unsigned int> > index_path = get_index_path();
-
-  // db
-  /*
-  for(size_t i=0; i< index_path.size(); ++i) {
-    cout << "index : " << index_path[i] << " " << endl;
-    for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {
-      cout << indexers[i]->get_read_ids()->at(j) << endl;
-    }
-  }
-  */
-
   vector<bool>* partitioning = new vector<bool>(read_count,false);
 
   for(size_t i=0; i< index_path->size(); ++i) {
 
+#ifdef DB
+    cout << "index : " << index_path->at(i) << endl;
+#endif
+
     unsigned int mask = 1; // mask to pass over the partitioning (i.e., index)
     for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {
 
+#ifdef DB
+      cout << indexers[i]->get_read_ids()->at(j) << " : ";
+#endif
       unsigned int index = index_path->at(i);
+
+#ifdef DB
+      cout << index << " & " << mask << " = " << (index & mask);
+#endif
+
       if((index & mask) == 0) { // id at this index is in p0 (i.e., in the part.)
         partitioning->at(indexers[i]->get_read_ids()->at(j)) = true;
+#ifdef DB
+	cout << " : true";
+#endif
       }
+#ifdef DB
+      cout << endl;
+#endif
       mask = mask << 1;
     }
   }
