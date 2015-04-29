@@ -313,16 +313,16 @@ def slice_reads(reads, max_coverage):
 
 
 
-	#selection_of_reads, with_comp , statistic_with =readselection(reads,max_coverage )
+	selection_of_reads, with_comp , statistic_with =readselection(reads,max_coverage )
 	#selection_of_reads, with_comp , statistic_with =Readselection.readselection(reads,max_coverage )
-	statistic_with =readselection(reads,max_coverage )
+	tatistic_with =readselection(reads,max_coverage )
 
 	#showing stats
-	#(skipped_reads)=statistic_with
-	#select = [IndexSet()]
-	#for i in selection_of_reads:
-	#	select[0].add(i)
-	#read_selection=reads.subset(select[0])
+	(skipped_reads)=statistic_with
+	select = [IndexSet()]
+	for i in selection_of_reads:
+		select[0].add(i)
+	read_selection=reads.subset(select[0])
 
 	#TODO maybe statistic also with and without bridging ...
 
