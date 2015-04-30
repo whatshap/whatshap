@@ -23,6 +23,10 @@ import gzip
 import time
 import itertools
 import platform
+
+import cProfile
+
+
 from collections import defaultdict, Counter
 from contextlib import contextmanager
 try:
@@ -319,7 +323,9 @@ def slice_reads(reads, max_coverage):
 	#helpk=readselection_2(reads,max_coverage)
 	#print('Help readselection')
 	#print(helpk)
-
+	pr=cProfile.Profile()
+	pr.runcall(readselection_2, reads,max_coverage)
+	pr.dump_stats('wh.prof')
 
 	selection_of_reads, with_comp , statistic_with =readselection_2(reads,max_coverage)
 	#selection_of_reads, with_comp , statistic_with =readselection(reads,max_coverage )
