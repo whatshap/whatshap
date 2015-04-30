@@ -6,12 +6,16 @@ from priorityqueue import PriorityQueue
 from whatshap.coverage import CovMonitor
 from .graph import ComponentFinder
 
+
+
 from libcpp.vector cimport vector
 from libcpp.unordered_map cimport unordered_map
 from libcpp.pair cimport pair
 from libcpp cimport bool
 from libcpp cimport set
+from libcpp.string cimport string
 
+from collections import namedtuple
 
 ctypedef vector[int] priority_type
 ctypedef priority_type* priority_type_ptr
@@ -19,8 +23,77 @@ ctypedef int item_type
 ctypedef pair[priority_type_ptr,item_type] queue_entry_type
 #ctypedef vector[int] score_type
 
+#cdef extern from "entry.h":
+#    cdef cppclass entry:
+#        Entry(unsigned int , allele_t , unsigned int ) except +
+#        unsigned int get_read_id()
+#        #allele_t get_allele_type()
+#        unsigned int get_phred_score()
+#        void set_read_id(unsigned int )
+
+# A single variant on a read.
+Variant = namedtuple('Variant', 'position allele quality')
+
+
+#######Including of Read,ReadSet and IndexSet structure from core.pyx
+
+# ====== Read ======
+cdef extern from "../src/read.h":
+    cdef cppclass Read:
+        Read(string, int, int) except +
+        Read(Read) except +
+        string toString() except +
+        void addVariant(int, int, int) except +
+        string getName() except +
+        vector[int] getMapqs() except +
+        void addMapq(int) except +
+        int getPosition(int) except +
+        void setPosition(int, int)  except +
+        int getAllele(int) except +
+        void setAllele(int, int) except +
+        int getVariantQuality(int) except +
+        void setVariantQuality(int, int) except +
+        int getVariantCount() except +
+        void sortVariants() except +
+        bool isSorted() except +
+        int getSourceID() except +
+
+# ====== ReadSet ======
+cdef extern from "../src/readset.h":
+    cdef cppclass ReadSet:
+        ReadSet() except +
+        void add(Read*) except +
+        string toString() except +
+        int size() except +
+        void sort() except +
+        Read* get(int) except +
+        Read* getByName(string, int) except +
+        ReadSet* subset(IndexSet*) except +
+        # TODO: Check why adding "except +" here doesn't compile
+        vector[unsigned int]* get_positions()
+
+# ====== IndexSet ======
+cdef extern from "../src/indexset.h":
+    cdef cppclass IndexSet:
+        IndexSet() except +
+        bool contains(int) except +
+        void add(int) except +
+        int size() except +
+        string toString() except +
+
+
 
 logger = logging.getLogger(__name__)
+
+#cdef struct read_set:
+#    int entry
+#    int position
+#    read(int position, int allele, int quality)
+#cdef struct read:
+#    int position
+#    int allele
+#    int quality
+
 
 
 
@@ -49,6 +122,16 @@ def _update_score_for_reads(former_score, readset,int index,set  already_covered
     '''updatest the score of the read, depending on how many reads are already covered'''
     cdef int first_score, second_score, quality
     #cdef score_type former_score
+    #cdef int pos
+
+
+
+#TODO workign here on read typing
+    #cdef read read
+
+
+
+
 
     (first_score, second_score, quality) = former_score
     read = readset[index]
@@ -184,9 +267,13 @@ def format_read_source_stats(readset, indices):
 def readselection_2(readset, int max_cov, bridging=True):
     '''Return the selected readindices which do not violate the maximal coverage, and additionally usage of a boolean for deciding if
      the bridging is needed or not.'''
-    cdef int number_unuseful_reads, lala
+    cdef int number_unuseful_reads, lala, loop, read_index
+    #cdef bool bridging
     #That does not work
     #cdef set[int] selected_reads
+    print('readset')
+    print(readset[0][0])
+
 
     positions, vcf_indices, SNP_read_map = _construct_indexes(readset)
 
@@ -266,8 +353,6 @@ def readselection_2(readset, int max_cov, bridging=True):
 
     return selected_reads, new_components, stats
 
-    #lala=10
-    #return lala
 
 
 
