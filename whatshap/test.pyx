@@ -12,32 +12,23 @@ from libcpp.pair cimport pair
 from libcpp cimport bool
 from libcpp cimport set
 
+
 ctypedef vector[int] priority_type
 ctypedef priority_type* priority_type_ptr
 ctypedef int item_type
 ctypedef pair[priority_type_ptr,item_type] queue_entry_type
+#ctypedef vector[int] score_type
 
 
 logger = logging.getLogger(__name__)
 
 
 
-
-#for using method in whatshap using def and not cdef
-def addition (int x,int y):
-    cdef int z
-    z= x+y
-    pq=PriorityQueue()
-    pq.push(5,z)
-    #initialization of Coverage Monitor
-    coverages = CovMonitor(10)
-    return z
-
-
 def _construct_indexes(readset):
     ''' The parameter readset: is the given ReadSet and returns, all possible variant positions, the vcf_index_ mapping
     and the SNP_read_map'''
     cdef unordered_map[int,vector[int]] SNP_read_map
+    cdef int index, snp_index
     positions = readset.get_positions()
     vcf_indices = {position: index for index, position in enumerate(positions)}
 
@@ -54,8 +45,10 @@ def _construct_indexes(readset):
     return positions, vcf_indices, SNP_read_map
 
 
-def _update_score_for_reads(former_score, readset, index, already_covered_SNPs):
+def _update_score_for_reads(former_score, readset,int index,set  already_covered_SNPs):
     '''updatest the score of the read, depending on how many reads are already covered'''
+    cdef int first_score, second_score, quality
+    #cdef score_type former_score
 
     (first_score, second_score, quality) = former_score
     read = readset[index]
@@ -67,9 +60,10 @@ def _update_score_for_reads(former_score, readset, index, already_covered_SNPs):
 
 
 
-def _compute_score_for_read(readset, index, vcf_indices):
+def _compute_score_for_read(readset,int index, vcf_indices):
     '''Method for computing the score for a read independently'''
-	#TODO At the moment tuple (new- bad ,good -bad, min(qualities))
+    #TODO At the moment tuple (new- bad ,good -bad, min(qualities))
+    cdef int min_quality, good_score, bad_score, quality
     read = readset[index]
 	#TODO look if the initial values is reasonable
 	#initialize minimal quality by high value, good_score by 0  and bad_score by 0 .
@@ -96,6 +90,9 @@ def _compute_score_for_read(readset, index, vcf_indices):
 def __pq_construction_out_of_given_reads(readset, read_indices, vcf_indices):
     '''Constructiong of the priority queue out of the readset and the undicided read_indices,
     so that each read is in the priority queue and sorted by their score.'''
+    #cdef priority_type priorityqueue
+    cdef int index
+    #cdef vector[int] computed_score
 
 	#Maybe combine the method with the compute score method, but for the moment the score computation should be independent
 
@@ -114,6 +111,9 @@ def __pq_construction_out_of_given_reads(readset, read_indices, vcf_indices):
 def slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_map):
     '''Extraction of a set of read indices, where each SNP should be covered at least once, if coverage, or reads are allowing it '''
     #Intern list for storing the actual selected reads
+    cdef bool covers_new_snp
+    cdef int begin, end
+
     already_covered_SNPs = set()
     reads_in_slice = set()
     reads_violating_coverage = set()

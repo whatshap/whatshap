@@ -37,7 +37,7 @@ from ..graph import ComponentFinder
 from ..readselect import readselection
 from ..coverage import CovMonitor
 from ..priorityqueue import PriorityQueue
-from ..test import addition,readselection_2
+from ..test import readselection_2
 from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
 
 
@@ -312,17 +312,21 @@ def slice_reads(reads, max_coverage):
 	#profiler.runcall(Readselection.readselection,reads,max_coverage)
 	#profiler.dump_stats('wh.prof')
 
-	print('Here try for testing')
-	addition(5,6)
-	print('addition worked')
-	print('Here try to test for readselection 2')
-	helpk=readselection_2(reads,max_coverage)
-	print('Help readselection')
-	print(helpk)
+	#print('Here try for testing')
+	#addition(5,6)
+	#print('addition worked')
+	#print('Here try to test for readselection 2')
+	#helpk=readselection_2(reads,max_coverage)
+	#print('Help readselection')
+	#print(helpk)
 
 
-	selection_of_reads, with_comp , statistic_with =readselection(reads,max_coverage )
+	selection_of_reads, with_comp , statistic_with =readselection_2(reads,max_coverage)
+	#selection_of_reads, with_comp , statistic_with =readselection(reads,max_coverage )
 	#selection_of_reads, with_comp , statistic_with =Readselection.readselection(reads,max_coverage )
+
+
+
 	tatistic_with =readselection(reads,max_coverage )
 
 	#showing stats
