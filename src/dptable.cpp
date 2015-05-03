@@ -10,6 +10,7 @@
 
 using namespace std;
 
+// constructor
 DPTable::DPTable(ReadSet* read_set, bool all_heterozygous) {
   this->read_set = read_set;
   this->all_heterozygous = all_heterozygous;
@@ -18,6 +19,7 @@ DPTable::DPTable(ReadSet* read_set, bool all_heterozygous) {
   compute_table();
 }
 
+// destructor
 DPTable::~DPTable() {
   for(size_t i=0; i<indexers.size(); ++i) {
     delete indexers[i];
@@ -28,6 +30,7 @@ DPTable::~DPTable() {
   }
 }
 
+// extract read ids
 auto_ptr<vector<unsigned int> > DPTable::extract_read_ids(const vector<const Entry *>& entries) {
 
   auto_ptr<vector<unsigned int> > read_ids(new vector<unsigned int>());
@@ -75,6 +78,7 @@ void output_vector_enum(const vector<unsigned int> * v, unsigned int len) {
 }
 #endif
 
+// compute table
 void DPTable::compute_table() {
 
   ColumnIterator column_iterator(*read_set);
@@ -270,12 +274,14 @@ void DPTable::compute_table() {
   optimal_score_index = running_optimal_score_index;
 }
 
+// get optimal score
 unsigned int DPTable::get_optimal_score() {
 
   //if (backtrace_table.empty()) throw runtime_error("Empty backtrace table");
   return optimal_score;
 }
 
+// get index path
 auto_ptr<vector<unsigned int> > DPTable::get_index_path() {
 
   auto_ptr<vector<unsigned int> > index_path = auto_ptr<vector<unsigned int> >(new vector<unsigned int>(indexers.size()));
@@ -294,16 +300,75 @@ auto_ptr<vector<unsigned int> > DPTable::get_index_path() {
     }
   }
 
-  //db
-#ifdef DB
-  cout << "index path :" << endl;
-  output_vector(index_path.get());
-  cout << endl;
-#endif
-
   return index_path;
 }
 
+// return the complement of i wrt a width
+unsigned int unwrapped(unsigned int i, unsigned int width) {
+
+  return ~i & ((((unsigned int)1) << width) -1);
+}
+
+// get first position of id in array
+unsigned int get_position(unsigned int id, const vector<unsigned int> * v) {
+
+  for(unsigned int j=0; j< v->size(); ++j)
+    if(v->at(j) == id)
+      return j;
+}
+
+// index and next_index of columns i-1 and i are consistent
+bool DPTable::is_consistent(unsigned int index, unsigned int next_index, size_t i) {
+  assert(i>=0);
+
+  // the first read id in common between columns i and i+1
+  unsigned int common_read_id;
+  const vector<unsigned int> * mask = indexers[i-1]->get_forward_projection_mask();
+  for(size_t j=0; j< mask->size(); ++j)
+    if(mask->at(j) > -1) {
+      common_read_id = mask->at(j);
+      break;
+    }
+
+  // get position of common read in each of columns i and i+1
+  unsigned int position = get_position(common_read_id, indexers[i-1]->get_read_ids());
+  unsigned int next_position = get_position(common_read_id, indexers[i]->get_read_ids());
+
+  // the common read should have the same partitioning (i.e., index) in both columns
+  return ((index & (((unsigned int)1) << position)) == (next_index & (((unsigned int)1) << next_position)));
+}
+
+// get a consistent index path
+auto_ptr<vector<unsigned int> > DPTable::get_unwrapped_index_path() {
+
+  auto_ptr<vector<unsigned int> > index_path = get_index_path();
+  auto_ptr<vector<unsigned int> > unwrapped_index_path = auto_ptr<vector<unsigned int> >(new vector<unsigned int>(index_path->size()));
+
+  if(index_path->size() == 0)
+    return unwrapped_index_path;
+
+  // prime unwrapped index path  with the first index
+  unsigned int index = index_path->at(0);
+  unwrapped_index_path->at(0) = index;
+
+  // now follow the index path, ensuring consistency between
+  // neighboring indexes
+  unsigned int next_index;
+  for(size_t i=1; i< index_path->size(); ++i) {
+
+    next_index = index_path->at(i);
+    if (is_consistent(next_index, index, i))
+      index = next_index;
+    else
+      index = unwrapped(next_index, indexers[i]->get_read_ids()->size());
+
+    unwrapped_index_path->at(i) = index;
+  }
+    
+  return unwrapped_index_path;
+}
+	
+// get super reads
 void DPTable::get_super_reads(ReadSet* output_read_set) {
   assert(output_read_set != 0);
 
@@ -318,7 +383,7 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
   } else {
     // run through the file again with the column_iterator
     unsigned int i = 0; // column index
-    auto_ptr<vector<unsigned int> > index_path = get_index_path();
+    auto_ptr<vector<unsigned int> > index_path = get_unwrapped_index_path();
     while (column_iterator.has_next()) {
       unsigned int index = index_path->at(i);
       auto_ptr<vector<const Entry *> > column = column_iterator.get_next();
@@ -337,13 +402,25 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
 
 vector<bool>* DPTable::get_optimal_partitioning() {
 
-  auto_ptr<vector<unsigned int> > index_path = get_index_path();
+  auto_ptr<vector<unsigned int> > unwrapped_index_path = get_unwrapped_index_path();
   vector<bool>* partitioning = new vector<bool>(read_count,false);
 
-  for(size_t i=0; i< index_path->size(); ++i) {
+  //db
+#ifdef DB
+  auto_ptr<vector<unsigned int> > index_path = get_index_path();
+  cout << "index path :" << endl;
+  output_vector(index_path.get());
+  cout << endl;
+  cout << "(unwrapped) index path :" << endl;
+  output_vector(unwrapped_index_path.get());
+  cout << endl;
+  
+#endif
+
+  for(size_t i=0; i< unwrapped_index_path->size(); ++i) {
 
 #ifdef DB
-    cout << "index : " << index_path->at(i) << endl;
+    cout << "index : " << unwrapped_index_path->at(i) << endl;
 #endif
 
     unsigned int mask = 1; // mask to pass over the partitioning (i.e., index)
@@ -352,7 +429,7 @@ vector<bool>* DPTable::get_optimal_partitioning() {
 #ifdef DB
       cout << indexers[i]->get_read_ids()->at(j) << " : ";
 #endif
-      unsigned int index = index_path->at(i);
+      unsigned int index = unwrapped_index_path->at(i);
 
 #ifdef DB
       cout << index << " & " << mask << " = " << (index & mask);

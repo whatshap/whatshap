@@ -29,6 +29,12 @@ private:
   // helper function to compute the optimal path through the backtrace table
   std::auto_ptr<std::vector<unsigned int> > get_index_path();
 
+  // helper function for get_unwrapped_index_path
+  bool is_consistent(unsigned int index, unsigned int next_index, size_t i);
+
+  // we need a consistent index path now that we store only half the parititions
+  std::auto_ptr<std::vector<unsigned int> > get_unwrapped_index_path();
+
   void compute_table();
 
 public:
