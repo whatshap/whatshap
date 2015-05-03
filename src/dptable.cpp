@@ -305,6 +305,13 @@ auto_ptr<vector<unsigned int> > DPTable::get_index_path() {
     }
   }
 
+  //db
+#ifdef DB
+  cout << "index path : " << endl;
+  output_vector(index_path.get());
+  cout << endl;
+#endif
+
   return index_path;
 }
 
