@@ -6,7 +6,7 @@
 #include "columncostcomputer.h"
 #include "dptable.h"
 
-//#define DB // db
+//#define DB // debug statements
 
 using namespace std;
 
@@ -21,6 +21,7 @@ DPTable::DPTable(ReadSet* read_set, bool all_heterozygous) {
 
 // destructor
 DPTable::~DPTable() {
+
   for(size_t i=0; i<indexers.size(); ++i) {
     delete indexers[i];
   }
@@ -42,8 +43,8 @@ auto_ptr<vector<unsigned int> > DPTable::extract_read_ids(const vector<const Ent
   return read_ids;
 }
 
-// db
 #ifdef DB
+
 // helper function to output the bit representation of an unsigned int
 string bit_rep(unsigned int a, unsigned int len) {
 
@@ -76,7 +77,8 @@ void output_vector_enum(const vector<unsigned int> * v, unsigned int len) {
     cout << endl;
   }
 }
-#endif
+
+#endif // DB
 
 // compute table
 void DPTable::compute_table() {
@@ -122,13 +124,15 @@ void DPTable::compute_table() {
 
   unsigned int running_optimal_score;
   unsigned int running_optimal_score_index; // optimal score and its index
+
   //double pi = 0.05; // percentage of columns processed
   //double pc = pi;
   //unsigned int nc = column_iterator.get_column_count();
 
 #ifdef DB
   int i = 0;
-#endif
+#endif // DB
+
   while(next_indexer != 0) {
 
     // move on projection column
@@ -160,12 +164,15 @@ void DPTable::compute_table() {
 
     // if not last column, reserve memory for forward projections column
     if (next_column.get() != 0) {
+
 #ifdef DB
+
       cout << i << " : " << endl;
       ++i;
       cout << "allocate current projection / backtrace columns of size : " << current_indexer->forward_projection_size() << endl;
       cout << "forward projection width : " << current_indexer->get_forward_projection_width() << endl << endl;
-#endif
+
+#endif // DB
 
       current_projection_column = auto_ptr<vector<unsigned int> >(new vector<unsigned int>(current_indexer->forward_projection_size(), numeric_limits<unsigned int>::max()));
 
@@ -177,8 +184,8 @@ void DPTable::compute_table() {
     ColumnCostComputer cost_computer(*current_column, all_heterozygous);
     auto_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
 
-    // db
 #ifdef DB
+
     cout << "previous projection column, costs :" << endl << endl;
     if(previous_projection_column.get()!=0) {
       output_vector_enum(previous_projection_column.get(),current_indexer->get_backward_projection_width());
@@ -198,7 +205,8 @@ void DPTable::compute_table() {
     cout << endl;
 
     cout << "------------------" << endl;
-#endif
+
+#endif // DB
     
     while (iterator->has_next()) {
 
@@ -220,25 +228,23 @@ void DPTable::compute_table() {
         cost += previous_projection_column->at(iterator->get_backward_projection());
       }
 
-      // db
 #ifdef DB
+
       cout << iterator->get_backward_projection() << " [" << bit_rep(iterator->get_backward_projection(), current_indexer->get_backward_projection_width()) << "] -> " << cost;
-#endif
-
-      cost += cost_computer.get_cost();
-
-      // db
-#ifdef DB
-      cout << " + " << cost_computer.get_cost() << " = " << cost << " -> " << iterator->get_index() << " [" << bit_rep(iterator->get_index(), current_indexer->get_read_ids()->size()) << "]";
+      cout << " + " << cost_computer.get_cost() << " = " << cost+cost_computer.get_cost() << " -> " << iterator->get_index() << " [" << bit_rep(iterator->get_index(), current_indexer->get_read_ids()->size()) << "]";
       if(next_column.get()!=0) {
-        cout << " -> " << iterator->get_forward_projection() << " [" << bit_rep(iterator->get_forward_projection(), current_indexer->get_forward_projection_width()) << "]";// fpw = " << current_indexer->get_forward_projection_width();
+        cout << " -> " << iterator->get_forward_projection() << " [" << bit_rep(iterator->get_forward_projection(), current_indexer->get_forward_projection_width()) << "]";
+	// fpw = " << current_indexer->get_forward_projection_width();
       }
       cout << endl;
-#endif
 
+#endif // DB
+
+      cost += cost_computer.get_cost();
       dp_column[iterator->get_index()] = cost;
 
-      // if not last DP column, then update forward projection column and backtrace column
+      // if not last DP column, then update forward projection column
+      // and backtrace column
       if (next_column.get() == 0) {
 
         // update running optimal score index
@@ -256,10 +262,9 @@ void DPTable::compute_table() {
       }
     }
 
-    // db
 #ifdef DB
     cout << endl;
-#endif
+#endif // DB
 
     if(next_column.get() == 0) { // record optimal score
       running_optimal_score = dp_column[running_optimal_score_index];
@@ -400,13 +405,14 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
   output_read_set->add(r1);
 }
 
+// get optimal partitioning
 vector<bool>* DPTable::get_optimal_partitioning() {
 
   auto_ptr<vector<unsigned int> > unwrapped_index_path = get_unwrapped_index_path();
   vector<bool>* partitioning = new vector<bool>(read_count,false);
 
-  //db
 #ifdef DB
+
   auto_ptr<vector<unsigned int> > index_path = get_index_path();
   cout << "index path :" << endl;
   output_vector(index_path.get());
@@ -415,35 +421,37 @@ vector<bool>* DPTable::get_optimal_partitioning() {
   output_vector(unwrapped_index_path.get());
   cout << endl;
   
-#endif
+#endif // DB
 
   for(size_t i=0; i< unwrapped_index_path->size(); ++i) {
 
 #ifdef DB
-    cout << "index : " << unwrapped_index_path->at(i) << endl;
+    cout << "read ids \\ index : " << unwrapped_index_path->at(i) << endl;
 #endif
 
     unsigned int mask = 1; // mask to pass over the partitioning (i.e., index)
     for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {
 
-#ifdef DB
-      cout << indexers[i]->get_read_ids()->at(j) << " : ";
-#endif
       unsigned int index = unwrapped_index_path->at(i);
 
 #ifdef DB
+      cout << indexers[i]->get_read_ids()->at(j) << " : ";
       cout << index << " & " << mask << " = " << (index & mask);
 #endif
 
       if((index & mask) == 0) { // id at this index is in p0 (i.e., in the part.)
         partitioning->at(indexers[i]->get_read_ids()->at(j)) = true;
+
 #ifdef DB
 	cout << " : true";
 #endif
+
       }
+
 #ifdef DB
       cout << endl;
 #endif
+
       mask = mask << 1;
     }
   }
