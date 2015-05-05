@@ -327,11 +327,13 @@ def slice_reads(reads, max_coverage):
 
 	#For profiling
 
+
 	#pr=cProfile.Profile()
 	#pr.runcall(readselection_2, reads,max_coverage)
 	#pr.dump_stats('wh.prof')
 
 	selection_of_reads, with_comp , statistic_with =readselection_2(reads,max_coverage)
+
 	#selection_of_reads, with_comp , statistic_with =readselection(reads,max_coverage )
 	#selection_of_reads, with_comp , statistic_with =Readselection.readselection(reads,max_coverage )
 
