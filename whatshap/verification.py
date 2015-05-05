@@ -1,4 +1,5 @@
-# This code is not used right now, but is useful for debugging purposes
+from whatshap.core import Read, DPTable, ReadSet, Variant
+
 
 def verify_mec_score_and_partitioning(dp_table, reads):
 	"""Confirms that the results reported by dp_table are consistent: check
@@ -14,7 +15,7 @@ def verify_mec_score_and_partitioning(dp_table, reads):
 			allele = v.allele
 			if allele == 3:
 				allele = j
-			new_superreads[j].add_variant(v.position, v.base, allele, v.quality)
+			new_superreads[j].add_variant(v.position, allele, v.quality)
 	partitioning = dp_table.get_optimal_partitioning()
 	position_to_index = { variant.position: index for index, variant in enumerate(new_superreads[0]) }
 	swapped = False
@@ -39,5 +40,5 @@ def verify_mec_score_and_partitioning(dp_table, reads):
 			else:
 				assert False
 		n += 1
-	logger.info('Expected MEC score: {}, obtained MEC score: {}'.format(mec_score, dp_table.get_optimal_cost()))
+	print('Expected MEC score: {}, obtained MEC score: {}'.format(mec_score, dp_table.get_optimal_cost()))
 	assert mec_score == dp_table.get_optimal_cost()
