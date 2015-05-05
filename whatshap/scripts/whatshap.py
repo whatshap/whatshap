@@ -323,17 +323,21 @@ def slice_reads(reads, max_coverage):
 	#helpk=readselection_2(reads,max_coverage)
 	#print('Help readselection')
 	#print(helpk)
-	pr=cProfile.Profile()
-	pr.runcall(readselection_2, reads,max_coverage)
-	pr.dump_stats('wh.prof')
+
+
+	#For profiling
+
+	#pr=cProfile.Profile()
+	#pr.runcall(readselection_2, reads,max_coverage)
+	#pr.dump_stats('wh.prof')
 
 	selection_of_reads, with_comp , statistic_with =readselection_2(reads,max_coverage)
 	#selection_of_reads, with_comp , statistic_with =readselection(reads,max_coverage )
 	#selection_of_reads, with_comp , statistic_with =Readselection.readselection(reads,max_coverage )
 
 
-
-	tatistic_with =readselection(reads,max_coverage )
+	#former approach with readselect.py
+	#tatistic_with =readselection(reads,max_coverage )
 
 	#showing stats
 	(skipped_reads)=statistic_with
@@ -383,11 +387,11 @@ def slice_reads(reads, max_coverage):
 #TODO : AB hier auskommentiert
 
 	# TODO: Adapt/reactivate the following code for a richer output
-#	position_list = reads.get_positions()
-#	logger.info('Found %d variant positions', len(position_list))
-#	variants_not_covered= len(position_list)-len(read_selection.get_positions())
-#	logger.info('%d out of %d variant positions do not have a read',variants_not_covered,len(position_list) )
-#	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
+	position_list = reads.get_positions()
+	logger.info('Found %d variant positions', len(position_list))
+	variants_not_covered= len(position_list)-len(read_selection.get_positions())
+	logger.info('%d out of %d variant positions do not have a read',variants_not_covered,len(position_list) )
+	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
 
 
 
