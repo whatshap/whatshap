@@ -313,6 +313,9 @@ def slice_reads(reads, max_coverage):
 
 
 
+
+
+
 	#selection_of_reads, with_comp , statistic_with =readselection(reads,max_coverage )
 	#selection_of_reads, with_comp , statistic_with =Readselection.readselection(reads,max_coverage )
 	statistic_with =readselection(reads,max_coverage )
