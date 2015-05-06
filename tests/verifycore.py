@@ -11,11 +11,15 @@ def verify(reads, all_heterozygous = False) :
 	verify_mec_score_and_partitioning(dp_table, super_reads)
 
 
-def test_phase_trivial() :
+def test_verify() :
 	reads = """
-          1 1
-          000
-           1
-        """
+	  0             0
+	  110111111111
+	  00100
+	       0001000000
+	       000
+	        10100
+	              101
+	"""
 	verify(reads, True)
 	verify(reads, False)
