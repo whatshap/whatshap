@@ -1,10 +1,12 @@
 import math
 import logging
+#import _core
 
 
 from priorityqueue import PriorityQueue
 from whatshap.coverage import CovMonitor
 from .graph import ComponentFinder
+from _core import PyReadSet,PyRead
 
 
 
@@ -102,8 +104,10 @@ def _construct_indexes(readset):
     and the SNP_read_map'''
     cdef unordered_map[int,vector[int]] SNP_read_map
     cdef int index, snp_index
-    positions = readset.get_positions()
+    positions = PyReadSet.get_positions(readset) #readset.get_positions()
     vcf_indices = {position: index for index, position in enumerate(positions)}
+    #cdef _core.PyReadSet readset2
+    #cdef PyRead read
 
     #SNP read map with defaultdict does not work
     #SNP_read_map = defaultdict(list)
@@ -271,6 +275,10 @@ def readselection_2(readset, int max_cov, bridging=True):
     #cdef bool bridging
     #That does not work
     #cdef set[int] selected_reads
+    #cdef Read *read
+
+
+
     print('readset')
     print(readset[0][0])
 
