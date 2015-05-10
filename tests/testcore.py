@@ -177,6 +177,16 @@ def compare_phasing(reads, all_heterozygous, weights = None):
 	assert (haplotypes == (expected_haplotype1, expected_haplotype2)) or (haplotypes == (expected_haplotype2, expected_haplotype1))
 
 
+def test_phase_trivial() :
+	reads = """
+          11
+           1
+           01
+        """
+	compare_phasing(reads, True)
+	compare_phasing(reads, False)
+
+
 def test_phase1():
 	reads = """
 	 10
