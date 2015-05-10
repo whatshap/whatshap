@@ -185,6 +185,16 @@ def test_phase_trivial() :
 	compare_phasing(reads, True)
 	compare_phasing(reads, False)
 
+def test_phase_trivial() :
+	reads = """
+          11
+           1
+           01
+        """
+	compare_phasing(reads, True)
+	compare_phasing(reads, False)
+
+
 def test_phase1():
 	reads = """
 	 10
