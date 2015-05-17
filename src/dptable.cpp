@@ -389,12 +389,12 @@ auto_ptr<vector<unsigned int> > DPTable::get_unwrapped_index_path() {
   for(size_t i=1; i< index_path->size(); ++i) {
 
 #ifdef DB
-    cout << "index at " << i << " is consistent ? : " << is_consistent(index_path->at(i), index, i) << endl;
-    cout << "index : " << index_path->at(i) << " unwrapped : " << unwrapped(index_path->at(i), indexers[i]->get_read_ids()->size()) << endl;
+    cout << "index at " << i << " is consistent ? : " << is_consistent(index, index_path->at(i), i) << endl;
+    cout << "index : " << index_path->at(i) << ", unwrapped : " << unwrapped(index_path->at(i), indexers[i]->get_read_ids()->size()) << ", wrt size : " << indexers[i]->get_read_ids()->size() << endl;
 #endif
 
     next_index = index_path->at(i);
-    if (is_consistent(next_index, index, i))
+    if (is_consistent(index, next_index, i))
       unwrapped_index_path->at(i) = next_index;
     else
       unwrapped_index_path->at(i) = unwrapped(next_index, indexers[i]->get_read_ids()->size());
