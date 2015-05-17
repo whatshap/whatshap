@@ -331,16 +331,30 @@ unsigned int get_position(unsigned int id, const vector<unsigned int> * v) {
 
 // index and next_index of columns i-1 and i are consistent
 bool DPTable::is_consistent(unsigned int index, unsigned int next_index, size_t i) {
-  assert(i>=0);
+  assert(i>0);
 
-  // the first read id in common between columns i and i+1
+#ifdef DB
+  cout << "index : " << index << ", next index : " << next_index << endl;
+#endif
+
+  // the first read id in common between columns i-1 and i
   unsigned int common_read_id;
   const vector<unsigned int> * mask = indexers[i-1]->get_forward_projection_mask();
-  for(size_t j=0; j< mask->size(); ++j)
-    if(mask->at(j) > -1) {
-      common_read_id = mask->at(j);
+  for(size_t j=0; j< mask->size(); ++j) {
+  
+#ifdef DB
+    cout << "j : " << j << ", mask : " << mask->at(j) << ", read id : " << indexers[i-1]->get_read_ids()->at(j) << endl;
+#endif
+   
+    if(mask->at(j) != -1) {
+      common_read_id = indexers[i-1]->get_read_ids()->at(j);
       break;
     }
+  }
+
+#ifdef DB
+  cout << "common read id : " << common_read_id << endl;
+#endif
 
   // get position of common read in each of columns i and i+1
   unsigned int position = get_position(common_read_id, indexers[i-1]->get_read_ids());
