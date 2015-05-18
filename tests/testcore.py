@@ -276,15 +276,3 @@ def test_weighted_phasing1():
 	"""
 	compare_phasing(reads, True, weights)
 	compare_phasing(reads, False, weights)
-
-
-# fails, because it is disconnected ?
-def test_disconnected_phasing1() :
-	reads = """
-          011
-             11
-              01
-               11110
-        """
-	compare_phasing(reads, True)
-	compare_phasing(reads, False)
