@@ -41,6 +41,7 @@ cdef extern from "../src/readset.h":
 
 cdef class PyReadSet:
 	cdef ReadSet *thisptr
+	cdef PyRead get(self, int index)
 
 cdef extern from "../src/columniterator.h":
 	cdef cppclass ColumnIterator:

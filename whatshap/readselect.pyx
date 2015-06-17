@@ -19,8 +19,6 @@ from whatshap._core cimport PyReadSet
 #from whatshap._core import PyDPTable as DPTable
 #from whatshap._core import PyIndexSet as IndexSet
 #from whatshap.scripts.whatshap import CoverageMonitor as CovMonitor
-from whatshap._core cimport Read
-from whatshap._core cimport ReadSet
 from whatshap.priorityqueue cimport PriorityQueue, priority_type, priority_type_ptr, queue_entry_type
 from whatshap.coverage import CovMonitor
 from .graph import ComponentFinder
@@ -44,12 +42,12 @@ def _construct_indexes(readset):
 			SNP_read_map[snp_index].append(index)
 	return positions, vcf_indices, SNP_read_map
 
-cdef priority_type_ptr _update_score_for_reads(priority_type_ptr former_score, ReadSet* readset, index, unordered_set[int]& already_covered_SNPs):
+cdef priority_type_ptr _update_score_for_reads(priority_type_ptr former_score, PyReadSet readset, index, unordered_set[int]& already_covered_SNPs):
 	'''updatest the score of the read, depending on how many reads are already covered'''
 	cdef int first_score = former_score.at(0)
 	cdef int second_score = former_score.at(1)
 	cdef int quality = former_score.at(2)
-	cdef Read* read = readset.get(index)
+	cdef PyRead read = readset.get(index)
 	cdef unordered_set[int].iterator it 
 	for i in range(read.getVariantCount()):
 		it = already_covered_SNPs.find(read.getPosition(i))
@@ -75,10 +73,10 @@ def _compute_score_depedning_on_quality_only (readset,index,vcf_indices):
 
 
 
-cdef priority_type_ptr _compute_score_for_read(ReadSet* readset, int index, vcf_indices):
+cdef priority_type_ptr _compute_score_for_read(PyReadSet readset, int index, vcf_indices):
 	'''Method for computing the score for a read independently'''
 	#TODO At the moment tuple (new- bad ,good -bad, min(qualities))
-	cdef Read* read = readset.get(index)
+	cdef PyRead read = readset.get(index)
 	#TODO look if the initial values is reasonable
 	#initialize minimal quality by high value, good_score by 0  and bad_score by 0 .
 	cdef int min_quality = 1000
@@ -106,7 +104,7 @@ cdef priority_type_ptr _compute_score_for_read(ReadSet* readset, int index, vcf_
 	result.push_back(min_quality)
 	return result
 
-cdef PriorityQueue __pq_construction_out_of_given_reads(ReadSet* readset, read_indices, vcf_indices):
+cdef PriorityQueue __pq_construction_out_of_given_reads(PyReadSet readset, read_indices, vcf_indices):
 	'''Constructiong of the priority queue out of the readset and the undicided read_indices,
      so that each read is in the priority queue and sorted by their score.'''
 
@@ -124,13 +122,13 @@ cdef PriorityQueue __pq_construction_out_of_given_reads(ReadSet* readset, read_i
 
 #TODO Here the pq already includes only the undecided reads....
 
-cdef slice_read_selection(PriorityQueue pq, coverages, max_cov, ReadSet* readset, vcf_indices, SNP_read_map):
+cdef slice_read_selection(PriorityQueue pq, coverages, max_cov, PyReadSet readset, vcf_indices, SNP_read_map):
 	'''Extraction of a set of read indices, where each SNP should be covered at least once, if coverage, or reads are allowing it '''
 	#Intern list for storing the actual selected reads
 	already_covered_SNPs = set()
 	reads_in_slice = set()
 	reads_violating_coverage = set()
-	cdef Read* extracted_read = NULL
+	cdef PyRead extracted_read
 	cdef queue_entry_type entry
 	cdef priority_type_ptr max_score
 	cdef int max_item
@@ -198,16 +196,13 @@ def format_read_source_stats(readset, indices):
 	return ', '.join('{}:{}'.format(source_id, count) for source_id, count in source_id_counts.items())
 
 
-def readselection(PyReadSet pyreadset, max_cov, bridging=True):
+def readselection(PyReadSet readset, max_cov, bridging=True):
 	'''Return the selected readindices which do not violate the maximal coverage, and additionally usage of a boolean for deciding if
      the bridging is needed or not.'''
      
-	cdef ReadSet* readset = pyreadset.thisptr
-	assert readset != NULL
-
-	positions, vcf_indices, SNP_read_map = _construct_indexes(pyreadset)
+	positions, vcf_indices, SNP_read_map = _construct_indexes(readset)
 	
-	logger.info('Running read selection for %d reads covering %d variants (bridging %s)', len(pyreadset), len(positions),'ON' if bridging else 'OFF')
+	logger.info('Running read selection for %d reads covering %d variants (bridging %s)', len(readset), len(positions),'ON' if bridging else 'OFF')
 
 	#initialization of Coverage Monitor
 	coverages = CovMonitor(len(positions))
@@ -216,12 +211,12 @@ def readselection(PyReadSet pyreadset, max_cov, bridging=True):
 	selected_reads = set()
 
 	# indices of reads that could (potentially) still be selected ,do not consider thes read which only cover one SNP
-	undecided_reads = set(i for i, read in enumerate(pyreadset) if len(read) >= 2)
+	undecided_reads = set(i for i, read in enumerate(readset) if len(read) >= 2)
 
-	number_unuseful_reads = len(pyreadset) - len(undecided_reads)
+	number_unuseful_reads = len(readset) - len(undecided_reads)
 
 	cdef PriorityQueue pq 
-	cdef Read* read
+	cdef PyRead read
 	cdef unordered_set[int] covered_blocks
 	loop = 0
 	while len(undecided_reads) > 0:
@@ -272,8 +267,8 @@ def readselection(PyReadSet pyreadset, max_cov, bridging=True):
 		loop += 1
 		logger.info(
 			'... iteration %d: selected %d reads (source: %s) to cover positions and %d reads (source: %s) for bridging; %d reads left undecided',
-			loop, len(reads_in_slice), format_read_source_stats(pyreadset, reads_in_slice), len(bridging_reads),
-			format_read_source_stats(pyreadset, bridging_reads), len(undecided_reads)
+			loop, len(reads_in_slice), format_read_source_stats(readset, reads_in_slice), len(bridging_reads),
+			format_read_source_stats(readset, bridging_reads), len(undecided_reads)
 		)
 
 	#for Debugging

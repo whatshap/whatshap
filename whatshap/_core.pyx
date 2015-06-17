@@ -147,6 +147,11 @@ cdef class PyReadSet:
 	def __len__(self):
 		return self.thisptr.size()
 
+	cdef PyRead get(self, int index):
+		cdef PyRead read = PyRead()
+		read.thisptr = self.thisptr.get(index)
+		return read
+
 	def __getitem__(self, key):
 		if isinstance(key, slice):
 			raise NotImplementedError('ReadSet does not support slices')
