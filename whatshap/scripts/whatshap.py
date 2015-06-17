@@ -29,7 +29,7 @@ try:
 	from contextlib import ExitStack
 except ImportError:
 	from contextlib2 import ExitStack  # PY32
-from ..vcf import parse_vcf, PhasedVcfWriter
+from ..vcf import parse_vcf, PhasedVcfWriter, remove_overlapping_variants
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, IndexSet
@@ -513,6 +513,7 @@ def run_whatshap(bam, vcf,
 			haplotype_bam_writer = HaplotypeBamWriter(bam, haplotype_bams_prefix, sample)
 		timers.start('parse_vcf')
 		for sample, chromosome, variants in vcf_reader:
+			variants = remove_overlapping_variants(variants)
 			timers.stop('parse_vcf')
 			logger.info('Working on chromosome %s', chromosome)
 			logger.info('Read %d variants', len(variants))

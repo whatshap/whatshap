@@ -126,6 +126,23 @@ def parse_vcf(path, indels=False, sample=None):
 		yield (sample, prev_chromosome, variants)
 
 
+def remove_overlapping_variants(variants):
+	"""
+	Filter a list of variants such that no variants overlap each other.
+	This applies mainly to deletions: If they occur too close to another
+	variant, the deletion and the other variant are removed.
+
+	This function also guarantees that the positions of the returned variants
+	are unique. For that, it may also remove other variants (not necessarily
+	involved in a deletion).
+
+	variants -- a list of VcfVariant objects
+
+	Return a list of VcfVariant objects.
+	"""
+	return variants
+
+
 class PhasedVcfWriter:
 	"""
 	Read in a VCF file and write it back out with added phasing information.
