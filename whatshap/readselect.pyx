@@ -46,8 +46,9 @@ cdef priority_type_ptr _update_score_for_reads(priority_type_ptr former_score, P
 	cdef int second_score = former_score.at(1)
 	cdef int quality = former_score.at(2)
 	cdef PyRead read = readset.get(index)
-	cdef unordered_set[int].iterator it 
-	for i in range(read.__length__()):
+	cdef unordered_set[int].iterator it
+	cdef int i
+	for i in range(read.size()):
 		it = already_covered_SNPs.find(read.getPosition(i))
 		if it == already_covered_SNPs.end():
 			first_score -= 1
