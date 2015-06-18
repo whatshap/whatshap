@@ -120,6 +120,16 @@ cdef class PyRead:
 			assert self.thisptr != NULL
 			return self.thisptr.isSorted()
 
+	cdef int size(self):
+		assert self.thisptr != NULL
+		return self.thisptr.getVariantCount()
+
+	cdef int getVariantQuality(self, int index):
+		return self.thisptr.getVariantQuality(index)
+
+	cdef int getPosition(self, int index):
+		return self.thisptr.getPosition(index)
+
 # ====== ReadSet ======
 
 cdef class PyReadSet:

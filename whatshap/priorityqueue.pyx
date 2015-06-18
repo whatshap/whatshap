@@ -11,6 +11,7 @@ cdef bool _vector_score_lower(priority_type_ptr first, priority_type_ptr second)
 	else:
 		return False
 
+
 cdef priority_type_ptr _pyscore_to_vector(score):
 	cdef priority_type_ptr result = new priority_type()
 	if isinstance(score,int):
@@ -24,6 +25,7 @@ cdef priority_type_ptr _pyscore_to_vector(score):
 		except:
 			raise ValueError('Score parameter must be either int, or an iterable object yielding ints')
 	return result
+
 
 cdef int _parent(int index):
 	''''returns the index of the parent node in the heap depending on the given index'''
@@ -48,6 +50,7 @@ cdef int _left_child(int index):
 cdef int _right_child(int index):
 	'''return the index of the right child in the heap depending on the given index'''
 	return (2 * index) + 2
+
 
 # TODO: in general, see https://www.python.org/dev/peps/pep-0008
 cdef class PriorityQueue:
@@ -102,7 +105,6 @@ cdef class PriorityQueue:
 			if self._score_lower(parentindex, index):
 				self._swap(parentindex, index)
 				self._sift_up(parentindex)
-
 
 	cdef void _sift_down(self, int index):
 		'''Check if score of item at given index is lower than the score of its children,

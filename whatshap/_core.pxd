@@ -22,9 +22,14 @@ cdef extern from "../src/read.h":
 		bool isSorted() except +
 		int getSourceID() except +
 
+
 cdef class PyRead:
 	cdef Read *thisptr
 	cdef bool ownsptr
+	cdef int size(self)
+	cdef int getVariantQuality(self, int index)
+	cdef int getPosition(self, int index)
+
 
 cdef extern from "../src/readset.h":
 	cdef cppclass ReadSet:

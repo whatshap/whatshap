@@ -22,11 +22,8 @@ from whatshap._core cimport PyReadSet
 from whatshap.priorityqueue cimport PriorityQueue, priority_type, priority_type_ptr, queue_entry_type
 from whatshap.coverage import CovMonitor
 from .graph import ComponentFinder
-from libcpp.vector cimport vector
 from libcpp.unordered_set cimport unordered_set
 
-ctypedef vector[unsigned int] positions_type
-ctypedef positions_type* positions_type_ptr
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +39,7 @@ def _construct_indexes(readset):
 			SNP_read_map[snp_index].append(index)
 	return positions, vcf_indices, SNP_read_map
 
+
 cdef priority_type_ptr _update_score_for_reads(priority_type_ptr former_score, PyReadSet readset, index, unordered_set[int]& already_covered_SNPs):
 	'''updatest the score of the read, depending on how many reads are already covered'''
 	cdef int first_score = former_score.at(0)
@@ -49,7 +47,7 @@ cdef priority_type_ptr _update_score_for_reads(priority_type_ptr former_score, P
 	cdef int quality = former_score.at(2)
 	cdef PyRead read = readset.get(index)
 	cdef unordered_set[int].iterator it 
-	for i in range(read.getVariantCount()):
+	for i in range(read.__length__()):
 		it = already_covered_SNPs.find(read.getPosition(i))
 		if it == already_covered_SNPs.end():
 			first_score -= 1
@@ -85,7 +83,7 @@ cdef priority_type_ptr _compute_score_for_read(PyReadSet readset, int index, vcf
 	cdef int quality = -1
 	cdef int pos = -1
 	covered_SNPS = []
-	for i in range(read.getVariantCount()):
+	for i in range(read.size()):
 		quality = read.getVariantQuality(i)
 		pos = read.getPosition(i)
 		min_quality = min(min_quality, quality)
@@ -144,7 +142,7 @@ cdef slice_read_selection(PriorityQueue pq, coverages, max_cov, PyReadSet readse
 		extracted_read = readset.get(max_item)
 		covers_new_snp = False
 		#look if positions covered by this reads are already covered or not
-		for i in range(extracted_read.getVariantCount()):
+		for i in range(extracted_read.size()):
 			pos = extracted_read.getPosition(i)
 			if pos in already_covered_SNPs:
 				continue
@@ -154,7 +152,7 @@ cdef slice_read_selection(PriorityQueue pq, coverages, max_cov, PyReadSet readse
 				SNPS_Covered_for_this_read.add(pos.position)
 		#only if at least one position is not covered then we could add the read if he does not break the max coverage
 		begin = vcf_indices.get(extracted_read.getPosition(0))
-		end = vcf_indices.get(extracted_read.getPosition(extracted_read.getVariantCount() - 1)) + 1
+		end = vcf_indices.get(extracted_read.getPosition(extracted_read.size() - 1)) + 1
 		if coverages.max_coverage_in_range(begin, end) >= max_cov:
 			reads_violating_coverage.add(max_item)
 		elif covers_new_snp:
@@ -230,7 +228,7 @@ def readselection(PyReadSet readset, max_cov, bridging=True):
 		component_finder = ComponentFinder(positions)
 		for read_index in reads_in_slice:
 			read = readset.get(read_index)
-			for i in range(1, read.getVariantCount()):
+			for i in range(1, read.size()):
 				component_finder.merge(read.getPosition(0), read.getPosition(i))
 
 		bridging_reads = set()
@@ -240,14 +238,14 @@ def readselection(PyReadSet readset, max_cov, bridging=True):
 				score, read_index = pq.pop()
 				read = readset.get(read_index)
 				covered_blocks.clear()
-				for i in range(read.getVariantCount()):
+				for i in range(read.size()):
 					covered_blocks.add(component_finder.find(read.getPosition(i)))
 
 				# TODO: check coverage (potentially remove from undecided_reads)
 
 				#Coverage Monitor
 				begin = vcf_indices.get(read.getPosition(0))
-				end = vcf_indices.get(read.getPosition(read.getVariantCount() - 1)) + 1
+				end = vcf_indices.get(read.getPosition(read.size() - 1)) + 1
 				if coverages.max_coverage_in_range(begin, end) >= max_cov:
 					undecided_reads.remove(read_index)
 					continue
@@ -262,7 +260,7 @@ def readselection(PyReadSet readset, max_cov, bridging=True):
 
 				undecided_reads.remove(read_index)
 				#Update Component_finder
-				for i in range(1, read.getVariantCount()):
+				for i in range(1, read.size()):
 					component_finder.merge(read.getPosition(0), read.getPosition(i))
 		loop += 1
 		logger.info(
