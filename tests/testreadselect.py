@@ -71,22 +71,22 @@ def test_components_of_readselection():
 #  	assert len(set(new_components.values())) == 1
 
 
-
-def test_tuple_scores():
-	'Only example at the moment '
-	reads = """
-	  1  11010
-	  00 00101
-	  001 01110
-	   1    111
-	"""
-	weights = """
-	  2  13112
-	  11 23359
-	  223 56789
-	   2    111
-	"""
-	rs = string_to_readset(reads, weights)
-	selected_reads, new_components,stats = readselection(reads, max_cov = 2, bridging= False)
-	selected_reads, new_components,stats = readselection(reads, max_cov = 2, bridging= True)
+#TODO: the below test case seems to be incomplete
+#def test_tuple_scores():
+	#'Only example at the moment '
+	#reads = """
+	  #1  11010
+	  #00 00101
+	  #001 01110
+	   #1    111
+	#"""
+	#weights = """
+	  #2  13112
+	  #11 23359
+	  #223 56789
+	   #2    111
+	#"""
+	#rs = string_to_readset(reads, weights)
+	#selected_reads, new_components,stats = readselection(reads, max_cov = 2, bridging= False)
+	#selected_reads, new_components,stats = readselection(reads, max_cov = 2, bridging= True)
 
