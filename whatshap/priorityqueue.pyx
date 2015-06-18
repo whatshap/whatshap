@@ -1,10 +1,5 @@
 import math
 
-from libcpp.vector cimport vector
-from libcpp.unordered_map cimport unordered_map
-from libcpp.pair cimport pair
-from libcpp cimport bool
-
 ctypedef vector[int] priority_type
 ctypedef priority_type* priority_type_ptr
 ctypedef int item_type

@@ -32,11 +32,9 @@ except ImportError:
 from ..vcf import parse_vcf, PhasedVcfWriter
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
-from ..core import Read, ReadSet, DPTable, IndexSet
+from ..core import Read, ReadSet, DPTable, IndexSet, readselection
 from ..graph import ComponentFinder
-from ..readselect import readselection
 from ..coverage import CovMonitor
-from ..priorityqueue import PriorityQueue
 from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
 
 

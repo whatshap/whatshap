@@ -4,4 +4,6 @@ from whatshap._core import (
 	PyDPTable as DPTable,
 	PyIndexSet as IndexSet,
 	Variant,
+	PriorityQueue,
+	readselection
 )
