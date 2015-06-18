@@ -3,10 +3,6 @@
 # during a regular installation, the module will be compiled from the
 # pre-generated .c file and the .pyx file is not read.
 
-from libcpp.string cimport string
-from libcpp.vector cimport vector
-from libcpp cimport bool
-
 from collections import namedtuple
 
 # A single variant on a read.
