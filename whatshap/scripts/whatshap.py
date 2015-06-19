@@ -306,10 +306,8 @@ def slice_reads(reads, max_coverage):
 	max_coverage -- Slicing ensures that the (physical) coverage does not exceed max_coverage anywhere along the chromosome.
 	reads -- a ReadSet
 	"""
-	selection_of_reads, with_comp , statistic_with =readselection(reads,max_coverage )
+	selection_of_reads, skipped_reads = readselection(reads, max_coverage)
 
-	#showing stats
-	(skipped_reads)=statistic_with
 	select = [IndexSet()]
 	for i in selection_of_reads:
 		select[0].add(i)

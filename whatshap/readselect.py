@@ -176,7 +176,7 @@ def readselection(readset, max_cov, bridging=True):
 	# indices of reads that could (potentially) still be selected ,do not consider thes read which only cover one SNP
 	undecided_reads = set(i for i, read in enumerate(readset) if len(read) >= 2)
 
-	number_unuseful_reads = len(readset) - len(undecided_reads)
+	uninformative_read_count = len(readset) - len(undecided_reads)
 
 	loop = 0
 	while len(undecided_reads) > 0:
@@ -232,8 +232,4 @@ def readselection(readset, max_cov, bridging=True):
 			format_read_source_stats(readset, bridging_reads), len(undecided_reads)
 		)
 
-	#for Debugging
-	new_components = {position: component_finder.find(position) for position in vcf_indices.keys()}
-	stats = (number_unuseful_reads)
-
-	return selected_reads, new_components, stats
+	return selected_reads, uninformative_read_count
