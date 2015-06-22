@@ -295,80 +295,6 @@ class ReadSetReader:
 		self._reader.close()
 
 
-
-def slice_reads(reads, max_coverage):
-	""" Iterate over all reads and by assigning the reads a score depending on its utility a selection of reads
-	is returend which ensures that the physical coverage does not exceed the given max_coverage.
-	Return a ReadSet containing the retained reads.
-
-	max_coverage -- Slicing ensures that the (physical) coverage does not exceed max_coverage anywhere along the chromosome.
-	reads -- a ReadSet
-	"""
-	selection_of_reads, skipped_reads = readselection(reads, max_coverage)
-
-	read_selection = reads.subset(selection_of_reads)
-
-	#TODO maybe statistic also with and without bridging ...
-
-
-
-
-	#selection_of_reads_without, without_comp ,statistic_without=readselection(reads,max_coverage, False)
-	#readselect_set= set(selection_of_reads)
-	#readselect_without_set= set(selection_of_reads_without)
-
-	#vals_with= set(with_comp.values())
-	#vals_without = set(without_comp.values())
-
-	#print('Difference in Reads 1 ')
-	#print(readselect_set-readselect_without_set)
-	#print('Difference in Reads 2 ')
-	#print(readselect_without_set-readselect_set)
-	#print('Length of readselection with bridging')
-	#print(len(readselect_set))
-	#print('Length of readselection without bridging')
-	#print(len(readselect_without_set))
-
-	#print('Com_ keys with bridging')
-	#print(with_comp.keys())
-	#print('Com_ keys without bridging')
-	#print(without_comp.keys())
-	#print('Com_ vals with bridging')
-
-	#print(len(set(with_comp.values())))
-	#print('Com_ vals without bridging')
-	#print(len(set(without_comp.values())))
-
-	#if len(set(without_comp.values())) != len(set(with_comp.values())):
-		#print('Differences in the components first with and without than without and with ')
-		#print(vals_with-vals_without)
-		#print(vals_without-vals_with)
-	#logger.info('Found %d components with bridging and %d components without bridging',len(set(with_comp.values())), len(set(without_comp.values())))
-
-
-
-
-	# TODO: Adapt/reactivate the following code for a richer output
-	position_list = reads.get_positions()
-	logger.info('Found %d variant positions', len(position_list))
-	variants_not_covered= len(position_list)-len(read_selection.get_positions())
-	logger.info('%d out of %d variant positions do not have a read',variants_not_covered,len(position_list) )
-	logger.info('Skipped %d reads that only cover one SNP', skipped_reads)
-
-	#informative_reads = len(reads) - skipped_reads
-	#unphasable_snps = len(position_list) - len(accessible_positions)
-	#if position_list:
-		#logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
-			#'connecting them to another variant and are thus unphasable',
-			#unphasable_snps, len(position_list),
-			#100. * unphasable_snps / len(position_list))
-	#if reads:
-		#logger.info('After coverage reduction: Using %d of %d (%.1f%%) reads that cover two or more SNPs',
-			#len(slices[0]), informative_reads, (100. * len(slices[0]) / informative_reads if informative_reads > 0 else float('nan')) )
-
-	return read_selection
-
-
 def find_components(superreads, reads):
 	"""
 	Return a dict that maps each position to the component it is in. A
@@ -535,7 +461,26 @@ def run_whatshap(bam, vcf,
 				# Sort reads in read set by position
 				reads.sort()
 
-				sliced_reads = slice_reads(reads, max_coverage)
+				selected_reads, uninformative_read_count = readselection(reads, max_coverage)
+				sliced_reads = reads.subset(selected_reads)
+
+				position_list = reads.get_positions()
+				accessible_positions = sliced_reads.get_positions()
+				informative_read_count = len(reads) - uninformative_read_count
+				unphasable_snps = len(position_list) - len(accessible_positions)
+				logger.info('%d variants are covered by at least one read', len(position_list))
+				logger.info('Skipped %d reads that only cover one variant', uninformative_read_count)
+				if position_list:
+					logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
+						'connecting them to another variant and are thus unphasable',
+						unphasable_snps, len(position_list),
+						100. * unphasable_snps / len(position_list)
+					)
+				if reads:
+					logger.info('After read selection: Using %d of %d (%.1f%%) reads that cover two or more variants',
+						len(selected_reads), informative_read_count, (100. * len(selected_reads) / informative_read_count if informative_read_count > 0 else float('nan'))
+					)
+
 
 			n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(reads)
 			n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(sliced_reads)
@@ -545,7 +490,7 @@ def run_whatshap(bam, vcf,
 			stats.n_best_case_nonsingleton_blocks_cov += n_best_case_nonsingleton_blocks_cov
 			logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
 				n_best_case_nonsingleton_blocks, n_best_case_blocks)
-			logger.info('... after coverage reduction: %d non-singleton phased blocks (%d in total)',
+			logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
 				n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
 
 			with timers('phase'):
@@ -585,7 +530,7 @@ def run_whatshap(bam, vcf,
 	logger.info('== SUMMARY ==')
 	logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
 		stats.n_best_case_nonsingleton_blocks, stats.n_best_case_blocks)
-	logger.info('... after coverage reduction: %d non-singleton phased blocks (%d in total)',
+	logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
 		stats.n_best_case_nonsingleton_blocks_cov, stats.n_best_case_blocks_cov)
 	if all_heterozygous:
 		assert stats.n_homozygous == 0
