@@ -32,7 +32,7 @@ except ImportError:
 from ..vcf import parse_vcf, PhasedVcfWriter
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
-from ..core import Read, ReadSet, DPTable, IndexSet, readselection
+from ..core import Read, ReadSet, DPTable, readselection
 from ..graph import ComponentFinder
 from ..coverage import CovMonitor
 from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
@@ -306,10 +306,7 @@ def slice_reads(reads, max_coverage):
 	"""
 	selection_of_reads, skipped_reads = readselection(reads, max_coverage)
 
-	select = [IndexSet()]
-	for i in selection_of_reads:
-		select[0].add(i)
-	read_selection=reads.subset(select[0])
+	read_selection = reads.subset(selection_of_reads)
 
 	#TODO maybe statistic also with and without bridging ...
 

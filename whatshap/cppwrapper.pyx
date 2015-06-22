@@ -137,6 +137,17 @@ cdef class PyRead:
 			assert self.thisptr != NULL
 			return self.thisptr.isSorted()
 
+
+# ====== IndexSet ======
+cdef extern from "../src/indexset.h":
+	cdef cppclass IndexSet:
+		IndexSet() except +
+		bool contains(int) except +
+		void add(int) except +
+		int size() except +
+		string toString() except +
+
+
 # ====== ReadSet ======
 cdef extern from "../src/readset.h":
 	cdef cppclass ReadSet:
@@ -216,11 +227,16 @@ cdef class PyReadSet:
 		called on all contained reads. Ties are resolved by comparing the read name."""
 		self.thisptr.sort()
 
-	def subset(self, PyIndexSet index_set):
+	def subset(self, reads_to_select):
 		# TODO: is there a way of avoiding to unecessarily creating/destroying a ReadSet object?
+		cdef IndexSet* index_set = new IndexSet()
+		cdef int i
+		for i in reads_to_select:
+			index_set.add(i)
 		result = PyReadSet()
 		del result.thisptr
-		result.thisptr = self.thisptr.subset(index_set.thisptr)
+		result.thisptr = self.thisptr.subset(index_set)
+		del index_set
 		return result
 
 	def get_positions(self):
@@ -280,33 +296,3 @@ cdef class PyDPTable:
 		del p
 		return result
 
-# ====== IndexSet ======
-cdef extern from "../src/indexset.h":
-	cdef cppclass IndexSet:
-		IndexSet() except +
-		bool contains(int) except +
-		void add(int) except +
-		int size() except +
-		string toString() except +
-
-
-cdef class PyIndexSet:
-	cdef IndexSet *thisptr
-
-	def __cinit__(self):
-		self.thisptr = new IndexSet()
-
-	def __dealloc__(self):
-		del self.thisptr
-
-	def __str__(self):
-		return self.thisptr.toString().decode('utf-8')
-
-	def __len__(self):
-		return self.thisptr.size()
-
-	def contains(self, index):
-		return self.thisptr.contains(index)
-
-	def add(self, index):
-		self.thisptr.add(index)
