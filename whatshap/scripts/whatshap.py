@@ -10,7 +10,6 @@ standard output.
  X: unphasable: there is coverage, but still not phasable (tie)
 
 TODO
-* Perhaps simplify slice_reads() such that it only creates and returns one slice
 * it would be cleaner to not open the input VCF twice
 * convert parse_vcf to a class so that we can access VCF header info before
   starting to iterate (sample names)
@@ -32,9 +31,11 @@ except ImportError:
 from ..vcf import parse_vcf, PhasedVcfWriter, remove_overlapping_variants
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
-from ..core import Read, ReadSet, DPTable, IndexSet
+from ..core import Read, ReadSet, DPTable, readselection
 from ..graph import ComponentFinder
+from ..coverage import CovMonitor
 from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
+
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -293,83 +294,6 @@ class ReadSetReader:
 		self._reader.close()
 
 
-class CoverageMonitor:
-	'''TODO: This is a most simple, naive implementation. Could do this smarter.'''
-	def __init__(self, length):
-		self.coverage = [0] * length
-
-	def max_coverage_in_range(self, begin, end):
-		return max(self.coverage[begin:end])
-
-	def add_read(self, begin, end):
-		for i in range(begin, end):
-			self.coverage[i] += 1
-
-
-def slice_reads(reads, max_coverage):
-	"""
-	Iterate over all read in random order and greedily retain those reads whose
-	addition does not lead to a local physical coverage exceeding the given threshold.
-	Return a ReadSet containing the retained reads.
-
-	max_coverage -- Slicing ensures that the (physical) coverage does not exceed max_coverage anywhere along the chromosome.
-	reads -- a ReadSet
-	"""
-	shuffled_indices = list(range(len(reads)))
-	random.shuffle(shuffled_indices)
-
-	position_list = reads.get_positions()
-	logger.info('Found %d variant positions', len(position_list))
-
-	# dictionary to map variant position to its index
-	position_to_index = { position: index for index, position in enumerate(position_list) }
-
-	# List of slices, start with one empty slice ...
-	slices = [IndexSet()]
-	# ... and the corresponding coverages along each slice
-	slice_coverages = [CoverageMonitor(len(position_list))]
-	skipped_reads = 0
-	accessible_positions = set()
-	for index in shuffled_indices:
-		read = reads[index]
-		# Skip reads that cover only one variant
-		if len(read) < 2:
-			skipped_reads += 1
-			continue
-		for variant in read:
-			accessible_positions.add(variant.position)
-		begin = position_to_index[read[0].position]
-		end = position_to_index[read[-1].position] + 1
-		slice_id = 0
-		while True:
-			# Does current read fit into this slice?
-			if slice_coverages[slice_id].max_coverage_in_range(begin, end) < max_coverage:
-				slice_coverages[slice_id].add_read(begin, end)
-				slices[slice_id].add(index)
-				break
-			else:
-				slice_id += 1
-				# do we have to create a new slice?
-				if slice_id == len(slices):
-					slices.append(IndexSet())
-					slice_coverages.append(CoverageMonitor(len(position_list)))
-	logger.info('Skipped %d reads that only cover one variant', skipped_reads)
-	informative_reads = len(reads) - skipped_reads
-
-	unphasable_variants = len(position_list) - len(accessible_positions)
-	if position_list:
-		logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
-			'connecting them to another variant and are thus unphasable',
-			unphasable_variants, len(position_list),
-			100. * unphasable_variants / len(position_list))
-
-	if reads:
-		logger.info('After coverage reduction: Using %d of %d (%.1f%%) reads that cover two or more SNPs',
-			len(slices[0]), informative_reads, (100. * len(slices[0]) / informative_reads if informative_reads > 0 else float('nan')) )
-
-	return reads.subset(slices[0])
-
-
 def find_components(superreads, reads):
 	"""
 	Return a dict that maps each position to the component it is in. A
@@ -537,7 +461,26 @@ def run_whatshap(bam, vcf,
 				# Sort reads in read set by position
 				reads.sort()
 
-				sliced_reads = slice_reads(reads, max_coverage)
+				selected_reads, uninformative_read_count = readselection(reads, max_coverage)
+				sliced_reads = reads.subset(selected_reads)
+
+				position_list = reads.get_positions()
+				accessible_positions = sliced_reads.get_positions()
+				informative_read_count = len(reads) - uninformative_read_count
+				unphasable_snps = len(position_list) - len(accessible_positions)
+				logger.info('%d variants are covered by at least one read', len(position_list))
+				logger.info('Skipped %d reads that only cover one variant', uninformative_read_count)
+				if position_list:
+					logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
+						'connecting them to another variant and are thus unphasable',
+						unphasable_snps, len(position_list),
+						100. * unphasable_snps / len(position_list)
+					)
+				if reads:
+					logger.info('After read selection: Using %d of %d (%.1f%%) reads that cover two or more variants',
+						len(selected_reads), informative_read_count, (100. * len(selected_reads) / informative_read_count if informative_read_count > 0 else float('nan'))
+					)
+
 
 			n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(reads)
 			n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(sliced_reads)
@@ -547,7 +490,7 @@ def run_whatshap(bam, vcf,
 			stats.n_best_case_nonsingleton_blocks_cov += n_best_case_nonsingleton_blocks_cov
 			logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
 				n_best_case_nonsingleton_blocks, n_best_case_blocks)
-			logger.info('... after coverage reduction: %d non-singleton phased blocks (%d in total)',
+			logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
 				n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
 
 			with timers('phase'):
@@ -587,7 +530,7 @@ def run_whatshap(bam, vcf,
 	logger.info('== SUMMARY ==')
 	logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
 		stats.n_best_case_nonsingleton_blocks, stats.n_best_case_blocks)
-	logger.info('... after coverage reduction: %d non-singleton phased blocks (%d in total)',
+	logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
 		stats.n_best_case_nonsingleton_blocks_cov, stats.n_best_case_blocks_cov)
 	if all_heterozygous:
 		assert stats.n_homozygous == 0
