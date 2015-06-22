@@ -10,7 +10,6 @@ standard output.
  X: unphasable: there is coverage, but still not phasable (tie)
 
 TODO
-* Perhaps simplify slice_reads() such that it only creates and returns one slice
 * it would be cleaner to not open the input VCF twice
 * convert parse_vcf to a class so that we can access VCF header info before
   starting to iterate (sample names)
