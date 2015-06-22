@@ -10,18 +10,18 @@ logger = logging.getLogger(__name__)
 
 def _construct_indexes(readset):
 	''' The parameter readset: is the given ReadSet and returns, all possible variant positions, the vcf_index_ mapping
-    and the SNP_read_map'''
+    and the snp_to_reads_map'''
 	positions = readset.get_positions()
 	vcf_indices = {position: index for index, position in enumerate(positions)}
-	SNP_read_map = defaultdict(list)
+	snp_to_reads_map = defaultdict(list)
 	for index, read in enumerate(readset):
 		for variant in read:
 			snp_index = vcf_indices[variant.position]
-			SNP_read_map[snp_index].append(index)
-	return positions, vcf_indices, SNP_read_map
+			snp_to_reads_map[snp_index].append(index)
+	return positions, vcf_indices, snp_to_reads_map
 
 
-cdef priority_type_ptr _update_score_for_reads(priority_type_ptr former_score, ReadSet* readset, index, unordered_set[int]& already_covered_SNPs):
+cdef priority_type_ptr _update_score_for_reads(priority_type_ptr former_score, ReadSet* readset, index, unordered_set[int]& already_covered_snps):
 	'''updatest the score of the read, depending on how many reads are already covered'''
 	cdef int first_score = former_score.at(0)
 	cdef int second_score = former_score.at(1)
@@ -29,8 +29,8 @@ cdef priority_type_ptr _update_score_for_reads(priority_type_ptr former_score, R
 	cdef Read* read = readset.get(index)
 	cdef unordered_set[int].iterator it
 	for i in range(read.getVariantCount()):
-		it = already_covered_SNPs.find(read.getPosition(i))
-		if it == already_covered_SNPs.end():
+		it = already_covered_snps.find(read.getPosition(i))
+		if it == already_covered_snps.end():
 			first_score -= 1
 	cdef priority_type_ptr result = new priority_type()
 	result.push_back(first_score)
@@ -91,22 +91,24 @@ cdef PriorityQueue _construct_priorityqueue(ReadSet* readset, read_indices, vcf_
 	return priorityqueue
 
 
-cdef slice_read_selection(PriorityQueue pq, coverages, max_cov, ReadSet* readset, vcf_indices, SNP_read_map):
+cdef _slice_read_selection(PriorityQueue pq, coverages, max_cov, ReadSet* readset, vcf_indices, snp_to_reads_map):
 	'''Extraction of a set of read indices, where each SNP should be covered at least once, if coverage, or reads are allowing it '''
-	#Intern list for storing the actual selected reads
-	already_covered_SNPs = set()
+	# positions of SNPs covered by any read selected so far
+	already_covered_snps = set()
+	# indices of selected reads
 	reads_in_slice = set()
+	# indices of reads that cannot be added because doing that would violate coverage constraint
 	reads_violating_coverage = set()
 	cdef Read* extracted_read = NULL
 	cdef queue_entry_type entry
 	cdef priority_type_ptr max_score
 	cdef int max_item
 	cdef int pos
-	cdef unordered_set[int] SNPS_Covered_for_this_read
+	cdef unordered_set[int] snps_covered_by_this_read
 	cdef priority_type_ptr oldscore
 	cdef priority_type_ptr newscore
 	while not pq.c_is_empty():
-		SNPS_Covered_for_this_read.clear()
+		snps_covered_by_this_read.clear()
 		entry = pq.c_pop()
 		max_score = entry.first
 		max_item = entry.second
@@ -115,13 +117,13 @@ cdef slice_read_selection(PriorityQueue pq, coverages, max_cov, ReadSet* readset
 		#look if positions covered by this reads are already covered or not
 		for i in range(extracted_read.getVariantCount()):
 			pos = extracted_read.getPosition(i)
-			if pos in already_covered_SNPs:
+			if pos in already_covered_snps:
 				continue
 			else:
 				covers_new_snp = True
 				#stores the positions the read covers
-				SNPS_Covered_for_this_read.insert(pos)
-		#only if at least one position is not covered then we could add the read if he does not break the max coverage
+				snps_covered_by_this_read.insert(pos)
+		# only add read if it covers at least one new SNP and adding it does not violate coverage constraints
 		begin = vcf_indices.get(extracted_read.getPosition(0))
 		end = vcf_indices.get(extracted_read.getPosition(extracted_read.getVariantCount() - 1)) + 1
 		if coverages.max_coverage_in_range(begin, end) >= max_cov:
@@ -134,9 +136,9 @@ cdef slice_read_selection(PriorityQueue pq, coverages, max_cov, ReadSet* readset
 			#again go over the positions in the read and add them to the already_covered_SNP list
 
 			#Only the positions in the read which cover new SNPs are analysed
-			for pos in SNPS_Covered_for_this_read:
-				already_covered_SNPs.add(pos)
-				reads_whose_score_has_to_be_updated.update(SNP_read_map[vcf_indices.get(pos)])
+			for pos in snps_covered_by_this_read:
+				already_covered_snps.add(pos)
+				reads_whose_score_has_to_be_updated.update(snp_to_reads_map[vcf_indices.get(pos)])
 
 			#find difference between to_decrease_score and selected_reads in order to not to try to decrease score by selected reads
 			selected_read_set = set(reads_in_slice)
@@ -147,7 +149,7 @@ cdef slice_read_selection(PriorityQueue pq, coverages, max_cov, ReadSet* readset
 			for element in d_set:
 				oldscore = pq.c_get_score_by_item(element)
 				if oldscore != NULL:
-					newscore = _update_score_for_reads(oldscore, readset, element, SNPS_Covered_for_this_read)
+					newscore = _update_score_for_reads(oldscore, readset, element, snps_covered_by_this_read)
 					pq.c_change_score(element, newscore)
 	return reads_in_slice, reads_violating_coverage
 
@@ -172,7 +174,7 @@ def readselection(PyReadSet pyreadset, max_cov, bridging=True):
 	cdef ReadSet* readset = pyreadset.thisptr
 	assert readset != NULL
 
-	positions, vcf_indices, SNP_read_map = _construct_indexes(pyreadset)
+	positions, vcf_indices, snp_to_reads_map = _construct_indexes(pyreadset)
 
 	logger.info('Running read selection for %d reads covering %d variants (bridging %s)', len(pyreadset), len(positions),'ON' if bridging else 'OFF')
 
@@ -192,7 +194,7 @@ def readselection(PyReadSet pyreadset, max_cov, bridging=True):
 	loop = 0
 	while len(undecided_reads) > 0:
 		pq = _construct_priorityqueue(readset, undecided_reads, vcf_indices)
-		reads_in_slice, reads_violating_coverage = slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_map)
+		reads_in_slice, reads_violating_coverage = _slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, snp_to_reads_map)
 		selected_reads.update(reads_in_slice)
 		undecided_reads -= reads_in_slice
 		undecided_reads -= reads_violating_coverage
