@@ -78,12 +78,9 @@ cdef priority_type_ptr _compute_score_for_read(ReadSet* readset, int index, vcf_
 	return result
 
 
-cdef PriorityQueue __pq_construction_out_of_given_reads(ReadSet* readset, read_indices, vcf_indices):
-	'''Constructiong of the priority queue out of the readset and the undicided read_indices,
-     so that each read is in the priority queue and sorted by their score.'''
-
-	#Maybe combine the method with the compute score method, but for the moment the score computation should be independent
-
+cdef PriorityQueue _construct_priorityqueue(ReadSet* readset, read_indices, vcf_indices):
+	'''Construct a priority queue containing all given read indicies, each one representing the
+	respective read from readset.'''
 	cdef PriorityQueue priorityqueue = PriorityQueue()
 
 	for index in read_indices:
@@ -194,7 +191,7 @@ def readselection(PyReadSet pyreadset, max_cov, bridging=True):
 	cdef Read* read
 	loop = 0
 	while len(undecided_reads) > 0:
-		pq = __pq_construction_out_of_given_reads(readset, undecided_reads, vcf_indices)
+		pq = _construct_priorityqueue(readset, undecided_reads, vcf_indices)
 		reads_in_slice, reads_violating_coverage = slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, SNP_read_map)
 		selected_reads.update(reads_in_slice)
 		undecided_reads -= reads_in_slice
@@ -209,7 +206,7 @@ def readselection(PyReadSet pyreadset, max_cov, bridging=True):
 
 		bridging_reads = set()
 		if bridging:
-			pq = __pq_construction_out_of_given_reads(readset, undecided_reads, vcf_indices)
+			pq = _construct_priorityqueue(readset, undecided_reads, vcf_indices)
 			while not pq.is_empty():
 				score, read_index = pq.pop()
 				read = readset.get(read_index)
