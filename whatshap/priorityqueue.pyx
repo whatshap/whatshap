@@ -58,12 +58,17 @@ cdef class PriorityQueue:
 		for i in range(self.heap.size()):
 			del self.heap[i].first
 	
-	cpdef push(self, score, int item):
+	def push(self, score, int item):
 		'''Add item with given score to the heap.'''
 		# Item stored with score in a tupel where the score is always the first position..
+		cdef priority_type_ptr c_score = _pyscore_to_vector(score)
+		self.c_push(c_score, item)
+
+	cdef void c_push(self, priority_type_ptr score, int item):
+		'''Pointer ownership is transferred to priorityqueue.'''
 		newindex = self.heap.size()
 		cdef queue_entry_type entry
-		entry.first = _pyscore_to_vector(score)
+		entry.first = score
 		entry.second = item 
 		self.heap.push_back(entry)
 		self.positions[item] = newindex
@@ -101,7 +106,7 @@ cdef class PriorityQueue:
 				self._sift_up(parentindex)
 
 
-	cdef _sift_down(self, int index):
+	cdef void _sift_down(self, int index):
 		'''Check if score of item at given index is lower than the score of its children,
 		 therefore need to swap position with its children'''
 		cdef int rchildindex = _right_child(index)
@@ -126,6 +131,18 @@ cdef class PriorityQueue:
 
 	def pop(self):
 		'''Removes the item with largest score and returns it as tupel of (score, item).'''
+		cdef queue_entry_type entry = self.c_pop()
+		cdef priority_type_ptr score = entry.first
+		cdef item_type item = entry.second
+		if score[0].size() == 1:
+			result = (score[0][0], item)
+		else:
+			result = tuple(score[0]), item
+		del score
+		return result
+
+	cdef queue_entry_type c_pop(self):
+		'''Removes the item with largest score and returns it as tupel of (score, item).'''
 		if self.heap.size() == 0:
 			raise IndexError('PriorityQueue empty.')
 		cdef queue_entry_type last_entry = self.heap[self.heap.size()-1]
@@ -142,18 +159,16 @@ cdef class PriorityQueue:
 			self.positions.erase(first_entry.second)
 
 			self._sift_down(0)
-		cdef priority_type_ptr score = first_entry.first
-		cdef item_type item = first_entry.second
-		if score[0].size() == 1:
-			result = (score[0][0], item)
-		else:
-			result = tuple(score[0]), item
-		del score
-		return result
+		return first_entry
 
 	def change_score(self, item_type item, new_score):
 		'''Changes the score of the given item to the new assigned score.'''
 		cdef priority_type_ptr c_new_score = _pyscore_to_vector(new_score)
+		self.c_change_score(item, c_new_score)
+
+	cdef void c_change_score(self, item_type item, priority_type_ptr c_new_score):
+		'''Changes the score of the given item to the new assigned score.
+		Ownership of c_new_score goes to priorityqueue.'''
 		position = self.positions[item]
 
 		c_old_score = self.heap[position].first
@@ -169,10 +184,22 @@ cdef class PriorityQueue:
 
 	def get_score_by_item(self, item):
 		'''returns actual score of the given item or None if item is not in the heap '''
+		cdef priority_type_ptr score = self.c_get_score_by_item(item)
+		if score == NULL:
+			return None
+		elif score[0].size() == 1:
+			return score[0][0]
+		else:
+			return tuple(score[0])
+
+	cdef priority_type_ptr c_get_score_by_item(self, item_type item):
+		'''Returns score of the given item or NULL if item is not in the heap. 
+		Pointer ownership stays with priorityqueue.'''
 		cdef unordered_map[item_type,int].iterator it = self.positions.find(item)
 		if it == self.positions.end():
-			return None
+			return NULL
 		cdef queue_entry_type entry = self.heap[self.positions[item]]
+		return entry.first
 		cdef priority_type_ptr score = entry.first
 		if score[0].size() == 1:
 			return score[0][0]
@@ -183,8 +210,12 @@ cdef class PriorityQueue:
 		'''Length of  Priority Queue is equal to the length of the stored heap'''
 		return self.heap.size()
 
+	cdef int size(self):
+		return self.heap.size()
+
 	def is_empty(self):
 		'''Return if actual Priority Queue is Empty'''
 		return self.heap.size() == 0
 
-
+	cdef bool c_is_empty(self):
+		return self.heap.size() == 0
