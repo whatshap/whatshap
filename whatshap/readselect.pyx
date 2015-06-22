@@ -1,15 +1,3 @@
-# TODO
-# Class Reads where access through SNP position -DONE in SNP MAP
-# implement readscore - DONE in combined method to build up SNP MAP which include the readscore
-# Heap implemented for storage of Reads - Done
-
-# include the Coverage Monitor...
-#Looking if heapq is possible to manage the heap or not especially  id the runtime changes,,
-# Redefine ComponentFinder by using max value and also the rank (not sure)
-#implement heuristic
-#return Readset in the former representation
-#Erase SNPS which are unphasable -Not Erase out of structure but counted
-
 import math
 import logging
 from collections import defaultdict
