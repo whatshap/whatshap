@@ -52,12 +52,16 @@ cdef priority_type_ptr _update_score_for_reads(priority_type_ptr former_score, R
 
 
 cdef priority_type_ptr _compute_score_for_read(ReadSet* readset, int index, vcf_indices):
-	'''Method for computing the score for a read independently'''
-	#TODO At the moment tuple (new- bad ,good -bad, min(qualities))
+	'''Compute the score for one read, assuming no other reads have been selected so far
+	(after selecting reads, scores can be updated using _update_score_for_reads).
+	We use the following scoring scheme: (new - gaps, total - bad, min(qualities)),
+	where "new" is the number of SNPs covered by this read and no other selected read (so far),
+	"gaps" is the number of SNPs overlapped by (physical) fragment, but not covered by the sequenced part of the read,
+	"total" is the total number of SNPs covered by the read, and "min(qualities)" is the minimum
+	over all base qualities at SNP positions.
+	'''
 	cdef Read* read = readset.get(index)
-	#TODO look if the initial values is reasonable
-	#initialize minimal quality by high value, good_score by 0  and bad_score by 0 .
-	cdef int min_quality = 1000
+	cdef int min_quality = -1
 	cdef int good_score = 0
 	cdef int bad_score = 0
 	cdef int quality = -1
@@ -66,7 +70,10 @@ cdef priority_type_ptr _compute_score_for_read(ReadSet* readset, int index, vcf_
 	for i in range(read.getVariantCount()):
 		quality = read.getVariantQuality(i)
 		pos = read.getPosition(i)
-		min_quality = min(min_quality, quality)
+		if i == 0:
+			min_quality = quality
+		else:
+			min_quality = min(min_quality, quality)
 		SNP_covered = vcf_indices.get(pos)
 		if SNP_covered != None:
 			covered_SNPS.append(SNP_covered)
