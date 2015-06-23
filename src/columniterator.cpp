@@ -36,7 +36,7 @@ bool ColumnIterator::has_next() {
 	return n < positions->size();
 }
 
-auto_ptr<vector<const Entry*> > ColumnIterator::get_next() {
+unique_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 	// genomic position of the column to be returned
 	int next_pos = positions->at(n);
 	
@@ -73,7 +73,7 @@ auto_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 	}
 	
 	// gather entries from active reads
-	auto_ptr<vector<const Entry*> > result = auto_ptr<vector<const Entry*> >(new vector<const Entry*>());
+	unique_ptr<vector<const Entry*> > result = unique_ptr<vector<const Entry*> >(new vector<const Entry*>());
 	for (list_it = active_reads.begin(); list_it != active_reads.end(); ++list_it) {
 		const Read* read = set.get(list_it->read_index);
 		// Does read cover the current position?

@@ -21,7 +21,7 @@ public:
 	/** Ownership of Entry objects remains with the ColumnIterator. Pointers
 	 *  remain valid only until iterator is destructed.
 	 */
-	std::auto_ptr<std::vector<const Entry*> > get_next();
+	std::unique_ptr<std::vector<const Entry*> > get_next();
 	const std::vector<unsigned int>* get_positions();
 
 private:
