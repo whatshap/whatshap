@@ -11,7 +11,9 @@ import sys
 import os.path
 from setuptools import setup, Extension
 from distutils.version import LooseVersion
-from whatshap import __version__
+
+# set __version__
+exec(next(open('whatshap/__init__.py')))
 
 MIN_CYTHON_VERSION = '0.17'
 
