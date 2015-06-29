@@ -1,6 +1,6 @@
 from nose.tools import raises
 from whatshap.core import Read, DPTable, ReadSet, Variant
-from phasingutils import string_to_readset, brute_force_phase
+from .phasingutils import string_to_readset, brute_force_phase
 
 
 def test_read():

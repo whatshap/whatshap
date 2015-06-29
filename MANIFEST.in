@@ -1,4 +1,4 @@
-include whatshap/_core.pyx
+include whatshap/*.pyx
 include src/read.h src/entry.h src/readset.h src/columniterator.h src/dptable.h
 include src/columnindexingscheme.h src/columncostcomputer.h
 include src/columnindexingiterator.h src/graycodes.h src/indexset.h
@@ -6,4 +6,4 @@ include doc/*.rst
 include doc/conf.py
 include doc/Makefile
 include bin/_preamble.py
-include tests/test*.py
+include tests/test*.py tests/phasingutils.py tests/__init__.py

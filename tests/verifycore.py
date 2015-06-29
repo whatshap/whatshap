@@ -1,8 +1,8 @@
+import sys
 from nose.tools import raises
 from whatshap.core import Read, DPTable, ReadSet, Variant
-from phasingutils import string_to_readset, matrix_to_readset, brute_force_phase
 from whatshap.verification import verify_mec_score_and_partitioning
-import sys
+from .phasingutils import string_to_readset, matrix_to_readset, brute_force_phase
 
 
 def verify(rs, all_heterozygous = False) :

@@ -1,5 +1,5 @@
-from phasingutils import string_to_readset
 from whatshap.core import readselection
+from .phasingutils import string_to_readset
 
 def test_selection():
 	reads = string_to_readset("""
