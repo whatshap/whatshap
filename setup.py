@@ -103,8 +103,8 @@ extensions = cythonize_if_necessary(extensions)
 setup(
 	name = 'whatshap',
 	version = __version__,
-	author = '',
-	author_email = '',
+	author = 'WhatsHap authors',
+	author_email = 'whatshap@cwi.nl',
 	url = 'https://bitbucket.org/whatshap/whatshap/',
 	description = 'phase genomic variants using DNA sequencing reads',
 	license = 'MIT',
@@ -113,7 +113,7 @@ setup(
 	scripts = ['bin/whatshap', 'bin/phasingstats'],
 	install_requires = ['pysam>=0.8.1', 'PyVCF'] + extra_install_requires,
 	classifiers = [
-		"Development Status :: 2 - Pre-Alpha",
+		"Development Status :: 3 - Alpha",
 		"Environment :: Console",
 		"Intended Audience :: Science/Research",
 		"License :: OSI Approved :: MIT License",
