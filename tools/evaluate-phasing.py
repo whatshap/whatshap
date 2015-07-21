@@ -195,16 +195,21 @@ def parse_hp(HP):
 	assert genotype in ['0|1', '1|0']
 	return block_id, genotype
 
-def read_phased_vcf(filename):
+def read_phased_vcf(filename, true_snps = None):
 	"""Reads VCF as output by whatshap and returns a tuple: (phased, unphased, blocks), where
 	"phased" and "unphased" give the number of phased/unphased heterozygous SNPs and "blocks"
-	is a dict with one entry for each phased block, mapping (chromosome,block-ID) --> [(pos,gt),..]"""
+	is a dict with one entry for each phased block, mapping (chromosome,block-ID) --> [(pos,gt),..].
+	If true_snps is given, then only entries that are also in true snps are retained and FPs and FNs
+	are computed."""
 	vcf_reader = vcf.Reader(filename)
 	samples = vcf_reader.samples
 	assert len(samples) == 1, 'Expected exactly one sample in phased VCF'
 	blocks = defaultdict(list)
 	phased = 0
 	unphased = 0
+	tp_snps = set()
+	FP = 0
+	FN = 0
 	for record in vcf_reader:
 		if not record.is_snp:
 			continue
@@ -213,13 +218,20 @@ def read_phased_vcf(filename):
 		call = record.samples[0]
 		if not call.is_het:
 			continue
+		if true_snps != None:
+			if (record.CHROM, record.POS) not in true_snps:
+				FP += 1
+				continue
+		tp_snps.add( (record.CHROM, record.POS) )
 		if hasattr(call.data,'HP'):
 			phased += 1
 			block_id, genotype = parse_hp(call.data.HP)
 			blocks[(record.CHROM, block_id)].append((record.POS,genotype))
 		else:
 			unphased += 1
-	return phased, unphased, blocks
+	if true_snps != None:
+		FN = len(true_snps) - len(tp_snps)
+	return phased, unphased, FP, FN, blocks
 
 def main():
 	parser = ArgumentParser(prog='evaluate-phasing', description=__doc__)
@@ -234,16 +246,18 @@ def main():
 
 	truth = read_truth_vcf(open(args.truthvcf))
 	
-	print('Read {} SNPs from file with true phasing'.format(len(truth)))
+	print('Read {} heterozygous SNPs from file with true phasing'.format(len(truth)))
 	
-	phased, unphased, phased_blocks = read_phased_vcf(open(args.predictedvcf))
+	phased, unphased, FP, FN, phased_blocks = read_phased_vcf(open(args.predictedvcf), truth)
 	
-	print('Read {} SNPs from file with predicted phasing'.format(phased+unphased))
+	print('Found {} false positive (FP) heterozygous SNPs, i.e. heterozygous in predictions but absent or homozygous in truth'.format(FP))
+	print('There are {} false negative (FN) heterozygous SNPs, i.e. absent or homozygous in predictions but heterozygous in truth'.format(FN))
+	print('Retained {} heterozygous SNPs from file with predicted phasing, out of which:'.format(phased+unphased))
 	
-	print('Phased SNPs: {}'.format(phased))
-	print('Unphased SNPs: {}'.format(unphased))
-	print('Number of blocks: {}'.format(len(phased_blocks)))
-	print('  --> Unphasable due to being first in a block: {}'.format(len(phased_blocks)))
+	print('  phased SNPs: {}'.format(phased))
+	print('  unphased SNPs: {}'.format(unphased))
+	print('  number of blocks: {}'.format(len(phased_blocks)))
+	print('    --> unphasable due to being first in a block: {}'.format(len(phased_blocks)))
 	
 	block_list = list(phased_blocks.keys())
 	block_list.sort()
@@ -280,8 +294,8 @@ def main():
 			print("Unphasable (due to gaps or breaks): ", unphasable1)
 			print("Switch errors: ", switches1)
 			print("Flip errors: ", flips)
-			print("Truth hetero, but predicted homo: ", homoerrors1)
-			print("Truth homo, but predicted hetero: ", heteroerrors1)
+			#print("Truth hetero, but predicted homo: ", homoerrors1)
+			#print("Truth homo, but predicted hetero: ", heteroerrors1)
 		correct_total += correct1
 		switches_total += switches1
 		flips_total += flips
@@ -293,8 +307,9 @@ def main():
 	print("Correctly phased: ", correct_total)
 	print("Switch errors: ", switches_total)
 	print("Flip errors: ", flips_total)
-	print("Truth hetero, but predicted homo: ", homoerrors_total)
-	print("Truth homo, but predicted hetero: ", heteroerrors_total)
+	assert homoerrors_total == heteroerrors_total == 0
+	#print("Truth hetero, but predicted homo: ", homoerrors_total)
+	#print("Truth homo, but predicted hetero: ", heteroerrors_total)
 
 if __name__ == '__main__':
 	sys.exit(main())
