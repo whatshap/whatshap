@@ -391,6 +391,59 @@ def ensure_pysam_version():
 		sys.exit("WhatsHap requires pysam >= 0.8.1")
 
 
+def analyze_readset(sliced_reads):
+        print('Working directory')
+        print (os.getcwd())
+        f= open('Analyzefile.unique_extension', 'w')
+
+        #How many positions are covered by the readset
+        f.write('Positions:')
+        f.write("\n")
+        for pos in sliced_reads.get_positions():
+                f.write(str(pos))
+                f.write("\t")
+        component_finder = ComponentFinder(sliced_reads.get_positions())
+        important_positions=set(sliced_reads.get_positions())
+        f.write("\n")
+        f.write(' Length of Readset')
+        f.write("\t")
+        i =0
+        length_readset= len(sliced_reads)
+        f.write(str(length_readset))
+        f.write("\n")
+        while i!=len(sliced_reads):
+                sliced_reads[i]
+                positions = [ variant.position for variant in sliced_reads[i] if variant.position in important_positions ]
+                for position in positions[1:]:
+                        component_finder.merge(positions[0],position)
+                components=     { position : component_finder.find(position) for position in important_positions }
+                f.write("Read")
+                f. write(str(i))
+                f.write("\t")
+                for variant in sliced_reads[i]:
+                        pos= variant.position
+                        qual = variant.quality
+                        f.write(str(pos))
+                        f.write("\t")
+                        f.write(str(qual))
+                        f.write("\t")
+
+                f. write("\n")
+                i=i+1
+
+        f.write('Components')
+        f.write("\n")
+        comset=set(components.values())
+        f.write(str(comset))
+        f.write("\n")
+
+
+
+        f.close()
+
+        return 0
+
+
 def run_whatshap(bam, vcf,
 		output=sys.stdout, sample=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123, haplotype_bams_prefix=None):
@@ -492,6 +545,8 @@ def run_whatshap(bam, vcf,
 				n_best_case_nonsingleton_blocks, n_best_case_blocks)
 			logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
 				n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
+
+			analyze_readset(sliced_reads)
 
 			with timers('phase'):
 				logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
