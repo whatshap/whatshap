@@ -1,0 +1,73 @@
+FastFlow
+^^^^^^^^
+
+FastFlow is a multi-cores programming framework implemented as a C++ template 
+library that offers a set of mechanisms to support low-latency and 
+high-bandwidth data flows in a network of threads running on
+a cache-coherent multi-core architectures. On these architectures, one of the 
+key performance issues concern memory fences, which are required to keep the 
+various caches coherent. 
+FastFlow provides the programmer with two basic mechanisms:
+  1. efficient point-to-pint communication channels;
+  2. a memory allocator.
+
+Communication channels, as typical is in streaming applications, are 
+unidirectional and asynchronous. They are implemented via fence-free FIFO
+queues. The memory allocator is built on top of these queues, thus taking 
+advantage of their efficiency.
+On top of these basic machnisms FastFlow provides a library of explicitly 
+parallel constructs (a.k.a. skeletons) such as pipeline and farm.
+The farm skeleton, exploits functional replication and abstracts the 
+parallel filtering of successive independent items of the stream under the 
+control of a scheduler.
+
+
+-----------------
+
+See the BUILD.ME file for instructions about Cmake builds and testing.
+
+See tests directory for some simple runnable examples.
+
+-----------------
+
+FastFlow is currently actively supported for:
+
+Linux with gcc >4.8 x86_64
+Windows 7, Windows 8 with MSVS 2013 x86_64
+Mac OS 10.9 with gcc >4.8 or clang 5.x
+
+
+Previous Fastflow versions has been tested on:
+
+ Linux with gcc (> 4.0.1): i386, x86_64
+ Mac OS (>= 10.4) with gcc (> 4.0.1): x86_64, PowerPC G4, PowerPC G5
+ Windows XP 32bit with Visual Studio 9 2008 Win32: i386, x86_64 
+ Windows 7  64bit with Visual Studio 9 2008 Win32: x86_64 
+ Windows 7  64bit with Visual Studio 9 2008 Win64: x86_64 
+ Windows 7  64bit with Visual Studio 10 2010 Win32:  x86_64 
+ Windows 7  64bit with Visual Studio 10 2010 Win64:  x86_64
+ Windows with cygwin: not yet tested
+ Linux/PPC with gcc
+ Linux/Arm with gcc
+
+Main development platform are Linux and MacOS. Starting from
+version 2.0.4 FastFlow eavily uses C++11 features. It can be expected to work on any platform with a C++11 compiler. 
+
+Since "core pattern layer" does not stictly requires C++11 features, it can be expected to work also with an older C++ compiler.
+
+Windows platform can be particuarly slow in debug mode due to iterator
+debugging and secure crt layers. Release mode appers to be not affected by the
+issue. See http://blogs.warwick.ac.uk/ahazelden/entry/visual_studio_stl/
+
+The following preprocessor directives /D_SECURE_SCL=0;
+/D_HAS_ITERATOR_DEBUGGING=0 (i.e. ADD_DEFINITIONS(-D_SECURE_SCL=0
+-D_HAS_ITERATOR_DEBUGGING=0) in cmake) might ameliorate the problem. Consider
+however that they cannot be used if the application links libraries compiled
+with different options (e.g. Boost).
+
+============
+
+Please report tips, improvements or bug to the FastFlow mailing list
+(see http://calvados.di.unipi.it/fastflow) or directly to:
+ Massimo Torquati <torquati@di.unipi.it> or <massimotor@gmail.com>
+ Marco Aldinucci  <aldinuc@di.unito.it>

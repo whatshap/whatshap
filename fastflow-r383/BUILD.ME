@@ -1,0 +1,119 @@
+Compiling instructions using Cmake:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+cd <FASTFLOW_ROOT>
+mkdir ./build
+cd ./build
+cmake ../
+make
+make test
+sudo make install DESTDIR=<YOUR_INSTALL_DIR>
+
+It is possible to configure the build by setting the following
+build variables:
+- BUILD_TESTS (on by default)
+- BUILD_EXAMPLES (on by default)
+
+Example:
+cmake ../ -DBUILD_TESTS=ON -DBUILD_EXAMPLES=OFF
+
+
+Compiling instructions standard make:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+cd <FASTFLOW_ROOT>/tests
+make all
+make test   # minimal regression test
+
+
+====================================
+Mac OS X platform specific notes
+====================================
+
+Tested with macport, with at least the following packages
+
+boost @1.51.0_1+no_single+no_static (active)
+cmake @2.8.9_1 (active)
+coreutils @8.19_0 (active)
+opencv @2.4.2_2 (active)
+qt4-mac @4.8.3_1+quartz (active)
+quartz-wm @1.3.1_1 (active)
+zmq22 @2.2.0_0 (active) Notice zmq@3.2.0-rc2 has no C++ binding and don't work.
+
+Follows general instructions to generate command-line Makefile-based build, or 
+
+Unix Makefile build
+-------------------
+
+cmake ../
+make
+make test
+
+Xcode project generation
+------------------------
+
+cmake -GXcode ../
+
+to generate the Xcode project. 
+
+------------------------
+
+It is possibile to generate more than one build (e.g. both Xcode and 
+command-line) in different directories (e.g. build and xcode_build).
+
+Some features requires gcc > 4.0.1. Apple 4.2.1 is default on MacOS 10.6. Apple gcc/g++4.2 are available for MacOS 10.5. gcc/g++ > 4.2 are available via Macports for 10.4 - 10.8. 
+Apple C++ clang compiler version 4.1 is tested and working.
+
+To use a non default version of the compiler set the env variables, e.g.
+
+export GCC=/usr/bin/gcc-4.2 
+export CXX=/usr/bin/g++-4.2 
+
+====================================
+Windows platform specific notes
+====================================
+Install cmake and follows general instructions from windows "cmd" or other 
+terminal shell. 
+
+32bit Visual Studio project generation
+--------------------------------------
+
+cmake .. 
+
+64bit Visual Studio project generations
+---------------------------------------
+
+cmake -G"Visual Studio 12 Win64" ..
+cmake -G"Visual Studio 12 Win64" -DZEROMQ_ROOT="<root ZMQ path>" ..
+
+
+Cmake installer is available at 
+
+http://www.cmake.org/cmake/resources/software.html
+
+Currently tested with Visual Studio 2013
+
+--- Compilation flags
+
+-DNO_DEFAULT_MAPPING  --> avoid thread pinning (default off)
+-DBARRIER_T=Barrier   --> use lock-based barrier (default off)
+-DTRACE_FASTFLOW      --> perfomance analysis (default off)
+-DBLOCKING_MODE       --> enable blocking run-time (default off)
+-DNO_CMAKE_CONFIG     --> use static configuration (experimental)
+
+=======================================================
+Compilation instructions for OpenCL denoiser example
+=======================================================
+
+In case cmake does not automatically find required headers and libraries, the path can be indicated through system variables (for example, using export)
+
+=> OpenCV:
+ - the OpenCV_DIR variable must point to the directory containing the file OpenCVConfig.cmake
+ - for example "export OpenCV_DIR=/usr/share/OpenCV/"
+
+=> OpenCL:
+ - OpenCL_INCPATH="Directory containing OpenCL headers"
+ - OpenCL_LIBPATH="Directory containing OpenCL .so libs 
+
+Nvidia OPTIMUS support under Linux
+ - optirun executable path must be passed to cmake in order to run the GPU-enabled tests
+ - " cmake -DOPTIRUN=/usr/bin/optirun ../ "

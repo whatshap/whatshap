@@ -1,0 +1,111 @@
+Frequently Asked Questions about FastFlow
+=========================================
+
+
+Questions:
+
+1. What's FastFlow ?
+
+FastFlow adopts an algorithmic skeleton based approach to address multicore
+programmability, in order to address two problems: 1) to implement efficient
+shared memory management mechanisms and 2) to raise the level of programming
+abstractions.
+
+FastFlow provides full support for an important class of applications, namely
+streaming applications. In this respects, it provides the user with a set of
+stream parallel skeletons: pipeline, farm .... loops?????????
+
+Skeletons embody most of the cumbersome and error prone details relative to
+shared memory handling in multicore code. In particular, the FastFlow run time
+support takes care of all the synchronizations needed and related to the
+communication among the different parallel entities resulting from the
+compilation of the FastFlow skeletons used in an application. Furthermore,
+skeletons can be arbitrarily nested to model increasingly complex parallelism
+exploitation patterns.
+
+The FastFlow implementation guarantees an
+efficient execution of the skeletons on currently available multicore systems
+by building the skeletons themselves on top of a library of very efficient, 
+lock free producer/comsumer queues.
+
+
+2. What's the difference between FastFlow and FastFlow accelerator ?
+
+The FastFlow accelerator is an extension of the FastFlow framework
+aiming at simplifying the porting of existing sequential code to
+multicore. A FastFlow accelerator is software device defined as a
+composition of FastFlow patterns (e.g. pipe(S1,S2), farm(S),
+pipe(S1,farm(S2)), ...) that can be started independently from the
+main flow of control; one or more accelerators can be (dynamically) started in
+one application. Each accelerator exhibits a well-defined parallel semantics
+that depend from its particular patter composition. Tasks can be asynchronously
+offloaded (so-called self-offloaded) onto an accelerator. Results from an
+accelerators can return to the caller thread either in a blocking or
+non-blocking fashion. FastFlow accelerators enable programmers to 1) create a
+strem of tasks from a loop or a recursive call; 2) parallelize kernels of code
+changing the original code in very local way (as an example a part of a loop
+body). A FastFlow accelerator typically work in non-blocking fashion on a
+subset of cores of the CPUs, but can be transiently suspended to release
+hardware resources to efficiently manage non-contiguous bursts of tasks. 
+
+<Figura> 
+
+3. Using 1-to-1 FIFO queues (i.e. Single Writer/Single-Reader queues or just
+SWSR) means potentially n^2 queues. How big are the queues? How much memory may
+be consumed on a many-core system? Is this approach scalable?
+
+An empty SWSR queue on a 64bit platform has a size of 144 bytes. A 1-to-1 FIFO
+queue may be bounded in size (i.e. just a circular buffer) or may be unbounded
+(i.e. the queue allocates/deallocates buffer space on demand and in chunks).
+This unbounded queue supports the implementation of deadlock-free cyclic
+networks. The queues store memory pointers so in general are quite small,
+typically just few KB. Since in FF programs we mainly use composition of farm
+and pipeline skeleton which does not require a complete connection among
+skeletons' stages, the resulting streaming network is scalable. Thus the
+approach is scalable as much as the underline streaming network modeled is
+scalable.
+
+
+4. In the matrix multiplication example, we start N^2 tasks. Does it ever make
+sense to start more tasks than cores? 
+
+It mainly depends on the definition of tasks. In the matrix multiplication we
+have N^2 tasks at the finer grain. This does not translate on N^2 threads.
+Generally, a small number of threads will execute the tasks in parallel. 
+
+The very simple matrix multiplication application, is an example of
+parallelization through streamization w.r.t. classical data-parallel
+parallelization, so, in this respect, it should be taken as a proof that such
+approach can be applied, with good performance results, also in these worst
+cases.
+
+5. How to choose task granularity on FastFlow ?
+
+FastFlow lower level mechanisms are quite efficient. It demonstrates good
+speedups when computing tasks that last for just a few microseconds. So choice
+the right granularity should not be a big issue.
+
+
+6. How is composition and split-merge of the streams handled by FastFlow ? 
+
+
+
+7. What is the actual benefit of FastFlow in terms of reduced programming effort 
+   if compared with OpenMP or Intel Threading Build Blocks (TBB) ?
+
+
+Of course, the argument for programmability will only be fully ‘proven’ via a large 
+study in which programmers with equal starting knowledge of differing technologies 
+develop a range of applications in a range of technologies and compare experiences. 
+Such study is difficult to arrange and execute. For the moment the argument for scalability 
+can only be based on a subjective assessment of the abstraction levels of the differing 
+technologies and limited empirical experience. 
+For the latter we  can report that the entire YaDT-FF parallelisation required just few days
+of work, which the data mining experts report is significantly less than the time needed 
+to parallelise the same application with OpenMP or TBB; and that this is mainly due to the 
+fact that FastFlow provides a native way of implementing a D&C that can be used to structure 
+the YaDT accelerator.
+
+
+8. How about Single-Reader/Multiple-Writers (SRMW) abd Multiple-Writers/Single-Reader
+   queues (MWSR) ?
