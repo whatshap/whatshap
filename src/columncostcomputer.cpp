@@ -3,12 +3,23 @@
 
 using namespace std;
 
-ColumnCostComputer::ColumnCostComputer(const std::vector<const Entry*>& column, bool all_heterozygous) : column(column), all_heterozygous(all_heterozygous) {
+ColumnCostComputer::ColumnCostComputer(const std::vector<const Entry*>* column, bool all_heterozygous) : column(column), all_heterozygous(all_heterozygous) {
+    
   cost_partition1[0] = 0;
   cost_partition1[1] = 0;
   cost_partition2[0] = 0;
   cost_partition2[1] = 0;
   partitioning = 0;
+}
+
+void ColumnCostComputer::reset(const std::vector<const Entry*>* c, bool a_h) {
+    column = c;
+    all_heterozygous = a_h;
+    cost_partition1[0] = 0;
+    cost_partition1[1] = 0;
+    cost_partition2[0] = 0;
+    cost_partition2[1] = 0;
+    partitioning = 0;
 }
 
 void ColumnCostComputer::set_partitioning(unsigned int partitioning) {
@@ -18,7 +29,8 @@ void ColumnCostComputer::set_partitioning(unsigned int partitioning) {
   cost_partition2[0] = 0;
   cost_partition2[1] = 0;
   this->partitioning = partitioning;
-  for (vector<const Entry*>::const_iterator it = column.begin(); it != column.end(); ++it) {
+  //for (vector<Entry*>::const_iterator it = column.begin(); it != column.end(); ++it) { // old
+  for (vector<const Entry*>::const_iterator it = column->begin(); it != column->end(); ++it) {
     bool entry_in_partition1 = (partitioning & ((unsigned int)1)) == 0;
     switch ((*it)->get_allele_type()) {
       case Entry::MAJOR_ALLELE:
@@ -38,7 +50,8 @@ void ColumnCostComputer::set_partitioning(unsigned int partitioning) {
 
 void ColumnCostComputer::update_partitioning(int bit_to_flip) {
   // update cost based on the changed bit
-  const Entry& entry = *column[bit_to_flip];
+  const Entry& entry = *((*column)[bit_to_flip]);
+  //const Entry& entry = *column[bit_to_flip];  // old
   partitioning = partitioning ^ (((unsigned int)1) << bit_to_flip);
   bool entry_in_partition1 = (partitioning & (((unsigned int)1) << bit_to_flip)) == 0;
   switch (entry.get_allele_type()) {

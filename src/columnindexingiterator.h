@@ -19,6 +19,13 @@ public:
   
   bool has_next();
   
+  // mt 
+   ColumnIndexingIterator():parent(NULL),graycodes(NULL) {}
+  int get_length() const;
+  unsigned int compute_forward_projection();
+  void advance_idx(int *bit_changed, const int idx);
+  void reset(const ColumnIndexingScheme*);
+
   /** Move to next index (i.e. DP table row).  
    *
    *  @param bit_changed If not null, and only one bit in the

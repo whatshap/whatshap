@@ -10,6 +10,21 @@
 #include "read.h"
 #include "readset.h"
 
+#ifdef FF_PARALLEL
+#include <ff/parallel_for.hpp>
+
+struct ff_task_t {
+    ff_task_t(): 
+        forward_index(-1),index(-1),cost(-1) {}
+    ff_task_t(unsigned int forward_index, unsigned int index=-1, int cost=-1):
+        forward_index(forward_index),index(index),cost(cost) {}
+
+    unsigned int forward_index;
+    unsigned int index;
+    unsigned int cost;
+};
+#endif
+
 class DPTable {
 private:
   ReadSet* read_set;
@@ -23,13 +38,20 @@ private:
   std::vector<std::vector<unsigned int>* > backtrace_table;
   unsigned int read_count;
   // helper function to pull read ids out of read column
-  std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
+  std::shared_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
   bool all_heterozygous;
 
   // helper function to compute the optimal path through the backtrace table
-  std::unique_ptr<std::vector<unsigned int> > get_index_path();
+  std::shared_ptr<std::vector<unsigned int> > get_index_path();
 
   void compute_table();
+    
+#ifdef FF_PARALLEL
+  ff::ParallelForPipeReduce<std::vector<ff_task_t>* > pf;
+  int numthreads;
+  long chunksize;
+  unsigned int threshold;
+#endif
 
 public:
   /** Constructor.
@@ -38,8 +60,12 @@ public:
    *  @param all_heterozygous If true, then the "all heterozygous" assumption is made;
    *                          i.e., all positions are forced to be heterozygous even when
    *                          reads suggest a homozygous site. */
+#ifdef FF_PARALLEL
+  DPTable(ReadSet* read_set, bool all_heterozygous = false, int numthreads=-1, long chunksize=1024, unsigned int threshold=(1<<20));
+#else
   DPTable(ReadSet* read_set, bool all_heterozygous = false);
- 
+#endif
+    
   ~DPTable();
 
   unsigned int get_optimal_score();

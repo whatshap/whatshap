@@ -28,7 +28,8 @@ public:
    *  method is called. */
   void set_next_column(const ColumnIndexingScheme* next_column);
   
-  std::unique_ptr<ColumnIndexingIterator> get_iterator();
+  std::shared_ptr<ColumnIndexingIterator> get_iterator();
+  
   
   unsigned int column_size();
 

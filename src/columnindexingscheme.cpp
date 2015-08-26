@@ -76,9 +76,10 @@ void ColumnIndexingScheme::set_next_column(const ColumnIndexingScheme* next_colu
   forward_projection_width = n+1;
 }
 
-unique_ptr<ColumnIndexingIterator> ColumnIndexingScheme::get_iterator() {
-  return unique_ptr<ColumnIndexingIterator>(new ColumnIndexingIterator(this));
+shared_ptr<ColumnIndexingIterator> ColumnIndexingScheme::get_iterator() {
+  return shared_ptr<ColumnIndexingIterator>(new ColumnIndexingIterator(this));
 }
+
 
 const vector<unsigned int> * ColumnIndexingScheme::get_read_ids() {
   return &(this->read_ids);

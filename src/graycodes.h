@@ -14,12 +14,20 @@ class GrayCodes {
     GrayCodes(int length);
     
     bool has_next();
-    
+
+    // mt
+    int  get_length() const;
+    int_t get_next(int *changed_bit, const int idx);
+    void reset(int length);
+
     /** Return the next Gray code.
      *  @param changed_bit If not null, the index of the changed bit is 
      *                     returned via this variable.
      */
     int_t get_next(int* changed_bit = 0);
+
+    int_t get_current();
+
   private:
     int length;
     int i;

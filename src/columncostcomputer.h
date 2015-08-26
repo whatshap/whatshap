@@ -8,14 +8,20 @@
 
 class ColumnCostComputer {
 private:
-  const std::vector<const Entry*>& column;
+  const std::vector<const Entry*>* column; // TODO: manage with smart pointers
+
   // cost_partitionX[Y] is the cost of flipping all entries in the partition X to Y for Y = 0,1.
   unsigned int cost_partition1[2];
   unsigned int cost_partition2[2];
   unsigned int partitioning;
   bool all_heterozygous;
 public:
-  ColumnCostComputer(const std::vector<const Entry*>& column, bool all_heterozygous = false);
+    
+   // TODO: manage with smart pointers
+  ColumnCostComputer(const std::vector<const Entry*>* column, bool all_heterozygous = false);
+    
+  ColumnCostComputer():column(NULL) {}
+  void reset(const std::vector<const Entry*>* column, bool all_heterozygous = false);
   
   void set_partitioning(unsigned int partitioning);
 
