@@ -35,6 +35,7 @@ from ..core import Read, ReadSet, DPTable, readselection
 from ..graph import ComponentFinder
 from ..coverage import CovMonitor
 from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
+from ..verification import verify_mec_score_and_partitioning
 
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -518,6 +519,10 @@ def run_whatshap(bam, vcf,
 					if v1.allele == v2.allele and v1.allele in (0, 1))
 				stats.n_homozygous += n_homozygous
 
+			with timers('verify'):
+				# verify whether bipartition is consistent with reported MEC score
+				verify_mec_score_and_partitioning(dp_table, sliced_reads)
+
 			components = find_components(superreads, sliced_reads)
 			n_phased_blocks = len(set(components.values()))
 			stats.n_phased_blocks += n_phased_blocks
@@ -550,6 +555,7 @@ def run_whatshap(bam, vcf,
 	logger.info('Time spent parsing VCF: %6.1f s', timers.elapsed('parse_vcf'))
 	logger.info('Time spent slicing:     %6.1f s', timers.elapsed('slice'))
 	logger.info('Time spent phasing:     %6.1f s', timers.elapsed('phase'))
+	logger.info('Time spent verifying:   %6.1f s', timers.elapsed('verify'))
 	logger.info('Time spent writing VCF: %6.1f s', timers.elapsed('write_vcf'))
 	logger.info('Time spent on rest:     %6.1f s', 2 * timers.elapsed('overall') - timers.total())
 	logger.info('Total elapsed time:     %6.1f s', timers.elapsed('overall'))

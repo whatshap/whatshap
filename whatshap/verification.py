@@ -1,3 +1,4 @@
+import sys
 from whatshap.core import Read, DPTable, ReadSet, Variant
 
 def verify_mec_score_and_partitioning(dp_table, reads):
@@ -39,5 +40,5 @@ def verify_mec_score_and_partitioning(dp_table, reads):
 			else:
 				assert False
 		n += 1
-	print('Expected MEC score: {}, obtained MEC score: {}'.format(mec_score, dp_table.get_optimal_cost()))
+	print('Verification: Expected MEC score: {}, obtained MEC score: {}'.format(mec_score, dp_table.get_optimal_cost()), file=sys.stderr)
 	assert mec_score == dp_table.get_optimal_cost()
