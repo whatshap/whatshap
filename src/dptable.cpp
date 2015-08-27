@@ -177,6 +177,9 @@ void DPTable::compute_table() {
         }
 #ifdef FF_PARALLEL
         {
+#if defined(COLUMN_TIME)
+            long a = ff::getusec();
+#endif
             shared_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
             {
             
@@ -264,7 +267,7 @@ void DPTable::compute_table() {
                 
                 
 #if defined(COLUMN_TIME)
-                long b = getusec();
+                long b = ff::getusec();
                 printf("(*)lenght=%ld \ttime=%g\n", iterator->get_length(), (double)(b-a)/1000.0);
 #endif
             } else {
@@ -318,7 +321,7 @@ void DPTable::compute_table() {
                         running_optimal_score_index = local_idx_min[i];
                 }
 #if defined(COLUMN_TIME)
-                printf("(*LAST)lenght=%ld, time=%g\n", iterator->get_length(),(double)(getusec()-a)/1000.0);
+                printf("(*LAST)lenght=%ld, time=%g\n", iterator->get_length(),(double)(ff::getusec()-a)/1000.0);
 #endif
             }
             }
