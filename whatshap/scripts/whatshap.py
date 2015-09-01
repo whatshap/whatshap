@@ -418,11 +418,16 @@ def analyze_readset(sliced_reads):
 	f.write(str(length_readset))
 	f.write("\n")
 	while i != len(sliced_reads):
-		sliced_reads[i]
+		#read=sliced_reads[i]
+		#source_ids=read
 		positions = [variant.position for variant in sliced_reads[i] if variant.position in important_positions]
 		for position in positions[1:]:
 			component_finder.merge(positions[0], position)
 		components = {position: component_finder.find(position) for position in important_positions}
+
+		#read = readset.get(read_index)
+		#print('Readselection for readssource ids')
+		#print(read.getSourceID())
 		f.write("Read")
 		f.write(str(i))
 		f.write("\t")
@@ -456,7 +461,8 @@ def analyze_readset(sliced_reads):
 
 def run_whatshap(bam, vcf,
 				 output=sys.stdout, sample=None, ignore_read_groups=False, indels=True,
-				 mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123, haplotype_bams_prefix=None):
+				 mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123, haplotype_bams_prefix=None,
+				 connectivity=1, bridge=False, analyze=False, score=0):
 	"""
     Run WhatsHap.
 
@@ -469,6 +475,12 @@ def run_whatshap(bam, vcf,
     max_coverage
     all_heterozygous
     seed -- seed for random numbers
+    haplotype_bams_prefix -- name selected reads are stored in a bam file
+    connectivity -- number how many overlapping variants define a connection
+    bridge -- using bridging
+    analyze -- writing additional file with informations
+    score -- which scoring method is used
+
     """
 	random.seed(seed)
 
@@ -488,6 +500,8 @@ def run_whatshap(bam, vcf,
 	with ExitStack() as stack:
 		try:
 			bam_reader = stack.enter_context(ReadSetReader(bam, mapq_threshold=mapping_quality))
+			print('BAM READER')
+			print(bam_reader)
 		except (OSError, BamIndexingError) as e:
 			logger.error(e)
 			sys.exit(1)
@@ -524,8 +538,12 @@ def run_whatshap(bam, vcf,
 					read.sort()
 				# Sort reads in read set by position
 				reads.sort()
-
-				selected_reads, uninformative_read_count = readselection(reads, max_coverage)
+				if analyze:
+					selected_reads, uninformative_read_count, listofbam = readselection(reads, max_coverage,bridge,analyze)
+					print('LIST OF BAM ')
+					print(listofbam)
+				else:
+					selected_reads, uninformative_read_count = readselection(reads, max_coverage,bridge,analyze)
 				sliced_reads = reads.subset(selected_reads)
 
 				position_list = reads.get_positions()
@@ -557,8 +575,9 @@ def run_whatshap(bam, vcf,
 						n_best_case_nonsingleton_blocks, n_best_case_blocks)
 			logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
 						n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
-
-			analyze_readset(sliced_reads)
+			#in order to not include the time for writing of the file for analysis here the analyze_readset is called
+			if analyze:
+				analyze_readset(sliced_reads)
 
 			with timers('phase'):
 				logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
@@ -641,6 +660,7 @@ def main():
 						help='Output VCF file. If omitted, use standard output.')
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 						help='Reduce coverage to at most MAXCOV (default: %(default)s).')
+	#maybe it should be possible to change the quality which we selectt for for each bam file individually
 	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',
 						default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
 	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
@@ -659,6 +679,18 @@ def main():
 	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
 						help='Write reads that have been used for phasing to haplotype-specific BAM files. '
 							 'Creates PREFIX.1.bam and PREFIX.2.bam')
+	parser.add_argument('--connectivity', default=1, metavar='CONECT', help='Sets value of connectivity between reads in the'
+							'  unity of overlapping variants (default: %(default)s)')
+	parser.add_argument('--bridging',dest='bridge', default=False, action='store_true', help='Selecting if in Readselection'
+							' the bridging is on (default: %(default)s)')
+	parser.add_argument('--analyzfile', dest='analyze',default=False,action='store_true', help='Write properties of the selected readset,like'
+							'conneted blocks, quality, origin ,... to separate file named Analyzefile.unique_extension '
+							'(default: %(default)s )')
+	parser.add_argument('--score','--score', metavar='SCORE', default=0, type=int, help='Select the score you would like to '
+							'use (defualt :%(default)s), score have to be set '
+							'0 = actual best score'
+							'1 = best score for paired_end reads'
+							'2= best score for single ended reads')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
 

@@ -179,10 +179,11 @@ def format_read_source_stats(readset, indices):
 	return ', '.join('{}:{}'.format(source_id, count) for source_id, count in source_id_counts.items())
 
 
-def readselection(PyReadSet pyreadset, max_cov, bridging=True):
+def readselection(PyReadSet pyreadset, max_cov, bridging,analyze):
 	'''Return the selected readindices which do not violate the maximal coverage, and additionally usage of a boolean for deciding if
      the bridging is needed or not.'''
-
+	print('Bridging in first line of calling readselection')
+	print(bridging)
 	cdef ReadSet* readset = pyreadset.thisptr
 	assert readset != NULL
 
@@ -204,6 +205,8 @@ def readselection(PyReadSet pyreadset, max_cov, bridging=True):
 	cdef PriorityQueue pq
 	cdef Read* read
 	loop = 0
+	#setting up list for storing how many reads came from which bam file.
+	newlist=[]
 	while len(undecided_reads) > 0:
 		pq = _construct_priorityqueue(readset, undecided_reads, vcf_indices)
 		reads_in_slice, reads_violating_coverage = _slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, snp_to_reads_map)
@@ -215,9 +218,25 @@ def readselection(PyReadSet pyreadset, max_cov, bridging=True):
 		component_finder = ComponentFinder(positions)
 		for read_index in reads_in_slice:
 			read = readset.get(read_index)
+			#only need to build up this list for th e reads in different bam files if we need to write it out
+			if analyze:
+
+				readID= read.getSourceID()
+
+				while len(newlist)< (readID+1):
+					newlist.append(0)
+				#print('ReadId and next list')
+				#print(readID)
+
+
+
+				score=newlist[readID]
+				newscore=score+1
+				newlist[readID]=newscore
+
+
 			for i in range(1, read.getVariantCount()):
 				component_finder.merge(read.getPosition(0), read.getPosition(i))
-
 		bridging_reads = set()
 		if bridging:
 			pq = _construct_priorityqueue(readset, undecided_reads, vcf_indices)
@@ -253,5 +272,7 @@ def readselection(PyReadSet pyreadset, max_cov, bridging=True):
 			loop, len(reads_in_slice), format_read_source_stats(pyreadset, reads_in_slice), len(bridging_reads),
 			format_read_source_stats(pyreadset, bridging_reads), len(undecided_reads)
 		)
-
-	return selected_reads, uninformative_read_count
+	if analyze:
+		return selected_reads, uninformative_read_count,newlist
+	else:
+		return selected_reads, uninformative_read_count
