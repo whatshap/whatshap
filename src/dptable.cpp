@@ -15,11 +15,23 @@ using namespace std;
 #ifdef FF_PARALLEL
 #include "ff/mapping_utils.hpp"
 
+#ifdef FF_ALLOC
+#include "ff/allocator.hpp"
+#define ALLOCATOR_INIT()
+#define MALLOC(size)   (FFAllocator::instance()->malloc(size))
+#define FREE(ptr,unused) (FFAllocator::instance()->free(ptr))
+else
+#define ALLOCATOR_INIT()
+#define MALLOC(size)   (malloc(size))
+#define FREE(ptr,unused) (free(ptr))
+#endif
+
+
 DPTable::DPTable(ReadSet* read_set, bool all_heterozygous,int numthreads, long chunksize, unsigned int threshold):  pf(numthreads,true), numthreads(numthreads), chunksize(chunksize), threshold(threshold) {
     this->read_set = read_set;
     this->all_heterozygous = all_heterozygous;
     this->read_count = 0;
-    if (this->numthreads<=0) this->numthreads=ff_numCores(); // Number of Hyper-Contexts in the platform
+    if (this->numthreads<=0) this->numthreads=ff_realNumCores(); // Num of cores //ff_numCores(); - Number of Hyper-Contexts in the platform
     std::cerr << "This is the FastFlow parallel version, max parallelism is set to " << this->numthreads << "\n";
     read_set->reassignReadIds();
     compute_table();
@@ -136,7 +148,11 @@ void DPTable::compute_table() {
     int i = 0;
 #endif
     
-    while(next_indexer != 0) {
+    long iteration_count = 0;
+    #define MAXITER 90
+    
+    while ((++iteration_count<MAXITER) && (next_indexer != 0)) {
+        std::cerr << " Iter " << iteration_count << "\n";
         // move on projection column
         previous_projection_column = std::move(current_projection_column);
         // make former next column the current one
@@ -192,15 +208,19 @@ void DPTable::compute_table() {
             ssize_t l = iterator->get_length();
             ssize_t pardegree = 1;
             //if (l>=8) pardegree=numthreads;
-            if (l>=262144) pardegree=numthreads;
-            else if (l>=65536)  pardegree=std::min(numthreads, 4);
-            else if (l>=4096) pardegree=std::min(numthreads, 2);
-            else if (l>=8) pardegree=std::min(numthreads, 2);
-            
+            if (l>=262144) pardegree=numthreads; // 18
+            else if (l>=65536)  pardegree=std::min(numthreads, 4); // 16
+            else if (l>=4096) pardegree=std::min(numthreads, 2); // 12
+            //else if (l>=8) pardegree=std::min(numthreads, 2); // 3
+             
             if (chunksize>(l/pardegree)) {
                 chunksize = l/(pardegree);
-                std::cerr << "Automatic grain correction: paredgree " << pardegree << " grain set to " << chunksize << " numthreads " << numthreads << "\n";
+                std::cerr << "[Auto adjusted] Running with:  pardegree " << pardegree << " grain set to " << chunksize << " MAX numthreads " << numthreads << "\n";
+            } else {
+                std::cerr << "[Not  adjusted] Running with: pardegree " << pardegree << " grain set to " << chunksize << " MAX numthreads " << numthreads << "\n";
+                
             }
+                    
             //std::cerr << "Lenght: " << l << " grain " << chunksize << " numthreads " << numthreads << " pardegree " << pardegree << std::endl;
             
             auto Map = [&thiterators,&thcostcomputers,previous_projection_column,current_indexer](const long start, const long stop, const int thid, ff::ff_buffernode &node) {
