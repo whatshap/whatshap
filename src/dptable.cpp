@@ -217,7 +217,7 @@ void DPTable::compute_table() {
             if (chunksize>(l/pardegree))
                 adj_chunksize = l/(pardegree);
             else
-                adj_chunksize = chunksize;
+                adj_chunksize = l/(2*pardegree);//chunksize;
             std::cerr << "Running with: pardegree " << pardegree << " grain set to " << adj_chunksize << " MAX numthreads " << numthreads << "\n";
         
             
