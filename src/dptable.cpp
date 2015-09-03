@@ -212,16 +212,14 @@ void DPTable::compute_table() {
             else if (l>=65536)  pardegree=std::min(numthreads, 4); // 16
             else if (l>=4096) pardegree=std::min(numthreads, 2); // 12
             //else if (l>=8) pardegree=std::min(numthreads, 2); // 3
-             
-            if (chunksize>(l/pardegree)) {
-                chunksize = l/(pardegree);
-                std::cerr << "[Auto adjusted] Running with:  pardegree " << pardegree << " grain set to " << chunksize << " MAX numthreads " << numthreads << "\n";
-            } else {
-                std::cerr << "[Not  adjusted] Running with: pardegree " << pardegree << " grain set to " << chunksize << " MAX numthreads " << numthreads << "\n";
-                
-            }
-                    
-            //std::cerr << "Lenght: " << l << " grain " << chunksize << " numthreads " << numthreads << " pardegree " << pardegree << std::endl;
+            
+            long adj_chunksize;
+            if (chunksize>(l/pardegree))
+                adj_chunksize = l/(pardegree);
+            else
+                adj_chunksize = chunksize;
+            std::cerr << "Running with: pardegree " << pardegree << " grain set to " << adj_chunksize << " MAX numthreads " << numthreads << "\n";
+        
             
             auto Map = [&thiterators,&thcostcomputers,previous_projection_column,current_indexer](const long start, const long stop, const int thid, ff::ff_buffernode &node) {
                 //std::cerr << "PF map body thread" << thid << " (native " << ff_getThreadID() << " ) ";
@@ -282,8 +280,8 @@ void DPTable::compute_table() {
             };
             
             if (notlast) {
-                //std::cerr << "NOTLAST from " << 0 << " to " << iterator->get_length() << " grain " << chunksize << " pardegree " << pardegree << "\n";
-                pf.parallel_reduce_idx(0, iterator->get_length(),1,  chunksize, Map, Reduce, pardegree);
+
+                pf.parallel_reduce_idx(0, iterator->get_length(),1,  adj_chunksize, Map, Reduce, pardegree);
                 
                 
 #if defined(COLUMN_TIME)
