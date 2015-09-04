@@ -9,6 +9,14 @@
 //#define DB // db
 //#define FF_PARALLEL
 
+#ifdef COLUMN_TIME
+#include <sys/time.h>
+static inline unsigned long getusec() {
+    struct timeval tv;
+    gettimeofday(&tv,NULL);
+    return (unsigned long)(tv.tv_sec*1e6+tv.tv_usec);
+}
+#endif
 
 using namespace std;
 
@@ -346,6 +354,9 @@ void DPTable::compute_table() {
         }
 #else // FF_PARALLEL
         {
+#if defined(COLUMN_TIME)
+            long a = getusec();
+#endif
             // do the actual compution on current column
             // To be refactored to shared_ptr
             ColumnCostComputer cost_computer(&(*current_column), all_heterozygous);
@@ -422,7 +433,11 @@ void DPTable::compute_table() {
                     }
                 }
             }
-            
+#if defined(COLUMN_TIME)
+            long b = getusec();
+            printf("(*)lenght=%ld \ttime=%g\n", iterator->get_length(), (double)(b-a)/1000.0);
+#endif
+
             // db
 #ifdef DB
             cout << endl;
