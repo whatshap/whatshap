@@ -151,8 +151,9 @@ void DPTable::compute_table() {
     long iteration_count = 0;
     #define MAXITER 90
     
-    while ((++iteration_count<MAXITER) && (next_indexer != 0)) {
-        std::cerr << " Iter " << iteration_count << "\n";
+    //while ((++iteration_count<MAXITER) && (next_indexer != 0)) {
+    while (next_indexer != 0) {
+        std::cerr << " Iter " << iteration_count++ << "\n";
         // move on projection column
         previous_projection_column = std::move(current_projection_column);
         // make former next column the current one
