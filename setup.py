@@ -100,7 +100,7 @@ extensions = [
 			'src/columnindexingscheme.cpp', 'src/dptable.cpp',
 			'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',
 			'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp'
-		], language='c++', extra_compile_args=['-DCOLUMN_TIME','-DFF_PARALLEL','-O3','-std=c++11', '-DHAS_CXX11_VARIADIC_TEMPLATES'], include_dirs=["fastflow-r383"]),
+		], language='c++', extra_compile_args=['-DCOLUMN_TIME','-O3','-std=c++11', '-DHAS_CXX11_VARIADIC_TEMPLATES'], include_dirs=["fastflow-r383"]),
 ]
 extensions = cythonize_if_necessary(extensions)
 
