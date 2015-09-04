@@ -157,7 +157,7 @@ void DPTable::compute_table() {
 #endif
     
     long iteration_count = 0;
-    #define MAXITER 90
+    #define MAXITER 500
     
     while ((++iteration_count<MAXITER) && (next_indexer != 0)) {
         std::cerr << " Iter " << iteration_count << "\n";
