@@ -28,10 +28,12 @@ class ComponentFinder:
 		self.nodes = { x: Node(x, None) for x in values }
 
 	def merge(self, x, y):
+#		print('Find out what is there exactly in merge')
+#		print(x != y)
+
 		assert x != y
 		x_root = self._find_node(x)
 		y_root = self._find_node(y)
-
 		if x_root is y_root:
 			return
 
@@ -39,8 +41,10 @@ class ComponentFinder:
 		# new parent.
 		if x_root.value < y_root.value:
 			y_root.parent = x_root
+#			print('If')
 		else:
 			x_root.parent = y_root
+#			print('Else')
 
 	def _find_node(self, x):
 		node = root = self.nodes[x]

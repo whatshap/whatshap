@@ -182,8 +182,6 @@ def format_read_source_stats(readset, indices):
 def readselection(PyReadSet pyreadset, max_cov, bridging,analyze):
 	'''Return the selected readindices which do not violate the maximal coverage, and additionally usage of a boolean for deciding if
      the bridging is needed or not.'''
-	print('Bridging in first line of calling readselection')
-	print(bridging)
 	cdef ReadSet* readset = pyreadset.thisptr
 	assert readset != NULL
 
@@ -225,8 +223,6 @@ def readselection(PyReadSet pyreadset, max_cov, bridging,analyze):
 
 				while len(newlist)< (readID+1):
 					newlist.append(0)
-				#print('ReadId and next list')
-				#print(readID)
 
 
 
