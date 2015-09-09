@@ -660,12 +660,10 @@ def run_whatshap(bam, vcf,
 			logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
 						n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
 			# in order to not include the time for writing of the file for analysis here the analyze_readset is called
-			#TODO: seperate time for writing the file from the rest time
-			with timers('analyze '):
+			with timers('analyzing'):
 				logger.info('Writing different options in seperate file for later analysis')
 				if analyze:
 					analyze_readset(sliced_reads, listofbam, connectivity,score)
-
 			with timers('phase'):
 				logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 				# Run the core algorithm: construct DP table ...
