@@ -397,10 +397,7 @@ def ensure_pysam_version():
 		sys.exit("WhatsHap requires pysam >= 0.8.1")
 
 
-def analyze_readset(sliced_reads, list_of_bam, connectivity):
-	#connectivity = 2
-	print('Connectivity')
-	print(connectivity)
+def analyze_readset(sliced_reads, list_of_bam, connectivity,score):
 	print('Working directory')
 	print(os.getcwd())
 	f = open('Analyzefile.unique_extension', 'w')
@@ -420,58 +417,21 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity):
 	length_readset = len(sliced_reads)
 	f.write(str(length_readset))
 	f.write("\n")
-	sliced_read_position_array = []
+
+	connected_blocks = {}
 	while i != len(sliced_reads):
-		# read=sliced_reads[i]
-		#source_ids=read
 		positions = [variant.position for variant in sliced_reads[i] if variant.position in important_positions]
-		read_positions = set(positions)
-#		print('Read Positions')
-#		print(read_positions)
-#		sliced_read_position_array.append(read_positions)
 		#here the merging of only reads which share one component, could not be updated by the connectivity factor
 		for position in positions[1:]:
 			component_finder.merge(positions[0], position)
 		components = {position: component_finder.find(position) for position in important_positions}
 
-		#read = readset.get(read_index)
-		#print('Readselection for readssource ids')
-		#print(read.getSourceID())
-		f.write("Read")
-		f.write(str(i))
-		f.write("\t")
-		for variant in sliced_reads[i]:
-			pos = variant.position
-			qual = variant.quality
-			f.write(str(pos))
-			f.write("\t")
-			f.write(str(qual))
-			f.write("\t")
-
-		f.write("\n")
-		i = i + 1
-#	print('READ POSITIONS')
-#	print(sliced_read_position_array)
-
-	print('Resolve Connectivity Problem ')
-	print('Connectivity factor')
-	print(connectivity)
-	#connectivity=2
-	# go over all selected reads
-
-	connected_blocks = {}
-	k=0
-	while k != len(sliced_reads):
-		print('In WHILE')
-		#at the moment the same informations as in line 427 above
-		positions = [variant.position for variant in sliced_reads[k] if variant.position in important_positions]
+		#search now for components when the connectivity is not 1 :
 		read_positions = set(positions)
 		#if there is something in the connected blocks, so not the first entry
-		print('Connected Block length')
-		print(len(connected_blocks))
+
 		decision_connection = False
 		if len(connected_blocks) > 1:
-			print('In IF STATEMENT FOR CONNECTED BLOCKS')
 			#boolean if it is connected to some former entry
 
 			#stores the indices of the block, which have later to be merges together....
@@ -498,17 +458,72 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity):
 				del connected_blocks[index]
 			connected_blocks[len(connected_blocks)]=to_merged_set
 
-		k=k+1
+		f.write("Read")
+		f.write(str(i))
+		f.write("\t")
+		for variant in sliced_reads[i]:
+			pos = variant.position
+			qual = variant.quality
+			f.write(str(pos))
+			f.write("\t")
+			f.write(str(qual))
+			f.write("\t")
 
-	print('connected_blocks')
+		f.write("\n")
+		i = i + 1
 
-	print(connected_blocks)
+	f.write('Connectivity of Blocks')
+	f.write("\n")
+	f.write(str(connectivity))
+	f.write("\n")
 
-	f.write('Blocks')
+	# k=0
+	# while k != len(sliced_reads):
+	# 	#at the moment the same informations as in line 427 above
+	# 	#positions = [variant.position for variant in sliced_reads[k] if variant.position in important_positions]
+	# 	read_positions = set(positions)
+	# 	#if there is something in the connected blocks, so not the first entry
+	# 	#print('Connected Block length')
+	# 	#print(len(connected_blocks))
+	# 	decision_connection = False
+	# 	if len(connected_blocks) > 1:
+	# 		#print('In IF STATEMENT FOR CONNECTED BLOCKS')
+	# 		#boolean if it is connected to some former entry
+    #
+	# 		#stores the indices of the block, which have later to be merges together....
+	# 		connection_indices = []
+	# 		#look at every entry of the block an look if it intersects with the newly read positions
+	# 		for j in connected_blocks:
+    #
+	# 			if len(connected_blocks[j].intersection(read_positions)) >= connectivity:
+	# 				#found some overlap which is larger or equal the connectivity
+	# 				decision_connection = True
+	# 				#add index of the indey which have to be merged with the read to the list.
+	# 				connection_indices.append(j)
+	# 	else:
+	# 		#append read_position on the blocks if there is no connection possible with the former members of the block
+	# 		connected_blocks[len(connected_blocks)] = read_positions
+    #
+    #
+	# 	if decision_connection:
+	# 		#ifthere indexes are stored which have to be merged:
+	# 		to_merged_set=read_positions
+	# 		for index in connection_indices:
+	# 			#merge all positions in the connected blocks together and add it later again at the end
+	# 			to_merged_set=to_merged_set.union(connected_blocks[index])
+	# 			del connected_blocks[index]
+	# 		connected_blocks[len(connected_blocks)]=to_merged_set
+    #
+	# 	k=k+1
+	f.write('Connected Blocks by given Connectivity')
+	f.write("\n")
+	f.write(str(connected_blocks))
+	f.write("\n")
+
+
+	f.write('Blocks (always with connectivity 1)')
 	f.write("\n")
 	comset = set(components.values())
-	#print(components)
-	#comset2 = set(components.keys())
 	f.write(str(comset))
 	f.write("\n")
 	f.write('Blocks and their components')
@@ -519,30 +534,14 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity):
 	f.write("\n")
 	f.write(str(list_of_bam))
 	f.write("\n")
+	f.write('Which score:')
+	f.write("\n")
+	f.write(str(score))
+	f.write("\n")
 	f.close()
 
 	return 0
-#former approach
-'''	blocks = {}
-	blocks[0] = sliced_read_position_array[0]
-	for element in range(1, len(sliced_read_position_array)):
-		blocks[element] = sliced_read_position_array[element]
-		for i in blocks:
-			print('i in blocks')
-			print(i)
-			#Try to find out if the number of Positions which are  covered is  as often as the connectivity wants
-			#if this is the case it should be a connection between them
-			if len(blocks[i].intersection(sliced_read_position_array[element])) >= connectivity:
-				blocks[i] = blocks[i].union(sliced_read_position_array[element])
-				print(blocks[i].union(sliced_read_position_array[element]))
-				print('FOUND Intersection')
-				del blocks[element]
 
-		print(element)
-		print(sliced_read_position_array[element])
-		print('Blocks')
-		print(blocks)
-'''
 
 def run_whatshap(bam, vcf,
 				 output=sys.stdout, sample=None, ignore_read_groups=False, indels=True,
@@ -585,8 +584,6 @@ def run_whatshap(bam, vcf,
 	with ExitStack() as stack:
 		try:
 			bam_reader = stack.enter_context(ReadSetReader(bam, mapq_threshold=mapping_quality))
-			print('BAM READER')
-			print(bam_reader)
 		except (OSError, BamIndexingError) as e:
 			logger.error(e)
 			sys.exit(1)
@@ -623,13 +620,13 @@ def run_whatshap(bam, vcf,
 					read.sort()
 				# Sort reads in read set by position
 				reads.sort()
+				#defined as 0 at the moment
+				score_selection=score
 				if analyze:
 					selected_reads, uninformative_read_count, listofbam = readselection(reads, max_coverage, bridge,
-																						analyze)
-					print('LIST OF BAM ')
-					print(listofbam)
+																						analyze,score_selection)
 				else:
-					selected_reads, uninformative_read_count = readselection(reads, max_coverage, bridge, analyze)
+					selected_reads, uninformative_read_count = readselection(reads, max_coverage, bridge, analyze,score_selection)
 				sliced_reads = reads.subset(selected_reads)
 
 				position_list = reads.get_positions()
@@ -663,7 +660,7 @@ def run_whatshap(bam, vcf,
 						n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
 			# in order to not include the time for writing of the file for analysis here the analyze_readset is called
 			if analyze:
-				analyze_readset(sliced_reads, listofbam, connectivity)
+				analyze_readset(sliced_reads, listofbam, connectivity,score)
 
 			with timers('phase'):
 				logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
@@ -765,7 +762,7 @@ def main():
 	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
 						help='Write reads that have been used for phasing to haplotype-specific BAM files. '
 							 'Creates PREFIX.1.bam and PREFIX.2.bam')
-	parser.add_argument('--connectivity', default=1, metavar='CONECT',
+	parser.add_argument('--connectivity', metavar='CONECT', default=1,type=int,
 						help='Sets value of connectivity between reads in the'
 							 '  unity of overlapping variants (default: %(default)s)')
 	parser.add_argument('--bridging', dest='bridge', default=False, action='store_true',

@@ -89,15 +89,67 @@ cdef priority_type_ptr _compute_score_for_read(ReadSet* readset, int index, vcf_
 	result.push_back(min_quality)
 	return result
 
+cdef priority_type_ptr _compute_score_for_longer_reads(ReadSet* readset, int index, vcf_indices):
+	'''Alternative score, maybe for longer reads, just for slicing experiments,and for checking if selection in
+	the argument parser works.
+	Using only a single score of the number of covered SNPs, but inserted into tupel
+	for the moment because the vector structure
+	only allows that, has to be redone.
+	'''
+	cdef Read* read = readset.get(index)
+	#cdef int min_quality = -1
+	#cdef int good_score = 0
+	#cdef int bad_score = 0
+	#cdef int quality = -1
+	#cdef int pos = -1
+	cdef int score
+	covered_SNPS = []
+	for i in range(read.getVariantCount()):
+		#quality = read.getVariantQuality(i)
+		pos = read.getPosition(i)
+		#if i == 0:
+		#	min_quality = quality
+		#else:
+		#	min_quality = min(min_quality, quality)
+		SNP_covered = vcf_indices.get(pos)
+		if SNP_covered != None:
+			covered_SNPS.append(SNP_covered)
+			#_score represents how many SNPs are really covered
+			score += 1
+	#bad_score here means number of SNPs which are not covered...
+	#if len(covered_SNPS) != (covered_SNPS[len(covered_SNPS) - 1] - covered_SNPS[0] + 1):
+	#	bad_score = (covered_SNPS[len(covered_SNPS) - 1] - covered_SNPS[0] + 1) - len(covered_SNPS)
+	cdef priority_type_ptr result = new priority_type()
+	#initially new_score is the same as good_score, but new_score is updated later
+	#result.push_back(good_score - bad_score)
+	#result.push_back(good_score - bad_score)
+	result.push_back(score)
+	result.push_back(score)
+	result.push_back(score)
+	return result
 
-cdef PriorityQueue _construct_priorityqueue(ReadSet* readset, read_indices, vcf_indices):
+
+
+
+
+
+
+
+
+
+
+cdef PriorityQueue _construct_priorityqueue(ReadSet* readset, read_indices, vcf_indices,score_selection):
 	'''Construct a priority queue containing all given read indicies, each one representing the
 	respective read from readset.'''
 	cdef PriorityQueue priorityqueue = PriorityQueue()
 
 	for index in read_indices:
 		read = readset.get(index)
-		computed_score = _compute_score_for_read(readset, index, vcf_indices)
+		if score_selection==0:
+			computed_score = _compute_score_for_read(readset, index, vcf_indices)
+		else:
+			computed_score = _compute_score_for_longer_reads(readset, index, vcf_indices)
+		#computed_score = _compute_score_for_longer_reads(readset, index, vcf_indices)
 		priorityqueue.c_push(computed_score, index)
 
 	return priorityqueue
@@ -179,7 +231,7 @@ def format_read_source_stats(readset, indices):
 	return ', '.join('{}:{}'.format(source_id, count) for source_id, count in source_id_counts.items())
 
 
-def readselection(PyReadSet pyreadset, max_cov, bridging,analyze):
+def readselection(PyReadSet pyreadset, max_cov, bridging,analyze,score_selection):
 	'''Return the selected readindices which do not violate the maximal coverage, and additionally usage of a boolean for deciding if
      the bridging is needed or not.'''
 	cdef ReadSet* readset = pyreadset.thisptr
@@ -206,7 +258,14 @@ def readselection(PyReadSet pyreadset, max_cov, bridging,analyze):
 	#setting up list for storing how many reads came from which bam file.
 	newlist=[]
 	while len(undecided_reads) > 0:
-		pq = _construct_priorityqueue(readset, undecided_reads, vcf_indices)
+		#switch cases : because we maybe need other update rules for other scores.
+		#if (score_selection == 0):
+		#	pq = _construct_priorityqueue(readset, undecided_reads, vcf_indices,score_selection)
+		#else:
+		#	pq = _construct_priorityqueue(readset, undecided_reads, vcf_indices,score_selection)
+		#
+		#		print('FORMER SCORE USED')
+		pq = _construct_priorityqueue(readset, undecided_reads, vcf_indices,score_selection)
 		reads_in_slice, reads_violating_coverage = _slice_read_selection(pq, coverages, max_cov, readset, vcf_indices, snp_to_reads_map)
 		selected_reads.update(reads_in_slice)
 		undecided_reads -= reads_in_slice
@@ -235,7 +294,7 @@ def readselection(PyReadSet pyreadset, max_cov, bridging,analyze):
 				component_finder.merge(read.getPosition(0), read.getPosition(i))
 		bridging_reads = set()
 		if bridging:
-			pq = _construct_priorityqueue(readset, undecided_reads, vcf_indices)
+			pq = _construct_priorityqueue(readset, undecided_reads, vcf_indices,score_selection)
 			while not pq.is_empty():
 				score, read_index = pq.pop()
 				read = readset.get(read_index)
