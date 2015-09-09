@@ -622,6 +622,7 @@ def run_whatshap(bam, vcf,
 				reads.sort()
 				#defined as 0 at the moment
 				score_selection=score
+				#TODO: Now time for finding listofbam included into slicing time
 				if analyze:
 					selected_reads, uninformative_read_count, listofbam = readselection(reads, max_coverage, bridge,
 																						analyze,score_selection)
@@ -659,8 +660,11 @@ def run_whatshap(bam, vcf,
 			logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
 						n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
 			# in order to not include the time for writing of the file for analysis here the analyze_readset is called
-			if analyze:
-				analyze_readset(sliced_reads, listofbam, connectivity,score)
+			#TODO: seperate time for writing the file from the rest time
+			with timers('analyze '):
+				logger.info('Writing different options in seperate file for later analysis')
+				if analyze:
+					analyze_readset(sliced_reads, listofbam, connectivity,score)
 
 			with timers('phase'):
 				logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
@@ -709,6 +713,7 @@ def run_whatshap(bam, vcf,
 	logger.info('Time spent reading BAM: %6.1f s', timers.elapsed('read_bam'))
 	logger.info('Time spent parsing VCF: %6.1f s', timers.elapsed('parse_vcf'))
 	logger.info('Time spent slicing:     %6.1f s', timers.elapsed('slice'))
+	logger.info('Time spent for analysis:%6.1f s', timers.elapsed('analyzing'))
 	logger.info('Time spent phasing:     %6.1f s', timers.elapsed('phase'))
 	logger.info('Time spent writing VCF: %6.1f s', timers.elapsed('write_vcf'))
 	logger.info('Time spent on rest:     %6.1f s', 2 * timers.elapsed('overall') - timers.total())
