@@ -39,7 +39,7 @@ DPTable::DPTable(ReadSet* read_set, bool all_heterozygous,int numthreads, long c
     this->read_set = read_set;
     this->all_heterozygous = all_heterozygous;
     this->read_count = 0;
-    if (this->numthreads<=0) this->numthreads=ff_realNumCores(); // Num of cores //ff_numCores(); - Number of Hyper-Contexts in the platform
+    if (this->numthreads<=0) this->numthreads=ff_realNumCores()-2; // Num of cores //ff_numCores(); - Number of Hyper-Contexts in the platform
     std::cerr << "This is the FastFlow parallel version, max parallelism is set to " << this->numthreads << "\n";
     read_set->reassignReadIds();
     compute_table();
@@ -157,11 +157,11 @@ void DPTable::compute_table() {
 #endif
     
     long iteration_count = 0;
-    #define MAXITER 90
+    #define MAXITER 100
     
-    //while ((++iteration_count<MAXITER) && (next_indexer != 0)) {
-    while (next_indexer != 0) {
-        std::cerr << " Iter " << iteration_count++ << "\n";
+    while ((++iteration_count<MAXITER) && (next_indexer != 0)) {
+    //while (next_indexer != 0) {
+        std::cerr << " Iter " << iteration_count << "\n";
         // move on projection column
         previous_projection_column = std::move(current_projection_column);
         // make former next column the current one
