@@ -64,8 +64,8 @@ DPTable::~DPTable() {
     }
 }
 
-shared_ptr<vector<unsigned int> > DPTable::extract_read_ids(const vector<const Entry *>& entries) {
-    shared_ptr<vector<unsigned int> > read_ids(new vector<unsigned int>());
+unique_ptr<vector<unsigned int> > DPTable::extract_read_ids(const vector<const Entry *>& entries) {
+    unique_ptr<vector<unsigned int> > read_ids(new vector<unsigned int>());
     for (size_t i=0; i<entries.size(); ++i) {
         read_ids->push_back(entries[i]->get_read_id());
     }
@@ -127,15 +127,15 @@ void DPTable::compute_table() {
     }
     
     unsigned int n = 0;
-    shared_ptr<vector<const Entry *> > current_column;
-    shared_ptr<vector<const Entry *> > next_column;
+    unique_ptr<vector<const Entry *> > current_column;
+    unique_ptr<vector<const Entry *> > next_column;
     // get the next column ahead of time
     next_column = column_iterator.get_next();
-    shared_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_column);
+    unique_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_column);
     ColumnIndexingScheme* next_indexer = new ColumnIndexingScheme(0,*next_read_ids);
     indexers.push_back(next_indexer);
-    shared_ptr<vector<unsigned int> > previous_projection_column; // shoul be shared
-    shared_ptr<vector<unsigned int> > current_projection_column;
+    unique_ptr<vector<unsigned int> > previous_projection_column; // shoul be shared
+    unique_ptr<vector<unsigned int> > current_projection_column;
     unsigned int running_optimal_score;
     unsigned int running_optimal_score_index; // optimal score and its index
     double pi = 0.05; // percentage of columns processed
@@ -166,7 +166,7 @@ void DPTable::compute_table() {
         previous_projection_column = std::move(current_projection_column);
         // make former next column the current one
         current_column = std::move(next_column);
-        shared_ptr<vector<unsigned int> > current_read_ids = std::move(next_read_ids);
+        unique_ptr<vector<unsigned int> > current_read_ids = std::move(next_read_ids);
         ColumnIndexingScheme* current_indexer = next_indexer;
         // peek ahead and get the next column
         if (column_iterator.has_next()) {
@@ -194,7 +194,7 @@ void DPTable::compute_table() {
 #endif
             
             
-            current_projection_column = shared_ptr<vector<unsigned int> >(new vector<unsigned int>(current_indexer->forward_projection_size(), numeric_limits<unsigned int>::max()));
+            current_projection_column = unique_ptr<vector<unsigned int> >(new vector<unsigned int>(current_indexer->forward_projection_size(), numeric_limits<unsigned int>::max()));
             // NOTE: forward projection size will always be even
             
             backtrace_column = new vector<unsigned int>(current_indexer->forward_projection_size(), numeric_limits<unsigned int>::max());
@@ -205,7 +205,7 @@ void DPTable::compute_table() {
 #if defined(COLUMN_TIME)
             long a = ff::getusec();
 #endif
-            shared_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
+            unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
             {
             
             for(size_t i=0;i<numthreads;++i) {
@@ -229,8 +229,8 @@ void DPTable::compute_table() {
                 adj_chunksize = l/(2*pardegree);//chunksize;
             std::cerr << "Running with: pardegree " << pardegree << " grain set to " << adj_chunksize << " MAX numthreads " << numthreads << "\n";
         
-            
-            auto Map = [&thiterators,&thcostcomputers,previous_projection_column,current_indexer](const long start, const long stop, const int thid, ff::ff_buffernode &node) {
+            // &thiterators,&thcostcomputers,previous_projection_column,current_indexer
+            auto Map = [&](const long start, const long stop, const int thid, ff::ff_buffernode &node) {
                 //std::cerr << "PF map body thread" << thid << " (native " << ff_getThreadID() << " ) ";
                 //std::cerr << "start " << start << " stop " << stop << "\n";
                 //std::cerr.flush();
@@ -359,9 +359,9 @@ void DPTable::compute_table() {
             long a = getusec();
 #endif
             // do the actual compution on current column
-            // To be refactored to shared_ptr
+            // To be refactored to unique_ptr
             ColumnCostComputer cost_computer(&(*current_column), all_heterozygous);
-            shared_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
+            unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
             
             // db
 #ifdef DB
@@ -493,9 +493,9 @@ unsigned int DPTable::get_optimal_score() {
     return optimal_score;
 }
 
-shared_ptr<vector<unsigned int> > DPTable::get_index_path() {
+unique_ptr<vector<unsigned int> > DPTable::get_index_path() {
     
-    shared_ptr<vector<unsigned int> > index_path = shared_ptr<vector<unsigned int> >(new vector<unsigned int>(indexers.size()));
+    unique_ptr<vector<unsigned int> > index_path = unique_ptr<vector<unsigned int> >(new vector<unsigned int>(indexers.size()));
     if (indexers.size() == 0) {
         return index_path;
     }
@@ -503,7 +503,7 @@ shared_ptr<vector<unsigned int> > DPTable::get_index_path() {
     index_path->at(indexers.size()-1) = index;
     for(size_t i = indexers.size()-1; i > 0; --i) { // backtrack through table
         if(i>0) {
-            shared_ptr<ColumnIndexingIterator> iterator = indexers[i]->get_iterator();
+            unique_ptr<ColumnIndexingIterator> iterator = indexers[i]->get_iterator();
             unsigned int backtrace_index = iterator->index_backward_projection(index);
             index = backtrace_table[i-1]->at(backtrace_index);
             index_path->at(i-1) = index;
@@ -534,10 +534,10 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
     } else {
         // run through the file again with the column_iterator
         unsigned int i = 0; // column index
-        shared_ptr<vector<unsigned int> > index_path = get_index_path();
+        unique_ptr<vector<unsigned int> > index_path = get_index_path();
         while (column_iterator.has_next()) {
             unsigned int index = index_path->at(i);
-            shared_ptr<vector<const Entry *> > column = column_iterator.get_next();
+            unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
             ColumnCostComputer cost_computer(&(*column), all_heterozygous);
             cost_computer.set_partitioning(index);
             
@@ -553,7 +553,7 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
 
 vector<bool>* DPTable::get_optimal_partitioning() {
     
-    shared_ptr<vector<unsigned int> > index_path = get_index_path();
+    unique_ptr<vector<unsigned int> > index_path = get_index_path();
     vector<bool>* partitioning = new vector<bool>(read_count,false);
     
     for(size_t i=0; i< index_path->size(); ++i) {

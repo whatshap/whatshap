@@ -76,8 +76,8 @@ void ColumnIndexingScheme::set_next_column(const ColumnIndexingScheme* next_colu
   forward_projection_width = n+1;
 }
 
-shared_ptr<ColumnIndexingIterator> ColumnIndexingScheme::get_iterator() {
-  return shared_ptr<ColumnIndexingIterator>(new ColumnIndexingIterator(this));
+unique_ptr<ColumnIndexingIterator> ColumnIndexingScheme::get_iterator() {
+  return unique_ptr<ColumnIndexingIterator>(new ColumnIndexingIterator(this));
 }
 
 
