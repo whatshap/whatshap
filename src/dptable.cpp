@@ -157,7 +157,7 @@ void DPTable::compute_table() {
 #endif
     
     long iteration_count = 0;
-    #define MAXITER 100
+    #define MAXITER 150
     
     while ((++iteration_count<MAXITER) && (next_indexer != 0)) {
     //while (next_indexer != 0) {
