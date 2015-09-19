@@ -157,7 +157,7 @@ void DPTable::compute_table() {
 #endif
     
     long iteration_count = 0;
-    #define MAXITER 150
+    #define MAXITER 124
     
     while ((++iteration_count<MAXITER) && (next_indexer != 0)) {
         ssize_t colsize = 0, totsize = 0;
@@ -228,7 +228,7 @@ void DPTable::compute_table() {
             if (chunksize>(l/pardegree))
                 adj_chunksize = l/(pardegree);
             else
-                adj_chunksize = l/(2*pardegree);//chunksize;
+                adj_chunksize = l/(4*pardegree);//chunksize;
             std::cerr << "Running with: pardegree " << pardegree << " grain set to " << adj_chunksize << " MAX numthreads " << numthreads << "\n";
         
             // &thiterators,&thcostcomputers,previous_projection_column,current_indexer
