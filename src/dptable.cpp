@@ -160,7 +160,7 @@ void DPTable::compute_table() {
     #define MAXITER 150
     
     while ((++iteration_count<MAXITER) && (next_indexer != 0)) {
-        ssize_t colsize = 0, totsize = 0;
+        //ssize_t colsize = 0, totsize = 0;
         
         //while (next_indexer != 0) {
         std::cerr << " Iter " << iteration_count << "\n";
@@ -298,7 +298,7 @@ void DPTable::compute_table() {
                 
 #if defined(COLUMN_TIME)
                 long b = ff::getusec();
-                totsize += colsize;
+                //totsize += colsize;
                 printf("(*)lenght=%d \t time=%g \t col_size=%ld \t tot_size=%ld (MB)\n", iterator->get_length(),
                         (double)(b-a)/1000.0, colsize/1048576, totsize/1048576);
 #endif
@@ -353,7 +353,7 @@ void DPTable::compute_table() {
                         running_optimal_score_index = local_idx_min[i];
                 }
 #if defined(COLUMN_TIME)
-                totsize += colsize;
+                //totsize += colsize;
                 printf("(*LAST)lenght=%d \t time=%g \t col_size=%ld \t tot_size=%ld\n", iterator->get_length(),(double)(ff::getusec()-a)/1000.0,
                         colsize/1048576, totsize/1048576);
 #endif
