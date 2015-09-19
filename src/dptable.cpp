@@ -151,16 +151,17 @@ void DPTable::compute_table() {
         thcostcomputers[i] = new ColumnCostComputer;
     }
 #endif
-
+    
 #ifdef DB
     int i = 0;
 #endif
     
     long iteration_count = 0;
-    #define MAXITER 124
+#include <climits>
+#define MAXITER 124
     
-    while ((++iteration_count<MAXITER) && (next_indexer != 0)) {
-        //ssize_t colsize = 0, totsize = 0;
+    while ((++iteration_count<LONG_MAX) && (next_indexer != 0)) {
+        ssize_t colsize = 0, totsize = 0;
         
         //while (next_indexer != 0) {
         std::cerr << " Iter " << iteration_count << "\n";
@@ -209,155 +210,190 @@ void DPTable::compute_table() {
 #endif
             unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
             {
-            
-            for(size_t i=0;i<numthreads;++i) {
-                thiterators[i]->reset(current_indexer);
-                thcostcomputers[i]->reset(&(*current_column), all_heterozygous);
-            }
-            const bool notlast = (next_column.get() != 0);
-            
-            ssize_t l = iterator->get_length();
-            ssize_t pardegree = 1;
-            //if (l>=8) pardegree=numthreads;
-            if (l>=262144) pardegree=numthreads; // 18
-            else if (l>=65536)  pardegree=std::min(numthreads, 4); // 16
-            else if (l>=4096) pardegree=std::min(numthreads, 2); // 12
-            //else if (l>=8) pardegree=std::min(numthreads, 2); // 3
-            
-            long adj_chunksize;
-            if (chunksize>(l/pardegree))
-                adj_chunksize = l/(pardegree);
-            else
-                adj_chunksize = l/(4*pardegree);//chunksize;
-            std::cerr << "Running with: pardegree " << pardegree << " grain set to " << adj_chunksize << " MAX numthreads " << numthreads << "\n";
-        
-            // &thiterators,&thcostcomputers,previous_projection_column,current_indexer
-            auto Map = [&](const long start, const long stop, const int thid, ff::ff_buffernode &node) {
-                //std::cerr << "PF map body thread" << thid << " (native " << ff_getThreadID() << " ) ";
-                //std::cerr << "start " << start << " stop " << stop << "\n";
-                //std::cerr.flush();
                 
-                if (start == stop) return;
-                //std::cerr << "PF map body thread" << thid << " (native " << ff_getThreadID() << " )\n";
-                
-                ColumnIndexingIterator *myiterator                 = thiterators[thid];
-                ColumnCostComputer &mycost_computer                = *(thcostcomputers[thid]);
-                
-                unsigned int cost, forward_index;
-                int bit_changed = -1;
-                if (start>0) {
-                    myiterator->advance_idx(&bit_changed,start-1);
-                    mycost_computer.set_partitioning(myiterator->get_partition());
-                    //std::cerr << "Partition " << myiterator->get_partition() << "\n";
+                for(size_t i=0;i<numthreads;++i) {
+                    thiterators[i]->reset(current_indexer);
+                    thcostcomputers[i]->reset(&(*current_column), all_heterozygous);
                 }
+                const bool notlast = (next_column.get() != 0);
                 
+                ssize_t l = iterator->get_length();
+                ssize_t pardegree = 1;
+                //if (l>=8) pardegree=numthreads;
+                if (l>=262144) pardegree=numthreads; // 18
+                else if (l>=65536)  pardegree=std::min(numthreads, 4); // 16
+                else if (l>=4096) pardegree=std::min(numthreads, 2); // 12
+                //else if (l>=8) pardegree=std::min(numthreads, 2); // 3
                 
-                std::vector<ff_task_t> *thcurrent_projection_column = new std::vector<ff_task_t>;
-                thcurrent_projection_column->reserve(stop-start);
-                colsize = sizeof(*thcurrent_projection_column);
+                long adj_chunksize;
+                if (chunksize>(l/pardegree))
+                    adj_chunksize = l/(pardegree);
+                else
+                    adj_chunksize = l/(4*pardegree);//chunksize;
+                std::cerr << "Running with: pardegree " << pardegree << " grain set to " << adj_chunksize << " MAX numthreads " << numthreads << "\n";
                 
-                
-                for(long k=start; k<stop; ++k) {
-                    myiterator->advance_idx(&bit_changed,k);
+                // &thiterators,&thcostcomputers,previous_projection_column,current_indexer
+                auto Map = [&](const long start, const long stop, const int thid, ff::ff_buffernode &node) {
+                    //std::cerr << "PF map body thread" << thid << " (native " << ff_getThreadID() << " ) ";
+                    //std::cerr << "start " << start << " stop " << stop << "\n";
+                    //std::cerr.flush();
                     
-                    if (bit_changed >= 0) mycost_computer.update_partitioning(bit_changed);
-                    else mycost_computer.set_partitioning(0);
-                    
-                    cost=0;
-                    if (previous_projection_column.get() != nullptr)
-                        cost += previous_projection_column->at(myiterator->get_backward_projection());
-                    cost += mycost_computer.get_cost();
-                    
-                    forward_index = myiterator->get_forward_projection();
-                    thcurrent_projection_column->push_back(ff_task_t(forward_index,myiterator->get_index(),cost));
-                    //printf("thid=%d [%d, %d,%u,%u]\n",thid, bit_changed, cost, myiterator->get_index(), forward_index);
-                }
-                node.put(thcurrent_projection_column);
-                myiterator->reset(current_indexer);
-                
-            };
-            auto Reduce = [&](std::vector<ff_task_t> *v) {
-                //std::cerr << "PF reduce body thread native " << ff_getThreadID() << "\n";
-                
-                const std::vector<ff_task_t> &V = *v;
-                for(size_t j=0;j<V.size();++j) {
-                    const unsigned int forward_index = V[j].forward_index;
-                    const unsigned int cost          = V[j].cost;
-                    if (current_projection_column->at(forward_index) > cost) {
-                        current_projection_column->at(forward_index) = cost;
-                        backtrace_column->at(forward_index) = V[j].index;
-                    }
-                }
-                delete v;
-            };
-            
-            if (notlast) {
-
-                pf.parallel_reduce_idx(0, iterator->get_length(),1,  adj_chunksize, Map, Reduce, pardegree);
-                
-                
-#if defined(COLUMN_TIME)
-                long b = ff::getusec();
-                //totsize += colsize;
-                printf("(*)lenght=%d \t time=%g \t col_size=%ld \t tot_size=%ld (MB)\n", iterator->get_length(),
-                        (double)(b-a)/1000.0, colsize/1048576, totsize/1048576);
-#endif
-            } else {
-                
-                std::vector<unsigned int> local_idx_min(pardegree); // numthreads to be uniform
-                //std::cerr << "LAST\n";
-                // Currently forced to sequential, probably the parallel execution has data races
-                pf.parallel_for_idx(0, iterator->get_length(),1,0, [&](const long start, const long stop, const int thid, ff::ff_buffernode &) {
                     if (start == stop) return;
+                    //std::cerr << "PF map body thread" << thid << " (native " << ff_getThreadID() << " )\n";
                     
-                    ColumnIndexingIterator *myiterator   = thiterators[thid];
-                    ColumnCostComputer &mycost_computer  = *(thcostcomputers[thid]);
+                    ColumnIndexingIterator *myiterator                 = thiterators[thid];
+                    ColumnCostComputer &mycost_computer                = *(thcostcomputers[thid]);
                     
-                    unsigned int localidxmin=0;
+                    unsigned int cost, forward_index;
                     int bit_changed = -1;
                     if (start>0) {
                         myiterator->advance_idx(&bit_changed,start-1);
                         mycost_computer.set_partitioning(myiterator->get_partition());
-                        localidxmin = myiterator->get_index();
-                    } else localidxmin = 0;
-                    for(long k=start; k<stop; ++k) {
-                        
-                        myiterator->advance_idx(&bit_changed, k);
-                        if (bit_changed >= 0)
-                            mycost_computer.update_partitioning(bit_changed);
-                        else
-                            mycost_computer.set_partitioning(0);
-                        
-                        
-                        unsigned int cost = previous_projection_column->at(myiterator->get_backward_projection());
-                        cost += mycost_computer.get_cost();
-                        dp_column[myiterator->get_index()] = cost;
-                        if (dp_column[localidxmin] > cost) localidxmin = myiterator->get_index();
-                        //printf("thid=%d [%d, %d,%u,- (%u --> dp_column[localmin]=%u)]\n",thid, bit_changed, cost, myiterator->get_index(), localidxmin, (localidxmin>=0)?dp_column[localidxmin]:-1);
+                        //std::cerr << "Partition " << myiterator->get_partition() << "\n";
                     }
-                    local_idx_min[thid]=localidxmin;
-                }, 1 /* pardegree */);
+                    
+                    
+                    std::vector<ff_task_t> *thcurrent_projection_column = new std::vector<ff_task_t>;
+                    thcurrent_projection_column->reserve(stop-start);
+                    colsize = sizeof(ff_task_t)*stop-start;
+                    
+                    for(long k=start; k<stop; ++k) {
+                        myiterator->advance_idx(&bit_changed,k);
+                        
+                        if (bit_changed >= 0) mycost_computer.update_partitioning(bit_changed);
+                        else mycost_computer.set_partitioning(0);
+                        
+                        cost=0;
+                        if (previous_projection_column.get() != nullptr)
+                            cost += previous_projection_column->at(myiterator->get_backward_projection());
+                        cost += mycost_computer.get_cost();
+                        
+                        forward_index = myiterator->get_forward_projection();
+                        thcurrent_projection_column->push_back(ff_task_t(forward_index,myiterator->get_index(),cost));
+                        //printf("thid=%d [%d, %d,%u,%u]\n",thid, bit_changed, cost, myiterator->get_index(), forward_index);
+                    }
+                    node.put(thcurrent_projection_column);
+                    myiterator->reset(current_indexer);
+                    
+                };
+                auto Reduce = [&](std::vector<ff_task_t> *v) {
+                    //std::cerr << "PF reduce body thread native " << ff_getThreadID() << "\n";
+                    
+                    const std::vector<ff_task_t> &V = *v;
+                    for(size_t j=0;j<V.size();++j) {
+                        const unsigned int forward_index = V[j].forward_index;
+                        const unsigned int cost          = V[j].cost;
+                        if (current_projection_column->at(forward_index) > cost) {
+                            current_projection_column->at(forward_index) = cost;
+                            backtrace_column->at(forward_index) = V[j].index;
+                        }
+                    }
+                    delete v;
+                };
                 
-                
-                /*
-                 printf("pardegree %ld local_idx_min[0]=%ld, local_idx_min[1]=%ld\n", pardegree,local_idx_min[0], local_idx_min[1]);
-                 for(size_t m=0;m<dp_column.size();++m) {
-                 printf(" [%u]  ", dp_column[m]);
-                 }
-                 printf("\n");
-                 */
-                
-                running_optimal_score_index =local_idx_min[0];
-                for(size_t i=1;i<pardegree;++i) {
-                    if (dp_column[local_idx_min[i]] < dp_column[running_optimal_score_index])
-                        running_optimal_score_index = local_idx_min[i];
-                }
+                if (notlast) {
+                    if (pardegree>1)
+                        pf.parallel_reduce_idx(0, iterator->get_length(),1,  adj_chunksize, Map, Reduce, pardegree);
+                    else {
+                        ColumnCostComputer cost_computer(&(*current_column), all_heterozygous);
+                        while (iterator->has_next()) {
+                            int bit_changed = -1;
+                            iterator->advance(&bit_changed);
+                            if (bit_changed >= 0) {
+                                cost_computer.update_partitioning(bit_changed);
+                            } else {
+                                cost_computer.set_partitioning(iterator->get_partition());
+                                if(next_column.get() == 0) { // only if we're at the last column
+                                    running_optimal_score_index = iterator->get_index(); // default to first
+                                }
+                            }
+                            
+                            unsigned int cost = 0;
+                            if (previous_projection_column.get() != 0) {
+                                cost += previous_projection_column->at(iterator->get_backward_projection());
+                            }
+                            
+                            
+                            cost += cost_computer.get_cost();
+                            dp_column[iterator->get_index()] = cost;
+                            // if not last DP column, then update forward projection column and backtrace column
+                            if (next_column.get() == 0) {
+                                // update running optimal score index
+                                if (cost < dp_column[running_optimal_score_index]) {
+                                    running_optimal_score_index = iterator->get_index();
+                                }
+                            } else {
+                                unsigned int forward_index = iterator->get_forward_projection();
+                                if (current_projection_column->at(forward_index) > cost) {
+                                    current_projection_column->at(forward_index) = cost;
+                                    backtrace_column->at(forward_index) = iterator->get_index();
+                                }
+                            }
+                        }
+                        
+                    }
 #if defined(COLUMN_TIME)
-                //totsize += colsize;
-                printf("(*LAST)lenght=%d \t time=%g \t col_size=%ld \t tot_size=%ld\n", iterator->get_length(),(double)(ff::getusec()-a)/1000.0,
-                        colsize/1048576, totsize/1048576);
+                    long b = ff::getusec();
+                    //totsize += colsize;
+                    printf("(*)lenght=%d \t time=%g \t col_size=%ld \t tot_size=%ld (MB)\n", iterator->get_length(),
+                           (double)(b-a)/1000.0, colsize/1048576, totsize/1048576);
 #endif
-            }
+                } else {
+                    
+                    std::vector<unsigned int> local_idx_min(pardegree); // numthreads to be uniform
+                    //std::cerr << "LAST\n";
+                    // Currently forced to sequential, probably the parallel execution has data races
+                    pf.parallel_for_idx(0, iterator->get_length(),1,0, [&](const long start, const long stop, const int thid, ff::ff_buffernode &) {
+                        if (start == stop) return;
+                        
+                        ColumnIndexingIterator *myiterator   = thiterators[thid];
+                        ColumnCostComputer &mycost_computer  = *(thcostcomputers[thid]);
+                        
+                        unsigned int localidxmin=0;
+                        int bit_changed = -1;
+                        if (start>0) {
+                            myiterator->advance_idx(&bit_changed,start-1);
+                            mycost_computer.set_partitioning(myiterator->get_partition());
+                            localidxmin = myiterator->get_index();
+                        } else localidxmin = 0;
+                        for(long k=start; k<stop; ++k) {
+                            
+                            myiterator->advance_idx(&bit_changed, k);
+                            if (bit_changed >= 0)
+                                mycost_computer.update_partitioning(bit_changed);
+                            else
+                                mycost_computer.set_partitioning(0);
+                            
+                            
+                            unsigned int cost = previous_projection_column->at(myiterator->get_backward_projection());
+                            cost += mycost_computer.get_cost();
+                            dp_column[myiterator->get_index()] = cost;
+                            if (dp_column[localidxmin] > cost) localidxmin = myiterator->get_index();
+                            //printf("thid=%d [%d, %d,%u,- (%u --> dp_column[localmin]=%u)]\n",thid, bit_changed, cost, myiterator->get_index(), localidxmin, (localidxmin>=0)?dp_column[localidxmin]:-1);
+                        }
+                        local_idx_min[thid]=localidxmin;
+                    }, 1 /* pardegree */);
+                    
+                    
+                    /*
+                     printf("pardegree %ld local_idx_min[0]=%ld, local_idx_min[1]=%ld\n", pardegree,local_idx_min[0], local_idx_min[1]);
+                     for(size_t m=0;m<dp_column.size();++m) {
+                     printf(" [%u]  ", dp_column[m]);
+                     }
+                     printf("\n");
+                     */
+                    
+                    running_optimal_score_index =local_idx_min[0];
+                    for(size_t i=1;i<pardegree;++i) {
+                        if (dp_column[local_idx_min[i]] < dp_column[running_optimal_score_index])
+                            running_optimal_score_index = local_idx_min[i];
+                    }
+#if defined(COLUMN_TIME)
+                    //totsize += colsize;
+                    printf("(*LAST)lenght=%d \t time=%g \t col_size=%ld \t tot_size=%ld\n", iterator->get_length(),(double)(ff::getusec()-a)/1000.0,
+                           colsize/1048576, totsize/1048576);
+#endif
+                }
             }
         }
 #else // FF_PARALLEL
@@ -445,7 +481,7 @@ void DPTable::compute_table() {
             long b = getusec();
             printf("(*)lenght=%ld \ttime=%g\n", iterator->get_length(), (double)(b-a)/1000.0);
 #endif
-
+            
             // db
 #ifdef DB
             cout << endl;
