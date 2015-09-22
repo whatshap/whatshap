@@ -41,7 +41,7 @@ def vcf_sample_reader(path, sample=None):
 		sample = samples[0]
 		sample_index = 0
 		if len(samples) > 1:
-			logger.warn("More than one sample found in the VCF file, will work "
+			logger.warning("More than one sample found in the VCF file, will work "
 				"only on the first one (%s).", sample)
 	else:
 		try:
@@ -221,7 +221,7 @@ class PhasedVcfWriter:
 				if i == sample_index:
 					if (hasattr(call.data, 'HP') and call.data.HP is not None
 							and not self._hp_found_warned):
-						logger.warn('Ignoring existing phasing information '
+						logger.warning('Ignoring existing phasing information '
 							'found in input VCF (HP tag exists).')
 						self._hp_found_warned = True
 					# Set or overwrite HP tag
