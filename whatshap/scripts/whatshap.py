@@ -397,7 +397,67 @@ def ensure_pysam_version():
 		sys.exit("WhatsHap requires pysam >= 0.8.1")
 
 
-def analyze_readset(sliced_reads, list_of_bam, connectivity,score):
+def union_sets(index, connection_list, connectivity):
+	'''Recursive method which builds the union of the sets in the connection_list
+    with index lower than the given index, and which fullfill the given connectivity.
+    Result is the connection_list with disjoint sets'''
+	print('Union_sets')
+	print(connection_list)
+	# variable to go over the whole list recursively
+	i = index - 1
+	while (i != -1):
+		actual_set = connection_list[index]
+		former_set = connection_list[i]
+
+		if len(actual_set.intersection(former_set)) >= connectivity:
+			new_union = actual_set.union(former_set)
+			connection_list[i] = new_union
+			connection_list.pop(index)
+			#recursivley check for the sets before the union...
+			connection_list = union_sets(i, connection_list, connectivity)
+			index -= 1
+		i -= 1
+	return connection_list
+
+
+def check_for_connectivity(read_positions, List_of_connections, connectivity):
+	connection_found = False
+	print('List_of_connections')
+	print(List_of_connections)
+	#
+	if len(List_of_connections) > 0:
+		#stores the indices with which the read has connected and also the values of the intersection
+		connections = []
+		for i_c, c in enumerate(List_of_connections):
+			#look if connection criteria is fullfilled
+			if len(c.intersection(read_positions)) >= connectivity:
+				#intersect_value=c.intersection(read_positions)
+				union_of_those_sets = c.union(read_positions)
+				List_of_connections[i_c] = union_of_those_sets
+				#store the indices where in the original list of connection a change has
+				# taken place so that later the union set could be called
+				connections.append((i_c, union_of_those_sets))
+				connection_found = True
+
+		#Could only occure in this setting
+		if connection_found:
+			print('DECISION CONNECTION  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+			for (ic, union) in connections:
+				actual_index_of_element = List_of_connections.index(union)
+				union_sets(actual_index_of_element, List_of_connections, connectivity)
+		else:
+			print('In FIRST ELSE No Connection')
+			#In Order to remove double occurences
+			if read_positions not in List_of_connections:
+				List_of_connections.append(read_positions)
+	else:
+		print('In SECOND ELSE EMpty Connection')
+		List_of_connections.append(read_positions)
+
+	return List_of_connections
+
+
+def analyze_readset(sliced_reads, list_of_bam, connectivity, score):
 	print('Working directory')
 	print(os.getcwd())
 	f = open('Analyzefile.unique_extension', 'w')
@@ -418,10 +478,11 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity,score):
 	f.write(str(length_readset))
 	f.write("\n")
 
+	List_of_connections = []
 	connected_blocks = {}
 	while i != len(sliced_reads):
 		positions = [variant.position for variant in sliced_reads[i] if variant.position in important_positions]
-		#here the merging of only reads which share one component, could not be updated by the connectivity factor
+		# here the merging of only reads which share one component, could not be updated by the connectivity factor
 		for position in positions[1:]:
 			component_finder.merge(positions[0], position)
 		components = {position: component_finder.find(position) for position in important_positions}
@@ -430,33 +491,152 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity,score):
 		read_positions = set(positions)
 		#if there is something in the connected blocks, so not the first entry
 
-		decision_connection = False
-		if len(connected_blocks) > 1:
-			#boolean if it is connected to some former entry
+		List_of_connections = check_for_connectivity(read_positions, List_of_connections, connectivity)
+		print('LIST OF CONNECITONS')
+		print(List_of_connections)
+		#
+		# #still a boolean if a connection in this read is found
+		# decision_connection = False
+		# #store the blocks
+		# dict_for_intersection_values = {}
+		# if len(List_of_connections) > 0:
+		# 	#stores the indices with which the read has connected and also the values of the intersection
+		# 	connections = []
+		# 	for i_c, c in enumerate(List_of_connections):
+		# 		print('positions and c')
+		# 		print(read_positions)
+		# 		print(c)
+		# 		#look if connection criteria is fullfilled
+		# 		if len(c.intersection(read_positions)) >= connectivity:
+		# 			print('IN SECOND IF')
+		# 			intersect_value = c.intersection(read_positions)
+        #
+        #
+		# 			#	intersect_val=str(intersect_value)
+		# 			#	if intersect_val in dict_for_intersection_values:
+		# 			#		dict_for_intersection_values[intersect_val] +=1
+		# 			#	else:
+		# 			#		dict_for_intersection_values[intersect_val] =1
+        #
+		# 			connections.append((i_c, intersect_value))
+        #
+        #
+		# 			#Merge the read with the set in the  List
+		# 			#print('c.union(read_positions)')
+		# 			#print(c.union(read_positions))
+		# 			#List_of_connections.pop(i_c)
+		# 			#List_of_connections.append(c.union(read_positions))
+        #
+        #
+        #
+		# 			decision_connection = True
+        #
+		# 	#Could only occure in this setting
+		# 	if decision_connection:
+		# 		print('DECISION CONNECTION  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+		# 		for (i_c, value) in connections:
+		# 			print('List_of_connection at start')
+		# 			print(List_of_connections)
+		# 			first_set = List_of_connections[i_c]
+		# 			print('FIRST SET')
+		# 			print(first_set)
+		# 			union_of_those_sets = first_set.union(read_positions)
+		# 			print('Union_of sets')
+		# 			print(union_of_those_sets)
+		# 			List_of_connections[i_c] = union_of_those_sets
+		# 			print('List of connection after union')
+		# 			print(List_of_connections)
+		# 			if str(value) in dict_for_intersection_values:
+		# 				print('Founr Some Intersection with more than 1 ')
+		# 				dict_for_intersection_values[str(value)] += 1
+		# 				print('VALUE for storing in dict')
+		# 				print(value)
+		# 			#former_list=to_check_for_merge[str(value)]
+		# 			#new_list=former_list.add(i_c)
+		# 			#to_check_for_merge[str(value)]=new_list
+        #
+		# 			else:
+		# 				print('Foun no intersection')
+		# 				dict_for_intersection_values[str(value)] = 1
+        #
+        #
+		# 			#Need to look if the value which are used for combination are used more than one time
+		# 			#TODO Other dict_for_intersection_values[value ].... The new is wrotm
+		# 			#				for value_for_intersect in dict_for_intersection_values:
+		# 			#					if (value_for_intersect > 1):
+		# 			#						print('FOUND SOME INTERSECTION WITH MORE THAN 2')
+		# 			#					else:
+		# 			#						print('FouND NO INTERSECTION ')
+        #
+        #
+        #
+        #
+        #
+		# 	else:
+		# 		print('In SECOND ELSE')
+		# 		List_of_connections.append(read_positions)
+		# 	print('Dictionary')
+		# 	print(dict_for_intersection_values)
+        #
+        #
+        #
+		# #For the first read in the readset
+		# else:
+		# 	#print('IN FIRST ELSE')
+		# 	List_of_connections.append(read_positions)
+        #
+        #
+        #
+        #
+        #
+        #
+        #
+        #
+        #
+        #
+        #
 
-			#stores the indices of the block, which have later to be merges together....
-			connection_indices = []
-			#look at every entry of the block an look if it intersects with the newly read positions
-			for j in connected_blocks:
-
-				if len(connected_blocks[j].intersection(read_positions)) >= connectivity:
-					#found some overlap which is larger or equal the connectivity
-					decision_connection = True
-					#add index of the indey which have to be merged with the read to the list.
-					connection_indices.append(j)
-		else:
-			#append read_position on the blocks if there is no connection possible with the former members of the block
-			connected_blocks[len(connected_blocks)] = read_positions
 
 
-		if decision_connection:
-			#ifthere indexes are stored which have to be merged:
-			to_merged_set=read_positions
-			for index in connection_indices:
-				#merge all positions in the connected blocks together and add it later again at the end
-				to_merged_set=to_merged_set.union(connected_blocks[index])
-				del connected_blocks[index]
-			connected_blocks[len(connected_blocks)]=to_merged_set
+
+		#TODO : HERE something went wrong dont get the same result for connectivity 1 as with the component_finder
+        #
+        #
+		# decision_connection = False
+		# #only the first one has to be definitly in the connected_ block,,,, therefore
+		# if len(connected_blocks) > 0:
+		# 	print('In FIRST IF')
+		# 	#boolean if it is connected to some former entry
+        #
+		# 	#stores the indices of the block, which have later to be merges together....
+		# 	connection_indices = []
+		# 	#look at every entry of the block an look if it intersects with the newly read positions
+		# 	for j in connected_blocks:
+        #
+		# 		if len(connected_blocks[j].intersection(read_positions)) >= connectivity:
+		# 			print('In SECOND If')
+		# 			#found some overlap which is larger or equal the connectivity
+		# 			decision_connection = True
+		# 			#add index of the indey which have to be merged with the read to the list.
+		# 			connection_indices.append(j)
+		# else:
+		# 	print('In FIRST ELSE')
+		# 	#append read_position on the blocks if there is no connection possible with the former members of the block
+		# 	connected_blocks[len(connected_blocks)] = read_positions
+        #
+        #
+		# if decision_connection:
+		# 	print('IN IF WITH BOOLEAN TRUE ')
+		# 	#ifthere indexes are stored which have to be merged:
+		# 	to_merged_set=read_positions
+		# 	for index in connection_indices:
+		# 		#merge all positions in the connected blocks together and add it later again at the end
+		# 		to_merged_set=to_merged_set.union(connected_blocks[index])
+		# 		#TODO VERMUTE HIER GEHT WAS SCHIEF
+		# 		del connected_blocks[index]
+		# 	connected_blocks[len(connected_blocks)]=to_merged_set
+		# else:
+		# 	connected_blocks[len(connected_blocks)]=read_positions
 
 		f.write("Read")
 		f.write(str(i))
@@ -479,7 +659,7 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity,score):
 
 	# k=0
 	# while k != len(sliced_reads):
-	# 	#at the moment the same informations as in line 427 above
+	# #at the moment the same informations as in line 427 above
 	# 	#positions = [variant.position for variant in sliced_reads[k] if variant.position in important_positions]
 	# 	read_positions = set(positions)
 	# 	#if there is something in the connected blocks, so not the first entry
@@ -517,9 +697,9 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity,score):
 	# 	k=k+1
 	f.write('Connected Blocks by given Connectivity')
 	f.write("\n")
-	f.write(str(connected_blocks))
+	f.write(str(List_of_connections))
+	#f.write(str(connected_blocks))
 	f.write("\n")
-
 
 	f.write('Blocks (always with connectivity 1)')
 	f.write("\n")
@@ -620,14 +800,15 @@ def run_whatshap(bam, vcf,
 					read.sort()
 				# Sort reads in read set by position
 				reads.sort()
-				#defined as 0 at the moment
-				score_selection=score
+				# defined as 0 at the moment
+				score_selection = score
 				#TODO: Now time for finding listofbam included into slicing time
 				if analyze:
 					selected_reads, uninformative_read_count, listofbam = readselection(reads, max_coverage, bridge,
-																						analyze,score_selection)
+																						analyze, score_selection)
 				else:
-					selected_reads, uninformative_read_count = readselection(reads, max_coverage, bridge, analyze,score_selection)
+					selected_reads, uninformative_read_count = readselection(reads, max_coverage, bridge, analyze,
+																			 score_selection)
 				sliced_reads = reads.subset(selected_reads)
 
 				position_list = reads.get_positions()
@@ -663,7 +844,7 @@ def run_whatshap(bam, vcf,
 			with timers('analyzing'):
 				logger.info('Writing different options in seperate file for later analysis')
 				if analyze:
-					analyze_readset(sliced_reads, listofbam, connectivity,score)
+					analyze_readset(sliced_reads, listofbam, connectivity, score)
 			with timers('phase'):
 				logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 				# Run the core algorithm: construct DP table ...
@@ -765,7 +946,7 @@ def main():
 	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
 						help='Write reads that have been used for phasing to haplotype-specific BAM files. '
 							 'Creates PREFIX.1.bam and PREFIX.2.bam')
-	parser.add_argument('--connectivity', metavar='CONECT', default=1,type=int,
+	parser.add_argument('--connectivity', metavar='CONECT', default=1, type=int,
 						help='Sets value of connectivity between reads in the'
 							 '  unity of overlapping variants (default: %(default)s)')
 	parser.add_argument('--bridging', dest='bridge', default=False, action='store_true',
