@@ -27,8 +27,8 @@ Open Source software under the MIT license and we welcome contributions.
 	incomplete, not all features that we would like to have for an initial
 	release are there, and there are probably bugs.
 
-Parallel Version
-----------------
+Parallel Version: pWhatsHap
+---------------------------
 A parallelization of the core dynamic programming algorithm has been described in 
 
     M. Aldinucci, A. Bracciali, T. Marschall, M. Patterson, N. Pisanti, M. Torquati. 
