@@ -38,7 +38,7 @@ cdef priority_type_ptr _update_score_for_reads(priority_type_ptr former_score, R
 	result.push_back(quality)
 	return result
 
-
+#TODO nor working method here
 def _compute_score_depending_on_quality_only (readset,index,vcf_indices):
 	'''Method which computes anothe readscore depending only in the quality,mor precisely the
 	score of the read is the average quality in the read over all SNP positions covered by the read'''
@@ -89,7 +89,8 @@ cdef priority_type_ptr _compute_score_for_read(ReadSet* readset, int index, vcf_
 	result.push_back(min_quality)
 	return result
 
-cdef priority_type_ptr _compute_score_for_longer_reads(ReadSet* readset, int index, vcf_indices):
+#TODO work also here
+cdef priority_type_ptr _compute_score_including_map_qual(ReadSet* readset, int index, vcf_indices):
 	'''Alternative score, maybe for longer reads, just for slicing experiments,and for checking if selection in
 	the argument parser works.
 	Using only a single score of the number of covered SNPs, but inserted into tupel
@@ -97,16 +98,23 @@ cdef priority_type_ptr _compute_score_for_longer_reads(ReadSet* readset, int ind
 	only allows that, has to be redone.
 	'''
 	cdef Read* read = readset.get(index)
-	#cdef int min_quality = -1
-	#cdef int good_score = 0
-	#cdef int bad_score = 0
-	#cdef int quality = -1
-	#cdef int pos = -1
+	#Getting the map_quality of a read in form of a vector
+	mapquality=read.getMapqs()
+	print("MApQuality")
+	print(mapquality)
+	cdef int min_quality = -1
+	cdef int good_score = 0
+	cdef int bad_score = 0
+	cdef int quality = -1
+	cdef int pos = -1
 	cdef int score
 	covered_SNPS = []
 	for i in range(read.getVariantCount()):
-		#quality = read.getVariantQuality(i)
+		quality = read.getVariantQuality(i)
 		pos = read.getPosition(i)
+		print('Quality_of_variant')
+		print(pos)
+		print(quality)
 		#if i == 0:
 		#	min_quality = quality
 		#else:
@@ -117,8 +125,8 @@ cdef priority_type_ptr _compute_score_for_longer_reads(ReadSet* readset, int ind
 			#_score represents how many SNPs are really covered
 			score += 1
 	#bad_score here means number of SNPs which are not covered...
-	#if len(covered_SNPS) != (covered_SNPS[len(covered_SNPS) - 1] - covered_SNPS[0] + 1):
-	#	bad_score = (covered_SNPS[len(covered_SNPS) - 1] - covered_SNPS[0] + 1) - len(covered_SNPS)
+	if len(covered_SNPS) != (covered_SNPS[len(covered_SNPS) - 1] - covered_SNPS[0] + 1):
+		bad_score = (covered_SNPS[len(covered_SNPS) - 1] - covered_SNPS[0] + 1) - len(covered_SNPS)
 	cdef priority_type_ptr result = new priority_type()
 	#initially new_score is the same as good_score, but new_score is updated later
 	#result.push_back(good_score - bad_score)
@@ -148,7 +156,7 @@ cdef PriorityQueue _construct_priorityqueue(ReadSet* readset, read_indices, vcf_
 		if score_selection==0:
 			computed_score = _compute_score_for_read(readset, index, vcf_indices)
 		else:
-			computed_score = _compute_score_for_longer_reads(readset, index, vcf_indices)
+			computed_score = _compute_score_including_map_qual(readset, index, vcf_indices)
 		#computed_score = _compute_score_for_longer_reads(readset, index, vcf_indices)
 		priorityqueue.c_push(computed_score, index)
 

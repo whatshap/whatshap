@@ -401,8 +401,8 @@ def union_sets(index, connection_list, connectivity):
 	'''Recursive method which builds the union of the sets in the connection_list
     with index lower than the given index, and which fullfill the given connectivity.
     Result is the connection_list with disjoint sets'''
-	print('Union_sets')
-	print(connection_list)
+	#print('Union_sets')
+	#print(connection_list)
 	# variable to go over the whole list recursively
 	i = index - 1
 	while (i != -1):
@@ -422,8 +422,8 @@ def union_sets(index, connection_list, connectivity):
 
 def check_for_connectivity(read_positions, List_of_connections, connectivity):
 	connection_found = False
-	print('List_of_connections')
-	print(List_of_connections)
+	#print('List_of_connections')
+	#print(List_of_connections)
 	#
 	if len(List_of_connections) > 0:
 		#stores the indices with which the read has connected and also the values of the intersection
@@ -441,17 +441,17 @@ def check_for_connectivity(read_positions, List_of_connections, connectivity):
 
 		#Could only occure in this setting
 		if connection_found:
-			print('DECISION CONNECTION  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+			#print('DECISION CONNECTION  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
 			for (ic, union) in connections:
 				actual_index_of_element = List_of_connections.index(union)
 				union_sets(actual_index_of_element, List_of_connections, connectivity)
 		else:
-			print('In FIRST ELSE No Connection')
+			#print('In FIRST ELSE No Connection')
 			#In Order to remove double occurences
 			if read_positions not in List_of_connections:
 				List_of_connections.append(read_positions)
 	else:
-		print('In SECOND ELSE EMpty Connection')
+		#print('In SECOND ELSE EMpty Connection')
 		List_of_connections.append(read_positions)
 
 	return List_of_connections
@@ -492,8 +492,8 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score):
 		#if there is something in the connected blocks, so not the first entry
 
 		List_of_connections = check_for_connectivity(read_positions, List_of_connections, connectivity)
-		print('LIST OF CONNECITONS')
-		print(List_of_connections)
+		#print('LIST OF CONNECITONS')
+		#print(List_of_connections)
 		#
 		# #still a boolean if a connection in this read is found
 		# decision_connection = False
