@@ -82,15 +82,6 @@ class one_d_range_tree:
 
         tree_list=self.build_list(readset)
         full_tree=self.discover_double_and_sibling(tree_list)
-        print('tree_list')
-        for i in range(0,len(full_tree)):
-            val=tree_list[i].get_value()
-            sib=tree_list[i].get_sibling()
-            print('val & sib')
-            print(val)
-            print(sib)
-
-
 
     def build_list(self,_ana_readset):
         '''Building up the list of the nodes representing the reads...'''
@@ -105,10 +96,6 @@ class one_d_range_tree:
             #initialize the nodes with the position and the position of the sibling
             firs_Node=Leaf_node(first_pos.position,last_pos.position)
             seco_Node= Leaf_node(last_pos.position,first_pos.position)
-            print('Need to look if the positions in the sibling object of the read change with the removing of the double occurences should be no problem because we store positions and not indices ')
-            print('First Node : own position  and sibling position')
-            print(first_pos.position)
-            print(last_pos.position)
             list_for_reads.append(firs_Node)
             list_for_reads.append(seco_Node)
 
@@ -121,155 +108,54 @@ class one_d_range_tree:
         '''
         Detects double occuring leaf nodes erases later and includes the siblings of the erased nodes to the remaining node,
         :param sorted_list: the list of Leaf nodes out of the given readset
-        :return: list of leaf nodes with unique leafs and stored siblings
+        :return: list of leaf nodes with unique leafs and stored siblings and coverage
         '''
-        need_to_remove=[]
         need_to_remove2=[]
 
         #Not know if coverage count is needed here
         coverage_count=0
-        #TODO : Not known if needed
-        min_cov_in_the_range= 0
-        max_cov_in_the_range=0
-        unique_node_val= (0,0)
-        Going_on = True
 
         #Go over the leaf nodes
-
-        ##TRY ALTERNATIVe :
         iterable=0
-        print('ITERABLE')
+        #print('ITERABLE')
         while iterable !=len(sorted_list):
-            print('In WHILE Loop')
-            print(sorted_list[iterable].get_value())
             iter_val= sorted_list[iterable].get_value()
-            coverage_need_to_decrease=0
+            #coverage_need_to_decrease=0
 
             #increase coverage if the new node is a start point of some kind of thing
             if (iter_val)<(sorted_list[iterable].get_sibling()[0]):
                 coverage_count +=1
-            else:
-                coverage_need_to_decrease+=1
 
             new_var= iterable+1
-
+            coverage_counter= 0
             while (new_var!= len(sorted_list) and iter_val==sorted_list[new_var].get_value() ):
-                print('In WHIle LOOP WHILE DOUNF DOUBLE ')
-                new_var +=1
-                #start
+
                 #If new node start position increase value else remeber to decreas it again.
                 if (sorted_list[new_var].get_value())<(sorted_list[new_var].get_sibling()[0]):
                     coverage_count +=1
                 else:
-                    coverage_need_to_decrease +=1
-
+                    coverage_counter+=1
                 sorted_list[iterable].add_sibling(sorted_list[new_var].get_sibling())
                 if new_var not in need_to_remove2:
                     need_to_remove2.append(new_var)
-            print('Found folloing coverage')
-            print(coverage_count)
-            coverage_count=coverage_count-coverage_need_to_decrease
+                new_var +=1
 
+            #Set coverage of the node
+            sorted_list[iterable].set_coverage(coverage_count)
+            #Reduce counter by the value of the nodes which end in this position
+            coverage_count=coverage_count-coverage_counter
+
+            #decrease score if it is the end of the read
+            if (iter_val)>(sorted_list[iterable].get_sibling()[0]):
+                coverage_count -=1
 
             #setting iterable to the point where no doubles occure
             iterable=new_var
-        print()
 
         for returned_index in range(0,len(need_to_remove2)):
             to_remove=need_to_remove2.pop()
             sorted_list.pop(to_remove)
-        #print('Print i s siblings' )
-        #for i in range(0,len(sorted_list)):
-        #    print(sorted_list[i].get_sibling())
         return sorted_list
-
-
-Without_Bridging
-
-
-'''
-        for i in range(0,len(sorted_list)):
-            print('len(sorted_list)')
-            print(len(sorted_list))
-            #print(sorted_list[len(sorted_list)])
-            print('I in first for loop')
-            print(i)
-            print(coverage_count)
-            #first position Node :
-            actual_val= sorted_list[i].get_value()
-
-
-            if actual_val !=(unique_node_val[0]):
-                print('In If unique node val')
-                print(unique_node_val)
-
-            #so the actual_val represents a start position
-            if (actual_val)<(sorted_list[i].get_sibling()[0]):
-                coverage_count +=1
-            print('After adding coverage')
-            print(coverage_count)
-            unique_node_val= (actual_val,coverage_count)
-            #define a new Node
-            j=i+1
-            #while nodes with same postion exists, then we need to remove them from the list of leaves and store the sibling
-            #in a list
-            if j !=len(sorted_list):
-                while (sorted_list[j].get_value()==actual_val):
-                    unique_node_val=(actual_val,coverage_count+1)
-                    #improve COVerage
-                    #TODO Try here like on the block !!!!
-
-                    coverage_count+=1
-                    #print('Append j at the moment')
-                    #print(j)
-                    #need_to_remove.append(j)
-                    sorted_list[i].add_sibling(sorted_list[j].get_sibling())
-                    if j not in need_to_remove:
-                        #print('In if case')
-                        need_to_remove.append(j)
-                    j+=1
-                    #print('I and J in the while loop')
-                    #print(i)
-                    #print(j)
-                    #print('New j ')
-                    #print(j)#
-
-
-            #means you are at the right border of the read so the coverage has to be decrease
-            if (actual_val)>(sorted_list[i].get_sibling()[0] and sorted_list[i+1].get_value()!= actual_val):
-                coverage_count -=1
-            print('After removing cov')
-            print(coverage_count)
-
-
-            #if no double occurences then add 1 otherwise skip the one double occuring
-            #i=j
-            #print('new i')
-            #print(i)
-        print('Last unique node')
-        print(unique_node_val)
-        #print('NEED TO REMOVE IT ')
-        #print(need_to_remove)
-
-        for returned_index in range(0,len(need_to_remove)):
-            #print('returned_index')
-            to_remove=need_to_remove.pop()
-            #sorted_list[to_remove]
-            #need_to_remove.remove(sorted_list[to_remove])
-            #print(need_to_remove)
-
-            #print(to_remove)
-            #print(need_to_remove)
-            sorted_list.pop(to_remove)
-
-        #print('Print i s siblings' )
-        #for i in range(0,len(sorted_list)):
-        #    print(sorted_list[i].get_sibling())
-
-'''
-
-
-
 
 
 #Nodes represent Nodes in the binary search tree.
@@ -298,6 +184,9 @@ class Leaf_node:
         #Does not work with len(self.sibling) because then the coverage from other reads which do not start or end there is neglected,
         self.balance=0
         self.parent=parent
+
+    def set_coverage(self,coverage):
+        self.coverage=coverage
 
 
     def get_parent(self):
