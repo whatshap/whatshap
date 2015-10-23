@@ -86,11 +86,11 @@ class one_d_range_tree:
         #Need to know if we got uneven number of leaf nodes, after the first layer because then we need to change the structure
 
         layer_array=[]
-        print('CALLING BST %d' %(len(full_tree)-1))
         complete_tree=self.building_BST_from_leaf_list(0,len(full_tree)-1,layer_array,full_tree)
-        for i in layer_array:
-            print('i.get_coverage()')
-            print(i.get_coverage())
+        self.complete_tree=complete_tree
+
+    def get_complete_tree(self):
+        return self.complete_tree
 
     def build_list(self,_ana_readset):
         '''Building up the list of the nodes representing the reads...'''
@@ -184,11 +184,6 @@ class one_d_range_tree:
             (mini,maxi)=self.coverage_of_range(start,end,node_list)
             root_node=BST_node(mini,maxi)
             arr.append(root_node)
-            print('Start %d' %start)
-            print('Middle %d' %middel)
-            print('End %d' %end)
-            print('root_node.get_coverage()')
-            print(root_node.get_coverage())
             root_node.set_left_child(self.building_BST_from_leaf_list(start,middel,arr,node_list))
 
             root_node.set_right_child(self.building_BST_from_leaf_list(middel+1,end,arr,node_list))
@@ -269,7 +264,6 @@ class one_d_range_tree:
             #if Leaf nodes
             if (nodelist[i].isLeaf()):
                 coverage=nodelist[i].get_coverage()
-                print('Leaf node  coverage %d' %coverage)
                 if coverage>maximum:
                     maximum=coverage
                 else:
@@ -278,7 +272,6 @@ class one_d_range_tree:
             #if inner nodes, we have 2 coverages
             else:
                 (min_cov,max_cov)=nodelist[i].get_coverage()
-                print('Inner node %d' %coverage)
                 if min_cov<minimum :
                     minimum=min_cov
                 if max_cov>maximum:
@@ -304,6 +297,20 @@ class BST_node:
     def set_right_child(self,right_Node):
         self.right_child=right_Node
 
+    def get_left_child(self):
+        return self.left_child
+
+    def get_right_child(self):
+        return self.right_child
+
+    def get_balance(self):
+        return self.balance
+
+    def get_min_coverage(self):
+        return self.min_coverage
+
+    def get_max_coverage(self):
+        return self.max_coverage
 
 
 class Leaf_node:
