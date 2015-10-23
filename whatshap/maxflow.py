@@ -28,7 +28,7 @@ def is_crucial(self, read):
     return False
 
 
-def min_cov(start, end):
+def get_min_cov(start, end):
     '''
     returns the minimum coverage in the given interval
     :param start: start position of the interval represents a variant position
@@ -39,7 +39,7 @@ def min_cov(start, end):
     return minimum_cov
 
 
-def max_cov(start, end, max_cov):
+def get_max_cov(start, end, max_cov):
     '''
     returns the maximum coverage in the given interval
     :param start: start position of the interval represents a variant position
@@ -82,6 +82,15 @@ class one_d_range_tree:
 
         tree_list=self.build_list(readset)
         full_tree=self.discover_double_and_sibling(tree_list)
+        #new_tree=self.develop_layer(full_tree)
+        #Need to know if we got uneven number of leaf nodes, after the first layer because then we need to change the structure
+
+        layer_array=[]
+        print('CALLING BST %d' %(len(full_tree)-1))
+        complete_tree=self.building_BST_from_leaf_list(0,len(full_tree)-1,layer_array,full_tree)
+        for i in layer_array:
+            print('i.get_coverage()')
+            print(i.get_coverage())
 
     def build_list(self,_ana_readset):
         '''Building up the list of the nodes representing the reads...'''
@@ -157,9 +166,145 @@ class one_d_range_tree:
             sorted_list.pop(to_remove)
         return sorted_list
 
+    def next_layer(self,Going_on,start,tree_list):
+        return 0
+
+    def building_BST_from_leaf_list(self,start,end,arr,node_list):
+        #print('BST building start %d' %start )
+        #print('BST building end %d' %end )
+
+        if (start>end):
+            return 0
+        if (start==end):
+            #root_node=node_list[start]
+            return node_list[start]
+        else:
+            middel= int((start+end)/2)
+            #print('BST Middle %d' %middel)
+            (mini,maxi)=self.coverage_of_range(start,end,node_list)
+            root_node=BST_node(mini,maxi)
+            arr.append(root_node)
+            print('Start %d' %start)
+            print('Middle %d' %middel)
+            print('End %d' %end)
+            print('root_node.get_coverage()')
+            print(root_node.get_coverage())
+            root_node.set_left_child(self.building_BST_from_leaf_list(start,middel,arr,node_list))
+
+            root_node.set_right_child(self.building_BST_from_leaf_list(middel+1,end,arr,node_list))
+
+            return root_node
+
+
+
+
+    #Probably not needed
+    def develop_layer(self,node_list):
+        '''
+
+        :param node_list:
+        :return:
+        '''
+        last_layer=len(node_list)
+        print('last layer  %d' %last_layer)
+        parent_node_list=[]
+        parent_node_list=[]
+
+        #for i in range(0,len(node_list),2):
+        #    print('In Range')
+        #    print(i)
+        #    print(node_list[i].get_value())
+        #    print(node_list[i+1].get_coverage())
+
+        i=0
+        runvariable=0
+
+        while i<last_layer:
+            print('WHILE %d'% i )
+            first_node= node_list[i]
+            second_node=node_list[i+1]
+            #coverage_1=first_node.get_coverage()
+            parent_node=Inner_node(first_node,second_node,first_node.get_coverage(),second_node.get_coverage())
+            first_node.set_leaf_node_attributes(last_layer+runvariable)
+            second_node.set_leaf_node_attributes(last_layer+runvariable)
+
+            parent_node_list.append(parent_node)
+            i+=2
+            #runvariable represents the index in the second list  which is later concatenated
+            runvariable+=1
+
+        for parent in parent_node_list:
+            print(parent.get_min_cov())
+            print(parent.get_max_cov())
+        print('Leafnodes')
+        for leafnodes in node_list:
+            print(leafnodes.get_value())
+            print(leafnodes.get_parent())
+
+        print('NEW LAYER LIST ')
+        new_layer_list=node_list + parent_node_list
+        p=0
+        for k in new_layer_list:
+            print('K is leaf %d' %k.isLeaf())
+            if k.isLeaf():
+                print(p)
+                print(k.get_value())
+            else:
+                print(p)
+                print(k.get_min_cov())
+            p +=1
+        print(new_layer_list)
+
+        return node_list
+
+
+    def coverage_of_range(self,start,stop,nodelist):
+        #initializing max and min coverage by -1 because the coverage could not be negativebut minimum has to be high
+        maximum = -1
+        minimum = 50
+        #go over the nodelist
+        #Need to add 1 because in the loop the last element is not considered
+        for i in range(start,stop+1):
+
+            #if Leaf nodes
+            if (nodelist[i].isLeaf()):
+                coverage=nodelist[i].get_coverage()
+                print('Leaf node  coverage %d' %coverage)
+                if coverage>maximum:
+                    maximum=coverage
+                else:
+                    if coverage<minimum:
+                        minimum=coverage
+            #if inner nodes, we have 2 coverages
+            else:
+                (min_cov,max_cov)=nodelist[i].get_coverage()
+                print('Inner node %d' %coverage)
+                if min_cov<minimum :
+                    minimum=min_cov
+                if max_cov>maximum:
+                    maximum=max_cov
+        return (minimum,maximum)
 
 #Nodes represent Nodes in the binary search tree.
 #Differentiate between inner nodes and leaf nodes
+
+
+class BST_node:
+    def __init__(self,minimum,maximum):
+        self.balance=0
+        self.min_coverage=minimum
+        self.max_coverage=maximum
+
+    def get_coverage(self):
+        return (self.min_coverage,self.max_coverage)
+
+    def set_left_child(self,left_Node):
+        self.left_child=left_Node
+
+    def set_right_child(self,right_Node):
+        self.right_child=right_Node
+
+
 
 class Leaf_node:
     def __init__(self,value, sibling):
@@ -174,16 +319,16 @@ class Leaf_node:
         adding_sibling.append(sibling)
         self.sibling=adding_sibling
 
-    def set_leaf_node_attributes(self, parent,coverage):
+    def set_leaf_node_attributes(self, parent):
         '''Setting the node attributes
         Coverage is exactly the number of sibling the node has
         :param parent: The index of the parent node in the array
         :return
         '''
-        self.coverage =coverage
-        #Does not work with len(self.sibling) because then the coverage from other reads which do not start or end there is neglected,
         self.balance=0
         self.parent=parent
+
+#Does not work with len(self.sibling) because then the coverage from other reads which do not start or end there is neglected,
 
     def set_coverage(self,coverage):
         self.coverage=coverage
@@ -210,6 +355,9 @@ class Leaf_node:
         for i in value_list:
             adding_sibling.append(i)
         self.sibling = adding_sibling
+
+    def isLeaf(self):
+        return True
 
 
 class Inner_node:
@@ -240,12 +388,12 @@ class Inner_node:
         return self.min_cov
 
     def get_max_cov(self):
-        return self.max_cov()
+        return self.max_cov
 
     def get_balance(self):
         return self.balance
 
-    def parent(self):
+    def get_parent(self):
         return self.parent
 
     def get_left_child(self):
@@ -253,4 +401,10 @@ class Inner_node:
 
     def get_right_child(self):
         self.right
+
+    def get_coverage(self):
+        return (min_cov , max_cov)
+
+    def isLeaf(self):
+        return False
 
