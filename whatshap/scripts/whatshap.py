@@ -410,9 +410,14 @@ def union_sets(index, connection_list, connectivity):
 		print('Length of connection list %d' %len(connection_list))
 		print('Index : %d' %index)
 		actual_set = connection_list[index]
+		print('Actual set ')
+		print(actual_set)
 		former_set = connection_list[i]
+		print('former set')
+		print(former_set)
 
 		if len(actual_set.intersection(former_set)) >= connectivity:
+			print('In if intersection')
 			new_union = actual_set.union(former_set)
 			connection_list[i] = new_union
 			connection_list.pop(index)
@@ -420,6 +425,8 @@ def union_sets(index, connection_list, connectivity):
 			connection_list = union_sets(i, connection_list, connectivity)
 			index -= 1
 		i -= 1
+	print('Returning connection list')
+	print(connection_list)
 	return connection_list
 
 
@@ -429,10 +436,12 @@ def check_for_connectivity(read_positions, List_of_connections, connectivity):
 	#print(List_of_connections)
 	#
 	if len(List_of_connections) > 0:
+		print('length od List of connection %d' %(len(List_of_connections)))
 		#stores the indices with which the read has connected and also the values of the intersection
 		connections = []
 		for i_c, c in enumerate(List_of_connections):
 			#look if connection criteria is fullfilled
+			print('Index of connection in connectin list %d' %i_c)
 			if len(c.intersection(read_positions)) >= connectivity:
 				#intersect_value=c.intersection(read_positions)
 				union_of_those_sets = c.union(read_positions)
@@ -445,10 +454,28 @@ def check_for_connectivity(read_positions, List_of_connections, connectivity):
 		#Could only occure in this setting
 		if connection_found:
 			#print('DECISION CONNECTION  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+			list_of_actual_found_indices=[]
 			for (ic, union) in connections:
+				print('IC in the connection list now  %d' %ic )
+				print('Union')
+				print(union)
+				print('Actual List_of_connections')
+				print(List_of_connections)
 				actual_index_of_element = List_of_connections.index(union)
 				print('ACTUAL INDEX OF ELEMENT_ before calling union sets %d' %actual_index_of_element)
-				union_sets(actual_index_of_element, List_of_connections, connectivity)
+
+				#means we have a set which occures more than once in the connection list
+				if actual_index_of_element in list_of_actual_found_indices:
+					print('Found double sets')
+					List_of_connections.remove(union)
+					new_actual_index_of_element=List_of_connections.index(union)
+					union_sets(new_actual_index_of_element, List_of_connections, connectivity)
+
+
+				else:
+					union_sets(actual_index_of_element, List_of_connections, connectivity)
+				list_of_actual_found_indices.append(actual_index_of_element)
+
 		else:
 			#print('In FIRST ELSE No Connection')
 			#In Order to remove double occurences

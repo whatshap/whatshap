@@ -370,6 +370,7 @@ def test_connectivity_paired_end2_analysis():
     assert len(List_of_connections[2])==2
     print('List_of_connections after R3')
     print(List_of_connections)
+    print('Befor insertign R4')
     List_of_connections=check_for_connectivity(set(read_positions_r4), List_of_connections, connectivity)
     print('List_of_connections after R4')
     print(List_of_connections)
