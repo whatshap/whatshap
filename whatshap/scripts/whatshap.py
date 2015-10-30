@@ -400,48 +400,65 @@ def ensure_pysam_version():
 def union_sets(index, connection_list, connectivity):
 	'''Recursive method which builds the union of the sets in the connection_list
     with index lower than the given index, and which fullfill the given connectivity.
-    Result is the connection_list with disjoint sets'''
+    Result is the connection_list with disjoint sets
+    union is the combined element which was found'''
 	#print('Union_sets')
 	# variable to go over the whole list recursively
+	#print('Index %d ' %index)
 	i = index - 1
+	#print('I vor while %d' %i)
 #	while (i != -1 and (index <=(len(connection_list)-1)) and ((i<=len(connection_list)-1))):
-	while (i != -1 ):
+	while (i > -1 ):
+		#print('In While, index %d'%index )
+		#print('In While i : %d' %i)
 		#print(connection_list)
-		print('Length of connection list %d' %len(connection_list))
-		print('Index : %d' %index)
+		#print('Length of connection list %d' %len(connection_list))
+		#print('Index : %d' %index)
 		actual_set = connection_list[index]
-		print('Actual set ')
-		print(actual_set)
+		#print('Actual set ')
+		#print(actual_set)
 		former_set = connection_list[i]
-		print('former set')
-		print(former_set)
+		#print('former set')
+		#print(former_set)
 
 		if len(actual_set.intersection(former_set)) >= connectivity:
-			print('In if intersection')
+			#print('In if intersection')
 			new_union = actual_set.union(former_set)
 			connection_list[i] = new_union
 			connection_list.pop(index)
 			#recursivley check for the sets before the union...
-			connection_list = union_sets(i, connection_list, connectivity)
-			index -= 1
+			length_of_connection_list_before_recursion=len(connection_list)
+			#print('length_of_connection_list_before_recursion %d' %length_of_connection_list_before_recursion)
+			(connection_list,i) = union_sets(i, connection_list, connectivity)
+			length_of_connection_list_after_recursion=len(connection_list)
+			#print('length_of_connection_list_after_recursion %d' %length_of_connection_list_after_recursion)
+
+
+			index = i
 		i -= 1
-	print('Returning connection list')
-	print(connection_list)
-	return connection_list
+	#print('Returning connection list')
+	#print(connection_list)
+
+	#Idee is to consider also the index which is then reduced in the recursive union set
+	return (connection_list,i)
 
 
 def check_for_connectivity(read_positions, List_of_connections, connectivity):
+	'''
+
+	:param read_positions: set of positions in one read, which should be connected to the blocks
+	:param List_of_connections: list of blocks
+	:param connectivity: The connectivity factor so after which amount of overalpping position the reads are connected as
+	a block
+	:return: The new changed List_of_connection , which represents the blocks corresponding to the connectivity
+	'''
 	connection_found = False
-	#print('List_of_connections')
-	#print(List_of_connections)
-	#
 	if len(List_of_connections) > 0:
-		print('length od List of connection %d' %(len(List_of_connections)))
 		#stores the indices with which the read has connected and also the values of the intersection
 		connections = []
 		for i_c, c in enumerate(List_of_connections):
 			#look if connection criteria is fullfilled
-			print('Index of connection in connectin list %d' %i_c)
+			#print('Index of connection in connectin list %d' %i_c)
 			if len(c.intersection(read_positions)) >= connectivity:
 				#intersect_value=c.intersection(read_positions)
 				union_of_those_sets = c.union(read_positions)
@@ -457,23 +474,27 @@ def check_for_connectivity(read_positions, List_of_connections, connectivity):
 			list_of_actual_found_indices=[]
 			for (ic, union) in connections:
 				print('IC in the connection list now  %d' %ic )
-				print('Union')
-				print(union)
-				print('Actual List_of_connections')
-				print(List_of_connections)
+				#print('Union')
+				#print(union)
+				#print('Actual List_of_connections')
+				#print(List_of_connections)
 				actual_index_of_element = List_of_connections.index(union)
-				print('ACTUAL INDEX OF ELEMENT_ before calling union sets %d' %actual_index_of_element)
-
+				#print('ACTUAL INDEX OF ELEMENT_ before calling union sets %d' %actual_index_of_element)
+				#print(List_of_connections[actual_index_of_element])
 				#means we have a set which occures more than once in the connection list
 				if actual_index_of_element in list_of_actual_found_indices:
-					print('Found double sets')
+					#print('Found double sets')
 					List_of_connections.remove(union)
-					new_actual_index_of_element=List_of_connections.index(union)
-					union_sets(new_actual_index_of_element, List_of_connections, connectivity)
+					print('Length of List of Connection %d' %(len(List_of_connections)))
+					#If the former foubnd index is higher as the length then there was already a removal so it has not to
+					#be considered again
+					if (ic<=len(List_of_connections)):
+						new_actual_index_of_element=List_of_connections.index(union)
+						(List_of_connections,index)=union_sets(new_actual_index_of_element, List_of_connections, connectivity)
 
 
 				else:
-					union_sets(actual_index_of_element, List_of_connections, connectivity)
+					(List_of_connections,index)=union_sets(actual_index_of_element, List_of_connections, connectivity)
 				list_of_actual_found_indices.append(actual_index_of_element)
 
 		else:
@@ -482,7 +503,7 @@ def check_for_connectivity(read_positions, List_of_connections, connectivity):
 			if read_positions not in List_of_connections:
 				List_of_connections.append(read_positions)
 	else:
-		#print('In SECOND ELSE EMpty Connection')
+		#Add the first set if list is still empty
 		List_of_connections.append(read_positions)
 
 	return List_of_connections
@@ -511,7 +532,6 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score):
 
 	List_of_connections = []
 	while i != len(sliced_reads):
-		print('While in sliced read %d' %i)
 		positions = [variant.position for variant in sliced_reads[i] if variant.position in important_positions]
 		# here the merging of only reads which share one component, could not be updated by the connectivity factor
 		for position in positions[1:]:
@@ -522,6 +542,7 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score):
 		read_positions = set(positions)
 		#if there is something in the connected blocks, so not the first entry
 
+		#List of blocks, where we add the positions of the read, the former produced list, and the connectivity factor
 		List_of_connections = check_for_connectivity(read_positions, List_of_connections, connectivity)
 
 		f.write("Read")
