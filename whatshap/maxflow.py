@@ -9,9 +9,9 @@ from whatshap._core import PyRead,PyReadSet
 
 #First like in the score_based approach and the random approach: Remove the reads which only cover one variant
 
-def __init__(self, pruned_readset, max_coverage):
-    self.pruned_readset = PyReadSet()
-    self.max_coverage = max_coverage
+#def __init__(self, pruned_readset, max_coverage):
+#    self.pruned_readset = PyReadSet()
+#    self.max_coverage = max_coverage
 
 
 def is_crucial(self, read):
@@ -22,8 +22,8 @@ def is_crucial(self, read):
     start_position = read.getposition()
     end_positions = read.getposition()
     #TODO Look again if it is really ceil
-    if min_cov(start_position, end_positions) <= math.ceil(
-                    max_cov(start_position, end_positions, self.max_coverage) / 2):
+    if get_min_cov(start_position, end_positions) <= math.ceil(
+                    get_max_cov(start_position, end_positions, self.max_coverage) / 2):
         self.pruned_readset.add(read)
     return False
 
@@ -88,9 +88,13 @@ class one_d_range_tree:
         layer_array=[]
         complete_tree=self.building_BST_from_leaf_list(0,len(full_tree)-1,layer_array,full_tree)
         self.complete_tree=complete_tree
+        self.leaf_list=full_tree
 
     def get_complete_tree(self):
         return self.complete_tree
+
+    def get_leaf_list_of_tree(self):
+        return self.leaf_list
 
     def build_list(self,_ana_readset):
         '''Building up the list of the nodes representing the reads...'''
@@ -184,9 +188,12 @@ class one_d_range_tree:
             (mini,maxi)=self.coverage_of_range(start,end,node_list)
             root_node=BST_node(mini,maxi)
             arr.append(root_node)
-            root_node.set_left_child(self.building_BST_from_leaf_list(start,middel,arr,node_list))
-
-            root_node.set_right_child(self.building_BST_from_leaf_list(middel+1,end,arr,node_list))
+            left_node=self.building_BST_from_leaf_list(start,middel,arr,node_list)
+            root_node.set_left_child(left_node)
+            left_node.set_parent(root_node)
+            right_node=self.building_BST_from_leaf_list(middel+1,end,arr,node_list)
+            root_node.set_right_child(right_node)
+            right_node.set_parent(root_node)
 
             return root_node
 
@@ -312,6 +319,33 @@ class BST_node:
     def get_max_coverage(self):
         return self.max_coverage
 
+    def set_parent(self,node):
+        self.parent= node
+
+    def get_all_leaf_nodes_of_subtree(self):
+        while not self.isLeaf():
+            print('In While loop')
+#            node=self.get_right_child()
+        #return self.get_coverage()
+        #Leaf_list=[]
+        #while not self.isLeaf():
+        #    rc=self.get_right_child()
+        #    lc=self.get_left_child()
+        #    list_rc=rc.get_all_leaf_nodes_of_subtree()
+        #    list_lc=lc.get_all_leaf_nodes_of_subtree()
+        #    Leaf_list.append(list_lc)
+        #    Leaf_list.append(list_rc)
+        #if self.isLeaf():
+        #    Leaf_list.append(self)
+        #return Leaf_list
+        return 0
+
+    def isLeaf(self):
+        return False
+
+    def return_node(self):
+        return self
+
 
 class Leaf_node:
     def __init__(self,value, sibling):
@@ -326,7 +360,7 @@ class Leaf_node:
         adding_sibling.append(sibling)
         self.sibling=adding_sibling
 
-    def set_leaf_node_attributes(self, parent):
+    def set_parent(self, parent):
         '''Setting the node attributes
         Coverage is exactly the number of sibling the node has
         :param parent: The index of the parent node in the array
@@ -365,6 +399,11 @@ class Leaf_node:
 
     def isLeaf(self):
         return True
+
+    def get_all_leaf_nodes_of_subtree(self):
+        empty_list=[]
+        return empty_list
+
 
 
 class Inner_node:

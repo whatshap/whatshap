@@ -396,7 +396,5 @@ def test_connection_by_deleting_elements():
      assert len(List_of_connection[1])==3
      assert len(List_of_connection[2])==2
      List_of_connection=check_for_connectivity(set(read_positions_r4),List_of_connection,connectivity)
-     print('List of Connections')
-     print(List_of_connection)
      assert len(List_of_connection)==1
      assert len(List_of_connection[0])==5

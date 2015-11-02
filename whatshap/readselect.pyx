@@ -102,6 +102,10 @@ cdef priority_type_ptr _compute_score_including_map_qual(ReadSet* readset, int i
 	mapquality=read.getMapqs()
 	print("MApQuality")
 	print(mapquality)
+	if (mapquality.front()==60):
+		print('FOUND')
+	else:
+		print('NOT FOUND')
 	cdef int min_quality = -1
 	cdef int good_score = 0
 	cdef int bad_score = 0
