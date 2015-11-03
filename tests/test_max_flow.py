@@ -82,20 +82,186 @@ def test_algo_by_mini_readset():
 
 
 
-def test_split_node():
-	reads = string_to_readset("""
-	  11
-	  000
+#def test_split_node():
+#	reads = string_to_readset("""
+#	  11
+#	  000
+#	   11
+#	    000
+#	     111
+#	""")
+#	tree=one_d_range_tree(reads)
+#	root_node=tree.get_complete_tree()
+#	leaf_list_of_tree=tree.get_leaf_list_of_tree()
+#	for i,l_node in enumerate(leaf_list_of_tree):
+#		print('Index of leaf_list %d'%i)
+#		print(l_node.get_coverage())
+#		print('Value of node %d'%l_node.get_value())
+#		print(l_node.get_parent().get_coverage())
+#
+#	assert 0==1
+
+#def test_algo_dev():
+#	reads=string_to_readset("""
+#	 111
+#	 00
+#	 11
+#	  111
+#	   00
+#	    11
+#	    0000
+#	      111
+#	      00
+#	       11
+#	""")
+#	tree=one_d_range_tree(reads)
+#	root_node=tree.get_complete_tree()
+#	leaf_list_of_tree=tree.get_leaf_list_of_tree()
+#	#go over leafs =reads
+#	for i,l_node in enumerate(leaf_list_of_tree):
+#		#print('Index of leaf_list %d'%i)
+#		#print(l_node.get_coverage())
+#		#print('Value of leaf node %d' %l_node.get_value())
+#		leaf_value=l_node.get_value()
+#		siblings=l_node.get_sibling()
+#		print('L_node . so read node coverage %d' %l_node.get_coverage())
+#		print('L_node . value %d' %leaf_value)
+#		#print('Siblings:')
+#		#print(siblings)
+#		new_sibling=sorted(siblings)
+#		#print(new_sibling)
+#		#look only at the start points
+#		only_end_points=[sib for sib in new_sibling if sib>leaf_value]
+#		for end_part_of_read in only_end_points:
+#			print('Leaf node%d'% end_part_of_read)
+#			value_of_sibling=end_part_of_read
+#			(split_node_of_read,List_to_change)=tree.get_split_node(l_node,value_of_sibling)
+#			print('Split node')
+#			print(split_node_of_read)
+##			if split_node_of_read !=None:
+#				print('Split node coverage')
+#				print(split_node_of_read.get_coverage())
+#				print('len of List to change by removal%d' %len(List_to_change))
+#				for i in List_to_change:
+#					print('List to change')
+#					print(i.get_coverage())
+#					print(i.get_balance())
+#		#print(only_end_points)
+#		#print('Only start points')
+#		#print(l_node.get_parent().get_coverage())
+
+
+def test_algo_on_small_example():
+	reads=string_to_readset("""
+	 111
+	 000
 	   11
-	    000
-	     111
+	    00
+	    11
 	""")
 	tree=one_d_range_tree(reads)
 	root_node=tree.get_complete_tree()
 	leaf_list_of_tree=tree.get_leaf_list_of_tree()
-	for i,l_node in enumerate(leaf_list_of_tree):
-		print('Index of leaf_list %d'%i)
-		print(l_node.get_coverage())
-		print(l_node.get_parent().get_coverage())
+	#go over leafs =reads
 
-	assert 0==1
+	leaf_value=leaf_list_of_tree[0].get_value()
+	siblings=leaf_list_of_tree[0].get_sibling()
+	only_end_points=[sib for sib in siblings if sib>leaf_value]
+	assert only_end_points[0]==30
+	assert only_end_points[1]==30
+	(split_node_of_read,List_to_change)=tree.get_split_node(leaf_list_of_tree[0],only_end_points[0])
+	assert split_node_of_read.get_coverage()==(2,3)
+	assert split_node_of_read.get_right_child().get_value()==30
+	(split_node_of_read,List_to_change)=tree.get_split_node(leaf_list_of_tree[0],only_end_points[1])
+	assert split_node_of_read.get_coverage()==(2,3)
+	assert split_node_of_read.get_right_child().get_value()==30
+
+	leaf_value=leaf_list_of_tree[1].get_value()
+	siblings=leaf_list_of_tree[1].get_sibling()
+	only_end_points=[sib for sib in siblings if sib>leaf_value]
+	assert only_end_points[0]==40
+	(split_node_of_read,List_to_change)=tree.get_split_node(leaf_list_of_tree[1],only_end_points[0])
+	assert split_node_of_read.get_coverage()==(2,3)
+	assert split_node_of_read==root_node
+
+
+
+
+def test_get_Leaf_nodes_of_subtree():
+	reads=string_to_readset("""
+	 111
+	 00
+	 11
+	  111
+	   00
+	    11
+	    0000
+	      111
+	      00
+	       11
+	""")
+	tree=one_d_range_tree(reads)
+	root_node=tree.get_complete_tree()
+	empyt_list=[]
+	List_ofLeafs=root_node.get_Leaf_nodes_of_subtree(empyt_list)
+	assert List_ofLeafs.pop().get_value()==10
+	assert List_ofLeafs.pop().get_value()==20
+	assert List_ofLeafs.pop().get_value()==30
+	assert List_ofLeafs.pop().get_value()==40
+	assert List_ofLeafs.pop().get_value()==50
+	assert List_ofLeafs.pop().get_value()==60
+	assert List_ofLeafs.pop().get_value()==70
+	assert List_ofLeafs.pop().get_value()==80
+	assert len(List_ofLeafs)==0
+	l_child_of_root=root_node.get_left_child()
+	List_ofLeafs= l_child_of_root.get_Leaf_nodes_of_subtree(List_ofLeafs)
+	assert len(List_ofLeafs)==4
+	assert List_ofLeafs.pop().get_value()==10
+	assert List_ofLeafs.pop().get_value()==20
+	assert List_ofLeafs.pop().get_value()==30
+	assert List_ofLeafs.pop().get_value()==40
+	assert len(List_ofLeafs)==0
+	r_child_of_l_child=l_child_of_root.get_right_child()
+	List_ofLeafs= r_child_of_l_child.get_Leaf_nodes_of_subtree(List_ofLeafs)
+	assert len(List_ofLeafs)==2
+	assert List_ofLeafs.pop().get_value()==30
+	assert List_ofLeafs.pop().get_value()==40
+
+def test_get_Leaf_nodes_of_subtree_2():
+	reads=string_to_readset("""
+	 111
+	 00
+	 11
+	  11
+	      111
+	      00
+	       11
+	""")
+	tree=one_d_range_tree(reads)
+	root_node=tree.get_complete_tree()
+	empyt_list=[]
+	List_ofLeafs=root_node.get_Leaf_nodes_of_subtree(empyt_list)
+	assert List_ofLeafs.pop().get_value()==10
+	assert List_ofLeafs.pop().get_value()==20
+	assert List_ofLeafs.pop().get_value()==30
+	assert List_ofLeafs.pop().get_value()==60
+	assert List_ofLeafs.pop().get_value()==70
+	assert List_ofLeafs.pop().get_value()==80
+	assert len(List_ofLeafs)==0
+	l_child_of_root=root_node.get_left_child()
+	List_ofLeafs= l_child_of_root.get_Leaf_nodes_of_subtree(List_ofLeafs)
+	print('Length of List_of_leafs')
+	print(len(List_ofLeafs))
+	for i in List_ofLeafs:
+		print(i.get_value())
+	assert len(List_ofLeafs)==3
+	assert List_ofLeafs.pop().get_value()==10
+	assert List_ofLeafs.pop().get_value()==20
+	assert List_ofLeafs.pop().get_value()==30
+	assert len(List_ofLeafs)==0
+	l_child_of_l_child=l_child_of_root.get_left_child()
+	List_ofLeafs= l_child_of_l_child.get_Leaf_nodes_of_subtree(List_ofLeafs)
+	assert len(List_ofLeafs)==2
+	assert List_ofLeafs.pop().get_value()==10
+	assert List_ofLeafs.pop().get_value()==20
+

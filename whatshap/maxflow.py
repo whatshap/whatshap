@@ -199,6 +199,37 @@ class one_d_range_tree:
 
 
 
+    def get_split_node(self,start_node,value_of_sibling):
+        '''returns the split node, and a  list of nodes which coverage or balance maybe has to be updated, when the read is deleted'''
+        List_of_Leafs=[]
+        List_of_nodes_to_change_by_removal=[]
+        Found_split_node=False
+        split_node= None
+        while not Found_split_node:
+            List_of_Leafs=[]
+            p_node=start_node.get_parent()
+            List_of_nodes_to_change_by_removal.append(p_node)
+            r_child=p_node.get_right_child()
+            Found_leaf_list=r_child.get_Leaf_nodes_of_subtree(List_of_Leafs)
+            Found_leaf_list_values=[leaf.get_value() for leaf in Found_leaf_list]
+            if value_of_sibling in Found_leaf_list_values:
+                print('In if')
+                Found_split_node=True
+                split_node=p_node
+            else:
+                print('In else')
+                start_node=p_node
+            print('Hi')
+            print('Start Node coverage: ')
+            print(start_node.get_coverage())
+            #To get only one iteration
+            #Found_split_node=True
+        return (split_node,List_of_nodes_to_change_by_removal)
+
+
+
+
+
 
     #Probably not needed
     def develop_layer(self,node_list):
@@ -273,9 +304,8 @@ class one_d_range_tree:
                 coverage=nodelist[i].get_coverage()
                 if coverage>maximum:
                     maximum=coverage
-                else:
-                    if coverage<minimum:
-                        minimum=coverage
+                if coverage<minimum:
+                    minimum=coverage
             #if inner nodes, we have 2 coverages
             else:
                 (min_cov,max_cov)=nodelist[i].get_coverage()
@@ -322,6 +352,9 @@ class BST_node:
     def set_parent(self,node):
         self.parent= node
 
+    def get_parent(self):
+        return self.parent
+
     def get_all_leaf_nodes_of_subtree(self):
         while not self.isLeaf():
             print('In While loop')
@@ -344,7 +377,27 @@ class BST_node:
         return False
 
     def return_node(self):
+
         return self
+
+    def get_Leaf_nodes_of_subtree(self,List_of_Leafs):
+        '''
+        :param List_of_Leafs: Gets an List of Leafs which are already discovered
+        :return:List of Leafes of the childs of this node
+        '''
+        r_child=self.get_right_child()
+        l_child=self.get_left_child()
+        if r_child.isLeaf():
+            List_of_Leafs.append(r_child)
+        else:
+            r_child.get_Leaf_nodes_of_subtree(List_of_Leafs)
+        if l_child.isLeaf():
+            List_of_Leafs.append(l_child)
+        else:
+            l_child.get_Leaf_nodes_of_subtree(List_of_Leafs)
+        return List_of_Leafs
+
+
 
 
 class Leaf_node:
@@ -405,6 +458,14 @@ class Leaf_node:
         return empty_list
 
 
+
+    def get_Leaf_nodes_of_subtree(self,List_of_Leafs):
+        '''
+        :param List_of_Leafs: Gets an List of Leafs which are already discovered
+        :return:List of Leafes of the childs of this node
+        '''
+        List_of_Leafs.append(self)
+        return List_of_Leafs
 
 class Inner_node:
     def __init__(self,left_child,right_child,cov_1,cov_2):
