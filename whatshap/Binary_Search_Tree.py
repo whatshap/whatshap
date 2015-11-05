@@ -1,71 +1,165 @@
 import math
 from whatshap._core import PyRead,PyReadSet
-from whatshap.Binary_Search_Tree import Binary_Search_Tree
 
-
-
-
-
-
-
-
-
-# TODO
-#Implementation of the Interval scheduling problem described in the paper of Veli Mäkinen  "Interval scheduling maximizing minimum coverage "
-
-
-#IMPORTANT TO NOTICE: NOT SUITABLE FOR PAIRED END READS
-
-#First like in the score_based approach and the random approach: Remove the reads which only cover one variant
-
-#def __init__(self, pruned_readset, max_coverage):
-#    self.pruned_readset = PyReadSet()
-#    self.max_coverage = max_coverage
-
-
-#TODO:
-#Build up a perfect binary search tree with the delimiters of the intervals(so the reads) as leaves.
-
-#Because we need to keep track of the reads which cover the same regions like the reads discarderd (same problem like
-# we had in the priority queue) i implemented the Tree structure by myself with not only parent, siblings, which represent the reads covering this node
-#Additionally in the initialization each node stores one value its position and later the attributes are added
 
 
 
 #Before starting the algorithm we have to build up the binary search tree.
-class one_d_range_tree:
-    """
-	Defines a one dimensional range tree. This has the same structure as a binary search tree, with additional
-	properties in the nodes .This is the  minimum and the maximum coverage the balance.
+class Binary_Search_Tree:
 
-	Nodes ar distinguishedc to leaf nodes and inner nodes
-
-	Problem to deal with are the same coordinates or delimiters in the tree, e.g. Same start variant of a read.
-	The idea is to combine the nodes in the way that we have 1 node for all nodes starting at this positions.
-	The different reads are then captivated by the sibling attribute which stores the end of the read.
-	"""
-
-    def __init__(self, readset):
-
-        '''Build up an list out of the given readset which fullfills the characteristics of a binary search tree '''
-        #TODO Call function to construct the tree completely#
-        #for each read in readset we need 2 points, a start and an endpoint.
-
-        tree_list=self.build_list(readset)
-        full_tree=self.discover_double_and_sibling(tree_list)
-        #new_tree=self.develop_layer(full_tree)
-        #Need to know if we got uneven number of leaf nodes, after the first layer because then we need to change the structure
+    def __init__(self,readset):
+        '''Build up a binary search tree, with the attributes: Leaf_list and root_node'''
+        #Builds List of possible Leafes
+        node_list=self.build_list(readset)
+        #resolves double occuring nodes
+        leaf_list=self.discover_double_and_sibling(node_list)
 
         layer_array=[]
-        complete_tree=self.building_BST_from_leaf_list(0,len(full_tree)-1,layer_array,full_tree)
+        complete_tree=self.building_BST_from_leaf_list(0,len(leaf_list)-1,layer_array,leaf_list)
         self.complete_tree=complete_tree
-        self.leaf_list=full_tree
+        self.leaf_list=leaf_list
+
+
+    def build_list(self,_ana_readset):
+        '''Building up the list of the nodes representing the reads...'''
+        list_for_reads=[]
+         #removing reads which cover less than 2 variants
+        indices_of_reads = set(i for i, read in enumerate(_ana_readset) if len(read) >= 2)
+        for i in indices_of_reads:
+            read_of_index= _ana_readset[i]
+            first_pos=read_of_index[0]
+            last_pos=read_of_index[len(read_of_index)-1]
+            #Initialize the nodes by their value and the index,of the read, sonnect them by sibling
+            first_Node=Leaf_node(first_pos.position,i)
+            second_Node= Leaf_node(last_pos.position,i)
+            first_Node.set_sibling(second_Node)
+            second_Node.set_sibling(first_Node)
+            list_for_reads.append(first_Node)
+            list_for_reads.append(second_Node)
+        #sort the list for positions or values so that double occuring are in a row and could be removed
+        sorted_list=sorted(list_for_reads,key=lambda node :node.value)
+        return sorted_list
+
+    def discover_double_and_sibling(self,sorted_list):
+        '''
+        Detects double occuring leaf nodes erases later and includes the siblings of the erased nodes to the remaining node,
+        :param sorted_list: the list of Leaf nodes out of the given readset
+        :return: list of leaf nodes with unique leafs and stored siblings and coverage
+        '''
+        nodes_to_remove=[]
+        #count for keeping track of coverage
+        coverage_count=0
+
+        #Go over the leaf nodes
+        iter=0
+        while iter !=len(sorted_list):
+            iter_val= sorted_list[iter].get_value()
+            #increase coverage if the new node is a start point of a read
+            if (iter_val)<(sorted_list[iter].get_sibling()[0].get_value()):
+                coverage_count +=1
+
+            #looking at the next leaf node
+            new_var= iter+1
+            decrease_coverage_counter= 0
+            while (new_var!= len(sorted_list) and iter_val==sorted_list[new_var].get_value() ):
+
+                #If new node start position increase value else remember to decreas it again.
+                if (sorted_list[new_var].get_value())<(sorted_list[new_var].get_sibling()[0].get_value()):
+                    coverage_count +=1
+                else:
+                    decrease_coverage_counter+=1
+                sorted_list[iter].add_sibling(sorted_list[new_var].get_sibling())
+                if new_var not in nodes_to_remove:
+                    nodes_to_remove.append(new_var)
+                new_var +=1
+
+            #Set coverage of the node
+            sorted_list[iter].set_coverage(coverage_count)
+            #Reduce counter by the value of the nodes which end in this position
+            coverage_count=coverage_count-decrease_coverage_counter
+
+            #decrease score if it is the end of the read
+            if (iter_val)>(sorted_list[iter].get_sibling()[0].get_value()):
+                coverage_count -=1
+
+            #setting iterable to the point where no doubles occure
+            iter=new_var
+
+        for returned_index in range(0,len(nodes_to_remove)):
+            to_remove=nodes_to_remove.pop()
+            sorted_list.pop(to_remove)
+        return sorted_list
 
     def get_complete_tree(self):
         return self.complete_tree
 
     def get_leaf_list_of_tree(self):
         return self.leaf_list
+
+
+    def building_BST_from_leaf_list(self,start,end,arr,node_list):
+        '''
+        Bottom up method for constructing a balances binary seach tree with the corresponding coverage
+        :param start: integer with start point in the node_list
+        :param end: integer with end point in the list
+        :param arr: array representing the whole tree
+        :param node_list: list of leaf nodes
+        :return: The Tree structure, where we only get the roo_node as output.
+
+        '''
+
+        if (start>end):
+            return 0
+        if (start==end):
+            #root_node=node_list[start]
+            return node_list[start]
+        else:
+            middel= int((start+end)/2)
+            (mini,maxi)=self.coverage_of_range(start,end,node_list)
+            root_node=BST_node(mini,maxi)
+            arr.append(root_node)
+            left_node=self.building_BST_from_leaf_list(start,middel,arr,node_list)
+            root_node.set_left_child(left_node)
+            left_node.set_parent(root_node)
+            left_node.set_is_left_child()
+            right_node=self.building_BST_from_leaf_list(middel+1,end,arr,node_list)
+            root_node.set_right_child(right_node)
+            right_node.set_parent(root_node)
+            right_node.set_is_right_child()
+
+            return root_node
+
+
+    def coverage_of_range(self,start,stop,nodelist):
+        '''
+        Returns the minimum and maximum coverage in a specific range
+        '''
+        #initializing max and min coverage by -1 because the coverage could not be negative but minimum has to be high
+        maximum = -1
+        minimum = 50
+        #go over the nodelist
+        for i in range(start,stop+1):
+            if (nodelist[i].isLeaf()):
+                coverage=nodelist[i].get_coverage()
+                if coverage>maximum:
+                    maximum=coverage
+                if coverage<minimum:
+                    minimum=coverage
+            #if inner nodes, we have 2 coverages
+            else:
+                (min_cov,max_cov)=nodelist[i].get_coverage()
+                if min_cov<minimum :
+                    minimum=min_cov
+                if max_cov>maximum:
+                    maximum=max_cov
+        return (minimum,maximum)
+
+
+
+
+
+
+
 #TODO
     def is_crucial(self, read):
         '''
@@ -82,130 +176,7 @@ class one_d_range_tree:
         #return False
 
 
-    def get_min_cov(start, end):
-        '''
-        returns the minimum coverage in the given interval
-        :param start: start position of the interval represents a variant position
-        :param end: end position of the interval also equal a variant position
-        :return: integer which is the minimum coverage in the whole interval
-        '''
-        minimum_cov = 0
-        return minimum_cov
 
-
-    def get_max_cov(start, end, max_cov):
-        '''
-        returns the maximum coverage in the given interval
-        :param start: start position of the interval represents a variant position
-        :param end: end position of the interval also equal a variant position
-        :param max_cov: Given max_cov from whatshap call
-        :return: integer which is the maximum coverage in the whole interval, could maximal be the max_cov which was given
-         as parameter in the whatshap call
-        '''
-        maximum_cov = max_cov
-        return maximum_cov
-
-
-    def build_list(self,_ana_readset):
-        '''Building up the list of the nodes representing the reads...'''
-        list_for_reads=[]
-        #removing reads which cover less than 2 variants
-        indices_of_reads = set(i for i, read in enumerate(_ana_readset) if len(read) >= 2)
-        for i in indices_of_reads:
-
-            read_of_index= _ana_readset[i]
-            first_pos=read_of_index[0]
-            last_pos=read_of_index[len(read_of_index)-1]
-            #initialize the nodes with the position and the position of the sibling
-            firs_Node=Leaf_node(first_pos.position,last_pos.position)
-            seco_Node= Leaf_node(last_pos.position,first_pos.position)
-            list_for_reads.append(firs_Node)
-            list_for_reads.append(seco_Node)
-
-        #sort the list for positions or values so that double occuring are in a row and could be removed
-        sorted_list=sorted(list_for_reads,key=lambda node :node.value)
-        return sorted_list
-
-
-    def discover_double_and_sibling(self,sorted_list):
-        '''
-        Detects double occuring leaf nodes erases later and includes the siblings of the erased nodes to the remaining node,
-        :param sorted_list: the list of Leaf nodes out of the given readset
-        :return: list of leaf nodes with unique leafs and stored siblings and coverage
-        '''
-        need_to_remove2=[]
-
-        #Not know if coverage count is needed here
-        coverage_count=0
-
-        #Go over the leaf nodes
-        iterable=0
-        #print('ITERABLE')
-        while iterable !=len(sorted_list):
-            iter_val= sorted_list[iterable].get_value()
-            #coverage_need_to_decrease=0
-
-            #increase coverage if the new node is a start point of some kind of thing
-            if (iter_val)<(sorted_list[iterable].get_sibling()[0]):
-                coverage_count +=1
-
-            new_var= iterable+1
-            coverage_counter= 0
-            while (new_var!= len(sorted_list) and iter_val==sorted_list[new_var].get_value() ):
-
-                #If new node start position increase value else remeber to decreas it again.
-                if (sorted_list[new_var].get_value())<(sorted_list[new_var].get_sibling()[0]):
-                    coverage_count +=1
-                else:
-                    coverage_counter+=1
-                sorted_list[iterable].add_sibling(sorted_list[new_var].get_sibling())
-                if new_var not in need_to_remove2:
-                    need_to_remove2.append(new_var)
-                new_var +=1
-
-            #Set coverage of the node
-            sorted_list[iterable].set_coverage(coverage_count)
-            #Reduce counter by the value of the nodes which end in this position
-            coverage_count=coverage_count-coverage_counter
-
-            #decrease score if it is the end of the read
-            if (iter_val)>(sorted_list[iterable].get_sibling()[0]):
-                coverage_count -=1
-
-            #setting iterable to the point where no doubles occure
-            iterable=new_var
-
-        for returned_index in range(0,len(need_to_remove2)):
-            to_remove=need_to_remove2.pop()
-            sorted_list.pop(to_remove)
-        return sorted_list
-
-    def next_layer(self,Going_on,start,tree_list):
-        return 0
-
-    def building_BST_from_leaf_list(self,start,end,arr,node_list):
-        #print('BST building start %d' %start )
-        #print('BST building end %d' %end )
-
-        if (start>end):
-            return 0
-        if (start==end):
-            #root_node=node_list[start]
-            return node_list[start]
-        else:
-            middel= int((start+end)/2)
-            #print('BST Middle %d' %middel)
-            (mini,maxi)=self.coverage_of_range(start,end,node_list)
-            root_node=BST_node(mini,maxi)
-            arr.append(root_node)
-            left_node=self.building_BST_from_leaf_list(start,middel,arr,node_list)
-            root_node.set_left_child(left_node)
-            left_node.set_parent(root_node)
-            right_node=self.building_BST_from_leaf_list(middel+1,end,arr,node_list)
-            root_node.set_right_child(right_node)
-            right_node.set_parent(root_node)
-
-            return root_node
 
 
     def get_all_nodes_though_split_list(self,List_to_change,value_of_sibling):
@@ -276,13 +247,108 @@ class one_d_range_tree:
         :return: Nothing a changed tree with changed balance
         '''
         #List_of_nodes=self.get_all_nodes_in_the_subtree_without_Those_not_connected_to_sibling(split_node_of_read,value_of_sibling,List_to_change)
-        self.get_all_nodes_though_split_list(List_to_change,value_of_sibling)
+        self.get_all_nodes_though_split_list(List_to_change)
         return None
+
+
+    def search_for_node_in_subtree(self,end_node,parent_node,Found_node):
+        #returns a List_of nodes of the subtree, either the whole subtree or only a part, furthermore a boolean indicating
+        #if the node was found. and at last the start point of the search
+        #Stores the nodes whose balance should be updated if the read is rejected
+        List_of_nodes=[]
+        x=parent_node
+        while not x.isLeaf():
+            r_of_x=x.get_right_child()
+            x=r_of_x
+
+        if (x.get_value()==end_node.get_value()):
+            List_of_nodes_in_subtree =get__all_nodes(parent_node,List_of_nodes)
+            List_of_nodes.append(List_of_nodes_in_subtree)
+            Found_node=True
+            #In this case the parent_node is the seached split node
+            return (List_of_nodes_in_subtree,Found_node,parent_node)
+
+        #value of the rightmost child in the subtree has lower value then the searched node the end_node is not there
+        if (x.get_value()<end_node.get_value()):
+            List_of_nodes_in_subtree=get__all_nodes(parent_node,List_of_nodes)
+            List_of_nodes.append(List_of_nodes_in_subtree)
+            Found_node=False
+            return (List_of_nodes_in_subtree,Found_node,parent_node)
+        #end node has to be in the subtree of the parent node somewhere
+        else:
+            x_parent=x.get_parent()
+            l_of_p_of_x=x_parent.get_left_child()
+            #left_child_is aLeaft and has the value we have found the end node
+            #Should not do direct comparisoon because l_of_p_of_x could also be an inner node
+            if (l_of_p_of_x.isLeaf() and l_of_p_of_x.get_value()==end_node.get_value()):
+                List_of_nodes.add(end_node,l_of_p_of_x,x_parent)
+
+
+    def get__all_nodes(self,node,List_of_nodes):
+        '''
+        :param node: Start node of the search, could also be seen as the root
+        :return: Terurns of a node a list of all nodes in this tree
+        '''
+        while not node.isLeaf():
+            List_of_nodes.append(node)
+            r_child=List_of_nodes.get_right_child()
+            l_child=List_of_nodes.get_left_child()
+            List_of_nodes.append(self.get__all_nodes(r_child,List_of_nodes))
+            List_of_nodes.append(self.get__all_nodes(l_child,List_of_nodes))
+        List_of_nodes.append(node)
+        return List_of_nodes
+
+    def seach_for_split_node(self,start_node,end_node):
+        List_of_nodes=[]
+        List_of_nodes.append(start_node)
+        List_of_nodes.append(end_node)
+        not_found=False
+        split_node=None
+        while not_found:
+            #TODO have to check if it exists or if it is root.....
+            parent_start_node=start_node.get_parent()
+            grandparent_start_node=parent_start_node.get_parent()
+            parent_end_node=end_node.get_parent()
+            grandparent_end_node=parent_end_node.get_parent()
+            if parent_end_node==parent_start_node:
+                not_found=True
+                split_node=parent_end_node
+                List_of_nodes.append(parent_end_node)
+                #If the end node is a right child we have to add all nodes left of it also to the list
+                if end_node.is_right_child():
+                    e_list=[]
+                    Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),e_list)
+                    List_of_nodes.append(Nodes_of_the_right_child)
+                #if the start node is a left child we have to add all nodes right of it which do not include the end node
+                if start_node.is_left_child():
+                    e_list=[]
+                    Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),e_list)
+                    List_of_nodes.append(Nodes_of_the_left_child)
+
+            if parent_end_node==grandparent_start_node:
+                not_found=True
+                split_node=parent_end_node
+                List_of_nodes.append(parent_end_node)
+            if grandparent_end_node==parent_start_node:
+                not_found=True
+                split_node=parent_start_node
+                List_of_nodes.append(parent_start_node)
+            if grandparent_end_node==grandparent_start_node:
+                not_found=True
+                split_node=grandparent_end_node
+                List_of_nodes.append(grandparent_end_node)
+
+        return (split_node,List_of_nodes)
+
+
+
+
+
 
 
 #TODO it should be efficienter to store immediatly all nodes by the search for the split node
 
-    def get_split_node(self,start_node,value_of_sibling):
+    def get_split_node(self,start_node,end_node):
         '''returns the split node, and a  list of nodes which coverage or balance maybe has to be updated, when the read is deleted'''
         List_of_Leafs=[]
         List_of_nodes_to_change_by_removal=[]
@@ -295,7 +361,7 @@ class one_d_range_tree:
             r_child=p_node.get_right_child()
             Found_leaf_list=r_child.get_Leaf_nodes_of_subtree(List_of_Leafs)
             Found_leaf_list_values=[leaf.get_value() for leaf in Found_leaf_list]
-            if value_of_sibling in Found_leaf_list_values:
+            if end_node.get_value() in Found_leaf_list_values:
                 #print('In if')
                 Found_split_node=True
                 split_node=p_node
@@ -368,102 +434,15 @@ class one_d_range_tree:
 
 
 
-    #Probably not needed
-    def develop_layer(self,node_list):
-        '''
-
-        :param node_list:
-        :return:
-        '''
-        last_layer=len(node_list)
-        print('last layer  %d' %last_layer)
-        parent_node_list=[]
-        parent_node_list=[]
-
-        #for i in range(0,len(node_list),2):
-        #    print('In Range')
-        #    print(i)
-        #    print(node_list[i].get_value())
-        #    print(node_list[i+1].get_coverage())
-
-        i=0
-        runvariable=0
-
-        while i<last_layer:
-            print('WHILE %d'% i )
-            first_node= node_list[i]
-            second_node=node_list[i+1]
-            #coverage_1=first_node.get_coverage()
-            parent_node=Inner_node(first_node,second_node,first_node.get_coverage(),second_node.get_coverage())
-            first_node.set_leaf_node_attributes(last_layer+runvariable)
-            second_node.set_leaf_node_attributes(last_layer+runvariable)
-
-            parent_node_list.append(parent_node)
-            i+=2
-            #runvariable represents the index in the second list  which is later concatenated
-            runvariable+=1
-
-        for parent in parent_node_list:
-            print(parent.get_min_cov())
-            print(parent.get_max_cov())
-        print('Leafnodes')
-        for leafnodes in node_list:
-            print(leafnodes.get_value())
-            print(leafnodes.get_parent())
-
-        print('NEW LAYER LIST ')
-        new_layer_list=node_list + parent_node_list
-        p=0
-        for k in new_layer_list:
-            print('K is leaf %d' %k.isLeaf())
-            if k.isLeaf():
-                print(p)
-                print(k.get_value())
-            else:
-                print(p)
-                print(k.get_min_cov())
-            p +=1
-        print(new_layer_list)
-
-        return node_list
-
-
-    def coverage_of_range(self,start,stop,nodelist):
-        #initializing max and min coverage by -1 because the coverage could not be negativebut minimum has to be high
-        maximum = -1
-        minimum = 50
-        #go over the nodelist
-        #Need to add 1 because in the loop the last element is not considered
-        for i in range(start,stop+1):
-
-            #if Leaf nodes
-            if (nodelist[i].isLeaf()):
-                coverage=nodelist[i].get_coverage()
-                if coverage>maximum:
-                    maximum=coverage
-                if coverage<minimum:
-                    minimum=coverage
-            #if inner nodes, we have 2 coverages
-            else:
-                (min_cov,max_cov)=nodelist[i].get_coverage()
-                if min_cov<minimum :
-                    minimum=min_cov
-                if max_cov>maximum:
-                    maximum=max_cov
-        return (minimum,maximum)
-
-#Nodes represent Nodes in the binary search tree.
-#Differentiate between inner nodes and leaf nodes
 
 
 class BST_node:
+
     def __init__(self,minimum,maximum):
         self.balance=0
         self.min_coverage=minimum
         self.max_coverage=maximum
 
-    def get_coverage(self):
-        return (self.min_coverage,self.max_coverage)
 
     def set_left_child(self,left_Node):
         self.left_child=left_Node
@@ -471,27 +450,44 @@ class BST_node:
     def set_right_child(self,right_Node):
         self.right_child=right_Node
 
+    def set_is_left_child(self):
+        self.is_left_child=True
+        self.is_right_child=False
+
+    def set_is_right_child(self):
+        self.is_left_child=False
+        self.is_right_child=True
+
+    def set_balance(self,new_balance):
+        self.balance=new_balance
+
+    def set_parent(self,node):
+        self.parent= node
+
+
     def get_left_child(self):
         return self.left_child
 
     def get_right_child(self):
         return self.right_child
 
+    def get_is_left_child(self):
+        return self.is_left_child
+
+    def get_is_right_child(self):
+        return self.is_right_child
+
     def get_balance(self):
         return self.balance
 
-
-    def set_balance(self,new_balance):
-        self.balance=new_balance
+    def get_coverage(self):
+        return (self.min_coverage,self.max_coverage)
 
     def get_min_coverage(self):
         return self.min_coverage
 
     def get_max_coverage(self):
         return self.max_coverage
-
-    def set_parent(self,node):
-        self.parent= node
 
     def get_parent(self):
         return self.parent
@@ -517,9 +513,6 @@ class BST_node:
     def isLeaf(self):
         return False
 
-    def return_node(self):
-
-        return self
 
     def get_Leaf_nodes_of_subtree(self,List_of_Leafs):
         '''
@@ -542,17 +535,22 @@ class BST_node:
 
 
 class Leaf_node:
-    def __init__(self,value, sibling):
+    def __init__(self,value, index):
         '''
         :param value: Corresponds to SNP either first or last position in a read
-        :param sibling: First only the node which represents the other delimiter of the included read,
-                if Leaf nodes with same positions exits they are combined and then the sibling changes to a list
-        :return: A leaf node with at attributes value and at least a sibling.
+        :param index: Index of the read in the original readset
+        :return: A leaf node with at attributes value and index
         '''
         self.value=value
+        adding_index=[]
+        adding_index.append(index)
+        self.index=adding_index
+
+    def set_sibling(self,sibling):
+        #Set sibling node or nodes to the Node
         adding_sibling=[]
         adding_sibling.append(sibling)
-        self.sibling=adding_sibling
+        self.sibling= adding_sibling
 
     def set_parent(self, parent):
         '''Setting the node attributes
@@ -563,10 +561,17 @@ class Leaf_node:
         self.balance=0
         self.parent=parent
 
-#Does not work with len(self.sibling) because then the coverage from other reads which do not start or end there is neglected,
-
     def set_coverage(self,coverage):
         self.coverage=coverage
+
+    def set_is_left_child(self):
+        self.is_left_child=True
+        self.is_right_child=False
+
+    def set_is_right_child(self):
+        self.is_left_child=False
+        self.is_right_child=True
+
 
 
     def get_parent(self):
