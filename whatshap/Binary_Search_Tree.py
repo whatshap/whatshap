@@ -75,6 +75,13 @@ class Binary_Search_Tree:
 
             #Set coverage of the node
             sorted_list[iter].set_coverage(coverage_count)
+
+            #Also need to set the coverage for the other siblings which have the same coverage
+            helping_var=iter
+            while helping_var!=new_var:
+                sorted_list[helping_var].set_coverage(coverage_count)
+                helping_var+=1
+
             #Reduce counter by the value of the nodes which end in this position
             coverage_count=coverage_count-decrease_coverage_counter
 
@@ -122,10 +129,21 @@ class Binary_Search_Tree:
             root_node.set_left_child(left_node)
             left_node.set_parent(root_node)
             left_node.set_is_left_child()
+            print('Set up as left child ')
+            print(left_node.get_coverage())
+            if left_node.isLeaf():
+                print('Left node is Leaf')
+                print(left_node.get_value())
             right_node=self.building_BST_from_leaf_list(middel+1,end,arr,node_list)
             root_node.set_right_child(right_node)
             right_node.set_parent(root_node)
             right_node.set_is_right_child()
+            print('Set up as right child ')
+            print(right_node.get_coverage())
+            if right_node.isLeaf():
+                print('Right node is Leaf')
+                print(right_node.get_value())
+
 
             return root_node
 
@@ -284,59 +302,131 @@ class Binary_Search_Tree:
                 List_of_nodes.add(end_node,l_of_p_of_x,x_parent)
 
 
-    def get__all_nodes(self,node,List_of_nodes):
+    def get__all_nodes(self,node,Set_of_nodes):
         '''
         :param node: Start node of the search, could also be seen as the root
         :return: Terurns of a node a list of all nodes in this tree
         '''
+        print('Called get_all_nodes')
+        print('With node %d' %node.get_coverage())
         while not node.isLeaf():
-            List_of_nodes.append(node)
-            r_child=List_of_nodes.get_right_child()
-            l_child=List_of_nodes.get_left_child()
-            List_of_nodes.append(self.get__all_nodes(r_child,List_of_nodes))
-            List_of_nodes.append(self.get__all_nodes(l_child,List_of_nodes))
-        List_of_nodes.append(node)
-        return List_of_nodes
+            Set_of_nodes.add(node)
+            print('In while appended')
+            r_child=node.get_right_child()
+            l_child=node.get_left_child()
+            Set_of_nodes.add(self.get__all_nodes(r_child,Set_of_nodes))
+            Set_of_nodes.add(self.get__all_nodes(l_child,Set_of_nodes))
+        Set_of_nodes.add(node)
+        print('Appended node')
+        return Set_of_nodes
 
     def seach_for_split_node(self,start_node,end_node):
-        List_of_nodes=[]
-        List_of_nodes.append(start_node)
-        List_of_nodes.append(end_node)
+        print('Search for split node ')
+        List_of_nodes=set()
+        List_of_nodes.add(start_node)
+        List_of_nodes.add(end_node)
         not_found=False
         split_node=None
-        while not_found:
-            #TODO have to check if it exists or if it is root.....
-            parent_start_node=start_node.get_parent()
-            grandparent_start_node=parent_start_node.get_parent()
-            parent_end_node=end_node.get_parent()
-            grandparent_end_node=parent_end_node.get_parent()
-            if parent_end_node==parent_start_node:
-                not_found=True
-                split_node=parent_end_node
-                List_of_nodes.append(parent_end_node)
-                #If the end node is a right child we have to add all nodes left of it also to the list
-                if end_node.is_right_child():
-                    e_list=[]
-                    Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),e_list)
-                    List_of_nodes.append(Nodes_of_the_right_child)
-                #if the start node is a left child we have to add all nodes right of it which do not include the end node
-                if start_node.is_left_child():
-                    e_list=[]
-                    Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),e_list)
-                    List_of_nodes.append(Nodes_of_the_left_child)
+        print('Start node, coverage')
+        print(start_node.get_coverage())
+        print('End node, coverage')
+        print(end_node.get_coverage())
 
-            if parent_end_node==grandparent_start_node:
+        while not not_found:
+            print('In While')
+            #TODO have to check if it exists or if it is root.....
+            grandparent_start_node=None
+            grandparent_end_node=None
+            parent_start_node=start_node.get_parent()
+            #print('parent_start_node')
+            #print(parent_start_node.get_coverage())
+            if (parent_start_node != None):
+                grandparent_start_node=parent_start_node.get_parent()
+            #print('grandparent_start_node')
+            #print(grandparent_start_node.get_coverage())
+            parent_end_node=end_node.get_parent()
+            #print('parent_end_node')
+            #print(parent_end_node.get_coverage())
+            if (parent_end_node != None):
+                grandparent_end_node=parent_end_node.get_parent()
+            #print('grandparent_end_node')
+            #print(grandparent_end_node.get_coverage())
+            if (parent_end_node==parent_start_node and (parent_end_node != None and parent_start_node!= None)):
+                print('In first case')
                 not_found=True
                 split_node=parent_end_node
-                List_of_nodes.append(parent_end_node)
-            if grandparent_end_node==parent_start_node:
+                List_of_nodes.add(parent_end_node)
+                #If the end node is a right child we have to add all nodes left of it also to the list
+                if end_node.get_is_right_child():
+                    #e_list=[]
+                    Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
+                    List_of_nodes.union(Nodes_of_the_right_child)
+                #if the start node is a left child we have to add all nodes right of it which do not include the end node
+                if start_node.get_is_left_child():
+                    #e_list=[]
+                    Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
+                    List_of_nodes.union(Nodes_of_the_left_child)
+            else:
+                #Need to be in else, because it the first case occures the fourth is included
+                if (grandparent_end_node==grandparent_start_node and (grandparent_end_node != None and grandparent_start_node!= None)):
+                    print('In fourth case')
+                    not_found=True
+                    split_node=grandparent_end_node
+                    List_of_nodes.add(grandparent_end_node)
+                    if end_node.get_is_right_child():
+                        Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
+                        List_of_nodes.union(Nodes_of_the_right_child)
+                    if start_node.get_is_left_child():
+                        Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
+                        List_of_nodes.union(Nodes_of_the_left_child)
+                    List_of_nodes.add(parent_end_node)
+                    List_of_nodes.add(parent_start_node)
+                    Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
+                    Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
+
+
+
+            if (parent_end_node==grandparent_start_node and (parent_end_node != None and grandparent_start_node!= None)):
+                print('In second case')
+                not_found=True
+                split_node=parent_end_node
+                List_of_nodes.add(parent_end_node)
+                List_of_nodes.add(parent_start_node)
+                if start_node.get_is_left_child:
+                    Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
+                    List_of_nodes.union(Nodes_of_the_left_child)
+
+
+            if (grandparent_end_node==parent_start_node and (parent_end_node != None and parent_start_node!= None)):
+                print('In thrid case')
                 not_found=True
                 split_node=parent_start_node
-                List_of_nodes.append(parent_start_node)
-            if grandparent_end_node==grandparent_start_node:
-                not_found=True
-                split_node=grandparent_end_node
-                List_of_nodes.append(grandparent_end_node)
+                List_of_nodes.add(parent_start_node)
+                List_of_nodes.add(parent_end_node)
+                if end_node.get_is_right_child():
+                   Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
+                   List_of_nodes.union(Nodes_of_the_right_child)
+
+            #Befor resetting them have to look at their siblings accoring from the parent node
+
+            if start_node.get_is_left_child():
+                Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
+                List_of_nodes.union(Nodes_of_the_left_child)
+            print('Look if end node is None')
+            print(end_node==None)
+            print(end_node.isLeaf())
+            if end_node.get_is_right_child():
+                Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
+                List_of_nodes.union(Nodes_of_the_right_child)
+
+
+            #reset start and end node
+
+
+            start_node=parent_start_node
+            end_node=parent_start_node
+
+            print('In non else case')
 
         return (split_node,List_of_nodes)
 
@@ -442,6 +532,8 @@ class BST_node:
         self.balance=0
         self.min_coverage=minimum
         self.max_coverage=maximum
+        #will later be overritten except when the node is the root
+        self.parent=None
 
 
     def set_left_child(self,left_Node):
@@ -545,6 +637,8 @@ class Leaf_node:
         adding_index=[]
         adding_index.append(index)
         self.index=adding_index
+        #set parent to none will later be overwritten
+        self.parent=None
 
     def set_sibling(self,sibling):
         #Set sibling node or nodes to the Node
@@ -572,7 +666,11 @@ class Leaf_node:
         self.is_left_child=False
         self.is_right_child=True
 
+    def get_is_left_child(self):
+        return self.is_left_child
 
+    def get_is_right_child(self):
+        return self.is_right_child
 
     def get_parent(self):
         return self.parent
