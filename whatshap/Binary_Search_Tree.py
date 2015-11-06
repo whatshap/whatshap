@@ -308,7 +308,7 @@ class Binary_Search_Tree:
         :return:a updated sibling_list
         '''
         print('CALLIN SYNCHRONIZE')
-        #TODO : NOT EFFICIENT AT ALL
+        #TODO : NOT EFFICIENT AT ALL But Working
         Leaf_list=self.get_leaf_list_of_tree()
         for actual_node in sibling_list:
             actual_value=actual_node.get_value()
@@ -336,7 +336,6 @@ class Binary_Search_Tree:
             print(sib.get_is_left_child())
 
 
-#TODO NEED TO UPDATE VALUES THERE
 
 
 
@@ -357,6 +356,8 @@ class Binary_Search_Tree:
         Set_of_nodes.add(node)
         print('Appended node')
         return Set_of_nodes
+
+#TODO UPDATE SIBLING BEFORE USINg THEM FOr THE SPLIt NODE SEARCH At the moment in the test case themselves
 
     def seach_for_split_node(self,start_node,end_node):
         print('Search for split node ')

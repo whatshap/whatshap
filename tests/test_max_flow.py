@@ -258,6 +258,7 @@ def test_struct_for_BST():
 	leaf_value=leaf_list_of_tree[0].get_value()
 	siblings=leaf_list_of_tree[0].get_sibling()
 	only_end_points=[sib for sib in siblings if sib.get_value()>leaf_value]
+	tree.synchronize_sibling_with_same_value(only_end_points)
 	assert only_end_points[0].get_value() ==30
 	assert only_end_points[1].get_value() ==30
 	(split_node_of_read,List_to_change)=tree.seach_for_split_node(leaf_list_of_tree[0],only_end_points[0])
@@ -360,17 +361,16 @@ def test_BST_Siblings_of_nodes():
 	#print(bool_for_sibling)
 	for i in first_siblings:
 		print('I and the value of i %d' %i.get_value())
-		#bool_left_child=i.get_is_left_child()
-		#print(bool_left_child)
+		try:
+			bool_left_child=i.get_is_left_child()
+		except AttributeError:
+			pass
 	first_tree_attemp.synchronize_sibling_with_same_value(first_siblings)
 	for i in first_siblings:
-		print('After_synchronize')
-		print('I and the value of i %d' %i.get_value())
 		parent_of_i=i.get_parent()
-		print(parent_of_i)
+		assert parent_of_i.get_coverage()==(2,3)
 		bool_left_child=i.get_is_left_child()
-		print(bool_left_child)
+		assert bool_left_child
 
 
-	assert 0==1
 
