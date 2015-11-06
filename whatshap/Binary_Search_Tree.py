@@ -301,6 +301,44 @@ class Binary_Search_Tree:
             if (l_of_p_of_x.isLeaf() and l_of_p_of_x.get_value()==end_node.get_value()):
                 List_of_nodes.add(end_node,l_of_p_of_x,x_parent)
 
+    def synchronize_sibling_with_same_value(self,sibling_list):
+        '''
+        Assume already sorted sibling list of nodes
+        :param sibling_list:
+        :return:a updated sibling_list
+        '''
+        print('CALLIN SYNCHRONIZE')
+        #TODO : NOT EFFICIENT AT ALL
+        Leaf_list=self.get_leaf_list_of_tree()
+        for actual_node in sibling_list:
+            actual_value=actual_node.get_value()
+            print('In for loop %d' %actual_value)
+            print(actual_node.get_coverage())
+            for j in Leaf_list:
+                print('In for loop over leaf list')
+                if j.get_value()==actual_value:
+                    print('Found node with same value')
+                    actual_node.set_balance(j.get_balance())
+                    actual_node.set_parent(j.get_parent())
+                    if j.get_is_left_child():
+                        print('IS LEFT CHILD')
+                        actual_node.set_is_left_child()
+                    else:
+                        print('Is RIGTH CHILD ')
+                        actual_node.set_is_right_child()
+                    break
+
+            print('I in sibling list %d' %actual_value)
+                #Not sure if this could work  or even if just needed, because these nodes do not exist in the leaf_list
+                #sibling_list[i+1].set_sibling(actual_sibling)
+        for sib in sibling_list:
+            print('In second for ')
+            print(sib.get_is_left_child())
+
+
+#TODO NEED TO UPDATE VALUES THERE
+
+
 
     def get__all_nodes(self,node,Set_of_nodes):
         '''
@@ -639,6 +677,7 @@ class Leaf_node:
         self.index=adding_index
         #set parent to none will later be overwritten
         self.parent=None
+        self.balance=0
 
     def set_sibling(self,sibling):
         #Set sibling node or nodes to the Node
@@ -665,6 +704,9 @@ class Leaf_node:
     def set_is_right_child(self):
         self.is_left_child=False
         self.is_right_child=True
+
+    def set_balance(self,b):
+        self.balance=b
 
     def get_is_left_child(self):
         return self.is_left_child

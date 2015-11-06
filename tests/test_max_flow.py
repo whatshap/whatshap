@@ -314,3 +314,63 @@ def test_tree_struct_for_Binary_Seach_Tree():
 	assert right_child.get_balance()==0
 	assert left_child.get_min_coverage()==2
 	assert right_child.get_max_coverage()==2
+
+
+def test_BST_Siblings_of_nodes():
+	reads = string_to_readset("""
+	  11
+	  0000
+	    11
+	      00
+	      11
+	    11
+	""")
+	first_tree_attemp=Binary_Search_Tree(reads)
+	#complete tree is the root node and from there on it gets down to the leafs
+	complete_tree=first_tree_attemp.get_complete_tree()
+	root_coverage=complete_tree.get_coverage()
+	assert root_coverage==(2,3)
+	L_of_root=complete_tree.get_left_child()
+	R_of_root=complete_tree.get_right_child()
+	assert L_of_root.get_coverage()==(2,3)
+	assert R_of_root.get_coverage()==(2,3)
+	left_child_of_L=L_of_root.get_left_child()
+	right_child_of_L=L_of_root.get_right_child()
+	left_child_of_R=R_of_root.get_left_child()
+	right_child_of_R=R_of_root.get_right_child()
+	assert right_child_of_L.isLeaf()
+	assert right_child_of_L.get_value()==30
+	assert right_child_of_R.isLeaf()
+	assert right_child_of_R.get_value()==60
+	assert not left_child_of_L.isLeaf()
+	assert not left_child_of_R.isLeaf()
+	l_of_L=left_child_of_L.get_left_child()
+	r_of_L=left_child_of_L.get_right_child()
+	assert l_of_L.get_value()==10
+	assert r_of_L.get_value()==20
+	l_of_R=left_child_of_R.get_left_child()
+	r_of_R=left_child_of_R.get_right_child()
+	assert l_of_R.get_value()==40
+	assert r_of_R.get_value()==50
+
+	first_siblings=right_child_of_L.get_sibling()
+	assert len(first_siblings)==2
+	#bool_for_sibling=first_siblings[1].get_parent()
+	#print('Bool for sibling')
+	#print(bool_for_sibling)
+	for i in first_siblings:
+		print('I and the value of i %d' %i.get_value())
+		#bool_left_child=i.get_is_left_child()
+		#print(bool_left_child)
+	first_tree_attemp.synchronize_sibling_with_same_value(first_siblings)
+	for i in first_siblings:
+		print('After_synchronize')
+		print('I and the value of i %d' %i.get_value())
+		parent_of_i=i.get_parent()
+		print(parent_of_i)
+		bool_left_child=i.get_is_left_child()
+		print(bool_left_child)
+
+
+	assert 0==1
+
