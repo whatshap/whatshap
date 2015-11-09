@@ -1,5 +1,5 @@
 from phasingutils import string_to_readset
-from whatshap.maxflow import Leaf_node,one_d_range_tree
+from whatshap.maxflow import Leaf_node,one_d_range_tree,optimize_max_flow_in_BST
 from whatshap.Binary_Search_Tree import Binary_Search_Tree
 
 #For former tree structure tests
@@ -241,6 +241,7 @@ def test_get_Leaf_nodes_of_subtree_2():
 
 ###############################TESTS FOR THE BST class With slightly changed structure in the tree
 
+#simple case balances BST
 
 def test_struct_for_BST():
 	reads=string_to_readset("""
@@ -290,8 +291,228 @@ def test_struct_for_BST():
 	assert split_node_of_read.get_coverage()==(2,3)
 	assert split_node_of_read==root_node
 
-	assert 0==1
 
+def test_reveale_whole_tree_structure_for_simple_case():
+	reads=string_to_readset("""
+	 111
+	 000
+	   11
+	    00
+	    11
+	""")
+	tree=Binary_Search_Tree(reads)
+	root_node=tree.get_complete_tree()
+	leaf_list_of_tree=tree.get_leaf_list_of_tree()
+	first_leaf=leaf_list_of_tree[0]
+	assert first_leaf.get_value()==10
+	assert first_leaf.get_is_left_child()
+	siblings_of_first_leaf=first_leaf.get_sibling()
+	assert len(siblings_of_first_leaf)== 2
+	tree.synchronize_sibling_with_same_value(siblings_of_first_leaf)
+	first_of_value_30=siblings_of_first_leaf[0]
+	second_of_value_30=siblings_of_first_leaf[1]
+	#assert values
+	assert first_of_value_30.get_value()==30
+	assert second_of_value_30.get_value()==30
+	#assert parent
+	assert first_of_value_30.get_parent().get_coverage()==(2,3)
+	assert second_of_value_30.get_parent().get_coverage()==(2,3)
+	#assert isLeaf
+	assert first_of_value_30.isLeaf()
+	assert second_of_value_30.isLeaf()
+	#assert is_Left_child
+	assert first_of_value_30.get_is_right_child()
+	assert second_of_value_30.get_is_right_child()
+	assert not first_of_value_30.get_is_left_child()
+	assert not second_of_value_30.get_is_left_child()
+	#assert index
+	assert first_of_value_30.get_index()==[0]
+	assert second_of_value_30.get_index()==[1]
+	#assert get_coverage
+	assert first_of_value_30.get_coverage()==3
+	assert second_of_value_30.get_coverage()==3
+	second_leaf=leaf_list_of_tree[1]
+	assert second_leaf.get_value()==30
+	assert not second_leaf.get_is_left_child()
+	siblings_of_second_leaf=second_leaf.get_sibling()
+	assert len(siblings_of_second_leaf)==3
+	tree.synchronize_sibling_with_same_value(siblings_of_second_leaf)
+	assert len(siblings_of_second_leaf)==3
+	first_of_value=siblings_of_second_leaf[0]
+	second_of_value=siblings_of_second_leaf[1]
+	third_of_value=siblings_of_second_leaf[2]
+	#assert values
+	assert first_of_value.get_value()==10
+	assert second_of_value.get_value()==10
+	assert third_of_value.get_value()==40
+	#assert parent
+	assert first_of_value.get_parent().get_coverage()==(2,3)
+	assert second_of_value.get_parent().get_coverage()==(2,3)
+	assert third_of_value.get_parent().get_coverage()==(2,3)
+	#assert isLeaf
+	assert first_of_value.isLeaf()
+	assert second_of_value.isLeaf()
+	assert third_of_value.isLeaf()
+	#assert is_Left_child
+	assert not first_of_value.get_is_right_child()
+	assert not second_of_value.get_is_right_child()
+	assert not third_of_value.get_is_right_child()
+	assert first_of_value.get_is_left_child()
+	assert second_of_value.get_is_left_child()
+	assert third_of_value.get_is_left_child()
+	#assert index
+	assert first_of_value.get_index()==[0]
+	assert second_of_value.get_index()==[1]
+	assert third_of_value.get_index()==[2]
+	#assert get_coverage
+	assert first_of_value.get_coverage()==2
+	assert second_of_value.get_coverage()==2
+	assert third_of_value.get_coverage()==3
+	third_leaf=leaf_list_of_tree[2]
+	assert third_leaf.get_value()==40
+	assert third_leaf.get_is_left_child()
+	siblings_of_third_leaf=third_leaf.get_sibling()
+	assert len(siblings_of_third_leaf)==3
+	tree.synchronize_sibling_with_same_value(siblings_of_third_leaf)
+	first_of_value=siblings_of_third_leaf[0]
+	second_of_value=siblings_of_third_leaf[1]
+	third_of_value=siblings_of_third_leaf[2]
+	#assert values
+	assert first_of_value.get_value()==30
+	assert second_of_value.get_value()==50
+	assert third_of_value.get_value()==50
+	#assert parent
+	assert first_of_value.get_parent().get_coverage()==(2,3)
+	assert second_of_value.get_parent().get_coverage()==(2,3)
+	assert third_of_value.get_parent().get_coverage()==(2,3)
+	#assert isLeaf
+	assert first_of_value.isLeaf()
+	assert second_of_value.isLeaf()
+	assert third_of_value.isLeaf()
+	#assert is_Left_child
+	assert first_of_value.get_is_right_child()
+	assert second_of_value.get_is_right_child()
+	assert third_of_value.get_is_right_child()
+	assert not first_of_value.get_is_left_child()
+	assert not second_of_value.get_is_left_child()
+	assert not third_of_value.get_is_left_child()
+	#assert index
+	assert first_of_value.get_index()==[2]
+	assert second_of_value.get_index()==[3]
+	assert third_of_value.get_index()==[4]
+	#assert get_coverage
+	assert first_of_value.get_coverage()==3
+	assert second_of_value.get_coverage()==2
+	assert third_of_value.get_coverage()==2
+	forth_leaf=leaf_list_of_tree[3]
+	assert forth_leaf.get_value()==50
+	assert not forth_leaf.get_is_left_child()
+	siblings_of_forth_leaf=forth_leaf.get_sibling()
+	assert len(siblings_of_forth_leaf)==2
+	tree.synchronize_sibling_with_same_value(siblings_of_forth_leaf)
+	first_of_value=siblings_of_forth_leaf[0]
+	second_of_value=siblings_of_forth_leaf[1]
+	#assert values
+	assert first_of_value.get_value()==40
+	assert second_of_value.get_value()==40
+	#assert parent
+	assert first_of_value.get_parent().get_coverage()==(2,3)
+	assert second_of_value.get_parent().get_coverage()==(2,3)
+	#assert isLeaf
+	assert first_of_value.isLeaf()
+	assert second_of_value.isLeaf()
+	#assert is_Left_child
+	assert not first_of_value.get_is_right_child()
+	assert not second_of_value.get_is_right_child()
+	assert first_of_value.get_is_left_child()
+	assert second_of_value.get_is_left_child()
+	#assert index
+	assert first_of_value.get_index()==[3]
+	assert second_of_value.get_index()==[4]
+	#assert get_coverage
+	assert first_of_value.get_coverage()==3
+	assert second_of_value.get_coverage()==3
+
+
+def test_in_simple_case_list_to_change_of_split_node_case():
+	reads=string_to_readset("""
+	 111
+	 000
+	   11
+	    00
+	    11
+	""")
+	tree=Binary_Search_Tree(reads)
+	root_node=tree.get_complete_tree()
+	leaf_list_of_tree=tree.get_leaf_list_of_tree()
+	#go over leafs =reads
+
+	leaf_value=leaf_list_of_tree[0].get_value()
+	siblings=leaf_list_of_tree[0].get_sibling()
+	only_end_points=[sib for sib in siblings if sib.get_value()>leaf_value]
+	tree.synchronize_sibling_with_same_value(only_end_points)
+	assert only_end_points[0].get_value() ==30
+	assert only_end_points[1].get_value() ==30
+	(split_node_of_read,List_to_change)=tree.seach_for_split_node(leaf_list_of_tree[0],only_end_points[0])
+	#List to change should include 3 nodes, the 2 nodes and the parent node of both
+	assert len(List_to_change) ==3
+	out_of_list_to_set=set(List_to_change)
+	assert leaf_list_of_tree[0] in out_of_list_to_set
+	assert only_end_points[0] in out_of_list_to_set
+	assert leaf_list_of_tree[0].get_parent() in out_of_list_to_set
+
+
+	(split_node_of_read,List_to_change)=tree.seach_for_split_node(leaf_list_of_tree[0],only_end_points[1])
+	assert len(List_to_change) ==4
+	out_of_list_to_set=set(List_to_change)
+	assert leaf_list_of_tree[0] in out_of_list_to_set
+	assert only_end_points[1] in out_of_list_to_set
+	assert only_end_points[0] in out_of_list_to_set
+	assert leaf_list_of_tree[0].get_parent() in out_of_list_to_set
+
+
+	middle_leaf=leaf_list_of_tree[1]
+	siblings=middle_leaf.get_sibling()
+	assert middle_leaf.get_value()==30
+	only_end_points=[sib for sib in siblings if sib.get_value()>leaf_value]
+	tree.synchronize_sibling_with_same_value(only_end_points)
+	assert len(only_end_points)==1
+	assert only_end_points[0].get_value()==40
+	(split_node_of_read,List_to_change)=tree.seach_for_split_node(middle_leaf,only_end_points[0])
+	assert split_node_of_read==middle_leaf.get_parent().get_parent()
+	assert len(List_to_change)==5
+	out_of_list_to_set=set(List_to_change)
+	assert middle_leaf in out_of_list_to_set
+	assert middle_leaf.get_parent() in out_of_list_to_set
+	assert only_end_points[0] in out_of_list_to_set
+	assert only_end_points[0].get_parent() in out_of_list_to_set
+	assert split_node_of_read in out_of_list_to_set
+
+
+
+
+#TODO NOt WORKIGNG
+def test_simple_case_max_flow():
+	reads=string_to_readset("""
+	 111
+	 000
+	   11
+	    00
+	    11
+	""")
+	tree=Binary_Search_Tree(reads)
+	root_node=tree.get_complete_tree()
+	leaf_list_of_tree=tree.get_leaf_list_of_tree()
+	maximal_coverage=2
+	pruned_set,removed_set=optimize_max_flow_in_BST(reads,tree,maximal_coverage)
+	print('Pruned set')
+	print(pruned_set)
+	print('Removed set')
+	print(removed_set)
+
+
+
+	assert 0==1
 
 
 def test_tree_struct_for_Binary_Seach_Tree():
@@ -373,4 +594,38 @@ def test_BST_Siblings_of_nodes():
 		assert bool_left_child
 
 
+def test_BST_split_node():
+	reads = string_to_readset("""
+	  11
+	  0000
+	    11
+	      00
+	      11
+	    11
+	""")
+	first_tree_attemp=Binary_Search_Tree(reads)
+	#complete tree is the root node and from there on it gets down to the leafs
+	complete_tree=first_tree_attemp.get_complete_tree()
+	root_coverage=complete_tree.get_coverage()
+	assert root_coverage==(2,3)
 
+
+'''
+def test_max_flow():
+	reads = string_to_readset("""
+	  11
+	  0000
+	    11
+	      00
+	      11
+	    11
+	""")
+	first_tree_attemp=Binary_Search_Tree(reads)
+	complete_tree=first_tree_attemp.get_complete_tree()
+	root_coverage=complete_tree.get_coverage()
+	leaf_list_of_tree=first_tree_attemp.get_leaf_list_of_tree()
+	maximal_coverage=2
+	pruned_set=optimize_max_flow_in_BST(reads,first_tree_attemp,maximal_coverage)
+	assert 0==1
+
+'''
