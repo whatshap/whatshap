@@ -41,7 +41,7 @@ def optimize_max_flow_in_BST(readset, BST, max_cov):
         BST.synchronize_sibling_with_same_value(only_end_points)
         for end_node in only_end_points:
             print('calling split node')
-            #print('In For of optimizing with value of node %d' %leaf_value)
+            print('In For of optimizing with value of node %d' %leaf_value)
             (split_node, List_to_change) = BST.seach_for_split_node(leaf, end_node)
             print('Called split node with following nodes or reads')
             print('Leaf_node of start %d' % leaf_value)
@@ -61,7 +61,8 @@ def optimize_max_flow_in_BST(readset, BST, max_cov):
                     print('Need to remove this read')
                     removed_for_ending.append(end_node.get_index())
                     step_up_balance(BST,List_to_change)
-                    #TODO also need to update balance th tree up till the root
+                    #TODO Neeed to find out if also need to update balance the tree up till the root
+                    update_till_root(BST,split_node)
 
 #for debugging case return both sets
 
@@ -77,6 +78,50 @@ def step_up_balance(BST,List_to_change):
     for l in new_set:
         balance_of_l=l.get_balance()
         l.set_balance(balance_of_l -1)
+def update_till_root(BST,split_node):
+    '''
+    update all coverage till root node depending on the balance
+    '''
+    #split_node.get_parent()== None means  that split node is the root
+    print('In update till root')
+    while not(split_node.get_parent==None):
+        #if split_node.get_parent()== None:
+        #    print('None')
+        #    break
+        cov=split_node.get_parent().get_coverage()
+        print('Split_node_get_parent ')
+        print(cov)
+        split_node_parent=split_node.get_parent()
+        split_node_balance=split_node.get_balance()
+        min_cov_of_split=split_node.get_min_coverage() +split_node.get_balance()
+        max_cov_of_split=split_node.get_max_coverage()+split_node.get_balance()
+
+        if split_node.get_is_left_child():
+            other_child=split_node_parent.get_right_child()
+            if other_child.isLeaf():
+                other_child_coverage_min=other_child.get_coverage()+ other_child.get_balance()
+                other_child_coverage_max=other_child.get_coverage()+ other_child.get_balance()
+            else:
+                other_child_coverage_min=other_child.get_min_coverage()+ other_child.get_balance()
+                other_child_coverage_max=other_child.get_max_coverage()+ other_child.get_balance()
+        else:
+            other_child=split_node_parent.get_left_child()
+            if other_child.isLeaf():
+                other_child_coverage_min=other_child.get_coverage()+ other_child.get_balance()
+                other_child_coverage_max=other_child.get_coverage()+ other_child.get_balance()
+            else:
+                other_child_coverage_min=other_child.get_min_coverage()+ other_child.get_balance()
+                other_child_coverage_max=other_child.get_max_coverage()+ other_child.get_balance()
+        parent_split_node_min_coverage=split_node_parent.get_min_coverage()
+        parent_split_node_max_coverage=split_node_parent.get_max_coverage()
+
+        if min_cov_of_split<parent_split_node_min_coverage:
+            split_node_parent.set_min_coverage(min_cov_of_split)
+        if max_cov_of_split>parent_split_node_max_coverage:
+            split_node_parent.set_max_coverage(max_cov_of_split)
+
+        split_node=split_node_parent
+
 
 #Before starting the algorithm we have to build up the binary search tree.
 class one_d_range_tree:

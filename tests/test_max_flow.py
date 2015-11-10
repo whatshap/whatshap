@@ -645,6 +645,79 @@ def test_BST_split_node():
 	assert not split_node_of_read.get_right_child().get_left_child().get_right_child() in List_to_change
 	assert len(List_to_change)==9
 
+def test_other_cases_for_split_node():
+	reads = string_to_readset("""
+	  11
+	  0000
+	    11
+	      00
+	      11
+	    11
+	""")
+	first_tree_attemp=Binary_Search_Tree(reads)
+	#complete tree is the root node and from there on it gets down to the leafs
+	root=first_tree_attemp.get_complete_tree()
+	leaf_list_of_tree=first_tree_attemp.get_leaf_list_of_tree()
+	#second case
+	(split_node_of_read,List_to_change)=first_tree_attemp.seach_for_split_node(leaf_list_of_tree[0],leaf_list_of_tree[2])
+	assert len(List_to_change)==5
+	assert split_node_of_read.get_coverage()==(2,3)
+	assert split_node_of_read.get_right_child().get_value()==30
+	assert split_node_of_read.get_left_child().get_right_child().get_value()==20
+	assert split_node_of_read.get_left_child().get_left_child().get_value()==10
+	assert split_node_of_read in List_to_change
+	assert split_node_of_read.get_right_child() in List_to_change
+	assert split_node_of_read.get_left_child() in List_to_change
+	assert split_node_of_read.get_left_child().get_left_child() in List_to_change
+	assert split_node_of_read.get_left_child().get_right_child() in List_to_change
+
+
+def test_third_cases_for_split_node():
+	#Not able to construct such a case
+	reads = string_to_readset("""
+	  11
+	  0000
+	    111
+	    110
+	     111
+	""")
+	first_tree_attemp=Binary_Search_Tree(reads)
+	#complete tree is the root node and from there on it gets down to the leafs
+	root=first_tree_attemp.get_complete_tree()
+	#struct of tree
+	L_of_root=root.get_left_child()
+	R_of_root=root.get_right_child()
+	assert not R_of_root.isLeaf()
+	assert not L_of_root.isLeaf()
+	l_of_l=L_of_root.get_left_child()
+	assert not l_of_l.isLeaf()
+	r_of_l=L_of_root.get_right_child()
+	assert r_of_l.isLeaf()
+	assert r_of_l.get_value()==30
+	l_of_r=R_of_root.get_left_child()
+	assert not  l_of_r.isLeaf()
+	r_of_r =R_of_root.get_right_child()
+	assert  r_of_r.isLeaf()
+	assert r_of_r.get_value()==60
+
+
+
+	leaf_list_of_tree=first_tree_attemp.get_leaf_list_of_tree()
+	#second case
+	#(split_node_of_read,List_to_change)=first_tree_attemp.seach_for_split_node(leaf_list_of_tree[0],leaf_list_of_tree[2])
+	#assert len(List_to_change)==5
+	#assert split_node_of_read.get_coverage()==(2,3)
+	#assert split_node_of_read.get_right_child().get_value()==30
+	#assert split_node_of_read.get_left_child().get_right_child().get_value()==20
+	#assert split_node_of_read.get_left_child().get_left_child().get_value()==10
+	#assert split_node_of_read in List_to_change
+	#assert split_node_of_read.get_right_child() in List_to_change
+	#assert split_node_of_read.get_left_child() in List_to_change
+	#assert split_node_of_read.get_left_child().get_left_child() in List_to_change
+	#assert split_node_of_read.get_left_child().get_right_child() in List_to_change
+
+
+
 
 def test_max_flow():
 	reads = string_to_readset("""

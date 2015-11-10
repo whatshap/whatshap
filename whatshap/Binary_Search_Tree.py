@@ -255,8 +255,8 @@ class Binary_Search_Tree:
         :param node: Start node of the search, could also be seen as the root
         :return: returns of a node a list of all nodes in this tree
         '''
-        #print('Called get_all_nodes')
-        #print('With node %d' %node.get_coverage())
+        print('Called get_all_nodes')
+        print('With node %d' %node.get_coverage())
         while not node.isLeaf():
             Set_of_nodes.add(node)
            # print('In while appended')
@@ -276,6 +276,7 @@ class Binary_Search_Tree:
         #List_of_nodes.add(end_node)
         not_found=False
         split_node=None
+
         #print('Start node, coverage')
         #print(start_node.get_coverage())
         #print('End node, coverage')
@@ -283,6 +284,7 @@ class Binary_Search_Tree:
 
         while not not_found:
             print('In While')
+            Need_to_look_if_end_is_right_child=True
             #TODO have to check if it exists or if it is root.....
             grandparent_start_node=None
             grandparent_end_node=None
@@ -338,6 +340,7 @@ class Binary_Search_Tree:
             if (parent_end_node==grandparent_start_node and (parent_end_node != None and grandparent_start_node!= None)):
                 print('In second case')
                 not_found=True
+                Need_to_look_if_end_is_right_child=False
                 split_node=parent_end_node
                 List_of_nodes.add(parent_end_node)
                 List_of_nodes.add(parent_start_node)
@@ -364,7 +367,9 @@ class Binary_Search_Tree:
             print('Look if end node is None')
             print(end_node==None)
             print(end_node.isLeaf())
-            if end_node.get_is_right_child():
+            if (end_node.get_is_right_child() and Need_to_look_if_end_is_right_child):
+                print('Called in the end node')
+                print(end_node.isLeaf())
                 Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
                 List_of_nodes.union(Nodes_of_the_right_child)
 
@@ -376,7 +381,6 @@ class Binary_Search_Tree:
             start_node=parent_start_node
             end_node=parent_end_node
 
-            print('In non else case')
 
         return (split_node,List_of_nodes)
 
@@ -412,6 +416,12 @@ class BST_node:
 
     def set_parent(self,node):
         self.parent= node
+
+    def set_min_coverage(self,value):
+        self.min_coverage=value
+
+    def set_max_coverage(self,value):
+        self.min_coverage=value
 
 
     def get_left_child(self):
