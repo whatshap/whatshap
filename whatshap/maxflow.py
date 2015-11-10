@@ -40,7 +40,7 @@ def optimize_max_flow_in_BST(readset, BST, max_cov):
         only_end_points = [sib for sib in siblings if sib.get_value() > leaf_value]
         BST.synchronize_sibling_with_same_value(only_end_points)
         for end_node in only_end_points:
-            #calling split node
+            print('calling split node')
             #print('In For of optimizing with value of node %d' %leaf_value)
             (split_node, List_to_change) = BST.seach_for_split_node(leaf, end_node)
             print('Called split node with following nodes or reads')
@@ -61,6 +61,7 @@ def optimize_max_flow_in_BST(readset, BST, max_cov):
                     print('Need to remove this read')
                     removed_for_ending.append(end_node.get_index())
                     step_up_balance(BST,List_to_change)
+                    #TODO also need to update balance th tree up till the root
 
 #for debugging case return both sets
 
@@ -70,23 +71,12 @@ def optimize_max_flow_in_BST(readset, BST, max_cov):
 #TODO : Is that needed? Only problem is because in the split node we get all the different siblings of the same value
 
 def step_up_balance(BST,List_to_change):
-    print('In Step_up_balance')
-    print('List_to_change')
     print('Length of the list_to change %d' %len(List_to_change))
     #convert list_to change to set
     new_set=set(List_to_change)
     for l in new_set:
         balance_of_l=l.get_balance()
         l.set_balance(balance_of_l -1)
-        #print(l.get_coverage())
-        #if l.isLeaf():
-        #    print('Value %d' %l.get_value())
-        #    #print('ID %d' %l.get_index().pop())
-        #else:
-        #    print('Parent:')
-        #    print(l.get_parent())
-        #    print(l.get_is_left_child())
-
 
 #Before starting the algorithm we have to build up the binary search tree.
 class one_d_range_tree:
