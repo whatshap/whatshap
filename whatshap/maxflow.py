@@ -26,7 +26,11 @@ def reduce_readset_via_max_flow(readset,max_cov):
     undecided_reads = set(i for i, read in enumerate(readset) if len(read) >= 2)
     uninformative_read_count=len(readset)-len(undecided_reads)
     for i in pruned_set:
-        selected_reads.add(i)
+        if len(i)>1:
+            for j in i :
+                selected_reads.add(j)
+        else:
+            selected_reads.add(i)
     return selected_reads,uninformative_read_count
     #sliced_reads = reads.subset(selected_reads)
 
