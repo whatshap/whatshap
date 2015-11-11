@@ -30,7 +30,7 @@ def reduce_readset_via_max_flow(readset,max_cov):
             for j in i :
                 selected_reads.add(j)
         else:
-            selected_reads.add(i)
+            selected_reads.add(i.pop())
     return selected_reads,uninformative_read_count
     #sliced_reads = reads.subset(selected_reads)
 
