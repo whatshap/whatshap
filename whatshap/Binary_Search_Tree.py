@@ -183,33 +183,13 @@ class Binary_Search_Tree:
         '''
         d_var=False
         (min_cov,max_cov)=split_node_coverage
-        print('Split node coverage ')
-        print(split_node_coverage)
         updated_min_coverage= min_cov+split_balance
         updated_max_coverage= max_cov+split_balance
-        print('Updated min coverage %d' %updated_min_coverage)
-        print('Updateded max coverage %d' %updated_max_coverage)
         if updated_min_coverage<= math.floor(max_coverage/2):
-            print('In updated min coverage less than max')
             d_var=True
         if updated_max_coverage>max_cov:
-            print('In max_coverage over max coverage')
             d_var=False
         return d_var
-        #start_position = read.getposition()
-        #end_positions = read.getposition()
-        #TODO Look again if it is really ceil
-        #if get_min_cov(start_position, end_positions) <= math.ceil(
-        #                get_max_cov(start_position, end_positions, self.max_coverage) / 2):
-        #    self.pruned_readset.add(read)
-        #return False
-
-
-
-
-
-
-
 
 
 
@@ -223,30 +203,15 @@ class Binary_Search_Tree:
         Leaf_list=self.get_leaf_list_of_tree()
         for actual_node in sibling_list:
             actual_value=actual_node.get_value()
-            #print('In for loop %d' %actual_value)
-            #print(actual_node.get_coverage())
             for j in Leaf_list:
-                #print('In for loop over leaf list')
                 if j.get_value()==actual_value:
-                    #print('Found node with same value')
                     actual_node.set_balance(j.get_balance())
                     actual_node.set_parent(j.get_parent())
                     if j.get_is_left_child():
-                        #print('IS LEFT CHILD')
                         actual_node.set_is_left_child()
                     else:
-                        #print('Is RIGTH CHILD ')
                         actual_node.set_is_right_child()
                     break
-
-            #print('I in sibling list %d' %actual_value)
-                #Not sure if this could work  or even if just needed, because these nodes do not exist in the leaf_list
-                #sibling_list[i+1].set_sibling(actual_sibling)
-        #for sib in sibling_list:
-        #    print('In second for ')
-        #    print(sib.get_is_left_child())
-
-
 
 
 
@@ -255,32 +220,24 @@ class Binary_Search_Tree:
         :param node: Start node of the search, could also be seen as the root
         :return: returns of a node a list of all nodes in this tree
         '''
-        print('Called get_all_nodes')
-        print('With node %d' %node.get_coverage())
-        while not node.isLeaf():
+        n_coverag=node.get_coverage()
+        if node.isLeaf():
             Set_of_nodes.add(node)
-           # print('In while appended')
+            return Set_of_nodes
+        else:
+            Set_of_nodes.add(node)
             r_child=node.get_right_child()
             l_child=node.get_left_child()
             Set_of_nodes.union(self.get__all_nodes(r_child,Set_of_nodes))
-            Set_of_nodes.add(self.get__all_nodes(l_child,Set_of_nodes))
-        Set_of_nodes.add(node)
-        #print('Appended node')
-        return Set_of_nodes
+            Set_of_nodes.union(self.get__all_nodes(l_child,Set_of_nodes))
+            return Set_of_nodes
+
 
 
     def seach_for_split_node(self,start_node,end_node):
-        #print('Search for split node ')
         List_of_nodes=set()
-        #List_of_nodes.add(start_node)
-        #List_of_nodes.add(end_node)
         not_found=False
         split_node=None
-
-        #print('Start node, coverage')
-        #print(start_node.get_coverage())
-        #print('End node, coverage')
-        #print(end_node.get_coverage())
 
         while not not_found:
             print('In While')
@@ -289,38 +246,28 @@ class Binary_Search_Tree:
             grandparent_start_node=None
             grandparent_end_node=None
             parent_start_node=start_node.get_parent()
-            print('parent_start_node')
-            print(parent_start_node.get_coverage())
-            if (parent_start_node != None):
+            if not (parent_start_node.is_root()):
                 grandparent_start_node=parent_start_node.get_parent()
-            print('grandparent_start_node')
-            print(grandparent_start_node.get_coverage())
             parent_end_node=end_node.get_parent()
-            print('parent_end_node ')
-            print(parent_end_node.get_coverage())
             if (parent_end_node != None):
                 grandparent_end_node=parent_end_node.get_parent()
-            print('grandparent_end_node')
-            print(grandparent_end_node.get_coverage())
             if (parent_end_node==parent_start_node and (parent_end_node != None and parent_start_node!= None)):
-                print('In first case')
+                #print('In first case')
                 not_found=True
                 split_node=parent_end_node
                 List_of_nodes.add(parent_end_node)
                 #If the end node is a right child we have to add all nodes left of it also to the list
                 if end_node.get_is_right_child():
-                    #e_list=[]
                     Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
                     List_of_nodes.union(Nodes_of_the_right_child)
                 #if the start node is a left child we have to add all nodes right of it which do not include the end node
                 if start_node.get_is_left_child():
-                    #e_list=[]
                     Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
                     List_of_nodes.union(Nodes_of_the_left_child)
             else:
                 #Need to be in else, because it the first case occures the fourth is included
                 if (grandparent_end_node==grandparent_start_node and (grandparent_end_node != None and grandparent_start_node!= None)):
-                    print('In fourth case')
+                    #print('In fourth case')
                     not_found=True
                     split_node=grandparent_end_node
                     List_of_nodes.add(grandparent_end_node)
@@ -338,7 +285,7 @@ class Binary_Search_Tree:
 
 
             if (parent_end_node==grandparent_start_node and (parent_end_node != None and grandparent_start_node!= None)):
-                print('In second case')
+                #print('In second case')
                 not_found=True
                 Need_to_look_if_end_is_right_child=False
                 split_node=parent_end_node
@@ -350,7 +297,7 @@ class Binary_Search_Tree:
 
 
             if (grandparent_end_node==parent_start_node and (parent_end_node != None and parent_start_node!= None)):
-                print('In thrid case')
+                #print('In third case')
                 not_found=True
                 split_node=parent_start_node
                 List_of_nodes.add(parent_start_node)
@@ -359,20 +306,14 @@ class Binary_Search_Tree:
                    Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
                    List_of_nodes.union(Nodes_of_the_right_child)
 
-            #Befor resetting them have to look at their siblings accoring from the parent node
+            #Befor resetting them have to look at their siblings according from the parent node
 
             if start_node.get_is_left_child():
                 Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
                 List_of_nodes.union(Nodes_of_the_left_child)
-            print('Look if end node is None')
-            print(end_node==None)
-            print(end_node.isLeaf())
             if (end_node.get_is_right_child() and Need_to_look_if_end_is_right_child):
-                print('Called in the end node')
-                print(end_node.isLeaf())
                 Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
                 List_of_nodes.union(Nodes_of_the_right_child)
-
 
             #reset start and end node
 
@@ -380,7 +321,6 @@ class Binary_Search_Tree:
             List_of_nodes.add(end_node)
             start_node=parent_start_node
             end_node=parent_end_node
-
 
         return (split_node,List_of_nodes)
 
@@ -454,6 +394,12 @@ class BST_node:
 
     def isLeaf(self):
         return False
+
+    def is_root(self):
+        if (self.parent==None):
+            return True
+        else:
+            return False
 
 
 
@@ -536,112 +482,6 @@ class Leaf_node:
     def get_index(self):
         return self.index
 
+    def is_root(self):
+        return False
 
-
-
-################################################################################################
-#Methods maybe later needed
-
-'''
-    def search_for_node_in_subtree(self,end_node,parent_node,Found_node):
-        #returns a List_of nodes of the subtree, either the whole subtree or only a part, furthermore a boolean indicating
-        #if the node was found. and at last the start point of the search
-        #Stores the nodes whose balance should be updated if the read is rejected
-        List_of_nodes=[]
-        x=parent_node
-        while not x.isLeaf():
-            r_of_x=x.get_right_child()
-            x=r_of_x
-
-        if (x.get_value()==end_node.get_value()):
-            List_of_nodes_in_subtree =get__all_nodes(parent_node,List_of_nodes)
-            List_of_nodes.append(List_of_nodes_in_subtree)
-            Found_node=True
-            #In this case the parent_node is the seached split node
-            return (List_of_nodes_in_subtree,Found_node,parent_node)
-
-        #value of the rightmost child in the subtree has lower value then the searched node the end_node is not there
-        if (x.get_value()<end_node.get_value()):
-            List_of_nodes_in_subtree=get__all_nodes(parent_node,List_of_nodes)
-            List_of_nodes.append(List_of_nodes_in_subtree)
-            Found_node=False
-            return (List_of_nodes_in_subtree,Found_node,parent_node)
-        #end node has to be in the subtree of the parent node somewhere
-        else:
-            x_parent=x.get_parent()
-            l_of_p_of_x=x_parent.get_left_child()
-            #left_child_is aLeaft and has the value we have found the end node
-            #Should not do direct comparisoon because l_of_p_of_x could also be an inner node
-            if (l_of_p_of_x.isLeaf() and l_of_p_of_x.get_value()==end_node.get_value()):
-                List_of_nodes.add(end_node,l_of_p_of_x,x_parent)
-
-
-#COULD MAYBE USED THERE WHEN WE NEED THE BALANCE
-    def get_all_nodes_though_split_list(self,List_to_change,value_of_sibling):
-        length_of_list=len(List_to_change)
-        while (length_of_list!=0):
-            node=List_to_change.pop()
-            node.set_balance(node.get_balance()-1)
-            if node.isLeaf():
-                r_child=node.get_right_child()
-                l_child=node.get_left_child()
-                #when we have a leaf with an bigger value as the end point the balance there has not to be changed.
-                if r_child.isLeaf() and r_child.get_value():
-                    continue
-                l_child.set_balance(node.get_balance()-1)
-                r_child.set_balance(node.get_balance()-1)
-            #print('Node :')
-            #print(node.isLeaf())
-            #print(node.get_coverage())
-
-
-#TODO does nothing in the moment
-    def balance_control(self,split_node_of_read,List_to_change,l_node,value_of_sibling):
-
-        Should update the balance in the tree, because the read starting at l_node and ending on value of sibling is pruned
-        out of the original readset
-        :param split_node_of_read: Found split node, so we have to check from this point on up an d down
-        :param List_to_change: List which stores which inner BST nodes are followed to get to the split node
-        :param l_node: start node of the removed read
-        :param value_of_sibling:  value of the end node of the read, BUT NOT THE NODE ITSELF
-        :return: Nothing a changed tree with changed balance
-
-        #List_of_nodes=self.get_all_nodes_in_the_subtree_without_Those_not_connected_to_sibling(split_node_of_read,value_of_sibling,List_to_change)
-        self.get_all_nodes_though_split_list(List_to_change)
-        return None
-
-
-    def get_all_nodes_in_the_subtree_without_Those_not_connected_to_sibling(self,split_node_of_read,value_of_sibling,List_to_change):
-        print('One_call_of_the_algorithm')
-        balance=split_node_of_read.get_balance()
-        split_node_of_read.set_balance(balance-1)
-        Right_child_Leaf=False
-        Left_child_Leaf=False
-       # while not(Right_child_Leaf and Left_child_Leaf):
-        #    l_child=split_node_of_read.get_left_child()
-         #   r_child=split_node_of_read.get_right_child()
-          #  if l_child.isLeaf():
-           #     Left_child_Leaf=True
-           #     continue
-           # if r_child.isLeaf():
-           #     Right_child_Leaf=True
-           #     continue
-            #Right_child_Leaf=True
-            #Left_child_Leaf=True
-
-
-        List_of_nodes_to_change=[]
-        for i in List_to_change:
-            print('For each node coverage, parent, rchild, and left child')
-            print(i.get_coverage())
-            print(i.get_parent().get_coverage())
-            print(i.get_right_child().get_coverage())
-            print(i.get_left_child().get_coverage())
-            if i.get_right_child().isLeaf():
-                print(i.get_right_child().get_value())
-            if i.get_left_child().isLeaf():
-                print(i.get_left_child().get_value())
-        return None
-
-
-'''
