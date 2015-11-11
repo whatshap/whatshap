@@ -36,6 +36,7 @@ from ..core import Read, ReadSet, DPTable, readselection
 from ..graph import ComponentFinder
 from ..coverage import CovMonitor
 from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
+from ..maxflow import reduce_readset_via_max_flow
 
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -557,7 +558,7 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score):
 def run_whatshap(bam, vcf,
 				 output=sys.stdout, sample=None, ignore_read_groups=False, indels=True,
 				 mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123, haplotype_bams_prefix=None,
-				 connectivity=1, bridge=False, analyze=False, score=0):
+				 connectivity=1, bridge=False, analyze=False, score=0,use_max_flow=False):
 	"""
     Run WhatsHap.
 
@@ -634,12 +635,17 @@ def run_whatshap(bam, vcf,
 				# defined as 0 at the moment
 				score_selection = score
 				#TODO: Now time for finding listofbam included into slicing time
-				if analyze:
-					selected_reads, uninformative_read_count, listofbam = readselection(reads, max_coverage, bridge,
-																						analyze, score_selection)
+
+				if use_max_flow:
+					selected_reads,uninformative_read_count=reduce_readset_via_max_flow(reads,max_coverage)
 				else:
-					selected_reads, uninformative_read_count = readselection(reads, max_coverage, bridge, analyze,
+					if analyze:
+						selected_reads, uninformative_read_count, listofbam = readselection(reads, max_coverage, bridge,
+																						analyze, score_selection)
+					else:
+						selected_reads, uninformative_read_count = readselection(reads, max_coverage, bridge, analyze,
 																			 score_selection)
+
 				sliced_reads = reads.subset(selected_reads)
 
 				position_list = reads.get_positions()
@@ -783,6 +789,9 @@ def main():
 	parser.add_argument('--bridging', dest='bridge', default=False, action='store_true',
 						help='Selecting if in Readselection'
 							 ' the bridging is on (default: %(default)s)')
+	parser.add_argument('--max_flow', dest='use_max_flow', default=False, action='store_true',
+						help='Selecting if in Readselection'
+							 ' the scored readselection or the max_flow based readselection is on(default: %(default)s)')
 	parser.add_argument('--analyzfile', dest='analyze', default=False, action='store_true',
 						help='Write properties of the selected readset,like'
 							 'conneted blocks, quality, origin ,... to separate file named Analyzefile.unique_extension '

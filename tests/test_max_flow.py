@@ -268,7 +268,7 @@ def test_simple_case_max_flow():
 	root_node=tree.get_complete_tree()
 	leaf_list_of_tree=tree.get_leaf_list_of_tree()
 	maximal_coverage=2
-	pruned_set,removed_set=optimize_max_flow_in_BST(reads,tree,maximal_coverage)
+	pruned_set,removed_set=optimize_max_flow_in_BST(tree,maximal_coverage)
 	assert len(pruned_set)==3
 	assert len(removed_set)==2
 	print('Pruned SEt')
@@ -277,7 +277,7 @@ def test_simple_case_max_flow():
 	print(removed_set)
 
 	maximal_coverage=1
-	pruned_set,removed_set=optimize_max_flow_in_BST(reads,tree,maximal_coverage)
+	pruned_set,removed_set=optimize_max_flow_in_BST(tree,maximal_coverage)
 	print('Pruned SEt')
 	print(pruned_set)
 	print('Removed set')
@@ -290,7 +290,7 @@ def test_simple_case_max_flow():
 	assert len(removed_set)==2
 	#Is working
 	maximal_coverage=3
-	pruned_set,removed_set=optimize_max_flow_in_BST(reads,tree,maximal_coverage)
+	pruned_set,removed_set=optimize_max_flow_in_BST(tree,maximal_coverage)
 	assert len(pruned_set)==5
 	assert len(removed_set)==0
 
@@ -479,17 +479,26 @@ def test_max_flow():
 	first_tree_attemp=Binary_Search_Tree(reads)
 	complete_tree=first_tree_attemp.get_complete_tree()
 	leaf_list_of_tree=first_tree_attemp.get_leaf_list_of_tree()
-	#maximal_coverage=2
-	#(pruned_set,removed_set)=optimize_max_flow_in_BST(reads,first_tree_attemp,maximal_coverage)
-	#assert len(pruned_set)==4
-	#assert len(removed_set)==2
+	maximal_coverage=2
+	(pruned_set,removed_set)=optimize_max_flow_in_BST(first_tree_attemp,maximal_coverage)
+	assert len(pruned_set)==4
+	assert len(removed_set)==2
 	maximal_coverage=3
-	(pruned_set,removed_set)=optimize_max_flow_in_BST(reads,first_tree_attemp,maximal_coverage)
+	(pruned_set,removed_set)=optimize_max_flow_in_BST(first_tree_attemp,maximal_coverage)
 	print(pruned_set)
 	print(removed_set)
 	#Should be
 	#assert len(pruned_set)==6
 	#assert len(removed_set)==0
-	assert len(pruned_set)==4
-	assert len(removed_set)==2
+	assert len(pruned_set)==6
+	assert len(removed_set)==0
 
+def test_coverage_exceeded():
+	reads = string_to_readset("""
+	  11
+	  0000
+	    11
+	      00
+	      11
+	    11
+	""")

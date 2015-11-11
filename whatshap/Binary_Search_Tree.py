@@ -240,7 +240,6 @@ class Binary_Search_Tree:
         split_node=None
 
         while not not_found:
-            print('In While')
             Need_to_look_if_end_is_right_child=True
             #TODO have to check if it exists or if it is root.....
             grandparent_start_node=None

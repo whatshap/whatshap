@@ -17,7 +17,24 @@ from whatshap.Binary_Search_Tree import Binary_Search_Tree
 # we had in the priority queue) i implemented the Tree structure by myself with not only parent, siblings, which represent the reads covering this node
 #Additionally in the initialization each node stores one value its position and later the attributes are added
 
-def optimize_max_flow_in_BST(readset, BST, max_cov):
+def reduce_readset_via_max_flow(readset,max_cov):
+    tree=Binary_Search_Tree(readset)
+    (pruned_set,removed_set)=optimize_max_flow_in_BST(tree,max_cov)
+    selected_reads = set()
+    #TODO Not sure if the uninformative read count is defined correctly
+    #Same as in readselect:
+    undecided_reads = set(i for i, read in enumerate(readset) if len(read) >= 2)
+    uninformative_read_count=len(readset)-len(undecided_reads)
+    for i in pruned_set:
+        selected_reads.add(i)
+    return selected_reads,uninformative_read_count
+    #sliced_reads = reads.subset(selected_reads)
+
+
+
+
+
+def optimize_max_flow_in_BST(BST, max_cov):
     '''
     Before working with the sibling need to synchronize them and later use the indices of the end nodes for a
     distinct mapping to the reads
