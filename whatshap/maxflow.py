@@ -1,6 +1,7 @@
 import math
 from whatshap._core import PyRead, PyReadSet
 from whatshap.Binary_Search_Tree import Binary_Search_Tree
+from whatshap.coverage import CovMonitor
 
 # Implementation of the Interval scheduling problem described in the paper of Veli Mäkinen  "Interval scheduling maximizing minimum coverage "
 
@@ -16,6 +17,60 @@ from whatshap.Binary_Search_Tree import Binary_Search_Tree
 #Because we need to keep track of the reads which cover the same regions like the reads discarderd (same problem like
 # we had in the priority queue) i implemented the Tree structure by myself with not only parent, siblings, which represent the reads covering this node
 #Additionally in the initialization each node stores one value its position and later the attributes are added
+
+def look_at_coverage_of_pruned_readset(readset,max_coverage):
+
+    positions = readset.get_positions()
+    vcf_indices = {position: index for index, position in enumerate(positions)}
+    f = open('Looking_at_coverage', 'w')
+
+    coverages = CovMonitor(len(positions))
+
+
+
+    indices_of_reads = set(i for i, read in enumerate(readset) )
+    for i in indices_of_reads:
+        read_of_i=readset[i]
+        print('READ in readset')
+        print(read_of_i)
+        begin_position=read_of_i[0].position
+        begin=vcf_indices.get(begin_position)
+        #Not sure if +1 at the end is needed
+        #print('read_of_i[len(read_of_i)-1]')
+        #print(read_of_i[len(read_of_i)-1])
+        end_position=read_of_i[len(read_of_i)-1].position
+        end=vcf_indices.get(end_position)
+        print("Begin")
+        print(begin)
+        print("End")
+        print(end)
+        coverages.add_read(begin, end)
+        if coverages.max_coverage_in_range(begin, end) >= max_coverage:
+            f.write("coverage exceeded")
+            f.write("\t")
+            f.write(str(begin_position))
+            f.write("\t")
+            f.write(str(end_position))
+            f.write("\n")
+    f.close()
+
+
+#    for read in readset:
+#        print('Read')
+#        print(read.getPosition())
+#        begin = vcf_indices.get(read.getPosition(0))
+#        end = vcf_indices.get(read.getPosition(read.getVariantCount() - 1)) + 1
+#        coverages.add_read(begin, end)
+#        if coverages.max_coverage_in_range(begin, end) >= max_coverage:
+#            f.write("coverage exceeded")
+#            f.write("\t")
+#            f.write(begin)
+#            f.write("\t")
+#            f.write(end)
+#            f.write("\n")
+#    f.close()
+
+
 
 def reduce_readset_via_max_flow(readset,max_cov):
     tree=Binary_Search_Tree(readset)

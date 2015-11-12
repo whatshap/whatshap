@@ -36,7 +36,7 @@ from ..core import Read, ReadSet, DPTable, readselection
 from ..graph import ComponentFinder
 from ..coverage import CovMonitor
 from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
-from ..maxflow import reduce_readset_via_max_flow
+from ..maxflow import reduce_readset_via_max_flow,look_at_coverage_of_pruned_readset
 
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -647,6 +647,9 @@ def run_whatshap(bam, vcf,
 																			 score_selection)
 
 				sliced_reads = reads.subset(selected_reads)
+
+				if use_max_flow:
+					look_at_coverage_of_pruned_readset(sliced_reads,max_coverage)
 
 				position_list = reads.get_positions()
 				accessible_positions = sliced_reads.get_positions()
