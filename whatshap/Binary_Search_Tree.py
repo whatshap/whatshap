@@ -222,6 +222,8 @@ class Binary_Search_Tree:
         '''
         n_coverag=node.get_coverage()
         if node.isLeaf():
+            if (node.get_value()==50):
+                print('Added in get alll nodes')
             Set_of_nodes.add(node)
             return Set_of_nodes
         else:
@@ -241,6 +243,7 @@ class Binary_Search_Tree:
 
         while not not_found:
             Need_to_look_if_end_is_right_child=True
+            Need_to_look_if_start_is_leaft_child=True
             #TODO have to check if it exists or if it is root.....
             grandparent_start_node=None
             grandparent_end_node=None
@@ -257,30 +260,31 @@ class Binary_Search_Tree:
                 List_of_nodes.add(parent_end_node)
                 #If the end node is a right child we have to add all nodes left of it also to the list
                 if end_node.get_is_right_child():
+                    print('ENd node get is right child call all_nodes')
                     Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
                     List_of_nodes.union(Nodes_of_the_right_child)
                 #if the start node is a left child we have to add all nodes right of it which do not include the end node
                 if start_node.get_is_left_child():
+                    print('Start node get is left child call all_nodes')
                     Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
                     List_of_nodes.union(Nodes_of_the_left_child)
             else:
                 #Need to be in else, because it the first case occures the fourth is included
                 if (grandparent_end_node==grandparent_start_node and (grandparent_end_node != None and grandparent_start_node!= None)):
-                    #print('In fourth case')
+                    print('In fourth case')
                     not_found=True
                     split_node=grandparent_end_node
                     List_of_nodes.add(grandparent_end_node)
                     if end_node.get_is_right_child():
+                        print('End node get is right child after split node found')
                         Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
                         List_of_nodes.union(Nodes_of_the_right_child)
                     if start_node.get_is_left_child():
+                        print('Start node get is left child after split node found')
                         Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
                         List_of_nodes.union(Nodes_of_the_left_child)
                     List_of_nodes.add(parent_end_node)
                     List_of_nodes.add(parent_start_node)
-                    Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
-                    Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
-
 
 
             if (parent_end_node==grandparent_start_node and (parent_end_node != None and grandparent_start_node!= None)):
@@ -296,21 +300,36 @@ class Binary_Search_Tree:
 
 
             if (grandparent_end_node==parent_start_node and (parent_end_node != None and parent_start_node!= None)):
-                #print('In third case')
+                print('In third case')
                 not_found=True
+                Need_to_look_if_start_is_leaft_child=False
+
                 split_node=parent_start_node
+                #Need_to_look_if_end_is_right_child=False
                 List_of_nodes.add(parent_start_node)
                 List_of_nodes.add(parent_end_node)
+                print('LIST Of NODES')
+                print(List_of_nodes)
+                new_gelp_list=[l.get_value() for l in List_of_nodes if l.isLeaf()]
+                print('Help list')
+                print(new_gelp_list)
+                help_set=set(new_gelp_list)
+                print(50 in help_set)
+
                 if end_node.get_is_right_child():
-                   Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
-                   List_of_nodes.union(Nodes_of_the_right_child)
+                    print('in If with end node ')
+                    print(end_node.get_value())
+                    Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
+                    List_of_nodes.union(Nodes_of_the_right_child)
 
             #Befor resetting them have to look at their siblings according from the parent node
 
-            if start_node.get_is_left_child():
+            if (start_node.get_is_left_child() and Need_to_look_if_start_is_leaft_child):
+                print('In start node get is left child')
                 Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
                 List_of_nodes.union(Nodes_of_the_left_child)
             if (end_node.get_is_right_child() and Need_to_look_if_end_is_right_child):
+                print('In THIS LAST IF ')
                 Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
                 List_of_nodes.union(Nodes_of_the_right_child)
 
@@ -320,7 +339,7 @@ class Binary_Search_Tree:
             List_of_nodes.add(end_node)
             start_node=parent_start_node
             end_node=parent_end_node
-
+            print('BEFOR RETURN')
         return (split_node,List_of_nodes)
 
 

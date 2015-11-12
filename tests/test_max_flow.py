@@ -27,26 +27,15 @@ def test_struct_for_BST():
 	assert only_end_points[0].get_value() ==30
 	assert only_end_points[1].get_value() ==30
 	(split_node_of_read,List_to_change)=tree.seach_for_split_node(leaf_list_of_tree[0],only_end_points[0])
-	print('List to change')
-	print(List_to_change)
-	print(len(List_to_change))
 	assert split_node_of_read.get_coverage()==(2,3)
 	assert split_node_of_read.get_right_child().get_value()==30
-	print('List to change')
-	print(List_to_change)
-	print('Split node')
-	print(split_node_of_read)
 	assert len(List_to_change)==3
 	#Geht nicht mehr da List to change nun set ist
 	#assert List_to_change[0]==split_node_of_read
 	assert split_node_of_read in List_to_change
-	print('only_end_points[1]')
-	print(only_end_points[1].get_value())
-	print(only_end_points[1].get_coverage())
 	(split_node_of_read,List_to_change)=tree.seach_for_split_node(leaf_list_of_tree[0],only_end_points[1])
 	assert split_node_of_read.get_coverage()==(2,3)
 	assert split_node_of_read.get_right_child().get_value()==30
-
 	leaf_value=leaf_list_of_tree[1].get_value()
 	siblings=leaf_list_of_tree[1].get_sibling()
 	only_end_points=[sib for sib in siblings if sib.get_value()>leaf_value]
@@ -255,7 +244,6 @@ def test_in_simple_case_list_to_change_of_split_node_case():
 
 
 
-#TODO NOt WORKIGNG correctly
 def test_simple_case_max_flow():
 	reads=string_to_readset("""
 	 111
@@ -269,26 +257,41 @@ def test_simple_case_max_flow():
 	leaf_list_of_tree=tree.get_leaf_list_of_tree()
 	maximal_coverage=2
 	pruned_set,removed_set=optimize_max_flow_in_BST(tree,maximal_coverage)
-	assert len(pruned_set)==3
-	assert len(removed_set)==2
-	print('Pruned SEt')
-	print(pruned_set)
-	print('Removed set')
-	print(removed_set)
+	#print('Pruned SEt')
+	#print(pruned_set)
+	#print('Removed set')
+	#print(removed_set)
+	assert len(pruned_set)==4
+	assert len(removed_set)==1
 
+def test_simple_case_max_flow_2():
+	reads=string_to_readset("""
+	 111
+	 000
+	   11
+	    00
+	    11
+	""")
+	tree=Binary_Search_Tree(reads)
 	maximal_coverage=1
 	pruned_set,removed_set=optimize_max_flow_in_BST(tree,maximal_coverage)
-	print('Pruned SEt')
-	print(pruned_set)
-	print('Removed set')
-	print(removed_set)
-	#Should be
-	#assert len(pruned_set)==2 # should be read 0 or 1 and read 3 or 4
-	#assert len(removed_set)==3 #should definitive be read 2 and the contrary to the one in pruned
-	#but because of the not working crucial attribute not correct, in the logical sense.
-	assert len(pruned_set)==3
-	assert len(removed_set)==2
+	#print('Pruned SEt')
+	#print(pruned_set)
+	#print('Removed set')
+	#print(removed_set)
+	assert len(pruned_set)==2
+	assert len(removed_set)==3
 	#Is working
+
+def test_simple_case_max_flow_3():
+	reads=string_to_readset("""
+	 111
+	 000
+	   11
+	    00
+	    11
+	""")
+	tree=Binary_Search_Tree(reads)
 	maximal_coverage=3
 	pruned_set,removed_set=optimize_max_flow_in_BST(tree,maximal_coverage)
 	assert len(pruned_set)==5
@@ -466,8 +469,7 @@ def test_third_cases_for_split_node():
 	assert r_of_r.get_value()==60
 
 
-
-def test_max_flow():
+def test_third_case_for_split_node():
 	reads = string_to_readset("""
 	  11
 	  0000
@@ -477,23 +479,24 @@ def test_max_flow():
 	    11
 	""")
 	first_tree_attemp=Binary_Search_Tree(reads)
-	complete_tree=first_tree_attemp.get_complete_tree()
 	leaf_list_of_tree=first_tree_attemp.get_leaf_list_of_tree()
-	maximal_coverage=2
-	(pruned_set,removed_set)=optimize_max_flow_in_BST(first_tree_attemp,maximal_coverage)
-	assert len(pruned_set)==4
-	assert len(removed_set)==2
-	maximal_coverage=3
-	(pruned_set,removed_set)=optimize_max_flow_in_BST(first_tree_attemp,maximal_coverage)
-	print(pruned_set)
-	print(removed_set)
-	#Should be
-	#assert len(pruned_set)==6
-	#assert len(removed_set)==0
-	assert len(pruned_set)==6
-	assert len(removed_set)==0
+	print('Calling Split node search ')
+	(split_node,List_to_change)=first_tree_attemp.seach_for_split_node(leaf_list_of_tree[2],leaf_list_of_tree[3])
+	print(leaf_list_of_tree[2].get_value())
+	print(leaf_list_of_tree[3].get_value())
+	print('Length of List to change')
+	print(List_to_change)
+	assert not leaf_list_of_tree[4] in List_to_change
+	assert leaf_list_of_tree[2] in List_to_change
+	assert leaf_list_of_tree[3] in List_to_change
+	root=first_tree_attemp.get_complete_tree()
+	assert root in List_to_change
+	assert root.get_right_child() in List_to_change
+	assert root.get_left_child() in List_to_change
+	assert root.get_right_child().get_left_child() in List_to_change
 
-def test_coverage_exceeded():
+
+def test_max_flow_1():
 	reads = string_to_readset("""
 	  11
 	  0000
@@ -502,3 +505,45 @@ def test_coverage_exceeded():
 	      11
 	    11
 	""")
+	first_tree_attemp=Binary_Search_Tree(reads)
+	maximal_coverage=1
+	print('ASSERTION for List to change')
+	(pruned_set,removed_set)=optimize_max_flow_in_BST(first_tree_attemp,maximal_coverage)
+	assert len(pruned_set)==5
+	assert len(removed_set)==1
+
+
+
+def test_max_flow_2():
+	reads = string_to_readset("""
+	  11
+	  0000
+	    11
+	      00
+	      11
+	    11
+	""")
+	first_tree_attemp=Binary_Search_Tree(reads)
+	maximal_coverage=2
+	(pruned_set,removed_set)=optimize_max_flow_in_BST(first_tree_attemp,maximal_coverage)
+
+	assert len(pruned_set)==5
+	assert len(removed_set)==1
+
+def test_max_flow_3():
+	reads = string_to_readset("""
+	  11
+	  0000
+	    11
+	      00
+	      11
+	    11
+	""")
+	first_tree_attemp=Binary_Search_Tree(reads)
+	maximal_coverage=3
+	(pruned_set,removed_set)=optimize_max_flow_in_BST(first_tree_attemp,maximal_coverage)
+	print(pruned_set)
+	print(removed_set)
+	assert len(pruned_set)==6
+	assert len(removed_set)==0
+

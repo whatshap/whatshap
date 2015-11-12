@@ -107,8 +107,11 @@ def optimize_max_flow_in_BST(BST, max_cov):
         #No need to sort again, done by the construction of leaf list
         only_end_points = [sib for sib in siblings if sib.get_value() > leaf_value]
         BST.synchronize_sibling_with_same_value(only_end_points)
+        #for every leaf new list for later selection
+        already_selected=[]
         for end_node in only_end_points:
             (split_node, List_to_change) = BST.seach_for_split_node(leaf, end_node)
+            already_selected.append((split_node,List_to_change,end_node.get_index()))
             if split_node == None:
                 print('Found no split node')
             else:
@@ -117,11 +120,41 @@ def optimize_max_flow_in_BST(BST, max_cov):
                 selection_criterion = BST.is_crucial(split_cov, max_cov, split_balance)
                 if selection_criterion:
                     pruned_for_ending.append(end_node.get_index())
+                    already_selected.remove((split_node,List_to_change,end_node.get_index()))
                 #Need to change balance fot the involved nodes
-                else:
-                    removed_for_ending.append(end_node.get_index())
-                    step_up_balance(List_to_change)
-                    update_till_root(split_node)
+
+        new_leaf_coverage=leaf.get_coverage() +leaf.get_balance()
+        number_need_to_remove=new_leaf_coverage - max_cov
+        #print('Before number of need to remove sp where the already selected.pop occures')
+        #print('Number of need to remove %d' %number_need_to_remove)
+        #print(new_leaf_coverage)
+        #print(leaf.get_coverage())
+        #print(leaf.get_balance())
+        #print(already_selected)
+        #print(leaf.get_value())
+        #print('Two sets of pruned and removed')
+        #print(pruned_for_ending)
+        #print(removed_for_ending)
+        while number_need_to_remove >0:
+            #for all not crucial intervals
+            split,change_list,not_selected=already_selected.pop()
+            removed_for_ending.append(not_selected)
+            print('Call step up balance')
+            print('Leaf%d'%leaf.get_value())
+            print('End_node %d'%not_selected.pop())
+            step_up_balance(change_list)
+            update_till_root(split)
+            number_need_to_remove-=1
+
+        #Other not decided indices belong in the pruned set
+        for (split_n,change_list_n,index) in already_selected:
+            pruned_for_ending.append(index)
+
+
+                #else:
+                #    removed_for_ending.append(end_node.get_index())
+                #    step_up_balance(List_to_change)
+                #    update_till_root(split_node)
 
     #TODO Need to call a method to select the reads out of the pruned set
     #for test case return both sets
@@ -136,6 +169,8 @@ def step_up_balance(List_to_change):
     for l in List_to_change:
         balance_of_l=l.get_balance()
         l.set_balance(balance_of_l -1)
+        if (l.isLeaf()) and (l.get_value()==50):
+            print("Leaf with value 50 is found in step up balance")
 
 def update_till_root(split_node):
     '''
