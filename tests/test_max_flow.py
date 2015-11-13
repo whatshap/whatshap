@@ -507,28 +507,28 @@ def test_max_flow_1():
 	""")
 	first_tree_attemp=Binary_Search_Tree(reads)
 	maximal_coverage=1
-	print('ASSERTION for List to change')
 	(pruned_set,removed_set)=optimize_max_flow_in_BST(first_tree_attemp,maximal_coverage)
 	assert len(pruned_set)==5
 	assert len(removed_set)==1
+	assert 0==1
 
 
-
-def test_max_flow_2():
-	reads = string_to_readset("""
-	  11
-	  0000
-	    11
-	      00
-	      11
-	    11
-	""")
-	first_tree_attemp=Binary_Search_Tree(reads)
-	maximal_coverage=2
-	(pruned_set,removed_set)=optimize_max_flow_in_BST(first_tree_attemp,maximal_coverage)
-
-	assert len(pruned_set)==5
-	assert len(removed_set)==1
+#First get max_flow_1 to run
+#def test_max_flow_2():
+#	reads = string_to_readset("""
+#	  11
+#	  0000
+#	    11
+#	      00
+#	      11
+#	    11
+#	""")
+#	first_tree_attemp=Binary_Search_Tree(reads)
+#	maximal_coverage=2
+#	(pruned_set,removed_set)=optimize_max_flow_in_BST(first_tree_attemp,maximal_coverage)
+#
+#	assert len(pruned_set)==5
+#	assert len(removed_set)==1
 
 def test_max_flow_3():
 	reads = string_to_readset("""

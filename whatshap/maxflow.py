@@ -125,32 +125,49 @@ def optimize_max_flow_in_BST(BST, max_cov):
 
         new_leaf_coverage=leaf.get_coverage() +leaf.get_balance()
         number_need_to_remove=new_leaf_coverage - max_cov
-        #print('Before number of need to remove sp where the already selected.pop occures')
-        #print('Number of need to remove %d' %number_need_to_remove)
-        #print(new_leaf_coverage)
-        #print(leaf.get_coverage())
-        #print(leaf.get_balance())
-        #print(already_selected)
-        #print(leaf.get_value())
-        #print('Two sets of pruned and removed')
-        #print(pruned_for_ending)
-        #print(removed_for_ending)
+        print('Before number of need to remove sp where the already selected.pop occures')
+        print('Number of need to remove %d' %number_need_to_remove)
+        print(new_leaf_coverage)
+        print(leaf.get_coverage())
+        print(leaf.get_balance())
+        print(already_selected)
+        print("Length of the already selected set %d" %len(already_selected))
+        print(leaf.get_value())
+        print('Two sets of pruned and removed')
+        print(pruned_for_ending)
+        print(removed_for_ending)
         while number_need_to_remove >0:
             #for all not crucial intervals
             split,change_list,not_selected=already_selected.pop()
-            removed_for_ending.append(not_selected)
+            index_of_end=not_selected.pop()
+            removed_for_ending.append(index_of_end)
             print('Call step up balance')
-            print('Leaf%d'%leaf.get_value())
-            print('End_node %d'%not_selected.pop())
+            print("Value of 40 in change list")
+            help_list=[node.get_value() for node in change_list if node.isLeaf()]
+            help_list2=[node.get_coverage()+node.get_balance() for node in change_list if (node.isLeaf() and node.get_value()==40)]
+            new_set=set(help_list)
+            print(40 in help_list)
+            print(help_list2)
+            print('Leaf %d'%leaf.get_value())
+            print('End_node %d'%index_of_end)
             step_up_balance(change_list)
             update_till_root(split)
             number_need_to_remove-=1
+            new_help_list2=[node.get_coverage()+node.get_balance() for node in change_list if (node.isLeaf() and node.get_value()==40)]
+            print("new_help_list2")
+            print(new_help_list2)
 
+        print('Two sets before while loop of pruned and removed')
+        print(pruned_for_ending)
+        print(removed_for_ending)
         #Other not decided indices belong in the pruned set
+        print("Before for loop again length of already selected %d" %len(already_selected))
         for (split_n,change_list_n,index) in already_selected:
-            pruned_for_ending.append(index)
+            pruned_for_ending.append(index.pop())
 
-
+        print('Two sets after while loop of pruned and removed')
+        print(pruned_for_ending)
+        print(removed_for_ending)
                 #else:
                 #    removed_for_ending.append(end_node.get_index())
                 #    step_up_balance(List_to_change)
