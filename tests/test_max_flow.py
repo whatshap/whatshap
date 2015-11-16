@@ -547,3 +547,20 @@ def test_max_flow_3():
 	assert len(pruned_set)==6
 	assert len(removed_set)==0
 
+
+def test_new_struct_of_siblings():
+	reads = string_to_readset("""
+	  11
+	  0000
+	    11
+	      00
+	      11
+	    11
+	""")
+	first_new_tree=Binary_Search_Tree(reads)
+	leaf_after_first_datatset=first_new_tree.get_leaf_list_of_tree()
+	for i in leaf_after_first_datatset:
+		print('i.get_value()')
+		print(i.get_value())
+		print(i.get_sibling())
+	assert 0==1

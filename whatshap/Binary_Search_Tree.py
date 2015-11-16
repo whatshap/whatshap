@@ -5,16 +5,22 @@ from whatshap._core import PyRead,PyReadSet
 #Before starting the algorithm we have to build up the binary search tree.
 class Binary_Search_Tree:
 
+#    def __init__(self,readset):
+#        '''Build up a binary search tree, with the attributes: Leaf_list and root_node'''
+#        #Builds List of possible Leafes
+#        node_list=self.build_list(readset)
+#        #resolves double occuring nodes
+#        leaf_list=self.discover_double_and_sibling(node_list)
+#        layer_array=[]
+#        complete_tree=self.building_BST_from_leaf_list(0,len(leaf_list)-1,layer_array,leaf_list)
+#        self.complete_tree=complete_tree
+#        self.leaf_list=leaf_list
+
+
     def __init__(self,readset):
-        '''Build up a binary search tree, with the attributes: Leaf_list and root_node'''
-        #Builds List of possible Leafes
-        node_list=self.build_list(readset)
-        #resolves double occuring nodes
-        leaf_list=self.discover_double_and_sibling(node_list)
-        layer_array=[]
-        complete_tree=self.building_BST_from_leaf_list(0,len(leaf_list)-1,layer_array,leaf_list)
-        self.complete_tree=complete_tree
-        self.leaf_list=leaf_list
+        node_list=self.new_building_of_list(readset)
+        l_list=self.set_coverage_of_leaf_list(node_list)
+        self.leaf_list=l_list
 
 
     def build_list(self,_ana_readset):
@@ -36,6 +42,80 @@ class Binary_Search_Tree:
         #sort the list for positions or values so that double occuring are in a row and could be removed
         sorted_list=sorted(list_for_reads,key=lambda node :node.value)
         return sorted_list
+
+
+    #New struct of binary tree
+    def new_building_of_list(self,orig_readset):
+        list_for_leafs=[]
+        other_dic={}
+        indices_of_reads = set(i for i, read in enumerate(orig_readset) if len(read) >= 2)
+        for i in indices_of_reads:
+            read=orig_readset[i]
+            delimiter_1=(read[0]).position
+            delimiter_2=(read[len(read)-1]).position
+            #look if the position already exists
+            if delimiter_1 in other_dic and delimiter_2 in other_dic:
+                f_Node=other_dic[delimiter_1]
+                f_Node.add_index(i)
+                e_Node=other_dic[delimiter_2]
+                e_Node.add_index(i)
+                e_Node.add_sibling([f_Node,delimiter_1,i])
+                f_Node.add_sibling([e_Node,delimiter_2,i])
+
+
+            if delimiter_2 in other_dic and delimiter_1 not in other_dic:
+                e_Node=other_dic[delimiter_2]
+                first_Node=Leaf_node(delimiter_1,i)
+                first_Node.set_sibling([e_Node,delimiter_2,i])
+                other_dic[delimiter_1]=first_Node
+                list_for_leafs.append(first_Node)
+                e_Node.add_sibling([first_Node,delimiter_1,i])
+                e_Node.add_index(i)
+
+            if delimiter_1 not in other_dic and delimiter_2 not in other_dic:
+                first_Node=Leaf_node(delimiter_1,i)
+                second_Node= Leaf_node(delimiter_2,i)
+                second_Node.set_sibling([first_Node,delimiter_1,i])
+                other_dic[delimiter_2]=second_Node
+                list_for_leafs.append(second_Node)
+                first_Node.set_sibling([second_Node,delimiter_2,i])
+                other_dic[delimiter_1]=first_Node
+                list_for_leafs.append(first_Node)
+
+            if delimiter_2 not in other_dic and delimiter_1 in other_dic:
+                f_Node=other_dic[delimiter_1]
+                f_Node.add_index(i)
+                second_Node= Leaf_node(delimiter_2,i)
+                second_Node.set_sibling([f_Node,delimiter_1,i])
+                other_dic[delimiter_2]=second_Node
+                list_for_leafs.append(second_Node)
+                f_Node.add_sibling([second_Node,delimiter_2,i])
+        sorted_list=sorted(list_for_leafs,key=lambda node :node.value)
+        return sorted_list
+
+
+    def set_coverage_of_leaf_list(self,leaf_list):
+        coverage_count=0
+        iter=0
+        while iter !=len(leaf_list):
+            val_of_iter=leaf_list[iter].get_value()
+            number_ended_reads=0
+            siblings_of_node=leaf_list[iter].get_sibling()
+            while len(siblings_of_node)!=0:
+                (Node,value,index)=siblings_of_node.pop()
+                #Found beginning of a read
+                if (val_of_iter)<value:
+                    coverage_count+=1
+                else:
+                    #Found ending of a read , need to decrease the coverage count in the end
+                    number_ended_reads+=1
+            leaf_list[iter].set_coverage(coverage_count)
+            coverage_count=coverage_count-number_ended_reads
+            iter+=1
+        return leaf_list
+
+
+
 
     def discover_double_and_sibling(self,sorted_list):
         '''
@@ -433,6 +513,13 @@ class Leaf_node:
         self.parent=None
         self.balance=0
 
+    def add_index(self,i):
+        former_index=self.index
+        former_index.append(i)
+        self.index=former_index
+
+
+
     def set_sibling(self,sibling):
         #Set sibling node or nodes to the Node
         adding_sibling=[]
@@ -486,8 +573,9 @@ class Leaf_node:
 
     def add_sibling(self,value_list):
         adding_sibling= self.sibling
-        for i in value_list:
-            adding_sibling.append(i)
+        #for i in value_list:
+        #   adding_sibling.append(i)
+        adding_sibling.append(value_list)
         self.sibling = adding_sibling
 
     def isLeaf(self):
