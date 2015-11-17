@@ -21,6 +21,17 @@ class Binary_Search_Tree:
         node_list=self.new_building_of_list(readset)
         l_list=self.set_coverage_of_leaf_list(node_list)
         self.leaf_list=l_list
+        layer_list=self.bottom_up_construction_of_BST(l_list)
+        inner_nodes=[]
+        complete_tree=self.build_balanced_binary_tree(layer_list,inner_nodes)
+        #print("length of the inner node list")
+        #print(len(complete_tree))
+        #print('Coverage of the root')
+        #root_node=complete_tree.pop()
+        #print(root_node.get_coverage())
+        #print(root_node.get_parent())
+        self.complete_tree=(complete_tree[len(complete_tree)-1])
+
 
 
     def build_list(self,_ana_readset):
@@ -68,19 +79,21 @@ class Binary_Search_Tree:
                 first_Node=Leaf_node(delimiter_1,i)
                 first_Node.set_sibling([e_Node,delimiter_2,i])
                 other_dic[delimiter_1]=first_Node
-                list_for_leafs.append(first_Node)
                 e_Node.add_sibling([first_Node,delimiter_1,i])
                 e_Node.add_index(i)
+                list_for_leafs.append(first_Node)
+
 
             if delimiter_1 not in other_dic and delimiter_2 not in other_dic:
                 first_Node=Leaf_node(delimiter_1,i)
                 second_Node= Leaf_node(delimiter_2,i)
                 second_Node.set_sibling([first_Node,delimiter_1,i])
-                other_dic[delimiter_2]=second_Node
-                list_for_leafs.append(second_Node)
                 first_Node.set_sibling([second_Node,delimiter_2,i])
+                other_dic[delimiter_2]=second_Node
                 other_dic[delimiter_1]=first_Node
                 list_for_leafs.append(first_Node)
+                list_for_leafs.append(second_Node)
+
 
             if delimiter_2 not in other_dic and delimiter_1 in other_dic:
                 f_Node=other_dic[delimiter_1]
@@ -101,14 +114,16 @@ class Binary_Search_Tree:
             val_of_iter=leaf_list[iter].get_value()
             number_ended_reads=0
             siblings_of_node=leaf_list[iter].get_sibling()
-            while len(siblings_of_node)!=0:
-                (Node,value,index)=siblings_of_node.pop()
+            len_siblinling=0
+            while len_siblinling<len(siblings_of_node):
+                (Node,value,index)=siblings_of_node[len_siblinling]
                 #Found beginning of a read
                 if (val_of_iter)<value:
                     coverage_count+=1
                 else:
                     #Found ending of a read , need to decrease the coverage count in the end
                     number_ended_reads+=1
+                len_siblinling+=1
             leaf_list[iter].set_coverage(coverage_count)
             coverage_count=coverage_count-number_ended_reads
             iter+=1
@@ -179,6 +194,72 @@ class Binary_Search_Tree:
 
     def get_leaf_list_of_tree(self):
         return self.leaf_list
+
+
+    def bottom_up_construction_of_BST(self,node_list):
+        re_value=1
+        number_nodes=len(node_list)
+        while re_value>0:
+            if math.pow(2,re_value)>number_nodes:
+                break
+            else:
+                re_value+=1
+        re_value-=1
+        #for_compression is the number of leaves which have to be assigned to an inner node such that the tree get a dlayer of exactly 2^x nodes
+        #and then could be build as a normal balanced binary tree
+        for_compression=2*int(number_nodes-math.pow(2,re_value))
+        print('For compression')
+        print(for_compression)
+        print('Length of node list')
+        print(len(node_list))
+        i=0
+        layer_list=[]
+        while for_compression!=0:
+            mini=min(node_list[i].get_coverage(),node_list[i+1].get_coverage())
+            maxi=max(node_list[i].get_coverage(),node_list[i+1].get_coverage())
+            layer_node=BST_node(mini,maxi)
+            layer_node.set_left_child(node_list[i])
+            layer_node.set_right_child(node_list[i+1])
+            node_list[i].set_is_left_child()
+            node_list[i+1].set_is_right_child()
+            node_list[i].set_parent(layer_node)
+            node_list[i+1].set_parent(layer_node)
+            layer_list.append(layer_node)
+            i+=2
+            for_compression-=2
+        #adding remaining leafs to the layer list. which then should have exactly 2^re_value elements
+        while i!=number_nodes:
+            layer_list.append(node_list[i])
+            i+=1
+
+        #should give re_value that exceed the number of nodes
+        return layer_list
+
+    def build_balanced_binary_tree(self,layer_list,inner_node_list):
+        #come to root
+        if len(layer_list)!=1:
+            next_layer_node_list=[]
+            lengt_of_node_list=len(layer_list)
+            i=0
+            #could assure that because length of the node list is a 2 to power of x case
+            while i !=lengt_of_node_list:
+                first_node=layer_list[i]
+                second_node=layer_list[i+1]
+                mini=min(first_node.get_min_coverage(),second_node.get_min_coverage())
+                maxi=max(first_node.get_max_coverage(),second_node.get_max_coverage())
+                new_BST_node=BST_node(mini,maxi)
+                new_BST_node.set_left_child(first_node)
+                new_BST_node.set_right_child(second_node)
+                first_node.set_parent(new_BST_node)
+                second_node.set_parent(new_BST_node)
+                first_node.set_is_left_child()
+                second_node.set_is_right_child()
+                inner_node_list.append(new_BST_node)
+                next_layer_node_list.append(new_BST_node)
+                i+=2
+            return self.build_balanced_binary_tree(next_layer_node_list,inner_node_list)
+        else:
+            return inner_node_list
 
 
     def building_BST_from_leaf_list(self,start,end,arr,node_list):
@@ -560,6 +641,13 @@ class Leaf_node:
 
     def get_coverage(self):
         return self.coverage
+
+    def get_min_coverage(self):
+        return self.coverage
+
+    def get_max_coverage(self):
+        return self.coverage
+
 
     def get_balance(self):
         return self.balance
