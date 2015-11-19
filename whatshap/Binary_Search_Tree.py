@@ -24,12 +24,6 @@ class Binary_Search_Tree:
         layer_list=self.bottom_up_construction_of_BST(l_list)
         inner_nodes=[]
         complete_tree=self.build_balanced_binary_tree(layer_list,inner_nodes)
-        #print("length of the inner node list")
-        #print(len(complete_tree))
-        #print('Coverage of the root')
-        #root_node=complete_tree.pop()
-        #print(root_node.get_coverage())
-        #print(root_node.get_parent())
         self.complete_tree=(complete_tree[len(complete_tree)-1])
 
 
@@ -208,10 +202,6 @@ class Binary_Search_Tree:
         #for_compression is the number of leaves which have to be assigned to an inner node such that the tree get a dlayer of exactly 2^x nodes
         #and then could be build as a normal balanced binary tree
         for_compression=2*int(number_nodes-math.pow(2,re_value))
-        print('For compression')
-        print(for_compression)
-        print('Length of node list')
-        print(len(node_list))
         i=0
         layer_list=[]
         while for_compression!=0:
@@ -346,10 +336,14 @@ class Binary_Search_Tree:
         (min_cov,max_cov)=split_node_coverage
         updated_min_coverage= min_cov+split_balance
         updated_max_coverage= max_cov+split_balance
+        print("Updatete min coverage %d " %updated_min_coverage)
+        print("Updated max coverage %d " %updated_max_coverage)
+        print("Look if updated min coverage below or equal %d " %(math.floor(max_coverage/2)))
         if updated_min_coverage<= math.floor(max_coverage/2):
             d_var=True
         if updated_max_coverage>max_cov:
             d_var=False
+
         return d_var
 
 
@@ -413,7 +407,7 @@ class Binary_Search_Tree:
             if (parent_end_node != None):
                 grandparent_end_node=parent_end_node.get_parent()
             if (parent_end_node==parent_start_node and (parent_end_node != None and parent_start_node!= None)):
-                #print('In first case')
+                print('In first case')
                 not_found=True
                 split_node=parent_end_node
                 List_of_nodes.add(parent_end_node)
@@ -447,13 +441,14 @@ class Binary_Search_Tree:
 
 
             if (parent_end_node==grandparent_start_node and (parent_end_node != None and grandparent_start_node!= None)):
-                #print('In second case')
+                print('In second case')
                 not_found=True
                 Need_to_look_if_end_is_right_child=False
                 split_node=parent_end_node
                 List_of_nodes.add(parent_end_node)
                 List_of_nodes.add(parent_start_node)
-                if start_node.get_is_left_child:
+
+                if start_node.get_is_left_child():
                     Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
                     List_of_nodes.union(Nodes_of_the_left_child)
 
@@ -476,19 +471,19 @@ class Binary_Search_Tree:
                 #print(50 in help_set)
 
                 if end_node.get_is_right_child():
-                    #print('in If with end node ')
-                   # print(end_node.get_value())
+                    print('in If with end node ')
+                    print(end_node.get_value())
                     Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
                     List_of_nodes.union(Nodes_of_the_right_child)
 
             #Befor resetting them have to look at their siblings according from the parent node
 
             if (start_node.get_is_left_child() and Need_to_look_if_start_is_leaft_child):
-                #print('In start node get is left child')
+                print('In start node get is left child')
                 Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
                 List_of_nodes.union(Nodes_of_the_left_child)
             if (end_node.get_is_right_child() and Need_to_look_if_end_is_right_child):
-                #print('In THIS LAST IF ')
+                print('In THIS LAST IF ')
                 Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
                 List_of_nodes.union(Nodes_of_the_right_child)
 
