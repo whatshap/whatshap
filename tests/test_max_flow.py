@@ -26,21 +26,21 @@ def test_struct_for_BST():
 
 	assert only_end_points[0].get_value() ==30
 	assert only_end_points[1].get_value() ==30
-	(split_node_of_read,List_to_change)=tree.seach_for_split_node(leaf_list_of_tree[0],only_end_points[0])
+	(split_node_of_read,List_to_change,coverage_range)=tree.seach_for_split_node(leaf_list_of_tree[0],only_end_points[0])
 	assert split_node_of_read.get_coverage()==(2,3)
 	assert split_node_of_read.get_right_child().get_value()==30
 	assert len(List_to_change)==3
 	#Geht nicht mehr da List to change nun set ist
 	#assert List_to_change[0]==split_node_of_read
 	assert split_node_of_read in List_to_change
-	(split_node_of_read,List_to_change)=tree.seach_for_split_node(leaf_list_of_tree[0],only_end_points[1])
+	(split_node_of_read,List_to_change,coverage_range)=tree.seach_for_split_node(leaf_list_of_tree[0],only_end_points[1])
 	assert split_node_of_read.get_coverage()==(2,3)
 	assert split_node_of_read.get_right_child().get_value()==30
 	leaf_value=leaf_list_of_tree[1].get_value()
 	siblings=leaf_list_of_tree[1].get_sibling()
 	only_end_points=[sib for (sib,value,index) in siblings if value>leaf_value]
 	assert only_end_points[0].get_value() ==40
-	(split_node_of_read,List_to_change)=tree.seach_for_split_node(leaf_list_of_tree[1],only_end_points[0])
+	(split_node_of_read,List_to_change,coverage_range)=tree.seach_for_split_node(leaf_list_of_tree[1],only_end_points[0])
 	assert split_node_of_read.get_coverage()==(2,3)
 	assert split_node_of_read==root_node
 
@@ -200,7 +200,7 @@ def test_in_simple_case_list_to_change_of_split_node_case():
 	only_end_points=[sib for (sib,value,index) in siblings if value>leaf_value]
 	assert only_end_points[0].get_value() ==30
 	assert only_end_points[1].get_value() ==30
-	(split_node_of_read,List_to_change)=tree.seach_for_split_node(leaf_list_of_tree[0],only_end_points[0])
+	(split_node_of_read,List_to_change,coverage_range)=tree.seach_for_split_node(leaf_list_of_tree[0],only_end_points[0])
 	#List to change should include 3 nodes, the 2 nodes and the parent node of both
 	assert len(List_to_change) ==3
 	out_of_list_to_set=set(List_to_change)
@@ -208,7 +208,7 @@ def test_in_simple_case_list_to_change_of_split_node_case():
 	assert only_end_points[0] in out_of_list_to_set
 	assert leaf_list_of_tree[0].get_parent() in out_of_list_to_set
 
-	(split_node_of_read,List_to_change)=tree.seach_for_split_node(leaf_list_of_tree[0],only_end_points[1])
+	(split_node_of_read,List_to_change,coverage_range)=tree.seach_for_split_node(leaf_list_of_tree[0],only_end_points[1])
 	assert len(List_to_change) ==3
 	out_of_list_to_set=set(List_to_change)
 	assert leaf_list_of_tree[0] in out_of_list_to_set
@@ -223,8 +223,10 @@ def test_in_simple_case_list_to_change_of_split_node_case():
 	only_end_points=[sib for (sib,val,index) in siblings if val>leaf_value]
 	assert len(only_end_points)==1
 	assert only_end_points[0].get_value()==40
-	(split_node_of_read,List_to_change)=tree.seach_for_split_node(middle_leaf,only_end_points[0])
+	(split_node_of_read,List_to_change,coverage_range)=tree.seach_for_split_node(middle_leaf,only_end_points[0])
 	assert split_node_of_read==middle_leaf.get_parent().get_parent()
+	print("Length of list to change : %d" %len(List_to_change))
+	print(List_to_change)
 	assert len(List_to_change)==5
 	out_of_list_to_set=set(List_to_change)
 	assert middle_leaf in out_of_list_to_set
@@ -519,7 +521,7 @@ def test_BST_split_node():
 	end_node_for_split_node=leaf_list_of_tree[0].get_sibling()[1][0]
 	end_node_left_in_sub=end_node_for_split_node.get_parent().get_left_child()
 	assert end_node_left_in_sub.get_value()==30
-	(split_node_of_read,List_to_change)=first_tree_attemp.seach_for_split_node(leaf_list_of_tree[0],leaf_list_of_tree[0].get_sibling()[1][0])
+	(split_node_of_read,List_to_change,coverage_range)=first_tree_attemp.seach_for_split_node(leaf_list_of_tree[0],leaf_list_of_tree[0].get_sibling()[1][0])
 	assert split_node_of_read.get_coverage()==(2,3)
 	assert not split_node_of_read.get_parent()== None
 	#root node
@@ -553,7 +555,8 @@ def test_other_cases_for_split_node():
 	#second case
 	assert leaf_list_of_tree[0].get_value()==10
 	assert leaf_list_of_tree[2].get_value()==30
-	(split_node_of_read,List_to_change)=first_tree_attemp.seach_for_split_node(leaf_list_of_tree[0],leaf_list_of_tree[2])
+	(split_node_of_read,List_to_change,coverage_range)=first_tree_attemp.seach_for_split_node(leaf_list_of_tree[0],leaf_list_of_tree[2])
+	print("Length of list to change : %d" %len(List_to_change))
 	assert len(List_to_change)==6
 	assert split_node_of_read.get_coverage()==(2,3)
 	assert split_node_of_read.get_right_child().get_left_child().get_value()==30
@@ -604,7 +607,7 @@ def test_third_case_for_split_node_2():
 	""")
 	first_tree_attemp=Binary_Search_Tree(reads)
 	leaf_list_of_tree=first_tree_attemp.get_leaf_list_of_tree()
-	(split_node,List_to_change)=first_tree_attemp.seach_for_split_node(leaf_list_of_tree[2],leaf_list_of_tree[3])
+	(split_node,List_to_change,coverage_range)=first_tree_attemp.seach_for_split_node(leaf_list_of_tree[2],leaf_list_of_tree[3])
 	assert len(List_to_change)==3
 	assert not leaf_list_of_tree[4] in List_to_change
 	assert leaf_list_of_tree[2] in List_to_change
@@ -687,7 +690,7 @@ def test_split_node_second_case():
 
 	assert leaf_list_of_tree[3].get_value() ==40
 	assert leaf_list_of_tree[4].get_value() ==50
-	(split_node_of_read,List_to_change)=tree.seach_for_split_node(leaf_list_of_tree[3],leaf_list_of_tree[4])
+	(split_node_of_read,List_to_change,coverage_range)=tree.seach_for_split_node(leaf_list_of_tree[3],leaf_list_of_tree[4])
 	print(List_to_change)
 	print(len(List_to_change))
 	assert len(List_to_change)==6
@@ -715,7 +718,35 @@ def test_whole_algorithm ():
 	selected_reads,uninformative_read_count=reduce_readset_via_max_flow(reads,maximum_coverage)
 	assert len(selected_reads)==5
 
-def test_whole_algorithm_for_simple_case():
+
+def test_is_crucial_of_maxflow():
+	reads = string_to_readset("""
+	  11
+	  0000
+	    111
+	    110
+	     111
+	""")
+	maximum_coverage=2
+	tree=Binary_Search_Tree(reads)
+	leaf_list=tree.get_leaf_list_of_tree()
+	assert leaf_list[2].get_value()==30
+	assert leaf_list[4].get_value()==50
+	split_node,List_of_nodes,coverage_of_range=tree.seach_for_split_node(leaf_list[2],leaf_list[4])
+	assert coverage_of_range==(3,4)
+	assert split_node.get_coverage()==(1,4)
+
+	split_node,List_of_nodes,coverage_of_range=tree.seach_for_split_node(leaf_list[0],leaf_list[4])
+	assert coverage_of_range==(2,4)
+	assert split_node.get_coverage()==(1,4)
+
+	split_node,List_of_nodes,coverage_of_range=tree.seach_for_split_node(leaf_list[1],leaf_list[2])
+	assert coverage_of_range==(2,3)
+	assert split_node.get_coverage()==(2,4)
+
+
+#TODO NOt working because wrong assumption in the  paper
+def test_whole_algorithm_for_simple_case():#
 	#Not able to construct such a case
 	reads = string_to_readset("""
 	  11
@@ -727,3 +758,4 @@ def test_whole_algorithm_for_simple_case():
 	maximum_coverage=2
 	selected_reads,uninformative_read_count=reduce_readset_via_max_flow(reads,maximum_coverage)
 	assert len(selected_reads)==5
+

@@ -112,7 +112,7 @@ def remove_and_include_reads_from_the_tree(BST,max_coverage):
         for end_node in only_end_points:
             print('END NODE IN For Loop')
             print(end_node)
-            (split_node,List_to_change)=BST.seach_for_split_node(leaf,end_node[0])
+            (split_node,List_to_change,coverage_in_range)=BST.seach_for_split_node(leaf,end_node[0])
             #if end_node[1].isList()
             #if len(end_node[1])>1:
             #    connecting_indices= [j for j in end_node[1] if j in leaf.get_index()]
@@ -128,9 +128,9 @@ def remove_and_include_reads_from_the_tree(BST,max_coverage):
             if split_node==None:
                 print('Found no split node')
             else:
-                split_cov = split_node.get_coverage()
+                #split_cov = split_node.get_coverage()
                 split_balance = split_node.get_balance()
-                selection_criterion = BST.is_crucial(split_cov, max_coverage, split_balance)
+                selection_criterion = BST.is_crucial(coverage_in_range, max_coverage, split_balance)
                 #This means all reads which cover the read and the end node are crucial, therefore all have to be included
                 #in the reduced readset
                 if selection_criterion:
