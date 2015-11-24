@@ -355,39 +355,15 @@ class Binary_Search_Tree:
         (min_cov,max_cov)=range_coverage
         updated_min_coverage= min_cov+split_balance
         updated_max_coverage= max_cov+split_balance
-        print("Updatete min coverage %d " %updated_min_coverage)
-        print("Updated max coverage %d " %updated_max_coverage)
-        print("Look if updated min coverage below or equal %d " %(math.floor(max_coverage/2)))
+        #print("Updatete min coverage %d " %updated_min_coverage)
+        #print("Updated max coverage %d " %updated_max_coverage)
+        #print("Look if updated min coverage below or equal %d " %(math.floor(max_coverage/2)))
         if updated_min_coverage<= math.floor(max_coverage/2):
             d_var=True
         if updated_max_coverage>max_cov:
             d_var=False
 
         return d_var
-
-
-#Not needed anymore
-    def synchronize_sibling_with_same_value(self,sibling_list):
-        '''
-        Assume already sorted sibling list of nodes
-        :param sibling_list:
-        :return:a updated sibling_list
-        '''
-        #TODO : NOT EFFICIENT AT ALL But Working
-        Leaf_list=self.get_leaf_list_of_tree()
-        for actual_node in sibling_list:
-            actual_value=actual_node.get_value()
-            for j in Leaf_list:
-                if j.get_value()==actual_value:
-                    actual_node.set_balance(j.get_balance())
-                    actual_node.set_parent(j.get_parent())
-                    if j.get_is_left_child():
-                        actual_node.set_is_left_child()
-                    else:
-                        actual_node.set_is_right_child()
-                    break
-
-
 
     def get__all_nodes(self,node,Set_of_nodes):
         '''
@@ -410,8 +386,9 @@ class Binary_Search_Tree:
 
     def seach_for_split_node(self,start_node,end_node):
         #for every combination of leaf and end node, so for every range, keep track of the coverage
-        mini_coverage=start_node.get_min_coverage()
-        maxi_coverage=end_node.get_min_coverage()
+        mini_coverage=min(start_node.get_min_coverage(),end_node.get_min_coverage())
+        maxi_coverage=max(start_node.get_max_coverage(),end_node.get_max_coverage())
+        #print('At the start of search split node maxi %d '%maxi_coverage)
         List_of_nodes=set()
         not_found=False
         split_node=None
@@ -435,10 +412,10 @@ class Binary_Search_Tree:
             parent_start_min_cov=parent_start_node.get_min_coverage()
 
             if (parent_end_node==parent_start_node and (parent_end_node != None and parent_start_node!= None)):
-                print('In first case')
-                print('Nothing to do here for the coverage in the range ')
-                print('Min coverage %d '%mini_coverage)
-                print('Max coverage %d '%maxi_coverage)
+                #print('In first case')
+                #print('Nothing to do here for the coverage in the range ')
+                #print('Min coverage %d '%mini_coverage)
+                #print('Max coverage %d '%maxi_coverage)
 
                 not_found=True
                 split_node=parent_end_node
@@ -456,7 +433,7 @@ class Binary_Search_Tree:
             else:
                 #Need to be in else, because it the first case occures the fourth is included
                 if (grandparent_end_node==grandparent_start_node and (grandparent_end_node != None and grandparent_start_node!= None)):
-                    print('In fourth case')
+                    #print('In fourth case')
                     not_found=True
                     split_node=grandparent_end_node
                     List_of_nodes.add(grandparent_end_node)
@@ -470,7 +447,6 @@ class Binary_Search_Tree:
                         maxi_coverage=max(parent_end_max_cov,maxi_coverage)
 
                     if start_node.get_is_left_child():
-                        #print('Start node get is left child after split node found')
                         Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
                         List_of_nodes.union(Nodes_of_the_left_child)
                         mini_coverage=min(parent_start_min_cov,mini_coverage)
@@ -480,7 +456,7 @@ class Binary_Search_Tree:
 
 
             if (parent_end_node==grandparent_start_node and (parent_end_node != None and grandparent_start_node!= None)):
-                print('In second case')
+                #print('In second case')
                 not_found=True
                 Need_to_look_if_end_is_right_child=False
                 split_node=parent_end_node
@@ -495,7 +471,7 @@ class Binary_Search_Tree:
 
 
             if (grandparent_end_node==parent_start_node and (parent_end_node != None and parent_start_node!= None)):
-                print('In third case')
+                #print('In third case')
                 not_found=True
                 Need_to_look_if_start_is_leaft_child=False
 
@@ -503,17 +479,10 @@ class Binary_Search_Tree:
                 #Need_to_look_if_end_is_right_child=False
                 List_of_nodes.add(parent_start_node)
                 List_of_nodes.add(parent_end_node)
-                #print('LIST Of NODES')
-                #print(List_of_nodes)
-                new_gelp_list=[l.get_value() for l in List_of_nodes if l.isLeaf()]
-                #print('Help list')
-                #print(new_gelp_list)
-                help_set=set(new_gelp_list)
-                #print(50 in help_set)
 
                 if end_node.get_is_right_child():
-                    print('in If with end node ')
-                    print(end_node.get_value())
+                    #print('in If with end node ')
+                    #print(end_node.get_value())
                     Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
                     List_of_nodes.union(Nodes_of_the_right_child)
                     mini_coverage=min(parent_end_min_cov,mini_coverage)
@@ -522,13 +491,13 @@ class Binary_Search_Tree:
             #Befor resetting them have to look at their siblings according from the parent node
 
             if (start_node.get_is_left_child() and Need_to_look_if_start_is_leaft_child):
-                print('In start node get is left child')
+                #print('In start node get is left child')
                 Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
                 List_of_nodes.union(Nodes_of_the_left_child)
                 maxi_coverage=max(maxi_coverage,parent_start_max_cov)
                 mini_coverage=min(mini_coverage,parent_start_min_cov)
             if (end_node.get_is_right_child() and Need_to_look_if_end_is_right_child):
-                print('In THIS LAST IF ')
+                #print('In THIS LAST IF ')
                 Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
                 List_of_nodes.union(Nodes_of_the_right_child)
                 maxi_coverage=max(maxi_coverage,parent_end_max_cov)
