@@ -76,7 +76,6 @@ def reduce_readset_via_max_flow(readset,max_cov):
     tree=Binary_Search_Tree(readset)
     print("Builded Tree")
     (pruned_set,removed_set)=remove_and_include_reads_from_the_tree(tree,max_cov)
-    print('HAS a Pruned and removed set')
     selected_reads = set()
     #TODO Not sure if the uninformative read count is defined correctly
     #Same as in readselect:
@@ -85,6 +84,8 @@ def reduce_readset_via_max_flow(readset,max_cov):
     uninformative_read_count=len(readset)-len(undecided_reads)
     print('PRUNED SET ')
     print(pruned_set)
+    print('Premoved SET ')
+    print(removed_set)
     for i in pruned_set:
         #if len(i)>1:
         #    for j in i :
@@ -168,7 +169,7 @@ def remove_and_include_reads_from_the_tree(BST,max_coverage):
 
 
         #First case could delete the number needed from the reads starting at the leaf itself
-        if len(already_seen_siblings)>number_need_to_remove:
+        if len(already_seen_siblings)>=number_need_to_remove:
             print('In first case : already seen big enough')
             while number_need_to_remove >0:
                 split,change_list,connecting_index=already_seen_siblings.pop()
