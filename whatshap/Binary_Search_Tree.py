@@ -347,7 +347,7 @@ class Binary_Search_Tree:
 #        return d_var    #
     #adapted version to the idea of really getting thhe coverage of the range query and not of the subtree of the split node
     #thereforegetting the coverage with in the criterion
-    def is_crucial(self,range_coverage, max_coverage,split_balance ):
+    def is_crucial_former_approach(self,range_coverage, max_coverage,split_balance ):
         '''
         Depends on the split_node and the maximal coverage if the read in this split node is crucial or not
         '''
@@ -364,6 +364,29 @@ class Binary_Search_Tree:
             d_var=False
 
         return d_var
+#Idea that for the crucail idea the coverage should not be updatet, because otherwise to many reads will become crucial
+    def is_crucial(self,range_coverage, max_coverage,split_balance ):
+        '''
+        Depends on the split_node and the maximal coverage if the read in this split node is crucial or not
+        '''
+        d_var=False
+        (min_cov,max_cov)=range_coverage
+        #updated_min_coverage= min_cov+split_balance
+        #updated_max_coverage= max_cov+split_balance
+        #print("Updatete min coverage %d " %updated_min_coverage)
+        #print("Updated max coverage %d " %updated_max_coverage)
+        #print("Look if updated min coverage below or equal %d " %(math.floor(max_coverage/2)))
+        if min_cov<= math.floor(max_coverage/2):
+            d_var=True
+        #if updated_max_coverage>max_cov:
+        #    d_var=False
+
+        return d_var
+
+
+
+
+
 
     def get__all_nodes(self,node,Set_of_nodes):
         '''

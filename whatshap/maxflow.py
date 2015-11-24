@@ -117,6 +117,211 @@ def get_all_reads_in_the_range(change_list,start):
                     node_combinations.append((i,index))
     return node_combinations
 
+def remove_and_include_reads_from_the_tree_not_working_approach_with_crucial_set(BST,max_coverage):
+    selected_reads=set()
+    removed_reads=set()
+    crucial_indices=set()
+    not_crucial=set()
+    leaf_list=BST.get_leaf_list_of_tree()
+    #going over the leafs in the tree
+    for i,leaf in enumerate(leaf_list):
+        print("Looking at Leaf %d" %leaf.get_value())
+        leaf_value=leaf.get_value()
+        siblings=leaf.get_sibling()
+        only_end_points=[[sib,i] for (sib,val,i) in siblings if val> leaf_value]
+        #store for every  leaf a list of siblings which xould be removed if coverage is exceeded
+        already_seen_siblings=[]
+        for end_node in only_end_points:
+            #compute split node for every range
+            print("Corresponding leaf_node %d" %end_node[0].get_value())
+            (split_node,List_to_change,coverage_in_range)=BST.seach_for_split_node(leaf,end_node[0])
+            already_seen_siblings.append((split_node,List_to_change,end_node[1]))
+            if split_node==None:
+                print('Found no split node')
+            else:
+                split_balance = split_node.get_balance()
+                selection_criterion = BST.is_crucial(coverage_in_range, max_coverage, split_balance)
+                #This means all reads which cover the read and the end node are crucial, therefore all have to be included
+                #in the reduced readset
+                if selection_criterion:
+                    print('In SELECTION CRITERION  ')
+                    print(end_node[1])
+                    crucial_indices.add(end_node[1])
+                    already_seen_siblings.remove((split_node,List_to_change,end_node[1]))
+                    selected_reads.add(end_node[1])
+                else:
+                    print('NOT crucial')
+                    not_crucial.add((end_node[1],end_node[0]))
+
+
+        new_leaf_coverage=leaf.get_coverage() +leaf.get_balance()
+        number_need_to_remove=new_leaf_coverage - max_coverage
+        print('Number of need to remove %d' %number_need_to_remove)
+        print("Length of the already selected set %d" %len(already_seen_siblings))
+        print('Two sets of pruned and removed and crucial and not crucial ')
+        print(selected_reads)
+        print(removed_reads)
+        print(crucial_indices)
+        print(not_crucial)
+        #If we have the case that the later reads are crucial but the former were expandable we have to look again at all reads
+        # which also cover this region and are expandable
+
+
+        #First case could delete the number needed from the reads starting at the leaf itself
+        if len(already_seen_siblings)>=number_need_to_remove:
+            print('In first case : already seen big enough')
+            while number_need_to_remove >0:
+                split,change_list,connecting_index=already_seen_siblings.pop()
+                print('Appended to removed_reads %d' %connecting_index)
+                removed_reads.add(connecting_index)
+                step_up_balance(change_list)
+                update_till_root(split)
+                number_need_to_remove-=1
+                #remainig reads are selcted because they do not interfere with the max coverage
+            for (split_n,change_list_n,index) in already_seen_siblings:
+                print('Appended index at selected %d '%index)
+                selected_reads.add(index)
+                not_crucial.add((index,leaf))
+
+        #second case : Not enough reads which start at the node there to fullfill the number which has to be removed:
+        else:
+            if number_need_to_remove==0:
+               continue
+            print('In second case already seen not enough')
+            #remove at first as manny nodes as possible
+            while len(already_seen_siblings)!=0:
+                print('removing of available in seen')
+                split,change_list,connecting_index=already_seen_siblings.pop()
+                print('Length of the already selected !=0 %d' %connecting_index)
+                removed_reads.add(connecting_index)
+                step_up_balance(change_list)
+                update_till_root(split)
+                number_need_to_remove-=1
+            # Getting the reads which end at this node
+            only_start_points_in_leaf=[[sib,i] for (sib,val,i) in siblings if val< leaf_value]
+            for start_node in only_start_points_in_leaf:
+                print('Looking at the other siblings of the leaf where the leaf is the end')
+                #so if the read is expandable it could be removed
+                for (index_not_cruc,node) in not_crucial:
+                    if start_node[1] in not_crucial:
+                        print('START Node in the only start_points %d '%start_node[0].get_value())
+                        print('START Node  index  %d '%start_node[1])
+                        (split_node,List_to_change,coverage_in_range)=BST.seach_for_split_node(leaf,start_node[0])
+                        removed_reads.add(start_node[1])
+                        if start_node[1] in selected_reads:
+                            #could be somewhere else
+                            selected_reads.remove(start_node[1])
+                        step_up_balance(List_to_change)
+                        update_till_root(split_node)
+                        number_need_to_remove-=1
+                        #Stop when number of removed reads is fullfilled
+                    if number_need_to_remove==0:
+                        break
+
+            #third case : If still more has to be removed as from this leaf could be done, need to check the range and the nodes there:
+
+            #other approach for the thrid case :
+            #Looking at the not_crucial reads
+            while number_need_to_remove!=0:
+                checking_set=set()
+                for (index,node) in not_crucial:
+                    if index in selected_reads:
+                        #value_of_not_crucial=node.get_value()
+                        node_sibs=node.get_sibling()
+                        for (sib,val,i) in node_sibs:
+                            if i ==index and val>=leaf_value and node.get_value()<=leaf_value:
+                                print('Covering there with index')
+                                (split_node,List_to_change,coverage_in_range)=BST.seach_for_split_node(node,sib)
+                                step_up_balance(List_to_change)
+                                update_till_root(split_node)
+                                number_need_to_remove-=1
+                                selected_reads.remove(i)
+                                removed_reads.add(i)
+                            if i ==index and val<=leaf_value and node.get_value()>=leaf_value:
+                                print('Covering this index')
+                                (split_node,List_to_change,coverage_in_range)=BST.seach_for_split_node(node,sib)
+                                step_up_balance(List_to_change)
+                                update_till_root(split_node)
+                                number_need_to_remove-=1
+                                selected_reads.remove(i)
+                                removed_reads.add(i)
+                            if index == i:
+                                checking_set.add(index)
+                                break
+                            #else:
+                            #    if index in i:
+                            #        checking_set.add(index)
+
+
+
+
+
+
+            #
+            # if number_need_to_remove!=0:
+            #     print('In third case need to look in the ranges')
+            #     big_list_of_changes=set()
+            #     all_siblings_of_leaf=[[sib,i] for (sib,val,i) in siblings]
+            #     other_reads_covering_the_reads=[]
+            #     for sib_nodes in all_siblings_of_leaf:
+            #         print("sib_nodes for the finding of other siblings of the leaf nodes in this range")
+            #         print(sib_nodes[0].get_value())
+            #         print(sib_nodes[1])
+            #         (split_node,List_to_change,coverage_in_range)=BST.seach_for_split_node(leaf,sib_nodes[0])
+            #         split_balance=split_node.get_balance()
+            #         #Not seen reasd till there could occure therefor need to check first if crucialot not
+            #         selection_criterion = BST.is_crucial(coverage_in_range, max_coverage, split_balance)
+            #         #only if the selection criterion is not fullfilled these reads could be used for the removal
+            #         if not selection_criterion:
+            #             print('In selection criterion')
+            #             print('List_to_change which is there ')
+            #             print(List_to_change)
+            #             big_list_of_changes=big_list_of_changes.union(List_to_change)
+            #             print(len(big_list_of_changes))
+            #         else:
+            #             print('Not crucial')
+            #             crucial_indices.add(sib_nodes[1])
+            #
+            #     print("len(big_list_of_changes)")
+            #     print(len(big_list_of_changes))
+            #     for node in big_list_of_changes:
+            #         print('In For loop')
+            #         if node.isLeaf():
+            #             print("NODES HAVE TO BE LEAF ")
+            #             node_value=node.get_value()
+            #             for (other_siblings,val,i) in node.get_sibling():
+            #                 #by less or bigger the leaf node itself is discarded
+            #                 if (node_value>leaf_value and val<leaf_value and i not in crucial_indices):
+            #                     print('Added in other_reads_ in_first if ')
+            #                     other_reads_covering_the_reads.append((i,node,other_siblings))
+            #                 if (node_value<leaf_value and val>leaf_value and i not in crucial_indices):
+            #                     print('Added in other_reads_ in_second if ')
+            #                     other_reads_covering_the_reads.append((i,node,other_siblings))
+            #     if len(other_reads_covering_the_reads)==0:
+            #         print("Nothing to remove")
+            #         print("Number needs to remove %d" %number_need_to_remove)
+            #     while number_need_to_remove!=0:
+            #         (index,node,other_sibling)=other_reads_covering_the_reads.pop()
+            #         removed_reads.add(index)
+            #         #Not sure if needed
+            #         selected_reads.remove(index)
+            #         #Search again split node of this couple
+            #         (split_node,List_to_change,coverage_in_range)=BST.seach_for_split_node(node,other_sibling)
+            #         selection_criterion = BST.is_crucial(coverage_in_range, max_coverage, split_balance)
+            #         if selection_criterion:
+            #             print("THERE IST SOMETHING WRONG")
+            #         step_up_balance(List_to_change)
+            #         update_till_root(split_node)
+            #         number_need_to_remove-=1
+
+
+
+        print('Two sets after while loop of pruned and removed')
+        print(selected_reads)
+        print(removed_reads)
+    return (selected_reads,removed_reads)
+
+
 def remove_and_include_reads_from_the_tree(BST,max_coverage):
     selected_reads=set()
     removed_reads=set()
@@ -156,7 +361,6 @@ def remove_and_include_reads_from_the_tree(BST,max_coverage):
 
         new_leaf_coverage=leaf.get_coverage() +leaf.get_balance()
         number_need_to_remove=new_leaf_coverage - max_coverage
-        print('New leaf coverage %d ' %new_leaf_coverage)
         print('Number of need to remove %d' %number_need_to_remove)
         print("Length of the already selected set %d" %len(already_seen_siblings))
         print('Two sets of pruned and removed and crucial and not crucial ')
@@ -208,7 +412,9 @@ def remove_and_include_reads_from_the_tree(BST,max_coverage):
                     print('START Node  index  %d '%start_node[1])
                     (split_node,List_to_change,coverage_in_range)=BST.seach_for_split_node(leaf,start_node[0])
                     removed_reads.add(start_node[1])
-                    selected_reads.remove(start_node[1])
+                    if start_node[1] in selected_reads:
+                        #could be somewhere else
+                        selected_reads.remove(start_node[1])
                     step_up_balance(List_to_change)
                     update_till_root(split_node)
                     number_need_to_remove-=1
@@ -218,38 +424,54 @@ def remove_and_include_reads_from_the_tree(BST,max_coverage):
 
             #third case : If still more has to be removed as from this leaf could be done, need to check the range and the nodes there:
             if number_need_to_remove!=0:
-                print('In third case nee to look in the ranges')
+                print('In third case need to look in the ranges')
                 big_list_of_changes=set()
                 all_siblings_of_leaf=[[sib,i] for (sib,val,i) in siblings]
                 other_reads_covering_the_reads=[]
                 for sib_nodes in all_siblings_of_leaf:
+                    print("sib_nodes for the finding of other siblings of the leaf nodes in this range")
+                    print(sib_nodes[0].get_value())
+                    print(sib_nodes[1])
                     (split_node,List_to_change,coverage_in_range)=BST.seach_for_split_node(leaf,sib_nodes[0])
                     split_balance=split_node.get_balance()
                     #Not seen reasd till there could occure therefor need to check first if crucialot not
                     selection_criterion = BST.is_crucial(coverage_in_range, max_coverage, split_balance)
                     #only if the selection criterion is not fullfilled these reads could be used for the removal
                     if not selection_criterion:
-                        big_list_of_changes.union(List_to_change,selection_criterion,sib_nodes[0])
+                        print('In selection criterion')
+                        print('List_to_change which is there ')
+                        print(List_to_change)
+                        big_list_of_changes=big_list_of_changes.union(List_to_change)
+                        print(len(big_list_of_changes))
                     else:
+                        print('Not crucial')
                         crucial_indices.add(sib_nodes[1])
 
-
+                print("len(big_list_of_changes)")
+                print(len(big_list_of_changes))
                 for node in big_list_of_changes:
+                    print('In For loop')
                     if node.isLeaf():
+                        print("NODES HAVE TO BE LEAF ")
                         node_value=node.get_value()
                         for (other_siblings,val,i) in node.get_sibling():
                             #by less or bigger the leaf node itself is discarded
                             if (node_value>leaf_value and val<leaf_value and i not in crucial_indices):
+                                print('Added in other_reads_ in_first if ')
                                 other_reads_covering_the_reads.append((i,node,other_siblings))
                             if (node_value<leaf_value and val>leaf_value and i not in crucial_indices):
+                                print('Added in other_reads_ in_second if ')
                                 other_reads_covering_the_reads.append((i,node,other_siblings))
+                if len(other_reads_covering_the_reads)==0:
+                    print("Nothing to remove")
+                    print("Number needs to remove %d" %number_need_to_remove)
                 while number_need_to_remove!=0:
                     (index,node,other_sibling)=other_reads_covering_the_reads.pop()
                     removed_reads.add(index)
                     #Not sure if needed
                     selected_reads.remove(index)
                     #Search again split node of this couple
-                    (split_node,List_to_change,coverage_in_range)=BST.seach_for_split_node()
+                    (split_node,List_to_change,coverage_in_range)=BST.seach_for_split_node(node,other_sibling)
                     selection_criterion = BST.is_crucial(coverage_in_range, max_coverage, split_balance)
                     if selection_criterion:
                         print("THERE IST SOMETHING WRONG")

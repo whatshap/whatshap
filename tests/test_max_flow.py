@@ -798,3 +798,27 @@ def test_split_node_in_this_case():#
 	assert leaf_list[5].get_parent().get_left_child()in List_of_nodes
 	assert len(List_of_nodes)==7
 
+def test_third_case_of_the_selection_of_reads():
+	reads = string_to_readset("""
+	  111
+	  000
+	    11
+	  00000
+	  11111
+		""")
+	maximum_coverage=3
+	selected_reads,uninformative_read_count=reduce_readset_via_max_flow(reads,maximum_coverage)
+	assert len(selected_reads)==3
+
+
+def test_case_for_using_range():
+	reads=string_to_readset("""
+	111111
+	000000
+	111111
+	    11
+	    000
+	""")
+	maximum_coverage=3
+	selected_reads,uninformative_read_count=reduce_readset_via_max_flow(reads,maximum_coverage)
+	assert len(selected_reads)==3
