@@ -5,16 +5,6 @@ from whatshap._core import PyRead,PyReadSet
 #Before starting the algorithm we have to build up the binary search tree.
 class Binary_Search_Tree:
 
-#    def __init__(self,readset):
-#        '''Build up a binary search tree, with the attributes: Leaf_list and root_node'''
-#        #Builds List of possible Leafes
-#        node_list=self.build_list(readset)
-#        #resolves double occuring nodes
-#        leaf_list=self.discover_double_and_sibling(node_list)
-#        layer_array=[]
-#        complete_tree=self.building_BST_from_leaf_list(0,len(leaf_list)-1,layer_array,leaf_list)
-#        self.complete_tree=complete_tree
-#        self.leaf_list=leaf_list
 
 
     def __init__(self,readset):
@@ -706,6 +696,10 @@ class Leaf_node:
 
     def get_index(self):
         return self.index
+
+    def __len__(self):
+        #Length in this conntext means the number of reads starting or ending in this delimiter
+        return len(self.index)
 
     def is_root(self):
         return False
