@@ -396,8 +396,8 @@ class Binary_Search_Tree:
             return Set_of_nodes
 
 
-
-    def seach_for_split_node(self,start_node,end_node):
+#Former
+    def seach_for_split_node_former(self,start_node,end_node):
         #for every combination of leaf and end node, so for every range, keep track of the coverage
         mini_coverage=min(start_node.get_min_coverage(),end_node.get_min_coverage())
         maxi_coverage=max(start_node.get_max_coverage(),end_node.get_max_coverage())
@@ -523,6 +523,148 @@ class Binary_Search_Tree:
             end_node=parent_end_node
         coverage_of_range=(mini_coverage,maxi_coverage)
         return (split_node,List_of_nodes,coverage_of_range)
+
+
+    def seach_for_split_node(self,start_node,end_node):
+        #for every combination of leaf and end node, so for every range, keep track of the coverage
+        mini_coverage=min(start_node.get_min_coverage(),end_node.get_min_coverage())
+        maxi_coverage=max(start_node.get_max_coverage(),end_node.get_max_coverage())
+        #print('At the start of search split node maxi %d '%maxi_coverage)
+        List_of_nodes=set()
+        not_found=False
+        split_node=None
+
+        while not not_found:
+
+            Need_to_look_if_end_is_right_child=True
+            Need_to_look_if_start_is_leaft_child=True
+            #TODO have to check if it exists or if it is root.....
+            grandparent_start_node=None
+            grandparent_end_node=None
+            parent_start_node=start_node.get_parent()
+            if not (parent_start_node.is_root()):
+                grandparent_start_node=parent_start_node.get_parent()
+            parent_end_node=end_node.get_parent()
+            if (parent_end_node != None):
+                grandparent_end_node=parent_end_node.get_parent()
+            #parent_end_max_cov=parent_end_node.get_max_coverage()
+            #parent_end_min_cov=parent_end_node.get_min_coverage()
+            #parent_start_max_cov=parent_start_node.get_max_coverage()
+            #parent_start_min_cov=parent_start_node.get_min_coverage()
+            if start_node.get_is_left_child():
+                coverage_start_node_parent_right_child_min=parent_start_node.get_right_child().get_min_coverage()
+                coverage_start_node_parent_right_child_max=parent_start_node.get_right_child().get_max_coverage()
+            if end_node.get_is_right_child():
+                coverage_end_node_parent_left_child_min=parent_end_node.get_left_child().get_min_coverage()
+                coverage_end_node_parent_left_child_max=parent_end_node.get_left_child().get_max_coverage()
+
+            if (parent_end_node==parent_start_node and (parent_end_node != None and parent_start_node!= None)):
+                #print('In first case')
+                #print('Nothing to do here for the coverage in the range ')
+                #print('Min coverage %d '%mini_coverage)
+                #print('Max coverage %d '%maxi_coverage)
+
+                not_found=True
+                split_node=parent_end_node
+                List_of_nodes.add(parent_end_node)
+                #If the end node is a right child we have to add all nodes left of it also to the list
+                if end_node.get_is_right_child():
+                    #print('ENd node get is right child call all_nodes')
+                    Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
+                    List_of_nodes.union(Nodes_of_the_right_child)
+                #if the start node is a left child we have to add all nodes right of it which do not include the end node
+                if start_node.get_is_left_child():
+                    #print('Start node get is left child call all_nodes')
+                    Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
+                    List_of_nodes.union(Nodes_of_the_left_child)
+            else:
+                #Need to be in else, because it the first case occures the fourth is included
+                if (grandparent_end_node==grandparent_start_node and (grandparent_end_node != None and grandparent_start_node!= None)):
+                    #print('In fourth case')
+                    not_found=True
+                    split_node=grandparent_end_node
+                    List_of_nodes.add(grandparent_end_node)
+
+                    if end_node.get_is_right_child():
+                        #print('End node get is right child after split node found')
+                        Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
+                        List_of_nodes.union(Nodes_of_the_right_child)
+                        #Need to include the coverage pf the parent_end_node subtree
+                        mini_coverage=min(coverage_end_node_parent_left_child_min,mini_coverage)
+                        maxi_coverage=max(coverage_end_node_parent_left_child_max,maxi_coverage)
+
+                    if start_node.get_is_left_child():
+                        Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
+                        List_of_nodes.union(Nodes_of_the_left_child)
+                        mini_coverage=min(coverage_start_node_parent_right_child_min,mini_coverage)
+                        maxi_coverage=max(coverage_start_node_parent_right_child_max,maxi_coverage)
+                    List_of_nodes.add(parent_end_node)
+                    List_of_nodes.add(parent_start_node)
+
+
+            if (parent_end_node==grandparent_start_node and (parent_end_node != None and grandparent_start_node!= None)):
+                #print('In second case')
+                not_found=True
+                Need_to_look_if_end_is_right_child=False
+                split_node=parent_end_node
+                List_of_nodes.add(parent_end_node)
+                List_of_nodes.add(parent_start_node)
+
+                if start_node.get_is_left_child():
+                    Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
+                    List_of_nodes.union(Nodes_of_the_left_child)
+                    mini_coverage=min(coverage_start_node_parent_right_child_min,mini_coverage)
+                    maxi_coverage=max(coverage_start_node_parent_right_child_max,maxi_coverage)
+
+
+            if (grandparent_end_node==parent_start_node and (parent_end_node != None and parent_start_node!= None)):
+                #print('In third case')
+                not_found=True
+                Need_to_look_if_start_is_leaft_child=False
+
+                split_node=parent_start_node
+                #Need_to_look_if_end_is_right_child=False
+                List_of_nodes.add(parent_start_node)
+                List_of_nodes.add(parent_end_node)
+
+                if end_node.get_is_right_child():
+                    #print('in If with end node ')
+                    #print(end_node.get_value())
+                    Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
+                    List_of_nodes.union(Nodes_of_the_right_child)
+                    mini_coverage=min(coverage_end_node_parent_left_child_min,mini_coverage)
+                    maxi_coverage=max(coverage_end_node_parent_left_child_max,maxi_coverage)
+
+            #Befor resetting them have to look at their siblings according from the parent node
+
+            if (start_node.get_is_left_child() and Need_to_look_if_start_is_leaft_child):
+                #print('In start node get is left child')
+                Nodes_of_the_left_child=self.get__all_nodes(parent_start_node.get_right_child(),List_of_nodes)
+                List_of_nodes.union(Nodes_of_the_left_child)
+                #coverage_start_node_parent_right_child_min=parent_start_node.get_right_child().get_min_coverage()
+                #coverage_start_node_parent_right_child_max=parent_start_node.get_right_child().get_max_coverage()
+                maxi_coverage=max(maxi_coverage,coverage_start_node_parent_right_child_max)
+                mini_coverage=min(mini_coverage,coverage_start_node_parent_right_child_min)
+            if (end_node.get_is_right_child() and Need_to_look_if_end_is_right_child):
+                #print('In THIS LAST IF ')
+                Nodes_of_the_right_child=self.get__all_nodes(parent_end_node.get_left_child(),List_of_nodes)
+                List_of_nodes.union(Nodes_of_the_right_child)
+                #coverage_end_node_parent_left_child_min=parent_start_node.get_left_child().get_min_coverage()
+                #coverage_end_node_parent_left_child_max=parent_start_node.get_left_child().get_max_coverage()
+                maxi_coverage=max(maxi_coverage,coverage_end_node_parent_left_child_max)
+                mini_coverage=min(mini_coverage,coverage_end_node_parent_left_child_min)
+            #reset start and end node
+
+            List_of_nodes.add(start_node)
+            List_of_nodes.add(end_node)
+            start_node=parent_start_node
+            end_node=parent_end_node
+        coverage_of_range=(mini_coverage,maxi_coverage)
+        return (split_node,List_of_nodes,coverage_of_range)
+
+
+
+
 
 
 class BST_node:

@@ -648,8 +648,9 @@ def run_whatshap(bam, vcf,
 
 				sliced_reads = reads.subset(selected_reads)
 
-				if use_max_flow:
-					look_at_coverage_of_pruned_readset(sliced_reads,max_coverage)
+				#Trying to loop at the max_coverage
+				#if use_max_flow:
+				#	look_at_coverage_of_pruned_readset(sliced_reads,max_coverage)
 
 				position_list = reads.get_positions()
 				accessible_positions = sliced_reads.get_positions()

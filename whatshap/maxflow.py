@@ -50,25 +50,88 @@ def reduce_readset_via_max_flow(readset,max_cov):
     #crucial set is only set of indices, where not_crucial_set is actually a dictionary which stores the index and the  corrsponding
     #delimiters, corresponding split node and the list of nodes, which have to be touched by discarding this node
     (crucial_set,not_crucial_set)=detect_crucial_reads(tree,max_cov)
-    print('Crucial set')
-    print(crucial_set)
-    print('Not crucial set')
-    print(not_crucial_set)
+    (extended_crucial_set,extended_not_crucial_set)=detect_crucial_reads_2(tree,max_cov)
+
+    undecided_reads = set(i for i, read in enumerate(readset) if len(read) >= 2)
+    #Assertion that all reads are assigned to either one of the sets/dictionary
+    assert (len(crucial_set) + len(not_crucial_set))==len(undecided_reads)
+    not_crucial_keys=set(not_crucial_set.keys())
+    intersect_of_crucial_and_not_crucial=not_crucial_keys.intersection(crucial_set)
+    #Assertion that no index has a double occurence
+    assert len(intersect_of_crucial_and_not_crucial)==0
+    #explore_crucial_set(extended_crucial_set,tree,max_cov)
+
+    #print('Crucial set')
+    #print(crucial_set)
+    #print('Not crucial set')
+    #print(not_crucial_set)
+    #assert 0==1
+
     #Should reduce the readset based on the crucial set and the non crucial reads
-    #TODO NOT WORKING METHOD AT THE TIME
+    #TODO NOT WORKING METHOD AT THE TIME For the  real dataset
     (used_set, not_used_set)=reduce_readset_via_crucial_and_non_crucial_reads(tree,max_cov,crucial_set,not_crucial_set)
     #Former approach to remove reads in order to not exceeding the coverage
     #(pruned_set,removed_set)=remove_and_include_reads_from_the_tree(tree,max_cov)
 
     #Same as in readselect: Need to discard all reads which have length less than 2 , already done in the tree, but later needed
     #for the statistical output therefore computed again here
-    undecided_reads = set(i for i, read in enumerate(readset) if len(read) >= 2)
     uninformative_read_count=len(readset)-len(undecided_reads)
     print('PRUNED SET ')
     print(used_set)
     print('Premoved SET ')
     print(not_used_set)
     return used_set,uninformative_read_count
+
+def explore_crucial_set(crucial_set,tree,max_cov):
+    leaf_list=tree.get_leaf_list_of_tree()
+    for (start_node,end_node,split,List_to_change,index) in crucial_set.values():
+        s_val=start_node.get_value()
+        e_val=end_node[0].get_value()
+        if start_node.isLeaf():
+            print('Start node is leaf')
+        else:
+            print('Start node is not leaf')
+        if end_node[0].isLeaf():
+            print('End node is leaf')
+        else:
+            print('End node is not leaf')
+        if index==23710:
+            if start_node.isLeaf():
+                print('start_node.get_value()')
+                print(start_node.get_value())
+            if end_node[0].isLeaf():
+                print('ende.get_value()')
+                print(end_node[0].get_value())
+            (split_node,List_of_nodes,coverage_of_range)=tree.seach_for_split_node_2(start_node,end_node[0])
+            print(coverage_of_range)
+        #print('Index %d' %index)
+        #print('split.get_coverage()')
+        #print(split.get_coverage())
+        #(split_node,List_to_change_2,coverage_in_range)=tree.seach_for_split_node(start_node,end_node[0])
+        #print('Coverage in range')
+        #print(coverage_in_range)
+        #print(start_node.get_coverage())
+        #ende=end_node[0]
+        #print(ende.get_coverage())
+        #print('Coverage of start node parent')
+        #while start_node.get_parent()!=split_node:
+        #    print(start_node.get_parent().get_coverage())
+        #    print(start_node.get_is_left_child())
+        #    start_node=start_node.get_parent()
+        #print('Coverage of end node parent')
+        #while ende.get_parent()!=split_node:
+        #    print(ende.get_parent().get_coverage())
+        #    print(ende.get_is_right_child())
+        #    ende=ende.get_parent()
+        #if index==23710:
+        #    if start_node.isLeaf():
+        #        print('start_node.get_value()')
+        #        print(start_node.get_value())
+        #    if ende.isLeaf():
+        #       print('ende.get_value()')
+        #        print(ende.get_value())
+        #    tree.seach_for_split_node_2(start_node,ende)
+
 
 
 #FORMER
@@ -243,6 +306,7 @@ def remove_and_include_reads_from_the_tree_not_working_approach_with_crucial_set
         #print(removed_reads)
     return (selected_reads,removed_reads)
 
+#WORKING CORRECTLY
 def detect_crucial_reads(BST,max_coverage):
     '''
     :param: Getting Tree and max coverage
@@ -261,21 +325,6 @@ def detect_crucial_reads(BST,max_coverage):
             split_balance = split_node.get_balance()
             selection_criterion = BST.is_crucial(coverage_in_range, max_coverage, split_balance)
             if selection_criterion:
-                #more than just one index ( could occure by double occuring reads, node is the same but index is a list of indices
-                #length of node is defined in a leaf as length of the indices of this leaf
-
-
-                #if len(node[0])>1:
-                #    print('In IF and for len of the node ')
-                #    print(len(node[0]))
-                #    print(node[0])
-                #    print(node[1])
-                #    print(node[0].get_index())
-                #    for i in node[1]:
-                #        print(i)
-                #        print('CRUCIAL READ')
-                #       crucial_reads.add(i)
-                #else:
                 crucial_reads.add(node[2])
             else:
                 not_crucial_reads[node[2]]=((leaf,node,split_node,List_to_change))
@@ -283,7 +332,35 @@ def detect_crucial_reads(BST,max_coverage):
     #not _crucial is a dictionary, where for every index the same is stored lik in the crucial set
     return (crucial_reads,not_crucial_reads)
 
-#TODO NOt WORKING
+#ONLY FOR FINDING ERROR
+def detect_crucial_reads_2(BST,max_coverage):
+    '''
+    :param: Getting Tree and max coverage
+    :return:2 sets one containing the crucial and one the not_crucial : crucial is set of indices, where not_crucial is a
+    dictionary where the keys are the indices and the value the read start and end node , the split node and a list of nodes which
+    have to be updated if the read is removed from the original readset
+    '''
+    crucial_reads={}
+    not_crucial_reads={}
+    leaf_list=BST.get_leaf_list_of_tree()
+    for leaf in leaf_list:
+        siblings_of_leaf=leaf.get_sibling()
+        read_startpoints= [(sib,val,i) for (sib,val,i) in siblings_of_leaf  if val> leaf.get_value()]
+        for node in read_startpoints:
+            (split_node,List_to_change,coverage_in_range)=BST.seach_for_split_node(leaf,node[0])
+            split_balance = split_node.get_balance()
+            selection_criterion = BST.is_crucial(coverage_in_range, max_coverage, split_balance)
+            if selection_criterion:
+                crucial_reads[node[2]]=((leaf,node,split_node,List_to_change,node[2]))
+            else:
+                not_crucial_reads[node[2]]=((leaf,node,split_node,List_to_change))
+    #crucial is a set of leaf start and end point, correspoinding split node and list of nodes, which have to be changed
+    #not _crucial is a dictionary, where for every index the same is stored lik in the crucial set
+    return (crucial_reads,not_crucial_reads)
+
+
+
+#TODO Working for the test cases but not on real data
 def reduce_readset_via_crucial_and_non_crucial_reads(BST, max_coverage,crucial_set,not_crucial_set):
     '''
     :param: Tree, max_coverage, crucial_set of indices and not_crucial_set, corresponding to reads and  split node
@@ -301,124 +378,278 @@ def reduce_readset_via_crucial_and_non_crucial_reads(BST, max_coverage,crucial_s
     #first add all indices to the selected which are already crucial
     for i in crucial_set:
         selected_set.add(i)
-    #Go over all reads
+    #assert that all reads are transfered in the selected set
+    assert len(selected_set)==len(crucial_set)
+    #Go over all reads/intervals
+
+    #TODO NEEDED?
+    New_counting_only_for_node=0
+    Indices_of_the_leaf_node=set()
+    Selected_set_without_the_crucial_parts=set()
+
     for leaf in leaf_list:
         print('At the following leaf %d' %leaf.get_value())
         new_leaf_coverage=leaf.get_coverage() +leaf.get_balance()
         number_need_to_remove=new_leaf_coverage - max_coverage
         print('Number need to remove %d' %number_need_to_remove)
         l_siblings=leaf.get_sibling()
-        #get again the reads which start node is the actual leaf
-        #while number_need_to_remove>0:
-        #    start_nodes= [(sib,i)  for (sib,val,i) in l_siblings if val >leaf.get_value() and i not in selected_set]
-        #    for start,index in start_nodes:
-        #        print('Number need to remove in for loop %d' %number_need_to_remove)
-        #        print('Start nodes')
-        #        print('Index')
-        #        print(start)
-        #        print(index)
-        #        #dictionary find results of this index
-        #        if index not in selected_set:
-        #            ((leaf,node,split_node,List_to_change))=not_crucial_set[index]
-        #            print('Not selected the following read')
-        #            print(index)
-        #            not_selected_set.add(index)
-        #            step_up_balance(List_to_change)
-        #            update_till_root(split_node)
-        #            number_need_to_remove-=1
-        #            if number_need_to_remove==0:
-        #                print('Found that number need to remove is 0 ')
-        #                continue
-        #Change the order:
         start_nodes= [(sib,i)  for (sib,val,i) in l_siblings if val >leaf.get_value() and i not in selected_set]
-        print('Start nodes list')
-        print(start_nodes)
+        #Store the removed nodes in this list
         just_in_this_case_renomved=[]
-        #for i in range(0,len(start_nodes)):
-        #    (start,index)=start_nodes.pop()
         while number_need_to_remove>0 and len(start_nodes)!=0:
             (start,index)=start_nodes.pop()
-            print('Number need to remove in for loop %d' %number_need_to_remove)
-            print('Start nodes')
-            print('Index')
-            print(start)
-            print(index)
-            #dictionary find results of this index
-            if index not in selected_set:
-                ((leaf,node,split_node,List_to_change))=not_crucial_set[index]
-                print('Not selected the following read')
-                print(index)
-                not_selected_set.add(index)
-                just_in_this_case_renomved.append(index)
-                step_up_balance(List_to_change)
-                update_till_root(split_node)
-                number_need_to_remove-=1
-                if number_need_to_remove==0:
-                    print('Found that number need to remove is 0 ')
+            #print('Number need to remove in for loop %d' %number_need_to_remove)
+            #print('Start nodes')
+            #print('Index')
+            #print(start)
+            #print(index)
+            #dictionary find results of this index already cocered in the computation of start_nodes
+            #if index not in selected_set:
 
-        #for start,index in start_nodes:
-        #    print('In for liip over start , index and start_nodes')
-        #    while number_need_to_remove>0:
-                #print('Number need to remove in for loop %d' %number_need_to_remove)
-                #print('Start nodes')
-                #print('Index')
-                #print(start)
-                #print(index)
-                #dictionary find results of this index
-                #if index not in selected_set:
-                #    ((leaf,node,split_node,List_to_change))=not_crucial_set[index]
-                #    print('Not selected the following read')
-                #    print(index)
-                #    not_selected_set.add(index)
-                #    just_in_this_case_renomved.append(index)
-                #    step_up_balance(List_to_change)
-                #    update_till_root(split_node)
-                 #   number_need_to_remove-=1
-                 #   if number_need_to_remove==0:
-                 #       print('Found that number need to remove is 0 ')
-        print('Just in this case removed')
-        print(just_in_this_case_renomved)
-        if start_nodes==[] and number_need_to_remove>0:
-            print('No start nodes available but need to remove more')
-            print('Not crucial keys')
-            print(not_crucial_set.keys())
+            ((leaf_node,node,split_node,List_to_change))=not_crucial_set[index]
+            #print('Not selected the following read')
+            #print(index)
+            not_selected_set.add(index)
+            just_in_this_case_renomved.append(index)
+            step_up_balance(List_to_change)
+            update_till_root(split_node)
+            number_need_to_remove-=1
+            #if number_need_to_remove==0:
+            #    print('Found that number need to remove is 0 ')
+
+        #print('Just in this case removed')
+        #print(just_in_this_case_renomved)
+        if number_need_to_remove>0:
+            #print('No start nodes available but need to remove more')
+            #print('Not crucial keys')
+            #print(not_crucial_set.keys())
             not_crucial_indices=set(not_crucial_set.keys())
-            print(not_crucial_indices)
+            #print(not_crucial_indices)
             intersection_between_not_crucial_and_already_selected=not_crucial_indices.intersection(selected_set)
-            print('intersection_between_not_crucial_and_already_selected')
-            print(intersection_between_not_crucial_and_already_selected)
+            #print('intersection_between_not_crucial_and_already_selected')
+            #print(intersection_between_not_crucial_and_already_selected)
             #Go over this intersecdtion set and look which cover the leaf
             # while number_need_to_remove>0:
             for index in intersection_between_not_crucial_and_already_selected:
+                #print('Index in the intersection between and already selected')
+                #because end_node is still the whole sibling of the start_node
+                # end_node=(BST_leaf_node, value_of_leaf ,index)
                 ((start_node,end_node,split_node,List_to_change))=not_crucial_set[index]
-                #if actual leaf is influenced by this read
-                if leaf in List_to_change and number_need_to_remove>0 and index not in just_in_this_case_renomved:
-                    print('Index  where leaf is in List to change %d' %index)
+                #If leaf lies between start and end node
+                if start_node.get_value()<=leaf.get_value() and leaf.get_value()<= end_node[0].get_value():
+                    #TODO Not in this case once for the dataset
+                    print('Found interval, where the actual leaf is covered of')
                     not_selected_set.add(index)
                     selected_set.remove(index)
                     step_up_balance(List_to_change)
                     update_till_root(split_node)
                     number_need_to_remove-=1
+                if number_need_to_remove==0:
+                    break
+
+        if number_need_to_remove>0:
+
+                #Found there nothing but still need to remove:
+                not_crucial_keys=set(not_crucial_set.keys())
+                not_crucial_vals=not_crucial_set.values()
+                #Looking at the not_crucial_set but not on the selected ones, which are above
+                not_crucial_indices_not_selected=not_crucial_keys.difference(selected_set)
+
+                not_crucial_indices_not_selected_and_even_not_in_the_not_selected_set=not_crucial_indices_not_selected.difference(not_selected_set)
+                print('Need to expplore this set')
+                print(not_crucial_indices_not_selected_and_even_not_in_the_not_selected_set)
+
+                #Go over these indices ,with the corresponding intervals and look if they cover the actual leaf:
+                for index in not_crucial_indices_not_selected_and_even_not_in_the_not_selected_set:
+                    ((start_node,end_node,split_node,List_to_change))=not_crucial_set[index]
+                    if start_node.get_value()<leaf.get_value() and leaf.get_value()<end_node[0].get_value():
+                        print('Found overlapping interval which is not yet selected')
+
+                print('LEAF COVERAGE %d' %leaf.get_coverage())
+                print('LEAF BALANCE %d' %leaf.get_balance())
+            #NOW GOING OVER ALL THE POSSIBLE SETS, WHERE THIS LEAF COULD OCCURE; SO WHERE THIS COVERAGE COMES FROM:
+                #Only find the indices which cover the leaf directly as start or end point
+
+                for index in selected_set:
+                    if index in leaf.get_index():
+                        print('FOUND ONE OVERWHELMING INDEX IN SELECTED SET %d' %index)
+                for index in not_selected_set:
+                    if index in leaf.get_index():
+                        print('FOUND ONE OVERWHELMING INDEX IN NOT SELECTED SET %d' %index)
+                for index in crucial_set:
+                    if index in leaf.get_index():
+                        print('FOUND ONE OVERWHELMING INDEX IN CRUCIAL SET %d' %index)
+                        print(leaf.get_sibling())
+                for index in not_crucial_keys:
+                    if index in leaf.get_index():
+                        print('FOUND ONE OVERWHELMING INDEX IN NOT CRUCIAL SET %d' %index)
+                find_for_this_leaf_all_reads_covering_it(leaf_list,leaf)
 
 
 
 
 
-        #TODO Maybe endless loop
+
         if number_need_to_remove==0:
             adding_indices=[i for (sib,val,i) in l_siblings if val > leaf.get_value() and i not in not_selected_set]
             #In this loop
-            print(' In Adding indices here')
+            #print(' In Adding indices here')
             for index in adding_indices:
-                print('Index')
-                print(index)
+                #print('Index')
+                #print(index)
                 selected_set.add(index)
-        print('TWO sets selected and not selected')
-        print(selected_set)
-        print(not_selected_set)
+                Selected_set_without_the_crucial_parts.add((index,leaf))
+        #print('TWO sets selected and not selected')
+        #print(selected_set)
+        #print(not_selected_set)
+        #if the coverage exceeds
+        new_leaf_coverage=leaf.get_coverage()+leaf.get_balance()
+
+        #If the coverage is still exceeded
+        if new_leaf_coverage>max_coverage:
+            print('Leaf coverage exceeded')
+            print('Number need to remove %d' %number_need_to_remove)
+            index_of_leaf=leaf.get_index()
+            #look at all which are already selected, therefore looking at the selected reads, because these have to be removed
+            for i in selected_set:
+                print('In selected set')
+                #if not in crucial set then the reads could not be removed
+                if i in not_crucial_set.keys():
+                    print('I not in crucial set %d' %i)
+                    ((start_node,end_node,split_node,change_list))=not_crucial_set[i]
+                    for nodes in change_list:
+                        if nodes.isLeaf():
+                            print('Leaf node %d' %nodes.get_value())
+                            #Over the change list  is a leaf and equals the leaf then look at the index
+                            val_of_actual_leaf=leaf.get_value()
+                            nodes_val=nodes.get_value()
+                            if val_of_actual_leaf==nodes_val:
+                                print('Found same values')
+                            else:
+                                print('Found not the same values')
+                            if leaf==nodes:
+                                print('Leaf is equal nodes')
+                                print(i)
+            #for crucial set:
+            #for i in crucial_set:
+            #    ((start_node,end_node,split_node,change_list))=not_crucial_set[i]
+            #    for nodes_in_list in change_list:
+            #        if nodes_in_list.isLeaf():
+            #            nodes_list_val=nodes_in_list.get_value()
+            #            print('Found leaf node for in the crucial set ')
+            #            if nodes_list_val==leaf.get_value():
+            #                print('FOUND THIS SEARCHED LEAF VALUE In THE CRUCIAL POINT')
+            #                print(i)
+
+
+
+
+            #for not crucial set
+            for i in not_crucial_set:
+                counting_for_leaf=0
+                ((start_node,end_node,split_node,change_list))=not_crucial_set[i]
+                for nodes_in_list in change_list:
+                    if nodes_in_list.isLeaf():
+                        nodes_list_val=nodes_in_list.get_value()
+                        print('Found leaf node for not in the crucial set ')
+                        if nodes_list_val==leaf.get_value():
+                            print('FOUND THIS SEARCHED LEAF VALUE')
+                            print(i)
+                            counting_for_leaf+=1
+                            print('Increased counting fo rleafs ')
+                            print(leaf.get_value())
+                        if leaf.get_value()==16032928 and nodes_list_val==leaf.get_value():
+                            New_counting_only_for_node +=1
+                            Indices_of_the_leaf_node.add(i)
+
+
+            print('THE COUNDTING FOR LEAFS')
+            print(counting_for_leaf)
+            print('Number need to remove %d ' %number_need_to_remove)
+
+
+
+
+
+
+
+        print('leaf value')
+        print(leaf.get_value())
+        print(New_counting_only_for_node)
+        print(Indices_of_the_leaf_node)
+        crucial_intersection=crucial_set.intersection(Indices_of_the_leaf_node)
+        set_of_keys=set(not_crucial_set.keys())
+        not_crucial_intersection=set_of_keys.intersection(Indices_of_the_leaf_node)
+        print('Crucial intersection')
+        print(crucial_intersection)
+        print('Not crucial intersection')
+        print(not_crucial_intersection)
+        #Combination of the selected and not selected of these found indices
+        intersection_of_nodes_and_selection=not_crucial_intersection.intersection(selected_set)
+        intersection_of_nodes_and_not_already_selected=not_crucial_intersection.intersection(not_selected_set)
+        print('Intersection of not crucial and selected set')
+        print(intersection_of_nodes_and_selection)
+        print('Intersection of not crucial and not selected')
+        print(intersection_of_nodes_and_not_already_selected)
+        print(leaf.get_balance())
+        print(leaf.get_coverage())
+        for index,s in Selected_set_without_the_crucial_parts:
+            siblings_list=s.get_sibling()
+            for (sibing,sib_val,ind)in siblings_list:
+                if ind==index:
+                    print('Found occuring index with val %d' %sib_val)
+                    s_value=s.get_value()
+                    other_sib_val=sibing.get_value()
+                    if leaf.get_value()<s_value:
+                        if other_sib_val< leaf.get_value():
+                            print('Leaf at the moment')
+                            print(leaf.get_value())
+                            print('Leaf is once left and once right of this')
+                            print(ind)
+                    if leaf.get_value()>s_value:
+                        if other_sib_val>leaf.get_value():
+                            print('Leaf at the moment')
+                            print(leaf.get_value())
+                            print('Leaf is again once higher and once less')
+                            print(ind)
+
+
+            #if s in not_crucial_set:
+            #    print('S is not crucial %d' %s)
+            #    ((start_node,end_node,split_node,change_list))=not_crucial_set[i]
+            #    print('Read beginning: %d' %start_node.get_value())
+            #    print('Read ending : %d' %end_node.get_value())
+            #else:
+            #print('S is crucial %d' %s)
+    #        for l in leaf_list:
+    #           set_for_index= set(l.get_index())
+    #           if s in set_for_index:
+    #               print('Found s in the crucial dataset and the set for index')
+    #               print(l.get_value())
+
+
+        print('Leaf at the moment before asssertion %d' %leaf.get_value())
+        assert new_leaf_coverage<=max_coverage
     return (selected_set,not_selected_set)
 
+def find_for_this_leaf_all_reads_covering_it(leaf_list,leaf):
+    leaf_val=leaf.get_value()
+    print('Find for this leaf all reads covering it %d' %leaf_val)
 
+    leaf_inices=leaf.get_index()
+    leaf_siblings=leaf.get_sibling()
+    for node in leaf_list:
+        node_sibling=node.get_sibling()
+        node_value=node.get_value()
+        if node_value<=leaf_val:
+            for (sib,val,i)in node_sibling:
+                if val>=leaf_val:
+                    print('Found overlapping interval with index %d' %i)
+        else:
+            #node_value > leaf_val
+            for (sib,val,i) in node_sibling:
+                if val<= leaf_val:
+                    print('Find overlapping interval with index %d' %i)
 
 #Former Approach with slightly differnt third step
 def remove_and_include_reads_from_the_tree(BST,max_coverage):
@@ -596,7 +827,7 @@ def remove_and_include_reads_from_the_tree(BST,max_coverage):
         print(removed_reads)
     return (selected_reads,removed_reads)
 
-
+#Former
 def remove_and_include_reads_from_the_tree_former_approach(BST,max_coverage):
     '''
     :param:BST and max_coverage
@@ -652,9 +883,6 @@ def remove_and_include_reads_from_the_tree_former_approach(BST,max_coverage):
                     selected_reads.append(end_node[1])
                    # for k in connecting_indices:
                    #     selected_reads.append(k)
-
-
-
         new_leaf_coverage=leaf.get_coverage() +leaf.get_balance()
         number_need_to_remove=new_leaf_coverage - max_coverage
         print('Before number of need to remove sp where the already selected.pop occures')
