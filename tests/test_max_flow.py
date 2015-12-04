@@ -1,5 +1,5 @@
 from phasingutils import string_to_readset
-from whatshap.maxflow import  remove_and_include_reads_from_the_tree,reduce_readset_via_max_flow
+from whatshap.maxflow import  reduce_readset_via_max_flow
 from whatshap.Binary_Search_Tree import Binary_Search_Tree
 
 
@@ -365,13 +365,13 @@ def test_simple_case_max_flow():
 	root_node=tree.get_complete_tree()
 	leaf_list_of_tree=tree.get_leaf_list_of_tree()
 	maximal_coverage=2
-	pruned_set,removed_set=remove_and_include_reads_from_the_tree(tree,maximal_coverage)
+	pruned_set,indices=reduce_readset_via_max_flow(reads,maximal_coverage)
 	#print('Pruned SEt')
  	#print(pruned_set)
  	#print('Removed set')
  	#print(removed_set)
 	assert len(pruned_set)==4
-	assert len(removed_set)==1
+	#assert len(removed_set)==1
 
 
 def test_max_flow_1_unique():
@@ -385,9 +385,9 @@ def test_max_flow_1_unique():
  	""")
 	first_tree_attemp=Binary_Search_Tree(reads)
 	maximal_coverage=1
-	(pruned_set,removed_set)=remove_and_include_reads_from_the_tree(first_tree_attemp,maximal_coverage)
+	(pruned_set,indices)=reduce_readset_via_max_flow(reads,maximal_coverage)
 	assert len(pruned_set)==3
-	assert len(removed_set)==3
+	#assert len(removed_set)==3
 
 
 
@@ -401,9 +401,9 @@ def test_simple_case_max_flow_2():
  	""")
 	tree=Binary_Search_Tree(reads)
 	maximal_coverage=1
-	pruned_set,removed_set=remove_and_include_reads_from_the_tree(tree,maximal_coverage)
+	pruned_set,indices=reduce_readset_via_max_flow(reads,maximal_coverage)
 	assert len(pruned_set)==2
-	assert len(removed_set)==3
+	#assert len(removed_set)==3
 
 
 # 	#Is working
@@ -418,9 +418,9 @@ def test_simple_case_max_flow_3():
 	""")
 	tree=Binary_Search_Tree(reads)
 	maximal_coverage=3
-	pruned_set,removed_set=remove_and_include_reads_from_the_tree(tree,maximal_coverage)
+	pruned_set,indices=reduce_readset_via_max_flow(reads,maximal_coverage)
 	assert len(pruned_set)==5
-	assert len(removed_set)==0
+	#assert len(removed_set)==0
 
 def test_tree_struct_for_Binary_Seach_Tree():
 	reads = string_to_readset("""
@@ -629,13 +629,12 @@ def test_max_flow_1():
 	""")
 	first_tree_attemp=Binary_Search_Tree(reads)
 	maximal_coverage=1
-	(pruned_set,removed_set)=remove_and_include_reads_from_the_tree(first_tree_attemp,maximal_coverage)
+	(pruned_set,indices)=reduce_readset_via_max_flow(reads,maximal_coverage)
 	assert len(pruned_set)==3
-	assert len(removed_set)==3
+	#assert len(removed_set)==3
 
 
 
-#First get max_flow_1 to run
 def test_max_flow_2():
 	reads = string_to_readset("""
 	  11
@@ -647,9 +646,9 @@ def test_max_flow_2():
 	""")
 	first_tree_attemp=Binary_Search_Tree(reads)
 	maximal_coverage=2
-	(pruned_set,removed_set)=remove_and_include_reads_from_the_tree(first_tree_attemp,maximal_coverage)
+	(pruned_set,indices)=reduce_readset_via_max_flow(reads,maximal_coverage)
 	assert len(pruned_set)==5
-	assert len(removed_set)==1
+	#assert len(removed_set)==1
 
 
 
@@ -664,11 +663,11 @@ def test_max_flow_3():
 	""")
 	first_tree_attemp=Binary_Search_Tree(reads)
 	maximal_coverage=3
-	(pruned_set,removed_set)=remove_and_include_reads_from_the_tree(first_tree_attemp,maximal_coverage)
+	(pruned_set,removed_set)=reduce_readset_via_max_flow(reads,maximal_coverage)
+	print('pruned_set')
 	print(pruned_set)
-	print(removed_set)
 	assert len(pruned_set)==6
-	assert len(removed_set)==0
+	#assert len(removed_set)==0
 
 
 
