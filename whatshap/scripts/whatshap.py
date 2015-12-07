@@ -32,7 +32,7 @@ except ImportError:
 from ..vcf import parse_vcf, PhasedVcfWriter, remove_overlapping_variants
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
-from ..core import Read, ReadSet, DPTable, IndexSet, readselection
+from ..core import Read, ReadSet, DPTable, readselection
 from ..graph import ComponentFinder
 from ..coverage import CovMonitor
 from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
@@ -472,7 +472,10 @@ def check_for_connectivity(read_positions, List_of_connections, connectivity):
 	return List_of_connections
 
 #First randomized approach for switching between the different possible read selection approaches.
-def slice_reads(reads, max_coverage):
+#Because in this approach only slices[0] is used and the IndexSet is in the following not exposed to the Python world,
+#changing the storage of the reads, in this to a set structure
+
+def slice_reads_2(reads, max_coverage):
 	"""
 	Iterate over all read in random order and greedily retain those reads whose
 	addition does not lead to a local physical coverage exceeding the given threshold.
@@ -491,7 +494,7 @@ def slice_reads(reads, max_coverage):
 	position_to_index = { position: index for index, position in enumerate(position_list) }
 
 	# List of slices, start with one empty slice ...
-	slices = [IndexSet()]
+	slices = [set()]
 	# ... and the corresponding coverages along each slice
 	slice_coverages = [CovMonitor(len(position_list))]
 	skipped_reads = 0
@@ -517,7 +520,7 @@ def slice_reads(reads, max_coverage):
 				slice_id += 1
 				# do we have to create a new slice?
 				if slice_id == len(slices):
-					slices.append(IndexSet())
+					slices.append(set())
 					slice_coverages.append(CovMonitor(len(position_list)))
 	logger.info('Skipped %d reads that only cover one variant', skipped_reads)
 	informative_reads = len(reads) - skipped_reads
@@ -533,7 +536,8 @@ def slice_reads(reads, max_coverage):
 		logger.info('After coverage reduction: Using %d of %d (%.1f%%) reads that cover two or more SNPs',
 			len(slices[0]), informative_reads, (100. * len(slices[0]) / informative_reads if informative_reads > 0 else float('nan')) )
 
-	return reads.subset(slices[0])
+	return slices[0],skipped_reads
+
 
 
 
@@ -702,17 +706,21 @@ def run_whatshap(bam, vcf,
 				# defined as 0 at the moment
 				score_selection = score
 				#TODO: Now time for finding listofbam included into slicing time
-
-				if use_max_flow:
-					selected_reads,uninformative_read_count=reduce_readset_via_max_flow(reads,max_coverage)
+				if score_selection==3:
+					print('Used random')
+					selected_reads,uninformative_read_count=slice_reads_2(reads,max_coverage)
 				else:
-					if analyze:
-						selected_reads, uninformative_read_count, listofbam = readselection(reads, max_coverage, bridge,
-																						analyze, score_selection)
+					if use_max_flow:
+						selected_reads,uninformative_read_count=reduce_readset_via_max_flow(reads,max_coverage)
 					else:
-						selected_reads, uninformative_read_count = readselection(reads, max_coverage, bridge, analyze,
+						if analyze:
+							selected_reads, uninformative_read_count, listofbam = readselection(reads, max_coverage, bridge,
+																						analyze, score_selection)
+						else:
+							selected_reads, uninformative_read_count = readselection(reads, max_coverage, bridge, analyze,
 																			 score_selection)
-
+				print('Selected reads ')
+				print(selected_reads)
 				sliced_reads = reads.subset(selected_reads)
 
 				#Trying to loop at the max_coverage
@@ -872,7 +880,8 @@ def main():
 							 'use (defualt :%(default)s), score have to be set '
 							 '0 = actual best score'
 							 '1 = best score for paired_end reads'
-							 '2= best score for single ended reads')
+							 '2= best score for single ended reads'
+							 '3 = randsom selection ')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
 
