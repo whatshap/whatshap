@@ -51,10 +51,10 @@ def reduce_readset_via_max_flow(readset,max_cov):
     #delimiters, corresponding split node and the list of nodes, which have to be touched by discarding this node
     (crucial_set,not_crucial_set)=detect_crucial_reads(tree,max_cov)
     #(extended_crucial_set,extended_not_crucial_set)=detect_crucial_reads_2(tree,max_cov)
-    print('Crucial set')
-    print(crucial_set)
-    print('Not crucial set')
-    print(not_crucial_set.keys())
+    #print('Crucial set')
+    #print(crucial_set)
+    #print('Not crucial set')
+    #print(not_crucial_set.keys())
 
     undecided_reads = set(i for i, read in enumerate(readset) if len(read) >= 2)
     #Assertion that all reads are assigned to either one of the sets/dictionary
@@ -68,10 +68,10 @@ def reduce_readset_via_max_flow(readset,max_cov):
     #Should reduce the readset based on the crucial set and the non crucial reads
     #TODO NOT WORKING METHOD AT THE TIME For the  real dataset
     (used_set, not_used_set)=reduce_readset_via_crucial_and_non_crucial_reads(tree,max_cov,crucial_set,not_crucial_set)
-    print('used set')
-    print(used_set)
-    print('Not used set')
-    print(not_used_set)
+    #print('used set')
+    #print(used_set)
+    #print('Not used set')
+    #print(not_used_set)
     #Former approach to remove reads in order to not exceeding the coverage
     #(pruned_set,removed_set)=remove_and_include_reads_from_the_tree(tree,max_cov)
 
@@ -201,17 +201,17 @@ def reduce_readset_via_crucial_and_non_crucial_reads(BST, max_coverage,crucial_s
     #Go over all reads/intervals
 
     for leaf in leaf_list:
-        print('At the following leaf %d' %leaf.get_value())
+        #print('At the following leaf %d' %leaf.get_value())
         new_leaf_coverage=leaf.get_coverage() +leaf.get_balance()
         number_need_to_remove=new_leaf_coverage - max_coverage
-        print('Number need to remove %d' %number_need_to_remove)
+        #print('Number need to remove %d' %number_need_to_remove)
         l_siblings=leaf.get_sibling()
         start_nodes= [(sib,i)  for (sib,val,i) in l_siblings if val >leaf.get_value() and i not in selected_set]
         #Store the removed nodes in this list
         just_in_this_case_renomved=[]
         while number_need_to_remove>0 and len(start_nodes)!=0:
             (start,index)=start_nodes.pop()
-            print('Number need to remove in for loop %d' %number_need_to_remove)
+            #print('Number need to remove in for loop %d' %number_need_to_remove)
             #print('Start nodes')
             #print('Index')
             #print(start)
@@ -233,7 +233,7 @@ def reduce_readset_via_crucial_and_non_crucial_reads(BST, max_coverage,crucial_s
         #print('Just in this case removed')
         #print(just_in_this_case_renomved)
         if number_need_to_remove>0:
-            print('No start nodes available but need to remove more')
+            #print('No start nodes available but need to remove more')
             #print('Not crucial keys')
             #print(not_crucial_set.keys())
             not_crucial_indices=set(not_crucial_set.keys())
@@ -251,7 +251,7 @@ def reduce_readset_via_crucial_and_non_crucial_reads(BST, max_coverage,crucial_s
                 #If leaf lies between start and end node
                 if start_node.get_value()<=leaf.get_value() and leaf.get_value()<= end_node[0].get_value():
                     #TODO Not in this case once for the dataset
-                    print('Found interval, where the actual leaf is covered of')
+                    #print('Found interval, where the actual leaf is covered of')
                     not_selected_set.add(index)
                     selected_set.remove(index)
                     step_up_balance(List_to_change)
