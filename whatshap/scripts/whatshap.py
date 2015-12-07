@@ -32,7 +32,7 @@ except ImportError:
 from ..vcf import parse_vcf, PhasedVcfWriter, remove_overlapping_variants
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
-from ..core import Read, ReadSet, DPTable, readselection
+from ..core import Read, ReadSet, DPTable, IndexSet, readselection
 from ..graph import ComponentFinder
 from ..coverage import CovMonitor
 from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
@@ -470,6 +470,73 @@ def check_for_connectivity(read_positions, List_of_connections, connectivity):
 		List_of_connections.append(read_positions)
 
 	return List_of_connections
+
+#First randomized approach for switching between the different possible read selection approaches.
+def slice_reads(reads, max_coverage):
+	"""
+	Iterate over all read in random order and greedily retain those reads whose
+	addition does not lead to a local physical coverage exceeding the given threshold.
+	Return a ReadSet containing the retained reads.
+
+	max_coverage -- Slicing ensures that the (physical) coverage does not exceed max_coverage anywhere along the chromosome.
+	reads -- a ReadSet
+	"""
+	shuffled_indices = list(range(len(reads)))
+	random.shuffle(shuffled_indices)
+
+	position_list = reads.get_positions()
+	logger.info('Found %d variant positions', len(position_list))
+
+	# dictionary to map variant position to its index
+	position_to_index = { position: index for index, position in enumerate(position_list) }
+
+	# List of slices, start with one empty slice ...
+	slices = [IndexSet()]
+	# ... and the corresponding coverages along each slice
+	slice_coverages = [CovMonitor(len(position_list))]
+	skipped_reads = 0
+	accessible_positions = set()
+	for index in shuffled_indices:
+		read = reads[index]
+		# Skip reads that cover only one variant
+		if len(read) < 2:
+			skipped_reads += 1
+			continue
+		for variant in read:
+			accessible_positions.add(variant.position)
+		begin = position_to_index[read[0].position]
+		end = position_to_index[read[-1].position] + 1
+		slice_id = 0
+		while True:
+			# Does current read fit into this slice?
+			if slice_coverages[slice_id].max_coverage_in_range(begin, end) < max_coverage:
+				slice_coverages[slice_id].add_read(begin, end)
+				slices[slice_id].add(index)
+				break
+			else:
+				slice_id += 1
+				# do we have to create a new slice?
+				if slice_id == len(slices):
+					slices.append(IndexSet())
+					slice_coverages.append(CovMonitor(len(position_list)))
+	logger.info('Skipped %d reads that only cover one variant', skipped_reads)
+	informative_reads = len(reads) - skipped_reads
+
+	unphasable_variants = len(position_list) - len(accessible_positions)
+	if position_list:
+		logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
+			'connecting them to another variant and are thus unphasable',
+			unphasable_variants, len(position_list),
+			100. * unphasable_variants / len(position_list))
+
+	if reads:
+		logger.info('After coverage reduction: Using %d of %d (%.1f%%) reads that cover two or more SNPs',
+			len(slices[0]), informative_reads, (100. * len(slices[0]) / informative_reads if informative_reads > 0 else float('nan')) )
+
+	return reads.subset(slices[0])
+
+
+
 
 
 def analyze_readset(sliced_reads, list_of_bam, connectivity, score):
