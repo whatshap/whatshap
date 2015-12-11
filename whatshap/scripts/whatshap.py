@@ -543,93 +543,99 @@ def slice_reads_2(reads, max_coverage):
 
 
 
-def analyze_readset(sliced_reads, list_of_bam, connectivity, score):
+def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout):
 	print('Working directory')
 	print(os.getcwd())
-	f = open('Analyzefile.unique_extension', 'w')
+	with ExitStack() as stack:
+		if anaout is not sys.stdout:
+			anaout=stack.enter_context(open(anaout,'w'))
+		#f = open(anaout, 'w')
 
-	# How many positions are covered by the readset
-	f.write('Positions:')
-	f.write("\n")
-	for pos in sliced_reads.get_positions():
-		f.write(str(pos))
-		f.write("\t")
-	component_finder = ComponentFinder(sliced_reads.get_positions())
-	important_positions = set(sliced_reads.get_positions())
-	f.write("\n")
-	f.write('Length of Readset')
-	f.write("\t")
-	i = 0
-	length_readset = len(sliced_reads)
-	f.write(str(length_readset))
-	f.write("\n")
+		# How many positions are covered by the readset
+		anaout.write('Positions:')
 
-	List_of_connections = []
-	while i != len(sliced_reads):
-		positions = [variant.position for variant in sliced_reads[i] if variant.position in important_positions]
-		# here the merging of only reads which share one component, could not be updated by the connectivity factor
-		for position in positions[1:]:
-			component_finder.merge(positions[0], position)
-		components = {position: component_finder.find(position) for position in important_positions}
+		anaout.write("\n")
+		for pos in sliced_reads.get_positions():
+			anaout.write(str(pos))
+			anaout.write("\t")
+		component_finder = ComponentFinder(sliced_reads.get_positions())
+		important_positions = set(sliced_reads.get_positions())
+		anaout.write("\n")
+		anaout.write('Length of Readset')
+		anaout.write("\t")
+		i = 0
+		length_readset = len(sliced_reads)
+		anaout.write(str(length_readset))
+		anaout.write("\n")
 
-		#search now for components when the connectivity is not 1 :
-		read_positions = set(positions)
-		#if there is something in the connected blocks, so not the first entry
+		List_of_connections = []
+		while i != len(sliced_reads):
 
-		#List of blocks, where we add the positions of the read, the former produced list, and the connectivity factor
-		List_of_connections = check_for_connectivity(read_positions, List_of_connections, connectivity)
 
-		f.write("Read")
-		f.write(str(i))
-		f.write("\t")
-		for variant in sliced_reads[i]:
-			pos = variant.position
-			qual = variant.quality
-			f.write(str(pos))
-			f.write("\t")
-			f.write(str(qual))
-			f.write("\t")
 
-		f.write("\n")
-		i = i + 1
+			positions = [variant.position for variant in sliced_reads[i] if variant.position in important_positions]
+			# here the merging of only reads which share one component, could not be updated by the connectivity factor
+			for position in positions[1:]:
+				component_finder.merge(positions[0], position)
+			components = {position: component_finder.find(position) for position in important_positions}
 
-	f.write('Connectivity of Blocks')
-	f.write("\n")
-	f.write(str(connectivity))
-	f.write("\n")
+			#search now for components when the connectivity is not 1 :
+			read_positions = set(positions)
+			#if there is something in the connected blocks, so not the first entry
 
-	f.write('Connected Blocks by given Connectivity')
-	f.write("\n")
-	f.write(str(List_of_connections))
-	#f.write(str(connected_blocks))
-	f.write("\n")
+			#List of blocks, where we add the positions of the read, the former produced list, and the connectivity factor
+			List_of_connections = check_for_connectivity(read_positions, List_of_connections, connectivity)
 
-	f.write('Blocks (always with connectivity 1)')
-	f.write("\n")
-	comset = set(components.values())
-	f.write(str(comset))
-	f.write("\n")
-	f.write('Blocks and their components')
-	f.write("\n")
-	f.write(str(components))
-	f.write("\n")
-	f.write("Number of reads in bam files")
-	f.write("\n")
-	f.write(str(list_of_bam))
-	f.write("\n")
-	f.write('Which score:')
-	f.write("\n")
-	f.write(str(score))
-	f.write("\n")
-	f.close()
+			anaout.write("Read")
+			anaout.write(str(i))
+			anaout.write("\t")
+			for variant in sliced_reads[i]:
+				pos = variant.position
+				qual = variant.quality
+				anaout.write(str(pos))
+				anaout.write("\t")
+				anaout.write(str(qual))
+				anaout.write("\t")
 
+			anaout.write("\n")
+			i = i + 1
+
+		anaout.write('Connectivity of Blocks')
+		anaout.write("\n")
+		anaout.write(str(connectivity))
+		anaout.write("\n")
+
+		anaout.write('Connected Blocks by given Connectivity')
+		anaout.write("\n")
+		anaout.write(str(List_of_connections))
+		#f.write(str(connected_blocks))
+		anaout.write("\n")
+
+		anaout.write('Blocks (always with connectivity 1)')
+		anaout.write("\n")
+		comset = set(components.values())
+		anaout.write(str(comset))
+		anaout.write("\n")
+		anaout.write('Blocks and their components')
+		anaout.write("\n")
+		anaout.write(str(components))
+		anaout.write("\n")
+		anaout.write("Number of reads in bam files")
+		anaout.write("\n")
+		anaout.write(str(list_of_bam))
+		anaout.write("\n")
+		anaout.write('Which score:')
+		anaout.write("\n")
+		anaout.write(str(score))
+		anaout.write("\n")
+		anaout.close()
 	return 0
 
 
 def run_whatshap(bam, vcf,
 				 output=sys.stdout, sample=None, ignore_read_groups=False, indels=True,
 				 mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123, haplotype_bams_prefix=None,
-				 connectivity=1, bridge=False, analyze=False, score=0,use_max_flow=False):
+				 connectivity=1, bridge=False, analyze=False,anaout=sys.stdout, score=0,use_max_flow=False):
 	"""
     Run WhatsHap.
 
@@ -654,6 +660,9 @@ def run_whatshap(bam, vcf,
 	class Statistics:
 		pass
 
+	print('Found following bam ')
+	print(bam)
+	print(len(bam))
 	stats = Statistics()
 	timers = StageTimer()
 	timers.start('overall')
@@ -760,7 +769,7 @@ def run_whatshap(bam, vcf,
 			with timers('analyzing'):
 				logger.info('Writing different options in seperate file for later analysis')
 				if analyze:
-					analyze_readset(sliced_reads, listofbam, connectivity, score)
+					analyze_readset(sliced_reads, listofbam, connectivity, score,anaout)
 			with timers('phase'):
 				logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 				# Run the core algorithm: construct DP table ...
@@ -875,13 +884,16 @@ def main():
 						help='Write properties of the selected readset,like'
 							 'conneted blocks, quality, origin ,... to separate file named Analyzefile.unique_extension '
 							 '(default: %(default)s )')
+	#Making the analyze output variable
+	parser.add_argument('-a', '--anaout', default=sys.stdout,
+						help='Output analyzefile file. If omitted, use standard output.')
 	parser.add_argument('--score', '--score', metavar='SCORE', default=0, type=int,
 						help='Select the score you would like to '
 							 'use (defualt :%(default)s), score have to be set '
 							 '0 = actual best score'
 							 '1 = best score for paired_end reads'
 							 '2= best score for single ended reads'
-							 '3 = randsom selection ')
+							 '3 = random selection ')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
 
@@ -889,3 +901,81 @@ def main():
 	logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
 	del args.debug
 	run_whatshap(**vars(args))
+
+
+
+'''
+		f.write("\n")
+		for pos in sliced_reads.get_positions():
+			f.write(str(pos))
+			f.write("\t")
+		component_finder = ComponentFinder(sliced_reads.get_positions())
+		important_positions = set(sliced_reads.get_positions())
+		f.write("\n")
+		f.write('Length of Readset')
+		f.write("\t")
+		i = 0
+		length_readset = len(sliced_reads)
+		f.write(str(length_readset))
+		f.write("\n")
+
+		List_of_connections = []
+		while i != len(sliced_reads):
+			positions = [variant.position for variant in sliced_reads[i] if variant.position in important_positions]
+			# here the merging of only reads which share one component, could not be updated by the connectivity factor
+			for position in positions[1:]:
+				component_finder.merge(positions[0], position)
+			components = {position: component_finder.find(position) for position in important_positions}
+
+			#search now for components when the connectivity is not 1 :
+			read_positions = set(positions)
+			#if there is something in the connected blocks, so not the first entry
+
+			#List of blocks, where we add the positions of the read, the former produced list, and the connectivity factor
+			List_of_connections = check_for_connectivity(read_positions, List_of_connections, connectivity)
+
+			f.write("Read")
+			f.write(str(i))
+			f.write("\t")
+			for variant in sliced_reads[i]:
+				pos = variant.position
+				qual = variant.quality
+				f.write(str(pos))
+				f.write("\t")
+				f.write(str(qual))
+				f.write("\t")
+
+			f.write("\n")
+			i = i + 1
+
+		f.write('Connectivity of Blocks')
+		f.write("\n")
+		f.write(str(connectivity))
+		f.write("\n")
+
+		f.write('Connected Blocks by given Connectivity')
+		f.write("\n")
+		f.write(str(List_of_connections))
+		#f.write(str(connected_blocks))
+		f.write("\n")
+
+		f.write('Blocks (always with connectivity 1)')
+		f.write("\n")
+		comset = set(components.values())
+		f.write(str(comset))
+		f.write("\n")
+		f.write('Blocks and their components')
+		f.write("\n")
+		f.write(str(components))
+		f.write("\n")
+		f.write("Number of reads in bam files")
+		f.write("\n")
+		f.write(str(list_of_bam))
+		f.write("\n")
+		f.write('Which score:')
+		f.write("\n")
+		f.write(str(score))
+		f.write("\n")
+		f.close()
+'''
+#	return 0
