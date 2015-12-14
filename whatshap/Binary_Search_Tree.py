@@ -41,11 +41,23 @@ class Binary_Search_Tree:
 
     #New struct of binary tree
     def new_building_of_list(self,orig_readset):
+        list_of_bam=[]
         list_for_leafs=[]
         other_dic={}
         indices_of_reads = set(i for i, read in enumerate(orig_readset) if len(read) >= 2)
         for i in indices_of_reads:
             read=orig_readset[i]
+            #read.getID()
+            #
+            #readID= read.getSourceID()
+            #
+            #while len(list_of_bam)< (readID+1):
+            #    list_of_bam.append(0)
+            #
+            #    score=list_of_bam[readID]
+            #    newscore=score+1
+            #    list_of_bam[readID]=newscore
+
             delimiter_1=(read[0]).position
             delimiter_2=(read[len(read)-1]).position
             #look if the position already exists
@@ -88,6 +100,7 @@ class Binary_Search_Tree:
                 list_for_leafs.append(second_Node)
                 f_Node.add_sibling([second_Node,delimiter_2,i])
         sorted_list=sorted(list_for_leafs,key=lambda node :node.value)
+        self.bam_list=list_of_bam
         return sorted_list
 
 
@@ -179,6 +192,8 @@ class Binary_Search_Tree:
     def get_leaf_list_of_tree(self):
         return self.leaf_list
 
+    def get_bam_list(self):
+        return self.bam_list
 
     def bottom_up_construction_of_BST(self,node_list):
         re_value=1
@@ -241,7 +256,7 @@ class Binary_Search_Tree:
         else:
             return inner_node_list
 
-
+#former approach
     def building_BST_from_leaf_list(self,start,end,arr,node_list):
         '''
         Bottom up method for constructing a balances binary seach tree with the corresponding coverage
@@ -267,20 +282,11 @@ class Binary_Search_Tree:
             root_node.set_left_child(left_node)
             left_node.set_parent(root_node)
             left_node.set_is_left_child()
-            #print('Set up as left child ')
-            #print(left_node.get_coverage())
-            #if left_node.isLeaf():
-                #print('Left node is Leaf')
-                #print(left_node.get_value())
             right_node=self.building_BST_from_leaf_list(middel+1,end,arr,node_list)
             root_node.set_right_child(right_node)
             right_node.set_parent(root_node)
             right_node.set_is_right_child()
-            #print('Set up as right child ')
-            #print(right_node.get_coverage())
-            #if right_node.isLeaf():
-            #    print('Right node is Leaf')
-            #    print(right_node.get_value())
+
 
 
             return root_node

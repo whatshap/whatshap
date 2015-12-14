@@ -475,7 +475,7 @@ def check_for_connectivity(read_positions, List_of_connections, connectivity):
 #Because in this approach only slices[0] is used and the IndexSet is in the following not exposed to the Python world,
 #changing the storage of the reads, in this to a set structure
 
-def slice_reads_2(reads, max_coverage):
+def slice_reads_random(reads, max_coverage):
 	"""
 	Iterate over all read in random order and greedily retain those reads whose
 	addition does not lead to a local physical coverage exceeding the given threshold.
@@ -544,12 +544,20 @@ def slice_reads_2(reads, max_coverage):
 
 
 def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout):
+	'''
+	:param sliced_reads: selected readset
+	:param list_of_bam: optimally for every included bam file the number of reads, which are selected out of this bam file
+	:param connectivity: integer value, for which the connectivity in a block is defined, e.g. if connectivity 2 :
+	2 reads are only merged to one block, if they overlap at at least 2 positions.
+	:param score: The score parameter which was used by default it is 0 (also in the max_flow approach)
+	:param anaout:path to the destination of the output from this method
+	:return: Writest a file with informations about the selected readset.
+	'''
 	print('Working directory')
 	print(os.getcwd())
 	with ExitStack() as stack:
 		if anaout is not sys.stdout:
 			anaout=stack.enter_context(open(anaout,'w'))
-		#f = open(anaout, 'w')
 
 		# How many positions are covered by the readset
 		anaout.write('Positions:')
@@ -570,8 +578,6 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout):
 
 		List_of_connections = []
 		while i != len(sliced_reads):
-
-
 
 			positions = [variant.position for variant in sliced_reads[i] if variant.position in important_positions]
 			# here the merging of only reads which share one component, could not be updated by the connectivity factor
@@ -608,7 +614,6 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout):
 		anaout.write('Connected Blocks by given Connectivity')
 		anaout.write("\n")
 		anaout.write(str(List_of_connections))
-		#f.write(str(connected_blocks))
 		anaout.write("\n")
 
 		anaout.write('Blocks (always with connectivity 1)')
@@ -652,7 +657,9 @@ def run_whatshap(bam, vcf,
     connectivity -- number how many overlapping variants define a connection
     bridge -- using bridging
     analyze -- writing additional file with informations
+    anaout 	-- path to analyze file or sys.stdout
     score -- which scoring method is used
+    use_max_flow -- using the max flow approach instead of score or random based readselection
 
     """
 	random.seed(seed)
@@ -712,30 +719,25 @@ def run_whatshap(bam, vcf,
 					read.sort()
 				# Sort reads in read set by position
 				reads.sort()
-				# defined as 0 at the moment
+				# defined as 0  if not overwritten
 				score_selection = score
+				#Could at the moment only compute the listofbam in the cython code of readselection,
+				#because the identification to which bam file the read is associated with, could only be in the
+				#Read object and not in the PyRead object.
+				listofbam=[0]
 				#TODO: Now time for finding listofbam included into slicing time
 				if score_selection==3:
-					print('Used random')
-					selected_reads,uninformative_read_count=slice_reads_2(reads,max_coverage)
+					selected_reads,uninformative_read_count=slice_reads_random(reads,max_coverage)
 				else:
 					if use_max_flow:
 						selected_reads,uninformative_read_count=reduce_readset_via_max_flow(reads,max_coverage)
 					else:
 						if analyze:
-							selected_reads, uninformative_read_count, listofbam = readselection(reads, max_coverage, bridge,
-																						analyze, score_selection)
+							selected_reads, uninformative_read_count, listofbam = readselection(reads, max_coverage, bridge,analyze, score_selection)
 						else:
 							selected_reads, uninformative_read_count = readselection(reads, max_coverage, bridge, analyze,
 																			 score_selection)
-				print('Selected reads ')
-				print(selected_reads)
 				sliced_reads = reads.subset(selected_reads)
-
-				#Trying to loop at the max_coverage
-				#if use_max_flow:
-				#	look_at_coverage_of_pruned_readset(sliced_reads,max_coverage)
-
 				position_list = reads.get_positions()
 				accessible_positions = sliced_reads.get_positions()
 				informative_read_count = len(reads) - uninformative_read_count
@@ -852,7 +854,7 @@ def main():
 						help='Output VCF file. If omitted, use standard output.')
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 						help='Reduce coverage to at most MAXCOV (default: %(default)s).')
-	# maybe it should be possible to change the quality which we selectt for for each bam file individually
+	# maybe it should be possible to change the quality which we select for for each bam file individually
 	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',
 						default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
 	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
@@ -884,7 +886,6 @@ def main():
 						help='Write properties of the selected readset,like'
 							 'conneted blocks, quality, origin ,... to separate file named Analyzefile.unique_extension '
 							 '(default: %(default)s )')
-	#Making the analyze output variable
 	parser.add_argument('-a', '--anaout', default=sys.stdout,
 						help='Output analyzefile file. If omitted, use standard output.')
 	parser.add_argument('--score', '--score', metavar='SCORE', default=0, type=int,
@@ -902,80 +903,3 @@ def main():
 	del args.debug
 	run_whatshap(**vars(args))
 
-
-
-'''
-		f.write("\n")
-		for pos in sliced_reads.get_positions():
-			f.write(str(pos))
-			f.write("\t")
-		component_finder = ComponentFinder(sliced_reads.get_positions())
-		important_positions = set(sliced_reads.get_positions())
-		f.write("\n")
-		f.write('Length of Readset')
-		f.write("\t")
-		i = 0
-		length_readset = len(sliced_reads)
-		f.write(str(length_readset))
-		f.write("\n")
-
-		List_of_connections = []
-		while i != len(sliced_reads):
-			positions = [variant.position for variant in sliced_reads[i] if variant.position in important_positions]
-			# here the merging of only reads which share one component, could not be updated by the connectivity factor
-			for position in positions[1:]:
-				component_finder.merge(positions[0], position)
-			components = {position: component_finder.find(position) for position in important_positions}
-
-			#search now for components when the connectivity is not 1 :
-			read_positions = set(positions)
-			#if there is something in the connected blocks, so not the first entry
-
-			#List of blocks, where we add the positions of the read, the former produced list, and the connectivity factor
-			List_of_connections = check_for_connectivity(read_positions, List_of_connections, connectivity)
-
-			f.write("Read")
-			f.write(str(i))
-			f.write("\t")
-			for variant in sliced_reads[i]:
-				pos = variant.position
-				qual = variant.quality
-				f.write(str(pos))
-				f.write("\t")
-				f.write(str(qual))
-				f.write("\t")
-
-			f.write("\n")
-			i = i + 1
-
-		f.write('Connectivity of Blocks')
-		f.write("\n")
-		f.write(str(connectivity))
-		f.write("\n")
-
-		f.write('Connected Blocks by given Connectivity')
-		f.write("\n")
-		f.write(str(List_of_connections))
-		#f.write(str(connected_blocks))
-		f.write("\n")
-
-		f.write('Blocks (always with connectivity 1)')
-		f.write("\n")
-		comset = set(components.values())
-		f.write(str(comset))
-		f.write("\n")
-		f.write('Blocks and their components')
-		f.write("\n")
-		f.write(str(components))
-		f.write("\n")
-		f.write("Number of reads in bam files")
-		f.write("\n")
-		f.write(str(list_of_bam))
-		f.write("\n")
-		f.write('Which score:')
-		f.write("\n")
-		f.write(str(score))
-		f.write("\n")
-		f.close()
-'''
-#	return 0
