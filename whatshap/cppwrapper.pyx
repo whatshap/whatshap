@@ -254,8 +254,10 @@ cdef extern from "../src/columniterator.h":
 # ====== DPTable ======
 cdef extern from "../src/dptable.h":
 	cdef cppclass DPTable:
-		DPTable(ReadSet*, bool) except +
-		void get_super_reads(ReadSet*) except +
+		DPTable(ReadSet*, vector[unsigned int],vector[unsigned int],bool) except +
+		void get_super_readsm(ReadSet*) except +
+		void get_super_readsf(ReadSet*) except +
+		void get_super_readsc(ReadSet*) except +
 		int get_optimal_score() except +
 		vector[bool]* get_optimal_partitioning()
 
@@ -263,17 +265,17 @@ cdef extern from "../src/dptable.h":
 cdef class PyDPTable:
 	cdef DPTable *thisptr
 
-	def __cinit__(self, PyReadSet readset, all_heterozygous):
+	def __cinit__(self, PyReadSet readset, finaldemarcations, recombcost, all_heterozygous):
 		"""Build the DP table from the given read set which is assumed to be sorted;
 		that is, the variants in each read must be sorted by position and the reads
 		in the read set must also be sorted (by position of their left-most variant).
 		"""
-		self.thisptr = new DPTable(readset.thisptr, all_heterozygous)
+		self.thisptr = new DPTable(readset.thisptr, finaldemarcations, recombcost, all_heterozygous)
 
 	def __dealloc__(self):
 		del self.thisptr
 
-	def get_super_reads(self):
+	def get_super_readsm(self):
 		"""Obtain optimal-score haplotypes.
 		IMPORTANT: The ReadSet given at construction time must not have been altered.
 		DPTable retained a pointer to this set and will access it again. If it has
@@ -281,7 +283,29 @@ cdef class PyDPTable:
 		TODO: Change that.
 		"""
 		result = PyReadSet()
-		self.thisptr.get_super_reads(result.thisptr)
+		self.thisptr.get_super_readsm(result.thisptr)
+		return result
+
+	def get_super_readsf(self):
+		"""Obtain optimal-score haplotypes.
+		IMPORTANT: The ReadSet given at construction time must not have been altered.
+		DPTable retained a pointer to this set and will access it again. If it has
+		been altered, behavior is undefined.
+		TODO: Change that.
+		"""
+		result = PyReadSet()
+		self.thisptr.get_super_readsf(result.thisptr)
+		return result
+		
+	def get_super_readsc(self):
+		"""Obtain optimal-score haplotypes.
+		IMPORTANT: The ReadSet given at construction time must not have been altered.
+		DPTable retained a pointer to this set and will access it again. If it has
+		been altered, behavior is undefined.
+		TODO: Change that.
+		"""
+		result = PyReadSet()
+		self.thisptr.get_super_readsc(result.thisptr)
 		return result
 
 	def get_optimal_cost(self):

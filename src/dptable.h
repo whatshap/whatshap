@@ -1,6 +1,7 @@
 #ifndef DP_TABLE_H
 #define DP_TABLE_H
 
+#include <array>
 #include <vector>
 #include <memory>
 
@@ -13,14 +14,19 @@
 class DPTable {
 private:
   ReadSet* read_set;
+  
+  const std::vector<unsigned int> read_marks;
+  const std::vector<unsigned int> recombcost;
   // vector of indexingschemes
   std::vector<ColumnIndexingScheme*> indexers;
   // optimal score and its index in the rightmost DP table column
   unsigned int optimal_score;
   unsigned int optimal_score_index;
+  unsigned int optimal_score_array_index;
   // backtrace_table[x][i] indicates the index in table x from which the
   // i-th entry in the forward projection of table x comes from
-  std::vector<std::vector<unsigned int>* > backtrace_table;
+  std::vector<std::vector<std::array<unsigned int, 4>>* > backtrace_table;
+  std::vector<std::vector<std::array<unsigned int, 4>>* > forrecomb;
   unsigned int read_count;
   // helper function to pull read ids out of read column
   std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
@@ -38,7 +44,7 @@ public:
    *  @param all_heterozygous If true, then the "all heterozygous" assumption is made;
    *                          i.e., all positions are forced to be heterozygous even when
    *                          reads suggest a homozygous site. */
-  DPTable(ReadSet* read_set, bool all_heterozygous = false);
+  DPTable(ReadSet* read_set, std::vector<unsigned int> read_marks, std::vector<unsigned int> recombcost,bool all_heterozygous = false);
  
   ~DPTable();
 
@@ -47,7 +53,9 @@ public:
   /** Computes optimal haplotypes and adds them (in the form of "super reads") to 
    *  the given read_set.
    */
-  void get_super_reads(ReadSet* output_read_set);
+  void get_super_readsm(ReadSet* output_read_set);
+  void get_super_readsf(ReadSet* output_read_set);
+  void get_super_readsc(ReadSet* output_read_set);
 
   /** Performs a backtrace through the DP table and returns optimal partitioning of the reads.
    *  Pointer ownership is transferred to caller. */

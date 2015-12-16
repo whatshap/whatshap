@@ -89,8 +89,8 @@ def parse_vcf(path, indels=False, sample=None):
 			record.REF, record.ALT,
 			alleles)
 		"""
-		if not call.is_het:
-			continue
+		#if not call.is_het:
+		#	continue
 		assert len(alleles) == 2
 		ref, alt = alleles[0:2]
 
@@ -100,7 +100,7 @@ def parse_vcf(path, indels=False, sample=None):
 		while len(ref) >= 2 and len(alt) >= 2 and ref[0:2] == alt[0:2]:
 			ref, alt = ref[1:], alt[1:]
 			pos += 1
-		assert ref != alt
+		#assert ref != alt
 		if len(ref) == 1 and len(alt) == 1:
 			n_snps += 1
 			v = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
@@ -199,7 +199,7 @@ class PhasedVcfWriter:
 		sample_index = self._reader.samples.index(sample)
 
 		# TODO don’t use dicts for *everything* ...
-		phases = { variant.position: variant.allele for variant in superreads[0] if variant.allele in [0,1] }
+		phases = { variant.position: variant.allele for variant in superreads[1] if variant.allele in [0,1] }
 		if self._unprocessed_record is not None:
 			records_iter = itertools.chain([self._unprocessed_record], self._reader_iter)
 		else:

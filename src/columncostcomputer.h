@@ -1,6 +1,7 @@
 #ifndef COLUMN_COST_COMPUTER_H
 #define COLUMN_COST_COMPUTER_H
 
+#include <array>
 #include <vector>
 #include <memory>
 #include "entry.h"
@@ -9,15 +10,30 @@
 class ColumnCostComputer {
 private:
   const std::vector<const Entry*>& column;
+  const std::vector<unsigned int>& read_marks;
+  
   // cost_partitionX[Y] is the cost of flipping all entries in the partition X to Y for Y = 0,1.
-  unsigned int cost_partition1[2];
+  // 1 and 2 -> mother
+  unsigned int cost_partition_m1[2];
+  unsigned int cost_partition_m2[2];
+  // 3 and 4 -> father
+  unsigned int cost_partition_f1[2];
+  unsigned int cost_partition_f2[2];
+  
+    unsigned int cost_partition1[2];
   unsigned int cost_partition2[2];
+  
+  unsigned int inheritance_val;
   unsigned int partitioning;
   bool all_heterozygous;
+  
 public:
-  ColumnCostComputer(const std::vector<const Entry*>& column, bool all_heterozygous = false);
+  ColumnCostComputer(const std::vector<const Entry*>& column, const std::vector<unsigned int>& read_marks, unsigned int inheritance_val, bool all_heterozygous = false);
   
   void set_partitioning(unsigned int partitioning);
+  void set_partitioning_m(unsigned int partitioning);
+  void set_partitioning_f(unsigned int partitioning);
+  void set_partitioning_c(unsigned int partitioning);
 
   void update_partitioning(int bit_to_flip);
   

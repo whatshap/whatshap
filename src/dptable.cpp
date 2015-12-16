@@ -2,6 +2,8 @@
 #include <cassert>
 #include <limits>
 #include <fstream>
+#include <array>
+#include <algorithm>
 
 #include "columncostcomputer.h"
 #include "dptable.h"
@@ -10,12 +12,20 @@
 
 using namespace std;
 
-DPTable::DPTable(ReadSet* read_set, bool all_heterozygous) {
-  this->read_set = read_set;
-  this->all_heterozygous = all_heterozygous;
-  this->read_count = 0;
+DPTable::DPTable(ReadSet* read_set, vector<unsigned int> read_marks, vector<unsigned int> recombcost,bool all_heterozygous)
+: read_set(read_set), read_marks(std::move(read_marks)), recombcost(std::move(recombcost)),indexers(), optimal_score(0u), optimal_score_index(0u),
+ backtrace_table(), forrecomb(),read_count(0u), all_heterozygous(all_heterozygous)
+{
+   //r0m = new Read("superread0", -1, 0);
+   //r1m = new Read("superread1", -1, 0);
+   //r0f = new Read("superread0", -1, 0);
+   //r1f = new Read("superread1", -1, 0);
+   //r0c = new Read("superread0", -1, 0);
+   //r1c = new Read("superread1", -1, 0);
   read_set->reassignReadIds();
   compute_table();
+  std::cout<<"i am here";
+ 
 }
 
 DPTable::~DPTable() {
@@ -25,6 +35,10 @@ DPTable::~DPTable() {
 
   for(size_t i=0; i<backtrace_table.size(); ++i) {
     delete backtrace_table[i];
+  }
+  
+  for(size_t i=0; i<forrecomb.size(); ++i) {
+    delete forrecomb[i];
   }
 }
 
@@ -67,6 +81,149 @@ void output_vector_enum(const vector<unsigned int> * v, unsigned int len) {
 }
 #endif
 
+namespace {
+//   // 0 -> mother & father, 1 -> mother, 2 -> father, 3 -> child
+//   unsigned int missing_individual(vector<unsigned int>& read_ids, vector<unsigned int>& read_marks) {
+//     bool from_mother = false;
+//     bool from_father = false;
+//     bool from_child = false;
+//     for(auto id : read_ids) {
+//       switch (read_marks[id]) {
+//         case 0:
+//           from_child = true;
+//           break;
+//         case 1:
+//           from_mother = true;
+//           break;
+//         case 2:
+//           from_father = true;
+//           break;
+//         default:
+//           assert(false);
+//       }
+//     }
+//   }
+//     template<typename T, std::size_t s>
+//     array<T, s> compute_final_cost(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
+//       
+//       array<T, s> result;
+//       for(typename array<T,s>::size_type i = 0; i < s; ++i) {
+//         unsigned int min = numeric_limits<unsigned int>::max();
+//         for(typename array<T,s>::size_type j = 0; j < s; ++j) {
+//             auto val = current[i] + prev[j] + (i != j ? penalty : 0u);
+//             if(val < min) {
+//               min = val;
+//             }
+//         }
+//         result[i] = min;
+//       }
+//      
+//       return result;
+//     }
+//     
+//     template<typename T, std::size_t s>
+//     array<T, s> compute_min_index(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
+//       
+//       array<T, s> result;
+//       
+//       for(typename array<T,s>::size_type i = 0; i < s; ++i) {
+//         unsigned int min = numeric_limits<unsigned int>::max();
+//         for(typename array<T,s>::size_type j = 0; j < s; ++j) {
+//             auto val = current[i] + prev[j] + (i != j ? penalty : 0u);
+//             if(val < min) {
+//               min = val;
+//               result[i] = j;
+//             }
+//         }
+//         
+//       }
+//      
+//       return result;
+//     }
+// }
+
+  template<typename T, std::size_t s>
+    array<T, s> compute_final_cost(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
+      
+      array<T, s> result;
+      for(typename array<T,s>::size_type i = 0; i < s; ++i) {
+        unsigned int min = numeric_limits<unsigned int>::max();
+        for(typename array<T,s>::size_type j = 0; j < s; ++j) {
+         unsigned int val;
+        if (penalty!=1 && penalty !=2 && penalty!=3)
+            val = current[i] + prev[j] + (i != j ? penalty : 0u);
+        else if (penalty ==1) {
+          if ((i/2!=j/2) && (i%2==j%2)){
+          //penalty=0;
+           val = current[i] + prev[j] + 0;                  
+        }else  val = current[i] + prev[j] + 100000;          
+        }
+         else if (penalty ==3) {
+          if ((i/2==j/2) && (i%2!=j%2)){
+          //penalty=0;
+           val = current[i] + prev[j] + 0;                  
+        }else  val = current[i] + prev[j] + 100000;          
+        }
+        else if (penalty==2){
+         // std::cout<<"penalty"<<penalty<<endl;
+          if ((i/2!=j/2) && (i%2!=j%2)){
+          //  std::cout<<"in both"<<i<<" "<<j<<endl;
+          val = current[i] + prev[j] + 0;          
+        }
+        else val = current[i] + prev[j] + 100000;
+        }
+            if(val < min) {
+              min = val;
+            }
+        }
+        result[i] = min;
+      }
+     
+      return result;
+    }
+    
+    template<typename T, std::size_t s>
+    array<T, s> compute_min_index(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
+      
+      array<T, s> result;
+      
+      for(typename array<T,s>::size_type i = 0; i < s; ++i) {
+        unsigned int min = numeric_limits<unsigned int>::max();
+        for(typename array<T,s>::size_type j = 0; j < s; ++j) {
+         unsigned int val;
+        if (penalty!=1 && penalty !=2)
+            val = current[i] + prev[j] + (i != j ? penalty : 0u);
+        else if (penalty ==1) {
+          if ((i/2!=j/2) && (i%2==j%2)){
+          //penalty=0;
+           val = current[i] + prev[j] + 0;                  
+        }else  val = current[i] + prev[j] + 100000;          
+        }
+         else if (penalty ==1) {
+          if ((i/2==j/2) && (i%2!=j%2)){
+          //penalty=0;
+           val = current[i] + prev[j] + 0;                  
+        }else  val = current[i] + prev[j] + 100000;          
+        }
+        else if (penalty==2){
+          if ((i/2!=j/2) && (i%2!=j%2)){
+          val = current[i] + prev[j] + 0;          
+        }
+        else val = current[i] + prev[j] + 100000;
+        }
+            if(val < min) {
+              min = val;
+              result[i] = j;
+            }
+        }
+        
+      }
+     
+      return result;
+    }
+}
+
+
 void DPTable::compute_table() {
   ColumnIterator column_iterator(*read_set);
   if(!indexers.empty()) { // clear indexers, if present
@@ -81,6 +238,13 @@ void DPTable::compute_table() {
       delete backtrace_table[i];
     }
     backtrace_table.resize(0);
+  }
+  
+  if(!forrecomb.empty()) { // clear backtrace_table, if present
+    for(size_t i=0; i<forrecomb.size(); ++i) {
+      delete forrecomb[i];
+    }
+    forrecomb.resize(0);
   }
 
   // empty read-set, nothing to phase, so MEC score is 0
@@ -98,10 +262,11 @@ void DPTable::compute_table() {
   unique_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_column);
   ColumnIndexingScheme* next_indexer = new ColumnIndexingScheme(0,*next_read_ids);
   indexers.push_back(next_indexer);
-  unique_ptr<vector<unsigned int> > previous_projection_column;
-  unique_ptr<vector<unsigned int> > current_projection_column;
-  unsigned int running_optimal_score;
+  unique_ptr<vector<array<unsigned int, 4> > > previous_projection_column;
+  unique_ptr<vector<array<unsigned int, 4> > > current_projection_column;
+  array<unsigned int, 4> running_optimal_score;
   unsigned int running_optimal_score_index; // optimal score and its index
+  unsigned int temp;
   double pi = 0.05; // percentage of columns processed
   double pc = pi;
   unsigned int nc = column_iterator.get_column_count();
@@ -109,11 +274,13 @@ void DPTable::compute_table() {
   int i = 0;
 #endif
   while(next_indexer != 0) {
+   // std::cout<<"column"<<n<<endl;
     // move on projection column
     previous_projection_column = std::move(current_projection_column);
     // make former next column the current one
     current_column = std::move(next_column);
     unique_ptr<vector<unsigned int> > current_read_ids = std::move(next_read_ids);
+   
     ColumnIndexingScheme* current_indexer = next_indexer;
     // peek ahead and get the next column
     if (column_iterator.has_next()) {
@@ -129,8 +296,10 @@ void DPTable::compute_table() {
       next_indexer = 0;
     }
     // reserve memory for the DP column
-    vector<unsigned int> dp_column(current_indexer->column_size(),0);
-    vector<unsigned int>* backtrace_column = 0;
+    array<unsigned int, 4> null_array = {{0, 0, 0, 0}};
+    vector<array<unsigned int, 4>> dp_column(current_indexer->column_size(), null_array);
+    vector<array<unsigned int, 4>>* forrecomb_col = nullptr;
+    vector<array<unsigned int, 4>>* backtrace_column = nullptr;
     // if not last column, reserve memory for forward projections column
     if (next_column.get() != 0) {
 #ifdef DB
@@ -140,16 +309,24 @@ void DPTable::compute_table() {
       cout << "forward projection width : " << current_indexer->get_forward_projection_width() << endl << endl;
 #endif
 
-
-      current_projection_column = unique_ptr<vector<unsigned int> >(new vector<unsigned int>(current_indexer->forward_projection_size(), numeric_limits<unsigned int>::max()));
+    array<unsigned int, 4> dummy_max_arr = {{numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max(),
+                                             numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max()
+                                   }};
+      current_projection_column = unique_ptr<vector<array<unsigned int, 4>> >(
+        new vector<array<unsigned int, 4>>(current_indexer->forward_projection_size(), dummy_max_arr));
       // NOTE: forward projection size will always be even
+      
+      forrecomb_col = new vector<array<unsigned int, 4>>(current_indexer->forward_projection_size(), dummy_max_arr);
 
-      backtrace_column = new vector<unsigned int>(current_indexer->forward_projection_size(), numeric_limits<unsigned int>::max());
+      backtrace_column = new vector<array<unsigned int, 4>>(current_indexer->forward_projection_size(), dummy_max_arr);
 
     }
 
     // do the actual compution on current column
-    ColumnCostComputer cost_computer(*current_column, all_heterozygous);
+    ColumnCostComputer cost_computer_0(*current_column, read_marks, 0, all_heterozygous);
+    ColumnCostComputer cost_computer_1(*current_column, read_marks, 1, all_heterozygous);
+    ColumnCostComputer cost_computer_2(*current_column, read_marks, 2, all_heterozygous);
+    ColumnCostComputer cost_computer_3(*current_column, read_marks, 3, all_heterozygous);
     unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
 
     // db
@@ -179,25 +356,42 @@ void DPTable::compute_table() {
       int bit_changed = -1;
       iterator->advance(&bit_changed);
       if (bit_changed >= 0) {
-        cost_computer.update_partitioning(bit_changed);
+        cost_computer_0.update_partitioning(bit_changed);
+        cost_computer_1.update_partitioning(bit_changed);
+        cost_computer_2.update_partitioning(bit_changed);
+        cost_computer_3.update_partitioning(bit_changed);
       } else {
-        cost_computer.set_partitioning(iterator->get_partition());
+        cost_computer_0.set_partitioning(iterator->get_partition());
+        cost_computer_1.set_partitioning(iterator->get_partition());
+        cost_computer_2.set_partitioning(iterator->get_partition());
+        cost_computer_3.set_partitioning(iterator->get_partition());
         if(next_column.get() == 0) { // only if we're at the last column
           running_optimal_score_index = iterator->get_index(); // default to first
         }
       }
 
-      unsigned int cost = 0;
-      if (previous_projection_column.get() != 0) {
-        cost += previous_projection_column->at(iterator->get_backward_projection());
+      array<unsigned int, 4> cost = {{0, 0, 0, 0}};
+      auto* prev_col_ptr = previous_projection_column.get();
+      if (prev_col_ptr != nullptr) {
+        auto& prev_col_entry = (*prev_col_ptr)[iterator->get_backward_projection()];
+        for(unsigned int i = 0; i < 4; ++i) {
+          cost[i] += prev_col_entry[i];
+        }
       }
 
       // db
 #ifdef DB
       cout << iterator->get_backward_projection() << " [" << bit_rep(iterator->get_backward_projection(), current_indexer->get_backward_projection_width()) << "] -> " << cost;
 #endif
+    //  std::cout<<"prevcost"<<cost[0]<<cost[1]<<cost[2]<<cost[3];
+     // std:: cout <<"bla bla"<<cost_computer_3.get_cost()<< cost_computer_1.get_cost()<<
+        cost_computer_2.get_cost()<< cost_computer_3.get_cost();
 
-      cost += cost_computer.get_cost();
+      array<unsigned int, 4> current_cost = {{ 
+        cost_computer_0.get_cost(), cost_computer_1.get_cost(),
+        cost_computer_2.get_cost(), cost_computer_3.get_cost()
+      }};
+      
 
       // db
 #ifdef DB
@@ -207,19 +401,32 @@ void DPTable::compute_table() {
       }
       cout << endl;
 #endif
-
-      dp_column[iterator->get_index()] = cost;
+       
+      auto final_col_cost = compute_final_cost(cost, current_cost, recombcost[n]);
+      auto min_recomb_index=compute_min_index(cost, current_cost, recombcost[n]);
+      dp_column[iterator->get_index()] = final_col_cost;
       // if not last DP column, then update forward projection column and backtrace column
       if (next_column.get() == 0) {
         // update running optimal score index
-        if (cost < dp_column[running_optimal_score_index]) {
+        auto& current_optimal_cost = dp_column[running_optimal_score_index];
+        if(*min_element(begin(final_col_cost), end(final_col_cost)) < *min_element(begin(current_optimal_cost), end(current_optimal_cost))){
           running_optimal_score_index = iterator->get_index();
         }
       } else {
         unsigned int forward_index = iterator->get_forward_projection();
-        if (current_projection_column->at(forward_index) > cost) {
-          current_projection_column->at(forward_index) = cost;
-          backtrace_column->at(forward_index) = iterator->get_index();
+        auto& current_proj_entry = (*current_projection_column)[forward_index];
+        auto& backtrace_column_entry = (*backtrace_column)[forward_index];
+        auto& recombminindex_column_entry = (*forrecomb_col)[forward_index];
+        auto it_idx = iterator->get_index();
+        for (unsigned int i = 0; i < 4; ++i) {
+          if(final_col_cost[i] < current_proj_entry[i]) {
+            current_proj_entry[i] = final_col_cost[i];
+            backtrace_column_entry[i] = it_idx;
+          }
+        }
+        for (unsigned int i = 0; i < 4; ++i) {
+         recombminindex_column_entry[i]=min_recomb_index[i];
+          
         }
       }
     }
@@ -235,6 +442,7 @@ void DPTable::compute_table() {
 
     // add newly computed backtrace_table column
     backtrace_table.push_back(backtrace_column);
+    forrecomb.push_back(forrecomb_col);
 
     ++n;
 
@@ -256,7 +464,13 @@ void DPTable::compute_table() {
   }
 
   // store optimal score for table at end of computation
-  optimal_score = running_optimal_score;
+  auto min = numeric_limits<unsigned int>::max();
+  for(unsigned int i = 0; i < 4; ++i) {
+    if(running_optimal_score[i] < min) {
+      min = running_optimal_score[i];
+      optimal_score_array_index = i;
+    }
+  }
   optimal_score_index = running_optimal_score_index;
 }
 
@@ -272,14 +486,24 @@ unique_ptr<vector<unsigned int> > DPTable::get_index_path() {
     return index_path;
   }
   unsigned int index = optimal_score_index;
+  unsigned int temp;
   index_path->at(indexers.size()-1) = index;
+  //cout<<"columns"<<indexers.size()<<endl;
   for(size_t i = indexers.size()-1; i > 0; --i) { // backtrack through table
-    if(i>0) {
-      unique_ptr<ColumnIndexingIterator> iterator = indexers[i]->get_iterator();
-      unsigned int backtrace_index = iterator->index_backward_projection(index);
-      index = backtrace_table[i-1]->at(backtrace_index);
-      index_path->at(i-1) = index;
+    unique_ptr<ColumnIndexingIterator> iterator = indexers[i]->get_iterator();
+    unsigned int backtrace_index = iterator->index_backward_projection(index);
+    if (i==indexers.size()-1){
+    index = backtrace_table[i-1]->at(backtrace_index)[optimal_score_array_index];
+    temp= forrecomb[i-1]->at(backtrace_index)[optimal_score_array_index];
+    std::cout<<"recomb"<<temp<<endl;
     }
+    else{
+      index = backtrace_table[i-1]->at(backtrace_index)[temp];
+    temp= forrecomb[i-1]->at(backtrace_index)[temp]; 
+    std::cout<<"recomb"<<temp<<endl;
+    }
+    
+    index_path->at(i-1) = index;
   }
 
   //db
@@ -292,14 +516,17 @@ unique_ptr<vector<unsigned int> > DPTable::get_index_path() {
   return index_path;
 }
 
-void DPTable::get_super_reads(ReadSet* output_read_set) {
-  assert(output_read_set != 0);
+void DPTable::get_super_readsm(ReadSet* output_read_set) {
+  assert(output_read_set != 0u);
 
   ColumnIterator column_iterator(*read_set);
   const vector<unsigned int>* positions = column_iterator.get_positions();
+// std::cout<<positions<<endl;
+ // for(int i=0;i<positions->size();i++) std::cout<<positions->at(i)<<endl;
+ //std::cout<<positions<<endl;
 
-  Read* r0 = new Read("superread0", -1, 0);
-  Read* r1 = new Read("superread1", -1, 0);
+  Read* r0m = new Read("superread0", -1, 0);
+  Read* r1m = new Read("superread1", -1, 0);
   
   if (backtrace_table.empty()) {
     assert(!column_iterator.has_next());
@@ -307,21 +534,163 @@ void DPTable::get_super_reads(ReadSet* output_read_set) {
     // run through the file again with the column_iterator
     unsigned int i = 0; // column index
     unique_ptr<vector<unsigned int> > index_path = get_index_path();
+int count=0;
     while (column_iterator.has_next()) {
       unsigned int index = index_path->at(i);
       unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
-      ColumnCostComputer cost_computer(*column, all_heterozygous);
-      cost_computer.set_partitioning(index);
-
-      r0->addVariant(positions->at(i), cost_computer.get_allele(0), cost_computer.get_weight(0));
-      r1->addVariant(positions->at(i), cost_computer.get_allele(1), cost_computer.get_weight(1));
+    const std::vector<const Entry*>& columnx=  *column;
+    const std::vector<unsigned int>& read_marksx=read_marks;
+     // unsigned int index_m=0;
+      
+       bool flag= false;
+    
+     //  int j=0;
+      for (vector<const Entry*>::const_iterator it = columnx.begin(); it != columnx.end(); ++it) {
+       // unsigned int temp=index%2;
+        auto& entry = **it;
+        if((read_marksx[entry.get_read_id()]==1u) && ((*it)->get_allele_type())!= Entry::BLANK) {
+          flag=true;
+          break;
+         // index_m+=pow(2,j)*temp;
+         // j++;
+        }      
+        //index/=2;
+     }      
+      
+     if(flag){
+    count++;
+        ColumnCostComputer cost_computer(*column, read_marks, 0, all_heterozygous);
+        cost_computer.set_partitioning_m(index);
+	std::cout<<positions->at(i)<<" ";
+        r0m->addVariant(positions->at(i), cost_computer.get_allele(0), cost_computer.get_weight(0));
+        r1m->addVariant(positions->at(i), cost_computer.get_allele(1), cost_computer.get_weight(1));
+     }
       ++i; // next column
     }
+std::cout<<"superreadsm"<<count<<endl;
+  }
+ 
+  output_read_set->add(r0m);
+  output_read_set->add(r1m);
+}
+
+
+//---------------------------
+
+void DPTable::get_super_readsf(ReadSet* output_read_set) {
+  assert(output_read_set != 0);
+
+  ColumnIterator column_iterator(*read_set);
+  const vector<unsigned int>* positions = column_iterator.get_positions();
+
+  Read* r0f = new Read("superread0", -1, 0);
+  Read* r1f = new Read("superread1", -1, 0);
+  
+  if (backtrace_table.empty()) {
+    assert(!column_iterator.has_next());
+  } else {
+    // run through the file again with the column_iterator
+    unsigned int i = 0; // column index
+    unique_ptr<vector<unsigned int> > index_path = get_index_path();
+int count=0;
+    while (column_iterator.has_next()) {
+      unsigned int index = index_path->at(i);
+      unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
+    const std::vector<const Entry*>& columnx=  *column;
+    const std::vector<unsigned int>& read_marksx=read_marks;
+     // unsigned int index_m=0;
+      
+       bool flag= false;
+    
+     //  int j=0;
+       for (vector<const Entry*>::const_iterator it = columnx.begin(); it != columnx.end(); ++it) {
+       // unsigned int temp=index%2;
+        auto& entry = **it;
+        if((read_marksx[entry.get_read_id()]==2u) && ((*it)->get_allele_type())!= Entry::BLANK) {
+          flag=true;
+          break;
+         // index_m+=pow(2,j)*temp;
+         // j++;
+        }      
+        //index/=2;
+     }      
+      
+     if(flag){
+    count++;
+        ColumnCostComputer cost_computer(*column, read_marks, 0, all_heterozygous);
+        cost_computer.set_partitioning_f(index);
+
+        r0f->addVariant(positions->at(i), cost_computer.get_allele(0), cost_computer.get_weight(0));
+        r1f->addVariant(positions->at(i), cost_computer.get_allele(1), cost_computer.get_weight(1));
+     }
+      ++i; // next column
+    }
+std::cout<<"superreadsf"<<count<<endl;
+  }
+ 
+  output_read_set->add(r0f);
+  output_read_set->add(r1f);
+}
+
+
+//-----------------------
+
+void DPTable::get_super_readsc(ReadSet* output_read_set) {
+  assert(output_read_set != 0);
+
+  ColumnIterator column_iterator(*read_set);
+  const vector<unsigned int>* positions = column_iterator.get_positions();
+
+  Read* r0c = new Read("superread0", -1, 0);
+  Read* r1c = new Read("superread1", -1, 0);
+  
+  if (backtrace_table.empty()) {
+    assert(!column_iterator.has_next());
+  } else {
+    // run through the file again with the column_iterator
+    unsigned int i = 0; // column index
+int count=0;
+    unique_ptr<vector<unsigned int> > index_path = get_index_path();
+    while (column_iterator.has_next()) {
+      unsigned int index = index_path->at(i);
+      unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
+    const std::vector<const Entry*>& columnx=  *column;
+    const std::vector<unsigned int>& read_marksx=read_marks;
+     // unsigned int index_m=0;
+      
+       bool flag= false;
+    
+     //  int j=0;
+      for (vector<const Entry*>::const_iterator it = columnx.begin(); it != columnx.end(); ++it) {
+       // unsigned int temp=index%2;
+        auto& entry = **it;
+        if((read_marksx[entry.get_read_id()]==0u) && ((*it)->get_allele_type())!= Entry::BLANK) {
+          flag=true;
+          break;
+         // index_m+=pow(2,j)*temp;
+         // j++;
+        }      
+        //index/=2;
+     }      
+      
+     if(flag){
+    count++;
+        ColumnCostComputer cost_computer(*column, read_marks, 0, all_heterozygous);
+        cost_computer.set_partitioning_c(index);
+
+        r0c->addVariant(positions->at(i), cost_computer.get_allele(0), cost_computer.get_weight(0));
+        r1c->addVariant(positions->at(i), cost_computer.get_allele(1), cost_computer.get_weight(1));
+     }
+      ++i; // next column
+    }
+std::cout<<"superreadsc"<<count<<endl;
   }
 
-  output_read_set->add(r0);
-  output_read_set->add(r1);
+  output_read_set->add(r0c);
+  output_read_set->add(r1c);
 }
+
+//---------
 
 vector<bool>* DPTable::get_optimal_partitioning() {
 

@@ -22,6 +22,7 @@ import gzip
 import time
 import itertools
 import platform
+import math
 from collections import defaultdict, Counter
 from contextlib import contextmanager
 try:
@@ -224,9 +225,7 @@ class ReadSetReader:
 		read_set = ReadSet()
 
 		for readlist in reads.values():
-			assert len(readlist) > 0
-			if len(readlist) > 2:
-				raise ReadSetError("Read name {!r} occurs more than twice in the input file".format(readlist[0].name))
+			assert 0 < len(readlist) <= 2
 			if len(readlist) == 1:
 				read_set.add(readlist[0])
 			else:
@@ -313,6 +312,9 @@ def find_components(superreads, reads):
 	# If all_heterozygous is off, we can also get all other combinations.
 	# In both cases, we are interested only in 0/1 and 1/0.
 	phased_positions = [ v1.position for v1, v2 in zip(*superreads)
+		if (v1.allele, v2.allele) in ((0, 1), (1, 0), (0,0),(1,1))
+	]
+	phased_positions1 = [ v1.position for v1, v2 in zip(*superreads)
 		if (v1.allele, v2.allele) in ((0, 1), (1, 0))
 	]
 	assert phased_positions == sorted(phased_positions)
@@ -396,10 +398,61 @@ def ensure_pysam_version():
 	if LooseVersion(pysam_version) < LooseVersion("0.8.1"):
 		sys.exit("WhatsHap requires pysam >= 0.8.1")
 
+def count_cost2(positions, mother, father):
+	# positions, mother, father are assumed to be sorted
+	
+	total_cost = [];
+	pos_size = len(positions)
+	if pos_size == 0:
+		return total_cost;
 
-def run_whatshap(bam, vcf,
-		output=sys.stdout, sample=None, ignore_read_groups=False, indels=True,
-		mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123, haplotype_bams_prefix=None):
+	for i in range(pos_size):
+		
+		# initialize boundary
+		bound = positions[i]
+
+		# check how many element,x in mother is <= bound
+		lm = len([elem for elem in mother if elem <= bound]);  # could maybe done faster with a loop 
+														  # since we know it is sorted
+		
+		# check how many element, y in father is <= bound
+		lf = len([elem for elem in father if elem <= bound]);  # could maybe done faster with a loop 
+														  # since we know it is sorted
+	
+		# if the number is even  # else
+		if (lm % 2 == 0):
+			mct = 2
+		else:  # odd in mother
+			mct = 1
+	
+		# if the number is even  # else
+		if (lf % 2 == 0):
+		   fct = 0 #
+		else: # odd in father
+		   fct = 1 #
+		 
+		if (mct == 2 and fct == 0):
+			# both are even
+			cost = 10000
+		else:
+			cost = mct + fct;
+		
+		# append correct cost to total_cost array
+		total_cost.append(cost)
+		#print (lm, lf, cost)
+		
+		# remove the first xth element from mother array
+		mother = mother[lm:]
+		
+		# remove the first yth element from father array	
+		father = father[lf:]				
+		
+	return total_cost
+
+
+def run_whatshap(bamm, vcfm,bamf, vcff,bamc, vcfc,
+		outputm=sys.stdout,outputf=sys.stdout,outputc=sys.stdout, samplem=None, samplef=None, samplec=None, ignore_read_groups=False, indels=True,
+		mapping_quality=20, max_coveragem=5, max_coveragef=5, max_coveragec=5,all_heterozygous=False, seed=123, haplotype_bams_prefix=None):
 	"""
 	Run WhatsHap.
 
@@ -429,130 +482,197 @@ def run_whatshap(bam, vcf,
 	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
 		try:
-			bam_reader = stack.enter_context(ReadSetReader(bam, mapq_threshold=mapping_quality))
+			bam_readerm = stack.enter_context(ReadSetReader(bamm, mapq_threshold=mapping_quality))
+			bam_readerf = stack.enter_context(ReadSetReader(bamf, mapq_threshold=mapping_quality))
+			bam_readerc = stack.enter_context(ReadSetReader(bamc, mapq_threshold=mapping_quality))
 		except (OSError, BamIndexingError) as e:
 			logger.error(e)
 			sys.exit(1)
-		if output is not sys.stdout:
-			output = stack.enter_context(open(output, 'w'))
+		if outputm is not sys.stdout:
+			outputm = stack.enter_context(open(outputm, 'w'))
+		if outputf is not sys.stdout:
+			outputf = stack.enter_context(open(outputf, 'w'))
+		if outputc is not sys.stdout:
+			outputc = stack.enter_context(open(outputc, 'w'))
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
-		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=vcf, out_file=output)
-		vcf_reader = parse_vcf(vcf, sample=sample, indels=indels)
+
+		vcf_writerm = PhasedVcfWriter(command_line=command_line, in_path=' '.join(vcfm), out_file=outputm)
+		vcf_writerf = PhasedVcfWriter(command_line=command_line, in_path=' '.join(vcff), out_file=outputf)
+		vcf_writerc = PhasedVcfWriter(command_line=command_line, in_path=' '.join(vcfc), out_file=outputc)
+
+		vcf_readerm = parse_vcf(''.join(vcfm), sample=samplem, indels=indels)
+		vcf_readerf = parse_vcf(' '.join(vcff), sample=samplef, indels=indels)
+		vcf_readerc = parse_vcf(' '.join(vcfc), sample=samplec, indels=indels)
 		haplotype_bam_writer = None
 		if haplotype_bams_prefix is not None:
 			haplotype_bam_writer = HaplotypeBamWriter(bam, haplotype_bams_prefix, sample)
 		timers.start('parse_vcf')
-		for sample, chromosome, variants in vcf_reader:
-			variants = remove_overlapping_variants(variants)
+		for m,f,c in zip(vcf_readerm,vcf_readerf,vcf_readerc):
+			samplem= m[0]
+			chromosomem= m[1]
+			variantsm=m[2]
+			samplef= f[0]
+			chromosomef= f[1]
+			variantsf=f[2]
+			samplec= c[0]
+			chromosomec= c[1]
+			variantsc=c[2]
+			variantsm = remove_overlapping_variants(variantsm)
+			variantsf = remove_overlapping_variants(variantsf)
+			variantsc = remove_overlapping_variants(variantsc)
 			timers.stop('parse_vcf')
-			logger.info('Working on chromosome %s', chromosome)
-			logger.info('Read %d variants', len(variants))
-			bam_sample = None if ignore_read_groups else sample
+			bam_samplem = None if ignore_read_groups else samplem
+			bam_samplef = None if ignore_read_groups else samplef
+			bam_samplec = None if ignore_read_groups else samplec
 			logger.info('Reading the BAM file ...')
 			try:
-				timers.start('read_bam')
-				reads = bam_reader.read(chromosome, variants, bam_sample)
-				bam_time = timers.stop('read_bam')
+				readsm = bam_readerm.read(chromosomem, variantsm, bam_samplem)
+				readsf = bam_readerf.read(chromosomef, variantsf, bam_samplef)
+				readsc = bam_readerc.read(chromosomec, variantsc, bam_samplec)
 			except SampleNotFoundError:
-				logger.error("Sample %r is not among the read groups (RG tags) "
-					"in the BAM header.", bam_sample)
+				#logger.error("Sample %r is not among the read groups (RG tags) "
+					#"in the BAM header.", bam_sample)
 				sys.exit(1)
 			except ReadSetError as e:
 				logger.error("%s", e)
 				sys.exit(1)
-			logger.info('Read %d reads in %.1f s', len(reads), bam_time)
+			#logger.info('Read %d reads in %.1f s', len(reads), bam_time)
 
 			with timers('slice'):
 				# Sort the variants stored in each read
 				# TODO: Check whether this is already ensured by construction
-				for read in reads:
+				for read in readsm:
 					read.sort()
-				# Sort reads in read set by position
-				reads.sort()
-
-				selected_reads, uninformative_read_count = readselection(reads, max_coverage)
-				sliced_reads = reads.subset(selected_reads)
-
-				position_list = reads.get_positions()
-				accessible_positions = sliced_reads.get_positions()
-				informative_read_count = len(reads) - uninformative_read_count
-				unphasable_snps = len(position_list) - len(accessible_positions)
-				logger.info('%d variants are covered by at least one read', len(position_list))
-				logger.info('Skipped %d reads that only cover one variant', uninformative_read_count)
-				if position_list:
-					logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
-						'connecting them to another variant and are thus unphasable',
-						unphasable_snps, len(position_list),
-						100. * unphasable_snps / len(position_list)
-					)
-				if reads:
-					logger.info('After read selection: Using %d of %d (%.1f%%) reads that cover two or more variants',
-						len(selected_reads), informative_read_count, (100. * len(selected_reads) / informative_read_count if informative_read_count > 0 else float('nan'))
-					)
-
-
-			n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(reads)
-			n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(sliced_reads)
-			stats.n_best_case_blocks += n_best_case_blocks
-			stats.n_best_case_nonsingleton_blocks += n_best_case_nonsingleton_blocks
-			stats.n_best_case_blocks_cov += n_best_case_blocks_cov
-			stats.n_best_case_nonsingleton_blocks_cov += n_best_case_nonsingleton_blocks_cov
-			logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
-				n_best_case_nonsingleton_blocks, n_best_case_blocks)
-			logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
-				n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
-
+				for read in readsf:
+					read.sort()
+				for read in readsc:
+					read.sort()
+				readsm.sort()
+				readsf.sort()
+				readsc.sort()
+				selected_readsm, uninformative_read_countm = readselection(readsm, max_coveragem)
+				selected_readsf, uninformative_read_countf = readselection(readsf, max_coveragef)
+				selected_readsc, uninformative_read_countc = readselection(readsc, max_coveragec)
+				sliced_readsm = readsm.subset(selected_readsm)
+				sliced_readsf = readsf.subset(selected_readsf)
+				sliced_readsc = readsc.subset(selected_readsc)
+				accessible_positionsm = sliced_readsm.get_positions()
+				accessible_positionsf = sliced_readsf.get_positions()
+				accessible_positionsc = sliced_readsc.get_positions()
 			with timers('phase'):
-				logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
+				#logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 				# Run the core algorithm: construct DP table ...
-				dp_table = DPTable(sliced_reads, all_heterozygous)
-				# get the mec score
-				mec_score = dp_table.get_optimal_cost()
-				# ... and do the backtrace to get the solution
-				superreads = dp_table.get_super_reads()
+				intersectedvariants= list(set(accessible_positionsc).union(set(accessible_positionsf).union(set(accessible_positionsm))))
+				intersect=list(set(accessible_positionsc).intersection(set(accessible_positionsf).intersection(set(accessible_positionsm))))
+				allreads= ReadSet()
+				new_slicedm=ReadSet()
+				new_slicedf=ReadSet()
+				new_slicedc=ReadSet()
+				sliced_readsm.sort()
+				sliced_readsf.sort()
+				sliced_readsc.sort()
+				for read in sliced_readsm:
+					read.sort()
+				for read in sliced_readsf:
+					read.sort()
+				for read in sliced_readsc:
+					read.sort()
+				for read in sliced_readsm:
+					allreads.add(read)
+
+				for read in sliced_readsf:
+					allreads.add(read)
+
+				for read in sliced_readsc:
+					allreads.add(read)
+
+
+				for read in allreads:
+					read.sort()
+			
+				allreads.sort()			
+
+
+				demarcationsm=list()
+				demarcationsf=list()
+				finaldemarcations=[0]*len(allreads)
+				for read in readsm:
+					demarcationsm.append(read.name)
+				for read in readsf:
+					demarcationsf.append(read.name)
+				for i,read in enumerate(allreads):
+					if read.name in demarcationsm:
+						finaldemarcations[i]=1 #mother
+					elif read.name in demarcationsf:
+						finaldemarcations[i]=2
+				
+				print(len(finaldemarcations))
+				lines = [line.strip() for line in open('child.map', 'r')]
+				positions=list(sorted(intersectedvariants))
+				father= [9881194, 9886116, 9886519, 9928722, 9928819, 9929617, 9929922, 9929949, 9929997, 9930099, 9930143, 9930179, 9930225, 9930371, 9930550, 9930565, 9930625, 9930714, 9930751, 9930788, 9931229, 9931246, 9931263, 9931409, 9931420, 9931427, 9931694, 9931695, 9931720, 9931727, 9931762, 9931820, 9931869, 9931917, 9954791, 9954872, 9955014, 9955755, 9955782, 9955874, 9955910, 9956127, 9956623, 9957025, 9957650, 9958003, 9958012, 9958046, 17022236, 17026584]
+				mother = [9883483, 9885532, 9885881, 9885934, 9886006, 9886788, 9928872, 9929589, 9929617, 9929812, 9929949, 9929997, 9930099, 9930143, 9930179, 9930225, 9930371, 9930625, 9930714, 9931125, 9931323, 9931420, 9931531, 9931617, 9931689, 9931694, 9931720, 9931749, 9931869, 9931917, 9954836, 9954885, 9955014, 9955584, 9955625, 9955874, 9956474, 9956633, 9956710, 9957095, 9958003, 9958012, 9958046, 10596029, 16759392]
+				recombcost=count_cost2(positions, mother, father)
+				dp_table = DPTable(allreads, finaldemarcations, recombcost, all_heterozygous)
+				
+				
+				superreadsm = dp_table.get_super_readsm()
+				
+				superreadsf = dp_table.get_super_readsf()
+				superreadsc = dp_table.get_super_readsc()
+				print(superreadsm[0])
+				print(superreadsm[1])
+				print(superreadsf[0])
+				print(superreadsf[1])
+				print(superreadsc[0])
+				print(superreadsc[1])
 
 				# output the MEC score of phasing
-				logger.info('MEC score of phasing: %d', mec_score)
+				#logger.info('MEC score of phasing: %d', mec_score)
 
-				n_homozygous = sum(1 for v1, v2 in zip(*superreads)
-					if v1.allele == v2.allele and v1.allele in (0, 1))
-				stats.n_homozygous += n_homozygous
+				#n_homozygous = sum(1 for v1, v2 in zip(*superreads)
+					#if v1.allele == v2.allele and v1.allele in (0, 1))
+				#stats.n_homozygous += n_homozygous
 
-			components = find_components(superreads, sliced_reads)
-			n_phased_blocks = len(set(components.values()))
-			stats.n_phased_blocks += n_phased_blocks
-			logger.info('No. of phased blocks: %d', n_phased_blocks)
-			if all_heterozygous:
-				assert n_homozygous == 0
-			else:
-				logger.info('No. of heterozygous variants determined to be homozygous: %d', n_homozygous)
+			
+			componentsm = find_components(superreadsm, sliced_readsm)
+			componentsf = find_components(superreadsf, sliced_readsf)
+			componentsc = find_components(superreadsc, sliced_readsc)
+			#n_phased_blocks = len(set(components.values()))
+			#stats.n_phased_blocks += n_phased_blocks
+			#logger.info('No. of phased blocks: %d', n_phased_blocks)
+			#if all_heterozygous:
+				#assert n_homozygous == 0
+			#else:
+				#logger.info('No. of heterozygous variants determined to be homozygous: %d', n_homozygous)
 
 			with timers('write_vcf'):
-				vcf_writer.write(chromosome, sample, superreads, components)
+				vcf_writerm.write(chromosomem, samplem, superreadsm, componentsm)
+				vcf_writerf.write(chromosomef, samplef, superreadsf, componentsf)
+				vcf_writerc.write(chromosomec, samplec, superreadsc, componentsc)
 
-			if haplotype_bam_writer is not None:
-				logger.info('Writing used reads to haplotype-specific BAM files')
-				haplotype_bam_writer.write(sliced_reads, dp_table.get_optimal_partitioning(), chromosome)
-			logger.info('Chromosome %s finished', chromosome)
-			timers.start('parse_vcf')
-		timers.stop('parse_vcf')
-	logger.info('== SUMMARY ==')
-	logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
-		stats.n_best_case_nonsingleton_blocks, stats.n_best_case_blocks)
-	logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
-		stats.n_best_case_nonsingleton_blocks_cov, stats.n_best_case_blocks_cov)
-	if all_heterozygous:
-		assert stats.n_homozygous == 0
-	else:
-		logger.info('No. of heterozygous variants determined to be homozygous: %d', stats.n_homozygous)
-	timers.stop('overall')
-	logger.info('Time spent reading BAM: %6.1f s', timers.elapsed('read_bam'))
-	logger.info('Time spent parsing VCF: %6.1f s', timers.elapsed('parse_vcf'))
-	logger.info('Time spent slicing:     %6.1f s', timers.elapsed('slice'))
-	logger.info('Time spent phasing:     %6.1f s', timers.elapsed('phase'))
-	logger.info('Time spent writing VCF: %6.1f s', timers.elapsed('write_vcf'))
-	logger.info('Time spent on rest:     %6.1f s', 2 * timers.elapsed('overall') - timers.total())
-	logger.info('Total elapsed time:     %6.1f s', timers.elapsed('overall'))
+			#if haplotype_bam_writer is not None:
+				#logger.info('Writing used reads to haplotype-specific BAM files')
+				#haplotype_bam_writer.write(sliced_reads, dp_table.get_optimal_partitioning(), chromosome)
+			#logger.info('Chromosome %s finished', chromosome)
+			#timers.start('parse_vcf')
+		#timers.stop('parse_vcf')
+	#logger.info('== SUMMARY ==')
+	#logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
+		#stats.n_best_case_nonsingleton_blocks, stats.n_best_case_blocks)
+	#logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
+		#stats.n_best_case_nonsingleton_blocks_cov, stats.n_best_case_blocks_cov)
+	#if all_heterozygous:
+		#assert stats.n_homozygous == 0
+	#else:
+		#logger.info('No. of heterozygous variants determined to be homozygous: %d', stats.n_homozygous)
+	#timers.stop('overall')
+	#logger.info('Time spent reading BAM: %6.1f s', timers.elapsed('read_bam'))
+	#logger.info('Time spent parsing VCF: %6.1f s', timers.elapsed('parse_vcf'))
+	#logger.info('Time spent slicing:	 %6.1f s', timers.elapsed('slice'))
+	#logger.info('Time spent phasing:	 %6.1f s', timers.elapsed('phase'))
+	#logger.info('Time spent writing VCF: %6.1f s', timers.elapsed('write_vcf'))
+	#logger.info('Time spent on rest:	 %6.1f s', 2 * timers.elapsed('overall') - timers.total())
+	#logger.info('Total elapsed time:	 %6.1f s', timers.elapsed('overall'))
 
 
 class NiceFormatter(logging.Formatter):
@@ -578,9 +698,17 @@ def main():
 	parser.add_argument('--version', action='version', version=__version__)
 	parser.add_argument('--debug', action='store_true', default=False,
 		help='Show more verbose output')
-	parser.add_argument('-o', '--output', default=sys.stdout,
+	parser.add_argument('-om', '--outputm', default=sys.stdout,
 		help='Output VCF file. If omitted, use standard output.')
-	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
+	parser.add_argument('-of', '--outputf', default=sys.stdout,
+		help='Output VCF file. If omitted, use standard output.')
+	parser.add_argument('-oc', '--outputc', default=sys.stdout,
+		help='Output VCF file. If omitted, use standard output.')
+	parser.add_argument('--max-coveragem', '-M', metavar='MAXCOVM', default=5, type=int,
+		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
+	parser.add_argument('--max-coveragef', '-F', metavar='MAXCOVF', default=5, type=int,
+		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
+	parser.add_argument('--max-coveragec', '-C', metavar='MAXCOVC', default=5, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
 	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',
 		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
@@ -594,16 +722,27 @@ def main():
 	parser.add_argument('--ignore-read-groups', default=False, action='store_true',
 		help='Ignore read groups in BAM header and assume all reads come '
 		'from the same sample.')
-	parser.add_argument('--sample', metavar='SAMPLE', default=None,
+	parser.add_argument('--samplem', metavar='SAMPLEM', default=None,
+		help='Name of a sample to phase. If not given, the first sample in the '
+		'input VCF is phased.')
+	parser.add_argument('--samplef', metavar='SAMPLEF', default=None,
+		help='Name of a sample to phase. If not given, the first sample in the '
+		'input VCF is phased.')
+	parser.add_argument('--samplec', metavar='SAMPLEC', default=None,
 		help='Name of a sample to phase. If not given, the first sample in the '
 		'input VCF is phased.')
 	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
 		help='Write reads that have been used for phasing to haplotype-specific BAM files. '
 		'Creates PREFIX.1.bam and PREFIX.2.bam')
-	parser.add_argument('vcf', metavar='VCF', help='VCF file')
-	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
+	parser.add_argument('vcfm', nargs=1, metavar='', help='VCF file')
+	parser.add_argument('bamm', nargs=1, metavar='BAMM', help='BAM file')
+	parser.add_argument('vcff', nargs=1, metavar='', help='VCF file')
+	parser.add_argument('bamf', nargs=1,metavar='BAMF', help='BAM file')
+	parser.add_argument('vcfc', nargs=1,metavar='', help='VCF file')
+	parser.add_argument('bamc',  nargs=1,metavar='BAMC', help='BAM file')
 
 	args = parser.parse_args()
 	logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
 	del args.debug
 	run_whatshap(**vars(args))
+
