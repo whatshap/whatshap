@@ -84,7 +84,7 @@ def parse_vcf(path, indels=False, sample=None):
 				yield (sample, prev_chromosome, variants)
 			prev_chromosome = record.CHROM
 			variants = []
-		alleles = [ str(record.alleles[int(s)]) for s in call.gt_alleles ]
+		alleles = [ str(record.alleles[int(s)]) for s in sorted(set(call.gt_alleles)) ]
 		"""
 		logger.debug("Call %s:%d %s→%s (Alleles: %s)",
 			record.CHROM, record.start + 1,
