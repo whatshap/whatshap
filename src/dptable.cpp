@@ -16,16 +16,9 @@ DPTable::DPTable(ReadSet* read_set, vector<unsigned int> read_marks, vector<unsi
 : read_set(read_set), read_marks(std::move(read_marks)), recombcost(std::move(recombcost)),indexers(), optimal_score(0u), optimal_score_index(0u),
  backtrace_table(), forrecomb(),read_count(0u), all_heterozygous(all_heterozygous)
 {
-   //r0m = new Read("superread0", -1, 0);
-   //r1m = new Read("superread1", -1, 0);
-   //r0f = new Read("superread0", -1, 0);
-   //r1f = new Read("superread1", -1, 0);
-   //r0c = new Read("superread0", -1, 0);
-   //r1c = new Read("superread1", -1, 0);
   read_set->reassignReadIds();
   compute_table();
-  std::cout<<"i am here";
- 
+
 }
 
 DPTable::~DPTable() {
@@ -82,147 +75,44 @@ void output_vector_enum(const vector<unsigned int> * v, unsigned int len) {
 #endif
 
 namespace {
-//   // 0 -> mother & father, 1 -> mother, 2 -> father, 3 -> child
-//   unsigned int missing_individual(vector<unsigned int>& read_ids, vector<unsigned int>& read_marks) {
-//     bool from_mother = false;
-//     bool from_father = false;
-//     bool from_child = false;
-//     for(auto id : read_ids) {
-//       switch (read_marks[id]) {
-//         case 0:
-//           from_child = true;
-//           break;
-//         case 1:
-//           from_mother = true;
-//           break;
-//         case 2:
-//           from_father = true;
-//           break;
-//         default:
-//           assert(false);
-//       }
-//     }
-//   }
-//     template<typename T, std::size_t s>
-//     array<T, s> compute_final_cost(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
-//       
-//       array<T, s> result;
-//       for(typename array<T,s>::size_type i = 0; i < s; ++i) {
-//         unsigned int min = numeric_limits<unsigned int>::max();
-//         for(typename array<T,s>::size_type j = 0; j < s; ++j) {
-//             auto val = current[i] + prev[j] + (i != j ? penalty : 0u);
-//             if(val < min) {
-//               min = val;
-//             }
-//         }
-//         result[i] = min;
-//       }
-//      
-//       return result;
-//     }
-//     
-//     template<typename T, std::size_t s>
-//     array<T, s> compute_min_index(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
-//       
-//       array<T, s> result;
-//       
-//       for(typename array<T,s>::size_type i = 0; i < s; ++i) {
-//         unsigned int min = numeric_limits<unsigned int>::max();
-//         for(typename array<T,s>::size_type j = 0; j < s; ++j) {
-//             auto val = current[i] + prev[j] + (i != j ? penalty : 0u);
-//             if(val < min) {
-//               min = val;
-//               result[i] = j;
-//             }
-//         }
-//         
-//       }
-//      
-//       return result;
-//     }
-// }
-
-  template<typename T, std::size_t s>
-    array<T, s> compute_final_cost(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
+     template<typename T, std::size_t s>
+     array<T, s> compute_final_cost(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
+       
+       array<T, s> result;
+       for(typename array<T,s>::size_type i = 0; i < s; ++i) {
+         unsigned int min = numeric_limits<unsigned int>::max();
+         for(typename array<T,s>::size_type j = 0; j < s; ++j) {
+             auto val = current[i] + prev[j] + (i != j ? penalty : 0u);
+             if(val < min) {
+               min = val;
+             }
+         }
+         result[i] = min;
+       }
       
-      array<T, s> result;
-      for(typename array<T,s>::size_type i = 0; i < s; ++i) {
-        unsigned int min = numeric_limits<unsigned int>::max();
-        for(typename array<T,s>::size_type j = 0; j < s; ++j) {
-         unsigned int val;
-        if (penalty!=1 && penalty !=2 && penalty!=3)
-            val = current[i] + prev[j] + (i != j ? penalty : 0u);
-        else if (penalty ==1) {
-          if ((i/2!=j/2) && (i%2==j%2)){
-          //penalty=0;
-           val = current[i] + prev[j] + 0;                  
-        }else  val = current[i] + prev[j] + 100000;          
-        }
-         else if (penalty ==3) {
-          if ((i/2==j/2) && (i%2!=j%2)){
-          //penalty=0;
-           val = current[i] + prev[j] + 0;                  
-        }else  val = current[i] + prev[j] + 100000;          
-        }
-        else if (penalty==2){
-         // std::cout<<"penalty"<<penalty<<endl;
-          if ((i/2!=j/2) && (i%2!=j%2)){
-          //  std::cout<<"in both"<<i<<" "<<j<<endl;
-          val = current[i] + prev[j] + 0;          
-        }
-        else val = current[i] + prev[j] + 100000;
-        }
-            if(val < min) {
-              min = val;
-            }
-        }
-        result[i] = min;
-      }
+       return result;
+     }
      
-      return result;
-    }
-    
-    template<typename T, std::size_t s>
-    array<T, s> compute_min_index(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
+     template<typename T, std::size_t s>
+     array<T, s> compute_min_index(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
+       
+       array<T, s> result;
+       
+       for(typename array<T,s>::size_type i = 0; i < s; ++i) {
+         unsigned int min = numeric_limits<unsigned int>::max();
+         for(typename array<T,s>::size_type j = 0; j < s; ++j) {
+             auto val = current[i] + prev[j] + (i != j ? penalty : 0u);
+             if(val < min) {
+               min = val;
+               result[i] = j;
+             }
+         }
+         
+       }
       
-      array<T, s> result;
-      
-      for(typename array<T,s>::size_type i = 0; i < s; ++i) {
-        unsigned int min = numeric_limits<unsigned int>::max();
-        for(typename array<T,s>::size_type j = 0; j < s; ++j) {
-         unsigned int val;
-        if (penalty!=1 && penalty !=2)
-            val = current[i] + prev[j] + (i != j ? penalty : 0u);
-        else if (penalty ==1) {
-          if ((i/2!=j/2) && (i%2==j%2)){
-          //penalty=0;
-           val = current[i] + prev[j] + 0;                  
-        }else  val = current[i] + prev[j] + 100000;          
-        }
-         else if (penalty ==1) {
-          if ((i/2==j/2) && (i%2!=j%2)){
-          //penalty=0;
-           val = current[i] + prev[j] + 0;                  
-        }else  val = current[i] + prev[j] + 100000;          
-        }
-        else if (penalty==2){
-          if ((i/2!=j/2) && (i%2!=j%2)){
-          val = current[i] + prev[j] + 0;          
-        }
-        else val = current[i] + prev[j] + 100000;
-        }
-            if(val < min) {
-              min = val;
-              result[i] = j;
-            }
-        }
-        
-      }
-     
-      return result;
-    }
-}
-
+       return result;
+     }
+ }
 
 void DPTable::compute_table() {
   ColumnIterator column_iterator(*read_set);

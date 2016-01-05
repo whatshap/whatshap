@@ -82,6 +82,7 @@ def parse_vcf(path, indels=False, sample=None):
 				yield (sample, prev_chromosome, variants)
 			prev_chromosome = record.CHROM
 			variants = []
+		#alleles = [ str(record.alleles[int(s)]) for s in call.gt_alleles ]
 		alleles = [ str(record.alleles[int(s)]) for s in sorted(set(call.gt_alleles)) ]
 		"""
 		logger.debug("Call %s:%d %s→%s (Alleles: %s)",
@@ -91,8 +92,12 @@ def parse_vcf(path, indels=False, sample=None):
 		"""
 		#if not call.is_het:
 		#	continue
-		assert len(alleles) == 2
-		ref, alt = alleles[0:2]
+		#assert len(alleles) == 2
+		if len(alleles) == 2:
+			ref, alt = alleles[0:2]
+		else:
+			alt = alleles[0:1]
+			ref=alt
 
 		# Normalize variants in which the first two bases are identical.
 		# For example, CTG -> CTAAA is changed to TG -> TAAA.

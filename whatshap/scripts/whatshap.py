@@ -42,7 +42,7 @@ __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel M
 
 logger = logging.getLogger(__name__)
 
-
+large_value = 20000
 def covered_variants(variants, start, bam_read, source_id):
 	"""
 	Find the variants that are covered by the given bam_read and return a
@@ -305,7 +305,6 @@ def find_components(superreads, reads):
 	component is identified by the position of its leftmost variant.
 	"""
 	logger.debug('Finding connected components ...')
-
 	# The variant.allele attribute can be either 0 (major allele), 1 (minor allele),
 	# or 3 (equal scores). If all_heterozygous is on (default), we can get
 	# the combinations 0/1, 1/0 and 3/3 (the latter means: unphased).
@@ -313,9 +312,6 @@ def find_components(superreads, reads):
 	# In both cases, we are interested only in 0/1 and 1/0.
 	phased_positions = [ v1.position for v1, v2 in zip(*superreads)
 		if (v1.allele, v2.allele) in ((0, 1), (1, 0), (0,0),(1,1))
-	]
-	phased_positions1 = [ v1.position for v1, v2 in zip(*superreads)
-		if (v1.allele, v2.allele) in ((0, 1), (1, 0))
 	]
 	assert phased_positions == sorted(phased_positions)
 
@@ -398,56 +394,93 @@ def ensure_pysam_version():
 	if LooseVersion(pysam_version) < LooseVersion("0.8.1"):
 		sys.exit("WhatsHap requires pysam >= 0.8.1")
 
-def count_cost2(positions, mother, father):
-	# positions, mother, father are assumed to be sorted
-	
-	total_cost = [];
-	pos_size = len(positions)
-	if pos_size == 0:
-		return total_cost;
+def recombinations(train_filename, positions):
 
-	for i in range(pos_size):
-		
-		# initialize boundary
-		bound = positions[i]
+	# read the training file to memory
+	genetic_map_position, genetic_map_distance = load_genetic_map(train_filename)
 
-		# check how many element,x in mother is <= bound
-		lm = len([elem for elem in mother if elem <= bound]);  # could maybe done faster with a loop 
-														  # since we know it is sorted
-		
-		# check how many element, y in father is <= bound
-		lf = len([elem for elem in father if elem <= bound]);  # could maybe done faster with a loop 
-														  # since we know it is sorted
-	
-		# if the number is even  # else
-		if (lm % 2 == 0):
-			mct = 2
-		else:  # odd in mother
-			mct = 1
-	
-		# if the number is even  # else
-		if (lf % 2 == 0):
-		   fct = 0 #
-		else: # odd in father
-		   fct = 1 #
-		 
-		if (mct == 2 and fct == 0):
-			# both are even
-			cost = 10000
-		else:
-			cost = mct + fct;
-		
-		# append correct cost to total_cost array
-		total_cost.append(cost)
-		#print (lm, lf, cost)
-		
-		# remove the first xth element from mother array
-		mother = mother[lm:]
-		
-		# remove the first yth element from father array	
-		father = father[lf:]				
-		
-	return total_cost
+	rec_dist = []
+	test=[]
+	test1=[]
+	current = 0
+	for position in positions:
+
+		# initialize start, end as empty list
+		start = []
+		end = []
+
+		# using the distance list for index, i and i+1
+		index = [i for i, val in enumerate(genetic_map_position) if position > val]
+
+		index_sz = len(index)
+
+		# check if the position is less than the first entry in the map
+		# check if the position is greater than all the entry in the map
+		if index_sz == 0 or index_sz == len(genetic_map_position):
+			rec_dist.append(large_value)
+			continue
+
+		# collect required values for the interpolation
+		pos = index[index_sz-1]
+		start.append(genetic_map_position[pos])
+		start.append(genetic_map_distance[pos])
+
+		end.append(genetic_map_position[pos + 1])
+		end.append(genetic_map_distance[pos + 1])
+
+		# call an interpolation function
+		dist = interpolate(position, start, end)
+
+		# compute distance from previous entry
+		pdist = dist - current
+		current = dist
+
+		# call a recombination function to return the recombination value
+		pdist1=(1.0-math.exp(-(2.0*pdist)/100))/2.0
+		result = recombine(pdist1)
+
+		rec_dist.append(result)
+	return rec_dist
+
+
+def load_genetic_map(filename):
+	genetic_map_position = []
+	genetic_map_distance = []
+
+	with open(filename,'r') as fid:
+
+		# read and ignore first line
+		fid.readline()
+
+		# for each line only store the first and third value in two seperate list
+		for line in fid:
+			line_spl = line.strip().split()
+			genetic_map_position.append(int(line_spl[0]))
+			genetic_map_distance.append(float(line_spl[2]))
+
+	return genetic_map_position, genetic_map_distance
+
+
+def recombine(distance):
+
+	sdistance = distance
+	if  sdistance ==0:
+		return large_value
+	else:
+		return -10 *math.log10(sdistance)
+
+
+def interpolate(point, start, end):
+
+	# interpolate the distance
+	# point is the query position
+	# start is a list, [position, distance]
+	# start is a list, [position, distance]
+
+	return start[1] + ((point - start[0]) * (end[1] - start[1]) / (end[0] - start[0]))
+
+
+
 
 
 def run_whatshap(bamm, vcfm,bamf, vcff,bamc, vcfc,
@@ -503,10 +536,16 @@ def run_whatshap(bamm, vcfm,bamf, vcff,bamc, vcfc,
 		vcf_readerm = parse_vcf(''.join(vcfm), sample=samplem, indels=indels)
 		vcf_readerf = parse_vcf(' '.join(vcff), sample=samplef, indels=indels)
 		vcf_readerc = parse_vcf(' '.join(vcfc), sample=samplec, indels=indels)
-		haplotype_bam_writer = None
-		if haplotype_bams_prefix is not None:
-			haplotype_bam_writer = HaplotypeBamWriter(bam, haplotype_bams_prefix, sample)
+		#haplotype_bam_writer = None
+		#if haplotype_bams_prefix is not None:
+		#	haplotype_bam_writer = HaplotypeBamWriter(bamm, haplotype_bams_prefix, samplem)
+		#if haplotype_bams_prefix is not None:
+			#haplotype_bam_writerm = HaplotypeBamWriter(bamm, haplotype_bams_prefix, sample)
+			#haplotype_bam_writerf = HaplotypeBamWriter(bamf, haplotype_bams_prefix, sample)
+			#haplotype_bam_writerc = HaplotypeBamWriter(bamc, haplotype_bams_prefix, sample)
 		timers.start('parse_vcf')
+
+		#for sample, chromosome, variants in vcf_reader:
 		for m,f,c in zip(vcf_readerm,vcf_readerf,vcf_readerc):
 			samplem= m[0]
 			chromosomem= m[1]
@@ -521,14 +560,20 @@ def run_whatshap(bamm, vcfm,bamf, vcff,bamc, vcfc,
 			variantsf = remove_overlapping_variants(variantsf)
 			variantsc = remove_overlapping_variants(variantsc)
 			timers.stop('parse_vcf')
+			#logger.info('Working on chromosome %s', chromosome)
+			#logger.info('Read %d variants', len(variants))
 			bam_samplem = None if ignore_read_groups else samplem
 			bam_samplef = None if ignore_read_groups else samplef
 			bam_samplec = None if ignore_read_groups else samplec
 			logger.info('Reading the BAM file ...')
 			try:
+				#timers.start('read_bam')
 				readsm = bam_readerm.read(chromosomem, variantsm, bam_samplem)
+
 				readsf = bam_readerf.read(chromosomef, variantsf, bam_samplef)
+
 				readsc = bam_readerc.read(chromosomec, variantsc, bam_samplec)
+
 			except SampleNotFoundError:
 				#logger.error("Sample %r is not among the read groups (RG tags) "
 					#"in the BAM header.", bam_sample)
@@ -547,23 +592,60 @@ def run_whatshap(bamm, vcfm,bamf, vcff,bamc, vcfc,
 					read.sort()
 				for read in readsc:
 					read.sort()
+				# Sort reads in read set by position
 				readsm.sort()
 				readsf.sort()
 				readsc.sort()
 				selected_readsm, uninformative_read_countm = readselection(readsm, max_coveragem)
+				print('first done readselction')
 				selected_readsf, uninformative_read_countf = readselection(readsf, max_coveragef)
+				print('second done readselction')
 				selected_readsc, uninformative_read_countc = readselection(readsc, max_coveragec)
+				print('third done readselction')
 				sliced_readsm = readsm.subset(selected_readsm)
 				sliced_readsf = readsf.subset(selected_readsf)
 				sliced_readsc = readsc.subset(selected_readsc)
 				accessible_positionsm = sliced_readsm.get_positions()
 				accessible_positionsf = sliced_readsf.get_positions()
 				accessible_positionsc = sliced_readsc.get_positions()
+				#informative_read_count = len(reads) - uninformative_read_count
+				#unphasable_snps = len(position_list) - len(accessible_positions)
+				#logger.info('%d variants are covered by at least one read', len(position_list))
+				#logger.info('Skipped %d reads that only cover one variant', uninformative_read_count)
+				#if position_list:
+					#logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
+						#'connecting them to another variant and are thus unphasable',
+						#unphasable_snps, len(position_list),
+						#100. * unphasable_snps / len(position_list)
+					#)
+				#if reads:
+					#logger.info('After read selection: Using %d of %d (%.1f%%) reads that cover two or more variants',
+						#len(selected_reads), informative_read_count, (100. * len(selected_reads) / informative_read_count if informative_read_count > 0 else float('nan'))
+					#)
+
+
+			#n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(reads)
+			#n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(sliced_reads)
+			#stats.n_best_case_blocks += n_best_case_blocks
+			#stats.n_best_case_nonsingleton_blocks += n_best_case_nonsingleton_blocks
+			#stats.n_best_case_blocks_cov += n_best_case_blocks_cov
+			#stats.n_best_case_nonsingleton_blocks_cov += n_best_case_nonsingleton_blocks_cov
+			#logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
+				#n_best_case_nonsingleton_blocks, n_best_case_blocks)
+			#logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
+				#n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
+
 			with timers('phase'):
 				#logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 				# Run the core algorithm: construct DP table ...
 				intersectedvariants= list(set(accessible_positionsc).union(set(accessible_positionsf).union(set(accessible_positionsm))))
-				intersect=list(set(accessible_positionsc).intersection(set(accessible_positionsf).intersection(set(accessible_positionsm))))
+				#intersect=list(set(accessible_positionsc).intersection(set(accessible_positionsf).intersection(set(accessible_positionsm))))
+				print(len(accessible_positionsf))
+				print(len(accessible_positionsm))
+				print(len(accessible_positionsc))
+				print(len(intersectedvariants))
+				print('intersected ones')
+				#print(len(intersect))
 				allreads= ReadSet()
 				new_slicedm=ReadSet()
 				new_slicedf=ReadSet()
@@ -590,11 +672,11 @@ def run_whatshap(bamm, vcfm,bamf, vcff,bamc, vcfc,
 				for read in allreads:
 					read.sort()
 			
-				allreads.sort()			
-
+				allreads.sort()
 
 				demarcationsm=list()
 				demarcationsf=list()
+
 				finaldemarcations=[0]*len(allreads)
 				for read in readsm:
 					demarcationsm.append(read.name)
@@ -606,15 +688,17 @@ def run_whatshap(bamm, vcfm,bamf, vcff,bamc, vcfc,
 					elif read.name in demarcationsf:
 						finaldemarcations[i]=2
 				
-				print(len(finaldemarcations))
-				lines = [line.strip() for line in open('child.map', 'r')]
 				positions=list(sorted(intersectedvariants))
-				father= [9881194, 9886116, 9886519, 9928722, 9928819, 9929617, 9929922, 9929949, 9929997, 9930099, 9930143, 9930179, 9930225, 9930371, 9930550, 9930565, 9930625, 9930714, 9930751, 9930788, 9931229, 9931246, 9931263, 9931409, 9931420, 9931427, 9931694, 9931695, 9931720, 9931727, 9931762, 9931820, 9931869, 9931917, 9954791, 9954872, 9955014, 9955755, 9955782, 9955874, 9955910, 9956127, 9956623, 9957025, 9957650, 9958003, 9958012, 9958046, 17022236, 17026584]
-				mother = [9883483, 9885532, 9885881, 9885934, 9886006, 9886788, 9928872, 9929589, 9929617, 9929812, 9929949, 9929997, 9930099, 9930143, 9930179, 9930225, 9930371, 9930625, 9930714, 9931125, 9931323, 9931420, 9931531, 9931617, 9931689, 9931694, 9931720, 9931749, 9931869, 9931917, 9954836, 9954885, 9955014, 9955584, 9955625, 9955874, 9956474, 9956633, 9956710, 9957095, 9958003, 9958012, 9958046, 10596029, 16759392]
-				recombcost=count_cost2(positions, mother, father)
+
+				load_genetic_map("genetic_map_chr1_combined_b37.txt")
+			
+				recombcost= recombinations("genetic_map_chr1_combined_b37.txt", positions)	
+				print('dptable enter')
+
 				dp_table = DPTable(allreads, finaldemarcations, recombcost, all_heterozygous)
 				
-				
+
+
 				superreadsm = dp_table.get_super_readsm()
 				
 				superreadsf = dp_table.get_super_readsf()
@@ -626,12 +710,6 @@ def run_whatshap(bamm, vcfm,bamf, vcff,bamc, vcfc,
 				print(superreadsc[0])
 				print(superreadsc[1])
 
-				# output the MEC score of phasing
-				#logger.info('MEC score of phasing: %d', mec_score)
-
-				#n_homozygous = sum(1 for v1, v2 in zip(*superreads)
-					#if v1.allele == v2.allele and v1.allele in (0, 1))
-				#stats.n_homozygous += n_homozygous
 
 			
 			componentsm = find_components(superreadsm, sliced_readsm)
@@ -735,6 +813,7 @@ def main():
 		help='Write reads that have been used for phasing to haplotype-specific BAM files. '
 		'Creates PREFIX.1.bam and PREFIX.2.bam')
 	parser.add_argument('vcfm', nargs=1, metavar='', help='VCF file')
+	#parser.add_argument('bamm', nargs='+', metavar='BAMM', help='BAM file')
 	parser.add_argument('bamm', nargs=1, metavar='BAMM', help='BAM file')
 	parser.add_argument('vcff', nargs=1, metavar='', help='VCF file')
 	parser.add_argument('bamf', nargs=1,metavar='BAMF', help='BAM file')
