@@ -1,1 +1,1 @@
-__version__ = '0.1.dev0'  # Must be the first line in the file
+__version__ = '0.9'  # Must be the first line in the file
