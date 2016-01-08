@@ -324,7 +324,6 @@ Entry::allele_t ColumnCostComputer::get_allele(bool second_haplotype) {
 //     }
 //   } else {
     const unsigned int* cost = second_haplotype?cost_partition2:cost_partition1;
-    std::cout<<"equalscore"<<cost[0]<<" "<<cost[1]<<endl;
     if(cost[0] == cost[1]) {	
       return Entry::EQUAL_SCORES;
     } else {

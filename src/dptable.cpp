@@ -385,12 +385,10 @@ unique_ptr<vector<unsigned int> > DPTable::get_index_path() {
     if (i==indexers.size()-1){
     index = backtrace_table[i-1]->at(backtrace_index)[optimal_score_array_index];
     temp= forrecomb[i-1]->at(backtrace_index)[optimal_score_array_index];
-    std::cout<<"recomb"<<temp<<endl;
     }
     else{
       index = backtrace_table[i-1]->at(backtrace_index)[temp];
     temp= forrecomb[i-1]->at(backtrace_index)[temp]; 
-    std::cout<<"recomb"<<temp<<endl;
     }
     
     index_path->at(i-1) = index;
@@ -451,13 +449,11 @@ int count=0;
     count++;
         ColumnCostComputer cost_computer(*column, read_marks, 0, all_heterozygous);
         cost_computer.set_partitioning_m(index);
-	std::cout<<positions->at(i)<<" ";
         r0m->addVariant(positions->at(i), cost_computer.get_allele(0), cost_computer.get_weight(0));
         r1m->addVariant(positions->at(i), cost_computer.get_allele(1), cost_computer.get_weight(1));
      }
       ++i; // next column
     }
-std::cout<<"superreadsm"<<count<<endl;
   }
  
   output_read_set->add(r0m);
@@ -515,7 +511,6 @@ int count=0;
      }
       ++i; // next column
     }
-std::cout<<"superreadsf"<<count<<endl;
   }
  
   output_read_set->add(r0f);
@@ -573,7 +568,6 @@ int count=0;
      }
       ++i; // next column
     }
-std::cout<<"superreadsc"<<count<<endl;
   }
 
   output_read_set->add(r0c);
