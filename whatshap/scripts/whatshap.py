@@ -483,7 +483,7 @@ def interpolate(point, start, end):
 
 
 
-def run_whatshap(bamm, vcfm,bamf, vcff,bamc, vcfc,
+def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 		outputm=sys.stdout,outputf=sys.stdout,outputc=sys.stdout, samplem=None, samplef=None, samplec=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coveragem=5, max_coveragef=5, max_coveragec=5,all_heterozygous=False, seed=123, haplotype_bams_prefix=None):
 	"""
@@ -500,6 +500,12 @@ def run_whatshap(bamm, vcfm,bamf, vcff,bamc, vcfc,
 	seed -- seed for random numbers
 	"""
 	random.seed(seed)
+
+	assert len(chromosome) == 1
+	chromosome = chromosome[0]
+
+	assert len(genmap) == 1
+	genmap = genmap[0]
 
 	class Statistics:
 		pass
@@ -550,6 +556,10 @@ def run_whatshap(bamm, vcfm,bamf, vcff,bamc, vcfc,
 			samplem, chromosomem, variantsm = m
 			samplef, chromosomef, variantsf = f
 			samplec, chromosomec, variantsc = c
+			assert chromosomem == chromosomef == chromosomec, 'Input VCFs out of sync. They have to contain the same variants.'
+			if chromosome != chromosomem:
+				logger.info('Skipping chromosome %s found in VCF files.', chromosomem)
+				continue
 			variantsm = remove_overlapping_variants(variantsm)
 			variantsf = remove_overlapping_variants(variantsf)
 			variantsc = remove_overlapping_variants(variantsc)
@@ -682,14 +692,10 @@ def run_whatshap(bamm, vcfm,bamf, vcff,bamc, vcfc,
 				
 				positions=list(sorted(intersectedvariants))
 
-				load_genetic_map("genetic_map_chr1_combined_b37.txt")
-			
-				recombcost= recombinations("genetic_map_chr1_combined_b37.txt", positions)	
+				recombcost= recombinations(genmap, positions)
 				print('dptable enter')
 
 				dp_table = DPTable(allreads, finaldemarcations, recombcost, all_heterozygous)
-				
-
 
 				superreadsm = dp_table.get_super_readsm()
 				
@@ -804,6 +810,8 @@ def main():
 	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
 		help='Write reads that have been used for phasing to haplotype-specific BAM files. '
 		'Creates PREFIX.1.bam and PREFIX.2.bam')
+	parser.add_argument('chromosome', nargs=1, metavar='CHROM', help='Chromosome to work on')
+	parser.add_argument('genmap', nargs=1, metavar='GENMAP', help='File with genetic map')
 	parser.add_argument('vcfm', nargs=1, metavar='VCFM', help='VCF file')
 	#parser.add_argument('bamm', nargs='+', metavar='BAMM', help='BAM file')
 	parser.add_argument('bamm', nargs=1, metavar='BAMM', help='BAM file')
