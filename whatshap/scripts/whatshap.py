@@ -23,7 +23,7 @@ import time
 import itertools
 import platform
 import math
-from collections import defaultdict, Counter
+from collections import defaultdict, Counter, namedtuple
 from contextlib import contextmanager
 try:
 	from contextlib import ExitStack
@@ -392,58 +392,73 @@ def ensure_pysam_version():
 	if LooseVersion(pysam_version) < LooseVersion("0.8.1"):
 		sys.exit("WhatsHap requires pysam >= 0.8.1")
 
-def recombinations(train_filename, positions):
+RecombinationMapEntry = namedtuple('RecombinationMapEntry', ['position', 'cum_distance'])
 
-	# read the training file to memory
-	genetic_map_position, genetic_map_distance = load_genetic_map(train_filename)
+def interpolate(point, start_pos, end_pos, start_value, end_value):
+	assert start_pos <= point <= end_pos
+	return start_value + ((point - start_pos) * (end_value - start_value) / (end_pos - start_pos))
 
-	rec_dist = []
-	test=[]
-	test1=[]
-	current = 0
+def recombination_cost_map(genetic_map, positions):
+
+	assert len(genetic_map) > 0
+
+
+	# Step 1: compute cumulative genetic distances from start of chromosome 
+	#         to each position.
+	cumulative_distances = []
+	# i and j are such that genetic_map[i].position <= position <= genetic_map[j].position
+	# i and j are None if no such values exist (because we are at the end of the list)
+	i = None
+	j = 0
+
 	for position in positions:
+		# update i to meet the invariant
+		if (i == None) and (genetic_map[0].position <= position):
+			i = 0
+		while (i != None) and (i+1 < len(genetic_map)) and (genetic_map[i+1].position <= position):
+			i += 1
 
-		# initialize start, end as empty list
-		start = []
-		end = []
+		# update j to meet the invariant
+		while (j != None) and (genetic_map[j].position < position):
+			if j+1 < len(genetic_map): 
+				j += 1
+			else:
+				j = None
 
-		# using the distance list for index, i and i+1
-		index = [i for i, val in enumerate(genetic_map_position) if position > val]
+		# interpolate
+		if i == None:
+			assert j != None
+			d = interpolate(position, 0, genetic_map[j].position, 0, genetic_map[j].cum_distance)
+		elif j == None:
+			# Point outside the genetic map --> extrapolating using average recombination rate
+			avg_rate = genetic_map[-1].cum_distance / genetic_map[-1].position
+			d = genetic_map[-1].cum_distance + (position - genetic_map[-1].position) * avg_rate
+		else:
+			assert genetic_map[i].position <= position <= genetic_map[j].position
+			d = interpolate(position, genetic_map[i].position, genetic_map[j].position, genetic_map[i].cum_distance, genetic_map[j].cum_distance)
+		cumulative_distances.append(d)
 
-		index_sz = len(index)
+	# Step 2: compute costs (= phred-scaled recombination probabilities between two positions)
+	result = [0]
+	for i in range(1, len(cumulative_distances)):
+		d = cumulative_distances[i] - cumulative_distances[i-1]
+		result.append(round(centimorgen_to_phred(d)))
 
-		# check if the position is less than the first entry in the map
-		# check if the position is greater than all the entry in the map
-		if index_sz == 0 or index_sz == len(genetic_map_position):
-			rec_dist.append(large_value)
-			continue
+	for position, d, cost in zip(positions, cumulative_distances, result):
+		print(position, d, cost)
 
-		# collect required values for the interpolation
-		pos = index[index_sz-1]
-		start.append(genetic_map_position[pos])
-		start.append(genetic_map_distance[pos])
+	return result
 
-		end.append(genetic_map_position[pos + 1])
-		end.append(genetic_map_distance[pos + 1])
-
-		# call an interpolation function
-		dist = interpolate(position, start, end)
-
-		# compute distance from previous entry
-		pdist = dist - current
-		current = dist
-
-		# call a recombination function to return the recombination value
-		pdist1=(1.0-math.exp(-(2.0*pdist)/100))/2.0
-		result = recombine(pdist1)
-
-		rec_dist.append(result)
-	return rec_dist
+def centimorgen_to_phred(distance):
+	assert distance >= 0
+	if distance == 0:
+		return large_value
+	p = (1.0-math.exp(-(2.0*distance)/100))/2.0
+	return -10 * math.log10(p)
 
 
 def load_genetic_map(filename):
-	genetic_map_position = []
-	genetic_map_distance = []
+	genetic_map = []
 
 	with open(filename,'r') as fid:
 
@@ -453,32 +468,12 @@ def load_genetic_map(filename):
 		# for each line only store the first and third value in two seperate list
 		for line in fid:
 			line_spl = line.strip().split()
-			genetic_map_position.append(int(line_spl[0]))
-			genetic_map_distance.append(float(line_spl[2]))
+			assert len(line_spl) == 3
+			genetic_map.append(
+				RecombinationMapEntry(position=int(line_spl[0]), cum_distance=float(line_spl[2]))
+			)
 
-	return genetic_map_position, genetic_map_distance
-
-
-def recombine(distance):
-
-	sdistance = distance
-	if  sdistance ==0:
-		return large_value
-	else:
-		return -10 *math.log10(sdistance)
-
-
-def interpolate(point, start, end):
-
-	# interpolate the distance
-	# point is the query position
-	# start is a list, [position, distance]
-	# start is a list, [position, distance]
-
-	return start[1] + ((point - start[0]) * (end[1] - start[1]) / (end[0] - start[0]))
-
-
-
+	return genetic_map
 
 
 def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
@@ -672,7 +667,7 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 
 				read_marks = [ read.source_id for read in allreads ]
 				
-				recombcost = recombinations(genmap, accessible_positions)
+				recombcost = recombination_cost_map(load_genetic_map(genmap), accessible_positions)
 
 				dp_table = DPTable(allreads, read_marks, recombcost, all_heterozygous)
 
