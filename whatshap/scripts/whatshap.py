@@ -533,7 +533,7 @@ def run_whatshap(bamm, vcfm,bamf, vcff,bamc, vcfc,
 		vcf_writerf = PhasedVcfWriter(command_line=command_line, in_path=' '.join(vcff), out_file=outputf)
 		vcf_writerc = PhasedVcfWriter(command_line=command_line, in_path=' '.join(vcfc), out_file=outputc)
 
-		vcf_readerm = parse_vcf(''.join(vcfm), sample=samplem, indels=indels)
+		vcf_readerm = parse_vcf(' '.join(vcfm), sample=samplem, indels=indels)
 		vcf_readerf = parse_vcf(' '.join(vcff), sample=samplef, indels=indels)
 		vcf_readerc = parse_vcf(' '.join(vcfc), sample=samplec, indels=indels)
 		#haplotype_bam_writer = None
@@ -547,15 +547,9 @@ def run_whatshap(bamm, vcfm,bamf, vcff,bamc, vcfc,
 
 		#for sample, chromosome, variants in vcf_reader:
 		for m,f,c in zip(vcf_readerm,vcf_readerf,vcf_readerc):
-			samplem= m[0]
-			chromosomem= m[1]
-			variantsm=m[2]
-			samplef= f[0]
-			chromosomef= f[1]
-			variantsf=f[2]
-			samplec= c[0]
-			chromosomec= c[1]
-			variantsc=c[2]
+			samplem, chromosomem, variantsm = m
+			samplef, chromosomef, variantsf = f
+			samplec, chromosomec, variantsc = c
 			variantsm = remove_overlapping_variants(variantsm)
 			variantsf = remove_overlapping_variants(variantsf)
 			variantsc = remove_overlapping_variants(variantsc)
@@ -569,9 +563,7 @@ def run_whatshap(bamm, vcfm,bamf, vcff,bamc, vcfc,
 			try:
 				#timers.start('read_bam')
 				readsm = bam_readerm.read(chromosomem, variantsm, bam_samplem)
-
 				readsf = bam_readerf.read(chromosomef, variantsf, bam_samplef)
-
 				readsc = bam_readerc.read(chromosomec, variantsc, bam_samplec)
 
 			except SampleNotFoundError:
