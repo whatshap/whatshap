@@ -560,9 +560,11 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 			if chromosome != chromosomem:
 				logger.info('Skipping chromosome %s found in VCF files.', chromosomem)
 				continue
+			logger.info('Processing chromosome %s of trio mother=%s, father=%s, child=%s', chromosome, samplem, samplef, samplec)
 			variantsm = remove_overlapping_variants(variantsm)
 			variantsf = remove_overlapping_variants(variantsf)
 			variantsc = remove_overlapping_variants(variantsc)
+			logger.info('Number of variants: mother=%d, father=%d, child=%d', len(variantsm), len(variantsf), len(variantsc))
 			timers.stop('parse_vcf')
 			#logger.info('Working on chromosome %s', chromosome)
 			#logger.info('Read %d variants', len(variants))
@@ -575,7 +577,7 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 				readsm = bam_readerm.read(chromosomem, variantsm, bam_samplem)
 				readsf = bam_readerf.read(chromosomef, variantsf, bam_samplef)
 				readsc = bam_readerc.read(chromosomec, variantsc, bam_samplec)
-
+				logger.info('Variant informative reads: mother=%d, father=%d, child=%d', len(readsm), len(readsf),len(readsc))
 			except SampleNotFoundError:
 				#logger.error("Sample %r is not among the read groups (RG tags) "
 					#"in the BAM header.", bam_sample)
@@ -599,11 +601,11 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 				readsf.sort()
 				readsc.sort()
 				selected_readsm, uninformative_read_countm = readselection(readsm, max_coveragem)
-				print('first done readselection')
+				logger.info('Done selecting reads in mother, selected %d of %d reads', len(selected_readsm), len(readsm))
 				selected_readsf, uninformative_read_countf = readselection(readsf, max_coveragef)
-				print('second done readselection')
+				logger.info('Done selecting reads in father, selected %d of %d reads', len(selected_readsf), len(readsf))
 				selected_readsc, uninformative_read_countc = readselection(readsc, max_coveragec)
-				print('third done readselection')
+				logger.info('Done selecting reads in child, selected %d of %d reads', len(selected_readsc), len(readsc))
 				sliced_readsm = readsm.subset(selected_readsm)
 				sliced_readsf = readsf.subset(selected_readsf)
 				sliced_readsc = readsc.subset(selected_readsc)
@@ -642,12 +644,6 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 				# Run the core algorithm: construct DP table ...
 				intersectedvariants= list(set(accessible_positionsc).union(set(accessible_positionsf).union(set(accessible_positionsm))))
 				#intersect=list(set(accessible_positionsc).intersection(set(accessible_positionsf).intersection(set(accessible_positionsm))))
-				print(len(accessible_positionsf))
-				print(len(accessible_positionsm))
-				print(len(accessible_positionsc))
-				print(len(intersectedvariants))
-				print('intersected ones')
-				#print(len(intersect))
 				allreads= ReadSet()
 				new_slicedm=ReadSet()
 				new_slicedf=ReadSet()
@@ -693,7 +689,6 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 				positions=list(sorted(intersectedvariants))
 
 				recombcost= recombinations(genmap, positions)
-				print('dptable enter')
 
 				dp_table = DPTable(allreads, finaldemarcations, recombcost, all_heterozygous)
 
@@ -701,15 +696,13 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 				
 				superreadsf = dp_table.get_super_readsf()
 				superreadsc = dp_table.get_super_readsc()
-				print(superreadsm[0])
-				print(superreadsm[1])
-				print(superreadsf[0])
-				print(superreadsf[1])
-				print(superreadsc[0])
-				print(superreadsc[1])
+				#print(superreadsm[0])
+				#print(superreadsm[1])
+				#print(superreadsf[0])
+				#print(superreadsf[1])
+				#print(superreadsc[0])
+				#print(superreadsc[1])
 
-
-			
 			componentsm = find_components(superreadsm, sliced_readsm)
 			componentsf = find_components(superreadsf, sliced_readsf)
 			componentsc = find_components(superreadsc, sliced_readsc)
