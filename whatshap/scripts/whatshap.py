@@ -812,12 +812,12 @@ def main():
 	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
 		help='Write reads that have been used for phasing to haplotype-specific BAM files. '
 		'Creates PREFIX.1.bam and PREFIX.2.bam')
-	parser.add_argument('vcfm', nargs=1, metavar='', help='VCF file')
+	parser.add_argument('vcfm', nargs=1, metavar='VCFM', help='VCF file')
 	#parser.add_argument('bamm', nargs='+', metavar='BAMM', help='BAM file')
 	parser.add_argument('bamm', nargs=1, metavar='BAMM', help='BAM file')
-	parser.add_argument('vcff', nargs=1, metavar='', help='VCF file')
+	parser.add_argument('vcff', nargs=1, metavar='VCFF', help='VCF file')
 	parser.add_argument('bamf', nargs=1,metavar='BAMF', help='BAM file')
-	parser.add_argument('vcfc', nargs=1,metavar='', help='VCF file')
+	parser.add_argument('vcfc', nargs=1,metavar='VCFC', help='VCF file')
 	parser.add_argument('bamc',  nargs=1,metavar='BAMC', help='BAM file')
 
 	args = parser.parse_args()
