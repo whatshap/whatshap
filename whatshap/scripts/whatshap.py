@@ -616,6 +616,8 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 				readsm.sort()
 				readsf.sort()
 				readsc.sort()
+				# TODO: Read selection done w.r.t. all variants, where using heterozygous variants only 
+				# TODO: would probably give better results.
 				selected_readsm, uninformative_read_countm = readselection(readsm, max_coveragem)
 				logger.info('Done selecting reads in mother, selected %d of %d reads', len(selected_readsm), len(readsm))
 				selected_readsf, uninformative_read_countf = readselection(readsf, max_coveragef)
@@ -625,9 +627,12 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 				sliced_readsm = readsm.subset(selected_readsm)
 				sliced_readsf = readsf.subset(selected_readsf)
 				sliced_readsc = readsc.subset(selected_readsc)
-				accessible_positionsm = sliced_readsm.get_positions()
-				accessible_positionsf = sliced_readsf.get_positions()
-				accessible_positionsc = sliced_readsc.get_positions()
+				accessible_positions = set()
+				for sliced_reads in [sliced_readsm, sliced_readsf, sliced_readsc]:
+					accessible_positions.update(set(sliced_reads.get_positions()))
+				accessible_positions = list(accessible_positions)
+				accessible_positions.sort()
+				logger.info('Variants covered by at least one phase-informative read in at least individual after read selection: %d', len(accessible_positions))
 				#informative_read_count = len(reads) - uninformative_read_count
 				#unphasable_snps = len(position_list) - len(accessible_positions)
 				#logger.info('%d variants are covered by at least one read', len(position_list))
@@ -658,7 +663,6 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 			with timers('phase'):
 				#logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 				# Run the core algorithm: construct DP table ...
-				intersectedvariants= list(set(accessible_positionsc).union(set(accessible_positionsf).union(set(accessible_positionsm))))
 				#intersect=list(set(accessible_positionsc).intersection(set(accessible_positionsf).intersection(set(accessible_positionsm))))
 				allreads= ReadSet()
 				new_slicedm=ReadSet()
@@ -702,9 +706,7 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 					elif read.name in demarcationsf:
 						finaldemarcations[i]=2
 				
-				positions=list(sorted(intersectedvariants))
-
-				recombcost= recombinations(genmap, positions)
+				recombcost= recombinations(genmap, accessible_positions)
 
 				dp_table = DPTable(allreads, finaldemarcations, recombcost, all_heterozygous)
 
