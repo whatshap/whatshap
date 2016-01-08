@@ -29,7 +29,7 @@ try:
 	from contextlib import ExitStack
 except ImportError:
 	from contextlib2 import ExitStack  # PY32
-from ..vcf import parse_vcf, PhasedVcfWriter, remove_overlapping_variants
+from ..vcf import parse_vcf, PhasedVcfWriter, remove_overlapping_variants, VcfVariant
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, readselection
@@ -564,7 +564,23 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 			variantsm = remove_overlapping_variants(variantsm)
 			variantsf = remove_overlapping_variants(variantsf)
 			variantsc = remove_overlapping_variants(variantsc)
-			logger.info('Number of variants: mother=%d, father=%d, child=%d', len(variantsm), len(variantsf), len(variantsc))
+			assert len(variantsm) == len(variantsf) == len(variantsc), 'We are assuming that all input VCFs contain the same variants'
+			logger.info('Number of variants: %d', len(variantsm))
+			
+			variants = []
+			for variantm, variantf, variantc in zip(variantsm, variantsf, variantsc):
+				assert variantm.position == variantf.position == variantc.position, 'Input VCFs out of sync'
+				assert variantm.reference_allele == variantf.reference_allele == variantc.reference_allele, 'Input VCFs out of sync'
+				assert variantm.alternative_allele == variantf.alternative_allele == variantc.alternative_allele, 'Input VCFs out of sync'
+				if (variantm.genotype == 1) or (variantf.genotype == 1) or (variantc.genotype == 1):
+					variants.append(VcfVariant(
+						position = variantm.position,
+						reference_allele = variantm.reference_allele,
+						alternative_allele = variantm.alternative_allele,
+						genotype = [variantm.genotype, variantf.genotype, variantc.genotype] )
+					)
+			logger.info('Number of variants hetorzygous in at least one individual: %d', len(variants))
+			
 			timers.stop('parse_vcf')
 			#logger.info('Working on chromosome %s', chromosome)
 			#logger.info('Read %d variants', len(variants))
@@ -574,9 +590,9 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 			logger.info('Reading the BAM file ...')
 			try:
 				#timers.start('read_bam')
-				readsm = bam_readerm.read(chromosomem, variantsm, bam_samplem)
-				readsf = bam_readerf.read(chromosomef, variantsf, bam_samplef)
-				readsc = bam_readerc.read(chromosomec, variantsc, bam_samplec)
+				readsm = bam_readerm.read(chromosomem, variants, bam_samplem)
+				readsf = bam_readerf.read(chromosomef, variants, bam_samplef)
+				readsc = bam_readerc.read(chromosomec, variants, bam_samplec)
 				logger.info('Variant informative reads: mother=%d, father=%d, child=%d', len(readsm), len(readsf),len(readsc))
 			except SampleNotFoundError:
 				#logger.error("Sample %r is not among the read groups (RG tags) "
