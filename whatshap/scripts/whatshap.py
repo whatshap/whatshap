@@ -664,32 +664,12 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 				#logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 				# Run the core algorithm: construct DP table ...
 				#intersect=list(set(accessible_positionsc).intersection(set(accessible_positionsf).intersection(set(accessible_positionsm))))
-				allreads= ReadSet()
-				new_slicedm=ReadSet()
-				new_slicedf=ReadSet()
-				new_slicedc=ReadSet()
-				sliced_readsm.sort()
-				sliced_readsf.sort()
-				sliced_readsc.sort()
-				for read in sliced_readsm:
-					read.sort()
-				for read in sliced_readsf:
-					read.sort()
-				for read in sliced_readsc:
-					read.sort()
-				for read in sliced_readsm:
-					allreads.add(read)
-
-				for read in sliced_readsf:
-					allreads.add(read)
-
-				for read in sliced_readsc:
-					allreads.add(read)
-
-
-				for read in allreads:
-					read.sort()
-			
+				allreads = ReadSet()
+				for sliced_reads in [sliced_readsm, sliced_readsf, sliced_readsc]:
+					sliced_reads.sort()
+					for read in sliced_reads:
+						read.sort()
+						allreads.add(read)
 				allreads.sort()
 
 				demarcationsm=list()
