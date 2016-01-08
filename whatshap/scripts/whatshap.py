@@ -171,12 +171,10 @@ class ReadSetReader:
 	"""
 	Associate VCF variants with BAM reads.
 	"""
-	def __init__(self, paths, mapq_threshold=20):
+	def __init__(self, paths, source_id, mapq_threshold=20):
 		self._mapq_threshold = mapq_threshold
-		if len(paths) == 1:
-			self._reader = SampleBamReader(paths[0])
-		else:
-			self._reader = MultiBamReader(paths)
+		assert len(paths) == 1
+		self._reader = SampleBamReader(paths[0], source_id=source_id)
 
 	def read(self, chromosome, variants, sample):
 		"""
@@ -521,9 +519,9 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
 		try:
-			bam_readerm = stack.enter_context(ReadSetReader(bamm, mapq_threshold=mapping_quality))
-			bam_readerf = stack.enter_context(ReadSetReader(bamf, mapq_threshold=mapping_quality))
-			bam_readerc = stack.enter_context(ReadSetReader(bamc, mapq_threshold=mapping_quality))
+			bam_readerm = stack.enter_context(ReadSetReader(bamm, source_id=1, mapq_threshold=mapping_quality))
+			bam_readerf = stack.enter_context(ReadSetReader(bamf, source_id=2, mapq_threshold=mapping_quality))
+			bam_readerc = stack.enter_context(ReadSetReader(bamc, source_id=0, mapq_threshold=mapping_quality))
 		except (OSError, BamIndexingError) as e:
 			logger.error(e)
 			sys.exit(1)
@@ -672,23 +670,11 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 						allreads.add(read)
 				allreads.sort()
 
-				demarcationsm=list()
-				demarcationsf=list()
-
-				finaldemarcations=[0]*len(allreads)
-				for read in readsm:
-					demarcationsm.append(read.name)
-				for read in readsf:
-					demarcationsf.append(read.name)
-				for i,read in enumerate(allreads):
-					if read.name in demarcationsm:
-						finaldemarcations[i]=1 #mother
-					elif read.name in demarcationsf:
-						finaldemarcations[i]=2
+				read_marks = [ read.source_id for read in allreads ]
 				
-				recombcost= recombinations(genmap, accessible_positions)
+				recombcost = recombinations(genmap, accessible_positions)
 
-				dp_table = DPTable(allreads, finaldemarcations, recombcost, all_heterozygous)
+				dp_table = DPTable(allreads, read_marks, recombcost, all_heterozygous)
 
 				superreadsm = dp_table.get_super_readsm()
 				
