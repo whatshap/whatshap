@@ -229,7 +229,10 @@ class PhasedVcfWriter:
 					# Set or overwrite HP tag
 					phasing_info = self._format_phasing_info(components[record.start], phases[record.start])
 					values = call.data._asdict()
-					values['HP'] = phasing_info
+					if call.is_het:
+						values['HP'] = phasing_info
+					else:
+						values['HP'] = None
 					call.data = samp_fmt(**values)
 				elif not hasattr(call.data, 'HP'):
 					# HP tag missing, set it to "."
