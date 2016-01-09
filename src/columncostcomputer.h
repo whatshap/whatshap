@@ -25,10 +25,9 @@ private:
   
   unsigned int inheritance_val;
   unsigned int partitioning;
-  bool all_heterozygous;
   
 public:
-  ColumnCostComputer(const std::vector<const Entry*>& column, const std::vector<unsigned int>& read_marks, unsigned int inheritance_val, bool all_heterozygous = false);
+  ColumnCostComputer(const std::vector<const Entry*>& column, const std::vector<unsigned int>& read_marks, unsigned int inheritance_val);
   
   void set_partitioning(unsigned int partitioning);
   void set_partitioning_m(unsigned int partitioning);
@@ -37,7 +36,7 @@ public:
 
   void update_partitioning(int bit_to_flip);
   
-  unsigned int get_cost();
+  unsigned int get_cost(unsigned int genotypem, unsigned int genotypef, unsigned int genotypec);
   
   /** Returns the allele at the current position for the given haplotype.
    *  @param second_haplotype If true the second haplotype is returned, otherwise the first.

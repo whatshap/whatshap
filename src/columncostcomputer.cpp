@@ -3,8 +3,8 @@
 
 using namespace std;
 
-ColumnCostComputer::ColumnCostComputer(const std::vector<const Entry*>& column, const std::vector<unsigned int>& read_marks, unsigned int inheritance_val, bool all_heterozygous)
-: column(column), read_marks(read_marks), inheritance_val(inheritance_val), all_heterozygous(all_heterozygous) {
+ColumnCostComputer::ColumnCostComputer(const std::vector<const Entry*>& column, const std::vector<unsigned int>& read_marks, unsigned int inheritance_val)
+: column(column), read_marks(read_marks), inheritance_val(inheritance_val) {
   cost_partition_m1[0] = 0;
   cost_partition_m1[1] = 0;
   cost_partition_m2[0] = 0;
@@ -304,7 +304,7 @@ void ColumnCostComputer::update_partitioning(int bit_to_flip) {
     }
 }
 
-unsigned int ColumnCostComputer::get_cost() {
+unsigned int ColumnCostComputer::get_cost(unsigned int genotypem, unsigned int genotypef, unsigned int genotypec) {
 //   if (all_heterozygous) {
 //     return min(cost_partition_m1[0] + cost_partition_m2[1], cost_partition_m1[1] + cost_partition_m2[0]);
 //   } else {

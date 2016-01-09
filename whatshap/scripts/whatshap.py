@@ -478,7 +478,7 @@ def load_genetic_map(filename):
 
 def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 		outputm=sys.stdout,outputf=sys.stdout,outputc=sys.stdout, samplem=None, samplef=None, samplec=None, ignore_read_groups=False, indels=True,
-		mapping_quality=20, max_coveragem=5, max_coveragef=5, max_coveragec=5,all_heterozygous=False, seed=123, haplotype_bams_prefix=None):
+		mapping_quality=20, max_coveragem=5, max_coveragef=5, max_coveragec=5, seed=123, haplotype_bams_prefix=None):
 	"""
 	Run WhatsHap.
 
@@ -626,6 +626,19 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 				accessible_positions = list(accessible_positions)
 				accessible_positions.sort()
 				logger.info('Variants covered by at least one phase-informative read in at least individual after read selection: %d', len(accessible_positions))
+				
+				# Create genotype lists for each individual
+				accessible_positions_set = set(accessible_positions)
+				genotypesm, genotypesf, genotypesc = [], [], []
+				for variant in variants:
+					if variant.position not in accessible_positions_set:
+						continue
+					assert len(variant.genotype) == 3
+					genotypesm.append(variant.genotype[0])
+					genotypesf.append(variant.genotype[1])
+					genotypesc.append(variant.genotype[2])
+				assert len(genotypesm) == len(accessible_positions)
+				
 				#informative_read_count = len(reads) - uninformative_read_count
 				#unphasable_snps = len(position_list) - len(accessible_positions)
 				#logger.info('%d variants are covered by at least one read', len(position_list))
@@ -669,7 +682,7 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 				
 				recombcost = recombination_cost_map(load_genetic_map(genmap), accessible_positions)
 
-				dp_table = DPTable(allreads, read_marks, recombcost, all_heterozygous)
+				dp_table = DPTable(allreads, read_marks, recombcost, genotypesm, genotypesf, genotypesc)
 
 				superreadsm = dp_table.get_super_readsm()
 				
@@ -763,10 +776,6 @@ def main():
 	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
 	parser.add_argument('--indels', dest='indels', default=False, action='store_true',
 		help='Also phase indels (default: do not phase indels)')
-	parser.add_argument('--distrust-genotypes', dest='all_heterozygous',
-		action='store_false', default=True,
-		help='Allow switching variants from hetero- to homozygous in an '
-		'optimal solution (see documentation).')
 	parser.add_argument('--ignore-read-groups', default=False, action='store_true',
 		help='Ignore read groups in BAM header and assume all reads come '
 		'from the same sample.')

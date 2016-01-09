@@ -17,6 +17,9 @@ private:
   
   const std::vector<unsigned int> read_marks;
   const std::vector<unsigned int> recombcost;
+  const std::vector<unsigned int> genotypesm;
+  const std::vector<unsigned int> genotypesf;
+  const std::vector<unsigned int> genotypesc;
   // vector of indexingschemes
   std::vector<ColumnIndexingScheme*> indexers;
   // optimal score and its index in the rightmost DP table column
@@ -30,7 +33,6 @@ private:
   unsigned int read_count;
   // helper function to pull read ids out of read column
   std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
-  bool all_heterozygous;
 
   // helper function to compute the optimal path through the backtrace table
   std::unique_ptr<std::vector<unsigned int> > get_index_path();
@@ -44,7 +46,7 @@ public:
    *  @param all_heterozygous If true, then the "all heterozygous" assumption is made;
    *                          i.e., all positions are forced to be heterozygous even when
    *                          reads suggest a homozygous site. */
-  DPTable(ReadSet* read_set, std::vector<unsigned int> read_marks, std::vector<unsigned int> recombcost,bool all_heterozygous = false);
+  DPTable(ReadSet* read_set, std::vector<unsigned int> read_marks, std::vector<unsigned int> recombcost, std::vector<unsigned int> genotypesm, std::vector<unsigned int> genotypesf, std::vector<unsigned int> genotypesc);
  
   ~DPTable();
 

@@ -254,7 +254,7 @@ cdef extern from "../src/columniterator.h":
 # ====== DPTable ======
 cdef extern from "../src/dptable.h":
 	cdef cppclass DPTable:
-		DPTable(ReadSet*, vector[unsigned int],vector[unsigned int],bool) except +
+		DPTable(ReadSet*, vector[unsigned int], vector[unsigned int], vector[unsigned int], vector[unsigned int], vector[unsigned int]) except +
 		void get_super_readsm(ReadSet*) except +
 		void get_super_readsf(ReadSet*) except +
 		void get_super_readsc(ReadSet*) except +
@@ -265,12 +265,12 @@ cdef extern from "../src/dptable.h":
 cdef class PyDPTable:
 	cdef DPTable *thisptr
 
-	def __cinit__(self, PyReadSet readset, finaldemarcations, recombcost, all_heterozygous):
+	def __cinit__(self, PyReadSet readset, finaldemarcations, recombcost, genotypesm, genotypesf, genotypesc):
 		"""Build the DP table from the given read set which is assumed to be sorted;
 		that is, the variants in each read must be sorted by position and the reads
 		in the read set must also be sorted (by position of their left-most variant).
 		"""
-		self.thisptr = new DPTable(readset.thisptr, finaldemarcations, recombcost, all_heterozygous)
+		self.thisptr = new DPTable(readset.thisptr, finaldemarcations, recombcost, genotypesm, genotypesf, genotypesc)
 
 	def __dealloc__(self):
 		del self.thisptr

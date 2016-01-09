@@ -12,9 +12,9 @@
 
 using namespace std;
 
-DPTable::DPTable(ReadSet* read_set, vector<unsigned int> read_marks, vector<unsigned int> recombcost,bool all_heterozygous)
-: read_set(read_set), read_marks(std::move(read_marks)), recombcost(std::move(recombcost)),indexers(), optimal_score(0u), optimal_score_index(0u),
- backtrace_table(), forrecomb(),read_count(0u), all_heterozygous(all_heterozygous)
+DPTable::DPTable(ReadSet* read_set, vector<unsigned int> read_marks, vector<unsigned int> recombcost, vector<unsigned int> genotypesm, vector<unsigned int> genotypesf, vector<unsigned int> genotypesc)
+: read_set(read_set), read_marks(std::move(read_marks)), recombcost(std::move(recombcost)), genotypesm(std::move(genotypesm)), genotypesf(std::move(genotypesf)), genotypesc(std::move(genotypesc)),  indexers(), optimal_score(0u), optimal_score_index(0u),
+ backtrace_table(), forrecomb(),read_count(0u)
 {
   read_set->reassignReadIds();
   compute_table();
@@ -213,10 +213,10 @@ void DPTable::compute_table() {
     }
 
     // do the actual compution on current column
-    ColumnCostComputer cost_computer_0(*current_column, read_marks, 0, all_heterozygous);
-    ColumnCostComputer cost_computer_1(*current_column, read_marks, 1, all_heterozygous);
-    ColumnCostComputer cost_computer_2(*current_column, read_marks, 2, all_heterozygous);
-    ColumnCostComputer cost_computer_3(*current_column, read_marks, 3, all_heterozygous);
+    ColumnCostComputer cost_computer_0(*current_column, read_marks, 0);
+    ColumnCostComputer cost_computer_1(*current_column, read_marks, 1);
+    ColumnCostComputer cost_computer_2(*current_column, read_marks, 2);
+    ColumnCostComputer cost_computer_3(*current_column, read_marks, 3);
     unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
 
     // db
@@ -275,17 +275,19 @@ void DPTable::compute_table() {
 #endif
     //  std::cout<<"prevcost"<<cost[0]<<cost[1]<<cost[2]<<cost[3];
      // std:: cout <<"bla bla"<<cost_computer_3.get_cost()<< cost_computer_1.get_cost()<<
-        cost_computer_2.get_cost()<< cost_computer_3.get_cost();
+     //   cost_computer_2.get_cost()<< cost_computer_3.get_cost();
 
       array<unsigned int, 4> current_cost = {{ 
-        cost_computer_0.get_cost(), cost_computer_1.get_cost(),
-        cost_computer_2.get_cost(), cost_computer_3.get_cost()
+        cost_computer_0.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]), 
+        cost_computer_1.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]),
+        cost_computer_2.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]),
+        cost_computer_3.get_cost(genotypesm[n], genotypesf[n], genotypesc[n])
       }};
       
 
       // db
 #ifdef DB
-      cout << " + " << cost_computer.get_cost() << " = " << cost << " -> " << iterator->get_index() << " [" << bit_rep(iterator->get_index(), current_indexer->get_read_ids()->size()) << "]";
+      cout << " + " << cost_computer.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]) << " = " << cost << " -> " << iterator->get_index() << " [" << bit_rep(iterator->get_index(), current_indexer->get_read_ids()->size()) << "]";
       if(next_column.get()!=0) {
         cout << " -> " << iterator->get_forward_projection() << " [" << bit_rep(iterator->get_forward_projection(), current_indexer->get_forward_projection_width()) << "]";// fpw = " << current_indexer->get_forward_projection_width();
       }
@@ -447,7 +449,7 @@ int count=0;
       
      if(flag){
     count++;
-        ColumnCostComputer cost_computer(*column, read_marks, 0, all_heterozygous);
+        ColumnCostComputer cost_computer(*column, read_marks, 0);
         cost_computer.set_partitioning_m(index);
         r0m->addVariant(positions->at(i), cost_computer.get_allele(0), cost_computer.get_weight(0));
         r1m->addVariant(positions->at(i), cost_computer.get_allele(1), cost_computer.get_weight(1));
@@ -503,7 +505,7 @@ int count=0;
       
      if(flag){
     count++;
-        ColumnCostComputer cost_computer(*column, read_marks, 0, all_heterozygous);
+        ColumnCostComputer cost_computer(*column, read_marks, 0);
         cost_computer.set_partitioning_f(index);
 
         r0f->addVariant(positions->at(i), cost_computer.get_allele(0), cost_computer.get_weight(0));
@@ -560,7 +562,7 @@ int count=0;
       
      if(flag){
     count++;
-        ColumnCostComputer cost_computer(*column, read_marks, 0, all_heterozygous);
+        ColumnCostComputer cost_computer(*column, read_marks, 0);
         cost_computer.set_partitioning_c(index);
 
         r0c->addVariant(positions->at(i), cost_computer.get_allele(0), cost_computer.get_weight(0));
