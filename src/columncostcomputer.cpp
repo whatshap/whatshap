@@ -1,4 +1,5 @@
 #include <cassert>
+#include <limits>
 #include "columncostcomputer.h"
 
 using namespace std;
@@ -305,12 +306,34 @@ void ColumnCostComputer::update_partitioning(int bit_to_flip) {
 }
 
 unsigned int ColumnCostComputer::get_cost(unsigned int genotypem, unsigned int genotypef, unsigned int genotypec) {
-//   if (all_heterozygous) {
-//     return min(cost_partition_m1[0] + cost_partition_m2[1], cost_partition_m1[1] + cost_partition_m2[0]);
-//   } else {
-    return min(cost_partition_m1[0],cost_partition_m1[1]) + min(cost_partition_m2[0],cost_partition_m2[1])
-    + min(cost_partition_f1[0],cost_partition_f1[1]) + min(cost_partition_f2[0],cost_partition_f2[1]);  
-//   }
+  unsigned int best_cost = numeric_limits<unsigned int>::max();
+  // Enumerate all possible assignments of alleles to haplotypes and 
+  // compute costs for those which are compatible with genotypes.
+  // TODO: This can be done more efficiently.
+  for (unsigned int i=0; i<16; ++i) {
+    unsigned int allele_m1 = i & 1;
+    unsigned int allele_m2 = (i >> 1) & 1;
+    if (allele_m1 + allele_m2 != genotypem) continue;
+    
+    unsigned int allele_f1 = (i >> 2) & 1;
+    unsigned int allele_f2 = (i >> 3) & 1;
+    if (allele_f1 + allele_f2 != genotypef) continue;
+    
+    unsigned int allele_c1 = (inheritance_val & 1 == 0)?allele_m1:allele_m2;
+    unsigned int allele_c2 = ((inheritance_val>>1) & 1 == 0)?allele_f1:allele_f2;
+    if (allele_c1 + allele_c2 != genotypec) continue;
+    
+    unsigned int cost = cost_partition_m1[allele_m1] + cost_partition_m2[allele_m2] + cost_partition_f1[allele_f1] + cost_partition_f2[allele_f2]; 
+    if (cost < best_cost) {
+      best_cost = cost;
+    }
+  }
+  
+  if (best_cost == numeric_limits<unsigned int>::max()) {
+    throw std::runtime_error("Error: Mendelian conflict");
+  }
+  
+  return best_cost;
 }
 
 Entry::allele_t ColumnCostComputer::get_allele(bool second_haplotype) {
