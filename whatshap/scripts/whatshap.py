@@ -297,20 +297,12 @@ class ReadSetReader:
 		self._reader.close()
 
 
-def find_components(superreads, reads):
+def find_components(phased_positions, reads):
 	"""
 	Return a dict that maps each position to the component it is in. A
 	component is identified by the position of its leftmost variant.
 	"""
 	logger.debug('Finding connected components ...')
-	# The variant.allele attribute can be either 0 (major allele), 1 (minor allele),
-	# or 3 (equal scores). If all_heterozygous is on (default), we can get
-	# the combinations 0/1, 1/0 and 3/3 (the latter means: unphased).
-	# If all_heterozygous is off, we can also get all other combinations.
-	# In both cases, we are interested only in 0/1 and 1/0.
-	phased_positions = [ v1.position for v1, v2 in zip(*superreads)
-		if (v1.allele, v2.allele) in ((0, 1), (1, 0), (0,0),(1,1))
-	]
 	assert phased_positions == sorted(phased_positions)
 
 	# Find connected components.
@@ -322,8 +314,6 @@ def find_components(superreads, reads):
 		for position in positions[1:]:
 			component_finder.merge(positions[0], position)
 	components = { position : component_finder.find(position) for position in phased_positions }
-	logger.info('No. of variants considered for phasing: %d', len(superreads[0]))
-	logger.info('No. of variants that were phased: %d', len(phased_positions))
 	return components
 
 
@@ -706,21 +696,16 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 
 				superreadsm, superreadsf, superreadsc = dp_table.get_super_reads()
 
-			componentsm = find_components(superreadsm, sliced_readsm)
-			componentsf = find_components(superreadsf, sliced_readsf)
-			componentsc = find_components(superreadsc, sliced_readsc)
-			#n_phased_blocks = len(set(components.values()))
+			components = find_components(accessible_positions, allreads)
+			
+			n_phased_blocks = len(set(components.values()))
 			#stats.n_phased_blocks += n_phased_blocks
-			#logger.info('No. of phased blocks: %d', n_phased_blocks)
-			#if all_heterozygous:
-				#assert n_homozygous == 0
-			#else:
-				#logger.info('No. of heterozygous variants determined to be homozygous: %d', n_homozygous)
+			logger.info('No. of phased blocks: %d', n_phased_blocks)
 
 			with timers('write_vcf'):
-				vcf_writerm.write(chromosomem, samplem, superreadsm, componentsm)
-				vcf_writerf.write(chromosomef, samplef, superreadsf, componentsf)
-				vcf_writerc.write(chromosomec, samplec, superreadsc, componentsc)
+				vcf_writerm.write(chromosomem, samplem, superreadsm, components)
+				vcf_writerf.write(chromosomef, samplef, superreadsf, components)
+				vcf_writerc.write(chromosomec, samplec, superreadsc, components)
 
 			#if haplotype_bam_writer is not None:
 				#logger.info('Writing used reads to haplotype-specific BAM files')
