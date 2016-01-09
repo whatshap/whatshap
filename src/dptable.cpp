@@ -363,6 +363,7 @@ void DPTable::compute_table() {
       optimal_score_array_index = i;
     }
   }
+  optimal_score = min;
   optimal_score_index = running_optimal_score_index;
 }
 
