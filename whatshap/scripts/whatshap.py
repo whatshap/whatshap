@@ -473,6 +473,24 @@ def load_genetic_map(filename):
 	return genetic_map
 
 
+mendelian_conflict_sets = set([
+	(0, 0, 1),
+	(0, 0, 2),
+	(0, 1, 2),
+	(0, 2, 0),
+	(0, 2, 2),
+	(1, 2, 0),
+	(2, 2, 0),
+	(2, 2, 1)
+])
+
+def mendelian_conflict(genotypem, genotypef, genotypec):
+	l = [genotypem, genotypef]
+	l.sort()
+	l.append(genotypec)
+	return tuple(l) in mendelian_conflict_sets
+
+
 def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 		outputm=sys.stdout,outputf=sys.stdout,outputc=sys.stdout, samplem=None, samplef=None, samplec=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coveragem=5, max_coveragef=5, max_coveragec=5, seed=123, haplotype_bams_prefix=None):
@@ -558,18 +576,23 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 			logger.info('Number of variants: %d', len(variantsm))
 			
 			variants = []
+			mendelian_conflicts = 0
 			for variantm, variantf, variantc in zip(variantsm, variantsf, variantsc):
 				assert variantm.position == variantf.position == variantc.position, 'Input VCFs out of sync'
 				assert variantm.reference_allele == variantf.reference_allele == variantc.reference_allele, 'Input VCFs out of sync'
 				assert variantm.alternative_allele == variantf.alternative_allele == variantc.alternative_allele, 'Input VCFs out of sync'
 				if (variantm.genotype == 1) or (variantf.genotype == 1) or (variantc.genotype == 1):
-					variants.append(VcfVariant(
-						position = variantm.position,
-						reference_allele = variantm.reference_allele,
-						alternative_allele = variantm.alternative_allele,
-						genotype = [variantm.genotype, variantf.genotype, variantc.genotype] )
-					)
-			logger.info('Number of variants hetorzygous in at least one individual: %d', len(variants))
+					if mendelian_conflict(variantm.genotype, variantf.genotype, variantc.genotype):
+						mendelian_conflicts += 1
+					else:
+						variants.append(VcfVariant(
+							position = variantm.position,
+							reference_allele = variantm.reference_allele,
+							alternative_allele = variantm.alternative_allele,
+							genotype = [variantm.genotype, variantf.genotype, variantc.genotype] )
+						)
+			logger.info('Number of variants skipped due to Mendelian conflicts: %d', mendelian_conflicts)
+			logger.info('Number of remaining variants hetorzygous in at least one individual: %d', len(variants))
 			
 			timers.stop('parse_vcf')
 			#logger.info('Working on chromosome %s', chromosome)
