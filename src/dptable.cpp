@@ -406,15 +406,27 @@ unique_ptr<vector<unsigned int> > DPTable::get_index_path() {
   return index_path;
 }
 
-void DPTable::get_super_readsm(ReadSet* output_read_set) {
+void DPTable::get_super_reads(ReadSet* output_read_set, char individual) {
   assert(output_read_set != 0u);
 
   ColumnIterator column_iterator(*read_set);
   const vector<unsigned int>* positions = column_iterator.get_positions();
-// std::cout<<positions<<endl;
- // for(int i=0;i<positions->size();i++) std::cout<<positions->at(i)<<endl;
- //std::cout<<positions<<endl;
 
+  unsigned int sample_id = 0;
+  switch (individual) {
+    case 'm': 
+      sample_id = 1;
+      break;
+    case 'f': 
+      sample_id = 2;
+      break;
+    case 'c': 
+      sample_id = 0;
+      break;
+    default:
+      assert(false);
+  }
+  
   Read* r0m = new Read("superread0", -1, 0);
   Read* r1m = new Read("superread1", -1, 0);
   
@@ -424,159 +436,47 @@ void DPTable::get_super_readsm(ReadSet* output_read_set) {
     // run through the file again with the column_iterator
     unsigned int i = 0; // column index
     unique_ptr<vector<unsigned int> > index_path = get_index_path();
-int count=0;
+    int count=0;
     while (column_iterator.has_next()) {
       unsigned int index = index_path->at(i);
       unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
-    const std::vector<const Entry*>& columnx=  *column;
-    const std::vector<unsigned int>& read_marksx=read_marks;
-     // unsigned int index_m=0;
-      
-       bool flag= false;
-    
-     //  int j=0;
+      const std::vector<const Entry*>& columnx=  *column;
+      const std::vector<unsigned int>& read_marksx=read_marks;
+      bool flag= false;
       for (vector<const Entry*>::const_iterator it = columnx.begin(); it != columnx.end(); ++it) {
-       // unsigned int temp=index%2;
         auto& entry = **it;
-        if((read_marksx[entry.get_read_id()]==1u) && ((*it)->get_allele_type())!= Entry::BLANK) {
+        if ((read_marksx[entry.get_read_id()]==sample_id) && ((*it)->get_allele_type())!= Entry::BLANK) {
           flag=true;
           break;
-         // index_m+=pow(2,j)*temp;
-         // j++;
         }      
-        //index/=2;
-     }      
+      }      
       
-     if(flag){
-    count++;
+      if (flag) {
+        count++;
         ColumnCostComputer cost_computer(*column, read_marks, 0);
-        cost_computer.set_partitioning_m(index);
+        switch (individual) {
+          case 'm': 
+            cost_computer.set_partitioning_m(index);
+            break;
+          case 'f': 
+            cost_computer.set_partitioning_f(index);
+            break;
+          case 'c': 
+            cost_computer.set_partitioning_c(index);
+            break;
+          default:
+            assert(false);
+        }
         r0m->addVariant(positions->at(i), cost_computer.get_allele(0), cost_computer.get_weight(0));
         r1m->addVariant(positions->at(i), cost_computer.get_allele(1), cost_computer.get_weight(1));
      }
-      ++i; // next column
+     ++i; // next column
     }
   }
- 
+
   output_read_set->add(r0m);
   output_read_set->add(r1m);
 }
-
-
-//---------------------------
-
-void DPTable::get_super_readsf(ReadSet* output_read_set) {
-  assert(output_read_set != 0);
-
-  ColumnIterator column_iterator(*read_set);
-  const vector<unsigned int>* positions = column_iterator.get_positions();
-
-  Read* r0f = new Read("superread0", -1, 0);
-  Read* r1f = new Read("superread1", -1, 0);
-  
-  if (backtrace_table.empty()) {
-    assert(!column_iterator.has_next());
-  } else {
-    // run through the file again with the column_iterator
-    unsigned int i = 0; // column index
-    unique_ptr<vector<unsigned int> > index_path = get_index_path();
-int count=0;
-    while (column_iterator.has_next()) {
-      unsigned int index = index_path->at(i);
-      unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
-    const std::vector<const Entry*>& columnx=  *column;
-    const std::vector<unsigned int>& read_marksx=read_marks;
-     // unsigned int index_m=0;
-      
-       bool flag= false;
-    
-     //  int j=0;
-       for (vector<const Entry*>::const_iterator it = columnx.begin(); it != columnx.end(); ++it) {
-       // unsigned int temp=index%2;
-        auto& entry = **it;
-        if((read_marksx[entry.get_read_id()]==2u) && ((*it)->get_allele_type())!= Entry::BLANK) {
-          flag=true;
-          break;
-         // index_m+=pow(2,j)*temp;
-         // j++;
-        }      
-        //index/=2;
-     }      
-      
-     if(flag){
-    count++;
-        ColumnCostComputer cost_computer(*column, read_marks, 0);
-        cost_computer.set_partitioning_f(index);
-
-        r0f->addVariant(positions->at(i), cost_computer.get_allele(0), cost_computer.get_weight(0));
-        r1f->addVariant(positions->at(i), cost_computer.get_allele(1), cost_computer.get_weight(1));
-     }
-      ++i; // next column
-    }
-  }
- 
-  output_read_set->add(r0f);
-  output_read_set->add(r1f);
-}
-
-
-//-----------------------
-
-void DPTable::get_super_readsc(ReadSet* output_read_set) {
-  assert(output_read_set != 0);
-
-  ColumnIterator column_iterator(*read_set);
-  const vector<unsigned int>* positions = column_iterator.get_positions();
-
-  Read* r0c = new Read("superread0", -1, 0);
-  Read* r1c = new Read("superread1", -1, 0);
-  
-  if (backtrace_table.empty()) {
-    assert(!column_iterator.has_next());
-  } else {
-    // run through the file again with the column_iterator
-    unsigned int i = 0; // column index
-int count=0;
-    unique_ptr<vector<unsigned int> > index_path = get_index_path();
-    while (column_iterator.has_next()) {
-      unsigned int index = index_path->at(i);
-      unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
-    const std::vector<const Entry*>& columnx=  *column;
-    const std::vector<unsigned int>& read_marksx=read_marks;
-     // unsigned int index_m=0;
-      
-       bool flag= false;
-    
-     //  int j=0;
-      for (vector<const Entry*>::const_iterator it = columnx.begin(); it != columnx.end(); ++it) {
-       // unsigned int temp=index%2;
-        auto& entry = **it;
-        if((read_marksx[entry.get_read_id()]==0u) && ((*it)->get_allele_type())!= Entry::BLANK) {
-          flag=true;
-          break;
-         // index_m+=pow(2,j)*temp;
-         // j++;
-        }      
-        //index/=2;
-     }      
-      
-     if(flag){
-    count++;
-        ColumnCostComputer cost_computer(*column, read_marks, 0);
-        cost_computer.set_partitioning_c(index);
-
-        r0c->addVariant(positions->at(i), cost_computer.get_allele(0), cost_computer.get_weight(0));
-        r1c->addVariant(positions->at(i), cost_computer.get_allele(1), cost_computer.get_weight(1));
-     }
-      ++i; // next column
-    }
-  }
-
-  output_read_set->add(r0c);
-  output_read_set->add(r1c);
-}
-
-//---------
 
 vector<bool>* DPTable::get_optimal_partitioning() {
 
@@ -618,3 +518,4 @@ vector<bool>* DPTable::get_optimal_partitioning() {
   
   return partitioning;
 }
+

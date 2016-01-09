@@ -681,10 +681,9 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 
 				dp_table = DPTable(allreads, read_marks, recombcost, genotypesm, genotypesf, genotypesc)
 
-				superreadsm = dp_table.get_super_readsm()
-				
-				superreadsf = dp_table.get_super_readsf()
-				superreadsc = dp_table.get_super_readsc()
+				superreadsm = dp_table.get_super_reads('m')
+				superreadsf = dp_table.get_super_reads('f')
+				superreadsc = dp_table.get_super_reads('c')
 				#print(superreadsm[0])
 				#print(superreadsm[1])
 				#print(superreadsf[0])
