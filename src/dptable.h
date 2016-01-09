@@ -60,7 +60,7 @@ public:
   /** Computes optimal haplotypes and adds them (in the form of "super reads") to 
    *  the given read_set.
    */
-  void get_super_reads(ReadSet* output_read_setm, ReadSet* output_read_setf, ReadSet* output_read_setc);
+  void get_super_reads(ReadSet* output_read_setm, ReadSet* output_read_setf, ReadSet* output_read_setc, std::vector<unsigned int>* transmission_vector);
 
   /** Performs a backtrace through the DP table and returns optimal partitioning of the reads.
    *  Pointer ownership is transferred to caller. */

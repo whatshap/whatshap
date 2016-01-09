@@ -317,6 +317,42 @@ def find_components(phased_positions, reads):
 	return components
 
 
+def find_recombination(transmission_vector, components, positions, recombcost, recombination_list_filename=None):
+	assert len(transmission_vector) == len(positions) == len(recombcost)
+	assert set(components.keys()).issubset(set(positions))
+	position_to_index = { pos: i for i, pos in enumerate(positions) }
+	blocks = defaultdict(list)
+	for position, block_id in components.items():
+		blocks[block_id].append(position)
+
+	RecombinationEvent = namedtuple('RecombinationEvent', ['position1', 'position2', 'inheritance_value1', 'inheritance_value2' , 'recombination_cost'])
+	event_count = 0
+	event_list = []
+	cum_recomb_cost = 0
+	for block_id, block in blocks.items():
+		block.sort()
+		block_transmission_vector = [ transmission_vector[position_to_index[i]] for i in block ]
+		block_recomb_cost = [ recombcost[position_to_index[i]] for i in block ]
+		if len(block) <= 2:
+			continue
+		for i in range(2, len(block)):
+			if block_transmission_vector[i-1] != block_transmission_vector[i]:
+				event_list.append(RecombinationEvent(block[i-1], block[i], block_transmission_vector[i-1], block_transmission_vector[i], block_recomb_cost[i]))
+				cum_recomb_cost += block_recomb_cost[i]
+				event_count += 1
+
+	if recombination_list_filename is not None:
+		event_list.sort()
+		f = open(recombination_list_filename, 'w')
+		print('#position1', 'position2', 'inheritance_value1', 'inheritance_value2' , 'recombination_cost', file=f)
+		for e in event_list:
+			print(e.position1, e.position2, e.inheritance_value1, e.inheritance_value2, e.recombination_cost, file=f)
+		f.close()
+
+	logger.info('Cost accounted for by recombination events: %d', cum_recomb_cost)
+	return event_count
+
+
 def best_case_blocks(reads):
 	"""
 	Given a list of core reads, determine the number of phased blocks that
@@ -486,7 +522,7 @@ def mendelian_conflict(genotypem, genotypef, genotypec):
 
 def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 		outputm=sys.stdout,outputf=sys.stdout,outputc=sys.stdout, samplem=None, samplef=None, samplec=None, ignore_read_groups=False, indels=True,
-		mapping_quality=20, max_coveragem=5, max_coveragef=5, max_coveragec=5, seed=123, haplotype_bams_prefix=None):
+		mapping_quality=20, max_coveragem=5, max_coveragef=5, max_coveragec=5, seed=123, haplotype_bams_prefix=None, recombination_list_filename=None):
 	"""
 	Run WhatsHap.
 
@@ -666,7 +702,8 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 				read_marks = [ read.source_id for read in allreads ]
 				recombcost = recombination_cost_map(load_genetic_map(genmap), accessible_positions)
 				dp_table = DPTable(allreads, read_marks, recombcost, genotypesm, genotypesf, genotypesc)
-				superreadsm, superreadsf, superreadsc = dp_table.get_super_reads()
+				superreadsm, superreadsf, superreadsc, transmission_vector = dp_table.get_super_reads()
+				assert len(superreadsm[0]) == len(superreadsf[0]) == len(superreadsc[0]) == len(transmission_vector)
 				logger.info('PedMEC cost: %d', dp_table.get_optimal_cost())
 
 			with timers('components'):
@@ -675,6 +712,8 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 				n_phased_blocks = len(set(components.values()))
 				#stats.n_phased_blocks += n_phased_blocks
 				logger.info('No. of phased blocks: %d', n_phased_blocks)
+				n_recombination = find_recombination(transmission_vector, components, accessible_positions, recombcost, recombination_list_filename)
+				logger.info('No. of detected recombination events: %d', n_recombination)
 
 			with timers('write_vcf'):
 				vcf_writerm.write(chromosomem, samplem, superreadsm, components)
@@ -763,6 +802,8 @@ def main():
 	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
 		help='Write reads that have been used for phasing to haplotype-specific BAM files. '
 		'Creates PREFIX.1.bam and PREFIX.2.bam')
+	parser.add_argument('--recombination-list', metavar='RECOMBLIST', dest='recombination_list_filename', default=None,
+		help='Write putative recombination events to given filename.')
 	parser.add_argument('chromosome', nargs=1, metavar='CHROM', help='Chromosome to work on')
 	parser.add_argument('genmap', nargs=1, metavar='GENMAP', help='File with genetic map')
 	parser.add_argument('vcfm', nargs=1, metavar='VCFM', help='VCF file')

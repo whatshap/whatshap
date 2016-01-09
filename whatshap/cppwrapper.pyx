@@ -255,7 +255,7 @@ cdef extern from "../src/columniterator.h":
 cdef extern from "../src/dptable.h":
 	cdef cppclass DPTable:
 		DPTable(ReadSet*, vector[unsigned int], vector[unsigned int], vector[unsigned int], vector[unsigned int], vector[unsigned int]) except +
-		void get_super_reads(ReadSet*, ReadSet*, ReadSet*) except +
+		void get_super_reads(ReadSet*, ReadSet*, ReadSet*, vector[unsigned int]*) except +
 		int get_optimal_score() except +
 		vector[bool]* get_optimal_partitioning()
 
@@ -283,8 +283,11 @@ cdef class PyDPTable:
 		resultm = PyReadSet()
 		resultf = PyReadSet()
 		resultc = PyReadSet()
-		self.thisptr.get_super_reads(resultm.thisptr, resultf.thisptr, resultc.thisptr)
-		return resultm, resultf, resultc
+		transmission_vector_ptr = new vector[unsigned int]()
+		self.thisptr.get_super_reads(resultm.thisptr, resultf.thisptr, resultc.thisptr, transmission_vector_ptr)
+		python_transmission_vector = list(transmission_vector_ptr[0])
+		del transmission_vector_ptr
+		return resultm, resultf, resultc, python_transmission_vector
 
 	def get_optimal_cost(self):
 		"""Returns the cost resulting from solving the Minimum Error Correction (MEC) problem."""

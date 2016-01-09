@@ -401,10 +401,12 @@ unique_ptr<vector<index_and_inheritance_t> > DPTable::get_index_path() {
   return index_path;
 }
 
-void DPTable::get_super_reads(ReadSet* output_read_setm, ReadSet* output_read_setf, ReadSet* output_read_setc) {
+void DPTable::get_super_reads(ReadSet* output_read_setm, ReadSet* output_read_setf, ReadSet* output_read_setc, vector<unsigned int>* transmission_vector) {
   assert(output_read_setm != 0u);
   assert(output_read_setf != 0u);
   assert(output_read_setc != 0u);
+  assert(transmission_vector != 0u);
+  transmission_vector->clear();
 
   ColumnIterator column_iterator(*read_set);
   const vector<unsigned int>* positions = column_iterator.get_positions();
@@ -435,6 +437,7 @@ void DPTable::get_super_reads(ReadSet* output_read_setm, ReadSet* output_read_se
       r1f->addVariant(positions->at(i), trio_alleles.father.second, 0);
       r0c->addVariant(positions->at(i), trio_alleles.child.first, 0);
       r1c->addVariant(positions->at(i), trio_alleles.child.second, 0);
+      transmission_vector->push_back(v.inheritance_value);
       ++i; // next column
     }
   }
