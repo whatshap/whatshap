@@ -371,29 +371,23 @@ unsigned int DPTable::get_optimal_score() {
   return optimal_score;
 }
 
-unique_ptr<vector<unsigned int> > DPTable::get_index_path() {
+unique_ptr<vector<index_and_inheritance_t> > DPTable::get_index_path() {
 
-  unique_ptr<vector<unsigned int> > index_path = unique_ptr<vector<unsigned int> >(new vector<unsigned int>(indexers.size()));
+  unique_ptr<vector<index_and_inheritance_t> > index_path = unique_ptr<vector<index_and_inheritance_t> >(new vector<index_and_inheritance_t>(indexers.size()));
   if (indexers.size() == 0) {
     return index_path;
   }
-  unsigned int index = optimal_score_index;
-  unsigned int temp;
-  index_path->at(indexers.size()-1) = index;
+  index_and_inheritance_t v;
+  v.index = optimal_score_index;
+  v.inheritance_value = optimal_score_array_index;
+  index_path->at(indexers.size()-1) = v;
   //cout<<"columns"<<indexers.size()<<endl;
   for(size_t i = indexers.size()-1; i > 0; --i) { // backtrack through table
     unique_ptr<ColumnIndexingIterator> iterator = indexers[i]->get_iterator();
-    unsigned int backtrace_index = iterator->index_backward_projection(index);
-    if (i==indexers.size()-1){
-    index = backtrace_table[i-1]->at(backtrace_index)[optimal_score_array_index];
-    temp= forrecomb[i-1]->at(backtrace_index)[optimal_score_array_index];
-    }
-    else{
-      index = backtrace_table[i-1]->at(backtrace_index)[temp];
-    temp= forrecomb[i-1]->at(backtrace_index)[temp]; 
-    }
-    
-    index_path->at(i-1) = index;
+    unsigned int backtrace_index = iterator->index_backward_projection(v.index);
+    v.index = backtrace_table[i-1]->at(backtrace_index)[v.inheritance_value];
+    v.inheritance_value = forrecomb[i-1]->at(backtrace_index)[v.inheritance_value]; 
+    index_path->at(i-1) = v;
   }
 
   //db
@@ -435,10 +429,10 @@ void DPTable::get_super_reads(ReadSet* output_read_set, char individual) {
   } else {
     // run through the file again with the column_iterator
     unsigned int i = 0; // column index
-    unique_ptr<vector<unsigned int> > index_path = get_index_path();
+    unique_ptr<vector<index_and_inheritance_t> > index_path = get_index_path();
     int count=0;
     while (column_iterator.has_next()) {
-      unsigned int index = index_path->at(i);
+      unsigned int index = index_path->at(i).index;
       unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
       const std::vector<const Entry*>& columnx=  *column;
       const std::vector<unsigned int>& read_marksx=read_marks;
@@ -479,8 +473,9 @@ void DPTable::get_super_reads(ReadSet* output_read_set, char individual) {
 }
 
 vector<bool>* DPTable::get_optimal_partitioning() {
+  throw std::runtime_error("Not yet implemented for trio case");
 
-  unique_ptr<vector<unsigned int> > index_path = get_index_path();
+  unique_ptr<vector<index_and_inheritance_t> > index_path = get_index_path();
   vector<bool>* partitioning = new vector<bool>(read_count,false);
 
   for(size_t i=0; i< index_path->size(); ++i) {
@@ -496,7 +491,7 @@ vector<bool>* DPTable::get_optimal_partitioning() {
       cout << indexers[i]->get_read_ids()->at(j) << " : ";
 #endif
 
-      unsigned int index = index_path->at(i);
+      unsigned int index = index_path->at(i).index;
 
 #ifdef DB
       cout << index << " & " << mask << " = " << (index & mask);

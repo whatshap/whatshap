@@ -11,6 +11,11 @@
 #include "read.h"
 #include "readset.h"
 
+typedef struct index_and_inheritance_t {
+  unsigned int index;
+  unsigned int inheritance_value;
+} index_and_inheritance_t;
+
 class DPTable {
 private:
   ReadSet* read_set;
@@ -35,7 +40,7 @@ private:
   std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
 
   // helper function to compute the optimal path through the backtrace table
-  std::unique_ptr<std::vector<unsigned int> > get_index_path();
+  std::unique_ptr<std::vector<index_and_inheritance_t> > get_index_path();
 
   void compute_table();
 
