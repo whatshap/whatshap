@@ -444,9 +444,6 @@ def recombination_cost_map(genetic_map, positions):
 		d = cumulative_distances[i] - cumulative_distances[i-1]
 		result.append(round(centimorgen_to_phred(d)))
 
-	for position, d, cost in zip(positions, cumulative_distances, result):
-		print(position, d, cost)
-
 	return result
 
 def centimorgen_to_phred(distance):
