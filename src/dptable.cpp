@@ -400,29 +400,20 @@ unique_ptr<vector<index_and_inheritance_t> > DPTable::get_index_path() {
   return index_path;
 }
 
-void DPTable::get_super_reads(ReadSet* output_read_set, char individual) {
-  assert(output_read_set != 0u);
+void DPTable::get_super_reads(ReadSet* output_read_setm, ReadSet* output_read_setf, ReadSet* output_read_setc) {
+  assert(output_read_setm != 0u);
+  assert(output_read_setf != 0u);
+  assert(output_read_setc != 0u);
 
   ColumnIterator column_iterator(*read_set);
   const vector<unsigned int>* positions = column_iterator.get_positions();
-
-  unsigned int sample_id = 0;
-  switch (individual) {
-    case 'm': 
-      sample_id = 1;
-      break;
-    case 'f': 
-      sample_id = 2;
-      break;
-    case 'c': 
-      sample_id = 0;
-      break;
-    default:
-      assert(false);
-  }
   
-  Read* r0m = new Read("superread0", -1, 0);
-  Read* r1m = new Read("superread1", -1, 0);
+  Read* r0m = new Read("superread_mother0", -1, 0);
+  Read* r1m = new Read("superread_mother1", -1, 0);
+  Read* r0f = new Read("superread_father0", -1, 0);
+  Read* r1f = new Read("superread_father1", -1, 0);
+  Read* r0c = new Read("superread_child0", -1, 0);
+  Read* r1c = new Read("superread_child1", -1, 0);
   
   if (backtrace_table.empty()) {
     assert(!column_iterator.has_next());
@@ -430,46 +421,29 @@ void DPTable::get_super_reads(ReadSet* output_read_set, char individual) {
     // run through the file again with the column_iterator
     unsigned int i = 0; // column index
     unique_ptr<vector<index_and_inheritance_t> > index_path = get_index_path();
-    int count=0;
     while (column_iterator.has_next()) {
-      unsigned int index = index_path->at(i).index;
+      index_and_inheritance_t v = index_path->at(i);
       unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
-      const std::vector<const Entry*>& columnx=  *column;
-      const std::vector<unsigned int>& read_marksx=read_marks;
-      bool flag= false;
-      for (vector<const Entry*>::const_iterator it = columnx.begin(); it != columnx.end(); ++it) {
-        auto& entry = **it;
-        if ((read_marksx[entry.get_read_id()]==sample_id) && ((*it)->get_allele_type())!= Entry::BLANK) {
-          flag=true;
-          break;
-        }      
-      }      
-      
-      if (flag) {
-        count++;
-        ColumnCostComputer cost_computer(*column, read_marks, 0);
-        switch (individual) {
-          case 'm': 
-            cost_computer.set_partitioning_m(index);
-            break;
-          case 'f': 
-            cost_computer.set_partitioning_f(index);
-            break;
-          case 'c': 
-            cost_computer.set_partitioning_c(index);
-            break;
-          default:
-            assert(false);
-        }
-        r0m->addVariant(positions->at(i), cost_computer.get_allele(0), cost_computer.get_weight(0));
-        r1m->addVariant(positions->at(i), cost_computer.get_allele(1), cost_computer.get_weight(1));
-     }
-     ++i; // next column
+      ColumnCostComputer cost_computer(*column, read_marks, v.inheritance_value);
+      cost_computer.set_partitioning(v.index);
+      ColumnCostComputer::trio_alleles_t trio_alleles = cost_computer.get_alleles(genotypesm[i], genotypesf[i], genotypesc[i]);
+      // TODO: compute proper weights based on likelihoods.
+      r0m->addVariant(positions->at(i), trio_alleles.mother.first, 0);
+      r1m->addVariant(positions->at(i), trio_alleles.mother.second, 0);
+      r0f->addVariant(positions->at(i), trio_alleles.father.first, 0);
+      r1f->addVariant(positions->at(i), trio_alleles.father.second, 0);
+      r0c->addVariant(positions->at(i), trio_alleles.child.first, 0);
+      r1c->addVariant(positions->at(i), trio_alleles.child.second, 0);
+      ++i; // next column
     }
   }
 
-  output_read_set->add(r0m);
-  output_read_set->add(r1m);
+  output_read_setm->add(r0m);
+  output_read_setm->add(r1m);
+  output_read_setf->add(r0f);
+  output_read_setf->add(r1f);
+  output_read_setc->add(r0c);
+  output_read_setc->add(r1c);
 }
 
 vector<bool>* DPTable::get_optimal_partitioning() {

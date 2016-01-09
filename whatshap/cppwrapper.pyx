@@ -255,7 +255,7 @@ cdef extern from "../src/columniterator.h":
 cdef extern from "../src/dptable.h":
 	cdef cppclass DPTable:
 		DPTable(ReadSet*, vector[unsigned int], vector[unsigned int], vector[unsigned int], vector[unsigned int], vector[unsigned int]) except +
-		void get_super_reads(ReadSet*, char) except +
+		void get_super_reads(ReadSet*, ReadSet*, ReadSet*) except +
 		int get_optimal_score() except +
 		vector[bool]* get_optimal_partitioning()
 
@@ -273,18 +273,18 @@ cdef class PyDPTable:
 	def __dealloc__(self):
 		del self.thisptr
 
-	def get_super_reads(self, individual):
-		"""Obtain optimal-score haplotypes.
+	def get_super_reads(self):
+		"""Obtain optimal-score haplotypes. Returns a triple (mother, father, child)
 		IMPORTANT: The ReadSet given at construction time must not have been altered.
 		DPTable retained a pointer to this set and will access it again. If it has
 		been altered, behavior is undefined.
 		TODO: Change that.
 		"""
-		assert type(individual) == str
-		assert len(individual) == 1
-		result = PyReadSet()
-		self.thisptr.get_super_reads(result.thisptr, ord(individual[0]))
-		return result
+		resultm = PyReadSet()
+		resultf = PyReadSet()
+		resultc = PyReadSet()
+		self.thisptr.get_super_reads(resultm.thisptr, resultf.thisptr, resultc.thisptr)
+		return resultm, resultf, resultc
 
 	def get_optimal_cost(self):
 		"""Returns the cost resulting from solving the Minimum Error Correction (MEC) problem."""

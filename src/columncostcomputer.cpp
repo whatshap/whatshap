@@ -14,105 +14,7 @@ ColumnCostComputer::ColumnCostComputer(const std::vector<const Entry*>& column, 
   cost_partition_f1[1] = 0;
   cost_partition_f2[0] = 0;
   cost_partition_f2[1] = 0;
-  cost_partition1[0] = 0;
-  cost_partition1[1] = 0;
-  cost_partition2[0] = 0;
-  cost_partition2[1] = 0;
   partitioning = 0;
-}
-//used in superreads
-void ColumnCostComputer::set_partitioning_m(unsigned int partitioning) {
-  // compute cost from scratch
- // cout<<"i am in set"<<endl;
-  cost_partition1[0] = 0;
-  cost_partition1[1] = 0;
-  cost_partition2[0] = 0;
-  cost_partition2[1] = 0;
-  this->partitioning = partitioning;
-  for (vector<const Entry*>::const_iterator it = column.begin(); it != column.end(); ++it) {
-    auto& entry = **it;
-    if(read_marks[entry.get_read_id()]==1){
-      bool entry_in_partition1 = (partitioning & ((unsigned int)1)) == 0;
-     // cout<< "partitioning"<< partitioning<< "binary"<< (*it)->get_allele_type() << (*it)->get_phred_score();
-      switch ((*it)->get_allele_type()) {
-        case Entry::MAJOR_ALLELE:
-          (entry_in_partition1?cost_partition1:cost_partition2)[1] += (*it)->get_phred_score();
-        // cout<<"major***\t"<<cost_partition1[0]<<"\t"<<cost_partition2[0]<<"\t"<<cost_partition1[1]<<"\t"<<cost_partition2[1]<<endl;
-          break;
-        case Entry::MINOR_ALLELE:
-          (entry_in_partition1?cost_partition1:cost_partition2)[0] += (*it)->get_phred_score();
-        // cout<<"minor****\t"<<cost_partition1[0]<<"\t"<<cost_partition2[0]<<"\t"<<cost_partition1[1]<<"\t"<<cost_partition2[1]<<endl;
-          break;
-        case Entry::BLANK:
-          break;
-        default:
-          assert(false);
-    }
-    }
-    partitioning = partitioning >> 1;
-  }
-}
-//used in superreads
-void ColumnCostComputer::set_partitioning_f(unsigned int partitioning) {
-  // compute cost from scratch
-  cost_partition1[0] = 0;
-  cost_partition1[1] = 0;
-  cost_partition2[0] = 0;
-  cost_partition2[1] = 0;
-  this->partitioning = partitioning;
-  for (vector<const Entry*>::const_iterator it = column.begin(); it != column.end(); ++it) {
-    auto& entry = **it;
-    bool entry_in_partition1 = (partitioning & ((unsigned int)1)) == 0;
-    if(read_marks[entry.get_read_id()]==2){    
-     // cout<< "partitioning"<< partitioning<< "binary"<< (*it)->get_allele_type() << (*it)->get_phred_score();
-      switch ((*it)->get_allele_type()) {
-        case Entry::MAJOR_ALLELE:
-          (entry_in_partition1?cost_partition1:cost_partition2)[1] += (*it)->get_phred_score();
-        // cout<<"major***\t"<<cost_partition1[0]<<"\t"<<cost_partition2[0]<<"\t"<<cost_partition1[1]<<"\t"<<cost_partition2[1]<<endl;
-          break;
-        case Entry::MINOR_ALLELE:
-          (entry_in_partition1?cost_partition1:cost_partition2)[0] += (*it)->get_phred_score();
-        // cout<<"minor****\t"<<cost_partition1[0]<<"\t"<<cost_partition2[0]<<"\t"<<cost_partition1[1]<<"\t"<<cost_partition2[1]<<endl;
-          break;
-        case Entry::BLANK:
-          break;
-        default:
-          assert(false);
-    }
-    }
-    partitioning = partitioning >> 1;
-  }
-}
-//used in superreads
-void ColumnCostComputer::set_partitioning_c(unsigned int partitioning) {
-  // compute cost from scratch
-  cost_partition1[0] = 0;
-  cost_partition1[1] = 0;
-  cost_partition2[0] = 0;
-  cost_partition2[1] = 0;
-  this->partitioning = partitioning;
-  for (vector<const Entry*>::const_iterator it = column.begin(); it != column.end(); ++it) {
-    auto& entry = **it;
-    bool entry_in_partition1 = (partitioning & ((unsigned int)1)) == 0;
-    if(read_marks[entry.get_read_id()]==0){    
-     // cout<< "partitioning"<< partitioning<< "binary"<< (*it)->get_allele_type() << (*it)->get_phred_score();
-      switch ((*it)->get_allele_type()) {
-        case Entry::MAJOR_ALLELE:
-          (entry_in_partition1?cost_partition1:cost_partition2)[1] += (*it)->get_phred_score();
-        // cout<<"major***\t"<<cost_partition1[0]<<"\t"<<cost_partition2[0]<<"\t"<<cost_partition1[1]<<"\t"<<cost_partition2[1]<<endl;
-          break;
-        case Entry::MINOR_ALLELE:
-          (entry_in_partition1?cost_partition1:cost_partition2)[0] += (*it)->get_phred_score();
-        // cout<<"minor****\t"<<cost_partition1[0]<<"\t"<<cost_partition2[0]<<"\t"<<cost_partition1[1]<<"\t"<<cost_partition2[1]<<endl;
-          break;
-        case Entry::BLANK:
-          break;
-        default:
-          assert(false);
-    }
-    }
-    partitioning = partitioning >> 1;
-  }
 }
 
 void ColumnCostComputer::set_partitioning(unsigned int partitioning) {
@@ -336,36 +238,52 @@ unsigned int ColumnCostComputer::get_cost(unsigned int genotypem, unsigned int g
   return best_cost;
 }
 
-Entry::allele_t ColumnCostComputer::get_allele(bool second_haplotype) {
-//   if (all_heterozygous) {
-//     unsigned int cost0 = cost_partition1[0] + cost_partition2[1];
-//     unsigned int cost1 = cost_partition1[1] + cost_partition2[0];
-//     if (cost0 == cost1) {
-//       return Entry::EQUAL_SCORES;
-//     } else {
-//       return ((cost0 < cost1) ^ second_haplotype)?Entry::MAJOR_ALLELE:Entry::MINOR_ALLELE;
-//     }
-//   } else {
-    const unsigned int* cost = second_haplotype?cost_partition2:cost_partition1;
-    if(cost[0] == cost[1]) {	
-      return Entry::EQUAL_SCORES;
-    } else {
-      return (cost[0]<cost[1]?Entry::MAJOR_ALLELE:Entry::MINOR_ALLELE);
+ColumnCostComputer::trio_alleles_t ColumnCostComputer::get_alleles(unsigned int genotypem, unsigned int genotypef, unsigned int genotypec) {
+  // TODO: avoid code duplication
+  unsigned int best_cost = numeric_limits<unsigned int>::max();
+  unsigned int second_best_cost = numeric_limits<unsigned int>::max();
+  trio_alleles_t result(Entry::EQUAL_SCORES, Entry::EQUAL_SCORES, Entry::EQUAL_SCORES, Entry::EQUAL_SCORES, Entry::EQUAL_SCORES, Entry::EQUAL_SCORES);
+  for (unsigned int i=0; i<16; ++i) {
+    unsigned int allele_m1 = i & 1;
+    unsigned int allele_m2 = (i >> 1) & 1;
+    if (allele_m1 + allele_m2 != genotypem) continue;
+    
+    unsigned int allele_f1 = (i >> 2) & 1;
+    unsigned int allele_f2 = (i >> 3) & 1;
+    if (allele_f1 + allele_f2 != genotypef) continue;
+    
+    unsigned int allele_c1 = (inheritance_val & 1 == 0)?allele_m1:allele_m2;
+    unsigned int allele_c2 = ((inheritance_val>>1) & 1 == 0)?allele_f1:allele_f2;
+    if (allele_c1 + allele_c2 != genotypec) continue;
+    
+    unsigned int cost = cost_partition_m1[allele_m1] + cost_partition_m2[allele_m2] + cost_partition_f1[allele_f1] + cost_partition_f2[allele_f2]; 
+    if (cost < best_cost) {
+      second_best_cost = best_cost;
+      best_cost = cost;
+      result = trio_alleles_t(
+        (allele_m1==0)?Entry::MAJOR_ALLELE:Entry::MINOR_ALLELE,
+        (allele_m2==0)?Entry::MAJOR_ALLELE:Entry::MINOR_ALLELE,
+        (allele_f1==0)?Entry::MAJOR_ALLELE:Entry::MINOR_ALLELE,
+        (allele_f2==0)?Entry::MAJOR_ALLELE:Entry::MINOR_ALLELE,
+        (allele_c1==0)?Entry::MAJOR_ALLELE:Entry::MINOR_ALLELE,
+        (allele_c2==0)?Entry::MAJOR_ALLELE:Entry::MINOR_ALLELE
+      );
     }
-  //}
+  }
+  
+  if (best_cost == numeric_limits<unsigned int>::max()) {
+    throw std::runtime_error("Error: Mendelian conflict");
+  }
+  
+  if (second_best_cost == best_cost) {
+    // TODO: Having too equal scores does not necissarily imply that the case is
+    //       undecidable for all three individuals. Be smarter here.
+    return trio_alleles_t(Entry::EQUAL_SCORES, Entry::EQUAL_SCORES, Entry::EQUAL_SCORES, Entry::EQUAL_SCORES, Entry::EQUAL_SCORES, Entry::EQUAL_SCORES);
+  }
+  
+  return result;
 }
 
-unsigned int ColumnCostComputer::get_weight(bool s) {
-
-  if(s) {
-    // if cost_partition2[0] is less than cost_partition2[1], for
-    // example, i.e., the haplotype allele will be 0, then the price
-    // of flipping this 0 to a 1 -- on the corresponding super-read --
-    // should be cost_partition2[1] - cost_partition2[0], so this is
-    // the phred score on this new super-read
-    return (cost_partition2[0]<=cost_partition2[1]?cost_partition2[1]-cost_partition2[0]:cost_partition2[0]-cost_partition2[1]);
-  }
-  else {
-    return (cost_partition1[0]<=cost_partition1[1]?cost_partition1[1]-cost_partition1[0]:cost_partition1[0]-cost_partition1[1]);
-  }
+unsigned int ColumnCostComputer::get_weight(bool second_haplotype) {
+  throw std::runtime_error("Not yet implemented for trios.");
 }

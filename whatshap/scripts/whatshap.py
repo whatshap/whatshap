@@ -704,15 +704,7 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 
 				dp_table = DPTable(allreads, read_marks, recombcost, genotypesm, genotypesf, genotypesc)
 
-				superreadsm = dp_table.get_super_reads('m')
-				superreadsf = dp_table.get_super_reads('f')
-				superreadsc = dp_table.get_super_reads('c')
-				#print(superreadsm[0])
-				#print(superreadsm[1])
-				#print(superreadsf[0])
-				#print(superreadsf[1])
-				#print(superreadsc[0])
-				#print(superreadsc[1])
+				superreadsm, superreadsf, superreadsc = dp_table.get_super_reads()
 
 			componentsm = find_components(superreadsm, sliced_readsm)
 			componentsf = find_components(superreadsf, sliced_readsf)
