@@ -314,11 +314,8 @@ void DPTable::compute_table() {
           if(final_col_cost[i] < current_proj_entry[i]) {
             current_proj_entry[i] = final_col_cost[i];
             backtrace_column_entry[i] = it_idx;
+            recombminindex_column_entry[i]=min_recomb_index[i];
           }
-        }
-        for (unsigned int i = 0; i < 4; ++i) {
-         recombminindex_column_entry[i]=min_recomb_index[i];
-          
         }
       }
     }
@@ -386,8 +383,9 @@ unique_ptr<vector<index_and_inheritance_t> > DPTable::get_index_path() {
   for(size_t i = indexers.size()-1; i > 0; --i) { // backtrack through table
     unique_ptr<ColumnIndexingIterator> iterator = indexers[i]->get_iterator();
     unsigned int backtrace_index = iterator->index_backward_projection(v.index);
+    v.inheritance_value = forrecomb[i-1]->at(backtrace_index)[v.inheritance_value];
     v.index = backtrace_table[i-1]->at(backtrace_index)[v.inheritance_value];
-    v.inheritance_value = forrecomb[i-1]->at(backtrace_index)[v.inheritance_value]; 
+     
     index_path->at(i-1) = v;
   }
 
