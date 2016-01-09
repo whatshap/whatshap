@@ -386,6 +386,9 @@ RecombinationMapEntry = namedtuple('RecombinationMapEntry', ['position', 'cum_di
 
 def interpolate(point, start_pos, end_pos, start_value, end_value):
 	assert start_pos <= point <= end_pos
+	if start_pos == point == end_pos:
+		assert start_value == end_value
+		return start_value
 	return start_value + ((point - start_pos) * (end_value - start_value) / (end_pos - start_pos))
 
 def recombination_cost_map(genetic_map, positions):
@@ -536,20 +539,21 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 		vcf_writerm = PhasedVcfWriter(command_line=command_line, in_path=' '.join(vcfm), out_file=outputm)
 		vcf_writerf = PhasedVcfWriter(command_line=command_line, in_path=' '.join(vcff), out_file=outputf)
 		vcf_writerc = PhasedVcfWriter(command_line=command_line, in_path=' '.join(vcfc), out_file=outputc)
-
-		vcf_readerm = parse_vcf(' '.join(vcfm), sample=samplem, indels=indels)
-		vcf_readerf = parse_vcf(' '.join(vcff), sample=samplef, indels=indels)
-		vcf_readerc = parse_vcf(' '.join(vcfc), sample=samplec, indels=indels)
+		with timers('parse_vcf'):
+			vcf_readerm = parse_vcf(' '.join(vcfm), sample=samplem, indels=indels)
+			vcf_readerf = parse_vcf(' '.join(vcff), sample=samplef, indels=indels)
+			vcf_readerc = parse_vcf(' '.join(vcfc), sample=samplec, indels=indels)
+		#TODO: Reactive haplotype BAM writing.
 		#haplotype_bam_writer = None
-		#if haplotype_bams_prefix is not None:
+		if haplotype_bams_prefix is not None:
+			logger.error('Option --haplotype-bams not implemented right now. Sorry.')
+			return 1
 		#	haplotype_bam_writer = HaplotypeBamWriter(bamm, haplotype_bams_prefix, samplem)
 		#if haplotype_bams_prefix is not None:
 			#haplotype_bam_writerm = HaplotypeBamWriter(bamm, haplotype_bams_prefix, sample)
 			#haplotype_bam_writerf = HaplotypeBamWriter(bamf, haplotype_bams_prefix, sample)
 			#haplotype_bam_writerc = HaplotypeBamWriter(bamc, haplotype_bams_prefix, sample)
-		timers.start('parse_vcf')
 
-		#for sample, chromosome, variants in vcf_reader:
 		for m,f,c in zip(vcf_readerm,vcf_readerf,vcf_readerc):
 			samplem, chromosomem, variantsm = m
 			samplef, chromosomef, variantsf = f
@@ -559,52 +563,51 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 				logger.info('Skipping chromosome %s found in VCF files.', chromosomem)
 				continue
 			logger.info('Processing chromosome %s of trio mother=%s, father=%s, child=%s', chromosome, samplem, samplef, samplec)
-			variantsm = remove_overlapping_variants(variantsm)
-			variantsf = remove_overlapping_variants(variantsf)
-			variantsc = remove_overlapping_variants(variantsc)
-			assert len(variantsm) == len(variantsf) == len(variantsc), 'We are assuming that all input VCFs contain the same variants'
-			logger.info('Number of variants: %d', len(variantsm))
+
+			with timers('variant_filtering'):
+				variantsm = remove_overlapping_variants(variantsm)
+				variantsf = remove_overlapping_variants(variantsf)
+				variantsc = remove_overlapping_variants(variantsc)
+				assert len(variantsm) == len(variantsf) == len(variantsc), 'We are assuming that all input VCFs contain the same variants'
+				logger.info('Number of variants: %d', len(variantsm))
+				
+				variants = []
+				mendelian_conflicts = 0
+				for variantm, variantf, variantc in zip(variantsm, variantsf, variantsc):
+					assert variantm.position == variantf.position == variantc.position, 'Input VCFs out of sync'
+					assert variantm.reference_allele == variantf.reference_allele == variantc.reference_allele, 'Input VCFs out of sync'
+					assert variantm.alternative_allele == variantf.alternative_allele == variantc.alternative_allele, 'Input VCFs out of sync'
+					if (variantm.genotype == 1) or (variantf.genotype == 1) or (variantc.genotype == 1):
+						if mendelian_conflict(variantm.genotype, variantf.genotype, variantc.genotype):
+							mendelian_conflicts += 1
+						else:
+							variants.append(VcfVariant(
+								position = variantm.position,
+								reference_allele = variantm.reference_allele,
+								alternative_allele = variantm.alternative_allele,
+								genotype = [variantm.genotype, variantf.genotype, variantc.genotype] )
+							)
+				logger.info('Number of variants skipped due to Mendelian conflicts: %d', mendelian_conflicts)
+				logger.info('Number of remaining variants hetorzygous in at least one individual: %d', len(variants))
 			
-			variants = []
-			mendelian_conflicts = 0
-			for variantm, variantf, variantc in zip(variantsm, variantsf, variantsc):
-				assert variantm.position == variantf.position == variantc.position, 'Input VCFs out of sync'
-				assert variantm.reference_allele == variantf.reference_allele == variantc.reference_allele, 'Input VCFs out of sync'
-				assert variantm.alternative_allele == variantf.alternative_allele == variantc.alternative_allele, 'Input VCFs out of sync'
-				if (variantm.genotype == 1) or (variantf.genotype == 1) or (variantc.genotype == 1):
-					if mendelian_conflict(variantm.genotype, variantf.genotype, variantc.genotype):
-						mendelian_conflicts += 1
-					else:
-						variants.append(VcfVariant(
-							position = variantm.position,
-							reference_allele = variantm.reference_allele,
-							alternative_allele = variantm.alternative_allele,
-							genotype = [variantm.genotype, variantf.genotype, variantc.genotype] )
-						)
-			logger.info('Number of variants skipped due to Mendelian conflicts: %d', mendelian_conflicts)
-			logger.info('Number of remaining variants hetorzygous in at least one individual: %d', len(variants))
-			
-			timers.stop('parse_vcf')
-			#logger.info('Working on chromosome %s', chromosome)
-			#logger.info('Read %d variants', len(variants))
-			bam_samplem = None if ignore_read_groups else samplem
-			bam_samplef = None if ignore_read_groups else samplef
-			bam_samplec = None if ignore_read_groups else samplec
-			logger.info('Reading the BAM file ...')
-			try:
-				#timers.start('read_bam')
-				readsm = bam_readerm.read(chromosomem, variants, bam_samplem)
-				readsf = bam_readerf.read(chromosomef, variants, bam_samplef)
-				readsc = bam_readerc.read(chromosomec, variants, bam_samplec)
-				logger.info('Variant informative reads: mother=%d, father=%d, child=%d', len(readsm), len(readsf),len(readsc))
-			except SampleNotFoundError:
-				#logger.error("Sample %r is not among the read groups (RG tags) "
-					#"in the BAM header.", bam_sample)
-				sys.exit(1)
-			except ReadSetError as e:
-				logger.error("%s", e)
-				sys.exit(1)
-			#logger.info('Read %d reads in %.1f s', len(reads), bam_time)
+
+			with timers('read_bam'):
+				bam_samplem = None if ignore_read_groups else samplem
+				bam_samplef = None if ignore_read_groups else samplef
+				bam_samplec = None if ignore_read_groups else samplec
+				logger.info('Reading the BAM file ...')
+				try:
+					readsm = bam_readerm.read(chromosomem, variants, bam_samplem)
+					readsf = bam_readerf.read(chromosomef, variants, bam_samplef)
+					readsc = bam_readerc.read(chromosomec, variants, bam_samplec)
+					logger.info('Variant informative reads: mother=%d, father=%d, child=%d', len(readsm), len(readsf),len(readsc))
+				except SampleNotFoundError:
+					#logger.error("Sample %r is not among the read groups (RG tags) "
+						#"in the BAM header.", bam_sample)
+					sys.exit(1)
+				except ReadSetError as e:
+					logger.error("%s", e)
+					sys.exit(1)
 
 			with timers('slice'):
 				# Sort the variants stored in each read
@@ -649,33 +652,6 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 					genotypesc.append(variant.genotype[2])
 				assert len(genotypesm) == len(accessible_positions)
 				
-				#informative_read_count = len(reads) - uninformative_read_count
-				#unphasable_snps = len(position_list) - len(accessible_positions)
-				#logger.info('%d variants are covered by at least one read', len(position_list))
-				#logger.info('Skipped %d reads that only cover one variant', uninformative_read_count)
-				#if position_list:
-					#logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
-						#'connecting them to another variant and are thus unphasable',
-						#unphasable_snps, len(position_list),
-						#100. * unphasable_snps / len(position_list)
-					#)
-				#if reads:
-					#logger.info('After read selection: Using %d of %d (%.1f%%) reads that cover two or more variants',
-						#len(selected_reads), informative_read_count, (100. * len(selected_reads) / informative_read_count if informative_read_count > 0 else float('nan'))
-					#)
-
-
-			#n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(reads)
-			#n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(sliced_reads)
-			#stats.n_best_case_blocks += n_best_case_blocks
-			#stats.n_best_case_nonsingleton_blocks += n_best_case_nonsingleton_blocks
-			#stats.n_best_case_blocks_cov += n_best_case_blocks_cov
-			#stats.n_best_case_nonsingleton_blocks_cov += n_best_case_nonsingleton_blocks_cov
-			#logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
-				#n_best_case_nonsingleton_blocks, n_best_case_blocks)
-			#logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
-				#n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
-
 			with timers('phase'):
 				#logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 				# Run the core algorithm: construct DP table ...
@@ -687,20 +663,18 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 						read.sort()
 						allreads.add(read)
 				allreads.sort()
-
 				read_marks = [ read.source_id for read in allreads ]
-				
 				recombcost = recombination_cost_map(load_genetic_map(genmap), accessible_positions)
-
 				dp_table = DPTable(allreads, read_marks, recombcost, genotypesm, genotypesf, genotypesc)
-
 				superreadsm, superreadsf, superreadsc = dp_table.get_super_reads()
+				logger.info('PedMEC cost: %d', dp_table.get_optimal_cost())
 
-			components = find_components(accessible_positions, allreads)
-			
-			n_phased_blocks = len(set(components.values()))
-			#stats.n_phased_blocks += n_phased_blocks
-			logger.info('No. of phased blocks: %d', n_phased_blocks)
+			with timers('components'):
+				components = find_components(accessible_positions, allreads)
+				
+				n_phased_blocks = len(set(components.values()))
+				#stats.n_phased_blocks += n_phased_blocks
+				logger.info('No. of phased blocks: %d', n_phased_blocks)
 
 			with timers('write_vcf'):
 				vcf_writerm.write(chromosomem, samplem, superreadsm, components)
@@ -722,14 +696,16 @@ def run_whatshap(chromosome, genmap, bamm, vcfm, bamf, vcff, bamc, vcfc,
 		#assert stats.n_homozygous == 0
 	#else:
 		#logger.info('No. of heterozygous variants determined to be homozygous: %d', stats.n_homozygous)
-	#timers.stop('overall')
-	#logger.info('Time spent reading BAM: %6.1f s', timers.elapsed('read_bam'))
-	#logger.info('Time spent parsing VCF: %6.1f s', timers.elapsed('parse_vcf'))
-	#logger.info('Time spent slicing:	 %6.1f s', timers.elapsed('slice'))
-	#logger.info('Time spent phasing:	 %6.1f s', timers.elapsed('phase'))
-	#logger.info('Time spent writing VCF: %6.1f s', timers.elapsed('write_vcf'))
-	#logger.info('Time spent on rest:	 %6.1f s', 2 * timers.elapsed('overall') - timers.total())
-	#logger.info('Total elapsed time:	 %6.1f s', timers.elapsed('overall'))
+	timers.stop('overall')
+	logger.info('Time spent reading BAM:        %6.1f s', timers.elapsed('read_bam'))
+	logger.info('Time spent parsing VCF:        %6.1f s', timers.elapsed('parse_vcf'))
+	logger.info('Time spent filtering variants: %6.1f s', timers.elapsed('variant_filtering'))
+	logger.info('Time spent slicing:            %6.1f s', timers.elapsed('slice'))
+	logger.info('Time spent phasing:            %6.1f s', timers.elapsed('phase'))
+	logger.info('Time spent finding components: %6.1f s', timers.elapsed('components'))
+	logger.info('Time spent writing VCF:        %6.1f s', timers.elapsed('write_vcf'))
+	logger.info('Time spent on rest:            %6.1f s', 2 * timers.elapsed('overall') - timers.total())
+	logger.info('Total elapsed time:            %6.1f s', timers.elapsed('overall'))
 
 
 class NiceFormatter(logging.Formatter):
