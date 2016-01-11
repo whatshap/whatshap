@@ -164,9 +164,6 @@ void DPTable::compute_table() {
   unique_ptr<vector<array<unsigned int, 4> > > current_projection_column;
   array<unsigned int, 4> running_optimal_score;
   unsigned int running_optimal_score_index; // optimal score and its index
-  unsigned int temp;
-  double pi = 0.05; // percentage of columns processed
-  double pc = pi;
   unsigned int nc = column_iterator.get_column_count();
 #ifdef DB
   int i = 0;
