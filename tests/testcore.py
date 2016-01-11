@@ -356,7 +356,7 @@ def test_phase_trio3() :
 	genotypesm = [1,1,1,1,1,1]
 	genotypesf = [1,1,1,1,1,1]
 	genotypesc = [1,2,1,1,0,1]
-	recombcost = [4,4,4,4,4,4]
+	recombcost = [3,3,3,4,3,3]
 	rs, read_marks = string_to_readset_trio(reads)
 	dp_table = DPTable(rs, read_marks, recombcost, genotypesm, genotypesf, genotypesc)
 	superreadsm, superreadsf, superreadsc, transmission_vector = dp_table.get_super_reads()
@@ -378,3 +378,82 @@ def test_phase_trio3() :
 		assert len(superreads[0]) == len(superreads[1]) == 6
 		haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
 		assert (haplotypes == (expected_haplotypes[0], expected_haplotypes[1])) or (haplotypes == (expected_haplotypes[1], expected_haplotypes[0]))
+
+
+def test_phase_trio4() :
+	reads = """
+	  F 101
+	  F 101
+	  F 101
+	  M 111
+	  M 111
+	  M 111
+	  C 111
+	  C 111
+	  C 111
+	"""
+	genotypesm = [1,1,1]
+	genotypesf = [1,1,1]
+	genotypesc = [1,1,1]
+	recombcost = [1,1,1]
+	rs, read_marks = string_to_readset_trio(reads)
+	dp_table = DPTable(rs, read_marks, recombcost, genotypesm, genotypesf, genotypesc)
+	superreadsm, superreadsf, superreadsc, transmission_vector = dp_table.get_super_reads()
+	for superreads in [superreadsm, superreadsf, superreadsc]:
+		for sr in superreads:
+			print(sr)
+	print('Cost:',dp_table.get_optimal_cost())
+	print('Transmission vector:', transmission_vector)
+	print('Partition:', dp_table.get_optimal_partitioning())
+	assert dp_table.get_optimal_cost() == 2
+	assert transmission_vector in ([0,2,0], [2,0,2], [1,3,1], [3,1,3])
+	all_expected_haplotypes = [
+		('111','000'),
+		('101','010'),
+		('111','000')
+	]
+	for superreads, expected_haplotypes in zip([superreadsm, superreadsf, superreadsc],all_expected_haplotypes):
+		assert len(superreads) == 2
+		assert len(superreads[0]) == len(superreads[1]) == 3
+		haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
+		assert (haplotypes == (expected_haplotypes[0], expected_haplotypes[1])) or (haplotypes == (expected_haplotypes[1], expected_haplotypes[0]))
+
+
+def test_phase_trio5() :
+	reads = """
+	  F 101
+	  F 101
+	  F 101
+	  M 111
+	  M 111
+	  M 111
+	  C 111
+	  C 111
+	  C 111
+	"""
+	genotypesm = [1,1,1]
+	genotypesf = [1,1,1]
+	genotypesc = [1,1,1]
+	recombcost = [2,2,2]
+	rs, read_marks = string_to_readset_trio(reads)
+	dp_table = DPTable(rs, read_marks, recombcost, genotypesm, genotypesf, genotypesc)
+	superreadsm, superreadsf, superreadsc, transmission_vector = dp_table.get_super_reads()
+	for superreads in [superreadsm, superreadsf, superreadsc]:
+		for sr in superreads:
+			print(sr)
+	print('Cost:',dp_table.get_optimal_cost())
+	print('Transmission vector:', transmission_vector)
+	print('Partition:', dp_table.get_optimal_partitioning())
+	assert dp_table.get_optimal_cost() == 3
+	assert len(set(transmission_vector)) == 1
+	all_expected_haplotypes = [
+		('111','000'),
+		('111','000'),
+		('111','000')
+	]
+	for superreads, expected_haplotypes in zip([superreadsm, superreadsf, superreadsc],all_expected_haplotypes):
+		assert len(superreads) == 2
+		assert len(superreads[0]) == len(superreads[1]) == 3
+		haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
+		assert (haplotypes == (expected_haplotypes[0], expected_haplotypes[1])) or (haplotypes == (expected_haplotypes[1], expected_haplotypes[0]))
+
