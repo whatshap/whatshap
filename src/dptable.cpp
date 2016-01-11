@@ -186,9 +186,10 @@ void DPTable::compute_table() {
       cout << "forward projection width : " << current_indexer->get_forward_projection_width() << endl << endl;
 #endif
 
-    four_uints_t dummy_max_arr = {{numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max() }};
-    current_projection_column = unique_ptr<vector<four_uints_t> >(
-      new vector<four_uints_t>(current_indexer->forward_projection_size(), dummy_max_arr));
+      four_uints_t dummy_max_arr = {{numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max() }};
+      current_projection_column = unique_ptr<vector<four_uints_t> >(
+        new vector<four_uints_t>(current_indexer->forward_projection_size(), dummy_max_arr)
+      );
       // NOTE: forward projection size will always be even
       forrecomb_col = new vector<four_uints_t>(current_indexer->forward_projection_size(), dummy_max_arr);
       backtrace_column = new vector<four_uints_t>(current_indexer->forward_projection_size(), dummy_max_arr);
@@ -243,12 +244,8 @@ void DPTable::compute_table() {
       }
 
       four_uints_t cost = {{0, 0, 0, 0}};
-      auto* prev_col_ptr = previous_projection_column.get();
-      if (prev_col_ptr != nullptr) {
-        auto& prev_col_entry = (*prev_col_ptr)[iterator->get_backward_projection()];
-        for(unsigned int i = 0; i < 4; ++i) {
-          cost[i] += prev_col_entry[i];
-        }
+      if (previous_projection_column.get() != nullptr) {
+        cost = previous_projection_column->at(iterator->get_backward_projection());
       }
 
 #ifdef DB
