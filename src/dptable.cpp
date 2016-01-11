@@ -74,10 +74,11 @@ void output_vector_enum(const vector<unsigned int> * v, unsigned int len) {
 }
 #endif
 
-four_uints_t compute_final_cost(four_uints_t& prev, four_uints_t& current, unsigned int penalty) {
+void compute_final_cost(const four_uints_t& prev, const four_uints_t& current, unsigned int penalty, four_uints_t* min_costs, four_uints_t* min_cost_indices) {
   four_uints_t result;
   for (size_t i = 0; i < 4; ++i) {
     unsigned int min = numeric_limits<unsigned int>::max();
+    size_t min_index = 0;
     for (size_t j = 0; j < 4; ++j) {
       unsigned int val;
       if ((i/2!=j/2) && (i%2!=j%2)) {
@@ -91,35 +92,12 @@ four_uints_t compute_final_cost(four_uints_t& prev, four_uints_t& current, unsig
       }
       if (val < min) {
         min = val;
+        min_index = j;
       }
     }
-    result[i] = min;
+    min_costs->at(i) = min;
+    min_cost_indices->at(i) = min_index;
   }
-  return result;
-}
-
-four_uints_t compute_min_index(four_uints_t& prev, four_uints_t& current, unsigned int penalty) {
-  four_uints_t result;
-  for (size_t i = 0; i < 4; ++i) {
-    unsigned int min = numeric_limits<unsigned int>::max();
-    for (size_t j = 0; j < 4; ++j) {
-      unsigned int val;
-      if ((i/2!=j/2) && (i%2!=j%2)) {
-        val = current[i] + prev[j] + 2*penalty;
-      } else {
-        if ((i/2!=j/2) || (i%2!=j%2)) {
-          val = current[i] + prev[j] + penalty;
-        } else {
-          val = current[i] + prev[j];
-        }
-      }
-      if (val < min) {
-        min = val;
-        result[i] = j;
-      }
-    }
-  }
-  return result;
 }
 
 void DPTable::compute_table() {
@@ -292,8 +270,9 @@ void DPTable::compute_table() {
       cout << endl;
 #endif
        
-      four_uints_t final_col_cost = compute_final_cost(cost, current_cost, recombcost[n]);
-      four_uints_t min_recomb_index = compute_min_index(cost, current_cost, recombcost[n]);
+      four_uints_t final_col_cost = {0,0,0,0};
+      four_uints_t min_recomb_index = {0,0,0,0};
+      compute_final_cost(cost, current_cost, recombcost[n], &final_col_cost, &min_recomb_index);
       dp_column[iterator->get_index()] = final_col_cost;
       // if not last DP column, then update forward projection column and backtrace column
       if (next_column.get() == 0) {
