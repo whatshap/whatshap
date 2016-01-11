@@ -226,12 +226,12 @@ class PhasedVcfWriter:
 						self._hp_found_warned = True
 					# Set or overwrite HP tag
 					phasing_info = self._format_phasing_info(components[record.start], phases[record.start])
-					values = vars(call.data)
+					values = call.data._asdict()
 					values['HP'] = phasing_info
 					call.data = samp_fmt(**values)
 				elif not hasattr(call.data, 'HP'):
 					# HP tag missing, set it to "."
-					values = vars(call.data)
+					values = call.data._asdict()
 					values['HP'] = None
 					call.data = samp_fmt(**values)
 			self._writer.write_record(record)
