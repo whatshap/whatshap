@@ -163,7 +163,7 @@ void DPTable::compute_table() {
   unique_ptr<vector<array<unsigned int, 4> > > previous_projection_column;
   unique_ptr<vector<array<unsigned int, 4> > > current_projection_column;
   array<unsigned int, 4> running_optimal_score;
-  unsigned int running_optimal_score_index; // optimal score and its index
+  unsigned int running_optimal_score_index = 0; // optimal score and its index
   unsigned int nc = column_iterator.get_column_count();
   if ((genotypesm.size() != nc) || (genotypesf.size() != nc) || (genotypesc.size() != nc)) {
     throw std::runtime_error("Genotype vector length mismatch");
