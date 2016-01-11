@@ -165,6 +165,9 @@ void DPTable::compute_table() {
   array<unsigned int, 4> running_optimal_score;
   unsigned int running_optimal_score_index; // optimal score and its index
   unsigned int nc = column_iterator.get_column_count();
+  if ((genotypesm.size() != nc) || (genotypesf.size() != nc) || (genotypesc.size() != nc)) {
+    throw std::runtime_error("Genotype vector length mismatch");
+  }
 #ifdef DB
   int i = 0;
 #endif
@@ -273,9 +276,6 @@ void DPTable::compute_table() {
       cout << iterator->get_backward_projection() << " [" << bit_rep(iterator->get_backward_projection(), current_indexer->get_backward_projection_width()) << "] -> " << cost;
 #endif
 
-      if ((genotypesm.size() <= n) || (genotypesf.size() <= n) || (genotypesc.size() <= n)) {
-        throw std::runtime_error("Insufficient genotype information");
-      }
       array<unsigned int, 4> current_cost = {{ 
         cost_computer_0.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]), 
         cost_computer_1.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]),
