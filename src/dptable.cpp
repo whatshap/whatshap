@@ -75,61 +75,52 @@ void output_vector_enum(const vector<unsigned int> * v, unsigned int len) {
 #endif
 
 namespace {
-     template<typename T, std::size_t s>
-    array<T, s> compute_final_cost(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
-      
-      array<T, s> result;
-      for(typename array<T,s>::size_type i = 0; i < s; ++i) {
-        unsigned int min = numeric_limits<unsigned int>::max();
-        for(typename array<T,s>::size_type j = 0; j < s; ++j) {
-         unsigned int val;
-        if ((i/2!=j/2) && (i%2!=j%2))
-	{
-		val = current[i] + prev[j] + 2*penalty;
-	}
-	else if ((i/2!=j/2) || (i%2!=j%2))
-		val = current[i] + prev[j] + penalty;
-	else
-		val = current[i] + prev[j];
-        if(val < min) {
-              min = val;
-            }
+  
+  template<typename T, std::size_t s>
+  array<T, s> compute_final_cost(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
+    array<T, s> result;
+    for(typename array<T,s>::size_type i = 0; i < s; ++i) {
+      unsigned int min = numeric_limits<unsigned int>::max();
+      for(typename array<T,s>::size_type j = 0; j < s; ++j) {
+        unsigned int val;
+        if ((i/2!=j/2) && (i%2!=j%2)) {
+          val = current[i] + prev[j] + 2*penalty;
+        } else if ((i/2!=j/2) || (i%2!=j%2))
+          val = current[i] + prev[j] + penalty;
+        else
+          val = current[i] + prev[j];
+        if (val < min) {
+          min = val;
         }
-        result[i] = min;
       }
-     
-      return result;
+      result[i] = min;
     }
-    
-    template<typename T, std::size_t s>
-    array<T, s> compute_min_index(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
+    return result;
+  }
       
-      array<T, s> result;
-      
-      for(typename array<T,s>::size_type i = 0; i < s; ++i) {
-        unsigned int min = numeric_limits<unsigned int>::max();
-        for(typename array<T,s>::size_type j = 0; j < s; ++j) {
-         unsigned int val;
+  template<typename T, std::size_t s>
+  array<T, s> compute_min_index(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
+    array<T, s> result;
+    for(typename array<T,s>::size_type i = 0; i < s; ++i) {
+      unsigned int min = numeric_limits<unsigned int>::max();
+      for(typename array<T,s>::size_type j = 0; j < s; ++j) {
+        unsigned int val;
+        if ((i/2!=j/2) && (i%2!=j%2)) {
+          val = current[i] + prev[j] + 2*penalty;
+        } else if ((i/2!=j/2) || (i%2!=j%2))
+          val = current[i] + prev[j] + penalty;
+        else
+          val = current[i] + prev[j]; 
+        if (val < min) {
+          min = val;
+          result[i] = j;
+        }
+      }
+    }
+    return result;
+  }
 
-	if ((i/2!=j/2) && (i%2!=j%2))
-	{
-		val = current[i] + prev[j] + 2*penalty;
-	}
-	else if ((i/2!=j/2) || (i%2!=j%2))
-		val = current[i] + prev[j] + penalty;
-	else
-		val = current[i] + prev[j]; 
-        if(val < min) {
-              min = val;
-              result[i] = j;
-            }
-        }
-        
-      }
-     
-      return result;
-    }
- }
+}
 
 void DPTable::compute_table() {
   ColumnIterator column_iterator(*read_set);
@@ -216,17 +207,12 @@ void DPTable::compute_table() {
       cout << "forward projection width : " << current_indexer->get_forward_projection_width() << endl << endl;
 #endif
 
-    array<unsigned int, 4> dummy_max_arr = {{numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max(),
-                                             numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max()
-                                   }};
-      current_projection_column = unique_ptr<vector<array<unsigned int, 4>> >(
-        new vector<array<unsigned int, 4>>(current_indexer->forward_projection_size(), dummy_max_arr));
+    array<unsigned int, 4> dummy_max_arr = {{numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max() }};
+    current_projection_column = unique_ptr<vector<array<unsigned int, 4>> >(
+      new vector<array<unsigned int, 4>>(current_indexer->forward_projection_size(), dummy_max_arr));
       // NOTE: forward projection size will always be even
-      
       forrecomb_col = new vector<array<unsigned int, 4>>(current_indexer->forward_projection_size(), dummy_max_arr);
-
       backtrace_column = new vector<array<unsigned int, 4>>(current_indexer->forward_projection_size(), dummy_max_arr);
-
     }
 
     // do the actual compution on current column
@@ -286,13 +272,10 @@ void DPTable::compute_table() {
         }
       }
 
-      // db
 #ifdef DB
       cout << iterator->get_backward_projection() << " [" << bit_rep(iterator->get_backward_projection(), current_indexer->get_backward_projection_width()) << "] -> " << cost;
 #endif
-    //  std::cout<<"prevcost"<<cost[0]<<cost[1]<<cost[2]<<cost[3];
-     // std:: cout <<"bla bla"<<cost_computer_3.get_cost()<< cost_computer_1.get_cost()<<
-     //   cost_computer_2.get_cost()<< cost_computer_3.get_cost();
+
       if ((genotypesm.size() <= n) || (genotypesf.size() <= n) || (genotypesc.size() <= n)) {
         throw std::runtime_error("Insufficient genotype information");
       }
@@ -304,7 +287,6 @@ void DPTable::compute_table() {
       }};
       
 
-      // db
 #ifdef DB
       cout << " + " << cost_computer.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]) << " = " << cost << " -> " << iterator->get_index() << " [" << bit_rep(iterator->get_index(), current_indexer->get_read_ids()->size()) << "]";
       if(next_column.get()!=0) {
@@ -339,7 +321,6 @@ void DPTable::compute_table() {
       }
     }
 
-    // db
 #ifdef DB
     cout << endl;
 #endif
@@ -354,22 +335,7 @@ void DPTable::compute_table() {
 
     ++n;
 
-    // db
-    /*
-    for(size_t j=0;j<current_column->size(); ++j) {
-      cout << dp_column->at(j) << endl;
-    }
-    cout << endl;
-    */
-
-    // completion percentage output
-    /*
-    if((double(n)/double(nc)) > pc) {
-      cout << int(pc*100.0) << " %" << endl;
-      pc += pi;
-    }
-    */
-  }
+  } // end of main loop over columns
 
   // store optimal score for table at end of computation
   auto min = numeric_limits<unsigned int>::max();
@@ -389,7 +355,6 @@ unsigned int DPTable::get_optimal_score() {
 }
 
 unique_ptr<vector<index_and_inheritance_t> > DPTable::get_index_path() {
-
   unique_ptr<vector<index_and_inheritance_t> > index_path = unique_ptr<vector<index_and_inheritance_t> >(new vector<index_and_inheritance_t>(indexers.size()));
   if (indexers.size() == 0) {
     return index_path;
@@ -493,7 +458,7 @@ vector<bool>* DPTable::get_optimal_partitioning() {
       if((index & mask) == 0) { // id at this index is in p0 (i.e., in the part.)
         partitioning->at(indexers[i]->get_read_ids()->at(j)) = true;
 #ifdef DB
-	cout << " : true";
+        cout << " : true";
 #endif
       }
 
@@ -506,4 +471,3 @@ vector<bool>* DPTable::get_optimal_partitioning() {
   
   return partitioning;
 }
-
