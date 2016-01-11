@@ -194,7 +194,10 @@ class PhasedVcfWriter:
 		sample_index = self._reader.samples.index(sample)
 
 		# TODO don’t use dicts for *everything* ...
-		phases = { variant.position: variant.allele for variant in superreads[1] if variant.allele in [0,1] }
+		phases = { v1.position : v1.allele for v1, v2 in zip(*superreads)
+		if (v1.allele, v2.allele) in ((0, 1), (1, 0), (0,0), (1,1))
+	}
+		#phases = { variant.position: variant.allele for variant in superreads[1] if variant.allele in [0,1] }
 		if self._unprocessed_record is not None:
 			records_iter = itertools.chain([self._unprocessed_record], self._reader_iter)
 		else:
@@ -207,7 +210,7 @@ class PhasedVcfWriter:
 				self._unprocessed_record = record
 				assert n != 1
 				break
-			if record.start not in components:
+			if record.start not in components or record.start not in phases:
 				# Phasing info not available, just copy record
 				self._writer.write_record(record)
 				continue
