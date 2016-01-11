@@ -75,21 +75,22 @@ void output_vector_enum(const vector<unsigned int> * v, unsigned int len) {
 #endif
 
 void compute_final_cost(const four_uints_t& prev, const four_uints_t& current, unsigned int penalty, four_uints_t* min_costs, four_uints_t* min_cost_indices) {
-  four_uints_t result;
   for (size_t i = 0; i < 4; ++i) {
     unsigned int min = numeric_limits<unsigned int>::max();
     size_t min_index = 0;
     for (size_t j = 0; j < 4; ++j) {
-      unsigned int val;
-      if ((i/2!=j/2) && (i%2!=j%2)) {
-        val = current[i] + prev[j] + 2*penalty;
-      } else {
-        if ((i/2!=j/2) || (i%2!=j%2)) {
-          val = current[i] + prev[j] + penalty;
-        } else {
-          val = current[i] + prev[j];
-        }
+      // Step 1: add up cost from current column and previous columns
+      unsigned int val = current[i] + prev[j];
+      // Step 2: add further cost incurred by recombination
+      // change in bit 0 --> recombination in mother
+      if (i%2 != j%2) {
+        val += penalty;
       }
+      // change in bit 1 --> recombination in father
+      if (i/2 != j/2) {
+        val += penalty;
+      }
+      // check for new minimum
       if (val < min) {
         min = val;
         min_index = j;
