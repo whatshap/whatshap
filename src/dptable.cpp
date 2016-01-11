@@ -270,8 +270,8 @@ void DPTable::compute_table() {
 #endif
 
       // Compute aggregate cost based on cost in previous and cost in current column
-      four_uints_t final_col_cost = {0,0,0,0};
-      four_uints_t min_recomb_index = {0,0,0,0};
+      four_uints_t final_col_cost = {{0,0,0,0}};
+      four_uints_t min_recomb_index = {{0,0,0,0}};
       compute_final_cost(cost, current_cost, recombcost[n], &final_col_cost, &min_recomb_index);
       // ... and store it in current DP column
       dp_column[iterator->get_index()] = final_col_cost;
