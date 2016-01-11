@@ -76,42 +76,59 @@ void output_vector_enum(const vector<unsigned int> * v, unsigned int len) {
 
 namespace {
      template<typename T, std::size_t s>
-     array<T, s> compute_final_cost(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
-       
-       array<T, s> result;
-       for(typename array<T,s>::size_type i = 0; i < s; ++i) {
-         unsigned int min = numeric_limits<unsigned int>::max();
-         for(typename array<T,s>::size_type j = 0; j < s; ++j) {
-             auto val = current[i] + prev[j] + (i != j ? penalty : 0u);
-             if(val < min) {
-               min = val;
-             }
-         }
-         result[i] = min;
-       }
+    array<T, s> compute_final_cost(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
       
-       return result;
-     }
+      array<T, s> result;
+      for(typename array<T,s>::size_type i = 0; i < s; ++i) {
+        unsigned int min = numeric_limits<unsigned int>::max();
+        for(typename array<T,s>::size_type j = 0; j < s; ++j) {
+         unsigned int val;
+        if ((i/2!=j/2) && (i%2!=j%2))
+	{
+		val = current[i] + prev[j] + 2*penalty;
+	}
+	else if ((i/2!=j/2) || (i%2!=j%2))
+		val = current[i] + prev[j] + penalty;
+	else
+		val = current[i] + prev[j];
+        if(val < min) {
+              min = val;
+            }
+        }
+        result[i] = min;
+      }
      
-     template<typename T, std::size_t s>
-     array<T, s> compute_min_index(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
-       
-       array<T, s> result;
-       
-       for(typename array<T,s>::size_type i = 0; i < s; ++i) {
-         unsigned int min = numeric_limits<unsigned int>::max();
-         for(typename array<T,s>::size_type j = 0; j < s; ++j) {
-             auto val = current[i] + prev[j] + (i != j ? penalty : 0u);
-             if(val < min) {
-               min = val;
-               result[i] = j;
-             }
-         }
-         
-       }
+      return result;
+    }
+    
+    template<typename T, std::size_t s>
+    array<T, s> compute_min_index(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
       
-       return result;
-     }
+      array<T, s> result;
+      
+      for(typename array<T,s>::size_type i = 0; i < s; ++i) {
+        unsigned int min = numeric_limits<unsigned int>::max();
+        for(typename array<T,s>::size_type j = 0; j < s; ++j) {
+         unsigned int val;
+
+	if ((i/2!=j/2) && (i%2!=j%2))
+	{
+		val = current[i] + prev[j] + 2*penalty;
+	}
+	else if ((i/2!=j/2) || (i%2!=j%2))
+		val = current[i] + prev[j] + penalty;
+	else
+		val = current[i] + prev[j]; 
+        if(val < min) {
+              min = val;
+              result[i] = j;
+            }
+        }
+        
+      }
+     
+      return result;
+    }
  }
 
 void DPTable::compute_table() {
