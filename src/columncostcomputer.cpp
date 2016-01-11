@@ -257,7 +257,7 @@ ColumnCostComputer::trio_alleles_t ColumnCostComputer::get_alleles(unsigned int 
     if (allele_c1 + allele_c2 != genotypec) continue;
     
     unsigned int cost = cost_partition_m1[allele_m1] + cost_partition_m2[allele_m2] + cost_partition_f1[allele_f1] + cost_partition_f2[allele_f2]; 
-    if (cost < best_cost) {
+    if (cost <= best_cost) {
       second_best_cost = best_cost;
       best_cost = cost;
       result = trio_alleles_t(
