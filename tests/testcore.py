@@ -1,6 +1,6 @@
 from nose.tools import raises
 from whatshap.core import Read, DPTable, ReadSet, Variant
-from .phasingutils import string_to_readset, brute_force_phase
+from .phasingutils import string_to_readset, string_to_readset_trio, brute_force_phase
 
 
 def test_read():
@@ -158,6 +158,7 @@ def compare_phasing_single_individual(reads, weights = None):
 	genotypesc = [1] * len(positions) # all genotypes heterozygous
 	dp_table = DPTable(rs, read_marks, recombcost, genotypesm, genotypesf, genotypesc)
 	superreadsm, superreadsf, superreadsc, transmission_vector = dp_table.get_super_reads()
+	assert len(set(transmission_vector)) == 1
 	assert len(superreadsc) == 2
 	assert len(superreadsc[0]) == len(superreadsc[1])
 	for v1, v2 in zip(*superreadsc):
@@ -269,131 +270,110 @@ def test_weighted_phasing_single_individual1():
 	"""
 	compare_phasing_single_individual(reads, weights)
 
-#def test_phase_1() :
-	##11110000
-	##00001111
-	##00001110
-	##11110001
-	##11110000
-	##00001110
-	#reads = """
-          #1111
-          #0000
-          #1111
-          #0000
-          #1111
-          #0000
-          #11 1  01
-          #00 0  10          
-          #11 1  00
-          #00 0  11
-          #11 1  00
-          #00 0  10
-            #1 00
-            #0 11
-            #1 00
-            #0 11
-            #1 00
-            #0 11
-        #"""
-	#demarcations=[2,2,1,1,0,0,2,2,1,1,0,0,2,2,1,1,0,0]
-	#recombcost=[10000]*7
-	#compare_phasing(reads, demarcations, recombcost,False)
-	##compare_phasing(reads, False)
-	
-#def test_phase_2() :
-	##11110000
-	##00001111
-	##00001110
-	##11110001
-	##11111111
-	##00001110
-	#reads = """
-          #1111
-          #0000
-          #1111
-          #0000
-          #1111
-          #0000
-          #11 1  01
-          #00 0  10          
-          #11 1  00
-          #00 0  11
-          #11 1  11
-          #00 0  10
-            #1 00
-            #0 11
-            #1 00
-            #0 11
-            #1 11
-            #0 11
-        #"""
-	#demarcations=[2,2,1,1,0,0,2,2,1,1,0,0,2,2,1,1,0,0]
-	#recombcost=[10000]*7
-	#recombcost[3]=0
-	#compare_phasing(reads, demarcations, recombcost,False)
-	
-#def test_phase_3() :
-	##11110000
-	##00001111
-	##00001110
-	##11110001
-	##11110000
-	##00000001
-	#reads = """
-          #1111
-          #0000
-          #1111
-          #0000
-          #1111
-          #0000
-          #11 1  01
-          #00 0  10          
-          #11 1  00
-          #00 0  11
-          #11 1  00
-          #00 0  01
-            #1 00
-            #0 11
-            #1 00
-            #0 11
-            #1 00
-            #0 00
-        #"""
-	#demarcations=[2,2,1,1,0,0,2,2,1,1,0,0,2,2,1,1,0,0]
-	#recombcost=[10000]*7
-	#recombcost[3]=0
-	#compare_phasing(reads, demarcations, recombcost,False)
+
+def test_phase_trio1() :
+	reads = """
+	  M 111
+	  M 010
+	  M 110
+	  F 001
+	  F 110
+	  F 101
+	  C 001
+	  C 010
+	  C 010
+	"""
+	genotypesm = [1,2,1]
+	genotypesf = [1,1,1]
+	genotypesc = [0,1,1]
+	recombcost = [10,10,10]
+	rs, read_marks = string_to_readset_trio(reads)
+	dp_table = DPTable(rs, read_marks, recombcost, genotypesm, genotypesf, genotypesc)
+	assert dp_table.get_optimal_cost() == 2
+	superreadsm, superreadsf, superreadsc, transmission_vector = dp_table.get_super_reads()
+	assert len(set(transmission_vector)) == 1
+	all_expected_haplotypes = [
+		('111','010'),
+		('001','110'),
+		('001','010')
+	]
+	for superreads, expected_haplotypes in zip([superreadsm, superreadsf, superreadsc],all_expected_haplotypes):
+		assert len(superreads) == 2
+		assert len(superreads[0]) == len(superreads[1]) == 3
+		haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
+		assert (haplotypes == (expected_haplotypes[0], expected_haplotypes[1])) or (haplotypes == (expected_haplotypes[1], expected_haplotypes[0]))
 
 
-#def test_phase_4() :
-	##11110000
-	##00001111
-	##00001110
-	##11110001
-	##11111111
-	##00000001
-	#reads = """
-          #1111
-          #0000
-          #1111
-          #0000
-          #1111
-          #0000
-          #11 1  01
-          #00 0  10          
-          #11 1  00
-          #00 0  11
-          #11 1  11
-          #00 0  01
-            #1 00
-            #0 11
-            #1 00
-            #0 11
-            #1 11
-            #0 00
-        #"""
-	#demarcations=[2,2,1,1,0,0,2,2,1,1,0,0,2,2,1,1,0,0]
-	#recombcost=[10000]*8
-	#recombcost[4]=0
-	#compare_phasing(reads, demarcations, recombcost,False)
+def test_phase_trio2() :
+	reads = """
+	  M 0
+	  M 0
+	  F 1
+	  F 1
+	  C 1
+	  C 0
+	"""
+	genotypesm = [2]
+	genotypesf = [0]
+	genotypesc = [1]
+	recombcost = [10,10,10]
+	rs, read_marks = string_to_readset_trio(reads)
+	dp_table = DPTable(rs, read_marks, recombcost, genotypesm, genotypesf, genotypesc)
+	assert dp_table.get_optimal_cost() == 4
+	superreadsm, superreadsf, superreadsc, transmission_vector = dp_table.get_super_reads()
+	assert len(set(transmission_vector)) == 1
+	all_expected_haplotypes = [
+		('1','1'),
+		('0','0'),
+		('0','1')
+	]
+	for superreads in [superreadsm, superreadsf, superreadsc]:
+		for sr in superreads:
+			print(sr)
+	for superreads, expected_haplotypes in zip([superreadsm, superreadsf, superreadsc],all_expected_haplotypes):
+		assert len(superreads) == 2
+		assert len(superreads[0]) == len(superreads[1]) == 1
+		haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
+		assert (haplotypes == (expected_haplotypes[0], expected_haplotypes[1])) or (haplotypes == (expected_haplotypes[1], expected_haplotypes[0]))
+
+
+def test_phase_trio3() :
+	reads = """
+	  M 1111
+	  F 1010
+	  C 111000
+	  C 010101
+	  F 0101
+	  M  0000
+	  F  1010
+	  C  1010
+	  C  1100
+	  M   0000
+	  M   1111
+	  F   1010
+	  F    010
+	"""
+	genotypesm = [1,1,1,1,1,1]
+	genotypesf = [1,1,1,1,1,1]
+	genotypesc = [1,2,1,1,0,1]
+	recombcost = [4,4,4,4,4,4]
+	rs, read_marks = string_to_readset_trio(reads)
+	dp_table = DPTable(rs, read_marks, recombcost, genotypesm, genotypesf, genotypesc)
+	superreadsm, superreadsf, superreadsc, transmission_vector = dp_table.get_super_reads()
+	for superreads in [superreadsm, superreadsf, superreadsc]:
+		for sr in superreads:
+			print(sr)
+	print('Cost:',dp_table.get_optimal_cost())
+	print('Transmission vector:', transmission_vector)
+	assert dp_table.get_optimal_cost() == 4
+	assert transmission_vector in ([0,0,0,1,1,1], [1,1,1,0,0,0], [2,2,2,3,3,3], [3,3,3,2,2,2])
+	all_expected_haplotypes = [
+		('111111','000000'),
+		('010101','101010'),
+		('111000','010101')
+	]
+	for superreads, expected_haplotypes in zip([superreadsm, superreadsf, superreadsc],all_expected_haplotypes):
+		assert len(superreads) == 2
+		assert len(superreads[0]) == len(superreads[1]) == 6
+		haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
+		assert (haplotypes == (expected_haplotypes[0], expected_haplotypes[1])) or (haplotypes == (expected_haplotypes[1], expected_haplotypes[0]))
