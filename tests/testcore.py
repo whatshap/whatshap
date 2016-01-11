@@ -365,6 +365,7 @@ def test_phase_trio3() :
 			print(sr)
 	print('Cost:',dp_table.get_optimal_cost())
 	print('Transmission vector:', transmission_vector)
+	print('Partition:', dp_table.get_optimal_partitioning())
 	assert dp_table.get_optimal_cost() == 4
 	assert transmission_vector in ([0,0,0,1,1,1], [1,1,1,0,0,0], [2,2,2,3,3,3], [3,3,3,2,2,2])
 	all_expected_haplotypes = [
