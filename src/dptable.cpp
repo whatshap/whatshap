@@ -449,8 +449,6 @@ void DPTable::get_super_reads(ReadSet* output_read_setm, ReadSet* output_read_se
 }
 
 vector<bool>* DPTable::get_optimal_partitioning() {
-  throw std::runtime_error("Not yet implemented for trio case");
-
   unique_ptr<vector<index_and_inheritance_t> > index_path = get_index_path();
   vector<bool>* partitioning = new vector<bool>(read_count,false);
 
