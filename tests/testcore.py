@@ -138,162 +138,233 @@ def test_non_existing_read_name2():
 # TODO: Test subset method
 
 
-#def test_phase_empty_readset():
-	#rs = ReadSet()
-	#dp_table = DPTable(rs, all_heterozygous=False)
-	#superreads = dp_table.get_super_reads()
+def test_phase_empty_readset():
+	rs = ReadSet()
+	read_marks = []
+	recombcost = []
+	genotypesm, genotypesf, genotypesc = [], [], []
+	dp_table = DPTable(rs, read_marks, recombcost, genotypesm, genotypesf, genotypesc)
+	superreadsm, superreadsf, superreadsc, transmission_vector = dp_table.get_super_reads()
 
 
-def compare_phasing(reads, demarcations,recombcost,all_heterozygous,weights = None):
+def compare_phasing_single_individual(reads, weights = None):
 	"""Compares DPTable based phasing to brute force phasing and returns string representation of superreads."""
 	rs = string_to_readset(reads, weights)
-	dp_table = DPTable(rs, demarcations,recombcost, all_heterozygous)
-	superreadsm = dp_table.get_super_readsm()
-	superreadsf = dp_table.get_super_readsf()
-	superreadsc = dp_table.get_super_readsc()
-	#assert len(superreads) == 2
-	#assert len(superreads[0]) == len(superreads[1])
-	#for v1, v2 in zip(*superreads):
-	#	assert v1.position == v2.position
-	#haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
+	positions = rs.get_positions()
+	read_marks = [0] * len(rs) # all reads from the child
+	recombcost = [1] * len(positions) # recombination costs 1, should not occur 
+	genotypesm = [1] * len(positions) # all genotypes heterozygous
+	genotypesf = [1] * len(positions) # all genotypes heterozygous
+	genotypesc = [1] * len(positions) # all genotypes heterozygous
+	dp_table = DPTable(rs, read_marks, recombcost, genotypesm, genotypesf, genotypesc)
+	superreadsm, superreadsf, superreadsc, transmission_vector = dp_table.get_super_reads()
+	assert len(superreadsc) == 2
+	assert len(superreadsc[0]) == len(superreadsc[1])
+	for v1, v2 in zip(*superreadsc):
+		assert v1.position == v2.position
+	haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreadsc))
 	cost = dp_table.get_optimal_cost()
-	#partition = dp_table.get_optimal_partitioning()
-	#expected_cost, expected_partition, solution_count, expected_haplotype1, expected_haplotype2 = brute_force_phase(rs, all_heterozygous)
-	#inverse_partition = [1-p for p in partition]
-	#print()
-	#print(superreads[0])
-	#print(superreads[1])
-	#print('Partition:', partition)
-	#print('Expected: ', expected_partition)
-	#print('Haplotypes:')
-	#print(haplotypes[0])
-	#print(haplotypes[1])
-	#print('Expected Haplotypes:')
-	#print(expected_haplotype1)
-	#print(expected_haplotype2)
-	#print('Cost:', cost)
-	#print('Expected cost:', expected_cost)
-	#assert (partition == expected_partition) or (inverse_partition == expected_partition)
-	#assert solution_count == 1
-	#assert cost == expected_cost
-	#assert (haplotypes == (expected_haplotype1, expected_haplotype2)) or (haplotypes == (expected_haplotype2, expected_haplotype1))
-	print(superreadsm)
-	print(superreadsf)
-	print(superreadsc)
-	print(cost)
-	assert(false)
+	partition = dp_table.get_optimal_partitioning()
+	expected_cost, expected_partition, solution_count, expected_haplotype1, expected_haplotype2 = brute_force_phase(rs, True)
+	inverse_partition = [1-p for p in partition]
+	print()
+	print(superreadsc[0])
+	print(superreadsc[1])
+	print('Partition:', partition)
+	print('Expected: ', expected_partition)
+	print('Haplotypes:')
+	print(haplotypes[0])
+	print(haplotypes[1])
+	print('Expected Haplotypes:')
+	print(expected_haplotype1)
+	print(expected_haplotype2)
+	print('Cost:', cost)
+	print('Expected cost:', expected_cost)
+	assert (partition == expected_partition) or (inverse_partition == expected_partition)
+	assert solution_count == 1
+	assert cost == expected_cost
+	assert (haplotypes == (expected_haplotype1, expected_haplotype2)) or (haplotypes == (expected_haplotype2, expected_haplotype1))
 
 
-def test_phase_trivial() :
+def test_phase_single_individual_trivial() :
 	reads = """
-          1111
-          0000
-          0001
-          1111
-          1111
-          0001
+          11
+           1
+           01
         """
-	demarcations=[1,1,2,2,0,0]
-	recombcost=[10000,10000,10000,10000]
-	compare_phasing(reads, demarcations, recombcost,False)
-	#compare_phasing(reads, False)
-	
-def test_phase_1() :
-	#11110000
-	#00001111
-	#00001110
-	#11110001
-	#11110000
-	#00001110
+	compare_phasing_single_individual(reads)
+
+
+def test_phase_single_individual1():
 	reads = """
-          1111
-          0000
-          1111
-          0000
-          1111
-          0000
-          11 1  01
-          00 0  10          
-          11 1  00
-          00 0  11
-          11 1  00
-          00 0  10
-            1 00
-            0 11
-            1 00
-            0 11
-            1 00
-            0 11
-        """
-	demarcations=[2,2,1,1,0,0,2,2,1,1,0,0,2,2,1,1,0,0]
-	recombcost=[10000]*7
-	compare_phasing(reads, demarcations, recombcost,False)
-	#compare_phasing(reads, False)
-	
-def test_phase_2() :
-	#11110000
-	#00001111
-	#00001110
-	#11110001
-	#11111111
-	#00001110
+	 10
+	 010
+	 010
+	"""
+
+
+def test_phase_single_individual2():
 	reads = """
-          1111
-          0000
-          1111
-          0000
-          1111
-          0000
-          11 1  01
-          00 0  10          
-          11 1  00
-          00 0  11
-          11 1  11
-          00 0  10
-            1 00
-            0 11
-            1 00
-            0 11
-            1 11
-            0 11
-        """
-	demarcations=[2,2,1,1,0,0,2,2,1,1,0,0,2,2,1,1,0,0]
-	recombcost=[10000]*7
-	recombcost[3]=0
-	compare_phasing(reads, demarcations, recombcost,False)
-	
-def test_phase_3() :
-	#11110000
-	#00001111
-	#00001110
-	#11110001
-	#11110000
-	#00000001
+	  1  11010
+	  00 00101
+	  001 0101
+	"""
+	compare_phasing_single_individual(reads)
+
+
+def test_phase_single_individual3():
 	reads = """
-          1111
-          0000
-          1111
-          0000
-          1111
-          0000
-          11 1  01
-          00 0  10          
-          11 1  00
-          00 0  11
-          11 1  00
-          00 0  01
-            1 00
-            0 11
-            1 00
-            0 11
-            1 00
-            0 00
-        """
-	demarcations=[2,2,1,1,0,0,2,2,1,1,0,0,2,2,1,1,0,0]
-	recombcost=[10000]*7
-	recombcost[3]=0
-	compare_phasing(reads, demarcations, recombcost,False)
+	  1  11010
+	  00 00101
+	  001 01010
+	"""
+	compare_phasing_single_individual(reads)
+
+
+def test_phase_single_individual4():
+	reads = """
+	  1  11010
+	  00 00101
+	  001 01110
+	   1    111
+	"""
+	compare_phasing_single_individual(reads)
+
+
+def test_phase_single_individual4():
+	reads = """
+	  1  11010
+	  00 00101
+	  001 01110
+	   1    111
+	"""
+	compare_phasing_single_individual(reads)
+
+
+def test_phase_single_individual5():
+	reads = """
+	  0             0
+	  110111111111
+	  00100
+	       0001000000
+	       000
+	        10100
+	              101
+	"""
+	compare_phasing_single_individual(reads)
+
+
+def test_weighted_phasing_single_individual1():
+	reads = """
+	  1  11010
+	  00 00101
+	  001 01110
+	   1    111
+	"""
+	weights = """
+	  2  13112
+	  11 23359
+	  223 56789
+	   2    111
+	"""
+	compare_phasing_single_individual(reads, weights)
+
+#def test_phase_1() :
+	##11110000
+	##00001111
+	##00001110
+	##11110001
+	##11110000
+	##00001110
+	#reads = """
+          #1111
+          #0000
+          #1111
+          #0000
+          #1111
+          #0000
+          #11 1  01
+          #00 0  10          
+          #11 1  00
+          #00 0  11
+          #11 1  00
+          #00 0  10
+            #1 00
+            #0 11
+            #1 00
+            #0 11
+            #1 00
+            #0 11
+        #"""
+	#demarcations=[2,2,1,1,0,0,2,2,1,1,0,0,2,2,1,1,0,0]
+	#recombcost=[10000]*7
+	#compare_phasing(reads, demarcations, recombcost,False)
+	##compare_phasing(reads, False)
 	
+#def test_phase_2() :
+	##11110000
+	##00001111
+	##00001110
+	##11110001
+	##11111111
+	##00001110
+	#reads = """
+          #1111
+          #0000
+          #1111
+          #0000
+          #1111
+          #0000
+          #11 1  01
+          #00 0  10          
+          #11 1  00
+          #00 0  11
+          #11 1  11
+          #00 0  10
+            #1 00
+            #0 11
+            #1 00
+            #0 11
+            #1 11
+            #0 11
+        #"""
+	#demarcations=[2,2,1,1,0,0,2,2,1,1,0,0,2,2,1,1,0,0]
+	#recombcost=[10000]*7
+	#recombcost[3]=0
+	#compare_phasing(reads, demarcations, recombcost,False)
+	
+#def test_phase_3() :
+	##11110000
+	##00001111
+	##00001110
+	##11110001
+	##11110000
+	##00000001
+	#reads = """
+          #1111
+          #0000
+          #1111
+          #0000
+          #1111
+          #0000
+          #11 1  01
+          #00 0  10          
+          #11 1  00
+          #00 0  11
+          #11 1  00
+          #00 0  01
+            #1 00
+            #0 11
+            #1 00
+            #0 11
+            #1 00
+            #0 00
+        #"""
+	#demarcations=[2,2,1,1,0,0,2,2,1,1,0,0,2,2,1,1,0,0]
+	#recombcost=[10000]*7
+	#recombcost[3]=0
+	#compare_phasing(reads, demarcations, recombcost,False)
+
 
 #def test_phase_4() :
 	##11110000
@@ -326,85 +397,3 @@ def test_phase_3() :
 	#recombcost=[10000]*8
 	#recombcost[4]=0
 	#compare_phasing(reads, demarcations, recombcost,False)
-
-#def test_phase1():
-	#reads = """
-	 #10
-	 #010
-	 #010
-	#"""
-	#compare_phasing(reads, True)
-	#compare_phasing(reads, False)
-
-
-#def test_phase2():
-	#reads = """
-	  #1  11010
-	  #00 00101
-	  #001 0101
-	#"""
-	#compare_phasing(reads, True)
-	#compare_phasing(reads, False)
-
-
-#def test_phase3():
-	#reads = """
-	  #1  11010
-	  #00 00101
-	  #001 01010
-	#"""
-	#compare_phasing(reads, True)
-	#compare_phasing(reads, False)
-
-
-#def test_phase4():
-	#reads = """
-	  #1  11010
-	  #00 00101
-	  #001 01110
-	   #1    111
-	#"""
-	#compare_phasing(reads, True)
-	#compare_phasing(reads, False)
-
-
-#def test_phase4():
-	#reads = """
-	  #1  11010
-	  #00 00101
-	  #001 01110
-	   #1    111
-	#"""
-	#compare_phasing(reads, True)
-	#compare_phasing(reads, False)
-
-
-#def test_phase5():
-	#reads = """
-	  #0             0
-	  #110111111111
-	  #00100
-	       #0001000000
-	       #000
-	        #10100
-	              #101
-	#"""
-	#compare_phasing(reads, True)
-	#compare_phasing(reads, False)
-
-
-#def test_weighted_phasing1():
-	#reads = """
-	  #1  11010
-	  #00 00101
-	  #001 01110
-	   #1    111
-	#"""
-	#weights = """
-	  #2  13112
-	  #11 23359
-	  #223 56789
-	   #2    111
-	#"""
-	#compare_phasing(reads, True, weights)
-	#compare_phasing(reads, False, weights)
