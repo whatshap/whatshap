@@ -32,7 +32,9 @@ private:
   // optimal score and its index in the rightmost DP table column
   unsigned int optimal_score;
   unsigned int optimal_score_index;
-  unsigned int optimal_score_array_index;
+  unsigned int optimal_transmission_value;
+  // transmission value preceeding the optimal one (in the column before / in the backtrace)
+  unsigned int previous_transmission_value;
   // index_backtrace_table[c][i][t] indicates the index (=bipartition) in column c from which the
   // i-th entry in the FORWARD projection of column c comes from, assuming a transmission value of t
   std::vector<std::vector<four_uints_t>* > index_backtrace_table;

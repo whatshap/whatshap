@@ -141,8 +141,10 @@ void DPTable::compute_table() {
   indexers.push_back(next_indexer);
   unique_ptr<vector<four_uints_t> > previous_projection_column;
   unique_ptr<vector<four_uints_t> > current_projection_column;
-  four_uints_t running_optimal_score;
-  unsigned int running_optimal_score_index = 0; // optimal score and its index
+  optimal_score = numeric_limits<unsigned int>::max();
+  optimal_score_index = 0;
+  optimal_transmission_value = 0;
+  previous_transmission_value = 0;
   unsigned int nc = column_iterator.get_column_count();
   if ((genotypesm.size() != nc) || (genotypesf.size() != nc) || (genotypesc.size() != nc)) {
     throw std::runtime_error("Genotype vector length mismatch");
@@ -238,9 +240,6 @@ void DPTable::compute_table() {
         cost_computer_1.set_partitioning(iterator->get_partition());
         cost_computer_2.set_partitioning(iterator->get_partition());
         cost_computer_3.set_partitioning(iterator->get_partition());
-        if(next_column.get() == 0) { // only if we're at the last column
-          running_optimal_score_index = iterator->get_index(); // default to first
-        }
       }
 
       // Fetch cost from previous column
@@ -279,9 +278,13 @@ void DPTable::compute_table() {
       // if not last DP column, then update forward projection column and backtrace column
       if (next_column.get() == 0) {
         // update running optimal score index
-        four_uints_t& current_optimal_cost = dp_column[running_optimal_score_index];
-        if(*min_element(begin(final_col_cost), end(final_col_cost)) < *min_element(begin(current_optimal_cost), end(current_optimal_cost))){
-          running_optimal_score_index = iterator->get_index();
+        for (size_t i = 0; i < 4; ++i) {
+          if (final_col_cost[i] < optimal_score) {
+            optimal_score = final_col_cost[i];
+            optimal_score_index = iterator->get_index();
+            optimal_transmission_value = i;
+            previous_transmission_value = min_recomb_index[i];
+          }
         }
       } else {
         unsigned int forward_index = iterator->get_forward_projection();
@@ -303,28 +306,12 @@ void DPTable::compute_table() {
     cout << endl;
 #endif
 
-    if(next_column.get() == 0) { // record optimal score
-      running_optimal_score = dp_column[running_optimal_score_index];
-    }
-
     // add newly computed backtrace_table column
     index_backtrace_table.push_back(index_backtrace_column);
     transmission_backtrace_table.push_back(transmission_backtrace_column);
 
     ++n;
-
   } // end of main loop over columns
-
-  // store optimal score for table at end of computation
-  auto min = numeric_limits<unsigned int>::max();
-  for(unsigned int i = 0; i < 4; ++i) {
-    if(running_optimal_score[i] < min) {
-      min = running_optimal_score[i];
-      optimal_score_array_index = i;
-    }
-  }
-  optimal_score = min;
-  optimal_score_index = running_optimal_score_index;
 }
 
 unsigned int DPTable::get_optimal_score() {
@@ -339,7 +326,7 @@ unique_ptr<vector<index_and_inheritance_t> > DPTable::get_index_path() {
   }
   index_and_inheritance_t v;
   v.index = optimal_score_index;
-  v.inheritance_value = optimal_score_array_index;
+  v.inheritance_value = optimal_transmission_value;
   index_path->at(indexers.size()-1) = v;
   //cout<<"columns"<<indexers.size()<<endl;
   for(size_t i = indexers.size()-1; i > 0; --i) { // backtrack through table
