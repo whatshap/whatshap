@@ -74,52 +74,52 @@ void output_vector_enum(const vector<unsigned int> * v, unsigned int len) {
 }
 #endif
 
-namespace {
-  
-  template<typename T, std::size_t s>
-  array<T, s> compute_final_cost(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
-    array<T, s> result;
-    for(typename array<T,s>::size_type i = 0; i < s; ++i) {
-      unsigned int min = numeric_limits<unsigned int>::max();
-      for(typename array<T,s>::size_type j = 0; j < s; ++j) {
-        unsigned int val;
-        if ((i/2!=j/2) && (i%2!=j%2)) {
-          val = current[i] + prev[j] + 2*penalty;
-        } else if ((i/2!=j/2) || (i%2!=j%2))
+four_uints_t compute_final_cost(four_uints_t& prev, four_uints_t& current, unsigned int penalty) {
+  four_uints_t result;
+  for (size_t i = 0; i < 4; ++i) {
+    unsigned int min = numeric_limits<unsigned int>::max();
+    for (size_t j = 0; j < 4; ++j) {
+      unsigned int val;
+      if ((i/2!=j/2) && (i%2!=j%2)) {
+        val = current[i] + prev[j] + 2*penalty;
+      } else {
+        if ((i/2!=j/2) || (i%2!=j%2)) {
           val = current[i] + prev[j] + penalty;
-        else
+        } else {
           val = current[i] + prev[j];
-        if (val < min) {
-          min = val;
         }
       }
-      result[i] = min;
-    }
-    return result;
-  }
-      
-  template<typename T, std::size_t s>
-  array<T, s> compute_min_index(array<T,s>& prev, array<T,s>& current, unsigned int penalty) {
-    array<T, s> result;
-    for(typename array<T,s>::size_type i = 0; i < s; ++i) {
-      unsigned int min = numeric_limits<unsigned int>::max();
-      for(typename array<T,s>::size_type j = 0; j < s; ++j) {
-        unsigned int val;
-        if ((i/2!=j/2) && (i%2!=j%2)) {
-          val = current[i] + prev[j] + 2*penalty;
-        } else if ((i/2!=j/2) || (i%2!=j%2))
-          val = current[i] + prev[j] + penalty;
-        else
-          val = current[i] + prev[j]; 
-        if (val < min) {
-          min = val;
-          result[i] = j;
-        }
+      if (val < min) {
+        min = val;
       }
     }
-    return result;
+    result[i] = min;
   }
+  return result;
+}
 
+four_uints_t compute_min_index(four_uints_t& prev, four_uints_t& current, unsigned int penalty) {
+  four_uints_t result;
+  for (size_t i = 0; i < 4; ++i) {
+    unsigned int min = numeric_limits<unsigned int>::max();
+    for (size_t j = 0; j < 4; ++j) {
+      unsigned int val;
+      if ((i/2!=j/2) && (i%2!=j%2)) {
+        val = current[i] + prev[j] + 2*penalty;
+      } else {
+        if ((i/2!=j/2) || (i%2!=j%2)) {
+          val = current[i] + prev[j] + penalty;
+        } else {
+          val = current[i] + prev[j];
+        }
+      }
+      if (val < min) {
+        min = val;
+        result[i] = j;
+      }
+    }
+  }
+  return result;
 }
 
 void DPTable::compute_table() {
@@ -292,8 +292,8 @@ void DPTable::compute_table() {
       cout << endl;
 #endif
        
-      auto final_col_cost = compute_final_cost(cost, current_cost, recombcost[n]);
-      auto min_recomb_index=compute_min_index(cost, current_cost, recombcost[n]);
+      four_uints_t final_col_cost = compute_final_cost(cost, current_cost, recombcost[n]);
+      four_uints_t min_recomb_index = compute_min_index(cost, current_cost, recombcost[n]);
       dp_column[iterator->get_index()] = final_col_cost;
       // if not last DP column, then update forward projection column and backtrace column
       if (next_column.get() == 0) {
@@ -312,7 +312,7 @@ void DPTable::compute_table() {
           if(final_col_cost[i] < current_proj_entry[i]) {
             current_proj_entry[i] = final_col_cost[i];
             backtrace_column_entry[i] = it_idx;
-            recombminindex_column_entry[i]=min_recomb_index[i];
+            recombminindex_column_entry[i] = min_recomb_index[i];
           }
         }
       }
