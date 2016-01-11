@@ -14,7 +14,7 @@ using namespace std;
 
 DPTable::DPTable(ReadSet* read_set, vector<unsigned int> read_marks, vector<unsigned int> recombcost, vector<unsigned int> genotypesm, vector<unsigned int> genotypesf, vector<unsigned int> genotypesc)
 : read_set(read_set), read_marks(std::move(read_marks)), recombcost(std::move(recombcost)), genotypesm(std::move(genotypesm)), genotypesf(std::move(genotypesf)), genotypesc(std::move(genotypesc)),  indexers(), optimal_score(0u), optimal_score_index(0u),
- backtrace_table(), forrecomb(),read_count(0u)
+ index_backtrace_table(), transmission_backtrace_table(),read_count(0u)
 {
   read_set->reassignReadIds();
   compute_table();
@@ -26,12 +26,12 @@ DPTable::~DPTable() {
     delete indexers[i];
   }
 
-  for(size_t i=0; i<backtrace_table.size(); ++i) {
-    delete backtrace_table[i];
+  for(size_t i=0; i<index_backtrace_table.size(); ++i) {
+    delete index_backtrace_table[i];
   }
   
-  for(size_t i=0; i<forrecomb.size(); ++i) {
-    delete forrecomb[i];
+  for(size_t i=0; i<transmission_backtrace_table.size(); ++i) {
+    delete transmission_backtrace_table[i];
   }
 }
 
@@ -110,18 +110,18 @@ void DPTable::compute_table() {
     indexers.resize(0);
   }
 
-  if(!backtrace_table.empty()) { // clear backtrace_table, if present
-    for(size_t i=0; i<backtrace_table.size(); ++i) {
-      delete backtrace_table[i];
+  if(!index_backtrace_table.empty()) { // clear backtrace_table, if present
+    for(size_t i=0; i<index_backtrace_table.size(); ++i) {
+      delete index_backtrace_table[i];
     }
-    backtrace_table.resize(0);
+    index_backtrace_table.resize(0);
   }
   
-  if(!forrecomb.empty()) { // clear backtrace_table, if present
-    for(size_t i=0; i<forrecomb.size(); ++i) {
-      delete forrecomb[i];
+  if(!transmission_backtrace_table.empty()) { // clear backtrace_table, if present
+    for(size_t i=0; i<transmission_backtrace_table.size(); ++i) {
+      delete transmission_backtrace_table[i];
     }
-    forrecomb.resize(0);
+    transmission_backtrace_table.resize(0);
   }
 
   // empty read-set, nothing to phase, so MEC score is 0
@@ -175,8 +175,8 @@ void DPTable::compute_table() {
     // reserve memory for the DP column
     four_uints_t null_array = {{0, 0, 0, 0}};
     vector<four_uints_t> dp_column(current_indexer->column_size(), null_array);
-    vector<four_uints_t>* forrecomb_col = nullptr;
-    vector<four_uints_t>* backtrace_column = nullptr;
+    vector<four_uints_t>* transmission_backtrace_column = nullptr;
+    vector<four_uints_t>* index_backtrace_column = nullptr;
     // if not last column, reserve memory for forward projections column
     if (next_column.get() != 0) {
 #ifdef DB
@@ -191,8 +191,8 @@ void DPTable::compute_table() {
         new vector<four_uints_t>(current_indexer->forward_projection_size(), dummy_max_arr)
       );
       // NOTE: forward projection size will always be even
-      forrecomb_col = new vector<four_uints_t>(current_indexer->forward_projection_size(), dummy_max_arr);
-      backtrace_column = new vector<four_uints_t>(current_indexer->forward_projection_size(), dummy_max_arr);
+      transmission_backtrace_column = new vector<four_uints_t>(current_indexer->forward_projection_size(), dummy_max_arr);
+      index_backtrace_column = new vector<four_uints_t>(current_indexer->forward_projection_size(), dummy_max_arr);
     }
 
     // do the actual compution on current column
@@ -243,6 +243,7 @@ void DPTable::compute_table() {
         }
       }
 
+      // Fetch cost from previous column
       four_uints_t cost = {{0, 0, 0, 0}};
       if (previous_projection_column.get() != nullptr) {
         cost = previous_projection_column->at(iterator->get_backward_projection());
@@ -252,6 +253,7 @@ void DPTable::compute_table() {
       cout << iterator->get_backward_projection() << " [" << bit_rep(iterator->get_backward_projection(), current_indexer->get_backward_projection_width()) << "] -> " << cost;
 #endif
 
+      // Compute cost incurred by current cell of DP table
       four_uints_t current_cost = {{ 
         cost_computer_0.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]), 
         cost_computer_1.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]),
@@ -267,29 +269,31 @@ void DPTable::compute_table() {
       }
       cout << endl;
 #endif
-       
+
+      // Compute aggregate cost based on cost in previous and cost in current column
       four_uints_t final_col_cost = {0,0,0,0};
       four_uints_t min_recomb_index = {0,0,0,0};
       compute_final_cost(cost, current_cost, recombcost[n], &final_col_cost, &min_recomb_index);
+      // ... and store it in current DP column
       dp_column[iterator->get_index()] = final_col_cost;
       // if not last DP column, then update forward projection column and backtrace column
       if (next_column.get() == 0) {
         // update running optimal score index
-        auto& current_optimal_cost = dp_column[running_optimal_score_index];
+        four_uints_t& current_optimal_cost = dp_column[running_optimal_score_index];
         if(*min_element(begin(final_col_cost), end(final_col_cost)) < *min_element(begin(current_optimal_cost), end(current_optimal_cost))){
           running_optimal_score_index = iterator->get_index();
         }
       } else {
         unsigned int forward_index = iterator->get_forward_projection();
-        auto& current_proj_entry = (*current_projection_column)[forward_index];
-        auto& backtrace_column_entry = (*backtrace_column)[forward_index];
-        auto& recombminindex_column_entry = (*forrecomb_col)[forward_index];
-        auto it_idx = iterator->get_index();
+        four_uints_t& current_proj_entry = current_projection_column->at(forward_index);
+        four_uints_t& index_backtrace_column_entry = index_backtrace_column->at(forward_index);
+        four_uints_t& transmission_backtrace_column_entry = transmission_backtrace_column->at(forward_index);
+        unsigned int it_idx = iterator->get_index();
         for (unsigned int i = 0; i < 4; ++i) {
           if(final_col_cost[i] < current_proj_entry[i]) {
             current_proj_entry[i] = final_col_cost[i];
-            backtrace_column_entry[i] = it_idx;
-            recombminindex_column_entry[i] = min_recomb_index[i];
+            index_backtrace_column_entry[i] = it_idx;
+            transmission_backtrace_column_entry[i] = min_recomb_index[i];
           }
         }
       }
@@ -304,8 +308,8 @@ void DPTable::compute_table() {
     }
 
     // add newly computed backtrace_table column
-    backtrace_table.push_back(backtrace_column);
-    forrecomb.push_back(forrecomb_col);
+    index_backtrace_table.push_back(index_backtrace_column);
+    transmission_backtrace_table.push_back(transmission_backtrace_column);
 
     ++n;
 
@@ -341,8 +345,8 @@ unique_ptr<vector<index_and_inheritance_t> > DPTable::get_index_path() {
   for(size_t i = indexers.size()-1; i > 0; --i) { // backtrack through table
     unique_ptr<ColumnIndexingIterator> iterator = indexers[i]->get_iterator();
     unsigned int backtrace_index = iterator->index_backward_projection(v.index);
-    v.inheritance_value = forrecomb[i-1]->at(backtrace_index)[v.inheritance_value];
-    v.index = backtrace_table[i-1]->at(backtrace_index)[v.inheritance_value];
+    v.inheritance_value = transmission_backtrace_table[i-1]->at(backtrace_index)[v.inheritance_value];
+    v.index = index_backtrace_table[i-1]->at(backtrace_index)[v.inheritance_value];
      
     index_path->at(i-1) = v;
   }
@@ -374,7 +378,7 @@ void DPTable::get_super_reads(ReadSet* output_read_setm, ReadSet* output_read_se
   Read* r0c = new Read("superread_child0", -1, 0);
   Read* r1c = new Read("superread_child1", -1, 0);
   
-  if (backtrace_table.empty()) {
+  if (index_backtrace_table.empty()) {
     assert(!column_iterator.has_next());
   } else {
     // run through the file again with the column_iterator

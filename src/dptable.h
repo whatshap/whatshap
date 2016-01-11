@@ -33,10 +33,14 @@ private:
   unsigned int optimal_score;
   unsigned int optimal_score_index;
   unsigned int optimal_score_array_index;
-  // backtrace_table[x][i] indicates the index in table x from which the
-  // i-th entry in the forward projection of table x comes from
-  std::vector<std::vector<four_uints_t>* > backtrace_table;
-  std::vector<std::vector<four_uints_t>* > forrecomb;
+  // index_backtrace_table[c][i][t] indicates the index (=bipartition) in column c from which the
+  // i-th entry in the FORWARD projection of column c comes from, assuming a transmission value of t
+  std::vector<std::vector<four_uints_t>* > index_backtrace_table;
+  // let x := index_backtrace_table[c][i][t] and dp[x][t] the corresponding DP entry
+  // and j be the BACKWARD projection of x.
+  // Then t' = transmission_backtrace_table[c][i][t] is the transmission index (from {0,1,2,3})
+  // that gave rise to dp[x][t].
+  std::vector<std::vector<four_uints_t>* > transmission_backtrace_table;
   unsigned int read_count;
   // helper function to pull read ids out of read column
   std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
