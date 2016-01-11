@@ -221,8 +221,8 @@ unsigned int ColumnCostComputer::get_cost(unsigned int genotypem, unsigned int g
     unsigned int allele_f2 = (i >> 3) & 1;
     if (allele_f1 + allele_f2 != genotypef) continue;
     
-    unsigned int allele_c1 = (inheritance_val & 1 == 0)?allele_m1:allele_m2;
-    unsigned int allele_c2 = ((inheritance_val>>1) & 1 == 0)?allele_f1:allele_f2;
+    unsigned int allele_c1 = ((inheritance_val & 1) == 0)?allele_m1:allele_m2;
+    unsigned int allele_c2 = (((inheritance_val>>1) & 1) == 0)?allele_f1:allele_f2;
     if (allele_c1 + allele_c2 != genotypec) continue;
     
     unsigned int cost = cost_partition_m1[allele_m1] + cost_partition_m2[allele_m2] + cost_partition_f1[allele_f1] + cost_partition_f2[allele_f2]; 
