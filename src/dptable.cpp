@@ -325,6 +325,7 @@ unique_ptr<vector<index_and_inheritance_t> > DPTable::get_index_path() {
     return index_path;
   }
   index_and_inheritance_t v;
+  unsigned int prev_inheritance_value = previous_transmission_value;
   v.index = optimal_score_index;
   v.inheritance_value = optimal_transmission_value;
   index_path->at(indexers.size()-1) = v;
@@ -332,9 +333,9 @@ unique_ptr<vector<index_and_inheritance_t> > DPTable::get_index_path() {
   for(size_t i = indexers.size()-1; i > 0; --i) { // backtrack through table
     unique_ptr<ColumnIndexingIterator> iterator = indexers[i]->get_iterator();
     unsigned int backtrace_index = iterator->index_backward_projection(v.index);
-    v.inheritance_value = transmission_backtrace_table[i-1]->at(backtrace_index)[v.inheritance_value];
     v.index = index_backtrace_table[i-1]->at(backtrace_index)[v.inheritance_value];
-     
+    v.inheritance_value = prev_inheritance_value;
+    prev_inheritance_value = transmission_backtrace_table[i-1]->at(backtrace_index)[v.inheritance_value];
     index_path->at(i-1) = v;
   }
 
