@@ -293,7 +293,9 @@ void DPTable::compute_table() {
     //  std::cout<<"prevcost"<<cost[0]<<cost[1]<<cost[2]<<cost[3];
      // std:: cout <<"bla bla"<<cost_computer_3.get_cost()<< cost_computer_1.get_cost()<<
      //   cost_computer_2.get_cost()<< cost_computer_3.get_cost();
-
+      if ((genotypesm.size() <= n) || (genotypesf.size() <= n) || (genotypesc.size() <= n)) {
+        throw std::runtime_error("Insufficient genotype information");
+      }
       array<unsigned int, 4> current_cost = {{ 
         cost_computer_0.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]), 
         cost_computer_1.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]),
