@@ -16,6 +16,8 @@ typedef struct index_and_inheritance_t {
   unsigned int inheritance_value;
 } index_and_inheritance_t;
 
+typedef std::array<unsigned int, 4> four_uints_t;
+
 class DPTable {
 private:
   ReadSet* read_set;
@@ -33,8 +35,8 @@ private:
   unsigned int optimal_score_array_index;
   // backtrace_table[x][i] indicates the index in table x from which the
   // i-th entry in the forward projection of table x comes from
-  std::vector<std::vector<std::array<unsigned int, 4>>* > backtrace_table;
-  std::vector<std::vector<std::array<unsigned int, 4>>* > forrecomb;
+  std::vector<std::vector<four_uints_t>* > backtrace_table;
+  std::vector<std::vector<four_uints_t>* > forrecomb;
   unsigned int read_count;
   // helper function to pull read ids out of read column
   std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);

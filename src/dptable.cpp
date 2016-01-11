@@ -160,9 +160,9 @@ void DPTable::compute_table() {
   unique_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_column);
   ColumnIndexingScheme* next_indexer = new ColumnIndexingScheme(0,*next_read_ids);
   indexers.push_back(next_indexer);
-  unique_ptr<vector<array<unsigned int, 4> > > previous_projection_column;
-  unique_ptr<vector<array<unsigned int, 4> > > current_projection_column;
-  array<unsigned int, 4> running_optimal_score;
+  unique_ptr<vector<four_uints_t> > previous_projection_column;
+  unique_ptr<vector<four_uints_t> > current_projection_column;
+  four_uints_t running_optimal_score;
   unsigned int running_optimal_score_index = 0; // optimal score and its index
   unsigned int nc = column_iterator.get_column_count();
   if ((genotypesm.size() != nc) || (genotypesf.size() != nc) || (genotypesc.size() != nc)) {
@@ -194,10 +194,10 @@ void DPTable::compute_table() {
       next_indexer = 0;
     }
     // reserve memory for the DP column
-    array<unsigned int, 4> null_array = {{0, 0, 0, 0}};
-    vector<array<unsigned int, 4>> dp_column(current_indexer->column_size(), null_array);
-    vector<array<unsigned int, 4>>* forrecomb_col = nullptr;
-    vector<array<unsigned int, 4>>* backtrace_column = nullptr;
+    four_uints_t null_array = {{0, 0, 0, 0}};
+    vector<four_uints_t> dp_column(current_indexer->column_size(), null_array);
+    vector<four_uints_t>* forrecomb_col = nullptr;
+    vector<four_uints_t>* backtrace_column = nullptr;
     // if not last column, reserve memory for forward projections column
     if (next_column.get() != 0) {
 #ifdef DB
@@ -207,12 +207,12 @@ void DPTable::compute_table() {
       cout << "forward projection width : " << current_indexer->get_forward_projection_width() << endl << endl;
 #endif
 
-    array<unsigned int, 4> dummy_max_arr = {{numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max() }};
-    current_projection_column = unique_ptr<vector<array<unsigned int, 4>> >(
-      new vector<array<unsigned int, 4>>(current_indexer->forward_projection_size(), dummy_max_arr));
+    four_uints_t dummy_max_arr = {{numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max() }};
+    current_projection_column = unique_ptr<vector<four_uints_t> >(
+      new vector<four_uints_t>(current_indexer->forward_projection_size(), dummy_max_arr));
       // NOTE: forward projection size will always be even
-      forrecomb_col = new vector<array<unsigned int, 4>>(current_indexer->forward_projection_size(), dummy_max_arr);
-      backtrace_column = new vector<array<unsigned int, 4>>(current_indexer->forward_projection_size(), dummy_max_arr);
+      forrecomb_col = new vector<four_uints_t>(current_indexer->forward_projection_size(), dummy_max_arr);
+      backtrace_column = new vector<four_uints_t>(current_indexer->forward_projection_size(), dummy_max_arr);
     }
 
     // do the actual compution on current column
@@ -263,7 +263,7 @@ void DPTable::compute_table() {
         }
       }
 
-      array<unsigned int, 4> cost = {{0, 0, 0, 0}};
+      four_uints_t cost = {{0, 0, 0, 0}};
       auto* prev_col_ptr = previous_projection_column.get();
       if (prev_col_ptr != nullptr) {
         auto& prev_col_entry = (*prev_col_ptr)[iterator->get_backward_projection()];
@@ -276,7 +276,7 @@ void DPTable::compute_table() {
       cout << iterator->get_backward_projection() << " [" << bit_rep(iterator->get_backward_projection(), current_indexer->get_backward_projection_width()) << "] -> " << cost;
 #endif
 
-      array<unsigned int, 4> current_cost = {{ 
+      four_uints_t current_cost = {{ 
         cost_computer_0.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]), 
         cost_computer_1.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]),
         cost_computer_2.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]),
