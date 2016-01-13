@@ -444,20 +444,29 @@ def check_for_connectivity(read_positions, List_of_connections, connectivity):
 				connections.append((i_c, union_of_those_sets))
 				connection_found = True
 
-		#Could only occure in this setting
+
+###first approach
 		if connection_found:
 			list_of_actual_found_indices=[]
 			for (ic, union) in connections:
-				actual_index_of_element = List_of_connections.index(union)
+				actual_index_of_element = ic
 				#means we have a set which occures more than once in the connection list
 				if actual_index_of_element in list_of_actual_found_indices:
 					List_of_connections.remove(union)
 					#If the former foubnd index is higher as the length then there was already a removal so it has not to
 					#be considered again
+					if (ic==List_of_connections.index(union)):
+						print('ic is equal to the List of connections.index')
+					else:
+						print('Some other stuff ')
 					if (ic<=len(List_of_connections)):
-						new_actual_index_of_element=List_of_connections.index(union)
+						new_actual_index_of_element=ic
 						(List_of_connections,index)=union_sets(new_actual_index_of_element, List_of_connections, connectivity)
 				else:
+					if (ic==List_of_connections.index(union)):
+						print('ic is equal to the List of connections.index')
+					else:
+						print('Some other stuff ')
 					(List_of_connections,index)=union_sets(actual_index_of_element, List_of_connections, connectivity)
 				list_of_actual_found_indices.append(actual_index_of_element)
 
@@ -470,6 +479,76 @@ def check_for_connectivity(read_positions, List_of_connections, connectivity):
 		List_of_connections.append(read_positions)
 
 	return List_of_connections
+
+
+#New approach
+		#Could only occure in this setting
+#		if connection_found:
+#			list_of_actual_found_indices=[]
+#			for (ic, union) in connections:
+#				actual_index_of_element=0
+#				#l_l=[82913642, 82913775, 82913781, 82913629, 82913855]
+#				#if union == set(l_l):
+#				#	print('FOUND WHERE ERROR THROWN ')
+#				#	print(read_positions)
+#				#	print(List_of_connections)
+#				#	print(ic)
+#				#	print(connections)
+#
+#			#Need to check it in another way the actual index of element
+#				for el,i in enumerate(List_of_connections):
+#					print(el)
+#					if not isinstance( el, int ) and el!=0:
+#						el_list=[]
+#						for element in el:
+#							el_list.append(element)
+#						first_set=set(el_list)
+#					else:
+#						if el!=0:
+#							first_set= set()
+#							first_set.add(el)
+#						else:
+#							first_set=set()
+#
+#
+#					#first_set= set(el_list)
+#					#second_set=set(l_l)
+#					if union.issubset(first_set):
+#						#actual_index_of_element=List_of_connections.index(el)
+#						actual_index_of_element=i
+#						print('In if subset case with i %d'%i)
+#						print(union)
+#						print(first_set)
+#						print(read_positions)
+#					#print('Found the following actual index of elemtns by for loop  %d' %actual_index_of_element)
+#
+#					if actual_index_of_element==0:
+#						print('In if case where the actual index is still setted to 0 %d'%i_c)
+#						print(read_positions)
+#						print(first_set)
+#						print(union)
+#						actual_index_of_element = List_of_connections.index(union)
+#				#means we have a set which occures more than once in the connection list
+#				if actual_index_of_element in list_of_actual_found_indices:
+#					List_of_connections.remove(union)
+#					#If the former foubnd index is higher as the length then there was already a removal so it has not to
+#					#be considered again
+#					if (ic<=len(List_of_connections)):
+#						new_actual_index_of_element=List_of_connections.index(union)
+#						(List_of_connections,index)=union_sets(new_actual_index_of_element, List_of_connections, connectivity)
+#				else:
+#					(List_of_connections,index)=union_sets(actual_index_of_element, List_of_connections, connectivity)
+#				list_of_actual_found_indices.append(actual_index_of_element)
+#
+#		else:
+#			#In Order to remove double occurences
+#			if read_positions not in List_of_connections:
+#				List_of_connections.append(read_positions)
+#	else:
+#		#Add the first set if list is still empty
+#		List_of_connections.append(read_positions)
+#
+#	return List_of_connections
 
 #First randomized approach for switching between the different possible read selection approaches.
 #Because in this approach only slices[0] is used and the IndexSet is in the following not exposed to the Python world,
