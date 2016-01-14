@@ -246,18 +246,18 @@ def main():
 
 	truth = read_truth_vcf(open(args.truthvcf))
 	
-	print('Read {} heterozygous SNPs from file with true phasing'.format(len(truth)))
+	print('Read {} heterozygous SNPs from file with true phasing'.format(len(truth)), file=sys.stderr)
 	
 	phased, unphased, FP, FN, phased_blocks = read_phased_vcf(open(args.predictedvcf), truth)
 	
-	print('Found {} false positive (FP) heterozygous SNPs, i.e. heterozygous in predictions but absent or homozygous in truth'.format(FP))
-	print('There are {} false negative (FN) heterozygous SNPs, i.e. absent or homozygous in predictions but heterozygous in truth'.format(FN))
-	print('Retained {} heterozygous SNPs from file with predicted phasing, out of which:'.format(phased+unphased))
+	print('Found {} false positive (FP) heterozygous SNPs, i.e. heterozygous in predictions but absent or homozygous in truth'.format(FP), file=sys.stderr)
+	print('There are {} false negative (FN) heterozygous SNPs, i.e. absent or homozygous in predictions but heterozygous in truth'.format(FN), file=sys.stderr)
+	print('Retained {} heterozygous SNPs from file with predicted phasing, out of which:'.format(phased+unphased), file=sys.stderr)
 	
-	print('  phased SNPs: {}'.format(phased))
-	print('  unphased SNPs: {}'.format(unphased))
-	print('  number of blocks: {}'.format(len(phased_blocks)))
-	print('    --> unphasable due to being first in a block: {}'.format(len(phased_blocks)))
+	print('  phased SNPs: {}'.format(phased), file=sys.stderr)
+	print('  unphased SNPs: {}'.format(unphased), file=sys.stderr)
+	print('  number of blocks: {}'.format(len(phased_blocks)), file=sys.stderr)
+	print('    --> unphasable due to being first in a block: {}'.format(len(phased_blocks)), file=sys.stderr)
 	
 	block_list = list(phased_blocks.keys())
 	block_list.sort()
@@ -285,15 +285,15 @@ def main():
 		assert unphasable1 == 1
 		assert ambiguous1 == 0
 		if args.verbose:
-			print('-'*100)
-			print('Block ID:', block_id)
-			print('True block:     ', truehap[0])
-			print('Predicted block:', predhap[0])
-			print("Phasings:", ''.join(phasings))
-			print("Correctly phased: ", correct1)
-			print("Unphasable (due to gaps or breaks): ", unphasable1)
-			print("Switch errors: ", switches1)
-			print("Flip errors: ", flips)
+			print('-'*100, file=sys.stderr)
+			print('Block ID:', block_id, file=sys.stderr)
+			print('True block:     ', truehap[0], file=sys.stderr)
+			print('Predicted block:', predhap[0], file=sys.stderr)
+			print("Phasings:", ''.join(phasings), file=sys.stderr)
+			print("Correctly phased: ", correct1, file=sys.stderr)
+			print("Unphasable (due to gaps or breaks): ", unphasable1, file=sys.stderr)
+			print("Switch errors: ", switches1, file=sys.stderr)
+			print("Flip errors: ", flips, file=sys.stderr)
 			#print("Truth hetero, but predicted homo: ", homoerrors1)
 			#print("Truth homo, but predicted hetero: ", heteroerrors1)
 		correct_total += correct1
@@ -301,13 +301,15 @@ def main():
 		flips_total += flips
 		homoerrors_total += homoerrors1
 		heteroerrors_total += heteroerrors1
-	print('='*100)
-	print('Evaluation of blocks:')
-	print('Number of blocks with at least 2 SNPs:', blocks_larger_1)
-	print("Correctly phased: ", correct_total)
-	print("Switch errors: ", switches_total)
-	print("Flip errors: ", flips_total)
+	print('='*100, file=sys.stderr)
+	print('Evaluation of blocks:', file=sys.stderr)
+	print('Number of blocks with at least 2 SNPs:', blocks_larger_1, file=sys.stderr)
+	print("Correctly phased: ", correct_total, file=sys.stderr)
+	print("Switch errors: ", switches_total, file=sys.stderr)
+	print("Flip errors: ", flips_total, file=sys.stderr)
 	assert homoerrors_total == heteroerrors_total == 0
+	print('#filename', 'phased', 'unphased', ' len(phased_blocks)', 'blocks_larger_1', 'correct_total', 'switches_total', 'flips_total')
+	print(args.predictedvcf, phased, unphased,  len(phased_blocks), blocks_larger_1, correct_total, switches_total, flips_total)
 	#print("Truth hetero, but predicted homo: ", homoerrors_total)
 	#print("Truth homo, but predicted hetero: ", heteroerrors_total)
 
