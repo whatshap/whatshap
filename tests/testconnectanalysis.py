@@ -1,6 +1,6 @@
 from phasingutils import string_to_readset
 from whatshap.core import readselection
-from whatshap.connect_analysis import  Element,read_positions_graph
+from whatshap.connect_analysis import  Element,read_positions_graph,Connect_comp,make_component
 
 
 
@@ -110,5 +110,51 @@ def test_graph_paired_end():
     assert weight_2==1
     assert weight_3==2
     #assert 0==1
+
+
+def test_component_construction():
+    reads = string_to_readset("""
+      11 11
+      0 0000
+       11  11
+    """)
+    read_graph= read_positions_graph(reads)
+    nodes=read_graph.get_nodes()
+    factor=2
+    assert len(nodes)==3
+    edges=read_graph.get_edges()
+    assert len(edges)==3
+    node_component_0=make_component( nodes[0],read_graph,factor)
+    node_component_1=make_component(nodes[1],read_graph,factor)
+    node_component_2=make_component(nodes[2],read_graph,factor)
+
+    assert node_component_0.get_length()==4
+    assert node_component_1.get_length()==5
+    assert node_component_2.get_length()==4
+
+    assert node_component_0.get_positions()=={10,20,40,50}
+    assert node_component_1.get_positions()=={10,30,40,50,60}
+    assert node_component_2.get_positions()=={20,30,60,70}
+
+    assert len (node_component_0.get_stored_for_later())==1
+    assert node_component_0.get_stored_for_later().pop()== nodes[2]
+    assert node_component_0.get_blocks()=={3:1}
+
+
+
+    assert len(node_component_1.get_stored_for_later())==0
+    assert node_component_1.get_blocks()=={2: 1, 3: 1}
+
+
+
+    assert len (node_component_2.get_stored_for_later())==1
+    assert node_component_2.get_stored_for_later().pop()== nodes[0]
+    assert node_component_2.get_blocks()=={2:1}
+
+
+
+
+    assert 0==1
+
 
 

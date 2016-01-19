@@ -103,7 +103,7 @@ def test_connectivity_1_analysis():
  	      00
  	""")
      #connectivity =1 as second factor
-     analyze_readset(reads, 1, 1, 0)
+     analyze_readset(reads, 1, 1, 0, '/home/sarah/For_test_output/Searching_bug_analyzefile.txt')
      read_positions_r1=[10,20]
      read_positions_r2=[20,30]
      read_positions_r3=[20,30,40]
@@ -152,7 +152,7 @@ def test_connectivity_2_analysis():
  	      00
  	""")
      #connectivity =1 as second factor
-     analyze_readset(reads, 1, 2, 0)
+     analyze_readset(reads, 1, 2, 0,'/home/sarah/For_test_output/Searching_bug_analyzefile.txt')
      read_positions_r1=[10,20]
      read_positions_r2=[20,30]
      read_positions_r3=[20,30,40]
@@ -204,7 +204,7 @@ def test_connectivity_3_analysis():
  	      00
  	""")
      #connectivity =1 as second factor
-     analyze_readset(reads, 1, 3, 0)
+     analyze_readset(reads, 1, 3, 0,'/home/sarah/For_test_output/Searching_bug_analyzefile.txt')
      read_positions_r1=[10,20]
      read_positions_r2=[20,30]
      read_positions_r3=[20,30,40]
@@ -272,9 +272,9 @@ def test_connectivity_paired_end_1_analysis():
  	  1    1
  	""")
      #connectivity =1 as second factor
-     analyze_readset(reads, 1, 1, 0)
-     analyze_readset(reads, 1, 2, 0)
-     analyze_readset(reads, 1, 3, 0)
+     analyze_readset(reads, 1, 1, 0,'/home/sarah/For_test_output/Searching_bug_analyzefile.txt')
+     analyze_readset(reads, 1, 2, 0,'/home/sarah/For_test_output/Searching_bug_analyzefile.txt')
+     analyze_readset(reads, 1, 3, 0,'/home/sarah/For_test_output/Searching_bug_analyzefile.txt')
      read_positions_r1=[10,40]
      read_positions_r2=[10,20]
      read_positions_r3=[10,50]
@@ -395,6 +395,8 @@ def test_connection_by_deleting_elements():
      assert len(List_of_connection[0])==2
      assert len(List_of_connection[1])==3
      assert len(List_of_connection[2])==2
+
+     #TODO there is an error
      List_of_connection=check_for_connectivity(set(read_positions_r4),List_of_connection,connectivity)
      assert len(List_of_connection)==1
      assert len(List_of_connection[0])==5

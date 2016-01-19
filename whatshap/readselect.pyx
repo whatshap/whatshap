@@ -38,7 +38,7 @@ cdef priority_type_ptr _update_score_for_reads(priority_type_ptr former_score, R
 	result.push_back(quality)
 	return result
 
-#TODO nor working method here
+#TODO not working method here
 def _compute_score_depending_on_quality_only (readset,index,vcf_indices):
 	'''Method which computes anothe readscore depending only in the quality,mor precisely the
 	score of the read is the average quality in the read over all SNP positions covered by the read'''
@@ -140,7 +140,8 @@ cdef priority_type_ptr _compute_score_including_map_qual(ReadSet* readset, int i
 	result.push_back(score)
 	return result
 
-
+# TODO New Idea for combi situation... Add a factor for paired end, to add them first, if the number of covered positions and
+ #the the quality is equal to single end reads
 
 
 

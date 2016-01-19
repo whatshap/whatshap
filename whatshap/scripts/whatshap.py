@@ -622,7 +622,7 @@ def slice_reads_random(reads, max_coverage):
 
 
 
-def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout):
+def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.stdout):
 	'''
 	:param sliced_reads: selected readset
 	:param list_of_bam: optimally for every included bam file the number of reads, which are selected out of this bam file

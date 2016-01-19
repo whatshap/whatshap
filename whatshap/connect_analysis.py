@@ -19,8 +19,11 @@ class Element:
         self.index=i
         #include connections, or edges (Element,w) means edge to Element with weight w
         self.connections=[]
+        #To which component this node is included
+        self.component=None
 
     def add_connection(self,Element,w):
+        #Connection=edge
         self.connections.append((Element,w))
 
     def get_positions(self):
@@ -37,6 +40,12 @@ class Element:
 
     def get_connections(self):
         return self.connections
+
+    def get_component(self):
+        return  self.component
+
+    def set_component(self,component):
+        self.component=component
 
     #Difference between equal element and equal by sorting
     def equal_element(self,node):
@@ -167,3 +176,108 @@ class read_positions_graph:
     def get_nodes(self):
         return self.nodes
 
+    def add_components(self,comp):
+        #comp is an disjoint element
+        self.components.append(comp)
+
+class Connect_comp:
+    #First each detected node is a connected comp, and then merged....
+    #if there is no merge then the node remains in the not visited state and later analysed
+
+    #Items = included_nodes: nodes in the connected components
+    # blocks: dictionary of  keys (which are the degrees of the edges) and the values is the number of edges of this degree
+    #           in the component
+    #stored_for_later: Neighbour nodes, which in the first approach are not added, are stored there to later look again to them
+    #Analyze_nodes: Nodes which need to be analyzed in the BFS approach
+    #Length : Number of positions in the connected component
+    #max = maximal position
+    #min = min position
+
+
+
+
+    def __init__(self,node,factor):
+        #Initilaize the component, by the actual node and analyze depending on the factor if the neighbours need to be
+        #stored for later or analyzed
+        self.positions=node.get_positions() # set
+        self.included_nodes =[node]
+        self.stored_for_later=[]
+        self.analyze_nodes=[]
+        self.blocks={}
+        neighbours=node.get_connections()
+
+        for (element,w) in neighbours:
+            if w>=factor:
+                self.analyze_nodes.append(element)
+                self.blocks[w]=1
+            else:
+                self.stored_for_later.append(element)
+        #blocks store the number of connection between reads,depending on the degree w
+        self.length= len(self.positions)
+        self.max=max(self.positions)
+        self.min=min(self.positions)
+
+
+    def update_component(self,node):
+        #node added to the actual component
+        new_position=node.get_positions()
+        #just union them
+        self.positions=self.positions.union(new_position)
+        self.included_nodes.append(node)
+        self.length= len(self.positions)
+        self.max=max(self.positions)
+        self.min=min(self.positions)
+
+    def expand_component(self,node,factor):
+        #Expand the component by the neighbours of the given node
+        neighbours=node.get_connections()
+        for (element,w) in neighbours:
+            if w>=factor:
+                self.analyze_nodes.append(element)
+                self.blocks[w]+=1
+            else:
+                self.stored_for_later.append(element)
+
+    def get_length(self):
+        return self.length
+
+    def get_positions(self):
+        return self.positions
+
+    def get_included_nodes(self):
+        return self.included_nodes
+
+    def get_analyze_nodes(self):
+        return self.analyze_nodes
+
+    def get_blocks(self):
+        return self.blocks
+
+    def get_stored_for_later(self):
+        return self.stored_for_later
+
+    def get_min(self):
+        return self.min
+
+    def get_max(self):
+        return self.max
+
+#def BFS_search_in_read_graph(read_graph,connect_factor):
+#    nodes=read_graph.get_nodes()
+#    edges=read_graph.get_edges()
+
+
+#def recursion_step(node,factor):
+#    neighbours=node.get_connections()
+#    component=node.get_component()
+#    need_to_add=[(sec_node,weight) for (sec_node,weight) in neighbours if weight>=factor]
+#    need_to_be_stored = [sec_node for (sec_node,weight) in neighbours if weight<factor]
+#    component.add_stored(need_to_be_stored)
+#    while len(need_to_add)!=0:
+#        (connected_node,w)=need_to_add.pop()
+#        connected_node.add_component(component)
+#        component.update(connected_node.w)
+
+def make_component(node,graph,factor):
+    new_component=Connect_comp(node,factor)
+    return new_component
