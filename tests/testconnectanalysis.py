@@ -124,6 +124,7 @@ def test_component_construction():
     assert len(nodes)==3
     edges=read_graph.get_edges()
     assert len(edges)==3
+    #Each node one component
     node_component_0=make_component( nodes[0],read_graph,factor)
     node_component_1=make_component(nodes[1],read_graph,factor)
     node_component_2=make_component(nodes[2],read_graph,factor)
@@ -135,6 +136,14 @@ def test_component_construction():
     assert node_component_0.get_positions()=={10,20,40,50}
     assert node_component_1.get_positions()=={10,30,40,50,60}
     assert node_component_2.get_positions()=={20,30,60,70}
+
+    assert node_component_0.get_min()==10
+    assert node_component_1.get_min()==10
+    assert node_component_2.get_min()==20
+
+    assert node_component_0.get_max()==50
+    assert node_component_1.get_max()==60
+    assert node_component_2.get_max()==70
 
     assert len (node_component_0.get_stored_for_later())==1
     assert node_component_0.get_stored_for_later().pop()== nodes[2]
@@ -152,9 +161,22 @@ def test_component_construction():
     assert node_component_2.get_blocks()=={2:1}
 
 
+    assert node_component_0.get_included_nodes().pop()==nodes[0]
+    assert node_component_0.get_analyze_nodes()[0]==nodes[1]
+    assert len(node_component_0.get_analyze_nodes())==1
 
 
-    assert 0==1
+    assert node_component_1.get_included_nodes().pop()==nodes[1]
+    assert node_component_1.get_analyze_nodes()[0]==nodes[0]
+    assert node_component_1.get_analyze_nodes()[1]==nodes[2]
+    assert len(node_component_1.get_analyze_nodes())==2
+
+
+    assert node_component_2.get_included_nodes().pop()==nodes[2]
+    assert node_component_2.get_analyze_nodes()[0]==nodes[1]
+    assert len(node_component_2.get_analyze_nodes())==1
+
+
 
 
 
