@@ -1,3 +1,5 @@
+import copy
+
 """
 Connectivity analysis:
 want to implement a graph, where the nodes are the reads, here called element, which store the covered positions
@@ -219,6 +221,7 @@ class Connect_comp:
 
 
     def update_component(self,node):
+        print('in update method')
         #node added to the actual component
         new_position=node.get_positions()
         #just union them
@@ -228,15 +231,24 @@ class Connect_comp:
         self.max=max(self.positions)
         self.min=min(self.positions)
 
-    def expand_component(self,node,factor):
+    def expand_component(self,node,factor,not_seen_list):
         #Expand the component by the neighbours of the given node
+        print('In expansion mode')
         neighbours=node.get_connections()
+        #TODO need to consider here, that the element positions, which at first iteration was w could have raised
+        #because the component is now bigger than before...
         for (element,w) in neighbours:
-            if w>=factor:
+            if (w>=factor and element in not_seen_list):
                 self.analyze_nodes.append(element)
-                self.blocks[w]+=1
+                if element in self.stored_for_later:
+                    self.stored_for_later.remove(element)
+                if w not in self.blocks.keys():
+                    self.blocks[w]=1
+                else:
+                    self.blocks[w]+=1
             else:
-                self.stored_for_later.append(element)
+                if element in not_seen_list:
+                    self.stored_for_later.append(element)
 
     def get_length(self):
         return self.length
@@ -262,22 +274,93 @@ class Connect_comp:
     def get_max(self):
         return self.max
 
-#def BFS_search_in_read_graph(read_graph,connect_factor):
-#    nodes=read_graph.get_nodes()
-#    edges=read_graph.get_edges()
 
-
-#def recursion_step(node,factor):
-#    neighbours=node.get_connections()
-#    component=node.get_component()
-#    need_to_add=[(sec_node,weight) for (sec_node,weight) in neighbours if weight>=factor]
-#    need_to_be_stored = [sec_node for (sec_node,weight) in neighbours if weight<factor]
-#    component.add_stored(need_to_be_stored)
-#    while len(need_to_add)!=0:
-#        (connected_node,w)=need_to_add.pop()
-#        connected_node.add_component(component)
-#        component.update(connected_node.w)
-
-def make_component(node,graph,factor):
+def make_component_2(node,graph,factor):
     new_component=Connect_comp(node,factor)
+    #marks node as seen
+
+    not_seen_list=copy.deepcopy(graph.get_nodes())
+    not_seen_list.remove(node)
+    already_seen_list=[node]
+
+    new_nodes_to_analyze=copy.deepcopy(new_component.get_analyze_nodes())
+    # TODO : Here copied the list because otherwise it is extended in the while loop - later recursive
+    while len (new_nodes_to_analyze)!=0:
+        print('In while loop')
+        ana_node=new_nodes_to_analyze.pop()
+        new_component.update_component(ana_node)
+        new_component.expand_component(ana_node,factor,not_seen_list)
+        already_seen_list.append(ana_node)
+        not_seen_list.remove(ana_node)
+
+
     return new_component
+
+def Find_connected_component_of_this_node(actual_node,graph,factor, not_seen_list):
+    #Gets a node and computes based on this node the connected component this node is in...
+    component_found=False
+    new_component=Connect_comp(actual_node,factor)
+    print('After initialization of conComp - ')
+    print(new_component.get_included_nodes()[0].get_positions())
+    neighbour_nodes=new_component.get_analyze_nodes()
+    while ((len(neighbour_nodes)!=0) and (len(new_component.get_stored_for_later())!=0)):
+        while len(neighbour_nodes)!=0:
+            print('Not seen list')
+            print(not_seen_list)
+            print('In while loop')
+            ana_node=neighbour_nodes.pop()
+            print('Ananode')
+            print(ana_node.get_positions())
+            new_component.update_component(ana_node)
+            new_component.expand_component(ana_node,factor,not_seen_list)
+            print(ana_node.get_positions())
+            not_seen_list.remove(ana_node)
+            ana_node.set_component(new_component)
+        component_found=True
+        #Need to extend the component by the stored_for_later
+        further_anylszed_nodes=new_component.get_stored_for_later()
+        com_pos=new_component.get_positions()
+        if len(new_component.get_stored_for_later()) !=0:
+            #check if something has changed looking at the component.
+            while len(new_component.get_stored_for_later())!=0:
+                print('In while of stored')
+                analyzenode=new_component.get_stored_for_later().pop()
+                pos_of_node=analyzenode.get_positions()
+                #Wenn höhere übereinstimmung stattfindet...
+                if (len(pos_of_node.insersection(com_pos))>=factor):
+                    new_component.update_component(analyzenode)
+                    new_component.expand_component(analyzenode,factor,not_seen_list)
+                    not_seen_list.remove(analyzenode)
+                    analyzenode.set_component(new_component)
+
+
+
+
+    print('STORED FOR LATER ')
+    print(new_component.get_stored_for_later())
+
+    print(new_component.get_positions())
+    print(new_component.get_included_nodes())
+
+    return component_found,not_seen_list,new_component
+
+def find_components_of_graph(graph,factor):
+    #Gets the graph and the connection factor as input and computes for the graph the connected components.
+    not_seen_list=copy.deepcopy(graph.get_nodes())
+    #Till all nodes are assigned to a component
+    while len(not_seen_list)!=0:
+        component_found=False
+        print('In NOT SEEN LISt WHILE LOOP')
+        #get one node for analysis, is even removed from not seen list
+        actual_node=not_seen_list.pop()
+        print('Actual Node positions')
+        print(actual_node.get_positions())
+        component_found,not_seen_list,component=Find_connected_component_of_this_node(actual_node,graph,factor, not_seen_list)
+        if component_found:
+            #Add component to the graph..
+            graph.add_components(component)
+
+    return graph.get_components()
+
+
+
