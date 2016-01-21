@@ -1,6 +1,6 @@
 from phasingutils import string_to_readset
 from whatshap.core import readselection
-from whatshap.connect_analysis import  Element,read_positions_graph,Connect_comp,make_component
+from whatshap.connect_analysis import  Element,read_positions_graph,Connect_comp,make_component_2,find_components_of_graph
 
 
 
@@ -125,9 +125,9 @@ def test_component_construction():
     edges=read_graph.get_edges()
     assert len(edges)==3
     #Each node one component
-    node_component_0=make_component( nodes[0],read_graph,factor)
-    node_component_1=make_component(nodes[1],read_graph,factor)
-    node_component_2=make_component(nodes[2],read_graph,factor)
+    node_component_0=Connect_comp( nodes[0],factor)
+    node_component_1=Connect_comp(nodes[1],factor)
+    node_component_2=Connect_comp(nodes[2],factor)
 
     assert node_component_0.get_length()==4
     assert node_component_1.get_length()==5
@@ -177,6 +177,150 @@ def test_component_construction():
     assert len(node_component_2.get_analyze_nodes())==1
 
 
+def test_component_construction_second_part():
+    reads = string_to_readset("""
+      11 11
+      0 0000
+       11  11
+    """)
+    read_graph= read_positions_graph(reads)
+    nodes=read_graph.get_nodes()
+    factor=2
+    assert len(nodes)==3
+    edges=read_graph.get_edges()
+    assert len(edges)==3
+    #Each node one component
+    node_component_0=make_component_2( nodes[0],read_graph,factor)
+    #test update method
+    assert node_component_0.get_positions()=={10,20,30,40,50,60}
+    assert len(node_component_0.get_included_nodes())==2
+    assert node_component_0.get_included_nodes()[0]==nodes[0]
+    assert node_component_0.get_included_nodes()[1]==nodes[1]
+    assert node_component_0.get_length()==6
+    assert node_component_0.get_max()==60
+    assert node_component_0.get_min()==10
+    #test expansion method
+    #should be added
+    assert node_component_0.get_analyze_nodes().pop()==nodes[2]
+    #TODo if the assert is TRUE this has to be changed because not in both,,,,
+    assert len(node_component_0.get_stored_for_later())==0
+    assert node_component_0.get_blocks()=={2: 1, 3: 1}
 
 
 
+def test_find_connected_component():
+    reads = string_to_readset("""
+      11 11
+      0 0000
+       11  11
+    """)
+    read_graph= read_positions_graph(reads)
+    factor=2
+    components=find_components_of_graph(read_graph,factor)
+    assert len(components)==1
+    only_com=components.pop()
+    assert len(only_com.get_included_nodes())==3
+    #print(components)
+
+
+def test_accumulation_of_nodes():
+    reads = string_to_readset("""
+      11111
+       0000
+        11111
+         11  1
+          00000
+    """)
+    read_graph= read_positions_graph(reads)
+    factor=3
+    components=find_components_of_graph(read_graph,factor)
+    assert len(components)==1
+    only_component=components.pop()
+    assert len(only_component.get_included_nodes())==5
+    assert only_component.get_length()==9
+    assert only_component.get_max()==90
+    assert only_component.get_min()==10
+    assert len(only_component.get_stored_for_later())==0
+    assert len(only_component.get_analyze_nodes())==0
+
+def test_two_components():
+    reads = string_to_readset("""
+       00000
+         000
+      111
+         000
+           11111
+             00000
+    """)
+    factor=2
+    read_graph= read_positions_graph(reads)
+    components=find_components_of_graph(read_graph,factor)
+    assert len(components)==2
+    first_component=components.pop()
+    second_component=components.pop()
+    assert len(first_component.get_included_nodes())==4
+    assert first_component.get_length()==6
+    assert first_component.get_max()==60
+    assert first_component.get_min()==10
+    assert len(first_component.get_stored_for_later())==0
+    assert len(first_component.get_analyze_nodes())==0
+    assert len(second_component.get_included_nodes())==2
+    assert second_component.get_length()==7
+    assert second_component.get_max()==120
+    assert second_component.get_min()==60
+    assert len(second_component.get_stored_for_later())==0
+    assert len(second_component.get_analyze_nodes())==0
+
+
+def test_multiple_reads():
+    reads = string_to_readset("""
+    00000
+    00000
+    111111
+            000
+            11111
+            00000
+    """)
+    factor=2
+    read_graph= read_positions_graph(reads)
+    components=find_components_of_graph(read_graph,factor)
+    assert len(components)==2
+    first_component=components.pop()
+    second_component=components.pop()
+    assert len(first_component.get_included_nodes())==3
+    assert first_component.get_length()==6
+    assert first_component.get_max()==60
+    assert first_component.get_min()==10
+    assert len(first_component.get_stored_for_later())==0
+    assert len(first_component.get_analyze_nodes())==0
+    assert len(second_component.get_included_nodes())==3
+    assert second_component.get_length()==5
+    assert second_component.get_max()==130
+    assert second_component.get_min()==90
+    assert len(second_component.get_stored_for_later())==0
+    assert len(second_component.get_analyze_nodes())==0
+
+def test_components_of_paired_reads():
+    reads = string_to_readset("""
+    00    000
+       11     111
+    """)
+    factor=2
+    read_graph= read_positions_graph(reads)
+    components=find_components_of_graph(read_graph,factor)
+    print('Components len %d' %len(components))
+    assert len(components)==2
+    first_component=components.pop()
+    second_component=components.pop()
+    assert len(first_component.get_included_nodes())==1
+    assert first_component.get_length()==5
+    assert first_component.get_max()==90
+    assert first_component.get_min()==10
+    assert len(first_component.get_stored_for_later())==0
+    assert len(first_component.get_analyze_nodes())==0
+    assert len(second_component.get_included_nodes())==1
+    assert second_component.get_length()==5
+    assert second_component.get_max()==130
+    assert second_component.get_min()==40
+    assert len(second_component.get_stored_for_later())==0
+    assert len(second_component.get_analyze_nodes())==0
