@@ -1,6 +1,6 @@
 from phasingutils import string_to_readset
 from whatshap.core import readselection
-from whatshap.connect_analysis import  Element,read_positions_graph,Connect_comp,make_component_2,find_components_of_graph
+from whatshap.connect_analysis import  Element,read_positions_graph,Connect_comp,find_components_of_graph,Find_connected_component_of_this_node
 
 
 
@@ -45,6 +45,7 @@ def test_bigger_example():
     nodes=read_graph.get_nodes()
     assert len(nodes)==9
     edges=read_graph.get_edges()
+    print(len(edges))
     assert len(edges)==17
     weight_1=0
     weight_2=0
@@ -177,36 +178,6 @@ def test_component_construction():
     assert len(node_component_2.get_analyze_nodes())==1
 
 
-def test_component_construction_second_part():
-    reads = string_to_readset("""
-      11 11
-      0 0000
-       11  11
-    """)
-    read_graph= read_positions_graph(reads)
-    nodes=read_graph.get_nodes()
-    factor=2
-    assert len(nodes)==3
-    edges=read_graph.get_edges()
-    assert len(edges)==3
-    #Each node one component
-    node_component_0=make_component_2( nodes[0],read_graph,factor)
-    #test update method
-    assert node_component_0.get_positions()=={10,20,30,40,50,60}
-    assert len(node_component_0.get_included_nodes())==2
-    assert node_component_0.get_included_nodes()[0]==nodes[0]
-    assert node_component_0.get_included_nodes()[1]==nodes[1]
-    assert node_component_0.get_length()==6
-    assert node_component_0.get_max()==60
-    assert node_component_0.get_min()==10
-    #test expansion method
-    #should be added
-    assert node_component_0.get_analyze_nodes().pop()==nodes[2]
-    #TODo if the assert is TRUE this has to be changed because not in both,,,,
-    assert len(node_component_0.get_stored_for_later())==0
-    assert node_component_0.get_blocks()=={2: 1, 3: 1}
-
-
 
 def test_find_connected_component():
     reads = string_to_readset("""
@@ -220,7 +191,6 @@ def test_find_connected_component():
     assert len(components)==1
     only_com=components.pop()
     assert len(only_com.get_included_nodes())==3
-    #print(components)
 
 
 def test_accumulation_of_nodes():
@@ -308,7 +278,6 @@ def test_components_of_paired_reads():
     factor=2
     read_graph= read_positions_graph(reads)
     components=find_components_of_graph(read_graph,factor)
-    print('Components len %d' %len(components))
     assert len(components)==2
     first_component=components.pop()
     second_component=components.pop()
