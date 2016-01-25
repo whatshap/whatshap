@@ -166,6 +166,10 @@ def covered_variants(variants, start, bam_read, source_id):
 	return core_read
 
 
+class ReadSetError(Exception):
+	pass
+
+
 class ReadSetReader:
 	"""
     Associate VCF variants with BAM reads.
@@ -225,7 +229,9 @@ class ReadSetReader:
 		read_set = ReadSet()
 
 		for readlist in reads.values():
-			assert 0 < len(readlist) <= 2
+			assert len(readlist) > 0
+			if len(readlist) > 2:
+				raise ReadSetError("Read name {!r} occurs more than twice in the input file".format(readlist[0].name))
 			if len(readlist) == 1:
 				read_set.add(readlist[0])
 			else:
@@ -788,6 +794,9 @@ def run_whatshap(bam, vcf,
 			except SampleNotFoundError:
 				logger.error("Sample %r is not among the read groups (RG tags) "
 							 "in the BAM header.", bam_sample)
+				sys.exit(1)
+			except ReadSetError as e:
+				logger.error("%s", e)
 				sys.exit(1)
 			logger.info('Read %d reads in %.1f s', len(reads), bam_time)
 

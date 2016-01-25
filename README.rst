@@ -27,7 +27,17 @@ Open Source software under the MIT license and we welcome contributions.
 	incomplete, not all features that we would like to have for an initial
 	release are there, and there are probably bugs.
 
+Parallel Version: pWhatsHap
+---------------------------
+A parallelization of the core dynamic programming algorithm has been described in 
 
+    M. Aldinucci, A. Bracciali, T. Marschall, M. Patterson, N. Pisanti, M. Torquati. 
+    `High-Performance Haplotype Assembly <http://dx.doi.org/10.1007/978-3-319-24462-4_21>`_. Proceedings of the 11th International
+    Meeting on Computational Intelligence Methods for Bioinformatics and
+    Biostatistics (CIBB), 245-258, 2015.
+
+The current implementation can be found in `branch parallel <https://bitbucket.org/whatshap/whatshap/branch/parallel>`_.
+   
 Links
 -----
 

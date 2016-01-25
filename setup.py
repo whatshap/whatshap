@@ -11,7 +11,9 @@ import sys
 import os.path
 from setuptools import setup, Extension
 from distutils.version import LooseVersion
-from whatshap import __version__
+
+# set __version__
+exec(next(open('whatshap/__init__.py')))
 
 MIN_CYTHON_VERSION = '0.17'
 
@@ -36,8 +38,12 @@ def out_of_date(extensions):
 			if ext not in ('.pyx', '.py'):
 				continue
 			csource = path + ('.cpp' if extension.language == 'c++' else '.c')
+			# When comparing modification times, allow five seconds slack:
+			# If the installation is being run from pip, modification
+			# times are not preserved and therefore depends on the order in
+			# which files were unpacked.
 			if not os.path.exists(csource) or (
-				os.path.getmtime(pyx) > os.path.getmtime(csource)):
+				os.path.getmtime(pyx) > os.path.getmtime(csource) + 5):
 				return True
 	return False
 
@@ -101,8 +107,8 @@ extensions = cythonize_if_necessary(extensions)
 setup(
 	name = 'whatshap',
 	version = __version__,
-	author = '',
-	author_email = '',
+	author = 'WhatsHap authors',
+	author_email = 'whatshap@cwi.nl',
 	url = 'https://bitbucket.org/whatshap/whatshap/',
 	description = 'phase genomic variants using DNA sequencing reads',
 	license = 'MIT',
@@ -111,7 +117,7 @@ setup(
 	scripts = ['bin/whatshap', 'bin/phasingstats'],
 	install_requires = ['pysam>=0.8.1', 'PyVCF'] + extra_install_requires,
 	classifiers = [
-		"Development Status :: 2 - Pre-Alpha",
+		"Development Status :: 4 - Beta",
 		"Environment :: Console",
 		"Intended Audience :: Science/Research",
 		"License :: OSI Approved :: MIT License",
