@@ -1,5 +1,5 @@
 from whatshap.scripts.whatshap import union_sets, analyze_readset, check_for_connectivity
-from phasingutils import string_to_readset
+from .phasingutils import string_to_readset
 
 def test_union():
      firstset=set(['a','b','c','d'])

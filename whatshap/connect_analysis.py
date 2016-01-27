@@ -43,18 +43,12 @@ class Element:
     def set_component(self,component):
         self.component=component
 
-    #Difference between equal element and equal by sorting only depeding on the positions
-    def equal_element(self,node):
-        return  ( self.min==node.get_min() and
-            self.max==node.get_max() and self.positions==node.get_positions()
-                  and self.index==node.get_index())
 
     #Adding comparison methods for sorting
 
     #=
     def __eq__(self, other):
-        return( self.min==other.min and
-            self.max==other.max and self.positions==other.positions)
+        return self.index==other.index
 
     #x<y
     def __lt__(self, other):
@@ -81,6 +75,7 @@ class read_positions_graph:
 
 
     def __init__(self, reads):
+        #print('In inti positions')
         self.nodes = []
         i=0
         while i != len(reads):
@@ -88,9 +83,11 @@ class read_positions_graph:
             new_node=Element(positions,i)
             self.nodes.append(new_node)
             i+=1
+        #Discard here sorting
         #TODO do not know if needed , like in test case also without sorting the nodes are sorted because the reads are already sorted
-        sorted_nodes=sorted(self.nodes)
-        sorted(self.nodes)
+        #sorted_nodes=sorted(self.nodes)
+        #sorted(self.nodes)
+
 
         self.components=[]
         self.edges=[]
@@ -100,7 +97,7 @@ class read_positions_graph:
             node_max=node.get_max()
             for sec_node in self.nodes:
                 #Discard self loops
-                if sec_node.equal_element(node):
+                if sec_node==node:
                     continue
                 sec_min=sec_node.get_min()
                 #TODO If sorted works could make here a cut if sec_node greater then node, or if node_max<sec_node_min ist
@@ -126,6 +123,7 @@ class read_positions_graph:
                                     sec_node.add_connection(node,weight)
                                     node.add_connection(sec_node,weight)
                                     self.edges.append((node,sec_node,weight))
+
                     if sec_min<node_min:
                         if node_max>sec_max:
                             weight=len(sec_node.get_positions().intersection(node.get_positions()))
@@ -133,6 +131,7 @@ class read_positions_graph:
                                 node.add_connection(sec_node,weight)
                                 sec_node.add_connection(node,weight)
                                 self.edges.append((node,sec_node,weight))
+
                         else:
                             if sec_max>=node_min:
                                 weight=len(sec_node.get_positions().intersection(node.get_positions()))
@@ -212,6 +211,9 @@ class Connect_comp:
         return self.max
 
     def update_component(self,node):
+        print('Update component of comp and node')
+        print(self.positions)
+        print(node.get_positions())
         #node added to the actual component
         new_position=node.get_positions()
         self.positions=self.positions.union(new_position)
@@ -227,8 +229,8 @@ class Connect_comp:
         for (element,w) in neighbours:
             #No double occurence of nodes
             if (w>=factor and element in not_seen_list):
-                print('Element added to analyzed')
-                print(element.get_positions())
+                #print('Element added to analyzed')
+                #print(element.get_positions())
                 if element not in self.analyze_nodes:
                     self.analyze_nodes.append(element)
                 if element in self.stored_for_later:
@@ -254,7 +256,6 @@ def Find_connected_component_of_this_node(actual_node,graph,factor, not_seen_lis
             not_seen_list.remove(ana_node)
             new_component.expand_component(ana_node,factor,not_seen_list)
             ana_node.set_component(new_component)
-
         #Need to extend the component by the stored_for_later
         further_analisis_nodes=new_component.get_stored_for_later()
         com_pos=new_component.get_positions()

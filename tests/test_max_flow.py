@@ -1,4 +1,4 @@
-from phasingutils import string_to_readset
+from .phasingutils import string_to_readset
 from whatshap.maxflow import  reduce_readset_via_max_flow
 from whatshap.Binary_Search_Tree import Binary_Search_Tree
 

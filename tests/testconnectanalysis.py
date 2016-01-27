@@ -1,4 +1,4 @@
-from phasingutils import string_to_readset
+from .phasingutils import string_to_readset
 from whatshap.core import readselection
 from whatshap.connect_analysis import  Element,read_positions_graph,Connect_comp,find_components_of_graph,Find_connected_component_of_this_node
 
@@ -293,3 +293,21 @@ def test_components_of_paired_reads():
     assert second_component.get_min()==40
     assert len(second_component.get_stored_for_later())==0
     assert len(second_component.get_analyze_nodes())==0
+
+def test_finding_of_components_by_multiple_appearances_of_the_same_positions():
+    reads = string_to_readset("""
+    00
+    00
+    11
+      11
+      00
+       10
+    """)
+    factor=1
+    read_graph= read_positions_graph(reads)
+    print(len(read_graph.get_edges()))
+    assert len(read_graph.get_edges())==6
+
+    assert len(read_graph.get_nodes())==6
+    components=find_components_of_graph(read_graph,factor)
+    assert len(components)==2

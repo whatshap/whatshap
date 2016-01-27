@@ -37,6 +37,7 @@ from ..graph import ComponentFinder
 from ..coverage import CovMonitor
 from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
 from ..maxflow import reduce_readset_via_max_flow,look_at_coverage_of_pruned_readset
+from ..connect_analysis import read_positions_graph,find_components_of_graph
 
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -461,18 +462,18 @@ def check_for_connectivity(read_positions, List_of_connections, connectivity):
 					List_of_connections.remove(union)
 					#If the former foubnd index is higher as the length then there was already a removal so it has not to
 					#be considered again
-					if (ic==List_of_connections.index(union)):
-						print('ic is equal to the List of connections.index')
-					else:
-						print('Some other stuff ')
+					#if (ic==List_of_connections.index(union)):
+						#print('ic is equal to the List of connections.index')
+					#else:
+						#print('Some other stuff ')
 					if (ic<=len(List_of_connections)):
 						new_actual_index_of_element=ic
 						(List_of_connections,index)=union_sets(new_actual_index_of_element, List_of_connections, connectivity)
 				else:
-					if (ic==List_of_connections.index(union)):
-						print('ic is equal to the List of connections.index')
-					else:
-						print('Some other stuff ')
+					#if (ic==List_of_connections.index(union)):
+						#print('ic is equal to the List of connections.index')
+					#else:
+						#print('Some other stuff ')
 					(List_of_connections,index)=union_sets(actual_index_of_element, List_of_connections, connectivity)
 				list_of_actual_found_indices.append(actual_index_of_element)
 
@@ -670,6 +671,7 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 				component_finder.merge(positions[0], position)
 			components = {position: component_finder.find(position) for position in important_positions}
 
+# Here the old approach
 			#search now for components when the connectivity is not 1 :
 			read_positions = set(positions)
 			#if there is something in the connected blocks, so not the first entry
@@ -691,6 +693,50 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 			anaout.write("\n")
 			i = i + 1
 
+		#print('Now on the trying of the read position graph')
+		anaout.write('Trying out the read position graph')
+		#factor=4
+		read_graph= read_positions_graph(sliced_reads)
+		#anaout.write("\n")
+
+		#anaout.write('Alle Edges vom Graph')
+		#anaout.write("\n")
+
+		#for (nose_1,node_2,weight) in read_graph.get_edges():
+		#	anaout.write(str(nose_1.get_index()))
+		#	anaout.write("\t")
+		#	anaout.write(str(node_2.get_index()))
+		#	anaout.write("\t")
+		#	anaout.write(str(weight))
+		#	#anaout.write(str(e))
+		#	anaout.write("\n")
+##The difference between the graph based analysis and the former approach, is that in the former approach, reads, which cover
+		#the same positions are automatically summarized to a component, but in the graph approach stillt the weight of the
+		#edge decides : So two reads, which cover both the position 10 and 20 are not in one component by a connectivity factor
+		#of 3.
+
+
+		#print('Building of graph worked')
+		anaout.write("\n")
+		graph_components=find_components_of_graph(read_graph,connectivity)
+		anaout.write('Number of found connected_components or blocks_in_my_view')
+		anaout.write("\n")
+		anaout.write(str(len(graph_components)))
+		anaout.write("\n")
+		#anaout.write('Length of the coomponents')
+		#anaout.write("\n")
+		#for i in graph_components:
+		#	anaout.write(str(len(i.get_included_nodes())))
+		#	anaout.write("\t")
+		anaout.write('\n')
+		anaout.write('Positions of the found graph based  coomponents')
+		anaout.write("\n")
+		for i in graph_components:
+			anaout.write(str(i.get_positions()))
+			anaout.write("\t")
+		anaout.write("\n")
+		anaout.write('End of the component graph based')
+		anaout.write("\n")
 		anaout.write('Connectivity of Blocks')
 		anaout.write("\n")
 		anaout.write(str(connectivity))
@@ -700,16 +746,27 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 		anaout.write("\n")
 		anaout.write(str(List_of_connections))
 		anaout.write("\n")
+		anaout.write('Number of component on the first approach')
+		anaout.write("\n")
+		anaout.write(str(len(List_of_connections)))
+		anaout.write("\n")
 
 		anaout.write('Blocks (always with connectivity 1)')
 		anaout.write("\n")
 		comset = set(components.values())
 		anaout.write(str(comset))
 		anaout.write("\n")
+		anaout.write('How many components by the connectivity 1 are found')
+		anaout.write("\n")
+		anaout.write(str(len(set(components.keys()))))
+		anaout.write("\n")
+		anaout.write(str(len(set(components.values()))))
+		anaout.write("\n")
 		anaout.write('Blocks and their components')
 		anaout.write("\n")
 		anaout.write(str(components))
 		anaout.write("\n")
+
 		anaout.write("Number of reads in bam files")
 		anaout.write("\n")
 		anaout.write(str(list_of_bam))
