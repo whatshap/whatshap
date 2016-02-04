@@ -562,6 +562,7 @@ def check_for_connectivity(read_positions, List_of_connections, connectivity):
 #changing the storage of the reads, in this to a set structure
 
 def slice_reads_random(reads, max_coverage):
+	#TODO removing logger from random alone
 	"""
 	Iterate over all read in random order and greedily retain those reads whose
 	addition does not lead to a local physical coverage exceeding the given threshold.
@@ -574,7 +575,6 @@ def slice_reads_random(reads, max_coverage):
 	random.shuffle(shuffled_indices)
 
 	position_list = reads.get_positions()
-	logger.info('Found %d variant positions', len(position_list))
 
 	# dictionary to map variant position to its index
 	position_to_index = { position: index for index, position in enumerate(position_list) }
@@ -608,19 +608,7 @@ def slice_reads_random(reads, max_coverage):
 				if slice_id == len(slices):
 					slices.append(set())
 					slice_coverages.append(CovMonitor(len(position_list)))
-	logger.info('Skipped %d reads that only cover one variant', skipped_reads)
-	informative_reads = len(reads) - skipped_reads
 
-	unphasable_variants = len(position_list) - len(accessible_positions)
-	if position_list:
-		logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
-			'connecting them to another variant and are thus unphasable',
-			unphasable_variants, len(position_list),
-			100. * unphasable_variants / len(position_list))
-
-	if reads:
-		logger.info('After coverage reduction: Using %d of %d (%.1f%%) reads that cover two or more SNPs',
-			len(slices[0]), informative_reads, (100. * len(slices[0]) / informative_reads if informative_reads > 0 else float('nan')) )
 
 	return slices[0],skipped_reads
 
@@ -809,9 +797,6 @@ def run_whatshap(bam, vcf,
 	class Statistics:
 		pass
 
-	print('Found following bam ')
-	print(bam)
-	print(len(bam))
 	stats = Statistics()
 	timers = StageTimer()
 	timers.start('overall')
@@ -916,6 +901,7 @@ def run_whatshap(bam, vcf,
 			with timers('analyzing'):
 				logger.info('Writing different options in seperate file for later analysis')
 				if analyze:
+					#TODO Need to change here into the analysis with the graph
 					analyze_readset(sliced_reads, listofbam, connectivity, score,anaout)
 			with timers('phase'):
 				logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
@@ -1037,8 +1023,8 @@ def main():
 						help='Select the score you would like to '
 							 'use (defualt :%(default)s), score have to be set '
 							 '0 = actual best score'
-							 '1 = best score for paired_end reads'
-							 '2= best score for single ended reads'
+							 '1 = best score for paired_end reads - not yet defined'
+							 '2= best score for single ended reads - not yet defined'
 							 '3 = random selection ')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
