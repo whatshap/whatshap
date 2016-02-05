@@ -211,9 +211,9 @@ class Connect_comp:
         return self.max
 
     def update_component(self,node):
-        print('Update component of comp and node')
-        print(self.positions)
-        print(node.get_positions())
+        #print('Update component of comp and node')
+        #print(self.positions)
+        #print(node.get_positions())
         #node added to the actual component
         new_position=node.get_positions()
         self.positions=self.positions.union(new_position)

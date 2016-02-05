@@ -57,9 +57,8 @@ def reduce_readset_via_max_flow(readset,max_cov):
     assert (len(crucial_set) + len(not_crucial_set))==len(undecided_reads)
     not_crucial_keys=set(not_crucial_set.keys())
     intersect_of_crucial_and_not_crucial=not_crucial_keys.intersection(crucial_set)
-    #Assertion that no index has a double occurence
+    #Assertion that no index or read is assigned to both the crucial and the not crucial set
     assert len(intersect_of_crucial_and_not_crucial)==0
-    #explore_crucial_set(extended_crucial_set,tree,max_cov)
 
     #Should reduce the readset based on the crucial set and the non crucial reads
     (used_set, not_used_set)=reduce_readset_via_crucial_and_non_crucial_reads(tree,max_cov,crucial_set,not_crucial_set)

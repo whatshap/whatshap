@@ -562,7 +562,6 @@ def check_for_connectivity(read_positions, List_of_connections, connectivity):
 #changing the storage of the reads, in this to a set structure
 
 def slice_reads_random(reads, max_coverage):
-	#TODO removing logger from random alone
 	"""
 	Iterate over all read in random order and greedily retain those reads whose
 	addition does not lead to a local physical coverage exceeding the given threshold.
@@ -650,7 +649,7 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 		anaout.write(str(length_readset))
 		anaout.write("\n")
 
-		List_of_connections = []
+		#List_of_connections = []
 		while i != len(sliced_reads):
 
 			positions = [variant.position for variant in sliced_reads[i] if variant.position in important_positions]
@@ -661,11 +660,11 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 
 # Here the old approach
 			#search now for components when the connectivity is not 1 :
-			read_positions = set(positions)
+			#read_positions = set(positions)
 			#if there is something in the connected blocks, so not the first entry
 
 			#List of blocks, where we add the positions of the read, the former produced list, and the connectivity factor
-			List_of_connections = check_for_connectivity(read_positions, List_of_connections, connectivity)
+			#List_of_connections = check_for_connectivity(read_positions, List_of_connections, connectivity)
 
 			anaout.write("Read")
 			anaout.write(str(i))
@@ -682,7 +681,7 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 			i = i + 1
 
 		#print('Now on the trying of the read position graph')
-		anaout.write('Trying out the read position graph')
+		anaout.write('Connectivity of the read position graph')
 		#factor=4
 		read_graph= read_positions_graph(sliced_reads)
 		#anaout.write("\n")
@@ -707,7 +706,7 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 		#print('Building of graph worked')
 		anaout.write("\n")
 		graph_components=find_components_of_graph(read_graph,connectivity)
-		anaout.write('Number of found connected_components or blocks_in_my_view')
+		anaout.write('Number of found connected_components or blocks_in_ the graph based view')
 		anaout.write("\n")
 		anaout.write(str(len(graph_components)))
 		anaout.write("\n")
@@ -730,14 +729,15 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 		anaout.write(str(connectivity))
 		anaout.write("\n")
 
-		anaout.write('Connected Blocks by given Connectivity')
-		anaout.write("\n")
-		anaout.write(str(List_of_connections))
-		anaout.write("\n")
-		anaout.write('Number of component on the first approach')
-		anaout.write("\n")
-		anaout.write(str(len(List_of_connections)))
-		anaout.write("\n")
+		#Former approach
+		#anaout.write('Connected Blocks by given Connectivity')
+		#anaout.write("\n")
+		#anaout.write(str(List_of_connections))
+		#anaout.write("\n")
+		#anaout.write('Number of component on the first approach')
+		#anaout.write("\n")
+		#anaout.write(str(len(List_of_connections)))
+		#anaout.write("\n")
 
 		anaout.write('Blocks (always with connectivity 1)')
 		anaout.write("\n")
