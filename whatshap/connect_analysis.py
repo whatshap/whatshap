@@ -172,7 +172,9 @@ class Connect_comp:
     def __init__(self,node,factor):
         self.positions=node.get_positions() # set
         self.included_nodes =[node]
-        self.stored_for_later=[]
+        self.stored_for_later=set()
+        #TODO changed stored for later also to set
+        #self.stored_for_later=[]
         #TODO set analyze_nodes to set
 
         self.analyze_nodes=set()
@@ -186,7 +188,7 @@ class Connect_comp:
                 self.analyze_nodes.add(element)
                 self.blocks[w]=1
             else:
-                self.stored_for_later.append(element)
+                self.stored_for_later.add(element)
         #blocks store the number of connection between reads,depending on the degree w
         self.length= len(self.positions)
         self.max=max(self.positions)
@@ -227,6 +229,7 @@ class Connect_comp:
         self.length= len(self.positions)
         self.max=max(self.positions)
         self.min=min(self.positions)
+        self.included_nodes.append(node)
 
     def expand_component(self,node,factor,not_seen_list):
         #Expand the component by the neighbours of the given node
@@ -249,7 +252,7 @@ class Connect_comp:
                     self.blocks[w]+=1
             else:
                 if element in not_seen_list and element not in self.analyze_nodes:
-                    self.stored_for_later.append(element)
+                    self.stored_for_later.add(element)
 
 def Find_connected_component_of_this_node(actual_node,graph,factor, not_seen_list):
     #Included some assertions
@@ -261,9 +264,6 @@ def Find_connected_component_of_this_node(actual_node,graph,factor, not_seen_lis
         while len(neighbour_nodes)!=0:
             ana_node=neighbour_nodes.pop()
             new_component.update_component(ana_node)
-            print(not_seen_list)
-            print('Ana node')
-            print(ana_node)
             not_seen_list.remove(ana_node)
             new_component.expand_component(ana_node,factor,not_seen_list)
             ana_node.set_component(new_component)
