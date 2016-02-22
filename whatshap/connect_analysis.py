@@ -1,5 +1,5 @@
 import copy
-
+import cProfile
 """
 Connectivity analysis:
 Implementation of a graph, where the nodes are the reads, represented in class element, which store the covered positions
@@ -69,6 +69,9 @@ class Element:
     #x>=y
     def __ge__(self, other):
         return (self.min>other.min or(self.min==other.min and self.max >=other.max))
+
+    def __hash__(self):
+        return self.get_index()
 
 
 class read_positions_graph:
@@ -170,13 +173,17 @@ class Connect_comp:
         self.positions=node.get_positions() # set
         self.included_nodes =[node]
         self.stored_for_later=[]
-        self.analyze_nodes=[]
+        #TODO set analyze_nodes to set
+
+        self.analyze_nodes=set()
+        #self.analyze_nodes=[]
         self.blocks={}
         neighbours=node.get_connections()
 
         for (element,w) in neighbours:
             if w>=factor:
-                self.analyze_nodes.append(element)
+                #self.analyze_nodes.append(element)
+                self.analyze_nodes.add(element)
                 self.blocks[w]=1
             else:
                 self.stored_for_later.append(element)
@@ -217,7 +224,6 @@ class Connect_comp:
         #node added to the actual component
         new_position=node.get_positions()
         self.positions=self.positions.union(new_position)
-        self.included_nodes.append(node)
         self.length= len(self.positions)
         self.max=max(self.positions)
         self.min=min(self.positions)
@@ -231,8 +237,10 @@ class Connect_comp:
             if (w>=factor and element in not_seen_list):
                 #print('Element added to analyzed')
                 #print(element.get_positions())
+                #TODO change analysze_nodes to a set structure
                 if element not in self.analyze_nodes:
-                    self.analyze_nodes.append(element)
+                    self.analyze_nodes.add(element)
+                    #self.analyze_nodes.append(element)
                 if element in self.stored_for_later:
                     self.stored_for_later.remove(element)
                 if w not in self.blocks.keys():
@@ -253,6 +261,9 @@ def Find_connected_component_of_this_node(actual_node,graph,factor, not_seen_lis
         while len(neighbour_nodes)!=0:
             ana_node=neighbour_nodes.pop()
             new_component.update_component(ana_node)
+            print(not_seen_list)
+            print('Ana node')
+            print(ana_node)
             not_seen_list.remove(ana_node)
             new_component.expand_component(ana_node,factor,not_seen_list)
             ana_node.set_component(new_component)
@@ -280,6 +291,9 @@ def find_components_of_graph(graph,factor):
     while len(not_seen_list)!=0:
         #get one node for analysis, is even removed from not seen list
         actual_node=not_seen_list.pop()
+        #pr=cProfile.Profile()
+        #pr.runcall(Find_connected_component_of_this_node,actual_node,graph,factor, not_seen_list)
+        #pr.dump_stats('wh.prof')
         not_seen_list,component=Find_connected_component_of_this_node(actual_node,graph,factor, not_seen_list)
         graph.add_components(component)
     return graph.get_components()

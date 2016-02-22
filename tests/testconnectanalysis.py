@@ -146,36 +146,34 @@ def test_component_construction():
     assert node_component_1.get_max()==60
     assert node_component_2.get_max()==70
 
+#Look at node_component_0
+
     assert len (node_component_0.get_stored_for_later())==1
     assert node_component_0.get_stored_for_later().pop()== nodes[2]
     assert node_component_0.get_blocks()=={3:1}
-
+    assert len(node_component_0.get_analyze_nodes())==1
+    assert node_component_0.get_analyze_nodes().pop()==nodes[1]
+    assert len(node_component_0.get_included_nodes())==1
+    assert node_component_0.get_included_nodes().pop()==nodes[0]
 
 
     assert len(node_component_1.get_stored_for_later())==0
+    assert len(node_component_1.get_analyze_nodes()) ==2
+    nodes_of_component_1=node_component_1.get_analyze_nodes()
+    assert len(nodes_of_component_1)==2
+    assert nodes_of_component_1.pop() == nodes[0]
+    assert nodes_of_component_1.pop() == nodes [2]
     assert node_component_1.get_blocks()=={2: 1, 3: 1}
+    assert node_component_1.get_included_nodes().pop()==nodes[1]
 
 
 
     assert len (node_component_2.get_stored_for_later())==1
+    assert len(node_component_2.get_analyze_nodes())==1
+    assert node_component_2.get_analyze_nodes().pop()== nodes[1]
     assert node_component_2.get_stored_for_later().pop()== nodes[0]
     assert node_component_2.get_blocks()=={2:1}
-
-
-    assert node_component_0.get_included_nodes().pop()==nodes[0]
-    assert node_component_0.get_analyze_nodes()[0]==nodes[1]
-    assert len(node_component_0.get_analyze_nodes())==1
-
-
-    assert node_component_1.get_included_nodes().pop()==nodes[1]
-    assert node_component_1.get_analyze_nodes()[0]==nodes[0]
-    assert node_component_1.get_analyze_nodes()[1]==nodes[2]
-    assert len(node_component_1.get_analyze_nodes())==2
-
-
     assert node_component_2.get_included_nodes().pop()==nodes[2]
-    assert node_component_2.get_analyze_nodes()[0]==nodes[1]
-    assert len(node_component_2.get_analyze_nodes())==1
 
 
 
@@ -187,11 +185,20 @@ def test_find_connected_component():
     """)
     read_graph= read_positions_graph(reads)
     factor=2
+    assert len(read_graph.get_nodes())==3
+    assert len(read_graph.get_edges())==3
     components=find_components_of_graph(read_graph,factor)
     assert len(components)==1
     only_com=components.pop()
+    assert only_com.get_length()==7
+    assert set(only_com.get_positions())==set([10,20,30,40,50,60,70])
+    assert only_com.get_blocks() =={2: 1, 3: 1}
+    assert only_com.get_min()==10
+    assert only_com.get_max()==70
+    included_nodes_of_comp=only_com.get_included_nodes()
+    #print('included nodes of the component')
+    #print(len(included_nodes_of_comp))
     assert len(only_com.get_included_nodes())==3
-
 
 def test_accumulation_of_nodes():
     reads = string_to_readset("""
