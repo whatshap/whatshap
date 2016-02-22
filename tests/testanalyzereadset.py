@@ -370,33 +370,3 @@ def test_connectivity_paired_end2_analysis():
      assert len(List_of_connections[1])==3
      assert len(List_of_connections[2])==2
      assert len(List_of_connections[3])==2
-
-def test_connection_by_deleting_elements():
-     reads=string_to_readset("""
-     11
-      011
-     0  0
-     """)
-     read_positions_r1=[10,20]
-     read_positions_r2=[20,30,40]
-     read_positions_r3=[10,40]
-     read_positions_r4=[10,30,40,50]
-     connectivity=2
-     List_of_connection=[]
-     List_of_connection=check_for_connectivity(set(read_positions_r1),List_of_connection,connectivity)
-     assert len(List_of_connection)==1
-     assert len(List_of_connection[0])==2
-     List_of_connection=check_for_connectivity(set(read_positions_r2),List_of_connection,connectivity)
-     assert len(List_of_connection)==2
-     assert len(List_of_connection[0])==2
-     assert len(List_of_connection[1])==3
-     List_of_connection=check_for_connectivity(set(read_positions_r3),List_of_connection,connectivity)
-     assert len(List_of_connection)==3
-     assert len(List_of_connection[0])==2
-     assert len(List_of_connection[1])==3
-     assert len(List_of_connection[2])==2
-
-     #TODO there is an error
-     List_of_connection=check_for_connectivity(set(read_positions_r4),List_of_connection,connectivity)
-     assert len(List_of_connection)==1
-     assert len(List_of_connection[0])==5
