@@ -185,6 +185,13 @@ class PhasedVcfWriter:
 		"""
 		Add phasing information to all variants on a single chromosome of a
 		sample.
+
+		chromosome -- name of chromosome
+		sample -- name of sample
+		superreads --
+		components -- a dictionary that maps each variant position to a
+			components, where a component is identified by the position of
+			its left-most variant
 		"""
 		assert self._unprocessed_record is None or (self._unprocessed_record.CHROM == chromosome)
 
