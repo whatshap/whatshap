@@ -198,11 +198,7 @@ class PhasedVcfWriter:
 		else:
 			records_iter = self._reader_iter
 		n = 0
-		while True:
-			try:
-				record = next(records_iter)
-			except StopIteration:
-				break
+		for record in records_iter:
 			n += 1
 			if record.CHROM != chromosome:
 				# save it for later
