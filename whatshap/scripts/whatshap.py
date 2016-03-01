@@ -22,6 +22,7 @@ import gzip
 import time
 import itertools
 import platform
+import cProfile
 from collections import defaultdict, Counter
 from contextlib import contextmanager
 
@@ -682,9 +683,22 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 
 		#print('Now on the trying of the read position graph')
 		anaout.write('Connectivity of the read position graph')
+
+		#TODO RUn Profiler here
+		pr=cProfile.Profile()
+
+		#pr.runcall(read_positions_graph,sliced_reads)
+
+
 		#factor=4
 		read_graph= read_positions_graph(sliced_reads)
 		#anaout.write("\n")
+
+
+		pr.runcall(find_components_of_graph,read_graph,connectivity)
+
+
+
 
 		#anaout.write('Alle Edges vom Graph')
 		#anaout.write("\n")
@@ -708,8 +722,10 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 		graph_components=find_components_of_graph(read_graph,connectivity)
 		anaout.write('Number of found connected_components or blocks_in_ the graph based view')
 		anaout.write("\n")
+		pr.dump_stats('wh_2.prof')
+
 		anaout.write(str(len(graph_components)))
-		anaout.write("\n")
+		#anaout.write("\n")
 		#anaout.write('Length of the coomponents')
 		#anaout.write("\n")
 		#for i in graph_components:

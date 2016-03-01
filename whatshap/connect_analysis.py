@@ -77,14 +77,18 @@ class Element:
 class read_positions_graph:
 
 
+#TODO try to change the node structure into a set structure
+
     def __init__(self, reads):
         #print('In inti positions')
-        self.nodes = []
+        self.nodes = set()
+        #self.nodes = []
         i=0
         while i != len(reads):
             positions = [variant.position for variant in reads[i]]
             new_node=Element(positions,i)
-            self.nodes.append(new_node)
+            self.nodes.add(new_node)
+            #self.nodes.append(new_node)
             i+=1
         #Discard here sorting
         #TODO do not know if needed , like in test case also without sorting the nodes are sorted because the reads are already sorted
@@ -286,7 +290,13 @@ def Find_connected_component_of_this_node(actual_node,graph,factor, not_seen_lis
 
 def find_components_of_graph(graph,factor):
     #Gets the graph and the connection factor as input and computes for the graph the connected components.
-    not_seen_list=copy.deepcopy(graph.get_nodes())
+    #TODO Trying to change the nodes structure into a set
+    not_seen_list=set(graph.get_nodes())
+    #print('Not seen list_2 printed and the length of it')
+    #print(not_seen_list_2)
+    #print(len(not_seen_list_2))
+    #print('Length of the graph nodes %d ' % len(graph.get_nodes()))
+    #not_seen_list=copy.deepcopy(graph.get_nodes())
     #Till all nodes are assigned to a component
     while len(not_seen_list)!=0:
         #get one node for analysis, is even removed from not seen list
