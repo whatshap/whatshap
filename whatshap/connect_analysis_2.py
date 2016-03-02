@@ -89,33 +89,13 @@ class Edges:
     def __init__(self):
         self.edges_of_nodes={}
 
-   # def add_edge_to_edges(self,node_1,node_2,i):
-   #     edge=Edge(node_1.get_position(),node_2.get_position(),i)
-   #     self.pro_forma_edges.append(edge)
-        #keys_of_nodes=self.edges_of_nodes.keys()
-        #if node_1 in keys_of_nodes:
-        #    edges_of_node1=self.edges_of_nodes[node_1]
-        #    print('Already in the edges of node 1 ')
-        #else:
-        #    edge=Edge(node_1.get_position(),node_2.get_position(),i)
-        #    self.edges_of_nodes[node_1]=[edge]
-        #if node_2 in keys_of_nodes:
-        #    edges_of_node2=self.edges_of_nodes[node_2]
-        #    print('Already in the edges of node 2')
-        #else:
-        #    edge=Edge(node_1.get_position(),node_2.get_position(),i)
-        #    self.edges_of_nodes[node_2]=[edge]
-
 
     def add_edge_to_edges(self,node_1,node_2,i):
 
         if node_1 in self.edges_of_nodes.keys():
             edges_node_1=self.edges_of_nodes[node_1] # list of edges
-            #print('Value of the dict edges of nodes')
-            #print(edges_node_1)
             run_variable=0
             #go over edges of node_1
-            #print('Length of the edges_ node1 %d' %len(edges_node_1))
             for e in edges_node_1:
                 #If this edge exists and  for getting the right edge
                 if (e.get_min()==node_2.get_position() or e.get_max()==node_2.get_position()) and (e.get_min()==node_1.get_position() or e.get_max()==node_1.get_position()):
@@ -127,9 +107,7 @@ class Edges:
                 self.edges_of_nodes[node_1].append(edge)
         else:
             edge=Edge(node_1.get_position(),node_2.get_position(),i)
-            #if (len(self.edges_of_nodes[node_1])==0):
-            #    print('Edges of nodes of node_1 is 0 ')
-            self.edges_of_nodes[node_1]=[edge] #else:    #    self.edges_of_nodes[node_1].append(edge)
+            self.edges_of_nodes[node_1]=[edge]
         if node_2 in self.edges_of_nodes.keys():
             edges_node_2=self.edges_of_nodes[node_2]
             run_variable_2=0
@@ -145,11 +123,8 @@ class Edges:
                 self.edges_of_nodes[node_2].append(edge)
         else:
             edge=Edge(node_1.get_position(),node_2.get_position(),i)
-            #if (len(self.edges_of_nodes[node_2])==0):
-            #    print('Edges of nodes of node 2 is 0')
             self.edges_of_nodes[node_2]=[edge]
-            #else:
-            #self.edges_of_nodes[node_2].append(edge)
+
 
     def get_edges_for_specific_node(self,node):
         #Returns the edges of a specific node
@@ -182,7 +157,6 @@ class Graph:
             #Make connections to the positions which are covered
             while len(read_positions)!=0:
                 r_p =read_positions.pop()
-                #TODO ab hier
                 for r_p_2 in read_positions:
                     #Get nodes by position
                     node_of_r_p=self.nodes[r_p]
@@ -209,84 +183,31 @@ class Graph:
         self.components.add(comp)
 
 
-
-#    def find_components_of_graph(self,factor):
-#        nodes=self.get_nodes()
-#        #Go over all nodes
-#        while len(nodes)!=0:
-#            node=nodes.pop()
-#            comp=Component(node)
-#            #get edges of this node
-#            edges_of_this_node=self.get_edges()[node]
-#            #Go over edges if we find edge that fullfills the desired connectivity remove node and add node to the component
-#            for e in edges_of_this_node:
-#                if e.get_weight()>= factor:
-#                    if e.get_min()==node.get_position():
-#                        node_2_pos=e.get_max()
-#                        node_2=self.get_node_by_position(node_2_pos)
-#                        comp.add_node(node_2)
-#                        #Not sure if pop works
-#                        nodes.pop(node_2)
-#                    else:
-#                        #e.get_max()==node.get_position():
-#                        node_2_pos=e.get_min()
-#                        node_2=self.get_node_by_position(node_2_pos)
-#                        comp.add_node(node_2)
-#                        nodes.pop(node_2)
-#            comp.covered_node(node)
-
-
- #   def add_nodes_and_followers_to_comp(self,nodes,comp,factor):
- #       already_visited_nodes=comp.get_covered_nodes()
- #       #nodes are from the first iteration the nodes of the original component....
-#
-#        while len(nodes)!=0:
-#            actual_node=nodes.pop()
-#            edges_of_this_node=self.edges()[actual_node]
-#            for e in edges_of_this_node:
-#                if e.get_weight()>= factor:
-
     def find_components_of_graph(self,factor):
         #Solange nicht alle gesehen wurden
-        print('Get nodes keys')
-        print(len(self.get_nodes().keys()))
-        print(len(self.already_seen))
         while (len(self.already_seen) != len(self.get_nodes().keys())):
-            print('In While loop')
             nodes=self.get_nodes().keys()
             for node in nodes:
-                print('Node in the find_component of graph')
-                print(node)
                 if node in self.already_seen:
                     continue
                 else:
-                    print('In else case')
                     new_comp=Component(node)
                     self.already_seen.add(node)
                     self.recursive_method(factor,new_comp,node)
-                print('Found here a component')
-                print(new_comp)
                 self.add_components(new_comp)
 
 
 
     def get_suitable_children_of_node(self,factor,node):
         #Already seen is a set of positions, which are already seen, so where the corresponding nodes are already covered in a comp
-        print('In get suitable children method')
         nodes_for_futher_ana=set()
         graph_edges=self.get_edges()
         Nodes=self.get_nodes()
         node_really=Nodes[node]
         edges_of_node=graph_edges.get_edges_for_specific_node(node_really)
-        print('Edges of node')
-        print(edges_of_node)
         if edges_of_node!=None:
-            print('There are edges for this node')
             for e in edges_of_node:
                 if e.get_weight()>= factor:
-                    #node_1=self.get_node_by_position(e.get_min())
-                    #node_2=self.get_node_by_position(e.get_max())
-
                     #Work on positions not on the nodes
                     if e.get_min() not in self.already_seen:
                         nodes_for_futher_ana.add(e.get_min())
@@ -295,14 +216,10 @@ class Graph:
         return nodes_for_futher_ana
 
     def recursive_method(self,factor,comp,node):
-        print('In recursive method with node')
-        print(node)
         children=self.get_suitable_children_of_node(factor,node)
         #which means there are nodes to add to the comp
         while len(children)!=0:
             child=children.pop()
-            print('child in the while loop')
-            print(child)
             if child not in self.already_seen:
                 self.already_seen.add(child)
                 child_node=self.get_node_by_position(child)
@@ -324,29 +241,12 @@ class Component:
 
 
     def add_node(self,node):
-        print('In add node of Component')
-        print(node)
-        print(node.get_position())
-        print('Self nodes before adding ')
-        print(self.nodes)
         self.nodes.add(node.get_position())
-        print('Self nodes after adding ')
-        print(self.nodes)
         self.length+=1
         self.min=min(self.min,node.get_position())
         self.max=max(self.max,node.get_position())
-        print('Component after including node')
-        print(self)
-        print(self.length)
-        print(self.min)
-        print(self.max)
-        print(self.nodes)
 
-#    def covered_node(self,node):
-#        self.covered_nodes.add(node)
 
-#    def get_covered_nodes(self):
-#        return self.covered_nodes
 
     def get_nodes_of_component(self):
         return self.nodes

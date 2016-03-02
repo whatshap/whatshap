@@ -660,14 +660,6 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 				component_finder.merge(positions[0], position)
 			components = {position: component_finder.find(position) for position in important_positions}
 
-# Here the old approach
-			#search now for components when the connectivity is not 1 :
-			#read_positions = set(positions)
-			#if there is something in the connected blocks, so not the first entry
-
-			#List of blocks, where we add the positions of the read, the former produced list, and the connectivity factor
-			#List_of_connections = check_for_connectivity(read_positions, List_of_connections, connectivity)
-
 			anaout.write("Read")
 			anaout.write(str(i))
 			anaout.write("\t")
@@ -682,8 +674,7 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 			anaout.write("\n")
 			i = i + 1
 
-		#print('Now on the trying of the read position graph')
-		anaout.write('Connectivity of the read position graph')
+		#anaout.write('Connectivity of the read position graph')
 
 		#TODO RUn Profiler here
 		#pr=cProfile.Profile()
@@ -709,19 +700,16 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 		anaout.write("\n")
 		anaout.write('Number of found connected_components or blocks_in_ the graph based view')
 		anaout.write("\n")
-		print('len(connectivity_components_of_graph)')
-		print(len(connectivity_components_of_graph))
 		anaout.write(str(len(connectivity_components_of_graph)))
 		anaout.write('\n')
-		print('GO over all components')
 		anaout.write('Positions of the found graph based  coomponents')
 		anaout.write("\n")
 		for i in connectivity_components_of_graph:
 			anaout.write(str(i.get_nodes_of_component()))
 			anaout.write("\t")
 		anaout.write("\n")
-		anaout.write('End of the component graph based')
-		anaout.write("\n")
+		#anaout.write('End of the component graph based')
+		#anaout.write("\n")
 		anaout.write('Connectivity of Blocks')
 		anaout.write("\n")
 		anaout.write(str(connectivity))
@@ -746,102 +734,45 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 			anaout.write("\n")
 			#print('I')
 			#print(i)
-		anaout.write("Store Length of block and occurence of original comp")
+		#anaout.write("Store Length of block and occurence of original comp")
+		#anaout.write("\n")
+
+		#print('Component values')
+		#print(components.values())
+		#print(len(set(components.values())))
+		#print(components.keys())
+		#print(len(set(components.keys())))
+
+		K={}
+
+		unique_representants_of_orig_componene=set(components.values())
+		#Compute block in order to add for each representant
+		for l in unique_representants_of_orig_componene:
+			K[l]=0
+		for k in components.values():
+			K[k]+=1
+
+		#print('Computed K for the component finder')
+		#print(K)
+
+		O={}
+
+		vals_of_K=K.values()
+		for x in vals_of_K:
+			if x in O.keys():
+				former_values=O[x]
+				O[x]=former_values+1
+			else:
+				O[x]=1
+		#print('Computed O for comp finder')
+		#print(O)
+
+		anaout.write("Store Length of block and occurence of component finder")
 		anaout.write("\n")
 
-		print('Component values')
-		print(components.values())
-		print(len(set(components.values())))
-		print(components.keys())
-		print(len(set(components.keys())))
-
-		E={}
-		components_keys=set(components.keys())
-		print('components_keys')
-		print(components_keys)
-		for i in components_keys:
-			#print('components[i]')
-			#print(components[i])
-			#print(components)
-			#print('components.items()')
-			#print(components.items())
-			#print(len(components.items()))
-			print('I')
-			print(i)
-			print(components[i])
-			#length_of_corresponding_val=len(components[i])
-			#if length_of_corresponding_val in E.keys():
-		#		former_val=E[length_of_corresponding_val]
-		#		E[length_of_corresponding_val]=former_val+1
-		#	else:
-		#		E[length_of_corresponding_val]=1
-		print('Component finder')
-		print(component_finder.print())
-
-		for j in E.items():
-			#anaout.write(str(j))
-			#anaout.write("\n")
-			print('J')
-			print(j)
-
-		#anaout.write('Alle Edges vom Graph')
-		#anaout.write("\n")
-
-		#for (nose_1,node_2,weight) in read_graph.get_edges():
-		#	anaout.write(str(nose_1.get_index()))
-		#	anaout.write("\t")
-		#	anaout.write(str(node_2.get_index()))
-		#	anaout.write("\t")
-		#	anaout.write(str(weight))
-		#	#anaout.write(str(e))
-		#	anaout.write("\n")
-##The difference between the graph based analysis and the former approach, is that in the former approach, reads, which cover
-		#the same positions are automatically summarized to a component, but in the graph approach stillt the weight of the
-		#edge decides : So two reads, which cover both the position 10 and 20 are not in one component by a connectivity factor
-		#of 3.
-
-		#FORMER APPROACH OF THE CONNECT_1 ANALSIS
-		#print('Building of graph worked')
-		#anaout.write("\n")
-		#graph_components=find_components_of_graph(read_graph,connectivity)
-		#anaout.write('Number of found connected_components or blocks_in_ the graph based view')
-		#anaout.write("\n")
-		#pr.dump_stats('wh_2.prof')
-
-		#anaout.write(str(len(graph_components)))
-		#anaout.write("\n")
-		#anaout.write('Length of the coomponents')
-		#anaout.write("\n")
-		#for i in graph_components:
-		#	anaout.write(str(len(i.get_included_nodes())))
-		#	anaout.write("\t")
-		#anaout.write('\n')
-
-
-		#anaout.write('Positions of the found graph based  coomponents')
-		#anaout.write("\n")
-		#for i in graph_components:
-	#		anaout.write(str(i.get_positions()))
-	#		anaout.write("\t")
-		#anaout.write("\n")
-		#anaout.write('End of the component graph based')
-		#anaout.write("\n")
-		#anaout.write('Connectivity of Blocks')
-		#anaout.write("\n")
-		#anaout.write(str(connectivity))
-		#anaout.write("\n")
-
-
-
-		#Former approach
-		#anaout.write('Connected Blocks by given Connectivity')
-		#anaout.write("\n")
-		#anaout.write(str(List_of_connections))
-		#anaout.write("\n")
-		#anaout.write('Number of component on the first approach')
-		#anaout.write("\n")
-		#anaout.write(str(len(List_of_connections)))
-		#anaout.write("\n")
+		for l in O.items():
+			anaout.write(str(l))
+			anaout.write("\n")
 
 		anaout.write('Blocks (always with connectivity 1)')
 		anaout.write("\n")
