@@ -523,15 +523,237 @@ def test_bigger_example_of_components():
     assert len(components)==2
     component_1=components.pop()
     component_2=components.pop()
+    #store length
+    D={}
+    D[component_1.get_length()]=1
+    D[component_2.get_length()]=1
+    assert D[2]==1
+    assert D[3]==1
+    #store component nodes
+    E={}
+    E[component_1.get_length()]=component_1.get_nodes_of_component()
+    E[component_2.get_length()]=component_2.get_nodes_of_component()
 
-    #print(component_1.get_length())
+    assert E[2]=={10,20}
+    assert E[3]=={30,40,50}
 
-    #assert (component_1.get_length())==3
-    #assert component_2.get_length()==3
 
-    #assert component_1.get_nodes_of_component()=={10,20}
-    #assert component_2.get_nodes_of_component()=={30,40,50}
+def test_connect_2_big_example_with_more_than_1_component():
+    reads = string_to_readset("""
+    000
+    00
+       11
+       111
+        00
+    """)
+    important_positions = set(reads.get_positions())
+    read_graph= Graph(reads,important_positions)
+    graph_edges=read_graph.get_edges()
+    graph_nodes=read_graph.get_nodes()
 
-    #Kann es hier nicht pruefen da dauernd die componentenreihenfolge wechselt.
+    factor=1
 
-    assert 0==1
+    assert len(graph_edges.get_all_edges())==6
+    assert len(graph_nodes.keys())==6
+
+    read_graph.find_components_of_graph(factor)
+    components=read_graph.get_components()
+    assert len(components)==2
+    component_1=components.pop()
+    component_2=components.pop()
+    D={}
+    D[component_1.get_length()]=1
+    D[component_2.get_length()]= D[component_2.get_length()]+1
+    #assert D[2]==1
+    assert D[3]==2
+    #store component nodes
+    E={}
+    E[component_1.get_length()]=component_1.get_nodes_of_component()
+    E[component_2.get_length()]=[E[component_2.get_length()] ,component_2.get_nodes_of_component()]
+
+    list_of_comp=[{10,20,30},{40,50,60}]
+    assert E[3].pop() in list_of_comp
+    assert E[3].pop() in list_of_comp
+
+
+    factor=2
+    read_graph= Graph(reads,important_positions)
+    read_graph.find_components_of_graph(factor)
+    components=read_graph.get_components()
+    print('components')
+    print(components)
+    assert len(components)==3
+    component_1=components.pop()
+    component_2=components.pop()
+    component_3=components.pop()
+    D={}
+    D[component_1.get_length()]=1
+    D[component_2.get_length()]= 1
+    D[component_3.get_length()]=1
+    assert D[2]==1
+    assert D[1]==1
+    assert D[3]==1
+    #store component nodes
+    E={}
+    E[component_1.get_length()]=component_1.get_nodes_of_component()
+    E[component_2.get_length()]=component_2.get_nodes_of_component()
+    E[component_3.get_length()]=component_3.get_nodes_of_component()
+
+    assert E[2]=={10,20}
+    assert E[3]=={40,50,60}
+    assert E[1]=={30}
+
+def test_connect_2_graph_of_long_read():
+    reads = string_to_readset("""
+    000000
+    """)
+    important_positions = set(reads.get_positions())
+    read_graph= Graph(reads,important_positions)
+    graph_edges=read_graph.get_edges()
+    graph_nodes=read_graph.get_nodes()
+
+    assert len(graph_edges.get_all_edges())==6
+    assert len(graph_nodes.keys())==6
+
+    vals_of_nodes_of_graph=graph_nodes.values()
+    second_values=list(vals_of_nodes_of_graph)
+
+    node_1=second_values.pop()
+    node_2=second_values.pop()
+    node_3=second_values.pop()
+    node_4=second_values.pop()
+    node_5=second_values.pop()
+    node_6=second_values.pop()
+
+
+    print('node_1.get_position()')
+    print(node_1.get_position())
+    assert node_1.get_position()==30
+    print('node_2.get_position()')
+    print(node_2.get_position())
+    assert node_2.get_position()==60
+    print('node_3.get_position()')
+    print(node_3.get_position())
+    assert node_3.get_position()==10
+    print('node_4.get_position()')
+    print(node_4.get_position())
+    assert node_4.get_position()==40
+    print('node_5.get_position()')
+    print(node_5.get_position())
+    assert node_5.get_position()==20
+    print('node_6.get_position()')
+    print(node_6.get_position())
+    assert node_6.get_position()==50
+
+    assert node_1.get_connections()=={node_5.get_position(),node_2.get_position(),node_3.get_position(),node_4.get_position(),node_6.get_position()}
+    assert node_2.get_connections()=={node_5.get_position(),node_6.get_position(),node_3.get_position(),node_4.get_position(),node_1.get_position()}
+    assert node_3.get_connections()=={node_5.get_position(),node_2.get_position(),node_6.get_position(),node_4.get_position(),node_1.get_position()}
+    assert node_4.get_connections()=={node_5.get_position(),node_2.get_position(),node_3.get_position(),node_6.get_position(),node_1.get_position()}
+    assert node_5.get_connections()=={node_6.get_position(),node_2.get_position(),node_3.get_position(),node_4.get_position(),node_1.get_position()}
+    assert node_6.get_connections()=={node_5.get_position(),node_2.get_position(),node_3.get_position(),node_4.get_position(),node_1.get_position()}
+
+
+    edge_of_node_1=graph_edges.get_edges_for_specific_node(node_1)
+
+    edge_1=edge_of_node_1.pop() # Edge 30-20
+    assert edge_1.get_max()==30
+    assert edge_1.get_min()==20
+    assert edge_1.get_indices()=={0}
+    assert edge_1.get_weight()==1
+
+    edge_1=edge_of_node_1.pop() # Edge 30-10
+    assert edge_1.get_max()==30
+    assert edge_1.get_min()==10
+    assert edge_1.get_indices()=={0}
+    assert edge_1.get_weight()==1
+
+    edge_1=edge_of_node_1.pop() # Edge 30-40
+    assert edge_1.get_max()==40
+    assert edge_1.get_min()==30
+    assert edge_1.get_indices()=={0}
+    assert edge_1.get_weight()==1
+
+    edge_1=edge_of_node_1.pop() # Edge 30-50
+    assert edge_1.get_max()==50
+    assert edge_1.get_min()==30
+    assert edge_1.get_indices()=={0}
+    assert edge_1.get_weight()==1
+
+    edge_1=edge_of_node_1.pop() # Edge 30-60
+    assert edge_1.get_max()==60
+    assert edge_1.get_min()==30
+    assert edge_1.get_indices()=={0}
+    assert edge_1.get_weight()==1
+
+
+
+
+
+def test_connect_2_paired_reads_1_component():
+    reads = string_to_readset("""
+    000000
+    00
+    1  1
+      1  1
+    """)
+    important_positions = set(reads.get_positions())
+    read_graph= Graph(reads,important_positions)
+    graph_edges=read_graph.get_edges()
+    graph_nodes=read_graph.get_nodes()
+
+    assert len(graph_edges.get_all_edges())==6
+    assert len(graph_nodes.keys())==6
+
+    factor=1
+    read_graph.find_components_of_graph(factor)
+    components=read_graph.get_components()
+
+    #print('graph_edges.get_all_edges()')
+    #print(graph_edges.get_all_edges().keys())
+    #print(len(graph_edges.get_all_edges().keys()))
+
+    assert len(components)==1
+    component_1=components.pop()
+    #component_2=components.pop()
+    D={}
+    D[component_1.get_length()]=1
+    print(component_1.get_length())
+    #D[component_2.get_length()]= D[component_2.get_length()]+1
+    #assert D[2]==1
+    print(D)
+    assert D[6]==1
+    #store component nodes
+    E={}
+    E[component_1.get_length()]=component_1.get_nodes_of_component()
+    #E[component_2.get_length()]=[E[component_2.get_length()] ,component_2.get_nodes_of_component()]
+
+    list_of_comp=[{10,20,30,40,50,60}]
+    assert E[6] in list_of_comp
+    #assert E[3].pop() in list_of_comp
+
+
+    factor=2
+    read_graph= Graph(reads,important_positions)
+    read_graph.find_components_of_graph(factor)
+    components=read_graph.get_components()
+    assert len(components)==3
+    component_1=components.pop()
+    component_2=components.pop()
+    component_3=components.pop()
+    D={}
+    D[component_1.get_length()]=1
+    D[component_2.get_length()]= 1
+    D[component_3.get_length()]=1
+    assert D[2]==1
+    assert D[1]==1
+    assert D[3]==1
+    #store component nodes
+    E={}
+    E[component_1.get_length()]=component_1.get_nodes_of_component()
+    E[component_2.get_length()]=component_2.get_nodes_of_component()
+    E[component_3.get_length()]=component_3.get_nodes_of_component()
+
+    assert E[2]=={30,60}
+    assert E[3]=={40,10,20}
+    assert E[1]=={50}
+
