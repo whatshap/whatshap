@@ -39,6 +39,7 @@ from ..coverage import CovMonitor
 from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
 from ..maxflow import reduce_readset_via_max_flow,look_at_coverage_of_pruned_readset
 from ..connect_analysis import read_positions_graph,find_components_of_graph
+from ..connect_analysis_2 import Graph,Component
 
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -685,20 +686,103 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 		anaout.write('Connectivity of the read position graph')
 
 		#TODO RUn Profiler here
-		pr=cProfile.Profile()
+		#pr=cProfile.Profile()
 
 		#pr.runcall(read_positions_graph,sliced_reads)
 
-
+#Connect_analysis_1
 		#factor=4
-		read_graph= read_positions_graph(sliced_reads)
+		#read_graph= read_positions_graph(sliced_reads)
 		#anaout.write("\n")
 
 
-		pr.runcall(find_components_of_graph,read_graph,connectivity)
 
+		#pr.runcall(find_components_of_graph,read_graph,connectivity)
 
+#Connect_analysis_2
 
+		suitable_read_graph=Graph(sliced_reads,important_positions)
+		suitable_read_graph.find_components_of_graph(connectivity)
+
+		connectivity_components_of_graph=suitable_read_graph.get_components()
+
+		anaout.write("\n")
+		anaout.write('Number of found connected_components or blocks_in_ the graph based view')
+		anaout.write("\n")
+		print('len(connectivity_components_of_graph)')
+		print(len(connectivity_components_of_graph))
+		anaout.write(str(len(connectivity_components_of_graph)))
+		anaout.write('\n')
+		print('GO over all components')
+		anaout.write('Positions of the found graph based  coomponents')
+		anaout.write("\n")
+		for i in connectivity_components_of_graph:
+			anaout.write(str(i.get_nodes_of_component()))
+			anaout.write("\t")
+		anaout.write("\n")
+		anaout.write('End of the component graph based')
+		anaout.write("\n")
+		anaout.write('Connectivity of Blocks')
+		anaout.write("\n")
+		anaout.write(str(connectivity))
+		anaout.write("\n")
+
+		#GO over the components, and look at length and count how often they occure
+		#Dictionary D
+		D={}
+		for i in connectivity_components_of_graph:
+			if i.get_length() in D.keys():
+				former_val=D[i.get_length()]
+				D[i.get_length()]=former_val+1
+			else:
+				D[i.get_length()]=1
+
+		#Write into output file
+		anaout.write("Store Length of block and occurence of connect analysis 2")
+		anaout.write("\n")
+
+		for i in D.items():
+			anaout.write(str(i))
+			anaout.write("\n")
+			#print('I')
+			#print(i)
+		anaout.write("Store Length of block and occurence of original comp")
+		anaout.write("\n")
+
+		print('Component values')
+		print(components.values())
+		print(len(set(components.values())))
+		print(components.keys())
+		print(len(set(components.keys())))
+
+		E={}
+		components_keys=set(components.keys())
+		print('components_keys')
+		print(components_keys)
+		for i in components_keys:
+			#print('components[i]')
+			#print(components[i])
+			#print(components)
+			#print('components.items()')
+			#print(components.items())
+			#print(len(components.items()))
+			print('I')
+			print(i)
+			print(components[i])
+			#length_of_corresponding_val=len(components[i])
+			#if length_of_corresponding_val in E.keys():
+		#		former_val=E[length_of_corresponding_val]
+		#		E[length_of_corresponding_val]=former_val+1
+		#	else:
+		#		E[length_of_corresponding_val]=1
+		print('Component finder')
+		print(component_finder.print())
+
+		for j in E.items():
+			#anaout.write(str(j))
+			#anaout.write("\n")
+			print('J')
+			print(j)
 
 		#anaout.write('Alle Edges vom Graph')
 		#anaout.write("\n")
@@ -716,34 +800,38 @@ def analyze_readset(sliced_reads, list_of_bam, connectivity, score,anaout=sys.st
 		#edge decides : So two reads, which cover both the position 10 and 20 are not in one component by a connectivity factor
 		#of 3.
 
-
+		#FORMER APPROACH OF THE CONNECT_1 ANALSIS
 		#print('Building of graph worked')
-		anaout.write("\n")
-		graph_components=find_components_of_graph(read_graph,connectivity)
-		anaout.write('Number of found connected_components or blocks_in_ the graph based view')
-		anaout.write("\n")
-		pr.dump_stats('wh_2.prof')
+		#anaout.write("\n")
+		#graph_components=find_components_of_graph(read_graph,connectivity)
+		#anaout.write('Number of found connected_components or blocks_in_ the graph based view')
+		#anaout.write("\n")
+		#pr.dump_stats('wh_2.prof')
 
-		anaout.write(str(len(graph_components)))
+		#anaout.write(str(len(graph_components)))
 		#anaout.write("\n")
 		#anaout.write('Length of the coomponents')
 		#anaout.write("\n")
 		#for i in graph_components:
 		#	anaout.write(str(len(i.get_included_nodes())))
 		#	anaout.write("\t")
-		anaout.write('\n')
-		anaout.write('Positions of the found graph based  coomponents')
-		anaout.write("\n")
-		for i in graph_components:
-			anaout.write(str(i.get_positions()))
-			anaout.write("\t")
-		anaout.write("\n")
-		anaout.write('End of the component graph based')
-		anaout.write("\n")
-		anaout.write('Connectivity of Blocks')
-		anaout.write("\n")
-		anaout.write(str(connectivity))
-		anaout.write("\n")
+		#anaout.write('\n')
+
+
+		#anaout.write('Positions of the found graph based  coomponents')
+		#anaout.write("\n")
+		#for i in graph_components:
+	#		anaout.write(str(i.get_positions()))
+	#		anaout.write("\t")
+		#anaout.write("\n")
+		#anaout.write('End of the component graph based')
+		#anaout.write("\n")
+		#anaout.write('Connectivity of Blocks')
+		#anaout.write("\n")
+		#anaout.write(str(connectivity))
+		#anaout.write("\n")
+
+
 
 		#Former approach
 		#anaout.write('Connected Blocks by given Connectivity')
