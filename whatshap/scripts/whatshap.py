@@ -850,7 +850,7 @@ def run_whatshap(bam, vcf,
 			sys.exit(1)
 		if output is not sys.stdout:
 			output = stack.enter_context(open(output, 'w'))
-		command_line = ' '.join(sys.argv[1:])
+		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=vcf, out_file=output)
 		vcf_reader = parse_vcf(vcf, sample=sample, indels=indels)
 		haplotype_bam_writer = None

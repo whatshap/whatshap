@@ -5,11 +5,9 @@ import sys
 import logging
 import itertools
 import vcf
-from . import __version__
 
 logger = logging.getLogger(__name__)
 
-#VcfVariant = namedtuple('VcfVariant', 'position reference_allele alternative_allele')
 
 class VcfVariant:
 	"""A variant in a VCF file"""
@@ -140,6 +138,7 @@ def remove_overlapping_variants(variants):
 
 	Return a list of VcfVariant objects.
 	"""
+	# TODO obviously, this is not implemented ...
 	return variants
 
 
@@ -163,7 +162,8 @@ class PhasedVcfWriter:
 		self._reader.metadata['phasing'] = []
 		if 'commandline' not in self._reader.metadata:
 			self._reader.metadata['commandline'] = []
-		self._reader.metadata['commandline'].append('"(whatshap ' + __version__ + ') ' + command_line + '"')
+		command_line = command_line.replace('"', '')
+		self._reader.metadata['commandline'].append('"' + command_line + '"')
 		self._reader.formats['HP'] = vcf.parser._Format(id='HP', num=None, type='String', desc='Phasing haplotype identifier')
 		self._reader.formats['PQ'] = vcf.parser._Format(id='PQ', num=1, type='Float', desc='Phasing quality')
 
@@ -174,6 +174,10 @@ class PhasedVcfWriter:
 		self._hp_found_warned = False
 
 	def _format_phasing_info(self, component, phase):
+		"""
+		component -- name of the component
+		phase -- 0 or 1
+		"""
 		assert phase in [0,1]
 		return '{}-{},{}-{}'.format(component + 1, phase + 1, component + 1, 2 - phase)
 
@@ -181,6 +185,13 @@ class PhasedVcfWriter:
 		"""
 		Add phasing information to all variants on a single chromosome of a
 		sample.
+
+		chromosome -- name of chromosome
+		sample -- name of sample
+		superreads --
+		components -- a dictionary that maps each variant position to a
+			components, where a component is identified by the position of
+			its left-most variant
 		"""
 		assert self._unprocessed_record is None or (self._unprocessed_record.CHROM == chromosome)
 
@@ -194,11 +205,7 @@ class PhasedVcfWriter:
 		else:
 			records_iter = self._reader_iter
 		n = 0
-		while True:
-			try:
-				record = next(records_iter)
-			except StopIteration:
-				break
+		for record in records_iter:
 			n += 1
 			if record.CHROM != chromosome:
 				# save it for later
