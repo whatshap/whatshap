@@ -44,7 +44,7 @@ __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel M
 
 logger = logging.getLogger(__name__)
 
-large_value = 20000
+
 def covered_variants(variants, start, bam_read, source_id):
 	"""
 	Find the variants that are covered by the given bam_read and return a
