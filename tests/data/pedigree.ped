@@ -1,0 +1,7 @@
+# family, individual_id, paternal_id, maternal_id, sex, phenotype
+# extra spaces and tabs are in here on purpose
+FAM001  child1 father mother   0 1
+FAM001  child2 father mother  0 1
+FAM001	 father 0 0 0 1
+FAM001  mother 0 0 0 1
+FAM004	orphan  0 0 0 1
