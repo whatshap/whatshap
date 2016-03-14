@@ -27,7 +27,6 @@ def index_bam(path):
 	"""
 	# unfortunately, some versions of samtools index also fail silently on
 	# corrupt BAM files. Before running it, we check the format manually.
-
 	try:
 		with gzip.GzipFile(path, 'rb') as bamfile:
 			if bamfile.read(4) != b'BAM\1':
@@ -47,7 +46,8 @@ def index_bam(path):
 
 class SampleBamReader:
 	"""
-	Read only those reads from a BAM file that belong to a specified sample.
+	A wrapper for Samfile that provides only those reads from a BAM file that
+	belong to a specified sample.
 	"""
 	def __init__(self, path, source_id = 0):
 		"""
