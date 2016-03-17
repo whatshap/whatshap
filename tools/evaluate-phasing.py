@@ -1,4 +1,17 @@
 #!/usr/bin/env python3
+"""
+The output columns are:
+
+* phased: the number of variants in the VCF that have an HP tag
+* unphased: phased+unphased should be the total number of variants
+* len(phased_blocks)
+* blocks_larger_1
+* correct_total
+* switches_total
+* flips_total
+
+The first variant of each block is counted as unphasable.
+"""
 # -*- coding: utf-8 -*-
 
 from argparse import ArgumentParser
