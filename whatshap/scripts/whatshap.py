@@ -569,13 +569,19 @@ class NiceFormatter(logging.Formatter):
 		return super().format(record)
 
 
-def main():
-	ensure_pysam_version()
-	l = logging.getLogger()
-	l.setLevel(logging.INFO)
+def setup_logging(debug):
+	"""
+	Set up logging. If debug is True, then DEBUG level messages are printed.
+	"""
 	handler = logging.StreamHandler()
 	handler.setFormatter(NiceFormatter())
-	l.addHandler(handler)
+	root = logging.getLogger()
+	root.addHandler(handler)
+	root.setLevel(logging.DEBUG if debug else logging.INFO)
+
+
+def main():
+	ensure_pysam_version()
 	parser = ArgumentParser(prog='whatshap', description=__doc__)
 	parser.add_argument('--version', action='version', version=__version__)
 	parser.add_argument('--debug', action='store_true', default=False,
@@ -604,9 +610,7 @@ def main():
 		'Creates PREFIX.1.bam and PREFIX.2.bam')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
-
 	args = parser.parse_args()
-	#handler.setLevel(logging.DEBUG if args.debug else logging.INFO)
-	l.setLevel(logging.DEBUG if args.debug else logging.INFO)
+	setup_logging(args.debug)
 	del args.debug
 	run_whatshap(**vars(args))
