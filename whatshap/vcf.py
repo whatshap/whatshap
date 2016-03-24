@@ -9,6 +9,10 @@ import vcf
 logger = logging.getLogger(__name__)
 
 
+# TODO it is not quite accurate to call the attributes reference_allele and
+# alternative_allele because there can be non-reference heterozygous variants
+# For example, if the VCF file has an entry such as A -> C,T and the GT is 1/2,
+# then the alleles are C and T, and both of them are 'alternative'.
 class VcfVariant:
 	"""A variant in a VCF file"""
 	def __init__(self, position, reference_allele, alternative_allele, genotype):
@@ -112,12 +116,24 @@ def parse_vcf(path, indels=False, sample=None):
 			# Skip sites with multiple alternative alleles (see note in docstring)
 			n_multi += 1
 			continue
+
+		# Two PyVCF pecularities:
+		#
+		# gt_alleles is a list of the alleles in the GT field.
+		# For example, when GT is 0/1, gt_alleles is ['0', '1'].
+		# And when GT is 2|1, gt_alleles is ['2', '1'].
+		#
+		# record.alleles is a list where the first item is a string, but
+		# the other objects are not (they are Substitution objects etc.) -
+		# so do not remove the str() from the line below.
+		#
+		# TODO The sorted(set()) should not be necessary
 		alleles = [ str(record.alleles[int(s)]) for s in sorted(call.gt_alleles) ]
 		"""
-		logger.debug("Call %s:%d %s→%s (Alleles: %s)",
+		logger.debug("Call %s:%d %s→%s with alleles %s, genotype %s",
 			record.CHROM, record.start + 1,
 			record.REF, record.ALT,
-			alleles)
+			alleles, call.gt_type)
 		"""
 		assert len(alleles) == 2
 		ref, alt = alleles[0:2]
