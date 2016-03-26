@@ -21,3 +21,4 @@ cdef class Pedigree:
 
 cdef class PedigreeDPTable:
 	cdef cpp.PedigreeDPTable *thisptr
+	cdef Pedigree pedigree

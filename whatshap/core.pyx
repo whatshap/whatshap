@@ -247,6 +247,7 @@ cdef class PedigreeDPTable:
 		in the read set must also be sorted (by position of their left-most variant).
 		"""
 		self.thisptr = new cpp.PedigreeDPTable(readset.thisptr, finaldemarcations, recombcost, pedigree.thisptr)
+		self.pedigree = pedigree
 
 	def __dealloc__(self):
 		del self.thisptr
@@ -259,6 +260,9 @@ cdef class PedigreeDPTable:
 		TODO: Change that.
 		"""
 		cdef vector[cpp.ReadSet*]* read_sets = new vector[cpp.ReadSet*]()
+
+		for i in range(len(self.pedigree)):
+			read_sets.push_back(new cpp.ReadSet())
 		transmission_vector_ptr = new vector[unsigned int]()
 		self.thisptr.get_super_reads(read_sets, transmission_vector_ptr)
 
@@ -298,6 +302,9 @@ cdef class Pedigree:
 
 	def add_relationship(self, int mother_id, int father_id, int child_id):
 		self.thisptr.addRelationship(mother_id, father_id, child_id)
+
+	def __len__(self):
+		return self.thisptr.size()
 
 
 include 'readselect.pyx'
