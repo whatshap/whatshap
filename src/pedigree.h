@@ -21,9 +21,13 @@ public:
 	// add a relationship (a mother/father/child triple)
 	void addRelationship(unsigned int mother, unsigned int father, unsigned int child);
 
+	size_t size() const {
+		return individuals.size();
+	}
 	std::vector<triple_entry_t> triples;
 	std::vector<genotype_entry_t> triple_genotypes;
 private:
+	std::vector<unsigned int> individuals;
 	// maps individual ids to genotypes
 	std::unordered_map<unsigned int, std::vector<unsigned int>> genotypes_map;
 };

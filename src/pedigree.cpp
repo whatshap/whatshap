@@ -13,6 +13,7 @@ Pedigree::Pedigree() {
 
 void Pedigree::addIndividual(unsigned int id, std::vector<unsigned int> genotypes) {
 	genotypes_map[id] = genotypes;
+	individuals.push_back(id);
 }
 
 
