@@ -13,9 +13,7 @@ class Pedigree {
 public:
 	Pedigree();
 	typedef std::vector<unsigned int> triple_entry_t;
-	triple_entry_t triple_entry;
 	typedef std::array<std::vector<unsigned int>, 3> genotype_entry_t;
-	genotype_entry_t genotype_entry;
 
 	// add genotypes of a single individual
 	void addIndividual(unsigned int individual, std::vector<unsigned int> genotypes);
