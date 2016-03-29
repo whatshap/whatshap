@@ -84,6 +84,10 @@ def parse_vcf(path, indels=False, sample=None):
 
 	sample -- The name of the sample whose calls should be extracted. If
 		set to None, calls of the first sample are extracted.
+
+	TODO
+	- Sites with multiple ALTs are currently skipped. This is easy to fix, but someone
+	needs to understand what the expected output in the HP tag should then be.
 	"""
 	variants = []
 	index = -1
@@ -92,12 +96,18 @@ def parse_vcf(path, indels=False, sample=None):
 	n_indels = 0
 	n_snps = 0
 	n_complex = 0
+	n_multi = 0
 	for sample, record, call in vcf_sample_reader(path, sample):
 		if record.CHROM != prev_chromosome:
 			if prev_chromosome is not None:
 				yield (sample, prev_chromosome, variants)
 			prev_chromosome = record.CHROM
 			variants = []
+
+		if len(record.ALT) > 1:
+			# Skip sites with multiple alternative alleles (see note in docstring)
+			n_multi += 1
+			continue
 		alleles = [ str(record.alleles[int(s)]) for s in sorted(set(call.gt_alleles)) ]
 		"""
 		logger.debug("Call %s:%d %s→%s (Alleles: %s)",
@@ -135,7 +145,8 @@ def parse_vcf(path, indels=False, sample=None):
 		# TODO deal with complex variants
 		# v = VcfVariant(position=pos, reference_allele=a0, alternative_allele=a1, genotype=call.gt_type)
 		n_complex += 1
-	logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s. Skipped %s complex variants.", n_snps, n_indels, n_complex)
+	logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s. "
+		"Skipped %s complex variants. Skipped %s multi-ALTs.", n_snps, n_indels, n_complex, n_multi)
 	if prev_chromosome is not None:
 		yield (sample, prev_chromosome, variants)
 
