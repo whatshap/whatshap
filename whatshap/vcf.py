@@ -11,14 +11,30 @@ logger = logging.getLogger(__name__)
 
 class VcfVariant:
 	"""A variant in a VCF file"""
-	def __init__(self, position, reference_allele, alternative_allele):
+	def __init__(self, position, reference_allele, alternative_allele, genotype):
+		"""
+		position -- 0-based start coordinate
+		reference_allele -- string
+		alternative_allele -- string
+		genotype -- as in PyVCF:
+			homozyguous reference is 0,
+			heterozygous is 1,
+			homozygous alternative is 2
+
+		TODO seems unnecessary to store the genotype as an extra attribute
+			because it is redundant with the alleles
+		TODO reference_allele and alternative_allele are not the best names:
+			it should be allele1 and allelel2 (or 0) because there can be
+			non-reference heterozygous variants (such as C -> G,A with GT 1/2)
+		"""
 		self.position = position
 		self.reference_allele = reference_allele
 		self.alternative_allele = alternative_allele
+		self.genotype = genotype
 
 	def __str__(self):
-		return "VcfVariant(pos={}, ref={}, alt={})".format(self.position+1,
-			self.reference_allele, self.alternative_allele)
+		return "VcfVariant(pos={}, ref={}, alt={}, genotype={})".format(self.position+1,
+			self.reference_allele, self.alternative_allele, self.genotype)
 
 
 class SampleNotFoundError(Exception):
@@ -103,7 +119,7 @@ def parse_vcf(path, indels=False, sample=None):
 		assert ref != alt
 		if len(ref) == 1 and len(alt) == 1:
 			n_snps += 1
-			v = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
+			v = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt, genotype=call.gt_type)
 			variants.append(v)
 			continue
 		if not indels:
@@ -111,13 +127,13 @@ def parse_vcf(path, indels=False, sample=None):
 
 		if ref[0] == alt[0] and ((len(ref) == 1) != (len(alt) == 1)):
 			n_indels += 1
-			v = VcfVariant(position=pos+1, reference_allele=ref[1:], alternative_allele=alt[1:])
+			v = VcfVariant(position=pos+1, reference_allele=ref[1:], alternative_allele=alt[1:], genotype=call.gt_type)
 			variants.append(v)
 			continue
 
 		# Something like GCG -> TCT or CTCTC -> CA occurred.
 		# TODO deal with complex variants
-		# v = VcfVariant(position=pos, reference_allele=a0, alternative_allele=a1)
+		# v = VcfVariant(position=pos, reference_allele=a0, alternative_allele=a1, genotype=call.gt_type)
 		n_complex += 1
 	logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s. Skipped %s complex variants.", n_snps, n_indels, n_complex)
 	if prev_chromosome is not None:

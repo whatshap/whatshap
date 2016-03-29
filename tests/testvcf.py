@@ -12,4 +12,5 @@ def test_read_phased():
 	assert variants[0].alternative_allele == 'C'
 	assert variants[1].reference_allele == 'G'
 	assert variants[1].alternative_allele == 'T'
+	assert variants[0].genotype == variants[1].genotype == 1
 
