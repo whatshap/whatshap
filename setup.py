@@ -11,6 +11,7 @@ import sys
 import os.path
 from setuptools import setup, Extension
 from distutils.version import LooseVersion
+from distutils.command.sdist import sdist as _sdist
 
 # set __version__
 exec(next(open('whatshap/__init__.py')))
@@ -93,6 +94,7 @@ def cythonize_if_necessary(extensions):
 	from Cython.Build import cythonize
 	return cythonize(extensions)
 
+
 extensions = [
 	Extension('whatshap._core',
 		sources=['whatshap/_core.pyx',
@@ -104,6 +106,15 @@ extensions = [
 ]
 extensions = cythonize_if_necessary(extensions)
 
+
+class sdist(_sdist):
+	def run(self):
+		# Make sure the compiled Cython files in the distribution are up-to-date
+		from Cython.Build import cythonize
+		cythonize(extensions)
+		_sdist.run(self)
+
+
 setup(
 	name = 'whatshap',
 	version = __version__,
@@ -112,6 +123,7 @@ setup(
 	url = 'https://bitbucket.org/whatshap/whatshap/',
 	description = 'phase genomic variants using DNA sequencing reads',
 	license = 'MIT',
+	cmdclass = {'sdist': sdist},
 	ext_modules = extensions,
 	packages = ['whatshap', 'whatshap.scripts'],
 	scripts = ['bin/whatshap', 'bin/phasingstats'],
