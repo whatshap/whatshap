@@ -444,6 +444,7 @@ def run_whatshap(bam, vcf,
 		timers.start('parse_vcf')
 		for sample, chromosome, variants in vcf_reader:
 			variants = remove_overlapping_variants(variants)
+			variants = [ v for v in variants if v.is_heterozygous() ]
 			timers.stop('parse_vcf')
 			logger.info('Working on chromosome %s', chromosome)
 			logger.info('Read %d variants', len(variants))
@@ -570,10 +571,11 @@ class NiceFormatter(logging.Formatter):
 
 def main():
 	ensure_pysam_version()
-	logger.setLevel(logging.INFO)
+	l = logging.getLogger()
+	l.setLevel(logging.INFO)
 	handler = logging.StreamHandler()
 	handler.setFormatter(NiceFormatter())
-	logger.addHandler(handler)
+	l.addHandler(handler)
 	parser = ArgumentParser(prog='whatshap', description=__doc__)
 	parser.add_argument('--version', action='version', version=__version__)
 	parser.add_argument('--debug', action='store_true', default=False,
@@ -598,12 +600,13 @@ def main():
 		help='Name of a sample to phase. If not given, the first sample in the '
 		'input VCF is phased.')
 	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
-		help='Write reads that have been used for phasing to haplotype-specific BAM files. '
+		help='Write reads that h8387340f8b50ff9f9598989cf6f95be21a8c72a7ave been used for phasing to haplotype-specific BAM files. '
 		'Creates PREFIX.1.bam and PREFIX.2.bam')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
 
 	args = parser.parse_args()
-	logger.setLevel(logging.DEBUG if args.debug else logging.INFO)
+	#handler.setLevel(logging.DEBUG if args.debug else logging.INFO)
+	l.setLevel(logging.DEBUG if args.debug else logging.INFO)
 	del args.debug
 	run_whatshap(**vars(args))

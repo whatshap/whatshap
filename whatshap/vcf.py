@@ -37,6 +37,9 @@ class VcfVariant:
 		return "VcfVariant(pos={}, ref={}, alt={}, genotype={})".format(self.position+1,
 			self.reference_allele, self.alternative_allele, self.genotype)
 
+	def is_heterozygous(self):
+		return self.reference_allele != self.alternative_allele
+
 
 class SampleNotFoundError(Exception):
 	pass
@@ -109,15 +112,13 @@ def parse_vcf(path, indels=False, sample=None):
 			# Skip sites with multiple alternative alleles (see note in docstring)
 			n_multi += 1
 			continue
-		alleles = [ str(record.alleles[int(s)]) for s in sorted(set(call.gt_alleles)) ]
+		alleles = [ str(record.alleles[int(s)]) for s in sorted(call.gt_alleles) ]
 		"""
 		logger.debug("Call %s:%d %s→%s (Alleles: %s)",
 			record.CHROM, record.start + 1,
 			record.REF, record.ALT,
 			alleles)
 		"""
-		if not call.is_het:
-			continue
 		assert len(alleles) == 2
 		ref, alt = alleles[0:2]
 
@@ -127,7 +128,6 @@ def parse_vcf(path, indels=False, sample=None):
 		while len(ref) >= 2 and len(alt) >= 2 and ref[0:2] == alt[0:2]:
 			ref, alt = ref[1:], alt[1:]
 			pos += 1
-		assert ref != alt
 		if len(ref) == 1 and len(alt) == 1:
 			n_snps += 1
 			v = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt, genotype=call.gt_type)
