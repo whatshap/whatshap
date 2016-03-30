@@ -606,7 +606,7 @@ def main():
 		help='Name of a sample to phase. If not given, the first sample in the '
 		'input VCF is phased.')
 	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
-		help='Write reads that h8387340f8b50ff9f9598989cf6f95be21a8c72a7ave been used for phasing to haplotype-specific BAM files. '
+		help='Write reads that have been used for phasing to haplotype-specific BAM files. '
 		'Creates PREFIX.1.bam and PREFIX.2.bam')
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
