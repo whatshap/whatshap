@@ -108,6 +108,7 @@ def parse_vcf(path, indels=False, sample=None):
 	for sample, record, call in vcf_sample_reader(path, sample):
 		if record.CHROM != prev_chromosome:
 			if prev_chromosome is not None:
+				variants = remove_overlapping_variants(variants)
 				yield (sample, prev_chromosome, variants)
 			prev_chromosome = record.CHROM
 			variants = []
@@ -165,6 +166,7 @@ def parse_vcf(path, indels=False, sample=None):
 	logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s. "
 		"Skipped %s complex variants. Skipped %s multi-ALTs.", n_snps, n_indels, n_complex, n_multi)
 	if prev_chromosome is not None:
+		variants = remove_overlapping_variants(variants)
 		yield (sample, prev_chromosome, variants)
 
 
