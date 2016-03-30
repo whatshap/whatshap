@@ -20,10 +20,10 @@ void Pedigree::addIndividual(unsigned int id, std::vector<unsigned int> genotype
 void Pedigree::addRelationship(unsigned int m, unsigned int f, unsigned int c) {
 	triple_entry_t triple_entry = {m, f, c};
 	triples.push_back(triple_entry);
-	genotype_entry_t genotype_entry = {
-		genotypes_map.at(m),
-		genotypes_map.at(f),
-		genotypes_map.at(c)
-	};
-	triple_genotypes.push_back(genotype_entry);
+	//genotype_entry_t genotype_entry = {
+	//	genotypes_map.at(m),
+	//	genotypes_map.at(f),
+	//	genotypes_map.at(c)
+	//};
+	//triple_genotypes.push_back(genotype_entry);
 }
