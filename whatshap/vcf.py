@@ -4,6 +4,7 @@ Functions for reading VCFs.
 import sys
 import logging
 import itertools
+from collections import defaultdict
 import vcf
 
 logger = logging.getLogger(__name__)
@@ -28,8 +29,8 @@ class VcfCall:
 		TODO seems unnecessary to store the genotype as an extra attribute
 			because it is redundant with the alleles
 		TODO reference_allele and alternative_allele are not the best names:
-			it should be allele1 and allelel2 (or 0) because there can be
-			non-reference heterozygous variants (such as C -> G,A with GT 1/2)
+			it should be allele1 and allele2 (or a list 'alleles') because there
+			can be non-reference heterozygous variants (such as C -> G,A with GT 1/2)
 		"""
 		self.position = position
 		self.reference_allele = reference_allele
@@ -49,46 +50,9 @@ class SampleNotFoundError(Exception):
 	pass
 
 
-def vcf_sample_reader(path, sample=None):
+class VcfReader:
 	"""
-	Read only a single sample from a VCF.
-	If sample is None, the first sample is used.
-
-	Yield tuples (sample, record, call).
-	"""
-	vcf_reader = vcf.Reader(filename=path)
-	samples = vcf_reader.samples
-	logger.info("Found %d sample(s) in the VCF file.", len(samples))
-	if sample is None:
-		sample = samples[0]
-		sample_index = 0
-		if len(samples) > 1:
-			logger.warning("More than one sample found in the VCF file, will work "
-				"only on the first one (%s).", sample)
-	else:
-		try:
-			sample_index = samples.index(sample)
-		except ValueError:
-			logger.error("Requested sample %r not found in VCF.", sample)
-			raise SampleNotFoundError()
-	assert sample is not None
-	for record in vcf_reader:
-		call = record.samples[sample_index]
-		yield sample, record, call
-
-
-def parse_vcf(path, indels=False, sample=None):
-	"""
-	Read a VCF and yield tuples (sample, chromosome, variants) for each
-	chromosome for which there are variants in the VCF. chromosome is
-	the name of the chromosome, and variants is a list of VcfCall objects that
-	represent all heterozygous variants.
-
-	path -- Path to VCF file
-
-	indels -- Whether to include also insertions and deletions in the list of
-		variants. Include only SNPs if set to False.
-		TODO this should always be enabled since deletions can 'overlap' other variants
+	Read a VCF file chromosome by chromosome.
 
 	sample -- The name of the sample whose calls should be extracted. If
 		set to None, calls of the first sample are extracted.
@@ -97,80 +61,134 @@ def parse_vcf(path, indels=False, sample=None):
 	- Sites with multiple ALTs are currently skipped. This is easy to fix, but someone
 	needs to understand what the expected output in the HP tag should then be.
 	"""
-	variants = []
-	index = -1
-	indices = None
-	prev_chromosome = None
-	n_indels = 0
-	n_snps = 0
-	n_complex = 0
-	n_multi = 0
-	for sample, record, call in vcf_sample_reader(path, sample):
-		if record.CHROM != prev_chromosome:
-			if prev_chromosome is not None:
-				variants = remove_overlapping_variants(variants)
-				yield (sample, prev_chromosome, variants)
-			prev_chromosome = record.CHROM
-			variants = []
-
-		if len(record.ALT) > 1:
-			# Skip sites with multiple alternative alleles (see note in docstring)
-			n_multi += 1
-			continue
-
-		# Two PyVCF pecularities:
-		#
-		# gt_alleles is a list of the alleles in the GT field.
-		# For example, when GT is 0/1, gt_alleles is ['0', '1'].
-		# And when GT is 2|1, gt_alleles is ['2', '1'].
-		#
-		# record.alleles is a list where the first item is a string, but
-		# the other objects are not (they are Substitution objects etc.) -
-		# so do not remove the str() from the line below.
-		#
-		# TODO The sorted(set()) should not be necessary
-		alleles = [ str(record.alleles[int(s)]) for s in sorted(call.gt_alleles) ]
+	def __init__(self, path, indels=False, samples=None):
 		"""
-		logger.debug("Call %s:%d %s→%s with alleles %s, genotype %s",
-			record.CHROM, record.start + 1,
-			record.REF, record.ALT,
-			alleles, call.gt_type)
-		"""
-		assert len(alleles) == 2
-		ref, alt = alleles[0:2]
+		path -- Path to VCF file
 
-		# Normalize variants in which the first two bases are identical.
-		# For example, CTG -> CTAAA is changed to TG -> TAAA.
-		pos = record.start
+		indels -- Whether to include also insertions and deletions in the list of
+		variants. Include only SNPs if set to False.
+		TODO this should always be enabled since deletions can 'overlap' other variants
+		"""
+		self._indels = indels
+		self._vcf_reader = vcf.Reader(filename=path)
+		self.samples = self._vcf_reader.samples  # intentionally public
+
+		# TODO do not do this, just return all samples instead and let the user
+		# take what they want
+		if samples is None:
+			self._samples_of_interest = frozenset(self.samples)
+		else:
+			for sample in samples:
+				if sample not in self.samples:
+					raise SampleNotFoundError("Requested sample %r not found in VCF.", sample)
+			self._samples_of_interest = frozenset(samples)
+		logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
+
+	def _group_by_chromosome(self):
+		"""
+		Yield (chromosome, records) tuples, where records is a list of the
+		VCF records on that chromosome.
+		"""
+		records = []
+		prev_chromosome = None
+		for record in self._vcf_reader:
+			if record.CHROM != prev_chromosome:
+				if prev_chromosome is not None:
+					yield (prev_chromosome, records)
+				prev_chromosome = record.CHROM
+				records = []
+			records.append(record)
+		if records:
+			yield (prev_chromosome, records)
+
+	def _normalize(self, pos, ref, alt):
+		"""
+		Normalize variants that share a common prefix. The first shared base is
+		kept. For example, GCTG -> GCTAAA is changed to TG -> TAAA.
+
+		Return a (pos, ref, alt) tuple.
+		"""
 		while len(ref) >= 2 and len(alt) >= 2 and ref[0:2] == alt[0:2]:
 			ref, alt = ref[1:], alt[1:]
 			pos += 1
-		if len(ref) == 1 and len(alt) == 1:
-			n_snps += 1
-			v = VcfCall(position=pos, reference_allele=ref, alternative_allele=alt, genotype=call.gt_type)
-			variants.append(v)
-			continue
-		if not indels:
-			continue
+		return pos, ref, alt
 
-		if ref[0] == alt[0] and ((len(ref) == 1) != (len(alt) == 1)):
-			n_indels += 1
-			v = VcfCall(position=pos+1, reference_allele=ref[1:], alternative_allele=alt[1:], genotype=call.gt_type)
-			variants.append(v)
-			continue
-
-		# Something like GCG -> TCT or CTCTC -> CA occurred.
-		# TODO deal with complex variants
-		# v = VcfCall(position=pos, reference_allele=a0, alternative_allele=a1, genotype=call.gt_type)
-		n_complex += 1
-	logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s. "
-		"Skipped %s complex variants. Skipped %s multi-ALTs.", n_snps, n_indels, n_complex, n_multi)
-	if prev_chromosome is not None:
-		variants = remove_overlapping_variants(variants)
-		yield (sample, prev_chromosome, variants)
+	def __iter__(self):
+		"""
+		Yield tuples (chromosome, calls), where calls is a dictionary that
+		maps sample names to a list of VcfCall objects. Indels are normalized,
+		(even the first shared base is removed), multi-ALT sites are skipped,
+		and also complex variants.
+		"""
+		for chromosome, records in self._group_by_chromosome():
+			yield (chromosome, self._process_single_chromosome(records))
 
 
-def remove_overlapping_variants(variants):
+	def _process_single_chromosome(self, records):
+		n_snps = 0
+		n_indels = 0
+		n_complex = 0
+		n_multi = 0
+		samples = defaultdict(list)
+		for record in records:
+			if len(record.ALT) > 1:
+				# Skip sites with multiple alternative alleles (see note in docstring)
+				n_multi += 1
+				continue
+
+			for sample_index, call in enumerate(record.samples):
+				sample = self.samples[sample_index]
+
+				# Two PyVCF pecularities:
+				#
+				# gt_alleles is a list of the alleles in the GT field, but
+				# as strings.
+				# For example, when GT is 0/1, gt_alleles is ['0', '1'].
+				# And when GT is 2|1, gt_alleles is ['2', '1'].
+				#
+				# record.alleles is a list where the first item is a string, but
+				# the other objects are not (they are Substitution objects etc.) -
+				# so do not remove the str() from the line below.
+				#
+				# TODO The sorted() should not be necessary
+				alleles = [ str(record.alleles[int(s)]) for s in sorted(call.gt_alleles) ]
+				"""
+				logger.debug("Call %s:%d %s→%s with alleles %s, genotype %s",
+					record.CHROM, record.start + 1,
+					record.REF, record.ALT,
+					alleles, call.gt_type)
+				"""
+				assert len(alleles) == 2
+				pos, ref, alt = self._normalize(record.start, alleles[0], alleles[1])
+
+				# Determine variant type: SNP, indel or complex
+				if len(ref) == 1 and len(alt) == 1:
+					n_snps += 1
+					v = VcfCall(position=pos, reference_allele=ref, alternative_allele=alt, genotype=call.gt_type)
+				elif ref[0] == alt[0] and ((len(ref) == 1) != (len(alt) == 1)):
+					n_indels += 1
+					if not self._indels:
+						continue
+					v = VcfCall(position=pos+1, reference_allele=ref[1:], alternative_allele=alt[1:], genotype=call.gt_type)
+				else:
+					# A complex variant such as GCG -> TCT or CTCTC -> CA occurred.
+					n_complex += 1
+					# TODO deal with complex variants
+					# v = VcfCall(position=pos, reference_allele=a0, alternative_allele=a1, genotype=call.gt_type)
+					continue
+				samples[sample].append(v)
+
+		logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s. "
+			"Skipped %s complex variants. Skipped %s multi-ALTs.", n_snps, n_indels, n_complex, n_multi)
+
+		nonoverlapping = dict()
+		for sample, calls in samples.items():
+			if sample in self._samples_of_interest:
+				nonoverlapping[sample] = remove_overlapping_calls(calls)
+		return nonoverlapping
+
+
+def remove_overlapping_calls(calls):
 	"""
 	Filter a list of variants such that no variants overlap each other.
 	This applies mainly to deletions: If they occur too close to another
