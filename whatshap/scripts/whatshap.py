@@ -480,7 +480,7 @@ def run_whatshap(bam, vcf,
 	bam -- list of paths to BAM files
 	vcf -- path to input VCF
 	output -- path to output VCF or sys.stdout
-	sample -- name of sample to phase. None means: phase first found sample.
+	sample -- name of sample to phase. None means: phase all samples
 	ignore_read_groups
 	mapping_quality -- discard reads below this mapping quality
 	max_coverage
@@ -524,7 +524,7 @@ def run_whatshap(bam, vcf,
 		for chromosome, sample_calls in vcf_reader:
 			timers.stop('parse_vcf')
 			logger.info('Working on chromosome %s', chromosome)
-			# These two variables hold the phasing results for each sample
+			# These two variables hold the phasing results for all samples
 			superreads, components = dict(), dict()
 			for sample, calls in sample_calls.items():
 				logger.info('Working on sample %s', sample)
@@ -547,9 +547,8 @@ def run_whatshap(bam, vcf,
 					chromosome, reads, all_heterozygous, max_coverage, timers, stats, haplotype_bam_writer)
 				superreads[sample] = sample_superreads
 				components[sample] = sample_components
-				with timers('write_vcf'):
-					vcf_writer.write(chromosome, sample, sample_superreads, sample_components)
-				break  # TODO
+			with timers('write_vcf'):
+				vcf_writer.write(chromosome, superreads, components)
 			logger.info('Chromosome %s finished', chromosome)
 			timers.start('parse_vcf')
 		timers.stop('parse_vcf')

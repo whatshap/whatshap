@@ -73,8 +73,6 @@ class VcfReader:
 		self._vcf_reader = vcf.Reader(filename=path)
 		self.samples = self._vcf_reader.samples  # intentionally public
 
-		# TODO do not do this, just return all samples instead and let the user
-		# take what they want
 		if samples is None:
 			self._samples_of_interest = frozenset(self.samples)
 		else:
@@ -115,14 +113,14 @@ class VcfReader:
 
 	def __iter__(self):
 		"""
-		Yield tuples (chromosome, calls), where calls is a dictionary that
-		maps sample names to a list of VcfCall objects. Indels are normalized,
-		(even the first shared base is removed), multi-ALT sites are skipped,
-		and also complex variants.
+		Yield tuples (chromosome, calls), where
+		- chromosome is the chromosome name
+		- calls is a dictionary that maps sample names to a list of VcfCall
+		objects. Indels are normalized, (even the first shared base is removed),
+		multi-ALT sites are skipped, and also complex variants.
 		"""
 		for chromosome, records in self._group_by_chromosome():
 			yield (chromosome, self._process_single_chromosome(records))
-
 
 	def _process_single_chromosome(self, records):
 		n_snps = 0
@@ -245,29 +243,29 @@ class PhasedVcfWriter:
 		assert phase in [0,1]
 		return '{}-{},{}-{}'.format(component + 1, phase + 1, component + 1, 2 - phase)
 
-	def write(self, chromosome, sample, superreads, components):
+	def write(self, chromosome, sample_superreads, sample_components):
 		"""
-		Add phasing information to all variants on a single chromosome of a
-		sample.
+		Add phasing information to all variants on a single chromosome.
 
 		chromosome -- name of chromosome
-		sample -- name of sample
-		superreads --
-		components -- a dictionary that maps each variant position to a
-			components, where a component is identified by the position of
-			its left-most variant
+		sample_superreads -- dictionary that maps each sample to a superread
+		sample_components -- a dictionary that maps each sample to its connected components
+
+			Each component in turn is a dict that maps each variant position to a
+			component, where a component is identified by the position of its
+			left-most variant
+
+		# TODO introduce a PhasingResult class that combines superread and component
 		"""
 		assert self._unprocessed_record is None or (self._unprocessed_record.CHROM == chromosome)
 
-		# TODO move sample parameter into the constructor
-		sample_index = self._reader.samples.index(sample)
-
-		# TODO don’t use dicts for *everything* ...
-		phases = { variant.position: variant.allele for variant in superreads[0] if variant.allele in [0,1] }
 		if self._unprocessed_record is not None:
 			records_iter = itertools.chain([self._unprocessed_record], self._reader_iter)
 		else:
 			records_iter = self._reader_iter
+		sample_phases = dict()
+		for sample, superreads in sample_superreads.items():
+			sample_phases[sample] = { variant.position: variant.allele for variant in superreads[0] if variant.allele in [0,1] }
 		n = 0
 		for record in records_iter:
 			n += 1
@@ -276,33 +274,51 @@ class PhasedVcfWriter:
 				self._unprocessed_record = record
 				assert n != 1
 				break
-			if record.start not in components:
-				# Phasing info not available, just copy record
-				self._writer.write_record(record)
-				continue
 
-			# Current PyVCF does not make it very easy to modify records/calls.
-			if 'HP' not in record.FORMAT.split(':'):
-				record.add_format('HP')
-				if record.FORMAT not in self._reader._format_cache:
-					self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
-			samp_fmt = self._reader._format_cache[record.FORMAT]
-			# Set HP tag for all samples
-			for i, call in enumerate(record.samples):
-				if i == sample_index:
+			# Determine whether the variant is phased in any sample
+			is_phased = True
+			for sample in self._reader.samples:
+				if sample in sample_superreads:
+					components = sample_components[sample]
+					phases = sample_phases[sample]
+					if record.start in components and record.start in phases:
+						break
+			else:
+				is_phased = False
+
+			if is_phased:
+				# Current PyVCF does not make it very easy to modify records/calls.
+				# Add HP tag to FORMAT
+				if 'HP' not in record.FORMAT.split(':'):
+					record.add_format('HP')
+					if record.FORMAT not in self._reader._format_cache:
+						self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
+				samp_fmt = self._reader._format_cache[record.FORMAT]
+
+				# Set HP tag for all samples
+				for i, call in enumerate(record.samples):
+					sample = self._reader.samples[i]
+					if sample not in sample_superreads:
+						# This sample has not been phased, leave unchanged
+						continue
+					components = sample_components[sample]
+					phases = sample_phases[sample]
+
 					if (hasattr(call.data, 'HP') and call.data.HP is not None
 							and not self._hp_found_warned):
 						logger.warning('Ignoring existing phasing information '
 							'found in input VCF (HP tag exists).')
 						self._hp_found_warned = True
-					# Set or overwrite HP tag
-					phasing_info = self._format_phasing_info(components[record.start], phases[record.start])
-					values = call.data._asdict()
-					values['HP'] = phasing_info
-					call.data = samp_fmt(**values)
-				elif not hasattr(call.data, 'HP'):
-					# HP tag missing, set it to "."
-					values = call.data._asdict()
-					values['HP'] = None
-					call.data = samp_fmt(**values)
+
+					if record.start in components and record.start in phases:
+						# Set or overwrite HP tag
+						phasing_info = self._format_phasing_info(components[record.start], phases[record.start])
+						values = call.data._asdict()
+						values['HP'] = phasing_info
+						call.data = samp_fmt(**values)
+					else:
+						# Unphased - set HP to '.'
+						values = call.data._asdict()
+						values['HP'] = None
+						call.data = samp_fmt(**values)
 			self._writer.write_record(record)
