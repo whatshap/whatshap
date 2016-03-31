@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 # alternative_allele because there can be non-reference heterozygous variants
 # For example, if the VCF file has an entry such as A -> C,T and the GT is 1/2,
 # then the alleles are C and T, and both of them are 'alternative'.
-class VcfVariant:
-	"""A variant in a VCF file"""
+class VcfCall:
+	"""A called variant in a VCF file"""
 	def __init__(self, position, reference_allele, alternative_allele, genotype):
 		"""
 		position -- 0-based start coordinate
@@ -38,7 +38,7 @@ class VcfVariant:
 		assert self.genotype == 2 if self.reference_allele == self.alternative_allele else 1
 
 	def __str__(self):
-		return "VcfVariant(pos={}, ref={}, alt={}, genotype={})".format(self.position+1,
+		return "VcfCall(pos={}, ref={}, alt={}, genotype={})".format(self.position+1,
 			self.reference_allele, self.alternative_allele, self.genotype)
 
 	def is_heterozygous(self):
@@ -81,7 +81,7 @@ def parse_vcf(path, indels=False, sample=None):
 	"""
 	Read a VCF and yield tuples (sample, chromosome, variants) for each
 	chromosome for which there are variants in the VCF. chromosome is
-	the name of the chromosome, and variants is a list of VcfVariant objects that
+	the name of the chromosome, and variants is a list of VcfCall objects that
 	represent all heterozygous variants.
 
 	path -- Path to VCF file
@@ -147,7 +147,7 @@ def parse_vcf(path, indels=False, sample=None):
 			pos += 1
 		if len(ref) == 1 and len(alt) == 1:
 			n_snps += 1
-			v = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt, genotype=call.gt_type)
+			v = VcfCall(position=pos, reference_allele=ref, alternative_allele=alt, genotype=call.gt_type)
 			variants.append(v)
 			continue
 		if not indels:
@@ -155,13 +155,13 @@ def parse_vcf(path, indels=False, sample=None):
 
 		if ref[0] == alt[0] and ((len(ref) == 1) != (len(alt) == 1)):
 			n_indels += 1
-			v = VcfVariant(position=pos+1, reference_allele=ref[1:], alternative_allele=alt[1:], genotype=call.gt_type)
+			v = VcfCall(position=pos+1, reference_allele=ref[1:], alternative_allele=alt[1:], genotype=call.gt_type)
 			variants.append(v)
 			continue
 
 		# Something like GCG -> TCT or CTCTC -> CA occurred.
 		# TODO deal with complex variants
-		# v = VcfVariant(position=pos, reference_allele=a0, alternative_allele=a1, genotype=call.gt_type)
+		# v = VcfCall(position=pos, reference_allele=a0, alternative_allele=a1, genotype=call.gt_type)
 		n_complex += 1
 	logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s. "
 		"Skipped %s complex variants. Skipped %s multi-ALTs.", n_snps, n_indels, n_complex, n_multi)
@@ -180,12 +180,12 @@ def remove_overlapping_variants(variants):
 	are unique. For that, it may also remove other variants (not necessarily
 	involved in a deletion).
 
-	variants -- a list of VcfVariant objects
+	calls -- a list of VcfCall objects
 
-	Return a list of VcfVariant objects.
+	Return a list of VcfCall objects.
 	"""
 	# TODO obviously, this is not implemented ...
-	return variants
+	return calls
 
 
 class PhasedVcfWriter:
