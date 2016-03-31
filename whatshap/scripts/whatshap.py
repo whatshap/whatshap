@@ -11,8 +11,6 @@ standard output.
 
 TODO
 * it would be cleaner to not open the input VCF twice
-* convert parse_vcf to a class so that we can access VCF header info before
-  starting to iterate (sample names)
 """
 import os
 import logging
@@ -28,7 +26,7 @@ try:
 	from contextlib import ExitStack
 except ImportError:
 	from contextlib2 import ExitStack  # PY32
-from ..vcf import parse_vcf, PhasedVcfWriter
+from ..vcf import VcfReader, PhasedVcfWriter
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, readselection
@@ -397,9 +395,85 @@ def ensure_pysam_version():
 		sys.exit("WhatsHap requires pysam >= 0.8.1")
 
 
+def phase_sample(chromosome, reads, all_heterozygous, max_coverage, timers, stats, haplotype_bam_writer):
+	"""
+	Phase variants of a single sample on a single chromosome.
+	"""
+	with timers('slice'):
+		# Sort the variants stored in each read
+		# TODO: Check whether this is already ensured by construction
+		for read in reads:
+			read.sort()
+		# Sort reads in read set by position
+		reads.sort()
+
+		selected_reads, uninformative_read_count = readselection(reads, max_coverage)
+		sliced_reads = reads.subset(selected_reads)
+
+		position_list = reads.get_positions()
+		accessible_positions = sliced_reads.get_positions()
+		informative_read_count = len(reads) - uninformative_read_count
+		unphasable_snps = len(position_list) - len(accessible_positions)
+		logger.info('%d variants are covered by at least one read', len(position_list))
+		logger.info('Skipped %d reads that only cover one variant', uninformative_read_count)
+		if position_list:
+			logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
+				'connecting them to another variant and are thus unphasable',
+				unphasable_snps, len(position_list),
+				100. * unphasable_snps / len(position_list)
+			)
+		if reads:
+			logger.info('After read selection: Using %d of %d (%.1f%%) reads that cover two or more variants',
+				len(selected_reads), informative_read_count, (100. * len(selected_reads) / informative_read_count if informative_read_count > 0 else float('nan'))
+			)
+
+	n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(reads)
+	n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(sliced_reads)
+	stats.n_best_case_blocks += n_best_case_blocks
+	stats.n_best_case_nonsingleton_blocks += n_best_case_nonsingleton_blocks
+	stats.n_best_case_blocks_cov += n_best_case_blocks_cov
+	stats.n_best_case_nonsingleton_blocks_cov += n_best_case_nonsingleton_blocks_cov
+	logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
+		n_best_case_nonsingleton_blocks, n_best_case_blocks)
+	logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
+		n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
+
+	with timers('phase'):
+		logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
+		# Run the core algorithm: construct DP table ...
+		dp_table = DPTable(sliced_reads, all_heterozygous)
+		# get the mec score
+		mec_score = dp_table.get_optimal_cost()
+		# ... and do the backtrace to get the solution
+		superreads = dp_table.get_super_reads()
+
+		# output the MEC score of phasing
+		logger.info('MEC score of phasing: %d', mec_score)
+
+		n_homozygous = sum(1 for v1, v2 in zip(*superreads)
+			if v1.allele == v2.allele and v1.allele in (0, 1))
+		stats.n_homozygous += n_homozygous
+
+	components = find_components(superreads, sliced_reads)
+	n_phased_blocks = len(set(components.values()))
+	stats.n_phased_blocks += n_phased_blocks
+	logger.info('No. of phased blocks: %d', n_phased_blocks)
+	if all_heterozygous:
+		assert n_homozygous == 0
+	else:
+		logger.info('No. of heterozygous variants determined to be homozygous: %d', n_homozygous)
+
+	if haplotype_bam_writer is not None:
+		logger.info('Writing used reads to haplotype-specific BAM files')
+		haplotype_bam_writer.write(sliced_reads, dp_table.get_optimal_partitioning(), chromosome)
+
+	return superreads, components
+
+
 def run_whatshap(bam, vcf,
 		output=sys.stdout, sample=None, ignore_read_groups=False, indels=True,
-		mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123, haplotype_bams_prefix=None):
+		mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123,
+		haplotype_bams_prefix=None):
 	"""
 	Run WhatsHap.
 
@@ -437,105 +511,49 @@ def run_whatshap(bam, vcf,
 			output = stack.enter_context(open(output, 'w'))
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=vcf, out_file=output)
-		vcf_reader = parse_vcf(vcf, sample=sample, indels=indels)
+		vcf_reader = VcfReader(vcf, samples=[sample] if sample else None, indels=indels)
+		if ignore_read_groups and sample is None and len(vcf_reader.samples) > 1:
+			logger.error('When using --ignore-read-groups on a VCF with '
+				'multiple samples, --sample must also be used.')
+			sys.exit(1)
 		haplotype_bam_writer = None
 		if haplotype_bams_prefix is not None:
 			haplotype_bam_writer = HaplotypeBamWriter(bam, haplotype_bams_prefix, sample)
+
 		timers.start('parse_vcf')
-		for sample, chromosome, variants in vcf_reader:
-			variants = [ v for v in variants if v.is_heterozygous() ]
+		for chromosome, sample_calls in vcf_reader:
 			timers.stop('parse_vcf')
 			logger.info('Working on chromosome %s', chromosome)
-			logger.info('Read %d variants', len(variants))
-			bam_sample = None if ignore_read_groups else sample
-			logger.info('Reading the BAM file ...')
-			try:
+			# These two variables hold the phasing results for each sample
+			superreads, components = dict(), dict()
+			for sample, calls in sample_calls.items():
+				logger.info('Working on sample %s', sample)
+				calls = [ call for call in calls if call.is_heterozygous() ]
+				logger.info('Read %d variants', len(calls))
+				bam_sample = None if ignore_read_groups else sample
+				logger.info('Reading the BAM file ...')
 				timers.start('read_bam')
-				reads = bam_reader.read(chromosome, variants, bam_sample)
-				bam_time = timers.stop('read_bam')
-			except SampleNotFoundError:
-				logger.error("Sample %r is not among the read groups (RG tags) "
-					"in the BAM header.", bam_sample)
-				sys.exit(1)
-			except ReadSetError as e:
-				logger.error("%s", e)
-				sys.exit(1)
-			logger.info('Read %d reads in %.1f s', len(reads), bam_time)
-
-			with timers('slice'):
-				# Sort the variants stored in each read
-				# TODO: Check whether this is already ensured by construction
-				for read in reads:
-					read.sort()
-				# Sort reads in read set by position
-				reads.sort()
-
-				selected_reads, uninformative_read_count = readselection(reads, max_coverage)
-				sliced_reads = reads.subset(selected_reads)
-
-				position_list = reads.get_positions()
-				accessible_positions = sliced_reads.get_positions()
-				informative_read_count = len(reads) - uninformative_read_count
-				unphasable_snps = len(position_list) - len(accessible_positions)
-				logger.info('%d variants are covered by at least one read', len(position_list))
-				logger.info('Skipped %d reads that only cover one variant', uninformative_read_count)
-				if position_list:
-					logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
-						'connecting them to another variant and are thus unphasable',
-						unphasable_snps, len(position_list),
-						100. * unphasable_snps / len(position_list)
-					)
-				if reads:
-					logger.info('After read selection: Using %d of %d (%.1f%%) reads that cover two or more variants',
-						len(selected_reads), informative_read_count, (100. * len(selected_reads) / informative_read_count if informative_read_count > 0 else float('nan'))
-					)
-
-
-			n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(reads)
-			n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(sliced_reads)
-			stats.n_best_case_blocks += n_best_case_blocks
-			stats.n_best_case_nonsingleton_blocks += n_best_case_nonsingleton_blocks
-			stats.n_best_case_blocks_cov += n_best_case_blocks_cov
-			stats.n_best_case_nonsingleton_blocks_cov += n_best_case_nonsingleton_blocks_cov
-			logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
-				n_best_case_nonsingleton_blocks, n_best_case_blocks)
-			logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
-				n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
-
-			with timers('phase'):
-				logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
-				# Run the core algorithm: construct DP table ...
-				dp_table = DPTable(sliced_reads, all_heterozygous)
-				# get the mec score
-				mec_score = dp_table.get_optimal_cost()
-				# ... and do the backtrace to get the solution
-				superreads = dp_table.get_super_reads()
-
-				# output the MEC score of phasing
-				logger.info('MEC score of phasing: %d', mec_score)
-
-				n_homozygous = sum(1 for v1, v2 in zip(*superreads)
-					if v1.allele == v2.allele and v1.allele in (0, 1))
-				stats.n_homozygous += n_homozygous
-
-			components = find_components(superreads, sliced_reads)
-			n_phased_blocks = len(set(components.values()))
-			stats.n_phased_blocks += n_phased_blocks
-			logger.info('No. of phased blocks: %d', n_phased_blocks)
-			if all_heterozygous:
-				assert n_homozygous == 0
-			else:
-				logger.info('No. of heterozygous variants determined to be homozygous: %d', n_homozygous)
-
-			with timers('write_vcf'):
-				vcf_writer.write(chromosome, sample, superreads, components)
-
-			if haplotype_bam_writer is not None:
-				logger.info('Writing used reads to haplotype-specific BAM files')
-				haplotype_bam_writer.write(sliced_reads, dp_table.get_optimal_partitioning(), chromosome)
+				try:
+					reads = bam_reader.read(chromosome, calls, bam_sample)
+				except SampleNotFoundError:
+					logger.error("Sample %r is not among the read groups (RG tags) "
+						"in the BAM header.", bam_sample)
+					sys.exit(1)
+				except ReadSetError as e:
+					logger.error("%s", e)
+					sys.exit(1)
+				logger.info('Read %d reads in %.1f s', len(reads), timers.stop('read_bam'))
+				sample_superreads, sample_components = phase_sample(
+					chromosome, reads, all_heterozygous, max_coverage, timers, stats, haplotype_bam_writer)
+				superreads[sample] = sample_superreads
+				components[sample] = sample_components
+				with timers('write_vcf'):
+					vcf_writer.write(chromosome, sample, sample_superreads, sample_components)
+				break  # TODO
 			logger.info('Chromosome %s finished', chromosome)
 			timers.start('parse_vcf')
 		timers.stop('parse_vcf')
+
 	logger.info('== SUMMARY ==')
 	logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
 		stats.n_best_case_nonsingleton_blocks, stats.n_best_case_blocks)
@@ -602,8 +620,8 @@ def main():
 		help='Ignore read groups in BAM header and assume all reads come '
 		'from the same sample.')
 	parser.add_argument('--sample', metavar='SAMPLE', default=None,
-		help='Name of a sample to phase. If not given, the first sample in the '
-		'input VCF is phased.')
+		help='Name of a sample to phase. If not given, all samples in the '
+		'input VCF are phased.')
 	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
 		help='Write reads that have been used for phasing to haplotype-specific BAM files. '
 		'Creates PREFIX.1.bam and PREFIX.2.bam')
