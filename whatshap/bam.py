@@ -77,6 +77,10 @@ class SampleBamReader:
 		self._sample_to_group_ids = {
 			id: frozenset(values) for id, values in samples.items() }
 
+	def has_sample(self, sample):
+		"""Return whether this file contains read for the given sample"""
+		return sample in self._sample_to_group_ids
+
 	def fetch(self, reference, sample):
 		"""
 		Raise KeyError if sample not found among samples named in RG header.
@@ -150,8 +154,11 @@ class MultiBamReader:
 			for alignment in reader.fetch(reference, sample):
 				yield ComparableAlignedSegment(alignment.bam_alignment, alignment.source_id)
 		iterators = []
-		for r in self._readers:
-			iterators.append(make_comparable(r))
+		for reader in self._readers:
+			if reader.has_sample(sample):
+				iterators.append(make_comparable(reader))
+		if not iterators:
+			raise SampleNotFoundError('Sample not found in any input BAM file')
 		for it in heapq.merge(*iterators):
 			yield AlignmentWithSourceID(it.source_id, it.segment)
 
