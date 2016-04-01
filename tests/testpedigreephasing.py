@@ -12,9 +12,10 @@ def trio_pedigree(*genotypes):
 	"""
 	assert len(genotypes) == 3
 	pedigree = Pedigree()
-	for id, genotypes in enumerate(genotypes):
-		pedigree.add_individual(id, genotypes)
-	pedigree.add_relationship(0, 1, 2)
+	pedigree.add_individual(1, genotypes[0])
+	pedigree.add_individual(2, genotypes[1])
+	pedigree.add_individual(0, genotypes[2])
+	pedigree.add_relationship(1, 2, 0)
 	return pedigree
 
 
