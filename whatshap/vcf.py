@@ -262,9 +262,13 @@ class PhasedVcfWriter:
 			records_iter = itertools.chain([self._unprocessed_record], self._reader_iter)
 		else:
 			records_iter = self._reader_iter
+		allowed_alleles = frozenset({(0, 1), (1, 0), (0, 0), (1, 1)})
 		sample_phases = dict()
 		for sample, superreads in sample_superreads.items():
-			sample_phases[sample] = { variant.position: variant.allele for variant in superreads[0] if variant.allele in [0,1] }
+			sample_phases[sample] = {
+				v1.position: v1.allele for v1, v2 in zip(*superreads)
+					if (v1.allele, v2.allele) in allowed_alleles
+			}
 		n = 0
 		for record in records_iter:
 			n += 1
