@@ -35,9 +35,10 @@ cdef class Read:
 			assert self.thisptr != NULL
 			del self.thisptr
 
-	def __str__(self):
+	def __repr__(self):
 		assert self.thisptr != NULL
-		return self.thisptr.toString().decode('utf-8')
+		return 'Read(name={!r}, mapq={}, source_id={}, variants={})'.format(
+			self.name, self.mapqs, self.source_id, list(self))
 
 	property mapqs:
 		def __get__(self):
