@@ -7,20 +7,18 @@
 
 using namespace std;
 
-Pedigree::Pedigree(const std::vector<triple_entry_t> triples, const std::vector<genotype_entry_t> genotypes) : triples(std::move(triples)), genotypes(std::move(genotypes)) {
+Pedigree::Pedigree() {
 }
 
-void Pedigree::addTriple(unsigned int m, unsigned int f, unsigned int c) {
-	triple_entry_t.clear();
-	triple_entry_t.push_back(m);
-	triple_entry_t.push_back(f);
-	triple_entry_t.push_back(c);
-	triples.push_back(triple_entry_t);
+
+void Pedigree::addIndividual(unsigned int id, std::vector<unsigned int> genotypes) {
+	genotypes_map[id] = genotypes;
 }
 
-void Pedigree::addGenoTriple(std::vector<unsigned int>& m, std::vector<unsigned int>& f, std::vector<unsigned int>& c) {
-	genotype_entry_t[0]= m;
-	genotype_entry_t[1]=f;
-	genotype_entry_t[2]=c;
-	genotypes.push_back(genotype_entry_t);
+
+void Pedigree::addRelationship(unsigned int m, unsigned int f, unsigned int c) {
+	/* TODO: Append an item to triple_genotypes.
+	To get the genotypes, use
+	genotypes_map.at(m), genotypes_map.at(f), and genotypes_map.at(c).
+	*/
 }
