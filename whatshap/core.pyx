@@ -12,6 +12,7 @@ from libcpp.vector cimport vector
 cimport cpp
 
 from collections import namedtuple
+from cython.operator cimport dereference as deref
 
 
 # A single variant on a read.
@@ -225,6 +226,52 @@ cdef class DPTable:
 		result = ReadSet()
 		self.thisptr.get_super_reads(result.thisptr)
 		return result
+
+	def get_optimal_cost(self):
+		"""Returns the cost resulting from solving the Minimum Error Correction (MEC) problem."""
+		return self.thisptr.get_optimal_score()
+
+	def get_optimal_partitioning(self):
+		"""Returns a list of the same size as the read set, where each entry is either 0 or 1,
+		telling whether the corresponding read is in partition 0 or in partition 1,"""
+		cdef vector[bool]* p = self.thisptr.get_optimal_partitioning()
+		result = [0 if x else 1 for x in p[0]]
+		del p
+		return result
+
+
+cdef class PedigreeDPTable:
+	def __cinit__(self, ReadSet readset, finaldemarcations, recombcost, Pedigree pedigree):
+		"""Build the DP table from the given read set which is assumed to be sorted;
+		that is, the variants in each read must be sorted by position and the reads
+		in the read set must also be sorted (by position of their left-most variant).
+		"""
+		self.thisptr = new cpp.PedigreeDPTable(readset.thisptr, finaldemarcations, recombcost, pedigree.thisptr)
+
+	def __dealloc__(self):
+		del self.thisptr
+
+	def get_super_reads(self):
+		"""Obtain optimal-score haplotypes. Returns a triple (mother, father, child)
+		IMPORTANT: The ReadSet given at construction time must not have been altered.
+		DPTable retained a pointer to this set and will access it again. If it has
+		been altered, behavior is undefined.
+		TODO: Change that.
+		"""
+		cdef vector[cpp.ReadSet*]* read_sets = new vector[cpp.ReadSet*]()
+		transmission_vector_ptr = new vector[unsigned int]()
+		self.thisptr.get_super_reads(read_sets, transmission_vector_ptr)
+
+		results = []
+		for i in range(read_sets.size()):
+			rs = ReadSet()
+			del rs.thisptr
+			rs.thisptr = deref(read_sets)[i]
+			results.append(rs)
+
+		python_transmission_vector = list(transmission_vector_ptr[0])
+		del transmission_vector_ptr
+		return results, python_transmission_vector
 
 	def get_optimal_cost(self):
 		"""Returns the cost resulting from solving the Minimum Error Correction (MEC) problem."""

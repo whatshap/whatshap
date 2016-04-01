@@ -17,3 +17,7 @@ cdef class DPTable:
 
 cdef class Pedigree:
 	cdef cpp.Pedigree *thisptr
+
+
+cdef class PedigreeDPTable:
+	cdef cpp.PedigreeDPTable *thisptr

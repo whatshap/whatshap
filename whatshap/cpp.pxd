@@ -65,3 +65,11 @@ cdef extern from "../src/pedigree.h":
 		void addIndividual(unsigned int id, vector[unsigned int] genotypes) except +
 		void addRelationship(unsigned int m, unsigned int f, unsigned int c) except +
 		unsigned int size()
+
+
+cdef extern from "../src/pedigreedptable.h":
+	cdef cppclass PedigreeDPTable:
+		PedigreeDPTable(ReadSet*, vector[unsigned int], vector[unsigned int], Pedigree* pedigree) except +
+		void get_super_reads(vector[ReadSet*]*, vector[unsigned int]* transmission_vector) except +
+		int get_optimal_score() except +
+		vector[bool]* get_optimal_partitioning()
