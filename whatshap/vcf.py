@@ -309,15 +309,13 @@ class PhasedVcfWriter:
 							'found in input VCF (HP tag exists).')
 						self._hp_found_warned = True
 
+					values = call.data._asdict()
 					if record.start in components and record.start in phases and call.is_het:
 						# Set or overwrite HP tag
-						phasing_info = self._format_phasing_info(components[record.start], phases[record.start])
-						values = call.data._asdict()
-						values['HP'] = phasing_info
-						call.data = samp_fmt(**values)
+						values['HP'] = self._format_phasing_info(
+							components[record.start], phases[record.start])
 					else:
 						# Unphased - set HP to '.'
-						values = call.data._asdict()
 						values['HP'] = None
-						call.data = samp_fmt(**values)
+					call.data = samp_fmt(**values)
 			self._writer.write_record(record)
