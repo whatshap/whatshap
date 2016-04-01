@@ -11,65 +11,40 @@ Python 3.3 (or later) and the corresponding Python header files. In Ubuntu,
 make sure the packages ``build-essential`` and ``python3-dev`` are installed.
 
 
-Quickstart
-----------
+User installation
+-----------------
 
-As soon as there is a release, this should work::
+WhatsHap can be installed with pip::
 
-	pip3 install --user WhatsHap
+	pip3 install --user whatshap
 
-Then add ``$HOME/.local/bin`` to your ``$PATH`` and run the tool::
+This installs WhatsHap into ``$HOME/.local/bin``.  Then add
+``$HOME/.local/bin`` to your ``$PATH`` and run the tool::
 
 	export PATH=$HOME/.local/bin:$PATH
 	whatshap --help
 
 
-Regular installation
---------------------
-
-There is currently no release of WhatsHap, so you need to install it from the
-Git repository instead. Make sure you also have installed Cython::
-
-	pip3 install --user Cython
-	pip3 install --user https://bitbucket.org/whatshap/whatshap/get/master.tar.gz
-
-This installs WhatsHap into ``$HOME/.local/bin``. The Cython requirement will
-be dropped when there is a first release.
-
-You can also use a virtualenv instead, but you need to make sure that you have
-installed Cython into the virtualenv before installing WhatsHap::
-
-	virtualenv -p python3 venv  # Creates a virtualenv in the directory 'venv'
-	venv/bin/pip3 install Cython   # Installs Cython into the virtualenv
-	venv/bin/pip3 install https://bitbucket.org/whatshap/whatshap/get/master.tar.gz
-
-If you get errors while installing Cython, try to add
-``--install-option="--no-cython-compile"`` to the command, see also
-`issue 43 <https://bitbucket.org/whatshap/whatshap/issue/43/>`_.
-
-
 Development installation
 ------------------------
 
-For development, make sure that you install Cython. We also recommend using a
-virtualenv. This sequence of commands should work::
+For development, make sure that you install Cython and tox. We also recommend
+using a virtualenv. This sequence of commands should work::
 
 	git clone https://bitbucket.org/whatshap/whatshap
 	cd whatshap
 	virtualenv -p python3 venv
-	venv/bin/pip3 install Cython nose
-	venv/bin/python3 setup.py develop
+	venv/bin/pip3 install Cython nose tox
+	venv/bin/pip3 install -e .
 
-Then you can run WhatsHap like this::
+Then you can run WhatsHap like this (or activate the virtualenv and omit the
+``venv/bin`` part)::
 
 	venv/bin/whatshap --help
 
 The tests can be run like this::
 
-	venv/bin/nosetests
-
-If you use a nosetests binary from your system, it is usually called
-`nosetests3`.
+	venv/bin/tox
 
 
 Development installation (alternative)
@@ -79,7 +54,7 @@ Alternatively, if you do not want to use virtualenv, you can do the following::
 
 	git clone https://bitbucket.org/whatshap/whatshap.git
 	cd whatshap
-	python3 setup.py build_ext -i --cython
+	python3 setup.py build_ext -i
 	bin/whatshap
 
 This requires Cython, pysam, and pyvcf to be installed.
