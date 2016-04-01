@@ -69,6 +69,7 @@ extensions = [
 	Extension('whatshap.core',
 		sources=['whatshap/core.pyx',
 			'src/pedigree.cpp', 'src/dptable.cpp', 'src/columncostcomputer.cpp',
+			'src/pedigreedptable.cpp', 'src/pedigreecolumncostcomputer.cpp',
 			'src/columnindexingiterator.cpp', 'src/columnindexingscheme.cpp',
 			'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',
 			'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp'

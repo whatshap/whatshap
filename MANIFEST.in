@@ -1,6 +1,6 @@
 include whatshap/*.pyx whatshap/*.pxd
 include whatshap/core.cpp whatshap/readselect.cpp whatshap/priorityqueue.cpp
-include src/pedigree.h
+include src/pedigree.h src/pedigreedptable.h src/pedigreecolumncostcomputer.h
 include src/read.h src/entry.h src/readset.h src/columniterator.h src/dptable.h
 include src/columnindexingscheme.h src/columncostcomputer.h
 include src/columnindexingiterator.h src/graycodes.h src/indexset.h
