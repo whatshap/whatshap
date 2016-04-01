@@ -112,7 +112,7 @@ setup(
 	ext_modules = extensions,
 	packages = ['whatshap', 'whatshap.scripts'],
 	scripts = ['bin/whatshap', 'bin/phasingstats'],
-	install_requires = ['pysam>=0.8.1', 'PyVCF'] + extra_install_requires,
+	install_requires = ['pysam<0.9.0', 'PyVCF'] + extra_install_requires,
 	classifiers = [
 		"Development Status :: 4 - Beta",
 		"Environment :: Console",
