@@ -454,7 +454,8 @@ def phase_sample(chromosome, reads, all_heterozygous, max_coverage, timers, stat
 			if v1.allele == v2.allele and v1.allele in (0, 1))
 		stats.n_homozygous += n_homozygous
 
-	components = find_components(superreads, sliced_reads)
+	with timers('components'):
+		components = find_components(superreads, sliced_reads)
 	n_phased_blocks = len(set(components.values()))
 	stats.n_phased_blocks += n_phased_blocks
 	logger.info('No. of phased blocks: %d', n_phased_blocks)
@@ -563,13 +564,14 @@ def run_whatshap(bam, vcf,
 	else:
 		logger.info('No. of heterozygous variants determined to be homozygous: %d', stats.n_homozygous)
 	timers.stop('overall')
-	logger.info('Time spent reading BAM: %6.1f s', timers.elapsed('read_bam'))
-	logger.info('Time spent parsing VCF: %6.1f s', timers.elapsed('parse_vcf'))
-	logger.info('Time spent slicing:     %6.1f s', timers.elapsed('slice'))
-	logger.info('Time spent phasing:     %6.1f s', timers.elapsed('phase'))
-	logger.info('Time spent writing VCF: %6.1f s', timers.elapsed('write_vcf'))
-	logger.info('Time spent on rest:     %6.1f s', 2 * timers.elapsed('overall') - timers.total())
-	logger.info('Total elapsed time:     %6.1f s', timers.elapsed('overall'))
+	logger.info('Time spent reading BAM:        %6.1f s', timers.elapsed('read_bam'))
+	logger.info('Time spent parsing VCF:        %6.1f s', timers.elapsed('parse_vcf'))
+	logger.info('Time spent slicing:            %6.1f s', timers.elapsed('slice'))
+	logger.info('Time spent phasing:            %6.1f s', timers.elapsed('phase'))
+	logger.info('Time spent writing VCF:        %6.1f s', timers.elapsed('write_vcf'))
+	logger.info('Time spent finding components: %6.1f s', timers.elapsed('components'))
+	logger.info('Time spent on rest:            %6.1f s', 2 * timers.elapsed('overall') - timers.total())
+	logger.info('Total elapsed time:            %6.1f s', timers.elapsed('overall'))
 
 
 class NiceFormatter(logging.Formatter):
