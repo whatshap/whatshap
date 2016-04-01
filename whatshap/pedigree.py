@@ -14,6 +14,7 @@ def interpolate(point, start_pos, end_pos, start_value, end_value):
 		return start_value
 	return start_value + ((point - start_pos) * (end_value - start_value) / (end_pos - start_pos))
 
+
 def recombination_cost_map(genetic_map, positions):
 
 	assert len(genetic_map) > 0
@@ -62,6 +63,7 @@ def recombination_cost_map(genetic_map, positions):
 
 	return result
 
+
 def centimorgen_to_phred(distance):
 	assert distance >= 0
 	if distance == 0:
@@ -106,6 +108,42 @@ def mendelian_conflict(genotypem, genotypef, genotypec):
 	l.sort()
 	l.append(genotypec)
 	return tuple(l) in mendelian_conflict_sets
+
+
+def find_recombination(transmission_vector, components, positions, recombcost, recombination_list_filename=None):
+	assert len(transmission_vector) == len(positions) == len(recombcost)
+	assert set(components.keys()).issubset(set(positions))
+	position_to_index = { pos: i for i, pos in enumerate(positions) }
+	blocks = defaultdict(list)
+	for position, block_id in components.items():
+		blocks[block_id].append(position)
+
+	RecombinationEvent = namedtuple('RecombinationEvent', ['position1', 'position2', 'inheritance_value1', 'inheritance_value2' , 'recombination_cost'])
+	event_count = 0
+	event_list = []
+	cum_recomb_cost = 0
+	for block_id, block in blocks.items():
+		block.sort()
+		block_transmission_vector = [ transmission_vector[position_to_index[i]] for i in block ]
+		block_recomb_cost = [ recombcost[position_to_index[i]] for i in block ]
+		if len(block) <= 2:
+			continue
+		for i in range(2, len(block)):
+			if block_transmission_vector[i-1] != block_transmission_vector[i]:
+				event_list.append(RecombinationEvent(block[i-1], block[i], block_transmission_vector[i-1], block_transmission_vector[i], block_recomb_cost[i]))
+				cum_recomb_cost += block_recomb_cost[i]
+				event_count += 1
+
+	if recombination_list_filename is not None:
+		event_list.sort()
+		f = open(recombination_list_filename, 'w')
+		print('#position1', 'position2', 'inheritance_value1', 'inheritance_value2' , 'recombination_cost', file=f)
+		for e in event_list:
+			print(e.position1, e.position2, e.inheritance_value1, e.inheritance_value2, e.recombination_cost, file=f)
+		f.close()
+
+	logger.info('Cost accounted for by recombination events: %d', cum_recomb_cost)
+	return event_count
 
 
 class ParseError(Exception):
