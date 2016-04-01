@@ -68,8 +68,8 @@ def check_cython_version():
 extensions = [
 	Extension('whatshap.core',
 		sources=['whatshap/core.pyx',
-			'src/columncostcomputer.cpp', 'src/columnindexingiterator.cpp',
-			'src/columnindexingscheme.cpp', 'src/dptable.cpp',
+			'src/pedigree.cpp', 'src/dptable.cpp', 'src/columncostcomputer.cpp',
+			'src/columnindexingiterator.cpp', 'src/columnindexingscheme.cpp',
 			'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',
 			'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp'
 		], language='c++', extra_compile_args=["-std=c++11"],),
