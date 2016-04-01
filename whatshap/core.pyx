@@ -239,4 +239,18 @@ cdef class DPTable:
 		return result
 
 
+cdef class Pedigree:
+	def __cinit__(self):
+		self.thisptr = new cpp.Pedigree()
+
+	def __dealloc__(self):
+		del self.thisptr
+
+	def add_individual(self, int id, vector[unsigned int] genotypes):
+		self.thisptr.addIndividual(id, genotypes)
+
+	def add_relationship(self, int mother_id, int father_id, int child_id):
+		self.thisptr.addRelationship(mother_id, father_id, child_id)
+
+
 include 'readselect.pyx'
