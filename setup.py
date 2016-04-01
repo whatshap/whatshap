@@ -12,6 +12,7 @@ import os.path
 from setuptools import setup, Extension
 from distutils.version import LooseVersion
 from distutils.command.sdist import sdist as _sdist
+from distutils.command.build_ext import build_ext as _build_ext
 
 # set __version__
 exec(next(open('whatshap/__init__.py')))
@@ -67,7 +68,6 @@ def no_cythonize(extensions, **_ignore):
 				sfile = path + ext
 			sources.append(sfile)
 		extension.sources[:] = sources
-	return extensions
 
 
 def cythonize_if_necessary(extensions):
@@ -76,7 +76,7 @@ def cythonize_if_necessary(extensions):
 	elif out_of_date(extensions):
 		sys.stdout.write('At least one C source file is missing or out of date.\n')
 	else:
-		return no_cythonize(extensions)
+		no_cythonize(extensions)
 
 	try:
 		from Cython import __version__ as cyversion
@@ -92,7 +92,7 @@ def cythonize_if_necessary(extensions):
 		sys.exit(1)
 
 	from Cython.Build import cythonize
-	return cythonize(extensions)
+	cythonize(extensions)
 
 
 extensions = [
@@ -104,7 +104,6 @@ extensions = [
 			'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp'
 		], language='c++', extra_compile_args=["-std=c++0x"],),
 ]
-extensions = cythonize_if_necessary(extensions)
 
 
 class sdist(_sdist):
@@ -115,6 +114,12 @@ class sdist(_sdist):
 		_sdist.run(self)
 
 
+class build_ext(_build_ext):
+	def run(self):
+		cythonize_if_necessary(extensions)
+		_build_ext.run(self)
+
+
 setup(
 	name = 'whatshap',
 	version = __version__,
@@ -123,7 +128,7 @@ setup(
 	url = 'https://bitbucket.org/whatshap/whatshap/',
 	description = 'phase genomic variants using DNA sequencing reads',
 	license = 'MIT',
-	cmdclass = {'sdist': sdist},
+	cmdclass = {'sdist': sdist, 'build_ext': build_ext},
 	ext_modules = extensions,
 	packages = ['whatshap', 'whatshap.scripts'],
 	scripts = ['bin/whatshap', 'bin/phasingstats'],
