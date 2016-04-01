@@ -1,4 +1,5 @@
 include whatshap/*.pyx
+include whatshap/_core.cpp
 include src/read.h src/entry.h src/readset.h src/columniterator.h src/dptable.h
 include src/columnindexingscheme.h src/columncostcomputer.h
 include src/columnindexingiterator.h src/graycodes.h src/indexset.h

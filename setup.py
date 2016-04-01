@@ -29,27 +29,6 @@ else:
 	extra_install_requires = []
 
 
-def out_of_date(extensions):
-	"""
-	Check whether any pyx source is newer than the corresponding generated
-	C(++) source or whether any C(++) source is missing.
-	"""
-	for extension in extensions:
-		for pyx in extension.sources:
-			path, ext = os.path.splitext(pyx)
-			if ext not in ('.pyx', '.py'):
-				continue
-			csource = path + ('.cpp' if extension.language == 'c++' else '.c')
-			# When comparing modification times, allow five seconds slack:
-			# If the installation is being run from pip, modification
-			# times are not preserved and therefore depends on the order in
-			# which files were unpacked.
-			if not os.path.exists(csource) or (
-				os.path.getmtime(pyx) > os.path.getmtime(csource) + 5):
-				return True
-	return False
-
-
 def no_cythonize(extensions, **_ignore):
 	"""
 	Change file extensions from .pyx to .c or .cpp.
@@ -70,14 +49,8 @@ def no_cythonize(extensions, **_ignore):
 		extension.sources[:] = sources
 
 
-def cythonize_if_necessary(extensions):
-	if '--cython' in sys.argv:
-		sys.argv.remove('--cython')
-	elif out_of_date(extensions):
-		sys.stdout.write('At least one C source file is missing or out of date.\n')
-	else:
-		no_cythonize(extensions)
-
+def check_cython_version():
+	"""exit if Cython not found or out of date"""
 	try:
 		from Cython import __version__ as cyversion
 	except ImportError:
@@ -91,9 +64,6 @@ def cythonize_if_necessary(extensions):
 			"', but at least version " + str(MIN_CYTHON_VERSION) + " is required.\n")
 		sys.exit(1)
 
-	from Cython.Build import cythonize
-	cythonize(extensions)
-
 
 extensions = [
 	Extension('whatshap._core',
@@ -106,18 +76,28 @@ extensions = [
 ]
 
 
+class build_ext(_build_ext):
+	def run(self):
+		# If we encounter a PKG-INFO file, then this is likely a .tar.gz/.zip
+		# file retrieved from PyPI that already includes the pre-cythonized
+		# extension modules, and then we do not need to run cythonize().
+		if os.path.exists('PKG-INFO'):
+			no_cythonize(extensions)
+		else:
+			# Otherwise, this is a 'developer copy' of the code, and then the
+			# only sensible thing is to require Cython to be installed.
+			check_cython_version()
+			from Cython.Build import cythonize
+			cythonize(extensions)
+		_build_ext.run(self)
+
+
 class sdist(_sdist):
 	def run(self):
 		# Make sure the compiled Cython files in the distribution are up-to-date
 		from Cython.Build import cythonize
 		cythonize(extensions)
 		_sdist.run(self)
-
-
-class build_ext(_build_ext):
-	def run(self):
-		cythonize_if_necessary(extensions)
-		_build_ext.run(self)
 
 
 setup(
