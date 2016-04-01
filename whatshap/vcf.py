@@ -36,7 +36,6 @@ class VcfCall:
 		self.reference_allele = reference_allele
 		self.alternative_allele = alternative_allele
 		self.genotype = genotype
-		assert self.genotype == 2 if self.reference_allele == self.alternative_allele else 1
 
 	def __repr__(self):
 		return "VcfCall(pos={}, ref={}, alt={}, genotype={})".format(self.position+1,
