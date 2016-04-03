@@ -23,7 +23,7 @@ phased, that information will be added to the variant in the output VCF.
 Insertions, deletions and multi-nucleotide changes (MNPs) are not phased, nor
 are structural variations. All records that contain such variants will not
 be modified by WhatsHap, that is, the records will simply be copied from the
-input into the output file.
+input to the output file.
 
 
 Trusting the variant caller
@@ -40,17 +40,4 @@ done.
 If you use this option, fewer variants will be phased.
 
 Note that switching homozygous variants to heterozygous is never possible since
-only heterozygous variants are ever considered for phasing.
-
-
-Debugging
-=========
-
-
-	$ gdb python3
-	(gdb) run -m nose
-
-After you get a SIGSEGV, let gdb print a backtrace:
-
-	(gdb) bt
-
+only heterozygous variants are considered for phasing.
