@@ -556,28 +556,31 @@ def run_whatshap(bam, vcf,
 			logger.info('Working on chromosome %s', chromosome)
 			# These two variables hold the phasing results for all samples
 			superreads, components = dict(), dict()
-			for sample, genotypes in zip(variant_table.samples, variant_table.genotypes):
-				logger.info('Working on sample %s', sample)
-				# pick variants heterozygous in this sample
-				variants = [ v for v, gt in zip(variant_table.variants, genotypes) if gt == 1 ]
-				logger.info('Found %d heterozygous variants', len(variants))
-				bam_sample = None if ignore_read_groups else sample
-				logger.info('Reading the BAM file ...')
-				timers.start('read_bam')
-				try:
-					reads = bam_reader.read(chromosome, variants, bam_sample)
-				except SampleNotFoundError:
-					logger.error("Sample %r is not among the read groups (RG tags) "
-						"in the BAM header.", bam_sample)
-					sys.exit(1)
-				except ReadSetError as e:
-					logger.error("%s", e)
-					sys.exit(1)
-				logger.info('Read %d reads in %.1f s', len(reads), timers.stop('read_bam'))
-				sample_superreads, sample_components = phase_sample(
-					chromosome, reads, all_heterozygous, max_coverage, timers, stats, haplotype_bam_writer)
-				superreads[sample] = sample_superreads
-				components[sample] = sample_components
+			if ped:
+				pass
+			else:
+				for sample, genotypes in zip(variant_table.samples, variant_table.genotypes):
+					logger.info('Working on sample %s', sample)
+					# pick variants heterozygous in this sample
+					variants = [ v for v, gt in zip(variant_table.variants, genotypes) if gt == 1 ]
+					logger.info('Found %d heterozygous variants', len(variants))
+					bam_sample = None if ignore_read_groups else sample
+					logger.info('Reading the BAM file ...')
+					timers.start('read_bam')
+					try:
+						reads = bam_reader.read(chromosome, variants, bam_sample)
+					except SampleNotFoundError:
+						logger.error("Sample %r is not among the read groups (RG tags) "
+							"in the BAM header.", bam_sample)
+						sys.exit(1)
+					except ReadSetError as e:
+						logger.error("%s", e)
+						sys.exit(1)
+					logger.info('Read %d reads in %.1f s', len(reads), timers.stop('read_bam'))
+					sample_superreads, sample_components = phase_sample(
+						chromosome, reads, all_heterozygous, max_coverage, timers, stats, haplotype_bam_writer)
+					superreads[sample] = sample_superreads
+					components[sample] = sample_components
 			with timers('write_vcf'):
 				vcf_writer.write(chromosome, superreads, components)
 			logger.info('Chromosome %s finished', chromosome)
