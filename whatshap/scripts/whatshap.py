@@ -26,7 +26,7 @@ try:
 	from contextlib import ExitStack
 except ImportError:
 	from contextlib2 import ExitStack  # PY32
-from ..vcf import VcfReader, PhasedVcfWriter
+from ..vcf import VcfReader, PhasedVcfWriter, VariantTable
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, readselection
@@ -550,20 +550,22 @@ def run_whatshap(bam, vcf,
 						'will not be phased', sample)
 
 		timers.start('parse_vcf')
-		for chromosome, sample_calls in vcf_reader:
+		for variant_table in vcf_reader:
+			chromosome = variant_table.chromosome
 			timers.stop('parse_vcf')
 			logger.info('Working on chromosome %s', chromosome)
 			# These two variables hold the phasing results for all samples
 			superreads, components = dict(), dict()
-			for sample, calls in sample_calls.items():
+			for sample, genotypes in zip(variant_table.samples, variant_table.genotypes):
 				logger.info('Working on sample %s', sample)
-				calls = [ call for call in calls if call.is_heterozygous() ]
-				logger.info('Read %d variants', len(calls))
+				# pick variants heterozygous in this sample
+				variants = [ v for v, gt in zip(variant_table.variants, genotypes) if gt == 1 ]
+				logger.info('Found %d heterozygous variants', len(variants))
 				bam_sample = None if ignore_read_groups else sample
 				logger.info('Reading the BAM file ...')
 				timers.start('read_bam')
 				try:
-					reads = bam_reader.read(chromosome, calls, bam_sample)
+					reads = bam_reader.read(chromosome, variants, bam_sample)
 				except SampleNotFoundError:
 					logger.error("Sample %r is not among the read groups (RG tags) "
 						"in the BAM header.", bam_sample)

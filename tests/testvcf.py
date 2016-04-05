@@ -2,35 +2,40 @@ from nose.tools import raises
 from whatshap.vcf import VcfReader
 
 def test_read_phased():
-	l = list(VcfReader('tests/data/phasedinput.vcf'))
-	assert len(l) == 1
-	chromosome, samples = l[0]
-	assert list(samples.keys()) == ['sample']
-	assert chromosome == 'ref'
-	calls = samples['sample']
-	assert len(calls) == 2
-	assert calls[0].reference_allele == 'A'
-	assert calls[0].alternative_allele == 'C'
-	assert calls[1].reference_allele == 'G'
-	assert calls[1].alternative_allele == 'T'
-	assert calls[0].genotype == calls[1].genotype == 1
+	tables = list(VcfReader('tests/data/phasedinput.vcf'))
+	assert len(tables) == 1
+	table = tables[0]
+	assert table.chromosome == 'ref'
+	assert table.samples == ['sample']
+	assert len(table.variants) == 2
+	assert table.variants[0].reference_allele == 'A'
+	assert table.variants[0].alternative_allele == 'C'
+	assert table.variants[1].reference_allele == 'G'
+	assert table.variants[1].alternative_allele == 'T'
+	assert table.genotypes[0][0] == table.genotypes[0][1] == 1
 
 
 def test_read_multisample_vcf():
-	l = list(VcfReader('tests/data/multisample.vcf'))
-	assert len(l) == 2
-	assert l[1][0] == 'chrB'
-	chromosome, samples = l[0]
-	assert chromosome == 'chrA'
-	assert len(samples) == 2
-	assert set(samples.keys()) == set(['sample1', 'sample2'])
-	calls1 = samples['sample1']
-	calls2 = samples['sample2']
-	assert len(calls1) == 3
-	assert len(calls2) == 3
-	assert calls1[0].reference_allele == 'A'
-	assert calls1[0].alternative_allele == 'T'
-	assert calls1[1].reference_allele == 'C'
-	assert calls1[1].alternative_allele == 'G'
-	assert calls1[2].reference_allele == 'G'
-	assert calls1[2].alternative_allele == 'T'
+	tables = list(VcfReader('tests/data/multisample.vcf'))
+	assert len(tables) == 2
+	table, table_b = tables
+	assert table_b.chromosome == 'chrB'
+	assert table_b.samples == ['sample1', 'sample2']
+
+	assert table.chromosome == 'chrA'
+	assert len(table.variants) == 3
+	assert table.samples == ['sample1', 'sample2']
+
+	assert table.variants[0].reference_allele == 'A'
+	assert table.variants[0].alternative_allele == 'T'
+	assert table.variants[1].reference_allele == 'C'
+	assert table.variants[1].alternative_allele == 'G'
+	assert table.variants[2].reference_allele == 'G'
+	assert table.variants[2].alternative_allele == 'T'
+
+	assert len(table.genotypes) == 2
+	assert list(table.genotypes[0]) == [1, 1, 1]
+	assert list(table.genotypes[1]) == [1, 1, 0]
+
+	assert list(table.genotypes_of('sample1')) == [1, 1, 1]
+	assert list(table.genotypes_of('sample2')) == [1, 1, 0]
