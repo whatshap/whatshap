@@ -32,6 +32,7 @@ from ..args import HelpfulArgumentParser as ArgumentParser
 from ..core import Read, ReadSet, DPTable, readselection
 from ..graph import ComponentFinder
 from ..coverage import CovMonitor
+from ..pedigree import PedReader, mendelian_conflict
 from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
 
 
@@ -220,7 +221,6 @@ class ReadSetReader:
 
 		# Prepare resulting set of reads.
 		read_set = ReadSet()
-
 		for readlist in reads.values():
 			assert len(readlist) > 0
 			if len(readlist) > 2:
@@ -474,7 +474,7 @@ def phase_sample(chromosome, reads, all_heterozygous, max_coverage, timers, stat
 def run_whatshap(bam, vcf,
 		output=sys.stdout, sample=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123,
-		haplotype_bams_prefix=None):
+		haplotype_bams_prefix=None, ped=None, genmap=None):
 	"""
 	Run WhatsHap.
 
@@ -520,6 +520,34 @@ def run_whatshap(bam, vcf,
 		haplotype_bam_writer = None
 		if haplotype_bams_prefix is not None:
 			haplotype_bam_writer = HaplotypeBamWriter(bam, haplotype_bams_prefix, sample)
+
+		if ped:
+			# Read in PED file to set up list of relationships (individuals)
+			individuals = []
+			samples_of_interest = set()
+			for individual in PedReader(ped):
+				if (individual.id is None or individual.mother_id is None or
+						individual.father_id is None):
+					logger.warning('Relationship %s/%s/%s ignored '
+						'because at least one of the individuals is unknown',
+						individual.id, individual.mother_id, individual.father_id)
+				else:
+					individuals.append(individual)
+					samples_of_interest.add(individual.id)
+					samples_of_interest.add(individual.mother_id)
+					samples_of_interest.add(individual.father_id)
+
+			for sample in samples_of_interest:
+				if sample not in vcf_reader.samples:
+					# TODO should that really be an error?
+					logger.error('Sample %s not found in VCF', sample)
+					sys.exit(1)
+			for sample in vcf_reader.samples:
+				if sample not in samples_of_interest:
+					# TODO should be single-individual-phased instead
+					# or perhaps it does work with the PedMEC algorithm
+					logger.warning('No relationship known for sample %s - '
+						'will not be phased', sample)
 
 		timers.start('parse_vcf')
 		for chromosome, sample_calls in vcf_reader:
@@ -626,9 +654,23 @@ def main():
 	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
 		help='Write reads that have been used for phasing to haplotype-specific BAM files. '
 		'Creates PREFIX.1.bam and PREFIX.2.bam')
+	parser.add_argument('--ped', metavar='PED/FAM',
+		help='Use pedigree information in PED file to improve phasing '
+		'(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, '
+		'mother, and father sample names as used in the VCF and BAM. Other '
+		'columns are ignored.')
+	parser.add_argument('--genmap', metavar='GENMAP',
+		help='File with genetic map (used with --ped)')  # TODO describe what the file format is
 	parser.add_argument('vcf', metavar='VCF', help='VCF file')
 	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
 	args = parser.parse_args()
 	setup_logging(args.debug)
+	if args.ped and not args.all_heterozygous:
+		parser.error('Option --distrust-genotypes cannot be used together with --ped')
+	if args.ignore_read_groups and args.ped:
+		parser.error('Option --ignore-read-groups cannot be used together with --ped')
+	if args.genmap and not args.ped:
+		parser.error('Option --genmap can only be used together with --ped')
+
 	del args.debug
 	run_whatshap(**vars(args))
