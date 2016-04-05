@@ -150,6 +150,7 @@ class ParseError(Exception):
 	pass
 
 
+# TODO rename this to Trio with attributes mother, father, child
 Individual = namedtuple('Individual', ['id', 'mother_id', 'father_id'])
 
 
