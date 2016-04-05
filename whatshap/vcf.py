@@ -79,7 +79,7 @@ class VariantTable:
 				del gt[i]
 
 		for gt in self.genotypes:
-			assert len(self.variants) == gt
+			assert len(self.variants) == len(gt)
 		assert len(self.samples) == len(self.genotypes)
 
 
