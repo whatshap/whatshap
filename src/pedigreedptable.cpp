@@ -30,23 +30,7 @@ PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, vector<unsigned int> read_ma
 	transmission_backtrace_table(),
 	read_count(0u)
 {
-//   std::set<unsigned int> temp;
-//   for(auto& triple: triples)
-//       {
-// 	for(auto& ind:triple)
-// 	{
-// 	  if(temp.insert(ind).second){
-// 	    id_of_individuals.push_back(ind);
-// 	  }
-// 	}
-//       }
   read_set->reassignReadIds();
-  //for(unsigned int i=0;i<3;i++)
-  //std::cout<<"compute table"<<genotypes[0][0][i]<<endl;
-//    for(unsigned int i=0;i<3;i++)
-//   std::cout<<"compute table"<<genotypes[0][1][i]<<endl;
-//    for(unsigned int i=0;i<3;i++)
-//   std::cout<<"compute table"<<genotypes[0][2][i]<<endl;
   compute_table();
 
 }
@@ -185,7 +169,6 @@ void PedigreeDPTable::compute_table() {
   int i = 0;
 #endif
   while(next_indexer != 0) {
-   // std::cout<<"column"<<n<<endl;
     // move on projection column
     previous_projection_column = std::move(current_projection_column);
     // make former next column the current one
@@ -233,7 +216,7 @@ void PedigreeDPTable::compute_table() {
     vector<PedigreeColumnCostComputer> cost_computers;
     cost_computers.reserve(num_recombs);
     for(unsigned int i = 0; i < num_recombs; ++i) {
-      cost_computers.emplace_back(*current_column, read_marks, i, triples);
+      cost_computers.emplace_back(*current_column, read_marks, i, triples, id_of_individuals);
     }
 
     unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
@@ -289,7 +272,6 @@ void PedigreeDPTable::compute_table() {
       num_of_recomb_uints_t current_cost;
       current_cost.reserve(num_recombs);
       std::vector<Pedigree::triple_entry_t> tempgeno;
-    //  std::vector<std::vector<unsigned int>> tempgeno (genotypes.size(), std::vector<unsigned int>(3) );
       if (triples.empty())
       {
 	tempgeno.emplace_back(Pedigree::triple_entry_t{(genotypes.begin()->second)[n],numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max()});
@@ -303,12 +285,6 @@ void PedigreeDPTable::compute_table() {
 	  tempgeno.emplace_back(Pedigree::triple_entry_t{t0[n], t1[n], t2[n]});
 	}
       }
-     // for (auto& genotriple: genotypes)
-     // for(unsigned int h=0;h<genotypes.size();h++)
-     // {
-	 // tempgeno.emplace_back(std::vector<unsigned int>{genotriple[0][n],genotriple[1][n],genotriple[2][n]});
-     // }
-     // std::cout<<"in dptable"<<tempgeno[0][0]<< tempgeno[0][1]<<tempgeno[0][2]<<endl;
       for(auto& cost_computer : cost_computers) {
 	  current_cost.push_back(cost_computer.get_cost(tempgeno));
       }
@@ -384,7 +360,6 @@ unique_ptr<vector<index_and_inheritance_t> > PedigreeDPTable::get_index_path() {
   v.index = optimal_score_index;
   v.inheritance_value = optimal_transmission_value;
   index_path->at(indexers.size()-1) = v;
-  //cout<<"columns"<<indexers.size()<<endl;
   for(size_t i = indexers.size()-1; i > 0; --i) { // backtrack through table
     unique_ptr<ColumnIndexingIterator> iterator = indexers[i]->get_iterator();
     unsigned int backtrace_index = iterator->index_backward_projection(v.index);
@@ -429,10 +404,9 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
     while (column_iterator.has_next()) {
       index_and_inheritance_t v = index_path->at(i);
       unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
-      PedigreeColumnCostComputer cost_computer(*column, read_marks, v.inheritance_value, triples);
+      PedigreeColumnCostComputer cost_computer(*column, read_marks, v.inheritance_value, triples, id_of_individuals);
       cost_computer.set_partitioning(v.index);
       std::vector<Pedigree::triple_entry_t> tempgeno;
-    //  std::vector<std::vector<unsigned int>> tempgeno (genotypes.size(), std::vector<unsigned int>(3) );
       if (triples.empty())
       {
 	tempgeno.emplace_back(Pedigree::triple_entry_t{(genotypes.begin()->second)[i],numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max()});
