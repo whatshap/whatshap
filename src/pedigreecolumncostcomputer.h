@@ -17,29 +17,19 @@
 class PedigreeColumnCostComputer {
 private:
   const std::vector<const Entry*>& column;
-  const std::vector<unsigned int>& read_marks;
-  
+  const std::vector<unsigned int>& read_marks;  
   unsigned int inheritance_val;
   unsigned int partitioning;
- // unsigned int num_of_roots;
   std::vector<unsigned int> roots;
   unsigned int num_of_triples;
- // std::vector<unsigned int> triple;
   std::vector<Pedigree::triple_entry_t> triples;
-  
-  // cost_partitionX[Y] is the cost of flipping all entries in the partition X to Y for Y = 0,1.
-
-  //  std::array<unsigned int,2> null_array{{0,0}};
+  std::vector<unsigned int> id_of_individuals;
   std::vector<std::array<unsigned int, 2>> cost_partition;
   std::map<unsigned int, std::pair<unsigned int, unsigned int>> haps; 
   
 public:
-//    struct ind_alleles_t {
-//     std::pair<Entry::allele_t,Entry::allele_t> ind;
-//     ind_alleles_t(Entry::allele_t ind1, Entry::allele_t ind2) : ind(std::make_pair(ind1, ind2)) {}
-//   };
-//   
-  PedigreeColumnCostComputer(const std::vector<const Entry*>& column, const std::vector<unsigned int>& read_marks, unsigned int inheritance_val, std::vector<Pedigree::triple_entry_t> triples);
+  
+  PedigreeColumnCostComputer(const std::vector<const Entry*>& column, const std::vector<unsigned int>& read_marks, unsigned int inheritance_val, std::vector<Pedigree::triple_entry_t> triples, std::vector<unsigned int> id_of_individuals);
   
   void set_partitioning(unsigned int partitioning);
 
