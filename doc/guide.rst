@@ -4,7 +4,7 @@ User guide
 
 Run WhatsHap like this::
 
-	python3 -m whatshap input.vcf input.bam > phased.vcf
+	whatshap -o phased.vcf input.vcf input.bam
 
 Phasing information is added to the VCF file in a way that is compatible with
 GATK’s ReadBackedPhasing. That is, the HP tag denotes which set of phased
@@ -41,3 +41,15 @@ If you use this option, fewer variants will be phased.
 
 Note that switching homozygous variants to heterozygous is never possible since
 only heterozygous variants are considered for phasing.
+
+
+.. _phasing-pedigrees:
+
+Phasing pedigrees
+=================
+
+* Input is a multi-sample VCF with all individuals that should be phased
+* Use the ``--ped`` option with a plink-compatible PED file to describe the
+  relationships between samples.
+
+*

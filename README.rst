@@ -16,7 +16,7 @@ If you use WhatsHap, please cite:
     Reads <http://dx.doi.org/10.1007/978-3-319-05269-4_19>`_.
     Proceedings of ACM 18th Annual International Conference on Research in
     Computational Biology (RECOMB), 237-249, 2014. 
-    (A self-archived version can be found `here <https://bioinf.mpi-inf.mpg.de/homepage/publications.php?&account=marschal>`_)
+    (`Get a self-archived version <https://bioinf.mpi-inf.mpg.de/homepage/publications.php?&account=marschal>`_)
 
 The version of WhatsHap you find here is the result of further development
 focused on making the software easy and straightforward to use. WhatsHap is now
@@ -26,6 +26,19 @@ Open Source software under the MIT license and we welcome contributions.
 .. note:: WhatsHap is work in progress! In particular, the documentation is
 	incomplete, not all features that we would like to have for an initial
 	release are there, and there are probably bugs.
+
+
+Pedigree phasing
+----------------
+
+WhatsHap is capable of :ref:`using pedigree information <phasing-pedigrees>`
+about individuals to further improve phasing results, and to drastically reduce
+the needed coverage. A preprint is available on bioRxiv:
+
+    Read-Based Phasing of Related Individuals.
+    Shilpa Garg, Marcel Martin, Tobias Marschall.
+    `doi:10.1101/037101 <http://dx.doi.org/10.1101/037101>`_
+
 
 Parallel Version: pWhatsHap
 ---------------------------

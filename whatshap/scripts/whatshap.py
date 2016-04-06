@@ -29,10 +29,11 @@ except ImportError:
 from ..vcf import VcfReader, PhasedVcfWriter, VariantTable
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
-from ..core import Read, ReadSet, DPTable, readselection
+from ..core import Read, ReadSet, DPTable, readselection, Pedigree, PedigreeDPTable
 from ..graph import ComponentFinder
 from ..coverage import CovMonitor
-from ..pedigree import PedReader, mendelian_conflict
+from ..pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
+	load_genetic_map)
 from ..bam import MultiBamReader, SampleBamReader, BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
 
 
@@ -298,21 +299,14 @@ class ReadSetReader:
 		self._reader.close()
 
 
-def find_components(superreads, reads):
+def find_components(phased_positions, reads):
 	"""
-	Return a dict that maps each position to the component it is in. A
-	component is identified by the position of its leftmost variant.
+	Return a dict that maps each variant position to the component it is in.
+	Variants are considered to be in the same component if a read exists that
+	covers both. A component is identified by the position of its leftmost
+	variant.
 	"""
 	logger.debug('Finding connected components ...')
-
-	# The variant.allele attribute can be either 0 (major allele), 1 (minor allele),
-	# or 3 (equal scores). If all_heterozygous is on (default), we can get
-	# the combinations 0/1, 1/0 and 3/3 (the latter means: unphased).
-	# If all_heterozygous is off, we can also get all other combinations.
-	# In both cases, we are interested only in 0/1 and 1/0.
-	phased_positions = [ v1.position for v1, v2 in zip(*superreads)
-		if (v1.allele, v2.allele) in ((0, 1), (1, 0))
-	]
 	assert phased_positions == sorted(phased_positions)
 
 	# Find connected components.
@@ -324,8 +318,6 @@ def find_components(superreads, reads):
 		for position in positions[1:]:
 			component_finder.merge(positions[0], position)
 	components = { position : component_finder.find(position) for position in phased_positions }
-	logger.info('No. of variants considered for phasing: %d', len(superreads[0]))
-	logger.info('No. of variants that were phased: %d', len(phased_positions))
 	return components
 
 
@@ -442,20 +434,27 @@ def phase_sample(chromosome, reads, all_heterozygous, max_coverage, timers, stat
 		logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
 		# Run the core algorithm: construct DP table ...
 		dp_table = DPTable(sliced_reads, all_heterozygous)
-		# get the mec score
-		mec_score = dp_table.get_optimal_cost()
 		# ... and do the backtrace to get the solution
 		superreads = dp_table.get_super_reads()
-
-		# output the MEC score of phasing
-		logger.info('MEC score of phasing: %d', mec_score)
+		logger.info('MEC score of phasing: %d', dp_table.get_optimal_cost())
 
 		n_homozygous = sum(1 for v1, v2 in zip(*superreads)
 			if v1.allele == v2.allele and v1.allele in (0, 1))
 		stats.n_homozygous += n_homozygous
 
 	with timers('components'):
-		components = find_components(superreads, sliced_reads)
+		# The variant.allele attribute can be either 0 (major allele), 1 (minor allele),
+		# or 3 (equal scores). If all_heterozygous is on (default), we can get
+		# the combinations 0/1, 1/0 and 3/3 (the latter means: unphased).
+		# If all_heterozygous is off, we can also get all other combinations.
+		# In both cases, we are interested only in 0/1 and 1/0.
+		allowed = frozenset([(0, 1), (1, 0)])
+		phased_positions = [ v1.position for v1, v2 in zip(*superreads)
+			if (v1.allele, v2.allele) in allowed ]
+		components = find_components(phased_positions, sliced_reads)
+		logger.info('No. of variants considered for phasing: %d', len(superreads[0]))
+		logger.info('No. of variants that were phased: %d', len(phased_positions))
+
 	n_phased_blocks = len(set(components.values()))
 	stats.n_phased_blocks += n_phased_blocks
 	logger.info('No. of phased blocks: %d', n_phased_blocks)
@@ -557,7 +556,146 @@ def run_whatshap(bam, vcf,
 			# These two variables hold the phasing results for all samples
 			superreads, components = dict(), dict()
 			if ped:
-				pass
+				mendelian_conflicts = 0
+				to_discard = set()
+				for trio in individuals:
+					# TODO fix attribute names of Individual class
+					genotypes_mother = variant_table.genotypes_of(trio.mother_id)
+					genotypes_father = variant_table.genotypes_of(trio.father_id)
+					genotypes_child = variant_table.genotypes_of(trio.id)
+
+					for index, (gt_mother, gt_father, gt_child) in enumerate(zip(
+							genotypes_mother, genotypes_father, genotypes_child)):
+						if (gt_mother == 1) or (gt_father == 1) or (gt_child == 1):
+							if mendelian_conflict(gt_mother, gt_father, gt_child):
+								to_discard.add(index)
+								mendelian_conflicts += 1
+						else:
+							# no heterozygous variant in this triple
+							to_discard.add(index)
+
+				# Remove calls where *any* trio has a mendelian conflict or
+				# is homozygous in all three individuals
+				variant_table.remove_rows_by_index(to_discard)
+
+				logger.info('Number of variants skipped due to Mendelian conflicts: %d', mendelian_conflicts)
+				logger.info('Number of remaining variants hetorozygous in at least one individual: %d', len(variant_table.variants))
+
+				# Get the reads belonging to each sample
+				readsets = dict()  # TODO this could become a list
+				for index, sample in enumerate(variant_table.samples):
+					logger.info('Reading reads for sample %r', sample)
+					timers.start('read_bam')
+					try:
+						readset = bam_reader.read(chromosome, variant_table.variants, sample)
+					except SampleNotFoundError:
+						logger.error("Sample %r is not among the read groups (RG tags) "
+							"in the BAM header.", bam_sample)
+						sys.exit(1)
+					except ReadSetError as e:
+						logger.error("%s", e)
+						sys.exit(1)
+
+					# TODO is this necessary?
+					for read in readset:
+						read.sort()
+					readset.sort()
+
+					logger.info('Read %d reads from sample %r in %.1f s',
+						len(readset), sample, timers.stop('read_bam'))
+
+					# TODO: Read selection done w.r.t. all variants, where using heterozygous variants only
+					# TODO: would probably give better results.
+					# Slice reads
+					with timers('slice'):
+						selected_reads, uninformative_read_count = readselection(readset, max_coverage)
+						sliced_readset = readset.subset(selected_reads)
+
+						position_list = readset.get_positions()
+						accessible_positions = sliced_readset.get_positions()
+						informative_read_count = len(readset) - uninformative_read_count
+						unphasable_variants = len(position_list) - len(accessible_positions)
+						logger.info('%d variants are covered by at least one read', len(position_list))
+						logger.info('Skipped %d reads that only cover one variant', uninformative_read_count)
+						if position_list:
+							logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
+								'connecting them to another variant and are thus unphasable',
+								unphasable_variants, len(position_list),
+								100. * unphasable_variants / len(position_list)
+							)
+						if readset:
+							logger.info('After read selection: Using %d of %d '
+								'(%.1f%%) reads that cover two or more variants',
+								len(selected_reads), informative_read_count,
+								(100. * len(selected_reads) / informative_read_count if informative_read_count > 0 else float('nan'))
+							)
+					readsets[sample] = sliced_readset
+
+				accessible_positions = []
+				for readset in readsets.values():
+					accessible_positions.extend(readset.get_positions())
+				accessible_positions = sorted(set(accessible_positions))
+				logger.info('Variants covered by at least one phase-informative '
+					'read in at least one individual after read selection: %d',
+					len(accessible_positions))
+
+				# Keep only accessible positions
+				variant_table.subset_rows_by_position(accessible_positions)
+				assert len(variant_table.variants) == len(accessible_positions)
+
+				# Create Pedigree
+				individual_ids = { sample: index for index, sample in enumerate(samples_of_interest) }
+				pedigree = Pedigree()
+				for sample in samples_of_interest:
+					pedigree.add_individual(variant_table.id_of(sample), variant_table.genotypes_of(sample))
+				for individual in individuals:
+					pedigree.add_relationship(
+						mother_id=variant_table.id_of(individual.mother_id),
+						father_id=variant_table.id_of(individual.father_id),
+						child_id=variant_table.id_of(individual.id))
+
+				# Merge reads into one ReadSet, keeping track of source
+				all_reads = ReadSet()
+				read_sources = []
+				for sample, readset in readsets.items():
+					read_source_id = variant_table.id_of(sample)
+					for read in readset:
+						assert read.is_sorted(), "Add a read.sort() here"
+						all_reads.add(read)
+						# TODO PedigreeDPTable should use the read’s source_id
+						read_sources.append(read_source_id)
+
+				all_reads.sort()  # TODO this is probably also unnecessary
+
+				# Load genetic map
+				recombination_costs = recombination_cost_map(load_genetic_map(genmap), accessible_positions)
+
+				# Finally, run phasing algorithm
+				with timers('phase'):
+					logger.info('Phasing %d samples with the PedMEC algorithm ...',
+						len(samples_of_interest))
+					dp_table = PedigreeDPTable(all_reads, read_sources, recombination_costs, pedigree)
+					superreads_list, transmission_vector = dp_table.get_super_reads()
+					logger.info('PedMEC cost: %d', dp_table.get_optimal_cost())
+
+				with timers('components'):
+					# TODO Is it correct that the components do not depend on
+					# the phasing result at all?
+					overall_components = find_components(accessible_positions, all_reads)
+					n_phased_blocks = len(set(overall_components.values()))
+					stats.n_phased_blocks += n_phased_blocks
+					logger.info('No. of phased blocks: %d', n_phased_blocks)
+
+				if False:
+					n_recombination = find_recombination(transmission_vector, overall_components, accessible_positions, recombcost, recombination_list_filename)
+					logger.info('No. of detected recombination events: %d', n_recombination)
+
+				# TODO Do superreads actually come out in the order in which the
+				# individuals were added to the pedigree?
+				for sample, sample_superreads in zip(samples_of_interest, superreads_list):
+					superreads[sample] = sample_superreads
+					# identical for all samples
+					components[sample] = overall_components
 			else:
 				for sample, genotypes in zip(variant_table.samples, variant_table.genotypes):
 					logger.info('Working on sample %s', sample)

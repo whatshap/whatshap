@@ -119,10 +119,9 @@ cdef class Read:
 		assert self.thisptr != NULL
 		self.thisptr.sortVariants()
 
-	property is_sorted:
-		def __get__(self):
-			assert self.thisptr != NULL
-			return self.thisptr.isSorted()
+	def is_sorted(self):
+		assert self.thisptr != NULL
+		return self.thisptr.isSorted()
 
 
 cdef class ReadSet:

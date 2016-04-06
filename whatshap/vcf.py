@@ -71,8 +71,12 @@ class VariantTable:
 		"""Retrieve genotypes by sample name"""
 		return self.genotypes[self._sample_to_index[sample]]
 
-	def remove_rows(self, indices):
-		"""Remove variants given by index in the variant list"""
+	def id_of(self, sample):
+		"""Return a unique int id of a sample given by name"""
+		return self._sample_to_index[sample]
+
+	def remove_rows_by_index(self, indices):
+		"""Remove variants given by their index in the variant list"""
 		for i in sorted(indices, reverse=True):
 			del self.variants[i]
 			for gt in self.genotypes:
@@ -81,6 +85,12 @@ class VariantTable:
 		for gt in self.genotypes:
 			assert len(self.variants) == len(gt)
 		assert len(self.samples) == len(self.genotypes)
+
+	def subset_rows_by_position(self, positions):
+		"""Keep only rows given in positions, discard the rest"""
+		positions = frozenset(positions)
+		to_discard = [ i for i, v in enumerate(self.variants) if v.position not in positions ]
+		self.remove_rows_by_index(to_discard)
 
 
 class SampleNotFoundError(Exception):
