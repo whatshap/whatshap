@@ -47,13 +47,6 @@ private:
   unsigned int read_count;
   // helper function to pull read ids out of read column
   std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
- //Read* r0m;
- //Read* r1m;
- //Read* r0f;
- //Read* r1f;
- //Read* r0c;
- //Read* r1c;
-  //std::vector<unsigned int> id_of_individuals;
   // helper function to compute the optimal path through the backtrace table
   std::unique_ptr<std::vector<index_and_inheritance_t> > get_index_path();
 
@@ -85,4 +78,3 @@ public:
 };
 
 #endif
-
