@@ -1,9 +1,10 @@
+from libcpp.vector cimport vector
+from libcpp.pair cimport pair
+from libcpp.unordered_map cimport unordered_map
+from libcpp cimport bool
+
 import math
 
-ctypedef vector[int] priority_type
-ctypedef priority_type* priority_type_ptr
-ctypedef int item_type
-ctypedef pair[priority_type_ptr,item_type] queue_entry_type
 
 cdef bool _vector_score_lower(priority_type_ptr first, priority_type_ptr second):
 	for i in range(min(first[0].size(), second[0].size())):
@@ -15,6 +16,7 @@ cdef bool _vector_score_lower(priority_type_ptr first, priority_type_ptr second)
 		return True
 	else:
 		return False
+
 
 cdef priority_type_ptr _pyscore_to_vector(score):
 	cdef priority_type_ptr result = new priority_type()
@@ -30,6 +32,7 @@ cdef priority_type_ptr _pyscore_to_vector(score):
 			raise ValueError('Score parameter must be either int, or an iterable object yielding ints')
 	return result
 
+
 cdef int _parent(int index):
 	''''returns the index of the parent node in the heap depending on the given index'''
 	return (index - 1) // 2
@@ -44,11 +47,9 @@ cdef int _right_child(int index):
 	'''return the index of the right child in the heap depending on the given index'''
 	return (2 * index) + 2
 
+
 # TODO: in general, see https://www.python.org/dev/peps/pep-0008
 cdef class PriorityQueue:
-	cdef vector[queue_entry_type] heap
-	cdef unordered_map[item_type,int] positions
-
 	def __dealloc__(self):
 		for i in range(self.heap.size()):
 			del self.heap[i].first

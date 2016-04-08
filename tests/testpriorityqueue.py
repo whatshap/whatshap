@@ -1,4 +1,4 @@
-from whatshap.core import PriorityQueue
+from whatshap.priorityqueue import PriorityQueue
 
 def test_queue():
 	pq = PriorityQueue()

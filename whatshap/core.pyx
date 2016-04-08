@@ -1,38 +1,23 @@
+"""
+Wrapper for core C++ classes.
+"""
 # Do not use the distutils directives here, but configure everything in
 # setup.py, such as language and sources. It would work during development, but
 # during a regular installation, the module will be compiled from the
-# pre-generated .c file and the .pyx file is not read.
+# pre-generated .cpp file and the .pyx file is not read.
+
+from libcpp cimport bool
+from libcpp.string cimport string
+from libcpp.vector cimport vector
+cimport cpp
 
 from collections import namedtuple
+
 
 # A single variant on a read.
 Variant = namedtuple('Variant', 'position allele quality')
 
-# ====== Read ======
-cdef extern from "../src/read.h":
-	cdef cppclass Read:
-		Read(string, int, int) except +
-		Read(Read) except +
-		string toString() except +
-		void addVariant(int, int, int) except +
-		string getName() except +
-		vector[int] getMapqs() except +
-		void addMapq(int) except +
-		int getPosition(int) except +
-		void setPosition(int, int)  except +
-		int getAllele(int) except +
-		void setAllele(int, int) except +
-		int getVariantQuality(int) except +
-		void setVariantQuality(int, int) except +
-		int getVariantCount() except +
-		void sortVariants() except +
-		bool isSorted() except +
-		int getSourceID() except +
-
-cdef class PyRead:
-	cdef Read *thisptr
-	cdef bool ownsptr
-
+cdef class Read:
 	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0):
 		cdef string _name = ''
 		if name is None:
@@ -41,7 +26,7 @@ cdef class PyRead:
 		else:
 			# TODO: Is this the best way to handle string arguments?
 			_name = name.encode('UTF-8')
-			self.thisptr = new Read(_name, mapq, source_id)
+			self.thisptr = new cpp.Read(_name, mapq, source_id)
 			self.ownsptr = True
 
 	def __dealloc__(self):
@@ -138,46 +123,19 @@ cdef class PyRead:
 			return self.thisptr.isSorted()
 
 
-# ====== IndexSet ======
-cdef extern from "../src/indexset.h":
-	cdef cppclass IndexSet:
-		IndexSet() except +
-		bool contains(int) except +
-		void add(int) except +
-		int size() except +
-		string toString() except +
-
-
-# ====== ReadSet ======
-cdef extern from "../src/readset.h":
-	cdef cppclass ReadSet:
-		ReadSet() except +
-		void add(Read*) except +
-		string toString() except +
-		int size() except +
-		void sort() except +
-		Read* get(int) except +
-		Read* getByName(string, int) except +
-		ReadSet* subset(IndexSet*) except +
-		# TODO: Check why adding "except +" here doesn't compile
-		vector[unsigned int]* get_positions()
-
-
-cdef class PyReadSet:
-	cdef ReadSet *thisptr
-
+cdef class ReadSet:
 	def __cinit__(self):
-		self.thisptr = new ReadSet()
+		self.thisptr = new cpp.ReadSet()
 
 	def __dealloc__(self):
 		del self.thisptr
 
-	def add(self, PyRead read):
+	def add(self, Read read):
 		"""Adds a read to the set. 
 		WARNING: this will internally create a copy of the wrapped C++ Read object,
 		so that subsequent changes to the Read don't affect the 
 		newly created copy that is added to the ReadSet."""
-		self.thisptr.add(new Read(read.thisptr[0]))
+		self.thisptr.add(new cpp.Read(read.thisptr[0]))
 
 	def __str__(self):
 		return self.thisptr.toString().decode('utf-8')
@@ -193,8 +151,8 @@ cdef class PyReadSet:
 		if isinstance(key, slice):
 			raise NotImplementedError('ReadSet does not support slices')
 		cdef string name = ''
-		cdef Read* cread = NULL
-		cdef PyRead read = PyRead()
+		cdef cpp.Read* cread = NULL
+		cdef Read read = Read()
 		if isinstance(key, int):
 			read.thisptr = self.thisptr.get(key)
 		elif isinstance(key, str):
@@ -213,8 +171,8 @@ cdef class PyReadSet:
 
 	#def get_by_name(self, name):
 		#cdef string _name = name.encode('UTF-8')
-		#cdef Read* cread = self.thisptr.getByName(_name)
-		#cdef PyRead read = PyRead()
+		#cdef cpp.Read* cread = self.thisptr.getByName(_name)
+		#cdef Read read = Read()
 		#if cread == NULL:
 			#raise KeyError(name)
 		#else:
@@ -229,11 +187,11 @@ cdef class PyReadSet:
 
 	def subset(self, reads_to_select):
 		# TODO: is there a way of avoiding to unecessarily creating/destroying a ReadSet object?
-		cdef IndexSet* index_set = new IndexSet()
+		cdef cpp.IndexSet* index_set = new cpp.IndexSet()
 		cdef int i
 		for i in reads_to_select:
 			index_set.add(i)
-		result = PyReadSet()
+		result = ReadSet()
 		del result.thisptr
 		result.thisptr = self.thisptr.subset(index_set)
 		del index_set
@@ -246,29 +204,13 @@ cdef class PyReadSet:
 		return result
 
 
-# ====== ColumnIterator ======
-cdef extern from "../src/columniterator.h":
-	cdef cppclass ColumnIterator:
-		ColumnIterator(ReadSet) except +
-
-# ====== DPTable ======
-cdef extern from "../src/dptable.h":
-	cdef cppclass DPTable:
-		DPTable(ReadSet*, bool) except +
-		void get_super_reads(ReadSet*) except +
-		int get_optimal_score() except +
-		vector[bool]* get_optimal_partitioning()
-
-
-cdef class PyDPTable:
-	cdef DPTable *thisptr
-
-	def __cinit__(self, PyReadSet readset, all_heterozygous):
+cdef class DPTable:
+	def __cinit__(self, ReadSet readset, all_heterozygous):
 		"""Build the DP table from the given read set which is assumed to be sorted;
 		that is, the variants in each read must be sorted by position and the reads
 		in the read set must also be sorted (by position of their left-most variant).
 		"""
-		self.thisptr = new DPTable(readset.thisptr, all_heterozygous)
+		self.thisptr = new cpp.DPTable(readset.thisptr, all_heterozygous)
 
 	def __dealloc__(self):
 		del self.thisptr
@@ -280,7 +222,7 @@ cdef class PyDPTable:
 		been altered, behavior is undefined.
 		TODO: Change that.
 		"""
-		result = PyReadSet()
+		result = ReadSet()
 		self.thisptr.get_super_reads(result.thisptr)
 		return result
 
@@ -296,3 +238,5 @@ cdef class PyDPTable:
 		del p
 		return result
 
+
+include 'readselect.pyx'

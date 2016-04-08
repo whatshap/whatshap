@@ -66,13 +66,15 @@ def check_cython_version():
 
 
 extensions = [
-	Extension('whatshap._core',
-		sources=['whatshap/_core.pyx',
+	Extension('whatshap.core',
+		sources=['whatshap/core.pyx',
 			'src/columncostcomputer.cpp', 'src/columnindexingiterator.cpp',
 			'src/columnindexingscheme.cpp', 'src/dptable.cpp',
 			'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',
 			'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp'
-		], language='c++', extra_compile_args=["-std=c++0x"],),
+		], language='c++', extra_compile_args=["-std=c++11"],),
+	Extension('whatshap.priorityqueue',
+		sources=['whatshap/priorityqueue.pyx'], language='c++', extra_compile_args=["-std=c++11"]),
 ]
 
 
@@ -88,7 +90,7 @@ class build_ext(_build_ext):
 			# only sensible thing is to require Cython to be installed.
 			check_cython_version()
 			from Cython.Build import cythonize
-			cythonize(extensions)
+			self.extensions = cythonize(self.extensions)
 		_build_ext.run(self)
 
 

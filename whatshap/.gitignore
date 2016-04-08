@@ -1,4 +1,2 @@
-_core.cpp
-_core.cpython-*.so
-priorityqueue.cpp
-priorityqueue.cpython-*.so
+*.cpp
+*.cpython-*.so

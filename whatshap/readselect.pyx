@@ -2,8 +2,14 @@ import math
 import logging
 from collections import defaultdict
 
-from whatshap.coverage import CovMonitor
+from .coverage import CovMonitor
 from .graph import ComponentFinder
+from .priorityqueue import PriorityQueue
+
+from libcpp.unordered_set cimport unordered_set
+from .priorityqueue cimport priority_type, priority_type_ptr, queue_entry_type, PriorityQueue
+from core cimport ReadSet
+cimport cpp
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +27,12 @@ def _construct_indexes(readset):
 	return positions, vcf_indices, snp_to_reads_map
 
 
-cdef priority_type_ptr _update_score_for_reads(priority_type_ptr former_score, ReadSet* readset, index, unordered_set[int]& already_covered_snps):
+cdef priority_type_ptr _update_score_for_reads(priority_type_ptr former_score, cpp.ReadSet* readset, index, unordered_set[int]& already_covered_snps):
 	'''updatest the score of the read, depending on how many reads are already covered'''
 	cdef int first_score = former_score.at(0)
 	cdef int second_score = former_score.at(1)
 	cdef int quality = former_score.at(2)
-	cdef Read* read = readset.get(index)
+	cdef cpp.Read* read = readset.get(index)
 	cdef unordered_set[int].iterator it
 	for i in range(read.getVariantCount()):
 		it = already_covered_snps.find(read.getPosition(i))
@@ -39,7 +45,7 @@ cdef priority_type_ptr _update_score_for_reads(priority_type_ptr former_score, R
 	return result
 
 
-cdef priority_type_ptr _compute_score_for_read(ReadSet* readset, int index, vcf_indices):
+cdef priority_type_ptr _compute_score_for_read(cpp.ReadSet* readset, int index, vcf_indices):
 	'''Compute the score for one read, assuming no other reads have been selected so far
 	(after selecting reads, scores can be updated using _update_score_for_reads).
 	We use the following scoring scheme: (new - gaps, total - bad, min(qualities)),
@@ -48,7 +54,7 @@ cdef priority_type_ptr _compute_score_for_read(ReadSet* readset, int index, vcf_
 	"total" is the total number of SNPs covered by the read, and "min(qualities)" is the minimum
 	over all base qualities at SNP positions.
 	'''
-	cdef Read* read = readset.get(index)
+	cdef cpp.Read* read = readset.get(index)
 	cdef int min_quality = -1
 	cdef int good_score = 0
 	cdef int bad_score = 0
@@ -78,7 +84,7 @@ cdef priority_type_ptr _compute_score_for_read(ReadSet* readset, int index, vcf_
 	return result
 
 
-cdef PriorityQueue _construct_priorityqueue(ReadSet* readset, read_indices, vcf_indices):
+cdef PriorityQueue _construct_priorityqueue(cpp.ReadSet* readset, read_indices, vcf_indices):
 	'''Construct a priority queue containing all given read indicies, each one representing the
 	respective read from readset.'''
 	cdef PriorityQueue priorityqueue = PriorityQueue()
@@ -91,7 +97,7 @@ cdef PriorityQueue _construct_priorityqueue(ReadSet* readset, read_indices, vcf_
 	return priorityqueue
 
 
-cdef _slice_read_selection(PriorityQueue pq, coverages, max_cov, ReadSet* readset, vcf_indices, snp_to_reads_map):
+cdef _slice_read_selection(PriorityQueue pq, coverages, max_cov, cpp.ReadSet* readset, vcf_indices, snp_to_reads_map):
 	'''Extraction of a set of read indices, where each SNP should be covered at least once, if coverage, or reads are allowing it '''
 	# positions of SNPs covered by any read selected so far
 	already_covered_snps = set()
@@ -99,7 +105,7 @@ cdef _slice_read_selection(PriorityQueue pq, coverages, max_cov, ReadSet* readse
 	reads_in_slice = set()
 	# indices of reads that cannot be added because doing that would violate coverage constraint
 	reads_violating_coverage = set()
-	cdef Read* extracted_read = NULL
+	cdef cpp.Read* extracted_read = NULL
 	cdef queue_entry_type entry
 	cdef priority_type_ptr max_score
 	cdef int max_item
@@ -167,11 +173,11 @@ def format_read_source_stats(readset, indices):
 	return ', '.join('{}:{}'.format(source_id, count) for source_id, count in source_id_counts.items())
 
 
-def readselection(PyReadSet pyreadset, max_cov, bridging=True):
+def readselection(ReadSet pyreadset, max_cov, bridging=True):
 	'''Return the selected readindices which do not violate the maximal coverage, and additionally usage of a boolean for deciding if
      the bridging is needed or not.'''
 
-	cdef ReadSet* readset = pyreadset.thisptr
+	cdef cpp.ReadSet* readset = pyreadset.thisptr
 	assert readset != NULL
 
 	positions, vcf_indices, snp_to_reads_map = _construct_indexes(pyreadset)
@@ -190,7 +196,7 @@ def readselection(PyReadSet pyreadset, max_cov, bridging=True):
 	uninformative_read_count = len(pyreadset) - len(undecided_reads)
 
 	cdef PriorityQueue pq
-	cdef Read* read
+	cdef cpp.Read* read
 	loop = 0
 	while len(undecided_reads) > 0:
 		pq = _construct_priorityqueue(readset, undecided_reads, vcf_indices)
