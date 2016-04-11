@@ -104,6 +104,8 @@ def column_cost(variants, possible_assignments):
 
 def brute_force_phase(read_set, all_heterozygous):
 	"""Solves MEC by enumerating all possible bipartitions."""
+	def print(*args): pass
+
 	assert len(read_set) < 10, "Too many reads for brute force"
 	positions = read_set.get_positions()
 	if all_heterozygous:
