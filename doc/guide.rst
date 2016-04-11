@@ -4,7 +4,7 @@ User guide
 
 Run WhatsHap like this::
 
-	python3 -m whatshap input.vcf input.bam > phased.vcf
+	whatshap -o phased.vcf input.vcf input.bam
 
 Phasing information is added to the VCF file in a way that is compatible with
 GATK’s ReadBackedPhasing. That is, the HP tag denotes which set of phased
@@ -23,7 +23,7 @@ phased, that information will be added to the variant in the output VCF.
 Insertions, deletions and multi-nucleotide changes (MNPs) are not phased, nor
 are structural variations. All records that contain such variants will not
 be modified by WhatsHap, that is, the records will simply be copied from the
-input into the output file.
+input to the output file.
 
 
 Trusting the variant caller
@@ -40,17 +40,16 @@ done.
 If you use this option, fewer variants will be phased.
 
 Note that switching homozygous variants to heterozygous is never possible since
-only heterozygous variants are ever considered for phasing.
+only heterozygous variants are considered for phasing.
 
 
-Debugging
-=========
+.. _phasing-pedigrees:
 
+Phasing pedigrees
+=================
 
-	$ gdb python3
-	(gdb) run -m nose
+* Input is a multi-sample VCF with all individuals that should be phased
+* Use the ``--ped`` option with a plink-compatible PED file to describe the
+  relationships between samples.
 
-After you get a SIGSEGV, let gdb print a backtrace:
-
-	(gdb) bt
-
+*
