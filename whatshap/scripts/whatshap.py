@@ -814,6 +814,7 @@ def main():
 		parser.error('Option --ignore-read-groups cannot be used together with --ped')
 	if args.genmap and not args.ped:
 		parser.error('Option --genmap can only be used together with --ped')
-
+	if args.ped and not args.genmap:
+		parser.error('Option --genmap is required if --ped is given')
 	del args.debug
 	run_whatshap(**vars(args))
