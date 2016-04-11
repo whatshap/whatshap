@@ -10,13 +10,13 @@ def test_read():
 	assert r.name == "name"
 	assert r.mapqs[0] == 15
 
-	assert r.is_sorted
+	assert r.is_sorted()
 
 	r.add_variant(100, 1, 37)
 	r.add_variant(23, 0, 99)
-	assert not r.is_sorted
+	assert not r.is_sorted()
 	r.sort()
-	assert r.is_sorted
+	assert r.is_sorted()
 
 	assert 100 in r
 	assert 23 in r
