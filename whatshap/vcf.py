@@ -201,7 +201,7 @@ class VcfReader:
 				n_complex += 1
 				continue
 
-			genotypes = [ call.gt_type for call in record.samples ]
+			genotypes = array('b', (call.gt_type for call in record.samples))
 			table.add_variant(variant, genotypes)
 
 		logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s. "
