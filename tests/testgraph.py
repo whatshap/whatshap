@@ -64,6 +64,7 @@ def test_charles_ii():
 	individuals = set()
 	tuples = []
 	for line in pedigree.split('\n'):
+		line = line.strip()
 		if line == '':
 			continue
 		child, father, mother = line.split(', ')
