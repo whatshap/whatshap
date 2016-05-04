@@ -309,7 +309,7 @@ std::map < unsigned int,std::pair <Entry::allele_t,Entry::allele_t >> PedigreeCo
 		    cost += cost_partition[2 * p + 1][temp2];
 		}
 	    }
-	    if (cost < best_cost) {
+	    if (cost <= best_cost) {
 		second_best_cost = best_cost;
 		best_cost = cost;
 	      for (auto & item:enumerate_haps) {
