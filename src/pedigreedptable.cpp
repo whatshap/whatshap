@@ -16,14 +16,12 @@ using namespace std;
 
 // TODO read_marks is unnecessary because every read in the read_set already
 // knows its id
-PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, vector<unsigned int> read_marks, vector<unsigned int> recombcost, Pedigree* pedigree)
+PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, vector<unsigned int> read_marks, vector<unsigned int> recombcost, const Pedigree* pedigree)
 	:
 	read_set(read_set),
 	read_marks(std::move(read_marks)),
 	recombcost(std::move(recombcost)),
-	triples(pedigree->triples),
-	genotypes(pedigree->genotypes_map),
-	id_of_individuals(pedigree->individuals),
+	pedigree(pedigree),
 	optimal_score(0u),
 	optimal_score_index(0u),
 	index_backtrace_table(),
@@ -31,11 +29,19 @@ PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, vector<unsigned int> read_ma
 	read_count(0u)
 {
   read_set->reassignReadIds();
+  
+  for (size_t i=0; i<std::pow(4, pedigree->triple_count()); ++i) {
+    pedigree_partitions.push_back(new PedigreePartitions(*pedigree, i));
+  }
+  
   compute_table();
-
 }
 
 PedigreeDPTable::~PedigreeDPTable() {
+  for(size_t i=0; i<pedigree_partitions.size(); ++i) {
+    delete pedigree_partitions[i];
+  }
+
   for(size_t i=0; i<indexers.size(); ++i) {
     delete indexers[i];
   }
@@ -88,13 +94,23 @@ void output_vector_enum(const vector<unsigned int> * v, unsigned int len) {
 }
 #endif
 
+// TODO: Turn into member function. Find more descriptive name.
 void compute_final_cost(const num_of_recomb_uints_t& prev, const num_of_recomb_uints_t& current, unsigned int penalty, num_of_recomb_uints_t* min_costs, num_of_recomb_uints_t* min_cost_indices) {
+  bool found_valid_transmission_vector = false;
   for (size_t i = 0; i < current.size(); ++i) {
     unsigned int min = numeric_limits<unsigned int>::max();
     size_t min_index = 0;
+	if (current[i] < numeric_limits<unsigned int>::max()) {
+		found_valid_transmission_vector = true;
+	}
     for (size_t j = 0; j < prev.size(); ++j) {
       // Step 1: add up cost from current column and previous columns
-      unsigned int val = current[i] + prev[j];
+      unsigned int val;
+      if ((current[i] < numeric_limits<unsigned int>::max()) && (prev[j] < numeric_limits<unsigned int>::max())) {
+        val = current[i] + prev[j];
+      } else {
+        val = numeric_limits<unsigned int>::max();
+      }
       // Step 2: add further cost incurred by recombination
       // change in bit 0 --> recombination in mother
       auto x = i ^ j; // count the number of bits set in x
@@ -103,7 +119,9 @@ void compute_final_cost(const num_of_recomb_uints_t& prev, const num_of_recomb_u
       for (;x; x >>= 1) {
 	count += x & 1;
       }
-      val += count * penalty;
+      if (val < numeric_limits<unsigned int>::max()) {
+        val += count * penalty;
+	  }
       
       // check for new minimum
       if (val < min) {
@@ -114,10 +132,13 @@ void compute_final_cost(const num_of_recomb_uints_t& prev, const num_of_recomb_u
     min_costs->at(i) = min;
     min_cost_indices->at(i) = min_index;
   }
+  if (!found_valid_transmission_vector) {
+    throw std::runtime_error("Error: Mendelian conflict");
+  }
 }
 
 void PedigreeDPTable::compute_table() {
-  unsigned int num_recombs = std::pow(4, triples.size());
+  unsigned int num_recombs = std::pow(4, pedigree->triple_count());
   ColumnIterator column_iterator(*read_set);
   if(!indexers.empty()) { // clear indexers, if present
     for(size_t i=0; i<indexers.size(); ++i) {
@@ -216,7 +237,7 @@ void PedigreeDPTable::compute_table() {
     vector<PedigreeColumnCostComputer> cost_computers;
     cost_computers.reserve(num_recombs);
     for(unsigned int i = 0; i < num_recombs; ++i) {
-      cost_computers.emplace_back(*current_column, read_marks, i, triples, id_of_individuals);
+      cost_computers.emplace_back(*current_column, n, read_marks, pedigree, *pedigree_partitions[i]);
     }
 
     unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
@@ -271,22 +292,8 @@ void PedigreeDPTable::compute_table() {
       // Compute cost incurred by current cell of DP table
       num_of_recomb_uints_t current_cost;
       current_cost.reserve(num_recombs);
-      std::vector<Pedigree::triple_entry_t> tempgeno;
-      if (triples.empty())
-      {
-	tempgeno.emplace_back(Pedigree::triple_entry_t{(genotypes.begin()->second)[n],numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max()});
-      }
-      else{
-      for(auto& triple: triples)
-	{
-	  auto t0 = genotypes.find(triple[0])->second;
-	  auto t1 = genotypes.find(triple[1])->second;
-	  auto t2 = genotypes.find(triple[2])->second;
-	  tempgeno.emplace_back(Pedigree::triple_entry_t{t0[n], t1[n], t2[n]});
-	}
-      }
       for(auto& cost_computer : cost_computers) {
-	  current_cost.push_back(cost_computer.get_cost(tempgeno));
+        current_cost.push_back(cost_computer.get_cost());
       }
 
       
@@ -390,7 +397,7 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
   const vector<unsigned int>* positions = column_iterator.get_positions();
   
   std::vector<std::pair<Read*,Read*>> superreads;
-  for(unsigned int i=0;i<id_of_individuals.size();i++)
+  for(unsigned int i=0;i<pedigree->size();i++)
   {
      superreads.emplace_back(new Read("superread_0_"+std::to_string(i), -1, 0),new Read("superread_1_"+std::to_string(i), -1, 0)) ;     
   }
@@ -404,36 +411,22 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
     while (column_iterator.has_next()) {
       index_and_inheritance_t v = index_path->at(i);
       unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
-      PedigreeColumnCostComputer cost_computer(*column, read_marks, v.inheritance_value, triples, id_of_individuals);
+      PedigreeColumnCostComputer cost_computer(*column, i, read_marks, pedigree, *pedigree_partitions[v.inheritance_value]);
       cost_computer.set_partitioning(v.index);
-      std::vector<Pedigree::triple_entry_t> tempgeno;
-      if (triples.empty())
-      {
-	tempgeno.emplace_back(Pedigree::triple_entry_t{(genotypes.begin()->second)[i],numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max()});
-      }
-      else{
-      for(auto& triple: triples)
-	{
-	  auto t0 = genotypes.find(triple[0])->second;
-	  auto t1 = genotypes.find(triple[1])->second;
-	  auto t2 = genotypes.find(triple[2])->second;
-	  tempgeno.emplace_back(Pedigree::triple_entry_t{t0[i], t1[i], t2[i]});
-	}
-      }
 
-      auto population_alleles = cost_computer.get_alleles(tempgeno);
+      auto population_alleles = cost_computer.get_alleles();
       
       // TODO: compute proper weights based on likelihoods.
-       for(unsigned int k=0;k<id_of_individuals.size();k++)
+       for(unsigned int k=0;k<pedigree->size();k++)
        {
-	 superreads[k].first->addVariant(positions->at(i), population_alleles[id_of_individuals[k]].first, 0);
-	 superreads[k].second->addVariant(positions->at(i), population_alleles[id_of_individuals[k]].second, 0);
+	 superreads[k].first->addVariant(positions->at(i), population_alleles[k].first, 0);
+	 superreads[k].second->addVariant(positions->at(i), population_alleles[k].second, 0);
        }
       transmission_vector->push_back(v.inheritance_value);
       ++i; // next column
     }
   }
-  for(unsigned int k=0;k<id_of_individuals.size();k++){
+  for(unsigned int k=0;k<pedigree->size();k++){
     (*output_read_set).at(k)->add(superreads[k].first);
     (*output_read_set).at(k)->add(superreads[k].second);
   }

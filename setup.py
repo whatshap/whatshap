@@ -72,7 +72,8 @@ extensions = [
 			'src/pedigreedptable.cpp', 'src/pedigreecolumncostcomputer.cpp',
 			'src/columnindexingiterator.cpp', 'src/columnindexingscheme.cpp',
 			'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',
-			'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp'
+			'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp',
+			'src/pedigreepartitions.cpp'
 		], language='c++', extra_compile_args=["-std=c++11"],),
 	Extension('whatshap.priorityqueue',
 		sources=['whatshap/priorityqueue.pyx'], language='c++', extra_compile_args=["-std=c++11"]),

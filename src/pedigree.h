@@ -12,23 +12,49 @@
 class Pedigree {
 public:
 	Pedigree();
-	typedef std::array<unsigned int, 3> triple_entry_t;
+	//TODO: maybe named: mother, father, child
+	typedef std::array<size_t, 3> triple_entry_t;
+
+	typedef struct parent_indices_t {
+		size_t mother_index;
+		size_t father_index;
+		parent_indices_t(size_t mother_index, size_t father_index) : mother_index(mother_index), father_index(father_index) {}
+	} parent_indices_t;
 	//typedef std::array<std::vector<unsigned int>, 3> genotype_entry_t;
 
 	// add genotypes of a single individual
-	void addIndividual(unsigned int individual, std::vector<unsigned int> genotypes);
+	void addIndividual(unsigned int individual_id, std::vector<unsigned int> genotypes);
 
 	// add a relationship (a mother/father/child triple)
-	void addRelationship(unsigned int mother, unsigned int father, unsigned int child);
+	void addRelationship(unsigned int mother_id, unsigned int father_id, unsigned int child_id);
+
+	/** Returns the genotype of individual with given index in the given column.
+	 *  Note that index of an individual is not its id (in general), see id_to_index().
+	 */
+	unsigned int get_genotype(size_t individual_index, size_t column) const;
+	
+	/** Turns the id of an individual into its index. */
+	size_t id_to_index(unsigned int individual_id) const;
 
 	size_t size() const {
-		return individuals.size();
+		return individual_ids.size();
 	}
-	std::vector<triple_entry_t> triples;
-	//std::vector<genotype_entry_t> triple_genotypes;
-	std::vector<unsigned int> individuals;
-	std::unordered_map<unsigned int, std::vector<unsigned int>> genotypes_map;
+
+	size_t triple_count() const {
+		return triples.size();
+	}
+
+	/** Get triples of indices in a trio relationship. Note that each individual
+	 *  in the triple is represented by its index (and not its id), see id_to_index().
+	 */
+	const std::vector<triple_entry_t>& get_triples() const;
+
 private:
+	std::vector<triple_entry_t> triples;
+	std::vector<unsigned int> individual_ids;
+	std::unordered_map<unsigned int, size_t> id_to_index_map;
+	// genotypes[i][j] is the genotype of individual with index i at locus j.
+	std::vector<std::vector<unsigned int>> genotypes;
 	
 	// maps individual ids to genotypes
 

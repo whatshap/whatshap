@@ -11,6 +11,7 @@
 #include "read.h"
 #include "readset.h"
 #include "pedigree.h"
+#include "pedigreepartitions.h"
 
 typedef struct index_and_inheritance_t {
   unsigned int index;
@@ -25,9 +26,8 @@ private:
   
   const std::vector<unsigned int> read_marks;
   const std::vector<unsigned int> recombcost;
-  const std::vector<Pedigree::triple_entry_t> triples;
-  const std::unordered_map<unsigned int, std::vector<unsigned int>> genotypes;
-  std::vector<unsigned int> id_of_individuals;
+  const Pedigree* pedigree;
+  std::vector<PedigreePartitions*> pedigree_partitions;
   // vector of indexingschemes
   std::vector<ColumnIndexingScheme*> indexers;
   // optimal score and its index in the rightmost DP table column
@@ -59,7 +59,7 @@ public:
    *  @param all_heterozygous If true, then the "all heterozygous" assumption is made;
    *                          i.e., all positions are forced to be heterozygous even when
    *                          reads suggest a homozygous site. */
-  PedigreeDPTable(ReadSet* read_set, std::vector<unsigned int> read_marks, std::vector<unsigned int> recombcost, Pedigree* pedigree);
+  PedigreeDPTable(ReadSet* read_set, std::vector<unsigned int> read_marks, std::vector<unsigned int> recombcost, const Pedigree* pedigree);
  
   ~PedigreeDPTable();
 
