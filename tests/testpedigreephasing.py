@@ -185,3 +185,111 @@ def test_phase_trio5() :
 		('111','000')
 	]
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 3)
+
+
+def test_phase_quartet1() :
+	reads = """
+	  A 111
+	  A 010
+	  A 110
+	  B 001
+	  B 110
+	  B 101
+	  C 001
+	  C 010
+	  C 010
+	  D 001
+	  D 010
+	  D 010
+	"""
+	pedigree = Pedigree()
+	pedigree.add_individual(0, [1,2,1])
+	pedigree.add_individual(1, [1,1,1])
+	pedigree.add_individual(2, [0,1,1])
+	pedigree.add_individual(3, [0,1,1])
+	pedigree.add_relationship(0, 1, 2)
+	pedigree.add_relationship(0, 1, 3)
+	recombcost = [10,10,10]
+	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
+	assert cost == 2
+	assert len(set(transmission_vector)) == 1
+	all_expected_haplotypes = [
+		('111','010'),
+		('001','110'),
+		('001','010'),
+		('001','010')
+	]
+	assert_haplotypes(superreads_list, all_expected_haplotypes, 3)
+
+
+def test_phase_quartet2() :
+	reads = """
+	  A 111111
+	  A 000000
+	  B 010101
+	  B 101010
+	  C 000000
+	  C 010101
+	  D 000000
+	  D 010101
+	"""
+	pedigree = Pedigree()
+	pedigree.add_individual(0, [1,1,1,1,1,1])
+	pedigree.add_individual(1, [1,1,1,1,1,1])
+	pedigree.add_individual(2, [0,1,0,1,0,1])
+	pedigree.add_individual(3, [0,1,0,1,0,1])
+	pedigree.add_relationship(0, 1, 2)
+	pedigree.add_relationship(0, 1, 3)
+	recombcost =[3,3,3,3,3,3]
+
+	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
+	assert cost == 0
+	assert len(set(transmission_vector)) == 1
+	all_expected_haplotypes = [
+		('111111','000000'),
+		('010101','101010'),
+		('000000','010101'),
+		('000000','010101')
+	]
+	assert_haplotypes(superreads_list, all_expected_haplotypes, 6)
+
+
+def test_phase_quartet3() :
+	reads = """
+	  A 1111
+	  A 0000
+	  B 1010
+	  C 111000
+	  C 010101
+	  D 000000
+	  D 010
+	  B 0101
+	  C  1100
+	  D  10010
+	  A   0000
+	  A   1111
+	  B   1010
+	  B   0101
+	"""
+	pedigree = Pedigree()
+	pedigree.add_individual(0, [1,1,1,1,1,1])
+	pedigree.add_individual(1, [1,1,1,1,1,1])
+	pedigree.add_individual(2, [1,2,1,1,0,1])
+	pedigree.add_individual(3, [0,1,0,0,1,0])
+	pedigree.add_relationship(0, 1, 2)
+	pedigree.add_relationship(0, 1, 3)
+	recombcost = [3,3,3,4,3,3]
+	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
+	print(cost)
+	print(transmission_vector)
+	assert cost == 8
+	# TODO: expect transmission in both trio relations. Update once transmission vectors
+	#       are returned per trio relationship
+	#assert transmission_vector in ([0,0,0,1,1,1], [1,1,1,0,0,0], [2,2,2,3,3,3], [3,3,3,2,2,2])
+	all_expected_haplotypes = [
+		('111111','000000'),
+		('010101','101010'),
+		('111000','010101'),
+		('000000','010010')
+	]
+	assert_haplotypes(superreads_list, all_expected_haplotypes, 6)
