@@ -579,7 +579,7 @@ def run_whatshap(bam, vcf,
 				variant_table.remove_rows_by_index(to_discard)
 
 				logger.info('Number of variants skipped due to Mendelian conflicts: %d', mendelian_conflicts)
-				logger.info('Number of remaining variants hetorozygous in at least one individual: %d', len(variant_table.variants))
+				logger.info('Number of remaining variants heterozygous in at least one individual: %d', len(variant_table.variants))
 
 				# Get the reads belonging to each sample
 				readsets = dict()  # TODO this could become a list
