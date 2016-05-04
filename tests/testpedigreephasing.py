@@ -6,32 +6,9 @@ from whatshap.core import PedigreeDPTable, ReadSet, Variant, Pedigree
 from .phasingutils import string_to_readset, string_to_readset_pedigree, brute_force_phase
 
 
-def trio_pedigree(*genotypes):
-	"""
-	order of genotypes: mother, father, child
-	"""
-	assert len(genotypes) == 3
-	pedigree = Pedigree()
-	pedigree.add_individual(0, genotypes[0])
-	pedigree.add_individual(1, genotypes[1])
-	pedigree.add_individual(2, genotypes[2])
-	pedigree.add_relationship(0, 1, 2)
-	return pedigree
-
-
-def test_phase_empty_readset():
-	rs = ReadSet()
-	read_marks = []
-	recombcost = []
-	pedigree = trio_pedigree([], [], [])
-	dp_table = PedigreeDPTable(rs, read_marks, recombcost, pedigree)
-	(superreadsm, superreadsf, superreadsc), transmission_vector = dp_table.get_super_reads()
-
-
-def phase_trio(reads, recombcost, genotypesm, genotypesf, genotypesc):
-	rs, read_marks = string_to_readset_pedigree(reads)
-	pedigree = trio_pedigree(genotypesm, genotypesf, genotypesc)
-	dp_table = PedigreeDPTable(rs, read_marks, recombcost, pedigree)
+def phase_pedigree(reads, recombcost, pedigree):
+	rs, read_sources = string_to_readset_pedigree(reads)
+	dp_table = PedigreeDPTable(rs, read_sources, recombcost, pedigree)
 	superreads_list, transmission_vector = dp_table.get_super_reads()
 	cost = dp_table.get_optimal_cost()
 	for superreads in superreads_list:
@@ -51,6 +28,19 @@ def assert_haplotypes(superreads_list, all_expected_haplotypes, length):
 		assert (haplotypes == (expected_haplotypes[0], expected_haplotypes[1])) or (haplotypes == (expected_haplotypes[1], expected_haplotypes[0]))
 
 
+def test_phase_empty_trio():
+	rs = ReadSet()
+	read_sources = []
+	recombcost = []
+	pedigree = Pedigree()
+	pedigree.add_individual(0, [])
+	pedigree.add_individual(1, [])
+	pedigree.add_individual(2, [])
+	pedigree.add_relationship(0, 1, 2)
+	dp_table = PedigreeDPTable(rs, read_sources, recombcost, pedigree)
+	(superreadsm, superreadsf, superreadsc), transmission_vector = dp_table.get_super_reads()
+
+
 def test_phase_trio1() :
 	reads = """
 	  A 111
@@ -63,13 +53,13 @@ def test_phase_trio1() :
 	  C 010
 	  C 010
 	"""
-	genotypesm = [1,2,1]
-	genotypesf = [1,1,1]
-	genotypesc = [0,1,1]
+	pedigree = Pedigree()
+	pedigree.add_individual(0, [1,2,1])
+	pedigree.add_individual(1, [1,1,1])
+	pedigree.add_individual(2, [0,1,1])
+	pedigree.add_relationship(0, 1, 2)
 	recombcost = [10,10,10]
-
-	superreads_list, transmission_vector, cost = phase_trio(
-		reads, recombcost, genotypesm, genotypesf, genotypesc)
+	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
 	assert cost == 2
 	assert len(set(transmission_vector)) == 1
 	all_expected_haplotypes = [
@@ -89,12 +79,13 @@ def test_phase_trio2() :
 	  C 1
 	  C 0
 	"""
-	genotypesm = [2]
-	genotypesf = [0]
-	genotypesc = [1]
+	pedigree = Pedigree()
+	pedigree.add_individual(0, [2])
+	pedigree.add_individual(1, [0])
+	pedigree.add_individual(2, [1])
+	pedigree.add_relationship(0, 1, 2)
 	recombcost = [10,10,10]
-	superreads_list, transmission_vector, cost = phase_trio(
-		reads, recombcost, genotypesm, genotypesf, genotypesc)
+	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
 	assert cost == 4
 	assert len(set(transmission_vector)) == 1
 	all_expected_haplotypes = [
@@ -121,12 +112,13 @@ def test_phase_trio3() :
 	  B   1010
 	  B    010
 	"""
-	genotypesm = [1,1,1,1,1,1]
-	genotypesf = [1,1,1,1,1,1]
-	genotypesc = [1,2,1,1,0,1]
+	pedigree = Pedigree()
+	pedigree.add_individual(0, [1,1,1,1,1,1])
+	pedigree.add_individual(1, [1,1,1,1,1,1])
+	pedigree.add_individual(2, [1,2,1,1,0,1])
+	pedigree.add_relationship(0, 1, 2)
 	recombcost = [3,3,3,4,3,3]
-	superreads_list, transmission_vector, cost = phase_trio(
-		reads, recombcost, genotypesm, genotypesf, genotypesc)
+	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
 	assert cost == 4
 	assert transmission_vector in ([0,0,0,1,1,1], [1,1,1,0,0,0], [2,2,2,3,3,3], [3,3,3,2,2,2])
 	all_expected_haplotypes = [
@@ -149,12 +141,13 @@ def test_phase_trio4() :
 	  C 111
 	  C 111
 	"""
-	genotypesm = [1,1,1]
-	genotypesf = [1,1,1]
-	genotypesc = [1,1,1]
+	pedigree = Pedigree()
+	pedigree.add_individual(0, [1,1,1])
+	pedigree.add_individual(1, [1,1,1])
+	pedigree.add_individual(2, [1,1,1])
+	pedigree.add_relationship(0, 1, 2)
 	recombcost = [1,1,1]
-	superreads_list, transmission_vector, cost = phase_trio(
-		reads, recombcost, genotypesm, genotypesf, genotypesc)
+	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
 	assert cost == 2
 	assert transmission_vector in ([0,2,0], [2,0,2], [1,3,1], [3,1,3])
 	all_expected_haplotypes = [
@@ -177,12 +170,13 @@ def test_phase_trio5() :
 	  C 111
 	  C 111
 	"""
-	genotypesm = [1,1,1]
-	genotypesf = [1,1,1]
-	genotypesc = [1,1,1]
+	pedigree = Pedigree()
+	pedigree.add_individual(0, [1,1,1])
+	pedigree.add_individual(1, [1,1,1])
+	pedigree.add_individual(2, [1,1,1])
+	pedigree.add_relationship(0, 1, 2)
 	recombcost = [2,2,2]
-	superreads_list, transmission_vector, cost = phase_trio(
-		reads, recombcost, genotypesm, genotypesf, genotypesc)
+	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
 	assert cost == 3
 	assert len(set(transmission_vector)) == 1
 	all_expected_haplotypes = [
