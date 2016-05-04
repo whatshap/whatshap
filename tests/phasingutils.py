@@ -22,18 +22,18 @@ def string_to_readset(s, w = None):
 	return rs
 
 
-def string_to_readset_trio(s, w = None):
+def string_to_readset_pedigree(s, w = None):
 	s = textwrap.dedent(s).strip()
-	m = { 'M': 1, 'F':2, 'C':0 }
-	read_marks = []
+	read_sources = []
 	s2 = ''
 	for line in s.split('\n'):
-		assert line[0] in m
-		read_marks.append(m[line[0]])
+		individual = ord(line[0]) - ord('A')
+		assert 0 <= individual < 26
+		read_sources.append(individual)
 		s2 += line[1:] + '\n'
 	rs = string_to_readset(s2, w)
-	print('read_marks:', read_marks)
-	return rs, read_marks
+	print('read_sources:', read_sources)
+	return rs, read_sources
 
 
 def matrix_to_readset(lines) :

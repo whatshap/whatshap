@@ -3,7 +3,7 @@ Test phasing of pedigrees (PedMEC algorithm)
 """
 from nose.tools import raises
 from whatshap.core import PedigreeDPTable, ReadSet, Variant, Pedigree
-from .phasingutils import string_to_readset, string_to_readset_trio, brute_force_phase
+from .phasingutils import string_to_readset, string_to_readset_pedigree, brute_force_phase
 
 
 def trio_pedigree(*genotypes):
@@ -12,10 +12,10 @@ def trio_pedigree(*genotypes):
 	"""
 	assert len(genotypes) == 3
 	pedigree = Pedigree()
-	pedigree.add_individual(1, genotypes[0])
-	pedigree.add_individual(2, genotypes[1])
-	pedigree.add_individual(0, genotypes[2])
-	pedigree.add_relationship(1, 2, 0)
+	pedigree.add_individual(0, genotypes[0])
+	pedigree.add_individual(1, genotypes[1])
+	pedigree.add_individual(2, genotypes[2])
+	pedigree.add_relationship(0, 1, 2)
 	return pedigree
 
 
@@ -154,7 +154,7 @@ def test_weighted_phasing_single_individual1():
 
 
 def phase_trio(reads, recombcost, genotypesm, genotypesf, genotypesc):
-	rs, read_marks = string_to_readset_trio(reads)
+	rs, read_marks = string_to_readset_pedigree(reads)
 	pedigree = trio_pedigree(genotypesm, genotypesf, genotypesc)
 	dp_table = PedigreeDPTable(rs, read_marks, recombcost, pedigree)
 	superreads_list, transmission_vector = dp_table.get_super_reads()
@@ -178,12 +178,12 @@ def assert_haplotypes(superreads_list, all_expected_haplotypes, length):
 
 def test_phase_trio1() :
 	reads = """
-	  M 111
-	  M 010
-	  M 110
-	  F 001
-	  F 110
-	  F 101
+	  A 111
+	  A 010
+	  A 110
+	  B 001
+	  B 110
+	  B 101
 	  C 001
 	  C 010
 	  C 010
@@ -207,10 +207,10 @@ def test_phase_trio1() :
 
 def test_phase_trio2() :
 	reads = """
-	  M 0
-	  M 0
-	  F 1
-	  F 1
+	  A 0
+	  A 0
+	  B 1
+	  B 1
 	  C 1
 	  C 0
 	"""
@@ -232,19 +232,19 @@ def test_phase_trio2() :
 
 def test_phase_trio3() :
 	reads = """
-	  M 1111
-	  F 1010
+	  A 1111
+	  B 1010
 	  C 111000
 	  C 010101
-	  F 0101
-	  M  0000
-	  F  1010
+	  B 0101
+	  A  0000
+	  B  1010
 	  C  1010
 	  C  1100
-	  M   0000
-	  M   1111
-	  F   1010
-	  F    010
+	  A   0000
+	  A   1111
+	  B   1010
+	  B    010
 	"""
 	genotypesm = [1,1,1,1,1,1]
 	genotypesf = [1,1,1,1,1,1]
@@ -264,12 +264,12 @@ def test_phase_trio3() :
 
 def test_phase_trio4() :
 	reads = """
-	  F 101
-	  F 101
-	  F 101
-	  M 111
-	  M 111
-	  M 111
+	  B 101
+	  B 101
+	  B 101
+	  A 111
+	  A 111
+	  A 111
 	  C 111
 	  C 111
 	  C 111
@@ -292,12 +292,12 @@ def test_phase_trio4() :
 
 def test_phase_trio5() :
 	reads = """
-	  F 101
-	  F 101
-	  F 101
-	  M 111
-	  M 111
-	  M 111
+	  B 101
+	  B 101
+	  B 101
+	  A 111
+	  A 111
+	  A 111
 	  C 111
 	  C 111
 	  C 111
