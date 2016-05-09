@@ -14,13 +14,10 @@
 
 using namespace std;
 
-// TODO read_marks is unnecessary because every read in the read_set already
-// knows its id
-PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, vector<unsigned int> read_marks, vector<unsigned int> recombcost, const Pedigree* pedigree)
+PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree)
 	:
 	read_set(read_set),
-	read_marks(std::move(read_marks)),
-	recombcost(std::move(recombcost)),
+	recombcost(recombcost),
 	pedigree(pedigree),
 	optimal_score(0u),
 	optimal_score_index(0u),
@@ -32,6 +29,11 @@ PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, vector<unsigned int> read_ma
   
   for (size_t i=0; i<std::pow(4, pedigree->triple_count()); ++i) {
     pedigree_partitions.push_back(new PedigreePartitions(*pedigree, i));
+  }
+  
+  // translate all individual ids to individual indices
+  for (size_t i=0; i<read_set->size(); ++i) {
+    read_marks.push_back(pedigree->id_to_index(read_set->get(i)->getSampleID()));
   }
   
   compute_table();
@@ -399,7 +401,7 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
   std::vector<std::pair<Read*,Read*>> superreads;
   for(unsigned int i=0;i<pedigree->size();i++)
   {
-     superreads.emplace_back(new Read("superread_0_"+std::to_string(i), -1, 0),new Read("superread_1_"+std::to_string(i), -1, 0)) ;     
+     superreads.emplace_back(new Read("superread_0_"+std::to_string(i), -1, 0, -1),new Read("superread_1_"+std::to_string(i), -1, 0, -1));
   }
   
   if (index_backtrace_table.empty()) {

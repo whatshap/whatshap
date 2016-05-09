@@ -3,13 +3,16 @@ from collections import defaultdict
 from whatshap.core import Read, DPTable, ReadSet, Variant
 
 
-def string_to_readset(s, w = None):
+def string_to_readset(s, w = None, sample_ids = None):
 	s = textwrap.dedent(s).strip()
 	if w is not None:
 		w = textwrap.dedent(w).strip().split('\n')
 	rs = ReadSet()
 	for index, line in enumerate(s.split('\n')):
-		read = Read('Read {}'.format(index+1), 50)
+		if sample_ids is None:
+			read = Read('Read {}'.format(index+1), 50)
+		else:
+			read = Read('Read {}'.format(index+1), 50, 0, sample_ids[index])
 		for pos, c in enumerate(line):
 			if c == ' ':
 				continue
@@ -31,9 +34,9 @@ def string_to_readset_pedigree(s, w = None):
 		assert 0 <= individual < 26
 		read_sources.append(individual)
 		s2 += line[1:] + '\n'
-	rs = string_to_readset(s2, w)
+	rs = string_to_readset(s2, w, read_sources)
 	print('read_sources:', read_sources)
-	return rs, read_sources
+	return rs
 
 
 def matrix_to_readset(lines) :

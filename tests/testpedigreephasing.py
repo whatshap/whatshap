@@ -2,13 +2,13 @@
 Test phasing of pedigrees (PedMEC algorithm)
 """
 from nose.tools import raises
-from whatshap.core import PedigreeDPTable, ReadSet, Variant, Pedigree
+from whatshap.core import PedigreeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds
 from .phasingutils import string_to_readset, string_to_readset_pedigree, brute_force_phase
 
 
 def phase_pedigree(reads, recombcost, pedigree):
-	rs, read_sources = string_to_readset_pedigree(reads)
-	dp_table = PedigreeDPTable(rs, read_sources, recombcost, pedigree)
+	rs = string_to_readset_pedigree(reads)
+	dp_table = PedigreeDPTable(rs, recombcost, pedigree)
 	superreads_list, transmission_vector = dp_table.get_super_reads()
 	cost = dp_table.get_optimal_cost()
 	for superreads in superreads_list:
@@ -30,14 +30,13 @@ def assert_haplotypes(superreads_list, all_expected_haplotypes, length):
 
 def test_phase_empty_trio():
 	rs = ReadSet()
-	read_sources = []
 	recombcost = []
-	pedigree = Pedigree()
-	pedigree.add_individual(0, [])
-	pedigree.add_individual(1, [])
-	pedigree.add_individual(2, [])
-	pedigree.add_relationship(0, 1, 2)
-	dp_table = PedigreeDPTable(rs, read_sources, recombcost, pedigree)
+	pedigree = Pedigree(NumericSampleIds())
+	pedigree.add_individual('individual0', [])
+	pedigree.add_individual('individual1', [])
+	pedigree.add_individual('individual2', [])
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
+	dp_table = PedigreeDPTable(rs, recombcost, pedigree)
 	(superreadsm, superreadsf, superreadsc), transmission_vector = dp_table.get_super_reads()
 
 
@@ -53,11 +52,11 @@ def test_phase_trio1() :
 	  C 010
 	  C 010
 	"""
-	pedigree = Pedigree()
-	pedigree.add_individual(0, [1,2,1])
-	pedigree.add_individual(1, [1,1,1])
-	pedigree.add_individual(2, [0,1,1])
-	pedigree.add_relationship(0, 1, 2)
+	pedigree = Pedigree(NumericSampleIds())
+	pedigree.add_individual('individual0', [1,2,1])
+	pedigree.add_individual('individual1', [1,1,1])
+	pedigree.add_individual('individual2', [0,1,1])
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10]
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
 	assert cost == 2
@@ -79,11 +78,11 @@ def test_phase_trio2() :
 	  C 1
 	  C 0
 	"""
-	pedigree = Pedigree()
-	pedigree.add_individual(0, [2])
-	pedigree.add_individual(1, [0])
-	pedigree.add_individual(2, [1])
-	pedigree.add_relationship(0, 1, 2)
+	pedigree = Pedigree(NumericSampleIds())
+	pedigree.add_individual('individual0', [2])
+	pedigree.add_individual('individual1', [0])
+	pedigree.add_individual('individual2', [1])
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10]
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
 	assert cost == 4
@@ -112,11 +111,11 @@ def test_phase_trio3() :
 	  B   1010
 	  B    010
 	"""
-	pedigree = Pedigree()
-	pedigree.add_individual(0, [1,1,1,1,1,1])
-	pedigree.add_individual(1, [1,1,1,1,1,1])
-	pedigree.add_individual(2, [1,2,1,1,0,1])
-	pedigree.add_relationship(0, 1, 2)
+	pedigree = Pedigree(NumericSampleIds())
+	pedigree.add_individual('individual0', [1,1,1,1,1,1])
+	pedigree.add_individual('individual1', [1,1,1,1,1,1])
+	pedigree.add_individual('individual2', [1,2,1,1,0,1])
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [3,3,3,4,3,3]
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
 	assert cost == 4
@@ -141,11 +140,11 @@ def test_phase_trio4() :
 	  C 111
 	  C 111
 	"""
-	pedigree = Pedigree()
-	pedigree.add_individual(0, [1,1,1])
-	pedigree.add_individual(1, [1,1,1])
-	pedigree.add_individual(2, [1,1,1])
-	pedigree.add_relationship(0, 1, 2)
+	pedigree = Pedigree(NumericSampleIds())
+	pedigree.add_individual('individual0', [1,1,1])
+	pedigree.add_individual('individual1', [1,1,1])
+	pedigree.add_individual('individual2', [1,1,1])
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [1,1,1]
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
 	assert cost == 2
@@ -170,11 +169,11 @@ def test_phase_trio5() :
 	  C 111
 	  C 111
 	"""
-	pedigree = Pedigree()
-	pedigree.add_individual(0, [1,1,1])
-	pedigree.add_individual(1, [1,1,1])
-	pedigree.add_individual(2, [1,1,1])
-	pedigree.add_relationship(0, 1, 2)
+	pedigree = Pedigree(NumericSampleIds())
+	pedigree.add_individual('individual0', [1,1,1])
+	pedigree.add_individual('individual1', [1,1,1])
+	pedigree.add_individual('individual2', [1,1,1])
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [2,2,2]
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
 	assert cost == 3
@@ -202,13 +201,13 @@ def test_phase_quartet1() :
 	  D 010
 	  D 010
 	"""
-	pedigree = Pedigree()
-	pedigree.add_individual(0, [1,2,1])
-	pedigree.add_individual(1, [1,1,1])
-	pedigree.add_individual(2, [0,1,1])
-	pedigree.add_individual(3, [0,1,1])
-	pedigree.add_relationship(0, 1, 2)
-	pedigree.add_relationship(0, 1, 3)
+	pedigree = Pedigree(NumericSampleIds())
+	pedigree.add_individual('individual0', [1,2,1])
+	pedigree.add_individual('individual1', [1,1,1])
+	pedigree.add_individual('individual2', [0,1,1])
+	pedigree.add_individual('individual3', [0,1,1])
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
+	pedigree.add_relationship('individual0', 'individual1', 'individual3')
 	recombcost = [10,10,10]
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
 	assert cost == 2
@@ -233,13 +232,13 @@ def test_phase_quartet2() :
 	  D 000000
 	  D 010101
 	"""
-	pedigree = Pedigree()
-	pedigree.add_individual(0, [1,1,1,1,1,1])
-	pedigree.add_individual(1, [1,1,1,1,1,1])
-	pedigree.add_individual(2, [0,1,0,1,0,1])
-	pedigree.add_individual(3, [0,1,0,1,0,1])
-	pedigree.add_relationship(0, 1, 2)
-	pedigree.add_relationship(0, 1, 3)
+	pedigree = Pedigree(NumericSampleIds())
+	pedigree.add_individual('individual0', [1,1,1,1,1,1])
+	pedigree.add_individual('individual1', [1,1,1,1,1,1])
+	pedigree.add_individual('individual2', [0,1,0,1,0,1])
+	pedigree.add_individual('individual3', [0,1,0,1,0,1])
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
+	pedigree.add_relationship('individual0', 'individual1', 'individual3')
 	recombcost =[3,3,3,3,3,3]
 
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
@@ -271,13 +270,13 @@ def test_phase_quartet3() :
 	  B   1010
 	  B   0101
 	"""
-	pedigree = Pedigree()
-	pedigree.add_individual(0, [1,1,1,1,1,1])
-	pedigree.add_individual(1, [1,1,1,1,1,1])
-	pedigree.add_individual(2, [1,2,1,1,0,1])
-	pedigree.add_individual(3, [0,1,0,0,1,0])
-	pedigree.add_relationship(0, 1, 2)
-	pedigree.add_relationship(0, 1, 3)
+	pedigree = Pedigree(NumericSampleIds())
+	pedigree.add_individual('individual0', [1,1,1,1,1,1])
+	pedigree.add_individual('individual1', [1,1,1,1,1,1])
+	pedigree.add_individual('individual2', [1,2,1,1,0,1])
+	pedigree.add_individual('individual3', [0,1,0,0,1,0])
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
+	pedigree.add_relationship('individual0', 'individual1', 'individual3')
 	recombcost = [3,3,3,4,3,3]
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
 	print(cost)

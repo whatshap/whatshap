@@ -7,6 +7,7 @@ from collections import namedtuple, Counter, OrderedDict
 
 RecombinationMapEntry = namedtuple('RecombinationMapEntry', ['position', 'cum_distance'])
 
+
 def interpolate(point, start_pos, end_pos, start_value, end_value):
 	assert start_pos <= point <= end_pos
 	if start_pos == point == end_pos:
@@ -171,12 +172,15 @@ class PedReader:
 	All fields except the individual, maternal and paternal ID are ignored by
 	this class. The entire file is read upon construction.
 	"""
-	def __init__(self, file):
+	def __init__(self, file, numeric_sample_ids):
 		if isinstance(file, str):
 			with open(file) as f:
 				self.individuals = self._parse(f)
 		else:
 			self.individuals = self._parse(file)
+		# Ensure that all individuals mentioned in the ped have a numeric id
+		for individual in self.individuals:
+			numeric_sample_ids[individual.id]
 
 	@staticmethod
 	def _parse_record(line):

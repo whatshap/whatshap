@@ -29,7 +29,7 @@ except ImportError:
 from ..vcf import VcfReader, PhasedVcfWriter, VariantTable
 from .. import __version__
 from ..args import HelpfulArgumentParser as ArgumentParser
-from ..core import Read, ReadSet, DPTable, readselection, Pedigree, PedigreeDPTable
+from ..core import Read, ReadSet, DPTable, readselection, Pedigree, PedigreeDPTable, NumericSampleIds
 from ..graph import ComponentFinder
 from ..coverage import CovMonitor
 from ..pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
@@ -42,7 +42,7 @@ __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel M
 logger = logging.getLogger(__name__)
 
 
-def covered_variants(variants, start, bam_read, source_id):
+def covered_variants(variants, start, bam_read, source_id, numeric_sample_id):
 	"""
 	Find the variants that are covered by the given bam_read and return a
 	core.Read instance that represents those variants. The instance may be
@@ -50,7 +50,7 @@ def covered_variants(variants, start, bam_read, source_id):
 
 	start -- index of the first variant (in the variants list) to check
 	"""
-	core_read = Read(bam_read.qname, bam_read.mapq, source_id)
+	core_read = Read(bam_read.qname, bam_read.mapq, source_id, numeric_sample_id)
 	i = 0  # index into CIGAR
 	j = start  # index into variants
 	ref_pos = bam_read.pos  # position relative to reference
@@ -170,8 +170,9 @@ class ReadSetReader:
 	"""
 	Associate VCF variants with BAM reads.
 	"""
-	def __init__(self, paths, mapq_threshold=20):
+	def __init__(self, paths, numeric_sample_ids, mapq_threshold=20):
 		self._mapq_threshold = mapq_threshold
+		self._numeric_sample_ids = numeric_sample_ids
 		if len(paths) == 1:
 			self._reader = SampleBamReader(paths[0])
 		else:
@@ -215,7 +216,7 @@ class ReadSetReader:
 			while i < len(variants) and variants[i].position < alignment.bam_alignment.pos:
 				i += 1
 
-			core_read = covered_variants(variants, i, alignment.bam_alignment, alignment.source_id)
+			core_read = covered_variants(variants, i, alignment.bam_alignment, alignment.source_id, self._numeric_sample_ids[sample])
 			# Only add new read if it covers at least one variant.
 			if core_read:
 				reads[(alignment.source_id, alignment.bam_alignment.qname)].append(core_read)
@@ -241,7 +242,7 @@ class ReadSetReader:
 		modified.
 		"""
 		if read2:
-			result = Read(read1.name, read1.mapqs[0], read1.source_id)
+			result = Read(read1.name, read1.mapqs[0], read1.source_id, read1.numeric_sample_id)
 			result.add_mapq(read2.mapqs[0])
 		else:
 			return read1
@@ -502,8 +503,9 @@ def run_whatshap(bam, vcf,
 	stats.n_best_case_nonsingleton_blocks_cov = 0
 	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
+		numeric_sample_ids = NumericSampleIds()
 		try:
-			bam_reader = stack.enter_context(ReadSetReader(bam, mapq_threshold=mapping_quality))
+			bam_reader = stack.enter_context(ReadSetReader(bam, numeric_sample_ids, mapq_threshold=mapping_quality))
 		except (OSError, BamIndexingError) as e:
 			logger.error(e)
 			sys.exit(1)
@@ -524,7 +526,7 @@ def run_whatshap(bam, vcf,
 			# Read in PED file to set up list of relationships (individuals)
 			individuals = []
 			samples_of_interest = set()
-			for individual in PedReader(ped):
+			for individual in PedReader(ped, numeric_sample_ids):
 				if (individual.id is None or individual.mother_id is None or
 						individual.father_id is None):
 					logger.warning('Relationship %s/%s/%s ignored '
@@ -645,14 +647,14 @@ def run_whatshap(bam, vcf,
 
 				# Create Pedigree
 				individual_ids = { sample: index for index, sample in enumerate(samples_of_interest) }
-				pedigree = Pedigree()
+				pedigree = Pedigree(numeric_sample_ids)
 				for sample in samples_of_interest:
-					pedigree.add_individual(variant_table.id_of(sample), variant_table.genotypes_of(sample))
+					pedigree.add_individual(sample, variant_table.genotypes_of(sample))
 				for individual in individuals:
 					pedigree.add_relationship(
-						mother_id=variant_table.id_of(individual.mother_id),
-						father_id=variant_table.id_of(individual.father_id),
-						child_id=variant_table.id_of(individual.id))
+						mother_id=individual.mother_id,
+						father_id=individual.father_id,
+						child_id=individual.id)
 
 				# Merge reads into one ReadSet, keeping track of source
 				all_reads = ReadSet()
@@ -662,10 +664,8 @@ def run_whatshap(bam, vcf,
 					for read in readset:
 						assert read.is_sorted(), "Add a read.sort() here"
 						all_reads.add(read)
-						# TODO PedigreeDPTable should use the read’s source_id
-						read_sources.append(read_source_id)
 
-				all_reads.sort()  # TODO this is probably also unnecessary
+				all_reads.sort()
 
 				# Load genetic map
 				recombination_costs = recombination_cost_map(load_genetic_map(genmap), accessible_positions)
@@ -674,7 +674,7 @@ def run_whatshap(bam, vcf,
 				with timers('phase'):
 					logger.info('Phasing %d samples with the PedMEC algorithm ...',
 						len(samples_of_interest))
-					dp_table = PedigreeDPTable(all_reads, read_sources, recombination_costs, pedigree)
+					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree)
 					superreads_list, transmission_vector = dp_table.get_super_reads()
 					logger.info('PedMEC cost: %d', dp_table.get_optimal_cost())
 

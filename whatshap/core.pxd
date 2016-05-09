@@ -1,6 +1,9 @@
 from libcpp cimport bool
 cimport cpp
 
+cdef class NumericSampleIds:
+	cdef dict mapping
+
 
 cdef class Read:
 	cdef cpp.Read *thisptr
@@ -17,6 +20,7 @@ cdef class DPTable:
 
 cdef class Pedigree:
 	cdef cpp.Pedigree *thisptr
+	cdef NumericSampleIds numeric_sample_ids
 
 
 cdef class PedigreeDPTable:

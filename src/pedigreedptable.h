@@ -24,8 +24,8 @@ class PedigreeDPTable {
 private:
   ReadSet* read_set;
   
-  const std::vector<unsigned int> read_marks;
-  const std::vector<unsigned int> recombcost;
+  std::vector<unsigned int> read_marks;
+  const std::vector<unsigned int>& recombcost;
   const Pedigree* pedigree;
   std::vector<PedigreePartitions*> pedigree_partitions;
   // vector of indexingschemes
@@ -59,7 +59,7 @@ public:
    *  @param all_heterozygous If true, then the "all heterozygous" assumption is made;
    *                          i.e., all positions are forced to be heterozygous even when
    *                          reads suggest a homozygous site. */
-  PedigreeDPTable(ReadSet* read_set, std::vector<unsigned int> read_marks, std::vector<unsigned int> recombcost, const Pedigree* pedigree);
+  PedigreeDPTable(ReadSet* read_set, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree);
  
   ~PedigreeDPTable();
 

@@ -9,7 +9,7 @@
 
 class Read {
 public:
-	Read(const std::string& name, int mapq, int source_id);
+	Read(const std::string& name, int mapq, int source_id, int sample_id);
 	virtual ~Read() {}
 	std::string toString();
 	void addVariant(int position, int allele, int quality);
@@ -34,6 +34,7 @@ public:
 	const std::vector<int>& getMapqs() const;
 	void addMapq(int mapq);
 	int getSourceID() const;
+	int getSampleID() const;
 	bool isSorted() const;
 private:
 	typedef struct enriched_entry_t {
@@ -53,6 +54,7 @@ private:
 	std::string name;
 	std::vector<int> mapqs;
 	int source_id;
+	int sample_id;
 	int id;
 	std::vector<enriched_entry_t> variants;
 };

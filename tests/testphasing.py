@@ -1,5 +1,5 @@
 from nose.tools import raises
-from whatshap.core import DPTable, ReadSet, PedigreeDPTable, Pedigree
+from whatshap.core import DPTable, ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds
 from .phasingutils import string_to_readset, brute_force_phase
 
 
@@ -52,11 +52,10 @@ def check_phasing_single_individual(reads, weights = None):
 		compare_phasing_brute_force(superreads, cost, partition, readset, all_heterozygous, weights)
 	
 	# 2) Phase using PedMEC code for single individual
-	read_sources = [0] * len(readset) # all reads from the child
 	recombcost = [1] * len(positions) # recombination costs 1, should not occur 
-	pedigree = Pedigree()
-	pedigree.add_individual(0, [1] * len(positions)) # all genotypes heterozygous
-	dp_table = PedigreeDPTable(readset, read_sources, recombcost, pedigree)
+	pedigree = Pedigree(NumericSampleIds())
+	pedigree.add_individual('individual0', [1] * len(positions)) # all genotypes heterozygous
+	dp_table = PedigreeDPTable(readset, recombcost, pedigree)
 	superreads, transmission_vector = dp_table.get_super_reads()
 	# TODO: transmission vectors not returned properly, see issue 73
 	assert len(set(transmission_vector)) == 1
@@ -64,14 +63,13 @@ def check_phasing_single_individual(reads, weights = None):
 	compare_phasing_brute_force(superreads[0], cost, partition, readset, True, weights)
 
 	# 3) Phase using PedMEC code for trios with two "empty" individuals (i.e. having no reads)
-	read_sources = [0] * len(readset) # all reads from the child
 	recombcost = [1] * len(positions) # recombination costs 1, should not occur 
-	pedigree = Pedigree()
-	pedigree.add_individual(0, [1] * len(positions)) # all genotypes heterozygous
-	pedigree.add_individual(1, [1] * len(positions)) # all genotypes heterozygous
-	pedigree.add_individual(2, [1] * len(positions)) # all genotypes heterozygous
-	pedigree.add_relationship(0, 1, 2)
-	dp_table = PedigreeDPTable(readset, read_sources, recombcost, pedigree)
+	pedigree = Pedigree(NumericSampleIds())
+	pedigree.add_individual('individual0', [1] * len(positions)) # all genotypes heterozygous
+	pedigree.add_individual('individual1', [1] * len(positions)) # all genotypes heterozygous
+	pedigree.add_individual('individual2', [1] * len(positions)) # all genotypes heterozygous
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
+	dp_table = PedigreeDPTable(readset, recombcost, pedigree)
 	superreads, transmission_vector = dp_table.get_super_reads()
 	assert len(set(transmission_vector)) == 1
 	partition = dp_table.get_optimal_partitioning()

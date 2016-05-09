@@ -18,8 +18,25 @@ from cython.operator cimport dereference as deref
 # A single variant on a read.
 Variant = namedtuple('Variant', 'position allele quality')
 
+
+cdef class NumericSampleIds:
+	"""
+	Mapping of sample names (strings) to numeric ids.
+	"""
+	def __cinit__(self):
+		self.mapping = {}
+
+	def __getitem__(self, sample):
+		if not sample in self.mapping:
+			self.mapping[sample] = len(self.mapping)
+		return self.mapping[sample]
+
+	def __len__(self):
+		return len(self.mapping)
+
+
 cdef class Read:
-	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0):
+	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int sample_id = 0):
 		cdef string _name = ''
 		if name is None:
 			self.thisptr = NULL
@@ -27,7 +44,7 @@ cdef class Read:
 		else:
 			# TODO: Is this the best way to handle string arguments?
 			_name = name.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, mapq, source_id)
+			self.thisptr = new cpp.Read(_name, mapq, source_id, sample_id)
 			self.ownsptr = True
 
 	def __dealloc__(self):
@@ -241,12 +258,12 @@ cdef class DPTable:
 
 
 cdef class PedigreeDPTable:
-	def __cinit__(self, ReadSet readset, finaldemarcations, recombcost, Pedigree pedigree):
+	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree):
 		"""Build the DP table from the given read set which is assumed to be sorted;
 		that is, the variants in each read must be sorted by position and the reads
 		in the read set must also be sorted (by position of their left-most variant).
 		"""
-		self.thisptr = new cpp.PedigreeDPTable(readset.thisptr, finaldemarcations, recombcost, pedigree.thisptr)
+		self.thisptr = new cpp.PedigreeDPTable(readset.thisptr, recombcost, pedigree.thisptr)
 		self.pedigree = pedigree
 
 	def __dealloc__(self):
@@ -291,17 +308,18 @@ cdef class PedigreeDPTable:
 
 
 cdef class Pedigree:
-	def __cinit__(self):
+	def __cinit__(self, numeric_sample_ids):
 		self.thisptr = new cpp.Pedigree()
+		self.numeric_sample_ids = numeric_sample_ids
 
 	def __dealloc__(self):
 		del self.thisptr
 
-	def add_individual(self, int id, vector[unsigned int] genotypes):
-		self.thisptr.addIndividual(id, genotypes)
+	def add_individual(self, id, vector[unsigned int] genotypes):
+		self.thisptr.addIndividual(self.numeric_sample_ids[id], genotypes)
 
-	def add_relationship(self, int mother_id, int father_id, int child_id):
-		self.thisptr.addRelationship(mother_id, father_id, child_id)
+	def add_relationship(self, mother_id, father_id, child_id):
+		self.thisptr.addRelationship(self.numeric_sample_ids[mother_id], self.numeric_sample_ids[father_id], self.numeric_sample_ids[child_id])
 
 	def __len__(self):
 		return self.thisptr.size()

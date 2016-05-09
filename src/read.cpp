@@ -7,7 +7,7 @@
 
 using namespace std;
 
-Read::Read(const std::string& name, int mapq, int source_id) : name(name), mapqs(1, mapq), source_id(source_id) {
+Read::Read(const std::string& name, int mapq, int source_id, int sample_id) : name(name), mapqs(1, mapq), source_id(source_id), sample_id(sample_id) {
 	this->id = -1;
 }
 
@@ -122,6 +122,10 @@ void Read::addMapq(int mapq) {
 
 int Read::getSourceID() const {
 	return source_id;
+}
+
+int Read::getSampleID() const {
+	return sample_id;
 }
 
 bool Read::isSorted() const {

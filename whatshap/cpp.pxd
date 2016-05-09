@@ -9,7 +9,7 @@ from libcpp.vector cimport vector
 
 cdef extern from "../src/read.h":
 	cdef cppclass Read:
-		Read(string, int, int) except +
+		Read(string, int, int, int) except +
 		Read(Read) except +
 		string toString() except +
 		void addVariant(int, int, int) except +
@@ -70,7 +70,7 @@ cdef extern from "../src/pedigree.h":
 
 cdef extern from "../src/pedigreedptable.h":
 	cdef cppclass PedigreeDPTable:
-		PedigreeDPTable(ReadSet*, vector[unsigned int], vector[unsigned int], Pedigree* pedigree) except +
+		PedigreeDPTable(ReadSet*, vector[unsigned int], Pedigree* pedigree) except +
 		void get_super_reads(vector[ReadSet*]*, vector[unsigned int]* transmission_vector) except +
 		int get_optimal_score() except +
 		vector[bool]* get_optimal_partitioning()
