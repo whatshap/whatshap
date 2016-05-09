@@ -359,8 +359,8 @@ cdef class PhredGenotypeLikelihoods:
 			yield self[i]
 
 
-def serialize(ReadSet readset, Pedigree pedigree):
-	cpp.serialize(readset.thisptr, pedigree.thisptr)
+def serialize(ReadSet readset, recombcost, Pedigree pedigree, bool distrust_genotypes, positions):
+	cpp.serialize(readset.thisptr, recombcost, pedigree.thisptr, distrust_genotypes, positions)
 
 
 include 'readselect.pyx'
