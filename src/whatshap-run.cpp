@@ -3,7 +3,7 @@
 
 #include <cereal/archives/binary.hpp>
 
-#include "read.h"
+#include "readset.h"
 
 using namespace std;
 
@@ -19,9 +19,9 @@ int main(int argc, char* argv[]) {
 	ifstream ifs;
 	ifs.open("test.ser");
 	cereal::BinaryInputArchive iarchive(ifs);
-	Read read;
-	iarchive(read);
-	cout << read.toString() << endl;
+	ReadSet readset;
+	iarchive(readset);
+	cout << readset.toString() << endl;
 	ifs.close();
 
 	return 0;

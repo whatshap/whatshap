@@ -1,8 +1,8 @@
 #ifndef SERIALIZATION_H
 #define SERIALIZATION_H
 
-#include "read.h"
+#include "readset.h"
 
-void serialize(const Read* read);
+void serialize(const ReadSet* readset);
 
 #endif

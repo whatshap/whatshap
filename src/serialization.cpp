@@ -3,14 +3,16 @@
 
 #include <cereal/archives/binary.hpp>
 
+#include "readset.h"
+
 #include "serialization.h"
 
 using namespace std;
 
-void serialize(const Read* read) {
+void serialize(const ReadSet* readset) {
 	ofstream ofs;
 	ofs.open("test.ser");
 	cereal::BinaryOutputArchive oarchive(ofs);
-	oarchive(*read);
+	oarchive(*readset);
 	ofs.close();
 }

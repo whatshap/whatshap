@@ -5,6 +5,13 @@
 #include <vector>
 #include <unordered_map>
 
+#include <cereal/types/string.hpp>
+#include <cereal/types/unordered_map.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/memory.hpp>
+#include <cereal/types/complex.hpp>
+#include <cereal/types/polymorphic.hpp>
+
 #include "read.h"
 #include "indexset.h"
 
@@ -35,6 +42,12 @@ public:
 	/** Assigns read_ids to all instances of Entry stored in the reads such that
 	 *  each read_id matches the index of the corresponding read in the ReadSet. */
 	void reassignReadIds();
+
+	template<class Archive>
+	void serialize(Archive& archive) {
+		archive(reads, read_name_map);
+	}
+
 private:
 	typedef struct read_comparator_t {
 		read_comparator_t() {}
@@ -66,18 +79,27 @@ private:
 	} read_comparator_t;
 
 	typedef struct name_and_source_id_t {
+		name_and_source_id_t() : source_id(-1) {}
 		name_and_source_id_t(std::string name, int source_id) : name(name), source_id(source_id) {}
 		bool operator==(const name_and_source_id_t& other) const {
 			return (name.compare(other.name) == 0) && (source_id == other.source_id);
 		}
 		std::string name;
 		int source_id;
+
+		template<class Archive>
+		void serialize(Archive& archive) {
+			archive(name, source_id);
+		}
 	} name_and_source_id_t;
 
 	typedef struct name_and_source_id_hasher_t {
 		std::size_t operator()(const name_and_source_id_t& x) const {
 			return (std::hash<std::string>()(x.name)) ^ (std::hash<int>()(x.source_id));
 		}
+
+		template<class Archive>
+		void serialize(Archive& archive) {}
 	} name_and_source_id_hasher_t;
 
 	std::vector<std::unique_ptr<Read>> reads;
