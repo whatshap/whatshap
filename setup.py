@@ -58,7 +58,7 @@ def check_cython_version():
 
 
 def CppExtension(name, sources):
-	return Extension(name, sources=sources, language='c++', extra_compile_args=['-std=c++11'], undef_macros = [ "NDEBUG" ])
+	return Extension(name, sources=sources, language='c++', extra_compile_args=['-std=c++11'], undef_macros = [ "NDEBUG" ], include_dirs = ['cereal-1.1.2/include'])
 
 
 extensions = [
@@ -69,7 +69,8 @@ extensions = [
 			'src/columnindexingiterator.cpp', 'src/columnindexingscheme.cpp',
 			'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',
 			'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp',
-			'src/pedigreepartitions.cpp', 'src/phredgenotypelikelihoods.cpp'
+			'src/pedigreepartitions.cpp', 'src/phredgenotypelikelihoods.cpp',
+			'src/serialization.cpp'
 		]),
 	CppExtension('whatshap.priorityqueue', sources=['whatshap/priorityqueue.pyx']),
 	CppExtension('whatshap.align', sources=['whatshap/align.pyx']),

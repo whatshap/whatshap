@@ -6,6 +6,7 @@
 class Entry {
 public:
 	typedef enum { REF_ALLELE = 0, ALT_ALLELE = 1, BLANK = 2, EQUAL_SCORES = 3 } allele_t;
+	Entry() : read_id(0), allele_type(BLANK), phred_score(0) {}
 	Entry(unsigned int r, allele_t m, unsigned int p);
 
 	unsigned int get_read_id() const;
@@ -15,6 +16,11 @@ public:
 	void set_read_id(unsigned int r);
 	void set_allele_type(allele_t m);
 	void set_phred_score(unsigned int p);
+
+	template<class Archive>
+	void serialize(Archive& ar) {
+		ar(read_id, allele_type, phred_score);
+	}
 
 	friend std::ostream& operator<<(std::ostream& out, const Entry& e);
 

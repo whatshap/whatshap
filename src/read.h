@@ -5,10 +5,14 @@
 #include <vector>
 #include <unordered_set>
 
+#include <cereal/types/vector.hpp>
+#include <cereal/types/string.hpp>
+
 #include "entry.h"
 
 class Read {
 public:
+	Read() : source_id(-1), sample_id(-1), id(-1) {}
 	Read(const std::string& name, int mapq, int source_id, int sample_id);
 	virtual ~Read() {}
 	std::string toString();
@@ -36,14 +40,25 @@ public:
 	int getSourceID() const;
 	int getSampleID() const;
 	bool isSorted() const;
+
+	template<class Archive>
+	void serialize(Archive& archive) {
+		archive(name, mapqs, source_id, sample_id, variants);
+	}
+
 private:
 	typedef struct enriched_entry_t {
 		Entry entry;
 		int position;
+		enriched_entry_t() : position(-1) {}
 		enriched_entry_t(int position, int allele, int quality) :
 			entry(0,Entry::allele_t(allele),quality), position(position) {}
+		template<class Archive>
+		void serialize(Archive& ar) {
+			ar(position, entry);
+		}
 	} enriched_entry_t;
-	
+
 	typedef struct entry_comparator_t {
 		entry_comparator_t() {}
 		bool operator()(const enriched_entry_t& e1, const enriched_entry_t& e2) {

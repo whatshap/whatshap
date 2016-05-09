@@ -79,3 +79,7 @@ cdef extern from "../src/phredgenotypelikelihoods.h":
 		PhredGenotypeLikelihoods(PhredGenotypeLikelihoods) except +
 		unsigned int get(unsigned int) except +
 		string toString() except +
+
+
+cdef extern from "../src/serialization.h":
+	void serialize(Read*)

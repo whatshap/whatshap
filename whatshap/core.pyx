@@ -359,4 +359,9 @@ cdef class PhredGenotypeLikelihoods:
 			yield self[i]
 
 
+def serialize(Read read):
+	assert read.thisptr != NULL
+	cpp.serialize(read.thisptr)
+
+
 include 'readselect.pyx'
