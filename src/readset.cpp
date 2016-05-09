@@ -13,9 +13,6 @@ ReadSet::ReadSet() {
 
 
 ReadSet::~ReadSet() {
-	for (size_t i=0; i<reads.size(); ++i) {
-		delete reads[i];
-	}
 }
 
 
@@ -24,7 +21,7 @@ void ReadSet::add(Read* read) {
 	if (read_name_map.find(name_and_source_id) != read_name_map.end()) {
 		throw std::runtime_error("ReadSet::add: duplicate read name.");
 	}
-	reads.push_back(read);
+	reads.push_back(std::unique_ptr<Read>(read));
 	read_name_map[name_and_source_id] = reads.size() - 1;
 }
 
@@ -68,7 +65,7 @@ unsigned int ReadSet::size() const {
 
 
 Read* ReadSet::get(int i) const {
-	return reads[i];
+	return reads[i].get();
 }
 
 
@@ -77,7 +74,7 @@ Read* ReadSet::getByName(std::string name, int source_id) const {
 	if (it == read_name_map.end()) {
 		return 0;
 	} else {
-		return reads[it->second];
+		return reads[it->second].get();
 	}
 }
 

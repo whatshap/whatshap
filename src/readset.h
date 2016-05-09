@@ -38,7 +38,7 @@ public:
 private:
 	typedef struct read_comparator_t {
 		read_comparator_t() {}
-		bool operator()(const Read* r1, const Read* r2) {
+		bool operator()(const std::unique_ptr<Read>& r1, const std::unique_ptr<Read>& r2) {
 			if ((r1->getVariantCount() > 0) || (r2->getVariantCount() > 0)) {
 				// put reads with no variants first in the set
 				if (r1->getVariantCount() == 0) return true;
@@ -80,7 +80,7 @@ private:
 		}
 	} name_and_source_id_hasher_t;
 
-	std::vector<Read*> reads;
+	std::vector<std::unique_ptr<Read>> reads;
 	// Maps names of reads it their index in the "reads" vector
 	typedef std::unordered_map<name_and_source_id_t,size_t,name_and_source_id_hasher_t> read_name_map_t;
 	read_name_map_t read_name_map;
