@@ -65,6 +65,7 @@ cdef extern from "../src/pedigree.h":
 		void addIndividual(unsigned int id, vector[unsigned int] genotypes) except +
 		void addRelationship(unsigned int m, unsigned int f, unsigned int c) except +
 		unsigned int size()
+		string toString() except +
 
 
 cdef extern from "../src/pedigreedptable.h":

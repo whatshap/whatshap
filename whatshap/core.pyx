@@ -306,5 +306,7 @@ cdef class Pedigree:
 	def __len__(self):
 		return self.thisptr.size()
 
+	def __str__(self):
+		return self.thisptr.toString().decode('utf-8')
 
 include 'readselect.pyx'

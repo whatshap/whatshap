@@ -49,6 +49,8 @@ public:
 	 */
 	const std::vector<triple_entry_t>& get_triples() const;
 
+	std::string toString() const;
+
 private:
 	std::vector<triple_entry_t> triples;
 	std::vector<unsigned int> individual_ids;
