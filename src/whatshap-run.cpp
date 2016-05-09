@@ -4,6 +4,7 @@
 #include <cereal/archives/binary.hpp>
 
 #include "readset.h"
+#include "pedigree.h"
 
 using namespace std;
 
@@ -20,8 +21,10 @@ int main(int argc, char* argv[]) {
 	ifs.open("test.ser");
 	cereal::BinaryInputArchive iarchive(ifs);
 	ReadSet readset;
-	iarchive(readset);
+	Pedigree pedigree;
+	iarchive(readset, pedigree);
 	cout << readset.toString() << endl;
+	cout << pedigree.toString() << endl;
 	ifs.close();
 
 	return 0;

@@ -9,10 +9,10 @@
 
 using namespace std;
 
-void serialize(const ReadSet* readset) {
+void serialize(const ReadSet* readset, const Pedigree* pedigree) {
 	ofstream ofs;
 	ofs.open("test.ser");
 	cereal::BinaryOutputArchive oarchive(ofs);
-	oarchive(*readset);
+	oarchive(*readset, *pedigree);
 	ofs.close();
 }

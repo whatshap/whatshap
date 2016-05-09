@@ -7,6 +7,13 @@
 
 #include "phredgenotypelikelihoods.h"
 
+#include <cereal/types/array.hpp>
+#include <cereal/types/unordered_map.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/memory.hpp>
+#include <cereal/types/complex.hpp>
+#include <cereal/types/polymorphic.hpp>
+
 /*
  * how to use:
  * - build up a pedigree by adding individuals and their genotypes with addIndividual(),
@@ -74,6 +81,11 @@ public:
 
 	std::string toString() const;
 
+	template<class Archive>
+	void serialize(Archive& archive) {
+		archive(variant_count, triples, individual_ids, id_to_index_map, genotypes, genotype_likelihoods);
+	}
+
 private:
 	int variant_count;
 	std::vector<triple_entry_t> triples;
@@ -81,7 +93,7 @@ private:
 	std::unordered_map<unsigned int, size_t> id_to_index_map;
 	// genotypes[i][j] is the genotype of individual with index i at locus j.
 	std::vector<std::vector<unsigned int>> genotypes;
-	std::vector<std::vector<PhredGenotypeLikelihoods*>> genotype_likelihoods;
+	std::vector<std::vector<std::unique_ptr<PhredGenotypeLikelihoods>>> genotype_likelihoods;
 };
 
 #endif

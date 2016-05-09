@@ -13,13 +13,6 @@ Pedigree::Pedigree() {
 
 
 Pedigree::~Pedigree() {
-	for (size_t i=0; i<individual_ids.size(); ++i) {
-		for (size_t j=0; j<genotype_likelihoods[i].size(); ++j) {
-			if (genotype_likelihoods[i][j] != nullptr) {
-				delete genotype_likelihoods[i][j];
-			}
-		}
-	}
 }
 
 
@@ -30,7 +23,11 @@ void Pedigree::addIndividual(unsigned int id, std::vector<unsigned int> genotype
 	assert(genotypes.size() == variant_count);
 	assert(genotype_likelihoods.size() == variant_count);
 	this->genotypes.push_back(genotypes);
-	this->genotype_likelihoods.push_back(genotype_likelihoods);
+	std::vector<std::unique_ptr<PhredGenotypeLikelihoods>> genotype_likelihoods_unique;
+	for (PhredGenotypeLikelihoods* p : genotype_likelihoods) {
+		genotype_likelihoods_unique.push_back(std::unique_ptr<PhredGenotypeLikelihoods>(p));
+	}
+	this->genotype_likelihoods.push_back(std::move(genotype_likelihoods_unique));
 	individual_ids.push_back(id);
 	id_to_index_map[id] = individual_ids.size() - 1;
 }
@@ -71,7 +68,7 @@ unsigned int Pedigree::get_genotype_by_id(unsigned int individual_id, unsigned i
 
 
 const PhredGenotypeLikelihoods* Pedigree::get_genotype_likelihoods(size_t individual_index, size_t variant_index) const {
-	return genotype_likelihoods[individual_index][variant_index];
+	return genotype_likelihoods[individual_index][variant_index].get();
 }
 
 

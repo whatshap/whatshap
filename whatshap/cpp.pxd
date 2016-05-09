@@ -82,4 +82,4 @@ cdef extern from "../src/phredgenotypelikelihoods.h":
 
 
 cdef extern from "../src/serialization.h":
-	void serialize(ReadSet*)
+	void serialize(ReadSet*, Pedigree*)
