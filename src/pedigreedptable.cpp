@@ -297,15 +297,12 @@ void PedigreeDPTable::compute_table() {
       cout << iterator->get_backward_projection() << " [" << bit_rep(iterator->get_backward_projection(), current_indexer->get_backward_projection_width()) << "] -> " << cost;
 #endif
 
-      // TODO adapt to general case
       // Compute cost incurred by current cell of DP table
       num_of_recomb_uints_t current_cost;
       current_cost.reserve(num_recombs);
       for(auto& cost_computer : cost_computers) {
         current_cost.push_back(cost_computer.get_cost());
       }
-
-      
 
 #ifdef DB
       cout << " + " << cost_computer.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]) << " = " << cost << " -> " << iterator->get_index() << " [" << bit_rep(iterator->get_index(), current_indexer->get_read_ids()->size()) << "]";
@@ -396,18 +393,16 @@ unique_ptr<vector<index_and_inheritance_t> > PedigreeDPTable::get_index_path() {
 }
 
 void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, vector<unsigned int>* transmission_vector) {
- // assert(std::all(output_read_set->begin(), output_read_set->end(), [](ReadSet* r){ return r != nullptr}));
- // assert(output_read_setf != 0u);
- // assert(output_read_setc != 0u);
-  assert(transmission_vector != 0u);
+  assert(output_read_set != nullptr);
+  assert(output_read_set->size() == pedigree->size());
+  assert(transmission_vector != nullptr);
   transmission_vector->clear();
 
   ColumnIterator column_iterator(*read_set);
   const vector<unsigned int>* positions = column_iterator.get_positions();
   
   std::vector<std::pair<Read*,Read*>> superreads;
-  for(unsigned int i=0;i<pedigree->size();i++)
-  {
+  for (unsigned int i=0; i<pedigree->size(); i++) {
      superreads.emplace_back(new Read("superread_0_"+std::to_string(i), -1, 0, -1),new Read("superread_1_"+std::to_string(i), -1, 0, -1));
   }
   
@@ -426,18 +421,18 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
       auto population_alleles = cost_computer.get_alleles();
       
       // TODO: compute proper weights based on likelihoods.
-       for(unsigned int k=0;k<pedigree->size();k++)
-       {
-	 superreads[k].first->addVariant(positions->at(i), population_alleles[k].first, 0);
-	 superreads[k].second->addVariant(positions->at(i), population_alleles[k].second, 0);
-       }
+      for (unsigned int k=0; k<pedigree->size(); k++) {
+        superreads[k].first->addVariant(positions->at(i), population_alleles[k].first, 0);
+        superreads[k].second->addVariant(positions->at(i), population_alleles[k].second, 0);
+      }
       transmission_vector->push_back(v.inheritance_value);
       ++i; // next column
     }
   }
-  for(unsigned int k=0;k<pedigree->size();k++){
-    (*output_read_set).at(k)->add(superreads[k].first);
-    (*output_read_set).at(k)->add(superreads[k].second);
+  for(unsigned int k=0;k<pedigree->size();k++) {
+    assert(output_read_set->at(k) != nullptr);
+    output_read_set->at(k)->add(superreads[k].first);
+    output_read_set->at(k)->add(superreads[k].second);
   }
 }
 
