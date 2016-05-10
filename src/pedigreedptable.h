@@ -44,7 +44,6 @@ private:
   // Then t' = transmission_backtrace_table[c][i][t] is the transmission index (from {0,1,2,3})
   // that gave rise to dp[x][t].
   std::vector<std::vector<num_of_recomb_uints_t>* > transmission_backtrace_table;
-  unsigned int read_count;
   // helper function to pull read ids out of read column
   std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
   // helper function to compute the optimal path through the backtrace table

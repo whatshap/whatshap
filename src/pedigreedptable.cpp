@@ -22,8 +22,7 @@ PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& 
 	optimal_score(0u),
 	optimal_score_index(0u),
 	index_backtrace_table(),
-	transmission_backtrace_table(),
-	read_count(0u)
+	transmission_backtrace_table()
 {
   read_set->reassignReadIds();
   
@@ -216,7 +215,6 @@ void PedigreeDPTable::compute_table() {
     } else {
       assert(next_column.get() == 0);
       assert(next_read_ids.get() == 0);
-      read_count = column_iterator.get_read_count();
       next_indexer = 0;
     }
     // reserve memory for the DP column
@@ -438,7 +436,7 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 
 vector<bool>* PedigreeDPTable::get_optimal_partitioning() {
   unique_ptr<vector<index_and_inheritance_t> > index_path = get_index_path();
-  vector<bool>* partitioning = new vector<bool>(read_count,false);
+  vector<bool>* partitioning = new vector<bool>(read_set->size(),false);
 
   for(size_t i=0; i< index_path->size(); ++i) {
 
