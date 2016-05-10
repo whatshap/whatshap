@@ -50,6 +50,9 @@ private:
   // helper function to compute the optimal path through the backtrace table
   std::unique_ptr<std::vector<index_and_inheritance_t> > get_index_path();
 
+  /** Initializes/clears all member variables associated with the DP table, i.e. indexers, index_backtrace_table,
+   *  transmission_backtrace_table, optimal_score, optimal_score_index, optimal_transmission_value, and previous_transmission_value. */
+  void clear_table();
   void compute_table();
 
 public:

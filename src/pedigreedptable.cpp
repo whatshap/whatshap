@@ -139,9 +139,8 @@ void compute_final_cost(const num_of_recomb_uints_t& prev, const num_of_recomb_u
   }
 }
 
-void PedigreeDPTable::compute_table() {
-  unsigned int num_recombs = std::pow(4, pedigree->triple_count());
-  ColumnIterator column_iterator(*read_set);
+
+void PedigreeDPTable::clear_table() {
   if(!indexers.empty()) { // clear indexers, if present
     for(size_t i=0; i<indexers.size(); ++i) {
       delete indexers[i];
@@ -162,6 +161,18 @@ void PedigreeDPTable::compute_table() {
     }
     transmission_backtrace_table.resize(0);
   }
+  optimal_score = 0;
+  optimal_score_index = 0;
+  optimal_transmission_value = 0;
+  previous_transmission_value = 0;
+}
+
+
+void PedigreeDPTable::compute_table() {
+  unsigned int num_recombs = std::pow(4, pedigree->triple_count());
+  ColumnIterator column_iterator(*read_set);
+
+  clear_table();
 
   // empty read-set, nothing to phase, so MEC score is 0
   if (!column_iterator.has_next()) {
