@@ -195,10 +195,6 @@ void PedigreeDPTable::compute_table() {
   optimal_score_index = 0;
   optimal_transmission_value = 0;
   previous_transmission_value = 0;
-  unsigned int nc = column_iterator.get_column_count();
-//  if ((genotypesm.size() != nc) || (genotypesf.size() != nc) || (genotypesc.size() != nc)) {
-//    throw std::runtime_error("Genotype vector length mismatch");
-// }
 #ifdef DB
   int i = 0;
 #endif
