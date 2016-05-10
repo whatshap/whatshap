@@ -95,8 +95,16 @@ void output_vector_enum(const vector<unsigned int> * v, unsigned int len) {
 }
 #endif
 
-// TODO: Turn into member function. Find more descriptive name.
-void compute_final_cost(const num_of_recomb_uints_t& prev, const num_of_recomb_uints_t& current, unsigned int penalty, num_of_recomb_uints_t* min_costs, num_of_recomb_uints_t* min_cost_indices) {
+size_t PedigreeDPTable::popcount(size_t x) {
+  unsigned int count = 0; 
+  for (;x; x >>= 1) {
+    count += x & 1;
+  }
+  return count;
+}
+
+// TODO: Find more descriptive name.
+void PedigreeDPTable::compute_final_cost(const num_of_recomb_uints_t& prev, const num_of_recomb_uints_t& current, unsigned int penalty, num_of_recomb_uints_t* min_costs, num_of_recomb_uints_t* min_cost_indices) {
   bool found_valid_transmission_vector = false;
   for (size_t i = 0; i < current.size(); ++i) {
     unsigned int min = numeric_limits<unsigned int>::max();
@@ -114,14 +122,10 @@ void compute_final_cost(const num_of_recomb_uints_t& prev, const num_of_recomb_u
       }
       // Step 2: add further cost incurred by recombination
       // change in bit 0 --> recombination in mother
-      auto x = i ^ j; // count the number of bits set in x
-      unsigned int count = 0; 
- 
-      for (;x; x >>= 1) {
-	count += x & 1;
-      }
+      size_t x = i ^ j; // count the number of bits set in x
+
       if (val < numeric_limits<unsigned int>::max()) {
-        val += count * penalty;
+        val += popcount(x) * penalty;
 	  }
       
       // check for new minimum

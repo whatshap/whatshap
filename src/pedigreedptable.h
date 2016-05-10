@@ -54,6 +54,11 @@ private:
   void clear_table();
   void compute_table();
 
+  /** Returns the number of set bits. */
+  static size_t popcount(size_t x);
+  static void compute_final_cost(const num_of_recomb_uints_t& prev, const num_of_recomb_uints_t& current, unsigned int penalty, num_of_recomb_uints_t* min_costs, num_of_recomb_uints_t* min_cost_indices);
+
+
 public:
   /** Constructor.
    *  @param read_set DP table is constructed for the contained reads. Ownership is retained
