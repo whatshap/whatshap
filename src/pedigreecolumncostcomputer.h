@@ -24,6 +24,9 @@ private:
   const Pedigree* pedigree;
   std::vector<std::array<unsigned int, 2>> cost_partition;
   const PedigreePartitions& pedigree_partitions;
+  // all (bit-encoded) assignments of alleles to pedigree partititions that are
+  // compatible with the genotypes
+  std::vector<unsigned int> allele_assignments;
   
 public:
   

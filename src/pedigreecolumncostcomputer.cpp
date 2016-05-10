@@ -1,4 +1,4 @@
-﻿#include <cassert>
+#include <cassert>
 #include <limits>
 #include <utility>
 #include <algorithm>
@@ -19,6 +19,26 @@ pedigree(pedigree),
 cost_partition(pedigree_partitions.count(), {0,0}),
 pedigree_partitions(pedigree_partitions)
 {
+	// Enumerate all possible assignments of alleles to haplotypes and 
+	// store those that are compatible with genotypes.
+	for (unsigned int i = 0; i < (1<<pedigree_partitions.count()); ++i) {
+		bool genotypes_compatible = true;
+		for (size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index) {
+			unsigned int partition0 = pedigree_partitions.haplotype_to_partition(individuals_index,0);
+			unsigned int partition1 = pedigree_partitions.haplotype_to_partition(individuals_index,1);
+			unsigned int allele0 = (i >> partition0) & 1;
+			unsigned int allele1 = (i >> partition1) & 1;
+			int genotype = pedigree->get_genotype(individuals_index, column_index);
+			if (allele0 + allele1 != genotype) {
+				genotypes_compatible = false;
+				break;
+			}
+		}
+		if (genotypes_compatible) {
+			allele_assignments.push_back(i);
+		}
+	}
+
 }
 
 
@@ -73,42 +93,16 @@ void PedigreeColumnCostComputer::update_partitioning(int bit_to_flip)
 
 unsigned int PedigreeColumnCostComputer::get_cost() {
 	unsigned int best_cost = numeric_limits < unsigned int >::max();
-	// Enumerate all possible assignments of alleles to haplotypes and 
-	// compute costs for those which are compatible with genotypes.
-	// TODO: This can be done more efficiently.
-// 	cerr << "PedigreeColumnCostComputer::get_cost()" << endl;
-// 	cerr << "  column_index=" << column_index << endl;
-	for (unsigned int i = 0; i < (1<<pedigree_partitions.count()); ++i) {
-// 		cerr << "  i=" << i << endl;
-		// for all individuals, test whether genotypes are consistent with allele assignments
-		bool genotypes_compatible = true;
-		for (size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index) {
-			unsigned int partition0 = pedigree_partitions.haplotype_to_partition(individuals_index,0);
-			unsigned int partition1 = pedigree_partitions.haplotype_to_partition(individuals_index,1);
-			unsigned int allele0 = (i >> partition0) & 1;
-			unsigned int allele1 = (i >> partition1) & 1;
-			int genotype = pedigree->get_genotype(individuals_index, column_index);
-// 			cerr << "    individuals_index:" << individuals_index << ", partition0:" << partition0 << ", partition1:" << partition1 << endl;
-// 			cerr << "    allele0:" << allele0 << ", allele1:" << allele1 << ", genotype:" << genotype << endl;
-			if (allele0 + allele1 != genotype) {
-				genotypes_compatible = false;
-				break;
-			}
-		}
-		if (!genotypes_compatible) continue;
-
+	for (unsigned int& i : allele_assignments) {
 		unsigned int cost = 0;
 		for (size_t p = 0; p < pedigree_partitions.count(); ++p) {
 			unsigned int allele = (i >> p) & 1;
 			cost += cost_partition[p][allele];
 		}
-// 		cerr << "    cost=" << cost << endl;
 		if (cost < best_cost) {
 			best_cost = cost;
 		}
 	}
-// 	cerr << "  best_cost=" << best_cost << endl;
-
 	return best_cost;
 }
 
@@ -117,21 +111,7 @@ std::vector <std::pair <Entry::allele_t,Entry::allele_t >> PedigreeColumnCostCom
 	unsigned int best_cost = numeric_limits < unsigned int >::max();
 	unsigned int second_best_cost = numeric_limits < unsigned int >::max();
 	std::vector <std::pair < Entry::allele_t, Entry::allele_t >> pop_haps(pedigree->size(), std::make_pair(Entry::EQUAL_SCORES, Entry::EQUAL_SCORES));
-	for (unsigned int i = 0; i < (1<<pedigree_partitions.count()); ++i) {
-		// for all individuals, test whether genotypes are consistent with allele assignments
-		bool genotypes_compatible = true;
-		for (size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index) {
-			unsigned int partition0 = pedigree_partitions.haplotype_to_partition(individuals_index,0);
-			unsigned int partition1 = pedigree_partitions.haplotype_to_partition(individuals_index,1);
-			unsigned int allele0 = (i >> partition0) & 1;
-			unsigned int allele1 = (i >> partition1) & 1;
-			if (allele0 + allele1 != pedigree->get_genotype(individuals_index, column_index)) {
-				genotypes_compatible = false;
-				break;
-			}
-		}
-		if (!genotypes_compatible) continue;
-
+	for (unsigned int& i : allele_assignments) {
 		unsigned int cost = 0;
 		for (size_t p = 0; p < pedigree_partitions.count(); ++p) {
 			unsigned int allele = (i >> p) & 1;
