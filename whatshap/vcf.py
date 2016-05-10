@@ -324,7 +324,8 @@ class VcfReader:
 						phase = p
 				phases.append(phase)
 
-			genotypes = array('b', (call.gt_type for call in record.samples))
+			GT_TO_INT = { 0: 0, 1: 1, 2: 2, None: -1 }
+			genotypes = array('b', (GT_TO_INT[call.gt_type] for call in record.samples))
 			table.add_variant(variant, genotypes, phases)
 
 		logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s. "

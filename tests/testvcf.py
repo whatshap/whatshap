@@ -178,3 +178,9 @@ def test_phasing_to_reads():
 		assert read[1].position == 350 - 1
 		assert read[1].allele == 0
 		assert read[1].quality == 91
+
+
+def test_unknown_genotype():
+	"""VCF with './.' genotype"""
+	tables = list(VcfReader('tests/data/unknown-genotype.vcf'))
+	assert tables[0].genotypes[1][0] == -1
