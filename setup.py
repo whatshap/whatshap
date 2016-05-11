@@ -2,10 +2,7 @@
 While we use Cython as programming language for the extension modules, we
 follow Cython's recommendation to distribute pre-generated .c/.cpp files.
 Thus, Cython does not need to be installed on the machine of the user installing
-WhatsHap. Pass --cython on the command line to force Cython to be run.
-
-If the .c/.cpp files are not found or out of date, such as in a fresh Git
-checkout, then Cython is always run.
+WhatsHap.
 """
 import sys
 import os.path
