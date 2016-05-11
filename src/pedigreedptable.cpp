@@ -103,45 +103,6 @@ size_t PedigreeDPTable::popcount(size_t x) {
   return count;
 }
 
-// TODO: Find more descriptive name.
-void PedigreeDPTable::compute_final_cost(const num_of_recomb_uints_t& prev, const num_of_recomb_uints_t& current, unsigned int penalty, num_of_recomb_uints_t* min_costs, num_of_recomb_uints_t* min_cost_indices) {
-  bool found_valid_transmission_vector = false;
-  for (size_t i = 0; i < current.size(); ++i) {
-    unsigned int min = numeric_limits<unsigned int>::max();
-    size_t min_index = 0;
-	if (current[i] < numeric_limits<unsigned int>::max()) {
-		found_valid_transmission_vector = true;
-	}
-    for (size_t j = 0; j < prev.size(); ++j) {
-      // Step 1: add up cost from current column and previous columns
-      unsigned int val;
-      if ((current[i] < numeric_limits<unsigned int>::max()) && (prev[j] < numeric_limits<unsigned int>::max())) {
-        val = current[i] + prev[j];
-      } else {
-        val = numeric_limits<unsigned int>::max();
-      }
-      // Step 2: add further cost incurred by recombination
-      // change in bit 0 --> recombination in mother
-      size_t x = i ^ j; // count the number of bits set in x
-
-      if (val < numeric_limits<unsigned int>::max()) {
-        val += popcount(x) * penalty;
-	  }
-      
-      // check for new minimum
-      if (val < min) {
-        min = val;
-        min_index = j;
-      }
-    }
-    min_costs->at(i) = min;
-    min_cost_indices->at(i) = min_index;
-  }
-  if (!found_valid_transmission_vector) {
-    throw std::runtime_error("Error: Mendelian conflict");
-  }
-}
-
 
 void PedigreeDPTable::clear_table() {
   if(!indexers.empty()) { // clear indexers, if present
@@ -317,8 +278,42 @@ void PedigreeDPTable::compute_table() {
       // Compute aggregate cost based on cost in previous and cost in current column
       num_of_recomb_uints_t final_col_cost(num_recombs);
       num_of_recomb_uints_t min_recomb_index(num_recombs);
-      
-      compute_final_cost(cost, current_cost, recombcost[n], &final_col_cost, &min_recomb_index);
+      bool found_valid_transmission_vector = false;
+      for (size_t i = 0; i < current_cost.size(); ++i) {
+        unsigned int min = numeric_limits<unsigned int>::max();
+        size_t min_index = 0;
+        if (current_cost[i] < numeric_limits<unsigned int>::max()) {
+          found_valid_transmission_vector = true;
+        }
+        for (size_t j = 0; j < cost.size(); ++j) {
+          // Step 1: add up cost from current_cost column and previous columns
+          unsigned int val;
+          if ((current_cost[i] < numeric_limits<unsigned int>::max()) && (cost[j] < numeric_limits<unsigned int>::max())) {
+            val = current_cost[i] + cost[j];
+          } else {
+            val = numeric_limits<unsigned int>::max();
+          }
+          // Step 2: add further cost incurred by recombination
+          // change in bit 0 --> recombination in mother
+          size_t x = i ^ j; // count the number of bits set in x
+
+          if (val < numeric_limits<unsigned int>::max()) {
+            val += popcount(x) * recombcost[n];
+          }
+          
+          // check for new minimum
+          if (val < min) {
+            min = val;
+            min_index = j;
+          }
+        }
+        final_col_cost[i] = min;
+        min_recomb_index[i] = min_index;
+      }
+      if (!found_valid_transmission_vector) {
+        throw std::runtime_error("Error: Mendelian conflict");
+      }
+
       // ... and store it in current DP column
       dp_column[iterator->get_index()] = final_col_cost;
       // if not last DP column, then update forward projection column and backtrace column
