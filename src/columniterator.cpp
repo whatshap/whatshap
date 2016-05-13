@@ -73,7 +73,7 @@ unique_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 	}
 	
 	// gather entries from active reads
-	unique_ptr<vector<const Entry*> > result = unique_ptr<vector<const Entry*> >(new vector<const Entry*>());
+	unique_ptr<vector<const Entry*> > result(new vector<const Entry*>());
 	for (list_it = active_reads.begin(); list_it != active_reads.end(); ++list_it) {
 		const Read* read = set.get(list_it->read_index);
 		// Does read cover the current position?
