@@ -22,8 +22,8 @@ typedef struct index_and_inheritance_t {
 class PedigreeDPTable {
 private:
 	ReadSet* read_set;
-
-	std::vector<unsigned int> read_marks;
+	// stores the sample index for each read
+	std::vector<unsigned int> read_sources;
 	const std::vector<unsigned int>& recombcost;
 	const Pedigree* pedigree;
 	std::vector<PedigreePartitions*> pedigree_partitions;

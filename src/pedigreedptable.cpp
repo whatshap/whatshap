@@ -30,7 +30,7 @@ PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& 
 
 	// translate all individual ids to individual indices
 	for (size_t i=0; i<read_set->size(); ++i) {
-		read_marks.push_back(pedigree->id_to_index(read_set->get(i)->getSampleID()));
+		read_sources.push_back(pedigree->id_to_index(read_set->get(i)->getSampleID()));
 	}
 
 	compute_table();
@@ -166,7 +166,7 @@ void PedigreeDPTable::compute_table() {
 		vector<PedigreeColumnCostComputer> cost_computers;
 		cost_computers.reserve(num_recombs);
 		for(unsigned int i = 0; i < num_recombs; ++i) {
-			cost_computers.emplace_back(*current_column, n, read_marks, pedigree, *pedigree_partitions[i]);
+			cost_computers.emplace_back(*current_column, n, read_sources, pedigree, *pedigree_partitions[i]);
 		}
 
 		unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
@@ -315,7 +315,7 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 		while (column_iterator.has_next()) {
 			index_and_inheritance_t v = index_path->at(i);
 			unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
-			PedigreeColumnCostComputer cost_computer(*column, i, read_marks, pedigree, *pedigree_partitions[v.inheritance_value]);
+			PedigreeColumnCostComputer cost_computer(*column, i, read_sources, pedigree, *pedigree_partitions[v.inheritance_value]);
 			cost_computer.set_partitioning(v.index);
 
 			auto population_alleles = cost_computer.get_alleles();
