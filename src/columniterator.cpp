@@ -87,11 +87,6 @@ unique_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 		}
 	}
 
-// 	cerr << "ColumnIterator::get_next():";
-// 	for (size_t i=0; i<result->size(); ++i){
-// 		cerr << " " << (*(result->at(i)));
-// 	}
-// 	cerr << endl;
 	n += 1;
 	return result;
 }
