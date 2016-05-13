@@ -101,24 +101,25 @@ void PedigreeDPTable::clear_table() {
 
 
 void PedigreeDPTable::compute_table() {
-	unsigned int num_recombs = std::pow(4, pedigree->triple_count());
-	ColumnIterator column_iterator(*read_set);
+	// Compute the number of different transmission vectors
+	unsigned int transmission_configurations = std::pow(4, pedigree->triple_count());
+	ColumnIterator input_column_iterator(*read_set);
 
 	clear_table();
 
 	// empty read-set, nothing to phase, so MEC score is 0
-	if (!column_iterator.has_next()) {
+	if (!input_column_iterator.has_next()) {
 		optimal_score = 0;
 		optimal_score_index = 0;
 		return;
 	}
 	
 	unsigned int n = 0;
-	unique_ptr<vector<const Entry *> > current_column;
-	unique_ptr<vector<const Entry *> > next_column;
+	unique_ptr<vector<const Entry *> > current_input_column;
+	unique_ptr<vector<const Entry *> > next_input_column;
 	// get the next column ahead of time
-	next_column = column_iterator.get_next();
-	unique_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_column);
+	next_input_column = input_column_iterator.get_next();
+	unique_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_input_column);
 	ColumnIndexingScheme* next_indexer = new ColumnIndexingScheme(0,*next_read_ids);
 	indexers.push_back(next_indexer);
 	unique_ptr<Vector2D<unsigned int>> previous_projection_column;
@@ -132,41 +133,41 @@ void PedigreeDPTable::compute_table() {
 		// move on projection column
 		previous_projection_column = std::move(current_projection_column);
 		// make former next column the current one
-		current_column = std::move(next_column);
+		current_input_column = std::move(next_input_column);
 		unique_ptr<vector<unsigned int> > current_read_ids = std::move(next_read_ids);
 
 		ColumnIndexingScheme* current_indexer = next_indexer;
 		// peek ahead and get the next column
-		if (column_iterator.has_next()) {
-			next_column = column_iterator.get_next();
-			next_read_ids = extract_read_ids(*next_column);
+		if (input_column_iterator.has_next()) {
+			next_input_column = input_column_iterator.get_next();
+			next_read_ids = extract_read_ids(*next_input_column);
 			next_indexer = new ColumnIndexingScheme(current_indexer,*next_read_ids);
 			current_indexer->set_next_column(next_indexer);
 			indexers.push_back(next_indexer);
 		} else {
-			assert(next_column.get() == 0);
+			assert(next_input_column.get() == 0);
 			assert(next_read_ids.get() == 0);
 			next_indexer = 0;
 		}
 		// reserve memory for the DP column
-		Vector2D<unsigned int> dp_column(current_indexer->column_size(), num_recombs, 0);
+		Vector2D<unsigned int> dp_column(current_indexer->column_size(), transmission_configurations, 0);
 		Vector2D<unsigned int>* transmission_backtrace_column = nullptr;
 		Vector2D<unsigned int>* index_backtrace_column = nullptr;
 		// if not last column, reserve memory for forward projections column
-		if (next_column.get() != 0) {
+		if (next_input_column.get() != 0) {
 			current_projection_column = unique_ptr<Vector2D<unsigned int>>(
-				new Vector2D<unsigned int>(current_indexer->forward_projection_size(), num_recombs, numeric_limits<unsigned int>::max())
+				new Vector2D<unsigned int>(current_indexer->forward_projection_size(), transmission_configurations, numeric_limits<unsigned int>::max())
 			);
 			// NOTE: forward projection size will always be even
-			transmission_backtrace_column = new Vector2D<unsigned int>(current_indexer->forward_projection_size(), num_recombs, numeric_limits<unsigned int>::max());
-			index_backtrace_column = new Vector2D<unsigned int>(current_indexer->forward_projection_size(), num_recombs, numeric_limits<unsigned int>::max());
+			transmission_backtrace_column = new Vector2D<unsigned int>(current_indexer->forward_projection_size(), transmission_configurations, numeric_limits<unsigned int>::max());
+			index_backtrace_column = new Vector2D<unsigned int>(current_indexer->forward_projection_size(), transmission_configurations, numeric_limits<unsigned int>::max());
 		}
 
 		// do the actual compution on current column
 		vector<PedigreeColumnCostComputer> cost_computers;
-		cost_computers.reserve(num_recombs);
-		for(unsigned int i = 0; i < num_recombs; ++i) {
-			cost_computers.emplace_back(*current_column, n, read_sources, pedigree, *pedigree_partitions[i]);
+		cost_computers.reserve(transmission_configurations);
+		for(unsigned int i = 0; i < transmission_configurations; ++i) {
+			cost_computers.emplace_back(*current_input_column, n, read_sources, pedigree, *pedigree_partitions[i]);
 		}
 
 		unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
@@ -190,9 +191,9 @@ void PedigreeDPTable::compute_table() {
 			size_t current_index = iterator->get_index();
 
 			// Compute aggregate cost based on cost in previous and cost in current column
-			vector<unsigned int> min_recomb_index(num_recombs);
+			vector<unsigned int> min_recomb_index(transmission_configurations);
 			bool found_valid_transmission_vector = false;
-			for (size_t i = 0; i < num_recombs; ++i) {
+			for (size_t i = 0; i < transmission_configurations; ++i) {
 				// Compute cost incurred by current cell of DP table
 				unsigned int current_cost = cost_computers[i].get_cost();
 				unsigned int min = numeric_limits<unsigned int>::max();
@@ -200,7 +201,7 @@ void PedigreeDPTable::compute_table() {
 				if (current_cost < numeric_limits<unsigned int>::max()) {
 					found_valid_transmission_vector = true;
 				}
-				for (size_t j = 0; j < num_recombs; ++j) {
+				for (size_t j = 0; j < transmission_configurations; ++j) {
 					// Step 1: add up cost from current_cost column and previous columns
 					unsigned int val;
 					unsigned int previous_cost = 0;
@@ -234,9 +235,9 @@ void PedigreeDPTable::compute_table() {
 			}
 
 			// if not last DP column, then update forward projection column and backtrace column
-			if (next_column.get() == 0) {
+			if (next_input_column.get() == 0) {
 				// update running optimal score index
-				for (size_t i = 0; i < num_recombs; ++i) {
+				for (size_t i = 0; i < transmission_configurations; ++i) {
 					if (dp_column.at(current_index, i) < optimal_score) {
 						optimal_score = dp_column.at(current_index, i);
 						optimal_score_index = iterator->get_index();
@@ -247,7 +248,7 @@ void PedigreeDPTable::compute_table() {
 			} else {
 				unsigned int forward_index = iterator->get_forward_projection();
 				unsigned int it_idx = iterator->get_index();
-				for (unsigned int i = 0; i < num_recombs; ++i) {
+				for (unsigned int i = 0; i < transmission_configurations; ++i) {
 					if(dp_column.at(current_index, i) < current_projection_column->at(forward_index,i)) {
 						current_projection_column->set(forward_index, i, dp_column.at(current_index, i));
 						index_backtrace_column->set(forward_index, i, it_idx);
