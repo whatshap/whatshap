@@ -17,6 +17,7 @@
 typedef struct index_and_inheritance_t {
 	unsigned int index;
 	unsigned int inheritance_value;
+	index_and_inheritance_t()  : index(0), inheritance_value(0) {};
 } index_and_inheritance_t;
 
 class PedigreeDPTable {
@@ -46,12 +47,13 @@ private:
 	// that gave rise to dp[x][t].
 	std::vector<Vector2D<unsigned int>* > transmission_backtrace_table;
 	ColumnIterator input_column_iterator;
-
+	// optimal path obtained from backtrace
+	std::vector<index_and_inheritance_t> index_path;
 
 	// helper function to pull read ids out of read column
 	std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
 	// helper function to compute the optimal path through the backtrace table
-	std::unique_ptr<std::vector<index_and_inheritance_t> > get_index_path();
+	void compute_index_path();
 
 	/** Initializes/clears all member variables associated with the DP table, i.e. indexers, index_backtrace_table,
 	 *  transmission_backtrace_table, optimal_score, optimal_score_index, optimal_transmission_value, and previous_transmission_value. */

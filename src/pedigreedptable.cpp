@@ -70,6 +70,8 @@ void PedigreeDPTable::clear_table() {
 	init(transmission_backtrace_table, column_count);
 	init(indexers, column_count);
 
+	index_path.clear();
+
 	optimal_score = numeric_limits<unsigned int>::max();
 	optimal_score_index = 0;
 	optimal_transmission_value = 0;
@@ -117,6 +119,9 @@ void PedigreeDPTable::compute_table() {
 
 		compute_column(column_index, std::move(current_input_column));
 	}
+
+	// perform a backtrace to get optimal path
+	compute_index_path();
 }
 
 
@@ -286,26 +291,24 @@ unsigned int PedigreeDPTable::get_optimal_score() {
 	return optimal_score;
 }
 
-unique_ptr<vector<index_and_inheritance_t> > PedigreeDPTable::get_index_path() {
-	unique_ptr<vector<index_and_inheritance_t> > index_path = unique_ptr<vector<index_and_inheritance_t> >(new vector<index_and_inheritance_t>(indexers.size()));
+void PedigreeDPTable::compute_index_path() {
+	index_path.assign(indexers.size(), index_and_inheritance_t());
 	if (indexers.size() == 0) {
-		return index_path;
+		return;
 	}
 	index_and_inheritance_t v;
 	unsigned int prev_inheritance_value = previous_transmission_value;
 	v.index = optimal_score_index;
 	v.inheritance_value = optimal_transmission_value;
-	index_path->at(indexers.size()-1) = v;
+	index_path[indexers.size()-1] = v;
 	for(size_t i = indexers.size()-1; i > 0; --i) { // backtrack through table
 		unique_ptr<ColumnIndexingIterator> iterator = indexers[i]->get_iterator();
 		unsigned int backtrace_index = iterator->index_backward_projection(v.index);
 		v.index = index_backtrace_table[i-1]->at(backtrace_index, v.inheritance_value);
 		v.inheritance_value = prev_inheritance_value;
 		prev_inheritance_value = transmission_backtrace_table[i-1]->at(backtrace_index, v.inheritance_value);
-		index_path->at(i-1) = v;
+		index_path[i-1] = v;
 	}
-
-	return index_path;
 }
 
 void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, vector<unsigned int>* transmission_vector) {
@@ -327,9 +330,8 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 	} else {
 		// run through the file again with the column_iterator
 		unsigned int i = 0; // column index
-		unique_ptr<vector<index_and_inheritance_t> > index_path = get_index_path();
 		while (column_iterator.has_next()) {
-			index_and_inheritance_t v = index_path->at(i);
+			const index_and_inheritance_t& v = index_path[i];
 			unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
 			PedigreeColumnCostComputer cost_computer(*column, i, read_sources, pedigree, *pedigree_partitions[v.inheritance_value]);
 			cost_computer.set_partitioning(v.index);
@@ -353,13 +355,12 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 }
 
 vector<bool>* PedigreeDPTable::get_optimal_partitioning() {
-	unique_ptr<vector<index_and_inheritance_t> > index_path = get_index_path();
 	vector<bool>* partitioning = new vector<bool>(read_set->size(),false);
 
-	for(size_t i=0; i< index_path->size(); ++i) {
+	for(size_t i=0; i< index_path.size(); ++i) {
 		unsigned int mask = 1; // mask to pass over the partitioning (i.e., index)
 		for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {
-			unsigned int index = index_path->at(i).index;
+			unsigned int index = index_path[i].index;
 			if((index & mask) == 0) { // id at this index is in p0 (i.e., in the part.)
 				partitioning->at(indexers[i]->get_read_ids()->at(j)) = true;
 			}
