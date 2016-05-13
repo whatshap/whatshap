@@ -93,7 +93,7 @@ void PedigreeDPTable::clear_table() {
 		}
 		transmission_backtrace_table.resize(0);
 	}
-	optimal_score = 0;
+	optimal_score = numeric_limits<unsigned int>::max();
 	optimal_score_index = 0;
 	optimal_transmission_value = 0;
 	previous_transmission_value = 0;
@@ -113,8 +113,8 @@ void PedigreeDPTable::compute_table() {
 		optimal_score_index = 0;
 		return;
 	}
-	
-	unsigned int n = 0;
+
+	unsigned int column_index = 0;
 	unique_ptr<vector<const Entry *> > current_input_column;
 	unique_ptr<vector<const Entry *> > next_input_column;
 	// get the next column ahead of time
@@ -124,10 +124,6 @@ void PedigreeDPTable::compute_table() {
 	indexers.push_back(next_indexer);
 	unique_ptr<Vector2D<unsigned int>> previous_projection_column;
 	unique_ptr<Vector2D<unsigned int>> current_projection_column;
-	optimal_score = numeric_limits<unsigned int>::max();
-	optimal_score_index = 0;
-	optimal_transmission_value = 0;
-	previous_transmission_value = 0;
 
 	while(next_indexer != 0) {
 		// move on projection column
@@ -167,7 +163,7 @@ void PedigreeDPTable::compute_table() {
 		vector<PedigreeColumnCostComputer> cost_computers;
 		cost_computers.reserve(transmission_configurations);
 		for(unsigned int i = 0; i < transmission_configurations; ++i) {
-			cost_computers.emplace_back(*current_input_column, n, read_sources, pedigree, *pedigree_partitions[i]);
+			cost_computers.emplace_back(*current_input_column, column_index, read_sources, pedigree, *pedigree_partitions[i]);
 		}
 
 		unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
@@ -218,7 +214,7 @@ void PedigreeDPTable::compute_table() {
 					size_t x = i ^ j; // count the number of bits set in x
 
 					if (val < numeric_limits<unsigned int>::max()) {
-						val += popcount(x) * recombcost[n];
+						val += popcount(x) * recombcost[column_index];
 					}
 					
 					// check for new minimum
@@ -262,7 +258,7 @@ void PedigreeDPTable::compute_table() {
 		index_backtrace_table.push_back(index_backtrace_column);
 		transmission_backtrace_table.push_back(transmission_backtrace_column);
 
-		++n;
+		++column_index;
 	} // end of main loop over columns
 }
 
