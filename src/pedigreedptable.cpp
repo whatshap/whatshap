@@ -98,6 +98,8 @@ void PedigreeDPTable::compute_table() {
 	ColumnIndexingScheme* next_indexer = new ColumnIndexingScheme(0, *next_read_ids);
 	indexers[0] = next_indexer;
 
+	// forward pass: create a sparse table, storing values at every sqrt(#columns)-th position,
+	size_t k = (size_t)sqrt(input_column_iterator.get_column_count());
 	for (size_t column_index=0; column_index<input_column_iterator.get_column_count(); ++column_index) {
 		// make former next column the current one
 		current_input_column = std::move(next_input_column);
@@ -118,10 +120,55 @@ void PedigreeDPTable::compute_table() {
 		}
 
 		compute_column(column_index, std::move(current_input_column));
+
+		// determine whether to delete previous column (to save space)
+		if ((k>1) && (column_index > 0) && (((column_index-1)%k) != 0)) {
+			delete index_backtrace_table[column_index-1];
+			delete transmission_backtrace_table[column_index-1];
+			delete projection_column_table[column_index-1];
+			index_backtrace_table[column_index-1] = nullptr;
+			transmission_backtrace_table[column_index-1] = nullptr;
+			projection_column_table[column_index-1] = nullptr;
+		}
 	}
 
 	// perform a backtrace to get optimal path
-	compute_index_path();
+	index_path.assign(indexers.size(), index_and_inheritance_t());
+	index_and_inheritance_t v;
+	unsigned int prev_inheritance_value = previous_transmission_value;
+	v.index = optimal_score_index;
+	v.inheritance_value = optimal_transmission_value;
+	index_path[indexers.size()-1] = v;
+	for(size_t i = indexers.size()-1; i > 0; --i) { // backtrack through table
+		// ensure that index_backtrace_table[i-1] and transmission_backtrace_table[i-1] exist
+		if (projection_column_table[i-1] == nullptr) {
+			// compute index of last previous column that has been stored
+			size_t j = (i-1) / k * k;
+			assert(projection_column_table[j] != nullptr);
+			for (j=j+1; j<i; ++j) {
+				compute_column(j);
+			}
+		}
+		// compute index and transmission value for the current column
+		unique_ptr<ColumnIndexingIterator> iterator = indexers[i]->get_iterator();
+		unsigned int backtrace_index = iterator->index_backward_projection(v.index);
+		v.index = index_backtrace_table[i-1]->at(backtrace_index, v.inheritance_value);
+		v.inheritance_value = prev_inheritance_value;
+		prev_inheritance_value = transmission_backtrace_table[i-1]->at(backtrace_index, v.inheritance_value);
+		index_path[i-1] = v;
+		// free parts of the DP table no longer needed
+		if (i%k == 0) {
+			for (size_t j=i; (j<i+k) && (j<input_column_iterator.get_column_count()-1); ++j) {
+				assert(projection_column_table[j] != nullptr);
+				delete index_backtrace_table[j];
+				delete transmission_backtrace_table[j];
+				delete projection_column_table[j];
+				index_backtrace_table[j] = nullptr;
+				transmission_backtrace_table[j] = nullptr;
+				projection_column_table[j] = nullptr;
+			}
+		}
+	}
 }
 
 
@@ -291,25 +338,6 @@ unsigned int PedigreeDPTable::get_optimal_score() {
 	return optimal_score;
 }
 
-void PedigreeDPTable::compute_index_path() {
-	index_path.assign(indexers.size(), index_and_inheritance_t());
-	if (indexers.size() == 0) {
-		return;
-	}
-	index_and_inheritance_t v;
-	unsigned int prev_inheritance_value = previous_transmission_value;
-	v.index = optimal_score_index;
-	v.inheritance_value = optimal_transmission_value;
-	index_path[indexers.size()-1] = v;
-	for(size_t i = indexers.size()-1; i > 0; --i) { // backtrack through table
-		unique_ptr<ColumnIndexingIterator> iterator = indexers[i]->get_iterator();
-		unsigned int backtrace_index = iterator->index_backward_projection(v.index);
-		v.index = index_backtrace_table[i-1]->at(backtrace_index, v.inheritance_value);
-		v.inheritance_value = prev_inheritance_value;
-		prev_inheritance_value = transmission_backtrace_table[i-1]->at(backtrace_index, v.inheritance_value);
-		index_path[i-1] = v;
-	}
-}
 
 void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, vector<unsigned int>* transmission_vector) {
 	assert(output_read_set != nullptr);

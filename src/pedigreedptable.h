@@ -52,8 +52,6 @@ private:
 
 	// helper function to pull read ids out of read column
 	std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
-	// helper function to compute the optimal path through the backtrace table
-	void compute_index_path();
 
 	/** Initializes/clears all member variables associated with the DP table, i.e. indexers, index_backtrace_table,
 	 *  transmission_backtrace_table, optimal_score, optimal_score_index, optimal_transmission_value, and previous_transmission_value. */
