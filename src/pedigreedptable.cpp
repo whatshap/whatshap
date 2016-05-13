@@ -10,8 +10,6 @@
 #include "pedigreecolumncostcomputer.h"
 #include "pedigreedptable.h"
 
-//#define DB // db
-
 using namespace std;
 
 PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree)
@@ -64,36 +62,6 @@ unique_ptr<vector<unsigned int> > PedigreeDPTable::extract_read_ids(const vector
   return read_ids;
 }
 
-// db
-#ifdef DB
-// helper function to output the bit representation of an unsigned int
-string bit_rep(unsigned int a, unsigned int len) {
-
-  string s;
-  for(int i=0; i< len; ++i) {
-    s = ((a&1)?"1":"0") + s;
-    a = a >> 1;
-  }
-  
-  return s;
-}
-
-void output_vector(const vector<unsigned int> * v) {
-  for(int j=v->size()-1; j>= 0; --j) {
-    if(v->at(j) == -1) cout << "_ ";
-    else cout << v->at(j) << " ";
-  }
-}
-
-void output_vector_enum(const vector<unsigned int> * v, unsigned int len) {
-  for(int j = v->size()-1; j >= 0; --j) {
-    cout << j << " [" << bit_rep(j,len) << "] : ";
-    if(v->at(j) == -1) cout << "_";
-    else cout << v->at(j);
-    cout << endl;
-  }
-}
-#endif
 
 size_t PedigreeDPTable::popcount(size_t x) {
   unsigned int count = 0; 
@@ -159,9 +127,7 @@ void PedigreeDPTable::compute_table() {
   optimal_score_index = 0;
   optimal_transmission_value = 0;
   previous_transmission_value = 0;
-#ifdef DB
-  int i = 0;
-#endif
+
   while(next_indexer != 0) {
     // move on projection column
     previous_projection_column = std::move(current_projection_column);
@@ -188,13 +154,6 @@ void PedigreeDPTable::compute_table() {
     Vector2D<unsigned int>* index_backtrace_column = nullptr;
     // if not last column, reserve memory for forward projections column
     if (next_column.get() != 0) {
-#ifdef DB
-      cout << i << " : " << endl;
-      ++i;
-      cout << "allocate current projection / backtrace columns of size : " << current_indexer->forward_projection_size() << endl;
-      cout << "forward projection width : " << current_indexer->get_forward_projection_width() << endl << endl;
-#endif
-
       current_projection_column = unique_ptr<Vector2D<unsigned int>>(
         new Vector2D<unsigned int>(current_indexer->forward_projection_size(), num_recombs, numeric_limits<unsigned int>::max())
       );
@@ -212,29 +171,6 @@ void PedigreeDPTable::compute_table() {
 
     unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
 
-    // db
-#ifdef DB
-    cout << "previous projection column (costs) :" << endl << endl;
-    if(previous_projection_column.get()!=0) {
-      output_vector_enum(previous_projection_column.get(),current_indexer->get_backward_projection_width());
-    }
-    cout << endl;
-
-    cout << "row ids : ";
-    output_vector(current_indexer->get_read_ids());
-
-    cout << " .. column size : " << current_indexer->column_size() << endl;
-    
-    cout << "forward projection mask : ";
-    if(next_column.get()!=0) {
-      output_vector(current_indexer->get_forward_projection_mask());
-      cout << " .. width : " << current_indexer->get_forward_projection_width();
-    }
-    cout << endl;
-
-    cout << "------------------" << endl;
-#endif
-    
     while (iterator->has_next()) {
       int bit_changed = -1;
       iterator->advance(&bit_changed);
@@ -252,18 +188,6 @@ void PedigreeDPTable::compute_table() {
       size_t backward_projection_index = iterator->get_backward_projection();
       // Determine index in the current DP column to be written
       size_t current_index = iterator->get_index();
-
-#ifdef DB
-      cout << iterator->get_backward_projection() << " [" << bit_rep(iterator->get_backward_projection(), current_indexer->get_backward_projection_width()) << "] -> " << cost;
-#endif
-
-#ifdef DB
-      cout << " + " << cost_computer.get_cost(genotypesm[n], genotypesf[n], genotypesc[n]) << " = " << cost << " -> " << iterator->get_index() << " [" << bit_rep(iterator->get_index(), current_indexer->get_read_ids()->size()) << "]";
-      if(next_column.get()!=0) {
-        cout << " -> " << iterator->get_forward_projection() << " [" << bit_rep(iterator->get_forward_projection(), current_indexer->get_forward_projection_width()) << "]";// fpw = " << current_indexer->get_forward_projection_width();
-      }
-      cout << endl;
-#endif
 
       // Compute aggregate cost based on cost in previous and cost in current column
       vector<unsigned int> min_recomb_index(num_recombs);
@@ -333,10 +257,6 @@ void PedigreeDPTable::compute_table() {
       }
     }
 
-#ifdef DB
-    cout << endl;
-#endif
-
     // add newly computed backtrace_table column
     index_backtrace_table.push_back(index_backtrace_column);
     transmission_backtrace_table.push_back(transmission_backtrace_column);
@@ -368,13 +288,6 @@ unique_ptr<vector<index_and_inheritance_t> > PedigreeDPTable::get_index_path() {
     prev_inheritance_value = transmission_backtrace_table[i-1]->at(backtrace_index, v.inheritance_value);
     index_path->at(i-1) = v;
   }
-
-  //db
-#ifdef DB
-  cout << "index path : " << endl;
-  output_vector(index_path.get());
-  cout << endl;
-#endif
 
   return index_path;
 }
@@ -428,34 +341,12 @@ vector<bool>* PedigreeDPTable::get_optimal_partitioning() {
   vector<bool>* partitioning = new vector<bool>(read_set->size(),false);
 
   for(size_t i=0; i< index_path->size(); ++i) {
-
-#ifdef DB
-    cout << "index : " << index_path->at(i) << endl;
-#endif
-
     unsigned int mask = 1; // mask to pass over the partitioning (i.e., index)
     for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {
-
-#ifdef DB
-      cout << indexers[i]->get_read_ids()->at(j) << " : ";
-#endif
-
       unsigned int index = index_path->at(i).index;
-
-#ifdef DB
-      cout << index << " & " << mask << " = " << (index & mask);
-#endif
-
       if((index & mask) == 0) { // id at this index is in p0 (i.e., in the part.)
         partitioning->at(indexers[i]->get_read_ids()->at(j)) = true;
-#ifdef DB
-        cout << " : true";
-#endif
       }
-
-#ifdef DB
-      cout << endl;
-#endif
       mask = mask << 1;
     }
   }
