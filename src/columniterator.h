@@ -19,26 +19,31 @@ public:
 	unsigned int get_read_count(); 
 	bool has_next();
 	/** Ownership of Entry objects remains with the ColumnIterator. Pointers
-	 *  remain valid only until iterator is destructed.
-	 */
+	 *  remain valid only until iterator is destructed. */
 	std::unique_ptr<std::vector<const Entry*> > get_next();
 	const std::vector<unsigned int>* get_positions();
+	/** Moves iterator such that next call to get_next() will return 
+	 *  column k. */
+	void jump_to_column(size_t k);
 
 private:
 	typedef struct active_read_t {
 		size_t read_index;
 		size_t active_entry;
 		active_read_t(size_t read_index) : read_index(read_index), active_entry(0) {}
+		active_read_t(size_t read_index, size_t active_entry) : read_index(read_index), active_entry(active_entry) {}
 	} active_read_t;
 	
 	const ReadSet& set;
 	/** The number of columns already written. */
-	int n;
+	size_t n;
 	/** Index of the read that is to be examined next. */
-	int next_read_index;
+	size_t next_read_index;
 	std::list<active_read_t> active_reads;
 	std::vector<Entry*> blank_entries;
 	std::vector<unsigned int>* positions;
+	// first_reads[k] is the index of the first read (i.e. lowest index) active at column k
+	std::vector<size_t> first_reads;
 };
 
 #endif

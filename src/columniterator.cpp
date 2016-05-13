@@ -1,4 +1,5 @@
 #include <cassert>
+#include <limits>
 #include <unordered_set>
 #include <stdexcept>
 
@@ -10,7 +11,37 @@ ColumnIterator::ColumnIterator(const ReadSet& set) : set(set) {
 	this->n = 0;
 	this->next_read_index = 0;
 	this->positions = set.get_positions();
+	// create a mapping of genomic positions to column indices
+	std::unordered_map<unsigned int, size_t> position_map;
+	for (size_t i=0; i<positions->size(); ++i) {
+		position_map[positions->at(i)] = i;
+	}
+	// precompute first_reads
+	first_reads.assign(positions->size(),  numeric_limits<size_t>::max());
+	int pos = 0;
+	for (size_t i=0; i<set.size(); ++i) {
+		const Read* read = set.get(i);
+		if (read->firstPosition() < pos) {
+			throw std::runtime_error("ColumnIterator: reads in ReadSet are not sorted.");
+		}
+		if (!read->isSorted()) {
+			throw std::runtime_error("ColumnIterator: encountered read with unsorted variants.");
+		}
+		auto first_column_it = position_map.find(read->firstPosition());
+		auto last_column_it = position_map.find(read->lastPosition());
+		assert(first_column_it != position_map.end());
+		assert(last_column_it != position_map.end());
+		assert(first_column_it->second < last_column_it->second);
+		assert(last_column_it->second < positions->size());
+		for (size_t j=first_column_it->second; j<=last_column_it->second; ++j) {
+			if (first_reads[j] == numeric_limits<size_t>::max()) {
+				first_reads[j] = i;
+			}
+		}
+		pos = read->firstPosition();
+	}
 }
+
 
 ColumnIterator::~ColumnIterator() {
 	for (size_t i=0; i<blank_entries.size(); ++i) {
@@ -20,21 +51,26 @@ ColumnIterator::~ColumnIterator() {
 	delete positions;
 }
 
+
 unsigned int ColumnIterator::get_column_count() {
 	return positions->size();
 }
+
 
 unsigned int ColumnIterator::get_read_count() {
 	return set.size();
 }
 
+
 const vector<unsigned int>* ColumnIterator::get_positions() {
 	return positions;
 }
 
+
 bool ColumnIterator::has_next() {
 	return n < positions->size();
 }
+
 
 unique_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 	// genomic position of the column to be returned
@@ -58,20 +94,15 @@ unique_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 	// check which new reads might become active
 	while (next_read_index < set.size()) {
 		int read_start = set.get(next_read_index)->firstPosition();
-		if (read_start < next_pos) {
-			throw std::runtime_error("ColumnIterator: reads in ReadSet are not sorted.");
-		}
 		if (read_start == next_pos) {
-			if (!set.get(next_read_index)->isSorted()) {
-				throw std::runtime_error("ColumnIterator: encountered read with unsorted variants.");
-			}
 			active_reads.push_back(active_read_t(next_read_index));
 			next_read_index += 1;
 		} else {
+			assert(read_start > next_pos);
 			break;
 		}
 	}
-	
+
 	// gather entries from active reads
 	unique_ptr<vector<const Entry*> > result(new vector<const Entry*>());
 	for (list_it = active_reads.begin(); list_it != active_reads.end(); ++list_it) {
@@ -89,4 +120,34 @@ unique_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 
 	n += 1;
 	return result;
+}
+
+
+void ColumnIterator::jump_to_column(size_t k) {
+	if (k == n) return;
+	assert(k < positions->size());
+	active_reads.clear();
+	n = k;
+	next_read_index = first_reads[k];
+	int pos = positions->at(k);
+
+	// determine set of active reads
+	while (next_read_index < set.size()) {
+		const Read* read = set.get(next_read_index);
+		if (read->lastPosition() < pos) {
+			next_read_index += 1;
+			continue;
+		}
+		if (read->firstPosition() <= pos) {
+			size_t active_entry = 0;
+			while (read->getPosition(active_entry) < pos) {
+				active_entry += 1;
+				assert(active_entry < read->getVariantCount());
+			}
+			active_reads.push_back(active_read_t(next_read_index, active_entry));
+			next_read_index += 1;
+		} else {
+			break;
+		}
+	}
 }
