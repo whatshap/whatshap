@@ -35,6 +35,8 @@ private:
 	unsigned int optimal_transmission_value;
 	// transmission value preceeding the optimal one (in the column before / in the backtrace)
 	unsigned int previous_transmission_value;
+	// projection_column_table[c] contains the projection column "between" columns c and c+1
+	std::vector<Vector2D<unsigned int>* > projection_column_table;
 	// index_backtrace_table[c][i][t] indicates the index (=bipartition) in column c from which the
 	// i-th entry in the FORWARD projection of column c comes from, assuming a transmission value of t
 	std::vector<Vector2D<unsigned int>* > index_backtrace_table;
@@ -43,6 +45,9 @@ private:
 	// Then t' = transmission_backtrace_table[c][i][t] is the transmission index (from {0,1,2,3})
 	// that gave rise to dp[x][t].
 	std::vector<Vector2D<unsigned int>* > transmission_backtrace_table;
+	ColumnIterator input_column_iterator;
+
+
 	// helper function to pull read ids out of read column
 	std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
 	// helper function to compute the optimal path through the backtrace table
@@ -52,9 +57,22 @@ private:
 	 *  transmission_backtrace_table, optimal_score, optimal_score_index, optimal_transmission_value, and previous_transmission_value. */
 	void clear_table();
 	void compute_table();
+	/** Computes the DP column at the given index, assuming that the previous column
+	 *  has already been computed. */
+	void compute_column(size_t column_index, std::unique_ptr<std::vector<const Entry*>> current_input_column = nullptr);
 
 	/** Returns the number of set bits. */
 	static size_t popcount(size_t x);
+
+	template <class T>
+	void init(std::vector<T*>& v, size_t size) {
+		for(size_t i=0; i<v.size(); ++i) {
+			if (v[i] != nullptr) {
+				delete v[i];
+			}
+		}
+		v.assign(size, nullptr);
+	}
 
 public:
 	/** Constructor.
