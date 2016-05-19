@@ -9,6 +9,7 @@ Table of contents
 
    installation
    guide
+   faq
    develop
    notes
 
