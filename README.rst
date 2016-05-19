@@ -1,3 +1,11 @@
+.. image:: https://img.shields.io/pypi/v/whatshap.svg?branch=master
+    :target: https://pypi.python.org/pypi/whatshap
+
+.. image:: https://semaphoreci.com/api/v1/whatshap/whatshap/branches/master/shields_badge.svg
+    :target: https://semaphoreci.com/whatshap/whatshap
+
+|
+
 .. image:: https://bitbucket.org/repo/8AjxBd/images/3378940113-whatshap_logo.png
     :height: 150px
 
