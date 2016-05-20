@@ -12,16 +12,14 @@ logger = logging.getLogger(__name__)
 
 
 class VcfVariant:
-	"""A variant in a VCF file"""
+	__slots__ = ('position', 'reference_allele', 'alternative_allele')
+
+	"""A variant in a VCF file (not to be confused with core.Variant)"""
 	def __init__(self, position, reference_allele, alternative_allele):
 		"""
 		position -- 0-based start coordinate
 		reference_allele -- string
 		alternative_allele -- string
-		genotype -- equal to sum of genotypes:
-			0 is 0/0 (homozygous reference)
-			1 is 0/1 or 1/0 (heterozygous)
-			2 is 1/1 (homozygous alternative)
 
 		Multi-ALT sites are not modelled.
 		"""
@@ -61,6 +59,16 @@ class VariantTable:
 		#self.genotypes.append(genotypes)
 
 	def add_variant(self, variant, genotypes):
+		"""
+		Add a row to the table
+
+		variant -- a VcfVariant
+		genotypes -- iterable of ints that encode the genotypes of the samples:
+			-1 represents an unknown genotype
+			0 represents 0/0 (homozygous reference)
+			1 represents 0/1 or 1/0 (heterozygous)
+			2 represents 1/1 (homozygous alternative)
+		"""
 		if len(genotypes) != len(self.genotypes):
 			raise ValueError('Expecting as many genotypes as there are samples')
 		self.variants.append(variant)

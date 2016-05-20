@@ -181,7 +181,7 @@ class ReadSetReader:
 	def read(self, chromosome, variants, sample):
 		"""
 		chromosome -- name of chromosome to work on
-		variants -- list of VcfCall objects
+		variants -- list of vcf.VcfVariant objects
 		sample -- name of sample to work on. If None, read group information is
 			ignored and all reads in the file are used.
 
