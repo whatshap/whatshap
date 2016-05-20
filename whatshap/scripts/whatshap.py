@@ -388,7 +388,7 @@ def ensure_pysam_version():
 		sys.exit("WhatsHap requires pysam >= 0.8.1")
 
 
-def phase_sample(chromosome, reads, all_heterozygous, max_coverage, timers, stats, haplotype_bam_writer):
+def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, haplotype_bam_writer, numeric_sample_ids):
 	"""
 	Phase variants of a single sample on a single chromosome.
 	"""
@@ -433,10 +433,28 @@ def phase_sample(chromosome, reads, all_heterozygous, max_coverage, timers, stat
 
 	with timers('phase'):
 		logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
-		# Run the core algorithm: construct DP table ...
-		dp_table = DPTable(sliced_reads, all_heterozygous)
-		# ... and do the backtrace to get the solution
-		superreads = dp_table.get_super_reads()
+		if all_heterozygous:
+			# For the all heterozygous case we use a PedigreeDPTable, which is more memory efficient.
+			# Once implemented, this should also be done for the "not all heterozygous" (="distrust genotypes")
+			# case, see Issue #77.
+
+			# all genotypes are heterozygous
+			genotypes = [1] * len(accessible_positions)
+			# create pedigree with only one sample
+			pedigree = Pedigree(numeric_sample_ids)
+			pedigree.add_individual(sample, genotypes)
+			# recombination costs are zero
+			recombination_costs = [0] * len(accessible_positions)
+			# Run the core algorithm: construct DP table ...
+			dp_table = PedigreeDPTable(sliced_reads, recombination_costs, pedigree)
+			# ... and do the backtrace to get the solution
+			superreads_list, transmission_vector = dp_table.get_super_reads()
+			superreads = superreads_list[0]
+		else:
+			# Run the core algorithm: construct DP table ...
+			dp_table = DPTable(sliced_reads, all_heterozygous)
+			# ... and do the backtrace to get the solution
+			superreads = dp_table.get_super_reads()
 		logger.info('MEC score of phasing: %d', dp_table.get_optimal_cost())
 
 		n_homozygous = sum(1 for v1, v2 in zip(*superreads)
@@ -716,7 +734,7 @@ def run_whatshap(bam, vcf,
 						sys.exit(1)
 					logger.info('Read %d reads in %.1f s', len(reads), timers.stop('read_bam'))
 					sample_superreads, sample_components = phase_sample(
-						chromosome, reads, all_heterozygous, max_coverage, timers, stats, haplotype_bam_writer)
+						sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, haplotype_bam_writer, numeric_sample_ids)
 					superreads[sample] = sample_superreads
 					components[sample] = sample_components
 			with timers('write_vcf'):
