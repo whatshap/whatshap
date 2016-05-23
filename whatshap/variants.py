@@ -2,9 +2,11 @@
 Detect variants in reads.
 """
 from collections import defaultdict, Counter
-
+import logging
 from .core import Read, ReadSet
 from .bam import SampleBamReader, MultiBamReader
+
+logger = logging.getLogger(__name__)
 
 
 def covered_variants(variants, start, bam_read, source_id, numeric_sample_id):
@@ -16,7 +18,6 @@ def covered_variants(variants, start, bam_read, source_id, numeric_sample_id):
 	start -- index of the first variant (in the variants list) to check
 	"""
 	core_read = Read(bam_read.qname, bam_read.mapq, source_id, numeric_sample_id)
-	i = 0  # index into CIGAR
 	j = start  # index into variants
 	ref_pos = bam_read.pos  # position relative to reference
 	query_pos = 0  # position relative to read
@@ -57,7 +58,7 @@ def covered_variants(variants, start, bam_read, source_id, numeric_sample_id):
 					assert len(variants[j].alternative_allele) > 0
 					# This variant is an insertion. Since we are in a region of
 					# matches, the insertion was *not* observed (reference allele).
-					qual = 30  #  TODO average qualities of "not inserted" bases?
+					qual = 30  # TODO average qualities of "not inserted" bases?
 					core_read.add_variant(variants[j].position, allele=0, quality=qual)
 				elif len(variants[j].alternative_allele) == 0:
 					assert len(variants[j].reference_allele) > 0
@@ -123,7 +124,7 @@ def covered_variants(variants, start, bam_read, source_id, numeric_sample_id):
 			pass
 		else:
 			logger.error("Unsupported CIGAR operation: %d", cigar_op)
-			sys.exit(1)
+			raise ValueError("Unsupported CIGAR operation: {}".format(cigar_op))
 	return core_read
 
 
@@ -134,8 +135,18 @@ class ReadSetError(Exception):
 class ReadSetReader:
 	"""
 	Associate VCF variants with BAM reads.
+
+	VCF file contain variants, and BAM file contain reads, but the
+	information which read contains which variant is not available. This
+	class re-discovers the variants in each read, using the
+	knowledge in the VCF of where they should occur.
 	"""
 	def __init__(self, paths, numeric_sample_ids, mapq_threshold=20):
+		"""
+		paths -- list of BAM paths
+		numeric_sample_ids -- ??
+		mapq_threshold -- minimum mapping quality
+		"""
 		self._mapq_threshold = mapq_threshold
 		self._numeric_sample_ids = numeric_sample_ids
 		if len(paths) == 1:
@@ -145,6 +156,7 @@ class ReadSetReader:
 
 	def read(self, chromosome, variants, sample):
 		"""
+
 		chromosome -- name of chromosome to work on
 		variants -- list of vcf.VcfVariant objects
 		sample -- name of sample to work on. If None, read group information is
@@ -158,11 +170,30 @@ class ReadSetReader:
 			pos, count = varposc.most_common()[0]
 			assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
 
-		# Map read name to a list of Read objects. The list has two entries
-		# if it is a paired-end read, one entry if the read is single-end.
+		reads = self._fetch_all_reads(chromosome, variants, sample)
+
+		# Prepare resulting set of reads.
+		read_set = ReadSet()
+		for readlist in reads.values():
+			assert len(readlist) > 0
+			if len(readlist) > 2:
+				raise ReadSetError("Read name {!r} occurs more than twice in the input file".format(readlist[0].name))
+			if len(readlist) == 1:
+				read_set.add(readlist[0])
+			else:
+				read_set.add(self._merge_pair(*readlist))
+		return read_set
+
+	def _fetch_all_reads(self, chromosome, variants, sample):
+		"""
+		Return a dict that maps read names to lists of Read objects.
+
+		Each list has two entries paired-end reads, one entry for single-end reads.
+		"""
 		reads = defaultdict(list)
 
-		i = 0  # keep track of position in variants array (which is in order)
+		# Retrieve all reads
+		i = 0  # index into variants
 		for alignment in self._reader.fetch(reference=chromosome, sample=sample):
 			# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
 			if alignment.bam_alignment.flag & 2048 != 0:
@@ -181,24 +212,15 @@ class ReadSetReader:
 			while i < len(variants) and variants[i].position < alignment.bam_alignment.pos:
 				i += 1
 
-			core_read = covered_variants(variants, i, alignment.bam_alignment, alignment.source_id, self._numeric_sample_ids[sample])
-			# Only add new read if it covers at least one variant.
-			if core_read:
-				reads[(alignment.source_id, alignment.bam_alignment.qname)].append(core_read)
+			read = covered_variants(variants, i, alignment.bam_alignment, alignment.source_id,
+				self._numeric_sample_ids[sample])
+			# Only add if it covers at least one variant
+			if read:
+				reads[(alignment.source_id, alignment.bam_alignment.qname)].append(read)
+		return reads
 
-		# Prepare resulting set of reads.
-		read_set = ReadSet()
-		for readlist in reads.values():
-			assert len(readlist) > 0
-			if len(readlist) > 2:
-				raise ReadSetError("Read name {!r} occurs more than twice in the input file".format(readlist[0].name))
-			if len(readlist) == 1:
-				read_set.add(readlist[0])
-			else:
-				read_set.add(self._merge_pair(*readlist))
-		return read_set
-
-	def _merge_pair(self, read1, read2):
+	@staticmethod
+	def _merge_pair(read1, read2):
 		"""
 		Merge the two ends of a paired-end read into a single core.Read. Also
 		takes care of self-overlapping read pairs.

@@ -49,7 +49,7 @@ class SampleBamReader:
 	A wrapper for Samfile that provides only those reads from a BAM file that
 	belong to a specified sample.
 	"""
-	def __init__(self, path, source_id = 0):
+	def __init__(self, path, source_id=0):
 		"""
 		path -- path to BAM file
 		"""
@@ -78,29 +78,26 @@ class SampleBamReader:
 			id: frozenset(values) for id, values in samples.items() }
 
 	def has_sample(self, sample):
-		"""Return whether this file contains read for the given sample"""
+		"""Return whether this file contains reads for the given sample"""
 		return sample in self._sample_to_group_ids
 
 	def fetch(self, reference, sample):
 		"""
-		Raise KeyError if sample not found among samples named in RG header.
 		Yield instances of AlignmentWithSourceID, with source_id value given
 		at construction time.
+		Raise KeyError if sample not found among samples named in RG header.
 		"""
 		if sample is None:
-			# PY32
-			# Starting with Python 3.3, this loop could be replaced with
-			# 'return self._samfile.fetch(reference)'
 			for bam_read in self._samfile.fetch(reference):
 				yield AlignmentWithSourceID(self.source_id, bam_read)
-			return
-		try:
-			read_groups = self._sample_to_group_ids[sample]
-		except KeyError:
-			raise SampleNotFoundError()
-		for bam_read in self._samfile.fetch(reference):
-			if bam_read.opt('RG') in read_groups:
-				yield AlignmentWithSourceID(self.source_id, bam_read)
+		else:
+			try:
+				read_groups = self._sample_to_group_ids[sample]
+			except KeyError:
+				raise SampleNotFoundError()
+			for bam_read in self._samfile.fetch(reference):
+				if bam_read.opt('RG') in read_groups:
+					yield AlignmentWithSourceID(self.source_id, bam_read)
 
 	def close(self):
 		self._samfile.close()
@@ -199,14 +196,3 @@ class HaplotypeBamWriter:
 			assert target in [0,1]
 			# TODO: for multiple BAM files, translate read name and read group IDs
 			self._outputfiles[target].write(alignment.bam_alignment)
-
-
-if __name__ == '__main__':
-	import sys
-	# merge given BAM files and write them into out.bam
-	mb = MultiBam(sys.argv[1:])
-	out = Samfile('out.bam', 'wb', template=mb._files[0])
-	for r in mb.fetch():
-		out.write(r)
-	mb.close()
-	out.close()
