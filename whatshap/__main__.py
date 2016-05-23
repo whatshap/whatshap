@@ -35,6 +35,7 @@ from .coverage import CovMonitor
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map)
 from .bam import BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
+from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -86,41 +87,6 @@ def best_case_blocks(reads):
 		component_sizes[component_finder.find(position)] += 1
 	non_singletons = [ component for component, size in component_sizes.items() if size > 1]
 	return len(component_sizes), len(non_singletons)
-
-
-class StageTimer:
-	"""Measure run times of different stages of the program"""
-	def __init__(self):
-		self._start = dict()
-		self._elapsed = defaultdict(float)
-
-	def start(self, stage):
-		"""Start measuring elapsed time for a stage"""
-		self._start[stage] = time.time()
-
-	def stop(self, stage):
-		"""Stop measuring elapsed time for a stage."""
-		t = time.time() - self._start[stage]
-		self._elapsed[stage] += t
-		return t
-
-	def elapsed(self, stage):
-		"""
-		Return total time spent in a stage, which is the sum of the time spans
-		between calls to start() and stop(). If the timer is currently running,
-		its current invocation is not counted.
-		"""
-		return self._elapsed[stage]
-
-	def total(self):
-		"""Return sum of all times"""
-		return sum(self._elapsed.values())
-
-	@contextmanager
-	def __call__(self, stage):
-		self.start(stage)
-		yield
-		self.stop(stage)
 
 
 def ensure_pysam_version():
