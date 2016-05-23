@@ -12,16 +12,12 @@ standard output.
 TODO
 * it would be cleaner to not open the input VCF twice
 """
-import os
 import logging
 import sys
 import random
-import gzip
-import time
-import itertools
 import platform
 from collections import defaultdict
-from contextlib import contextmanager
+
 try:
 	from contextlib import ExitStack
 except ImportError:
@@ -31,7 +27,6 @@ from . import __version__
 from .args import HelpfulArgumentParser as ArgumentParser
 from .core import ReadSet, DPTable, readselection, Pedigree, PedigreeDPTable, NumericSampleIds
 from .graph import ComponentFinder
-from .coverage import CovMonitor
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map)
 from .bam import BamIndexingError, SampleNotFoundError, HaplotypeBamWriter

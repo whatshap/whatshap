@@ -1,5 +1,5 @@
-from nose.tools import raises
 from whatshap.vcf import VcfReader
+
 
 def test_read_phased():
 	tables = list(VcfReader('tests/data/phasedinput.vcf'))
