@@ -1,6 +1,7 @@
 from nose.tools import raises
 from whatshap.bam import SampleBamReader, SampleNotFoundError
 
+
 def test_read():
 	sbr = SampleBamReader('tests/data/oneread.bam')
 	reads = list(sbr.fetch('ref', 'sample'))

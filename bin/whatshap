@@ -4,5 +4,5 @@ try:
 except ImportError:
 	pass
 
-from whatshap.scripts.whatshap import main
+from whatshap.__main__ import main
 main()

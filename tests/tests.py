@@ -2,7 +2,8 @@ import tempfile
 import os
 import shutil
 import pysam
-from whatshap.scripts.whatshap import run_whatshap
+from whatshap.__main__ import run_whatshap
+
 
 def test_pysam_version():
 	from pysam import __version__ as pysam_version

@@ -26,16 +26,16 @@ try:
 	from contextlib import ExitStack
 except ImportError:
 	from contextlib2 import ExitStack  # PY32
-from ..vcf import VcfReader, PhasedVcfWriter, VariantTable
-from .. import __version__
-from ..args import HelpfulArgumentParser as ArgumentParser
-from ..core import ReadSet, DPTable, readselection, Pedigree, PedigreeDPTable, NumericSampleIds
-from ..graph import ComponentFinder
-from ..coverage import CovMonitor
-from ..pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
-	load_genetic_map)
-from ..bam import BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
-from ..variants import ReadSetReader, ReadSetError
+from .vcf import VcfReader, PhasedVcfWriter, VariantTable
+from . import __version__
+from .args import HelpfulArgumentParser as ArgumentParser
+from .core import ReadSet, DPTable, readselection, Pedigree, PedigreeDPTable, NumericSampleIds
+from .graph import ComponentFinder
+from .coverage import CovMonitor
+from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
+                       load_genetic_map)
+from .bam import BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
+from .variants import ReadSetReader, ReadSetError
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -578,3 +578,7 @@ def main():
 		parser.error('Option --genmap is required if --ped is given')
 	del args.debug
 	run_whatshap(**vars(args))
+
+
+if __name__ == '__main__':
+	main()
