@@ -65,9 +65,67 @@ your $HOME by omitting the sudo and adding the ``--user`` option instead)::
 Debugging
 ---------
 
+Here is one way to get a backtrace from gdb (assuming the bug occurs while
+running the tests)::
+
 	$ gdb python3
 	(gdb) run -m nose
 
 After you get a SIGSEGV, let gdb print a backtrace:
 
 	(gdb) bt
+
+
+Making a release
+----------------
+
+If this is the first time you attempt to upload a distribution to PyPI, create a
+configuration file named ``.pypirc`` in your home directory with the following
+contents::
+
+	[distutils]
+	index-servers =
+	    pypi
+
+	[pypi]
+	username=my-user-name
+	password=my-password
+
+See also `this blog post about getting started with
+PyPI <http://peterdowns.com/posts/first-time-with-pypi.html>`_. In particular,
+note that a ``%`` in your password needs to be doubled and that the password
+must *not* be put between quotation marks even if it contains spaces.
+
+#. Ensure all tests pass.
+
+#. Update the ``__version__`` in ``whatshap/__init__.py``.
+
+#. (Does not apply currently: Make sure the changelog is up-to-date. Set also
+   the correct version number in the changelog.)
+
+#. Commit the version change.
+
+#. Create a tag::
+
+       git tag v0.1
+
+#. Create and upload the distribution (``.tar.gz`` file) to PyPI::
+
+       python3 setup.py sdist upload
+
+#. Push, uploading the tag::
+
+       git push --tags
+
+   If something went wrong, increment the revision in the version number and re-do.
+   That is, go from version x.y to x.y.1. Make sure that the tag in the repository
+   always corresponds to the tarball that is on PyPI.
+
+#. Update the `bioconda recipe <https://github.com/bioconda/bioconda-recipes/blob/master/recipes/whatshap/meta.yaml>`_.
+   It is probly easiest to edit the recipe via the web interface and send in a
+   pull request. Ensure that the list of dependencies (the ``requirements:``
+   section in the recipe) is in sync with the ``setup.py`` file.
+
+   Since this is just a version bump, the pull request does not need a
+   review by other bioconda developers. As soon as the tests pass and if you
+   have the proper permissions, it can be merged directly.
