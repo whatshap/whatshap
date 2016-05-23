@@ -101,22 +101,22 @@ class ReadSetReader:
 		return reads
 
 	@staticmethod
-	def covered_variants(variants, start, bam_read, source_id, numeric_sample_id):
+	def covered_variants(variants, j, bam_read, source_id, numeric_sample_id):
 		"""
-		Find the variants that are covered by the given bam_read and return a
-		Read instance that represents those variants. The instance may be empty.
+		Detect which alleles the given bam_read covers. Detect the correct alleles of the variants that are covered by
+		the given bam_read and return a	Read instance that represents those variants. The instance may be empty.
 
-		start -- index of the first variant (in the variants list) to check
+		variants -- list of variants (VcfVariant objects)
+		j -- index of the first variant (in the variants list) to check
 		"""
 		core_read = Read(bam_read.qname, bam_read.mapq, source_id, numeric_sample_id)
-		j = start  # index into variants
 		ref_pos = bam_read.pos  # position relative to reference
 		query_pos = 0  # position relative to read
 
 		for cigar_op, length in bam_read.cigar:
 			# The mapping of CIGAR operators to numbers is:
 			# MIDNSHPX= => 012345678
-			if cigar_op in (0, 7, 8):  # we are in a matching region
+			if cigar_op in (0, 7, 8):  # we are in a matching region (M, X, = operators)
 				# Skip variants that come before this region
 				while j < len(variants) and variants[j].position < ref_pos:
 					j += 1
