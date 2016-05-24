@@ -29,5 +29,20 @@ def test_phase_three_individuals():
 		pysam.index(bamfile, catch_stdout=False)
 		run_whatshap(bam=[bamfile], vcf='tests/data/trio.vcf', output=outvcf)
 		assert os.path.isfile(outvcf)
+		#TODO: Verify that solution is correct by reading the output VCF. 
+	finally:
+		shutil.rmtree(tempdir)
+
+
+def test_phase_trio():
+	tempdir = tempfile.mkdtemp()
+	try:
+		bamfile = tempdir + '/trio.pacbio.bam'
+		outvcf = tempdir + '/output.vcf'
+		pysam.view('tests/data/trio.pacbio.sam', '-Sb', '-o', bamfile, catch_stdout=False)
+		pysam.index(bamfile, catch_stdout=False)
+		run_whatshap(bam=[bamfile], vcf='tests/data/trio.vcf', output=outvcf, ped='tests/data/trio.ped', genmap='tests/data/trio.map')
+		assert os.path.isfile(outvcf)
+		#TODO: Verify that solution is correct by reading the output VCF. 
 	finally:
 		shutil.rmtree(tempdir)
