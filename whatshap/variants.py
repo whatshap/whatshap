@@ -118,13 +118,13 @@ class ReadSetReader:
 
 		seen_positions = set()
 		for cigar_op, length in bam_read.cigar:
+			# Skip variants that come before this region
+			while j < len(variants) and variants[j].position < ref_pos:
+				j += 1
+
 			# The mapping of CIGAR operators to numbers is:
 			# MIDNSHPX= => 012345678
-			if cigar_op in (0, 7, 8):  # we are in a matching region (M, X, = operators)
-				# Skip variants that come before this region
-				while j < len(variants) and variants[j].position < ref_pos:
-					j += 1
-
+			if cigar_op in (0, 7, 8):  # M, X, = operators (match)
 				# Iterate over all variants that are in this region
 				while j < len(variants) and variants[j].position < ref_pos + length:
 					if len(variants[j].reference_allele) == len(variants[j].alternative_allele) == 1:
@@ -182,10 +182,7 @@ class ReadSetReader:
 					j += 1
 				query_pos += length
 				ref_pos += length
-			elif cigar_op == 1:  # an insertion
-				# Skip variants that come before this region
-				while j < len(variants) and variants[j].position < ref_pos:
-					j += 1
+			elif cigar_op == 1:  # I operator (insertion)
 				if j < len(variants) and variants[j].position == ref_pos and \
 						len(variants[j].reference_allele) == 0 and \
 						variants[j].alternative_allele == bam_read.seq[query_pos:query_pos + length]:
@@ -195,10 +192,7 @@ class ReadSetReader:
 					seen_positions.add(variants[j].position)
 					j += 1
 				query_pos += length
-			elif cigar_op == 2:  # a deletion
-				# Skip variants that come before this region
-				while j < len(variants) and variants[j].position < ref_pos:
-					j += 1
+			elif cigar_op == 2:  # D operator (deletion)
 				# We only check the length of the deletion, not the sequence
 				# that gets deleted since we don’t have the reference available.
 				# (We could parse the MD tag if it exists.)
