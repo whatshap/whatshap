@@ -525,7 +525,7 @@ def main():
 		'columns are ignored.')
 	parser.add_argument('--genmap', metavar='GENMAP',
 		help='File with genetic map (used with --ped)')  # TODO describe what the file format is
-	parser.add_argument('vcf', metavar='VCF', help='VCF file')
+	parser.add_argument('vcf', metavar='VCF', help='VCF file (can be gzip-compressed)')
 	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
 	args = parser.parse_args()
 	setup_logging(args.debug)

@@ -8,7 +8,7 @@ Run WhatsHap like this::
 
 Phasing information is added to the VCF file in a way that is compatible with
 GATK’s ReadBackedPhasing. That is, the HP tag denotes which set of phased
-variants a variant belongs to.
+variants a variant belongs to. The VCF file can also be gzip-compressed.
 
 
 Features and limitations
