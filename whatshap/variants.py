@@ -93,26 +93,30 @@ class ReadSetReader:
 			while i < len(variants) and variants[i].position < alignment.bam_alignment.pos:
 				i += 1
 
-			read = self.covered_variants(variants, i, alignment.bam_alignment, alignment.source_id,
-				self._numeric_sample_ids[sample])
-			# Only add if it covers at least one variant
-			if read:
+			read = Read(alignment.bam_alignment.qname,
+					alignment.bam_alignment.mapq, alignment.source_id,
+					self._numeric_sample_ids[sample])
+			for position, allele, quality in self.detect_alleles(variants, i, alignment.bam_alignment):
+				read.add_variant(position, allele, quality)
+			if read:  # At least one variant covered
 				reads[(alignment.source_id, alignment.bam_alignment.qname)].append(read)
 		return reads
 
 	@staticmethod
-	def covered_variants(variants, j, bam_read, source_id, numeric_sample_id):
+	def detect_alleles(variants, j, bam_read):
 		"""
-		Detect which alleles the given bam_read covers. Detect the correct alleles of the variants that are covered by
-		the given bam_read and return a Read instance that represents those variants. The instance may be empty.
+		Detect which alleles the given bam_read covers. Detect the correct
+		alleles of the variants that are covered by the given bam_read.
+
+		Yield tuples (position, allele, quality).
 
 		variants -- list of variants (VcfVariant objects)
 		j -- index of the first variant (in the variants list) to check
 		"""
-		core_read = Read(bam_read.qname, bam_read.mapq, source_id, numeric_sample_id)
 		ref_pos = bam_read.pos  # position relative to reference
 		query_pos = 0  # position relative to read
 
+		seen_positions = set()
 		for cigar_op, length in bam_read.cigar:
 			# The mapping of CIGAR operators to numbers is:
 			# MIDNSHPX= => 012345678
@@ -137,7 +141,7 @@ class ReadSetReader:
 							# Fix this: we can actually have indel and SNP
 							# calls at identical positions. For now, ignore the
 							# second variant.
-							if variants[j].position in core_read:
+							if variants[j].position in seen_positions:
 								logger.debug("Found two variants at identical positions. Ignoring the second one: %s",
 									variants[j])
 							else:
@@ -145,14 +149,16 @@ class ReadSetReader:
 								# If we ever decide to be compatible with older pysam
 								# versions, cache bam_read.qual somewhere - do not
 								# access it within this loop (3x slower otherwise).
-								core_read.add_variant(variants[j].position, allele,
+								yield (variants[j].position, allele,
 									bam_read.query_qualities[query_pos + offset])
+								seen_positions.add(variants[j].position)
 					elif len(variants[j].reference_allele) == 0:
 						assert len(variants[j].alternative_allele) > 0
 						# This variant is an insertion. Since we are in a region of
 						# matches, the insertion was *not* observed (reference allele).
 						qual = 30  # TODO average qualities of "not inserted" bases?
-						core_read.add_variant(variants[j].position, allele=0, quality=qual)
+						yield (variants[j].position, 0, qual)
+						seen_positions.add(variants[j].position)
 					elif len(variants[j].alternative_allele) == 0:
 						assert len(variants[j].reference_allele) > 0
 						# This variant is a deletion that was not observed.
@@ -161,7 +167,8 @@ class ReadSetReader:
 						deletion_end = variants[j].position + len(variants[j].reference_allele)
 						if not (j + 1 < len(variants) and variants[j + 1].position < deletion_end):
 							qual = 30  # TODO
-							core_read.add_variant(variants[j].position, allele=0, quality=qual)
+							yield (variants[j].position, 0, qual)
+							seen_positions.add(variants[j].position)
 						else:
 							logger.info('Skipped a deletion overlapping another variant at pos. %d',
 								variants[j].position)
@@ -179,11 +186,12 @@ class ReadSetReader:
 				while j < len(variants) and variants[j].position < ref_pos:
 					j += 1
 				if j < len(variants) and variants[j].position == ref_pos and \
-								len(variants[j].reference_allele) == 0 and \
-								variants[j].alternative_allele == bam_read.seq[query_pos:query_pos + length]:
+						len(variants[j].reference_allele) == 0 and \
+						variants[j].alternative_allele == bam_read.seq[query_pos:query_pos + length]:
 					qual = 30  # TODO
-					assert variants[j].position not in core_read
-					core_read.add_variant(variants[j].position, allele=1, quality=qual)
+					assert variants[j].position not in seen_positions
+					yield (variants[j].position, 1, qual)
+					seen_positions.add(variants[j].position)
 					j += 1
 				query_pos += length
 			elif cigar_op == 2:  # a deletion
@@ -194,14 +202,15 @@ class ReadSetReader:
 				# that gets deleted since we don’t have the reference available.
 				# (We could parse the MD tag if it exists.)
 				if j < len(variants) and variants[j].position == ref_pos and \
-								len(variants[j].alternative_allele) == 0 and \
-								len(variants[j].reference_allele) == length:
+						len(variants[j].alternative_allele) == 0 and \
+						len(variants[j].reference_allele) == length:
 					qual = 30  # TODO
 					deletion_end = variants[j].position + len(variants[j].reference_allele)
 					if not (j + 1 < len(variants) and variants[j + 1].position < deletion_end):
 						qual = 30  # TODO
-						assert variants[j].position not in core_read
-						core_read.add_variant(variants[j].position, allele=1, quality=qual)
+						assert variants[j].position not in seen_positions
+						yield (variants[j].position, 1, qual)
+						seen_positions.add(variants[j].position)
 					else:
 						logger.info('Skipped a deletion overlapping another variant at pos. %d', variants[j].position)
 						# Also skip all variants that this deletion overlaps
@@ -219,7 +228,6 @@ class ReadSetReader:
 			else:
 				logger.error("Unsupported CIGAR operation: %d", cigar_op)
 				raise ValueError("Unsupported CIGAR operation: {}".format(cigar_op))
-		return core_read
 
 	@staticmethod
 	def _merge_pair(read1, read2):
