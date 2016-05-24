@@ -1,3 +1,7 @@
+import tempfile
+import os
+import shutil
+import pysam
 from whatshap.scripts.whatshap import run_whatshap
 
 def test_pysam_version():
@@ -14,3 +18,16 @@ def test_one_variant():
 def test_bam_without_readgroup():
 	run_whatshap(bam=['tests/data/no-readgroup.bam'], vcf='tests/data/onevariant.vcf',
 		output='/dev/null', ignore_read_groups=True)
+
+
+def test_phase_three_individuals():
+	tempdir = tempfile.mkdtemp()
+	try:
+		bamfile = tempdir + '/trio.pacbio.bam'
+		outvcf = tempdir + '/output.vcf'
+		pysam.view('tests/data/trio.pacbio.sam', '-Sb', '-o', bamfile, catch_stdout=False)
+		pysam.index(bamfile, catch_stdout=False)
+		run_whatshap(bam=[bamfile], vcf='tests/data/trio.vcf', output=outvcf)
+		assert os.path.isfile(outvcf)
+	finally:
+		shutil.rmtree(tempdir)
