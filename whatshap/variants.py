@@ -150,8 +150,11 @@ class ReadSetReader:
 								# If we ever decide to be compatible with older pysam
 								# versions, cache bam_read.qual somewhere - do not
 								# access it within this loop (3x slower otherwise).
-								yield (variants[j].position, allele,
-									bam_read.query_qualities[query_pos + offset])
+								if bam_read.query_qualities:
+									qual = bam_read.query_qualities[query_pos + offset]
+								else:
+									qual = 30  # TODO
+								yield (variants[j].position, allele, qual)
 								seen_positions.add(variants[j].position)
 					elif len(variants[j].reference_allele) == 0:
 						assert len(variants[j].alternative_allele) > 0
