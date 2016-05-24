@@ -74,6 +74,8 @@ extensions = [
 		], language='c++', extra_compile_args=["-std=c++11"],),
 	Extension('whatshap.priorityqueue',
 		sources=['whatshap/priorityqueue.pyx'], language='c++', extra_compile_args=["-std=c++11"]),
+	Extension('whatshap.align',
+		sources=['whatshap/align.pyx'], language='c++', extra_compile_args=["-std=c++11"]),
 ]
 
 
