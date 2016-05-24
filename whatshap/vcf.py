@@ -47,6 +47,7 @@ class VariantTable:
 		self.chromosome = chromosome
 		self.samples = samples
 		self.genotypes = [ array('b', []) for _ in samples ]
+		self.phases = [ [] for _ in samples ]
 		self.variants = []
 		self._sample_to_index = { sample: index for index, sample in enumerate(samples) }
 
@@ -58,7 +59,7 @@ class VariantTable:
 		#self.samples.append(name)
 		#self.genotypes.append(genotypes)
 
-	def add_variant(self, variant, genotypes):
+	def add_variant(self, variant, genotypes, phases):
 		"""
 		Add a row to the table
 
@@ -68,16 +69,27 @@ class VariantTable:
 			0 represents 0/0 (homozygous reference)
 			1 represents 0/1 or 1/0 (heterozygous)
 			2 represents 1/1 (homozygous alternative)
+		phases -- iterable yielding a pair (block_id, phase)
+			for each sample, where and block_id is a numeric id of the phased block and
+			phase is either 0 or 1 (indicating whether the REF allele is on haplotype 0 or 1).
 		"""
 		if len(genotypes) != len(self.genotypes):
 			raise ValueError('Expecting as many genotypes as there are samples')
+		if len(phases) != len(self.phases):
+			raise ValueError('Expecting as many phases as there are samples')
 		self.variants.append(variant)
 		for i, genotype in enumerate(genotypes):
 			self.genotypes[i].append(genotype)
+		for i, phase in enumerate(phases):
+			self.phases[i].append(phase)
 
 	def genotypes_of(self, sample):
 		"""Retrieve genotypes by sample name"""
 		return self.genotypes[self._sample_to_index[sample]]
+
+	def phases_of(self, sample):
+		"""Retrieve phases by sample name"""
+		return self.phases[self._sample_to_index[sample]]
 
 	def id_of(self, sample):
 		"""Return a unique int id of a sample given by name"""
@@ -89,10 +101,14 @@ class VariantTable:
 			del self.variants[i]
 			for gt in self.genotypes:
 				del gt[i]
+			for ph in self.phases:
+				del ph[i]
 
 		for gt in self.genotypes:
 			assert len(self.variants) == len(gt)
-		assert len(self.samples) == len(self.genotypes)
+		for ph in self.phases:
+			assert len(self.variants) == len(ph)
+		assert len(self.samples) == len(self.genotypes) == len(self.phases)
 
 	def subset_rows_by_position(self, positions):
 		"""Keep only rows given in positions, discard the rest"""
@@ -171,6 +187,19 @@ class VcfReader:
 		for chromosome, records in self._group_by_chromosome():
 			yield self._process_single_chromosome(chromosome, records)
 
+	@staticmethod
+	def _extract_HP_phase(calldata):
+		if (not hasattr(calldata,'HP')) or (calldata.HP is None):
+			return None
+		HP = calldata.HP
+		assert len(HP) == 2
+		fields = [[int(x) for x in s.split('-')] for s in HP]
+		assert fields[0][0] == fields[1][0]
+		block_id = fields[0][0]
+		phase1, phase2 = fields[0][1]-1, fields[1][1]-1
+		assert ((phase1, phase2) == (0, 1)) or ((phase1, phase2) == (1, 0))
+		return block_id, phase1
+
 	def _process_single_chromosome(self, chromosome, records):
 		n_snps = 0
 		n_indels = 0
@@ -209,8 +238,9 @@ class VcfReader:
 				n_complex += 1
 				continue
 
+			phases = [self._extract_HP_phase(call.data) for call in record.samples]
 			genotypes = array('b', (call.gt_type for call in record.samples))
-			table.add_variant(variant, genotypes)
+			table.add_variant(variant, genotypes, phases)
 
 		logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s. "
 			"Skipped %s complex variants. Skipped %s multi-ALTs.", n_snps,
