@@ -17,7 +17,7 @@ class ReadSetReader:
 	"""
 	Associate VCF variants with BAM reads.
 
-	VCF file contain variants, and BAM file contain reads, but the
+	A VCF file contain variants, and a BAM file contain reads, but the
 	information which read contains which variant is not available. This
 	class re-discovers the variants in each read, using the
 	knowledge in the VCF of where they should occur.
@@ -69,7 +69,7 @@ class ReadSetReader:
 		"""
 		Return a dict that maps read names to lists of Read objects.
 
-		Each list has two entries paired-end reads, one entry for single-end reads.
+		Each list has two entries for paired-end reads, one entry for single-end reads.
 		"""
 		reads = defaultdict(list)
 
@@ -104,7 +104,7 @@ class ReadSetReader:
 	def covered_variants(variants, j, bam_read, source_id, numeric_sample_id):
 		"""
 		Detect which alleles the given bam_read covers. Detect the correct alleles of the variants that are covered by
-		the given bam_read and return a	Read instance that represents those variants. The instance may be empty.
+		the given bam_read and return a Read instance that represents those variants. The instance may be empty.
 
 		variants -- list of variants (VcfVariant objects)
 		j -- index of the first variant (in the variants list) to check
