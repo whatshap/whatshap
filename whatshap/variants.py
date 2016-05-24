@@ -131,11 +131,12 @@ class ReadSetReader:
 						# Variant is a SNP
 						offset = variants[j].position - ref_pos
 						base = bam_read.seq[query_pos + offset]
-						allele = None
 						if base == variants[j].reference_allele:
 							allele = 0
 						elif base == variants[j].alternative_allele:
 							allele = 1
+						else:
+							allele = None
 						if allele is not None:
 							# TODO
 							# Fix this: we can actually have indel and SNP
@@ -219,11 +220,11 @@ class ReadSetReader:
 						# One additional j += 1 is done below
 					j += 1
 				ref_pos += length
-			elif cigar_op == 3:  # a reference skip
+			elif cigar_op == 3:  # N operator (reference skip)
 				ref_pos += length
-			elif cigar_op == 4:  # soft clipping
+			elif cigar_op == 4:  # S operator (soft clipping)
 				query_pos += length
-			elif cigar_op == 5 or cigar_op == 6:  # hard clipping or padding
+			elif cigar_op == 5 or cigar_op == 6:  # H or P (hard clipping or padding)
 				pass
 			else:
 				logger.error("Unsupported CIGAR operation: %d", cigar_op)
