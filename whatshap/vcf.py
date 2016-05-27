@@ -125,7 +125,7 @@ class MixedPhasingError(Exception):
 	pass
 
 
-VariantCallPhase = namedtuple('VariantCallPhase', ['block_id', 'phase'])
+VariantCallPhase = namedtuple('VariantCallPhase', ['block_id', 'phase', 'quality'])
 
 
 class VcfReader:
@@ -194,6 +194,13 @@ class VcfReader:
 		for chromosome, records in self._group_by_chromosome():
 			yield self._process_single_chromosome(chromosome, records)
 
+
+	@staticmethod
+	def _read_PQ(call):
+		if (not hasattr(call.data,'PQ')) or (call.data.PQ is None):
+			return None
+		return call.data.PQ
+
 	@staticmethod
 	def _extract_HP_phase(call):
 		if (not hasattr(call.data,'HP')) or (call.data.HP is None):
@@ -205,7 +212,7 @@ class VcfReader:
 		block_id = fields[0][0]
 		phase1, phase2 = fields[0][1]-1, fields[1][1]-1
 		assert ((phase1, phase2) == (0, 1)) or ((phase1, phase2) == (1, 0))
-		return VariantCallPhase(block_id=block_id, phase=phase1)
+		return VariantCallPhase(block_id=block_id, phase=phase1, quality=VcfReader._read_PQ(call))
 
 	@staticmethod
 	def _extract_GT_PS_phase(call):
@@ -218,7 +225,7 @@ class VcfReader:
 			block_id = call.data.PS
 		assert call.data.GT in ['0|1','1|0']
 		phase = int(call.data.GT[0])
-		return VariantCallPhase(block_id=block_id, phase=phase)
+		return VariantCallPhase(block_id=block_id, phase=phase, quality=VcfReader._read_PQ(call))
 
 	def _process_single_chromosome(self, chromosome, records):
 		phase_detected = None

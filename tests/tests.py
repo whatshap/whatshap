@@ -55,8 +55,8 @@ def test_phase_three_individuals():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		assert_phasing(table.phases_of('HG004'), [None, VariantCallPhase(60907394, 0), VariantCallPhase(60907394,0), VariantCallPhase(60907394,0), None])
-		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0), None, VariantCallPhase(60906167,0), None, None])
+		assert_phasing(table.phases_of('HG004'), [None, VariantCallPhase(60907394,0,None), VariantCallPhase(60907394,0,None), VariantCallPhase(60907394,0,None), None])
+		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0,None), None, VariantCallPhase(60906167,0,None), None, None])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
 
 	finally:
@@ -80,9 +80,9 @@ def test_phase_trio():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		assert_phasing(table.phases_of('HG004'), [VariantCallPhase(60906167,0), VariantCallPhase(60906167,0), VariantCallPhase(60906167,0), VariantCallPhase(60906167,0), VariantCallPhase(60906167,0)])
-		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0), None, VariantCallPhase(60906167,0), VariantCallPhase(60906167,0), VariantCallPhase(60906167,0)])
-		assert_phasing(table.phases_of('HG002'), [None, VariantCallPhase(60906167,0), None, None, None])
+		assert_phasing(table.phases_of('HG004'), [VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None)])
+		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0,None), None, VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None)])
+		assert_phasing(table.phases_of('HG002'), [None, VariantCallPhase(60906167,0,None), None, None, None])
 
 	finally:
 		shutil.rmtree(tempdir)

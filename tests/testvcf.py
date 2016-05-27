@@ -71,10 +71,22 @@ def test_read_phased_vcf():
 
 		print(table_a.phases)
 		assert len(table_a.phases) == 2
-		assert list(table_a.phases[0]) == [None, None, VariantCallPhase(300,1), VariantCallPhase(300,0)]
-		assert list(table_a.phases[1]) == [VariantCallPhase(100,0), VariantCallPhase(100,1), VariantCallPhase(300,0), VariantCallPhase(300,0)]
-		assert list(table_a.phases_of('sample1')) == [None, None, VariantCallPhase(300,1), VariantCallPhase(300,0)]
-		assert list(table_a.phases_of('sample2')) == [VariantCallPhase(100,0), VariantCallPhase(100,1), VariantCallPhase(300,0), VariantCallPhase(300,0)]
+		expected_phase_sample1 = [
+			None, 
+			None, 
+			VariantCallPhase(block_id=300, phase=1, quality=23),
+			VariantCallPhase(block_id=300, phase=0, quality=42)
+		]
+		expected_phase_sample2 = [
+			VariantCallPhase(block_id=100, phase=0, quality=10),
+			VariantCallPhase(block_id=100, phase=1, quality=20),
+			VariantCallPhase(block_id=300, phase=0, quality=30),
+			VariantCallPhase(block_id=300, phase=0, quality=None)
+		]
+		assert list(table_a.phases[0]) == expected_phase_sample1
+		assert list(table_a.phases[1]) == expected_phase_sample2
+		assert list(table_a.phases_of('sample1')) == expected_phase_sample1
+		assert list(table_a.phases_of('sample2')) == expected_phase_sample2
 
 		assert len(table_b.phases) == 2
 		assert list(table_b.phases[0]) == [None, None]
