@@ -1,5 +1,5 @@
 from nose.tools import raises
-from whatshap.vcf import VcfReader, MixedPhasingError
+from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase
 
 
 def test_read_phased():
@@ -71,10 +71,10 @@ def test_read_phased_vcf():
 
 		print(table_a.phases)
 		assert len(table_a.phases) == 2
-		assert list(table_a.phases[0]) == [None, None, (300,1), (300,0)]
-		assert list(table_a.phases[1]) == [(100,0), (100,1), (300,0), (300,0)]
-		assert list(table_a.phases_of('sample1')) == [None, None, (300,1), (300,0)]
-		assert list(table_a.phases_of('sample2')) == [(100,0), (100,1), (300,0), (300,0)]
+		assert list(table_a.phases[0]) == [None, None, VariantCallPhase(300,1), VariantCallPhase(300,0)]
+		assert list(table_a.phases[1]) == [VariantCallPhase(100,0), VariantCallPhase(100,1), VariantCallPhase(300,0), VariantCallPhase(300,0)]
+		assert list(table_a.phases_of('sample1')) == [None, None, VariantCallPhase(300,1), VariantCallPhase(300,0)]
+		assert list(table_a.phases_of('sample2')) == [VariantCallPhase(100,0), VariantCallPhase(100,1), VariantCallPhase(300,0), VariantCallPhase(300,0)]
 
 		assert len(table_b.phases) == 2
 		assert list(table_b.phases[0]) == [None, None]

@@ -3,7 +3,7 @@ import os
 import shutil
 import pysam
 from whatshap.__main__ import run_whatshap
-from whatshap.vcf import VcfReader
+from whatshap.vcf import VcfReader, VariantCallPhase
 
 
 def test_pysam_version():
@@ -31,12 +31,10 @@ def assert_phasing(phases, expected_phases):
 	for phase, expected_phase in zip(phases, expected_phases):
 		if (phase is None) and (expected_phase is None):
 			continue
-		block_id, phase_bit = phase
-		block_id_expected, phase_bit_expected = expected_phase
-		assert block_id == block_id_expected
-		p_unchanged.append(phase_bit)
-		p_inverted.append(1-phase_bit)
-		p_expected.append(phase_bit_expected)
+		assert phase.block_id == expected_phase.block_id
+		p_unchanged.append(phase.phase)
+		p_inverted.append(1-phase.phase)
+		p_expected.append(expected_phase.phase)
 	assert (p_unchanged == p_expected) or (p_inverted == p_expected)
 
 
@@ -57,8 +55,8 @@ def test_phase_three_individuals():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		assert_phasing(table.phases_of('HG004'), [None, (60907394,0), (60907394,0), (60907394,0), None])
-		assert_phasing(table.phases_of('HG003'), [(60906167,0), None, (60906167,0), None, None])
+		assert_phasing(table.phases_of('HG004'), [None, VariantCallPhase(60907394, 0), VariantCallPhase(60907394,0), VariantCallPhase(60907394,0), None])
+		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0), None, VariantCallPhase(60906167,0), None, None])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
 
 	finally:
@@ -82,9 +80,9 @@ def test_phase_trio():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		assert_phasing(table.phases_of('HG004'), [(60906167,0), (60906167,0), (60906167,0), (60906167,0), (60906167,0)])
-		assert_phasing(table.phases_of('HG003'), [(60906167,0), None, (60906167,0), (60906167,0), (60906167,0)])
-		assert_phasing(table.phases_of('HG002'), [None, (60906167,0), None, None, None])
+		assert_phasing(table.phases_of('HG004'), [VariantCallPhase(60906167,0), VariantCallPhase(60906167,0), VariantCallPhase(60906167,0), VariantCallPhase(60906167,0), VariantCallPhase(60906167,0)])
+		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0), None, VariantCallPhase(60906167,0), VariantCallPhase(60906167,0), VariantCallPhase(60906167,0)])
+		assert_phasing(table.phases_of('HG002'), [None, VariantCallPhase(60906167,0), None, None, None])
 
 	finally:
 		shutil.rmtree(tempdir)

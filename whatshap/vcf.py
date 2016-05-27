@@ -5,7 +5,7 @@ import sys
 import logging
 import itertools
 from array import array
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import vcf
 
 logger = logging.getLogger(__name__)
@@ -125,6 +125,9 @@ class MixedPhasingError(Exception):
 	pass
 
 
+VariantCallPhase = namedtuple('VariantCallPhase', ['block_id', 'phase'])
+
+
 class VcfReader:
 	"""
 	Read a VCF file chromosome by chromosome.
@@ -202,7 +205,7 @@ class VcfReader:
 		block_id = fields[0][0]
 		phase1, phase2 = fields[0][1]-1, fields[1][1]-1
 		assert ((phase1, phase2) == (0, 1)) or ((phase1, phase2) == (1, 0))
-		return block_id, phase1
+		return VariantCallPhase(block_id=block_id, phase=phase1)
 
 	@staticmethod
 	def _extract_GT_PS_phase(call):
@@ -215,7 +218,7 @@ class VcfReader:
 			block_id = call.data.PS
 		assert call.data.GT in ['0|1','1|0']
 		phase = int(call.data.GT[0])
-		return block_id, phase
+		return VariantCallPhase(block_id=block_id, phase=phase)
 
 	def _process_single_chromosome(self, chromosome, records):
 		phase_detected = None
