@@ -76,6 +76,31 @@ def test_phase_three_individuals():
 		shutil.rmtree(tempdir)
 
 
+def test_phase_one_of_three_individuals():
+	tempdir = tempfile.mkdtemp()
+	try:
+		bamfile = tempdir + '/trio.pacbio.bam'
+		outvcf = tempdir + '/output.vcf'
+		pysam.view('tests/data/trio.pacbio.sam', '-Sb', '-o', bamfile, catch_stdout=False)
+		pysam.index(bamfile, catch_stdout=False)
+		run_whatshap(bam=[bamfile], vcf='tests/data/trio.vcf', output=outvcf, sample='HG003')
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == '1'
+		assert len(table.variants) == 5
+		assert table.samples == ['HG004', 'HG003', 'HG002']
+
+		assert_phasing(table.phases_of('HG004'), [None, None, None, None, None])
+		assert_phasing(table.phases_of('HG003'), [(60906167,0), None, (60906167,0), None, None])
+		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
+
+	finally:
+		shutil.rmtree(tempdir)
+
+
 def test_phase_trio():
 	tempdir = tempfile.mkdtemp()
 	try:
