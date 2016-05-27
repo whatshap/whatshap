@@ -121,6 +121,10 @@ class SampleNotFoundError(Exception):
 	pass
 
 
+class MixedPhasingError(Exception):
+	pass
+
+
 class VcfReader:
 	"""
 	Read a VCF file chromosome by chromosome.
@@ -188,10 +192,10 @@ class VcfReader:
 			yield self._process_single_chromosome(chromosome, records)
 
 	@staticmethod
-	def _extract_HP_phase(calldata):
-		if (not hasattr(calldata,'HP')) or (calldata.HP is None):
+	def _extract_HP_phase(call):
+		if (not hasattr(call.data,'HP')) or (call.data.HP is None):
 			return None
-		HP = calldata.HP
+		HP = call.data.HP
 		assert len(HP) == 2
 		fields = [[int(x) for x in s.split('-')] for s in HP]
 		assert fields[0][0] == fields[1][0]
@@ -200,7 +204,21 @@ class VcfReader:
 		assert ((phase1, phase2) == (0, 1)) or ((phase1, phase2) == (1, 0))
 		return block_id, phase1
 
+	@staticmethod
+	def _extract_GT_PS_phase(call):
+		if not call.is_het:
+			return None
+		if not call.phased:
+			return None
+		block_id = 0
+		if (hasattr(call.data,'PS')) and (not call.data.PS is None):
+			block_id = call.data.PS
+		assert call.data.GT in ['0|1','1|0']
+		phase = int(call.data.GT[0])
+		return block_id, phase
+
 	def _process_single_chromosome(self, chromosome, records):
+		phase_detected = None
 		n_snps = 0
 		n_indels = 0
 		n_complex = 0
@@ -238,7 +256,20 @@ class VcfReader:
 				n_complex += 1
 				continue
 
-			phases = [self._extract_HP_phase(call.data) for call in record.samples]
+			# Read phasing information (allow GT/PS or HP phase information, but not both)
+			phases = []
+			for call in record.samples:
+				phase = None
+				for extract_phase, phase_name in [(self._extract_HP_phase, 'HP'), (self._extract_GT_PS_phase, 'GT_PS')]:
+					p = extract_phase(call)
+					if not p is None:
+						if phase_detected is None:
+							phase_detected = phase_name
+						elif phase_detected != phase_name:
+							raise MixedPhasingError('Mixed phasing information in input VCF (e.g. mixing PS and HP fields)')
+						phase = p
+				phases.append(phase)
+
 			genotypes = array('b', (call.gt_type for call in record.samples))
 			table.add_variant(variant, genotypes, phases)
 
