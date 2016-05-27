@@ -14,7 +14,6 @@ TODO
 """
 import logging
 import sys
-import random
 import platform
 from collections import defaultdict
 
@@ -194,7 +193,7 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 
 def run_whatshap(bam, vcf,
 		output=sys.stdout, sample=None, ignore_read_groups=False, indels=True,
-		mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123,
+		mapping_quality=20, max_coverage=15, all_heterozygous=True,
 		haplotype_bams_prefix=None, ped=None, genmap=None):
 	"""
 	Run WhatsHap.
@@ -207,9 +206,7 @@ def run_whatshap(bam, vcf,
 	mapping_quality -- discard reads below this mapping quality
 	max_coverage
 	all_heterozygous
-	seed -- seed for random numbers
 	"""
-	random.seed(seed)
 
 	class Statistics:
 		pass
@@ -502,7 +499,6 @@ def main():
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
 	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',
 		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
-	parser.add_argument('--seed', default=123, type=int, help='Random seed (default: %(default)s)')
 	parser.add_argument('--indels', dest='indels', default=False, action='store_true',
 		help='Also phase indels (default: do not phase indels)')
 	parser.add_argument('--distrust-genotypes', dest='all_heterozygous',
