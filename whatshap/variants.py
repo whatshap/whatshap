@@ -37,13 +37,12 @@ class ReadSetReader:
 
 	def read(self, chromosome, variants, sample):
 		"""
+		Return a ReadSet object representing the given variants.
 
 		chromosome -- name of chromosome to work on
 		variants -- list of vcf.VcfVariant objects
 		sample -- name of sample to work on. If None, read group information is
 			ignored and all reads in the file are used.
-
-		Return a ReadSet object.
 		"""
 		# Since variants are identified by position, positions must be unique.
 		if __debug__ and variants:
@@ -51,9 +50,16 @@ class ReadSetReader:
 			pos, count = varposc.most_common()[0]
 			assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
 
-		reads = self._fetch_all_reads(chromosome, variants, sample)
+		alignments = self._usable_alignments(chromosome, sample)
+		reads = self._alignments_to_readdict(alignments, variants, sample)
+		return self._readdict_to_readset(reads)
 
-		# Prepare resulting set of reads.
+	def _readdict_to_readset(self, reads):
+		"""
+		reads is a dict that maps read names to Read objects
+
+		TODO this functionality shoud be within ReadSet
+		"""
 		read_set = ReadSet()
 		for readlist in reads.values():
 			assert len(readlist) > 0
@@ -65,20 +71,14 @@ class ReadSetReader:
 				read_set.add(self._merge_pair(*readlist))
 		return read_set
 
-	def _fetch_all_reads(self, chromosome, variants, sample):
+	def _usable_alignments(self, chromosome, sample):
 		"""
-		Return a dict that maps read names to lists of Read objects.
-
-		Each list has two entries for paired-end reads, one entry for single-end reads.
+		Retrieve usable (not secondary, with CIGAR, etc) alignments from the
+		alignment file
 		"""
-		reads = defaultdict(list)
-
-		# Retrieve all reads
-		i = 0  # index into variants
 		for alignment in self._reader.fetch(reference=chromosome, sample=sample):
 			# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
 			if alignment.bam_alignment.flag & 2048 != 0:
-				# print('Skipping additional alignment for read ', alignment.bam_alignment.qname)
 				continue
 			if alignment.bam_alignment.mapq < self._mapq_threshold:
 				continue
@@ -88,7 +88,19 @@ class ReadSetReader:
 				continue
 			if not alignment.bam_alignment.cigar:
 				continue
+			yield alignment
 
+	def _alignments_to_readdict(self, alignments, variants, sample):
+		"""
+		Return a dict that maps read names to lists of Read objects.
+
+		Each list has two entries for paired-end reads, one entry for single-end reads.
+		"""
+		reads = defaultdict(list)
+
+		# Retrieve all reads
+		i = 0  # index into variants
+		for alignment in alignments:
 			# Skip variants that are to the left of this read
 			while i < len(variants) and variants[i].position < alignment.bam_alignment.pos:
 				i += 1
