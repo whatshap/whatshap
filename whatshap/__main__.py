@@ -279,6 +279,7 @@ def run_whatshap(bam, vcf,
 			# These two variables hold the phasing results for all samples
 			superreads, components = dict(), dict()
 			if ped:
+				missing_genotypes = 0
 				mendelian_conflicts = 0
 				to_discard = set()
 				for trio in individuals:
@@ -289,6 +290,9 @@ def run_whatshap(bam, vcf,
 
 					for index, (gt_mother, gt_father, gt_child) in enumerate(zip(
 							genotypes_mother, genotypes_father, genotypes_child)):
+						if (gt_mother == -1) or (gt_father == -1) or (gt_child == -1):
+							to_discard.add(index)
+							missing_genotypes += 1
 						if (gt_mother == 1) or (gt_father == 1) or (gt_child == 1):
 							if mendelian_conflict(gt_mother, gt_father, gt_child):
 								to_discard.add(index)
@@ -301,6 +305,7 @@ def run_whatshap(bam, vcf,
 				# is homozygous in all three individuals
 				variant_table.remove_rows_by_index(to_discard)
 
+				logger.info('Number of variants skipped due to missing genotypes: %d', missing_genotypes)
 				logger.info('Number of variants skipped due to Mendelian conflicts: %d', mendelian_conflicts)
 				logger.info('Number of remaining variants heterozygous in at least one individual: %d', len(variant_table.variants))
 
