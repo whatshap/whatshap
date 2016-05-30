@@ -7,6 +7,7 @@ import itertools
 from array import array
 from collections import defaultdict, namedtuple
 import vcf
+from .core import Read
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +122,43 @@ class VariantTable:
 		positions = frozenset(positions)
 		to_discard = [ i for i, v in enumerate(self.variants) if v.position not in positions ]
 		self.remove_rows_by_index(to_discard)
+
+	def phased_blocks_as_reads(self, sample, input_variants, source_id, numeric_sample_id, default_quality=20, mapq=100):
+		"""
+		Yields one sorted core.Read object per phased block, encoding the phase information as
+		if this block was a single sequencing read. Reads are yielded in arbitrary order.
+		sample -- name of sample to retrieve
+		input_variants -- variants of interest, i.e. only these variants will be retrieved
+		source_id -- source_id to be assigned to each read
+		numeric_sample_id -- sample id to be stored in generated reads
+		default_quality -- quality assigned to heterozygous with missing phasing quality
+		mapq -- mapping quality for generated reads
+		"""
+		sample_index = self._sample_to_index[sample]
+		input_variant_set = set(input_variants)
+		read_map = {} # maps block_id core.Read objects
+		assert len(self.variants) == len(self.genotypes[sample_index]) == len(self.phases[sample_index])
+		for variant, genotype, phase in zip(self.variants, self.genotypes[sample_index], self.phases[sample_index]):
+			if not variant in input_variant_set:
+				continue
+			if genotype != 1:
+				continue
+			if phase is None:
+				continue
+			if phase.quality is None:
+				quality = default_quality
+			else:
+				quality = phase.quality
+			if phase.block_id in read_map:
+				read_map[phase.block_id].add_variant(variant.position, phase.phase, quality)
+			else:
+				r = Read('block{}'.format(phase.block_id), mapq, source_id, numeric_sample_id)
+				r.add_variant(variant.position, phase.phase, quality)
+				read_map[phase.block_id] = r
+		for key, read in read_map.items():
+			read.sort()
+			if len(read) > 1:
+				yield read
 
 
 class SampleNotFoundError(Exception):
