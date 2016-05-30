@@ -28,7 +28,7 @@ class VcfVariant:
 		self.alternative_allele = alternative_allele
 
 	def __repr__(self):
-		return "VcfVariant(pos={}, ref={}, alt={})".format(self.position+1,
+		return "VcfVariant(pos={}, ref={!r}, alt={!r})".format(self.position,
 			self.reference_allele, self.alternative_allele)
 
 
@@ -166,16 +166,21 @@ class VcfReader:
 		if records:
 			yield (prev_chromosome, records)
 
-	def _normalize(self, pos, ref, alt):
+	@staticmethod
+	def normalize(pos, ref, alt):
 		"""
-		Normalize variants that share a common prefix. The first shared base is
-		kept. For example, GCTG -> GCTAAA is changed to TG -> TAAA.
+		Normalize variants that share a common prefix and/or suffix.
+		For example, GCTGTT -> GCTAAATT is changed to G -> AAA.
 
 		Return a (pos, ref, alt) tuple.
 		"""
-		while len(ref) >= 2 and len(alt) >= 2 and ref[0:2] == alt[0:2]:
+		while len(ref) >= 1 and len(alt) >= 1 and ref[-1] == alt[-1]:
+			ref, alt = ref[:-1], alt[:-1]
+
+		while len(ref) >= 1 and len(alt) >= 1 and ref[0] == alt[0]:
 			ref, alt = ref[1:], alt[1:]
 			pos += 1
+
 		return pos, ref, alt
 
 	def __iter__(self):
@@ -213,7 +218,7 @@ class VcfReader:
 				continue
 
 			ref, alt = str(record.REF), str(record.ALT[0])
-			pos, ref, alt = self._normalize(record.start, ref, alt)
+			pos, ref, alt = self.normalize(record.start, ref, alt)
 
 			# PyVCF pecularity: gt_alleles is a list of the alleles in the
 			# GT field, but as strings.
@@ -228,11 +233,11 @@ class VcfReader:
 			if len(ref) == len(alt) == 1:
 				n_snps += 1
 				variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
-			elif ref[0] == alt[0] and ((len(ref) == 1) != (len(alt) == 1)):
+			elif (len(ref) == 0) != (len(alt) == 0):
 				n_indels += 1
 				if not self._indels:
 					continue
-				variant = VcfVariant(position=pos+1, reference_allele=ref[1:], alternative_allele=alt[1:])
+				variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
 			else:
 				# A complex variant such as GCG -> TCT or CTCTC -> CA occurred.
 				n_complex += 1
@@ -277,11 +282,12 @@ class PhasedVcfWriter:
 	Avoid reading in full chromosomes as that uses too much memory for
 	multi-sample VCFs.
 	"""
-	def __init__(self, in_path, command_line, out_file=sys.stdout):
+	def __init__(self, in_path, command_line, normalized, out_file=sys.stdout):
 		"""
 		in_path -- Path to input VCF, used as template.
 		command_line -- A string that will be added as a VCF header entry.
 		out_file -- File-like object to which VCF is written.
+		normalized -- whether the phased variants have been normalized
 		"""
 		self._reader = vcf.Reader(filename=in_path)
 		# FreeBayes adds phasing=none to its VCF output - remove that.
@@ -298,6 +304,7 @@ class PhasedVcfWriter:
 		self._unprocessed_record = None
 		self._reader_iter = iter(self._reader)
 		self._hp_found_warned = False
+		self._normalized = normalized
 
 	def _format_phasing_info(self, component, phase):
 		"""
@@ -319,6 +326,10 @@ class PhasedVcfWriter:
 			component, where a component is identified by the position of its
 			left-most variant
 
+		Coordinates within the superreads are used to identify variants. Since
+		variant normalization changes coordinates, make sure that the PhasedVcfWriter
+		has been initialized with the correct 'normalized' setting!
+
 		# TODO introduce a PhasingResult class that combines superread and component
 		"""
 		assert self._unprocessed_record is None or (self._unprocessed_record.CHROM == chromosome)
@@ -337,22 +348,30 @@ class PhasedVcfWriter:
 		n = 0
 		for record in records_iter:
 			n += 1
+			pos, ref, alt = record.start, str(record.REF), str(record.ALT[0])
+			if self._normalized:
+				pos, ref, alt = VcfReader.normalize(pos, ref, alt)
+
 			if record.CHROM != chromosome:
 				# save it for later
 				self._unprocessed_record = record
 				assert n != 1
 				break
 
-			# Determine whether the variant is phased in any sample
-			is_phased = True
-			for sample in self._reader.samples:
-				if sample in sample_superreads:
-					components = sample_components[sample]
-					phases = sample_phases[sample]
-					if record.start in components and record.start in phases:
-						break
-			else:
+			if len(record.ALT) > 1:
+				# we do not phase multiallelic sites currently
 				is_phased = False
+			else:
+				# Determine whether the variant is phased in any sample
+				is_phased = True
+				for sample in self._reader.samples:
+					if sample in sample_superreads:
+						components = sample_components[sample]
+						phases = sample_phases[sample]
+						if pos in components and pos in phases:
+							break
+				else:
+					is_phased = False
 
 			if is_phased:
 				# Current PyVCF does not make it very easy to modify records/calls.
@@ -379,10 +398,10 @@ class PhasedVcfWriter:
 						self._hp_found_warned = True
 
 					values = call.data._asdict()
-					if record.start in components and record.start in phases and call.is_het:
+					if pos in components and pos in phases and call.is_het:
 						# Set or overwrite HP tag
 						values['HP'] = self._format_phasing_info(
-							components[record.start], phases[record.start])
+							components[pos], phases[pos])
 					else:
 						# Unphased - set HP to '.'
 						values['HP'] = None
