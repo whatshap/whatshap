@@ -31,6 +31,12 @@ class VcfVariant:
 		return "VcfVariant(pos={}, ref={}, alt={})".format(self.position+1,
 			self.reference_allele, self.alternative_allele)
 
+	def __hash__(self):
+		return hash((self.position, self.reference_allele, self.alternative_allele))
+
+	def __eq__(self, other):
+		return (self.position == other.position) and (self.reference_allele == other.reference_allele) and (self.alternative_allele == other.alternative_allele)
+
 
 class VariantTable:
 	"""

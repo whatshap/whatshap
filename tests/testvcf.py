@@ -1,5 +1,5 @@
 from nose.tools import raises
-from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase
+from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant
 
 
 def test_read_phased():
@@ -98,3 +98,15 @@ def test_read_phased_vcf():
 @raises(MixedPhasingError)
 def test_mixed_phasing_vcf():
 	tables = list(VcfReader('tests/data/phased-via-mixed-HP-PS.vcf'))
+
+
+def test_vcf_variant_hashability():
+	v = [
+		VcfVariant(10, 'A', 'TC'),
+		VcfVariant(10, 'A', 'TCA'),
+		VcfVariant(10, 'C', 'TC'),
+		VcfVariant(20, 'A', 'TC'),
+		VcfVariant(10, 'A', 'TCA'),
+		VcfVariant(20, 'A', 'TC')
+	]
+	assert len(set(v)) == 4
