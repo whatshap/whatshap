@@ -282,11 +282,12 @@ class PhasedVcfWriter:
 	Avoid reading in full chromosomes as that uses too much memory for
 	multi-sample VCFs.
 	"""
-	def __init__(self, in_path, command_line, out_file=sys.stdout):
+	def __init__(self, in_path, command_line, normalized, out_file=sys.stdout):
 		"""
 		in_path -- Path to input VCF, used as template.
 		command_line -- A string that will be added as a VCF header entry.
 		out_file -- File-like object to which VCF is written.
+		normalized -- whether the phased variants have been normalized
 		"""
 		self._reader = vcf.Reader(filename=in_path)
 		# FreeBayes adds phasing=none to its VCF output - remove that.
@@ -303,6 +304,7 @@ class PhasedVcfWriter:
 		self._unprocessed_record = None
 		self._reader_iter = iter(self._reader)
 		self._hp_found_warned = False
+		self._normalized = normalized
 
 	def _format_phasing_info(self, component, phase):
 		"""
@@ -324,6 +326,10 @@ class PhasedVcfWriter:
 			component, where a component is identified by the position of its
 			left-most variant
 
+		Coordinates within the superreads are used to identify variants. Since
+		variant normalization changes coordinates, make sure that the PhasedVcfWriter
+		has been initialized with the correct 'normalized' setting!
+
 		# TODO introduce a PhasingResult class that combines superread and component
 		"""
 		assert self._unprocessed_record is None or (self._unprocessed_record.CHROM == chromosome)
@@ -342,22 +348,30 @@ class PhasedVcfWriter:
 		n = 0
 		for record in records_iter:
 			n += 1
+			pos, ref, alt = record.start, str(record.REF), str(record.ALT[0])
+			if self._normalized:
+				pos, ref, alt = VcfReader.normalize(pos, ref, alt)
+
 			if record.CHROM != chromosome:
 				# save it for later
 				self._unprocessed_record = record
 				assert n != 1
 				break
 
-			# Determine whether the variant is phased in any sample
-			is_phased = True
-			for sample in self._reader.samples:
-				if sample in sample_superreads:
-					components = sample_components[sample]
-					phases = sample_phases[sample]
-					if record.start in components and record.start in phases:
-						break
-			else:
+			if len(record.ALT) > 1:
+				# we do not phase multiallelic sites currently
 				is_phased = False
+			else:
+				# Determine whether the variant is phased in any sample
+				is_phased = True
+				for sample in self._reader.samples:
+					if sample in sample_superreads:
+						components = sample_components[sample]
+						phases = sample_phases[sample]
+						if pos in components and pos in phases:
+							break
+				else:
+					is_phased = False
 
 			if is_phased:
 				# Current PyVCF does not make it very easy to modify records/calls.
@@ -384,10 +398,10 @@ class PhasedVcfWriter:
 						self._hp_found_warned = True
 
 					values = call.data._asdict()
-					if record.start in components and record.start in phases and call.is_het:
+					if pos in components and pos in phases and call.is_het:
 						# Set or overwrite HP tag
 						values['HP'] = self._format_phasing_info(
-							components[record.start], phases[record.start])
+							components[pos], phases[pos])
 					else:
 						# Unphased - set HP to '.'
 						values['HP'] = None
