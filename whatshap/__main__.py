@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Read a VCF and a BAM file and phase the variants. The phased VCF is written to
-standard output.
+Read a VCF and one or more files with phase information (BAM or VCF phased
+blocks) and phase the variants. The phased VCF is written to standard output.
 """
 """
  0: ref allele
@@ -192,15 +192,33 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 	return superreads, components
 
 
-def run_whatshap(bam, vcf,
+class UnknownInputFileError(Exception):
+	pass
+
+
+def split_input_file_list(input_files):
+	bams = []
+	vcfs = []
+	#TODO: maybe take a peek at the content rather than determining file type based on filename ending.
+	for filename in input_files:
+		if filename.endswith('.bam'):
+			bams.append(filename)
+		elif filename.endswith('.vcf') or filename.endswith('.vcf.gz'):
+			vcfs.append(filename)
+		else:
+			raise UnknownInputFileError('Unable to determine type of input file '+filename)
+	return bams, vcfs
+
+
+def run_whatshap(phase_input_files, variant_file,
 		output=sys.stdout, sample=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True, seed=123,
 		haplotype_bams_prefix=None, ped=None, genmap=None):
 	"""
 	Run WhatsHap.
 
-	bam -- list of paths to BAM files
-	vcf -- path to input VCF
+	phase_input_files -- list of paths to BAM/VCF files
+	variant_file -- path to input VCF
 	output -- path to output VCF or sys.stdout
 	sample -- name of sample to phase. None means: phase all samples
 	ignore_read_groups
@@ -225,23 +243,29 @@ def run_whatshap(bam, vcf,
 	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
 		numeric_sample_ids = NumericSampleIds()
+		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
 		try:
-			bam_reader = stack.enter_context(ReadSetReader(bam, numeric_sample_ids, mapq_threshold=mapping_quality))
+			bam_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, numeric_sample_ids, mapq_threshold=mapping_quality))
 		except (OSError, BamIndexingError) as e:
+			logger.error(e)
+			sys.exit(1)
+		try:
+			phase_input_vcf_readers = [VcfReader(f, samples=[sample] if sample else None, indels=indels) for f in phase_input_vcf_filenames]
+		except OSError as e:
 			logger.error(e)
 			sys.exit(1)
 		if output is not sys.stdout:
 			output = stack.enter_context(open(output, 'w'))
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
-		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=vcf, out_file=output)
-		vcf_reader = VcfReader(vcf, samples=[sample] if sample else None, indels=indels)
+		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file, out_file=output)
+		vcf_reader = VcfReader(variant_file, samples=[sample] if sample else None, indels=indels)
 		if ignore_read_groups and sample is None and len(vcf_reader.samples) > 1:
 			logger.error('When using --ignore-read-groups on a VCF with '
 				'multiple samples, --sample must also be used.')
 			sys.exit(1)
 		haplotype_bam_writer = None
 		if haplotype_bams_prefix is not None:
-			haplotype_bam_writer = HaplotypeBamWriter(bam, haplotype_bams_prefix, sample)
+			haplotype_bam_writer = HaplotypeBamWriter(phase_input_bam_filenames, haplotype_bams_prefix, sample)
 
 		if ped:
 			# Read in PED file to set up list of relationships (individuals)
@@ -271,6 +295,19 @@ def run_whatshap(bam, vcf,
 					logger.warning('No relationship known for sample %s - '
 						'will not be phased', sample)
 
+		# Read phase information provided as VCF files, if provided.
+		# TODO: do this chromosome- and/or sample-wise on demand to save memory.
+		phase_input_vcfs = []
+		timers.start('parse_phasing_vcfs')
+		for reader, filename in zip(phase_input_vcf_readers, phase_input_vcf_filenames):
+			# create dict mapping chromsome names to VariantTables
+			m = dict()
+			logger.info('Reading phased blocks from %r', filename)
+			for variant_table in reader:
+				m[variant_table.chromosome] = variant_table
+			phase_input_vcfs.append(m)
+		timers.stop('parse_phasing_vcfs')
+
 		timers.start('parse_vcf')
 		for variant_table in vcf_reader:
 			chromosome = variant_table.chromosome
@@ -294,7 +331,10 @@ def run_whatshap(bam, vcf,
 							to_discard.add(index)
 							missing_genotypes += 1
 						if (gt_mother == 1) or (gt_father == 1) or (gt_child == 1):
-							if mendelian_conflict(gt_mother, gt_father, gt_child):
+							if (gt_mother == -1) or (gt_father == -1) or (gt_child == -1):
+								to_discard.add(index)
+								missing_genotypes += 1
+							elif mendelian_conflict(gt_mother, gt_father, gt_child):
 								to_discard.add(index)
 								mendelian_conflicts += 1
 						else:
@@ -317,12 +357,19 @@ def run_whatshap(bam, vcf,
 					try:
 						readset = bam_reader.read(chromosome, variant_table.variants, sample)
 					except SampleNotFoundError:
-						logger.error("Sample %r is not among the read groups (RG tags) "
-							"in the BAM header.", bam_sample)
-						sys.exit(1)
+						logger.warning("Sample %r not found in any BAM file.", sample)
+						readset = ReadSet()
 					except ReadSetError as e:
 						logger.error("%s", e)
 						sys.exit(1)
+
+					# Add phasing information from VCF files, if present
+					for i, phase_input_vcf in enumerate(phase_input_vcfs):
+						if chromosome in phase_input_vcf:
+							vt = phase_input_vcf[chromosome]
+							source_id = len(phase_input_bam_filenames) + i
+							for read in vt.phased_blocks_as_reads(sample, variant_table.variants, source_id, numeric_sample_ids[sample]):
+								readset.add(read)
 
 					# TODO is this necessary?
 					for read in readset:
@@ -434,13 +481,21 @@ def run_whatshap(bam, vcf,
 					try:
 						reads = bam_reader.read(chromosome, variants, bam_sample)
 					except SampleNotFoundError:
-						logger.error("Sample %r is not among the read groups (RG tags) "
-							"in the BAM header.", bam_sample)
-						sys.exit(1)
+						logger.warning("Sample %r not found in any BAM file.", bam_sample)
+						reads = ReadSet()
 					except ReadSetError as e:
 						logger.error("%s", e)
 						sys.exit(1)
 					logger.info('Read %d reads in %.1f s', len(reads), timers.stop('read_bam'))
+
+					# Add phasing information from VCF files, if present
+					for i, phase_input_vcf in enumerate(phase_input_vcfs):
+						if chromosome in phase_input_vcf:
+							vt = phase_input_vcf[chromosome]
+							source_id = len(phase_input_bam_filenames) + i
+							for read in vt.phased_blocks_as_reads(sample, variants, source_id, numeric_sample_ids[sample]):
+								reads.add(read)
+
 					sample_superreads, sample_components = phase_sample(
 						sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, haplotype_bam_writer, numeric_sample_ids)
 					superreads[sample] = sample_superreads
@@ -461,14 +516,16 @@ def run_whatshap(bam, vcf,
 	else:
 		logger.info('No. of heterozygous variants determined to be homozygous: %d', stats.n_homozygous)
 	timers.stop('overall')
-	logger.info('Time spent reading BAM:        %6.1f s', timers.elapsed('read_bam'))
-	logger.info('Time spent parsing VCF:        %6.1f s', timers.elapsed('parse_vcf'))
-	logger.info('Time spent slicing:            %6.1f s', timers.elapsed('slice'))
-	logger.info('Time spent phasing:            %6.1f s', timers.elapsed('phase'))
-	logger.info('Time spent writing VCF:        %6.1f s', timers.elapsed('write_vcf'))
-	logger.info('Time spent finding components: %6.1f s', timers.elapsed('components'))
-	logger.info('Time spent on rest:            %6.1f s', 2 * timers.elapsed('overall') - timers.total())
-	logger.info('Total elapsed time:            %6.1f s', timers.elapsed('overall'))
+	logger.info('Time spent reading BAM:                      %6.1f s', timers.elapsed('read_bam'))
+	logger.info('Time spent parsing VCF:                      %6.1f s', timers.elapsed('parse_vcf'))
+	if len(phase_input_vcfs) > 0:
+		logger.info('Time spent parsing input phasings from VCFs: %6.1f s', timers.elapsed('parse_phasing_vcfs'))
+	logger.info('Time spent slicing:                          %6.1f s', timers.elapsed('slice'))
+	logger.info('Time spent phasing:                          %6.1f s', timers.elapsed('phase'))
+	logger.info('Time spent writing VCF:                      %6.1f s', timers.elapsed('write_vcf'))
+	logger.info('Time spent finding components:               %6.1f s', timers.elapsed('components'))
+	logger.info('Time spent on rest:                          %6.1f s', 2 * timers.elapsed('overall') - timers.total())
+	logger.info('Total elapsed time:                          %6.1f s', timers.elapsed('overall'))
 
 
 class NiceFormatter(logging.Formatter):
@@ -530,8 +587,8 @@ def main():
 		'columns are ignored.')
 	parser.add_argument('--genmap', metavar='GENMAP',
 		help='File with genetic map (used with --ped)')  # TODO describe what the file format is
-	parser.add_argument('vcf', metavar='VCF', help='VCF file (can be gzip-compressed)')
-	parser.add_argument('bam', nargs='+', metavar='BAM', help='BAM file')
+	parser.add_argument('variant_file', metavar='VCF', help='VCF file with variants to be phased (can be gzip-compressed)')
+	parser.add_argument('phase_input_files', nargs='+', metavar='PHASEINPUT', help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')
 	args = parser.parse_args()
 	setup_logging(args.debug)
 	if args.ped and not args.all_heterozygous:
