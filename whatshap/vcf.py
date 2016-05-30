@@ -166,14 +166,15 @@ class VcfReader:
 		if records:
 			yield (prev_chromosome, records)
 
-	def _normalize(self, pos, ref, alt):
+	@staticmethod
+	def normalize(pos, ref, alt):
 		"""
 		Normalize variants that share a common prefix. The first shared base is
-		kept. For example, GCTG -> GCTAAA is changed to TG -> TAAA.
+		not kept. For example, GCTG -> GCTAAA is changed to G -> AAA.
 
 		Return a (pos, ref, alt) tuple.
 		"""
-		while len(ref) >= 2 and len(alt) >= 2 and ref[0:2] == alt[0:2]:
+		while len(ref) >= 1 and len(alt) >= 1 and ref[0] == alt[0]:
 			ref, alt = ref[1:], alt[1:]
 			pos += 1
 		return pos, ref, alt
@@ -213,7 +214,7 @@ class VcfReader:
 				continue
 
 			ref, alt = str(record.REF), str(record.ALT[0])
-			pos, ref, alt = self._normalize(record.start, ref, alt)
+			pos, ref, alt = self.normalize(record.start, ref, alt)
 
 			# PyVCF pecularity: gt_alleles is a list of the alleles in the
 			# GT field, but as strings.
@@ -228,11 +229,11 @@ class VcfReader:
 			if len(ref) == len(alt) == 1:
 				n_snps += 1
 				variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
-			elif ref[0] == alt[0] and ((len(ref) == 1) != (len(alt) == 1)):
+			elif (len(ref) == 0) != (len(alt) == 0):
 				n_indels += 1
 				if not self._indels:
 					continue
-				variant = VcfVariant(position=pos+1, reference_allele=ref[1:], alternative_allele=alt[1:])
+				variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
 			else:
 				# A complex variant such as GCG -> TCT or CTCTC -> CA occurred.
 				n_complex += 1
