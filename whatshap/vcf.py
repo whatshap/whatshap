@@ -169,14 +169,18 @@ class VcfReader:
 	@staticmethod
 	def normalize(pos, ref, alt):
 		"""
-		Normalize variants that share a common prefix. The first shared base is
-		not kept. For example, GCTG -> GCTAAA is changed to G -> AAA.
+		Normalize variants that share a common prefix and/or suffix.
+		For example, GCTGTT -> GCTAAATT is changed to G -> AAA.
 
 		Return a (pos, ref, alt) tuple.
 		"""
+		while len(ref) >= 1 and len(alt) >= 1 and ref[-1] == alt[-1]:
+			ref, alt = ref[:-1], alt[:-1]
+
 		while len(ref) >= 1 and len(alt) >= 1 and ref[0] == alt[0]:
 			ref, alt = ref[1:], alt[1:]
 			pos += 1
+
 		return pos, ref, alt
 
 	def __iter__(self):

@@ -89,3 +89,6 @@ def test_normalize():
 	assert n(100, 'AC', 'A') == (101, 'C', '')
 	assert n(100, 'ACAGACC', 'ACAGACT') == (106, 'C', 'T')
 	assert n(100, 'GCTG', 'GCTAAA') == (103, 'G', 'AAA')
+	assert n(100, 'ATTA', 'ATA') == (101, 'T', '')
+	assert n(100, 'ATTTC', 'ATTTTTTC') == (101, '', 'TTT')
+	assert n(100, 'GCTGTT', 'GCTAAATT') == (103, 'G', 'AAA')
