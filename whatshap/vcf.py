@@ -134,7 +134,10 @@ class VariantTable:
 		default_quality -- quality assigned to heterozygous with missing phasing quality
 		mapq -- mapping quality for generated reads
 		"""
-		sample_index = self._sample_to_index[sample]
+		try:
+			sample_index = self._sample_to_index[sample]
+		except KeyError:
+			return
 		input_variant_set = set(input_variants)
 		read_map = {} # maps block_id core.Read objects
 		assert len(self.variants) == len(self.genotypes[sample_index]) == len(self.phases[sample_index])
