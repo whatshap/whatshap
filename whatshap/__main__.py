@@ -8,6 +8,8 @@ import sys
 import platform
 from collections import defaultdict
 
+import pyfaidx
+
 try:
 	from contextlib import ExitStack
 except ImportError:
@@ -259,7 +261,7 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 	return individuals, pedigree_samples
 
 
-def run_whatshap(phase_input_files, variant_file,
+def run_whatshap(phase_input_files, variant_file, reference=None,
 		output=None, samples=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True,
 		haplotype_bams_prefix=None, ped=None, genmap=None, genetic_haplotyping=True):
@@ -268,6 +270,7 @@ def run_whatshap(phase_input_files, variant_file,
 
 	phase_input_files -- list of paths to BAM/VCF files
 	variant_file -- path to input VCF
+	reference -- path to reference FASTA
 	output -- path to output VCF or use None for stdout
 	samples -- names of samples to phase. an empty list means: phase all samples
 	ignore_read_groups
@@ -301,6 +304,15 @@ def run_whatshap(phase_input_files, variant_file,
 		except OSError as e:
 			logger.error(e)
 			sys.exit(1)
+		if reference:
+			try:
+				fasta = stack.enter_context(pyfaidx.Fasta(reference, as_raw=True))
+			except OSError as e:
+				logger.error('%s', e)
+				sys.exit(1)
+		else:
+			fasta = None
+
 		if output is not None:
 			output = stack.enter_context(open(output, 'w'))
 		else:
@@ -621,6 +633,8 @@ def main():
 		help='Show more verbose output')
 	parser.add_argument('-o', '--output', default=None,
 		help='Output VCF file. If omitted, use standard output.')
+	parser.add_argument('--reference', '-r', metavar='FASTA',
+		help='Reference file. If no index (.fai) exists, it will be created')
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
 	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',

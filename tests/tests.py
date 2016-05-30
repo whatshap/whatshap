@@ -35,6 +35,11 @@ def test_requested_sample_not_found():
 		output='/dev/null', samples=['DOES_NOT_EXIST'])
 
 
+def test_with_reference():
+	run_whatshap(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
+		reference='tests/data/pacbio/reference.fasta')
+
+
 def assert_phasing(phases, expected_phases):
 	print('assert_phasing({}, {})'.format(phases, expected_phases))
 	assert len(phases) == len(expected_phases)
