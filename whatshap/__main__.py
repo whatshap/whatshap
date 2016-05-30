@@ -301,7 +301,7 @@ def run_whatshap(bam, vcf,
 						readset = bam_reader.read(chromosome, variant_table.variants, sample)
 					except SampleNotFoundError:
 						logger.error("Sample %r is not among the read groups (RG tags) "
-							"in the BAM header.", bam_sample)
+							"in the BAM header.", sample)
 						sys.exit(1)
 					except ReadSetError as e:
 						logger.error("%s", e)
