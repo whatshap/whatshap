@@ -28,7 +28,7 @@ class VcfVariant:
 		self.alternative_allele = alternative_allele
 
 	def __repr__(self):
-		return "VcfVariant(pos={}, ref={}, alt={})".format(self.position+1,
+		return "VcfVariant(pos={}, ref={!r}, alt={!r})".format(self.position,
 			self.reference_allele, self.alternative_allele)
 
 
