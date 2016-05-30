@@ -183,7 +183,7 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 
 
 def run_whatshap(bam, vcf,
-		output=sys.stdout, sample=None, ignore_read_groups=False, indels=True,
+		output=None, sample=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True,
 		haplotype_bams_prefix=None, ped=None, genmap=None):
 	"""
@@ -191,14 +191,13 @@ def run_whatshap(bam, vcf,
 
 	bam -- list of paths to BAM files
 	vcf -- path to input VCF
-	output -- path to output VCF or sys.stdout
+	output -- path to output VCF or use None for stdout
 	sample -- name of sample to phase. None means: phase all samples
 	ignore_read_groups
 	mapping_quality -- discard reads below this mapping quality
 	max_coverage
 	all_heterozygous
 	"""
-
 	class Statistics:
 		pass
 	stats = Statistics()
@@ -218,8 +217,10 @@ def run_whatshap(bam, vcf,
 		except (OSError, BamIndexingError) as e:
 			logger.error(e)
 			sys.exit(1)
-		if output is not sys.stdout:
+		if output is not None:
 			output = stack.enter_context(open(output, 'w'))
+		else:
+			output = sys.stdout
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=vcf, normalized=True, out_file=output)
 		vcf_reader = VcfReader(vcf, samples=[sample] if sample else None, indels=indels)
@@ -484,7 +485,7 @@ def main():
 	parser.add_argument('--version', action='version', version=__version__)
 	parser.add_argument('--debug', action='store_true', default=False,
 		help='Show more verbose output')
-	parser.add_argument('-o', '--output', default=sys.stdout,
+	parser.add_argument('-o', '--output', default=None,
 		help='Output VCF file. If omitted, use standard output.')
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')

@@ -17,6 +17,11 @@ def test_one_variant():
 		output='/dev/null')
 
 
+def test_default_output():
+	"""Output to stdout"""
+	run_whatshap(bam=['tests/data/oneread.bam'], vcf='tests/data/onevariant.vcf')
+
+
 def test_bam_without_readgroup():
 	run_whatshap(bam=['tests/data/no-readgroup.bam'], vcf='tests/data/onevariant.vcf',
 		output='/dev/null', ignore_read_groups=True)
