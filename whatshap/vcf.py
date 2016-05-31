@@ -5,8 +5,9 @@ import sys
 import logging
 import itertools
 from array import array
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 import vcf
+from .core import Read
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,12 @@ class VcfVariant:
 	def __repr__(self):
 		return "VcfVariant(pos={}, ref={!r}, alt={!r})".format(self.position,
 			self.reference_allele, self.alternative_allele)
+
+	def __hash__(self):
+		return hash((self.position, self.reference_allele, self.alternative_allele))
+
+	def __eq__(self, other):
+		return (self.position == other.position) and (self.reference_allele == other.reference_allele) and (self.alternative_allele == other.alternative_allele)
 
 
 class VariantTable:
@@ -116,9 +123,56 @@ class VariantTable:
 		to_discard = [ i for i, v in enumerate(self.variants) if v.position not in positions ]
 		self.remove_rows_by_index(to_discard)
 
+	def phased_blocks_as_reads(self, sample, input_variants, source_id, numeric_sample_id, default_quality=20, mapq=100):
+		"""
+		Yields one sorted core.Read object per phased block, encoding the phase information as
+		if this block was a single sequencing read. Reads are yielded in arbitrary order.
+		sample -- name of sample to retrieve
+		input_variants -- variants of interest, i.e. only these variants will be retrieved
+		source_id -- source_id to be assigned to each read
+		numeric_sample_id -- sample id to be stored in generated reads
+		default_quality -- quality assigned to heterozygous with missing phasing quality
+		mapq -- mapping quality for generated reads
+		"""
+		try:
+			sample_index = self._sample_to_index[sample]
+		except KeyError:
+			return
+		input_variant_set = set(input_variants)
+		read_map = {} # maps block_id core.Read objects
+		assert len(self.variants) == len(self.genotypes[sample_index]) == len(self.phases[sample_index])
+		for variant, genotype, phase in zip(self.variants, self.genotypes[sample_index], self.phases[sample_index]):
+			if not variant in input_variant_set:
+				continue
+			if genotype != 1:
+				continue
+			if phase is None:
+				continue
+			if phase.quality is None:
+				quality = default_quality
+			else:
+				quality = phase.quality
+			if phase.block_id in read_map:
+				read_map[phase.block_id].add_variant(variant.position, phase.phase, quality)
+			else:
+				r = Read('{}_block_{}'.format(sample,phase.block_id), mapq, source_id, numeric_sample_id)
+				r.add_variant(variant.position, phase.phase, quality)
+				read_map[phase.block_id] = r
+		for key, read in read_map.items():
+			read.sort()
+			if len(read) > 1:
+				yield read
+
 
 class SampleNotFoundError(Exception):
 	pass
+
+
+class MixedPhasingError(Exception):
+	pass
+
+
+VariantCallPhase = namedtuple('VariantCallPhase', ['block_id', 'phase', 'quality'])
 
 
 class VcfReader:
@@ -192,20 +246,41 @@ class VcfReader:
 		for chromosome, records in self._group_by_chromosome():
 			yield self._process_single_chromosome(chromosome, records)
 
+
 	@staticmethod
-	def _extract_HP_phase(calldata):
-		if (not hasattr(calldata,'HP')) or (calldata.HP is None):
+	def _read_PQ(call):
+		if (not hasattr(call.data,'PQ')) or (call.data.PQ is None):
 			return None
-		HP = calldata.HP
+		return call.data.PQ
+
+	@staticmethod
+	def _extract_HP_phase(call):
+		if (not hasattr(call.data,'HP')) or (call.data.HP is None):
+			return None
+		HP = call.data.HP
 		assert len(HP) == 2
 		fields = [[int(x) for x in s.split('-')] for s in HP]
 		assert fields[0][0] == fields[1][0]
 		block_id = fields[0][0]
 		phase1, phase2 = fields[0][1]-1, fields[1][1]-1
 		assert ((phase1, phase2) == (0, 1)) or ((phase1, phase2) == (1, 0))
-		return block_id, phase1
+		return VariantCallPhase(block_id=block_id, phase=phase1, quality=VcfReader._read_PQ(call))
+
+	@staticmethod
+	def _extract_GT_PS_phase(call):
+		if not call.is_het:
+			return None
+		if not call.phased:
+			return None
+		block_id = 0
+		if (hasattr(call.data,'PS')) and (not call.data.PS is None):
+			block_id = call.data.PS
+		assert call.data.GT in ['0|1','1|0']
+		phase = int(call.data.GT[0])
+		return VariantCallPhase(block_id=block_id, phase=phase, quality=VcfReader._read_PQ(call))
 
 	def _process_single_chromosome(self, chromosome, records):
+		phase_detected = None
 		n_snps = 0
 		n_indels = 0
 		n_complex = 0
@@ -243,8 +318,22 @@ class VcfReader:
 				n_complex += 1
 				continue
 
-			phases = [self._extract_HP_phase(call.data) for call in record.samples]
-			genotypes = array('b', (call.gt_type for call in record.samples))
+			# Read phasing information (allow GT/PS or HP phase information, but not both)
+			phases = []
+			for call in record.samples:
+				phase = None
+				for extract_phase, phase_name in [(self._extract_HP_phase, 'HP'), (self._extract_GT_PS_phase, 'GT_PS')]:
+					p = extract_phase(call)
+					if not p is None:
+						if phase_detected is None:
+							phase_detected = phase_name
+						elif phase_detected != phase_name:
+							raise MixedPhasingError('Mixed phasing information in input VCF (e.g. mixing PS and HP fields)')
+						phase = p
+				phases.append(phase)
+
+			GT_TO_INT = { 0: 0, 1: 1, 2: 2, None: -1 }
+			genotypes = array('b', (GT_TO_INT[call.gt_type] for call in record.samples))
 			table.add_variant(variant, genotypes, phases)
 
 		logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s. "
