@@ -36,14 +36,22 @@ class ReadSetReader:
 		else:
 			self._reader = MultiBamReader(paths)
 
-	def read(self, chromosome, variants, sample):
+	def read(self, chromosome, variants, sample, reference):
 		"""
 		Return a ReadSet object representing the given variants.
+
+		If a reference is provided (reference is not None), alleles are
+		detected by re-aligning	sections of the query to the REF and ALT
+		sequence extended a few bases to the left and right.
+
+		If reference is None, alleles are detected by inspecting the
+		existing alignment (via the CIGAR).
 
 		chromosome -- name of chromosome to work on
 		variants -- list of vcf.VcfVariant objects
 		sample -- name of sample to work on. If None, read group information is
 			ignored and all reads in the file are used.
+		reference -- reference sequence of the given chromosome (or None)
 		"""
 		# Since variants are identified by position, positions must be unique.
 		if __debug__ and variants:
@@ -52,14 +60,14 @@ class ReadSetReader:
 			assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
 
 		alignments = self._usable_alignments(chromosome, sample)
-		reads = self._alignments_to_readdict(alignments, variants, sample)
+		reads = self._alignments_to_readdict(alignments, variants, sample, reference)
 		return self._readdict_to_readset(reads)
 
 	def _readdict_to_readset(self, reads):
 		"""
 		reads is a dict that maps read names to Read objects
 
-		TODO this functionality shoud be within ReadSet
+		TODO this functionality should be within ReadSet
 		"""
 		read_set = ReadSet()
 		for readlist in reads.values():
@@ -74,7 +82,7 @@ class ReadSetReader:
 
 	def _usable_alignments(self, chromosome, sample):
 		"""
-		Retrieve usable (not secondary, with CIGAR, etc) alignments from the
+		Retrieve usable (has CIGAR, not secondary etc.) alignments from the
 		alignment file
 		"""
 		for alignment in self._reader.fetch(reference=chromosome, sample=sample):
@@ -91,9 +99,11 @@ class ReadSetReader:
 				continue
 			yield alignment
 
-	def _alignments_to_readdict(self, alignments, variants, sample):
+	def _alignments_to_readdict(self, alignments, variants, sample, reference):
 		"""
 		Convert BAM alignments to Read objects.
+
+		If reference is not None, alleles are detected through re-alignment.
 
 		Return a dict that maps read names to lists of Read objects. Each list
 		has two entries for paired-end reads, one entry for single-end reads.
@@ -109,17 +119,21 @@ class ReadSetReader:
 			read = Read(alignment.bam_alignment.qname,
 					alignment.bam_alignment.mapq, alignment.source_id,
 					self._numeric_sample_ids[sample])
-			for position, allele, quality in self.detect_alleles(variants, i, alignment.bam_alignment):
+			if reference is None:
+				detected = self.detect_alleles(variants, i, alignment.bam_alignment)
+			else:
+				detected = self.detect_alleles_by_alignment(variants, i, alignment.bam_alignment, reference)
+			for position, allele, quality in detected:
 				read.add_variant(position, allele, quality)
-			if read:  # At least one variant covered
+			if read:  # At least one variant covered and detected
 				reads[(alignment.source_id, alignment.bam_alignment.qname)].append(read)
 		return reads
 
 	@staticmethod
 	def detect_alleles(variants, j, bam_read):
 		"""
-		Detect which alleles the given bam_read covers. Detect the correct
-		alleles of the variants that are covered by the given bam_read.
+		Detect the correct alleles of the variants that are covered by the
+		given bam_read.
 
 		Yield tuples (position, allele, quality).
 
@@ -247,7 +261,7 @@ class ReadSetReader:
 		i is the element of the cigar list that should be split, and consumed says
 		at how many operations to split within that element.
 
-		The CIGAR is given as a list of (operation, lenth) pairs.
+		The CIGAR is given as a list of (operation, length) pairs.
 
 		i -- split at this index in cigar list
 		consumed -- how many cigar ops at cigar[i] are to the *left* of the
@@ -388,7 +402,6 @@ class ReadSetReader:
 			elif cigar_op == 1:  # I operator (insertion)
 				# TODO it should work to *not* handle the variant here, but at the next M or D region
 				if j < len(variants) and variants[j].position == ref_pos:
-					assert False  # Does this happen at all? - it should, then remove this assertion!
 					allele = ReadSetReader.realign(variants[j], bam_read, i, 0, query_pos, reference)
 					if allele in (0, 1):
 						yield (variants[j].position, allele, 30)  # TODO quality???

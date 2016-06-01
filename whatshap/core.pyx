@@ -1,5 +1,5 @@
 """
-Wrapper for core C++ classes.
+Wrappers for core C++ classes.
 """
 # Do not use the distutils directives here, but configure everything in
 # setup.py, such as language and sources. It would work during development, but

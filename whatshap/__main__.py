@@ -312,7 +312,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				sys.exit(1)
 		else:
 			fasta = None
-
+		del reference
 		if output is not None:
 			output = stack.enter_context(open(output, 'w'))
 		else:
@@ -420,8 +420,9 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				for sample in variant_table.samples:
 					logger.info('Reading reads for sample %r', sample)
 					timers.start('read_bam')
+					reference = fasta[chromosome] if fasta else None
 					try:
-						readset = bam_reader.read(chromosome, variant_table.variants, sample)
+						readset = bam_reader.read(chromosome, variant_table.variants, sample, reference)
 					except SampleNotFoundError:
 						logger.warning("Sample %r not found in any BAM file.", sample)
 						readset = ReadSet()
@@ -549,8 +550,9 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					bam_sample = None if ignore_read_groups else sample
 					logger.info('Reading the BAM file ...')
 					timers.start('read_bam')
+					reference = fasta[chromosome] if fasta else None
 					try:
-						reads = bam_reader.read(chromosome, variants, bam_sample)
+						reads = bam_reader.read(chromosome, variants, bam_sample, reference)
 					except SampleNotFoundError:
 						logger.warning("Sample %r not found in any BAM file.", bam_sample)
 						reads = ReadSet()
@@ -634,7 +636,8 @@ def main():
 	parser.add_argument('-o', '--output', default=None,
 		help='Output VCF file. If omitted, use standard output.')
 	parser.add_argument('--reference', '-r', metavar='FASTA',
-		help='Reference file. If no index (.fai) exists, it will be created')
+		help='Reference file. Provide this to detect alleles through re-alignment. '
+			'If no index (.fai) exists, it will be created')
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
 	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',
