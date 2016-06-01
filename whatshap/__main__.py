@@ -313,12 +313,14 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		else:
 			fasta = None
 		del reference
+		# no reference given -> do not re-align -> must normalize indels
+		normalize = fasta is None
 		if output is not None:
 			output = stack.enter_context(open(output, 'w'))
 		else:
 			output = sys.stdout
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
-		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file, normalized=True, out_file=output)
+		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file, normalized=normalize, out_file=output)
 		vcf_reader = VcfReader(variant_file, indels=indels)
 
 		if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:

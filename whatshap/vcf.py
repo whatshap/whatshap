@@ -180,15 +180,17 @@ class VcfReader:
 	"""
 	Read a VCF file chromosome by chromosome.
 	"""
-	def __init__(self, path, indels=False):
+	def __init__(self, path, indels=False, normalize=False):
 		"""
 		path -- Path to VCF file
 		indels -- Whether to include also insertions and deletions in the list of
 			variants.
+		normalize -- Whether to normalize indels
 		"""
 		# TODO Always include deletions since they can 'overlap' other variants
 		self._indels = indels
 		self._vcf_reader = vcf.Reader(filename=path)
+		self._normalize = normalize
 		self.samples = self._vcf_reader.samples  # intentionally public
 		logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
@@ -281,8 +283,9 @@ class VcfReader:
 				n_multi += 1
 				continue
 
-			ref, alt = str(record.REF), str(record.ALT[0])
-			pos, ref, alt = self.normalize(record.start, ref, alt)
+			pos, ref, alt = record.start, str(record.REF), str(record.ALT[0])
+			if self._normalize:
+				pos, ref, alt = self.normalize(pos, ref, alt)
 
 			# PyVCF pecularity: gt_alleles is a list of the alleles in the
 			# GT field, but as strings.
@@ -303,7 +306,7 @@ class VcfReader:
 					continue
 				variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
 			else:
-				# A complex variant such as GCG -> TCT or CTCTC -> CA occurred.
+				# A complex variant or MNP such as GCG -> TCT or CTCTC -> CA occurred.
 				n_complex += 1
 				continue
 
