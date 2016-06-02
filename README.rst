@@ -31,11 +31,6 @@ focused on making the software easy and straightforward to use. WhatsHap is now
 Open Source software under the MIT license and we welcome contributions.
 
 
-.. note:: WhatsHap is work in progress! In particular, the documentation is
-	incomplete, not all features that we would like to have for an initial
-	release are there, and there are probably bugs.
-
-
 Pedigree phasing
 ----------------
 
