@@ -231,3 +231,9 @@ def test_do_not_phase_duplicate_position():
 		for record in records:
 			assert not (record.start in seen_positions and hasattr(record.samples[0].data, 'HP'))
 			seen_positions.add(record.start)
+
+
+def test_multi_alt():
+	"""Skip multi-ALT in VCF"""
+	table = list(VcfReader('tests/data/unknown-genotype.vcf'))[0]
+	assert [ variant.position for variant in table.variants ] == [1, 4]
