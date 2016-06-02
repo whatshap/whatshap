@@ -465,9 +465,10 @@ def run_whatshap(phase_input_files, variant_file,
 					logger.info('PedMEC cost: %d', dp_table.get_optimal_cost())
 
 				with timers('components'):
-					# TODO Is it correct that the components do not depend on
-					# the phasing result at all?
-					overall_components = find_components(accessible_positions, all_reads, master_block=(homozygous_positions if genetic_haplotyping else None))
+					master_block = None
+					if genetic_haplotyping:
+						master_block = sorted(set(homozygous_positions).intersection(set(accessible_positions)))
+					overall_components = find_components(accessible_positions, all_reads, master_block)
 					n_phased_blocks = len(set(overall_components.values()))
 					stats.n_phased_blocks += n_phased_blocks
 					logger.info('No. of phased blocks: %d', n_phased_blocks)
