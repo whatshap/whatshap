@@ -63,6 +63,6 @@ Links
 -----
 
 * `Bitbucket page <https://bitbucket.org/whatshap/whatshap/>`_
-* `Read the documentation online <https://whatshap.readthedocs.org/>`_.
+* `Read the documentation online <https://whatshap.readthedocs.io/>`_.
   Offline documentation is available in the ``doc/`` subdirectory in the
   repository and in the downloaded tar distribution.
