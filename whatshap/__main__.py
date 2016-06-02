@@ -305,9 +305,12 @@ def run_whatshap(phase_input_files, variant_file,
 			# These two variables hold the phasing results for all samples
 			superreads, components = dict(), dict()
 			if ped:
-				missing_genotypes = 0
-				mendelian_conflicts = 0
-				to_discard = set()
+				# variant indices with at least one missing genotype
+				missing_genotypes = set()
+				# variant indices with at least one Mendelian conflict
+				mendelian_conflicts = set()
+				# variant indices with at least one heterozygous genotype
+				heterozygous = set()
 				for trio in individuals:
 					# TODO fix attribute names of Individual class
 					genotypes_mother = variant_table.genotypes_of(trio.mother_id)
@@ -316,26 +319,33 @@ def run_whatshap(phase_input_files, variant_file,
 
 					for index, (gt_mother, gt_father, gt_child) in enumerate(zip(
 							genotypes_mother, genotypes_father, genotypes_child)):
-						if (gt_mother == -1) or (gt_father == -1) or (gt_child == -1):
-							to_discard.add(index)
-							missing_genotypes += 1
-						if (gt_mother == 1) or (gt_father == 1) or (gt_child == 1):
-							if (gt_mother == -1) or (gt_father == -1) or (gt_child == -1):
-								to_discard.add(index)
-								missing_genotypes += 1
-							elif mendelian_conflict(gt_mother, gt_father, gt_child):
-								to_discard.add(index)
-								mendelian_conflicts += 1
-						else:
-							# no heterozygous variant in this triple
-							to_discard.add(index)
+						is_missing = False
+						for gt in (gt_mother, gt_father, gt_child):
+							if gt == -1:
+								missing_genotypes.add(index)
+								is_missing = True
+							elif gt == 1:
+								heterozygous.add(index)
+							else:
+								assert gt in [0,2]
+						if not is_missing:
+							if mendelian_conflict(gt_mother, gt_father, gt_child):
+								mendelian_conflicts.add(i)
+
+				# determine the total number of variants
+				variant_count = len(variant_table.genotypes_of(individuals[0].id))
+				# retain variants that are heterozygous in at least one individual (anywhere in the pedigree)
+				# and do not have neither missing genotypes nor Mendelian conflicts
+				to_retain = heterozygous.difference(missing_genotypes).difference(mendelian_conflicts)
+				# discard every variant that is not to be retained
+				to_discard = set(range(variant_count)).difference(to_retain)
 
 				# Remove calls where *any* trio has a mendelian conflict or
 				# is homozygous in all three individuals
 				variant_table.remove_rows_by_index(to_discard)
 
-				logger.info('Number of variants skipped due to missing genotypes: %d', missing_genotypes)
-				logger.info('Number of variants skipped due to Mendelian conflicts: %d', mendelian_conflicts)
+				logger.info('Number of variants skipped due to missing genotypes: %d', len(missing_genotypes))
+				logger.info('Number of variants skipped due to Mendelian conflicts: %d', len(mendelian_conflicts))
 				logger.info('Number of remaining variants heterozygous in at least one individual: %d', len(variant_table.variants))
 
 				# Get the reads belonging to each sample
