@@ -540,10 +540,12 @@ def run_whatshap(phase_input_files, variant_file,
 		timers.stop('parse_vcf')
 
 	logger.info('== SUMMARY ==')
-	logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
-		stats.n_best_case_nonsingleton_blocks, stats.n_best_case_blocks)
-	logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
-		stats.n_best_case_nonsingleton_blocks_cov, stats.n_best_case_blocks_cov)
+	# TODO: Print more meaningful summary, including block sizes, mendelian conflicts, etc.
+	if not ped:
+		logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
+			stats.n_best_case_nonsingleton_blocks, stats.n_best_case_blocks)
+		logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
+			stats.n_best_case_nonsingleton_blocks_cov, stats.n_best_case_blocks_cov)
 	if all_heterozygous:
 		assert stats.n_homozygous == 0
 	else:
