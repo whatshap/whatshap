@@ -1,0 +1,14 @@
+##fileformat=VCFv4.1
+##fileDate=13012016_17h46m11s
+##source=SHAPEIT2.v837
+##log_file=shapeit_13012016_17h46m11s_ff4214f9-16e7-4ce4-a73a-d1b439b32359.log
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Phased Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG002	HG003	HG004
+1	752566	.	G	A	.	PASS	.	GT	1/1	1/1	0/1
+1	754964	.	C	T	.	PASS	.	GT	1/1	1/1	0/1
+1	760912	.	C	T	.	PASS	.	GT	1/1	1/1	0/1
+1	767780	.	G	A	.	PASS	.	GT	1/1	1/1	1/1
+1	853954	.	C	A	.	PASS	.	GT	1/1	0/1	0/1
+1	854777	.	A	G	.	PASS	.	GT	1/1	0/1	0/1
+1	854978	.	A	C	.	PASS	.	GT	1/1	0/1	0/1
+1	855075	.	C	G	.	PASS	.	GT	0/1	0/1	0/1
