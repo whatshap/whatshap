@@ -55,6 +55,23 @@ def find_components(phased_positions, reads, master_block=None):
 	return components
 
 
+def find_largest_component(components):
+	"""
+	Determine the largest component and return a sorted list of positions
+	contained in it.
+	components -- dictionary mapping positin to block_id as returned by find_components.
+	"""
+	blocks = defaultdict(list)
+	for position, block_id in components.items():
+		blocks[block_id].append(position)
+	largest = []
+	for block in blocks.values():
+		if len(block) > len(largest):
+			largest = block
+	largest.sort()
+	return largest
+
+
 def best_case_blocks(reads):
 	"""
 	Given a list of core reads, determine the number of phased blocks that
@@ -471,6 +488,9 @@ def run_whatshap(phase_input_files, variant_file,
 					n_phased_blocks = len(set(overall_components.values()))
 					stats.n_phased_blocks += n_phased_blocks
 					logger.info('No. of phased blocks: %d', n_phased_blocks)
+					largest_component = find_largest_component(overall_components)
+					if len(largest_component) > 0:
+						logger.info('Largest component contains %d variants (%.1f%% of accessible variants) between position %d and %d', len(largest_component), len(largest_component)*100.0/len(accessible_positions), largest_component[0]+1, largest_component[-1]+1)
 
 				if False:
 					n_recombination = find_recombination(transmission_vector, overall_components, accessible_positions, recombcost, recombination_list_filename)
