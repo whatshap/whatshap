@@ -1,4 +1,4 @@
 ##fileformat=VCFv4.1
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample
 ref	2	.	A	C	500.0	.	.	GT	0|1
-ref	2	.	G	T	500.0	.	.	GT	1|0
+ref	5	.	G	T	500.0	.	.	GT	1|0

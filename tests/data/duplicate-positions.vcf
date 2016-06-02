@@ -3,3 +3,4 @@
 ref	2	.	A	T	500.0	.	.	GT	0/1
 ref	2	.	AAAAAA	A	500.0	.	.	GT	0/0
 ref	20	.	G	A	500.0	.	.	GT	0/1
+ref	20	.	G	C	500.0	.	.	GT	0/1

@@ -276,6 +276,7 @@ class VcfReader:
 		n_other = 0
 		n_multi = 0
 		table = VariantTable(chromosome, self.samples)
+		prev_position = None
 		for record in records:
 			if len(record.ALT) > 1:
 				# Multi-ALT sites are not supported, yet
@@ -290,6 +291,10 @@ class VcfReader:
 				if not self._indels:
 					continue
 
+			if prev_position == pos:
+				logger.warning('Skipping duplicated position %s on chromosome %r', pos+1, chromosome)
+				continue
+			prev_position = pos
 			if self._normalize:
 				pos, ref, alt = self.normalize(pos, ref, alt)
 
@@ -419,6 +424,7 @@ class PhasedVcfWriter:
 					if (v1.allele, v2.allele) in allowed_alleles
 			}
 		n = 0
+		prev_pos = None
 		for record in records_iter:
 			n += 1
 			pos, ref, alt = record.start, str(record.REF), str(record.ALT[0])
@@ -433,6 +439,9 @@ class PhasedVcfWriter:
 
 			if len(record.ALT) > 1:
 				# we do not phase multiallelic sites currently
+				is_phased = False
+			elif pos == prev_pos:
+				# duplicate position, skip it
 				is_phased = False
 			else:
 				# Determine whether the variant is phased in any sample
@@ -480,3 +489,4 @@ class PhasedVcfWriter:
 						values['HP'] = None
 					call.data = samp_fmt(**values)
 			self._writer.write_record(record)
+			prev_pos = pos

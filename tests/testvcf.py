@@ -1,5 +1,8 @@
 from nose.tools import raises
+import os
+from tempfile import TemporaryDirectory
 from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant
+from whatshap.__main__ import run_whatshap
 
 
 def test_read_phased():
@@ -198,3 +201,33 @@ def test_normalize():
 	assert n(100, 'ATTA', 'ATA') == (101, 'T', '')
 	assert n(100, 'ATTTC', 'ATTTTTTC') == (101, '', 'TTT')
 	assert n(100, 'GCTGTT', 'GCTAAATT') == (103, 'G', 'AAA')
+
+
+def test_read_duplicate_position():
+	"""Two rows with same position"""
+	# As soon as we can actually work with multiple such rows, this test
+	# needs to be updated since it currently just checks whether the second of
+	# the positions is skipped.
+	table = list(VcfReader('tests/data/duplicate-positions.vcf', indels=True))[0]
+	assert len(table.variants) == 2
+	assert table.variants[0].position == 1
+	assert table.variants[0].reference_allele == 'A'
+	assert table.variants[0].alternative_allele == 'T'
+	assert table.variants[1].position == 19
+	assert table.variants[1].reference_allele == 'G'
+	assert table.variants[1].alternative_allele == 'A'
+
+
+def test_do_not_phase_duplicate_position():
+	"""Ensure HP tag is added only to first of duplicate positions"""
+	with TemporaryDirectory() as tmpdir:
+		tmpvcf = os.path.join(tmpdir, 'duplicate-positions-phased.vcf')
+		run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/duplicate-positions.vcf',
+			output=tmpvcf)
+		import vcf
+		seen_positions = set()
+		records = list(vcf.Reader(filename=tmpvcf))
+		assert len(records) == 4
+		for record in records:
+			assert not (record.start in seen_positions and hasattr(record.samples[0].data, 'HP'))
+			seen_positions.add(record.start)
