@@ -2,16 +2,19 @@
 Changes
 =======
 
-in development
---------------
 
+v0.11 (in development)
+----------------------
 
-v0.11
------
 * When phasing a pedigree, blocks that are not connected by reads but
   can be phased based on genotypes will be connected per default. This
   behavior can be turned off using option ``--no-genetic-haplotyping``.
-
+* Implemented allele detection through re-alignment: To detect which allele of a
+  variant is seen in a read, the query is aligned to the two haplotypes at that
+  position. Enabled if ``--reference`` is provided. Current limitation: No
+  score for the allele is computed.
+* As a side-effect of the new allele detection, we can now also phase
+  insertions, deletions, MNPs and "complex" variants.
 
 v0.10 (2016-04-27)
 ------------------
