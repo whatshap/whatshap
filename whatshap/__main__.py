@@ -28,12 +28,14 @@ __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel M
 logger = logging.getLogger(__name__)
 
 
-def find_components(phased_positions, reads):
+def find_components(phased_positions, reads, master_block=None):
 	"""
 	Return a dict that maps each variant position to the component it is in.
 	Variants are considered to be in the same component if a read exists that
 	covers both. A component is identified by the position of its leftmost
 	variant.
+	master_block -- List of positions in a "master block", i.e. all blocks containing
+	                any of these positions are merged into one block.
 	"""
 	logger.debug('Finding connected components ...')
 	assert phased_positions == sorted(phased_positions)
@@ -46,6 +48,9 @@ def find_components(phased_positions, reads):
 		positions = [ variant.position for variant in read if variant.position in phased_positions ]
 		for position in positions[1:]:
 			component_finder.merge(positions[0], position)
+	if not master_block is None:
+		for position in master_block[1:]:
+			component_finder.merge(master_block[0], position)
 	components = { position : component_finder.find(position) for position in phased_positions }
 	return components
 
@@ -203,7 +208,7 @@ def split_input_file_list(input_files):
 def run_whatshap(phase_input_files, variant_file,
 		output=None, sample=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True,
-		haplotype_bams_prefix=None, ped=None, genmap=None):
+		haplotype_bams_prefix=None, ped=None, genmap=None, genetic_haplotyping=True):
 	"""
 	Run WhatsHap.
 
@@ -215,6 +220,7 @@ def run_whatshap(phase_input_files, variant_file,
 	mapping_quality -- discard reads below this mapping quality
 	max_coverage
 	all_heterozygous
+	genetic_haplotyping -- in ped mode, merge disconnected blocks based on genotype status
 	"""
 	class Statistics:
 		pass
@@ -311,6 +317,8 @@ def run_whatshap(phase_input_files, variant_file,
 				mendelian_conflicts = set()
 				# variant indices with at least one heterozygous genotype
 				heterozygous = set()
+				# variant indices with at least one homozygous genotype
+				homozygous = set()
 				for trio in individuals:
 					# TODO fix attribute names of Individual class
 					genotypes_mother = variant_table.genotypes_of(trio.mother_id)
@@ -328,6 +336,7 @@ def run_whatshap(phase_input_files, variant_file,
 								heterozygous.add(index)
 							else:
 								assert gt in [0,2]
+								homozygous.add(index)
 						if not is_missing:
 							if mendelian_conflict(gt_mother, gt_father, gt_child):
 								mendelian_conflicts.add(i)
@@ -343,6 +352,11 @@ def run_whatshap(phase_input_files, variant_file,
 				# Remove calls where *any* trio has a mendelian conflict or
 				# is homozygous in all three individuals
 				variant_table.remove_rows_by_index(to_discard)
+
+				# Determine positions of selected variants that are homozygous in at least one individual.
+				# These are used later to merge blocks containing these variants into one block (since
+				# the are conntected by "genetic haplotyping").
+				homozygous_positions = [variant_table.variants[i].position for i in to_retain.intersection(homozygous)]
 
 				logger.info('Number of variants skipped due to missing genotypes: %d', len(missing_genotypes))
 				logger.info('Number of variants skipped due to Mendelian conflicts: %d', len(mendelian_conflicts))
@@ -453,7 +467,7 @@ def run_whatshap(phase_input_files, variant_file,
 				with timers('components'):
 					# TODO Is it correct that the components do not depend on
 					# the phasing result at all?
-					overall_components = find_components(accessible_positions, all_reads)
+					overall_components = find_components(accessible_positions, all_reads, master_block=(homozygous_positions if genetic_haplotyping else None))
 					n_phased_blocks = len(set(overall_components.values()))
 					stats.n_phased_blocks += n_phased_blocks
 					logger.info('No. of phased blocks: %d', n_phased_blocks)
@@ -585,6 +599,11 @@ def main():
 		'columns are ignored.')
 	parser.add_argument('--genmap', metavar='GENMAP',
 		help='File with genetic map (used with --ped)')  # TODO describe what the file format is
+	parser.add_argument('--no-genetic-haplotyping', dest='genetic_haplotyping',
+		action='store_false', default=True,
+		help='Do not merge blocks that are not connected by reads (i.e. solely based on genotype '
+		'status). Default: when in --ped mode, merge all blocks that contain at least on '
+		'homozygous genotype in at least one individual into one block.')
 	parser.add_argument('variant_file', metavar='VCF', help='VCF file with variants to be phased (can be gzip-compressed)')
 	parser.add_argument('phase_input_files', nargs='+', metavar='PHASEINPUT', help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')
 	args = parser.parse_args()

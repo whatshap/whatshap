@@ -91,3 +91,59 @@ def test_phase_trio():
 
 	finally:
 		shutil.rmtree(tempdir)
+
+
+def test_phase_trio_merged_blocks():
+	tempdir = tempfile.mkdtemp()
+	try:
+		bamfile = tempdir + '/trio-merged-blocks.bam'
+		outvcf = tempdir + '/output-merged-blocks.vcf'
+		pysam.view('tests/data/trio-merged-blocks.sam', '-Sb', '-o', bamfile, catch_stdout=False)
+		pysam.index(bamfile, catch_stdout=False)
+		run_whatshap(phase_input_files=[bamfile], variant_file='tests/data/trio-merged-blocks.vcf', output=outvcf, ped='tests/data/trio.ped', genmap='tests/data/trio.map')
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == '1'
+		assert len(table.variants) == 8
+		assert table.samples == ['HG002', 'HG003', 'HG004']
+		assert table.num_of_blocks_of('HG004') == 1
+		assert table.num_of_blocks_of('HG003') == 1
+		assert table.num_of_blocks_of('HG002') == 1
+
+		assert_phasing(table.phases_of('HG004'), [VariantCallPhase(752566,1,None), VariantCallPhase(752566,1,None), VariantCallPhase(752566,1,None), None, VariantCallPhase(752566,1,None), VariantCallPhase(752566,1,None), VariantCallPhase(752566,1,None), VariantCallPhase(752566,1,None)])
+		assert_phasing(table.phases_of('HG003'), [None, None, None, None, VariantCallPhase(752566,0,None), VariantCallPhase(752566,0,None), VariantCallPhase(752566,0,None), VariantCallPhase(752566,1,None)])
+		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None, None, None, VariantCallPhase(752566,1,None)])
+
+	finally:
+		shutil.rmtree(tempdir)
+
+
+def test_phase_trio_dont_merge_blocks():
+	tempdir = tempfile.mkdtemp()
+	try:
+		bamfile = tempdir + '/trio-merged-blocks.bam'
+		outvcf = tempdir + '/output-merged-blocks.vcf'
+		pysam.view('tests/data/trio-merged-blocks.sam', '-Sb', '-o', bamfile, catch_stdout=False)
+		pysam.index(bamfile, catch_stdout=False)
+		run_whatshap(phase_input_files=[bamfile], variant_file='tests/data/trio-merged-blocks.vcf', output=outvcf, ped='tests/data/trio.ped', genmap='tests/data/trio.map', genetic_haplotyping=False)
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == '1'
+		assert len(table.variants) == 8
+		assert table.samples == ['HG002', 'HG003', 'HG004']
+		assert table.num_of_blocks_of('HG004') == 2
+		assert table.num_of_blocks_of('HG003') == 1
+		assert table.num_of_blocks_of('HG002') == 1
+
+		assert_phasing(table.phases_of('HG004'), [VariantCallPhase(752566,1,None), VariantCallPhase(752566,1,None), VariantCallPhase(752566,1,None), None, VariantCallPhase(853954,1,None), VariantCallPhase(853954,1,None), VariantCallPhase(853954,1,None), VariantCallPhase(853954,1,None)])
+		assert_phasing(table.phases_of('HG003'), [None, None, None, None, VariantCallPhase(853954,0,None), VariantCallPhase(853954,0,None), VariantCallPhase(853954,0,None), VariantCallPhase(853954,1,None)])
+		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None, None, None, VariantCallPhase(853954,1,None)])
+
+	finally:
+		shutil.rmtree(tempdir)

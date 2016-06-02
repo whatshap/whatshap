@@ -97,7 +97,11 @@ class VariantTable:
 	def phases_of(self, sample):
 		"""Retrieve phases by sample name"""
 		return self.phases[self._sample_to_index[sample]]
-
+	      
+	def num_of_blocks_of(self, sample):
+		""" Retrieve the number of blocks of the sample"""
+		return len(set([i.block_id for i in self.phases[self._sample_to_index[sample]] if not i is None]))
+	      
 	def id_of(self, sample):
 		"""Return a unique int id of a sample given by name"""
 		return self._sample_to_index[sample]
