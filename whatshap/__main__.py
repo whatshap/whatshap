@@ -442,11 +442,10 @@ def run_whatshap(phase_input_files, variant_file,
 						father_id=individual.father_id,
 						child_id=individual.id)
 
-				# Merge reads into one ReadSet, keeping track of source
+				# Merge reads into one ReadSet (note that each Read object
+				# knows the sample it originated from).
 				all_reads = ReadSet()
-				read_sources = []
 				for sample, readset in readsets.items():
-					read_source_id = variant_table.id_of(sample)
 					for read in readset:
 						assert read.is_sorted(), "Add a read.sort() here"
 						all_reads.add(read)
