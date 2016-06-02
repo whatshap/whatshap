@@ -339,7 +339,7 @@ def run_whatshap(phase_input_files, variant_file,
 								homozygous.add(index)
 						if not is_missing:
 							if mendelian_conflict(gt_mother, gt_father, gt_child):
-								mendelian_conflicts.add(i)
+								mendelian_conflicts.add(index)
 
 				# determine the total number of variants
 				variant_count = len(variant_table.genotypes_of(individuals[0].id))
@@ -349,14 +349,14 @@ def run_whatshap(phase_input_files, variant_file,
 				# discard every variant that is not to be retained
 				to_discard = set(range(variant_count)).difference(to_retain)
 
-				# Remove calls where *any* trio has a mendelian conflict or
-				# is homozygous in all three individuals
-				variant_table.remove_rows_by_index(to_discard)
-
 				# Determine positions of selected variants that are homozygous in at least one individual.
 				# These are used later to merge blocks containing these variants into one block (since
 				# the are conntected by "genetic haplotyping").
 				homozygous_positions = [variant_table.variants[i].position for i in to_retain.intersection(homozygous)]
+
+				# Remove calls where *any* trio has a mendelian conflict or
+				# is homozygous in all three individuals
+				variant_table.remove_rows_by_index(to_discard)
 
 				logger.info('Number of variants skipped due to missing genotypes: %d', len(missing_genotypes))
 				logger.info('Number of variants skipped due to Mendelian conflicts: %d', len(mendelian_conflicts))

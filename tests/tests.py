@@ -147,3 +147,53 @@ def test_phase_trio_dont_merge_blocks():
 
 	finally:
 		shutil.rmtree(tempdir)
+
+
+def test_phase_mendelian_conflict():
+	tempdir = tempfile.mkdtemp()
+	try:
+		bamfile = tempdir + '/trio.pacbio.bam'
+		outvcf = tempdir + '/output.vcf'
+		pysam.view('tests/data/trio.pacbio.sam', '-Sb', '-o', bamfile, catch_stdout=False)
+		pysam.index(bamfile, catch_stdout=False)
+		run_whatshap(phase_input_files=[bamfile], variant_file='tests/data/trio-mendelian-conflict.vcf', output=outvcf, ped='tests/data/trio.ped', genmap='tests/data/trio.map')
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == '1'
+		assert len(table.variants) == 5
+		assert table.samples == ['HG004', 'HG003', 'HG002']
+
+		assert_phasing(table.phases_of('HG004'), [VariantCallPhase(60906167,0,None), None, VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None)])
+		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0,None), None, VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None)])
+		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
+
+	finally:
+		shutil.rmtree(tempdir)
+
+
+def test_phase_missing_genotypes():
+	tempdir = tempfile.mkdtemp()
+	try:
+		bamfile = tempdir + '/trio.pacbio.bam'
+		outvcf = tempdir + '/output.vcf'
+		pysam.view('tests/data/trio.pacbio.sam', '-Sb', '-o', bamfile, catch_stdout=False)
+		pysam.index(bamfile, catch_stdout=False)
+		run_whatshap(phase_input_files=[bamfile], variant_file='tests/data/trio-missing-genotypes.vcf', output=outvcf, ped='tests/data/trio.ped', genmap='tests/data/trio.map')
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == '1'
+		assert len(table.variants) == 5
+		assert table.samples == ['HG004', 'HG003', 'HG002']
+
+		assert_phasing(table.phases_of('HG004'), [VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), None, VariantCallPhase(60906167,0,None), None])
+		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0,None), None, None, VariantCallPhase(60906167,0,None), None])
+		assert_phasing(table.phases_of('HG002'), [None, VariantCallPhase(60906167,0,None), None, None, None])
+
+	finally:
+		shutil.rmtree(tempdir)
