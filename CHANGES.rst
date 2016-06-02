@@ -16,7 +16,9 @@ v0.11
 v0.10 (2016-04-27)
 ------------------
 
-
+* Use ``--ped`` to phase pedigrees with the PedMEC algorithm
+* Phase all samples in a multi-sample VCF
+* Drop support for Python 3.2 - we require at least Python 3.3 now
 
 v0.9 (2016-01-05)
 -----------------
