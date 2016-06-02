@@ -8,7 +8,9 @@ in development
 
 v0.11
 -----
-
+* When phasing a pedigree, blocks that are not connected by reads but
+  can be phased based on genotypes will be connected per default. This
+  behavior can be turned off using option ``--no-genetic-haplotyping``.
 
 
 v0.10 (2016-04-27)
