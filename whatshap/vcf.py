@@ -168,9 +168,6 @@ class VariantTable:
 				yield read
 
 
-class SampleNotFoundError(Exception):
-	pass
-
 
 class MixedPhasingError(Exception):
 	pass
@@ -182,29 +179,17 @@ VariantCallPhase = namedtuple('VariantCallPhase', ['block_id', 'phase', 'quality
 class VcfReader:
 	"""
 	Read a VCF file chromosome by chromosome.
-
-	TODO
-	- Sites with multiple ALTs are skipped.
-	- Always include deletions since they can 'overlap' other variants
 	"""
-	def __init__(self, path, indels=False, samples=None):
+	def __init__(self, path, indels=False):
 		"""
 		path -- Path to VCF file
-		samples -- Names of samples to extract. If None, extract all.
 		indels -- Whether to include also insertions and deletions in the list of
 			variants.
 		"""
+		# TODO Always include deletions since they can 'overlap' other variants
 		self._indels = indels
 		self._vcf_reader = vcf.Reader(filename=path)
 		self.samples = self._vcf_reader.samples  # intentionally public
-
-		if samples is None:
-			self._samples_of_interest = frozenset(self.samples)
-		else:
-			for sample in samples:
-				if sample not in self.samples:
-					raise SampleNotFoundError("Requested sample %r not found in VCF.", sample)
-			self._samples_of_interest = frozenset(samples)
 		logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
 	def _group_by_chromosome(self):

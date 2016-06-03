@@ -297,7 +297,7 @@ def run_whatshap(phase_input_files, variant_file,
 			logger.error(e)
 			sys.exit(1)
 		try:
-			phase_input_vcf_readers = [VcfReader(f, samples=[sample] if sample else None, indels=indels) for f in phase_input_vcf_filenames]
+			phase_input_vcf_readers = [VcfReader(f, indels=indels) for f in phase_input_vcf_filenames]
 		except OSError as e:
 			logger.error(e)
 			sys.exit(1)
@@ -307,8 +307,8 @@ def run_whatshap(phase_input_files, variant_file,
 			output = sys.stdout
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file, normalized=True, out_file=output)
-		vcf_reader = VcfReader(variant_file, samples=[sample] if sample else None, indels=indels)
 		if ignore_read_groups and sample is None and len(vcf_reader.samples) > 1:
+		vcf_reader = VcfReader(variant_file, indels=indels)
 			logger.error('When using --ignore-read-groups on a VCF with '
 				'multiple samples, --sample must also be used.')
 			sys.exit(1)
