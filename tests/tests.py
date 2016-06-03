@@ -88,8 +88,10 @@ def test_phase_three_individuals():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		assert_phasing(table.phases_of('HG004'), [None, VariantCallPhase(60907394,0,None), VariantCallPhase(60907394,0,None), VariantCallPhase(60907394,0,None), None])
-		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0,None), None, VariantCallPhase(60906167,0,None), None, None])
+		phase1 = VariantCallPhase(60906167, 0, None)
+		phase3 = VariantCallPhase(60907394, 0, None)
+		assert_phasing(table.phases_of('HG004'), [None, phase3, phase3, phase3, None])
+		assert_phasing(table.phases_of('HG003'), [phase1, None, phase1, None, None])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
 
 
@@ -106,8 +108,9 @@ def test_phase_one_of_three_individuals():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
+		phase0 = VariantCallPhase(60906167,0,None)
 		assert_phasing(table.phases_of('HG004'), [None, None, None, None, None])
-		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0, None), None, VariantCallPhase(60906167,0, None), None, None])
+		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, None, None])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
 
 
@@ -125,9 +128,10 @@ def test_phase_trio():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		assert_phasing(table.phases_of('HG004'), [VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None)])
-		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0,None), None, VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None)])
-		assert_phasing(table.phases_of('HG002'), [None, VariantCallPhase(60906167,0,None), None, None, None])
+		phase0 = VariantCallPhase(60906167, 0, None)
+		assert_phasing(table.phases_of('HG004'), [phase0, phase0, phase0, phase0, phase0])
+		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
+		assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
 
 
 def test_phase_trio_merged_blocks():
@@ -147,9 +151,11 @@ def test_phase_trio_merged_blocks():
 		assert table.num_of_blocks_of('HG003') == 1
 		assert table.num_of_blocks_of('HG002') == 1
 
-		assert_phasing(table.phases_of('HG004'), [VariantCallPhase(752566,1,None), VariantCallPhase(752566,1,None), VariantCallPhase(752566,1,None), None, VariantCallPhase(752566,1,None), VariantCallPhase(752566,1,None), VariantCallPhase(752566,1,None), VariantCallPhase(752566,1,None)])
-		assert_phasing(table.phases_of('HG003'), [None, None, None, None, VariantCallPhase(752566,0,None), VariantCallPhase(752566,0,None), VariantCallPhase(752566,0,None), VariantCallPhase(752566,1,None)])
-		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None, None, None, VariantCallPhase(752566,1,None)])
+		phase0 = VariantCallPhase(752566, 0, None)
+		phase1 = VariantCallPhase(752566, 1, None)
+		assert_phasing(table.phases_of('HG004'), [phase1, phase1, phase1, None, phase1, phase1, phase1, phase1])
+		assert_phasing(table.phases_of('HG003'), [None, None, None, None, phase0, phase0, phase0, phase1])
+		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None, None, None, phase1])
 
 
 def test_phase_trio_dont_merge_blocks():
@@ -169,9 +175,12 @@ def test_phase_trio_dont_merge_blocks():
 		assert table.num_of_blocks_of('HG003') == 1
 		assert table.num_of_blocks_of('HG002') == 1
 
-		assert_phasing(table.phases_of('HG004'), [VariantCallPhase(752566,1,None), VariantCallPhase(752566,1,None), VariantCallPhase(752566,1,None), None, VariantCallPhase(853954,1,None), VariantCallPhase(853954,1,None), VariantCallPhase(853954,1,None), VariantCallPhase(853954,1,None)])
-		assert_phasing(table.phases_of('HG003'), [None, None, None, None, VariantCallPhase(853954,0,None), VariantCallPhase(853954,0,None), VariantCallPhase(853954,0,None), VariantCallPhase(853954,1,None)])
-		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None, None, None, VariantCallPhase(853954,1,None)])
+		phase1 = VariantCallPhase(752566, 1, None)
+		phase2_0 = VariantCallPhase(853954, 0, None)
+		phase2_1 = VariantCallPhase(853954, 1, None)
+		assert_phasing(table.phases_of('HG004'), [phase1, phase1, phase1, None, phase2_1, phase2_1, phase2_1, phase2_1])
+		assert_phasing(table.phases_of('HG003'), [None, None, None, None, phase2_0, phase2_0, phase2_0, phase2_1])
+		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None, None, None, phase2_1])
 
 
 def test_phase_mendelian_conflict():
@@ -188,8 +197,9 @@ def test_phase_mendelian_conflict():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		assert_phasing(table.phases_of('HG004'), [VariantCallPhase(60906167,0,None), None, VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None)])
-		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0,None), None, VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None)])
+		phase = VariantCallPhase(60906167, 0, None)
+		assert_phasing(table.phases_of('HG004'), [phase, None, phase, phase, phase])
+		assert_phasing(table.phases_of('HG003'), [phase, None, phase, phase, phase])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
 
 
@@ -207,6 +217,7 @@ def test_phase_missing_genotypes():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		assert_phasing(table.phases_of('HG004'), [VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), None, VariantCallPhase(60906167,0,None), None])
-		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0,None), None, None, VariantCallPhase(60906167,0,None), None])
-		assert_phasing(table.phases_of('HG002'), [None, VariantCallPhase(60906167,0,None), None, None, None])
+		phase = VariantCallPhase(60906167, 0, None)
+		assert_phasing(table.phases_of('HG004'), [phase, phase, None, phase, None])
+		assert_phasing(table.phases_of('HG003'), [phase, None, None, phase, None])
+		assert_phasing(table.phases_of('HG002'), [None, phase, None, None, None])
