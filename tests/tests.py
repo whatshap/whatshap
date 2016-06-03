@@ -7,6 +7,24 @@ from nose.tools import raises
 from whatshap.__main__ import run_whatshap
 from whatshap.vcf import VcfReader, VariantCallPhase
 
+trio_bamfile = 'tests/data/trio.pacbio.bam'
+trio_merged_bamfile = 'tests/data/trio-merged-blocks.bam'
+
+
+def setup_module():
+	# This function is run once for this module
+	pysam.view('tests/data/trio.pacbio.sam', '-b', '-o', trio_bamfile, catch_stdout=False)
+	pysam.index(trio_bamfile, catch_stdout=False)
+	pysam.view('tests/data/trio-merged-blocks.sam', '-b', '-o', trio_merged_bamfile, catch_stdout=False)
+	pysam.index(trio_merged_bamfile, catch_stdout=False)
+
+
+def teardown_module():
+	os.remove(trio_bamfile)
+	os.remove(trio_bamfile + '.bai')
+	os.remove(trio_merged_bamfile)
+	os.remove(trio_merged_bamfile + '.bai')
+
 
 def test_pysam_version():
 	from pysam import __version__ as pysam_version
@@ -60,11 +78,8 @@ def assert_phasing(phases, expected_phases):
 def test_phase_three_individuals():
 	tempdir = tempfile.mkdtemp()
 	try:
-		bamfile = tempdir + '/trio.pacbio.bam'
 		outvcf = tempdir + '/output.vcf'
-		pysam.view('tests/data/trio.pacbio.sam', '-Sb', '-o', bamfile, catch_stdout=False)
-		pysam.index(bamfile, catch_stdout=False)
-		run_whatshap(phase_input_files=[bamfile], variant_file='tests/data/trio.vcf', output=outvcf)
+		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf)
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf))
@@ -85,11 +100,8 @@ def test_phase_three_individuals():
 def test_phase_one_of_three_individuals():
 	tempdir = tempfile.mkdtemp()
 	try:
-		bamfile = tempdir + '/trio.pacbio.bam'
 		outvcf = tempdir + '/output.vcf'
-		pysam.view('tests/data/trio.pacbio.sam', '-Sb', '-o', bamfile, catch_stdout=False)
-		pysam.index(bamfile, catch_stdout=False)
-		run_whatshap(phase_input_files=[bamfile], variant_file='tests/data/trio.vcf', output=outvcf, samples=['HG003'])
+		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf, samples=['HG003'])
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf))
@@ -110,11 +122,9 @@ def test_phase_one_of_three_individuals():
 def test_phase_trio():
 	tempdir = tempfile.mkdtemp()
 	try:
-		bamfile = tempdir + '/trio.pacbio.bam'
 		outvcf = tempdir + '/output.vcf'
-		pysam.view('tests/data/trio.pacbio.sam', '-Sb', '-o', bamfile, catch_stdout=False)
-		pysam.index(bamfile, catch_stdout=False)
-		run_whatshap(phase_input_files=[bamfile], variant_file='tests/data/trio.vcf', output=outvcf, ped='tests/data/trio.ped', genmap='tests/data/trio.map')
+		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf,
+		        ped='tests/data/trio.ped', genmap='tests/data/trio.map')
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf))
@@ -135,11 +145,9 @@ def test_phase_trio():
 def test_phase_trio_merged_blocks():
 	tempdir = tempfile.mkdtemp()
 	try:
-		bamfile = tempdir + '/trio-merged-blocks.bam'
 		outvcf = tempdir + '/output-merged-blocks.vcf'
-		pysam.view('tests/data/trio-merged-blocks.sam', '-Sb', '-o', bamfile, catch_stdout=False)
-		pysam.index(bamfile, catch_stdout=False)
-		run_whatshap(phase_input_files=[bamfile], variant_file='tests/data/trio-merged-blocks.vcf', output=outvcf, ped='tests/data/trio.ped', genmap='tests/data/trio.map')
+		run_whatshap(phase_input_files=[trio_merged_bamfile], variant_file='tests/data/trio-merged-blocks.vcf', output=outvcf,
+		        ped='tests/data/trio.ped', genmap='tests/data/trio.map')
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf))
@@ -163,11 +171,9 @@ def test_phase_trio_merged_blocks():
 def test_phase_trio_dont_merge_blocks():
 	tempdir = tempfile.mkdtemp()
 	try:
-		bamfile = tempdir + '/trio-merged-blocks.bam'
 		outvcf = tempdir + '/output-merged-blocks.vcf'
-		pysam.view('tests/data/trio-merged-blocks.sam', '-Sb', '-o', bamfile, catch_stdout=False)
-		pysam.index(bamfile, catch_stdout=False)
-		run_whatshap(phase_input_files=[bamfile], variant_file='tests/data/trio-merged-blocks.vcf', output=outvcf, ped='tests/data/trio.ped', genmap='tests/data/trio.map', genetic_haplotyping=False)
+		run_whatshap(phase_input_files=[trio_merged_bamfile], variant_file='tests/data/trio-merged-blocks.vcf', output=outvcf,
+				ped='tests/data/trio.ped', genmap='tests/data/trio.map', genetic_haplotyping=False)
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf))
@@ -191,11 +197,9 @@ def test_phase_trio_dont_merge_blocks():
 def test_phase_mendelian_conflict():
 	tempdir = tempfile.mkdtemp()
 	try:
-		bamfile = tempdir + '/trio.pacbio.bam'
 		outvcf = tempdir + '/output.vcf'
-		pysam.view('tests/data/trio.pacbio.sam', '-Sb', '-o', bamfile, catch_stdout=False)
-		pysam.index(bamfile, catch_stdout=False)
-		run_whatshap(phase_input_files=[bamfile], variant_file='tests/data/trio-mendelian-conflict.vcf', output=outvcf, ped='tests/data/trio.ped', genmap='tests/data/trio.map')
+		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio-mendelian-conflict.vcf', output=outvcf,
+				ped='tests/data/trio.ped', genmap='tests/data/trio.map')
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf))
@@ -216,11 +220,9 @@ def test_phase_mendelian_conflict():
 def test_phase_missing_genotypes():
 	tempdir = tempfile.mkdtemp()
 	try:
-		bamfile = tempdir + '/trio.pacbio.bam'
 		outvcf = tempdir + '/output.vcf'
-		pysam.view('tests/data/trio.pacbio.sam', '-Sb', '-o', bamfile, catch_stdout=False)
-		pysam.index(bamfile, catch_stdout=False)
-		run_whatshap(phase_input_files=[bamfile], variant_file='tests/data/trio-missing-genotypes.vcf', output=outvcf, ped='tests/data/trio.ped', genmap='tests/data/trio.map')
+		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio-missing-genotypes.vcf', output=outvcf,
+				ped='tests/data/trio.ped', genmap='tests/data/trio.map')
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf))
