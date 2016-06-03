@@ -1,4 +1,4 @@
-import tempfile
+from tempfile import TemporaryDirectory
 import os
 import shutil
 import pysam
@@ -76,8 +76,7 @@ def assert_phasing(phases, expected_phases):
 
 
 def test_phase_three_individuals():
-	tempdir = tempfile.mkdtemp()
-	try:
+	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf)
 		assert os.path.isfile(outvcf)
@@ -93,13 +92,9 @@ def test_phase_three_individuals():
 		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0,None), None, VariantCallPhase(60906167,0,None), None, None])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
 
-	finally:
-		shutil.rmtree(tempdir)
-
 
 def test_phase_one_of_three_individuals():
-	tempdir = tempfile.mkdtemp()
-	try:
+	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf, samples=['HG003'])
 		assert os.path.isfile(outvcf)
@@ -115,13 +110,9 @@ def test_phase_one_of_three_individuals():
 		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0, None), None, VariantCallPhase(60906167,0, None), None, None])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
 
-	finally:
-		shutil.rmtree(tempdir)
-
 
 def test_phase_trio():
-	tempdir = tempfile.mkdtemp()
-	try:
+	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf,
 		        ped='tests/data/trio.ped', genmap='tests/data/trio.map')
@@ -138,13 +129,9 @@ def test_phase_trio():
 		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0,None), None, VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None)])
 		assert_phasing(table.phases_of('HG002'), [None, VariantCallPhase(60906167,0,None), None, None, None])
 
-	finally:
-		shutil.rmtree(tempdir)
-
 
 def test_phase_trio_merged_blocks():
-	tempdir = tempfile.mkdtemp()
-	try:
+	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output-merged-blocks.vcf'
 		run_whatshap(phase_input_files=[trio_merged_bamfile], variant_file='tests/data/trio-merged-blocks.vcf', output=outvcf,
 		        ped='tests/data/trio.ped', genmap='tests/data/trio.map')
@@ -164,13 +151,9 @@ def test_phase_trio_merged_blocks():
 		assert_phasing(table.phases_of('HG003'), [None, None, None, None, VariantCallPhase(752566,0,None), VariantCallPhase(752566,0,None), VariantCallPhase(752566,0,None), VariantCallPhase(752566,1,None)])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None, None, None, VariantCallPhase(752566,1,None)])
 
-	finally:
-		shutil.rmtree(tempdir)
-
 
 def test_phase_trio_dont_merge_blocks():
-	tempdir = tempfile.mkdtemp()
-	try:
+	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output-merged-blocks.vcf'
 		run_whatshap(phase_input_files=[trio_merged_bamfile], variant_file='tests/data/trio-merged-blocks.vcf', output=outvcf,
 				ped='tests/data/trio.ped', genmap='tests/data/trio.map', genetic_haplotyping=False)
@@ -190,13 +173,9 @@ def test_phase_trio_dont_merge_blocks():
 		assert_phasing(table.phases_of('HG003'), [None, None, None, None, VariantCallPhase(853954,0,None), VariantCallPhase(853954,0,None), VariantCallPhase(853954,0,None), VariantCallPhase(853954,1,None)])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None, None, None, VariantCallPhase(853954,1,None)])
 
-	finally:
-		shutil.rmtree(tempdir)
-
 
 def test_phase_mendelian_conflict():
-	tempdir = tempfile.mkdtemp()
-	try:
+	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio-mendelian-conflict.vcf', output=outvcf,
 				ped='tests/data/trio.ped', genmap='tests/data/trio.map')
@@ -213,13 +192,9 @@ def test_phase_mendelian_conflict():
 		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0,None), None, VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None)])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
 
-	finally:
-		shutil.rmtree(tempdir)
-
 
 def test_phase_missing_genotypes():
-	tempdir = tempfile.mkdtemp()
-	try:
+	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio-missing-genotypes.vcf', output=outvcf,
 				ped='tests/data/trio.ped', genmap='tests/data/trio.map')
@@ -235,6 +210,3 @@ def test_phase_missing_genotypes():
 		assert_phasing(table.phases_of('HG004'), [VariantCallPhase(60906167,0,None), VariantCallPhase(60906167,0,None), None, VariantCallPhase(60906167,0,None), None])
 		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0,None), None, None, VariantCallPhase(60906167,0,None), None])
 		assert_phasing(table.phases_of('HG002'), [None, VariantCallPhase(60906167,0,None), None, None, None])
-
-	finally:
-		shutil.rmtree(tempdir)
