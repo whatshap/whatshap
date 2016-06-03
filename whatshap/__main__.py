@@ -222,6 +222,43 @@ def split_input_file_list(input_files):
 	return bams, vcfs
 
 
+def setup_pedigree(ped_path, numeric_sample_ids, samples):
+	"""
+	Read in PED file to set up list of relationships (individuals).
+
+	Return a pair (individuals, pedigree_samples)
+
+	ped_path -- path to PED file
+	samples -- samples that exist in the VCF
+	"""
+	individuals = []
+	pedigree_samples = set()
+	for individual in PedReader(ped_path, numeric_sample_ids):
+		if (individual.id is None or individual.mother_id is None or
+				    individual.father_id is None):
+			logger.warning('Relationship %s/%s/%s ignored '
+			               'because at least one of the individuals is unknown',
+			               individual.id, individual.mother_id, individual.father_id)
+		else:
+			individuals.append(individual)
+			pedigree_samples.add(individual.id)
+			pedigree_samples.add(individual.mother_id)
+			pedigree_samples.add(individual.father_id)
+
+	for sample in pedigree_samples:
+		if sample not in samples:
+			# TODO should that really be an error?
+			logger.error('Sample %r not found in VCF', sample)
+			sys.exit(1)
+	for sample in samples:
+		if sample not in pedigree_samples:
+			# TODO should be single-individual-phased instead
+			# or perhaps it does work with the PedMEC algorithm
+			logger.warning('No relationship known for sample %r - '
+			               'will not be phased', sample)
+	return individuals, pedigree_samples
+
+
 def run_whatshap(phase_input_files, variant_file,
 		output=None, sample=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True,
@@ -280,32 +317,7 @@ def run_whatshap(phase_input_files, variant_file,
 			haplotype_bam_writer = HaplotypeBamWriter(phase_input_bam_filenames, haplotype_bams_prefix, sample)
 
 		if ped:
-			# Read in PED file to set up list of relationships (individuals)
-			individuals = []
-			samples_of_interest = set()
-			for individual in PedReader(ped, numeric_sample_ids):
-				if (individual.id is None or individual.mother_id is None or
-						individual.father_id is None):
-					logger.warning('Relationship %s/%s/%s ignored '
-						'because at least one of the individuals is unknown',
-						individual.id, individual.mother_id, individual.father_id)
-				else:
-					individuals.append(individual)
-					samples_of_interest.add(individual.id)
-					samples_of_interest.add(individual.mother_id)
-					samples_of_interest.add(individual.father_id)
-
-			for sample in samples_of_interest:
-				if sample not in vcf_reader.samples:
-					# TODO should that really be an error?
-					logger.error('Sample %s not found in VCF', sample)
-					sys.exit(1)
-			for sample in vcf_reader.samples:
-				if sample not in samples_of_interest:
-					# TODO should be single-individual-phased instead
-					# or perhaps it does work with the PedMEC algorithm
-					logger.warning('No relationship known for sample %s - '
-						'will not be phased', sample)
+			individuals, samples_of_interest = setup_pedigree(ped, numeric_sample_ids, vcf_reader.samples)
 
 		# Read phase information provided as VCF files, if provided.
 		# TODO: do this chromosome- and/or sample-wise on demand to save memory.
