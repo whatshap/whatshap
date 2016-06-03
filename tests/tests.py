@@ -2,6 +2,8 @@ import tempfile
 import os
 import shutil
 import pysam
+from nose.tools import raises
+
 from whatshap.__main__ import run_whatshap
 from whatshap.vcf import VcfReader, VariantCallPhase
 
@@ -25,6 +27,12 @@ def test_default_output():
 def test_bam_without_readgroup():
 	run_whatshap(phase_input_files=['tests/data/no-readgroup.bam'], variant_file='tests/data/onevariant.vcf',
 		output='/dev/null', ignore_read_groups=True)
+
+
+@raises(SystemExit)
+def test_requested_sample_not_found():
+	run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
+		output='/dev/null', samples=['DOES_NOT_EXIST'])
 
 
 def assert_phasing(phases, expected_phases):
