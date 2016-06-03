@@ -74,6 +74,8 @@ extensions = [
 		], language='c++', extra_compile_args=["-std=c++11"],),
 	Extension('whatshap.priorityqueue',
 		sources=['whatshap/priorityqueue.pyx'], language='c++', extra_compile_args=["-std=c++11"]),
+	Extension('whatshap.align',
+		sources=['whatshap/align.pyx'], language='c++', extra_compile_args=["-std=c++11"]),
 ]
 
 
@@ -114,7 +116,7 @@ setup(
 	ext_modules = extensions,
 	packages = ['whatshap', 'whatshap.scripts'],
 	scripts = ['bin/whatshap', 'bin/phasingstats'],
-	install_requires = ['pysam<0.9.0', 'PyVCF'] + extra_install_requires,
+	install_requires = ['pysam<0.9.0', 'PyVCF', 'pyfaidx'] + extra_install_requires,
 	classifiers = [
 		"Development Status :: 4 - Beta",
 		"Environment :: Console",

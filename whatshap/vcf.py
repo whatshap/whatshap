@@ -180,15 +180,17 @@ class VcfReader:
 	"""
 	Read a VCF file chromosome by chromosome.
 	"""
-	def __init__(self, path, indels=False):
+	def __init__(self, path, indels=False, normalize=False):
 		"""
 		path -- Path to VCF file
 		indels -- Whether to include also insertions and deletions in the list of
 			variants.
+		normalize -- Whether to normalize variants
 		"""
 		# TODO Always include deletions since they can 'overlap' other variants
 		self._indels = indels
 		self._vcf_reader = vcf.Reader(filename=path)
+		self._normalize = normalize
 		self.samples = self._vcf_reader.samples  # intentionally public
 		logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
@@ -230,7 +232,7 @@ class VcfReader:
 		"""
 		Yield VariantTable objects for each chromosome.
 
-		Indels are normalized; multi-ALT sites and complex variants are skipped.
+		Multi-ALT sites are skipped.
 		"""
 		for chromosome, records in self._group_by_chromosome():
 			yield self._process_single_chromosome(chromosome, records)
@@ -271,18 +273,25 @@ class VcfReader:
 	def _process_single_chromosome(self, chromosome, records):
 		phase_detected = None
 		n_snps = 0
-		n_indels = 0
-		n_complex = 0
+		n_other = 0
 		n_multi = 0
 		table = VariantTable(chromosome, self.samples)
 		for record in records:
 			if len(record.ALT) > 1:
-				# Skip sites with multiple alternative alleles (see note in docstring)
+				# Multi-ALT sites are not supported, yet
 				n_multi += 1
 				continue
 
-			ref, alt = str(record.REF), str(record.ALT[0])
-			pos, ref, alt = self.normalize(record.start, ref, alt)
+			pos, ref, alt = record.start, str(record.REF), str(record.ALT[0])
+			if len(ref) == len(alt) == 1:
+				n_snps += 1
+			else:
+				n_other += 1
+				if not self._indels:
+					continue
+
+			if self._normalize:
+				pos, ref, alt = self.normalize(pos, ref, alt)
 
 			# PyVCF pecularity: gt_alleles is a list of the alleles in the
 			# GT field, but as strings.
@@ -292,20 +301,6 @@ class VcfReader:
 			logger.debug("Call %s:%d %s→%s",
 				record.CHROM, record.start + 1, record.REF, record.ALT)
 			"""
-
-			# Determine variant type: SNP, indel or complex
-			if len(ref) == len(alt) == 1:
-				n_snps += 1
-				variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
-			elif (len(ref) == 0) != (len(alt) == 0):
-				n_indels += 1
-				if not self._indels:
-					continue
-				variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
-			else:
-				# A complex variant such as GCG -> TCT or CTCTC -> CA occurred.
-				n_complex += 1
-				continue
 
 			# Read phasing information (allow GT/PS or HP phase information, but not both)
 			phases = []
@@ -323,11 +318,11 @@ class VcfReader:
 
 			GT_TO_INT = { 0: 0, 1: 1, 2: 2, None: -1 }
 			genotypes = array('b', (GT_TO_INT[call.gt_type] for call in record.samples))
+			variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
 			table.add_variant(variant, genotypes, phases)
 
-		logger.debug("No. of SNPs on this chromosome: %s; no. of indels: %s. "
-			"Skipped %s complex variants. Skipped %s multi-ALTs.", n_snps,
-			n_indels, n_complex, n_multi)
+		logger.debug("Parsed %s SNPs and %s non-SNPs. Also skipped %s multi-ALTs.", n_snps,
+			n_other, n_multi)
 
 		# TODO remove overlapping variants
 		return table

@@ -14,16 +14,24 @@ variants a variant belongs to. The VCF file can also be gzip-compressed.
 Features and limitations
 ========================
 
-WhatsHap currently supports phasing of SNPs (single-nucleotide changes) in
-diploid genomes. All SNPs in the input VCF that are marked as being heterozygous
+WhatsHap supports phasing of variants in diploid genomes.
+
+Supported variant types are SNVs (single-nucleotide variants), insertions,
+deletions, MNPs (multiple adjacent SNVs) and “complex” variants. Complex
+variants are those that do not fall in any of the other categories. An
+example is the variant TGCA → AAC. Structural variants are not phased.
+
+If no reference sequence is provided (using ``--reference``), only
+SNVs, insertions and deletions can be phased.
+
+All variants in the input VCF that are marked as being heterozygous
 (genotype 0/1) and that have appropriate coverage are used as input for the core
-phasing algorithm. If the algorithm could determine how the SNP should be
+phasing algorithm. If the algorithm could determine how the variant should be
 phased, that information will be added to the variant in the output VCF.
 
-Insertions, deletions and multi-nucleotide changes (MNPs) are not phased, nor
-are structural variations. All records that contain such variants will not
-be modified by WhatsHap, that is, the records will simply be copied from the
-input to the output file.
+Variants can be left unphased for two reasons: Either the variant type is
+not supported or the phasing algorithm could not make a phasing decision.
+In both cases, the VCF record is copied from the input to the output file unchanged.
 
 
 Trusting the variant caller

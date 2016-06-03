@@ -8,6 +8,8 @@ import sys
 import platform
 from collections import defaultdict
 
+import pyfaidx
+
 try:
 	from contextlib import ExitStack
 except ImportError:
@@ -259,7 +261,7 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 	return individuals, pedigree_samples
 
 
-def run_whatshap(phase_input_files, variant_file,
+def run_whatshap(phase_input_files, variant_file, reference=None,
 		output=None, samples=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True,
 		haplotype_bams_prefix=None, ped=None, genmap=None, genetic_haplotyping=True):
@@ -268,6 +270,7 @@ def run_whatshap(phase_input_files, variant_file,
 
 	phase_input_files -- list of paths to BAM/VCF files
 	variant_file -- path to input VCF
+	reference -- path to reference FASTA
 	output -- path to output VCF or use None for stdout
 	samples -- names of samples to phase. an empty list means: phase all samples
 	ignore_read_groups
@@ -301,12 +304,23 @@ def run_whatshap(phase_input_files, variant_file,
 		except OSError as e:
 			logger.error(e)
 			sys.exit(1)
+		if reference:
+			try:
+				fasta = stack.enter_context(pyfaidx.Fasta(reference, as_raw=True))
+			except OSError as e:
+				logger.error('%s', e)
+				sys.exit(1)
+		else:
+			fasta = None
+		del reference
+		# no reference given -> do not re-align -> must normalize indels
+		normalize = fasta is None
 		if output is not None:
 			output = stack.enter_context(open(output, 'w'))
 		else:
 			output = sys.stdout
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
-		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file, normalized=True, out_file=output)
+		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file, normalized=normalize, out_file=output)
 		vcf_reader = VcfReader(variant_file, indels=indels)
 
 		if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
@@ -408,8 +422,9 @@ def run_whatshap(phase_input_files, variant_file,
 				for sample in variant_table.samples:
 					logger.info('Reading reads for sample %r', sample)
 					timers.start('read_bam')
+					reference = fasta[chromosome] if fasta else None
 					try:
-						readset = bam_reader.read(chromosome, variant_table.variants, sample)
+						readset = bam_reader.read(chromosome, variant_table.variants, sample, reference)
 					except SampleNotFoundError:
 						logger.warning("Sample %r not found in any BAM file.", sample)
 						readset = ReadSet()
@@ -537,8 +552,9 @@ def run_whatshap(phase_input_files, variant_file,
 					bam_sample = None if ignore_read_groups else sample
 					logger.info('Reading the BAM file ...')
 					timers.start('read_bam')
+					reference = fasta[chromosome] if fasta else None
 					try:
-						reads = bam_reader.read(chromosome, variants, bam_sample)
+						reads = bam_reader.read(chromosome, variants, bam_sample, reference)
 					except SampleNotFoundError:
 						logger.warning("Sample %r not found in any BAM file.", bam_sample)
 						reads = ReadSet()
@@ -621,6 +637,9 @@ def main():
 		help='Show more verbose output')
 	parser.add_argument('-o', '--output', default=None,
 		help='Output VCF file. If omitted, use standard output.')
+	parser.add_argument('--reference', '-r', metavar='FASTA',
+		help='Reference file. Provide this to detect alleles through re-alignment. '
+			'If no index (.fai) exists, it will be created')
 	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
 	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',
