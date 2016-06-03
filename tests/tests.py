@@ -2,6 +2,8 @@ import tempfile
 import os
 import shutil
 import pysam
+from nose.tools import raises
+
 from whatshap.__main__ import run_whatshap
 from whatshap.vcf import VcfReader, VariantCallPhase
 
@@ -27,6 +29,12 @@ def test_bam_without_readgroup():
 		output='/dev/null', ignore_read_groups=True)
 
 
+@raises(SystemExit)
+def test_requested_sample_not_found():
+	run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
+		output='/dev/null', samples=['DOES_NOT_EXIST'])
+
+
 def assert_phasing(phases, expected_phases):
 	print('assert_phasing({}, {})'.format(phases, expected_phases))
 	assert len(phases) == len(expected_phases)
@@ -36,6 +44,7 @@ def assert_phasing(phases, expected_phases):
 	for phase, expected_phase in zip(phases, expected_phases):
 		if (phase is None) and (expected_phase is None):
 			continue
+		assert phase is not None and expected_phase is not None
 		assert phase.block_id == expected_phase.block_id
 		p_unchanged.append(phase.phase)
 		p_inverted.append(1-phase.phase)
@@ -62,6 +71,31 @@ def test_phase_three_individuals():
 
 		assert_phasing(table.phases_of('HG004'), [None, VariantCallPhase(60907394,0,None), VariantCallPhase(60907394,0,None), VariantCallPhase(60907394,0,None), None])
 		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0,None), None, VariantCallPhase(60906167,0,None), None, None])
+		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
+
+	finally:
+		shutil.rmtree(tempdir)
+
+
+def test_phase_one_of_three_individuals():
+	tempdir = tempfile.mkdtemp()
+	try:
+		bamfile = tempdir + '/trio.pacbio.bam'
+		outvcf = tempdir + '/output.vcf'
+		pysam.view('tests/data/trio.pacbio.sam', '-Sb', '-o', bamfile, catch_stdout=False)
+		pysam.index(bamfile, catch_stdout=False)
+		run_whatshap(phase_input_files=[bamfile], variant_file='tests/data/trio.vcf', output=outvcf, samples=['HG003'])
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == '1'
+		assert len(table.variants) == 5
+		assert table.samples == ['HG004', 'HG003', 'HG002']
+
+		assert_phasing(table.phases_of('HG004'), [None, None, None, None, None])
+		assert_phasing(table.phases_of('HG003'), [VariantCallPhase(60906167,0, None), None, VariantCallPhase(60906167,0, None), None, None])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
 
 	finally:

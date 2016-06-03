@@ -260,7 +260,7 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 
 
 def run_whatshap(phase_input_files, variant_file,
-		output=None, sample=None, ignore_read_groups=False, indels=True,
+		output=None, samples=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True,
 		haplotype_bams_prefix=None, ped=None, genmap=None, genetic_haplotyping=True):
 	"""
@@ -269,7 +269,7 @@ def run_whatshap(phase_input_files, variant_file,
 	phase_input_files -- list of paths to BAM/VCF files
 	variant_file -- path to input VCF
 	output -- path to output VCF or use None for stdout
-	sample -- name of sample to phase. None means: phase all samples
+	samples -- names of samples to phase. an empty list means: phase all samples
 	ignore_read_groups
 	mapping_quality -- discard reads below this mapping quality
 	max_coverage
@@ -297,7 +297,7 @@ def run_whatshap(phase_input_files, variant_file,
 			logger.error(e)
 			sys.exit(1)
 		try:
-			phase_input_vcf_readers = [VcfReader(f, samples=[sample] if sample else None, indels=indels) for f in phase_input_vcf_filenames]
+			phase_input_vcf_readers = [VcfReader(f, indels=indels) for f in phase_input_vcf_filenames]
 		except OSError as e:
 			logger.error(e)
 			sys.exit(1)
@@ -307,17 +307,29 @@ def run_whatshap(phase_input_files, variant_file,
 			output = sys.stdout
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file, normalized=True, out_file=output)
-		vcf_reader = VcfReader(variant_file, samples=[sample] if sample else None, indels=indels)
-		if ignore_read_groups and sample is None and len(vcf_reader.samples) > 1:
+		vcf_reader = VcfReader(variant_file, indels=indels)
+
+		if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
 			logger.error('When using --ignore-read-groups on a VCF with '
 				'multiple samples, --sample must also be used.')
 			sys.exit(1)
+		if not samples:
+			samples = vcf_reader.samples
+		vcf_sample_set = set(vcf_reader.samples)
+		for sample in samples:
+			if sample not in vcf_sample_set:
+				logger.error('Sample %r requested on command-line not found in VCF', sample)
+				sys.exit(1)
+
 		haplotype_bam_writer = None
 		if haplotype_bams_prefix is not None:
-			haplotype_bam_writer = HaplotypeBamWriter(phase_input_bam_filenames, haplotype_bams_prefix, sample)
+			logger.warning('Writing haplotype BAMs only for the first sample')
+			haplotype_bam_writer = HaplotypeBamWriter(phase_input_bam_filenames, haplotype_bams_prefix, samples[0])
+
+		samples = frozenset(samples)
 
 		if ped:
-			individuals, samples_of_interest = setup_pedigree(ped, numeric_sample_ids, vcf_reader.samples)
+			individuals, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, vcf_reader.samples)
 
 		# Read phase information provided as VCF files, if provided.
 		# TODO: do this chromosome- and/or sample-wise on demand to save memory.
@@ -393,7 +405,7 @@ def run_whatshap(phase_input_files, variant_file,
 
 				# Get the reads belonging to each sample
 				readsets = dict()  # TODO this could become a list
-				for index, sample in enumerate(variant_table.samples):
+				for sample in variant_table.samples:
 					logger.info('Reading reads for sample %r', sample)
 					timers.start('read_bam')
 					try:
@@ -461,9 +473,9 @@ def run_whatshap(phase_input_files, variant_file,
 				assert len(variant_table.variants) == len(accessible_positions)
 
 				# Create Pedigree
-				individual_ids = { sample: index for index, sample in enumerate(samples_of_interest) }
+				individual_ids = { sample: index for index, sample in enumerate(pedigree_samples) }
 				pedigree = Pedigree(numeric_sample_ids)
-				for sample in samples_of_interest:
+				for sample in pedigree_samples:
 					pedigree.add_individual(sample, variant_table.genotypes_of(sample))
 				for individual in individuals:
 					pedigree.add_relationship(
@@ -487,7 +499,7 @@ def run_whatshap(phase_input_files, variant_file,
 				# Finally, run phasing algorithm
 				with timers('phase'):
 					logger.info('Phasing %d samples with the PedMEC algorithm ...',
-						len(samples_of_interest))
+						len(pedigree_samples))
 					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree)
 					superreads_list, transmission_vector = dp_table.get_super_reads()
 					logger.info('PedMEC cost: %d', dp_table.get_optimal_cost())
@@ -510,12 +522,14 @@ def run_whatshap(phase_input_files, variant_file,
 
 				# TODO Do superreads actually come out in the order in which the
 				# individuals were added to the pedigree?
-				for sample, sample_superreads in zip(samples_of_interest, superreads_list):
+				for sample, sample_superreads in zip(pedigree_samples, superreads_list):
 					superreads[sample] = sample_superreads
 					# identical for all samples
 					components[sample] = overall_components
 			else:
 				for sample, genotypes in zip(variant_table.samples, variant_table.genotypes):
+					if sample not in samples:
+						continue
 					logger.info('Working on sample %s', sample)
 					# pick variants heterozygous in this sample
 					variants = [ v for v, gt in zip(variant_table.variants, genotypes) if gt == 1 ]
@@ -620,9 +634,9 @@ def main():
 	parser.add_argument('--ignore-read-groups', default=False, action='store_true',
 		help='Ignore read groups in BAM header and assume all reads come '
 		'from the same sample.')
-	parser.add_argument('--sample', metavar='SAMPLE', default=None,
+	parser.add_argument('--sample', dest='samples', metavar='SAMPLE', default=[], action='append',
 		help='Name of a sample to phase. If not given, all samples in the '
-		'input VCF are phased.')
+		'input VCF are phased. Can be used multiple times.')
 	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
 		help='Write reads that have been used for phasing to haplotype-specific BAM files. '
 		'Creates PREFIX.1.bam and PREFIX.2.bam')
@@ -636,10 +650,11 @@ def main():
 	parser.add_argument('--no-genetic-haplotyping', dest='genetic_haplotyping',
 		action='store_false', default=True,
 		help='Do not merge blocks that are not connected by reads (i.e. solely based on genotype '
-		'status). Default: when in --ped mode, merge all blocks that contain at least on '
+		'status). Default: when in --ped mode, merge all blocks that contain at least one '
 		'homozygous genotype in at least one individual into one block.')
 	parser.add_argument('variant_file', metavar='VCF', help='VCF file with variants to be phased (can be gzip-compressed)')
-	parser.add_argument('phase_input_files', nargs='+', metavar='PHASEINPUT', help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')
+	parser.add_argument('phase_input_files', nargs='+', metavar='PHASEINPUT',
+	    help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')
 	args = parser.parse_args()
 	setup_logging(args.debug)
 	if args.ped and not args.all_heterozygous:
@@ -650,6 +665,8 @@ def main():
 		parser.error('Option --genmap can only be used together with --ped')
 	if args.ped and not args.genmap:
 		parser.error('Option --genmap is required if --ped is given')
+	if args.ped and args.samples:
+		parser.error('Option --sample cannot be used together with --ped')
 	del args.debug
 	run_whatshap(**vars(args))
 
