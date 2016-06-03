@@ -528,6 +528,8 @@ def run_whatshap(phase_input_files, variant_file,
 					components[sample] = overall_components
 			else:
 				for sample, genotypes in zip(variant_table.samples, variant_table.genotypes):
+					if sample not in samples:
+						continue
 					logger.info('Working on sample %s', sample)
 					# pick variants heterozygous in this sample
 					variants = [ v for v, gt in zip(variant_table.variants, genotypes) if gt == 1 ]
