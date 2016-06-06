@@ -20,7 +20,7 @@ from .args import HelpfulArgumentParser as ArgumentParser
 from .core import ReadSet, DPTable, readselection, Pedigree, PedigreeDPTable, NumericSampleIds
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
-                       load_genetic_map)
+                       load_genetic_map, uniform_recombination_map)
 from .bam import BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
@@ -262,9 +262,9 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 
 
 def run_whatshap(phase_input_files, variant_file, reference=None,
-		output=None, samples=None, ignore_read_groups=False, indels=True,
+		output=None, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True,
-		haplotype_bams_prefix=None, ped=None, genmap=None, genetic_haplotyping=True):
+		haplotype_bams_prefix=None, ped=None, recombrate=1.26e-6, genmap=None, genetic_haplotyping=True):
 	"""
 	Run WhatsHap.
 
@@ -273,6 +273,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 	reference -- path to reference FASTA
 	output -- path to output VCF or use None for stdout
 	samples -- names of samples to phase. an empty list means: phase all samples
+	chromosomes -- names of chromosomes to phase. an empty list means: phase all chromosomes
 	ignore_read_groups
 	mapping_quality -- discard reads below this mapping quality
 	max_coverage
@@ -344,6 +345,10 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 
 		if ped:
 			individuals, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, vcf_reader.samples)
+			if genmap:
+				logger.info('Using region-specific recombination rates from genetic map %s.', genmap)
+			else:
+				logger.info('Using uniform recombination rate of %g cM/Mb.', recombrate)
 
 		# Read phase information provided as VCF files, if provided.
 		# TODO: do this chromosome- and/or sample-wise on demand to save memory.
@@ -362,7 +367,14 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		for variant_table in vcf_reader:
 			chromosome = variant_table.chromosome
 			timers.stop('parse_vcf')
-			logger.info('Working on chromosome %s', chromosome)
+			if (not chromosomes) or (chromosome in chromosomes):
+				logger.info('Working on chromosome %s', chromosome)
+			else:
+				logger.info('Leaving chromosome %s unchanged (present in VCF but not requested by option --chromosome)', chromosome)
+				with timers('write_vcf'):
+					superreads, components = dict(), dict()
+					vcf_writer.write(chromosome, superreads, components)
+				continue
 			# These two variables hold the phasing results for all samples
 			superreads, components = dict(), dict()
 			if ped:
@@ -508,8 +520,11 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 
 				all_reads.sort()
 
-				# Load genetic map
-				recombination_costs = recombination_cost_map(load_genetic_map(genmap), accessible_positions)
+				if genmap:
+					# Load genetic map
+					recombination_costs = recombination_cost_map(load_genetic_map(genmap), accessible_positions)
+				else:
+					recombination_costs = uniform_recombination_map(recombrate, accessible_positions)
 
 				# Finally, run phasing algorithm
 				with timers('phase'):
@@ -656,6 +671,9 @@ def main():
 	parser.add_argument('--sample', dest='samples', metavar='SAMPLE', default=[], action='append',
 		help='Name of a sample to phase. If not given, all samples in the '
 		'input VCF are phased. Can be used multiple times.')
+	parser.add_argument('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
+		help='Name of chromosome to phase. If not given, all chromosomes in the '
+		'input VCF are phased. Can be used multiple times.')
 	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
 		help='Write reads that have been used for phasing to haplotype-specific BAM files. '
 		'Creates PREFIX.1.bam and PREFIX.2.bam')
@@ -664,8 +682,12 @@ def main():
 		'(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, '
 		'mother, and father sample names as used in the VCF and BAM. Other '
 		'columns are ignored.')
+	parser.add_argument('--recombrate', metavar='RECOMBRATE', type=float, default=1.26,
+		help='Recombination rate in cM/Mb (used with --ped). If given, a constant recombination '
+		'rate is assumed (default: %(default)gcM/Mb).')
 	parser.add_argument('--genmap', metavar='GENMAP',
-		help='File with genetic map (used with --ped)')  # TODO describe what the file format is
+		help='File with genetic map (used with --ped) to be used instead of constant recombination '
+		'rate, i.e. overrides option --recombrate.')  # TODO describe what the file format is
 	parser.add_argument('--no-genetic-haplotyping', dest='genetic_haplotyping',
 		action='store_false', default=True,
 		help='Do not merge blocks that are not connected by reads (i.e. solely based on genotype '
@@ -682,8 +704,8 @@ def main():
 		parser.error('Option --ignore-read-groups cannot be used together with --ped')
 	if args.genmap and not args.ped:
 		parser.error('Option --genmap can only be used together with --ped')
-	if args.ped and not args.genmap:
-		parser.error('Option --genmap is required if --ped is given')
+	if args.genmap and (len(args.chromosomes) != 1):
+		parser.error('Option --genmap can only be used when working on exactly one chromosome (use --chromosome)')
 	if args.ped and args.samples:
 		parser.error('Option --sample cannot be used together with --ped')
 	del args.debug

@@ -65,6 +65,16 @@ def recombination_cost_map(genetic_map, positions):
 	return result
 
 
+def uniform_recombination_map(recombrate, positions):
+	"""
+	For a list of positions and a constant recombination rate (in cM/Mb),
+	return a list "results" of the same length as "positions" such that
+	results[i] is the phred-scaled recombination probability between
+	positions[i-1] and positions[i].
+	"""
+	return [0] + [ round(centimorgen_to_phred((positions[i] - positions[i-1]) * 1e-6 * recombrate)) for i in range(1, len(positions)) ]
+
+
 def centimorgen_to_phred(distance):
 	assert distance >= 0
 	if distance == 0:
