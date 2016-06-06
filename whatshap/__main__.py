@@ -262,7 +262,7 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 
 
 def run_whatshap(phase_input_files, variant_file, reference=None,
-		output=None, samples=None, ignore_read_groups=False, indels=True,
+		output=None, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True,
 		haplotype_bams_prefix=None, ped=None, genmap=None, genetic_haplotyping=True):
 	"""
@@ -273,6 +273,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 	reference -- path to reference FASTA
 	output -- path to output VCF or use None for stdout
 	samples -- names of samples to phase. an empty list means: phase all samples
+	chromosomes -- names of chromosomes to phase. an empty list means: phase all chromosomes
 	ignore_read_groups
 	mapping_quality -- discard reads below this mapping quality
 	max_coverage
@@ -362,7 +363,14 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		for variant_table in vcf_reader:
 			chromosome = variant_table.chromosome
 			timers.stop('parse_vcf')
-			logger.info('Working on chromosome %s', chromosome)
+			if (not chromosomes) or (chromosome in chromosomes):
+				logger.info('Working on chromosome %s', chromosome)
+			else:
+				logger.info('Leaving chromosome %s unchanged (present in VCF but not requested by option --chromosome)', chromosome)
+				with timers('write_vcf'):
+					superreads, components = dict(), dict()
+					vcf_writer.write(chromosome, superreads, components)
+				continue
 			# These two variables hold the phasing results for all samples
 			superreads, components = dict(), dict()
 			if ped:
@@ -655,6 +663,9 @@ def main():
 		'from the same sample.')
 	parser.add_argument('--sample', dest='samples', metavar='SAMPLE', default=[], action='append',
 		help='Name of a sample to phase. If not given, all samples in the '
+		'input VCF are phased. Can be used multiple times.')
+	parser.add_argument('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
+		help='Name of chromosome to phase. If not given, all chromosomes in the '
 		'input VCF are phased. Can be used multiple times.')
 	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
 		help='Write reads that have been used for phasing to haplotype-specific BAM files. '

@@ -221,3 +221,27 @@ def test_phase_missing_genotypes():
 		assert_phasing(table.phases_of('HG004'), [phase, phase, None, phase, None])
 		assert_phasing(table.phases_of('HG003'), [phase, None, None, phase, None])
 		assert_phasing(table.phases_of('HG002'), [None, phase, None, None, None])
+
+
+def test_phase_specific_chromosome():
+	for requested_chromosome in ['1','2']:
+		with TemporaryDirectory() as tempdir:
+			outvcf = tempdir + '/output.vcf'
+			run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio-two-chromosomes.vcf', output=outvcf,
+					ped='tests/data/trio.ped', genmap='tests/data/trio.map', chromosomes=[requested_chromosome])
+			assert os.path.isfile(outvcf)
+
+			tables = list(VcfReader(outvcf))
+			assert len(tables) == 2
+			for table in tables:
+				assert len(table.variants) == 5
+				assert table.samples == ['HG004', 'HG003', 'HG002']
+				if table.chromosome == '1' == requested_chromosome:
+					phase0 = VariantCallPhase(60906167, 0, None)
+					assert_phasing(table.phases_of('HG004'), [phase0, phase0, phase0, phase0, phase0])
+					assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
+					assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
+				else:
+					assert_phasing(table.phases_of('HG004'), [None, None, None, None, None])
+					assert_phasing(table.phases_of('HG003'), [None, None, None, None, None])
+					assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
