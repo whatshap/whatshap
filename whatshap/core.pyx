@@ -54,8 +54,8 @@ cdef class Read:
 
 	def __repr__(self):
 		assert self.thisptr != NULL
-		return 'Read(name={!r}, mapq={}, source_id={}, variants={})'.format(
-			self.name, self.mapqs, self.source_id, list(self))
+		return 'Read(name={!r}, mapq={}, source_id={}, sample_id={}, variants={})'.format(
+			self.name, self.mapqs, self.source_id, self.sample_id, list(self))
 
 	property mapqs:
 		def __get__(self):
@@ -71,6 +71,11 @@ cdef class Read:
 		def __get__(self):
 			assert self.thisptr != NULL
 			return self.thisptr.getSourceID()
+
+	property sample_id:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getSampleID()
 
 	def __iter__(self):
 		"""Iterate over all variants in this read"""

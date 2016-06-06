@@ -4,7 +4,6 @@ Pedigree-related functions
 import math
 from collections import namedtuple, Counter, OrderedDict
 
-
 RecombinationMapEntry = namedtuple('RecombinationMapEntry', ['position', 'cum_distance'])
 
 

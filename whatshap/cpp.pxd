@@ -26,6 +26,7 @@ cdef extern from "../src/read.h":
 		void sortVariants() except +
 		bool isSorted() except +
 		int getSourceID() except +
+		int getSampleID() except +
 
 
 cdef extern from "../src/indexset.h":

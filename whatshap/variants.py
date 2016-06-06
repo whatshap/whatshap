@@ -126,7 +126,7 @@ class ReadSetReader:
 			for position, allele, quality in detected:
 				read.add_variant(position, allele, quality)
 			if read:  # At least one variant covered and detected
-				reads[(alignment.source_id, alignment.bam_alignment.qname)].append(read)
+				reads[(alignment.source_id, alignment.bam_alignment.qname, self._numeric_sample_ids[sample])].append(read)
 		return reads
 
 	@staticmethod
@@ -438,7 +438,7 @@ class ReadSetReader:
 		modified.
 		"""
 		if read2:
-			result = Read(read1.name, read1.mapqs[0], read1.source_id, read1.numeric_sample_id)
+			result = Read(read1.name, read1.mapqs[0], read1.source_id, read1.sample_id)
 			result.add_mapq(read2.mapqs[0])
 		else:
 			return read1
