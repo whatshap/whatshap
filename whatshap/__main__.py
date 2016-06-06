@@ -264,7 +264,7 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 def run_whatshap(phase_input_files, variant_file, reference=None,
 		output=None, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True,
-		haplotype_bams_prefix=None, ped=None, recombrate=1.26e-6, genmap=None, genetic_haplotyping=True):
+		haplotype_bams_prefix=None, ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True):
 	"""
 	Run WhatsHap.
 
