@@ -190,10 +190,13 @@ def readselection(ReadSet pyreadset, max_cov, bridging=True):
 	# indices of reads that have been selected
 	selected_reads = set()
 
-	# indices of reads that could (potentially) still be selected ,do not consider thes read which only cover one variant
-	undecided_reads = set(i for i, read in enumerate(pyreadset) if len(read) >= 2)
+	for r in pyreadset:
+		if not len(r) >= 2:
+			print(r)
+			raise ValueError('readselection expects reads that cover at least two variants')
 
-	uninformative_read_count = len(pyreadset) - len(undecided_reads)
+	# indices of reads that could (potentially) still be selected
+	undecided_reads = set(range(len(pyreadset)))
 
 	cdef PriorityQueue pq
 	cdef cpp.Read* read
@@ -248,4 +251,4 @@ def readselection(ReadSet pyreadset, max_cov, bridging=True):
 			format_read_source_stats(pyreadset, bridging_reads), len(undecided_reads)
 		)
 
-	return selected_reads, uninformative_read_count
+	return selected_reads

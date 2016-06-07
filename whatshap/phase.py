@@ -131,32 +131,25 @@ def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_
 
 
 def select_reads(readset, max_coverage):
-	logger.info('Reducing coverage to at most %sX by selecting most informative reads ...', max_coverage)
-	selected_indices, uninformative_read_count = readselection(readset, max_coverage)
+	readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
+	logger.info('Kept %d reads that cover at least two variants each', len(readset))
+	logger.info('Reducing coverage to at most %dX by selecting most informative reads ...', max_coverage)
+	selected_indices = readselection(readset, max_coverage)
 	selected_reads = readset.subset(selected_indices)
 	logger.info('Selected %d reads covering %d variants',
 		len(selected_reads), len(selected_reads.get_positions()))
 
 	position_list = readset.get_positions()
-	accessible_positions = selected_reads.get_positions()
-	informative_read_count = len(readset) - uninformative_read_count
-	unphasable_variants = len(position_list) - len(accessible_positions)
-	logger.info('Skipped %d reads that only cover one variant', uninformative_read_count)
 	if position_list:
+		accessible_positions = selected_reads.get_positions()
+		unphasable_variants = len(position_list) - len(accessible_positions)
 		logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
 		            'connecting them to another variant and are thus unphasable',
 		            unphasable_variants, len(position_list),
 		            100. * unphasable_variants / len(position_list)
 		            )
-	if readset:
-		logger.info('After read selection: Using %d of %d '
-		            '(%.1f%%) reads that cover two or more variants',
-		            len(selected_reads), informative_read_count,
-		            (
-		            100. * len(selected_reads) / informative_read_count if informative_read_count > 0 else float('nan'))
-		            )
 
-	return selected_reads, uninformative_read_count
+	return selected_reads
 
 
 def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, haplotype_bam_writer, numeric_sample_ids):
@@ -164,7 +157,7 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 	Phase variants of a single sample on a single chromosome.
 	"""
 	with timers('slice'):
-		selected_reads, uninformative_read_count = select_reads(reads, max_coverage)
+		selected_reads = select_reads(reads, max_coverage)
 
 	n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(reads)
 	n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(selected_reads)
@@ -466,7 +459,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					# TODO: Read selection done w.r.t. all variants, where using heterozygous variants only
 					# TODO: would probably give better results.
 					with timers('slice'):
-						selected_reads, uninformative_read_count = select_reads(readset, max_coverage)
+						selected_reads = select_reads(readset, max_coverage)
 					readsets[sample] = selected_reads
 
 				accessible_positions = []
