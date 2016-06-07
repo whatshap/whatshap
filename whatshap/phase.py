@@ -100,6 +100,34 @@ def best_case_blocks(reads):
 	return len(component_sizes), len(non_singletons)
 
 
+def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames):
+	"""Return a sorted ReadSet"""
+	reference = fasta[chromosome] if fasta else None
+	try:
+		readset = readset_reader.read(chromosome, variants, sample, reference)
+	except SampleNotFoundError:
+		logger.warning("Sample %r not found in any BAM file.", sample)
+		readset = ReadSet()
+	except ReadSetError as e:
+		logger.error("%s", e)
+		sys.exit(1)
+
+	# Add phasing information from VCF files, if present
+	for i, phase_input_vcf in enumerate(phase_input_vcfs):
+		if chromosome in phase_input_vcf:
+			vt = phase_input_vcf[chromosome]
+			source_id = len(phase_input_bam_filenames) + i
+			for read in vt.phased_blocks_as_reads(sample, variants, source_id, numeric_sample_ids[sample]):
+				readset.add(read)
+
+	# TODO is this necessary?
+	for read in readset:
+		read.sort()
+	readset.sort()
+
+	return readset
+
+
 def select_reads(readset, max_coverage):
 	selected_indices, uninformative_read_count = readselection(readset, max_coverage)
 	selected_reads = readset.subset(selected_indices)
@@ -111,14 +139,6 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 	Phase variants of a single sample on a single chromosome.
 	"""
 	with timers('slice'):
-		# Sort the variants stored in each read
-		# TODO: Check whether this is already ensured by construction
-
-		for read in reads:
-			read.sort()
-		# Sort reads in read set by position
-		reads.sort()
-
 		selected_reads, uninformative_read_count = select_reads(reads, max_coverage)
 		position_list = reads.get_positions()
 		accessible_positions = selected_reads.get_positions()
@@ -431,29 +451,8 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				readsets = dict()  # TODO this could become a list
 				for sample in variant_table.samples:
 					logger.info('Reading reads for sample %r', sample)
-					timers.start('read_bam')
-					reference = fasta[chromosome] if fasta else None
-					try:
-						readset = readset_reader.read(chromosome, variant_table.variants, sample, reference)
-					except SampleNotFoundError:
-						logger.warning("Sample %r not found in any BAM file.", sample)
-						readset = ReadSet()
-					except ReadSetError as e:
-						logger.error("%s", e)
-						sys.exit(1)
-
-					# Add phasing information from VCF files, if present
-					for i, phase_input_vcf in enumerate(phase_input_vcfs):
-						if chromosome in phase_input_vcf:
-							vt = phase_input_vcf[chromosome]
-							source_id = len(phase_input_bam_filenames) + i
-							for read in vt.phased_blocks_as_reads(sample, variant_table.variants, source_id, numeric_sample_ids[sample]):
-								readset.add(read)
-
-					# TODO is this necessary?
-					for read in readset:
-						read.sort()
-					readset.sort()
+					with timers('read_bam'):
+						readset = read_reads(readset_reader, chromosome, variant_table.variants, sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
 
 					logger.info('Read %d reads from sample %r in %.1f s',
 						len(readset), sample, timers.stop('read_bam'))
@@ -562,25 +561,9 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					logger.info('Found %d heterozygous variants', len(variants))
 					bam_sample = None if ignore_read_groups else sample
 					logger.info('Reading the BAM file ...')
-					timers.start('read_bam')
-					reference = fasta[chromosome] if fasta else None
-					try:
-						reads = readset_reader.read(chromosome, variants, bam_sample, reference)
-					except SampleNotFoundError:
-						logger.warning("Sample %r not found in any BAM file.", bam_sample)
-						reads = ReadSet()
-					except ReadSetError as e:
-						logger.error("%s", e)
-						sys.exit(1)
-					logger.info('Read %d reads in %.1f s', len(reads), timers.stop('read_bam'))
-
-					# Add phasing information from VCF files, if present
-					for i, phase_input_vcf in enumerate(phase_input_vcfs):
-						if chromosome in phase_input_vcf:
-							vt = phase_input_vcf[chromosome]
-							source_id = len(phase_input_bam_filenames) + i
-							for read in vt.phased_blocks_as_reads(sample, variants, source_id, numeric_sample_ids[sample]):
-								reads.add(read)
+					with timers('read_bam'):
+						reads = read_reads(readset_reader, chromosome, variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
+					logger.info('Read %d reads', len(reads))
 
 					sample_superreads, sample_components = phase_sample(
 						sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, haplotype_bam_writer, numeric_sample_ids)
