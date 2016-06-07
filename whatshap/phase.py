@@ -92,7 +92,7 @@ def best_case_blocks(reads):
 		read_positions = [ variant.position for variant in read ]
 		for position in read_positions[1:]:
 			component_finder.merge(read_positions[0], position)
-	# A dict that maps each component to the number of SNPs it contains
+	# A dict that maps each component to the number of variants it contains
 	component_sizes = defaultdict(int)
 	for position in positions:
 		component_sizes[component_finder.find(position)] += 1
