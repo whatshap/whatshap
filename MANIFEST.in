@@ -9,5 +9,4 @@ include src/columnindexingiterator.h src/graycodes.h src/indexset.h
 include doc/*.rst
 include doc/conf.py
 include doc/Makefile
-include bin/_preamble.py
 include tests/test*.py tests/phasingutils.py tests/__init__.py
