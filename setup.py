@@ -114,7 +114,7 @@ setup(
 	license = 'MIT',
 	cmdclass = {'sdist': sdist, 'build_ext': build_ext},
 	ext_modules = extensions,
-	packages = ['whatshap', 'whatshap.scripts'],
+	packages = ['whatshap'],
 	entry_points={'console_scripts': ['whatshap = whatshap.__main__:main']},
 	install_requires = ['pysam<0.9.0', 'PyVCF', 'pyfaidx'] + extra_install_requires,
 	classifiers = [

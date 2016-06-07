@@ -38,6 +38,9 @@ class VcfVariant:
 	def __eq__(self, other):
 		return (self.position == other.position) and (self.reference_allele == other.reference_allele) and (self.alternative_allele == other.alternative_allele)
 
+	def __lt__(self, other):
+		return (self.position, self.reference_allele, self.alternative_allele) < (other.position, other.reference_allele, other.alternative_allele)
+
 
 class VariantTable:
 	"""
