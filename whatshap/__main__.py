@@ -10,6 +10,7 @@ from .args import HelpfulArgumentParser
 # line of the module’s docstring.
 COMMANDS = [
 	'phase',
+	'stats',
 	#'example',
 ]
 

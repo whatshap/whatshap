@@ -21,7 +21,7 @@ v0.11 (in development)
   without using ``--genmap``.
 * ``whatshap`` has become a command with subcommands. From now on, you need
   to run ``whatshap phase`` to phase VCFs.
-
+* Add a ``stats`` subcommand that prints statistics about phased VCFs.
 
 v0.10 (2016-04-27)
 ------------------
