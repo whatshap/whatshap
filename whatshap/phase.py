@@ -403,13 +403,11 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 							if mendelian_conflict(gt_mother, gt_father, gt_child):
 								mendelian_conflicts.add(index)
 
-				# determine the total number of variants
-				variant_count = len(variant_table.genotypes_of(individuals[0].id))
 				# retain variants that are heterozygous in at least one individual (anywhere in the pedigree)
 				# and do not have neither missing genotypes nor Mendelian conflicts
 				to_retain = heterozygous.difference(missing_genotypes).difference(mendelian_conflicts)
 				# discard every variant that is not to be retained
-				to_discard = set(range(variant_count)).difference(to_retain)
+				to_discard = set(range(len(variant_table))).difference(to_retain)
 
 				# Determine positions of selected variants that are homozygous in at least one individual.
 				# These are used later to merge blocks containing these variants into one block (since
@@ -422,7 +420,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 
 				logger.info('Number of variants skipped due to missing genotypes: %d', len(missing_genotypes))
 				logger.info('Number of variants skipped due to Mendelian conflicts: %d', len(mendelian_conflicts))
-				logger.info('Number of remaining variants heterozygous in at least one individual: %d', len(variant_table.variants))
+				logger.info('Number of remaining variants heterozygous in at least one individual: %d', len(variant_table))
 
 				# Get the reads belonging to each sample
 				readsets = dict()  # TODO this could become a list
