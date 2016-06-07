@@ -129,3 +129,9 @@ must *not* be put between quotation marks even if it contains spaces.
    Since this is just a version bump, the pull request does not need a
    review by other bioconda developers. As soon as the tests pass and if you
    have the proper permissions, it can be merged directly.
+
+
+Adding a new subcommand
+-----------------------
+
+Follow the instructions in ``whatshap/example.py``.

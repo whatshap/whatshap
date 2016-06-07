@@ -4,7 +4,7 @@ User guide
 
 Run WhatsHap like this::
 
-	whatshap -o phased.vcf input.vcf input.bam
+	whatshap phase -o phased.vcf input.vcf input.bam
 
 Phasing information is added to the VCF file in a way that is compatible with
 GATK’s ReadBackedPhasing. That is, the HP tag denotes which set of phased
@@ -59,7 +59,7 @@ Phasing pedigrees
 WhatsHap can take advantage of pedigree information to obtain a much
 better phasing. To turn on pedigree mode, run WhatsHap like this::
 
-	whatshap --ped pedigree.ped -o phased.vcf input.vcf input.bam
+	whatshap phase --ped pedigree.ped -o phased.vcf input.vcf input.bam
 
 where ``pedigree.ped`` is a plink-compatible PED file to describe the
 relationships between samples and ``input.vcf`` is a multi-sample VCF

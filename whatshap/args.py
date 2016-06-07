@@ -1,6 +1,7 @@
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 import sys
 
+
 class HelpfulArgumentParser(ArgumentParser):
 	"""An ArgumentParser that prints full help on errors."""
 

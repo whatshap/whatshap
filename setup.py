@@ -115,7 +115,7 @@ setup(
 	cmdclass = {'sdist': sdist, 'build_ext': build_ext},
 	ext_modules = extensions,
 	packages = ['whatshap', 'whatshap.scripts'],
-	scripts = ['bin/whatshap', 'bin/phasingstats'],
+	entry_points={'console_scripts': ['whatshap = whatshap.__main__:main']},
 	install_requires = ['pysam<0.9.0', 'PyVCF', 'pyfaidx'] + extra_install_requires,
 	classifiers = [
 		"Development Status :: 4 - Beta",
