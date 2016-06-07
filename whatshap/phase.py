@@ -126,7 +126,7 @@ def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_
 		read.sort()
 	readset.sort()
 
-	logger.info('Read %d reads', len(readset))
+	logger.info('Found %d reads covering %d variants', len(readset), len(readset.get_positions()))
 	return readset
 
 
@@ -137,6 +137,25 @@ def select_reads(readset, max_coverage):
 	logger.info('Selected %d reads covering %d variants',
 		len(selected_reads), len(selected_reads.get_positions()))
 
+	position_list = readset.get_positions()
+	accessible_positions = selected_reads.get_positions()
+	informative_read_count = len(readset) - uninformative_read_count
+	unphasable_variants = len(position_list) - len(accessible_positions)
+	logger.info('Skipped %d reads that only cover one variant', uninformative_read_count)
+	if position_list:
+		logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
+		            'connecting them to another variant and are thus unphasable',
+		            unphasable_variants, len(position_list),
+		            100. * unphasable_variants / len(position_list)
+		            )
+	if readset:
+		logger.info('After read selection: Using %d of %d '
+		            '(%.1f%%) reads that cover two or more variants',
+		            len(selected_reads), informative_read_count,
+		            (
+		            100. * len(selected_reads) / informative_read_count if informative_read_count > 0 else float('nan'))
+		            )
+
 	return selected_reads, uninformative_read_count
 
 
@@ -146,21 +165,6 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 	"""
 	with timers('slice'):
 		selected_reads, uninformative_read_count = select_reads(reads, max_coverage)
-		position_list = reads.get_positions()
-		accessible_positions = selected_reads.get_positions()
-		informative_read_count = len(reads) - uninformative_read_count
-		unphasable_snps = len(position_list) - len(accessible_positions)
-		logger.info('Skipped %d reads that only cover one variant', uninformative_read_count)
-		if position_list:
-			logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
-				'connecting them to another variant and are thus unphasable',
-				unphasable_snps, len(position_list),
-				100. * unphasable_snps / len(position_list)
-			)
-		if reads:
-			logger.info('After read selection: Using %d of %d (%.1f%%) reads that cover two or more variants',
-				len(selected_reads), informative_read_count, (100. * len(selected_reads) / informative_read_count if informative_read_count > 0 else float('nan'))
-			)
 
 	n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(reads)
 	n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(selected_reads)
@@ -181,6 +185,7 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 			# case, see Issue #77.
 
 			# all genotypes are heterozygous
+			accessible_positions = selected_reads.get_positions()
 			genotypes = [1] * len(accessible_positions)
 			# create pedigree with only one sample
 			pedigree = Pedigree(numeric_sample_ids)
@@ -462,23 +467,6 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					# TODO: would probably give better results.
 					with timers('slice'):
 						selected_reads, uninformative_read_count = select_reads(readset, max_coverage)
-						position_list = readset.get_positions()
-						accessible_positions = selected_reads.get_positions()
-						informative_read_count = len(readset) - uninformative_read_count
-						unphasable_variants = len(position_list) - len(accessible_positions)
-						logger.info('Skipped %d reads that only cover one variant', uninformative_read_count)
-						if position_list:
-							logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
-								'connecting them to another variant and are thus unphasable',
-								unphasable_variants, len(position_list),
-								100. * unphasable_variants / len(position_list)
-							)
-						if readset:
-							logger.info('After read selection: Using %d of %d '
-								'(%.1f%%) reads that cover two or more variants',
-								len(selected_reads), informative_read_count,
-								(100. * len(selected_reads) / informative_read_count if informative_read_count > 0 else float('nan'))
-							)
 					readsets[sample] = selected_reads
 
 				accessible_positions = []
@@ -554,10 +542,9 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				for sample, genotypes in zip(variant_table.samples, variant_table.genotypes):
 					if sample not in samples:
 						continue
-					logger.info('Working on sample %s', sample)
 					# pick variants heterozygous in this sample
 					variants = [ v for v, gt in zip(variant_table.variants, genotypes) if gt == 1 ]
-					logger.info('Found %d heterozygous variants', len(variants))
+					logger.info('Found %d heterozygous variants on sample %r', len(variants), sample)
 					bam_sample = None if ignore_read_groups else sample
 					with timers('read_bam'):
 						reads = read_reads(readset_reader, chromosome, variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
@@ -568,7 +555,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					components[sample] = sample_components
 			with timers('write_vcf'):
 				vcf_writer.write(chromosome, superreads, components)
-			logger.debug('Chromosome %s finished', chromosome)
+			logger.debug('Chromosome %r finished', chromosome)
 			timers.start('parse_vcf')
 		timers.stop('parse_vcf')
 
