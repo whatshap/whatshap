@@ -291,7 +291,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		numeric_sample_ids = NumericSampleIds()
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
 		try:
-			bam_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, numeric_sample_ids, mapq_threshold=mapping_quality))
+			readset_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, numeric_sample_ids, mapq_threshold=mapping_quality))
 		except (OSError, BamIndexingError) as e:
 			logger.error(e)
 			sys.exit(1)
@@ -429,7 +429,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					timers.start('read_bam')
 					reference = fasta[chromosome] if fasta else None
 					try:
-						readset = bam_reader.read(chromosome, variant_table.variants, sample, reference)
+						readset = readset_reader.read(chromosome, variant_table.variants, sample, reference)
 					except SampleNotFoundError:
 						logger.warning("Sample %r not found in any BAM file.", sample)
 						readset = ReadSet()
@@ -562,7 +562,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					timers.start('read_bam')
 					reference = fasta[chromosome] if fasta else None
 					try:
-						reads = bam_reader.read(chromosome, variants, bam_sample, reference)
+						reads = readset_reader.read(chromosome, variants, bam_sample, reference)
 					except SampleNotFoundError:
 						logger.warning("Sample %r not found in any BAM file.", bam_sample)
 						reads = ReadSet()
