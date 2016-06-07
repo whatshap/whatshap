@@ -2,7 +2,7 @@ from nose.tools import raises
 import os
 from tempfile import TemporaryDirectory
 from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant
-from whatshap.__main__ import run_whatshap
+from whatshap.phase import run_whatshap
 
 
 def test_read_phased():

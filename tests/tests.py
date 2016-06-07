@@ -4,7 +4,7 @@ import shutil
 import pysam
 from nose.tools import raises
 
-from whatshap.__main__ import run_whatshap
+from whatshap.phase import run_whatshap
 from whatshap.vcf import VcfReader, VariantCallPhase
 
 trio_bamfile = 'tests/data/trio.pacbio.bam'

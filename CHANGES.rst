@@ -11,13 +11,17 @@ v0.11 (in development)
   behavior can be turned off using option ``--no-genetic-haplotyping``.
 * Implemented allele detection through re-alignment: To detect which allele of a
   variant is seen in a read, the query is aligned to the two haplotypes at that
-  position. Enabled if ``--reference`` is provided. Current limitation: No
-  score for the allele is computed.
+  position. This results in better quality phasing, especially for
+  low-quality reads (PacBio). Enabled if ``--reference`` is provided. Current
+  limitation: No score for the allele is computed.
 * As a side-effect of the new allele detection, we can now also phase
   insertions, deletions, MNPs and "complex" variants.
 * Added option ``--chromosome`` to only work on specifed chromosomes.
 * Use constant recombination rate per default, allows to use ``--ped``
   without using ``--genmap``.
+* ``whatshap`` has become a command with subcommands. From now on, you need
+  to run ``whatshap phase`` to phase VCFs.
+
 
 v0.10 (2016-04-27)
 ------------------
