@@ -100,6 +100,12 @@ def best_case_blocks(reads):
 	return len(component_sizes), len(non_singletons)
 
 
+def select_reads(readset, max_coverage):
+	selected_indices, uninformative_read_count = readselection(readset, max_coverage)
+	selected_reads = readset.subset(selected_indices)
+	return selected_reads, uninformative_read_count
+
+
 def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, haplotype_bam_writer, numeric_sample_ids):
 	"""
 	Phase variants of a single sample on a single chromosome.
@@ -107,16 +113,15 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 	with timers('slice'):
 		# Sort the variants stored in each read
 		# TODO: Check whether this is already ensured by construction
+
 		for read in reads:
 			read.sort()
 		# Sort reads in read set by position
 		reads.sort()
 
-		selected_reads, uninformative_read_count = readselection(reads, max_coverage)
-		sliced_reads = reads.subset(selected_reads)
-
+		selected_reads, uninformative_read_count = select_reads(reads, max_coverage)
 		position_list = reads.get_positions()
-		accessible_positions = sliced_reads.get_positions()
+		accessible_positions = selected_reads.get_positions()
 		informative_read_count = len(reads) - uninformative_read_count
 		unphasable_snps = len(position_list) - len(accessible_positions)
 		logger.info('%d variants are covered by at least one read', len(position_list))
@@ -133,7 +138,7 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 			)
 
 	n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(reads)
-	n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(sliced_reads)
+	n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(selected_reads)
 	stats.n_best_case_blocks += n_best_case_blocks
 	stats.n_best_case_nonsingleton_blocks += n_best_case_nonsingleton_blocks
 	stats.n_best_case_blocks_cov += n_best_case_blocks_cov
@@ -144,7 +149,7 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 		n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
 
 	with timers('phase'):
-		logger.info('Phasing the variants (using %d reads)...', len(sliced_reads))
+		logger.info('Phasing the variants (using %d reads)...', len(selected_reads))
 		if all_heterozygous:
 			# For the all heterozygous case we use a PedigreeDPTable, which is more memory efficient.
 			# Once implemented, this should also be done for the "not all heterozygous" (="distrust genotypes")
@@ -158,13 +163,13 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 			# recombination costs are zero
 			recombination_costs = [0] * len(accessible_positions)
 			# Run the core algorithm: construct DP table ...
-			dp_table = PedigreeDPTable(sliced_reads, recombination_costs, pedigree)
+			dp_table = PedigreeDPTable(selected_reads, recombination_costs, pedigree)
 			# ... and do the backtrace to get the solution
 			superreads_list, transmission_vector = dp_table.get_super_reads()
 			superreads = superreads_list[0]
 		else:
 			# Run the core algorithm: construct DP table ...
-			dp_table = DPTable(sliced_reads, all_heterozygous)
+			dp_table = DPTable(selected_reads, all_heterozygous)
 			# ... and do the backtrace to get the solution
 			superreads = dp_table.get_super_reads()
 		logger.info('MEC score of phasing: %d', dp_table.get_optimal_cost())
@@ -182,7 +187,7 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 		allowed = frozenset([(0, 1), (1, 0)])
 		phased_positions = [ v1.position for v1, v2 in zip(*superreads)
 			if (v1.allele, v2.allele) in allowed ]
-		components = find_components(phased_positions, sliced_reads)
+		components = find_components(phased_positions, selected_reads)
 		logger.info('No. of variants considered for phasing: %d', len(superreads[0]))
 		logger.info('No. of variants that were phased: %d', len(phased_positions))
 
@@ -196,7 +201,7 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 
 	if haplotype_bam_writer is not None:
 		logger.info('Writing used reads to haplotype-specific BAM files')
-		haplotype_bam_writer.write(sliced_reads, dp_table.get_optimal_partitioning(), chromosome)
+		haplotype_bam_writer.write(selected_reads, dp_table.get_optimal_partitioning(), chromosome)
 
 	return superreads, components
 
@@ -457,11 +462,9 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					# TODO: would probably give better results.
 					# Slice reads
 					with timers('slice'):
-						selected_reads, uninformative_read_count = readselection(readset, max_coverage)
-						sliced_readset = readset.subset(selected_reads)
-
+						selected_reads, uninformative_read_count = select_reads(readset, max_coverage)
 						position_list = readset.get_positions()
-						accessible_positions = sliced_readset.get_positions()
+						accessible_positions = selected_reads.get_positions()
 						informative_read_count = len(readset) - uninformative_read_count
 						unphasable_variants = len(position_list) - len(accessible_positions)
 						logger.info('%d variants are covered by at least one read', len(position_list))
@@ -478,7 +481,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 								len(selected_reads), informative_read_count,
 								(100. * len(selected_reads) / informative_read_count if informative_read_count > 0 else float('nan'))
 							)
-					readsets[sample] = sliced_readset
+					readsets[sample] = selected_reads
 
 				accessible_positions = []
 				for readset in readsets.values():
