@@ -69,11 +69,14 @@ def main():
 	if not hasattr(args, 'module'):
 		parser.error('Please provide the name of a subcommand to run')
 	else:
+		module = args.module
 		if hasattr(args.module, 'validate'):
 			subparser = args.subparser
-			del args.subparser
 			args.module.validate(args, subparser)
-		args.module.main(args)
+		del args.subparser
+		del args.module
+		del args.debug
+		module.main(args)
 
 
 if __name__ == '__main__':

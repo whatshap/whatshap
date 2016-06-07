@@ -676,7 +676,6 @@ def validate(args, parser):
 		parser.error('Option --genmap can only be used when working on exactly one chromosome (use --chromosome)')
 	if args.ped and args.samples:
 		parser.error('Option --sample cannot be used together with --ped')
-	del args.debug
 
 
 def main(args):
