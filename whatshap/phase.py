@@ -139,16 +139,6 @@ def select_reads(readset, max_coverage):
 	logger.info('Selected %d reads covering %d variants',
 		len(selected_reads), len(selected_reads.get_positions()))
 
-	position_list = readset.get_positions()
-	if position_list:
-		accessible_positions = selected_reads.get_positions()
-		unphasable_variants = len(position_list) - len(accessible_positions)
-		logger.info('%d out of %d variant positions (%.1d%%) do not have a read '
-		            'connecting them to another variant and are thus unphasable',
-		            unphasable_variants, len(position_list),
-		            100. * unphasable_variants / len(position_list)
-		            )
-
 	return selected_reads
 
 
