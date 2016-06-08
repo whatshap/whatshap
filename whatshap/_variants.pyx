@@ -23,7 +23,7 @@ def _iterate_cigar(variants, int j, bam_read):
 		j += 1
 
 	# Iterate over the CIGAR sequence (defining the alignment) and variant list in lockstep
-	for i, (cigar_op, length) in enumerate(bam_read.cigar):
+	for i, (cigar_op, length) in enumerate(bam_read.cigartuples):
 		# The mapping of CIGAR operators to numbers is:
 		# MIDNSHPX= => 012345678
 		if cigar_op in (0, 7, 8):  # M, X, = operators (match)

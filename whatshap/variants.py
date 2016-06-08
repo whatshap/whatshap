@@ -97,7 +97,7 @@ class ReadSetReader:
 				continue
 			if alignment.bam_alignment.is_unmapped:
 				continue
-			if not alignment.bam_alignment.cigar:
+			if not alignment.bam_alignment.cigartuples:
 				continue
 			yield alignment
 
@@ -146,7 +146,7 @@ class ReadSetReader:
 		query_pos = 0  # position relative to read
 
 		seen_positions = set()
-		for cigar_op, length in bam_read.cigar:
+		for cigar_op, length in bam_read.cigartuples:
 			# Skip variants that come before this region
 			while j < len(variants) and variants[j].position < ref_pos:
 				j += 1
@@ -334,13 +334,13 @@ class ReadSetReader:
 		variant position and into a part starting at the variant position, see split_cigar().
 
 		variant -- VcfVariant
-		cigar -- the AlignedSegment.cigar
+		cigar -- the AlignedSegment.cigartuples
 		i, consumed -- see split_cigar method
 		query_pos -- index of the query base that is at the variant position
 		reference -- the reference as a str-like object (full chromosome)
 		"""
 		overhang = 10  # extend alignment by this many bases to the left and right
-		cigar = bam_read.cigar
+		cigar = bam_read.cigartuples
 		left_cigar, right_cigar = ReadSetReader.split_cigar(cigar, i, consumed)
 
 		left_ref_bases, left_query_bases = ReadSetReader.cigar_prefix_length(left_cigar[::-1], overhang)
