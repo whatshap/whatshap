@@ -9,6 +9,7 @@ from whatshap.vcf import VcfReader, VariantCallPhase
 
 trio_bamfile = 'tests/data/trio.pacbio.bam'
 trio_merged_bamfile = 'tests/data/trio-merged-blocks.bam'
+trio_paired_end_bamfile = 'tests/data/paired_end.sorted.bam'
 
 
 def setup_module():
@@ -17,6 +18,8 @@ def setup_module():
 	pysam.index(trio_bamfile, catch_stdout=False)
 	pysam.view('tests/data/trio-merged-blocks.sam', '-b', '-o', trio_merged_bamfile, catch_stdout=False)
 	pysam.index(trio_merged_bamfile, catch_stdout=False)
+	pysam.view('tests/data/paired_end.sorted.sam', '-b', '-o', trio_paired_end_bamfile, catch_stdout=False)
+	pysam.index(trio_paired_end_bamfile, catch_stdout=False)
 
 
 def teardown_module():
@@ -24,6 +27,8 @@ def teardown_module():
 	os.remove(trio_bamfile + '.bai')
 	os.remove(trio_merged_bamfile)
 	os.remove(trio_merged_bamfile + '.bai')
+	os.remove(trio_paired_end_bamfile)
+	os.remove(trio_paired_end_bamfile + '.bai')
 
 
 def test_pysam_version():
@@ -245,3 +250,28 @@ def test_phase_specific_chromosome():
 					assert_phasing(table.phases_of('HG004'), [None, None, None, None, None])
 					assert_phasing(table.phases_of('HG003'), [None, None, None, None, None])
 					assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
+
+
+def test_phase_trio_paired_end_reads():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output-paired_end.vcf'
+		run_whatshap(phase_input_files=[trio_paired_end_bamfile], variant_file='tests/data/paired_end.sorted.vcf', output=outvcf,
+		        ped='tests/data/trio_paired_end.ped', genmap='tests/data/trio.map')
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == '1'
+		assert len(table.variants) == 3
+		assert table.samples == ['mother', 'father', 'child']
+		assert table.num_of_blocks_of('mother') == 1
+		assert table.num_of_blocks_of('father') == 0
+		assert table.num_of_blocks_of('child') == 1
+
+		phase0 = VariantCallPhase(80050, 0, None)
+		phase1 = VariantCallPhase(80050, 1, None)
+
+		assert_phasing(table.phases_of('mother'), [phase1, phase1, phase0])
+		assert_phasing(table.phases_of('father'), [None, None, None])
+		assert_phasing(table.phases_of('child'), [None, None, phase1])

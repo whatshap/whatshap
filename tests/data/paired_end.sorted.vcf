@@ -1,0 +1,5 @@
+##fileformat=VCFv4.1
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	mother	father	child
+1	80050	.	G	A	.	.	.	GT	0/1	0/0	0/0
+1	80060	.	G	A	.	.	.	GT	0/1	0/0	0/0
+1	80438	.	G	A	.	.	.	GT	0/1	0/0	0/1
