@@ -84,8 +84,8 @@ class ReadSetReader:
 
 	def _usable_alignments(self, chromosome, sample):
 		"""
-		Retrieve usable (has CIGAR, not secondary etc.) alignments from the
-		alignment file
+		Retrieve usable (suficient mapping quality, not secondary etc.)
+		alignments from the alignment file
 		"""
 		for alignment in self._reader.fetch(reference=chromosome, sample=sample):
 			# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
@@ -96,8 +96,6 @@ class ReadSetReader:
 			if alignment.bam_alignment.is_secondary:
 				continue
 			if alignment.bam_alignment.is_unmapped:
-				continue
-			if not alignment.bam_alignment.cigartuples:
 				continue
 			yield alignment
 

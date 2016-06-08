@@ -18,12 +18,20 @@ def _iterate_cigar(variants, int j, bam_read):
 		int i
 		int n = len(variants)
 
+	# If no CIGAR is set, skip this read.
+	# Since accessing the .cigartuples property is quite expensive, this check
+	# is made here instead of in the _usable_alignments method (see
+	# whatshap/variants.py)
+	cigar = bam_read.cigartuples
+	if not cigar:
+		return
+
 	# Skip variants that are located to the left of the read
 	while j < n and variants[j].position < ref_pos:
 		j += 1
 
 	# Iterate over the CIGAR sequence (defining the alignment) and variant list in lockstep
-	for i, (cigar_op, length) in enumerate(bam_read.cigartuples):
+	for i, (cigar_op, length) in enumerate(cigar):
 		# The mapping of CIGAR operators to numbers is:
 		# MIDNSHPX= => 012345678
 		if cigar_op in (0, 7, 8):  # M, X, = operators (match)
