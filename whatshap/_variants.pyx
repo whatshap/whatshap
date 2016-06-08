@@ -11,7 +11,7 @@ def _iterate_cigar(variants, int j, bam_read):
 	j -- index of the first variant (in the variants list) to check
 	"""
 	cdef:
-		int ref_pos = bam_read.pos  # position relative to reference
+		int ref_pos = bam_read.reference_start  # position relative to reference
 		int query_pos = 0  # position relative to read
 		int cigar_op
 		int length

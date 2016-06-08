@@ -91,7 +91,7 @@ class ReadSetReader:
 			# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
 			if alignment.bam_alignment.flag & 2048 != 0:
 				continue
-			if alignment.bam_alignment.mapq < self._mapq_threshold:
+			if alignment.bam_alignment.mapping_quality < self._mapq_threshold:
 				continue
 			if alignment.bam_alignment.is_secondary:
 				continue
@@ -113,7 +113,7 @@ class ReadSetReader:
 		i = 0  # index into variants
 		for alignment in alignments:
 			# Skip variants that are to the left of this read
-			while i < len(variants) and variants[i].position < alignment.bam_alignment.pos:
+			while i < len(variants) and variants[i].position < alignment.bam_alignment.reference_start:
 				i += 1
 
 			read = Read(alignment.bam_alignment.qname,
@@ -140,7 +140,7 @@ class ReadSetReader:
 		variants -- list of variants (VcfVariant objects)
 		j -- index of the first variant (in the variants list) to check
 		"""
-		ref_pos = bam_read.pos  # position relative to reference
+		ref_pos = bam_read.reference_start  # position relative to reference
 		query_pos = 0  # position relative to read
 
 		seen_positions = set()
@@ -157,7 +157,7 @@ class ReadSetReader:
 					if len(variants[j].reference_allele) == len(variants[j].alternative_allele) == 1:
 						# Variant is a SNP
 						offset = variants[j].position - ref_pos
-						base = bam_read.seq[query_pos + offset]
+						base = bam_read.query_sequence[query_pos + offset]
 						if base == variants[j].reference_allele:
 							allele = 0
 						elif base == variants[j].alternative_allele:
@@ -215,7 +215,7 @@ class ReadSetReader:
 			elif cigar_op == 1:  # I operator (insertion)
 				if j < len(variants) and variants[j].position == ref_pos and \
 						len(variants[j].reference_allele) == 0 and \
-						variants[j].alternative_allele == bam_read.seq[query_pos:query_pos + length]:
+						variants[j].alternative_allele == bam_read.query_sequence[query_pos:query_pos + length]:
 					qual = 30  # TODO
 					assert variants[j].position not in seen_positions
 					yield (variants[j].position, 1, qual)
