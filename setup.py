@@ -62,8 +62,12 @@ def check_cython_version():
 		sys.exit(1)
 
 
+def CppExtension(name, sources):
+	return Extension(name, sources=sources, language='c++', extra_compile_args=['-std=c++11'])
+
+
 extensions = [
-	Extension('whatshap.core',
+	CppExtension('whatshap.core',
 		sources=['whatshap/core.pyx',
 			'src/pedigree.cpp', 'src/dptable.cpp', 'src/columncostcomputer.cpp',
 			'src/pedigreedptable.cpp', 'src/pedigreecolumncostcomputer.cpp',
@@ -71,11 +75,10 @@ extensions = [
 			'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',
 			'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp',
 			'src/pedigreepartitions.cpp'
-		], language='c++', extra_compile_args=["-std=c++11"],),
-	Extension('whatshap.priorityqueue',
-		sources=['whatshap/priorityqueue.pyx'], language='c++', extra_compile_args=["-std=c++11"]),
-	Extension('whatshap.align',
-		sources=['whatshap/align.pyx'], language='c++', extra_compile_args=["-std=c++11"]),
+		]),
+	CppExtension('whatshap.priorityqueue', sources=['whatshap/priorityqueue.pyx']),
+	CppExtension('whatshap.align', sources=['whatshap/align.pyx']),
+	CppExtension('whatshap._variants', sources=['whatshap/_variants.pyx']),
 ]
 
 

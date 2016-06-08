@@ -7,8 +7,9 @@ Requirements
 ------------
 
 WhatsHap is implemented in C++ and Python. You need to have a C++ compiler,
-Python 3.3 (or later) and the corresponding Python header files. In Ubuntu,
-make sure the packages ``build-essential`` and ``python3-dev`` are installed.
+Python 3.3 (or later) and the corresponding Python header files. Python 3.5
+is slightly faster than 3.4. In Ubuntu, make sure the packages
+``build-essential`` and ``python3-dev`` are installed.
 
 
 User installation
