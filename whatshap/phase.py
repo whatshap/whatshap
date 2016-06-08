@@ -146,7 +146,7 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 	"""
 	Phase variants of a single sample on a single chromosome.
 	"""
-	with timers('slice'):
+	with timers('select'):
 		selected_reads = select_reads(reads, max_coverage)
 
 	n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(reads)
@@ -448,7 +448,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 
 					# TODO: Read selection done w.r.t. all variants, where using heterozygous variants only
 					# TODO: would probably give better results.
-					with timers('slice'):
+					with timers('select'):
 						selected_reads = select_reads(readset, max_coverage)
 					readsets[sample] = selected_reads
 
@@ -558,7 +558,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 	logger.info('Time spent parsing VCF:                      %6.1f s', timers.elapsed('parse_vcf'))
 	if len(phase_input_vcfs) > 0:
 		logger.info('Time spent parsing input phasings from VCFs: %6.1f s', timers.elapsed('parse_phasing_vcfs'))
-	logger.info('Time spent slicing:                          %6.1f s', timers.elapsed('slice'))
+	logger.info('Time spent selecting reads:                  %6.1f s', timers.elapsed('select'))
 	logger.info('Time spent phasing:                          %6.1f s', timers.elapsed('phase'))
 	logger.info('Time spent writing VCF:                      %6.1f s', timers.elapsed('write_vcf'))
 	logger.info('Time spent finding components:               %6.1f s', timers.elapsed('components'))
