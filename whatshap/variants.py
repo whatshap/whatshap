@@ -364,20 +364,19 @@ class ReadSetReader:
 			return None  # cannot decide
 
 	@staticmethod
-	def detect_alleles_by_alignment(variants, j, bam_read, reference):
+	def _iterate_cigar(variants, j, bam_read):
 		"""
-		Detect which alleles the given bam_read covers. Detect the correct
-		alleles of the variants that are covered by the given bam_read.
+		Iterate over the CIGAR of the given bam_read and variants[j:] in lockstep.
 
-		Yield tuples (position, allele, quality).
+		Yield tuples (variant, i, consumed, query_pos)
+
+		i and consumed describe the split position in the cigar
 
 		variants -- list of variants (VcfVariant objects)
 		j -- index of the first variant (in the variants list) to check
 		"""
 		ref_pos = bam_read.pos  # position relative to reference
 		query_pos = 0  # position relative to read
-
-		seen_positions = set()
 
 		# Skip variants that are located to the left of the read
 		while j < len(variants) and variants[j].position < ref_pos:
@@ -391,32 +390,21 @@ class ReadSetReader:
 				# Iterate over all variants that are in this matching region
 				while j < len(variants) and variants[j].position < ref_pos + length:
 					assert variants[j].position >= ref_pos
-					allele = ReadSetReader.realign(variants[j], bam_read, i,
-						variants[j].position - ref_pos, query_pos + variants[j].position - ref_pos, reference)
-					if allele in (0, 1):
-						yield (variants[j].position, allele, 30)  # TODO quality???
-						#seen_positions.add(variants[j].position)
+					yield (variants[j], i, variants[j].position - ref_pos, query_pos + variants[j].position - ref_pos)
 					j += 1
 				query_pos += length
 				ref_pos += length
 			elif cigar_op == 1:  # I operator (insertion)
 				# TODO it should work to *not* handle the variant here, but at the next M or D region
 				if j < len(variants) and variants[j].position == ref_pos:
-					allele = ReadSetReader.realign(variants[j], bam_read, i, 0, query_pos, reference)
-					if allele in (0, 1):
-						yield (variants[j].position, allele, 30)  # TODO quality???
-						# seen_positions.add(variants[j].position)
+					yield (variants[j], i, 0, query_pos)
 					j += 1
 				query_pos += length
 			elif cigar_op == 2:  # D operator (deletion)
 				# Iterate over all variants that are in this deleted region
 				while j < len(variants) and variants[j].position < ref_pos + length:
 					assert variants[j].position >= ref_pos
-					allele = ReadSetReader.realign(variants[j], bam_read, i,
-						variants[j].position - ref_pos, query_pos, reference)
-					if allele in (0, 1):
-						yield (variants[j].position, allele, 30)  # TODO quality???
-						#seen_positions.add(variants[j].position)
+					yield (variants[j], i, variants[j].position - ref_pos, query_pos)
 					j += 1
 				ref_pos += length
 			elif cigar_op == 3:  # N operator (reference skip)
@@ -427,6 +415,23 @@ class ReadSetReader:
 				pass
 			else:
 				raise ValueError("Unsupported CIGAR operation: {}".format(cigar_op))
+
+	@staticmethod
+	def detect_alleles_by_alignment(variants, j, bam_read, reference):
+		"""
+		Detect which alleles the given bam_read covers. Detect the correct
+		alleles of the variants that are covered by the given bam_read.
+
+		Yield tuples (position, allele, quality).
+
+		variants -- list of variants (VcfVariant objects)
+		j -- index of the first variant (in the variants list) to check
+		"""
+		for variant, i, consumed, query_pos in ReadSetReader._iterate_cigar(variants, j, bam_read):
+			allele = ReadSetReader.realign(variant, bam_read, i,
+			            consumed, query_pos, reference)
+			if allele in (0, 1):
+				yield (variant.position, allele, 30)  # TODO quality???
 
 	@staticmethod
 	def _merge_pair(read1, read2):
