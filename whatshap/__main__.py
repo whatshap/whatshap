@@ -11,6 +11,7 @@ from .args import HelpfulArgumentParser
 COMMANDS = [
 	'phase',
 	'stats',
+	'compare'
 	#'example',
 ]
 
