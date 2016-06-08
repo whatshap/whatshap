@@ -78,6 +78,7 @@ extensions = [
 		]),
 	CppExtension('whatshap.priorityqueue', sources=['whatshap/priorityqueue.pyx']),
 	CppExtension('whatshap.align', sources=['whatshap/align.pyx']),
+	CppExtension('whatshap._variants', sources=['whatshap/_variants.pyx']),
 ]
 
 
