@@ -35,14 +35,16 @@ def _iterate_cigar(variants, int j, bam_read):
 	for i, (cigar_op, length) in enumerate(cigar):
 		# The mapping of CIGAR operators to numbers is:
 		# MIDNSHPX= => 012345678
-		v_position = variants[j].position
+		if j < n:
+			v_position = variants[j].position
 		if cigar_op in (0, 7, 8):  # M, X, = operators (match)
 			# Iterate over all variants that are in this matching region
 			while j < n and v_position < ref_pos + length:
 				assert v_position >= ref_pos
 				yield (variants[j], i, v_position - ref_pos, query_pos + v_position - ref_pos)
 				j += 1
-				v_position = variants[j].position
+				if j < n:
+					v_position = variants[j].position
 			query_pos += length
 			ref_pos += length
 		elif cigar_op == 1:  # I operator (insertion)
@@ -50,7 +52,8 @@ def _iterate_cigar(variants, int j, bam_read):
 			if j < n and v_position == ref_pos:
 				yield (variants[j], i, 0, query_pos)
 				j += 1
-				v_position = variants[j].position
+				if j < n:
+					v_position = variants[j].position
 			query_pos += length
 		elif cigar_op == 2:  # D operator (deletion)
 			# Iterate over all variants that are in this deleted region
@@ -58,7 +61,8 @@ def _iterate_cigar(variants, int j, bam_read):
 				assert v_position >= ref_pos
 				yield (variants[j], i, v_position - ref_pos, query_pos)
 				j += 1
-				v_position = variants[j].position
+				if j < n:
+					v_position = variants[j].position
 			ref_pos += length
 		elif cigar_op == 3:  # N operator (reference skip)
 			ref_pos += length
