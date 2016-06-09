@@ -100,8 +100,7 @@ must *not* be put between quotation marks even if it contains spaces.
 
 #. Update the ``__version__`` in ``whatshap/__init__.py``.
 
-#. (Does not apply currently: Make sure the changelog is up-to-date. Set also
-   the correct version number in the changelog.)
+#. Make sure the changelog is up-to-date. Set also the correct version number in the changelog.
 
 #. Commit the version change.
 

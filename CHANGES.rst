@@ -3,8 +3,8 @@ Changes
 =======
 
 
-v0.11 (in development)
-----------------------
+v0.11 (2016-06-09)
+------------------
 
 * When phasing a pedigree, blocks that are not connected by reads but
   can be phased based on genotypes will be connected per default. This
