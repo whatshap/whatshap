@@ -52,11 +52,18 @@ A parallelization of the core dynamic programming algorithm has been described i
     Biostatistics (CIBB), 245-258, 2015.
 
 The current implementation can be found in `branch parallel <https://bitbucket.org/whatshap/whatshap/branch/parallel>`_.
-   
-Links
------
+
+
+Documentation
+-------------
 
 * `Bitbucket page <https://bitbucket.org/whatshap/whatshap/>`_
 * `Read the documentation online <https://whatshap.readthedocs.io/>`_.
   Offline documentation is available in the ``doc/`` subdirectory in the
   repository and in the downloaded tar distribution.
+
+
+Mailing list
+------------
+We run a `public mailing list <https://lists.cwi.nl/mailman/listinfo/whatshap>`_. Please
+don't hesitate to post questions and comments.
