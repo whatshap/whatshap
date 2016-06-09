@@ -10,6 +10,8 @@ from setuptools import setup, Extension
 from distutils.version import LooseVersion
 from distutils.command.sdist import sdist as _sdist
 from distutils.command.build_ext import build_ext as _build_ext
+from distutils.sysconfig import customize_compiler
+
 
 # set __version__
 exec(next(open('whatshap/__init__.py')))
@@ -96,6 +98,16 @@ class build_ext(_build_ext):
 			from Cython.Build import cythonize
 			self.extensions = cythonize(self.extensions)
 		_build_ext.run(self)
+
+	def build_extensions(self):
+		# Remove the warning about “-Wstrict-prototypes” not being valid for C++,
+		# see http://stackoverflow.com/a/36293331/715090
+		customize_compiler(self.compiler)
+		try:
+			self.compiler.compiler_so.remove("-Wstrict-prototypes")
+		except (AttributeError, ValueError):
+			pass
+		_build_ext.build_extensions(self)
 
 
 class sdist(_sdist):
