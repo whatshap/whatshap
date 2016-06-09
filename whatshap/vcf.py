@@ -243,25 +243,18 @@ class VcfReader:
 		for chromosome, records in self._group_by_chromosome():
 			yield self._process_single_chromosome(chromosome, records)
 
-
-	@staticmethod
-	def _read_PQ(call):
-		if (not hasattr(call.data,'PQ')) or (call.data.PQ is None):
-			return None
-		return call.data.PQ
-
 	@staticmethod
 	def _extract_HP_phase(call):
-		if (not hasattr(call.data,'HP')) or (call.data.HP is None):
+		HP = getattr(call.data, 'HP', None)
+		if HP is None:
 			return None
-		HP = call.data.HP
 		assert len(HP) == 2
 		fields = [[int(x) for x in s.split('-')] for s in HP]
 		assert fields[0][0] == fields[1][0]
 		block_id = fields[0][0]
 		phase1, phase2 = fields[0][1]-1, fields[1][1]-1
 		assert ((phase1, phase2) == (0, 1)) or ((phase1, phase2) == (1, 0))
-		return VariantCallPhase(block_id=block_id, phase=phase1, quality=VcfReader._read_PQ(call))
+		return VariantCallPhase(block_id=block_id, phase=phase1, quality=getattr(call.data, 'PQ', None))
 
 	@staticmethod
 	def _extract_GT_PS_phase(call):
@@ -269,12 +262,12 @@ class VcfReader:
 			return None
 		if not call.phased:
 			return None
-		block_id = 0
-		if (hasattr(call.data,'PS')) and (not call.data.PS is None):
-			block_id = call.data.PS
+		block_id = getattr(call.data, 'PS', 0)
+		if block_id is None:
+			block_id = 0
 		assert call.data.GT in ['0|1','1|0']
 		phase = int(call.data.GT[0])
-		return VariantCallPhase(block_id=block_id, phase=phase, quality=VcfReader._read_PQ(call))
+		return VariantCallPhase(block_id=block_id, phase=phase, quality=getattr(call.data, 'PQ', None))
 
 	def _process_single_chromosome(self, chromosome, records):
 		phase_detected = None
