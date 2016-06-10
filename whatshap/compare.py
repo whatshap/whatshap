@@ -16,6 +16,8 @@ def add_arguments(parser):
 			'to process. If not given, use first sample found in VCF.')
 	add('--names', metavar='NAMES', default=None, help='Comma-separated list '
 			'of data set names to be used in the report (in same order as VCFs).')
+	add('--tsv-pairwise', metavar='TSVPAIRWISE', default=None, help='Filename to write '
+		'comparison results from pair-wise comparison to (tab-separated).')
 	# TODO: what's the best way to request "two or more" VCFs?
 	add('vcf', nargs='+', metavar='VCF', help='At least two phased VCF files to be compared.')
 
@@ -35,6 +37,8 @@ class SwitchFlips:
 		return self
 	def __repr__(self):
 		return 'SwitchFlips(switches={}, flips={})'.format(self.switches, self.flips)
+	def __str__(self):
+		return '{}/{}'.format(self.switches, self.flips)
 
 
 class PhasingErrors:
@@ -97,20 +101,29 @@ def compare_block(phasing0, phasing1):
 	)
 
 
-def fraction2str(nominator, denominator):
+def fraction2percentstr(nominator, denominator):
 	if denominator == 0:
 		return '--'
 	else:
 		return '{:.2f}%'.format(nominator*100.0/denominator)
 
 
+def safefraction(nominator, denominator):
+	if denominator == 0:
+		return float('nan')
+	else:
+		return nominator/denominator
+
+
 def print_errors(errors, phased_pairs, print_hamming=False):
 	print('    phased pairs of variants assessed:', str(phased_pairs).rjust(count_width))
 	print('                        switch errors:', str(errors.switches).rjust(count_width))
-	print('                    switch error rate:', fraction2str(errors.switches, phased_pairs).rjust(count_width))
-	print('            switch/flip decomposition:', '{}/{}'.format(errors.switch_flips.switches,errors.switch_flips.flips).rjust(count_width) )
-	print('                     switch/flip rate:', fraction2str(errors.switch_flips.switches+errors.switch_flips.flips, phased_pairs).rjust(count_width))
+	print('                    switch error rate:', fraction2percentstr(errors.switches, phased_pairs).rjust(count_width))
+	print('            switch/flip decomposition:', str(errors.switch_flips).rjust(count_width) )
+	print('                     switch/flip rate:', fraction2percentstr(errors.switch_flips.switches+errors.switch_flips.flips, phased_pairs).rjust(count_width))
 
+pairwise_comparison_results_fields = ['intersection_blocks', 'covered_variants', 'all_assessed_pairs', 'all_switches', 'all_switch_rate', 'all_switchflips', 'all_switchflip_rate', 'largestblock_assessed_pairs', 'largestblock_switches', 'largestblock_switch_rate', 'largestblock_switchflips', 'largestblock_switchflip_rate', 'largestblock_hamming', 'largestblock_hamming_rate']
+PairwiseComparisonResults = namedtuple('PairwiseComparisonResults', pairwise_comparison_results_fields)
 
 def compare(variant_tables, sample, dataset_names):
 	assert len(variant_tables) > 1
@@ -145,8 +158,10 @@ def compare(variant_tables, sample, dataset_names):
 	for i in range(len(phases)):
 		print('non-singleton blocks in {}:'.format(dataset_names[i]).rjust(38), str(len([b for b in blocks[i].values() if len(b) > 1])).rjust(count_width))
 		print('                 --> covered variants:', str(sum(len(b) for b in blocks[i].values() if len(b) > 1)).rjust(count_width))
-	print('    non-singleton intersection blocks:', str(len([b for b in block_intersection.values() if len(b) > 1])).rjust(count_width))
-	print('                 --> covered variants:', str(sum(len(b) for b in block_intersection.values() if len(b) > 1)).rjust(count_width))
+	intersection_block_count = len([b for b in block_intersection.values() if len(b) > 1])
+	intersection_block_variants = sum(len(b) for b in block_intersection.values() if len(b) > 1)
+	print('    non-singleton intersection blocks:', str(intersection_block_count).rjust(count_width))
+	print('                 --> covered variants:', str(intersection_block_variants).rjust(count_width))
 	longest_block = None
 	longest_block_errors = None
 	phased_pairs = 0
@@ -168,7 +183,23 @@ def compare(variant_tables, sample, dataset_names):
 		print('           LARGEST INTERSECTION BLOCK:', '-'*count_width)
 		print_errors(longest_block_errors, longest_block-1)
 		print('                     Hamming distance:', str(longest_block_errors.hamming).rjust(count_width))
-		print('                 Hamming distance [%]:', fraction2str(longest_block_errors.hamming, longest_block).rjust(count_width))
+		print('                 Hamming distance [%]:', fraction2percentstr(longest_block_errors.hamming, longest_block).rjust(count_width))
+		return PairwiseComparisonResults(
+			intersection_blocks = intersection_block_count,
+			covered_variants = intersection_block_variants,
+			all_assessed_pairs = phased_pairs,
+			all_switches = total_errors.switches,
+			all_switch_rate = safefraction(total_errors.switches, phased_pairs),
+			all_switchflips = total_errors.switch_flips,
+			all_switchflip_rate = safefraction(total_errors.switch_flips.switches+total_errors.switch_flips.flips, phased_pairs),
+			largestblock_assessed_pairs = longest_block-1,
+			largestblock_switches = longest_block_errors.switches,
+			largestblock_switch_rate = safefraction(longest_block_errors.switches, longest_block - 1),
+			largestblock_switchflips = longest_block_errors.switch_flips,
+			largestblock_switchflip_rate = safefraction(longest_block_errors.switch_flips.switches+longest_block_errors.switch_flips.flips, longest_block - 1),
+			largestblock_hamming = longest_block_errors.hamming,
+			largestblock_hamming_rate = safefraction(longest_block_errors.hamming, longest_block)
+		)
 	else:
 		histogram = defaultdict(int)
 		total_compared = 0
@@ -201,7 +232,7 @@ def compare(variant_tables, sample, dataset_names):
 			print(
 				('{%s} vs. {%s}:' % (','.join(left),','.join(right))).rjust(38),
 				str(count).rjust(count_width),
-				fraction2str(count, total_compared).rjust(8)
+				fraction2percentstr(count, total_compared).rjust(8)
 			)
 
 
@@ -240,6 +271,12 @@ def main(args):
 		else:
 			logger.error('More than one sample is present in all VCFs, please use --sample to specify which sample to work on.')
 			sys.exit(1)
+
+	if args.tsv_pairwise:
+		tsv_pairwise_file = open(args.tsv_pairwise, 'w')
+	else:
+		tsv_pairwise_file = None
+
 	print('Comparing phasings for sample', sample)
 
 	chromosomes = None
@@ -260,6 +297,10 @@ def main(args):
 		sys.exit(1)
 
 	logger.info('Chromosomes present in all VCFs: %s', ', '.join(sorted(chromosomes)))
+
+	if tsv_pairwise_file:
+		print('#sample', 'chromosome', 'dataset_name0', 'dataset_name1', 'file_name0', 'file_name1', sep='\t', end='\t', file=tsv_pairwise_file)
+		print(*pairwise_comparison_results_fields, sep='\t', file=tsv_pairwise_file)
 
 	print('FILENAMES')
 	for name, filename in zip(dataset_names, args.vcf):
@@ -293,8 +334,14 @@ def main(args):
 		for i in range(len(vcfs)):
 			for j in range(i+1, len(vcfs)):
 				print('PAIRWISE COMPARISON: {} <--> {}:'.format(dataset_names[i],dataset_names[j]))
-				compare([variant_tables[i], variant_tables[j]], sample, dataset_names)
+				results = compare([variant_tables[i], variant_tables[j]], sample, dataset_names)
+				if tsv_pairwise_file:
+					print(sample, chromosome, dataset_names[i], dataset_names[j], args.vcf[i], args.vcf[j], sep='\t', end='\t', file=tsv_pairwise_file)
+					print(*results, sep='\t', file=tsv_pairwise_file)
 		
 		if len(vcfs) > 2:
 			print('MULTIWAY COMPARISON OF ALL PHASINGS:')
 			compare(variant_tables, sample, dataset_names)
+
+	if args.tsv_pairwise:
+		tsv_pairwise_file.close()
