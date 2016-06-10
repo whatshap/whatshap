@@ -174,7 +174,6 @@ class VariantTable:
 				yield read
 
 
-
 class MixedPhasingError(Exception):
 	pass
 
@@ -301,10 +300,6 @@ class VcfReader:
 			# GT field, but as strings.
 			# For example, when GT is 0/1, gt_alleles is ['0', '1'].
 			# And when GT is 2|1, gt_alleles is ['2', '1'].
-			"""
-			logger.debug("Call %s:%d %s→%s",
-				record.CHROM, record.start + 1, record.REF, record.ALT)
-			"""
 
 			# Read phasing information (allow GT/PS or HP phase information, but not both)
 			phases = []
@@ -374,7 +369,7 @@ class PhasedVcfWriter:
 		command_line = command_line.replace('"', '')
 		self._reader.metadata['commandline'].append('"' + command_line + '"')
 		self._reader.formats['HP'] = vcf.parser._Format(id='HP', num=None, type='String', desc='Phasing haplotype identifier')
-		self._reader.formats['PQ'] = vcf.parser._Format(id='PQ', num=1, type='Float', desc='Phasing quality')
+		# self._reader.formats['PQ'] = vcf.parser._Format(id='PQ', num=1, type='Float', desc='Phasing quality')
 
 		self._writer = vcf.Writer(out_file, template=self._reader)
 		logger.debug('Formats: %s', self._reader.formats)

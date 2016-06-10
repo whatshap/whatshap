@@ -54,7 +54,7 @@ def main():
 	parser = HelpfulArgumentParser(description=__doc__, prog='whatshap')
 	parser.add_argument('--version', action='version', version='%(prog)s ' + __version__)
 	parser.add_argument('--debug', action='store_true', default=False,
-	    help='Print debug messages')
+		help='Print debug messages')
 
 	subparsers = parser.add_subparsers()
 	for command_name in COMMANDS:
