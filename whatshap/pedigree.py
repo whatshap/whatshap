@@ -3,6 +3,10 @@ Pedigree-related functions
 """
 import math
 from collections import namedtuple, Counter, OrderedDict
+from collections import defaultdict
+import logging
+
+logger = logging.getLogger(__name__)
 
 RecombinationMapEntry = namedtuple('RecombinationMapEntry', ['position', 'cum_distance'])
 
@@ -123,7 +127,7 @@ def mendelian_conflict(genotypem, genotypef, genotypec):
 	return tuple(l) in mendelian_conflict_sets
 
 
-def find_recombination(transmission_vector, components, positions, recombcost, recombination_list_filename=None):
+def find_recombination(transmission_vector, components, positions, recombcost):
 	assert len(transmission_vector) == len(positions) == len(recombcost)
 	assert set(components.keys()).issubset(set(positions))
 	position_to_index = { pos: i for i, pos in enumerate(positions) }
@@ -131,8 +135,7 @@ def find_recombination(transmission_vector, components, positions, recombcost, r
 	for position, block_id in components.items():
 		blocks[block_id].append(position)
 
-	RecombinationEvent = namedtuple('RecombinationEvent', ['position1', 'position2', 'inheritance_value1', 'inheritance_value2' , 'recombination_cost'])
-	event_count = 0
+	RecombinationEvent = namedtuple('RecombinationEvent', ['position1', 'position2', 'transmitted_hap_mother1', 'transmitted_hap_mother2' ,'transmitted_hap_father1', 'transmitted_hap_father2', 'recombination_cost'])
 	event_list = []
 	cum_recomb_cost = 0
 	for block_id, block in blocks.items():
@@ -143,20 +146,12 @@ def find_recombination(transmission_vector, components, positions, recombcost, r
 			continue
 		for i in range(2, len(block)):
 			if block_transmission_vector[i-1] != block_transmission_vector[i]:
-				event_list.append(RecombinationEvent(block[i-1], block[i], block_transmission_vector[i-1], block_transmission_vector[i], block_recomb_cost[i]))
+				event_list.append(RecombinationEvent(block[i-1], block[i], block_transmission_vector[i-1]%2, block_transmission_vector[i]%2, block_transmission_vector[i-1]//2, block_transmission_vector[i]//2, block_recomb_cost[i]))
 				cum_recomb_cost += block_recomb_cost[i]
-				event_count += 1
-
-	if recombination_list_filename is not None:
-		event_list.sort()
-		f = open(recombination_list_filename, 'w')
-		print('#position1', 'position2', 'inheritance_value1', 'inheritance_value2' , 'recombination_cost', file=f)
-		for e in event_list:
-			print(e.position1, e.position2, e.inheritance_value1, e.inheritance_value2, e.recombination_cost, file=f)
-		f.close()
 
 	logger.info('Cost accounted for by recombination events: %d', cum_recomb_cost)
-	return event_count
+	event_list.sort()
+	return event_list
 
 
 class ParseError(Exception):
