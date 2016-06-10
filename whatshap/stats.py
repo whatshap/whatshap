@@ -2,7 +2,7 @@
 Print phasing statistics
 """
 import logging
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 from statistics import median
 from .vcf import VcfReader
 
@@ -14,6 +14,8 @@ def add_arguments(parser):
 	add('--gtf', default=None, help='Write phased blocks to GTF file.')
 	add('--sample', metavar='SAMPLE', default=None, help='Name of the sample '
 			'to process. If not given, use first sample found in VCF.')
+	add('--tsv', metavar='TSV', default=None, help='Filename to write '
+		'statistics to (tab-separated).')
 	add('vcf', metavar='VCF', help='Phased VCF file')
 
 
@@ -64,6 +66,12 @@ class GtfWriter:
 			'gene_id "{}"; transcript_id "{}.1";'.format(name, name),
 			sep='\t', file=self._file)
 
+detailed_stats_fields = ['variants','phased','unphased','singletons','blocks',
+	'variant_per_block_median','variant_per_block_avg','variant_per_block_min','variant_per_block_max','variant_per_block_sum',
+	'bp_per_block_median','bp_per_block_avg','bp_per_block_min','bp_per_block_max','bp_per_block_sum'
+]
+DetailedStats = namedtuple('DetailedStats', detailed_stats_fields)
+
 
 class PhasingStats:
 	def __init__(self):
@@ -86,38 +94,70 @@ class PhasingStats:
 	def add_variants(self, variants):
 		self.variants += variants
 
-	def print(self):
+	def get(self):
 		block_sizes = sorted(len(block) for block in self.blocks)
 		n_singletons = sum(1 for size in block_sizes if size == 1)
 		block_sizes = [ size for size in block_sizes if size > 1 ]
 		block_lengths = sorted(block.span() for block in self.blocks if len(block) > 1)
+		if block_sizes:
+			return DetailedStats(
+				variants = self.variants,
+				phased = sum(block_sizes),
+				unphased = self.unphased,
+				singletons = n_singletons,
+				blocks = len(block_sizes),
+				variant_per_block_median = median(block_sizes),
+				variant_per_block_avg = sum(block_sizes) / len(block_sizes),
+				variant_per_block_min = block_sizes[0],
+				variant_per_block_max = block_sizes[-1],
+				variant_per_block_sum = sum(block_sizes),
+				bp_per_block_median = median(block_lengths),
+				bp_per_block_avg = sum(block_lengths) / len(block_lengths),
+				bp_per_block_min = block_lengths[0],
+				bp_per_block_max = block_lengths[-1],
+				bp_per_block_sum = sum(block_lengths)
+			)
+		else:
+			return DetailedStats(
+				variants = self.variants,
+				phased = 0,
+				unphased = self.unphased,
+				singletons = n_singletons,
+				blocks = 0,
+				variant_per_block_median = float('nan'),
+				variant_per_block_avg = float('nan'),
+				variant_per_block_min = float('nan'),
+				variant_per_block_max = float('nan'),
+				variant_per_block_sum = 0,
+				bp_per_block_median = float('nan'),
+				bp_per_block_avg = float('nan'),
+				bp_per_block_min = float('nan'),
+				bp_per_block_max = float('nan'),
+				bp_per_block_sum = 0
+			)
+
+	def print(self):
+		stats = self.get()
 
 		WIDTH = 21
-		print('Variants in VCF:'.rjust(WIDTH), '{:8d}'.format(self.variants))
-		print('Phased:'.rjust(WIDTH), '{:8d}'.format(sum(block_sizes)))
-		print('Unphased:'.rjust(WIDTH), '{:8d}'.format(self.unphased), '(not considered below)')
-		print('Singletons:'.rjust(WIDTH), '{:8d}'.format(n_singletons), '(not considered below)')
-		print('Blocks:'.rjust(WIDTH), '{:8d}'.format(len(block_sizes)))
-		if block_sizes:
-			print()
-			print('Block sizes (no. of variants)')
-			print('Median block size:'.rjust(WIDTH), '{:11.2f} variants'.format(
-				median(block_sizes)))
-			print('Average block size:'.rjust(WIDTH), '{:11.2f} variants'.format(
-				sum(block_sizes) / len(block_sizes)))
-			print('Largest block:'.rjust(WIDTH), '{:8d}    variants'.format(block_sizes[-1]))
-			print('Smallest block:'.rjust(WIDTH), '{:8d}    variants'.format(block_sizes[0]))
-
-		if block_lengths:
-			print()
-			print('Block lengths (basepairs)')
-			print('Sum of lengths:'.rjust(WIDTH), '{:8d}    bp'.format(sum(block_lengths)))
-			print('Median block length:'.rjust(WIDTH), '{:11.2f} bp'.format(
-				median(block_lengths)))
-			print('Average block length:'.rjust(WIDTH), '{:11.2f} bp'.format(
-				sum(block_lengths) / len(block_lengths)))
-			print('Longest block:'.rjust(WIDTH), '{:8d}    bp'.format(block_lengths[-1]))
-			print('Shortest block:'.rjust(WIDTH), '{:8d}    bp'.format(block_lengths[0]))
+		print('Variants in VCF:'.rjust(WIDTH), '{:8d}'.format(stats.variants))
+		print('Phased:'.rjust(WIDTH), '{:8d}'.format(stats.phased))
+		print('Unphased:'.rjust(WIDTH), '{:8d}'.format(stats.unphased), '(not considered below)')
+		print('Singletons:'.rjust(WIDTH), '{:8d}'.format(stats.singletons), '(not considered below)')
+		print('Blocks:'.rjust(WIDTH), '{:8d}'.format(stats.blocks))
+		print()
+		print('Block sizes (no. of variants)')
+		print('Median block size:'.rjust(WIDTH), '{:11.2f} variants'.format(stats.variant_per_block_median))
+		print('Average block size:'.rjust(WIDTH), '{:11.2f} variants'.format(stats.variant_per_block_avg))
+		print('Largest block:'.rjust(WIDTH), '{:8d}    variants'.format(stats.variant_per_block_max))
+		print('Smallest block:'.rjust(WIDTH), '{:8d}    variants'.format(stats.variant_per_block_min))
+		print()
+		print('Block lengths (basepairs)')
+		print('Sum of lengths:'.rjust(WIDTH), '{:8d}    bp'.format(stats.bp_per_block_sum))
+		print('Median block length:'.rjust(WIDTH), '{:11.2f} bp'.format(stats.bp_per_block_median))
+		print('Average block length:'.rjust(WIDTH), '{:11.2f} bp'.format(stats.bp_per_block_avg))
+		print('Longest block:'.rjust(WIDTH), '{:8d}    bp'.format(stats.bp_per_block_max))
+		print('Shortest block:'.rjust(WIDTH), '{:8d}    bp'.format(stats.bp_per_block_min))
 
 
 def main(args):
@@ -125,6 +165,11 @@ def main(args):
 	if args.gtf:
 		gtf_file = open(args.gtf, 'wt')
 		gtfwriter = GtfWriter(gtf_file)
+	if args.tsv:
+		tsv_file = open(args.tsv, 'w')
+	else:
+		tsv_file = None
+
 	vcf_reader = VcfReader(args.vcf, indels=False)  # TODO: also indels
 	if len(vcf_reader.samples) == 0:
 		logger.error('Input VCF does not contain any sample')
@@ -140,6 +185,10 @@ def main(args):
 	else:
 		sample = vcf_reader.samples[0]
 		logger.info('Reporting results for sample {}'.format(sample))
+
+	if tsv_file:
+		print('#sample', 'chromosome', 'file_name', sep='\t', end='\t', file=tsv_file)
+		print(*detailed_stats_fields, sep='\t', file=tsv_file)
 
 	print('Phasing statistics for sample {} from file {}'.format(sample, args.vcf))
 	total_stats = PhasingStats()
@@ -180,11 +229,21 @@ def main(args):
 
 		stats.add_blocks(blocks.values())
 		stats.print()
+		if tsv_file:
+			print(sample, chromosome, args.vcf, sep='\t', end='\t', file=tsv_file)
+			print(*stats.get(), sep='\t', file=tsv_file)
+
 		total_stats += stats
 
 	if chromosome_count > 1:
 		print('---------------- ALL chromosomes (aggregated) ----------------'.format(chromosome))
 		total_stats.print()
+		if tsv_file:
+			print(sample, 'ALL', args.vcf, sep='\t', end='\t', file=tsv_file)
+			print(*total_stats.get(), sep='\t', file=tsv_file)
 
 	if gtfwriter:
 		gtf_file.close()
+
+	if tsv_file:
+		tsv_file.close()
