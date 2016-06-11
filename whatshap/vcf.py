@@ -372,7 +372,6 @@ class PhasedVcfWriter:
 		# self._reader.formats['PQ'] = vcf.parser._Format(id='PQ', num=1, type='Float', desc='Phasing quality')
 
 		self._writer = vcf.Writer(out_file, template=self._reader)
-		logger.debug('Formats: %s', self._reader.formats)
 		self._unprocessed_record = None
 		self._reader_iter = iter(self._reader)
 		self._hp_found_warned = False
