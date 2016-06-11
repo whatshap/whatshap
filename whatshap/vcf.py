@@ -380,6 +380,10 @@ class PhasedVcfWriter:
 		self._hp_found_warned = False
 		self._normalized = normalized
 
+	@property
+	def samples(self):
+		return self._reader.samples
+
 	def _format_phasing_info(self, component, phase):
 		"""
 		component -- name of the component
@@ -403,8 +407,6 @@ class PhasedVcfWriter:
 		Coordinates within the superreads are used to identify variants. Since
 		variant normalization changes coordinates, make sure that the PhasedVcfWriter
 		has been initialized with the correct 'normalized' setting!
-
-		# TODO introduce a PhasingResult class that combines superread and component
 		"""
 		assert self._unprocessed_record is None or (self._unprocessed_record.CHROM == chromosome)
 
