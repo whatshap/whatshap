@@ -11,8 +11,8 @@ from .args import HelpfulArgumentParser
 COMMANDS = [
 	'phase',
 	'stats',
-	'compare'
-	#'example',
+	'compare',
+	'hapcut2vcf',
 ]
 
 logger = logging.getLogger(__name__)
