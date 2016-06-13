@@ -8,6 +8,7 @@ blocks) and phase the variants. The phased VCF is written to standard output.
 import logging
 import sys
 import platform
+import resource
 from collections import defaultdict
 
 import pyfaidx
@@ -539,7 +540,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 			timers.start('parse_vcf')
 		timers.stop('parse_vcf')
 
-	logger.info('== SUMMARY ==')
+	logger.info('\n== SUMMARY ==')
 	# TODO: Print more meaningful summary, including block sizes, mendelian conflicts, etc.
 	if not ped:
 		logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
@@ -551,6 +552,9 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 	else:
 		logger.info('No. of heterozygous variants determined to be homozygous: %d', stats.n_homozygous)
 	timers.stop('overall')
+	if sys.platform == 'linux':
+		memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+		logger.info('Maximum memory usage: %.3f GB', memory_kb / 1E6)
 	logger.info('Time spent reading BAM:                      %6.1f s', timers.elapsed('read_bam'))
 	logger.info('Time spent parsing VCF:                      %6.1f s', timers.elapsed('parse_vcf'))
 	if len(phase_input_vcfs) > 0:
