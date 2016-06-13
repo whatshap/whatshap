@@ -3,7 +3,7 @@ Print phasing statistics
 """
 import logging
 from collections import defaultdict, namedtuple
-from statistics import median
+from .math import median
 from .vcf import VcfReader
 
 logger = logging.getLogger(__name__)
