@@ -49,7 +49,7 @@ def ensure_pysam_version():
 		sys.exit("WhatsHap requires pysam >= 0.8.1")
 
 
-def main():
+def main(argv=sys.argv[1:]):
 	ensure_pysam_version()
 	parser = HelpfulArgumentParser(description=__doc__, prog='whatshap')
 	parser.add_argument('--version', action='version', version='%(prog)s ' + __version__)
@@ -64,7 +64,7 @@ def main():
 		subparser.set_defaults(module=module, subparser=subparser)
 		module.add_arguments(subparser)
 
-	args = parser.parse_args()
+	args = parser.parse_args(argv)
 	setup_logging(args.debug)
 
 	if not hasattr(args, 'module'):
