@@ -3,6 +3,7 @@ Test phasing of pedigrees (PedMEC algorithm)
 """
 from nose.tools import raises
 from whatshap.core import PedigreeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds
+from whatshap.pedigree import centimorgen_to_phred
 from .phasingutils import string_to_readset, string_to_readset_pedigree, brute_force_phase
 
 
@@ -40,7 +41,7 @@ def test_phase_empty_trio():
 	(superreadsm, superreadsf, superreadsc), transmission_vector = dp_table.get_super_reads()
 
 
-def test_phase_trio1() :
+def test_phase_trio1():
 	reads = """
 	  A 111
 	  A 010
@@ -69,7 +70,7 @@ def test_phase_trio1() :
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 3)
 
 
-def test_phase_trio2() :
+def test_phase_trio2():
 	reads = """
 	  A 0
 	  A 0
@@ -95,7 +96,7 @@ def test_phase_trio2() :
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 1)
 
 
-def test_phase_trio3() :
+def test_phase_trio3():
 	reads = """
 	  A 1111
 	  B 1010
@@ -128,7 +129,7 @@ def test_phase_trio3() :
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 6)
 
 
-def test_phase_trio4() :
+def test_phase_trio4():
 	reads = """
 	  B 101
 	  B 101
@@ -157,7 +158,7 @@ def test_phase_trio4() :
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 3)
 
 
-def test_phase_trio5() :
+def test_phase_trio5():
 	reads = """
 	  B 101
 	  B 101
@@ -186,7 +187,7 @@ def test_phase_trio5() :
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 3)
 
 
-def test_phase_quartet1() :
+def test_phase_quartet1():
 	reads = """
 	  A 111
 	  A 010
@@ -221,7 +222,7 @@ def test_phase_quartet1() :
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 3)
 
 
-def test_phase_quartet2() :
+def test_phase_quartet2():
 	reads = """
 	  A 111111
 	  A 000000
@@ -253,7 +254,7 @@ def test_phase_quartet2() :
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 6)
 
 
-def test_phase_quartet3() :
+def test_phase_quartet3():
 	reads = """
 	  A 1111
 	  A 0000
@@ -292,3 +293,14 @@ def test_phase_quartet3() :
 		('000000','010010')
 	]
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 6)
+
+
+def test_centimorgen_to_phred():
+	assert round(centimorgen_to_phred(0.10010013353365396)) == 30
+	assert round(centimorgen_to_phred(0.0010000100001343354)) == 50
+	assert round(centimorgen_to_phred(1e-38)) == 400
+
+
+@raises(ValueError)
+def test_centimorgen_to_phred_zero():
+	assert centimorgen_to_phred(0)

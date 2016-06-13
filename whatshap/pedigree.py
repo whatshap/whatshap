@@ -77,9 +77,12 @@ def uniform_recombination_map(recombrate, positions):
 def centimorgen_to_phred(distance):
 	assert distance >= 0
 	if distance == 0:
-		return large_value
-	p = (1.0-math.exp(-(2.0*distance)/100))/2.0
-	return -10 * math.log10(p)
+		raise ValueError('Cannot convert genetic distance of zero to phred.')
+	elif distance < 1e-10:
+		return -10 * (math.log10(distance) - 2)
+	else:
+		p = (1.0-math.exp(-(2.0*distance)/100))/2.0
+		return -10 * math.log10(p)
 
 
 def load_genetic_map(filename):
