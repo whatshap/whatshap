@@ -28,7 +28,7 @@ seed(10)
 def randstring():
 	return ''.join(choice('AC') for _ in range(randint(0, 10)))
 
-STRING_PAIRS.extend((randstring(), randstring()) for _ in range(100000))
+STRING_PAIRS.extend((randstring(), randstring()) for _ in range(1000))
 
 
 def test_edit_distance():
