@@ -18,14 +18,9 @@ exec(next(open('whatshap/__init__.py')))
 
 MIN_CYTHON_VERSION = '0.17'
 
-if sys.version_info < (3, 2):
-	sys.stdout.write("At least Python 3.2 is required.\n")
-	sys.exit(1)
 if sys.version_info < (3, 3):
-	# need backport of contextlib.ExitStack
-	extra_install_requires = ['contextlib2']
-else:
-	extra_install_requires = []
+	sys.stdout.write("At least Python 3.3 is required.\n")
+	sys.exit(1)
 
 
 def no_cythonize(extensions, **_ignore):
@@ -131,7 +126,7 @@ setup(
 	ext_modules = extensions,
 	packages = ['whatshap'],
 	entry_points={'console_scripts': ['whatshap = whatshap.__main__:main']},
-	install_requires = ['pysam<0.9.0', 'PyVCF', 'pyfaidx'] + extra_install_requires,
+	install_requires = ['pysam<0.9.0', 'PyVCF', 'pyfaidx'],
 	classifiers = [
 		"Development Status :: 4 - Beta",
 		"Environment :: Console",

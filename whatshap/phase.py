@@ -12,10 +12,7 @@ from collections import defaultdict
 
 import pyfaidx
 
-try:
-	from contextlib import ExitStack
-except ImportError:
-	from contextlib2 import ExitStack  # PY32
+from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter, VariantTable
 from . import __version__
 from .args import HelpfulArgumentParser as ArgumentParser
