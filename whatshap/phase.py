@@ -331,7 +331,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 			output = stack.enter_context(open(output, 'w'))
 		else:
 			output = sys.stdout
-		command_line = '(whatshap phase {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
+		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file, normalized=normalize, out_file=output)
 		vcf_reader = VcfReader(variant_file, indels=indels)
 
