@@ -82,9 +82,7 @@ class VariantTable:
 			0 represents 0/0 (homozygous reference)
 			1 represents 0/1 or 1/0 (heterozygous)
 			2 represents 1/1 (homozygous alternative)
-		phases -- iterable yielding a pair (block_id, phase)
-			for each sample, where and block_id is a numeric id of the phased block and
-			phase is either 0 or 1 (indicating whether the REF allele is on haplotype 0 or 1).
+		phases -- iterable of VariantCallPhase objects
 		"""
 		if len(genotypes) != len(self.genotypes):
 			raise ValueError('Expecting as many genotypes as there are samples')
@@ -179,6 +177,11 @@ class MixedPhasingError(Exception):
 
 
 VariantCallPhase = namedtuple('VariantCallPhase', ['block_id', 'phase', 'quality'])
+VariantCallPhase.__doc__ = \
+	"""
+	block_id is a numeric id of the phased block and
+	phase is either 0 or 1 (indicating whether the REF allele is on haplotype 0 or 1).
+	"""
 
 
 class VcfReader:
@@ -358,7 +361,7 @@ class PhasedVcfWriter:
 		"""
 		in_path -- Path to input VCF, used as template.
 		command_line -- A string that will be added as a VCF header entry.
-		out_file -- File-like object to which VCF is written.
+		out_file -- Open file-like object to which VCF is written.
 		normalized -- whether the phased variants have been normalized
 		"""
 		self._reader = vcf.Reader(filename=in_path)
