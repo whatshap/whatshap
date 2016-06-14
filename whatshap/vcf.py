@@ -299,18 +299,13 @@ class VcfReader:
 			if self._normalize:
 				pos, ref, alt = self.normalize(pos, ref, alt)
 
-			# PyVCF pecularity: gt_alleles is a list of the alleles in the
-			# GT field, but as strings.
-			# For example, when GT is 0/1, gt_alleles is ['0', '1'].
-			# And when GT is 2|1, gt_alleles is ['2', '1'].
-
 			# Read phasing information (allow GT/PS or HP phase information, but not both)
 			phases = []
 			for call in record.samples:
 				phase = None
 				for extract_phase, phase_name in [(self._extract_HP_phase, 'HP'), (self._extract_GT_PS_phase, 'GT_PS')]:
 					p = extract_phase(call)
-					if not p is None:
+					if p is not None:
 						if phase_detected is None:
 							phase_detected = phase_name
 						elif phase_detected != phase_name:
@@ -318,6 +313,10 @@ class VcfReader:
 						phase = p
 				phases.append(phase)
 
+			# PyVCF pecularity: gt_alleles is a list of the alleles in the
+			# GT field, but as strings.
+			# For example, when GT is 0/1, gt_alleles is ['0', '1'].
+			# And when GT is 2|1, gt_alleles is ['2', '1'].
 			GT_TO_INT = { 0: 0, 1: 1, 2: 2, None: -1 }
 			genotypes = array('b', (GT_TO_INT[call.gt_type] for call in record.samples))
 			variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
