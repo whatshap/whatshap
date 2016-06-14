@@ -5,7 +5,7 @@ import sys
 import logging
 import itertools
 from array import array
-from collections import defaultdict, namedtuple
+from collections import namedtuple
 import vcf
 from .core import Read
 

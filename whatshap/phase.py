@@ -14,9 +14,8 @@ from collections import defaultdict
 import pyfaidx
 
 from contextlib import ExitStack
-from .vcf import VcfReader, PhasedVcfWriter, VariantTable
+from .vcf import VcfReader, PhasedVcfWriter
 from . import __version__
-from .args import HelpfulArgumentParser as ArgumentParser
 from .core import ReadSet, DPTable, readselection, Pedigree, PedigreeDPTable, NumericSampleIds
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,

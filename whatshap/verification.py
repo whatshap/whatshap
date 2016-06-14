@@ -1,4 +1,5 @@
-from whatshap.core import Read, DPTable, ReadSet, Variant
+from whatshap.core import Read
+
 
 def verify_mec_score_and_partitioning(dp_table, reads):
 	"""Confirms that the results reported by dp_table are consistent: check
