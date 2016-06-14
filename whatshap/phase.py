@@ -361,6 +361,8 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				logger.info('Using region-specific recombination rates from genetic map %s.', genmap)
 			else:
 				logger.info('Using uniform recombination rate of %g cM/Mb.', recombrate)
+			max_coverage = max(1, max_coverage // len(pedigree_samples))
+			logger.info('Using maximum coverage per sample of %dX', max_coverage)
 
 		# Read phase information provided as VCF files, if provided.
 		# TODO: do this chromosome- and/or sample-wise on demand to save memory.
