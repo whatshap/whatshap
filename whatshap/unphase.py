@@ -31,9 +31,11 @@ def remove_phasing(vcf_path, outfile):
 	outfile, which must be a file-like object.
 	"""
 	reader = vcf.Reader(filename=vcf_path)
-	reader.metadata['phasing'] = []
+	if 'phasing' in reader.metadata:
+		reader.metadata['phasing'] = []
 	for tag in TAGS_TO_REMOVE:
-		del reader.formats[tag]
+		if tag in reader.formats:
+			del reader.formats[tag]
 	writer = vcf.Writer(outfile, template=reader)
 	for record in reader:
 		formats = record.FORMAT.split(':')
@@ -46,7 +48,7 @@ def remove_phasing(vcf_path, outfile):
 			record.FORMAT = ':'.join(formats)
 			if record.FORMAT not in reader._format_cache:
 				reader._format_cache[record.FORMAT] = reader._parse_sample_format(record.FORMAT)
-			samp_fmt = reader._format_cache[record.FORMAT]
+		samp_fmt = reader._format_cache[record.FORMAT]
 
 		for call in record.samples:
 			if tag_removed or '|' in call.data.GT:
