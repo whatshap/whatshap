@@ -13,6 +13,7 @@ COMMANDS = [
 	'stats',
 	'compare',
 	'hapcut2vcf',
+	'unphase',
 ]
 
 logger = logging.getLogger(__name__)

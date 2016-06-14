@@ -6,6 +6,8 @@ v0.12 (in development)
 ----------------------
 
 * Speed up allele detection
+* Add an ``unphase`` subcommand which removes all phasing from a VCF file
+  (``HP`` and ``PS`` tags, pipe notation).
 
 v0.11 (2016-06-09)
 ------------------
