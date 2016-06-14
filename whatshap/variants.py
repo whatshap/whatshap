@@ -109,7 +109,9 @@ class ReadSetReader:
 		has two entries for paired-end reads, one entry for single-end reads.
 		"""
 		reads = defaultdict(list)
-
+		# Copy the pyfaidx.FastaRecord into a str for faster access
+		if reference is not None:
+			reference = reference[:]
 		i = 0  # index into variants
 		for alignment in alignments:
 			# Skip variants that are to the left of this read
