@@ -364,6 +364,10 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 			max_coverage = max(1, max_coverage // len(pedigree_samples))
 			logger.info('Using maximum coverage per sample of %dX', max_coverage)
 
+		if (ped and len(pedigree_samples) * max_coverage + 2 * len(trios) > 25) or (not ped and max_coverage > 25):
+			logger.warning('The maximum coverage is too high! '
+				'WhatsHap may take a long time to finish and require a huge amount of memory.')
+
 		# Read phase information provided as VCF files, if provided.
 		# TODO: do this chromosome- and/or sample-wise on demand to save memory.
 		phase_input_vcfs = []
