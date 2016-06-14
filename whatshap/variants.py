@@ -327,21 +327,21 @@ class ReadSetReader:
 		return (ref_pos, query_pos)
 
 	@staticmethod
-	def realign(variant, bam_read, i, consumed, query_pos, reference):
+	def realign(variant, bam_read, cigartuples, i, consumed, query_pos, reference):
 		"""
 		Realign a read to the two alleles of a single variant.
 		i and consumed describe where to split the cigar into a part before the
 		variant position and into a part starting at the variant position, see split_cigar().
 
 		variant -- VcfVariant
-		cigar -- the AlignedSegment.cigartuples
+		bam_read -- the AlignedSegment
+		cigartuples -- the AlignedSegment.cigartuples property (accessing it is expensive, so re-use it)
 		i, consumed -- see split_cigar method
 		query_pos -- index of the query base that is at the variant position
 		reference -- the reference as a str-like object (full chromosome)
 		"""
 		overhang = 10  # extend alignment by this many bases to the left and right
-		cigar = bam_read.cigartuples
-		left_cigar, right_cigar = ReadSetReader.split_cigar(cigar, i, consumed)
+		left_cigar, right_cigar = ReadSetReader.split_cigar(cigartuples, i, consumed)
 
 		left_ref_bases, left_query_bases = ReadSetReader.cigar_prefix_length(left_cigar[::-1], overhang)
 		right_ref_bases, right_query_bases = ReadSetReader.cigar_prefix_length(right_cigar,
@@ -375,8 +375,16 @@ class ReadSetReader:
 		variants -- list of variants (VcfVariant objects)
 		j -- index of the first variant (in the variants list) to check
 		"""
-		for variant, i, consumed, query_pos in _iterate_cigar(variants, j, bam_read):
-			allele = ReadSetReader.realign(variant, bam_read, i,
+		# Accessing bam_read.cigartuples is expensive, do it only once
+		cigartuples = bam_read.cigartuples
+
+		# For the same reason, the following check is here instad of
+		# in the _usable_alignments method
+		if not cigartuples:
+			return
+
+		for variant, i, consumed, query_pos in _iterate_cigar(variants, j, bam_read, cigartuples):
+			allele = ReadSetReader.realign(variant, bam_read, cigartuples, i,
 			            consumed, query_pos, reference)
 			if allele in (0, 1):
 				yield (variant.position, allele, 30)  # TODO quality???
