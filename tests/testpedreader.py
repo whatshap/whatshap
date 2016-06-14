@@ -1,18 +1,19 @@
 import io
 from nose.tools import raises
 from whatshap.core import NumericSampleIds
-from whatshap.pedigree import PedReader, Individual, ParseError
+from whatshap.pedigree import PedReader, Trio, ParseError
+
 
 class TestPedReader:
 	def test_parse(self):
 		numeric_sample_ids = NumericSampleIds()
 		assert len(numeric_sample_ids) == 0
-		individuals = list(PedReader('tests/data/pedigree.ped', numeric_sample_ids))
-		assert individuals[0] == Individual(id='child1', mother_id='mother', father_id='father')
-		assert individuals[1] == Individual(id='child2', mother_id='mother', father_id='father')
-		assert individuals[2] == Individual(id='father', mother_id=None, father_id=None)
-		assert individuals[3] == Individual(id='mother', mother_id=None, father_id=None)
-		assert individuals[4] == Individual(id='orphan', mother_id=None, father_id=None)
+		trios = list(PedReader('tests/data/pedigree.ped', numeric_sample_ids))
+		assert trios[0] == Trio(child='child1', mother='mother', father='father')
+		assert trios[1] == Trio(child='child2', mother='mother', father='father')
+		assert trios[2] == Trio(child='father', mother=None, father=None)
+		assert trios[3] == Trio(child='mother', mother=None, father=None)
+		assert trios[4] == Trio(child='orphan', mother=None, father=None)
 		assert len(numeric_sample_ids) == 5
 
 	@raises(ParseError)

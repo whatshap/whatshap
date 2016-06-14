@@ -236,26 +236,28 @@ def split_input_file_list(input_files):
 
 def setup_pedigree(ped_path, numeric_sample_ids, samples):
 	"""
-	Read in PED file to set up list of relationships (individuals).
+	Read in PED file to set up list of relationships.
 
-	Return a pair (individuals, pedigree_samples)
+	Return a pair (trios, pedigree_samples), where trios is a list of Trio
+	objects and pedigree_samples is the set of all samples that are mentioned
+	in the PED file (as individual, mother or father).
 
 	ped_path -- path to PED file
 	samples -- samples that exist in the VCF
 	"""
-	individuals = []
+	trios = []
 	pedigree_samples = set()
-	for individual in PedReader(ped_path, numeric_sample_ids):
-		if (individual.id is None or individual.mother_id is None or
-				    individual.father_id is None):
+	for trio in PedReader(ped_path, numeric_sample_ids):
+		if (trio.child is None or trio.mother is None or
+				    trio.father is None):
 			logger.warning('Relationship %s/%s/%s ignored '
 			               'because at least one of the individuals is unknown',
-			               individual.id, individual.mother_id, individual.father_id)
+			               trio.child, trio.mother, trio.father)
 		else:
-			individuals.append(individual)
-			pedigree_samples.add(individual.id)
-			pedigree_samples.add(individual.mother_id)
-			pedigree_samples.add(individual.father_id)
+			trios.append(trio)
+			pedigree_samples.add(trio.child)
+			pedigree_samples.add(trio.mother)
+			pedigree_samples.add(trio.father)
 
 	for sample in pedigree_samples:
 		if sample not in samples:
@@ -268,7 +270,7 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 			# or perhaps it does work with the PedMEC algorithm
 			logger.warning('No relationship known for sample %r - '
 			               'will not be phased', sample)
-	return individuals, pedigree_samples
+	return trios, pedigree_samples
 
 
 def run_whatshap(phase_input_files, variant_file, reference=None,
@@ -354,7 +356,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		samples = frozenset(samples)
 
 		if ped:
-			individuals, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, vcf_reader.samples)
+			trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, vcf_reader.samples)
 			if genmap:
 				logger.info('Using region-specific recombination rates from genetic map %s.', genmap)
 			else:
@@ -396,11 +398,10 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				heterozygous = set()
 				# variant indices with at least one homozygous genotype
 				homozygous = set()
-				for trio in individuals:
-					# TODO fix attribute names of Individual class
-					genotypes_mother = variant_table.genotypes_of(trio.mother_id)
-					genotypes_father = variant_table.genotypes_of(trio.father_id)
-					genotypes_child = variant_table.genotypes_of(trio.id)
+				for trio in trios:
+					genotypes_mother = variant_table.genotypes_of(trio.mother)
+					genotypes_father = variant_table.genotypes_of(trio.father)
+					genotypes_child = variant_table.genotypes_of(trio.child)
 
 					for index, (gt_mother, gt_father, gt_child) in enumerate(zip(
 							genotypes_mother, genotypes_father, genotypes_child)):
@@ -466,11 +467,11 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				pedigree = Pedigree(numeric_sample_ids)
 				for sample in pedigree_samples:
 					pedigree.add_individual(sample, variant_table.genotypes_of(sample))
-				for individual in individuals:
+				for individual in trios:
 					pedigree.add_relationship(
-						mother_id=individual.mother_id,
-						father_id=individual.father_id,
-						child_id=individual.id)
+						mother_id=individual.mother,
+						father_id=individual.father,
+						child_id=individual.child)
 
 				# Merge reads into one ReadSet (note that each Read object
 				# knows the sample it originated from).

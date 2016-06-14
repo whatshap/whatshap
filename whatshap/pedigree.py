@@ -163,8 +163,10 @@ class ParseError(Exception):
 	pass
 
 
-# TODO rename this to Trio with attributes mother, father, child
-Individual = namedtuple('Individual', ['id', 'mother_id', 'father_id'])
+Trio = namedtuple('Trio', ['child', 'mother', 'father'])
+Trio.__doc__ = """
+Relationships are modelled as a set of trios (mother, father, child).
+"""
 
 
 class PedReader:
@@ -187,12 +189,12 @@ class PedReader:
 	def __init__(self, file, numeric_sample_ids):
 		if isinstance(file, str):
 			with open(file) as f:
-				self.individuals = self._parse(f)
+				self.trios = self._parse(f)
 		else:
-			self.individuals = self._parse(file)
-		# Ensure that all individuals mentioned in the ped have a numeric id
-		for individual in self.individuals:
-			numeric_sample_ids[individual.id]
+			self.trios = self._parse(file)
+		# Ensure that all mentioned individuals have a numeric id
+		for trio in self.trios:
+			numeric_sample_ids[trio.child]
 
 	@staticmethod
 	def _parse_record(line):
@@ -207,31 +209,31 @@ class PedReader:
 			paternal_id = None
 		if maternal_id == '0':
 			maternal_id = None
-		return Individual(id=individual_id, mother_id=maternal_id, father_id=paternal_id)
+		return Trio(child=individual_id, mother=maternal_id, father=paternal_id)
 
 	def _parse(self, file):
-		individuals = []
+		trios = []
 		for line in file:
 			if line.startswith('#') or line == '\n':
 				continue
-			individuals.append(self._parse_record(line))
-		self._sanity_check(individuals)
-		return individuals
+			trios.append(self._parse_record(line))
+		self._sanity_check(trios)
+		return trios
 
 	@staticmethod
-	def _sanity_check(individuals):
+	def _sanity_check(trios):
 		"""
 		Ensure that each individual occurs only once in the file.
 		"""
-		individual_ids = [ individual.id for individual in individuals ]
-		if not individual_ids:
+		children = [ trio.child for trio in trios ]
+		if not children:
 			return
-		id, count = Counter(individual_ids).most_common()[0]
+		id, count = Counter(children).most_common()[0]
 		if count > 1:
 			raise ParseError('Individual {!r} occurs more than once in PED file'.format(id))
 
 	def __iter__(self):
-		return iter(self.individuals)
+		return iter(self.trios)
 
 
 class CyclicGraphError(Exception):
