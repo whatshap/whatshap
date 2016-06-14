@@ -5,6 +5,7 @@ Changes
 v0.12 (in development)
 ----------------------
 
+* Speed up allele detection
 
 v0.11 (2016-06-09)
 ------------------
