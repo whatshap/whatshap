@@ -142,9 +142,9 @@ def find_recombination(transmission_vector, components, positions, recombcost):
 		block.sort()
 		block_transmission_vector = [ transmission_vector[position_to_index[i]] for i in block ]
 		block_recomb_cost = [ recombcost[position_to_index[i]] for i in block ]
-		if len(block) <= 2:
-			continue
-		for i in range(2, len(block)):
+		#if len(block) <= 2:
+		#	continue
+		for i in range(1, len(block)):
 			if block_transmission_vector[i-1] != block_transmission_vector[i]:
 				event_list.append(RecombinationEvent(block[i-1], block[i], block_transmission_vector[i-1]%2, block_transmission_vector[i]%2, block_transmission_vector[i-1]//2, block_transmission_vector[i]//2, block_recomb_cost[i]))
 				cum_recomb_cost += block_recomb_cost[i]

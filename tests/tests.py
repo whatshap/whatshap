@@ -326,3 +326,28 @@ def test_phase_quartet_recombination_breakpoints():
 			else:
 				assert len(lines) == 1
 
+def test_phase_trio_two_variant_recombination_breakpoints():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output-recombination_breaks.vcf'
+		outlist = tempdir + '/output-two-variants.recomb'
+		run_whatshap(phase_input_files=[recombination_breaks_bamfile], variant_file='tests/data/trio-two-variant.vcf', output=outvcf,
+		        ped='tests/data/trio.ped', recombrate=1000000,recombination_list_filename =outlist)
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == '1'
+		assert len(table.variants) == 2
+		assert table.samples == ['HG002', 'HG003', 'HG004']
+		assert table.num_of_blocks_of('HG002') == 0
+		assert table.num_of_blocks_of('HG003') == 1
+		assert table.num_of_blocks_of('HG004') == 0
+
+		phase0 = VariantCallPhase(68735433, 0, None)
+		phase1 = VariantCallPhase(68735433, 1, None)
+		assert_phasing(table.phases_of('HG002'), [None, None])
+		assert_phasing(table.phases_of('HG003'), [phase0, phase1])
+		assert_phasing(table.phases_of('HG004'), [None, None])		
+		lines = open(outlist).readlines()
+		assert lines[1]=='HG002 1 68735433 68738308 0 0 0 1 3\n'
