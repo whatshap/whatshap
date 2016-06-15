@@ -518,15 +518,12 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 
 				if recombination_list_filename:
 					n_recombination_total = 0
-					transmission_vector_trio=defaultdict(list)
+					transmission_vector_trio = defaultdict(list)
 					for transmission_vector_value in transmission_vector:
 						for trio in trios:
-							if transmission_vector_value!=0:
-								value=transmission_vector_value%4
-								transmission_vector_value=int(transmission_vector_value/4)
-								transmission_vector_trio[trio.child].append(value)
-							else:
-								transmission_vector_trio[trio.child].append(0)
+							value = transmission_vector_value % 4
+							transmission_vector_value = transmission_vector_value // 4
+							transmission_vector_trio[trio.child].append(value)
 					f = open(recombination_list_filename, 'w')
 					print('#child_id', 'chromosome', 'position1', 'position2', 'transmitted_hap_mother1', 'transmitted_hap_mother2' ,'transmitted_hap_father1', 'transmitted_hap_father2', 'recombination_cost', file=f)
 					for trio in trios:
