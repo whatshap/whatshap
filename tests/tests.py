@@ -10,6 +10,7 @@ from whatshap.vcf import VcfReader, VariantCallPhase
 trio_bamfile = 'tests/data/trio.pacbio.bam'
 trio_merged_bamfile = 'tests/data/trio-merged-blocks.bam'
 trio_paired_end_bamfile = 'tests/data/paired_end.sorted.bam'
+recombination_breaks_bamfile = 'tests/data/recombination_breaks.sorted.bam'
 
 
 def setup_module():
@@ -20,6 +21,8 @@ def setup_module():
 	pysam.index(trio_merged_bamfile, catch_stdout=False)
 	pysam.view('tests/data/paired_end.sorted.sam', '-b', '-o', trio_paired_end_bamfile, catch_stdout=False)
 	pysam.index(trio_paired_end_bamfile, catch_stdout=False)
+	pysam.view('tests/data/recombination_breaks.sorted.sam', '-b', '-o', recombination_breaks_bamfile, catch_stdout=False)
+	pysam.index(recombination_breaks_bamfile, catch_stdout=False)
 
 
 def teardown_module():
@@ -29,6 +32,8 @@ def teardown_module():
 	os.remove(trio_merged_bamfile + '.bai')
 	os.remove(trio_paired_end_bamfile)
 	os.remove(trio_paired_end_bamfile + '.bai')
+	os.remove(recombination_breaks_bamfile)
+	os.remove(recombination_breaks_bamfile + '.bai')
 
 
 def test_pysam_version():
@@ -275,3 +280,49 @@ def test_phase_trio_paired_end_reads():
 		assert_phasing(table.phases_of('mother'), [phase1, phase1, phase0])
 		assert_phasing(table.phases_of('father'), [None, None, None])
 		assert_phasing(table.phases_of('child'), [None, None, phase1])
+		
+def test_phase_quartet_recombination_breakpoints():
+	parameter_sets = [
+		(False, {'genmap':'tests/data/recombination_breaks.map'}),
+		(True, {'recombrate':1000000}),
+		(False, {'recombrate':.0000001})
+	]
+	
+	for expect_recombination, parameters in parameter_sets:
+		with TemporaryDirectory() as tempdir:
+			outvcf = tempdir + '/output-recombination_breaks.vcf'
+			outlist = tempdir + '/output.recomb'
+			run_whatshap(phase_input_files=[recombination_breaks_bamfile], variant_file='tests/data/quartet.vcf', output=outvcf,
+					ped='tests/data/recombination_breaks.ped', recombination_list_filename = outlist, **parameters)
+			assert os.path.isfile(outvcf)
+
+			tables = list(VcfReader(outvcf))
+			assert len(tables) == 1
+			table = tables[0]
+			assert table.chromosome == '1'
+			assert len(table.variants) == 4
+			assert table.samples == ['HG002', 'HG005', 'HG003', 'HG004']
+			assert table.num_of_blocks_of('HG002') == 0
+			assert table.num_of_blocks_of('HG005') == 0
+			assert table.num_of_blocks_of('HG003') == 1
+			assert table.num_of_blocks_of('HG004') == 0
+
+			phase0 = VariantCallPhase(68735304, 0, None)
+			phase1 = VariantCallPhase(68735304, 1, None)
+
+			assert_phasing(table.phases_of('HG002'), [None, None, None, None])
+			assert_phasing(table.phases_of('HG005'), [None, None, None, None])
+			if expect_recombination:
+				assert_phasing(table.phases_of('HG003'), [phase0, phase0, None, phase1])
+			else:
+				assert_phasing(table.phases_of('HG003'), [phase0, phase0, None, phase0])
+			assert_phasing(table.phases_of('HG004'), [None, None, None, None])
+			
+			lines = open(outlist).readlines()
+			if expect_recombination:
+				assert len(lines) == 3
+				assert lines[1]=='HG002 1 68735433 68738308 0 0 0 1 3\n'
+				assert lines[2]=='HG005 1 68735433 68738308 0 0 0 1 3\n'
+			else:
+				assert len(lines) == 1
+

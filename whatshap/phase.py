@@ -19,7 +19,7 @@ from . import __version__
 from .core import ReadSet, DPTable, readselection, Pedigree, PedigreeDPTable, NumericSampleIds
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
-                       load_genetic_map, uniform_recombination_map)
+                       load_genetic_map, uniform_recombination_map, find_recombination)
 from .bam import BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
@@ -276,7 +276,8 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 def run_whatshap(phase_input_files, variant_file, reference=None,
 		output=None, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True,
-		haplotype_bams_prefix=None, ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True):
+		haplotype_bams_prefix=None, ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
+		recombination_list_filename=None):
 	"""
 	Run WhatsHap.
 
@@ -291,6 +292,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 	max_coverage
 	all_heterozygous
 	genetic_haplotyping -- in ped mode, merge disconnected blocks based on genotype status
+	recombination_list_filename -- filename to write putative recombination events to
 	"""
 	class Statistics:
 		pass
@@ -502,7 +504,6 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree)
 					superreads_list, transmission_vector = dp_table.get_super_reads()
 					logger.info('PedMEC cost: %d', dp_table.get_optimal_cost())
-
 				with timers('components'):
 					master_block = None
 					if genetic_haplotyping:
@@ -515,9 +516,23 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					if len(largest_component) > 0:
 						logger.info('Largest component contains %d variants (%.1f%% of accessible variants) between position %d and %d', len(largest_component), len(largest_component)*100.0/len(accessible_positions), largest_component[0]+1, largest_component[-1]+1)
 
-				if False:
-					n_recombination = find_recombination(transmission_vector, overall_components, accessible_positions, recombcost, recombination_list_filename)
-					logger.info('No. of detected recombination events: %d', n_recombination)
+				if recombination_list_filename:
+					n_recombination_total = 0
+					transmission_vector_trio = defaultdict(list)
+					for transmission_vector_value in transmission_vector:
+						for trio in trios:
+							value = transmission_vector_value % 4
+							transmission_vector_value = transmission_vector_value // 4
+							transmission_vector_trio[trio.child].append(value)
+					f = open(recombination_list_filename, 'w')
+					print('#child_id', 'chromosome', 'position1', 'position2', 'transmitted_hap_mother1', 'transmitted_hap_mother2' ,'transmitted_hap_father1', 'transmitted_hap_father2', 'recombination_cost', file=f)
+					for trio in trios:
+						recombination_events = find_recombination(transmission_vector_trio[trio.child], overall_components, accessible_positions, recombination_costs)
+						for e in recombination_events:
+							print(trio.child, chromosome, e.position1 + 1, e.position2 + 1, e.transmitted_hap_mother1, e.transmitted_hap_mother2, e.transmitted_hap_father1, e.transmitted_hap_father2, e.recombination_cost, file=f)
+
+						n_recombination_total += len(recombination_events)
+					logger.info('Total no. of detected recombination events: %d', n_recombination_total)
 
 				# TODO Do superreads actually come out in the order in which the
 				# individuals were added to the pedigree?
@@ -607,6 +622,8 @@ def add_arguments(parser):
 		'(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, '
 		'mother, and father sample names as used in the VCF and BAM. Other '
 		'columns are ignored.')
+	parser.add_argument('--recombination-list', metavar='RECOMBLIST', dest='recombination_list_filename', default=None,
+		help='Write putative recombination events to given filename.')
 	parser.add_argument('--recombrate', metavar='RECOMBRATE', type=float, default=1.26,
 		help='Recombination rate in cM/Mb (used with --ped). If given, a constant recombination '
 		'rate is assumed (default: %(default)gcM/Mb).')
