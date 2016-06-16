@@ -324,11 +324,36 @@ cdef class Pedigree:
 	def __dealloc__(self):
 		del self.thisptr
 
-	def add_individual(self, id, vector[unsigned int] genotypes):
-		self.thisptr.addIndividual(self.numeric_sample_ids[id], genotypes)
+	def add_individual(self, id, vector[unsigned int] genotypes, genotype_likelihoods=None):
+		cdef vector[cpp.PhredGenotypeLikelihoods*] gl_vector
+		if genotype_likelihoods:
+			for gl in genotype_likelihoods:
+				if gl is None:
+					gl_vector.push_back(NULL)
+				else:
+					gl_vector.push_back(new cpp.PhredGenotypeLikelihoods((<PhredGenotypeLikelihoods?>gl).thisptr[0]) )
+		else:
+			for _ in genotypes:
+				gl_vector.push_back(NULL)
+		self.thisptr.addIndividual(self.numeric_sample_ids[id], genotypes, gl_vector)
 
 	def add_relationship(self, mother_id, father_id, child_id):
 		self.thisptr.addRelationship(self.numeric_sample_ids[mother_id], self.numeric_sample_ids[father_id], self.numeric_sample_ids[child_id])
+
+	property variant_count:
+		"""Number of variants stored for each individual."""
+		def __get__(self):
+			return self.thisptr.get_variant_count()
+
+	def genotype(self, sample_id, unsigned int variant_index):
+		return self.thisptr.get_genotype_by_id(self.numeric_sample_ids[sample_id], variant_index)
+
+	def genotype_likelihoods(self, sample_id, unsigned int variant_index):
+		cdef const cpp.PhredGenotypeLikelihoods* gl = self.thisptr.get_genotype_likelihoods_by_id(self.numeric_sample_ids[sample_id], variant_index)
+		if gl == NULL:
+			return None
+		else:
+			return PhredGenotypeLikelihoods(gl.get(0), gl.get(1), gl.get(2))
 
 	def __len__(self):
 		return self.thisptr.size()

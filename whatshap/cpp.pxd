@@ -63,10 +63,14 @@ cdef extern from "../src/dptable.h":
 cdef extern from "../src/pedigree.h":
 	cdef cppclass Pedigree:
 		Pedigree() except +
-		void addIndividual(unsigned int id, vector[unsigned int] genotypes) except +
+		void addIndividual(unsigned int id, vector[unsigned int] genotypes, vector[PhredGenotypeLikelihoods*]) except +
 		void addRelationship(unsigned int m, unsigned int f, unsigned int c) except +
 		unsigned int size()
 		string toString() except +
+		unsigned int get_genotype_by_id(unsigned int, unsigned int) except +
+		const PhredGenotypeLikelihoods* get_genotype_likelihoods_by_id(unsigned int, unsigned int) except +
+		unsigned int get_variant_count() except +
+		unsigned int triple_count() except +
 
 
 cdef extern from "../src/pedigreedptable.h":
@@ -80,5 +84,6 @@ cdef extern from "../src/pedigreedptable.h":
 cdef extern from "../src/phredgenotypelikelihoods.h":
 	cdef cppclass PhredGenotypeLikelihoods:
 		PhredGenotypeLikelihoods(unsigned int, unsigned int, unsigned int) except +
+		PhredGenotypeLikelihoods(PhredGenotypeLikelihoods) except +
 		unsigned int get(unsigned int) except +
 		string toString() except +

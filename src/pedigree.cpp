@@ -8,11 +8,29 @@
 using namespace std;
 
 Pedigree::Pedigree() {
+	variant_count = -1;
 }
 
 
-void Pedigree::addIndividual(unsigned int id, std::vector<unsigned int> genotypes) {
+Pedigree::~Pedigree() {
+	for (size_t i=0; i<individual_ids.size(); ++i) {
+		for (size_t j=0; j<genotype_likelihoods[i].size(); ++j) {
+			if (genotype_likelihoods[i][j] != nullptr) {
+				delete genotype_likelihoods[i][j];
+			}
+		}
+	}
+}
+
+
+void Pedigree::addIndividual(unsigned int id, std::vector<unsigned int> genotypes, std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods) {
+	if (variant_count == -1) {
+		variant_count = genotypes.size();
+	}
+	assert(genotypes.size() == variant_count);
+	assert(genotype_likelihoods.size() == variant_count);
 	this->genotypes.push_back(genotypes);
+	this->genotype_likelihoods.push_back(genotype_likelihoods);
 	individual_ids.push_back(id);
 	id_to_index_map[id] = individual_ids.size() - 1;
 }
@@ -35,13 +53,32 @@ size_t Pedigree::id_to_index(unsigned int individual_id) const {
 }
 
 
-unsigned int Pedigree::get_genotype(size_t individual_index, size_t column) const {
-	return genotypes[individual_index][column];
+unsigned int Pedigree::get_genotype(size_t individual_index, size_t variant_index) const {
+	return genotypes[individual_index][variant_index];
 }
+
+
+unsigned int Pedigree::get_genotype_by_id(unsigned int individual_id, unsigned int variant_index) const {
+	assert(variant_index < variant_count);
+	return get_genotype(id_to_index(individual_id), variant_index);
+}
+
+
+const PhredGenotypeLikelihoods* Pedigree::get_genotype_likelihoods(size_t individual_index, size_t variant_index) const {
+	return genotype_likelihoods[individual_index][variant_index];
+}
+
+
+const PhredGenotypeLikelihoods* Pedigree::get_genotype_likelihoods_by_id(unsigned int individual_id, unsigned int variant_index) const {
+	assert(variant_index < variant_count);
+	return get_genotype_likelihoods(id_to_index(individual_id), variant_index);
+}
+
 
 const std::vector<Pedigree::triple_entry_t>& Pedigree::get_triples() const {
 	return triples;
 }
+
 
 std::string Pedigree::toString() const {
 	ostringstream oss;
