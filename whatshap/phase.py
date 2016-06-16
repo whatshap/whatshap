@@ -177,7 +177,7 @@ def write_read_list(readset, bipartition, sample_components, numeric_sample_ids,
 		print(read.name, read.source_id, sample, phaseset, haplotype, file=output_file)
 
 
-def phase_sample(sample, reads, all_heterozygous, max_coverage, timers, stats, numeric_sample_ids, read_list_file=None):
+def phase_sample(sample, reads, distrust_genotypes, max_coverage, timers, stats, numeric_sample_ids, read_list_file=None):
 	"""
 	Phase variants of a single sample on a single chromosome.
 	"""
@@ -197,7 +197,12 @@ def phase_sample(sample, reads, all_heterozygous, max_coverage, timers, stats, n
 
 	with timers('phase'):
 		logger.info('Phasing the variants (using %d reads)...', len(selected_reads))
-		if all_heterozygous:
+		if distrust_genotypes:
+			# Run the core algorithm: construct DP table ...
+			dp_table = DPTable(selected_reads, all_heterozygous=False)
+			# ... and do the backtrace to get the solution
+			superreads = dp_table.get_super_reads()
+		else:
 			# For the all heterozygous case we use a PedigreeDPTable, which is more memory efficient.
 			# Once implemented, this should also be done for the "not all heterozygous" (="distrust genotypes")
 			# case, see Issue #77.
@@ -215,11 +220,6 @@ def phase_sample(sample, reads, all_heterozygous, max_coverage, timers, stats, n
 			# ... and do the backtrace to get the solution
 			superreads_list, transmission_vector = dp_table.get_super_reads()
 			superreads = superreads_list[0]
-		else:
-			# Run the core algorithm: construct DP table ...
-			dp_table = DPTable(selected_reads, all_heterozygous)
-			# ... and do the backtrace to get the solution
-			superreads = dp_table.get_super_reads()
 		logger.info('MEC score of phasing: %d', dp_table.get_optimal_cost())
 
 		n_homozygous = sum(1 for v1, v2 in zip(*superreads)
@@ -228,9 +228,9 @@ def phase_sample(sample, reads, all_heterozygous, max_coverage, timers, stats, n
 
 	with timers('components'):
 		# The variant.allele attribute can be either 0 (major allele), 1 (minor allele),
-		# or 3 (equal scores). If all_heterozygous is on (default), we can get
+		# or 3 (equal scores). If distrust_genotypes is off (default), we can get
 		# the combinations 0/1, 1/0 and 3/3 (the latter means: unphased).
-		# If all_heterozygous is off, we can also get all other combinations.
+		# If distrust_genotypes is on, we can also get all other combinations.
 		# In both cases, we are interested only in 0/1 and 1/0.
 		allowed = frozenset([(0, 1), (1, 0)])
 		phased_positions = [ v1.position for v1, v2 in zip(*superreads)
@@ -245,10 +245,10 @@ def phase_sample(sample, reads, all_heterozygous, max_coverage, timers, stats, n
 	n_phased_blocks = len(set(components.values()))
 	stats.n_phased_blocks += n_phased_blocks
 	logger.info('No. of phased blocks: %d', n_phased_blocks)
-	if all_heterozygous:
-		assert n_homozygous == 0
-	else:
+	if distrust_genotypes:
 		logger.info('No. of heterozygous variants determined to be homozygous: %d', n_homozygous)
+	else:
+		assert n_homozygous == 0
 
 	return superreads, components
 
@@ -312,9 +312,10 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 
 def run_whatshap(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
-		mapping_quality=20, max_coverage=15, all_heterozygous=True,
+		mapping_quality=20, max_coverage=15, distrust_genotypes=False,
 		ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
-		recombination_list_filename=None, tag='PS', read_list_filename=None):
+		recombination_list_filename=None, tag='PS', read_list_filename=None, 
+		gl_regularizer=None, default_gq=30):
 	"""
 	Run WhatsHap.
 
@@ -327,11 +328,13 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 	ignore_read_groups
 	mapping_quality -- discard reads below this mapping quality
 	max_coverage
-	all_heterozygous
+	distrust_genotypes
 	genetic_haplotyping -- in ped mode, merge disconnected blocks based on genotype status
 	recombination_list_filename -- filename to write putative recombination events to
 	tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
 	read_list_filename -- name of file to write list of used reads to
+	gl_regularizer -- float to be passed as regularization constant to GenotypeLikelihoods.as_phred
+	default_gq -- genotype likelihood to be used when GL or PL not available
 	"""
 	class Statistics:
 		pass
@@ -589,7 +592,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 						reads = read_reads(readset_reader, chromosome, variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
 
 					sample_superreads, sample_components = phase_sample(
-						sample, reads, all_heterozygous, max_coverage, timers, stats, numeric_sample_ids, read_list_file)
+						sample, reads, distrust_genotypes, max_coverage, timers, stats, numeric_sample_ids, read_list_file)
 					superreads[sample] = sample_superreads
 					components[sample] = sample_components
 			with timers('write_vcf'):
@@ -608,10 +611,10 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 			stats.n_best_case_nonsingleton_blocks, stats.n_best_case_blocks)
 		logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
 			stats.n_best_case_nonsingleton_blocks_cov, stats.n_best_case_blocks_cov)
-	if all_heterozygous:
-		assert stats.n_homozygous == 0
-	else:
+	if distrust_genotypes:
 		logger.info('No. of heterozygous variants determined to be homozygous: %d', stats.n_homozygous)
+	else:
+		assert stats.n_homozygous == 0
 	timers.stop('overall')
 	if sys.platform == 'linux':
 		memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
@@ -645,10 +648,17 @@ def add_arguments(parser):
 		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
 	arg('--indels', dest='indels', default=False, action='store_true',
 		help='Also phase indels (default: do not phase indels)')
-	arg('--distrust-genotypes', dest='all_heterozygous',
-		action='store_false', default=True,
+	arg('--distrust-genotypes', dest='distrust_genotypes',
+		action='store_true', default=False,
 		help='Allow switching variants from hetero- to homozygous in an '
 		'optimal solution (see documentation).')
+	arg('--default-gq', dest='default_gq', type=int, default=30,
+		help='Default genotype quality used as cost of changing a genotype '
+		'when no genotype likelihoods are available. To be used with '
+		'--distrust-genotypes. (default %(default)s)')
+	arg('--gl-regularizer', dest='gl_regularizer', type=float, default=None,
+		help='Constant (float) to be used to regularize genotype likelihoods read '
+		'from input VCF (default %(default)s).')
 	arg('--ignore-read-groups', default=False, action='store_true',
 		help='Ignore read groups in BAM header and assume all reads come '
 		'from the same sample.')
@@ -684,7 +694,7 @@ def add_arguments(parser):
 
 
 def validate(args, parser):
-	if args.ped and not args.all_heterozygous:
+	if args.ped and args.distrust_genotypes:
 		parser.error('Option --distrust-genotypes cannot be used together with --ped')
 	if args.ignore_read_groups and args.ped:
 		parser.error('Option --ignore-read-groups cannot be used together with --ped')
