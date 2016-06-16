@@ -5,7 +5,7 @@
 
 class PhredGenotypeLikelihoods {
 public:
-	PhredGenotypeLikelihoods(unsigned int gl0, unsigned int gl1, unsigned int gl2);
+	PhredGenotypeLikelihoods(unsigned int gl0 = 0, unsigned int gl1 = 0, unsigned int gl2 = 0);
 
 	unsigned int get(size_t genotype) const;
 

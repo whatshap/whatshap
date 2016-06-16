@@ -338,7 +338,7 @@ cdef class Pedigree:
 
 
 cdef class PhredGenotypeLikelihoods:
-	def __cinit__(self, int gl0, int gl1, int gl2):
+	def __cinit__(self, int gl0 = 0, int gl1 = 0, int gl2 = 0):
 		self.thisptr = new cpp.PhredGenotypeLikelihoods(gl0, gl1, gl2)
 
 	def __dealloc__(self):
