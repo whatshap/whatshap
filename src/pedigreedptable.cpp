@@ -12,11 +12,12 @@
 
 using namespace std;
 
-PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree)
+PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes)
 	:
 	read_set(read_set),
 	recombcost(recombcost),
 	pedigree(pedigree),
+	distrust_genotypes(distrust_genotypes),
 	optimal_score(0u),
 	optimal_score_index(0u),
 	input_column_iterator(*read_set)

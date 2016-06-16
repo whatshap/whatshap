@@ -16,7 +16,7 @@ import pyfaidx
 from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter
 from . import __version__
-from .core import ReadSet, DPTable, readselection, Pedigree, PedigreeDPTable, NumericSampleIds
+from .core import ReadSet, DPTable, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
@@ -375,7 +375,8 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file,
 		        out_file=output, tag=tag)
-		vcf_reader = VcfReader(variant_file, indels=indels)
+		# Only read genotype likelihoods from VCFs when distrusting genotypes
+		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=distrust_genotypes)
 
 		if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
 			logger.error('When using --ignore-read-groups on a VCF with '
@@ -511,7 +512,22 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				individual_ids = { sample: index for index, sample in enumerate(pedigree_samples) }
 				pedigree = Pedigree(numeric_sample_ids)
 				for sample in pedigree_samples:
-					pedigree.add_individual(sample, variant_table.genotypes_of(sample))
+					# If distrusting genotypes, we pass genotype likelihoods on to pedigree object
+					if distrust_genotypes:
+						genotype_likelihoods = []
+						for gt, gl in zip(variant_table.genotypes_of(sample),variant_table.genotype_likelihoods_of(sample)):
+							assert 0 <= gt <= 2
+							if gl is None:
+								# all genotypes get default_gq as genotype likelihood, exept the called genotype ...
+								x = [default_gq] * 3
+								# ... which gets a 0
+								x[gt] = 0
+								genotype_likelihoods.append(PhredGenotypeLikelihoods(*x))
+							else:
+								genotype_likelihoods.append(gl.as_phred(gl_regularizer))
+					else:
+						genotype_likelihoods = None
+					pedigree.add_individual(sample, variant_table.genotypes_of(sample), genotype_likelihoods)
 				for individual in trios:
 					pedigree.add_relationship(
 						mother_id=individual.mother,
@@ -538,7 +554,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				with timers('phase'):
 					logger.info('Phasing %d samples with the PedMEC algorithm ...',
 						len(pedigree_samples))
-					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree)
+					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes)
 					superreads_list, transmission_vector = dp_table.get_super_reads()
 					logger.info('PedMEC cost: %d', dp_table.get_optimal_cost())
 				with timers('components'):
@@ -694,8 +710,6 @@ def add_arguments(parser):
 
 
 def validate(args, parser):
-	if args.ped and args.distrust_genotypes:
-		parser.error('Option --distrust-genotypes cannot be used together with --ped')
 	if args.ignore_read_groups and args.ped:
 		parser.error('Option --ignore-read-groups cannot be used together with --ped')
 	if args.genmap and not args.ped:

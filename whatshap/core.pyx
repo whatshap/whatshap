@@ -267,12 +267,12 @@ cdef class DPTable:
 
 
 cdef class PedigreeDPTable:
-	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree):
+	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree, bool distrust_genotypes = False):
 		"""Build the DP table from the given read set which is assumed to be sorted;
 		that is, the variants in each read must be sorted by position and the reads
 		in the read set must also be sorted (by position of their left-most variant).
 		"""
-		self.thisptr = new cpp.PedigreeDPTable(readset.thisptr, recombcost, pedigree.thisptr)
+		self.thisptr = new cpp.PedigreeDPTable(readset.thisptr, recombcost, pedigree.thisptr, distrust_genotypes)
 		self.pedigree = pedigree
 
 	def __dealloc__(self):
