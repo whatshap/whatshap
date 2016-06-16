@@ -629,7 +629,7 @@ def add_arguments(parser):
 		'rate is assumed (default: %(default)gcM/Mb).')
 	parser.add_argument('--genmap', metavar='GENMAP',
 		help='File with genetic map (used with --ped) to be used instead of constant recombination '
-		'rate, i.e. overrides option --recombrate.')  # TODO describe what the file format is
+		'rate, i.e. overrides option --recombrate.')
 	parser.add_argument('--no-genetic-haplotyping', dest='genetic_haplotyping',
 		action='store_false', default=True,
 		help='Do not merge blocks that are not connected by reads (i.e. solely based on genotype '
