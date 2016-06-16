@@ -438,8 +438,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				# the are conntected by "genetic haplotyping").
 				homozygous_positions = [variant_table.variants[i].position for i in to_retain.intersection(homozygous)]
 
-				# Remove calls where *any* trio has a mendelian conflict or
-				# is homozygous in all three individuals
+				# Remove calls to be discarded from variant table
 				variant_table.remove_rows_by_index(to_discard)
 
 				logger.info('Number of variants skipped due to missing genotypes: %d', len(missing_genotypes))
