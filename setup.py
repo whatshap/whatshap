@@ -69,7 +69,7 @@ extensions = [
 			'src/columnindexingiterator.cpp', 'src/columnindexingscheme.cpp',
 			'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',
 			'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp',
-			'src/pedigreepartitions.cpp'
+			'src/pedigreepartitions.cpp', 'src/phredgenotypelikelihoods.cpp'
 		]),
 	CppExtension('whatshap.priorityqueue', sources=['whatshap/priorityqueue.pyx']),
 	CppExtension('whatshap.align', sources=['whatshap/align.pyx']),

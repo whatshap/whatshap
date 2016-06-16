@@ -75,3 +75,10 @@ cdef extern from "../src/pedigreedptable.h":
 		void get_super_reads(vector[ReadSet*]*, vector[unsigned int]* transmission_vector) except +
 		int get_optimal_score() except +
 		vector[bool]* get_optimal_partitioning()
+
+
+cdef extern from "../src/phredgenotypelikelihoods.h":
+	cdef cppclass PhredGenotypeLikelihoods:
+		PhredGenotypeLikelihoods(unsigned int, unsigned int, unsigned int) except +
+		unsigned int get(unsigned int) except +
+		string toString() except +

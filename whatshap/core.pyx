@@ -337,4 +337,28 @@ cdef class Pedigree:
 		return self.thisptr.toString().decode('utf-8')
 
 
+cdef class PhredGenotypeLikelihoods:
+	def __cinit__(self, int gl0, int gl1, int gl2):
+		self.thisptr = new cpp.PhredGenotypeLikelihoods(gl0, gl1, gl2)
+
+	def __dealloc__(self):
+		del self.thisptr
+
+	def __str__(self):
+		return self.thisptr.toString().decode('utf-8')
+
+	def __getitem__(self, genotype):
+		assert self.thisptr != NULL
+		assert isinstance(genotype, int)
+		assert 0 <= genotype <= 2
+		return self.thisptr.get(genotype)
+
+	def __len__(self):
+		return 3
+
+	def __iter__(self):
+		for i in range(3):
+			yield self[i]
+
+
 include 'readselect.pyx'

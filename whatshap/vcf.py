@@ -4,10 +4,11 @@ Functions for reading VCFs.
 import sys
 import logging
 import itertools
+import math
 from array import array
 from collections import namedtuple
 import vcf
-from .core import Read
+from .core import Read, PhredGenotypeLikelihoods
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,22 @@ class GenotypeLikelihoods:
 
 	def log10_prob_of(self, genotype):
 		return self.log10_probs()[genotype]
+
+	def as_phred(self, regularizer=None):
+		if regularizer is None:
+			# shift log likelihoods such that the largest one is zero
+			m = max(self.log_prob_g0, self.log_prob_g1, self.log_prob_g2)
+			return PhredGenotypeLikelihoods(
+				round((self.log_prob_g0-m) * -10),
+				round((self.log_prob_g1-m) * -10),
+				round((self.log_prob_g2-m) * -10)
+			)
+		else:
+			p = [ 10**x for x in (self.log_prob_g0, self.log_prob_g1, self.log_prob_g2) ]
+			s = sum(p)
+			p = [ x/s + regularizer for x in p ]
+			m = max(p)
+			return PhredGenotypeLikelihoods( *(round(-10*math.log10(x/m)) for x in p) )
 
 
 class VariantTable:

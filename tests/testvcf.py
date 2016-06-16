@@ -1,8 +1,10 @@
 from nose.tools import raises, assert_almost_equals
 import os
+import math
 from tempfile import TemporaryDirectory
 from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant, GenotypeLikelihoods
 from whatshap.phase import run_whatshap
+from whatshap.core import PhredGenotypeLikelihoods
 
 
 def test_read_phased():
@@ -272,3 +274,10 @@ def test_read_genotype_likelihoods():
 		assert_genotype_likelihoods(actual_gl, expected_gl)
 	for actual_gl, expected_gl in zip(table.genotype_likelihoods_of('sample2'), expected2):
 		assert_genotype_likelihoods(actual_gl, expected_gl)
+
+
+def test_genotype_likelihoods():
+	assert list(PhredGenotypeLikelihoods(7, 1, 12)) == [7, 1, 12]
+	gl = GenotypeLikelihoods( *(math.log10(x) for x in [1e-10, 0.5, 0.002]) )
+	assert list(gl.as_phred()) == [97, 0, 24]
+	assert list(gl.as_phred(regularizer=0.01)) == [20, 0, 19]
