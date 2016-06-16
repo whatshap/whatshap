@@ -98,6 +98,18 @@ std::string Pedigree::toString() const {
 		oss << " (" << individual_ids[triples[i][0]] << ","  << individual_ids[triples[i][1]] << "," << individual_ids[triples[i][2]] << ")";
 	}
 	oss << endl;
+	oss << "  genotypes (and likelihoods):" << endl;
+	for (size_t i=0; i<individual_ids.size(); ++i) {
+		oss << "    individual index:" << i << " / id:" << individual_ids[i] << ":" << endl;
+		for (size_t j=0; j<variant_count; ++j) {
+			oss << "      " << genotypes[i][j] << "(GL:";
+			if (genotype_likelihoods[i][j] == nullptr) {
+				oss << "None)" << endl;;
+			} else {
+				oss << genotype_likelihoods[i][j]->toString();
+			}
+		}
+	}
 	
 	return oss.str();
 
