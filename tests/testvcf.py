@@ -238,8 +238,7 @@ def test_multi_alt():
 	assert [ variant.position for variant in table.variants ] == [1, 4]
 
 
-def asssert_genotype_likelihoods(actual, expected):
-	print('asssert_genotype_likelihoods({}, {})'.format(actual, expected))
+def assert_genotype_likelihoods(actual, expected):
 	if expected is None:
 		assert actual is None
 		return
@@ -267,12 +266,9 @@ def test_read_genotype_likelihoods():
 	assert len(table.genotype_likelihoods_of('sample1')) == 4
 	assert len(table.genotype_likelihoods_of('sample2')) == 4
 
-	print(table.genotype_likelihoods_of('sample1'))
-	print(table.genotype_likelihoods_of('sample2'))
-
 	expected1 = [gl0, gl2, None, gl0]
 	expected2 = [gl1, gl3, None, gl1]
 	for actual_gl, expected_gl in zip(table.genotype_likelihoods_of('sample1'), expected1):
-		asssert_genotype_likelihoods(actual_gl, expected_gl)
+		assert_genotype_likelihoods(actual_gl, expected_gl)
 	for actual_gl, expected_gl in zip(table.genotype_likelihoods_of('sample2'), expected2):
-		asssert_genotype_likelihoods(actual_gl, expected_gl)
+		assert_genotype_likelihoods(actual_gl, expected_gl)
