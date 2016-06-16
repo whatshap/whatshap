@@ -111,7 +111,7 @@ def test_phase_three_individuals():
 		assert os.path.isfile(outvcf)
 		assert os.path.isfile(outreadlist)
 
-		tables = list(VcfReader(outvcf))
+		tables = list(VcfReader(outvcf, phases=True))
 		assert len(tables) == 1
 		table = tables[0]
 		assert table.chromosome == '1'
@@ -131,7 +131,7 @@ def test_phase_one_of_three_individuals():
 		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf, samples=['HG003'])
 		assert os.path.isfile(outvcf)
 
-		tables = list(VcfReader(outvcf))
+		tables = list(VcfReader(outvcf, phases=True))
 		assert len(tables) == 1
 		table = tables[0]
 		assert table.chromosome == '1'
@@ -153,7 +153,7 @@ def test_phase_trio():
 		assert os.path.isfile(outvcf)
 		assert os.path.isfile(outreadlist)
 
-		tables = list(VcfReader(outvcf))
+		tables = list(VcfReader(outvcf, phases=True))
 		assert len(tables) == 1
 		table = tables[0]
 		assert table.chromosome == '1'
@@ -173,7 +173,7 @@ def test_phase_trio_merged_blocks():
 		        ped='tests/data/trio.ped', genmap='tests/data/trio.map')
 		assert os.path.isfile(outvcf)
 
-		tables = list(VcfReader(outvcf))
+		tables = list(VcfReader(outvcf, phases=True))
 		assert len(tables) == 1
 		table = tables[0]
 		assert table.chromosome == '1'
@@ -197,7 +197,7 @@ def test_phase_trio_dont_merge_blocks():
 				ped='tests/data/trio.ped', genmap='tests/data/trio.map', genetic_haplotyping=False)
 		assert os.path.isfile(outvcf)
 
-		tables = list(VcfReader(outvcf))
+		tables = list(VcfReader(outvcf, phases=True))
 		assert len(tables) == 1
 		table = tables[0]
 		assert table.chromosome == '1'
@@ -222,7 +222,7 @@ def test_phase_mendelian_conflict():
 				ped='tests/data/trio.ped', genmap='tests/data/trio.map')
 		assert os.path.isfile(outvcf)
 
-		tables = list(VcfReader(outvcf))
+		tables = list(VcfReader(outvcf, phases=True))
 		assert len(tables) == 1
 		table = tables[0]
 		assert table.chromosome == '1'
@@ -242,7 +242,7 @@ def test_phase_missing_genotypes():
 				ped='tests/data/trio.ped', genmap='tests/data/trio.map')
 		assert os.path.isfile(outvcf)
 
-		tables = list(VcfReader(outvcf))
+		tables = list(VcfReader(outvcf, phases=True))
 		assert len(tables) == 1
 		table = tables[0]
 		assert table.chromosome == '1'
@@ -263,7 +263,7 @@ def test_phase_specific_chromosome():
 					ped='tests/data/trio.ped', genmap='tests/data/trio.map', chromosomes=[requested_chromosome])
 			assert os.path.isfile(outvcf)
 
-			tables = list(VcfReader(outvcf))
+			tables = list(VcfReader(outvcf, phases=True))
 			assert len(tables) == 2
 			for table in tables:
 				assert len(table.variants) == 5
@@ -286,7 +286,7 @@ def test_phase_trio_paired_end_reads():
 		        ped='tests/data/trio_paired_end.ped', genmap='tests/data/trio.map')
 		assert os.path.isfile(outvcf)
 
-		tables = list(VcfReader(outvcf))
+		tables = list(VcfReader(outvcf, phases=True))
 		assert len(tables) == 1
 		table = tables[0]
 		assert table.chromosome == '1'
@@ -319,7 +319,7 @@ def test_phase_quartet_recombination_breakpoints():
 					ped='tests/data/recombination_breaks.ped', recombination_list_filename = outlist, **parameters)
 			assert os.path.isfile(outvcf)
 
-			tables = list(VcfReader(outvcf))
+			tables = list(VcfReader(outvcf, phases=True))
 			assert len(tables) == 1
 			table = tables[0]
 			assert table.chromosome == '1'

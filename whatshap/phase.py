@@ -354,7 +354,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 			logger.error(e)
 			sys.exit(1)
 		try:
-			phase_input_vcf_readers = [VcfReader(f, indels=indels) for f in phase_input_vcf_filenames]
+			phase_input_vcf_readers = [VcfReader(f, indels=indels, phases=True) for f in phase_input_vcf_filenames]
 		except OSError as e:
 			logger.error(e)
 			sys.exit(1)

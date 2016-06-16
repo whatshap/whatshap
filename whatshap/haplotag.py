@@ -79,7 +79,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 		else:
 			fasta = None
 
-		vcf_reader = VcfReader(variant_file, indels=True)
+		vcf_reader = VcfReader(variant_file, indels=True, phases=True)
 		vcf_samples = set(vcf_reader.samples)
 		logger.info('Found %d samples in VCF file', len(vcf_samples))
 

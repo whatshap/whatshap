@@ -242,7 +242,7 @@ class VcfReader:
 	"""
 	Read a VCF file chromosome by chromosome.
 	"""
-	def __init__(self, path, indels=False):
+	def __init__(self, path, indels=False, phases=False, genotype_likelihoods=False):
 		"""
 		path -- Path to VCF file
 		indels -- Whether to include also insertions and deletions in the list of
@@ -251,6 +251,8 @@ class VcfReader:
 		# TODO Always include deletions since they can 'overlap' other variants
 		self._indels = indels
 		self._vcf_reader = vcf.Reader(filename=path)
+		self._phases = phases
+		self._genotype_likelihoods = genotype_likelihoods
 		self.samples = self._vcf_reader.samples  # intentionally public
 		logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
@@ -332,34 +334,41 @@ class VcfReader:
 				continue
 			prev_position = pos
 
-			# Read phasing information (allow GT/PS or HP phase information, but not both)
-			phases = []
-			for call in record.samples:
-				phase = None
-				for extract_phase, phase_name in [(self._extract_HP_phase, 'HP'), (self._extract_GT_PS_phase, 'GT_PS')]:
-					p = extract_phase(call)
-					if p is not None:
-						if phase_detected is None:
-							phase_detected = phase_name
-						elif phase_detected != phase_name:
-							raise MixedPhasingError('Mixed phasing information in input VCF (e.g. mixing PS and HP fields)')
-						phase = p
-				phases.append(phase)
+			# Read phasing information (allow GT/PS or HP phase information, but not both),
+			# if requested
+			if self._phases:
+				phases = []
+				for call in record.samples:
+					phase = None
+					for extract_phase, phase_name in [(self._extract_HP_phase, 'HP'), (self._extract_GT_PS_phase, 'GT_PS')]:
+						p = extract_phase(call)
+						if p is not None:
+							if phase_detected is None:
+								phase_detected = phase_name
+							elif phase_detected != phase_name:
+								raise MixedPhasingError('Mixed phasing information in input VCF (e.g. mixing PS and HP fields)')
+							phase = p
+					phases.append(phase)
+			else:
+				phases = [ None ] * len(record.samples)
 
-			# Read genotype likelihoods
-			genotype_likelihoods = []
-			for call in record.samples:
-				GL = getattr(call.data, 'GL', None)
-				PL = getattr(call.data, 'PL', None)
-				# Prefer GLs (floats) over PLs (ints) if both should be present
-				if GL is not None:
-					assert len(GL) == 3
-					genotype_likelihoods.append(GenotypeLikelihoods(*GL))
-				elif PL is not None:
-					assert len(PL) == 3
-					genotype_likelihoods.append(GenotypeLikelihoods( *(pl/-10 for pl in PL) ))
-				else:
-					genotype_likelihoods.append(None)
+			# Read genotype likelihoods, if requested
+			if self._genotype_likelihoods:
+				genotype_likelihoods = []
+				for call in record.samples:
+					GL = getattr(call.data, 'GL', None)
+					PL = getattr(call.data, 'PL', None)
+					# Prefer GLs (floats) over PLs (ints) if both should be present
+					if GL is not None:
+						assert len(GL) == 3
+						genotype_likelihoods.append(GenotypeLikelihoods(*GL))
+					elif PL is not None:
+						assert len(PL) == 3
+						genotype_likelihoods.append(GenotypeLikelihoods( *(pl/-10 for pl in PL) ))
+					else:
+						genotype_likelihoods.append(None)
+			else:
+				genotype_likelihoods = [ None ] * len(record.samples)
 
 			# PyVCF pecularity: gt_alleles is a list of the alleles in the
 			# GT field, but as strings.

@@ -6,7 +6,7 @@ from whatshap.phase import run_whatshap
 
 
 def test_read_phased():
-	tables = list(VcfReader('tests/data/phasedinput.vcf'))
+	tables = list(VcfReader('tests/data/phasedinput.vcf', phases=True))
 	assert len(tables) == 1
 	table = tables[0]
 	assert table.chromosome == 'ref'
@@ -48,7 +48,7 @@ def test_read_multisample_vcf():
 def test_read_phased_vcf():
 	for filename in ['tests/data/phased-via-HP.vcf', 'tests/data/phased-via-PS.vcf']:
 		print('Testing', filename)
-		tables = list(VcfReader(filename))
+		tables = list(VcfReader(filename, phases=True))
 		assert len(tables) == 2
 		table_a, table_b = tables
 
@@ -100,7 +100,7 @@ def test_read_phased_vcf():
 
 @raises(MixedPhasingError)
 def test_mixed_phasing_vcf():
-	tables = list(VcfReader('tests/data/phased-via-mixed-HP-PS.vcf'))
+	tables = list(VcfReader('tests/data/phased-via-mixed-HP-PS.vcf', phases=True))
 
 
 def test_vcf_variant_hashability():
@@ -117,7 +117,7 @@ def test_vcf_variant_hashability():
 
 def test_phasing_to_reads():
 	for filename in ['tests/data/phased-via-HP.vcf', 'tests/data/phased-via-PS.vcf']:
-		tables = list(VcfReader(filename))
+		tables = list(VcfReader(filename, phases=True))
 		assert len(tables) == 2
 		table_a, table_b = tables
 		phase_reads_sample1 = list(table_a.phased_blocks_as_reads('sample1', table_a.variants, 17, 18, default_quality=90, mapq=101))
@@ -248,7 +248,7 @@ def asssert_genotype_likelihoods(actual, expected):
 
 
 def test_read_genotype_likelihoods():
-	tables = list(VcfReader('tests/data/genotype-likelihoods.vcf'))
+	tables = list(VcfReader('tests/data/genotype-likelihoods.vcf', genotype_likelihoods=True))
 	assert len(tables) == 1
 	table = tables[0]
 	assert table.chromosome == 'chrA'
