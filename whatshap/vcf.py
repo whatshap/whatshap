@@ -65,6 +65,26 @@ class VcfVariant:
 		return VcfVariant(pos, ref, alt)
 
 
+class GenotypeLikelihoods:
+	__slots__ = ('log_prob_g0', 'log_prob_g1', 'log_prob_g2')
+
+	def __init__(self, log_prob_g0, log_prob_g1, log_prob_g2):
+		"""Likelihoods of the three genotypes 0, 1, 2 to be given
+		as log10 of the original probability."""
+		self.log_prob_g0 = log_prob_g0
+		self.log_prob_g1 = log_prob_g1
+		self.log_prob_g2 = log_prob_g2
+
+	def __repr__(self):
+		return "GenotypeLikelihoods({}, {}, {})".format(self.log_prob_g0, self.log_prob_g1, self.log_prob_g2)
+
+	def log10_probs(self):
+		return ( self.log_prob_g0, self.log_prob_g1, self.log_prob_g2 )
+
+	def log10_prob_of(self, genotype):
+		return self.log10_probs()[genotype]
+
+
 class VariantTable:
 	"""
 	For a single chromosome, store variants and their genotypes.
@@ -79,6 +99,7 @@ class VariantTable:
 		self.samples = samples
 		self.genotypes = [ array('b', []) for _ in samples ]
 		self.phases = [ [] for _ in samples ]
+		self.genotype_likelihoods = [ [] for _ in samples ]
 		self.variants = []
 		self._sample_to_index = { sample: index for index, sample in enumerate(samples) }
 
@@ -93,7 +114,7 @@ class VariantTable:
 		#self.samples.append(name)
 		#self.genotypes.append(genotypes)
 
-	def add_variant(self, variant, genotypes, phases):
+	def add_variant(self, variant, genotypes, phases, genotype_likelihoods):
 		"""
 		Add a row to the table
 
@@ -104,6 +125,7 @@ class VariantTable:
 			1 represents 0/1 or 1/0 (heterozygous)
 			2 represents 1/1 (homozygous alternative)
 		phases -- iterable of VariantCallPhase objects
+		genotype_likelihoods -- iterable of GenotypeLikelihoods objects
 		"""
 		if len(genotypes) != len(self.genotypes):
 			raise ValueError('Expecting as many genotypes as there are samples')
@@ -114,10 +136,16 @@ class VariantTable:
 			self.genotypes[i].append(genotype)
 		for i, phase in enumerate(phases):
 			self.phases[i].append(phase)
+		for i, gl in enumerate(genotype_likelihoods):
+			self.genotype_likelihoods[i].append(gl)
 
 	def genotypes_of(self, sample):
 		"""Retrieve genotypes by sample name"""
 		return self.genotypes[self._sample_to_index[sample]]
+
+	def genotype_likelihoods_of(self, sample):
+		"""Retrieve genotypes by sample name"""
+		return self.genotype_likelihoods[self._sample_to_index[sample]]
 
 	def phases_of(self, sample):
 		"""Retrieve phases by sample name"""
@@ -139,12 +167,16 @@ class VariantTable:
 				del gt[i]
 			for ph in self.phases:
 				del ph[i]
+			for gl in self.genotype_likelihoods:
+				del gl[i]
 
 		for gt in self.genotypes:
 			assert len(self.variants) == len(gt)
 		for ph in self.phases:
 			assert len(self.variants) == len(ph)
-		assert len(self.samples) == len(self.genotypes) == len(self.phases)
+		for gl in self.genotype_likelihoods:
+			assert len(self.variants) == len(gl)
+		assert len(self.samples) == len(self.genotypes) == len(self.phases) == len(self.genotype_likelihoods)
 
 	def subset_rows_by_position(self, positions):
 		"""Keep only rows given in positions, discard the rest"""
@@ -314,6 +346,21 @@ class VcfReader:
 						phase = p
 				phases.append(phase)
 
+			# Read genotype likelihoods
+			genotype_likelihoods = []
+			for call in record.samples:
+				GL = getattr(call.data, 'GL', None)
+				PL = getattr(call.data, 'PL', None)
+				# Prefer GLs (floats) over PLs (ints) if both should be present
+				if GL is not None:
+					assert len(GL) == 3
+					genotype_likelihoods.append(GenotypeLikelihoods(*GL))
+				elif PL is not None:
+					assert len(PL) == 3
+					genotype_likelihoods.append(GenotypeLikelihoods( *(pl/-10 for pl in PL) ))
+				else:
+					genotype_likelihoods.append(None)
+
 			# PyVCF pecularity: gt_alleles is a list of the alleles in the
 			# GT field, but as strings.
 			# For example, when GT is 0/1, gt_alleles is ['0', '1'].
@@ -321,7 +368,7 @@ class VcfReader:
 			GT_TO_INT = { 0: 0, 1: 1, 2: 2, None: -1 }
 			genotypes = array('b', (GT_TO_INT[call.gt_type] for call in record.samples))
 			variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
-			table.add_variant(variant, genotypes, phases)
+			table.add_variant(variant, genotypes, phases, genotype_likelihoods)
 
 		logger.debug("Parsed %s SNPs and %s non-SNPs. Also skipped %s multi-ALTs.", n_snps,
 			n_other, n_multi)

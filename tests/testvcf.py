@@ -1,7 +1,7 @@
-from nose.tools import raises
+from nose.tools import raises, assert_almost_equals
 import os
 from tempfile import TemporaryDirectory
-from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant
+from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant, GenotypeLikelihoods
 from whatshap.phase import run_whatshap
 
 
@@ -236,3 +236,43 @@ def test_multi_alt():
 	"""Skip multi-ALT in VCF"""
 	table = list(VcfReader('tests/data/unknown-genotype.vcf'))[0]
 	assert [ variant.position for variant in table.variants ] == [1, 4]
+
+
+def asssert_genotype_likelihoods(actual, expected):
+	print('asssert_genotype_likelihoods({}, {})'.format(actual, expected))
+	if expected is None:
+		assert actual is None
+		return
+	for i in range(2):
+		assert_almost_equals(actual.log10_prob_of(i), expected.log10_prob_of(i), places=10)
+
+
+def test_read_genotype_likelihoods():
+	tables = list(VcfReader('tests/data/genotype-likelihoods.vcf'))
+	assert len(tables) == 1
+	table = tables[0]
+	assert table.chromosome == 'chrA'
+	assert table.samples == ['sample1', 'sample2']
+	assert len(table.variants) == 4
+
+	assert len(table.genotypes) == 2
+	assert list(table.genotypes[0]) == [2, 1, 1, 1]
+	assert list(table.genotypes[1]) == [1, 0, 0, 1]
+
+	gl0 = GenotypeLikelihoods(-2.1206, -0.8195, -0.07525)
+	gl1 = GenotypeLikelihoods(-10.3849, 0, -5.99143)
+	gl2 = GenotypeLikelihoods(-2.1, -0.8, -0.8)
+	gl3 = GenotypeLikelihoods(0, -10.0, -0.6)
+
+	assert len(table.genotype_likelihoods_of('sample1')) == 4
+	assert len(table.genotype_likelihoods_of('sample2')) == 4
+
+	print(table.genotype_likelihoods_of('sample1'))
+	print(table.genotype_likelihoods_of('sample2'))
+
+	expected1 = [gl0, gl2, None, gl0]
+	expected2 = [gl1, gl3, None, gl1]
+	for actual_gl, expected_gl in zip(table.genotype_likelihoods_of('sample1'), expected1):
+		asssert_genotype_likelihoods(actual_gl, expected_gl)
+	for actual_gl, expected_gl in zip(table.genotype_likelihoods_of('sample2'), expected2):
+		asssert_genotype_likelihoods(actual_gl, expected_gl)
