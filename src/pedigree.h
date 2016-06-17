@@ -52,6 +52,9 @@ public:
 	/** Turns the id of an individual into its index. */
 	size_t id_to_index(unsigned int individual_id) const;
 
+	/** Returns the id of individual with given index. */
+	unsigned int index_to_id(size_t individual_index) const;
+
 	size_t size() const {
 		return individual_ids.size();
 	}

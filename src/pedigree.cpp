@@ -53,6 +53,12 @@ size_t Pedigree::id_to_index(unsigned int individual_id) const {
 }
 
 
+unsigned int Pedigree::index_to_id(size_t individual_index) const {
+	assert(individual_index < individual_ids.size());
+	return individual_ids[individual_index];
+}
+
+
 unsigned int Pedigree::get_genotype(size_t individual_index, size_t variant_index) const {
 	return genotypes[individual_index][variant_index];
 }
