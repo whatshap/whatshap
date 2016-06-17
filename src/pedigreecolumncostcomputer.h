@@ -47,12 +47,6 @@ public:
 
   // returns the weight (what will be the phred_score) at the current position for super-read s
   unsigned int get_weight(bool second_haplotype);
-
-  // HALF_TABLE stuff ...
-
-  // set partitioning to the dual of partitioning (for the backtracking)
-  void set_dual_partitioning(unsigned int partitioning);
-  
 };
 
 #endif
