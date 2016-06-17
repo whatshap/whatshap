@@ -587,10 +587,11 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 						n_recombination_total += len(recombination_events)
 					logger.info('Total no. of detected recombination events: %d', n_recombination_total)
 
-				# TODO Do superreads actually come out in the order in which the
-				# individuals were added to the pedigree?
+				# Superreads in superreads_list are in the same order as individuals were added to the pedigree
 				for sample, sample_superreads in zip(pedigree_samples, superreads_list):
 					superreads[sample] = sample_superreads
+					assert len(sample_superreads) == 2
+					assert sample_superreads[0].sample_id == sample_superreads[1].sample_id == numeric_sample_ids[sample]
 					# identical for all samples
 					components[sample] = overall_components
 

@@ -40,8 +40,8 @@ public:
   
   unsigned int get_cost();
   
-  /** Returns the six alleles for all three individuals at the current position.
-   *  Alleles are ensured to agree with the given genotypes.
+  /** Returns a pair of alleles for all individuals in the ordered
+   *  by their index in the pedigree given at construction time.
    */
   std::vector<std::pair<Entry::allele_t,Entry::allele_t>> get_alleles();
 

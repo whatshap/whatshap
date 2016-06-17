@@ -351,7 +351,10 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 
 	std::vector<std::pair<Read*,Read*>> superreads;
 	for (unsigned int i=0; i<pedigree->size(); i++) {
-		 superreads.emplace_back(new Read("superread_0_"+std::to_string(i), -1, 0, -1),new Read("superread_1_"+std::to_string(i), -1, 0, -1));
+		 superreads.emplace_back(
+			new Read("superread_0_"+std::to_string(i), -1, -1, pedigree->index_to_id(i)),
+			new Read("superread_1_"+std::to_string(i), -1, -1, pedigree->index_to_id(i))
+		);
 	}
 
 	if (index_backtrace_table.empty()) {

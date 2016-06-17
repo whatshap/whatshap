@@ -91,7 +91,8 @@ public:
 	/** Computes optimal haplotypes and adds them (in the form of "super reads") to 
 	 *  the given read_set.
 	 *
-	 * output_read_set must have as many entries as there are individuals
+	 *   @param output_read_set Must have as many entries as there are individuals. The haplotypes for individual
+	 *                          with index i in the pedigree (given at construction time) are added to output_read_set->at(i).
 	 */
 	void get_super_reads(std::vector<ReadSet*>* output_read_set, std::vector<unsigned int>* transmission_vector);
 
