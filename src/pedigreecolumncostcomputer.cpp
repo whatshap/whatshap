@@ -9,15 +9,14 @@
 
 using namespace std;
 
-PedigreeColumnCostComputer::PedigreeColumnCostComputer(const std::vector <const Entry *>&column, size_t column_index, const std::vector <unsigned int>& read_marks,
-						const Pedigree* pedigree, const PedigreePartitions& pedigree_partitions):
-column(column),
-column_index(column_index),
-read_marks(read_marks),
-partitioning(0),
-pedigree(pedigree),
-cost_partition(pedigree_partitions.count(), {0,0}),
-pedigree_partitions(pedigree_partitions)
+PedigreeColumnCostComputer::PedigreeColumnCostComputer(const std::vector <const Entry *>&column, size_t column_index, const std::vector <unsigned int>& read_marks, const Pedigree* pedigree, const PedigreePartitions& pedigree_partitions):
+	column(column),
+	column_index(column_index),
+	read_marks(read_marks),
+	partitioning(0),
+	pedigree(pedigree),
+	cost_partition(pedigree_partitions.count(), {0,0}),
+	pedigree_partitions(pedigree_partitions)
 {
 	// Enumerate all possible assignments of alleles to haplotypes and 
 	// store those that are compatible with genotypes.
@@ -38,7 +37,6 @@ pedigree_partitions(pedigree_partitions)
 			allele_assignments.push_back(i);
 		}
 	}
-
 }
 
 
@@ -67,10 +65,8 @@ void PedigreeColumnCostComputer::set_partitioning(unsigned int partitioning) {
 	}
 }
 
-void PedigreeColumnCostComputer::update_partitioning(int bit_to_flip)
-{
-    // update cost based on the changed bit
 
+void PedigreeColumnCostComputer::update_partitioning(int bit_to_flip) {
 	const Entry & entry = *column[bit_to_flip];
 	partitioning = partitioning ^ (((unsigned int) 1) << bit_to_flip);
 	bool entry_in_partition1 = (partitioning & (((unsigned int) 1) << bit_to_flip)) == 0;
@@ -91,6 +87,7 @@ void PedigreeColumnCostComputer::update_partitioning(int bit_to_flip)
 	}
 }
 
+
 unsigned int PedigreeColumnCostComputer::get_cost() {
 	unsigned int best_cost = numeric_limits < unsigned int >::max();
 	for (unsigned int& i : allele_assignments) {
@@ -106,8 +103,9 @@ unsigned int PedigreeColumnCostComputer::get_cost() {
 	return best_cost;
 }
 
+
 std::vector <std::pair <Entry::allele_t,Entry::allele_t >> PedigreeColumnCostComputer::get_alleles() {
-    // TODO: avoid code duplication
+	// TODO: avoid code duplication
 	unsigned int best_cost = numeric_limits < unsigned int >::max();
 	unsigned int second_best_cost = numeric_limits < unsigned int >::max();
 	std::vector <std::pair < Entry::allele_t, Entry::allele_t >> pop_haps(pedigree->size(), std::make_pair(Entry::EQUAL_SCORES, Entry::EQUAL_SCORES));
@@ -146,7 +144,7 @@ std::vector <std::pair <Entry::allele_t,Entry::allele_t >> PedigreeColumnCostCom
 	return pop_haps;
 }
 
-unsigned int PedigreeColumnCostComputer::get_weight(bool second_haplotype)
-{
-    throw std::runtime_error("Not yet implemented for pedigrees.");
+
+unsigned int PedigreeColumnCostComputer::get_weight(bool second_haplotype) {
+	throw std::runtime_error("Not yet implemented for pedigrees.");
 }

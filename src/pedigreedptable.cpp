@@ -12,8 +12,7 @@
 
 using namespace std;
 
-PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes)
-	:
+PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes) :
 	read_set(read_set),
 	recombcost(recombcost),
 	pedigree(pedigree),
@@ -37,6 +36,7 @@ PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& 
 	compute_table();
 }
 
+
 PedigreeDPTable::~PedigreeDPTable() {
 	init(projection_column_table, 0);
 	init(index_backtrace_table, 0);
@@ -44,6 +44,7 @@ PedigreeDPTable::~PedigreeDPTable() {
 	init(indexers, 0);
 	init(pedigree_partitions, 0);
 }
+
 
 unique_ptr<vector<unsigned int> > PedigreeDPTable::extract_read_ids(const vector<const Entry *>& entries) {
 	unique_ptr<vector<unsigned int> > read_ids(new vector<unsigned int>());
@@ -385,6 +386,7 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 		output_read_set->at(k)->add(superreads[k].second);
 	}
 }
+
 
 vector<bool>* PedigreeDPTable::get_optimal_partitioning() {
 	vector<bool>* partitioning = new vector<bool>(read_set->size(),false);
