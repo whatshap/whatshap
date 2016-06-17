@@ -232,7 +232,7 @@ void PedigreeDPTable::compute_column(size_t column_index, unique_ptr<vector<cons
 	vector<PedigreeColumnCostComputer> cost_computers;
 	cost_computers.reserve(transmission_configurations);
 	for(unsigned int i = 0; i < transmission_configurations; ++i) {
-		cost_computers.emplace_back(*current_input_column, column_index, read_sources, pedigree, *pedigree_partitions[i]);
+		cost_computers.emplace_back(*current_input_column, column_index, read_sources, pedigree, *pedigree_partitions[i], distrust_genotypes);
 	}
 
 	// iterate over all bipartitions
@@ -366,7 +366,7 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 		while (column_iterator.has_next()) {
 			const index_and_inheritance_t& v = index_path[i];
 			unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
-			PedigreeColumnCostComputer cost_computer(*column, i, read_sources, pedigree, *pedigree_partitions[v.inheritance_value]);
+			PedigreeColumnCostComputer cost_computer(*column, i, read_sources, pedigree, *pedigree_partitions[v.inheritance_value], distrust_genotypes);
 			cost_computer.set_partitioning(v.index);
 
 			auto population_alleles = cost_computer.get_alleles();

@@ -24,13 +24,20 @@ private:
 	const Pedigree* pedigree;
 	std::vector<std::array<unsigned int, 2>> cost_partition;
 	const PedigreePartitions& pedigree_partitions;
-	// all (bit-encoded) assignments of alleles to pedigree partititions that are
-	// compatible with the genotypes
-	std::vector<unsigned int> allele_assignments;
+	typedef struct allele_assignment_t {
+		/** The i-th bit in assignment gives the allele assigned to pedigree partition i. */
+		unsigned int assignment;
+		/** Cost of this assignment incurred by genotype changes. */
+		unsigned int cost;
+		allele_assignment_t() : assignment(0), cost(0) {}
+		allele_assignment_t(unsigned int assignment, unsigned int cost) : assignment(assignment), cost(cost) {}
+	} allele_assignment_t;
+	/** All allowed assignments and their costs. */
+	std::vector<allele_assignment_t> allele_assignments;
   
 public:
   
-	PedigreeColumnCostComputer(const std::vector<const Entry*>& column, size_t column_index, const std::vector<unsigned int>& read_marks, const Pedigree* pedigree, const PedigreePartitions& pedigree_partitions);
+	PedigreeColumnCostComputer(const std::vector<const Entry*>& column, size_t column_index, const std::vector<unsigned int>& read_marks, const Pedigree* pedigree, const PedigreePartitions& pedigree_partitions, bool distrust_genotypes);
 
 	void set_partitioning(unsigned int partitioning);
 
