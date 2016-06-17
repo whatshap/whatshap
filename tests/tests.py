@@ -1,6 +1,6 @@
 from tempfile import TemporaryDirectory
 import os
-import shutil
+from io import StringIO
 import pysam
 from nose.tools import raises
 
@@ -60,6 +60,21 @@ def test_requested_sample_not_found():
 def test_with_reference():
 	run_whatshap(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
 		reference='tests/data/pacbio/reference.fasta')
+
+
+def test_ps_tag():
+	out = StringIO()
+	run_whatshap(variant_file='tests/data/trio.vcf', phase_input_files=['tests/data/trio.pacbio.bam'],
+	    output=out, tag='PS')
+	out.seek(0)
+	lines = [ line for line in out.readlines() if not line.startswith('#') ]
+
+	# TODO This is quite an ugly way to test phased VCF writing
+	assert lines[0] == "1\t60906167\t.\tG\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t0/1:.\t0|1:60906167\t0/0:.\n"
+	assert lines[1]	== "1\t60907394\t.\tG\tA\t.\tPASS\tAC=4;AN=6\tGT:PS\t0|1:60907394\t1/1:.\t0/1:.\n"
+	assert lines[2] == "1\t60907460\t.\tG\tT\t.\tPASS\tAC=2;AN=6\tGT:PS\t0|1:60907394\t0|1:60906167\t0/0:.\n"
+	assert lines[3] == "1\t60907473\t.\tC\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t0|1:60907394\t0/1:.\t0/0:.\n"
+	assert lines[4] == "1\t60909718\t.\tT\tC\t.\tPASS\tAC=2;AN=6\tGT\t0/1\t0/1\t0/0\n"
 
 
 def assert_phasing(phases, expected_phases):
