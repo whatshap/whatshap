@@ -52,10 +52,10 @@ void PedigreeColumnCostComputer::set_partitioning(unsigned int partitioning) {
 		unsigned int    ind_id = read_marks[entry.get_read_id()];
 		switch (entry.get_allele_type()) {
 
-		case Entry::MAJOR_ALLELE:
+		case Entry::REF_ALLELE:
 			(entry_in_partition1 ? cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,0)] :cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,1)])[1] += entry.get_phred_score();
 			break;
-		case Entry::MINOR_ALLELE:
+		case Entry::ALT_ALLELE:
 			(entry_in_partition1 ? cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,0)] :cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,1)])[0] += entry.get_phred_score();
 			break;
 		case Entry::BLANK:
@@ -76,11 +76,11 @@ void PedigreeColumnCostComputer::update_partitioning(int bit_to_flip)
 	bool entry_in_partition1 = (partitioning & (((unsigned int) 1) << bit_to_flip)) == 0;
 	unsigned int ind_id = read_marks[entry.get_read_id()];
 	switch (entry.get_allele_type()) {
-	case Entry::MAJOR_ALLELE:
+	case Entry::REF_ALLELE:
 		(entry_in_partition1 ? cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,1)] : cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,0)])[1] -= entry.get_phred_score();
 		(entry_in_partition1 ? cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,0)] :  cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,1)])[1] += entry.get_phred_score();
 		break;
-	case Entry::MINOR_ALLELE:
+	case Entry::ALT_ALLELE:
 		(entry_in_partition1 ? cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,1)] : cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,0)])[0] -= entry.get_phred_score();
 		(entry_in_partition1 ? cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,0)] :  cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,1)])[0] += entry.get_phred_score();
 		break;
@@ -126,8 +126,8 @@ std::vector <std::pair <Entry::allele_t,Entry::allele_t >> PedigreeColumnCostCom
 				unsigned int allele0 = (i >> partition0) & 1;
 				unsigned int allele1 = (i >> partition1) & 1;
 				pop_haps[individuals_index] = std::make_pair(
-					(allele0 == 0)?Entry::MAJOR_ALLELE:Entry::MINOR_ALLELE,
-					(allele1 == 0)?Entry::MAJOR_ALLELE:Entry::MINOR_ALLELE
+					(allele0 == 0)?Entry::REF_ALLELE:Entry::ALT_ALLELE,
+					(allele1 == 0)?Entry::REF_ALLELE:Entry::ALT_ALLELE
 				);
 			}
 		}

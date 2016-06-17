@@ -21,10 +21,10 @@ void ColumnCostComputer::set_partitioning(unsigned int partitioning) {
   for (vector<const Entry*>::const_iterator it = column.begin(); it != column.end(); ++it) {
     bool entry_in_partition1 = (partitioning & ((unsigned int)1)) == 0;
     switch ((*it)->get_allele_type()) {
-      case Entry::MAJOR_ALLELE:
+      case Entry::REF_ALLELE:
         (entry_in_partition1?cost_partition1:cost_partition2)[1] += (*it)->get_phred_score();
         break;
-      case Entry::MINOR_ALLELE:
+      case Entry::ALT_ALLELE:
         (entry_in_partition1?cost_partition1:cost_partition2)[0] += (*it)->get_phred_score();
         break;
       case Entry::BLANK:
@@ -42,11 +42,11 @@ void ColumnCostComputer::update_partitioning(int bit_to_flip) {
   partitioning = partitioning ^ (((unsigned int)1) << bit_to_flip);
   bool entry_in_partition1 = (partitioning & (((unsigned int)1) << bit_to_flip)) == 0;
   switch (entry.get_allele_type()) {
-    case Entry::MAJOR_ALLELE:
+    case Entry::REF_ALLELE:
       (entry_in_partition1?cost_partition2:cost_partition1)[1] -= entry.get_phred_score();
       (entry_in_partition1?cost_partition1:cost_partition2)[1] += entry.get_phred_score();
       break;
-    case Entry::MINOR_ALLELE:
+    case Entry::ALT_ALLELE:
       (entry_in_partition1?cost_partition2:cost_partition1)[0] -= entry.get_phred_score();
       (entry_in_partition1?cost_partition1:cost_partition2)[0] += entry.get_phred_score();
       break;
@@ -72,14 +72,14 @@ Entry::allele_t ColumnCostComputer::get_allele(bool second_haplotype) {
     if (cost0 == cost1) {
       return Entry::EQUAL_SCORES;
     } else {
-      return ((cost0 < cost1) ^ second_haplotype)?Entry::MAJOR_ALLELE:Entry::MINOR_ALLELE;
+      return ((cost0 < cost1) ^ second_haplotype)?Entry::REF_ALLELE:Entry::ALT_ALLELE;
     }
   } else {
     const unsigned int* cost = second_haplotype?cost_partition2:cost_partition1;
     if(cost[0] == cost[1]) {
       return Entry::EQUAL_SCORES;
     } else {
-      return (cost[0]<cost[1]?Entry::MAJOR_ALLELE:Entry::MINOR_ALLELE);
+      return (cost[0]<cost[1]?Entry::REF_ALLELE:Entry::ALT_ALLELE);
     }
   }
 }

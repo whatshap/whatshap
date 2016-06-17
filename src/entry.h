@@ -7,7 +7,7 @@
 class Entry {
 
   public:
-    typedef enum { MAJOR_ALLELE = 0, MINOR_ALLELE = 1, BLANK = 2, EQUAL_SCORES = 3 } allele_t;
+    typedef enum { REF_ALLELE = 0, ALT_ALLELE = 1, BLANK = 2, EQUAL_SCORES = 3 } allele_t;
     Entry(unsigned int r, allele_t m, unsigned int p);
 
     unsigned int get_read_id() const;

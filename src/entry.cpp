@@ -20,10 +20,10 @@ void Entry::set_phred_score(unsigned int p) { phred_score = p; }
 std::ostream& operator<<(std::ostream& out, const Entry& e) {
   out << "Entry(" << e.read_id << ',';
   switch (e.allele_type) {
-    case Entry::MAJOR_ALLELE:
+    case Entry::REF_ALLELE:
       out << "MAJOR";
       break;
-    case Entry::MINOR_ALLELE:
+    case Entry::ALT_ALLELE:
       out << "MINOR";
       break;
     case Entry::BLANK:
