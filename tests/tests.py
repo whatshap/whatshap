@@ -12,28 +12,22 @@ trio_merged_bamfile = 'tests/data/trio-merged-blocks.bam'
 trio_paired_end_bamfile = 'tests/data/paired_end.sorted.bam'
 recombination_breaks_bamfile = 'tests/data/recombination_breaks.sorted.bam'
 
+bam_files = [trio_bamfile, trio_merged_bamfile, trio_paired_end_bamfile, recombination_breaks_bamfile]
+
 
 def setup_module():
 	# This function is run once for this module
-	pysam.view('tests/data/trio.pacbio.sam', '-b', '-o', trio_bamfile, catch_stdout=False)
-	pysam.index(trio_bamfile, catch_stdout=False)
-	pysam.view('tests/data/trio-merged-blocks.sam', '-b', '-o', trio_merged_bamfile, catch_stdout=False)
-	pysam.index(trio_merged_bamfile, catch_stdout=False)
-	pysam.view('tests/data/paired_end.sorted.sam', '-b', '-o', trio_paired_end_bamfile, catch_stdout=False)
-	pysam.index(trio_paired_end_bamfile, catch_stdout=False)
-	pysam.view('tests/data/recombination_breaks.sorted.sam', '-b', '-o', recombination_breaks_bamfile, catch_stdout=False)
-	pysam.index(recombination_breaks_bamfile, catch_stdout=False)
+	for bam_path in bam_files:
+		assert bam_path.endswith('.bam')
+		sam_path = bam_path[:-4] + '.sam'
+		pysam.view(sam_path, '-b', '-o', bam_path, catch_stdout=False)
+		pysam.index(bam_path, catch_stdout=False)
 
 
 def teardown_module():
-	os.remove(trio_bamfile)
-	os.remove(trio_bamfile + '.bai')
-	os.remove(trio_merged_bamfile)
-	os.remove(trio_merged_bamfile + '.bai')
-	os.remove(trio_paired_end_bamfile)
-	os.remove(trio_paired_end_bamfile + '.bai')
-	os.remove(recombination_breaks_bamfile)
-	os.remove(recombination_breaks_bamfile + '.bai')
+	for path in bam_files:
+		os.remove(path)
+		os.remove(path + '.bai')
 
 
 def test_pysam_version():
