@@ -274,7 +274,7 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 
 
 def run_whatshap(phase_input_files, variant_file, reference=None,
-		output=None, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
+		output=sys.stdout, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True,
 		haplotype_bams_prefix=None, ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
 		recombination_list_filename=None):
@@ -284,7 +284,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 	phase_input_files -- list of paths to BAM/VCF files
 	variant_file -- path to input VCF
 	reference -- path to reference FASTA
-	output -- path to output VCF or use None for stdout
+	output -- path to output VCF or a file-like object
 	samples -- names of samples to phase. an empty list means: phase all samples
 	chromosomes -- names of chromosomes to phase. an empty list means: phase all chromosomes
 	ignore_read_groups
@@ -330,10 +330,8 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		del reference
 		# no reference given -> do not re-align -> must normalize indels
 		normalize = fasta is None
-		if output is not None:
+		if isinstance(output, str):
 			output = stack.enter_context(open(output, 'w'))
-		else:
-			output = sys.stdout
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file, normalized=normalize, out_file=output)
 		vcf_reader = VcfReader(variant_file, indels=indels)
