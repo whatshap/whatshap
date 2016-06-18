@@ -274,17 +274,17 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 
 
 def run_whatshap(phase_input_files, variant_file, reference=None,
-		output=None, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
+		output=sys.stdout, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True,
 		haplotype_bams_prefix=None, ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
-		recombination_list_filename=None):
+		recombination_list_filename=None, tag='HP'):
 	"""
 	Run WhatsHap.
 
 	phase_input_files -- list of paths to BAM/VCF files
 	variant_file -- path to input VCF
 	reference -- path to reference FASTA
-	output -- path to output VCF or use None for stdout
+	output -- path to output VCF or a file-like object
 	samples -- names of samples to phase. an empty list means: phase all samples
 	chromosomes -- names of chromosomes to phase. an empty list means: phase all chromosomes
 	ignore_read_groups
@@ -293,6 +293,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 	all_heterozygous
 	genetic_haplotyping -- in ped mode, merge disconnected blocks based on genotype status
 	recombination_list_filename -- filename to write putative recombination events to
+	tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
 	"""
 	class Statistics:
 		pass
@@ -330,12 +331,11 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		del reference
 		# no reference given -> do not re-align -> must normalize indels
 		normalize = fasta is None
-		if output is not None:
+		if isinstance(output, str):
 			output = stack.enter_context(open(output, 'w'))
-		else:
-			output = sys.stdout
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
-		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file, normalized=normalize, out_file=output)
+		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file,
+		        normalized=normalize, out_file=output, tag=tag)
 		vcf_reader = VcfReader(variant_file, indels=indels)
 
 		if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
@@ -591,6 +591,9 @@ def add_arguments(parser):
 	parser.add_argument('--version', action='version', version=__version__)
 	parser.add_argument('-o', '--output', default=None,
 		help='Output VCF file. If omitted, use standard output.')
+	parser.add_argument('--tag', choices=('HP', 'PS'), default='HP',
+	    help='How to store phasing information: Via HP tag (used by GATK '
+			'ReadBackedPhasing) or PS tag (standardized) (default: %(default)s)')
 	parser.add_argument('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')

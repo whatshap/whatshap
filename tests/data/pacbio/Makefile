@@ -16,7 +16,7 @@ illumina.bam:
 	samtools view -b ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/HG004_NA24143_mother/NIST_Illumina_2x250bps/HG004_250bp_All-29933060/HG004-250bp-All_S1.bam chr6:10039500-10049000 > $@
 
 variants.vcf: ucsc.hg19.fasta illumina.bam illumina.bam.bai
-	freebayes -f ucsc.hg19.fasta illumina.bam | sed 's|^chr6|ref|' | awk -vFS='\t' -vOFS='\t' '!/^#/ {$$2-=10029000; $$8="."};1' | grep -v '^##INFO=' > $@
+	freebayes -f ucsc.hg19.fasta illumina.bam | sed 's|^chr6|ref|' | awk -vFS='\t' -vOFS='\t' '!/^#/ {$$2-=10029000; $$8="."};1' | grep -v '^##INFO=' | sed -r 's|GT(:[A-Z][A-Z])*\t([01/]*):.*|GT\t\2|' > $@
 
 downloaded.bam:
 	samtools view -b ftp://ftp-trace.ncbi.nlm.nih.gov/giab/ftp/data/AshkenazimTrio/HG004_NA24143_mother/PacBio_MtSinai_NIST/CSHL_bwamem_bam_GRCh37/BWA-MEM_Chr6_HG004_merged_11_12.sort.bam 6:10039500-10049000 > $@

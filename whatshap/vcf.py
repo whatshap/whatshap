@@ -356,12 +356,13 @@ class PhasedVcfWriter:
 	Avoid reading in full chromosomes as that uses too much memory for
 	multi-sample VCFs.
 	"""
-	def __init__(self, in_path, command_line, normalized, out_file=sys.stdout):
+	def __init__(self, in_path, command_line, normalized, out_file=sys.stdout, tag='HP'):
 		"""
 		in_path -- Path to input VCF, used as template.
 		command_line -- A string that will be added as a VCF header entry.
 		out_file -- Open file-like object to which VCF is written.
 		normalized -- whether the phased variants have been normalized
+		tag -- which type of tag to write, either 'PS' or 'HP'
 		"""
 		self._reader = vcf.Reader(filename=in_path)
 		# FreeBayes adds phasing=none to its VCF output - remove that.
@@ -370,26 +371,45 @@ class PhasedVcfWriter:
 			self._reader.metadata['commandline'] = []
 		command_line = command_line.replace('"', '')
 		self._reader.metadata['commandline'].append('"' + command_line + '"')
-		self._reader.formats['HP'] = vcf.parser._Format(id='HP', num=None, type='String', desc='Phasing haplotype identifier')
+		if tag not in ('HP', 'PS'):
+			raise ValueError('Tag must be either "HP" or "PS"')
+		if tag == 'HP':
+			desc = 'Phasing haplotype identifier'
+		else:
+			desc = 'Phase set identifier'
+		self._reader.formats[tag] = vcf.parser._Format(id=tag, num=None, type='String', desc=desc)
 		# self._reader.formats['PQ'] = vcf.parser._Format(id='PQ', num=1, type='Float', desc='Phasing quality')
 
 		self._writer = vcf.Writer(out_file, template=self._reader)
 		self._unprocessed_record = None
 		self._reader_iter = iter(self._reader)
-		self._hp_found_warned = False
+		self._phase_tag_found_warned = False
 		self._normalized = normalized
+		self.tag = tag
+		self._set_phasing_tags = self._set_HP if tag == 'HP' else self._set_PS
 
 	@property
 	def samples(self):
 		return self._reader.samples
 
-	def _format_phasing_info(self, component, phase):
+	def _set_HP(self, values, component, phase):
 		"""
+		values -- tag dict to update
 		component -- name of the component
 		phase -- 0 or 1
 		"""
-		assert phase in [0,1]
-		return '{}-{},{}-{}'.format(component + 1, phase + 1, component + 1, 2 - phase)
+		assert phase in [0, 1]
+		values['HP'] = '{}-{},{}-{}'.format(component + 1, phase + 1, component + 1, 2 - phase)
+
+	def _set_PS(self, values, component, phase):
+		"""
+		values -- tag dict to update
+		component -- name of the component
+		phase -- 0 or 1
+		"""
+		assert phase in [0, 1]
+		values['PS'] = str(component + 1)
+		values['GT'] = '0|1' if phase == 0 else '1|0'
 
 	def write(self, chromosome, sample_superreads, sample_components):
 		"""
@@ -452,16 +472,30 @@ class PhasedVcfWriter:
 				else:
 					is_phased = False
 
+			if self.tag == 'PS':
+				# Remove any existing phasing from the GT field, no matter
+				# whether we have phasing info for it or not
+				samp_fmt = self._reader._format_cache[record.FORMAT]
+				for sample, call in zip(self._reader.samples, record.samples):
+					if sample not in sample_superreads:
+						continue
+
+					if '|' in call.data.GT:
+						values = call.data._asdict()
+						gt_fields = call.data.GT.split('|')
+						values['GT'] = '/'.join(sorted(gt_fields))
+						call.data = samp_fmt(**values)
+
 			if is_phased:
 				# Current PyVCF does not make it very easy to modify records/calls.
 				# Add HP tag to FORMAT
-				if 'HP' not in record.FORMAT.split(':'):
-					record.add_format('HP')
+				if self.tag not in record.FORMAT.split(':'):
+					record.add_format(self.tag)
 					if record.FORMAT not in self._reader._format_cache:
 						self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
 				samp_fmt = self._reader._format_cache[record.FORMAT]
 
-				# Set HP tag for all samples
+				# Set phase tag for all samples
 				for i, call in enumerate(record.samples):
 					sample = self._reader.samples[i]
 					if sample not in sample_superreads:
@@ -470,20 +504,18 @@ class PhasedVcfWriter:
 					components = sample_components[sample]
 					phases = sample_phases[sample]
 
-					if (hasattr(call.data, 'HP') and call.data.HP is not None
-							and not self._hp_found_warned):
+					if (hasattr(call.data, self.tag) and getattr(call.data, self.tag) is not None
+							and not self._phase_tag_found_warned):
 						logger.warning('Ignoring existing phasing information '
-							'found in input VCF (HP tag exists).')
-						self._hp_found_warned = True
+							'found in input VCF ({} tag exists).'.format(self.tag))
+						self._phase_tag_found_warned = True
 
 					values = call.data._asdict()
 					if pos in components and pos in phases and call.is_het:
-						# Set or overwrite HP tag
-						values['HP'] = self._format_phasing_info(
-							components[pos], phases[pos])
+						self._set_phasing_tags(values, components[pos], phases[pos])
 					else:
-						# Unphased - set HP to '.'
-						values['HP'] = None
+						# Unphased - set phase tag to '.'
+						values[self.tag] = None
 					call.data = samp_fmt(**values)
 			self._writer.write_record(record)
 			prev_pos = pos

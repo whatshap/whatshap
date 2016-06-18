@@ -4,7 +4,7 @@ User guide
 
 Run WhatsHap like this::
 
-	whatshap phase -o phased.vcf input.vcf input.bam
+    whatshap phase -o phased.vcf input.vcf input.bam
 
 Phasing information is added to the VCF file in a way that is compatible with
 GATK’s ReadBackedPhasing. That is, the HP tag denotes which set of phased
@@ -18,8 +18,9 @@ WhatsHap supports phasing of variants in diploid genomes.
 
 Supported variant types are SNVs (single-nucleotide variants), insertions,
 deletions, MNPs (multiple adjacent SNVs) and “complex” variants. Complex
-variants are those that do not fall in any of the other categories. An
-example is the variant TGCA → AAC. Structural variants are not phased.
+variants are those that do not fall in any of the other categories, but
+are not structural variants. An example is the variant TGCA → AAC.
+Structural variants are not phased.
 
 If no reference sequence is provided (using ``--reference``), only
 SNVs, insertions and deletions can be phased.
@@ -31,7 +32,114 @@ phased, that information will be added to the variant in the output VCF.
 
 Variants can be left unphased for two reasons: Either the variant type is
 not supported or the phasing algorithm could not make a phasing decision.
-In both cases, the VCF record is copied from the input to the output file unchanged.
+In both cases, the information from the input VCF is simply copied to output
+VCF unchanged.
+
+
+Representation of phasing information in VCFs
+=============================================
+
+WhatsHap supports two ways in which it can store phasing information in a VCF
+file: The standards-compliant ``PS`` tag and the ``HP`` tag used by GATK’s
+ReadBackedPhasing tool. When you run ``whatshap phase``, you can select which
+format is used by setting ``--tag=PS`` or ``--tag=HP``.
+
+We will use a small VCF file as an example in the following. Unphased, it
+looks like this::
+
+    ##fileformat=VCFv4.1
+    #CHROM  POS  ID  REF  ALT  QUAL   FILTER  INFO FORMAT  sample1  sample2
+    chr1    100  .   A    T    50.0   .       .    GT      0/1      0/1
+    chr1    150  .   C    G    50.0   .       .    GT      0/1      1/1
+    chr1    300  .   G    T    50.0   .       .    GT      0/1      0/1
+    chr1    350  .   T    A    50.0   .       .    GT      0/1      0/1
+    chr1    500  .   A    G    50.0   .       .    GT      0/1      1/1
+
+Note that sample 1 is heterozygous at all shown loci (expressed with
+``0/1`` in the ``GT`` field).
+
+
+Phasing via pipe (``|``) notation
+---------------------------------
+
+The ``GT`` fields can be phased by ordering the alleles by haplotype and
+separating them with a pipe symbol (``|``) instead of a slash (``/``)::
+
+    ##fileformat=VCFv4.1
+    #CHROM  POS  ID  REF  ALT  QUAL   FILTER  INFO FORMAT  sample1  sample2
+    chr1    100  .   A    T    50.0   .       .    GT      0|1      0/1
+    chr1    150  .   C    G    50.0   .       .    GT      1|0      0/1
+    chr1    300  .   G    T    50.0   .       .    GT      1|0      0/1
+    chr1    350  .   T    A    50.0   .       .    GT      0|1      0/1
+    chr1    500  .   A    G    50.0   .       .    GT      0|1      1/1
+
+The alleles on one of the haplotypes of sample1 are: A, G, T, T, A.
+On the other haplotype, they are: T, C, G, A, G.
+
+Swapping ones and zeros in the ``GT`` fields would result in a VCF file with
+the equivalent information.
+
+
+Phasing via PS ("phase set") tag
+--------------------------------
+
+The pipe notation has problems when not all variants in the VCF file can be
+phased. The `VCF specification <https://github.com/samtools/hts-specs>`_
+introduces the ``PS`` tag to solve some of them. The ``PS`` is a
+unique identifier for a "phase set", which is a set of variants that could
+be phased relative to each other. There are usually multiple phase sets in
+the file, and variants that belong to the same phase set do not need to
+be consecutive in the file::
+
+    ##fileformat=VCFv4.1
+    #CHROM  POS  ID  REF  ALT  QUAL   FILTER  INFO FORMAT     sample1      sample2
+    chr1    100  .   A    T    50.0   .       .    GT:PS:PQ   0|1:100:22   0/1:.:.
+    chr1    150  .   C    G    50.0   .       .    GT:PS:PQ   1|0:100:18   0/1:.:.
+    chr1    300  .   G    T    50.0   .       .    GT:PS:PQ   1|0:300:23   0/1:.:.
+    chr1    350  .   T    A    50.0   .       .    GT:PS:PQ   0|1:300:42   0/1:.:.
+    chr1    500  .   A    G    50.0   .       .    GT:PS:PQ   0|1:100:12   0/1:.:.
+
+This VCF contains two phase sets named ``100`` and ``300``. The names are
+arbitrary, but WhatsHap will choose the position of the leftmost variant
+of the phase set as its name. The variants at 100, 150 and 500 are in the same
+phase set, while the variants at 300 and 350 are in a different phase set.
+Such a configuration is typically seen when paired-end or mate-pair reads are
+used for phasing.
+
+In the case of WhatsHap, the phase sets are identical to the connected components
+of the variant connectivity graph. Two variants in that graph are connected if a
+read exists that covers them.
+
+The above example also shows usage of the ``PQ`` tag for "phasing quality".
+WhatsHap currently does not add this tag.
+
+
+Phasing via HP tag
+------------------
+
+GATK’s ReadBackedPhasing tool uses a different way to represent phased variants.
+It is in principle the same as the combination of pipe notation with the ``PS``
+tag, but the ``GT`` field is left unchanged and all information is added to a
+separate ``HP`` tag ("haplotype identifier") instead. This file encodes the same
+information as the example above::
+
+    ##fileformat=VCFv4.1
+    #CHROM  POS  ID  REF  ALT  QUAL   FILTER  INFO FORMAT     sample1         sample2
+    chr1    100  .   A    T    50.0   .       .    GT:HP      0/1:100-1,100-2      0/1:.:.
+    chr1    150  .   C    G    50.0   .       .    GT:HP:PQ   0/1:100-2,100-1:18   0/1:.:.
+    chr1    300  .   G    T    50.0   .       .    GT:HP:PQ   0/1:300-2,300-1:23   0/1:.:.
+    chr1    350  .   T    A    50.0   .       .    GT:HP:PQ   0/1:300-1,300-2:42   0/1:.:.
+    chr1    500  .   A    G    50.0   .       .    GT:HP:PQ   0/1:100-1,100-2:12   0/1:.:.
+
+A few notes:
+
+* ReadBackedPhasing does not add the ``PQ`` to the first variant in a phase set/haplotype
+  group. This probably means that the phasing quality is to be interpreted as relative to
+  the previous or first variant in the set.
+* ReadBackedPhasing does not phase indels
+* Discussions on the GATK forum on this topic:
+   - https://gatkforums.broadinstitute.org/discussion/4226
+   - https://gatkforums.broadinstitute.org/discussion/4038/
 
 
 Trusting the variant caller
