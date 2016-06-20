@@ -113,10 +113,10 @@ unsigned int PedigreeColumnCostComputer::get_cost() {
 }
 
 
-std::vector <std::pair <Entry::allele_t,Entry::allele_t >> PedigreeColumnCostComputer::get_alleles() {
+vector <PedigreeColumnCostComputer::phased_variant_t> PedigreeColumnCostComputer::get_alleles() {
 	unsigned int best_cost = numeric_limits < unsigned int >::max();
 	unsigned int second_best_cost = numeric_limits < unsigned int >::max();
-	std::vector <std::pair < Entry::allele_t, Entry::allele_t >> pop_haps(pedigree->size(), std::make_pair(Entry::EQUAL_SCORES, Entry::EQUAL_SCORES));
+	vector<phased_variant_t> pop_haps(pedigree->size(), phased_variant_t());
 	// best_cost_for_allele[individual][haplotype][to_allele] is the best cost for flipping
 	// "haplotype" in "individual" to "to_allele"
 	Vector2D<array<unsigned int,2>> best_cost_for_allele(pedigree->size(), 2, {numeric_limits<unsigned int>::max(),numeric_limits<unsigned int>::max()});
@@ -137,7 +137,7 @@ std::vector <std::pair <Entry::allele_t,Entry::allele_t >> PedigreeColumnCostCom
 			unsigned int allele0 = (a.assignment >> partition0) & 1;
 			unsigned int allele1 = (a.assignment >> partition1) & 1;
 			if (new_best) {
-				pop_haps[individuals_index] = std::make_pair(
+				pop_haps[individuals_index] = phased_variant_t(
 					(allele0 == 0)?Entry::REF_ALLELE:Entry::ALT_ALLELE,
 					(allele1 == 0)?Entry::REF_ALLELE:Entry::ALT_ALLELE
 				);
@@ -158,12 +158,13 @@ std::vector <std::pair <Entry::allele_t,Entry::allele_t >> PedigreeColumnCostCom
 	// Test whether some of the allele assignments are ambiguous
 	for (size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index) {
 		for (size_t haplotype = 0; haplotype < 2; ++haplotype) {
-			if (best_cost_for_allele.at(individuals_index,haplotype)[0] == best_cost_for_allele.at(individuals_index,haplotype)[1]) {
-				std::pair<Entry::allele_t,Entry::allele_t> p = pop_haps[individuals_index];
+			int quality = abs(((int)(best_cost_for_allele.at(individuals_index,haplotype)[0])) - ((int)(best_cost_for_allele.at(individuals_index,haplotype)[1])));
+			pop_haps[individuals_index].quality = (unsigned int)quality;
+			if (quality == 0) {
 				if (haplotype == 0) {
-					pop_haps[individuals_index] = std::make_pair(Entry::EQUAL_SCORES, p.second);
+					pop_haps[individuals_index].allele0 = Entry::EQUAL_SCORES;
 				} else {
-					pop_haps[individuals_index] = std::make_pair(p.first, Entry::EQUAL_SCORES);
+					pop_haps[individuals_index].allele1 = Entry::EQUAL_SCORES;
 				}
 			}
 		}

@@ -47,10 +47,17 @@ public:
 
 	unsigned int get_cost();
 
-	/** Returns a pair of alleles for all individuals in the ordered
-	  *  by their index in the pedigree given at construction time.
-	  */
-	std::vector<std::pair<Entry::allele_t,Entry::allele_t>> get_alleles();
+	typedef struct phased_variant_t {
+		Entry::allele_t allele0;
+		Entry::allele_t allele1;
+		unsigned int quality;
+		phased_variant_t() : allele0(Entry::BLANK), allele1(Entry::BLANK), quality(0) {}
+		phased_variant_t(Entry::allele_t allele0, Entry::allele_t allele1) : allele0(allele0), allele1(allele1), quality(0) {}
+		phased_variant_t(Entry::allele_t allele0, Entry::allele_t allele1, unsigned int quality) : allele0(allele0), allele1(allele1), quality(quality) {}
+	} phased_variant_t;
+
+	/** Returns a phased variants ordered by their index in the pedigree given at construction time. */
+	std::vector<phased_variant_t> get_alleles();
 
 	/* Returns the weight (what will be the phred_score) at the current position for super-reads. */
 	unsigned int get_weight(bool second_haplotype);
