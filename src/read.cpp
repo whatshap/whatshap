@@ -14,12 +14,12 @@ Read::Read(const std::string& name, int mapq, int source_id, int sample_id) : na
 
 string Read::toString() {
 	ostringstream oss;
-	oss << name << " (";
+	oss << name << " mapq:(";
 	for (size_t i=0; i<mapqs.size(); ++i) {
 		if (i>0) oss << ",";
 		oss << mapqs[i];
 	}
-	oss << ") (";
+	oss << ") source:" << source_id << " sample:" << sample_id << " (";
 	for (size_t i=0; i<variants.size(); ++i) {
 		if (i>0) oss << ";";
 		oss << "[" << variants[i].position << "," << variants[i].entry << "]";
