@@ -20,6 +20,7 @@ def string_to_readset(s, w = None, sample_ids = None):
 			if w is not None:
 				q = int(w[index][pos])
 			read.add_variant(position=(pos+1) * 10, allele=int(c), quality=q)
+		assert len(read) > 1, 'Reads covering less than two variants are not allowed'
 		rs.add(read)
 	print(rs)
 	return rs
