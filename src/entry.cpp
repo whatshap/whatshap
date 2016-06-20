@@ -42,10 +42,10 @@ std::ostream& operator<<(std::ostream& out, const Entry& e) {
 	out << "Entry(" << e.read_id << ',';
 	switch (e.allele_type) {
 		case Entry::REF_ALLELE:
-			out << "MAJOR";
+			out << "REF";
 			break;
 		case Entry::ALT_ALLELE:
-			out << "MINOR";
+			out << "ALT";
 			break;
 		case Entry::BLANK:
 			out << "BLANK";
