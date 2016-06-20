@@ -589,7 +589,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 
 def add_arguments(parser):
 	parser.add_argument('--version', action='version', version=__version__)
-	parser.add_argument('-o', '--output', default=None,
+	parser.add_argument('-o', '--output', default=sys.stdout,
 		help='Output VCF file. If omitted, use standard output.')
 	parser.add_argument('--tag', choices=('HP', 'PS'), default='HP',
 	    help='How to store phasing information: Via HP tag (used by GATK '
