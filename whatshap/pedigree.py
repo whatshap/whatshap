@@ -110,6 +110,7 @@ def load_genetic_map(filename):
 			if len(genetic_map) >= 2:
 				if not warned_zero_distance and (genetic_map[-2].cum_distance == genetic_map[-1].cum_distance):
 					logger.warning('Zero genetic distances encountered in %s', filename)
+					warned_zero_distance = True
 
 	return genetic_map
 
