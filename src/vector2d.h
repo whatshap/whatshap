@@ -12,6 +12,10 @@ public:
 		return v[index0*size1 + index1];
 	}
 
+	T& at(size_t index0, size_t index1) {
+		return v[index0*size1 + index1];
+	}
+
 	void set(size_t index0, size_t index1, const T& value) {
 		v[index0*size1 + index1] = value;
 	}
