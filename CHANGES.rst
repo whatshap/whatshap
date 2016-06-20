@@ -8,6 +8,9 @@ v0.12 (in development)
 * Speed up allele detection
 * Add an ``unphase`` subcommand which removes all phasing from a VCF file
   (``HP`` and ``PS`` tags, pipe notation).
+* Add option ``--tag=`` to the ``phase`` subcommand, which allows to choose
+  whether ReadBackedPhasing-compatible ``HP`` tags or standard ``PS`` tags are
+  used to describe phasing in the output VCF.
 
 v0.11 (2016-06-09)
 ------------------
