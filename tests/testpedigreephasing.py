@@ -2,14 +2,14 @@
 Test phasing of pedigrees (PedMEC algorithm)
 """
 from nose.tools import raises
-from whatshap.core import PedigreeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds
+from whatshap.core import PedigreeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
 from whatshap.pedigree import centimorgen_to_phred
 from .phasingutils import string_to_readset, string_to_readset_pedigree, brute_force_phase
 
 
-def phase_pedigree(reads, recombcost, pedigree):
+def phase_pedigree(reads, recombcost, pedigree, distrust_genotypes=False):
 	rs = string_to_readset_pedigree(reads)
-	dp_table = PedigreeDPTable(rs, recombcost, pedigree)
+	dp_table = PedigreeDPTable(rs, recombcost, pedigree, distrust_genotypes)
 	superreads_list, transmission_vector = dp_table.get_super_reads()
 	cost = dp_table.get_optimal_cost()
 	for superreads in superreads_list:
@@ -304,3 +304,38 @@ def test_centimorgen_to_phred():
 @raises(ValueError)
 def test_centimorgen_to_phred_zero():
 	assert centimorgen_to_phred(0)
+
+
+def test_phase_trio_genotype_likelihoods():
+	reads = """
+	  A 111
+	  A 010
+	  A 110
+	  B 001
+	  B 110
+	  B 101
+	  C 001
+	  C 010
+	  C 010
+	"""
+	pedigree = Pedigree(NumericSampleIds())
+	genotype_likelihoods_mother = [
+		PhredGenotypeLikelihoods(0,0,0),
+		PhredGenotypeLikelihoods(0,0,1),
+		PhredGenotypeLikelihoods(5,0,5)
+	]
+	genotype_likelihoods0 = [PhredGenotypeLikelihoods(0,0,0)] * 3
+	pedigree.add_individual('individual0', [0,0,0], genotype_likelihoods_mother)
+	pedigree.add_individual('individual1', [0,0,0], genotype_likelihoods0)
+	pedigree.add_individual('individual2', [0,0,0], genotype_likelihoods0)
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
+	recombcost = [10,10,10]
+	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree, True)
+	assert cost == 3
+	assert len(set(transmission_vector)) == 1
+	all_expected_haplotypes = [
+		('111','010'),
+		('001','110'),
+		('001','010')
+	]
+	assert_haplotypes(superreads_list, all_expected_haplotypes, 3)
