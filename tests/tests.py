@@ -335,3 +335,10 @@ def test_phase_quartet_recombination_breakpoints():
 			else:
 				assert len(lines) == 1
 
+
+def test_phase_trio_zero_distance():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output.vcf'
+		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf,
+		        ped='tests/data/trio.ped', genmap='tests/data/zero-genetic-distance.map')
+		assert os.path.isfile(outvcf)

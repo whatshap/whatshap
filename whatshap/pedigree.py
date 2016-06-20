@@ -18,6 +18,7 @@ def interpolate(point, start_pos, end_pos, start_value, end_value):
 		return start_value
 	return start_value + ((point - start_pos) * (end_value - start_value) / (end_pos - start_pos))
 
+MINIMUM_GENETIC_DISTANCE = 1e-10 # cM
 
 def recombination_cost_map(genetic_map, positions):
 
@@ -63,6 +64,7 @@ def recombination_cost_map(genetic_map, positions):
 	result = [0]
 	for i in range(1, len(cumulative_distances)):
 		d = cumulative_distances[i] - cumulative_distances[i-1]
+		d = max(d, MINIMUM_GENETIC_DISTANCE)
 		result.append(round(centimorgen_to_phred(d)))
 
 	return result
@@ -92,6 +94,7 @@ def centimorgen_to_phred(distance):
 def load_genetic_map(filename):
 	genetic_map = []
 
+	warned_zero_distance = False
 	with open(filename,'r') as fid:
 
 		# read and ignore first line
@@ -104,6 +107,9 @@ def load_genetic_map(filename):
 			genetic_map.append(
 				RecombinationMapEntry(position=int(line_spl[0]), cum_distance=float(line_spl[2]))
 			)
+			if len(genetic_map) >= 2:
+				if not warned_zero_distance and (genetic_map[-2].cum_distance == genetic_map[-1].cum_distance):
+					logger.warning('Zero genetic distances encountered in %s', filename)
 
 	return genetic_map
 
