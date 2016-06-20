@@ -5,6 +5,7 @@
 #include <array>
 #include <map>
 #include <unordered_set>
+#include "vector2d.h"
 #include "pedigreecolumncostcomputer.h"
 
 using namespace std;
@@ -113,28 +114,39 @@ unsigned int PedigreeColumnCostComputer::get_cost() {
 
 
 std::vector <std::pair <Entry::allele_t,Entry::allele_t >> PedigreeColumnCostComputer::get_alleles() {
-	// TODO: avoid code duplication
 	unsigned int best_cost = numeric_limits < unsigned int >::max();
 	unsigned int second_best_cost = numeric_limits < unsigned int >::max();
 	std::vector <std::pair < Entry::allele_t, Entry::allele_t >> pop_haps(pedigree->size(), std::make_pair(Entry::EQUAL_SCORES, Entry::EQUAL_SCORES));
+	// best_cost_for_allele[individual][haplotype][to_allele] is the best cost for flipping
+	// "haplotype" in "individual" to "to_allele"
+	Vector2D<array<unsigned int,2>> best_cost_for_allele(pedigree->size(), 2, {numeric_limits<unsigned int>::max(),numeric_limits<unsigned int>::max()});
 	for (const allele_assignment_t& a : allele_assignments) {
 		unsigned int cost = a.cost;
 		for (size_t p = 0; p < pedigree_partitions.count(); ++p) {
 			unsigned int allele = (a.assignment >> p) & 1;
 			cost += cost_partition[p][allele];
 		}
+		bool new_best = false;
 		if (cost <= best_cost) {
-			second_best_cost = best_cost;
 			best_cost = cost;
-			for (size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index) {
-				unsigned int partition0 = pedigree_partitions.haplotype_to_partition(individuals_index,0);
-				unsigned int partition1 = pedigree_partitions.haplotype_to_partition(individuals_index,1);
-				unsigned int allele0 = (a.assignment >> partition0) & 1;
-				unsigned int allele1 = (a.assignment >> partition1) & 1;
+			new_best = true;
+		}
+		for (size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index) {
+			unsigned int partition0 = pedigree_partitions.haplotype_to_partition(individuals_index,0);
+			unsigned int partition1 = pedigree_partitions.haplotype_to_partition(individuals_index,1);
+			unsigned int allele0 = (a.assignment >> partition0) & 1;
+			unsigned int allele1 = (a.assignment >> partition1) & 1;
+			if (new_best) {
 				pop_haps[individuals_index] = std::make_pair(
 					(allele0 == 0)?Entry::REF_ALLELE:Entry::ALT_ALLELE,
 					(allele1 == 0)?Entry::REF_ALLELE:Entry::ALT_ALLELE
 				);
+			}
+			if (cost < best_cost_for_allele.at(individuals_index,0)[allele0]) {
+				best_cost_for_allele.at(individuals_index,0)[allele0] = cost;
+			}
+			if (cost < best_cost_for_allele.at(individuals_index,1)[allele1]) {
+				best_cost_for_allele.at(individuals_index,1)[allele1] = cost;
 			}
 		}
 	}
@@ -143,10 +155,18 @@ std::vector <std::pair <Entry::allele_t,Entry::allele_t >> PedigreeColumnCostCom
 		throw std::runtime_error("Error: Mendelian conflict");
 	}
 
-	if (second_best_cost == best_cost) {
-		// TODO: Having too equal scores does not necissarily imply that
-		// the case is undecidable for a pedigree individuals. Be smarter here.
-		pop_haps.assign(pedigree->size(), std::make_pair(Entry::EQUAL_SCORES, Entry::EQUAL_SCORES));
+	// Test whether some of the allele assignments are ambiguous
+	for (size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index) {
+		for (size_t haplotype = 0; haplotype < 2; ++haplotype) {
+			if (best_cost_for_allele.at(individuals_index,haplotype)[0] == best_cost_for_allele.at(individuals_index,haplotype)[1]) {
+				std::pair<Entry::allele_t,Entry::allele_t> p = pop_haps[individuals_index];
+				if (haplotype == 0) {
+					pop_haps[individuals_index] = std::make_pair(Entry::EQUAL_SCORES, p.second);
+				} else {
+					pop_haps[individuals_index] = std::make_pair(p.first, Entry::EQUAL_SCORES);
+				}
+			}
+		}
 	}
 
 	return pop_haps;
