@@ -588,57 +588,58 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 
 
 def add_arguments(parser):
-	parser.add_argument('--version', action='version', version=__version__)
-	parser.add_argument('-o', '--output', default=sys.stdout,
+	arg = parser.add_argument
+	arg('--version', action='version', version=__version__)
+	arg('-o', '--output', default=sys.stdout,
 		help='Output VCF file. If omitted, use standard output.')
-	parser.add_argument('--tag', choices=('HP', 'PS'), default='HP',
+	arg('--tag', choices=('HP', 'PS'), default='HP',
 	    help='How to store phasing information: Via HP tag (used by GATK '
 			'ReadBackedPhasing) or PS tag (standardized) (default: %(default)s)')
-	parser.add_argument('--reference', '-r', metavar='FASTA',
+	arg('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')
-	parser.add_argument('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
+	arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
-	parser.add_argument('--mapping-quality', '--mapq', metavar='QUAL',
+	arg('--mapping-quality', '--mapq', metavar='QUAL',
 		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
-	parser.add_argument('--indels', dest='indels', default=False, action='store_true',
+	arg('--indels', dest='indels', default=False, action='store_true',
 		help='Also phase indels (default: do not phase indels)')
-	parser.add_argument('--distrust-genotypes', dest='all_heterozygous',
+	arg('--distrust-genotypes', dest='all_heterozygous',
 		action='store_false', default=True,
 		help='Allow switching variants from hetero- to homozygous in an '
 		'optimal solution (see documentation).')
-	parser.add_argument('--ignore-read-groups', default=False, action='store_true',
+	arg('--ignore-read-groups', default=False, action='store_true',
 		help='Ignore read groups in BAM header and assume all reads come '
 		'from the same sample.')
-	parser.add_argument('--sample', dest='samples', metavar='SAMPLE', default=[], action='append',
+	arg('--sample', dest='samples', metavar='SAMPLE', default=[], action='append',
 		help='Name of a sample to phase. If not given, all samples in the '
 		'input VCF are phased. Can be used multiple times.')
-	parser.add_argument('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
+	arg('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
 		help='Name of chromosome to phase. If not given, all chromosomes in the '
 		'input VCF are phased. Can be used multiple times.')
-	parser.add_argument('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
+	arg('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
 		help='Write reads that have been used for phasing to haplotype-specific BAM files. '
 		'Creates PREFIX.1.bam and PREFIX.2.bam')
-	parser.add_argument('--ped', metavar='PED/FAM',
+	arg('--ped', metavar='PED/FAM',
 		help='Use pedigree information in PED file to improve phasing '
 		'(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, '
 		'mother, and father sample names as used in the VCF and BAM. Other '
 		'columns are ignored.')
-	parser.add_argument('--recombination-list', metavar='RECOMBLIST', dest='recombination_list_filename', default=None,
+	arg('--recombination-list', metavar='RECOMBLIST', dest='recombination_list_filename', default=None,
 		help='Write putative recombination events to given filename.')
-	parser.add_argument('--recombrate', metavar='RECOMBRATE', type=float, default=1.26,
+	arg('--recombrate', metavar='RECOMBRATE', type=float, default=1.26,
 		help='Recombination rate in cM/Mb (used with --ped). If given, a constant recombination '
 		'rate is assumed (default: %(default)gcM/Mb).')
-	parser.add_argument('--genmap', metavar='GENMAP',
+	arg('--genmap', metavar='GENMAP',
 		help='File with genetic map (used with --ped) to be used instead of constant recombination '
 		'rate, i.e. overrides option --recombrate.')
-	parser.add_argument('--no-genetic-haplotyping', dest='genetic_haplotyping',
+	arg('--no-genetic-haplotyping', dest='genetic_haplotyping',
 		action='store_false', default=True,
 		help='Do not merge blocks that are not connected by reads (i.e. solely based on genotype '
 		'status). Default: when in --ped mode, merge all blocks that contain at least one '
 		'homozygous genotype in at least one individual into one block.')
-	parser.add_argument('variant_file', metavar='VCF', help='VCF file with variants to be phased (can be gzip-compressed)')
-	parser.add_argument('phase_input_files', nargs='+', metavar='PHASEINPUT',
+	arg('variant_file', metavar='VCF', help='VCF file with variants to be phased (can be gzip-compressed)')
+	arg('phase_input_files', nargs='+', metavar='PHASEINPUT',
 	    help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')
 
 
