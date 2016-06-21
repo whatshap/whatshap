@@ -11,6 +11,9 @@ v0.12 (in development)
 * Add option ``--tag=`` to the ``phase`` subcommand, which allows to choose
   whether ReadBackedPhasing-compatible ``HP`` tags or standard ``PS`` tags are
   used to describe phasing in the output VCF.
+* Manage versions with `versioneer <https://github.com/warner/python-versioneer>`_.
+  This means that ``whatshap --version`` and the program version in the VCF header
+  will include the Git commit hash, such as ``whatshap 0.11+50.g1b7af7a``.
 
 v0.11 (2016-06-09)
 ------------------
