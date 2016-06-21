@@ -96,29 +96,28 @@ PyPI <http://peterdowns.com/posts/first-time-with-pypi.html>`_. In particular,
 note that a ``%`` in your password needs to be doubled and that the password
 must *not* be put between quotation marks even if it contains spaces.
 
-#. Ensure all tests pass.
+#. Set the correct version number in the changelog. Ensure that the list of changes is up-to-date.
 
-#. Update the ``__version__`` in ``whatshap/__init__.py``.
+#. Ensure you have no uncommitted changes in the working copy.
 
-#. Make sure the changelog is up-to-date. Set also the correct version number in the changelog.
+#. Run ``tox``, ensuring all tests pass.
 
-#. Commit the version change.
-
-#. Create a tag::
+#. Tag the current commit with the version number (there must be a ``v`` prefix)::
 
        git tag v0.1
 
-#. Create and upload the distribution (``.tar.gz`` file) to PyPI::
+#. Create a distribution (``.tar.gz`` file), ensuring that the auto-generated version number in
+   the tarball is as you expect it::
+
+       python3 setup.py sdist
+
+#. Upload the distribution to PyPI (the tarball must be regenerated since ``upload`` requires a preceding ``sdist``)::
 
        python3 setup.py sdist upload
 
-#. Push, uploading the tag::
+#. Push the tag::
 
        git push --tags
-
-   If something went wrong, increment the revision in the version number and re-do.
-   That is, go from version x.y to x.y.1. Make sure that the tag in the repository
-   always corresponds to the tarball that is on PyPI.
 
 #. Update the `bioconda recipe <https://github.com/bioconda/bioconda-recipes/blob/master/recipes/whatshap/meta.yaml>`_.
    It is probly easiest to edit the recipe via the web interface and send in a
@@ -128,6 +127,10 @@ must *not* be put between quotation marks even if it contains spaces.
    Since this is just a version bump, the pull request does not need a
    review by other bioconda developers. As soon as the tests pass and if you
    have the proper permissions, it can be merged directly.
+
+If something went wrong, fix the problem and follow the above instructions again,
+but with an incremented revision in the version number. That is, go from version
+x.y to x.y.1. Do not change a version that has already been uploaded.
 
 
 Adding a new subcommand

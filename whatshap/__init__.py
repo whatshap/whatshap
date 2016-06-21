@@ -1,1 +1,3 @@
-__version__ = '0.12.dev0'  # Must be the first line in the file
+from ._version import get_versions
+__version__ = get_versions()['version']
+del get_versions

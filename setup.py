@@ -11,10 +11,8 @@ from distutils.version import LooseVersion
 from distutils.command.sdist import sdist as _sdist
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils.sysconfig import customize_compiler
+import versioneer
 
-
-# set __version__
-exec(next(open('whatshap/__init__.py')))
 
 MIN_CYTHON_VERSION = '0.17'
 
@@ -78,8 +76,10 @@ extensions = [
 	CppExtension('whatshap._variants', sources=['whatshap/_variants.pyx']),
 ]
 
+cmdclass = versioneer.get_cmdclass()
 
-class build_ext(_build_ext):
+
+class build_ext(cmdclass.get('build_ext', _build_ext)):
 	def run(self):
 		# If we encounter a PKG-INFO file, then this is likely a .tar.gz/.zip
 		# file retrieved from PyPI that already includes the pre-cythonized
@@ -92,7 +92,7 @@ class build_ext(_build_ext):
 			check_cython_version()
 			from Cython.Build import cythonize
 			self.extensions = cythonize(self.extensions)
-		_build_ext.run(self)
+		super().run()
 
 	def build_extensions(self):
 		# Remove the warning about “-Wstrict-prototypes” not being valid for C++,
@@ -102,27 +102,31 @@ class build_ext(_build_ext):
 			self.compiler.compiler_so.remove("-Wstrict-prototypes")
 		except (AttributeError, ValueError):
 			pass
-		_build_ext.build_extensions(self)
+		super().build_extensions()
 
 
-class sdist(_sdist):
+class sdist(cmdclass.get('sdist', _sdist)):
 	def run(self):
 		# Make sure the compiled Cython files in the distribution are up-to-date
 		from Cython.Build import cythonize
 		check_cython_version()
 		cythonize(extensions)
-		_sdist.run(self)
+		super().run()
+
+
+cmdclass['build_ext'] = build_ext
+cmdclass['sdist'] = sdist
 
 
 setup(
 	name = 'whatshap',
-	version = __version__,
+	version = versioneer.get_version(),
 	author = 'WhatsHap authors',
 	author_email = 'whatshap@cwi.nl',
 	url = 'https://bitbucket.org/whatshap/whatshap/',
 	description = 'phase genomic variants using DNA sequencing reads',
 	license = 'MIT',
-	cmdclass = {'sdist': sdist, 'build_ext': build_ext},
+	cmdclass = cmdclass,
 	ext_modules = extensions,
 	packages = ['whatshap'],
 	entry_points={'console_scripts': ['whatshap = whatshap.__main__:main']},

@@ -10,3 +10,5 @@ include doc/*.rst
 include doc/conf.py
 include doc/Makefile
 include tests/test*.py tests/phasingutils.py tests/__init__.py
+include versioneer.py
+include whatshap/_version.py
