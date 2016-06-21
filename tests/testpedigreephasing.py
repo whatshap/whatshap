@@ -72,28 +72,28 @@ def test_phase_trio1():
 
 def test_phase_trio2():
 	reads = """
-	  A 0
-	  A 0
-	  B 1
-	  B 1
-	  C 1
-	  C 0
+	  A 00
+	  A 00
+	  B 11
+	  B 11
+	  C 11
+	  C 00
 	"""
 	pedigree = Pedigree(NumericSampleIds())
-	pedigree.add_individual('individual0', [2])
-	pedigree.add_individual('individual1', [0])
-	pedigree.add_individual('individual2', [1])
+	pedigree.add_individual('individual0', [2,2])
+	pedigree.add_individual('individual1', [0,0])
+	pedigree.add_individual('individual2', [1,1])
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10]
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
-	assert cost == 4
+	assert cost == 8
 	assert len(set(transmission_vector)) == 1
 	all_expected_haplotypes = [
-		('1','1'),
-		('0','0'),
-		('0','1')
+		('11','11'),
+		('00','00'),
+		('00','11')
 	]
-	assert_haplotypes(superreads_list, all_expected_haplotypes, 1)
+	assert_haplotypes(superreads_list, all_expected_haplotypes, 2)
 
 
 def test_phase_trio3():

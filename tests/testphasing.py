@@ -79,7 +79,6 @@ def check_phasing_single_individual(reads, weights = None):
 def test_phase_trivial() :
 	reads = """
           11
-           1
            01
         """
 	check_phasing_single_individual(reads)
