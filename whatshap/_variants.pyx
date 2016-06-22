@@ -2,7 +2,7 @@ def _iterate_cigar(variants, int j, bam_read, cigartuples):
 	"""
 	Iterate over the CIGAR of the given bam_read and variants[j:] in lockstep.
 
-	Yield tuples (variant, i, consumed, query_pos)
+	Yield tuples (index, i, consumed, query_pos) where index is into the variants list
 
 	i and consumed describe the split position in the cigar
 
@@ -33,7 +33,7 @@ def _iterate_cigar(variants, int j, bam_read, cigartuples):
 			# Iterate over all variants that are in this matching region
 			while j < n and v_position < ref_pos + length:
 				assert v_position >= ref_pos
-				yield (variants[j], i, v_position - ref_pos, query_pos + v_position - ref_pos)
+				yield (j, i, v_position - ref_pos, query_pos + v_position - ref_pos)
 				j += 1
 				if j < n:
 					v_position = variants[j].position
@@ -42,7 +42,7 @@ def _iterate_cigar(variants, int j, bam_read, cigartuples):
 		elif cigar_op == 1:  # I operator (insertion)
 			# TODO it should work to *not* handle the variant here, but at the next M or D region
 			if j < n and v_position == ref_pos:
-				yield (variants[j], i, 0, query_pos)
+				yield (j, i, 0, query_pos)
 				j += 1
 				if j < n:
 					v_position = variants[j].position
@@ -51,7 +51,7 @@ def _iterate_cigar(variants, int j, bam_read, cigartuples):
 			# Iterate over all variants that are in this deleted region
 			while j < n and v_position < ref_pos + length:
 				assert v_position >= ref_pos
-				yield (variants[j], i, v_position - ref_pos, query_pos)
+				yield (j, i, v_position - ref_pos, query_pos)
 				j += 1
 				if j < n:
 					v_position = variants[j].position

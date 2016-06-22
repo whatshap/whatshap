@@ -109,24 +109,29 @@ class ReadSetReader:
 		has two entries for paired-end reads, one entry for single-end reads.
 		"""
 		reads = defaultdict(list)
-		# Copy the pyfaidx.FastaRecord into a str for faster access
 		if reference is not None:
+			# Copy the pyfaidx.FastaRecord into a str for faster access
 			reference = reference[:]
+			normalized_variants = variants
+		else:
+			normalized_variants = [ variant.normalized() for variant in variants ]
+
 		i = 0  # index into variants
 		for alignment in alignments:
 			# Skip variants that are to the left of this read
-			while i < len(variants) and variants[i].position < alignment.bam_alignment.reference_start:
+			while i < len(normalized_variants) and normalized_variants[i].position < alignment.bam_alignment.reference_start:
 				i += 1
 
 			read = Read(alignment.bam_alignment.qname,
 					alignment.bam_alignment.mapq, alignment.source_id,
 					self._numeric_sample_ids[sample])
 			if reference is None:
-				detected = self.detect_alleles(variants, i, alignment.bam_alignment)
+				detected = self.detect_alleles(normalized_variants, i, alignment.bam_alignment)
+
 			else:
 				detected = self.detect_alleles_by_alignment(variants, i, alignment.bam_alignment, reference)
-			for position, allele, quality in detected:
-				read.add_variant(position, allele, quality)
+			for j, allele, quality in detected:
+				read.add_variant(variants[j].position, allele, quality)
 			if read:  # At least one variant covered and detected
 				reads[(alignment.source_id, alignment.bam_alignment.qname, self._numeric_sample_ids[sample])].append(read)
 		return reads
@@ -137,7 +142,7 @@ class ReadSetReader:
 		Detect the correct alleles of the variants that are covered by the
 		given bam_read.
 
-		Yield tuples (position, allele, quality).
+		Yield tuples (index, allele, quality), where index is into the variants list.
 
 		variants -- list of variants (VcfVariant objects)
 		j -- index of the first variant (in the variants list) to check
@@ -183,14 +188,14 @@ class ReadSetReader:
 									qual = bam_read.query_qualities[query_pos + offset]
 								else:
 									qual = 30  # TODO
-								yield (variants[j].position, allele, qual)
+								yield (j, allele, qual)
 								seen_positions.add(variants[j].position)
 					elif len(variants[j].reference_allele) == 0:
 						assert len(variants[j].alternative_allele) > 0
 						# This variant is an insertion. Since we are in a region of
 						# matches, the insertion was *not* observed (reference allele).
 						qual = 30  # TODO average qualities of "not inserted" bases?
-						yield (variants[j].position, 0, qual)
+						yield (j, 0, qual)
 						seen_positions.add(variants[j].position)
 					elif len(variants[j].alternative_allele) == 0:
 						assert len(variants[j].reference_allele) > 0
@@ -200,7 +205,7 @@ class ReadSetReader:
 						deletion_end = variants[j].position + len(variants[j].reference_allele)
 						if not (j + 1 < len(variants) and variants[j + 1].position < deletion_end):
 							qual = 30  # TODO
-							yield (variants[j].position, 0, qual)
+							yield (j, 0, qual)
 							seen_positions.add(variants[j].position)
 						else:
 							logger.info('Skipped a deletion overlapping another variant at pos. %d',
@@ -220,7 +225,7 @@ class ReadSetReader:
 						variants[j].alternative_allele == bam_read.query_sequence[query_pos:query_pos + length]:
 					qual = 30  # TODO
 					assert variants[j].position not in seen_positions
-					yield (variants[j].position, 1, qual)
+					yield (j, 1, qual)
 					seen_positions.add(variants[j].position)
 					j += 1
 				query_pos += length
@@ -236,7 +241,7 @@ class ReadSetReader:
 					if not (j + 1 < len(variants) and variants[j + 1].position < deletion_end):
 						qual = 30  # TODO
 						assert variants[j].position not in seen_positions
-						yield (variants[j].position, 1, qual)
+						yield (j, 1, qual)
 						seen_positions.add(variants[j].position)
 					else:
 						logger.info('Skipped a deletion overlapping another variant at pos. %d', variants[j].position)
@@ -383,11 +388,11 @@ class ReadSetReader:
 		if not cigartuples:
 			return
 
-		for variant, i, consumed, query_pos in _iterate_cigar(variants, j, bam_read, cigartuples):
-			allele = ReadSetReader.realign(variant, bam_read, cigartuples, i,
+		for index, i, consumed, query_pos in _iterate_cigar(variants, j, bam_read, cigartuples):
+			allele = ReadSetReader.realign(variants[index], bam_read, cigartuples, i,
 			            consumed, query_pos, reference)
 			if allele in (0, 1):
-				yield (variant.position, allele, 30)  # TODO quality???
+				yield (index, allele, 30)  # TODO quality???
 
 	@staticmethod
 	def _merge_pair(read1, read2):

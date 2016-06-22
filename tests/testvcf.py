@@ -190,17 +190,16 @@ def test_unknown_genotype():
 
 
 def test_normalize():
-	n = VcfReader.normalize
-	assert n(100, 'A', 'C') == (100, 'A', 'C')
-	assert n(100, '', 'A') == (100, '', 'A')
-	assert n(100, 'A', '') == (100, 'A', '')
-	assert n(100, 'A', 'AC') == (101, '', 'C')
-	assert n(100, 'AC', 'A') == (101, 'C', '')
-	assert n(100, 'ACAGACC', 'ACAGACT') == (106, 'C', 'T')
-	assert n(100, 'GCTG', 'GCTAAA') == (103, 'G', 'AAA')
-	assert n(100, 'ATTA', 'ATA') == (101, 'T', '')
-	assert n(100, 'ATTTC', 'ATTTTTTC') == (101, '', 'TTT')
-	assert n(100, 'GCTGTT', 'GCTAAATT') == (103, 'G', 'AAA')
+	assert VcfVariant(100, 'A', 'C').normalized() == VcfVariant(100, 'A', 'C')
+	assert VcfVariant(100, '', 'A').normalized() == VcfVariant(100, '', 'A')
+	assert VcfVariant(100, 'A', '').normalized() == VcfVariant(100, 'A', '')
+	assert VcfVariant(100, 'A', 'AC').normalized() == VcfVariant(101, '', 'C')
+	assert VcfVariant(100, 'AC', 'A').normalized() == VcfVariant(101, 'C', '')
+	assert VcfVariant(100, 'ACAGACC', 'ACAGACT').normalized() == VcfVariant(106, 'C', 'T')
+	assert VcfVariant(100, 'GCTG', 'GCTAAA').normalized() == VcfVariant(103, 'G', 'AAA')
+	assert VcfVariant(100, 'ATTA', 'ATA').normalized() == VcfVariant(101, 'T', '')
+	assert VcfVariant(100, 'ATTTC', 'ATTTTTTC').normalized() == VcfVariant(101, '', 'TTT')
+	assert VcfVariant(100, 'GCTGTT', 'GCTAAATT').normalized() == VcfVariant(103, 'G', 'AAA')
 
 
 def test_read_duplicate_position():

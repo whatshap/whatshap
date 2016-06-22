@@ -13,9 +13,10 @@ logger = logging.getLogger(__name__)
 
 
 class VcfVariant:
+	"""A variant in a VCF file (not to be confused with core.Variant)"""
+
 	__slots__ = ('position', 'reference_allele', 'alternative_allele')
 
-	"""A variant in a VCF file (not to be confused with core.Variant)"""
 	def __init__(self, position, reference_allele, alternative_allele):
 		"""
 		position -- 0-based start coordinate
@@ -29,29 +30,49 @@ class VcfVariant:
 		self.alternative_allele = alternative_allele
 
 	def __repr__(self):
-		return "VcfVariant(pos={}, ref={!r}, alt={!r})".format(self.position,
+		return "VcfVariant({}, {!r}, {!r})".format(self.position,
 			self.reference_allele, self.alternative_allele)
 
 	def __hash__(self):
 		return hash((self.position, self.reference_allele, self.alternative_allele))
 
 	def __eq__(self, other):
-		return (self.position == other.position) and (self.reference_allele == other.reference_allele) and (self.alternative_allele == other.alternative_allele)
+		return (self.position == other.position) and \
+		       (self.reference_allele == other.reference_allele) and \
+		       (self.alternative_allele == other.alternative_allele)
 
 	def __lt__(self, other):
 		return (self.position, self.reference_allele, self.alternative_allele) < (other.position, other.reference_allele, other.alternative_allele)
+
+	def normalized(self):
+		"""
+		Return a normalized version of this variant.
+
+		Common prefixes and/or suffixes between the reference and alternative allele are removed,
+		and the position is adjusted as necessary.
+
+		>>> VcfVariant(100, 'GCTGTT', 'GCTAAATT').normalized()
+		VcfVariant(103, 'G', 'AAA')
+		"""
+		pos, ref, alt = self.position, self.reference_allele, self.alternative_allele
+		while len(ref) >= 1 and len(alt) >= 1 and ref[-1] == alt[-1]:
+			ref, alt = ref[:-1], alt[:-1]
+
+		while len(ref) >= 1 and len(alt) >= 1 and ref[0] == alt[0]:
+			ref, alt = ref[1:], alt[1:]
+			pos += 1
+
+		return VcfVariant(pos, ref, alt)
 
 
 class VariantTable:
 	"""
 	For a single chromosome, store variants and their genotypes.
-
-	Each column contains the genotypes of a single sample.
+	Each row of this table contains a variant, each column
+	contains the genotypes of a single sample.
 
 	chromosome -- chromosome name
 	samples -- list of sample names
-
-	TODO We are re-implementing a pandas.DataFrame here.
 	"""
 	def __init__(self, chromosome, samples):
 		self.chromosome = chromosome
@@ -135,6 +156,7 @@ class VariantTable:
 		"""
 		Yields one sorted core.Read object per phased block, encoding the phase information as
 		if this block was a single sequencing read. Reads are yielded in arbitrary order.
+
 		sample -- name of sample to retrieve
 		input_variants -- variants of interest, i.e. only these variants will be retrieved
 		source_id -- source_id to be assigned to each read
@@ -188,17 +210,15 @@ class VcfReader:
 	"""
 	Read a VCF file chromosome by chromosome.
 	"""
-	def __init__(self, path, indels=False, normalize=False):
+	def __init__(self, path, indels=False):
 		"""
 		path -- Path to VCF file
 		indels -- Whether to include also insertions and deletions in the list of
 			variants.
-		normalize -- Whether to normalize variants
 		"""
 		# TODO Always include deletions since they can 'overlap' other variants
 		self._indels = indels
 		self._vcf_reader = vcf.Reader(filename=path)
-		self._normalize = normalize
 		self.samples = self._vcf_reader.samples  # intentionally public
 		logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
@@ -218,23 +238,6 @@ class VcfReader:
 			records.append(record)
 		if records:
 			yield (prev_chromosome, records)
-
-	@staticmethod
-	def normalize(pos, ref, alt):
-		"""
-		Normalize variants that share a common prefix and/or suffix.
-		For example, GCTGTT -> GCTAAATT is changed to G -> AAA.
-
-		Return a (pos, ref, alt) tuple.
-		"""
-		while len(ref) >= 1 and len(alt) >= 1 and ref[-1] == alt[-1]:
-			ref, alt = ref[:-1], alt[:-1]
-
-		while len(ref) >= 1 and len(alt) >= 1 and ref[0] == alt[0]:
-			ref, alt = ref[1:], alt[1:]
-			pos += 1
-
-		return pos, ref, alt
 
 	def __iter__(self):
 		"""
@@ -296,8 +299,6 @@ class VcfReader:
 				logger.warning('Skipping duplicated position %s on chromosome %r', pos+1, chromosome)
 				continue
 			prev_position = pos
-			if self._normalize:
-				pos, ref, alt = self.normalize(pos, ref, alt)
 
 			# Read phasing information (allow GT/PS or HP phase information, but not both)
 			phases = []
@@ -356,12 +357,11 @@ class PhasedVcfWriter:
 	Avoid reading in full chromosomes as that uses too much memory for
 	multi-sample VCFs.
 	"""
-	def __init__(self, in_path, command_line, normalized, out_file=sys.stdout, tag='HP'):
+	def __init__(self, in_path, command_line, out_file=sys.stdout, tag='HP'):
 		"""
 		in_path -- Path to input VCF, used as template.
 		command_line -- A string that will be added as a VCF header entry.
 		out_file -- Open file-like object to which VCF is written.
-		normalized -- whether the phased variants have been normalized
 		tag -- which type of tag to write, either 'PS' or 'HP'
 		"""
 		self._reader = vcf.Reader(filename=in_path)
@@ -384,7 +384,6 @@ class PhasedVcfWriter:
 		self._unprocessed_record = None
 		self._reader_iter = iter(self._reader)
 		self._phase_tag_found_warned = False
-		self._normalized = normalized
 		self.tag = tag
 		self._set_phasing_tags = self._set_HP if tag == 'HP' else self._set_PS
 
@@ -423,9 +422,9 @@ class PhasedVcfWriter:
 			component, where a component is identified by the position of its
 			left-most variant
 
-		Coordinates within the superreads are used to identify variants. Since
-		variant normalization changes coordinates, make sure that the PhasedVcfWriter
-		has been initialized with the correct 'normalized' setting!
+		Since coordinates within the superreads are used to identify variants,
+		variants at duplicate positions (allowed by the VCF spec) are currently
+		not supported.
 		"""
 		assert self._unprocessed_record is None or (self._unprocessed_record.CHROM == chromosome)
 
@@ -445,8 +444,6 @@ class PhasedVcfWriter:
 		for record in records_iter:
 			n += 1
 			pos, ref, alt = record.start, str(record.REF), str(record.ALT[0])
-			if self._normalized:
-				pos, ref, alt = VcfReader.normalize(pos, ref, alt)
 
 			if record.CHROM != chromosome:
 				# save it for later
