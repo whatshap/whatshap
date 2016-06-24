@@ -15,7 +15,7 @@ from contextlib import ExitStack
 from whatshap import __version__
 from whatshap.vcf import VcfReader
 from whatshap.core import NumericSampleIds
-from whatshap.bam import BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
+from whatshap.bam import BamIndexingError, SampleNotFoundError
 from whatshap.timer import StageTimer
 from whatshap.variants import ReadSetReader, ReadSetError
 
