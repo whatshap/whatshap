@@ -334,7 +334,7 @@ def main(args):
 		for i in range(len(vcfs)):
 			for j in range(i+1, len(vcfs)):
 				print('PAIRWISE COMPARISON: {} <--> {}:'.format(dataset_names[i],dataset_names[j]))
-				results = compare([variant_tables[i], variant_tables[j]], sample, dataset_names)
+				results = compare([variant_tables[i], variant_tables[j]], sample, [dataset_names[i], dataset_names[j]])
 				if tsv_pairwise_file:
 					print(sample, chromosome, dataset_names[i], dataset_names[j], args.vcf[i], args.vcf[j], sep='\t', end='\t', file=tsv_pairwise_file)
 					print(*results, sep='\t', file=tsv_pairwise_file)
