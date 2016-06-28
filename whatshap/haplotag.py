@@ -188,7 +188,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 					except KeyError:
 						pass
 			bam_writer.write(alignment)
-			if n_alignments % 10000 == 0:
+			if n_alignments % 100000 == 0:
 				logger.info('Processed %d alignment records.', n_alignments)
 
 	logger.info('\n== SUMMARY ==')
