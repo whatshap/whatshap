@@ -14,6 +14,7 @@ v0.12 (in development)
 * Manage versions with `versioneer <https://github.com/warner/python-versioneer>`_.
   This means that ``whatshap --version`` and the program version in the VCF header
   will include the Git commit hash, such as ``whatshap 0.11+50.g1b7af7a``.
+* Add subcommand "haplotag" to tag reads in a BAM file with their haplotype.
 
 v0.11 (2016-06-09)
 ------------------

@@ -5,6 +5,7 @@ import pysam
 from nose.tools import raises
 
 from whatshap.phase import run_whatshap
+from whatshap.haplotag import run_haplotag
 from whatshap.vcf import VcfReader, VariantCallPhase
 
 trio_bamfile = 'tests/data/trio.pacbio.bam'
@@ -342,3 +343,24 @@ def test_phase_trio_zero_distance():
 		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf,
 		        ped='tests/data/trio.ped', genmap='tests/data/zero-genetic-distance.map')
 		assert os.path.isfile(outvcf)
+
+
+def test_phase_quartet_recombination_breakpoints():
+	parameter_sets = [
+		(False, {'genmap':'tests/data/recombination_breaks.map'}),
+		(True, {'recombrate':1000000}),
+		(False, {'recombrate':.0000001})
+	]
+
+
+def test_haplotag():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output.vcf'
+		outbam = tempdir + '/output.bam'
+		run_whatshap(phase_input_files=[recombination_breaks_bamfile], variant_file='tests/data/quartet.vcf', output=outvcf, ped='tests/data/recombination_breaks.ped')
+		run_haplotag(variant_file=outvcf, alignment_file=recombination_breaks_bamfile, output=outbam)
+		ps_count = 0
+		for alignment in pysam.AlignmentFile(outbam):
+			if alignment.has_tag('PS'):
+				ps_count += 1
+		assert ps_count > 0

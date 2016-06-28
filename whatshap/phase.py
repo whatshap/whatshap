@@ -20,7 +20,7 @@ from .core import ReadSet, DPTable, readselection, Pedigree, PedigreeDPTable, Nu
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
-from .bam import BamIndexingError, SampleNotFoundError, HaplotypeBamWriter
+from .bam import BamIndexingError, SampleNotFoundError
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
 
@@ -139,7 +139,7 @@ def select_reads(readset, max_coverage):
 	return selected_reads
 
 
-def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, haplotype_bam_writer, numeric_sample_ids):
+def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, numeric_sample_ids):
 	"""
 	Phase variants of a single sample on a single chromosome.
 	"""
@@ -209,10 +209,6 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 	else:
 		logger.info('No. of heterozygous variants determined to be homozygous: %d', n_homozygous)
 
-	if haplotype_bam_writer is not None:
-		logger.info('Writing used reads to haplotype-specific BAM files')
-		haplotype_bam_writer.write(selected_reads, dp_table.get_optimal_partitioning(), chromosome)
-
 	return superreads, components
 
 
@@ -276,7 +272,7 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 def run_whatshap(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True,
-		haplotype_bams_prefix=None, ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
+		ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
 		recombination_list_filename=None, tag='HP'):
 	"""
 	Run WhatsHap.
@@ -347,11 +343,6 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 			if sample not in vcf_sample_set:
 				logger.error('Sample %r requested on command-line not found in VCF', sample)
 				sys.exit(1)
-
-		haplotype_bam_writer = None
-		if haplotype_bams_prefix is not None:
-			logger.warning('Writing haplotype BAMs only for the first sample')
-			haplotype_bam_writer = HaplotypeBamWriter(phase_input_bam_filenames, haplotype_bams_prefix, samples[0])
 
 		samples = frozenset(samples)
 
@@ -549,7 +540,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 						reads = read_reads(readset_reader, chromosome, variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
 
 					sample_superreads, sample_components = phase_sample(
-						sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, haplotype_bam_writer, numeric_sample_ids)
+						sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, numeric_sample_ids)
 					superreads[sample] = sample_superreads
 					components[sample] = sample_components
 			with timers('write_vcf'):
@@ -615,9 +606,6 @@ def add_arguments(parser):
 	arg('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
 		help='Name of chromosome to phase. If not given, all chromosomes in the '
 		'input VCF are phased. Can be used multiple times.')
-	arg('--haplotype-bams', metavar='PREFIX', dest='haplotype_bams_prefix', default=None,
-		help='Write reads that have been used for phasing to haplotype-specific BAM files. '
-		'Creates PREFIX.1.bam and PREFIX.2.bam')
 	arg('--ped', metavar='PED/FAM',
 		help='Use pedigree information in PED file to improve phasing '
 		'(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, '
