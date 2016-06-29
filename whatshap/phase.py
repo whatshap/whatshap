@@ -100,7 +100,11 @@ def best_case_blocks(reads):
 def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames):
 	"""Return a sorted ReadSet"""
 	logger.info('Reading alignments for sample %r and detecting alleles ...', sample)
-	reference = fasta[chromosome] if fasta else None
+	try:
+		reference = fasta[chromosome] if fasta else None
+	except KeyError:
+		logger.error('Chromosome %r present in VCF file, but not in the reference FASTA %r', chromosome, fasta.filename)
+		sys.exit(1)
 	try:
 		readset = readset_reader.read(chromosome, variants, sample, reference)
 	except SampleNotFoundError:
@@ -219,14 +223,14 @@ class UnknownInputFileError(Exception):
 def split_input_file_list(input_files):
 	bams = []
 	vcfs = []
-	#TODO: maybe take a peek at the content rather than determining file type based on filename ending.
+	# TODO: maybe take a peek at the content rather than determining file type based on filename ending.
 	for filename in input_files:
 		if filename.endswith('.bam'):
 			bams.append(filename)
 		elif filename.endswith('.vcf') or filename.endswith('.vcf.gz'):
 			vcfs.append(filename)
 		else:
-			raise UnknownInputFileError('Unable to determine type of input file '+filename)
+			raise UnknownInputFileError('Unable to determine type of input file ' + filename)
 	return bams, vcfs
 
 
