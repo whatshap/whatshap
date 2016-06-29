@@ -3,9 +3,11 @@ import os
 from io import StringIO
 import pysam
 from nose.tools import raises
+from collections import namedtuple
 
 from whatshap.phase import run_whatshap
 from whatshap.haplotag import run_haplotag
+from whatshap.compare import run_compare
 from whatshap.vcf import VcfReader, VariantCallPhase
 
 trio_bamfile = 'tests/data/trio.pacbio.bam'
@@ -364,3 +366,55 @@ def test_haplotag():
 			if alignment.has_tag('PS'):
 				ps_count += 1
 		assert ps_count > 0
+
+
+def test_compare1():
+	with TemporaryDirectory() as tempdir:
+		outtsv = tempdir + '/output.tsv'
+		run_compare(vcf=['tests/data/phased1.vcf', 'tests/data/phased2.vcf'], names='p1,p2', tsv_pairwise=outtsv, sample='sample1')
+		lines = [l.split('\t') for l in open(outtsv)]
+		assert len(lines) == 3
+		Fields = namedtuple('Fields', [ f.strip('#\n') for f in lines[0] ])
+		entry_chrA, entry_chrB = [Fields(*l) for l in lines[1:]]
+
+		assert entry_chrA.chromosome == 'chrA'
+		assert entry_chrA.all_assessed_pairs == '4'
+		assert entry_chrA.all_switches == '1'
+		assert entry_chrA.all_switchflips == '1/0'
+		assert entry_chrA.largestblock_assessed_pairs == '2'
+		assert entry_chrA.largestblock_switches == '1'
+		assert entry_chrA.largestblock_hamming == '1'
+
+		assert entry_chrB.chromosome == 'chrB'
+		assert entry_chrB.all_assessed_pairs == '1'
+		assert entry_chrB.all_switches == '0'
+		assert entry_chrB.all_switchflips == '0/0'
+		assert entry_chrB.largestblock_assessed_pairs == '1'
+		assert entry_chrB.largestblock_switches == '0'
+		assert entry_chrB.largestblock_hamming == '0'
+
+
+def test_compare2():
+	with TemporaryDirectory() as tempdir:
+		outtsv = tempdir + '/output.tsv'
+		run_compare(vcf=['tests/data/phased1.vcf', 'tests/data/phased2.vcf'], names='p1,p2', tsv_pairwise=outtsv, sample='sample2')
+		lines = [l.split('\t') for l in open(outtsv)]
+		assert len(lines) == 3
+		Fields = namedtuple('Fields', [ f.strip('#\n') for f in lines[0] ])
+		entry_chrA, entry_chrB = [Fields(*l) for l in lines[1:]]
+
+		assert entry_chrA.chromosome == 'chrA'
+		assert entry_chrA.all_assessed_pairs == '6'
+		assert entry_chrA.all_switches == '2'
+		assert entry_chrA.all_switchflips == '0/1'
+		assert entry_chrA.largestblock_assessed_pairs == '5'
+		assert entry_chrA.largestblock_switches == '2'
+		assert entry_chrA.largestblock_hamming == '1'
+
+		assert entry_chrB.chromosome == 'chrB'
+		assert entry_chrB.all_assessed_pairs == '1'
+		assert entry_chrB.all_switches == '1'
+		assert entry_chrB.all_switchflips == '1/0'
+		assert entry_chrB.largestblock_assessed_pairs == '1'
+		assert entry_chrB.largestblock_switches == '1'
+		assert entry_chrB.largestblock_hamming == '1'

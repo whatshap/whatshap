@@ -236,15 +236,15 @@ def compare(variant_tables, sample, dataset_names):
 			)
 
 
-def main(args):
-	vcf_readers = [VcfReader(f, indels=False) for f in args.vcf]  # TODO: also indels
-	if args.names:
-		dataset_names = args.names.split(',')
-		if len(dataset_names) != len(args.vcf):
+def run_compare(vcf, names=None, sample=None, tsv_pairwise=None):
+	vcf_readers = [VcfReader(f, indels=False) for f in vcf]  # TODO: also indels
+	if names:
+		dataset_names = names.split(',')
+		if len(dataset_names) != len(vcf):
 			logger.error('Number of names given with --names does not equal number of VCFs.')
 			sys.exit(1)
 	else:
-		dataset_names = ['file{}'.format(i) for i in range(len(args.vcf))]
+		dataset_names = ['file{}'.format(i) for i in range(len(vcf))]
 	longest_name = max(len(n) for n in dataset_names)
 
 	all_samples = set()
@@ -256,12 +256,12 @@ def main(args):
 			sample_intersection.intersection_update(vcf_reader.samples)
 		all_samples.update(vcf_reader.samples)
 
-	if args.sample:
-		sample_intersection.intersection_update([args.sample])
+	if sample:
+		sample_intersection.intersection_update([sample])
 		if len(sample_intersection) == 0:
-			logger.error('Sample %r requested on command-line not found in all VCFs', args.sample)
+			logger.error('Sample %r requested on command-line not found in all VCFs', sample)
 			sys.exit(1)
-		sample = args.sample
+		sample = sample
 	else:
 		if len(sample_intersection) == 0:
 			logger.error('None of the samples is present in all VCFs')
@@ -272,8 +272,8 @@ def main(args):
 			logger.error('More than one sample is present in all VCFs, please use --sample to specify which sample to work on.')
 			sys.exit(1)
 
-	if args.tsv_pairwise:
-		tsv_pairwise_file = open(args.tsv_pairwise, 'w')
+	if tsv_pairwise:
+		tsv_pairwise_file = open(tsv_pairwise, 'w')
 	else:
 		tsv_pairwise_file = None
 
@@ -281,7 +281,7 @@ def main(args):
 
 	chromosomes = None
 	vcfs = []
-	for reader, filename in zip(vcf_readers, args.vcf):
+	for reader, filename in zip(vcf_readers, vcf):
 		# create dict mapping chromsome names to VariantTables
 		m = dict()
 		logger.info('Reading phasing from %r', filename)
@@ -303,7 +303,7 @@ def main(args):
 		print(*pairwise_comparison_results_fields, sep='\t', file=tsv_pairwise_file)
 
 	print('FILENAMES')
-	for name, filename in zip(dataset_names, args.vcf):
+	for name, filename in zip(dataset_names, vcf):
 		print(name.rjust(longest_name+2), '=', filename)
 
 	width = max(longest_name, 15) + 5
@@ -336,12 +336,16 @@ def main(args):
 				print('PAIRWISE COMPARISON: {} <--> {}:'.format(dataset_names[i],dataset_names[j]))
 				results = compare([variant_tables[i], variant_tables[j]], sample, [dataset_names[i], dataset_names[j]])
 				if tsv_pairwise_file:
-					print(sample, chromosome, dataset_names[i], dataset_names[j], args.vcf[i], args.vcf[j], sep='\t', end='\t', file=tsv_pairwise_file)
+					print(sample, chromosome, dataset_names[i], dataset_names[j], vcf[i], vcf[j], sep='\t', end='\t', file=tsv_pairwise_file)
 					print(*results, sep='\t', file=tsv_pairwise_file)
 		
 		if len(vcfs) > 2:
 			print('MULTIWAY COMPARISON OF ALL PHASINGS:')
 			compare(variant_tables, sample, dataset_names)
 
-	if args.tsv_pairwise:
+	if tsv_pairwise:
 		tsv_pairwise_file.close()
+
+
+def main(args):
+	run_compare(**vars(args))
