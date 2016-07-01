@@ -65,6 +65,11 @@ def test_with_reference():
 		reference='tests/data/pacbio/reference.fasta')
 
 
+def test_with_reference_and_indels():
+	run_whatshap(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
+		reference='tests/data/pacbio/reference.fasta', indels=True)
+
+
 def test_ps_tag():
 	out = StringIO()
 	run_whatshap(variant_file='tests/data/trio.vcf', phase_input_files=['tests/data/trio.pacbio.bam'],
