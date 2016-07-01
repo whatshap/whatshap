@@ -2,8 +2,8 @@
 Changes
 =======
 
-v0.12 (in development)
-----------------------
+v0.12 (2016-07-01)
+------------------
 
 * Speed up allele detection
 * Add an ``unphase`` subcommand which removes all phasing from a VCF file
@@ -15,6 +15,8 @@ v0.12 (in development)
   This means that ``whatshap --version`` and the program version in the VCF header
   will include the Git commit hash, such as ``whatshap 0.11+50.g1b7af7a``.
 * Add subcommand "haplotag" to tag reads in a BAM file with their haplotype.
+* Fix a bug where re-alignment around variants at the very end of a chromosome
+  would lead to an AssertionError.
 
 v0.11 (2016-06-09)
 ------------------
