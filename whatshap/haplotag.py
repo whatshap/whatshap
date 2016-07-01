@@ -181,7 +181,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 				if (not alignment.is_secondary) and (alignment.flag & 2048 == 0):
 					try:
 						haplotype, quality, phaseset = read_to_haplotype[alignment.query_name]
-						alignment.set_tag('HP', haplotype)
+						alignment.set_tag('HP', haplotype + 1)
 						alignment.set_tag('PC', quality)
 						alignment.set_tag('PS', phaseset)
 						n_tagged += 1
