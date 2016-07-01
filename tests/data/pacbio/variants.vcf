@@ -1,5 +1,5 @@
 ##fileformat=VCFv4.1
-##fileDate=20160524
+##fileDate=20160701
 ##source=freeBayes v1.0.0-19-gefe685d
 ##reference=ucsc.hg19.fasta
 ##phasing=none
@@ -69,3 +69,4 @@ ref	19422	.	A	G	555.938	.	.	GT	0/1
 ref	19450	.	G	C	638.846	.	.	GT	0/1
 ref	19851	.	C	T	573.798	.	.	GT	0/1
 ref	20137	.	T	C	135.308	.	.	GT	0/1
+ref	26081	.	G	T	17.3	.	.	GT	0/1

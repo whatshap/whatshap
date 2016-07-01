@@ -353,7 +353,7 @@ class ReadSetReader:
 			len(variant.reference_allele) + overhang)
 
 		assert variant.position - left_ref_bases >= 0
-		assert variant.position + right_ref_bases < len(reference)
+		assert variant.position + right_ref_bases <= len(reference)
 
 		query = bam_read.query_sequence[query_pos-left_query_bases:query_pos+right_query_bases]
 		ref = reference[variant.position - left_ref_bases:variant.position + right_ref_bases]
