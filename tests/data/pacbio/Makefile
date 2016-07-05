@@ -3,7 +3,7 @@
 
 SHELL := /bin/bash
 
-all: reference.fasta pacbio.bam pacbio.bam.bai variants.vcf
+all: reference.fasta pacbio.bam pacbio.bam.bai variants.vcf hapcut.txt
 
 ucsc.hg19.fasta:
 	@echo "Please obtain file ucsc.hg19.fasta from the GATK resource bundle to continue"
@@ -26,6 +26,12 @@ downloaded.bam:
 pacbio.bam: downloaded.bam reference.fasta
 	samtools faidx reference.fasta
 	( echo -e "@HD\tVN:1.2\tSO:coordinate\n@SQ\tSN:ref\tLN:27000\n@RG\tID:1\tSM:HG004_250bp_All"; samtools view -s 0.3 -x MD downloaded.bam | awk -vFS='\t' -vOFS='\t' '{$$3="ref"; $$4-=10029000; print $$0 "\tRG:Z:1"}' ) | samtools view -b - > $@
+
+hairs.txt: reference.fasta variants.vcf pacbio.bam pacbio.bam.bai
+	extractHAIRS --ref reference.fasta --indels 1 --VCF variants.vcf --bam pacbio.bam --maxIS 600 > $@
+
+hapcut.txt: hairs.txt variants.vcf
+	HAPCUT --fragments hairs.txt --VCF variants.vcf --output hapcut.txt
 
 %.bam.bai: %.bam
 	samtools index $<
