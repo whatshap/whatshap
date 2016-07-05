@@ -1,0 +1,6 @@
+*.bai
+ucsc.hg19.fasta*
+reference.fasta.fai
+downloaded.bam
+illumina.bam
+hairs.txt
