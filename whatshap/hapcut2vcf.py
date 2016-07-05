@@ -12,6 +12,8 @@ import re
 import sys
 from collections import namedtuple
 import itertools
+from contextlib import ExitStack
+
 from whatshap.vcf import PhasedVcfWriter
 from whatshap.core import Read
 from whatshap import __version__
@@ -21,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 def add_arguments(parser):
 	add = parser.add_argument
+	add('-o', '--output', default=sys.stdout,
+		help='Output VCF file. If omitted, use standard output.')
 	add('vcf', metavar='VCF', help='VCF file')
 	add('hapcut', metavar='HAPCUT-RESULT', help='hapCUT result file')
 
@@ -110,18 +114,22 @@ class HapCutParser:
 			yield chromosome, list(block)
 
 
-def main(args):
+def run_hapcut2vcf(hapcut, vcf, output=sys.stdout):
 	command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
-	writer = PhasedVcfWriter(args.vcf, command_line, normalized=False, out_file=sys.stdout)
-	if len(writer.samples) > 1:
-		# This would be easy to support with a --sample command-line parameter,
-		# but hapCUT does not seem to support multi-sample VCFs, so something
-		# must be wrong anyway.
-		logger.error('There is more than one sample in this VCF')
-		sys.exit(1)
-	sample = writer.samples[0]
+	with ExitStack() as stack:
+		if isinstance(output, str):
+			output = stack.enter_context(open(output, 'w'))
 
-	with open(args.hapcut) as f:
+		writer = PhasedVcfWriter(vcf, command_line, normalized=False, out_file=output)
+		if len(writer.samples) > 1:
+			# This would be easy to support with a --sample command-line parameter,
+			# but hapCUT does not seem to support multi-sample VCFs, so something
+			# must be wrong anyway.
+			logger.error('There is more than one sample in this VCF')
+			sys.exit(1)
+		sample = writer.samples[0]
+
+		f = stack.enter_context(open(hapcut))
 		parser = HapCutParser(f)
 		for chromosome, blocks in parser:
 			logger.info('Read %d phased blocks for chromosome %s', len(blocks), chromosome)
@@ -138,3 +146,7 @@ def main(args):
 			sample_superreads = { sample: haplotypes }
 			sample_components = { sample: components }
 			writer.write(chromosome, sample_superreads, sample_components)
+
+
+def main(args):
+	run_hapcut2vcf(**vars(args))
