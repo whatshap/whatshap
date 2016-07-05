@@ -120,7 +120,7 @@ def run_hapcut2vcf(hapcut, vcf, output=sys.stdout):
 		if isinstance(output, str):
 			output = stack.enter_context(open(output, 'w'))
 
-		writer = PhasedVcfWriter(vcf, command_line, normalized=False, out_file=output)
+		writer = PhasedVcfWriter(vcf, command_line, out_file=output)
 		if len(writer.samples) > 1:
 			# This would be easy to support with a --sample command-line parameter,
 			# but hapCUT does not seem to support multi-sample VCFs, so something
