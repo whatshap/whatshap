@@ -7,6 +7,7 @@ from collections import namedtuple
 
 from whatshap.phase import run_whatshap
 from whatshap.haplotag import run_haplotag
+from whatshap.hapcut2vcf import run_hapcut2vcf
 from whatshap.compare import run_compare
 from whatshap.vcf import VcfReader, VariantCallPhase
 
@@ -297,7 +298,8 @@ def test_phase_trio_paired_end_reads():
 		assert_phasing(table.phases_of('mother'), [phase1, phase1, phase0])
 		assert_phasing(table.phases_of('father'), [None, None, None])
 		assert_phasing(table.phases_of('child'), [None, None, phase1])
-		
+
+
 def test_phase_quartet_recombination_breakpoints():
 	parameter_sets = [
 		(False, {'genmap':'tests/data/recombination_breaks.map'}),
@@ -449,3 +451,9 @@ def test_compare_only_snps():
 		assert entry_chrB.largestblock_assessed_pairs == '1'
 		assert entry_chrB.largestblock_switches == '1'
 		assert entry_chrB.largestblock_hamming == '1'
+
+
+def test_hapcut2vcf():
+	with TemporaryDirectory() as tempdir:
+		out = os.path.join(tempdir, 'hapcut.vcf')
+		run_hapcut2vcf(hapcut='tests/data/pacbio/hapcut.txt', vcf='tests/data/pacbio/variants.vcf', output=out)
