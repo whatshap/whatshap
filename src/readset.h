@@ -39,20 +39,29 @@ private:
 	typedef struct read_comparator_t {
 		read_comparator_t() {}
 		bool operator()(const Read* r1, const Read* r2) {
-			// if both reads don't have variants, then ressort to compare names
-			if ((r1->getVariantCount() == 0) && (r2->getVariantCount() == 0)) {
-				return r1->getName() < r2->getName();
+			if ((r1->getVariantCount() > 0) || (r2->getVariantCount() > 0)) {
+				// put reads with no variants first in the set
+				if (r1->getVariantCount() == 0) return true;
+				if (r2->getVariantCount() == 0) return false;
+				// standard case: sort by positions
+				if (r1->firstPosition() != r2->firstPosition()) {
+					return r1->firstPosition() < r2->firstPosition();
+				}
 			}
-			// put reads with no variants first in the set
-			if (r1->getVariantCount() == 0) return true;
-			if (r2->getVariantCount() == 0) return false;
-			// standard case: sort by positions
-			if (r1->firstPosition() != r2->firstPosition()) {
-				return r1->firstPosition() < r2->firstPosition();
-			} else {
-				// otherwise ressort to comparing name
-				return r1->getName() < r2->getName();
+			// break ties by using hash value
+			name_and_source_id_hasher_t hasher;
+			std::size_t hash1 = hasher(name_and_source_id_t(r1->getName(), r1->getSourceID()));
+			std::size_t hash2 = hasher(name_and_source_id_t(r2->getName(), r2->getSourceID()));
+			if (hash1 != hash2) {
+				return hash1 < hash2;
 			}
+			// this is the extremely unlikely case of a hash collision
+			// ressort to compareing names
+			int name_cmp = r1->getName().compare(r2->getName());
+			if (name_cmp != 0) {
+				return name_cmp < 0;
+			}
+			return r1->getSourceID() < r2->getSourceID();
 		}
 	} read_comparator_t;
 
