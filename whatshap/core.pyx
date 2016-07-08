@@ -34,6 +34,10 @@ cdef class NumericSampleIds:
 	def __len__(self):
 		return len(self.mapping)
 
+	def inverse_mapping(self):
+		"""Returns a dict mapping numeric ids to sample names."""
+		return { numeric_id:name for name, numeric_id in self.mapping.items() }
+
 
 cdef class Read:
 	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int sample_id = 0):

@@ -143,7 +143,40 @@ def select_reads(readset, max_coverage):
 	return selected_reads
 
 
-def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, numeric_sample_ids):
+def create_read_list_file(filename):
+	"""
+	Creates a file (including header line) for read list information to be written to and returns
+	the file object.
+	"""
+	f = open(filename, 'w')
+	print('#readname', 'source_id', 'sample', 'phaseset', 'haplotype', sep='\t', file=f)
+	return f
+
+
+def write_read_list(readset, bipartition, sample_components, numeric_sample_ids, output_file):
+	"""
+	Write a list of reads that has been used for phasing to given file object.
+	readset -- core.ReadSet object with reads to be written
+	bipartition -- bipartition of reads, i.e. iterable with one entry from {0,1} for each read in readset
+	sample_components -- a dictionary that maps each sample to its connected components
+
+			Each component in turn is a dict that maps each variant position to a
+			component, where a component is identified by the position of its
+			left-most variant
+
+	numeric_sample_ids -- core.NumericSampleIds object mapping sample names to numeric ids as stored in each read
+	output_file -- file object to write to
+	"""
+	assert len(readset) == len(bipartition)
+	numeric_id_to_name = numeric_sample_ids.inverse_mapping()
+	for read, haplotype in zip(readset, bipartition):
+		sample = numeric_id_to_name[read.sample_id]
+		components = sample_components[sample]
+		phaseset = components[read[0].position] + 1
+		print(read.name, read.source_id, sample, phaseset, haplotype, file=output_file)
+
+
+def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, numeric_sample_ids, read_list_file=None):
 	"""
 	Phase variants of a single sample on a single chromosome.
 	"""
@@ -204,6 +237,9 @@ def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, time
 		components = find_components(phased_positions, selected_reads)
 		logger.info('No. of variants considered for phasing: %d', len(superreads[0]))
 		logger.info('No. of variants that were phased: %d', len(phased_positions))
+
+	if read_list_file:
+		write_read_list(selected_reads, dp_table.get_optimal_partitioning(), {sample:components}, numeric_sample_ids, read_list_file)
 
 	n_phased_blocks = len(set(components.values()))
 	stats.n_phased_blocks += n_phased_blocks
@@ -277,7 +313,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True,
 		ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
-		recombination_list_filename=None, tag='HP'):
+		recombination_list_filename=None, tag='HP', read_list_filename=None):
 	"""
 	Run WhatsHap.
 
@@ -294,6 +330,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 	genetic_haplotyping -- in ped mode, merge disconnected blocks based on genotype status
 	recombination_list_filename -- filename to write putative recombination events to
 	tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
+	read_list_filename -- name of file to write list of used reads to
 	"""
 	class Statistics:
 		pass
@@ -362,6 +399,10 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		if (ped and len(pedigree_samples) * max_coverage + 2 * len(trios) > 25) or (not ped and max_coverage > 25):
 			logger.warning('The maximum coverage is too high! '
 				'WhatsHap may take a long time to finish and require a huge amount of memory.')
+
+		read_list_file = None
+		if read_list_filename:
+			read_list_file = create_read_list_file(read_list_filename)
 
 		# Read phase information provided as VCF files, if provided.
 		# TODO: do this chromosome- and/or sample-wise on demand to save memory.
@@ -532,6 +573,9 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					superreads[sample] = sample_superreads
 					# identical for all samples
 					components[sample] = overall_components
+
+				if read_list_file:
+					write_read_list(all_reads, dp_table.get_optimal_partitioning(), components, numeric_sample_ids, read_list_file)
 			else:
 				for sample, genotypes in zip(variant_table.samples, variant_table.genotypes):
 					if sample not in samples:
@@ -544,7 +588,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 						reads = read_reads(readset_reader, chromosome, variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
 
 					sample_superreads, sample_components = phase_sample(
-						sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, numeric_sample_ids)
+						sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, numeric_sample_ids, read_list_file)
 					superreads[sample] = sample_superreads
 					components[sample] = sample_components
 			with timers('write_vcf'):
@@ -552,6 +596,9 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 			logger.debug('Chromosome %r finished', chromosome)
 			timers.start('parse_vcf')
 		timers.stop('parse_vcf')
+
+	if read_list_file:
+		read_list_file.close()
 
 	logger.info('\n== SUMMARY ==')
 	# TODO: Print more meaningful summary, including block sizes, mendelian conflicts, etc.
@@ -628,6 +675,8 @@ def add_arguments(parser):
 		help='Do not merge blocks that are not connected by reads (i.e. solely based on genotype '
 		'status). Default: when in --ped mode, merge all blocks that contain at least one '
 		'homozygous genotype in at least one individual into one block.')
+	arg('--output-read-list', metavar='READLIST', default=None, dest='read_list_filename',
+		help='Write list of reads that have been used for phasing to given filename.')
 	arg('variant_file', metavar='VCF', help='VCF file with variants to be phased (can be gzip-compressed)')
 	arg('phase_input_files', nargs='+', metavar='PHASEINPUT',
 	    help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')

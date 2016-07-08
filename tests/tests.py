@@ -106,8 +106,10 @@ def assert_phasing(phases, expected_phases):
 def test_phase_three_individuals():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
-		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf)
+		outreadlist = tempdir + '/readlist.tsv'
+		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', read_list_filename=outreadlist, output=outvcf)
 		assert os.path.isfile(outvcf)
+		assert os.path.isfile(outreadlist)
 
 		tables = list(VcfReader(outvcf))
 		assert len(tables) == 1
@@ -145,9 +147,11 @@ def test_phase_one_of_three_individuals():
 def test_phase_trio():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
-		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf,
+		outreadlist = tempdir + '/readlist.tsv'
+		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', read_list_filename=outreadlist, output=outvcf,
 		        ped='tests/data/trio.ped', genmap='tests/data/trio.map')
 		assert os.path.isfile(outvcf)
+		assert os.path.isfile(outreadlist)
 
 		tables = list(VcfReader(outvcf))
 		assert len(tables) == 1
