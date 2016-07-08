@@ -56,7 +56,7 @@ private:
 				return hash1 < hash2;
 			}
 			// this is the extremely unlikely case of a hash collision
-			// ressort to compareing names
+			// ressort to comparing names and source_ids.
 			int name_cmp = r1->getName().compare(r2->getName());
 			if (name_cmp != 0) {
 				return name_cmp < 0;
