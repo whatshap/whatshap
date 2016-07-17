@@ -176,7 +176,7 @@ def write_read_list(readset, bipartition, sample_components, numeric_sample_ids,
 		print(read.name, read.source_id, sample, phaseset, haplotype, file=output_file)
 
 
-def phase_sample(sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, numeric_sample_ids, read_list_file=None):
+def phase_sample(sample, reads, all_heterozygous, max_coverage, timers, stats, numeric_sample_ids, read_list_file=None):
 	"""
 	Phase variants of a single sample on a single chromosome.
 	"""
@@ -588,7 +588,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 						reads = read_reads(readset_reader, chromosome, variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
 
 					sample_superreads, sample_components = phase_sample(
-						sample, chromosome, reads, all_heterozygous, max_coverage, timers, stats, numeric_sample_ids, read_list_file)
+						sample, reads, all_heterozygous, max_coverage, timers, stats, numeric_sample_ids, read_list_file)
 					superreads[sample] = sample_superreads
 					components[sample] = sample_components
 			with timers('write_vcf'):
