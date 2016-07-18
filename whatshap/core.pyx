@@ -27,7 +27,7 @@ cdef class NumericSampleIds:
 		self.mapping = {}
 
 	def __getitem__(self, sample):
-		if not sample in self.mapping:
+		if sample not in self.mapping:
 			self.mapping[sample] = len(self.mapping)
 		return self.mapping[sample]
 
@@ -335,5 +335,6 @@ cdef class Pedigree:
 
 	def __str__(self):
 		return self.thisptr.toString().decode('utf-8')
+
 
 include 'readselect.pyx'

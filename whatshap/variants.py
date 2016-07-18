@@ -108,6 +108,8 @@ class ReadSetReader:
 		Return a dict that maps read names to lists of Read objects. Each list
 		has two entries for paired-end reads, one entry for single-end reads.
 		"""
+		# FIXME hard-coded zero
+		numeric_sample_id = 0 if sample is None else self._numeric_sample_ids[sample]
 		reads = defaultdict(list)
 		if reference is not None:
 			# Copy the pyfaidx.FastaRecord into a str for faster access
@@ -124,7 +126,8 @@ class ReadSetReader:
 
 			read = Read(alignment.bam_alignment.qname,
 					alignment.bam_alignment.mapq, alignment.source_id,
-					self._numeric_sample_ids[sample])
+					numeric_sample_id)
+
 			if reference is None:
 				detected = self.detect_alleles(normalized_variants, i, alignment.bam_alignment)
 
@@ -133,7 +136,7 @@ class ReadSetReader:
 			for j, allele, quality in detected:
 				read.add_variant(variants[j].position, allele, quality)
 			if read:  # At least one variant covered and detected
-				reads[(alignment.source_id, alignment.bam_alignment.qname, self._numeric_sample_ids[sample])].append(read)
+				reads[(alignment.source_id, alignment.bam_alignment.qname, numeric_sample_id)].append(read)
 		return reads
 
 	@staticmethod

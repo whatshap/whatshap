@@ -99,7 +99,8 @@ def best_case_blocks(reads):
 
 def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames):
 	"""Return a sorted ReadSet"""
-	logger.info('Reading alignments for sample %r and detecting alleles ...', sample)
+	for_sample = 'for sample {!r}'.format(sample) if sample is not None else ''
+	logger.info('Reading alignments %sand detecting alleles ...', for_sample)
 	try:
 		reference = fasta[chromosome] if fasta else None
 	except KeyError:

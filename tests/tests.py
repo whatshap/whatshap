@@ -461,3 +461,8 @@ def test_hapcut2vcf():
 	with TemporaryDirectory() as tempdir:
 		out = os.path.join(tempdir, 'hapcut.vcf')
 		run_hapcut2vcf(hapcut='tests/data/pacbio/hapcut.txt', vcf='tests/data/pacbio/variants.vcf', output=out)
+
+
+def test_ignore_read_groups():
+	run_whatshap(variant_file='tests/data/pacbio/variants.vcf', phase_input_files=['tests/data/pacbio/pacbio.bam'],
+		reference='tests/data/pacbio/reference.fasta', ignore_read_groups=True, output='/dev/null')

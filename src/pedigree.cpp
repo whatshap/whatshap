@@ -27,7 +27,9 @@ void Pedigree::addRelationship(unsigned int mother_id, unsigned int father_id, u
 size_t Pedigree::id_to_index(unsigned int individual_id) const {
 	auto it = id_to_index_map.find(individual_id);
 	if (it == id_to_index_map.end()) {
-		throw std::runtime_error("Individual with given ID not present in pedigree.");
+	    ostringstream oss;
+	    oss << "Individual with ID " << individual_id << " not present in pedigree.";
+		throw std::runtime_error(oss.str());
 	}
 	return it->second;
 }
