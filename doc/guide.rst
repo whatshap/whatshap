@@ -11,6 +11,18 @@ GATK’s ReadBackedPhasing. That is, the HP tag denotes which set of phased
 variants a variant belongs to. The VCF file can also be gzip-compressed.
 
 
+Recommended workflow
+====================
+
+Best phasing results are obtained if you sequence your sample(s) on both PacBio and Illumina: Illumina for high-quality variant calls and PacBio for its long reads.
+
+1. Map your reads to the reference, making sure that you assign each read to a read group (the "@RG" header line in the BAM file). WhatsHap supports VCF files with multiple samples and in order to determine which reads belong to which sample, it uses the 'sample name' (SM) of the read group. (If you have a single sample only and no or incorrect read group headers, you can run WhatsHap with ``--ignore-read-groups`` instead).
+
+2. Call variants in your sample(s) using the most accurate reads you have. These will typically be Illumina reads, resulting in a a set of variant calls you can be reasonably confident in. If you do not know which variant caller to use, yet, we recommend FreeBayes, which is fast, Open Source and easy to use. In any case, you will need a standard VCF file as input for WhatsHap in the next step.
+
+3. Run WhatsHap with the VCF file of high-confidence variant calls (obtained in the previous step) and with the *longest* reads you have. These will typically be PacBio reads. Phasing works best with long reads, but WhatsHap can use any read that covers at least two heterozygous variant calls, so even paired-end or mate-pair reads are somewhat helpful. If you have multiple sets of reads, you can combine them by providing multiple BAM files on the command line.
+
+
 Features and limitations
 ========================
 
