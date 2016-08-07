@@ -357,7 +357,7 @@ class PhasedVcfWriter:
 	Avoid reading in full chromosomes as that uses too much memory for
 	multi-sample VCFs.
 	"""
-	def __init__(self, in_path, command_line, out_file=sys.stdout, tag='HP'):
+	def __init__(self, in_path, command_line, out_file=sys.stdout, tag='PS'):
 		"""
 		in_path -- Path to input VCF, used as template.
 		command_line -- A string that will be added as a VCF header entry.

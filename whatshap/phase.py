@@ -314,7 +314,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, all_heterozygous=True,
 		ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
-		recombination_list_filename=None, tag='HP', read_list_filename=None):
+		recombination_list_filename=None, tag='PS', read_list_filename=None):
 	"""
 	Run WhatsHap.
 
@@ -633,9 +633,9 @@ def add_arguments(parser):
 	arg('--version', action='version', version=__version__)
 	arg('-o', '--output', default=sys.stdout,
 		help='Output VCF file. If omitted, use standard output.')
-	arg('--tag', choices=('HP', 'PS'), default='HP',
-	    help='How to store phasing information: Via HP tag (used by GATK '
-			'ReadBackedPhasing) or PS tag (standardized) (default: %(default)s)')
+	arg('--tag', choices=('PS', 'HP'), default='PS',
+	    help='Store phasing information with PS tag (standardized) or '
+			'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')
 	arg('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')

@@ -2,6 +2,13 @@
 Changes
 =======
 
+development version
+-------------------
+
+* Use ``PS`` tag instead of ``HP`` tag by default to store phasing information.
+  This applies to the ``phase`` and ``hapcut2vcf`` subcommands. ``PS`` is also
+  used by other tools and standard according to the VCF specification.
+
 v0.12 (2016-07-01)
 ------------------
 
