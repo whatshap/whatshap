@@ -375,9 +375,12 @@ class PhasedVcfWriter:
 			raise ValueError('Tag must be either "HP" or "PS"')
 		if tag == 'HP':
 			desc = 'Phasing haplotype identifier'
+			fmt = vcf.parser._Format(id=tag, num=None, type='String', desc=desc)
 		else:
 			desc = 'Phase set identifier'
-		self._reader.formats[tag] = vcf.parser._Format(id=tag, num=None, type='String', desc=desc)
+			fmt = vcf.parser._Format(id=tag, num=1, type='Integer', desc=desc)
+		self._reader.formats[tag] = fmt
+
 		# self._reader.formats['PQ'] = vcf.parser._Format(id='PQ', num=1, type='Float', desc='Phasing quality')
 
 		self._writer = vcf.Writer(out_file, template=self._reader)
