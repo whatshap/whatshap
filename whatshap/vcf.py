@@ -6,7 +6,7 @@ import logging
 import itertools
 import math
 from array import array
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 import vcf
 from .core import Read, PhredGenotypeLikelihoods
 
@@ -510,13 +510,20 @@ class PhasedVcfWriter:
 			records_iter = self._reader_iter
 		allowed_alleles = frozenset({(0, 1), (1, 0), (0, 0), (1, 1)})
 		sample_phases = dict()
+		sample_genotypes = dict()
 		for sample, superreads in sample_superreads.items():
 			sample_phases[sample] = {
 				v1.position: v1.allele for v1, v2 in zip(*superreads)
 					if (v1.allele, v2.allele) in allowed_alleles
 			}
+			sample_genotypes[sample] = {
+				v1.position: v1.allele + v2.allele for v1, v2 in zip(*superreads)
+					if (v1.allele, v2.allele) in allowed_alleles
+			}
 		n = 0
 		prev_pos = None
+		INT_TO_UNPHASED_GT = { 0: '0/0', 1: '0/1', 2: '1/1', -1: '.' }
+		genotype_changes = defaultdict(int)
 		for record in records_iter:
 			n += 1
 			pos, ref, alt = record.start, str(record.REF), str(record.ALT[0])
@@ -576,6 +583,7 @@ class PhasedVcfWriter:
 						continue
 					components = sample_components[sample]
 					phases = sample_phases[sample]
+					genotypes = sample_genotypes[sample]
 
 					if (hasattr(call.data, self.tag) and getattr(call.data, self.tag) is not None
 							and not self._phase_tag_found_warned):
@@ -584,7 +592,15 @@ class PhasedVcfWriter:
 						self._phase_tag_found_warned = True
 
 					values = call.data._asdict()
-					if pos in components and pos in phases and call.is_het:
+					is_het = call.is_het
+
+					# is genotype to be changed?
+					if (pos in genotypes) and (genotypes[pos] != call.gt_type):
+						values['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
+						genotype_changes[(call.gt_type,genotypes[pos])] += 1
+						is_het = genotypes[pos] == 1
+
+					if pos in components and pos in phases and is_het:
 						self._set_phasing_tags(values, components[pos], phases[pos])
 					else:
 						# Unphased - set phase tag to '.'
@@ -592,3 +608,7 @@ class PhasedVcfWriter:
 					call.data = samp_fmt(**values)
 			self._writer.write_record(record)
 			prev_pos = pos
+		changes = list(sorted(genotype_changes.keys()))
+		for (old_gt, new_gt) in changes:
+			count = genotype_changes[(old_gt,new_gt)]
+			logger.info('Genotype changes from %s to %s: %d', INT_TO_UNPHASED_GT[old_gt], INT_TO_UNPHASED_GT[new_gt], count)
