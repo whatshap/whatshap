@@ -365,7 +365,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 			# for each family.
 			for representative_sample, family in families.items():
 				if len(family) == 1:
-					logger.info('---- Processing individual %s', sample)
+					logger.info('---- Processing individual %s', representative_sample)
 				else:
 					logger.info('---- Processing family with individuals: %s', ','.join(family))
 				max_coverage_per_sample = max(1, max_coverage // len(family))
