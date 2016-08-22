@@ -497,8 +497,8 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				# Finally, run phasing algorithm
 				with timers('phase'):
 					problem_name = 'MEC' if len(family) == 1 else 'PedMEC'
-					logger.info('Phasing %d samples by solving the %s problem ...',
-						len(family), problem_name)
+					logger.info('Phasing %d sample%s by solving the %s problem ...',
+						len(family), 's' if len(family) > 1 else '', problem_name)
 					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes)
 					superreads_list, transmission_vector = dp_table.get_super_reads()
 					logger.info('%s cost: %d', problem_name, dp_table.get_optimal_cost())
