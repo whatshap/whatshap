@@ -226,7 +226,7 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 
 def run_whatshap(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
-		mapping_quality=20, max_coverage=15, distrust_genotypes=False,
+		mapping_quality=20, max_coverage=15, distrust_genotypes=False, include_homozygous=False,
 		ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
 		recombination_list_filename=None, tag='PS', read_list_filename=None, 
 		gl_regularizer=None, default_gq=30):
@@ -243,6 +243,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 	mapping_quality -- discard reads below this mapping quality
 	max_coverage
 	distrust_genotypes
+	include_homozygous
 	genetic_haplotyping -- in ped mode, merge disconnected blocks based on genotype status
 	recombination_list_filename -- filename to write putative recombination events to
 	tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
@@ -408,7 +409,11 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 
 				# retain variants that are heterozygous in at least one individual (anywhere in the pedigree)
 				# and do not have neither missing genotypes nor Mendelian conflicts
-				to_retain = heterozygous.difference(missing_genotypes).difference(mendelian_conflicts)
+				if include_homozygous:
+					to_retain = set(range(len(variant_table)))
+				else:
+					to_retain = heterozygous
+				to_retain = to_retain.difference(missing_genotypes).difference(mendelian_conflicts)
 				# discard every variant that is not to be retained
 				to_discard = set(range(len(variant_table))).difference(to_retain)
 
@@ -424,7 +429,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 
 				logger.info('Number of variants skipped due to missing genotypes: %d', len(missing_genotypes))
 				if len(family) == 1:
-					logger.info('Number of remaining heterozygous variants: %d', len(phasable_variant_table))
+					logger.info('Number of remaining%s variants: %d', '' if include_homozygous else ' heterozygous', len(phasable_variant_table))
 				else:
 					logger.info('Number of variants skipped due to Mendelian conflicts: %d', len(mendelian_conflicts))
 					logger.info('Number of remaining variants heterozygous in at least one individual: %d', len(phasable_variant_table))
@@ -589,6 +594,10 @@ def add_arguments(parser):
 		action='store_true', default=False,
 		help='Allow switching variants from hetero- to homozygous in an '
 		'optimal solution (see documentation).')
+	arg('--include-homozygous', dest='include_homozygous',
+		action='store_true', default=False,
+		help='Also work on homozygous variants, which might be turned to '
+		'heterozygous (to be used with option --distrust-genotypes)')
 	arg('--default-gq', dest='default_gq', type=int, default=30,
 		help='Default genotype quality used as cost of changing a genotype '
 		'when no genotype likelihoods are available. To be used with '
@@ -639,6 +648,8 @@ def validate(args, parser):
 		parser.error('Option --genmap can only be used when working on exactly one chromosome (use --chromosome)')
 	if args.ped and args.samples:
 		parser.error('Option --sample cannot be used together with --ped')
+	if args.include_homozygous and not args.distrust_genotypes:
+		parser.error('Option --include-homozygous can only be used with --distrust-genotypes.')
 
 
 def main(args):
