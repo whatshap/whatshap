@@ -14,10 +14,6 @@ cdef class ReadSet:
 	cdef cpp.ReadSet *thisptr
 
 
-cdef class DPTable:
-	cdef cpp.DPTable *thisptr
-
-
 cdef class Pedigree:
 	cdef cpp.Pedigree *thisptr
 	cdef NumericSampleIds numeric_sample_ids
@@ -26,3 +22,7 @@ cdef class Pedigree:
 cdef class PedigreeDPTable:
 	cdef cpp.PedigreeDPTable *thisptr
 	cdef Pedigree pedigree
+
+
+cdef class PhredGenotypeLikelihoods:
+	cdef cpp.PhredGenotypeLikelihoods *thisptr

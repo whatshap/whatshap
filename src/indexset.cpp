@@ -8,19 +8,24 @@ using namespace std;
 
 IndexSet::IndexSet() {}
 
+
 IndexSet::~IndexSet() {}
+
 
 bool IndexSet::contains(size_t index) const {
 	return set.find(index) != set.end();
 }
 
+
 void IndexSet::add(size_t index) {
 	set.insert(index);
 }
 
+
 size_t IndexSet::size() const {
 	return set.size();
 }
+
 
 string IndexSet::toString() const {
 	ostringstream oss;
@@ -39,9 +44,11 @@ string IndexSet::toString() const {
 	return oss.str();
 }
 
+
 IndexSet::const_iterator IndexSet::begin() const {
 	return set.begin();
 }
+
 
 IndexSet::const_iterator IndexSet::end() const {
 	return set.end();

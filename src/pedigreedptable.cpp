@@ -12,11 +12,11 @@
 
 using namespace std;
 
-PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree)
-	:
+PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes) :
 	read_set(read_set),
 	recombcost(recombcost),
 	pedigree(pedigree),
+	distrust_genotypes(distrust_genotypes),
 	optimal_score(0u),
 	optimal_score_index(0u),
 	input_column_iterator(*read_set)
@@ -36,6 +36,7 @@ PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& 
 	compute_table();
 }
 
+
 PedigreeDPTable::~PedigreeDPTable() {
 	init(projection_column_table, 0);
 	init(index_backtrace_table, 0);
@@ -43,6 +44,7 @@ PedigreeDPTable::~PedigreeDPTable() {
 	init(indexers, 0);
 	init(pedigree_partitions, 0);
 }
+
 
 unique_ptr<vector<unsigned int> > PedigreeDPTable::extract_read_ids(const vector<const Entry *>& entries) {
 	unique_ptr<vector<unsigned int> > read_ids(new vector<unsigned int>());
@@ -230,7 +232,7 @@ void PedigreeDPTable::compute_column(size_t column_index, unique_ptr<vector<cons
 	vector<PedigreeColumnCostComputer> cost_computers;
 	cost_computers.reserve(transmission_configurations);
 	for(unsigned int i = 0; i < transmission_configurations; ++i) {
-		cost_computers.emplace_back(*current_input_column, column_index, read_sources, pedigree, *pedigree_partitions[i]);
+		cost_computers.emplace_back(*current_input_column, column_index, read_sources, pedigree, *pedigree_partitions[i], distrust_genotypes);
 	}
 
 	// iterate over all bipartitions
@@ -350,7 +352,10 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 
 	std::vector<std::pair<Read*,Read*>> superreads;
 	for (unsigned int i=0; i<pedigree->size(); i++) {
-		 superreads.emplace_back(new Read("superread_0_"+std::to_string(i), -1, 0, -1),new Read("superread_1_"+std::to_string(i), -1, 0, -1));
+		 superreads.emplace_back(
+			new Read("superread_0_"+std::to_string(i), -1, -1, pedigree->index_to_id(i)),
+			new Read("superread_1_"+std::to_string(i), -1, -1, pedigree->index_to_id(i))
+		);
 	}
 
 	if (index_backtrace_table.empty()) {
@@ -361,15 +366,15 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 		while (column_iterator.has_next()) {
 			const index_and_inheritance_t& v = index_path[i];
 			unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
-			PedigreeColumnCostComputer cost_computer(*column, i, read_sources, pedigree, *pedigree_partitions[v.inheritance_value]);
+			PedigreeColumnCostComputer cost_computer(*column, i, read_sources, pedigree, *pedigree_partitions[v.inheritance_value], distrust_genotypes);
 			cost_computer.set_partitioning(v.index);
 
 			auto population_alleles = cost_computer.get_alleles();
 			
 			// TODO: compute proper weights based on likelihoods.
 			for (unsigned int k=0; k<pedigree->size(); k++) {
-				superreads[k].first->addVariant(positions->at(i), population_alleles[k].first, 0);
-				superreads[k].second->addVariant(positions->at(i), population_alleles[k].second, 0);
+				superreads[k].first->addVariant(positions->at(i), population_alleles[k].allele0, population_alleles[k].quality);
+				superreads[k].second->addVariant(positions->at(i), population_alleles[k].allele1, population_alleles[k].quality);
 			}
 			transmission_vector->push_back(v.inheritance_value);
 			++i; // next column
@@ -381,6 +386,7 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 		output_read_set->at(k)->add(superreads[k].second);
 	}
 }
+
 
 vector<bool>* PedigreeDPTable::get_optimal_partitioning() {
 	vector<bool>* partitioning = new vector<bool>(read_set->size(),false);

@@ -11,11 +11,13 @@ using namespace std;
 ReadSet::ReadSet() {
 }
 
+
 ReadSet::~ReadSet() {
 	for (size_t i=0; i<reads.size(); ++i) {
 		delete reads[i];
 	}
 }
+
 
 void ReadSet::add(Read* read) {
 	name_and_source_id_t name_and_source_id = name_and_source_id_t(read->getName(), read->getSourceID());
@@ -26,6 +28,7 @@ void ReadSet::add(Read* read) {
 	read_name_map[name_and_source_id] = reads.size() - 1;
 }
 
+
 string ReadSet::toString() {
 	ostringstream oss;
 	oss << "ReadSet:" << endl;
@@ -34,6 +37,7 @@ string ReadSet::toString() {
 	}
 	return oss.str();
 }
+
 
 void ReadSet::sort() {
 	// Sort the reads by position
@@ -46,6 +50,7 @@ void ReadSet::sort() {
 	}
 }
 
+
 vector<unsigned int>* ReadSet::get_positions() const {
 	unordered_set<unsigned int> position_set;
 	for (size_t i=0; i<reads.size(); ++i) {
@@ -56,13 +61,16 @@ vector<unsigned int>* ReadSet::get_positions() const {
 	return positions;
 }
 
+
 unsigned int ReadSet::size() const {
 	return reads.size();
 }
 
+
 Read* ReadSet::get(int i) const {
 	return reads[i];
 }
+
 
 Read* ReadSet::getByName(std::string name, int source_id) const {
 	read_name_map_t::const_iterator it = read_name_map.find(name_and_source_id_t(name,source_id));
@@ -73,6 +81,7 @@ Read* ReadSet::getByName(std::string name, int source_id) const {
 	}
 }
 
+
 ReadSet* ReadSet::subset(const IndexSet* indices) const {
 	ReadSet* result = new ReadSet();
 	IndexSet::const_iterator it = indices->begin();
@@ -81,6 +90,7 @@ ReadSet* ReadSet::subset(const IndexSet* indices) const {
 	}
 	return result;
 }
+
 
 void ReadSet::reassignReadIds() {
 	for (size_t i=0; i<reads.size(); ++i) {

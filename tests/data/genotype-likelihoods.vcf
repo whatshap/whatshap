@@ -1,0 +1,8 @@
+##fileformat=VCFv4.1
+##FORMAT=<ID=GL,Number=G,Type=Float,Description="Genotype likelihoods, log10-scaled">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Genotype likelihoods, phred-scaled">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample1	sample2
+chrA	2	.	A	T	500.0	.	.	GT:GL	1/1:-2.1206,-0.8195,-0.07525	0/1:-10.3849,0,-5.99143
+chrA	3	.	C	G	500.0	.	.	GT:PL	0/1:21,8,8	0/0:0,100,60
+chrA	5	.	G	T	500.0	.	.	GT	0/1	0/0
+chrA	23	.	A	T	500.0	.	.	GT:GL:PL	0/1:-2.1206,-0.8195,-0.07525:21,8,8	0/1:-10.3849,0,-5.99143:0,0,0

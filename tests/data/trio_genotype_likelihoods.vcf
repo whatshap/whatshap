@@ -1,0 +1,11 @@
+##fileformat=VCFv4.1
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Genotype likelihoods, phred-scaled">
+##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes, for each ALT allele, in the same order as listed">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency, for each ALT allele, in the same order as listed">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG004	HG003	HG002
+1	60906167	.	G	A	.	PASS	AC=2;AN=6	GT:PL	0/1:21,10,8	0/1:21,10,8	0/0:21,10,8
+1	60907394	.	G	A	.	PASS	AC=4;AN=6	GT:PL	0/1:21,10,8	1/1:21,10,8	0/1:21,10,8
+1	60907460	.	G	T	.	PASS	AC=2;AN=6	GT:PL	0/1:21,10,8	0/1:21,10,8	0/0:21,10,8
+1	60907473	.	C	A	.	PASS	AC=2;AN=6	GT:PL	0/1:21,10,8	0/1:21,10,8	0/0:21,10,8
+1	60909718	.	T	C	.	PASS	AC=2;AN=6	GT:PL	0/1:21,10,8	0/1:21,10,8	0/0:21,10,8

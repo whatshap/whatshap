@@ -239,7 +239,7 @@ def compare(variant_tables, sample, dataset_names):
 
 
 def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snps=False):
-	vcf_readers = [VcfReader(f, indels=not only_snps) for f in vcf]
+	vcf_readers = [VcfReader(f, indels=not only_snps, phases=True) for f in vcf]
 	if names:
 		dataset_names = names.split(',')
 		if len(dataset_names) != len(vcf):

@@ -27,6 +27,7 @@ private:
 	std::vector<unsigned int> read_sources;
 	const std::vector<unsigned int>& recombcost;
 	const Pedigree* pedigree;
+	bool distrust_genotypes;
 	std::vector<PedigreePartitions*> pedigree_partitions;
 	// vector of indexingschemes
 	std::vector<ColumnIndexingScheme*> indexers;
@@ -78,10 +79,10 @@ public:
 	/** Constructor.
 	 *  @param read_set DP table is constructed for the contained reads. Ownership is retained
 	 *                  by caller. Pointer must remain valid during the lifetime of this PedigreeDPTable.
-	 *  @param all_heterozygous If true, then the "all heterozygous" assumption is made;
-	 *                          i.e., all positions are forced to be heterozygous even when
-	 *                          reads suggest a homozygous site. */
-	PedigreeDPTable(ReadSet* read_set, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree);
+	 *  @param distrust_genotypes If true, then the genotypes may be changed at costs given as genotype likelihoods
+	 *                            (in the given pedigree object).
+	 */
+	PedigreeDPTable(ReadSet* read_set, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes);
  
 	~PedigreeDPTable();
 
@@ -90,7 +91,8 @@ public:
 	/** Computes optimal haplotypes and adds them (in the form of "super reads") to 
 	 *  the given read_set.
 	 *
-	 * output_read_set must have as many entries as there are individuals
+	 *   @param output_read_set Must have as many entries as there are individuals. The haplotypes for individual
+	 *                          with index i in the pedigree (given at construction time) are added to output_read_set->at(i).
 	 */
 	void get_super_reads(std::vector<ReadSet*>* output_read_set, std::vector<unsigned int>* transmission_vector);
 

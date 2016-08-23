@@ -34,6 +34,9 @@ cdef class NumericSampleIds:
 	def __len__(self):
 		return len(self.mapping)
 
+	def __str__(self):
+		return str(self.mapping)
+
 	def inverse_mapping(self):
 		"""Returns a dict mapping numeric ids to sample names."""
 		return { numeric_id:name for name, numeric_id in self.mapping.items() }
@@ -231,48 +234,13 @@ cdef class ReadSet:
 		return result
 
 
-cdef class DPTable:
-	def __cinit__(self, ReadSet readset, all_heterozygous):
-		"""Build the DP table from the given read set which is assumed to be sorted;
-		that is, the variants in each read must be sorted by position and the reads
-		in the read set must also be sorted (by position of their left-most variant).
-		"""
-		self.thisptr = new cpp.DPTable(readset.thisptr, all_heterozygous)
-
-	def __dealloc__(self):
-		del self.thisptr
-
-	def get_super_reads(self):
-		"""Obtain optimal-score haplotypes.
-		IMPORTANT: The ReadSet given at construction time must not have been altered.
-		DPTable retained a pointer to this set and will access it again. If it has
-		been altered, behavior is undefined.
-		TODO: Change that.
-		"""
-		result = ReadSet()
-		self.thisptr.get_super_reads(result.thisptr)
-		return result
-
-	def get_optimal_cost(self):
-		"""Returns the cost resulting from solving the Minimum Error Correction (MEC) problem."""
-		return self.thisptr.get_optimal_score()
-
-	def get_optimal_partitioning(self):
-		"""Returns a list of the same size as the read set, where each entry is either 0 or 1,
-		telling whether the corresponding read is in partition 0 or in partition 1,"""
-		cdef vector[bool]* p = self.thisptr.get_optimal_partitioning()
-		result = [0 if x else 1 for x in p[0]]
-		del p
-		return result
-
-
 cdef class PedigreeDPTable:
-	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree):
+	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree, bool distrust_genotypes = False):
 		"""Build the DP table from the given read set which is assumed to be sorted;
 		that is, the variants in each read must be sorted by position and the reads
 		in the read set must also be sorted (by position of their left-most variant).
 		"""
-		self.thisptr = new cpp.PedigreeDPTable(readset.thisptr, recombcost, pedigree.thisptr)
+		self.thisptr = new cpp.PedigreeDPTable(readset.thisptr, recombcost, pedigree.thisptr, distrust_genotypes)
 		self.pedigree = pedigree
 
 	def __dealloc__(self):
@@ -324,17 +292,66 @@ cdef class Pedigree:
 	def __dealloc__(self):
 		del self.thisptr
 
-	def add_individual(self, id, vector[unsigned int] genotypes):
-		self.thisptr.addIndividual(self.numeric_sample_ids[id], genotypes)
+	def add_individual(self, id, vector[unsigned int] genotypes, genotype_likelihoods=None):
+		cdef vector[cpp.PhredGenotypeLikelihoods*] gl_vector
+		if genotype_likelihoods:
+			for gl in genotype_likelihoods:
+				if gl is None:
+					gl_vector.push_back(NULL)
+				else:
+					gl_vector.push_back(new cpp.PhredGenotypeLikelihoods((<PhredGenotypeLikelihoods?>gl).thisptr[0]) )
+		else:
+			for _ in genotypes:
+				gl_vector.push_back(NULL)
+		self.thisptr.addIndividual(self.numeric_sample_ids[id], genotypes, gl_vector)
 
 	def add_relationship(self, mother_id, father_id, child_id):
 		self.thisptr.addRelationship(self.numeric_sample_ids[mother_id], self.numeric_sample_ids[father_id], self.numeric_sample_ids[child_id])
+
+	property variant_count:
+		"""Number of variants stored for each individual."""
+		def __get__(self):
+			return self.thisptr.get_variant_count()
+
+	def genotype(self, sample_id, unsigned int variant_index):
+		return self.thisptr.get_genotype_by_id(self.numeric_sample_ids[sample_id], variant_index)
+
+	def genotype_likelihoods(self, sample_id, unsigned int variant_index):
+		cdef const cpp.PhredGenotypeLikelihoods* gl = self.thisptr.get_genotype_likelihoods_by_id(self.numeric_sample_ids[sample_id], variant_index)
+		if gl == NULL:
+			return None
+		else:
+			return PhredGenotypeLikelihoods(gl.get(0), gl.get(1), gl.get(2))
 
 	def __len__(self):
 		return self.thisptr.size()
 
 	def __str__(self):
 		return self.thisptr.toString().decode('utf-8')
+
+
+cdef class PhredGenotypeLikelihoods:
+	def __cinit__(self, int gl0 = 0, int gl1 = 0, int gl2 = 0):
+		self.thisptr = new cpp.PhredGenotypeLikelihoods(gl0, gl1, gl2)
+
+	def __dealloc__(self):
+		del self.thisptr
+
+	def __str__(self):
+		return self.thisptr.toString().decode('utf-8')
+
+	def __getitem__(self, genotype):
+		assert self.thisptr != NULL
+		assert isinstance(genotype, int)
+		assert 0 <= genotype <= 2
+		return self.thisptr.get(genotype)
+
+	def __len__(self):
+		return 3
+
+	def __iter__(self):
+		for i in range(3):
+			yield self[i]
 
 
 include 'readselect.pyx'

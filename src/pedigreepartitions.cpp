@@ -26,6 +26,7 @@ PedigreePartitions::PedigreePartitions(const Pedigree& pedigree, unsigned int tr
 	}
 }
 
+
 void PedigreePartitions::compute_haplotype_to_partition_rec(size_t i,  const vector<int>& triple_indices) {
 	if (haplotype_to_partition_map[i].first != -1) return;
 	int triple_index = triple_indices[i];
@@ -40,9 +41,11 @@ void PedigreePartitions::compute_haplotype_to_partition_rec(size_t i,  const vec
 	);
 }
 
+
 unsigned int PedigreePartitions::count() const {
 	return partition_count;
 }
+
 
 size_t PedigreePartitions::haplotype_to_partition(size_t individual_index, size_t haplotype) const {
 	if (haplotype == 0) {
