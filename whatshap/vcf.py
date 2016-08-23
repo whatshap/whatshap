@@ -420,6 +420,7 @@ def remove_overlapping_calls(calls):
 	# TODO obviously, this is not implemented ...
 	return calls
 
+GenotypeChange = namedtuple('GenotypeChange', ['sample', 'chromosome', 'variant', 'old_gt', 'new_gt'])
 
 class PhasedVcfWriter:
 	"""
@@ -501,8 +502,12 @@ class PhasedVcfWriter:
 		Since coordinates within the superreads are used to identify variants,
 		variants at duplicate positions (allowed by the VCF spec) are currently
 		not supported.
+
+		Returns a list of changed genotyes (i.e. a list of GenotypeChange objects)
 		"""
 		assert self._unprocessed_record is None or (self._unprocessed_record.CHROM == chromosome)
+
+		genotype_changes = []
 
 		if self._unprocessed_record is not None:
 			records_iter = itertools.chain([self._unprocessed_record], self._reader_iter)
@@ -523,7 +528,6 @@ class PhasedVcfWriter:
 		n = 0
 		prev_pos = None
 		INT_TO_UNPHASED_GT = { 0: '0/0', 1: '0/1', 2: '1/1', -1: '.' }
-		genotype_changes = defaultdict(int)
 		for record in records_iter:
 			n += 1
 			pos, ref, alt = record.start, str(record.REF), str(record.ALT[0])
@@ -597,7 +601,8 @@ class PhasedVcfWriter:
 					# is genotype to be changed?
 					if (pos in genotypes) and (genotypes[pos] != call.gt_type):
 						values['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
-						genotype_changes[(call.gt_type,genotypes[pos])] += 1
+						variant = VcfVariant(record.POS, record.REF, record.ALT[0])
+						genotype_changes.append(GenotypeChange(sample, chromosome, variant, call.gt_type, genotypes[pos]))
 						is_het = genotypes[pos] == 1
 
 					if pos in components and pos in phases and is_het:
@@ -608,7 +613,4 @@ class PhasedVcfWriter:
 					call.data = samp_fmt(**values)
 			self._writer.write_record(record)
 			prev_pos = pos
-		changes = list(sorted(genotype_changes.keys()))
-		for (old_gt, new_gt) in changes:
-			count = genotype_changes[(old_gt,new_gt)]
-			logger.info('Genotype changes from %s to %s: %d', INT_TO_UNPHASED_GT[old_gt], INT_TO_UNPHASED_GT[new_gt], count)
+		return genotype_changes

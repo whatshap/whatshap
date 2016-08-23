@@ -229,7 +229,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		mapping_quality=20, max_coverage=15, distrust_genotypes=False, include_homozygous=False,
 		ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
 		recombination_list_filename=None, tag='PS', read_list_filename=None, 
-		gl_regularizer=None, default_gq=30):
+		gl_regularizer=None, gtchange_list_filename=None, default_gq=30):
 	"""
 	Run WhatsHap.
 
@@ -249,6 +249,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 	tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
 	read_list_filename -- name of file to write list of used reads to
 	gl_regularizer -- float to be passed as regularization constant to GenotypeLikelihoods.as_phred
+	gtchange_list_filename -- filename to write list of changed genotypes to
 	default_gq -- genotype likelihood to be used when GL or PL not available
 	"""
 	timers = StageTimer()
@@ -549,7 +550,26 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					write_read_list(all_reads, dp_table.get_optimal_partitioning(), components, numeric_sample_ids, read_list_file)
 
 			with timers('write_vcf'):
-				vcf_writer.write(chromosome, superreads, components)
+				logger.info('======== Writing VCF')
+				changed_genotypes = vcf_writer.write(chromosome, superreads, components)
+				logger.info('Done writing VCF')
+				if len(changed_genotypes) > 0:
+					assert distrust_genotypes
+					logger.info('Changed %d genotypes while writing VCF', len(changed_genotypes))
+
+			if gtchange_list_filename:
+				logger.info('Writing list of changed genotypes to \'%s\'', gtchange_list_filename)
+				f = open(gtchange_list_filename, 'w')
+				print('#sample', 'chromosome', 'position', 'REF', 'ALT', 'old_gt', 'new_gt', sep='\t', file=f)
+				INT_TO_UNPHASED_GT = { 0: '0/0', 1: '0/1', 2: '1/1', -1: '.' }
+				for changed_genotype in changed_genotypes:
+					print(changed_genotype.sample, changed_genotype.chromosome, changed_genotype.variant.position, 
+						changed_genotype.variant.reference_allele, changed_genotype.variant.alternative_allele,
+						INT_TO_UNPHASED_GT[changed_genotype.old_gt], INT_TO_UNPHASED_GT[changed_genotype.new_gt],
+						sep='\t', file=f
+					)
+				f.close()
+
 			logger.debug('Chromosome %r finished', chromosome)
 			timers.start('parse_vcf')
 		timers.stop('parse_vcf')
@@ -606,6 +626,8 @@ def add_arguments(parser):
 	arg('--gl-regularizer', dest='gl_regularizer', type=float, default=None,
 		help='Constant (float) to be used to regularize genotype likelihoods read '
 		'from input VCF (default %(default)s).')
+	arg('--changed-genotype-list', metavar='GTCHANGELIST', dest='gtchange_list_filename', default=None,
+		help='Write list of changed genotypes to given filename.')
 	arg('--ignore-read-groups', default=False, action='store_true',
 		help='Ignore read groups in BAM header and assume all reads come '
 		'from the same sample.')
