@@ -64,7 +64,7 @@ def CppExtension(name, sources):
 extensions = [
 	CppExtension('whatshap.core',
 		sources=['whatshap/core.pyx',
-			'src/pedigree.cpp', 'src/dptable.cpp', 'src/columncostcomputer.cpp',
+			'src/pedigree.cpp',
 			'src/pedigreedptable.cpp', 'src/pedigreecolumncostcomputer.cpp',
 			'src/columnindexingiterator.cpp', 'src/columnindexingscheme.cpp',
 			'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',

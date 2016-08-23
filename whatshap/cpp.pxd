@@ -52,14 +52,6 @@ cdef extern from "../src/readset.h":
 		vector[unsigned int]* get_positions()
 
 
-cdef extern from "../src/dptable.h":
-	cdef cppclass DPTable:
-		DPTable(ReadSet*, bool) except +
-		void get_super_reads(ReadSet*) except +
-		int get_optimal_score() except +
-		vector[bool]* get_optimal_partitioning()
-
-
 cdef extern from "../src/pedigree.h":
 	cdef cppclass Pedigree:
 		Pedigree() except +

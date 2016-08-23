@@ -1,6 +1,6 @@
 import textwrap
 from collections import defaultdict
-from whatshap.core import Read, DPTable, ReadSet, Variant
+from whatshap.core import Read, ReadSet, Variant
 
 
 def string_to_readset(s, w = None, sample_ids = None):

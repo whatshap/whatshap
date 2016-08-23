@@ -17,7 +17,7 @@ import pyfaidx
 from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter
 from . import __version__
-from .core import ReadSet, DPTable, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods
+from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)

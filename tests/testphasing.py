@@ -1,11 +1,16 @@
 from nose.tools import raises
-from whatshap.core import DPTable, ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
+from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
 from .phasingutils import string_to_readset, brute_force_phase
 
 
 def test_phase_empty_readset():
 	rs = ReadSet()
-	dp_table = DPTable(rs, all_heterozygous=False)
+	recombcost = [1,1]
+	genotypes = [1,1]
+	pedigree = Pedigree(NumericSampleIds())
+	genotype_likelihoods = [None, None]
+	pedigree.add_individual('individual0', genotypes, genotype_likelihoods)
+	dp_table = PedigreeDPTable(rs, recombcost, pedigree)
 	superreads = dp_table.get_super_reads()
 
 
@@ -42,16 +47,7 @@ def check_phasing_single_individual(reads, weights = None):
 	readset = string_to_readset(reads, weights)
 	positions = readset.get_positions()
 
-	# 1) Phase using classic (RECOMB 2014 / wMEC) single individual phasing code
-	#    TODO: Remove once phasing code has been unified+tested with PedMEC (including all_het mode off)
-	for all_heterozygous in [False, True]: 
-		dp_table = DPTable(readset, all_heterozygous)
-		superreads = dp_table.get_super_reads()
-		cost = dp_table.get_optimal_cost()
-		partition = dp_table.get_optimal_partitioning()
-		compare_phasing_brute_force(superreads, cost, partition, readset, all_heterozygous, weights)
-	
-	# 2) Phase using PedMEC code for single individual
+	# 1) Phase using PedMEC code for single individual
 	for all_heterozygous in [False, True]:
 		recombcost = [1] * len(positions) # recombination costs 1, should not occur
 		pedigree = Pedigree(NumericSampleIds())
@@ -65,7 +61,7 @@ def check_phasing_single_individual(reads, weights = None):
 		partition = dp_table.get_optimal_partitioning()
 		compare_phasing_brute_force(superreads[0], cost, partition, readset, all_heterozygous, weights)
 
-	# 3) Phase using PedMEC code for trios with two "empty" individuals (i.e. having no reads)
+	# 2) Phase using PedMEC code for trios with two "empty" individuals (i.e. having no reads)
 	for all_heterozygous in [False, True]:
 		recombcost = [1] * len(positions) # recombination costs 1, should not occur
 		pedigree = Pedigree(NumericSampleIds())
