@@ -9,6 +9,8 @@ def string_to_readset(s, w = None, sample_ids = None):
 		w = textwrap.dedent(w).strip().split('\n')
 	rs = ReadSet()
 	for index, line in enumerate(s.split('\n')):
+		if len(line) == 0:
+			continue
 		if sample_ids is None:
 			read = Read('Read {}'.format(index+1), 50)
 		else:
@@ -31,6 +33,8 @@ def string_to_readset_pedigree(s, w = None):
 	read_sources = []
 	s2 = ''
 	for line in s.split('\n'):
+		if len(line) == 0:
+			continue
 		individual = ord(line[0]) - ord('A')
 		assert 0 <= individual < 26
 		read_sources.append(individual)

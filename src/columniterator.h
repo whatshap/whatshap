@@ -10,7 +10,7 @@
 
 class ColumnIterator {
 public:
-	ColumnIterator(const ReadSet& set);
+	ColumnIterator(const ReadSet& set, const std::vector<unsigned int>* positions = nullptr);
 	~ColumnIterator();
 	/** Returns the total number of columns, i.e. the number of columns
 	 *  that will be returned by get_next. */

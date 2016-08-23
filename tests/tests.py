@@ -295,6 +295,12 @@ def test_phase_specific_chromosome():
 					assert_phasing(table.phases_of('HG004'), [phase0, phase0, phase0, phase0, phase0])
 					assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
 					assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
+				elif table.chromosome == '2' == requested_chromosome:
+					phase0 = VariantCallPhase(60906167, 0, None)
+					phase1 = VariantCallPhase(60906167, 1, None)
+					assert_phasing(table.phases_of('HG004'), [phase0, None, None, None, phase1])
+					assert_phasing(table.phases_of('HG003'), [phase0, None, None, None, None])
+					assert_phasing(table.phases_of('HG002'), [None, None, None, None, phase0])
 				else:
 					assert_phasing(table.phases_of('HG004'), [None, None, None, None, None])
 					assert_phasing(table.phases_of('HG003'), [None, None, None, None, None])
@@ -488,3 +494,45 @@ def test_hapcut2vcf():
 def test_ignore_read_groups():
 	run_whatshap(variant_file='tests/data/pacbio/variants.vcf', phase_input_files=['tests/data/pacbio/pacbio.bam'],
 		reference='tests/data/pacbio/reference.fasta', ignore_read_groups=True, output='/dev/null')
+
+
+def test_genetic_haplotyping():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output.vcf'
+		outrecomb = tempdir + '/output.recomb'
+		run_whatshap(variant_file='tests/data/genetic-haplotyping.vcf', phase_input_files=[],
+			ped='tests/data/genetic-haplotyping.ped', output=outvcf, recombination_list_filename=outrecomb)
+		tables = list(VcfReader(outvcf, phases=True))
+
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == '1'
+		assert len(table.variants) == 3
+		assert table.samples == ['sampleA', 'sampleB', 'sampleC', 'sampleD', 'sampleE']
+		assert table.num_of_blocks_of('sampleA') == 1
+		assert table.num_of_blocks_of('sampleB') == 1
+		assert table.num_of_blocks_of('sampleC') == 0
+		assert table.num_of_blocks_of('sampleD') == 1
+		assert table.num_of_blocks_of('sampleE') == 1
+
+		phase0 = VariantCallPhase(10327, 0, None)
+		phase1 = VariantCallPhase(10327, 1, None)
+
+		assert_phasing(table.phases_of('sampleA'), [phase0, phase0, phase1])
+		assert_phasing(table.phases_of('sampleB'), [phase0, None, None])
+		assert_phasing(table.phases_of('sampleC'), [None, None, None])
+		assert_phasing(table.phases_of('sampleD'), [phase0, None, phase1])
+		assert_phasing(table.phases_of('sampleE'), [phase0, phase0, None])
+
+		lines = [l.split() for l in open(outrecomb)]
+		assert len(lines) == 2
+		Fields = namedtuple('Fields', [ f.strip('#\n') for f in lines[0] ])
+		recomb = Fields(*lines[1])
+		print(recomb)
+		assert recomb.child_id == 'sampleC'
+		assert recomb.chromosome == '1'
+		assert recomb.position1 == '31295'
+		assert recomb.position2 == '102596'
+
+		#assert recomb.transmitted_hap_mother1 != recomb.transmitted_hap_mother2
+		#assert recomb.transmitted_hap_father1 == recomb.transmitted_hap_father2

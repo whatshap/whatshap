@@ -12,14 +12,14 @@
 
 using namespace std;
 
-PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes) :
+PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes, const vector<unsigned int>* positions) :
 	read_set(read_set),
 	recombcost(recombcost),
 	pedigree(pedigree),
 	distrust_genotypes(distrust_genotypes),
 	optimal_score(0u),
 	optimal_score_index(0u),
-	input_column_iterator(*read_set)
+	input_column_iterator(*read_set, positions)
 {
 	read_set->reassignReadIds();
 
@@ -347,8 +347,8 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 	assert(transmission_vector != nullptr);
 	transmission_vector->clear();
 
-	ColumnIterator column_iterator(*read_set);
-	const vector<unsigned int>* positions = column_iterator.get_positions();
+	input_column_iterator.jump_to_column(0);
+	const vector<unsigned int>* positions = input_column_iterator.get_positions();
 
 	std::vector<std::pair<Read*,Read*>> superreads;
 	for (unsigned int i=0; i<pedigree->size(); i++) {
@@ -359,13 +359,13 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 	}
 
 	if (index_backtrace_table.empty()) {
-		assert(!column_iterator.has_next());
+		assert(!input_column_iterator.has_next());
 	} else {
-		// run through the file again with the column_iterator
+		// run through the file again with the input_column_iterator
 		unsigned int i = 0; // column index
-		while (column_iterator.has_next()) {
+		while (input_column_iterator.has_next()) {
 			const index_and_inheritance_t& v = index_path[i];
-			unique_ptr<vector<const Entry *> > column = column_iterator.get_next();
+			unique_ptr<vector<const Entry *> > column = input_column_iterator.get_next();
 			PedigreeColumnCostComputer cost_computer(*column, i, read_sources, pedigree, *pedigree_partitions[v.inheritance_value], distrust_genotypes);
 			cost_computer.set_partitioning(v.index);
 

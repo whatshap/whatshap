@@ -447,13 +447,27 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 						selected_reads = select_reads(readset, max_coverage_per_sample)
 					readsets[sample] = selected_reads
 
-				accessible_positions = []
-				for readset in readsets.values():
-					accessible_positions.extend(readset.get_positions())
-				accessible_positions = sorted(set(accessible_positions))
+				# Merge reads into one ReadSet (note that each Read object
+				# knows the sample it originated from).
+				all_reads = ReadSet()
+				for sample, readset in readsets.items():
+					for read in readset:
+						assert read.is_sorted(), "Add a read.sort() here"
+						all_reads.add(read)
+
+				all_reads.sort()
+
+				# Determine which variants can (in principle) be phased
+				accessible_positions = sorted(all_reads.get_positions())
 				logger.info('Variants covered by at least one phase-informative '
 					'read in at least one individual after read selection: %d',
 					len(accessible_positions))
+				if genetic_haplotyping:
+					# In case of genetic haplotyping, also retain all positions positions homozygous
+					# in at least one individual (because they might be phased based on genotypes)
+					accessible_positions = sorted(set(accessible_positions).union(homozygous_positions))
+					logger.info('Variants either covered by phase-informative read or homozygous '
+					'in at least one individual: %d', len(accessible_positions))
 
 				# Keep only accessible positions
 				phasable_variant_table.subset_rows_by_position(accessible_positions)
@@ -484,16 +498,6 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 						father_id=trio.father,
 						child_id=trio.child)
 
-				# Merge reads into one ReadSet (note that each Read object
-				# knows the sample it originated from).
-				all_reads = ReadSet()
-				for sample, readset in readsets.items():
-					for read in readset:
-						assert read.is_sorted(), "Add a read.sort() here"
-						all_reads.add(read)
-
-				all_reads.sort()
-
 				if genmap:
 					# Load genetic map
 					recombination_costs = recombination_cost_map(load_genetic_map(genmap), accessible_positions)
@@ -505,7 +509,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					problem_name = 'MEC' if len(family) == 1 else 'PedMEC'
 					logger.info('Phasing %d sample%s by solving the %s problem ...',
 						len(family), 's' if len(family) > 1 else '', problem_name)
-					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes)
+					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
 					superreads_list, transmission_vector = dp_table.get_super_reads()
 					logger.info('%s cost: %d', problem_name, dp_table.get_optimal_cost())
 				with timers('components'):
@@ -597,7 +601,7 @@ def add_arguments(parser):
 	arg = parser.add_argument
 	# Positional arguments
 	arg('variant_file', metavar='VCF', help='VCF file with variants to be phased (can be gzip-compressed)')
-	arg('phase_input_files', nargs='+', metavar='PHASEINPUT',
+	arg('phase_input_files', nargs='*', metavar='PHASEINPUT',
 	    help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')
 
 	arg('--version', action='version', version=__version__)
@@ -681,6 +685,8 @@ def validate(args, parser):
 		parser.error('Option --sample cannot be used together with --ped')
 	if args.include_homozygous and not args.distrust_genotypes:
 		parser.error('Option --include-homozygous can only be used with --distrust-genotypes.')
+	if len(args.phase_input_files) == 0 and not args.ped:
+		parser.error('Not providing any PHASEINPUT files only allowed in --ped mode.')
 
 
 def main(args):

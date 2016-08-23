@@ -7,9 +7,9 @@ from whatshap.pedigree import centimorgen_to_phred
 from .phasingutils import string_to_readset, string_to_readset_pedigree, brute_force_phase
 
 
-def phase_pedigree(reads, recombcost, pedigree, distrust_genotypes=False):
+def phase_pedigree(reads, recombcost, pedigree, distrust_genotypes=False, positions=None):
 	rs = string_to_readset_pedigree(reads)
-	dp_table = PedigreeDPTable(rs, recombcost, pedigree, distrust_genotypes)
+	dp_table = PedigreeDPTable(rs, recombcost, pedigree, distrust_genotypes, positions)
 	superreads_list, transmission_vector = dp_table.get_super_reads()
 	cost = dp_table.get_optimal_cost()
 	for superreads in superreads_list:
@@ -185,6 +185,49 @@ def test_phase_trio5():
 		('111','000')
 	]
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 3)
+
+
+def test_phase_trio_pure_genetic():
+	reads = ""
+	pedigree = Pedigree(NumericSampleIds())
+	pedigree.add_individual('individual0', [2,1,1,0])
+	pedigree.add_individual('individual1', [1,2,2,1])
+	pedigree.add_individual('individual2', [1,1,1,0])
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
+	recombcost = [2,2,2]
+	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree, positions=[10,20,30,40])
+	assert cost == 0
+	assert len(set(transmission_vector)) == 1
+	all_expected_haplotypes = [
+		('1110','1000'),
+		('1111','0110'),
+		('1000','0110')
+	]
+	assert_haplotypes(superreads_list, all_expected_haplotypes, 4)
+
+
+def test_phase_doubletrio_pure_genetic():
+	reads = ""
+	pedigree = Pedigree(NumericSampleIds())
+	pedigree.add_individual('individualA', [1,2,1,0])
+	pedigree.add_individual('individualB', [1,0,1,1])
+	pedigree.add_individual('individualC', [2,1,1,0])
+	pedigree.add_individual('individualD', [1,2,2,1])
+	pedigree.add_individual('individualE', [1,1,1,0])
+	pedigree.add_relationship('individualA', 'individualB', 'individualC')
+	pedigree.add_relationship('individualC', 'individualD', 'individualE')
+	recombcost = [2,2,2]
+	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree, positions=[10,20,30,40])
+	assert cost == 0
+	assert len(set(transmission_vector)) == 1
+	all_expected_haplotypes = [
+		('0100','1110'),
+		('0011','1000'),
+		('1110','1000'),
+		('1111','0110'),
+		('1000','0110')
+	]
+	assert_haplotypes(superreads_list, all_expected_haplotypes, 4)
 
 
 def test_phase_quartet1():
