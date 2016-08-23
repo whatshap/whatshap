@@ -8,6 +8,14 @@ development version
 * Use ``PS`` tag instead of ``HP`` tag by default to store phasing information.
   This applies to the ``phase`` and ``hapcut2vcf`` subcommands. ``PS`` is also
   used by other tools and standard according to the VCF specification.
+* Incorporated genotype likelihoods into our phasing framework. On request
+  (by using option ``--distrust-genotypes``), genotypes can now be changed at a cost
+  corresponding to their input genotype likelihoods. The changed genotypes are
+  written to the output VCF. The behavior of ``--distrust-genotypes`` can be
+  fine-tuned by the added options ``--include-homozygous``, ``--default-gq``,
+  ``--gl-regularizer``, and ``--changed-genotype-list``.
+* Correctly handle cases when processing VCFs with two or more disjoint
+  families.
 
 v0.12 (2016-07-01)
 ------------------
