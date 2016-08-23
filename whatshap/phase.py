@@ -438,7 +438,8 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				readsets = dict()  # TODO this could become a list
 				for sample in family:
 					with timers('read_bam'):
-						readset = read_reads(readset_reader, chromosome, phasable_variant_table.variants, sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
+						bam_sample = None if ignore_read_groups else sample
+						readset = read_reads(readset_reader, chromosome, phasable_variant_table.variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
 
 					# TODO: Read selection done w.r.t. all variants, where using heterozygous variants only
 					# TODO: would probably give better results.
