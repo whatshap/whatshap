@@ -151,7 +151,7 @@ def create_read_list_file(filename):
 	the file object.
 	"""
 	f = open(filename, 'w')
-	print('#readname', 'source_id', 'sample', 'phaseset', 'haplotype', sep='\t', file=f)
+	print('#readname', 'source_id', 'sample', 'phaseset', 'haplotype', 'covered_variants', 'first_variant_pos', 'last_variant_pos', sep='\t', file=f)
 	return f
 
 
@@ -175,7 +175,7 @@ def write_read_list(readset, bipartition, sample_components, numeric_sample_ids,
 		sample = numeric_id_to_name[read.sample_id]
 		components = sample_components[sample]
 		phaseset = components[read[0].position] + 1
-		print(read.name, read.source_id, sample, phaseset, haplotype, file=output_file)
+		print(read.name, read.source_id, sample, phaseset, haplotype, len(read), read[0].position+1, read[-1].position+1, file=output_file)
 
 
 class UnknownInputFileError(Exception):
