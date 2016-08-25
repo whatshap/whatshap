@@ -178,10 +178,6 @@ def write_read_list(readset, bipartition, sample_components, numeric_sample_ids,
 		print(read.name, read.source_id, sample, phaseset, haplotype, len(read), read[0].position+1, read[-1].position+1, file=output_file)
 
 
-class UnknownInputFileError(Exception):
-	pass
-
-
 def split_input_file_list(input_files):
 	bams = []
 	vcfs = []
@@ -192,7 +188,8 @@ def split_input_file_list(input_files):
 		elif filename.endswith('.vcf') or filename.endswith('.vcf.gz'):
 			vcfs.append(filename)
 		else:
-			raise UnknownInputFileError('Unable to determine type of input file ' + filename)
+			logger.error('Unable to determine type of input file \'%s\'', filename)
+			sys.exit(1)
 	return bams, vcfs
 
 
