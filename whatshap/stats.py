@@ -16,6 +16,8 @@ def add_arguments(parser):
 			'to process. If not given, use first sample found in VCF.')
 	add('--tsv', metavar='TSV', default=None, help='Filename to write '
 		'statistics to (tab-separated).')
+	add('--only-snps', default=False, action="store_true", help='Only process SNPs '
+		'and ignore all other variants.')
 	add('vcf', metavar='VCF', help='Phased VCF file')
 
 
@@ -170,7 +172,7 @@ def main(args):
 	else:
 		tsv_file = None
 
-	vcf_reader = VcfReader(args.vcf, indels=False, phases=True)  # TODO: also indels
+	vcf_reader = VcfReader(args.vcf, phases=True, indels=not args.only_snps)  # TODO: also indels
 	if len(vcf_reader.samples) == 0:
 		logger.error('Input VCF does not contain any sample')
 		return 1
