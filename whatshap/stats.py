@@ -126,13 +126,13 @@ class PhasingStats:
 				blocks = 0,
 				variant_per_block_median = float('nan'),
 				variant_per_block_avg = float('nan'),
-				variant_per_block_min = float('nan'),
-				variant_per_block_max = float('nan'),
+				variant_per_block_min = 0,
+				variant_per_block_max = 0,
 				variant_per_block_sum = 0,
 				bp_per_block_median = float('nan'),
 				bp_per_block_avg = float('nan'),
-				bp_per_block_min = float('nan'),
-				bp_per_block_max = float('nan'),
+				bp_per_block_min = 0,
+				bp_per_block_max = 0,
 				bp_per_block_sum = 0
 			)
 
