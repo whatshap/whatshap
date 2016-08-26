@@ -165,7 +165,7 @@ class ReadSetReader:
 				# Iterate over all variants that are in this region
 				while j < len(variants) and variants[j].position < ref_pos + length:
 					if len(variants[j].reference_allele) == len(variants[j].alternative_allele) == 1:
-						# Variant is a SNP
+						# Variant is a SNV
 						offset = variants[j].position - ref_pos
 						base = bam_read.query_sequence[query_pos + offset]
 						if base == variants[j].reference_allele:
@@ -176,7 +176,7 @@ class ReadSetReader:
 							allele = None
 						if allele is not None:
 							# TODO
-							# Fix this: we can actually have indel and SNP
+							# Fix this: we can actually have indel and SNV
 							# calls at identical positions. For now, ignore the
 							# second variant.
 							if variants[j].position in seen_positions:

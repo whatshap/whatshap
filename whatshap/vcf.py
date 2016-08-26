@@ -327,7 +327,7 @@ class VcfReader:
 
 	def _process_single_chromosome(self, chromosome, records):
 		phase_detected = None
-		n_snps = 0
+		n_snvs = 0
 		n_other = 0
 		n_multi = 0
 		table = VariantTable(chromosome, self.samples)
@@ -340,7 +340,7 @@ class VcfReader:
 
 			pos, ref, alt = record.start, str(record.REF), str(record.ALT[0])
 			if len(ref) == len(alt) == 1:
-				n_snps += 1
+				n_snvs += 1
 			else:
 				n_other += 1
 				if not self._indels:
@@ -396,7 +396,7 @@ class VcfReader:
 			variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
 			table.add_variant(variant, genotypes, phases, genotype_likelihoods)
 
-		logger.debug("Parsed %s SNPs and %s non-SNPs. Also skipped %s multi-ALTs.", n_snps,
+		logger.debug("Parsed %s SNVs and %s non-SNVs. Also skipped %s multi-ALTs.", n_snvs,
 			n_other, n_multi)
 
 		# TODO remove overlapping variants

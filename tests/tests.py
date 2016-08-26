@@ -453,10 +453,10 @@ def test_compare2():
 		assert entry_chrB.largestblock_hamming == '1'
 
 
-def test_compare_only_snps():
+def test_compare_only_snvs():
 	with TemporaryDirectory() as tempdir:
 		outtsv = tempdir + '/output.tsv'
-		run_compare(vcf=['tests/data/phased1.vcf', 'tests/data/phased2.vcf'], names='p1,p2', tsv_pairwise=outtsv, sample='sample2', only_snps=True)
+		run_compare(vcf=['tests/data/phased1.vcf', 'tests/data/phased2.vcf'], names='p1,p2', tsv_pairwise=outtsv, sample='sample2', only_snvs=True)
 		lines = [l.split('\t') for l in open(outtsv)]
 		assert len(lines) == 3
 		Fields = namedtuple('Fields', [ f.strip('#\n') for f in lines[0] ])

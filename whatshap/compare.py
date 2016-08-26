@@ -18,7 +18,7 @@ def add_arguments(parser):
 			'of data set names to be used in the report (in same order as VCFs).')
 	add('--tsv-pairwise', metavar='TSVPAIRWISE', default=None, help='Filename to write '
 		'comparison results from pair-wise comparison to (tab-separated).')
-	add('--only-snps', default=False, action="store_true", help='Only process SNPs '
+	add('--only-snvs', default=False, action="store_true", help='Only process SNVs '
 		'and ignore all other variants.')
 	# TODO: what's the best way to request "two or more" VCFs?
 	add('vcf', nargs='+', metavar='VCF', help='At least two phased VCF files to be compared.')
@@ -238,8 +238,8 @@ def compare(variant_tables, sample, dataset_names):
 			)
 
 
-def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snps=False):
-	vcf_readers = [VcfReader(f, indels=not only_snps, phases=True) for f in vcf]
+def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False):
+	vcf_readers = [VcfReader(f, indels=not only_snvs, phases=True) for f in vcf]
 	if names:
 		dataset_names = names.split(',')
 		if len(dataset_names) != len(vcf):
