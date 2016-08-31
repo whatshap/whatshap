@@ -1,7 +1,7 @@
 from nose.tools import raises
 from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
 from .phasingutils import string_to_readset, brute_force_phase
-
+from whatshap.ilp import phase_by_ilp
 
 def test_phase_empty_readset():
 	rs = ReadSet()
@@ -48,34 +48,39 @@ def check_phasing_single_individual(reads, weights = None):
 	positions = readset.get_positions()
 
 	# 1) Phase using PedMEC code for single individual
-	for all_heterozygous in [False, True]:
-		recombcost = [1] * len(positions) # recombination costs 1, should not occur
-		pedigree = Pedigree(NumericSampleIds())
-		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods(0,0,0)] * len(positions)
-		pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
-		dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=not all_heterozygous)
-		superreads, transmission_vector = dp_table.get_super_reads()
-		cost = dp_table.get_optimal_cost()
-		# TODO: transmission vectors not returned properly, see issue 73
-		assert len(set(transmission_vector)) == 1
-		partition = dp_table.get_optimal_partitioning()
-		compare_phasing_brute_force(superreads[0], cost, partition, readset, all_heterozygous, weights)
+	#for all_heterozygous in [False, True]:
+		#recombcost = [1] * len(positions) # recombination costs 1, should not occur
+		#pedigree = Pedigree(NumericSampleIds())
+		#genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods(0,0,0)] * len(positions)
+		#pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
+		#dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=not all_heterozygous)
+		#superreads, transmission_vector = dp_table.get_super_reads()
+		#cost = dp_table.get_optimal_cost()
+		## TODO: transmission vectors not returned properly, see issue 73
+		#assert len(set(transmission_vector)) == 1
+		#partition = dp_table.get_optimal_partitioning()
+		#compare_phasing_brute_force(superreads[0], cost, partition, readset, all_heterozygous, weights)
 
-	# 2) Phase using PedMEC code for trios with two "empty" individuals (i.e. having no reads)
-	for all_heterozygous in [False, True]:
-		recombcost = [1] * len(positions) # recombination costs 1, should not occur
-		pedigree = Pedigree(NumericSampleIds())
-		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods(0,0,0)] * len(positions)
-		pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
-		pedigree.add_individual('individual1', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
-		pedigree.add_individual('individual2', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
-		pedigree.add_relationship('individual0', 'individual1', 'individual2')
-		dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=not all_heterozygous)
-		cost = dp_table.get_optimal_cost()
-		superreads, transmission_vector = dp_table.get_super_reads()
-		assert len(set(transmission_vector)) == 1
-		partition = dp_table.get_optimal_partitioning()
-		compare_phasing_brute_force(superreads[0], cost, partition, readset, all_heterozygous, weights)
+	## 2) Phase using PedMEC code for trios with two "empty" individuals (i.e. having no reads)
+	#for all_heterozygous in [False, True]:
+		#recombcost = [1] * len(positions) # recombination costs 1, should not occur
+		#pedigree = Pedigree(NumericSampleIds())
+		#genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods(0,0,0)] * len(positions)
+		#pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
+		#pedigree.add_individual('individual1', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
+		#pedigree.add_individual('individual2', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
+		#pedigree.add_relationship('individual0', 'individual1', 'individual2')
+		#dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=not all_heterozygous)
+		#cost = dp_table.get_optimal_cost()
+		#superreads, transmission_vector = dp_table.get_super_reads()
+		#assert len(set(transmission_vector)) == 1
+		#partition = dp_table.get_optimal_partitioning()
+		#compare_phasing_brute_force(superreads[0], cost, partition, readset, all_heterozygous, weights)
+	
+	# 3) Phase using ILP
+	superreads, cost, partition = phase_by_ilp(readset, True)
+	compare_phasing_brute_force(superreads[0], cost, partition, readset, True, weights)
+	
 
 
 def test_phase_trivial() :

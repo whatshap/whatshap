@@ -224,7 +224,7 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 
 def run_whatshap(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
-		mapping_quality=20, max_coverage=15, distrust_genotypes=False, include_homozygous=False,
+		mapping_quality=20, max_coverage=15, ilp=False, distrust_genotypes=False, include_homozygous=False,
 		ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
 		recombination_list_filename=None, tag='PS', read_list_filename=None,
 		gl_regularizer=None, gtchange_list_filename=None, default_gq=30):
@@ -505,10 +505,12 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					problem_name = 'MEC' if len(family) == 1 else 'PedMEC'
 					logger.info('Phasing %d sample%s by solving the %s problem ...',
 						len(family), 's' if len(family) > 1 else '', problem_name)
-					#dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes)
-                    superreads_list = phase_by_ilp(all_reads, not distrust_genotypes)
-                    transmission_vector = []
-					#superreads_list, transmission_vector = dp_table.get_super_reads()
+					if ilp:
+						superreads_list = phase_by_ilp(all_reads, not distrust_genotypes)
+						transmission_vector = []
+					else:
+						dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes)
+						superreads_list, transmission_vector = dp_table.get_super_reads()
 					logger.info('%s cost: %d', problem_name, dp_table.get_optimal_cost())
 				with timers('components'):
 					master_block = None
@@ -612,6 +614,9 @@ def add_arguments(parser):
 		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
 	arg('--indels', dest='indels', default=False, action='store_true',
 		help='Also phase indels (default: do not phase indels)')
+	arg('--ilp', dest='ilp',
+		action='store_true', default=False,
+		help='Solve MEC using ILP.')
 	arg('--distrust-genotypes', dest='distrust_genotypes',
 		action='store_true', default=False,
 		help='Allow switching variants from hetero- to homozygous in an '
