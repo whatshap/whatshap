@@ -24,6 +24,7 @@ from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
 from .bam import BamIndexingError, SampleNotFoundError
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
+from .ilp import phase_by_ilp
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -225,7 +226,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
 		mapping_quality=20, max_coverage=15, distrust_genotypes=False, include_homozygous=False,
 		ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
-		recombination_list_filename=None, tag='PS', read_list_filename=None, 
+		recombination_list_filename=None, tag='PS', read_list_filename=None,
 		gl_regularizer=None, gtchange_list_filename=None, default_gq=30):
 	"""
 	Run WhatsHap.
@@ -504,8 +505,10 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					problem_name = 'MEC' if len(family) == 1 else 'PedMEC'
 					logger.info('Phasing %d sample%s by solving the %s problem ...',
 						len(family), 's' if len(family) > 1 else '', problem_name)
-					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes)
-					superreads_list, transmission_vector = dp_table.get_super_reads()
+					#dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes)
+                    superreads_list = phase_by_ilp(all_reads, not distrust_genotypes)
+                    transmission_vector = []
+					#superreads_list, transmission_vector = dp_table.get_super_reads()
 					logger.info('%s cost: %d', problem_name, dp_table.get_optimal_cost())
 				with timers('components'):
 					master_block = None
@@ -561,7 +564,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				print('#sample', 'chromosome', 'position', 'REF', 'ALT', 'old_gt', 'new_gt', sep='\t', file=f)
 				INT_TO_UNPHASED_GT = { 0: '0/0', 1: '0/1', 2: '1/1', -1: '.' }
 				for changed_genotype in changed_genotypes:
-					print(changed_genotype.sample, changed_genotype.chromosome, changed_genotype.variant.position, 
+					print(changed_genotype.sample, changed_genotype.chromosome, changed_genotype.variant.position,
 						changed_genotype.variant.reference_allele, changed_genotype.variant.alternative_allele,
 						INT_TO_UNPHASED_GT[changed_genotype.old_gt], INT_TO_UNPHASED_GT[changed_genotype.new_gt],
 						sep='\t', file=f
