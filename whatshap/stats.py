@@ -18,6 +18,8 @@ def add_arguments(parser):
 		'statistics to (tab-separated).')
 	add('--only-snvs', default=False, action="store_true", help='Only process SNVs '
 		'and ignore all other variants.')
+	add('--block-list', action="store", default=None, help='Filename to write '
+		'list of all blocks to (one block per line).')
 	add('vcf', metavar='VCF', help='Phased VCF file')
 
 
@@ -172,6 +174,11 @@ def main(args):
 	else:
 		tsv_file = None
 
+	if args.block_list:
+		block_list_file = open(args.block_list, 'w')
+	else:
+		block_list_file = None
+
 	vcf_reader = VcfReader(args.vcf, phases=True, indels=not args.only_snvs)
 	if len(vcf_reader.samples) == 0:
 		logger.error('Input VCF does not contain any sample')
@@ -191,6 +198,9 @@ def main(args):
 	if tsv_file:
 		print('#sample', 'chromosome', 'file_name', sep='\t', end='\t', file=tsv_file)
 		print(*detailed_stats_fields, sep='\t', file=tsv_file)
+
+	if block_list_file:
+		print('#sample', 'chromosome', 'phase_set', 'from', 'to', 'variants', sep='\t', file=block_list_file)
 
 	print('Phasing statistics for sample {} from file {}'.format(sample, args.vcf))
 	total_stats = PhasingStats()
@@ -229,6 +239,11 @@ def main(args):
 		if gtfwriter and (not prev_block_id is None):
 			gtfwriter.write(chromosome, prev_block_fragment_start, prev_block_fragment_end, prev_block_id)
 
+		if block_list_file:
+			block_ids = sorted(blocks.keys())
+			for block_id in block_ids:
+				print(sample, chromosome, block_id, blocks[block_id].leftmost_variant.position + 1, blocks[block_id].rightmost_variant.position + 1, len(blocks[block_id]), sep='\t', file=block_list_file)
+
 		stats.add_blocks(blocks.values())
 		stats.print()
 		if tsv_file:
@@ -249,3 +264,6 @@ def main(args):
 
 	if tsv_file:
 		tsv_file.close()
+
+	if block_list_file:
+		block_list_file.close()
