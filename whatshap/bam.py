@@ -113,13 +113,10 @@ class ComparableAlignedSegment:
 		self.source_id = source_id
 
 	def __lt__(self, other):
-		self_id = self.segment.reference_id
 		self_pos = self.segment.reference_start
-		other_id = other.segment.reference_id
 		other_pos = other.segment.reference_start
-		return self_id < other_id or (
-			self_id == other_id and self_pos < other_pos) or (
-			self_id == other_id and self_pos == other_pos and self.source_id < other.source_id)
+		return (self_pos < other_pos) or \
+			(self_pos == other_pos and self.source_id < other.source_id)
 
 
 class MultiBamReader:
@@ -147,6 +144,7 @@ class MultiBamReader:
 		If a sample name is given, only reads that belong to that sample are
 		returned (the RG tags of each read and the RG header are used for that).
 		"""
+		assert reference != None
 		def make_comparable(reader):
 			for alignment in reader.fetch(reference, sample):
 				yield ComparableAlignedSegment(alignment.bam_alignment, alignment.source_id)
