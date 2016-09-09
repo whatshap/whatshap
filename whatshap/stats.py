@@ -2,6 +2,7 @@
 Print phasing statistics
 """
 import logging
+import sys
 from collections import defaultdict, namedtuple
 from .math import median
 from .vcf import VcfReader
@@ -20,6 +21,8 @@ def add_arguments(parser):
 		'and ignore all other variants.')
 	add('--block-list', action="store", default=None, help='Filename to write '
 		'list of all blocks to (one block per line).')
+	add('--plot-blocks', action="store", default=None, help='Filename to write '
+		'an SVG illustrating the phased blocks to (requires matplotlib).')
 	add('vcf', metavar='VCF', help='Phased VCF file')
 
 
@@ -44,7 +47,7 @@ class PhasedBlock:
 		"""Returns the length of the covered genomic region in bp."""
 		return self.rightmost_variant.position - self.leftmost_variant.position
 
-	def variants():
+	def variants(self):
 		return list(sorted(self.phases.keys()))
 
 	def __repr__(self):
@@ -164,6 +167,73 @@ class PhasingStats:
 		print('Shortest block:'.rjust(WIDTH), '{:8d}    bp'.format(stats.bp_per_block_min))
 
 
+def plot_blocks(blocks, filename):
+	try:
+		import matplotlib
+		matplotlib.use('svg')
+		from matplotlib import pyplot
+	except ImportError:
+		logger.error('To use option --plot-blocks, you need to have the matplotlib package installed.')
+		sys.exit(1)
+
+	color_count = 20
+	color_list = pyplot.cm.Set1([n/color_count for n in range(color_count)])
+	#print(color_list)
+
+	block_colors = {}
+	for i, (leftmost_pos, block_id) in enumerate(sorted((block.leftmost_variant.position, block_id) for block_id, block in blocks.items())):
+		block_colors[block_id] = i % color_count
+	pos_colors = {}
+	for block_id, block in blocks.items():
+		for variant in block.variants():
+			pos_colors[variant.position] = block_colors[block_id]
+	positions = sorted(pos_colors.keys())
+	colors = []
+	bounds = []
+	prev_color = None
+	prev_pos = None
+	for i, pos in enumerate(positions):
+		c = pos_colors[pos]
+		if c != prev_color:
+			if prev_pos is not None:
+				colors.append('w')
+				bounds.append(prev_pos + 1)
+			colors.append(color_list[c])
+			bounds.append(pos)
+			prev_color = c
+		prev_pos = pos
+		if i == len(positions) - 1:
+			bounds.append(pos)
+	#print(bounds)
+	#print(colors)
+	
+	fig = matplotlib.pyplot.figure(figsize=(8, 3))
+	ax1 = fig.add_axes([0.05, 0.80, 0.9, 0.15])
+	cmap = matplotlib.colors.ListedColormap(colors)
+	#cmap.set_over('0.25')
+	#cmap.set_under('0.75')
+
+	# If a ListedColormap is used, the length of the bounds array must be
+	# one greater than the length of the color list.  The bounds must be
+	# monotonically increasing.
+	#bounds = [1, 2, 4, 7, 10]
+	norm = matplotlib.colors.BoundaryNorm(bounds, cmap.N)
+	cb2 = matplotlib.colorbar.ColorbarBase(ax1, cmap=cmap,
+		norm=norm,
+		# to use 'extend', you must
+		# specify two extra boundaries:
+		boundaries=bounds,
+		extend='neither',
+		ticks=[bounds[0],bounds[-1]],  # optional
+		spacing='proportional',
+		orientation='horizontal'
+	)
+	cb2.set_ticklabels([str(bounds[0]),str(bounds[-1])])
+	#cb2.set_label('Discrete intervals, some other units')
+	fig.savefig(filename)
+
+
+
 def main(args):
 	gtfwriter = None
 	if args.gtf:
@@ -243,6 +313,9 @@ def main(args):
 			block_ids = sorted(blocks.keys())
 			for block_id in block_ids:
 				print(sample, chromosome, block_id, blocks[block_id].leftmost_variant.position + 1, blocks[block_id].rightmost_variant.position + 1, len(blocks[block_id]), sep='\t', file=block_list_file)
+
+		if args.plot_blocks:
+			plot_blocks(blocks, args.plot_blocks)
 
 		stats.add_blocks(blocks.values())
 		stats.print()
