@@ -13,6 +13,7 @@ from collections import defaultdict
 from copy import deepcopy
 
 import pyfaidx
+from xopen import xopen
 
 from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter
@@ -275,7 +276,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 			fasta = None
 		del reference
 		if isinstance(output, str):
-			output = stack.enter_context(open(output, 'w'))
+			output = stack.enter_context(xopen(output, 'w'))
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file,
 		        out_file=output, tag=tag)
@@ -601,12 +602,13 @@ def add_arguments(parser):
 
 	arg('--version', action='version', version=__version__)
 	arg('-o', '--output', default=sys.stdout,
-		help='Output VCF file. If omitted, use standard output.')
+		help='Output VCF file. Add .gz to the file name to get compressed output. '
+			'If omitted, use standard output.')
 	arg('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')
 	arg('--tag', choices=('PS', 'HP'), default='PS',
-	    help='Store phasing information with PS tag (standardized) or '
+		help='Store phasing information with PS tag (standardized) or '
 			'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')
 	arg('--output-read-list', metavar='FILE', default=None, dest='read_list_filename',
 		help='Write reads that have been used for phasing to FILE.')
