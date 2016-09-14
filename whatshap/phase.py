@@ -594,38 +594,30 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 
 def add_arguments(parser):
 	arg = parser.add_argument
+	# Positional arguments
+	arg('variant_file', metavar='VCF', help='VCF file with variants to be phased (can be gzip-compressed)')
+	arg('phase_input_files', nargs='+', metavar='PHASEINPUT',
+	    help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')
+
 	arg('--version', action='version', version=__version__)
 	arg('-o', '--output', default=sys.stdout,
 		help='Output VCF file. If omitted, use standard output.')
-	arg('--tag', choices=('PS', 'HP'), default='PS',
-	    help='Store phasing information with PS tag (standardized) or '
-			'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')
 	arg('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')
+	arg('--tag', choices=('PS', 'HP'), default='PS',
+	    help='Store phasing information with PS tag (standardized) or '
+			'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')
+	arg('--output-read-list', metavar='FILE', default=None, dest='read_list_filename',
+		help='Write reads that have been used for phasing to FILE.')
+
+	arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
 	arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
 	arg('--mapping-quality', '--mapq', metavar='QUAL',
 		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
 	arg('--indels', dest='indels', default=False, action='store_true',
 		help='Also phase indels (default: do not phase indels)')
-	arg('--distrust-genotypes', dest='distrust_genotypes',
-		action='store_true', default=False,
-		help='Allow switching variants from hetero- to homozygous in an '
-		'optimal solution (see documentation).')
-	arg('--include-homozygous', dest='include_homozygous',
-		action='store_true', default=False,
-		help='Also work on homozygous variants, which might be turned to '
-		'heterozygous (to be used with option --distrust-genotypes)')
-	arg('--default-gq', dest='default_gq', type=int, default=30,
-		help='Default genotype quality used as cost of changing a genotype '
-		'when no genotype likelihoods are available. To be used with '
-		'--distrust-genotypes. (default %(default)s)')
-	arg('--gl-regularizer', dest='gl_regularizer', type=float, default=None,
-		help='Constant (float) to be used to regularize genotype likelihoods read '
-		'from input VCF (default %(default)s).')
-	arg('--changed-genotype-list', metavar='GTCHANGELIST', dest='gtchange_list_filename', default=None,
-		help='Write list of changed genotypes to given filename.')
 	arg('--ignore-read-groups', default=False, action='store_true',
 		help='Ignore read groups in BAM header and assume all reads come '
 		'from the same sample.')
@@ -635,17 +627,38 @@ def add_arguments(parser):
 	arg('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
 		help='Name of chromosome to phase. If not given, all chromosomes in the '
 		'input VCF are phased. Can be used multiple times.')
+
+	arg = parser.add_argument_group('Genotyping',
+		'The options in this section require that --distrust-genotypes is used').add_argument
+	arg('--distrust-genotypes', dest='distrust_genotypes',
+		action='store_true', default=False,
+		help='Allow switching variants from hetero- to homozygous in an '
+		'optimal solution (see documentation).')
+	arg('--include-homozygous', dest='include_homozygous',
+		action='store_true', default=False,
+		help='Also work on homozygous variants, which might be turned to '
+		'heterozygous')
+	arg('--default-gq', dest='default_gq', type=int, default=30,
+		help='Default genotype quality used as cost of changing a genotype '
+		'when no genotype likelihoods are available (default %(default)s)')
+	arg('--gl-regularizer', dest='gl_regularizer', type=float, default=None,
+		help='Constant (float) to be used to regularize genotype likelihoods read '
+		'from input VCF (default %(default)s).')
+	arg('--changed-genotype-list', metavar='FILE', dest='gtchange_list_filename', default=None,
+		help='Write list of changed genotypes to FILE.')
+
+	arg = parser.add_argument_group('Pedigree phasing').add_argument
 	arg('--ped', metavar='PED/FAM',
 		help='Use pedigree information in PED file to improve phasing '
 		'(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, '
 		'mother, and father sample names as used in the VCF and BAM. Other '
 		'columns are ignored.')
-	arg('--recombination-list', metavar='RECOMBLIST', dest='recombination_list_filename', default=None,
-		help='Write putative recombination events to given filename.')
+	arg('--recombination-list', metavar='FILE', dest='recombination_list_filename', default=None,
+		help='Write putative recombination events to FILE.')
 	arg('--recombrate', metavar='RECOMBRATE', type=float, default=1.26,
 		help='Recombination rate in cM/Mb (used with --ped). If given, a constant recombination '
 		'rate is assumed (default: %(default)gcM/Mb).')
-	arg('--genmap', metavar='GENMAP',
+	arg('--genmap', metavar='FILE',
 		help='File with genetic map (used with --ped) to be used instead of constant recombination '
 		'rate, i.e. overrides option --recombrate.')
 	arg('--no-genetic-haplotyping', dest='genetic_haplotyping',
@@ -653,11 +666,6 @@ def add_arguments(parser):
 		help='Do not merge blocks that are not connected by reads (i.e. solely based on genotype '
 		'status). Default: when in --ped mode, merge all blocks that contain at least one '
 		'homozygous genotype in at least one individual into one block.')
-	arg('--output-read-list', metavar='READLIST', default=None, dest='read_list_filename',
-		help='Write list of reads that have been used for phasing to given filename.')
-	arg('variant_file', metavar='VCF', help='VCF file with variants to be phased (can be gzip-compressed)')
-	arg('phase_input_files', nargs='+', metavar='PHASEINPUT',
-	    help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')
 
 
 def validate(args, parser):
