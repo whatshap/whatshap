@@ -1,7 +1,9 @@
 #ifndef VECTOR_2D_H
 #define VECTOR_2D_H
 
+#include <iostream>
 #include <vector>
+#include <iomanip>
 
 template <typename T> 
 class Vector2D {
@@ -22,6 +24,25 @@ public:
 
 	void set_all(const T& value) {
 		v.assign(size0*size1, value);
+	}
+
+	friend std::ostream& operator<<(std::ostream& out, const Vector2D<T>& v) {
+		out << "       ";
+		for (size_t j=0; j<v.size1; ++j) {
+			out << ' ' << std::setw(11) << j;
+		}
+		out << std::endl;
+		for (size_t i=0; i<v.size0; ++i) {
+			if (i==0) out << "[[";
+			else out << " [";
+			out << std::setw(4) << i << ':';
+			for (size_t j=0; j<v.size1; ++j) {
+				out << ' ' << std::setw(11) << v.at(i,j);
+			}
+			if (i==v.size0-1) out << "]]";
+			else out << "]" << std::endl;
+		}
+		return out;
 	}
 
 private:
