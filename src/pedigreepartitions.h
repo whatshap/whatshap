@@ -25,6 +25,10 @@ public:
 	/** Returns an index of the partition for a given individual and haplotype (0 or 1). */
 	size_t haplotype_to_partition(size_t individual_index, size_t haplotype) const;
 
+	friend std::ostream& operator<<(std::ostream& out, const PedigreePartitions& pp);
+
 };
+
+std::ostream& operator<<(std::ostream& out, const PedigreePartitions& pp);
 
 #endif
