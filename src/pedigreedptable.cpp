@@ -154,7 +154,7 @@ void PedigreeDPTable::compute_table() {
 		// compute index and transmission value for the current column
 		unique_ptr<ColumnIndexingIterator> iterator = indexers[i]->get_iterator();
 		unsigned int backtrace_index = iterator->index_backward_projection(v.index);
-		v.index = index_backtrace_table[i-1]->at(backtrace_index, v.inheritance_value);
+		v.index = index_backtrace_table[i-1]->at(backtrace_index, prev_inheritance_value);
 		v.inheritance_value = prev_inheritance_value;
 		prev_inheritance_value = transmission_backtrace_table[i-1]->at(backtrace_index, v.inheritance_value);
 		index_path[i-1] = v;
