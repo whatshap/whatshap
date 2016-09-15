@@ -1,0 +1,5 @@
+##fileformat=VCFv4.2
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sampleA	sampleB	sampleC	sampleD	sampleE
+1	10327	.	T	C	103.26	.	.	GT	0/1	0/1	1/1	0/1	0/1
+1	31295	.	A	C	74.74	.	.	GT	0/1	1/1	1/1	1/1	0/1
+1	102596	.	G	A	47.07	.	.	GT	0/1	1/1	1/1	0/1	1/1

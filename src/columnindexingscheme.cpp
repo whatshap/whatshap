@@ -8,8 +8,10 @@ ColumnIndexingScheme::ColumnIndexingScheme(const ColumnIndexingScheme* previous_
 	this->previous_column = previous_column;
 	this->next_column = 0;
 	// assert that read ids are ordered
-	for (size_t i=0; i<read_ids.size()-1; ++i) {
-		assert(read_ids[i] < read_ids[i+1]);
+	if (read_ids.size() > 0) {
+		for (size_t i=0; i<read_ids.size()-1; ++i) {
+			assert(read_ids[i] < read_ids[i+1]);
+		}
 	}
 	this->forward_projection_mask = 0;
 	this->backward_projection_width = 0;

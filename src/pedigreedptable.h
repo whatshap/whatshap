@@ -81,8 +81,10 @@ public:
 	 *                  by caller. Pointer must remain valid during the lifetime of this PedigreeDPTable.
 	 *  @param distrust_genotypes If true, then the genotypes may be changed at costs given as genotype likelihoods
 	 *                            (in the given pedigree object).
+	 *  @param positions Positions to work on. If 0, then all positions given in read_set will be used. Caller retains
+	 *                   ownership.
 	 */
-	PedigreeDPTable(ReadSet* read_set, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes);
+	PedigreeDPTable(ReadSet* read_set, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes, const std::vector<unsigned int>* positions = nullptr);
  
 	~PedigreeDPTable();
 

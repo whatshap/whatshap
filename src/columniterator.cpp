@@ -7,17 +7,21 @@
 
 using namespace std;
 
-ColumnIterator::ColumnIterator(const ReadSet& set) : set(set) {
+ColumnIterator::ColumnIterator(const ReadSet& set, const std::vector<unsigned int>* positions) : set(set) {
 	this->n = 0;
 	this->next_read_index = 0;
-	this->positions = set.get_positions();
+	if (positions == nullptr) {
+		this->positions = set.get_positions();
+	} else {
+		this->positions = new vector<unsigned int>(positions->begin(), positions->end());
+	}
 	// create a mapping of genomic positions to column indices
 	std::unordered_map<unsigned int, size_t> position_map;
-	for (size_t i=0; i<positions->size(); ++i) {
-		position_map[positions->at(i)] = i;
+	for (size_t i=0; i<this->positions->size(); ++i) {
+		position_map[this->positions->at(i)] = i;
 	}
 	// precompute first_reads
-	first_reads.assign(positions->size(),  numeric_limits<size_t>::max());
+	first_reads.assign(this->positions->size(),  numeric_limits<size_t>::max());
 	int pos = 0;
 	for (size_t i=0; i<set.size(); ++i) {
 		const Read* read = set.get(i);
@@ -32,7 +36,7 @@ ColumnIterator::ColumnIterator(const ReadSet& set) : set(set) {
 		assert(first_column_it != position_map.end());
 		assert(last_column_it != position_map.end());
 		assert(first_column_it->second < last_column_it->second);
-		assert(last_column_it->second < positions->size());
+		assert(last_column_it->second < this->positions->size());
 		for (size_t j=first_column_it->second; j<=last_column_it->second; ++j) {
 			if (first_reads[j] == numeric_limits<size_t>::max()) {
 				first_reads[j] = i;
