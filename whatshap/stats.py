@@ -179,10 +179,21 @@ def plot_blocks(blocks, filename):
 	color_count = 20
 	color_list = pyplot.cm.Set1([n/color_count for n in range(color_count)])
 	#print(color_list)
+	
+	largest_block_size = 0
+	largest_block_id = None
+	for block_id, block in blocks.items():
+		if len(block) > largest_block_size:
+			largest_block_size = len(block)
+			largest_block_id = block_id
 
 	block_colors = {}
 	for i, (leftmost_pos, block_id) in enumerate(sorted((block.leftmost_variant.position, block_id) for block_id, block in blocks.items())):
-		block_colors[block_id] = i % color_count
+		if block_id == largest_block_id:
+			block_colors[block_id] = 0
+		else:
+			block_colors[block_id] = 1 + (i % (color_count-1))
+
 	pos_colors = {}
 	for block_id, block in blocks.items():
 		for variant in block.variants():
