@@ -35,7 +35,7 @@ Open Source software under the MIT license and we welcome contributions.
 Pedigree phasing
 ----------------
 
-WhatsHap is capable of :ref:`using pedigree information <phasing-pedigrees>`
+WhatsHap is capable of using pedigree information
 about individuals to further improve phasing results, and to drastically reduce
 the needed coverage. A preprint is available on bioRxiv:
 

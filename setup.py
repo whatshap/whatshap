@@ -117,6 +117,8 @@ class sdist(cmdclass.get('sdist', _sdist)):
 cmdclass['build_ext'] = build_ext
 cmdclass['sdist'] = sdist
 
+with open('README.rst') as f:
+	long_description = f.read()
 
 setup(
 	name = 'whatshap',
@@ -125,6 +127,7 @@ setup(
 	author_email = 'whatshap@cwi.nl',
 	url = 'https://bitbucket.org/whatshap/whatshap/',
 	description = 'phase genomic variants using DNA sequencing reads',
+	long_description = long_description,
 	license = 'MIT',
 	cmdclass = cmdclass,
 	ext_modules = extensions,
