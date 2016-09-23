@@ -15,8 +15,9 @@ trio_bamfile = 'tests/data/trio.pacbio.bam'
 trio_merged_bamfile = 'tests/data/trio-merged-blocks.bam'
 trio_paired_end_bamfile = 'tests/data/paired_end.sorted.bam'
 recombination_breaks_bamfile = 'tests/data/recombination_breaks.sorted.bam'
+quartet2_bamfile = 'tests/data/quartet2.bam'
 
-bam_files = [trio_bamfile, trio_merged_bamfile, trio_paired_end_bamfile, recombination_breaks_bamfile]
+bam_files = [trio_bamfile, trio_merged_bamfile, trio_paired_end_bamfile, recombination_breaks_bamfile, quartet2_bamfile]
 
 
 def setup_module():
@@ -536,3 +537,7 @@ def test_genetic_haplotyping():
 
 		#assert recomb.transmitted_hap_mother1 != recomb.transmitted_hap_mother2
 		#assert recomb.transmitted_hap_father1 == recomb.transmitted_hap_father2
+
+def test_quartet2():
+	run_whatshap(variant_file='tests/data/quartet2.vcf', phase_input_files=[quartet2_bamfile],
+		ped='tests/data/quartet2.ped', output='/dev/null')

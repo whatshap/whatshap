@@ -42,7 +42,9 @@ private:
 	std::list<active_read_t> active_reads;
 	std::vector<Entry*> blank_entries;
 	std::vector<unsigned int>* positions;
-	// first_reads[k] is the index of the first read (i.e. lowest index) active at column k
+	// first_reads[k] is the index of the first read (i.e. lowest index) active at column k,
+	// in case no read is active in column k, then first_reads[k] is the index of the first read
+	// that will become active after column k.
 	std::vector<size_t> first_reads;
 };
 

@@ -44,6 +44,18 @@ ColumnIterator::ColumnIterator(const ReadSet& set, const std::vector<unsigned in
 		}
 		pos = read->firstPosition();
 	}
+	// For positions not covered by any read, fill in the index of next read that will
+	// become active in subsequent columns
+	if (first_reads.size() >= 2) {
+		size_t next_index = first_reads[first_reads.size()-1];
+		for (int i=first_reads.size()-2; i>=0; --i) {
+			if (first_reads[i] == numeric_limits<size_t>::max()) {
+				first_reads[i] = next_index;
+			} else {
+				next_index = first_reads[i];
+			}
+		}
+	}
 }
 
 

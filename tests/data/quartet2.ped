@@ -1,0 +1,4 @@
+quartet mother 0 0 0 0
+quartet father 0 0 0 0
+quartet child1 father mother 0 0
+quartet child2 father mother 0 0

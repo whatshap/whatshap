@@ -1,0 +1,12 @@
+##fileformat=VCFv4.2
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	mother	father	child1	child2
+1	245449236	.	G	T	.	PASS	.	GT	0/0	1/1	0/1	0/1
+1	245449751	.	C	T	.	PASS	.	GT	0/0	1/1	0/1	0/1
+1	245449935	.	C	T	.	PASS	.	GT	0/1	1/1	1/1	1/1
+1	245450492	.	G	A	.	PASS	.	GT	0/1	0/0	0/1	0/1
+1	245451209	.	A	G	.	PASS	.	GT	0/1	1/1	1/1	1/1
+1	245451343	.	A	G	.	PASS	.	GT	0/1	1/1	1/1	1/1
+1	245451358	.	T	C	.	PASS	.	GT	0/1	1/1	1/1	1/1
+1	245451388	.	C	T	.	PASS	.	GT	0/1	1/1	1/1	1/1
+1	245451417	.	C	T	.	PASS	.	GT	0/0	1/1	0/1	0/1
