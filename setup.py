@@ -117,7 +117,7 @@ class sdist(cmdclass.get('sdist', _sdist)):
 cmdclass['build_ext'] = build_ext
 cmdclass['sdist'] = sdist
 
-with open('README.rst') as f:
+with open('README.rst', encoding='utf-8') as f:
 	long_description = f.read()
 
 setup(
