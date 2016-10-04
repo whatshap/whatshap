@@ -79,3 +79,13 @@ cdef extern from "../src/phredgenotypelikelihoods.h":
 		PhredGenotypeLikelihoods(PhredGenotypeLikelihoods) except +
 		unsigned int get(unsigned int) except +
 		string toString() except +
+
+
+cdef extern from "../src/genotypedistribution.h":
+	cdef cppclass GenotypeDistribution:
+		GenotypeDistribution(double hom_ref_prob, double het_prob, double hom_alt_prob) except +
+		double probabilityOf(unsigned int genotype) except +
+
+
+cdef extern from "../src/genotyper.h":
+	void compute_genotypes(ReadSet, vector[int]* genotypes, vector[GenotypeDistribution]* genotype_likelihoods, vector[unsigned int]* positions)  except +

@@ -359,4 +359,20 @@ cdef class PhredGenotypeLikelihoods:
 			yield self[i]
 
 
+def compute_genotypes(ReadSet readset, positions = None):
+	cdef vector[int]* genotypes_vector = new vector[int]()
+	cdef vector[cpp.GenotypeDistribution]* gl_vector = new vector[cpp.GenotypeDistribution]()
+	cdef vector[unsigned int]* c_positions = NULL
+	if positions is not None:
+		c_positions = new vector[unsigned int]()
+		for pos in positions:
+			c_positions.push_back(pos)
+	cpp.compute_genotypes(readset.thisptr[0], genotypes_vector, gl_vector, c_positions)
+	genotypes = list(genotypes_vector[0])
+	gls = [(gl_vector[0][i].probabilityOf(0), gl_vector[0][i].probabilityOf(1), gl_vector[0][i].probabilityOf(2)) for i in range(gl_vector[0].size())]
+	del genotypes_vector
+	del gl_vector
+	return genotypes, gls
+
+
 include 'readselect.pyx'
