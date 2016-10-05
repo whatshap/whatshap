@@ -31,7 +31,7 @@ __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel M
 logger = logging.getLogger(__name__)
 
 
-def find_components(phased_positions, reads, master_block=None):
+def find_components(phased_positions, reads, master_block=None, heterozygous_positions=None):
 	"""
 	Return a dict that maps each variant position to the component it is in.
 	Variants are considered to be in the same component if a read exists that
@@ -39,6 +39,9 @@ def find_components(phased_positions, reads, master_block=None):
 	variant.
 	master_block -- List of positions in a "master block", i.e. all blocks containing
 	                any of these positions are merged into one block.
+	heterozygous_positions -- A dictionary mapping numeric sample ids to sets of
+	                          positions. Component building is then restricted to variants
+	                          at these positions. If none, all variants are used.
 	"""
 	logger.debug('Finding connected components ...')
 	assert phased_positions == sorted(phased_positions)
@@ -48,7 +51,12 @@ def find_components(phased_positions, reads, master_block=None):
 	component_finder = ComponentFinder(phased_positions)
 	phased_positions = set(phased_positions)
 	for read in reads:
-		positions = [ variant.position for variant in read if variant.position in phased_positions ]
+		if heterozygous_positions is None:
+			positions = [ variant.position for variant in read if variant.position in phased_positions ]
+		else:
+			positions = [ variant.position for variant in read \
+				if (variant.position in phased_positions) and (variant.position in heterozygous_positions[read.sample_id])
+			]
 		for position in positions[1:]:
 			component_finder.merge(positions[0], position)
 	if not master_block is None:
@@ -514,9 +522,31 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					logger.info('%s cost: %d', problem_name, dp_table.get_optimal_cost())
 				with timers('components'):
 					master_block = None
-					if genetic_haplotyping:
-						master_block = sorted(set(homozygous_positions).intersection(set(accessible_positions)))
-					overall_components = find_components(accessible_positions, all_reads, master_block)
+					heterozygous_positions_by_sample = None
+					# If we distrusted genotypes, we need to re-determine which sites are homo-/heterzygous after phasing
+					if distrust_genotypes:
+						hom_in_any_sample = set()
+						heterozygous_positions_by_sample = {}
+						heterozygous_gts = frozenset({(0, 1), (1, 0)})
+						homozygous_gts = frozenset({(0, 0), (1, 1)})
+						for sample, sample_superreads in zip(family, superreads_list):
+							hets = set()
+							for v1, v2 in zip(*sample_superreads):
+								assert v1.position == v2.position
+								if v1.position not in accessible_positions:
+									continue
+								gt = (v1.allele, v2.allele)
+								if gt in heterozygous_gts:
+									hets.add(v1.position)
+								elif gt in homozygous_gts:
+									hom_in_any_sample.add(v1.position)
+							heterozygous_positions_by_sample[numeric_sample_ids[sample]] = hets
+						if genetic_haplotyping:
+							master_block = sorted(hom_in_any_sample)
+					else:
+						if genetic_haplotyping:
+							master_block = sorted(set(homozygous_positions).intersection(set(accessible_positions)))
+					overall_components = find_components(accessible_positions, all_reads, master_block, heterozygous_positions_by_sample)
 					n_phased_blocks = len(set(overall_components.values()))
 					logger.info('No. of phased blocks: %d', n_phased_blocks)
 					largest_component = find_largest_component(overall_components)
