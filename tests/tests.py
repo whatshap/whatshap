@@ -16,8 +16,9 @@ trio_merged_bamfile = 'tests/data/trio-merged-blocks.bam'
 trio_paired_end_bamfile = 'tests/data/paired_end.sorted.bam'
 recombination_breaks_bamfile = 'tests/data/recombination_breaks.sorted.bam'
 quartet2_bamfile = 'tests/data/quartet2.bam'
+short_bamfile = 'tests/data/short-genome/short.bam'
 
-bam_files = [trio_bamfile, trio_merged_bamfile, trio_paired_end_bamfile, recombination_breaks_bamfile, quartet2_bamfile]
+bam_files = [trio_bamfile, trio_merged_bamfile, trio_paired_end_bamfile, recombination_breaks_bamfile, quartet2_bamfile, short_bamfile]
 
 
 def setup_module():
@@ -88,6 +89,7 @@ def test_ps_tag():
 
 
 def assert_phasing(phases, expected_phases):
+	# TODO: this code is not "block aware". Would be useful to extend it to compare phasings per block
 	print('assert_phasing({}, {})'.format(phases, expected_phases))
 	assert len(phases) == len(expected_phases)
 	p_unchanged = []
@@ -538,6 +540,24 @@ def test_genetic_haplotyping():
 		#assert recomb.transmitted_hap_mother1 != recomb.transmitted_hap_mother2
 		#assert recomb.transmitted_hap_father1 == recomb.transmitted_hap_father2
 
+
 def test_quartet2():
 	run_whatshap(variant_file='tests/data/quartet2.vcf', phase_input_files=[quartet2_bamfile],
 		ped='tests/data/quartet2.ped', output='/dev/null')
+
+
+def test_phased_blocks():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output.vcf'
+		run_whatshap(phase_input_files=[short_bamfile], variant_file='tests/data/short-genome/short.vcf', ignore_read_groups=True, distrust_genotypes=True,  include_homozygous=True, output=outvcf)
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf, phases=True))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == 'chr1'
+		assert len(table.variants) == 5
+		assert table.samples == ['sample']
+
+		blocks = [(p.block_id if p is not None else None) for p in table.phases_of('sample')]
+		assert blocks == [10, 10, None, 200, 200]
