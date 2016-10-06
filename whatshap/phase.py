@@ -470,7 +470,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				logger.info('Variants covered by at least one phase-informative '
 					'read in at least one individual after read selection: %d',
 					len(accessible_positions))
-				if genetic_haplotyping:
+				if (len(family) > 1) and genetic_haplotyping:
 					# In case of genetic haplotyping, also retain all positions positions homozygous
 					# in at least one individual (because they might be phased based on genotypes)
 					accessible_positions = sorted(set(accessible_positions).union(homozygous_positions))
@@ -541,10 +541,10 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 								elif gt in homozygous_gts:
 									hom_in_any_sample.add(v1.position)
 							heterozygous_positions_by_sample[numeric_sample_ids[sample]] = hets
-						if genetic_haplotyping:
+						if (len(family) > 1) and genetic_haplotyping:
 							master_block = sorted(hom_in_any_sample)
 					else:
-						if genetic_haplotyping:
+						if (len(family) > 1) and genetic_haplotyping:
 							master_block = sorted(set(homozygous_positions).intersection(set(accessible_positions)))
 					overall_components = find_components(accessible_positions, all_reads, master_block, heterozygous_positions_by_sample)
 					n_phased_blocks = len(set(overall_components.values()))
