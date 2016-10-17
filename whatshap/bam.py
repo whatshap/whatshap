@@ -1,4 +1,6 @@
 import os
+from urllib.parse import urlparse
+
 import pysam
 import logging
 import heapq
@@ -17,6 +19,10 @@ class BamIndexingError(Exception):
 
 class SampleNotFoundError(Exception):
 	pass
+
+
+def is_local(path):
+	return urlparse(path).scheme == ''
 
 
 def index_bam(path):
@@ -51,16 +57,17 @@ class SampleBamReader:
 	"""
 	def __init__(self, path, source_id=0):
 		"""
-		path -- path to BAM file
+		path -- path or URL to BAM file
 		"""
-		# Raise an exception early if file does not exist or is not accessible.
-		with open(path):
-			pass
-		bai1 = path + '.bai'
-		bai2 = os.path.splitext(path)[0] + '.bai'
-		if not os.path.exists(bai1) and not os.path.exists(bai2):
-			logger.info('BAM index not found, creating it now.')
-			index_bam(path)
+		if is_local(path):
+			# Raise an exception early if file does not exist or is not accessible.
+			with open(path):
+				pass
+			bai1 = path + '.bai'
+			bai2 = os.path.splitext(path)[0] + '.bai'
+			if not os.path.exists(bai1) and not os.path.exists(bai2):
+				logger.info('BAM index not found, creating it now.')
+				index_bam(path)
 		self.source_id = source_id
 		self._samfile = pysam.Samfile(path)
 		self._initialize_sample_to_group_ids()
