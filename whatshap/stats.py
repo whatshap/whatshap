@@ -88,6 +88,7 @@ detailed_stats_fields = [
 	'bp_per_block_max',
 	'bp_per_block_sum',
 	'heterozygous_variants',
+	'heterozygous_snvs',
 ]
 DetailedStats = namedtuple('DetailedStats', detailed_stats_fields)
 
@@ -98,12 +99,14 @@ class PhasingStats:
 		self.unphased = 0
 		self.variants = 0
 		self.heterozygous_variants = 0
+		self.heterozygous_snvs = 0
 
 	def __iadd__(self, other):
 		self.blocks.extend(other.blocks)
 		self.unphased += other.unphased
 		self.variants += other.variants
 		self.heterozygous_variants += other.heterozygous_variants
+		self.heterozygous_snvs += other.heterozygous_snvs
 		return self
 
 	def add_blocks(self, blocks):
@@ -117,6 +120,9 @@ class PhasingStats:
 
 	def add_heterozygous_variants(self, variants):
 		self.heterozygous_variants += variants
+
+	def add_heterozygous_snvs(self, snvs):
+		self.heterozygous_snvs += snvs
 
 	def get(self):
 		block_sizes = sorted(len(block) for block in self.blocks)
@@ -141,6 +147,7 @@ class PhasingStats:
 				bp_per_block_max = block_lengths[-1],
 				bp_per_block_sum = sum(block_lengths),
 				heterozygous_variants = self.heterozygous_variants,
+				heterozygous_snvs = self.heterozygous_snvs,
 			)
 		else:
 			return DetailedStats(
@@ -160,6 +167,7 @@ class PhasingStats:
 				bp_per_block_max = 0,
 				bp_per_block_sum = 0,
 				heterozygous_variants = self.heterozygous_variants,
+				heterozygous_snvs = self.heterozygous_snvs,
 			)
 
 	def print(self):
@@ -167,7 +175,7 @@ class PhasingStats:
 
 		WIDTH = 21
 		print('Variants in VCF:'.rjust(WIDTH), '{:8d}'.format(stats.variants))
-		print('Heterozygous:'.rjust(WIDTH), '{:8d}'.format(stats.heterozygous_variants))
+		print('Heterozygous:'.rjust(WIDTH), '{:8d} ({:8d} SNVs)'.format(stats.heterozygous_variants, stats.heterozygous_snvs))
 		print('Phased:'.rjust(WIDTH), '{:8d}'.format(stats.phased))
 		print('Unphased:'.rjust(WIDTH), '{:8d}'.format(stats.unphased), '(not considered below)')
 		print('Singletons:'.rjust(WIDTH), '{:8d}'.format(stats.singletons), '(not considered below)')
@@ -246,6 +254,8 @@ def main(args):
 			if genotype != 1:
 				continue
 			stats.add_heterozygous_variants(1)
+			if len(variant.reference_allele) == len(variant.alternative_allele) == 1:
+				stats.add_heterozygous_snvs(1)
 			if phase is None:
 				stats.add_unphased()
 			else:
