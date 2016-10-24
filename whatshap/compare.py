@@ -323,7 +323,7 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False
 	if tsv_pairwise_file:
 		fields = ['#sample', 'chromosome', 'dataset_name0', 'dataset_name1', 'file_name0', 'file_name1']
 		fields.extend(pairwise_comparison_results_fields)
-		fields.append('het_variants0')
+		fields.extend(['het_variants0', 'only_snvs'])
 		print(*fields, sep='\t', file=tsv_pairwise_file)
 
 	print('FILENAMES')
@@ -365,7 +365,7 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False
 				if tsv_pairwise_file:
 					fields = [sample, chromosome, dataset_names[i], dataset_names[j], vcf[i], vcf[j]]
 					fields.extend(results)
-					fields.append(het_variants0)
+					fields.extend([het_variants0, int(only_snvs)])
 					print(*fields, sep='\t', file=tsv_pairwise_file)
 
 		if len(vcfs) > 2:
