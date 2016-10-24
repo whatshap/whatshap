@@ -321,8 +321,10 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False
 	logger.info('Chromosomes present in all VCFs: %s', ', '.join(sorted(chromosomes)))
 
 	if tsv_pairwise_file:
-		print('#sample', 'chromosome', 'dataset_name0', 'dataset_name1', 'file_name0', 'file_name1', sep='\t', end='\t', file=tsv_pairwise_file)
-		print(*pairwise_comparison_results_fields, sep='\t', file=tsv_pairwise_file)
+		fields = ['#sample', 'chromosome', 'dataset_name0', 'dataset_name1', 'file_name0', 'file_name1']
+		fields.extend(pairwise_comparison_results_fields)
+		fields.append('het_variants0')
+		print(*fields, sep='\t', file=tsv_pairwise_file)
 
 	print('FILENAMES')
 	for name, filename in zip(dataset_names, vcf):
@@ -337,10 +339,13 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False
 		het_variants_union = set()
 		het_variants_intersection = None
 		het_variant_sets = []
+		het_variants0 = None
 		print('VARIANT COUNTS (heterozygous / all): ')
 		for variant_table, name in zip(variant_tables, dataset_names):
 			all_variants_union.update(variant_table.variants)
 			het_variants = [ v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if gt == 1 ]
+			if het_variants0 is None:
+				het_variants0 = len(het_variants)
 			het_variants_union.update(het_variants)
 			if all_variants_intersection is None:
 				all_variants_intersection = set(variant_table.variants)
@@ -358,9 +363,11 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False
 				print('PAIRWISE COMPARISON: {} <--> {}:'.format(dataset_names[i],dataset_names[j]))
 				results = compare([variant_tables[i], variant_tables[j]], sample, [dataset_names[i], dataset_names[j]])
 				if tsv_pairwise_file:
-					print(sample, chromosome, dataset_names[i], dataset_names[j], vcf[i], vcf[j], sep='\t', end='\t', file=tsv_pairwise_file)
-					print(*results, sep='\t', file=tsv_pairwise_file)
-		
+					fields = [sample, chromosome, dataset_names[i], dataset_names[j], vcf[i], vcf[j]]
+					fields.extend(results)
+					fields.append(het_variants0)
+					print(*fields, sep='\t', file=tsv_pairwise_file)
+
 		if len(vcfs) > 2:
 			print('MULTIWAY COMPARISON OF ALL PHASINGS:')
 			compare(variant_tables, sample, dataset_names)
