@@ -70,9 +70,23 @@ class GtfWriter:
 			'gene_id "{}"; transcript_id "{}.1";'.format(name, name),
 			sep='\t', file=self._file)
 
-detailed_stats_fields = ['variants','phased','unphased','singletons','blocks',
-	'variant_per_block_median','variant_per_block_avg','variant_per_block_min','variant_per_block_max','variant_per_block_sum',
-	'bp_per_block_median','bp_per_block_avg','bp_per_block_min','bp_per_block_max','bp_per_block_sum'
+
+detailed_stats_fields = [
+	'variants',
+	'phased',
+	'unphased',
+	'singletons',
+	'blocks',
+	'variant_per_block_median',
+	'variant_per_block_avg',
+	'variant_per_block_min',
+	'variant_per_block_max',
+	'variant_per_block_sum',
+	'bp_per_block_median',
+	'bp_per_block_avg',
+	'bp_per_block_min',
+	'bp_per_block_max',
+	'bp_per_block_sum',
 ]
 DetailedStats = namedtuple('DetailedStats', detailed_stats_fields)
 
