@@ -44,8 +44,11 @@ class PhasedBlock:
 		"""Returns the length of the covered genomic region in bp."""
 		return self.rightmost_variant.position - self.leftmost_variant.position
 
-	def variants():
+	def variants(self):
 		return list(sorted(self.phases.keys()))
+
+	def count_snvs(self):
+		return sum(int(variant.is_snv()) for variant in self.phases)
 
 	def __repr__(self):
 		return "PhasedBlock({})".format(str(self.phases))
@@ -89,6 +92,7 @@ detailed_stats_fields = [
 	'bp_per_block_sum',
 	'heterozygous_variants',
 	'heterozygous_snvs',
+	'phased_snvs',
 ]
 DetailedStats = namedtuple('DetailedStats', detailed_stats_fields)
 
@@ -100,6 +104,7 @@ class PhasingStats:
 		self.variants = 0
 		self.heterozygous_variants = 0
 		self.heterozygous_snvs = 0
+		self.phased_snvs = 0
 
 	def __iadd__(self, other):
 		self.blocks.extend(other.blocks)
@@ -107,6 +112,7 @@ class PhasingStats:
 		self.variants += other.variants
 		self.heterozygous_variants += other.heterozygous_variants
 		self.heterozygous_snvs += other.heterozygous_snvs
+		self.phased_snvs += other.phased_snvs
 		return self
 
 	def add_blocks(self, blocks):
@@ -129,6 +135,7 @@ class PhasingStats:
 		n_singletons = sum(1 for size in block_sizes if size == 1)
 		block_sizes = [ size for size in block_sizes if size > 1 ]
 		block_lengths = sorted(block.span() for block in self.blocks if len(block) > 1)
+		phased_snvs = sum(block.count_snvs() for block in self.blocks if len(block) > 1)
 		if block_sizes:
 			return DetailedStats(
 				variants = self.variants,
@@ -148,6 +155,7 @@ class PhasingStats:
 				bp_per_block_sum = sum(block_lengths),
 				heterozygous_variants = self.heterozygous_variants,
 				heterozygous_snvs = self.heterozygous_snvs,
+				phased_snvs = phased_snvs,
 			)
 		else:
 			return DetailedStats(
@@ -168,6 +176,7 @@ class PhasingStats:
 				bp_per_block_sum = 0,
 				heterozygous_variants = self.heterozygous_variants,
 				heterozygous_snvs = self.heterozygous_snvs,
+				phased_snvs = 0,
 			)
 
 	def print(self):
@@ -176,7 +185,7 @@ class PhasingStats:
 		WIDTH = 21
 		print('Variants in VCF:'.rjust(WIDTH), '{:8d}'.format(stats.variants))
 		print('Heterozygous:'.rjust(WIDTH), '{:8d} ({:8d} SNVs)'.format(stats.heterozygous_variants, stats.heterozygous_snvs))
-		print('Phased:'.rjust(WIDTH), '{:8d}'.format(stats.phased))
+		print('Phased:'.rjust(WIDTH), '{:8d} ({:8d} SNVs)'.format(stats.phased, stats.phased_snvs))
 		print('Unphased:'.rjust(WIDTH), '{:8d}'.format(stats.unphased), '(not considered below)')
 		print('Singletons:'.rjust(WIDTH), '{:8d}'.format(stats.singletons), '(not considered below)')
 		print('Blocks:'.rjust(WIDTH), '{:8d}'.format(stats.blocks))
