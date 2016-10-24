@@ -87,6 +87,7 @@ detailed_stats_fields = [
 	'bp_per_block_min',
 	'bp_per_block_max',
 	'bp_per_block_sum',
+	'heterozygous_variants',
 ]
 DetailedStats = namedtuple('DetailedStats', detailed_stats_fields)
 
@@ -96,11 +97,13 @@ class PhasingStats:
 		self.blocks = []
 		self.unphased = 0
 		self.variants = 0
+		self.heterozygous_variants = 0
 
 	def __iadd__(self, other):
 		self.blocks.extend(other.blocks)
 		self.unphased += other.unphased
 		self.variants += other.variants
+		self.heterozygous_variants += other.heterozygous_variants
 		return self
 
 	def add_blocks(self, blocks):
@@ -111,6 +114,9 @@ class PhasingStats:
 
 	def add_variants(self, variants):
 		self.variants += variants
+
+	def add_heterozygous_variants(self, variants):
+		self.heterozygous_variants += variants
 
 	def get(self):
 		block_sizes = sorted(len(block) for block in self.blocks)
@@ -133,7 +139,8 @@ class PhasingStats:
 				bp_per_block_avg = sum(block_lengths) / len(block_lengths),
 				bp_per_block_min = block_lengths[0],
 				bp_per_block_max = block_lengths[-1],
-				bp_per_block_sum = sum(block_lengths)
+				bp_per_block_sum = sum(block_lengths),
+				heterozygous_variants = self.heterozygous_variants,
 			)
 		else:
 			return DetailedStats(
@@ -151,7 +158,8 @@ class PhasingStats:
 				bp_per_block_avg = float('nan'),
 				bp_per_block_min = 0,
 				bp_per_block_max = 0,
-				bp_per_block_sum = 0
+				bp_per_block_sum = 0,
+				heterozygous_variants = self.heterozygous_variants,
 			)
 
 	def print(self):
@@ -159,6 +167,7 @@ class PhasingStats:
 
 		WIDTH = 21
 		print('Variants in VCF:'.rjust(WIDTH), '{:8d}'.format(stats.variants))
+		print('Heterozygous:'.rjust(WIDTH), '{:8d}'.format(stats.heterozygous_variants))
 		print('Phased:'.rjust(WIDTH), '{:8d}'.format(stats.phased))
 		print('Unphased:'.rjust(WIDTH), '{:8d}'.format(stats.unphased), '(not considered below)')
 		print('Singletons:'.rjust(WIDTH), '{:8d}'.format(stats.singletons), '(not considered below)')
@@ -176,6 +185,7 @@ class PhasingStats:
 		print('Average block length:'.rjust(WIDTH), '{:11.2f} bp'.format(stats.bp_per_block_avg))
 		print('Longest block:'.rjust(WIDTH), '{:8d}    bp'.format(stats.bp_per_block_max))
 		print('Shortest block:'.rjust(WIDTH), '{:8d}    bp'.format(stats.bp_per_block_min))
+		assert stats.phased + stats.unphased + stats.singletons == stats.heterozygous_variants
 
 
 def main(args):
@@ -235,6 +245,7 @@ def main(args):
 			stats.add_variants(1)
 			if genotype != 1:
 				continue
+			stats.add_heterozygous_variants(1)
 			if phase is None:
 				stats.add_unphased()
 			else:
