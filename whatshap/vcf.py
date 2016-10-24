@@ -45,6 +45,10 @@ class VcfVariant:
 	def __lt__(self, other):
 		return (self.position, self.reference_allele, self.alternative_allele) < (other.position, other.reference_allele, other.alternative_allele)
 
+	def is_snv(self):
+		return (self.reference_allele != self.alternative_allele) and (
+			len(self.reference_allele) == len(self.alternative_allele) == 1)
+
 	def normalized(self):
 		"""
 		Return a normalized version of this variant.
@@ -161,7 +165,7 @@ class VariantTable:
 		return self.genotypes[self._sample_to_index[sample]]
 
 	def genotype_likelihoods_of(self, sample):
-		"""Retrieve genotypes by sample name"""
+		"""Retrieve genotype likelihoods by sample name"""
 		return self.genotype_likelihoods[self._sample_to_index[sample]]
 
 	def phases_of(self, sample):
@@ -170,7 +174,7 @@ class VariantTable:
 
 	def num_of_blocks_of(self, sample):
 		""" Retrieve the number of blocks of the sample"""
-		return len(set([i.block_id for i in self.phases[self._sample_to_index[sample]] if not i is None]))
+		return len(set([i.block_id for i in self.phases[self._sample_to_index[sample]] if i is not None]))
 
 	def id_of(self, sample):
 		"""Return a unique int id of a sample given by name"""

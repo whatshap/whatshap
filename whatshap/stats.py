@@ -254,7 +254,7 @@ def main(args):
 			if genotype != 1:
 				continue
 			stats.add_heterozygous_variants(1)
-			if len(variant.reference_allele) == len(variant.alternative_allele) == 1:
+			if variant.is_snv():
 				stats.add_heterozygous_snvs(1)
 			if phase is None:
 				stats.add_unphased()
