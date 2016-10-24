@@ -124,10 +124,30 @@ def print_errors(errors, phased_pairs, print_hamming=False):
 	print('            switch/flip decomposition:', str(errors.switch_flips).rjust(count_width) )
 	print('                     switch/flip rate:', fraction2percentstr(errors.switch_flips.switches+errors.switch_flips.flips, phased_pairs).rjust(count_width))
 
-pairwise_comparison_results_fields = ['intersection_blocks', 'covered_variants', 'all_assessed_pairs', 'all_switches', 'all_switch_rate', 'all_switchflips', 'all_switchflip_rate', 'largestblock_assessed_pairs', 'largestblock_switches', 'largestblock_switch_rate', 'largestblock_switchflips', 'largestblock_switchflip_rate', 'largestblock_hamming', 'largestblock_hamming_rate']
+
+pairwise_comparison_results_fields = [
+	'intersection_blocks',
+	'covered_variants',
+	'all_assessed_pairs',
+	'all_switches',
+	'all_switch_rate',
+	'all_switchflips',
+	'all_switchflip_rate',
+	'largestblock_assessed_pairs',
+	'largestblock_switches',
+	'largestblock_switch_rate',
+	'largestblock_switchflips',
+	'largestblock_switchflip_rate',
+	'largestblock_hamming',
+	'largestblock_hamming_rate'
+]
 PairwiseComparisonResults = namedtuple('PairwiseComparisonResults', pairwise_comparison_results_fields)
 
+
 def compare(variant_tables, sample, dataset_names):
+	"""
+	Return a PairwiseComparisonResults object if the variant_tables has a length of 2.
+	"""
 	assert len(variant_tables) > 1
 	variants = None
 	for variant_table in variant_tables:
