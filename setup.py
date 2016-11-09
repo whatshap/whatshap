@@ -58,7 +58,11 @@ def check_cython_version():
 
 
 def CppExtension(name, sources):
-	return Extension(name, sources=sources, language='c++', extra_compile_args=['-std=c++11'], undef_macros = [ "NDEBUG" ])
+	# Clang needs this option in order to find the unordered_set header
+	# TODO it would be better to check the compiler, not the platform
+	extra = ['-stdlib=libc++'] if sys.platform.startswith('darwin') else []
+	return Extension(name, sources=sources, language='c++',
+		extra_compile_args=['-std=c++11'] + extra, undef_macros = [ "NDEBUG" ])
 
 
 extensions = [
