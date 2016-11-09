@@ -204,6 +204,43 @@ can be in one or more BAM files. WhatsHap will match them based on sample
 names provided in the read groups (just like for the default single-individual
 mode).
 
+PED file format
+---------------
+
+WhatsHap recognizes `PLINK-compatible PED
+files <http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml>`_.
+A PED file is a white-space (space or tab) delimited file with at least six
+columns. WhatsHap checks the column count, but uses only
+
+  * column 2: individual ID
+  * column 3: paternal ID
+  * column 4: maternal ID
+
+The other columns are ignored. Lines starting with ``#`` are considered
+comments and are ignored. Empty lines are also ignored.
+
+To define a single trio, it is sufficient to have a single row in the PED file
+with the child, mother and father. It is *not* necessary to include "dummy" rows
+for individuals whose parents are unknown. (You will currently get a warning if
+you do, but this will be changed.)
+
+Here is an example defining a trio::
+
+    # Fields: family, individual_id, paternal_id, maternal_id, sex, phenotype
+    FAMILY01 the_child father mother 0 1
+
+A quartet (note how multiple consecutive spaces are fine)::
+
+    # Fields: family, individual_id, paternal_id, maternal_id, sex, phenotype
+    FAMILY01 one_child   father mother 0 1
+    FAMILY01 other_child father mother 0 1
+
+*Important*: The names in the PED file *must* match the sample names in your VCF
+and BAM files!
+
+Pedigree phasing parameters
+---------------------------
+
 Phasing in pedigree mode requires costs for recombination events. Per
 default, WhatsHap will assume a constant recombination rate across the
 chromosome to be phased. The recombination rate (in cM/Mb) can be
