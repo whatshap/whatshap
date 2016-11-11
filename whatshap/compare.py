@@ -20,6 +20,8 @@ def add_arguments(parser):
 		'comparison results from pair-wise comparison to (tab-separated).')
 	add('--only-snvs', default=False, action="store_true", help='Only process SNVs '
 		'and ignore all other variants.')
+	add('--switch-error-bed', default=None, help='Write BED file with switch error positions '
+		'to given filename.')
 	# TODO: what's the best way to request "two or more" VCFs?
 	add('vcf', nargs='+', metavar='VCF', help='At least two phased VCF files to be compared.')
 
@@ -117,6 +119,18 @@ def safefraction(nominator, denominator):
 		return nominator/denominator
 
 
+def create_bed_records(chromosome, phasing0, phasing1, positions, annotation_string):
+	"""Determines positions of switch errors between two phasings
+	and yields one BED record per switch error (encoded as a tuple).
+	The annotation_string is added to each record."""
+	assert len(phasing0) == len(phasing1) == len(positions)
+	switch_encoding0 = switch_encoding(phasing0)
+	switch_encoding1 = switch_encoding(phasing1)
+	for i, (sw0, sw1) in enumerate(zip(switch_encoding0, switch_encoding1)):
+		if sw0 != sw1:
+			yield (chromosome, positions[i]+1, positions[i+1]+1, annotation_string)
+
+
 def print_errors(errors, phased_pairs, print_hamming=False):
 	print('    phased pairs of variants assessed:', str(phased_pairs).rjust(count_width))
 	print('                        switch errors:', str(errors.switches).rjust(count_width))
@@ -144,7 +158,7 @@ pairwise_comparison_results_fields = [
 PairwiseComparisonResults = namedtuple('PairwiseComparisonResults', pairwise_comparison_results_fields)
 
 
-def compare(variant_tables, sample, dataset_names):
+def compare(chromosome, variant_tables, sample, dataset_names):
 	"""
 	Return a PairwiseComparisonResults object if the variant_tables has a length of 2.
 	"""
@@ -159,6 +173,7 @@ def compare(variant_tables, sample, dataset_names):
 	print('         common heterozygous variants:', str(len(variants)).rjust(count_width))
 	print('         (restricting to these below)')
 	phases = []
+	positions = sorted( variant.position for variant in variants )
 	for variant_table in variant_tables:
 		p = [ phase for variant, phase in zip(variant_table.variants, variant_table.phases_of(sample)) if variant in variants ]
 		assert len(p) == len(variants)
@@ -187,6 +202,7 @@ def compare(variant_tables, sample, dataset_names):
 	longest_block = None
 	longest_block_errors = None
 	phased_pairs = 0
+	bed_records = []
 	if len(variant_tables) == 2:
 		total_errors = PhasingErrors()
 		for block in block_intersection.values():
@@ -194,7 +210,9 @@ def compare(variant_tables, sample, dataset_names):
 				continue
 			phasing0 = ''.join( str(phases[0][i].phase) for i in block )
 			phasing1 = ''.join( str(phases[1][i].phase) for i in block )
+			block_positions = [ positions[i] for i in block ]
 			errors = compare_block(phasing0, phasing1)
+			bed_records.extend(create_bed_records(chromosome, phasing0, phasing1, block_positions, '{}<-->{}'.format(*dataset_names)))
 			total_errors += errors
 			phased_pairs += len(block) - 1
 			if (longest_block is None) or (len(block) > longest_block):
@@ -221,7 +239,7 @@ def compare(variant_tables, sample, dataset_names):
 			largestblock_switchflip_rate = safefraction(longest_block_errors.switch_flips.switches+longest_block_errors.switch_flips.flips, longest_block - 1),
 			largestblock_hamming = longest_block_errors.hamming,
 			largestblock_hamming_rate = safefraction(longest_block_errors.hamming, longest_block)
-		)
+		), bed_records
 	else:
 		histogram = defaultdict(int)
 		total_compared = 0
@@ -258,7 +276,7 @@ def compare(variant_tables, sample, dataset_names):
 			)
 
 
-def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False):
+def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False, switch_error_bed=None):
 	vcf_readers = [VcfReader(f, indels=not only_snvs, phases=True) for f in vcf]
 	if names:
 		dataset_names = names.split(',')
@@ -326,6 +344,10 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False
 		fields.extend(['het_variants0', 'only_snvs'])
 		print(*fields, sep='\t', file=tsv_pairwise_file)
 
+	switch_error_bedfile = None
+	if switch_error_bed:
+		switch_error_bedfile = open(switch_error_bed, 'w')
+
 	print('FILENAMES')
 	for name, filename in zip(dataset_names, vcf):
 		print(name.rjust(longest_name+2), '=', filename)
@@ -333,6 +355,7 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False
 	width = max(longest_name, 15) + 5
 	for chromosome in sorted(chromosomes):
 		print('---------------- Chromosome {} ----------------'.format(chromosome))
+		all_bed_records = []
 		variant_tables = [ vcf[chromosome] for vcf in vcfs ]
 		all_variants_union = set()
 		all_variants_intersection = None
@@ -361,19 +384,29 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False
 		for i in range(len(vcfs)):
 			for j in range(i+1, len(vcfs)):
 				print('PAIRWISE COMPARISON: {} <--> {}:'.format(dataset_names[i],dataset_names[j]))
-				results = compare([variant_tables[i], variant_tables[j]], sample, [dataset_names[i], dataset_names[j]])
+				results, bed_records = compare(chromosome, [variant_tables[i], variant_tables[j]], sample, [dataset_names[i], dataset_names[j]])
+				all_bed_records.extend(bed_records)
 				if tsv_pairwise_file:
 					fields = [sample, chromosome, dataset_names[i], dataset_names[j], vcf[i], vcf[j]]
 					fields.extend(results)
 					fields.extend([het_variants0, int(only_snvs)])
 					print(*fields, sep='\t', file=tsv_pairwise_file)
 
+		# if requested, write all switch errors found in the current chromosome to the bed file
+		if switch_error_bedfile:
+			all_bed_records.sort()
+			for record in all_bed_records:
+				print(*record, sep='\t', file=switch_error_bedfile)
+
 		if len(vcfs) > 2:
 			print('MULTIWAY COMPARISON OF ALL PHASINGS:')
-			compare(variant_tables, sample, dataset_names)
+			compare(chromosome, variant_tables, sample, dataset_names)
 
 	if tsv_pairwise:
 		tsv_pairwise_file.close()
+
+	if switch_error_bed:
+		switch_error_bedfile.close()
 
 
 def main(args):
