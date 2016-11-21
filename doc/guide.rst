@@ -2,13 +2,21 @@
 User guide
 ==========
 
-Run WhatsHap like this::
+The basic command-line for running WhatsHap is this::
 
     whatshap phase -o phased.vcf input.vcf input.bam
 
-Phasing information is added to the VCF file in a way that is compatible with
-GATK’s ReadBackedPhasing. That is, the HP tag denotes which set of phased
-variants a variant belongs to. The VCF file can also be gzip-compressed.
+With error-prone reads (PacBio, Nanopore), we strongly recommend that you
+enable re-alignment mode by providing a reference in FASTA format::
+
+    whatshap phase --reference ref.fasta -o phased.vcf input.vcf input.bam
+
+You can also phase indels by adding the option ``--indels``.
+
+WhatsHap adds the phasing information to the input VCF file and writes it to
+the output VCF file. :ref:`See below to understand how phasing information
+is represented <phasing_in_vcfs>`.
+The VCF file can also be gzip-compressed.
 
 
 Features and limitations
@@ -63,6 +71,84 @@ read that covers at least two heterozygous variant calls, so even paired-end or
 mate-pair reads are somewhat helpful. If you have multiple sets of reads, you
 can combine them by providing multiple BAM files on the command line.
 
+
+Input data requirements
+=======================
+
+WhatsHap needs correct metadata in the VCF and the BAM input files so that it can
+figure out which read belongs to which sample. As an example, assume you give
+WhatsHap a VCF file that starts like this::
+
+    ##fileformat=VCFv4.1
+    #CHROM  POS  ID  REF  ALT  QUAL   FILTER  INFO FORMAT  SampleA  SampleB
+    chr1    100  .   A    T    50.0   .       .    GT      0/1      0/1
+    ...
+
+WhatsHap sees that there are two samples in it named “SampleA” and “SampleB”
+and expects to find the reads for these samples somewhere in the BAM file (or
+files) that you provide. For that to happen, all reads belonging to a sample
+must have the ``RG`` tag, and at the same time, the read group must occur in the
+header of the SAM/BAM file and have the correct sample name. In this example, a
+header might look like this::
+
+	@HD     VN:1.4  SO:coordinate
+	@SQ     SN:...  LN:...
+	...
+	@RG   ID:1  SM:SampleA
+	@RG   ID:2  SM:SampleB
+
+The ``@RG`` header line will often contain more fields, such as ``PL`` for
+the platform and ``LB`` for the library name. WhatsHap only uses the ``SM``
+attribute.
+
+With the above header, the individual alignments in the file will be tagged with
+a read group of ``1`` or ``2``. For example, an alignment in the BAM file that
+comes from SampleA would be tagged with ``RG:Z:1``. This is also described in
+the `SAM/BAM specification <https://samtools.github.io/hts-specs/>`_.
+
+It is perfectly fine to have multiple read groups for a single sample::
+
+	@RG   ID:1a  SM:SampleA
+	@RG   ID:1b  SM:SampleA
+	@RG   ID:2   SM:SampleB
+
+
+What to do when the metadata is not correct
+-------------------------------------------
+
+If WhatsHap complains that it cannot find the reads for a sample, then chances
+are that the metadata in the BAM and/or VCF file are incorrect. You have the
+following options:
+
+* Edit the sample names in the VCF header.
+* Set the correct read group info in the BAM file, for example with the Picard
+  tool AddOrReplaceReadGroups.
+* Re-map the reads and pass the correct metadata-setting options to your mapping
+  tool.
+* Use the ``--ignore-read-groups`` option of WhatsHap. In this case, WhatsHap
+  ignores all read group metadata in the BAM input file(s) and assumes that all
+  reads come from the sample that you want to phase. In this mode, you can
+  only phase a single sample at a time. If the input VCF file contains more than
+  one sample, you need to specify which one to phase by using
+  ``--sample=The_Sample_Name``.
+
+
+Using multiple input BAM files
+------------------------------
+
+WhatsHap supports reading from multiple BAM files. If a sample occurs in more
+than one BAM file, WhatsHap will detect this and use all reads at the same time.
+This is particularly useful for merging reads from multiple technologies. For
+example, if you have Illumina mate-pair reads in one file and PacBio reads in
+another file, you can run the phasing like this::
+
+    whatshap phase -o phased.vcf input.vcf matepairs.bam pacbio.bam
+
+As before, you just need to make sure that the read group information is
+accurate in all files.
+
+
+.. _phasing_in_vcfs:
 
 Representation of phasing information in VCFs
 =============================================
