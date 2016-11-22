@@ -364,10 +364,44 @@ Sometimes it is helpful to visually inspect phasing results by looking at them
 in a genome browser. The steps here assume that you use the Integrative Genomics
 Viewer (IGV).
 
-First, run the ``whatshap haplotag`` subcommand on your phased VCF file. It
+
+GTF with haplotype blocks
+-------------------------
+
+WhatsHap can create a GTF file from a phased VCF file that describes the
+haplotype blocks. With phasing results in ``phased.vcf``, run ::
+
+    whatshap stats --gtf=phased.gtf phased.vcf
+
+WhatsHap will print some statistics about the phasing in the VCF, and it
+will also create the file ``phased.gtf``.
+
+Now open both ``phased.vcf`` and ``phased.gtf`` in IGV in order to inspect the
+haplotype block structure. In this example, there are four haplotype blocks and
+it is clear which variants they connect:
+
+|
+
+.. image:: _static/gtf.png
+
+|
+
+Haplotype blocks can be interleaved or nested if mate-pair or paired-end reads
+are used for phasing. In the GTF track, you will note this because the blocks
+appear as “exons” connected with a horizontal line (not shown in the screenshot).
+
+
+Coloring reads
+--------------
+
+It is often a lot more interesting to also show the reads along with the
+variants.
+
+For that, run the ``whatshap haplotag`` subcommand on your phased VCF file. It
 tags each read in a BAM file with ``HP:i:1`` or ``HP:i:2`` depending on which
-haplotype it belongs to. If your phasing results are in ``phased.vcf`` and
-your reads in ``alignments.bam``, run ::
+haplotype it belongs to, and also adds a ``PS`` tag that describes in which
+haplotype block the read is. With your aligned reads in ``alignments.bam``,
+run ::
 
     whatshap haplotag -o haplotagged.bam --reference reference.fasta phased.vcf alignments.bam
 
@@ -377,19 +411,30 @@ how this is done, if you used ``--reference`` with your ``phase`` command, you
 should alse use ``--reference`` here.
 
 The input VCF may have been phased by any program, not only WhatsHap, as long as
-the phasing info is recording with a ``PS`` or ``HP`` tag.
+the phasing info is recorded with a ``PS`` or ``HP`` tag.
 
 Also, the reads in the input BAM file do not have to be the ones that were used
-for phasing! That is, you can phase from one set of reads and then assign
+for phasing. That is, you can even phase using one set of reads and then assign
 haplotypes to an entirely different set of reads (but from the same sample).
 
-The command above creates a BAM file ``haplotagged.bam`` with the tagged reads.
+The command above creates a BAM file ``haplotagged.bam`` with the tagged reads,
+which you can open in IGV.
 
-To visualize this in IGV, open your reference and the ``haplotagged.bam`` file.
-Right click on the BAM track and choose *Color Alignments by* → *tag*. Then type
-in ``HP`` and click “Ok”.
+To visualize the haplotype blocks, right click on the BAM track and choose
+*Color Alignments by* → *tag*. Then type in ``PS`` and click “Ok”. Here is an
+example of how this can look like. From the colors of the reads alone,
+it is easy to see that there are four haplotype blocks.
 
-Additionally, you make want to do the same with *Sort Alignments by* → *tag*.
+|
+
+.. image:: _static/haplotagged-PS.png
+
+|
+
+You can also visualize the haplotype assignment. For that, choose
+*Color Alignments by* → *tag* and type in ``HP``. Additionally, you may want to
+also sort the alignments by the ``HP`` tag using the option *Sort Alignments by*
+in the right-click context menu.
 
 Here is an impression of how this can look like. The reads colored in red belong
 to one haplotype, while the ones in blue belong to the other. Gray reads are
@@ -398,6 +443,6 @@ heterozygous variants.
 
 |
 
-.. image:: _static/haplotagged.png
+.. image:: _static/haplotagged-HP.png
 
 |

@@ -2,6 +2,11 @@
 Changes
 =======
 
+in development
+--------------
+
+* Expand documentation.
+
 v0.13 (2016-10-27)
 ------------------
 
