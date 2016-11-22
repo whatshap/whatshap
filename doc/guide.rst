@@ -355,3 +355,49 @@ SHAPEIT
 <https://mathgen.stats.ox.ac.uk/genetics_software/shapeit/shapeit.html#gmap>`_.
 Since genetic map files provide information for only one chromosome, the
 ``--genmap`` option has to be combined with ``--chromosome``.
+
+
+Visualizing phasing results
+===========================
+
+Sometimes it is helpful to visually inspect phasing results by looking at them
+in a genome browser. The steps here assume that you use the Integrative Genomics
+Viewer (IGV).
+
+First, run the ``whatshap haplotag`` subcommand on your phased VCF file. It
+tags each read in a BAM file with ``HP:i:1`` or ``HP:i:2`` depending on which
+haplotype it belongs to. If your phasing results are in ``phased.vcf`` and
+your reads in ``alignments.bam``, run ::
+
+    whatshap haplotag -o haplotagged.bam --reference reference.fasta phased.vcf alignments.bam
+
+The ``haplotag`` commands re-detects the alleles in the reads in the same way
+the main ``phase`` command does it. Since availability of a reference influences
+how this is done, if you used ``--reference`` with your ``phase`` command, you
+should alse use ``--reference`` here.
+
+The input VCF may have been phased by any program, not only WhatsHap, as long as
+the phasing info is recording with a ``PS`` or ``HP`` tag.
+
+Also, the reads in the input BAM file do not have to be the ones that were used
+for phasing! That is, you can phase from one set of reads and then assign
+haplotypes to an entirely different set of reads (but from the same sample).
+
+The command above creates a BAM file ``haplotagged.bam`` with the tagged reads.
+
+To visualize this in IGV, open your reference and the ``haplotagged.bam`` file.
+Right click on the BAM track and choose *Color Alignments by* → *tag*. Then type
+in ``HP`` and click “Ok”.
+
+Additionally, you make want to do the same with *Sort Alignments by* → *tag*.
+
+Here is an impression of how this can look like. The reads colored in red belong
+to one haplotype, while the ones in blue belong to the other. Gray reads are
+those that could not be tagged, usually because they don’t cover any
+heterozygous variants.
+
+|
+
+.. image:: _static/haplotagged.png
+
+|
