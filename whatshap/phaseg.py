@@ -46,7 +46,7 @@ def vg_reader(locus_file, gam_file):
 	3. files consists of all connected components.
 	"""
 	gam_list = []
-	with stream.open(locus_file, "rb") as istream:
+	with stream.open(gam_file, "rb") as istream:
 		for data in istream:
 			aln = vg_pb2.Alignment()
 			aln.ParseFromString(data)
@@ -54,7 +54,7 @@ def vg_reader(locus_file, gam_file):
 
 		
 	locus_list = []
-	with stream.open(gam_file, "rb") as istream:
+	with stream.open(locus_file, "rb") as istream:
 		for data in istream:
 			aln = vg_pb2.Locus()
 			aln.ParseFromString(data)
@@ -64,37 +64,53 @@ def vg_reader(locus_file, gam_file):
 	# create a dictionary of branches for each locus based on locus file.
 	locus_branch_mapping=defaultdict()
 	locus_count=0
-	alleles_per_pos=[]
+	alleles_per_pos= defaultdict()
 	for l in locus_list:
 		per_locus_position=[]
-		for paths in l.allele:
-			tmp=[]
-			for mappings in paths.mapping:
-				tmp.append(mappings.position.node_id)
-			per_locus_position.append(tmp)
-		alleles_per_pos[locus_count] = len(per_locus_position)
-		locus_branch_mapping[locus_count]=per_locus_position
-		locus_count=locus_count+1
+		if len(l.allele) > 1:
+			for paths in l.allele:
+				tmp=[]
+				if len(paths.mapping) > 1: # donot consider homozygous locus, only with multiple paths.
+					for mappings in paths.mapping:
+						tmp.append(mappings.position.node_id)
+					per_locus_position.append(tmp)
+			alleles_per_pos[locus_count] = len(per_locus_position)
+			locus_branch_mapping[locus_count]=per_locus_position
+			locus_count=locus_count+1
 		
 	# key is the values in locus_branch_mapping and value is triplet(locus, branch, alleles to be flipped)
+	# if a simple bubbles consists of complicated path, then there would atleast one node that uniquely determine the branch.
 	reverse_mapping= defaultdict(list)
 	for k,v in locus_branch_mapping.items():
-		for i,b in enumerate(v):
-			reverse_mapping[tuple(b)]=[k,i, len(v)-1]
+		if len(v) > 1: # more than one branch
+			for i,b in enumerate(v):
+				for k,j in enumerate(b): # reverse_mapping for every node.
+					if j in reverse_mapping:
+						if k==0 or k==len(b):
+							reverse_mapping[j]=[-1,-1,-1] # handle start and sink node.
+						continue
+					reverse_mapping[j]=[k,i, len(v)-1]
 
 		
 	# extract reads from GAM file associated with the locus and create a sorted readset.
 	readset=ReadSet()  
-
+	#TODO: update for phred score (0,10,10....) -- equal to number of alleles.
 	for g in gam_list:
 		# hard-coded source id, mapping quality and other values.
-		read=Read(g.name, 0, 0, 0)
-		tmp=[]
-		for i in g.path.mapping:
-			tmp.append(i.position.node_id)
-			if tuple(tmp) in reverse_mapping:
-				read.add_variant(reverse_mapping[tuple(tmp)][0], reverse_mapping[tuple(tmp)][1], [0]*reverse_mapping[tuple(tmp)][2])
-				tmp=[]
+		read=Read(g.name, 0, 0, 0) # create read for each read alignment
+		#tmp=[]
+		prev_locus= 0
+		prev_branch= 0
+		for i in g.path.mapping: # go over the mapping in a read
+			node = i.position.node_id # go over nodes in a mapping
+			if node in reverse_mapping and reverse_mapping[node][0]!=-1: # handle start and sink node.
+				locus= reverse_mapping[node][0]
+				alleles = reverse_mapping[node][1]
+				qualities =  [0]*reverse_mapping[node][2]
+				if locus!= prev_locus or alleles!= prev_branch:
+					read.add_variant(locus, alleles, qualities) # if any new locus of branch is encountered, enter a variant in read.
+					prev_locus = locus 
+					prev_branch = qualities
 		readset.add(read)
 	for read in readset:
 			read.sort()
