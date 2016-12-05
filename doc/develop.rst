@@ -33,7 +33,7 @@ Alternatively, if you do not want to use virtualenv, you can do the following::
 
 	git clone https://bitbucket.org/whatshap/whatshap.git
 	cd whatshap
-	python3 setup.py build_ext -i
+	CC=gcc python3 setup.py build_ext -i
 	bin/whatshap
 
 This requires Cython, pysam, and pyvcf to be installed.

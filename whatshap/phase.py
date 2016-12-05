@@ -24,9 +24,9 @@ from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
 from .bam import BamIndexingError, SampleNotFoundError
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
-from .ilp import phase_by_ilp
+from .ilp import phase_by_flipping_ilp, phase_by_bigM_ilp
 
-__author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
+__author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin, Gunnar Klau"
 
 logger = logging.getLogger(__name__)
 
@@ -506,7 +506,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					logger.info('Phasing %d sample%s by solving the %s problem ...',
 						len(family), 's' if len(family) > 1 else '', problem_name)
 					if ilp:
-						superreads_list = phase_by_ilp(all_reads, not distrust_genotypes)
+						superreads_list = phase_by_flipping_ilp(all_reads, not distrust_genotypes)
 						transmission_vector = []
 					else:
 						dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes)
