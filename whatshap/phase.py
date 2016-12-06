@@ -135,10 +135,12 @@ def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_
 		sys.exit(1)
 
 	# Add phasing information from VCF files, if present
+	vcf_source_ids = set()
 	for i, phase_input_vcf in enumerate(phase_input_vcfs):
 		if chromosome in phase_input_vcf:
 			vt = phase_input_vcf[chromosome]
 			source_id = len(phase_input_bam_filenames) + i
+			vcf_source_ids.add(source_id)
 			for read in vt.phased_blocks_as_reads(sample, variants, source_id, numeric_sample_ids[sample]):
 				readset.add(read)
 
@@ -148,14 +150,14 @@ def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_
 	readset.sort()
 
 	logger.info('Found %d reads covering %d variants', len(readset), len(readset.get_positions()))
-	return readset
+	return readset, vcf_source_ids
 
 
-def select_reads(readset, max_coverage):
+def select_reads(readset, max_coverage, preferred_source_ids):
 	readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
 	logger.info('Kept %d reads that cover at least two variants each', len(readset))
 	logger.info('Reducing coverage to at most %dX by selecting most informative reads ...', max_coverage)
-	selected_indices = readselection(readset, max_coverage)
+	selected_indices = readselection(readset, max_coverage, preferred_source_ids)
 	selected_reads = readset.subset(selected_indices)
 	logger.info('Selected %d reads covering %d variants',
 		len(selected_reads), len(selected_reads.get_positions()))
@@ -357,6 +359,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		# Read phase information provided as VCF files, if provided.
 		# TODO: do this chromosome- and/or sample-wise on demand to save memory.
 		phase_input_vcfs = []
+
 		timers.start('parse_phasing_vcfs')
 		for reader, filename in zip(phase_input_vcf_readers, phase_input_vcf_filenames):
 			# create dict mapping chromsome names to VariantTables
@@ -474,12 +477,12 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				for sample in family:
 					with timers('read_bam'):
 						bam_sample = None if ignore_read_groups else sample
-						readset = read_reads(readset_reader, chromosome, phasable_variant_table.variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
+						readset, vcf_source_ids = read_reads(readset_reader, chromosome, phasable_variant_table.variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
 
 					# TODO: Read selection done w.r.t. all variants, where using heterozygous variants only
 					# TODO: would probably give better results.
 					with timers('select'):
-						selected_reads = select_reads(readset, max_coverage_per_sample)
+						selected_reads = select_reads(readset, max_coverage_per_sample, preferred_source_ids = vcf_source_ids)
 					readsets[sample] = selected_reads
 					if (len(family) == 1) and not distrust_genotypes:
 						# When having a pedigree (i.e. len(family)>1), then blocks are also merged after phasing based on the
