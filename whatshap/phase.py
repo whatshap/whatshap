@@ -371,7 +371,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 			# Iterate over all families to process, i.e. a separate DP table is created
 			# for each family.
 			# TODO: Can the body of this loop be factored out into a phase_family function?
-			for representative_sample, family in families.items():
+			for representative_sample, family in sorted(families.items()):
 				if len(family) == 1:
 					logger.info('---- Processing individual %s', representative_sample)
 				else:
