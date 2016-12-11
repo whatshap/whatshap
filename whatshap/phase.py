@@ -22,7 +22,7 @@ from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSamp
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
-from .bam import BamIndexingError, SampleNotFoundError
+from .bam import BamIndexingError, SampleNotFoundError, ReferenceNotFoundError
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
 
@@ -123,6 +123,15 @@ def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_
 		readset = ReadSet()
 	except ReadSetError as e:
 		logger.error("%s", e)
+		sys.exit(1)
+	except ReferenceNotFoundError:
+		logger.error("The chromosome %r was not found in the BAM file.", chromosome)
+		if chromosome.startswith('chr'):
+			alternative = chromosome[3:]
+		else:
+			alternative = 'chr' + chromosome
+		if readset_reader.has_reference(alternative):
+			logger.error("Found %r instead", alternative)
 		sys.exit(1)
 
 	# Add phasing information from VCF files, if present

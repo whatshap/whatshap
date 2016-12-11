@@ -21,6 +21,10 @@ class SampleNotFoundError(Exception):
 	pass
 
 
+class ReferenceNotFoundError(Exception):
+	pass
+
+
 def is_local(path):
 	return urlparse(path).scheme == ''
 
@@ -70,7 +74,11 @@ class SampleBamReader:
 				index_bam(path)
 		self.source_id = source_id
 		self._samfile = pysam.Samfile(path)
+		self._references = frozenset(self._samfile.references)
 		self._initialize_sample_to_group_ids()
+
+	def has_reference(self, name):
+		return name in self._references
 
 	def _initialize_sample_to_group_ids(self):
 		"""
@@ -93,7 +101,12 @@ class SampleBamReader:
 		Yield instances of AlignmentWithSourceID, with source_id value given
 		at construction time.
 		Raise KeyError if sample not found among samples named in RG header.
+		Raise ReferenceNotFoundError when reference is not in the BAM.
 		"""
+		if reference not in self._references:
+			# fetch() (below) raises a ValueError when the reference is invalid,
+			# but also on other errors.
+			raise ReferenceNotFoundError(reference)
 		if sample is None:
 			for bam_read in self._samfile.fetch(reference):
 				yield AlignmentWithSourceID(self.source_id, bam_read)
@@ -163,6 +176,9 @@ class MultiBamReader:
 			raise SampleNotFoundError('Sample not found in any input BAM file')
 		for it in heapq.merge(*iterators):
 			yield AlignmentWithSourceID(it.source_id, it.segment)
+
+	def has_reference(self, name):
+		return all(reader.has_reference(name) for reader in self._readers)
 
 	def close(self):
 		for f in self._readers:

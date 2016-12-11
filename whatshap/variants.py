@@ -99,6 +99,9 @@ class ReadSetReader:
 				continue
 			yield alignment
 
+	def has_reference(self, chromosome):
+		return self._reader.has_reference(chromosome)
+
 	def _alignments_to_readdict(self, alignments, variants, sample, reference):
 		"""
 		Convert BAM alignments to Read objects.

@@ -561,3 +561,12 @@ def test_phased_blocks():
 
 		blocks = [(p.block_id if p is not None else None) for p in table.phases_of('sample')]
 		assert blocks == [10, 10, None, 200, 200]
+
+
+@raises(SystemExit)
+def test_wrong_chromosome():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output.vcf'
+		run_whatshap(phase_input_files=[short_bamfile],
+			ignore_read_groups=True,
+			variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)
