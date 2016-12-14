@@ -1,7 +1,8 @@
 Developing
 ==========
 
-This is the developer documentation for WhatsHap.
+The `WhatsHap source code is on Bitbucket <https://bitbucket.org/whatshap/whatshap/>`_.
+WhatsHap is developed in Python 3, Cython and C++.
 
 
 Development installation
