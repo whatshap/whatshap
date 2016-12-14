@@ -44,6 +44,30 @@ In both cases, the information from the input VCF is simply copied to output
 VCF unchanged.
 
 
+Subcommands
+===========
+
+WhatsHap comes with the following subcommands.
+
+========== ===================================================
+Subcommand Description
+========== ===================================================
+phase      Phase variants in a VCF with the WhatsHap algorithm
+stats      Print phasing statistics
+compare    Compare two or more phasings
+hapcut2vcf Convert hapCUT output format to VCF
+unphase    Remove phasing information from a VCF file
+haplotag   Tag reads by haplotype
+haplofasta Write haplotypes in FASTA format from a phased VCF
+========== ===================================================
+
+Not all are fully documented in this manual, yet. To get help for a
+subcommand named ``SUBCOMMAND``, run ::
+
+    whatshap SUBCOMMAND --help
+
+
+
 Recommended workflow
 ====================
 
