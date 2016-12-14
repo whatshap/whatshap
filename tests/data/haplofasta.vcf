@@ -1,0 +1,21 @@
+##fileformat=VCFv4.1
+##
+## 1234567890123456
+## GAGCTTAGCTCAGTCA
+##
+## hap1:
+## 1234567890123456
+## GAGCTTA-CGCA-TTA
+##
+## hap2:
+## 1234-567890123456
+## GTGCGTTAGCGCAGTCA
+##
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample
+ref	2	.	A	T	500.0	.	.	GT	0|1
+ref	4	.	C	CG	500.0	.	.	GT	0|1
+ref	7	.	AG	A	500.0	.	.	GT	1|0
+ref	10	.	T	G	500.0	.	.	GT	1/1
+ref	12	.	AG	A	500.0	.	.	GT	1|0
+ref	15	.	C	T	500.0	.	.	GT	1|0
+ref	16	.	A	A	500.0	.	.	GT	0/0
