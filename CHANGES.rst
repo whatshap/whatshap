@@ -5,7 +5,9 @@ Changes
 in development
 --------------
 
-* Expand documentation.
+* New subcommand ``haplofasta``: Write haplotypes in FASTA format from a phased
+  VCF. The implementation is preliminary and may change for a while.
+* Expanded documentation.
 
 v0.13 (2016-10-27)
 ------------------
