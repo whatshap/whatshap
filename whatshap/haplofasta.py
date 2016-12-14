@@ -9,7 +9,7 @@ references (haplotypes) are created by incorporating the
 alleles into the reference genome. For each sample in the
 input VCF, two FASTA files are written to the target directory.
 
-With FOLDER the target folder, the following files are written
+With FOLDER being the target folder, the following files are written
 for each SAMPLE:
 
 - FOLDER/SAMPLE.1.fasta
@@ -118,7 +118,7 @@ def make_chromosome(chr_out, liftover_out, chromosome, reference, variants):
 	modind = 0
 	numsame = 0
 	diff = 0
-	for ind, mer in enumerate(modrefchrom):        
+	for ind, mer in enumerate(modrefchrom):
 		for x in mer:
 			if diff == modind - ind:
 				numsame += 1
@@ -280,3 +280,13 @@ def main(args):
 		reference_path=args.reference,
 		destination_folder=args.destination,
 		chromosome=args.chromosome)
+
+
+if __name__ == '__main__':
+	# This script has currently no dependency on WhatsHap.
+	# The following code makes it possible to run it stand-alone.
+	logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
+	from argparse import ArgumentParser
+	parser = ArgumentParser(description=__doc__)
+	add_arguments(parser)
+	main(parser.parse_args())
