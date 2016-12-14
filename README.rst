@@ -6,7 +6,7 @@
 
 |
 
-.. image:: https://bitbucket.org/repo/8AjxBd/images/3378940113-whatshap_logo.png
+.. image:: https://bitbucket.org/repo/8AjxBd/images/543323972-whatshap_logo.png
     :scale: 50%
 
 |
