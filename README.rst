@@ -4,6 +4,9 @@
 .. image:: https://semaphoreci.com/api/v1/whatshap/whatshap/branches/master/shields_badge.svg
     :target: https://semaphoreci.com/whatshap/whatshap
 
+.. image:: https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg
+    :target: http://bioconda.github.io/recipes/whatshap/README.html
+
 |
 
 .. image:: https://bitbucket.org/repo/8AjxBd/images/543323972-whatshap_logo.png
