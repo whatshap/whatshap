@@ -17,8 +17,9 @@ trio_paired_end_bamfile = 'tests/data/paired_end.sorted.bam'
 recombination_breaks_bamfile = 'tests/data/recombination_breaks.sorted.bam'
 quartet2_bamfile = 'tests/data/quartet2.bam'
 short_bamfile = 'tests/data/short-genome/short.bam'
+indels_bamfile = 'tests/data/indels.bam'
 
-bam_files = [trio_bamfile, trio_merged_bamfile, trio_paired_end_bamfile, recombination_breaks_bamfile, quartet2_bamfile, short_bamfile]
+bam_files = [trio_bamfile, trio_merged_bamfile, trio_paired_end_bamfile, recombination_breaks_bamfile, quartet2_bamfile, short_bamfile, indels_bamfile]
 
 
 def setup_module():
@@ -570,3 +571,21 @@ def test_wrong_chromosome():
 		run_whatshap(phase_input_files=[short_bamfile],
 			ignore_read_groups=True,
 			variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)
+
+
+def test_indel_phasing():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output.vcf'
+		run_whatshap(phase_input_files=[indels_bamfile], indels=True, variant_file='tests/data/indels.vcf', reference='tests/data/random0.fasta', output=outvcf)
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf, indels=True, phases=True))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == 'random0'
+		assert len(table.variants) == 4
+		assert table.samples == ['sample1']
+
+		phase0 = VariantCallPhase(41, 0, None)
+		phase1 = VariantCallPhase(41, 1, None)
+		assert_phasing(table.phases_of('sample1'), [phase0, phase1, phase0, phase1])
