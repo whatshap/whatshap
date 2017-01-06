@@ -13,6 +13,10 @@ from .core import Read, PhredGenotypeLikelihoods
 logger = logging.getLogger(__name__)
 
 
+class VcfNotSortedError(Exception):
+	pass
+
+
 class VcfVariant:
 	"""A variant in a VCF file (not to be confused with core.Variant)"""
 
@@ -349,6 +353,9 @@ class VcfReader:
 				n_other += 1
 				if not self._indels:
 					continue
+
+			if (prev_position is not None) and (prev_position > pos):
+				raise VcfNotSortedError('VCF not ordered: {}:{} appears before {}:{}'.format(chromosome, prev_position+1, chromosome, pos+1))
 
 			if prev_position == pos:
 				logger.warning('Skipping duplicated position %s on chromosome %r', pos+1, chromosome)
