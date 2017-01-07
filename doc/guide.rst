@@ -381,6 +381,33 @@ Since genetic map files provide information for only one chromosome, the
 ``--genmap`` option has to be combined with ``--chromosome``.
 
 
+Creating phased references in FASTA format
+==========================================
+
+To reconstruct the two haplotypes that a phased VCF describes, the
+``bcftools consensus`` command can be used. It is part of
+`bcftools <http://www.htslib.org/>`_. As input, it expects a reference
+FASTA file and either an indexed BCF or a compressed and indexed VCF file.
+To work with the uncompressed VCF output that WhatsHap produces, proceed
+as follows::
+
+    bgzip phased.vcf
+    tabix phased.vcf.gz
+    bcftools consensus -H 1 -f reference.fasta phased.vcf.gz > haplotype1.fasta
+    bcftools consensus -H 2 -f reference.fasta phased.vcf.gz > haplotype2.fasta
+
+Here, ``reference.fasta`` is the reference in FASTA format and ``phased.vcf``
+is the phased VCF. Afterwards, ``haplotype1.fasta`` and ``haplotype2.fasta``
+will contain the two haplotypes.
+
+.. note:
+    If there are problems in the input VCF, bcftools (as of version 1.3) may
+    not give an error message and instead create files that are identical to
+    the input ``reference.fasta``. As a precaution, you may want to make sure
+    that the two haplotype FASTA files are indeed different from the input
+    reference FASTA.
+
+
 Visualizing phasing results
 ===========================
 
@@ -470,3 +497,5 @@ heterozygous variants.
 .. image:: _static/haplotagged-HP.png
 
 |
+
+
