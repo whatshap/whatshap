@@ -3,7 +3,7 @@ from collections import defaultdict
 from whatshap.core import Read, ReadSet, Variant
 
 
-def string_to_readset(s, w = None, sample_ids = None):
+def string_to_readset(s, n_alleles, w = None, sample_ids = None):
 	s = textwrap.dedent(s).strip()
 	if w is not None:
 		w = textwrap.dedent(w).strip().split('\n')
@@ -21,7 +21,9 @@ def string_to_readset(s, w = None, sample_ids = None):
 			q = 1
 			if w is not None:
 				q = int(w[index][pos])
-			read.add_variant(position=(pos+1) * 10, allele=int(c), quality=q)
+			quality=[q]*n_alleles
+			quality[int(c)]=0
+			read.add_variant(position=(pos+1) * 10, allele=int(c), quality=quality)
 		assert len(read) > 1, 'Reads covering less than two variants are not allowed'
 		rs.add(read)
 	print(rs)
@@ -62,7 +64,7 @@ def matrix_to_readset(lines) :
 
 			offset = int(s[2*i+1])
 			for pos, c in enumerate(s[2*i+2]) :
-				read.add_variant(position=(offset+pos) * 10, allele=int(c), quality = 1)
+				read.add_variant(position=(offset+pos) * 10, allele=int(c), quality = [1])
 
 		rs.add(read)
 
@@ -75,7 +77,7 @@ def flip_cost(variant, target_value):
 	if variant.allele == target_value:
 		return 0
 	else:
-		return variant.quality
+		return min([x for x in variant.quality if x !=0])
 
 
 def is_ambiguous(assignments):
@@ -106,7 +108,7 @@ def column_cost(variants, possible_assignments):
 	ambiguous = is_ambiguous([possible_assignments[i] for cost,i in l[:ties]])
 	for i in range(2):
 		if ambiguous[i]:
-			best_assignment[i] = 3
+			best_assignment[i] = -2
 	return min_cost, best_assignment
 
 

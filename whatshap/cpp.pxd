@@ -12,7 +12,7 @@ cdef extern from "../src/read.h":
 		Read(string, int, int, int) except +
 		Read(Read) except +
 		string toString() except +
-		void addVariant(int, int, int) except +
+		void addVariant(int, int, vector[unsigned int]) except +
 		string getName() except +
 		vector[int] getMapqs() except +
 		void addMapq(int) except +
@@ -20,8 +20,8 @@ cdef extern from "../src/read.h":
 		void setPosition(int, int)  except +
 		int getAllele(int) except +
 		void setAllele(int, int) except +
-		int getVariantQuality(int) except +
-		void setVariantQuality(int, int) except +
+		vector[unsigned int] getVariantQuality(int) except +
+		void setVariantQuality(int, vector[unsigned int]) except +
 		int getVariantCount() except +
 		void sortVariants() except +
 		bool isSorted() except +
@@ -75,7 +75,8 @@ cdef extern from "../src/pedigreedptable.h":
 
 cdef extern from "../src/phredgenotypelikelihoods.h":
 	cdef cppclass PhredGenotypeLikelihoods:
-		PhredGenotypeLikelihoods(unsigned int, unsigned int, unsigned int) except +
+		PhredGenotypeLikelihoods(vector[unsigned int]) except +
 		PhredGenotypeLikelihoods(PhredGenotypeLikelihoods) except +
 		unsigned int get(unsigned int) except +
+		vector[unsigned int] get_gl() except +
 		string toString() except +

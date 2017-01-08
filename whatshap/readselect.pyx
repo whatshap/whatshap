@@ -58,16 +58,16 @@ cdef priority_type_ptr _compute_score_for_read(cpp.ReadSet* readset, int index, 
 	cdef int min_quality = -1
 	cdef int good_score = 0
 	cdef int bad_score = 0
-	cdef int quality = -1
+	cdef vector[unsigned int] quality
 	cdef int pos = -1
 	covered_variants = []
 	for i in range(read.getVariantCount()):
 		quality = read.getVariantQuality(i)
 		pos = read.getPosition(i)
 		if i == 0:
-			min_quality = quality
+			min_quality = min(quality)
 		else:
-			min_quality = min(min_quality, quality)
+			min_quality = min(min_quality, min(quality))
 		variant_covered = vcf_indices.get(pos)
 		if variant_covered != None:
 			covered_variants.append(variant_covered)
@@ -250,5 +250,5 @@ def readselection(ReadSet pyreadset, max_cov, bridging=True):
 			loop, len(reads_in_slice), format_read_source_stats(pyreadset, reads_in_slice), len(bridging_reads),
 			format_read_source_stats(pyreadset, bridging_reads), len(undecided_reads)
 		)
-
+		
 	return selected_reads

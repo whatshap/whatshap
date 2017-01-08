@@ -136,7 +136,7 @@ cdef class Read:
 				return True
 		return False
 
-	def add_variant(self, int position, int allele, int quality):
+	def add_variant(self, int position, int allele, vector[unsigned int] quality):
 		assert self.thisptr != NULL
 		self.thisptr.addVariant(position, allele, quality)
 
@@ -326,7 +326,7 @@ cdef class Pedigree:
 		if gl == NULL:
 			return None
 		else:
-			return PhredGenotypeLikelihoods(gl.get(0), gl.get(1), gl.get(2))
+			return PhredGenotypeLikelihoods(gl[0].get_gl())
 
 	def __len__(self):
 		return self.thisptr.size()
@@ -336,8 +336,8 @@ cdef class Pedigree:
 
 
 cdef class PhredGenotypeLikelihoods:
-	def __cinit__(self, int gl0 = 0, int gl1 = 0, int gl2 = 0):
-		self.thisptr = new cpp.PhredGenotypeLikelihoods(gl0, gl1, gl2)
+	def __cinit__(self, vector[unsigned int] gl):
+		self.thisptr = new cpp.PhredGenotypeLikelihoods(gl)
 
 	def __dealloc__(self):
 		del self.thisptr
@@ -345,18 +345,18 @@ cdef class PhredGenotypeLikelihoods:
 	def __str__(self):
 		return self.thisptr.toString().decode('utf-8')
 
-	def __getitem__(self, genotype):
-		assert self.thisptr != NULL
-		assert isinstance(genotype, int)
-		assert 0 <= genotype <= 2
-		return self.thisptr.get(genotype)
+	#def __getitem__(self, genotype):
+	#	assert self.thisptr != NULL
+	#	assert isinstance(genotype, int)
+	#	assert 0 <= genotype <= 2
+	#	return self.thisptr.get(genotype)
 
-	def __len__(self):
-		return 3
+	#def __len__(self):
+	#	return 3
 
-	def __iter__(self):
-		for i in range(3):
-			yield self[i]
+	#def __iter__(self):
+	#	for i in range(3):
+	#		yield self[i]
 
 
 include 'readselect.pyx'
