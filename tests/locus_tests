@@ -1,0 +1,10 @@
+example
+locus_branch_mapping[0]=[{3},{6}]
+locus_branch_mapping[1]=[{8},{7}]
+#example1
+locus_branch_mapping[0]=[{3,10},{6,11}]
+locus_branch_mapping[1]=[{8},{7}]
+#example2
+locus_branch_mapping[0]=[{3,10},{6,11},{16}]
+locus_branch_mapping[1]=[{8},{7}]
+locus_branch_mapping[2]=[{13},{14}]
