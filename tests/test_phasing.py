@@ -41,16 +41,16 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, all_hetero
 	assert (haplotypes == (expected_haplotype1, expected_haplotype2)) or (haplotypes == (expected_haplotype2, expected_haplotype1))
 
 
-def check_phasing_single_individual(reads, weights = None):
+def check_phasing_single_individual(reads, n_alleles, weights = None):
 	# 0) set up read set
-	readset = string_to_readset(reads, weights)
+	readset = string_to_readset(reads,  n_alleles, weights)
 	positions = readset.get_positions()
 
 	# 1) Phase using PedMEC code for single individual
 	for all_heterozygous in [False, True]:
 		recombcost = [1] * len(positions) # recombination costs 1, should not occur
 		pedigree = Pedigree(NumericSampleIds())
-		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods(0,0,0)] * len(positions)
+		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods([0,0,0])] * len(positions)
 		pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 		dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=not all_heterozygous)
 		superreads, transmission_vector = dp_table.get_super_reads()
@@ -64,7 +64,7 @@ def check_phasing_single_individual(reads, weights = None):
 	for all_heterozygous in [False, True]:
 		recombcost = [1] * len(positions) # recombination costs 1, should not occur
 		pedigree = Pedigree(NumericSampleIds())
-		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods(0,0,0)] * len(positions)
+		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods([0,0,0])] * len(positions)
 		pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 		pedigree.add_individual('individual1', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 		pedigree.add_individual('individual2', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
@@ -75,14 +75,13 @@ def check_phasing_single_individual(reads, weights = None):
 		assert len(set(transmission_vector)) == 1
 		partition = dp_table.get_optimal_partitioning()
 		compare_phasing_brute_force(superreads[0], cost, partition, readset, all_heterozygous, weights)
-
-
+		
 def test_phase_trivial() :
 	reads = """
           11
            01
         """
-	check_phasing_single_individual(reads)
+	check_phasing_single_individual(reads, 2)
 
 
 def test_phase1():
@@ -91,7 +90,7 @@ def test_phase1():
 	 010
 	 010
 	"""
-	check_phasing_single_individual(reads)
+	check_phasing_single_individual(reads, 2)
 
 
 def test_phase2():
@@ -100,7 +99,7 @@ def test_phase2():
 	  00 00101
 	  001 0101
 	"""
-	check_phasing_single_individual(reads)
+	check_phasing_single_individual(reads, 2)
 
 
 def test_phase3():
@@ -109,7 +108,7 @@ def test_phase3():
 	  00 00101
 	  001 01010
 	"""
-	check_phasing_single_individual(reads)
+	check_phasing_single_individual(reads, 2)
 
 
 def test_phase4():
@@ -119,7 +118,7 @@ def test_phase4():
 	  001 01110
 	   1    111
 	"""
-	check_phasing_single_individual(reads)
+	check_phasing_single_individual(reads, 2)
 
 
 def test_phase4():
@@ -129,7 +128,7 @@ def test_phase4():
 	  001 01110
 	   1    111
 	"""
-	check_phasing_single_individual(reads)
+	check_phasing_single_individual(reads, 2)
 
 
 def test_phase5():
@@ -142,7 +141,7 @@ def test_phase5():
 	        10100
 	              101
 	"""
-	check_phasing_single_individual(reads)
+	check_phasing_single_individual(reads, 2)
 
 
 def test_weighted_phasing1():
@@ -158,4 +157,4 @@ def test_weighted_phasing1():
 	  223 56789
 	   2    111
 	"""
-	check_phasing_single_individual(reads, weights)
+	check_phasing_single_individual(reads, 2, weights)

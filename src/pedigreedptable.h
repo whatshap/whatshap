@@ -89,6 +89,7 @@ public:
 	~PedigreeDPTable();
 
 	unsigned int get_optimal_score();
+	int compute_alleles(std::unique_ptr<std::vector<const Entry*>> &current_input_column);
 
 	/** Computes optimal haplotypes and adds them (in the form of "super reads") to 
 	 *  the given read_set.
