@@ -7,7 +7,7 @@ import itertools
 import math
 from array import array
 from collections import namedtuple, defaultdict
-import vcf
+from cyvcf2 import VCF
 from .core import Read, PhredGenotypeLikelihoods
 
 logger = logging.getLogger(__name__)
@@ -275,7 +275,7 @@ class VcfReader:
 		"""
 		# TODO Always include deletions since they can 'overlap' other variants
 		self._indels = indels
-		self._vcf_reader = vcf.Reader(filename=path)
+		self._vcf_reader = VCF(path, gts012=True)
 		self._phases = phases
 		self._genotype_likelihoods = genotype_likelihoods
 		self.samples = self._vcf_reader.samples  # intentionally public
@@ -308,30 +308,48 @@ class VcfReader:
 			yield self._process_single_chromosome(chromosome, records)
 
 	@staticmethod
-	def _extract_HP_phase(call):
-		HP = getattr(call.data, 'HP', None)
-		if HP is None:
-			return None
-		assert len(HP) == 2
-		fields = [[int(x) for x in s.split('-')] for s in HP]
-		assert fields[0][0] == fields[1][0]
-		block_id = fields[0][0]
-		phase1, phase2 = fields[0][1]-1, fields[1][1]-1
-		assert ((phase1, phase2) == (0, 1)) or ((phase1, phase2) == (1, 0))
-		return VariantCallPhase(block_id=block_id, phase=phase1, quality=getattr(call.data, 'PQ', None))
+	def _extract_HP_phases(record):
+		return [None] * len(record.gt_types)
+		# TODO: Adapt this code
+		#HP = getattr(call.data, 'HP', None)
+		#if HP is None:
+			#return None
+		#assert len(HP) == 2
+		#fields = [[int(x) for x in s.split('-')] for s in HP]
+		#assert fields[0][0] == fields[1][0]
+		#block_id = fields[0][0]
+		#phase1, phase2 = fields[0][1]-1, fields[1][1]-1
+		#assert ((phase1, phase2) == (0, 1)) or ((phase1, phase2) == (1, 0))
+		#return VariantCallPhase(block_id=block_id, phase=phase1, quality=getattr(call.data, 'PQ', None))
 
 	@staticmethod
-	def _extract_GT_PS_phase(call):
-		if not call.is_het:
-			return None
-		if not call.phased:
-			return None
-		block_id = getattr(call.data, 'PS', 0)
-		if block_id is None:
-			block_id = 0
-		assert call.data.GT in ['0|1','1|0']
-		phase = int(call.data.GT[0])
-		return VariantCallPhase(block_id=block_id, phase=phase, quality=getattr(call.data, 'PQ', None))
+	def _extract_GT_PS_phase(record):
+		translate_gt = { '\x02\x02':'0/0', '\x02\x04':'0/1', '\x04\x04':1/1, '\x02\x05':'0|1', '\x04\x03':'1|0' }
+		GT_list = [translate_gt[gt] for gt in record.format('GT')]
+		try:
+			PS_list = record.format('PS')
+			if PS_list is None:
+				PS_list = [None] * len(record.gt_types)
+		except KeyError:
+			PS_list = [None] * len(record.gt_types)
+		try:
+			PQ_list = record.format('PQ')
+			if PQ_list is None:
+				PQ_list = [None] * len(record.gt_types)
+		except KeyError:
+			PQ_list = [None] * len(record.gt_types)
+		assert len(GT_list) == len(PS_list)  == len(PQ_list)
+		result = []
+		for GT, PS, PQ  in zip(GT_list,PS_list,PQ_list):
+			if GT in ['0|1', '1|0']:
+				block_id = int(PS)
+				if block_id is None:
+					block_id = 0
+				phase = int(GT[0])
+				result.append(VariantCallPhase(block_id=block_id, phase=phase, quality=PQ))
+			else:
+				result.append(None)
+		return result
 
 	def _process_single_chromosome(self, chromosome, records):
 		phase_detected = None
@@ -365,45 +383,37 @@ class VcfReader:
 			# Read phasing information (allow GT/PS or HP phase information, but not both),
 			# if requested
 			if self._phases:
-				phases = []
-				for call in record.samples:
-					phase = None
-					for extract_phase, phase_name in [(self._extract_HP_phase, 'HP'), (self._extract_GT_PS_phase, 'GT_PS')]:
-						p = extract_phase(call)
-						if p is not None:
-							if phase_detected is None:
-								phase_detected = phase_name
-							elif phase_detected != phase_name:
-								raise MixedPhasingError('Mixed phasing information in input VCF (e.g. mixing PS and HP fields)')
-							phase = p
-					phases.append(phase)
+				# TODO: Handle HP and MixedPhasingError
+				phases = self._extract_GT_PS_phase(record)
 			else:
-				phases = [ None ] * len(record.samples)
+				phases = [ None ] * len(record.gt_types)
 
 			# Read genotype likelihoods, if requested
-			if self._genotype_likelihoods:
-				genotype_likelihoods = []
-				for call in record.samples:
-					GL = getattr(call.data, 'GL', None)
-					PL = getattr(call.data, 'PL', None)
-					# Prefer GLs (floats) over PLs (ints) if both should be present
-					if GL is not None:
-						assert len(GL) == 3
-						genotype_likelihoods.append(GenotypeLikelihoods(*GL))
-					elif PL is not None:
-						assert len(PL) == 3
-						genotype_likelihoods.append(GenotypeLikelihoods( *(pl/-10 for pl in PL) ))
-					else:
-						genotype_likelihoods.append(None)
-			else:
-				genotype_likelihoods = [ None ] * len(record.samples)
+			# TODO: Port this code
+			#if self._genotype_likelihoods:
+				#genotype_likelihoods = []
+				#for call in record.samples:
+					#GL = getattr(call.data, 'GL', None)
+					#PL = getattr(call.data, 'PL', None)
+					## Prefer GLs (floats) over PLs (ints) if both should be present
+					#if GL is not None:
+						#assert len(GL) == 3
+						#genotype_likelihoods.append(GenotypeLikelihoods(*GL))
+					#elif PL is not None:
+						#assert len(PL) == 3
+						#genotype_likelihoods.append(GenotypeLikelihoods( *(pl/-10 for pl in PL) ))
+					#else:
+						#genotype_likelihoods.append(None)
+			#else:
+				#genotype_likelihoods = [ None ] * len(record.gt_type)
+			genotype_likelihoods = [ None ] * len(record.gt_types)
 
 			# PyVCF pecularity: gt_alleles is a list of the alleles in the
 			# GT field, but as strings.
 			# For example, when GT is 0/1, gt_alleles is ['0', '1'].
 			# And when GT is 2|1, gt_alleles is ['2', '1'].
-			GT_TO_INT = { 0: 0, 1: 1, 2: 2, None: -1 }
-			genotypes = array('b', (GT_TO_INT[call.gt_type] for call in record.samples))
+			GT_TO_INT = { 0: 0, 1: 1, 2: 2, 3: -1 }
+			genotypes = array('b', (GT_TO_INT[gt] for gt in record.gt_types))
 			variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
 			table.add_variant(variant, genotypes, phases, genotype_likelihoods)
 
