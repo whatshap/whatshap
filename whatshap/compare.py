@@ -3,7 +3,9 @@ Compare two or more phasings
 """
 import sys
 import logging
+import math
 from collections import defaultdict, namedtuple
+from itertools import chain
 from .vcf import VcfReader
 
 logger = logging.getLogger(__name__)
@@ -22,6 +24,10 @@ def add_arguments(parser):
 		'and ignore all other variants.')
 	add('--switch-error-bed', default=None, help='Write BED file with switch error positions '
 		'to given filename.')
+	add('--plot-blocksizes', default=None, help='Write PDF file with a block length histogram '
+		'to given filename (requires matplotlib).')
+	add('--longest-block-tsv', default=None, help='Write position-wise agreement of longest '
+		'joint blocks in each chromosome to tab-separated file.')
 	# TODO: what's the best way to request "two or more" VCFs?
 	add('vcf', nargs='+', metavar='VCF', help='At least two phased VCF files to be compared.')
 
@@ -157,6 +163,7 @@ pairwise_comparison_results_fields = [
 ]
 PairwiseComparisonResults = namedtuple('PairwiseComparisonResults', pairwise_comparison_results_fields)
 
+BlockStats = namedtuple('BlockStats', ['variant_count', 'span'])
 
 def compare(chromosome, variant_tables, sample, dataset_names):
 	"""
@@ -173,9 +180,10 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 	print('         common heterozygous variants:', str(len(variants)).rjust(count_width))
 	print('         (restricting to these below)')
 	phases = []
-	positions = sorted( variant.position for variant in variants )
+	sorted_variants = sorted(variants, key=lambda v: v.position)
 	for variant_table in variant_tables:
 		p = [ phase for variant, phase in zip(variant_table.variants, variant_table.phases_of(sample)) if variant in variants ]
+		assert [ v for v in variant_table.variants if v in variants ] == sorted_variants
 		assert len(p) == len(variants)
 		phases.append(p)
 
@@ -192,6 +200,18 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 		if not any_none:
 			joint_block_id = tuple( phases[i][variant_index].block_id for i in range(len(phases)) )
 			block_intersection[joint_block_id].append(variant_index)
+
+	# create statistics on each block in each data set
+	block_stats = []
+	for i in range(len(variant_tables)):
+		l = []
+		for block_id, variant_indices in blocks[i].items():
+			if len(variant_indices) < 2:
+				continue
+			span = sorted_variants[variant_indices[-1]].position - sorted_variants[variant_indices[0]].position
+			l.append(BlockStats(len(variant_indices), span))
+		block_stats.append(l)
+
 	for i in range(len(phases)):
 		print('non-singleton blocks in {}:'.format(dataset_names[i]).rjust(38), str(len([b for b in blocks[i].values() if len(b) > 1])).rjust(count_width))
 		print('                 --> covered variants:', str(sum(len(b) for b in blocks[i].values() if len(b) > 1)).rjust(count_width))
@@ -201,6 +221,8 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 	print('                 --> covered variants:', str(intersection_block_variants).rjust(count_width))
 	longest_block = None
 	longest_block_errors = None
+	longest_block_positions = None
+	longest_block_agreement = None
 	phased_pairs = 0
 	bed_records = []
 	if len(variant_tables) == 2:
@@ -210,7 +232,7 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 				continue
 			phasing0 = ''.join( str(phases[0][i].phase) for i in block )
 			phasing1 = ''.join( str(phases[1][i].phase) for i in block )
-			block_positions = [ positions[i] for i in block ]
+			block_positions = [ sorted_variants[i].position for i in block ]
 			errors = compare_block(phasing0, phasing1)
 			bed_records.extend(create_bed_records(chromosome, phasing0, phasing1, block_positions, '{}<-->{}'.format(*dataset_names)))
 			total_errors += errors
@@ -218,6 +240,11 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 			if (longest_block is None) or (len(block) > longest_block):
 				longest_block = len(block)
 				longest_block_errors = errors
+				longest_block_positions = block_positions
+				if hamming(phasing0, phasing1) < hamming(phasing0, complement(phasing1)):
+					longest_block_agreement = [1*(p0 == p1) for p0, p1 in zip(phasing0,phasing1) ]
+				else:
+					longest_block_agreement = [1*(p0 != p1) for p0, p1 in zip(phasing0,phasing1) ]
 		print('              ALL INTERSECTION BLOCKS:', '-'*count_width)
 		print_errors(total_errors, phased_pairs)
 		print('           LARGEST INTERSECTION BLOCK:', '-'*count_width)
@@ -239,7 +266,7 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 			largestblock_switchflip_rate = safefraction(longest_block_errors.switch_flips.switches+longest_block_errors.switch_flips.flips, longest_block - 1),
 			largestblock_hamming = longest_block_errors.hamming,
 			largestblock_hamming_rate = safefraction(longest_block_errors.hamming, longest_block)
-		), bed_records
+		), bed_records, block_stats, longest_block_positions, longest_block_agreement
 	else:
 		histogram = defaultdict(int)
 		total_compared = 0
@@ -274,9 +301,62 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 				str(count).rjust(count_width),
 				fraction2percentstr(count, total_compared).rjust(8)
 			)
+		return None, None, block_stats, None, None
 
 
-def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False, switch_error_bed=None):
+def create_blocksize_histogram(filename, block_stats, names):
+	try:
+		import matplotlib
+		import numpy
+		matplotlib.use('pdf')
+		from matplotlib import pyplot
+		from matplotlib.backends.backend_pdf import PdfPages
+	except ImportError:
+		logger.error('To use option --plot-blocksizes, you need to have numpy and matplotlib installed.')
+		sys.exit(1)
+
+	assert len(block_stats) == len(names)
+	
+	color_list = ['#ffa347','#0064c8','#b42222','#22a5b4','#b47c22','#6db6ff']
+	if len(color_list) < len(block_stats):
+		color_count = len(block_stats)
+		color_list = pyplot.cm.Set1([n/color_count for n in range(color_count)])
+	colors = color_list[:len(block_stats)]
+
+
+	with PdfPages(filename) as pdf:
+		for what, xlabel in [ (lambda stats: stats.variant_count, 'variant count'), (lambda stats: stats.span, 'span [bp]') ]:
+			pyplot.figure(figsize=(10, 8))
+			max_value = max(what(stats) for stats in chain(*block_stats))
+			common_bins = numpy.logspace(0, math.ceil(math.log10(max_value)), 50)
+			for l, name, color in zip(block_stats, names, colors):
+				x = [what(stats) for stats in l]
+				n, bins, patches = pyplot.hist(x, bins=common_bins, alpha=0.6, color=color, label=name)
+			pyplot.xlabel(xlabel)
+			pyplot.ylabel('Number of blocks')
+			pyplot.gca().set_xscale("log")
+			pyplot.gca().set_yscale("log")
+			pyplot.grid(True)
+			pyplot.legend()
+			pdf.savefig()
+			pyplot.close()
+
+			pyplot.figure(figsize=(10, 8))
+			common_bins = numpy.logspace(0, math.ceil(math.log10(max_value)), 25)
+			x = [[what(stats) for stats in l] for l in block_stats]
+			n, bins, patches = pyplot.hist(x, bins=common_bins, alpha=0.6, color=colors, label=names)
+			pyplot.xlabel(xlabel)
+			pyplot.ylabel('Number of blocks')
+			pyplot.gca().set_xscale("log")
+			pyplot.gca().set_yscale("log")
+			pyplot.grid(True)
+			pyplot.legend()
+			pdf.savefig()
+			pyplot.close()
+	
+	
+
+def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, longest_block_tsv=None):
 	vcf_readers = [VcfReader(f, indels=not only_snvs, phases=True) for f in vcf]
 	if names:
 		dataset_names = names.split(',')
@@ -317,6 +397,12 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False
 	else:
 		tsv_pairwise_file = None
 
+	if longest_block_tsv:
+		longest_block_tsv_file = open(longest_block_tsv, 'w')
+		print('#dataset_name0', 'dataset_name1', '#sample', 'chromosome', 'position', 'phase_agreeing', sep='\t', file=longest_block_tsv_file)
+	else:
+		longest_block_tsv_file = None
+
 	print('Comparing phasings for sample', sample)
 
 	chromosomes = None
@@ -353,6 +439,13 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False
 		print(name.rjust(longest_name+2), '=', filename)
 
 	width = max(longest_name, 15) + 5
+
+	all_block_stats = [ [] for _ in vcfs ]
+	def add_block_stats(block_stats):
+		assert len(block_stats) == len(all_block_stats)
+		for big_list, new_list in zip(all_block_stats, block_stats):
+			big_list.extend(new_list)
+
 	for chromosome in sorted(chromosomes):
 		print('---------------- Chromosome {} ----------------'.format(chromosome))
 		all_bed_records = []
@@ -384,13 +477,19 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False
 		for i in range(len(vcfs)):
 			for j in range(i+1, len(vcfs)):
 				print('PAIRWISE COMPARISON: {} <--> {}:'.format(dataset_names[i],dataset_names[j]))
-				results, bed_records = compare(chromosome, [variant_tables[i], variant_tables[j]], sample, [dataset_names[i], dataset_names[j]])
+				results, bed_records, block_stats, longest_block_positions, longest_block_agreement = compare(chromosome, [variant_tables[i], variant_tables[j]], sample, [dataset_names[i], dataset_names[j]])
+				if len(vcfs) == 2:
+					add_block_stats(block_stats)
 				all_bed_records.extend(bed_records)
 				if tsv_pairwise_file:
 					fields = [sample, chromosome, dataset_names[i], dataset_names[j], vcf[i], vcf[j]]
 					fields.extend(results)
 					fields.extend([het_variants0, int(only_snvs)])
 					print(*fields, sep='\t', file=tsv_pairwise_file)
+				if longest_block_tsv_file:
+					assert len(longest_block_positions) == len(longest_block_agreement)
+					for position, phase_agreeing in zip(longest_block_positions, longest_block_agreement):
+						print(dataset_names[i], dataset_names[j], sample, chromosome, position, phase_agreeing, sep='\t', file=longest_block_tsv_file)
 
 		# if requested, write all switch errors found in the current chromosome to the bed file
 		if switch_error_bedfile:
@@ -400,13 +499,20 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False
 
 		if len(vcfs) > 2:
 			print('MULTIWAY COMPARISON OF ALL PHASINGS:')
-			compare(chromosome, variant_tables, sample, dataset_names)
+			results, bed_records, block_stats, longest_block_positions, longest_block_agreement = compare(chromosome, variant_tables, sample, dataset_names)
+			add_block_stats(block_stats)
+
+	if plot_blocksizes:
+		create_blocksize_histogram(plot_blocksizes, all_block_stats, dataset_names)
 
 	if tsv_pairwise:
 		tsv_pairwise_file.close()
 
 	if switch_error_bed:
 		switch_error_bedfile.close()
+
+	if longest_block_tsv_file:
+		longest_block_tsv_file.close()
 
 
 def main(args):
