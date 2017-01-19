@@ -20,6 +20,8 @@ def add_arguments(parser):
 			'of data set names to be used in the report (in same order as VCFs).')
 	add('--tsv-pairwise', metavar='TSVPAIRWISE', default=None, help='Filename to write '
 		'comparison results from pair-wise comparison to (tab-separated).')
+	add('--tsv-multiway', metavar='TSVMULTIWAY', default=None, help='Filename to write '
+		'comparison results from multiway comparison to (tab-separated).')
 	add('--only-snvs', default=False, action="store_true", help='Only process SNVs '
 		'and ignore all other variants.')
 	add('--switch-error-bed', default=None, help='Write BED file with switch error positions '
@@ -266,7 +268,7 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 			largestblock_switchflip_rate = safefraction(longest_block_errors.switch_flips.switches+longest_block_errors.switch_flips.flips, longest_block - 1),
 			largestblock_hamming = longest_block_errors.hamming,
 			largestblock_hamming_rate = safefraction(longest_block_errors.hamming, longest_block)
-		), bed_records, block_stats, longest_block_positions, longest_block_agreement
+		), bed_records, block_stats, longest_block_positions, longest_block_agreement, None
 	else:
 		histogram = defaultdict(int)
 		total_compared = 0
@@ -283,6 +285,7 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 		print('           Compared pairs of variants:', str(total_compared).rjust(count_width))
 		bipartitions = list(histogram.keys())
 		bipartitions.sort()
+		multiway_results = {} # (dataset_list0, dataset_list1) --> count
 		for i, s in enumerate(bipartitions):
 			count = histogram[s]
 			if i == 0:
@@ -301,7 +304,8 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 				str(count).rjust(count_width),
 				fraction2percentstr(count, total_compared).rjust(8)
 			)
-		return None, None, block_stats, None, None
+			multiway_results[(','.join(left),','.join(right))] = count
+		return None, None, block_stats, None, None, multiway_results
 
 
 def create_blocksize_histogram(filename, block_stats, names):
@@ -356,7 +360,7 @@ def create_blocksize_histogram(filename, block_stats, names):
 	
 	
 
-def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, longest_block_tsv=None):
+def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, longest_block_tsv=None):
 	vcf_readers = [VcfReader(f, indels=not only_snvs, phases=True) for f in vcf]
 	if names:
 		dataset_names = names.split(',')
@@ -396,6 +400,12 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False
 		tsv_pairwise_file = open(tsv_pairwise, 'w')
 	else:
 		tsv_pairwise_file = None
+
+	if tsv_multiway:
+		tsv_multiway_file = open(tsv_multiway, 'w')
+		print('#sample', 'chromosome', 'dataset_list0', 'dataset_list1', 'count', sep='\t', file=tsv_multiway_file)
+	else:
+		tsv_multiway_file = None
 
 	if longest_block_tsv:
 		longest_block_tsv_file = open(longest_block_tsv, 'w')
@@ -477,7 +487,7 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False
 		for i in range(len(vcfs)):
 			for j in range(i+1, len(vcfs)):
 				print('PAIRWISE COMPARISON: {} <--> {}:'.format(dataset_names[i],dataset_names[j]))
-				results, bed_records, block_stats, longest_block_positions, longest_block_agreement = compare(chromosome, [variant_tables[i], variant_tables[j]], sample, [dataset_names[i], dataset_names[j]])
+				results, bed_records, block_stats, longest_block_positions, longest_block_agreement, multiway_results = compare(chromosome, [variant_tables[i], variant_tables[j]], sample, [dataset_names[i], dataset_names[j]])
 				if len(vcfs) == 2:
 					add_block_stats(block_stats)
 				all_bed_records.extend(bed_records)
@@ -499,14 +509,20 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, only_snvs=False
 
 		if len(vcfs) > 2:
 			print('MULTIWAY COMPARISON OF ALL PHASINGS:')
-			results, bed_records, block_stats, longest_block_positions, longest_block_agreement = compare(chromosome, variant_tables, sample, dataset_names)
+			results, bed_records, block_stats, longest_block_positions, longest_block_agreement, multiway_results = compare(chromosome, variant_tables, sample, dataset_names)
 			add_block_stats(block_stats)
+			if tsv_multiway_file:
+				for (dataset_list0, dataset_list1), count in multiway_results.items():
+					print(sample, chromosome, '{'+dataset_list0+'}', '{'+dataset_list1+'}', count, sep='\t', file=tsv_multiway_file)
 
 	if plot_blocksizes:
 		create_blocksize_histogram(plot_blocksizes, all_block_stats, dataset_names)
 
 	if tsv_pairwise:
 		tsv_pairwise_file.close()
+
+	if tsv_multiway:
+		tsv_multiway_file.close()
 
 	if switch_error_bed:
 		switch_error_bedfile.close()
