@@ -351,6 +351,9 @@ class ReadSetReader:
 		query_pos -- index of the query base that is at the variant position
 		reference -- the reference as a str-like object (full chromosome)
 		"""
+		# Do not process symbolic alleles like <DEL>, <DUP>, etc.
+		if variant.alternative_allele.startswith('<'):
+			return None
 		overhang = 10  # extend alignment by this many bases to the left and right
 		left_cigar, right_cigar = ReadSetReader.split_cigar(cigartuples, i, consumed)
 
