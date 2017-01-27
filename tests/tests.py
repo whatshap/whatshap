@@ -241,6 +241,26 @@ def test_phase_trio_dont_merge_blocks():
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None, None, None, phase2_1])
 
 
+def test_genetic_phasing_symbolic_alt():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output.vcf'
+		run_whatshap(phase_input_files=[], variant_file='tests/data/trio-symbolic-alt.vcf', output=outvcf,
+		        ped='tests/data/trio.ped', indels=True)
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf, phases=True, indels=True))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == '1'
+		assert len(table.variants) == 5
+		assert table.samples == ['HG004', 'HG003', 'HG002']
+
+		phase0 = VariantCallPhase(60906167, 0, None)
+		assert_phasing(table.phases_of('HG004'), [phase0, phase0, phase0, phase0, phase0])
+		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
+		assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
+
+
 def test_phase_mendelian_conflict():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
