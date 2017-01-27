@@ -14,6 +14,9 @@ def add_arguments(parser):
 	add('--gtf', default=None, help='Write phased blocks to GTF file.')
 	add('--sample', metavar='SAMPLE', default=None, help='Name of the sample '
 			'to process. If not given, use first sample found in VCF.')
+	add('--chr-lengths', default=None, help='File with chromosome lengths '
+			'(one line per chromosome, tab separated "<chr> <length>") '
+			'needed to compute N50 values.')
 	add('--tsv', metavar='TSV', default=None, help='Filename to write '
 		'statistics to (tab-separated).')
 	add('--only-snvs', default=False, action="store_true", help='Only process SNVs '
@@ -24,10 +27,11 @@ def add_arguments(parser):
 
 
 class PhasedBlock:
-	def __init__(self):
+	def __init__(self, chromosome=None):
 		self.phases = {}
 		self.leftmost_variant = None
 		self.rightmost_variant = None
+		self.chromosome = chromosome
 
 	def add(self, variant, phase):
 		if len(self.phases) == 0:
@@ -93,8 +97,42 @@ detailed_stats_fields = [
 	'heterozygous_variants',
 	'heterozygous_snvs',
 	'phased_snvs',
+	'block_n50'
 ]
 DetailedStats = namedtuple('DetailedStats', detailed_stats_fields)
+
+
+def compute_n50(blocks, chr_lengths):
+	chromosomes = set(b.chromosome for b in blocks)
+	target_length = 0
+	for chromosome in sorted(chromosomes):
+		try:
+			target_length += chr_lengths[chromosome]
+		except KeyError:
+			logger.warning('Not able to compute N50 because chromosome length of %s not available', chromosome)
+			return float('nan')
+
+	# Cut interleaved blocks to avoid inflating N50 in this case
+	pos_sorted = sorted(blocks, key=lambda b: (b.chromosome, b.leftmost_variant.position) )
+	block_lengths = []
+	for i, block in enumerate(pos_sorted):
+		if len(block) < 2:
+			continue
+		start, end = block.leftmost_variant.position, block.rightmost_variant.position
+		if i+1 < len(pos_sorted):
+			next_block = pos_sorted[i+1]
+			if end > next_block.leftmost_variant.position:
+				#logger.warning('Blocks are interleaved, cutting first block: end=%s --> %s',  end, next_block.leftmost_variant.position)
+				end = next_block.leftmost_variant.position
+		block_lengths.append(end-start)
+	block_lengths.sort(reverse=True)
+	s = 0
+	for l in block_lengths:
+		s += l
+		if s >= 0.5*target_length:
+			return l
+
+	return 0
 
 
 class PhasingStats:
@@ -130,7 +168,7 @@ class PhasingStats:
 	def add_heterozygous_snvs(self, snvs):
 		self.heterozygous_snvs += snvs
 
-	def get(self):
+	def get(self, chr_lengths=None):
 		block_sizes = sorted(len(block) for block in self.blocks)
 		n_singletons = sum(1 for size in block_sizes if size == 1)
 		block_sizes = [ size for size in block_sizes if size > 1 ]
@@ -156,6 +194,7 @@ class PhasingStats:
 				heterozygous_variants = self.heterozygous_variants,
 				heterozygous_snvs = self.heterozygous_snvs,
 				phased_snvs = phased_snvs,
+				block_n50 = compute_n50(self.blocks, chr_lengths) if chr_lengths is not None else float('nan')
 			)
 		else:
 			return DetailedStats(
@@ -177,10 +216,11 @@ class PhasingStats:
 				heterozygous_variants = self.heterozygous_variants,
 				heterozygous_snvs = self.heterozygous_snvs,
 				phased_snvs = 0,
+				block_n50 = float('nan')
 			)
 
-	def print(self):
-		stats = self.get()
+	def print(self, chr_lengths=None):
+		stats = self.get(chr_lengths)
 
 		WIDTH = 21
 		print('Variants in VCF:'.rjust(WIDTH), '{:8d}'.format(stats.variants))
@@ -202,7 +242,17 @@ class PhasingStats:
 		print('Average block length:'.rjust(WIDTH), '{:11.2f} bp'.format(stats.bp_per_block_avg))
 		print('Longest block:'.rjust(WIDTH), '{:8d}    bp'.format(stats.bp_per_block_max))
 		print('Shortest block:'.rjust(WIDTH), '{:8d}    bp'.format(stats.bp_per_block_min))
+		print('Block N50:'.rjust(WIDTH), '{:8.0f}    bp'.format(stats.block_n50))
 		assert stats.phased + stats.unphased + stats.singletons == stats.heterozygous_variants
+
+
+def parse_chr_lengths(filename):
+	chr_lengths = {}
+	for line in open(filename):
+		fields = line.split('\t')
+		assert len(fields) ==2
+		chr_lengths[fields[0]] = int(fields[1])
+	return chr_lengths
 
 
 def main(args):
@@ -219,6 +269,12 @@ def main(args):
 		block_list_file = open(args.block_list, 'w')
 	else:
 		block_list_file = None
+
+	if args.chr_lengths:
+		chr_lengths = parse_chr_lengths(args.chr_lengths)
+		logger.info('Read length of %d chromosomes from %s', len(chr_lengths), args.chr_lengths)
+	else:
+		chr_lengths = None
 
 	vcf_reader = VcfReader(args.vcf, phases=True, indels=not args.only_snvs)
 	if len(vcf_reader.samples) == 0:
@@ -280,6 +336,12 @@ def main(args):
 							prev_block_fragment_start = variant.position
 							prev_block_id = phase.block_id
 						prev_block_fragment_end = variant.position + 1
+
+		# Add chromosome information to each block. This is needed to
+		# sort blocks later when we compute N50s
+		for block_id, block in blocks.items():
+			block.chromosome = chromosome
+
 		if gtfwriter and (not prev_block_id is None):
 			gtfwriter.write(chromosome, prev_block_fragment_start, prev_block_fragment_end, prev_block_id)
 
@@ -289,19 +351,19 @@ def main(args):
 				print(sample, chromosome, block_id, blocks[block_id].leftmost_variant.position + 1, blocks[block_id].rightmost_variant.position + 1, len(blocks[block_id]), sep='\t', file=block_list_file)
 
 		stats.add_blocks(blocks.values())
-		stats.print()
+		stats.print(chr_lengths)
 		if tsv_file:
 			print(sample, chromosome, args.vcf, sep='\t', end='\t', file=tsv_file)
-			print(*stats.get(), sep='\t', file=tsv_file)
+			print(*stats.get(chr_lengths), sep='\t', file=tsv_file)
 
 		total_stats += stats
 
 	if chromosome_count > 1:
 		print('---------------- ALL chromosomes (aggregated) ----------------'.format(chromosome))
-		total_stats.print()
+		total_stats.print(chr_lengths)
 		if tsv_file:
 			print(sample, 'ALL', args.vcf, sep='\t', end='\t', file=tsv_file)
-			print(*total_stats.get(), sep='\t', file=tsv_file)
+			print(*total_stats.get(chr_lengths), sep='\t', file=tsv_file)
 
 	if gtfwriter:
 		gtf_file.close()
