@@ -3,6 +3,7 @@
 
 import sys
 _b=sys.version_info[0]<3 and (lambda x:x) or (lambda x:x.encode('latin1'))
+from google.protobuf.internal import enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf import reflection as _reflection
@@ -19,10 +20,35 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='vg.proto',
   package='vg',
   syntax='proto3',
-  serialized_pb=_b('\n\x08vg.proto\x12\x02vg\"O\n\x05Graph\x12\x16\n\x04node\x18\x01 \x03(\x0b\x32\x08.vg.Node\x12\x16\n\x04\x65\x64ge\x18\x02 \x03(\x0b\x32\x08.vg.Edge\x12\x16\n\x04path\x18\x03 \x03(\x0b\x32\x08.vg.Path\"2\n\x04Node\x12\x10\n\x08sequence\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\n\n\x02id\x18\x03 \x01(\x03\"U\n\x04\x45\x64ge\x12\x0c\n\x04\x66rom\x18\x01 \x01(\x03\x12\n\n\x02to\x18\x02 \x01(\x03\x12\x12\n\nfrom_start\x18\x03 \x01(\x08\x12\x0e\n\x06to_end\x18\x04 \x01(\x08\x12\x0f\n\x07overlap\x18\x05 \x01(\x05\"@\n\x04\x45\x64it\x12\x13\n\x0b\x66rom_length\x18\x01 \x01(\x05\x12\x11\n\tto_length\x18\x02 \x01(\x05\x12\x10\n\x08sequence\x18\x03 \x01(\t\"O\n\x07Mapping\x12\x1e\n\x08position\x18\x01 \x01(\x0b\x32\x0c.vg.Position\x12\x16\n\x04\x65\x64it\x18\x02 \x03(\x0b\x32\x08.vg.Edit\x12\x0c\n\x04rank\x18\x05 \x01(\x03\"?\n\x08Position\x12\x0f\n\x07node_id\x18\x01 \x01(\x03\x12\x0e\n\x06offset\x18\x02 \x01(\x03\x12\x12\n\nis_reverse\x18\x04 \x01(\x08\"W\n\x04Path\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x1c\n\x07mapping\x18\x02 \x03(\x0b\x32\x0b.vg.Mapping\x12\x13\n\x0bis_circular\x18\x03 \x01(\x08\x12\x0e\n\x06length\x18\x04 \x01(\x03\"\xe7\x02\n\tAlignment\x12\x10\n\x08sequence\x18\x01 \x01(\t\x12\x16\n\x04path\x18\x02 \x01(\x0b\x32\x08.vg.Path\x12\x0c\n\x04name\x18\x03 \x01(\t\x12\x0f\n\x07quality\x18\x04 \x01(\x0c\x12\x17\n\x0fmapping_quality\x18\x05 \x01(\x05\x12\r\n\x05score\x18\x06 \x01(\x05\x12\x16\n\x0equery_position\x18\x07 \x01(\x05\x12\x13\n\x0bsample_name\x18\t \x01(\t\x12\x12\n\nread_group\x18\n \x01(\t\x12$\n\rfragment_prev\x18\x0b \x01(\x0b\x32\r.vg.Alignment\x12$\n\rfragment_next\x18\x0c \x01(\x0b\x32\r.vg.Alignment\x12\x14\n\x0cis_secondary\x18\x0f \x01(\x08\x12\x10\n\x08identity\x18\x10 \x01(\x01\x12\x1a\n\x08\x66ragment\x18\x11 \x03(\x0b\x32\x08.vg.Path\x12\x18\n\x05locus\x18\x12 \x03(\x0b\x32\t.vg.Locus\"R\n\tKmerMatch\x12\x10\n\x08sequence\x18\x01 \x01(\t\x12\x0f\n\x07node_id\x18\x02 \x01(\x03\x12\x10\n\x08position\x18\x03 \x01(\x11\x12\x10\n\x08\x62\x61\x63kward\x18\x04 \x01(\x08\"S\n\nBasePileup\x12\x10\n\x08ref_base\x18\x01 \x01(\x05\x12\x11\n\tnum_bases\x18\x02 \x01(\x05\x12\r\n\x05\x62\x61ses\x18\x03 \x01(\t\x12\x11\n\tqualities\x18\x04 \x01(\x0c\"B\n\nNodePileup\x12\x0f\n\x07node_id\x18\x01 \x01(\x03\x12#\n\x0b\x62\x61se_pileup\x18\x02 \x03(\x0b\x32\x0e.vg.BasePileup\"e\n\nEdgePileup\x12\x16\n\x04\x65\x64ge\x18\x01 \x01(\x0b\x32\x08.vg.Edge\x12\x11\n\tnum_reads\x18\x02 \x01(\x05\x12\x19\n\x11num_forward_reads\x18\x03 \x01(\x05\x12\x11\n\tqualities\x18\x04 \x01(\x0c\"T\n\x06Pileup\x12$\n\x0cnode_pileups\x18\x01 \x03(\x0b\x32\x0e.vg.NodePileup\x12$\n\x0c\x65\x64ge_pileups\x18\x02 \x03(\x0b\x32\x0e.vg.EdgePileup\"\x93\x01\n\x05Locus\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x18\n\x06\x61llele\x18\x02 \x03(\x0b\x32\x08.vg.Path\x12\x1c\n\x07support\x18\x03 \x03(\x0b\x32\x0b.vg.Support\x12\x1e\n\x08genotype\x18\x04 \x03(\x0b\x32\x0c.vg.Genotype\x12$\n\x0foverall_support\x18\x05 \x01(\x0b\x32\x0b.vg.Support\"\x83\x01\n\x08Genotype\x12\x0e\n\x06\x61llele\x18\x01 \x03(\x05\x12\x11\n\tis_phased\x18\x02 \x01(\x08\x12\x12\n\nlikelihood\x18\x03 \x01(\x01\x12\x16\n\x0elog_likelihood\x18\x04 \x01(\x01\x12\x11\n\tlog_prior\x18\x05 \x01(\x01\x12\x15\n\rlog_posterior\x18\x06 \x01(\x01\"Y\n\x07Support\x12\x0f\n\x07quality\x18\x01 \x01(\x01\x12\x0f\n\x07\x66orward\x18\x02 \x01(\x05\x12\x0f\n\x07reverse\x18\x03 \x01(\x05\x12\x0c\n\x04left\x18\x04 \x01(\x05\x12\r\n\x05right\x18\x05 \x01(\x05\";\n\x0bTranslation\x12\x16\n\x04\x66rom\x18\x01 \x01(\x0b\x32\x08.vg.Path\x12\x14\n\x02to\x18\x02 \x01(\x0b\x32\x08.vg.Pathb\x06proto3')
+  serialized_pb=_b('\n\x08vg.proto\x12\x02vg\"O\n\x05Graph\x12\x16\n\x04node\x18\x01 \x03(\x0b\x32\x08.vg.Node\x12\x16\n\x04\x65\x64ge\x18\x02 \x03(\x0b\x32\x08.vg.Edge\x12\x16\n\x04path\x18\x03 \x03(\x0b\x32\x08.vg.Path\"2\n\x04Node\x12\x10\n\x08sequence\x18\x01 \x01(\t\x12\x0c\n\x04name\x18\x02 \x01(\t\x12\n\n\x02id\x18\x03 \x01(\x03\"U\n\x04\x45\x64ge\x12\x0c\n\x04\x66rom\x18\x01 \x01(\x03\x12\n\n\x02to\x18\x02 \x01(\x03\x12\x12\n\nfrom_start\x18\x03 \x01(\x08\x12\x0e\n\x06to_end\x18\x04 \x01(\x08\x12\x0f\n\x07overlap\x18\x05 \x01(\x05\"@\n\x04\x45\x64it\x12\x13\n\x0b\x66rom_length\x18\x01 \x01(\x05\x12\x11\n\tto_length\x18\x02 \x01(\x05\x12\x10\n\x08sequence\x18\x03 \x01(\t\"O\n\x07Mapping\x12\x1e\n\x08position\x18\x01 \x01(\x0b\x32\x0c.vg.Position\x12\x16\n\x04\x65\x64it\x18\x02 \x03(\x0b\x32\x08.vg.Edit\x12\x0c\n\x04rank\x18\x05 \x01(\x03\"M\n\x08Position\x12\x0f\n\x07node_id\x18\x01 \x01(\x03\x12\x0e\n\x06offset\x18\x02 \x01(\x03\x12\x12\n\nis_reverse\x18\x04 \x01(\x08\x12\x0c\n\x04name\x18\x05 \x01(\t\"W\n\x04Path\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x1c\n\x07mapping\x18\x02 \x03(\x0b\x32\x0b.vg.Mapping\x12\x13\n\x0bis_circular\x18\x03 \x01(\x08\x12\x0e\n\x06length\x18\x04 \x01(\x03\"\x85\x03\n\tAlignment\x12\x10\n\x08sequence\x18\x01 \x01(\t\x12\x16\n\x04path\x18\x02 \x01(\x0b\x32\x08.vg.Path\x12\x0c\n\x04name\x18\x03 \x01(\t\x12\x0f\n\x07quality\x18\x04 \x01(\x0c\x12\x17\n\x0fmapping_quality\x18\x05 \x01(\x05\x12\r\n\x05score\x18\x06 \x01(\x05\x12\x16\n\x0equery_position\x18\x07 \x01(\x05\x12\x13\n\x0bsample_name\x18\t \x01(\t\x12\x12\n\nread_group\x18\n \x01(\t\x12$\n\rfragment_prev\x18\x0b \x01(\x0b\x32\r.vg.Alignment\x12$\n\rfragment_next\x18\x0c \x01(\x0b\x32\r.vg.Alignment\x12\x14\n\x0cis_secondary\x18\x0f \x01(\x08\x12\x10\n\x08identity\x18\x10 \x01(\x01\x12\x1a\n\x08\x66ragment\x18\x11 \x03(\x0b\x32\x08.vg.Path\x12\x18\n\x05locus\x18\x12 \x03(\x0b\x32\t.vg.Locus\x12\x1c\n\x06refpos\x18\x13 \x03(\x0b\x32\x0c.vg.Position\"\xb4\x01\n\x12MultipathAlignment\x12\x10\n\x08sequence\x18\x01 \x01(\t\x12\x0f\n\x07quality\x18\x02 \x01(\x0c\x12\x0c\n\x04name\x18\x03 \x01(\t\x12\x13\n\x0bsample_name\x18\x04 \x01(\t\x12\x12\n\nread_group\x18\x05 \x01(\t\x12\x1c\n\x07subpath\x18\x06 \x03(\x0b\x32\x0b.vg.Subpath\x12\x17\n\x0fmapping_quality\x18\x07 \x01(\x05\x12\r\n\x05start\x18\x08 \x03(\r\">\n\x07Subpath\x12\x16\n\x04path\x18\x01 \x01(\x0b\x32\x08.vg.Path\x12\x0c\n\x04next\x18\x02 \x03(\r\x12\r\n\x05score\x18\x03 \x01(\x05\"R\n\tKmerMatch\x12\x10\n\x08sequence\x18\x01 \x01(\t\x12\x0f\n\x07node_id\x18\x02 \x01(\x03\x12\x10\n\x08position\x18\x03 \x01(\x11\x12\x10\n\x08\x62\x61\x63kward\x18\x04 \x01(\x08\"S\n\nBasePileup\x12\x10\n\x08ref_base\x18\x01 \x01(\x05\x12\x11\n\tnum_bases\x18\x02 \x01(\x05\x12\r\n\x05\x62\x61ses\x18\x03 \x01(\t\x12\x11\n\tqualities\x18\x04 \x01(\x0c\"B\n\nNodePileup\x12\x0f\n\x07node_id\x18\x01 \x01(\x03\x12#\n\x0b\x62\x61se_pileup\x18\x02 \x03(\x0b\x32\x0e.vg.BasePileup\"e\n\nEdgePileup\x12\x16\n\x04\x65\x64ge\x18\x01 \x01(\x0b\x32\x08.vg.Edge\x12\x11\n\tnum_reads\x18\x02 \x01(\x05\x12\x19\n\x11num_forward_reads\x18\x03 \x01(\x05\x12\x11\n\tqualities\x18\x04 \x01(\x0c\"T\n\x06Pileup\x12$\n\x0cnode_pileups\x18\x01 \x03(\x0b\x32\x0e.vg.NodePileup\x12$\n\x0c\x65\x64ge_pileups\x18\x02 \x03(\x0b\x32\x0e.vg.EdgePileup\"q\n\x05Snarl\x12\x1b\n\x04type\x18\x01 \x01(\x0e\x32\r.vg.SnarlType\x12\x18\n\x05start\x18\x02 \x01(\x0b\x32\t.vg.Visit\x12\x16\n\x03\x65nd\x18\x03 \x01(\x0b\x32\t.vg.Visit\x12\x19\n\x06parent\x18\x04 \x01(\x0b\x32\t.vg.Snarl\"D\n\x05Visit\x12\x0f\n\x07node_id\x18\x01 \x01(\x03\x12\x18\n\x05snarl\x18\x02 \x01(\x0b\x32\t.vg.Snarl\x12\x10\n\x08\x62\x61\x63kward\x18\x03 \x01(\x08\"E\n\x0eSnarlTraversal\x12\x19\n\x06visits\x18\x01 \x03(\x0b\x32\t.vg.Visit\x12\x18\n\x05snarl\x18\x02 \x01(\x0b\x32\t.vg.Snarl\"\x93\x01\n\x05Locus\x12\x0c\n\x04name\x18\x01 \x01(\t\x12\x18\n\x06\x61llele\x18\x02 \x03(\x0b\x32\x08.vg.Path\x12\x1c\n\x07support\x18\x03 \x03(\x0b\x32\x0b.vg.Support\x12\x1e\n\x08genotype\x18\x04 \x03(\x0b\x32\x0c.vg.Genotype\x12$\n\x0foverall_support\x18\x05 \x01(\x0b\x32\x0b.vg.Support\"\x83\x01\n\x08Genotype\x12\x0e\n\x06\x61llele\x18\x01 \x03(\x05\x12\x11\n\tis_phased\x18\x02 \x01(\x08\x12\x12\n\nlikelihood\x18\x03 \x01(\x01\x12\x16\n\x0elog_likelihood\x18\x04 \x01(\x01\x12\x11\n\tlog_prior\x18\x05 \x01(\x01\x12\x15\n\rlog_posterior\x18\x06 \x01(\x01\"Y\n\x07Support\x12\x0f\n\x07quality\x18\x01 \x01(\x01\x12\x0f\n\x07\x66orward\x18\x02 \x01(\x05\x12\x0f\n\x07reverse\x18\x03 \x01(\x05\x12\x0c\n\x04left\x18\x04 \x01(\x05\x12\r\n\x05right\x18\x05 \x01(\x05\";\n\x0bTranslation\x12\x16\n\x04\x66rom\x18\x01 \x01(\x0b\x32\x08.vg.Path\x12\x14\n\x02to\x18\x02 \x01(\x0b\x32\x08.vg.Path*.\n\tSnarlType\x12\x10\n\x0cUNCLASSIFIED\x10\x00\x12\x0f\n\x0bULTRABUBBLE\x10\x01\x62\x06proto3')
 )
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
+_SNARLTYPE = _descriptor.EnumDescriptor(
+  name='SnarlType',
+  full_name='vg.SnarlType',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='UNCLASSIFIED', index=0, number=0,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='ULTRABUBBLE', index=1, number=1,
+      options=None,
+      type=None),
+  ],
+  containing_type=None,
+  options=None,
+  serialized_start=2308,
+  serialized_end=2354,
+)
+_sym_db.RegisterEnumDescriptor(_SNARLTYPE)
+
+SnarlType = enum_type_wrapper.EnumTypeWrapper(_SNARLTYPE)
+UNCLASSIFIED = 0
+ULTRABUBBLE = 1
 
 
 
@@ -293,6 +319,13 @@ _POSITION = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
+    _descriptor.FieldDescriptor(
+      name='name', full_name='vg.Position.name', index=3,
+      number=5, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
   ],
   extensions=[
   ],
@@ -306,7 +339,7 @@ _POSITION = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=383,
-  serialized_end=446,
+  serialized_end=460,
 )
 
 
@@ -357,8 +390,8 @@ _PATH = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=448,
-  serialized_end=535,
+  serialized_start=462,
+  serialized_end=549,
 )
 
 
@@ -474,6 +507,13 @@ _ALIGNMENT = _descriptor.Descriptor(
       message_type=None, enum_type=None, containing_type=None,
       is_extension=False, extension_scope=None,
       options=None),
+    _descriptor.FieldDescriptor(
+      name='refpos', full_name='vg.Alignment.refpos', index=15,
+      number=19, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
   ],
   extensions=[
   ],
@@ -486,8 +526,133 @@ _ALIGNMENT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=538,
-  serialized_end=897,
+  serialized_start=552,
+  serialized_end=941,
+)
+
+
+_MULTIPATHALIGNMENT = _descriptor.Descriptor(
+  name='MultipathAlignment',
+  full_name='vg.MultipathAlignment',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='sequence', full_name='vg.MultipathAlignment.sequence', index=0,
+      number=1, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='quality', full_name='vg.MultipathAlignment.quality', index=1,
+      number=2, type=12, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b(""),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='name', full_name='vg.MultipathAlignment.name', index=2,
+      number=3, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='sample_name', full_name='vg.MultipathAlignment.sample_name', index=3,
+      number=4, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='read_group', full_name='vg.MultipathAlignment.read_group', index=4,
+      number=5, type=9, cpp_type=9, label=1,
+      has_default_value=False, default_value=_b("").decode('utf-8'),
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='subpath', full_name='vg.MultipathAlignment.subpath', index=5,
+      number=6, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='mapping_quality', full_name='vg.MultipathAlignment.mapping_quality', index=6,
+      number=7, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='start', full_name='vg.MultipathAlignment.start', index=7,
+      number=8, type=13, cpp_type=3, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=944,
+  serialized_end=1124,
+)
+
+
+_SUBPATH = _descriptor.Descriptor(
+  name='Subpath',
+  full_name='vg.Subpath',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='path', full_name='vg.Subpath.path', index=0,
+      number=1, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='next', full_name='vg.Subpath.next', index=1,
+      number=2, type=13, cpp_type=3, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='score', full_name='vg.Subpath.score', index=2,
+      number=3, type=5, cpp_type=1, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1126,
+  serialized_end=1188,
 )
 
 
@@ -538,8 +703,8 @@ _KMERMATCH = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=899,
-  serialized_end=981,
+  serialized_start=1190,
+  serialized_end=1272,
 )
 
 
@@ -590,8 +755,8 @@ _BASEPILEUP = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=983,
-  serialized_end=1066,
+  serialized_start=1274,
+  serialized_end=1357,
 )
 
 
@@ -628,8 +793,8 @@ _NODEPILEUP = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1068,
-  serialized_end=1134,
+  serialized_start=1359,
+  serialized_end=1425,
 )
 
 
@@ -680,8 +845,8 @@ _EDGEPILEUP = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1136,
-  serialized_end=1237,
+  serialized_start=1427,
+  serialized_end=1528,
 )
 
 
@@ -718,8 +883,143 @@ _PILEUP = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1239,
-  serialized_end=1323,
+  serialized_start=1530,
+  serialized_end=1614,
+)
+
+
+_SNARL = _descriptor.Descriptor(
+  name='Snarl',
+  full_name='vg.Snarl',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='type', full_name='vg.Snarl.type', index=0,
+      number=1, type=14, cpp_type=8, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='start', full_name='vg.Snarl.start', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='end', full_name='vg.Snarl.end', index=2,
+      number=3, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='parent', full_name='vg.Snarl.parent', index=3,
+      number=4, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1616,
+  serialized_end=1729,
+)
+
+
+_VISIT = _descriptor.Descriptor(
+  name='Visit',
+  full_name='vg.Visit',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='node_id', full_name='vg.Visit.node_id', index=0,
+      number=1, type=3, cpp_type=2, label=1,
+      has_default_value=False, default_value=0,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='snarl', full_name='vg.Visit.snarl', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='backward', full_name='vg.Visit.backward', index=2,
+      number=3, type=8, cpp_type=7, label=1,
+      has_default_value=False, default_value=False,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1731,
+  serialized_end=1799,
+)
+
+
+_SNARLTRAVERSAL = _descriptor.Descriptor(
+  name='SnarlTraversal',
+  full_name='vg.SnarlTraversal',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+    _descriptor.FieldDescriptor(
+      name='visits', full_name='vg.SnarlTraversal.visits', index=0,
+      number=1, type=11, cpp_type=10, label=3,
+      has_default_value=False, default_value=[],
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+    _descriptor.FieldDescriptor(
+      name='snarl', full_name='vg.SnarlTraversal.snarl', index=1,
+      number=2, type=11, cpp_type=10, label=1,
+      has_default_value=False, default_value=None,
+      message_type=None, enum_type=None, containing_type=None,
+      is_extension=False, extension_scope=None,
+      options=None),
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=1801,
+  serialized_end=1870,
 )
 
 
@@ -777,8 +1077,8 @@ _LOCUS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1326,
-  serialized_end=1473,
+  serialized_start=1873,
+  serialized_end=2020,
 )
 
 
@@ -843,8 +1143,8 @@ _GENOTYPE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1476,
-  serialized_end=1607,
+  serialized_start=2023,
+  serialized_end=2154,
 )
 
 
@@ -902,8 +1202,8 @@ _SUPPORT = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1609,
-  serialized_end=1698,
+  serialized_start=2156,
+  serialized_end=2245,
 )
 
 
@@ -940,8 +1240,8 @@ _TRANSLATION = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=1700,
-  serialized_end=1759,
+  serialized_start=2247,
+  serialized_end=2306,
 )
 
 _GRAPH.fields_by_name['node'].message_type = _NODE
@@ -955,10 +1255,20 @@ _ALIGNMENT.fields_by_name['fragment_prev'].message_type = _ALIGNMENT
 _ALIGNMENT.fields_by_name['fragment_next'].message_type = _ALIGNMENT
 _ALIGNMENT.fields_by_name['fragment'].message_type = _PATH
 _ALIGNMENT.fields_by_name['locus'].message_type = _LOCUS
+_ALIGNMENT.fields_by_name['refpos'].message_type = _POSITION
+_MULTIPATHALIGNMENT.fields_by_name['subpath'].message_type = _SUBPATH
+_SUBPATH.fields_by_name['path'].message_type = _PATH
 _NODEPILEUP.fields_by_name['base_pileup'].message_type = _BASEPILEUP
 _EDGEPILEUP.fields_by_name['edge'].message_type = _EDGE
 _PILEUP.fields_by_name['node_pileups'].message_type = _NODEPILEUP
 _PILEUP.fields_by_name['edge_pileups'].message_type = _EDGEPILEUP
+_SNARL.fields_by_name['type'].enum_type = _SNARLTYPE
+_SNARL.fields_by_name['start'].message_type = _VISIT
+_SNARL.fields_by_name['end'].message_type = _VISIT
+_SNARL.fields_by_name['parent'].message_type = _SNARL
+_VISIT.fields_by_name['snarl'].message_type = _SNARL
+_SNARLTRAVERSAL.fields_by_name['visits'].message_type = _VISIT
+_SNARLTRAVERSAL.fields_by_name['snarl'].message_type = _SNARL
 _LOCUS.fields_by_name['allele'].message_type = _PATH
 _LOCUS.fields_by_name['support'].message_type = _SUPPORT
 _LOCUS.fields_by_name['genotype'].message_type = _GENOTYPE
@@ -973,15 +1283,21 @@ DESCRIPTOR.message_types_by_name['Mapping'] = _MAPPING
 DESCRIPTOR.message_types_by_name['Position'] = _POSITION
 DESCRIPTOR.message_types_by_name['Path'] = _PATH
 DESCRIPTOR.message_types_by_name['Alignment'] = _ALIGNMENT
+DESCRIPTOR.message_types_by_name['MultipathAlignment'] = _MULTIPATHALIGNMENT
+DESCRIPTOR.message_types_by_name['Subpath'] = _SUBPATH
 DESCRIPTOR.message_types_by_name['KmerMatch'] = _KMERMATCH
 DESCRIPTOR.message_types_by_name['BasePileup'] = _BASEPILEUP
 DESCRIPTOR.message_types_by_name['NodePileup'] = _NODEPILEUP
 DESCRIPTOR.message_types_by_name['EdgePileup'] = _EDGEPILEUP
 DESCRIPTOR.message_types_by_name['Pileup'] = _PILEUP
+DESCRIPTOR.message_types_by_name['Snarl'] = _SNARL
+DESCRIPTOR.message_types_by_name['Visit'] = _VISIT
+DESCRIPTOR.message_types_by_name['SnarlTraversal'] = _SNARLTRAVERSAL
 DESCRIPTOR.message_types_by_name['Locus'] = _LOCUS
 DESCRIPTOR.message_types_by_name['Genotype'] = _GENOTYPE
 DESCRIPTOR.message_types_by_name['Support'] = _SUPPORT
 DESCRIPTOR.message_types_by_name['Translation'] = _TRANSLATION
+DESCRIPTOR.enum_types_by_name['SnarlType'] = _SNARLTYPE
 
 Graph = _reflection.GeneratedProtocolMessageType('Graph', (_message.Message,), dict(
   DESCRIPTOR = _GRAPH,
@@ -1039,6 +1355,20 @@ Alignment = _reflection.GeneratedProtocolMessageType('Alignment', (_message.Mess
   ))
 _sym_db.RegisterMessage(Alignment)
 
+MultipathAlignment = _reflection.GeneratedProtocolMessageType('MultipathAlignment', (_message.Message,), dict(
+  DESCRIPTOR = _MULTIPATHALIGNMENT,
+  __module__ = 'vg_pb2'
+  # @@protoc_insertion_point(class_scope:vg.MultipathAlignment)
+  ))
+_sym_db.RegisterMessage(MultipathAlignment)
+
+Subpath = _reflection.GeneratedProtocolMessageType('Subpath', (_message.Message,), dict(
+  DESCRIPTOR = _SUBPATH,
+  __module__ = 'vg_pb2'
+  # @@protoc_insertion_point(class_scope:vg.Subpath)
+  ))
+_sym_db.RegisterMessage(Subpath)
+
 KmerMatch = _reflection.GeneratedProtocolMessageType('KmerMatch', (_message.Message,), dict(
   DESCRIPTOR = _KMERMATCH,
   __module__ = 'vg_pb2'
@@ -1074,6 +1404,27 @@ Pileup = _reflection.GeneratedProtocolMessageType('Pileup', (_message.Message,),
   ))
 _sym_db.RegisterMessage(Pileup)
 
+Snarl = _reflection.GeneratedProtocolMessageType('Snarl', (_message.Message,), dict(
+  DESCRIPTOR = _SNARL,
+  __module__ = 'vg_pb2'
+  # @@protoc_insertion_point(class_scope:vg.Snarl)
+  ))
+_sym_db.RegisterMessage(Snarl)
+
+Visit = _reflection.GeneratedProtocolMessageType('Visit', (_message.Message,), dict(
+  DESCRIPTOR = _VISIT,
+  __module__ = 'vg_pb2'
+  # @@protoc_insertion_point(class_scope:vg.Visit)
+  ))
+_sym_db.RegisterMessage(Visit)
+
+SnarlTraversal = _reflection.GeneratedProtocolMessageType('SnarlTraversal', (_message.Message,), dict(
+  DESCRIPTOR = _SNARLTRAVERSAL,
+  __module__ = 'vg_pb2'
+  # @@protoc_insertion_point(class_scope:vg.SnarlTraversal)
+  ))
+_sym_db.RegisterMessage(SnarlTraversal)
+
 Locus = _reflection.GeneratedProtocolMessageType('Locus', (_message.Message,), dict(
   DESCRIPTOR = _LOCUS,
   __module__ = 'vg_pb2'
@@ -1104,4 +1455,3 @@ _sym_db.RegisterMessage(Translation)
 
 
 # @@protoc_insertion_point(module_scope)
-
