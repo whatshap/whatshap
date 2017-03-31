@@ -12,6 +12,7 @@ Table of contents
    faq
    develop
    notes
+   howtocite
    changes
 
 
