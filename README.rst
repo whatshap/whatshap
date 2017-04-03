@@ -27,17 +27,18 @@ Please :ref:`cite us if you use WhatsHap <howtocite>`.
 Features
 ========
 
-  * WhatsHap is :ref:`easy to install <installation>`
-  * It is :ref:`easy to use <user-guide>`: Pass in a VCF and a BAM, get out a phased VCF
-  * Works well with Illumina, PacBio, Oxford Nanopore and other types of reads
-  * It phases indels
-  * It produces standard-compliant VCF output (or optionally output that is compatible with ReadBackedPhasing)
-  * Highly accurate results (Martin et al.,
+  * Very accurate results (Martin et al.,
     `WhatsHap: fast and accurate read-based phasing <https://doi.org/10.1101/085050>`_)
-  * Phasing of pedigrees: If you have reads from a trio or any pedigree of
-    related individuals, phase them at the same time in pedigree mode to improve
-    results and to lower coverage requirements at the same time
+  * Works well with Illumina, PacBio, Oxford Nanopore and other types of reads
+  * It phases SNVs, indels and even “complex” variants (such as ``TCG`` → ``AGAA``)
+  * Pedigree phasing mode uses reads from related individuals (such as trios)
+    to improve results and to reduce coverage requirements
     (Garg et al., `Read-Based Phasing of Related Individuals <https://doi.org/10.1093/bioinformatics/btw276>`_).
+  * WhatsHap is :ref:`easy to install <installation>`
+  * It is :ref:`easy to use <user-guide>`: Pass in a VCF and one or more BAM files, get out a phased VCF.
+    Supports multi-sample VCFs.
+  * It produces standard-compliant VCF output by default
+  * If desired, get output that is compatible with ReadBackedPhasing
   * Open Source (MIT license)
 
 
