@@ -4,8 +4,13 @@ Convert hapCUT output format to VCF
 HapCUT’s output is combined with the original VCF and
 then written as phased VCF to standard output.
 
+HapCUT 1 and 2 are supported.
+
 HapCUT’s output file format is explained at
 <https://github.com/vibansal/hapcut#format-of-input-and-output-files>
+
+HapCUT2’s output format is documented at
+<https://github.com/pjedge/hapcut2#output-format>
 """
 import logging
 import re
@@ -39,7 +44,7 @@ class ParseError(Exception):
 class HapCutParser:
 	"""Parse HapCUT results"""
 
-	# Example
+	# Example for HapCUT
 	#
 	# BLOCK: offset: 282 len: 9 phased: 7 SPAN: 5896 MECscore 0.00 fragments 7
 	# 282	0	1	1	1065296	T	C	1|0	1,0:-0.0,-0.0,-1.3:0.0:0.0
@@ -50,10 +55,16 @@ class HapCutParser:
 	# 291	1	0	1	1072498	G	C	1|0	0,1:-1.4,-0.0,-0.0:0.0:0.0
 	# 292	1	0	1	1077064	C	A	1|0	0,2:-2.6,-0.1,-0.0:0.0:0.0
 	# 293	1	0	1	1080286	G	A	1|0	0,3:-4.1,-0.1,-0.1:0.1:0.0
+	#
+	# HapCUT2 output format is slightly different:
+	#
+	# BLOCK: offset: 306 len: 37 phased: 27 SPAN: 38662 fragments 140
+	# 306     0       1       1       1065296 T       C       0/1     0       0.000000        -0.000000
+	# 307     0       1       1       1066259 G       C       0/1     0       0.000000        0.000000
 
 	block_re = re.compile(
 		'BLOCK: offset: (?P<offset>\d+) len: (?P<len>\d+) phased: (?P<phased>\d+) SPAN: (?P<span>\d+) '
-		'MECscore (?P<mecscore>\d+\.\d+) fragments (?P<fragments>\d+)')
+		'(MECscore (?P<mecscore>\d+\.\d+) )?fragments (?P<fragments>\d+)')
 
 	def __init__(self, file):
 		self._file = file
@@ -66,7 +77,7 @@ class HapCutParser:
 		"""
 		Yield a list of HapCutVariant objects for each connected component ('block')
 		"""
-		state = 'BLOCK'  # DFA states are BLOCK and VARIANT, they describe what we expect next
+		state = 'BLOCK'  # DFA states are BLOCK and VARIANT; they describe what we expect next
 		block = []
 		for line in self._file:
 			if state == 'BLOCK':
@@ -79,30 +90,42 @@ class HapCutParser:
 			elif state == 'VARIANT':
 				if line.startswith('********'):
 					# End marker reached, yield the list of variants in this connected component
-					yield block
+					if block:
+						yield block
 					state = 'BLOCK'
 					block = []
 				else:
 					fields = line.strip().split()
-					if not len(fields) == 9:
-						raise ParseError('Expected eight fields in line')
-					variant_id, haplotype_1, haplotype_2, chromosome, position, reference_allele, alternative_allele, genotype, rest = fields
+					if len(fields) not in (9, 11):
+						raise ParseError('Expected nine fields (for hapCUT 1) or eleven fields (for hapCUT 2) in variant line')
+					variant_id, haplotype_1, haplotype_2, chromosome, position, reference_allele, alternative_allele, genotype = fields[:8]
+
+					if len(fields) == 9:  # hapCUT 1
+						# The last fields are not actually used, we just check
+						# whether they are formatted correctly
+						rest = fields
+						fields = rest.split(':')
+						if len(fields) == 5:
+							if not fields[-1] == 'FV':
+								raise ParseError('Expected "FV" after last colon')
+							fields = fields[:-1]
+						if not len(fields) == 4:
+							raise ParseError('Too few elements in last (colon-separated) field')
+						# allele_counts, genotype_likelihoods, delta, mec_variant = fields
+						# allele_counts = [ int(s) for s in allele_counts.split(',') ]
+						# genotype_likelihoods = [ float(s) for s in genotype_likelihoods.split(',') ]
+						# delta = float(delta)
+						# mec_variant = float(mec_variant)
+					elif len(fields) == 11:
+						# pruned, switch_qual, flip_qual = fields[8:]
+						pass
+					if haplotype_1 == '-' or haplotype_2 == '-':
+						# This happens in hapCUT 2 sometimes
+						continue
 					variant_id = int(variant_id)
 					haplotype_1 = int(haplotype_1)
 					haplotype_2 = int(haplotype_2)
 					position = int(position) - 1
-					fields = rest.split(':')
-					if len(fields) == 5:
-						if not fields[-1] == 'FV':
-							raise ParseError('Expected "FV" after last colon')
-						fields = fields[:-1]
-					if not len(fields) == 4:
-						raise ParseError('Too few elements in last (colon-separated) field')
-					# allele_counts, genotype_likelihoods, delta, mec_variant = fields
-					# allele_counts = [ int(s) for s in allele_counts.split(',') ]
-					# genotype_likelihoods = [ float(s) for s in genotype_likelihoods.split(',') ]
-					# delta = float(delta)
-					# mec_variant = float(mec_variant)
 					component_id = block[0].position if block else position
 					variant = HapCutVariant(chromosome, position, haplotype_1, haplotype_2, component_id)
 					block.append(variant)
