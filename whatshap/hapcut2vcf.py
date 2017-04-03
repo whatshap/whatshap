@@ -103,7 +103,7 @@ class HapCutParser:
 					if len(fields) == 9:  # hapCUT 1
 						# The last fields are not actually used, we just check
 						# whether they are formatted correctly
-						rest = fields
+						rest = fields[8]
 						fields = rest.split(':')
 						if len(fields) == 5:
 							if not fields[-1] == 'FV':
