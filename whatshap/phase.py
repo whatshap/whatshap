@@ -17,7 +17,7 @@ from xopen import xopen
 from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
 from . import __version__
-from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes
+from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable, compute_genotypes
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
@@ -597,6 +597,7 @@ def run_whatshap(
 						len(family), 's' if len(family) > 1 else '', problem_name)
 					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
 					superreads_list, transmission_vector = dp_table.get_super_reads()
+					forward_backward_table = GenotypeDPTable(all_reads, recombination_costs, pedigree, accessible_positions)
 					logger.info('%s cost: %d', problem_name, dp_table.get_optimal_cost())
 				with timers('components'):
 					master_block = None
