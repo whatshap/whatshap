@@ -56,6 +56,7 @@ BackwardColumnIterator::BackwardColumnIterator(const ReadSet& set, const std::ve
 			}
 		}
 	}
+    jump_to_column(this->n);
 }
 
 
@@ -115,6 +116,8 @@ unique_ptr<vector<const Entry*> > BackwardColumnIterator::get_next() {
 
 void BackwardColumnIterator::jump_to_column(int k) {
 	assert(k < positions->size());
+    if(n == k) return;
+
 	active_reads.clear();
 	n = k;
     size_t next_read_index = first_reads[k];

@@ -13,6 +13,7 @@
 #include "pedigree.h"
 #include "pedigreepartitions.h"
 #include "vector2d.h"
+#include "backwardcolumniterator.h"
 
 class GenotypeDPTable
 {
@@ -54,8 +55,11 @@ private:
   std::vector<Vector2D<long double>* > backward_projection_column_table;
   // genotype likelihoods for each individual at each position
   Vector2D<genotype_likelihood_t> genotype_likelihood_table;
-  //iterator used to iterate the columns of the input matrix
+  //iterator used to iterate the columns of the input matrix (forward)
   ColumnIterator input_column_iterator;
+  // iterator used to iterate the columns of the input matrix (backward)
+  BackwardColumnIterator backward_input_column_iterator;
+  
   
   // helper to pull read ids out of read column
   std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
