@@ -39,6 +39,7 @@ void GenotypeColumnCostComputer::set_partitioning(unsigned int p) {
             }
             break;
         case Entry::ALT_ALLELE:
+
             if(entry_in_partition1){
                 cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,1)][0] *= pow(10,-(long double)(entry.get_phred_score())/10.0L);
                 cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,1)][1] *= (1.0L-pow(10,-(long double)(entry.get_phred_score())/10.0L));

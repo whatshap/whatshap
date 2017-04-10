@@ -35,9 +35,10 @@ GenotypeDPTable::GenotypeDPTable(ReadSet* read_set, const vector<unsigned int>& 
        read_sources.push_back(pedigree->id_to_index(read_set->get(i)->getSampleID()));
    }
 
-   // compute forward and backward probabilities
+   //compute forward and backward probabilities
+   compute_index();
    compute_backward_prob();
-   compute_forward_prob();
+  //compute_forward_prob();
 
 }
 
@@ -61,7 +62,6 @@ void GenotypeDPTable::clear_backward_table()
 {
     size_t column_count = input_column_iterator.get_column_count();
     init(backward_projection_column_table, column_count);
-    init(indexers, column_count);
 }
 
 unique_ptr<vector<unsigned int> > GenotypeDPTable::extract_read_ids(const vector<const Entry *>& entries) {
@@ -80,6 +80,43 @@ size_t GenotypeDPTable::popcount(size_t x) {
     return count;
 }
 
+void GenotypeDPTable::compute_index(){
+    size_t column_count = input_column_iterator.get_column_count();
+    if(column_count == 0) return;
+    init(indexers, column_count);
+    // do one forward pass to get the indexers (that are needed in forward and backward pass)
+    input_column_iterator.jump_to_column(0);
+    unique_ptr<vector<const Entry*> > current_input_column;
+    unique_ptr<vector<const Entry*> > next_input_column;
+    next_input_column = input_column_iterator.get_next();
+    unique_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_input_column);
+    ColumnIndexingScheme* next_indexer = new ColumnIndexingScheme(0, *next_read_ids);
+    indexers[0] = next_indexer;
+
+
+    for(size_t column_index=0; column_index < input_column_iterator.get_column_count(); ++column_index){
+        // make former next column the current one
+        current_input_column = std::move(next_input_column);
+        unique_ptr<vector<unsigned int> > current_read_ids = std::move(next_read_ids);
+        ColumnIndexingScheme* current_indexer = next_indexer;
+
+
+        if (input_column_iterator.has_next()){
+            next_input_column = input_column_iterator.get_next();
+            next_read_ids = extract_read_ids(*next_input_column);
+            next_indexer = new ColumnIndexingScheme(current_indexer,*next_read_ids);
+
+            current_indexer->set_next_column(next_indexer);
+            indexers[column_index+1] = next_indexer;
+        } else {
+            assert(next_input_column.get() == 0);
+            assert(next_read_ids.get() == 0);
+            next_indexer = 0;
+        }
+        unique_ptr<vector<const Entry*> > current_input_column2 = std::move(current_input_column);
+    }
+}
+
 void GenotypeDPTable::compute_backward_prob()
 {
     clear_backward_table();
@@ -90,39 +127,28 @@ void GenotypeDPTable::compute_backward_prob()
         return;
     }
 
-    // start at rightmost column
+    // do backward pass, start at rightmost column
     backward_input_column_iterator.jump_to_column(column_count-1);
-    std::cout << "successfully jumped to last column" << std::endl;
-    // current and nect column
-    unique_ptr<vector<const Entry*> > current_input_column;
-    unique_ptr<vector<const Entry*> > next_input_column;
+
     // get the next column (which is left of current one)
-    next_input_column = backward_input_column_iterator.get_next();
+    unique_ptr<vector<const Entry*> > current_input_column;
+    unique_ptr<vector<const Entry*> > next_input_column = backward_input_column_iterator.get_next();
     unique_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_input_column);
-    ColumnIndexingScheme* next_indexer = new ColumnIndexingScheme(0, *next_read_ids);
-    indexers[column_count-1] = next_indexer;
+
 
     // backward pass: create sparse table
     size_t k = (size_t)sqrt(column_count);
     for(int column_index=column_count-1; column_index >= 0; --column_index){
-        std::cout << "processing column: " << column_index << std::endl;
+        std::cout << "processing column " << column_index << std::endl;
         // make former next column the current one
         current_input_column = std::move(next_input_column);
         unique_ptr<vector<unsigned int> > current_read_ids = std::move(next_read_ids);
-
-        ColumnIndexingScheme* current_indexer = next_indexer;
         // peek ahead and get the next column TODO: what about first column? Anything needs to be done?
         if (backward_input_column_iterator.has_next()){
             next_input_column = backward_input_column_iterator.get_next();
-            next_read_ids = extract_read_ids(*next_input_column);
-            next_indexer = new ColumnIndexingScheme(current_indexer,*next_read_ids);
-            current_indexer->set_next_column(next_indexer);
-            indexers[column_index-1] = next_indexer;
-
         } else {
             assert(next_input_column.get() == 0);
             assert(next_read_ids.get() == 0);
-            next_indexer = 0;
         }
 
         // compute the backward probabilities
@@ -136,6 +162,7 @@ void GenotypeDPTable::compute_backward_prob()
     }
 }
 
+// TODO try to re-use the indexers computed before
 void GenotypeDPTable::compute_forward_prob()
 {
     // the same code is used as in PegigreeDPTable::compute_table()...
@@ -207,9 +234,99 @@ void GenotypeDPTable::compute_backward_column(size_t column_index, unique_ptr<ve
    // if current input column was not provided, create it
    if(current_input_column.get() == nullptr) {
        backward_input_column_iterator.jump_to_column(column_index);
+       current_input_column = backward_input_column_iterator.get_next();
    }
 
-   // TODO ...
+   // obtain previous projection column (same index as current column!)
+   Vector2D<long double>* previous_projection_column = nullptr;
+   // check if there is a projection column
+   if(column_index < backward_input_column_iterator.get_column_count()-1){
+       previous_projection_column = backward_projection_column_table[column_index];
+   }
+
+   // initialize the new projection column (= current index -1)
+   Vector2D<long double>* current_projection_column = nullptr;
+   if(column_index > 0){
+       current_projection_column = new Vector2D<long double>(indexers[column_index-1]->forward_projection_size(),transmission_configurations,0.0L);
+   }
+
+   // create column cost computer for each transmission vector
+   vector<GenotypeColumnCostComputer> cost_computers;
+   cost_computers.reserve(transmission_configurations);
+   for(unsigned int i = 0; i < transmission_configurations; i++){
+       cost_computers.emplace_back(*current_input_column, column_index, read_sources, pedigree, *pedigree_partitions[i]);
+   }
+
+   // for scaled version of forward backward alg, keep track of the sum of backward
+   long double scaling_sum = 0.0L;
+
+   // iterate over all bipartitions
+   unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
+   while (iterator->has_next()){
+       std::cout << "processing partitioning: " << iterator->get_partition() << std::endl;
+       int bit_changed = -1;
+       iterator->advance(&bit_changed);
+       if (bit_changed >= 0) {
+           // update bipartition in the cost computers
+           for(auto& cost_computer : cost_computers) {
+               cost_computer.update_partitioning(bit_changed);
+           }
+       } else {
+           // set bipartition in the cost computers
+           for(auto& cost_computer : cost_computers) {
+              cost_computer.set_partitioning(iterator->get_partition());
+           }
+       }
+
+       // Determine index in forward projection column from where to fetch the current cost
+       long double backward_prob = 1.0L;
+
+       if(column_index > 0){
+           // iterate over all transmission configurations
+           for(size_t i = 0; i < transmission_configurations; i++){
+               // number of allele assignments
+               unsigned int number_of_allele_assignments = 1<<pedigree_partitions[i]->count();
+               std::cout << "number of allele assignments: " << number_of_allele_assignments << std::endl;
+
+               // get entry from forward projection column (which is equal to current backward prob. for all genotypes)
+               size_t forward_projection_index = 0;
+               if (column_index + 1 < backward_input_column_iterator.get_column_count()) {
+                   forward_projection_index = iterator->get_forward_projection();
+                   backward_prob = previous_projection_column->at(forward_projection_index,i);
+                   std::cout << forward_projection_index << std::endl;
+               }
+               std::cout << "forward_projection_index: " << forward_projection_index << std::endl;
+               scaling_sum += backward_prob;
+
+               // sum up entries in backward projection column
+               for(unsigned int a = 0; a < number_of_allele_assignments; a++){
+                   size_t backward_projection_index = iterator->get_backward_projection();
+                   for(size_t j = 0; j < transmission_configurations; j++){
+                       current_projection_column->at(backward_projection_index, i) += backward_prob * cost_computers[j].get_cost(a);// TODO * transition prob?;
+                   }
+               }
+
+               std::cout << "current_projection_column: " << *current_projection_column << std::endl;
+           }
+       }
+   }
+
+
+   // again go through projection column to scale the values (divide them by sum of projection column entries)
+   if(current_projection_column != 0){
+       for(size_t i = 0; i < indexers[column_index-1]->forward_projection_size(); i++){
+           for(size_t j = 0; j < transmission_configurations; j++){
+               current_projection_column->at(i,j) /= scaling_sum;
+           }
+       }
+       backward_projection_column_table[column_index-1] = current_projection_column;
+       std::cout << "final projection column: " << *current_projection_column << std::endl;
+
+   }
+
+
+
+   std::cout << "finished compute_backward_column" << std::endl;
 }
 
 // given the current matrix column, compute the forward probability table
@@ -359,7 +476,9 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
 vector<long double> GenotypeDPTable::get_genotype_likelihoods(unsigned int individual, unsigned int position)
 {
     assert(individual < pedigree->size());
-    assert(position < input_column_iterator.get_column_count());
+    if(position >= input_column_iterator.get_column_count()){
+        throw std::runtime_error("No such position.");
+    }
 
     vector<long double> result;
     for(unsigned int i = 0; i < 3; i++){

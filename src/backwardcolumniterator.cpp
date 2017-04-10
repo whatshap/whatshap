@@ -13,7 +13,13 @@ BackwardColumnIterator::BackwardColumnIterator(const ReadSet& set, const std::ve
 	} else {
 		this->positions = new vector<unsigned int>(positions->begin(), positions->end());
 	}
-    this->n = positions->size()-1;
+
+    if(positions->size() == 0){
+        this->n = -1;
+        return;
+    }
+
+    this->n = (int)positions->size()-1;
 
 	// create a mapping of genomic positions to column indices
 	std::unordered_map<unsigned int, size_t> position_map;
@@ -116,7 +122,7 @@ unique_ptr<vector<const Entry*> > BackwardColumnIterator::get_next() {
 
 void BackwardColumnIterator::jump_to_column(int k) {
 	assert(k < positions->size());
-    if(n == k) return;
+    //if(n == k) return;
 
 	active_reads.clear();
 	n = k;

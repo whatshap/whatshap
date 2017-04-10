@@ -70,6 +70,8 @@ private:
   void compute_forward_prob();
   // backward pass: computes the backward probabilities
   void compute_backward_prob();
+  // computes the index for each column
+  void compute_index();
   
   // computes column of forward probabilities of given index, assuming previous column was already computed (from left to right)
   void compute_forward_column(size_t column_index, std::unique_ptr<std::vector<const Entry*>> current_input_column = nullptr);
