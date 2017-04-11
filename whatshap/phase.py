@@ -463,6 +463,17 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					with timers('select'):
 						selected_reads = select_reads(readset, max_coverage_per_sample)
 					readsets[sample] = selected_reads
+					if (len(family) == 1) and not distrust_genotypes:
+						# When having a pedigree (i.e. len(family)>1), then blocks are also merged after phasing based on the
+						# pedigree information and hence these statistics are not so useful.
+						# When distrust_genotypes is ON, then the genotypes can change during phasing and so can the block
+						# structure. Therefore, we also don't print these stats in this case.
+						n_best_case_blocks, n_best_case_nonsingleton_blocks = best_case_blocks(readset)
+						n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov = best_case_blocks(selected_reads)
+						logger.info('Best-case phasing would result in %d non-singleton phased blocks (%d in total)',
+							n_best_case_nonsingleton_blocks, n_best_case_blocks)
+						logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
+							n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
 
 				# Merge reads into one ReadSet (note that each Read object
 				# knows the sample it originated from).
