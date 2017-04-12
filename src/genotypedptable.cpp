@@ -20,10 +20,13 @@ GenotypeDPTable::GenotypeDPTable(ReadSet* read_set, const vector<unsigned int>& 
      pedigree(pedigree),
      input_column_iterator(*read_set, positions),
      backward_input_column_iterator(*read_set, positions),
-     transition_probability_table(positions->size(),nullptr)
+     transition_probability_table(input_column_iterator.get_column_count(),nullptr),
+     scaling_parameters(input_column_iterator.get_column_count(),-1.0L)
 {
    genotype_likelihood_table = Vector2D<genotype_likelihood_t>(pedigree->size(),input_column_iterator.get_column_count(),genotype_likelihood_t());
    read_set->reassignReadIds();
+
+   //assert(input_column_iterator.get_column_count() == backward_input_column_iterator.get_column_count());
 
    // create all pedigree partitions
    for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
@@ -40,7 +43,7 @@ GenotypeDPTable::GenotypeDPTable(ReadSet* read_set, const vector<unsigned int>& 
    //compute forward and backward probabilities
    compute_index();
    compute_backward_prob();
-  // compute_forward_prob();
+   compute_forward_prob();
 
 }
 
@@ -153,7 +156,6 @@ void GenotypeDPTable::compute_backward_prob()
     }
 }
 
-// TODO try to re-use the indexers computed before
 void GenotypeDPTable::compute_forward_prob()
 {
     clear_forward_table();
@@ -263,42 +265,49 @@ void GenotypeDPTable::compute_backward_column(size_t column_index, unique_ptr<ve
        // Determine index in forward projection column from where to fetch the current cost
        long double backward_prob = 1.0L;
 
-       if(column_index > 0){
+       // iterate over all transmission configurations
+       for(size_t i = 0; i < transmission_configurations; i++){
+           // number of allele assignments
+           unsigned int number_of_allele_assignments = 1<<pedigree_partitions[i]->count();
 
-           // iterate over all transmission configurations
-           for(size_t i = 0; i < transmission_configurations; i++){
-               // number of allele assignments
-               unsigned int number_of_allele_assignments = 1<<pedigree_partitions[i]->count();
+           // get entry from forward projection column (which is equal to current backward prob. for all genotypes)
+           size_t forward_projection_index = 0;
+           if (column_index + 1 < backward_input_column_iterator.get_column_count()) {
+               forward_projection_index = iterator->get_forward_projection();
+               backward_prob = previous_projection_column->at(forward_projection_index,i);
+           }
 
-               // get entry from forward projection column (which is equal to current backward prob. for all genotypes)
-               size_t forward_projection_index = 0;
-               if (column_index + 1 < backward_input_column_iterator.get_column_count()) {
-                   forward_projection_index = iterator->get_forward_projection();
-                   backward_prob = previous_projection_column->at(forward_projection_index,i);
-               }
-
-               // sum up entries in backward projection column
-               for(unsigned int a = 0; a < number_of_allele_assignments; a++){
-                   size_t backward_projection_index = iterator->get_backward_projection();
-                   for(size_t j = 0; j < transmission_configurations; j++){
+           // sum up entries in backward projection column
+           for(unsigned int a = 0; a < number_of_allele_assignments; a++){
+               size_t backward_projection_index = iterator->get_backward_projection();
+               for(size_t j = 0; j < transmission_configurations; j++){
+                   if(column_index > 0){
                        current_projection_column->at(backward_projection_index, i) += backward_prob * cost_computers[j].get_cost(a) * transition_probability_table[column_index-1]->get(i,j);// TODO * transition prob?;
-                       scaling_sum += backward_prob*cost_computers[j].get_cost(a);
                    }
+
+                   scaling_sum += backward_prob*cost_computers[j].get_cost(a);
                }
            }
        }
    }
 
-   // again go through projection column to scale the values (divide them by sum of projection column entries)
+   // go through (old) projection column to scale the values -> when we lookup betas later, they will sum up to 1
+   if(previous_projection_column != 0){
+       for(size_t i = 0; i < current_indexer->forward_projection_size(); i++){
+           for(size_t j = 0; j < transmission_configurations; j++){
+               previous_projection_column->at(i,j) /= scaling_sum;
+           }
+       }
+   }
    if(current_projection_column != 0){
-     /**  for(size_t i = 0; i < indexers[column_index-1]->forward_projection_size(); i++){
+       for(size_t i = 0; i < indexers[column_index-1]->forward_projection_size(); i++){
            for(size_t j = 0; j < transmission_configurations; j++){
                current_projection_column->at(i,j) /= scaling_sum;
            }
-       }**/
+       }
        backward_projection_column_table[column_index-1] = current_projection_column;
-
    }
+   scaling_parameters[column_index] = scaling_sum;
 }
 
 // given the current matrix column, compute the forward probability table
@@ -332,6 +341,24 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
         previous_projection_column = forward_projection_column_table[column_index - 1];
     }
 
+    // obtain the backward projection table, from where to get the backward probabilities
+    Vector2D<long double>* backward_probabilities = nullptr;
+    if(column_index + 1 < input_column_iterator.get_column_count()){
+        backward_probabilities = backward_projection_column_table[column_index];
+        // if column is not stored, recompute it
+        if(backward_probabilities == nullptr){
+            // compute index of next column that has been stored
+            size_t k = (size_t)sqrt(input_column_iterator.get_column_count());
+            size_t next = std::min((unsigned int) ( ((column_index + k) / k) * k ), input_column_iterator.get_column_count()-1);
+            for(size_t i = next; i > column_index; i--){
+                compute_backward_column(i);
+            }
+
+        }
+        backward_probabilities = backward_projection_column_table[column_index];
+        assert(backward_probabilities != nullptr);
+    }
+
     // initialize the new projection column (2D: has entry for every bipartition and transmission value)
     Vector2D<long double>* current_projection_column = nullptr;
     if(column_index + 1 < input_column_iterator.get_column_count()){
@@ -345,8 +372,8 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
         cost_computers.emplace_back(*current_input_column, column_index, read_sources, pedigree, *pedigree_partitions[i]);
     }
 
-    // for scaled version of forward backward algorithm, keep track of sum of all forward prob. in that column
-    long double scaling_sum = 0.0L;
+    // sum of alpha*beta, used to normalize the likelihoods
+    long double normalization = 0.0L;
 
     // iterate over all bipartitions
     unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
@@ -381,7 +408,6 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
             // keep track of sum of previous values (alpha_i-1 * transition_prob)
             long double sum_prev_values = 0.0L;
             unsigned int number_of_allele_assignments = 1<<pedigree_partitions[i]->count();
-            unsigned int test = 1<<pedigree_partitions[0]->count();
             if(column_index > 0){
                 for(size_t j = 0; j < transmission_configurations; j++){
                     long double transition_prob = transition_probability_table[column_index]->get(j,i);
@@ -401,11 +427,16 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
 
             // iterate over all allele assignments
             for(unsigned int a = 0; a < number_of_allele_assignments; a++){
-                // TODO get already computed backward probability from table
+                // get already computed backward probability from table
                 long double backward_probability = 1.0L;
+                if(backward_probabilities != nullptr){
+                    size_t forward_projection_index = iterator->get_forward_projection();
+                    backward_probability = backward_probabilities->at(forward_projection_index,i);
+                }
+
                 long double forward_probability = dp_column.at(current_index,i)*cost_computers[i].get_cost(a);
                 long double forward_backward = forward_probability * backward_probability;
-                scaling_sum += forward_probability;
+                normalization += forward_backward;
 
                 // marginalize over all genotypes
                 for (size_t individuals_index = 0; individuals_index < pedigree->size(); individuals_index++) {
@@ -433,6 +464,8 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
 
     // again go through projection column to scale the values (divide them by sum of forward prob.)
     if(current_projection_column != 0){
+        long double scaling_sum = scaling_parameters[column_index];
+        assert(scaling_sum > 0);
         for(size_t i = 0; i < current_indexer->forward_projection_size(); i++){
             for(size_t j = 0; j < transmission_configurations; j++){
                 current_projection_column->at(i,j) /= scaling_sum;
@@ -443,7 +476,7 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
     // scale the likelihoods
     for(size_t individuals_index = 0; individuals_index < pedigree->size(); individuals_index++){
         for(size_t genotype = 0; genotype < 3; genotype++){
-            genotype_likelihood_table.at(individuals_index,column_index).likelihoods[genotype] /= scaling_sum;
+            genotype_likelihood_table.at(individuals_index,column_index).likelihoods[genotype] /= normalization;
         }
     }
 }

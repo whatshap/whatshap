@@ -10,6 +10,7 @@ include src/phredgenotypelikelihoods.h
 include src/genotypedistribution.h src/genotyper.h
 include src/genotypedptable.h src/genotypecolumncostcomputer.h
 include src/backwardcolumniterator.h
+include src/transitionprobabilitycomputer.h
 include doc/*.rst
 include doc/conf.py
 include doc/Makefile

@@ -62,6 +62,8 @@ private:
   BackwardColumnIterator backward_input_column_iterator;
   // stores the transmission probability computers for each column
   std::vector<TransitionProbabilityComputer*> transition_probability_table;
+  // scaling parameters
+  std::vector<long double> scaling_parameters;
   
   // helper to pull read ids out of read column
   std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
