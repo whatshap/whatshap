@@ -12,9 +12,9 @@ def test_genotyping_empty_readset():
 	pedigree.add_individual('individual0', genotypes, genotype_likelihoods)
 	dp_forward_backward = GenotypeDPTable(rs, recombcost, pedigree)
 
-def check_genotyping_single_individual(reads, weights = None, expected = None, genotypes = None):
+def check_genotyping_single_individual(reads, weights = None, expected = None, genotypes = None, scaling=None):
 	# 0) set up read set
-	readset = string_to_readset(reads, weights, scale_quality=10)
+	readset = string_to_readset(reads, weights, scale_quality=scaling)
 	positions = readset.get_positions()
 
 	# 1) Phase using PedMEC code for single individual
@@ -46,7 +46,6 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 			print(likelihoods)
 			assert(max_index==genotypes[i])
 				
-
 	# 2) Phase using PedMEC code for trios with two "empty" individuals (i.e. having no reads)
 	recombcost = [1] * len(positions) # recombination costs 1, should not occur
 	pedigree = Pedigree(NumericSampleIds())
@@ -59,24 +58,36 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 	
 	## TODO check the results!!!
 		
-		
-def test_geno_trivial() :
+			
+def test_geno_exact1() :
 	reads = """
           11
            01
         """
 	# as computed manually, with weight 10 for each position
 	expected_likelihoods = [[0.05, 0.5, 0.45],[0.1323529411764706, 0.7352941176470589, 0.1323529411764706],[0.05, 0.5, 0.45]]
-	check_genotyping_single_individual(reads,None,expected_likelihoods,None)
+	check_genotyping_single_individual(reads,None,expected_likelihoods,None,10)
 
-def test_geno_exact1():
+def test_geno_exact2():
+	reads = """
+		11
+		11
+		"""
+	weights = """
+		11
+		22
+		"""
+	expected_likelihoods = [[0.0006656057777641766, 0.4062796462343544, 0.5930547479878814],[0.0006656057777641766, 0.4062796462343544, 0.5930547479878814]]
+	check_genotyping_single_individual(reads,weights,expected_likelihoods,None,10)
+
+def test_geno_exact3():
 	reads = """
           01
           11
         """
 	# as computed manually, with weight 10 for each position
 	expected_likelihoods = [[0.1493963782696177, 0.7012072434607646, 0.1493963782696177],[0.008551307847082495, 0.2987927565392354, 0.6926559356136821]]
-	check_genotyping_single_individual(reads,None,expected_likelihoods,None)
+	check_genotyping_single_individual(reads,None,expected_likelihoods,None,10)
    
 def test_geno1():
 	reads= """
@@ -85,7 +96,7 @@ def test_geno1():
 	"""
 
 	genotypes = [1,1,1,1,1,2,2,2,2,2]
-	check_genotyping_single_individual(reads,None,None,genotypes)   
+	check_genotyping_single_individual(reads,None,None,genotypes,10)   
    
 def test_geno2():
 	reads = """
@@ -100,7 +111,7 @@ def test_geno2():
 	"""
 	
 	genotypes = [2,0,1]
-	check_genotyping_single_individual(reads,None,None,genotypes)
+	check_genotyping_single_individual(reads,None,None,genotypes,10)
 
 def test_geno3():
 	reads = """
@@ -116,7 +127,7 @@ def test_geno3():
 	"""
 	
 	genotypes = [1,1,0,1,1,0]
-	check_genotyping_single_individual(reads,None,None,genotypes)
+	check_genotyping_single_individual(reads,None,None,genotypes,10)
 
 ##
 
@@ -150,9 +161,43 @@ def test_geno6():
 	        10100
 	              101
 	"""
-
 	check_genotyping_single_individual(reads)
 
+def test_geno7():
+	reads = """
+		0100000000000
+		0100010000000
+		1110000000010
+		0100000000000
+		0101000001000
+		0100010   000
+		0 10000000100
+		1111111011100
+		0100111010011
+		1111111000111
+		1111110011111
+		11110000  000
+		1110011011111
+		1111001011111
+		0111111110  1
+		"""
+	genotypes = [1,2,1,1,1,1,1,0,1,1,1,1,1]
+	check_genotyping_single_individual(reads,None,None,genotypes,60)
+
+# TODO: currently the result is 0.25,0.5,0.25. Should this be 1/3,1/3,1/3 ??
+def test_geno8():
+	reads = """
+		111
+		101
+		111
+		101
+		010
+		000
+		010
+		000
+		"""
+	genotypes = [1,1,1]
+	check_genotyping_single_individual(reads,None,None,genotypes,60)
 
 def test_weighted_phasing1():
 	reads = """

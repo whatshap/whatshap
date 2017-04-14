@@ -56,7 +56,6 @@ GenotypeDPTable::~GenotypeDPTable()
     init(transition_probability_table,0);
 }
 
-//TODO seperate indexers for forward and backward pass?
 void GenotypeDPTable::clear_forward_table()
 {
     size_t column_count = input_column_iterator.get_column_count();
