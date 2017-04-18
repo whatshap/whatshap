@@ -707,7 +707,7 @@ def add_arguments(parser):
 	arg('--full-genotyping', dest='full_genotyping',
 		action='store_true', default=False,
 		help='Completely re-genotype all variants based on read data, ignores all genotype '
-		'data that might be present in the VCF.')
+		'data that might be present in the VCF (EXPERIMENTAL FEATURE).')
 	arg('--distrust-genotypes', dest='distrust_genotypes',
 		action='store_true', default=False,
 		help='Allow switching variants from hetero- to homozygous in an '
