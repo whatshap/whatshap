@@ -168,9 +168,19 @@ class VariantTable:
 		"""Retrieve genotypes by sample name"""
 		return self.genotypes[self._sample_to_index[sample]]
 
+	def set_genotypes_of(self, sample, genotypes):
+		"""Set genotypes by sample name"""
+		assert len(genotypes) == len(self.variants)
+		self.genotypes[self._sample_to_index[sample]] = genotypes
+
 	def genotype_likelihoods_of(self, sample):
 		"""Retrieve genotype likelihoods by sample name"""
 		return self.genotype_likelihoods[self._sample_to_index[sample]]
+
+	def set_genotype_likelihoods_of(self, sample, genotype_likelihoods):
+		"""Set genotype likelihoods by sample name"""
+		assert len(genotype_likelihoods) == len(self.variants)
+		self.genotype_likelihoods[self._sample_to_index[sample]] = genotype_likelihoods
 
 	def phases_of(self, sample):
 		"""Retrieve phases by sample name"""

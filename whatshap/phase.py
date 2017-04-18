@@ -16,9 +16,9 @@ import pyfaidx
 from xopen import xopen
 
 from contextlib import ExitStack
-from .vcf import VcfReader, PhasedVcfWriter
+from .vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
 from . import __version__
-from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods
+from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
@@ -240,10 +240,12 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 
 
 def run_whatshap(phase_input_files, variant_file, reference=None,
-		output=sys.stdout, samples=None, chromosomes=None, ignore_read_groups=False, indels=True,
-		mapping_quality=20, max_coverage=15, distrust_genotypes=False, include_homozygous=False,
+		output=sys.stdout, samples=None, chromosomes=None,
+		ignore_read_groups=False, indels=True, mapping_quality=20,
+		max_coverage=15, full_genotyping=False, distrust_genotypes=False,
+		include_homozygous=False,
 		ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
-		recombination_list_filename=None, tag='PS', read_list_filename=None, 
+		recombination_list_filename=None, tag='PS', read_list_filename=None,
 		gl_regularizer=None, gtchange_list_filename=None, default_gq=30):
 	"""
 	Run WhatsHap.
@@ -257,6 +259,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 	ignore_read_groups
 	mapping_quality -- discard reads below this mapping quality
 	max_coverage
+	full_genotyping
 	distrust_genotypes
 	include_homozygous
 	genetic_haplotyping -- in ped mode, merge disconnected blocks based on genotype status
@@ -271,6 +274,9 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 	timers.start('overall')
 	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
+		if full_genotyping:
+			distrust_genotypes = True
+			include_homozygous = True
 		numeric_sample_ids = NumericSampleIds()
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
 		try:
@@ -373,6 +379,18 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					superreads, components = dict(), dict()
 					vcf_writer.write(chromosome, superreads, components)
 				continue
+
+			if full_genotyping:
+				positions = [v.position for v in variant_table.variants]
+				for sample in samples:
+					logger.info('---- Initial genotyping of %s', sample)
+					with timers('read_bam'):
+						bam_sample = None if ignore_read_groups else sample
+						readset = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
+						readset.sort()
+						genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
+						variant_table.set_genotypes_of(sample, genotypes)
+						variant_table.set_genotype_likelihoods_of(sample, [GenotypeLikelihoods(*gl) for gl in genotype_likelihoods])
 
 			# These two variables hold the phasing results for all samples
 			superreads, components = dict(), dict()
@@ -685,7 +703,11 @@ def add_arguments(parser):
 		'input VCF are phased. Can be used multiple times.')
 
 	arg = parser.add_argument_group('Genotyping',
-		'The options in this section require that --distrust-genotypes is used').add_argument
+		'The options in this section require that either --distrust-genotypes or --full-genotyping is used').add_argument
+	arg('--full-genotyping', dest='full_genotyping',
+		action='store_true', default=False,
+		help='Completely re-genotype all variants based on read data, ignores all genotype '
+		'data that might be present in the VCF (EXPERIMENTAL FEATURE).')
 	arg('--distrust-genotypes', dest='distrust_genotypes',
 		action='store_true', default=False,
 		help='Allow switching variants from hetero- to homozygous in an '

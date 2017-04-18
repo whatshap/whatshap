@@ -7,6 +7,7 @@ include src/read.h src/entry.h src/readset.h src/columniterator.h src/dptable.h
 include src/columnindexingscheme.h src/columncostcomputer.h
 include src/columnindexingiterator.h src/graycodes.h src/indexset.h
 include src/phredgenotypelikelihoods.h
+include src/genotypedistribution.h src/genotyper.h
 include doc/*.rst
 include doc/conf.py
 include doc/Makefile
