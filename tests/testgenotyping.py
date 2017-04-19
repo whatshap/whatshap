@@ -1,6 +1,7 @@
 from nose.tools import raises
 from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable
 from .phasingutils import string_to_readset, brute_force_phase
+from .phasingutils import string_to_readset, string_to_readset_pedigree, brute_force_phase
 
 
 def test_genotyping_empty_readset():
@@ -23,29 +24,54 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 	genotype_likelihoods = [PhredGenotypeLikelihoods(0,0,0)] * len(positions)
 	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 	dp_forward_backward = GenotypeDPTable(readset, recombcost,pedigree)
+	## also get the phasing result
+	dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=True)
+	superreads, transmission_vector = dp_table.get_super_reads()
 	
-	## TODO check the results!!!
-	# get the genotype likelihoods
+	assert(len(superreads)==1)
+	haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads[0]))
+	haplo_geno = [0] * len(positions)
+
+	for sr in superreads[0]:
+		geno = 0
+		i = 0
+		for pos in sr:
+			haplo_geno[i] += pos.allele			
+			i += 1
+	
+	print('haplotypes: ', haplotypes, ' corresponding genotypes: ',haplo_geno)
+	
+	# get the genotype likelihoods as computed by forward-backward alg.
 	if not expected==None:
 		for i in range(len(positions)):
 			likelihoods = dp_forward_backward.get_genotype_likelihoods(0,i)
 			print(likelihoods,i)
 			assert(likelihoods == expected[i])
 	
-	# check if likeliest genotypes are the same
-	if not genotypes==None:
-		for i in range(len(positions)):
-			likelihoods = dp_forward_backward.get_genotype_likelihoods(0,i)
-			# find likeliest genotype 
-			max_val = -1
-			max_index = -1
-			for j in range(3):
-				if likelihoods[j] > max_val:
-					max_val = likelihoods[j]
-					max_index = j
-			print(likelihoods)
-			assert(max_index==genotypes[i])
+	# check if likeliest genotypes are the same and are equal to the haplotypes
+	for i in range(len(positions)):
+		likelihoods = dp_forward_backward.get_genotype_likelihoods(0,i)
+		# find likeliest genotype 
+		max_val = -1
+		max_index = -1
+		for j in range(3):
+			if likelihoods[j] > max_val:
+				max_val = likelihoods[j]
+				max_index = j
 				
+		print('genotype likelihoods: ', likelihoods, ' likeliest genotype: ',max_index)
+			
+		# compare likeliest genotype to haplotype
+		if haplo_geno[i] < 3:
+			assert(max_index==haplo_geno[i])
+		elif haplo_geno[i] == 3:
+			assert(max_index<2)
+		elif haplo_geno[i] == 4:
+			assert(max_index>0)
+
+		if not genotypes==None:
+			assert(max_index==genotypes[i])
+			
 	# 2) Phase using PedMEC code for trios with two "empty" individuals (i.e. having no reads)
 	recombcost = [1] * len(positions) # recombination costs 1, should not occur
 	pedigree = Pedigree(NumericSampleIds())
@@ -138,20 +164,10 @@ def test_geno4():
 	  001 01110
 	   1    111
 	"""
-	check_genotyping_single_individual(reads)
+	check_genotyping_single_individual(reads,None,None,None,10)
 
 
 def test_geno5():
-	reads = """
-	  1  11010
-	  00 00101
-	  001 01110
-	   1    111
-	"""
-	check_genotyping_single_individual(reads)
-
-
-def test_geno6():
 	reads = """
 	  0             0
 	  110111111111
@@ -161,9 +177,9 @@ def test_geno6():
 	        10100
 	              101
 	"""
-	check_genotyping_single_individual(reads)
+	check_genotyping_single_individual(reads,None,None,None,10)
 
-def test_geno7():
+def test_geno6():
 	reads = """
 		0100000000000
 		0100010000000
@@ -185,7 +201,7 @@ def test_geno7():
 	check_genotyping_single_individual(reads,None,None,genotypes,60)
 
 # TODO: currently the result is 0.25,0.5,0.25. Should this be 1/3,1/3,1/3 ??
-def test_geno8():
+def test_geno7():
 	reads = """
 		111
 		101
@@ -212,5 +228,5 @@ def test_weighted_phasing1():
 	  223 56789
 	   2    111
 	"""
-	check_genotyping_single_individual(reads, weights)
+	check_genotyping_single_individual(reads, weights,None,None,10)
 
