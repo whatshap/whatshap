@@ -8,10 +8,11 @@ def test_genotyping_empty_readset():
 	rs = ReadSet()
 	recombcost = [1,1]
 	genotypes = [1,1]
-	pedigree = Pedigree(NumericSampleIds())
+	numeric_sample_ids = NumericSampleIds()
+	pedigree = Pedigree(numeric_sample_ids)
 	genotype_likelihoods = [None, None]
 	pedigree.add_individual('individual0', genotypes, genotype_likelihoods)
-	dp_forward_backward = GenotypeDPTable(rs, recombcost, pedigree)
+	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,rs, recombcost, pedigree)
 
 def check_genotyping_single_individual(reads, weights = None, expected = None, genotypes = None, scaling=None):
 	# 0) set up read set
@@ -20,10 +21,11 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 
 	# 1) Phase using PedMEC code for single individual
 	recombcost = [1] * len(positions) # recombination costs 1, should not occur
-	pedigree = Pedigree(NumericSampleIds())
+	numeric_sample_ids = NumericSampleIds()
+	pedigree = Pedigree(numeric_sample_ids)
 	genotype_likelihoods = [PhredGenotypeLikelihoods(0,0,0)] * len(positions)
 	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
-	dp_forward_backward = GenotypeDPTable(readset, recombcost,pedigree)
+	dp_forward_backward = GenotypeDPTable(numeric_sample_ids, readset, recombcost,pedigree)
 	## also get the phasing result
 	dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=True)
 	superreads, transmission_vector = dp_table.get_super_reads()
@@ -44,13 +46,13 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 	# get the genotype likelihoods as computed by forward-backward alg.
 	if not expected==None:
 		for i in range(len(positions)):
-			likelihoods = dp_forward_backward.get_genotype_likelihoods(0,i)
+			likelihoods = dp_forward_backward.get_genotype_likelihoods('individual0',i)
 			print(likelihoods,i)
 			assert(likelihoods == expected[i])
 	
 	# check if likeliest genotypes are the same and are equal to the haplotypes
 	for i in range(len(positions)):
-		likelihoods = dp_forward_backward.get_genotype_likelihoods(0,i)
+		likelihoods = dp_forward_backward.get_genotype_likelihoods('individual0',i)
 		# find likeliest genotype 
 		max_val = -1
 		max_index = -1
@@ -74,13 +76,14 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 			
 	# 2) Phase using PedMEC code for trios with two "empty" individuals (i.e. having no reads)
 	recombcost = [1] * len(positions) # recombination costs 1, should not occur
-	pedigree = Pedigree(NumericSampleIds())
+	numeric_sample_ids = NumericSampleIds()
+	pedigree = Pedigree(numeric_sample_ids)
 	genotype_likelihoods = [PhredGenotypeLikelihoods(0,0,0)] * len(positions)
 	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 	pedigree.add_individual('individual1', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 	pedigree.add_individual('individual2', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
-	dp_forward_backward = GenotypeDPTable(readset,recombcost,pedigree)
+	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,readset,recombcost,pedigree)
 	
 	## TODO check the results!!!
 		

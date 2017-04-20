@@ -14,7 +14,8 @@ COMMANDS = [
 	'compare',
 	'hapcut2vcf',
 	'unphase',
-	'haplotag'
+	'haplotag',
+	'genotyping'
 ]
 
 logger = logging.getLogger(__name__)

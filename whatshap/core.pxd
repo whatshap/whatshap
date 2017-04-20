@@ -30,4 +30,5 @@ cdef class PhredGenotypeLikelihoods:
 cdef class GenotypeDPTable:
 	cdef cpp.GenotypeDPTable *thisptr
 	cdef Pedigree pedigree
+	cdef NumericSampleIds numeric_sample_ids
 

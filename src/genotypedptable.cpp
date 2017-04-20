@@ -485,16 +485,16 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
     }
 }
 
-vector<long double> GenotypeDPTable::get_genotype_likelihoods(unsigned int individual, unsigned int position)
+vector<long double> GenotypeDPTable::get_genotype_likelihoods(unsigned int individual_id, unsigned int position)
 {
-    assert(individual < pedigree->size());
+    assert(pedigree->id_to_index(individual_id) < genotype_likelihood_table.get_size0());
     if(position >= input_column_iterator.get_column_count()){
         throw std::runtime_error("No such position.");
     }
 
     vector<long double> result;
     for(unsigned int i = 0; i < 3; i++){
-        result.push_back(genotype_likelihood_table.at(individual,position).likelihoods[i]);
+        result.push_back(genotype_likelihood_table.at(pedigree->id_to_index(individual_id),position).likelihoods[i]);
     }
 
     return result;
