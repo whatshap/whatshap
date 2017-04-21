@@ -24,7 +24,7 @@ from .bam import BamIndexingError, SampleNotFoundError, ReferenceNotFoundError
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
 
-from .phase import read_reads, select_reads, create_read_list_file, split_input_file_list, setup_pedigree
+from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree
 
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		max_coverage=15, full_genotyping=False, distrust_genotypes=False,
 		include_homozygous=False,
 		ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
-		recombination_list_filename=None, tag='PS', read_list_filename=None,
+		recombination_list_filename=None, tag='PS',
 		gl_regularizer=None, gtchange_list_filename=None, default_gq=30):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
@@ -48,6 +48,8 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 	timers.start('overall')
 	logger.info("This is WhatsHap (genotyping) %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
+		
+		# read the given input files (bams,vcfs,ref...)
 		numeric_sample_ids = NumericSampleIds()
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
 		try:
@@ -73,6 +75,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 			output = stack.enter_context(xopen(output, 'w'))
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
 		
+		# parse vcf
 		# No genotype likelihoods may be given, therefore don't read them
 		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=False)
 		
@@ -95,6 +98,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		# Keep track of connected components (aka families) in the pedigree
 		family_finder = ComponentFinder(samples)
 
+		# if pedigree information present, parse it
 		if ped:
 			all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, vcf_reader.samples)
 			if genmap:
@@ -119,10 +123,6 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		if max_coverage + 2 * largest_trio_count > 25:
 			logger.warning('The maximum coverage is too high! '
 				'WhatsHap may take a long time to finish and require a huge amount of memory.')
-
-		read_list_file = None
-		if read_list_filename:
-			read_list_file = create_read_list_file(read_list_filename)
 
 		# Read phase information provided as VCF files, if provided.
 		phase_input_vcfs = []
@@ -194,8 +194,9 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 				# Create Pedigree
 				pedigree = Pedigree(numeric_sample_ids)
 				for sample in family:
-					genotype_likelihoods = None
-					pedigree.add_individual(sample, phasable_variant_table.genotypes_of(sample), genotype_likelihoods)
+					# genotypes are assumed to be unknown, so ignore information that
+					# might be present in the input vcf
+					pedigree.add_individual(sample, [0] * len(accessible_positions), None)
 				for trio in trios:
 					pedigree.add_relationship(
 						mother_id=trio.mother,
@@ -210,11 +211,11 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 
 				# Finally, run genotyping algorithm
 				with timers('genotyping'):
-					problem_name = 'Genotyping'
+					problem_name = 'genotyping'
 					logger.info('Genotype %d sample%s by solving the %s problem ...',
 						len(family), 's' if len(family) > 1 else '', problem_name)
 					forward_backward_table = GenotypeDPTable(numeric_sample_ids, all_reads, recombination_costs, pedigree, accessible_positions)
-					# TODO store results ...
+					# TODO store results, this only outputs likelihoods on command line...
 					for pos in range(len(accessible_positions)):
 						for s in family:
 							likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
@@ -229,8 +230,6 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 			timers.start('parse_vcf')
 		timers.stop('parse_vcf')
 
-	if read_list_file:
-		read_list_file.close()
 
 	logger.info('\n== SUMMARY ==')
 	timers.stop('overall')
@@ -266,8 +265,6 @@ def add_arguments(parser):
 	arg('--tag', choices=('PS', 'HP'), default='PS',
 		help='Store phasing information with PS tag (standardized) or '
 			'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')
-	arg('--output-read-list', metavar='FILE', default=None, dest='read_list_filename',
-		help='Write reads that have been used for phasing to FILE.')
 
 	arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
 	arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
