@@ -8,4 +8,4 @@ WhatsHap is a software for phasing genomic variants using DNA sequencing
 reads, also called *read-based phasing* or *haplotype assembly*. It is
 especially suitable for long reads, but works also well with short reads.
 
-For more information, please visit the [WhatsHap Homepage](https://whatshap.readthedocs.io/en/latest/index.html)
+For documentation and information on how to cite WhatsHap, please visit the [WhatsHap Homepage](https://whatshap.readthedocs.io/en/latest/index.html)
