@@ -438,7 +438,8 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
                     backward_probability = backward_probabilities->at(forward_projection_index,i);
                 }
 
-                long double forward_probability = dp_column.at(current_index,i)*cost_computers[i].get_cost(a);
+                long double scaling_sum = scaling_parameters[column_index];
+                long double forward_probability = (dp_column.at(current_index,i)*cost_computers[i].get_cost(a))/scaling_sum;
                 long double forward_backward = forward_probability * backward_probability;
                 normalization += forward_backward;
 
@@ -464,17 +465,6 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
     // store the computed projection column (in case there is one)
     if(current_projection_column != 0){
         forward_projection_column_table[column_index] = current_projection_column;
-    }
-
-    // again go through projection column to scale the values (divide them by sum of forward prob.)
-    if(current_projection_column != 0){
-        long double scaling_sum = scaling_parameters[column_index];
-        assert(scaling_sum > 0);
-        for(size_t i = 0; i < current_indexer->forward_projection_size(); i++){
-            for(size_t j = 0; j < transmission_configurations; j++){
-                current_projection_column->at(i,j) /= scaling_sum;
-            }
-        }
     }
 
     // scale the likelihoods
