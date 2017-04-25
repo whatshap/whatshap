@@ -216,8 +216,16 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 						len(family), 's' if len(family) > 1 else '', problem_name)
 					forward_backward_table = GenotypeDPTable(numeric_sample_ids, all_reads, recombination_costs, pedigree, accessible_positions)
 					# TODO store results, this only outputs likelihoods on command line...
+					#for s in family:
+					#	likelihood_list = []
+					#	for pos in range(len(accessible_positions)):
+					#		likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
+					#		likelihood_list.append(likelihoods)
+					
 					for pos in range(len(accessible_positions)):
 						for s in family:
+							print(s)
+							phasable_variant_table.
 							likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
 							print(s, accessible_positions[pos], likelihoods)
 

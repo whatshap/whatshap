@@ -139,7 +139,7 @@ def test_genotyping_trio3():
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
 
 # TODO: what about such cases, where the given reads are like below? What would be the expected genotypes
-
+# when genotyping with higher recombrate (e.g. 10), resulting genotypes are: [2,2,2] , [2,1,1], [2,2,2], why??
 def test_genotyping_trio4():
 	reads = """
 	  B 101
@@ -287,6 +287,48 @@ def test_genotyping_quartet4():
 	pedigree.add_relationship('individual0', 'individual1', 'individual3')
 	recombcost = [3,3,3,4,3,3]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
+
+def test_genotyping_trio7():
+	reads = """
+	  B 100
+	  B 100
+	  B 111
+	  A 111
+	  A 111
+	  A 111
+	  C 111
+	  C 101
+	  C 101
+	"""
+	expected_genotypes = [[2,2,2] , [2,1,1], [2,1,2]]
+	numeric_sample_ids = NumericSampleIds()
+	pedigree = Pedigree(numeric_sample_ids)
+	pedigree.add_individual('individual0',[0,0,0])
+	pedigree.add_individual('individual1',[0,0,0])
+	pedigree.add_individual('individual2',[0,0,0])
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
+	recombcost = [1,1,1]
+	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
+	
+def test_genotyping_trio8():
+	reads = """
+	  B 1100
+	  B 1110
+	  A 1111
+	  A 0000
+	  C 0011
+	  C 1110
+	"""
+	expected_genotypes = [[1,1,1,1] , [2,2,1,0], [1,1,2,1]]
+	numeric_sample_ids = NumericSampleIds()
+	pedigree = Pedigree(numeric_sample_ids)
+	pedigree.add_individual('individual0',[0,0,0,0])
+	pedigree.add_individual('individual1',[0,0,0,0])
+	pedigree.add_individual('individual2',[0,0,0,0])
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
+	recombcost = [10,10,10,10]
+	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
+
 
 #
 #def test_phase_trio_pure_genetic():
