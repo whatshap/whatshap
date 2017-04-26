@@ -7,6 +7,7 @@ import logging
 import sys
 import platform
 import resource
+import math
 from collections import defaultdict
 from copy import deepcopy
 
@@ -29,16 +30,32 @@ from .phase import read_reads, select_reads, split_input_file_list, setup_pedigr
 
 logger = logging.getLogger(__name__)
 
-# TODO: include this in the phasing algorithm
-# this only computes the genotype likelihoods (for now: use separate function)
+# given genotype likelihoods for 0/0,0/1,1/1, determines likeliest genotype
+def determine_genotype(likelihoods, genotype_threshold):
+	max_ind = -1
+	max_val = -1
+	
+	threshold_prob = 1.0-(10 ** (-genotype_threshold/10.0))
+	
+	for i in range(len(likelihoods)):
+		if likelihoods[i] > max_val:
+			max_val = likelihoods[i]
+			max_ind = i
+			
+	# in case likeliest gt has prob smaller than given threshold
+	# we refuse to give a prediction (gt ./.)
+	if max_val > threshold_prob:
+		return max_ind
+	else:
+		return -1
+	
 def run_genotyping(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None,
 		ignore_read_groups=False, indels=True, mapping_quality=20,
-		max_coverage=15, full_genotyping=False, distrust_genotypes=False,
-		include_homozygous=False,
-		ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
+		max_coverage=15, full_genotyping=False,
+		ped=None, recombrate=1.26, genmap=None,
 		recombination_list_filename=None, tag='PS',
-		gl_regularizer=None, gtchange_list_filename=None, default_gq=30):
+		gl_regularizer=None, gtchange_list_filename=None, gt_qual_threshold=15):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
 	all variants are computed using the forward backward algorithm
@@ -74,6 +91,8 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		if isinstance(output, str):
 			output = stack.enter_context(xopen(output, 'w'))
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
+		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file,
+		        out_file=output, tag=tag)
 		
 		# parse vcf
 		# No genotype likelihoods may be given, therefore don't read them
@@ -215,23 +234,38 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 					logger.info('Genotype %d sample%s by solving the %s problem ...',
 						len(family), 's' if len(family) > 1 else '', problem_name)
 					forward_backward_table = GenotypeDPTable(numeric_sample_ids, all_reads, recombination_costs, pedigree, accessible_positions)
-					# TODO store results, this only outputs likelihoods on command line...
-					#for s in family:
-					#	likelihood_list = []
-					#	for pos in range(len(accessible_positions)):
-					#		likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
-					#		likelihood_list.append(likelihoods)
-					
-					for pos in range(len(accessible_positions)):
-						for s in family:
-							print(s)
-							phasable_variant_table.
+					# store results
+					for s in family:
+						
+						# all genotypes/likelihoods to be stored (including non-accessible positions)
+						likelihood_list = []
+						genotypes_list = []
+						
+						for pos in range(len(accessible_positions)):
 							likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
-							print(s, accessible_positions[pos], likelihoods)
+							
+							# compute genotypes from likelihoods
+							geno = determine_genotype(likelihoods, gt_qual_threshold)
+							genotypes_list.append(geno)
+							
+							# translate into phred scores
+							phred_likelihoods = [-10*math.log10(i) for i in likelihoods]
+							likelihood_list.append(phred_likelihoods)
+							
+							# just for testing: this only prints the results on command line ...
+							print(s, accessible_positions[pos], likelihoods, phred_likelihoods, geno)
+							
+						phasable_variant_table.set_genotypes_of(s, genotypes_list)
+						phasable_variant_table.set_genotype_likelihoods_of(s,likelihood_list)
+							
+			# just for testing: print stored values
+			#print(phasable_variant_table.genotypes_of(sample))
+			#print(phasable_variant_table.genotype_likelihoods_of(sample))
+			#print(phasable_variant_table.variants, len(phasable_variant_table.variants), len(accessible_positions))
 
 			with timers('write_vcf'):
 				logger.info('======== Writing VCF')
-				# TODO output the genotypes + likelihoods here somehow
+				#vcf_writer.write_genotypes(chromosome,phasable_variant_table,components)
 				logger.info('Done writing VCF')
 
 			logger.debug('Chromosome %r finished', chromosome)
@@ -290,6 +324,9 @@ def add_arguments(parser):
 	arg('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
 		help='Name of chromosome to phase. If not given, all chromosomes in the '
 		'input VCF are phased. Can be used multiple times.')
+	arg('--gt-qual-threshold', metavar='GTQUALTHRESHOLD', type=float, default=15,
+		help='Phred scaled error probability threshold used for genotyping (default: 15). '
+		'If error probability of genotype is higher, genotype ./. is output.')
 	arg = parser.add_argument_group('Pedigree genotyping').add_argument
 	arg('--ped', metavar='PED/FAM',
 		help='Use pedigree information in PED file to improve phasing '

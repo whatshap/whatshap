@@ -59,12 +59,8 @@ ReadSet* string_to_readset(string s, string weights, bool use){
         }
 
         read_set->add(read);
-        //std::cout << read->getVariantCount() << std::endl;
-        //std::cout << read->getPosition(0) << " " << read->getPosition(1) << std::endl;
-        //std::cout << read->getAllele(0) << " " << read->getAllele(1) << std::endl;
         index += 1;
     }
-
     return read_set;
 }
 
@@ -107,7 +103,6 @@ long double naive_column_cost_computer(string current_column,unsigned int bipart
             }
         }
     }
-
     return result;
 }
 
@@ -155,12 +150,13 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
     }
 }
 
+
 TEST_CASE("test column_cost_computer","[test column_cost_computer]"){
 
-    vector<std::string> reads = {"11\n00", "10\n11", "00\n00", "10\10"};
+    vector<std::string> reads = {"11\n00", "10\n11", "00\n00", "10\n10", "01\n10"};
     std::string weights = "11\n11";
 
-    for(unsigned int r = 0; r < reads[r].size(); r++){
+    for(unsigned int r = 0; r < reads.size(); r++){
         ReadSet* read_set = string_to_readset(reads[r],weights,false);
         std::vector<unsigned int>* positions = read_set->get_positions();
         std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods(positions->size(),nullptr);
@@ -181,8 +177,8 @@ TEST_CASE("test column_cost_computer","[test column_cost_computer]"){
         {
             read_sources.push_back(pedigree->id_to_index(read_set->get(i)->getSampleID()));
         }
-
         vector<string> columns = get_columns(reads[r],2);
+
         ColumnIterator input_column_iterator(*read_set, positions);
         unsigned int col_ind = 0;
 
@@ -190,19 +186,17 @@ TEST_CASE("test column_cost_computer","[test column_cost_computer]"){
             unique_ptr<vector<const Entry *> > current_input_column = input_column_iterator.get_next();
 
             // create column cost computer
-            GenotypeColumnCostComputer cost_computer(*current_input_column, 0, read_sources, pedigree,*pedigree_partitions[0]);
+            GenotypeColumnCostComputer cost_computer(*current_input_column, col_ind, read_sources, pedigree,*pedigree_partitions[0]);
             cost_computer.set_partitioning(0);
 
             unsigned int switch_cost = 1;
-            long double switch_to_1 = (1.0L-pow(10,-(long double)1/10.0L));
-            long double switch_to_0 = 1-switch_to_1;
-
 
             // check if costs for initial partition (r1,r2/.) are computed correctly
             REQUIRE(cost_computer.get_cost(0) == naive_column_cost_computer(columns[col_ind],0,switch_cost,0,0));
             REQUIRE(cost_computer.get_cost(1) == naive_column_cost_computer(columns[col_ind],0,switch_cost,0,1));
             REQUIRE(cost_computer.get_cost(2) == naive_column_cost_computer(columns[col_ind],0,switch_cost,1,0));
             REQUIRE(cost_computer.get_cost(3) == naive_column_cost_computer(columns[col_ind],0,switch_cost,1,1));
+
 
             // switch first read (r2/r1)
             cost_computer.update_partitioning(0);
@@ -280,7 +274,6 @@ TEST_CASE("test BackwardColumnIterator", "[test BackwardColumnIterator]") {
 
             delete read_set;
             delete positions;
-
         }
     }
 }
