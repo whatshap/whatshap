@@ -249,11 +249,10 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 							genotypes_list.append(geno)
 							
 							# translate into phred scores
-							phred_likelihoods = [-10*math.log10(i) for i in likelihoods]
-							likelihood_list.append(phred_likelihoods)
+							likelihood_list.append(likelihoods)
 							
 							# just for testing: this only prints the results on command line ...
-							print(s, accessible_positions[pos], likelihoods, phred_likelihoods, geno)
+							print(s, accessible_positions[pos], likelihoods, geno)
 							
 						phasable_variant_table.set_genotypes_of(s, genotypes_list)
 						phasable_variant_table.set_genotype_likelihoods_of(s,likelihood_list)
@@ -265,7 +264,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 
 			with timers('write_vcf'):
 				logger.info('======== Writing VCF')
-				#vcf_writer.write_genotypes(chromosome,phasable_variant_table,components)
+				vcf_writer.write_genotypes(chromosome,phasable_variant_table)
 				logger.info('Done writing VCF')
 
 			logger.debug('Chromosome %r finished', chromosome)

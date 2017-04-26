@@ -637,3 +637,64 @@ class PhasedVcfWriter:
 			self._writer.write_record(record)
 			prev_pos = pos
 		return genotype_changes
+		
+		
+	############# function to print computed genotypes,likelihoods (still needs to be improved...) ###########
+
+	def write_genotypes(self, chromosome, phasable_variant_table):
+		"""
+		Add genotyping information to all variants on a single chromosome.
+
+		chromosome -- name of chromosome
+		phasable_variant_table -- contains genotyping information
+		"""
+		assert self._unprocessed_record is None or (self._unprocessed_record.CHROM == chromosome)
+
+		if self._unprocessed_record is not None:
+			records_iter = itertools.chain([self._unprocessed_record], self._reader_iter)
+		else:
+			records_iter = self._reader_iter
+		
+		
+		genotyped_variants = dict()
+		for i in range(len(phasable_variant_table)):
+			genotyped_variants[phasable_variant_table.variants[i].position] = i
+		
+		n = 0
+		prev_pos = None
+		INT_TO_UNPHASED_GT = { 0: '0/0', 1: '0/1', 2: '1/1', -1: '.' }
+		for record in records_iter:
+			
+			n += 1
+			pos, ref, alt = record.start, str(record.REF), str(record.ALT[0])
+
+			if record.CHROM != chromosome:
+				# save it for later
+				self._unprocessed_record = record
+				assert n != 1
+				break
+	
+			# add GL
+			record.add_format('PL')	
+			if record.FORMAT not in self._reader._format_cache:
+				self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
+			samp_fmt = self._reader._format_cache[record.FORMAT]
+		
+			for i, call in enumerate(record.samples):
+				sample = self._reader.samples[i]
+				values = call.data._asdict()
+				
+				
+				if pos in genotyped_variants.keys():
+					values['GT'] = INT_TO_UNPHASED_GT[phasable_variant_table.genotypes_of(sample)[genotyped_variants[pos]]]
+					geno_l = phasable_variant_table.genotype_likelihoods_of(sample)[genotyped_variants[pos]]
+					values['PL'] = str(geno_l[0]) + ',' + str(geno_l[1]) + ',' + str(geno_l[2]) 
+				else:
+					values['GT'] = '.'
+					values['PL'] = '.,.,.'
+				record.QUAL = '.'
+
+				call.data = samp_fmt(**values)
+			self._writer.write_record(record)
+		prev_pos = pos
+		
