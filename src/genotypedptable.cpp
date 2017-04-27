@@ -489,6 +489,12 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
         forward_projection_column_table[0] = current_projection_column;
     }
 
+    // we can remove the backward-probability column
+    if(backward_projection_column_table[column_index] != nullptr){
+        delete backward_projection_column_table[column_index];
+        backward_projection_column_table[column_index] = nullptr;
+    }
+
     // scale the likelihoods
     for(size_t individuals_index = 0; individuals_index < pedigree->size(); individuals_index++){
         for(size_t genotype = 0; genotype < 3; genotype++){

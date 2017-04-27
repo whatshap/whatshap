@@ -27,21 +27,21 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 	dp_forward_backward = GenotypeDPTable(numeric_sample_ids, readset, recombcost,pedigree)
 	## also get the phasing result
-	dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=True)
-	superreads, transmission_vector = dp_table.get_super_reads()
+	#dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=True)
+	#superreads, transmission_vector = dp_table.get_super_reads()
 	
-	assert(len(superreads)==1)
-	haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads[0]))
-	haplo_geno = [0] * len(positions)
-
-	for sr in superreads[0]:
-		geno = 0
-		i = 0
-		for pos in sr:
-			haplo_geno[i] += pos.allele			
-			i += 1
+#	assert(len(superreads)==1)
+#	haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads[0]))
+#	haplo_geno = [0] * len(positions)
+#
+#	for sr in superreads[0]:
+#		geno = 0
+#		i = 0
+#		for pos in sr:
+#			haplo_geno[i] += pos.allele			
+#			i += 1
 	
-	print('haplotypes: ', haplotypes, ' corresponding genotypes: ',haplo_geno)
+#	print('haplotypes: ', haplotypes, ' corresponding genotypes: ',haplo_geno)
 	
 	# get the genotype likelihoods as computed by forward-backward alg.
 	if not expected==None:

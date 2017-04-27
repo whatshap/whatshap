@@ -639,7 +639,41 @@ class PhasedVcfWriter:
 		return genotype_changes
 		
 		
-	############# function to print computed genotypes,likelihoods (still needs to be improved...) ###########
+############ class to print computed genotypes,likelihoods (still needs to be improved...) ###########
+# in input vcf, currently GT is still required..
+
+
+class GenotypeVcfWriter:
+	"""
+	Read in a VCF file and write it back out with added genotyping information.
+
+	Avoid reading in full chromosomes as that uses too much memory for
+	multi-sample VCFs.
+	"""
+	def __init__(self, in_path, command_line, out_file=sys.stdout):
+		"""
+		in_path -- Path to input VCF, used as template.
+		command_line -- A string that will be added as a VCF header entry.
+		out_file -- Open file-like object to which VCF is written.
+		"""
+		self._reader = vcf.Reader(filename=in_path)
+
+		if 'commandline' not in self._reader.metadata:
+			self._reader.metadata['commandline'] = []
+		command_line = command_line.replace('"', '')
+		self._reader.metadata['commandline'] = [command_line]
+
+		# add tag for genotype likelihoods
+		fmt = vcf.parser._Format(id='GL', num='G', type='Float', desc='Phred scaled likelihoods for genotypes: 0/0,0/1,1/1')
+		self._reader.formats['GL'] = fmt
+
+		self._writer = vcf.Writer(out_file, template=self._reader)
+		self._unprocessed_record = None
+		self._reader_iter = iter(self._reader)
+
+	@property
+	def samples(self):
+		return self._reader.samples
 
 	def write_genotypes(self, chromosome, phasable_variant_table):
 		"""
@@ -654,8 +688,7 @@ class PhasedVcfWriter:
 			records_iter = itertools.chain([self._unprocessed_record], self._reader_iter)
 		else:
 			records_iter = self._reader_iter
-		
-		
+				
 		genotyped_variants = dict()
 		for i in range(len(phasable_variant_table)):
 			genotyped_variants[phasable_variant_table.variants[i].position] = i
@@ -675,7 +708,7 @@ class PhasedVcfWriter:
 				break
 	
 			# add GL
-			record.add_format('PL')	
+			record.add_format('GL')	
 			if record.FORMAT not in self._reader._format_cache:
 				self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
 			samp_fmt = self._reader._format_cache[record.FORMAT]
@@ -683,15 +716,14 @@ class PhasedVcfWriter:
 			for i, call in enumerate(record.samples):
 				sample = self._reader.samples[i]
 				values = call.data._asdict()
-				
-				
+								
 				if pos in genotyped_variants.keys():
 					values['GT'] = INT_TO_UNPHASED_GT[phasable_variant_table.genotypes_of(sample)[genotyped_variants[pos]]]
 					geno_l = phasable_variant_table.genotype_likelihoods_of(sample)[genotyped_variants[pos]]
-					values['PL'] = str(geno_l[0]) + ',' + str(geno_l[1]) + ',' + str(geno_l[2]) 
+					values['GL'] = str(geno_l[0]) + ',' + str(geno_l[1]) + ',' + str(geno_l[2]) 
 				else:
 					values['GT'] = '.'
-					values['PL'] = '.,.,.'
+					values['GL'] = str(1.0/3.0)+','+str(1.0/3.0)+','+str(1.0/3.0)
 				record.QUAL = '.'
 
 				call.data = samp_fmt(**values)

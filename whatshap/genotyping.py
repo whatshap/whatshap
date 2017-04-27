@@ -15,7 +15,7 @@ import pyfaidx
 from xopen import xopen
 
 from contextlib import ExitStack
-from .vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
+from .vcf import VcfReader, GenotypeVcfWriter, GenotypeLikelihoods
 from . import __version__
 from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable, compute_genotypes
 from .graph import ComponentFinder
@@ -52,9 +52,8 @@ def determine_genotype(likelihoods, genotype_threshold):
 def run_genotyping(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None,
 		ignore_read_groups=False, indels=True, mapping_quality=20,
-		max_coverage=15, full_genotyping=False,
+		max_coverage=15,
 		ped=None, recombrate=1.26, genmap=None,
-		recombination_list_filename=None, tag='PS',
 		gl_regularizer=None, gtchange_list_filename=None, gt_qual_threshold=15):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
@@ -91,8 +90,8 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		if isinstance(output, str):
 			output = stack.enter_context(xopen(output, 'w'))
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
-		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file,
-		        out_file=output, tag=tag)
+		vcf_writer = GenotypeVcfWriter(command_line=command_line, in_path=variant_file,
+		        out_file=output)
 		
 		# parse vcf
 		# No genotype likelihoods may be given, therefore don't read them
@@ -227,6 +226,8 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 					recombination_costs = recombination_cost_map(load_genetic_map(genmap), accessible_positions)
 				else:
 					recombination_costs = uniform_recombination_map(recombrate, accessible_positions)
+					
+				print("len acc pos: ", len(accessible_positions))
 
 				# Finally, run genotyping algorithm
 				with timers('genotyping'):
@@ -282,7 +283,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 	if len(phase_input_vcfs) > 0:
 		logger.info('Time spent parsing input phasings from VCFs: %6.1f s', timers.elapsed('parse_phasing_vcfs'))
 	logger.info('Time spent selecting reads:                  %6.1f s', timers.elapsed('select'))
-	logger.info('Time spent phasing:                          %6.1f s', timers.elapsed('genotyping'))
+	logger.info('Time spent genotyping:                          %6.1f s', timers.elapsed('genotyping'))
 	logger.info('Time spent writing VCF:                      %6.1f s', timers.elapsed('write_vcf'))
 	logger.info('Time spent on rest:                          %6.1f s', 2 * timers.elapsed('overall') - timers.total())
 	logger.info('Total elapsed time:                          %6.1f s', timers.elapsed('overall'))
@@ -292,7 +293,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 def add_arguments(parser):
 	arg = parser.add_argument
 	# Positional arguments
-	arg('variant_file', metavar='VCF', help='VCF file with variants to be phased (can be gzip-compressed)')
+	arg('variant_file', metavar='VCF', help='VCF file with variants to be genotyped (can be gzip-compressed)')
 	arg('phase_input_files', nargs='*', metavar='PHASEINPUT',
 	    help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')
 
@@ -303,9 +304,6 @@ def add_arguments(parser):
 	arg('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')
-	arg('--tag', choices=('PS', 'HP'), default='PS',
-		help='Store phasing information with PS tag (standardized) or '
-			'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')
 
 	arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
 	arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
@@ -313,16 +311,16 @@ def add_arguments(parser):
 	arg('--mapping-quality', '--mapq', metavar='QUAL',
 		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
 	arg('--indels', dest='indels', default=False, action='store_true',
-		help='Also phase indels (default: do not phase indels)')
+		help='Also genotype indels (default: do not genotype indels)')
 	arg('--ignore-read-groups', default=False, action='store_true',
 		help='Ignore read groups in BAM header and assume all reads come '
 		'from the same sample.')
 	arg('--sample', dest='samples', metavar='SAMPLE', default=[], action='append',
-		help='Name of a sample to phase. If not given, all samples in the '
-		'input VCF are phased. Can be used multiple times.')
+		help='Name of a sample to genotype. If not given, all samples in the '
+		'input VCF are genotyped. Can be used multiple times.')
 	arg('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
-		help='Name of chromosome to phase. If not given, all chromosomes in the '
-		'input VCF are phased. Can be used multiple times.')
+		help='Name of chromosome to genotyped. If not given, all chromosomes in the '
+		'input VCF are genotyped. Can be used multiple times.')
 	arg('--gt-qual-threshold', metavar='GTQUALTHRESHOLD', type=float, default=15,
 		help='Phred scaled error probability threshold used for genotyping (default: 15). '
 		'If error probability of genotype is higher, genotype ./. is output.')
@@ -332,8 +330,6 @@ def add_arguments(parser):
 		'(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, '
 		'mother, and father sample names as used in the VCF and BAM. Other '
 		'columns are ignored.')
-	arg('--recombination-list', metavar='FILE', dest='recombination_list_filename', default=None,
-		help='Write putative recombination events to FILE.')
 	arg('--recombrate', metavar='RECOMBRATE', type=float, default=1.26,
 		help='Recombination rate in cM/Mb (used with --ped). If given, a constant recombination '
 		'rate is assumed (default: %(default)gcM/Mb).')
