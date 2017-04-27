@@ -59,7 +59,7 @@ GenotypeDPTable::~GenotypeDPTable()
 void GenotypeDPTable::clear_forward_table()
 {
     size_t column_count = input_column_iterator.get_column_count();
-    init(forward_projection_column_table, column_count);
+    init(forward_projection_column_table, 1);
 }
 
 void GenotypeDPTable::clear_backward_table()
@@ -191,12 +191,6 @@ void GenotypeDPTable::compute_forward_prob()
 
         // compute forward probabilities for the current column
         compute_forward_column(column_index,std::move(current_input_column));
-
-        // check whether to delete the previous column
-        if ((k>1) && (column_index > 0) && (((column_index-1)%k) != 0)) {
-            delete forward_projection_column_table[column_index-1];
-            forward_projection_column_table[column_index-1] = nullptr;
-        }
     }
 }
 
@@ -313,9 +307,6 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
 {
     assert(column_index < input_column_iterator.get_column_count());
 
-    // check whether requested column is already there, if so nothing to do
-    if (forward_projection_column_table[column_index] != nullptr) return;
-
     ColumnIndexingScheme* current_indexer = indexers[column_index];
     assert(current_indexer != nullptr);
 
@@ -336,7 +327,8 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
     // obtain previous projection column (which is assumed to have already been computed)
     Vector2D<long double>* previous_projection_column = nullptr;
     if (column_index > 0) {
-        previous_projection_column = forward_projection_column_table[column_index - 1];
+        previous_projection_column = forward_projection_column_table[0];
+        assert(previous_projection_column != nullptr);
     }
 
     // obtain the backward projection table, from where to get the backward probabilities
@@ -493,7 +485,8 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
 **/
     // store the computed projection column (in case there is one)
     if(current_projection_column != 0){
-        forward_projection_column_table[column_index] = current_projection_column;
+        delete forward_projection_column_table[0];
+        forward_projection_column_table[0] = current_projection_column;
     }
 
     // scale the likelihoods
