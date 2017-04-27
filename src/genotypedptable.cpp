@@ -378,7 +378,7 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
 
     // sum of alpha*beta, used to normalize the likelihoods
     long double normalization = 0.0L;
-
+/**
     // DEBUGGING
     long double max_entry = -1.0L;
     unsigned int max_partition;
@@ -388,7 +388,7 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
     std::vector<unsigned int> partitions;
     std::vector<unsigned int> gts;
     // END_DEBUGGING
-
+**/
     // iterate over all bipartitions
     unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
     while (iterator->has_next()) {
@@ -451,7 +451,7 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
                 long double forward_backward = forward_probability * backward_probability;
                 normalization += forward_backward;
 
-                // DEBUGGING
+/**                // DEBUGGING
                 if(forward_backward > max_entry){
                     max_entry = forward_backward;
                     max_partition = iterator->get_partition();
@@ -463,7 +463,7 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
                 partitions.push_back(iterator->get_partition());
 
                 // END_DEBUGGING
-
+**/
                 // marginalize over all genotypes
                 for (size_t individuals_index = 0; individuals_index < pedigree->size(); individuals_index++) {
                     unsigned int partition0 = pedigree_partitions[i]->haplotype_to_partition(individuals_index,0);
@@ -482,7 +482,7 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
             }
         }
     }
-
+/**
     // DEBUGGING
 //    std::cout << "max_entry for column: " << column_index << ": " << max_entry << " trans.: " << max_trans << " bipart.: " << max_partition << " gt: " << max_gt << std::endl;
 //    for(size_t i = 0; i < entries.size(); i++){
@@ -490,7 +490,7 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
 //    }
 //    std::cout << std::endl;
     // END_DEBUGGING
-
+**/
     // store the computed projection column (in case there is one)
     if(current_projection_column != 0){
         forward_projection_column_table[column_index] = current_projection_column;
