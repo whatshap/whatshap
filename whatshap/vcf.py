@@ -173,6 +173,7 @@ class VariantTable:
 		assert len(genotypes) == len(self.variants)
 		self.genotypes[self._sample_to_index[sample]] = genotypes
 
+
 	def genotype_likelihoods_of(self, sample):
 		"""Retrieve genotype likelihoods by sample name"""
 		return self.genotype_likelihoods[self._sample_to_index[sample]]
@@ -675,7 +676,7 @@ class GenotypeVcfWriter:
 	def samples(self):
 		return self._reader.samples
 
-	def write_genotypes(self, chromosome, phasable_variant_table):
+	def write_genotypes(self, chromosome, variant_table):
 		"""
 		Add genotyping information to all variants on a single chromosome.
 
@@ -690,8 +691,8 @@ class GenotypeVcfWriter:
 			records_iter = self._reader_iter
 				
 		genotyped_variants = dict()
-		for i in range(len(phasable_variant_table)):
-			genotyped_variants[phasable_variant_table.variants[i].position] = i
+		for i in range(len(variant_table)):
+			genotyped_variants[variant_table.variants[i].position] = i
 		
 		n = 0
 		prev_pos = None
@@ -717,13 +718,11 @@ class GenotypeVcfWriter:
 				sample = self._reader.samples[i]
 				values = call.data._asdict()
 								
-				if pos in genotyped_variants.keys():
-					values['GT'] = INT_TO_UNPHASED_GT[phasable_variant_table.genotypes_of(sample)[genotyped_variants[pos]]]
-					geno_l = phasable_variant_table.genotype_likelihoods_of(sample)[genotyped_variants[pos]]
-					values['GL'] = str(geno_l[0]) + ',' + str(geno_l[1]) + ',' + str(geno_l[2]) 
-				else:
-					values['GT'] = '.'
-					values['GL'] = str(1.0/3.0)+','+str(1.0/3.0)+','+str(1.0/3.0)
+				values['GT'] = INT_TO_UNPHASED_GT[variant_table.genotypes_of(sample)[genotyped_variants[pos]]]
+				geno_l = variant_table.genotype_likelihoods_of(sample)[genotyped_variants[pos]]
+				values['GL'] = str(geno_l[0]) + ',' + str(geno_l[1]) + ',' + str(geno_l[2]) 
+				
+
 				record.QUAL = '.'
 
 				call.data = samp_fmt(**values)

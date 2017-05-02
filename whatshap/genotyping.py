@@ -129,6 +129,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 
 		# map family representatives to lists of family members
 		families = defaultdict(list)
+
 		for sample in samples:
 			families[family_finder.find(sample)].append(sample)
 		# map family representatives to lists of trios for this family
@@ -156,6 +157,10 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 
 		timers.start('parse_vcf')
 		for variant_table in vcf_reader:
+			var_to_pos = dict()
+			for i in range(len(variant_table.variants)):
+				var_to_pos[variant_table.variants[i].position] = i	
+
 			chromosome = variant_table.chromosome
 			timers.stop('parse_vcf')
 			if (not chromosomes) or (chromosome in chromosomes):
@@ -226,8 +231,6 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 					recombination_costs = recombination_cost_map(load_genetic_map(genmap), accessible_positions)
 				else:
 					recombination_costs = uniform_recombination_map(recombrate, accessible_positions)
-					
-				print("len acc pos: ", len(accessible_positions))
 
 				# Finally, run genotyping algorithm
 				with timers('genotyping'):
@@ -239,33 +242,26 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 					for s in family:
 						
 						# all genotypes/likelihoods to be stored (including non-accessible positions)
-						likelihood_list = []
-						genotypes_list = []
+						likelihood_list = [[1/3.0,1/3.0,1/3.0]] * len(variant_table)
+						genotypes_list = [-1] * len(variant_table)
 						
 						for pos in range(len(accessible_positions)):
 							likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
 							
 							# compute genotypes from likelihoods
 							geno = determine_genotype(likelihoods, gt_qual_threshold)
-							genotypes_list.append(geno)
+							genotypes_list[var_to_pos[accessible_positions[pos]]] = geno
 							
 							# translate into phred scores
-							likelihood_list.append(likelihoods)
+							likelihood_list[var_to_pos[accessible_positions[pos]]] = likelihoods
 							
-							# just for testing: this only prints the results on command line ...
-							print(s, accessible_positions[pos], likelihoods, geno)
-							
-						phasable_variant_table.set_genotypes_of(s, genotypes_list)
-						phasable_variant_table.set_genotype_likelihoods_of(s,likelihood_list)
-							
-			# just for testing: print stored values
-			#print(phasable_variant_table.genotypes_of(sample))
-			#print(phasable_variant_table.genotype_likelihoods_of(sample))
-			#print(phasable_variant_table.variants, len(phasable_variant_table.variants), len(accessible_positions))
-
+						variant_table.set_genotypes_of(s, genotypes_list)
+						variant_table.set_genotype_likelihoods_of(s,likelihood_list)
+						#print('family: ', family, 'sample:', s, 'genotypes:', genotypes_list, likelihood_list )
+					
 			with timers('write_vcf'):
 				logger.info('======== Writing VCF')
-				vcf_writer.write_genotypes(chromosome,phasable_variant_table)
+				vcf_writer.write_genotypes(chromosome,variant_table)
 				logger.info('Done writing VCF')
 
 			logger.debug('Chromosome %r finished', chromosome)
@@ -310,8 +306,8 @@ def add_arguments(parser):
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
 	arg('--mapping-quality', '--mapq', metavar='QUAL',
 		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
-	arg('--indels', dest='indels', default=False, action='store_true',
-		help='Also genotype indels (default: do not genotype indels)')
+	arg('--indels', dest='indels', default=True, action='store_true',
+		help='Also genotype indels (default: genotype indels)')
 	arg('--ignore-read-groups', default=False, action='store_true',
 		help='Ignore read groups in BAM header and assume all reads come '
 		'from the same sample.')

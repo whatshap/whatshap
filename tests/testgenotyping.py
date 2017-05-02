@@ -1,80 +1,63 @@
 from nose.tools import raises
+import math
 from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable
 from .phasingutils import string_to_readset, brute_force_phase
 from .phasingutils import string_to_readset, string_to_readset_pedigree, brute_force_phase
 
-
-def test_genotyping_empty_readset():
-	rs = ReadSet()
-	recombcost = [1,1]
-	genotypes = [1,1]
-	numeric_sample_ids = NumericSampleIds()
-	pedigree = Pedigree(numeric_sample_ids)
-	genotype_likelihoods = [None, None]
-	pedigree.add_individual('individual0', genotypes, genotype_likelihoods)
-	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,rs, recombcost, pedigree)
-
-def check_genotyping_single_individual(reads, weights = None, expected = None, genotypes = None, scaling=None):
-	# 0) set up read set
-	readset = string_to_readset(reads, weights, scale_quality=scaling)
-	positions = readset.get_positions()
-
-	# 1) Phase using PedMEC code for single individual
-	recombcost = [1] * len(positions) # recombination costs 1, should not occur
-	numeric_sample_ids = NumericSampleIds()
-	pedigree = Pedigree(numeric_sample_ids)
-	genotype_likelihoods = [PhredGenotypeLikelihoods(0,0,0)] * len(positions)
-	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
-	dp_forward_backward = GenotypeDPTable(numeric_sample_ids, readset, recombcost,pedigree)
-	## also get the phasing result
-	#dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=True)
-	#superreads, transmission_vector = dp_table.get_super_reads()
-	
-#	assert(len(superreads)==1)
-#	haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads[0]))
-#	haplo_geno = [0] * len(positions)
-#
-#	for sr in superreads[0]:
-#		geno = 0
-#		i = 0
-#		for pos in sr:
-#			haplo_geno[i] += pos.allele			
-#			i += 1
-	
-#	print('haplotypes: ', haplotypes, ' corresponding genotypes: ',haplo_geno)
-	
-	# get the genotype likelihoods as computed by forward-backward alg.
+def compare_to_expected(dp_forward_backward, positions, expected=None, genotypes=None):
+	# check if computed likelihoods are equal to expected ones (if given)
 	if not expected==None:
 		for i in range(len(positions)):
 			likelihoods = dp_forward_backward.get_genotype_likelihoods('individual0',i)
 			print(likelihoods,i)
 			assert(likelihoods == expected[i])
 	
-	# check if likeliest genotypes are the same and are equal to the haplotypes
+	# check if likeliest genotype is equal to expected genotype
 	for i in range(len(positions)):
 		likelihoods = dp_forward_backward.get_genotype_likelihoods('individual0',i)
 		# find likeliest genotype 
 		max_val = -1
 		max_index = -1
 		for j in range(3):
+			# likelihood should not be nan
+			assert( not math.isnan(likelihoods[j]) )
 			if likelihoods[j] > max_val:
 				max_val = likelihoods[j]
 				max_index = j
 				
-		print('genotype likelihoods: ', likelihoods, ' likeliest genotype: ',max_index)
-			
-		# compare likeliest genotype to haplotype
-#		if haplo_geno[i] < 3:
-#			assert(max_index==haplo_geno[i])
-#		elif haplo_geno[i] == 3:
-#			assert(max_index<2)
-#		elif haplo_geno[i] == 4:
-#			assert(max_index>0)
+		print('genotype likelihoods for position',i, likelihoods, ' likeliest genotype: ',max_index)
 
 		if not genotypes==None:
 			assert(max_index==genotypes[i])
-			
 
+
+def test_genotyping_empty_readset():
+	rs = ReadSet()
+	genotypes = [1,1]
+	recombcost = [1,1]
+	numeric_sample_ids = NumericSampleIds()
+	pedigree = Pedigree(numeric_sample_ids)
+	genotype_likelihoods = [None, None]
+	pedigree.add_individual('individual0', genotypes, genotype_likelihoods)
+	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,rs, recombcost, pedigree)
+	
+
+def check_genotyping_single_individual(reads, weights = None, expected = None, genotypes = None, scaling=None):
+	# 0) set up read set
+	readset = string_to_readset(reads, weights, scale_quality=scaling)
+	positions = readset.get_positions()
+
+	# 1) Genotype using forward backward algorithm
+	recombcost = [1] * len(positions) # recombination costs 1, should not occur
+	numeric_sample_ids = NumericSampleIds()
+	pedigree = Pedigree(numeric_sample_ids)
+	genotype_likelihoods = [PhredGenotypeLikelihoods(0,0,0)] * len(positions)
+	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
+	dp_forward_backward = GenotypeDPTable(numeric_sample_ids, readset, recombcost,pedigree)
+
+	# check the results
+	compare_to_expected(dp_forward_backward, positions, expected, genotypes)
+			
 	# 2) Phase using PedMEC code for trios with two "empty" individuals (i.e. having no reads)
 	recombcost = [1] * len(positions) # recombination costs 1, should not occur
 	numeric_sample_ids = NumericSampleIds()
@@ -84,11 +67,11 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 	pedigree.add_individual('individual1', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 	pedigree.add_individual('individual2', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
-	#dp_forward_backward = GenotypeDPTable(numeric_sample_ids,readset,recombcost,pedigree)
+	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,readset,recombcost,pedigree)
 	
-	## TODO check the results!!!
-		
-			
+	# check the results
+	compare_to_expected(dp_forward_backward, positions, expected, genotypes)
+	
 def test_geno_exact1() :
 	reads = """
           11
@@ -108,7 +91,7 @@ def test_geno_exact2():
 		11
 		22
 		"""
-	# as computed manually, with weight 10 for each position
+	# as computed manually, with given weights (x10)
 	expected_likelihoods = [[0.0006656057777641766, 0.4062796462343544, 0.5930547479878814],[0.0006656057777641766, 0.4062796462343544, 0.5930547479878814]]
 	genotypes = [2,2]
 	check_genotyping_single_individual(reads,weights,expected_likelihoods,genotypes,10)
@@ -171,6 +154,7 @@ def test_geno4():
 	  001 01110
 	   1    111
 	"""
+
 	check_genotyping_single_individual(reads,None,None,None,10)
 
 
@@ -184,7 +168,8 @@ def test_geno5():
 	        10100
 	              101
 	"""
-	check_genotyping_single_individual(reads,None,None,None,10)
+	genotypes = [1,1,1,1,1,1,1,1,2,1,1,1,1,0,1]
+	check_genotyping_single_individual(reads,None,None,genotypes,10)
 
 def test_geno6():
 	reads = """
@@ -257,7 +242,9 @@ def test_weighted_genotyping1():
 	  223 56789
 	   2    111
 	"""
-	check_genotyping_single_individual(reads, weights,None,None,10)
+	
+	genotypes = [1,1,1,1,1,1,2,1,1]
+	check_genotyping_single_individual(reads, weights,None,genotypes,10)
 	
 def test_weighted_genotyping2():
 	reads = """
