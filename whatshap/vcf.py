@@ -664,8 +664,12 @@ class GenotypeVcfWriter:
 		command_line = command_line.replace('"', '')
 		self._reader.metadata['commandline'] = [command_line]
 
+		# add tag for genotype quality
+		fmt = vcf.parser._Format(id='GQ', num=1, type='Integer', desc='Phred scaled genotype quality.')
+		self._reader.formats['GQ'] = fmt
+		
 		# add tag for genotype likelihoods
-		fmt = vcf.parser._Format(id='GL', num='G', type='Float', desc='Phred scaled likelihoods for genotypes: 0/0,0/1,1/1')
+		fmt = vcf.parser._Format(id='GL', num='G', type='Float', desc='log10-scaled likelihoods for genotypes: 0/0,0/1,1/1')
 		self._reader.formats['GL'] = fmt
 
 		self._writer = vcf.Writer(out_file, template=self._reader)
@@ -676,13 +680,14 @@ class GenotypeVcfWriter:
 	def samples(self):
 		return self._reader.samples
 
-	def write_genotypes(self, chromosome, variant_table):
+	def write_genotypes(self, chromosome, variant_table, indels):
 		"""
 		Add genotyping information to all variants on a single chromosome.
 
 		chromosome -- name of chromosome
 		phasable_variant_table -- contains genotyping information
 		"""
+
 		assert self._unprocessed_record is None or (self._unprocessed_record.CHROM == chromosome)
 
 		if self._unprocessed_record is not None:
@@ -693,7 +698,7 @@ class GenotypeVcfWriter:
 		genotyped_variants = dict()
 		for i in range(len(variant_table)):
 			genotyped_variants[variant_table.variants[i].position] = i
-		
+
 		n = 0
 		prev_pos = None
 		INT_TO_UNPHASED_GT = { 0: '0/0', 1: '0/1', 2: '1/1', -1: '.' }
@@ -708,8 +713,9 @@ class GenotypeVcfWriter:
 				assert n != 1
 				break
 	
-			# add GL
-			record.add_format('GL')	
+			# add GL + GQ
+			record.add_format('GQ')	
+			record.add_format('GL')
 			if record.FORMAT not in self._reader._format_cache:
 				self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
 			samp_fmt = self._reader._format_cache[record.FORMAT]
@@ -717,15 +723,38 @@ class GenotypeVcfWriter:
 			for i, call in enumerate(record.samples):
 				sample = self._reader.samples[i]
 				values = call.data._asdict()
-								
-				values['GT'] = INT_TO_UNPHASED_GT[variant_table.genotypes_of(sample)[genotyped_variants[pos]]]
-				geno_l = variant_table.genotype_likelihoods_of(sample)[genotyped_variants[pos]]
-				values['GL'] = str(geno_l[0]) + ',' + str(geno_l[1]) + ',' + str(geno_l[2]) 
 				
-
+				geno = -1
+				geno_l = [1/3.0] * 3
+				geno_q = '.'
+				
+				if pos in genotyped_variants:
+					likelihoods = variant_table.genotype_likelihoods_of(sample)[genotyped_variants[pos]]
+					if not likelihoods==None:
+						geno_l = likelihoods
+						geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
+					
+				# compute GQ
+				if geno == 0:
+					geno_q = geno_l[1] + geno_l[2]
+				elif geno == 1:
+					geno_q = geno_l[0] + geno_l[2]
+				elif geno == 2:
+					geno_q = geno_l[0] + geno_l[1]
+				
+				# store genotype
+				values['GT'] = INT_TO_UNPHASED_GT[geno]
+				# store quality as phred score
+				if not geno == -1:
+					values['GQ'] = round(-10.0 * math.log10(geno_q))
+				else:
+					values['GQ'] = '.'
+				# store likelihoods log10-scaled				
+				values['GL'] = [math.log10(j) for j in geno_l]
+				
 				record.QUAL = '.'
 
 				call.data = samp_fmt(**values)
 			self._writer.write_record(record)
-		prev_pos = pos
+			prev_pos = pos
 		

@@ -15,7 +15,7 @@ import pyfaidx
 from xopen import xopen
 
 from contextlib import ExitStack
-from .vcf import VcfReader, GenotypeVcfWriter, GenotypeLikelihoods
+from .vcf import VcfReader, GenotypeVcfWriter, GenotypeLikelihoods, VariantTable
 from . import __version__
 from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable, compute_genotypes
 from .graph import ComponentFinder
@@ -94,7 +94,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		        out_file=output)
 		
 		# parse vcf
-		# No genotype likelihoods may be given, therefore don't read them
+		# remove all likelihoods that may already be present
 		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=False)
 		
 		if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
@@ -166,9 +166,9 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 			if (not chromosomes) or (chromosome in chromosomes):
 				logger.info('======== Working on chromosome %r', chromosome)
 			else:
-				logger.info('Leaving chromosome %r unchanged (present in VCF but not requested by option --chromosome)', chromosome)
+				logger.info('Skip chromosome %r. (will be absent in resulting VCF since not requested by option --chromosome)', chromosome)
 				continue
-
+		
 			# Iterate over all families to process, i.e. a separate DP table is created
 			# for each family.
 			for representative_sample, family in sorted(families.items()):
@@ -240,10 +240,13 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 					forward_backward_table = GenotypeDPTable(numeric_sample_ids, all_reads, recombination_costs, pedigree, accessible_positions)
 					# store results
 					for s in family:
-						
 						# all genotypes/likelihoods to be stored (including non-accessible positions)
-						likelihood_list = [[1/3.0,1/3.0,1/3.0]] * len(variant_table)
+						likelihood_list = [None] * len(variant_table)
 						genotypes_list = [-1] * len(variant_table)
+						
+						# remove existing information in input vcf
+						variant_table.set_genotypes_of(s,[-1] * len(variant_table))
+						variant_table.set_genotype_likelihoods_of(s,[None] * len(variant_table))
 						
 						for pos in range(len(accessible_positions)):
 							likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
@@ -254,14 +257,14 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 							
 							# translate into phred scores
 							likelihood_list[var_to_pos[accessible_positions[pos]]] = likelihoods
+							#print(accessible_positions[pos], likelihoods, geno)
 							
 						variant_table.set_genotypes_of(s, genotypes_list)
 						variant_table.set_genotype_likelihoods_of(s,likelihood_list)
-						#print('family: ', family, 'sample:', s, 'genotypes:', genotypes_list, likelihood_list )
 					
 			with timers('write_vcf'):
 				logger.info('======== Writing VCF')
-				vcf_writer.write_genotypes(chromosome,variant_table)
+				vcf_writer.write_genotypes(chromosome,variant_table,indels)
 				logger.info('Done writing VCF')
 
 			logger.debug('Chromosome %r finished', chromosome)
@@ -306,7 +309,7 @@ def add_arguments(parser):
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
 	arg('--mapping-quality', '--mapq', metavar='QUAL',
 		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
-	arg('--indels', dest='indels', default=True, action='store_true',
+	arg('--indels', dest='indels', default=False, action='store_true',
 		help='Also genotype indels (default: genotype indels)')
 	arg('--ignore-read-groups', default=False, action='store_true',
 		help='Ignore read groups in BAM header and assume all reads come '
@@ -318,7 +321,7 @@ def add_arguments(parser):
 		help='Name of chromosome to genotyped. If not given, all chromosomes in the '
 		'input VCF are genotyped. Can be used multiple times.')
 	arg('--gt-qual-threshold', metavar='GTQUALTHRESHOLD', type=float, default=15,
-		help='Phred scaled error probability threshold used for genotyping (default: 15). '
+		help='Phred scaled error probability threshold used for genotyping (default: 15). Must be at least 4. '
 		'If error probability of genotype is higher, genotype ./. is output.')
 	arg = parser.add_argument_group('Pedigree genotyping').add_argument
 	arg('--ped', metavar='PED/FAM',
@@ -345,6 +348,8 @@ def validate(args, parser):
 		parser.error('Option --sample cannot be used together with --ped')
 	if len(args.phase_input_files) == 0 and not args.ped:
 		parser.error('Not providing any PHASEINPUT files only allowed in --ped mode.')
+	if args.gt_qual_threshold < 4:
+		parser.error('Genotype quality threshold (gt-qual-threshold) must be at least 4.')
 
 
 def main(args):

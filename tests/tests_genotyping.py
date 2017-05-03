@@ -4,12 +4,14 @@ from io import StringIO
 import pysam
 from nose.tools import raises
 from collections import namedtuple
+import math
 
 from whatshap.genotyping import run_genotyping
+from whatshap.phase import run_whatshap
 from whatshap.haplotag import run_haplotag
 from whatshap.hapcut2vcf import run_hapcut2vcf
 from whatshap.compare import run_compare
-from whatshap.vcf import VcfReader, VariantCallPhase
+from whatshap.vcf import VcfReader, VariantCallPhase, GenotypeLikelihoods
 
 trio_bamfile = 'tests/data/trio.pacbio.bam'
 trio_merged_bamfile = 'tests/data/trio-merged-blocks.bam'
@@ -74,29 +76,30 @@ def test_with_reference_no_indels():
 		reference='tests/data/pacbio/reference.fasta', indels=False)
 		
 def likeliest_genotype(a, b, c, thres):
-	maxi = a
+	prob_a = 10 ** a
+	prob_b = 10 ** b
+	prob_c = 10 ** c
+	maxi = prob_a
 	max_ind = 0
-	if c > a:
-		maxi = c
+	if prob_c > prob_a:
+		maxi = prob_c
 		max_ind = 2
-	if b > maxi:
-		maxi = b
+	if prob_b > maxi:
+		maxi = prob_b
 		max_ind = 1
 
-	# default: 15 = 0.96837722339
 	if maxi < thres:
 		max_ind = '.'
 	return max_ind, maxi
 
 	
 def test_GtQualThreshold():
-
-	for threshold in [1]:#,10,15,20]:
+	for threshold in [4,50]:
 		thres = 1-10**(-threshold/10.0)	
 	
 		out = StringIO()
-		run_genotyping(phase_input_files=['tests/data/trio.pacbio.bam'], variant_file='tests/data/trio.vcf', output="blabla.vcf",
-			gt_qual_threshold=threshold)
+		run_genotyping(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
+			output=out, gt_qual_threshold=threshold, reference='tests/data/pacbio/reference.fasta', indels=False)
 		out.seek(0)
 
 		lines = [line for line in out.readlines() if not line.startswith('#')]
@@ -106,9 +109,70 @@ def test_GtQualThreshold():
 			likelihood_str = entries[9].split(':')[-1:][0]
 			likelihoods = [float(i) for i in likelihood_str.split(',')]
 			genotype = entries[9].split(':')[0]
+			if not genotype == '.':
+				genotype = int(genotype[0]) + int(genotype[2])
 			
 			gt, max_l = likeliest_genotype(likelihoods[0], likelihoods[1], likelihoods[2], thres)
 			assert(gt == genotype)
+
+def test_genotyping_one_of_three_individuals():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output.vcf'
+		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf, samples=['HG004'])
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf, phases=True,genotype_likelihoods=True))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == '1'
+		assert len(table.variants) == 5
+		assert table.samples == ['HG004', 'HG003', 'HG002']
+		
+		# there should be no genotype predicitons for HG003/HG002		
+		default_l = math.log10(1/3.0)
+		for l in [table.genotype_likelihoods_of('HG002'), table.genotype_likelihoods_of('HG003')]:
+			for var in l:
+				assert(var.log10_probs() == (default_l, default_l, default_l))
+
+def test_phase_trio():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output.vcf'
+		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf,
+		        ped='tests/data/trio.ped', genmap='tests/data/trio.map')
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf, phases=True))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == '1'
+		assert len(table.variants) == 5
+		assert table.samples == ['HG004', 'HG003', 'HG002']
+# TODO		
+#def test_phase_specific_chromosome():
+#	for requested_chromosome in ['1']:#
+#		with TemporaryDirectory() as tempdir:
+#			outvcf = 'blabla.vcf' #tempdir + '/output.vcf'
+#			run_(phase_input_files=[trio_bamfile], variant_file='tests/data/trio-two-chromosomes.vcf', output=outvcf,
+#					ped='tests/data/trio.ped', genmap='tests/data/trio.map', chromosomes=[requested_chromosome])
+#			assert os.path.isfile(outvcf)
+
+#			tables = list(VcfReader(outvcf, phases=True))
+#			assert len(tables) == 2
+#			for table in tables:
+#				assert len(table.variants) == 5
+#				assert table.samples == ['HG004', 'HG003', 'HG002']
+#				if table.chromosome == '1' == requested_chromosome:
+#				
+#				elif table.chromosome == '2' == requested_chromosome:
+#					phase0 = VariantCallPhase(60906167, 0, None)
+#					phase1 = VariantCallPhase(60906167, 1, None)
+#					assert_phasing(table.phases_of('HG004'), [phase0, None, None, None, phase1])
+#					assert_phasing(table.phases_of('HG003'), [phase0, None, None, None, None])
+#					assert_phasing(table.phases_of('HG002'), [None, None, None, None, phase0])
+#				else:
+#					assert_phasing(table.phases_of('HG004'), [None, None, None, None, None])
+#					assert_phasing(table.phases_of('HG003'), [None, None, None, None, None])
+#					assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
 
 #
 #def test_ps_tag():
