@@ -1,6 +1,7 @@
 #ifndef PEDIGREE_PARTITIONS_H
 #define PEDIGREE_PARTITIONS_H
 
+#include <array>
 #include <vector>
 
 #include "pedigree.h"
@@ -13,7 +14,7 @@ private:
 	const Pedigree& pedigree;
 	unsigned int transmission_vector;
 	unsigned int partition_count;
-	std::vector<std::pair<int,int>> haplotype_to_partition_map;
+	std::vector<std::array<int,2>> haplotype_to_partition_map;
 	/** (Recursively) compute entry haplotype_to_partition_map[i]. */
 	void compute_haplotype_to_partition_rec(size_t i, const std::vector<int>& triple_indices);
 public:

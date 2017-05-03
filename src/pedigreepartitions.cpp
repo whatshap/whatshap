@@ -4,7 +4,7 @@
 
 using namespace std;
 
-PedigreePartitions::PedigreePartitions(const Pedigree& pedigree, unsigned int transmission_vector) : pedigree(pedigree), transmission_vector(transmission_vector), haplotype_to_partition_map(pedigree.size(), std::make_pair(-1,-1)) {
+PedigreePartitions::PedigreePartitions(const Pedigree& pedigree, unsigned int transmission_vector) : pedigree(pedigree), transmission_vector(transmission_vector), haplotype_to_partition_map(pedigree.size(), {-1,-1}) {
 	partition_count = 2 * (pedigree.size() - pedigree.triple_count());
 	
 	// for each individual the index of the triple in which this individual is a child (-1 for "none")
@@ -17,7 +17,7 @@ PedigreePartitions::PedigreePartitions(const Pedigree& pedigree, unsigned int tr
 	int p = 0;
 	for (size_t i=0; i<pedigree.size(); ++i) {
 		if (triple_indices[i] == -1) {
-			haplotype_to_partition_map[i] = std::make_pair(p, p+1);
+			haplotype_to_partition_map[i] = {p, p+1};
 			p += 2;
 		}
 	}
@@ -28,17 +28,17 @@ PedigreePartitions::PedigreePartitions(const Pedigree& pedigree, unsigned int tr
 
 
 void PedigreePartitions::compute_haplotype_to_partition_rec(size_t i,  const vector<int>& triple_indices) {
-	if (haplotype_to_partition_map[i].first != -1) return;
+	if (haplotype_to_partition_map[i][0] != -1) return;
 	int triple_index = triple_indices[i];
 	assert(triple_index >=0);
 	int parent0 = pedigree.get_triples()[triple_index][0];
 	int parent1 = pedigree.get_triples()[triple_index][1];
 	compute_haplotype_to_partition_rec(parent0, triple_indices);
 	compute_haplotype_to_partition_rec(parent1, triple_indices);
-	haplotype_to_partition_map[i] = std::make_pair(
-		((transmission_vector >> (2*triple_index)) & 1) ? haplotype_to_partition_map[parent0].first : haplotype_to_partition_map[parent0].second,
-		((transmission_vector >> (2*triple_index+1)) & 1) ? haplotype_to_partition_map[parent1].first : haplotype_to_partition_map[parent1].second
-	);
+	haplotype_to_partition_map[i] = array<int, 2>{
+	  haplotype_to_partition_map[parent0][!(bool)((transmission_vector >> (2*triple_index)) & 1)],
+	  haplotype_to_partition_map[parent1][!(bool)((transmission_vector >> (2*triple_index+1)) & 1)]
+	};
 }
 
 
@@ -48,12 +48,7 @@ unsigned int PedigreePartitions::count() const {
 
 
 size_t PedigreePartitions::haplotype_to_partition(size_t individual_index, size_t haplotype) const {
-	if (haplotype == 0) {
-		return haplotype_to_partition_map[individual_index].first;
-	} else {
-		assert(haplotype == 1);
-		return haplotype_to_partition_map[individual_index].second;
-	}
+	return haplotype_to_partition_map[individual_index][haplotype];
 }
 
 std::ostream& operator<<(std::ostream& out, const PedigreePartitions& pp) {
