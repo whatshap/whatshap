@@ -53,8 +53,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None,
 		ignore_read_groups=False, indels=True, mapping_quality=20,
 		max_coverage=15,
-		ped=None, recombrate=1.26, genmap=None,
-		gl_regularizer=None, gtchange_list_filename=None, gt_qual_threshold=15):
+		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=15):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
 	all variants are computed using the forward backward algorithm
@@ -93,7 +92,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		vcf_writer = GenotypeVcfWriter(command_line=command_line, in_path=variant_file,
 		        out_file=output)
 		
-		# parse vcf
+		# parse vcf with input variants 
 		# remove all likelihoods that may already be present
 		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=False)
 		
@@ -129,7 +128,6 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 
 		# map family representatives to lists of family members
 		families = defaultdict(list)
-
 		for sample in samples:
 			families[family_finder.find(sample)].append(sample)
 		# map family representatives to lists of trios for this family
@@ -157,6 +155,8 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 
 		timers.start('parse_vcf')
 		for variant_table in vcf_reader:
+			
+			# create a mapping of genome positions to indices
 			var_to_pos = dict()
 			for i in range(len(variant_table.variants)):
 				var_to_pos[variant_table.variants[i].position] = i	
@@ -166,9 +166,10 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 			if (not chromosomes) or (chromosome in chromosomes):
 				logger.info('======== Working on chromosome %r', chromosome)
 			else:
-				logger.info('Skip chromosome %r. (will be absent in resulting VCF since not requested by option --chromosome)', chromosome)
+				logger.info('Leaving chromosome %r unchanged (present in VCF but not requested by option --chromosome)', chromosome)
+				vcf_writer.write_genotypes(chromosome,variant_table,indels,leave_unchanged=True)
 				continue
-		
+			
 			# Iterate over all families to process, i.e. a separate DP table is created
 			# for each family.
 			for representative_sample, family in sorted(families.items()):
@@ -181,7 +182,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 				trios = family_trios[representative_sample]
 
 				assert (len(family) == 1) or (len(trios) > 0)
-
+				
 				# Get the reads belonging to each sample
 				readsets = dict() 
 				for sample in family:
@@ -209,17 +210,12 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 					'read in at least one individual after read selection: %d',
 					len(accessible_positions))
 
-				# Keep only accessible positions
-				phasable_variant_table = deepcopy(variant_table)
-				phasable_variant_table.subset_rows_by_position(accessible_positions)
-				assert len(phasable_variant_table.variants) == len(accessible_positions)
-
 				# Create Pedigree
 				pedigree = Pedigree(numeric_sample_ids)
 				for sample in family:
 					# genotypes are assumed to be unknown, so ignore information that
-					# might be present in the input vcf
-					pedigree.add_individual(sample, [0] * len(accessible_positions), None)
+					# might already be present in the input vcf
+					pedigree.add_individual(sample, [3] * len(accessible_positions), None)
 				for trio in trios:
 					pedigree.add_relationship(
 						mother_id=trio.mother,
@@ -251,13 +247,10 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 						for pos in range(len(accessible_positions)):
 							likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
 							
-							# compute genotypes from likelihoods
+							# compute genotypes from likelihoods and store information
 							geno = determine_genotype(likelihoods, gt_qual_threshold)
 							genotypes_list[var_to_pos[accessible_positions[pos]]] = geno
-							
-							# translate into phred scores
 							likelihood_list[var_to_pos[accessible_positions[pos]]] = likelihoods
-							#print(accessible_positions[pos], likelihoods, geno)
 							
 						variant_table.set_genotypes_of(s, genotypes_list)
 						variant_table.set_genotype_likelihoods_of(s,likelihood_list)
@@ -346,8 +339,8 @@ def validate(args, parser):
 		parser.error('Option --genmap can only be used when working on exactly one chromosome (use --chromosome)')
 	if args.ped and args.samples:
 		parser.error('Option --sample cannot be used together with --ped')
-	if len(args.phase_input_files) == 0 and not args.ped:
-		parser.error('Not providing any PHASEINPUT files only allowed in --ped mode.')
+	if len(args.phase_input_files) == 0:
+		parser.error('Not providing any PHASEINPUT files not allowed for genotyping.')
 	if args.gt_qual_threshold < 4:
 		parser.error('Genotype quality threshold (gt-qual-threshold) must be at least 4.')
 

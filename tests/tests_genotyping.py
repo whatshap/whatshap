@@ -147,32 +147,51 @@ def test_phase_trio():
 		assert table.chromosome == '1'
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
-# TODO		
-#def test_phase_specific_chromosome():
-#	for requested_chromosome in ['1']:#
-#		with TemporaryDirectory() as tempdir:
-#			outvcf = 'blabla.vcf' #tempdir + '/output.vcf'
-#			run_(phase_input_files=[trio_bamfile], variant_file='tests/data/trio-two-chromosomes.vcf', output=outvcf,
-#					ped='tests/data/trio.ped', genmap='tests/data/trio.map', chromosomes=[requested_chromosome])
-#			assert os.path.isfile(outvcf)
 
-#			tables = list(VcfReader(outvcf, phases=True))
-#			assert len(tables) == 2
-#			for table in tables:
-#				assert len(table.variants) == 5
-#				assert table.samples == ['HG004', 'HG003', 'HG002']
-#				if table.chromosome == '1' == requested_chromosome:
-#				
-#				elif table.chromosome == '2' == requested_chromosome:
-#					phase0 = VariantCallPhase(60906167, 0, None)
-#					phase1 = VariantCallPhase(60906167, 1, None)
-#					assert_phasing(table.phases_of('HG004'), [phase0, None, None, None, phase1])
-#					assert_phasing(table.phases_of('HG003'), [phase0, None, None, None, None])
-#					assert_phasing(table.phases_of('HG002'), [None, None, None, None, phase0])
-#				else:
-#					assert_phasing(table.phases_of('HG004'), [None, None, None, None, None])
-#					assert_phasing(table.phases_of('HG003'), [None, None, None, None, None])
-#					assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
+def test_phase_specific_chromosome():
+	for requested_chromosome in ['1','2']:
+		with TemporaryDirectory() as tempdir:
+			outvcf = tempdir + '/output.vcf'
+			run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio-two-chromosomes.vcf', output=outvcf,
+					ped='tests/data/trio.ped', genmap='tests/data/trio.map', chromosomes=[requested_chromosome])
+			assert os.path.isfile(outvcf)
+
+			tables = list(VcfReader(outvcf, genotype_likelihoods=True))
+
+			assert len(tables) == 2
+			for table in tables:
+				assert len(table.variants) == 5
+				assert table.samples == ['HG004', 'HG003', 'HG002']
+
+			index = 0
+			if requested_chromosome == '1':
+				index = 1
+				
+			# should be no genotype likelihoods for skipped chromosomes
+			for s in tables[index].samples:
+				tables[index].genotype_likelihoods_of(s) == [None] * 5
+				tables[not index].genotype_likelihoods_of(s) != [None] * 5
+				
+# given likelihoods should be deleted 
+def test_genotype_likelihoods_given():
+	with TemporaryDirectory() as tempdir:
+		outvcf = 'blabla.vcf'#tempdir + '/output_gl.vcf'
+		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio_genotype_likelihoods.vcf', output=outvcf,
+		        ped='tests/data/trio.ped', genmap='tests/data/trio.map')
+		assert os.path.isfile(outvcf)
+#		assert os.path.isfile(outreadlist)
+#
+#		tables = list(VcfReader(outvcf, phases=True))
+#		assert len(tables) == 1
+#		table = tables[0]
+#		assert table.chromosome == '1'
+#		assert len(table.variants) == 5
+#		assert table.samples == ['HG004', 'HG003', 'HG002']
+#
+#		phase0 = VariantCallPhase(60906167, 0, None)
+#		assert_phasing(table.phases_of('HG004'), [None, phase0, phase0, phase0, None])
+#		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
+#		assert_phasing(table.phases_of('HG002'), [phase0, None, phase0, phase0, phase0])
 
 #
 #def test_ps_tag():

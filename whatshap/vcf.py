@@ -680,12 +680,13 @@ class GenotypeVcfWriter:
 	def samples(self):
 		return self._reader.samples
 
-	def write_genotypes(self, chromosome, variant_table, indels):
+	def write_genotypes(self, chromosome, variant_table, indels, leave_unchanged=False):
 		"""
 		Add genotyping information to all variants on a single chromosome.
 
 		chromosome -- name of chromosome
 		phasable_variant_table -- contains genotyping information
+		leave_unchanged -- if True, leaves records of current chromosome unchanged
 		"""
 
 		assert self._unprocessed_record is None or (self._unprocessed_record.CHROM == chromosome)
@@ -695,6 +696,7 @@ class GenotypeVcfWriter:
 		else:
 			records_iter = self._reader_iter
 				
+		# map positions to ind
 		genotyped_variants = dict()
 		for i in range(len(variant_table)):
 			genotyped_variants[variant_table.variants[i].position] = i
@@ -713,48 +715,56 @@ class GenotypeVcfWriter:
 				assert n != 1
 				break
 	
-			# add GL + GQ
-			record.add_format('GQ')	
-			record.add_format('GL')
-			if record.FORMAT not in self._reader._format_cache:
-				self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
-			samp_fmt = self._reader._format_cache[record.FORMAT]
+			# if current chromosome was genotyped, write this new information to vcf
+			if not leave_unchanged:	
+				# add GL + GQ
+				record.add_format('GQ')	
+				record.add_format('GL')
+				if record.FORMAT not in self._reader._format_cache:
+					self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
+				samp_fmt = self._reader._format_cache[record.FORMAT]
 		
-			for i, call in enumerate(record.samples):
-				sample = self._reader.samples[i]
-				values = call.data._asdict()
+				for i, call in enumerate(record.samples):
+					sample = self._reader.samples[i]
+					values = call.data._asdict()
 				
-				geno = -1
-				geno_l = [1/3.0] * 3
-				geno_q = '.'
+					geno = -1
+					geno_l = [1/3.0] * 3
+					geno_q = '.'
 				
-				if pos in genotyped_variants:
-					likelihoods = variant_table.genotype_likelihoods_of(sample)[genotyped_variants[pos]]
-					if not likelihoods==None:
-						geno_l = likelihoods
-						geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
+					if pos in genotyped_variants:
+						likelihoods = variant_table.genotype_likelihoods_of(sample)[genotyped_variants[pos]]
+						if not likelihoods==None:
+							geno_l = likelihoods
+							geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
 					
-				# compute GQ
-				if geno == 0:
-					geno_q = geno_l[1] + geno_l[2]
-				elif geno == 1:
-					geno_q = geno_l[0] + geno_l[2]
-				elif geno == 2:
-					geno_q = geno_l[0] + geno_l[1]
+					# compute GQ
+					if geno == 0:
+						geno_q = geno_l[1] + geno_l[2]
+					elif geno == 1:
+						geno_q = geno_l[0] + geno_l[2]
+					elif geno == 2:
+						geno_q = geno_l[0] + geno_l[1]
 				
-				# store genotype
-				values['GT'] = INT_TO_UNPHASED_GT[geno]
-				# store quality as phred score
-				if not geno == -1:
-					values['GQ'] = round(-10.0 * math.log10(geno_q))
-				else:
-					values['GQ'] = '.'
-				# store likelihoods log10-scaled				
-				values['GL'] = [math.log10(j) for j in geno_l]
+					# store genotype
+					values['GT'] = INT_TO_UNPHASED_GT[geno]
+					# store quality as phred score
+					if not geno == -1:
+						values['GQ'] = round(-10.0 * math.log10(geno_q))
+					else:
+						values['GQ'] = '.'
+					# store likelihoods log10-scaled				
+					values['GL'] = [math.log10(j) for j in geno_l]
 				
-				record.QUAL = '.'
+					record.QUAL = '.'
+					
+					# delete all other genotype information that might have been present before
+					# TODO: this is very ugly
+					for tag in record.FORMAT.split(':'):
+						if tag not in ['GT', 'GL', 'GQ']:
+							values[tag] = '.'
 
-				call.data = samp_fmt(**values)
+					call.data = samp_fmt(**values)
 			self._writer.write_record(record)
 			prev_pos = pos
 		
