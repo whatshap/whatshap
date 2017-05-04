@@ -196,6 +196,57 @@ def write_read_list(readset, bipartition, sample_components, numeric_sample_ids,
 		print(read.name, read.source_id, sample, phaseset, haplotype, len(read), read[0].position+1, read[-1].position+1, file=output_file)
 
 
+def get_wif_line(read) :
+	"""
+	Convert a read to wif format -- a line of a wif file
+	read -- core.Read object
+	"""
+	line = ''
+	for p in read :
+		pos = p.position + 1
+		allele = p.allele
+		nuc = 'C' if allele == 1 else 'G'
+		qual = p.quality
+		line += '{} {} {} {} : '.format(pos, nuc, allele, qual)
+
+	line += '# N : N'
+
+	return line
+
+
+def add_reads_as_wif(readset, wif_line) :
+	"""
+	Add a set of reads to be used for phasing in wif format to running dictionary of reads in wif format.
+	readset -- core.ReadSet object with reads to be added
+	wif_line -- running dictionary of reads in wif format
+	"""
+	logger.info('Adding reads to be used for phasing in wif format to running dictionary')
+	for read in readset :
+		pos = read[0].position + 1
+
+		if pos not in wif_line :
+			wif_line[pos] = []
+
+		wif_line[pos].append((read.name, read.source_id, len(read), get_wif_line(read)))
+
+
+def write_wif(wif_line, output_filename) :
+	"""
+	Given dictionary of reads in wif format, output these reads to file with name output_filename, and transcript to stdout
+       	wif_line -- running dictionary of reads in wif format
+	output_filename -- name of wif file to write the reads
+	"""
+	logger.info('Writing running dictionary of reads in wif format to \'%s\'', output_filename)
+	f = open(output_filename, 'w')
+	for pos in sorted(wif_line) :
+		for name, sid, length, line in wif_line[pos] :
+
+			print(line, file=f)
+			print(name, sid, length)
+
+	f.close()
+
+
 def split_input_file_list(input_files):
 	bams = []
 	vcfs = []
@@ -246,6 +297,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		include_homozygous=False,
 		ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
 		recombination_list_filename=None, tag='PS', read_list_filename=None,
+                wif_filename=None,
 		gl_regularizer=None, gtchange_list_filename=None, default_gq=30):
 	"""
 	Run WhatsHap.
@@ -266,6 +318,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 	recombination_list_filename -- filename to write putative recombination events to
 	tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
 	read_list_filename -- name of file to write list of used reads to
+        wif_filename -- name of file to write, in wif format, reads to use
 	gl_regularizer -- float to be passed as regularization constant to GenotypeLikelihoods.as_phred
 	gtchange_list_filename -- filename to write list of changed genotypes to
 	default_gq -- genotype likelihood to be used when GL or PL not available
@@ -353,6 +406,8 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		read_list_file = None
 		if read_list_filename:
 			read_list_file = create_read_list_file(read_list_filename)
+
+		wif_line = {} # dic[startpos] = line of read (wif format)
 
 		# Read phase information provided as VCF files, if provided.
 		# TODO: do this chromosome- and/or sample-wise on demand to save memory.
@@ -550,6 +605,11 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 				else:
 					recombination_costs = uniform_recombination_map(recombrate, accessible_positions)
 
+				if wif_filename :
+                                        # add reads to use for phasing, but skip the phasing and go straight to the end
+                                        add_reads_as_wif(all_reads, wif_line)
+                                        continue
+
 				# Finally, run phasing algorithm
 				with timers('phase'):
 					problem_name = 'MEC' if len(family) == 1 else 'PedMEC'
@@ -648,6 +708,9 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 	if read_list_file:
 		read_list_file.close()
 
+	if wif_filename :
+		write_wif(wif_line, wif_filename)
+
 	logger.info('\n== SUMMARY ==')
 	timers.stop('overall')
 	if sys.platform == 'linux':
@@ -684,6 +747,8 @@ def add_arguments(parser):
 			'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')
 	arg('--output-read-list', metavar='FILE', default=None, dest='read_list_filename',
 		help='Write reads that have been used for phasing to FILE.')
+	arg('--output-wif', metavar='FILE', default=None, dest='wif_filename',
+		help='Write reads to be used for phasing in wif format to FILE.')
 
 	arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
 	arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
