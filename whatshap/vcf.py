@@ -665,11 +665,11 @@ class GenotypeVcfWriter:
 		self._reader.metadata['commandline'] = [command_line]
 
 		# add tag for genotype quality
-		fmt = vcf.parser._Format(id='GQ', num=1, type='Integer', desc='Phred scaled genotype quality.')
+		fmt = vcf.parser._Format(id='GQ', num=1, type='Integer', desc='Phred scaled genotype quality computed by whatshap genotyping algorithm.')
 		self._reader.formats['GQ'] = fmt
 		
 		# add tag for genotype likelihoods
-		fmt = vcf.parser._Format(id='GL', num='G', type='Float', desc='log10-scaled likelihoods for genotypes: 0/0,0/1,1/1')
+		fmt = vcf.parser._Format(id='GL', num='G', type='Float', desc='log10-scaled likelihoods for genotypes: 0/0,0/1,1/1, computed by whatshap genotyping algorithm.')
 		self._reader.formats['GL'] = fmt
 
 		self._writer = vcf.Writer(out_file, template=self._reader)

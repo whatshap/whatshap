@@ -9,9 +9,9 @@ def compare_to_expected(dp_forward_backward, positions, expected=None, genotypes
 	if not expected==None:
 		for i in range(len(positions)):
 			likelihoods = dp_forward_backward.get_genotype_likelihoods('individual0',i)
-			print(likelihoods,i)
+			print(likelihoods, expected[i], i)
 			assert(likelihoods == expected[i])
-	
+		
 	# check if likeliest genotype is equal to expected genotype
 	for i in range(len(positions)):
 		likelihoods = dp_forward_backward.get_genotype_likelihoods('individual0',i)
@@ -48,11 +48,11 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 	positions = readset.get_positions()
 
 	# 1) Genotype using forward backward algorithm
-	recombcost = [1] * len(positions) # recombination costs 1, should not occur
+	recombcost = [1] * len(positions)
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
 	genotype_likelihoods = [PhredGenotypeLikelihoods(0,0,0)] * len(positions)
-	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
+	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods)
 	dp_forward_backward = GenotypeDPTable(numeric_sample_ids, readset, recombcost,pedigree)
 
 	# check the results
@@ -63,9 +63,9 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
 	genotype_likelihoods = [PhredGenotypeLikelihoods(0,0,0)] * len(positions)
-	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
-	pedigree.add_individual('individual1', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
-	pedigree.add_individual('individual2', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
+	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods)
+	pedigree.add_individual('individual1', [1] * len(positions), genotype_likelihoods)
+	pedigree.add_individual('individual2', [1] * len(positions), genotype_likelihoods)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,readset,recombcost,pedigree)
 	
@@ -274,4 +274,15 @@ def test_weighted_genotyping2():
 	expected_likelihoods = [[0,1,0],[0.25,0.5,0.25],[0,1,0]]
 	check_genotyping_single_individual(reads, weights,expected_likelihoods,genotypes,100)
 	
-
+def test_weighted_genotyping3():
+	reads = """
+		0 1
+		 10
+		 """
+	weights = """
+		999
+		999
+	"""
+	expected_likelihoods = [[0.5,0.5,0],[0,0.5,0.5],[0,1,0]]
+	check_genotyping_single_individual(reads,weights,expected_likelihoods, None, 500)		 
+	
