@@ -5,6 +5,7 @@ import pysam
 from nose.tools import raises
 from collections import namedtuple
 import math
+import vcf
 
 from whatshap.genotyping import run_genotyping
 from whatshap.phase import run_whatshap
@@ -175,23 +176,28 @@ def test_phase_specific_chromosome():
 # given likelihoods should be deleted 
 def test_genotype_likelihoods_given():
 	with TemporaryDirectory() as tempdir:
-		outvcf = 'blabla.vcf'#tempdir + '/output_gl.vcf'
+		outvcf = tempdir + '/output_gl.vcf'
 		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio_genotype_likelihoods.vcf', output=outvcf,
 		        ped='tests/data/trio.ped', genmap='tests/data/trio.map')
 		assert os.path.isfile(outvcf)
-#		assert os.path.isfile(outreadlist)
-#
-#		tables = list(VcfReader(outvcf, phases=True))
-#		assert len(tables) == 1
-#		table = tables[0]
-#		assert table.chromosome == '1'
-#		assert len(table.variants) == 5
-#		assert table.samples == ['HG004', 'HG003', 'HG002']
-#
-#		phase0 = VariantCallPhase(60906167, 0, None)
-#		assert_phasing(table.phases_of('HG004'), [None, phase0, phase0, phase0, None])
-#		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
-#		assert_phasing(table.phases_of('HG002'), [phase0, None, phase0, phase0, phase0])
+
+		tables = list(VcfReader(outvcf, phases=True, genotype_likelihoods=True))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == '1'
+		assert len(table.variants) == 5
+		assert table.samples == ['HG004', 'HG003', 'HG002']
+
+		# check if PL likelihoods (that were present before) are deleted
+		vcf_reader = vcf.Reader(filename=outvcf)
+		print(vcf_reader.samples, outvcf)
+		for record in vcf_reader:
+			for call in record.samples:
+				PL = getattr(call.data, 'PL', None)
+				GL = getattr(call.data, 'GL', None)
+				print('GL:', GL, 'PL:', PL)
+				assert(PL==None)
+				assert(GL != None)
 
 #
 #def test_ps_tag():
