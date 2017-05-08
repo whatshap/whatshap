@@ -718,8 +718,10 @@ class GenotypeVcfWriter:
 			# if current chromosome was genotyped, write this new information to vcf
 			if not leave_unchanged:	
 				# add GL + GQ
-				record.add_format('GQ')	
-				record.add_format('GL')
+				if 'GQ' not in record.FORMAT.split(':'):
+					record.add_format('GQ')
+				if 'GL' not in record.FORMAT.split(':'):
+					record.add_format('GL')
 				if record.FORMAT not in self._reader._format_cache:
 					self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
 				samp_fmt = self._reader._format_cache[record.FORMAT]
