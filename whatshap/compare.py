@@ -221,10 +221,10 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 	intersection_block_variants = sum(len(b) for b in block_intersection.values() if len(b) > 1)
 	print('    non-singleton intersection blocks:', str(intersection_block_count).rjust(count_width))
 	print('                 --> covered variants:', str(intersection_block_variants).rjust(count_width))
-	longest_block = None
-	longest_block_errors = None
-	longest_block_positions = None
-	longest_block_agreement = None
+	longest_block = 0
+	longest_block_errors = PhasingErrors()
+	longest_block_positions = []
+	longest_block_agreement = []
 	phased_pairs = 0
 	bed_records = []
 	if len(variant_tables) == 2:
@@ -239,7 +239,7 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 			bed_records.extend(create_bed_records(chromosome, phasing0, phasing1, block_positions, '{}<-->{}'.format(*dataset_names)))
 			total_errors += errors
 			phased_pairs += len(block) - 1
-			if (longest_block is None) or (len(block) > longest_block):
+			if len(block) > longest_block:
 				longest_block = len(block)
 				longest_block_errors = errors
 				longest_block_positions = block_positions
@@ -247,10 +247,11 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 					longest_block_agreement = [1*(p0 == p1) for p0, p1 in zip(phasing0,phasing1) ]
 				else:
 					longest_block_agreement = [1*(p0 != p1) for p0, p1 in zip(phasing0,phasing1) ]
+		longest_block_assessed_pairs = max(longest_block - 1, 0)
 		print('              ALL INTERSECTION BLOCKS:', '-'*count_width)
 		print_errors(total_errors, phased_pairs)
 		print('           LARGEST INTERSECTION BLOCK:', '-'*count_width)
-		print_errors(longest_block_errors, longest_block-1)
+		print_errors(longest_block_errors, longest_block_assessed_pairs)
 		print('                     Hamming distance:', str(longest_block_errors.hamming).rjust(count_width))
 		print('                 Hamming distance [%]:', fraction2percentstr(longest_block_errors.hamming, longest_block).rjust(count_width))
 		return PairwiseComparisonResults(
@@ -261,11 +262,11 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 			all_switch_rate = safefraction(total_errors.switches, phased_pairs),
 			all_switchflips = total_errors.switch_flips,
 			all_switchflip_rate = safefraction(total_errors.switch_flips.switches+total_errors.switch_flips.flips, phased_pairs),
-			largestblock_assessed_pairs = longest_block-1,
+			largestblock_assessed_pairs = longest_block_assessed_pairs,
 			largestblock_switches = longest_block_errors.switches,
-			largestblock_switch_rate = safefraction(longest_block_errors.switches, longest_block - 1),
+			largestblock_switch_rate = safefraction(longest_block_errors.switches, longest_block_assessed_pairs),
 			largestblock_switchflips = longest_block_errors.switch_flips,
-			largestblock_switchflip_rate = safefraction(longest_block_errors.switch_flips.switches+longest_block_errors.switch_flips.flips, longest_block - 1),
+			largestblock_switchflip_rate = safefraction(longest_block_errors.switch_flips.switches+longest_block_errors.switch_flips.flips, longest_block_assessed_pairs),
 			largestblock_hamming = longest_block_errors.hamming,
 			largestblock_hamming_rate = safefraction(longest_block_errors.hamming, longest_block)
 		), bed_records, block_stats, longest_block_positions, longest_block_agreement, None

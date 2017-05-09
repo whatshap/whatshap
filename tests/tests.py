@@ -509,6 +509,11 @@ def test_compare_only_snvs():
 		assert entry_chrB.largestblock_hamming == '1'
 
 
+def test_compare_unphased():
+	with TemporaryDirectory() as tempdir:
+		run_compare(vcf=['tests/data/unphased.vcf', 'tests/data/unphased.vcf', 'tests/data/unphased.vcf'], sample='sample1')
+
+
 def test_hapcut2vcf():
 	with TemporaryDirectory() as tempdir:
 		out = os.path.join(tempdir, 'hapcut.vcf')
