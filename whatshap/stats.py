@@ -23,6 +23,9 @@ def add_arguments(parser):
 		'and ignore all other variants.')
 	add('--block-list', action="store", default=None, help='Filename to write '
 		'list of all blocks to (one block per line).')
+	add('--chromosome', dest='chromosome', metavar='CHROMOSOME', default=None,
+		help='Name of chromosome to process. If not given, all chromosomes in the '
+		'input VCF are considered.')
 	add('vcf', metavar='VCF', help='Phased VCF file')
 
 
@@ -303,6 +306,9 @@ def main(args):
 	total_stats = PhasingStats()
 	chromosome_count = 0
 	for variant_table in vcf_reader:
+		if args.chromosome:
+			if variant_table.chromosome != args.chromosome:
+				continue
 		chromosome_count += 1
 		chromosome = variant_table.chromosome
 		stats = PhasingStats()
