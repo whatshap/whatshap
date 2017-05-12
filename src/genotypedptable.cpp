@@ -276,8 +276,8 @@ void GenotypeDPTable::compute_backward_column(size_t column_index, unique_ptr<ve
                    if(column_index > 0){
                        current_projection_column->at(backward_projection_index, j) += backward_prob * cost_computers[i].get_cost(a) * transition_probability_table[column_index-1]->get(j,i);
                    }
-                   scaling_sum += backward_prob;
                }
+               scaling_sum += backward_prob;
            }
        }
    }

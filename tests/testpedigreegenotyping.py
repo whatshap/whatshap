@@ -330,6 +330,35 @@ def test_genotyping_trio8():
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
+	
+def test_genotyping_trio9():
+	reads = """
+	  B 1100
+	  B 1100
+	  B 1100
+	  B 1110
+	  B 1110
+	  B 1110
+	  A 1111
+	  A 1111
+	  A 1111
+	  A 0000
+	  A 0000
+	  A 0000
+	  C 0011
+	  C 0011
+	  C 1110
+	  C 1110
+	"""
+	expected_genotypes = [[1,1,1,1] , [2,2,1,0], [1,1,2,1]]
+	numeric_sample_ids = NumericSampleIds()
+	pedigree = Pedigree(numeric_sample_ids)
+	pedigree.add_individual('individual0',[0,0,0,0])
+	pedigree.add_individual('individual1',[0,0,0,0])
+	pedigree.add_individual('individual2',[0,0,0,0])
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
+	recombcost = [10,10,10,10]
+	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
 
 #
 #def test_phase_trio_pure_genetic():
