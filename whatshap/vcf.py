@@ -685,7 +685,7 @@ class GenotypeVcfWriter:
 		Add genotyping information to all variants on a single chromosome.
 
 		chromosome -- name of chromosome
-		phasable_variant_table -- contains genotyping information
+		variant_table -- contains genotyping information for all accessible variant positions
 		leave_unchanged -- if True, leaves records of current chromosome unchanged
 		"""
 
@@ -696,7 +696,7 @@ class GenotypeVcfWriter:
 		else:
 			records_iter = self._reader_iter
 				
-		# map positions to ind
+		# map positions to index
 		genotyped_variants = dict()
 		for i in range(len(variant_table)):
 			genotyped_variants[variant_table.variants[i].position] = i
@@ -733,9 +733,11 @@ class GenotypeVcfWriter:
 					geno = -1
 					geno_l = [1/3.0] * 3
 					geno_q = '.'
-				
+
+					# for genotyped variants, get computed likelihoods/genotypes (for all others, give uniform likelihoods)				
 					if pos in genotyped_variants:
 						likelihoods = variant_table.genotype_likelihoods_of(sample)[genotyped_variants[pos]]
+						# likelihoods can be 'None' if position was not accessible
 						if not likelihoods==None:
 							geno_l = likelihoods
 							geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]

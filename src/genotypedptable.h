@@ -37,7 +37,6 @@ private:
       out << g.likelihoods[0] << " " << g.likelihoods[1] << " " << g.likelihoods[2];
       return out;
     }
-    
   };
   
   // the input sequencing reads

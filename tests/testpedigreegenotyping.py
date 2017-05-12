@@ -5,6 +5,7 @@ from nose.tools import raises
 from whatshap.core import GenotypeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
 from whatshap.pedigree import centimorgen_to_phred
 from .phasingutils import string_to_readset, string_to_readset_pedigree, brute_force_phase
+import math
 
 
 def genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes, distrust_genotypes=False, positions=None):
@@ -21,6 +22,7 @@ def genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_g
 			max_val = -1
 			max_index = -1
 			for i in range(len(likelihoods)):
+				assert( not math.isnan(likelihoods[i]) )
 				if likelihoods[i] > max_val:
 					max_val = likelihoods[i]
 					max_index = i
@@ -328,7 +330,6 @@ def test_genotyping_trio8():
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
-
 
 #
 #def test_phase_trio_pure_genetic():

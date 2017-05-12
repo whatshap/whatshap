@@ -4,6 +4,7 @@
 #include <iostream>
 #include <vector>
 #include <iomanip>
+#include <algorithm>
 
 template <typename T> 
 class Vector2D {
@@ -33,6 +34,12 @@ public:
 	size_t get_size1(){
 	  return size1;
 	}
+	
+	void divide_entries_by(T val) {
+	  std::transform(v.begin(), v.end(), v.begin(),
+               std::bind2nd(std::divides<T>(),val));
+	}
+	  
 
 	friend std::ostream& operator<<(std::ostream& out, const Vector2D<T>& v) {
 		out << "       ";

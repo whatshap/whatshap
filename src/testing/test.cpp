@@ -10,6 +10,7 @@
 #include "../backwardcolumniterator.h"
 #include "../entry.h"
 #include "../transitionprobabilitycomputer.h"
+#include "../vector2d.h"
 
 #include <iostream>
 #include <string>
@@ -138,9 +139,9 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
             for(unsigned int j = 0; j < 4; j++){
                 unsigned int index = popcount(i ^ j);
                 REQUIRE((float)(expected_cost[index]/nor) == (float)trans.get(i,j));
-                row_sum += trans.get(i,j)*16;
+                row_sum += trans.get(i,j)*16.0L;
             }
-            REQUIRE(row_sum == 1);
+            REQUIRE(float(row_sum) == 1.0);
         }
     }
 
@@ -274,6 +275,17 @@ TEST_CASE("test BackwardColumnIterator", "[test BackwardColumnIterator]") {
 
             delete read_set;
             delete positions;
+        }
+    }
+}
+
+TEST_CASE("test scaling of vector", "[test scaling of vector]"){
+    Vector2D<long double> test(2,3,0.8L);
+    test.divide_entries_by(0.8L);
+
+    for(unsigned int i = 0; i < test.get_size0(); i++){
+        for(unsigned int j = 0; j < test.get_size1(); j++) {
+            REQUIRE(test.at(i,j) == 1L);
         }
     }
 }

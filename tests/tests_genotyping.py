@@ -199,6 +199,28 @@ def test_genotype_likelihoods_given():
 				assert(PL==None)
 				assert(GL != None)
 
+def test_phase_trio_paired_end_reads():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output-paired_end.vcf'
+		run_genotyping(phase_input_files=[trio_paired_end_bamfile], variant_file='tests/data/paired_end.sorted.vcf', output=outvcf,
+		        ped='tests/data/trio_paired_end.ped', genmap='tests/data/trio.map')
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf, phases=True))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == '1'
+		assert len(table.variants) == 3
+		assert table.samples == ['mother', 'father', 'child']
+
+@raises(SystemExit)
+def test_wrong_chromosome():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output.vcf'
+		run_genotyping(phase_input_files=[short_bamfile],
+			ignore_read_groups=True,
+			variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)
+
 #
 #def test_ps_tag():
 #	out = StringIO()

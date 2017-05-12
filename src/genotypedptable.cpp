@@ -136,7 +136,7 @@ void GenotypeDPTable::compute_backward_prob()
         // make former next column the current one
         current_input_column = std::move(next_input_column);
         unique_ptr<vector<unsigned int> > current_read_ids = std::move(next_read_ids);
-        // peek ahead and get the next column TODO: what about first column? Anything needs to be done?
+        // peek ahead and get the next column
         if (backward_input_column_iterator.has_next()){
             next_input_column = backward_input_column_iterator.get_next();
         } else {
@@ -161,7 +161,6 @@ void GenotypeDPTable::compute_forward_prob()
 
     // if no reads are in read set, nothing to compute
     if (input_column_iterator.get_column_count() == 0) {
-        // TODO anything needs to be done here?
         return;
     }
 
@@ -270,12 +269,12 @@ void GenotypeDPTable::compute_backward_column(size_t column_index, unique_ptr<ve
                backward_prob = previous_projection_column->at(forward_projection_index,i);
            }
 
+           size_t backward_projection_index = iterator->get_backward_projection();
            // sum up entries in backward projection column
-           for(unsigned int a = 0; a < number_of_allele_assignments; a++){
-               size_t backward_projection_index = iterator->get_backward_projection();
+           for(unsigned int a = 0; a < number_of_allele_assignments; a++){    
                for(size_t j = 0; j < transmission_configurations; j++){
                    if(column_index > 0){
-                       current_projection_column->at(backward_projection_index, i) += backward_prob * cost_computers[j].get_cost(a) * transition_probability_table[column_index-1]->get(i,j);
+                       current_projection_column->at(backward_projection_index, j) += backward_prob * cost_computers[i].get_cost(a) * transition_probability_table[column_index-1]->get(j,i);
                    }
                    scaling_sum += backward_prob;
                }
@@ -285,18 +284,10 @@ void GenotypeDPTable::compute_backward_column(size_t column_index, unique_ptr<ve
 
    // go through (old) projection column to scale the values -> when we lookup betas later, they will sum up to 1
    if(previous_projection_column != 0){
-       for(size_t i = 0; i < current_indexer->forward_projection_size(); i++){
-           for(size_t j = 0; j < transmission_configurations; j++){
-               previous_projection_column->at(i,j) /= scaling_sum;
-           }
-       }
+       previous_projection_column->divide_entries_by(scaling_sum);
    }
    if(current_projection_column != 0){
-       for(size_t i = 0; i < indexers[column_index-1]->forward_projection_size(); i++){
-           for(size_t j = 0; j < transmission_configurations; j++){
-               current_projection_column->at(i,j) /= scaling_sum;
-           }
-       }
+       current_projection_column->divide_entries_by(scaling_sum);
        backward_projection_column_table[column_index-1] = current_projection_column;
    }
    scaling_parameters[column_index] = scaling_sum;
@@ -345,11 +336,7 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
             }
 
             // last column just computed still needs to be scaled
-            for(size_t i = 0; i < backward_projection_column_table[column_index]->get_size0(); i++){
-                for(size_t j = 0; j < backward_projection_column_table[column_index]->get_size1(); j++){
-                    backward_projection_column_table[column_index]->at(i,j) /= scaling_parameters[column_index];
-                }
-            }
+            backward_projection_column_table[column_index]->divide_entries_by(scaling_parameters[column_index]);
         }
         backward_probabilities = backward_projection_column_table[column_index];
         assert(backward_probabilities != nullptr);
@@ -370,17 +357,7 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
 
     // sum of alpha*beta, used to normalize the likelihoods
     long double normalization = 0.0L;
-/**
-    // DEBUGGING
-    long double max_entry = -1.0L;
-    unsigned int max_partition;
-    unsigned int max_trans;
-    unsigned int max_gt;
-    std::vector<long double> entries;
-    std::vector<unsigned int> partitions;
-    std::vector<unsigned int> gts;
-    // END_DEBUGGING
-**/
+
     // iterate over all bipartitions
     unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
     while (iterator->has_next()) {
@@ -419,8 +396,7 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
                     long double previous_cost = previous_projection_column->at(backward_projection_index,j);
                     
                     // multiply with transition probability
-                    previous_cost *= transition_prob;
-                    sum_prev_values += previous_cost;
+                    sum_prev_values += previous_cost * transition_prob;
                 }
             } else {
                 sum_prev_values = 1.0L;
@@ -443,19 +419,6 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
                 long double forward_backward = forward_probability * backward_probability;
                 normalization += forward_backward;
 
-/**                // DEBUGGING
-                if(forward_backward > max_entry){
-                    max_entry = forward_backward;
-                    max_partition = iterator->get_partition();
-                    max_trans = i;
-                    max_gt = a;
-                }
-                entries.push_back(forward_backward);
-                gts.push_back(a);
-                partitions.push_back(iterator->get_partition());
-
-                // END_DEBUGGING
-**/
                 // marginalize over all genotypes
                 for (size_t individuals_index = 0; individuals_index < pedigree->size(); individuals_index++) {
                     unsigned int partition0 = pedigree_partitions[i]->haplotype_to_partition(individuals_index,0);
@@ -474,15 +437,7 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
             }
         }
     }
-/**
-    // DEBUGGING
-//    std::cout << "max_entry for column: " << column_index << ": " << max_entry << " trans.: " << max_trans << " bipart.: " << max_partition << " gt: " << max_gt << std::endl;
-//    for(size_t i = 0; i < entries.size(); i++){
-//        std::cout << "(" << entries[i]/normalization << "," << partitions[i] << "," << gts[i] << ")" << std::endl;
-//    }
-//    std::cout << std::endl;
-    // END_DEBUGGING
-**/
+
     // store the computed projection column (in case there is one)
     if(current_projection_column != 0){
         delete forward_projection_column_table[0];
