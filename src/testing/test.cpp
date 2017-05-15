@@ -127,6 +127,80 @@ bool compare_entries(vector<const Entry*> c1, string c2){
 }
 
 
+TEST_CASE("test forward_backward", "[test forward_backward]")
+{
+    vector<string> reads = {"11 \n 01","1111111111\n0000011111", "101\n101\n101\n101\n100\n100\n100\n100","01\n11" ,"011011\n110110\n110 10\n110110\n111110\n000 00\n01000 \n000010\n100100"};
+    vector<string> weights = {"11 \n 11","1111111111\n1111111111","111\n111\n111\n111\n111\n111\n111\n111","11\n11", "111111\n111111\n111111\n111111\n111111\n111111\n111111\n111111\n111111"};
+    vector< vector<unsigned int> > expected_geno = { {1,1,1} , {1,1,1,1,1,2,2,2,2,2}, {2,0,1} ,{1,2}, {1,1,0,1,1,0}};
+
+
+    SECTION("test single individual1", "[test single individual1]")
+    {
+        ReadSet* read_set = string_to_readset(reads[0],weights[0], true);
+        std::vector<unsigned int>* positions = read_set->get_positions();
+        // no genotype likelihoods needed for genotyping mode
+        std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods(positions->size(),nullptr);
+        // recombination costs set to 1
+        std::vector<unsigned int> recombcost(positions->size(), 1);
+        // add a single individual to the pedigree
+        Pedigree* pedigree = new Pedigree;
+        pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), genotype_likelihoods);
+        // construct the dp table and perform forward-backward algorithm
+        GenotypeDPTable dp_table(read_set, recombcost, pedigree, positions);
+        // get the computed likelihoods
+        for(unsigned int pos = 0; pos < 3; pos++){
+            std::vector<long double> likelihoods = dp_table.get_genotype_likelihoods(0,pos);
+        }
+
+        delete read_set;
+        delete pedigree;
+        delete positions;
+    }
+
+
+
+    SECTION("test single individual2", "[test single individual2]")
+    {
+        std::vector<long double> likelihoods;
+        for(unsigned int i = 0; i < reads.size(); i++){
+            ReadSet* read_set = string_to_readset(reads[i],weights[i], true);
+            std::vector<unsigned int>* positions = read_set->get_positions();
+            // no genotype likelihoods needed for genotyping mode
+            std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods(positions->size(),nullptr);
+            // recombination costs set to 1
+            std::vector<unsigned int> recombcost(positions->size(), 1);
+            // add a single individual to the pedigree
+            Pedigree* pedigree = new Pedigree;
+            pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), genotype_likelihoods);
+            // construct the dp table and perform forward-backward algorithm
+            GenotypeDPTable dp_table(read_set, recombcost, pedigree, positions);
+            // get the computed likelihoods
+            std::vector<long double> likelihoods = dp_table.get_genotype_likelihoods(0,0);
+
+            for(unsigned int pos = 0; pos < positions->size(); pos++){
+                std::vector<long double> likelihoods = dp_table.get_genotype_likelihoods(0,pos);
+                int pos_max = -1;
+                long double cur_max = -1.0L;
+                for(unsigned int u = 0; u < likelihoods.size(); u++){
+                    if(likelihoods[u] > cur_max){
+                        cur_max = likelihoods[u];
+                        pos_max = u;
+                    }
+
+                }
+                REQUIRE(pos_max == expected_geno[i][pos]);
+            }
+
+            delete read_set;
+            delete pedigree;
+            delete positions;
+
+        }
+
+    }
+
+}
+
 TEST_CASE("test transition prob computer", "[test transition prob computer]"){
 
     SECTION("test simple example", "[test simple example]"){
@@ -226,6 +300,9 @@ TEST_CASE("test column_cost_computer","[test column_cost_computer]"){
         delete read_set;
         delete positions;
         delete pedigree;
+        for(unsigned int i=0; i < pedigree_partitions.size(); i++){
+            delete pedigree_partitions[i];
+        }
     }
 }
 
