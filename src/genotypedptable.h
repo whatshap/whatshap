@@ -33,6 +33,11 @@ private:
       likelihoods[1] = het;
       likelihoods[2] = hom;
     }
+    // divide likelihoods by given value
+    void divide_likelihoods_by(long double& val){
+      std::transform(likelihoods.begin(), likelihoods.end(), likelihoods.begin(), std::bind2nd(std::divides<long double>(), val));
+    }
+    
     friend inline std::ostream& operator<<(std::ostream& out, const genotype_likelihood_t& g){
       out << g.likelihoods[0] << " " << g.likelihoods[1] << " " << g.likelihoods[2];
       return out;

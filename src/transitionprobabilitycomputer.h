@@ -9,7 +9,7 @@ private:
     unsigned int transmission_configurations;
     size_t popcount(size_t& x);
 public:
-    TransitionProbabilityComputer(unsigned int recombcost, unsigned int trio_count, unsigned int allele_assignments);
+    TransitionProbabilityComputer(unsigned int recombcost, unsigned int trio_count, unsigned int allele_assignments, unsigned int transmission_configurations);
     // get the transision probability for change of transmission vector t1 to t2
     long double get(unsigned int t1, unsigned int t2);
 };

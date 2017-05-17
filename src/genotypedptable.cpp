@@ -88,7 +88,8 @@ void GenotypeDPTable::compute_index(){
     unique_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_input_column);
     ColumnIndexingScheme* next_indexer = new ColumnIndexingScheme(0, *next_read_ids);
     indexers[0] = next_indexer;
-    transition_probability_table[0] = new TransitionProbabilityComputer(recombcost[0], pedigree->triple_count(), 1<<pedigree_partitions[0]->count());
+    unsigned int transmission_configurations = std::pow(4, pedigree->triple_count());
+    transition_probability_table[0] = new TransitionProbabilityComputer(recombcost[0], pedigree->triple_count(), 1<<pedigree_partitions[0]->count(),transmission_configurations);
 
     for(size_t column_index=0; column_index < input_column_iterator.get_column_count(); ++column_index){
         // make former next column the current one
@@ -103,7 +104,7 @@ void GenotypeDPTable::compute_index(){
 
             current_indexer->set_next_column(next_indexer);
             indexers[column_index+1] = next_indexer;
-            transition_probability_table[column_index+1] = new TransitionProbabilityComputer(recombcost[column_index+1], pedigree->triple_count(), 1<<pedigree_partitions[0]->count());
+            transition_probability_table[column_index+1] = new TransitionProbabilityComputer(recombcost[column_index+1], pedigree->triple_count(), 1<<pedigree_partitions[0]->count(),transmission_configurations);
         } else {
             assert(next_input_column.get() == 0);
             assert(next_read_ids.get() == 0);
@@ -384,7 +385,7 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
             if(column_index > 0){
                 for(size_t j = 0; j < transmission_configurations; ++j){
                     // add product of previous cost * transition_probability
-                    sum_prev_values += ( (previous_projection_column->at(backward_projection_index,j)) * (transition_probability_table[column_index]->get(j,i)) );
+                    sum_prev_values += ((previous_projection_column->at(backward_projection_index,j)) * (transition_probability_table[column_index]->get(j,i)) );
                 }
             } else {
                 sum_prev_values = 1.0L;
@@ -409,14 +410,12 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
                     unsigned int partition1 = pedigree_partitions[i]->haplotype_to_partition(individuals_index,1);
                     unsigned int allele0 = (a >> partition0) & 1;
                     unsigned int allele1 = (a >> partition1) & 1;
-                    unsigned int genotype = allele0 + allele1;
-                    genotype_likelihood_table.at(individuals_index,column_index).likelihoods[genotype] += forward_backward;
+                    genotype_likelihood_table.at(individuals_index,column_index).likelihoods[allele0 + allele1] += forward_backward;
                 }
 
                 // set forward projections
                 if(current_projection_column != 0){
-                    unsigned int forward_index = iterator->get_forward_projection();
-                    current_projection_column->at(forward_index,i) += forward_probability;
+                    current_projection_column->at( iterator->get_forward_projection() ,i) += forward_probability;
                 }
             }
         }
@@ -436,9 +435,7 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
 
     // scale the likelihoods
     for(size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index){
-        for(size_t genotype = 0; genotype < 3; ++genotype){
-            genotype_likelihood_table.at(individuals_index,column_index).likelihoods[genotype] /= normalization;
-        }
+        genotype_likelihood_table.at(individuals_index,column_index).divide_likelihoods_by(normalization);
     }
 }
 
@@ -447,11 +444,6 @@ vector<long double> GenotypeDPTable::get_genotype_likelihoods(unsigned int indiv
     assert(pedigree->id_to_index(individual_id) < genotype_likelihood_table.get_size0());
     assert(position < input_column_iterator.get_column_count());
 
-    vector<long double> result;
-    for(unsigned int i = 0; i < 3; ++i){
-        result.push_back(genotype_likelihood_table.at(pedigree->id_to_index(individual_id),position).likelihoods[i]);
-    }
-
-    return result;
+    return genotype_likelihood_table.at(pedigree->id_to_index(individual_id),position).likelihoods;
 
 }

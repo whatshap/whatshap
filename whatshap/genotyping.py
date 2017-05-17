@@ -32,22 +32,32 @@ logger = logging.getLogger(__name__)
 
 # given genotype likelihoods for 0/0,0/1,1/1, determines likeliest genotype
 def determine_genotype(likelihoods, genotype_threshold):
-	max_ind = -1
-	max_val = -1
-	
 	threshold_prob = 1.0-(10 ** (-genotype_threshold/10.0))
-	
-	for i in range(len(likelihoods)):
-		if likelihoods[i] > max_val:
-			max_val = likelihoods[i]
-			max_ind = i
-			
-	# in case likeliest gt has prob smaller than given threshold
-	# we refuse to give a prediction (gt ./.)
-	if max_val > threshold_prob:
-		return max_ind
+	to_sort = [(likelihoods[0],0),(likelihoods[1],1),(likelihoods[2],2)]
+	to_sort.sort(key=lambda x: x[0])
+
+	# make sure there is a unique maximum which is greater than the threshold
+	if (to_sort[2][0] > to_sort[1][0]) and (to_sort[2][0] > threshold_prob):
+		return to_sort[2][1]
 	else:
 		return -1
+	
+#	max_ind = -1
+#	max_val = -1
+#	
+#	threshold_prob = 1.0-(10 ** (-genotype_threshold/10.0))
+#	
+#	for i in range(len(likelihoods)):
+#		if likelihoods[i] > max_val:
+#			max_val = likelihoods[i]
+#			max_ind = i
+#			
+#	# in case likeliest gt has prob smaller than given threshold
+#	# we refuse to give a prediction (gt ./.)
+#	if max_val > threshold_prob:
+#		return max_ind
+#	else:
+#		return -1
 	
 def run_genotyping(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None,
@@ -314,7 +324,7 @@ def add_arguments(parser):
 		help='Name of chromosome to genotyped. If not given, all chromosomes in the '
 		'input VCF are genotyped. Can be used multiple times.')
 	arg('--gt-qual-threshold', metavar='GTQUALTHRESHOLD', type=float, default=15,
-		help='Phred scaled error probability threshold used for genotyping (default: 15). Must be at least 4. '
+		help='Phred scaled error probability threshold used for genotyping (default: 15). Must be at least 0. '
 		'If error probability of genotype is higher, genotype ./. is output.')
 	arg = parser.add_argument_group('Pedigree genotyping').add_argument
 	arg('--ped', metavar='PED/FAM',
@@ -341,8 +351,8 @@ def validate(args, parser):
 		parser.error('Option --sample cannot be used together with --ped')
 	if len(args.phase_input_files) == 0:
 		parser.error('Not providing any PHASEINPUT files not allowed for genotyping.')
-	if args.gt_qual_threshold < 4:
-		parser.error('Genotype quality threshold (gt-qual-threshold) must be at least 4.')
+	if args.gt_qual_threshold < 0:
+		parser.error('Genotype quality threshold (gt-qual-threshold) must be at least 0.')
 
 
 def main(args):

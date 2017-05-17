@@ -5,8 +5,10 @@
 
 using namespace std;
 
-TransitionProbabilityComputer::TransitionProbabilityComputer(unsigned int recombcost, unsigned int trio_count, unsigned int allele_assignments)
-    :transmission_configurations(pow(4, trio_count))
+TransitionProbabilityComputer::TransitionProbabilityComputer(unsigned int recombcost, unsigned int trio_count, unsigned int allele_assignments, unsigned int transmission_configurations)
+    :transition_prob_matrix(transmission_configurations,transmission_configurations,0.0L),
+      transmission_configurations(transmission_configurations)
+
 {
 
     // precompute bernoulli distribution
@@ -17,8 +19,6 @@ TransitionProbabilityComputer::TransitionProbabilityComputer(unsigned int recomb
       bernoulli.emplace_back(pow(recomb_prob,i)*pow(1-recomb_prob,2*trio_count-i));
     }
 
-
-    transition_prob_matrix = Vector2D<long double>(transmission_configurations,transmission_configurations,0.0L);
     for(size_t i = 0; i < transmission_configurations; i++){
         // each row must sum up to 1 and consider also all genotype combinations
         long double normalization_sum = 0.0L;

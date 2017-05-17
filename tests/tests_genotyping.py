@@ -80,22 +80,17 @@ def likeliest_genotype(a, b, c, thres):
 	prob_a = 10 ** a
 	prob_b = 10 ** b
 	prob_c = 10 ** c
-	maxi = prob_a
-	max_ind = 0
-	if prob_c > prob_a:
-		maxi = prob_c
-		max_ind = 2
-	if prob_b > maxi:
-		maxi = prob_b
-		max_ind = 1
+	
+	to_sort = [(prob_a,0),(prob_b,1),(prob_c,2)]
+	to_sort.sort(key=lambda x: x[0])
 
-	if maxi < thres:
-		max_ind = '.'
-	return max_ind, maxi
-
+	if (to_sort[2][0] > to_sort[1][0]) and (to_sort[2][0] > thres):
+		return to_sort[2][1]
+	else:
+		return '.'
 	
 def test_GtQualThreshold():
-	for threshold in [4,50]:
+	for threshold in [0,2,3,6,13,50]:
 		thres = 1-10**(-threshold/10.0)	
 	
 		out = StringIO()
@@ -113,7 +108,8 @@ def test_GtQualThreshold():
 			if not genotype == '.':
 				genotype = int(genotype[0]) + int(genotype[2])
 			
-			gt, max_l = likeliest_genotype(likelihoods[0], likelihoods[1], likelihoods[2], thres)
+			gt = likeliest_genotype(likelihoods[0], likelihoods[1], likelihoods[2], thres)
+			print(10**likelihoods[0], 10**likelihoods[1], 10**likelihoods[2], gt, genotype, thres)
 			assert(gt == genotype)
 
 def test_genotyping_one_of_three_individuals():
