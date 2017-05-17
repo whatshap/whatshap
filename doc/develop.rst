@@ -26,6 +26,9 @@ The tests can be run like this::
 
 	venv/bin/tox
 
+Whenever you change any Cython code (``.pyx`` files), you need to re-run the
+``venv/bin/pip3 install -e .`` step in order to compile it.
+
 
 Development installation (alternative)
 --------------------------------------
@@ -38,6 +41,9 @@ Alternatively, if you do not want to use virtualenv, you can do the following::
 	bin/whatshap
 
 This requires Cython, pysam, and pyvcf to be installed.
+
+Here, the ``python3 setup.py build_ext -i`` step needs to be re-run whenever
+Cython code is changed.
 
 
 Installing other Python versions in Ubuntu
