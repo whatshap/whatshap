@@ -83,6 +83,48 @@ After you get a SIGSEGV, let gdb print a backtrace:
 	(gdb) bt
 
 
+Wrapping C++ classes
+--------------------
+
+The WhatsHap phasing algorithm is written in C++, as are many of the core
+data structures such as the “Read” class. To make the C++ classes usable from
+Python, we use Cython to wrap the classes. All these definitions are spread
+across multiple files. To add new attributes or methods to an existing class
+or to add a new class, changes need to be made in different places.
+
+Let us look at the “Read” class. The following places in the code may need to
+be changed if the Read class is changed or extended:
+
+* ``src/read.cpp``: Implementation of the class (C++).
+* ``src/read.h``: Header with the class declaration (also normal C++).
+* ``whatshap/cpp.pxd``: Cython declarations of the class. This repeats – using
+  the Cython syntax this time – a subset of the information from the
+  ``src/read.h`` file. This duplication is required because Cython
+  cannot read ``.h`` files (it would need a full C++ parser for that).
+
+  Note that the ``cpp.pxd`` file contains definitions for *all* the ``.h``
+  headers. (It would be cleaner to have them in separate ``.pxd`` files, but
+  this leads to problems when linking the compiled files.)
+* ``whatshap/core.pxd``: This contains declarations of all *Cython* classes
+  wrapping C++ classes. Note that the class ``Read`` in this file has the
+  same name as the C++ class, but that it is not the same as the C++ one!
+  The distinction is made by prefixing the C++ class with ``cpp.``, which is
+  the name of the module in which it is declared in (that is, the C++ class
+  ``Read`` is declared in ``cpp.pxd``). The wrapping (Cython) class ``Read``
+  stores the C++ class in an attribute named ``thisptr``. If you add a new
+  class, it needs to be added to this file. If you only modify an existing one,
+  you probably do not need to change this file.
+* ``whatshap/core.pyx``: The Cython implementation of the wrapper classes.
+  Again, the name ``Read`` by itself is the Python wrapper class and
+  ``cpp.Read`` is the name for the C++ class.
+
+Before adding yet more C++ code, which then requires extra code for wrapping it,
+consider writing an implementation in Cython instead. See ``readselect.pyx``,
+for example, which started out as a Python module and was then transferred to
+Cython to make it faster. Here, the Cython code is not merely a wrapper, but
+contains the implementation itself.
+
+
 Making a release
 ----------------
 
