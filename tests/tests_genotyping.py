@@ -210,7 +210,7 @@ def test_genotype_likelihoods_given():
 				assert(PL==None)
 				assert(GL != None)
 				
-# GL field is already present, make sure it is replaced by new likelihoods
+# GL field was already present, make sure it is replaced by new likelihoods
 def test_genotype_log_likelihoods_given():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output_gl_log.vcf'
@@ -224,7 +224,7 @@ def test_genotype_log_likelihoods_given():
 		assert table.chromosome == '1'
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
-		print("DONE")
+
 		# check if GL likelihoods were replaced
 		vcf_reader = vcf.Reader(filename=outvcf)
 		print(vcf_reader.samples, outvcf)
