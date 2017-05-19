@@ -31,8 +31,7 @@ from .phase import read_reads, select_reads, split_input_file_list, setup_pedigr
 logger = logging.getLogger(__name__)
 
 # given genotype likelihoods for 0/0,0/1,1/1, determines likeliest genotype
-def determine_genotype(likelihoods, genotype_threshold):
-	threshold_prob = 1.0-(10 ** (-genotype_threshold/10.0))
+def determine_genotype(likelihoods, threshold_prob):
 	to_sort = [(likelihoods[0],0),(likelihoods[1],1),(likelihoods[2],2)]
 	to_sort.sort(key=lambda x: x[0])
 
@@ -41,23 +40,6 @@ def determine_genotype(likelihoods, genotype_threshold):
 		return to_sort[2][1]
 	else:
 		return -1
-	
-#	max_ind = -1
-#	max_val = -1
-#	
-#	threshold_prob = 1.0-(10 ** (-genotype_threshold/10.0))
-#	
-#	for i in range(len(likelihoods)):
-#		if likelihoods[i] > max_val:
-#			max_val = likelihoods[i]
-#			max_ind = i
-#			
-#	# in case likeliest gt has prob smaller than given threshold
-#	# we refuse to give a prediction (gt ./.)
-#	if max_val > threshold_prob:
-#		return max_ind
-#	else:
-#		return -1
 	
 def run_genotyping(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None,
@@ -104,7 +86,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		
 		# parse vcf with input variants 
 		# remove all likelihoods that may already be present
-		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=False)
+		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=False, ignore_genotypes=True)
 		
 		if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
 			logger.error('When using --ignore-read-groups on a VCF with '
@@ -163,6 +145,9 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 			phase_input_vcfs.append(m)
 		timers.stop('parse_phasing_vcfs')
 
+		# compute genotype likelihood threshold
+		gt_prob = 1.0-(10 ** (-gt_qual_threshold/10.0))
+
 		timers.start('parse_vcf')
 		for variant_table in vcf_reader:
 			
@@ -190,7 +175,6 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 				max_coverage_per_sample = max(1, max_coverage // len(family))
 				logger.info('Using maximum coverage per sample of %dX', max_coverage_per_sample)
 				trios = family_trios[representative_sample]
-
 				assert (len(family) == 1) or (len(trios) > 0)
 				
 				# Get the reads belonging to each sample
@@ -250,18 +234,17 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 						likelihood_list = [None] * len(variant_table)
 						genotypes_list = [-1] * len(variant_table)
 						
-						# remove existing information in input vcf
-						variant_table.set_genotypes_of(s,[-1] * len(variant_table))
-						variant_table.set_genotype_likelihoods_of(s,[None] * len(variant_table))
-						
 						for pos in range(len(accessible_positions)):
 							likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
 							
 							# compute genotypes from likelihoods and store information
-							geno = determine_genotype(likelihoods, gt_qual_threshold)
+							geno = determine_genotype(likelihoods, gt_prob)
 							genotypes_list[var_to_pos[accessible_positions[pos]]] = geno
 							likelihood_list[var_to_pos[accessible_positions[pos]]] = likelihoods
-							
+						
+						print('read_gts: ',variant_table.genotypes_of(s))
+						print('read_likelihoods:',variant_table.genotype_likelihoods_of(s))
+						
 						variant_table.set_genotypes_of(s, genotypes_list)
 						variant_table.set_genotype_likelihoods_of(s,likelihood_list)
 					

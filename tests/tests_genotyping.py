@@ -72,9 +72,24 @@ def test_with_reference():
 		reference='tests/data/pacbio/reference.fasta')
 
 
-def test_with_reference_no_indels():
-	run_genotyping(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
-		reference='tests/data/pacbio/reference.fasta', indels=False)
+def test_no_indels():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output_gl.vcf'
+		run_genotyping(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
+			reference='tests/data/pacbio/reference.fasta', output=outvcf, indels=False)
+		
+		# make sure indels not genotyped
+		vcf_reader = vcf.Reader(filename=outvcf)
+		default_l = math.log10(1/3.0)
+
+		for record in vcf_reader:
+			if len(record.ALT[0]) > 1:
+				for call in record.samples:
+					GL = getattr(call.data, 'GL', None)
+					print('GL:', GL, record.POS)
+					assert(GL == [default_l, default_l, default_l])
+				
+		
 		
 def likeliest_genotype(a, b, c, thres):
 	prob_a = 10 ** a
@@ -94,8 +109,8 @@ def test_GtQualThreshold():
 		thres = 1-10**(-threshold/10.0)	
 	
 		out = StringIO()
-		run_genotyping(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
-			output=out, gt_qual_threshold=threshold, reference='tests/data/pacbio/reference.fasta', indels=False)
+		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf',
+			output=out, gt_qual_threshold=threshold, indels=False)
 		out.seek(0)
 
 		lines = [line for line in out.readlines() if not line.startswith('#')]
@@ -115,7 +130,7 @@ def test_GtQualThreshold():
 def test_genotyping_one_of_three_individuals():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
-		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf, samples=['HG004'])
+		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf, samples=['HG003'])
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf, phases=True,genotype_likelihoods=True))
@@ -127,11 +142,11 @@ def test_genotyping_one_of_three_individuals():
 		
 		# there should be no genotype predicitons for HG003/HG002		
 		default_l = math.log10(1/3.0)
-		for l in [table.genotype_likelihoods_of('HG002'), table.genotype_likelihoods_of('HG003')]:
+		for l in [table.genotype_likelihoods_of('HG002'), table.genotype_likelihoods_of('HG004')]:
 			for var in l:
 				assert(var.log10_probs() == (default_l, default_l, default_l))
 
-def test_phase_trio():
+def test_genotyping_trio():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf,
@@ -194,6 +209,37 @@ def test_genotype_likelihoods_given():
 				print('GL:', GL, 'PL:', PL)
 				assert(PL==None)
 				assert(GL != None)
+				
+# GL field is already present, make sure it is replaced by new likelihoods
+def test_genotype_log_likelihoods_given():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output_gl_log.vcf'
+		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio_genotype_log_likelihoods.vcf', output=outvcf,
+		        ped='tests/data/trio.ped', genmap='tests/data/trio.map', gt_qual_threshold=0)
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf, phases=True, genotype_likelihoods=True))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == '1'
+		assert len(table.variants) == 5
+		assert table.samples == ['HG004', 'HG003', 'HG002']
+		print("DONE")
+		# check if GL likelihoods were replaced
+		vcf_reader = vcf.Reader(filename=outvcf)
+		print(vcf_reader.samples, outvcf)
+		for record in vcf_reader:
+			for call in record.samples:
+				GL = getattr(call.data, 'GL', None)
+				GQ = getattr(call.data, 'GQ', None)
+				print('GL:', GL, 'GQ', GQ)
+				assert(GL != [-1,-1,-1])
+				assert(GQ != 100)
+				
+def test_no_gt_field():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output_no_gt.vcf'
+		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/TEST_no_gt.vcf', output=outvcf, samples=['HG004'])
 
 def test_phase_trio_paired_end_reads():
 	with TemporaryDirectory() as tempdir:
@@ -216,540 +262,3 @@ def test_wrong_chromosome():
 		run_genotyping(phase_input_files=[short_bamfile],
 			ignore_read_groups=True,
 			variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)
-
-#
-#def test_ps_tag():
-#	out = StringIO()
-#	run_whatshap(variant_file='tests/data/trio.vcf', phase_input_files=['tests/data/trio.pacbio.bam'],
-#	    output=out, tag='PS')
-#	out.seek(0)
-#	lines = [ line for line in out.readlines() if not line.startswith('#') ]
-#
-#	# TODO This is quite an ugly way to test phased VCF writing
-#	assert lines[0] == "1\t60906167\t.\tG\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t0/1:.\t0|1:60906167\t0/0:.\n"
-#	assert lines[1]	== "1\t60907394\t.\tG\tA\t.\tPASS\tAC=4;AN=6\tGT:PS\t0|1:60907394\t1/1:.\t0/1:.\n"
-#	assert lines[2] == "1\t60907460\t.\tG\tT\t.\tPASS\tAC=2;AN=6\tGT:PS\t0|1:60907394\t0|1:60906167\t0/0:.\n"
-#	assert lines[3] == "1\t60907473\t.\tC\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t0|1:60907394\t0/1:.\t0/0:.\n"
-#	assert lines[4] == "1\t60909718\t.\tT\tC\t.\tPASS\tAC=2;AN=6\tGT\t0/1\t0/1\t0/0\n"
-#
-#
-#def assert_phasing(phases, expected_phases):
-#	# TODO: this code is not "block aware". Would be useful to extend it to compare phasings per block
-#	print('assert_phasing({}, {})'.format(phases, expected_phases))
-#	assert len(phases) == len(expected_phases)
-#	p_unchanged = []
-#	p_inverted = []
-#	p_expected = []
-#	for phase, expected_phase in zip(phases, expected_phases):
-#		if (phase is None) and (expected_phase is None):
-#			continue
-#		assert phase is not None and expected_phase is not None
-#		assert phase.block_id == expected_phase.block_id
-#		p_unchanged.append(phase.phase)
-#		p_inverted.append(1-phase.phase)
-#		p_expected.append(expected_phase.phase)
-#	assert (p_unchanged == p_expected) or (p_inverted == p_expected)
-#
-#
-#def test_phase_three_individuals():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output.vcf'
-#		outreadlist = tempdir + '/readlist.tsv'
-#		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', read_list_filename=outreadlist, output=outvcf)
-#		assert os.path.isfile(outvcf)
-#		assert os.path.isfile(outreadlist)
-#
-#		tables = list(VcfReader(outvcf, phases=True))
-#		assert len(tables) == 1
-#		table = tables[0]
-#		assert table.chromosome == '1'
-#		assert len(table.variants) == 5
-#		assert table.samples == ['HG004', 'HG003', 'HG002']
-#
-#		phase1 = VariantCallPhase(60906167, 0, None)
-#		phase3 = VariantCallPhase(60907394, 0, None)
-#		assert_phasing(table.phases_of('HG004'), [None, phase3, phase3, phase3, None])
-#		assert_phasing(table.phases_of('HG003'), [phase1, None, phase1, None, None])
-#		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
-#
-#
-#def test_phase_one_of_three_individuals():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output.vcf'
-#		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf, samples=['HG003'])
-#		assert os.path.isfile(outvcf)
-#
-#		tables = list(VcfReader(outvcf, phases=True))
-#		assert len(tables) == 1
-#		table = tables[0]
-#		assert table.chromosome == '1'
-#		assert len(table.variants) == 5
-#		assert table.samples == ['HG004', 'HG003', 'HG002']
-#
-#		phase0 = VariantCallPhase(60906167,0,None)
-#		assert_phasing(table.phases_of('HG004'), [None, None, None, None, None])
-#		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, None, None])
-#		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
-#
-#
-#def test_phase_trio():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output.vcf'
-#		outreadlist = tempdir + '/readlist.tsv'
-#		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', read_list_filename=outreadlist, output=outvcf,
-#		        ped='tests/data/trio.ped', genmap='tests/data/trio.map')
-#		assert os.path.isfile(outvcf)
-#		assert os.path.isfile(outreadlist)
-#
-#		tables = list(VcfReader(outvcf, phases=True))
-#		assert len(tables) == 1
-#		table = tables[0]
-#		assert table.chromosome == '1'
-#		assert len(table.variants) == 5
-#		assert table.samples == ['HG004', 'HG003', 'HG002']
-#
-#		phase0 = VariantCallPhase(60906167, 0, None)
-#		assert_phasing(table.phases_of('HG004'), [phase0, phase0, phase0, phase0, phase0])
-#		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
-#		assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
-#
-#
-#def test_phase_trio_distrust_genotypes():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output_gl.vcf'
-#		outreadlist = tempdir + '/readlist.tsv'
-#		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio_genotype_likelihoods.vcf', read_list_filename=outreadlist, output=outvcf,
-#		        ped='tests/data/trio.ped', genmap='tests/data/trio.map', distrust_genotypes=True)
-#		assert os.path.isfile(outvcf)
-#		assert os.path.isfile(outreadlist)
-#
-#		tables = list(VcfReader(outvcf, phases=True))
-#		assert len(tables) == 1
-#		table = tables[0]
-#		assert table.chromosome == '1'
-#		assert len(table.variants) == 5
-#		assert table.samples == ['HG004', 'HG003', 'HG002']
-#
-#		phase0 = VariantCallPhase(60906167, 0, None)
-#		assert_phasing(table.phases_of('HG004'), [None, phase0, phase0, phase0, None])
-#		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
-#		assert_phasing(table.phases_of('HG002'), [phase0, None, phase0, phase0, phase0])
-#
-#
-#def test_phase_trio_merged_blocks():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output-merged-blocks.vcf'
-#		run_whatshap(phase_input_files=[trio_merged_bamfile], variant_file='tests/data/trio-merged-blocks.vcf', output=outvcf,
-#		        ped='tests/data/trio.ped', genmap='tests/data/trio.map')
-#		assert os.path.isfile(outvcf)
-#
-#		tables = list(VcfReader(outvcf, phases=True))
-#		assert len(tables) == 1
-#		table = tables[0]
-#		assert table.chromosome == '1'
-#		assert len(table.variants) == 8
-#		assert table.samples == ['HG002', 'HG003', 'HG004']
-#		assert table.num_of_blocks_of('HG004') == 1
-#		assert table.num_of_blocks_of('HG003') == 1
-#		assert table.num_of_blocks_of('HG002') == 1
-#
-#		phase0 = VariantCallPhase(752566, 0, None)
-#		phase1 = VariantCallPhase(752566, 1, None)
-#		assert_phasing(table.phases_of('HG004'), [phase1, phase1, phase1, None, phase1, phase1, phase1, phase1])
-#		assert_phasing(table.phases_of('HG003'), [None, None, None, None, phase0, phase0, phase0, phase1])
-#		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None, None, None, phase1])
-#
-#
-#def test_phase_trio_dont_merge_blocks():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output-merged-blocks.vcf'
-#		run_whatshap(phase_input_files=[trio_merged_bamfile], variant_file='tests/data/trio-merged-blocks.vcf', output=outvcf,
-#				ped='tests/data/trio.ped', genmap='tests/data/trio.map', genetic_haplotyping=False)
-#		assert os.path.isfile(outvcf)
-#
-#		tables = list(VcfReader(outvcf, phases=True))
-#		assert len(tables) == 1
-#		table = tables[0]
-#		assert table.chromosome == '1'
-#		assert len(table.variants) == 8
-#		assert table.samples == ['HG002', 'HG003', 'HG004']
-#		assert table.num_of_blocks_of('HG004') == 2
-#		assert table.num_of_blocks_of('HG003') == 1
-#		assert table.num_of_blocks_of('HG002') == 1
-#
-#		phase1 = VariantCallPhase(752566, 1, None)
-#		phase2_0 = VariantCallPhase(853954, 0, None)
-#		phase2_1 = VariantCallPhase(853954, 1, None)
-#		assert_phasing(table.phases_of('HG004'), [phase1, phase1, phase1, None, phase2_1, phase2_1, phase2_1, phase2_1])
-#		assert_phasing(table.phases_of('HG003'), [None, None, None, None, phase2_0, phase2_0, phase2_0, phase2_1])
-#		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None, None, None, phase2_1])
-#
-#
-#def test_genetic_phasing_symbolic_alt():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output.vcf'
-#		run_whatshap(phase_input_files=[], variant_file='tests/data/trio-symbolic-alt.vcf', output=outvcf,
-#		        ped='tests/data/trio.ped', indels=True)
-#		assert os.path.isfile(outvcf)
-#
-#		tables = list(VcfReader(outvcf, phases=True, indels=True))
-#		assert len(tables) == 1
-#		table = tables[0]
-#		assert table.chromosome == '1'
-#		assert len(table.variants) == 5
-#		assert table.samples == ['HG004', 'HG003', 'HG002']
-#
-#		phase0 = VariantCallPhase(60906167, 0, None)
-#		assert_phasing(table.phases_of('HG004'), [phase0, phase0, phase0, phase0, phase0])
-#		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
-#		assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
-#
-#
-#def test_phase_mendelian_conflict():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output.vcf'
-#		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio-mendelian-conflict.vcf', output=outvcf,
-#				ped='tests/data/trio.ped', genmap='tests/data/trio.map')
-#		assert os.path.isfile(outvcf)
-#
-#		tables = list(VcfReader(outvcf, phases=True))
-#		assert len(tables) == 1
-#		table = tables[0]
-#		assert table.chromosome == '1'
-#		assert len(table.variants) == 5
-#		assert table.samples == ['HG004', 'HG003', 'HG002']
-#
-#		phase = VariantCallPhase(60906167, 0, None)
-#		assert_phasing(table.phases_of('HG004'), [phase, None, phase, phase, phase])
-#		assert_phasing(table.phases_of('HG003'), [phase, None, phase, phase, phase])
-#		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
-#
-#
-#def test_phase_missing_genotypes():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output.vcf'
-#		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio-missing-genotypes.vcf', output=outvcf,
-#				ped='tests/data/trio.ped', genmap='tests/data/trio.map')
-#		assert os.path.isfile(outvcf)
-#
-#		tables = list(VcfReader(outvcf, phases=True))
-#		assert len(tables) == 1
-#		table = tables[0]
-#		assert table.chromosome == '1'
-#		assert len(table.variants) == 5
-#		assert table.samples == ['HG004', 'HG003', 'HG002']
-#
-#		phase = VariantCallPhase(60906167, 0, None)
-#		assert_phasing(table.phases_of('HG004'), [phase, phase, None, phase, None])
-#		assert_phasing(table.phases_of('HG003'), [phase, None, None, phase, None])
-#		assert_phasing(table.phases_of('HG002'), [None, phase, None, None, None])
-#
-#
-#def test_phase_specific_chromosome():
-#	for requested_chromosome in ['1','2']:
-#		with TemporaryDirectory() as tempdir:
-#			outvcf = tempdir + '/output.vcf'
-#			run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio-two-chromosomes.vcf', output=outvcf,
-#					ped='tests/data/trio.ped', genmap='tests/data/trio.map', chromosomes=[requested_chromosome])
-#			assert os.path.isfile(outvcf)
-#
-#			tables = list(VcfReader(outvcf, phases=True))
-#			assert len(tables) == 2
-#			for table in tables:
-#				assert len(table.variants) == 5
-#				assert table.samples == ['HG004', 'HG003', 'HG002']
-#				if table.chromosome == '1' == requested_chromosome:
-#					phase0 = VariantCallPhase(60906167, 0, None)
-#					assert_phasing(table.phases_of('HG004'), [phase0, phase0, phase0, phase0, phase0])
-#					assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
-#					assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
-#				elif table.chromosome == '2' == requested_chromosome:
-#					phase0 = VariantCallPhase(60906167, 0, None)
-#					phase1 = VariantCallPhase(60906167, 1, None)
-#					assert_phasing(table.phases_of('HG004'), [phase0, None, None, None, phase1])
-#					assert_phasing(table.phases_of('HG003'), [phase0, None, None, None, None])
-#					assert_phasing(table.phases_of('HG002'), [None, None, None, None, phase0])
-#				else:
-#					assert_phasing(table.phases_of('HG004'), [None, None, None, None, None])
-#					assert_phasing(table.phases_of('HG003'), [None, None, None, None, None])
-#					assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
-#
-#
-#def test_phase_trio_paired_end_reads():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output-paired_end.vcf'
-#		run_whatshap(phase_input_files=[trio_paired_end_bamfile], variant_file='tests/data/paired_end.sorted.vcf', output=outvcf,
-#		        ped='tests/data/trio_paired_end.ped', genmap='tests/data/trio.map')
-#		assert os.path.isfile(outvcf)
-#
-#		tables = list(VcfReader(outvcf, phases=True))
-#		assert len(tables) == 1
-#		table = tables[0]
-#		assert table.chromosome == '1'
-#		assert len(table.variants) == 3
-#		assert table.samples == ['mother', 'father', 'child']
-#		assert table.num_of_blocks_of('mother') == 1
-#		assert table.num_of_blocks_of('father') == 0
-#		assert table.num_of_blocks_of('child') == 1
-#
-#		phase0 = VariantCallPhase(80050, 0, None)
-#		phase1 = VariantCallPhase(80050, 1, None)
-#
-#		assert_phasing(table.phases_of('mother'), [phase1, phase1, phase0])
-#		assert_phasing(table.phases_of('father'), [None, None, None])
-#		assert_phasing(table.phases_of('child'), [None, None, phase1])
-#
-#
-#def test_phase_quartet_recombination_breakpoints():
-#	parameter_sets = [
-#		(False, {'genmap':'tests/data/recombination_breaks.map'}),
-#		(True, {'recombrate':1000000}),
-#		(False, {'recombrate':.0000001})
-#	]
-#	
-#	for expect_recombination, parameters in parameter_sets:
-#		with TemporaryDirectory() as tempdir:
-#			outvcf = tempdir + '/output-recombination_breaks.vcf'
-#			outlist = tempdir + '/output.recomb'
-#			run_whatshap(phase_input_files=[recombination_breaks_bamfile], variant_file='tests/data/quartet.vcf', output=outvcf,
-#					ped='tests/data/recombination_breaks.ped', recombination_list_filename = outlist, **parameters)
-#			assert os.path.isfile(outvcf)
-#
-#			tables = list(VcfReader(outvcf, phases=True))
-#			assert len(tables) == 1
-#			table = tables[0]
-#			assert table.chromosome == '1'
-#			assert len(table.variants) == 4
-#			assert table.samples == ['HG002', 'HG005', 'HG003', 'HG004']
-#			assert table.num_of_blocks_of('HG002') == 0
-#			assert table.num_of_blocks_of('HG005') == 0
-#			assert table.num_of_blocks_of('HG003') == 1
-#			assert table.num_of_blocks_of('HG004') == 0
-#
-#			phase0 = VariantCallPhase(68735304, 0, None)
-#			phase1 = VariantCallPhase(68735304, 1, None)
-#
-#			assert_phasing(table.phases_of('HG002'), [None, None, None, None])
-#			assert_phasing(table.phases_of('HG005'), [None, None, None, None])
-#			if expect_recombination:
-#				assert_phasing(table.phases_of('HG003'), [phase0, phase0, None, phase1])
-#			else:
-#				assert_phasing(table.phases_of('HG003'), [phase0, phase0, None, phase0])
-#			assert_phasing(table.phases_of('HG004'), [None, None, None, None])
-#			
-#			lines = open(outlist).readlines()
-#			if expect_recombination:
-#				assert len(lines) == 3
-#				assert lines[1]=='HG002 1 68735433 68738308 0 0 0 1 3\n'
-#				assert lines[2]=='HG005 1 68735433 68738308 0 0 0 1 3\n'
-#			else:
-#				assert len(lines) == 1
-#
-#
-#def test_phase_trio_zero_distance():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output.vcf'
-#		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf,
-#		        ped='tests/data/trio.ped', genmap='tests/data/zero-genetic-distance.map')
-#		assert os.path.isfile(outvcf)
-#
-#
-#def test_phase_quartet_recombination_breakpoints():
-#	parameter_sets = [
-#		(False, {'genmap':'tests/data/recombination_breaks.map'}),
-#		(True, {'recombrate':1000000}),
-#		(False, {'recombrate':.0000001})
-#	]
-#
-#
-#def test_haplotag():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output.vcf'
-#		outbam = tempdir + '/output.bam'
-#		run_whatshap(phase_input_files=[recombination_breaks_bamfile], variant_file='tests/data/quartet.vcf', output=outvcf, ped='tests/data/recombination_breaks.ped')
-#		run_haplotag(variant_file=outvcf, alignment_file=recombination_breaks_bamfile, output=outbam)
-#		ps_count = 0
-#		for alignment in pysam.AlignmentFile(outbam):
-#			if alignment.has_tag('PS'):
-#				ps_count += 1
-#		assert ps_count > 0
-#
-#
-#def test_compare1():
-#	with TemporaryDirectory() as tempdir:
-#		outtsv = tempdir + '/output.tsv'
-#		run_compare(vcf=['tests/data/phased1.vcf', 'tests/data/phased2.vcf'], names='p1,p2', tsv_pairwise=outtsv, sample='sample1')
-#		lines = [l.split('\t') for l in open(outtsv)]
-#		assert len(lines) == 3
-#		Fields = namedtuple('Fields', [ f.strip('#\n') for f in lines[0] ])
-#		entry_chrA, entry_chrB = [Fields(*l) for l in lines[1:]]
-#
-#		assert entry_chrA.chromosome == 'chrA'
-#		assert entry_chrA.all_assessed_pairs == '4'
-#		assert entry_chrA.all_switches == '1'
-#		assert entry_chrA.all_switchflips == '1/0'
-#		assert entry_chrA.largestblock_assessed_pairs == '2'
-#		assert entry_chrA.largestblock_switches == '1'
-#		assert entry_chrA.largestblock_hamming == '1'
-#
-#		assert entry_chrB.chromosome == 'chrB'
-#		assert entry_chrB.all_assessed_pairs == '1'
-#		assert entry_chrB.all_switches == '0'
-#		assert entry_chrB.all_switchflips == '0/0'
-#		assert entry_chrB.largestblock_assessed_pairs == '1'
-#		assert entry_chrB.largestblock_switches == '0'
-#		assert entry_chrB.largestblock_hamming == '0'
-#
-#
-#def test_compare2():
-#	with TemporaryDirectory() as tempdir:
-#		outtsv = tempdir + '/output.tsv'
-#		run_compare(vcf=['tests/data/phased1.vcf', 'tests/data/phased2.vcf'], names='p1,p2', tsv_pairwise=outtsv, sample='sample2')
-#		lines = [l.split('\t') for l in open(outtsv)]
-#		assert len(lines) == 3
-#		Fields = namedtuple('Fields', [ f.strip('#\n') for f in lines[0] ])
-#		entry_chrA, entry_chrB = [Fields(*l) for l in lines[1:]]
-#
-#		assert entry_chrA.chromosome == 'chrA'
-#		assert entry_chrA.all_assessed_pairs == '6'
-#		assert entry_chrA.all_switches == '2'
-#		assert entry_chrA.all_switchflips == '0/1'
-#		assert entry_chrA.largestblock_assessed_pairs == '5'
-#		assert entry_chrA.largestblock_switches == '2'
-#		assert entry_chrA.largestblock_hamming == '1'
-#
-#		assert entry_chrB.chromosome == 'chrB'
-#		assert entry_chrB.all_assessed_pairs == '1'
-#		assert entry_chrB.all_switches == '1'
-#		assert entry_chrB.all_switchflips == '1/0'
-#		assert entry_chrB.largestblock_assessed_pairs == '1'
-#		assert entry_chrB.largestblock_switches == '1'
-#		assert entry_chrB.largestblock_hamming == '1'
-#
-#
-#def test_compare_only_snvs():
-#	with TemporaryDirectory() as tempdir:
-#		outtsv = tempdir + '/output.tsv'
-#		run_compare(vcf=['tests/data/phased1.vcf', 'tests/data/phased2.vcf'], names='p1,p2', tsv_pairwise=outtsv, sample='sample2', only_snvs=True)
-#		lines = [l.split('\t') for l in open(outtsv)]
-#		assert len(lines) == 3
-#		Fields = namedtuple('Fields', [ f.strip('#\n') for f in lines[0] ])
-#		entry_chrA, entry_chrB = [Fields(*l) for l in lines[1:]]
-#
-#		assert entry_chrA.chromosome == 'chrA'
-#		assert entry_chrA.all_assessed_pairs == '3'
-#		assert entry_chrA.all_switches == '2'
-#		assert entry_chrA.all_switchflips == '0/1'
-#		assert entry_chrA.largestblock_assessed_pairs == '3'
-#		assert entry_chrA.largestblock_switches == '2'
-#		assert entry_chrA.largestblock_hamming == '1'
-#
-#		assert entry_chrB.chromosome == 'chrB'
-#		assert entry_chrB.all_assessed_pairs == '1'
-#		assert entry_chrB.all_switches == '1'
-#		assert entry_chrB.all_switchflips == '1/0'
-#		assert entry_chrB.largestblock_assessed_pairs == '1'
-#		assert entry_chrB.largestblock_switches == '1'
-#		assert entry_chrB.largestblock_hamming == '1'
-#
-#
-#def test_hapcut2vcf():
-#	with TemporaryDirectory() as tempdir:
-#		out = os.path.join(tempdir, 'hapcut.vcf')
-#		run_hapcut2vcf(hapcut='tests/data/pacbio/hapcut.txt', vcf='tests/data/pacbio/variants.vcf', output=out)
-#
-#
-#def test_ignore_read_groups():
-#	run_whatshap(variant_file='tests/data/pacbio/variants.vcf', phase_input_files=['tests/data/pacbio/pacbio.bam'],
-#		reference='tests/data/pacbio/reference.fasta', ignore_read_groups=True, output='/dev/null')
-#
-#
-#def test_genetic_haplotyping():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output.vcf'
-#		outrecomb = tempdir + '/output.recomb'
-#		run_whatshap(variant_file='tests/data/genetic-haplotyping.vcf', phase_input_files=[],
-#			ped='tests/data/genetic-haplotyping.ped', output=outvcf, recombination_list_filename=outrecomb)
-#		tables = list(VcfReader(outvcf, phases=True))
-#
-#		assert len(tables) == 1
-#		table = tables[0]
-#		assert table.chromosome == '1'
-#		assert len(table.variants) == 3
-#		assert table.samples == ['sampleA', 'sampleB', 'sampleC', 'sampleD', 'sampleE']
-#		assert table.num_of_blocks_of('sampleA') == 1
-#		assert table.num_of_blocks_of('sampleB') == 1
-#		assert table.num_of_blocks_of('sampleC') == 0
-#		assert table.num_of_blocks_of('sampleD') == 1
-#		assert table.num_of_blocks_of('sampleE') == 1
-#
-#		phase0 = VariantCallPhase(10327, 0, None)
-#		phase1 = VariantCallPhase(10327, 1, None)
-#
-#		assert_phasing(table.phases_of('sampleA'), [phase0, phase0, phase1])
-#		assert_phasing(table.phases_of('sampleB'), [phase0, None, None])
-#		assert_phasing(table.phases_of('sampleC'), [None, None, None])
-#		assert_phasing(table.phases_of('sampleD'), [phase0, None, phase1])
-#		assert_phasing(table.phases_of('sampleE'), [phase0, phase0, None])
-#
-#		lines = [l.split() for l in open(outrecomb)]
-#		assert len(lines) == 2
-#		Fields = namedtuple('Fields', [ f.strip('#\n') for f in lines[0] ])
-#		recomb = Fields(*lines[1])
-#		print(recomb)
-#		assert recomb.child_id == 'sampleC'
-#		assert recomb.chromosome == '1'
-#		assert recomb.position1 == '31295'
-#		assert recomb.position2 == '102596'
-#
-#		#assert recomb.transmitted_hap_mother1 != recomb.transmitted_hap_mother2
-#		#assert recomb.transmitted_hap_father1 == recomb.transmitted_hap_father2
-#
-#
-#def test_quartet2():
-#	run_whatshap(variant_file='tests/data/quartet2.vcf', phase_input_files=[quartet2_bamfile],
-#		ped='tests/data/quartet2.ped', output='/dev/null')
-#
-#
-#def test_phased_blocks():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output.vcf'
-#		run_whatshap(phase_input_files=[short_bamfile], variant_file='tests/data/short-genome/short.vcf', ignore_read_groups=True, distrust_genotypes=True,  include_homozygous=True, output=outvcf)
-#		assert os.path.isfile(outvcf)
-#
-#		tables = list(VcfReader(outvcf, phases=True))
-#		assert len(tables) == 1
-#		table = tables[0]
-#		assert table.chromosome == 'chr1'
-#		assert len(table.variants) == 5
-#		assert table.samples == ['sample']
-#
-#		blocks = [(p.block_id if p is not None else None) for p in table.phases_of('sample')]
-#		assert blocks == [10, 10, None, 200, 200]
-#
-#
-#@raises(SystemExit)
-#def test_wrong_chromosome():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output.vcf'
-#		run_whatshap(phase_input_files=[short_bamfile],
-#			ignore_read_groups=True,
-#			variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)
-#
-#
-#def test_indel_phasing():
-#	with TemporaryDirectory() as tempdir:
-#		outvcf = tempdir + '/output.vcf'
-#		run_whatshap(phase_input_files=[indels_bamfile], indels=True, variant_file='tests/data/indels.vcf', reference='tests/data/random0.fasta', output=outvcf)
-#		assert os.path.isfile(outvcf)
-#
-#		tables = list(VcfReader(outvcf, indels=True, phases=True))
-#		assert len(tables) == 1
-#		table = tables[0]
-#		assert table.chromosome == 'random0'
-#		assert len(table.variants) == 4
-#		assert table.samples == ['sample1']
-#
-#		phase0 = VariantCallPhase(41, 0, None)
-#		phase1 = VariantCallPhase(41, 1, None)
-#		assert_phasing(table.phases_of('sample1'), [phase0, phase1, phase0, phase1])

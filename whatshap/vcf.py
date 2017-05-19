@@ -278,11 +278,13 @@ class VcfReader:
 	"""
 	Read a VCF file chromosome by chromosome.
 	"""
-	def __init__(self, path, indels=False, phases=False, genotype_likelihoods=False):
+	def __init__(self, path, indels=False, phases=False, genotype_likelihoods=False, ignore_genotypes=False):
 		"""
 		path -- Path to VCF file
 		indels -- Whether to include also insertions and deletions in the list of
 			variants.
+		ignore_genotypes: in case of genotyping algorithm, no genotypes may be given in 
+								vcf, so ignore all genotypes
 		"""
 		# TODO Always include deletions since they can 'overlap' other variants
 		self._indels = indels
@@ -290,6 +292,7 @@ class VcfReader:
 		self._phases = phases
 		self._genotype_likelihoods = genotype_likelihoods
 		self.samples = self._vcf_reader.samples  # intentionally public
+		self.ignore_genotypes = ignore_genotypes
 		logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
 	def _group_by_chromosome(self):
@@ -414,7 +417,11 @@ class VcfReader:
 			# For example, when GT is 0/1, gt_alleles is ['0', '1'].
 			# And when GT is 2|1, gt_alleles is ['2', '1'].
 			GT_TO_INT = { 0: 0, 1: 1, 2: 2, None: -1 }
-			genotypes = array('b', (GT_TO_INT[call.gt_type] for call in record.samples))
+			if not self.ignore_genotypes:		
+				genotypes = array('b', (GT_TO_INT[call.gt_type] for call in record.samples))
+			else:
+				genotypes = array('b', ([-1] * len(self.samples)))
+				phases = [None] * len(self.samples)
 			variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
 			table.add_variant(variant, genotypes, phases, genotype_likelihoods)
 
@@ -663,6 +670,10 @@ class GenotypeVcfWriter:
 			self._reader.metadata['commandline'] = []
 		command_line = command_line.replace('"', '')
 		self._reader.metadata['commandline'] = [command_line]
+		
+		# add tag for genotype
+		fmt = vcf.parser._Format(id='GT', num=1, type='String', desc='Genotype computed by whatshap genotyping algorithm.')
+		self._reader.formats['GT'] = fmt
 
 		# add tag for genotype quality
 		fmt = vcf.parser._Format(id='GQ', num=1, type='Integer', desc='Phred scaled genotype quality computed by whatshap genotyping algorithm.')
@@ -717,11 +728,17 @@ class GenotypeVcfWriter:
 	
 			# if current chromosome was genotyped, write this new information to vcf
 			if not leave_unchanged:	
-				# add GL + GQ
+				# add GT,GQ,GL fields in case they are not present yet
+				# TODO: in case 'FORMAT' is None, how to add new Calls to sample fields??
+				if 'GT' not in record.FORMAT.split(':'):
+						record.add_format('GT')
+				
 				if 'GQ' not in record.FORMAT.split(':'):
 					record.add_format('GQ')
+						
 				if 'GL' not in record.FORMAT.split(':'):
 					record.add_format('GL')
+		
 				if record.FORMAT not in self._reader._format_cache:
 					self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
 				samp_fmt = self._reader._format_cache[record.FORMAT]
@@ -763,7 +780,6 @@ class GenotypeVcfWriter:
 					record.QUAL = '.'
 					
 					# delete all other genotype information that might have been present before
-					# TODO: this is very ugly
 					for tag in record.FORMAT.split(':'):
 						if tag not in ['GT', 'GL', 'GQ']:
 							values[tag] = '.'

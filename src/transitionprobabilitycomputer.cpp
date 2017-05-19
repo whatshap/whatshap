@@ -15,14 +15,14 @@ TransitionProbabilityComputer::TransitionProbabilityComputer(unsigned int recomb
     long double recomb_prob = pow(10,-(long double)(recombcost)/10.0L);
     std::vector<long double> bernoulli;
     bernoulli.reserve(2*trio_count);
-    for(unsigned int i=0; i <= 2*trio_count; i++){
+    for(unsigned int i=0; i <= 2*trio_count; ++i){
       bernoulli.emplace_back(pow(recomb_prob,i)*pow(1-recomb_prob,2*trio_count-i));
     }
 
-    for(size_t i = 0; i < transmission_configurations; i++){
+    for(size_t i = 0; i < transmission_configurations; ++i){
         // each row must sum up to 1 and consider also all genotype combinations
         long double normalization_sum = 0.0L;
-        for(size_t j = 0; j < transmission_configurations; j++){
+        for(size_t j = 0; j < transmission_configurations; ++j){
             size_t x = i ^ j;
             // count how many bits are set
             x = popcount(x);
@@ -31,7 +31,7 @@ TransitionProbabilityComputer::TransitionProbabilityComputer(unsigned int recomb
             normalization_sum += prob*allele_assignments;
         }
         // normalize row
-        for(size_t j = 0; j < transmission_configurations; j++){
+        for(size_t j = 0; j < transmission_configurations; ++j){
             transition_prob_matrix.at(i,j) /= normalization_sum;
         }
     }
