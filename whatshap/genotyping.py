@@ -242,9 +242,6 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 							genotypes_list[var_to_pos[accessible_positions[pos]]] = geno
 							likelihood_list[var_to_pos[accessible_positions[pos]]] = likelihoods
 						
-						print('read_gts: ',variant_table.genotypes_of(s))
-						print('read_likelihoods:',variant_table.genotype_likelihoods_of(s))
-						
 						variant_table.set_genotypes_of(s, genotypes_list)
 						variant_table.set_genotype_likelihoods_of(s,likelihood_list)
 					
