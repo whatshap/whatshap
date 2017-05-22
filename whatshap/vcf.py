@@ -730,7 +730,10 @@ class GenotypeVcfWriter:
 			if not leave_unchanged:	
 				# add GT,GQ,GL fields in case they are not present yet
 				# TODO: in case 'FORMAT' is None, how to add new Calls to sample fields??
-				if 'GT' not in record.FORMAT.split(':'):
+				if record.FORMAT == None:
+					record.FORMAT = 'GT'
+				else:
+					if 'GT' not in record.FORMAT.split(':'):
 						record.add_format('GT')
 				
 				if 'GQ' not in record.FORMAT.split(':'):
@@ -742,7 +745,7 @@ class GenotypeVcfWriter:
 				if record.FORMAT not in self._reader._format_cache:
 					self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
 				samp_fmt = self._reader._format_cache[record.FORMAT]
-		
+
 				for i, call in enumerate(record.samples):
 					sample = self._reader.samples[i]
 					values = call.data._asdict()
