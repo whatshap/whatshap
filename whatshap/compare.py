@@ -228,6 +228,7 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 	phased_pairs = 0
 	bed_records = []
 	if len(variant_tables) == 2:
+		total_blocks_length = 0
 		total_errors = PhasingErrors()
 		for block in block_intersection.values():
 			if len(block) < 2:
@@ -239,6 +240,7 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 			bed_records.extend(create_bed_records(chromosome, phasing0, phasing1, block_positions, '{}<-->{}'.format(*dataset_names)))
 			total_errors += errors
 			phased_pairs += len(block) - 1
+			total_blocks_length += len(block)
 			if len(block) > longest_block:
 				longest_block = len(block)
 				longest_block_errors = errors
@@ -250,6 +252,8 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 		longest_block_assessed_pairs = max(longest_block - 1, 0)
 		print('              ALL INTERSECTION BLOCKS:', '-'*count_width)
 		print_errors(total_errors, phased_pairs)
+		print('                     Hamming distance:', str(total_errors.hamming).rjust(count_width))
+		print('                 Hamming distance [%]:', fraction2percentstr(total_errors.hamming, total_blocks_length).rjust(count_width))
 		print('           LARGEST INTERSECTION BLOCK:', '-'*count_width)
 		print_errors(longest_block_errors, longest_block_assessed_pairs)
 		print('                     Hamming distance:', str(longest_block_errors.hamming).rjust(count_width))
