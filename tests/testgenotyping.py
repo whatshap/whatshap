@@ -228,6 +228,18 @@ def test_geno9():
 	"""
 	genotypes = [1,2,1,1,0,2]
 	check_genotyping_single_individual(reads,None,None,genotypes,10)
+	
+def test_geno_10():
+	reads = """
+	001100
+	000000
+	000000
+	110011
+	110011
+	111111
+		 """
+	genotypes = [1,1,0,0,1,1]
+	check_genotyping_single_individual(reads,None,None,genotypes, 500)
 
 def test_weighted_genotyping1():
 	reads = """
@@ -284,5 +296,6 @@ def test_weighted_genotyping3():
 		999
 	"""
 	expected_likelihoods = [[0.5,0.5,0],[0,0.5,0.5],[0,1,0]]
-	check_genotyping_single_individual(reads,weights,expected_likelihoods, None, 500)		 
+	check_genotyping_single_individual(reads,weights,expected_likelihoods, None, 500)	
+	 
 	

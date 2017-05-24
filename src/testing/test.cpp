@@ -204,7 +204,7 @@ TEST_CASE("test forward_backward", "[test forward_backward]")
 TEST_CASE("test transition prob computer", "[test transition prob computer]"){
 
     SECTION("test simple example", "[test simple example]"){
-        TransitionProbabilityComputer trans(10,1,16);
+        TransitionProbabilityComputer trans(10,1,16,4);
         std::vector<long double> expected_cost = {0.9L*0.9L, 0.1L*0.9L, 0.1L*0.1L};
         long double nor = (0.9L*0.9L+2*0.1L*0.9L+0.1L*0.1L)*16;
 
@@ -220,7 +220,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
     }
 
     SECTION("test for single individual", "[test for single individual]"){
-        TransitionProbabilityComputer trans(10,0,4);
+        TransitionProbabilityComputer trans(10,0,4,1);
         REQUIRE(trans.get(0,0) == 0.25);
     }
 }
