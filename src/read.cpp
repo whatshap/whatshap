@@ -8,7 +8,7 @@
 
 using namespace std;
 
-Read::Read(const std::string& name, int mapq, int source_id, int sample_id) : name(name), mapqs(1, mapq), source_id(source_id), sample_id(sample_id) {
+Read::Read(const std::string& name, int mapq, int source_id, int sample_id, int reference_start, int query_length, const std::string& BX_tag) : name(name), mapqs(1, mapq), source_id(source_id), sample_id(sample_id), reference_start(reference_start), query_length(query_length), BX_tag(BX_tag) {
 	this->id = -1;
 }
 
@@ -135,6 +135,10 @@ const vector<int>& Read::getMapqs() const {
 	return mapqs;
 }
 
+const std::string& Read::getBX_tag() const {
+	return BX_tag;
+}
+
 
 void Read::addMapq(int mapq) {
 	mapqs.push_back(mapq);
@@ -148,6 +152,14 @@ int Read::getSourceID() const {
 
 int Read::getSampleID() const {
 	return sample_id;
+}
+
+int Read::getReference_Start() const {
+	return reference_start;
+}
+
+int Read::getQuery_Length() const {
+	return query_length;
 }
 
 

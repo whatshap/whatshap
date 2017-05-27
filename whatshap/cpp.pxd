@@ -9,7 +9,7 @@ from libcpp.vector cimport vector
 
 cdef extern from "../src/read.h":
 	cdef cppclass Read:
-		Read(string, int, int, int) except +
+		Read(string, int, int, int, int, int, string) except +
 		Read(Read) except +
 		string toString() except +
 		void addVariant(int, int, int) except +
@@ -27,6 +27,9 @@ cdef extern from "../src/read.h":
 		bool isSorted() except +
 		int getSourceID() except +
 		int getSampleID() except +
+		int getQuery_Length() except +
+		int getReference_Start() except +
+		string getBX_tag() except +
 
 
 cdef extern from "../src/indexset.h":

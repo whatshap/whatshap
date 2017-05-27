@@ -72,14 +72,30 @@ class ReadSetReader:
 		TODO this functionality should be within ReadSet
 		"""
 		read_set = ReadSet()
+		BX_tag_map = defaultdict(list)
 		for readlist in reads.values():
+			for read in readlist:
+				BX_tag_map[read.BX_tag].append(read)
+
+		for readlist in  BX_tag_map.values():
 			assert len(readlist) > 0
-			if len(readlist) > 2:
-				raise ReadSetError("Read name {!r} occurs more than twice in the input file".format(readlist[0].name))
+			#if len(readlist) > 2:
+				#raise ReadSetError("Read name {!r} occurs more than twice in the input file".format(readlist[0].name))
 			if len(readlist) == 1:
 				read_set.add(readlist[0])
 			else:
-				read_set.add(self._merge_pair(*readlist))
+				result = self._merge_pair(readlist[0], readlist[1])
+				read_cloud_duplication = 0
+				for i in range(2,len(readlist)):
+					if result.reference_start - (readlist[i].reference_start + readlist[i].query_length) <= 50000: #TODO: hard-coded value here!
+						result = self._merge_pair(result, readlist[i])
+					else:
+						result = Read("Read"+read_cloud_duplication, readlist[i].mapqs[0], readlist[i].source_id, readlist[i].sample_id, readlist[i].reference_start, readlist[i].query_length, readlist[i].BX_tag)
+						for variant in readlist[i]:
+							result.add_variant(variant.position, variant.allele, variant.quality)
+						read_cloud_duplication = read_cloud_duplication +1
+
+				read_set.add(result)
 		return read_set
 
 	def _usable_alignments(self, chromosome, sample):
@@ -126,20 +142,22 @@ class ReadSetReader:
 			# Skip variants that are to the left of this read
 			while i < len(normalized_variants) and normalized_variants[i].position < alignment.bam_alignment.reference_start:
 				i += 1
+			#print(alignment.bam_alignment.query_length)
+			if isinstance(alignment.bam_alignment.tags[10][1], str):
+				if '-1' in alignment.bam_alignment.tags[10][1]:
+					read = Read(alignment.bam_alignment.qname,
+						alignment.bam_alignment.mapq, alignment.source_id,
+						numeric_sample_id, alignment.bam_alignment.reference_start, alignment.bam_alignment.query_length, alignment.bam_alignment.tags[10][1])
 
-			read = Read(alignment.bam_alignment.qname,
-					alignment.bam_alignment.mapq, alignment.source_id,
-					numeric_sample_id)
+					if reference is None:
+						detected = self.detect_alleles(normalized_variants, i, alignment.bam_alignment)
 
-			if reference is None:
-				detected = self.detect_alleles(normalized_variants, i, alignment.bam_alignment)
-
-			else:
-				detected = self.detect_alleles_by_alignment(variants, i, alignment.bam_alignment, reference)
-			for j, allele, quality in detected:
-				read.add_variant(variants[j].position, allele, quality)
-			if read:  # At least one variant covered and detected
-				reads[(alignment.source_id, alignment.bam_alignment.qname, numeric_sample_id)].append(read)
+					else:
+						detected = self.detect_alleles_by_alignment(variants, i, alignment.bam_alignment, reference)
+					for j, allele, quality in detected:
+						read.add_variant(variants[j].position, allele, quality)
+					if read:  # At least one variant covered and detected
+						reads[(alignment.source_id, alignment.bam_alignment.qname, numeric_sample_id)].append(read)	
 		return reads
 
 	@staticmethod
@@ -413,7 +431,7 @@ class ReadSetReader:
 		modified.
 		"""
 		if read2:
-			result = Read(read1.name, read1.mapqs[0], read1.source_id, read1.sample_id)
+			result = Read(read1.name, read1.mapqs[0], read1.source_id, read1.sample_id, read1.reference_start, read1.query_length, read1.BX_tag)
 			result.add_mapq(read2.mapqs[0])
 		else:
 			return read1
@@ -459,6 +477,7 @@ class ReadSetReader:
 						add2()
 				i1 += 1
 				i2 += 1
+
 		return result
 
 	def __enter__(self):
@@ -469,3 +488,4 @@ class ReadSetReader:
 
 	def close(self):
 		self._reader.close()
+

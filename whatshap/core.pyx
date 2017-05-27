@@ -43,15 +43,17 @@ cdef class NumericSampleIds:
 
 
 cdef class Read:
-	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int sample_id = 0):
+	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int sample_id = 0, int reference_start = 0, int query_length = 0, str BX_tag = None):
 		cdef string _name = ''
+		cdef string _BX_tag = ''
 		if name is None:
 			self.thisptr = NULL
 			self.ownsptr = False
 		else:
 			# TODO: Is this the best way to handle string arguments?
 			_name = name.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, mapq, source_id, sample_id)
+			_BX_tag = BX_tag.encode('UTF-8')
+			self.thisptr = new cpp.Read(_name, mapq, source_id, sample_id, reference_start, query_length, _BX_tag)
 			self.ownsptr = True
 
 	def __dealloc__(self):
@@ -61,8 +63,13 @@ cdef class Read:
 
 	def __repr__(self):
 		assert self.thisptr != NULL
-		return 'Read(name={!r}, mapq={}, source_id={}, sample_id={}, variants={})'.format(
-			self.name, self.mapqs, self.source_id, self.sample_id, list(self))
+		return 'Read(name={!r}, mapq={}, source_id={}, sample_id={}, reference_start={}, query_length={}, BX_tag={}, variants={})'.format(
+			self.name, self.mapqs, self.source_id, self.sample_id, self.reference_start, self.query_length, self.BX_tag, list(self))
+
+	property BX_tag:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getBX_tag().decode('utf-8')
 
 	property mapqs:
 		def __get__(self):
@@ -78,6 +85,16 @@ cdef class Read:
 		def __get__(self):
 			assert self.thisptr != NULL
 			return self.thisptr.getSourceID()
+
+	property reference_start:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getReference_Start()
+
+	property query_length:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getQuery_Length()
 
 	property sample_id:
 		def __get__(self):
