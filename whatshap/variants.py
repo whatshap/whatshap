@@ -77,17 +77,15 @@ class ReadSetReader:
 			for read in readlist:
 				BX_tag_map[read.BX_tag].append(read)
 
+		read_cloud_duplication = 0
 		for readlist in  BX_tag_map.values():
 			assert len(readlist) > 0
 			#if len(readlist) > 2:
 				#raise ReadSetError("Read name {!r} occurs more than twice in the input file".format(readlist[0].name))
-			if len(readlist) == 1:
-				read_set.add(readlist[0])
-			else:
+			if len(readlist) > 10:
 				result = self._merge_pair(readlist[0], readlist[1])
-				read_cloud_duplication = 0
 				for i in range(2,len(readlist)):
-					if result.reference_start - (readlist[i].reference_start + readlist[i].query_length) <= 50000: #TODO: hard-coded value here!
+					if (readlist[i].reference_start + readlist[i].query_length) - result.reference_start <= 100000: #TODO: hard-coded value here!
 						result = self._merge_pair(result, readlist[i])
 					else:
 						result = Read("Read"+read_cloud_duplication, readlist[i].mapqs[0], readlist[i].source_id, readlist[i].sample_id, readlist[i].reference_start, readlist[i].query_length, readlist[i].BX_tag)
