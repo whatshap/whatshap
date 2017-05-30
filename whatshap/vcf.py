@@ -690,7 +690,7 @@ class GenotypeVcfWriter:
 	@property
 	def samples(self):
 		return self._reader.samples
-
+			
 	def write_genotypes(self, chromosome, variant_table, indels, leave_unchanged=False):
 		"""
 		Add genotyping information to all variants on a single chromosome.
@@ -728,23 +728,34 @@ class GenotypeVcfWriter:
 	
 			# if current chromosome was genotyped, write this new information to vcf
 			if not leave_unchanged:	
+				no_format_field = False
+				
 				# add GT,GQ,GL fields in case they are not present yet
-				# TODO: in case 'FORMAT' is None, how to add new Calls to sample fields??
 				if record.FORMAT == None:
 					record.FORMAT = 'GT'
+					no_format_field = True
+
 				else:
 					if 'GT' not in record.FORMAT.split(':'):
 						record.add_format('GT')
 				
-				if 'GQ' not in record.FORMAT.split(':'):
-					record.add_format('GQ')
-						
-				if 'GL' not in record.FORMAT.split(':'):
-					record.add_format('GL')
+				for field in ['GQ', 'GL']:
+					if field not in record.FORMAT.split(':'):
+						record.add_format(field)				
 		
 				if record.FORMAT not in self._reader._format_cache:
 					self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
+
 				samp_fmt = self._reader._format_cache[record.FORMAT]
+
+				# create call objects in case the format field was empty before
+				if no_format_field:
+					for sample in self._reader.samples:
+						call = vcf.model._Call(record, sample, [])
+						values = {'GT': '.', 'GQ': '.', 'GL': '.'}
+						call.data = samp_fmt(**values)
+						record.samples.append(call)
+				
 
 				for i, call in enumerate(record.samples):
 					sample = self._reader.samples[i]

@@ -216,6 +216,7 @@ def test_genotype_log_likelihoods_given():
 		outvcf = tempdir + '/output_gl_log.vcf'
 		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio_genotype_log_likelihoods.vcf', output=outvcf,
 		        ped='tests/data/trio.ped', genmap='tests/data/trio.map', gt_qual_threshold=0)
+
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf, phases=True, genotype_likelihoods=True))
@@ -236,10 +237,17 @@ def test_genotype_log_likelihoods_given():
 				assert(GL != [-1,-1,-1])
 				assert(GQ != 100)
 				
-def test_no_gt_field():
+def test_empty_format_field():
 	with TemporaryDirectory() as tempdir:
-		outvcf = tempdir + '/output_no_gt.vcf'
-		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/TEST_no_gt.vcf', output=outvcf, samples=['HG004'])
+		outvcf = tempdir + '/output_empty_format.vcf'
+		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/empty_format.vcf', output=outvcf, gt_qual_threshold=0)
+	
+		# check if sample fields now contain information
+		assert os.path.isfile(outvcf)
+		vcf_reader = vcf.Reader(filename=outvcf)
+		for record in vcf_reader:
+			print(record.samples, outvcf)
+			assert(len(record.samples) == 3)
 
 def test_phase_trio_paired_end_reads():
 	with TemporaryDirectory() as tempdir:
