@@ -155,6 +155,8 @@ pairwise_comparison_results_fields = [
 	'all_switch_rate',
 	'all_switchflips',
 	'all_switchflip_rate',
+	'blockwise_hamming',
+	'blockwise_hamming_rate',
 	'largestblock_assessed_pairs',
 	'largestblock_switches',
 	'largestblock_switch_rate',
@@ -229,6 +231,7 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 	bed_records = []
 	if len(variant_tables) == 2:
 		total_errors = PhasingErrors()
+		total_compared_variants = 0
 		for block in block_intersection.values():
 			if len(block) < 2:
 				continue
@@ -239,6 +242,7 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 			bed_records.extend(create_bed_records(chromosome, phasing0, phasing1, block_positions, '{}<-->{}'.format(*dataset_names)))
 			total_errors += errors
 			phased_pairs += len(block) - 1
+			total_compared_variants += len(block)
 			if len(block) > longest_block:
 				longest_block = len(block)
 				longest_block_errors = errors
@@ -250,6 +254,8 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 		longest_block_assessed_pairs = max(longest_block - 1, 0)
 		print('              ALL INTERSECTION BLOCKS:', '-'*count_width)
 		print_errors(total_errors, phased_pairs)
+		print('          Block-wise Hamming distance:', str(total_errors.hamming).rjust(count_width))
+		print('      Block-wise Hamming distance [%]:', fraction2percentstr(total_errors.hamming, total_compared_variants).rjust(count_width))
 		print('           LARGEST INTERSECTION BLOCK:', '-'*count_width)
 		print_errors(longest_block_errors, longest_block_assessed_pairs)
 		print('                     Hamming distance:', str(longest_block_errors.hamming).rjust(count_width))
@@ -262,6 +268,8 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 			all_switch_rate = safefraction(total_errors.switches, phased_pairs),
 			all_switchflips = total_errors.switch_flips,
 			all_switchflip_rate = safefraction(total_errors.switch_flips.switches+total_errors.switch_flips.flips, phased_pairs),
+			blockwise_hamming = total_errors.hamming,
+			blockwise_hamming_rate = safefraction(total_errors.hamming, total_compared_variants),
 			largestblock_assessed_pairs = longest_block_assessed_pairs,
 			largestblock_switches = longest_block_errors.switches,
 			largestblock_switch_rate = safefraction(longest_block_errors.switches, longest_block_assessed_pairs),
