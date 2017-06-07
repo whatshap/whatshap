@@ -159,7 +159,7 @@ cdef class Read:
 
 	def sort(self):
 		assert self.thisptr != NULL
-		self.thisptr.sortVariants()
+		return self.thisptr.sortVariants()
 
 	def is_sorted(self):
 		assert self.thisptr != NULL
@@ -168,7 +168,37 @@ cdef class Read:
 	def has_BX_tag(self):
 		assert self.thisptr != NULL
 		return self.thisptr.hasBXTag()
+# ====== IndexSet ======
+cdef extern from "../src/indexset.h":
+	cdef cppclass IndexSet:
+		IndexSet() except +
+		bool contains(int) except +
+		void add(int) except +
+		int size() except +
+		string toString() except +
 
+
+cdef class PyIndexSet:
+	cdef IndexSet *thisptr
+
+	def __cinit__(self):
+		self.thisptr = new IndexSet()
+
+	def __dealloc__(self):
+		del self.thisptr
+
+	def __str__(self):
+		return self.thisptr.toString().decode('utf-8')
+
+	def __len__(self):
+		return self.thisptr.size()
+
+	def contains(self, index):
+		return self.thisptr.contains(index)
+
+	def add(self, index):
+		self.thisptr.add(index)
+		
 cdef class ReadSet:
 	def __cinit__(self):
 		self.thisptr = new cpp.ReadSet()
@@ -230,6 +260,13 @@ cdef class ReadSet:
 		this is not necessarily the variant with the lowest position, unless sort() has been
 		called on all contained reads. Ties are resolved by comparing the read name."""
 		self.thisptr.sort()
+		
+	#def subset(self, PyIndexSet index_set):
+	#	# TODO: is there a way of avoiding to unecessarily creating/destroying a ReadSet object?
+	#	result = ReadSet()
+	#	del result.thisptr
+	#	result.thisptr = self.thisptr.subset(index_set.thisptr)
+	#	return result
 
 	def subset(self, reads_to_select):
 		# TODO: is there a way of avoiding to unecessarily creating/destroying a ReadSet object?
