@@ -34,15 +34,19 @@ void Read::addVariant(int position, int allele, std::vector<unsigned int> qualit
 }
 
 
-void Read::sortVariants() {
+int Read::sortVariants() {
 	sort(variants.begin(), variants.end(), entry_comparator_t());
+	int x= 0;
 	for (size_t i=1; i<variants.size(); ++i) {
 		if (variants[i-1].position == variants[i].position) {
+			x=1;
+			return x;
 			ostringstream oss;
 			oss << "Duplicate variant in read " << name << " at position " << variants[i].position;
 			throw std::runtime_error(oss.str());
 		}
 	}
+	return x;
 }
 
 

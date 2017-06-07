@@ -22,6 +22,7 @@ ReadSet::~ReadSet() {
 void ReadSet::add(Read* read) {
 	name_and_source_id_t name_and_source_id = name_and_source_id_t(read->getName(), read->getSourceID());
 	if (read_name_map.find(name_and_source_id) != read_name_map.end()) {
+		std::cout<<read->getName();
 		throw std::runtime_error("ReadSet::add: duplicate read name.");
 	}
 	reads.push_back(read);

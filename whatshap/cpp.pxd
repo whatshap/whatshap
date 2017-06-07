@@ -23,7 +23,7 @@ cdef extern from "../src/read.h":
 		vector[unsigned int] getVariantQuality(int) except +
 		void setVariantQuality(int, vector[unsigned int]) except +
 		int getVariantCount() except +
-		void sortVariants() except +
+		int sortVariants() except +
 		bool isSorted() except +
 		int getSourceID() except +
 		int getSampleID() except +

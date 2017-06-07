@@ -13,7 +13,7 @@ public:
 	virtual ~Read() {}
 	std::string toString();
 	void addVariant(int position, int allele, std::vector<unsigned int> quality);
-	void sortVariants();
+	int sortVariants();
 	/** Returns the position of the first variant. **/
 	int firstPosition() const;
 	/** Returns the position of the last variant. **/
