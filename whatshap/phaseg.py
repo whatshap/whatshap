@@ -232,9 +232,20 @@ def vg_reader(locus_file, gam_file):
 			current_endsnarl = l.snarl.end.node_id
 			current_endsnarl_orientation = l.snarl.end.backward
 			path_in_bubble =[]
-			if len(l.visits) ==1: # consider only hets 
-				path_in_bubble.append(tuple ((l.snarl.start.node_id,l.visits[0].node_id)))
-				path_in_bubble.append(tuple ((l.visits[0].node_id, l.snarl.end.node_id)))
+			#if len(l.visits) ==1: # consider only hets 
+				#path_in_bubble.append(tuple ((l.snarl.start.node_id,l.visits[0].node_id)))
+				#path_in_bubble.append(tuple ((l.visits[0].node_id, l.snarl.end.node_id)))
+				#if current_startsnarl == prev_startsnarl and current_endsnarl == prev_endsnarl and current_endsnarl_orientation == prev_endsnarl_orientation and prev_startsnarl_orientation == current_startsnarl_orientation:
+					#per_locus.append(path_in_bubble)
+				#else:
+					#locus_count=locus_count+1
+					#per_locus = []
+					#per_locus.append(path_in_bubble)
+				#prev_startsnarl = current_startsnarl
+				#prev_startsnarl_orientation = current_startsnarl_orientation
+				#prev_endsnarl = current_endsnarl
+				#prev_endsnarl_orientation = current_endsnarl_orientation
+				#locus_branch_mapping[locus_count]=per_locus
 			# TODO: fix this properly
 			#if len(l.visits) ==1 and l.snarl.start.backward == False and l.snarl.end.backward == False: # consider only hets 
 				#path_in_bubble.append(tuple ((l.snarl.start.node_id,l.visits[0].node_id)))
@@ -242,9 +253,11 @@ def vg_reader(locus_file, gam_file):
 			#if len(l.visits) ==1 and l.snarl.start.backward == True and l.snarl.end.backward == True: # consider only hets 
 				#path_in_bubble.append(tuple ((l.snarl.end.node_id,l.visits[0].node_id)))
 				#path_in_bubble.append(tuple ((l.visits[0].node_id, l.snarl.start.node_id)))
-			#if len(l.visits) >1:
-				#for i in range(0,len(l.visits)-1):
-					#path_in_bubble.append(tuple((l.visits[i].node_id, l.visits[i+1].node_id)))
+			if len(l.visits) >=1:
+				path_in_bubble.append(tuple ((l.snarl.start.node_id,l.visits[0].node_id)))
+				path_in_bubble.append(tuple ((l.visits[0].node_id, l.snarl.end.node_id)))
+				for i in range(0,len(l.visits)-1):
+					path_in_bubble.append(tuple((l.visits[i].node_id, l.visits[i+1].node_id)))
 				if current_startsnarl == prev_startsnarl and current_endsnarl == prev_endsnarl and current_endsnarl_orientation == prev_endsnarl_orientation and prev_startsnarl_orientation == current_startsnarl_orientation:
 					per_locus.append(path_in_bubble)
 				else:
@@ -256,8 +269,7 @@ def vg_reader(locus_file, gam_file):
 				prev_endsnarl = current_endsnarl
 				prev_endsnarl_orientation = current_endsnarl_orientation
 				locus_branch_mapping[locus_count]=per_locus
-				#if locus_count > 5:
-					#break
+
 	#print(locus_branch_mapping)
 	print('The number of hets:')
 	het_count= 0
@@ -468,6 +480,9 @@ def generate_hap_contigs(sample_superreads, sample_components, node_seq_list, lo
 	hapseq2= defaultdict(list)
 	for sample, superreads in sample_superreads.items():
 		for v1, v2 in zip(*superreads):
+			#TODO: handle ambiguos cases
+			if v1.allele == -2:
+				v1.allele = 1
 			b = locus_branch_mapping[v1.position][v1.allele]
 			tmp =set()
 			for p,j in enumerate(b):
@@ -477,6 +492,9 @@ def generate_hap_contigs(sample_superreads, sample_components, node_seq_list, lo
 				if i in components:
 					comp = components[i]
 					hapseq1[comp].append(node_seq_list[i])
+			# TODO: handle ambiguos cases
+			if v2.allele == -2:
+				v2.allele = 1
 			b = locus_branch_mapping[v2.position][v2.allele]
 			tmp =set()
 			for p,j in enumerate(b):
@@ -583,7 +601,7 @@ def run_phaseg(locus_file, gam_file, vg_file):
 		#print("read_count")
 		#print(read_count)
 		cost = dp_table.get_optimal_cost()
-		#print(superreads_list[0])
+		print(superreads_list[0])
 		#print(cost)
 		read_partitions = dp_table.get_optimal_partitioning()
 		#print(read_partitions)
