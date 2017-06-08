@@ -177,7 +177,8 @@ def ncr(n, r):
 build node-sequence list for vg graph
 """
 def vg_graph_reader(vg_file):
-	node_seq_list= []
+	node_seq_list= defaultdict()
+	edge_connections = defaultdict(list)
 	with stream.open(str(vg_file), "rb") as istream:
 		for data in istream:
 			l = vg_pb2.Graph()
@@ -185,8 +186,11 @@ def vg_graph_reader(vg_file):
 			for i in range(len(l.node)):
 				index = l.node[i].id
 				seq = l.node[i].sequence
-				node_seq_list.insert(index, seq)
-	return node_seq_list
+				node_seq_list[index]=seq
+			for j in range(len(l.edge)):
+				from_edge = getattr(l.edge[j], "from")
+				edge_connections[from_edge].append(l.edge[j].to)			  
+	return node_seq_list, edge_connections
 
 
 """
@@ -253,22 +257,25 @@ def vg_reader(locus_file, gam_file):
 			#if len(l.visits) ==1 and l.snarl.start.backward == True and l.snarl.end.backward == True: # consider only hets 
 				#path_in_bubble.append(tuple ((l.snarl.end.node_id,l.visits[0].node_id)))
 				#path_in_bubble.append(tuple ((l.visits[0].node_id, l.snarl.start.node_id)))
-			if len(l.visits) >=1:
+			if len(l.visits) ==0:
+				path_in_bubble.append(tuple ((l.snarl.start.node_id,l.snarl.end.node_id)))
+			else:
 				path_in_bubble.append(tuple ((l.snarl.start.node_id,l.visits[0].node_id)))
-				path_in_bubble.append(tuple ((l.visits[0].node_id, l.snarl.end.node_id)))
 				for i in range(0,len(l.visits)-1):
 					path_in_bubble.append(tuple((l.visits[i].node_id, l.visits[i+1].node_id)))
-				if current_startsnarl == prev_startsnarl and current_endsnarl == prev_endsnarl and current_endsnarl_orientation == prev_endsnarl_orientation and prev_startsnarl_orientation == current_startsnarl_orientation:
-					per_locus.append(path_in_bubble)
-				else:
-					locus_count=locus_count+1
-					per_locus = []
-					per_locus.append(path_in_bubble)
-				prev_startsnarl = current_startsnarl
-				prev_startsnarl_orientation = current_startsnarl_orientation
-				prev_endsnarl = current_endsnarl
-				prev_endsnarl_orientation = current_endsnarl_orientation
-				locus_branch_mapping[locus_count]=per_locus
+				path_in_bubble.append(tuple ((l.visits[-1].node_id, l.snarl.end.node_id)))
+
+			if current_startsnarl == prev_startsnarl and current_endsnarl == prev_endsnarl and current_endsnarl_orientation == prev_endsnarl_orientation and prev_startsnarl_orientation == current_startsnarl_orientation:
+				per_locus.append(path_in_bubble)
+			else:
+				locus_count=locus_count+1
+				per_locus = []
+				per_locus.append(path_in_bubble)
+			prev_startsnarl = current_startsnarl
+			prev_startsnarl_orientation = current_startsnarl_orientation
+			prev_endsnarl = current_endsnarl
+			prev_endsnarl_orientation = current_endsnarl_orientation
+			locus_branch_mapping[locus_count]=per_locus
 
 	#print(locus_branch_mapping)
 	print('The number of hets:')
@@ -470,40 +477,59 @@ def get_path_length(G, path, weight='weight'):
 To generate two haplotype sequences.
 Assumption: positions in one component occur consecutive
 """
-def generate_hap_contigs(sample_superreads, sample_components, node_seq_list, locus_branch_mapping):
+def generate_hap_contigs(sample_superreads, sample_components, node_seq_list, locus_branch_mapping, edge_connections):
 	sample = 0
 	components = sample_components[sample]
+
 	# TODO: sort components dictionary by value.
 	prev_comp = -1
 	hap1 =''
 	hapseq1= defaultdict(list)
 	hapseq2= defaultdict(list)
+
 	for sample, superreads in sample_superreads.items():
-		for v1, v2 in zip(*superreads):
+		for v1, v2 in zip(*superreads):	
 			#TODO: handle ambiguos cases
-			if v1.allele == -2:
-				v1.allele = 1
 			b = locus_branch_mapping[v1.position][v1.allele]
-			tmp =set()
+			if v1.allele == -2:
+				b = locus_branch_mapping[v1.position][1]
+			tmp =list()
+			if v1.position == 1:
+				tmp.append(b[0][0])
 			for p,j in enumerate(b):
-				tmp.add(j[0])
-				tmp.add(j[1])
+				tmp.append(j[-1])
+
+
 			for i in tmp:
-				if i in components:
-					comp = components[i]
-					hapseq1[comp].append(node_seq_list[i])
-			# TODO: handle ambiguos cases
-			if v2.allele == -2:
-				v2.allele = 1
+				comp = components[v1.position]
+				hapseq1[comp].append(node_seq_list[i])
+					
+			current_node = tmp[-1]
+			while current_node in edge_connections and len(edge_connections[current_node]) ==1:
+				hapseq1[comp].append(node_seq_list[edge_connections[current_node][0]])
+				current_node = edge_connections[current_node][0]
+			
+
+
+			#TODO: handle ambiguos cases
 			b = locus_branch_mapping[v2.position][v2.allele]
-			tmp =set()
+			if v2.allele == -2:
+				b = locus_branch_mapping[v2.position][1]
+			tmp =list()
+			if v2.position == 1:
+				tmp.append(b[0][0])
 			for p,j in enumerate(b):
-				tmp.add(j[0])
-				tmp.add(j[1])
+				tmp.append(j[-1])
+
 			for i in tmp:
-				if i in components:
-					comp = components[i]
-					hapseq2[comp].append(node_seq_list[i])
+				comp = components[v2.position]
+				hapseq2[comp].append(node_seq_list[i])
+					
+			current_node = tmp[-1]
+			while current_node in edge_connections and len(edge_connections[current_node]) ==1:
+				hapseq2[comp].append(node_seq_list[edge_connections[current_node][0]])
+				current_node = edge_connections[current_node][0]
+
 
 	for k,v in hapseq1.items():
 		hap1=''
@@ -530,7 +556,7 @@ def run_phaseg(locus_file, gam_file, vg_file):
 	all_heterozygous = False
 	distrust_genotypes = True
 	with ExitStack() as stack:
-		node_seq_list = vg_graph_reader(vg_file)
+		node_seq_list, edge_connections = vg_graph_reader(vg_file)
 		all_reads, alleles_per_pos, locus_branch_mapping = vg_reader(locus_file, gam_file)
 
 		#print(all_reads)
@@ -629,7 +655,7 @@ def run_phaseg(locus_file, gam_file, vg_file):
 		superreads, components = dict(), dict()
 		superreads[sample] = superreads_list[0]
 		components[sample] = overall_components
-		generate_hap_contigs(superreads, components, node_seq_list, locus_branch_mapping)
+		generate_hap_contigs(superreads, components, node_seq_list, locus_branch_mapping, edge_connections)
 
 
 def add_arguments(parser):
