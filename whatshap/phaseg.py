@@ -236,34 +236,22 @@ def vg_reader(locus_file, gam_file):
 			current_endsnarl = l.snarl.end.node_id
 			current_endsnarl_orientation = l.snarl.end.backward
 			path_in_bubble =[]
-			#if len(l.visits) ==1: # consider only hets 
-				#path_in_bubble.append(tuple ((l.snarl.start.node_id,l.visits[0].node_id)))
-				#path_in_bubble.append(tuple ((l.visits[0].node_id, l.snarl.end.node_id)))
-				#if current_startsnarl == prev_startsnarl and current_endsnarl == prev_endsnarl and current_endsnarl_orientation == prev_endsnarl_orientation and prev_startsnarl_orientation == current_startsnarl_orientation:
-					#per_locus.append(path_in_bubble)
-				#else:
-					#locus_count=locus_count+1
-					#per_locus = []
-					#per_locus.append(path_in_bubble)
-				#prev_startsnarl = current_startsnarl
-				#prev_startsnarl_orientation = current_startsnarl_orientation
-				#prev_endsnarl = current_endsnarl
-				#prev_endsnarl_orientation = current_endsnarl_orientation
-				#locus_branch_mapping[locus_count]=per_locus
-			# TODO: fix this properly
-			#if len(l.visits) ==1 and l.snarl.start.backward == False and l.snarl.end.backward == False: # consider only hets 
-				#path_in_bubble.append(tuple ((l.snarl.start.node_id,l.visits[0].node_id)))
-				#path_in_bubble.append(tuple ((l.visits[0].node_id, l.snarl.end.node_id)))
-			#if len(l.visits) ==1 and l.snarl.start.backward == True and l.snarl.end.backward == True: # consider only hets 
-				#path_in_bubble.append(tuple ((l.snarl.end.node_id,l.visits[0].node_id)))
-				#path_in_bubble.append(tuple ((l.visits[0].node_id, l.snarl.start.node_id)))
 			if len(l.visits) ==0:
-				path_in_bubble.append(tuple ((l.snarl.start.node_id,l.snarl.end.node_id)))
+				if l.snarl.start.backward == True:
+					path_in_bubble.append(tuple ((l.snarl.end.node_id,l.snarl.start.node_id)))
+				else:
+					path_in_bubble.append(tuple ((l.snarl.start.node_id,l.snarl.end.node_id)))
 			else:
-				path_in_bubble.append(tuple ((l.snarl.start.node_id,l.visits[0].node_id)))
-				for i in range(0,len(l.visits)-1):
-					path_in_bubble.append(tuple((l.visits[i].node_id, l.visits[i+1].node_id)))
-				path_in_bubble.append(tuple ((l.visits[-1].node_id, l.snarl.end.node_id)))
+				if l.snarl.start.backward == True:
+					path_in_bubble.append(tuple ((l.snarl.end.node_id, l.visits[-1].node_id)))
+					for i in range(0,len(l.visits)-1):
+						path_in_bubble.append(tuple((l.visits[i+1].node_id, l.visits[i].node_id)))
+					path_in_bubble.append(tuple ((l.visits[0].node_id,l.snarl.start.node_id)))
+				else:
+					path_in_bubble.append(tuple ((l.snarl.start.node_id,l.visits[0].node_id)))
+					for i in range(0,len(l.visits)-1):
+						path_in_bubble.append(tuple((l.visits[i].node_id, l.visits[i+1].node_id)))
+					path_in_bubble.append(tuple ((l.visits[-1].node_id, l.snarl.end.node_id))) 
 
 			if current_startsnarl == prev_startsnarl and current_endsnarl == prev_endsnarl and current_endsnarl_orientation == prev_endsnarl_orientation and prev_startsnarl_orientation == current_startsnarl_orientation:
 				per_locus.append(path_in_bubble)
@@ -276,6 +264,7 @@ def vg_reader(locus_file, gam_file):
 			prev_endsnarl = current_endsnarl
 			prev_endsnarl_orientation = current_endsnarl_orientation
 			locus_branch_mapping[locus_count]=per_locus
+	
 
 	#print(locus_branch_mapping)
 	print('The number of hets:')
@@ -370,9 +359,6 @@ def vg_reader(locus_file, gam_file):
 							for i in tmp:
 								prev_tmp.append(i)
 						prev_locus = locus
-				print(len(read))
-				print(g.name)
-
 
 				if len(read) >= 2:
 					readset.add(read)
@@ -503,11 +489,13 @@ def generate_hap_contigs(sample_superreads, sample_components, node_seq_list, lo
 			for i in tmp:
 				comp = components[v1.position]
 				hapseq1[comp].append(node_seq_list[i])
-					
+			print("tmp")
+			print(tmp)
 			current_node = tmp[-1]
 			while current_node in edge_connections and len(edge_connections[current_node]) ==1:
 				hapseq1[comp].append(node_seq_list[edge_connections[current_node][0]])
 				current_node = edge_connections[current_node][0]
+				print("current_node" + str(current_node))
 			
 
 
@@ -590,42 +578,7 @@ def run_phaseg(locus_file, gam_file, vg_file):
 		#print(selected_reads)
 		dp_table = PedigreeDPTable(selected_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
 		superreads_list, transmission_vector = dp_table.get_super_reads()
-		
-		
-		# coverage analysis
-		#positions = selected_reads.get_positions()
-		#positions = all_reads.get_positions()
-		#sorted(positions)
-		#vcf_indices = {position: index for index, position in enumerate(positions)}
-		
-		#SNP_read_map = defaultdict(list)
-		
-		#for index, read in enumerate(selected_reads):
-			#for variant in read:
-				#if variant.position in positions:
-					#snp_index = vcf_indices[variant.position]
-					#SNP_read_map[snp_index].append(index)
-				#else:
-				      #continue
 
-		#read_count = list()
-		#for a in range(0, len(positions)):
-			#readscommonatpos1_pos2= []
-			#if a < len(positions)-1 :
-				#pos1 = positions[a]
-				#pos2 = positions[a+1]
-			#x = vcf_indices[pos1]
-			#for i in SNP_read_map[x]:
-				#y = vcf_indices[pos2]
-				#for p in SNP_read_map[y]:
-					#if i==p:
-						#readscommonatpos1_pos2.append(i)
-						#readscommonatpos1_pos2.append(p)
-						#break
-			#read_count.append(len(set(readscommonatpos1_pos2)))
-			  
-		#print("read_count")
-		#print(read_count)
 		cost = dp_table.get_optimal_cost()
 		print(superreads_list[0])
 		#print(cost)
