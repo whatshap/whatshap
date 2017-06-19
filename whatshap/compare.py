@@ -117,7 +117,7 @@ def fraction2percentstr(nominator, denominator):
 	if denominator == 0:
 		return '--'
 	else:
-		return '{:.2f}%'.format(nominator*100.0/denominator)
+		return '{:.5f}%'.format(nominator*100.0/denominator)
 
 
 def safefraction(nominator, denominator):
