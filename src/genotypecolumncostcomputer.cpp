@@ -24,7 +24,8 @@ GenotypeColumnCostComputer::GenotypeColumnCostComputer(const std::vector<const E
 namespace {
   array<long double, 256> precompute_phred_probabilities() {
        array<long double, 256> result;
-    for(auto i = 0; i < 256; ++i){
+    result[0] = 0.9999;
+    for(auto i = 1; i < 256; ++i){
       result[i] = pow(10, -i/10.0L);
     }
     return result;
