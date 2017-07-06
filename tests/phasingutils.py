@@ -3,7 +3,7 @@ from collections import defaultdict
 from whatshap.core import Read, ReadSet, Variant
 
 
-def string_to_readset(s, w = None, sample_ids = None):
+def string_to_readset(s, w = None, sample_ids = None, source_id = 0):
 	s = textwrap.dedent(s).strip()
 	if w is not None:
 		w = textwrap.dedent(w).strip().split('\n')
@@ -12,9 +12,9 @@ def string_to_readset(s, w = None, sample_ids = None):
 		if len(line) == 0:
 			continue
 		if sample_ids is None:
-			read = Read('Read {}'.format(index+1), 50)
+			read = Read('Read {}'.format(index+1), 50, source_id)
 		else:
-			read = Read('Read {}'.format(index+1), 50, 0, sample_ids[index])
+			read = Read('Read {}'.format(index+1), 50, source_id, sample_ids[index])
 		for pos, c in enumerate(line):
 			if c == ' ':
 				continue
