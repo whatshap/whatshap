@@ -2,11 +2,22 @@
 Changes
 =======
 
-in development
+v0.14 (2017-07-06)
 --------------
-
-* New subcommand ``haplofasta``: Write haplotypes in FASTA format from a phased
-  VCF. The implementation is preliminary and may change for a while.
+* Added ``--full-genotyping`` to (re-)genotype the given variants based on the reads
+* Added option ``whatshap compare --switch-error-bed`` to write BED file with switch
+  error positions
+* Added ``whatshap compare --plot-blocksizes`` to plot histogroms of block sizes
+* Added option ``--longest-block-tsv`` to output position-wise stats on longest joint
+  haplotype block
+* Added option ``whatshap compare --tsv-multiway`` to write results of multi-way
+  comparison to tab-separated file
+* Added option --chromosome to whatshap stats
+* ``whatshap compare`` can now compute the block-wise Hamming distance
+* ``whatshap stats`` can now compute an N50 for the phased blocks
+* Fixed compilation issues on OS X (clang)
+* Detect unsorted VCFs and chromosome name mismatches between BAM and VCF
+* Fix crash when whatshap compare encounteres unphased VCFs
 * Expanded documentation.
 
 v0.13 (2016-10-27)
