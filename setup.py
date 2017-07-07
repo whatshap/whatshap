@@ -58,11 +58,8 @@ def check_cython_version():
 
 
 def CppExtension(name, sources):
-	# Clang needs this option in order to find the unordered_set header
-	# TODO it would be better to check the compiler, not the platform
-	extra = ['-stdlib=libc++'] if sys.platform.startswith('darwin') else []
 	return Extension(name, sources=sources, language='c++',
-		extra_compile_args=['-std=c++11'] + extra, undef_macros = [ "NDEBUG" ])
+		extra_compile_args=['-std=c++11'], undef_macros = [ "NDEBUG" ])
 
 
 extensions = [
@@ -103,6 +100,10 @@ class build_ext(cmdclass.get('build_ext', _build_ext)):
 		# Remove the warning about “-Wstrict-prototypes” not being valid for C++,
 		# see http://stackoverflow.com/a/36293331/715090
 		customize_compiler(self.compiler)
+		if self.compiler.compiler_so[0].endswith('clang'):
+			# Clang needs this option in order to find the unordered_set header
+			print('detected clang, using option -stdlib=libc++')
+			self.compiler.compiler_so.append('-stdlib=libc++')
 		try:
 			self.compiler.compiler_so.remove("-Wstrict-prototypes")
 		except (AttributeError, ValueError):
