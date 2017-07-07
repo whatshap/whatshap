@@ -2,6 +2,10 @@
 Changes
 =======
 
+v0.14.1 (2017-07-07)
+--------------
+* Fix compilation problem by distinguishing gcc and clang.
+
 v0.14 (2017-07-06)
 --------------
 * Added ``--full-genotyping`` to (re-)genotype the given variants based on the reads
