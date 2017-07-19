@@ -20,7 +20,7 @@ Then WhatsHap can be installed with this command::
 
 If you have Conda, but not enabled bioconda, use this command::
 
-    conda install -c bioconda whatshap
+    conda install -c bioconda -c conda-forge whatshap
 
 
 Installation with pip
