@@ -79,9 +79,9 @@ cdef extern from "../src/genotypedptable.h":
 
 cdef extern from "../src/phredgenotypelikelihoods.h":
 	cdef cppclass PhredGenotypeLikelihoods:
-		PhredGenotypeLikelihoods(unsigned int, unsigned int, unsigned int) except +
+		PhredGenotypeLikelihoods(double, double, double) except +
 		PhredGenotypeLikelihoods(PhredGenotypeLikelihoods) except +
-		unsigned int get(unsigned int) except +
+		double get(unsigned int) except +
 		string toString() except +
 
 

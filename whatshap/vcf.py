@@ -788,11 +788,9 @@ class GenotypeVcfWriter:
 						values['GQ'] = round(-10.0 * math.log10(geno_q))
 					else:
 						values['GQ'] = '.'
-					# store likelihoods log10-scaled		
-					# TODO		
-					#values['GL'] = [math.log10(j) for j in geno_l]
-					values['GL'] = [j for j in geno_l]
-				
+					# store likelihoods log10-scaled				
+					values['GL'] = [math.log10(j) for j in geno_l]
+
 					record.QUAL = '.'
 					
 					# delete all other genotype information that might have been present before

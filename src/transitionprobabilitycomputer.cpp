@@ -42,8 +42,6 @@ TransitionProbabilityComputer::TransitionProbabilityComputer(size_t column_index
         }
     }
 
-    // TODO: give computed likelihoods!
-    vector<long double> uniform_likelihoods = {1.0L/3.0L,1.0L/3.0L,1.0L/3.0L};
     // compute transition probabilities corresponding to allele assignments
     for(size_t i = 0; i < transmission_configurations; ++i){
         // maps genotype vectors to the number of possible allele assignments
@@ -60,10 +58,9 @@ TransitionProbabilityComputer::TransitionProbabilityComputer(size_t column_index
                 unsigned int allele1 = (a >> partition1) & 1;
 
                 int genotype = allele0 + allele1;
-                // TODO directly use raw genotype likelihoods (instead of converting to phred and back again)
-                //const PhredGenotypeLikelihoods* gls = pedigree->get_genotype_likelihoods(individuals_index, column_index);
-                //assert(gls != nullptr);
-                prob *= uniform_likelihoods[genotype];//pow(10.0L, (-1.0L)*gls->get(genotype)/10.0L);
+                const PhredGenotypeLikelihoods* gls = pedigree->get_genotype_likelihoods(individuals_index, column_index);
+                assert(gls != nullptr);
+                prob *= gls->get(genotype);
                 genotype_vector.push_back(genotype);
             }
 
@@ -83,14 +80,6 @@ TransitionProbabilityComputer::TransitionProbabilityComputer(size_t column_index
         // normalize the probabilities
         for(unsigned int a = 0; a < allele_assignments; ++a){
             transitions_allele_assignments.at(i,a) /= normalization_sum;
-        }
-
-        // check
-        for(auto it = genotypes_to_haplotype_counts.begin(); it != genotypes_to_haplotype_counts.end(); ++it){
-            string genos = "";
-            for(unsigned int i = 0; i < (it->first).size(); i++){
-                genos += std::to_string(it->first[i]);
-            }
         }
     }
 }

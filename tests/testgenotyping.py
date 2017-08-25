@@ -51,7 +51,7 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 	recombcost = [1] * len(positions)
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	genotype_likelihoods = [PhredGenotypeLikelihoods(50,0,50)] * len(positions)
+	genotype_likelihoods = [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * len(positions)
 	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods)
 	dp_forward_backward = GenotypeDPTable(numeric_sample_ids, readset, recombcost,pedigree)
 
