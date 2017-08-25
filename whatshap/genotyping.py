@@ -44,7 +44,7 @@ def determine_genotype(likelihoods, threshold_prob):
 def run_genotyping(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None,
 		ignore_read_groups=False, indels=True, mapping_quality=20,
-		max_coverage=15,
+		max_coverage=15, gtpriors=False,
 		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=15):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
@@ -165,6 +165,29 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 				vcf_writer.write_genotypes(chromosome,variant_table,indels,leave_unchanged=True)
 				continue
 			
+			positions = [v.position for v in variant_table.variants]
+			if gtpriors:
+				# compute prior genotype likelihoods based on all reads 
+				for sample in samples:
+					logger.info('---- Initial genotyping of %s', sample)
+					with timers('read_bam'):
+						bam_sample = None if ignore_read_groups else sample
+						readset = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
+						readset.sort()
+						genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
+						
+						# TODO: want to store raw likelihoods, not phred scores
+						print('priors: ', genotype_likelihoods)
+						phred_likelihoods = [[int(-10.0*math.log10(l)) for l in gl] for gl in genotype_likelihoods]
+						print('phred priors: ', phred_likelihoods)
+						variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(*gl) for gl in phred_likelihoods])
+			else:
+				
+				# use uniform genotype likelihoods for all individuals
+				for sample in samples:
+					# TODO right uniform values, use raw genotype likelihoods
+					variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(4,4,4)] * len(positions))
+				
 			# Iterate over all families to process, i.e. a separate DP table is created
 			# for each family.
 			for representative_sample, family in sorted(families.items()):
@@ -208,8 +231,12 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 				pedigree = Pedigree(numeric_sample_ids)
 				for sample in family:
 					# genotypes are assumed to be unknown, so ignore information that
-					# might already be present in the input vcf
-					pedigree.add_individual(sample, [3] * len(accessible_positions), None)
+					# might already be present in the input vcf 
+					
+					# TODO add prior genotype likelihoods here
+					all_genotype_likelihoods = variant_table.genotype_likelihoods_of(sample)
+					genotype_l = [ all_genotype_likelihoods[var_to_pos[a_p]] for a_p in accessible_positions]
+					pedigree.add_individual(sample, [3] * len(accessible_positions), genotype_l)
 				for trio in trios:
 					pedigree.add_relationship(
 						mother_id=trio.mother,
@@ -230,7 +257,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 					forward_backward_table = GenotypeDPTable(numeric_sample_ids, all_reads, recombination_costs, pedigree, accessible_positions)
 					# store results
 					for s in family:
-						# all genotypes/likelihoods to be stored (including non-accessible positions)
+						# all final genotypes/likelihoods to be stored (including non-accessible positions)
 						likelihood_list = [None] * len(variant_table)
 						genotypes_list = [-1] * len(variant_table)
 						
@@ -293,7 +320,7 @@ def add_arguments(parser):
 	arg('--mapping-quality', '--mapq', metavar='QUAL',
 		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
 	arg('--indels', dest='indels', default=False, action='store_true',
-		help='Also genotype indels (default: genotype indels)')
+		help='Also genotype indels (default: genotype only SNPs)')
 	arg('--ignore-read-groups', default=False, action='store_true',
 		help='Ignore read groups in BAM header and assume all reads come '
 		'from the same sample.')
@@ -306,6 +333,8 @@ def add_arguments(parser):
 	arg('--gt-qual-threshold', metavar='GTQUALTHRESHOLD', type=float, default=15,
 		help='Phred scaled error probability threshold used for genotyping (default: 15). Must be at least 0. '
 		'If error probability of genotype is higher, genotype ./. is output.')
+	arg('--include-gt-priors', dest='gtpriors', default=False, action='store_true',
+		help='Do initial genotyping and use these prior genotype likelihoods as transition probabilities (default: uniform genotype likelihoods).')
 	arg = parser.add_argument_group('Pedigree genotyping').add_argument
 	arg('--ped', metavar='PED/FAM',
 		help='Use pedigree information in PED file to improve phasing '
