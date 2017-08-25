@@ -83,6 +83,8 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
 		vcf_writer = GenotypeVcfWriter(command_line=command_line, in_path=variant_file,
 		        out_file=output)
+		# have another vcf writer for only the prior likelihoods
+		prior_vcf_writer = GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=open('priors.vcf','w'))
 		
 		# parse vcf with input variants 
 		# remove all likelihoods that may already be present
@@ -163,6 +165,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 			else:
 				logger.info('Leaving chromosome %r unchanged (present in VCF but not requested by option --chromosome)', chromosome)
 				vcf_writer.write_genotypes(chromosome,variant_table,indels,leave_unchanged=True)
+				prior_vcf_writer.write_genotypes(chromosome,variant_table,indels,leave_unchanged=True)
 				continue
 			
 			positions = [v.position for v in variant_table.variants]
@@ -180,7 +183,11 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 						print('priors: ', genotype_likelihoods)
 						phred_likelihoods = [[int(-10.0*math.log10(l)) for l in gl] for gl in genotype_likelihoods]
 						print('phred priors: ', phred_likelihoods)
-						variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(*gl) for gl in phred_likelihoods])
+						# TODO
+						#variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(*gl) for gl in phred_likelihoods])
+						variant_table.set_genotype_likelihoods_of(sample, genotype_likelihoods)
+						# TODO remove
+						variant_table.set_genotypes_of(sample, genotypes)
 			else:
 				
 				# use uniform genotype likelihoods for all individuals
@@ -188,89 +195,91 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 					# TODO right uniform values, use raw genotype likelihoods
 					variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(4,4,4)] * len(positions))
 				
+			prior_vcf_writer.write_genotypes(chromosome,variant_table,indels)	
+			
 			# Iterate over all families to process, i.e. a separate DP table is created
 			# for each family.
-			for representative_sample, family in sorted(families.items()):
-				if len(family) == 1:
-					logger.info('---- Processing individual %s', representative_sample)
-				else:
-					logger.info('---- Processing family with individuals: %s', ','.join(family))
-				max_coverage_per_sample = max(1, max_coverage // len(family))
-				logger.info('Using maximum coverage per sample of %dX', max_coverage_per_sample)
-				trios = family_trios[representative_sample]
-				assert (len(family) == 1) or (len(trios) > 0)
-				
-				# Get the reads belonging to each sample
-				readsets = dict() 
-				for sample in family:
-					with timers('read_bam'):
-						bam_sample = None if ignore_read_groups else sample
-						readset = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
-
-					with timers('select'):
-						selected_reads = select_reads(readset, max_coverage_per_sample)
-					readsets[sample] = selected_reads
-
-				# Merge reads into one ReadSet (note that each Read object
-				# knows the sample it originated from).
-				all_reads = ReadSet()
-				for sample, readset in readsets.items():
-					for read in readset:
-						assert read.is_sorted(), "Add a read.sort() here"
-						all_reads.add(read)
-
-				all_reads.sort()
-
-				# Determine which variants can (in principle) be phased
-				accessible_positions = sorted(all_reads.get_positions())
-				logger.info('Variants covered by at least one phase-informative '
-					'read in at least one individual after read selection: %d',
-					len(accessible_positions))
-
-				# Create Pedigree
-				pedigree = Pedigree(numeric_sample_ids)
-				for sample in family:
-					# genotypes are assumed to be unknown, so ignore information that
-					# might already be present in the input vcf 
-					
-					# TODO add prior genotype likelihoods here
-					all_genotype_likelihoods = variant_table.genotype_likelihoods_of(sample)
-					genotype_l = [ all_genotype_likelihoods[var_to_pos[a_p]] for a_p in accessible_positions]
-					pedigree.add_individual(sample, [3] * len(accessible_positions), genotype_l)
-				for trio in trios:
-					pedigree.add_relationship(
-						mother_id=trio.mother,
-						father_id=trio.father,
-						child_id=trio.child)
-
-				if genmap:
-					# Load genetic map
-					recombination_costs = recombination_cost_map(load_genetic_map(genmap), accessible_positions)
-				else:
-					recombination_costs = uniform_recombination_map(recombrate, accessible_positions)
-
-				# Finally, run genotyping algorithm
-				with timers('genotyping'):
-					problem_name = 'genotyping'
-					logger.info('Genotype %d sample%s by solving the %s problem ...',
-						len(family), 's' if len(family) > 1 else '', problem_name)
-					forward_backward_table = GenotypeDPTable(numeric_sample_ids, all_reads, recombination_costs, pedigree, accessible_positions)
-					# store results
-					for s in family:
-						# all final genotypes/likelihoods to be stored (including non-accessible positions)
-						likelihood_list = [None] * len(variant_table)
-						genotypes_list = [-1] * len(variant_table)
-						
-						for pos in range(len(accessible_positions)):
-							likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
-							
-							# compute genotypes from likelihoods and store information
-							geno = determine_genotype(likelihoods, gt_prob)
-							genotypes_list[var_to_pos[accessible_positions[pos]]] = geno
-							likelihood_list[var_to_pos[accessible_positions[pos]]] = likelihoods
-						
-						variant_table.set_genotypes_of(s, genotypes_list)
-						variant_table.set_genotype_likelihoods_of(s,likelihood_list)
+#			for representative_sample, family in sorted(families.items()):
+#				if len(family) == 1:
+#					logger.info('---- Processing individual %s', representative_sample)
+#				else:
+#					logger.info('---- Processing family with individuals: %s', ','.join(family))
+#				max_coverage_per_sample = max(1, max_coverage // len(family))
+#				logger.info('Using maximum coverage per sample of %dX', max_coverage_per_sample)
+#				trios = family_trios[representative_sample]
+#				assert (len(family) == 1) or (len(trios) > 0)
+#				
+#				# Get the reads belonging to each sample
+#				readsets = dict() 
+#				for sample in family:
+#					with timers('read_bam'):
+#						bam_sample = None if ignore_read_groups else sample
+#						readset = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
+#
+#					with timers('select'):
+#						selected_reads = select_reads(readset, max_coverage_per_sample)
+#					readsets[sample] = selected_reads
+#
+#				# Merge reads into one ReadSet (note that each Read object
+#				# knows the sample it originated from).
+#				all_reads = ReadSet()
+#				for sample, readset in readsets.items():
+#					for read in readset:
+#						assert read.is_sorted(), "Add a read.sort() here"
+#						all_reads.add(read)
+#
+#				all_reads.sort()
+#
+#				# Determine which variants can (in principle) be phased
+#				accessible_positions = sorted(all_reads.get_positions())
+#				logger.info('Variants covered by at least one phase-informative '
+#					'read in at least one individual after read selection: %d',
+#					len(accessible_positions))
+#
+#				# Create Pedigree
+#				pedigree = Pedigree(numeric_sample_ids)
+#				for sample in family:
+#					# genotypes are assumed to be unknown, so ignore information that
+#					# might already be present in the input vcf 
+#					
+#					# TODO add prior genotype likelihoods here
+#					all_genotype_likelihoods = variant_table.genotype_likelihoods_of(sample)
+#					genotype_l = [ all_genotype_likelihoods[var_to_pos[a_p]] for a_p in accessible_positions]
+#					pedigree.add_individual(sample, [3] * len(accessible_positions), genotype_l)
+#				for trio in trios:
+#					pedigree.add_relationship(
+#						mother_id=trio.mother,
+#						father_id=trio.father,
+#						child_id=trio.child)
+#
+#				if genmap:
+#					# Load genetic map
+#					recombination_costs = recombination_cost_map(load_genetic_map(genmap), accessible_positions)
+#				else:
+#					recombination_costs = uniform_recombination_map(recombrate, accessible_positions)
+#
+#				# Finally, run genotyping algorithm
+#				with timers('genotyping'):
+#					problem_name = 'genotyping'
+#					logger.info('Genotype %d sample%s by solving the %s problem ...',
+#						len(family), 's' if len(family) > 1 else '', problem_name)
+#					forward_backward_table = GenotypeDPTable(numeric_sample_ids, all_reads, recombination_costs, pedigree, accessible_positions)
+#					# store results
+#					for s in family:
+#						# all final genotypes/likelihoods to be stored (including non-accessible positions)
+#						likelihood_list = [None] * len(variant_table)
+#						genotypes_list = [-1] * len(variant_table)
+#						
+#						for pos in range(len(accessible_positions)):
+#							likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
+#							
+#							# compute genotypes from likelihoods and store information
+#							geno = determine_genotype(likelihoods, gt_prob)
+#							genotypes_list[var_to_pos[accessible_positions[pos]]] = geno
+#							likelihood_list[var_to_pos[accessible_positions[pos]]] = likelihoods
+#						
+#						variant_table.set_genotypes_of(s, genotypes_list)
+#						variant_table.set_genotype_likelihoods_of(s,likelihood_list)
 					
 			with timers('write_vcf'):
 				logger.info('======== Writing VCF')
