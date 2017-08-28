@@ -785,11 +785,14 @@ class GenotypeVcfWriter:
 					values['GT'] = INT_TO_UNPHASED_GT[geno]
 					# store quality as phred score
 					if not geno == -1:
-						values['GQ'] = round(-10.0 * math.log10(geno_q))
+						# TODO
+					#	values['GQ'] = round(-10.0 * math.log10(geno_q))
+						values['GQ'] = '.'
 					else:
 						values['GQ'] = '.'
-					# store likelihoods log10-scaled				
-					values['GL'] = [math.log10(j) for j in geno_l]
+					# TODO store likelihoods log10-scaled
+					values['GL'] = [ j for j in geno_l]				
+					#values['GL'] = [math.log10(j) for j in geno_l]
 
 					record.QUAL = '.'
 					

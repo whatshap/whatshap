@@ -186,7 +186,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 				for sample in samples:
 					variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * len(positions))
 			
-			print('priors: ',variant_table.genotype_likelihoods_of(sample))
+			#print('priors: ',variant_table.genotype_likelihoods_of(sample))
 			prior_vcf_writer.write_genotypes(chromosome,variant_table,indels)	
 			
 			# Iterate over all families to process, i.e. a separate DP table is created
