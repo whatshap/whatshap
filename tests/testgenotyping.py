@@ -42,7 +42,7 @@ def test_genotyping_empty_readset():
 	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,rs, recombcost, pedigree)
 	
 
-def check_genotyping_single_individual(reads, weights = None, expected = None, genotypes = None, scaling=None):
+def check_genotyping_single_individual(reads, weights = None, expected = None, genotypes = None, scaling = None, genotype_priors = None):
 	# 0) set up read set
 	readset = string_to_readset(reads, weights, scale_quality=scaling)
 	positions = readset.get_positions()
@@ -52,6 +52,10 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
 	genotype_likelihoods = [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * len(positions)
+	
+	if genotype_priors != None:
+		genotype_likelihoods = genotype_priors
+		
 	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods)
 	dp_forward_backward = GenotypeDPTable(numeric_sample_ids, readset, recombcost,pedigree)
 
@@ -62,13 +66,13 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 	recombcost = [1] * len(positions) # recombination costs 1, should not occur
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	genotype_likelihoods = [PhredGenotypeLikelihoods(6,3,6)] * len(positions)
 	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods)
 	pedigree.add_individual('individual1', [1] * len(positions), genotype_likelihoods)
 	pedigree.add_individual('individual2', [1] * len(positions), genotype_likelihoods)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,readset,recombcost,pedigree)
 	
+	# TODO
 	# check the results
 	#compare_to_expected(dp_forward_backward, positions, expected, genotypes)
 	
@@ -362,3 +366,4 @@ def test_weighted_genotyping5():
 	genotypes = [1,1,1,1]
 	check_genotyping_single_individual(reads, weights,None,genotypes,10)
 
+	# TODO test also with non-uniform priors

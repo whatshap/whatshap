@@ -71,30 +71,34 @@ def test_with_reference():
 	run_genotyping(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
 		reference='tests/data/pacbio/reference.fasta')
 
-
 def test_no_indels():
 	with TemporaryDirectory() as tempdir:
-		outvcf = tempdir + '/output_gl.vcf'
-		run_genotyping(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
-			reference='tests/data/pacbio/reference.fasta', output=outvcf, indels=False)
-		
-		# make sure indels not genotyped
-		vcf_reader = vcf.Reader(filename=outvcf)
-		default_l = math.log10(1/3.0)
+		for priors in [[True, tempdir+'/priors.vcf'], [False,None]]:
+			outvcf = tempdir + '/output_gl.vcf'
+			run_genotyping(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
+				reference='tests/data/pacbio/reference.fasta', output=outvcf, indels=False, gtpriors=priors[0], prioroutput=priors[1])
 
-		for record in vcf_reader:
-			if len(record.ALT[0]) > 1:
-				for call in record.samples:
-					GL = getattr(call.data, 'GL', None)
-					print('GL:', GL, record.POS)
-					assert(GL == [default_l, default_l, default_l])
+			result_vcfs = [outvcf]
+			if priors[0]:
+				result_vcfs.append(tempdir + '/priors.vcf')		
+		
+			# make sure indels not genotyped (also in priors.vcf if computed)
+			for o_vcf in result_vcfs:
+				vcf_reader = vcf.Reader(filename=o_vcf)
+				default_l = math.log10(1/3.0)
+
+				for record in vcf_reader:
+					if len(record.ALT[0]) > 1:
+						for call in record.samples:
+							GL = getattr(call.data, 'GL', None)
+							print('GL:', GL, record.POS)
+							assert(GL == [default_l, default_l, default_l])
 				
-		
-		
+
 def likeliest_genotype(a, b, c, thres):
-	prob_a = 10 ** a
-	prob_b = 10 ** b
-	prob_c = 10 ** c
+	prob_a = 10**a
+	prob_b = 10**b	
+	prob_c = 10**c
 	
 	to_sort = [(prob_a,0),(prob_b,1),(prob_c,2)]
 	to_sort.sort(key=lambda x: x[0])
@@ -103,88 +107,101 @@ def likeliest_genotype(a, b, c, thres):
 		return to_sort[2][1]
 	else:
 		return '.'
-	
+
 def test_GtQualThreshold():
 	for threshold in [0,2,3,6,13,50]:
-		thres = 1-10**(-threshold/10.0)	
+		with TemporaryDirectory() as tempdir:
+			thres = 1-10**(-threshold/10.0)	
 	
-		out = StringIO()
-		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf',
-			output=out, gt_qual_threshold=threshold, indels=False)
-		out.seek(0)
-
-		lines = [line for line in out.readlines() if not line.startswith('#')]
-	
-		for line in lines:
-			entries = line.split()
-			likelihood_str = entries[9].split(':')[-1:][0]
-			likelihoods = [float(i) for i in likelihood_str.split(',')]
-			genotype = entries[9].split(':')[0]
-			if not genotype == '.':
-				genotype = int(genotype[0]) + int(genotype[2])
+			out_vcf = tempdir + '/out.vcf'
+			priors_vcf = tempdir + '/priors.vcf'
+			run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf',
+				output=out_vcf, gt_qual_threshold=threshold, indels=False, gtpriors=True, prioroutput=priors_vcf)
 			
-			gt = likeliest_genotype(likelihoods[0], likelihoods[1], likelihoods[2], thres)
-			print(10**likelihoods[0], 10**likelihoods[1], 10**likelihoods[2], gt, genotype, thres)
-			assert(gt == genotype)
+			for out in [open(out_vcf,'r'), open(priors_vcf,'r')]:			
+				out.seek(0)
+				lines = [line for line in out.readlines() if not line.startswith('#')]
+	
+				for line in lines:
+					entries = line.split()
+					likelihood_str = entries[9].split(':')[-1:][0]
+					likelihoods = [float(i) for i in likelihood_str.split(',')]
+					genotype = entries[9].split(':')[0]
+					if not genotype == '.':
+						genotype = int(genotype[0]) + int(genotype[2])
+			
+					gt = likeliest_genotype(likelihoods[0], likelihoods[1], likelihoods[2], thres)
+					print(likelihoods[0], likelihoods[1], likelihoods[2], gt, genotype, thres)
+					assert(gt == genotype)
 
 def test_genotyping_one_of_three_individuals():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
-		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf, samples=['HG003'])
-		assert os.path.isfile(outvcf)
-
-		tables = list(VcfReader(outvcf, phases=True,genotype_likelihoods=True))
-		assert len(tables) == 1
-		table = tables[0]
-		assert table.chromosome == '1'
-		assert len(table.variants) == 5
-		assert table.samples == ['HG004', 'HG003', 'HG002']
+		outpriors = tempdir + '/priors.vcf'
+		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf, samples=['HG003'],
+		gtpriors=True, prioroutput=outpriors)
 		
-		# there should be no genotype predicitons for HG003/HG002		
-		default_l = math.log10(1/3.0)
-		for l in [table.genotype_likelihoods_of('HG002'), table.genotype_likelihoods_of('HG004')]:
-			for var in l:
-				assert(var.log10_probs() == (default_l, default_l, default_l))
+		for outfile in [outvcf, outpriors]:
+			assert os.path.isfile(outfile)
+
+			tables = list(VcfReader(outfile, phases=True,genotype_likelihoods=True))
+			assert len(tables) == 1
+			table = tables[0]
+			assert table.chromosome == '1'
+			assert len(table.variants) == 5
+			assert table.samples == ['HG004', 'HG003', 'HG002']
+		
+			# there should be no genotype predicitons for HG003/HG002		
+			default_l = math.log10(1/3.0)
+			for l in [table.genotype_likelihoods_of('HG002'), table.genotype_likelihoods_of('HG004')]:
+				for var in l:
+					assert(var.log10_probs() == (default_l, default_l, default_l))
 
 def test_genotyping_trio():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
+		outpriors = tempdir + 'priors.vcf'
 		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf,
-		        ped='tests/data/trio.ped', genmap='tests/data/trio.map')
-		assert os.path.isfile(outvcf)
+		        ped='tests/data/trio.ped', genmap='tests/data/trio.map', gtpriors=True, prioroutput=outpriors)
+		
+		for outfile in [outvcf,outpriors]:		
+			assert os.path.isfile(outfile)
 
-		tables = list(VcfReader(outvcf, phases=True))
-		assert len(tables) == 1
-		table = tables[0]
-		assert table.chromosome == '1'
-		assert len(table.variants) == 5
-		assert table.samples == ['HG004', 'HG003', 'HG002']
+			tables = list(VcfReader(outfile, phases=True))
+			assert len(tables) == 1
+			table = tables[0]
+			assert table.chromosome == '1'
+			assert len(table.variants) == 5
+			assert table.samples == ['HG004', 'HG003', 'HG002']
 
-def test_phase_specific_chromosome():
+def test_genotyping_specific_chromosome():
 	for requested_chromosome in ['1','2']:
 		with TemporaryDirectory() as tempdir:
 			outvcf = tempdir + '/output.vcf'
+			outpriors = tempdir + '/priors.vcf'
 			run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio-two-chromosomes.vcf', output=outvcf,
-					ped='tests/data/trio.ped', genmap='tests/data/trio.map', chromosomes=[requested_chromosome])
-			assert os.path.isfile(outvcf)
+					ped='tests/data/trio.ped', genmap='tests/data/trio.map', chromosomes=[requested_chromosome], gtpriors=True,
+					prioroutput=outpriors)
+					
+			for outfile in [outvcf, outpriors]:
+				assert os.path.isfile(outfile)
 
-			tables = list(VcfReader(outvcf, genotype_likelihoods=True))
+				tables = list(VcfReader(outfile, genotype_likelihoods=True))
 
-			assert len(tables) == 2
-			for table in tables:
-				assert len(table.variants) == 5
-				assert table.samples == ['HG004', 'HG003', 'HG002']
+				assert len(tables) == 2
+				for table in tables:
+					assert len(table.variants) == 5
+					assert table.samples == ['HG004', 'HG003', 'HG002']
 
-			index = 0
-			if requested_chromosome == '1':
-				index = 1
+				index = 0
+				if requested_chromosome == '1':
+					index = 1
 				
-			# should be no genotype likelihoods for skipped chromosomes
-			for s in tables[index].samples:
-				tables[index].genotype_likelihoods_of(s) == [None] * 5
-				tables[not index].genotype_likelihoods_of(s) != [None] * 5
+				# should be no genotype likelihoods for skipped chromosomes
+				for s in tables[index].samples:
+					tables[index].genotype_likelihoods_of(s) == [None] * 5
+					tables[not index].genotype_likelihoods_of(s) != [None] * 5
 				
-# given likelihoods should be deleted 
 def test_genotype_likelihoods_given():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output_gl.vcf'
@@ -214,29 +231,31 @@ def test_genotype_likelihoods_given():
 def test_genotype_log_likelihoods_given():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output_gl_log.vcf'
+		outpriors = tempdir + '/priors.vcf'
 		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio_genotype_log_likelihoods.vcf', output=outvcf,
-		        ped='tests/data/trio.ped', genmap='tests/data/trio.map', gt_qual_threshold=0)
+		        ped='tests/data/trio.ped', genmap='tests/data/trio.map', gt_qual_threshold=0, gtpriors=True, prioroutput=outpriors)
 
-		assert os.path.isfile(outvcf)
+		for outfile in [outvcf, outpriors]:
+			assert os.path.isfile(outfile)
 
-		tables = list(VcfReader(outvcf, phases=True, genotype_likelihoods=True))
-		assert len(tables) == 1
-		table = tables[0]
-		assert table.chromosome == '1'
-		assert len(table.variants) == 5
-		assert table.samples == ['HG004', 'HG003', 'HG002']
+			tables = list(VcfReader(outfile, phases=True, genotype_likelihoods=True))
+			assert len(tables) == 1
+			table = tables[0]
+			assert table.chromosome == '1'
+			assert len(table.variants) == 5
+			assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		# check if GL likelihoods were replaced
-		vcf_reader = vcf.Reader(filename=outvcf)
-		print(vcf_reader.samples, outvcf)
-		for record in vcf_reader:
-			for call in record.samples:
-				GL = getattr(call.data, 'GL', None)
-				GQ = getattr(call.data, 'GQ', None)
-				print('GL:', GL, 'GQ', GQ)
-				assert(GL != [-1,-1,-1])
-				assert(GQ != 100)
-				
+			# check if GL likelihoods were replaced
+			vcf_reader = vcf.Reader(filename=outfile)
+			print(vcf_reader.samples, outfile)
+			for record in vcf_reader:
+				for call in record.samples:
+					GL = getattr(call.data, 'GL', None)
+					GQ = getattr(call.data, 'GQ', None)
+					print('GL:', GL, 'GQ', GQ)
+					assert(GL != [-1,-1,-1])
+					assert(GQ != 100)
+								
 def test_empty_format_field():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output_empty_format.vcf'

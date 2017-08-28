@@ -45,7 +45,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None,
 		ignore_read_groups=False, indels=True, mapping_quality=20,
 		max_coverage=15, gtpriors=False,
-		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=15):
+		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=15, prioroutput=None):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
 	all variants are computed using the forward backward algorithm
@@ -81,10 +81,14 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		if isinstance(output, str):
 			output = stack.enter_context(xopen(output, 'w'))
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
+		
+		# vcf writer for final genotype likelihoods
 		vcf_writer = GenotypeVcfWriter(command_line=command_line, in_path=variant_file,
 		        out_file=output)
-		# have another vcf writer for only the prior likelihoods
-		prior_vcf_writer = GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=open('priors.vcf','w'))
+		# vcf writer for only the prior likelihoods (if output is desired)
+		prior_vcf_writer = None
+		if prioroutput != None:
+			prior_vcf_writer = GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=open(prioroutput,'w'))
 		
 		# parse vcf with input variants 
 		# remove all likelihoods that may already be present
@@ -165,7 +169,8 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 			else:
 				logger.info('Leaving chromosome %r unchanged (present in VCF but not requested by option --chromosome)', chromosome)
 				vcf_writer.write_genotypes(chromosome,variant_table,indels,leave_unchanged=True)
-				prior_vcf_writer.write_genotypes(chromosome,variant_table,indels,leave_unchanged=True)
+				if prioroutput != None:
+					prior_vcf_writer.write_genotypes(chromosome,variant_table,indels,leave_unchanged=True)
 				continue
 			
 			positions = [v.position for v in variant_table.variants]
@@ -178,6 +183,9 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 						readset = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
 						readset.sort()
 						genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
+						# recompute genotypes based on given threshold
+						for gl in range(len(genotype_likelihoods)):
+							genotypes[gl] = determine_genotype(genotype_likelihoods[gl], gt_prob)
 						variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(*gl) for gl in genotype_likelihoods])
 						variant_table.set_genotypes_of(sample, genotypes)
 			else:
@@ -187,7 +195,8 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 					variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * len(positions))
 			
 			#print('priors: ',variant_table.genotype_likelihoods_of(sample))
-			prior_vcf_writer.write_genotypes(chromosome,variant_table,indels)	
+			if prioroutput != None:
+				prior_vcf_writer.write_genotypes(chromosome,variant_table,indels)	
 			
 			# Iterate over all families to process, i.e. a separate DP table is created
 			# for each family.
@@ -348,6 +357,7 @@ def add_arguments(parser):
 	arg('--genmap', metavar='FILE',
 		help='File with genetic map (used with --ped) to be used instead of constant recombination '
 		'rate, i.e. overrides option --recombrate.')
+	arg('-p', '--prioroutput', default=None, help='output prior genotype likelihoods to the given file.')
 
 
 def validate(args, parser):
@@ -363,6 +373,8 @@ def validate(args, parser):
 		parser.error('Not providing any PHASEINPUT files not allowed for genotyping.')
 	if args.gt_qual_threshold < 0:
 		parser.error('Genotype quality threshold (gt-qual-threshold) must be at least 0.')
+	if args.prioroutput != None and not args.gtpriors:
+		parser.error('Genotype priors are only computed if option --include-gt-priors is given.')
 
 
 def main(args):
