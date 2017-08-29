@@ -76,18 +76,18 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 	# check the results
 	#compare_to_expected(dp_forward_backward, positions, expected, genotypes)
 	
-# adapted to new transition model (with uniform genotype likelihoods)
+# first 5 tests compare to genotype likelihoods computed manually, with (non-)uniform priors	
+
 def test_geno_exact1() :
 	reads = """
           11
            01
         """
-	# as computed manually, with weight 10 for each position
+
 	expected_likelihoods = [[0.06666666666666667, 0.3333333333333333, 0.6],[0.20930232558139536, 0.5813953488372093, 0.20930232558139536],[0.06666666666666667, 0.3333333333333333, 0.6]]
 	genotypes = [2,1,2]
 	check_genotyping_single_individual(reads,None,expected_likelihoods,genotypes,10)
 
-# adapted to new transition model (with uniform genotype likelihoods)
 def test_geno_exact2():
 	reads = """
 		11
@@ -97,7 +97,7 @@ def test_geno_exact2():
 		11
 		11
 		"""
-	# as computed manually, with given weights (x10)
+		
 	expected_likelihoods = [[0.00914139256727894, 0.25040580948312685, 0.7404527979495942],[0.00914139256727894, 0.25040580948312685, 0.7404527979495942]]
 	genotypes = [2,2]
 	check_genotyping_single_individual(reads,weights,expected_likelihoods,genotypes,10)
@@ -107,9 +107,31 @@ def test_geno_exact3():
           01
           11
         """
-	# as computed manually, with weight 10 for each position
+
 	expected_likelihoods = [[0.22163406214039125, 0.5567318757192175, 0.22163406214039125],[0.009896432681242807, 0.18849252013808976, 0.8016110471806674]]
 	check_genotyping_single_individual(reads,None,expected_likelihoods,None,10)
+   
+def test_geno_priors1():   
+	reads = """
+          01
+          11
+        """
+        
+	prior_likelihoods = [PhredGenotypeLikelihoods(0.1,0.8,0.1), PhredGenotypeLikelihoods(0.1,0.2,0.7)]
+	expected_likelihoods = [[0.04257892641700095, 0.9148421471659981, 0.04257892641700095],[0.0016688611936185199, 0.05208684202468078, 0.9462442967817007]]
+	check_genotyping_single_individual(reads,None,expected_likelihoods,None,10, prior_likelihoods)
+	 
+def test_geno_priors2():
+	reads = """
+			11
+			 01
+			 """
+			 
+	prior_likelihoods = [PhredGenotypeLikelihoods(0,0.5,0.5), PhredGenotypeLikelihoods(0.25,0.5, 0.25), PhredGenotypeLikelihoods(0.1,0.4,0.5)]
+	expected_likelihoods = [[0.0, 0.35714285714285715, 0.6428571428571429],[0.1323529411764706, 0.7352941176470589, 0.1323529411764706],[0.015151515151515152, 0.30303030303030304, 0.6818181818181818]]
+	check_genotyping_single_individual(reads,None,expected_likelihoods,None,10,prior_likelihoods)   
+
+# check if exprected genotype predictions are made   
    
 def test_geno1():
 	reads= """
@@ -365,5 +387,3 @@ def test_weighted_genotyping5():
 	"""
 	genotypes = [1,1,1,1]
 	check_genotyping_single_individual(reads, weights,None,genotypes,10)
-
-	# TODO test also with non-uniform priors
