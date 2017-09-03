@@ -14,6 +14,8 @@ from functools import reduce
 import operator as op
 import networkx as nx
 import random
+import collections
+from collections import OrderedDict, namedtuple
 
 
 from contextlib import ExitStack
@@ -189,7 +191,7 @@ def vg_graph_reader(vg_file):
 				node_seq_list[index]=seq
 			for j in range(len(l.edge)):
 				from_edge = getattr(l.edge[j], "from")
-				edge_connections[from_edge].append(l.edge[j].to)			  
+				edge_connections[from_edge].append(l.edge[j].to)
 	return node_seq_list, edge_connections
 
 
@@ -216,7 +218,7 @@ def vg_reader(locus_file, gam_file):
 	4. add variant only when it identifies the branch uniquely.
 	"""
 	# create a dictionary of branches for each locus based on locus file.
-	locus_branch_mapping=defaultdict()
+	locus_branch_mapping=OrderedDict()
 	locus_count=0
 	prev_startsnarl = 0
 	prev_endsnarl = 0
@@ -230,18 +232,24 @@ def vg_reader(locus_file, gam_file):
 		for data in istream:
 			l = vg_pb2.SnarlTraversal()
 			l.ParseFromString(data)
+			#TODO: make ordered doctionary locus_branch_mapping
 			# handle forward and backward case of nodes
 			current_startsnarl = l.snarl.start.node_id
 			current_startsnarl_orientation = l.snarl.start.backward
 			current_endsnarl = l.snarl.end.node_id
 			current_endsnarl_orientation = l.snarl.end.backward
 			path_in_bubble =[]
+			cyclic_bubbles = [102838,102840,102846,102850,52424,52430,52708,52711,54914,54917,60635,60638,60965,60968,61857,61861,61906,61909,65760,65762,67841,67844,67858,67862,70509,70513,73378,73380,83218,83220,83224,83231,83676,83678,86581,86586,92007,92012,92467,92474,97403,97405,99187,99190]
+			if l.snarl.end.node_id in cyclic_bubbles or l.snarl.start.node_id in cyclic_bubbles:
+				continue
 			if len(l.visits) ==0:
+				#TODO: for now, assumed, all nodes in path are either forward or backward
 				if l.snarl.start.backward == True:
 					path_in_bubble.append(tuple ((l.snarl.end.node_id,l.snarl.start.node_id)))
 				else:
 					path_in_bubble.append(tuple ((l.snarl.start.node_id,l.snarl.end.node_id)))
 			else:
+				#TODO: for now, assumed, all nodes in path are either forward or backward
 				if l.snarl.start.backward == True:
 					path_in_bubble.append(tuple ((l.snarl.end.node_id, l.visits[-1].node_id)))
 					for i in range(0,len(l.visits)-1):
@@ -264,6 +272,18 @@ def vg_reader(locus_file, gam_file):
 			prev_endsnarl = current_endsnarl
 			prev_endsnarl_orientation = current_endsnarl_orientation
 			locus_branch_mapping[locus_count]=per_locus
+	#for i in [1, 2, 131, 132, 509, 6, 3, 646, 10, 12, 13, 269, 143, 16, 17, 657, 659, 407, 280, 667, 31, 672, 169, 301, 687, 560, 48, 691, 563, 693, 694, 569, 572, 317, 573, 574, 319, 577, 701, 579, 580, 325, 582, 583, 584, 201, 330, 586, 588, 589, 585, 590, 592, 593, 594, 337, 339, 597, 85, 599, 87, 345, 601, 67, 607, 608, 609, 482, 612, 614, 360, 65, 632, 581, 494, 371, 500, 501, 629, 120, 506, 380, 381]:
+		#del locus_branch_mapping[i]
+	#for i in [7, 8, 12, 15, 19, 20, 22, 23, 27, 29, 31, 32, 35, 38, 40, 42, 43, 45, 46, 52, 53, 59, 60, 61, 62, 63, 65, 69, 70, 71, 72, 78, 81, 82, 87, 91, 92, 94, 98, 100, 102, 104, 108, 114, 115, 118, 127, 128, 129, 142, 149, 156, 162, 163, 164, 165, 167, 170, 171, 172, 177, 182, 185, 186, 195, 198, 203, 211, 212, 213, 216, 223, 226, 227, 229, 231, 233, 235, 237, 238, 242, 243, 248, 249, 258, 259, 260, 266, 270, 271, 272, 273, 277, 278, 280, 287, 288, 290, 295, 298, 299, 301, 304, 305, 307, 308, 310, 311, 312, 315, 316, 317, 319, 322, 323, 328, 330, 335, 338, 340, 343, 346, 347, 348, 351, 354, 362, 364, 366, 367, 368, 369, 372, 373, 379, 383, 384, 385, 387, 391, 392, 394, 395, 396, 397, 399, 403, 404, 405, 406, 407, 409, 411, 413, 415, 417, 419, 422, 425, 428, 429, 432, 433, 436, 437, 438, 440, 442, 443, 444, 446, 452, 453, 458, 459, 462, 464, 465, 467]:
+		#del locus_branch_mapping[i]
+	#for i in [5, 19, 20, 22, 23, 27, 29, 31, 32, 35, 38, 40, 42, 43, 45, 46, 52, 53, 59, 60, 61, 62, 63, 65, 69, 70, 71, 72, 78, 81, 82, 87, 91, 92, 94, 98, 100, 102, 104, 108, 114, 115, 118, 127, 128, 129, 142, 149, 156, 162, 163, 164, 165, 167, 170, 171, 172, 177, 182, 185, 186, 195, 198, 203, 211, 212, 213, 216, 223, 226, 227, 229, 231, 233, 235, 237, 238, 242, 243, 248, 249, 258, 259, 260, 266, 270, 271, 272, 273, 277, 278, 280, 287, 288, 290, 295, 298, 299, 301, 304, 305, 307, 308, 310, 311, 312, 315, 316, 317, 319, 322, 323, 328, 330, 335, 338, 340, 343, 346, 347, 348, 351, 354, 362, 364, 366, 367, 368, 369, 372, 373, 379, 383, 384, 385, 387, 391, 392, 394, 395, 396, 397, 399, 403, 404, 405, 406, 407, 409, 411, 413, 415, 417, 419, 422, 425, 428, 429, 432, 433, 436, 437, 438, 440, 442, 443, 444, 446, 452, 453, 458, 459, 462, 464, 465, 467]:
+		#del locus_branch_mapping[i]
+	#for i in [7, 8, 12, 15, 19, 20, 22, 23, 27, 29, 31, 32, 35, 38, 40, 42, 43, 45, 46, 52, 53, 59, 60, 61, 62, 63, 65, 69, 70, 71, 72, 78, 81, 82, 87, 91, 92, 94, 98, 100, 102, 104, 108, 114, 115, 118, 127, 128, 129, 142, 149, 156, 162, 163, 164, 165, 167, 170, 171, 172, 177, 182, 185, 186, 195, 198, 203, 211, 212, 213, 216, 223, 226, 227, 229, 231, 233, 235, 237, 238, 242, 243, 248, 249, 258, 259, 260, 266, 270, 271, 272, 273, 277, 278, 280, 287, 288, 290, 295, 298, 299, 301, 304, 305, 307, 308, 310, 311, 312, 315, 316, 317, 319, 322, 323, 328, 330, 335, 338, 340, 343, 346, 347, 348, 351, 354, 362, 364, 366, 367, 368, 369, 372, 373, 379, 383, 384, 385, 387, 391, 392, 394, 395, 396, 397, 398, 399, 400, 401, 403, 404, 405, 406, 407, 408, 409, 410, 411, 412, 413, 414, 415, 416, 417, 418, 419, 422, 425, 428, 429, 432, 433, 436, 437, 438, 440, 442, 443, 444, 446, 452, 453, 458, 459, 462, 464, 465, 467]:
+		#del locus_branch_mapping[i]
+	#for i in [7, 8, 12, 15, 19, 20, 22, 23, 27, 29, 31, 32, 35, 38, 40, 42, 43, 45, 46, 52, 53, 59, 60, 61, 62, 63, 65, 69, 70, 71, 72, 78, 81, 82, 87, 91, 92, 94, 98, 100, 102, 104, 108, 114, 115, 118, 127, 128, 129, 142, 149, 156, 162, 163, 164, 165, 167, 170, 171, 172, 177, 182, 185, 186, 195, 198, 203, 211, 212, 213, 216, 223, 226, 227, 229, 231, 233, 235, 237, 238, 242, 243, 248, 249, 258, 259, 260, 266, 270, 271, 272, 273, 277, 278, 280, 287, 288, 290, 295, 298, 299, 301, 304, 305, 307, 308, 310, 311, 312, 315, 316, 317, 319, 322, 323, 328, 330, 335, 338, 340, 343, 346, 347, 348, 351, 354, 362, 364, 366, 367, 368, 369, 372, 373, 379, 383, 384, 385, 387, 391, 392, 394, 395, 396, 397, 399, 403, 404, 405, 406, 407, 409, 411, 413, 415, 417, 419, 422, 425, 428, 429, 432, 433, 436, 437, 438, 440, 442, 443, 444, 446, 452, 453, 458, 459, 462, 464, 465, 467]:
+		#del locus_branch_mapping[i]
+	#for i in [395, 396]:
+		#del locus_branch_mapping[i]
 	
 
 	#print(locus_branch_mapping)
@@ -287,6 +307,7 @@ def vg_reader(locus_file, gam_file):
 					for p,j in enumerate(b):
 						reverse_mapping[j].append([k,i, len(v)]) # in complex bubbles, a node can map to multiple branches.
 	#print(reverse_mapping)
+	print(locus_branch_mapping)
 
 	# both simple and complex bubbles: extract reads from GAM file associated with the locus and create a sorted readset.
 	# in complex bubble, set of nodes uniquely determine the path. 
@@ -304,76 +325,112 @@ def vg_reader(locus_file, gam_file):
 
 			count1 =0
 			count2=0
-			#score = g.score/len(g.sequence)
-			#if score < 0.75:
-				#continue
+			score = g.score/len(g.sequence)
+			if score < 0.75:
+				continue
 			read=Read(g.name, 0, 0, 0) # create read for each read alignment
+			#readnames= ["S1_Y12_290","S1_SK1_290","S1_Y12_430","S1_SK1_657","S1_Y12_139","S1_Y12_427","S1_SK1_427","S1_Y12_657","S1_SK1_588","S1_Y12_588","S1_SK1_139","S1_SK1_430","S1_Y12_76","S1_Y12_463","S1_SK1_463","S1_SK1_76"]
+			#readnames = ["S1_Y12_259"]
+			#if g.name not in readnames:
+				#continue
+			print(g.name)
 			prev_tmp=[]
 			prev_locus= -1
 			locus = -1
-			for i in range(0,len(g.path.mapping)):
-				if g.path.mapping[i].position.is_reverse != val1:
-					val1 = False
-					break
-				else:
-					count1 = count1 +1
+			#for i in range(0,len(g.path.mapping)):
+				#if g.path.mapping[i].position.is_reverse != val1:
+					#val1 = False
+					#break
+				#else:
+					#count1 = count1 +1
 					
-			if count1 == len(g.path.mapping):
-				count = count+1
-				#print(g.name)
+			#if count1 == len(g.path.mapping):
+				#count = count+1
+				##print(g.name)
 				
-			for i in range(0,len(g.path.mapping)):
-				if g.path.mapping[i].position.is_reverse != val2:
-					val2 = True
-					break
-				else:
-					count2 = count2 +1
+			#for i in range(0,len(g.path.mapping)):
+				#if g.path.mapping[i].position.is_reverse != val2:
+					#val2 = True
+					#break
+				#else:
+					#count2 = count2 +1
 					
-			if count2 == len(g.path.mapping):
-				count = count+1
-				#print(g.name)
-			if val1 ==val2:
-				for i in range(0,len(g.path.mapping)-1):
-				#for i in g.path.mapping: # go over the mapping in a read
-					# TODO: check for forward or reverse strand, we may not need it for DAG.
-					edge1 = tuple((g.path.mapping[i].position.node_id, g.path.mapping[i+1].position.node_id)) # go over nodes in a mapping
-					edge2 = tuple((g.path.mapping[i+1].position.node_id, g.path.mapping[i].position.node_id)) # go over nodes in a mapping
-					#print(edge)
-					if edge1 in reverse_mapping or edge2 in reverse_mapping: # handle start and sink node.
-						if edge1 in reverse_mapping:
-							qualities = [10]* reverse_mapping[edge1][0][2]
-							node_inf= [tuple(i[0:2]) for i in reverse_mapping[edge1]] # consider (locus, branch)
-						else:
-							qualities = [10]* reverse_mapping[edge2][0][2]
-							node_inf= [tuple(i[0:2]) for i in reverse_mapping[edge2]]
-						tmp = [x for x in node_inf]
-						interset_tmp= list(set(tmp).intersection(set(prev_tmp)))
-						if len(prev_tmp) > 0 and len(set(tmp).intersection(set(prev_tmp)))==1: # for complicated bubbles, but with Top-k paths. combination of some nodes uniquely determine branch.
-							qualities[interset_tmp[0][1]] = 0
+			#if count2 == len(g.path.mapping):
+				#count = count+1
+				##print(g.name)
+			#print(val1)
+			#print(val2)
+			#if val1 ==val2:
+			for i in range(0,len(g.path.mapping)-1):
+			#for i in g.path.mapping: # go over the mapping in a read
+				# TODO: check for forward or reverse strand, we may not need it for DAG.
+				edge1 = tuple((g.path.mapping[i].position.node_id, g.path.mapping[i+1].position.node_id)) # go over nodes in a mapping
+				edge2 = tuple((g.path.mapping[i+1].position.node_id, g.path.mapping[i].position.node_id)) # go over nodes in a mapping
+				if edge1 in reverse_mapping or edge2 in reverse_mapping: # handle start and sink node.
+					if edge1 in reverse_mapping:
+						qualities = [10]* reverse_mapping[edge1][0][2]
+						node_inf= [tuple(i[0:2]) for i in reverse_mapping[edge1]] # consider (locus, branch)
+					else:
+						qualities = [10]* reverse_mapping[edge2][0][2]
+						node_inf= [tuple(i[0:2]) for i in reverse_mapping[edge2]]
+					tmp = [x for x in node_inf]
+					if prev_locus != tmp[0][0]:
+						prev_tmp = tmp
+						prev_locus = tmp[0][0]
+						
+					interset_tmp= list(set(tmp).intersection(set(prev_tmp)))
+					if len(prev_tmp) > 0 and len(set(tmp).intersection(set(prev_tmp)))==1: # for complicated bubbles, but with Top-k paths. combination of some nodes uniquely determine branch.
+						qualities[interset_tmp[0][1]] = 0
+						if i== len(g.path.mapping)-2:
 							read.add_variant(interset_tmp[0][0], interset_tmp[0][1], qualities)
-							locus= interset_tmp[0][0]
-							
-						if prev_locus!=locus:
-							prev_tmp = []
 						else:
-							for i in tmp:
-								prev_tmp.append(i)
-						prev_locus = locus
+							next_edge1 = tuple((g.path.mapping[i+1].position.node_id, g.path.mapping[i+2].position.node_id))
+							next_edge2 = tuple((g.path.mapping[i+2].position.node_id, g.path.mapping[i+1].position.node_id))
 
-				if len(read) >= 2:
-					readset.add(read)
+							if next_edge1 not in reverse_mapping and next_edge2 not in reverse_mapping:
+								read.add_variant(interset_tmp[0][0], interset_tmp[0][1], qualities)    
+
+						locus= interset_tmp[0][0]
+						
+					#if prev_locus!=locus:
+						#prev_tmp = []
+					#else:
+						#for i in tmp:
+							#prev_tmp.append(i)
+					#prev_locus = locus
+			print(read)
+
+			if len(read) >= 2:
+				readset.add(read)
 	print("non-shattered")
 	print(count)
 	#print(readset)
 	readset1=ReadSet()
+	tmp_duplicated=set()
 	for read in readset:
 		if read.sort() ==1:
 			duplicated = duplicated +1
+			tmp=[]
+			for variant in read:
+				tmp.append(variant.position)
+			print("duplicated variant")
+			x = [item for item, count in collections.Counter(tmp).items() if count > 1]
+			for a in x:
+				tmp_duplicated.add(a)
 			continue
 		else:
 			readset1.add(read)
+	print("length of duplicated bubbles")
+	print(tmp_duplicated)
+	print(len(list(tmp_duplicated)))
+
 
 	readset1.sort()
+	#print("******")
+	#for i,read in enumerate(readset1):
+		#for j,variant in enumerate(read):
+			#print(str(i)+" "+str(variant.position)+" "+str(variant.allele)+ " "+"10")
+	#print("******")
 	print("duplicated")
 	print(duplicated)
 	print("reads considered before read-selection")
@@ -489,15 +546,11 @@ def generate_hap_contigs(sample_superreads, sample_components, node_seq_list, lo
 			for i in tmp:
 				comp = components[v1.position]
 				hapseq1[comp].append(node_seq_list[i])
-			print("tmp")
-			print(tmp)
+
 			current_node = tmp[-1]
 			while current_node in edge_connections and len(edge_connections[current_node]) ==1:
 				hapseq1[comp].append(node_seq_list[edge_connections[current_node][0]])
 				current_node = edge_connections[current_node][0]
-				print("current_node" + str(current_node))
-			
-
 
 			#TODO: handle ambiguos cases
 			b = locus_branch_mapping[v2.position][v2.allele]
@@ -529,10 +582,307 @@ def generate_hap_contigs(sample_superreads, sample_components, node_seq_list, lo
 		print("I am in component" + str(k))
 		print(hap1)
 		print(hap2)
+		
+# partition all set of reads by considering the haplotypes from most significant reads. 
+def haplotag(pred_superreads, read_set, components, iteration):
+	phases = []
+	
+	for s1,s2 in zip(*pred_superreads):
+		VariantCallPhase = namedtuple('VariantCallPhase', ['block_id', 'position', 'phase1', 'phase2'])
+		extract_phase = VariantCallPhase(components[s1.position], s1.position, s1.allele, s2.allele)
+		phases.append(extract_phase) #TODO: check it
+		
+	variantpos_to_allele1 = {
+		v.position:int(v.allele) for v, v2 in zip(*pred_superreads) if v.allele!=-2
+	}
+	variantpos_to_allele2 = {
+		v2.position:int(v2.allele) for v, v2 in zip(*pred_superreads) if v2.allele!=-2
+	}
+	
+	variantpos_to_phaseset1 = {
+		v.position:components[v.position] for v, v2 in zip(*pred_superreads) if v.allele!=-2
+	}
+	variantpos_to_phaseset2 = {
+		v2.position:components[v2.position] for v, v2 in zip(*pred_superreads) if v2.allele!=-2
+	}
+	read_to_haplotype = {}
+	#read_set = read_reads(readset_reader, chromosome_name, variants, sample, fasta)
+	for read in read_set:
+		# mapping: phaseset --> phred scaled difference between costs of assigning reads to haplotype 0 or 1
+		haplotype_costs = defaultdict(int)
+		haplotype_costs[0] = 0
+		haplotype_costs[1] = 0
+		for v in read:
+			if v.position not in variantpos_to_allele1 or v.position not in variantpos_to_allele2:
+				continue
+			phaseset1 = variantpos_to_allele1[v.position]
+			phaseset2 = variantpos_to_allele2[v.position]
+	
+			if v.allele != phaseset1:
+				haplotype_costs[0] += 10
+			#else:
+				#haplotype_costs[0] -= 10
+			if v.allele != phaseset2:
+				haplotype_costs[1] += 10
+			#else:
+				#haplotype_costs[1] -= 10
+			
+		l =[]
+		for k,v in haplotype_costs.items():
+			l.append(k)
+			l.append(v)
+		#l = list(haplotype_costs.items())
+		if l[1] < l[3]:
+			read_to_haplotype[read.name] = (0, l[1], l[0])
+		else:
+			read_to_haplotype[read.name] = (1, l[3], l[2])
+		#l.sort(key=lambda t:-abs(t[1]))
+		#phaseset, quality = l[0]
+		#if quality != 0:
+			#haplotype = 0 if quality > 0 else 1
+			#read_to_haplotype[read.name] = (haplotype, abs(quality), phaseset)
+			
+	f = open('predicted_all_read_partionting' + str(iteration), 'w')
+	accessible_positions = sorted(read_set.get_positions())
+	overall_components = find_components(accessible_positions, read_set)
+	for read in read_set:
+		phaseset = components[read[0].position] + 1
+		print(read.name, read_to_haplotype[read.name][2], read_to_haplotype[read.name][0], phaseset, file =f )
+	#for k,v in read_to_haplotype.items():
+		#print(k, v[2], v[0], file=f)
+
+
+def compute_read_partitioning_accuracy(predicted_file, true_file):
+	true_hap1 =[]
+	true_hap2= []
+	f = open(true_file, 'r')
+	
+	for line in open(true_file):
+		if line.split("\t")[1] ==1:
+			true_hap1.append(ine.split("\t")[0])
+		else:
+			true_hap2.append(ine.split("\t")[0])
+		
+	pred_hap1 = defaultdict(list)
+	pred_hap2 = defaultdict(list)
+	total=0
+	blocks =set()
+	for line in open(predicted_file):
+		tokens= line.split(" ")
+		blocks.add(token[1])
+		if tokens[2] ==1:
+			pred_hap1[tokens[1]].append(tokens[0])
+		else:
+			pred_hap2[tokens[1]].append(tokens[0])
+		total+=1
+	
+	count = 0
+	for k in blocks:
+		count += min(set(pred_hap1[k]).intersection(set(true_hap1)), set(pred_hap1[k]).intersection(set(true_hap2)))
+		count += min(set(pred_hap2[k]).intersection(set(true_hap1)), set(pred_hap2[k]).intersection(set(true_hap2)))
+	percent_partitionining_accuracy =  count/total
+	
+count_width = 9
+class SwitchFlips:
+	def __init__(self, switches=0, flips=0):
+		self.switches = switches
+		self.flips = flips
+	def __iadd__(self, other):
+		self.switches += other.switches
+		self.flips += other.flips
+		return self
+	def __repr__(self):
+		return 'SwitchFlips(switches={}, flips={})'.format(self.switches, self.flips)
+	def __str__(self):
+		return '{}/{}'.format(self.switches, self.flips)
+
+
+class PhasingErrors:
+	def __init__(self, switches=0, hamming=0, switch_flips=None):
+		self.switches = switches
+		self.hamming = hamming
+		self.switch_flips = SwitchFlips() if switch_flips is None else switch_flips
+	def __iadd__(self, other):
+		self.switches += other.switches
+		self.hamming += other.hamming
+		self.switch_flips += other.switch_flips
+		return self
+	def __repr__(self):
+		return 'PhasingErrors(switches={}, hamming={}, switch_flips={})'.format(self.switches, self.hamming, self.switch_flips)
+
+
+def complement(s):
+	t = { '0': '1', '1':'0' }
+	return ''.join(t[c] for c in s)
+
+
+def hamming(s0, s1):
+	assert len(s0) == len(s1)
+	return sum( c0!=c1 for c0, c1 in zip(s0, s1) )
+
+
+def switch_encoding(phasing):
+	return ''.join( ('0' if phasing[i-1]==phasing[i] else '1') for i in range(1,len(phasing)) )
+
+
+def compute_switch_flips(phasing0, phasing1):
+	assert len(phasing0) == len(phasing1)
+	s0 = switch_encoding(phasing0)
+	s1 = switch_encoding(phasing1)
+	result = SwitchFlips()
+	switches_in_a_row = 0
+	for i, (p0, p1) in enumerate(zip(s0, s1)):
+		if p0 != p1:
+			switches_in_a_row += 1
+		if (i + 1 == len(s0)) or (p0 == p1):
+			result.flips += switches_in_a_row // 2
+			result.switches += switches_in_a_row % 2
+			switches_in_a_row = 0
+	if False:
+		print('switch_flips():')
+		print('   phasing0={}'.format(phasing0))
+		print('   phasing1={}'.format(phasing1))
+		print('         s0={}'.format(s0))
+		print('         s1={}'.format(s1))
+		print('   switches={}, flips={}'.format(result.switches, result.flips))
+	return result
+
+
+def compare_block(phasing_pred1, phasing_pred2, phasing_true1, phasing_true2):
+	"""Input are two strings over {0,1}. Output is a PhasingErrors object."""
+	return PhasingErrors(
+		switches = min(min(hamming(switch_encoding(phasing_pred1), switch_encoding(phasing_true1)), hamming(switch_encoding(phasing_pred1), switch_encoding(phasing_true2))), min(hamming(switch_encoding(phasing_pred2), switch_encoding(phasing_true1)), hamming(switch_encoding(phasing_pred2), switch_encoding(phasing_true2)))),
+		hamming = min(min(hamming(phasing_pred1, phasing_true1), hamming(phasing_pred1, phasing_true2)), min(hamming(phasing_pred2, phasing_true1), hamming(phasing_pred2, phasing_true2))), switch_flips=SwitchFlips()
+		)
+      
+def fraction2percentstr(nominator, denominator):
+	if denominator == 0:
+		return '--'
+	else:
+		return '{:.2f}%'.format(nominator*100.0/denominator)
+
+
+def safefraction(nominator, denominator):
+	if denominator == 0:
+		return float('nan')
+	else:
+		return nominator/denominator
+
+
+def create_bed_records(chromosome, phasing0, phasing1, positions, annotation_string):
+	"""Determines positions of switch errors between two phasings
+	and yields one BED record per switch error (encoded as a tuple).
+	The annotation_string is added to each record."""
+	assert len(phasing0) == len(phasing1) == len(positions)
+	switch_encoding0 = switch_encoding(phasing0)
+	switch_encoding1 = switch_encoding(phasing1)
+	for i, (sw0, sw1) in enumerate(zip(switch_encoding0, switch_encoding1)):
+		if sw0 != sw1:
+			yield (chromosome, positions[i]+1, positions[i+1]+1, annotation_string)
+
+
+def print_errors(errors, phased_pairs, print_hamming=False):
+	print('    phased pairs of variants assessed:', str(phased_pairs).rjust(count_width))
+	print('                        switch errors:', str(errors.switches).rjust(count_width))
+	print('                    switch error rate:', fraction2percentstr(errors.switches, phased_pairs).rjust(count_width))
+	print('            switch/flip decomposition:', str(errors.switch_flips).rjust(count_width) )
+	print('                     switch/flip rate:', fraction2percentstr(errors.switch_flips.switches+errors.switch_flips.flips, phased_pairs).rjust(count_width))
+      
+pairwise_comparison_results_fields = [
+	'intersection_blocks',
+	'covered_variants',
+	'all_assessed_pairs',
+	'all_switches',
+	'all_switch_rate',
+	'all_switchflips',
+	'all_switchflip_rate',
+	'largestblock_assessed_pairs',
+	'largestblock_switches',
+	'largestblock_switch_rate',
+	'largestblock_switchflips',
+	'largestblock_switchflip_rate',
+	'largestblock_hamming',
+	'largestblock_hamming_rate'
+]
+PairwiseComparisonResults = namedtuple('PairwiseComparisonResults', pairwise_comparison_results_fields)
+
+# TO compare the true and predicted superreads.
+def compare(predicted_superreads, true_superreads, components):
+	phases_pred1 = defaultdict()
+	phases_pred2 = defaultdict()
+	phases_true1 = defaultdict()
+	phases_true2 = defaultdict()
+	
+	for s1,s2 in zip(*predicted_superreads):
+		#VariantCallPhase = namedtuple('VariantCallPhase', ['block_id', 'position','phase'])
+		#extract_phase = VariantCallPhase(components[s1.position], s1.position, s1.allele)
+		if s1.allele !=-2 and s2.allele !=-2:
+			phases_pred1[s1.position] = s1.allele
+			phases_pred2[s1.position] = s2.allele 
+
+	for s1,s2 in zip(*true_superreads):
+		#VariantCallPhase = namedtuple('VariantCallPhase', ['block_id', 'position','phase'])
+		#extract_phase = VariantCallPhase(components[s1.position], s1.position, s1.allele)
+		if s1.allele !=-2 and s2.allele !=-2:
+			phases_true1[s1.position] = s1.allele
+			phases_true2[s1.position] = s2.allele 
+
+	
+	blocks = defaultdict(list)
+	for k,v in phases_pred1.items():
+		if phases_pred1[k]!=-2 or phases_pred2[k]!=-2 or phases_true1[k]!=-2 or phases_true2[k]!=-2:
+			blocks[components[k]].append(k)
+	intersection_block_variants = sum(len(b) for b in blocks.values() if len(b) > 1)
+	
+	longest_block = None
+	longest_block_errors = None
+	phased_pairs = 0
+	bed_records = []
+
+	total_errors = PhasingErrors()
+	for block in blocks.values():
+		if len(block) < 2:
+			continue
+		phasing_pred1 = ''.join( str(phases_pred1[i]) for i in block )
+		phasing_pred2 = ''.join( str(phases_pred2[i]) for i in block )
+		phasing_true1 = ''.join( str(phases_true1[i]) for i in block )
+		phasing_true2 = ''.join( str(phases_true2[i]) for i in block )
+		block_positions = [ i for i in block ]
+		errors = compare_block(phasing_pred1, phasing_pred2, phasing_true1, phasing_true2)
+		#bed_records.extend(create_bed_records(chromosome, phasing0, phasing1, block_positions, '{}<-->{}'.format(*dataset_names)))
+		total_errors += errors
+		phased_pairs += len(block) - 1
+		if (longest_block is None) or (len(block) > longest_block):
+			longest_block = len(block)
+			longest_block_errors = errors
+	print('              ALL INTERSECTION BLOCKS:', '-'*count_width)
+	print_errors(total_errors, phased_pairs)
+	print('           LARGEST INTERSECTION BLOCK:', '-'*count_width)
+	print_errors(longest_block_errors, longest_block-1)
+	print('                     Hamming distance:', str(longest_block_errors.hamming).rjust(count_width))
+	print('                 Hamming distance [%]:', fraction2percentstr(longest_block_errors.hamming, longest_block).rjust(count_width))
+	print('%phased accuracy', safefraction(total_errors.switches, phased_pairs))
+	print('number of blocks', len(blocks.values()))
+	return PairwiseComparisonResults(
+		intersection_blocks = len(blocks.values()),
+		covered_variants = intersection_block_variants,
+		all_assessed_pairs = phased_pairs,
+		all_switches = total_errors.switches,
+		all_switch_rate = safefraction(total_errors.switches, phased_pairs),
+		all_switchflips = -1,
+		all_switchflip_rate = -1,
+		largestblock_assessed_pairs = longest_block-1,
+		largestblock_switches = longest_block_errors.switches,
+		largestblock_switch_rate = safefraction(longest_block_errors.switches, longest_block - 1),
+		largestblock_switchflips = -1,
+		largestblock_switchflip_rate = -1,
+		largestblock_hamming = -1,
+		largestblock_hamming_rate = -1
+	), bed_records
 
 
 
-def run_phaseg(locus_file, gam_file, vg_file):
+def run_phaseg(locus_file, gam_file, vg_file, true_haps):
 	"""
 	Run WhatsHap.
 
@@ -560,8 +910,8 @@ def run_phaseg(locus_file, gam_file, vg_file):
 
 		accessible_positions = sorted(selected_reads.get_positions())
 		print("readset after read_selection")
-		for read in selected_reads:
-			print(read.name)
+		#for read in selected_reads:
+			#print(read.name)
 		pedigree = Pedigree(NumericSampleIds())
 		# compute the number of alleles at each position.
 		alleles_per_accessible_pos =[]
@@ -585,30 +935,89 @@ def run_phaseg(locus_file, gam_file, vg_file):
 		read_partitions = dp_table.get_optimal_partitioning()
 		#print(read_partitions)
 		
-		out0 = open('pred_hap0.txt', 'w')
-		out1 = open('pred_hap1.txt', 'w')
-		
-		for i,j in zip(read_partitions, selected_reads):
-			if i ==0:
-				out0.write(j.name + "\n")
-			else:
-				out1.write(j.name + "\n")
-		
-		# To generate the connected components and corresponding haplotypes.
+		## To generate the connected components and corresponding haplotypes.
 		print("in components")
+		f = open('predicted_read_partionting', 'w')
 		overall_components = find_components(accessible_positions, selected_reads)
+		for read, haplotype in zip(selected_reads, read_partitions):
+			phaseset = overall_components[read[0].position] + 1
+			print(read.name, phaseset, haplotype, file=f)
+		#phaset is blockid
+
 		n_phased_blocks = len(set(overall_components.values()))
 		print('No. of phased blocks: %d', n_phased_blocks)
 		largest_component = find_largest_component(overall_components)
 		if len(largest_component) > 0:
 			print('Largest component contains %d variants',len(largest_component))
 		
-		# To generate contig sequences
+		## To generate contig sequences
 		sample = 0
 		superreads, components = dict(), dict()
 		superreads[sample] = superreads_list[0]
 		components[sample] = overall_components
-		generate_hap_contigs(superreads, components, node_seq_list, locus_branch_mapping, edge_connections)
+		
+		# evaluation partition all the reads based on one iteration
+		print('partition all the reads based on haplotypes from one iteration')
+		haplotag(superreads_list[0], all_reads, overall_components, 1)
+
+
+		#generate_hap_contigs(superreads, components, node_seq_list, locus_branch_mapping, edge_connections)
+		
+		#For phasing accuracy, read true haps and generate corresponding superreads
+		all_reads_true, alleles_per_pos_true, locus_branch_mapping_true = vg_reader(locus_file, true_haps)
+		# Finally, run phasing algorithm for true haplotypes
+		dp_table_true = PedigreeDPTable(all_reads_true, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
+		superreads_list_true, transmission_vector_true = dp_table_true.get_super_reads()
+		# to compute the phasing accuracy
+		compare(superreads_list[0], superreads_list_true[0], overall_components)
+		# To perform iterative whatshap phasing
+		remaining_reads =[]
+		for read in all_reads:
+			remaining_reads.append(read.name)
+		prev_superreads = superreads_list[0]
+		for read in selected_reads:
+			remaining_reads.remove(read.name)
+		while len(remaining_reads)>0:
+			print('iteration')
+			iterative_reaset =  ReadSet()
+			for read in all_reads:
+				if read.name in remaining_reads:
+					iterative_reaset.add(read)
+
+				
+			selected_indices = readselection(iterative_reaset, max_coverage)
+			selected_reads = iterative_reaset.subset(selected_indices)
+			for read in prev_superreads:
+				selected_reads.add(read)
+				remaining_reads.append(read.name)
+			accessible_positions = sorted(selected_reads.get_positions())
+			selected_reads.sort()
+			pedigree = Pedigree(NumericSampleIds())
+			# compute the number of alleles at each position.
+			alleles_per_accessible_pos =[]
+			genotype_likelihoods = []
+			for pos in accessible_positions:
+				if pos in alleles_per_pos:
+					n_alleles = alleles_per_pos[pos]  
+					possible_genotypes = n_alleles +  ncr(n_alleles, 2)
+					genotype_likelihoods.append(None if all_heterozygous else PhredGenotypeLikelihoods([0]* possible_genotypes))
+			# random input of genotypes, since distrust_genotypes is always ON.
+			pedigree.add_individual('individual0', [0]* len(accessible_positions), genotype_likelihoods)
+			recombination_costs = uniform_recombination_map(recombrate, accessible_positions)
+			# Finally, run phasing algorithm
+			#print(selected_reads)
+			dp_table = PedigreeDPTable(selected_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
+			superreads_list, transmission_vector = dp_table.get_super_reads()
+			for read in selected_reads:
+				remaining_reads.remove(read.name)
+			prev_superreads = superreads_list[0]
+			
+		print('I am final')
+		accessible_positions = sorted(all_reads.get_positions())
+		overall_components = find_components(accessible_positions, all_reads)
+		haplotag(superreads_list[0], all_reads, overall_components, all_iter)
+		compare(superreads_list[0], superreads_list_true[0], overall_components)
+		print(superreads_list[0])
 
 
 def add_arguments(parser):
@@ -617,6 +1026,7 @@ def add_arguments(parser):
 	arg('locus_file', metavar='LOCUS', help='variants in LOCUS file to phase')
 	arg('gam_file', metavar='PHASEINPUT', help='read alignments in GAM file ')
 	arg('vg_file', metavar='GRAPH', help='node-sequence association')
+	arg('true_haps', metavar='TRUE_HAPS', help='compare phasing with true haps in GAM format.')
 	#TODO: add k parameter
 
 def main(args):
