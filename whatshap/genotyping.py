@@ -45,7 +45,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None,
 		ignore_read_groups=False, indels=True, mapping_quality=20,
 		max_coverage=15, gtpriors=False,
-		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=15, prioroutput=None):
+		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=15, prioroutput=None, constant=0):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
 	all variants are computed using the forward backward algorithm
@@ -184,9 +184,13 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 						readset.sort()
 						genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
 						# recompute genotypes based on given threshold
+						reg_genotype_likelihoods = []
 						for gl in range(len(genotype_likelihoods)):
-							genotypes[gl] = determine_genotype(genotype_likelihoods[gl], gt_prob)
-						variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(*gl) for gl in genotype_likelihoods])
+							norm_sum = genotype_likelihoods[gl][0] + genotype_likelihoods[gl][1] + genotype_likelihoods[gl][2] + 3*constant
+							regularized = ((genotype_likelihoods[gl][0]+constant)/norm_sum, (genotype_likelihoods[gl][1]+constant)/norm_sum, (genotype_likelihoods[gl][2]+constant)/norm_sum)
+							genotypes[gl] = determine_genotype(regularized, gt_prob)
+							reg_genotype_likelihoods.append(regularized)
+						variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(*gl) for gl in reg_genotype_likelihoods])
 						variant_table.set_genotypes_of(sample, genotypes)
 			else:
 				
@@ -358,6 +362,7 @@ def add_arguments(parser):
 		help='File with genetic map (used with --ped) to be used instead of constant recombination '
 		'rate, i.e. overrides option --recombrate.')
 	arg('-p', '--prioroutput', default=None, help='output prior genotype likelihoods to the given file.')
+	arg('--constant', metavar='CONSTANT', default=0, type=int, help='When using option --include-gt-priors, this constant is added to all gt likelihoods (default:0).')
 
 
 def validate(args, parser):
@@ -375,6 +380,8 @@ def validate(args, parser):
 		parser.error('Genotype quality threshold (gt-qual-threshold) must be at least 0.')
 	if args.prioroutput != None and not args.gtpriors:
 		parser.error('Genotype priors are only computed if option --include-gt-priors is given.')
+	if args.constant != 0  and not args.gtpriors:
+		parser.error('--constant can only be used with option --include-gt-priors.')
 
 
 def main(args):
