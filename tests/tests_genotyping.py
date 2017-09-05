@@ -289,3 +289,25 @@ def test_wrong_chromosome():
 		run_genotyping(phase_input_files=[short_bamfile],
 			ignore_read_groups=True,
 			variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)
+
+def test_adding_constant():
+	
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output_constants.vcf'
+		out_p = tempdir + '/priors.vcf'
+		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf',
+			prioroutput=out_p, output=outvcf, indels=False, gtpriors=True, constant=1000000000000)
+		
+		priors = open(out_p,'r')		
+		priors.seek(0)
+
+		lines = [line for line in priors.readlines() if not line.startswith('#')]
+	
+		for line in lines:
+			entries = line.split()
+			likelihood_str = entries[9].split(':')[-1:][0]
+			likelihoods = [round(10**float(i),2) for i in likelihood_str.split(',')]
+			real_likelihoods = [10**float(i) for i in likelihood_str.split(',')]
+			print('likelihoods:', likelihoods, real_likelihoods)
+			assert(likelihoods == [0.33, 0.33,0.33])
+		priors.close()

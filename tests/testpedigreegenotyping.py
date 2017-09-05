@@ -126,6 +126,7 @@ def test_genotyping_trio3():
 	  B 1010
 	  C 111000
 	  C 010101
+	  C 010101
 	  B 0101
 	  A  0000
 	  B  1010
@@ -232,7 +233,7 @@ def test_genotyping_quartet2():
 	  D 010
 	  D 010
 	"""
-	expected_genotypes = [[1,2,1] , [1,1,1], [0,1,1], [0,1,1]]
+	expected_genotypes = [[1,2,0] , [1,1,1], [0,1,1], [0,1,1]]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
 	pedigree.add_individual('individual0',[0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
@@ -366,15 +367,15 @@ def test_genotyping_trio9():
 	recombcost = [10,10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
 
-# TODO compute expected likelihoods
+# TODO when using uniform priors (1/3,1/3,1/3) result for child is (0,0.2,0.8)
 def test_weighted_genotyping():
 	reads = """
-	  B 0
-	  B 1
-	  A 1
-	  A 0
-	  C 1
-	  C 1
+	  B 00
+	  B 11
+	  A 11
+	  A 00
+	  C 11
+	  C 11
 	"""
 	weights = """
 	  99
@@ -387,9 +388,9 @@ def test_weighted_genotyping():
 	expected_genotypes = [[1,1],[1,1],[2,2]]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0,0,0], [PhredGenotypeLikelihoods(0,1,0)] * 4)
-	pedigree.add_individual('individual1',[0,0,0,0], [PhredGenotypeLikelihoods(0,1,0)] * 4)
-	pedigree.add_individual('individual2',[0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 4)
+	pedigree.add_individual('individual0',[0,0,0,0], [PhredGenotypeLikelihoods(0.25,0.5,0.25)] * 4)
+	pedigree.add_individual('individual1',[0,0,0,0], [PhredGenotypeLikelihoods(0.25,0.5,0.25)] * 4)
+	pedigree.add_individual('individual2',[0,0,0,0], [PhredGenotypeLikelihoods(0.25,0.5,0.25)] * 4)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	# recombination is extremely unlikely
 	recombcost = [1000,1000,1000,1000]
@@ -444,13 +445,16 @@ def test_genotyping_trio11():
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
 	
 	
-# TODO: model fails to infer the correct genotype likelihoods of the child. 
+# TODO: model fails to infer the correct genotype likelihoods of the child, if uniform priors are used for child.
+# according to mendelian inheritance, correct priors here would be:
+# A: (0,1,0), B:(0,1,0), C:(0.25,0.5,0.25), but since no reads present for child,
+# prior genotyping step would give uniform priors.
 def test_genotyping_trio13():
 	reads = """
-	  A 11111
-	  A 00000
-	  B 11111
-	  B 00000
+	  A 1111
+	  A 0000
+	  B 1111
+	  B 0000
 	"""
 	
 	expected_genotypes = [[1,1,1,1,1,1] , [1,1,1,1,1,1], [1,1,1,1,1,1]]
@@ -459,6 +463,25 @@ def test_genotyping_trio13():
 	pedigree.add_individual('individual0',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(0,1,0)] * 6)
 	pedigree.add_individual('individual1',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(0,1,0)] * 6)
 	pedigree.add_individual('individual2',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(0.25,0.5,0.25)] * 6)
+	pedigree.add_relationship('individual0', 'individual1', 'individual2')
+	recombcost = [1000000,1000000,1000000,1000000,1000000,1000000]
+	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes, scaling=1000)
+	
+def test_genotyping_trio14():
+	reads = """
+	  A 111111
+	  A 111111
+	  B 111111
+	  B 000000
+	  C 000000
+	"""
+	
+	expected_genotypes = [[2,2,2,2,2,2] , [1,1,1,1,1,1], [1,1,1,1,1,1]]
+	numeric_sample_ids = NumericSampleIds()
+	pedigree = Pedigree(numeric_sample_ids)
+	pedigree.add_individual('individual0',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1/3.0,1/3.0,1/3.0)] * 6)
+	pedigree.add_individual('individual1',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1/3.0,1/3.0,1/3.0)] * 6)
+	pedigree.add_individual('individual2',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1/3.0,1/3.0,1/3.0)] * 6)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [1000000,1000000,1000000,1000000,1000000,1000000]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes, scaling=1000)

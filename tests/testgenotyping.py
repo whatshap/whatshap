@@ -158,14 +158,13 @@ def test_geno2():
 	genotypes = [2,0,1]
 	check_genotyping_single_individual(reads,None,None,genotypes,10)
 
-# TODO: why is position 2 genotyped as 1/1??
 def test_geno3():
 	reads = """
-	011011
+	111011
 	110110
 	110 10
 	110110
-	111110
+	101110
 	000 00
 	01000 
 	000010
