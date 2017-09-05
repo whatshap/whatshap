@@ -127,80 +127,6 @@ bool compare_entries(vector<const Entry*> c1, string c2){
 }
 
 
-TEST_CASE("test forward_backward", "[test forward_backward]")
-{
-    vector<string> reads = {"11 \n 01","1111111111\n0000011111", "101\n101\n101\n101\n100\n100\n100\n100","01\n11" ,"011011\n110110\n110 10\n110110\n111110\n000 00\n01000 \n000010\n100100"};
-    vector<string> weights = {"11 \n 11","1111111111\n1111111111","111\n111\n111\n111\n111\n111\n111\n111","11\n11", "111111\n111111\n111111\n111111\n111111\n111111\n111111\n111111\n111111"};
-    vector< vector<unsigned int> > expected_geno = { {1,1,1} , {1,1,1,1,1,2,2,2,2,2}, {2,0,1} ,{1,2}, {1,1,0,1,1,0}};
-
-
-    SECTION("test single individual1", "[test single individual1]")
-    {
-        ReadSet* read_set = string_to_readset(reads[0],weights[0], true);
-        std::vector<unsigned int>* positions = read_set->get_positions();
-        // no genotype likelihoods needed for genotyping mode
-        std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods(positions->size(),nullptr);
-        // recombination costs set to 1
-        std::vector<unsigned int> recombcost(positions->size(), 1);
-        // add a single individual to the pedigree
-        Pedigree* pedigree = new Pedigree;
-        pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), genotype_likelihoods);
-        // construct the dp table and perform forward-backward algorithm
-        GenotypeDPTable dp_table(read_set, recombcost, pedigree, positions);
-        // get the computed likelihoods
-        for(unsigned int pos = 0; pos < 3; pos++){
-            std::vector<long double> likelihoods = dp_table.get_genotype_likelihoods(0,pos);
-        }
-
-        delete read_set;
-        delete pedigree;
-        delete positions;
-    }
-
-
-
-    SECTION("test single individual2", "[test single individual2]")
-    {
-        std::vector<long double> likelihoods;
-        for(unsigned int i = 0; i < reads.size(); i++){
-            ReadSet* read_set = string_to_readset(reads[i],weights[i], true);
-            std::vector<unsigned int>* positions = read_set->get_positions();
-            // no genotype likelihoods needed for genotyping mode
-            std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods(positions->size(),nullptr);
-            // recombination costs set to 1
-            std::vector<unsigned int> recombcost(positions->size(), 1);
-            // add a single individual to the pedigree
-            Pedigree* pedigree = new Pedigree;
-            pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), genotype_likelihoods);
-            // construct the dp table and perform forward-backward algorithm
-            GenotypeDPTable dp_table(read_set, recombcost, pedigree, positions);
-            // get the computed likelihoods
-            std::vector<long double> likelihoods = dp_table.get_genotype_likelihoods(0,0);
-
-            for(unsigned int pos = 0; pos < positions->size(); pos++){
-                std::vector<long double> likelihoods = dp_table.get_genotype_likelihoods(0,pos);
-                int pos_max = -1;
-                long double cur_max = -1.0L;
-                for(unsigned int u = 0; u < likelihoods.size(); u++){
-                    if(likelihoods[u] > cur_max){
-                        cur_max = likelihoods[u];
-                        pos_max = u;
-                    }
-
-                }
-                std::cout << reads[i] << " " << pos << std::endl;
-                REQUIRE(pos_max == expected_geno[i][pos]);
-            }
-
-            delete read_set;
-            delete pedigree;
-            delete positions;
-
-        }
-
-    }
-
-}
 /*
 TEST_CASE("test transition prob computer", "[test transition prob computer]"){
 
@@ -231,18 +157,33 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
     vector<std::string> reads = {"11\n00", "10\n11", "00\n00", "10\n10", "01\n10"};
     std::string weights = "11\n11";
 
-    SECTION("test simple example", "[test simple example]"){
+    SECTION("test trio uniform priors", "[test trio uniform]"){
         ReadSet* read_set = string_to_readset(reads[0],weights,false);
         std::vector<unsigned int>* positions = read_set->get_positions();
         std::vector<unsigned int> recombcost(positions->size(), 10);
-        Pedigree* pedigree = new Pedigree;
-        pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), std::vector<PhredGenotypeLikelihoods*> (positions->size(),nullptr));
-        pedigree->addIndividual(1, std::vector<unsigned int >(positions->size(),1), std::vector<PhredGenotypeLikelihoods*> (positions->size(),nullptr));
-        pedigree->addIndividual(2, std::vector<unsigned int >(positions->size(),1), std::vector<PhredGenotypeLikelihoods*> (positions->size(),nullptr));
+        Pedigree* pedigree = new Pedigree();
+
+        std::vector<PhredGenotypeLikelihoods*> gl_mother;
+        std::vector<PhredGenotypeLikelihoods*> gl_father;
+        std::vector<PhredGenotypeLikelihoods*> gl_child;
+
+        for(unsigned int i = 0; i < positions->size(); i++){
+            PhredGenotypeLikelihoods* n_m = new PhredGenotypeLikelihoods(1/3.0,1/3.0,1/3.0);
+            PhredGenotypeLikelihoods* n_f = new PhredGenotypeLikelihoods(1/3.0,1/3.0,1/3.0);
+            PhredGenotypeLikelihoods* n_c = new PhredGenotypeLikelihoods(1/3.0,1/3.0,1/3.0);
+            gl_mother.push_back(n_m);
+            gl_father.push_back(n_f);
+            gl_child.push_back(n_c);
+        }
+
+        pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), gl_mother);
+        pedigree->addIndividual(1, std::vector<unsigned int >(positions->size(),1), gl_father);
+        pedigree->addIndividual(2, std::vector<unsigned int >(positions->size(),1), gl_child);
         pedigree->addRelationship(0,1,2);
 
         // create all pedigree partitions
         std::vector<PedigreePartitions*> pedigree_partitions;
+
         for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
         {
             pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i));
@@ -254,45 +195,130 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
             long double nor = (0.9L*0.9L+2*0.1L*0.9L+0.1L*0.1L);
 
             for(unsigned int i = 0; i < 4; i++){
-              long double row_sum = 0.0L;
+              long double sum = 0.0L;
               for(unsigned int j = 0; j < 4; j++){
                   unsigned int index = popcount(i ^ j);
                   REQUIRE((float)(expected_cost[index]/nor) == (float)trans.get_prob_transmission(i,j));
-                  row_sum += (float)trans.get_prob_transmission(i,j);
+                  for(unsigned int a = 0; a < 16; a++){
+                      if(j==0 || j==3){
+                          if(a==6 || a==9){
+                              REQUIRE(trans.get_prob_allele_assignment(j,a) == 1/30.0L);
+                          } else {
+                              REQUIRE(trans.get_prob_allele_assignment(j,a) == 1/15.0L);
+                          }
+                      } else {
+                          if(a==5 || a==10){
+                              REQUIRE(trans.get_prob_allele_assignment(j,a) == 1/30.0L);
+                          } else {
+                              REQUIRE(trans.get_prob_allele_assignment(j,a) == 1/15.0L);
+                          }
+                      }
+                      sum += (float)trans.get_prob_transmission(i,j) * (float)trans.get_prob_allele_assignment(j,a);
+                  }
                 }
-                REQUIRE(float(row_sum) == 1.0);
+                REQUIRE(float(sum) == 1.0);
             }
         }
 
-        // delete pointers
         delete read_set;
         delete positions;
         delete pedigree;
         for(unsigned int i=0; i < pedigree_partitions.size(); i++){
             delete pedigree_partitions[i];
         }
+
+    }
+
+    SECTION("test trio non-uniform priors", "[test trio non-uniform]"){
+        ReadSet* read_set = string_to_readset(reads[0],weights,false);
+        std::vector<unsigned int>* positions = read_set->get_positions();
+        std::vector<unsigned int> recombcost(positions->size(), 10);
+        Pedigree* pedigree = new Pedigree();
+
+        std::vector<PhredGenotypeLikelihoods*> gl_mother;
+        std::vector<PhredGenotypeLikelihoods*> gl_father;
+        std::vector<PhredGenotypeLikelihoods*> gl_child;
+
+        for(unsigned int i = 0; i < positions->size(); i++){
+            PhredGenotypeLikelihoods* n_m = new PhredGenotypeLikelihoods(0,1,0);
+            PhredGenotypeLikelihoods* n_f = new PhredGenotypeLikelihoods(0,1,0);
+            PhredGenotypeLikelihoods* n_c = new PhredGenotypeLikelihoods(0.25,0.5,0.25);
+            gl_mother.push_back(n_m);
+            gl_father.push_back(n_f);
+            gl_child.push_back(n_c);
+        }
+
+        pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), gl_mother);
+        pedigree->addIndividual(1, std::vector<unsigned int >(positions->size(),1), gl_father);
+        pedigree->addIndividual(2, std::vector<unsigned int >(positions->size(),1), gl_child);
+        pedigree->addRelationship(0,1,2);
+
+        // create all pedigree partitions
+        std::vector<PedigreePartitions*> pedigree_partitions;
+
+        for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
+        {
+            pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i));
+        }
+
+        for(unsigned int column_index = 0; column_index < positions->size(); ++column_index){
+            TransitionProbabilityComputer trans(column_index,10,pedigree,pedigree_partitions);
+            std::vector<long double> expected_cost = {0.9L*0.9L, 0.1L*0.9L, 0.1L*0.1L};
+            long double nor = (0.9L*0.9L+2*0.1L*0.9L+0.1L*0.1L);
+
+            for(unsigned int i = 0; i < 4; i++){
+              long double sum = 0.0L;
+              for(unsigned int j = 0; j < 4; j++){
+                  unsigned int index = popcount(i ^ j);
+                  REQUIRE((float)(expected_cost[index]/nor) == (float)trans.get_prob_transmission(i,j));
+                  for(unsigned int a = 0; a < 16; a++){
+                      long double allele_prob = trans.get_prob_allele_assignment(j,a);
+                      if(allele_prob != 0.0L){
+                         REQUIRE(allele_prob == 1/4.0L);
+                      }
+                      sum += (float)trans.get_prob_transmission(i,j) * (float)trans.get_prob_allele_assignment(j,a);
+                  }
+                }
+                REQUIRE(float(sum) == 1.0);
+            }
+        }
+
+        delete read_set;
+        delete positions;
+        delete pedigree;
+        for(unsigned int i=0; i < pedigree_partitions.size(); i++){
+            delete pedigree_partitions[i];
+        }
+
     }
 
    SECTION("test for single individual", "[test for single individual]"){
        ReadSet* read_set = string_to_readset(reads[0],weights,false);
        std::vector<unsigned int>* positions = read_set->get_positions();
        std::vector<unsigned int> recombcost(positions->size(), 10);
-       Pedigree* pedigree = new Pedigree;
-       pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), std::vector<PhredGenotypeLikelihoods*> (positions->size(),nullptr));
+       Pedigree* pedigree = new Pedigree();
+
+       std::vector<PhredGenotypeLikelihoods*> gl;
+       for(unsigned int i = 0; i < positions->size(); i++){
+           PhredGenotypeLikelihoods* n = new PhredGenotypeLikelihoods(1/3.0,1/3.0,1/3.0);
+           gl.push_back(n);
+       }
+
+       pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), gl);
        std::vector<PedigreePartitions*> pedigree_partitions;
+
 
        for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
        {
            pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i));
        }
+
        for(unsigned int column_index = 0; column_index < positions->size(); ++column_index){
            TransitionProbabilityComputer trans(column_index,10,pedigree,pedigree_partitions);
            for(unsigned int a = 0; a < 1<<pedigree_partitions[0]->count(); ++a){
             if((a>0) && (a<3)){
-                std::cout << a << std::endl;
                 REQUIRE((trans.get_prob_transmission(0,0)*trans.get_prob_allele_assignment(0,a)) == 1.0L/6.0L);
             } else {
-                std::cout << a << std::endl;
                 REQUIRE((trans.get_prob_transmission(0,0)*trans.get_prob_allele_assignment(0,a)) == 1.0L/3.0L);
             }
            }
@@ -448,3 +474,4 @@ TEST_CASE("test scaling of vector", "[test scaling of vector]"){
         }
     }
 }
+
