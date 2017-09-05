@@ -349,6 +349,9 @@ def add_arguments(parser):
 		'If error probability of genotype is higher, genotype ./. is output.')
 	arg('--include-gt-priors', dest='gtpriors', default=False, action='store_true',
 		help='Do initial genotyping and use these prior genotype likelihoods as transition probabilities (default: uniform genotype likelihoods).')
+	arg('-p', '--prioroutput', default=None, help='output prior genotype likelihoods to the given file.')
+	arg('--constant', metavar='CONSTANT', default=0, type=int, help='When using option --include-gt-priors, this constant is added to all gt likelihoods (default:0).')
+	
 	arg = parser.add_argument_group('Pedigree genotyping').add_argument
 	arg('--ped', metavar='PED/FAM',
 		help='Use pedigree information in PED file to improve phasing '
@@ -361,9 +364,6 @@ def add_arguments(parser):
 	arg('--genmap', metavar='FILE',
 		help='File with genetic map (used with --ped) to be used instead of constant recombination '
 		'rate, i.e. overrides option --recombrate.')
-	arg('-p', '--prioroutput', default=None, help='output prior genotype likelihoods to the given file.')
-	arg('--constant', metavar='CONSTANT', default=0, type=int, help='When using option --include-gt-priors, this constant is added to all gt likelihoods (default:0).')
-
 
 def validate(args, parser):
 	if args.ignore_read_groups and args.ped:
