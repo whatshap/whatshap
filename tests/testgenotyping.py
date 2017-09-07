@@ -266,7 +266,7 @@ def test_geno_10():
 	111111
 		 """
 	genotypes = [1,1,0,0,1,1]
-	genotype_priors = [PhredGenotypeLikelihoods(0.99,0.005,0.005), PhredGenotypeLikelihoods(0.1,0.8,0.1),
+	genotype_priors = [PhredGenotypeLikelihoods(0.1,0.8,0.1), PhredGenotypeLikelihoods(0.1,0.8,0.1),
 	PhredGenotypeLikelihoods(0.7,0.2,0.1),PhredGenotypeLikelihoods(0.7,0.2,0.1),PhredGenotypeLikelihoods(0.1,0.8,0.1), PhredGenotypeLikelihoods(0.1,0.8,0.1)]
 	check_genotyping_single_individual(reads,None,None,genotypes, 50, genotype_priors)
 
@@ -389,6 +389,19 @@ def test_weighted_genotyping5():
 	"""
 	genotypes = [1,1,1,1]
 	check_genotyping_single_individual(reads, weights,None,genotypes,10)
+	
+def test_weighted_genotyping6():
+	reads = """
+		10
+		10
+		 """
+	weights = """
+		99
+		99
+	"""
+	genotype_priors = [PhredGenotypeLikelihoods(0.5,0.5,0), PhredGenotypeLikelihoods(0,0.5,0.5)]
+	expected_likelihoods = [[0,1,0],[0,1,0]]
+	check_genotyping_single_individual(reads,weights,expected_likelihoods, None, 1000, genotype_priors)	
 
 def test_small_example():
 	reads = """

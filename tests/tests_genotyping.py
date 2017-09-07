@@ -289,25 +289,54 @@ def test_wrong_chromosome():
 		run_genotyping(phase_input_files=[short_bamfile],
 			ignore_read_groups=True,
 			variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)
-
-def test_adding_constant():
-	
-	with TemporaryDirectory() as tempdir:
-		outvcf = tempdir + '/output_constants.vcf'
-		out_p = tempdir + '/priors.vcf'
-		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf',
-			prioroutput=out_p, output=outvcf, indels=False, gtpriors=True, constant=1000000000000)
 		
-		priors = open(out_p,'r')		
-		priors.seek(0)
-
-		lines = [line for line in priors.readlines() if not line.startswith('#')]
+def extract_likelihoods(line):
+	entries = line.split()
+	likelihood_str = entries[9].split(':')[-1:][0]
+	likelihoods = [10.0**float(i) for i in likelihood_str.split(',')]
+	return likelihoods	
+		
+def test_adding_constant():
+	for const in [0.1,0.2,0.3,0.5,0.7,1,2,5,10,20,100]:
+		with TemporaryDirectory() as tempdir:
+			priors_raw_vcf = tempdir + '/output.raw_priors.vcf'
+			outvcf_raw_vcf = tempdir + '/output_raw.vcf'
+			priors_const_vcf = tempdir + '/output.const_priors.vcf'
+			outvcf_const_vcf = tempdir + '/output_raw.vcf'			
+			
+			# run genotyping without adding constant to priors
+			run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf',
+				prioroutput=priors_raw_vcf, output=outvcf_raw_vcf, indels=False, gtpriors=True)
+				
+			# run genotyping with modified priors
+			run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf',
+				prioroutput=priors_const_vcf, output=outvcf_const_vcf, indels=False, gtpriors=True, constant=const)
+		
+			# check if priors were modified properly
+			priors_raw = open(priors_raw_vcf, 'r')
+			priors_const = open(priors_const_vcf, 'r')			
+			
+			priors_raw.seek(0)
+			priors_const.seek(0)
+			
+			lines_raw = [line for line in priors_raw.readlines() if not line.startswith('#')]
+			lines_const = [line for line in priors_const.readlines() if not line.startswith('#')]
+			
+			assert(len(lines_raw) == len(lines_const))
 	
-		for line in lines:
-			entries = line.split()
-			likelihood_str = entries[9].split(':')[-1:][0]
-			likelihoods = [round(10**float(i),2) for i in likelihood_str.split(',')]
-			real_likelihoods = [10**float(i) for i in likelihood_str.split(',')]
-			print('likelihoods:', likelihoods, real_likelihoods)
-			assert(likelihoods == [0.33, 0.33,0.33])
-		priors.close()
+			for i in range(len(lines_raw)):
+				likelihoods_raw = extract_likelihoods(lines_raw[i])
+				likelihoods_const = extract_likelihoods(lines_const[i])
+				
+				norm_sum = likelihoods_raw[0]+likelihoods_raw[1]+likelihoods_raw[2] + 3.0*const
+				#print('raw likelihoods: ', likelihoods_raw, ' modified likelihoods: ', likelihoods_const)
+				
+				print(float(likelihoods_const[0]),float((likelihoods_raw[0] + const)/norm_sum))
+				print(float(likelihoods_const[1]),float((likelihoods_raw[1] + const)/norm_sum))	
+				print(float(likelihoods_const[2]),float((likelihoods_raw[2] + const)/norm_sum))			
+				
+				for j in range(3):
+					assert(round(likelihoods_const[j],10) == round((likelihoods_raw[j] + const)/norm_sum,10))
+				
+			priors_raw.close()
+			priors_const.close()
