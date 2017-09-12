@@ -45,7 +45,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None,
 		ignore_read_groups=False, indels=True, mapping_quality=20,
 		max_coverage=15, gtpriors=False,
-		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=15, prioroutput=None, constant=0):
+		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=15, prioroutput=None, constant=0.0):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
 	all variants are computed using the forward backward algorithm
@@ -350,7 +350,7 @@ def add_arguments(parser):
 	arg('--include-gt-priors', dest='gtpriors', default=False, action='store_true',
 		help='Do initial genotyping and use these prior genotype likelihoods as transition probabilities (default: uniform genotype likelihoods).')
 	arg('-p', '--prioroutput', default=None, help='output prior genotype likelihoods to the given file.')
-	arg('--constant', metavar='CONSTANT', default=0, type=int, help='When using option --include-gt-priors, this constant is added to all gt likelihoods (default:0).')
+	arg('--constant', metavar='CONSTANT', default=0, type=float, help='When using option --include-gt-priors, this constant is added to all gt likelihoods (default:0).')
 	
 	arg = parser.add_argument_group('Pedigree genotyping').add_argument
 	arg('--ped', metavar='PED/FAM',
