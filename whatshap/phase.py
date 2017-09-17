@@ -389,7 +389,7 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 					logger.info('---- Initial genotyping of %s', sample)
 					with timers('read_bam'):
 						bam_sample = None if ignore_read_groups else sample
-						readset = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
+						readset, vcf_source_ids = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
 						readset.sort()
 						genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
 						variant_table.set_genotypes_of(sample, genotypes)

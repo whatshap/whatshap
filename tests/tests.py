@@ -618,3 +618,8 @@ def test_indel_phasing():
 		phase0 = VariantCallPhase(41, 0, None)
 		phase1 = VariantCallPhase(41, 1, None)
 		assert_phasing(table.phases_of('sample1'), [phase0, phase1, phase0, phase1])
+
+
+def test_full_genotyping():
+	run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
+		output='/dev/null', full_genotyping=True)
