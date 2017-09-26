@@ -116,8 +116,6 @@ def edit_distance_affine_gap(query,ref, mismatch_cost, int gap_start=1, int gap_
 	mismatch_cost -- list with mismatch costs for each position
 
 	"""
-
-	# TODO: use base qualities given in read as mismatch cost
 	# TODO: which parameters to use for match/gap/gap_extend?
 
 	assert len(query) == len(mismatch_cost)
@@ -130,6 +128,7 @@ def edit_distance_affine_gap(query,ref, mismatch_cost, int gap_start=1, int gap_
 	cdef bytes s_bytes, t_bytes
 	cdef char* sv
 	cdef char* tv
+	cdef len_p = 0
 
 	s_bytes = query.encode() if isinstance(query, unicode) else query
 	t_bytes = ref.encode() if isinstance(ref, unicode) else ref
@@ -137,16 +136,17 @@ def edit_distance_affine_gap(query,ref, mismatch_cost, int gap_start=1, int gap_
 	tv = t_bytes
 	
 	# Skip identical prefixes
-#	while m > 0 and n > 0 and sv[0] == tv[0]:
-#		sv += 1
-#		tv += 1
-#		m -= 1
-#		n -= 1
+	while m > 0 and n > 0 and sv[0] == tv[0]:
+		sv += 1
+		tv += 1
+		m -= 1
+		n -= 1
+		len_p += 1 
 
-#	# Skip identical suffixes
-#	while m > 0 and n > 0 and sv[m-1] == tv[n-1]:
-#		m -= 1
-#		n -= 1
+	# Skip identical suffixes
+	while m > 0 and n > 0 and sv[m-1] == tv[n-1]:
+		m -= 1
+		n -= 1
 
 	# three DP tables needed
 	cdef float[:] a = cvarray(shape=(m+1,), itemsize=sizeof(float), format="f")
@@ -174,7 +174,7 @@ def edit_distance_affine_gap(query,ref, mismatch_cost, int gap_start=1, int gap_
 		c[0] = f(j, gap_start, gap_extend)
 
 		for i in range(1,m+1):
-			m_c = mismatch_cost[i-1]
+			m_c = mismatch_cost[i-1 + len_p]
 			if sv[i-1] == tv[j-1]:
 				m_c = match_cost
 		
