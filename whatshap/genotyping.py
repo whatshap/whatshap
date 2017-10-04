@@ -270,8 +270,11 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 					# store results
 					for s in family:
 						# all final genotypes/likelihoods to be stored (including non-accessible positions)
-						likelihood_list = [None] * len(variant_table)
-						genotypes_list = [-1] * len(variant_table)
+						#likelihood_list = [None] * len(variant_table)
+						#genotypes_list = [-1] * len(variant_table)
+
+						likelihood_list = variant_table.genotype_likelihoods_of(s)
+						genotypes_list = variant_table.genotypes_of(s)
 						
 						for pos in range(len(accessible_positions)):
 							likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
