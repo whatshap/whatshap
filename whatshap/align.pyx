@@ -110,13 +110,13 @@ def f(l, gap_start, gap_ext):
 def edit_distance_affine_gap(query,ref, mismatch_cost, int gap_start=1, int gap_extend=1):
 	"""
 	Compute edit distance between strings s and t using affine gap costs.
+	(gotoh-algorithm)
 	
 	gap_start -- cost for starting a gap
 	gap_extend -- cost for extending a gap
 	mismatch_cost -- list with mismatch costs for each position
 
 	"""
-	# TODO: which parameters to use for match/gap/gap_extend?
 
 	assert len(query) == len(mismatch_cost)
 

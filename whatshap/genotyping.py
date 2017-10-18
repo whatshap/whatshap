@@ -45,7 +45,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None,
 		ignore_read_groups=False, indels=True, mapping_quality=20,
 		max_coverage=15, gtpriors=False,
-		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=15, prioroutput=None, constant=0.0, affine_gap=False):
+		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=0, prioroutput=None, constant=0.0, affine_gap=False):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
 	all variants are computed using the forward backward algorithm
@@ -197,8 +197,8 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 				# use uniform genotype likelihoods for all individuals
 				for sample in samples:
 					variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * len(positions))
-			
-			#print('priors: ',variant_table.genotype_likelihoods_of(sample))
+
+			# if desired, output the priors in separate vcf
 			if prioroutput != None:
 				prior_vcf_writer.write_genotypes(chromosome,variant_table,indels)	
 			
@@ -269,10 +269,6 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 					forward_backward_table = GenotypeDPTable(numeric_sample_ids, all_reads, recombination_costs, pedigree, accessible_positions)
 					# store results
 					for s in family:
-						# all final genotypes/likelihoods to be stored (including non-accessible positions)
-						#likelihood_list = [None] * len(variant_table)
-						#genotypes_list = [-1] * len(variant_table)
-
 						likelihood_list = variant_table.genotype_likelihoods_of(s)
 						genotypes_list = variant_table.genotypes_of(s)
 						
@@ -345,8 +341,8 @@ def add_arguments(parser):
 	arg('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
 		help='Name of chromosome to genotyped. If not given, all chromosomes in the '
 		'input VCF are genotyped. Can be used multiple times.')
-	arg('--gt-qual-threshold', metavar='GTQUALTHRESHOLD', type=float, default=15,
-		help='Phred scaled error probability threshold used for genotyping (default: 15). Must be at least 0. '
+	arg('--gt-qual-threshold', metavar='GTQUALTHRESHOLD', type=float, default=0,
+		help='Phred scaled error probability threshold used for genotyping (default: 0). Must be at least 0. '
 		'If error probability of genotype is higher, genotype ./. is output.')
 	arg('--include-gt-priors', dest='gtpriors', default=False, action='store_true',
 		help='Do initial genotyping and use these prior genotype likelihoods as transition probabilities (default: uniform genotype likelihoods).')

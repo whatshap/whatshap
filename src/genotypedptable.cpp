@@ -274,9 +274,10 @@ void GenotypeDPTable::compute_backward_column(size_t column_index, unique_ptr<ve
            // sum up entries in backward projection column
            for(unsigned int a = 0; a < number_of_allele_assignments; ++a){
                if(column_index > 0){
+                   long double local_cost = cost_computers[i].get_cost(a);
                    for(size_t j = 0; j < transmission_configurations; ++j){
                        long double transition_prob = transition_probability_table[column_index]->get_prob_transmission(j,i) * transition_probability_table[column_index]->get_prob_allele_assignment(i,a);
-                       current_projection_column->at(backward_projection_index, j) += backward_prob * cost_computers[i].get_cost(a) * transition_prob;
+                       current_projection_column->at(backward_projection_index, j) += backward_prob * local_cost * transition_prob;
                    }
                }
                scaling_sum += backward_prob;
