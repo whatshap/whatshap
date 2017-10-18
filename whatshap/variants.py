@@ -389,15 +389,30 @@ class ReadSetReader:
 		if use_affine:
 			# get base qualities if present (to be used as mismatch costs)
 			# TODO which default values to use in case no qualities are available?
-			base_qualities = [30] * len(query)
+			base_qualities = [14] * len(query)
 			if bam_read.query_qualities != None:
 				base_qualities = bam_read.query_qualities[query_pos-left_query_bases:query_pos+right_query_bases]
 
 			# compute edit dist. with affine gap costs using base qual. as mismatch cost
 			# TODO which gap_start, gap_extend cost to use?
-			distance_ref = edit_distance_affine_gap(query,ref,base_qualities,10,7)
-			distance_alt = edit_distance_affine_gap(query,alt,base_qualities,10,7)
+			distance_ref = edit_distance_affine_gap(query,ref,base_qualities,11,5)
+			distance_alt = edit_distance_affine_gap(query,alt,base_qualities,11,5)
 			base_qual_score = abs(distance_ref-distance_alt)
+
+			# TODO remove, just for analysis ...
+#			edit_ref = edit_distance(query, ref)
+#			edit_alt = edit_distance(query, alt)
+#
+#			if edit_ref < edit_alt:
+#				print('REF' + '\t' + str(distance_alt - distance_ref))
+#			elif edit_ref > edit_alt:
+#				print('ALT' + '\t' + str(distance_alt - distance_ref))
+#			else:
+#				print('NONE' + '\t' + str(distance_alt - distance_ref))
+			
+			## analysis 2 ##
+#			print(bam_read.query_name[-4:] + '\tedit_score:\t' + str(edit_alt - edit_ref) + '\taffine_score:\t' + str(distance_alt - distance_ref))
+
 		else:
 			distance_ref = edit_distance(query, ref)
 			distance_alt = edit_distance(query, alt)
