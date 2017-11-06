@@ -787,15 +787,15 @@ class GenotypeVcfWriter:
 					if not geno == -1:
 						# TODO default value ok?
 						if geno_q > 0:
-							values['GQ'] = round(-10.0 * math.log10(geno_q))
+							values['GQ'] = min(round(-10.0 * math.log10(geno_q)), 10000)
 						else:
-							values['GQ'] = 500
+							values['GQ'] = 10000
 					else:
 						values['GQ'] = '.'
 						
 					# TODO default value ok?
 					# store likelihoods log10-scaled				
-					values['GL'] = [math.log10(j) if j>0 else -50.0 for j in geno_l]
+					values['GL'] = [max(math.log10(j),-1000) if j>0 else -1000 for j in geno_l]
 
 					record.QUAL = '.'
 					
