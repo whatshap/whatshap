@@ -353,7 +353,7 @@ def add_arguments(parser):
 	arg('--affine-gap', default=False, action='store_true', help='When detecting alleles through re-alignment, use affine gap costs (EXPERIMENTAL).')
 	arg('--gap-start', metavar='GAPSTART', default=10, type=float, help='gap starting penalty in case affine gap costs are used (default: %(default)s).')
 	arg('--gap-extend', metavar='GAPEXTEND', default=7, type=float, help='gap extend penalty in case affine gap costs are used (default: %(default)s).')	
-	arg('--mismatch', metavar='MISMATCH', default=15, type=float, help='mismatch cost in case affine gap costs are used and no base qualities are available in bam (if the are available, always use them as mismatch costs) (default: %(default)s)')
+	arg('--mismatch', metavar='MISMATCH', default=15, type=float, help='mismatch cost in case affine gap costs are used (default: %(default)s)')
 
 	arg = parser.add_argument_group('Pedigree genotyping').add_argument
 	arg('--ped', metavar='PED/FAM',

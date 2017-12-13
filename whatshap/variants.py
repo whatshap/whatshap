@@ -402,8 +402,8 @@ class ReadSetReader:
 
 			# get base qualities if present (to be used as mismatch costs)
 			base_qualities = [default_mismatch] * len(query)
-			if bam_read.query_qualities != None:
-				base_qualities = bam_read.query_qualities[query_pos-left_query_bases:query_pos+right_query_bases]
+			#if bam_read.query_qualities != None:
+			#	base_qualities = bam_read.query_qualities[query_pos-left_query_bases:query_pos+right_query_bases]
 
 			# compute edit dist. with affine gap costs using base qual. as mismatch cost
 			distance_ref = edit_distance_affine_gap(query,ref,base_qualities,gap_start,gap_extend)
