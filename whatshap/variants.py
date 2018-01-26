@@ -314,6 +314,9 @@ class ReadSetReader:
 		Return a pair (reference_bases, query_bases) where the value for
 		reference_bases may be smaller than the requested one if the CIGAR does
 		not cover enough reference bases.
+
+		Reference skips (N operators) are treated as the end of the read. That
+		is, no positions beyond a reference skip are reported.
 		"""
 		ref_pos = 0
 		query_pos = 0
@@ -331,9 +334,11 @@ class ReadSetReader:
 				query_pos += length
 			elif op == 4 or op == 5:  # soft or hard clipping
 				pass
+			elif op == 3:  # N
+				# Always stop at reference skips
+				return (reference_bases, query_pos)
 			else:
-				# TODO it should be possible to handle the N operator (ref. skip)
-				assert False
+				assert False, 'unknown CIGAR operator'
 		assert ref_pos < reference_bases
 		return (ref_pos, query_pos)
 

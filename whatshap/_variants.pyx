@@ -57,6 +57,12 @@ def _iterate_cigar(variants, int j, bam_read, cigartuples):
 					v_position = variants[j].position
 			ref_pos += length
 		elif cigar_op == 3:  # N operator (reference skip)
+			# Iterate over all variants that are in this skipped region
+			while j < n and v_position < ref_pos + length:
+				assert v_position >= ref_pos
+				j += 1
+				if j < n:
+					v_position = variants[j].position
 			ref_pos += length
 		elif cigar_op == 4:  # S operator (soft clipping)
 			query_pos += length
