@@ -4,16 +4,18 @@ from urllib.parse import urlparse
 import pysam
 import logging
 import heapq
-import gzip
 from collections import defaultdict, namedtuple
 import subprocess
+
+from .utils import detect_file_format
+
 
 logger = logging.getLogger(__name__)
 
 AlignmentWithSourceID = namedtuple('AlignmentWithSourceID', ['source_id', 'bam_alignment'])
 
 
-class BamIndexingError(Exception):
+class AlignmentFileIndexingError(Exception):
 	pass
 
 
@@ -25,24 +27,20 @@ class ReferenceNotFoundError(Exception):
 	pass
 
 
+class EmptyAlignmentFileError(Exception):
+	pass
+
+
 def is_local(path):
 	return urlparse(path).scheme == ''
 
 
-def index_bam(path):
+def index_alignment_file(path):
 	"""
 	pysam.index fails silently on errors (such as when the input BAM file is not
-	sorted). This function tries to always raise a BamIndexingError if something
-	went wrong.
+	sorted). This function tries to always raise a AlignmentFileIndexingError
+	if something went wrong.
 	"""
-	# unfortunately, some versions of samtools index also fail silently on
-	# corrupt BAM files. Before running it, we check the format manually.
-	try:
-		with gzip.GzipFile(path, 'rb') as bamfile:
-			if bamfile.read(4) != b'BAM\1':
-				raise BamIndexingError("{!r} is not a BAM file (header not found)".format(path))
-	except OSError as e:
-		raise BamIndexingError("{!r} is not a BAM file".format(path))
 	po = subprocess.Popen(['samtools', 'index', path],
 		stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
 	outs, errs = po.communicate()
@@ -51,29 +49,42 @@ def index_bam(path):
 	# on standard error.
 	assert outs == ''
 	if po.returncode != 0 or errs != '':
-		raise BamIndexingError(errs)
+		raise AlignmentFileIndexingError(errs)
 
 
 class SampleBamReader:
 	"""
-	A wrapper for Samfile that provides only those reads from a BAM file that
-	belong to a specified sample.
+	A wrapper for Samfile that provides only those reads from a BAM or CRAM file
+	that belong to a specified sample.
 	"""
-	def __init__(self, path, source_id=0):
+	def __init__(self, path, *, source_id=0, reference=None):
 		"""
-		path -- path or URL to BAM file
+		path -- URL or path to BAM or CRAM file
+		reference -- optional path to FASTA reference for CRAM
 		"""
-		if is_local(path):
-			# Raise an exception early if file does not exist or is not accessible.
-			with open(path):
-				pass
-			bai1 = path + '.bai'
-			bai2 = os.path.splitext(path)[0] + '.bai'
-			if not os.path.exists(bai1) and not os.path.exists(bai2):
-				logger.info('BAM index not found, creating it now.')
-				index_bam(path)
 		self.source_id = source_id
-		self._samfile = pysam.Samfile(path)
+		if is_local(path):
+			# This also raises an exception early if the file does not exist or is
+			# not accessible.
+			file_format = detect_file_format(path)
+
+			index_extension = '.crai' if file_format == 'CRAM' else '.bai'
+			index_path_1 = path + index_extension
+			index_path_2 = os.path.splitext(path)[0] + index_extension
+			if not os.path.exists(index_path_1) and not os.path.exists(index_path_2):
+				logger.info('%s index not found, creating it now.', file_format)
+				index_alignment_file(path)
+
+		if reference:
+			reference = os.path.abspath(reference)
+		self._samfile = pysam.AlignmentFile(path, reference_filename=reference, require_index=True)
+		# For CRAM files, AlignmentFile.fetch() does not raise an error if the
+		# reference could not be retrieved; it just returns an empty list.
+		# To detect this situation, we treat all empty alignment files as an error.
+		try:
+			next(self._samfile.fetch())
+		except StopIteration:
+			raise EmptyAlignmentFileError(path)
 		self._references = frozenset(self._samfile.references)
 		self._initialize_sample_to_group_ids()
 
@@ -85,7 +96,7 @@ class SampleBamReader:
 		Create a dictionary that maps a sample name to a set of read group ids.
 		"""
 		read_groups = self._samfile.header.get('RG', [])  # a list of dicts
-		logger.debug('Read groups in BAM header: %s', read_groups)
+		logger.debug('Read groups in CRAM/BAM header: %s', read_groups)
 		samples = defaultdict(list)
 		for read_group in read_groups:
 			samples[read_group['SM']].append(read_group['ID'])
@@ -141,22 +152,22 @@ class ComparableAlignedSegment:
 
 class MultiBamReader:
 	"""
-	Read multiple sorted BAM files and merge them on the fly.
+	Read multiple sorted CRAM/BAM files and merge them on the fly.
 
 	To avoid needing to handle renaming of duplicate read groups, this class
 	just allows to specify a desired sample name. Doing that filtering here
 	is much easier.
 	"""
 
-	def __init__(self, paths):
+	def __init__(self, paths, *, reference=None):
 		self._readers = []
 		for source_id, path in enumerate(paths):
-			self._readers.append(SampleBamReader(path, source_id))
+			self._readers.append(SampleBamReader(path, source_id=source_id, reference=reference))
 
 	def fetch(self, reference=None, sample=None):
 		"""
-		Yield reads from the specified region in all the opened BAM files,
-		merging them on the fly. Each BAM file must have a BAI index.
+		Yield reads from the specified region in all the opened CRAM/BAM files,
+		merging them on the fly. Each CRAM/BAM file must be indexed.
 
 		Yields instances of AlignmentWithSourceID, where source_id corrsponds to 
 		index of BAM file name given at construction time.
@@ -164,7 +175,7 @@ class MultiBamReader:
 		If a sample name is given, only reads that belong to that sample are
 		returned (the RG tags of each read and the RG header are used for that).
 		"""
-		assert reference != None
+		assert reference is not None
 		def make_comparable(reader):
 			for alignment in reader.fetch(reference, sample):
 				yield ComparableAlignedSegment(alignment.bam_alignment, alignment.source_id)
@@ -173,7 +184,7 @@ class MultiBamReader:
 			if reader.has_sample(sample):
 				iterators.append(make_comparable(reader))
 		if not iterators:
-			raise SampleNotFoundError('Sample not found in any input BAM file')
+			raise SampleNotFoundError('Sample not found in any input CRAM/BAM file')
 		for it in heapq.merge(*iterators):
 			yield AlignmentWithSourceID(it.source_id, it.segment)
 

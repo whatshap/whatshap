@@ -15,7 +15,7 @@ from contextlib import ExitStack
 from whatshap import __version__
 from whatshap.vcf import VcfReader
 from whatshap.core import NumericSampleIds
-from whatshap.bam import BamIndexingError, SampleNotFoundError
+from whatshap.bam import AlignmentFileIndexingError, SampleNotFoundError
 from whatshap.timer import StageTimer
 from whatshap.variants import ReadSetReader, ReadSetError
 
@@ -48,7 +48,8 @@ def add_arguments(parser):
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')
 	arg('variant_file', metavar='VCF', help='VCF file with phased variants (can be gzip-compressed)')
-	arg('alignment_file', metavar='ALIGNMENTS', help='File (BAM) with read alignments to be tagged by haplotype')
+	arg('alignment_file', metavar='ALIGNMENTS',
+		help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
 
 
 def validate(args, parser):
@@ -66,8 +67,9 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 	with ExitStack() as stack:
 		numeric_sample_ids = NumericSampleIds()
 		try:
-			readset_reader = stack.enter_context(ReadSetReader([alignment_file], numeric_sample_ids, mapq_threshold=0))
-		except (OSError, BamIndexingError) as e:
+			readset_reader = stack.enter_context(ReadSetReader([alignment_file],
+				reference=reference, numeric_sample_ids=numeric_sample_ids, mapq_threshold=0))
+		except (OSError, AlignmentFileIndexingError) as e:
 			logger.error(e)
 			sys.exit(1)
 		if reference:

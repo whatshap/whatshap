@@ -25,18 +25,19 @@ class ReadSetReader:
 	class re-discovers the variants in each read, using the
 	knowledge in the VCF of where they should occur.
 	"""
-	def __init__(self, paths, numeric_sample_ids, mapq_threshold=20):
+	def __init__(self, paths, reference, numeric_sample_ids, mapq_threshold=20):
 		"""
 		paths -- list of BAM paths
+		reference -- path to reference FASTA (can be None)
 		numeric_sample_ids -- ??
 		mapq_threshold -- minimum mapping quality
 		"""
 		self._mapq_threshold = mapq_threshold
 		self._numeric_sample_ids = numeric_sample_ids
 		if len(paths) == 1:
-			self._reader = SampleBamReader(paths[0])
+			self._reader = SampleBamReader(paths[0], reference=reference)
 		else:
-			self._reader = MultiBamReader(paths)
+			self._reader = MultiBamReader(paths, reference=reference)
 
 	def read(self, chromosome, variants, sample, reference):
 		"""

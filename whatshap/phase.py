@@ -22,9 +22,11 @@ from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSamp
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
-from .bam import BamIndexingError, SampleNotFoundError, ReferenceNotFoundError
+from .bam import AlignmentFileIndexingError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
+from .utils import detect_file_format
+
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -201,14 +203,14 @@ def write_read_list(readset, bipartition, sample_components, numeric_sample_ids,
 def split_input_file_list(input_files):
 	bams = []
 	vcfs = []
-	# TODO: maybe take a peek at the content rather than determining file type based on filename ending.
 	for filename in input_files:
-		if filename.endswith('.bam'):
+		file_format = detect_file_format(filename)
+		if file_format in ('BAM', 'CRAM'):
 			bams.append(filename)
-		elif filename.endswith('.vcf') or filename.endswith('.vcf.gz'):
+		elif file_format == 'VCF':
 			vcfs.append(filename)
 		else:
-			logger.error('Unable to determine type of input file \'%s\'', filename)
+			logger.error('Unable to determine type of input file %r', filename)
 			sys.exit(1)
 	return bams, vcfs
 
@@ -241,14 +243,31 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 	return trios, pedigree_samples
 
 
-def run_whatshap(phase_input_files, variant_file, reference=None,
-		output=sys.stdout, samples=None, chromosomes=None,
-		ignore_read_groups=False, indels=True, mapping_quality=20,
-		max_coverage=15, full_genotyping=False, distrust_genotypes=False,
+def run_whatshap(
+		phase_input_files,
+		variant_file,
+		reference=None,
+		output=sys.stdout,
+		samples=None,
+		chromosomes=None,
+		ignore_read_groups=False,
+		indels=True,
+		mapping_quality=20,
+		max_coverage=15,
+		full_genotyping=False,
+		distrust_genotypes=False,
 		include_homozygous=False,
-		ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
-		recombination_list_filename=None, tag='PS', read_list_filename=None,
-		gl_regularizer=None, gtchange_list_filename=None, default_gq=30):
+		ped=None,
+		recombrate=1.26,
+		genmap=None,
+		genetic_haplotyping=True,
+		recombination_list_filename=None,
+		tag='PS',
+		read_list_filename=None,
+		gl_regularizer=None,
+		gtchange_list_filename=None,
+		default_gq=30,
+	):
 	"""
 	Run WhatsHap.
 
@@ -282,9 +301,15 @@ def run_whatshap(phase_input_files, variant_file, reference=None,
 		numeric_sample_ids = NumericSampleIds()
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
 		try:
-			readset_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, numeric_sample_ids, mapq_threshold=mapping_quality))
-		except (OSError, BamIndexingError) as e:
+			readset_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, reference,
+				numeric_sample_ids, mapq_threshold=mapping_quality))
+		except (OSError, AlignmentFileIndexingError) as e:
 			logger.error(e)
+			sys.exit(1)
+		except EmptyAlignmentFileError as e:
+			logger.error('No reads could be retrieved from %r. If this is a CRAM file, possibly the '
+				'reference could not be found. Try to use --reference=... or check you '
+			    '$REF_PATH/$REF_CACHE settings', str(e))
 			sys.exit(1)
 		try:
 			phase_input_vcf_readers = [VcfReader(f, indels=indels, phases=True) for f in phase_input_vcf_filenames]
