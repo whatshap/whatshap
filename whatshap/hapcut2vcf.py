@@ -206,7 +206,11 @@ def run_hapcut2vcf(hapcut, vcf, output=sys.stdout):
 		f = stack.enter_context(open(hapcut))
 		parser = HapCutParser(f)
 		for chromosome, blocks in parser:
-			logger.info('Read %d phased blocks for chromosome %s', len(blocks), chromosome)
+			if not chromosome :
+				logger.info('probhap or SIH method: read %d phased blocks', len(blocks))
+				chromosome, blocks = parser._add_missing_info(vcf, blocks) # add the necessary info
+			else :
+				logger.info('HapCUT 1 or 2: read %d phased blocks for chromosome %s', len(blocks), chromosome)
 
 			# Build one read for each haplotype and the connected components
 			haplotypes = [ Read(str(i)) for i in (1, 2)]
