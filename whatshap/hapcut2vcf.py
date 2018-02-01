@@ -64,8 +64,9 @@ class HapCutParser:
 	# 307     0       1       1       1066259 G       C       0/1     0       0.000000        0.000000
 
 	block_re = re.compile(
-		'BLOCK: offset: (?P<offset>\d+) len: (?P<len>\d+) phased: (?P<phased>\d+) SPAN: (?P<span>\d+) '
-		'(MECscore (?P<mecscore>\d+\.\d+) )?fragments (?P<fragments>\d+)')
+		'BLOCK: offset: (?P<offset>\d+) len: (?P<len>\d+) '
+                '(phased: (?P<phased>\d+) )?(positions: (?P<positions>\d+) )?'
+                '(SPAN: (?P<span>\d+) (MECscore (?P<mecscore>\d+\.\d+) )?fragments (?P<fragments>\d+))?')
 
 	def __init__(self, file):
 		self._file = file
