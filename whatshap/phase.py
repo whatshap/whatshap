@@ -241,14 +241,31 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 	return trios, pedigree_samples
 
 
-def run_whatshap(phase_input_files, variant_file, reference=None,
-		output=sys.stdout, samples=None, chromosomes=None,
-		ignore_read_groups=False, indels=True, mapping_quality=20,
-		max_coverage=15, full_genotyping=False, distrust_genotypes=False,
+def run_whatshap(
+		phase_input_files,
+		variant_file,
+		reference=None,
+		output=sys.stdout,
+		samples=None,
+		chromosomes=None,
+		ignore_read_groups=False,
+		indels=True,
+		mapping_quality=20,
+		max_coverage=15,
+		full_genotyping=False,
+		distrust_genotypes=False,
 		include_homozygous=False,
-		ped=None, recombrate=1.26, genmap=None, genetic_haplotyping=True,
-		recombination_list_filename=None, tag='PS', read_list_filename=None,
-		gl_regularizer=None, gtchange_list_filename=None, default_gq=30):
+		ped=None,
+		recombrate=1.26,
+		genmap=None,
+		genetic_haplotyping=True,
+		recombination_list_filename=None,
+		tag='PS',
+		read_list_filename=None,
+		gl_regularizer=None,
+		gtchange_list_filename=None,
+		default_gq=30,
+	):
 	"""
 	Run WhatsHap.
 
