@@ -2,6 +2,11 @@
 Changes
 =======
 
+Development version
+-------------------
+
+* Support CRAM files in addition to BAM.
+
 v0.14.1 (2017-07-07)
 --------------
 * Fix compilation problem by distinguishing gcc and clang.

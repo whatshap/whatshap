@@ -53,6 +53,22 @@ def test_default_output():
 	run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf')
 
 
+def test_one_variant_cram():
+	run_whatshap(phase_input_files=['tests/data/oneread.cram'], reference='tests/data/oneread-ref.fasta',
+		variant_file='tests/data/onevariant.vcf', output='/dev/null')
+
+
+@raises(SystemExit)
+def test_cram_no_reference():
+	# This needs to fail because CRAM requires a reference, but it was not given.
+
+	# If REF_PATH is not set, pysam/htslib tries to retrieve the reference from EBI via
+	# the internet.
+	os.environ['REF_PATH'] = '/does/not/exist'
+	run_whatshap(phase_input_files=['tests/data/oneread.cram'],
+		variant_file='tests/data/onevariant.vcf', output='/dev/null')
+
+
 def test_bam_without_readgroup():
 	run_whatshap(phase_input_files=['tests/data/no-readgroup.bam'], variant_file='tests/data/onevariant.vcf',
 		output='/dev/null', ignore_read_groups=True)

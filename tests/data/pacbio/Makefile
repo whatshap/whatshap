@@ -3,7 +3,7 @@
 
 SHELL := /bin/bash
 
-all: reference.fasta pacbio.bam pacbio.bam.bai variants.vcf hapcut.txt
+all: reference.fasta pacbio.bam pacbio.bam.bai pacbio.cram pacbio.crai variants.vcf hapcut.txt
 
 ucsc.hg19.fasta:
 	@echo "Please obtain file ucsc.hg19.fasta from the GATK resource bundle to continue"
@@ -27,6 +27,11 @@ illumina-full.bam: downloaded-illumina.bam
 illumina.bam: illumina-full.bam
 	samtools view -b -s 0.3 $< > $@
 
+pacbio.cram: pacbio.bam reference.fasta
+	cp reference.fasta /tmp/
+	samtools view -T /tmp/reference.fasta -o $@ $<
+	rm /tmp/reference.fasta
+
 variants.vcf: reference.fasta illumina-full.bam illumina.bam.bai
 	freebayes -f reference.fasta illumina-full.bam | \
 		awk -vFS='\t' -vOFS='\t' '!/^#/ {$$8="."};1' | \
@@ -42,6 +47,9 @@ hapcut.txt: hairs.txt variants.vcf
 
 %.bam.bai: %.bam
 	samtools index $<
+
+%.crai: %.cram
+	samtools index $< $@
 
 %.fasta.fai: %.fasta
 	samtools faidx $<
