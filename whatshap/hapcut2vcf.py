@@ -4,7 +4,8 @@ Convert hapCUT output format to VCF
 HapCUT’s output is combined with the original VCF and
 then written as phased VCF to standard output.
 
-HapCUT 1 and 2 are supported.
+HapCUT 1 and 2 are supported, as well as probhap and refhap and fasthare of:
+<https://owww.molgen.mpg.de/~genetic-variation/SIH/>
 
 HapCUT’s output file format is explained at
 <https://github.com/vibansal/hapcut#format-of-input-and-output-files>
