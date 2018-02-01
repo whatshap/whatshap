@@ -19,6 +19,7 @@ import sys
 from collections import namedtuple
 import itertools
 from contextlib import ExitStack
+import vcf
 
 from whatshap.vcf import PhasedVcfWriter
 from whatshap.core import Read
@@ -145,6 +146,47 @@ class HapCutParser:
 		for chromosome, block in itertools.groupby(self.parse_blocks(), lambda b: b[0].chromosome):
 			yield chromosome, list(block)
 
+	@staticmethod
+	def _add_missing_info(path, blocks) :
+		"""
+		Add the missing info to the output of a SIH/probhap method, from the VCF file from
+		which the phasing was inferred (because SIH/probhap output is not self-contained)
+		"""
+		reader = vcf.Reader(filename=path)
+		id_pos = {}
+
+		count = 0
+		chromosome = None
+		for record in reader :
+			if chromosome and record.CHROM != chromosome :
+				# one of the things that is missing in SIH/probhap output is the chromosome,
+				# so we suppose the phasing came from a single chromosome
+				logger.error('There is more than one chromosome in this VCF')
+			chromosome = record.CHROM
+
+			count += 1
+			id_pos[count] = int(record.POS) - 1
+		assert chromosome # sanity check
+
+		# now go through the blocks, adding position (and chromosome)
+		new_blocks = []
+		for block in blocks :
+			new_block = []
+
+			component_id = None
+			for variant in block :
+				variant_id = variant.variant_id
+				position = id_pos[variant_id]
+
+				if not component_id :
+					component_id = position
+
+				new_variant = HapCutVariant(variant_id, chromosome, position, variant.haplotype1, variant.haplotype2, component_id)
+				new_block.append(new_variant)
+
+			new_blocks.append(new_block)
+
+		return chromosome, list(new_blocks)
 
 def run_hapcut2vcf(hapcut, vcf, output=sys.stdout):
 	command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
