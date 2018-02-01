@@ -35,7 +35,8 @@ def add_arguments(parser):
 	add('hapcut', metavar='HAPCUT-RESULT', help='hapCUT result file')
 
 
-HapCutVariant = namedtuple('HapCutVariant', ['chromosome', 'position', 'haplotype1', 'haplotype2', 'component_id'])
+
+HapCutVariant = namedtuple('HapCutVariant', ['variant_id', 'chromosome', 'position', 'haplotype1', 'haplotype2', 'component_id'])
 
 
 class ParseError(Exception):
@@ -98,9 +99,16 @@ class HapCutParser:
 					block = []
 				else:
 					fields = line.strip().split()
-					if len(fields) not in (9, 11):
-						raise ParseError('Expected nine fields (for hapCUT 1) or eleven fields (for hapCUT 2) in variant line')
-					variant_id, haplotype_1, haplotype_2, chromosome, position, reference_allele, alternative_allele, genotype = fields[:8]
+					if len(fields) not in (3, 6, 9, 11):
+						raise ParseError('Expected three fields (for a SIH method), six fields (for probhap), nine fields (for hapCUT 1) or eleven fields (for hapCUT 2) in variant line')
+					variant_id, haplotype_1, haplotype_2 = fields[:3]
+					chromosome, position = None, None # by default
+
+					component_id = None
+					if len(fields) > 6 : # HapCUT 1 or 2 (not a SIH method)
+						chromosome, position, reference_allele, alternative_allele, genotype = fields[3:8]
+						position = int(position) - 1
+						component_id = block[0].position if block else position
 
 					if len(fields) == 9:  # hapCUT 1
 						# The last fields are not actually used, we just check
@@ -127,9 +135,8 @@ class HapCutParser:
 					variant_id = int(variant_id)
 					haplotype_1 = int(haplotype_1)
 					haplotype_2 = int(haplotype_2)
-					position = int(position) - 1
-					component_id = block[0].position if block else position
-					variant = HapCutVariant(chromosome, position, haplotype_1, haplotype_2, component_id)
+
+					variant = HapCutVariant(variant_id, chromosome, position, haplotype_1, haplotype_2, component_id)
 					block.append(variant)
 		if len(block) > 0:
 			yield block
