@@ -22,7 +22,7 @@ TAGS_TO_REMOVE = frozenset(('HP', 'PQ', 'PS'))
 
 def add_arguments(parser):
 	add = parser.add_argument
-	add('vcf', metavar='VCF', help='VCF file')
+	add('vcf', metavar='VCF', help='VCF file. Use "-" to read from standard input')
 
 
 def remove_phasing(vcf_path, outfile):
@@ -30,7 +30,10 @@ def remove_phasing(vcf_path, outfile):
 	Read a VCF file, remove phasing information, and write the result to
 	outfile, which must be a file-like object.
 	"""
-	reader = vcf.Reader(filename=vcf_path)
+	if vcf_path == '-':
+		reader = vcf.Reader(fsock=sys.stdin)
+	else:
+		reader = vcf.Reader(filename=vcf_path)
 	if 'phasing' in reader.metadata:
 		reader.metadata['phasing'] = []
 	for tag in TAGS_TO_REMOVE:
