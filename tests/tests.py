@@ -81,8 +81,20 @@ def test_requested_sample_not_found():
 
 
 def test_with_reference():
-	run_whatshap(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
-		reference='tests/data/pacbio/reference.fasta')
+	# This tests also whether lowercase reference FASTA files work:
+	# If lowercase and uppercase are treated differently, then the
+	# output is slightly different from the expected.
+	out = StringIO()
+	run_whatshap(
+		phase_input_files=['tests/data/pacbio/pacbio.bam'],
+		variant_file='tests/data/pacbio/variants.vcf',
+		reference='tests/data/pacbio/reference.fasta',
+		output=out,
+		write_command_line_header=False,  # for easier VCF comparison
+	)
+	with open('tests/data/pacbio/phased.vcf') as f:
+		expected = f.read()
+	assert out.getvalue() == expected, 'VCF output not as expected'
 
 
 def test_with_reference_and_indels():

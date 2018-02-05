@@ -1,0 +1,72 @@
+##fileformat=VCFv4.1
+##fileDate=20160706
+##source=freeBayes v1.0.0-19-gefe685d
+##reference=reference.fasta
+##commandline="freebayes -f reference.fasta illumina-full.bam"
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=GQ,Number=1,Type=Float,Description="Genotype Quality, the Phred-scaled marginal (or unconditional) probability of the called genotype">
+##FORMAT=<ID=GL,Number=G,Type=Float,Description="Genotype Likelihood, log10-scaled likelihoods of the data given the called genotype for each possible genotype generated from the reference and alternate alleles given the sample ploidy">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
+##FORMAT=<ID=RO,Number=1,Type=Integer,Description="Reference allele observation count">
+##FORMAT=<ID=QR,Number=1,Type=Integer,Description="Sum of quality of the reference observations">
+##FORMAT=<ID=AO,Number=A,Type=Integer,Description="Alternate allele observation count">
+##FORMAT=<ID=QA,Number=A,Type=Integer,Description="Sum of quality of the alternate observations">
+##FORMAT=<ID=MIN,Number=1,Type=Integer,Description="Minimum depth in gVCF output block.">
+##FORMAT=<ID=PS,Number=1,Type=Integer,Description="Phase set identifier">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG004_250bp_All
+ref	10854	.	A	G	662.276	.	.	GT:PS	1|0:10854
+ref	11221	.	G	A	0.0010674	.	.	GT:PS	0|1:10854
+ref	11254	.	G	C	448.263	.	.	GT:PS	1|0:10854
+ref	11752	.	C	T	497.72	.	.	GT:PS	1|0:10854
+ref	11805	.	C	T	458.925	.	.	GT:PS	1|0:10854
+ref	11821	.	A	G	437.94	.	.	GT:PS	1|0:10854
+ref	11990	.	G	C	784.602	.	.	GT:PS	1|0:10854
+ref	12094	.	T	C	693.648	.	.	GT:PS	1|0:10854
+ref	12099	.	C	G	688.247	.	.	GT:PS	1|0:10854
+ref	12138	.	T	C	798.855	.	.	GT:PS	1|0:10854
+ref	12490	.	A	C	941.913	.	.	GT:PS	1|0:10854
+ref	12848	.	T	A	933.804	.	.	GT:PS	1|0:10854
+ref	12952	.	G	C	729.501	.	.	GT:PS	1|0:10854
+ref	12987	.	G	A	644.446	.	.	GT:PS	1|0:10854
+ref	13300	.	TAAAAAAAAAAT	TAAAAAAAAAAAAT	395.475	.	.	GT	0/1
+ref	13562	.	C	A	519.619	.	.	GT:PS	1|0:10854
+ref	13663	.	T	C	493.46	.	.	GT:PS	1|0:10854
+ref	13789	.	G	A	535.242	.	.	GT:PS	1|0:10854
+ref	13807	.	G	T	522.39	.	.	GT:PS	1|0:10854
+ref	13851	.	A	G	575.581	.	.	GT:PS	1|0:10854
+ref	13889	.	C	T	733.057	.	.	GT:PS	1|0:10854
+ref	13928	.	C	T	774.945	.	.	GT:PS	1|0:10854
+ref	14010	.	G	C	832.494	.	.	GT:PS	1|0:10854
+ref	14282	.	G	A	641.15	.	.	GT:PS	1|0:10854
+ref	14324	.	CTTTTTTTTTTTTTTTG	CTTTTTTTTTTTTTTG	217.226	.	.	GT	0/1
+ref	14748	.	C	T	578.446	.	.	GT:PS	1|0:10854
+ref	15051	.	A	G	651.084	.	.	GT:PS	1|0:10854
+ref	15258	.	T	A	552.632	.	.	GT:PS	1|0:10854
+ref	15516	.	C	T	652.654	.	.	GT:PS	1|0:10854
+ref	15591	.	G	A	517.899	.	.	GT:PS	1|0:10854
+ref	15613	.	G	A	543.061	.	.	GT:PS	1|0:10854
+ref	15640	.	T	C	587.029	.	.	GT:PS	1|0:10854
+ref	15719	.	TG	CA	456.472	.	.	GT:PS	1|0:10854
+ref	16098	.	T	C	678.618	.	.	GT:PS	1|0:10854
+ref	16609	.	CA	CACATA	622.063	.	.	GT:PS	1|0:10854
+ref	16624	.	G	A	1013.2	.	.	GT:PS	1|0:10854
+ref	16719	.	A	G	983.172	.	.	GT:PS	1|0:10854
+ref	16807	.	ATTTTTTA	ATTTA	891.666	.	.	GT:PS	1|0:10854
+ref	16974	.	A	T	1261.09	.	.	GT:PS	1|0:10854
+ref	17229	.	ACTCTCTC	ACTCTC	793.486	.	.	GT:PS	1|0:10854
+ref	17500	.	A	T	992.773	.	.	GT:PS	1|0:10854
+ref	17514	.	G	C	971.832	.	.	GT:PS	1|0:10854
+ref	17888	.	C	T	483.295	.	.	GT:PS	1|0:10854
+ref	18391	.	G	T	1051.81	.	.	GT:PS	1|0:10854
+ref	18401	.	A	C	1047.57	.	.	GT:PS	1|0:10854
+ref	18472	.	A	G	1019.57	.	.	GT:PS	1|0:10854
+ref	18485	.	A	C	985.751	.	.	GT:PS	1|0:10854
+ref	18893	.	G	A	635.973	.	.	GT:PS	1|0:10854
+ref	18914	.	A	G	617.012	.	.	GT:PS	1|0:10854
+ref	18944	.	G	C	567.673	.	.	GT:PS	1|0:10854
+ref	19077	.	CACACACACTC	TAC	69.904	.	.	GT:PS	1|0:10854
+ref	19422	.	A	G	555.938	.	.	GT:PS	1|0:10854
+ref	19450	.	G	C	638.846	.	.	GT:PS	1|0:10854
+ref	19851	.	C	T	573.798	.	.	GT:PS	1|0:10854
+ref	20137	.	T	C	135.308	.	.	GT:PS	1|0:10854
+ref	26081	.	G	T	17.3	.	.	GT:PS	0|1:10854

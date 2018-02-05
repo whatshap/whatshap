@@ -39,6 +39,9 @@ variants.vcf: reference.fasta illumina-full.bam illumina.bam.bai
 		sed -r 's|GT(:[A-Z][A-Z])*\t([01/]*):.*|GT\t\2|' > $@ && \
 	echo -e 'ref\t26081\t.\tG\tT\t17.3\t.\t.\tGT\t0/1' >> $@
 
+phased.vcf: reference.fasta reference.fasta.fai pacbio.bam pacbio.bam.bai variants.vcf
+	whatshap phase --indels --reference=reference.fasta variants.vcf pacbio.bam | grep -v '^##commandline="(whatshap' > $@
+
 hairs.txt: reference.fasta variants.vcf pacbio.bam pacbio.bam.bai
 	extractHAIRS --ref reference.fasta --indels 1 --VCF variants.vcf --bam pacbio.bam --maxIS 600 > $@
 
