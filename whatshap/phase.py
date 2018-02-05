@@ -12,7 +12,6 @@ import resource
 from collections import defaultdict
 from copy import deepcopy
 
-import pyfaidx
 from xopen import xopen
 
 from contextlib import ExitStack
@@ -25,7 +24,7 @@ from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
 from .bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
-from .utils import detect_file_format
+from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
 
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -322,9 +321,13 @@ def run_whatshap(
 			sys.exit(1)
 		if reference:
 			try:
-				fasta = stack.enter_context(pyfaidx.Fasta(reference, as_raw=True))
+				fasta = stack.enter_context(IndexedFasta(reference))
 			except OSError as e:
 				logger.error('%s', e)
+				sys.exit(1)
+			except FastaNotIndexedError as e:
+				logger.error('An index file (.fai) for the reference %r could not be found. '
+					'Please create one with "samtools faidx".', str(e))
 				sys.exit(1)
 		else:
 			fasta = None

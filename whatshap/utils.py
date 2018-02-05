@@ -1,7 +1,13 @@
 import gzip
+import pyfaidx
+import os.path
 
 
 class UnknownFileFormatError(Exception):
+	pass
+
+
+class FastaNotIndexedError(Exception):
 	pass
 
 
@@ -29,3 +35,9 @@ def detect_file_format(path):
 	except OSError:
 		pass
 	raise UnknownFileFormatError()
+
+
+def IndexedFasta(path):
+	if not os.path.exists(path + '.fai'):
+		raise FastaNotIndexedError(path)
+	return pyfaidx.Fasta(path, as_raw=True)

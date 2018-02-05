@@ -7,7 +7,6 @@ are written to stdout.
 import logging
 import sys
 import pysam
-import pyfaidx
 from hashlib import md5
 from collections import defaultdict
 
@@ -18,6 +17,8 @@ from whatshap.core import NumericSampleIds
 from whatshap.bam import AlignmentFileNotIndexedError, SampleNotFoundError
 from whatshap.timer import StageTimer
 from whatshap.variants import ReadSetReader, ReadSetError
+from whatshap.utils import IndexedFasta, FastaNotIndexedError
+
 
 logger = logging.getLogger(__name__)
 
@@ -79,9 +80,13 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 
 		if reference:
 			try:
-				fasta = stack.enter_context(pyfaidx.Fasta(reference, as_raw=True))
+				fasta = stack.enter_context(IndexedFasta(reference))
 			except OSError as e:
 				logger.error('%s', e)
+				sys.exit(1)
+			except FastaNotIndexedError as e:
+				logger.error('An index file (.fai) for the reference %r could not be found. '
+					'Please create one with "samtools faidx".', str(e))
 				sys.exit(1)
 		else:
 			fasta = None
