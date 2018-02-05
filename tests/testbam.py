@@ -1,5 +1,5 @@
 from nose.tools import raises
-from whatshap.bam import SampleBamReader, SampleNotFoundError
+from whatshap.bam import SampleBamReader, SampleNotFoundError, AlignmentFileNotIndexedError
 
 
 def test_read():
@@ -21,3 +21,8 @@ def test_read_cram():
 	reads = list(sbr.fetch('ref', 'sample'))
 	assert len(reads) == 1
 	assert reads[0].bam_alignment.opt('RG') == '1'
+
+
+@raises(AlignmentFileNotIndexedError)
+def test_no_index():
+	SampleBamReader('tests/data/not-indexed.bam')

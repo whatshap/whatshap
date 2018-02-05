@@ -6,6 +6,10 @@ Development version
 -------------------
 
 * Support CRAM files in addition to BAM.
+* `Issue 133 <https://bitbucket.org/whatshap/whatshap/issues/133/>`_:
+  No longer create BAM/CRAM index if it does not exist. This is safer when running multiple
+  WhatsHap instances in parallel. From now on, you need to create the index yourself
+  (for example with ``samtools index``) before running WhatsHap.
 
 v0.14.1 (2017-07-07)
 --------------

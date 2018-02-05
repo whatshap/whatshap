@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 AlignmentWithSourceID = namedtuple('AlignmentWithSourceID', ['source_id', 'bam_alignment'])
 
 
-class AlignmentFileIndexingError(Exception):
+class AlignmentFileNotIndexedError(Exception):
 	pass
 
 
@@ -35,27 +35,11 @@ def is_local(path):
 	return urlparse(path).scheme == ''
 
 
-def index_alignment_file(path):
-	"""
-	pysam.index fails silently on errors (such as when the input BAM file is not
-	sorted). This function tries to always raise a AlignmentFileIndexingError
-	if something went wrong.
-	"""
-	po = subprocess.Popen(['samtools', 'index', path],
-		stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-	outs, errs = po.communicate()
-	# samtools index also fails silently, at least in version 0.1.19 that comes
-	# with Ubuntu 14.10, so to detect an error, we also inspect what it prints
-	# on standard error.
-	assert outs == ''
-	if po.returncode != 0 or errs != '':
-		raise AlignmentFileIndexingError(errs)
-
-
 class SampleBamReader:
 	"""
 	A wrapper for Samfile that provides only those reads from a BAM or CRAM file
-	that belong to a specified sample.
+	that belong to a specified sample. The BAM/CRAM file must have an index
+	(bai/crai).
 	"""
 	def __init__(self, path, *, source_id=0, reference=None):
 		"""
@@ -63,26 +47,20 @@ class SampleBamReader:
 		reference -- optional path to FASTA reference for CRAM
 		"""
 		self.source_id = source_id
-		if is_local(path):
-			# This also raises an exception early if the file does not exist or is
-			# not accessible.
-			file_format = detect_file_format(path)
-
-			index_extension = '.crai' if file_format == 'CRAM' else '.bai'
-			index_path_1 = path + index_extension
-			index_path_2 = os.path.splitext(path)[0] + index_extension
-			if not os.path.exists(index_path_1) and not os.path.exists(index_path_2):
-				logger.info('%s index not found, creating it now.', file_format)
-				index_alignment_file(path)
-
 		if reference:
 			reference = os.path.abspath(reference)
-		self._samfile = pysam.AlignmentFile(path, reference_filename=reference, require_index=True)
+
+		self._samfile = pysam.AlignmentFile(path, reference_filename=reference)
+		try:
+			fetcher = self._samfile.fetch()
+		except ValueError:
+			raise AlignmentFileNotIndexedError(path)
+
 		# For CRAM files, AlignmentFile.fetch() does not raise an error if the
 		# reference could not be retrieved; it just returns an empty list.
 		# To detect this situation, we treat all empty alignment files as an error.
 		try:
-			next(self._samfile.fetch())
+			next(fetcher)
 		except StopIteration:
 			raise EmptyAlignmentFileError(path)
 		self._references = frozenset(self._samfile.references)

@@ -15,7 +15,7 @@ from contextlib import ExitStack
 from whatshap import __version__
 from whatshap.vcf import VcfReader
 from whatshap.core import NumericSampleIds
-from whatshap.bam import AlignmentFileIndexingError, SampleNotFoundError
+from whatshap.bam import AlignmentFileNotIndexedError, SampleNotFoundError
 from whatshap.timer import StageTimer
 from whatshap.variants import ReadSetReader, ReadSetError
 
@@ -69,9 +69,14 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 		try:
 			readset_reader = stack.enter_context(ReadSetReader([alignment_file],
 				reference=reference, numeric_sample_ids=numeric_sample_ids, mapq_threshold=0))
-		except (OSError, AlignmentFileIndexingError) as e:
+		except OSError as e:
 			logger.error(e)
 			sys.exit(1)
+		except AlignmentFileNotIndexedError as e:
+			logger.error('The file %r is not indexed. Please create the appropriate BAM/CRAM '
+				'index with "samtools index"', str(e))
+			sys.exit(1)
+
 		if reference:
 			try:
 				fasta = stack.enter_context(pyfaidx.Fasta(reference, as_raw=True))

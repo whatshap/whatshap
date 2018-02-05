@@ -22,7 +22,7 @@ from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSamp
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
-from .bam import AlignmentFileIndexingError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
+from .bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
 from .utils import detect_file_format
@@ -303,8 +303,12 @@ def run_whatshap(
 		try:
 			readset_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, reference,
 				numeric_sample_ids, mapq_threshold=mapping_quality))
-		except (OSError, AlignmentFileIndexingError) as e:
+		except OSError as e:
 			logger.error(e)
+			sys.exit(1)
+		except AlignmentFileNotIndexedError as e:
+			logger.error('The file %r is not indexed. Please create the appropriate BAM/CRAM '
+				'index with "samtools index"', str(e))
 			sys.exit(1)
 		except EmptyAlignmentFileError as e:
 			logger.error('No reads could be retrieved from %r. If this is a CRAM file, possibly the '
