@@ -266,6 +266,7 @@ def run_whatshap(
 		gl_regularizer=None,
 		gtchange_list_filename=None,
 		default_gq=30,
+		write_command_line_header=True,
 	):
 	"""
 	Run WhatsHap.
@@ -289,6 +290,7 @@ def run_whatshap(
 	gl_regularizer -- float to be passed as regularization constant to GenotypeLikelihoods.as_phred
 	gtchange_list_filename -- filename to write list of changed genotypes to
 	default_gq -- genotype likelihood to be used when GL or PL not available
+	write_command_line_header -- whether to add a ##commandline header to the output VCF
 	"""
 	timers = StageTimer()
 	timers.start('overall')
@@ -334,7 +336,10 @@ def run_whatshap(
 		del reference
 		if isinstance(output, str):
 			output = stack.enter_context(xopen(output, 'w'))
-		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
+		if write_command_line_header:
+			command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
+		else:
+			command_line = None
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file,
 		        out_file=output, tag=tag)
 		# Only read genotype likelihoods from VCFs when distrusting genotypes

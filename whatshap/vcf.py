@@ -455,17 +455,19 @@ class PhasedVcfWriter:
 	def __init__(self, in_path, command_line, out_file=sys.stdout, tag='PS'):
 		"""
 		in_path -- Path to input VCF, used as template.
-		command_line -- A string that will be added as a VCF header entry.
+		command_line -- A string that will be added as a VCF header entry
+			(use None to not add this to the VCF header)
 		out_file -- Open file-like object to which VCF is written.
 		tag -- which type of tag to write, either 'PS' or 'HP'
 		"""
 		self._reader = vcf.Reader(filename=in_path)
 		# FreeBayes adds phasing=none to its VCF output - remove that.
 		self._reader.metadata['phasing'] = []
-		if 'commandline' not in self._reader.metadata:
-			self._reader.metadata['commandline'] = []
-		command_line = command_line.replace('"', '')
-		self._reader.metadata['commandline'].append('"' + command_line + '"')
+		if command_line is not None:
+			if 'commandline' not in self._reader.metadata:
+				self._reader.metadata['commandline'] = []
+			command_line = command_line.replace('"', '')
+			self._reader.metadata['commandline'].append('"' + command_line + '"')
 		if tag not in ('HP', 'PS'):
 			raise ValueError('Tag must be either "HP" or "PS"')
 		if tag == 'HP':
