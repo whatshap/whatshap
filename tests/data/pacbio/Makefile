@@ -3,7 +3,7 @@
 
 SHELL := /bin/bash
 
-all: reference.fasta pacbio.bam pacbio.bam.bai pacbio.cram pacbio.crai variants.vcf hapcut.txt
+all: reference.fasta reference.fasta.fai pacbio.bam pacbio.bam.bai pacbio.cram pacbio.crai variants.vcf hapcut.txt
 
 ucsc.hg19.fasta:
 	@echo "Please obtain file ucsc.hg19.fasta from the GATK resource bundle to continue"
