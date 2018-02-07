@@ -17,9 +17,10 @@ trio_paired_end_bamfile = 'tests/data/paired_end.sorted.bam'
 recombination_breaks_bamfile = 'tests/data/recombination_breaks.sorted.bam'
 quartet2_bamfile = 'tests/data/quartet2.bam'
 short_bamfile = 'tests/data/short-genome/short.bam'
+short_duplicate_bamfile = 'tests/data/short-genome/short-one-read-duplicate.bam'
 indels_bamfile = 'tests/data/indels.bam'
 
-bam_files = [trio_bamfile, trio_merged_bamfile, trio_paired_end_bamfile, recombination_breaks_bamfile, quartet2_bamfile, short_bamfile, indels_bamfile]
+bam_files = [trio_bamfile, trio_merged_bamfile, trio_paired_end_bamfile, recombination_breaks_bamfile, quartet2_bamfile, short_bamfile, short_duplicate_bamfile, indels_bamfile]
 
 
 def setup_module():
@@ -619,6 +620,23 @@ def test_phased_blocks():
 
 		blocks = [(p.block_id if p is not None else None) for p in table.phases_of('sample')]
 		assert blocks == [10, 10, None, 200, 200]
+
+
+def test_duplicate_read():
+	with TemporaryDirectory() as tempdir:
+		outvcf = tempdir + '/output.vcf'
+		run_whatshap(phase_input_files=[short_duplicate_bamfile], variant_file='tests/data/short-genome/short.vcf', ignore_read_groups=True, distrust_genotypes=True,  include_homozygous=True, output=outvcf)
+		assert os.path.isfile(outvcf)
+
+		tables = list(VcfReader(outvcf, phases=True))
+		assert len(tables) == 1
+		table = tables[0]
+		assert table.chromosome == 'chr1'
+		assert len(table.variants) == 5
+		assert table.samples == ['sample']
+
+		blocks = [(p.block_id if p is not None else None) for p in table.phases_of('sample')]
+		assert blocks == [10, 10, None, None, None]
 
 
 @raises(SystemExit)
