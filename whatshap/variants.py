@@ -98,6 +98,8 @@ class ReadSetReader:
 				continue
 			if alignment.bam_alignment.is_unmapped:
 				continue
+			if alignment.bam_alignment.is_duplicate:
+				continue
 			yield alignment
 
 	def has_reference(self, chromosome):
