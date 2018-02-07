@@ -792,8 +792,6 @@ def validate(args, parser):
 		parser.error('Option --genmap can only be used together with --ped')
 	if args.genmap and (len(args.chromosomes) != 1):
 		parser.error('Option --genmap can only be used when working on exactly one chromosome (use --chromosome)')
-	if args.ped and args.samples:
-		parser.error('Option --sample cannot be used together with --ped')
 	if args.include_homozygous and not args.distrust_genotypes:
 		parser.error('Option --include-homozygous can only be used with --distrust-genotypes.')
 	if len(args.phase_input_files) == 0 and not args.ped:
