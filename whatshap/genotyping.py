@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Runs only the genotyping algorithm. Genotype Likelihoods are computed using the
-forward backward algorithm. 
+forward backward algorithm.
 """
 import logging
 import sys
@@ -40,12 +40,12 @@ def determine_genotype(likelihoods, threshold_prob):
 		return to_sort[2][1]
 	else:
 		return -1
-	
+
 def run_genotyping(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None,
 		ignore_read_groups=False, indels=True, mapping_quality=20,
 		max_coverage=15, gtpriors=False,
-		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=0, 
+		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=0,
 		prioroutput=None, constant=0.0, overhang=10,affine_gap=False, gap_start=10, gap_extend=7, mismatch=15):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
@@ -56,7 +56,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 	timers.start('overall')
 	logger.info("This is WhatsHap (genotyping) %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
-		
+
 		# read the given input files (bams,vcfs,ref...)
 		numeric_sample_ids = NumericSampleIds()
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
@@ -82,7 +82,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		if isinstance(output, str):
 			output = stack.enter_context(xopen(output, 'w'))
 		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
-		
+
 		# vcf writer for final genotype likelihoods
 		vcf_writer = GenotypeVcfWriter(command_line=command_line, in_path=variant_file,
 		        out_file=output)
@@ -90,11 +90,11 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		prior_vcf_writer = None
 		if prioroutput != None:
 			prior_vcf_writer = GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=open(prioroutput,'w'))
-		
-		# parse vcf with input variants 
+
+		# parse vcf with input variants
 		# remove all likelihoods that may already be present
 		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=False, ignore_genotypes=True)
-		
+
 		if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
 			logger.error('When using --ignore-read-groups on a VCF with '
 				'multiple samples, --sample must also be used.')
@@ -157,11 +157,11 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 
 		timers.start('parse_vcf')
 		for variant_table in vcf_reader:
-			
+
 			# create a mapping of genome positions to indices
 			var_to_pos = dict()
 			for i in range(len(variant_table.variants)):
-				var_to_pos[variant_table.variants[i].position] = i	
+				var_to_pos[variant_table.variants[i].position] = i
 
 			chromosome = variant_table.chromosome
 			timers.stop('parse_vcf')
@@ -173,10 +173,10 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 				if prioroutput != None:
 					prior_vcf_writer.write_genotypes(chromosome,variant_table,indels,leave_unchanged=True)
 				continue
-			
+
 			positions = [v.position for v in variant_table.variants]
 			if gtpriors:
-				# compute prior genotype likelihoods based on all reads 
+				# compute prior genotype likelihoods based on all reads
 				for sample in samples:
 					logger.info('---- Initial genotyping of %s', sample)
 					with timers('read_bam'):
@@ -194,15 +194,15 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 						variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(*gl) for gl in reg_genotype_likelihoods])
 						variant_table.set_genotypes_of(sample, genotypes)
 			else:
-				
+
 				# use uniform genotype likelihoods for all individuals
 				for sample in samples:
 					variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * len(positions))
 
 			# if desired, output the priors in separate vcf
 			if prioroutput != None:
-				prior_vcf_writer.write_genotypes(chromosome,variant_table,indels)	
-			
+				prior_vcf_writer.write_genotypes(chromosome,variant_table,indels)
+
 			# Iterate over all families to process, i.e. a separate DP table is created
 			# for each family.
 			for representative_sample, family in sorted(families.items()):
@@ -214,9 +214,9 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 				logger.info('Using maximum coverage per sample of %dX', max_coverage_per_sample)
 				trios = family_trios[representative_sample]
 				assert (len(family) == 1) or (len(trios) > 0)
-				
+
 				# Get the reads belonging to each sample
-				readsets = dict() 
+				readsets = dict()
 				for sample in family:
 					with timers('read_bam'):
 						bam_sample = None if ignore_read_groups else sample
@@ -246,7 +246,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 				pedigree = Pedigree(numeric_sample_ids)
 				for sample in family:
 					# genotypes are assumed to be unknown, so ignore information that
-					# might already be present in the input vcf 
+					# might already be present in the input vcf
 					all_genotype_likelihoods = variant_table.genotype_likelihoods_of(sample)
 					genotype_l = [ all_genotype_likelihoods[var_to_pos[a_p]] for a_p in accessible_positions]
 					pedigree.add_individual(sample, [3] * len(accessible_positions), genotype_l)
@@ -272,18 +272,18 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 					for s in family:
 						likelihood_list = variant_table.genotype_likelihoods_of(s)
 						genotypes_list = variant_table.genotypes_of(s)
-						
+
 						for pos in range(len(accessible_positions)):
 							likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
-							
+
 							# compute genotypes from likelihoods and store information
 							geno = determine_genotype(likelihoods, gt_prob)
 							genotypes_list[var_to_pos[accessible_positions[pos]]] = geno
 							likelihood_list[var_to_pos[accessible_positions[pos]]] = likelihoods
-						
+
 						variant_table.set_genotypes_of(s, genotypes_list)
 						variant_table.set_genotype_likelihoods_of(s,likelihood_list)
-					
+
 			with timers('write_vcf'):
 				logger.info('======== Writing VCF')
 				vcf_writer.write_genotypes(chromosome,variant_table,indels)
@@ -310,7 +310,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 	logger.info('Total elapsed time:                          %6.1f s', timers.elapsed('overall'))
 
 
-	
+
 def add_arguments(parser):
 	arg = parser.add_argument
 	# Positional arguments
@@ -352,7 +352,7 @@ def add_arguments(parser):
 	arg('--constant', metavar='CONSTANT', default=0, type=float, help='When using option --include-gt-priors, this constant is added to all gt likelihoods (default: %(default)s).')
 	arg('--affine-gap', default=False, action='store_true', help='When detecting alleles through re-alignment, use affine gap costs (EXPERIMENTAL).')
 	arg('--gap-start', metavar='GAPSTART', default=10, type=float, help='gap starting penalty in case affine gap costs are used (default: %(default)s).')
-	arg('--gap-extend', metavar='GAPEXTEND', default=7, type=float, help='gap extend penalty in case affine gap costs are used (default: %(default)s).')	
+	arg('--gap-extend', metavar='GAPEXTEND', default=7, type=float, help='gap extend penalty in case affine gap costs are used (default: %(default)s).')
 	arg('--mismatch', metavar='MISMATCH', default=15, type=float, help='mismatch cost in case affine gap costs are used (default: %(default)s)')
 
 	arg = parser.add_argument_group('Pedigree genotyping').add_argument

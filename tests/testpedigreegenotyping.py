@@ -11,7 +11,7 @@ import math
 def genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes, weights=None, expected=None, scaling=10, positions=None):
 	rs = string_to_readset_pedigree(reads, w=weights, scaling_quality=scaling)
 	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,rs, recombcost, pedigree, positions)
-	
+
 	# for each position compare the likeliest genotype to the expected ones
 	print(expected_genotypes)
 	positions = rs.get_positions()
@@ -22,8 +22,8 @@ def genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_g
 			# if expected likelihoods given, compare
 			if expected != None:
 				print('likelihoods: ',likelihoods,' expected likelihoods: ', expected[individual][pos])
-				assert(likelihoods == expected[individual][pos])			
-			
+				assert(likelihoods == expected[individual][pos])
+
 			# find the likeliest genotype
 			max_val = -1
 			max_index = -1
@@ -32,12 +32,12 @@ def genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_g
 				if likelihoods[i] > max_val:
 					max_val = likelihoods[i]
 					max_index = i
-					
+
 			# compare it to the expected genotype
 			print('pos.: '+ str(pos) + ' individual ' + str(individual) + ': ',likelihoods,' expected genotype: ', expected_genotypes[individual][pos])
 			assert(max_index == expected_genotypes[individual][pos])
-		print("\n")							
-	
+		print("\n")
+
 def test_genotyping_empty_trio():
 	rs = ReadSet()
 	recombcost = []
@@ -318,7 +318,7 @@ def test_genotyping_trio7():
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [1,1,1]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
-	
+
 def test_genotyping_trio8():
 	reads = """
 	  B 1100
@@ -337,7 +337,7 @@ def test_genotyping_trio8():
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
-	
+
 def test_genotyping_trio9():
 	reads = """
 	  B 1100
@@ -394,10 +394,10 @@ def test_weighted_genotyping():
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	# recombination is extremely unlikely
 	recombcost = [1000,1000,1000,1000]
-	
+
 	expected = {0: [[0,1,0],[0,1,0]], 1:[[0,1,0],[0,1,0]], 2:[[0,1.0/3.0,2/3.0],[0,1.0/3.0,2/3.0]]}
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes, weights, expected, scaling=500)
-		
+
 def test_genotyping_trio10():
 	reads = """
 	  B 0000
@@ -413,7 +413,7 @@ def test_genotyping_trio10():
 	  A 1111
 	  A 1111
 	"""
-	
+
 	# no reads for child, but genotype must be 1/0 for each pos. (due to inheritance)
 	expected_genotypes = [[2,2,2,2] , [0,0,0,0], [1,1,1,1]]
 	numeric_sample_ids = NumericSampleIds()
@@ -424,7 +424,7 @@ def test_genotyping_trio10():
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
-	
+
 def test_genotyping_trio11():
 	reads = """
 	  A 111
@@ -433,7 +433,7 @@ def test_genotyping_trio11():
 	  C 000
 	  C 110
 	"""
-	
+
 	expected_genotypes = [[1,1,1] , [2,2,1], [1,1,0]]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
@@ -443,8 +443,8 @@ def test_genotyping_trio11():
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
-	
-	
+
+
 # TODO: model fails to infer the correct genotype likelihoods of the child, if uniform priors are used for child.
 # according to mendelian inheritance, correct priors here would be:
 # A: (0,1,0), B:(0,1,0), C:(0.25,0.5,0.25), but since no reads present for child,
@@ -456,7 +456,7 @@ def test_genotyping_trio13():
 	  B 1111
 	  B 0000
 	"""
-	
+
 	expected_genotypes = [[1,1,1,1,1,1] , [1,1,1,1,1,1], [1,1,1,1,1,1]]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
@@ -466,7 +466,7 @@ def test_genotyping_trio13():
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [1000000,1000000,1000000,1000000,1000000,1000000]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes, scaling=1000)
-	
+
 def test_genotyping_trio14():
 	reads = """
 	  A 111111
@@ -475,7 +475,7 @@ def test_genotyping_trio14():
 	  B 000000
 	  C 000000
 	"""
-	
+
 	expected_genotypes = [[2,2,2,2,2,2] , [1,1,1,1,1,1], [1,1,1,1,1,1]]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)

@@ -87,7 +87,7 @@ cdef class Read:
 	def __iter__(self):
 		"""Iterate over all variants in this read"""
 		assert self.thisptr != NULL
-		for i in range(len(self)): 
+		for i in range(len(self)):
 			yield self[i]
 
 	def __len__(self):
@@ -161,9 +161,9 @@ cdef class ReadSet:
 		del self.thisptr
 
 	def add(self, Read read):
-		"""Adds a read to the set. 
+		"""Adds a read to the set.
 		WARNING: this will internally create a copy of the wrapped C++ Read object,
-		so that subsequent changes to the Read don't affect the 
+		so that subsequent changes to the Read don't affect the
 		newly created copy that is added to the ReadSet."""
 		self.thisptr.add(new cpp.Read(read.thisptr[0]))
 
@@ -210,8 +210,8 @@ cdef class ReadSet:
 			#return read
 
 	def sort(self):
-		"""Sort contained reads by the position of the first variant they contain. Note that 
-		this is not necessarily the variant with the lowest position, unless sort() has been 
+		"""Sort contained reads by the position of the first variant they contain. Note that
+		this is not necessarily the variant with the lowest position, unless sort() has been
 		called on all contained reads. Ties are resolved by comparing the read name."""
 		self.thisptr.sort()
 
@@ -232,7 +232,7 @@ cdef class ReadSet:
 		result = list(v[0])
 		del v
 		return result
-		
+
 cdef class PedigreeDPTable:
 	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree, bool distrust_genotypes = False, positions = None):
 		"""Build the DP table from the given read set which is assumed to be sorted;
@@ -356,7 +356,7 @@ cdef class PhredGenotypeLikelihoods:
 	def __iter__(self):
 		for i in range(3):
 			yield self[i]
-			
+
 
 cdef class GenotypeDPTable:
 	def __cinit__(self, numeric_sample_ids, ReadSet readset, recombcost, Pedigree pedigree, positions = None):
@@ -375,7 +375,7 @@ cdef class GenotypeDPTable:
 
 	def __dealloc__(self):
 		del self.thisptr
-		
+
 	def get_genotype_likelihoods(self, sample_id, unsigned int pos):
 		return self.thisptr.get_genotype_likelihoods(self.numeric_sample_ids[sample_id],pos)
 

@@ -283,7 +283,7 @@ class VcfReader:
 		path -- Path to VCF file
 		indels -- Whether to include also insertions and deletions in the list of
 			variants.
-		ignore_genotypes: in case of genotyping algorithm, no genotypes may be given in 
+		ignore_genotypes: in case of genotyping algorithm, no genotypes may be given in
 								vcf, so ignore all genotypes
 		"""
 		# TODO Always include deletions since they can 'overlap' other variants
@@ -417,7 +417,7 @@ class VcfReader:
 			# For example, when GT is 0/1, gt_alleles is ['0', '1'].
 			# And when GT is 2|1, gt_alleles is ['2', '1'].
 			GT_TO_INT = { 0: 0, 1: 1, 2: 2, None: -1 }
-			if not self.ignore_genotypes:		
+			if not self.ignore_genotypes:
 				genotypes = array('b', (GT_TO_INT[call.gt_type] for call in record.samples))
 			else:
 				genotypes = array('b', ([-1] * len(self.samples)))
@@ -645,8 +645,8 @@ class PhasedVcfWriter:
 			self._writer.write_record(record)
 			prev_pos = pos
 		return genotype_changes
-		
-		
+
+
 ############ class to print computed genotypes,likelihoods (still needs to be improved...) ###########
 # in input vcf, currently GT is still required..
 
@@ -670,7 +670,7 @@ class GenotypeVcfWriter:
 			self._reader.metadata['commandline'] = []
 		command_line = command_line.replace('"', '')
 		self._reader.metadata['commandline'] = [command_line]
-		
+
 		# add tag for genotype
 		fmt = vcf.parser._Format(id='GT', num=1, type='String', desc='Genotype computed by whatshap genotyping algorithm.')
 		self._reader.formats['GT'] = fmt
@@ -678,7 +678,7 @@ class GenotypeVcfWriter:
 		# add tag for genotype quality
 		fmt = vcf.parser._Format(id='GQ', num=1, type='Integer', desc='Phred scaled genotype quality computed by whatshap genotyping algorithm.')
 		self._reader.formats['GQ'] = fmt
-		
+
 		# add tag for genotype likelihoods
 		fmt = vcf.parser._Format(id='GL', num='G', type='Float', desc='log10-scaled likelihoods for genotypes: 0/0,0/1,1/1, computed by whatshap genotyping algorithm.')
 		self._reader.formats['GL'] = fmt
@@ -690,7 +690,7 @@ class GenotypeVcfWriter:
 	@property
 	def samples(self):
 		return self._reader.samples
-			
+
 	def write_genotypes(self, chromosome, variant_table, indels, leave_unchanged=False):
 		"""
 		Add genotyping information to all variants on a single chromosome.
@@ -706,7 +706,7 @@ class GenotypeVcfWriter:
 			records_iter = itertools.chain([self._unprocessed_record], self._reader_iter)
 		else:
 			records_iter = self._reader_iter
-				
+
 		# map positions to index
 		genotyped_variants = dict()
 		for i in range(len(variant_table)):
@@ -716,7 +716,7 @@ class GenotypeVcfWriter:
 		prev_pos = None
 		INT_TO_UNPHASED_GT = { 0: '0/0', 1: '0/1', 2: '1/1', -1: '.' }
 		for record in records_iter:
-			
+
 			n += 1
 			pos, ref, alt = record.start, str(record.REF), str(record.ALT[0])
 
@@ -725,11 +725,11 @@ class GenotypeVcfWriter:
 				self._unprocessed_record = record
 				assert n != 1
 				break
-	
+
 			# if current chromosome was genotyped, write this new information to vcf
-			if not leave_unchanged:	
+			if not leave_unchanged:
 				no_format_field = False
-				
+
 				# add GT,GQ,GL fields in case they are not present yet
 				if record.FORMAT == None:
 					record.FORMAT = 'GT'
@@ -738,11 +738,11 @@ class GenotypeVcfWriter:
 				else:
 					if 'GT' not in record.FORMAT.split(':'):
 						record.add_format('GT')
-				
+
 				for field in ['GQ', 'GL']:
 					if field not in record.FORMAT.split(':'):
-						record.add_format(field)				
-		
+						record.add_format(field)
+
 				if record.FORMAT not in self._reader._format_cache:
 					self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
 
@@ -755,24 +755,24 @@ class GenotypeVcfWriter:
 						values = {'GT': '.', 'GQ': '.', 'GL': '.'}
 						call.data = samp_fmt(**values)
 						record.samples.append(call)
-				
+
 
 				for i, call in enumerate(record.samples):
 					sample = self._reader.samples[i]
 					values = call.data._asdict()
-				
+
 					geno = -1
 					geno_l = [1/3.0] * 3
 					geno_q = '.'
 
-					# for genotyped variants, get computed likelihoods/genotypes (for all others, give uniform likelihoods)				
+					# for genotyped variants, get computed likelihoods/genotypes (for all others, give uniform likelihoods)
 					if pos in genotyped_variants:
 						likelihoods = variant_table.genotype_likelihoods_of(sample)[genotyped_variants[pos]]
 						# likelihoods can be 'None' if position was not accessible
 						if not likelihoods==None:
 							geno_l = likelihoods
 							geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
-					
+
 					# compute GQ
 					if geno == 0:
 						geno_q = geno_l[1] + geno_l[2]
@@ -780,7 +780,7 @@ class GenotypeVcfWriter:
 						geno_q = geno_l[0] + geno_l[2]
 					elif geno == 2:
 						geno_q = geno_l[0] + geno_l[1]
-				
+
 					# store genotype
 					values['GT'] = INT_TO_UNPHASED_GT[geno]
 					# store quality as phred score
@@ -792,13 +792,13 @@ class GenotypeVcfWriter:
 							values['GQ'] = 10000
 					else:
 						values['GQ'] = '.'
-						
+
 					# TODO default value ok?
-					# store likelihoods log10-scaled				
+					# store likelihoods log10-scaled
 					values['GL'] = [max(math.log10(j),-1000) if j>0 else -1000 for j in geno_l]
 
 					record.QUAL = '.'
-					
+
 					# delete all other genotype information that might have been present before
 					for tag in record.FORMAT.split(':'):
 						if tag not in ['GT', 'GL', 'GQ']:
@@ -807,4 +807,4 @@ class GenotypeVcfWriter:
 					call.data = samp_fmt(**values)
 			self._writer.write_record(record)
 			prev_pos = pos
-		
+

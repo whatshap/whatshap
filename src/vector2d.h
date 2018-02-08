@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <algorithm>
 
-template <typename T> 
+template <typename T>
 class Vector2D {
 public:
 	Vector2D(size_t size0 = 0, size_t size1 = 0, const T& initial_value = T() ) : size0(size0), size1(size1), v(size0*size1, initial_value) {}
@@ -26,20 +26,20 @@ public:
 	void set_all(const T& value) {
 		v.assign(size0*size1, value);
 	}
-	
+
 	size_t get_size0(){
 	  return size0;
 	}
-	
+
 	size_t get_size1(){
 	  return size1;
 	}
-	
+
 	void divide_entries_by(T val) {
 	  std::transform(v.begin(), v.end(), v.begin(),
                std::bind2nd(std::divides<T>(),val));
 	}
-	  
+
 
 	friend std::ostream& operator<<(std::ostream& out, const Vector2D<T>& v) {
 		out << "       ";

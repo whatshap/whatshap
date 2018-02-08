@@ -111,7 +111,7 @@ def edit_distance_affine_gap(query,ref, mismatch_cost, int gap_start=1, int gap_
 	"""
 	Compute edit distance between strings s and t using affine gap costs.
 	(gotoh-algorithm)
-	
+
 	gap_start -- cost for starting a gap
 	gap_extend -- cost for extending a gap
 	mismatch_cost -- list with mismatch costs for each position
@@ -134,14 +134,14 @@ def edit_distance_affine_gap(query,ref, mismatch_cost, int gap_start=1, int gap_
 	t_bytes = ref.encode() if isinstance(ref, unicode) else ref
 	sv = s_bytes
 	tv = t_bytes
-	
+
 	# Skip identical prefixes
 	while m > 0 and n > 0 and sv[0] == tv[0]:
 		sv += 1
 		tv += 1
 		m -= 1
 		n -= 1
-		len_p += 1 
+		len_p += 1
 
 	# Skip identical suffixes
 	while m > 0 and n > 0 and sv[m-1] == tv[n-1]:
@@ -177,7 +177,7 @@ def edit_distance_affine_gap(query,ref, mismatch_cost, int gap_start=1, int gap_
 			m_c = mismatch_cost[i-1 + len_p]
 			if sv[i-1] == tv[j-1]:
 				m_c = match_cost
-		
+
 			c_a = min(prev_a, prev_b, prev_c) + m_c
 			c_b = min(a[i-1] + gap_start, b[i-1] + gap_extend, c[i-1] + gap_start)
 			c_c = min(a[i] + gap_start, b[i] + gap_start, c[i] + gap_extend)

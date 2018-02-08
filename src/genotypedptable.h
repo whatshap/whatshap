@@ -19,7 +19,7 @@
 class GenotypeDPTable
 {
 private:
-  
+
   // stores genotype likelihoods for a given individual and a given position
   struct genotype_likelihood_t {
     // stores likelihoods in this order: 0/0, 1/0, 1/1
@@ -37,13 +37,13 @@ private:
     void divide_likelihoods_by(long double& val){
       std::transform(likelihoods.begin(), likelihoods.end(), likelihoods.begin(), std::bind2nd(std::divides<long double>(), val));
     }
-    
+
     friend inline std::ostream& operator<<(std::ostream& out, const genotype_likelihood_t& g){
       out << g.likelihoods[0] << " " << g.likelihoods[1] << " " << g.likelihoods[2];
       return out;
     }
   };
-  
+
   // the input sequencing reads
   ReadSet* read_set;
   // stores sample index for each read
@@ -68,7 +68,7 @@ private:
   std::vector<TransitionProbabilityComputer*> transition_probability_table;
   // scaling parameters
   std::vector<long double> scaling_parameters;
-  
+
   // helper to pull read ids out of read column
   std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
   // initializes all members associated with the DP table
@@ -80,19 +80,19 @@ private:
   void compute_backward_prob();
   // computes the index for each column
   void compute_index();
-  
+
   // computes column of forward probabilities of given index, assuming previous column was already computed (from left to right)
   void compute_forward_column(size_t column_index, std::unique_ptr<std::vector<const Entry*>> current_input_column = nullptr);
-  
+
   // computes column of backward probabilities of given index, assuming previous column was already computed (from right to left)
   void compute_backward_column(size_t column_index, std::unique_ptr<std::vector<const Entry*>> current_input_column = nullptr);
-  
-  // returns the number of bits set 
+
+  // returns the number of bits set
   static size_t popcount(size_t x);
-  
+
   // given two transmission vectors and their length, compute probability of changing from t1 to t2
   long double compute_transition_prob(size_t t1, size_t t2, size_t length, unsigned int r);
-  
+
   // used to initialize/clear tables
   template<class T>
   void init(std::vector<T*>& v, size_t size)
@@ -104,7 +104,7 @@ private:
     }
     v.assign(size,nullptr);
   }
-  
+
 public:
   /** Constructor
    * @param read_set   DP table is constructed for the given reads. Ownership is retained by caller.
@@ -116,9 +116,9 @@ public:
    */
   GenotypeDPTable(ReadSet* read_set, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, const std::vector<unsigned int>* positions = nullptr);
   ~GenotypeDPTable();
-  
+
   // returns the computed genotype likelihoods for a given individual and a given SNP position
   std::vector<long double> get_genotype_likelihoods(unsigned int individual, unsigned int position);
- 
+
 };
 #endif

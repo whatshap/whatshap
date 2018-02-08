@@ -32,7 +32,7 @@ class ReadSetReader:
 		reference -- path to reference FASTA (can be None)
 		numeric_sample_ids -- ??
 		mapq_threshold -- minimum mapping quality
-		overhang -- extend alignment by this many bases to left and right 
+		overhang -- extend alignment by this many bases to left and right
 		affine -- use affine gap costs
 		gap_start, gap_extend, default_mismatch -- parameters for affine gap cost alignment
 		"""
@@ -374,7 +374,7 @@ class ReadSetReader:
 		"""
 		# Do not process symbolic alleles like <DEL>, <DUP>, etc.
 		if variant.alternative_allele.startswith('<'):
-			return None 
+			return None
 
 		left_cigar, right_cigar = ReadSetReader.split_cigar(cigartuples, i, consumed)
 
@@ -409,20 +409,6 @@ class ReadSetReader:
 			distance_ref = edit_distance_affine_gap(query,ref,base_qualities,gap_start,gap_extend)
 			distance_alt = edit_distance_affine_gap(query,alt,base_qualities,gap_start,gap_extend)
 			base_qual_score = abs(distance_ref-distance_alt)
-
-			# TODO remove, just for analysis ...
-#			edit_ref = edit_distance(query, ref)
-#			edit_alt = edit_distance(query, alt)
-#
-#			if edit_ref < edit_alt:
-#				print('REF' + '\t' + str(distance_alt - distance_ref))
-#			elif edit_ref > edit_alt:
-#				print('ALT' + '\t' + str(distance_alt - distance_ref))
-#			else:
-#				print('NONE' + '\t' + str(distance_alt - distance_ref))
-			
-			## analysis 2 ##
-#			print(bam_read.query_name[-4:] + '\tedit_score:\t' + str(edit_alt - edit_ref) + '\taffine_score:\t' + str(distance_alt - distance_ref))
 
 		else:
 			distance_ref = edit_distance(query, ref)

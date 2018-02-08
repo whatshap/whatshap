@@ -12,12 +12,12 @@ private:
     unsigned int allele_assignments;
     Vector2D<long double> transitions_transmissions;
     size_t popcount(size_t& x);
-    
+
     const Pedigree* pedigree;
     const std::vector<PedigreePartitions*>& pedigree_partitions;
     // transitions to allele assignments
     Vector2D<long double> transitions_allele_assignments;
-    
+
 public:
     TransitionProbabilityComputer(size_t column_index, unsigned int recombcost, const Pedigree* pedigree, const std::vector<PedigreePartitions*>& pedigree_partitions);
     // get the transision probability for change of transmission vector t1 to t2
