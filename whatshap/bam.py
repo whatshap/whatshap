@@ -52,7 +52,10 @@ class SampleBamReader:
 
 		self._samfile = pysam.AlignmentFile(path, reference_filename=reference)
 		try:
-			fetcher = self._samfile.fetch()
+			# TODO
+			# multiple_iterators should not be necessary -
+			# perhaps a bug in pysam 0.13
+			fetcher = self._samfile.fetch(multiple_iterators=True)
 		except ValueError:
 			raise AlignmentFileNotIndexedError(path)
 
@@ -62,7 +65,7 @@ class SampleBamReader:
 		try:
 			next(fetcher)
 		except StopIteration:
-			raise EmptyAlignmentFileError(path)
+			raise EmptyAlignmentFileError(path) from None
 		self._references = frozenset(self._samfile.references)
 		self._initialize_sample_to_group_ids()
 
@@ -104,7 +107,10 @@ class SampleBamReader:
 				read_groups = self._sample_to_group_ids[sample]
 			except KeyError:
 				raise SampleNotFoundError()
-			for bam_read in self._samfile.fetch(reference):
+			# TODO
+			# The multiple_iterators shouldn’t be necessary, but CRAM files
+			# don’t work without it in pysam 0.13
+			for bam_read in self._samfile.fetch(reference, multiple_iterators=True):
 				if bam_read.opt('RG') in read_groups:
 					yield AlignmentWithSourceID(self.source_id, bam_read)
 
