@@ -30,7 +30,7 @@ private:
   std::vector<std::array<long double, 2>> cost_partition;
   // the pedigree partitions
   const PedigreePartitions& pedigree_partitions;
-  
+
 public:
   GenotypeColumnCostComputer(const std::vector<const Entry*>& column, size_t column_index, const std::vector<unsigned int>& read_marks, const Pedigree* pedigree, const PedigreePartitions& pedigree_partitions);
   // set partitioning to the given one
@@ -39,7 +39,7 @@ public:
   void update_partitioning(int bit_to_flip);
   // returns the local cost for a given allele assignment prod_j Z_j
   long double get_cost(unsigned int allele_assignment);
-  
+
 };
 
 #endif // GENOTYPECOLUMNCOSTCOMPUTER_H

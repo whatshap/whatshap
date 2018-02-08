@@ -807,4 +807,3 @@ class GenotypeVcfWriter:
 					call.data = samp_fmt(**values)
 			self._writer.write_record(record)
 			prev_pos = pos
-
