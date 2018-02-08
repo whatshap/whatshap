@@ -474,4 +474,3 @@ TEST_CASE("test scaling of vector", "[test scaling of vector]"){
         }
     }
 }
-
