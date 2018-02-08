@@ -165,7 +165,7 @@ class MultiBamReader:
 				yield ComparableAlignedSegment(alignment.bam_alignment, alignment.source_id)
 		iterators = []
 		for reader in self._readers:
-			if reader.has_sample(sample):
+			if sample is None or reader.has_sample(sample):
 				iterators.append(make_comparable(reader))
 		if not iterators:
 			raise SampleNotFoundError('Sample not found in any input CRAM/BAM file')
