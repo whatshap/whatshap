@@ -10,6 +10,7 @@ Development version
   No longer create BAM/CRAM index if it does not exist. This is safer when running multiple
   WhatsHap instances in parallel. From now on, you need to create the index yourself
   (for example with ``samtools index``) before running WhatsHap.
+* :issue:`152`: Reads marked as “duplicate” in the input BAM/CRAM file are now ignored.
 
 v0.14.1 (2017-07-07)
 --------------------
