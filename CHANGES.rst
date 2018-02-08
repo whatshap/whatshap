@@ -6,17 +6,19 @@ Development version
 -------------------
 
 * Support CRAM files in addition to BAM.
-* `Issue 133 <https://bitbucket.org/whatshap/whatshap/issues/133/>`_:
+* :issue:`133`:
   No longer create BAM/CRAM index if it does not exist. This is safer when running multiple
   WhatsHap instances in parallel. From now on, you need to create the index yourself
   (for example with ``samtools index``) before running WhatsHap.
 
 v0.14.1 (2017-07-07)
---------------
+--------------------
+
 * Fix compilation problem by distinguishing gcc and clang.
 
 v0.14 (2017-07-06)
---------------
+------------------
+
 * Added ``--full-genotyping`` to (re-)genotype the given variants based on the reads
 * Added option ``whatshap compare --switch-error-bed`` to write BED file with switch
   error positions
