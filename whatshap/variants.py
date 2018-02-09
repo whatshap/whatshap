@@ -26,17 +26,21 @@ class ReadSetReader:
 	knowledge in the VCF of where they should occur.
 	"""
 
-	def __init__(self, paths, reference, numeric_sample_ids, mapq_threshold=20, affine=False):
+	def __init__(self, paths, reference, numeric_sample_ids, mapq_threshold=20, affine=False, gap_start=None, gap_extend=None, default_mismatch=None):
 		"""
 		paths -- list of BAM paths
 		reference -- path to reference FASTA (can be None)
 		numeric_sample_ids -- ??
 		mapq_threshold -- minimum mapping quality
 		affine -- use affine gap costs
+		gap_start, gap_extend, default_mismatch -- parameters for affine gap cost alignment
 		"""
 		self._mapq_threshold = mapq_threshold
 		self._numeric_sample_ids = numeric_sample_ids
 		self._use_affine = affine
+		self._gap_start = gap_start
+		self._gap_extend = gap_extend
+		self._default_mismatch = default_mismatch
 		if len(paths) == 1:
 			self._reader = SampleBamReader(paths[0], reference=reference)
 		else:
@@ -141,7 +145,7 @@ class ReadSetReader:
 				detected = self.detect_alleles(normalized_variants, i, alignment.bam_alignment)
 
 			else:
-				detected = self.detect_alleles_by_alignment(variants, i, alignment.bam_alignment, reference, self._use_affine)
+				detected = self.detect_alleles_by_alignment(variants, i, alignment.bam_alignment, reference, self._use_affine, self._gap_start, self._gap_extend, self._default_mismatch)
 			for j, allele, quality in detected:
 				read.add_variant(variants[j].position, allele, quality)
 			if read:  # At least one variant covered and detected
@@ -349,7 +353,7 @@ class ReadSetReader:
 		return (ref_pos, query_pos)
 
 	@staticmethod
-	def realign(variant, bam_read, cigartuples, i, consumed, query_pos, reference, use_affine=False):
+	def realign(variant, bam_read, cigartuples, i, consumed, query_pos, reference, use_affine=False, gap_start=None, gap_extend=None,default_mismatch=None):
 		"""
 		Realign a read to the two alleles of a single variant.
 		i and consumed describe where to split the cigar into a part before the
@@ -361,6 +365,9 @@ class ReadSetReader:
 		i, consumed -- see split_cigar method
 		query_pos -- index of the query base that is at the variant position
 		reference -- the reference as a str-like object (full chromosome)
+		use_affine -- if true, use affine gap costs for realignment
+		gap_start, gap_extend -- if affine_gap=true, use these parameters for affine gap cost alignment
+		default_mismatch -- if affine_gap=true, use this as mismatch cost in case no base qualities are in bam
 		"""
 		# Do not process symbolic alleles like <DEL>, <DUP>, etc.
 		if variant.alternative_allele.startswith('<'):
@@ -385,18 +392,19 @@ class ReadSetReader:
 
 		base_qual_score = 30
 
-		# TODO compute base-qual the same way if use_affine is False??
 		if use_affine:
+			assert gap_start != None
+			assert gap_extend != None
+			assert default_mismatch != None
+
 			# get base qualities if present (to be used as mismatch costs)
-			# TODO which default values to use in case no qualities are available?
-			base_qualities = [18] * len(query)
+			base_qualities = [default_mismatch] * len(query)
 			if bam_read.query_qualities != None:
 				base_qualities = bam_read.query_qualities[query_pos-left_query_bases:query_pos+right_query_bases]
 
 			# compute edit dist. with affine gap costs using base qual. as mismatch cost
-			# TODO which gap_start, gap_extend cost to use?
-			distance_ref = edit_distance_affine_gap(query,ref,base_qualities,10,6)
-			distance_alt = edit_distance_affine_gap(query,alt,base_qualities,10,6)
+			distance_ref = edit_distance_affine_gap(query,ref,base_qualities,gap_start,gap_extend)
+			distance_alt = edit_distance_affine_gap(query,alt,base_qualities,gap_start,gap_extend)
 			base_qual_score = abs(distance_ref-distance_alt)
 
 			# TODO remove, just for analysis ...
@@ -425,7 +433,7 @@ class ReadSetReader:
 			return None, None  # cannot decide
 
 	@staticmethod
-	def detect_alleles_by_alignment(variants, j, bam_read, reference, use_affine=False):
+	def detect_alleles_by_alignment(variants, j, bam_read, reference, use_affine=False, gap_start=None, gap_extend=None, default_mismatch=None):
 		"""
 		Detect which alleles the given bam_read covers. Detect the correct
 		alleles of the variants that are covered by the given bam_read.
@@ -445,7 +453,7 @@ class ReadSetReader:
 
 		for index, i, consumed, query_pos in _iterate_cigar(variants, j, bam_read, cigartuples):
 			allele, quality = ReadSetReader.realign(variants[index], bam_read, cigartuples, i,
-			            consumed, query_pos, reference, use_affine)
+			            consumed, query_pos, reference, use_affine, gap_start, gap_extend, default_mismatch)
 			if allele in (0, 1):
 				yield (index, allele, quality)  # TODO quality???
 
