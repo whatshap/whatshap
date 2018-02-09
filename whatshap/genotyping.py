@@ -46,7 +46,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		ignore_read_groups=False, indels=True, mapping_quality=20,
 		max_coverage=15, gtpriors=False,
 		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=0, 
-		prioroutput=None, constant=0.0, affine_gap=False, gap_start=10, gap_extend=7, mismatch=15):
+		prioroutput=None, constant=0.0, overhang=10,affine_gap=False, gap_start=10, gap_extend=7, mismatch=15):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
 	all variants are computed using the forward backward algorithm
@@ -61,7 +61,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		numeric_sample_ids = NumericSampleIds()
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
 		try:
-			readset_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, numeric_sample_ids, mapq_threshold=mapping_quality, affine=affine_gap, gap_start=gap_start, gap_extend=gap_extend, default_mismatch=mismatch))
+			readset_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, numeric_sample_ids, mapq_threshold=mapping_quality, overhang=overhang, affine=affine_gap, gap_start=gap_start, gap_extend=gap_extend, default_mismatch=mismatch))
 		except (OSError, BamIndexingError) as e:
 			logger.error(e)
 			sys.exit(1)
@@ -348,6 +348,7 @@ def add_arguments(parser):
 	arg('--include-gt-priors', dest='gtpriors', default=False, action='store_true',
 		help='Do initial genotyping and use these prior genotype likelihoods as transition probabilities (default: uniform genotype likelihoods).')
 	arg('-p', '--prioroutput', default=None, help='output prior genotype likelihoods to the given file.')
+	arg('--overhang', metavar='OVERHANG', default=10, type=int, help='When --reference is used, extend alignment by this many bases to left and right when realigning (default: %(default)s).')
 	arg('--constant', metavar='CONSTANT', default=0, type=float, help='When using option --include-gt-priors, this constant is added to all gt likelihoods (default: %(default)s).')
 	arg('--affine-gap', default=False, action='store_true', help='When detecting alleles through re-alignment, use affine gap costs (EXPERIMENTAL).')
 	arg('--gap-start', metavar='GAPSTART', default=10, type=float, help='gap starting penalty in case affine gap costs are used (default: %(default)s).')

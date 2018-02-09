@@ -26,12 +26,13 @@ class ReadSetReader:
 	knowledge in the VCF of where they should occur.
 	"""
 
-	def __init__(self, paths, reference, numeric_sample_ids, mapq_threshold=20, affine=False, gap_start=None, gap_extend=None, default_mismatch=None):
+	def __init__(self, paths, reference, numeric_sample_ids, mapq_threshold=20, overhang=10, affine=False, gap_start=10, gap_extend=7, default_mismatch=15):
 		"""
 		paths -- list of BAM paths
 		reference -- path to reference FASTA (can be None)
 		numeric_sample_ids -- ??
 		mapq_threshold -- minimum mapping quality
+		overhang -- extend alignment by this many bases to left and right 
 		affine -- use affine gap costs
 		gap_start, gap_extend, default_mismatch -- parameters for affine gap cost alignment
 		"""
@@ -41,6 +42,7 @@ class ReadSetReader:
 		self._gap_start = gap_start
 		self._gap_extend = gap_extend
 		self._default_mismatch = default_mismatch
+		self._overhang = overhang
 		if len(paths) == 1:
 			self._reader = SampleBamReader(paths[0], reference=reference)
 		else:
@@ -145,7 +147,7 @@ class ReadSetReader:
 				detected = self.detect_alleles(normalized_variants, i, alignment.bam_alignment)
 
 			else:
-				detected = self.detect_alleles_by_alignment(variants, i, alignment.bam_alignment, reference, self._use_affine, self._gap_start, self._gap_extend, self._default_mismatch)
+				detected = self.detect_alleles_by_alignment(variants, i, alignment.bam_alignment, reference, self._overhang, self._use_affine, self._gap_start, self._gap_extend, self._default_mismatch)
 			for j, allele, quality in detected:
 				read.add_variant(variants[j].position, allele, quality)
 			if read:  # At least one variant covered and detected
@@ -353,7 +355,7 @@ class ReadSetReader:
 		return (ref_pos, query_pos)
 
 	@staticmethod
-	def realign(variant, bam_read, cigartuples, i, consumed, query_pos, reference, use_affine=False, gap_start=None, gap_extend=None,default_mismatch=None):
+	def realign(variant, bam_read, cigartuples, i, consumed, query_pos, reference, overhang, use_affine, gap_start, gap_extend,default_mismatch):
 		"""
 		Realign a read to the two alleles of a single variant.
 		i and consumed describe where to split the cigar into a part before the
@@ -365,6 +367,7 @@ class ReadSetReader:
 		i, consumed -- see split_cigar method
 		query_pos -- index of the query base that is at the variant position
 		reference -- the reference as a str-like object (full chromosome)
+		overhang -- extend alignment by this many bases to left and right
 		use_affine -- if true, use affine gap costs for realignment
 		gap_start, gap_extend -- if affine_gap=true, use these parameters for affine gap cost alignment
 		default_mismatch -- if affine_gap=true, use this as mismatch cost in case no base qualities are in bam
@@ -372,7 +375,7 @@ class ReadSetReader:
 		# Do not process symbolic alleles like <DEL>, <DUP>, etc.
 		if variant.alternative_allele.startswith('<'):
 			return None 
-		overhang = 10  # extend alignment by this many bases to the left and right
+
 		left_cigar, right_cigar = ReadSetReader.split_cigar(cigartuples, i, consumed)
 
 		left_ref_bases, left_query_bases = ReadSetReader.cigar_prefix_length(left_cigar[::-1], overhang)
@@ -433,7 +436,7 @@ class ReadSetReader:
 			return None, None  # cannot decide
 
 	@staticmethod
-	def detect_alleles_by_alignment(variants, j, bam_read, reference, use_affine=False, gap_start=None, gap_extend=None, default_mismatch=None):
+	def detect_alleles_by_alignment(variants, j, bam_read, reference, overhang=10, use_affine=False, gap_start=None, gap_extend=None, default_mismatch=None):
 		"""
 		Detect which alleles the given bam_read covers. Detect the correct
 		alleles of the variants that are covered by the given bam_read.
@@ -453,7 +456,7 @@ class ReadSetReader:
 
 		for index, i, consumed, query_pos in _iterate_cigar(variants, j, bam_read, cigartuples):
 			allele, quality = ReadSetReader.realign(variants[index], bam_read, cigartuples, i,
-			            consumed, query_pos, reference, use_affine, gap_start, gap_extend, default_mismatch)
+			            consumed, query_pos, reference, overhang, use_affine, gap_start, gap_extend, default_mismatch)
 			if allele in (0, 1):
 				yield (index, allele, quality)  # TODO quality???
 
