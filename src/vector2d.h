@@ -25,6 +25,14 @@ public:
 	void set_all(const T& value) {
 		v.assign(size0*size1, value);
 	}
+	
+	size_t get_size0(){
+	  return size0;
+	}
+	
+	size_t get_size1(){
+	  return size1;
+	}
 
 	friend std::ostream& operator<<(std::ostream& out, const Vector2D<T>& v) {
 		out << "       ";

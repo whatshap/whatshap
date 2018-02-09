@@ -282,10 +282,9 @@ void GenotypeDPTable::compute_backward_column(size_t column_index, unique_ptr<ve
                size_t backward_projection_index = iterator->get_backward_projection();
                for(size_t j = 0; j < transmission_configurations; j++){
                    if(column_index > 0){
-                       current_projection_column->at(backward_projection_index, i) += backward_prob * cost_computers[j].get_cost(a) * transition_probability_table[column_index-1]->get(i,j);// TODO * transition prob?;
+                       current_projection_column->at(backward_projection_index, i) += backward_prob * cost_computers[j].get_cost(a) * transition_probability_table[column_index-1]->get(i,j);
                    }
-
-                   scaling_sum += backward_prob*cost_computers[j].get_cost(a);
+                   scaling_sum += backward_prob;
                }
            }
        }
@@ -354,6 +353,14 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
                 compute_backward_column(i);
             }
 
+            // last column just computed still needs to be scaled
+            for(size_t i = 0; i < backward_projection_column_table[column_index]->get_size0(); i++){
+                for(size_t j = 0; j < backward_projection_column_table[column_index]->get_size1(); j++){
+                    backward_projection_column_table[column_index]->at(i,j) /= scaling_parameters[column_index];
+                }
+            }
+
+
         }
         backward_probabilities = backward_projection_column_table[column_index];
         assert(backward_probabilities != nullptr);
@@ -400,8 +407,6 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
 
         // Determine index in the current DP column to be written
         size_t current_index = iterator->get_index();
-
-        // TODO change scaling, use backward prob scale parameters!! (does that work??)
 
         // iterate over all transmission vectors
         for(size_t i = 0; i < transmission_configurations; i++){
