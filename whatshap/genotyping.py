@@ -11,7 +11,6 @@ import math
 from collections import defaultdict
 from copy import deepcopy
 
-import pyfaidx
 from xopen import xopen
 
 from contextlib import ExitStack
@@ -21,9 +20,10 @@ from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSamp
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
-from .bam import BamIndexingError, SampleNotFoundError, ReferenceNotFoundError
+from .bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
+from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
 
 from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree
 
@@ -46,7 +46,8 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		ignore_read_groups=False, indels=True, mapping_quality=20,
 		max_coverage=15, gtpriors=False,
 		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=0,
-		prioroutput=None, constant=0.0, overhang=10,affine_gap=False, gap_start=10, gap_extend=7, mismatch=15):
+		prioroutput=None, constant=0.0, overhang=10,affine_gap=False, gap_start=10, gap_extend=7, mismatch=15,
+		write_command_line_header=True):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
 	all variants are computed using the forward backward algorithm
@@ -61,9 +62,18 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		numeric_sample_ids = NumericSampleIds()
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
 		try:
-			readset_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, numeric_sample_ids, mapq_threshold=mapping_quality, overhang=overhang, affine=affine_gap, gap_start=gap_start, gap_extend=gap_extend, default_mismatch=mismatch))
-		except (OSError, BamIndexingError) as e:
+			readset_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, reference, numeric_sample_ids, mapq_threshold=mapping_quality, overhang=overhang, affine=affine_gap, gap_start=gap_start, gap_extend=gap_extend, default_mismatch=mismatch))
+		except OSError as e:
 			logger.error(e)
+			sys.exit(1)
+		except AlignmentFileNotIndexedError as e:
+			logger.error('The file %r is not indexed. Please create the appropriate BAM/CRAM '
+				'index with "samtools index"', str(e))
+			sys.exit(1)
+		except EmptyAlignmentFileError as e:
+			logger.error('No reads could be retrieved from %r. If this is a CRAM file, possibly the '
+				'reference could not be found. Try to use --reference=... or check you '
+			    '$REF_PATH/$REF_CACHE settings', str(e))
 			sys.exit(1)
 		try:
 			phase_input_vcf_readers = [VcfReader(f, indels=indels, phases=True) for f in phase_input_vcf_filenames]
@@ -72,16 +82,23 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 			sys.exit(1)
 		if reference:
 			try:
-				fasta = stack.enter_context(pyfaidx.Fasta(reference, as_raw=True))
+				fasta = stack.enter_context(IndexedFasta(reference))
 			except OSError as e:
 				logger.error('%s', e)
+				sys.exit(1)
+			except FastaNotIndexedError as e:
+				logger.error('An index file (.fai) for the reference %r could not be found. '
+					'Please create one with "samtools faidx".', str(e))
 				sys.exit(1)
 		else:
 			fasta = None
 		del reference
 		if isinstance(output, str):
 			output = stack.enter_context(xopen(output, 'w'))
-		command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
+		if write_command_line_header:
+			command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
+		else:
+			command_line=None
 
 		# vcf writer for final genotype likelihoods
 		vcf_writer = GenotypeVcfWriter(command_line=command_line, in_path=variant_file,
@@ -181,7 +198,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 					logger.info('---- Initial genotyping of %s', sample)
 					with timers('read_bam'):
 						bam_sample = None if ignore_read_groups else sample
-						readset = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
+						readset, vcf_source_ids = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
 						readset.sort()
 						genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
 						# recompute genotypes based on given threshold
@@ -220,10 +237,10 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 				for sample in family:
 					with timers('read_bam'):
 						bam_sample = None if ignore_read_groups else sample
-						readset = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
+						readset, vcf_source_ids = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
 
 					with timers('select'):
-						selected_reads = select_reads(readset, max_coverage_per_sample)
+						selected_reads = select_reads(readset, max_coverage_per_sample, preferred_source_ids = vcf_source_ids)
 					readsets[sample] = selected_reads
 
 				# Merge reads into one ReadSet (note that each Read object

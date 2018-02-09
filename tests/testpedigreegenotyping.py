@@ -9,11 +9,11 @@ import math
 
 
 def genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes, weights=None, expected=None, scaling=10, positions=None):
-	rs = string_to_readset_pedigree(reads, w=weights, scaling_quality=scaling)
+	rs = string_to_readset_pedigree(s=reads, w=weights, scaling_quality=scaling)
 	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,rs, recombcost, pedigree, positions)
 
 	# for each position compare the likeliest genotype to the expected ones
-	print(expected_genotypes)
+	print('expected genotypes: ',expected_genotypes)
 	positions = rs.get_positions()
 	for pos in range(len(positions)):
 		for individual in range(len(pedigree)):

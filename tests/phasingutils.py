@@ -2,7 +2,7 @@ import textwrap
 from collections import defaultdict
 from whatshap.core import Read, ReadSet, Variant
 
-def string_to_readset(s, w = None, sample_ids = None, scale_quality = None):
+def string_to_readset(s, w = None, sample_ids = None, source_id=0, scale_quality = None):
 	s = textwrap.dedent(s).strip()
 	if w is not None:
 		w = textwrap.dedent(w).strip().split('\n')
@@ -41,7 +41,7 @@ def string_to_readset_pedigree(s, w = None, scaling_quality = None):
 		assert 0 <= individual < 26
 		read_sources.append(individual)
 		s2 += line[1:] + '\n'
-	rs = string_to_readset(s2, w, read_sources, scaling_quality)
+	rs = string_to_readset(s=s2, w=w, sample_ids=read_sources, scale_quality=scaling_quality)
 	print('read_sources:', read_sources)
 	return rs
 

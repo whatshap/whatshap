@@ -665,11 +665,12 @@ class GenotypeVcfWriter:
 		out_file -- Open file-like object to which VCF is written.
 		"""
 		self._reader = vcf.Reader(filename=in_path)
-
-		if 'commandline' not in self._reader.metadata:
-			self._reader.metadata['commandline'] = []
-		command_line = command_line.replace('"', '')
-		self._reader.metadata['commandline'] = [command_line]
+		
+		if command_line is not None:
+			if 'commandline' not in self._reader.metadata:
+				self._reader.metadata['commandline'] = []
+			command_line = command_line.replace('"', '')
+			self._reader.metadata['commandline'] = [command_line]
 
 		# add tag for genotype
 		fmt = vcf.parser._Format(id='GT', num=1, type='String', desc='Genotype computed by whatshap genotyping algorithm.')

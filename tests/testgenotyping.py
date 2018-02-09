@@ -44,7 +44,7 @@ def test_genotyping_empty_readset():
 
 def check_genotyping_single_individual(reads, weights = None, expected = None, genotypes = None, scaling = None, genotype_priors = None):
 	# 0) set up read set
-	readset = string_to_readset(reads, weights, scale_quality=scaling)
+	readset = string_to_readset(s=reads, w=weights, scale_quality=scaling)
 	positions = readset.get_positions()
 
 	# 1) Genotype using forward backward algorithm
