@@ -45,7 +45,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None,
 		ignore_read_groups=False, indels=True, mapping_quality=20,
 		max_coverage=15, gtpriors=False,
-		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=15, prioroutput=None, constant=0.0):
+		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=15, prioroutput=None, constant=0.0, affine_gap=False):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
 	all variants are computed using the forward backward algorithm
@@ -60,7 +60,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		numeric_sample_ids = NumericSampleIds()
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
 		try:
-			readset_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, numeric_sample_ids, mapq_threshold=mapping_quality))
+			readset_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, numeric_sample_ids, mapq_threshold=mapping_quality, affine=affine_gap))
 		except (OSError, BamIndexingError) as e:
 			logger.error(e)
 			sys.exit(1)
@@ -246,8 +246,6 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 				for sample in family:
 					# genotypes are assumed to be unknown, so ignore information that
 					# might already be present in the input vcf 
-					
-					# TODO add prior genotype likelihoods here
 					all_genotype_likelihoods = variant_table.genotype_likelihoods_of(sample)
 					genotype_l = [ all_genotype_likelihoods[var_to_pos[a_p]] for a_p in accessible_positions]
 					pedigree.add_individual(sample, [3] * len(accessible_positions), genotype_l)
@@ -351,6 +349,7 @@ def add_arguments(parser):
 		help='Do initial genotyping and use these prior genotype likelihoods as transition probabilities (default: uniform genotype likelihoods).')
 	arg('-p', '--prioroutput', default=None, help='output prior genotype likelihoods to the given file.')
 	arg('--constant', metavar='CONSTANT', default=0, type=float, help='When using option --include-gt-priors, this constant is added to all gt likelihoods (default:0).')
+	arg('--affine-gap', default=False, action='store_true', help='When detecting alleles through re-alignment, use affine gap costs.')
 	
 	arg = parser.add_argument_group('Pedigree genotyping').add_argument
 	arg('--ped', metavar='PED/FAM',
@@ -382,6 +381,8 @@ def validate(args, parser):
 		parser.error('Genotype priors are only computed if option --include-gt-priors is given.')
 	if args.constant != 0  and not args.gtpriors:
 		parser.error('--constant can only be used with option --include-gt-priors.')
+	if args.affine_gap and not args.reference:
+		parser.error('Option --affine-gap can only be used together with --reference.')
 
 
 def main(args):
