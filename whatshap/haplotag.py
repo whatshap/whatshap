@@ -97,7 +97,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 
 		# Prepare header
 		# TODO: convince pysam to allow @HS header line
-		header = bam_reader.header
+		header = bam_reader.header.to_dict()
 		command_line = ' '.join(['whatshap'] + sys.argv[1:])
 		PG_entry = { 'PN':'whatshap', 'VN':__version__, 'CL':command_line, 'm5': md5_of(variant_file)}
 		if 'PG' in header:
@@ -105,9 +105,9 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 		else:
 			header['PG'] = [PG_entry]
 		if output:
-			bam_writer = pysam.AlignmentFile(output, 'wb', header=header)
+			bam_writer = pysam.AlignmentFile(output, 'wb', header=pysam.AlignmentHeader.from_dict(header))
 		else:
-			bam_writer = pysam.AlignmentFile('-', 'wb', header=header)
+			bam_writer = pysam.AlignmentFile('-', 'wb', header=pysam.AlignmentHeader.from_dict(header))
 
 		chromosome_name = None
 		chromosome_id = None

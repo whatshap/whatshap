@@ -139,7 +139,7 @@ setup(
 	ext_modules = extensions,
 	packages = ['whatshap'],
 	entry_points={'console_scripts': ['whatshap = whatshap.__main__:main']},
-	install_requires = ['pysam>0.11.0', 'PyVCF', 'pyfaidx', 'xopen'],
+	install_requires = ['pysam>=0.14.0', 'PyVCF', 'pyfaidx', 'xopen'],
 	classifiers = [
 		"Development Status :: 4 - Beta",
 		"Environment :: Console",
