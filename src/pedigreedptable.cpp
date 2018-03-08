@@ -376,11 +376,22 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 			cost_computer.set_partitioning(v.index);
 
 			auto population_alleles = cost_computer.get_alleles();
-			
+			int n_alleles = compute_alleles(column);
+		
 			// TODO: compute proper weights based on likelihoods.
 			for (unsigned int k=0; k<pedigree->size(); k++) {
-				superreads[k].first->addVariant(positions->at(i), population_alleles[k].allele0, {0});
-				superreads[k].second->addVariant(positions->at(i), population_alleles[k].allele1, {0});
+			  	std::vector<unsigned int> tmp1(n_alleles, 10);
+				std::vector<unsigned int> tmp2(n_alleles, 10);
+				for(int q=0;q<n_alleles;q++)
+				{
+					if(q == population_alleles[k].allele0) tmp1[q]=0;
+					else tmp1[q]=10;
+					if(q == population_alleles[k].allele1) tmp2[q]=0;
+					else tmp2[q]=10;
+					
+				}
+				superreads[k].first->addVariant(positions->at(i), population_alleles[k].allele0, tmp1);
+				superreads[k].second->addVariant(positions->at(i), population_alleles[k].allele1, tmp2);
 			}
 			transmission_vector->push_back(v.inheritance_value);
 			++i; // next column
