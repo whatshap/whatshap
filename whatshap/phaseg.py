@@ -164,6 +164,7 @@ def vg_reader(locus_file, gam_file):
 	prev_startsnarl_orientation = -1
 	prev_endsnarl = 0
 	prev_endsnarl_orientation = -1
+	start_end_bubblenods = set()
 	with stream.open(str(locus_file), "rb") as istream:
 		for data in istream:
 			l = vg_pb2.SnarlTraversal()
@@ -175,7 +176,8 @@ def vg_reader(locus_file, gam_file):
 			current_endsnarl = l.snarl.end.node_id
 			current_endsnarl_orientation = l.snarl.end.backward
 			path_in_bubble =[]
-
+			start_end_bubblenods.add(l.snarl.end.node_id)
+			start_end_bubblenods.add(l.snarl.start.node_id)
 			if len(l.visits) ==0:
 				#TODO: for now, assumed, all nodes in path are either forward or backward
 				if l.snarl.start.backward == True:
@@ -262,10 +264,10 @@ def vg_reader(locus_file, gam_file):
 				if edge1 in reverse_mapping or edge2 in reverse_mapping: # handle start and sink node.
 					if edge1 in reverse_mapping:
 						qualities = [10]* reverse_mapping[edge1][0][2]
-						node_inf= [tuple(i[0:2]) for i in reverse_mapping[edge1]] # consider (locus, branch)
+						node_inf= [tuple(k[0:2]) for k in reverse_mapping[edge1]] # consider (locus, branch)
 					else:
 						qualities = [10]* reverse_mapping[edge2][0][2]
-						node_inf= [tuple(i[0:2]) for i in reverse_mapping[edge2]]
+						node_inf= [tuple(k[0:2]) for k in reverse_mapping[edge2]]
 					tmp = [x for x in node_inf]
 					if prev_locus != tmp[0][0]:
 						prev_tmp = tmp
@@ -274,13 +276,10 @@ def vg_reader(locus_file, gam_file):
 					interset_tmp= list(set(tmp).intersection(set(prev_tmp)))
 					if len(prev_tmp) > 0 and len(set(tmp).intersection(set(prev_tmp)))==1: # for complicated bubbles, but with Top-k paths. combination of some nodes uniquely determine branch.
 						qualities[interset_tmp[0][1]] = 0
-						if i== len(g.path.mapping)-2:
+						if i== len(g.path.mapping)-1:
 							read.add_variant(interset_tmp[0][0], interset_tmp[0][1], qualities)
 						else:
-							next_edge1 = tuple((g.path.mapping[i+1].position.node_id, g.path.mapping[i+2].position.node_id))
-							next_edge2 = tuple((g.path.mapping[i+2].position.node_id, g.path.mapping[i+1].position.node_id))
-
-							if next_edge1 not in reverse_mapping and next_edge2 not in reverse_mapping:
+							if g.path.mapping[i+1].position.node_id in start_end_bubblenods:
 								read.add_variant(interset_tmp[0][0], interset_tmp[0][1], qualities)    
 
 						locus= interset_tmp[0][0]
@@ -330,6 +329,7 @@ def generate_haplotigs(sample_superreads, components, node_seq_list, locus_branc
 	# We will call these pairs "traversals".
 	traversals_after = defaultdict(set)
 
+
 	with stream.open(str(vg_file), "rb") as istream:
 		for data in istream:
 			l = vg_pb2.Graph()
@@ -353,6 +353,7 @@ def generate_haplotigs(sample_superreads, components, node_seq_list, locus_branc
 		start_node_to_bubble = defaultdict(list)
 
 		for sample, superreads in sample_superreads.items():
+			print(superreads)
 			for v1, v2 in zip(*superreads):
 				v = v1 if haptype == 0 else v2
 				b = locus_branch_mapping[v.position][v.allele]
@@ -369,17 +370,17 @@ def generate_haplotigs(sample_superreads, components, node_seq_list, locus_branc
 					count = 0
 					while stack:
 						(traversal, path) = stack.pop()
-						for next in traversals_after:
+						for next in traversals_after[traversal]:
 							if count > 5000:
 								break
-							if next[0] in tmp and next[0] not in visited:
+							if next[0] in tmp and next not in visited:
 								#if "{}_{}".format(vertex, next) in edge_connections_sign:
 								if next[0] == goal:
 									if len(path) == len(tmp) -1:
 										return path + [next]
 								else:
 									count+=1
-									visited.add(next[0])
+									visited.add(next)
 									stack.append((next, path + [next]))
 					return []
 
@@ -425,7 +426,6 @@ def generate_haplotigs(sample_superreads, components, node_seq_list, locus_branc
 					orientation_canu = g.path.mapping[i].position.is_reverse
 					save_nodes.append((index1, orientation_canu))
 					canu_nodes_toseq[index1] = g.path.mapping[i].edit[0].sequence
-
 
 				# What component was the last bubble in, if there was a last bubble
 				prev_component = None
@@ -480,6 +480,7 @@ def generate_haplotigs(sample_superreads, components, node_seq_list, locus_branc
 
 
 				contig_nodes.append(contig_nodes_blocks) # for the last one.
+				print(contig_nodes)
 				# build the contig sequence taking care of reverse complements for every canu contigs
 				for j, contig_blocks in enumerate(contig_nodes):
 					contig_nodes_seq = ''

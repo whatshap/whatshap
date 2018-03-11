@@ -1,0 +1,6 @@
+./bin/whatshap phaseg data/graph.1.trans data/alns1.gam data/graph.1.vg data/canu1.gam data/test1.haplotigs > data/test1.log 
+./bin/whatshap phaseg data/graph.1.trans data/alns1.gam data/graph.2.vg data/canu2.gam data/test2.haplotigs > data/test2.log
+./bin/whatshap phaseg data/graph.3.trans data/alns3.gam data/graph.3.vg data/canu3.gam data/test3.haplotigs > data/test3.log
+./bin/whatshap phaseg data/graph.3.trans data/alns4.gam data/graph.3.vg data/canu3.gam data/test4.haplotigs > data/test4.log
+./bin/whatshap phaseg data/graph.4.trans data/alns5.gam data/graph.4.vg data/canu4.gam data/test5.haplotigs > data/test5.log
+./bin/whatshap phaseg data/graph.3.trans data/alns6.gam data/graph.3.vg data/canu3.gam data/test6.haplotigs > data/test6.log
