@@ -557,6 +557,10 @@ def test_ignore_read_groups():
 	run_whatshap(variant_file='tests/data/pacbio/variants.vcf', phase_input_files=['tests/data/pacbio/pacbio.bam'],
 		reference='tests/data/pacbio/reference.fasta', ignore_read_groups=True, output='/dev/null')
 
+def test_readgroup_without_sample_name():
+	run_whatshap(phase_input_files=['tests/data/oneread-readgroup-without-sample.bam'], variant_file='tests/data/onevariant.vcf',
+		output='/dev/null', ignore_read_groups=True)
+
 
 def test_genetic_haplotyping():
 	with TemporaryDirectory() as tempdir:
