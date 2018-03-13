@@ -73,10 +73,10 @@ def test_with_reference():
 
 def test_no_indels():
 	with TemporaryDirectory() as tempdir:
-		for priors in [[True, tempdir+'/priors.vcf'], [False,None]]:
+		for priors in [[False, tempdir+'/priors.vcf'], [True,None]]:
 			outvcf = tempdir + '/output_gl.vcf'
 			run_genotyping(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
-				reference='tests/data/pacbio/reference.fasta', output=outvcf, indels=False, gtpriors=priors[0], prioroutput=priors[1])
+				reference='tests/data/pacbio/reference.fasta', output=outvcf, indels=False, nopriors=priors[0], prioroutput=priors[1])
 
 			result_vcfs = [outvcf]
 			if priors[0]:
@@ -116,7 +116,7 @@ def test_GtQualThreshold():
 			out_vcf = tempdir + '/out.vcf'
 			priors_vcf = tempdir + '/priors.vcf'
 			run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf',
-				output=out_vcf, gt_qual_threshold=threshold, indels=False, gtpriors=True, prioroutput=priors_vcf)
+				output=out_vcf, gt_qual_threshold=threshold, indels=False, prioroutput=priors_vcf)
 
 			for out in [open(out_vcf,'r'), open(priors_vcf,'r')]:
 				out.seek(0)
@@ -139,7 +139,7 @@ def test_genotyping_one_of_three_individuals():
 		outvcf = tempdir + '/output.vcf'
 		outpriors = tempdir + '/priors.vcf'
 		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf, samples=['HG003'],
-		gtpriors=True, prioroutput=outpriors)
+		prioroutput=outpriors)
 
 		for outfile in [outvcf, outpriors]:
 			assert os.path.isfile(outfile)
@@ -162,7 +162,7 @@ def test_genotyping_trio():
 		outvcf = tempdir + '/output.vcf'
 		outpriors = tempdir + 'priors.vcf'
 		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf,
-		        ped='tests/data/trio.ped', genmap='tests/data/trio.map', gtpriors=True, prioroutput=outpriors)
+		        ped='tests/data/trio.ped', genmap='tests/data/trio.map', prioroutput=outpriors)
 
 		for outfile in [outvcf,outpriors]:
 			assert os.path.isfile(outfile)
@@ -180,7 +180,7 @@ def test_genotyping_specific_chromosome():
 			outvcf = tempdir + '/output.vcf'
 			outpriors = tempdir + '/priors.vcf'
 			run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio-two-chromosomes.vcf', output=outvcf,
-					ped='tests/data/trio.ped', genmap='tests/data/trio.map', chromosomes=[requested_chromosome], gtpriors=True,
+					ped='tests/data/trio.ped', genmap='tests/data/trio.map', chromosomes=[requested_chromosome],
 					prioroutput=outpriors)
 
 			for outfile in [outvcf, outpriors]:
@@ -233,7 +233,7 @@ def test_genotype_log_likelihoods_given():
 		outvcf = tempdir + '/output_gl_log.vcf'
 		outpriors = tempdir + '/priors.vcf'
 		run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio_genotype_log_likelihoods.vcf', output=outvcf,
-		        ped='tests/data/trio.ped', genmap='tests/data/trio.map', gt_qual_threshold=0, gtpriors=True, prioroutput=outpriors)
+		        ped='tests/data/trio.ped', genmap='tests/data/trio.map', gt_qual_threshold=0, prioroutput=outpriors)
 
 		for outfile in [outvcf, outpriors]:
 			assert os.path.isfile(outfile)
@@ -306,11 +306,11 @@ def test_adding_constant():
 
 			# run genotyping without adding constant to priors
 			run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf',
-				prioroutput=priors_raw_vcf, output=outvcf_raw_vcf, indels=False, gtpriors=True)
+				prioroutput=priors_raw_vcf, output=outvcf_raw_vcf, indels=False)
 
 			# run genotyping with modified priors
 			run_genotyping(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf',
-				prioroutput=priors_const_vcf, output=outvcf_const_vcf, indels=False, gtpriors=True, constant=const)
+				prioroutput=priors_const_vcf, output=outvcf_const_vcf, indels=False, constant=const)
 
 			# check if priors were modified properly
 			priors_raw = open(priors_raw_vcf, 'r')

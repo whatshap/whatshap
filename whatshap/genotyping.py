@@ -44,7 +44,7 @@ def determine_genotype(likelihoods, threshold_prob):
 def run_genotyping(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None,
 		ignore_read_groups=False, indels=True, mapping_quality=20,
-		max_coverage=15, gtpriors=False,
+		max_coverage=15, nopriors=False,
 		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=0,
 		prioroutput=None, constant=0.0, overhang=10,affine_gap=False, gap_start=10, gap_extend=7, mismatch=15,
 		write_command_line_header=True):
@@ -192,7 +192,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 				continue
 
 			positions = [v.position for v in variant_table.variants]
-			if gtpriors:
+			if not nopriors:
 				# compute prior genotype likelihoods based on all reads
 				for sample in samples:
 					logger.info('---- Initial genotyping of %s', sample)
@@ -362,11 +362,11 @@ def add_arguments(parser):
 	arg('--gt-qual-threshold', metavar='GTQUALTHRESHOLD', type=float, default=0,
 		help='Phred scaled error probability threshold used for genotyping (default: %(default)s). Must be at least 0. '
 		'If error probability of genotype is higher, genotype ./. is output.')
-	arg('--include-gt-priors', dest='gtpriors', default=False, action='store_true',
-		help='Do initial genotyping and use these prior genotype likelihoods as transition probabilities (default: uniform genotype likelihoods).')
+	arg('--no-priors', dest='nopriors', default=False, action='store_true',
+		help='Skip initial prior genotyping and use uniform priors (default: %(default)s).')
 	arg('-p', '--prioroutput', default=None, help='output prior genotype likelihoods to the given file.')
 	arg('--overhang', metavar='OVERHANG', default=10, type=int, help='When --reference is used, extend alignment by this many bases to left and right when realigning (default: %(default)s).')
-	arg('--constant', metavar='CONSTANT', default=0, type=float, help='When using option --include-gt-priors, this constant is added to all gt likelihoods (default: %(default)s).')
+	arg('--constant', metavar='CONSTANT', default=0, type=float, help='This constant is used to regularize the priors (default: %(default)s).')
 	arg('--affine-gap', default=False, action='store_true', help='When detecting alleles through re-alignment, use affine gap costs (EXPERIMENTAL).')
 	arg('--gap-start', metavar='GAPSTART', default=10, type=float, help='gap starting penalty in case affine gap costs are used (default: %(default)s).')
 	arg('--gap-extend', metavar='GAPEXTEND', default=7, type=float, help='gap extend penalty in case affine gap costs are used (default: %(default)s).')
@@ -374,10 +374,10 @@ def add_arguments(parser):
 
 	arg = parser.add_argument_group('Pedigree genotyping').add_argument
 	arg('--ped', metavar='PED/FAM',
-		help='Use pedigree information in PED file to improve phasing '
+		help='Use pedigree information in PED file to improve genotyping '
 		'(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, '
 		'mother, and father sample names as used in the VCF and BAM. Other '
-		'columns are ignored.')
+		'columns are ignored (EXPERIMENTAL).')
 	arg('--recombrate', metavar='RECOMBRATE', type=float, default=1.26,
 		help='Recombination rate in cM/Mb (used with --ped). If given, a constant recombination '
 		'rate is assumed (default: %(default)gcM/Mb).')
@@ -398,10 +398,10 @@ def validate(args, parser):
 		parser.error('Not providing any PHASEINPUT files not allowed for genotyping.')
 	if args.gt_qual_threshold < 0:
 		parser.error('Genotype quality threshold (gt-qual-threshold) must be at least 0.')
-	if args.prioroutput != None and not args.gtpriors:
-		parser.error('Genotype priors are only computed if option --include-gt-priors is given.')
-	if args.constant != 0  and not args.gtpriors:
-		parser.error('--constant can only be used with option --include-gt-priors.')
+	if args.prioroutput != None and args.nopriors:
+		parser.error('Genotype priors are only computed if --no-priors is NOT set.')
+	if args.constant != 0  and args.nopriors:
+		parser.error('--constant can only be used if --no-priors is NOT set..')
 	if args.affine_gap and not args.reference:
 		parser.error('Option --affine-gap can only be used together with --reference.')
 def main(args):
