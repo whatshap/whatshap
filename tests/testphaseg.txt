@@ -4,3 +4,4 @@
 ./bin/whatshap phaseg tests/data/graph.3.trans tests/data/alns4.gam tests/data/graph.3.vg tests/data/canu3.gam tests/data/test4.haplotigs > tests/data/test4.log
 ./bin/whatshap phaseg tests/data/graph.4.trans tests/data/alns5.gam tests/data/graph.4.vg tests/data/canu4.gam tests/data/test5.haplotigs > tests/data/test5.log
 ./bin/whatshap phaseg tests/data/graph.3.trans tests/data/alns6.gam tests/data/graph.3.vg tests/data/canu3.gam tests/data/test6.haplotigs > tests/data/test6.log
+./bin/whatshap phaseg tests/data/graph.3.trans tests/data/alns7.gam tests/data/graph.3.vg tests/data/canu3.gam tests/data/test7.haplotigs > tests/data/test7.log
