@@ -1,7 +1,7 @@
 """
 create association between reads and bubbles.
 """
-# for pyfaidx:  export PYTHONPATH=/local/data/yeast_analysis/scripts/pyfaidx-0.5.0.1:$PYTHONPATH
+# Dependencies to be installed: pysam, pyfaidx,xopen,pyvcf,protobuf
 
 import pyfaidx
 
