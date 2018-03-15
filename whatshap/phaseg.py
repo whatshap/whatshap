@@ -1,6 +1,7 @@
 """
 create association between reads and bubbles.
 """
+
 import pyfaidx
 
 from xopen import xopen
