@@ -1,6 +1,8 @@
 """
 create association between reads and bubbles.
 """
+# for pyfaidx:  export PYTHONPATH=/local/data/yeast_analysis/scripts/pyfaidx-0.5.0.1:$PYTHONPATH
+
 import pyfaidx
 
 from xopen import xopen
