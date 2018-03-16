@@ -85,7 +85,8 @@ cdef extern from "../src/phredgenotypelikelihoods.h":
 		PhredGenotypeLikelihoods(vector[unsigned int]) except +
 		PhredGenotypeLikelihoods(PhredGenotypeLikelihoods) except +
 		unsigned int get(unsigned int) except +
-		vector[unsigned int] get_gl() except +
+		unsigned int genotype_count() except +
+		vector[unsigned int] as_vector() except +
 		string toString() except +
 
 

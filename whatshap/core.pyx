@@ -378,7 +378,7 @@ cdef class Pedigree:
 		if gl == NULL:
 			return None
 		else:
-			return PhredGenotypeLikelihoods(gl[0].get_gl())
+			return PhredGenotypeLikelihoods(gl[0].as_vector())
 
 	def __len__(self):
 		return self.thisptr.size()
@@ -397,18 +397,18 @@ cdef class PhredGenotypeLikelihoods:
 	def __str__(self):
 		return self.thisptr.toString().decode('utf-8')
 
-	#def __getitem__(self, genotype):
-	#	assert self.thisptr != NULL
-	#	assert isinstance(genotype, int)
-	#	assert 0 <= genotype <= 2
-	#	return self.thisptr.get(genotype)
+	def __getitem__(self, genotype):
+		assert self.thisptr != NULL
+		assert isinstance(genotype, int)
+		assert 0 <= genotype < self.thisptr.genotype_count()
+		return self.thisptr.get(genotype)
 
-	#def __len__(self):
-	#	return 3
+	def __len__(self):
+		return self.thisptr.genotype_count()
 
-	#def __iter__(self):
-	#	for i in range(3):
-	#		yield self[i]
+	def __iter__(self):
+		for i in range(self.thisptr.genotype_count()):
+			yield self[i]
 
 
 cdef class GenotypeDPTable:
