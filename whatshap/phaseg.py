@@ -29,7 +29,6 @@ from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSamp
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
-from .bam import BamIndexingError, SampleNotFoundError
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
 from heapq import heappush, heappop
