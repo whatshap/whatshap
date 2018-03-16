@@ -12,6 +12,8 @@ import pysam
 from whatshap.phase import run_whatshap
 from whatshap.haplotag import run_haplotag
 from whatshap.hapcut2vcf import run_hapcut2vcf
+from whatshap.compare import run_compare
+from whatshap.phaseg import run_phaseg
 from whatshap.vcf import VcfReader, VariantCallPhase
 
 trio_bamfile = 'tests/data/trio.pacbio.bam'
@@ -708,3 +710,45 @@ def test_full_genotyping():
 	run_whatshap(
 		phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
 		output='/dev/null', full_genotyping=True)
+
+
+def test_phaseg1():
+	with TemporaryDirectory() as tempdir:
+		out = tempdir + '/output.haplotigs'
+		run_phaseg(locus_file='tests/data/graph.1.trans', gam_file='tests/data/alns1.gam', vg_file='tests/data/graph.1.vg', canu_alignments='tests/data/canu1.gam', pred_haplotigs=out)
+
+
+def test_phaseg2():
+	with TemporaryDirectory() as tempdir:
+		out = tempdir + '/output.haplotigs'
+		run_phaseg(locus_file='tests/data/graph.1.trans', gam_file='tests/data/alns1.gam', vg_file='tests/data/graph.2.vg', canu_alignments='tests/data/canu2.gam', pred_haplotigs=out)
+
+
+def test_phaseg3():
+	with TemporaryDirectory() as tempdir:
+		out = tempdir + '/output.haplotigs'
+		run_phaseg(locus_file='tests/data/graph.3.trans', gam_file='tests/data/alns3.gam', vg_file='tests/data/graph.3.vg', canu_alignments='tests/data/canu3.gam', pred_haplotigs=out)
+
+
+def test_phaseg4():
+	with TemporaryDirectory() as tempdir:
+		out = tempdir + '/output.haplotigs'
+		run_phaseg(locus_file='tests/data/graph.3.trans', gam_file='tests/data/alns4.gam', vg_file='tests/data/graph.3.vg', canu_alignments='tests/data/canu3.gam', pred_haplotigs=out)
+
+
+def test_phaseg5():
+	with TemporaryDirectory() as tempdir:
+		out = tempdir + '/output.haplotigs'
+		run_phaseg(locus_file='tests/data/graph.4.trans', gam_file='tests/data/alns5.gam', vg_file='tests/data/graph.4.vg', canu_alignments='tests/data/canu4.gam', pred_haplotigs=out)
+
+
+def test_phaseg6():
+	with TemporaryDirectory() as tempdir:
+		out = tempdir + '/output.haplotigs'
+		run_phaseg(locus_file='tests/data/graph.3.trans', gam_file='tests/data/alns6.gam', vg_file='tests/data/graph.3.vg', canu_alignments='tests/data/canu3.gam', pred_haplotigs=out)
+
+
+def test_phaseg7():
+	with TemporaryDirectory() as tempdir:
+		out = tempdir + '/output.haplotigs'
+		run_phaseg(locus_file='tests/data/graph.3.trans', gam_file='tests/data/alns7.gam', vg_file='tests/data/graph.3.vg', canu_alignments='tests/data/canu3.gam', pred_haplotigs=out)
