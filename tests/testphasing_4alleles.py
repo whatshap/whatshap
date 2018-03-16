@@ -103,13 +103,13 @@ def test_phase2_flip_gt_allzeros():
 	  012301
 	  0123
 	    301232
-	     0 232
+	     1 232
 	     30223
 	       223
 	        23
 	"""
 	superreads_list, transmission_vector, cost = phase_MAV(reads, 4, [False], [0,0,0,0,0,0,0,0,0,0,0], [0,0,0,0,0,0,0,0])
-	assert cost == 1
+	assert cost == 2
 	all_expected_haplotypes = [
 		('01230223','12301232'),
 	]
