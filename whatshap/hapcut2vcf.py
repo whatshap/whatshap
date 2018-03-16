@@ -162,8 +162,8 @@ def run_hapcut2vcf(hapcut, vcf, output=sys.stdout):
 			components = dict()
 			for block in blocks:
 				for variant in block:
-					haplotypes[0].add_variant(variant.position, variant.haplotype1, 0)
-					haplotypes[1].add_variant(variant.position, variant.haplotype2, 0)
+					haplotypes[0].add_biallelic_variant(variant.position, variant.haplotype1, 0)
+					haplotypes[1].add_biallelic_variant(variant.position, variant.haplotype2, 0)
 					components[variant.position] = variant.component_id
 
 			sample_superreads = { sample: haplotypes }

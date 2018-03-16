@@ -5,7 +5,9 @@
 
 using namespace std;
 
-PhredGenotypeLikelihoods::PhredGenotypeLikelihoods(const std::vector<unsigned int>& gl) : gl({gl}) {}
+PhredGenotypeLikelihoods::PhredGenotypeLikelihoods() : gl({0,0,0}) {}
+
+PhredGenotypeLikelihoods::PhredGenotypeLikelihoods(const std::vector<unsigned int>& gl) : gl(gl) {}
 
 
 unsigned int PhredGenotypeLikelihoods::get(size_t genotype) const {

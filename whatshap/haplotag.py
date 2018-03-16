@@ -210,9 +210,9 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 										assert v.allele in [0,1]
 										phaseset, allele = variantpos_to_phaseinfo[v.position]
 										if v.allele == allele:
-											haplotype_costs[phaseset] += v.quality
+											haplotype_costs[phaseset] += v.quality[!v.allele]
 										else:
-											haplotype_costs[phaseset] -= v.quality
+											haplotype_costs[phaseset] -= v.quality[!v.allele]
 
 								l = list(haplotype_costs.items())
 								l.sort(key=lambda t:-abs(t[1]))

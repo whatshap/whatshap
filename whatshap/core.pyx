@@ -149,7 +149,13 @@ cdef class Read:
 				return True
 		return False
 
+	def add_biallelic_variant(self, int position, int allele, int quality):
+		assert allele in [0,1]
+		self.add_variant(position, allele, [0,quality] if allele == 0 else [quality,0])
+
 	def add_variant(self, int position, int allele, vector[unsigned int] quality):
+		assert 0 <= allele < len(quality)
+		assert quality[allele] == 0
 		assert self.thisptr != NULL
 		self.thisptr.addVariant(position, allele, quality)
 

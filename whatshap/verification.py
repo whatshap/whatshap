@@ -28,10 +28,12 @@ def verify_mec_score_and_partitioning(dp_table, reads):
 		cost1 = 0
 		for variant in read:
 			if variant.position in position_to_index:
-				if new_superreads[0][position_to_index[variant.position]].allele != variant.allele:
-					cost0 = cost0 + variant.quality
-				if new_superreads[1][position_to_index[variant.position]].allele != variant.allele:
-					cost1 = cost1 + variant.quality
+				allele = new_superreads[0][position_to_index[variant.position]].allele
+				if allele != variant.allele:
+					cost0 = cost0 + variant.quality[allele]
+				allele = new_superreads[1][position_to_index[variant.position]].allele
+				if allele != variant.allele:
+					cost1 = cost1 + variant.quality[allele]
 		mec_score += min(cost0, cost1)
 		if cost0 == cost1:
 			continue

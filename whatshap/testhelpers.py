@@ -68,7 +68,7 @@ def matrix_to_readset(lines) :
 
 			offset = int(s[2*i+1])
 			for pos, c in enumerate(s[2*i+2]) :
-				read.add_variant(position=(offset+pos) * 10, allele=int(c), quality = [1])
+				read.add_biallelic_variant(position=(offset+pos) * 10, allele=int(c), quality = 1)
 
 		rs.add(read)
 

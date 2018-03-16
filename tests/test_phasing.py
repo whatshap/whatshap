@@ -41,9 +41,9 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, all_hetero
 	assert (haplotypes == (expected_haplotype1, expected_haplotype2)) or (haplotypes == (expected_haplotype2, expected_haplotype1))
 
 
-def check_phasing_single_individual(reads, n_alleles, weights = None):
+def check_phasing_single_individual(reads, n_alleles=2, weights = None):
 	# 0) set up read set
-	readset = string_to_readset(reads,  n_alleles, weights)
+	readset = string_to_readset(reads, n_alleles=n_alleles, w=weights)
 	positions = readset.get_positions()
 
 	# 1) Phase using PedMEC code for single individual
@@ -81,7 +81,7 @@ def test_phase_trivial() :
           11
            01
         """
-	check_phasing_single_individual(reads, 2)
+	check_phasing_single_individual(reads)
 
 
 def test_phase1():
@@ -90,7 +90,7 @@ def test_phase1():
 	 010
 	 010
 	"""
-	check_phasing_single_individual(reads, 2)
+	check_phasing_single_individual(reads)
 
 
 def test_phase2():
@@ -99,7 +99,7 @@ def test_phase2():
 	  00 00101
 	  001 0101
 	"""
-	check_phasing_single_individual(reads, 2)
+	check_phasing_single_individual(reads)
 
 
 def test_phase3():
@@ -108,7 +108,7 @@ def test_phase3():
 	  00 00101
 	  001 01010
 	"""
-	check_phasing_single_individual(reads, 2)
+	check_phasing_single_individual(reads)
 
 
 def test_phase4():
@@ -118,7 +118,7 @@ def test_phase4():
 	  001 01110
 	   1    111
 	"""
-	check_phasing_single_individual(reads, 2)
+	check_phasing_single_individual(reads)
 
 
 def test_phase4():
@@ -128,7 +128,7 @@ def test_phase4():
 	  001 01110
 	   1    111
 	"""
-	check_phasing_single_individual(reads, 2)
+	check_phasing_single_individual(reads)
 
 
 def test_phase5():
@@ -141,7 +141,7 @@ def test_phase5():
 	        10100
 	              101
 	"""
-	check_phasing_single_individual(reads, 2)
+	check_phasing_single_individual(reads)
 
 
 def test_weighted_phasing1():
@@ -157,4 +157,4 @@ def test_weighted_phasing1():
 	  223 56789
 	   2    111
 	"""
-	check_phasing_single_individual(reads, 2, weights)
+	check_phasing_single_individual(reads, weights=weights)

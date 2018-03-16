@@ -153,7 +153,7 @@ class ReadSetReader:
 			else:
 				detected = self.detect_alleles_by_alignment(variants, i, alignment.bam_alignment, reference, self._overhang, self._use_affine, self._gap_start, self._gap_extend, self._default_mismatch)
 			for j, allele, quality in detected:
-				read.add_variant(variants[j].position, allele, quality)
+				read.add_biallelic_variant(variants[j].position, allele, quality)
 			if read:  # At least one variant covered and detected
 				reads[(alignment.source_id, alignment.bam_alignment.qname, numeric_sample_id)].append(read)
 		return reads
@@ -497,7 +497,7 @@ class ReadSetReader:
 				# If both alleles agree, merge into single variant and add up qualities
 				if read1[i1].allele == read2[i2].allele:
 					quality = read1[i1].quality + read2[i2].quality
-					result.add_variant(read1[i1].position, read1[i1].allele, quality)
+					result.add_biallelic_variant(read1[i1].position, read1[i1].allele, quality)
 				else:
 					# Otherwise, take variant with highest base quality and discard the other.
 					if read1[i1].quality >= read2[i2].quality:

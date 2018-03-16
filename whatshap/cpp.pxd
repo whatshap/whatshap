@@ -82,6 +82,7 @@ cdef extern from "../src/genotypedptable.h":
 
 cdef extern from "../src/phredgenotypelikelihoods.h":
 	cdef cppclass PhredGenotypeLikelihoods:
+		PhredGenotypeLikelihoods() except +
 		PhredGenotypeLikelihoods(vector[unsigned int]) except +
 		PhredGenotypeLikelihoods(PhredGenotypeLikelihoods) except +
 		unsigned int get(unsigned int) except +
