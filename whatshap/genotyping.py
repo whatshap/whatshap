@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+Genotype variants
+
 Runs only the genotyping algorithm. Genotype Likelihoods are computed using the
 forward backward algorithm.
 """
