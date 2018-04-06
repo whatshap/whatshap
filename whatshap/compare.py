@@ -75,13 +75,13 @@ class PhasingErrors:
 
 
 def complement(s):
-	t = { '0': '1', '1':'0' }
+	t = {'0': '1', '1':'0'}
 	return ''.join(t[c] for c in s)
 
 
 def hamming(s0, s1):
 	assert len(s0) == len(s1)
-	return sum(c0!=c1 for c0, c1 in zip(s0, s1))
+	return sum(c0 != c1 for c0, c1 in zip(s0, s1))
 
 
 def switch_encoding(phasing):

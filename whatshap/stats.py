@@ -1,8 +1,9 @@
 """
-Print phasing statistics
+Print phasing statistics of a single VCF file
 """
 import logging
 from collections import defaultdict, namedtuple
+from contextlib import ExitStack
 from .math import median
 from .vcf import VcfReader
 
@@ -159,22 +160,24 @@ class PhasingStats:
 	def add_blocks(self, blocks):
 		self.blocks.extend(blocks)
 
-	def add_unphased(self, unphased=1):
+	def add_unphased(self, unphased: int=1):
 		self.unphased += unphased
 
-	def add_variants(self, variants):
+	def add_variants(self, variants: int):
 		self.variants += variants
 
-	def add_heterozygous_variants(self, variants):
+	def add_heterozygous_variants(self, variants: int):
 		self.heterozygous_variants += variants
 
-	def add_heterozygous_snvs(self, snvs):
+	def add_heterozygous_snvs(self, snvs: int):
 		self.heterozygous_snvs += snvs
 
 	def get(self, chr_lengths=None):
+		"""Return DetailedStats
+		"""
 		block_sizes = sorted(len(block) for block in self.blocks)
 		n_singletons = sum(1 for size in block_sizes if size == 1)
-		block_sizes = [ size for size in block_sizes if size > 1 ]
+		block_sizes = [size for size in block_sizes if size > 1]
 		block_lengths = sorted(block.span() for block in self.blocks if len(block) > 1)
 		phased_snvs = sum(block.count_snvs() for block in self.blocks if len(block) > 1)
 		if block_sizes:
@@ -224,7 +227,6 @@ class PhasingStats:
 
 	def print(self, chr_lengths=None):
 		stats = self.get(chr_lengths)
-
 		WIDTH = 21
 		print('Variants in VCF:'.rjust(WIDTH), '{:8d}'.format(stats.variants))
 		print('Heterozygous:'.rjust(WIDTH), '{:8d} ({:8d} SNVs)'.format(stats.heterozygous_variants, stats.heterozygous_snvs))
@@ -251,131 +253,119 @@ class PhasingStats:
 
 def parse_chr_lengths(filename):
 	chr_lengths = {}
-	for line in open(filename):
-		fields = line.split('\t')
-		assert len(fields) ==2
-		chr_lengths[fields[0]] = int(fields[1])
+	with open(filename) as f:
+		for line in f:
+			fields = line.split('\t')
+			assert len(fields) == 2
+			chr_lengths[fields[0]] = int(fields[1])
 	return chr_lengths
 
 
 def main(args):
-	gtfwriter = None
-	if args.gtf:
-		gtf_file = open(args.gtf, 'wt')
-		gtfwriter = GtfWriter(gtf_file)
-	if args.tsv:
-		tsv_file = open(args.tsv, 'w')
-	else:
-		tsv_file = None
+	gtfwriter = tsv_file = block_list_file = None
+	with ExitStack() as stack:
+		if args.gtf:
+			gtf_file = stack.enter_context(open(args.gtf, 'wt'))
+			gtfwriter = GtfWriter(gtf_file)
+		if args.tsv:
+			tsv_file = stack.enter_context(open(args.tsv, 'w'))
+		if args.block_list:
+			block_list_file = stack.enter_context(open(args.block_list, 'w'))
 
-	if args.block_list:
-		block_list_file = open(args.block_list, 'w')
-	else:
-		block_list_file = None
-
-	if args.chr_lengths:
-		chr_lengths = parse_chr_lengths(args.chr_lengths)
-		logger.info('Read length of %d chromosomes from %s', len(chr_lengths), args.chr_lengths)
-	else:
-		chr_lengths = None
-
-	vcf_reader = VcfReader(args.vcf, phases=True, indels=not args.only_snvs)
-	if len(vcf_reader.samples) == 0:
-		logger.error('Input VCF does not contain any sample')
-		return 1
-	else:
-		logger.info('Found {} sample(s) in input VCF'.format(len(vcf_reader.samples)))
-	if args.sample:
-		if args.sample in vcf_reader.samples:
-			sample = args.sample
+		if args.chr_lengths:
+			chr_lengths = parse_chr_lengths(args.chr_lengths)
+			logger.info('Read length of %d chromosomes from %s', len(chr_lengths), args.chr_lengths)
 		else:
-			logger.error('Requested sample ({}) not found'.format(args.sample))
+			chr_lengths = None
+
+		vcf_reader = VcfReader(args.vcf, phases=True, indels=not args.only_snvs)
+		if len(vcf_reader.samples) == 0:
+			logger.error('Input VCF does not contain any sample')
 			return 1
-	else:
-		sample = vcf_reader.samples[0]
-		logger.info('Reporting results for sample {}'.format(sample))
-
-	if tsv_file:
-		print('#sample', 'chromosome', 'file_name', sep='\t', end='\t', file=tsv_file)
-		print(*detailed_stats_fields, sep='\t', file=tsv_file)
-
-	if block_list_file:
-		print('#sample', 'chromosome', 'phase_set', 'from', 'to', 'variants', sep='\t', file=block_list_file)
-
-	print('Phasing statistics for sample {} from file {}'.format(sample, args.vcf))
-	total_stats = PhasingStats()
-	chromosome_count = 0
-	for variant_table in vcf_reader:
-		if args.chromosome:
-			if variant_table.chromosome != args.chromosome:
-				continue
-		chromosome_count += 1
-		chromosome = variant_table.chromosome
-		stats = PhasingStats()
-		print('---------------- Chromosome {} ----------------'.format(chromosome))
-		genotypes = variant_table.genotypes_of(sample)
-		phases = variant_table.phases_of(sample)
-		assert len(genotypes) == len(phases) == len(variant_table.variants)
-		blocks = defaultdict(PhasedBlock)
-		prev_block_id = None
-		prev_block_fragment_start = None
-		prev_block_fragment_end = None
-		for variant, genotype, phase in zip(variant_table.variants, genotypes, phases):
-			stats.add_variants(1)
-			if genotype != 1:
-				continue
-			stats.add_heterozygous_variants(1)
-			if variant.is_snv():
-				stats.add_heterozygous_snvs(1)
-			if phase is None:
-				stats.add_unphased()
+		else:
+			logger.info('Found {} sample(s) in input VCF'.format(len(vcf_reader.samples)))
+		if args.sample:
+			if args.sample in vcf_reader.samples:
+				sample = args.sample
 			else:
-				blocks[phase.block_id].add(variant, phase)
-				if gtfwriter:
-					if prev_block_id is None:
-						prev_block_fragment_start = variant.position
-						prev_block_fragment_end = variant.position + 1
-						prev_block_id = phase.block_id
-					else:
-						if (prev_block_id != phase.block_id):
-							gtfwriter.write(chromosome, prev_block_fragment_start, prev_block_fragment_end, prev_block_id)
-							prev_block_fragment_start = variant.position
-							prev_block_id = phase.block_id
-						prev_block_fragment_end = variant.position + 1
+				logger.error('Requested sample ({}) not found'.format(args.sample))
+				return 1
+		else:
+			sample = vcf_reader.samples[0]
+			logger.info('Reporting results for sample {}'.format(sample))
 
-		# Add chromosome information to each block. This is needed to
-		# sort blocks later when we compute N50s
-		for block_id, block in blocks.items():
-			block.chromosome = chromosome
-
-		if gtfwriter and (not prev_block_id is None):
-			gtfwriter.write(chromosome, prev_block_fragment_start, prev_block_fragment_end, prev_block_id)
+		if tsv_file:
+			print('#sample', 'chromosome', 'file_name', sep='\t', end='\t', file=tsv_file)
+			print(*detailed_stats_fields, sep='\t', file=tsv_file)
 
 		if block_list_file:
-			block_ids = sorted(blocks.keys())
-			for block_id in block_ids:
-				print(sample, chromosome, block_id, blocks[block_id].leftmost_variant.position + 1, blocks[block_id].rightmost_variant.position + 1, len(blocks[block_id]), sep='\t', file=block_list_file)
+			print('#sample', 'chromosome', 'phase_set', 'from', 'to', 'variants', sep='\t', file=block_list_file)
 
-		stats.add_blocks(blocks.values())
-		stats.print(chr_lengths)
-		if tsv_file:
-			print(sample, chromosome, args.vcf, sep='\t', end='\t', file=tsv_file)
-			print(*stats.get(chr_lengths), sep='\t', file=tsv_file)
+		print('Phasing statistics for sample {} from file {}'.format(sample, args.vcf))
+		total_stats = PhasingStats()
+		chromosome_count = 0
+		for variant_table in vcf_reader:
+			if args.chromosome:
+				if variant_table.chromosome != args.chromosome:
+					continue
+			chromosome_count += 1
+			chromosome = variant_table.chromosome
+			stats = PhasingStats()
+			print('---------------- Chromosome {} ----------------'.format(chromosome))
+			genotypes = variant_table.genotypes_of(sample)
+			phases = variant_table.phases_of(sample)
+			assert len(genotypes) == len(phases) == len(variant_table.variants)
+			blocks = defaultdict(PhasedBlock)
+			prev_block_id = None
+			prev_block_fragment_start = None
+			prev_block_fragment_end = None
+			for variant, genotype, phase in zip(variant_table.variants, genotypes, phases):
+				stats.add_variants(1)
+				if genotype != 1:
+					continue
+				stats.add_heterozygous_variants(1)
+				if variant.is_snv():
+					stats.add_heterozygous_snvs(1)
+				if phase is None:
+					stats.add_unphased()
+				else:
+					blocks[phase.block_id].add(variant, phase)
+					if gtfwriter:
+						if prev_block_id is None:
+							prev_block_fragment_start = variant.position
+							prev_block_fragment_end = variant.position + 1
+							prev_block_id = phase.block_id
+						else:
+							if (prev_block_id != phase.block_id):
+								gtfwriter.write(chromosome, prev_block_fragment_start, prev_block_fragment_end, prev_block_id)
+								prev_block_fragment_start = variant.position
+								prev_block_id = phase.block_id
+							prev_block_fragment_end = variant.position + 1
 
-		total_stats += stats
+			# Add chromosome information to each block. This is needed to
+			# sort blocks later when we compute N50s
+			for block_id, block in blocks.items():
+				block.chromosome = chromosome
 
-	if chromosome_count > 1:
-		print('---------------- ALL chromosomes (aggregated) ----------------'.format(chromosome))
-		total_stats.print(chr_lengths)
-		if tsv_file:
-			print(sample, 'ALL', args.vcf, sep='\t', end='\t', file=tsv_file)
-			print(*total_stats.get(chr_lengths), sep='\t', file=tsv_file)
+			if gtfwriter and (not prev_block_id is None):
+				gtfwriter.write(chromosome, prev_block_fragment_start, prev_block_fragment_end, prev_block_id)
 
-	if gtfwriter:
-		gtf_file.close()
+			if block_list_file:
+				block_ids = sorted(blocks.keys())
+				for block_id in block_ids:
+					print(sample, chromosome, block_id, blocks[block_id].leftmost_variant.position + 1, blocks[block_id].rightmost_variant.position + 1, len(blocks[block_id]), sep='\t', file=block_list_file)
 
-	if tsv_file:
-		tsv_file.close()
+			stats.add_blocks(blocks.values())
+			stats.print(chr_lengths)
+			if tsv_file:
+				print(sample, chromosome, args.vcf, sep='\t', end='\t', file=tsv_file)
+				print(*stats.get(chr_lengths), sep='\t', file=tsv_file)
 
-	if block_list_file:
-		block_list_file.close()
+			total_stats += stats
+
+		if chromosome_count > 1:
+			print('---------------- ALL chromosomes (aggregated) ----------------'.format(chromosome))
+			total_stats.print(chr_lengths)
+			if tsv_file:
+				print(sample, 'ALL', args.vcf, sep='\t', end='\t', file=tsv_file)
+				print(*total_stats.get(chr_lengths), sep='\t', file=tsv_file)
