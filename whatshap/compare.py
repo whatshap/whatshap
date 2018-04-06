@@ -5,12 +5,14 @@ import sys
 import logging
 import math
 from collections import defaultdict, namedtuple
+from contextlib import ExitStack
 from itertools import chain
 from .vcf import VcfReader
 
 logger = logging.getLogger(__name__)
 
 count_width = 9
+
 
 def add_arguments(parser):
 	add = parser.add_argument
@@ -409,140 +411,123 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 			logger.error('More than one sample is present in all VCFs, please use --sample to specify which sample to work on.')
 			sys.exit(1)
 
-	if tsv_pairwise:
-		tsv_pairwise_file = open(tsv_pairwise, 'w')
-	else:
-		tsv_pairwise_file = None
+	with ExitStack() as stack:
+		tsv_pairwise_file = tsv_multiway_file = longest_block_tsv_file = switch_error_bedfile = None
+		if tsv_pairwise:
+			tsv_pairwise_file = stack.enter_context(open(tsv_pairwise, 'w'))
 
-	if tsv_multiway:
-		tsv_multiway_file = open(tsv_multiway, 'w')
-		print('#sample', 'chromosome', 'dataset_list0', 'dataset_list1', 'count', sep='\t', file=tsv_multiway_file)
-	else:
-		tsv_multiway_file = None
+		if tsv_multiway:
+			tsv_multiway_file = stack.enter_context(open(tsv_multiway, 'w'))
+			print('#sample', 'chromosome', 'dataset_list0', 'dataset_list1', 'count', sep='\t', file=tsv_multiway_file)
 
-	if longest_block_tsv:
-		longest_block_tsv_file = open(longest_block_tsv, 'w')
-		print('#dataset_name0', 'dataset_name1', '#sample', 'chromosome', 'position', 'phase_agreeing', sep='\t', file=longest_block_tsv_file)
-	else:
-		longest_block_tsv_file = None
+		if longest_block_tsv:
+			longest_block_tsv_file = stack.enter_context(open(longest_block_tsv, 'w'))
+			print('#dataset_name0', 'dataset_name1', '#sample', 'chromosome', 'position', 'phase_agreeing', sep='\t', file=longest_block_tsv_file)
 
-	print('Comparing phasings for sample', sample)
+		print('Comparing phasings for sample', sample)
 
-	chromosomes = None
-	vcfs = []
-	for reader, filename in zip(vcf_readers, vcf):
-		# create dict mapping chromsome names to VariantTables
-		m = dict()
-		logger.info('Reading phasing from %r', filename)
-		for variant_table in reader:
-			m[variant_table.chromosome] = variant_table
-		vcfs.append(m)
-		if chromosomes is None:
-			chromosomes = set(m.keys())
-		else:
-			chromosomes.intersection_update(m.keys())
-	if len(chromosomes) == 0:
-		logger.error('No chromosome is contained in all VCFs. Aborting.')
-		sys.exit(1)
-
-	logger.info('Chromosomes present in all VCFs: %s', ', '.join(sorted(chromosomes)))
-
-	if tsv_pairwise_file:
-		fields = ['#sample', 'chromosome', 'dataset_name0', 'dataset_name1', 'file_name0', 'file_name1']
-		fields.extend(pairwise_comparison_results_fields)
-		fields.extend(['het_variants0', 'only_snvs'])
-		print(*fields, sep='\t', file=tsv_pairwise_file)
-
-	switch_error_bedfile = None
-	if switch_error_bed:
-		switch_error_bedfile = open(switch_error_bed, 'w')
-
-	print('FILENAMES')
-	for name, filename in zip(dataset_names, vcf):
-		print(name.rjust(longest_name+2), '=', filename)
-
-	width = max(longest_name, 15) + 5
-
-	all_block_stats = [[] for _ in vcfs]
-
-	def add_block_stats(block_stats):
-		assert len(block_stats) == len(all_block_stats)
-		for big_list, new_list in zip(all_block_stats, block_stats):
-			big_list.extend(new_list)
-
-	for chromosome in sorted(chromosomes):
-		print('---------------- Chromosome {} ----------------'.format(chromosome))
-		all_bed_records = []
-		variant_tables = [ vcf[chromosome] for vcf in vcfs ]
-		all_variants_union = set()
-		all_variants_intersection = None
-		het_variants_union = set()
-		het_variants_intersection = None
-		het_variant_sets = []
-		het_variants0 = None
-		print('VARIANT COUNTS (heterozygous / all): ')
-		for variant_table, name in zip(variant_tables, dataset_names):
-			all_variants_union.update(variant_table.variants)
-			het_variants = [ v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if gt == 1 ]
-			if het_variants0 is None:
-				het_variants0 = len(het_variants)
-			het_variants_union.update(het_variants)
-			if all_variants_intersection is None:
-				all_variants_intersection = set(variant_table.variants)
-				het_variants_intersection = set(het_variants)
+		chromosomes = None
+		vcfs = []
+		for reader, filename in zip(vcf_readers, vcf):
+			# create dict mapping chromsome names to VariantTables
+			m = dict()
+			logger.info('Reading phasing from %r', filename)
+			for variant_table in reader:
+				m[variant_table.chromosome] = variant_table
+			vcfs.append(m)
+			if chromosomes is None:
+				chromosomes = set(m.keys())
 			else:
-				all_variants_intersection.intersection_update(variant_table.variants)
-				het_variants_intersection.intersection_update(het_variants)
-			het_variant_sets.append(set(het_variants))
-			print('{}:'.format(name).rjust(width), str(len(het_variants)).rjust(count_width), '/', str(len(variant_table.variants)).rjust(count_width))
-		print('UNION:'.rjust(width), str(len(het_variants_union)).rjust(count_width), '/', str(len(all_variants_union)).rjust(count_width))
-		print('INTERSECTION:'.rjust(width), str(len(het_variants_intersection)).rjust(count_width), '/', str(len(all_variants_intersection)).rjust(count_width))
+				chromosomes.intersection_update(m.keys())
+		if len(chromosomes) == 0:
+			logger.error('No chromosome is contained in all VCFs. Aborting.')
+			sys.exit(1)
 
-		for i in range(len(vcfs)):
-			for j in range(i+1, len(vcfs)):
-				print('PAIRWISE COMPARISON: {} <--> {}:'.format(dataset_names[i],dataset_names[j]))
-				results, bed_records, block_stats, longest_block_positions, longest_block_agreement, multiway_results = compare(chromosome, [variant_tables[i], variant_tables[j]], sample, [dataset_names[i], dataset_names[j]])
-				if len(vcfs) == 2:
-					add_block_stats(block_stats)
-				all_bed_records.extend(bed_records)
-				if tsv_pairwise_file:
-					fields = [sample, chromosome, dataset_names[i], dataset_names[j], vcf[i], vcf[j]]
-					fields.extend(results)
-					fields.extend([het_variants0, int(only_snvs)])
-					print(*fields, sep='\t', file=tsv_pairwise_file)
-				if longest_block_tsv_file:
-					assert len(longest_block_positions) == len(longest_block_agreement)
-					for position, phase_agreeing in zip(longest_block_positions, longest_block_agreement):
-						print(dataset_names[i], dataset_names[j], sample, chromosome, position, phase_agreeing, sep='\t', file=longest_block_tsv_file)
+		logger.info('Chromosomes present in all VCFs: %s', ', '.join(sorted(chromosomes)))
 
-		# if requested, write all switch errors found in the current chromosome to the bed file
-		if switch_error_bedfile:
-			all_bed_records.sort()
-			for record in all_bed_records:
-				print(*record, sep='\t', file=switch_error_bedfile)
+		if tsv_pairwise_file:
+			fields = ['#sample', 'chromosome', 'dataset_name0', 'dataset_name1', 'file_name0', 'file_name1']
+			fields.extend(pairwise_comparison_results_fields)
+			fields.extend(['het_variants0', 'only_snvs'])
+			print(*fields, sep='\t', file=tsv_pairwise_file)
 
-		if len(vcfs) > 2:
-			print('MULTIWAY COMPARISON OF ALL PHASINGS:')
-			results, bed_records, block_stats, longest_block_positions, longest_block_agreement, multiway_results = compare(chromosome, variant_tables, sample, dataset_names)
-			add_block_stats(block_stats)
-			if tsv_multiway_file:
-				for (dataset_list0, dataset_list1), count in multiway_results.items():
-					print(sample, chromosome, '{'+dataset_list0+'}', '{'+dataset_list1+'}', count, sep='\t', file=tsv_multiway_file)
+		if switch_error_bed:
+			switch_error_bedfile = stack.enter_context(open(switch_error_bed, 'w'))
 
-	if plot_blocksizes:
-		create_blocksize_histogram(plot_blocksizes, all_block_stats, dataset_names)
+		print('FILENAMES')
+		for name, filename in zip(dataset_names, vcf):
+			print(name.rjust(longest_name+2), '=', filename)
 
-	if tsv_pairwise:
-		tsv_pairwise_file.close()
+		width = max(longest_name, 15) + 5
 
-	if tsv_multiway:
-		tsv_multiway_file.close()
+		all_block_stats = [[] for _ in vcfs]
 
-	if switch_error_bed:
-		switch_error_bedfile.close()
+		def add_block_stats(block_stats):
+			assert len(block_stats) == len(all_block_stats)
+			for big_list, new_list in zip(all_block_stats, block_stats):
+				big_list.extend(new_list)
 
-	if longest_block_tsv_file:
-		longest_block_tsv_file.close()
+		for chromosome in sorted(chromosomes):
+			print('---------------- Chromosome {} ----------------'.format(chromosome))
+			all_bed_records = []
+			variant_tables = [vcf[chromosome] for vcf in vcfs]
+			all_variants_union = set()
+			all_variants_intersection = None
+			het_variants_union = set()
+			het_variants_intersection = None
+			het_variant_sets = []
+			het_variants0 = None
+			print('VARIANT COUNTS (heterozygous / all): ')
+			for variant_table, name in zip(variant_tables, dataset_names):
+				all_variants_union.update(variant_table.variants)
+				het_variants = [ v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if gt == 1 ]
+				if het_variants0 is None:
+					het_variants0 = len(het_variants)
+				het_variants_union.update(het_variants)
+				if all_variants_intersection is None:
+					all_variants_intersection = set(variant_table.variants)
+					het_variants_intersection = set(het_variants)
+				else:
+					all_variants_intersection.intersection_update(variant_table.variants)
+					het_variants_intersection.intersection_update(het_variants)
+				het_variant_sets.append(set(het_variants))
+				print('{}:'.format(name).rjust(width), str(len(het_variants)).rjust(count_width), '/', str(len(variant_table.variants)).rjust(count_width))
+			print('UNION:'.rjust(width), str(len(het_variants_union)).rjust(count_width), '/', str(len(all_variants_union)).rjust(count_width))
+			print('INTERSECTION:'.rjust(width), str(len(het_variants_intersection)).rjust(count_width), '/', str(len(all_variants_intersection)).rjust(count_width))
+
+			for i in range(len(vcfs)):
+				for j in range(i+1, len(vcfs)):
+					print('PAIRWISE COMPARISON: {} <--> {}:'.format(dataset_names[i],dataset_names[j]))
+					results, bed_records, block_stats, longest_block_positions, longest_block_agreement, multiway_results = compare(chromosome, [variant_tables[i], variant_tables[j]], sample, [dataset_names[i], dataset_names[j]])
+					if len(vcfs) == 2:
+						add_block_stats(block_stats)
+					all_bed_records.extend(bed_records)
+					if tsv_pairwise_file:
+						fields = [sample, chromosome, dataset_names[i], dataset_names[j], vcf[i], vcf[j]]
+						fields.extend(results)
+						fields.extend([het_variants0, int(only_snvs)])
+						print(*fields, sep='\t', file=tsv_pairwise_file)
+					if longest_block_tsv_file:
+						assert len(longest_block_positions) == len(longest_block_agreement)
+						for position, phase_agreeing in zip(longest_block_positions, longest_block_agreement):
+							print(dataset_names[i], dataset_names[j], sample, chromosome, position, phase_agreeing, sep='\t', file=longest_block_tsv_file)
+
+			# if requested, write all switch errors found in the current chromosome to the bed file
+			if switch_error_bedfile:
+				all_bed_records.sort()
+				for record in all_bed_records:
+					print(*record, sep='\t', file=switch_error_bedfile)
+
+			if len(vcfs) > 2:
+				print('MULTIWAY COMPARISON OF ALL PHASINGS:')
+				results, bed_records, block_stats, longest_block_positions, longest_block_agreement, multiway_results = compare(chromosome, variant_tables, sample, dataset_names)
+				add_block_stats(block_stats)
+				if tsv_multiway_file:
+					for (dataset_list0, dataset_list1), count in multiway_results.items():
+						print(sample, chromosome, '{'+dataset_list0+'}', '{'+dataset_list1+'}', count, sep='\t', file=tsv_multiway_file)
+
+		if plot_blocksizes:
+			create_blocksize_histogram(plot_blocksizes, all_block_stats, dataset_names)
 
 
 def main(args):
