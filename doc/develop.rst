@@ -34,23 +34,17 @@ Installing other Python versions in Ubuntu
 ------------------------------------------
 
 Ubuntu comes with one default Python 3 version, and in order to test WhatsHap
-with other Python versions (3.2, 3.3 and 3.4), use the “deadsnakes” repository.
-Ensure you have the following packages::
+with older or newer Python versions, follow the instructions for enabling the
+`“deadsnakes” repository <https://launchpad.net/~deadsnakes/+archive/ubuntu/ppa>`_.
+After you have done so, ensure you have the following packages::
 
-	sudo apt-get install build-essential python-software-properties
+	sudo apt install build-essential python-software-properties
 
-Then get and install the desired Python versions. For example, for Python 3.2::
+Then get and install the desired Python versions. Make sure you install the ``-dev`` package.
+For example, for Python 3.3::
 
-	sudo add-apt-repository ppa:fkrull/deadsnakes
-	sudo apt-get update
-	sudo apt-get install python3.2-dev python3-setuptools
-
-If pip and virtualenv are not available, install them (Since they are so essential,
-we use sudo to install them system-wide, but you can also install them into
-your $HOME by omitting the sudo and adding the ``--user`` option instead)::
-
-	sudo easy_install3 pip
-	sudo pip3 install virtualenv
+	sudo apt update
+	sudo apt install python3.3-dev
 
 
 Debugging
