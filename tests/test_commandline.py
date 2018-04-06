@@ -1,3 +1,6 @@
+"""
+Integration tests that use the command-line entry points run_whatshap, run_haplotag etc.
+"""
 from tempfile import TemporaryDirectory
 import os
 from io import StringIO
