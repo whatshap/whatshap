@@ -72,12 +72,16 @@ cdef extern from "../src/pedigreedptable.h":
 		int get_optimal_score() except +
 		vector[bool]* get_optimal_partitioning()
 
+cdef extern from "../src/genotypedptable.h":
+	cdef cppclass GenotypeDPTable:
+		GenotypeDPTable(ReadSet*, vector[unsigned int], Pedigree* pedigree, vector[unsigned int]* positions) except +
+		vector[long double] get_genotype_likelihoods(unsigned int individual, unsigned int position) except +
 
 cdef extern from "../src/phredgenotypelikelihoods.h":
 	cdef cppclass PhredGenotypeLikelihoods:
-		PhredGenotypeLikelihoods(unsigned int, unsigned int, unsigned int) except +
+		PhredGenotypeLikelihoods(double, double, double) except +
 		PhredGenotypeLikelihoods(PhredGenotypeLikelihoods) except +
-		unsigned int get(unsigned int) except +
+		double get(unsigned int) except +
 		string toString() except +
 
 

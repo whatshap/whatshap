@@ -2,8 +2,7 @@ import textwrap
 from collections import defaultdict
 from whatshap.core import Read, ReadSet, Variant
 
-
-def string_to_readset(s, w = None, sample_ids = None, source_id = 0):
+def string_to_readset(s, w = None, sample_ids = None, source_id=0, scale_quality = None):
 	s = textwrap.dedent(s).strip()
 	if w is not None:
 		w = textwrap.dedent(w).strip().split('\n')
@@ -21,14 +20,17 @@ def string_to_readset(s, w = None, sample_ids = None, source_id = 0):
 			q = 1
 			if w is not None:
 				q = int(w[index][pos])
-			read.add_variant(position=(pos+1) * 10, allele=int(c), quality=q)
+			if not scale_quality==None:
+				read.add_variant(position=(pos+1) * 10, allele=int(c), quality=q*scale_quality)
+			else:
+				read.add_variant(position=(pos+1) * 10, allele=int(c), quality=q)
 		assert len(read) > 1, 'Reads covering less than two variants are not allowed'
 		rs.add(read)
 	print(rs)
 	return rs
 
 
-def string_to_readset_pedigree(s, w = None):
+def string_to_readset_pedigree(s, w = None, scaling_quality = None):
 	s = textwrap.dedent(s).strip()
 	read_sources = []
 	s2 = ''
@@ -39,7 +41,7 @@ def string_to_readset_pedigree(s, w = None):
 		assert 0 <= individual < 26
 		read_sources.append(individual)
 		s2 += line[1:] + '\n'
-	rs = string_to_readset(s2, w, read_sources)
+	rs = string_to_readset(s=s2, w=w, sample_ids=read_sources, scale_quality=scaling_quality)
 	print('read_sources:', read_sources)
 	return rs
 
