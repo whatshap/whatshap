@@ -1,18 +1,12 @@
 from tempfile import TemporaryDirectory
 import os
-from io import StringIO
 import pysam
 from nose.tools import raises
-from collections import namedtuple
 import math
 import vcf
 
 from whatshap.genotyping import run_genotyping
-from whatshap.phase import run_whatshap
-from whatshap.haplotag import run_haplotag
-from whatshap.hapcut2vcf import run_hapcut2vcf
-from whatshap.compare import run_compare
-from whatshap.vcf import VcfReader, VariantCallPhase, GenotypeLikelihoods
+from whatshap.vcf import VcfReader
 
 trio_bamfile = 'tests/data/trio.pacbio.bam'
 trio_merged_bamfile = 'tests/data/trio-merged-blocks.bam'
@@ -38,12 +32,6 @@ def teardown_module():
 	for path in bam_files:
 		os.remove(path)
 		os.remove(path + '.bai')
-
-
-def test_pysam_version():
-	from pysam import __version__ as pysam_version
-	from distutils.version import LooseVersion
-	assert LooseVersion(pysam_version) >= LooseVersion("0.8.1")
 
 
 def test_one_variant():
