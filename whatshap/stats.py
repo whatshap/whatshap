@@ -295,8 +295,7 @@ def main(args):
 			logger.info('Reporting results for sample {}'.format(sample))
 
 		if tsv_file:
-			print('#sample', 'chromosome', 'file_name', sep='\t', end='\t', file=tsv_file)
-			print(*detailed_stats_fields, sep='\t', file=tsv_file)
+			print('#sample', 'chromosome', 'file_name', *detailed_stats_fields, sep='\t', file=tsv_file)
 
 		if block_list_file:
 			print('#sample', 'chromosome', 'phase_set', 'from', 'to', 'variants', sep='\t', file=block_list_file)
@@ -329,6 +328,7 @@ def main(args):
 				if phase is None:
 					stats.add_unphased()
 				else:
+					# a phased variant
 					blocks[phase.block_id].add(variant, phase)
 					if gtfwriter:
 						if prev_block_id is None:
@@ -336,7 +336,7 @@ def main(args):
 							prev_block_fragment_end = variant.position + 1
 							prev_block_id = phase.block_id
 						else:
-							if (prev_block_id != phase.block_id):
+							if prev_block_id != phase.block_id:
 								gtfwriter.write(chromosome, prev_block_fragment_start, prev_block_fragment_end, prev_block_id)
 								prev_block_fragment_start = variant.position
 								prev_block_id = phase.block_id
@@ -347,7 +347,7 @@ def main(args):
 			for block_id, block in blocks.items():
 				block.chromosome = chromosome
 
-			if gtfwriter and (not prev_block_id is None):
+			if gtfwriter and prev_block_id is not None:
 				gtfwriter.write(chromosome, prev_block_fragment_start, prev_block_fragment_end, prev_block_id)
 
 			if block_list_file:
@@ -364,7 +364,7 @@ def main(args):
 			total_stats += stats
 
 		if chromosome_count > 1:
-			print('---------------- ALL chromosomes (aggregated) ----------------'.format(chromosome))
+			print('---------------- ALL chromosomes (aggregated) ----------------')
 			total_stats.print(chr_lengths)
 			if tsv_file:
 				print(sample, 'ALL', args.vcf, sep='\t', end='\t', file=tsv_file)
