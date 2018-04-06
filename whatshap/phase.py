@@ -710,9 +710,8 @@ def add_arguments(parser):
 	# Positional arguments
 	arg('variant_file', metavar='VCF', help='VCF file with variants to be phased (can be gzip-compressed)')
 	arg('phase_input_files', nargs='*', metavar='PHASEINPUT',
-	    help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')
+		help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')
 
-	arg('--version', action='version', version=__version__)
 	arg('-o', '--output', default=sys.stdout,
 		help='Output VCF file. Add .gz to the file name to get compressed output. '
 			'If omitted, use standard output.')
