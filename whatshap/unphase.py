@@ -25,7 +25,7 @@ def add_arguments(parser):
 	add('vcf', metavar='VCF', help='VCF file. Use "-" to read from standard input')
 
 
-def remove_phasing(vcf_path, outfile):
+def run_unphase(vcf_path, outfile):
 	"""
 	Read a VCF file, remove phasing information, and write the result to
 	outfile, which must be a file-like object.
@@ -69,4 +69,4 @@ def remove_phasing(vcf_path, outfile):
 
 
 def main(args):
-	remove_phasing(args.vcf, sys.stdout)
+	run_unphase(args.vcf, sys.stdout)
