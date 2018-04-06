@@ -1,4 +1,3 @@
-from nose.tools import raises
 from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
 from .phasingutils import string_to_readset, brute_force_phase
 

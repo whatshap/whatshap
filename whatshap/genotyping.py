@@ -7,31 +7,30 @@ import logging
 import sys
 import platform
 import resource
-import math
 from collections import defaultdict
-from copy import deepcopy
 
 from xopen import xopen
 
 from contextlib import ExitStack
-from .vcf import VcfReader, GenotypeVcfWriter, GenotypeLikelihoods, VariantTable
+from .vcf import VcfReader, GenotypeVcfWriter
 from . import __version__
 from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable, compute_genotypes
 from .graph import ComponentFinder
-from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
-                       load_genetic_map, uniform_recombination_map, find_recombination)
-from .bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
+from .pedigree import recombination_cost_map, load_genetic_map, uniform_recombination_map
+from .bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
 from .timer import StageTimer
-from .variants import ReadSetReader, ReadSetError
-from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
+from .variants import ReadSetReader
+from .utils import IndexedFasta, FastaNotIndexedError
 
 from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree
 
 
 logger = logging.getLogger(__name__)
 
-# given genotype likelihoods for 0/0,0/1,1/1, determines likeliest genotype
+
 def determine_genotype(likelihoods, threshold_prob):
+	"""given genotype likelihoods for 0/0,0/1,1/1, determines likeliest genotype"""
+
 	to_sort = [(likelihoods[0],0),(likelihoods[1],1),(likelihoods[2],2)]
 	to_sort.sort(key=lambda x: x[0])
 
@@ -40,6 +39,7 @@ def determine_genotype(likelihoods, threshold_prob):
 		return to_sort[2][1]
 	else:
 		return -1
+
 
 def run_genotyping(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None,
@@ -62,7 +62,9 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		numeric_sample_ids = NumericSampleIds()
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
 		try:
-			readset_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, reference, numeric_sample_ids, mapq_threshold=mapping_quality, overhang=overhang, affine=affine_gap, gap_start=gap_start, gap_extend=gap_extend, default_mismatch=mismatch))
+			readset_reader = stack.enter_context(ReadSetReader(
+				phase_input_bam_filenames, reference, numeric_sample_ids, mapq_threshold=mapping_quality,
+				overhang=overhang, affine=affine_gap, gap_start=gap_start, gap_extend=gap_extend, default_mismatch=mismatch))
 		except OSError as e:
 			logger.error(e)
 			sys.exit(1)
@@ -73,7 +75,7 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 		except EmptyAlignmentFileError as e:
 			logger.error('No reads could be retrieved from %r. If this is a CRAM file, possibly the '
 				'reference could not be found. Try to use --reference=... or check you '
-			    '$REF_PATH/$REF_CACHE settings', str(e))
+				'$REF_PATH/$REF_CACHE settings', str(e))
 			sys.exit(1)
 		try:
 			phase_input_vcf_readers = [VcfReader(f, indels=indels, phases=True) for f in phase_input_vcf_filenames]
@@ -310,7 +312,6 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 			timers.start('parse_vcf')
 		timers.stop('parse_vcf')
 
-
 	logger.info('\n== SUMMARY ==')
 	timers.stop('overall')
 	if sys.platform == 'linux':
@@ -327,13 +328,12 @@ def run_genotyping(phase_input_files, variant_file, reference=None,
 	logger.info('Total elapsed time:                          %6.1f s', timers.elapsed('overall'))
 
 
-
 def add_arguments(parser):
 	arg = parser.add_argument
 	# Positional arguments
 	arg('variant_file', metavar='VCF', help='VCF file with variants to be genotyped (can be gzip-compressed)')
 	arg('phase_input_files', nargs='*', metavar='PHASEINPUT',
-	    help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')
+		help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')
 
 	arg('--version', action='version', version=__version__)
 	arg('-o', '--output', default=sys.stdout,
