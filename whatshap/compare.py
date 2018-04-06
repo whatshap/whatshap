@@ -43,12 +43,15 @@ class SwitchFlips:
 	def __init__(self, switches=0, flips=0):
 		self.switches = switches
 		self.flips = flips
+
 	def __iadd__(self, other):
 		self.switches += other.switches
 		self.flips += other.flips
 		return self
+
 	def __repr__(self):
 		return 'SwitchFlips(switches={}, flips={})'.format(self.switches, self.flips)
+
 	def __str__(self):
 		return '{}/{}'.format(self.switches, self.flips)
 
@@ -58,11 +61,13 @@ class PhasingErrors:
 		self.switches = switches
 		self.hamming = hamming
 		self.switch_flips = SwitchFlips() if switch_flips is None else switch_flips
+
 	def __iadd__(self, other):
 		self.switches += other.switches
 		self.hamming += other.hamming
 		self.switch_flips += other.switch_flips
 		return self
+
 	def __repr__(self):
 		return 'PhasingErrors(switches={}, hamming={}, switch_flips={})'.format(self.switches, self.hamming, self.switch_flips)
 
@@ -74,11 +79,11 @@ def complement(s):
 
 def hamming(s0, s1):
 	assert len(s0) == len(s1)
-	return sum( c0!=c1 for c0, c1 in zip(s0, s1) )
+	return sum(c0!=c1 for c0, c1 in zip(s0, s1))
 
 
 def switch_encoding(phasing):
-	return ''.join( ('0' if phasing[i-1]==phasing[i] else '1') for i in range(1,len(phasing)) )
+	return ''.join(('0' if phasing[i-1] == phasing[i] else '1') for i in range(1, len(phasing)))
 
 
 def compute_switch_flips(phasing0, phasing1):
@@ -169,6 +174,7 @@ PairwiseComparisonResults = namedtuple('PairwiseComparisonResults', pairwise_com
 
 BlockStats = namedtuple('BlockStats', ['variant_count', 'span'])
 
+
 def compare(chromosome, variant_tables, sample, dataset_names):
 	"""
 	Return a PairwiseComparisonResults object if the variant_tables has a length of 2.
@@ -176,7 +182,7 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 	assert len(variant_tables) > 1
 	variants = None
 	for variant_table in variant_tables:
-		het_variants = [ v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if gt == 1 ]
+		het_variants = [v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if gt == 1]
 		if variants is None:
 			variants = set(het_variants)
 		else:
@@ -186,12 +192,12 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 	phases = []
 	sorted_variants = sorted(variants, key=lambda v: v.position)
 	for variant_table in variant_tables:
-		p = [ phase for variant, phase in zip(variant_table.variants, variant_table.phases_of(sample)) if variant in variants ]
-		assert [ v for v in variant_table.variants if v in variants ] == sorted_variants
+		p = [phase for variant, phase in zip(variant_table.variants, variant_table.phases_of(sample)) if variant in variants]
+		assert [v for v in variant_table.variants if v in variants] == sorted_variants
 		assert len(p) == len(variants)
 		phases.append(p)
 
-	blocks = [ defaultdict(list) for _ in variant_tables ]
+	blocks = [defaultdict(list) for _ in variant_tables]
 	block_intersection = defaultdict(list)
 	for variant_index in range(len(variants)):
 		any_none = False
@@ -202,7 +208,7 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 			else:
 				blocks[i][phase.block_id].append(variant_index)
 		if not any_none:
-			joint_block_id = tuple( phases[i][variant_index].block_id for i in range(len(phases)) )
+			joint_block_id = tuple(phases[i][variant_index].block_id for i in range(len(phases)))
 			block_intersection[joint_block_id].append(variant_index)
 
 	# create statistics on each block in each data set
@@ -235,9 +241,9 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 		for block in block_intersection.values():
 			if len(block) < 2:
 				continue
-			phasing0 = ''.join( str(phases[0][i].phase) for i in block )
-			phasing1 = ''.join( str(phases[1][i].phase) for i in block )
-			block_positions = [ sorted_variants[i].position for i in block ]
+			phasing0 = ''.join(str(phases[0][i].phase) for i in block)
+			phasing1 = ''.join(str(phases[1][i].phase) for i in block)
+			block_positions = [sorted_variants[i].position for i in block]
 			errors = compare_block(phasing0, phasing1)
 			bed_records.extend(create_bed_records(chromosome, phasing0, phasing1, block_positions, '{}<-->{}'.format(*dataset_names)))
 			total_errors += errors
@@ -248,9 +254,9 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 				longest_block_errors = errors
 				longest_block_positions = block_positions
 				if hamming(phasing0, phasing1) < hamming(phasing0, complement(phasing1)):
-					longest_block_agreement = [1*(p0 == p1) for p0, p1 in zip(phasing0,phasing1) ]
+					longest_block_agreement = [1*(p0 == p1) for p0, p1 in zip(phasing0,phasing1)]
 				else:
-					longest_block_agreement = [1*(p0 != p1) for p0, p1 in zip(phasing0,phasing1) ]
+					longest_block_agreement = [1*(p0 != p1) for p0, p1 in zip(phasing0,phasing1)]
 		longest_block_assessed_pairs = max(longest_block - 1, 0)
 		print('              ALL INTERSECTION BLOCKS:', '-'*count_width)
 		print_errors(total_errors, phased_pairs)
@@ -285,10 +291,10 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 			if len(block) < 2:
 				continue
 			total_compared += len(block) - 1
-			phasings = [ ''.join( str(phases[j][i].phase) for i in block ) for j in range(len(phases)) ]
-			switch_encodings = [ switch_encoding(p) for p in phasings ]
+			phasings = [''.join( str(phases[j][i].phase) for i in block ) for j in range(len(phases))]
+			switch_encodings = [switch_encoding(p) for p in phasings]
 			for i in range(len(block)-1):
-				s = ''.join(switch_encodings[j][i] for j in range(len(switch_encodings)) )
+				s = ''.join(switch_encodings[j][i] for j in range(len(switch_encodings)))
 				s = min(s, complement(s))
 				histogram[s] += 1
 		print('           Compared pairs of variants:', str(total_compared).rjust(count_width))
@@ -330,15 +336,14 @@ def create_blocksize_histogram(filename, block_stats, names):
 
 	assert len(block_stats) == len(names)
 	
-	color_list = ['#ffa347','#0064c8','#b42222','#22a5b4','#b47c22','#6db6ff']
+	color_list = ['#ffa347', '#0064c8', '#b42222', '#22a5b4', '#b47c22', '#6db6ff']
 	if len(color_list) < len(block_stats):
 		color_count = len(block_stats)
 		color_list = pyplot.cm.Set1([n/color_count for n in range(color_count)])
 	colors = color_list[:len(block_stats)]
 
-
 	with PdfPages(filename) as pdf:
-		for what, xlabel in [ (lambda stats: stats.variant_count, 'variant count'), (lambda stats: stats.span, 'span [bp]') ]:
+		for what, xlabel in [(lambda stats: stats.variant_count, 'variant count'), (lambda stats: stats.span, 'span [bp]')]:
 			pyplot.figure(figsize=(10, 8))
 			max_value = max(what(stats) for stats in chain(*block_stats))
 			common_bins = numpy.logspace(0, math.ceil(math.log10(max_value)), 50)
@@ -366,8 +371,7 @@ def create_blocksize_histogram(filename, block_stats, names):
 			pyplot.legend()
 			pdf.savefig()
 			pyplot.close()
-	
-	
+
 
 def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, longest_block_tsv=None):
 	vcf_readers = [VcfReader(f, indels=not only_snvs, phases=True) for f in vcf]
@@ -459,7 +463,8 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 
 	width = max(longest_name, 15) + 5
 
-	all_block_stats = [ [] for _ in vcfs ]
+	all_block_stats = [[] for _ in vcfs]
+
 	def add_block_stats(block_stats):
 		assert len(block_stats) == len(all_block_stats)
 		for big_list, new_list in zip(all_block_stats, block_stats):
