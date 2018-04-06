@@ -40,12 +40,6 @@ def teardown_module():
 		os.remove(path + '.bai')
 
 
-def test_pysam_version():
-	from pysam import __version__ as pysam_version
-	from distutils.version import LooseVersion
-	assert LooseVersion(pysam_version) >= LooseVersion("0.8.1")
-
-
 def test_one_variant():
 	run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
 		output='/dev/null')
