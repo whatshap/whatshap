@@ -41,10 +41,10 @@ After you have done so, ensure you have the following packages::
 	sudo apt install build-essential python-software-properties
 
 Then get and install the desired Python versions. Make sure you install the ``-dev`` package.
-For example, for Python 3.3::
+For example, for Python 3.4::
 
 	sudo apt update
-	sudo apt install python3.3-dev
+	sudo apt install python3.4-dev
 
 
 Debugging
@@ -140,8 +140,9 @@ must *not* be put between quotation marks even if it contains spaces.
 
 #. Upload the distribution to PyPI (the tarball must be regenerated since ``upload`` requires a preceding ``sdist``)::
 
-       python3 setup.py sdist upload
+       twine upload dist/whatshap-x.yz.tar.gz
 
+   You may need to install the ``twine`` tool to run this command.
 #. Push the tag::
 
        git push --tags
