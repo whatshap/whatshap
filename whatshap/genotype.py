@@ -43,7 +43,7 @@ def determine_genotype(likelihoods, threshold_prob):
 		return -1
 
 
-def run_genotyping(phase_input_files, variant_file, reference=None,
+def run_genotype(phase_input_files, variant_file, reference=None,
 		output=sys.stdout, samples=None, chromosomes=None,
 		ignore_read_groups=False, indels=True, mapping_quality=20,
 		max_coverage=15, nopriors=False,
@@ -406,4 +406,4 @@ def validate(args, parser):
 	if args.affine_gap and not args.reference:
 		parser.error('Option --affine-gap can only be used together with --reference.')
 def main(args):
-	run_genotyping(**vars(args))
+	run_genotype(**vars(args))
