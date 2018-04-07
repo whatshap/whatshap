@@ -2,8 +2,8 @@
 Changes
 =======
 
-Development version
--------------------
+v0.15 (2018-04-07)
+------------------
 
 * New subcommand ``genotype`` for haplotype-aware genotyping 
   (see https://doi.org/10.1101/293944 for details on the method).
