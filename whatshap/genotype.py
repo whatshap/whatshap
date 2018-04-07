@@ -365,13 +365,20 @@ def add_arguments(parser):
 		'If error probability of genotype is higher, genotype ./. is output.')
 	arg('--no-priors', dest='nopriors', default=False, action='store_true',
 		help='Skip initial prior genotyping and use uniform priors (default: %(default)s).')
-	arg('-p', '--prioroutput', default=None, help='output prior genotype likelihoods to the given file.')
-	arg('--overhang', metavar='OVERHANG', default=10, type=int, help='When --reference is used, extend alignment by this many bases to left and right when realigning (default: %(default)s).')
-	arg('--constant', metavar='CONSTANT', default=0, type=float, help='This constant is used to regularize the priors (default: %(default)s).')
-	arg('--affine-gap', default=False, action='store_true', help='When detecting alleles through re-alignment, use affine gap costs (EXPERIMENTAL).')
-	arg('--gap-start', metavar='GAPSTART', default=10, type=float, help='gap starting penalty in case affine gap costs are used (default: %(default)s).')
-	arg('--gap-extend', metavar='GAPEXTEND', default=7, type=float, help='gap extend penalty in case affine gap costs are used (default: %(default)s).')
-	arg('--mismatch', metavar='MISMATCH', default=15, type=float, help='mismatch cost in case affine gap costs are used (default: %(default)s)')
+	arg('-p', '--prioroutput', default=None,
+		help='output prior genotype likelihoods to the given file.')
+	arg('--overhang', metavar='OVERHANG', default=10, type=int,
+		help='When --reference is used, extend alignment by this many bases to left and right when realigning (default: %(default)s).')
+	arg('--constant', metavar='CONSTANT', default=0, type=float,
+		help='This constant is used to regularize the priors (default: %(default)s).')
+	arg('--affine-gap', default=False, action='store_true',
+		help='When detecting alleles through re-alignment, use affine gap costs (EXPERIMENTAL).')
+	arg('--gap-start', metavar='GAPSTART', default=10, type=float,
+		help='gap starting penalty in case affine gap costs are used (default: %(default)s).')
+	arg('--gap-extend', metavar='GAPEXTEND', default=7, type=float,
+		help='gap extend penalty in case affine gap costs are used (default: %(default)s).')
+	arg('--mismatch', metavar='MISMATCH', default=15, type=float,
+		help='mismatch cost in case affine gap costs are used (default: %(default)s)')
 
 	arg = parser.add_argument_group('Pedigree genotyping').add_argument
 	arg('--ped', metavar='PED/FAM',
@@ -385,6 +392,7 @@ def add_arguments(parser):
 	arg('--genmap', metavar='FILE',
 		help='File with genetic map (used with --ped) to be used instead of constant recombination '
 		'rate, i.e. overrides option --recombrate.')
+
 
 def validate(args, parser):
 	if args.ignore_read_groups and args.ped:
@@ -405,5 +413,7 @@ def validate(args, parser):
 		parser.error('--constant can only be used if --no-priors is NOT set..')
 	if args.affine_gap and not args.reference:
 		parser.error('Option --affine-gap can only be used together with --reference.')
+
+
 def main(args):
 	run_genotype(**vars(args))
