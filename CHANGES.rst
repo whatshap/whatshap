@@ -5,12 +5,16 @@ Changes
 Development version
 -------------------
 
+* New subcommand ``genotype`` for haplotype-aware genotyping 
+  (see https://doi.org/10.1101/293944 for details on the method).
 * Support CRAM files in addition to BAM.
 * :issue:`133`:
   No longer create BAM/CRAM index if it does not exist. This is safer when running multiple
   WhatsHap instances in parallel. From now on, you need to create the index yourself
   (for example with ``samtools index``) before running WhatsHap.
 * :issue:`152`: Reads marked as “duplicate” in the input BAM/CRAM file are now ignored.
+* :issue:`157`: Adapt to changed interface in Pysam 0.14.
+* :issue:`158`: Handle read groups with missing sample (SM) tag correctly.
 
 v0.14.1 (2017-07-07)
 --------------------
