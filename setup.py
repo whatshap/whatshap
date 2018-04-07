@@ -16,8 +16,8 @@ import versioneer
 
 MIN_CYTHON_VERSION = '0.17'
 
-if sys.version_info < (3, 3):
-	sys.stdout.write("At least Python 3.3 is required.\n")
+if sys.version_info < (3, 4):
+	sys.stdout.write("At least Python 3.4 is required.\n")
 	sys.exit(1)
 
 
