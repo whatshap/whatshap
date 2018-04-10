@@ -96,6 +96,11 @@ def hamming(s0, s1):
 
 
 def switch_encoding(phasing):
+	"""
+	>>> switch_encoding('0001011')
+	'001110'
+	"""
+	assert isinstance(phasing, str)
 	return ''.join(('0' if phasing[i-1] == phasing[i] else '1') for i in range(1, len(phasing)))
 
 
