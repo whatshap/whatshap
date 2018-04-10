@@ -128,6 +128,11 @@ cmdclass['sdist'] = sdist
 with open('doc/README.rst', encoding='utf-8') as f:
 	long_description = f.read()
 
+if sys.version_info < (3, 5):
+	requires = ['typing']
+else:
+	requires = []
+
 setup(
 	name = 'whatshap',
 	version = versioneer.get_version(),
@@ -141,7 +146,7 @@ setup(
 	ext_modules = extensions,
 	packages = ['whatshap'],
 	entry_points={'console_scripts': ['whatshap = whatshap.__main__:main']},
-	install_requires = ['pysam>=0.14.0', 'PyVCF', 'pyfaidx', 'xopen'],
+	install_requires = ['pysam>=0.14.0', 'PyVCF', 'pyfaidx', 'xopen'] + requires,
 	classifiers = [
 		"Development Status :: 4 - Beta",
 		"Environment :: Console",
