@@ -122,11 +122,11 @@ class VariantTable:
 	def __init__(self, chromosome, samples):
 		self.chromosome = chromosome
 		self.samples = samples
-		self.genotypes = [ array('b', []) for _ in samples ]
-		self.phases = [ [] for _ in samples ]
-		self.genotype_likelihoods = [ [] for _ in samples ]
+		self.genotypes = [array('b', []) for _ in samples]
+		self.phases = [[] for _ in samples]
+		self.genotype_likelihoods = [[] for _ in samples]
 		self.variants = []
-		self._sample_to_index = { sample: index for index, sample in enumerate(samples) }
+		self._sample_to_index = {sample: index for index, sample in enumerate(samples)}
 
 	def __len__(self):
 		return len(self.variants)
@@ -253,7 +253,7 @@ class VariantTable:
 			if phase.block_id in read_map:
 				read_map[phase.block_id].add_variant(variant.position, phase.phase, quality)
 			else:
-				r = Read('{}_block_{}'.format(sample,phase.block_id), mapq, source_id, numeric_sample_id)
+				r = Read('{}_block_{}'.format(sample, phase.block_id), mapq, source_id, numeric_sample_id)
 				r.add_variant(variant.position, phase.phase, quality)
 				read_map[phase.block_id] = r
 		for key, read in read_map.items():

@@ -7,7 +7,8 @@ import math
 from collections import defaultdict, namedtuple
 from contextlib import ExitStack
 from itertools import chain
-from .vcf import VcfReader
+
+from whatshap.vcf import VcfReader
 
 logger = logging.getLogger(__name__)
 
@@ -185,31 +186,33 @@ PairwiseComparisonResults = namedtuple('PairwiseComparisonResults', pairwise_com
 BlockStats = namedtuple('BlockStats', ['variant_count', 'span'])
 
 
-def compare(chromosome, variant_tables, sample, dataset_names):
+def compare(variant_tables, sample: str, dataset_names):
 	"""
 	Return a PairwiseComparisonResults object if the variant_tables has a length of 2.
 	"""
 	assert len(variant_tables) > 1
-	variants = None
+
+	common_variants = None
 	for variant_table in variant_tables:
 		het_variants = [v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if gt == 1]
-		if variants is None:
-			variants = set(het_variants)
+		if common_variants is None:
+			common_variants = set(het_variants)
 		else:
-			variants.intersection_update(het_variants)
-	print('         common heterozygous variants:', str(len(variants)).rjust(count_width))
+			common_variants.intersection_update(het_variants)
+
+	print('         common heterozygous variants:', str(len(common_variants)).rjust(count_width))
 	print('         (restricting to these below)')
 	phases = []
-	sorted_variants = sorted(variants, key=lambda v: v.position)
+	sorted_variants = sorted(common_variants, key=lambda v: v.position)
 	for variant_table in variant_tables:
-		p = [phase for variant, phase in zip(variant_table.variants, variant_table.phases_of(sample)) if variant in variants]
-		assert [v for v in variant_table.variants if v in variants] == sorted_variants
-		assert len(p) == len(variants)
+		p = [phase for variant, phase in zip(variant_table.variants, variant_table.phases_of(sample)) if variant in common_variants]
+		assert [v for v in variant_table.variants if v in common_variants] == sorted_variants
+		assert len(p) == len(common_variants)
 		phases.append(p)
 
 	blocks = [defaultdict(list) for _ in variant_tables]
 	block_intersection = defaultdict(list)
-	for variant_index in range(len(variants)):
+	for variant_index in range(len(common_variants)):
 		any_none = False
 		for i in range(len(phases)):
 			phase = phases[i][variant_index]
@@ -255,7 +258,8 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 			phasing1 = ''.join(str(phases[1][i].phase) for i in block)
 			block_positions = [sorted_variants[i].position for i in block]
 			errors = compare_block(phasing0, phasing1)
-			bed_records.extend(create_bed_records(chromosome, phasing0, phasing1, block_positions, '{}<-->{}'.format(*dataset_names)))
+			bed_records.extend(create_bed_records(
+				variant_tables[0].chromosome, phasing0, phasing1, block_positions, '{}<-->{}'.format(*dataset_names)))
 			total_errors += errors
 			phased_pairs += len(block) - 1
 			total_compared_variants += len(block)
@@ -301,7 +305,7 @@ def compare(chromosome, variant_tables, sample, dataset_names):
 			if len(block) < 2:
 				continue
 			total_compared += len(block) - 1
-			phasings = [''.join( str(phases[j][i].phase) for i in block ) for j in range(len(phases))]
+			phasings = [''.join(str(phases[j][i].phase) for i in block) for j in range(len(phases))]
 			switch_encodings = [switch_encoding(p) for p in phasings]
 			for i in range(len(block)-1):
 				s = ''.join(switch_encodings[j][i] for j in range(len(switch_encodings)))
@@ -437,7 +441,7 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 		chromosomes = None
 		vcfs = []
 		for reader, filename in zip(vcf_readers, vcf):
-			# create dict mapping chromsome names to VariantTables
+			# create dict mapping chromosome names to VariantTables
 			m = dict()
 			logger.info('Reading phasing from %r', filename)
 			for variant_table in reader:
@@ -488,7 +492,7 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 			print('VARIANT COUNTS (heterozygous / all): ')
 			for variant_table, name in zip(variant_tables, dataset_names):
 				all_variants_union.update(variant_table.variants)
-				het_variants = [ v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if gt == 1 ]
+				het_variants = [v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if gt == 1]
 				if het_variants0 is None:
 					het_variants0 = len(het_variants)
 				het_variants_union.update(het_variants)
@@ -506,7 +510,8 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 			for i in range(len(vcfs)):
 				for j in range(i+1, len(vcfs)):
 					print('PAIRWISE COMPARISON: {} <--> {}:'.format(dataset_names[i],dataset_names[j]))
-					results, bed_records, block_stats, longest_block_positions, longest_block_agreement, multiway_results = compare(chromosome, [variant_tables[i], variant_tables[j]], sample, [dataset_names[i], dataset_names[j]])
+					results, bed_records, block_stats, longest_block_positions, longest_block_agreement, multiway_results = compare(
+						[variant_tables[i], variant_tables[j]], sample, [dataset_names[i], dataset_names[j]])
 					if len(vcfs) == 2:
 						add_block_stats(block_stats)
 					all_bed_records.extend(bed_records)
@@ -528,7 +533,8 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 
 			if len(vcfs) > 2:
 				print('MULTIWAY COMPARISON OF ALL PHASINGS:')
-				results, bed_records, block_stats, longest_block_positions, longest_block_agreement, multiway_results = compare(chromosome, variant_tables, sample, dataset_names)
+				results, bed_records, block_stats, longest_block_positions, longest_block_agreement, multiway_results = compare(
+					variant_tables, sample, dataset_names)
 				add_block_stats(block_stats)
 				if tsv_multiway_file:
 					for (dataset_list0, dataset_list1), count in multiway_results.items():
