@@ -61,6 +61,7 @@ hapcut2vcf Convert hapCUT output format to VCF
 unphase    Remove phasing information from a VCF file
 haplotag   Tag reads by haplotype
 haplofasta Write haplotypes in FASTA format from a phased VCF
+genotype   Genotype variants
 ========== ===================================================
 
 Not all are fully documented in this manual, yet. To get help for a
@@ -500,4 +501,21 @@ heterozygous variants.
 
 |
 
+Genotyping Variants
+===================
+
+Besides phasing them, WhatsHap can also re-genotype variants.
+Given a VCF file containing variant positions,
+it computes genotype likelihoods for all three genotypes (0/0, 0/1, 1/1) and outputs them in a VCF
+file
+together with a genotype prediction. Genotyping can be run using the following command::
+
+    whatshap genotype -o genotyped.vcf input.vcf input.bam
+
+The predicted genotype is stored in the output VCF using the ``GT`` tag and the ``GL`` tag
+provides (log10-scaled) likelihoods computed by the genotyping algorithm.
+As for phasing, providing a reference sequence is strongly recommended in order to
+enable re-alignment mode::
+
+    whatshap genotype --reference ref.fasta -o genotyped.vcf input.vcf input.bam
 
