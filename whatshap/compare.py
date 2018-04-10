@@ -7,8 +7,10 @@ import math
 from collections import defaultdict, namedtuple
 from contextlib import ExitStack
 from itertools import chain
+from typing import Set, Iterable, List
 
-from whatshap.vcf import VcfReader
+from whatshap.vcf import VcfReader, VcfVariant, VariantTable
+
 
 logger = logging.getLogger(__name__)
 
@@ -80,7 +82,7 @@ def complement(s):
 	>>> complement('01100')
 	'10011'
 	"""
-	t = {'0': '1', '1':'0'}
+	t = {'0': '1', '1': '0'}
 	return ''.join(t[c] for c in s)
 
 
@@ -155,12 +157,33 @@ def create_bed_records(chromosome, phasing0, phasing1, positions, annotation_str
 			yield (chromosome, positions[i]+1, positions[i+1]+1, annotation_string)
 
 
-def print_errors(errors, phased_pairs, print_hamming=False):
-	print('    phased pairs of variants assessed:', str(phased_pairs).rjust(count_width))
-	print('                        switch errors:', str(errors.switches).rjust(count_width))
-	print('                    switch error rate:', fraction2percentstr(errors.switches, phased_pairs).rjust(count_width))
-	print('            switch/flip decomposition:', str(errors.switch_flips).rjust(count_width) )
-	print('                     switch/flip rate:', fraction2percentstr(errors.switch_flips.switches+errors.switch_flips.flips, phased_pairs).rjust(count_width))
+def print_stat(text: str, value=None, value2=None, text_width=37):
+	"""
+	Print a line like this:
+
+	     text: value
+	"""
+	text = text.rjust(text_width)
+	if value is None:
+		assert value2 is None
+		print(text)
+	else:
+		if value == '-':
+			value = '-' * count_width
+		else:
+			value = str(value).rjust(count_width)
+		if value2 is None:
+			print(text + ':', value)
+		else:
+			print(text + ':', value, str(value2).rjust(count_width))
+
+
+def print_errors(errors, phased_pairs):
+	print_stat('phased pairs of variants assessed', phased_pairs)
+	print_stat('switch errors', errors.switches)
+	print_stat('switch error rate', fraction2percentstr(errors.switches, phased_pairs))
+	print_stat('switch/flip decomposition', errors.switch_flips)
+	print_stat('switch/flip rate', fraction2percentstr(errors.switch_flips.switches+errors.switch_flips.flips, phased_pairs))
 
 
 pairwise_comparison_results_fields = [
@@ -186,12 +209,7 @@ PairwiseComparisonResults = namedtuple('PairwiseComparisonResults', pairwise_com
 BlockStats = namedtuple('BlockStats', ['variant_count', 'span'])
 
 
-def compare(variant_tables, sample: str, dataset_names):
-	"""
-	Return a PairwiseComparisonResults object if the variant_tables has a length of 2.
-	"""
-	assert len(variant_tables) > 1
-
+def collect_common_variants(variant_tables: List[VariantTable], sample) -> Set[VcfVariant]:
 	common_variants = None
 	for variant_table in variant_tables:
 		het_variants = [v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if gt == 1]
@@ -199,9 +217,19 @@ def compare(variant_tables, sample: str, dataset_names):
 			common_variants = set(het_variants)
 		else:
 			common_variants.intersection_update(het_variants)
+	return common_variants
 
-	print('         common heterozygous variants:', str(len(common_variants)).rjust(count_width))
-	print('         (restricting to these below)')
+
+def compare(variant_tables, sample: str, dataset_names):
+	"""
+	Return a PairwiseComparisonResults object if the variant_tables has a length of 2.
+	"""
+	assert len(variant_tables) > 1
+
+	common_variants = collect_common_variants(variant_tables, sample)
+
+	print_stat('common heterozygous variants', len(common_variants))
+	print_stat('(restricting to these below)')
 	phases = []
 	sorted_variants = sorted(common_variants, key=lambda v: v.position)
 	for variant_table in variant_tables:
@@ -210,6 +238,7 @@ def compare(variant_tables, sample: str, dataset_names):
 		assert len(p) == len(common_variants)
 		phases.append(p)
 
+	# blocks[variant_table_index][block_id] is a list of indices into common_variants
 	blocks = [defaultdict(list) for _ in variant_tables]
 	block_intersection = defaultdict(list)
 	for variant_index in range(len(common_variants)):
@@ -226,22 +255,24 @@ def compare(variant_tables, sample: str, dataset_names):
 
 	# create statistics on each block in each data set
 	block_stats = []
-	for i in range(len(variant_tables)):
+	for block in blocks:
 		l = []
-		for block_id, variant_indices in blocks[i].items():
+		for block_id, variant_indices in block.items():
 			if len(variant_indices) < 2:
 				continue
 			span = sorted_variants[variant_indices[-1]].position - sorted_variants[variant_indices[0]].position
 			l.append(BlockStats(len(variant_indices), span))
 		block_stats.append(l)
 
-	for i in range(len(phases)):
-		print('non-singleton blocks in {}:'.format(dataset_names[i]).rjust(38), str(len([b for b in blocks[i].values() if len(b) > 1])).rjust(count_width))
-		print('                 --> covered variants:', str(sum(len(b) for b in blocks[i].values() if len(b) > 1)).rjust(count_width))
-	intersection_block_count = len([b for b in block_intersection.values() if len(b) > 1])
+	for dataset_name, block in zip(dataset_names, blocks):
+		print_stat('non-singleton blocks in {}'.format(dataset_name),
+			len([b for b in block.values() if len(b) > 1]))
+		print_stat('--> covered variants', sum(len(b) for b in block.values() if len(b) > 1))
+
+	intersection_block_count = sum(1 for b in block_intersection.values() if len(b) > 1)
 	intersection_block_variants = sum(len(b) for b in block_intersection.values() if len(b) > 1)
-	print('    non-singleton intersection blocks:', str(intersection_block_count).rjust(count_width))
-	print('                 --> covered variants:', str(intersection_block_variants).rjust(count_width))
+	print_stat('non-singleton intersection blocks', intersection_block_count)
+	print_stat('--> covered variants', intersection_block_variants)
 	longest_block = 0
 	longest_block_errors = PhasingErrors()
 	longest_block_positions = []
@@ -272,14 +303,14 @@ def compare(variant_tables, sample: str, dataset_names):
 				else:
 					longest_block_agreement = [1*(p0 != p1) for p0, p1 in zip(phasing0,phasing1)]
 		longest_block_assessed_pairs = max(longest_block - 1, 0)
-		print('              ALL INTERSECTION BLOCKS:', '-'*count_width)
+		print_stat('ALL INTERSECTION BLOCKS', '-')
 		print_errors(total_errors, phased_pairs)
-		print('          Block-wise Hamming distance:', str(total_errors.hamming).rjust(count_width))
-		print('      Block-wise Hamming distance [%]:', fraction2percentstr(total_errors.hamming, total_compared_variants).rjust(count_width))
-		print('           LARGEST INTERSECTION BLOCK:', '-'*count_width)
+		print_stat('Block-wise Hamming distance', total_errors.hamming)
+		print_stat('Block-wise Hamming distance [%]', fraction2percentstr(total_errors.hamming, total_compared_variants))
+		print_stat('LARGEST INTERSECTION BLOCK', '-')
 		print_errors(longest_block_errors, longest_block_assessed_pairs)
-		print('                     Hamming distance:', str(longest_block_errors.hamming).rjust(count_width))
-		print('                 Hamming distance [%]:', fraction2percentstr(longest_block_errors.hamming, longest_block).rjust(count_width))
+		print_stat('Hamming distance', longest_block_errors.hamming)
+		print_stat('Hamming distance [%]', fraction2percentstr(longest_block_errors.hamming, longest_block))
 		return PairwiseComparisonResults(
 			intersection_blocks = intersection_block_count,
 			covered_variants = intersection_block_variants,
@@ -311,7 +342,7 @@ def compare(variant_tables, sample: str, dataset_names):
 				s = ''.join(switch_encodings[j][i] for j in range(len(switch_encodings)))
 				s = min(s, complement(s))
 				histogram[s] += 1
-		print('           Compared pairs of variants:', str(total_compared).rjust(count_width))
+		print_stat('Compared pairs of variants', total_compared)
 		bipartitions = list(histogram.keys())
 		bipartitions.sort()
 		multiway_results = {} # (dataset_list0, dataset_list1) --> count
@@ -319,21 +350,21 @@ def compare(variant_tables, sample: str, dataset_names):
 			count = histogram[s]
 			if i == 0:
 				assert set(c for c in s) == set('0')
-				print('                            ALL AGREE:')
+				print('ALL AGREE')
 			elif i == 1:
-				print('                         DISAGREEMENT:')
+				print('DISAGREEMENT')
 			left, right = [], []
 			for name, leftright in zip(dataset_names,s):
 				if leftright == '0':
 					left.append(name)
 				else:
 					right.append(name)
-			print(
-				('{%s} vs. {%s}:' % (','.join(left),','.join(right))).rjust(38),
-				str(count).rjust(count_width),
-				fraction2percentstr(count, total_compared).rjust(8)
+			print_stat(
+				('{%s} vs. {%s}' % (','.join(left), ','.join(right))),
+				count,
+				fraction2percentstr(count, total_compared)
 			)
-			multiway_results[(','.join(left),','.join(right))] = count
+			multiway_results[(','.join(left), ','.join(right))] = count
 		return None, None, block_stats, None, None, multiway_results
 
 
