@@ -374,7 +374,7 @@ class ReadSetReader:
 		"""
 		# Do not process symbolic alleles like <DEL>, <DUP>, etc.
 		if variant.alternative_allele.startswith('<'):
-			return None
+			return None, None
 
 		left_cigar, right_cigar = ReadSetReader.split_cigar(cigartuples, i, consumed)
 
