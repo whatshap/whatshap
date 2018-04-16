@@ -373,6 +373,99 @@ def compare(variant_tables, sample: str, dataset_names):
 		return None, None, block_stats, None, None, multiway_results
 
 
+completeness_results_fields = [
+	'possible',
+	'actual',
+	'connection_ratio',
+	'percentile_n',
+	'Sn',
+	'Nn',
+	'ANn',
+]
+CompletenessResults = namedtuple('CompletenessResults', completeness_results_fields)
+
+
+def size_span(blocks, variants) :
+
+	S = defaultdict(int)
+	N = defaultdict(int)
+	AN = defaultdict(float)
+	for block in blocks :
+		ids = blocks[block]
+		first, last = ids[0], ids[-1]
+
+		S[block] = len(ids)
+		N[block] = variants[last].position - variants[first].position + 1
+		assert N[block] > 0
+
+		sites_span = last - first + 1
+		assert sites_span > 0
+
+		AN[block] = S[block] * N[block] / sites_span
+
+	return S, N, AN
+
+
+def nth_percentile(blocks, percentile) :
+	nth = None
+
+	aggregate = sum(blocks[block] for block in blocks)
+
+	i = 0
+	for block in sorted(blocks, key = lambda block : blocks[block], reverse = True) :
+		i += blocks[block]
+		if i >= aggregate / (100.0/percentile) :
+			nth = block
+			break
+
+	return(nth)
+
+
+def get_measures(dists, percentile) :
+
+	measures = []
+	for D in dists :
+		measures.append(D[nth_percentile(D, percentile)])
+
+	return measures
+
+
+def completeness(variant_table, sample: str, dataset_name, percentile = 50) :
+
+	het_variants = [v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if gt == 1]
+	possible = len(het_variants) - 1
+	print_stat('possible phase connections', possible)
+
+	phasing = [phase for variant, phase in zip(variant_table.variants, variant_table.phases_of(sample)) if variant in het_variants]
+	assert len(phasing) == len(het_variants)
+
+	# blocks[variant_index][block_id] is a list of indices into haplotype blocks
+	blocks = defaultdict(list)
+	for variant_index in range(len(het_variants)) :
+		phase = phasing[variant_index]
+		if phase :
+			blocks[phase.block_id].append(variant_index)
+
+	S, N, AN = size_span(blocks, het_variants)
+
+	actual = sum(S[block] for block in blocks) - len(blocks)
+	print_stat('actual phase connections', actual)
+	print_stat('phase connection ratio', fraction2percentstr(actual, possible))
+
+	Sn, Nn, ANn = get_measures([S, N, AN], percentile)
+
+	print_stat('S{}'.format(percentile), Sn)
+	print_stat('N{}'.format(percentile), Nn)
+	print_stat('AN{}'.format(percentile), ANn)
+
+	return CompletenessResults(
+		possible = possible,
+		actual = actual,
+		connection_ratio = safefraction(actual, possible),
+		percentile_n = percentile,
+		Sn = Sn, Nn = Nn, ANn = ANn)
+
+
 def create_blocksize_histogram(filename, block_stats, names):
 	try:
 		import matplotlib
