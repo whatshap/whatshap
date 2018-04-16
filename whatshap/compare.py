@@ -381,6 +381,9 @@ completeness_results_fields = [
 	'Sn',
 	'Nn',
 	'ANn',
+	'QSn',
+	'QNn',
+	'QANn'
 ]
 CompletenessResults = namedtuple('CompletenessResults', completeness_results_fields)
 
@@ -430,7 +433,7 @@ def get_measures(dists, percentile) :
 	return measures
 
 
-def completeness(variant_table, sample: str, dataset_name, percentile = 50) :
+def completeness(variant_table, sample: str, dataset_name, bed_records, percentile = 50) :
 
 	het_variants = [v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if gt == 1]
 	possible = len(het_variants) - 1
@@ -458,12 +461,32 @@ def completeness(variant_table, sample: str, dataset_name, percentile = 50) :
 	print_stat('N{}'.format(percentile), Nn)
 	print_stat('AN{}'.format(percentile), ANn)
 
+	# now we break blocks over the switch errors for QAN
+	breakpoints = set(int(record[1]) for record in bed_records)
+	split_counter = defaultdict(int)
+	qual_blocks = defaultdict(list)
+	for block in blocks :
+		for i in blocks[block] :
+			id = '{}_{}'.format(block, split_counter[block])
+			qual_blocks[id].append(i)
+
+			if het_variants[i].position + 1 in breakpoints :
+				split_counter[block] += 1
+
+	QS, QN, QAN = size_span(qual_blocks, het_variants)
+	QSn, QNn, QANn = get_measures([QS, QN, QAN], percentile)
+
+	print_stat('QS{}'.format(percentile), QSn)
+	print_stat('QN{}'.format(percentile), QNn)
+	print_stat('QAN{}'.format(percentile), QANn)
+
 	return CompletenessResults(
 		possible = possible,
 		actual = actual,
 		connection_ratio = safefraction(actual, possible),
 		percentile_n = percentile,
-		Sn = Sn, Nn = Nn, ANn = ANn)
+		Sn = Sn, Nn = Nn, ANn = ANn,
+		QSn = QSn, QNn = QNn, QANn = QANn)
 
 
 def create_blocksize_histogram(filename, block_stats, names):
