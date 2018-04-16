@@ -25,6 +25,8 @@ def add_arguments(parser):
 			'of data set names to be used in the report (in same order as VCFs).')
 	add('--tsv-pairwise', metavar='TSVPAIRWISE', default=None, help='Filename to write '
 		'comparison results from pair-wise comparison to (tab-separated).')
+	add('--tsv-completeness', metavar='TSVCOMPLETENESS', default=None, help='Filename to write '
+		'phasing completeness results to (tab-separated).')
 	add('--tsv-multiway', metavar='TSVMULTIWAY', default=None, help='Filename to write '
 		'comparison results from multiway comparison to (tab-separated).')
 	add('--only-snvs', default=False, action="store_true", help='Only process SNVs '
@@ -539,7 +541,7 @@ def create_blocksize_histogram(filename, block_stats, names):
 			pyplot.close()
 
 
-def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, longest_block_tsv=None):
+def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_completeness=None, tsv_multiway=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, longest_block_tsv=None):
 	vcf_readers = [VcfReader(f, indels=not only_snvs, phases=True) for f in vcf]
 	if names:
 		dataset_names = names.split(',')
@@ -576,9 +578,12 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 			sys.exit(1)
 
 	with ExitStack() as stack:
-		tsv_pairwise_file = tsv_multiway_file = longest_block_tsv_file = switch_error_bedfile = None
+		tsv_pairwise_file = tsv_completeness_file = tsv_multiway_file = longest_block_tsv_file = switch_error_bedfile = None
 		if tsv_pairwise:
 			tsv_pairwise_file = stack.enter_context(open(tsv_pairwise, 'w'))
+
+		if tsv_completeness:
+			tsv_completeness_file = stack.enter_context(open(tsv_completeness, 'w'))
 
 		if tsv_multiway:
 			tsv_multiway_file = stack.enter_context(open(tsv_multiway, 'w'))
@@ -614,6 +619,12 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 			fields.extend(pairwise_comparison_results_fields)
 			fields.extend(['het_variants0', 'only_snvs'])
 			print(*fields, sep='\t', file=tsv_pairwise_file)
+
+		if tsv_completeness_file:
+			fields = ['#sample', 'chromosome', 'dataset_name0', 'file_name0']
+			fields.extend(completeness_results_fields)
+			fields.extend(['dataset_name1', 'file_name1', 'only_snvs'])
+			print(*fields, sep='\t', file=tsv_completeness_file)
 
 		if switch_error_bed:
 			switch_error_bedfile = stack.enter_context(open(switch_error_bed, 'w'))
@@ -672,6 +683,13 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 						fields.extend(results)
 						fields.extend([het_variants0, int(only_snvs)])
 						print(*fields, sep='\t', file=tsv_pairwise_file)
+					print('COMPLETENESS: {}:'.format(dataset_names[i]))
+					completeness_results = completeness(variant_tables[i], sample, dataset_names[i], bed_records)
+					if tsv_completeness_file:
+						fields = [sample, chromosome, dataset_names[i], vcf[i]]
+						fields.extend(completeness_results)
+						fields.extend([dataset_names[j], vcf[j], int(only_snvs)])
+						print(*fields, sep='\t', file=tsv_completeness_file)
 					if longest_block_tsv_file:
 						assert len(longest_block_positions) == len(longest_block_agreement)
 						for position, phase_agreeing in zip(longest_block_positions, longest_block_agreement):
