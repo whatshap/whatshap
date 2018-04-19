@@ -111,7 +111,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 		# TODO: convince pysam to allow @HS header line
 		header = bam_reader.header.to_dict()
 		command_line = ' '.join(['whatshap'] + sys.argv[1:])
-		PG_entry = { 'PN':'whatshap', 'VN':__version__, 'CL':command_line, 'm5': md5_of(variant_file)}
+		PG_entry = {'ID':'whatshap', 'PN':'whatshap', 'VN':__version__, 'CL':command_line, 'm5': md5_of(variant_file)}
 		if 'PG' in header:
 			header['PG'].append(PG_entry)
 		else:
