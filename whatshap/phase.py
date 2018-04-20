@@ -267,6 +267,7 @@ def run_whatshap(
 		gtchange_list_filename=None,
 		default_gq=30,
 		write_command_line_header=True,
+		use_ped_samples=False
 	):
 	"""
 	Run WhatsHap.
@@ -351,6 +352,17 @@ def run_whatshap(
 			sys.exit(1)
 		if not samples:
 			samples = vcf_reader.samples
+
+		# if --use-ped-samples is set, use only samples from PED file
+		if ped and use_ped_samples:
+			samples = set()
+			for trio in PedReader(ped, numeric_sample_ids):
+				if (trio.child is None or trio.mother is None or trio.father is None):
+					continue
+				samples.add(trio.mother)
+				samples.add(trio.father)
+				samples.add(trio.child)
+
 		vcf_sample_set = set(vcf_reader.samples)
 		for sample in samples:
 			if sample not in vcf_sample_set:
@@ -365,7 +377,7 @@ def run_whatshap(
 		family_finder = ComponentFinder(samples)
 
 		if ped:
-			all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, vcf_reader.samples)
+			all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, samples)
 			if genmap:
 				logger.info('Using region-specific recombination rates from genetic map %s.', genmap)
 			else:
@@ -783,6 +795,9 @@ def add_arguments(parser):
 		help='Do not merge blocks that are not connected by reads (i.e. solely based on genotype '
 		'status). Default: when in --ped mode, merge all blocks that contain at least one '
 		'homozygous genotype in at least one individual into one block.')
+	arg('--use-ped-samples', dest='use_ped_samples',
+		action='store_true', default=False,
+		help='Only work on samples mentioned in the provided PED file.')
 
 
 def validate(args, parser):
@@ -794,6 +809,10 @@ def validate(args, parser):
 		parser.error('Option --genmap can only be used when working on exactly one chromosome (use --chromosome)')
 	if args.include_homozygous and not args.distrust_genotypes:
 		parser.error('Option --include-homozygous can only be used with --distrust-genotypes.')
+	if args.use_ped_samples and not args.ped:
+		parser.error('Option --use-ped-samples can only be used when PED file is provided (--ped).')
+	if args.use_ped_samples and args.samples:
+		parser.error('Option --use-ped-samples cannot be used together with --samples')
 	if len(args.phase_input_files) == 0 and not args.ped:
 		parser.error('Not providing any PHASEINPUT files only allowed in --ped mode.')
 

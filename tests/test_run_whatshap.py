@@ -16,6 +16,7 @@ from whatshap.vcf import VcfReader, VariantCallPhase
 trio_bamfile = 'tests/data/trio.pacbio.bam'
 trio_merged_bamfile = 'tests/data/trio-merged-blocks.bam'
 trio_paired_end_bamfile = 'tests/data/paired_end.sorted.bam'
+ped_samples_bamfile = 'tests/data/ped_samples.bam'
 recombination_breaks_bamfile = 'tests/data/recombination_breaks.sorted.bam'
 quartet2_bamfile = 'tests/data/quartet2.bam'
 short_bamfile = 'tests/data/short-genome/short.bam'
@@ -194,6 +195,35 @@ def test_phase_trio():
 		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
 		assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
 
+
+def test_phase_trio_use_ped_samples():
+	with TemporaryDirectory() as tempdir:
+		for ped_samples in [True, False]:
+			outvcf = tempdir + '/output_ped_samples.vcf'
+			outreadlist = tempdir + '/readlist.tsv'
+			run_whatshap(phase_input_files=[ped_samples_bamfile], variant_file='tests/data/ped_samples.vcf', read_list_filename=outreadlist, output=outvcf,
+				ped='tests/data/trio.ped', genmap='tests/data/trio.map', use_ped_samples=ped_samples)
+			assert os.path.isfile(outvcf)
+			assert os.path.isfile(outreadlist)
+
+			tables = list(VcfReader(outvcf, phases=True))
+			assert len(tables) == 1
+			table = tables[0]
+			assert table.chromosome == '1'
+			assert len(table.variants) == 5
+			assert table.samples == ['HG004', 'HG003', 'HG002', 'orphan']
+
+			phase0 = VariantCallPhase(60906167, 0, None)
+			phase1 = VariantCallPhase(60907394, 0, None)
+			assert_phasing(table.phases_of('HG004'), [phase0, phase0, phase0, phase0, phase0])
+			assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
+			assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
+
+			if ped_samples:
+				assert_phasing(table.phases_of('orphan'), [None, None, None, None, None])
+			else:
+				assert_phasing(table.phases_of('orphan'), [None, phase1, phase1, phase1, None])
+		
 
 def test_phase_trio_distrust_genotypes():
 	with TemporaryDirectory() as tempdir:
