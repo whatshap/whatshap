@@ -160,8 +160,8 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 						for sample in samples:
 							genotypes = variant_table.genotypes_of(sample)
 							phases = variant_table.phases_of(sample)
-							variantpos_to_phaseset = {
-								v.position:int(phases[i].block_id) for i,v in enumerate(variant_table.variants) if phases[i] is not None
+							variantpos_to_phaseinfo = {
+								v.position:(int(phases[i].block_id),phases[i].phase) for i,v in enumerate(variant_table.variants) if phases[i] is not None
 							}
 							variants = [
 								v for v, gt, phase in zip(variant_table.variants, genotypes, phases) if gt == 1 and phase is not None
@@ -172,8 +172,9 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 								haplotype_costs = defaultdict(int)
 								for v in read:
 									assert v.allele in [0,1]
-									phaseset = variantpos_to_phaseset[v.position]
-									if v.allele == 0:
+									phaseset = variantpos_to_phaseinfo[v.position][0]
+									#if v.allele == 0:
+									if v.allele == variantpos_to_phaseinfo[v.position][1]:
 										haplotype_costs[phaseset] += v.quality
 									else:
 										haplotype_costs[phaseset] -= v.quality
