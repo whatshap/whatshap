@@ -456,7 +456,6 @@ def test_haplotag():
 		assert ps_count > 0
 
 
-# TODO insert some additional tests ..
 def test_haplotag2():
 	with TemporaryDirectory() as tempdir:
 		outbam1 = tempdir + '/output1.bam'
@@ -470,6 +469,18 @@ def test_haplotag2():
 			if a1.has_tag('HP'):
 				assert a2.has_tag('HP')
 				assert(a1.get_tag('HP') != a2.get_tag('HP'))
+
+
+def test_haplotag3():
+	with TemporaryDirectory() as tempdir:
+		outbam = tempdir + '/output.bam'
+		run_haplotag(variant_file='tests/data/haplotag_2.vcf', alignment_file='tests/data/haplotag.bam', output=outbam)
+		for alignment in pysam.AlignmentFile(outbam):
+			if alignment.has_tag('HP'):
+				# simulated bam, we know from which haplotype each read originated (given in read name)
+				true_ht = int(alignment.query_name[-1])
+				assert(true_ht == alignment.get_tag('HP'))
+
 
 def test_hapcut2vcf():
 	with TemporaryDirectory() as tempdir:

@@ -173,7 +173,6 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 								for v in read:
 									assert v.allele in [0,1]
 									phaseset = variantpos_to_phaseinfo[v.position][0]
-									#if v.allele == 0:
 									if v.allele == variantpos_to_phaseinfo[v.position][1]:
 										haplotype_costs[phaseset] += v.quality
 									else:
