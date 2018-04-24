@@ -456,6 +456,32 @@ def test_haplotag():
 		assert ps_count > 0
 
 
+def test_haplotag2():
+	with TemporaryDirectory() as tempdir:
+		outbam1 = tempdir + '/output1.bam'
+		outbam2 = tempdir + '/output2.bam'
+
+		# run haplotag with two vcfs containing opposite phasings (i.e. 1|0 - 0|1 ..)
+		run_haplotag(variant_file='tests/data/haplotag_1.vcf', alignment_file='tests/data/haplotag.bam', output=outbam1)
+		run_haplotag(variant_file='tests/data/haplotag_2.vcf', alignment_file='tests/data/haplotag.bam', output=outbam2)
+		for a1, a2 in zip(pysam.AlignmentFile(outbam1), pysam.AlignmentFile(outbam2)):
+			assert a1.query_name == a2.query_name
+			if a1.has_tag('HP'):
+				assert a2.has_tag('HP')
+				assert(a1.get_tag('HP') != a2.get_tag('HP'))
+
+
+def test_haplotag3():
+	with TemporaryDirectory() as tempdir:
+		outbam = tempdir + '/output.bam'
+		run_haplotag(variant_file='tests/data/haplotag_2.vcf', alignment_file='tests/data/haplotag.bam', output=outbam)
+		for alignment in pysam.AlignmentFile(outbam):
+			if alignment.has_tag('HP'):
+				# simulated bam, we know from which haplotype each read originated (given in read name)
+				true_ht = int(alignment.query_name[-1])
+				assert(true_ht == alignment.get_tag('HP'))
+
+
 def test_hapcut2vcf():
 	with TemporaryDirectory() as tempdir:
 		out = os.path.join(tempdir, 'hapcut.vcf')
