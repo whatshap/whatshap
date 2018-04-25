@@ -223,7 +223,30 @@ def test_phase_trio_use_ped_samples():
 				assert_phasing(table.phases_of('orphan'), [None, None, None, None, None])
 			else:
 				assert_phasing(table.phases_of('orphan'), [None, phase1, phase1, phase1, None])
-		
+
+def test_phase_ped_sample():
+	with TemporaryDirectory() as tempdir:
+		# running with --ped and --sample on subset of trio, should give same results as running with only --sample
+		# the trio information should be ignored
+		outvcf1 = tempdir + '/output1.vcf'
+		outvcf2 = tempdir + '/output2.vcf'
+		for sample_set in [['HG002'], ['HG003'], ['HG004'], ['HG002','HG003'], ['HG002','HG004'], ['HG003','HG004']]:
+			run_whatshap(phase_input_files=[ped_samples_bamfile], variant_file='tests/data/ped_samples.vcf', output=outvcf1,
+				ped='tests/data/trio.ped', samples=sample_set)
+			run_whatshap(phase_input_files=[ped_samples_bamfile], variant_file='tests/data/ped_samples.vcf', output=outvcf2,
+				samples=sample_set)
+
+			assert os.path.isfile(outvcf1)
+			assert os.path.isfile(outvcf2)
+
+			tables1 = list(VcfReader(outvcf1, phases=True))
+			tables2 = list(VcfReader(outvcf2, phases=True))
+
+			assert( (len(tables1) == 1) and (len(tables2) == 1) )
+			table1, table2 = tables1[0], tables2[0]
+
+			for individual in sample_set:
+				assert_phasing(table1.phases_of(individual), table2.phases_of(individual))
 
 def test_phase_trio_distrust_genotypes():
 	with TemporaryDirectory() as tempdir:

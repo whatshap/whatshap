@@ -18,7 +18,8 @@ from .vcf import VcfReader, GenotypeVcfWriter
 from . import __version__
 from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable, compute_genotypes
 from .graph import ComponentFinder
-from .pedigree import recombination_cost_map, load_genetic_map, uniform_recombination_map
+from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
+			load_genetic_map, uniform_recombination_map, find_recombination)
 from .bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
 from .timer import StageTimer
 from .variants import ReadSetReader
@@ -49,7 +50,7 @@ def run_genotype(phase_input_files, variant_file, reference=None,
 		max_coverage=15, nopriors=False,
 		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=0,
 		prioroutput=None, constant=0.0, overhang=10,affine_gap=False, gap_start=10, gap_extend=7, mismatch=15,
-		write_command_line_header=True):
+		write_command_line_header=True, use_ped_samples=False):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
 	all variants are computed using the forward backward algorithm
@@ -122,6 +123,17 @@ def run_genotype(phase_input_files, variant_file, reference=None,
 			sys.exit(1)
 		if not samples:
 			samples = vcf_reader.samples
+
+		# if --use-ped-samples is set, use only samples from PED file
+		if ped and use_ped_samples:
+			samples = set()
+			for trio in PedReader(ped, numeric_sample_ids):
+				if (trio.child is None or trio.mother is None or trio.father is None):
+					continue
+				samples.add(trio.mother)
+				samples.add(trio.father)
+				samples.add(trio.child)
+
 		vcf_sample_set = set(vcf_reader.samples)
 		for sample in samples:
 			if sample not in vcf_sample_set:
@@ -137,7 +149,7 @@ def run_genotype(phase_input_files, variant_file, reference=None,
 
 		# if pedigree information present, parse it
 		if ped:
-			all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, vcf_reader.samples)
+			all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, samples)
 			if genmap:
 				logger.info('Using region-specific recombination rates from genetic map %s.', genmap)
 			else:
@@ -392,6 +404,9 @@ def add_arguments(parser):
 	arg('--genmap', metavar='FILE',
 		help='File with genetic map (used with --ped) to be used instead of constant recombination '
 		'rate, i.e. overrides option --recombrate.')
+	arg('--use-ped-samples', dest='use_ped_samples',
+		action='store_true', default=False,
+		help='Only work on samples mentioned in the provided PED file.')
 
 
 def validate(args, parser):
@@ -401,8 +416,6 @@ def validate(args, parser):
 		parser.error('Option --genmap can only be used together with --ped')
 	if args.genmap and (len(args.chromosomes) != 1):
 		parser.error('Option --genmap can only be used when working on exactly one chromosome (use --chromosome)')
-	if args.ped and args.samples:
-		parser.error('Option --sample cannot be used together with --ped')
 	if len(args.phase_input_files) == 0:
 		parser.error('Not providing any PHASEINPUT files not allowed for genotyping.')
 	if args.gt_qual_threshold < 0:
@@ -413,6 +426,10 @@ def validate(args, parser):
 		parser.error('--constant can only be used if --no-priors is NOT set..')
 	if args.affine_gap and not args.reference:
 		parser.error('Option --affine-gap can only be used together with --reference.')
+	if args.use_ped_samples and not args.ped:
+		parser.error('Option --use-ped-samples can only be used when PED file is provided (--ped).')
+	if args.use_ped_samples and args.samples:
+		parser.error('Option --use-ped-samples cannot be used together with --samples')
 
 
 def main(args):

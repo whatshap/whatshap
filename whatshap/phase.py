@@ -223,7 +223,7 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 	in the PED file (as individual, mother or father).
 
 	ped_path -- path to PED file
-	samples -- samples that exist in the VCF
+	samples -- samples to be phased
 	"""
 	trios = []
 	pedigree_samples = set()
@@ -234,10 +234,17 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 			               'because at least one of the individuals is unknown',
 			               trio.child, trio.mother, trio.father)
 		else:
-			trios.append(trio)
-			pedigree_samples.add(trio.child)
-			pedigree_samples.add(trio.mother)
-			pedigree_samples.add(trio.father)
+			# if at least one individual is not is samples, skip trio
+			if( (trio.mother in samples) and (trio.father in samples) and (trio.child in samples) ):
+				trios.append(trio)
+				pedigree_samples.add(trio.child)
+				pedigree_samples.add(trio.mother)
+				pedigree_samples.add(trio.father)
+			else:
+				# happens in case --ped and --samples are used
+				logger.warning('Relationship %s/%s/%s ignored because at least one of the '
+						'individuals was not given by --samples.', 
+						trio.child, trio.mother, trio.father)
 
 	return trios, pedigree_samples
 
@@ -385,6 +392,7 @@ def run_whatshap(
 			for trio in all_trios:
 				family_finder.merge(trio.mother, trio.child)
 				family_finder.merge(trio.father, trio.child)
+
 
 		# map family representatives to lists of family members
 		families = defaultdict(list)
