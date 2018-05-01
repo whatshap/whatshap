@@ -167,16 +167,41 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 								v for v, gt, phase in zip(variant_table.variants, genotypes, phases) if gt == 1 and phase is not None
 							]
 							read_set = read_reads(readset_reader, chromosome_name, variants, sample, fasta)
+
+							# map tag --> set of reads
+							BX_tag_to_readlist = defaultdict(list)
 							for read in read_set:
+								if read.has_BX_tag():
+									BX_tag_to_readlist[read.BX_tag].append(read)
+							# all reads processed so far
+							processed_reads = set()
+							for read in read_set:
+								if read.name in processed_reads:
+									continue
 								# mapping: phaseset --> phred scaled difference between costs of assigning reads to haplotype 0 or 1
 								haplotype_costs = defaultdict(int)
-								for v in read:
-									assert v.allele in [0,1]
-									phaseset, allele = variantpos_to_phaseinfo[v.position]
-									if v.allele == allele:
-										haplotype_costs[phaseset] += v.quality
-									else:
-										haplotype_costs[phaseset] -= v.quality
+								reads_to_consider = set()
+
+								processed_reads.add(read.name)
+								reads_to_consider.add(read)
+
+								# reads with same BX tag need to be considered too
+								if read.has_BX_tag():
+									for r in BX_tag_to_readlist[read.BX_tag]:
+										if not r.name in processed_reads:
+											# only select reads close to current one
+											if abs(read.reference_start - r.reference_start) <= 50000:
+												reads_to_consider.add(r)
+								for r in reads_to_consider:
+									processed_reads.add(r.name)
+									for v in r:
+										assert v.allele in [0,1]
+										phaseset, allele = variantpos_to_phaseinfo[v.position]
+										if v.allele == allele:
+											haplotype_costs[phaseset] += v.quality
+										else:
+											haplotype_costs[phaseset] -= v.quality
+
 								l = list(haplotype_costs.items())
 								l.sort(key=lambda t:-abs(t[1]))
 								#logger.info('Read %s: %s', read.name, str(l))
@@ -186,8 +211,9 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 									phaseset, quality = l[0]
 									if quality != 0:
 										haplotype = 0 if quality > 0 else 1
-										read_to_haplotype[read.name] = (haplotype, abs(quality), phaseset)
-										#logger.debug('Assigned read %s to haplotype %d with a quality of %d based on %d covered variants', read.name, haplotype, quality, len(read))
+										for r in reads_to_consider:
+											read_to_haplotype[r.name] = (haplotype, abs(quality), phaseset)
+											#logger.debug('Assigned read %s to haplotype %d with a quality of %d based on %d covered variants', r.name, haplotype, quality, len(r))
 
 				# Only attempt to assign phase of neither secondary nor supplementary
 				if (not alignment.is_secondary) and (alignment.flag & 2048 == 0):

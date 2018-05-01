@@ -535,6 +535,22 @@ def test_haplotag3():
 				assert(true_ht == alignment.get_tag('HP'))
 
 
+def test_haplotag_10X():
+	with TemporaryDirectory() as tempdir:
+		outbam = tempdir + '/output.bam'
+		run_haplotag(variant_file='tests/data/haplotag.10X.vcf', alignment_file='tests/data/haplotag.10X.bam', output=outbam)
+		# map BX tag --> readlist
+		BX_tag_to_readlist = defaultdict(list)
+		for alignment in pysam.AlignmentFile(outbam):
+			if alignment.has_tag('BX') and alignment.has_tag('HP'):
+				BX_tag_to_readlist[alignment.get_tag('BX')].append(alignment)
+		# reads having same BX tag need to be assigned to same haplotype
+		for tag in BX_tag_to_readlist.keys():
+			haplotype = BX_tag_to_readlist[tag][0].get_tag('HP')
+			for read in BX_tag_to_readlist[tag]:
+				assert haplotype == read.get_tag('HP')
+
+
 def test_hapcut2vcf():
 	with TemporaryDirectory() as tempdir:
 		out = os.path.join(tempdir, 'hapcut.vcf')

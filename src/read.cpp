@@ -8,7 +8,7 @@
 
 using namespace std;
 
-Read::Read(const std::string& name, int mapq, int source_id, int sample_id) : name(name), mapqs(1, mapq), source_id(source_id), sample_id(sample_id) {
+Read::Read(const std::string& name, int mapq, int source_id, int sample_id, int reference_start, const std::string& BX_tag) : name(name), mapqs(1, mapq), source_id(source_id), sample_id(sample_id), reference_start(reference_start), BX_tag(BX_tag) {
 	this->id = -1;
 }
 
@@ -150,6 +150,13 @@ int Read::getSampleID() const {
 	return sample_id;
 }
 
+int Read::getReferenceStart() const {
+	return reference_start;
+}
+
+const std::string& Read::getBXTag() const {
+	return BX_tag; 
+}
 
 bool Read::isSorted() const {
 	entry_comparator_t comparator;
@@ -159,4 +166,8 @@ bool Read::isSorted() const {
 		}
 	}
 	return true;
+}
+
+bool Read::hasBXTag() const {
+	return (BX_tag != "");
 }
