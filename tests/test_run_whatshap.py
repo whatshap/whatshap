@@ -7,6 +7,7 @@ from io import StringIO
 import pysam
 from nose.tools import raises
 from collections import namedtuple
+from collections import defaultdict
 
 from whatshap.phase import run_whatshap
 from whatshap.haplotag import run_haplotag
