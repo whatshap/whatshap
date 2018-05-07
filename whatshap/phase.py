@@ -318,7 +318,8 @@ def run_whatshap(
 		gtchange_list_filename=None,
 		default_gq=30,
 		write_command_line_header=True,
-		wif_filename=None
+		wif_filename=None,
+		algorithm='WH'
 	):
 	"""
 	Run WhatsHap.
@@ -340,6 +341,7 @@ def run_whatshap(
 	tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
 	read_list_filename -- name of file to write list of used reads to
         wif_filename -- name of file to write, in wif format, reads to use
+	algorithm -- algorithm to use, can be 'WH' (whatshap) or 'HX' (hapchat)
 	gl_regularizer -- float to be passed as regularization constant to GenotypeLikelihoods.as_phred
 	gtchange_list_filename -- filename to write list of changed genotypes to
 	default_gq -- genotype likelihood to be used when GL or PL not available
@@ -788,6 +790,9 @@ def add_arguments(parser):
 		help='Write reads that have been used for phasing to FILE.')
 	arg('--output-wif', metavar='FILE', default=None, dest='wif_filename',
 		help='Write reads to be used for phasing in wif format to FILE.')
+	arg('--algorithm', choices=('WH', 'HX'), default = 'WH',
+		help='Choose an algorithm from whatshap (WH) or hapchat (HX) '
+			'(default: %(default)s)')
 
 	arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
 	arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
