@@ -657,8 +657,19 @@ def run_whatshap(
 					problem_name = 'MEC' if len(family) == 1 else 'PedMEC'
 					logger.info('Phasing %d sample%s by solving the %s problem ...',
 						len(family), 's' if len(family) > 1 else '', problem_name)
-					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
-					superreads_list, transmission_vector = dp_table.get_super_reads()
+
+					dp_table = None
+					superreads_list = None
+					transmission_vector = None
+					if algorithm == 'HX' :
+						assert len(family) == 1
+
+						dp_table = None # your code here ...
+						superreads_list = None # ...
+
+					else :
+						dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
+						superreads_list, transmission_vector = dp_table.get_super_reads()
 					logger.info('%s cost: %d', problem_name, dp_table.get_optimal_cost())
 				with timers('components'):
 					master_block = None
