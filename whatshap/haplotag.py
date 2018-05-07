@@ -48,6 +48,11 @@ def add_arguments(parser):
 	arg('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')
+	arg('--ignore-linked-read', default=False, action='store_true',
+		help='Ignore linkage information stored in BX tags of the reads.')
+	arg('--linked-read-distance-cutoff', '-d', metavar='LINKEDREADDISTANCE', default=50000, type=int,
+		help='Assume reads with identical BX tags belong to different read clouds if their '
+			'distance is larger than LINKEDREADDISTANCE (default: %(default)s).')
 	arg('variant_file', metavar='VCF', help='VCF file with phased variants (can be gzip-compressed)')
 	arg('alignment_file', metavar='ALIGNMENTS',
 		help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
@@ -61,7 +66,9 @@ def md5_of(filename):
 	return md5(open(filename,'rb').read()).hexdigest()
 
 
-def run_haplotag(variant_file, alignment_file, output=None, reference=None):
+def run_haplotag(variant_file, alignment_file, output=None, reference=None, ignore_linked_read=False,
+	linked_read_distance_cutoff=50000):
+
 	timers = StageTimer()
 	timers.start('overall')
 
@@ -185,12 +192,12 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 								processed_reads.add(read.name)
 								reads_to_consider.add(read)
 
-								# reads with same BX tag need to be considered too
-								if read.has_BX_tag():
+								# reads with same BX tag need to be considered too (unless --ignore-linked-read is set)
+								if read.has_BX_tag() and not ignore_linked_read:
 									for r in BX_tag_to_readlist[read.BX_tag]:
 										if not r.name in processed_reads:
 											# only select reads close to current one
-											if abs(read.reference_start - r.reference_start) <= 50000:
+											if abs(read.reference_start - r.reference_start) <= linked_read_distance_cutoff:
 												reads_to_consider.add(r)
 								for r in reads_to_consider:
 									processed_reads.add(r.name)
@@ -213,7 +220,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None):
 										haplotype = 0 if quality > 0 else 1
 										for r in reads_to_consider:
 											read_to_haplotype[r.name] = (haplotype, abs(quality), phaseset)
-											#logger.debug('Assigned read %s to haplotype %d with a quality of %d based on %d covered variants', r.name, haplotype, quality, len(r))
+											logger.debug('Assigned read %s to haplotype %d with a quality of %d based on %d covered variants', r.name, haplotype, quality, len(r))
 
 				# Only attempt to assign phase of neither secondary nor supplementary
 				if (not alignment.is_secondary) and (alignment.flag & 2048 == 0):
