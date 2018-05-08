@@ -464,6 +464,10 @@ the main ``phase`` command does it. Since availability of a reference influences
 how this is done, if you used ``--reference`` with your ``phase`` command, you
 should alse use ``--reference`` here.
 
+When using 10X Genomics BAM files, ``haplotag`` reads the BX tags and per default
+assigns reads that belong to the same read cloud to the same haplotype. 
+This feature can be switched off using the ``--ignore-linked-read`` flag.
+
 The input VCF may have been phased by any program, not only WhatsHap, as long as
 the phasing info is recorded with a ``PS`` or ``HP`` tag.
 
