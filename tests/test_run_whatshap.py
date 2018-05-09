@@ -7,6 +7,7 @@ from io import StringIO
 import pysam
 from nose.tools import raises
 from collections import namedtuple
+from collections import defaultdict
 
 from whatshap.phase import run_whatshap
 from whatshap.haplotag import run_haplotag
@@ -533,6 +534,22 @@ def test_haplotag3():
 				# simulated bam, we know from which haplotype each read originated (given in read name)
 				true_ht = int(alignment.query_name[-1])
 				assert(true_ht == alignment.get_tag('HP'))
+
+
+def test_haplotag_10X():
+	with TemporaryDirectory() as tempdir:
+		outbam = tempdir + '/output.bam'
+		run_haplotag(variant_file='tests/data/haplotag.10X.vcf', alignment_file='tests/data/haplotag.10X.bam', output=outbam)
+		# map BX tag --> readlist
+		BX_tag_to_readlist = defaultdict(list)
+		for alignment in pysam.AlignmentFile(outbam):
+			if alignment.has_tag('BX') and alignment.has_tag('HP'):
+				BX_tag_to_readlist[alignment.get_tag('BX')].append(alignment)
+		# reads having same BX tag need to be assigned to same haplotype
+		for tag in BX_tag_to_readlist.keys():
+			haplotype = BX_tag_to_readlist[tag][0].get_tag('HP')
+			for read in BX_tag_to_readlist[tag]:
+				assert haplotype == read.get_tag('HP')
 
 
 def test_hapcut2vcf():
