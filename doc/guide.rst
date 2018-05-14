@@ -4,9 +4,32 @@
 User guide
 ==========
 
+WhatsHap is a read-based phasing tool. In the typical case, it expects
+1) a VCF file with variants of an individual and 2) a BAM file with sequencing
+reads from that same individual. WhatsHap uses the sequencing reads to
+reconstruct the haplotypes and then writes out the input VCF augmented with
+phasing information.
+
 The basic command-line for running WhatsHap is this::
 
     whatshap phase -o phased.vcf input.vcf input.bam
+
+The reads used for variant calling (to create the input VCF) do not
+need to be the same as the ones that are used for phasing. We
+recommend that high-quality short reads are used for variant calling and
+that the phasing is then done with long reads, see :ref:`the recommended
+workflow <recommended-workflow>`.
+
+If the input VCF is a multi-sample VCF, WhatsHap will haplotype all
+samples individually. For this, the input must contain reads from all
+samples.
+
+:ref:`Multiple BAM files can be provided <multiple-bam-files>`, even from different
+technologies.
+
+If you want to phase samples of individuals that are related, you can use
+:ref:`pedigree phasing <phasing-pedigrees>` mode to improve results.
+In this mode, WhatsHap is no longer purely a read-based phasing tool.
 
 With error-prone reads (PacBio, Nanopore), we strongly recommend that you
 enable re-alignment mode by providing a reference in FASTA format::
@@ -70,6 +93,7 @@ subcommand named ``SUBCOMMAND``, run ::
     whatshap SUBCOMMAND --help
 
 
+.. _recommended-workflow:
 
 Recommended workflow
 ====================
@@ -98,6 +122,8 @@ read that covers at least two heterozygous variant calls, so even paired-end or
 mate-pair reads are somewhat helpful. If you have multiple sets of reads, you
 can combine them by providing multiple BAM files on the command line.
 
+
+.. _input-data-requirements:
 
 Input data requirements
 =======================
@@ -160,19 +186,36 @@ following options:
   ``--sample=The_Sample_Name``.
 
 
+.. _multiple-bam-files:
+
 Using multiple input BAM files
 ------------------------------
 
-WhatsHap supports reading from multiple BAM files. If a sample occurs in more
-than one BAM file, WhatsHap will detect this and use all reads at the same time.
-This is particularly useful for merging reads from multiple technologies. For
-example, if you have Illumina mate-pair reads in one file and PacBio reads in
-another file, you can run the phasing like this::
+WhatsHap supports reading from multiple BAM files. Just provide all BAM files
+you want to use on the command-line. All the reads across all BAMs that
+belong to a specific sample are used to phase that sample. This can be used to
+combine reads from multiple technologies. For example, if you have Nanopore
+reads in one file and PacBio reads in another file, you can run the
+phasing like this::
 
-    whatshap phase -o phased.vcf input.vcf matepairs.bam pacbio.bam
+    whatshap phase -o phased.vcf input.vcf nanopore.bam pacbio.bam
 
-As before, you just need to make sure that the read group information is
-accurate in all files.
+You need to make sure that read group information
+:ref:`is accurate in all files <input-data-requirements>`.
+
+
+.. _vcfs-as-reads:
+
+Using a phased VCF instead of a BAM file
+----------------------------------------
+
+It is possible to provide a phased VCF file instead of a BAM file. WhatsHap will
+then treat the haplotype blocks (:ref:`phase sets <phase-sets>`) it describes as
+"reads". For example, if the phased VCF contains only chromosome-sized
+haplotypes, then each chromosome would give rise to two such "reads".
+These reads are then used as any other read in the phasing algorithm,
+that is, they are combined with the normal sequencing reads and the best
+solution taking all reads into account is computed.
 
 
 .. _phasing_in_vcfs:
@@ -220,6 +263,8 @@ On the other haplotype, they are: T, C, G, A, G.
 Swapping ones and zeros in the ``GT`` fields would result in a VCF file with
 the equivalent information.
 
+
+.. _phase-sets:
 
 Phasing represented by PS ("phase set") tag
 -------------------------------------------
@@ -305,8 +350,12 @@ only heterozygous variants are considered for phasing.
 Phasing pedigrees
 =================
 
-WhatsHap can take advantage of pedigree information to obtain a much
-better phasing. To turn on pedigree mode, run WhatsHap like this::
+When phasing multiple samples from individuals that are related (such as
+parent/child or a trio), then it is possible to provide WhatsHap with
+a ``.ped`` file that describes the pedigree. WhatsHap will use the
+pedigree *and* the reads to infer a combined, much better phasing.
+
+To turn on pedigree mode, run WhatsHap like this::
 
 	whatshap phase --ped pedigree.ped -o phased.vcf input.vcf input.bam
 
