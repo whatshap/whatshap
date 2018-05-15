@@ -135,6 +135,10 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 		n_alignments = 0
 		n_tagged = 0
 		n_multiple_phase_sets = 0
+
+		# map BX tag to assigned haplotype
+		BX_tag_to_haplotype = defaultdict(list)
+
 		for alignment in bam_reader:
 			n_alignments += 1
 			alignment.set_tag('HP', value=None)
@@ -145,6 +149,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 				if chromosome_id != alignment.reference_id:
 					chromosome_id = alignment.reference_id
 					chromosome_name = alignment.reference_name
+					BX_tag_to_haplotype = defaultdict(list)
 					logger.info('Processing alignments on chromosome %s', chromosome_name)
 					if chromosome_name in skipped_vcf_chromosomes:
 						logger.error('Chromosome records in alignment file and VCF are sorted differently.')
@@ -218,6 +223,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 									phaseset, quality = l[0]
 									if quality != 0:
 										haplotype = 0 if quality > 0 else 1
+										BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, haplotype, phaseset))
 										for r in reads_to_consider:
 											read_to_haplotype[r.name] = (haplotype, abs(quality), phaseset)
 											logger.debug('Assigned read %s to haplotype %d with a quality of %d based on %d covered variants', r.name, haplotype, quality, len(r))
@@ -231,7 +237,15 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 						alignment.set_tag('PS', phaseset)
 						n_tagged += 1
 					except KeyError:
-						pass
+						# check if reads with same tag have been assigned
+						if alignment.has_tag('BX'):
+							read_clouds = BX_tag_to_haplotype[alignment.get_tag('BX')]
+							for (reference_start, haplotype, phaseset) in read_clouds:
+								if abs(reference_start - alignment.reference_start) <= linked_read_distance_cutoff:
+									alignment.set_tag('HP', haplotype + 1)
+									alignment.set_tag('PS', phaseset)
+									n_tagged += 1
+									break
 			bam_writer.write(alignment)
 			if n_alignments % 100000 == 0:
 				logger.info('Processed %d alignment records.', n_alignments)

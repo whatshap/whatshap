@@ -535,7 +535,6 @@ def test_haplotag3():
 				true_ht = int(alignment.query_name[-1])
 				assert(true_ht == alignment.get_tag('HP'))
 
-
 def test_haplotag_10X():
 	with TemporaryDirectory() as tempdir:
 		outbam = tempdir + '/output.bam'
@@ -551,6 +550,14 @@ def test_haplotag_10X():
 			for read in BX_tag_to_readlist[tag]:
 				assert haplotype == read.get_tag('HP')
 
+def test_haplotag_10X_2():
+	with TemporaryDirectory() as tempdir:
+		outbam = tempdir + '/output.bam'
+		run_haplotag(variant_file='tests/data/haplotag.10X_2.vcf', alignment_file='tests/data/haplotag.10X.bam', output=outbam)
+		for a1, a2 in zip(pysam.AlignmentFile('tests/data/haplotag.10X.bam'), pysam.AlignmentFile(outbam)):
+			assert a1.query_name == a2.query_name
+			if a1.has_tag('HP') and a2.has_tag('HP'):
+				assert(a1.get_tag('HP') == a2.get_tag('HP'))
 
 def test_hapcut2vcf():
 	with TemporaryDirectory() as tempdir:
