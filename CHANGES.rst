@@ -2,6 +2,11 @@
 Changes
 =======
 
+v0.16 (2018-05-22)
+------------------
+
+* :issue:`167`: Fix the ``haplotag`` command. It would tag reads incorrectly.
+
 v0.15 (2018-04-07)
 ------------------
 
