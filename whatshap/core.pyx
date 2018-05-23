@@ -394,5 +394,21 @@ def compute_genotypes(ReadSet readset, positions = None):
 	del gl_vector
 	return genotypes, gls
 
+cdef class Prova:
+	def __cinit__(self):
+		self.thisptr = new cpp.Prova()
+	def __dealloc__(self):
+		del self.thisptr
+
+cdef class hapchatcore:
+	def __cinit__self(self,ReadSet readset):
+		self.thisptr = new cpp.hapchatcore(readset.thisptr)
+	def __dealloc__(self):
+		del self.thisptr
+	def runCore(self):
+		return self.thisptr.runCore()
+
+
 
 include 'readselect.pyx'
+
