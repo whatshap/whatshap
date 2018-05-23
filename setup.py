@@ -73,7 +73,13 @@ extensions = [
 			'src/pedigreepartitions.cpp', 'src/phredgenotypelikelihoods.cpp',
 			'src/genotyper.cpp', 'src/genotypedistribution.cpp',
 			'src/genotypedptable.cpp', 'src/genotypecolumncostcomputer.cpp',
-			'src/backwardcolumniterator.cpp', 'src/transitionprobabilitycomputer.cpp'
+			'src/backwardcolumniterator.cpp', 'src/transitionprobabilitycomputer.cpp',
+			'src/hapchat/prova.cpp', 'src/hapchat/prova2.cpp', 
+			'src/hapchat/basic_types.cpp', 'src/hapchat/balanced_combinations.cpp',
+			'src/hapchat/binomial.cpp', 'src/hapchat/fondamental.cpp',
+			'src/hapchat/hapchat_core.cpp',  
+			'src/hapchat/HapCHATcore.cpp', 'src/hapchat/log.cpp'
+
 		]),
 	CppExtension('whatshap.priorityqueue', sources=['whatshap/priorityqueue.pyx']),
 	CppExtension('whatshap.align', sources=['whatshap/align.pyx']),
