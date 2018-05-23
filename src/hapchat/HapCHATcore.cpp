@@ -1,5 +1,4 @@
 //include c++ libraries
-#include <sstream>
 #include <stdexcept>
 #include <algorithm>
 #include <unordered_set>
@@ -10,15 +9,14 @@
 #include <ios>
 
 //include Readset/HapChat libraries
-#include "readset.h"
-#include "columniterator.h"
+#include "../readset.h"
+#include "../columniterator.h"
 #include "basic_types.h"
-#include "entry.h"
-
-
+#include "../entry.h"
 
 
 using namespace std;
+
 
 //Struct iterator for readset
 typedef struct Iterator{
@@ -39,70 +37,21 @@ class HapCHATcore {
 		vector<unsigned int> min,max;
 	public:
 		//standard constructor
-		HapCHATcore(ReadSet* read_set){
-		read_set->reassignReadIds();
+		HapCHATcore(ReadSet* read_set,bool que){
+
 		this->iterator=new Iterator(read_set);
 		end=false;
+		unique=que;
 		vblock=blocker();
+		if(unique){
+				read_set->reassignReadIds();
+				read_set->sort();
+		}else setBlock(read_set);
 		};
-		HapCHATcore(string filename,bool que){
-		 unique=que;
-		 ifstream input;
-		 int position,allele;
-		 unsigned int phred,nread=0;
-		 ReadSet* readset =new ReadSet();
-		 Read* read;
-		 bool flag;
-		 stringstream sline;
-  		string entry;
-  		string token;
-		 try {
-     			 input.open(filename, ios::in);
-    		 } catch(exception & e) { 
-      			cerr << "ERROR: failing opening the input file: " << filename << "\": " << e.what() << endl;
-      			exit(EXIT_FAILURE);
-    		 }
-
-    if(!input.is_open()) {
-    		  cerr << "ERROR: failing opening the input file: " << filename << endl;
-    	  exit(EXIT_FAILURE);
-    	}
-    	string line;
-    	while(!input.eof()){
-    	getline(input, line, '\n');
-    	read=new Read(to_string(nread),0,0,0);
-    	nread++;
-    	if(!line.empty()){
-    			sline=stringstream(line);
-    			flag=true;
-    			while(flag){
-    			getline(sline,entry,':');
-    			stringstream sentry(entry);
-    			sentry >> token;
-    			if(!token.compare("#") == 0){
-    			position=atoi(token.c_str());
-    			sentry >> token;
-    			sentry >> token;
-					allele = atoi(token.c_str());    			
-    			sentry >> token;
-    			phred = atoi(token.c_str());
-    			read->addVariant(position,allele,phred);
-    			}else{flag=false;}
-    			}
-    		readset->add(read);    		
-    	}   	
-    	}
-    	
-    	end=false;
-    	readset->reassignReadIds();
-    		readset->sort();
-    	this->iterator=new Iterator(readset);
-    		
-    	if(unique){
-			
-		
-			}else{
-			blockn=-1;
+				
+		void setBlock(ReadSet* readset){
+		Read* read;
+		blockn=-1;
 			bool overflag;
 			unsigned int readn;
 			readn=iterator->it.get_read_count();
@@ -141,13 +90,23 @@ class HapCHATcore {
 			 
 			 
 			}
-			}
-					};
+		
+		
+		}
+		
+		
+		
+		
+					
+					
+					
+					
 		bool hasNextBlock(){
 		if(unique){
 		unique=false;
 		return true;
 		}
+		
 		blockn++;
 		if(blockn>=vblock.size()) return false;
 		ReadSet* readset=new ReadSet();
