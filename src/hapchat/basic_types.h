@@ -6,7 +6,8 @@
 #include <iostream>
 #include <limits>
 
-#include "entry.h"
+#include "../entry.h"
+#include "../readset.h"
 
 #define MAX_COVERAGE 64
 #define MAX_CORRECTIONS 63
@@ -52,6 +53,7 @@ struct options_t {
   bool balancing;
   unsigned int balance_cov;
   double balance_ratio;
+  ReadSet* readset;
 
   options_t()
   : options_initialized(false),
@@ -177,6 +179,6 @@ std::ostream& operator<<(std::ostream& out, const std::vector<char>& v);
 
 
 options_t parse_arguments(int argc, char** argv);
-
+options_t whatshap_options(ReadSet* read_set);
 
 #endif // _BASIC_TYPES_H_

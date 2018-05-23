@@ -48,6 +48,15 @@ std::ostream& operator<<(std::ostream& out, const options_t& options) {
 #include <getopt.h>
 #include <sstream>
 
+options_t whatshap_options(ReadSet* read_set){
+options_t ret;
+ret.input_filename="From Readset";
+ret.readset=read_set;
+ret.haplotype_filename="HapChat.hap";
+ret.all_heterozygous=true;
+ret.options_initialized=true;
+return ret;
+};
 options_t parse_arguments(int argc, char** argv) {
 
   options_t ret;
