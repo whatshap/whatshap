@@ -53,12 +53,11 @@
 
 class hapchatcore{
 private:
-Fondamental fonda;
+CoreFunctions corefun;
 options_t options;
 public:	
 	hapchatcore(ReadSet* read_set){
 	options= whatshap_options(read_set);
-	runCore();
 	};
 
 
@@ -100,7 +99,7 @@ int runCore()
 	
   //Pre-compute binomial values
   binom_coeff::initialize_binomial_coefficients(MAX_COVERAGE, MAX_COVERAGE);
-  fonda.computeK(MAX_COVERAGE, options.alpha, options.error_rate);
+  corefun.computeK(MAX_COVERAGE, options.alpha, options.error_rate);
 
   Counter step = 0;
   Cost OPT = 0;
@@ -131,7 +130,7 @@ int runCore()
     vector<bool> haplotype2(hap.columnCount());
 
     if(hap.columnCount()> 0) {
-      fonda.dp(constants, options, haplotype1, haplotype2, step, OPT,
+      corefun.dp(constants, options, haplotype1, haplotype2, step, OPT,
          MAX_COV, MAX_L, MAX_K, MAX_GAPS, counter_block++,hap);
     } else {
       DEBUG("jumped");
@@ -149,14 +148,14 @@ int runCore()
 
       DEBUG("Starting fill");
 
-      fonda.fill_haplotypes( haplotype1, haplotype2, filled_haplo1, filled_haplo2, options,hap);
+      corefun.fill_haplotypes( haplotype1, haplotype2, filled_haplo1, filled_haplo2, options,hap);
 
       DEBUG("Filled haplotypes");
 
       vector<char> xs_haplotype1(hap.columnCount());
       vector<char> xs_haplotype2(hap.columnCount());
 
-      fonda.add_xs(filled_haplo1, filled_haplo2, xs_haplotype1, xs_haplotype2, options,
+      corefun.add_xs(filled_haplo1, filled_haplo2, xs_haplotype1, xs_haplotype2, options,
              XS1, XS2, TOTAL_MISMATCHES,hap);
 
       DEBUG("Added X's");
@@ -168,7 +167,7 @@ int runCore()
       vector<char> output_block1(hap.columnCount());
       vector<char> output_block2(hap.columnCount());
 
-      fonda.fill_haplotypes(haplotype1, haplotype2, output_block1, output_block2, options,hap);
+      corefun.fill_haplotypes(haplotype1, haplotype2, output_block1, output_block2, options,hap);
 
       DEBUG("Filled haplotypes");
 
@@ -202,7 +201,7 @@ int runCore()
   ofstream ofs;
   try {
     ofs.open(options.haplotype_filename.c_str(), ios::out);
-    fonda.write_haplotypes(haplotype_blocks1, haplotype_blocks2, ofs);
+    corefun.write_haplotypes(haplotype_blocks1, haplotype_blocks2, ofs);
   } catch(exception & e) {
     ERROR("::::::: Error writing haplotype to \"" << options.haplotype_filename << "\": " << e.what());
     //write_haplotypes(haplotype_blocks1, haplotype_blocks2, cout);

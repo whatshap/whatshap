@@ -17,7 +17,7 @@ from xopen import xopen
 from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
 from . import __version__
-from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes
+from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, Prova, hapchatcore
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
@@ -662,12 +662,15 @@ def run_whatshap(
 					superreads_list = None
 					transmission_vector = None
 					if algorithm == 'HX' :
-						assert len(family) == 1
+						hapchat=hapchatcore(all_reads)
+						hapchat.runCore();
+						raise SystemExit
 
 						dp_table = None # your code here ...
 						superreads_list = None # ...
 
 					else :
+						
 						dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
 						superreads_list, transmission_vector = dp_table.get_super_reads()
 					logger.info('%s cost: %d', problem_name, dp_table.get_optimal_cost())

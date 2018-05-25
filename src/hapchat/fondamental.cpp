@@ -30,10 +30,10 @@
 using namespace std;
 
 
-class Fondamental{
+class CoreFunctions{
 public:
 
-Fondamental();
+CoreFunctions(){};
 static inline
 Pointer next(const Pointer &indexer_pointer, const int &total_size, const int &shift)
 {

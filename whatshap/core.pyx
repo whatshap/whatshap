@@ -401,7 +401,7 @@ cdef class Prova:
 		del self.thisptr
 
 cdef class hapchatcore:
-	def __cinit__self(self,ReadSet readset):
+	def __cinit__(self,ReadSet readset):
 		self.thisptr = new cpp.hapchatcore(readset.thisptr)
 	def __dealloc__(self):
 		del self.thisptr
