@@ -5,9 +5,9 @@ User guide
 ==========
 
 WhatsHap is a read-based phasing tool. In the typical case, it expects
-1) a VCF file with variants of an individual and 2) a BAM file with sequencing
-reads from that same individual. WhatsHap uses the sequencing reads to
-reconstruct the haplotypes and then writes out the input VCF augmented with
+1) a VCF file with variants of an individual and 2) a BAM or CRAM file with
+sequencing reads from that same individual. WhatsHap uses the sequencing reads
+to reconstruct the haplotypes and then writes out the input VCF augmented with
 phasing information.
 
 The basic command-line for running WhatsHap is this::
@@ -24,8 +24,8 @@ If the input VCF is a multi-sample VCF, WhatsHap will haplotype all
 samples individually. For this, the input must contain reads from all
 samples.
 
-:ref:`Multiple BAM files can be provided <multiple-bam-files>`, even from different
-technologies.
+:ref:`Multiple BAM/CRAM files can be provided <multiple-bam-files>`,
+even from different technologies.
 
 If you want to phase samples of individuals that are related, you can use
 :ref:`pedigree phasing <phasing-pedigrees>` mode to improve results.
@@ -103,8 +103,8 @@ and Illumina: Illumina for high-quality variant calls and PacBio for its long
 reads.
 
 1. Map your reads to the reference, making sure that you assign each read to a
-read group (the "@RG" header line in the BAM file). WhatsHap supports VCF files
-with multiple samples and in order to determine which reads belong to which
+read group (the ``@RG`` header line in the BAM/CRAM file). WhatsHap supports VCF
+files with multiple samples and in order to determine which reads belong to which
 sample, it uses the 'sample name' (SM) of the read group. If you have a single
 sample only and no or incorrect read group headers, you can run WhatsHap with
 ``--ignore-read-groups`` instead.
@@ -120,7 +120,7 @@ the previous step) and with the *longest* reads you have. These will typically
 be PacBio reads. Phasing works best with long reads, but WhatsHap can use any
 read that covers at least two heterozygous variant calls, so even paired-end or
 mate-pair reads are somewhat helpful. If you have multiple sets of reads, you
-can combine them by providing multiple BAM files on the command line.
+can combine them by providing multiple BAM/CRAM files on the command line.
 
 
 .. _input-data-requirements:
@@ -128,9 +128,9 @@ can combine them by providing multiple BAM files on the command line.
 Input data requirements
 =======================
 
-WhatsHap needs correct metadata in the VCF and the BAM input files so that it can
-figure out which read belongs to which sample. As an example, assume you give
-WhatsHap a VCF file that starts like this::
+WhatsHap needs correct metadata in the VCF and the BAM/CRAM input files so that
+it can figure out which read belongs to which sample. As an example, assume you
+give WhatsHap a VCF file that starts like this::
 
     ##fileformat=VCFv4.1
     #CHROM  POS  ID  REF  ALT  QUAL   FILTER  INFO FORMAT  SampleA  SampleB
@@ -138,10 +138,10 @@ WhatsHap a VCF file that starts like this::
     ...
 
 WhatsHap sees that there are two samples in it named “SampleA” and “SampleB”
-and expects to find the reads for these samples somewhere in the BAM file (or
-files) that you provide. For that to happen, all reads belonging to a sample
+and expects to find the reads for these samples somewhere in the BAM/CRAM file
+(or files) that you provide. For that to happen, all reads belonging to a sample
 must have the ``RG`` tag, and at the same time, the read group must occur in the
-header of the SAM/BAM file and have the correct sample name. In this example, a
+header of the BAM/CRAM file and have the correct sample name. In this example, a
 header might look like this::
 
 	@HD     VN:1.4  SO:coordinate
@@ -155,9 +155,9 @@ the platform and ``LB`` for the library name. WhatsHap only uses the ``SM``
 attribute.
 
 With the above header, the individual alignments in the file will be tagged with
-a read group of ``1`` or ``2``. For example, an alignment in the BAM file that
-comes from SampleA would be tagged with ``RG:Z:1``. This is also described in
-the `SAM/BAM specification <https://samtools.github.io/hts-specs/>`_.
+a read group of ``1`` or ``2``. For example, an alignment in the BAM/CRAM file
+that comes from SampleA would be tagged with ``RG:Z:1``. This is also described
+in the `SAM/BAM specification <https://samtools.github.io/hts-specs/>`_.
 
 It is perfectly fine to have multiple read groups for a single sample::
 
@@ -170,16 +170,16 @@ What to do when the metadata is not correct
 -------------------------------------------
 
 If WhatsHap complains that it cannot find the reads for a sample, then chances
-are that the metadata in the BAM and/or VCF file are incorrect. You have the
+are that the metadata in the BAM/CRAM and/or VCF file are incorrect. You have the
 following options:
 
 * Edit the sample names in the VCF header.
-* Set the correct read group info in the BAM file, for example with the Picard
+* Set the correct read group info in the BAM/CRAM file, for example with the Picard
   tool AddOrReplaceReadGroups.
 * Re-map the reads and pass the correct metadata-setting options to your mapping
   tool.
 * Use the ``--ignore-read-groups`` option of WhatsHap. In this case, WhatsHap
-  ignores all read group metadata in the BAM input file(s) and assumes that all
+  ignores all read group metadata in the BAM/CRAM input file(s) and assumes that all
   reads come from the sample that you want to phase. In this mode, you can
   only phase a single sample at a time. If the input VCF file contains more than
   one sample, you need to specify which one to phase by using
@@ -188,17 +188,17 @@ following options:
 
 .. _multiple-bam-files:
 
-Using multiple input BAM files
-------------------------------
+Using multiple input BAM/CRAM files
+-----------------------------------
 
-WhatsHap supports reading from multiple BAM files. Just provide all BAM files
-you want to use on the command-line. All the reads across all BAMs that
-belong to a specific sample are used to phase that sample. This can be used to
-combine reads from multiple technologies. For example, if you have Nanopore
-reads in one file and PacBio reads in another file, you can run the
-phasing like this::
+WhatsHap supports reading from multiple BAM or CRAM files. Just provide all BAM
+and CRAM files you want to use on the command-line. All the reads across all
+those files that to a specific sample are used to phase that sample. This can be
+used to combine reads from multiple technologies. For example, if you have
+Nanopore reads in one BAM file and PacBio reads in another CRAM file, you can
+run the phasing like this::
 
-    whatshap phase -o phased.vcf input.vcf nanopore.bam pacbio.bam
+    whatshap phase -o phased.vcf input.vcf nanopore.bam pacbio.cram
 
 You need to make sure that read group information
 :ref:`is accurate in all files <input-data-requirements>`.
@@ -206,14 +206,14 @@ You need to make sure that read group information
 
 .. _vcfs-as-reads:
 
-Using a phased VCF instead of a BAM file
-----------------------------------------
+Using a phased VCF instead of a BAM/CRAM file
+---------------------------------------------
 
-It is possible to provide a phased VCF file instead of a BAM file. WhatsHap will
-then treat the haplotype blocks (:ref:`phase sets <phase-sets>`) it describes as
-"reads". For example, if the phased VCF contains only chromosome-sized
-haplotypes, then each chromosome would give rise to two such "reads".
-These reads are then used as any other read in the phasing algorithm,
+It is possible to provide a phased VCF file instead of a BAM/CRAM file. WhatsHap
+will then treat the haplotype blocks (:ref:`phase sets <phase-sets>`) it
+describes as "reads". For example, if the phased VCF contains only
+chromosome-sized haplotypes, then each chromosome would give rise to two such
+"reads". These reads are then used as any other read in the phasing algorithm,
 that is, they are combined with the normal sequencing reads and the best
 solution taking all reads into account is computed.
 
@@ -362,7 +362,7 @@ To turn on pedigree mode, run WhatsHap like this::
 where ``pedigree.ped`` is a plink-compatible PED file to describe the
 relationships between samples and ``input.vcf`` is a multi-sample VCF
 with all individuals that should be phased. The reads for all individuals
-can be in one or more BAM files. WhatsHap will match them based on sample
+can be in one or more BAM/CRAM files. WhatsHap will match them based on sample
 names provided in the read groups (just like for the default single-individual
 mode).
 
@@ -398,7 +398,7 @@ A quartet (note how multiple consecutive spaces are fine)::
     FAMILY01 other_child father mother 0 1
 
 *Important*: The names in the PED file *must* match the sample names in your VCF
-and BAM files!
+and BAM/CRAM files!
 
 Pedigree phasing parameters
 ---------------------------
@@ -557,11 +557,10 @@ heterozygous variants.
 Genotyping Variants
 ===================
 
-Besides phasing them, WhatsHap can also re-genotype variants.
-Given a VCF file containing variant positions,
-it computes genotype likelihoods for all three genotypes (0/0, 0/1, 1/1) and outputs them in a VCF
-file
-together with a genotype prediction. Genotyping can be run using the following command::
+Besides phasing them, WhatsHap can also re-genotype variants. Given a VCF file
+containing variant positions, it computes genotype likelihoods for all three
+genotypes (0/0, 0/1, 1/1) and outputs them in a VCF file together with a
+genotype prediction. Genotyping can be run using the following command::
 
     whatshap genotype -o genotyped.vcf input.vcf input.bam
 
