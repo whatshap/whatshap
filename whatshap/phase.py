@@ -2,7 +2,7 @@
 """
 Phase variants in a VCF with the WhatsHap algorithm
 
-Read a VCF and one or more files with phase information (BAM or VCF phased
+Read a VCF and one or more files with phase information (BAM/CRAM or VCF phased
 blocks) and phase the variants. The phased VCF is written to standard output.
 """
 import logging
@@ -120,13 +120,13 @@ def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_
 	try:
 		readset = readset_reader.read(chromosome, variants, sample, reference)
 	except SampleNotFoundError:
-		logger.warning("Sample %r not found in any BAM file.", sample)
+		logger.warning("Sample %r not found in any BAM/CRAM file.", sample)
 		readset = ReadSet()
 	except ReadSetError as e:
 		logger.error("%s", e)
 		sys.exit(1)
 	except ReferenceNotFoundError:
-		logger.error("The chromosome %r was not found in the BAM file.", chromosome)
+		logger.error("The chromosome %r was not found in the BAM/CRAM file.", chromosome)
 		if chromosome.startswith('chr'):
 			alternative = chromosome[3:]
 		else:
@@ -279,7 +279,7 @@ def run_whatshap(
 	"""
 	Run WhatsHap.
 
-	phase_input_files -- list of paths to BAM/VCF files
+	phase_input_files -- list of paths to BAM/CRAM/VCF files
 	variant_file -- path to input VCF
 	reference -- path to reference FASTA
 	output -- path to output VCF or a file-like object
@@ -713,7 +713,7 @@ def run_whatshap(
 	if sys.platform == 'linux':
 		memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 		logger.info('Maximum memory usage: %.3f GB', memory_kb / 1E6)
-	logger.info('Time spent reading BAM:                      %6.1f s', timers.elapsed('read_bam'))
+	logger.info('Time spent reading BAM/CRAM:                 %6.1f s', timers.elapsed('read_bam'))
 	logger.info('Time spent parsing VCF:                      %6.1f s', timers.elapsed('parse_vcf'))
 	if len(phase_input_vcfs) > 0:
 		logger.info('Time spent parsing input phasings from VCFs: %6.1f s', timers.elapsed('parse_phasing_vcfs'))
@@ -728,9 +728,11 @@ def run_whatshap(
 def add_arguments(parser):
 	arg = parser.add_argument
 	# Positional arguments
-	arg('variant_file', metavar='VCF', help='VCF file with variants to be phased (can be gzip-compressed)')
+	arg('variant_file', metavar='VCF',
+		help='VCF file with variants to be phased (can be gzip-compressed)')
 	arg('phase_input_files', nargs='*', metavar='PHASEINPUT',
-		help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')
+		help='BAM, CRAM or VCF file(s) with phase information, either through '
+			'sequencing reads (BAM/CRAM) or through phased blocks (VCF)')
 
 	arg('-o', '--output', default=sys.stdout,
 		help='Output VCF file. Add .gz to the file name to get compressed output. '
@@ -752,7 +754,7 @@ def add_arguments(parser):
 	arg('--indels', dest='indels', default=False, action='store_true',
 		help='Also phase indels (default: do not phase indels)')
 	arg('--ignore-read-groups', default=False, action='store_true',
-		help='Ignore read groups in BAM header and assume all reads come '
+		help='Ignore read groups in BAM/CRAM header and assume all reads come '
 		'from the same sample.')
 	arg('--sample', dest='samples', metavar='SAMPLE', default=[], action='append',
 		help='Name of a sample to phase. If not given, all samples in the '
@@ -788,8 +790,8 @@ def add_arguments(parser):
 	arg('--ped', metavar='PED/FAM',
 		help='Use pedigree information in PED file to improve phasing '
 		'(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, '
-		'mother, and father sample names as used in the VCF and BAM. Other '
-		'columns are ignored.')
+		'mother, and father sample names as used in the VCF and BAM/CRAM. '
+		'Other columns are ignored.')
 	arg('--recombination-list', metavar='FILE', dest='recombination_list_filename', default=None,
 		help='Write putative recombination events to FILE.')
 	arg('--recombrate', metavar='RECOMBRATE', type=float, default=1.26,
