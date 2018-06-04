@@ -1,19 +1,20 @@
 #ifndef COLUMN_INDEXING_ITERATOR_H
 #define COLUMN_INDEXING_ITERATOR_H
 
-#include "graycodes.h"
+#include "generalizedgraycode.h"
 
 class ColumnIndexingScheme;
 
 class ColumnIndexingIterator {
 private:
 	const ColumnIndexingScheme* parent;
-	GrayCodes* graycodes;
+	GeneralizedGrayCodes* graycodes;
 	unsigned int index;
 	unsigned int forward_projection;
+	unsigned int number_of_partitions;
 
 public:
-	ColumnIndexingIterator(const ColumnIndexingScheme* parent);
+	ColumnIndexingIterator(const ColumnIndexingScheme* parent, unsigned int number_of_partitions);
 	virtual ~ColumnIndexingIterator();
 
 	bool has_next();
@@ -25,7 +26,7 @@ public:
 	  *  call to advance, then the index of this bit is written to the
 	  *  referenced variable; if not, -1 is written.
 	  */
-	void advance(int* bit_changed = 0);
+	void advance(int* position_changed, int* partition_changed);
 
 	/** Index of the projection of the current read set onto the intersection between current and next read set. */
 	unsigned int get_forward_projection();
@@ -44,6 +45,9 @@ public:
 
 	/** get index's forward projection */
 	unsigned int index_forward_projection(unsigned int i);
+
+	/** update given index by switching read_to_switch to value new_partition **/
+	unsigned int switch_read(unsigned int old_index, unsigned int read_to_switch, unsigned int new_partition, unsigned int used_bits);
 };
 
 #endif

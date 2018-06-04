@@ -6,11 +6,12 @@
 #include "../pedigree.h"
 #include "../genotypecolumncostcomputer.h"
 #include "../columniterator.h"
-#include "../pedigreepartitions.h"
-#include "../backwardcolumniterator.h"
 #include "../entry.h"
 #include "../transitionprobabilitycomputer.h"
 #include "../vector2d.h"
+#include "../generalizedgraycode.h"
+#include "../columnindexingscheme.h"
+#include "../columnindexingiterator.h"
 
 #include <iostream>
 #include <string>
@@ -22,6 +23,8 @@
 #include "catch.hpp"
 
 using namespace std;
+
+/**
 
 size_t popcount(size_t x) {
     unsigned int count = 0;
@@ -127,7 +130,7 @@ bool compare_entries(vector<const Entry*> c1, string c2){
 }
 
 
-/*
+
 TEST_CASE("test transition prob computer", "[test transition prob computer]"){
 
     SECTION("test simple example", "[test simple example]"){
@@ -150,10 +153,9 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
         TransitionProbabilityComputer trans(10,0,4,1);
         REQUIRE(trans.get(0,0) == 0.25);
     }
-}*/
+}
 
 TEST_CASE("test transition prob computer", "[test transition prob computer]"){
-
     vector<std::string> reads = {"11\n00", "10\n11", "00\n00", "10\n10", "01\n10"};
     std::string weights = "11\n11";
 
@@ -471,6 +473,62 @@ TEST_CASE("test scaling of vector", "[test scaling of vector]"){
     for(unsigned int i = 0; i < test.get_size0(); i++){
         for(unsigned int j = 0; j < test.get_size1(); j++) {
             REQUIRE(test.at(i,j) == 1L);
+        }
+    }
+}
+
+**/
+
+// helper function
+void check_partitioning(std::vector<unsigned int>& readset1, std::vector<unsigned int>& readset2, std::vector<int>& expected_projections, unsigned int number_of_partitions){
+    ColumnIndexingScheme scheme1(0, readset1, number_of_partitions);
+    ColumnIndexingScheme scheme2(&scheme1, readset2, number_of_partitions);
+    scheme1.set_next_column(&scheme2);
+    std::unique_ptr<ColumnIndexingIterator> iterator = scheme1.get_iterator();
+
+    int pos_changed = 0;
+    int partition_changed = 0;
+    unsigned int i = 0;
+    while(iterator->has_next()) {
+	std::cout << "considering partitioning: " << iterator->get_partition() << std::endl;
+        iterator->advance(&pos_changed, &partition_changed);
+	std::cout << "after advance" << std::endl;
+        REQUIRE(iterator->get_forward_projection() == expected_projections[i]);
+        i += 1;
+    }
+}
+
+
+// checks ColumnIndexingIterator/ColumnIndexingScheme generalized to arbitrary partition numbers
+TEST_CASE("test ColumnIndexingIterator", "[test ColumnIndexingIterator]"){
+
+    SECTION("test bipartitions"){
+        std::vector<std::vector<int>> expected_forward_projections = { {0,0,1,1,1,1,0,0,2,2,3,3,3,3,2,2}, {0,1,3,2,6,7,5,4,12,13,15,14,10,11,9,8}, {0,0,0,0,1,1,1,1} };
+        std::vector<std::vector<unsigned int>> read_ids1 = {{0,1,2,3}, {0,1,2,3}, {0,1,2}};
+        std::vector<std::vector<unsigned int>> read_ids2 = {{1,3}, {0,1,2,3}, {2}};
+
+        for(unsigned int j = 0; j < read_ids1.size(); j++){
+            check_partitioning(read_ids1[j], read_ids2[j], expected_forward_projections[j], 2);
+        }
+    }
+
+    SECTION("test tripartitions"){
+        std::vector<std::vector<int>> expected_forward_projections = {{0,0,0,1,1,1,2,2,2},{0,1,2,5,4,3,6,7,8},{0,0,0,0,0,0,0,0,0}};
+        std::vector<std::vector<unsigned int>> read_ids1 = {{0,1}, {0,1}, {0,1}};
+        std::vector<std::vector<unsigned int>> read_ids2 = {{1}, {0,1}, {2}};
+
+        for(unsigned int j = 0; j < read_ids1.size(); j++){
+            check_partitioning(read_ids1[j], read_ids2[j], expected_forward_projections[j], 3);
+        }
+    }
+
+    SECTION("test 4-partitions"){
+        std::vector<std::vector<int>> expected_forward_projections = {{0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3}};
+        std::vector<std::vector<unsigned int>> read_ids1 = {{0,1}};
+        std::vector<std::vector<unsigned int>> read_ids2 = {{1}};
+
+        for(unsigned int j = 0; j < read_ids1.size(); j++){
+            check_partitioning(read_ids1[j], read_ids2[j], expected_forward_projections[j], 4);
         }
     }
 }
