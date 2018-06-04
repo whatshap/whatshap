@@ -14,13 +14,14 @@ private:
 	unsigned int backward_projection_width;
 	unsigned int forward_projection_width;
 	std::vector<unsigned int>* forward_projection_mask;
+	unsigned int number_of_partitions;
 
 public:
 
 	/** Constructor.
 	 * @param previousReadIDs IDs of reads active
 	 */
-	ColumnIndexingScheme(const ColumnIndexingScheme* previous_column, const std::vector<unsigned int>& read_ids);
+	ColumnIndexingScheme(const ColumnIndexingScheme* previous_column, const std::vector<unsigned int>& read_ids, unsigned int number_of_partitions);
 
 	~ColumnIndexingScheme();
 
@@ -32,7 +33,7 @@ public:
 
 	unsigned int column_size();
 
-	unsigned int forward_projection_size();
+	unsigned int forward_projection_size() const;
  
 	unsigned int get_forward_projection_width();
 

@@ -1,10 +1,14 @@
 #include <cassert>
 #include "columnindexingiterator.h"
 #include "columnindexingscheme.h"
+#include <math.h>
 
 using namespace std;
 
-ColumnIndexingScheme::ColumnIndexingScheme(const ColumnIndexingScheme* previous_column, const std::vector<unsigned int>& read_ids) : read_ids(read_ids) {
+ColumnIndexingScheme::ColumnIndexingScheme(const ColumnIndexingScheme* previous_column, const std::vector<unsigned int>& read_ids, unsigned int number_of_partitions) :
+	read_ids(read_ids),
+	number_of_partitions(number_of_partitions) 
+{
 	this->previous_column = previous_column;
 	this->next_column = 0;
 	// assert that read ids are ordered
@@ -40,12 +44,12 @@ ColumnIndexingScheme::~ColumnIndexingScheme() {
 
 
 unsigned int ColumnIndexingScheme::column_size() {
-	return ((unsigned int)1) << read_ids.size();
+	return pow(number_of_partitions, read_ids.size());
 }
 
 
-unsigned int ColumnIndexingScheme::forward_projection_size() {
-	return ((unsigned int)1) << forward_projection_mask->size();
+unsigned int ColumnIndexingScheme::forward_projection_size() const {
+	return pow(number_of_partitions, forward_projection_mask->size());
 }
 
 
@@ -86,7 +90,7 @@ void ColumnIndexingScheme::set_next_column(const ColumnIndexingScheme* next_colu
 
 
 unique_ptr<ColumnIndexingIterator> ColumnIndexingScheme::get_iterator() {
-	return unique_ptr<ColumnIndexingIterator>(new ColumnIndexingIterator(this));
+	return unique_ptr<ColumnIndexingIterator>(new ColumnIndexingIterator(this, number_of_partitions));
 }
 
 
