@@ -50,6 +50,8 @@ private:
   std::vector<unsigned int> read_sources;
   // the recombination cost vector
   const std::vector<unsigned int>& recombcost;
+  // ploidy of the samples
+  unsigned int ploidy;
   // the pedigree containing all the individuals
   const Pedigree* pedigree;
   std::vector<PedigreePartitions*> pedigree_partitions;
@@ -114,7 +116,7 @@ public:
    * @param positions positions to work on. If 0, all positions given in the read_set are used.
    * 		      caller retains ownership.
    */
-  GenotypeDPTable(ReadSet* read_set, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, const std::vector<unsigned int>* positions = nullptr);
+  GenotypeDPTable(ReadSet* read_set, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, unsigned int ploidy, const std::vector<unsigned int>* positions = nullptr);
   ~GenotypeDPTable();
 
   // returns the computed genotype likelihoods for a given individual and a given SNP position

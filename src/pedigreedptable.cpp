@@ -12,15 +12,17 @@
 
 using namespace std;
 
-PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes, const vector<unsigned int>* positions) :
+PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, unsigned int ploidy, bool distrust_genotypes, const vector<unsigned int>* positions) :
 	read_set(read_set),
 	recombcost(recombcost),
 	pedigree(pedigree),
+	ploidy(ploidy),
 	distrust_genotypes(distrust_genotypes),
 	optimal_score(0u),
 	optimal_score_index(0u),
 	input_column_iterator(*read_set, positions)
 {
+	std::cout << "PedigreeDPTable: ploidy=" << ploidy << std::endl; 
 	read_set->reassignReadIds();
 
 	// create all pedigree partitions
@@ -97,7 +99,7 @@ void PedigreeDPTable::compute_table() {
 	// get the next column ahead of time
 	next_input_column = input_column_iterator.get_next();
 	unique_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_input_column);
-	ColumnIndexingScheme* next_indexer = new ColumnIndexingScheme(0, *next_read_ids);
+	ColumnIndexingScheme* next_indexer = new ColumnIndexingScheme(0, *next_read_ids, ploidy);
 	indexers[0] = next_indexer;
 
 	// forward pass: create a sparse table, storing values at every sqrt(#columns)-th position,
@@ -112,7 +114,7 @@ void PedigreeDPTable::compute_table() {
 		if (input_column_iterator.has_next()) {
 			next_input_column = input_column_iterator.get_next();
 			next_read_ids = extract_read_ids(*next_input_column);
-			next_indexer = new ColumnIndexingScheme(current_indexer,*next_read_ids);
+			next_indexer = new ColumnIndexingScheme(current_indexer,*next_read_ids,ploidy);
 			current_indexer->set_next_column(next_indexer);
 			indexers[column_index + 1] = next_indexer;
 		} else {
@@ -239,7 +241,8 @@ void PedigreeDPTable::compute_column(size_t column_index, unique_ptr<vector<cons
 	unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
 	while (iterator->has_next()) {
 		int bit_changed = -1;
-		iterator->advance(&bit_changed);
+		int partition_changed = -1;
+		iterator->advance(&bit_changed, &partition_changed);
 		if (bit_changed >= 0) {
 			for(auto& cost_computer : cost_computers) {
 				cost_computer.update_partitioning(bit_changed);

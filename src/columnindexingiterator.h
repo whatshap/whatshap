@@ -1,14 +1,14 @@
 #ifndef COLUMN_INDEXING_ITERATOR_H
 #define COLUMN_INDEXING_ITERATOR_H
 
-#include "generalizedgraycode.h"
+#include "graycodes.h"
 
 class ColumnIndexingScheme;
 
 class ColumnIndexingIterator {
 private:
 	const ColumnIndexingScheme* parent;
-	GeneralizedGrayCodes* graycodes;
+	GrayCodes* graycodes;
 	unsigned int index;
 	unsigned int forward_projection;
 	unsigned int number_of_partitions;

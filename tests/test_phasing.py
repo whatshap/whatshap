@@ -9,7 +9,7 @@ def test_phase_empty_readset():
 	pedigree = Pedigree(NumericSampleIds())
 	genotype_likelihoods = [None, None]
 	pedigree.add_individual('individual0', genotypes, genotype_likelihoods)
-	dp_table = PedigreeDPTable(rs, recombcost, pedigree)
+	dp_table = PedigreeDPTable(rs, recombcost, pedigree, 2)
 	superreads = dp_table.get_super_reads()
 
 
@@ -52,8 +52,11 @@ def check_phasing_single_individual(reads, weights = None):
 		pedigree = Pedigree(NumericSampleIds())
 		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods(0,0,0)] * len(positions)
 		pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
-		dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=not all_heterozygous)
+		print("before DP table")
+		dp_table = PedigreeDPTable(readset, recombcost, pedigree, 2, distrust_genotypes=not all_heterozygous)
+		print("after DP table")
 		superreads, transmission_vector = dp_table.get_super_reads()
+		print("after get_superreads")
 		cost = dp_table.get_optimal_cost()
 		# TODO: transmission vectors not returned properly, see issue 73
 		assert len(set(transmission_vector)) == 1
@@ -69,7 +72,7 @@ def check_phasing_single_individual(reads, weights = None):
 		pedigree.add_individual('individual1', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 		pedigree.add_individual('individual2', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 		pedigree.add_relationship('individual0', 'individual1', 'individual2')
-		dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=not all_heterozygous)
+		dp_table = PedigreeDPTable(readset, recombcost, pedigree, 2, distrust_genotypes=not all_heterozygous)
 		cost = dp_table.get_optimal_cost()
 		superreads, transmission_vector = dp_table.get_super_reads()
 		assert len(set(transmission_vector)) == 1

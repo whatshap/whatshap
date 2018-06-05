@@ -250,7 +250,7 @@ cdef class ReadSet:
 		return result
 
 cdef class PedigreeDPTable:
-	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree, bool distrust_genotypes = False, positions = None):
+	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree, ploidy, bool distrust_genotypes = False, positions = None):
 		"""Build the DP table from the given read set which is assumed to be sorted;
 		that is, the variants in each read must be sorted by position and the reads
 		in the read set must also be sorted (by position of their left-most variant).
@@ -260,7 +260,7 @@ cdef class PedigreeDPTable:
 			c_positions = new vector[unsigned int]()
 			for pos in positions:
 				c_positions.push_back(pos)
-		self.thisptr = new cpp.PedigreeDPTable(readset.thisptr, recombcost, pedigree.thisptr, distrust_genotypes, c_positions)
+		self.thisptr = new cpp.PedigreeDPTable(readset.thisptr, recombcost, pedigree.thisptr, ploidy, distrust_genotypes, c_positions)
 		self.pedigree = pedigree
 
 	def __dealloc__(self):
@@ -375,7 +375,7 @@ cdef class PhredGenotypeLikelihoods:
 
 
 cdef class GenotypeDPTable:
-	def __cinit__(self, numeric_sample_ids, ReadSet readset, recombcost, Pedigree pedigree, positions = None):
+	def __cinit__(self, numeric_sample_ids, ReadSet readset, recombcost, Pedigree pedigree, ploidy, positions = None):
 		"""Build the DP table from the given read set which is assumed to be sorted;
 		that is, the variants in each read must be sorted by position and the reads
 		in the read set must also be sorted (by position of their left-most variant).
@@ -385,7 +385,7 @@ cdef class GenotypeDPTable:
 			c_positions = new vector[unsigned int]()
 			for pos in positions:
 				c_positions.push_back(pos)
-		self.thisptr = new cpp.GenotypeDPTable(readset.thisptr, recombcost, pedigree.thisptr, c_positions)
+		self.thisptr = new cpp.GenotypeDPTable(readset.thisptr, recombcost, pedigree.thisptr, ploidy, c_positions)
 		self.pedigree = pedigree
 		self.numeric_sample_ids = numeric_sample_ids
 
