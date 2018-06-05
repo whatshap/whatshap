@@ -14,10 +14,11 @@
 
 using namespace std;
 
-GenotypeDPTable::GenotypeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, const vector<unsigned int>* positions)
+GenotypeDPTable::GenotypeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, unsigned int ploidy, const vector<unsigned int>* positions)
     :read_set(read_set),
      recombcost(recombcost),
      pedigree(pedigree),
+     ploidy(ploidy),
      input_column_iterator(*read_set, positions),
      backward_input_column_iterator(*read_set, positions),
      transition_probability_table(input_column_iterator.get_column_count(),nullptr),
@@ -86,7 +87,7 @@ void GenotypeDPTable::compute_index(){
     unique_ptr<vector<const Entry*> > next_input_column;
     next_input_column = input_column_iterator.get_next();
     unique_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_input_column);
-    ColumnIndexingScheme* next_indexer = new ColumnIndexingScheme(0, *next_read_ids);
+    ColumnIndexingScheme* next_indexer = new ColumnIndexingScheme(0, *next_read_ids, ploidy);
     indexers[0] = next_indexer;
     unsigned int transmission_configurations = std::pow(4, pedigree->triple_count());
     transition_probability_table[0] = new TransitionProbabilityComputer(0, recombcost[0], pedigree, pedigree_partitions);
@@ -100,7 +101,7 @@ void GenotypeDPTable::compute_index(){
         if (input_column_iterator.has_next()){
             next_input_column = input_column_iterator.get_next();
             next_read_ids = extract_read_ids(*next_input_column);
-            next_indexer = new ColumnIndexingScheme(current_indexer,*next_read_ids);
+            next_indexer = new ColumnIndexingScheme(current_indexer,*next_read_ids, ploidy);
 
             current_indexer->set_next_column(next_indexer);
             indexers[column_index+1] = next_indexer;
@@ -241,8 +242,10 @@ void GenotypeDPTable::compute_backward_column(size_t column_index, unique_ptr<ve
    // iterate over all bipartitions
    unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
    while (iterator->has_next()){
+       // TODO handle polyploid case
        int bit_changed = -1;
-       iterator->advance(&bit_changed);
+       int partition_changed = -1;
+       iterator->advance(&bit_changed, &partition_changed);
        if (bit_changed >= 0) {
            // update bipartition in the cost computers
            for(auto& cost_computer : cost_computers) {
@@ -360,7 +363,8 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
     unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
     while (iterator->has_next()) {
         int bit_changed = -1;
-        iterator->advance(&bit_changed);
+        int partition_changed = -1;
+        iterator->advance(&bit_changed, &partition_changed);
         if (bit_changed >= 0) {
             // update bipartition in the cost computers
             for(auto& cost_computer : cost_computers) {

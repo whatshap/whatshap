@@ -70,14 +70,14 @@ cdef extern from "../src/pedigree.h":
 
 cdef extern from "../src/pedigreedptable.h":
 	cdef cppclass PedigreeDPTable:
-		PedigreeDPTable(ReadSet*, vector[unsigned int], Pedigree* pedigree, bool distrust_genotypes, vector[unsigned int]* positions) except +
+		PedigreeDPTable(ReadSet*, vector[unsigned int], Pedigree* pedigree, unsigned int ploidy, bool distrust_genotypes, vector[unsigned int]* positions) except +
 		void get_super_reads(vector[ReadSet*]*, vector[unsigned int]* transmission_vector) except +
 		int get_optimal_score() except +
 		vector[bool]* get_optimal_partitioning()
 
 cdef extern from "../src/genotypedptable.h":
 	cdef cppclass GenotypeDPTable:
-		GenotypeDPTable(ReadSet*, vector[unsigned int], Pedigree* pedigree, vector[unsigned int]* positions) except +
+		GenotypeDPTable(ReadSet*, vector[unsigned int], Pedigree* pedigree, unsigned int ploidy, vector[unsigned int]* positions) except +
 		vector[long double] get_genotype_likelihoods(unsigned int individual, unsigned int position) except +
 
 cdef extern from "../src/phredgenotypelikelihoods.h":

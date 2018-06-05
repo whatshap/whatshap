@@ -471,6 +471,7 @@ def run_whatshap(
 		phase_input_files,
 		variant_file,
 		reference=None,
+		ploidy=2,
 		output=sys.stdout,
 		samples=None,
 		chromosomes=None,
@@ -849,7 +850,7 @@ def run_whatshap(
 					problem_name = 'MEC' if len(family) == 1 else 'PedMEC'
 					logger.info('Phasing %d sample%s by solving the %s problem ...',
 						len(family), 's' if len(family) > 1 else '', problem_name)
-					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
+					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, ploidy, distrust_genotypes, accessible_positions)
 					superreads_list, transmission_vector = dp_table.get_super_reads()
 					logger.info('%s cost: %d', problem_name, dp_table.get_optimal_cost())
 				with timers('components'):
@@ -974,6 +975,7 @@ def add_arguments(parser):
 	arg('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')
+	arg('--ploidy', metavar='PLOIDY', type=int, default=2, help='Ploidy of the samples (default: %(default)).')
 	arg('--tag', choices=('PS', 'HP'), default='PS',
 		help='Store phasing information with PS tag (standardized) or '
 			'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')

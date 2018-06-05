@@ -1,31 +1,35 @@
-#ifndef GRAYCODES_H
-#define GRAYCODES_H
+#ifndef GRAYCODES
+#define GRAYCODES
 
-#include <iostream>
+#include <vector>
 
-/** A class to generate Gray codes. 
-  * Implementation is based on
-  * "An Algorithm for Gray Codes", S. Mossige, Computing (18), pp. 89-92, 1977.
-  */
+/**
+the algorithm of Guan is used to generate (n,k)-Gray Codes.
+http://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=DEDDD5F10CCC1F497AE62CF67A76E8D4?doi=10.1.1.119.1344&rep=rep1&type=pdf
+**/
+
 class GrayCodes {
 	public:
 		typedef unsigned int int_t;
-
-		GrayCodes(int length);
-
+		// generate gray codes of given length and base
+		GrayCodes(unsigned int length, unsigned int base);
+		// check if there is a next code
 		bool has_next();
-
-		/** Return the next Gray code.
-		  * @param changed_bit If not null, the index of the changed bit is
-		  *                    returned via this variable.
-		  */
-		int_t get_next(int* changed_bit = 0);
+		// get the next gray code (represented as decimal number)
+		// update position and partition to the position that changed and
+		// the updated value there
+		int_t get_next(int* position, int* partition );
 	private:
-		int length;
-		int i;
-		int_t s;
-		int_t c;
-		int changed_bit;
+		unsigned int length;
+		unsigned int base;
+
+		std::vector<int> n;
+		std::vector<int> g;
+		std::vector<int> u;
+		int current_index;
+		int changed_position;
+		unsigned int changed_partition;
+		
 };
 
-#endif
+#endif // GRAYCODES

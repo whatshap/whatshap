@@ -10,7 +10,7 @@ using namespace std;
 ColumnIndexingIterator::ColumnIndexingIterator(const ColumnIndexingScheme* parent, unsigned int number_of_partitions) {
 	assert(parent != 0);
 	this->parent = parent;
-	this->graycodes = new GeneralizedGrayCodes(parent->read_ids.size(), number_of_partitions);
+	this->graycodes = new GrayCodes(parent->read_ids.size(), number_of_partitions);
 	this->index = -1;
 	this->forward_projection = -1;
 	this->number_of_partitions = number_of_partitions;
@@ -40,13 +40,14 @@ void ColumnIndexingIterator::advance(int* position_changed, int* partition_chang
 			forward_projection = 0;
 		}
 	} else {
+		//std::cout << "graycode pos changed: " << graycode_position_changed << std::endl;
 		assert(graycode_position_changed >= 0);
 		if (parent->forward_projection_mask != 0) {
 			// get index (wrt to all reads in intersection) of read that switched partitions
-			int read_index = parent->forward_projection_mask->at(parent->read_ids.size() - graycode_position_changed - 1);
+			int read_index = parent->forward_projection_mask->at(graycode_position_changed);
+			//int read_index = parent->forward_projection_mask->at(graycode_position_changed);
 			if (read_index >= 0) {
 				// change corresponding position in forward projection and compute decimal number
-				int old = forward_projection;
 				forward_projection = switch_read(forward_projection, read_index, graycode_partition_changed, parent->forward_projection_size());
 			}
 		}
@@ -62,7 +63,17 @@ unsigned int ColumnIndexingIterator::get_forward_projection() {
 
 unsigned int ColumnIndexingIterator::get_backward_projection() {
 	assert(index >= 0);
-	return index & ((((unsigned int)1)<<parent->backward_projection_width) - 1);
+	unsigned int steps = parent->backward_projection_width;
+	unsigned int digits = index;
+	unsigned int result = 0;
+	unsigned int factor = 1;
+	while(steps > 0){
+		result += (digits % number_of_partitions) * factor;
+		digits /= number_of_partitions;
+		factor *= number_of_partitions;
+		steps -= 1;	 
+	}
+	return result;
 }
 
 
@@ -77,35 +88,41 @@ unsigned int ColumnIndexingIterator::get_partition() {
 	return index;
 }
 
-// TODO implement
-unsigned int ColumnIndexingIterator::index_backward_projection(unsigned int i) {
-	throw std::runtime_error("Not yet implemented.");
-/**
-	assert(i >= 0); // assert the proper boundaries
-	assert(i < (((unsigned int)1) << parent->read_ids.size()));
 
-	return i & ((((unsigned int)1) << parent->backward_projection_width) -1);
-**/
+unsigned int ColumnIndexingIterator::index_backward_projection(unsigned int i) {
+	assert(i >= 0);
+	assert(i < pow(number_of_partitions, parent->read_ids.size()));
+	
+	unsigned int steps = parent->backward_projection_width;
+	unsigned int digits = index;
+	unsigned int result = 0;
+	unsigned int factor = 1;
+	while(steps > 0){
+		result += (digits % number_of_partitions) * factor;
+		digits /= number_of_partitions;
+		factor *= number_of_partitions;
+		steps -= 1;
+	}
+	return result;
 }
 
-// TODO implement
-unsigned int ColumnIndexingIterator::index_forward_projection(unsigned int i) {
-	throw std::runtime_error("Not yet implemented.");
-/**	assert(i >= 0);
-	assert(i < (((unsigned int)1) << parent->read_ids.size()));
 
-	unsigned int i_forward_projection = 0;
-	unsigned int s = 1;
-	for(int j=0; j< parent->read_ids.size(); ++j) {
+unsigned int ColumnIndexingIterator::index_forward_projection(unsigned int i) {
+	assert(i >= 0);
+	assert(i < pow(number_of_partitions, parent->read_ids.size()));
+	
+	unsigned int result = 0;
+	unsigned int factor = 1;
+	for(unsigned int j = 0; j < parent->read_ids.size(); j++){
 		unsigned int m = parent->forward_projection_mask->at(j);
-		if(m != -1) {
-			unsigned int s = (((unsigned int)1) << m);
-			i_forward_projection += (s&i);
+		if(m != -1){
+			// get the partition the read is assigned to
+			unsigned int partition =  (i / (unsigned int) pow(number_of_partitions, j)) % number_of_partitions;
+			result += partition * factor;
+			factor *= number_of_partitions;
 		}
 	}
-
-	return i_forward_projection;
-**/
+	return result;
 }
 
 

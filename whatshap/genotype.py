@@ -44,13 +44,33 @@ def determine_genotype(likelihoods, threshold_prob):
 		return -1
 
 
-def run_genotype(phase_input_files, variant_file, reference=None,
-		output=sys.stdout, samples=None, chromosomes=None,
-		ignore_read_groups=False, indels=True, mapping_quality=20,
-		max_coverage=15, nopriors=False,
-		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=0,
-		prioroutput=None, constant=0.0, overhang=10,affine_gap=False, gap_start=10, gap_extend=7, mismatch=15,
-		write_command_line_header=True, use_ped_samples=False):
+def run_genotype(
+		phase_input_files,
+		variant_file,
+		reference=None,
+		ploidy=2,
+		output=sys.stdout,
+		samples=None,
+		chromosomes=None,
+		ignore_read_groups=False,
+		indels=True,
+		mapping_quality=20,
+		max_coverage=15,
+		nopriors=False,
+		ped=None,
+		recombrate=1.26,
+		genmap=None,
+		gt_qual_threshold=0,
+		prioroutput=None,
+		constant=0.0,
+		overhang=10,
+		affine_gap=False,
+		gap_start=10,
+		gap_extend=7,
+		mismatch=15,
+		write_command_line_header=True,
+		use_ped_samples=False
+	):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
 	all variants are computed using the forward backward algorithm
@@ -302,7 +322,7 @@ def run_genotype(phase_input_files, variant_file, reference=None,
 					problem_name = 'genotyping'
 					logger.info('Genotype %d sample%s by solving the %s problem ...',
 						len(family), 's' if len(family) > 1 else '', problem_name)
-					forward_backward_table = GenotypeDPTable(numeric_sample_ids, all_reads, recombination_costs, pedigree, accessible_positions)
+					forward_backward_table = GenotypeDPTable(numeric_sample_ids, all_reads, recombination_costs, ploidy, pedigree, accessible_positions)
 					# store results
 					for s in family:
 						likelihood_list = variant_table.genotype_likelihoods_of(s)
@@ -357,6 +377,7 @@ def add_arguments(parser):
 	arg('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')
+	arg('--ploidy', metavar='PLOIDY', type=int, default=2, help='Ploidy of the samples (default: %(default)).')
 
 	arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
 	arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,

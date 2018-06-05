@@ -10,7 +10,7 @@ from whatshap.testhelpers import string_to_readset_pedigree
 
 def genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes, weights=None, expected=None, scaling=10, positions=None):
 	rs = string_to_readset_pedigree(s=reads, w=weights, scaling_quality=scaling)
-	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,rs, recombcost, pedigree, positions)
+	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,rs, recombcost, pedigree, 2, positions)
 
 	# for each position compare the likeliest genotype to the expected ones
 	print('expected genotypes: ',expected_genotypes)
@@ -48,7 +48,7 @@ def test_genotyping_empty_trio():
 	pedigree.add_individual('individual1', [],[])
 	pedigree.add_individual('individual2', [],[])
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
-	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,rs, recombcost, pedigree)
+	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,rs, recombcost, pedigree, 2)
 
 
 def test_genotyping_trio1():
