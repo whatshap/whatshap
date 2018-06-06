@@ -7,7 +7,7 @@
 
 using namespace std;
 
-Pedigree::Pedigree() {
+Pedigree::Pedigree(unsigned int ploidy) : ploidy(ploidy) {
 	variant_count = -1;
 }
 
@@ -37,8 +37,11 @@ void Pedigree::addIndividual(unsigned int id, std::vector<unsigned int> genotype
 
 
 void Pedigree::addRelationship(unsigned int father_id, unsigned int mother_id, unsigned int child_id) {
-	triple_entry_t triple_entry = {id_to_index(father_id), id_to_index(mother_id), id_to_index(child_id)};
-	triples.push_back(triple_entry);
+	// pedigree based phasing/genotyping only possible in diploid case
+	if (ploidy == 2) {
+		triple_entry_t triple_entry = {id_to_index(father_id), id_to_index(mother_id), id_to_index(child_id)};
+		triples.push_back(triple_entry);
+	}
 }
 
 
@@ -119,4 +122,8 @@ std::string Pedigree::toString() const {
 	
 	return oss.str();
 
+}
+
+unsigned int Pedigree::get_ploidy() const {
+	return ploidy;
 }

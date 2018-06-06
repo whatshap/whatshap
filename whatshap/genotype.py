@@ -298,7 +298,7 @@ def run_genotype(
 					len(accessible_positions))
 
 				# Create Pedigree
-				pedigree = Pedigree(numeric_sample_ids)
+				pedigree = Pedigree(numeric_sample_ids, ploidy)
 				for sample in family:
 					# genotypes are assumed to be unknown, so ignore information that
 					# might already be present in the input vcf
