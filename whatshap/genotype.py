@@ -322,7 +322,7 @@ def run_genotype(
 					problem_name = 'genotyping'
 					logger.info('Genotype %d sample%s by solving the %s problem ...',
 						len(family), 's' if len(family) > 1 else '', problem_name)
-					forward_backward_table = GenotypeDPTable(numeric_sample_ids, all_reads, recombination_costs, ploidy, pedigree, accessible_positions)
+					forward_backward_table = GenotypeDPTable(numeric_sample_ids, all_reads, recombination_costs, pedigree, ploidy, accessible_positions)
 					# store results
 					for s in family:
 						likelihood_list = variant_table.genotype_likelihoods_of(s)

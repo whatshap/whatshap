@@ -22,7 +22,6 @@ PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& 
 	optimal_score_index(0u),
 	input_column_iterator(*read_set, positions)
 {
-	std::cout << "PedigreeDPTable: ploidy=" << ploidy << std::endl; 
 	read_set->reassignReadIds();
 
 	// create all pedigree partitions
