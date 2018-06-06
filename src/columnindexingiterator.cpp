@@ -40,17 +40,21 @@ void ColumnIndexingIterator::advance(int* position_changed, int* partition_chang
 			forward_projection = 0;
 		}
 	} else {
-		//std::cout << "graycode pos changed: " << graycode_position_changed << std::endl;
 		assert(graycode_position_changed >= 0);
 		if (parent->forward_projection_mask != 0) {
 			// get index (wrt to all reads in intersection) of read that switched partitions
 			int read_index = parent->forward_projection_mask->at(graycode_position_changed);
-			//int read_index = parent->forward_projection_mask->at(graycode_position_changed);
 			if (read_index >= 0) {
 				// change corresponding position in forward projection and compute decimal number
 				forward_projection = switch_read(forward_projection, read_index, graycode_partition_changed, parent->forward_projection_size());
 			}
 		}
+	}
+	if (position_changed != 0){
+		*position_changed = graycode_position_changed;
+	}
+	if (partition_changed != 0){
+		*partition_changed = graycode_partition_changed;
 	}
 }
 
@@ -92,11 +96,12 @@ unsigned int ColumnIndexingIterator::get_partition() {
 unsigned int ColumnIndexingIterator::index_backward_projection(unsigned int i) {
 	assert(i >= 0);
 	assert(i < pow(number_of_partitions, parent->read_ids.size()));
-	
+
 	unsigned int steps = parent->backward_projection_width;
-	unsigned int digits = index;
+	unsigned int digits = i;
 	unsigned int result = 0;
 	unsigned int factor = 1;
+
 	while(steps > 0){
 		result += (digits % number_of_partitions) * factor;
 		digits /= number_of_partitions;
@@ -127,18 +132,11 @@ unsigned int ColumnIndexingIterator::index_forward_projection(unsigned int i) {
 
 
 unsigned int ColumnIndexingIterator::switch_read(unsigned int old_index, unsigned int read_to_switch, unsigned int new_partition, unsigned int used_bits) {
-	unsigned int result = 0;
-	unsigned int factor = 1;
-	unsigned int i = 0;
+	unsigned int factor = pow(number_of_partitions, read_to_switch);
 
-	while (used_bits > 0) {
-		unsigned int digit = old_index % number_of_partitions;
-		if (i == read_to_switch) digit = new_partition;
-		result += digit * factor;
-		factor *= number_of_partitions;
-		i += 1;
-		old_index /= number_of_partitions;
-		used_bits -= 1;
-	}
-	return result;
+	// get the partition the read is assigned to currently
+	unsigned int old_partition = (old_index / factor) % number_of_partitions;
+	unsigned int tmp = old_index - (old_partition * factor);
+
+	return tmp + new_partition * factor;
 }

@@ -54,8 +54,8 @@ GrayCodes::int_t GrayCodes::get_next(int* position, int* partition)
 		k = g[i] + u[i];
 	}
 	g[i] = k;
-	changed_position = length - i - 1 ;
-	//changed_position = i;
+//	changed_position = length - i - 1 ;
+	changed_position = i;
 	changed_partition = k;
 
 //	std::cout << "length: " << length << " base: " << base << std::endl;

@@ -492,7 +492,7 @@ TEST_CASE("test ColumnIndexingIterator", "[test ColumnIndexingIterator]"){
             check_partitioning(read_ids1[j], read_ids2[j], read_ids3[j], expected_forward_projections[j], expected_backward_projections[j], 2);
         }
     }
-/**
+
     SECTION("test tripartitions"){
         std::vector<std::vector<unsigned int>> expected_forward_projections = {{0,0,0,1,1,1,2,2,2},{0,1,2,5,4,3,6,7,8},{0,0,0,0,0,0,0,0,0}};
         std::vector<std::vector<unsigned int>> expected_backward_projections = {{0,1,2,2,1,0,0,1,2},{0,1,2,5,4,3,6,7,8},{0,0,0,0,0,0,0,0,0}};
@@ -517,5 +517,5 @@ TEST_CASE("test ColumnIndexingIterator", "[test ColumnIndexingIterator]"){
             check_partitioning(read_ids1[j], read_ids2[j], read_ids3[j], expected_forward_projections[j], expected_backward_projections[j], 4);
         }
     }
-**/
+
 }
