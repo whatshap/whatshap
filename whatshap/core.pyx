@@ -305,8 +305,8 @@ cdef class PedigreeDPTable:
 
 
 cdef class Pedigree:
-	def __cinit__(self, numeric_sample_ids):
-		self.thisptr = new cpp.Pedigree()
+	def __cinit__(self, numeric_sample_ids, ploidy):
+		self.thisptr = new cpp.Pedigree(ploidy)
 		self.numeric_sample_ids = numeric_sample_ids
 
 	def __dealloc__(self):
@@ -332,6 +332,11 @@ cdef class Pedigree:
 		"""Number of variants stored for each individual."""
 		def __get__(self):
 			return self.thisptr.get_variant_count()
+
+	property ploidy:
+		"""Ploidy of the samples."""
+		def __get__(self):
+			return self.thisptr.get_ploidy()
 
 	def genotype(self, sample_id, unsigned int variant_index):
 		return self.thisptr.get_genotype_by_id(self.numeric_sample_ids[sample_id], variant_index)
