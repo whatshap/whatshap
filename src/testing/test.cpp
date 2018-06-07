@@ -533,8 +533,8 @@ TEST_CASE("test PedigreePartitions", "[test PedigreePartitions]"){
         REQUIRE(pedigreepartitions.haplotype_to_partition(0,1) == 1);
         REQUIRE(pedigreepartitions.haplotype_to_partition(1,0) == 2);
         REQUIRE(pedigreepartitions.haplotype_to_partition(1,1) == 3);
-        REQUIRE(pedigreepartitions.haplotype_to_partition(2,0) == 0);
-        REQUIRE(pedigreepartitions.haplotype_to_partition(2,1) == 3);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(2,0) == 1);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(2,1) == 2);
     }
 
     SECTION("test polyploid case"){

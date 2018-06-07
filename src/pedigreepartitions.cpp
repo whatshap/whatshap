@@ -56,8 +56,8 @@ void PedigreePartitions::compute_haplotype_to_partition_rec(size_t i,  const vec
 	compute_haplotype_to_partition_rec(parent0, triple_indices);
 	compute_haplotype_to_partition_rec(parent1, triple_indices);
 	haplotype_to_partition_map[i] = {
-	  haplotype_to_partition_map[parent0][(bool)((transmission_vector >> (2*triple_index)) & 1)],
-	  haplotype_to_partition_map[parent1][(bool)((transmission_vector >> (2*triple_index+1)) & 1)]
+	  haplotype_to_partition_map[parent0][!(bool)((transmission_vector >> (2*triple_index)) & 1)],
+	  haplotype_to_partition_map[parent1][!(bool)((transmission_vector >> (2*triple_index+1)) & 1)]
 	};
 }
 
