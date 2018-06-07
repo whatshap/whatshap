@@ -26,7 +26,7 @@ PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& 
 
 	// create all pedigree partitions
 	for (size_t i=0; i<std::pow(4, pedigree->triple_count()); ++i) {
-		pedigree_partitions.push_back(new PedigreePartitions(*pedigree, i));
+		pedigree_partitions.push_back(new PedigreePartitions(*pedigree, i, ploidy));
 	}
 
 	// translate all individual ids to individual indices

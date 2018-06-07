@@ -6,7 +6,7 @@ def test_phase_empty_readset():
 	rs = ReadSet()
 	recombcost = [1,1]
 	genotypes = [1,1]
-	pedigree = Pedigree(NumericSampleIds(), 2)
+	pedigree = Pedigree(NumericSampleIds())
 	genotype_likelihoods = [None, None]
 	pedigree.add_individual('individual0', genotypes, genotype_likelihoods)
 	dp_table = PedigreeDPTable(rs, recombcost, pedigree, 2)
@@ -49,7 +49,7 @@ def check_phasing_single_individual(reads, weights = None):
 	# 1) Phase using PedMEC code for single individual
 	for all_heterozygous in [False, True]:
 		recombcost = [1] * len(positions) # recombination costs 1, should not occur
-		pedigree = Pedigree(NumericSampleIds(), 2)
+		pedigree = Pedigree(NumericSampleIds())
 		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods(0,0,0)] * len(positions)
 		pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 		print("before DP table")
@@ -66,7 +66,7 @@ def check_phasing_single_individual(reads, weights = None):
 	# 2) Phase using PedMEC code for trios with two "empty" individuals (i.e. having no reads)
 	for all_heterozygous in [False, True]:
 		recombcost = [1] * len(positions) # recombination costs 1, should not occur
-		pedigree = Pedigree(NumericSampleIds(), 2)
+		pedigree = Pedigree(NumericSampleIds())
 		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods(0,0,0)] * len(positions)
 		pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 		pedigree.add_individual('individual1', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous

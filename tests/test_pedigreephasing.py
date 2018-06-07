@@ -63,7 +63,7 @@ def get_trio_transmission_vectors(transmission_vector, nr_of_trios):
 def test_phase_empty_trio():
 	rs = ReadSet()
 	recombcost = []
-	pedigree = Pedigree(NumericSampleIds(), 2)
+	pedigree = Pedigree(NumericSampleIds())
 	pedigree.add_individual('individual0', [])
 	pedigree.add_individual('individual1', [])
 	pedigree.add_individual('individual2', [])
@@ -84,7 +84,7 @@ def test_phase_trio1():
 	  C 010
 	  C 010
 	"""
-	pedigree = Pedigree(NumericSampleIds(), 2)
+	pedigree = Pedigree(NumericSampleIds())
 	pedigree.add_individual('individual0', [1,2,1])
 	pedigree.add_individual('individual1', [1,1,1])
 	pedigree.add_individual('individual2', [0,1,1])
@@ -111,7 +111,7 @@ def test_phase_trio2():
 	  C 11
 	  C 00
 	"""
-	pedigree = Pedigree(NumericSampleIds(), 2)
+	pedigree = Pedigree(NumericSampleIds())
 	pedigree.add_individual('individual0', [2,2])
 	pedigree.add_individual('individual1', [0,0])
 	pedigree.add_individual('individual2', [1,1])
@@ -145,7 +145,7 @@ def test_phase_trio3():
 	  B   1010
 	  B    010
 	"""
-	pedigree = Pedigree(NumericSampleIds(), 2)
+	pedigree = Pedigree(NumericSampleIds())
 	pedigree.add_individual('individual0', [1,1,1,1,1,1])
 	pedigree.add_individual('individual1', [1,1,1,1,1,1])
 	pedigree.add_individual('individual2', [1,2,1,1,0,1])
@@ -175,7 +175,7 @@ def test_phase_trio4():
 	  C 111
 	  C 111
 	"""
-	pedigree = Pedigree(NumericSampleIds(), 2)
+	pedigree = Pedigree(NumericSampleIds())
 	pedigree.add_individual('individual0', [1,1,1])
 	pedigree.add_individual('individual1', [1,1,1])
 	pedigree.add_individual('individual2', [1,1,1])
@@ -205,7 +205,7 @@ def test_phase_trio5():
 	  C 111
 	  C 111
 	"""
-	pedigree = Pedigree(NumericSampleIds(), 2)
+	pedigree = Pedigree(NumericSampleIds())
 	pedigree.add_individual('individual0', [1,1,1])
 	pedigree.add_individual('individual1', [1,1,1])
 	pedigree.add_individual('individual2', [1,1,1])
@@ -225,7 +225,7 @@ def test_phase_trio5():
 
 def test_phase_trio_pure_genetic():
 	reads = ""
-	pedigree = Pedigree(NumericSampleIds(), 2)
+	pedigree = Pedigree(NumericSampleIds())
 	pedigree.add_individual('individual0', [2,1,1,0])
 	pedigree.add_individual('individual1', [1,2,2,1])
 	pedigree.add_individual('individual2', [1,1,1,0])
@@ -245,7 +245,7 @@ def test_phase_trio_pure_genetic():
 
 def test_phase_doubletrio_pure_genetic():
 	reads = ""
-	pedigree = Pedigree(NumericSampleIds(), 2)
+	pedigree = Pedigree(NumericSampleIds())
 	pedigree.add_individual('individualA', [1,2,1,0])
 	pedigree.add_individual('individualB', [1,0,1,1])
 	pedigree.add_individual('individualC', [2,1,1,0])
@@ -285,7 +285,7 @@ def test_phase_quartet1():
 	  D 010
 	  D 010
 	"""
-	pedigree = Pedigree(NumericSampleIds(), 2)
+	pedigree = Pedigree(NumericSampleIds())
 	pedigree.add_individual('individual0', [1,2,1])
 	pedigree.add_individual('individual1', [1,1,1])
 	pedigree.add_individual('individual2', [0,1,1])
@@ -318,7 +318,7 @@ def test_phase_quartet2():
 	  D 000000
 	  D 010101
 	"""
-	pedigree = Pedigree(NumericSampleIds(), 2)
+	pedigree = Pedigree(NumericSampleIds())
 	pedigree.add_individual('individual0', [1,1,1,1,1,1])
 	pedigree.add_individual('individual1', [1,1,1,1,1,1])
 	pedigree.add_individual('individual2', [0,1,0,1,0,1])
@@ -359,7 +359,7 @@ def test_phase_quartet3():
 	  B   1010
 	  B   0101
 	"""
-	pedigree = Pedigree(NumericSampleIds(), 2)
+	pedigree = Pedigree(NumericSampleIds())
 	pedigree.add_individual('individual0', [1,1,1,1,1,1])
 	pedigree.add_individual('individual1', [1,1,1,1,1,1])
 	pedigree.add_individual('individual2', [1,2,1,1,0,1])
@@ -409,7 +409,7 @@ def test_phase_trio_genotype_likelihoods():
 	  C 010
 	  C 010
 	"""
-	pedigree = Pedigree(NumericSampleIds(), 2)
+	pedigree = Pedigree(NumericSampleIds())
 	genotype_likelihoods_mother = [
 		PhredGenotypeLikelihoods(0,0,0),
 		PhredGenotypeLikelihoods(0,0,1),
