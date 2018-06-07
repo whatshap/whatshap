@@ -55,12 +55,32 @@ class hapchatcore{
 private:
 CoreFunctions corefun;
 options_t options;
+vector<pair<Read,Read>> superreads;
 public:	
 	hapchatcore(ReadSet* read_set){
+
+	  //std::cout << read_set->toString() << std::endl;
+
+		
 	options= whatshap_options(read_set);
+	
+	runCore();
 	};
 
+void  getSuperRead(vector<ReadSet*>* output_read_set){
+	for(unsigned int k=0;k<superreads.size();k++) {
+		
+		output_read_set->at(k)->add(&superreads[k].first);
+		output_read_set->at(k)->add(&superreads[k].second);
+	}
 
+
+}
+
+int getLen(){
+	
+return superreads.size();
+}
 int runCore()
 {
 #if defined(VCS_DATE) && defined(VCS_SHORT_HASH) && defined(VCS_WC_MODIFIED)
@@ -94,6 +114,7 @@ int runCore()
     exit(EXIT_FAILURE);
   }
   //Readset section
+	cout<<"finQui";
 	HapCHATcore hap=HapCHATcore(options.readset,options.unique);
   //Initializing the starting parameters: no competitive section
 	
@@ -177,6 +198,10 @@ int runCore()
 
   }
 
+  INFO("----------------------------------------------------------------------");
+  //corefun.write_haplotypes(haplotype_blocks1, haplotype_blocks2, std::cout);
+  INFO("----------------------------------------------------------------------");
+	
   INFO("");
 
   INFO("OPTIMUM:  " << OPT);
@@ -198,6 +223,8 @@ int runCore()
   INFO("TOTAL MISMATCHES:  " << TOTAL_MISMATCHES);
 
   DEBUG("<<>> Writing haplotypes...");
+  superreads=hap.makeSuperReads(hap.getPositions(),haplotype_blocks1[0],haplotype_blocks2[0]);
+
   ofstream ofs;
   try {
     ofs.open(options.haplotype_filename.c_str(), ios::out);
@@ -207,6 +234,7 @@ int runCore()
     //write_haplotypes(haplotype_blocks1, haplotype_blocks2, cout);
     return EXIT_FAILURE;
   }
+
 }
 };
 
