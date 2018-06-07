@@ -1,6 +1,7 @@
 #include "../readset.h"
 #include "../read.h"
 #include "../pedigree.h"
+#include "../pedigreepartitions.h"
 #include "../phredgenotypelikelihoods.h"
 #include "../genotypedptable.h"
 #include "../pedigree.h"
@@ -136,7 +137,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
         ReadSet* read_set = string_to_readset(reads[0],weights,false);
         std::vector<unsigned int>* positions = read_set->get_positions();
         std::vector<unsigned int> recombcost(positions->size(), 10);
-        Pedigree* pedigree = new Pedigree(2);
+        Pedigree* pedigree = new Pedigree();
 
         std::vector<PhredGenotypeLikelihoods*> gl_mother;
         std::vector<PhredGenotypeLikelihoods*> gl_father;
@@ -161,7 +162,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
 
         for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
         {
-            pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i));
+            pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i,2));
         }
 
         for(unsigned int column_index = 0; column_index < positions->size(); ++column_index){
@@ -208,7 +209,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
         ReadSet* read_set = string_to_readset(reads[0],weights,false);
         std::vector<unsigned int>* positions = read_set->get_positions();
         std::vector<unsigned int> recombcost(positions->size(), 10);
-        Pedigree* pedigree = new Pedigree(2);
+        Pedigree* pedigree = new Pedigree();
 
         std::vector<PhredGenotypeLikelihoods*> gl_mother;
         std::vector<PhredGenotypeLikelihoods*> gl_father;
@@ -233,7 +234,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
 
         for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
         {
-            pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i));
+            pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i,2));
         }
 
         for(unsigned int column_index = 0; column_index < positions->size(); ++column_index){
@@ -271,7 +272,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
        ReadSet* read_set = string_to_readset(reads[0],weights,false);
        std::vector<unsigned int>* positions = read_set->get_positions();
        std::vector<unsigned int> recombcost(positions->size(), 10);
-       Pedigree* pedigree = new Pedigree(2);
+       Pedigree* pedigree = new Pedigree();
 
        std::vector<PhredGenotypeLikelihoods*> gl;
        for(unsigned int i = 0; i < positions->size(); i++){
@@ -285,7 +286,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
 
        for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
        {
-           pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i));
+           pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i,2));
        }
 
        for(unsigned int column_index = 0; column_index < positions->size(); ++column_index){
@@ -319,14 +320,14 @@ TEST_CASE("test column_cost_computer","[test column_cost_computer]"){
         std::vector<unsigned int>* positions = read_set->get_positions();
         std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods(positions->size(),nullptr);
         std::vector<unsigned int> recombcost(positions->size(), 1);
-        Pedigree* pedigree = new Pedigree(2);
+        Pedigree* pedigree = new Pedigree();
         pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), genotype_likelihoods);
 
         // create all pedigree partitions
         std::vector<PedigreePartitions*> pedigree_partitions;
         for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
         {
-            pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i));
+            pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i,2));
         }
 
         // translate all individual ids to individual indices
@@ -463,12 +464,9 @@ void check_partitioning(std::vector<unsigned int>& readset1, std::vector<unsigne
     int partition_changed = 0;
     unsigned int i = 0;
     while(iterator->has_next()) {
-	std::cout << "considering partitioning: " << iterator->get_partition() << std::endl;
         iterator->advance(&pos_changed, &partition_changed);
 	unsigned int forward_index = forward_projections[i];
         unsigned int backward_index = backward_projections[i];
-        std::cout << "position changed: " << pos_changed << std::endl;
-        std::cout << "forward_projection: " << iterator->get_forward_projection() << " backward_projection: " << iterator->get_backward_projection() << std::endl;
         REQUIRE(iterator->get_forward_projection() == forward_index);
         REQUIRE(iterator->index_forward_projection(iterator->get_index()) == forward_index);
         REQUIRE(iterator->get_backward_projection() == backward_index);
@@ -501,7 +499,6 @@ TEST_CASE("test ColumnIndexingIterator", "[test ColumnIndexingIterator]"){
         std::vector<std::vector<unsigned int>> read_ids3 = {{1}, {0,1}, {2}};
 
         for(unsigned int j = 0; j < read_ids1.size(); j++){
-            std::cout << "READSET: " << j << std::endl;
             check_partitioning(read_ids1[j], read_ids2[j], read_ids3[j], expected_forward_projections[j], expected_backward_projections[j], 3);
         }
     }
@@ -518,4 +515,45 @@ TEST_CASE("test ColumnIndexingIterator", "[test ColumnIndexingIterator]"){
         }
     }
 
+}
+
+TEST_CASE("test PedigreePartitions", "[test PedigreePartitions]"){
+
+    SECTION("test diploid case"){
+        Pedigree pedigree;
+        pedigree.addIndividual(0, std::vector<unsigned int>(3,1), {0,0,0});
+        pedigree.addIndividual(1, std::vector<unsigned int>(3,1), {0,0,0});
+        pedigree.addIndividual(2, std::vector<unsigned int>(3,1), {0,0,0});
+        pedigree.addRelationship(0,1,2);
+        REQUIRE(pedigree.triple_count() == 1);
+
+        PedigreePartitions pedigreepartitions(pedigree, 2, 2);
+        REQUIRE(pedigreepartitions.count() == 4);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(0,0) == 0);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(0,1) == 1);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(1,0) == 2);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(1,1) == 3);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(2,0) == 0);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(2,1) == 3);
+    }
+
+    SECTION("test polyploid case"){
+        Pedigree pedigree;
+        pedigree.addIndividual(0, std::vector<unsigned int>(3,1), {0,0,0});
+        pedigree.addIndividual(1, std::vector<unsigned int>(3,1), {0,0,0});
+        pedigree.addIndividual(2, std::vector<unsigned int>(3,1), {0,0,0});
+        pedigree.addRelationship(0,1,2);
+        PedigreePartitions pedigreepartitions(pedigree,0,3);
+       // due to higher ploidy, none of the partitions should have been merged
+        REQUIRE(pedigreepartitions.count() == 9);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(0,0) == 0);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(0,1) == 1);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(0,2) == 2);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(1,0) == 3);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(1,1) == 4);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(1,2) == 5);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(2,0) == 6);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(2,1) == 7);
+        REQUIRE(pedigreepartitions.haplotype_to_partition(2,2) == 8);
+    }
 }

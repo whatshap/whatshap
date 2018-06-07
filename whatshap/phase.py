@@ -815,7 +815,7 @@ def run_whatshap(
 				assert len(phasable_variant_table.variants) == len(accessible_positions)
 
 				# Create Pedigree
-				pedigree = Pedigree(numeric_sample_ids, ploidy)
+				pedigree = Pedigree(numeric_sample_ids)
 				for sample in family:
 					# If distrusting genotypes, we pass genotype likelihoods on to pedigree object
 					if distrust_genotypes:

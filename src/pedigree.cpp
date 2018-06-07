@@ -7,7 +7,7 @@
 
 using namespace std;
 
-Pedigree::Pedigree(unsigned int ploidy) : ploidy(ploidy) {
+Pedigree::Pedigree() {
 	variant_count = -1;
 }
 
@@ -124,6 +124,3 @@ std::string Pedigree::toString() const {
 
 }
 
-unsigned int Pedigree::get_ploidy() const {
-	return ploidy;
-}

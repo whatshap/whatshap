@@ -19,7 +19,7 @@ private:
 	/** (Recursively) compute entry haplotype_to_partition_map[i]. */
 	void compute_haplotype_to_partition_rec(size_t i, const std::vector<int>& triple_indices);
 public:
-	PedigreePartitions(const Pedigree& pedigree, unsigned int transmission_vector);
+	PedigreePartitions(const Pedigree& pedigree, unsigned int transmission_vector, unsigned int ploidy);
 
 	/** Returns the number of partitions. */
 	unsigned int count() const;
