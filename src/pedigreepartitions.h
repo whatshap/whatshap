@@ -27,6 +27,9 @@ public:
 	/** Returns an index of the partition for a given individual and haplotype (haplotype must be < ploidy). */
 	size_t haplotype_to_partition(size_t individual_index, size_t haplotype) const;
 
+	/** Returns the ploidy of the samples **/
+	unsigned int get_ploidy() const;
+
 	friend std::ostream& operator<<(std::ostream& out, const PedigreePartitions& pp);
 
 };

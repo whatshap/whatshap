@@ -22,6 +22,7 @@ private:
 	const std::vector<unsigned int>& read_marks;  
 	unsigned int partitioning;
 	const Pedigree* pedigree;
+	unsigned int ploidy;
 	std::vector<std::array<unsigned int, 2>> cost_partition;
 	const PedigreePartitions& pedigree_partitions;
 	typedef struct allele_assignment_t {
@@ -41,19 +42,18 @@ public:
 
 	void set_partitioning(unsigned int partitioning);
 
-	void update_partitioning(int bit_to_flip);
+	void update_partitioning(int bit_to_flip, int new_partition);
 
 	std::vector<unsigned int> compute_roots(std::vector<Pedigree::triple_entry_t> triples);
 
 	unsigned int get_cost();
 
 	typedef struct phased_variant_t {
-		Entry::allele_t allele0;
-		Entry::allele_t allele1;
+		std::vector<Entry::allele_t> alleles;
 		unsigned int quality;
-		phased_variant_t() : allele0(Entry::BLANK), allele1(Entry::BLANK), quality(0) {}
-		phased_variant_t(Entry::allele_t allele0, Entry::allele_t allele1) : allele0(allele0), allele1(allele1), quality(0) {}
-		phased_variant_t(Entry::allele_t allele0, Entry::allele_t allele1, unsigned int quality) : allele0(allele0), allele1(allele1), quality(quality) {}
+		phased_variant_t(unsigned int ploidy) : alleles(ploidy, Entry::BLANK), quality(0) {}
+		phased_variant_t(std::vector<Entry::allele_t> alleles) : alleles(alleles), quality(0) {}
+		phased_variant_t(std::vector<Entry::allele_t> alleles, unsigned int quality) : alleles(alleles), quality(quality) {}
 	} phased_variant_t;
 
 	/** Returns a phased variants ordered by their index in the pedigree given at construction time. */

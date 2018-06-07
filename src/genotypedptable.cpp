@@ -249,7 +249,7 @@ void GenotypeDPTable::compute_backward_column(size_t column_index, unique_ptr<ve
        if (bit_changed >= 0) {
            // update bipartition in the cost computers
            for(auto& cost_computer : cost_computers) {
-               cost_computer.update_partitioning(bit_changed);
+               cost_computer.update_partitioning(bit_changed, partition_changed);
            }
        } else {
            // set bipartition in the cost computers
@@ -368,7 +368,7 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
         if (bit_changed >= 0) {
             // update bipartition in the cost computers
             for(auto& cost_computer : cost_computers) {
-                cost_computer.update_partitioning(bit_changed);
+                cost_computer.update_partitioning(bit_changed, partition_changed);
             }
         } else {
             // set bipartition in the cost computers

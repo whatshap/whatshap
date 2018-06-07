@@ -17,6 +17,7 @@ GenotypeColumnCostComputer::GenotypeColumnCostComputer(const std::vector<const E
      read_marks(read_marks),
      partitioning(0),
      pedigree(pedigree),
+     ploidy(pedigree_partitions.get_ploidy()),
      cost_partition(pedigree_partitions.count(),{1.0L,1.0L}),
      pedigree_partitions(pedigree_partitions)
 
@@ -58,37 +59,41 @@ void GenotypeColumnCostComputer::set_partitioning(unsigned int p) {
         if(entry.get_allele_type() == Entry::BLANK) {
             continue;
         }
-        bool  entry_in_partition1 = (p & ((unsigned int) 1)) == 0;
+        unsigned int partition = p % ploidy;
+//        bool  entry_in_partition1 = (p & ((unsigned int) 1)) == 0;
+//	std::cout << p << " " << partition << " " << entry_in_partition1 << std::endl;
         unsigned int    ind_id = read_marks[entry.get_read_id()];
         bool is_ref_allele = entry.get_allele_type() == Entry::REF_ALLELE;
 
         auto proba = get_phred_probability(entry.get_phred_score());
-        cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,entry_in_partition1)][!is_ref_allele] *= (1.0L-proba);
-        cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,entry_in_partition1)][is_ref_allele] *= proba;
-        p = p >> 1;
+        cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,partition)][!is_ref_allele] *= (1.0L-proba);
+        cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,partition)][is_ref_allele] *= proba;
+//        p = p >> 1;
+        p /= ploidy;
     }
 }
 
-void GenotypeColumnCostComputer::update_partitioning(int bit_to_flip) {
+void GenotypeColumnCostComputer::update_partitioning(int bit_to_flip, int new_partition) {
+    // determine the partitioning
+    unsigned int factor = pow(ploidy, bit_to_flip);
+    unsigned int old_partition = (partitioning / factor) % ploidy;
+    unsigned int tmp = partitioning - (old_partition * factor);
+    partitioning = tmp + new_partition * factor;
+
     const Entry& entry = *column[bit_to_flip];
     if(entry.get_allele_type() == Entry::BLANK) {
       return;
     }
-
-    // update the partitioning by flipping the given bit
-    partitioning = partitioning ^ (((unsigned int) 1) << bit_to_flip);
-    // check if the entry is in partition 1
-    bool entry_in_partition1 = (partitioning & (((unsigned int) 1) << bit_to_flip)) == 0;
     unsigned int ind_id = read_marks[entry.get_read_id()];
 
     // update the costs
     bool is_ref_allele = entry.get_allele_type() == Entry::REF_ALLELE;
 
     auto proba = get_phred_probability(entry.get_phred_score());
-    cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,entry_in_partition1)][!is_ref_allele] *= (1.0L-proba);
-    cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,entry_in_partition1)][is_ref_allele] *= proba;
-    cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,!entry_in_partition1)][!is_ref_allele] /= (1.0L-proba);
-    cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,!entry_in_partition1)][is_ref_allele] /= proba;
+    cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,new_partition)][!is_ref_allele] *= (1.0L-proba);
+    cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,new_partition)][is_ref_allele] *= proba;
+    cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,old_partition)][!is_ref_allele] /= (1.0L-proba);
+    cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,old_partition)][is_ref_allele] /= proba;
 }
 
 long double GenotypeColumnCostComputer::get_cost(unsigned int allele_assignment) {
