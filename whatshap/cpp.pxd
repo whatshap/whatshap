@@ -102,3 +102,5 @@ cdef extern from "../src/hapchat/hapchat_core.cpp":
 	cdef cppclass hapchatcore:
 		hapchatcore(ReadSet*)
 		int runCore()
+		void getSuperRead(vector[ReadSet*]*)
+		int getLen()

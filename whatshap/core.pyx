@@ -263,7 +263,7 @@ cdef class PedigreeDPTable:
 			read_sets.push_back(new cpp.ReadSet())
 		transmission_vector_ptr = new vector[unsigned int]()
 		self.thisptr.get_super_reads(read_sets, transmission_vector_ptr)
-
+		
 		results = []
 		for i in range(read_sets.size()):
 			rs = ReadSet()
@@ -407,8 +407,24 @@ cdef class hapchatcore:
 		del self.thisptr
 	def runCore(self):
 		return self.thisptr.runCore()
-
-
+	def getLen(self):
+		return self.thisptr.getLen()
+	def getSuperRead(self):
+		cdef vector[cpp.ReadSet*]* read_sets = new vector[cpp.ReadSet*]()
+		leng=self.thisptr.getLen()
+		for i in range(leng):
+			read_sets.push_back(new cpp.ReadSet())
+		self.thisptr.getSuperRead(read_sets)
+		
+		results = []
+		for i in range(read_sets.size()):
+			print(i)
+			rs = ReadSet()
+			del rs.thisptr
+			rs.thisptr = deref(read_sets)[i]
+			results.append(rs)
+		
+		return results
 
 include 'readselect.pyx'
 
