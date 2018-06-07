@@ -26,6 +26,8 @@ private:
   unsigned int partitioning;
   // corresponding pedigree
   const Pedigree* pedigree;
+  // ploidy of sample(s)
+  unsigned int ploidy;
   // stores the current costs of the partitions (for both alleles 0 and 1) = Z_j
   std::vector<std::array<long double, 2>> cost_partition;
   // the pedigree partitions
@@ -36,7 +38,7 @@ public:
   // set partitioning to the given one
   void set_partitioning(unsigned int p);
   // update the partitioning by flipping read corresponding to the given bit
-  void update_partitioning(int bit_to_flip);
+  void update_partitioning(int bit_to_flip, int new_partition);
   // returns the local cost for a given allele assignment prod_j Z_j
   long double get_cost(unsigned int allele_assignment);
 

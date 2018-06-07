@@ -244,7 +244,7 @@ void PedigreeDPTable::compute_column(size_t column_index, unique_ptr<vector<cons
 		iterator->advance(&bit_changed, &partition_changed);
 		if (bit_changed >= 0) {
 			for(auto& cost_computer : cost_computers) {
-				cost_computer.update_partitioning(bit_changed);
+				cost_computer.update_partitioning(bit_changed, partition_changed);
 			}
 		} else {
 			for(auto& cost_computer : cost_computers) {
@@ -375,8 +375,8 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 			
 			// TODO: compute proper weights based on likelihoods.
 			for (unsigned int k=0; k<pedigree->size(); k++) {
-				superreads[k].first->addVariant(positions->at(i), population_alleles[k].allele0, population_alleles[k].quality);
-				superreads[k].second->addVariant(positions->at(i), population_alleles[k].allele1, population_alleles[k].quality);
+				superreads[k].first->addVariant(positions->at(i), population_alleles[k].alleles[0], population_alleles[k].quality);
+				superreads[k].second->addVariant(positions->at(i), population_alleles[k].alleles[1], population_alleles[k].quality);
 			}
 			transmission_vector->push_back(v.inheritance_value);
 			++i; // next column

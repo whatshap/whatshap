@@ -72,6 +72,10 @@ size_t PedigreePartitions::haplotype_to_partition(size_t individual_index, size_
 	return haplotype_to_partition_map[individual_index][haplotype];
 }
 
+unsigned int PedigreePartitions::get_ploidy() const {
+	return ploidy;
+}
+
 std::ostream& operator<<(std::ostream& out, const PedigreePartitions& pp) {
 	for (size_t i=0; i<pp.pedigree.size(); ++i) {
 		out << "sample" << i << ":";
