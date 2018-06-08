@@ -55,10 +55,11 @@ class hapchatcore{
 private:
 CoreFunctions corefun;
 options_t options;
-vector<pair<Read,Read>> superreads;
+vector<pair<Read*,Read*>> superreads;
+unsigned int optimal;
 public:	
 	hapchatcore(ReadSet* read_set){
-
+	optimal=0;
 	  //std::cout << read_set->toString() << std::endl;
 
 		
@@ -70,13 +71,16 @@ public:
 void  getSuperRead(vector<ReadSet*>* output_read_set){
 	for(unsigned int k=0;k<superreads.size();k++) {
 		
-		output_read_set->at(k)->add(&superreads[k].first);
-		output_read_set->at(k)->add(&superreads[k].second);
+		output_read_set->at(k)->add(superreads[k].first);
+		output_read_set->at(k)->add(superreads[k].second);
 	}
 
 
 }
+unsigned int getOptimalCost(){
+return optimal;
 
+}
 int getLen(){
 	
 return superreads.size();
@@ -114,7 +118,6 @@ int runCore()
     exit(EXIT_FAILURE);
   }
   //Readset section
-	cout<<"finQui";
 	HapCHATcore hap=HapCHATcore(options.readset,options.unique);
   //Initializing the starting parameters: no competitive section
 	
@@ -205,7 +208,7 @@ int runCore()
   INFO("");
 
   INFO("OPTIMUM:  " << OPT);
-
+	optimal=OPT.getCost();
   INFO("");
 
   INFO("MAX_COV:  " << MAX_COV);
