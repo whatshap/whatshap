@@ -115,7 +115,9 @@ private:
   }
 
 public:
-
+  unsigned int getCost(){
+	return cost_;
+	}
   static const Cost INFTY;
 
   Cost(const cost_t cost= 0)
