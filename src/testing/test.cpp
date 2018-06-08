@@ -83,32 +83,27 @@ vector<string> get_columns(string matrix, unsigned int col_count){
     return result;
 }
 
-long double naive_column_cost_computer(string current_column,unsigned int bipartition, unsigned int switch_cost, unsigned int allele1, unsigned int allele2){
-
+long double naive_column_cost_computer(string current_column,unsigned int partitioning, unsigned int switch_cost, unsigned int alleles, unsigned int ploidy){
     long double result = 1.0L;
+    vector<unsigned int> allele_to_partition;
+    for(unsigned int j = 0; j < ploidy; j++){
+	std::cout << ((alleles >> j) & 1) << std::endl;
+        allele_to_partition.push_back(((alleles >> j) & 1));
+    }
 
     for(unsigned int j = 0; j < current_column.length(); j++){
-
         // check to which partition the current read belongs
         // check the entry in j-th bit
-        bool part2 = ((unsigned int)1 << j) & bipartition;
-        if(part2){
-            if(int(current_column[j] - '0') == allele2){
-                result *= 1-pow(10,-(long double)switch_cost/10.0L);
-            } else {
-                result *= pow(10,-(long double)switch_cost/10.0L);
-            }
+        unsigned int read_partition = partitioning % ploidy;
+        if (int(current_column[j] - '0') != allele_to_partition[read_partition]) {
+            result *= pow(10,-(long double)switch_cost/10.0L);
         } else {
-            if(int(current_column[j] - '0') == allele1){
-                result *= 1-pow(10,-(long double)switch_cost/10.0L);
-            } else {
-                result *= pow(10,-(long double)switch_cost/10.0L);
-            }
+            result *= 1-pow(10,-(long double)switch_cost/10.0L);
         }
+        partitioning /= ploidy;
     }
     return result;
 }
-
 
 // compare vector of entries to string
 bool compare_entries(vector<const Entry*> c1, string c2){
@@ -292,11 +287,11 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
        for(unsigned int column_index = 0; column_index < positions->size(); ++column_index){
            TransitionProbabilityComputer trans(column_index,10,pedigree,pedigree_partitions);
            for(unsigned int a = 0; a < 1<<pedigree_partitions[0]->count(); ++a){
-            if((a>0) && (a<3)){
-                REQUIRE((trans.get_prob_transmission(0,0)*trans.get_prob_allele_assignment(0,a)) == 1.0L/6.0L);
-            } else {
-                REQUIRE((trans.get_prob_transmission(0,0)*trans.get_prob_allele_assignment(0,a)) == 1.0L/3.0L);
-            }
+               if((a>0) && (a<3)){
+                   REQUIRE((trans.get_prob_transmission(0,0)*trans.get_prob_allele_assignment(0,a)) == 1.0L/6.0L);
+               } else {
+                   REQUIRE((trans.get_prob_transmission(0,0)*trans.get_prob_allele_assignment(0,a)) == 1.0L/3.0L);
+               }
            }
        }
 
@@ -310,13 +305,14 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
 }
 
 
-TEST_CASE("test column_cost_computer","[test column_cost_computer]"){
+TEST_CASE("test ColumnCostComputers","[test column_cost_computer]"){
 
     vector<std::string> reads = {"11\n00", "10\n11", "00\n00", "10\n10", "01\n10"};
     std::string weights = "11\n11";
 
     for(unsigned int r = 0; r < reads.size(); r++){
         ReadSet* read_set = string_to_readset(reads[r],weights,false);
+	std::cout << read_set->toString() << std::endl;
         std::vector<unsigned int>* positions = read_set->get_positions();
         std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods(positions->size(),nullptr);
         std::vector<unsigned int> recombcost(positions->size(), 1);
@@ -351,32 +347,31 @@ TEST_CASE("test column_cost_computer","[test column_cost_computer]"){
             unsigned int switch_cost = 1;
 
             // check if costs for initial partition (r1,r2/.) are computed correctly
-            REQUIRE(cost_computer.get_cost(0) == naive_column_cost_computer(columns[col_ind],0,switch_cost,0,0));
-            REQUIRE(cost_computer.get_cost(1) == naive_column_cost_computer(columns[col_ind],0,switch_cost,0,1));
-            REQUIRE(cost_computer.get_cost(2) == naive_column_cost_computer(columns[col_ind],0,switch_cost,1,0));
-            REQUIRE(cost_computer.get_cost(3) == naive_column_cost_computer(columns[col_ind],0,switch_cost,1,1));
-
+            REQUIRE(cost_computer.get_cost(0) == naive_column_cost_computer(columns[col_ind],0,switch_cost,0,2));
+            REQUIRE(cost_computer.get_cost(1) == naive_column_cost_computer(columns[col_ind],0,switch_cost,1,2));
+            REQUIRE(cost_computer.get_cost(2) == naive_column_cost_computer(columns[col_ind],0,switch_cost,2,2));
+            REQUIRE(cost_computer.get_cost(3) == naive_column_cost_computer(columns[col_ind],0,switch_cost,3,2));
 
             // switch first read (r2/r1)
-            cost_computer.update_partitioning(0);
-            REQUIRE(cost_computer.get_cost(0) == naive_column_cost_computer(columns[col_ind],1,switch_cost,0,0));
-            REQUIRE(cost_computer.get_cost(1) == naive_column_cost_computer(columns[col_ind],1,switch_cost,0,1));
-            REQUIRE(cost_computer.get_cost(2) == naive_column_cost_computer(columns[col_ind],1,switch_cost,1,0));
-            REQUIRE(cost_computer.get_cost(3) == naive_column_cost_computer(columns[col_ind],1,switch_cost,1,1));
+            cost_computer.update_partitioning(0,1);
+            REQUIRE(cost_computer.get_cost(0) == naive_column_cost_computer(columns[col_ind],1,switch_cost,0,2));
+            REQUIRE(cost_computer.get_cost(1) == naive_column_cost_computer(columns[col_ind],1,switch_cost,1,2));
+            REQUIRE(cost_computer.get_cost(2) == naive_column_cost_computer(columns[col_ind],1,switch_cost,2,2));
+            REQUIRE(cost_computer.get_cost(3) == naive_column_cost_computer(columns[col_ind],1,switch_cost,3,2));
 
             // switch also second read (./r1,r2)
-            cost_computer.update_partitioning(1);
-            REQUIRE(cost_computer.get_cost(0) == naive_column_cost_computer(columns[col_ind],3,switch_cost,0,0));
-            REQUIRE(cost_computer.get_cost(1) == naive_column_cost_computer(columns[col_ind],3,switch_cost,0,1));
-            REQUIRE(cost_computer.get_cost(2) == naive_column_cost_computer(columns[col_ind],3,switch_cost,1,0));
-            REQUIRE(cost_computer.get_cost(3) == naive_column_cost_computer(columns[col_ind],3,switch_cost,1,1));
+            cost_computer.update_partitioning(1,1);
+            REQUIRE(cost_computer.get_cost(0) == naive_column_cost_computer(columns[col_ind],3,switch_cost,0,2));
+            REQUIRE(cost_computer.get_cost(1) == naive_column_cost_computer(columns[col_ind],3,switch_cost,1,2));
+            REQUIRE(cost_computer.get_cost(2) == naive_column_cost_computer(columns[col_ind],3,switch_cost,2,2));
+            REQUIRE(cost_computer.get_cost(3) == naive_column_cost_computer(columns[col_ind],3,switch_cost,3,2));
 
             // test partition (r1/r2)
             cost_computer.set_partitioning(2);
-            REQUIRE(cost_computer.get_cost(0) == naive_column_cost_computer(columns[col_ind],2,switch_cost,0,0));
-            REQUIRE(cost_computer.get_cost(1) == naive_column_cost_computer(columns[col_ind],2,switch_cost,0,1));
-            REQUIRE(cost_computer.get_cost(2) == naive_column_cost_computer(columns[col_ind],2,switch_cost,1,0));
-            REQUIRE(cost_computer.get_cost(3) == naive_column_cost_computer(columns[col_ind],2,switch_cost,1,1));
+            REQUIRE(cost_computer.get_cost(0) == naive_column_cost_computer(columns[col_ind],2,switch_cost,0,2));
+            REQUIRE(cost_computer.get_cost(1) == naive_column_cost_computer(columns[col_ind],2,switch_cost,1,2));
+            REQUIRE(cost_computer.get_cost(2) == naive_column_cost_computer(columns[col_ind],2,switch_cost,2,2));
+            REQUIRE(cost_computer.get_cost(3) == naive_column_cost_computer(columns[col_ind],2,switch_cost,3,2));
 
             col_ind += 1;
         }
@@ -557,3 +552,60 @@ TEST_CASE("test PedigreePartitions", "[test PedigreePartitions]"){
         REQUIRE(pedigreepartitions.haplotype_to_partition(2,2) == 8);
     }
 }
+
+TEST_CASE("test polyploid_column_costs","[test column_cost_computer]"){
+
+    vector<std::string> reads = {"11\n00", "10\n11", "00\n00", "10\n10", "01\n10"};
+    std::string weights = "11\n11";
+
+    for(unsigned int r = 0; r < reads.size(); r++){
+        ReadSet* read_set = string_to_readset(reads[r],weights,false);
+        std::cout << read_set->toString() << std::endl;
+        std::vector<unsigned int>* positions = read_set->get_positions();
+        std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods(positions->size(),nullptr);
+        std::vector<unsigned int> recombcost(positions->size(), 1);
+        Pedigree* pedigree = new Pedigree();
+        pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), genotype_likelihoods);
+
+        // create all pedigree partitions
+        std::vector<PedigreePartitions*> pedigree_partitions;
+        for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
+        {
+            pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i,5));
+        }
+
+        // translate all individual ids to individual indices
+         std::vector<unsigned int> read_sources;
+        for(size_t i = 0; i<read_set->size(); ++i)
+        {
+            read_sources.push_back(pedigree->id_to_index(read_set->get(i)->getSampleID()));
+        }
+        vector<string> columns = get_columns(reads[r],2);
+
+        ColumnIterator input_column_iterator(*read_set, positions);
+        unsigned int col_ind = 0;
+
+        while(input_column_iterator.has_next()){
+            unique_ptr<vector<const Entry *> > current_input_column = input_column_iterator.get_next();
+
+            // create column cost computer
+            GenotypeColumnCostComputer cost_computer(*current_input_column, col_ind, read_sources, pedigree,*pedigree_partitions[0]);
+            cost_computer.set_partitioning(0);
+
+            unsigned int switch_cost = 1;
+
+            // check if costs for initial partition (r1,r2/.) are computed correctly
+            // TODO add tests, update naive column cost com
+//            REQUIRE(cost_computer.get_cost(0) == naive_column_cost_computer(columns[col_ind],0,switch_cost,0,0));
+            col_ind += 1;
+        }
+
+        delete read_set;
+        delete positions;
+        delete pedigree;
+        for(unsigned int i=0; i < pedigree_partitions.size(); i++){
+            delete pedigree_partitions[i];
+        }
+    }
+}
+
