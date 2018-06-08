@@ -34,31 +34,30 @@ class CoreFunctions{
 public:
 
 CoreFunctions(){};
-static inline
+static
 Pointer next(const Pointer &indexer_pointer, const int &total_size, const int &shift)
 {
   return (indexer_pointer + shift) % total_size;
 }
 
-static inline
-Pointer prev(const Pointer &indexer_pointer, const int &total_size, const int &shift)
+static Pointer prev(const Pointer &indexer_pointer, const int &total_size, const int &shift)
 {
   return (indexer_pointer + total_size - shift) % total_size;
 }
 
-static inline
+static 
 bool check_end(HapCHATcore hap, const vector<Column> &input, const Pointer &pointer, const bool &re_run)
 {
   return (!re_run && (hap.isEnded() && (input[pointer][0].get_read_id() == -1)));
 }
 
-static inline
+static 
 void complement_mask(BitColumn &mask, const Counter &length, const constants_t &constants)
 {
   mask ^= (constants.ones<<length).flip();
 }
 
-static inline
+static 
 string column_to_string(const BitColumn &mask, const unsigned int &len) {
   string str = mask.to_string();
   reverse(str.begin(), str.end());
@@ -67,7 +66,7 @@ string column_to_string(const BitColumn &mask, const unsigned int &len) {
 
 
 template <typename T>
-static inline
+static 
 void replace_if_less(T& a, const T& b) {
   if(a > b) { a = b;}
 }
@@ -85,7 +84,7 @@ void fill_haplotypes( const vector<bool> &haplotype1, const vector<bool> &haplot
   vector<bool>::iterator iout1 = complete_haplo1.begin();
   vector<bool>::iterator iout2 = complete_haplo2.begin();
       if(!options.all_heterozygous) ERROR("Option not allowed");
-  while(hap.hasNext()) {
+  while(hap.hasNext()) { 
   /*  if(!options.all_heterozygous && columnreader.was_homozygous()) {
       bool allele = (columnreader.homozigosity())? true : false;
       *iout1 = allele;
@@ -136,7 +135,7 @@ void fill_haplotypes( const vector<bool> &haplotype1, const vector<bool> &haplot
 
 
 void write_haplotypes(const vector<vector<char> > &haplotype_blocks1, const vector<vector<char> > &haplotype_blocks2,
-                      ofstream &ofs)
+                      ostream &ofs)
 {
   vector<vector<char> >::const_iterator ivv = haplotype_blocks1.begin();
   ofs << *ivv;
@@ -814,7 +813,7 @@ void dp(const constants_t &constants, const options_t &options,
       }
     }
 
-
+	
   if(solution_existence) {
     DEBUG("*** SUCCESS ***");
     DEBUG("> Optimal block cost:  " << OPT[OPT_pointer]);
@@ -825,6 +824,7 @@ void dp(const constants_t &constants, const options_t &options,
                            is_homozygous, homo_haplotypes,
                            best_heterozygous1, best_heterozygous2_haplotypes, best_heterozygous2_new_block,
                            haplotype1, haplotype2);
+
   } else {
     INFO("*** NO SOLUTION FOR BLOCK: " << COUNTER_BLOCK);
     INFO("<<>> No feasible solution exist with these parameters -- alpha = " << options.alpha << " and error rate = " << options.error_rate);
@@ -873,7 +873,7 @@ void computeInputParams(Counter &num_cols, Counter &MAX_COV, Counter &MAX_L,
         current_column[i].set_phred_score(read_column[i].get_phred_score());
         //current_column[i].set_gap(read_column[i].is_gap());
 				
-        if(!current_column[i].get_allele_type()==Entry::BLANK) {
+        if(!(current_column[i].get_allele_type()==Entry::BLANK)) {
           if(current_column[i].get_allele_type() == Entry::REF_ALLELE) {
             ++count_major;
           } else if (current_column[i].get_allele_type() == Entry::ALT_ALLELE) {
@@ -1184,20 +1184,24 @@ void insert_col_and_update(vector<Column> &input, vector<Counter> &k_j, vector <
   Cost weight_major = 0;
   Counter count_minor = 0;
   Cost weight_minor = 0;
-
   unsigned int i = 0;
+  bool gap;
   for(i = 0; i < column.size(); i++)
     {
+    	gap=false;
       const long int column_read_id = column[i].get_read_id();
       const Entry::allele_t column_allele_type = column[i].get_allele_type();
       const unsigned int column_phred_score = (options.unweighted)? 1 : column[i].get_phred_score();
-
+			
       input[pointer][i].set_read_id(column_read_id);
       input[pointer][i].set_allele_type(column_allele_type);
       input[pointer][i].set_phred_score(column_phred_score);
+      if(column[i].get_allele_type()==Entry::BLANK){
+			gap=true;
+			input[pointer][i].set_allele_type(Entry::REF_ALLELE);
+			}
       //input[pointer][i].set_gap(column[i].is_gap());
-
-      if(!column[i].get_allele_type()==Entry::BLANK) {
+      if(!gap) {
         if(column_allele_type == Entry::ALT_ALLELE) {
           ++count_minor;
           weight_minor += column_phred_score;
@@ -1208,7 +1212,7 @@ void insert_col_and_update(vector<Column> &input, vector<Counter> &k_j, vector <
         }
       }
     }
-
+		//cout<<count_major<<"||"<<count_minor;
   if(i < input[pointer].size() && input[pointer][i].get_read_id() != -1)
     {
       input[pointer][i].set_read_id(-1);
@@ -1281,10 +1285,21 @@ void reconstruct_haplotypes(const vector<vector<vector<Backtrace1> > > &backtrac
                             const vector<bool> &best_heterozygous2_new_block,
                             vector<bool> &haplotype1, vector<bool> &haplotype2) {
   Counter col = backtrace_table1.size() - 1;
-
+	/*for(int i=0;i<is_homozygous.size();i++) cout << is_homozygous[i];
+	cout<< endl;
+	for(int i=0;i<homo_haplotypes.size();i++) cout << homo_haplotypes[i];
+	cout<< endl;
+	for(int i=0;i<best_heterozygous2_haplotypes.size();i++) cout << best_heterozygous2_haplotypes[i];
+	cout<< endl;
+	for(int i=0;i<best_heterozygous2_new_block.size();i++) cout << best_heterozygous2_new_block[i];
+	cout<< endl;
+	for(int i=0;i<haplotype1.size();i++) cout << haplotype1[i];
+	cout<< endl;
+	for(int i=0;i<haplotype2.size();i++) cout << haplotype2[i];
+	cout<< endl;*/
   haplotype1.resize(col);
   haplotype2.resize(col);
-
+	
   while(col > 0) {
     while(is_homozygous[col]) {
       if(homo_haplotypes[col]) {
@@ -1297,12 +1312,12 @@ void reconstruct_haplotypes(const vector<vector<vector<Backtrace1> > > &backtrac
 
       --col;
     }
-
+	
     Backtrace1 back1 = best_heterozygous1[col];
+    
     bool back2_haplotypes = best_heterozygous2_haplotypes[col];
     bool back2_new_block = best_heterozygous2_new_block[col];
     bool flag = col > 0;
-
     while (flag) {
       if(back2_haplotypes) {
         haplotype1[col - 1] = false;
@@ -1311,7 +1326,8 @@ void reconstruct_haplotypes(const vector<vector<vector<Backtrace1> > > &backtrac
         haplotype1[col - 1] = true;
         haplotype2[col - 1] = false;
       }
-
+	/*			for(int i=0;i<haplotype1.size();i++)cout << haplotype1[i];
+		cout<< endl;*/
       for(int i = 0; i < (back1.jump - 1); i++) {
         --col;
         if(homo_haplotypes[col]) {
@@ -1406,7 +1422,7 @@ void add_xs(const vector<bool> &haplo1, const vector<bool> &haplo2,
         starting_positions[column[i].get_read_id()] = current_column;
       }
 
-      if(!column[i].get_allele_type()==Entry::BLANK) {
+      if(!(column[i].get_allele_type()==Entry::BLANK)) {
         if(column[i].get_allele_type() == Entry::ALT_ALLELE) {
           reads_matrix[column[i].get_read_id()].push_back('1');
         } else {
