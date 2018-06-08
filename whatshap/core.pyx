@@ -418,7 +418,6 @@ cdef class hapchatcore:
 		
 		results = []
 		for i in range(read_sets.size()):
-			print(i)
 			rs = ReadSet()
 			del rs.thisptr
 			rs.thisptr = deref(read_sets)[i]
