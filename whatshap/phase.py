@@ -662,18 +662,23 @@ def run_whatshap(
 					superreads_list = None
 					transmission_vector = None
 					if algorithm == 'HX' :
+						print('-'*10, 'Readset', '-'*10, file = sys.stderr)
+						print(*all_reads, file = sys.stderr)
 						hapchat=hapchatcore(all_reads)
-						hapchat.runCore();
-						raise SystemExit
-
-						dp_table = None # your code here ...
-						superreads_list = None # ...
-
+						superreads_list = hapchat.getSuperRead()
+						print('-'*10, 'SuperReads', '-'*10, file = sys.stderr)
+						print(*superreads_list, file = sys.stderr)
+						optimalCost=hapchat.getOptimalCost()
 					else :
-						
+						print('-'*10, 'Readset', '-'*10, file = sys.stderr)
+						print(*all_reads, file = sys.stderr)
 						dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
 						superreads_list, transmission_vector = dp_table.get_super_reads()
-					logger.info('%s cost: %d', problem_name, dp_table.get_optimal_cost())
+						print('-'*10, 'SuperReads', '-'*10, file = sys.stderr)
+						print(*superreads_list,file = sys.stderr)
+						print('-'*20, file = sys.stderr)
+						optimalCost=dp_table.get_optimal_cost()
+					logger.info('%s cost: %d', problem_name, optimalCost)
 				with timers('components'):
 					master_block = None
 					heterozygous_positions_by_sample = None
