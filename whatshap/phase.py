@@ -274,7 +274,7 @@ def run_whatshap(
 		gtchange_list_filename=None,
 		default_gq=30,
 		write_command_line_header=True,
-		use_ped_samples=False
+		use_ped_samples=False,
 		algorithm='WH'
 	):
 	"""
