@@ -2,7 +2,7 @@
 """
 Phase variants in a VCF with the WhatsHap algorithm
 
-Read a VCF and one or more files with phase information (BAM or VCF phased
+Read a VCF and one or more files with phase information (BAM/CRAM or VCF phased
 blocks) and phase the variants. The phased VCF is written to standard output.
 """
 import logging
@@ -120,13 +120,13 @@ def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_
 	try:
 		readset = readset_reader.read(chromosome, variants, sample, reference)
 	except SampleNotFoundError:
-		logger.warning("Sample %r not found in any BAM file.", sample)
+		logger.warning("Sample %r not found in any BAM/CRAM file.", sample)
 		readset = ReadSet()
 	except ReadSetError as e:
 		logger.error("%s", e)
 		sys.exit(1)
 	except ReferenceNotFoundError:
-		logger.error("The chromosome %r was not found in the BAM file.", chromosome)
+		logger.error("The chromosome %r was not found in the BAM/CRAM file.", chromosome)
 		if chromosome.startswith('chr'):
 			alternative = chromosome[3:]
 		else:
@@ -223,7 +223,7 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 	in the PED file (as individual, mother or father).
 
 	ped_path -- path to PED file
-	samples -- samples that exist in the VCF
+	samples -- samples to be phased
 	"""
 	trios = []
 	pedigree_samples = set()
@@ -234,10 +234,17 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 			               'because at least one of the individuals is unknown',
 			               trio.child, trio.mother, trio.father)
 		else:
-			trios.append(trio)
-			pedigree_samples.add(trio.child)
-			pedigree_samples.add(trio.mother)
-			pedigree_samples.add(trio.father)
+			# if at least one individual is not is samples, skip trio
+			if( (trio.mother in samples) and (trio.father in samples) and (trio.child in samples) ):
+				trios.append(trio)
+				pedigree_samples.add(trio.child)
+				pedigree_samples.add(trio.mother)
+				pedigree_samples.add(trio.father)
+			else:
+				# happens in case --ped and --samples are used
+				logger.warning('Relationship %s/%s/%s ignored because at least one of the '
+						'individuals was not given by --samples.', 
+						trio.child, trio.mother, trio.father)
 
 	return trios, pedigree_samples
 
@@ -267,12 +274,13 @@ def run_whatshap(
 		gtchange_list_filename=None,
 		default_gq=30,
 		write_command_line_header=True,
+		use_ped_samples=False
 		algorithm='WH'
 	):
 	"""
 	Run WhatsHap.
 
-	phase_input_files -- list of paths to BAM/VCF files
+	phase_input_files -- list of paths to BAM/CRAM/VCF files
 	variant_file -- path to input VCF
 	reference -- path to reference FASTA
 	output -- path to output VCF or a file-like object
@@ -353,6 +361,17 @@ def run_whatshap(
 			sys.exit(1)
 		if not samples:
 			samples = vcf_reader.samples
+
+		# if --use-ped-samples is set, use only samples from PED file
+		if ped and use_ped_samples:
+			samples = set()
+			for trio in PedReader(ped, numeric_sample_ids):
+				if (trio.child is None or trio.mother is None or trio.father is None):
+					continue
+				samples.add(trio.mother)
+				samples.add(trio.father)
+				samples.add(trio.child)
+
 		vcf_sample_set = set(vcf_reader.samples)
 		for sample in samples:
 			if sample not in vcf_sample_set:
@@ -367,7 +386,7 @@ def run_whatshap(
 		family_finder = ComponentFinder(samples)
 
 		if ped:
-			all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, vcf_reader.samples)
+			all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, samples)
 			if genmap:
 				logger.info('Using region-specific recombination rates from genetic map %s.', genmap)
 			else:
@@ -375,6 +394,7 @@ def run_whatshap(
 			for trio in all_trios:
 				family_finder.merge(trio.mother, trio.child)
 				family_finder.merge(trio.father, trio.child)
+
 
 		# map family representatives to lists of family members
 		families = defaultdict(list)
@@ -714,7 +734,7 @@ def run_whatshap(
 	if sys.platform == 'linux':
 		memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 		logger.info('Maximum memory usage: %.3f GB', memory_kb / 1E6)
-	logger.info('Time spent reading BAM:                      %6.1f s', timers.elapsed('read_bam'))
+	logger.info('Time spent reading BAM/CRAM:                 %6.1f s', timers.elapsed('read_bam'))
 	logger.info('Time spent parsing VCF:                      %6.1f s', timers.elapsed('parse_vcf'))
 	if len(phase_input_vcfs) > 0:
 		logger.info('Time spent parsing input phasings from VCFs: %6.1f s', timers.elapsed('parse_phasing_vcfs'))
@@ -729,9 +749,11 @@ def run_whatshap(
 def add_arguments(parser):
 	arg = parser.add_argument
 	# Positional arguments
-	arg('variant_file', metavar='VCF', help='VCF file with variants to be phased (can be gzip-compressed)')
+	arg('variant_file', metavar='VCF',
+		help='VCF file with variants to be phased (can be gzip-compressed)')
 	arg('phase_input_files', nargs='*', metavar='PHASEINPUT',
-		help='BAM or VCF file(s) with phase information, either through sequencing reads (BAM) or through phased blocks (VCF)')
+		help='BAM, CRAM or VCF file(s) with phase information, either through '
+			'sequencing reads (BAM/CRAM) or through phased blocks (VCF)')
 
 	arg('-o', '--output', default=sys.stdout,
 		help='Output VCF file. Add .gz to the file name to get compressed output. '
@@ -756,7 +778,7 @@ def add_arguments(parser):
 	arg('--indels', dest='indels', default=False, action='store_true',
 		help='Also phase indels (default: do not phase indels)')
 	arg('--ignore-read-groups', default=False, action='store_true',
-		help='Ignore read groups in BAM header and assume all reads come '
+		help='Ignore read groups in BAM/CRAM header and assume all reads come '
 		'from the same sample.')
 	arg('--sample', dest='samples', metavar='SAMPLE', default=[], action='append',
 		help='Name of a sample to phase. If not given, all samples in the '
@@ -792,8 +814,8 @@ def add_arguments(parser):
 	arg('--ped', metavar='PED/FAM',
 		help='Use pedigree information in PED file to improve phasing '
 		'(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, '
-		'mother, and father sample names as used in the VCF and BAM. Other '
-		'columns are ignored.')
+		'mother, and father sample names as used in the VCF and BAM/CRAM. '
+		'Other columns are ignored.')
 	arg('--recombination-list', metavar='FILE', dest='recombination_list_filename', default=None,
 		help='Write putative recombination events to FILE.')
 	arg('--recombrate', metavar='RECOMBRATE', type=float, default=1.26,
@@ -807,6 +829,9 @@ def add_arguments(parser):
 		help='Do not merge blocks that are not connected by reads (i.e. solely based on genotype '
 		'status). Default: when in --ped mode, merge all blocks that contain at least one '
 		'homozygous genotype in at least one individual into one block.')
+	arg('--use-ped-samples', dest='use_ped_samples',
+		action='store_true', default=False,
+		help='Only work on samples mentioned in the provided PED file.')
 
 
 def validate(args, parser):
@@ -816,10 +841,12 @@ def validate(args, parser):
 		parser.error('Option --genmap can only be used together with --ped')
 	if args.genmap and (len(args.chromosomes) != 1):
 		parser.error('Option --genmap can only be used when working on exactly one chromosome (use --chromosome)')
-	if args.ped and args.samples:
-		parser.error('Option --sample cannot be used together with --ped')
 	if args.include_homozygous and not args.distrust_genotypes:
 		parser.error('Option --include-homozygous can only be used with --distrust-genotypes.')
+	if args.use_ped_samples and not args.ped:
+		parser.error('Option --use-ped-samples can only be used when PED file is provided (--ped).')
+	if args.use_ped_samples and args.samples:
+		parser.error('Option --use-ped-samples cannot be used together with --samples')
 	if len(args.phase_input_files) == 0 and not args.ped:
 		parser.error('Not providing any PHASEINPUT files only allowed in --ped mode.')
 

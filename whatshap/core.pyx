@@ -43,15 +43,18 @@ cdef class NumericSampleIds:
 
 
 cdef class Read:
-	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int sample_id = 0):
+	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int sample_id = 0, int reference_start = -1, str BX_tag = None):
 		cdef string _name = ''
+		cdef string _BX_tag = ''
 		if name is None:
 			self.thisptr = NULL
 			self.ownsptr = False
 		else:
 			# TODO: Is this the best way to handle string arguments?
 			_name = name.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, mapq, source_id, sample_id)
+			if BX_tag is not '' and BX_tag is not None:
+				_BX_tag = BX_tag.encode('UTF-8')
+			self.thisptr = new cpp.Read(_name, mapq, source_id, sample_id, reference_start, _BX_tag)
 			self.ownsptr = True
 
 	def __dealloc__(self):
@@ -61,8 +64,8 @@ cdef class Read:
 
 	def __repr__(self):
 		assert self.thisptr != NULL
-		return 'Read(name={!r}, mapq={}, source_id={}, sample_id={}, variants={})'.format(
-			self.name, self.mapqs, self.source_id, self.sample_id, list(self))
+		return 'Read(name={!r}, mapq={}, source_id={}, sample_id={}, reference_start={},  BX_tag={}, variants={})'.format(
+			self.name, self.mapqs, self.source_id, self.sample_id, self.reference_start, self.BX_tag, list(self))
 
 	property mapqs:
 		def __get__(self):
@@ -83,6 +86,16 @@ cdef class Read:
 		def __get__(self):
 			assert self.thisptr != NULL
 			return self.thisptr.getSampleID()
+	
+	property reference_start:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getReferenceStart()
+
+	property BX_tag:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getBXTag().decode('utf-8')
 
 	def __iter__(self):
 		"""Iterate over all variants in this read"""
@@ -152,6 +165,9 @@ cdef class Read:
 		assert self.thisptr != NULL
 		return self.thisptr.isSorted()
 
+	def has_BX_tag(self):
+		assert self.thisptr != NULL
+		return self.thisptr.hasBXTag()
 
 cdef class ReadSet:
 	def __cinit__(self):

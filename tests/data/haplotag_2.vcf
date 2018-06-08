@@ -1,0 +1,70 @@
+##fileformat=VCFv4.1
+##fileDate=2016-06-03
+##source=IlluminaPlatinumGenomes, version: 2016-1.0
+##reference=hg38
+##PEDIGREE=<Child=NA12877,Mother=NA12890,Father=NA12889>
+##PEDIGREE=<Child=NA12878,Mother=NA12892,Father=NA12891>
+##PEDIGREE=<Child=NA12879,Mother=NA12878,Father=NA12877>
+##PEDIGREE=<Child=NA12880,Mother=NA12878,Father=NA12877>
+##PEDIGREE=<Child=NA12881,Mother=NA12878,Father=NA12877>
+##PEDIGREE=<Child=NA12882,Mother=NA12878,Father=NA12877>
+##PEDIGREE=<Child=NA12883,Mother=NA12878,Father=NA12877>
+##PEDIGREE=<Child=NA12884,Mother=NA12878,Father=NA12877>
+##PEDIGREE=<Child=NA12885,Mother=NA12878,Father=NA12877>
+##PEDIGREE=<Child=NA12886,Mother=NA12878,Father=NA12877>
+##PEDIGREE=<Child=NA12887,Mother=NA12878,Father=NA12877>
+##PEDIGREE=<Child=NA12888,Mother=NA12878,Father=NA12877>
+##PEDIGREE=<Child=NA12893,Mother=NA12878,Father=NA12877>
+##bcftools_normVersion=1.4+htslib-1.4
+##bcftools_normCommand=norm -f /illumina/sync/igenomes/Homo_sapiens/NCBI/GRCh38Decoy/Sequence/WholeGenomeFasta/genome.fa -Oz -o /illumina/build/platinumgenomes/2017.1-rc2/hg38/NA12878/NA12878.vcf.gz /illumina/development/PlatinumGenomes/2016-1.0/hg38/small_variants/NA12878/NA12878.vcf.gz; Date=Tue May 16 11:57:41 2017
+##commandline="(whatshap 0.15+10.gd7fd4db.dirty) phase -o phased.vcf haplotag.vcf haplotag.bam"
+##INFO=<ID=KM,Number=1,Type=Float,Description="Minimum normalized k-mer counts.">
+##INFO=<ID=KFP,Number=1,Type=Integer,Description="K-mer GT failures in the main pedigree.">
+##INFO=<ID=KFF,Number=1,Type=Integer,Description="K-mer failures in the founders.">
+##INFO=<ID=MTD,Number=.,Type=String,Description="Methods that call this site pedigree consistently.">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PS,Number=1,Type=Integer,Description="Phase set identifier">
+##FILTER=<ID=PASS,Description="All filters passed">
+##contig=<ID=chr1,length=248956422>
+##contig=<ID=chr2,length=242193529>
+##contig=<ID=chr3,length=198295559>
+##contig=<ID=chr4,length=190214555>
+##contig=<ID=chr5,length=181538259>
+##contig=<ID=chr6,length=170805979>
+##contig=<ID=chr7,length=159345973>
+##contig=<ID=chr8,length=145138636>
+##contig=<ID=chr9,length=138394717>
+##contig=<ID=chr10,length=133797422>
+##contig=<ID=chr11,length=135086622>
+##contig=<ID=chr12,length=133275309>
+##contig=<ID=chr13,length=114364328>
+##contig=<ID=chr14,length=107043718>
+##contig=<ID=chr15,length=101991189>
+##contig=<ID=chr16,length=90338345>
+##contig=<ID=chr17,length=83257441>
+##contig=<ID=chr18,length=80373285>
+##contig=<ID=chr19,length=58617616>
+##contig=<ID=chr20,length=64444167>
+##contig=<ID=chr21,length=46709983>
+##contig=<ID=chr22,length=50818468>
+##contig=<ID=chrX,length=156040895>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	NA12878
+chr1	1069577	.	G	A	.	PASS	.	GT:PS	0|1:1069577
+chr1	1069600	.	G	A	.	PASS	.	GT:PS	0|1:1069577
+chr1	1070689	.	G	A	.	PASS	.	GT:PS	0|1:1069577
+chr1	1070843	.	G	A	.	PASS	.	GT:PS	0|1:1069577
+chr1	1071610	.	G	A	.	PASS	.	GT:PS	0|1:1069577
+chr1	1071823	.	A	G	.	PASS	.	GT:PS	0|1:1069577
+chr1	1072052	.	G	A	.	PASS	.	GT:PS	0|1:1069577
+chr1	1073854	.	T	C	.	PASS	.	GT:PS	0|1:1069577
+chr1	1074061	.	G	A	.	PASS	.	GT:PS	1|0:1069577
+chr1	1074098	.	G	C	.	PASS	.	GT:PS	0|1:1069577
+chr1	1074910	.	TCACA	T	.	PASS	.	GT	1/0
+chr1	1075337	.	C	T	.	PASS	.	GT:PS	0|1:1069577
+chr1	1075707	.	CG	C	.	PASS	.	GT	0/1
+chr1	1075715	.	A	G	.	PASS	.	GT	1/1
+chr1	1076151	.	T	C	.	PASS	.	GT:PS	0|1:1069577
+chr1	1079456	.	A	G	.	PASS	.	GT:PS	0|1:1069577
+chr1	1079484	.	T	A	.	PASS	.	GT:PS	0|1:1069577
+chr1	1079746	.	A	G	.	PASS	.	GT:PS	0|1:1069577
+chr1	1079877	.	A	G	.	PASS	.	GT:PS	0|1:1069577

@@ -7,6 +7,7 @@ from io import StringIO
 import pysam
 from nose.tools import raises
 from collections import namedtuple
+from collections import defaultdict
 
 from whatshap.phase import run_whatshap
 from whatshap.haplotag import run_haplotag
@@ -16,6 +17,7 @@ from whatshap.vcf import VcfReader, VariantCallPhase
 trio_bamfile = 'tests/data/trio.pacbio.bam'
 trio_merged_bamfile = 'tests/data/trio-merged-blocks.bam'
 trio_paired_end_bamfile = 'tests/data/paired_end.sorted.bam'
+ped_samples_bamfile = 'tests/data/ped_samples.bam'
 recombination_breaks_bamfile = 'tests/data/recombination_breaks.sorted.bam'
 quartet2_bamfile = 'tests/data/quartet2.bam'
 short_bamfile = 'tests/data/short-genome/short.bam'
@@ -194,6 +196,58 @@ def test_phase_trio():
 		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
 		assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
 
+
+def test_phase_trio_use_ped_samples():
+	with TemporaryDirectory() as tempdir:
+		for ped_samples in [True, False]:
+			outvcf = tempdir + '/output_ped_samples.vcf'
+			outreadlist = tempdir + '/readlist.tsv'
+			run_whatshap(phase_input_files=[ped_samples_bamfile], variant_file='tests/data/ped_samples.vcf', read_list_filename=outreadlist, output=outvcf,
+				ped='tests/data/trio.ped', genmap='tests/data/trio.map', use_ped_samples=ped_samples)
+			assert os.path.isfile(outvcf)
+			assert os.path.isfile(outreadlist)
+
+			tables = list(VcfReader(outvcf, phases=True))
+			assert len(tables) == 1
+			table = tables[0]
+			assert table.chromosome == '1'
+			assert len(table.variants) == 5
+			assert table.samples == ['HG004', 'HG003', 'HG002', 'orphan']
+
+			phase0 = VariantCallPhase(60906167, 0, None)
+			phase1 = VariantCallPhase(60907394, 0, None)
+			assert_phasing(table.phases_of('HG004'), [phase0, phase0, phase0, phase0, phase0])
+			assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
+			assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
+
+			if ped_samples:
+				assert_phasing(table.phases_of('orphan'), [None, None, None, None, None])
+			else:
+				assert_phasing(table.phases_of('orphan'), [None, phase1, phase1, phase1, None])
+
+def test_phase_ped_sample():
+	with TemporaryDirectory() as tempdir:
+		# running with --ped and --sample on subset of trio, should give same results as running with only --sample
+		# the trio information should be ignored
+		outvcf1 = tempdir + '/output1.vcf'
+		outvcf2 = tempdir + '/output2.vcf'
+		for sample_set in [['HG002'], ['HG003'], ['HG004'], ['HG002','HG003'], ['HG002','HG004'], ['HG003','HG004']]:
+			run_whatshap(phase_input_files=[ped_samples_bamfile], variant_file='tests/data/ped_samples.vcf', output=outvcf1,
+				ped='tests/data/trio.ped', samples=sample_set)
+			run_whatshap(phase_input_files=[ped_samples_bamfile], variant_file='tests/data/ped_samples.vcf', output=outvcf2,
+				samples=sample_set)
+
+			assert os.path.isfile(outvcf1)
+			assert os.path.isfile(outvcf2)
+
+			tables1 = list(VcfReader(outvcf1, phases=True))
+			tables2 = list(VcfReader(outvcf2, phases=True))
+
+			assert( (len(tables1) == 1) and (len(tables2) == 1) )
+			table1, table2 = tables1[0], tables2[0]
+
+			for individual in sample_set:
+				assert_phasing(table1.phases_of(individual), table2.phases_of(individual))
 
 def test_phase_trio_distrust_genotypes():
 	with TemporaryDirectory() as tempdir:
@@ -455,6 +509,55 @@ def test_haplotag():
 				ps_count += 1
 		assert ps_count > 0
 
+
+def test_haplotag2():
+	with TemporaryDirectory() as tempdir:
+		outbam1 = tempdir + '/output1.bam'
+		outbam2 = tempdir + '/output2.bam'
+
+		# run haplotag with two vcfs containing opposite phasings (i.e. 1|0 - 0|1 ..)
+		run_haplotag(variant_file='tests/data/haplotag_1.vcf', alignment_file='tests/data/haplotag.bam', output=outbam1)
+		run_haplotag(variant_file='tests/data/haplotag_2.vcf', alignment_file='tests/data/haplotag.bam', output=outbam2)
+		for a1, a2 in zip(pysam.AlignmentFile(outbam1), pysam.AlignmentFile(outbam2)):
+			assert a1.query_name == a2.query_name
+			if a1.has_tag('HP'):
+				assert a2.has_tag('HP')
+				assert(a1.get_tag('HP') != a2.get_tag('HP'))
+
+
+def test_haplotag3():
+	with TemporaryDirectory() as tempdir:
+		outbam = tempdir + '/output.bam'
+		run_haplotag(variant_file='tests/data/haplotag_2.vcf', alignment_file='tests/data/haplotag.bam', output=outbam)
+		for alignment in pysam.AlignmentFile(outbam):
+			if alignment.has_tag('HP'):
+				# simulated bam, we know from which haplotype each read originated (given in read name)
+				true_ht = int(alignment.query_name[-1])
+				assert(true_ht == alignment.get_tag('HP'))
+
+def test_haplotag_10X():
+	with TemporaryDirectory() as tempdir:
+		outbam = tempdir + '/output.bam'
+		run_haplotag(variant_file='tests/data/haplotag.10X.vcf', alignment_file='tests/data/haplotag.10X.bam', output=outbam)
+		# map BX tag --> readlist
+		BX_tag_to_readlist = defaultdict(list)
+		for alignment in pysam.AlignmentFile(outbam):
+			if alignment.has_tag('BX') and alignment.has_tag('HP'):
+				BX_tag_to_readlist[alignment.get_tag('BX')].append(alignment)
+		# reads having same BX tag need to be assigned to same haplotype
+		for tag in BX_tag_to_readlist.keys():
+			haplotype = BX_tag_to_readlist[tag][0].get_tag('HP')
+			for read in BX_tag_to_readlist[tag]:
+				assert haplotype == read.get_tag('HP')
+
+def test_haplotag_10X_2():
+	with TemporaryDirectory() as tempdir:
+		outbam = tempdir + '/output.bam'
+		run_haplotag(variant_file='tests/data/haplotag.10X_2.vcf', alignment_file='tests/data/haplotag.10X.bam', output=outbam)
+		for a1, a2 in zip(pysam.AlignmentFile('tests/data/haplotag.10X.bam'), pysam.AlignmentFile(outbam)):
+			assert a1.query_name == a2.query_name
+			if a1.has_tag('HP') and a2.has_tag('HP'):
+				assert(a1.get_tag('HP') == a2.get_tag('HP'))
 
 def test_hapcut2vcf():
 	with TemporaryDirectory() as tempdir:

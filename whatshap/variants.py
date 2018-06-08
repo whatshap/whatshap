@@ -138,10 +138,14 @@ class ReadSetReader:
 			# Skip variants that are to the left of this read
 			while i < len(normalized_variants) and normalized_variants[i].position < alignment.bam_alignment.reference_start:
 				i += 1
+			
+			BX_tag = ''
+			if alignment.bam_alignment.has_tag('BX'):
+				BX_tag = alignment.bam_alignment.get_tag('BX')
 
 			read = Read(alignment.bam_alignment.qname,
 					alignment.bam_alignment.mapq, alignment.source_id,
-					numeric_sample_id)
+					numeric_sample_id, alignment.bam_alignment.reference_start, BX_tag)
 
 			if reference is None:
 				detected = self.detect_alleles(normalized_variants, i, alignment.bam_alignment)
@@ -456,7 +460,7 @@ class ReadSetReader:
 		modified.
 		"""
 		if read2:
-			result = Read(read1.name, read1.mapqs[0], read1.source_id, read1.sample_id)
+			result = Read(read1.name, read1.mapqs[0], read1.source_id, read1.sample_id, read1.reference_start, read1.BX_tag)
 			result.add_mapq(read2.mapqs[0])
 		else:
 			return read1

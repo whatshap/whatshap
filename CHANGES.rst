@@ -2,6 +2,16 @@
 Changes
 =======
 
+v0.16 (2018-05-22)
+------------------
+
+* :issue:`167`: Fix the ``haplotag`` command. It would tag reads incorrectly.
+* :issue:`154`: Use barcode information in BX tags when running ``haplotag``
+  on 10x Genomics linked read data.
+* :issue:`153`: Allow combination of ``--ped`` and ``--samples`` to only work
+  on a subset of samples in a pedigree. Added ``--use-ped-samples`` to only
+  phase samples mentioned in PED file (while ignoring other samples in input VCF).
+
 v0.15 (2018-04-07)
 ------------------
 
