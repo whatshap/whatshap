@@ -35,10 +35,11 @@ class HapCHATcore {
 		blocker vblock;
 		unsigned int blockn;
 		vector<unsigned int> min,max;
+		ReadSet* readset;
 	public:
 		//standard constructor
 		HapCHATcore(ReadSet* read_set,bool que){
-
+		readset=read_set;
 		this->iterator=new Iterator(read_set);
 		end=false;
 		unique=que;
@@ -157,6 +158,7 @@ class HapCHATcore {
 		};
 		
 const vector <unsigned int> getPositions(){
+			iterator=new Iterator(readset);
 			return *iterator->it.get_positions();
 
 		};
