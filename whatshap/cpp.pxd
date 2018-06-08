@@ -104,3 +104,4 @@ cdef extern from "../src/hapchat/hapchat_core.cpp":
 		int runCore()
 		void getSuperRead(vector[ReadSet*]*)
 		int getLen()
+		int getOptimalCost()

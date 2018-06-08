@@ -37,3 +37,4 @@ cdef class Prova:
 
 cdef class hapchatcore:
 	cdef cpp.hapchatcore *thisptr
+	

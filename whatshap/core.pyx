@@ -425,6 +425,7 @@ cdef class hapchatcore:
 			results.append(rs)
 		
 		return results
-
+	def getOptimalCost(self):
+		return self.thisptr.getOptimalCost()
 include 'readselect.pyx'
 
