@@ -161,18 +161,18 @@ const vector <unsigned int> getPositions(){
 
 		};
 		
-		std::vector<std::pair<Read,Read>> makeSuperReads(vector <unsigned int> positions, vector <char> haplo1, vector<char> haplo2){
-		Read read1=Read("superread_0_0",-1,-1,0);
-		Read read2=Read("superread_1_0",-1,-1,0);
+		std::vector<std::pair<Read*,Read*>> makeSuperReads(vector <unsigned int> positions, vector <char> haplo1, vector<char> haplo2){
+		Read* read1=new Read("superread_0_0",-1,-1,0);
+		Read* read2=new Read("superread_1_0",-1,-1,0);
 		int allele;
-		std::vector<std::pair<Read,Read>> superread;
+		std::vector<std::pair<Read*,Read*>> superread;
 		for(unsigned int i=0;i<positions.size();i++){
 		if(haplo1[i]=='1') allele=1;
 		else allele=0;
-		read1.addVariant(positions[i],allele,30);
+		read1->addVariant(positions[i],allele,30);
 		if(haplo2[i]=='1') allele=1;
 		else allele=0;
-		read2.addVariant(positions[i],allele,30);
+		read2->addVariant(positions[i],allele,30);
 		}
 		superread.emplace_back(read1,read2);
 		
