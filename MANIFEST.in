@@ -17,4 +17,5 @@ include doc/Makefile
 include tests/test*.py tests/phasingutils.py tests/__init__.py
 include versioneer.py
 include whatshap/_version.py
-include src/hapchat/fondamental.cpp
+include src/hapchat/*.cpp
+include src/hapchat/*.h
