@@ -4,7 +4,7 @@ Test genotyping of pedigrees
 from nose.tools import raises
 from whatshap.core import GenotypeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
 from whatshap.pedigree import centimorgen_to_phred
-from .phasingutils import string_to_readset, string_to_readset_pedigree
+from whatshap.testhelpers import string_to_readset, string_to_readset_pedigree
 import math
 
 

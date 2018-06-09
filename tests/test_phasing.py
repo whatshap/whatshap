@@ -1,5 +1,5 @@
 from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
-from .phasingutils import string_to_readset, brute_force_phase
+from whatshap.testhelpers import string_to_readset, brute_force_phase
 
 
 def test_phase_empty_readset():

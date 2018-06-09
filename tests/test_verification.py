@@ -2,7 +2,7 @@ import sys
 from nose.tools import raises
 from whatshap.core import Read, PedigreeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
 from whatshap.verification import verify_mec_score_and_partitioning
-from .phasingutils import string_to_readset, matrix_to_readset, brute_force_phase
+from whatshap.testhelpers import string_to_readset, matrix_to_readset, brute_force_phase
 
 
 def verify(rs, all_heterozygous = False) :

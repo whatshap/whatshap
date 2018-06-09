@@ -14,3 +14,4 @@ dist/
 whatshap.egg-info/
 .tox
 .idea
+/.pytest_cache
