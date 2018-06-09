@@ -17,7 +17,7 @@ from xopen import xopen
 from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
 from . import __version__
-from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, Prova, hapchatcore
+from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, hapchatcore
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
@@ -275,7 +275,7 @@ def run_whatshap(
 		default_gq=30,
 		write_command_line_header=True,
 		use_ped_samples=False,
-		algorithm='WH'
+		algorithm='whatshap'
 	):
 	"""
 	Run WhatsHap.
@@ -296,7 +296,7 @@ def run_whatshap(
 	recombination_list_filename -- filename to write putative recombination events to
 	tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
 	read_list_filename -- name of file to write list of used reads to
-	algorithm -- algorithm to use, can be 'WH' (whatshap) or 'HX' (hapchat)
+	algorithm -- algorithm to use, can be 'whatshap' or 'hapchat'
 	gl_regularizer -- float to be passed as regularization constant to GenotypeLikelihoods.as_phred
 	gtchange_list_filename -- filename to write list of changed genotypes to
 	default_gq -- genotype likelihood to be used when GL or PL not available
@@ -621,7 +621,7 @@ def run_whatshap(
 					dp_table = None
 					superreads_list = None
 					transmission_vector = None
-					if algorithm == 'HX' :
+					if algorithm == 'hapchat' :
 						print('-'*10, 'Readset', '-'*10, file = sys.stderr)
 						print(*all_reads, file = sys.stderr)
 						hapchat=hapchatcore(all_reads)
@@ -766,8 +766,8 @@ def add_arguments(parser):
 			'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')
 	arg('--output-read-list', metavar='FILE', default=None, dest='read_list_filename',
 		help='Write reads that have been used for phasing to FILE.')
-	arg('--algorithm', choices=('WH', 'HX'), default = 'WH',
-		help='Choose an algorithm from whatshap (WH) or hapchat (HX) '
+	arg('--algorithm', choices=('whatshap', 'hapchat'), default = 'whatshap',
+		help='Choose an algorithm from whatshap or hapchat '
 			'(default: %(default)s)')
 
 	arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
