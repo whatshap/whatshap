@@ -1,7 +1,7 @@
 import math
 from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable
-from .phasingutils import string_to_readset, brute_force_phase
-from .phasingutils import string_to_readset, string_to_readset_pedigree, brute_force_phase
+from whatshap.testhelpers import string_to_readset, brute_force_phase
+from whatshap.testhelpers import string_to_readset, string_to_readset_pedigree, brute_force_phase
 
 
 def compare_to_expected(dp_forward_backward, positions, expected=None, genotypes=None):

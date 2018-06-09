@@ -1,3 +1,6 @@
+"""
+Utility functions only used by unit tests
+"""
 import textwrap
 from collections import defaultdict
 from whatshap.core import Read, ReadSet, Variant

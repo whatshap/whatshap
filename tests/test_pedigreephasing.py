@@ -4,7 +4,7 @@ Test phasing of pedigrees (PedMEC algorithm)
 from nose.tools import raises
 from whatshap.core import PedigreeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
 from whatshap.pedigree import centimorgen_to_phred
-from .phasingutils import string_to_readset, string_to_readset_pedigree, brute_force_phase
+from whatshap.testhelpers import string_to_readset, string_to_readset_pedigree, brute_force_phase
 
 
 def phase_pedigree(reads, recombcost, pedigree, distrust_genotypes=False, positions=None):
