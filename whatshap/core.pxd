@@ -32,9 +32,6 @@ cdef class GenotypeDPTable:
 	cdef Pedigree pedigree
 	cdef NumericSampleIds numeric_sample_ids
 
-cdef class Prova:
-	cdef cpp.Prova *thisptr
-
 cdef class hapchatcore:
 	cdef cpp.hapchatcore *thisptr
 	
