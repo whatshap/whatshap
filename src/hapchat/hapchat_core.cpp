@@ -93,7 +93,7 @@ int runCore()
     exit(EXIT_FAILURE);
   }
   //Readset section
-	HapCHATcore hap=HapCHATcore(options.readset,options.unique);
+	HapChatColumnIterator hap=HapChatColumnIterator(options.readset,options.unique);
   //Initializing the starting parameters: no competitive section
 	
   //Pre-compute binomial values
@@ -201,7 +201,7 @@ int runCore()
   INFO("TOTAL MISMATCHES:  " << TOTAL_MISMATCHES);
 
   DEBUG("<<>> Writing haplotypes...");
-  superreads=hap.makeSuperReads(hap.getPositions(),haplotype_blocks1[0],haplotype_blocks2[0]);
+  superreads = makeSuperReads(hap.getPositions(),haplotype_blocks1[0],haplotype_blocks2[0]);
 
   ofstream ofs;
   try {
@@ -227,7 +227,7 @@ Pointer next(const Pointer &indexer_pointer, const int &total_size, const int &s
 }
 
  
-bool check_end(HapCHATcore hap, const vector<Column> &input, const Pointer &pointer, const bool &re_run)
+bool check_end(HapChatColumnIterator hap, const vector<Column> &input, const Pointer &pointer, const bool &re_run)
 {
   return (!re_run && (hap.isEnded() && (input[pointer][0].get_read_id() == -1)));
 }
@@ -256,7 +256,7 @@ void replace_if_less(T& a, const T& b) {
 
 
 void fill_haplotypes( const vector<bool> &haplotype1, const vector<bool> &haplotype2,
-                     vector<bool> &complete_haplo1, vector<bool> &complete_haplo2, const options_t &options,HapCHATcore hap)
+                     vector<bool> &complete_haplo1, vector<bool> &complete_haplo2, const options_t &options,HapChatColumnIterator hap)
 {
 	hap.reset();
   vector<bool>::const_iterator ihap1 = haplotype1.begin();
@@ -286,7 +286,7 @@ void fill_haplotypes( const vector<bool> &haplotype1, const vector<bool> &haplot
 
 
 void fill_haplotypes( const vector<bool> &haplotype1, const vector<bool> &haplotype2,
-                     vector<char> &output_block1, vector<char> &output_block2, const options_t &options,HapCHATcore hap)
+                     vector<char> &output_block1, vector<char> &output_block2, const options_t &options,HapChatColumnIterator hap)
 {
 	hap.reset();
   vector<bool>::const_iterator ihap1 = haplotype1.begin();
@@ -342,7 +342,7 @@ void write_haplotypes(const vector<vector<char> > &haplotype_blocks1, const vect
 void dp(const constants_t &constants, const options_t &options, 
         vector<bool> &haplotype1, vector<bool> &haplotype2, Counter &step_global, Cost &OPT_global,
         Counter &MAX_COV_global, Counter &MAX_L_global, Counter &MAX_K_global,
-        Counter &MAX_GAPS_global, const Counter &COUNTER_BLOCK,HapCHATcore hap)
+        Counter &MAX_GAPS_global, const Counter &COUNTER_BLOCK,HapChatColumnIterator hap)
 {
 	
   Counter MAX_COV = 0;
@@ -1021,7 +1021,7 @@ void dp(const constants_t &constants, const options_t &options,
 void computeInputParams(Counter &num_cols, Counter &MAX_COV, Counter &MAX_L,
                         Counter &MAX_K, Counter &MAX_GAPS, vector<Counter> &sum_successive_L,
                         vector<vector<Counter> > &scheme_backtrace,
-                        const options_t &options,HapCHATcore hap)
+                        const options_t &options,HapChatColumnIterator hap)
 {
  
 	hap.reset();
@@ -1566,7 +1566,7 @@ Counter computeK(const Counter &cov, const double &alpha=0.0, const double &erro
 void add_xs(const vector<bool> &haplo1, const vector<bool> &haplo2,
             vector<char> &haplo1_out, vector<char> &haplo2_out,
             const options_t &options,
-            Counter &XS1, Counter &XS2, Counter &MISMATCHES,HapCHATcore hap)
+            Counter &XS1, Counter &XS2, Counter &MISMATCHES,HapChatColumnIterator hap)
 {
   
 	hap.reset();
@@ -1762,7 +1762,24 @@ void count_alleles(const vector<char> &col, const vector<unsigned int> &weight_c
   }
 }
 
+std::vector<std::pair<Read*,Read*>> makeSuperReads(vector <unsigned int> positions, vector <char> haplo1, vector<char> haplo2){
 
+  Read* read1=new Read("superread_0_0",-1,-1,0);
+  Read* read2=new Read("superread_1_0",-1,-1,0);
+  int allele;
+  std::vector<std::pair<Read*,Read*>> superread;
+  for(unsigned int i=0;i<positions.size();i++){
+    if(haplo1[i]=='1') allele=1;
+    else allele=0;
+    read1->addVariant(positions[i],allele,30);
+    if(haplo2[i]=='1') allele=1;
+    else allele=0;
+    read2->addVariant(positions[i],allele,30);
+  }
+  superread.emplace_back(read1,read2);
+
+  return superread;
+}
 
 };
 
