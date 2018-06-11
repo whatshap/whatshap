@@ -22,7 +22,7 @@
 #define LOG_MSG
 #define LOG_THRESHOLD LOG_LEVEL_INFO
 // Include log facilities. It should the last include!!
-#include "log.cpp"
+#include "log.h"
 
 
 
