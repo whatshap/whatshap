@@ -58,6 +58,7 @@ endif()
 add_executable(testing test.cpp 
  ../columnindexingiterator.cpp ../columnindexingiterator.h ../columnindexingscheme.cpp ../columnindexingscheme.h
  ../columniterator.cpp ../columniterator.h ../entry.cpp ../entry.h ../genotypecolumncostcomputer.cpp ../genotypecolumncostcomputer.h
+ ../pedigreecolumncostcomputer.cpp ../pedigreecolumncostcomputer.h
  ../genotypedptable.cpp  ../genotypedptable.h ../graycodes.cpp 
  ../graycodes.h ../indexset.cpp ../indexset.h
  ../pedigree.cpp ../pedigree.h ../pedigreepartitions.cpp ../pedigreepartitions.h ../phredgenotypelikelihoods.cpp ../phredgenotypelikelihoods.h
