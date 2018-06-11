@@ -13,7 +13,7 @@
 #include "binomial.h"
 #include "combinations.h"
 #include "balanced_combinations.h"
-#include "HapCHATcore.cpp"
+#include "hapchatcolumniterator.cpp"
 #ifdef LOAD_REVISION
 #include "revision.h"
 #endif

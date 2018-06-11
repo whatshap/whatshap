@@ -77,7 +77,7 @@ extensions = [
 			'src/hapchat/basic_types.cpp', 'src/hapchat/balanced_combinations.cpp',
 			'src/hapchat/binomial.cpp', 
 			'src/hapchat/hapchat_core.cpp',  
-			'src/hapchat/HapCHATcore.cpp'
+			'src/hapchat/hapchatcolumniterator.cpp'
 
 		]),
 	CppExtension('whatshap.priorityqueue', sources=['whatshap/priorityqueue.pyx']),
