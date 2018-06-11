@@ -20,7 +20,7 @@
 
 // Log messages with DEBUG priority and higher
 #define LOG_MSG
-#define LOG_THRESHOLD LOG_LEVEL_INFO
+#define LOG_THRESHOLD LOG_LEVEL_FATAL
 // Include log facilities. It should the last include!!
 #include "log.h"
 
