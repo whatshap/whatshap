@@ -8,7 +8,7 @@
 #include <string.h>
 
 #include "binomial.h"
-#include "basic_types.h"
+#include "basictypes.h"
 
 using namespace std;
 

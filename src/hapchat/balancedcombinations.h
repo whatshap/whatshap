@@ -1,7 +1,7 @@
 #ifndef BALANCED_COMBINATIONS_H
 #define BALANCED_COMBINATIONS_H
 
-#include "basic_types.h"
+#include "basictypes.h"
 #include "combinations.h"
 
 class BalancedCombinations {

@@ -9,10 +9,10 @@
 #include <stdexcept>
 
 
-#include "basic_types.h"
+#include "basictypes.h"
 #include "binomial.h"
 #include "combinations.h"
-#include "balanced_combinations.h"
+#include "balancedcombinations.h"
 #include "hapchatcolumniterator.cpp"
 #ifdef LOAD_REVISION
 #include "revision.h"

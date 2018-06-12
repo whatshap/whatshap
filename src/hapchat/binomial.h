@@ -5,7 +5,7 @@
 #include <bitset>
 #include <string.h>
 
-#include "basic_types.h"
+#include "basictypes.h"
 
 class binom_coeff {
 

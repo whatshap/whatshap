@@ -11,7 +11,7 @@
 //include Readset/HapChat libraries
 #include "../readset.h"
 #include "../columniterator.h"
-#include "basic_types.h"
+#include "basictypes.h"
 #include "../entry.h"
 
 

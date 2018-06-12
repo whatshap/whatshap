@@ -1,4 +1,4 @@
-#include "balanced_combinations.h"
+#include "balancedcombinations.h"
 #include <cmath>
 
 using namespace std;

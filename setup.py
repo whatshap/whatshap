@@ -74,9 +74,9 @@ extensions = [
 			'src/genotyper.cpp', 'src/genotypedistribution.cpp',
 			'src/genotypedptable.cpp', 'src/genotypecolumncostcomputer.cpp',
 			'src/backwardcolumniterator.cpp', 'src/transitionprobabilitycomputer.cpp',
-			'src/hapchat/basic_types.cpp', 'src/hapchat/balanced_combinations.cpp',
+			'src/hapchat/basictypes.cpp', 'src/hapchat/balancedcombinations.cpp',
 			'src/hapchat/binomial.cpp', 
-			'src/hapchat/hapchat_core.cpp',  
+			'src/hapchat/hapchatcore.cpp',  
 			'src/hapchat/hapchatcolumniterator.cpp'
 
 		]),
