@@ -279,8 +279,8 @@ def test_read_genotype_likelihoods():
 
 
 def test_genotype_likelihoods():
-	assert list(PhredGenotypeLikelihoods()) == [0, 0, 0]
-	assert list(PhredGenotypeLikelihoods(7, 1, 12)) == [7, 1, 12]
-	gl = GenotypeLikelihoods(*(math.log10(x) for x in [1e-10, 0.5, 0.002]))
+	assert list(PhredGenotypeLikelihoods([0,0,0])) == [0, 0, 0]
+	assert list(PhredGenotypeLikelihoods([7, 1, 12])) == [7, 1, 12]
+	gl = GenotypeLikelihoods( *(math.log10(x) for x in [1e-10, 0.5, 0.002]) )
 	assert list(gl.as_phred()) == [97, 0, 24]
 	assert list(gl.as_phred(regularizer=0.01)) == [20, 0, 19]

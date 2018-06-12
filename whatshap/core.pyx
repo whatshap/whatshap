@@ -341,7 +341,7 @@ cdef class Pedigree:
 		if gl == NULL:
 			return None
 		else:
-			return PhredGenotypeLikelihoods(gl.get(0), gl.get(1), gl.get(2))
+			return PhredGenotypeLikelihoods(gl[0].as_vector())
 
 	def __len__(self):
 		return self.thisptr.size()
@@ -351,8 +351,8 @@ cdef class Pedigree:
 
 
 cdef class PhredGenotypeLikelihoods:
-	def __cinit__(self, double gl0 = 0, double gl1 = 0, double gl2 = 0):
-		self.thisptr = new cpp.PhredGenotypeLikelihoods(gl0, gl1, gl2)
+	def __cinit__(self, vector[double] gl):
+		self.thisptr = new cpp.PhredGenotypeLikelihoods(gl)
 
 	def __dealloc__(self):
 		del self.thisptr
@@ -363,14 +363,14 @@ cdef class PhredGenotypeLikelihoods:
 	def __getitem__(self, genotype):
 		assert self.thisptr != NULL
 		assert isinstance(genotype, int)
-		assert 0 <= genotype <= 2
+		assert 0 <= genotype < self.thisptr.genotype_count()
 		return self.thisptr.get(genotype)
 
 	def __len__(self):
-		return 3
+		return self.thisptr.genotype_count()
 
 	def __iter__(self):
-		for i in range(3):
+		for i in range(self.thisptr.genotype_count()):
 			yield self[i]
 
 

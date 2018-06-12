@@ -109,7 +109,6 @@ unsigned int naive_column_cost_computer_phred(string current_column,unsigned int
     unsigned int result = numeric_limits < unsigned int >::max();
     unsigned int partitioning = p;
     for(unsigned int alleles = 0; alleles < pow(2,ploidy); ++alleles){
-std::cout << "allele ass: " << alleles << std::endl;
         unsigned int assignment_cost = 0;
         vector<unsigned int> allele_to_partition;
         for(unsigned int j = 0; j < ploidy; j++){
@@ -165,9 +164,9 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
         std::vector<PhredGenotypeLikelihoods*> gl_child;
 
         for(unsigned int i = 0; i < positions->size(); i++){
-            PhredGenotypeLikelihoods* n_m = new PhredGenotypeLikelihoods(1/3.0,1/3.0,1/3.0);
-            PhredGenotypeLikelihoods* n_f = new PhredGenotypeLikelihoods(1/3.0,1/3.0,1/3.0);
-            PhredGenotypeLikelihoods* n_c = new PhredGenotypeLikelihoods(1/3.0,1/3.0,1/3.0);
+            PhredGenotypeLikelihoods* n_m = new PhredGenotypeLikelihoods({1/3.0,1/3.0,1/3.0});
+            PhredGenotypeLikelihoods* n_f = new PhredGenotypeLikelihoods({1/3.0,1/3.0,1/3.0});
+            PhredGenotypeLikelihoods* n_c = new PhredGenotypeLikelihoods({1/3.0,1/3.0,1/3.0});
             gl_mother.push_back(n_m);
             gl_father.push_back(n_f);
             gl_child.push_back(n_c);
@@ -184,8 +183,8 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
         for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
         {
             pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i,2));
-        }
-
+        
+}
         for(unsigned int column_index = 0; column_index < positions->size(); ++column_index){
             TransitionProbabilityComputer trans(column_index,10,pedigree,pedigree_partitions);
             std::vector<long double> expected_cost = {0.9L*0.9L, 0.1L*0.9L, 0.1L*0.1L};
@@ -237,9 +236,9 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
         std::vector<PhredGenotypeLikelihoods*> gl_child;
 
         for(unsigned int i = 0; i < positions->size(); i++){
-            PhredGenotypeLikelihoods* n_m = new PhredGenotypeLikelihoods(0,1,0);
-            PhredGenotypeLikelihoods* n_f = new PhredGenotypeLikelihoods(0,1,0);
-            PhredGenotypeLikelihoods* n_c = new PhredGenotypeLikelihoods(0.25,0.5,0.25);
+            PhredGenotypeLikelihoods* n_m = new PhredGenotypeLikelihoods({0,1,0});
+            PhredGenotypeLikelihoods* n_f = new PhredGenotypeLikelihoods({0,1,0});
+            PhredGenotypeLikelihoods* n_c = new PhredGenotypeLikelihoods({0.25,0.5,0.25});
             gl_mother.push_back(n_m);
             gl_father.push_back(n_f);
             gl_child.push_back(n_c);
@@ -297,7 +296,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
 
        std::vector<PhredGenotypeLikelihoods*> gl;
        for(unsigned int i = 0; i < positions->size(); i++){
-           PhredGenotypeLikelihoods* n = new PhredGenotypeLikelihoods(1/3.0,1/3.0,1/3.0);
+           PhredGenotypeLikelihoods* n = new PhredGenotypeLikelihoods({1/3.0,1/3.0,1/3.0});
            gl.push_back(n);
        }
 
@@ -338,7 +337,6 @@ TEST_CASE("test ColumnCostComputers","[test column_cost_computer]"){
 
     for(unsigned int r = 0; r < reads.size(); r++){
         ReadSet* read_set = string_to_readset(reads[r],weights,false);
-	std::cout << read_set->toString() << std::endl;
         std::vector<unsigned int>* positions = read_set->get_positions();
         std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods(positions->size(),nullptr);
         std::vector<unsigned int> recombcost(positions->size(), 1);
@@ -586,9 +584,12 @@ TEST_CASE("test polyploid_column_costs","[test column_cost_computer]"){
 
     for(unsigned int r = 0; r < reads.size(); r++){
         ReadSet* read_set = string_to_readset(reads[r],weights,false);
-        std::cout << read_set->toString() << std::endl;
         std::vector<unsigned int>* positions = read_set->get_positions();
-        std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods(positions->size(), new PhredGenotypeLikelihoods());
+        std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods;
+        for(unsigned int pos = 0; pos < positions->size(); ++pos){
+            genotype_likelihoods.push_back(new PhredGenotypeLikelihoods({0,0,0,0}));
+        }
+
         std::vector<unsigned int> recombcost(positions->size(), 1);
         Pedigree* pedigree = new Pedigree();
         pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), genotype_likelihoods);
@@ -599,7 +600,6 @@ TEST_CASE("test polyploid_column_costs","[test column_cost_computer]"){
         {
             pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i,3));
         }
-
         // translate all individual ids to individual indices
          std::vector<unsigned int> read_sources;
         for(size_t i = 0; i<read_set->size(); ++i)
@@ -612,7 +612,6 @@ TEST_CASE("test polyploid_column_costs","[test column_cost_computer]"){
         unsigned int col_ind = 0;
         while(input_column_iterator.has_next()){
             unique_ptr<vector<const Entry *> > current_input_column = input_column_iterator.get_next();
-
             // create column cost computers (Genotype- + PedigreeColumnCostComputers)
             GenotypeColumnCostComputer cost_computer(*current_input_column, col_ind, read_sources, pedigree,*pedigree_partitions[0]);
             PedigreeColumnCostComputer phred_cost_computer(*current_input_column, col_ind, read_sources, pedigree, *pedigree_partitions[0], true);
@@ -622,7 +621,6 @@ TEST_CASE("test polyploid_column_costs","[test column_cost_computer]"){
             for(unsigned int partitioning = 0; partitioning < pow(3,2); ++partitioning){
                 cost_computer.set_partitioning(partitioning);
                 phred_cost_computer.set_partitioning(partitioning);
-                std::cout << col_ind << " " << partitioning <<  " " << read_set->toString() << naive_column_cost_computer_phred(columns[col_ind], partitioning, switch_cost, 3) << " " << phred_cost_computer.get_cost() << std::endl;
                 REQUIRE(phred_cost_computer.get_cost() == naive_column_cost_computer_phred(columns[col_ind], partitioning, switch_cost, 3));
                 for(unsigned int allele_assignment = 0; allele_assignment < 8; ++allele_assignment){
                     REQUIRE(cost_computer.get_cost(allele_assignment) == naive_column_cost_computer(columns[col_ind], partitioning, switch_cost, allele_assignment, 3));
@@ -630,16 +628,11 @@ TEST_CASE("test polyploid_column_costs","[test column_cost_computer]"){
             }
             col_ind += 1;
         }
-
         delete read_set;
         delete positions;
         delete pedigree;
         for(unsigned int i=0; i < pedigree_partitions.size(); i++){
             delete pedigree_partitions[i];
-        }
-        for(unsigned int i=0; i < genotype_likelihoods.size(); i++){
-            delete genotype_likelihoods[i];
-        }
+        } 
     }
 }
-
