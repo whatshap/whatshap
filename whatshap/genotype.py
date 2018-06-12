@@ -244,13 +244,13 @@ def run_genotype(
 							regularized = ((genotype_likelihoods[gl][0]+constant)/norm_sum, (genotype_likelihoods[gl][1]+constant)/norm_sum, (genotype_likelihoods[gl][2]+constant)/norm_sum)
 							genotypes[gl] = determine_genotype(regularized, gt_prob)
 							reg_genotype_likelihoods.append(regularized)
-						variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(*gl) for gl in reg_genotype_likelihoods])
+						variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(gl) for gl in reg_genotype_likelihoods])
 						variant_table.set_genotypes_of(sample, genotypes)
 			else:
 
 				# use uniform genotype likelihoods for all individuals
 				for sample in samples:
-					variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * len(positions))
+					variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * len(positions))
 
 			# if desired, output the priors in separate vcf
 			if prioroutput != None:

@@ -411,11 +411,11 @@ def test_phase_trio_genotype_likelihoods():
 	"""
 	pedigree = Pedigree(NumericSampleIds())
 	genotype_likelihoods_mother = [
-		PhredGenotypeLikelihoods(0,0,0),
-		PhredGenotypeLikelihoods(0,0,1),
-		PhredGenotypeLikelihoods(5,0,5)
+		PhredGenotypeLikelihoods([0,0,0]),
+		PhredGenotypeLikelihoods([0,0,1]),
+		PhredGenotypeLikelihoods([5,0,5])
 	]
-	genotype_likelihoods0 = [PhredGenotypeLikelihoods(0,0,0)] * 3
+	genotype_likelihoods0 = [PhredGenotypeLikelihoods([0,0,0])] * 3
 	pedigree.add_individual('individual0', [0,0,0], genotype_likelihoods_mother)
 	pedigree.add_individual('individual1', [0,0,0], genotype_likelihoods0)
 	pedigree.add_individual('individual2', [0,0,0], genotype_likelihoods0)

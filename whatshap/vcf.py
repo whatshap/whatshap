@@ -97,17 +97,17 @@ class GenotypeLikelihoods:
 		if regularizer is None:
 			# shift log likelihoods such that the largest one is zero
 			m = max(self.log_prob_g0, self.log_prob_g1, self.log_prob_g2)
-			return PhredGenotypeLikelihoods(
+			return PhredGenotypeLikelihoods([
 				round((self.log_prob_g0-m) * -10),
 				round((self.log_prob_g1-m) * -10),
-				round((self.log_prob_g2-m) * -10)
+				round((self.log_prob_g2-m) * -10)]
 			)
 		else:
 			p = [ 10**x for x in (self.log_prob_g0, self.log_prob_g1, self.log_prob_g2) ]
 			s = sum(p)
 			p = [ x/s + regularizer for x in p ]
 			m = max(p)
-			return PhredGenotypeLikelihoods( *(round(-10*math.log10(x/m)) for x in p) )
+			return PhredGenotypeLikelihoods( [round(-10*math.log10(x/m)) for x in p] )
 
 
 class VariantTable:

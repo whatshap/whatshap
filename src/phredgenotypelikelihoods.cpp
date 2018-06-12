@@ -5,17 +5,28 @@
 
 using namespace std;
 
-PhredGenotypeLikelihoods::PhredGenotypeLikelihoods(double gl0, double gl1, double gl2) : gl({{gl0,gl1,gl2}}) {}
-
+PhredGenotypeLikelihoods::PhredGenotypeLikelihoods(const vector<double>& gl) : gl(gl) {}
 
 double PhredGenotypeLikelihoods::get(size_t genotype) const {
-	assert(genotype < 3);
+	assert(genotype < gl.size());
 	return this->gl[genotype];
 }
 
+const vector<double>& PhredGenotypeLikelihoods::as_vector() const {
+	return gl;
+}
+
+size_t PhredGenotypeLikelihoods::genotype_count() const {
+	return gl.size();
+}
 
 std::string PhredGenotypeLikelihoods::toString() const {
 	ostringstream oss;
-	oss << "PhredGenotypeLikelihoods(" << this->gl[0] << "," << this->gl[1] << "," << this->gl[2] << ")" << endl;
+	oss << "PhredGenotypeLikelihoods( ";
+
+	for(auto g_likelihood : this->gl){
+		oss  << g_likelihood << " ";
+	}
+	oss << ")" << endl;
 	return oss.str();
 }
