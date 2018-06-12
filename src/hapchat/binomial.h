@@ -1,3 +1,14 @@
+/*
+
+  Copyright (C) 2017-2018
+
+  Distributed under the MIT license.
+
+  You should have received a copy of the MIT license along with this
+  program.
+
+*/
+
 #ifndef BINOMIAL_H
 #define BINOMIAL_H
 

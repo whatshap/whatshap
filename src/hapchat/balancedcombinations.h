@@ -1,3 +1,14 @@
+/*
+
+  Copyright (C) 2017-2018 Murray Patterson
+
+  Distributed under the MIT license.
+
+  You should have received a copy of the MIT license along with this
+  program.
+
+*/
+
 #ifndef BALANCED_COMBINATIONS_H
 #define BALANCED_COMBINATIONS_H
 

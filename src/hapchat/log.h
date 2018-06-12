@@ -1,3 +1,14 @@
+/*
+
+  Copyright (C) 2017-2018
+
+  Distributed under the MIT license.
+
+  You should have received a copy of the MIT license along with this
+  program.
+
+*/
+
 #ifndef _LOG_H_
 #define _LOG_H_
 

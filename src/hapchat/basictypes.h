@@ -1,3 +1,14 @@
+/*
+
+  Copyright (C) 2017-2018 Marco Dell'Acqua
+
+  Distributed under the MIT license.
+
+  You should have received a copy of the MIT license along with this
+  program.
+
+*/
+
 #ifndef _BASIC_TYPES_H_
 #define _BASIC_TYPES_H_
 

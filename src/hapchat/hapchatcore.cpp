@@ -1,3 +1,15 @@
+/*
+
+  Copyright (C) 2017-2018 Stefano Beretta, Marco Dell'Acqua, Murray
+  Patterson
+
+  Distributed under the MIT license.
+
+  You should have received a copy of the MIT license along with this
+  program.
+
+*/
+
 #include <stdlib.h>
 #include <string.h>
 #include <limits>

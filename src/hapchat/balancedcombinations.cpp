@@ -1,3 +1,14 @@
+/*
+
+  Copyright (C) 2017-2018 Murray Patterson
+
+  Distributed under the MIT license.
+
+  You should have received a copy of the MIT license along with this
+  program.
+
+*/
+
 #include "balancedcombinations.h"
 #include <cmath>
 
