@@ -96,7 +96,13 @@ int runCore()
     exit(EXIT_FAILURE);
   }
   //Readset section
-	HapChatColumnIterator hap=HapChatColumnIterator(options.readset,options.unique);
+  HapChatColumnIterator hap=HapChatColumnIterator(options.readset,options.unique);
+
+  if(!hap.hasNextBlock()) {
+    FATAL("Input is empty! Exiting..");
+    exit(EXIT_FAILURE);
+  }
+
   //Initializing the starting parameters: no competitive section
 	
   //Pre-compute binomial values
@@ -105,117 +111,53 @@ int runCore()
 
   Counter step = 0;
   Cost OPT = 0;
-  Counter counter_block = 0;
-  Counter counter_columns = 0;
-  Counter counter_inhomo = 0;
-  //BlockReader blockreader(options.input_filename, MAX_COVERAGE, options.unweighted, options.unique);
+  Counter counter_columns;
 
   Counter MAX_COV = 0;
   Counter MAX_L = 0;
   Counter MAX_K = 0;
   Counter MAX_GAPS = 0;
-  Counter XS1 = 0;
-  Counter XS2 = 0;
   Counter TOTAL_MISMATCHES = 0;
 
   vector<vector<char> > haplotype_blocks1;
   vector<vector<char> > haplotype_blocks2;
-	hap.reset();
-  while(hap.hasNextBlock()) {
-  	
-    //Block block = blockreader.get_block();
-    DEBUG("BLOCK: "<< counter_block);
 
-    //ColumnReader1 columnreader_jump(block, !options.all_heterozygous);
+  hap.reset();
 
-    vector<bool> haplotype1(hap.columnCount());
-    vector<bool> haplotype2(hap.columnCount());
+  vector<bool> haplotype1(hap.columnCount());
+  vector<bool> haplotype2(hap.columnCount());
 
-    if(hap.columnCount()> 0) {
-      dp(constants, options, haplotype1, haplotype2, step, OPT,
-         MAX_COV, MAX_L, MAX_K, MAX_GAPS, counter_block++,hap);
-    } else {
-      DEBUG("jumped");
-      ++counter_block;
-    }
+  if(hap.columnCount() > 0)
+    dp(constants, options, haplotype1, haplotype2, step, OPT, MAX_COV, MAX_L, MAX_K, MAX_GAPS, hap);
 
-    //ColumnReader1 columnreader_nojump(block, false);
+  counter_columns = hap.columnCount();
 
-    counter_columns += hap.columnCount();
-   // counter_inhomo += (columnreader_nojump.num_cols() - columnreader_jump.num_cols());
+  vector<char> output_block1(hap.columnCount());
+  vector<char> output_block2(hap.columnCount());
 
-    if(!options.no_xs) {
-      vector<bool> filled_haplo1(hap.columnCount());
-      vector<bool> filled_haplo2(hap.columnCount());
+  fill_haplotypes(haplotype1, haplotype2, output_block1, output_block2, options, hap);
+  DEBUG("Filled haplotypes");
 
-      DEBUG("Starting fill");
-
-      fill_haplotypes( haplotype1, haplotype2, filled_haplo1, filled_haplo2, options,hap);
-
-      DEBUG("Filled haplotypes");
-
-      vector<char> xs_haplotype1(hap.columnCount());
-      vector<char> xs_haplotype2(hap.columnCount());
-
-      add_xs(filled_haplo1, filled_haplo2, xs_haplotype1, xs_haplotype2, options,
-             XS1, XS2, TOTAL_MISMATCHES,hap);
-
-      DEBUG("Added X's");
-
-      haplotype_blocks1.push_back(xs_haplotype1);
-      haplotype_blocks2.push_back(xs_haplotype2);
-
-    } else {
-      vector<char> output_block1(hap.columnCount());
-      vector<char> output_block2(hap.columnCount());
-
-      fill_haplotypes(haplotype1, haplotype2, output_block1, output_block2, options,hap);
-
-      DEBUG("Filled haplotypes");
-
-      haplotype_blocks1.push_back(output_block1);
-      haplotype_blocks2.push_back(output_block2);
-    }
-
-  }
-
-  INFO("----------------------------------------------------------------------");
-  //write_haplotypes(haplotype_blocks1, haplotype_blocks2, std::cout);
-  INFO("----------------------------------------------------------------------");
+  haplotype_blocks1.push_back(output_block1);
+  haplotype_blocks2.push_back(output_block2);
 	
   INFO("");
-
   INFO("OPTIMUM:  " << OPT);
-	optimal=OPT.getCost();
   INFO("");
 
   INFO("MAX_COV:  " << MAX_COV);
   INFO("MAX_L:  " << MAX_L);
   INFO("MAX_K:  " << MAX_K);
   INFO("MAX_GAPS:  " << MAX_GAPS);
-  INFO("# of blocks:  " << counter_block);
   INFO("# of columns:  "  << counter_columns);
-  INFO("# of homozygous in input:  " << counter_inhomo);
-
   INFO("");
 
-  INFO("X's INSERTED IN THE FIRST HAPLOTYPE:  " << XS1);
-  INFO("X's INSERTED IN THE SECOND HAPLOTYPE:  " << XS2);
-  INFO("TOTAL MISMATCHES:  " << TOTAL_MISMATCHES);
-
   DEBUG("<<>> Writing haplotypes...");
-  superreads = makeSuperReads(hap.getPositions(),haplotype_blocks1[0],haplotype_blocks2[0]);
+  //write_haplotypes(haplotype_blocks1, haplotype_blocks2, std::cout);
 
-  ofstream ofs;
-  try {
-    ofs.open(options.haplotype_filename.c_str(), ios::out);
-    write_haplotypes(haplotype_blocks1, haplotype_blocks2, ofs);
-  } catch(exception & e) {
-    ERROR("::::::: Error writing haplotype to \"" << options.haplotype_filename << "\": " << e.what());
-    //write_haplotypes(haplotype_blocks1, haplotype_blocks2, cout);
-    return EXIT_FAILURE;
-  }
+  superreads = makeSuperReads(hap.getPositions(), haplotype_blocks1[0], haplotype_blocks2[0]);
 
+  return 0;
 }
 
 
@@ -345,7 +287,7 @@ void write_haplotypes(const vector<vector<char> > &haplotype_blocks1, const vect
 void dp(const constants_t &constants, const options_t &options, 
         vector<bool> &haplotype1, vector<bool> &haplotype2, Counter &step_global, Cost &OPT_global,
         Counter &MAX_COV_global, Counter &MAX_L_global, Counter &MAX_K_global,
-        Counter &MAX_GAPS_global, const Counter &COUNTER_BLOCK,HapChatColumnIterator hap)
+        Counter &MAX_GAPS_global, HapChatColumnIterator hap)
 {
 	
   Counter MAX_COV = 0;
@@ -1010,8 +952,8 @@ void dp(const constants_t &constants, const options_t &options,
                            haplotype1, haplotype2);
 
   } else {
-    INFO("*** NO SOLUTION FOR BLOCK: " << COUNTER_BLOCK);
-    INFO("<<>> No feasible solution exist with these parameters -- alpha = " << options.alpha << " and error rate = " << options.error_rate);
+    INFO("*** NO SOLUTION ***");
+    INFO("<<>> No feasible solution exists with these parameters -- alpha = " << options.alpha << " and error rate = " << options.error_rate);
     INFO("<<>> The last not feasible column is:  " << step << "  with coverage = " << cov_j << " and k = " << k_j[input_pointer]);
     exit(EXIT_FAILURE);
   }
@@ -1565,99 +1507,6 @@ Counter computeK(const Counter &cov, const double &alpha=0.0, const double &erro
 }
 
 
-
-void add_xs(const vector<bool> &haplo1, const vector<bool> &haplo2,
-            vector<char> &haplo1_out, vector<char> &haplo2_out,
-            const options_t &options,
-            Counter &XS1, Counter &XS2, Counter &MISMATCHES,HapChatColumnIterator hap)
-{
-  
-	hap.reset();
-  vector<vector<char> > reads_matrix;
-  vector<vector<unsigned int> > weights;
-  vector<int> starting_positions;
-
-  /*vector<vector<char> > mapping_haplo1(column_reader.num_cols());
-  vector<vector<unsigned int> > weight_mapping_haplo1(column_reader.num_cols());
-  vector<vector<char> > mapping_haplo2(column_reader.num_cols());
-  vector<vector<unsigned int> > weight_mapping_haplo2(column_reader.num_cols());*/
-  
-  vector<vector<char> > mapping_haplo1(hap.columnCount());
-  vector<vector<unsigned int> > weight_mapping_haplo1(hap.columnCount());
-  vector<vector<char> > mapping_haplo2(hap.columnCount());
-  vector<vector<unsigned int> > weight_mapping_haplo2(hap.columnCount());
-
-
-  int current_column = -1;
-
-  while(hap.hasNext()) {
-    //vector<Entry> column = column_reader.get_next();
-    vector<Entry> column = hap.getColumn();
-    ++current_column;
-
-    for(unsigned int i = 0; i < column.size(); ++i) {
-      while(reads_matrix.size() <= (unsigned int)column[i].get_read_id()) {
-        reads_matrix.push_back(vector<char>(0));
-        weights.push_back(vector<unsigned int>(0));
-        starting_positions.push_back(-1);
-      }
-
-      if(reads_matrix[column[i].get_read_id()].size() == 0) {
-        starting_positions[column[i].get_read_id()] = current_column;
-      }
-
-      if(!(column[i].get_allele_type()==Entry::BLANK)) {
-        if(column[i].get_allele_type() == Entry::ALT_ALLELE) {
-          reads_matrix[column[i].get_read_id()].push_back('1');
-        } else {
-          reads_matrix[column[i].get_read_id()].push_back('0');
-        }
-      } else {
-        reads_matrix[column[i].get_read_id()].push_back('-');
-      }
-
-      if(options.unweighted) {
-        weights[column[i].get_read_id()].push_back(1);
-      } else {
-        weights[column[i].get_read_id()].push_back(column[i].get_phred_score());
-      }
-    }
-
-  }
-
-  unsigned int total_errors = 0;
-
-
-  for(unsigned int read_id = 0; read_id < reads_matrix.size(); ++read_id) {
-    if(map_fragment(reads_matrix[read_id], weights[read_id], starting_positions[read_id],
-                    haplo1, haplo2, total_errors) == 1) {
-
-      //Map read in haplo 1
-      for(unsigned col = 0; col < reads_matrix[read_id].size(); ++col) {
-        mapping_haplo1[col + starting_positions[read_id]].push_back(reads_matrix[read_id][col]);
-        weight_mapping_haplo1[col + starting_positions[read_id]].push_back(weights[read_id][col]);
-      }
-
-    } else {
-
-      //Map read in haplo 2
-      for(unsigned col = 0; col < reads_matrix[read_id].size(); ++col) {
-        mapping_haplo2[col + starting_positions[read_id]].push_back(reads_matrix[read_id][col]);
-        weight_mapping_haplo2[col + starting_positions[read_id]].push_back(weights[read_id][col]);
-      }
-
-    }
-  }
-
-  make_haplo(haplo1, haplo2, mapping_haplo1, mapping_haplo2, weight_mapping_haplo1, weight_mapping_haplo2,
-             haplo1_out, haplo2_out, XS1, XS2, options);
-
-  MISMATCHES += total_errors;
-  DEBUG("TOTAL MISMATCHES DURING MAPPING:   " << total_errors);
-}
-
-
-
 int map_fragment(const vector<char> &read, const vector<unsigned int> &weights, const unsigned int offset,
                  const vector<bool> &haplo1_in, const vector<bool> &haplo2_in, unsigned int &total_errors)
 {
@@ -1695,75 +1544,6 @@ int map_fragment(const vector<char> &read, const vector<unsigned int> &weights, 
   }
 }
 
-
-void make_haplo(const vector<bool> &haplo1, const vector<bool> &haplo2,
-                const vector<vector<char> > &mapping_haplo1, const vector<vector<char> > &mapping_haplo2,
-                const vector<vector<unsigned int> > &weight_mapping_haplo1, const vector<vector<unsigned int> > &weight_mapping_haplo2,
-                vector<char> &haplo_out1, vector<char> &haplo_out2, Counter &XS1, Counter &XS2,
-                const options_t &options) {
-  unsigned int count_X1 = 0;
-  unsigned int count_X2 = 0;
-  vector<int> counter1(2);
-  vector<int> counter2(2);
-
-  for(unsigned int col = 0; col < mapping_haplo1.size(); ++col) {
-    count_alleles(mapping_haplo1[col], weight_mapping_haplo1[col], counter1);
-    count_alleles(mapping_haplo2[col], weight_mapping_haplo2[col], counter2);
-
-    if(counter1[0] == counter1[1]) {
-      haplo_out1[col] = 'X';
-      ++count_X1;
-    } else {
-      if(haplo1[col]) {
-        haplo_out1[col] = '1';
-      } else {
-        haplo_out1[col] = '0';
-      }
-    }
-
-    if(counter2[0] == counter2[1]) {
-      haplo_out2[col] = 'X';
-      ++count_X2;
-    } else {
-      if(haplo2[col]) {
-        haplo_out2[col] = '1';
-      } else {
-        haplo_out2[col] = '0';
-      }
-    }
-
-    if(options.all_heterozygous) {
-      if(haplo_out1[col] == 'X' && haplo_out2[col] != 'X') {
-        haplo_out1[col] = (haplo_out2[col] == '0')? '1' : '0';
-        --count_X1;
-      } else if (haplo_out1[col] != 'X' && haplo_out2[col] == 'X') {
-        haplo_out2[col] = (haplo_out1[col] == '0')? '1' : '0';
-        --count_X2;
-      }
-    }
-  }
-
-  XS1 += count_X1;
-  XS2 += count_X2;
-
-  DEBUG("INTRODUCED X's IN FIRST HAPLOTYPE:   " << count_X1);
-  DEBUG("INTRODUCED X's IN SECOND HAPLOTYPE:   " << count_X2);
-}
-
-
-void count_alleles(const vector<char> &col, const vector<unsigned int> &weight_col,
-                   vector<int> &counter) {
-  counter[0] = 0;
-  counter[1] = 0;
-
-  for(unsigned int i = 0; i < col.size(); ++i) {
-    if(col[i] == '0') {
-      counter[0] += weight_col[i];
-    } else if(col[i] == '1') {
-      counter[1] += weight_col[i];
-    }
-  }
-}
 
 std::vector<std::pair<Read*,Read*>> makeSuperReads(vector <unsigned int> positions, vector <char> haplo1, vector<char> haplo2){
 
