@@ -20,15 +20,11 @@
 #include <iostream>
 #include <stdexcept>
 
-
 #include "basictypes.h"
 #include "binomial.h"
 #include "combinations.h"
 #include "balancedcombinations.h"
 #include "hapchatcolumniterator.cpp"
-#ifdef LOAD_REVISION
-#include "revision.h"
-#endif
 
 // Log messages with DEBUG priority and higher
 #define LOG_MSG
@@ -74,12 +70,7 @@ return superreads.size();
 }
 int runCore()
 {
-#if defined(VCS_DATE) && defined(VCS_SHORT_HASH) && defined(VCS_WC_MODIFIED)
-  INFO("HapCHAT (" VCS_BRANCH "@" VCS_SHORT_HASH << (VCS_WC_MODIFIED ? "-dirty" : "-clean") << ")");
-#else
-  INFO("HapCHAT");
-#endif
-  INFO("Starting...");
+  INFO("HapCHAT Starting...");
 
   //Counter threshold_coverage = 30;
 
