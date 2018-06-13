@@ -1,7 +1,7 @@
 /*
 
   Copyright (C) 2017-2018 Stefano Beretta, Marco Dell'Acqua, Murray
-  Patterson
+  Patterson, Yuri Pirola
 
   Distributed under the MIT license.
 
