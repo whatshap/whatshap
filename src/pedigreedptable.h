@@ -101,7 +101,7 @@ public:
 
 	/** Performs a backtrace through the DP table and returns optimal partitioning of the reads.
 	 *  Pointer ownership is transferred to caller. */
-	std::vector<bool>* get_optimal_partitioning();
+	std::vector<unsigned int>* get_optimal_partitioning();
 };
 
 #endif

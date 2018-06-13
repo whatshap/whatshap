@@ -394,11 +394,11 @@ def create_read_list_file(filename):
 	return f
 
 
-def write_read_list(readset, bipartition, sample_components, numeric_sample_ids, output_file):
+def write_read_list(readset, partitioning, sample_components, numeric_sample_ids, output_file):
 	"""
 	Write a list of reads that has been used for phasing to given file object.
 	readset -- core.ReadSet object with reads to be written
-	bipartition -- bipartition of reads, i.e. iterable with one entry from {0,1} for each read in readset
+	partitioning -- partitioning of reads, i.e. iterable with one entry from {0,1, ... ,ploidy} for each read in readset
 	sample_components -- a dictionary that maps each sample to its connected components
 
 			Each component in turn is a dict that maps each variant position to a
@@ -408,9 +408,9 @@ def write_read_list(readset, bipartition, sample_components, numeric_sample_ids,
 	numeric_sample_ids -- core.NumericSampleIds object mapping sample names to numeric ids as stored in each read
 	output_file -- file object to write to
 	"""
-	assert len(readset) == len(bipartition)
+	assert len(readset) == len(partitioning)
 	numeric_id_to_name = numeric_sample_ids.inverse_mapping()
-	for read, haplotype in zip(readset, bipartition):
+	for read, haplotype in zip(readset, partitioning):
 		sample = numeric_id_to_name[read.sample_id]
 		components = sample_components[sample]
 		phaseset = components[read[0].position] + 1

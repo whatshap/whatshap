@@ -413,15 +413,14 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 **/
 }
 
-// TODO return a unsigned int vector, this does only work for diplod case
-vector<bool>* PedigreeDPTable::get_optimal_partitioning() {
-	vector<bool>* partitioning = new vector<bool>(read_set->size(), false);
+vector<unsigned int>* PedigreeDPTable::get_optimal_partitioning() {
+	vector<unsigned int>* partitioning = new vector<unsigned int>(read_set->size(), false);
 	for(size_t i = 0; i < index_path.size(); ++i){
 		unsigned int mask = 1;
 		unsigned int index = index_path[i].index;
 		for(size_t j = 0; j < indexers[i]->get_read_ids()->size(); ++j){
 			unsigned int partition = index % ploidy;
-			partitioning->at(indexers[i]->get_read_ids()->at(j)) = (bool) partition;
+			partitioning->at(indexers[i]->get_read_ids()->at(j)) = partition;
 			index /= ploidy;
 		}
 	}
