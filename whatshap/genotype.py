@@ -285,8 +285,8 @@ def run_genotype(phase_input_files, variant_file, reference=None,
 					pedigree.add_individual(sample, [3] * len(accessible_positions), genotype_l)
 				for trio in trios:
 					pedigree.add_relationship(
-						mother_id=trio.mother,
 						father_id=trio.father,
+						mother_id=trio.mother,
 						child_id=trio.child)
 
 				if genmap:

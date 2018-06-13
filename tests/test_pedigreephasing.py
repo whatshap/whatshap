@@ -5,7 +5,7 @@ from nose.tools import raises
 from whatshap.core import PedigreeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
 from whatshap.pedigree import centimorgen_to_phred
 from whatshap.testhelpers import string_to_readset, string_to_readset_pedigree, brute_force_phase
-
+from collections import defaultdict
 
 def phase_pedigree(reads, recombcost, pedigree, distrust_genotypes=False, positions=None):
 	rs = string_to_readset_pedigree(reads)
@@ -28,6 +28,33 @@ def assert_haplotypes(superreads_list, all_expected_haplotypes, length):
 		haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
 		assert (haplotypes == (expected_haplotypes[0], expected_haplotypes[1])) or (haplotypes == (expected_haplotypes[1], expected_haplotypes[0]))
 
+def assert_trio_allele_order(superreads_list, transmission_vector, nr_of_positions):
+	# assume superreads_list contains superreads for father, mother, child (in that order!)
+	assert(len(superreads_list) == 3)
+	father = superreads_list[0]
+	mother = superreads_list[1]
+	child = superreads_list[2]
+	
+	for pos in range(nr_of_positions):
+		transmission_value = transmission_vector[pos]
+		paternal_transmission = transmission_value % 2
+		maternal_transmission = transmission_value // 2
+		paternal_allele = father[not paternal_transmission][pos].allele
+		maternal_allele = mother[not maternal_transmission][pos].allele
+		child_allele_p = child[0][pos].allele
+		child_allele_m = child[1][pos].allele
+		print('position: ', pos, 'paternal allele: ', paternal_allele, 'maternal allele', maternal_allele, 'child genotype: ', child_allele_p, child_allele_m)
+		assert(paternal_allele == child_allele_p)
+		assert(maternal_allele == child_allele_m)
+	
+def get_trio_transmission_vectors(transmission_vector, nr_of_trios):
+	trio_transmission_vectors = defaultdict(list)
+	for transmission_value in transmission_vector:
+		for trio in range(nr_of_trios):
+			value = transmission_value % 4
+			transmission_value = transmission_value // 4
+			trio_transmission_vectors[trio].append(value)
+	return trio_transmission_vectors
 
 def test_phase_empty_trio():
 	rs = ReadSet()
@@ -65,9 +92,10 @@ def test_phase_trio1():
 	all_expected_haplotypes = [
 		('111','010'),
 		('001','110'),
-		('001','010')
+		('010','001')
 	]
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 3)
+	assert_trio_allele_order(superreads_list, transmission_vector, 3)
 
 
 def test_phase_trio2():
@@ -94,6 +122,7 @@ def test_phase_trio2():
 		('00','11')
 	]
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 2)
+	assert_trio_allele_order(superreads_list, transmission_vector, 2)
 
 
 def test_phase_trio3():
@@ -127,6 +156,7 @@ def test_phase_trio3():
 		('111000','010101')
 	]
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 6)
+	assert_trio_allele_order(superreads_list, transmission_vector, 6)
 
 
 def test_phase_trio4():
@@ -156,6 +186,7 @@ def test_phase_trio4():
 		('111','000')
 	]
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 3)
+	assert_trio_allele_order(superreads_list, transmission_vector, 3)
 
 
 def test_phase_trio5():
@@ -185,6 +216,7 @@ def test_phase_trio5():
 		('111','000')
 	]
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 3)
+	assert_trio_allele_order(superreads_list, transmission_vector, 3)
 
 
 def test_phase_trio_pure_genetic():
@@ -204,6 +236,7 @@ def test_phase_trio_pure_genetic():
 		('1000','0110')
 	]
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 4)
+	assert_trio_allele_order(superreads_list, transmission_vector, 4)
 
 
 def test_phase_doubletrio_pure_genetic():
@@ -228,6 +261,9 @@ def test_phase_doubletrio_pure_genetic():
 		('1000','0110')
 	]
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 4)
+	trio_transmission_vectors = get_trio_transmission_vectors(transmission_vector, 4)
+	assert_trio_allele_order(superreads_list[:3], trio_transmission_vectors[0], 4)
+	assert_trio_allele_order(superreads_list[2:], trio_transmission_vectors[1], 4)
 
 
 def test_phase_quartet1():
@@ -263,7 +299,9 @@ def test_phase_quartet1():
 		('001','010')
 	]
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 3)
-
+	trio_transmission_vectors = get_trio_transmission_vectors(transmission_vector, 3)
+	assert_trio_allele_order(superreads_list[:3], trio_transmission_vectors[0], 3)
+	assert_trio_allele_order([superreads_list[0],superreads_list[1],superreads_list[3]], trio_transmission_vectors[1], 3)
 
 def test_phase_quartet2():
 	reads = """
@@ -295,6 +333,9 @@ def test_phase_quartet2():
 		('000000','010101')
 	]
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 6)
+	trio_transmission_vectors = get_trio_transmission_vectors(transmission_vector, 6)
+	assert_trio_allele_order(superreads_list[:3], trio_transmission_vectors[0], 6)
+	assert_trio_allele_order([superreads_list[0],superreads_list[1],superreads_list[3]], trio_transmission_vectors[1], 6)
 
 
 def test_phase_quartet3():
@@ -336,6 +377,9 @@ def test_phase_quartet3():
 		('000000','010010')
 	]
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 6)
+	trio_transmission_vectors = get_trio_transmission_vectors(transmission_vector, 6)
+	assert_trio_allele_order(superreads_list[:3], trio_transmission_vectors[0], 6)
+	assert_trio_allele_order([superreads_list[0],superreads_list[1],superreads_list[3]], trio_transmission_vectors[1], 6)
 
 
 def test_centimorgen_to_phred():
@@ -382,3 +426,4 @@ def test_phase_trio_genotype_likelihoods():
 		('001','010')
 	]
 	assert_haplotypes(superreads_list, all_expected_haplotypes, 3)
+	assert_trio_allele_order(superreads_list, transmission_vector, 3)

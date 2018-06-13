@@ -142,7 +142,7 @@ def find_recombination(transmission_vector, components, positions, recombcost):
 	for position, block_id in components.items():
 		blocks[block_id].append(position)
 
-	RecombinationEvent = namedtuple('RecombinationEvent', ['position1', 'position2', 'transmitted_hap_mother1', 'transmitted_hap_mother2' ,'transmitted_hap_father1', 'transmitted_hap_father2', 'recombination_cost'])
+	RecombinationEvent = namedtuple('RecombinationEvent', ['position1', 'position2', 'transmitted_hap_father1', 'transmitted_hap_father2' ,'transmitted_hap_mother1', 'transmitted_hap_mother2', 'recombination_cost'])
 	event_list = []
 	cum_recomb_cost = 0
 	for block_id, block in blocks.items():
@@ -165,7 +165,7 @@ class ParseError(Exception):
 	pass
 
 
-Trio = namedtuple('Trio', ['child', 'mother', 'father'])
+Trio = namedtuple('Trio', ['child', 'father', 'mother'])
 Trio.__doc__ = """
 Relationships are modelled as a set of trios (mother, father, child).
 """
@@ -211,7 +211,7 @@ class PedReader:
 			paternal_id = None
 		if maternal_id == '0':
 			maternal_id = None
-		return Trio(child=individual_id, mother=maternal_id, father=paternal_id)
+		return Trio(child=individual_id, father=paternal_id, mother=maternal_id)
 
 	def _parse(self, file):
 		trios = []

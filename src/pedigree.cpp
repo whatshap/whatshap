@@ -36,8 +36,8 @@ void Pedigree::addIndividual(unsigned int id, std::vector<unsigned int> genotype
 }
 
 
-void Pedigree::addRelationship(unsigned int mother_id, unsigned int father_id, unsigned int child_id) {
-	triple_entry_t triple_entry = {id_to_index(mother_id), id_to_index(father_id), id_to_index(child_id)};
+void Pedigree::addRelationship(unsigned int father_id, unsigned int mother_id, unsigned int child_id) {
+	triple_entry_t triple_entry = {id_to_index(father_id), id_to_index(mother_id), id_to_index(child_id)};
 	triples.push_back(triple_entry);
 }
 
@@ -94,12 +94,12 @@ std::string Pedigree::toString() const {
 		oss << " " << i << "," << individual_ids[i];
 	}
 	oss << endl;
-	oss << "  triples by index (mother,father,child):";
+	oss << "  triples by index (father,mother,child):";
 	for (size_t i=0; i<triples.size(); ++i) {
 		oss << " (" << triples[i][0] << ","  << triples[i][1] << "," << triples[i][2] << ")";
 	}
 	oss << endl;
-	oss << "  triples by id (mother,father,child):";
+	oss << "  triples by id (father,mother,child):";
 	for (size_t i=0; i<triples.size(); ++i) {
 		oss << " (" << individual_ids[triples[i][0]] << ","  << individual_ids[triples[i][1]] << "," << individual_ids[triples[i][2]] << ")";
 	}

@@ -364,7 +364,11 @@ relationships between samples and ``input.vcf`` is a multi-sample VCF
 with all individuals that should be phased. The reads for all individuals
 can be in one or more BAM/CRAM files. WhatsHap will match them based on sample
 names provided in the read groups (just like for the default single-individual
-mode).
+mode). 
+In the resulting VCF file (``phased.vcf``), 
+haplotype alleles of a child are given as paternal|maternal, i.e.
+the first allele is the one inherited from the father and the second one
+the allele inherited from the mother.
 
 PED file format
 ---------------

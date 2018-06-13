@@ -238,8 +238,8 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 			if( (trio.mother in samples) and (trio.father in samples) and (trio.child in samples) ):
 				trios.append(trio)
 				pedigree_samples.add(trio.child)
-				pedigree_samples.add(trio.mother)
 				pedigree_samples.add(trio.father)
+				pedigree_samples.add(trio.mother)
 			else:
 				# happens in case --ped and --samples are used
 				logger.warning('Relationship %s/%s/%s ignored because at least one of the '
@@ -366,8 +366,8 @@ def run_whatshap(
 			for trio in PedReader(ped, numeric_sample_ids):
 				if (trio.child is None or trio.mother is None or trio.father is None):
 					continue
-				samples.add(trio.mother)
 				samples.add(trio.father)
+				samples.add(trio.mother)
 				samples.add(trio.child)
 
 		vcf_sample_set = set(vcf_reader.samples)
@@ -390,8 +390,8 @@ def run_whatshap(
 			else:
 				logger.info('Using uniform recombination rate of %g cM/Mb.', recombrate)
 			for trio in all_trios:
-				family_finder.merge(trio.mother, trio.child)
 				family_finder.merge(trio.father, trio.child)
+				family_finder.merge(trio.mother, trio.child)
 
 
 		# map family representatives to lists of family members
@@ -600,8 +600,8 @@ def run_whatshap(
 					pedigree.add_individual(sample, phasable_variant_table.genotypes_of(sample), genotype_likelihoods)
 				for trio in trios:
 					pedigree.add_relationship(
-						mother_id=trio.mother,
 						father_id=trio.father,
+						mother_id=trio.mother,
 						child_id=trio.child)
 
 				if genmap:
@@ -660,11 +660,11 @@ def run_whatshap(
 							transmission_vector_value = transmission_vector_value // 4
 							transmission_vector_trio[trio.child].append(value)
 					f = open(recombination_list_filename, 'w')
-					print('#child_id', 'chromosome', 'position1', 'position2', 'transmitted_hap_mother1', 'transmitted_hap_mother2' ,'transmitted_hap_father1', 'transmitted_hap_father2', 'recombination_cost', file=f)
+					print('#child_id', 'chromosome', 'position1', 'position2', 'transmitted_hap_father1', 'transmitted_hap_father2' ,'transmitted_hap_mother1', 'transmitted_hap_mother2', 'recombination_cost', file=f)
 					for trio in trios:
 						recombination_events = find_recombination(transmission_vector_trio[trio.child], overall_components, accessible_positions, recombination_costs)
 						for e in recombination_events:
-							print(trio.child, chromosome, e.position1 + 1, e.position2 + 1, e.transmitted_hap_mother1, e.transmitted_hap_mother2, e.transmitted_hap_father1, e.transmitted_hap_father2, e.recombination_cost, file=f)
+							print(trio.child, chromosome, e.position1 + 1, e.position2 + 1, e.transmitted_hap_father1, e.transmitted_hap_father2, e.transmitted_hap_mother1, e.transmitted_hap_mother2, e.recombination_cost, file=f)
 
 						n_recombination_total += len(recombination_events)
 					logger.info('Total no. of detected recombination events: %d', n_recombination_total)
