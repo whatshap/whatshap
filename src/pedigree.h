@@ -20,9 +20,9 @@ public:
 	typedef std::array<size_t, 3> triple_entry_t;
 
 	typedef struct parent_indices_t {
-		size_t mother_index;
 		size_t father_index;
-		parent_indices_t(size_t mother_index, size_t father_index) : mother_index(mother_index), father_index(father_index) {}
+		size_t mother_index;
+		parent_indices_t(size_t father_index, size_t mother_index) : father_index(father_index), mother_index(mother_index) {}
 	} parent_indices_t;
 	//typedef std::array<std::vector<unsigned int>, 3> genotype_entry_t;
 
@@ -31,7 +31,7 @@ public:
 	void addIndividual(unsigned int individual_id, std::vector<unsigned int> genotypes, std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods);
 
 	// add a relationship (a mother/father/child triple)
-	void addRelationship(unsigned int mother_id, unsigned int father_id, unsigned int child_id);
+	void addRelationship(unsigned int father_id, unsigned int mother_id, unsigned int child_id);
 
 	/** Returns the genotype of individual with given index for the given variant_index.
 	 *  Note that index of an individual is not its id (in general), see id_to_index().

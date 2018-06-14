@@ -325,8 +325,8 @@ cdef class Pedigree:
 				gl_vector.push_back(NULL)
 		self.thisptr.addIndividual(self.numeric_sample_ids[id], genotypes, gl_vector)
 
-	def add_relationship(self, mother_id, father_id, child_id):
-		self.thisptr.addRelationship(self.numeric_sample_ids[mother_id], self.numeric_sample_ids[father_id], self.numeric_sample_ids[child_id])
+	def add_relationship(self, father_id, mother_id, child_id):
+		self.thisptr.addRelationship(self.numeric_sample_ids[father_id], self.numeric_sample_ids[mother_id], self.numeric_sample_ids[child_id])
 
 	property variant_count:
 		"""Number of variants stored for each individual."""
