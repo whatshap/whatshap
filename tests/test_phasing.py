@@ -1,7 +1,6 @@
 from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 
-
 def test_phase_empty_readset():
 	rs = ReadSet()
 	recombcost = [1,1]
@@ -20,7 +19,8 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, all_hetero
 	for v1, v2 in zip(*superreads):
 		assert v1.position == v2.position
 	haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
-	expected_cost, expected_partition, solution_count, expected_haplotype1, expected_haplotype2 = brute_force_phase(readset, all_heterozygous)
+	print(haplotypes)
+	expected_cost, expected_partition, solution_count, expected_haplotype1, expected_haplotype2 = brute_force_phase(readset, all_heterozygous, 2)
 	inverse_partition = [1-p for p in partition]
 	print()
 	print(superreads[0])
