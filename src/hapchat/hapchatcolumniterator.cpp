@@ -42,23 +42,20 @@ class HapChatColumnIterator {
 
 	private: 
 		Iterator* iterator;
-		bool end,unique;
+		bool end;
 		blocker vblock;
 		unsigned int blockn;
 		vector<unsigned int> min,max;
 		ReadSet* readset;
 	public:
 		//standard constructor
-                HapChatColumnIterator(ReadSet* read_set,bool que){
+                HapChatColumnIterator(ReadSet* read_set){
 		readset=read_set;
 		this->iterator=new Iterator(read_set);
 		end=false;
-		unique=que;
+
 		vblock=blocker();
-		if(unique){
-				read_set->reassignReadIds();
-				read_set->sort();
-		}else setBlock(read_set);
+		setBlock(read_set);
 		};
 				
 		void setBlock(ReadSet* readset){
@@ -113,23 +110,19 @@ class HapChatColumnIterator {
 					
 					
 					
-		bool hasNextBlock(){
-		if(unique){
-		unique=false;
-		return true;
-		}
+  bool hasNextBlock() {
 		
-		blockn++;
-		if(blockn>=vblock.size()) return false;
-		ReadSet* readset=new ReadSet();
-		for(unsigned int i=0;i<vblock.at(blockn).size();i++){
-			readset->add(vblock.at(blockn).at(i));		
-		}
-		readset->reassignReadIds();
+    blockn++;
+    if(blockn>=vblock.size()) return false;
+    ReadSet* readset=new ReadSet();
+    for(unsigned int i=0;i<vblock.at(blockn).size();i++){
+      readset->add(vblock.at(blockn).at(i));		
+    }
+    readset->reassignReadIds();
     readset->sort();
     this->iterator=new Iterator(readset);
-		return true;
-		}
+    return true;
+  }
 		//take the current column 
 		Column getColumn(){
 			if(hasNext()){

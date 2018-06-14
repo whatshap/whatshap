@@ -34,67 +34,75 @@
 
 
 class hapchatcore{
+
 private:
 
-options_t options;
-vector<pair<Read*,Read*>> superreads;
-unsigned int optimal;
-public:	
-	hapchatcore(ReadSet* read_set){
-	optimal=0;
-	DEBUG(read_set->toString());
-	options= whatshap_options(read_set);
-	
-	runCore();
-	};
+  ReadSet* readset_;
+  vector<pair<Read*,Read*>> superreads_;
+  unsigned int optimal_;
 
-void  getSuperRead(vector<ReadSet*>* output_read_set){
-	for(unsigned int k=0;k<superreads.size();k++) {
+  bool unweighted_;
+
+  double errorrate_;
+  double alpha_;
+
+  bool balancing_;
+  unsigned int balancecov_;
+  double balanceratio_;
+
+public:	
+
+  hapchatcore(ReadSet* read_set)
+    : readset_(read_set),
+      optimal_(0),
+      unweighted_(false),
+      errorrate_(0.05),
+      alpha_(0.01),
+      balancing_(false),
+      balancecov_(20),
+      balanceratio_(0.5) {
+
+	DEBUG(read_set->toString());
+	runCore();
+  };
+
+void getSuperRead(vector<ReadSet*>* output_read_set){
+	for(unsigned int k=0;k<superreads_.size();k++) {
 		
-		output_read_set->at(k)->add(superreads[k].first);
-		output_read_set->at(k)->add(superreads[k].second);
+		output_read_set->at(k)->add(superreads_[k].first);
+		output_read_set->at(k)->add(superreads_[k].second);
 	}
 }
 
 unsigned int getOptimalCost(){
-return optimal;
+return optimal_;
 
 }
 
 int getLen(){
 	
-return superreads.size();
+return superreads_.size();
 }
 
 int runCore()
 {
+
   INFO("HapCHAT Starting...");
 
   //Counter threshold_coverage = 30;
 
   const constants_t constants;
   
-  INFO("Arguments:");
-  INFO("Initialized? " << (options.options_initialized?"True":"False"));
-  INFO("Input filename: '" << options.input_filename << '\'');
-  INFO("Haplotype filename: '" << options.haplotype_filename << '\'');
-  INFO("Discard weights? " << (options.unweighted?"True":"False"));
-  INFO("Do not add X's? " << (options.no_xs?"True":"False"));
-  INFO("All-heterozygous assumption? " << (options.all_heterozygous?"True":"False"));
-  INFO("Input as unique block? " << (options.unique?"True":"False"));
-  INFO("Error rate: " << options.error_rate);
-  INFO("Alpha: " << options.alpha);
-  INFO("Balancing? " << (options.balancing?"True":"False"));
-  INFO("Balancing activates after coverage: " << options.balance_cov);
-  INFO("Balance ratio: " << options.balance_ratio);
-	
-  if (!options.options_initialized) {
-    FATAL("Arguments not correctly initialized! Exiting..");
-    exit(EXIT_FAILURE);
-  }
+  INFO("Parameters:");
+  INFO("Discard weights? " << (unweighted_?"True":"False"));
+  INFO("Error rate: " << errorrate_);
+  INFO("Alpha: " << alpha_);
+  INFO("Balancing? " << (balancing_?"True":"False"));
+  INFO("Balancing activates after coverage: " << balancecov_);
+  INFO("Balance ratio: " << balanceratio_);
 
   //Readset section
-  HapChatColumnIterator hap=HapChatColumnIterator(options.readset,options.unique);
+  HapChatColumnIterator hap=HapChatColumnIterator(readset_);
 
   if(!hap.hasNextBlock()) {
     FATAL("Input is empty! Exiting..");
@@ -105,7 +113,7 @@ int runCore()
 
   //Pre-compute binomial values
   binom_coeff::initialize_binomial_coefficients(MAX_COVERAGE, MAX_COVERAGE);
-  computeK(MAX_COVERAGE, options.alpha, options.error_rate);
+  computeK(MAX_COVERAGE, alpha_, errorrate_);
 
   Counter step = 0;
   Cost OPT = 0;
@@ -115,7 +123,6 @@ int runCore()
   Counter MAX_L = 0;
   Counter MAX_K = 0;
   Counter MAX_GAPS = 0;
-  Counter TOTAL_MISMATCHES = 0;
 
   vector<vector<char> > haplotype_blocks1;
   vector<vector<char> > haplotype_blocks2;
@@ -126,14 +133,14 @@ int runCore()
   vector<bool> haplotype2(hap.columnCount());
 
   if(hap.columnCount() > 0)
-    dp(constants, options, haplotype1, haplotype2, step, OPT, MAX_COV, MAX_L, MAX_K, MAX_GAPS, hap);
+    dp(constants, haplotype1, haplotype2, step, OPT, MAX_COV, MAX_L, MAX_K, MAX_GAPS, hap);
 
   counter_columns = hap.columnCount();
 
   vector<char> output_block1(hap.columnCount());
   vector<char> output_block2(hap.columnCount());
 
-  fill_haplotypes(haplotype1, haplotype2, output_block1, output_block2, options, hap);
+  fill_haplotypes(haplotype1, haplotype2, output_block1, output_block2, hap);
   DEBUG("Filled haplotypes");
 
   haplotype_blocks1.push_back(output_block1);
@@ -153,8 +160,8 @@ int runCore()
   DEBUG("<<>> Writing haplotypes...");
   //write_haplotypes(haplotype_blocks1, haplotype_blocks2, std::cout);
 
-  superreads = makeSuperReads(hap.getPositions(), haplotype_blocks1[0], haplotype_blocks2[0]);
-  optimal = OPT.getCost();
+  superreads_ = makeSuperReads(hap.getPositions(), haplotype_blocks1[0], haplotype_blocks2[0]);
+  optimal_ = OPT.getCost();
 
   return 0;
 }
@@ -198,15 +205,16 @@ void replace_if_less(T& a, const T& b) {
 }
 
 
-void fill_haplotypes( const vector<bool> &haplotype1, const vector<bool> &haplotype2, vector<bool> &complete_haplo1, vector<bool> &complete_haplo2, const options_t &options, HapChatColumnIterator hap)
+void fill_haplotypes(const vector<bool> &haplotype1, const vector<bool> &haplotype2, vector<bool> &complete_haplo1, vector<bool> &complete_haplo2, HapChatColumnIterator hap)
 {
-	hap.reset();
+
+  hap.reset();
   vector<bool>::const_iterator ihap1 = haplotype1.begin();
   vector<bool>::const_iterator ihap2 = haplotype2.begin();
 
   vector<bool>::iterator iout1 = complete_haplo1.begin();
   vector<bool>::iterator iout2 = complete_haplo2.begin();
-      if(!options.all_heterozygous) ERROR("Option not allowed");
+
   while(hap.hasNext()) { 
 
     hap.getColumn();
@@ -221,15 +229,16 @@ void fill_haplotypes( const vector<bool> &haplotype1, const vector<bool> &haplot
 }
 
 
-void fill_haplotypes( const vector<bool> &haplotype1, const vector<bool> &haplotype2, vector<char> &output_block1, vector<char> &output_block2, const options_t &options, HapChatColumnIterator hap)
+void fill_haplotypes(const vector<bool> &haplotype1, const vector<bool> &haplotype2, vector<char> &output_block1, vector<char> &output_block2, HapChatColumnIterator hap)
 {
-	hap.reset();
+
+  hap.reset();
   vector<bool>::const_iterator ihap1 = haplotype1.begin();
   vector<bool>::const_iterator ihap2 = haplotype2.begin();
 
   vector<char>::iterator iout1 = output_block1.begin();
   vector<char>::iterator iout2 = output_block2.begin();
-	if(!options.all_heterozygous) ERROR("Option not allowed");
+
   while(hap.hasNext()) {
 
     hap.getColumn();
@@ -266,7 +275,7 @@ void write_haplotypes(const vector<vector<char> > &haplotype_blocks1, const vect
 }
 
 
-void dp(const constants_t &constants, const options_t &options, 
+void dp(const constants_t &constants,
         vector<bool> &haplotype1, vector<bool> &haplotype2, Counter &step_global, Cost &OPT_global,
         Counter &MAX_COV_global, Counter &MAX_L_global, Counter &MAX_K_global,
         Counter &MAX_GAPS_global, HapChatColumnIterator hap)
@@ -281,7 +290,7 @@ void dp(const constants_t &constants, const options_t &options,
   vector<vector<Counter> > scheme_backtrace;
 	hap.reset();
   computeInputParams(num_col, MAX_COV, MAX_L, MAX_K, MAX_GAPS, sum_successive_L,
-                     scheme_backtrace, options,hap);
+                     scheme_backtrace, hap);
 
   MAX_COV_global = max(MAX_COV_global, MAX_COV);
   MAX_K_global = max(MAX_K_global, MAX_K);
@@ -429,8 +438,7 @@ void dp(const constants_t &constants, const options_t &options,
       column=hap.getColumn();
       
     }
-    insert_col_and_update(input, k_j, homo_cost, homo_weight, new_l_pointer, column,
-                          options, homo_haplotypes, step + l);
+    insert_col_and_update(input, k_j, homo_cost, homo_weight, new_l_pointer, column, homo_haplotypes, step + l);
 
     l++;
     //The short circuit && is fundamental to avoid an unexpected has_next that read a column
@@ -532,7 +540,7 @@ void dp(const constants_t &constants, const options_t &options,
           
           
           insert_col_and_update(input, k_j, homo_cost, homo_weight, new_input_pointer,
-                                column, options, homo_haplotypes, step + (MAX_L - 1));
+                                column, homo_haplotypes, step + (MAX_L - 1));
           k_j_inc = k_j[input_pointer];
       }
 
@@ -670,9 +678,9 @@ void dp(const constants_t &constants, const options_t &options,
       //Enumerate all the combinations
 
       bool loop_var;
-      if(options.balancing and (cov_j > options.balance_cov)) {
-        INFO("STEP " << step_global << " column has coverage : " << cov_j << " -- balancing with ratio : " << options.balance_ratio);
-	balanced_generator.initialize(cov_j - num_gaps, k_j[input_pointer], proj, options.balance_ratio);
+      if(balancing_ and (cov_j > balancecov_)) {
+        INFO("STEP " << step_global << " column has coverage : " << cov_j << " -- balancing with ratio : " << balanceratio_);
+	balanced_generator.initialize(cov_j - num_gaps, k_j[input_pointer], proj, balanceratio_);
 	loop_var = balanced_generator.has_next();
       }
       else {
@@ -682,7 +690,7 @@ void dp(const constants_t &constants, const options_t &options,
 
       while(loop_var)
         {
-	  if(options.balancing and (cov_j > options.balance_cov)) {
+	  if(balancing_ and (cov_j > balancecov_)) {
 	    balanced_generator.next();
 	    balanced_generator.get_combination(comb_no_gaps);
 	  }
@@ -717,7 +725,7 @@ void dp(const constants_t &constants, const options_t &options,
             //Compute the weight of the mask
             Cost weight_mask = 0;
 
-            if (options.unweighted) {
+            if (unweighted_) {
               weight_mask = Cost((Cost::cost_t)mask.count());
             } else {
               compute_weight_mask(mask, input[input_pointer], weight_mask);
@@ -885,7 +893,7 @@ void dp(const constants_t &constants, const options_t &options,
             ++comb_gaps_int;
           } while (comb_gaps_int < (unsigned int)(1 << num_gaps));
 
-	  if(options.balancing and (cov_j > options.balance_cov)) {
+	  if(balancing_ and (cov_j > balancecov_)) {
 	    loop_var = balanced_generator.has_next();
 	  }
 	  else {
@@ -935,7 +943,7 @@ void dp(const constants_t &constants, const options_t &options,
 
   } else {
     INFO("*** NO SOLUTION ***");
-    INFO("<<>> No feasible solution exists with these parameters -- alpha = " << options.alpha << " and error rate = " << options.error_rate);
+    INFO("<<>> No feasible solution exists with these parameters -- alpha = " << alpha_ << " and error rate = " << errorrate_);
     INFO("<<>> The last not feasible column is:  " << step << "  with coverage = " << cov_j << " and k = " << k_j[input_pointer]);
     exit(EXIT_FAILURE);
   }
@@ -946,7 +954,7 @@ void dp(const constants_t &constants, const options_t &options,
 void computeInputParams(Counter &num_cols, Counter &MAX_COV, Counter &MAX_L,
                         Counter &MAX_K, Counter &MAX_GAPS, vector<Counter> &sum_successive_L,
                         vector<vector<Counter> > &scheme_backtrace,
-                        const options_t &options,HapChatColumnIterator hap)
+                        HapChatColumnIterator hap)
 {
  
 	hap.reset();
@@ -997,10 +1005,7 @@ void computeInputParams(Counter &num_cols, Counter &MAX_COV, Counter &MAX_L,
 
       //sufficient condition to check the feasibility for the homozygous transformation
       homo_cost[input_iterator - input.begin()] = std::min(count_major, count_minor);
-
-      if(options.all_heterozygous) {
-        homo_cost[input_iterator - input.begin()] = MAX_COVERAGE + 1;
-      }
+      homo_cost[input_iterator - input.begin()] = MAX_COVERAGE + 1;
 
       k_j[input_iterator - input.begin()] = computeK(count_minor + count_major);
 
@@ -1282,7 +1287,7 @@ int compute_active_common(const Column &colJ, const Column &colQ, unsigned int &
 
 
 void insert_col_and_update(vector<Column> &input, vector<Counter> &k_j, vector <Counter> &homo_cost,
-                           vector<Cost> &homo_weight, const Pointer &pointer, const Column &column, const options_t &options,
+                           vector<Cost> &homo_weight, const Pointer &pointer, const Column &column,
                            vector<bool> &kind_homozygous, const Counter &step)
 {
   Counter count_major = 0;
@@ -1296,7 +1301,7 @@ void insert_col_and_update(vector<Column> &input, vector<Counter> &k_j, vector <
     	gap=false;
       const long int column_read_id = column[i].get_read_id();
       const Entry::allele_t column_allele_type = column[i].get_allele_type();
-      const unsigned int column_phred_score = (options.unweighted)? 1 : column[i].get_phred_score();
+      const unsigned int column_phred_score = (unweighted_)? 1 : column[i].get_phred_score();
 			
       input[pointer][i].set_read_id(column_read_id);
       input[pointer][i].set_allele_type(column_allele_type);
@@ -1351,9 +1356,8 @@ void insert_col_and_update(vector<Column> &input, vector<Counter> &k_j, vector <
     }
   }
 
-  if(options.all_heterozygous) {
-    homo_cost[pointer] = MAX_COVERAGE + 1;
-  }
+  homo_cost[pointer] = MAX_COVERAGE + 1;
+
   //Add for the all-heterozygous assumption
   //homo_weight[pointer] =  homo_weight[pointer] + 100000;column.size()==1 ? 0 : 1000000;
 }

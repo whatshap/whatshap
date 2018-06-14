@@ -51,41 +51,6 @@ struct EntryRead {
 typedef std::vector<EntryRead> Fragment;
 
 
-struct options_t {
-  bool options_initialized;
-  std::string input_filename;
-  std::string haplotype_filename;
-  bool unweighted;
-  bool no_xs;
-  bool all_heterozygous;
-  bool unique;
-  double error_rate;
-  double alpha;
-  bool balancing;
-  unsigned int balance_cov;
-  double balance_ratio;
-  ReadSet* readset;
-
-  options_t()
-  : options_initialized(false),
-    input_filename(""),
-    haplotype_filename(""),
-    unweighted(false),
-    no_xs(false),
-    all_heterozygous(false),
-    unique(false),
-    error_rate(0.05),
-    alpha(0.01),
-    balancing(false),
-    balance_cov(20),
-    balance_ratio(0.5)
-  {}
-
-};
-
-std::ostream& operator<<(std::ostream& out, const options_t& options);
-
-
 struct constants_t
 {
 
@@ -108,7 +73,6 @@ struct Backtrace1
     : jump(-1), index(0)
   {};
 };
-
 
 
 // A type for representing costs
@@ -189,9 +153,5 @@ std::ostream& operator<<(std::ostream& out, const std::vector<bool>& v);
 
 // Pretty-print char vectors
 std::ostream& operator<<(std::ostream& out, const std::vector<char>& v);
-
-
-options_t parse_arguments(int argc, char** argv);
-options_t whatshap_options(ReadSet* read_set);
 
 #endif // _BASIC_TYPES_H_
