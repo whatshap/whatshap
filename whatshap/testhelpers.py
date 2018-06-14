@@ -4,6 +4,7 @@ Utility functions only used by unit tests
 import textwrap
 from collections import defaultdict
 from whatshap.core import Read, ReadSet, Variant
+import math
 
 def string_to_readset(s, w = None, sample_ids = None, source_id=0, scale_quality = None):
 	s = textwrap.dedent(s).strip()
@@ -82,55 +83,63 @@ def flip_cost(variant, target_value):
 	else:
 		return variant.quality
 
-
-def is_ambiguous(assignments):
-	sets = [set(), set()]
+def is_ambiguous(assignments, ploidy):
+	sets = [set() for i in range(ploidy)]
 	for assignment in assignments:
 		for s, allele in zip(sets, assignment):
 			s.add(allele)
 	return [len(s) > 1 for s in sets]
 
+def assignment_to_list(assignment, ploidy):		
+	return tuple( ((assignment >> i) & 1) for i in range(ploidy) )
 
-def column_cost(variants, possible_assignments):
-	"""Compute cost for one position and return the minimum cost assignment.
-	Returns ('X','X') if minimum is not unique (i.e. a "tie")."""
+def column_cost(variants, possible_assignments, ploidy):
+	""" Compute cost for one position and return the minimum cost assignment. """
 	costs = []
-	for allele1, allele2 in possible_assignments:
-		cost1 = sum(flip_cost(v,allele1) for v in variants[0])
-		cost2 = sum(flip_cost(v,allele2) for v in variants[1])
-		costs.append(cost1 + cost2)
-	l = [(cost,i) for i, cost in enumerate(costs)]
+	# go through all allele assignments
+	for assignment in possible_assignments:
+		# consider cost for each partition
+		cost = 0
+		for partition in range(ploidy):
+			# get allele assigned to current partition:
+			allele = assignment[partition];
+			cost += sum(flip_cost(v, allele) for v in variants[partition])
+		costs.append(cost)
+	l = [(cost,i) for i,cost in enumerate(costs)]
 	l.sort()
 	min_cost = l[0][0]
 	best_assignment = list(possible_assignments[l[0][1]])
-	# check for ties
 	counts = defaultdict(int)
 	for cost, index in l:
 		counts[cost] += 1
 	ties = counts[min_cost]
-	ambiguous = is_ambiguous([possible_assignments[i] for cost,i in l[:ties]])
-	for i in range(2):
+	ambiguous = is_ambiguous([possible_assignments[i] for cost,i in l[:ties]], ploidy)
+	for i in range(ploidy):
 		if ambiguous[i]:
 			best_assignment[i] = 3
 	return min_cost, best_assignment
-
-
-def brute_force_phase(read_set, all_heterozygous):
+		
+def brute_force_phase(read_set, all_heterozygous, ploidy):
 	"""Solves MEC by enumerating all possible bipartitions."""
 	def print(*args): pass
 
 	assert len(read_set) < 10, "Too many reads for brute force"
 	positions = read_set.get_positions()
+	assignment_count = 1 << ploidy
+
 	if all_heterozygous:
-		possible_assignments = [(0,1), (1,0)]
+		possible_assignments = [ assignment_to_list(i, ploidy) for i in range(1,assignment_count-1)]
+		print("all het:", possible_assignments)
 	else:
-		possible_assignments = [(0,0), (0,1), (1,0), (1,1)]
+		possible_assignments = [ assignment_to_list(i, ploidy) for i in range(0,assignment_count)]
+		print("hom/het: ", possible_assignments)
+
 	# bit i in "partition" encodes to which set read i belongs
 	best_partition = None
 	best_cost = None
 	best_haplotypes = None
 	solution_count = 0
-	for partition in range(2**len(read_set)):
+	for partition in range(ploidy**len(read_set)):
 		print('Looking at partition {{:0>{}b}}'.format(len(read_set)).format(partition))
 		# compute cost induced by that partition
 		cost = 0
@@ -139,11 +148,12 @@ def brute_force_phase(read_set, all_heterozygous):
 			# find variants covering this position
 			variants = [[],[]]
 			for n, read in enumerate(read_set):
-				i = (partition >> n) & 1
+				i = (partition // (ploidy**n)) % ploidy
+#				i = (partition >> n) & 1
 				for variant in read:
 					if variant.position == p:
 						variants[i].append(variant)
-			c, assignment = column_cost(variants, possible_assignments)
+			c, assignment = column_cost(variants, possible_assignments,ploidy)
 			print('    position: {}, variants: {} --> cost = {}'.format(p, str(variants), c))
 			cost += c
 			haplotypes.append(assignment)
@@ -156,7 +166,14 @@ def brute_force_phase(read_set, all_heterozygous):
 		elif cost == best_cost:
 			solution_count += 1
 	# Each partition has its inverse with the same cost
-	assert solution_count % 2 == 0
-	haplotype1 = ''.join([str(allele1) for allele1, allele2 in best_haplotypes])
-	haplotype2 = ''.join([str(allele2) for allele1, allele2 in best_haplotypes])
-	return best_cost, [(best_partition>>x) & 1 for x in range(len(read_set))], solution_count//2, haplotype1, haplotype2
+	number_of_equal_solutions = math.factorial(ploidy)
+	assert solution_count % number_of_equal_solutions == 0
+	haplotypes = []
+	for i in range(ploidy):
+		h = ''.join([str(hap[i]) for hap in best_haplotypes])
+		haplotypes.append(h)
+
+#	haplotype1 = ''.join([str(allele1) for allele1, allele2 in best_haplotypes])
+#	haplotype2 = ''.join([str(allele2) for allele1, allele2 in best_haplotypes])
+	# TODO
+	return best_cost, [(best_partition//(ploidy**x)) % ploidy for x in range(len(read_set))], solution_count//number_of_equal_solutions, haplotypes[0], haplotypes[1]
