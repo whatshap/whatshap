@@ -20,7 +20,9 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, all_hetero
 		assert v1.position == v2.position
 	haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
 	print(haplotypes)
-	expected_cost, expected_partition, solution_count, expected_haplotype1, expected_haplotype2 = brute_force_phase(readset, all_heterozygous, 2)
+	expected_cost, expected_partition, solution_count, expected_haplotypes = brute_force_phase(readset, all_heterozygous, 2)
+	expected_haplotype1 = expected_haplotypes[0]
+	expected_haplotype2 = expected_haplotypes[1]
 	inverse_partition = [1-p for p in partition]
 	print()
 	print(superreads[0])

@@ -172,8 +172,4 @@ def brute_force_phase(read_set, all_heterozygous, ploidy):
 	for i in range(ploidy):
 		h = ''.join([str(hap[i]) for hap in best_haplotypes])
 		haplotypes.append(h)
-
-#	haplotype1 = ''.join([str(allele1) for allele1, allele2 in best_haplotypes])
-#	haplotype2 = ''.join([str(allele2) for allele1, allele2 in best_haplotypes])
-	# TODO
-	return best_cost, [(best_partition//(ploidy**x)) % ploidy for x in range(len(read_set))], solution_count//number_of_equal_solutions, haplotypes[0], haplotypes[1]
+	return best_cost, [(best_partition//(ploidy**x)) % ploidy for x in range(len(read_set))], solution_count//number_of_equal_solutions, haplotypes
