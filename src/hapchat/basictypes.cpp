@@ -1,6 +1,6 @@
 /*
 
-  Copyright (C) 2017-2018 Marco Dell'Acqua, Yuri Pirola
+  Copyright (C) 2017-2018 Marco Dell'Acqua, Yuri Pirola, Simone Zaccaria
 
   Distributed under the MIT license.
 
