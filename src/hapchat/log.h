@@ -1,6 +1,6 @@
 /*
 
-  Copyright (C) 2015-2018 Yuri Pirola
+  Copyright (C) 2015-2018 Yuri Pirola, Simone Zaccaria
 
   Distributed under the MIT license.
 
