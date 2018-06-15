@@ -360,15 +360,7 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 		}
 		superreads.emplace_back(reads_per_individual);
 	}
-/**
-	std::vector<std::pair<Read*,Read*>> superreads;
-	for (unsigned int i=0; i<pedigree->size(); i++) {
-		 superreads.emplace_back(
-			new Read("superread_0_"+std::to_string(i), -1, -1, pedigree->index_to_id(i)),
-			new Read("superread_1_"+std::to_string(i), -1, -1, pedigree->index_to_id(i))
-		);
-	}
-**/
+
 	if (index_backtrace_table.empty()) {
 		assert(!input_column_iterator.has_next());
 	} else {
@@ -388,12 +380,7 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 					superreads[k][j]->addVariant(positions->at(i), population_alleles[k].alleles[j], population_alleles[k].quality);
 				}
 			}
-/**
-			for (unsigned int k=0; k<pedigree->size(); k++) {
-				superreads[k].first->addVariant(positions->at(i), population_alleles[k].alleles[0], population_alleles[k].quality);
-				superreads[k].second->addVariant(positions->at(i), population_alleles[k].alleles[1], population_alleles[k].quality);
-			}
-**/
+
 			transmission_vector->push_back(v.inheritance_value);
 			++i; // next column
 		}
@@ -404,19 +391,11 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 			output_read_set->at(k)->add(superreads[k][j]);
 		}
 	}
-/**	
-	for(unsigned int k=0;k<pedigree->size();k++) {
-		assert(output_read_set->at(k) != nullptr);
-		output_read_set->at(k)->add(superreads[k].first);
-		output_read_set->at(k)->add(superreads[k].second);
-	}
-**/
 }
 
 vector<unsigned int>* PedigreeDPTable::get_optimal_partitioning() {
 	vector<unsigned int>* partitioning = new vector<unsigned int>(read_set->size(), false);
 	for(size_t i = 0; i < index_path.size(); ++i){
-		unsigned int mask = 1;
 		unsigned int index = index_path[i].index;
 		for(size_t j = 0; j < indexers[i]->get_read_ids()->size(); ++j){
 			unsigned int partition = index % ploidy;
@@ -426,21 +405,3 @@ vector<unsigned int>* PedigreeDPTable::get_optimal_partitioning() {
 	}
 	return partitioning;
 }
-
-/**
-vector<bool>* PedigreeDPTable::get_optimal_partitioning() {
-	vector<bool>* partitioning = new vector<bool>(read_set->size(),false);
-
-	for(size_t i=0; i< index_path.size(); ++i) {
-		unsigned int mask = 1; // mask to pass over the partitioning (i.e., index)
-		for(size_t j=0; j< indexers[i]->get_read_ids()->size(); ++j) {
-			unsigned int index = index_path[i].index;
-			if((index & mask) == 0) { // id at this index is in p0 (i.e., in the part.)
-				partitioning->at(indexers[i]->get_read_ids()->at(j)) = true;
-			}
-			mask = mask << 1;
-		}
-	}
-	
-	return partitioning;
-} **/

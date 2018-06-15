@@ -14,7 +14,7 @@
  */
 class Pedigree {
 public:
-	Pedigree();
+	Pedigree(unsigned int ploidy);
 	virtual ~Pedigree();
 	//TODO: maybe named: mother, father, child
 	typedef std::array<size_t, 3> triple_entry_t;
@@ -76,6 +76,7 @@ public:
 
 private:
 	int variant_count;
+	unsigned int ploidy;
 	std::vector<triple_entry_t> triples;
 	std::vector<unsigned int> individual_ids;
 	std::unordered_map<unsigned int, size_t> id_to_index_map;

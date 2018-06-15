@@ -299,14 +299,14 @@ cdef class PedigreeDPTable:
 		"""Returns a list of the same size as the read set, where each entry is either 0 or 1,
 		telling whether the corresponding read is in partition 0 or in partition 1,"""
 		cdef vector[unsigned int]* p = self.thisptr.get_optimal_partitioning()
-		result = [0 if x else 1 for x in p[0]]
+		result = [x for x in p[0]]
 		del p
 		return result
 
 
 cdef class Pedigree:
-	def __cinit__(self, numeric_sample_ids):
-		self.thisptr = new cpp.Pedigree()
+	def __cinit__(self, numeric_sample_ids, ploidy):
+		self.thisptr = new cpp.Pedigree(ploidy)
 		self.numeric_sample_ids = numeric_sample_ids
 
 	def __dealloc__(self):

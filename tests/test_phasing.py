@@ -5,14 +5,14 @@ def test_phase_empty_readset():
 	rs = ReadSet()
 	recombcost = [1,1]
 	genotypes = [1,1]
-	pedigree = Pedigree(NumericSampleIds())
+	pedigree = Pedigree(NumericSampleIds(), 2)
 	genotype_likelihoods = [None, None]
 	pedigree.add_individual('individual0', genotypes, genotype_likelihoods)
 	dp_table = PedigreeDPTable(rs, recombcost, pedigree, 2)
 	superreads = dp_table.get_super_reads()
 
 
-def compare_phasing_brute_force(superreads, cost, partition, readset, all_heterozygous, weights = None):
+def compare_phasing_brute_force(superreads, cost, partition, readset, allowed_genotypes, weights = None):
 	"""Compares DPTable based phasing to brute force phasing and returns string representation of superreads."""
 	assert len(superreads) == 2
 	assert len(superreads[0]) == len(superreads[1])
@@ -20,7 +20,7 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, all_hetero
 		assert v1.position == v2.position
 	haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
 	print(haplotypes)
-	expected_cost, expected_partition, solution_count, expected_haplotypes = brute_force_phase(readset, all_heterozygous, 2)
+	expected_cost, expected_partition, solution_count, expected_haplotypes = brute_force_phase(readset, 2, allowed_genotypes)
 	expected_haplotype1 = expected_haplotypes[0]
 	expected_haplotype2 = expected_haplotypes[1]
 	inverse_partition = [1-p for p in partition]
@@ -51,7 +51,7 @@ def check_phasing_single_individual(reads, weights = None):
 	# 1) Phase using PedMEC code for single individual
 	for all_heterozygous in [False, True]:
 		recombcost = [1] * len(positions) # recombination costs 1, should not occur
-		pedigree = Pedigree(NumericSampleIds())
+		pedigree = Pedigree(NumericSampleIds(), 2)
 		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods([0,0,0])] * len(positions)
 		pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 		print("before DP table")
@@ -63,12 +63,13 @@ def check_phasing_single_individual(reads, weights = None):
 		# TODO: transmission vectors not returned properly, see issue 73
 		assert len(set(transmission_vector)) == 1
 		partition = dp_table.get_optimal_partitioning()
-		compare_phasing_brute_force(superreads[0], cost, partition, readset, all_heterozygous, weights)
+		allowed_genotypes = [1] * len(positions) if all_heterozygous else None
+		compare_phasing_brute_force(superreads[0], cost, partition, readset, allowed_genotypes, weights)
 
 	# 2) Phase using PedMEC code for trios with two "empty" individuals (i.e. having no reads)
 	for all_heterozygous in [False, True]:
 		recombcost = [1] * len(positions) # recombination costs 1, should not occur
-		pedigree = Pedigree(NumericSampleIds())
+		pedigree = Pedigree(NumericSampleIds(), 2)
 		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods([0,0,0])] * len(positions)
 		pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 		pedigree.add_individual('individual1', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
@@ -79,7 +80,8 @@ def check_phasing_single_individual(reads, weights = None):
 		superreads, transmission_vector = dp_table.get_super_reads()
 		assert len(set(transmission_vector)) == 1
 		partition = dp_table.get_optimal_partitioning()
-		compare_phasing_brute_force(superreads[0], cost, partition, readset, all_heterozygous, weights)
+		allowed_genotypes = [1] * len(positions) if all_heterozygous else None
+		compare_phasing_brute_force(superreads[0], cost, partition, readset, allowed_genotypes, weights)
 
 
 def test_phase_trivial() :

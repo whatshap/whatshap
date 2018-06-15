@@ -118,21 +118,25 @@ def column_cost(variants, possible_assignments, ploidy):
 		if ambiguous[i]:
 			best_assignment[i] = 3
 	return min_cost, best_assignment
-		
-def brute_force_phase(read_set, all_heterozygous, ploidy):
+
+
+def allowed_assignments_for_genotype(genotype, ploidy):
+	assignment_count = 1 << ploidy
+	result = []
+	for i in range(0,assignment_count):
+		assignment_list = assignment_to_list(i, ploidy)
+		if sum(assignment_list) == genotype:
+			result.append(assignment_list)
+	return result
+	
+
+def brute_force_phase(read_set, ploidy, allowed_genotypes = None):
 	"""Solves MEC by enumerating all possible bipartitions."""
 	def print(*args): pass
 
 	assert len(read_set) < 10, "Too many reads for brute force"
 	positions = read_set.get_positions()
 	assignment_count = 1 << ploidy
-
-	if all_heterozygous:
-		possible_assignments = [ assignment_to_list(i, ploidy) for i in range(1,assignment_count-1)]
-		print("all het:", possible_assignments)
-	else:
-		possible_assignments = [ assignment_to_list(i, ploidy) for i in range(0,assignment_count)]
-		print("hom/het: ", possible_assignments)
 
 	# bit i in "partition" encodes to which set read i belongs
 	best_partition = None
@@ -144,16 +148,20 @@ def brute_force_phase(read_set, all_heterozygous, ploidy):
 		# compute cost induced by that partition
 		cost = 0
 		haplotypes = []
-		for p in positions:
+		for index,p in enumerate(positions):
 			# find variants covering this position
-			variants = [[],[]]
+			variants = [ [] for x in range(ploidy) ]
 			for n, read in enumerate(read_set):
 				i = (partition // (ploidy**n)) % ploidy
-#				i = (partition >> n) & 1
 				for variant in read:
 					if variant.position == p:
 						variants[i].append(variant)
-			c, assignment = column_cost(variants, possible_assignments,ploidy)
+			if allowed_genotypes is None:
+				possible_assignments = [ assignment_to_list(i, ploidy) for i in range(0,assignment_count)]
+				c, assignment = column_cost(variants, possible_assignments, ploidy)
+			else:
+				possible_assignments = allowed_assignments_for_genotype(allowed_genotypes[index], ploidy)
+				c, assignment = column_cost(variants, possible_assignments, ploidy)
 			print('    position: {}, variants: {} --> cost = {}'.format(p, str(variants), c))
 			cost += c
 			haplotypes.append(assignment)
