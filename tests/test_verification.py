@@ -6,7 +6,7 @@ from whatshap.verification import verify_mec_score_and_partitioning
 def verify(rs, all_heterozygous=False):
 	positions = rs.get_positions()
 	recombcost = [1] * len(positions) # recombination costs 1, should not occur
-	pedigree = Pedigree(NumericSampleIds())
+	pedigree = Pedigree(NumericSampleIds(), 2)
 	genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods([0,0,0])] * len(positions)
 	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 	dp_table = PedigreeDPTable(rs, recombcost, pedigree, 2, distrust_genotypes=not all_heterozygous)

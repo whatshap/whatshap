@@ -36,7 +36,7 @@ def test_genotyping_empty_readset():
 	genotypes = [1,1]
 	recombcost = [1,1]
 	numeric_sample_ids = NumericSampleIds()
-	pedigree = Pedigree(numeric_sample_ids)
+	pedigree = Pedigree(numeric_sample_ids, 2)
 	genotype_likelihoods = [None, None]
 	pedigree.add_individual('individual0', genotypes, genotype_likelihoods)
 	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,rs, recombcost, pedigree, 2)
@@ -50,7 +50,7 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 	# 1) Genotype using forward backward algorithm
 	recombcost = [1] * len(positions)
 	numeric_sample_ids = NumericSampleIds()
-	pedigree = Pedigree(numeric_sample_ids)
+	pedigree = Pedigree(numeric_sample_ids, 2)
 	genotype_likelihoods = [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * len(positions)
 
 	if genotype_priors != None:
@@ -66,7 +66,7 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 	# 2) Phase using PedMEC code for trios with two "empty" individuals (i.e. having no reads)
 #	recombcost = [1] * len(positions) # recombination costs 1, should not occur
 #	numeric_sample_ids = NumericSampleIds()
-#	pedigree = Pedigree(numeric_sample_ids)
+#	pedigree = Pedigree(numeric_sample_ids, 2)
 #	pedigree.add_individual('individual0', [1] * len(positions),genotype_likelihoods)
 #	pedigree.add_individual('individual1', [1] * len(positions), [PhredGenotypeLikelihoods([1/3.0,1/3.0,1/3.0])] * len(positions))
 #	pedigree.add_individual('individual2', [1] * len(positions), [PhredGenotypeLikelihoods([1/3.0,1/3.0,1/3.0])] * len(positions))
