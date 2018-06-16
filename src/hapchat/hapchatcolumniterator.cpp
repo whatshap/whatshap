@@ -30,18 +30,13 @@ using namespace std;
 
 
 //Struct iterator for readset
-typedef struct Iterator{
-	ColumnIterator it;
-	Iterator(ReadSet* readset):it(*readset,nullptr){};
-	Iterator():it(*new ReadSet(),nullptr){};
 
-}Iterator;
 typedef vector<Read*> reads;
 typedef vector<reads> blocker;
 class HapChatColumnIterator {
 
 	private: 
-		Iterator* iterator;
+		ColumnIterator* iterator;
 		bool end;
 		blocker vblock;
 		unsigned int blockn;
@@ -51,7 +46,7 @@ class HapChatColumnIterator {
 		//standard constructor
                 HapChatColumnIterator(ReadSet* read_set){
 		readset=read_set;
-		this->iterator=new Iterator(read_set);
+		iterator=new ColumnIterator(*read_set);
 		end=false;
 
 		vblock=blocker();
@@ -63,7 +58,7 @@ class HapChatColumnIterator {
 		blockn=-1;
 			bool overflag;
 			unsigned int readn;
-			readn=iterator->it.get_read_count();
+			readn=iterator->get_read_count();
 			unsigned int minn,maxx;
 			for(unsigned int i=0;i<readn;i++){
 			 read=readset->get(i);
@@ -120,7 +115,7 @@ class HapChatColumnIterator {
     }
     readset->reassignReadIds();
     readset->sort();
-    this->iterator=new Iterator(readset);
+    this->iterator=new ColumnIterator(*readset);
     return true;
   }
 		//take the current column 
@@ -129,7 +124,7 @@ class HapChatColumnIterator {
 				unique_ptr<vector<const Entry *> > next;
 				//if(iterator->it.has_next()) { cout <<"has next" << endl; } // sanity check
 			
-				next= iterator->it.get_next();
+				next= iterator->get_next();
 				vector<const Entry*>* p=next.release();
 				Column column;
 		
@@ -144,11 +139,11 @@ class HapChatColumnIterator {
 	
 		//return true if there is other column
 		bool hasNext(){
-			return iterator->it.has_next();
+			return iterator->has_next();
 		}
 		//set the pointer to the first column
 		void reset(){
-			iterator->it.jump_to_column(0);
+			iterator->jump_to_column(0);
 			end=false;
 		};
 		
@@ -162,13 +157,13 @@ class HapChatColumnIterator {
 		};
 		
 const vector <unsigned int> getPositions(){
-			iterator=new Iterator(readset);
-			return *iterator->it.get_positions();
+			iterator=new ColumnIterator(*readset);
+			return *iterator->get_positions();
 
 		};
 		
 		unsigned int columnCount(){
-			return iterator->it.get_column_count();
+			return iterator->get_column_count();
 
 		};
 		bool isEnded(){
