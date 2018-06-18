@@ -7,7 +7,7 @@ from io import StringIO
 from collections import namedtuple
 from collections import defaultdict
 
-from pytest import raises
+from pytest import raises, fixture
 import pysam
 from whatshap.phase import run_whatshap
 from whatshap.haplotag import run_haplotag
@@ -29,6 +29,11 @@ bam_files = [trio_bamfile, trio_merged_bamfile, trio_paired_end_bamfile,
 	indels_bamfile]
 
 
+@fixture(params=['whatshap', 'hapchat'])
+def algorithm(request):
+	return request.param
+
+
 def setup_module():
 	# This function is run once for this module
 	for bam_path in bam_files:
@@ -44,9 +49,10 @@ def teardown_module():
 		os.remove(path + '.bai')
 
 
-def test_one_variant():
-	run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
-		output='/dev/null')
+def test_one_variant(algorithm):
+	run_whatshap(
+		phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
+		output='/dev/null', algorithm=algorithm)
 
 
 def test_default_output():
