@@ -4,11 +4,11 @@ Integration tests that use the command-line entry points run_whatshap, run_haplo
 from tempfile import TemporaryDirectory
 import os
 from io import StringIO
-import pysam
-from nose.tools import raises
 from collections import namedtuple
 from collections import defaultdict
 
+from pytest import raises
+import pysam
 from whatshap.phase import run_whatshap
 from whatshap.haplotag import run_haplotag
 from whatshap.hapcut2vcf import run_hapcut2vcf
@@ -24,7 +24,9 @@ short_bamfile = 'tests/data/short-genome/short.bam'
 short_duplicate_bamfile = 'tests/data/short-genome/short-one-read-duplicate.bam'
 indels_bamfile = 'tests/data/indels.bam'
 
-bam_files = [trio_bamfile, trio_merged_bamfile, trio_paired_end_bamfile, recombination_breaks_bamfile, quartet2_bamfile, short_bamfile, short_duplicate_bamfile, indels_bamfile]
+bam_files = [trio_bamfile, trio_merged_bamfile, trio_paired_end_bamfile,
+	recombination_breaks_bamfile, quartet2_bamfile, short_bamfile, short_duplicate_bamfile,
+	indels_bamfile]
 
 
 def setup_module():
@@ -57,15 +59,15 @@ def test_one_variant_cram():
 		variant_file='tests/data/onevariant.vcf', output='/dev/null')
 
 
-@raises(SystemExit)
 def test_cram_no_reference():
 	# This needs to fail because CRAM requires a reference, but it was not given.
 
 	# If REF_PATH is not set, pysam/htslib tries to retrieve the reference from EBI via
 	# the internet.
 	os.environ['REF_PATH'] = '/does/not/exist'
-	run_whatshap(phase_input_files=['tests/data/oneread.cram'],
-		variant_file='tests/data/onevariant.vcf', output='/dev/null')
+	with raises(SystemExit):
+		run_whatshap(phase_input_files=['tests/data/oneread.cram'],
+			variant_file='tests/data/onevariant.vcf', output='/dev/null')
 
 
 def test_bam_without_readgroup():
@@ -73,10 +75,10 @@ def test_bam_without_readgroup():
 		output='/dev/null', ignore_read_groups=True)
 
 
-@raises(SystemExit)
 def test_requested_sample_not_found():
-	run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
-		output='/dev/null', samples=['DOES_NOT_EXIST'])
+	with raises(SystemExit):
+		run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
+			output='/dev/null', samples=['DOES_NOT_EXIST'])
 
 
 def test_with_reference():
@@ -522,7 +524,7 @@ def test_haplotag2():
 			assert a1.query_name == a2.query_name
 			if a1.has_tag('HP'):
 				assert a2.has_tag('HP')
-				assert(a1.get_tag('HP') != a2.get_tag('HP'))
+				assert a1.get_tag('HP') != a2.get_tag('HP')
 
 
 def test_haplotag3():
@@ -533,7 +535,8 @@ def test_haplotag3():
 			if alignment.has_tag('HP'):
 				# simulated bam, we know from which haplotype each read originated (given in read name)
 				true_ht = int(alignment.query_name[-1])
-				assert(true_ht == alignment.get_tag('HP'))
+				assert true_ht == alignment.get_tag('HP')
+
 
 def test_haplotag_10X():
 	with TemporaryDirectory() as tempdir:
@@ -550,6 +553,7 @@ def test_haplotag_10X():
 			for read in BX_tag_to_readlist[tag]:
 				assert haplotype == read.get_tag('HP')
 
+
 def test_haplotag_10X_2():
 	with TemporaryDirectory() as tempdir:
 		outbam = tempdir + '/output.bam'
@@ -557,20 +561,25 @@ def test_haplotag_10X_2():
 		for a1, a2 in zip(pysam.AlignmentFile('tests/data/haplotag.10X.bam'), pysam.AlignmentFile(outbam)):
 			assert a1.query_name == a2.query_name
 			if a1.has_tag('HP') and a2.has_tag('HP'):
-				assert(a1.get_tag('HP') == a2.get_tag('HP'))
+				assert a1.get_tag('HP') == a2.get_tag('HP')
+
 
 def test_hapcut2vcf():
 	with TemporaryDirectory() as tempdir:
 		out = os.path.join(tempdir, 'hapcut.vcf')
-		run_hapcut2vcf(hapcut='tests/data/pacbio/hapcut.txt', vcf='tests/data/pacbio/variants.vcf', output=out)
+		run_hapcut2vcf(
+			hapcut='tests/data/pacbio/hapcut.txt', vcf='tests/data/pacbio/variants.vcf', output=out)
 
 
 def test_ignore_read_groups():
-	run_whatshap(variant_file='tests/data/pacbio/variants.vcf', phase_input_files=['tests/data/pacbio/pacbio.bam'],
+	run_whatshap(variant_file='tests/data/pacbio/variants.vcf',
+		phase_input_files=['tests/data/pacbio/pacbio.bam'],
 		reference='tests/data/pacbio/reference.fasta', ignore_read_groups=True, output='/dev/null')
 
+
 def test_readgroup_without_sample_name():
-	run_whatshap(phase_input_files=['tests/data/oneread-readgroup-without-sample.bam'], variant_file='tests/data/onevariant.vcf',
+	run_whatshap(phase_input_files=['tests/data/oneread-readgroup-without-sample.bam'],
+		variant_file='tests/data/onevariant.vcf',
 		output='/dev/null', ignore_read_groups=True)
 
 
@@ -579,7 +588,8 @@ def test_genetic_haplotyping():
 		outvcf = tempdir + '/output.vcf'
 		outrecomb = tempdir + '/output.recomb'
 		run_whatshap(variant_file='tests/data/genetic-haplotyping.vcf', phase_input_files=[],
-			ped='tests/data/genetic-haplotyping.ped', output=outvcf, recombination_list_filename=outrecomb)
+			ped='tests/data/genetic-haplotyping.ped', output=outvcf,
+			recombination_list_filename=outrecomb)
 		tables = list(VcfReader(outvcf, phases=True))
 
 		assert len(tables) == 1
@@ -604,7 +614,7 @@ def test_genetic_haplotyping():
 
 		lines = [l.split() for l in open(outrecomb)]
 		assert len(lines) == 2
-		Fields = namedtuple('Fields', [ f.strip('#\n') for f in lines[0] ])
+		Fields = namedtuple('Fields', [f.strip('#\n') for f in lines[0]])
 		recomb = Fields(*lines[1])
 		print(recomb)
 		assert recomb.child_id == 'sampleC'
@@ -624,7 +634,11 @@ def test_quartet2():
 def test_phased_blocks():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
-		run_whatshap(phase_input_files=[short_bamfile], variant_file='tests/data/short-genome/short.vcf', ignore_read_groups=True, distrust_genotypes=True,  include_homozygous=True, output=outvcf)
+		run_whatshap(
+			phase_input_files=[short_bamfile],
+			variant_file='tests/data/short-genome/short.vcf',
+			ignore_read_groups=True, distrust_genotypes=True,
+			include_homozygous=True, output=outvcf)
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf, phases=True))
@@ -641,7 +655,13 @@ def test_phased_blocks():
 def test_duplicate_read():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
-		run_whatshap(phase_input_files=[short_duplicate_bamfile], variant_file='tests/data/short-genome/short.vcf', ignore_read_groups=True, distrust_genotypes=True,  include_homozygous=True, output=outvcf)
+		run_whatshap(
+			phase_input_files=[short_duplicate_bamfile],
+			variant_file='tests/data/short-genome/short.vcf',
+			ignore_read_groups=True,
+			distrust_genotypes=True,
+			include_homozygous=True,
+			output=outvcf)
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf, phases=True))
@@ -655,19 +675,21 @@ def test_duplicate_read():
 		assert blocks == [10, 10, None, None, None]
 
 
-@raises(SystemExit)
 def test_wrong_chromosome():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
-		run_whatshap(phase_input_files=[short_bamfile],
-			ignore_read_groups=True,
-			variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)
+		with raises(SystemExit):
+			run_whatshap(phase_input_files=[short_bamfile],
+				ignore_read_groups=True,
+				variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)
 
 
 def test_indel_phasing():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
-		run_whatshap(phase_input_files=[indels_bamfile], indels=True, variant_file='tests/data/indels.vcf', reference='tests/data/random0.fasta', output=outvcf)
+		run_whatshap(
+			phase_input_files=[indels_bamfile], indels=True, variant_file='tests/data/indels.vcf',
+			reference='tests/data/random0.fasta', output=outvcf)
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf, indels=True, phases=True))
@@ -683,5 +705,6 @@ def test_indel_phasing():
 
 
 def test_full_genotyping():
-	run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
+	run_whatshap(
+		phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
 		output='/dev/null', full_genotyping=True)

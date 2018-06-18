@@ -1,11 +1,12 @@
 """
 Test phasing of pedigrees (PedMEC algorithm)
 """
-from nose.tools import raises
+from collections import defaultdict
+from pytest import raises
 from whatshap.core import PedigreeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
 from whatshap.pedigree import centimorgen_to_phred
 from whatshap.testhelpers import string_to_readset, string_to_readset_pedigree, brute_force_phase
-from collections import defaultdict
+
 
 def phase_pedigree(reads, recombcost, pedigree, distrust_genotypes=False, positions=None):
 	rs = string_to_readset_pedigree(reads)
@@ -28,6 +29,7 @@ def assert_haplotypes(superreads_list, all_expected_haplotypes, length):
 		haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
 		assert (haplotypes == (expected_haplotypes[0], expected_haplotypes[1])) or (haplotypes == (expected_haplotypes[1], expected_haplotypes[0]))
 
+
 def assert_trio_allele_order(superreads_list, transmission_vector, nr_of_positions):
 	# assume superreads_list contains superreads for father, mother, child (in that order!)
 	assert(len(superreads_list) == 3)
@@ -46,7 +48,8 @@ def assert_trio_allele_order(superreads_list, transmission_vector, nr_of_positio
 		print('position: ', pos, 'paternal allele: ', paternal_allele, 'maternal allele', maternal_allele, 'child genotype: ', child_allele_p, child_allele_m)
 		assert(paternal_allele == child_allele_p)
 		assert(maternal_allele == child_allele_m)
-	
+
+
 def get_trio_transmission_vectors(transmission_vector, nr_of_trios):
 	trio_transmission_vectors = defaultdict(list)
 	for transmission_value in transmission_vector:
@@ -55,6 +58,7 @@ def get_trio_transmission_vectors(transmission_vector, nr_of_trios):
 			transmission_value = transmission_value // 4
 			trio_transmission_vectors[trio].append(value)
 	return trio_transmission_vectors
+
 
 def test_phase_empty_trio():
 	rs = ReadSet()
@@ -388,9 +392,9 @@ def test_centimorgen_to_phred():
 	assert round(centimorgen_to_phred(1e-38)) == 400
 
 
-@raises(ValueError)
 def test_centimorgen_to_phred_zero():
-	assert centimorgen_to_phred(0)
+	with raises(ValueError):
+		assert centimorgen_to_phred(0)
 
 
 def test_phase_trio_genotype_likelihoods():

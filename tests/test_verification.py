@@ -1,21 +1,22 @@
-import sys
-from nose.tools import raises
-from whatshap.core import Read, PedigreeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
+from whatshap.core import PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
+from whatshap.testhelpers import string_to_readset, matrix_to_readset
 from whatshap.verification import verify_mec_score_and_partitioning
-from whatshap.testhelpers import string_to_readset, matrix_to_readset, brute_force_phase
 
 
-def verify(rs, all_heterozygous = False) :
+def verify(rs, all_heterozygous=False):
 	positions = rs.get_positions()
-	recombcost = [1] * len(positions) # recombination costs 1, should not occur
+	# recombination costs 1, should not occur
+	recombcost = [1] * len(positions)
 	pedigree = Pedigree(NumericSampleIds())
-	genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods(0,0,0)] * len(positions)
-	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
+	genotype_likelihoods = [
+		None if all_heterozygous else PhredGenotypeLikelihoods(0, 0, 0)] * len(positions)
+	# all genotypes heterozygous
+	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods)
 	dp_table = PedigreeDPTable(rs, recombcost, pedigree, distrust_genotypes=not all_heterozygous)
 	verify_mec_score_and_partitioning(dp_table, rs)
 
 
-def test_string() :
+def test_string():
 	reads = """
 	  0             0
 	  110111111111
@@ -30,7 +31,8 @@ def test_string() :
 	verify(rs, False)
 
 
-def test_matrix() :
-	rs = matrix_to_readset(open('tests/test.matrix','r'))
+def test_matrix():
+	with open('tests/test.matrix') as f:
+		rs = matrix_to_readset(f)
 	verify(rs, True)
 	verify(rs, False)

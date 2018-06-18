@@ -1,7 +1,7 @@
 """
 Test Read and ReadSet classes
 """
-from nose.tools import raises
+from pytest import raises
 from whatshap.core import Read, ReadSet, Variant
 
 
@@ -20,10 +20,10 @@ def test_read():
 
 	assert 100 in r
 	assert 23 in r
-	assert not 22 in r
-	assert not 24 in r
-	assert not 1000 in r
-	assert not -1000 in r
+	assert 22 not in r
+	assert 24 not in r
+	assert 1000 not in r
+	assert -1000 not in r
 
 
 def test_read_iteration():
@@ -39,20 +39,20 @@ def test_read_iteration():
 	assert r[-2] == v1
 
 
-@raises(IndexError)
 def test_read_indexerror1():
 	r = Read("name", 15)
 	r.add_variant(100, 1, 37)
 	r.add_variant(23, 0, 99)
-	r[2]
+	with raises(IndexError):
+		_ = r[2]
 
 
-@raises(IndexError)
 def test_read_indexerror2():
 	r = Read("name", 15)
 	r.add_variant(100, 1, 37)
 	r.add_variant(23, 0, 99)
-	r[-3]
+	with raises(IndexError):
+		_ = r[-3]
 
 
 def test_empty_readset():
@@ -92,49 +92,50 @@ def test_readset():
 
 	assert rs.get_positions() == [99, 100, 101, 105]
 
-	r = rs[(0,'Read A')]
+	r = rs[(0, 'Read A')]
 	assert r.name == 'Read A'
 	assert r.mapqs == (56,), str(r.mapqs)
 
-	r = rs[(0,'Read B')]
+	r = rs[(0, 'Read B')]
 	assert r.name == 'Read B'
 	assert r.mapqs == (0,)
 
-	r = rs[(0,'Read C')]
+	r = rs[(0, 'Read C')]
 	assert r.name == 'Read C'
 	assert r.mapqs == (17,)
 	assert len(r) == 2
 	assert r[0] == Variant(position=99, allele=1, quality=27)
 	assert r[1] == Variant(position=105, allele=0, quality=14)
 
+
 def test_readset2():
 	rs = ReadSet()
 	rs.add(Read('Read A', 1, 23))
 	rs.add(Read('Read A', 2, 70))
 	rs.add(Read('Read B', 3, 23))
-	assert rs[(23,'Read A')].mapqs == (1,)
-	assert rs[(70,'Read A')].mapqs == (2,)
-	assert rs[(23,'Read B')].mapqs == (3,)
+	assert rs[(23, 'Read A')].mapqs == (1,)
+	assert rs[(70, 'Read A')].mapqs == (2,)
+	assert rs[(23, 'Read B')].mapqs == (3,)
 
 
-@raises(KeyError)
 def test_non_existing_read_name():
 	rs = ReadSet()
 	r = Read('Read A', 56)
 	r.add_variant(100, 1, 37)
 	r.add_variant(101, 0, 18)
 	rs.add(r)
-	rs[(0,'foo')]
+	with raises(KeyError):
+		_ = rs[(0, 'foo')]
 
 
-@raises(KeyError)
 def test_non_existing_read_name2():
 	rs = ReadSet()
 	r = Read('Read A', 56, 1)
 	r.add_variant(100, 1, 37)
 	r.add_variant(101, 0, 18)
 	rs.add(r)
-	rs[(2,'Read A')]
+	with raises(KeyError):
+		_ = rs[(2, 'Read A')]
 
 
 # TODO: Test subset method

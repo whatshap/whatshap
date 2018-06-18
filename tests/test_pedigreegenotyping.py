@@ -1,11 +1,11 @@
 """
 Test genotyping of pedigrees
 """
-from nose.tools import raises
-from whatshap.core import GenotypeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
-from whatshap.pedigree import centimorgen_to_phred
-from whatshap.testhelpers import string_to_readset, string_to_readset_pedigree
 import math
+
+from whatshap.core import GenotypeDPTable, ReadSet, Pedigree, NumericSampleIds, \
+	PhredGenotypeLikelihoods
+from whatshap.testhelpers import string_to_readset_pedigree
 
 
 def genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes, weights=None, expected=None, scaling=10, positions=None):
@@ -20,7 +20,7 @@ def genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_g
 			likelihoods = dp_forward_backward.get_genotype_likelihoods('individual'+str(individual),pos)
 
 			# if expected likelihoods given, compare
-			if expected != None:
+			if expected is not None:
 				print('likelihoods: ',likelihoods,' expected likelihoods: ', expected[individual][pos])
 				assert(likelihoods == expected[individual][pos])
 
@@ -37,6 +37,7 @@ def genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_g
 			print('pos.: '+ str(pos) + ' individual ' + str(individual) + ': ',likelihoods,' expected genotype: ', expected_genotypes[individual][pos])
 			assert(max_index == expected_genotypes[individual][pos])
 		print("\n")
+
 
 def test_genotyping_empty_trio():
 	rs = ReadSet()

@@ -1,5 +1,5 @@
-from whatshap.unphase import run_unphase
 from io import StringIO
+from whatshap.unphase import run_unphase
 
 
 def test_unphase():
