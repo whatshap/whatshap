@@ -437,7 +437,7 @@ cdef class HapChatCore:
 			rs.thisptr = deref(read_sets)[i]
 			results.append(rs)
 		
-		return results
+		return results, None
 	def get_optimal_cost(self):
 		return self.thisptr.get_optimal_cost()
 
