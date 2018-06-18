@@ -1,4 +1,4 @@
-from nose.tools import raises
+from pytest import raises
 from whatshap.pedigree import Graph, CyclicGraphError
 
 
@@ -73,7 +73,6 @@ def test_charles_ii():
 	assert_toposort(tuples)
 
 
-@raises(CyclicGraphError)
 def test_cyclic():
 	graph = Graph()
 	tuples = [
@@ -88,4 +87,5 @@ def test_cyclic():
 	for mother, father, child in tuples:
 		graph.add_edge(child, mother)
 		graph.add_edge(child, father)
-	graph.toposorted()
+	with raises(CyclicGraphError):
+		graph.toposorted()

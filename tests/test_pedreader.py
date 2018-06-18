@@ -1,5 +1,5 @@
 import io
-from nose.tools import raises
+from pytest import raises
 from whatshap.core import NumericSampleIds
 from whatshap.pedigree import PedReader, Trio, ParseError
 
@@ -16,15 +16,15 @@ class TestPedReader:
 		assert trios[4] == Trio(child='orphan', mother=None, father=None)
 		assert len(numeric_sample_ids) == 5
 
-	@raises(ParseError)
 	def test_parse_error(self):
 		numeric_sample_ids = NumericSampleIds()
 		f = io.StringIO("buggy file")
-		list(PedReader(f, numeric_sample_ids))
+		with raises(ParseError):
+			list(PedReader(f, numeric_sample_ids))
 
-	@raises(ParseError)
 	def test_duplicate_individual(self):
 		numeric_sample_ids = NumericSampleIds()
 		f = io.StringIO("f1 c m f 0 1\nf1 c m f 0 1")
-		list(PedReader(f, numeric_sample_ids))
+		with raises(ParseError):
+			list(PedReader(f, numeric_sample_ids))
 
