@@ -91,7 +91,7 @@ private:
   }
 
 public:
-  unsigned int getCost(){
+  unsigned int get_cost(){
 	return cost_;
 	}
   static const Cost INFTY;

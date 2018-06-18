@@ -169,6 +169,7 @@ cdef class Read:
 		assert self.thisptr != NULL
 		return self.thisptr.hasBXTag()
 
+
 cdef class ReadSet:
 	def __cinit__(self):
 		self.thisptr = new cpp.ReadSet()
@@ -248,6 +249,7 @@ cdef class ReadSet:
 		result = list(v[0])
 		del v
 		return result
+
 
 cdef class PedigreeDPTable:
 	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree, bool distrust_genotypes = False, positions = None):
@@ -395,6 +397,7 @@ cdef class GenotypeDPTable:
 	def get_genotype_likelihoods(self, sample_id, unsigned int pos):
 		return self.thisptr.get_genotype_likelihoods(self.numeric_sample_ids[sample_id],pos)
 
+
 def compute_genotypes(ReadSet readset, positions = None):
 	cdef vector[int]* genotypes_vector = new vector[int]()
 	cdef vector[cpp.GenotypeDistribution]* gl_vector = new vector[cpp.GenotypeDistribution]()
@@ -410,21 +413,22 @@ def compute_genotypes(ReadSet readset, positions = None):
 	del gl_vector
 	return genotypes, gls
 
-cdef class hapchatcore:
-	def __cinit__(self,ReadSet readset):
-		self.thisptr = new cpp.hapchatcore(readset.thisptr)
+
+cdef class HapChatCore:
+	def __cinit__(self, ReadSet readset):
+		self.thisptr = new cpp.HapChatCore(readset.thisptr)
 	def __dealloc__(self):
 		del self.thisptr
-	def runCore(self):
-		return self.thisptr.runCore()
-	def getLen(self):
-		return self.thisptr.getLen()
-	def getSuperRead(self):
+	def run_core(self):
+		return self.thisptr.run_core()
+	def get_length(self):
+		return self.thisptr.get_length()
+	def get_super_reads(self):
 		cdef vector[cpp.ReadSet*]* read_sets = new vector[cpp.ReadSet*]()
-		leng=self.thisptr.getLen()
+		leng=self.thisptr.get_length()
 		for i in range(leng):
 			read_sets.push_back(new cpp.ReadSet())
-		self.thisptr.getSuperRead(read_sets)
+		self.thisptr.get_super_reads(read_sets)
 		
 		results = []
 		for i in range(read_sets.size()):
@@ -434,7 +438,8 @@ cdef class hapchatcore:
 			results.append(rs)
 		
 		return results
-	def getOptimalCost(self):
-		return self.thisptr.getOptimalCost()
-include 'readselect.pyx'
+	def get_optimal_cost(self):
+		return self.thisptr.get_optimal_cost()
 
+
+include 'readselect.pyx'

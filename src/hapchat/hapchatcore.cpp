@@ -21,7 +21,7 @@
 #include <stdexcept>
 
 #include "basictypes.h"
-#include "binomial.h"
+#include "binomialcoefficient.h"
 #include "combinations.h"
 #include "balancedcombinations.h"
 #include "hapchatcolumniterator.cpp"
@@ -32,8 +32,7 @@
 // Include log facilities. It should the last include!!
 #include "log.h"
 
-
-class hapchatcore{
+class HapChatCore{
 
 private:
 
@@ -52,7 +51,7 @@ private:
 
 public:	
 
-  hapchatcore(ReadSet* read_set)
+  HapChatCore(ReadSet* read_set)
     : readset_(read_set),
       optimal_(0),
       unweighted_(false),
@@ -62,29 +61,34 @@ public:
       balancecov_(20),
       balanceratio_(0.5) {
 
-	DEBUG(read_set->toString());
-	runCore();
-  };
+    DEBUG(read_set->toString());
+    run_core();
+  }
 
-void getSuperRead(vector<ReadSet*>* output_read_set){
-	for(unsigned int k=0;k<superreads_.size();k++) {
+
+void get_super_reads(vector<ReadSet*>* output_read_set) {
+
+  for(unsigned int k=0;k<superreads_.size();k++) {
 		
-		output_read_set->at(k)->add(superreads_[k].first);
-		output_read_set->at(k)->add(superreads_[k].second);
-	}
+    output_read_set->at(k)->add(superreads_[k].first);
+    output_read_set->at(k)->add(superreads_[k].second);
+  }
 }
 
-unsigned int getOptimalCost(){
-return optimal_;
 
+unsigned int get_optimal_cost() {
+
+  return optimal_;
 }
 
-int getLen(){
-	
-return superreads_.size();
+
+int get_length() {
+
+  return superreads_.size();
 }
 
-int runCore()
+
+int run_core()
 {
 
   INFO("HapCHAT Starting...");
@@ -104,7 +108,7 @@ int runCore()
   //Readset section
   HapChatColumnIterator hap=HapChatColumnIterator(readset_);
 
-  if(!hap.hasNextBlock()) {
+  if(!hap.has_next_block()) {
     FATAL("Input is empty! Exiting..");
     exit(EXIT_FAILURE);
   }
@@ -112,7 +116,7 @@ int runCore()
   //Initializing the starting parameters: no competitive section
 
   //Pre-compute binomial values
-  binom_coeff::initialize_binomial_coefficients(MAX_COVERAGE, MAX_COVERAGE);
+  BinomialCoefficient::initialize_binomial_coefficients(MAX_COVERAGE, MAX_COVERAGE);
   computeK(MAX_COVERAGE, alpha_, errorrate_);
 
   Counter step = 0;
@@ -129,16 +133,16 @@ int runCore()
 
   hap.reset();
 
-  vector<bool> haplotype1(hap.columnCount());
-  vector<bool> haplotype2(hap.columnCount());
+  vector<bool> haplotype1(hap.column_count());
+  vector<bool> haplotype2(hap.column_count());
 
-  if(hap.columnCount() > 0)
+  if(hap.column_count() > 0)
     dp(constants, haplotype1, haplotype2, step, OPT, MAX_COV, MAX_L, MAX_K, MAX_GAPS, hap);
 
-  counter_columns = hap.columnCount();
+  counter_columns = hap.column_count();
 
-  vector<char> output_block1(hap.columnCount());
-  vector<char> output_block2(hap.columnCount());
+  vector<char> output_block1(hap.column_count());
+  vector<char> output_block2(hap.column_count());
 
   fill_haplotypes(haplotype1, haplotype2, output_block1, output_block2, hap);
   DEBUG("Filled haplotypes");
@@ -160,8 +164,8 @@ int runCore()
   DEBUG("<<>> Writing haplotypes...");
   //write_haplotypes(haplotype_blocks1, haplotype_blocks2, std::cout);
 
-  superreads_ = makeSuperReads(hap.getPositions(), haplotype_blocks1[0], haplotype_blocks2[0]);
-  optimal_ = OPT.getCost();
+  superreads_ = make_super_reads(hap.get_positions(), haplotype_blocks1[0], haplotype_blocks2[0]);
+  optimal_ = OPT.get_cost();
 
   return 0;
 }
@@ -181,7 +185,7 @@ Pointer prev(const Pointer &indexer_pointer, const int &total_size, const int &s
  
 bool check_end(HapChatColumnIterator hap, const vector<Column> &input, const Pointer &pointer, const bool &re_run)
 {
-  return (!re_run && (hap.isEnded() && (input[pointer][0].get_read_id() == -1)));
+  return (!re_run && (hap.is_ended() && (input[pointer][0].get_read_id() == -1)));
 }
 
  
@@ -215,9 +219,9 @@ void fill_haplotypes(const vector<bool> &haplotype1, const vector<bool> &haploty
   vector<bool>::iterator iout1 = complete_haplo1.begin();
   vector<bool>::iterator iout2 = complete_haplo2.begin();
 
-  while(hap.hasNext()) { 
+  while(hap.has_next()) { 
 
-    hap.getColumn();
+    hap.get_column();
     *iout1 = *ihap1;
     *iout2 = *ihap2;
 
@@ -239,9 +243,9 @@ void fill_haplotypes(const vector<bool> &haplotype1, const vector<bool> &haploty
   vector<char>::iterator iout1 = output_block1.begin();
   vector<char>::iterator iout2 = output_block2.begin();
 
-  while(hap.hasNext()) {
+  while(hap.has_next()) {
 
-    hap.getColumn();
+    hap.get_column();
     *iout1 = (*ihap1)? '1' : '0';
     *iout2 = (*ihap2)? '1' : '0';
 
@@ -434,8 +438,8 @@ void dp(const constants_t &constants,
     if(l == 0) {
       column.clear();
     } else {
-			flag = hap.hasNext();
-      column=hap.getColumn();
+			flag = hap.has_next();
+      column=hap.get_column();
       
     }
     insert_col_and_update(input, k_j, homo_cost, homo_weight, new_l_pointer, column, homo_haplotypes, step + l);
@@ -536,7 +540,7 @@ void dp(const constants_t &constants,
       // INC-K 
       if(!re_run_k) {
           //.:: Read Column
-          column = hap.getColumn();
+          column = hap.get_column();
           
           
           insert_col_and_update(input, k_j, homo_cost, homo_weight, new_input_pointer,
@@ -609,7 +613,7 @@ void dp(const constants_t &constants,
 
           unsigned int combinations = 0;
 
-          combinations = binom_coeff::cumulative_binomial_coefficient(active_common - common_gaps, k_j[prec_input_pointer]) << common_gaps;
+          combinations = BinomialCoefficient::cumulative_binomial_coefficient(active_common - common_gaps, k_j[prec_input_pointer]) << common_gaps;
 
           // if(active_common != common_gaps) {
           //   combinations = binom_coeff::cumulative_binomial_coefficient(active_common - common_gaps, k_j[prec_input_pointer]) << common_gaps;
@@ -958,7 +962,7 @@ void computeInputParams(Counter &num_cols, Counter &MAX_COV, Counter &MAX_L,
 {
  
 	hap.reset();
-  num_cols = hap.columnCount() + 1; //We add a starting dummy empty column
+  num_cols = hap.column_count() + 1; //We add a starting dummy empty column
 
   vector<Column> input(num_cols);
   vector<unsigned int> homo_cost(num_cols);
@@ -977,7 +981,7 @@ void computeInputParams(Counter &num_cols, Counter &MAX_COV, Counter &MAX_L,
       if(input_iterator == input.begin()) {
         read_column.clear();
       } else {
-        read_column=hap.getColumn();
+        read_column=hap.get_column();
       }
       current_column.resize(read_column.size(), Entry(-1, Entry::BLANK, 0));
 
@@ -1014,7 +1018,7 @@ void computeInputParams(Counter &num_cols, Counter &MAX_COV, Counter &MAX_L,
       MAX_GAPS = std::max(count_gaps, MAX_GAPS);
 
       ++input_iterator;
-  } while((input_iterator != input.end()) & hap.hasNext());
+  } while((input_iterator != input.end()) & hap.has_next());
   MAX_L = *max_element(rows.begin(), rows.end());
   MAX_L = std::max(MAX_L, static_cast<Counter>(2));
 
@@ -1039,7 +1043,7 @@ void computeInputParams(Counter &num_cols, Counter &MAX_COV, Counter &MAX_L,
           //XXX: Add MAX_COMB_K and MAX_COMB_GAPS??
 
           Counter result = 0;
-          result = binom_coeff::cumulative_binomial_coefficient(active_common - common_gaps, k_temp) << common_gaps;
+          result = BinomialCoefficient::cumulative_binomial_coefficient(active_common - common_gaps, k_temp) << common_gaps;
 
           // if(active_common != common_gaps) {
           //   result = binom_coeff::cumulative_binomial_coefficient(active_common - common_gaps, k_temp) << common_gaps;
@@ -1206,7 +1210,7 @@ unsigned int compute_index_of(const BitColumn &mask, const unsigned int &cov, co
     }
   }
 
-  return (binom_coeff::cumulative_indexof(comb_no_gaps, cov - num_gaps) << num_gaps) | ((unsigned int) comb_gaps.to_ulong());
+  return (BinomialCoefficient::cumulative_indexof(comb_no_gaps, cov - num_gaps) << num_gaps) | ((unsigned int) comb_gaps.to_ulong());
   //  return generator.cumulative_indexof(comb_no_gaps, cov - num_gaps) +
   //  ((unsigned int) comb_gaps.to_ulong()) * binom_coeff::binomial_coefficient(cov - num_gaps, k);
 }
@@ -1464,7 +1468,7 @@ Counter computeK(const Counter &cov, const double &alpha=0.0, const double &erro
 
       while(!(1.0 - cumulative <= alpha) && (k < i)) {
         ++k;
-        cumulative += (double)binom_coeff::binomial_coefficient(i, k) * pow(error_rate, k) * pow(1.0 - error_rate, i - k);
+        cumulative += (double)BinomialCoefficient::binomial_coefficient(i, k) * pow(error_rate, k) * pow(1.0 - error_rate, i - k);
       }
 
       ks[i] = k;
@@ -1514,7 +1518,7 @@ int map_fragment(const vector<char> &read, const vector<unsigned int> &weights, 
 }
 
 
-std::vector<std::pair<Read*,Read*>> makeSuperReads(vector <unsigned int> positions, vector <char> haplo1, vector<char> haplo2){
+std::vector<std::pair<Read*,Read*>> make_super_reads(vector <unsigned int> positions, vector <char> haplo1, vector<char> haplo2){
 
   Read* read1=new Read("superread_0_0",-1,-1,0);
   Read* read2=new Read("superread_1_0",-1,-1,0);

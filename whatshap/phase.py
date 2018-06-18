@@ -17,7 +17,7 @@ from xopen import xopen
 from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
 from . import __version__
-from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, hapchatcore
+from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, HapChatCore
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
@@ -621,21 +621,21 @@ def run_whatshap(
 					dp_table = None
 					superreads_list = None
 					transmission_vector = None
-					optimalCost = None
+					optimal_cost = None
 
 					if algorithm == 'hapchat' :
 
-						dp_table = hapchatcore(all_reads)
-						superreads_list = dp_table.getSuperRead()
-						optimalCost = dp_table.getOptimalCost()
+						dp_table = HapChatCore(all_reads)
+						superreads_list = dp_table.get_super_reads()
+						optimal_cost = dp_table.get_optimal_cost()
 
 					else :
 
 						dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
 						superreads_list, transmission_vector = dp_table.get_super_reads()
-						optimalCost=dp_table.get_optimal_cost()
+						optimal_cost = dp_table.get_optimal_cost()
 
-					logger.info('%s cost: %d', problem_name, optimalCost)
+					logger.info('%s cost: %d', problem_name, optimal_cost)
 
 				with timers('components'):
 					master_block = None

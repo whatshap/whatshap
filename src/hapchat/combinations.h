@@ -18,7 +18,7 @@
 #include <iostream>
 #include <string.h>
 
-#include "binomial.h"
+#include "binomialcoefficient.h"
 #include "basictypes.h"
 
 using namespace std;
@@ -31,8 +31,9 @@ public:
     : n(0), t(0), count(0), end(false), combination(2, -1), 
       result(), ending_mask(), j(0), x(0), cumulative(false), t_cumulative(0), first(false)
   {
-    binom_coeff::binomial_coefficient(32, 32);
+    BinomialCoefficient::binomial_coefficient(32, 32);
   }
+
 
   void initialize(const unsigned int n, const unsigned int t)
   {
@@ -69,12 +70,10 @@ public:
   }
 
 
-
   bool has_next()
   {
     return !end;
   }
-
 
 
   void next()
@@ -106,14 +105,11 @@ public:
   }
 
 
-	
-
   void get_combination(bitset<MAX_COVERAGE> &result)
   {
     result.reset();
     result |= this->result;
   }
-
 
 
   int get_index()
@@ -134,7 +130,7 @@ public:
         temp = ffsl(comb.to_ulong());
         c_k += temp;
         k++;
-        result += binom_coeff::binomial_coefficient(c_k - 1, k);
+        result += BinomialCoefficient::binomial_coefficient(c_k - 1, k);
         comb>>=(temp);
         //std::cout << comb.to_string() << std::endl;
         //std::cout << "   (" << c_k-1 << ", " << k << ") = " << binomial_coefficient(c_k - 1, k) << "     "; 
@@ -143,18 +139,16 @@ public:
   }
 
 
-
   unsigned int cumulative_indexof(bitset<MAX_COVERAGE> comb, const unsigned int n_elements)
   {
     unsigned int k = comb.count();
     unsigned int result = indexof(comb);
     for(unsigned int i = 0; i < k; i++)
       {
-        result += binom_coeff::binomial_coefficient(n_elements, i);
+        result += BinomialCoefficient::binomial_coefficient(n_elements, i);
       }
     return result;
   }
-
 
 
   void combinationof(const unsigned int index, const unsigned int n_elements,
@@ -168,9 +162,9 @@ public:
 
     while(counter > 0)
       {
-        if(index >= binom_coeff::binomial_coefficient(iterator, counter) + position)
+        if(index >= BinomialCoefficient::binomial_coefficient(iterator, counter) + position)
           {
-            position += binom_coeff::binomial_coefficient(iterator, counter);
+            position += BinomialCoefficient::binomial_coefficient(iterator, counter);
             result.set(iterator, 1);
             counter--;
           }
@@ -178,21 +172,20 @@ public:
       }
   }
 
-        
 
   void cumulative_combinationof(const unsigned int index, const unsigned int n_elements,
                                 const unsigned int max_k, bitset<MAX_COVERAGE> &result)
   {
-    unsigned int position = binom_coeff::binomial_coefficient(n_elements, 0);
+    unsigned int position = BinomialCoefficient::binomial_coefficient(n_elements, 0);
     int counter = max_k - 1;
 
     for(int i = counter; i > 0; i--)
       {
-        position += binom_coeff::binomial_coefficient(n_elements, i);
+        position += BinomialCoefficient::binomial_coefficient(n_elements, i);
       }
     while(index < position)
       {
-        position -= binom_coeff::binomial_coefficient(n_elements, counter);
+        position -= BinomialCoefficient::binomial_coefficient(n_elements, counter);
         counter--;
       }
     counter++;
@@ -200,7 +193,6 @@ public:
   }
 
 
-        
   void start_from(bitset<MAX_COVERAGE> comb, const unsigned int n_elements)
   {
     int counter = 0;
@@ -222,8 +214,8 @@ public:
       }
     combination[counter] = n_elements;
     combination[counter + 1] = 0;
-          
-          
+
+
     j = 0;
     while(combination[j + 1] <= j)
       {
@@ -241,7 +233,6 @@ public:
   }
 
 
-        
   void cumulative_start_from(bitset<MAX_COVERAGE> comb, const unsigned int n_elements, 
                              const unsigned int max_k)
   {
@@ -262,9 +253,7 @@ public:
         first = true;
       }
   }
-        
 
-       
 
 private:
   unsigned int n; //Length of the sequence, the starting set of elements
@@ -279,8 +268,7 @@ private:
   bool cumulative;
   unsigned int t_cumulative;
   bool first;
-	
-	
+
 
   void initializing_step()
   {
@@ -297,6 +285,7 @@ private:
     make_combination();
     check_end();
   }
+
 
   void basic_step()
   {
@@ -336,6 +325,7 @@ private:
     check_end();
   }
 
+
   void make_combination()
   {
     result.reset();
@@ -346,16 +336,12 @@ private:
     count++;
   }
 
+
   void check_end()
   {
     end = (result == ending_mask);
   }
-        
-
 
 };
-
-
-
 
 #endif

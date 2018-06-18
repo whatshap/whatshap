@@ -9,13 +9,13 @@
 
 */
 
-#include "binomial.h"
+#include "binomialcoefficient.h"
 
-std::vector<std::vector<unsigned int> > binom_coeff::btable;
-std::vector<std::vector<unsigned int> > binom_coeff::ctable;
+std::vector<std::vector<unsigned int> > BinomialCoefficient::btable;
+std::vector<std::vector<unsigned int> > BinomialCoefficient::ctable;
 
 void
-binom_coeff::initialize_binomial_coefficients(const unsigned int n,
+BinomialCoefficient::initialize_binomial_coefficients(const unsigned int n,
                                               const unsigned int k) {
   // binomial coefficients
   btable.clear();
@@ -42,7 +42,7 @@ binom_coeff::initialize_binomial_coefficients(const unsigned int n,
 }
 
 
-unsigned int binom_coeff::indexof(std::bitset<MAX_COVERAGE> comb) {
+unsigned int BinomialCoefficient::indexof(std::bitset<MAX_COVERAGE> comb) {
 
   int k = 0;
   int c_k = 0;
@@ -53,7 +53,7 @@ unsigned int binom_coeff::indexof(std::bitset<MAX_COVERAGE> comb) {
     temp = ffsl(comb.to_ulong());
     c_k += temp;
     k++;
-    result += binom_coeff::binomial_coefficient(c_k - 1, k);
+    result += BinomialCoefficient::binomial_coefficient(c_k - 1, k);
     comb >>= (temp);
   }
 
@@ -61,13 +61,13 @@ unsigned int binom_coeff::indexof(std::bitset<MAX_COVERAGE> comb) {
 }
 
 
-unsigned int binom_coeff::cumulative_indexof(std::bitset<MAX_COVERAGE> comb, const unsigned int n_elements) {
+unsigned int BinomialCoefficient::cumulative_indexof(std::bitset<MAX_COVERAGE> comb, const unsigned int n_elements) {
 
   unsigned int k = comb.count();
   unsigned int result = indexof(comb);
 
   for(unsigned int i = 0; i < k; i++) {
-    result += binom_coeff::binomial_coefficient(n_elements, i);
+    result += BinomialCoefficient::binomial_coefficient(n_elements, i);
   }
 
   return result;

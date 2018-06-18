@@ -9,8 +9,8 @@
 
 */
 
-#ifndef BINOMIAL_H
-#define BINOMIAL_H
+#ifndef BINOMIAL_COEFFICIENT_H
+#define BINOMIAL_COEFFICIENT_H
 
 #include <vector>
 #include <bitset>
@@ -18,7 +18,7 @@
 
 #include "basictypes.h"
 
-class binom_coeff {
+class BinomialCoefficient {
 
  private:
   static std::vector<std::vector<unsigned int> > btable;
@@ -47,6 +47,5 @@ class binom_coeff {
   static unsigned int cumulative_indexof(std::bitset<MAX_COVERAGE> comb, const unsigned int n_elements);
 
 };
-
 
 #endif
