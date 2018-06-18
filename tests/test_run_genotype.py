@@ -1,10 +1,10 @@
 from tempfile import TemporaryDirectory
 import os
 import pysam
-from nose.tools import raises
 import math
 import vcf
 
+from pytest import raises
 from whatshap.genotype import run_genotype
 from whatshap.vcf import VcfReader
 
@@ -50,10 +50,10 @@ def test_bam_without_readgroup():
 		output='/dev/null', ignore_read_groups=True)
 
 
-@raises(SystemExit)
 def test_requested_sample_not_found():
-	run_genotype(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
-		output='/dev/null', samples=['DOES_NOT_EXIST'])
+	with raises(SystemExit):
+		run_genotype(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
+			output='/dev/null', samples=['DOES_NOT_EXIST'])
 
 
 def test_with_reference():
@@ -233,6 +233,7 @@ def test_genotyping_specific_chromosome():
 					tables[index].genotype_likelihoods_of(s) == [None] * 5
 					tables[not index].genotype_likelihoods_of(s) != [None] * 5
 
+
 def test_genotype_likelihoods_given():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output_gl.vcf'
@@ -313,19 +314,22 @@ def test_phase_trio_paired_end_reads():
 		assert len(table.variants) == 3
 		assert table.samples == ['mother', 'father', 'child']
 
-@raises(SystemExit)
+
 def test_wrong_chromosome():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
-		run_genotype(phase_input_files=[short_bamfile],
-			ignore_read_groups=True,
-			variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)
+		with raises(SystemExit):
+			run_genotype(phase_input_files=[short_bamfile],
+				ignore_read_groups=True,
+				variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)
+
 
 def extract_likelihoods(line):
 	entries = line.split()
 	likelihood_str = entries[9].split(':')[-1:][0]
 	likelihoods = [10.0**float(i) for i in likelihood_str.split(',')]
 	return likelihoods
+
 
 def test_adding_constant():
 	for const in [0.1,0.2,0.3,0.5,0.7,1,2,5,10,20,100]:

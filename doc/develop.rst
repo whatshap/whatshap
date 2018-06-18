@@ -13,21 +13,38 @@ using a virtualenv. This sequence of commands should work::
 
 	git clone https://bitbucket.org/whatshap/whatshap
 	cd whatshap
-	virtualenv -p python3 venv
-	venv/bin/pip3 install Cython nose tox
-	venv/bin/pip3 install -e .
+	python3 -m venv venv
+	source venv/bin/activate
+	pip install -e .[dev]
 
-Then you can run WhatsHap like this (or activate the virtualenv and omit the
-``venv/bin`` part)::
+The last command installs also all the development dependencies, such as Cython. Use only
+``pip install -e .`` to omit those.
 
-	venv/bin/whatshap --help
+Next, you can run WhatsHap like this::
 
-The tests can be run like this::
+	whatshap --help
 
-	venv/bin/tox
+
+Running tests
+-------------
+
+While in the virtual environment, you can run the tests for the current Python version like this::
+
+	pytest
 
 Whenever you change any Cython code (``.pyx`` files), you need to re-run the
-``venv/bin/pip3 install -e .`` step in order to compile it.
+``pip install -e .`` step in order to compile it.
+
+Optionally, to run tests for *all* supported Python versions, you can run
+`tox <https://tox.readthedocs.io/>`_. It creates separate virtual environments for each Python
+version, installs WhatsHap into it and then runs the tests. It also tests documentation generation
+with ``sphinx``. Run it like this::
+
+    tox
+
+If ``tox`` is installed on the system, you do not need to be inside a virtual environment for this.
+However, you need to have all tested Python versions installed on the system! See the instructions
+below for how to do this on Ubuntu.
 
 
 Installing other Python versions in Ubuntu
@@ -54,7 +71,7 @@ Here is one way to get a backtrace from gdb (assuming the bug occurs while
 running the tests)::
 
 	$ gdb python3
-	(gdb) run -m nose
+	(gdb) run -m pytest
 
 After you get a SIGSEGV, let gdb print a backtrace:
 

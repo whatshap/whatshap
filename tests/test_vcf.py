@@ -1,10 +1,12 @@
-from nose.tools import raises, assert_almost_equals
-import os
 import math
+import os
 from tempfile import TemporaryDirectory
-from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant, GenotypeLikelihoods
-from whatshap.phase import run_whatshap
+
+from pytest import raises, approx
 from whatshap.core import PhredGenotypeLikelihoods
+from whatshap.phase import run_whatshap
+from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant, \
+	GenotypeLikelihoods
 
 
 def test_read_phased():
@@ -100,9 +102,9 @@ def test_read_phased_vcf():
 		assert list(table_b.phases_of('sample2')) == [None, None]
 
 
-@raises(MixedPhasingError)
 def test_mixed_phasing_vcf():
-	tables = list(VcfReader('tests/data/phased-via-mixed-HP-PS.vcf', phases=True))
+	with raises(MixedPhasingError):
+		list(VcfReader('tests/data/phased-via-mixed-HP-PS.vcf', phases=True))
 
 
 def test_vcf_variant_hashability():
@@ -245,7 +247,7 @@ def assert_genotype_likelihoods(actual, expected):
 		assert actual is None
 		return
 	for i in range(2):
-		assert_almost_equals(actual.log10_prob_of(i), expected.log10_prob_of(i), places=10)
+		assert expected.log10_prob_of(i) == approx(actual.log10_prob_of(i), rel=1E-10)
 
 
 def test_read_genotype_likelihoods():
@@ -279,6 +281,6 @@ def test_read_genotype_likelihoods():
 def test_genotype_likelihoods():
 	assert list(PhredGenotypeLikelihoods()) == [0, 0, 0]
 	assert list(PhredGenotypeLikelihoods(7, 1, 12)) == [7, 1, 12]
-	gl = GenotypeLikelihoods( *(math.log10(x) for x in [1e-10, 0.5, 0.002]) )
+	gl = GenotypeLikelihoods(*(math.log10(x) for x in [1e-10, 0.5, 0.002]))
 	assert list(gl.as_phred()) == [97, 0, 24]
 	assert list(gl.as_phred(regularizer=0.01)) == [20, 0, 19]
