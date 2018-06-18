@@ -97,10 +97,11 @@ cdef extern from "../src/genotypedistribution.h":
 cdef extern from "../src/genotyper.h":
 	void compute_genotypes(ReadSet, vector[int]* genotypes, vector[GenotypeDistribution]* genotype_likelihoods, vector[unsigned int]* positions)  except +
 
+
 cdef extern from "../src/hapchat/hapchatcore.cpp":
-	cdef cppclass hapchatcore:
-		hapchatcore(ReadSet*)
-		int runCore()
-		void getSuperRead(vector[ReadSet*]*)
-		int getLen()
-		int getOptimalCost()
+	cdef cppclass HapChatCore:
+		HapChatCore(ReadSet*)
+		int run_core()
+		void get_super_reads(vector[ReadSet*]*)
+		int get_length()
+		int get_optimal_cost()
