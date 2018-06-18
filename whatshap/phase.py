@@ -619,22 +619,13 @@ def run_whatshap(
 						len(family), 's' if len(family) > 1 else '', problem_name)
 
 					dp_table = None
-					superreads_list = None
-					transmission_vector = None
-					optimal_cost = None
-
 					if algorithm == 'hapchat' :
-
 						dp_table = HapChatCore(all_reads)
-						superreads_list = dp_table.get_super_reads()
-						optimal_cost = dp_table.get_optimal_cost()
-
 					else :
-
 						dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
-						superreads_list, transmission_vector = dp_table.get_super_reads()
-						optimal_cost = dp_table.get_optimal_cost()
 
+					superreads_list, transmission_vector = dp_table.get_super_reads()
+					optimal_cost = dp_table.get_optimal_cost()
 					logger.info('%s cost: %d', problem_name, optimal_cost)
 
 				with timers('components'):
