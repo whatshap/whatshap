@@ -51,18 +51,27 @@ def teardown_module():
 
 def test_one_variant(algorithm):
 	run_whatshap(
-		phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
-		output='/dev/null', algorithm=algorithm)
+		phase_input_files=['tests/data/oneread.bam'],
+		variant_file='tests/data/onevariant.vcf',
+		output='/dev/null',
+		algorithm=algorithm)
 
 
-def test_default_output():
+def test_default_output(algorithm):
 	"""Output to stdout"""
-	run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf')
+	run_whatshap(
+		phase_input_files=['tests/data/oneread.bam'],
+		variant_file='tests/data/onevariant.vcf',
+		algorithm=algorithm)
 
 
-def test_one_variant_cram():
-	run_whatshap(phase_input_files=['tests/data/oneread.cram'], reference='tests/data/oneread-ref.fasta',
-		variant_file='tests/data/onevariant.vcf', output='/dev/null')
+def test_one_variant_cram(algorithm):
+	run_whatshap(
+		phase_input_files=['tests/data/oneread.cram'],
+		reference='tests/data/oneread-ref.fasta',
+		variant_file='tests/data/onevariant.vcf',
+		output='/dev/null',
+		algorithm=algorithm)
 
 
 def test_cram_no_reference():
@@ -76,9 +85,13 @@ def test_cram_no_reference():
 			variant_file='tests/data/onevariant.vcf', output='/dev/null')
 
 
-def test_bam_without_readgroup():
-	run_whatshap(phase_input_files=['tests/data/no-readgroup.bam'], variant_file='tests/data/onevariant.vcf',
-		output='/dev/null', ignore_read_groups=True)
+def test_bam_without_readgroup(algorithm):
+	run_whatshap(
+		phase_input_files=['tests/data/no-readgroup.bam'],
+		variant_file='tests/data/onevariant.vcf',
+		output='/dev/null',
+		ignore_read_groups=True,
+		algorithm=algorithm)
 
 
 def test_requested_sample_not_found():
@@ -104,9 +117,13 @@ def test_with_reference():
 	assert out.getvalue() == expected, 'VCF output not as expected'
 
 
-def test_with_reference_and_indels():
-	run_whatshap(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
-		reference='tests/data/pacbio/reference.fasta', indels=True)
+def test_with_reference_and_indels(algorithm):
+	run_whatshap(
+		phase_input_files=['tests/data/pacbio/pacbio.bam'],
+		variant_file='tests/data/pacbio/variants.vcf',
+		reference='tests/data/pacbio/reference.fasta',
+		indels=True,
+		algorithm=algorithm)
 
 
 def test_ps_tag():
@@ -577,16 +594,23 @@ def test_hapcut2vcf():
 			hapcut='tests/data/pacbio/hapcut.txt', vcf='tests/data/pacbio/variants.vcf', output=out)
 
 
-def test_ignore_read_groups():
-	run_whatshap(variant_file='tests/data/pacbio/variants.vcf',
+def test_ignore_read_groups(algorithm):
+	run_whatshap(
+		variant_file='tests/data/pacbio/variants.vcf',
 		phase_input_files=['tests/data/pacbio/pacbio.bam'],
-		reference='tests/data/pacbio/reference.fasta', ignore_read_groups=True, output='/dev/null')
+		reference='tests/data/pacbio/reference.fasta',
+		ignore_read_groups=True,
+		output='/dev/null',
+		algorithm=algorithm)
 
 
-def test_readgroup_without_sample_name():
-	run_whatshap(phase_input_files=['tests/data/oneread-readgroup-without-sample.bam'],
+def test_readgroup_without_sample_name(algorithm):
+	run_whatshap(
+		phase_input_files=['tests/data/oneread-readgroup-without-sample.bam'],
 		variant_file='tests/data/onevariant.vcf',
-		output='/dev/null', ignore_read_groups=True)
+		output='/dev/null',
+		ignore_read_groups=True,
+		algorithm=algorithm)
 
 
 def test_genetic_haplotyping():
@@ -694,8 +718,10 @@ def test_indel_phasing():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_whatshap(
-			phase_input_files=[indels_bamfile], indels=True, variant_file='tests/data/indels.vcf',
-			reference='tests/data/random0.fasta', output=outvcf)
+			phase_input_files=[indels_bamfile],
+			indels=True, variant_file='tests/data/indels.vcf',
+			reference='tests/data/random0.fasta',
+			output=outvcf)
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf, indels=True, phases=True))
@@ -710,7 +736,10 @@ def test_indel_phasing():
 		assert_phasing(table.phases_of('sample1'), [phase0, phase1, phase0, phase1])
 
 
-def test_full_genotyping():
+def test_full_genotyping(algorithm):
 	run_whatshap(
-		phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
-		output='/dev/null', full_genotyping=True)
+		phase_input_files=['tests/data/oneread.bam'],
+		variant_file='tests/data/onevariant.vcf',
+		output='/dev/null',
+		full_genotyping=True,
+		algorithm=algorithm)
