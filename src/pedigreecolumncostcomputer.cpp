@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include "vector2d.h"
 #include "pedigreecolumncostcomputer.h"
+#include <math.h>
 
 using namespace std;
 
