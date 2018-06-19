@@ -53,7 +53,7 @@ public:
 
   HapChatCore(ReadSet* read_set)
     : readset_(read_set),
-      optimal_(0),
+      optimal_(0u),
       unweighted_(false),
       errorrate_(0.05),
       alpha_(0.01),
@@ -62,6 +62,8 @@ public:
       balanceratio_(0.5) {
 
     DEBUG(read_set->toString());
+
+    readset_->reassignReadIds();
     run_core();
   }
 
@@ -88,7 +90,7 @@ int get_length() {
 }
 
 
-int run_core()
+void run_core()
 {
 
   INFO("HapCHAT Starting...");
@@ -109,8 +111,7 @@ int run_core()
   HapChatColumnIterator hap=HapChatColumnIterator(readset_);
 
   if(!hap.has_next_block()) {
-    FATAL("Input is empty! Exiting..");
-    exit(EXIT_FAILURE);
+    return;
   }
 
   //Initializing the starting parameters: no competitive section
@@ -167,7 +168,6 @@ int run_core()
   superreads_ = make_super_reads(hap.get_positions(), haplotype_blocks1[0], haplotype_blocks2[0]);
   optimal_ = OPT.get_cost();
 
-  return 0;
 }
 
 
