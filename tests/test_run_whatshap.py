@@ -693,8 +693,8 @@ def test_duplicate_read(algorithm):
 			ignore_read_groups=True,
 			distrust_genotypes=True,
 			include_homozygous=True,
-			output=outvcf)
-#			algorithm=algorithm)
+			output=outvcf,
+			algorithm=algorithm)
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf, phases=True))
