@@ -684,7 +684,7 @@ def test_phased_blocks(algorithm):
 		assert blocks == [10, 10, None, 200, 200]
 
 
-def test_duplicate_read():
+def test_duplicate_read(algorithm):
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_whatshap(
@@ -694,6 +694,7 @@ def test_duplicate_read():
 			distrust_genotypes=True,
 			include_homozygous=True,
 			output=outvcf)
+#			algorithm=algorithm)
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf, phases=True))
