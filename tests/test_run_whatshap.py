@@ -100,7 +100,7 @@ def test_requested_sample_not_found():
 			output='/dev/null', samples=['DOES_NOT_EXIST'])
 
 
-def test_with_reference():
+def test_with_reference(algorithm):
 	# This tests also whether lowercase reference FASTA files work:
 	# If lowercase and uppercase are treated differently, then the
 	# output is slightly different from the expected.
@@ -111,6 +111,7 @@ def test_with_reference():
 		reference='tests/data/pacbio/reference.fasta',
 		output=out,
 		write_command_line_header=False,  # for easier VCF comparison
+		algorithm=algorithm
 	)
 	with open('tests/data/pacbio/phased.vcf') as f:
 		expected = f.read()
