@@ -419,8 +419,6 @@ cdef class HapChatCore:
 		self.thisptr = new cpp.HapChatCore(readset.thisptr)
 	def __dealloc__(self):
 		del self.thisptr
-	def run_core(self):
-		return self.thisptr.run_core()
 	def get_length(self):
 		return self.thisptr.get_length()
 	def get_super_reads(self):

@@ -101,7 +101,6 @@ cdef extern from "../src/genotyper.h":
 cdef extern from "../src/hapchat/hapchatcore.cpp":
 	cdef cppclass HapChatCore:
 		HapChatCore(ReadSet*)
-		int run_core()
 		void get_super_reads(vector[ReadSet*]*)
 		int get_length()
 		int get_optimal_cost()
