@@ -1,15 +1,27 @@
-from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
+from pytest import fixture
+from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, HapChatCore
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 
 
-def test_phase_empty_readset():
+@fixture(params=['whatshap', 'hapchat'])
+def algorithm(request) :
+	return request.param
+
+
+def test_phase_empty_readset(algorithm):
 	rs = ReadSet()
 	recombcost = [1,1]
 	genotypes = [1,1]
 	pedigree = Pedigree(NumericSampleIds())
 	genotype_likelihoods = [None, None]
 	pedigree.add_individual('individual0', genotypes, genotype_likelihoods)
-	dp_table = PedigreeDPTable(rs, recombcost, pedigree)
+
+	dp_table = None
+	if algorithm == 'hapchat' :
+		dp_table = HapChatCore(rs)
+	else :
+		dp_table = PedigreeDPTable(rs, recombcost, pedigree)
+
 	superreads = dp_table.get_super_reads()
 
 
