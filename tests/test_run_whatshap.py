@@ -716,14 +716,15 @@ def test_wrong_chromosome():
 				variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)
 
 
-def test_indel_phasing():
+def test_indel_phasing(algorithm):
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_whatshap(
 			phase_input_files=[indels_bamfile],
 			indels=True, variant_file='tests/data/indels.vcf',
 			reference='tests/data/random0.fasta',
-			output=outvcf)
+			output=outvcf,
+			algorithm=algorithm)
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf, indels=True, phases=True))
