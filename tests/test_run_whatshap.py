@@ -662,14 +662,15 @@ def test_quartet2():
 		ped='tests/data/quartet2.ped', output='/dev/null')
 
 
-def test_phased_blocks():
+def test_phased_blocks(algorithm):
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_whatshap(
 			phase_input_files=[short_bamfile],
 			variant_file='tests/data/short-genome/short.vcf',
 			ignore_read_groups=True, distrust_genotypes=True,
-			include_homozygous=True, output=outvcf)
+			include_homozygous=True, output=outvcf,
+			algorithm=algorithm)
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf, phases=True))
