@@ -57,7 +57,7 @@ cdef extern from "../src/readset.h":
 
 cdef extern from "../src/pedigree.h":
 	cdef cppclass Pedigree:
-		Pedigree() except +
+		Pedigree(unsigned int ploidy) except +
 		void addIndividual(unsigned int id, vector[unsigned int] genotypes, vector[PhredGenotypeLikelihoods*]) except +
 		void addRelationship(unsigned int f, unsigned int m, unsigned int c) except +
 		unsigned int size()
