@@ -42,8 +42,10 @@ void Entry::set_phred_score(std::vector<unsigned int> p) {
 std::ostream& operator<<(std::ostream& out, const Entry& e) {
 	out << "Entry(" << e.read_id ;
 	out << ","<< e.allele << ",";
+	out << "[";
 	for (int i=0; i< e.phred_score.size(); i++){
+		if (i>0) out << ",";
 		out << e.phred_score.at(i);
 	}
-	out << ")";
+	out << "]" << ")";
 }

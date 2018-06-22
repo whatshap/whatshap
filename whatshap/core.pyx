@@ -154,8 +154,8 @@ cdef class Read:
 		self.add_variant(position, allele, [0,quality] if allele == 0 else [quality,0])
 
 	def add_variant(self, int position, int allele, vector[unsigned int] quality):
-		assert 0 <= allele < len(quality)
-		assert quality[allele] == 0
+#		assert 0 <= allele < len(quality)
+#		assert quality[allele] == 0
 		assert self.thisptr != NULL
 		self.thisptr.addVariant(position, allele, quality)
 

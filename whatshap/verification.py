@@ -15,9 +15,10 @@ def verify_mec_score_and_partitioning(dp_table, reads):
 		for j in range(2):
 			v = superreads[j][i]
 			allele = v.allele
-			if allele == 3:
+			quality = v.quality
+			if allele == -2:
 				allele = j
-			new_superreads[j].add_variant(v.position, allele, v.quality)
+			new_superreads[j].add_variant(v.position, allele, quality)
 	partitioning = dp_table.get_optimal_partitioning()
 	position_to_index = { variant.position: index for index, variant in enumerate(new_superreads[0]) }
 	swapped = False
