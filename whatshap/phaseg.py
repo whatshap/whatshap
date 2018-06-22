@@ -542,7 +542,8 @@ def run_phaseg(locus_file, gam_file, vg_file, canu_alignments, pred_haplotigs):
 			print('I cannot phase this canu contig')
 			sys.exit()
 
-		dp_table = PedigreeDPTable(selected_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
+		allele_counts = [alleles_per_pos[pos] for pos in accessible_positions]
+		dp_table = PedigreeDPTable(selected_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions, allele_counts)
 		superreads_list, transmission_vector = dp_table.get_super_reads()
 
 		cost = dp_table.get_optimal_cost()

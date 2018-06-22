@@ -70,7 +70,7 @@ cdef extern from "../src/pedigree.h":
 
 cdef extern from "../src/pedigreedptable.h":
 	cdef cppclass PedigreeDPTable:
-		PedigreeDPTable(ReadSet*, vector[unsigned int], Pedigree* pedigree, bool distrust_genotypes, vector[unsigned int]* positions) except +
+		PedigreeDPTable(ReadSet*, vector[unsigned int], Pedigree* pedigree, bool distrust_genotypes, vector[unsigned int]* positions, vector[unsigned int]* allele_counts) except +
 		void get_super_reads(vector[ReadSet*]*, vector[unsigned int]* transmission_vector) except +
 		int get_optimal_score() except +
 		vector[bool]* get_optimal_partitioning()

@@ -28,6 +28,7 @@ private:
 	const std::vector<unsigned int>& recombcost;
 	const Pedigree* pedigree;
 	bool distrust_genotypes;
+	const std::vector<unsigned int>* allele_counts;
 	std::vector<PedigreePartitions*> pedigree_partitions;
 	// vector of indexingschemes
 	std::vector<ColumnIndexingScheme*> indexers;
@@ -84,12 +85,12 @@ public:
 	 *  @param positions Positions to work on. If 0, then all positions given in read_set will be used. Caller retains
 	 *                   ownership.
 	 */
-	PedigreeDPTable(ReadSet* read_set, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes, const std::vector<unsigned int>* positions = nullptr);
+	PedigreeDPTable(ReadSet* read_set, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes, const std::vector<unsigned int>* allele_counts, const std::vector<unsigned int>* positions = nullptr);
  
 	~PedigreeDPTable();
 
 	unsigned int get_optimal_score();
-	int compute_alleles(std::unique_ptr<std::vector<const Entry*>> &current_input_column);
+//	int compute_alleles(std::unique_ptr<std::vector<const Entry*>> &current_input_column);
 
 	/** Computes optimal haplotypes and adds them (in the form of "super reads") to 
 	 *  the given read_set.

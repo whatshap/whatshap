@@ -11,7 +11,7 @@ def phase_MAV(reads, n_alleles, all_het, genos, genotypes, weights =  None):
 		pedigree = Pedigree(NumericSampleIds())
 		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods(genos)] * len(positions)
 		pedigree.add_individual('individual0', genotypes, genotype_likelihoods) # all genotypes heterozygous
-		dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=not all_heterozygous)
+		dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=not all_heterozygous, positions=None, allele_counts = [n_alleles] * len(positions))
 		superreads_list, transmission_vector = dp_table.get_super_reads()
 		cost = dp_table.get_optimal_cost()
 	return superreads_list, transmission_vector, cost
@@ -30,6 +30,7 @@ def test_phase1():
 	 021
 	"""
 	superreads_list, transmission_vector, cost = phase_MAV(reads, 4, [True], [5,5,5,5,5,5,5,5,5,5], [1,2,2])
+	print(cost, superreads_list[0])
 	assert cost == 1
 	all_expected_haplotypes = [
 		('02-2','10-2'),

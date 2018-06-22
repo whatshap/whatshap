@@ -12,14 +12,15 @@
 
 using namespace std;
 
-PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes, const vector<unsigned int>* positions) :
+PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes, const vector<unsigned int>* allele_counts, const vector<unsigned int>* positions) :
 	read_set(read_set),
 	recombcost(recombcost),
 	pedigree(pedigree),
 	distrust_genotypes(distrust_genotypes),
 	optimal_score(0u),
 	optimal_score_index(0u),
-	input_column_iterator(*read_set, positions)
+	input_column_iterator(*read_set, positions),
+	allele_counts(allele_counts)
 {
 	read_set->reassignReadIds();
 
@@ -43,6 +44,7 @@ PedigreeDPTable::~PedigreeDPTable() {
 	init(transmission_backtrace_table, 0);
 	init(indexers, 0);
 	init(pedigree_partitions, 0);
+	delete allele_counts;
 }
 
 
@@ -63,14 +65,14 @@ size_t PedigreeDPTable::popcount(size_t x) {
 	return count;
 }
 // compute the number of alleles to be flipped from read entry at column.
-int PedigreeDPTable::compute_alleles(unique_ptr<vector<const Entry*>> &current_input_column){
+/*int PedigreeDPTable::compute_alleles(unique_ptr<vector<const Entry*>> &current_input_column){
 	unsigned int n_alleles = 0;
 	for (int i=0;i<(*current_input_column).size();i++){
 		n_alleles= (*current_input_column)[i]->get_phred_score().size();
 		if (n_alleles >0) break;
 	}
 	return n_alleles;
-}
+}*/
 void PedigreeDPTable::clear_table() {
 	size_t column_count = input_column_iterator.get_column_count();
 
@@ -238,7 +240,7 @@ void PedigreeDPTable::compute_column(size_t column_index, unique_ptr<vector<cons
 	vector<PedigreeColumnCostComputer> cost_computers;
 	cost_computers.reserve(transmission_configurations);
 	for(unsigned int i = 0; i < transmission_configurations; ++i) {
-		cost_computers.emplace_back(*current_input_column, column_index, read_sources, pedigree, *pedigree_partitions[i], distrust_genotypes, compute_alleles(current_input_column));
+		cost_computers.emplace_back(*current_input_column, column_index, read_sources, pedigree, *pedigree_partitions[i], distrust_genotypes, allele_counts->at(column_index));
 	}
 
 	// iterate over all bipartitions
@@ -372,11 +374,11 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 		while (input_column_iterator.has_next()) {
 			const index_and_inheritance_t& v = index_path[i];
 			unique_ptr<vector<const Entry *> > column = input_column_iterator.get_next();
-			PedigreeColumnCostComputer cost_computer(*column, i, read_sources, pedigree, *pedigree_partitions[v.inheritance_value], distrust_genotypes, compute_alleles(column));
+			PedigreeColumnCostComputer cost_computer(*column, i, read_sources, pedigree, *pedigree_partitions[v.inheritance_value], distrust_genotypes, allele_counts->at(i));
 			cost_computer.set_partitioning(v.index);
 
 			auto population_alleles = cost_computer.get_alleles();
-			int n_alleles = compute_alleles(column);
+			int n_alleles = allele_counts->at(i);
 		
 			// TODO: compute proper weights based on likelihoods.
 			for (unsigned int k=0; k<pedigree->size(); k++) {
