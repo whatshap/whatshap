@@ -64,7 +64,7 @@ size_t PedigreeDPTable::popcount(size_t x) {
 }
 // compute the number of alleles to be flipped from read entry at column.
 int PedigreeDPTable::compute_alleles(unique_ptr<vector<const Entry*>> &current_input_column){
-	unsigned int n_alleles;
+	unsigned int n_alleles = 0;
 	for (int i=0;i<(*current_input_column).size();i++){
 		n_alleles= (*current_input_column)[i]->get_phred_score().size();
 		if (n_alleles >0) break;

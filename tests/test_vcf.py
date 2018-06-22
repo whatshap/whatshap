@@ -134,10 +134,10 @@ def test_phasing_to_reads():
 		assert read.mapqs == (101,)
 		assert read[0].position == 300 - 1
 		assert read[0].allele == 1
-		assert read[0].quality == 23
+		assert read[0].quality[0] == 23
 		assert read[1].position == 350 - 1
 		assert read[1].allele == 0
-		assert read[1].quality == 42
+		assert read[1].quality[1] == 42
 
 		phase_reads_sample2 = list(table_a.phased_blocks_as_reads('sample2', table_a.variants, 11, 12, default_quality=91, mapq=102))
 		print(phase_reads_sample2)
@@ -151,19 +151,19 @@ def test_phasing_to_reads():
 		assert read1.mapqs == (102,)
 		assert read1[0].position == 100 - 1
 		assert read1[0].allele == 0
-		assert read1[0].quality == 10
+		assert read1[0].quality[1] == 10
 		assert read1[1].position == 150 - 1
 		assert read1[1].allele == 1
-		assert read1[1].quality == 20
+		assert read1[1].quality[0] == 20
 		assert read2.name == 'sample2_block_300'
 		assert read2.source_id == 11
 		assert read2.mapqs == (102,)
 		assert read2[0].position == 300 - 1
 		assert read2[0].allele == 0
-		assert read2[0].quality == 30
+		assert read2[0].quality[1] == 30
 		assert read2[1].position == 350 - 1
 		assert read2[1].allele == 0
-		assert read2[1].quality == 91
+		assert read2[1].quality[1] == 91
 
 		variants = [
 			VcfVariant(350 - 1, 'G', 'T'),
@@ -181,10 +181,10 @@ def test_phasing_to_reads():
 		assert read.mapqs == (102,)
 		assert read[0].position == 300 - 1
 		assert read[0].allele == 0
-		assert read[0].quality == 30
+		assert read[0].quality[1] == 30
 		assert read[1].position == 350 - 1
 		assert read[1].allele == 0
-		assert read[1].quality == 91
+		assert read[1].quality[1] == 91
 
 
 def test_unknown_genotype():
