@@ -109,7 +109,6 @@ void run_core()
 
   //Readset section
   HapChatColumnIterator hap=HapChatColumnIterator(readset_);
-
   if(!hap.has_next_block()) {
     return;
   }

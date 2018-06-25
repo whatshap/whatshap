@@ -48,11 +48,10 @@ public:
   //standard constructor
   HapChatColumnIterator(ReadSet* read_set){
     readset=read_set;
-    iterator=new ColumnIterator(*read_set);
+    iterator=new ColumnIterator(*readset);
     end=false;
-
     vblock=blocker();
-    set_block(read_set);
+    set_block(readset);
   }
 
 
@@ -74,13 +73,14 @@ public:
 	min.push_back(minn);
 	max.push_back(maxx);
 	vblock.push_back(reads());
+	vblock.at(0).push_back(read);
       }
       else{
 
 	for(unsigned int j=0;j<min.size();j++){
 	  overflag=minn<min.at(j)&&maxx>max.at(j);
 	  
-	  if((minn>=min.at(j)&&minn<=max.at(j))||(maxx>=min.at(j)&&maxx<max.at(j))||overflag){
+	  if((minn>=min.at(j)&&minn<=max.at(j))||(maxx>=min.at(j)&&maxx<=max.at(j))||overflag){
 	    minn=std::min(min.at(j),minn);
 	    maxx=std::max(max.at(j),maxx);
 	    min.at(j)=minn;
