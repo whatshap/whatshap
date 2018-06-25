@@ -7,7 +7,7 @@ import pyfaidx
 from xopen import xopen
 import stream
 import logging
-from . import vg_pb2
+from .vg_pb2 import Graph, SnarlTraversal, Alignment
 from collections import Counter
 import sys
 from collections import defaultdict
@@ -120,7 +120,7 @@ def vg_graph_reader(vg_file):
 	edge_connections = defaultdict(list)
 	with stream.open(str(vg_file), "rb") as istream:
 		for data in istream:
-			l = vg_pb2.Graph()
+			l = Graph()
 			l.ParseFromString(data)
 			for i in range(len(l.node)):
 				index = l.node[i].id
@@ -167,7 +167,7 @@ def vg_reader(locus_file, gam_file):
 	start_end_bubblenods = set()
 	with stream.open(str(locus_file), "rb") as istream:
 		for data in istream:
-			l = vg_pb2.SnarlTraversal()
+			l = SnarlTraversal()
 			l.ParseFromString(data)
 			#TODO: make ordered doctionary locus_branch_mapping
 			# handle forward and backward case of nodes
@@ -238,7 +238,7 @@ def vg_reader(locus_file, gam_file):
 	#TODO: consider reads with only positive score.
 	with stream.open(str(gam_file), "rb") as istream:
 		for data in istream:
-			g = vg_pb2.Alignment()
+			g = Alignment()
 			g.ParseFromString(data) 
 			# hard-coded source id, mapping quality and other values.
 			val1 = True
@@ -332,7 +332,7 @@ def generate_haplotigs(sample_superreads, components, node_seq_list, locus_branc
 
 	with stream.open(str(vg_file), "rb") as istream:
 		for data in istream:
-			l = vg_pb2.Graph()
+			l = Graph()
 			l.ParseFromString(data)
 			for j in range(len(l.edge)):
 				from_traversal = (getattr(l.edge[j], "from"), l.edge[j].from_start)
@@ -414,7 +414,7 @@ def generate_haplotigs(sample_superreads, components, node_seq_list, locus_branc
 		orderalignment = defaultdict(lambda: [-1]*10000, orderalignment)
 		with stream.open(str(canu_alignments), "rb") as istream:
 			for data in istream:
-				g = vg_pb2.Alignment()
+				g = Alignment()
 				contig_nodes = []
 				contig_nodes_blocks = []
 				contig_nodes_seq = ''
