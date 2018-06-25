@@ -742,6 +742,7 @@ def test_phaseg5():
 		run_phaseg(locus_file='tests/data/graph.4.trans', gam_file='tests/data/alns5.gam', vg_file='tests/data/graph.4.vg', canu_alignments='tests/data/canu4.gam', pred_haplotigs=out)
 
 
+@raises(SystemExit)
 def test_phaseg6():
 	with TemporaryDirectory() as tempdir:
 		out = tempdir + '/output.haplotigs'
