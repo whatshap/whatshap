@@ -7,18 +7,18 @@ class PhredGenotypeLikelihoods {
 public:
 	PhredGenotypeLikelihoods();
 
-	PhredGenotypeLikelihoods(const std::vector<unsigned int>&);
+	PhredGenotypeLikelihoods(const std::vector<double>&);
 
 	double get(size_t genotype) const;
 
-	const std::vector<unsigned int>& as_vector() const;
+	const std::vector<double>& as_vector() const;
 
 	size_t genotype_count() const;
 
 	std::string toString() const;
 
 private:
-	std::vector<unsigned int> gl;
+	std::vector<double> gl;
 };
 
 

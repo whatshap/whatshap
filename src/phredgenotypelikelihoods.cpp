@@ -7,15 +7,15 @@ using namespace std;
 
 PhredGenotypeLikelihoods::PhredGenotypeLikelihoods() : gl({0,0,0}) {}
 
-PhredGenotypeLikelihoods::PhredGenotypeLikelihoods(const std::vector<unsigned int>& gl) : gl(gl) {}
+PhredGenotypeLikelihoods::PhredGenotypeLikelihoods(const std::vector<double>& gl) : gl(gl) {}
 
 
-unsigned int PhredGenotypeLikelihoods::get(size_t genotype) const {
+double PhredGenotypeLikelihoods::get(size_t genotype) const {
 	assert(genotype < gl.size());
 	return this->gl[genotype];
 }
 
-const std::vector<unsigned int>& PhredGenotypeLikelihoods::as_vector() const {
+const std::vector<double>& PhredGenotypeLikelihoods::as_vector() const {
 	return gl;
 }
 
