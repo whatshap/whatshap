@@ -1,5 +1,5 @@
 """
-create association between reads and bubbles.
+Create association between reads and bubbles
 """
 
 import pyfaidx
@@ -574,11 +574,11 @@ def run_phaseg(locus_file, gam_file, vg_file, canu_alignments, pred_haplotigs):
 def add_arguments(parser):
 	arg = parser.add_argument
 	# Positional arguments
-	arg('locus_file', metavar='LOCUS', help='variants in LOCUS file to phase')
-	arg('gam_file', metavar='PHASEINPUT', help='read alignments in GAM file ')
-	arg('vg_file', metavar='GRAPH', help='sequence graph')
-	arg('canu_alignments', metavar='CANU_ALNS', help='contigs from canu.')
-	arg('pred_haplotigs', metavar='PREED_HAPLOTIGS', help='write predicted haplotigs for every block')
+	arg('locus_file', metavar='LOCUS', help='Variants in LOCUS file to phase')
+	arg('gam_file', metavar='PHASEINPUT', help='Read alignments in GAM file ')
+	arg('vg_file', metavar='GRAPH', help='Sequence graph')
+	arg('canu_alignments', metavar='CANU_ALNS', help='Contigs from canu')
+	arg('pred_haplotigs', metavar='PREED_HAPLOTIGS', help='Write predicted haplotigs for every block')
 
 def main(args):
 	run_phaseg(**vars(args))
