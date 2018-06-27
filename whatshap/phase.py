@@ -18,6 +18,7 @@ from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
 from . import __version__
 from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, HapChatCore
+from .merge import read_merging
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
@@ -154,9 +155,14 @@ def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_
 	return readset, vcf_source_ids
 
 
-def select_reads(readset, max_coverage, preferred_source_ids):
+def select_reads(readset, max_coverage, preferred_source_ids, merge_reads):
 	readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
 	logger.info('Kept %d reads that cover at least two variants each', len(readset))
+
+	if merge_reads :
+		logger.info('merge reads ...')
+		readset = read_merging(readset)
+
 	logger.info('Reducing coverage to at most %dX by selecting most informative reads ...', max_coverage)
 	selected_indices = readselection(readset, max_coverage, preferred_source_ids)
 	selected_reads = readset.subset(selected_indices)
@@ -259,6 +265,7 @@ def run_whatshap(
 		ignore_read_groups=False,
 		indels=True,
 		mapping_quality=20,
+		merge_reads=False,
 		max_coverage=15,
 		full_genotyping=False,
 		distrust_genotypes=False,
@@ -287,6 +294,7 @@ def run_whatshap(
 	chromosomes -- names of chromosomes to phase. an empty list means: phase all chromosomes
 	ignore_read_groups
 	mapping_quality -- discard reads below this mapping quality
+	merge_reads
 	max_coverage
 	full_genotyping
 	distrust_genotypes
@@ -539,7 +547,7 @@ def run_whatshap(
 					# TODO: Read selection done w.r.t. all variants, where using heterozygous variants only
 					# TODO: would probably give better results.
 					with timers('select'):
-						selected_reads = select_reads(readset, max_coverage_per_sample, preferred_source_ids = vcf_source_ids)
+						selected_reads = select_reads(readset, max_coverage_per_sample, preferred_source_ids = vcf_source_ids, merge_reads = merge_reads)
 					readsets[sample] = selected_reads
 					if (len(family) == 1) and not distrust_genotypes:
 						# When having a pedigree (i.e. len(family)>1), then blocks are also merged after phasing based on the
@@ -747,6 +755,9 @@ def add_arguments(parser):
 		help='Write reads that have been used for phasing to FILE.')
 
 	arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
+	arg('--merge-reads', default=False, action='store_true',
+		help='Merge reads which are likely to come from the same haplotype '
+		'(default: do not merge reads)')
 	arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
 		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
 	arg('--mapping-quality', '--mapq', metavar='QUAL',
