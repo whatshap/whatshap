@@ -26,7 +26,7 @@ void compute_genotypes(const ReadSet& readset, std::vector<int>* genotypes, std:
 		std::unique_ptr<std::vector<const Entry*> > column = column_iterator.get_next();
 		GenotypeDistribution distribution;
 		for (const Entry* e : *column) {
- 			cerr << "    " << (*e) << endl;
+// 			cerr << "    " << (*e) << endl;
 			std::vector<unsigned int> phred_scores = e->get_phred_score();
 			double p_wrong = 1.0;
 			switch (e->get_allele_type()) {
