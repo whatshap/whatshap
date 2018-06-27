@@ -63,7 +63,6 @@ void GenotypeColumnCostComputer::set_partitioning(unsigned int p) {
         bool is_ref_allele = entry.get_allele_type() == 0;
 
         auto proba = get_phred_probability(entry.get_phred_score()[is_ref_allele]);
-	std::cout << "ColumnCost: phred" << entry.get_phred_score()[is_ref_allele] << " allele " << entry.get_allele_type() << " "  << proba << " part " << p  << " column " << column_index << std::endl;
         cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,entry_in_partition1)][!is_ref_allele] *= (1.0L-proba);
         cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,entry_in_partition1)][is_ref_allele] *= proba;
         p = p >> 1;
