@@ -1,6 +1,5 @@
-from nose.tools import raises
 from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
-from .phasingutils import string_to_readset, brute_force_phase
+from whatshap.testhelpers import string_to_readset, brute_force_phase
 
 
 def phase_MAV(reads, n_alleles, all_het, genos, genotypes, weights =  None):

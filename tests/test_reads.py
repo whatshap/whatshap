@@ -41,7 +41,6 @@ def test_read_iteration():
 
 def test_read_indexerror1():
 	r = Read("name", 15)
-<<<<<<< HEAD:tests/test_reads.py
 	r.add_biallelic_variant(100, 1, 37)
 	r.add_biallelic_variant(23, 0, 99)
 	with raises(IndexError):
@@ -49,17 +48,10 @@ def test_read_indexerror1():
 
 def test_read_indexerror2():
 	r = Read("name", 15)
-<<<<<<< HEAD:tests/test_reads.py
-	r.add_variant(100, 1, 37)
-	r.add_variant(23, 0, 99)
-	with raises(IndexError):
-		_ = r[-3]
-=======
 	r.add_biallelic_variant(100, 1, 37)
 	r.add_biallelic_variant(23, 0, 99)
-	r[-3]
->>>>>>> Fix a lot of broken tests due to change in interface wrt to quality values and PhredGenotypeLikelihoods:tests/testreads.py
-
+	with raises(IndexError):
+		_ = r[-3]
 
 def test_empty_readset():
 	rs = ReadSet()

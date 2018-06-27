@@ -496,7 +496,8 @@ class ReadSetReader:
 				assert read1[i1].position == read2[i2].position
 				# If both alleles agree, merge into single variant and add up qualities
 				if read1[i1].allele == read2[i2].allele:
-					quality = read1[i1].quality + read2[i2].quality
+					allele = read1[i1].allele
+					quality = read1[i1].quality[not allele] + read2[i2].quality[not allele]
 					result.add_biallelic_variant(read1[i1].position, read1[i1].allele, quality)
 				else:
 					# Otherwise, take variant with highest base quality and discard the other.

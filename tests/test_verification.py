@@ -9,7 +9,7 @@ def verify(rs, all_heterozygous=False):
 	recombcost = [1] * len(positions)
 	pedigree = Pedigree(NumericSampleIds())
 	genotype_likelihoods = [
-		None if all_heterozygous else PhredGenotypeLikelihoods(0, 0, 0)] * len(positions)
+		None if all_heterozygous else PhredGenotypeLikelihoods([0, 0, 0])] * len(positions)
 	# all genotypes heterozygous
 	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods)
 	dp_table = PedigreeDPTable(rs, recombcost, pedigree, distrust_genotypes=not all_heterozygous)
