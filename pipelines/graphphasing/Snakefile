@@ -1,0 +1,210 @@
+coverage = ['50', '100', '200']
+size = ['400', '800', '1600']
+cov_to_reads = {'30': 81000, '20':54000, '10':27000}
+cov_to_reads_400 = {'30':912000, '20':608000, '10':304000}
+cov_to_reads_800 = {'30':456000, '20':304000, '10':152000}
+cov_to_reads_1600 = {'30':228000, '20':152000, '10':76000}
+
+
+def reads_at_coverage(cov):
+	return int(int(cov) * 12.16e6 / (151 * 2))
+
+
+
+seqtk = '~/seqtk/seqtk'
+bfc = '~/bfc/bfc'
+gfatools = '~/fermikit/fermi.kit/k8 ~/gfatools/gfatools.js'
+gwhatshap = './scripts/gwhatshap/bin/whatshap'
+vg = './scripts/vg'
+grem = './scripts/grem'
+
+
+rule master:
+	input:
+		#expand('pacbio/real.read{size}.cov{coverage}.fq', coverage = coverage, size = size),
+		#expand('canu_cov{coverage}_read{size}/yeast.contigs.gam', coverage = coverage, size = ['1600', '4510'])
+		expand('canu_cov{coverage}_read{size}/yeast.contigs.vg', coverage=coverage, size=['4510']),
+		#expand('canu_cov{coverage}_read{size}/yeast.contigs.gam.gfa',coverage=coverage, size=['1600','4510'])
+
+	message: 'MASTER rule'
+
+
+rule combine_strains:
+	input:'illumina/r{n}.covall.fastq' 
+	output: 'illumina/r{n}.cov{coverage,([0-9]+)}.fastq'
+	params: nreads=lambda w: reads_at_coverage(w.coverage)
+	shell: '{seqtk} sample -s100 {input} {params.nreads} | ~/bfc/bfc -s 12.16m -t 16 - > {output}'
+
+rule run_spades:
+	input:'illumina/r1.cov{coverage,([0-9]+)}.fastq', 'illumina/r2.cov{coverage,([0-9]+)}.fastq'
+	output: 'illumina/cov{coverage,([0-9]+)}/assembly_graph.gfa'
+	shell:'./scripts/spades/spades.py -1 {input[0]} -2 {input[1]} --only-assembler -o illumina/cov{wildcards.coverage}/'
+
+rule filter_graph:
+	input: 'illumina/cov{coverage,([0-9]+)}/assembly_graph.gfa',
+	output: 'illumina/cov{coverage,([0-9]+)}/assembly_graph.filter.gfa'
+	shell: "grep -v '^P' {input} | awk -F'\\t' '{{ if ($2 != $4) print $0}}' | {vg} view --gfa-in - --vg | awk -F'\\t' '{{ if ($2 != $4) print $0}}' >  {output}"
+
+rule filter_graph1:
+	input: 'illumina/cov{coverage,([0-9]+)}/assembly_graph.filter.gfa'
+	output: 'graph/graph.cov{coverage,([0-9]+)}.vg'
+	shell: "grep -v -f <({printscript} {input} | awk -F' ' '{{ if($2 < 50) printf(\"\\t$1\\t\") }}) {input} | {vg} view --gfa-in --vg - > {output}"
+
+
+rule downsample_reads:
+	input:
+		fasta1='pacbio/real.readall.covall.fastq', 
+	output: 'pacbio/real.read4510.cov{coverage,([0-9]+)}.fq',
+	run: 
+		tmp = int(cov_to_reads[wildcards.coverage])
+		shell('{seqtk} sample {input.fasta1} {tmp} > {output}')
+
+rule cut_reads:
+	input:'pacbio/real.read{size,([0-9]+)}.cov{coverage,([0-9]+)}.fq'
+	output:'pacbio/real.read{size,([0-9]+)}.cov400.fq'
+	shell:"~/seqtk/seqtk seq -A {input} | perl -ne 'BEGIN{{$/=\">\"}}{{s/(.*)//;$n=$1;s/\\n//g;$i=0;s/(.{{1,{{wildcards.coverage}}}})/printf(\">%s_%05d\n%s\n\",$n,++$i,$1);/ge;}}' {input} | sed -e ':a;N;$!ba;s/>\\n/\\n/g' - | perl ../../scripts/fasta_to_fastq.pl - > {output}"
+
+rule downsample_different_reads:
+	input:
+		fasta1='pacbio/real.read{size,([0-9]+)}.covall.fq', 
+	output: 'pacbio/real.read{size,([0-9]+)}.cov{coverage,([0-9]+)}.fq',
+	run: 
+		readsize= wildcards.size
+		cov_to_reads = {}
+		if readsize == '400':
+			cov_to_reads = {'30':912000, '20':608000, '10':304000}
+		if readsize == '800':
+			cov_to_reads = {'30':456000, '20':304000, '10':152000}
+		if readsize =='1600':
+			cov_to_reads= {'30':228000, '20':152000, '10':76000}
+		tmp = int(cov_to_reads[wildcards.coverage])
+		print(tmp)
+		shell('{seqtk} sample {input.fasta1} {tmp} > {output}')
+
+rule run_canu:
+	input: 'pacbio/real.read{size,([0-9]+)}.cov{coverage,([0-9]+)}.fq',
+	output: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.fasta'
+	run:
+
+		if wildcards.coverage == 30:
+			shell('canu -p yeast -d /local/data/yeast_analysis/new_exps/canu_cov{wildcards.coverage}_read{wildcards.size} genomeSize=12.16m  useGrid=0 correctedErrorRate=0.10 -pacbio-raw {input}')
+		else:
+			shell('canu -p yeast -d /local/data/yeast_analysis/new_exps/canu_cov{wildcards.coverage}_read{wildcards.size} genomeSize=12.16m useGrid=0 corMhapSensitivity=high corMinCoverage=2 correctedErrorRate=0.10 minOverlapLength=499 corMaxEvidenceErate=0.3 -pacbio-raw {input}')
+
+
+rule reheader_canu:
+	input: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.fasta'
+	output: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.x.fasta'
+	shell: "cut -d' ' -f 1 {input} > {output}"
+
+#align canu contigs to graphs
+rule chop_canu_contigs:
+	input: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.x.fasta'
+	output: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.x.pieceslen10k.fastq'
+	shell: """perl -ne 'BEGIN{{$/=">"}}{{s/(.*)//;$n=$1;s/\\n//g;$i=0;s/(.{{1,10000}})/printf(">%s_%05d\\n%s\\n",$n,++$i,$1);/ge;}}' {input} | sed -e ':a;N;$!ba;s/>\\n/\\n/g' - | bioawk -c fastx '{{ if(length($seq) > 2000) {{ print ">"$name; print $seq }}}}' - | perl ../scripts/fasta_to_fastq.pl - > {output}"""
+
+rule convert_fasta2fastq:
+	input: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.x.fasta'
+	output: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.fastq'
+	shell: 'perl ../scripts/fasta_to_fastq.pl {input} > {output}'
+
+rule reverse_canu_reads:
+	input: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.fastq',
+	output: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.reverse.fastq'
+	shell: '../scripts/ReverseReads {input} {output}'
+
+rule chop_reverse_reads:
+	input: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.reverse.fastq'
+	output: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.reverse.chop.fastq'
+	shell: "~/seqtk/seqtk seq -a {input} | perl -ne 'BEGIN{{$/=\">\"}}{{s/(.*)//;$n=$1;s/\\n//g;$i=0;s/(.{{1,10000}})/printf(\">%s_%05d\\n%s\\n\",$n,++$i,$1);/ge;}}' {input} | sed -e ':a;N;$!ba;s/>\\n/\\n/g' - | perl ../scripts/fasta_to_fastq.pl - > {output}"
+
+# Take care cannot run parallely because seedsoutindex will interfere.
+rule grem_canu_seeds:
+	input: 'graph/graph.vg', 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.x.pieceslen10k.fastq', 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.reverse.chop.fastq'
+	output: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.seeds.gam'
+	run:
+		shell('{grem} -f {input[1]} -l 20 -e 7 -n 0 -c 100000000 {input[0]}')
+		shell('../scripts/ReadIndexToId {input[1]} seedsoutindex canu_cov{wildcards.coverage}_read{wildcards.size}/seeds_fw.gam')
+		shell('{grem} -f {input[2]} -l 20 -e 7 -n 0 -c 100000000 {input[0]}')
+		shell('../scripts/ReadIndexToId {input[2]} seedsoutindex canu_cov{wildcards.coverage}_read{wildcards.size}/seeds_bw.gam')
+		shell('../scripts/PickSeedHits {output} 500 canu_cov{wildcards.coverage}_read{wildcards.size}/seeds_fw.gam canu_cov{wildcards.coverage}_read{wildcards.size}/seeds_bw.gam')
+
+rule run_canu_aligner:
+	input: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.x.pieceslen10k.fastq', 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.seeds.gam', 'graph/graph.vg'
+	output: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/reads.gam', 
+	shell: './scripts/wrapper -g {input[2]} -f {input[0]} -s {input[1]} -a {output} -t 40 -b 200 -B 500 1>{output}.stdout.txt 2> {output}.stderr.txt'
+
+
+#../../scripts/vg view -g graph.vg > graph.gfa
+
+rule aug_graph:
+	input: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.gam', 'graph/graph.gfa'
+	output: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.gam.gfa'
+	shell: 'python3 scripts/gam2gfa.aug.py {input} {output}'
+
+rule aug_vg:
+	input: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.gam.gfa'
+	output: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.vg'
+	shell: 'awk -F\'\\t\' \'{{ if ($2 != $4) print $0}}\' {input} | ../scripts/vg view --gfa-in --vg - > {output}'
+
+rule reverse_pacbio_reads:
+	input: 'pacbio/real.read{size,([0-9]+)}.cov{coverage,([0-9]+)}.fq',
+	output: 'pacbio/real.read{size,([0-9]+)}.cov{coverage,([0-9]+)}.reverse.fq'
+	shell: '../scripts/ReverseReads {input} {output}'
+
+rule pref_pacbio_reads:
+	input: 'pacbio/real.read{size,([0-9]+)}.cov{coverage,([0-9]+)}.fq', 'pacbio/real.read{size,([0-9]+)}.cov{coverage,([0-9]+)}.reverse.fq'
+	output: 'pacbio/real.read{size,([0-9]+)}.cov{coverage,([0-9]+)}.pref5k.fq', 'pacbio/real.read{size,([0-9]+)}.cov{coverage,([0-9]+)}.pref5k.reverse.fq'
+	run: 
+		shell("sed -e 's/^\(.\{5000\}\).*/\1/' {input[0]} > {output[0]}")
+		shell("sed -e 's/^\(.\{5000\}\).*/\1/' {input[1]} > {output[1]}")
+
+
+rule grem_pacbio_seeds:
+	input: 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.vg', 'pacbio/real.read{size,([0-9]+)}.cov{coverage,([0-9]+)}.fq', 'pacbio/real.read{size,([0-9]+)}.cov{coverage,([0-9]+)}.pref5k.reverse.fq'
+	output: 'approach/graph/canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/reads.seeds.pref5000.gam'
+	run:
+		shell('{grem} -f {input[1]} -l 15 -e 7 -n 0 -c 100000000 {input[0]}')
+		shell('../scripts/ReadIndexToId {input[1]} seedsoutindex approach/graph/seeds_{wildcards.coverage}_fw.pref5000.gam')
+		shell('{grem} -f {input[2]} -l 15 -e 7 -n 0 -c 100000000 {input[0]}')
+		shell('../scripts/ReadIndexToId {input[2]} seedsoutindex approach/graph/seeds_{wildcards.coverage}_bw.pref5000.gam')
+		shell('../scripts/PickSeedHits {output} 500 approach/graph/seeds_{wildcards.coverage}_fw.pref5000.gam approach/graph/seeds_{wildcards.coverage}_bw.pref5000.gam')
+
+
+rule run_pacbio_aligner:
+	input: 'pacbio/real.read{size,([0-9]+)}.cov{coverage,([0-9]+)}.fq', 'approach/graph/canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/reads.seeds.pref5000.gams', 'canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/yeast.contigs.vg'
+	output: 'pacbio/real.read{size,([0-9]+)}.cov{coverage,([0-9]+)}.gam', 
+	shell: './scripts/wrapper -g {input[2]} -f {input[0]} -s {input[1]} -a {output} -t 40 -b 200 -B 500 1>{output}.stdout.txt 2> {output}.stderr.txt'
+
+# yet to be adapted according to generalized pipeline
+rule find_bubbles:
+	input: 'graph/graph.vg'
+	output: 'graph/graph.trans', 'graph/graph.snarls'
+	shell: '{vg} snarls -l -t -r {output[0]} {input[0]} > {output[1]}'
+
+rule find_repetiticity:
+	input: 'graph/graph.trans', 'approach/graph/canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/reads.seeds.pref5000.gam'
+	output: 'approach/graph/canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/reads.seeds.pref5000.reps'
+	run:
+		param_val = int(wildcards.coverage) + .67* int(wildcards.coverage)
+		shell('python3 ./scripts/tandomicity.x.py {input[0]} {input[1]} {param_val} {output}')
+
+# check once the read name for contigs.. ../scripts/vg view -a yeast.contigs.gam | jq '.name' > tig_names, cat tig_names | tr '\n' ','  > tig_names_1
+# do it for all the coverages
+
+rule order_bubbles:
+	input: 'canu_cov{coverage,([0-9]+)}/yeast.contigs.gam', 'graph/graph.trans', 'approach/graph/real.SK1_Y12.chrall.cov{coverage,([0-9]+)}.reps',
+	output: 'canu_cov{coverage,([0-9]+)}/yeast.contigs.gam_tig00000027.trans' # find the intersection of tig id between all the lists 
+	shell: 'python3 ./scripts/ordertransbygam.py {input[2]} {input[0]} {input[1]}'
+
+# python3 ../scripts/combine_canu_chunks.py canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/reads.gam canu_cov{coverage,([0-9]+)}_read{size,([0-9]+)}/reads.joint.gam
+
+rule whatshap_graph_phasing:
+        input: 'canu_cov{coverage,([0-9]+)}/yeast.contigs.x.pieceslen10k.gam_{tigids}.trans', 'approach/graph/real.SK1_Y12.chrall.cov{coverage,([0-9]+)}.gam', 'canu_cov{coverage,([0-9]+)}/graph.aug.vg', 'canu_cov{coverage,([0-9]+)}/yeast.contigs.x.pieceslen10k.gam', 
+        output:'canu_cov{coverage,([0-9]+)}/yeast.contigs.gam_{tigids}.haplotigs',
+        log: 'canu_cov{coverage,([0-9]+)}/yeast.contigs.gam_{tigids}.log'
+        shell: '{gwhatshap} phaseg {input[0]} {input[1]} {input[2]} {input[3]} {output[0]} 1> {log} 2>&1'
+
+
+
+
