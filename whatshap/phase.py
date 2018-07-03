@@ -159,11 +159,11 @@ def select_reads(
 		readset,
 		max_coverage,
 		preferred_source_ids,
-		merge_reads,
-		merge_reads_error_rate,
-		merge_reads_max_error_rate,
-		merge_reads_positive_threshold,
-		merge_reads_negative_threshold
+		merge_reads = False,
+		merge_reads_error_rate = 0.15,
+		merge_reads_max_error_rate = 0.25,
+		merge_reads_positive_threshold = 100000,
+		merge_reads_negative_threshold = 1000
 	):
 
 	readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
