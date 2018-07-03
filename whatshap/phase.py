@@ -155,13 +155,25 @@ def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_
 	return readset, vcf_source_ids
 
 
-def select_reads(readset, max_coverage, preferred_source_ids, merge_reads):
+def select_reads(
+		readset,
+		max_coverage,
+		preferred_source_ids,
+		merge_reads,
+		merge_reads_error_rate,
+		merge_reads_max_error_rate,
+		merge_reads_positive_threshold,
+		merge_reads_negative_threshold
+	):
+
 	readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
 	logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
 	if merge_reads :
-		logger.info('merge reads ...')
-		readset = read_merging(readset)
+		logger.info('Merging %d reads with error rate %.2f, maximum error rate %.2f, positive threshold %d and negative threshold %d ...', len(readset), merge_reads_error_rate, merge_reads_max_error_rate, merge_reads_positive_threshold, merge_reads_negative_threshold)
+		previous_length = len(readset)
+		readset = read_merging(readset, merge_reads_error_rate, merge_reads_max_error_rate, merge_reads_positive_threshold, merge_reads_negative_threshold)
+		logger.info('... after merging: merged %d reads into %d reads', previous_length, len(readset))
 
 	logger.info('Reducing coverage to at most %dX by selecting most informative reads ...', max_coverage)
 	selected_indices = readselection(readset, max_coverage, preferred_source_ids)
@@ -266,6 +278,10 @@ def run_whatshap(
 		indels=True,
 		mapping_quality=20,
 		merge_reads=False,
+		merge_reads_error_rate=0.15,
+		merge_reads_max_error_rate=0.25,
+		merge_reads_positive_threshold=1000000,
+		merge_reads_negative_threshold=1000,
 		max_coverage=15,
 		full_genotyping=False,
 		distrust_genotypes=False,
@@ -294,7 +310,11 @@ def run_whatshap(
 	chromosomes -- names of chromosomes to phase. an empty list means: phase all chromosomes
 	ignore_read_groups
 	mapping_quality -- discard reads below this mapping quality
-	merge_reads
+	merge_reads -- whether or not to merge reads
+	merge_reads_error_rate -- probability that a nucleotide is wrong
+	merge_reads_max_error_rate -- max error rate on edge of merge graph considered
+	merge_reads_positive_threshold -- threshold on the ratio of the two probabilities
+	merge_reads_negative_threshold -- threshold on the opposite ratio of positive threshold
 	max_coverage
 	full_genotyping
 	distrust_genotypes
@@ -547,7 +567,8 @@ def run_whatshap(
 					# TODO: Read selection done w.r.t. all variants, where using heterozygous variants only
 					# TODO: would probably give better results.
 					with timers('select'):
-						selected_reads = select_reads(readset, max_coverage_per_sample, preferred_source_ids = vcf_source_ids, merge_reads = merge_reads)
+						selected_reads = select_reads(readset, max_coverage_per_sample, preferred_source_ids = vcf_source_ids, merge_reads = merge_reads, merge_reads_error_rate = merge_reads_error_rate, merge_reads_max_error_rate = merge_reads_max_error_rate, merge_reads_positive_threshold = merge_reads_positive_threshold, merge_reads_negative_threshold = merge_reads_negative_threshold)
+
 					readsets[sample] = selected_reads
 					if (len(family) == 1) and not distrust_genotypes:
 						# When having a pedigree (i.e. len(family)>1), then blocks are also merged after phasing based on the
@@ -773,6 +794,27 @@ def add_arguments(parser):
 	arg('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
 		help='Name of chromosome to phase. If not given, all chromosomes in the '
 		'input VCF are phased. Can be used multiple times.')
+
+	arg = parser.add_argument_group('Read merging',
+		'The options in this section are only active when --merge-reads is used').add_argument
+	arg('--error-rate', dest = 'merge_reads_error_rate',
+		type = float, default = 0.15,
+		help = 'The probability that a nucleotide is wrong in read merging model '
+                '(default: %(default)s).')
+	arg('--maximum-error-rate', dest='merge_reads_max_error_rate',
+		type = float, default = 0.25,
+		help = 'The maximum error rate of any edge of the read merging graph '
+		'before discarding it (default: %(default)s).')
+	arg('--threshold', dest = 'merge_reads_positive_threshold',
+		type = int, default = 1000000,
+		help = 'The threshold of the ratio between the probabilities that a pair '
+		'of reads come from the same haplotype and different haplotypes in the '
+		'read merging model (default: %(default)s).')
+	arg('--negative-threshold', dest = 'merge_reads_negative_threshold',
+		type = int, default = 1000,
+		help = 'The threshold of the ratio between the probabilities that a pair '
+		'of reads come from different haplotypes and the same haplotype in the '
+		'read merging model (default: %(default)s).')
 
 	arg = parser.add_argument_group('Genotyping',
 		'The options in this section require that either --distrust-genotypes or --full-genotyping is used').add_argument

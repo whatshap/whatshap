@@ -21,8 +21,8 @@ def eval_overlap(n1, n2):
                 mismatch += 1
     return (match, mismatch)
 
-def read_merging(read_set) :
 
+def read_merging(read_set, error_rate, max_error_rate, threshold, neg_threshold) :
 
     #print(read_set, file = sys.stderr)
 
@@ -33,21 +33,19 @@ def read_merging(read_set) :
     gnotred = nx.Graph()
 
     # Probability that any nucleotide is wrong
-    error_rate = 0.15
     logger.debug("Error Rate: %s", error_rate)
 
     # If an edge has too many errors, we discard it, since it is not reliable
-    max_error_rate = 0.25
     logger.debug("Max Error Rate: %s", max_error_rate)
 
     # Threshold of the ratio between the probabilities that the two reads come from
     # the same side or from different sides
-    thr = 1000000
+    thr = threshold
     logger.debug("Positive Threshold: %s", thr)
 
     # Threshold_neg is a more conservative threshold for the evidence
     # that two reads should not be clustered together.
-    thr_neg = 1000
+    thr_neg = neg_threshold
     logger.debug("Negative Threshold: %s", thr_neg)
 
     thr_diff = 1 + int(math.log(thr, (1 - error_rate) / (error_rate / 3)))
