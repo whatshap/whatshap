@@ -1,12 +1,15 @@
-import networkx as nx
-import math
-import collections
 import logging
-import sys
-import argparse
+import networkx as nx
+import collections
+import math
 from .core import Read, ReadSet
 
+
+logger = logging.getLogger(__name__)
+
+
 def eval_overlap(n1, n2):
+
     hang1 = n2['begin'] - n1['begin']
     overlap = zip(n1['sites'][hang1:], n2['sites'])
     match, mismatch = (0, 0)
@@ -19,11 +22,11 @@ def eval_overlap(n1, n2):
     return (match, mismatch)
 
 def read_merging(read_set) :
-    logging.basicConfig(level=logging.DEBUG,
-                        format='%(levelname)-8s [%(asctime)s]  %(message)s',
-                        datefmt="%y%m%d %H%M%S")
 
-    logging.info("Program started.")
+
+    #print(read_set, file = sys.stderr)
+
+    logger.debug("Merging program started.")
     gblue = nx.Graph()
     gred = nx.Graph()
     gnotblue = nx.Graph()
@@ -31,72 +34,55 @@ def read_merging(read_set) :
 
     # Probability that any nucleotide is wrong
     error_rate = 0.15
-    logging.info("Error Rate: %s", error_rate)
+    logger.debug("Error Rate: %s", error_rate)
 
     # If an edge has too many errors, we discard it, since it is not reliable
     max_error_rate = 0.25
-    logging.info("Max Error Rate: %s", max_error_rate)
+    logger.debug("Max Error Rate: %s", max_error_rate)
 
     # Threshold of the ratio between the probabilities that the two reads come from
     # the same side or from different sides
     thr = 1000000
-    logging.info("Positive Threshold: %s", thr)
+    logger.debug("Positive Threshold: %s", thr)
+
     # Threshold_neg is a more conservative threshold for the evidence
     # that two reads should not be clustered together.
     thr_neg = 1000
-    logging.info("Negative Threshold: %s", thr_neg)
+    logger.debug("Negative Threshold: %s", thr_neg)
+
     thr_diff = 1 + int(math.log(thr, (1 - error_rate) / (error_rate / 3)))
     thr_neg_diff = 1 + int(math.log(thr_neg, (1 - error_rate) / (error_rate / 3)))
-
-    logging.debug("Thr. Diff.: %s - Thr. Neg. Diff.: %s",
+    logger.debug("Thr. Diff.: %s - Thr. Neg. Diff.: %s",
                   thr_diff,
                   thr_neg_diff)
 
-    logging.info("Started reading WIF file...")
+    logger.debug("Start reading the reads...")
     id = 0
     orig_reads = {}
-    site_alleles = {} # dic[site] = major and minor allele
-    #with open(args.wif_file, "r") as f:
+    site_alleles = {}
     queue = {}
     reads = {}
     for read in read_set:
         id += 1
-        # tokenize line, get first and last site
         begin_str =read[0][0]
         snps = []
         orgn=[]
         for variant in read:
             
             site = variant[0]
-#            print("site:"+toks[0])
-            #nucl = toks[1]
-            #print("nucl:"+nucl)
             zyg = variant[1]
-          #  print("zyg:"+toks[2])
             qual = variant[2]
-           # print("qual:"+toks[3])
+
             orgn.append([str(site),str(zyg),str(qual)])
             if int(zyg) == 0:
                snps.append('G')
             else:
                snps.append('C')
-              # add to alleles dictionary, checking for discordancy (multi-allelic)
-              #  if site not in site_alleles :
-               #     site_alleles[site] = ['','']
-               # if not site_alleles[site][zyg] :
-               #     site_alleles[site][zyg] = nucl
-               # else :
-               #     deg = 'minor' if zyg else 'major'
-              #     cur = str(site_alleles[site][zyg])
-               #     errsuf = ', current '+deg+' allele: '+cur
-               #     errsuf += '\n\tis discordant with new allele: '+ nucl
-               #     assert site_alleles[site][zyg] == nucl, 'at site: '+str(site)+errsuf
 
-            #(id, begin_str, *snps) = line.split()
         begin = int(begin_str)
         end = begin + len(snps)
         orig_reads[id]=orgn
-        logging.debug("id: %s - pos: %s - snps: %s", id, begin, "".join(snps))
+        logger.debug("id: %s - pos: %s - snps: %s", id, begin, "".join(snps))
          
 
         gblue.add_node(id, begin=begin, end=end, sites="".join(snps))
@@ -120,25 +106,25 @@ def read_merging(read_set) :
                      if mismatch - match >= thr_neg_diff:
                         gnotblue.add_edge(id1, id, match=match, mismatch=mismatch)
 
-    logging.info("Finished reading WIF file.")
-    logging.info("N. WIF entries: %s", id)
-    logging.info("Blue Graph")
-    logging.info("Nodes: %s - Edges: %s - ConnComp: %s",
+    logger.debug("Finished reading the reads.")
+    logger.debug("Number of reads: %s", id)
+    logger.debug("Blue Graph")
+    logger.debug("Nodes: %s - Edges: %s - ConnComp: %s",
                  nx.number_of_nodes(gblue),
                  nx.number_of_edges(gblue),
                  len(list(nx.connected_components(gblue))))
-    logging.info("Non-Blue Graph")
-    logging.info("Nodes: %s - Edges: %s - ConnComp: %s",
+    logger.debug("Non-Blue Graph")
+    logger.debug("Nodes: %s - Edges: %s - ConnComp: %s",
                  nx.number_of_nodes(gnotblue),
                  nx.number_of_edges(gnotblue),
                  len(list(nx.connected_components(gnotblue))))
-    logging.info("Red Graph")
-    logging.info("Nodes: %s - Edges: %s - ConnComp: %s",
+    logger.debug("Red Graph")
+    logger.debug("Nodes: %s - Edges: %s - ConnComp: %s",
                  nx.number_of_nodes(gred),
                  nx.number_of_edges(gred),
                  len(list(nx.connected_components(gred))))
-    logging.info("Non-Red Graph")
-    logging.info("Nodes: %s - Edges: %s - ConnComp: %s",
+    logger.debug("Non-Red Graph")
+    logger.debug("Nodes: %s - Edges: %s - ConnComp: %s",
                  nx.number_of_nodes(gnotred),
                  nx.number_of_edges(gnotred),
                  len(list(nx.connected_components(gnotred))))
@@ -177,12 +163,12 @@ def read_merging(read_set) :
             gblue.remove_edge(w, x)
 
     # Merge blue components (somehow)
-    logging.info("Started Merging Reads...")
+    logger.debug("Started Merging Reads...")
     superreads = {} # superreads given by the clusters (if clustering)
     rep = {} # cluster representative of a read in a cluster
     
     if(False):
-        logging.info("Printing graph in %s file", args.graph_file)
+        logger.debug("Printing graph in %s file", args.graph_file)
         graph_out = open(args.graph_file, "w")
     for cc in nx.connected_components(gblue):
         if len(cc) > 1 :
@@ -192,7 +178,7 @@ def read_merging(read_set) :
             superreads[r] = {}
             for id in cc:
                 rep[id] = r
-            logging.debug("rep: %s - cc: %s", r, ",".join([str(id) for id in cc]))
+            logger.debug("rep: %s - cc: %s", r, ",".join([str(id) for id in cc]))
   
     for id in orig_reads:
         if id in rep:
@@ -205,7 +191,6 @@ def read_merging(read_set) :
                     superreads[r][site] = [0,0]
                 superreads[r][site][zyg] += qual
 
-    #with open(args.out_file, "w") as out:
         readset=ReadSet()
         readn=0
         for id in orig_reads:
@@ -225,8 +210,10 @@ def read_merging(read_set) :
                 for tok in orig_reads[id]:
                    read.add_variant(int(tok[0]),int(tok[1]),int(tok[2]))
                 readset.add(read)
-           
 
-    logging.info("Finished Merging Reads.")
-    logging.info("Program Finshed")
+    logger.debug("Finished merging reads.")
+    logger.debug("Merging program finshed.")
+
+    #print(readset, file = sys.stderr)
+
     return readset
