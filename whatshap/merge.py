@@ -179,13 +179,8 @@ def merge_reads(read_set, error_rate, max_error_rate, threshold, neg_threshold) 
 	superreads = {} # superreads given by the clusters (if clustering)
 	rep = {} # cluster representative of a read in a cluster
 
-	if(False):
-		logger.debug("Printing graph in %s file", args.graph_file)
-		graph_out = open(args.graph_file, "w")
 	for cc in nx.connected_components(gblue):
 		if len(cc) > 1 :
-			if(False):
-				graph_out.write(' '.join([str(id) for id in cc]) + "\n")
 			r = min(cc)
 			superreads[r] = {}
 			for id in cc:
