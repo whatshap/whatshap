@@ -17,7 +17,7 @@ from xopen import xopen
 from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
 from . import __version__
-from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, HapChatCore
+from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes
 from .merge import read_merging
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
