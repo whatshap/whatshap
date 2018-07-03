@@ -108,17 +108,18 @@ def merge_reads(read_set, error_rate, max_error_rate, threshold, neg_threshold) 
 		for x in [id for id in queue.keys() if queue[id]['end'] <= begin]:
 			del queue[x]
 		for id1 in queue.keys():
-			if id != id1:
-				match, mismatch = eval_overlap(queue[id1], queue[id])
-				if match + mismatch >= thr_neg_diff and min(match, mismatch) / (match + mismatch) <= max_error_rate:
-					if match - mismatch >= thr_diff:
-						gblue.add_edge(id1, id, match=match, mismatch=mismatch)
-						if mismatch - match >= thr_diff:
-							gred.add_edge(id1, id, match=match, mismatch=mismatch)
-						if match - mismatch >= thr_neg_diff:
-							gnotred.add_edge(id1, id, match=match, mismatch=mismatch)
-						if mismatch - match >= thr_neg_diff:
-							gnotblue.add_edge(id1, id, match=match, mismatch=mismatch)
+			if id == id1:
+				continue
+			match, mismatch = eval_overlap(queue[id1], queue[id])
+			if match + mismatch >= thr_neg_diff and min(match, mismatch) / (match + mismatch) <= max_error_rate:
+				if match - mismatch >= thr_diff:
+					gblue.add_edge(id1, id, match=match, mismatch=mismatch)
+					if mismatch - match >= thr_diff:
+						gred.add_edge(id1, id, match=match, mismatch=mismatch)
+					if match - mismatch >= thr_neg_diff:
+						gnotred.add_edge(id1, id, match=match, mismatch=mismatch)
+					if mismatch - match >= thr_neg_diff:
+						gnotblue.add_edge(id1, id, match=match, mismatch=mismatch)
 
 	logger.debug("Finished reading the reads.")
 	logger.debug("Number of reads: %s", id)
