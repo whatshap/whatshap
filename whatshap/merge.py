@@ -9,7 +9,10 @@ logger = logging.getLogger(__name__)
 
 
 def eval_overlap(n1, n2):
-
+    """
+    Return a tuple containing the number of matches (resp.,
+    mismatches) between a pair (n1,n2) of overlapping reads
+    """
     hang1 = n2['begin'] - n1['begin']
     overlap = zip(n1['sites'][hang1:], n2['sites'])
     match, mismatch = (0, 0)
@@ -22,10 +25,23 @@ def eval_overlap(n1, n2):
     return (match, mismatch)
 
 
-def read_merging(read_set, error_rate, max_error_rate, threshold, neg_threshold) :
-
-    #print(read_set, file = sys.stderr)
-
+def merge_reads(read_set, error_rate, max_error_rate, threshold, neg_threshold) :
+    """
+    Return a set of reads after merging together subsets of reads
+    (into super reads) from an input readset according to a
+    probabilistic model of how likely sets of reads are to appear
+    together on one haplotype and on opposite haplotypes.
+    read_set -- the input .core.ReadSet object
+    error_rate -- the probability that a nucleotide is wrong
+    max_error_rate -- the maximum error rate of any edge of the read
+    merging graph allowed before we discard it
+    threshold -- the threshold of the ratio between the probabilities
+    that a pair ' 'of reads come from the same haplotype and different
+    haplotypes
+    neg_threshold -- The threshold of the ratio between the
+    probabilities that a pair of reads come from the same haplotype
+    and different haplotypes.
+    """
     logger.debug("Merging program started.")
     gblue = nx.Graph()
     gred = nx.Graph()
@@ -127,8 +143,6 @@ def read_merging(read_set, error_rate, max_error_rate, threshold, neg_threshold)
                  nx.number_of_edges(gnotred),
                  len(list(nx.connected_components(gnotred))))
 
-
-
     # We consider the notblue edges as an evidence that two reads
     # should not be merged together
     # Since we want to merge each blue connected components into
@@ -211,7 +225,5 @@ def read_merging(read_set, error_rate, max_error_rate, threshold, neg_threshold)
 
     logger.debug("Finished merging reads.")
     logger.debug("Merging program finshed.")
-
-    #print(readset, file = sys.stderr)
 
     return readset

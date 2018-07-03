@@ -18,7 +18,7 @@ from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
 from . import __version__
 from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes
-from .merge import read_merging
+from .merge import merge_reads
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
@@ -159,7 +159,7 @@ def select_reads(
 		readset,
 		max_coverage,
 		preferred_source_ids,
-		merge_reads = False,
+		merge_reads_ = False,
 		merge_reads_error_rate = 0.15,
 		merge_reads_max_error_rate = 0.25,
 		merge_reads_positive_threshold = 100000,
@@ -169,10 +169,10 @@ def select_reads(
 	readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
 	logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
-	if merge_reads :
+	if merge_reads_ :
 		logger.info('Merging %d reads with error rate %.2f, maximum error rate %.2f, positive threshold %d and negative threshold %d ...', len(readset), merge_reads_error_rate, merge_reads_max_error_rate, merge_reads_positive_threshold, merge_reads_negative_threshold)
 		previous_length = len(readset)
-		readset = read_merging(readset, merge_reads_error_rate, merge_reads_max_error_rate, merge_reads_positive_threshold, merge_reads_negative_threshold)
+		readset = merge_reads(readset, merge_reads_error_rate, merge_reads_max_error_rate, merge_reads_positive_threshold, merge_reads_negative_threshold)
 		logger.info('... after merging: merged %d reads into %d reads', previous_length, len(readset))
 
 	logger.info('Reducing coverage to at most %dX by selecting most informative reads ...', max_coverage)
@@ -277,7 +277,7 @@ def run_whatshap(
 		ignore_read_groups=False,
 		indels=True,
 		mapping_quality=20,
-		merge_reads=False,
+		merge_reads_=False,
 		merge_reads_error_rate=0.15,
 		merge_reads_max_error_rate=0.25,
 		merge_reads_positive_threshold=1000000,
@@ -310,7 +310,7 @@ def run_whatshap(
 	chromosomes -- names of chromosomes to phase. an empty list means: phase all chromosomes
 	ignore_read_groups
 	mapping_quality -- discard reads below this mapping quality
-	merge_reads -- whether or not to merge reads
+	merge_reads_ -- whether or not to merge reads
 	merge_reads_error_rate -- probability that a nucleotide is wrong
 	merge_reads_max_error_rate -- max error rate on edge of merge graph considered
 	merge_reads_positive_threshold -- threshold on the ratio of the two probabilities
@@ -567,7 +567,7 @@ def run_whatshap(
 					# TODO: Read selection done w.r.t. all variants, where using heterozygous variants only
 					# TODO: would probably give better results.
 					with timers('select'):
-						selected_reads = select_reads(readset, max_coverage_per_sample, preferred_source_ids = vcf_source_ids, merge_reads = merge_reads, merge_reads_error_rate = merge_reads_error_rate, merge_reads_max_error_rate = merge_reads_max_error_rate, merge_reads_positive_threshold = merge_reads_positive_threshold, merge_reads_negative_threshold = merge_reads_negative_threshold)
+						selected_reads = select_reads(readset, max_coverage_per_sample, preferred_source_ids = vcf_source_ids, merge_reads_ = merge_reads_, merge_reads_error_rate = merge_reads_error_rate, merge_reads_max_error_rate = merge_reads_max_error_rate, merge_reads_positive_threshold = merge_reads_positive_threshold, merge_reads_negative_threshold = merge_reads_negative_threshold)
 
 					readsets[sample] = selected_reads
 					if (len(family) == 1) and not distrust_genotypes:
@@ -776,7 +776,7 @@ def add_arguments(parser):
 		help='Write reads that have been used for phasing to FILE.')
 
 	arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
-	arg('--merge-reads', default=False, action='store_true',
+	arg('--merge-reads', dest = 'merge_reads_', default=False, action='store_true',
 		help='Merge reads which are likely to come from the same haplotype '
 		'(default: do not merge reads)')
 	arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
