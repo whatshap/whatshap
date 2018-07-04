@@ -27,6 +27,7 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, given_geno
 	for i in range(1,ploidy):
 		assert len(superreads[0]) == len(superreads[i])
 	haplotypes = sorted(''.join(str(v.allele) for v in sr) for sr in superreads)
+	print(haplotypes, cost, partition)
 	expected_cost, expected_partition, solution_count, expected_haplotypes = brute_force_phase(readset, ploidy, given_genotypes)
 	print(haplotypes, expected_haplotypes)
 	for sr in superreads:
@@ -101,3 +102,64 @@ def test_phase1():
          11100
 	"""
 	check_phasing_single_individual(reads,[2,2,3,2,2], 3)
+
+def test_phase2():
+	reads = """
+         1111111
+         0101011
+         0011110
+         0111011
+         1111101
+	"""
+	check_phasing_single_individual(reads, [1,2,3,3,2,3,2], 3)
+
+# the long runtime of this tests is mainly due to the brute_force_phase method
+def test_phase3():
+	reads="""
+        1111011
+        0101110
+        1110111
+        1010111
+        1010111
+        0000001
+        0000000
+	"""
+	check_phasing_single_individual(reads, [2,2,2,2,2,3,3], 4)
+
+def test_phase4():
+	reads="""
+        00000
+        00010
+        00101
+        01101
+        10001
+        01110
+	"""
+	check_phasing_single_individual(reads, [1,1,2,1,1], 4)
+
+# this takes 15 min to be solved ...
+#def test_phase4():
+#	reads="""
+#        11110000
+#        10101010
+#        01010101
+#        00001111
+#        11111111
+#        00000000
+#        11001100
+#        00110011 
+#	"""
+#	check_phasing_single_individual(reads, [4,4,4,4,3,3,3,3], 8)
+#
+#def test_phase5():
+#	reads="""
+#        11111111
+#        11111111
+#        01010101
+#        01100101
+#        10101010
+#        10101011
+#        00000000
+#        00001111
+#	"""
+#	check_phasing_single_individual(reads, [2,2,2,2,3,3,3,4], 7)

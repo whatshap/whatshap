@@ -157,7 +157,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
         ReadSet* read_set = string_to_readset(reads[0],weights,false);
         std::vector<unsigned int>* positions = read_set->get_positions();
         std::vector<unsigned int> recombcost(positions->size(), 10);
-        Pedigree* pedigree = new Pedigree();
+        Pedigree* pedigree = new Pedigree(2);
 
         std::vector<PhredGenotypeLikelihoods*> gl_mother;
         std::vector<PhredGenotypeLikelihoods*> gl_father;
@@ -229,7 +229,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
         ReadSet* read_set = string_to_readset(reads[0],weights,false);
         std::vector<unsigned int>* positions = read_set->get_positions();
         std::vector<unsigned int> recombcost(positions->size(), 10);
-        Pedigree* pedigree = new Pedigree();
+        Pedigree* pedigree = new Pedigree(2);
 
         std::vector<PhredGenotypeLikelihoods*> gl_mother;
         std::vector<PhredGenotypeLikelihoods*> gl_father;
@@ -292,7 +292,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
        ReadSet* read_set = string_to_readset(reads[0],weights,false);
        std::vector<unsigned int>* positions = read_set->get_positions();
        std::vector<unsigned int> recombcost(positions->size(), 10);
-       Pedigree* pedigree = new Pedigree();
+       Pedigree* pedigree = new Pedigree(2);
 
        std::vector<PhredGenotypeLikelihoods*> gl;
        for(unsigned int i = 0; i < positions->size(); i++){
@@ -340,7 +340,7 @@ TEST_CASE("test ColumnCostComputers","[test column_cost_computer]"){
         std::vector<unsigned int>* positions = read_set->get_positions();
         std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods(positions->size(),nullptr);
         std::vector<unsigned int> recombcost(positions->size(), 1);
-        Pedigree* pedigree = new Pedigree();
+        Pedigree* pedigree = new Pedigree(2);
         pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), genotype_likelihoods);
 
         // create all pedigree partitions
@@ -539,7 +539,7 @@ TEST_CASE("test ColumnIndexingIterator", "[test ColumnIndexingIterator]"){
 TEST_CASE("test PedigreePartitions", "[test PedigreePartitions]"){
 
     SECTION("test diploid case"){
-        Pedigree pedigree;
+        Pedigree pedigree(2);
         pedigree.addIndividual(0, std::vector<unsigned int>(3,1), {0,0,0});
         pedigree.addIndividual(1, std::vector<unsigned int>(3,1), {0,0,0});
         pedigree.addIndividual(2, std::vector<unsigned int>(3,1), {0,0,0});
@@ -557,7 +557,7 @@ TEST_CASE("test PedigreePartitions", "[test PedigreePartitions]"){
     }
 
     SECTION("test polyploid case"){
-        Pedigree pedigree;
+        Pedigree pedigree(2);
         pedigree.addIndividual(0, std::vector<unsigned int>(3,1), {0,0,0});
         pedigree.addIndividual(1, std::vector<unsigned int>(3,1), {0,0,0});
         pedigree.addIndividual(2, std::vector<unsigned int>(3,1), {0,0,0});
@@ -591,7 +591,7 @@ TEST_CASE("test polyploid_column_costs","[test column_cost_computer]"){
         }
 
         std::vector<unsigned int> recombcost(positions->size(), 1);
-        Pedigree* pedigree = new Pedigree();
+        Pedigree* pedigree = new Pedigree(2);
         pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), genotype_likelihoods);
 
         // create all pedigree partitions

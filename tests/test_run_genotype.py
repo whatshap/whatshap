@@ -144,7 +144,7 @@ def test_genotyping_one_of_three_individuals():
 			default_l = math.log10(1/3.0)
 			for l in [table.genotype_likelihoods_of('HG002'), table.genotype_likelihoods_of('HG004')]:
 				for var in l:
-					assert(var.log10_probs() == (default_l, default_l, default_l))
+					assert(var.log10_probs() == [default_l, default_l, default_l])
 
 def test_use_ped_samples():
 	with TemporaryDirectory() as tempdir:
@@ -162,7 +162,7 @@ def test_use_ped_samples():
 
 		default_l = math.log10(1/3.0)
 		for var in table.genotype_likelihoods_of('orphan'):
-			assert(var.log10_probs() == (default_l, default_l, default_l))
+			assert(var.log10_probs() == [default_l, default_l, default_l])
 
 def test_ped_sample():
 	with TemporaryDirectory() as tempdir:

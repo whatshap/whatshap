@@ -101,7 +101,7 @@ def run_genotype(
 				'$REF_PATH/$REF_CACHE settings', str(e))
 			sys.exit(1)
 		try:
-			phase_input_vcf_readers = [VcfReader(f, indels=indels, phases=True) for f in phase_input_vcf_filenames]
+			phase_input_vcf_readers = [VcfReader(f, indels=indels, phases=True, ploidy=ploidy) for f in phase_input_vcf_filenames]
 		except OSError as e:
 			logger.error(e)
 			sys.exit(1)
@@ -135,7 +135,7 @@ def run_genotype(
 
 		# parse vcf with input variants
 		# remove all likelihoods that may already be present
-		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=False, ignore_genotypes=True)
+		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=False, ignore_genotypes=True, ploidy=ploidy)
 
 		if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
 			logger.error('When using --ignore-read-groups on a VCF with '
@@ -250,7 +250,8 @@ def run_genotype(
 
 				# use uniform genotype likelihoods for all individuals
 				for sample in samples:
-					variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * len(positions))
+					default_likelihoods = [1.0/3.0] * (ploidy + 1)
+					variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(default_likelihoods)] * len(positions))
 
 			# if desired, output the priors in separate vcf
 			if prioroutput != None:
@@ -304,6 +305,7 @@ def run_genotype(
 					# might already be present in the input vcf
 					all_genotype_likelihoods = variant_table.genotype_likelihoods_of(sample)
 					genotype_l = [ all_genotype_likelihoods[var_to_pos[a_p]] for a_p in accessible_positions]
+					# TODO cannot use 3 as default anymore
 					pedigree.add_individual(sample, [3] * len(accessible_positions), genotype_l)
 				for trio in trios:
 					pedigree.add_relationship(

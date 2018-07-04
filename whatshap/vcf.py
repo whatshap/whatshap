@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 class VcfNotSortedError(Exception):
 	pass
 
+class VcfPloidyError(Exception):
+	pass
 
 class VcfVariant:
 	"""A variant in a VCF file (not to be confused with core.Variant)"""
@@ -73,22 +75,18 @@ class VcfVariant:
 
 		return VcfVariant(pos, ref, alt)
 
-
 class GenotypeLikelihoods:
-	__slots__ = ('log_prob_g0', 'log_prob_g1', 'log_prob_g2')
+	__slots__ = 'log_prob_genotypes'
 
-	def __init__(self, log_prob_g0, log_prob_g1, log_prob_g2):
-		"""Likelihoods of the three genotypes 0, 1, 2 to be given
-		as log10 of the original probability."""
-		self.log_prob_g0 = log_prob_g0
-		self.log_prob_g1 = log_prob_g1
-		self.log_prob_g2 = log_prob_g2
+	def __init__(self, log_prob_genotypes):
+		""" Likelihoods of all possible genotypes (0,1,2,..., ploidy). """
+		self.log_prob_genotypes = log_prob_genotypes
 
 	def __repr__(self):
-		return "GenotypeLikelihoods({}, {}, {})".format(self.log_prob_g0, self.log_prob_g1, self.log_prob_g2)
+		return "GenotypeLikelihoods({})".format(self.log_prob_genotypes)
 
 	def log10_probs(self):
-		return ( self.log_prob_g0, self.log_prob_g1, self.log_prob_g2 )
+		return self.log_prob_genotypes
 
 	def log10_prob_of(self, genotype):
 		return self.log10_probs()[genotype]
@@ -96,19 +94,14 @@ class GenotypeLikelihoods:
 	def as_phred(self, regularizer=None):
 		if regularizer is None:
 			# shift log likelihoods such that the largest one is zero
-			m = max(self.log_prob_g0, self.log_prob_g1, self.log_prob_g2)
-			return PhredGenotypeLikelihoods([
-				round((self.log_prob_g0-m) * -10),
-				round((self.log_prob_g1-m) * -10),
-				round((self.log_prob_g2-m) * -10)]
-			)
+			m = max(self.log_prob_genotypes)
+			return PhredGenotypeLikelihoods([ round((prob-m) * -10) for prob in self.log_prob_genotypes ] )
 		else:
-			p = [ 10**x for x in (self.log_prob_g0, self.log_prob_g1, self.log_prob_g2) ]
+			p = [ 10**x for x in self.log_prob_genotypes ]
 			s = sum(p)
 			p = [ x/s + regularizer for x in p ]
 			m = max(p)
 			return PhredGenotypeLikelihoods( [round(-10*math.log10(x/m)) for x in p] )
-
 
 class VariantTable:
 	"""
@@ -146,6 +139,8 @@ class VariantTable:
 		variant -- a VcfVariant
 		genotypes -- iterable of ints that encode the genotypes of the samples:
 			-1 represents an unknown genotype
+			0 - ploidy represent all other possible genotypes
+			e.g. in diploid case:
 			0 represents 0/0 (homozygous reference)
 			1 represents 0/1 or 1/0 (heterozygous)
 			2 represents 1/1 (homozygous alternative)
@@ -278,7 +273,7 @@ class VcfReader:
 	"""
 	Read a VCF file chromosome by chromosome.
 	"""
-	def __init__(self, path, indels=False, phases=False, genotype_likelihoods=False, ignore_genotypes=False):
+	def __init__(self, path, indels=False, phases=False, genotype_likelihoods=False, ignore_genotypes=False, ploidy=2):
 		"""
 		path -- Path to VCF file
 		indels -- Whether to include also insertions and deletions in the list of
@@ -293,6 +288,7 @@ class VcfReader:
 		self._genotype_likelihoods = genotype_likelihoods
 		self.samples = self._vcf_reader.samples  # intentionally public
 		self.ignore_genotypes = ignore_genotypes
+		self.ploidy = ploidy
 		logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
 	def _group_by_chromosome(self):
@@ -328,6 +324,7 @@ class VcfReader:
 		for chromosome, records in self._group_by_chromosome():
 			yield self._process_single_chromosome(chromosome, records)
 
+	# TODO extend this to polyploid case
 	@staticmethod
 	def _extract_HP_phase(call):
 		HP = getattr(call.data, 'HP', None)
@@ -341,6 +338,7 @@ class VcfReader:
 		assert ((phase1, phase2) == (0, 1)) or ((phase1, phase2) == (1, 0))
 		return VariantCallPhase(block_id=block_id, phase=phase1, quality=getattr(call.data, 'PQ', None))
 
+	# TODO extend this to polyploid case
 	@staticmethod
 	def _extract_GT_PS_phase(call):
 		if not call.is_het:
@@ -409,11 +407,12 @@ class VcfReader:
 					PL = getattr(call.data, 'PL', None)
 					# Prefer GLs (floats) over PLs (ints) if both should be present
 					if GL is not None:
-						assert len(GL) == 3
-						genotype_likelihoods.append(GenotypeLikelihoods(*GL))
+						assert len(GL) == (self.ploidy + 1)
+						genotype_likelihoods.append(GenotypeLikelihoods(GL))
 					elif PL is not None:
-						assert len(PL) == 3
-						genotype_likelihoods.append(GenotypeLikelihoods( *(pl/-10 for pl in PL) ))
+						assert len(PL) == (self.ploidy + 1)
+						print('vcf.py 407: PL is: ', PL, (pl/-10 for pl in PL), [pl/-10 for pl in PL])
+						genotype_likelihoods.append(GenotypeLikelihoods( [pl/-10 for pl in PL] ))
 					else:
 						genotype_likelihoods.append(None)
 			else:
@@ -425,7 +424,18 @@ class VcfReader:
 			# And when GT is 2|1, gt_alleles is ['2', '1'].
 			GT_TO_INT = { 0: 0, 1: 1, 2: 2, None: -1 }
 			if not self.ignore_genotypes:
-				genotypes = array('b', (GT_TO_INT[call.gt_type] for call in record.samples))
+				sample_genotypes = []
+				for call in record.samples:
+					sample_gt = -1
+					if call.gt_type is not None:
+						sample_gt = 0
+						if len(call.gt_alleles) is not self.ploidy:
+							raise VcfPloidyError('Ploidy of VCF Samples do not match the ploidy given by --ploidy ({} instead of {}).'.format(len(call.gt_alleles), self.ploidy))
+						for allele in call.gt_alleles:
+							sample_gt += int(allele)
+					sample_genotypes.append(sample_gt)
+				genotypes = array('b', sample_genotypes)
+#				genotypes = array('b', ( sum(map(int,call.gt_alleles)) for call in record.samples) )
 			else:
 				genotypes = array('b', ([-1] * len(self.samples)))
 				phases = [None] * len(self.samples)
