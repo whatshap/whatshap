@@ -173,6 +173,7 @@ def brute_force_phase(read_set, ploidy, allowed_genotypes = None):
 			solution_count = 1
 		elif cost == best_cost:
 			solution_count += 1
+
 	# Each partition has its inverse with the same cost
 	number_of_equal_solutions = math.factorial(ploidy)
 	assert solution_count % number_of_equal_solutions == 0
