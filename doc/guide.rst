@@ -218,6 +218,40 @@ that is, they are combined with the normal sequencing reads and the best
 solution taking all reads into account is computed.
 
 
+.. _selection-and-merging:
+
+Read selection and merging
+--------------------------
+
+Whatshap has multiple ways to reduce the coverage of the input --
+allowing faster runtimes -- in a way that attempts to minimize the
+amount of information in this process.  The default is to ensure a
+maximum coverage via read selection: a heuristic that extracts a
+subset of the reads that is most informative for phasing.  An optional
+step which can be done before selection is to merge subsets of reads
+together to form superreads according to a probabilistic model of how
+likely subsets of reads are to appear together on the same haplotype
+(p_s) or different ones (p_d).  By default, this feature is not
+activated, however it can be activated by specifying the
+``--merge-reads`` flag when running ``whatshap phase``.  This model is
+parameterized by the following four parameters
+
+================== ====================================================
+Parameter          Description
+================== ====================================================
+error-rate         Probability that a nucleotide is wrong
+maximum-error-rate Maximum error any edge of the merging graph can have
+threshold          Threshold ratio of p_s/p_d to merge two sets
+negative-threshold Threshold ratio of p_d/p_s to not merge two sets
+================== ====================================================
+
+which can be specified by the respective flags ``--error-rate=0.15``,
+``--maximum-error-rate=0.25``, ``--threshold=100000`` and
+``--negative-threshold=1000`` (note that defaults are shown here for
+example) when running ``whatshap phase``.  While the defaults have
+been inferred empirically with many tests, they may be tuned.
+
+
 .. _phasing_in_vcfs:
 
 Representation of phasing information in VCFs
