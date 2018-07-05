@@ -467,6 +467,11 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 	return trios, pedigree_samples
 
 
+def int_to_unphased_gt(genotype, ploidy):
+	genotype_alleles = ['0'] * (ploidy-genotype) + ['1'] * genotype
+	return '/'.join(genotype_alleles)
+
+
 def run_whatshap(
 		phase_input_files,
 		variant_file,
@@ -506,6 +511,7 @@ def run_whatshap(
 	phase_input_files -- list of paths to BAM/CRAM/VCF files
 	variant_file -- path to input VCF
 	reference -- path to reference FASTA
+	ploidy -- the ploidy of the samples
 	output -- path to output VCF or a file-like object
 	samples -- names of samples to phase. an empty list means: phase all samples
 	chromosomes -- names of chromosomes to phase. an empty list means: phase all chromosomes
@@ -553,6 +559,7 @@ def run_whatshap(
 				'reference could not be found. Try to use --reference=... or check you '
 			    '$REF_PATH/$REF_CACHE settings', str(e))
 			sys.exit(1)
+		
 		try:
 			phase_input_vcf_readers = [VcfReader(f, indels=indels, phases=True, ploidy=ploidy) for f in phase_input_vcf_filenames]
 		except OSError as e:
@@ -647,13 +654,16 @@ def run_whatshap(
 		phase_input_vcfs = []
 
 		timers.start('parse_phasing_vcfs')
-		for reader, filename in zip(phase_input_vcf_readers, phase_input_vcf_filenames):
-			# create dict mapping chromsome names to VariantTables
-			m = dict()
-			logger.info('Reading phased blocks from %r', filename)
-			for variant_table in reader:
-				m[variant_table.chromosome] = variant_table
-			phase_input_vcfs.append(m)
+		if ploidy == 2:
+			for reader, filename in zip(phase_input_vcf_readers, phase_input_vcf_filenames):
+				# create dict mapping chromsome names to VariantTables
+				m = dict()
+				logger.info('Reading phased blocks from %r', filename)
+				for variant_table in reader:
+					m[variant_table.chromosome] = variant_table
+				phase_input_vcfs.append(m)
+		else:
+			logger.info('WARNING: For ploidy > 2, using phased VCFs as input is currently not supported. If phased VCFs were provided, they will be ignored by WhatsHap.')
 		timers.stop('parse_phasing_vcfs')
 
 		timers.start('parse_vcf')
@@ -670,6 +680,8 @@ def run_whatshap(
 				continue
 
 			if full_genotyping:
+				# prior genotypes/likelihoods can only be computed for diploid samples
+				assert ploidy == 2
 				positions = [v.position for v in variant_table.variants]
 				for sample in samples:
 					logger.info('---- Initial genotyping of %s', sample)
@@ -764,7 +776,6 @@ def run_whatshap(
 					with timers('read_bam'):
 						bam_sample = None if ignore_read_groups else sample
 						readset, vcf_source_ids = read_reads(readset_reader, chromosome, phasable_variant_table.variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
-
 					# TODO: Read selection done w.r.t. all variants, where using heterozygous variants only
 					# TODO: would probably give better results.
 					with timers('select'):
@@ -860,10 +871,6 @@ def run_whatshap(
 					if distrust_genotypes:
 						hom_in_any_sample = set()
 						heterozygous_positions_by_sample = {}
-						# TODO extend to ploidy > 2
-						heterozygous_gts = frozenset({(0, 1), (1, 0)})
-						homozygous_gts = frozenset({(0, 0), (1, 1)})
-##
 						for sample, sample_superreads in zip(family, superreads_list):
 							hets = set()
 							for v in zip(*sample_superreads):
@@ -877,18 +884,7 @@ def run_whatshap(
 									hets.add(current_pos)
 								elif gt in [0, ploidy]:
 									hom_in_any_sample.add(current_pos)
-##
-#						for sample, sample_superreads in zip(family, superreads_list):
-#							hets = set()
-#							for v1, v2 in zip(*sample_superreads):
-#								assert v1.position == v2.position
-#								if v1.position not in accessible_positions:
-#									continue
-#								gt = (v1.allele, v2.allele)
-#								if gt in heterozygous_gts:
-#									hets.add(v1.position)
-#								elif gt in homozygous_gts:
-#									hom_in_any_sample.add(v1.position)
+
 							heterozygous_positions_by_sample[numeric_sample_ids[sample]] = hets
 						if (len(family) > 1) and genetic_haplotyping:
 							master_block = sorted(hom_in_any_sample)
@@ -946,11 +942,11 @@ def run_whatshap(
 				f = open(gtchange_list_filename, 'w')
 				# TODO extend to ploidy > 2
 				print('#sample', 'chromosome', 'position', 'REF', 'ALT', 'old_gt', 'new_gt', sep='\t', file=f)
-				INT_TO_UNPHASED_GT = { 0: '0/0', 1: '0/1', 2: '1/1', -1: '.' }
+#				INT_TO_UNPHASED_GT = { 0: '0/0', 1: '0/1', 2: '1/1', -1: '.' }
 				for changed_genotype in changed_genotypes:
 					print(changed_genotype.sample, changed_genotype.chromosome, changed_genotype.variant.position, 
 						changed_genotype.variant.reference_allele, changed_genotype.variant.alternative_allele,
-						INT_TO_UNPHASED_GT[changed_genotype.old_gt], INT_TO_UNPHASED_GT[changed_genotype.new_gt],
+						int_to_unphased_gt(changed_genotype.old_gt), int_to_unphased_gt(changed_genotype.new_gt),
 						sep='\t', file=f
 					)
 				f.close()
