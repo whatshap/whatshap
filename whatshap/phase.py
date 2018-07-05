@@ -578,7 +578,7 @@ def run_whatshap(
 		else:
 			command_line = None
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file,
-		        out_file=output, tag=tag)
+		        out_file=output, tag=tag, ploidy=ploidy)
 		# Only read genotype likelihoods from VCFs when distrusting genotypes
 		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=distrust_genotypes, ploidy=ploidy)
 
@@ -868,7 +868,6 @@ def run_whatshap(
 							hets = set()
 							for v in zip(*sample_superreads):
 								current_pos = v[0].position
-								print('loop: ', v)
 								for sr in v:
 									assert sr.position == current_pos
 								if current_pos not in accessible_positions:
@@ -995,7 +994,7 @@ def add_arguments(parser):
 	arg('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')
-	arg('--ploidy', metavar='PLOIDY', type=int, default=2, help='Ploidy of the samples (default: %(default)).')
+	arg('--ploidy', metavar='PLOIDY', type=int, default=2, help='Ploidy of the samples (default: %(default)s).')
 	arg('--tag', choices=('PS', 'HP'), default='PS',
 		help='Store phasing information with PS tag (standardized) or '
 			'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')
