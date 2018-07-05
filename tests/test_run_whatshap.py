@@ -708,3 +708,12 @@ def test_full_genotyping():
 	run_whatshap(
 		phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
 		output='/dev/null', full_genotyping=True)
+
+
+def test_with_read_merging() :
+	run_whatshap(
+		phase_input_files=['tests/data/pacbio/pacbio.bam'],
+		variant_file='tests/data/pacbio/variants.vcf',
+		reference='tests/data/pacbio/reference.fasta',
+		output='/dev/null',
+		read_merging=True)
