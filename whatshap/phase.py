@@ -477,11 +477,11 @@ def run_whatshap(
 		ignore_read_groups=False,
 		indels=True,
 		mapping_quality=20,
-		merge_reads_=False,
-		merge_reads_error_rate=0.15,
-		merge_reads_max_error_rate=0.25,
-		merge_reads_positive_threshold=1000000,
-		merge_reads_negative_threshold=1000,
+		read_merging=False,
+		read_merging_error_rate=0.15,
+		read_merging_max_error_rate=0.25,
+		read_merging_positive_threshold=1000000,
+		read_merging_negative_threshold=1000,
 		max_coverage=15,
 		full_genotyping=False,
 		distrust_genotypes=False,
@@ -510,11 +510,11 @@ def run_whatshap(
 	chromosomes -- names of chromosomes to phase. an empty list means: phase all chromosomes
 	ignore_read_groups
 	mapping_quality -- discard reads below this mapping quality
-	merge_reads_ -- whether or not to merge reads
-	merge_reads_error_rate -- probability that a nucleotide is wrong
-	merge_reads_max_error_rate -- max error rate on edge of merge graph considered
-	merge_reads_positive_threshold -- threshold on the ratio of the two probabilities
-	merge_reads_negative_threshold -- threshold on the opposite ratio of positive threshold
+	read_merging -- whether or not to merge reads
+	read_merging_error_rate -- probability that a nucleotide is wrong
+	read_merging_max_error_rate -- max error rate on edge of merge graph considered
+	read_merging_positive_threshold -- threshold on the ratio of the two probabilities
+	read_merging_negative_threshold -- threshold on the opposite ratio of positive threshold
 	max_coverage
 	full_genotyping
 	distrust_genotypes
@@ -770,8 +770,8 @@ def run_whatshap(
 						readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
 						logger.info('Kept %d reads that cover at least two variants each', len(readset))
 						merged_reads = readset
-						if merge_reads_ :
-							merged_reads = merge_reads(readset, merge_reads_error_rate, merge_reads_max_error_rate, merge_reads_positive_threshold, merge_reads_negative_threshold)
+						if read_merging :
+							merged_reads = merge_reads(readset, read_merging_error_rate, read_merging_max_error_rate, read_merging_positive_threshold, read_merging_negative_threshold)
 						selected_reads = select_reads(merged_reads, max_coverage_per_sample, preferred_source_ids = vcf_source_ids)
 
 					readsets[sample] = selected_reads
@@ -981,7 +981,7 @@ def add_arguments(parser):
 		help='Write reads that have been used for phasing to FILE.')
 
 	arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
-	arg('--merge-reads', dest = 'merge_reads_', default=False, action='store_true',
+	arg('--merge-reads', dest = 'read_merging', default=False, action='store_true',
 		help='Merge reads which are likely to come from the same haplotype '
 		'(default: do not merge reads)')
 	arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
@@ -1002,20 +1002,20 @@ def add_arguments(parser):
 
 	arg = parser.add_argument_group('Read merging',
 		'The options in this section are only active when --merge-reads is used').add_argument
-	arg('--error-rate', dest = 'merge_reads_error_rate',
+	arg('--error-rate', dest = 'read_merging_error_rate',
 		type = float, default = 0.15,
 		help = 'The probability that a nucleotide is wrong in read merging model '
                 '(default: %(default)s).')
-	arg('--maximum-error-rate', dest='merge_reads_max_error_rate',
+	arg('--maximum-error-rate', dest='read_merging_max_error_rate',
 		type = float, default = 0.25,
 		help = 'The maximum error rate of any edge of the read merging graph '
 		'before discarding it (default: %(default)s).')
-	arg('--threshold', dest = 'merge_reads_positive_threshold',
+	arg('--threshold', dest = 'read_merging_positive_threshold',
 		type = int, default = 1000000,
 		help = 'The threshold of the ratio between the probabilities that a pair '
 		'of reads come from the same haplotype and different haplotypes in the '
 		'read merging model (default: %(default)s).')
-	arg('--negative-threshold', dest = 'merge_reads_negative_threshold',
+	arg('--negative-threshold', dest = 'read_merging_negative_threshold',
 		type = int, default = 1000,
 		help = 'The threshold of the ratio between the probabilities that a pair '
 		'of reads come from different haplotypes and the same haplotype in the '
