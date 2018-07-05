@@ -379,7 +379,7 @@ def add_arguments(parser):
 	arg('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')
-	arg('--ploidy', metavar='PLOIDY', type=int, default=2, help='Ploidy of the samples (default: %(default)).')
+	arg('--ploidy', metavar='PLOIDY', type=int, default=2, help='Ploidy of the samples (default: %(default)s).')
 
 	arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
 	arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,

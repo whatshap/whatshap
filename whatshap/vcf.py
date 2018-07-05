@@ -411,7 +411,6 @@ class VcfReader:
 						genotype_likelihoods.append(GenotypeLikelihoods(GL))
 					elif PL is not None:
 						assert len(PL) == (self.ploidy + 1)
-						print('vcf.py 407: PL is: ', PL, (pl/-10 for pl in PL), [pl/-10 for pl in PL])
 						genotype_likelihoods.append(GenotypeLikelihoods( [pl/-10 for pl in PL] ))
 					else:
 						genotype_likelihoods.append(None)
@@ -422,7 +421,6 @@ class VcfReader:
 			# GT field, but as strings.
 			# For example, when GT is 0/1, gt_alleles is ['0', '1'].
 			# And when GT is 2|1, gt_alleles is ['2', '1'].
-			GT_TO_INT = { 0: 0, 1: 1, 2: 2, None: -1 }
 			if not self.ignore_genotypes:
 				sample_genotypes = []
 				for call in record.samples:
@@ -435,7 +433,6 @@ class VcfReader:
 							sample_gt += int(allele)
 					sample_genotypes.append(sample_gt)
 				genotypes = array('b', sample_genotypes)
-#				genotypes = array('b', ( sum(map(int,call.gt_alleles)) for call in record.samples) )
 			else:
 				genotypes = array('b', ([-1] * len(self.samples)))
 				phases = [None] * len(self.samples)
@@ -477,7 +474,7 @@ class PhasedVcfWriter:
 	Avoid reading in full chromosomes as that uses too much memory for
 	multi-sample VCFs.
 	"""
-	def __init__(self, in_path, command_line, out_file=sys.stdout, tag='PS'):
+	def __init__(self, in_path, command_line, out_file=sys.stdout, tag='PS', ploidy=2):
 		"""
 		in_path -- Path to input VCF, used as template.
 		command_line -- A string that will be added as a VCF header entry
@@ -510,6 +507,7 @@ class PhasedVcfWriter:
 		self._reader_iter = iter(self._reader)
 		self._phase_tag_found_warned = False
 		self.tag = tag
+		self.ploidy = ploidy
 		self._set_phasing_tags = self._set_HP if tag == 'HP' else self._set_PS
 
 	@property
@@ -520,20 +518,26 @@ class PhasedVcfWriter:
 		"""
 		values -- tag dict to update
 		component -- name of the component
-		phase -- 0 or 1
+		phase -- tuple representing phasing information, e.g. 1|0 -> (1,0)
 		"""
-		assert phase in [0, 1]
-		values['HP'] = '{}-{},{}-{}'.format(component + 1, phase + 1, component + 1, 2 - phase)
+		assert all(allele in [0,1] for allele in phase)
+		values['HP'] = ','.join('{}-{}'.format(component + 1, allele) for allele in phase)
+
+#		assert phase in [0, 1]
+#		values['HP'] = '{}-{},{}-{}'.format(component + 1, phase + 1, component + 1, 2 - phase)
 
 	def _set_PS(self, values, component, phase):
 		"""
 		values -- tag dict to update
 		component -- name of the component
-		phase -- 0 or 1
+		phase -- tuple representing phasing information, e.g. 1|0 -> (1,0)
 		"""
-		assert phase in [0, 1]
+		assert all(allele in [0,1] for allele in phase)
+#		assert phase in [0, 1]
 		values['PS'] = str(component + 1)
-		values['GT'] = '0|1' if phase == 0 else '1|0'
+		values['GT'] = '|'.join(str(allele) for allele in phase)
+
+#		values['GT'] = '0|1' if phase == 0 else '1|0'
 
 	def write(self, chromosome, sample_superreads, sample_components):
 		"""
@@ -561,21 +565,24 @@ class PhasedVcfWriter:
 			records_iter = itertools.chain([self._unprocessed_record], self._reader_iter)
 		else:
 			records_iter = self._reader_iter
-		allowed_alleles = frozenset({(0, 1), (1, 0), (0, 0), (1, 1)})
 		sample_phases = dict()
 		sample_genotypes = dict()
 		for sample, superreads in sample_superreads.items():
-			sample_phases[sample] = {
-				v1.position: v1.allele for v1, v2 in zip(*superreads)
-					if (v1.allele, v2.allele) in allowed_alleles
-			}
-			sample_genotypes[sample] = {
-				v1.position: v1.allele + v2.allele for v1, v2 in zip(*superreads)
-					if (v1.allele, v2.allele) in allowed_alleles
-			}
+			sample_phases[sample] = {}
+			sample_genotypes[sample] = {}
+			for variants in zip(*superreads):
+				phasing = tuple(v.allele for v in variants)
+				allowed_alleles = True
+				for allele in phasing:
+					if allele not in [0,1]:
+						allowed_alleles = False
+						break
+				if allowed_alleles:
+					sample_phases[sample][variants[0].position] = phasing
+					sample_genotypes[sample][variants[0].position] = sum(phasing)
 		n = 0
 		prev_pos = None
-		INT_TO_UNPHASED_GT = { 0: '0/0', 1: '0/1', 2: '1/1', -1: '.' }
+#		INT_TO_UNPHASED_GT = { 0: '0/0', 1: '0/1', 2: '1/1', -1: '.' }
 		for record in records_iter:
 			n += 1
 			pos, ref, alt = record.start, str(record.REF), str(record.ALT[0])
@@ -647,11 +654,17 @@ class PhasedVcfWriter:
 					is_het = call.is_het
 
 					# is genotype to be changed?
-					if (pos in genotypes) and (genotypes[pos] != call.gt_type):
-						values['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
+					if (pos in genotypes) and (genotypes[pos] != sum([int(i) for i in call.gt_alleles])):
+						## new genotype representation
+						new_genotype = '.'
+						if genotypes[pos] != -1:
+							new_alleles = ['0']*(self.ploidy - genotypes[pos]) + ['1']*genotypes[pos]
+							new_genotype = '/'.join(new_alleles)
+
+						values['GT'] = new_genotype
 						variant = VcfVariant(record.POS, record.REF, record.ALT[0])
 						genotype_changes.append(GenotypeChange(sample, chromosome, variant, call.gt_type, genotypes[pos]))
-						is_het = genotypes[pos] == 1
+						is_het = genotypes[pos] not in [0, self.ploidy]
 
 					if pos in components and pos in phases and is_het:
 						self._set_phasing_tags(values, components[pos], phases[pos])
