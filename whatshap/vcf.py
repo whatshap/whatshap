@@ -215,6 +215,7 @@ class VariantTable:
 		to_discard = [ i for i, v in enumerate(self.variants) if v.position not in positions ]
 		self.remove_rows_by_index(to_discard)
 
+	# TODO extend this to polyploid case
 	def phased_blocks_as_reads(self, sample, input_variants, source_id, numeric_sample_id, default_quality=20, mapq=100):
 		"""
 		Yields one sorted core.Read object per phased block, encoding the phase information as
@@ -237,7 +238,7 @@ class VariantTable:
 		for variant, genotype, phase in zip(self.variants, self.genotypes[sample_index], self.phases[sample_index]):
 			if not variant in input_variant_set:
 				continue
-			if genotype != 1:
+			if genotype != 1 :
 				continue
 			if phase is None:
 				continue
@@ -647,7 +648,8 @@ class PhasedVcfWriter:
 					is_het = call.is_het
 
 					# is genotype to be changed?
-					if (pos in genotypes) and (genotypes[pos] != sum([int(i) for i in call.gt_alleles])):
+					old_genotype = sum([int(i) for i in call.gt_alleles])
+					if (pos in genotypes) and (genotypes[pos] != old_genotype):
 						## new genotype representation
 						new_genotype = '.'
 						if genotypes[pos] != -1:
@@ -656,7 +658,7 @@ class PhasedVcfWriter:
 
 						values['GT'] = new_genotype
 						variant = VcfVariant(record.POS, record.REF, record.ALT[0])
-						genotype_changes.append(GenotypeChange(sample, chromosome, variant, call.gt_type, genotypes[pos]))
+						genotype_changes.append(GenotypeChange(sample, chromosome, variant, old_genotype , genotypes[pos]))
 						is_het = genotypes[pos] not in [0, self.ploidy]
 
 					if pos in components and pos in phases and is_het:
