@@ -256,6 +256,8 @@ def run_genotype(phase_input_files, variant_file, reference=None,
 						readset, vcf_source_ids = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
 
 					with timers('select'):
+						readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
+						logger.info('Kept %d reads that cover at least two variants each', len(readset))
 						selected_reads = select_reads(readset, max_coverage_per_sample, preferred_source_ids = vcf_source_ids)
 					readsets[sample] = selected_reads
 

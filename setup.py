@@ -146,7 +146,7 @@ setup(
 	ext_modules = extensions,
 	packages = ['whatshap'],
 	entry_points={'console_scripts': ['whatshap = whatshap.__main__:main']},
-	install_requires = ['pysam>=0.14.0', 'PyVCF', 'pyfaidx', 'xopen'] + requires,
+	install_requires = ['pysam>=0.14.0', 'PyVCF', 'pyfaidx', 'xopen', 'networkx'] + requires,
 	extras_require = {
 		'dev': ['Cython', 'pytest', 'sphinx', 'sphinx_issues'],
 	},
