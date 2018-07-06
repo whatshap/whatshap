@@ -131,7 +131,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 		chromosome_name = None
 		chromosome_id = None
 		skipped_vcf_chromosomes = set()
-		vcf_iter = iter(vcf_reader)
+#		vcf_iter = iter(vcf_reader)
 		n_alignments = 0
 		n_tagged = 0
 		n_multiple_phase_sets = 0
@@ -147,6 +147,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 			if not alignment.is_unmapped:
 				# Has chromosome changed?
 				if chromosome_id != alignment.reference_id:
+#					vcf_iter = iter(vcf_reader)
 					chromosome_id = alignment.reference_id
 					chromosome_name = alignment.reference_name
 					BX_tag_to_haplotype = defaultdict(list)
@@ -155,15 +156,20 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 						logger.error('Chromosome records in alignment file and VCF are sorted differently.')
 						sys.exit(1)
 					# Read information on this chromsome from VCF
-					while True:
-						variant_table = next(vcf_iter, None)
-						if variant_table is None:
-							break
-						if variant_table.chromosome == chromosome_name:
-							logger.info('... found %s variants chromosome %s in VCF', len(variant_table), chromosome_name)
-							break
-						else:
-							skipped_vcf_chromosomes.add(variant_table.chromosome)
+					variant_table = None
+					try:
+						variant_table = vcf_reader._fetch(chromosome_name)
+					except:
+						logger.info('No variants given chromosome {} in the input VCF.'.format(chromosome_name))
+#					while True:
+#						variant_table = next(vcf_iter, None)
+#						if variant_table is None:
+#							break
+#						if variant_table.chromosome == chromosome_name:
+#							logger.info('... found %s variants chromosome %s in VCF', len(variant_table), chromosome_name)
+#							break
+#						else:
+#							skipped_vcf_chromosomes.add(variant_table.chromosome)
 					# maps read name to (haplotype, quality, phaseset)
 					read_to_haplotype = {}
 					# Read all reads for this chromosome once to create one core.ReadSet per sample

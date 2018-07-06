@@ -312,6 +312,13 @@ class VcfReader:
 		if records:
 			yield (prev_chromosome, records)
 
+	def _fetch(self, chromosome):
+		"""
+		Return VariantTable object for a given chromosome.
+		"""
+		records = [record for record in self._vcf_reader.fetch(chromosome)]
+		return self._process_single_chromosome(chromosome, records)
+
 	def __iter__(self):
 		"""
 		Yield VariantTable objects for each chromosome.
