@@ -248,8 +248,7 @@ negative-threshold     Threshold ratio of p_d/p_s to not merge two sets
 which can be specified by the respective flags ``--error-rate=0.15``,
 ``--maximum-error-rate=0.25``, ``--threshold=100000`` and
 ``--negative-threshold=1000`` (note that defaults are shown here for
-example) when running ``whatshap phase``.  While the defaults have
-been inferred empirically with many tests, they may be tuned.
+example) when running ``whatshap phase``.
 
 
 .. _phasing_in_vcfs:
