@@ -25,6 +25,20 @@ Next, you can run WhatsHap like this::
 	whatshap --help
 
 
+Development installation when using Conda
+-----------------------------------------
+
+If you are using `Bioconda <https://bioconda.github.io/>`_, it is convenient to develop WhatsHap in a separate environment::
+
+	conda create -n whatshap-dev python=3.6 pysam PyVCF pyfaidx xopen Cython pytest sphinx-issues
+	source activate whatshap-dev
+	git clone https://bitbucket.org/whatshap/whatshap
+	cd whatshap
+	pip install -e .
+
+The last command installs WhatsHap into your Conda environment named ``whatshap-dev``. So when
+executing ``whatshap`` you will run the latest version you just cloned.
+
 Running tests
 -------------
 
