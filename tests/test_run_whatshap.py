@@ -499,17 +499,18 @@ def test_phase_quartet_recombination_breakpoints():
 	]
 
 
-def test_haplotag():
-	with TemporaryDirectory() as tempdir:
-		outvcf = tempdir + '/output.vcf.gz'
-		outbam = tempdir + '/output.bam'
-		run_whatshap(phase_input_files=[recombination_breaks_bamfile], variant_file='tests/data/quartet.vcf.gz', output=outvcf, ped='tests/data/recombination_breaks.ped')
-		run_haplotag(variant_file=outvcf, alignment_file=recombination_breaks_bamfile, output=outbam)
-		ps_count = 0
-		for alignment in pysam.AlignmentFile(outbam):
-			if alignment.has_tag('PS'):
-				ps_count += 1
-		assert ps_count > 0
+## this does not work anymore since haplotag now requires tabixed input vcf
+#def test_haplotag():
+#	with TemporaryDirectory() as tempdir:
+#		outvcf = tempdir + '/output.vcf.gz'
+#		outbam = tempdir + '/output.bam'
+#		run_whatshap(phase_input_files=[recombination_breaks_bamfile], variant_file='tests/data/quartet.vcf.gz', output=outvcf, ped='tests/data/recombination_breaks.ped')
+#		run_haplotag(variant_file=outvcf, alignment_file=recombination_breaks_bamfile, output=outbam)
+#		ps_count = 0
+#		for alignment in pysam.AlignmentFile(outbam):
+#			if alignment.has_tag('PS'):
+#				ps_count += 1
+#		assert ps_count > 0
 
 
 def test_haplotag2():
@@ -531,11 +532,15 @@ def test_haplotag3():
 	with TemporaryDirectory() as tempdir:
 		outbam = tempdir + '/output.bam'
 		run_haplotag(variant_file='tests/data/haplotag_2.vcf.gz', alignment_file='tests/data/haplotag.bam', output=outbam)
+		ps_count = 0
 		for alignment in pysam.AlignmentFile(outbam):
+			if alignment.has_tag('PS'):
+				ps_count += 1
 			if alignment.has_tag('HP'):
 				# simulated bam, we know from which haplotype each read originated (given in read name)
 				true_ht = int(alignment.query_name[-1])
 				assert true_ht == alignment.get_tag('HP')
+		assert ps_count > 0
 
 
 def test_haplotag_10X():
