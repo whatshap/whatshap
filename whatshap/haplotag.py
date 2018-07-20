@@ -53,7 +53,7 @@ def add_arguments(parser):
 	arg('--linked-read-distance-cutoff', '-d', metavar='LINKEDREADDISTANCE', default=50000, type=int,
 		help='Assume reads with identical BX tags belong to different read clouds if their '
 			'distance is larger than LINKEDREADDISTANCE (default: %(default)s).')
-	arg('variant_file', metavar='VCF', help='VCF file with phased variants (can be gzip-compressed)')
+	arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
 	arg('alignment_file', metavar='ALIGNMENTS',
 		help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
 
@@ -98,6 +98,11 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 		else:
 			fasta = None
 
+		# require input VCF to be compressed
+		if not variant_file.endswith('gz'):
+			logger.error('The input VCF must be compressed (vcf.gz).')
+			sys.exit(1)
+
 		vcf_reader = VcfReader(variant_file, indels=True, phases=True)
 		vcf_samples = set(vcf_reader.samples)
 		logger.info('Found %d samples in VCF file', len(vcf_samples))
@@ -131,7 +136,6 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 		chromosome_name = None
 		chromosome_id = None
 		skipped_vcf_chromosomes = set()
-		vcf_iter = iter(vcf_reader)
 		n_alignments = 0
 		n_tagged = 0
 		n_multiple_phase_sets = 0
@@ -151,19 +155,17 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 					chromosome_name = alignment.reference_name
 					BX_tag_to_haplotype = defaultdict(list)
 					logger.info('Processing alignments on chromosome %s', chromosome_name)
-					if chromosome_name in skipped_vcf_chromosomes:
-						logger.error('Chromosome records in alignment file and VCF are sorted differently.')
-						sys.exit(1)
 					# Read information on this chromsome from VCF
-					while True:
-						variant_table = next(vcf_iter, None)
-						if variant_table is None:
-							break
-						if variant_table.chromosome == chromosome_name:
-							logger.info('... found %s variants chromosome %s in VCF', len(variant_table), chromosome_name)
-							break
-						else:
-							skipped_vcf_chromosomes.add(variant_table.chromosome)
+					variant_table = None
+					try:
+						variant_table = vcf_reader._fetch(chromosome_name)
+						logger.info('... found %s variants for chromosome %s in VCF', len(variant_table), chromosome_name)
+					except OSError as e:
+						logger.error(str(e))
+						sys.exit(1)
+					except ValueError:
+						logger.info('No variants given for chromosome {} in the input VCF.'.format(chromosome_name))
+
 					# maps read name to (haplotype, quality, phaseset)
 					read_to_haplotype = {}
 					# Read all reads for this chromosome once to create one core.ReadSet per sample
