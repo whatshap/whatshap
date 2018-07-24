@@ -54,29 +54,30 @@ PedigreeColumnCostComputer::PedigreeColumnCostComputer(const std::vector <const 
 }
 
 
-void PedigreeColumnCostComputer::set_partitioning(unsigned int partitioning) {
+void PedigreeColumnCostComputer::set_partitioning(unsigned int p) {
 	cost_partition.assign(pedigree_partitions.count(), {0,0});
-	partitioning = partitioning;
+	partitioning = p;
 	for (vector < const Entry * >::const_iterator it = column.begin(); it != column.end(); ++it) {
 		auto & entry = **it;
 		
 		// determine which parition the read is in
-		unsigned int partition = partitioning % ploidy;
+		unsigned int partition = p % ploidy;
 		unsigned int ind_id = read_marks[entry.get_read_id()];
 
-		switch (entry.get_allele_type()) {
-
-		case Entry::REF_ALLELE: 
-			cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,partition)][1] += entry.get_phred_score();
-			break;
-		case Entry::ALT_ALLELE:
-			cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,partition)][0] += entry.get_phred_score();
-			break;
-		case Entry::BLANK: break;
-		default:
-			assert(false);
+		for (unsigned int a = 0; a < entry.get_allele_type().size(); a++){
+			switch (entry.get_allele_type()[a]) {
+			case Entry::REF_ALLELE: 
+				cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,partition)][1] += entry.get_phred_score()[a];
+				break;
+			case Entry::ALT_ALLELE:
+				cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,partition)][0] += entry.get_phred_score()[a];
+				break;
+			case Entry::BLANK: break;
+			default:
+				assert(false);
+			}
 		}
-		partitioning /= ploidy;
+		p /= ploidy;
 	}
 }
 
@@ -91,19 +92,21 @@ void PedigreeColumnCostComputer::update_partitioning(int bit_to_flip, int new_pa
 	// read entry to consider
 	const Entry & entry = *column[bit_to_flip];
 	unsigned int ind_id = read_marks[entry.get_read_id()];
-	switch (entry.get_allele_type()) {
-	case Entry::REF_ALLELE:
-		cost_partition[pedigree_partitions.haplotype_to_partition(ind_id, old_partition)][1] -= entry.get_phred_score();
-		cost_partition[pedigree_partitions.haplotype_to_partition(ind_id, new_partition)][1] += entry.get_phred_score();
-		break;
-	case Entry::ALT_ALLELE:
-		cost_partition[pedigree_partitions.haplotype_to_partition(ind_id, old_partition)][0] -= entry.get_phred_score();
-                cost_partition[pedigree_partitions.haplotype_to_partition(ind_id, new_partition)][0] += entry.get_phred_score();
-		break;
-    case Entry::BLANK:
-		break;
-	default:
-		assert(false);
+	for (unsigned int a = 0; a < entry.get_allele_type().size(); a++){
+		switch (entry.get_allele_type()[a]) {
+		case Entry::REF_ALLELE:
+			cost_partition[pedigree_partitions.haplotype_to_partition(ind_id, old_partition)][1] -= entry.get_phred_score()[a];
+			cost_partition[pedigree_partitions.haplotype_to_partition(ind_id, new_partition)][1] += entry.get_phred_score()[a];
+			break;
+		case Entry::ALT_ALLELE:
+			cost_partition[pedigree_partitions.haplotype_to_partition(ind_id, old_partition)][0] -= entry.get_phred_score()[a];
+                	cost_partition[pedigree_partitions.haplotype_to_partition(ind_id, new_partition)][0] += entry.get_phred_score()[a];
+			break;
+	    	case Entry::BLANK:
+			break;
+		default:
+			assert(false);
+		}
 	}
 }
 

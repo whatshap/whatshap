@@ -14,10 +14,10 @@ def verify_mec_score_and_partitioning(dp_table, reads):
 	for i in range(len(superreads[0])):
 		for j in range(2):
 			v = superreads[j][i]
-			allele = v.allele
+			allele = v.allele[0]
 			if allele == 3:
 				allele = j
-			new_superreads[j].add_variant(v.position, allele, v.quality)
+			new_superreads[j].add_variant(v.position, [allele], v.quality)
 	partitioning = dp_table.get_optimal_partitioning()
 	position_to_index = { variant.position: index for index, variant in enumerate(new_superreads[0]) }
 	swapped = False
@@ -28,10 +28,14 @@ def verify_mec_score_and_partitioning(dp_table, reads):
 		cost1 = 0
 		for variant in read:
 			if variant.position in position_to_index:
-				if new_superreads[0][position_to_index[variant.position]].allele != variant.allele:
-					cost0 = cost0 + variant.quality
-				if new_superreads[1][position_to_index[variant.position]].allele != variant.allele:
-					cost1 = cost1 + variant.quality
+				nr_alleles = len(variant.allele)
+				nr_qualities = len(variant.quality)
+				assert nr_alleles == nr_qualities
+				for i in range(nr_alleles):
+					if new_superreads[0][position_to_index[variant.position]].allele[0] != variant.allele[i]:
+						cost0 = cost0 + variant.quality[i]
+					if new_superreads[1][position_to_index[variant.position]].allele[0] != variant.allele[i]:
+						cost1 = cost1 + variant.quality[i]
 		mec_score += min(cost0, cost1)
 		if cost0 == cost1:
 			continue

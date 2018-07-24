@@ -30,7 +30,7 @@ string Read::toString() {
 }
 
 
-void Read::addVariant(int position, int allele, int quality) {
+void Read::addVariant(int position, vector<int> allele, vector<int> quality) {
 	variants.push_back(enriched_entry_t(position, allele, quality));
 }
 
@@ -92,25 +92,46 @@ void Read::setPosition(size_t variant_idx, int position) {
 }
 
 
-int Read::getAllele(size_t variant_idx) const {
+vector<int> Read::getAllele(size_t variant_idx) const {
 	assert(variant_idx < variants.size());
-	return variants[variant_idx].entry.get_allele_type();
+	vector<int> result;
+	for (auto a : variants[variant_idx].entry.get_allele_type()){
+		switch(a){
+		case Entry::REF_ALLELE: result.push_back(0); break;
+		case Entry::ALT_ALLELE: result.push_back(1); break;
+		case Entry::BLANK: result.push_back(2); break;
+		case Entry::EQUAL_SCORES: result.push_back(3); break;
+		default: assert(false);
+		}
+	}
+	return result;
 }
 
 
-void Read::setAllele(size_t variant_idx, int allele) {
+void Read::setAllele(size_t variant_idx, vector<int> allele) {
 	assert(variant_idx < variants.size());
-	variants[variant_idx].entry.set_allele_type((Entry::allele_t)allele);
+	vector<Entry::allele_t> result;
+	for (auto a : allele){
+		switch(a){
+		case 0: result.push_back(Entry::REF_ALLELE); break;
+		case 1: result.push_back(Entry::ALT_ALLELE); break;
+		case 2: result.push_back(Entry::BLANK); break;
+		case 3: result.push_back(Entry::EQUAL_SCORES); break;
+		default: assert(false);
+		}
+	}
+	variants[variant_idx].entry.set_allele_type(result);
+//	variants[variant_idx].entry.set_allele_type((Entry::allele_t)allele);
 }
 
 
-int Read::getVariantQuality(size_t variant_idx) const {
+vector<int> Read::getVariantQuality(size_t variant_idx) const {
 	assert(variant_idx < variants.size());
 	return variants[variant_idx].entry.get_phred_score();
 }
 
 
-void Read::setVariantQuality(size_t variant_idx, int quality) {
+void Read::setVariantQuality(size_t variant_idx, vector<int> quality) {
 	assert(variant_idx < variants.size());
 	variants[variant_idx].entry.set_phred_score(quality);
 }

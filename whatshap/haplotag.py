@@ -207,12 +207,12 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 								for r in reads_to_consider:
 									processed_reads.add(r.name)
 									for v in r:
-										assert v.allele in [0,1]
+										assert v.allele[0] in [0,1]
 										phaseset, allele = variantpos_to_phaseinfo[v.position]
-										if v.allele == allele:
-											haplotype_costs[phaseset] += v.quality
+										if v.allele[0] == allele:
+											haplotype_costs[phaseset] += v.quality[0]
 										else:
-											haplotype_costs[phaseset] -= v.quality
+											haplotype_costs[phaseset] -= v.quality[0]
 
 								l = list(haplotype_costs.items())
 								l.sort(key=lambda t:-abs(t[1]))
@@ -227,6 +227,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 										for r in reads_to_consider:
 											read_to_haplotype[r.name] = (haplotype, abs(quality), phaseset)
 											logger.debug('Assigned read %s to haplotype %d with a quality of %d based on %d covered variants', r.name, haplotype, quality, len(r))
+											print('Assigned read %s to haplotype %d with a quality of %d based on %d covered variants', r.name, haplotype, quality, len(r))
 
 				# Only attempt to assign phase of neither secondary nor supplementary
 				if (not alignment.is_secondary) and (alignment.flag & 2048 == 0):
@@ -235,6 +236,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 						alignment.set_tag('HP', haplotype + 1)
 						alignment.set_tag('PC', quality)
 						alignment.set_tag('PS', phaseset)
+	#					print(alignment.query_name, alignment.has_tag('PS'))
 						n_tagged += 1
 					except KeyError:
 						# check if reads with same tag have been assigned

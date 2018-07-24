@@ -28,7 +28,8 @@ from .bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNot
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
 from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
-
+#from .core import ReadSetPruning
+from .readsetpruning import ReadSetPruning
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -234,8 +235,8 @@ def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold) :
 		for variant in read:
 
 			site = variant[0]
-			zyg = variant[1]
-			qual = variant[2]
+			zyg = variant[1][0]
+			qual = variant[2][0]
 
 			orgn.append([str(site),str(zyg),str(qual)])
 			if int(zyg) == 0:
@@ -358,14 +359,14 @@ def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold) :
 					for site in sorted(superreads[id]):
 						z = superreads[id][site]
 						if z[0] >= z[1]:
-							read.add_variant(site,0,z[0]-z[1])
+							read.add_variant(site,[0],[z[0]-z[1]])
 
 						elif z[1] > z[0]:
-							read.add_variant(site,1,z[1]-z[0])
+							read.add_variant(site,[1],[z[1]-z[0]])
 					merged_reads.add(read)
 			else:
 				for tok in orig_reads[id]:
-					read.add_variant(int(tok[0]),int(tok[1]),int(tok[2]))
+					read.add_variant(int(tok[0]),[int(tok[1])],[int(tok[2])])
 				merged_reads.add(read)
 
 	logger.debug("Finished merging reads.")
@@ -503,7 +504,8 @@ def run_whatshap(
 		gtchange_list_filename=None,
 		default_gq=30,
 		write_command_line_header=True,
-		use_ped_samples=False
+		use_ped_samples=False,
+		pruning=False
 	):
 	"""
 	Run WhatsHap.
@@ -778,13 +780,32 @@ def run_whatshap(
 						readset, vcf_source_ids = read_reads(readset_reader, chromosome, phasable_variant_table.variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
 					# TODO: Read selection done w.r.t. all variants, where using heterozygous variants only
 					# TODO: would probably give better results.
-					with timers('select'):
-						readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
-						logger.info('Kept %d reads that cover at least two variants each', len(readset))
-						merged_reads = readset
-						if read_merging :
-							merged_reads = merge_reads(readset, read_merging_error_rate, read_merging_max_error_rate, read_merging_positive_threshold, read_merging_negative_threshold)
-						selected_reads = select_reads(merged_reads, max_coverage_per_sample, preferred_source_ids = vcf_source_ids)
+					readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
+					logger.info('Kept %d reads that cover at least two variants each', len(readset))
+					selected_reads = readset
+					if pruning:
+						with timers('prune'):
+							logger.info('Combine similar reads for sample %s to prune HMM ...', sample)
+							old_size = len(readset)
+							selected_reads = select_reads(readset, max_coverage_per_sample, preferred_source_ids = vcf_source_ids)
+							pruner = ReadSetPruning(selected_reads, find_components(selected_reads.get_positions(), selected_reads), ploidy)
+							selected_reads = pruner.get_pruned_readset()
+							logger.info('Reduced the number of reads from %d to %d for sample %s', old_size, len(readset), sample)
+					else:
+						with timers('select'):
+							merged_reads = readset
+							if read_merging:
+								assert ploidy == 2
+								merged_reads = merge_reads(readset, read_merging_error_rate, read_merging_max_error_rate, read_merging_positive_threshold, read_merging_negative_threshold)
+							selected_reads = select_reads(merged_reads, max_coverage_per_sample, preferred_source_ids = vcf_source_ids)
+					# prune the read set by combining similar reads into a consensus read
+#					if pruning:
+#						with timers('prune'):
+#							logger.info('Combine similar reads for sample %s to prune HMM ...', sample)
+#							old_size = len(selected_reads)
+#							pruner = ReadSetPruning(selected_reads, find_components(selected_reads.get_positions(), selected_reads), 0.5)
+#							selected_reads = pruner.get_pruned_readset()
+#							logger.info('Reduced the number of reads from %d to %d for sample %s', old_size, len(selected_reads), sample)
 
 					readsets[sample] = selected_reads
 					if (len(family) == 1) and not distrust_genotypes:
@@ -879,7 +900,7 @@ def run_whatshap(
 									assert sr.position == current_pos
 								if current_pos not in accessible_positions:
 									continue
-								gt = sum([v[i].allele for i in range(len(v))])
+								gt = sum([v[i].allele[0] for i in range(len(v))])
 								if 0 < gt < ploidy:
 									hets.add(current_pos)
 								elif gt in [0, ploidy]:
@@ -968,6 +989,7 @@ def run_whatshap(
 	if len(phase_input_vcfs) > 0:
 		logger.info('Time spent parsing input phasings from VCFs: %6.1f s', timers.elapsed('parse_phasing_vcfs'))
 	logger.info('Time spent selecting reads:                  %6.1f s', timers.elapsed('select'))
+	logger.info('Time spent pruning readset:                  %6.1f s', timers.elapsed('prune'))
 	logger.info('Time spent phasing:                          %6.1f s', timers.elapsed('phase'))
 	logger.info('Time spent writing VCF:                      %6.1f s', timers.elapsed('write_vcf'))
 	logger.info('Time spent finding components:               %6.1f s', timers.elapsed('components'))
@@ -1016,6 +1038,8 @@ def add_arguments(parser):
 	arg('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
 		help='Name of chromosome to phase. If not given, all chromosomes in the '
 		'input VCF are phased. Can be used multiple times.')
+	arg('--pruning', default=False, action='store_true',
+		help='Combine similar reads in order to prune the HMM.')
 
 	arg = parser.add_argument_group('Read merging',
 		'The options in this section are only active when --merge-reads is used').add_argument
@@ -1104,6 +1128,10 @@ def validate(args, parser):
 		parser.error('Pedigree phasing is only possible for diploid samples.')
 	if args.ploidy > 2 and args.full_genotyping:
 		parser.error('Option --full-genotyping can only be used for diploid samples.')
+	if args.pruning and args.read_merging:
+		parser.error('Option --pruning cannot be used together with --merge-reads.')
+	if args.read_merging and args.ploidy > 2:
+		parser.error('Option --merge-reads cannot be used if ploidy > 2.')
 
 
 def main(args):

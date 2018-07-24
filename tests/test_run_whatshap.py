@@ -499,7 +499,7 @@ def test_phase_quartet_recombination_breakpoints():
 	]
 
 
-def test_haplotag():
+def test_haplotag_s():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		outbam = tempdir + '/output.bam'

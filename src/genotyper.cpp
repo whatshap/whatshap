@@ -26,19 +26,20 @@ void compute_genotypes(const ReadSet& readset, std::vector<int>* genotypes, std:
 		std::unique_ptr<std::vector<const Entry*> > column = column_iterator.get_next();
 		GenotypeDistribution distribution;
 		for (const Entry* e : *column) {
-// 			cerr << "    " << (*e) << endl;
-			double p_wrong = max(0.05, pow(10.0,-((double)e->get_phred_score())/10.0));
-			switch (e->get_allele_type()) {
-				case Entry::REF_ALLELE:
-					distribution = distribution * GenotypeDistribution(2.0/3.0-1.0/3.0*p_wrong, 1.0/3.0, 1.0/3.0*p_wrong);
-					break;
-				case Entry::ALT_ALLELE:
-					distribution = distribution * GenotypeDistribution(1.0/3.0*p_wrong, 1.0/3.0, 2.0/3.0-1.0/3.0*p_wrong);
-					break;
-				default:
-					break;
+			for (unsigned int i = 0; i < e->get_allele_type().size(); i++){
+// 				cerr << "    " << (*e) << endl;
+				double p_wrong = max(0.05, pow(10.0,-((double)e->get_phred_score()[i])/10.0));
+				switch (e->get_allele_type()[i]) {
+					case Entry::REF_ALLELE:
+						distribution = distribution * GenotypeDistribution(2.0/3.0-1.0/3.0*p_wrong, 1.0/3.0, 1.0/3.0*p_wrong);
+						break;
+					case Entry::ALT_ALLELE:
+						distribution = distribution * GenotypeDistribution(1.0/3.0*p_wrong, 1.0/3.0, 2.0/3.0-1.0/3.0*p_wrong);
+						break;
+					default:
+						break;
+				}
 			}
-			
 		}
 		distribution.normalize();
 		int genotype = -1;

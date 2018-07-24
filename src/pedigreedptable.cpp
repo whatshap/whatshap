@@ -377,7 +377,7 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 			// TODO: compute proper weights based on likelihoods
 			for (unsigned int k = 0; k < pedigree->size(); k++) {
 				for (unsigned int j = 0; j < ploidy; j++) {
-					superreads[k][j]->addVariant(positions->at(i), population_alleles[k].alleles[j], population_alleles[k].quality);
+					superreads[k][j]->addVariant(positions->at(i), {population_alleles[k].alleles[j]}, {population_alleles[k].quality});
 				}
 			}
 

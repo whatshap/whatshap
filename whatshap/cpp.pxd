@@ -12,16 +12,16 @@ cdef extern from "../src/read.h":
 		Read(string, int, int, int, int, string) except +
 		Read(Read) except +
 		string toString() except +
-		void addVariant(int, int, int) except +
+		void addVariant(int, vector[int], vector[int]) except +
 		string getName() except +
 		vector[int] getMapqs() except +
 		void addMapq(int) except +
 		int getPosition(int) except +
 		void setPosition(int, int)  except +
-		int getAllele(int) except +
-		void setAllele(int, int) except +
-		int getVariantQuality(int) except +
-		void setVariantQuality(int, int) except +
+		vector[int] getAllele(int) except +
+		void setAllele(int, vector[int]) except +
+		vector[int] getVariantQuality(int) except +
+		void setVariantQuality(int, vector[int]) except +
 		int getVariantCount() except +
 		void sortVariants() except +
 		bool isSorted() except +

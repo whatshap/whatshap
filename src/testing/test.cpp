@@ -14,6 +14,7 @@
 #include "../graycodes.h"
 #include "../columnindexingscheme.h"
 #include "../columnindexingiterator.h"
+#include "../readclustering.h"
 
 #include <iostream>
 #include <string>
@@ -53,11 +54,11 @@ ReadSet* string_to_readset(string s, string weights, bool use){
         for(unsigned int i = 0; i < line.length(); i++){
             counter += 1;
             if(line[i] == ' ') continue;
-            unsigned int quality = int(line_weights[i] - '0');
+            int quality = int(line_weights[i] - '0');
             if(!use){
-                read->addVariant((counter)*10,int(line[i] - '0'), quality);
+                read->addVariant((counter)*10,{int(line[i] - '0')}, {quality});
             } else {
-                read->addVariant((counter)*10,int(line[i] - '0'), 10);
+                read->addVariant((counter)*10,{int(line[i] - '0')}, {10});
             }
 
         }
@@ -138,7 +139,7 @@ bool compare_entries(vector<const Entry*> c1, string c2){
     unsigned int i = 0;
     unsigned int j = 0;
     while((i<c1.size()) && (j<c2.length())){
-        switch(c1[i]->get_allele_type()){
+        switch(c1[i]->get_allele_type()[0]){
         case Entry::REF_ALLELE: if(c2[j] != '0'){result = false;} else {i+=1;j+=1;} break;
         case Entry::ALT_ALLELE: if(c2[j] != '1'){result = false;} else {i+=1;j+=1;} break;
         case Entry::BLANK: i += 1; break;
@@ -591,7 +592,7 @@ TEST_CASE("test polyploid_column_costs","[test column_cost_computer]"){
         }
 
         std::vector<unsigned int> recombcost(positions->size(), 1);
-        Pedigree* pedigree = new Pedigree(2);
+        Pedigree* pedigree = new Pedigree(3);
         pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), genotype_likelihoods);
 
         // create all pedigree partitions
@@ -636,3 +637,43 @@ TEST_CASE("test polyploid_column_costs","[test column_cost_computer]"){
         } 
     }
 }
+
+/**
+TEST_CASE("test ReadClustering class"){
+    vector<string> reads = {"111    \n 000   \n 110   \n    110"};
+    string weights = "111    \n 111   \n 111   \n    111";
+
+    for(unsigned int r = 0; r < reads.size(); r++){
+        ReadSet* read_set = string_to_readset(reads[r],weights,false);
+        std::vector<unsigned int>* positions = read_set->get_positions();
+        std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods;
+        for(unsigned int pos = 0; pos < positions->size(); ++pos){
+            genotype_likelihoods.push_back(new PhredGenotypeLikelihoods({0,0,0,0}));
+        }
+
+        std::vector<unsigned int> recombcost(positions->size(), 1);
+        Pedigree* pedigree = new Pedigree(1);
+        pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), genotype_likelihoods);
+
+        // create all pedigree partitions
+        std::vector<PedigreePartitions*> pedigree_partitions;
+        for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
+        {
+            pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i,3));
+        }
+
+        map<int,int> position_to_component = { {10,0}, {20,0}, {30,0}, {40,1}, {50,1}, {60,1}  };
+
+        ReadClustering read_clustering(read_set, pedigree, false, 2, positions, &position_to_component);
+        vector<ReadSet*> output_read_set;
+        read_clustering.phase(& output_read_set);
+
+        delete read_set;
+        delete positions;
+        delete pedigree;
+        for(unsigned int i=0; i < pedigree_partitions.size(); i++){
+            delete pedigree_partitions[i];
+        }
+    }
+}
+**/

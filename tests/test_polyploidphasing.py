@@ -1,6 +1,14 @@
 from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
 from whatshap.testhelpers import string_to_readset, brute_force_phase
+from whatshap.phase import find_components
+from whatshap.readsetpruning import ReadSetPruning
+from whatshap.phase import find_components
 
+def generate_cluster_input(reads, weights=None):
+	readset = string_to_readset(reads, weights)
+	positions = readset.get_positions()
+	components = find_components(positions, readset)
+	return readset, positions, components
 
 def test_phase_empty_readset():
 	rs = ReadSet()
@@ -26,7 +34,7 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, given_geno
 	assert len(superreads) == ploidy
 	for i in range(1,ploidy):
 		assert len(superreads[0]) == len(superreads[i])
-	haplotypes = sorted(''.join(str(v.allele) for v in sr) for sr in superreads)
+	haplotypes = sorted(''.join(str(v.allele[0]) for v in sr) for sr in superreads)
 	print(haplotypes, cost, partition)
 	expected_cost, expected_partition, solution_count, expected_haplotypes = brute_force_phase(readset, ploidy, given_genotypes)
 	print(haplotypes, expected_haplotypes)
@@ -47,9 +55,12 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, given_geno
 	assert cost == expected_cost
 	assert(sorted(haplotypes) == sorted(expected_haplotypes))
 
-def check_phasing_single_individual(reads, genotypes, ploidy, weights = None):
+def check_phasing_single_individual(reads, genotypes, ploidy, weights = None, precomputed_readset = None):
 	# 0) set up read set
-	readset = string_to_readset(reads, weights)
+	if precomputed_readset is None:
+		readset = string_to_readset(reads, weights)
+	else:
+		readset = precomputed_readset
 	positions = readset.get_positions()
 
 	# 1) Phase using PedMEC code for single individual
@@ -84,6 +95,39 @@ def check_phasing_single_individual(reads, genotypes, ploidy, weights = None):
 		assert len(set(transmission_vector)) == 1
 		partition = dp_table.get_optimal_partitioning()
 		compare_phasing_brute_force(superreads[0], cost, partition, readset, given_genotypes[1], ploidy, weights)
+
+def test_pruning_1():
+	reads = """
+         1111101
+         1101101
+         0000010
+         0000000
+	"""
+
+	readset = string_to_readset(reads)
+	for consensus in [True,False]:
+		pruner = ReadSetPruning(readset, find_components(readset.get_positions(), readset), 2, consensus)
+		pruned_readset = pruner.get_pruned_readset()
+		print(pruned_readset)
+
+def test_pruning_2():
+	reads = """
+         1110101
+         0111101
+         1110110
+         0001111
+         1000111
+         0001011
+         0000000
+         0010000
+         0100000
+	"""
+
+	readset = string_to_readset(reads)
+	for consensus in [True,False]:
+		pruner = ReadSetPruning(readset, find_components(readset.get_positions(), readset), 3, consensus)
+		pruned_readset = pruner.get_pruned_readset()
+		print(pruned_readset)
 
 
 def test_phase_trivial() :
@@ -163,3 +207,70 @@ def test_phase4():
 #        00001111
 #	"""
 #	check_phasing_single_individual(reads, [2,2,2,2,3,3,3,4], 7)
+
+def test_clustered_phasing1():
+	reads = """
+                111
+                111
+                010
+                000
+                100
+                100
+		"""
+	weights = """
+                111
+                111
+                111
+                222
+                333
+                111
+		"""
+	# first cluster some reads
+	readset, positions, components = generate_cluster_input(reads, weights)
+	pruner = ReadSetPruning(readset, components, 3, False)
+	pruned_readset = pruner.get_pruned_readset()
+	print("pruned readset: ", pruned_readset)
+	check_phasing_single_individual(None, [1,1,1], 3,  precomputed_readset = pruned_readset)
+
+
+def test_clustered_phasing2():
+	reads = """
+                11111111
+                01111101
+                00011000
+                00001000
+                10101010
+                10101011
+                11100001
+                11100000
+		"""
+	weights = """
+                23543243
+                11123222
+                22211111
+                24333231
+                12121222
+                11111222
+                12122212
+                11133332
+		"""
+	readset, positions, components = generate_cluster_input(reads,weights)
+	pruner = ReadSetPruning(readset, components, 4, False)
+	pruned_readset = pruner.get_pruned_readset()
+	print("pruned readset: ", pruned_readset)
+	check_phasing_single_individual(None, [3,2,3,1,3,1,2,1], 4, precomputed_readset = pruned_readset)
+
+def test_clustered_phasing3():
+	reads = """
+                111111111111111111111
+                11100101000100001001
+                00011000000011000000
+                  01100000001100110000
+                      1111111111101111111
+                      01000100011001101
+		"""
+	readset, positions, components = generate_cluster_input(reads)
+	pruner = ReadSetPruning(readset, components, 3, False)
+	pruned_readset = pruner.get_pruned_readset()
+	print('pruned readset: ', pruned_readset)
+	check_phasing_single_individual(None, [2,2,2,2,2,2,1,2,1,1,1,2,2,2,1,1,2,1,1,2,2,1,2,1,1], 3, precomputed_readset = pruned_readset)

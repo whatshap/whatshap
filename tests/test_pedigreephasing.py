@@ -26,7 +26,7 @@ def assert_haplotypes(superreads_list, all_expected_haplotypes, length):
 	for superreads, expected_haplotypes in zip(superreads_list, all_expected_haplotypes):
 		assert len(superreads) == 2
 		assert len(superreads[0]) == len(superreads[1]) == length
-		haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
+		haplotypes = tuple(sorted(''.join(str(v.allele[0]) for v in sr) for sr in superreads))
 		assert (haplotypes == (expected_haplotypes[0], expected_haplotypes[1])) or (haplotypes == (expected_haplotypes[1], expected_haplotypes[0]))
 
 
@@ -41,10 +41,10 @@ def assert_trio_allele_order(superreads_list, transmission_vector, nr_of_positio
 		transmission_value = transmission_vector[pos]
 		paternal_transmission = transmission_value % 2
 		maternal_transmission = transmission_value // 2
-		paternal_allele = father[not paternal_transmission][pos].allele
-		maternal_allele = mother[not maternal_transmission][pos].allele
-		child_allele_p = child[0][pos].allele
-		child_allele_m = child[1][pos].allele
+		paternal_allele = father[not paternal_transmission][pos].allele[0]
+		maternal_allele = mother[not maternal_transmission][pos].allele[0]
+		child_allele_p = child[0][pos].allele[0]
+		child_allele_m = child[1][pos].allele[0]
 		print('position: ', pos, 'paternal allele: ', paternal_allele, 'maternal allele', maternal_allele, 'child genotype: ', child_allele_p, child_allele_m)
 		assert(paternal_allele == child_allele_p)
 		assert(maternal_allele == child_allele_m)

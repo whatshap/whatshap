@@ -149,7 +149,7 @@ cdef class Read:
 				return True
 		return False
 
-	def add_variant(self, int position, int allele, int quality):
+	def add_variant(self, int position, allele, quality):
 		assert self.thisptr != NULL
 		self.thisptr.addVariant(position, allele, quality)
 

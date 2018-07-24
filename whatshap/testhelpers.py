@@ -25,9 +25,9 @@ def string_to_readset(s, w = None, sample_ids = None, source_id=0, scale_quality
 			if w is not None:
 				q = int(w[index][pos])
 			if not scale_quality==None:
-				read.add_variant(position=(pos+1) * 10, allele=int(c), quality=q*scale_quality)
+				read.add_variant(position=(pos+1) * 10, allele=[int(c)], quality=[q*scale_quality])
 			else:
-				read.add_variant(position=(pos+1) * 10, allele=int(c), quality=q)
+				read.add_variant(position=(pos+1) * 10, allele=[int(c)], quality=[q])
 		assert len(read) > 1, 'Reads covering less than two variants are not allowed'
 		rs.add(read)
 	print(rs)
@@ -68,7 +68,7 @@ def matrix_to_readset(lines) :
 
 			offset = int(s[2*i+1])
 			for pos, c in enumerate(s[2*i+2]) :
-				read.add_variant(position=(offset+pos) * 10, allele=int(c), quality = 1)
+				read.add_variant(position=(offset+pos) * 10, allele=[int(c)], quality = [1])
 
 		rs.add(read)
 
@@ -78,10 +78,12 @@ def matrix_to_readset(lines) :
 
 def flip_cost(variant, target_value):
 	"""Returns cost of flipping the given read variant to target_value."""
-	if variant.allele == target_value:
-		return 0
-	else:
-		return variant.quality
+	result = 0
+	assert len(variant.allele) == len(variant.quality)
+	for a,q in zip(variant.allele,variant.quality):
+		if a !=  target_value:
+			result += q
+	return result
 
 def is_ambiguous(assignments, ploidy):
 	sets = [set() for i in range(ploidy)]

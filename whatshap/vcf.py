@@ -247,10 +247,10 @@ class VariantTable:
 			else:
 				quality = phase.quality
 			if phase.block_id in read_map:
-				read_map[phase.block_id].add_variant(variant.position, phase.phase, quality)
+				read_map[phase.block_id].add_variant(variant.position, [phase.phase], [quality])
 			else:
 				r = Read('{}_block_{}'.format(sample, phase.block_id), mapq, source_id, numeric_sample_id)
-				r.add_variant(variant.position, phase.phase, quality)
+				r.add_variant(variant.position, [phase.phase], [quality])
 				read_map[phase.block_id] = r
 		for key, read in read_map.items():
 			read.sort()
@@ -565,7 +565,7 @@ class PhasedVcfWriter:
 			sample_phases[sample] = {}
 			sample_genotypes[sample] = {}
 			for variants in zip(*superreads):
-				phasing = tuple(v.allele for v in variants)
+				phasing = tuple(v.allele[0] for v in variants)
 				allowed_alleles = True
 				for allele in phasing:
 					if allele not in [0,1]:

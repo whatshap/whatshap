@@ -11,14 +11,13 @@ def test_phase_empty_readset():
 	dp_table = PedigreeDPTable(rs, recombcost, pedigree, 2)
 	superreads = dp_table.get_super_reads()
 
-
 def compare_phasing_brute_force(superreads, cost, partition, readset, allowed_genotypes, weights = None):
 	"""Compares DPTable based phasing to brute force phasing and returns string representation of superreads."""
 	assert len(superreads) == 2
 	assert len(superreads[0]) == len(superreads[1])
 	for v1, v2 in zip(*superreads):
 		assert v1.position == v2.position
-	haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
+	haplotypes = tuple(sorted(''.join(str(v.allele[0]) for v in sr) for sr in superreads))
 	print(haplotypes)
 	expected_cost, expected_partition, solution_count, expected_haplotypes = brute_force_phase(readset, 2, allowed_genotypes)
 	expected_haplotype1 = expected_haplotypes[0]
@@ -166,3 +165,4 @@ def test_weighted_phasing1():
 	   2    111
 	"""
 	check_phasing_single_individual(reads, weights)
+
