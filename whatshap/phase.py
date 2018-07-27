@@ -35,7 +35,6 @@ __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel M
 
 logger = logging.getLogger(__name__)
 
-
 def find_components(phased_positions, reads, master_block=None, heterozygous_positions=None):
 	"""
 	Return a dict that maps each variant position to the component it is in.
@@ -787,10 +786,11 @@ def run_whatshap(
 						with timers('prune'):
 							logger.info('Combine similar reads for sample %s to prune HMM ...', sample)
 							old_size = len(readset)
-							selected_reads = select_reads(readset, max_coverage_per_sample, preferred_source_ids = vcf_source_ids)
+					#		selected_reads = selected_reads
+							selected_reads = select_reads(readset, max_coverage_per_sample, preferred_source_ids = vcf_source_ids) 
 							pruner = ReadSetPruning(selected_reads, find_components(selected_reads.get_positions(), selected_reads), ploidy)
 							selected_reads = pruner.get_pruned_readset()
-							logger.info('Reduced the number of reads from %d to %d for sample %s', old_size, len(readset), sample)
+							logger.info('Reduced the number of reads from %d to %d for sample %s', old_size, len(selected_reads), sample)
 					else:
 						with timers('select'):
 							merged_reads = readset

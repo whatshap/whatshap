@@ -31,7 +31,7 @@ class ConflictSet:
 		self._read_ids = sorted(read_ids)
 		self._conflicts = defaultdict(int)
 
-		print('ConflictSet: initalized with: ', self._read_ids)
+#		print('ConflictSet: initalized with: ', self._read_ids)
 
 	def add_conflict(self, read1, read2):
 		"""
@@ -42,8 +42,8 @@ class ConflictSet:
 			self._conflicts[(read1,read2)] = 1
 		else:
 			self._conflicts[(read2,read1)] = 1
-		print('ConflictSet: add conflict: ', read1, read2)
-		print('ConflictSet: updated conflicts: ', self._conflicts)
+#		print('ConflictSet: add conflict: ', read1, read2)
+#		print('ConflictSet: updated conflicts: ', self._conflicts)
 
 	def in_conflict(self, read1, read2):
 		"""
@@ -117,9 +117,6 @@ class ReadSetPruning:
 			position = read[0].position
 			component_id = position_to_component[position]
 			connected_components[component_id].append(i)
-
-		print('All connected components: ', connected_components)
-
 		for component_id, component in connected_components.items():
 			# get reads belonging to this component
 			component_reads = reads.subset(component)
@@ -132,9 +129,7 @@ class ReadSetPruning:
 			for pos in component_positions:
 				# find all reads covering this position
 				self._current_column = [(i,read) for i,read in enumerate(component_reads) if pos in read]
-				print('current_column: ', self._current_column)
 				read_ids = [e[0] for e in self._current_column]
-				print(pos, read_ids)
 				# if column is covered by same reads as previous, skip it
 				if previous_reads is not None:
 					if previous_reads == read_ids:
@@ -157,87 +152,14 @@ class ReadSetPruning:
 			# store string representation of clusters
 			for readset in self._clusters:
 				self._readname_clusters.append(sorted([read.name for read in readset]))
-
-#		self._number_of_clusters = number_of_clusters
-#		self._compute_consensus = compute_consensus
-#		# set of reads covering the current position
-#		self._current_column = None
-#		# similarities of current position
-#		self._similarities = None
-#		# clusters computed for current component
-#		self._clusters = []
-#		# pruned readset
-#		self._pruned_reads = ReadSet()
-#		self._positions = reads.get_positions()
-#		self._readname_clusters = []
-#		self._conflict_set = None
-#		# connected components of read-overlap graph
-#		connected_components = defaultdict(list)
-#
-#		# map index of component to read index it contains
-#		for i,read in enumerate(reads):
-#			position = read[0].position
-#			component_id = position_to_component[position]
-#			connected_components[component_id].append(i)
-#
-#		print('all connected components: ', connected_components)
-#
-#		position_to_readID = defaultdict(list)
-#		previous_position = None
-#		component = None
-#		for index, pos in enumerate(reads.get_positions()):
-#			self._position = pos
-#			# check if connected component has changed
-#			if (component != position_to_component[pos]) or (index+1 == len(reads.get_positions())):
-#				if len(self._clusters) > 0:
-#					# construct the clustered reads based on the conflict set
-#					clusters = self._conflict_set.get_clusters()
-#					for c in clusters:
-#						self._clusters.append(reads.subset(c))
-#					if self._compute_consensus:
-#						self._compute_consensus_reads()
-#					else:
-#						self._compute_combined_reads()
-#					for readset in self._clusters:
-#						self._readname_clusters.append(sorted([read.name for read in readset]))
-#				# prepare next component to be considered
-#				component = position_to_component[pos]
-#				self._clusters = []
-#				# recompute position_to_readname for new component
-#				position_to_readID = defaultdict(list)
-#				print('connected component: ', connected_components[component])
-#				for read in connected_components[component]:
-#					position_to_readID[pos].append(read)
-#				
-#				print('position_to_readID: ',position_to_readID)
-#
-#				# create conflict set for the new component
-#				self._conflict_set = ConflictSet(position_to_readID[pos])
-#			
-#			# in case current column covered by same reads as previous, continue
-#			print(pos, position_to_readID[pos])
-#			if previous_position is not None:
-#				if position_to_readID[pos] == position_to_readID[previous_position]:
-#					print(pos, previous_position)
-#					continue
-#			# get subset of reads to consider
-#			print('check: before getting column reads')
-#			self._current_column = reads.subset(position_to_readID[pos])
-#			print(self._current_column, position_to_readID[pos])
-#			# compute similarities
-#			self._compute_similarities()
-#			print(self._similarities)
-#			# compute clusters
-#			self._compute_clusters()
-#			print(self._clusters)
-#			previous_position = pos
+			self._clusters = []
 
 	# this just returns the computed read clusters as lists of read names
 	# function mainly used for testing
 	def get_clusters(self):	
 		return self._readname_clusters
 
-	def get_prune_readset(self):
+	def get_pruned_readset(self):
 		"""
 		Return the new readset.
 		"""
@@ -349,6 +271,7 @@ class ReadSetPruning:
 		"""
 		Combine the reads that were clustered together.
 		"""
+
 		for cluster in self._clusters:
 			# Read object containing infomation of all reads of the cluster
 			# TODO what to do with BX tag?
@@ -369,5 +292,4 @@ class ReadSetPruning:
 				combined_read.add_variant(pos, pos_to_allele[pos], pos_to_quality[pos])
 			combined_read.sort()
 			if len(combined_read) > 1:
-				print('READ NAME: ', combined_read.name)
 				self._pruned_reads.add(combined_read)

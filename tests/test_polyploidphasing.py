@@ -1,7 +1,7 @@
 from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 from whatshap.phase import find_components
-from whatshap.readsetpruning import ReadSetPruning
+from whatshap.readsetpruning_2 import ReadSetPruning
 from whatshap.phase import find_components
 
 def generate_cluster_input(reads, weights=None):
@@ -62,12 +62,13 @@ def check_phasing_single_individual(reads, genotypes, ploidy, weights = None, pr
 	else:
 		readset = precomputed_readset
 	positions = readset.get_positions()
-
+	print(positions)
 	# 1) Phase using PedMEC code for single individual
-	for given_genotypes in [ (False, None), (True, genotypes)]:
+	for given_genotypes in [(True, genotypes), (False, None)]:
 		recombcost = [1] * len(positions) # recombination costs 1, should not occur
 		pedigree = Pedigree(NumericSampleIds(), ploidy)
 		genotype_likelihoods = [None if given_genotypes[0] else PhredGenotypeLikelihoods([0] * (ploidy+1))] * len(positions)
+		print(len(genotype_likelihoods), len(positions))
 		pedigree.add_individual('individual0', genotypes, genotype_likelihoods)
 		print("before DP table")
 		dp_table = PedigreeDPTable(readset, recombcost, pedigree, ploidy, distrust_genotypes=not given_genotypes[0])
