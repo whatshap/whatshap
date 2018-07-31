@@ -29,7 +29,7 @@ from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
 from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
 #from .core import ReadSetPruning
-from .readsetpruning import ReadSetPruning
+from .readsetpruning_2 import ReadSetPruning
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -504,7 +504,8 @@ def run_whatshap(
 		default_gq=30,
 		write_command_line_header=True,
 		use_ped_samples=False,
-		pruning=False
+		pruning=False,
+		cluster_number=2
 	):
 	"""
 	Run WhatsHap.
@@ -788,8 +789,9 @@ def run_whatshap(
 							old_size = len(readset)
 					#		selected_reads = selected_reads
 							selected_reads = select_reads(readset, max_coverage_per_sample, preferred_source_ids = vcf_source_ids) 
-							pruner = ReadSetPruning(selected_reads, find_components(selected_reads.get_positions(), selected_reads), ploidy)
+							pruner = ReadSetPruning(selected_reads, find_components(selected_reads.get_positions(), selected_reads), cluster_number)
 							selected_reads = pruner.get_pruned_readset()
+							print('pruned reads:', selected_reads)
 							logger.info('Reduced the number of reads from %d to %d for sample %s', old_size, len(selected_reads), sample)
 					else:
 						with timers('select'):
@@ -1040,6 +1042,8 @@ def add_arguments(parser):
 		'input VCF are phased. Can be used multiple times.')
 	arg('--pruning', default=False, action='store_true',
 		help='Combine similar reads in order to prune the HMM.')
+	arg('--cluster-number', dest='cluster_number', metavar='CLUSTERNUMBER', default=2, type=int,
+		help='How many clusters of reads shall be computed in each column for pruning.')
 
 	arg = parser.add_argument_group('Read merging',
 		'The options in this section are only active when --merge-reads is used').add_argument

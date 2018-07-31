@@ -45,15 +45,39 @@ class ConflictSet:
 #		print('ConflictSet: add conflict: ', read1, read2)
 #		print('ConflictSet: updated conflicts: ', self._conflicts)
 
+	def add_relationship(self, read1, read2):
+		"""
+		Mark the relationship between the reads, i.e. if they are in conflict,
+		nothing changes, if not, this indicates that the reads are currently in the
+		same cluster.
+		"""
+		assert (read1 in self._read_ids) and (read2 in self._read_ids)
+		if read1 < read2:
+			if not self.in_conflict(read1,read2):
+				self._conflicts[(read1,read2)] = -1
+		else:
+			if not self.in_conflict(read1,read2):
+				self._conflicts[(read2,read1)] = -1
+
 	def in_conflict(self, read1, read2):
 		"""
 		Check if the given reads are in conflict.
 		"""
 		assert (read1 in self._read_ids) and (read2 in self._read_ids)
 		if read1 < read2:
-			return self._conflicts[(read1,read2)]
+			return self._conflicts[(read1,read2)] == 1
 		else:
-			return self._conflicts[(read2,read1)]
+			return self._conflicts[(read2,read1)] == 1
+
+	def in_same_cluster(self, read1, read2):
+		"""
+		Check if the given reads are in the same cluster.
+		"""
+		assert (read1 in self._read_ids) and (read2 in self._read_ids)
+		if read1 < read2:
+			return self._conflicts[(read1,read2)] == -1
+		else:
+			return self._conflicts[(read2,read1)] == -1
 
 	def get_clusters(self):
 		"""
@@ -70,10 +94,11 @@ class ConflictSet:
 			for j in range(i+1, n):
 				if j in used_reads:
 					continue
-				if not self.in_conflict(self._read_ids[i], self._read_ids[j]):
+				if self.in_same_cluster(self._read_ids[i], self._read_ids[j]):
 					cluster.append(self._read_ids[j])
 					used_reads.append(j)
 			result.append(cluster)
+#		print(self._conflicts)
 		return result
 
 
@@ -139,6 +164,7 @@ class ReadSetPruning:
 				self._compute_similarities()
 				# cluster based on similarities
 				self._compute_clusters()
+			print('current_clustering', self._conflict_set.get_clusters())
 
 			# get the computed read clusters
 			clusters = self._conflict_set.get_clusters()
@@ -225,12 +251,22 @@ class ReadSetPruning:
 			for j in range(n):
 				self._similarities[j][max_row] = -float('inf')
 				self._similarities[max_row][j] = -float('inf')
+		id_to_names = defaultdict(list)
+		for i in range(n):
+			id_to_names[clusters.find(i)].append(self._current_column[i][0])
+
+                # PRINT
+		print('current column clustering:')
+		for k,v in id_to_names.items():
+			print(k,v)
 
 		# based on the clustering, update the ConflictSet
 		for i in range(n):
 			for j in range(i+1,n):
 				if clusters.find(i) is not clusters.find(j):
 					self._conflict_set.add_conflict(self._current_column[i][0],self._current_column[j][0])
+				else:
+					self._conflict_set.add_relationship(self._current_column[i][0],self._current_column[j][0])
 
 	# TODO what happens if consensus read is empty or contains only one positon?
 	# currently, such clusters are ignored (no consensus read is added to the final
