@@ -182,7 +182,7 @@ def test_clustering4():
 	expected_clusters = [['Read 1'], ['Read 2'], ['Read 3']]
 	pruner = ReadSetPruning(readset, components, 1, False)
 	computed_clusters = pruner.get_clusters()
-	assert computed_clusters == expected_clusters
+	assert sorted(computed_clusters) == sorted(expected_clusters)
 
 # TODO: weakness of current clustering approach: in case number of reads is smaller than ploidy
 #       reads will be put into singleton clusters and cannot be merged again in regions of
@@ -204,7 +204,7 @@ def test_clustering5():
 	computed_clusters = pruner.get_clusters()
 	print("computed clusters: ", computed_clusters)
 	print("expected clusters: ", expected_clusters)
-	assert computed_clusters == expected_clusters
+	assert sorted(computed_clusters) == sorted(expected_clusters)
 
 def test_clustering6():
 	reads = """

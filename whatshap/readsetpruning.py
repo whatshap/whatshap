@@ -108,7 +108,7 @@ class ConflictSet:
 			next_used_reads, cluster = self.get_cluster(i, used_reads, [self._read_ids[i]], n)
 			used_reads = next_used_reads
 			result.append(cluster)
-		return result
+		return sorted(result)
 
 	def get_cluster(self, i, used_reads, cluster, n):
 		for j in range(i+1,n):
