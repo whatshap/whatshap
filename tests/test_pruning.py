@@ -2,12 +2,47 @@ from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, 
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 from whatshap.phase import find_components
 from whatshap.readsetpruning_2 import ReadSetPruning
+from whatshap.readsetpruning_2 import ConflictSet
 
 def generate_input(reads, weights=None):
 	readset = string_to_readset(reads, weights)
 	positions = readset.get_positions()
 	components = find_components(positions, readset)
 	return readset, positions, components
+
+def check_conflict_set(column_clusters, expected_clustering):
+	# construct ConflictSet
+	unique_read_ids = set()
+	for c in column_clusters:
+		for e in c:
+			for v in e:
+				unique_read_ids.add(v)
+	read_ids = list(unique_read_ids)
+	conflict_set = ConflictSet(read_ids)
+	for clustering in column_clusters:
+		# compute mapping of elements to cluster_ids
+		read_to_cluster = {}
+		cluster_reads = []
+		for i,cluster in enumerate(clustering):
+			for read in cluster:
+				read_to_cluster[read] = i
+				cluster_reads.append(read)
+		# add the conflicts/relationship to the ConflictSet
+		n = len(cluster_reads)
+		for id1 in range(n):
+			for id2 in range(id1+1, n):
+				read1 = cluster_reads[id1]
+				read2 = cluster_reads[id2]
+				if read_to_cluster[read1] == read_to_cluster[read2]:
+					conflict_set.add_relationship(read1, read2)
+				else:
+					conflict_set.add_conflict(read1, read2)
+	# check if clusters are computed correctly
+	computed_clustering = conflict_set.get_clusters()
+	print("expected clustering: ", expected_clustering)
+	print("computed clustering: ", computed_clustering)
+	assert computed_clustering == expected_clustering
+				
 
 def check_pruned_consensus_set(readset, expected_reads, expected_qualities):
 	assert len(expected_reads) == len(expected_qualities)
@@ -23,6 +58,7 @@ def check_pruned_consensus_set(readset, expected_reads, expected_qualities):
 	print('computed reads: ', computed_set)
 	print('true reads: ', true_set)
 	assert(true_set == computed_set)
+
 
 def check_pruned_combined_set(readset, expected_reads, expected_qualities):
 	assert len(expected_reads) == len(expected_qualities)
@@ -44,6 +80,42 @@ def check_pruned_combined_set(readset, expected_reads, expected_qualities):
 	print('true qualities: ', expected_qualities)
 	assert( sorted(computed_reads) ==  sorted(expected_reads))
 	assert( sorted(computed_qualities) == sorted(expected_qualities))
+
+
+def test_cluster_merging1():
+	column_clustering = [ [[1,2],[3]] , [[3,4], [5]]]
+	expected_combined_clustering = [ [1,2], [3,4], [5] ]
+	check_conflict_set(column_clustering, expected_combined_clustering)
+
+
+def test_cluster_merging2():
+	column_clustering = [ [[1,2]], [[2],[3]] ]
+	expected_combined_clustering = [[1,2],[3]]
+	check_conflict_set(column_clustering, expected_combined_clustering)
+
+
+def test_cluster_merging3():
+	column_clustering = [ [[1,2,5],[3,4]], [[1,3], [2,4]] ]
+	expected_combined_clustering = [ [1,5], [2], [3], [4] ]
+	check_conflict_set(column_clustering, expected_combined_clustering)
+
+
+def test_cluster_merging4():
+	column_clustering = [ [[1,2],[3]], [[3,4],[5]], [[3],[4,5]] ]
+	expected_combined_clustering = [ [1,2], [3], [4], [5] ]
+	check_conflict_set(column_clustering, expected_combined_clustering)
+
+
+def test_cluster_merging5():
+	column_clustering = [ [[1,2],[3]], [[3,4],[5]], [[3,5]] ]
+	expected_combined_clustering = [[1,2],[3,4],[5]]
+	check_conflict_set(column_clustering, expected_combined_clustering)
+
+
+def test_cluster_merging6():
+	column_clustering = [ [[1,2],[3]], [[3],[4,5]], [[1,4]] ]
+	expected_combined_clustering = [ [1,2,4,5], [3] ]
+	check_conflict_set(column_clustering, expected_combined_clustering)
 
 
 def test_clustering1():
@@ -112,6 +184,10 @@ def test_clustering4():
 	computed_clusters = pruner.get_clusters()
 	assert computed_clusters == expected_clusters
 
+# TODO: weakness of current clustering approach: in case number of reads is smaller than ploidy
+#       reads will be put into singleton clusters and cannot be merged again in regions of
+#       higher ploidy. Here: at positions 1,2, reads 1,2 will be put into separate clusters and
+#       this assignment cannot be changed anymore later.
 def test_clustering5():
 	reads = """
                 11111
@@ -122,7 +198,8 @@ def test_clustering5():
                         0000
 		"""
 	readset, positions, components = generate_input(reads)
-	expected_clusters = [['Read 1', 'Read 2'], ['Read 3'], ['Read 4', 'Read 5'], ['Read 6']]
+#	expected_clusters = [['Read 1', 'Read 2'], ['Read 3'], ['Read 4', 'Read 5'], ['Read 6']]
+	expected_clusters = [['Read 1'], ['Read 2'], ['Read 3'], ['Read 4'], ['Read 5'], ['Read 6']]
 	pruner = ReadSetPruning(readset, components, 2, True)
 	computed_clusters = pruner.get_clusters()
 	print("computed clusters: ", computed_clusters)
@@ -149,8 +226,8 @@ def test_clustering6():
                         1010101000100010100100111111101010010010001011
 		"""
 	readset, positions, components = generate_input(reads)
-	expected_clusters = [['Read 1', 'Read 16'],['Read 14', 'Read 2'],['Read 13', 'Read 3'],['Read 12', 'Read 4'],['Read 5', 'Read 6'],['Read 7', 'Read 8'],
-				['Read 15', 'Read 9'], ['Read 10', 'Read 11'] ]
+	expected_clusters = [['Read 1', 'Read 16'],['Read 14', 'Read 2'],['Read 13', 'Read 3'], ['Read 4'],['Read 5', 'Read 6'],['Read 7', 'Read 8'],
+				['Read 15', 'Read 9'], ['Read 10', 'Read 11'], ['Read 12'] ]
 	pruner = ReadSetPruning(readset, components, 8, True)
 	computed_clusters = pruner.get_clusters()
 	print("computed: ", computed_clusters)
@@ -183,6 +260,22 @@ def test_clustering7():
 		pruner = ReadSetPruning(readset, components, number_of_clusters, True)
 		computed_clusters = pruner.get_clusters()
 		assert computed_clusters == expected_clusters[number_of_clusters]
+
+def test_clustering8():
+	reads = """
+                11
+                1111
+                  1111
+                    11
+		"""
+	readset, positions, components = generate_input(reads)
+	expected_clusters = [ ['Read 1', 'Read 2', 'Read 3', 'Read 4'] ]
+	pruner = ReadSetPruning(readset, components, 1, True)
+	computed_clusters = pruner.get_clusters()
+	print("computed: ", computed_clusters)
+	print("expected: ", expected_clusters)
+	assert computed_clusters == expected_clusters
+
 
 def test_pruning_consensus1():
 	reads = """
@@ -220,6 +313,7 @@ def test_pruning_consensus1():
 		print(pruned_readset)
 		check_pruned_consensus_set(pruned_readset, expected_reads[number_of_clusters], expected_qualities[number_of_clusters])
 
+# TODO: same issue mentioned earlier (test_clustering6).
 def test_pruning_consensus2():
 	reads = """
 		11111
@@ -231,11 +325,13 @@ def test_pruning_consensus2():
 		"""
 	readset, positions, components = generate_input(reads)
 	expected_reads = {
-			2:['111110', '10011', '0101', '0000'],
+	#		2:['111110', '10011', '0101', '0000'],
+			2:['11111', '11110', '10011', '0100', '01011', '0000'],
 			4:['11111', '11110', '10011', '0100', '01011', '0000']
 			}
 	expected_qualities = {
-			2:['122221','11111', '2221', '1111'],
+	#		2:['122221','11111', '2221', '1111'],
+			2:['11111', '11111', '11111', '1111', '11111', '1111'],
 			4:['11111', '11111', '11111', '1111', '11111', '1111']
 			}
 

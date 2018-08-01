@@ -97,39 +97,6 @@ def check_phasing_single_individual(reads, genotypes, ploidy, weights = None, pr
 		partition = dp_table.get_optimal_partitioning()
 		compare_phasing_brute_force(superreads[0], cost, partition, readset, given_genotypes[1], ploidy, weights)
 
-def test_pruning_1():
-	reads = """
-         1111101
-         1101101
-         0000010
-         0000000
-	"""
-
-	readset = string_to_readset(reads)
-	for consensus in [True,False]:
-		pruner = ReadSetPruning(readset, find_components(readset.get_positions(), readset), 2, consensus)
-		pruned_readset = pruner.get_pruned_readset()
-		print(pruned_readset)
-
-def test_pruning_2():
-	reads = """
-         1110101
-         0111101
-         1110110
-         0001111
-         1000111
-         0001011
-         0000000
-         0010000
-         0100000
-	"""
-
-	readset = string_to_readset(reads)
-	for consensus in [True,False]:
-		pruner = ReadSetPruning(readset, find_components(readset.get_positions(), readset), 3, consensus)
-		pruned_readset = pruner.get_pruned_readset()
-		print(pruned_readset)
-
 
 def test_phase_trivial() :
 	reads = """
@@ -182,6 +149,7 @@ def test_phase4():
 	"""
 	check_phasing_single_individual(reads, [1,1,2,1,1], 4)
 
+
 # this takes 15 min to be solved ...
 #def test_phase4():
 #	reads="""
@@ -232,7 +200,6 @@ def test_clustered_phasing1():
 	pruned_readset = pruner.get_pruned_readset()
 	print("pruned readset: ", pruned_readset)
 	check_phasing_single_individual(None, [1,1,1], 3,  precomputed_readset = pruned_readset)
-
 
 def test_clustered_phasing2():
 	reads = """
