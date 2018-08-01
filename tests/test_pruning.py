@@ -1,8 +1,8 @@
 from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 from whatshap.phase import find_components
-from whatshap.readsetpruning_2 import ReadSetPruning
-from whatshap.readsetpruning_2 import ConflictSet
+from whatshap.readsetpruning import ReadSetPruning
+from whatshap.readsetpruning import ConflictSet
 
 def generate_input(reads, weights=None):
 	readset = string_to_readset(reads, weights)
@@ -38,7 +38,7 @@ def check_conflict_set(column_clusters, expected_clustering):
 				else:
 					conflict_set.add_conflict(read1, read2)
 	# check if clusters are computed correctly
-	computed_clustering = conflict_set.get_clusters()
+	computed_clustering = sorted(conflict_set.get_clusters())
 	print("expected clustering: ", expected_clustering)
 	print("computed clustering: ", computed_clustering)
 	assert computed_clustering == expected_clustering

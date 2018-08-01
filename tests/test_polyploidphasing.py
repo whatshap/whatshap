@@ -1,7 +1,7 @@
 from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 from whatshap.phase import find_components
-from whatshap.readsetpruning_2 import ReadSetPruning
+from whatshap.readsetpruning import ReadSetPruning
 from whatshap.phase import find_components
 
 def generate_cluster_input(reads, weights=None):

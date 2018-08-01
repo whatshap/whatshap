@@ -28,8 +28,7 @@ from .bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNot
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
 from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
-#from .core import ReadSetPruning
-from .readsetpruning_2 import ReadSetPruning
+from .readsetpruning import ReadSetPruning
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
