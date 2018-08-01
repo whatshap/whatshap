@@ -79,10 +79,29 @@ class ConflictSet:
 		else:
 			return self._conflicts[(read2,read1)] == -1
 
+#	def get_clusters(self):
+#		"""
+#		Return lists of objects that are not in conflict.
+#		"""
+#		result = []
+#		used_reads = []
+#		n = len(self._read_ids)
+#		for i in range(n):
+#			if i in used_reads:
+#				continue
+#			used_reads.append(i)
+#			cluster = [self._read_ids[i]]
+#			for j in range(i+1, n):
+#				if j in used_reads:
+#					continue
+#				if self.in_same_cluster(self._read_ids[i], self._read_ids[j]):
+#					cluster.append(self._read_ids[j])
+#					used_reads.append(j)
+#			result.append(cluster)
+#		print(self._conflicts)
+#		return result
+
 	def get_clusters(self):
-		"""
-		Return lists of objects that are not in conflict.
-		"""
 		result = []
 		used_reads = []
 		n = len(self._read_ids)
@@ -90,17 +109,30 @@ class ConflictSet:
 			if i in used_reads:
 				continue
 			used_reads.append(i)
-			cluster = [self._read_ids[i]]
-			for j in range(i+1, n):
-				if j in used_reads:
-					continue
-				if self.in_same_cluster(self._read_ids[i], self._read_ids[j]):
-					cluster.append(self._read_ids[j])
-					used_reads.append(j)
+			next_used_reads, cluster = self.get_cluster(i, used_reads, [self._read_ids[i]], n)
+			used_reads = next_used_reads
 			result.append(cluster)
-#		print(self._conflicts)
 		return result
 
+	def get_cluster(self, i, used_reads, cluster, n):
+		for j in range(i+1,n):
+			if j in used_reads:
+				continue
+			if self.in_same_cluster(self._read_ids[i], self._read_ids[j]):
+				conflict = False
+				for c in cluster:
+					if c == self._read_ids[j]:
+						continue
+					if self.in_conflict(self._read_ids[j], c):
+						conflict = True
+						break
+				if not conflict:
+					cluster.append(self._read_ids[j])
+					used_reads.append(j)
+					next_used_reads, next_cluster = self.get_cluster(j, used_reads, cluster, n)
+					cluster = next_cluster
+					used_reads = next_used_reads
+		return used_reads, cluster
 
 class ReadSetPruning:
 	"""
@@ -164,7 +196,7 @@ class ReadSetPruning:
 				self._compute_similarities()
 				# cluster based on similarities
 				self._compute_clusters()
-			print('current_clustering', self._conflict_set.get_clusters())
+				print('current_clustering', self._conflict_set.get_clusters())
 
 			# get the computed read clusters
 			clusters = self._conflict_set.get_clusters()
