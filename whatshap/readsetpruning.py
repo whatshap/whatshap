@@ -130,6 +130,52 @@ class ConflictSet:
 					used_reads = next_used_reads
 		return used_reads, cluster
 
+class DotWriter:
+	"""
+	Writes a graph representation in .dot format.
+	"""
+
+	def __init__(self, filename):
+		"""
+		filename -- how to name the output file
+		"""
+		# filename
+		self._filename = filename
+		# edges of the graph represented as (node1, node2, label)
+		self._edges = []
+
+	def add_edge(self, node1, node2, label):
+		"""
+		Add an edge between node1 and node2 with given label.
+		"""
+		self._edges.append( (str(node1), str(node2), str(label)) )
+
+	def write(self):
+		start_nodes = set([i[0] for i in self._edges])
+		end_nodes =  set([i[1] for i in self._edges]) - start_nodes
+		all_nodes = start_nodes.union(end_nodes)
+		level_nodes = [node for node in all_nodes if node.startswith('level')]
+		list_end_nodes = ",".join(end_nodes)
+
+		outfile = open(self._filename, 'w')
+		outfile.write('graph graphname {\n')
+
+		outfile.write('{ node [shape=plaintext]; \n ')
+		for node in level_nodes:
+			splitted = node.split(':')
+			outfile.write(splitted[0] + ' [label=' + splitted[1] + '];')
+		outfile.write( '\n' + "--".join(reversed([str(i+1) for i in range(len(level_nodes))])) + '\n')
+		outfile.write('}')
+		for edge in self._edges:
+			start = edge[0].split(':')[0] if edge[0].startswith('level') else edge[0]
+			end = edge[1].split(':')[0] if edge[1].startswith('level') else edge[1]
+			outfile.write(start + '--' + end + ';\n')
+		outfile.write('{rank = same;' + list_end_nodes + '}')
+		for i in range(len(level_nodes)):
+			outfile.write('{rank = same;' + str(i+1) + ', level' + str(i) + ' }\n')
+		outfile.write('}')
+		outfile.close()
+
 class ReadSetPruning:
 	"""
 	Prune the ReadSet.
@@ -139,7 +185,7 @@ class ReadSetPruning:
 	into a single, consensus read.
 	This is useful in order to reduce the state space.
 	"""
-	def __init__(self, reads, position_to_component, number_of_clusters, compute_consensus=False):
+	def __init__(self, reads, position_to_component, number_of_clusters, compute_consensus=False, write_dot = False):
 		"""
 		reads -- ReadSet with reads to be considered
 		position_to_component -- dict mapping variant positions to connected components
@@ -163,6 +209,8 @@ class ReadSetPruning:
 		self._pruned_reads = ReadSet()
 		# computed clusters as lists of read names (used for testing)
 		self._readname_clusters = []
+		# write column trees in dot file
+		self._write_dot = write_dot
 		
 		# map component_id -> read_ids
 		connected_components = defaultdict(list)
@@ -180,6 +228,7 @@ class ReadSetPruning:
 
 			previous_reads = None
 			for pos in component_positions:
+				self._position = pos
 				# find all reads covering this position
 				self._current_column = [(i,read) for i,read in enumerate(component_reads) if pos in read]
 				read_ids = [e[0] for e in self._current_column]
@@ -192,7 +241,8 @@ class ReadSetPruning:
 				self._compute_similarities()
 				# cluster based on similarities
 				self._compute_clusters()
-#				print('current_clustering', self._conflict_set.get_clusters())
+				print('current overall clustering:')
+				print([[component_reads[j].name for j in i ] for i in self._conflict_set.get_clusters()])
 
 			# get the computed read clusters
 			clusters = self._conflict_set.get_clusters()
@@ -245,6 +295,9 @@ class ReadSetPruning:
 		n = len(self._current_column)
 		clusters = ComponentFinder([i for i in range(n)])
 
+		dotwriter = DotWriter('position_' + str(self._position) + '.dot')
+		cluster_to_name = defaultdict(lambda : None)
+
 		# perform k steps
 		k = n - self._number_of_clusters
 		logger.debug('number of iterations: %d', k)
@@ -265,8 +318,17 @@ class ReadSetPruning:
 			
 			# combine clusters
 			logger.debug('iteration %d:', i)
-			logger.debug('merge read  %d and %d (similarity: %d)', max_column, max_row, max_value)
+			logger.debug('merge read  %s and %s (similarity: %f)', self._current_column[max_column][1].name, self._current_column[max_row][1].name, max_value)
+			c1 = clusters.find(max_column)
+			c2 = clusters.find(max_row)
 			clusters.merge(max_column, max_row)
+
+			## write dot file
+			if self._write_dot:
+				node_label = 'level' + str(i)+':'+str(max_value)
+				dotwriter.add_edge(node_label,cluster_to_name[c1] if cluster_to_name[c1] is not None else self._current_column[c1][1].name, max_value)
+				dotwriter.add_edge(node_label,cluster_to_name[c2] if cluster_to_name[c2] is not None else self._current_column[c2][1].name, max_value)
+				cluster_to_name[clusters.find(max_column)] = node_label
 
 			# recompute the similarities based on average linkage
 			for j in range(n):
@@ -279,12 +341,14 @@ class ReadSetPruning:
 				self._similarities[max_row][j] = -float('inf')
 		id_to_names = defaultdict(list)
 		for i in range(n):
-			id_to_names[clusters.find(i)].append(self._current_column[i][0])
+			id_to_names[clusters.find(i)].append(self._current_column[i][1].name)
 
+		if self._write_dot:
+			dotwriter.write()
 
-#		print('current column clustering:')
-#		for k,v in id_to_names.items():
-#			print(k,v)
+		print('current column clustering:', self._position)
+		for k,v in id_to_names.items():
+			print(k,v)
 
 		# based on the clustering, update the ConflictSet
 		for i in range(n):

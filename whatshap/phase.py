@@ -504,6 +504,7 @@ def run_whatshap(
 		write_command_line_header=True,
 		use_ped_samples=False,
 		pruning=False,
+		output_columntrees=False,
 		cluster_number=2
 	):
 	"""
@@ -788,7 +789,7 @@ def run_whatshap(
 							old_size = len(readset)
 					#		selected_reads = selected_reads
 							selected_reads = select_reads(readset, max_coverage_per_sample, preferred_source_ids = vcf_source_ids) 
-							pruner = ReadSetPruning(selected_reads, find_components(selected_reads.get_positions(), selected_reads), cluster_number)
+							pruner = ReadSetPruning(selected_reads, find_components(selected_reads.get_positions(), selected_reads), cluster_number, write_dot = output_columntrees)
 							selected_reads = pruner.get_pruned_readset()
 							print('pruned reads:', selected_reads)
 							logger.info('Reduced the number of reads from %d to %d for sample %s', old_size, len(selected_reads), sample)
@@ -1041,6 +1042,8 @@ def add_arguments(parser):
 		'input VCF are phased. Can be used multiple times.')
 	arg('--pruning', default=False, action='store_true',
 		help='Combine similar reads in order to prune the HMM.')
+	arg('--output-columntrees', default=False, action='store_true',
+		help='If --pruning is used, output the computed tree for each position in a .dot file (default: %(default)s).')
 	arg('--cluster-number', dest='cluster_number', metavar='CLUSTERNUMBER', default=2, type=int,
 		help='How many clusters of reads shall be computed in each column for pruning.')
 
@@ -1135,6 +1138,8 @@ def validate(args, parser):
 		parser.error('Option --pruning cannot be used together with --merge-reads.')
 	if args.read_merging and args.ploidy > 2:
 		parser.error('Option --merge-reads cannot be used if ploidy > 2.')
+	if args.output_columntrees and not args.pruning:
+		parser.error('Option --output-columntrees can only be used together with --pruning.')
 
 
 def main(args):
