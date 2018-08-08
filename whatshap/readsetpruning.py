@@ -421,18 +421,16 @@ class ReadSetPruning:
 			# if read carries 0, add quality, o.w. substract
 			for read in cluster:
 				for variant in read:
-					assert len(variant.allele) == len(variant.quality)
-					for i in range(len(variant.allele)):
-						if variant.allele[i] == 0:
-							pos_to_allele[variant.position] += variant.quality[i]
-						elif variant.allele[i] == 1:
-							pos_to_allele[variant.position] -= variant.quality[i]
+					if variant.allele == 0:
+						pos_to_allele[variant.position] += variant.quality
+					elif variant.allele == 1:
+						pos_to_allele[variant.position] -= variant.quality
 			# add variants to consensus read
 			for pos in pos_to_allele.keys():
 				quality = pos_to_allele[pos]
 				if quality != 0:
 					consensus_allele = 0 if quality > 0 else 1
-					consensus_read.add_variant(pos, [consensus_allele], [abs(quality)])
+					consensus_read.add_variant(pos, consensus_allele, abs(quality))
 			consensus_read.sort()
 			if len(consensus_read) > 1:
 				self._pruned_reads.add(consensus_read)
@@ -462,34 +460,6 @@ class ReadSetPruning:
 #				consensus_string += '3'
 #		return consensus_string
 
-	# instead of computing consensus reads, group the clustered ones within the readset to keep
-	# all alleles and qualities
-	def _combine_reads(self):
-		"""
-		Combine the reads that were clustered together.
-		"""
-
-		for cluster in self._clusters:
-			# Read object containing infomation of all reads of the cluster
-			# TODO what to do with BX tag?
-			combined_read = Read(cluster[0].name, cluster[0].mapqs[0], cluster[0].source_id, 
-					cluster[0].sample_id, cluster[0].reference_start, cluster[0].BX_tag)
-			
-			# get alleles and qualities of reads
-			pos_to_allele = defaultdict(list)
-			pos_to_quality = defaultdict(list)
-
-			for read in cluster:
-				for variant in read:
-					pos = variant.position
-					pos_to_allele[pos].extend(variant.allele)
-					pos_to_quality[pos].extend(variant.quality)
-			# create a combined read
-			for pos in pos_to_allele.keys():
-				combined_read.add_variant(pos, pos_to_allele[pos], pos_to_quality[pos])
-			combined_read.sort()
-			if len(combined_read) > 1:
-				self._pruned_reads.add(combined_read)
 
 	def tag_reads(self, bam_file, output_filename):
 		"""
