@@ -82,7 +82,8 @@ class ReadSetPruning:
 
 			# get all positions in this component
 			component_positions = self._component_reads.get_positions()
-
+			# was the last read in any of the windows
+			last_used = False
 			# consider windows of reads
 			for i, read in enumerate(self._component_reads):
 				# add read to current column
@@ -100,8 +101,12 @@ class ReadSetPruning:
 					if len(intersection) >= self._variants_per_window:
 						self._current_column.append( (i+k, current_read) )
 						self._positions = intersection
+						# if last read was used, don't look at next windows
+						if (i+k) == len(self._component_reads) - 1:
+							last_used = True
 					else:
 						break
+ 
 					k += 1
 
 				# if less than 2 reads are in the same window, skip it
@@ -117,6 +122,8 @@ class ReadSetPruning:
 				# cluster based on similarities
 				self._compute_clusters()
 				self._window += 1
+				if last_used:
+					break
 
 			# add the computed reads to final ReadSet
 			for read in self._readname_to_partitions.values():
@@ -129,7 +136,8 @@ class ReadSetPruning:
 				for var in read:
 					if var.position in self._readname_to_positions[read.name]:
 						new_read.add_variant(var.position, var.allele, var.quality)
-				self._allele_matrix.add(new_read)
+				if len(read) > 2:
+					self._allele_matrix.add(new_read)
 			
 		# sort readsets
 		self._cluster_matrix.sort()
