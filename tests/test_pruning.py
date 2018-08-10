@@ -27,9 +27,12 @@ def check_window_clustering(cluster_matrix, expected_clusters):
 	expected_positions = list(expected_clusters.keys())
 	assert sorted(matrix_positions) == sorted(expected_positions)
 
+	all_clusters = []
+	all_expected_clusters = []
 	for position in expected_positions:
-		clusters = sorted([ sorted(cluster) for cluster in position_to_clusters[position].values()])
-		assert clusters == sorted(expected_clusters[position])
+		all_clusters.append(sorted([ sorted(cluster) for cluster in position_to_clusters[position].values()]))
+		all_expected_clusters.append(sorted(expected_clusters[position]))
+	assert sorted(all_clusters) == sorted(all_expected_clusters)
 
 def solve_MEC(cluster_matrix, ploidy):
 	"""
