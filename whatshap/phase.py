@@ -926,6 +926,9 @@ def run_whatshap(
 					# identical for all samples
 					components[sample] = overall_components
 
+				for r,p in zip(all_reads,dp_table.get_optimal_partitioning()):
+					print(r.name, p)
+
 				if read_list_file:
 					write_read_list(all_reads, dp_table.get_optimal_partitioning(), components, numeric_sample_ids, read_list_file)
 

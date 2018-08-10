@@ -29,6 +29,7 @@ from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
 from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
 from .readsetpruning import ReadSetPruning
+from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components
 
 __author__ = "Jana Ebler" 
 
@@ -48,7 +49,7 @@ def run_phasepoly(
 	tag='PS',
 	write_command_line_header=True,
 	read_list_filename=None,
-	reads_per_window=10,
+	reads_per_window=4,
 	variants_per_window=4
 	):
 	"""
@@ -73,7 +74,7 @@ def run_phasepoly(
 	with ExitStack() as stack:
 		numeric_sample_ids = NumericSampleIds()
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
-		assert len(phase_input_bam_files) > 0
+		assert len(phase_input_bam_filenames) > 0
 		try:
 			readset_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, reference,
 				numeric_sample_ids, mapq_threshold=mapping_quality))
@@ -128,8 +129,9 @@ def run_phasepoly(
 
 		samples = frozenset(samples)
 
+		read_list_file = None
 		if read_list_filename:
-			read_list_file = create_read_list_file(read_list_file)
+			read_list_file = create_read_list_file(read_list_filename)
 		
 		timers.start('parse_vcf')
 		for variant_table in vcf_reader:
@@ -173,24 +175,38 @@ def run_phasepoly(
 
 				# Get the reads belonging to this sample
 				bam_sample = None if ignore_read_groups else sample
-				readset, vcf_source_ids = read_reads(readset_reader, chromosome, phasable_variant_table.variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
+				readset, vcf_source_ids = read_reads(readset_reader, chromosome, phasable_variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
 				readset.sort()
 				readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
+				# TODO include this readselection step?
+				selected_reads = select_reads(readset, 8*ploidy, preferred_source_ids = vcf_source_ids)
+				readset = selected_reads
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
 				# Compute columnwise partitions of the reads into # ploidy clusters and output corresponding MEC matrix
-				clusters_per_window = ReadSetPruning(readset, find_components(readset.get_positions(), readset), ploidy, reads_per_window, variants_per_window, write_dot=False)
+				readsetpruner = ReadSetPruning(readset, find_components(readset.get_positions(), readset), ploidy, reads_per_window, variants_per_window)
+				clusters_per_window = readsetpruner.get_cluster_matrix()
+				readset = readsetpruner.get_allele_matrix()
 
 				# TODO solve MEC to get overall partitioning, prepare input objects for this
 				cluster_pedigree = Pedigree(numeric_sample_ids, ploidy)
 				windows = clusters_per_window.get_positions()
-				cluster_pedigree.add_individual(sample, [0]*len(windows), windows)
-				partitioning_dp_table = PedigreeDPTable(clusters_per_window, cluster_pedigree, ploidy, windows)
+				cluster_pedigree.add_individual(sample, [0]*len(windows), [PhredGenotypeLikelihoods([0]*(ploidy+1))]*len(windows))
+				recombination_costs = uniform_recombination_map(1.26, windows)
+				partitioning_dp_table = PedigreeDPTable(clusters_per_window, recombination_costs, cluster_pedigree, ploidy, True, windows)
 				read_partitioning = partitioning_dp_table.get_optimal_partitioning()
+
+				print('computed read partitioning:', partitioning_dp_table.get_optimal_cost())
+				clu_to_r = defaultdict(list)
+				for read, partition in zip(readset,read_partitioning):
+					clu_to_r[partition].append(read.name)
+				
+				for c,l in clu_to_r.items():
+					print(c,l)
 
 				# prepare input for determining the best allele configuration
 				# Determine which variants can (in principle) be phased
-				accessible_variant_positions = sorted(readset.get_positions())
+				accessible_positions = sorted(readset.get_positions())
 				logger.info('Variants covered by at least one phase-informative read: %d', len(accessible_positions))
 
 				# Keep only accessible positions
@@ -201,37 +217,37 @@ def run_phasepoly(
 				pedigree.add_individual(sample, phasable_variant_table.genotypes_of(sample), None)
 
 				# For the given partitioning of the reads, determine best allele configurations
-				with timers('phase'):
-					logger.info('Phasing %s by determining best allele assignment ... ', sample)
-					allele_assignment = PedigreeDPTable(readset, pedigree, ploidy, accessible_positions, read_partitioning)
-					superreads_list = allele_assignment.get_super_reads()
-					logger.info('MEC cost: %d', allele_assignment.get_optimal_cost())
-				with timers('components'):
-					overall_components = find_components(accessible_positions, readset, None, None)
-					n_phased_blocks = len(set(overall_components.values()))
-					logger.info('No. of phased blocks: %d', n_phased_blocks)
-					largest_component = find_largest_component(overall_components)
-					if len(largest_component) > 0:
-							logger.info('Largest component contains %d variants (%.1f%% of accessible variants) between position %d and %d', len(largest_component), len(largest_component)*100.0/len(accessible_positions), largest_component[0]+1, largest_component[-1]+1)
-
-				assert(len(superreads_list) == 1)
-				sample_superreads = superreads_list[0]
-				superreads[sample] = sample_superreads
-				assert len(sample_superreads) == ploidy
-				for sr in sample_superreads:
-					assert sr.sample_id == sr_sample_id == numeric_sample_ids[sample]
-				components[sample] = overall_components
-
-				if read_list_file:
-					write_read_list(all_reads, allele_assignment.get_optimal_partitioning(), components, numeric_sample_ids, read_list_file)
-			with timers('write_vcf'):
-				logger.info('======== Writing VCF')
-				changed_genotypes = vcf_writer.write(chromosome, superreads, components)
-				logger.info('Done writing VCF')
-				assert len(changed_genotypes) == 0
-			logger.debug('Chromosome %r finished', chromosome)
-			timers.start('parse_vcf')
-		timers.stop('parse_vcf')
+#				with timers('phase'):
+#					logger.info('Phasing %s by determining best allele assignment ... ', sample)
+#					allele_assignment = PedigreeDPTable(readset, pedigree, ploidy, accessible_positions, read_partitioning)
+#					superreads_list = allele_assignment.get_super_reads()
+#					logger.info('MEC cost: %d', allele_assignment.get_optimal_cost())
+#				with timers('components'):
+#					overall_components = find_components(accessible_positions, readset, None, None)
+#					n_phased_blocks = len(set(overall_components.values()))
+#					logger.info('No. of phased blocks: %d', n_phased_blocks)
+#					largest_component = find_largest_component(overall_components)
+#					if len(largest_component) > 0:
+#							logger.info('Largest component contains %d variants (%.1f%% of accessible variants) between position %d and %d', len(largest_component), len(largest_component)*100.0/len(accessible_positions), largest_component[0]+1, largest_component[-1]+1)
+#
+#				assert(len(superreads_list) == 1)
+#				sample_superreads = superreads_list[0]
+#				superreads[sample] = sample_superreads
+#				assert len(sample_superreads) == ploidy
+#				for sr in sample_superreads:
+#					assert sr.sample_id == sr_sample_id == numeric_sample_ids[sample]
+#				components[sample] = overall_components
+#
+#				if read_list_file:
+#					write_read_list(all_reads, allele_assignment.get_optimal_partitioning(), components, numeric_sample_ids, read_list_file)
+#			with timers('write_vcf'):
+#				logger.info('======== Writing VCF')
+#				changed_genotypes = vcf_writer.write(chromosome, superreads, components)
+#				logger.info('Done writing VCF')
+#				assert len(changed_genotypes) == 0
+#			logger.debug('Chromosome %r finished', chromosome)
+#			timers.start('parse_vcf')
+#		timers.stop('parse_vcf')
 	
 	if read_list_file:
 		read_list_file.close()
@@ -243,8 +259,6 @@ def run_phasepoly(
 		logger.info('Maximum memory usage: %.3f GB', memory_kb / 1E6)
 	logger.info('Time spent reading BAM/CRAM:                 %6.1f s', timers.elapsed('read_bam'))
 	logger.info('Time spent parsing VCF:                      %6.1f s', timers.elapsed('parse_vcf'))
-	if len(phase_input_vcfs) > 0:
-		logger.info('Time spent parsing input phasings from VCFs: %6.1f s', timers.elapsed('parse_phasing_vcfs'))
 	logger.info('Time spent selecting reads:                  %6.1f s', timers.elapsed('select'))
 	logger.info('Time spent pruning readset:                  %6.1f s', timers.elapsed('prune'))
 	logger.info('Time spent phasing:                          %6.1f s', timers.elapsed('phase'))

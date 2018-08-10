@@ -3,6 +3,7 @@ import sys
 from .graph import ComponentFinder
 from .core import Read, ReadSet
 import logging
+import pysam
 
 logger = logging.getLogger(__name__)
 
@@ -22,138 +23,6 @@ def compute_similarity(variants1, variants2):
 			shared_alleles += 1
 	return shared_alleles / len(overlap)
 
-class ConflictSet:
-	"""
-	For a set of reads, keep track of which reads are in conflict
-	and must not end up in the same cluster.
-	"""
-	def __init__(self, read_ids):
-		self._read_ids = sorted(read_ids)
-		self._conflicts = defaultdict(int)
-
-	def add_conflict(self, read1, read2):
-		"""
-		Add a conflict between the given reads.
-		"""
-		assert (read1 in self._read_ids) and (read2 in self._read_ids)
-		if read1 < read2:
-			self._conflicts[(read1,read2)] = 1
-		else:
-			self._conflicts[(read2,read1)] = 1
-
-	def add_relationship(self, read1, read2):
-		"""
-		Mark the relationship between the reads, i.e. if they are in conflict,
-		nothing changes, if not, this indicates that the reads are currently in the
-		same cluster.
-		"""
-		assert (read1 in self._read_ids) and (read2 in self._read_ids)
-		if read1 < read2:
-			if not self.in_conflict(read1,read2):
-				self._conflicts[(read1,read2)] = -1
-		else:
-			if not self.in_conflict(read1,read2):
-				self._conflicts[(read2,read1)] = -1
-
-	def in_conflict(self, read1, read2):
-		"""
-		Check if the given reads are in conflict.
-		"""
-		assert (read1 in self._read_ids) and (read2 in self._read_ids)
-		if read1 < read2:
-			return self._conflicts[(read1,read2)] == 1
-		else:
-			return self._conflicts[(read2,read1)] == 1
-
-	def in_same_cluster(self, read1, read2):
-		"""
-		Check if the given reads are in the same cluster.
-		"""
-		assert (read1 in self._read_ids) and (read2 in self._read_ids)
-		if read1 < read2:
-			return self._conflicts[(read1,read2)] == -1
-		else:
-			return self._conflicts[(read2,read1)] == -1
-
-
-	def get_clusters(self):
-		result = []
-		used_reads = []
-		n = len(self._read_ids)
-		for i in range(n):
-			if i in used_reads:
-				continue
-			used_reads.append(i)
-			next_used_reads, cluster = self.get_cluster(i, used_reads, [self._read_ids[i]], n)
-			used_reads = next_used_reads
-			result.append(cluster)
-		return sorted(result)
-
-	def get_cluster(self, i, used_reads, cluster, n):
-		for j in range(i+1,n):
-			if j in used_reads:
-				continue
-			if self.in_same_cluster(self._read_ids[i], self._read_ids[j]):
-				conflict = False
-				for c in cluster:
-					if c == self._read_ids[j]:
-						continue
-					if self.in_conflict(self._read_ids[j], c):
-						conflict = True
-						break
-				if not conflict:
-					cluster.append(self._read_ids[j])
-					used_reads.append(j)
-					next_used_reads, next_cluster = self.get_cluster(j, used_reads, cluster, n)
-					cluster = next_cluster
-					used_reads = next_used_reads
-		return used_reads, cluster
-
-class DotWriter:
-	"""
-	Writes a graph representation in .dot format.
-	"""
-
-	def __init__(self, filename):
-		"""
-		filename -- how to name the output file
-		"""
-		# filename
-		self._filename = filename
-		# edges of the graph represented as (node1, node2, label)
-		self._edges = []
-
-	def add_edge(self, node1, node2, label):
-		"""
-		Add an edge between node1 and node2 with given label.
-		"""
-		self._edges.append( (str(node1), str(node2), str(label)) )
-
-	def write(self):
-		start_nodes = set([i[0] for i in self._edges])
-		end_nodes =  set([i[1] for i in self._edges]) - start_nodes
-		all_nodes = start_nodes.union(end_nodes)
-		level_nodes = [node for node in all_nodes if node.startswith('level')]
-		list_end_nodes = ",".join(end_nodes)
-
-		outfile = open(self._filename, 'w')
-		outfile.write('graph graphname {\n')
-
-		outfile.write('{ node [shape=plaintext]; \n ')
-		for node in level_nodes:
-			splitted = node.split(':')
-			outfile.write(splitted[0] + ' [label=' + splitted[1] + '];')
-		outfile.write( '\n' + "--".join(reversed([str(i+1) for i in range(len(level_nodes))])) + '\n')
-		outfile.write('}')
-		for edge in self._edges:
-			start = edge[0].split(':')[0] if edge[0].startswith('level') else edge[0]
-			end = edge[1].split(':')[0] if edge[1].startswith('level') else edge[1]
-			outfile.write(start + '--' + end + ';\n')
-		outfile.write('{rank = same;' + list_end_nodes + '}')
-		for i in range(len(level_nodes)):
-			outfile.write('{rank = same;' + str(i+1) + ', level' + str(i) + ' }\n')
-		outfile.write('}')
-		outfile.close()
 
 class ReadSetPruning:
 	"""
@@ -164,7 +33,7 @@ class ReadSetPruning:
 	into a single, consensus read.
 	This is useful in order to reduce the state space.
 	"""
-	def __init__(self, reads, position_to_component, number_of_clusters, reads_per_window, variants_per_window, write_dot = False):
+	def __init__(self, reads, position_to_component, number_of_clusters, reads_per_window, variants_per_window):
 		"""
 		reads -- ReadSet with reads to be considered
 		position_to_component -- dict mapping variant positions to connected components
@@ -186,22 +55,15 @@ class ReadSetPruning:
 		self._current_column = None
 		# similarities of current position
 		self._similarities = None
-		# clusters of current connected component
-		self._clusters = []
-		# conflict set of current connedted component
-		self._conflict_set = None
 		# cluster matrix
 		self._cluster_matrix = ReadSet()
-		# current mapping: read_name -> Read() object
-		self._readname_to_read = {}
-		# computed clusters as lists of read names (used for testing)
-		self._readname_clusters = []
-		# write column trees in dot file
-		self._write_dot = write_dot
-	
-		# store overall mapping (readname->cluster)
-		self._readname_to_cluster = {}
-	
+		# readset with used positions
+		self._allele_matrix = ReadSet()
+		# current mapping: read_name -> Read() object containing assignment to partitions
+		self._readname_to_partitions = {}
+		# current mapping: read name -> alleles used for comparison
+		self._readname_to_positions = defaultdict(set)
+
 		# map component_id -> read_ids
 		connected_components = defaultdict(list)
 		for i,read in enumerate(reads):
@@ -212,13 +74,14 @@ class ReadSetPruning:
 			# get reads belonging to this component
 			self._component_reads = reads.subset(component)
 			# create new Read objects that hold the cluster assignments
-			self._readname_to_read = {}
+			self._readname_to_partitions = {}
+			# create map containing positions used for each read
+			self._readname_to_positions = defaultdict(set)
 			for read in self._component_reads:
-				self._readname_to_read[read.name] = Read()
+				self._readname_to_partitions[read.name] = Read(read.name, read.mapqs[0], read.source_id, read.sample_id)
+
 			# get all positions in this component
 			component_positions = self._component_reads.get_positions()
-			# create a ConflictSet for the reads in this component
-			self._conflict_set = ConflictSet([i for i in range(len(self._component_reads))])
 
 			# consider windows of reads
 			for i, read in enumerate(self._component_reads):
@@ -237,52 +100,54 @@ class ReadSetPruning:
 					if len(intersection) >= self._variants_per_window:
 						self._current_column.append( (i+k, current_read) )
 						self._positions = intersection
+					else:
+						break
 					k += 1
+
+				# if less than 2 reads are in the same window, skip it
+				if len(self._current_column) < 2:
+					continue
+
+				# for each read in the window, remember used alleles
+				for (i,read) in self._current_column:
+					self._readname_to_positions[read.name] = self._readname_to_positions[read.name].union(self._positions)
 
 				# compute similarities
 				self._compute_similarities()
-#				print('similarities for window: ', self._window, self._similarities)
 				# cluster based on similarities
 				self._compute_clusters()
 				self._window += 1
-				print('current overall clustering:')
-				print([[self._component_reads[j].name for j in i ] for i in self._conflict_set.get_clusters()])
 
-			# get the computed read clusters
-			clusters = self._conflict_set.get_clusters()
-			for c in clusters:
-				# construct readset
-				self._clusters.append(self._component_reads.subset(c))
+			# add the computed reads to final ReadSet
+			for read in self._readname_to_partitions.values():
+				if len(read) > 0:
+					self._cluster_matrix.add(read)
 
-			# store for each read, the cluster it belongs to
-			for i, c in enumerate(self._clusters):
-				cluster_id = 'connected_component_' + str(component_id) + '_cluster_' + str(i)
-				for read in c:
-					self._readname_to_cluster[read.name] = cluster_id
-
-			print('readname_to_cluster:', self._readname_to_cluster)
-
-#			if self._compute_consensus:
-#				self._consensus_reads()
-#			else:
-#				self._combine_reads()
-			# store string representation of clusters
-			for readset in self._clusters:
-				self._readname_clusters.append(sorted([read.name for read in readset]))
-			self._clusters = []
+			# construct allele matrix containing only positions used for comparing reads during clustering
+			for read in self._component_reads:
+				new_read = Read(read.name, read.mapqs[0], read.source_id, read.sample_id)
+				for var in read:
+					if var.position in self._readname_to_positions[read.name]:
+						new_read.add_variant(var.position, var.allele, var.quality)
+				self._allele_matrix.add(new_read)
+			
+		# sort readsets
+		self._cluster_matrix.sort()
+		self._allele_matrix.sort()
 
 
-	# this just returns the computed read clusters as lists of read names
-	# function mainly used for testing
-	def get_clusters(self):	
-		return self._readname_clusters
-
-	def get_pruned_readset(self):
+	def get_cluster_matrix(self):
 		"""
-		Return the new readset.
+		Return the readset which represents the cluster matrix.
 		"""
-		self._pruned_reads.sort()
-		return self._pruned_reads
+		return self._cluster_matrix
+
+	def get_allele_matrix(self):
+		"""
+		Return the readset containing those positions for each read
+		which have been used during clustering.
+		"""
+		return self._allele_matrix
 
 	def _compute_similarities(self):
 		"""
@@ -307,9 +172,6 @@ class ReadSetPruning:
 		"""
 		n = len(self._current_column)
 		clusters = ComponentFinder([i for i in range(n)])
-
-		dotwriter = DotWriter('window_' + str(self._window) + '.dot')
-		cluster_to_name = defaultdict(lambda : None)
 
 		# perform k steps
 		k = n
@@ -338,16 +200,7 @@ class ReadSetPruning:
 			# combine clusters
 			logger.debug('iteration %d:', n-k)
 			logger.debug('merge read  %s and %s (similarity: %f)', self._current_column[max_column][1].name, self._current_column[max_row][1].name, max_value)
-			c1 = clusters.find(max_column)
-			c2 = clusters.find(max_row)
 			clusters.merge(max_column, max_row)
-
-			## write dot file
-			if self._write_dot:
-				node_label = 'level' + str(n-k)+':'+str(max_value)
-				dotwriter.add_edge(node_label,cluster_to_name[c1] if cluster_to_name[c1] is not None else self._current_column[c1][1].name, max_value)
-				dotwriter.add_edge(node_label,cluster_to_name[c2] if cluster_to_name[c2] is not None else self._current_column[c2][1].name, max_value)
-				cluster_to_name[clusters.find(max_column)] = node_label
 
 			# recompute the similarities based on average linkage
 			for j in range(n):
@@ -369,30 +222,9 @@ class ReadSetPruning:
 		for k,v in id_to_names.items():
 			print(k,v)
 
-		# write dot file
-		if self._write_dot:
-			dotwriter.write()
+		# store the clustering in MEC matrix
+		cluster_ids = list(id_to_names.keys())
+		for i,cluster_id in enumerate(cluster_ids):
+			for read_name in id_to_names[cluster_id]:
+				self._readname_to_partitions[read_name].add_variant(self._window, i, 10*len(self._positions))
 
-		# based on the clustering, update the ConflictSet
-		for i in range(n):
-			for j in range(i+1,n):
-				if clusters.find(i) is not clusters.find(j):
-					self._conflict_set.add_conflict(self._current_column[i][0],self._current_column[j][0])
-				else:
-					self._conflict_set.add_relationship(self._current_column[i][0],self._current_column[j][0])
-
-	def tag_reads(self, bam_file, output_filename):
-		"""
-		In the given BAM file, tag the reads according to the clusters they have been assigned to.
-		"""
-		# TODO implement this
-		pass
-
-		bam_reader = pysam.AlignmentFile(bam_file)
-		bam_writer = (output_filename, 'wb')
-		for alignment in bam_reader:
-			cluster_id = self._readname_to_cluster[alignment.query_name]
-			alignment.set_tag('XC', value=cluster_id)
-			bam_writer.write(alignment)
-		bam_reader.close()
-		bam_writer.close()
