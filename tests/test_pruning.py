@@ -29,7 +29,7 @@ def check_window_clustering(cluster_matrix, expected_clusters):
 
 	for position in expected_positions:
 		clusters = sorted([ sorted(cluster) for cluster in position_to_clusters[position].values()])
-		assert clusters == expected_clusters[position]
+		assert clusters == sorted(expected_clusters[position])
 
 def solve_MEC(cluster_matrix, ploidy):
 	"""
@@ -82,7 +82,7 @@ def test_clustering1():
 
 	# get overall clustering solving MEC	
 	consensus_clustering = solve_MEC(cluster_matrix, 2)
-	assert consensus_clustering == [ ['Read 1', 'Read 2'], ['Read 3', 'Read 4', 'Read 5'] ]
+	assert sorted(consensus_clustering) == sorted([ ['Read 1', 'Read 2'], ['Read 3', 'Read 4', 'Read 5'] ])
 
 # TODO: disadvantage of the approach: Since only reads in a window are considered, and not all covering a region at the same time
 #	the clustering misses some of the relationships between the reads. Here Read3 and Read8 are not combined, because they
@@ -253,7 +253,7 @@ def test_clustering7():
 
 	# get overall clustering solving MEC
 	consensus_clustering = solve_MEC(cluster_matrix, 2)
-	assert consensus_clustering == [ ['Read 1', 'Read 2'], ['Read 3', 'Read 4', 'Read 5'] ]
+	assert sorted(consensus_clustering) == sorted([ ['Read 1', 'Read 2'], ['Read 3', 'Read 4', 'Read 5'] ])
 
 def test_clustering8():
 	reads = """
@@ -279,4 +279,4 @@ def test_clustering8():
 
 	# get overall clustering solving MEC
 	consensus_clustering = solve_MEC(cluster_matrix, 2)
-	assert consensus_clustering == [ [], ['Read 1', 'Read 2', 'Read 3', 'Read 4'] ]
+	assert sorted(consensus_clustering) == sorted([ [], ['Read 1', 'Read 2', 'Read 3', 'Read 4'] ])
