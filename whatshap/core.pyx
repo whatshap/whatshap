@@ -250,17 +250,22 @@ cdef class ReadSet:
 		return result
 
 cdef class PedigreeDPTable:
-	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree, ploidy, bool distrust_genotypes = False, positions = None):
+	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree, ploidy, bool distrust_genotypes = False, positions = None, precomputed_partitioning = None):
 		"""Build the DP table from the given read set which is assumed to be sorted;
 		that is, the variants in each read must be sorted by position and the reads
 		in the read set must also be sorted (by position of their left-most variant).
 		"""
 		cdef vector[unsigned int]* c_positions = NULL
+		cdef vector[unsigned int]* c_partitioning = NULL
 		if positions is not None:
 			c_positions = new vector[unsigned int]()
 			for pos in positions:
 				c_positions.push_back(pos)
-		self.thisptr = new cpp.PedigreeDPTable(readset.thisptr, recombcost, pedigree.thisptr, ploidy, distrust_genotypes, c_positions)
+		if precomputed_partitioning is not None:
+			c_partitioning = new vector[unsigned int]()
+			for partition in precomputed_partitioning:
+				c_partitioning.push_back(partition)
+		self.thisptr = new cpp.PedigreeDPTable(readset.thisptr, recombcost, pedigree.thisptr, ploidy, distrust_genotypes, c_positions, c_partitioning)
 		self.pedigree = pedigree
 
 	def __dealloc__(self):

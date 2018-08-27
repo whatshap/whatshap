@@ -12,7 +12,7 @@
 
 using namespace std;
 
-PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, unsigned int ploidy, bool distrust_genotypes, const vector<unsigned int>* positions) :
+PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, unsigned int ploidy, bool distrust_genotypes, const vector<unsigned int>* positions, const vector<unsigned int>* precomputed_partitioning) :
 	read_set(read_set),
 	recombcost(recombcost),
 	pedigree(pedigree),
@@ -34,7 +34,15 @@ PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& 
 		read_sources.push_back(pedigree->id_to_index(read_set->get(i)->getSampleID()));
 	}
 
-	compute_table();
+	if (precomputed_partitioning == nullptr){
+		compute_table();
+	} else {
+		// map read_id -> assigned partition
+		for (unsigned int i = 0; i < read_set->size(); i++) {
+			read_to_partition[ read_set->get(i)->getID() ] = (*precomputed_partitioning)[i];
+		}
+		set_index_path();
+	}
 }
 
 
@@ -79,6 +87,54 @@ void PedigreeDPTable::clear_table() {
 	optimal_score_index = 0;
 	optimal_transmission_value = 0;
 	previous_transmission_value = 0;
+}
+
+
+void PedigreeDPTable::set_index_path() {
+	clear_table();
+
+	optimal_score = 0;
+	optimal_score_index = 0;
+	// empty read-set, nothing to phase, MEC is 0
+	if (input_column_iterator.get_column_count() == 0) {
+		return;
+	}
+
+	// store partitioning for each column
+	input_column_iterator.jump_to_column(0);
+	unique_ptr<vector<const Entry *> > current_input_column = input_column_iterator.get_next();
+	unique_ptr<vector<unsigned int> > current_read_ids = extract_read_ids(*current_input_column);
+
+	size_t column_count = input_column_iterator.get_column_count();
+	index_path.assign(column_count, index_and_inheritance_t());
+
+	for (size_t column_index = 0; column_index < column_count; ++column_index) {
+		// construct partitioning of reads in this column
+		unsigned int partitioning = 0;
+		unsigned int offset = 1;
+		for (size_t i = 0; i < current_read_ids->size(); i++) {
+			unsigned int id = (*current_read_ids)[i];
+			partitioning += read_to_partition[id]*offset;
+			offset *= ploidy;
+		}
+
+		// store in index path 
+		index_and_inheritance_t v;
+		v.index = partitioning;
+		v.inheritance_value = 0;
+
+		index_path[column_index] = v;
+
+		// compute optimal cost
+		PedigreeColumnCostComputer cost_computer(*current_input_column, column_index, read_sources, pedigree, *pedigree_partitions[v.inheritance_value], distrust_genotypes);
+		cost_computer.set_partitioning(v.index);
+		optimal_score += cost_computer.get_cost();
+
+		if (input_column_iterator.has_next()){
+			current_input_column = input_column_iterator.get_next();
+			current_read_ids = extract_read_ids(*current_input_column);
+		}
+	}
 }
 
 

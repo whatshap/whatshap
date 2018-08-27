@@ -216,38 +216,45 @@ def run_phasepoly(
 				pedigree = Pedigree(numeric_sample_ids, ploidy)
 				pedigree.add_individual(sample, phasable_variant_table.genotypes_of(sample), None)
 
+				# TODO the order of the reads in clusters_per_window and readset can differ. Therefore, reorder read_partitioning
+				read_to_partition = {}
+				for i,read in enumerate(clusters_per_window):
+					read_to_partition[read.name] = read_partitioning[i]
+				optimal_partitioning =  [ read_to_partition[r.name] for r in readset  ]	
+
 				# For the given partitioning of the reads, determine best allele configurations
-#				with timers('phase'):
-#					logger.info('Phasing %s by determining best allele assignment ... ', sample)
-#					allele_assignment = PedigreeDPTable(readset, pedigree, ploidy, accessible_positions, read_partitioning)
-#					superreads_list = allele_assignment.get_super_reads()
-#					logger.info('MEC cost: %d', allele_assignment.get_optimal_cost())
-#				with timers('components'):
-#					overall_components = find_components(accessible_positions, readset, None, None)
-#					n_phased_blocks = len(set(overall_components.values()))
-#					logger.info('No. of phased blocks: %d', n_phased_blocks)
-#					largest_component = find_largest_component(overall_components)
-#					if len(largest_component) > 0:
-#							logger.info('Largest component contains %d variants (%.1f%% of accessible variants) between position %d and %d', len(largest_component), len(largest_component)*100.0/len(accessible_positions), largest_component[0]+1, largest_component[-1]+1)
-#
-#				assert(len(superreads_list) == 1)
-#				sample_superreads = superreads_list[0]
-#				superreads[sample] = sample_superreads
-#				assert len(sample_superreads) == ploidy
-#				for sr in sample_superreads:
-#					assert sr.sample_id == sr_sample_id == numeric_sample_ids[sample]
-#				components[sample] = overall_components
-#
-#				if read_list_file:
-#					write_read_list(all_reads, allele_assignment.get_optimal_partitioning(), components, numeric_sample_ids, read_list_file)
-#			with timers('write_vcf'):
-#				logger.info('======== Writing VCF')
-#				changed_genotypes = vcf_writer.write(chromosome, superreads, components)
-#				logger.info('Done writing VCF')
-#				assert len(changed_genotypes) == 0
-#			logger.debug('Chromosome %r finished', chromosome)
-#			timers.start('parse_vcf')
-#		timers.stop('parse_vcf')
+				with timers('phase'):
+					logger.info('Phasing %s by determining best allele assignment ... ', sample)
+					recombination_costs = uniform_recombination_map(1.26, accessible_positions)
+					allele_assignment = PedigreeDPTable(readset, recombination_costs, pedigree, ploidy, False, accessible_positions, optimal_partitioning)
+					superreads_list = allele_assignment.get_super_reads()
+					logger.info('MEC cost: %d', allele_assignment.get_optimal_cost())
+				with timers('components'):
+					overall_components = find_components(accessible_positions, readset, None, None)
+					n_phased_blocks = len(set(overall_components.values()))
+					logger.info('No. of phased blocks: %d', n_phased_blocks)
+					largest_component = find_largest_component(overall_components)
+					if len(largest_component) > 0:
+							logger.info('Largest component contains %d variants (%.1f%% of accessible variants) between position %d and %d', len(largest_component), len(largest_component)*100.0/len(accessible_positions), largest_component[0]+1, largest_component[-1]+1)
+
+				assert(len(superreads_list) == 1)
+				sample_superreads = superreads_list[0]
+				superreads[sample] = sample_superreads
+				assert len(sample_superreads) == ploidy
+				for sr in sample_superreads:
+					assert sr.sample_id == sr_sample_id == numeric_sample_ids[sample]
+				components[sample] = overall_components
+
+				if read_list_file:
+					write_read_list(all_reads, allele_assignment.get_optimal_partitioning(), components, numeric_sample_ids, read_list_file)
+			with timers('write_vcf'):
+				logger.info('======== Writing VCF')
+				changed_genotypes = vcf_writer.write(chromosome, superreads, components)
+				logger.info('Done writing VCF')
+				assert len(changed_genotypes) == 0
+			logger.debug('Chromosome %r finished', chromosome)
+			timers.start('parse_vcf')
+		timers.stop('parse_vcf')
 	
 	if read_list_file:
 		read_list_file.close()

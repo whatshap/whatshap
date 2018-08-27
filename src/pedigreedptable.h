@@ -4,6 +4,7 @@
 #include <array>
 #include <vector>
 #include <memory>
+#include <map>
 
 #include "columnindexingscheme.h"
 #include "columniterator.h"
@@ -52,6 +53,9 @@ private:
 	// optimal path obtained from backtrace
 	std::vector<index_and_inheritance_t> index_path;
 
+	// in case precomputed partitioning is given, store mapping read_id -> assigned partition
+	std::map<int,int> read_to_partition;
+
 	// helper function to pull read ids out of read column
 	std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
 
@@ -59,6 +63,8 @@ private:
 	 *  transmission_backtrace_table, optimal_score, optimal_score_index, optimal_transmission_value, and previous_transmission_value. */
 	void clear_table();
 	void compute_table();
+	/** compute optimal cost for an already given partitioning of all reads */
+	void set_index_path();
 	/** Computes the DP column at the given index, assuming that the previous column
 	 *  has already been computed. */
 	void compute_column(size_t column_index, std::unique_ptr<std::vector<const Entry*>> current_input_column = nullptr);
@@ -85,7 +91,7 @@ public:
 	 *  @param positions Positions to work on. If 0, then all positions given in read_set will be used. Caller retains
 	 *                   ownership.
 	 */
-	PedigreeDPTable(ReadSet* read_set, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, unsigned int ploidy, bool distrust_genotypes, const std::vector<unsigned int>* positions = nullptr);
+	PedigreeDPTable(ReadSet* read_set, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, unsigned int ploidy, bool distrust_genotypes, const std::vector<unsigned int>* positions = nullptr, const std::vector<unsigned int>* precomputed_partitioning = nullptr);
  
 	~PedigreeDPTable();
 
