@@ -51,7 +51,28 @@ def solve_MEC(cluster_matrix, ploidy):
 		result[partition].append(cluster_matrix[i].name)
 	for i in range(len(result)):
 		result[i] = sorted(result[i])
-	return sorted(result)
+	return sorted(result), optimal_partitioning
+
+def best_allele_assignment(reads, positions, ploidy, genotypes, precomputed_partitioning):
+	"""
+	given reads and a partitioning, computes the best allele assignment.
+	"""
+	numeric_sample_ids = NumericSampleIds()
+	pedigree = Pedigree(numeric_sample_ids, ploidy)
+	pedigree.add_individual('0', genotypes,	[PhredGenotypeLikelihoods([0]*(ploidy+1))]*len(genotypes))
+	dp_table = PedigreeDPTable(reads, [1]*len(positions), pedigree, ploidy, False, positions, precomputed_partitioning)
+	print('SUPERREADS:', dp_table.get_super_reads()[0][0], dp_table.get_optimal_cost())
+
+
+def reorder_optimal_partitioning(readset1, partitioning, readset2):
+	"""
+	order the partitioning according to the read order in readset2.
+	"""
+	# map read id to partition (since sorting of reads can be different)
+	read_to_partition = {}
+	for i,read in enumerate(readset1):
+		read_to_partition[read.name] = partitioning[i]
+	return [ read_to_partition[r.name] for r in readset2]
 
 def test_clustering1():
 	reads = """
@@ -84,8 +105,12 @@ def test_clustering1():
 	check_window_clustering(cluster_matrix, expected_clusters)
 
 	# get overall clustering solving MEC	
-	consensus_clustering = solve_MEC(cluster_matrix, 2)
+	consensus_clustering, optimal_partitioning = solve_MEC(cluster_matrix, 2)
 	assert sorted(consensus_clustering) == sorted([ ['Read 1', 'Read 2'], ['Read 3', 'Read 4', 'Read 5'] ])
+	genotypes = [1,1,2,1,2,2,1,1]
+	ordered_partitioning = reorder_optimal_partitioning(cluster_matrix, optimal_partitioning, readset)
+	best_allele_assignment(readset, positions, 2, genotypes, ordered_partitioning)
+	# TODO check if superreads are correct
 
 # TODO: disadvantage of the approach: Since only reads in a window are considered, and not all covering a region at the same time
 #	the clustering misses some of the relationships between the reads. Here Read3 and Read8 are not combined, because they
@@ -188,6 +213,11 @@ def test_clustering5():
 	}
 
 	check_window_clustering(cluster_matrix, expected_clusters)
+	consensus_clustering, optimal_partitioning = solve_MEC(cluster_matrix, 2)
+	assert sorted(consensus_clustering) == sorted( [ ['Read 1', 'Read 2', 'Read 6'], ['Read 3', 'Read 4', 'Read 5'] ] )
+	genotypes = [1,1,2,1,1,1,2,1,1,0,1,1]
+	ordered_partitioning = reorder_optimal_partitioning(cluster_matrix, optimal_partitioning, readset)
+	best_allele_assignment(readset, positions, 2, genotypes, ordered_partitioning)
 
 # TODO: adjust to new version, requires multiallelic MEC to work
 # TODO: same issue as before: especially as ploidy increases, the number of reads per window needs to be large in order to not miss to many
@@ -255,8 +285,11 @@ def test_clustering7():
 	check_window_clustering(cluster_matrix, expected_clusters)
 
 	# get overall clustering solving MEC
-	consensus_clustering = solve_MEC(cluster_matrix, 2)
+	consensus_clustering, optimal_partitioning = solve_MEC(cluster_matrix, 2)
 	assert sorted(consensus_clustering) == sorted([ ['Read 1', 'Read 2'], ['Read 3', 'Read 4', 'Read 5'] ])
+	genotypes = [1,1,2,1,2,1]
+	ordered_partitioning = reorder_optimal_partitioning(cluster_matrix, optimal_partitioning, readset)
+	best_allele_assignment(readset, positions, 2, genotypes, ordered_partitioning)
 
 def test_clustering8():
 	reads = """
@@ -281,5 +314,8 @@ def test_clustering8():
 	check_window_clustering(cluster_matrix, expected_clusters)
 
 	# get overall clustering solving MEC
-	consensus_clustering = solve_MEC(cluster_matrix, 2)
+	consensus_clustering, optimal_partitioning = solve_MEC(cluster_matrix, 2)
 	assert sorted(consensus_clustering) == sorted([ [], ['Read 1', 'Read 2', 'Read 3', 'Read 4'] ])
+	genotypes = [2,2,2,2,2,2]
+	ordered_partitioning = reorder_optimal_partitioning(cluster_matrix, optimal_partitioning, readset)
+	best_allele_assignment(readset, positions, 2, genotypes, ordered_partitioning)
