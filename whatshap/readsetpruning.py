@@ -136,7 +136,7 @@ class ReadSetPruning:
 				for var in read:
 					if var.position in self._readname_to_positions[read.name]:
 						new_read.add_variant(var.position, var.allele, var.quality)
-				if len(read) > 2:
+				if len(new_read) > 2:
 					self._allele_matrix.add(new_read)
 			
 		# sort readsets
