@@ -29,7 +29,7 @@ from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
 from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
 from .readsetpruning import ReadSetPruning
-from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components
+from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components, find_largest_component
 
 __author__ = "Jana Ebler" 
 
@@ -179,24 +179,28 @@ def run_phasepoly(
 				readset.sort()
 				readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
 				# TODO include this readselection step?
-				selected_reads = select_reads(readset, 8*ploidy, preferred_source_ids = vcf_source_ids)
+				selected_reads = select_reads(readset, 3*ploidy, preferred_source_ids = vcf_source_ids)
 				readset = selected_reads
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
 				# Compute columnwise partitions of the reads into # ploidy clusters and output corresponding MEC matrix
 				readsetpruner = ReadSetPruning(readset, find_components(readset.get_positions(), readset), ploidy, reads_per_window, variants_per_window)
+				# matrix containing window-wise clusterings
 				clusters_per_window = readsetpruner.get_cluster_matrix()
+				# matrix containing all alleles used for clustering
 				readset = readsetpruner.get_allele_matrix()
 
-				# TODO solve MEC to get overall partitioning, prepare input objects for this
+				# solve MEC to get overall partitioning, prepare input objects for this
+				# TODO: modify genotype contraints when multiallelic version is implemented
 				cluster_pedigree = Pedigree(numeric_sample_ids, ploidy)
 				windows = clusters_per_window.get_positions()
-				cluster_pedigree.add_individual(sample, [0]*len(windows), [PhredGenotypeLikelihoods([0]*(ploidy+1))]*len(windows))
+				cluster_pedigree.add_individual(sample, [1]*len(windows), [PhredGenotypeLikelihoods([0]*(ploidy+1))]*len(windows))
 				recombination_costs = uniform_recombination_map(1.26, windows)
-				partitioning_dp_table = PedigreeDPTable(clusters_per_window, recombination_costs, cluster_pedigree, ploidy, True, windows)
+				partitioning_dp_table = PedigreeDPTable(clusters_per_window, recombination_costs, cluster_pedigree, ploidy, False, windows)
 				read_partitioning = partitioning_dp_table.get_optimal_partitioning()
 
-				print('computed read partitioning:', partitioning_dp_table.get_optimal_cost())
+				print('READ PARTITIONING MATRIX:', clusters_per_window)
+				print('READ PARTITIONING MEC cost:', partitioning_dp_table.get_optimal_cost())
 				clu_to_r = defaultdict(list)
 				for read, partition in zip(readset,read_partitioning):
 					clu_to_r[partition].append(read.name)
@@ -237,11 +241,12 @@ def run_phasepoly(
 					if len(largest_component) > 0:
 							logger.info('Largest component contains %d variants (%.1f%% of accessible variants) between position %d and %d', len(largest_component), len(largest_component)*100.0/len(accessible_positions), largest_component[0]+1, largest_component[-1]+1)
 
-				assert(len(superreads_list) == 1)
+				assert(len(superreads_list) == 2)
 				sample_superreads = superreads_list[0]
-				superreads[sample] = sample_superreads
-				assert len(sample_superreads) == ploidy
-				for sr in sample_superreads:
+				superreads[sample] = sample_superreads[0]
+				assert len(sample_superreads[0]) == ploidy
+				sr_sample_id = sample_superreads[0][0].sample_id
+				for sr in sample_superreads[0]:
 					assert sr.sample_id == sr_sample_id == numeric_sample_ids[sample]
 				components[sample] = overall_components
 
