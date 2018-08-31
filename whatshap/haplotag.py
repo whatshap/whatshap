@@ -53,6 +53,12 @@ def add_arguments(parser):
 	arg('--linked-read-distance-cutoff', '-d', metavar='LINKEDREADDISTANCE', default=50000, type=int,
 		help='Assume reads with identical BX tags belong to different read clouds if their '
 			'distance is larger than LINKEDREADDISTANCE (default: %(default)s).')
+	arg('--ignore-read-groups', default=False, action='store_true',
+		help='Ignore read groups in BAM/CRAM header and assume all reads come '
+		'from the same sample.')
+	arg('--sample', dest='given_samples', metavar='SAMPLE', default=[], action='append',
+		help='Name of a sample to phase. If not given, all samples in the '
+		'input VCF are phased. Can be used multiple times.')
 	arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
 	arg('alignment_file', metavar='ALIGNMENTS',
 		help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
@@ -66,8 +72,16 @@ def md5_of(filename):
 	return md5(open(filename,'rb').read()).hexdigest()
 
 
-def run_haplotag(variant_file, alignment_file, output=None, reference=None, ignore_linked_read=False,
-	linked_read_distance_cutoff=50000):
+def run_haplotag(
+		variant_file,
+		alignment_file,
+		output=None,
+		reference=None,
+		ignore_linked_read=False,
+		given_samples=None,
+		linked_read_distance_cutoff=50000,
+		ignore_read_groups=False
+		):
 
 	timers = StageTimer()
 	timers.start('overall')
@@ -107,17 +121,41 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 		vcf_samples = set(vcf_reader.samples)
 		logger.info('Found %d samples in VCF file', len(vcf_samples))
 
+		# determine which samples to consider
+		if ignore_read_groups and not given_samples and len(vcf_reader.samples) > 1:
+			logger.error('When using --ignore-read-groups on a VCF with '
+					'multiple samples, --sample must also be used.')
+			sys.exit(1)
+
+		if not given_samples:
+			given_samples = vcf_reader.samples
+
+		for sample in given_samples:
+			if sample not in vcf_samples:
+				logger.error('Sample %r requested on command-line not found in VCF', sample)
+				sys.exit(1)
+
+		# keep only requested samples
+		vcf_samples = vcf_samples.intersection(given_samples)
+
+		# determine which samples are in BAM file
 		bam_reader = pysam.AlignmentFile(alignment_file)
 		read_groups = bam_reader.header.get('RG', []) 
 		bam_samples = set( (rg['SM'] if 'SM' in rg else None) for rg in read_groups )
 		rg_to_sample = { rg['ID']:rg['SM'] for rg in read_groups if ('ID' in rg) and ('SM' in rg) }
 		logger.info('Samples in BAM file: %s', ','.join(bam_samples))
-		samples = bam_samples.intersection(vcf_samples)
-		if len(samples) == 0:
-			logger.error('No common samples between VCF and BAM file. Aborting.')
-			sys.exit(1)
-		elif len(samples) < len(bam_samples):
-			logger.warning('Not adding phase information for sample(s) %s to BAM file, since they are not present in the VCF', ','.join(bam_samples.difference(vcf_samples)))
+		samples = vcf_samples
+		if not ignore_read_groups:
+			samples = bam_samples.intersection(vcf_samples)
+			if len(samples) == 0:
+				logger.error('No common samples between VCF and BAM file. Aborting.')
+				sys.exit(1)
+			elif len(samples) < len(bam_samples):
+				logger.warning('Not adding phase information for sample(s) %s to BAM file, since they are not present in the VCF or were not given using --sample.', ','.join(bam_samples.difference(vcf_samples)))
+		else:
+			if len(samples) == 0:
+				logger.error('No samples present in VCF. In case --sample was used, the requested sample(s) are not present in the VCF. Aborting.')
+				sys.exit(1)
 
 		# Prepare header
 		# TODO: convince pysam to allow @HS header line
@@ -180,7 +218,8 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 							variants = [
 								v for v, gt, phase in zip(variant_table.variants, genotypes, phases) if gt == 1 and phase is not None
 							]
-							read_set = read_reads(readset_reader, chromosome_name, variants, sample, fasta)
+							bam_sample = None if ignore_read_groups else sample
+							read_set = read_reads(readset_reader, chromosome_name, variants, bam_sample, fasta)
 
 							# map tag --> set of reads
 							BX_tag_to_readlist = defaultdict(list)

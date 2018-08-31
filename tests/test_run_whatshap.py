@@ -542,6 +542,39 @@ def test_haplotag_missing_chromosome():
 		assert ps_count > 0
 
 
+def test_haplotag_no_readgroups1():
+	with TemporaryDirectory() as tempdir:
+		outbam1 = tempdir + '/output1.bam'
+		outbam2 = tempdir + '/output2.bam'
+
+		# run haplotag with/without --ignore-read-groups, results should be identical since files contain only data for one sample
+		run_haplotag(variant_file='tests/data/haplotag_1.vcf.gz', alignment_file='tests/data/haplotag.bam', output=outbam1)
+		run_haplotag(variant_file='tests/data/haplotag_1.vcf.gz', alignment_file='tests/data/haplotag_noRG.bam', output=outbam2, ignore_read_groups=True)
+		for a1, a2 in zip(pysam.AlignmentFile(outbam1), pysam.AlignmentFile(outbam2)):
+			assert a1.query_name == a2.query_name
+			if a1.has_tag('HP'):
+				assert a2.has_tag('HP')
+				assert a1.get_tag('HP') == a2.get_tag('HP')
+
+
+def test_haplotag_no_readgroups2():
+	with raises(SystemExit):
+		# vcf contains multiple samples, there should be an error
+		run_haplotag(alignment_file='tests/data/haplotag_noRG.bam', variant_file='tests/data/haplotag_noRG.vcf.gz',
+			output='/dev/null', ignore_read_groups=True)
+
+
+def test_haplotag_sample_given():
+	with TemporaryDirectory() as tempdir:
+		outbam = tempdir + '/output.bam'
+		run_haplotag(variant_file='tests/data/haplotag_sample.vcf.gz', alignment_file='tests/data/haplotag_sample.bam', given_samples=['mother'], output=outbam)
+		for alignment in pysam.AlignmentFile(outbam):
+			if alignment.get_tag('RG') == 'mother':
+				assert alignment.has_tag('HP')
+			else:
+				assert not alignment.has_tag('HP')
+
+
 def haplotag_different_sorting():
 	with TemporaryDirectory() as tempdir:
 		outbam1 = tempdir + '/output1.bam'
