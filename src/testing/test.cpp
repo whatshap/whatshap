@@ -54,10 +54,14 @@ ReadSet* string_to_readset(string s, string weights, bool use){
             counter += 1;
             if(line[i] == ' ') continue;
             unsigned int quality = int(line_weights[i] - '0');
+            int allele = int(line[i] - '0');
+            vector<unsigned int> q = {0,0};
             if(!use){
-                read->addVariant((counter)*10,int(line[i] - '0'), quality);
+                q[!allele] = quality;
+                read->addVariant((counter)*10, allele, q);
             } else {
-                read->addVariant((counter)*10,int(line[i] - '0'), 10);
+                q[!allele] = 10;
+                read->addVariant((counter)*10, allele, q);
             }
 
         }
@@ -139,9 +143,9 @@ bool compare_entries(vector<const Entry*> c1, string c2){
     unsigned int j = 0;
     while((i<c1.size()) && (j<c2.length())){
         switch(c1[i]->get_allele_type()){
-        case Entry::REF_ALLELE: if(c2[j] != '0'){result = false;} else {i+=1;j+=1;} break;
-        case Entry::ALT_ALLELE: if(c2[j] != '1'){result = false;} else {i+=1;j+=1;} break;
-        case Entry::BLANK: i += 1; break;
+        case 0: if(c2[j] != '0'){result = false;} else {i+=1;j+=1;} break;
+        case 1: if(c2[j] != '1'){result = false;} else {i+=1;j+=1;} break;
+        case -1: i += 1; break;
         default: break;
         }
     }

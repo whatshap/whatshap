@@ -30,6 +30,7 @@ private:
 	const Pedigree* pedigree;
 	unsigned int ploidy;
 	bool distrust_genotypes;
+	const std::vector<unsigned int>* allele_counts;
 	std::vector<PedigreePartitions*> pedigree_partitions;
 	// vector of indexingschemes
 	std::vector<ColumnIndexingScheme*> indexers;
@@ -96,7 +97,7 @@ public:
 	 *  @param positions Positions to work on. If 0, then all positions given in read_set will be used. Caller retains
 	 *                   ownership.
 	 */
-	PedigreeDPTable(ReadSet* read_set, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, unsigned int ploidy, bool distrust_genotypes, const std::vector<unsigned int>* positions = nullptr, const std::vector<unsigned int>* precomputed_partitioning = nullptr);
+	PedigreeDPTable(ReadSet* read_set, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, unsigned int ploidy, bool distrust_genotypes, const std::vector<unsigned int>* allele_counts, const std::vector<unsigned int>* positions = nullptr, const std::vector<unsigned int>* precomputed_partitioning = nullptr);
  
 	~PedigreeDPTable();
 

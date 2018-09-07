@@ -2,9 +2,9 @@
 
 #include "entry.h"
 
-Entry::Entry(unsigned int r, allele_t m, unsigned int p) {
+Entry::Entry(unsigned int r, int m, std::vector<unsigned int> p) {
 	read_id = r;
-	allele_type = m;
+	allele = m;
 	phred_score = p;
 }
 
@@ -14,12 +14,12 @@ unsigned int Entry::get_read_id() const {
 }
 
 
-Entry::allele_t Entry::get_allele_type() const {
-	return allele_type;
+int Entry::get_allele_type() const {
+	return allele;
 }
 
 
-unsigned int Entry::get_phred_score() const {
+std::vector<unsigned int> Entry::get_phred_score() const {
 	return phred_score;
 }
 
@@ -28,33 +28,23 @@ void Entry::set_read_id(unsigned int r) {
 }
 
 
-void Entry::set_allele_type(allele_t m) {
-	allele_type = m;
+void Entry::set_allele_type(int m) {
+	allele = m;
 }
 
 
-void Entry::set_phred_score(unsigned int p) {
+void Entry::set_phred_score(std::vector<unsigned int> p) {
 	phred_score = p;
 }
 
 
 std::ostream& operator<<(std::ostream& out, const Entry& e) {
-	out << "Entry(" << e.read_id << ',';
-	switch (e.allele_type) {
-		case Entry::REF_ALLELE:
-			out << "REF";
-			break;
-		case Entry::ALT_ALLELE:
-			out << "ALT";
-			break;
-		case Entry::BLANK:
-			out << "BLANK";
-			break;
-		case Entry::EQUAL_SCORES:
-			out << "EQUAL_SCORES";
-			break;
-		default:
-			assert(false);
+	out << "Entry(" << e.read_id ;
+	out << ","<< e.allele << ",";
+	out << "[";
+	for (int i=0; i< e.phred_score.size(); i++){
+		if (i>0) out << ",";
+		out << e.phred_score.at(i);
 	}
-	out << ',' << ((int)e.phred_score) << ')';
+	out << "]" << ")";
 }

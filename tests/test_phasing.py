@@ -43,9 +43,9 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, allowed_ge
 	assert (haplotypes == (expected_haplotype1, expected_haplotype2)) or (haplotypes == (expected_haplotype2, expected_haplotype1))
 
 
-def check_phasing_single_individual(reads, weights = None):
+def check_phasing_single_individual(reads, n_alleles = 2, weights = None):
 	# 0) set up read set
-	readset = string_to_readset(reads, weights)
+	readset = string_to_readset(reads, n_alleles, weights)
 	positions = readset.get_positions()
 
 	# 1) Phase using PedMEC code for single individual

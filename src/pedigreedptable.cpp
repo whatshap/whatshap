@@ -13,7 +13,7 @@
 
 using namespace std;
 
-PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, unsigned int ploidy, bool distrust_genotypes, const vector<unsigned int>* positions, const vector<unsigned int>* precomputed_partitioning) :
+PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& recombcost, const Pedigree* pedigree, unsigned int ploidy, bool distrust_genotypes, const vector<unsigned int>* allele_counts, const vector<unsigned int>* positions, const vector<unsigned int>* precomputed_partitioning) :
 	read_set(read_set),
 	recombcost(recombcost),
 	pedigree(pedigree),
@@ -21,7 +21,8 @@ PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& 
 	distrust_genotypes(distrust_genotypes),
 	optimal_score(0u),
 	optimal_score_index(0u),
-	input_column_iterator(*read_set, positions)
+	input_column_iterator(*read_set, positions),
+	allele_counts(allele_counts)
 {
 	read_set->reassignReadIds();
 
@@ -53,6 +54,7 @@ PedigreeDPTable::~PedigreeDPTable() {
 	init(transmission_backtrace_table, 0);
 	init(indexers, 0);
 	init(pedigree_partitions, 0);
+	delete allele_counts;
 }
 
 
@@ -127,7 +129,7 @@ void PedigreeDPTable::set_index_path() {
 		index_path[column_index] = v;
 
 		// compute optimal cost
-		PedigreeColumnCostComputer cost_computer(*current_input_column, column_index, read_sources, pedigree, *pedigree_partitions[v.inheritance_value], distrust_genotypes);
+		PedigreeColumnCostComputer cost_computer(*current_input_column, column_index, read_sources, pedigree, *pedigree_partitions[v.inheritance_value], distrust_genotypes, allele_counts->at(column_index));
 		cost_computer.set_partitioning(v.index);
 		optimal_score += cost_computer.get_cost();
 
@@ -328,7 +330,7 @@ void PedigreeDPTable::compute_column(size_t column_index, unique_ptr<vector<cons
 	vector<PedigreeColumnCostComputer> cost_computers;
 	cost_computers.reserve(transmission_configurations);
 	for(unsigned int i = 0; i < transmission_configurations; ++i) {
-		cost_computers.emplace_back(*current_input_column, column_index, read_sources, pedigree, *pedigree_partitions[i], distrust_genotypes);
+		cost_computers.emplace_back(*current_input_column, column_index, read_sources, pedigree, *pedigree_partitions[i], distrust_genotypes, allele_counts->at(column_index));
 	}
 
 	// iterate over all bipartitions
@@ -471,15 +473,20 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 		while (input_column_iterator.has_next()) {
 			const index_and_inheritance_t& v = index_path[i];
 			unique_ptr<vector<const Entry *> > column = input_column_iterator.get_next();
-			PedigreeColumnCostComputer cost_computer(*column, i, read_sources, pedigree, *pedigree_partitions[v.inheritance_value], distrust_genotypes);
+			PedigreeColumnCostComputer cost_computer(*column, i, read_sources, pedigree, *pedigree_partitions[v.inheritance_value], distrust_genotypes, allele_counts->at(i));
 			cost_computer.set_partitioning(v.index);
 
 			auto population_alleles = cost_computer.get_alleles();
+			int n_alleles = allele_counts->at(i);
 			
 			// TODO: compute proper weights based on likelihoods
-			for (unsigned int k = 0; k < pedigree->size(); k++) {
+			for (unsigned int k = 0; k < pedigree->size(); k++){
 				for (unsigned int j = 0; j < ploidy; j++) {
-					superreads[k][j]->addVariant(positions->at(i), population_alleles[k].alleles[j], population_alleles[k].quality);
+					std::vector<unsigned int> qualities(n_alleles, 10);
+					for(int a = 0; a < n_alleles; a++){
+						if (a == population_alleles[k].alleles[j]) qualities[a] = 0;
+					}
+					superreads[k][j]->addVariant(positions->at(i), population_alleles[k].alleles[j], qualities);
 				}
 			}
 

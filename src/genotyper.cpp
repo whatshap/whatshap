@@ -27,12 +27,17 @@ void compute_genotypes(const ReadSet& readset, std::vector<int>* genotypes, std:
 		GenotypeDistribution distribution;
 		for (const Entry* e : *column) {
 // 			cerr << "    " << (*e) << endl;
-			double p_wrong = max(0.05, pow(10.0,-((double)e->get_phred_score())/10.0));
+			std::vector<unsigned int> phred_scores = e->get_phred_score();
+			double p_wrong = 1.0;
 			switch (e->get_allele_type()) {
-				case Entry::REF_ALLELE:
+				case 0:
+					assert(phred_scores.size() == 2);
+					p_wrong = max(0.05, pow(10.0,-((double)phred_scores[1])/10.0));
 					distribution = distribution * GenotypeDistribution(2.0/3.0-1.0/3.0*p_wrong, 1.0/3.0, 1.0/3.0*p_wrong);
 					break;
-				case Entry::ALT_ALLELE:
+				case 1:
+					assert(phred_scores.size() == 2);
+					p_wrong = max(0.05, pow(10.0,-((double)phred_scores[0])/10.0));
 					distribution = distribution * GenotypeDistribution(1.0/3.0*p_wrong, 1.0/3.0, 2.0/3.0-1.0/3.0*p_wrong);
 					break;
 				default:

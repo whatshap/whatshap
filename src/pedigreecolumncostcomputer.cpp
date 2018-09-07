@@ -11,19 +11,33 @@
 
 using namespace std;
 
-PedigreeColumnCostComputer::PedigreeColumnCostComputer(const std::vector <const Entry *>&column, size_t column_index, const std::vector <unsigned int>& read_marks, const Pedigree* pedigree, const PedigreePartitions& pedigree_partitions, bool distrust_genotypes):
+int power(unsigned int base, unsigned int exp)
+{
+	int result=1;
+	while(exp)
+	{
+		if(exp & 1)
+			result*=base;
+		exp>>=1;
+		base*=base;
+	}
+	return result;
+}
+
+PedigreeColumnCostComputer::PedigreeColumnCostComputer(const std::vector <const Entry *>&column, size_t column_index, const std::vector <unsigned int>& read_marks, const Pedigree* pedigree, const PedigreePartitions& pedigree_partitions, bool distrust_genotypes, unsigned int n_alleles):
 	column(column),
 	column_index(column_index),
 	read_marks(read_marks),
 	partitioning(0),
 	pedigree(pedigree),
 	ploidy(pedigree_partitions.get_ploidy()),
-	cost_partition(pedigree_partitions.count(), {0,0}),
-	pedigree_partitions(pedigree_partitions)
+	cost_partition(pedigree_partitions.count(), n_alleles, 0),
+	pedigree_partitions(pedigree_partitions),
+	n_alleles(n_alleles)
 {
 	// Enumerate all possible assignments of alleles to haplotypes and
 	// store those that are compatible with genotypes.
-	for (unsigned int i = 0; i < (1<<pedigree_partitions.count()); ++i) {
+	for (unsigned int i = 0; i < power(n_alleles, pedigree_partitions.count()); ++i) {
 		bool genotypes_compatible = true;
 		unsigned int cost = 0;
 		for (size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index) {
@@ -31,7 +45,8 @@ PedigreeColumnCostComputer::PedigreeColumnCostComputer(const std::vector <const 
 			int genotype = 0;
 			for (unsigned int haplotype = 0; haplotype < ploidy; ++haplotype) {
 				unsigned int partition = pedigree_partitions.haplotype_to_partition(individuals_index, haplotype);
-				unsigned int allele = (i >> partition) & 1;
+				unsigned int allele = (i/power(n_alleles, partition)) % n_alleles;
+				// TODO this still needs to be changed, alleles can no longer be added
 				genotype += allele;
 			}
 			if (distrust_genotypes) {
@@ -55,7 +70,7 @@ PedigreeColumnCostComputer::PedigreeColumnCostComputer(const std::vector <const 
 
 
 void PedigreeColumnCostComputer::set_partitioning(unsigned int partitioning) {
-	cost_partition.assign(pedigree_partitions.count(), {0,0});
+	cost_partition = Vector2D<unsigned int>(pedigree_partitions.count(), n_alleles, 0);
 	partitioning = partitioning;
 	for (vector < const Entry * >::const_iterator it = column.begin(); it != column.end(); ++it) {
 		auto & entry = **it;
@@ -64,17 +79,13 @@ void PedigreeColumnCostComputer::set_partitioning(unsigned int partitioning) {
 		unsigned int partition = partitioning % ploidy;
 		unsigned int ind_id = read_marks[entry.get_read_id()];
 
-		switch (entry.get_allele_type()) {
-
-		case Entry::REF_ALLELE: 
-			cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,partition)][1] += entry.get_phred_score();
-			break;
-		case Entry::ALT_ALLELE:
-			cost_partition[pedigree_partitions.haplotype_to_partition(ind_id,partition)][0] += entry.get_phred_score();
-			break;
-		case Entry::BLANK: break;
-		default:
-			assert(false);
+		auto atype = entry.get_allele_type();
+		if (atype != -1){
+			for (int i = 0; i < n_alleles; ++i){
+				if(i != atype){
+					cost_partition.at(pedigree_partitions.haplotype_to_partition(ind_id,partition),i) += entry.get_phred_score()[i];
+				}
+			}
 		}
 		partitioning /= ploidy;
 	}
@@ -91,19 +102,15 @@ void PedigreeColumnCostComputer::update_partitioning(int bit_to_flip, int new_pa
 	// read entry to consider
 	const Entry & entry = *column[bit_to_flip];
 	unsigned int ind_id = read_marks[entry.get_read_id()];
-	switch (entry.get_allele_type()) {
-	case Entry::REF_ALLELE:
-		cost_partition[pedigree_partitions.haplotype_to_partition(ind_id, old_partition)][1] -= entry.get_phred_score();
-		cost_partition[pedigree_partitions.haplotype_to_partition(ind_id, new_partition)][1] += entry.get_phred_score();
-		break;
-	case Entry::ALT_ALLELE:
-		cost_partition[pedigree_partitions.haplotype_to_partition(ind_id, old_partition)][0] -= entry.get_phred_score();
-                cost_partition[pedigree_partitions.haplotype_to_partition(ind_id, new_partition)][0] += entry.get_phred_score();
-		break;
-    case Entry::BLANK:
-		break;
-	default:
-		assert(false);
+
+	auto atype = entry.get_allele_type();
+	if (atype == -1) return;
+
+	for(int i = 0; i < n_alleles; ++i) {
+		if(i != atype){
+			cost_partition.at(pedigree_partitions.haplotype_to_partition(ind_id,old_partition),i) -= entry.get_phred_score()[i];
+			cost_partition.at(pedigree_partitions.haplotype_to_partition(ind_id,new_partition),i) += entry.get_phred_score()[i];
+		}
 	}
 }
 
@@ -113,8 +120,8 @@ unsigned int PedigreeColumnCostComputer::get_cost() {
 	for (const allele_assignment_t& a : allele_assignments) {
 		unsigned int cost = a.cost;
 		for (size_t p = 0; p < pedigree_partitions.count(); ++p) {
-			unsigned int allele = (a.assignment >> p) & 1;
-			cost += cost_partition[p][allele];
+			int allele = (a.assignment/power(n_alleles,p)) % n_alleles;
+			cost += cost_partition.at(p, allele);
 		}
 		if (cost < best_cost) {
 			best_cost = cost;
@@ -126,16 +133,17 @@ unsigned int PedigreeColumnCostComputer::get_cost() {
 
 vector <PedigreeColumnCostComputer::phased_variant_t> PedigreeColumnCostComputer::get_alleles() {
 	unsigned int best_cost = numeric_limits < unsigned int >::max();
-	unsigned int second_best_cost = numeric_limits < unsigned int >::max();
 	vector<phased_variant_t> pop_haps(pedigree->size(), phased_variant_t(ploidy));
 	// best_cost_for_allele[individual][haplotype][to_allele] is the best cost for flipping
 	// "haplotype" in "individual" to "to_allele"
-	Vector2D<array<unsigned int,2>> best_cost_for_allele(pedigree->size(), ploidy, {numeric_limits<unsigned int>::max(), numeric_limits<unsigned int>::max()});
+	std::vector<unsigned int> default_costs(n_alleles, numeric_limits<unsigned int>::max());
+	Vector2D<std::vector<unsigned int>> best_cost_for_allele(pedigree->size(), ploidy, default_costs);
+
 	for (const allele_assignment_t& a : allele_assignments) {
 		unsigned int cost = a.cost;
 		for (size_t p = 0; p < pedigree_partitions.count(); ++p) {
-			unsigned int allele = (a.assignment >> p) & 1;
-			cost += cost_partition[p][allele];
+			int allele = (a.assignment/power(n_alleles,p)) % n_alleles;
+			cost += cost_partition.at(p,allele);
 		}
 		bool new_best = false;
 		if (cost <= best_cost) {
@@ -143,17 +151,13 @@ vector <PedigreeColumnCostComputer::phased_variant_t> PedigreeColumnCostComputer
 			new_best = true;
 		}
 		for (size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index) {
-			vector<unsigned int> alleles;
+			vector<int> alleles;
 			for (unsigned int haplotype = 0; haplotype < ploidy; ++haplotype) {
 				unsigned int partition = pedigree_partitions.haplotype_to_partition(individuals_index, haplotype);
-				alleles.push_back((a.assignment >> partition) & 1);
+				alleles.push_back((a.assignment/power(n_alleles, partition)) % n_alleles);
 			}
-			if (new_best) {
-				vector<Entry::allele_t> entries;
-				for (auto allele: alleles){
-					(allele == 0) ? entries.push_back(Entry::REF_ALLELE) : entries.push_back(Entry::ALT_ALLELE);
-				}
-				pop_haps[individuals_index] = phased_variant_t(entries);
+			if (new_best) {	
+				pop_haps[individuals_index] = phased_variant_t(alleles);
 			}
 			for (unsigned int haplotype = 0; haplotype < ploidy; ++haplotype) {
 				if (cost < best_cost_for_allele.at(individuals_index, haplotype)[alleles[haplotype]]) {
@@ -170,10 +174,21 @@ vector <PedigreeColumnCostComputer::phased_variant_t> PedigreeColumnCostComputer
 	// Test whether some of the allele assignments are ambiguous
 	for (size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index) {
 		for (size_t haplotype = 0; haplotype < ploidy; ++haplotype) {
-			int quality = abs(((int)(best_cost_for_allele.at(individuals_index,haplotype)[0])) - ((int)(best_cost_for_allele.at(individuals_index,haplotype)[1])));
-			pop_haps[individuals_index].quality = (unsigned int)quality;
-			if (quality == 0) {
-				pop_haps[individuals_index].alleles[haplotype] = Entry::EQUAL_SCORES;
+			unsigned int first_best = numeric_limits<unsigned int>::max();
+			unsigned int second_best = numeric_limits<unsigned int>::max();
+			for(int i = 0; i < n_alleles; i++){
+				int quality = (int)(best_cost_for_allele.at(individuals_index, haplotype)[i]);
+				if (quality < first_best){
+					second_best = first_best;
+					first_best = quality;
+				} else if (quality < first_best) {
+					second_best = quality;
+				}
+			}
+
+			pop_haps[individuals_index].quality = (int) first_best - (int) second_best;
+			if ( (first_best == second_best) && (first_best != numeric_limits<unsigned int>::max()) ){
+				pop_haps[individuals_index].alleles[haplotype] = -2;
 			}
 		}
 	}

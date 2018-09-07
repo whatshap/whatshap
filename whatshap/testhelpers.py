@@ -6,7 +6,7 @@ from collections import defaultdict
 from whatshap.core import Read, ReadSet, Variant
 import math
 
-def string_to_readset(s, w = None, sample_ids = None, source_id=0, scale_quality = None):
+def string_to_readset(s, w = None, sample_ids = None, source_id=0, scale_quality = None, n_alleles = 2):
 	s = textwrap.dedent(s).strip()
 	if w is not None:
 		w = textwrap.dedent(w).strip().split('\n')
@@ -24,10 +24,11 @@ def string_to_readset(s, w = None, sample_ids = None, source_id=0, scale_quality
 			q = 1
 			if w is not None:
 				q = int(w[index][pos])
-			if not scale_quality==None:
-				read.add_variant(position=(pos+1) * 10, allele=int(c), quality=q*scale_quality)
-			else:
-				read.add_variant(position=(pos+1) * 10, allele=int(c), quality=q)
+			if scale_quality is not None:
+				q *= scale_quality
+			quality = [q] * n_alleles
+			quality[int(c)] = 0
+			read.add_variant(position=(pos+1) * 10, allele=int(c), quality=quality)
 		assert len(read) > 1, 'Reads covering less than two variants are not allowed'
 		rs.add(read)
 	print(rs)
@@ -68,7 +69,7 @@ def matrix_to_readset(lines) :
 
 			offset = int(s[2*i+1])
 			for pos, c in enumerate(s[2*i+2]) :
-				read.add_variant(position=(offset+pos) * 10, allele=int(c), quality = 1)
+				read.add_variant(position=(offset+pos) * 10, allele=int(c), quality = [1])
 
 		rs.add(read)
 
@@ -81,7 +82,7 @@ def flip_cost(variant, target_value):
 	if variant.allele == target_value:
 		return 0
 	else:
-		return variant.quality
+		return min([x for x in variant.quality if x != 0])
 
 def is_ambiguous(assignments, ploidy):
 	sets = [set() for i in range(ploidy)]
@@ -90,8 +91,8 @@ def is_ambiguous(assignments, ploidy):
 			s.add(allele)
 	return [len(s) > 1 for s in sets]
 
-def assignment_to_list(assignment, ploidy):		
-	return tuple( ((assignment >> i) & 1) for i in range(ploidy) )
+def assignment_to_list(assignment, ploidy, n_alleles):
+	return tuple( ((assignment/pow(n_alleles,i)) % n_alleles for i in range(ploidy) )
 
 def column_cost(variants, possible_assignments, ploidy):
 	""" Compute cost for one position and return the minimum cost assignment. """
@@ -116,21 +117,21 @@ def column_cost(variants, possible_assignments, ploidy):
 	ambiguous = is_ambiguous([possible_assignments[i] for cost,i in l[:ties]], ploidy)
 	for i in range(ploidy):
 		if ambiguous[i]:
-			best_assignment[i] = 3
+			best_assignment[i] = -2
 	return min_cost, best_assignment
 
-
-def allowed_assignments_for_genotype(genotype, ploidy):
+# TODO extend to multiallelic case
+def allowed_assignments_for_genotype(genotype, ploidy, n_alleles):
 	assignment_count = 1 << ploidy
 	result = []
 	for i in range(0,assignment_count):
-		assignment_list = assignment_to_list(i, ploidy)
+		assignment_list = assignment_to_list(i, ploidy, n_alleles)
 		if sum(assignment_list) == genotype:
 			result.append(assignment_list)
 	return result
 	
 
-def brute_force_phase(read_set, ploidy, allowed_genotypes = None):
+def brute_force_phase(read_set, ploidy, n_alleles = 2, allowed_genotypes = None):
 	"""Solves MEC by enumerating all possible bipartitions."""
 	def print(*args): pass
 
@@ -160,7 +161,7 @@ def brute_force_phase(read_set, ploidy, allowed_genotypes = None):
 				possible_assignments = [ assignment_to_list(i, ploidy) for i in range(0,assignment_count)]
 				c, assignment = column_cost(variants, possible_assignments, ploidy)
 			else:
-				possible_assignments = allowed_assignments_for_genotype(allowed_genotypes[index], ploidy)
+				possible_assignments = allowed_assignments_for_genotype(allowed_genotypes[index], ploidy, n_alleles)
 				c, assignment = column_cost(variants, possible_assignments, ploidy)
 			print('    position: {}, variants: {} --> cost = {}'.format(p, str(variants), c))
 			cost += c
