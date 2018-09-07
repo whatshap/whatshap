@@ -143,6 +143,16 @@ def test_diploid_phase3():
 	"""
 	check_phasing_single_individual(reads, [1,1,1,1,1,1,1,1,1], 2, 3, 3)
 
+#def test_diploid_phase4():
+#	reads = """
+#         1111111
+#         0000000
+#              1111111
+#              0000000
+#	"""
+#
+#	check_phasing_single_individual(reads, [1,1,1,1,1,1,1,1,1,1,1,1], 2, 4, 3)
+
 # TODO approach to contructing partitioning works badly in such examples since intersection
 # of variants covered by all reads in a window is small
 # ==> several unconnected blocks and many unphased variants result

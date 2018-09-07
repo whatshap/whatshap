@@ -56,6 +56,9 @@ private:
 	// in case precomputed partitioning is given, store mapping read_id -> assigned partition
 	std::map<int,int> read_to_partition;
 
+//	// boundaries of phased blocks
+//	std::vector<unsigned int> block_boundaries;
+
 	// helper function to pull read ids out of read column
 	std::unique_ptr<std::vector<unsigned int> > extract_read_ids(const std::vector<const Entry *>& entries);
 
@@ -68,6 +71,8 @@ private:
 	/** Computes the DP column at the given index, assuming that the previous column
 	 *  has already been computed. */
 	void compute_column(size_t column_index, std::unique_ptr<std::vector<const Entry*>> current_input_column = nullptr);
+
+//	unsigned int empty_partitions(unsigned int index, unsigned int size);
 
 	/** Returns the number of set bits. */
 	static size_t popcount(size_t x);
@@ -94,6 +99,8 @@ public:
 	PedigreeDPTable(ReadSet* read_set, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, unsigned int ploidy, bool distrust_genotypes, const std::vector<unsigned int>* positions = nullptr, const std::vector<unsigned int>* precomputed_partitioning = nullptr);
  
 	~PedigreeDPTable();
+
+//	std::vector<unsigned int>* get_block_boundaries();
 
 	unsigned int get_optimal_score();
 

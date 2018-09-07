@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <vector>
+#include <unordered_set>
 
 #include "pedigreecolumncostcomputer.h"
 #include "pedigreedptable.h"
@@ -198,6 +199,10 @@ void PedigreeDPTable::compute_table() {
 	v.index = optimal_score_index;
 	v.inheritance_value = optimal_transmission_value;
 	index_path[indexers.size()-1] = v;
+
+//	// remember when to break
+//	bool set_break = false;
+
 	for(size_t i = indexers.size()-1; i > 0; --i) { // backtrack through table
 		// ensure that index_backtrace_table[i-1] and transmission_backtrace_table[i-1] exist
 		if (projection_column_table[i-1] == nullptr) {
@@ -211,6 +216,28 @@ void PedigreeDPTable::compute_table() {
 		// compute index and transmission value for the current column
 		unique_ptr<ColumnIndexingIterator> iterator = indexers[i]->get_iterator();
 		unsigned int backtrace_index = iterator->index_backward_projection(v.index);
+
+/**		// determine how many sets are empty in each column	
+		unsigned int nonempty_backward = empty_partitions(v.index, indexers[i]->get_read_ids()->size());
+		unsigned int nonempty_projection = empty_partitions(backtrace_index, indexers[i]->get_backward_projection_width());
+		unsigned int nonempty_forward = empty_partitions(index_backtrace_table[i-1]->at(backtrace_index, prev_inheritance_value), indexers[i-1]->get_read_ids()->size());
+
+		// if start of a connected component, skip
+		if (nonempty_projection == ploidy){
+			set_break = false;
+			continue;
+		}
+
+		// determine whether to break haplotype apart
+		if (nonempty_projection > 1){
+			if (nonempty_backward < nonempty_projection){
+				set_break = true;
+			}
+			if (nonempty_forward < nonempty_projection){
+				if(set_break) block_boundaries.push_back(i);
+			}
+		}
+**/
 		v.index = index_backtrace_table[i-1]->at(backtrace_index, prev_inheritance_value);
 		v.inheritance_value = prev_inheritance_value;
 		prev_inheritance_value = transmission_backtrace_table[i-1]->at(backtrace_index, v.inheritance_value);
@@ -230,6 +257,18 @@ void PedigreeDPTable::compute_table() {
 	}
 }
 
+/**
+unsigned int PedigreeDPTable::empty_partitions(unsigned int index, unsigned int size){
+	unordered_set<unsigned int> elements;
+	while(size > 0) {
+		elements.insert(index % ploidy);
+		index /= ploidy;
+		size -= 1;
+	}
+
+	return ploidy-elements.size();
+}
+**/
 
 void PedigreeDPTable::compute_column(size_t column_index, unique_ptr<vector<const Entry*>> current_input_column) {
 	assert(column_index < input_column_iterator.get_column_count());
@@ -398,6 +437,13 @@ unsigned int PedigreeDPTable::get_optimal_score() {
 	return optimal_score;
 }
 
+/**
+vector<unsigned int>* PedigreeDPTable::get_block_boundaries(){
+	cout <<  "BLOCK BOUNDARIES: " << block_boundaries.size() << endl;
+	vector<unsigned int>* output = new vector<unsigned int>(block_boundaries.rbegin(), block_boundaries.rend());
+	return output;
+}
+**/
 
 void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, vector<unsigned int>* transmission_vector) {
 	assert(output_read_set != nullptr);

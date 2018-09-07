@@ -300,6 +300,13 @@ cdef class PedigreeDPTable:
 		"""Returns the cost resulting from solving the Minimum Error Correction (MEC) problem."""
 		return self.thisptr.get_optimal_score()
 
+#	def get_block_boundaries(self):
+#		"""Returns position where haplotype blocks need to be broken apart. """
+#		cdef vector[unsigned int]* b = self.thisptr.get_block_boundaries()
+#		result = [x for x in b[0]]
+#		del b
+#		return result
+
 	def get_optimal_partitioning(self):
 		"""Returns a list of the same size as the read set, where each entry is either 0 or 1,
 		telling whether the corresponding read is in partition 0 or in partition 1,"""

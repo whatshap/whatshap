@@ -35,6 +35,22 @@ __author__ = "Jana Ebler"
 
 logger = logging.getLogger(__name__)
 
+def print_readset(readset):
+	result = ""
+	positions = readset.get_positions()
+	for read in readset:
+		result += read.name + '\t' + '\t'
+		for pos in positions:
+			if pos in read:
+				# get corresponding variant
+				for var in read:
+					if var.position == pos:
+						result += str(var.allele)
+			else:
+				result += ' '
+		result += '\n'
+	print(result)
+
 def run_phasepoly(
 	phase_input_files,
 	variant_file,
@@ -179,8 +195,9 @@ def run_phasepoly(
 				readset.sort()
 				readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
 				# TODO include this readselection step?
-				selected_reads = select_reads(readset, 3*ploidy, preferred_source_ids = vcf_source_ids)
+				selected_reads = select_reads(readset, 8*ploidy, preferred_source_ids = vcf_source_ids)
 				readset = selected_reads
+				print_readset(readset)
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
 				# Compute columnwise partitions of the reads into # ploidy clusters and output corresponding MEC matrix
@@ -196,6 +213,8 @@ def run_phasepoly(
 				windows = clusters_per_window.get_positions()
 				cluster_pedigree.add_individual(sample, [1]*len(windows), [PhredGenotypeLikelihoods([0]*(ploidy+1))]*len(windows))
 				recombination_costs = uniform_recombination_map(1.26, windows)
+				print_readset(clusters_per_window)
+				print('clusters per window: ', clusters_per_window)
 				partitioning_dp_table = PedigreeDPTable(clusters_per_window, recombination_costs, cluster_pedigree, ploidy, False, windows)
 				read_partitioning = partitioning_dp_table.get_optimal_partitioning()
 
