@@ -20,7 +20,7 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, allowed_ge
 		assert v1.position == v2.position
 	haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
 	print(haplotypes)
-	expected_cost, expected_partition, solution_count, expected_haplotypes = brute_force_phase(readset, 2, allowed_genotypes)
+	expected_cost, expected_partition, solution_count, expected_haplotypes = brute_force_phase(readset, 2, 2, allowed_genotypes)
 	expected_haplotype1 = expected_haplotypes[0]
 	expected_haplotype2 = expected_haplotypes[1]
 	inverse_partition = [1-p for p in partition]
@@ -45,7 +45,7 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, allowed_ge
 
 def check_phasing_single_individual(reads, n_alleles = 2, weights = None):
 	# 0) set up read set
-	readset = string_to_readset(reads, n_alleles, weights)
+	readset = string_to_readset(reads, n_alleles=n_alleles, w=weights)
 	positions = readset.get_positions()
 
 	# 1) Phase using PedMEC code for single individual
@@ -54,6 +54,7 @@ def check_phasing_single_individual(reads, n_alleles = 2, weights = None):
 		pedigree = Pedigree(NumericSampleIds(), 2)
 		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods([0,0,0])] * len(positions)
 		pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
+		print('test_phasing: ', readset, pedigree)
 		print("before DP table")
 		dp_table = PedigreeDPTable(readset, recombcost, pedigree, 2, distrust_genotypes=not all_heterozygous)
 		print("after DP table")
@@ -64,6 +65,7 @@ def check_phasing_single_individual(reads, n_alleles = 2, weights = None):
 		assert len(set(transmission_vector)) == 1
 		partition = dp_table.get_optimal_partitioning()
 		allowed_genotypes = [1] * len(positions) if all_heterozygous else None
+		print("allowed genotypes: ", allowed_genotypes, "distrust genotypes: ", not all_heterozygous)
 		compare_phasing_brute_force(superreads[0], cost, partition, readset, allowed_genotypes, weights)
 
 	# 2) Phase using PedMEC code for trios with two "empty" individuals (i.e. having no reads)
@@ -165,4 +167,4 @@ def test_weighted_phasing1():
 	  223 56789
 	   2    111
 	"""
-	check_phasing_single_individual(reads, weights)
+	check_phasing_single_individual(reads, weights=weights)

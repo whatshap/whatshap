@@ -237,7 +237,7 @@ def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold) :
 			zyg = variant[1]
 			qual = variant[2]
 
-			orgn.append([str(site),str(zyg),str(qual)])
+			orgn.append([str(site),str(zyg),qual])
 			if int(zyg) == 0:
 				snps.append('G')
 			else:
@@ -342,7 +342,8 @@ def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold) :
 			for tok in orig_reads[id]:
 				site = int(tok[0])
 				zyg = int(tok[1])
-				qual = int(tok[2])
+				assert(zyg in [0,1])
+				qual = int(tok[2][not zyg])
 				r = rep[id]
 				if site not in superreads[r]:
 					superreads[r][site] = [0,0]
@@ -358,14 +359,16 @@ def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold) :
 					for site in sorted(superreads[id]):
 						z = superreads[id][site]
 						if z[0] >= z[1]:
-							read.add_variant(site,0,z[0]-z[1])
+							qual = [0, z[0]-z[1]]
+							read.add_variant(site,0,qual)
 
 						elif z[1] > z[0]:
-							read.add_variant(site,1,z[1]-z[0])
+							qual = [z[1]-z[0],0]
+							read.add_variant(site,1,qual)
 					merged_reads.add(read)
 			else:
 				for tok in orig_reads[id]:
-					read.add_variant(int(tok[0]),int(tok[1]),int(tok[2]))
+					read.add_variant(int(tok[0]),int(tok[1]),tok[2])
 				merged_reads.add(read)
 
 	logger.debug("Finished merging reads.")

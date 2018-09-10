@@ -79,10 +79,12 @@ def matrix_to_readset(lines) :
 
 def flip_cost(variant, target_value):
 	"""Returns cost of flipping the given read variant to target_value."""
-	if variant.allele == target_value:
-		return 0
-	else:
-		return min([x for x in variant.quality if x != 0])
+#	if variant.allele == target_value:
+#		return 0
+#	else:
+#		return min([x for x in variant.quality if x != 0])
+
+	return variant.quality[target_value]
 
 def is_ambiguous(assignments, ploidy):
 	sets = [set() for i in range(ploidy)]
@@ -92,7 +94,7 @@ def is_ambiguous(assignments, ploidy):
 	return [len(s) > 1 for s in sets]
 
 def assignment_to_list(assignment, ploidy, n_alleles):
-	return tuple( ((assignment/pow(n_alleles,i)) % n_alleles for i in range(ploidy) )
+	return tuple( int((assignment/pow(n_alleles,i)) % n_alleles) for i in range(ploidy) )
 
 def column_cost(variants, possible_assignments, ploidy):
 	""" Compute cost for one position and return the minimum cost assignment. """
@@ -137,7 +139,7 @@ def brute_force_phase(read_set, ploidy, n_alleles = 2, allowed_genotypes = None)
 
 	assert len(read_set) < 10, "Too many reads for brute force"
 	positions = read_set.get_positions()
-	assignment_count = 1 << ploidy
+	assignment_count = pow(n_alleles, ploidy)
 
 	# bit i in "partition" encodes to which set read i belongs
 	best_partition = None
@@ -158,7 +160,7 @@ def brute_force_phase(read_set, ploidy, n_alleles = 2, allowed_genotypes = None)
 					if variant.position == p:
 						variants[i].append(variant)
 			if allowed_genotypes is None:
-				possible_assignments = [ assignment_to_list(i, ploidy) for i in range(0,assignment_count)]
+				possible_assignments = [ assignment_to_list(i, ploidy, n_alleles) for i in range(0,assignment_count)]
 				c, assignment = column_cost(variants, possible_assignments, ploidy)
 			else:
 				possible_assignments = allowed_assignments_for_genotype(allowed_genotypes[index], ploidy, n_alleles)
@@ -179,6 +181,7 @@ def brute_force_phase(read_set, ploidy, n_alleles = 2, allowed_genotypes = None)
 	number_of_equal_solutions = math.factorial(ploidy)
 	assert solution_count % number_of_equal_solutions == 0
 	haplotypes = []
+	print(solution_count, number_of_equal_solutions)
 	for i in range(ploidy):
 		h = ''.join([str(hap[i]) for hap in best_haplotypes])
 		haplotypes.append(h)

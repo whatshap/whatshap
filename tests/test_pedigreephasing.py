@@ -10,7 +10,7 @@ from whatshap.testhelpers import string_to_readset, string_to_readset_pedigree, 
 
 def phase_pedigree(reads, recombcost, pedigree, distrust_genotypes=False, positions=None):
 	rs = string_to_readset_pedigree(reads)
-	dp_table = PedigreeDPTable(rs, recombcost, pedigree, 2, distrust_genotypes, positions)
+	dp_table = PedigreeDPTable(rs, recombcost, pedigree, 2, distrust_genotypes, positions=positions)
 	superreads_list, transmission_vector = dp_table.get_super_reads()
 	cost = dp_table.get_optimal_cost()
 	for superreads in superreads_list:

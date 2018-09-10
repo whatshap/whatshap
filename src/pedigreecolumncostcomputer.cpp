@@ -181,7 +181,7 @@ vector <PedigreeColumnCostComputer::phased_variant_t> PedigreeColumnCostComputer
 				if (quality < first_best){
 					second_best = first_best;
 					first_best = quality;
-				} else if (quality < first_best) {
+				} else if (quality < second_best) {
 					second_best = quality;
 				}
 			}
