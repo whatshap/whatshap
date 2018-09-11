@@ -12,7 +12,7 @@ def solve_MEC(cluster_matrix, ploidy, cluster_counts):
 	windows = cluster_matrix.get_positions()
 	# TODO modify genotype constraints when generalizing for polyploid case
 	pedigree.add_individual('0',[1]*len(windows),[PhredGenotypeLikelihoods([0]*(ploidy+1))]*len(windows))
-	dp_table = PedigreeDPTable(cluster_matrix, [1]*len(windows), pedigree, ploidy, False, cluster_counts)
+	dp_table = PedigreeDPTable(cluster_matrix, [1]*len(windows), pedigree, ploidy, distrust_genotypes=False, allele_counts=cluster_counts)
 	result = []
 	for i in range(ploidy):
 		result.append([])
@@ -32,7 +32,7 @@ def derive_haplotypes(reads, positions, ploidy, given_genotypes, precomputed_par
 	genotype_likelihoods = [None if given_genotypes[0] else PhredGenotypeLikelihoods([0] * (ploidy+1))] * len(positions)
 	genotypes = given_genotypes[1] if given_genotypes[0] else [1]*len(positions)
 	pedigree.add_individual('0', genotypes, genotype_likelihoods)
-	dp_table = PedigreeDPTable(reads, [1]*len(positions), pedigree, ploidy, not given_genotypes[0], None, positions, precomputed_partitioning)
+	dp_table = PedigreeDPTable(reads, [1]*len(positions), pedigree, ploidy, distrust_genotypes=not given_genotypes[0], positions=positions, precomputed_partitioning=precomputed_partitioning)
 	return dp_table.get_super_reads()[0], dp_table.get_optimal_cost()
 
 def reorder_optimal_partitioning(readset1, partitioning, readset2):

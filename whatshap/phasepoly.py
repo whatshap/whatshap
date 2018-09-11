@@ -29,7 +29,7 @@ from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
 from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
 from .readsetpruning import ReadSetPruning
-from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components, find_largest_component
+from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components, find_largest_component, write_read_list
 
 __author__ = "Jana Ebler" 
 

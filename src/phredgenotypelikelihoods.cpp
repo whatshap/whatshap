@@ -23,10 +23,11 @@ size_t PhredGenotypeLikelihoods::genotype_count() const {
 std::string PhredGenotypeLikelihoods::toString() const {
 	ostringstream oss;
 	oss << "PhredGenotypeLikelihoods( ";
-
-	for(auto g_likelihood : this->gl){
-		oss  << g_likelihood << " ";
+	for (size_t i = 0; i < gl.size(); i++){
+		if (i > 0) oss << ",";
+		oss << gl[i];
 	}
+
 	oss << ")" << endl;
 	return oss.str();
 }
