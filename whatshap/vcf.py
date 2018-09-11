@@ -132,7 +132,7 @@ class VariantTable:
 		#self.samples.append(name)
 		#self.genotypes.append(genotypes)
 
-	def add_variant(self, variant, genotypes, phases, genotype_likelihoods):
+	def add_biallelic_variant(self, variant, genotypes, phases, genotype_likelihoods):
 		"""
 		Add a row to the table
 
@@ -247,10 +247,10 @@ class VariantTable:
 			else:
 				quality = phase.quality
 			if phase.block_id in read_map:
-				read_map[phase.block_id].add_variant(variant.position, phase.phase, quality)
+				read_map[phase.block_id].add_biallelic_variant(variant.position, phase.phase, quality)
 			else:
 				r = Read('{}_block_{}'.format(sample, phase.block_id), mapq, source_id, numeric_sample_id)
-				r.add_variant(variant.position, phase.phase, quality)
+				r.add_biallelic_variant(variant.position, phase.phase, quality)
 				read_map[phase.block_id] = r
 		for key, read in read_map.items():
 			read.sort()
@@ -438,7 +438,7 @@ class VcfReader:
 				genotypes = array('b', ([-1] * len(self.samples)))
 				phases = [None] * len(self.samples)
 			variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
-			table.add_variant(variant, genotypes, phases, genotype_likelihoods)
+			table.add_biallelic_variant(variant, genotypes, phases, genotype_likelihoods)
 
 		logger.debug("Parsed %s SNVs and %s non-SNVs. Also skipped %s multi-ALTs.", n_snvs,
 			n_other, n_multi)

@@ -3,7 +3,7 @@ from whatshap.testhelpers import string_to_readset, brute_force_phase
 from whatshap.phase import find_components
 from whatshap.readsetpruning import ReadSetPruning
 
-def solve_MEC(cluster_matrix, ploidy):
+def solve_MEC(cluster_matrix, ploidy, cluster_counts):
 	"""
 	finds the best consensus clustering solving MEC.
 	"""
@@ -12,7 +12,7 @@ def solve_MEC(cluster_matrix, ploidy):
 	windows = cluster_matrix.get_positions()
 	# TODO modify genotype constraints when generalizing for polyploid case
 	pedigree.add_individual('0',[1]*len(windows),[PhredGenotypeLikelihoods([0]*(ploidy+1))]*len(windows))
-	dp_table = PedigreeDPTable(cluster_matrix, [1]*len(windows), pedigree, ploidy, False)
+	dp_table = PedigreeDPTable(cluster_matrix, [1]*len(windows), pedigree, ploidy, False, cluster_counts)
 	result = []
 	for i in range(ploidy):
 		result.append([])
@@ -32,7 +32,7 @@ def derive_haplotypes(reads, positions, ploidy, given_genotypes, precomputed_par
 	genotype_likelihoods = [None if given_genotypes[0] else PhredGenotypeLikelihoods([0] * (ploidy+1))] * len(positions)
 	genotypes = given_genotypes[1] if given_genotypes[0] else [1]*len(positions)
 	pedigree.add_individual('0', genotypes, genotype_likelihoods)
-	dp_table = PedigreeDPTable(reads, [1]*len(positions), pedigree, ploidy, not given_genotypes[0], positions, precomputed_partitioning)
+	dp_table = PedigreeDPTable(reads, [1]*len(positions), pedigree, ploidy, not given_genotypes[0], None, positions, precomputed_partitioning)
 	return dp_table.get_super_reads()[0], dp_table.get_optimal_cost()
 
 def reorder_optimal_partitioning(readset1, partitioning, readset2):
@@ -62,7 +62,7 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, given_geno
 	for i in range(1,ploidy):
 		assert len(superreads[0]) == len(superreads[i])
 	haplotypes = sorted(''.join(str(v.allele) for v in sr) for sr in superreads)
-	expected_cost, expected_partition, solution_count, expected_haplotypes = brute_force_phase(readset, ploidy, given_genotypes)
+	expected_cost, expected_partition, solution_count, expected_haplotypes = brute_force_phase(readset, ploidy, 2, given_genotypes)
 	print('Partition:', partition, rename_partitions(partition))
 	print('Expected: ', expected_partition, rename_partitions(expected_partition))
 	print('Haplotypes:')
@@ -88,11 +88,13 @@ def check_phasing_single_individual(reads, genotypes, ploidy, reads_per_window, 
 	# 1) construct partitioning of the reads
 	pruner = ReadSetPruning(readset, components, ploidy, reads_per_window, variants_per_window)
 	cluster_matrix = pruner.get_cluster_matrix()
+	cluster_counts = pruner.get_cluster_counts()
 	allele_matrix = pruner.get_allele_matrix()
 	print('cluster matrix:', cluster_matrix)
+	print('allele_counts:', cluster_counts)
 	print('allele matrix:', allele_matrix)
 	# combine columnwise partitionings
-	consensus_clustering, optimal_partitioning = solve_MEC(cluster_matrix, ploidy)
+	consensus_clustering, optimal_partitioning = solve_MEC(cluster_matrix, ploidy, cluster_counts)
 	print('optimal_partitioning:', optimal_partitioning)
 
 	# 2) given the partitioning of reads, derive the optimal haplotypes

@@ -12,8 +12,8 @@ def test_read():
 
 	assert r.is_sorted()
 
-	r.add_variant(100, 1, 37)
-	r.add_variant(23, 0, 99)
+	r.add_biallelic_variant(100, 1, 37)
+	r.add_biallelic_variant(23, 0, 99)
 	assert not r.is_sorted()
 	r.sort()
 	assert r.is_sorted()
@@ -28,10 +28,10 @@ def test_read():
 
 def test_read_iteration():
 	r = Read("name", 15)
-	r.add_variant(100, 1, 37)
-	r.add_variant(23, 0, 99)
-	v1 = Variant(position=100, allele=1, quality=37)
-	v2 = Variant(position=23, allele=0, quality=99)
+	r.add_biallelic_variant(100, 1, 37)
+	r.add_biallelic_variant(23, 0, 99)
+	v1 = Variant(position=100, allele=1, quality=[37,0])
+	v2 = Variant(position=23, allele=0, quality=[0,99])
 	variants = list(r)
 	assert variants == [v1, v2]
 	# negative indices
@@ -41,19 +41,17 @@ def test_read_iteration():
 
 def test_read_indexerror1():
 	r = Read("name", 15)
-	r.add_variant(100, 1, 37)
-	r.add_variant(23, 0, 99)
+	r.add_biallelic_variant(100, 1, 37)
+	r.add_biallelic_variant(23, 0, 99)
 	with raises(IndexError):
 		_ = r[2]
 
-
 def test_read_indexerror2():
 	r = Read("name", 15)
-	r.add_variant(100, 1, 37)
-	r.add_variant(23, 0, 99)
+	r.add_biallelic_variant(100, 1, 37)
+	r.add_biallelic_variant(23, 0, 99)
 	with raises(IndexError):
 		_ = r[-3]
-
 
 def test_empty_readset():
 	rs = ReadSet()
@@ -63,18 +61,18 @@ def test_empty_readset():
 def test_readset():
 	rs = ReadSet()
 	r = Read('Read A', 56)
-	r.add_variant(100, 1, 37)
-	r.add_variant(101, 0, 18)
+	r.add_biallelic_variant(100, 1, 37)
+	r.add_biallelic_variant(101, 0, 18)
 	rs.add(r)
 
 	r = Read('Read B', 0)
-	r.add_variant(101, 0, 23)
+	r.add_biallelic_variant(101, 0, 23)
 	rs.add(r)
 
 	r = Read('Read C', 17)
-	r.add_variant(99, 1, 27)
-	r.add_variant(80, 1, 17)
-	r[1] = Variant(position=105, allele=0, quality=14)
+	r.add_biallelic_variant(99, 1, 27)
+	r.add_biallelic_variant(80, 1, 17)
+	r[1] = Variant(position=105, allele=0, quality=[0,14])
 	rs.add(r)
 
 	assert rs[0].name == 'Read A'
@@ -104,8 +102,8 @@ def test_readset():
 	assert r.name == 'Read C'
 	assert r.mapqs == (17,)
 	assert len(r) == 2
-	assert r[0] == Variant(position=99, allele=1, quality=27)
-	assert r[1] == Variant(position=105, allele=0, quality=14)
+	assert r[0] == Variant(position=99, allele=1, quality=[27,0])
+	assert r[1] == Variant(position=105, allele=0, quality=[0,14])
 
 
 def test_readset2():
@@ -121,8 +119,8 @@ def test_readset2():
 def test_non_existing_read_name():
 	rs = ReadSet()
 	r = Read('Read A', 56)
-	r.add_variant(100, 1, 37)
-	r.add_variant(101, 0, 18)
+	r.add_biallelic_variant(100, 1, 37)
+	r.add_biallelic_variant(101, 0, 18)
 	rs.add(r)
 	with raises(KeyError):
 		_ = rs[(0, 'foo')]
@@ -131,8 +129,8 @@ def test_non_existing_read_name():
 def test_non_existing_read_name2():
 	rs = ReadSet()
 	r = Read('Read A', 56, 1)
-	r.add_variant(100, 1, 37)
-	r.add_variant(101, 0, 18)
+	r.add_biallelic_variant(100, 1, 37)
+	r.add_biallelic_variant(101, 0, 18)
 	rs.add(r)
 	with raises(KeyError):
 		_ = rs[(2, 'Read A')]

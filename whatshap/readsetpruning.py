@@ -150,6 +150,17 @@ class ReadSetPruning:
 		"""
 		return self._cluster_matrix
 
+	def get_cluster_counts(self):
+		"""
+		Return the number of clusters per column in the cluster matrix.
+		"""
+#		clusters_per_column = defaultdict(set)
+#		for read in self._cluster_matrix:
+#			for var in read:
+#				clusters_per_column[var.position].add(var.allele)
+#		return [ len(clusters_per_column[pos]) for pos in sorted(clusters_per_column) ]
+		return [self._number_of_clusters] * len(self._cluster_matrix.get_positions())
+
 	def get_allele_matrix(self):
 		"""
 		Return the readset containing those positions for each read
@@ -234,5 +245,7 @@ class ReadSetPruning:
 		cluster_ids = list(id_to_names.keys())
 		for i,cluster_id in enumerate(cluster_ids):
 			for read_name in id_to_names[cluster_id]:
-				self._readname_to_partitions[read_name].add_variant(self._window, i, 10*len(self._positions))
+				quality = [10 * len(self._positions)] * self._number_of_clusters
+				quality[i] = 0
+				self._readname_to_partitions[read_name].add_variant(self._window, i, quality)
 

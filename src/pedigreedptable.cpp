@@ -37,9 +37,7 @@ PedigreeDPTable::PedigreeDPTable(ReadSet* read_set, const vector<unsigned int>& 
 	}
 
 	if (precomputed_partitioning == nullptr){
-		cout << "before compute table" << endl;
 		compute_table();
-		cout << "after compute table" << endl;
 	} else {
 		// map read_id -> assigned partition
 		for (unsigned int i = 0; i < read_set->size(); i++) {
@@ -110,8 +108,12 @@ void PedigreeDPTable::set_index_path() {
 	unique_ptr<vector<const Entry *> > current_input_column = input_column_iterator.get_next();
 	unique_ptr<vector<unsigned int> > current_read_ids = extract_read_ids(*current_input_column);
 
+cout << "HERE 1" << endl;
+
 	size_t column_count = input_column_iterator.get_column_count();
 	index_path.assign(column_count, index_and_inheritance_t());
+
+cout << "HERE 2" << endl;
 
 	for (size_t column_index = 0; column_index < column_count; ++column_index) {
 		// construct partitioning of reads in this column
@@ -332,15 +334,7 @@ void PedigreeDPTable::compute_column(size_t column_index, unique_ptr<vector<cons
 	vector<PedigreeColumnCostComputer> cost_computers;
 	cost_computers.reserve(transmission_configurations);
 
-	// CHECK
-	cout << "(" << endl;
-	for(unsigned int i = 0; i < allele_counts->size(); i++){
-		cout << " " << allele_counts->at(i);
-	}
-	cout << ")" << endl;
-
 	for(unsigned int i = 0; i < transmission_configurations; ++i) {
-		cout << "cost computers: "  << column_index << " " <<  allele_counts->at(column_index) << endl;
 		cost_computers.emplace_back(*current_input_column, column_index, read_sources, pedigree, *pedigree_partitions[i], distrust_genotypes, allele_counts->at(column_index));
 	}
 
@@ -489,8 +483,6 @@ void PedigreeDPTable::get_super_reads(std::vector<ReadSet*>* output_read_set, ve
 
 			auto population_alleles = cost_computer.get_alleles();
 			int n_alleles = allele_counts->at(i);
-
-			cout << "PedigreeDPTable: " << n_alleles << endl;
 			
 			// TODO: compute proper weights based on likelihoods
 			for (unsigned int k = 0; k < pedigree->size(); k++){
