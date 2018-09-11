@@ -25,6 +25,20 @@ Next, you can run WhatsHap like this::
 	whatshap --help
 
 
+Development installation when using Conda
+-----------------------------------------
+
+If you are using `Bioconda <https://bioconda.github.io/>`_, it is convenient to develop WhatsHap in a separate environment::
+
+	conda create -n whatshap-dev python=3.6 pysam PyVCF pyfaidx xopen Cython pytest sphinx-issues
+	source activate whatshap-dev
+	git clone https://bitbucket.org/whatshap/whatshap
+	cd whatshap
+	pip install -e .
+
+The last command installs WhatsHap into your Conda environment named ``whatshap-dev``. So when
+executing ``whatshap`` you will run the latest version you just cloned.
+
 Running tests
 -------------
 
@@ -118,6 +132,28 @@ consider writing an implementation in Cython instead. See ``readselect.pyx``,
 for example, which started out as a Python module and was then transferred to
 Cython to make it faster. Here, the Cython code is not merely a wrapper, but
 contains the implementation itself.
+
+
+Writing documentation
+---------------------
+
+Documentation is located in the ``doc/`` subdirectory. It is written in
+`reStructuredText format <http://docutils.sourceforge.net/docs/user/rst/quickref.html>`_
+and is translated by `Sphinx <http://www.sphinx-doc.org/>`_ into HTML format.
+
+Documentation is hosted on `Read the Docs <https://readthedocs.org/>`_.
+In theory, it is built automatically whenever a commit is made. The documentation in the
+``master`` branch should be visible at `https://whatshap.readthedocs.io/en/latest/ <https://whatshap.readthedocs.io/en/latest/>`_
+and documentation for the most recent released version should be visible at `https://whatshap.readthedocs.io/en/stable/ <https://whatshap.readthedocs.io/en/stable/>`_.
+However, the connection between Bitbucket and Read the Docs has never worked
+well in this particular project, so builds actually need to be triggered manually
+until we have solved this problem.
+
+To generate documentation locally, ensure that you installed sphinx and add-ons
+necessary to build documantation (running ``pip install -e .[dev]`` will take
+care of this). Then go into the ``doc/`` directory and run ``make``. You can
+then open ``doc/_build/html/index.html`` in your browser. The theme that is
+used is a bit different from the one the Read the Docs uses.
 
 
 Making a release

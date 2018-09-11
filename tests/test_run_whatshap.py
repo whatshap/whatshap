@@ -472,7 +472,7 @@ def test_phase_quartet_recombination_breakpoints():
 		with TemporaryDirectory() as tempdir:
 			outvcf = tempdir + '/output-recombination_breaks.vcf'
 			outlist = tempdir + '/output.recomb'
-			run_whatshap(phase_input_files=[recombination_breaks_bamfile], variant_file='tests/data/quartet.vcf', output=outvcf,
+			run_whatshap(phase_input_files=[recombination_breaks_bamfile], variant_file='tests/data/quartet.vcf.gz', output=outvcf,
 					ped='tests/data/recombination_breaks.ped', recombination_list_filename = outlist, **parameters)
 			assert os.path.isfile(outvcf)
 
@@ -525,25 +525,12 @@ def test_phase_quartet_recombination_breakpoints():
 
 def test_haplotag():
 	with TemporaryDirectory() as tempdir:
-		outvcf = tempdir + '/output.vcf'
-		outbam = tempdir + '/output.bam'
-		run_whatshap(phase_input_files=[recombination_breaks_bamfile], variant_file='tests/data/quartet.vcf', output=outvcf, ped='tests/data/recombination_breaks.ped')
-		run_haplotag(variant_file=outvcf, alignment_file=recombination_breaks_bamfile, output=outbam)
-		ps_count = 0
-		for alignment in pysam.AlignmentFile(outbam):
-			if alignment.has_tag('PS'):
-				ps_count += 1
-		assert ps_count > 0
-
-
-def test_haplotag2():
-	with TemporaryDirectory() as tempdir:
 		outbam1 = tempdir + '/output1.bam'
 		outbam2 = tempdir + '/output2.bam'
 
 		# run haplotag with two vcfs containing opposite phasings (i.e. 1|0 - 0|1 ..)
-		run_haplotag(variant_file='tests/data/haplotag_1.vcf', alignment_file='tests/data/haplotag.bam', output=outbam1)
-		run_haplotag(variant_file='tests/data/haplotag_2.vcf', alignment_file='tests/data/haplotag.bam', output=outbam2)
+		run_haplotag(variant_file='tests/data/haplotag_1.vcf.gz', alignment_file='tests/data/haplotag.bam', output=outbam1)
+		run_haplotag(variant_file='tests/data/haplotag_2.vcf.gz', alignment_file='tests/data/haplotag.bam', output=outbam2)
 		for a1, a2 in zip(pysam.AlignmentFile(outbam1), pysam.AlignmentFile(outbam2)):
 			assert a1.query_name == a2.query_name
 			if a1.has_tag('HP'):
@@ -551,21 +538,86 @@ def test_haplotag2():
 				assert a1.get_tag('HP') != a2.get_tag('HP')
 
 
-def test_haplotag3():
+def test_haplotag2():
 	with TemporaryDirectory() as tempdir:
 		outbam = tempdir + '/output.bam'
-		run_haplotag(variant_file='tests/data/haplotag_2.vcf', alignment_file='tests/data/haplotag.bam', output=outbam)
+		run_haplotag(variant_file='tests/data/haplotag_2.vcf.gz', alignment_file='tests/data/haplotag.bam', output=outbam)
+		ps_count = 0
 		for alignment in pysam.AlignmentFile(outbam):
+			if alignment.has_tag('PS'):
+				ps_count += 1
 			if alignment.has_tag('HP'):
 				# simulated bam, we know from which haplotype each read originated (given in read name)
 				true_ht = int(alignment.query_name[-1])
 				assert true_ht == alignment.get_tag('HP')
+		assert ps_count > 0
+
+
+def test_haplotag_missing_chromosome():
+	with TemporaryDirectory() as tempdir:
+		outbam = tempdir + '/output.bam'
+
+		# input BAM contains a chromosom for which there is no variant in the input VCF
+		run_haplotag(variant_file='tests/data/haplotag.missing_chr.vcf.gz', alignment_file='tests/data/haplotag.large.bam', output=outbam)
+		ps_count = 0
+		for alignment in pysam.AlignmentFile(outbam):
+			if alignment.has_tag('PS'):
+				ps_count += 1
+		assert ps_count > 0
+
+
+def test_haplotag_no_readgroups1():
+	with TemporaryDirectory() as tempdir:
+		outbam1 = tempdir + '/output1.bam'
+		outbam2 = tempdir + '/output2.bam'
+
+		# run haplotag with/without --ignore-read-groups, results should be identical since files contain only data for one sample
+		run_haplotag(variant_file='tests/data/haplotag_1.vcf.gz', alignment_file='tests/data/haplotag.bam', output=outbam1)
+		run_haplotag(variant_file='tests/data/haplotag_1.vcf.gz', alignment_file='tests/data/haplotag_noRG.bam', output=outbam2, ignore_read_groups=True)
+		for a1, a2 in zip(pysam.AlignmentFile(outbam1), pysam.AlignmentFile(outbam2)):
+			assert a1.query_name == a2.query_name
+			if a1.has_tag('HP'):
+				assert a2.has_tag('HP')
+				assert a1.get_tag('HP') == a2.get_tag('HP')
+
+
+def test_haplotag_no_readgroups2():
+	with raises(SystemExit):
+		# vcf contains multiple samples, there should be an error
+		run_haplotag(alignment_file='tests/data/haplotag_noRG.bam', variant_file='tests/data/haplotag_noRG.vcf.gz',
+			output='/dev/null', ignore_read_groups=True)
+
+
+def test_haplotag_sample_given():
+	with TemporaryDirectory() as tempdir:
+		outbam = tempdir + '/output.bam'
+		run_haplotag(variant_file='tests/data/haplotag_sample.vcf.gz', alignment_file='tests/data/haplotag_sample.bam', given_samples=['mother'], output=outbam)
+		for alignment in pysam.AlignmentFile(outbam):
+			if alignment.get_tag('RG') == 'mother':
+				assert alignment.has_tag('HP')
+			else:
+				assert not alignment.has_tag('HP')
+
+
+def haplotag_different_sorting():
+	with TemporaryDirectory() as tempdir:
+		outbam1 = tempdir + '/output1.bam'
+		outbam2 = tempdir + '/output2.bam'
+		
+		# both VCFs contain the same positions, but chromosomes are sorted differently
+		run_haplotag(variant_file='tests/data/haplotag.large.vcf.gz', alignment_file='tests/data/haplotag.large.bam', output=outbam1)
+		run_haplotag(variant_file='tests/data/haplotag.large.2.vcf.gz', alignment_file='tests/data/haplotag.large.bam', output=outbam2)
+		for a1, a2 in zip(pysam.AlignmentFile(outbam1), pysam.AlignmentFile(outbam2)):
+			assert a1.query_name == a2.query_name
+			if a1.has_tag('HP'):
+				assert a2.has_tag('HP')
+				assert a1.get_tag('HP') == a2.get_tag('HP')
 
 
 def test_haplotag_10X():
 	with TemporaryDirectory() as tempdir:
 		outbam = tempdir + '/output.bam'
-		run_haplotag(variant_file='tests/data/haplotag.10X.vcf', alignment_file='tests/data/haplotag.10X.bam', output=outbam)
+		run_haplotag(variant_file='tests/data/haplotag.10X.vcf.gz', alignment_file='tests/data/haplotag.10X.bam', output=outbam)
 		# map BX tag --> readlist
 		BX_tag_to_readlist = defaultdict(list)
 		for alignment in pysam.AlignmentFile(outbam):
@@ -581,7 +633,7 @@ def test_haplotag_10X():
 def test_haplotag_10X_2():
 	with TemporaryDirectory() as tempdir:
 		outbam = tempdir + '/output.bam'
-		run_haplotag(variant_file='tests/data/haplotag.10X_2.vcf', alignment_file='tests/data/haplotag.10X.bam', output=outbam)
+		run_haplotag(variant_file='tests/data/haplotag.10X_2.vcf.gz', alignment_file='tests/data/haplotag.10X.bam', output=outbam)
 		for a1, a2 in zip(pysam.AlignmentFile('tests/data/haplotag.10X.bam'), pysam.AlignmentFile(outbam)):
 			assert a1.query_name == a2.query_name
 			if a1.has_tag('HP') and a2.has_tag('HP'):
@@ -747,3 +799,12 @@ def test_full_genotyping(algorithm):
 		output='/dev/null',
 		full_genotyping=True,
 		algorithm=algorithm)
+
+
+def test_with_read_merging() :
+	run_whatshap(
+		phase_input_files=['tests/data/pacbio/pacbio.bam'],
+		variant_file='tests/data/pacbio/variants.vcf',
+		reference='tests/data/pacbio/reference.fasta',
+		output='/dev/null',
+		read_merging=True)

@@ -2,6 +2,15 @@
 Changes
 =======
 
+v0.17 (2018-07-20)
+------------------
+* :issue:`140`: Haplotagging now works when chromosomes are missing in the VCF.
+* Added option ``--merge-reads``, which is helpful for high coverage data.
+* When phasing pedigrees, ensure that haplotypes are ordered as
+  paternal_allele|maternal_allele in the output VCF. This seems to be a common
+  convention and also used by 1000G.
+* Test cases now use pytest instead of nose (which is discontinued).
+
 v0.16 (2018-05-22)
 ------------------
 
