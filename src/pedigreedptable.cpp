@@ -108,12 +108,8 @@ void PedigreeDPTable::set_index_path() {
 	unique_ptr<vector<const Entry *> > current_input_column = input_column_iterator.get_next();
 	unique_ptr<vector<unsigned int> > current_read_ids = extract_read_ids(*current_input_column);
 
-cout << "HERE 1" << endl;
-
 	size_t column_count = input_column_iterator.get_column_count();
 	index_path.assign(column_count, index_and_inheritance_t());
-
-cout << "HERE 2" << endl;
 
 	for (size_t column_index = 0; column_index < column_count; ++column_index) {
 		// construct partitioning of reads in this column

@@ -39,7 +39,7 @@ def print_readset(readset):
 	result = ""
 	positions = readset.get_positions()
 	for read in readset:
-		result += read.name + '\t' + '\t'
+#		result += read.name + '\t' + '\t' + '\t'
 		for pos in positions:
 			if pos in read:
 				# get corresponding variant
@@ -195,7 +195,7 @@ def run_phasepoly(
 				readset.sort()
 				readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
 				# TODO include this readselection step?
-				selected_reads = select_reads(readset, 8*ploidy, preferred_source_ids = vcf_source_ids)
+				selected_reads = select_reads(readset, ploidy, preferred_source_ids = vcf_source_ids)
 				readset = selected_reads
 				print_readset(readset)
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
@@ -204,6 +204,8 @@ def run_phasepoly(
 				readsetpruner = ReadSetPruning(readset, find_components(readset.get_positions(), readset), ploidy, reads_per_window, variants_per_window)
 				# matrix containing window-wise clusterings
 				clusters_per_window = readsetpruner.get_cluster_matrix()
+				# vector containing the number of clusters (=alleles for DP) in each window
+				cluster_counts = readsetpruner.get_cluster_counts()
 				# matrix containing all alleles used for clustering
 				readset = readsetpruner.get_allele_matrix()
 
@@ -213,13 +215,11 @@ def run_phasepoly(
 				windows = clusters_per_window.get_positions()
 				cluster_pedigree.add_individual(sample, [1]*len(windows), [PhredGenotypeLikelihoods([0]*(ploidy+1))]*len(windows))
 				recombination_costs = uniform_recombination_map(1.26, windows)
-				print_readset(clusters_per_window)
-				print('clusters per window: ', clusters_per_window)
-				partitioning_dp_table = PedigreeDPTable(clusters_per_window, recombination_costs, cluster_pedigree, ploidy, False, windows)
+				partitioning_dp_table = PedigreeDPTable(clusters_per_window, recombination_costs, cluster_pedigree, ploidy, False, cluster_counts, windows)
 				read_partitioning = partitioning_dp_table.get_optimal_partitioning()
 
-				print('READ PARTITIONING MATRIX:', clusters_per_window)
-				print('READ PARTITIONING MEC cost:', partitioning_dp_table.get_optimal_cost())
+#				print('CLUSTER MATRIX:', clusters_per_window)
+#				print('CLUSTERING MEC cost:', partitioning_dp_table.get_optimal_cost())
 				clu_to_r = defaultdict(list)
 				for read, partition in zip(readset,read_partitioning):
 					clu_to_r[partition].append(read.name)
@@ -249,7 +249,8 @@ def run_phasepoly(
 				with timers('phase'):
 					logger.info('Phasing %s by determining best allele assignment ... ', sample)
 					recombination_costs = uniform_recombination_map(1.26, accessible_positions)
-					allele_assignment = PedigreeDPTable(readset, recombination_costs, pedigree, ploidy, False, accessible_positions, optimal_partitioning)
+#					print('ALLELE MATRIX ', readset)
+					allele_assignment = PedigreeDPTable(readset, recombination_costs, pedigree, ploidy, False, None, accessible_positions, optimal_partitioning)
 					superreads_list = allele_assignment.get_super_reads()
 					logger.info('MEC cost: %d', allele_assignment.get_optimal_cost())
 				with timers('components'):

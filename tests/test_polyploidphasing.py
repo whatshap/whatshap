@@ -100,7 +100,7 @@ def check_phasing_single_individual(reads, genotypes, ploidy, reads_per_window, 
 	# 2) given the partitioning of reads, derive the optimal haplotypes
 	ordered_partitioning = reorder_optimal_partitioning(cluster_matrix, optimal_partitioning, allele_matrix)
 	print('ordered_partitioning:', ordered_partitioning)
-	for given_genotypes in [ (False, None), (True, genotypes) ]:
+	for given_genotypes in [ (True, genotypes), (False, None)]:
 		superreads, optimal_cost = derive_haplotypes(allele_matrix, positions, ploidy, given_genotypes, ordered_partitioning)
 		final_partitioning = reorder_optimal_partitioning(allele_matrix, ordered_partitioning, readset)
 		compare_phasing_brute_force(superreads[0], optimal_cost, final_partitioning, readset, given_genotypes[1], ploidy, weights)
