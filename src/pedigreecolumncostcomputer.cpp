@@ -42,20 +42,19 @@ PedigreeColumnCostComputer::PedigreeColumnCostComputer(const std::vector <const 
 		unsigned int cost = 0;
 		for (size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index) {
 			// determine the individuals genotype
-			int genotype = 0;
+			Genotype genotype;
 			for (unsigned int haplotype = 0; haplotype < ploidy; ++haplotype) {
 				unsigned int partition = pedigree_partitions.haplotype_to_partition(individuals_index, haplotype);
 				unsigned int allele = (i/power(n_alleles, partition)) % n_alleles;
-				// TODO this still needs to be changed, alleles can no longer be added
-				genotype += allele;
+				genotype.add_allele(allele);
 			}
 			if (distrust_genotypes) {
 				const PhredGenotypeLikelihoods* gls = pedigree->get_genotype_likelihoods(individuals_index, column_index);
 				assert(gls != nullptr);
 				cost += gls->get(genotype);
 			} else {
-				int true_genotype = pedigree->get_genotype(individuals_index, column_index);
-				if (genotype != true_genotype) {
+				const Genotype* true_genotype = pedigree->get_genotype(individuals_index, column_index);
+				if (genotype != (*true_genotype)) {
 					genotypes_compatible = false;
 					break;
 				}

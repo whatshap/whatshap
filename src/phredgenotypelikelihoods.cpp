@@ -5,20 +5,11 @@
 
 using namespace std;
 
-PhredGenotypeLikelihoods::PhredGenotypeLikelihoods(size_t ploidy, size_t, n_alleles, const vector<double>& gl) :ploidy(ploidy), n_alleles(n_alleles), gl(gl) 
-{
-	// make sure that the right number of likelihoods is given
-	// use formula given here: https://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
-	size_t nr_of_genotypes = binomial_coeff(ploidy + n_alleles - 1, n_alleles - 1);
-	assert(gl.size() == nr_of_genotypes);
-}
+PhredGenotypeLikelihoods::PhredGenotypeLikelihoods(unsigned int ploidy, unsigned int n_alleles, const vector<double>& gl) :ploidy(ploidy), n_alleles(n_alleles), gl(gl) 
+{}
 
-double PhredGenotypeLikelihoods::get(PhredGenotypeLikelihoods::genotype alleles) const {
-	assert(alleles.size() == ploidy);
-	// sort the alleles numerically
-	sort(alleles.begin(), alleles.end());
-	// compute the index
-	size_t index = genotype_to_index(alleles);
+double PhredGenotypeLikelihoods::get(Genotype genotype) const {
+	unsigned int index = genotype.get_index(ploidy, n_alleles);
 	assert(index < gl.size());
 	return this->gl[index];
 }
@@ -43,25 +34,10 @@ std::string PhredGenotypeLikelihoods::toString() const {
 	return oss.str();
 }
 
-size_t genotype_to_index(PhredGenotypeLikelihoods::genotype){
-	// use formula given here: https://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
-	size_t index = 0;
-	for (size_t k = 1; k <= ploidy; k++){
-		unsigned int allele = genotype[k];
-		index += binomial_coeff(k + allele - 1, allele - 1);
-	}
-	return index;
+unsigned int PhredGenotypeLikelihoods::get_ploidy() const {
+	return ploidy;
 }
 
-// use implementation from here: https://www.geeksforgeeks.org/space-and-time-efficient-binomial-coefficient
-int binomial_coeff(int n, int k){
-	int result = 1;
-	if (k > n-k) k = n-k;
-
-	for (int i = 0; i < k; i++){
-		result *= (n-i);
-		result /= (i+1);
-	}
-
-	return result;
+unsigned int PhredGenotypeLikelihoods::get_n_alleles() const {
+	return n_alleles;
 }

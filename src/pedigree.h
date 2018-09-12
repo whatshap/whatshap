@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "phredgenotypelikelihoods.h"
+#include "genotype.h"
 
 /*
  * how to use:
@@ -27,8 +28,8 @@ public:
 	//typedef std::array<std::vector<unsigned int>, 3> genotype_entry_t;
 
 	/** Add an individual with associated genotypes and genotype_likelihoods.
-	 *  Ownership of pointer given in genotype_likelihoods are transferred to Pedigree object. */
-	void addIndividual(unsigned int individual_id, std::vector<unsigned int> genotypes, std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods);
+	 *  Ownership of pointer given in genotype_likelihoods and genotypes are transferred to Pedigree object. */
+	void addIndividual(unsigned int individual_id, std::vector<Genotype*> genotypes, std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods);
 
 	// add a relationship (a mother/father/child triple)
 	void addRelationship(unsigned int father_id, unsigned int mother_id, unsigned int child_id);
@@ -36,10 +37,10 @@ public:
 	/** Returns the genotype of individual with given index for the given variant_index.
 	 *  Note that index of an individual is not its id (in general), see id_to_index().
 	 */
-	unsigned int get_genotype(size_t individual_index, size_t variant_index) const;
+	const Genotype* get_genotype(size_t individual_index, size_t variant_index) const;
 
 	/** Returns a genotype based on an individuals id. */
-	unsigned int get_genotype_by_id(unsigned int individual_id, unsigned int variant_index) const;
+	const Genotype* get_genotype_by_id(unsigned int individual_id, unsigned int variant_index) const;
 
 	/** Returns the genotype likelihoods of individual with given index for the given variant_index.
 	 *  Note that index of an individual is not its id (in general), see id_to_index().
@@ -81,7 +82,7 @@ private:
 	std::vector<unsigned int> individual_ids;
 	std::unordered_map<unsigned int, size_t> id_to_index_map;
 	// genotypes[i][j] is the genotype of individual with index i at locus j.
-	std::vector<std::vector<unsigned int>> genotypes;
+	std::vector<std::vector<Genotype*>> genotypes;
 	std::vector<std::vector<PhredGenotypeLikelihoods*>> genotype_likelihoods;
 };
 

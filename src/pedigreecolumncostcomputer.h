@@ -13,7 +13,7 @@
 #include "pedigreepartitions.h"
 #include "columnindexingiterator.h"
 #include "vector2d.h"
-
+#include "genotype.h"
   
 class PedigreeColumnCostComputer {
 private:
@@ -38,10 +38,6 @@ private:
 	std::vector<allele_assignment_t> allele_assignments;
   
 public:
-
-// 	PedigreeColumnCostComputer(const std::vector<const Entry*>& column, size_t column_index, const std::vector<unsigned int>& read_marks, const Pedigree* pedigree, const PedigreePartitions& pedigree_partitions, bool distrust_genotypes, unsigned int n_alleles);
-
-
 	PedigreeColumnCostComputer(const std::vector<const Entry*>& column, size_t column_index, const std::vector<unsigned int>& read_marks, const Pedigree* pedigree, const PedigreePartitions& pedigree_partitions, bool distrust_genotypes, unsigned int n_alleles);
 
 	void set_partitioning(unsigned int partitioning);

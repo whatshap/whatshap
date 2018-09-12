@@ -4,6 +4,7 @@
 #include <cassert>
 
 #include "phredgenotypelikelihoods.h"
+#include "genotype.h"
 
 using namespace std;
 
@@ -45,19 +46,19 @@ TransitionProbabilityComputer::TransitionProbabilityComputer(size_t column_index
     // compute transition probabilities corresponding to allele assignments
     for(size_t i = 0; i < transmission_configurations; ++i){
         // maps genotype vectors to the number of possible allele assignments
-        std::map< std::vector<unsigned int>, size_t > genotypes_to_haplotype_counts;
+        std::map< std::vector<Genotype>, size_t > genotypes_to_haplotype_counts;
         // maps a haplotype to the corresponding genotype
-        std::vector< std::vector<unsigned int> > haplotypes_to_genotypes(allele_assignments);
+        std::vector< std::vector<Genotype> > haplotypes_to_genotypes(allele_assignments);
         for(unsigned int a = 0; a < allele_assignments; ++a){
             long double prob = 1.0L;
-            vector<unsigned int> genotype_vector;
+            vector<Genotype> genotype_vector;
             for (size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index) {
                 unsigned int partition0 = pedigree_partitions[i]->haplotype_to_partition(individuals_index,0);
                 unsigned int partition1 = pedigree_partitions[i]->haplotype_to_partition(individuals_index,1);
                 unsigned int allele0 = (a >> partition0) & 1;
                 unsigned int allele1 = (a >> partition1) & 1;
 
-                int genotype = allele0 + allele1;
+                Genotype genotype({allele0,allele1});
                 const PhredGenotypeLikelihoods* gls = pedigree->get_genotype_likelihoods(individuals_index, column_index);
                 assert(gls != nullptr);
                 prob *= gls->get(genotype);

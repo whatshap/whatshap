@@ -11,6 +11,7 @@
 #include "genotypedptable.h"
 #include "columnindexingiterator.h"
 #include "transitionprobabilitycomputer.h"
+#include "genotype.h"
 
 using namespace std;
 
@@ -416,7 +417,8 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
                     unsigned int partition1 = pedigree_partitions[i]->haplotype_to_partition(individuals_index,1);
                     unsigned int allele0 = (a >> partition0) & 1;
                     unsigned int allele1 = (a >> partition1) & 1;
-                    genotype_likelihood_table.at(individuals_index,column_index).likelihoods[allele0 + allele1] += forward_backward;
+                    Genotype genotype({allele0,allele1});
+                    genotype_likelihood_table.at(individuals_index,column_index).likelihoods[genotype.get_index(2,2)] += forward_backward;
                 }
 
                 // set forward projections

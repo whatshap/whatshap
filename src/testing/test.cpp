@@ -14,6 +14,7 @@
 #include "../graycodes.h"
 #include "../columnindexingscheme.h"
 #include "../columnindexingiterator.h"
+#include "../genotype.h"
 
 #include <iostream>
 #include <string>
@@ -33,7 +34,6 @@ size_t popcount(size_t x) {
     }
     return count;
 }
-
 
 ReadSet* string_to_readset(string s, string weights, bool use){
     ReadSet* read_set = new ReadSet;
@@ -166,19 +166,28 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
         std::vector<PhredGenotypeLikelihoods*> gl_mother;
         std::vector<PhredGenotypeLikelihoods*> gl_father;
         std::vector<PhredGenotypeLikelihoods*> gl_child;
+        std::vector<Genotype*> gt_mother;
+        std::vector<Genotype*> gt_father;
+        std::vector<Genotype*> gt_child;
 
         for(unsigned int i = 0; i < positions->size(); i++){
-            PhredGenotypeLikelihoods* n_m = new PhredGenotypeLikelihoods({1/3.0,1/3.0,1/3.0});
-            PhredGenotypeLikelihoods* n_f = new PhredGenotypeLikelihoods({1/3.0,1/3.0,1/3.0});
-            PhredGenotypeLikelihoods* n_c = new PhredGenotypeLikelihoods({1/3.0,1/3.0,1/3.0});
+            PhredGenotypeLikelihoods* n_m = new PhredGenotypeLikelihoods(2,2,{1/3.0,1/3.0,1/3.0});
+            PhredGenotypeLikelihoods* n_f = new PhredGenotypeLikelihoods(2,2,{1/3.0,1/3.0,1/3.0});
+            PhredGenotypeLikelihoods* n_c = new PhredGenotypeLikelihoods(2,2,{1/3.0,1/3.0,1/3.0});
             gl_mother.push_back(n_m);
             gl_father.push_back(n_f);
             gl_child.push_back(n_c);
+            Genotype* g_m = new Genotype({0,1});
+            Genotype* g_f = new Genotype({0,1});
+            Genotype* g_c = new Genotype({0,1});
+            gt_mother.push_back(g_m);
+            gt_father.push_back(g_f);
+            gt_child.push_back(g_c);
         }
 
-        pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), gl_mother);
-        pedigree->addIndividual(1, std::vector<unsigned int >(positions->size(),1), gl_father);
-        pedigree->addIndividual(2, std::vector<unsigned int >(positions->size(),1), gl_child);
+        pedigree->addIndividual(0, gt_mother, gl_mother);
+        pedigree->addIndividual(1, gt_father, gl_father);
+        pedigree->addIndividual(2, gt_child, gl_child);
         pedigree->addRelationship(0,1,2);
 
         // create all pedigree partitions
@@ -238,19 +247,29 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
         std::vector<PhredGenotypeLikelihoods*> gl_mother;
         std::vector<PhredGenotypeLikelihoods*> gl_father;
         std::vector<PhredGenotypeLikelihoods*> gl_child;
+        std::vector<Genotype*> gt_mother;
+        std::vector<Genotype*> gt_father;
+        std::vector<Genotype*> gt_child;
 
         for(unsigned int i = 0; i < positions->size(); i++){
-            PhredGenotypeLikelihoods* n_m = new PhredGenotypeLikelihoods({0,1,0});
-            PhredGenotypeLikelihoods* n_f = new PhredGenotypeLikelihoods({0,1,0});
-            PhredGenotypeLikelihoods* n_c = new PhredGenotypeLikelihoods({0.25,0.5,0.25});
+            PhredGenotypeLikelihoods* n_m = new PhredGenotypeLikelihoods(2,2,{0,1,0});
+            PhredGenotypeLikelihoods* n_f = new PhredGenotypeLikelihoods(2,2,{0,1,0});
+            PhredGenotypeLikelihoods* n_c = new PhredGenotypeLikelihoods(2,2,{0.25,0.5,0.25});
             gl_mother.push_back(n_m);
             gl_father.push_back(n_f);
             gl_child.push_back(n_c);
+            Genotype* g_m = new Genotype({0,1});
+            Genotype* g_f = new Genotype({0,1});
+            Genotype* g_c = new Genotype({0,1});
+            gt_mother.push_back(g_m);
+            gt_father.push_back(g_f);
+            gt_child.push_back(g_c);
+
         }
 
-        pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), gl_mother);
-        pedigree->addIndividual(1, std::vector<unsigned int >(positions->size(),1), gl_father);
-        pedigree->addIndividual(2, std::vector<unsigned int >(positions->size(),1), gl_child);
+        pedigree->addIndividual(0, gt_mother, gl_mother);
+        pedigree->addIndividual(1, gt_father, gl_father);
+        pedigree->addIndividual(2, gt_child, gl_child);
         pedigree->addRelationship(0,1,2);
 
         // create all pedigree partitions
@@ -299,12 +318,15 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
        Pedigree* pedigree = new Pedigree(2);
 
        std::vector<PhredGenotypeLikelihoods*> gl;
+       std::vector<Genotype*> gt;
        for(unsigned int i = 0; i < positions->size(); i++){
-           PhredGenotypeLikelihoods* n = new PhredGenotypeLikelihoods({1/3.0,1/3.0,1/3.0});
+           PhredGenotypeLikelihoods* n = new PhredGenotypeLikelihoods(2,2,{1/3.0,1/3.0,1/3.0});
            gl.push_back(n);
+           Genotype* g = new Genotype({0,1});
+           gt.push_back(g);
        }
 
-       pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), gl);
+       pedigree->addIndividual(0, gt, gl);
        std::vector<PedigreePartitions*> pedigree_partitions;
 
 
@@ -343,9 +365,13 @@ TEST_CASE("test ColumnCostComputers","[test column_cost_computer]"){
         ReadSet* read_set = string_to_readset(reads[r],weights,false);
         std::vector<unsigned int>* positions = read_set->get_positions();
         std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods(positions->size(),nullptr);
+        std::vector<Genotype*> genotypes;
+        for(unsigned int i = 0; i < positions->size(); i++){
+           genotypes.push_back(new Genotype({0,1}));
+        }
         std::vector<unsigned int> recombcost(positions->size(), 1);
         Pedigree* pedigree = new Pedigree(2);
-        pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), genotype_likelihoods);
+        pedigree->addIndividual(0, genotypes, genotype_likelihoods);
 
         // create all pedigree partitions
         std::vector<PedigreePartitions*> pedigree_partitions;
@@ -544,9 +570,9 @@ TEST_CASE("test PedigreePartitions", "[test PedigreePartitions]"){
 
     SECTION("test diploid case"){
         Pedigree pedigree(2);
-        pedigree.addIndividual(0, std::vector<unsigned int>(3,1), {0,0,0});
-        pedigree.addIndividual(1, std::vector<unsigned int>(3,1), {0,0,0});
-        pedigree.addIndividual(2, std::vector<unsigned int>(3,1), {0,0,0});
+        pedigree.addIndividual(0, std::vector<Genotype*>(3,new Genotype({0,1})), {0,0,0});
+        pedigree.addIndividual(1, std::vector<Genotype*>(3,new Genotype({0,1})), {0,0,0});
+        pedigree.addIndividual(2, std::vector<Genotype*>(3,new Genotype({0,1})), {0,0,0});
         pedigree.addRelationship(0,1,2);
         REQUIRE(pedigree.triple_count() == 1);
 
@@ -562,9 +588,9 @@ TEST_CASE("test PedigreePartitions", "[test PedigreePartitions]"){
 
     SECTION("test polyploid case"){
         Pedigree pedigree(2);
-        pedigree.addIndividual(0, std::vector<unsigned int>(3,1), {0,0,0});
-        pedigree.addIndividual(1, std::vector<unsigned int>(3,1), {0,0,0});
-        pedigree.addIndividual(2, std::vector<unsigned int>(3,1), {0,0,0});
+        pedigree.addIndividual(0, std::vector<Genotype*>(3,new Genotype({0,1})), {0,0,0});
+        pedigree.addIndividual(1, std::vector<Genotype*>(3,new Genotype({0,1})), {0,0,0});
+        pedigree.addIndividual(2, std::vector<Genotype*>(3,new Genotype({0,1})), {0,0,0});
         pedigree.addRelationship(0,1,2);
         PedigreePartitions pedigreepartitions(pedigree,0,3);
        // due to higher ploidy, none of the partitions should have been merged
@@ -590,13 +616,15 @@ TEST_CASE("test polyploid_column_costs","[test column_cost_computer]"){
         ReadSet* read_set = string_to_readset(reads[r],weights,false);
         std::vector<unsigned int>* positions = read_set->get_positions();
         std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods;
+        std::vector<Genotype*> genotypes;
         for(unsigned int pos = 0; pos < positions->size(); ++pos){
-            genotype_likelihoods.push_back(new PhredGenotypeLikelihoods({0,0,0,0}));
+            genotype_likelihoods.push_back(new PhredGenotypeLikelihoods(2,2,{0,0,0,0}));
+            genotypes.push_back(new Genotype({0,1}));
         }
 
         std::vector<unsigned int> recombcost(positions->size(), 1);
         Pedigree* pedigree = new Pedigree(2);
-        pedigree->addIndividual(0, std::vector<unsigned int >(positions->size(),1), genotype_likelihoods);
+        pedigree->addIndividual(0, genotypes, genotype_likelihoods);
 
         // create all pedigree partitions
         std::vector<PedigreePartitions*> pedigree_partitions;
@@ -618,7 +646,7 @@ TEST_CASE("test polyploid_column_costs","[test column_cost_computer]"){
             unique_ptr<vector<const Entry *> > current_input_column = input_column_iterator.get_next();
             // create column cost computers (Genotype- + PedigreeColumnCostComputers)
             GenotypeColumnCostComputer cost_computer(*current_input_column, col_ind, read_sources, pedigree,*pedigree_partitions[0]);
-            PedigreeColumnCostComputer phred_cost_computer(*current_input_column, col_ind, read_sources, pedigree, *pedigree_partitions[0], true);
+            PedigreeColumnCostComputer phred_cost_computer(*current_input_column, col_ind, read_sources, pedigree, *pedigree_partitions[0], true, 2);
             unsigned int switch_cost = 1;
 
             // check if costs are computed correctly for all allele assignments
@@ -638,5 +666,34 @@ TEST_CASE("test polyploid_column_costs","[test column_cost_computer]"){
         for(unsigned int i=0; i < pedigree_partitions.size(); i++){
             delete pedigree_partitions[i];
         } 
+    }
+}
+
+TEST_CASE("test Genotype class", "[test Genotype class]"){
+    SECTION("diploid + two alleles"){
+        vector<vector<unsigned int>> genotypes = { {0,0}, {0,1}, {1,0}, {1,1} };
+        for(auto &g : genotypes){
+            Genotype gt(g);
+            cout << gt.toString() << endl;
+            REQUIRE(gt.get_index(2,2) == g[0]+g[1]);
+        }
+    }
+
+    SECTION("test compare function"){
+        Genotype g1({0,1});
+        Genotype g2({1,0});
+        Genotype g3({1,1});
+
+        REQUIRE(g1 == g2);
+        REQUIRE(g1 != g3);
+    }
+
+    SECTION("test higher ploidy genotypes"){
+       Genotype g1({0,1,1,0,1});
+       Genotype g2({0,0,1,1,1});
+
+       REQUIRE(g1.get_index(5,2) == g2.get_index(5,2));
+       REQUIRE(g1.toString() == g2.toString());
+       cout << g1.toString() << " " << g2.toString() << endl;
     }
 }

@@ -2,15 +2,14 @@
 #define PHRED_GENOTYPE_LIKELIHOODS_H
 
 #include <vector>
-#include <map>
+#include <set>
+#include "genotype.h"
 
 class PhredGenotypeLikelihoods {
 public:
-	typedef std::vector<unsigned int> genotype;
+	PhredGenotypeLikelihoods(unsigned int ploidy, unsigned int n_alleles, const std::vector<double>& gl);
 
-	PhredGenotypeLikelihoods(size_t ploidy, size_t n_alleles, const std::vector<double>& gl);
-
-	double get(genotype) const;
+	double get(Genotype genotype) const;
 
 	const  std::vector<double>& as_vector() const;
 
@@ -18,12 +17,14 @@ public:
 
 	std::string toString() const;
 
-private:
-	size_t ploidy;
-	size_t n_alleles;
-	std::vector<double> gl;
+	unsigned int get_ploidy() const;
 
-	size_t genotype_to_index();
+	unsigned int get_n_alleles() const;
+
+private:
+	unsigned int ploidy;
+	unsigned int n_alleles;
+	std::vector<double> gl;
 };
 
 

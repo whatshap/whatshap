@@ -63,6 +63,7 @@ add_executable(testing test.cpp
  ../graycodes.h ../indexset.cpp ../indexset.h
  ../pedigree.cpp ../pedigree.h ../pedigreepartitions.cpp ../pedigreepartitions.h ../phredgenotypelikelihoods.cpp ../phredgenotypelikelihoods.h
  ../read.cpp ../read.h ../readset.cpp ../readset.h  ../backwardcolumniterator.cpp ../backwardcolumniterator.h ../transitionprobabilitycomputer.cpp ../transitionprobabilitycomputer.h
+ ../genotype.cpp ../genotype.h
  ../vector2d.h  catch.hpp)
 #...
 
