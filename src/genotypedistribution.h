@@ -4,6 +4,7 @@
 #include <vector>
 
 #include "phredgenotypelikelihoods.h"
+#include "genotype.h"
 
 class GenotypeDistribution {
 private:
@@ -13,15 +14,16 @@ public:
 	GenotypeDistribution() : distribution(3, 1.0/3.0) {}
 	GenotypeDistribution(double hom_ref_prob, double het_prob, double hom_alt_prob);
 
-	double probabilityOf(size_t genotype) const {
-		assert(genotype <= 2);
-		return distribution[genotype];
+	double probabilityOf(Genotype genotype) const {
+		unsigned int index = genotype.get_index(2,2);
+		assert(index <= 2);
+		return distribution[index];
 	}
 
 	/** Normalize distribution such that it sums to one. */
 	void normalize();
 
-	int likeliestGenotype() const;
+	Genotype likeliestGenotype() const;
 
 	/** Returns the probability that the likeliest genotype is wrong. */
 	double errorProbability() const;

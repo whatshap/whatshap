@@ -128,9 +128,9 @@ mendelian_conflict_sets = set([
 
 
 def mendelian_conflict(genotypem, genotypef, genotypec):
-	l = [genotypem, genotypef]
+	l = [genotypem.get_index(2,2), genotypef.get_index(2,2)]
 	l.sort()
-	l.append(genotypec)
+	l.append(genotypec.get_index(2,2))
 	return tuple(l) in mendelian_conflict_sets
 
 

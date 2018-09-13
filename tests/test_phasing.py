@@ -1,10 +1,10 @@
-from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
+from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, Genotype
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 
 def test_phase_empty_readset():
 	rs = ReadSet()
 	recombcost = [1,1]
-	genotypes = [1,1]
+	genotypes = [Genotype([0,1])] * 2
 	pedigree = Pedigree(NumericSampleIds(), 2)
 	genotype_likelihoods = [None, None]
 	pedigree.add_individual('individual0', genotypes, genotype_likelihoods)
@@ -43,17 +43,17 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, allowed_ge
 	assert (haplotypes == (expected_haplotype1, expected_haplotype2)) or (haplotypes == (expected_haplotype2, expected_haplotype1))
 
 
-def check_phasing_single_individual(reads, n_alleles = 2, weights = None):
+def check_phasing_single_individual(reads, weights = None):
 	# 0) set up read set
-	readset = string_to_readset(reads, n_alleles=n_alleles, w=weights)
+	readset = string_to_readset(reads, n_alleles=2, w=weights)
 	positions = readset.get_positions()
 
 	# 1) Phase using PedMEC code for single individual
 	for all_heterozygous in [False, True]:
 		recombcost = [1] * len(positions) # recombination costs 1, should not occur
 		pedigree = Pedigree(NumericSampleIds(), 2)
-		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods([0,0,0])] * len(positions)
-		pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
+		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods(2,2,[0,0,0])] * len(positions)
+		pedigree.add_individual('individual0', [Genotype([0,1])] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 		print('test_phasing: ', readset, pedigree)
 		print("before DP table")
 		dp_table = PedigreeDPTable(readset, recombcost, pedigree, 2, distrust_genotypes=not all_heterozygous)
@@ -72,10 +72,10 @@ def check_phasing_single_individual(reads, n_alleles = 2, weights = None):
 	for all_heterozygous in [False, True]:
 		recombcost = [1] * len(positions) # recombination costs 1, should not occur
 		pedigree = Pedigree(NumericSampleIds(), 2)
-		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods([0,0,0])] * len(positions)
-		pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
-		pedigree.add_individual('individual1', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
-		pedigree.add_individual('individual2', [1] * len(positions), genotype_likelihoods) # all genotypes heterozygous
+		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods(2,2,[0,0,0])] * len(positions)
+		pedigree.add_individual('individual0', [Genotype([0,1])] * len(positions), genotype_likelihoods) # all genotypes heterozygous
+		pedigree.add_individual('individual1', [Genotype([0,1])] * len(positions), genotype_likelihoods) # all genotypes heterozygous
+		pedigree.add_individual('individual2', [Genotype([0,1])] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 		pedigree.add_relationship('individual0', 'individual1', 'individual2')
 		dp_table = PedigreeDPTable(readset, recombcost, pedigree, 2, distrust_genotypes=not all_heterozygous)
 		cost = dp_table.get_optimal_cost()

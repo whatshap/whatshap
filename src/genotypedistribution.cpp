@@ -6,6 +6,23 @@
 
 using namespace std;
 
+Genotype index_to_genotype(unsigned int index){
+	// TODO this only works for diploid, biallelic variants
+	Genotype result({0,0});
+	switch(index){
+		case 1:
+			result = Genotype({0,1});
+			break;
+		case 2:
+			result = Genotype({1,1});
+			break;
+		default:
+			break;
+	}
+	return result;
+}
+
+
 GenotypeDistribution::GenotypeDistribution(double hom_ref_prob, double het_prob, double hom_alt_prob) : distribution() {
 	distribution.push_back(hom_ref_prob);
 	distribution.push_back(het_prob);
@@ -13,7 +30,7 @@ GenotypeDistribution::GenotypeDistribution(double hom_ref_prob, double het_prob,
 }
 
 
-int GenotypeDistribution::likeliestGenotype() const {
+Genotype GenotypeDistribution::likeliestGenotype() const {
 	int best_index = 0;
 	double best = 0.0;
 	for (size_t i=0; i<distribution.size(); ++i) {
@@ -22,7 +39,7 @@ int GenotypeDistribution::likeliestGenotype() const {
 			best_index = i;
 		}
 	}
-	return best_index;
+	return index_to_genotype(best_index);
 }
 
 
@@ -86,6 +103,6 @@ PhredGenotypeLikelihoods GenotypeDistribution::toPhredLikelihoods() const {
 }
 
 ostream& operator<<(ostream& os, const GenotypeDistribution& d) {
-	os << "(HOM_REF:" << d.probabilityOf(0) << ", HET:" << d.probabilityOf(1) << ", HOM_ALT:" << d.probabilityOf(2) << ")";
+	os << "(HOM_REF:" << d.probabilityOf(index_to_genotype(0)) << ", HET:" << d.probabilityOf(index_to_genotype(1)) << ", HOM_ALT:" << d.probabilityOf(index_to_genotype(2)) << ")";
 	return os;
 }

@@ -10,7 +10,7 @@
 
 using namespace std;
 
-void compute_genotypes(const ReadSet& readset, std::vector<int>* genotypes, std::vector<GenotypeDistribution>* genotype_likelihoods, std::vector<unsigned int>* positions) {
+void compute_genotypes(const ReadSet& readset, std::vector<Genotype>* genotypes, std::vector<GenotypeDistribution>* genotype_likelihoods, std::vector<unsigned int>* positions) {
 	assert(genotypes != nullptr);
 	assert(genotype_likelihoods != nullptr);
 	genotypes->clear();
@@ -46,7 +46,7 @@ void compute_genotypes(const ReadSet& readset, std::vector<int>* genotypes, std:
 			
 		}
 		distribution.normalize();
-		int genotype = -1;
+		Genotype genotype;
 		if (distribution.errorProbability() < 0.1) {
 			genotype = distribution.likeliestGenotype();
 		}

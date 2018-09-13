@@ -58,11 +58,11 @@ cdef extern from "../src/readset.h":
 cdef extern from "../src/pedigree.h":
 	cdef cppclass Pedigree:
 		Pedigree(unsigned int ploidy) except +
-		void addIndividual(unsigned int id, vector[unsigned int] genotypes, vector[PhredGenotypeLikelihoods*]) except +
+		void addIndividual(unsigned int id, vector[Genotype*] genotypes, vector[PhredGenotypeLikelihoods*]) except +
 		void addRelationship(unsigned int f, unsigned int m, unsigned int c) except +
 		unsigned int size()
 		string toString() except +
-		unsigned int get_genotype_by_id(unsigned int, unsigned int) except +
+		const Genotype* get_genotype_by_id(unsigned int, unsigned int) except +
 		const PhredGenotypeLikelihoods* get_genotype_likelihoods_by_id(unsigned int, unsigned int) except +
 		unsigned int get_variant_count() except +
 		unsigned int triple_count() except +
@@ -84,19 +84,34 @@ cdef extern from "../src/genotypedptable.h":
 cdef extern from "../src/phredgenotypelikelihoods.h":
 	cdef cppclass PhredGenotypeLikelihoods:
 		PhredGenotypeLikelihoods() except +
-		PhredGenotypeLikelihoods(vector[double]) except +
+		PhredGenotypeLikelihoods(unsigned int ploidy, unsigned int n_alleles, vector[double]) except +
 		PhredGenotypeLikelihoods(PhredGenotypeLikelihoods) except +
-		double get(unsigned int) except +
+		double get(Genotype) except +
 		unsigned int genotype_count() except +
 		vector[double] as_vector() except +
 		string toString() except +
+		unsigned int get_ploidy() except +
+		unsigned int get_n_alleles() except +
+
+
+cdef extern from "../src/genotype.h":
+	cdef cppclass Genotype:
+		Genotype() except +
+		Genotype(vector[unsigned int]) except +
+		Genotype(Genotype) except +
+		void add_allele(unsigned int) except +
+		vector[unsigned int] as_vector() except +
+		bool is_none() except +
+		unsigned int get_index(unsigned int, unsigned int) except +
+		string toString() except +
+		bool is_homozygous() except +
 
 
 cdef extern from "../src/genotypedistribution.h":
 	cdef cppclass GenotypeDistribution:
 		GenotypeDistribution(double hom_ref_prob, double het_prob, double hom_alt_prob) except +
-		double probabilityOf(unsigned int genotype) except +
+		double probabilityOf(Genotype genotype) except +
 
 
 cdef extern from "../src/genotyper.h":
-	void compute_genotypes(ReadSet, vector[int]* genotypes, vector[GenotypeDistribution]* genotype_likelihoods, vector[unsigned int]* positions)  except +
+	void compute_genotypes(ReadSet, vector[Genotype]* genotypes, vector[GenotypeDistribution]* genotype_likelihoods, vector[unsigned int]* positions)  except +

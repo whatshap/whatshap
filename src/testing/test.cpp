@@ -730,4 +730,12 @@ TEST_CASE("test Genotype class", "[test Genotype class]"){
        vector<unsigned int> expected_alleles = g.as_vector();
        REQUIRE(g.as_vector() == expected_alleles);
     }
+
+    SECTION("test is_homozygous()"){
+       Genotype het({0,1,0,2,2});
+       Genotype hom({2,2,2,2,2});
+
+       REQUIRE(!(het.is_homozygous()));
+       REQUIRE(hom.is_homozygous());
+    }
 }
