@@ -113,7 +113,10 @@ def test_with_reference(algorithm):
 		write_command_line_header=False,  # for easier VCF comparison
 		algorithm=algorithm
 	)
-	with open('tests/data/pacbio/phased.vcf') as f:
+	true_phasing = 'tests/data/pacbio/phased.vcf'
+	if algorithm == 'hapchat' :
+		true_phasing = 'tests/data/pacbio/phased_hapchat.vcf'
+	with open(true_phasing) as f:
 		expected = f.read()
 	assert out.getvalue() == expected, 'VCF output not as expected'
 
