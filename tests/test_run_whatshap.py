@@ -775,7 +775,17 @@ def test_phased_blocks(algorithm, expected_blocks):
 		assert blocks == expected_blocks
 
 
-def test_duplicate_read(algorithm):
+@mark.parametrize('algorithm,expected_block', [
+	('whatshap', [10, 10, None, None, None]),
+	('hapchat', [10, 10, 10, None, None]),
+])
+def test_duplicate_read(algorithm, expected_block):
+	# This test is very similar to the previous test_phased_blocks
+	# test, except that there is just a single read this time,
+	# with homozygous site.  Still, since hapchat would rather
+	# phase this homozygous site, since the context is full
+	# genotyping, it does so, regardless of any genotype
+	# likelihood.  See above test for more details.
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_whatshap(
@@ -796,7 +806,7 @@ def test_duplicate_read(algorithm):
 		assert table.samples == ['sample']
 
 		blocks = [(p.block_id if p is not None else None) for p in table.phases_of('sample')]
-		assert blocks == [10, 10, None, None, None]
+		assert blocks == expected_block
 
 
 def test_wrong_chromosome():
