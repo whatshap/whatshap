@@ -108,6 +108,18 @@ def test_with_reference(algorithm, expected_vcf):
 	# This tests also whether lowercase reference FASTA files work:
 	# If lowercase and uppercase are treated differently, then the
 	# output is slightly different from the expected.
+	#
+	# note: because hapchat has a different dynamic programming
+	# scheme, it may phase some variants differently, e.g., the
+	# variant at site 11221 of phased.vcf.  It also phases each
+	# heterozygous site, even if the scores (in the DP table) of
+	# its (two) possible phasings are identical -- such is the
+	# case for sites 13300 and 14324 of phased.vcf.  It is for
+	# this reason that we have a second phased_hapchat.vcf which
+	# is different in these above three sites.  Whether or not
+	# this a desired behaviour is subject to discussion --
+	# possible handling (i.e., avoiding the phasing of) sites with
+	# identical phasing scores is a possible future work, etc.
 	out = StringIO()
 	run_whatshap(
 		phase_input_files=['tests/data/pacbio/pacbio.bam'],
