@@ -730,7 +730,30 @@ def test_quartet2():
 		ped='tests/data/quartet2.ped', output='/dev/null')
 
 
-def test_phased_blocks(algorithm):
+@mark.parametrize('algorithm,expected_blocks', [
+	('whatshap', [10, 10, None, 200, 200]),
+	('hapchat', [10, 10, 10, 10, 10]),
+])
+def test_phased_blocks(algorithm, expected_blocks):
+	# This test involves a simple example on a pair of reads which
+	# overlap a single site which is homozygous.  While we are
+	# distrusting genotypes AND including homozygous sites, i.e.,
+	# we are doing full genotyping, if we were phasing purely from
+	# the reads, then whether or not the pair of reads falls on
+	# the same or different haplotypes should not matter.  With
+	# this in mind, reasoning with genotype likelihoods slighly
+	# disfavours a cis-phasing of this pair, which is what
+	# whatshap does.  While hapchat, however, does take into
+	# account genotype likelihoods, while making the
+	# all-heterozygous assumption, hence cis-phasing this pair.
+
+	# Note that taking into account genotype likelihoods is a
+	# future work planned for hapchat.  Since the nature of the
+	# hapchat DP scheme is such that relaxing the all-heterozygous
+	# assumption would be too costly in terms of runtime and
+	# memory, a possibility is to (re-) exclude homozygous sites
+	# in a preprocessing step based on some threshold on the
+	# genotype likelihoods.
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_whatshap(
@@ -749,7 +772,7 @@ def test_phased_blocks(algorithm):
 		assert table.samples == ['sample']
 
 		blocks = [(p.block_id if p is not None else None) for p in table.phases_of('sample')]
-		assert blocks == [10, 10, None, 200, 200]
+		assert blocks == expected_blocks
 
 
 def test_duplicate_read(algorithm):
