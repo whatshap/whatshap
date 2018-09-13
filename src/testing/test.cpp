@@ -42,9 +42,8 @@ ReadSet* string_to_readset(string s, string weights, bool use){
     string line;
     string line_weights;
 
-    if(weights != ""){
+    assert(s.size() == weights.size());
 
-    }
     unsigned int index = 0;
     while((std::getline(s1,line,'\n')) && (std::getline(s2,line_weights,'\n'))){
         if(line.length() == 0) continue;
@@ -154,21 +153,21 @@ bool compare_entries(vector<const Entry*> c1, string c2){
 
 
 TEST_CASE("test transition prob computer", "[test transition prob computer]"){
-    vector<std::string> reads = {"11\n00", "10\n11", "00\n00", "10\n10", "01\n10"};
-    std::string weights = "11\n11";
+    vector<string> reads = {"11\n00", "10\n11", "00\n00", "10\n10", "01\n10"};
+    string weights = "11\n11";
 
     SECTION("test trio uniform priors", "[test trio uniform]"){
         ReadSet* read_set = string_to_readset(reads[0],weights,false);
-        std::vector<unsigned int>* positions = read_set->get_positions();
-        std::vector<unsigned int> recombcost(positions->size(), 10);
+        vector<unsigned int>* positions = read_set->get_positions();
+        vector<unsigned int> recombcost(positions->size(), 10);
         Pedigree* pedigree = new Pedigree(2);
 
-        std::vector<PhredGenotypeLikelihoods*> gl_mother;
-        std::vector<PhredGenotypeLikelihoods*> gl_father;
-        std::vector<PhredGenotypeLikelihoods*> gl_child;
-        std::vector<Genotype*> gt_mother;
-        std::vector<Genotype*> gt_father;
-        std::vector<Genotype*> gt_child;
+        vector<PhredGenotypeLikelihoods*> gl_mother;
+        vector<PhredGenotypeLikelihoods*> gl_father;
+        vector<PhredGenotypeLikelihoods*> gl_child;
+        vector<Genotype*> gt_mother;
+        vector<Genotype*> gt_father;
+        vector<Genotype*> gt_child;
 
         for(unsigned int i = 0; i < positions->size(); i++){
             PhredGenotypeLikelihoods* n_m = new PhredGenotypeLikelihoods(2,2,{1/3.0,1/3.0,1/3.0});
@@ -191,7 +190,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
         pedigree->addRelationship(0,1,2);
 
         // create all pedigree partitions
-        std::vector<PedigreePartitions*> pedigree_partitions;
+        vector<PedigreePartitions*> pedigree_partitions;
 
         for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
         {
@@ -200,7 +199,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
 }
         for(unsigned int column_index = 0; column_index < positions->size(); ++column_index){
             TransitionProbabilityComputer trans(column_index,10,pedigree,pedigree_partitions);
-            std::vector<long double> expected_cost = {0.9L*0.9L, 0.1L*0.9L, 0.1L*0.1L};
+            vector<long double> expected_cost = {0.9L*0.9L, 0.1L*0.9L, 0.1L*0.1L};
             long double nor = (0.9L*0.9L+2*0.1L*0.9L+0.1L*0.1L);
 
             for(unsigned int i = 0; i < 4; i++){
@@ -240,16 +239,16 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
 
     SECTION("test trio non-uniform priors", "[test trio non-uniform]"){
         ReadSet* read_set = string_to_readset(reads[0],weights,false);
-        std::vector<unsigned int>* positions = read_set->get_positions();
-        std::vector<unsigned int> recombcost(positions->size(), 10);
+        vector<unsigned int>* positions = read_set->get_positions();
+        vector<unsigned int> recombcost(positions->size(), 10);
         Pedigree* pedigree = new Pedigree(2);
 
-        std::vector<PhredGenotypeLikelihoods*> gl_mother;
-        std::vector<PhredGenotypeLikelihoods*> gl_father;
-        std::vector<PhredGenotypeLikelihoods*> gl_child;
-        std::vector<Genotype*> gt_mother;
-        std::vector<Genotype*> gt_father;
-        std::vector<Genotype*> gt_child;
+        vector<PhredGenotypeLikelihoods*> gl_mother;
+        vector<PhredGenotypeLikelihoods*> gl_father;
+        vector<PhredGenotypeLikelihoods*> gl_child;
+        vector<Genotype*> gt_mother;
+        vector<Genotype*> gt_father;
+        vector<Genotype*> gt_child;
 
         for(unsigned int i = 0; i < positions->size(); i++){
             PhredGenotypeLikelihoods* n_m = new PhredGenotypeLikelihoods(2,2,{0,1,0});
@@ -273,7 +272,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
         pedigree->addRelationship(0,1,2);
 
         // create all pedigree partitions
-        std::vector<PedigreePartitions*> pedigree_partitions;
+        vector<PedigreePartitions*> pedigree_partitions;
 
         for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
         {
@@ -282,7 +281,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
 
         for(unsigned int column_index = 0; column_index < positions->size(); ++column_index){
             TransitionProbabilityComputer trans(column_index,10,pedigree,pedigree_partitions);
-            std::vector<long double> expected_cost = {0.9L*0.9L, 0.1L*0.9L, 0.1L*0.1L};
+            vector<long double> expected_cost = {0.9L*0.9L, 0.1L*0.9L, 0.1L*0.1L};
             long double nor = (0.9L*0.9L+2*0.1L*0.9L+0.1L*0.1L);
 
             for(unsigned int i = 0; i < 4; i++){
@@ -313,12 +312,12 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
 
    SECTION("test for single individual", "[test for single individual]"){
        ReadSet* read_set = string_to_readset(reads[0],weights,false);
-       std::vector<unsigned int>* positions = read_set->get_positions();
-       std::vector<unsigned int> recombcost(positions->size(), 10);
+       vector<unsigned int>* positions = read_set->get_positions();
+       vector<unsigned int> recombcost(positions->size(), 10);
        Pedigree* pedigree = new Pedigree(2);
 
-       std::vector<PhredGenotypeLikelihoods*> gl;
-       std::vector<Genotype*> gt;
+       vector<PhredGenotypeLikelihoods*> gl;
+       vector<Genotype*> gt;
        for(unsigned int i = 0; i < positions->size(); i++){
            PhredGenotypeLikelihoods* n = new PhredGenotypeLikelihoods(2,2,{1/3.0,1/3.0,1/3.0});
            gl.push_back(n);
@@ -327,7 +326,7 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
        }
 
        pedigree->addIndividual(0, gt, gl);
-       std::vector<PedigreePartitions*> pedigree_partitions;
+       vector<PedigreePartitions*> pedigree_partitions;
 
 
        for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
@@ -358,30 +357,30 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
 
 TEST_CASE("test ColumnCostComputers","[test column_cost_computer]"){
 
-    vector<std::string> reads = {"11\n00", "10\n11", "00\n00", "10\n10", "01\n10"};
-    std::string weights = "11\n11";
+    vector<string> reads = {"11\n00", "10\n11", "00\n00", "10\n10", "01\n10"};
+    string weights = "11\n11";
 
     for(unsigned int r = 0; r < reads.size(); r++){
         ReadSet* read_set = string_to_readset(reads[r],weights,false);
-        std::vector<unsigned int>* positions = read_set->get_positions();
-        std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods(positions->size(),nullptr);
-        std::vector<Genotype*> genotypes;
+        vector<unsigned int>* positions = read_set->get_positions();
+        vector<PhredGenotypeLikelihoods*> genotype_likelihoods(positions->size(),nullptr);
+        vector<Genotype*> genotypes;
         for(unsigned int i = 0; i < positions->size(); i++){
            genotypes.push_back(new Genotype({0,1}));
         }
-        std::vector<unsigned int> recombcost(positions->size(), 1);
+        vector<unsigned int> recombcost(positions->size(), 1);
         Pedigree* pedigree = new Pedigree(2);
         pedigree->addIndividual(0, genotypes, genotype_likelihoods);
 
         // create all pedigree partitions
-        std::vector<PedigreePartitions*> pedigree_partitions;
+        vector<PedigreePartitions*> pedigree_partitions;
         for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
         {
             pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i,2));
         }
 
         // translate all individual ids to individual indices
-         std::vector<unsigned int> read_sources;
+        vector<unsigned int> read_sources;
         for(size_t i = 0; i<read_set->size(); ++i)
         {
             read_sources.push_back(pedigree->id_to_index(read_set->get(i)->getSampleID()));
@@ -442,14 +441,14 @@ TEST_CASE("test ColumnCostComputers","[test column_cost_computer]"){
 TEST_CASE("test BackwardColumnIterator", "[test BackwardColumnIterator]") {
 
     SECTION("test small examples", "[test small examples]"){
-        std::vector<std::string> matrices = {"10 \n010\n000", "01 \n000\n111", "0 1\n1 0\n 11"};
-        std::vector<std::string> weights = {"11 \n111\n111", "11 \n111\n111", "1 1\n1 1\n 11"};
+        vector<string> matrices = {"10 \n010\n000", "01 \n000\n111", "0 1\n1 0\n 11"};
+        vector<string> weights = {"11 \n111\n111", "11 \n111\n111", "1 1\n1 1\n 11"};
 
         for(unsigned int i = 0; i < matrices.size(); i++){
             ReadSet* read_set = string_to_readset(matrices[i], weights[i],false);
             vector<string> columns = get_columns(matrices[i],3);
 
-            std::vector<unsigned int>* positions = read_set->get_positions();
+            vector<unsigned int>* positions = read_set->get_positions();
             BackwardColumnIterator col_it(*read_set, positions);
             REQUIRE(col_it.has_next());
 
@@ -501,7 +500,7 @@ TEST_CASE("test scaling of vector", "[test scaling of vector]"){
 }
 
 // helper function
-void check_partitioning(std::vector<unsigned int>& readset1, std::vector<unsigned int>& readset2, std::vector<unsigned int>& readset3, std::vector<unsigned int>& forward_projections, std::vector<unsigned int>& backward_projections, unsigned int number_of_partitions){
+void check_partitioning(vector<unsigned int>& readset1, vector<unsigned int>& readset2, vector<unsigned int>& readset3, vector<unsigned int>& forward_projections, vector<unsigned int>& backward_projections, unsigned int number_of_partitions){
     ColumnIndexingScheme scheme1(0, readset1, number_of_partitions);
     ColumnIndexingScheme scheme2(&scheme1, readset2, number_of_partitions);
     ColumnIndexingScheme scheme3(&scheme2, readset3, number_of_partitions);
@@ -529,11 +528,11 @@ void check_partitioning(std::vector<unsigned int>& readset1, std::vector<unsigne
 TEST_CASE("test ColumnIndexingIterator", "[test ColumnIndexingIterator]"){
 
     SECTION("test bipartitions"){
-        std::vector<std::vector<unsigned int>> expected_forward_projections = { {0,0,1,1,1,1,0,0,2,2,3,3,3,3,2,2}, {0,1,3,2,6,7,5,4,12,13,15,14,10,11,9,8}, {0,0,0,0,1,1,1,1} };
-        std::vector<std::vector<unsigned int>> expected_backward_projections = { {0,1,3,2,2,3,1,0,0,1,3,2,2,3,1,0}, {0,1,3,2,6,7,5,4,12,13,15,14,10,11,9,8}, {0,1,1,0,0,1,1,0} };
-        std::vector<std::vector<unsigned int>> read_ids1 = {{0,1},{0,1,2,3},{0}};
-        std::vector<std::vector<unsigned int>> read_ids2 = {{0,1,2,3}, {0,1,2,3}, {0,1,2}};
-        std::vector<std::vector<unsigned int>> read_ids3 = {{1,3}, {0,1,2,3}, {2}};
+        vector<std::vector<unsigned int>> expected_forward_projections = { {0,0,1,1,1,1,0,0,2,2,3,3,3,3,2,2}, {0,1,3,2,6,7,5,4,12,13,15,14,10,11,9,8}, {0,0,0,0,1,1,1,1} };
+        vector<std::vector<unsigned int>> expected_backward_projections = { {0,1,3,2,2,3,1,0,0,1,3,2,2,3,1,0}, {0,1,3,2,6,7,5,4,12,13,15,14,10,11,9,8}, {0,1,1,0,0,1,1,0} };
+        vector<std::vector<unsigned int>> read_ids1 = {{0,1},{0,1,2,3},{0}};
+        vector<std::vector<unsigned int>> read_ids2 = {{0,1,2,3}, {0,1,2,3}, {0,1,2}};
+        vector<std::vector<unsigned int>> read_ids3 = {{1,3}, {0,1,2,3}, {2}};
 
         for(unsigned int j = 0; j < read_ids1.size(); j++){
             check_partitioning(read_ids1[j], read_ids2[j], read_ids3[j], expected_forward_projections[j], expected_backward_projections[j], 2);
@@ -541,11 +540,11 @@ TEST_CASE("test ColumnIndexingIterator", "[test ColumnIndexingIterator]"){
     }
 
     SECTION("test tripartitions"){
-        std::vector<std::vector<unsigned int>> expected_forward_projections = {{0,0,0,1,1,1,2,2,2},{0,1,2,5,4,3,6,7,8},{0,0,0,0,0,0,0,0,0}};
-        std::vector<std::vector<unsigned int>> expected_backward_projections = {{0,1,2,2,1,0,0,1,2},{0,1,2,5,4,3,6,7,8},{0,0,0,0,0,0,0,0,0}};
-        std::vector<std::vector<unsigned int>> read_ids1 = {{0},{0,1},{3}};
-        std::vector<std::vector<unsigned int>> read_ids2 = {{0,1}, {0,1}, {0,1}};
-        std::vector<std::vector<unsigned int>> read_ids3 = {{1}, {0,1}, {2}};
+        vector<std::vector<unsigned int>> expected_forward_projections = {{0,0,0,1,1,1,2,2,2},{0,1,2,5,4,3,6,7,8},{0,0,0,0,0,0,0,0,0}};
+        vector<std::vector<unsigned int>> expected_backward_projections = {{0,1,2,2,1,0,0,1,2},{0,1,2,5,4,3,6,7,8},{0,0,0,0,0,0,0,0,0}};
+        vector<std::vector<unsigned int>> read_ids1 = {{0},{0,1},{3}};
+        vector<std::vector<unsigned int>> read_ids2 = {{0,1}, {0,1}, {0,1}};
+        vector<std::vector<unsigned int>> read_ids3 = {{1}, {0,1}, {2}};
 
         for(unsigned int j = 0; j < read_ids1.size(); j++){
             check_partitioning(read_ids1[j], read_ids2[j], read_ids3[j], expected_forward_projections[j], expected_backward_projections[j], 3);
@@ -553,11 +552,11 @@ TEST_CASE("test ColumnIndexingIterator", "[test ColumnIndexingIterator]"){
     }
 
     SECTION("test 4-partitions"){
-        std::vector<std::vector<unsigned int>> expected_forward_projections = {{0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3}};
-        std::vector<std::vector<unsigned int>> expected_backward_projections = {{0,1,2,3,3,2,1,0,0,1,2,3,3,2,1,0}};
-        std::vector<std::vector<unsigned int>> read_ids1 = {{0,1}};
-        std::vector<std::vector<unsigned int>> read_ids2 = {{1,2}};
-        std::vector<std::vector<unsigned int>> read_ids3 = {{2}};
+        vector<std::vector<unsigned int>> expected_forward_projections = {{0,0,0,0,1,1,1,1,2,2,2,2,3,3,3,3}};
+        vector<std::vector<unsigned int>> expected_backward_projections = {{0,1,2,3,3,2,1,0,0,1,2,3,3,2,1,0}};
+        vector<std::vector<unsigned int>> read_ids1 = {{0,1}};
+        vector<std::vector<unsigned int>> read_ids2 = {{1,2}};
+        vector<std::vector<unsigned int>> read_ids3 = {{2}};
 
         for(unsigned int j = 0; j < read_ids1.size(); j++){
             check_partitioning(read_ids1[j], read_ids2[j], read_ids3[j], expected_forward_projections[j], expected_backward_projections[j], 4);
@@ -570,9 +569,17 @@ TEST_CASE("test PedigreePartitions", "[test PedigreePartitions]"){
 
     SECTION("test diploid case"){
         Pedigree pedigree(2);
-        pedigree.addIndividual(0, std::vector<Genotype*>(3,new Genotype({0,1})), {0,0,0});
-        pedigree.addIndividual(1, std::vector<Genotype*>(3,new Genotype({0,1})), {0,0,0});
-        pedigree.addIndividual(2, std::vector<Genotype*>(3,new Genotype({0,1})), {0,0,0});
+        vector<Genotype*> gt_m;
+        vector<Genotype*> gt_f;
+        vector<Genotype*> gt_c;
+        for (unsigned int i = 0; i < 3; i++){
+           gt_m.push_back(new Genotype({0,1}));
+           gt_f.push_back(new Genotype({0,1}));
+           gt_c.push_back(new Genotype({0,1})); 
+        }
+        pedigree.addIndividual(0, gt_m, {0,0,0});
+        pedigree.addIndividual(1, gt_f, {0,0,0});
+        pedigree.addIndividual(2, gt_c, {0,0,0});
         pedigree.addRelationship(0,1,2);
         REQUIRE(pedigree.triple_count() == 1);
 
@@ -588,9 +595,17 @@ TEST_CASE("test PedigreePartitions", "[test PedigreePartitions]"){
 
     SECTION("test polyploid case"){
         Pedigree pedigree(2);
-        pedigree.addIndividual(0, std::vector<Genotype*>(3,new Genotype({0,1})), {0,0,0});
-        pedigree.addIndividual(1, std::vector<Genotype*>(3,new Genotype({0,1})), {0,0,0});
-        pedigree.addIndividual(2, std::vector<Genotype*>(3,new Genotype({0,1})), {0,0,0});
+        vector<Genotype*> genotypes_m;
+        vector<Genotype*> genotypes_f;
+        vector<Genotype*> genotypes_c;
+        for(unsigned int i = 0; i < 3; i++){
+           genotypes_m.push_back(new Genotype({0,1}));
+           genotypes_f.push_back(new Genotype({0,1}));
+           genotypes_c.push_back(new Genotype({0,1}));
+        }
+        pedigree.addIndividual(0, genotypes_m, {0,0,0});
+        pedigree.addIndividual(1, genotypes_f, {0,0,0});
+        pedigree.addIndividual(2, genotypes_c, {0,0,0});
         pedigree.addRelationship(0,1,2);
         PedigreePartitions pedigreepartitions(pedigree,0,3);
        // due to higher ploidy, none of the partitions should have been merged
@@ -609,31 +624,31 @@ TEST_CASE("test PedigreePartitions", "[test PedigreePartitions]"){
 
 TEST_CASE("test polyploid_column_costs","[test column_cost_computer]"){
 
-    vector<std::string> reads = {"11\n00", "10\n11", "00\n00", "10\n10", "01\n10"};
-    std::string weights = "11\n11";
+    vector<string> reads = {"11\n00", "10\n11", "00\n00", "10\n10", "01\n10"};
+    string weights = "11\n11";
 
     for(unsigned int r = 0; r < reads.size(); r++){
         ReadSet* read_set = string_to_readset(reads[r],weights,false);
-        std::vector<unsigned int>* positions = read_set->get_positions();
-        std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods;
-        std::vector<Genotype*> genotypes;
+        vector<unsigned int>* positions = read_set->get_positions();
+        vector<PhredGenotypeLikelihoods*> genotype_likelihoods;
+        vector<Genotype*> genotypes;
         for(unsigned int pos = 0; pos < positions->size(); ++pos){
             genotype_likelihoods.push_back(new PhredGenotypeLikelihoods(2,2,{0,0,0,0}));
             genotypes.push_back(new Genotype({0,1}));
         }
 
-        std::vector<unsigned int> recombcost(positions->size(), 1);
+        vector<unsigned int> recombcost(positions->size(), 1);
         Pedigree* pedigree = new Pedigree(2);
         pedigree->addIndividual(0, genotypes, genotype_likelihoods);
 
         // create all pedigree partitions
-        std::vector<PedigreePartitions*> pedigree_partitions;
+        vector<PedigreePartitions*> pedigree_partitions;
         for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
         {
             pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i,3));
         }
         // translate all individual ids to individual indices
-         std::vector<unsigned int> read_sources;
+        vector<unsigned int> read_sources;
         for(size_t i = 0; i<read_set->size(); ++i)
         {
             read_sources.push_back(pedigree->id_to_index(read_set->get(i)->getSampleID()));
@@ -674,7 +689,7 @@ TEST_CASE("test Genotype class", "[test Genotype class]"){
         vector<vector<unsigned int>> genotypes = { {0,0}, {0,1}, {1,0}, {1,1} };
         for(auto &g : genotypes){
             Genotype gt(g);
-            cout << gt.toString() << endl;
+//          cout << gt.toString() << endl;
             REQUIRE(gt.get_index(2,2) == g[0]+g[1]);
         }
     }
@@ -689,11 +704,30 @@ TEST_CASE("test Genotype class", "[test Genotype class]"){
     }
 
     SECTION("test higher ploidy genotypes"){
-       Genotype g1({0,1,1,0,1});
-       Genotype g2({0,0,1,1,1});
+       vector<vector<unsigned int>> genotypes = { {0,0,0}, {1,0,0}, {1,1,0}, {1,1,1} };
+       for (unsigned int i = 0; i < genotypes.size(); i++){
+           unsigned int expected_index = 0;
+           for (unsigned int j = 0; j < 3; j++){
+               expected_index += genotypes[i][j];
+           }
+           Genotype g(genotypes[i]);
+           REQUIRE(expected_index == g.get_index(3,2));
+       }
+    }
 
-       REQUIRE(g1.get_index(5,2) == g2.get_index(5,2));
-       REQUIRE(g1.toString() == g2.toString());
-       cout << g1.toString() << " " << g2.toString() << endl;
+    SECTION("test operators"){
+       Genotype g1({0,1,2,3});
+       Genotype g2({1,3,0,2});
+
+       REQUIRE(g1 == g2);
+       REQUIRE(!(g1 != g2));
+       REQUIRE(!(g1 < g2));
+       REQUIRE(!(g2 < g1));
+    }
+
+    SECTION("test as_vector()"){
+       Genotype g({1,4,3,2,0});
+       vector<unsigned int> expected_alleles = g.as_vector();
+       REQUIRE(g.as_vector() == expected_alleles);
     }
 }
