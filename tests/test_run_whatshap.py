@@ -108,7 +108,7 @@ def test_with_reference(algorithm, expected_vcf):
 	# This tests also whether lowercase reference FASTA files work:
 	# If lowercase and uppercase are treated differently, then the
 	# output is slightly different from the expected.
-	#
+
 	# note: because hapchat has a different dynamic programming
 	# scheme, it may phase some variants differently, e.g., the
 	# variant at site 11221 of phased.vcf.  It also phases each
