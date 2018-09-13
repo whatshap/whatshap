@@ -7,7 +7,7 @@ from io import StringIO
 from collections import namedtuple
 from collections import defaultdict
 
-from pytest import raises, fixture
+from pytest import raises, fixture, mark
 import pysam
 from whatshap.phase import run_whatshap
 from whatshap.haplotag import run_haplotag
@@ -100,7 +100,11 @@ def test_requested_sample_not_found():
 			output='/dev/null', samples=['DOES_NOT_EXIST'])
 
 
-def test_with_reference(algorithm):
+@mark.parametrize('algorithm,expected_vcf', [
+	('whatshap', 'tests/data/pacbio/phased.vcf'),
+	('hapchat', 'tests/data/pacbio/phased_hapchat.vcf'),
+])
+def test_with_reference(algorithm, expected_vcf):
 	# This tests also whether lowercase reference FASTA files work:
 	# If lowercase and uppercase are treated differently, then the
 	# output is slightly different from the expected.
@@ -113,10 +117,7 @@ def test_with_reference(algorithm):
 		write_command_line_header=False,  # for easier VCF comparison
 		algorithm=algorithm
 	)
-	true_phasing = 'tests/data/pacbio/phased.vcf'
-	if algorithm == 'hapchat' :
-		true_phasing = 'tests/data/pacbio/phased_hapchat.vcf'
-	with open(true_phasing) as f:
+	with open(expected_vcf) as f:
 		expected = f.read()
 	assert out.getvalue() == expected, 'VCF output not as expected'
 
