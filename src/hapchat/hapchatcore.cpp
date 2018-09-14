@@ -98,6 +98,13 @@ unsigned int get_optimal_cost() {
 }
 
 
+vector<bool> * get_optimal_partitioning() {
+  vector<bool> * partitioning = new vector<bool>(readset_->size(),false);
+  // TODO: implement this
+  return partitioning;
+}
+
+
 int get_length() {
 
   return superreads_.size();

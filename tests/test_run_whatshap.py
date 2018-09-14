@@ -198,11 +198,16 @@ def assert_phasing(phases, expected_phases):
 	assert (p_unchanged == p_expected) or (p_inverted == p_expected)
 
 
-def test_phase_three_individuals():
+def test_phase_three_individuals(algorithm):
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		outreadlist = tempdir + '/readlist.tsv'
-		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', read_list_filename=outreadlist, output=outvcf)
+		run_whatshap(
+			phase_input_files=[trio_bamfile],
+			variant_file='tests/data/trio.vcf',
+			read_list_filename=outreadlist,
+			output=outvcf,
+			algorithm=algorithm)
 		assert os.path.isfile(outvcf)
 		assert os.path.isfile(outreadlist)
 

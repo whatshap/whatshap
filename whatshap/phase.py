@@ -922,6 +922,11 @@ def run_whatshap(
 					components[sample] = overall_components
 
 				if read_list_file:
+					if algorithm == 'hapchat' :
+						logger.warning(''
+'On which haplotype a read occurs in the inferred solution is not yet '
+'implemented in hapchat (TODO), and so the corresponding column in the '
+'read list file contains no information about this')
 					write_read_list(all_reads, dp_table.get_optimal_partitioning(), components, numeric_sample_ids, read_list_file)
 
 			with timers('write_vcf'):

@@ -438,6 +438,11 @@ cdef class HapChatCore:
 		return results, None
 	def get_optimal_cost(self):
 		return self.thisptr.get_optimal_cost()
+	def get_optimal_partitioning(self):
+		cdef vector[bool]* p = self.thisptr.get_optimal_partitioning()
+		result = ['*' for x in p[0]]
+		del p
+		return result
 
 
 include 'readselect.pyx'
