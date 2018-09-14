@@ -92,7 +92,7 @@ cdef extern from "../src/phredgenotypelikelihoods.h":
 		string toString() except +
 		unsigned int get_ploidy() except +
 		unsigned int get_n_alleles() except +
-
+		Genotype get_likeliest_genotype(double threshold_prob) except +
 
 cdef extern from "../src/genotype.h":
 	cdef cppclass Genotype:
@@ -105,6 +105,8 @@ cdef extern from "../src/genotype.h":
 		unsigned int get_index(unsigned int, unsigned int) except +
 		string toString() except +
 		bool is_homozygous() except +
+	cdef bool operator==(Genotype,Genotype) except +
+	cdef bool operator!=(Genotype,Genotype) except +
 
 
 cdef extern from "../src/genotypedistribution.h":

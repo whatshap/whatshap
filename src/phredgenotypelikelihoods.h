@@ -21,6 +21,8 @@ public:
 
 	unsigned int get_n_alleles() const;
 
+	Genotype get_likeliest_genotype(double threshold_prob) const;
+
 private:
 	unsigned int ploidy;
 	unsigned int n_alleles;

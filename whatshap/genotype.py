@@ -30,18 +30,21 @@ from .phase import read_reads, select_reads, split_input_file_list, setup_pedigr
 
 logger = logging.getLogger(__name__)
 
-
 def determine_genotype(likelihoods, threshold_prob):
-	"""given genotype likelihoods for 0/0,0/1,1/1, determines likeliest genotype"""
+	p = PhredGenotypeLikelihoods(2,2,likelihoods)
+	return p.get_likeliest_genotype(threshold_prob)
 
-	to_sort = [(likelihoods[0],0),(likelihoods[1],1),(likelihoods[2],2)]
-	to_sort.sort(key=lambda x: x[0])
-
-	# make sure there is a unique maximum which is greater than the threshold
-	if (to_sort[2][0] > to_sort[1][0]) and (to_sort[2][0] > threshold_prob):
-		return to_sort[2][1]
-	else:
-		return -1
+#def determine_genotype(likelihoods, threshold_prob):
+#	"""given genotype likelihoods for 0/0,0/1,1/1, determines likeliest genotype"""
+#
+#	to_sort = [(likelihoods[0],0),(likelihoods[1],1),(likelihoods[2],2)]
+#	to_sort.sort(key=lambda x: x[0])
+#
+#	# make sure there is a unique maximum which is greater than the threshold
+#	if (to_sort[2][0] > to_sort[1][0]) and (to_sort[2][0] > threshold_prob):
+#		return to_sort[2][1]
+#	else:
+#		return -1
 
 
 def run_genotype(
@@ -242,6 +245,7 @@ def run_genotype(
 						for gl in range(len(genotype_likelihoods)):
 							norm_sum = genotype_likelihoods[gl][0] + genotype_likelihoods[gl][1] + genotype_likelihoods[gl][2] + 3*constant
 							regularized = ((genotype_likelihoods[gl][0]+constant)/norm_sum, (genotype_likelihoods[gl][1]+constant)/norm_sum, (genotype_likelihoods[gl][2]+constant)/norm_sum)
+							# TODO update determine_genotype!
 							genotypes[gl] = determine_genotype(regularized, gt_prob)
 							reg_genotype_likelihoods.append(regularized)
 						variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(gl) for gl in reg_genotype_likelihoods])

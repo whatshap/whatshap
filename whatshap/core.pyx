@@ -408,6 +408,10 @@ cdef class PhredGenotypeLikelihoods:
 	def get_n_alleles(self):
 		return self.thisptr.get_n_alleles()
 
+	def get_likeliest_genotype(self, double threshold_prob):
+		cdef cpp.Genotype gt = self.thisptr.get_likeliest_genotype(threshold_prob)
+		return Genotype(gt.as_vector())
+
 
 cdef class Genotype:
 	def __cinit__(self, vector[unsigned int] alleles):
@@ -434,6 +438,12 @@ cdef class Genotype:
 
 	def is_homozygous(self):
 		return self.thisptr.is_homozygous()
+
+	def __eq__(self, Genotype g):
+		return self.thisptr[0] == g.thisptr[0]
+
+	def __ne__(self, Genotype g):
+		return self.thisptr[0] != g.thisptr[0]
 
 
 cdef class GenotypeDPTable:

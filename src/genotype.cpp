@@ -1,20 +1,8 @@
 #include <sstream>
 #include "genotype.h"
+#include "binomial.h"
 
 using namespace std;
-
-// use implementation from here: https://www.geeksforgeeks.org/space-and-time-efficient-binomial-coefficient
-int binomial_coeff(int n, int k){
-	if (k < 0 || n < 0) return 0;
-	int result = 1;
-	if (k > n-k) k = n-k;
-
-	for (int i = 0; i < k; i++){
-		result *= (n-i);
-		result /= (i+1);
-	}
-	return result;
-}
 
 Genotype::Genotype(){}
 
