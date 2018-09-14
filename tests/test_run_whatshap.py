@@ -271,6 +271,19 @@ def test_phase_trio():
 		assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
 
 
+def test_phase_trio_hapchat() :
+	# This needs to fail because pedigree phasing is not (yet) a
+	# feature of hapchat
+	with raises(SystemExit) :
+		run_whatshap(
+			phase_input_files=[trio_bamfile],
+			variant_file='tests/data/trio.vcf',
+			output='/dev/null',
+			ped='tests/data/trio.ped',
+			genmap='tests/data/trio.map',
+			algorithm='hapchat')
+
+
 def test_phase_trio_use_ped_samples():
 	with TemporaryDirectory() as tempdir:
 		for ped_samples in [True, False]:
