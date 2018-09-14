@@ -74,15 +74,18 @@ def test_one_variant_cram(algorithm):
 		algorithm=algorithm)
 
 
-def test_cram_no_reference():
+def test_cram_no_reference(algorithm):
 	# This needs to fail because CRAM requires a reference, but it was not given.
 
 	# If REF_PATH is not set, pysam/htslib tries to retrieve the reference from EBI via
 	# the internet.
 	os.environ['REF_PATH'] = '/does/not/exist'
 	with raises(SystemExit):
-		run_whatshap(phase_input_files=['tests/data/oneread.cram'],
-			variant_file='tests/data/onevariant.vcf', output='/dev/null')
+		run_whatshap(
+			phase_input_files=['tests/data/oneread.cram'],
+			variant_file='tests/data/onevariant.vcf',
+			output='/dev/null',
+			algorithm=algorithm)
 
 
 def test_bam_without_readgroup(algorithm):
@@ -94,10 +97,14 @@ def test_bam_without_readgroup(algorithm):
 		algorithm=algorithm)
 
 
-def test_requested_sample_not_found():
+def test_requested_sample_not_found(algorithm):
 	with raises(SystemExit):
-		run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
-			output='/dev/null', samples=['DOES_NOT_EXIST'])
+		run_whatshap(
+			phase_input_files=['tests/data/oneread.bam'],
+			variant_file='tests/data/onevariant.vcf',
+			output='/dev/null',
+			samples=['DOES_NOT_EXIST'],
+		        algorithm=algorithm)
 
 
 @mark.parametrize('algorithm,expected_vcf', [
@@ -809,13 +816,16 @@ def test_duplicate_read(algorithm, expected_block):
 		assert blocks == expected_block
 
 
-def test_wrong_chromosome():
+def test_wrong_chromosome(algorithm):
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		with raises(SystemExit):
-			run_whatshap(phase_input_files=[short_bamfile],
+			run_whatshap(
+				phase_input_files=[short_bamfile],
 				ignore_read_groups=True,
-				variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)
+				variant_file='tests/data/short-genome/wrongchromosome.vcf',
+				output=outvcf,
+				algorithm=algorithm)
 
 
 def test_indel_phasing(algorithm):
@@ -850,10 +860,11 @@ def test_full_genotyping(algorithm):
 		algorithm=algorithm)
 
 
-def test_with_read_merging() :
+def test_with_read_merging(algorithm) :
 	run_whatshap(
 		phase_input_files=['tests/data/pacbio/pacbio.bam'],
 		variant_file='tests/data/pacbio/variants.vcf',
 		reference='tests/data/pacbio/reference.fasta',
 		output='/dev/null',
-		read_merging=True)
+		read_merging=True,
+		algorithm=algorithm)
