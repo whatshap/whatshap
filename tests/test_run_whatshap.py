@@ -225,10 +225,15 @@ def test_phase_three_individuals(algorithm):
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
 
 
-def test_phase_one_of_three_individuals():
+def test_phase_one_of_three_individuals(algorithm):
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
-		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf, samples=['HG003'])
+		run_whatshap(
+			phase_input_files=[trio_bamfile],
+			variant_file='tests/data/trio.vcf',
+			output=outvcf,
+			samples=['HG003'],
+			algorithm=algorithm)
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf, phases=True))
