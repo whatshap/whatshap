@@ -37,6 +37,7 @@ class HapChatCore{
 private:
 
   ReadSet* readset_;
+  int sample_id_;
   vector<pair<Read*,Read*>> superreads_;
   unsigned int optimal_;
 
@@ -53,6 +54,7 @@ public:
 
   HapChatCore(ReadSet* read_set)
     : readset_(read_set),
+      sample_id_(0),
       optimal_(0u),
       unweighted_(false),
       errorrate_(0.05),
@@ -64,6 +66,18 @@ public:
     DEBUG(read_set->toString());
 
     readset_->reassignReadIds();
+    if(readset_->size() > 0) {
+      // since hapchat should only receive the reads corresponding to
+      // a single individual, we can suppose that the sample_id is
+      // uniform, so we take said from the first read
+      sample_id_ = readset_->get(0)->getSampleID();
+    }
+
+    superreads_.emplace_back(
+			     new Read("superread_0_0",-1,-1,sample_id_),
+			     new Read("superread_1_0",-1,-1,sample_id_)
+			     );
+
     run_core();
   }
 
@@ -71,7 +85,7 @@ public:
 void get_super_reads(vector<ReadSet*>* output_read_set) {
 
   for(unsigned int k=0;k<superreads_.size();k++) {
-		
+
     output_read_set->at(k)->add(superreads_[k].first);
     output_read_set->at(k)->add(superreads_[k].second);
   }
@@ -164,7 +178,7 @@ void run_core()
   DEBUG("<<>> Writing haplotypes...");
   //write_haplotypes(haplotype_blocks1, haplotype_blocks2, std::cout);
 
-  superreads_ = make_super_reads(hap.get_positions(), haplotype_blocks1[0], haplotype_blocks2[0]);
+  make_super_reads(hap.get_positions(), haplotype_blocks1[0], haplotype_blocks2[0]);
   optimal_ = OPT.get_cost();
 
 }
@@ -1517,23 +1531,18 @@ int map_fragment(const vector<char> &read, const vector<unsigned int> &weights, 
 }
 
 
-std::vector<std::pair<Read*,Read*>> make_super_reads(vector <unsigned int> positions, vector <char> haplo1, vector<char> haplo2){
+void make_super_reads(vector <unsigned int> positions, vector <char> haplo1, vector<char> haplo2){
 
-  Read* read1=new Read("superread_0_0",-1,-1,0);
-  Read* read2=new Read("superread_1_0",-1,-1,0);
   int allele;
-  std::vector<std::pair<Read*,Read*>> superread;
+  size_t k = superreads_.size() - 1; // TODO: make this a bit nicer
   for(unsigned int i=0;i<positions.size();i++){
     if(haplo1[i]=='1') allele=1;
     else allele=0;
-    read1->addVariant(positions[i],allele,30);
+    superreads_[k].first->addVariant(positions[i],allele,30);
     if(haplo2[i]=='1') allele=1;
     else allele=0;
-    read2->addVariant(positions[i],allele,30);
+    superreads_[k].second->addVariant(positions[i],allele,30);
   }
-  superread.emplace_back(read1,read2);
-
-  return superread;
 }
 
 };

@@ -150,19 +150,34 @@ def test_with_reference_and_indels(algorithm):
 		algorithm=algorithm)
 
 
-def test_ps_tag():
+@mark.parametrize('algorithm,expected_lines', [
+	('whatshap',
+		["1\t60906167\t.\tG\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t0/1:.\t0|1:60906167\t0/0:.\n",
+		 "1\t60907394\t.\tG\tA\t.\tPASS\tAC=4;AN=6\tGT:PS\t0|1:60907394\t1/1:.\t0/1:.\n",
+		 "1\t60907460\t.\tG\tT\t.\tPASS\tAC=2;AN=6\tGT:PS\t0|1:60907394\t0|1:60906167\t0/0:.\n",
+		 "1\t60907473\t.\tC\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t0|1:60907394\t0/1:.\t0/0:.\n",
+		 "1\t60909718\t.\tT\tC\t.\tPASS\tAC=2;AN=6\tGT\t0/1\t0/1\t0/0\n"]),
+	('hapchat',
+		["1\t60906167\t.\tG\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t0/1:.\t1|0:60906167\t0/0:.\n",
+		 "1\t60907394\t.\tG\tA\t.\tPASS\tAC=4;AN=6\tGT:PS\t1|0:60907394\t1/1:.\t0/1:.\n",
+		 "1\t60907460\t.\tG\tT\t.\tPASS\tAC=2;AN=6\tGT:PS\t1|0:60907394\t1|0:60906167\t0/0:.\n",
+		 "1\t60907473\t.\tC\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t1|0:60907394\t0/1:.\t0/0:.\n",
+		 "1\t60909718\t.\tT\tC\t.\tPASS\tAC=2;AN=6\tGT\t0/1\t0/1\t0/0\n"]),
+])
+def test_ps_tag(algorithm, expected_lines):
 	out = StringIO()
-	run_whatshap(variant_file='tests/data/trio.vcf', phase_input_files=['tests/data/trio.pacbio.bam'],
-	    output=out, tag='PS')
+	run_whatshap(
+		variant_file='tests/data/trio.vcf',
+		phase_input_files=['tests/data/trio.pacbio.bam'],
+		output=out,
+		tag='PS',
+		algorithm=algorithm)
 	out.seek(0)
 	lines = [ line for line in out.readlines() if not line.startswith('#') ]
 
-	# TODO This is quite an ugly way to test phased VCF writing
-	assert lines[0] == "1\t60906167\t.\tG\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t0/1:.\t0|1:60906167\t0/0:.\n"
-	assert lines[1]	== "1\t60907394\t.\tG\tA\t.\tPASS\tAC=4;AN=6\tGT:PS\t0|1:60907394\t1/1:.\t0/1:.\n"
-	assert lines[2] == "1\t60907460\t.\tG\tT\t.\tPASS\tAC=2;AN=6\tGT:PS\t0|1:60907394\t0|1:60906167\t0/0:.\n"
-	assert lines[3] == "1\t60907473\t.\tC\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t0|1:60907394\t0/1:.\t0/0:.\n"
-	assert lines[4] == "1\t60909718\t.\tT\tC\t.\tPASS\tAC=2;AN=6\tGT\t0/1\t0/1\t0/0\n"
+	# TODO This is quite an ugly way to test phased VCF writing (see parametrization)
+	for i in range(5) :
+		assert lines[i] == expected_lines[i]
 
 
 def assert_phasing(phases, expected_phases):
