@@ -25,7 +25,7 @@ def test_phase_empty_readset(algorithm):
 	superreads = dp_table.get_super_reads()
 
 
-def compare_phasing_brute_force(superreads, cost, partition, readset, all_heterozygous, weights = None):
+def compare_phasing_brute_force(superreads, cost, partition, readset, all_heterozygous, weights = None, algorithm = 'whatshap'):
 	"""Compares DPTable based phasing to brute force phasing and returns string representation of superreads."""
 	assert len(superreads) == 2
 	assert len(superreads[0]) == len(superreads[1])
@@ -33,7 +33,6 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, all_hetero
 		assert v1.position == v2.position
 	haplotypes = tuple(sorted(''.join(str(v.allele) for v in sr) for sr in superreads))
 	expected_cost, expected_partition, solution_count, expected_haplotype1, expected_haplotype2 = brute_force_phase(readset, all_heterozygous)
-	inverse_partition = [1-p for p in partition]
 	print()
 	print(superreads[0])
 	print(superreads[1])
@@ -47,16 +46,28 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, all_hetero
 	print(expected_haplotype2)
 	print('Cost:', cost)
 	print('Expected cost:', expected_cost)
-	assert (partition == expected_partition) or (inverse_partition == expected_partition)
+	# TODO: implement the reporting of an optimal partitioning in hapchat
+	if algorithm == 'whatshap' :
+		inverse_partition = [1-p for p in partition]
+		assert (partition == expected_partition) or (inverse_partition == expected_partition)
 	assert solution_count == 1
 	assert cost == expected_cost
 	assert (haplotypes == (expected_haplotype1, expected_haplotype2)) or (haplotypes == (expected_haplotype2, expected_haplotype1))
 
 
-def check_phasing_single_individual(reads, weights = None):
+def check_phasing_single_individual(reads, algorithm = 'whatshap', weights = None):
 	# 0) set up read set
 	readset = string_to_readset(reads, weights)
 	positions = readset.get_positions()
+
+	# for hapchat
+	if algorithm == 'hapchat' :
+		dp_table = HapChatCore(readset)
+		superreads = dp_table.get_super_reads()
+		cost = dp_table.get_optimal_cost()
+		partition = dp_table.get_optimal_partitioning()
+		compare_phasing_brute_force(superreads[0][0], cost, partition, readset, True, weights, algorithm)
+		return
 
 	# 1) Phase using PedMEC code for single individual
 	for all_heterozygous in [False, True]:
@@ -89,61 +100,64 @@ def check_phasing_single_individual(reads, weights = None):
 		compare_phasing_brute_force(superreads[0], cost, partition, readset, all_heterozygous, weights)
 
 
-def test_phase_trivial() :
+def test_phase_trivial(algorithm) :
 	reads = """
           11
            01
         """
-	check_phasing_single_individual(reads)
+	check_phasing_single_individual(reads, algorithm)
 
 
-def test_phase1():
+def test_phase1(algorithm):
 	reads = """
 	 10
 	 010
 	 010
 	"""
-	check_phasing_single_individual(reads)
+	check_phasing_single_individual(reads, algorithm)
 
 
-def test_phase2():
+def test_phase2(algorithm):
 	reads = """
 	  1  11010
 	  00 00101
 	  001 0101
 	"""
-	check_phasing_single_individual(reads)
+	check_phasing_single_individual(reads, algorithm)
 
 
-def test_phase3():
+def test_phase3(algorithm):
 	reads = """
 	  1  11010
 	  00 00101
 	  001 01010
 	"""
-	check_phasing_single_individual(reads)
+	check_phasing_single_individual(reads, algorithm)
 
 
-def test_phase4():
+def test_phase4(algorithm):
 	reads = """
 	  1  11010
 	  00 00101
 	  001 01110
 	   1    111
 	"""
-	check_phasing_single_individual(reads)
+	check_phasing_single_individual(reads, algorithm)
 
 
-def test_phase4():
+def test_phase4(algorithm):
 	reads = """
 	  1  11010
 	  00 00101
 	  001 01110
 	   1    111
 	"""
-	check_phasing_single_individual(reads)
+	check_phasing_single_individual(reads, algorithm)
 
 
+# note: these final two tests do not apply to hapchat because their
+# (brute force solutions) are weighted phasings -- hapchat does not do
+# weights (for the time being)
 def test_phase5():
 	reads = """
 	  0             0
@@ -170,4 +184,4 @@ def test_weighted_phasing1():
 	  223 56789
 	   2    111
 	"""
-	check_phasing_single_individual(reads, weights)
+	check_phasing_single_individual(reads, 'whatshap', weights)
