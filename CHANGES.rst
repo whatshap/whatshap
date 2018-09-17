@@ -2,6 +2,12 @@
 Changes
 =======
 
+master branch
+-------------
+* Integration of the HapChat algorithm as an alternative MEC solver, available
+  through ``whatshap phase --algorithm=hapchat``. Contributed by the HapChat
+  team, see https://doi.org/10.1186/s12859-018-2253-8.
+
 v0.17 (2018-07-20)
 ------------------
 * :issue:`140`: Haplotagging now works when chromosomes are missing in the VCF.

@@ -31,6 +31,14 @@ WhatsHap's genotyping algorithm is described here:
     | Haplotype-aware genotyping from noisy long reads
     | bioRxiv
     | doi: `10.1101/293944 <https://doi.org/10.1101/293944>`_
+
+The HapChat algorithm is an alternative MEC solver able to handle higher coverages. It can be used
+through "whatshap phase --algorithm=hapchat". It has been described in this paper:
+
+    | Stefano Beretta, Murray Patterson, Simone Zaccaria, Gianluca Della Vedova, Paola Bonizzoni.
+    | *HapCHAT: adaptive haplotype assembly for efficiently leveraging high coverage in long reads*.
+    | BMC Bioinformatics, 19:252, 2018.
+    | doi: `10.1186/s12859-018-2253-8 <https://doi.org/10.1186/s12859-018-2253-8>`_
     
 A parallelization of the core dynamic programming algorithm (“pWhatsHap”)
 has been described in
