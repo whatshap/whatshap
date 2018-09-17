@@ -1,7 +1,16 @@
-from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
+from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, Genotype
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 from whatshap.phase import find_components
 from whatshap.readsetpruning import ReadSetPruning
+
+def create_genotype_vector(ploidy, expected_genotypes):
+	genotype_vector = []
+	for gt in expected_genotypes:
+		n_ref_alleles = ploidy - gt
+		n_alt_alleles = gt
+		alleles = [0]*n_ref_alleles + [1]*n_alt_alleles
+		genotype_vector.append(Genotype(alleles))
+	return genotype_vector
 
 def solve_MEC(cluster_matrix, ploidy, cluster_counts):
 	"""
@@ -10,8 +19,9 @@ def solve_MEC(cluster_matrix, ploidy, cluster_counts):
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, ploidy)
 	windows = cluster_matrix.get_positions()
-	# TODO modify genotype constraints when generalizing for polyploid case
-	pedigree.add_individual('0',[1]*len(windows),[PhredGenotypeLikelihoods([0]*(ploidy+1))]*len(windows))
+	# TODO compute number of genotypes
+	genotypes = [Genotype([i for i in range(0,ploidy)])] * len(windows)
+	pedigree.add_individual('0',genotypes,[PhredGenotypeLikelihoods(ploidy, ploidy, [0]*(ploidy+1))]*len(windows))
 	dp_table = PedigreeDPTable(cluster_matrix, [1]*len(windows), pedigree, ploidy, distrust_genotypes=False, allele_counts=cluster_counts)
 	result = []
 	for i in range(ploidy):
@@ -29,8 +39,8 @@ def derive_haplotypes(reads, positions, ploidy, given_genotypes, precomputed_par
 	"""
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, ploidy)
-	genotype_likelihoods = [None if given_genotypes[0] else PhredGenotypeLikelihoods([0] * (ploidy+1))] * len(positions)
-	genotypes = given_genotypes[1] if given_genotypes[0] else [1]*len(positions)
+	genotype_likelihoods = [None if given_genotypes[0] else PhredGenotypeLikelihoods(ploidy, 2, [0] * (ploidy+1))] * len(positions)
+	genotypes = given_genotypes[1] if given_genotypes[0] else [Genotype([])]*len(positions)
 	pedigree.add_individual('0', genotypes, genotype_likelihoods)
 	dp_table = PedigreeDPTable(reads, [1]*len(positions), pedigree, ploidy, distrust_genotypes=not given_genotypes[0], positions=positions, precomputed_partitioning=precomputed_partitioning)
 	return dp_table.get_super_reads()[0], dp_table.get_optimal_cost()
@@ -120,7 +130,8 @@ def test_diploid_phase1():
                 11111111
                 11121111
                 """
-	check_phasing_single_individual(reads, [1,1,2,1,2,2,1,1], 2, 3, 6)
+	genotypes = create_genotype_vector(2, [1,1,2,1,2,2,1,1])
+	check_phasing_single_individual(reads, genotypes, 2, 3, 6)
 
 def test_diploid_phase2():
 	reads = """
@@ -134,7 +145,8 @@ def test_diploid_phase2():
                      1110111
                         1111
 		"""
-	check_phasing_single_individual(reads, [1,1,2,1,1,2,1,1,1,1,1,1], 2, 3, 3)
+	genotypes = create_genotype_vector(2, [1,1,2,1,1,2,1,1,1,1,1,1])
+	check_phasing_single_individual(reads, genotypes, 2, 3, 3)
 
 def test_diploid_phase3():
 	reads = """
@@ -143,7 +155,8 @@ def test_diploid_phase3():
 	  001001110
 	   11   111
 	"""
-	check_phasing_single_individual(reads, [1,1,1,1,1,1,1,1,1], 2, 3, 3)
+	genotypes = create_genotype_vector(2, [1,1,1,1,1,1,1,1,1])
+	check_phasing_single_individual(reads, genotypes, 2, 3, 3)
 
 #def test_diploid_phase4():
 #	reads = """

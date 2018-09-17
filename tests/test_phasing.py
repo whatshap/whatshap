@@ -64,7 +64,7 @@ def check_phasing_single_individual(reads, weights = None):
 		# TODO: transmission vectors not returned properly, see issue 73
 		assert len(set(transmission_vector)) == 1
 		partition = dp_table.get_optimal_partitioning()
-		allowed_genotypes = [1] * len(positions) if all_heterozygous else None
+		allowed_genotypes = [Genotype([0,1])]* len(positions) if all_heterozygous else None
 		print("allowed genotypes: ", allowed_genotypes, "distrust genotypes: ", not all_heterozygous)
 		compare_phasing_brute_force(superreads[0], cost, partition, readset, allowed_genotypes, weights)
 
@@ -82,7 +82,7 @@ def check_phasing_single_individual(reads, weights = None):
 		superreads, transmission_vector = dp_table.get_super_reads()
 		assert len(set(transmission_vector)) == 1
 		partition = dp_table.get_optimal_partitioning()
-		allowed_genotypes = [1] * len(positions) if all_heterozygous else None
+		allowed_genotypes = [Genotype([0,1])] * len(positions) if all_heterozygous else None
 		compare_phasing_brute_force(superreads[0], cost, partition, readset, allowed_genotypes, weights)
 
 

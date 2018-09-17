@@ -178,7 +178,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 								v.position:(int(phases[i].block_id),phases[i].phase) for i,v in enumerate(variant_table.variants) if phases[i] is not None
 							}
 							variants = [
-								v for v, gt, phase in zip(variant_table.variants, genotypes, phases) if gt == 1 and phase is not None
+								v for v, gt, phase in zip(variant_table.variants, genotypes, phases) if not gt.is_homozygous() and phase is not None
 							]
 							read_set = read_reads(readset_reader, chromosome_name, variants, sample, fasta)
 

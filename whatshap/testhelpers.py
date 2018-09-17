@@ -3,7 +3,7 @@ Utility functions only used by unit tests
 """
 import textwrap
 from collections import defaultdict
-from whatshap.core import Read, ReadSet, Variant
+from whatshap.core import Read, ReadSet, Variant, Genotype
 import math
 
 def string_to_readset(s, w = None, sample_ids = None, source_id=0, scale_quality = None, n_alleles = 2):
@@ -124,14 +124,22 @@ def column_cost(variants, possible_assignments, ploidy):
 
 # TODO extend to multiallelic case
 def allowed_assignments_for_genotype(genotype, ploidy, n_alleles):
-	assignment_count = 1 << ploidy
+#	assignment_count = 1 << ploidy
+#	result = []
+#	for i in range(0,assignment_count):
+#		assignment_list = assignment_to_list(i, ploidy, n_alleles)
+#		if sum(assignment_list) == genotype:
+#			result.append(assignment_list)
+#	return result
+	
+	assignment_count = pow(n_alleles, ploidy)
 	result = []
-	for i in range(0,assignment_count):
+	for i in range(0, assignment_count):
 		assignment_list = assignment_to_list(i, ploidy, n_alleles)
-		if sum(assignment_list) == genotype:
+		if Genotype(assignment_list) == genotype:
 			result.append(assignment_list)
 	return result
-	
+
 
 def brute_force_phase(read_set, ploidy, n_alleles = 2, allowed_genotypes = None):
 	"""Solves MEC by enumerating all possible bipartitions."""
@@ -181,7 +189,6 @@ def brute_force_phase(read_set, ploidy, n_alleles = 2, allowed_genotypes = None)
 	number_of_equal_solutions = math.factorial(ploidy)
 	assert solution_count % number_of_equal_solutions == 0
 	haplotypes = []
-	print(solution_count, number_of_equal_solutions)
 	for i in range(ploidy):
 		h = ''.join([str(hap[i]) for hap in best_haplotypes])
 		haplotypes.append(h)

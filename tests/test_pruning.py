@@ -1,4 +1,4 @@
-from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
+from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, Genotype
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 from whatshap.phase import find_components
 from whatshap.readsetpruning import ReadSetPruning
@@ -41,8 +41,13 @@ def solve_MEC(cluster_matrix, ploidy):
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, ploidy)
 	windows = cluster_matrix.get_positions()
-	pedigree.add_individual('0',[0]*len(windows),[PhredGenotypeLikelihoods([0]*(ploidy+1))]*len(windows))
-	dp_table = PedigreeDPTable(cluster_matrix, [1]*len(windows), pedigree, ploidy, True)
+	# TODO number of possible genotypes
+	# allowed genotypes (require different allele for each partition, e.g. gt 0/1/2/3 for ploidy=4)
+	genotypes = [Genotype([i for i in range(0,ploidy)])] * len(windows)
+	pedigree.add_individual('0', genotypes, [PhredGenotypeLikelihoods(ploidy, ploidy,[0]*(ploidy+1))]*len(windows))
+	# n_alleles per window == ploidy
+	allele_counts = [ploidy] * len(windows)
+	dp_table = PedigreeDPTable(cluster_matrix, [1]*len(windows), pedigree, ploidy, distrust_genotypes=True, allele_counts=allele_counts)
 	result = []
 	for i in range(ploidy):
 		result.append([])

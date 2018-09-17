@@ -18,7 +18,7 @@ from xopen import xopen
 from networkx import Graph, number_of_nodes, number_of_edges, connected_components, node_connected_component, shortest_path
 
 from contextlib import ExitStack
-from .vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
+from .vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods, VcfGenotype
 from . import __version__
 from .core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, Genotype, compute_genotypes
 from .graph import ComponentFinder
@@ -680,7 +680,7 @@ def run_whatshap(
 						readset, vcf_source_ids = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
 						readset.sort()
 						genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
-						variant_table.set_genotypes_of(sample, genotypes)
+						variant_table.set_genotypes_of(sample, [VcfGenotype(gt) for gt in genotypes])
 						variant_table.set_genotype_likelihoods_of(sample, [GenotypeLikelihoods(gl) for gl in genotype_likelihoods])
 
 			# These two variables hold the phasing results for all samples
@@ -828,13 +828,15 @@ def run_whatshap(
 								# all genotypes get default_gq as genotype likelihood, exept the called genotype ...
 								x = [default_gq] * 3
 								# ... which gets a 0
-								x[gt] = 0
+								index = gt.get_genotype().get_index(2,2)
+								x[index] = 0
 								genotype_likelihoods.append(PhredGenotypeLikelihoods(2,2,x))
 							else:
 								genotype_likelihoods.append(gl.as_phred(gl_regularizer))
 					else:
 						genotype_likelihoods = None
-					pedigree.add_individual(sample, phasable_variant_table.genotypes_of(sample), genotype_likelihoods)
+					ind_genotypes = [gt.get_genotype() for gt in phasable_variant_table.genotypes_of(sample)]
+					pedigree.add_individual(sample, ind_genotypes, genotype_likelihoods)
 				for trio in trios:
 					pedigree.add_relationship(
 						father_id=trio.father,
@@ -852,7 +854,7 @@ def run_whatshap(
 					problem_name = 'MEC' if len(family) == 1 else 'PedMEC'
 					logger.info('Phasing %d sample%s by solving the %s problem ...',
 						len(family), 's' if len(family) > 1 else '', problem_name)
-					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, 2, distrust_genotypes, None, accessible_positions) 
+					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, 2, distrust_genotypes=distrust_genotypes, allele_counts=None, positions=accessible_positions) 
 					superreads_list, transmission_vector = dp_table.get_super_reads()
 					logger.info('%s cost: %d', problem_name, dp_table.get_optimal_cost())
 				with timers('components'):

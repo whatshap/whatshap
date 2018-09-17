@@ -6,7 +6,7 @@ from pytest import raises, approx
 from whatshap.core import PhredGenotypeLikelihoods
 from whatshap.phase import run_whatshap
 from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant, \
-	GenotypeLikelihoods
+	GenotypeLikelihoods, VcfGenotype
 
 
 def test_read_phased():
@@ -20,7 +20,7 @@ def test_read_phased():
 	assert table.variants[0].alternative_allele == 'C'
 	assert table.variants[1].reference_allele == 'G'
 	assert table.variants[1].alternative_allele == 'T'
-	assert table.genotypes[0][0] == table.genotypes[0][1] == 1
+	assert table.genotypes[0][0] == table.genotypes[0][1] == VcfGenotype([0,1])
 
 
 def test_read_multisample_vcf():
@@ -42,11 +42,13 @@ def test_read_multisample_vcf():
 	assert table.variants[2].alternative_allele == 'T'
 
 	assert len(table.genotypes) == 2
-	assert list(table.genotypes[0]) == [1, 1, 1]
-	assert list(table.genotypes[1]) == [1, 1, 0]
+	genotypes1 = [VcfGenotype([0,1])]*3
+	genotypes2 = [VcfGenotype([0,1]), VcfGenotype([0,1]), VcfGenotype([0,0])]
+	assert list(table.genotypes[0]) == genotypes1
+	assert list(table.genotypes[1]) == genotypes2
 
-	assert list(table.genotypes_of('sample1')) == [1, 1, 1]
-	assert list(table.genotypes_of('sample2')) == [1, 1, 0]
+	assert list(table.genotypes_of('sample1')) == genotypes1
+	assert list(table.genotypes_of('sample2')) == genotypes2
 
 
 def test_read_phased_vcf():
@@ -65,16 +67,20 @@ def test_read_phased_vcf():
 		assert table_b.samples == ['sample1', 'sample2']
 
 		assert len(table_a.genotypes) == 2
-		assert list(table_a.genotypes[0]) == [1, 2, 1, 1]
-		assert list(table_a.genotypes[1]) == [1, 1, 1, 1]
-		assert list(table_a.genotypes_of('sample1')) == [1, 2, 1, 1]
-		assert list(table_a.genotypes_of('sample2')) == [1, 1, 1, 1]
+		genotypes1 = [Genotype([0,1]), Genotype([1,1]), Genotype([0,1]), Genotype([0,1])]
+		genotypes2 = [Genotype([0,1])]*4
+		assert list(table_a.genotypes[0]) == genotypes1
+		assert list(table_a.genotypes[1]) == genotypes2
+		assert list(table_a.genotypes_of('sample1')) == genotypes1
+		assert list(table_a.genotypes_of('sample2')) == genotypes2
 
 		assert len(table_b.genotypes) == 2
-		assert list(table_b.genotypes[0]) == [0, 1]
-		assert list(table_b.genotypes[1]) == [1, 2]
-		assert list(table_b.genotypes_of('sample1')) == [0, 1]
-		assert list(table_b.genotypes_of('sample2')) == [1, 2]
+		genotypes1 = [Genotype([0,0]), Genotype([0,1])]
+		genotypes2 = [Genotype([0,1]), Genotype([1,1])]
+		assert list(table_b.genotypes[0]) == genotypes1
+		assert list(table_b.genotypes[1]) == genotypes2
+		assert list(table_b.genotypes_of('sample1')) == genotypes1
+		assert list(table_b.genotypes_of('sample2')) == genotypes2
 
 		print(table_a.phases)
 		assert len(table_a.phases) == 2
@@ -279,8 +285,8 @@ def test_read_genotype_likelihoods():
 
 
 def test_genotype_likelihoods():
-	assert list(PhredGenotypeLikelihoods([0,0,0])) == [0, 0, 0]
-	assert list(PhredGenotypeLikelihoods([7, 1, 12])) == [7, 1, 12]
+	assert list(PhredGenotypeLikelihoods(2,2,[0,0,0])) == [0, 0, 0]
+	assert list(PhredGenotypeLikelihoods(2,2,[7, 1, 12])) == [7, 1, 12]
 	gl = GenotypeLikelihoods( [math.log10(x) for x in [1e-10, 0.5, 0.002]] )
 	print(list(gl.as_phred()))
 	assert list(gl.as_phred()) == [97, 0, 24]

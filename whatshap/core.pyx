@@ -399,8 +399,10 @@ cdef class PhredGenotypeLikelihoods:
 		return self.thisptr.genotype_count()
 
 	def __iter__(self):
+		likelihoods = self.thisptr.as_vector()
+		assert len(likelihoods) == self.thisptr.genotype_count()
 		for i in range(self.thisptr.genotype_count()):
-			yield self[i]
+			yield likelihoods[i]
 
 	def get_ploidy(self):
 		return self.thisptr.get_ploidy()
@@ -476,7 +478,7 @@ def compute_genotypes(ReadSet readset, positions = None):
 		for pos in positions:
 			c_positions.push_back(pos)
 	cpp.compute_genotypes(readset.thisptr[0], genotypes_vector, gl_vector, c_positions)
-	genotypes = list([ Genotype(gt.as_vector()) for gt in genotypes_vector[0] ])
+	genotypes = list([ gt.as_vector() for gt in genotypes_vector[0] ])
 	absent = Genotype([0,0])
 	het = Genotype([0,1])
 	hom = Genotype([1,1])
