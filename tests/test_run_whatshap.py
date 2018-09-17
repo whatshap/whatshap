@@ -7,7 +7,7 @@ from io import StringIO
 from collections import namedtuple
 from collections import defaultdict
 
-from pytest import raises
+from pytest import raises, fixture, mark
 import pysam
 from whatshap.phase import run_whatshap
 from whatshap.haplotag import run_haplotag
@@ -29,6 +29,11 @@ bam_files = [trio_bamfile, trio_merged_bamfile, trio_paired_end_bamfile,
 	indels_bamfile]
 
 
+@fixture(params=['whatshap', 'hapchat'])
+def algorithm(request):
+	return request.param
+
+
 def setup_module():
 	# This function is run once for this module
 	for bam_path in bam_files:
@@ -44,47 +49,84 @@ def teardown_module():
 		os.remove(path + '.bai')
 
 
-def test_one_variant():
-	run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
-		output='/dev/null')
+def test_one_variant(algorithm):
+	run_whatshap(
+		phase_input_files=['tests/data/oneread.bam'],
+		variant_file='tests/data/onevariant.vcf',
+		output='/dev/null',
+		algorithm=algorithm)
 
 
-def test_default_output():
+def test_default_output(algorithm):
 	"""Output to stdout"""
-	run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf')
+	run_whatshap(
+		phase_input_files=['tests/data/oneread.bam'],
+		variant_file='tests/data/onevariant.vcf',
+		algorithm=algorithm)
 
 
-def test_one_variant_cram():
-	run_whatshap(phase_input_files=['tests/data/oneread.cram'], reference='tests/data/oneread-ref.fasta',
-		variant_file='tests/data/onevariant.vcf', output='/dev/null')
+def test_one_variant_cram(algorithm):
+	run_whatshap(
+		phase_input_files=['tests/data/oneread.cram'],
+		reference='tests/data/oneread-ref.fasta',
+		variant_file='tests/data/onevariant.vcf',
+		output='/dev/null',
+		algorithm=algorithm)
 
 
-def test_cram_no_reference():
+def test_cram_no_reference(algorithm):
 	# This needs to fail because CRAM requires a reference, but it was not given.
 
 	# If REF_PATH is not set, pysam/htslib tries to retrieve the reference from EBI via
 	# the internet.
 	os.environ['REF_PATH'] = '/does/not/exist'
 	with raises(SystemExit):
-		run_whatshap(phase_input_files=['tests/data/oneread.cram'],
-			variant_file='tests/data/onevariant.vcf', output='/dev/null')
+		run_whatshap(
+			phase_input_files=['tests/data/oneread.cram'],
+			variant_file='tests/data/onevariant.vcf',
+			output='/dev/null',
+			algorithm=algorithm)
 
 
-def test_bam_without_readgroup():
-	run_whatshap(phase_input_files=['tests/data/no-readgroup.bam'], variant_file='tests/data/onevariant.vcf',
-		output='/dev/null', ignore_read_groups=True)
+def test_bam_without_readgroup(algorithm):
+	run_whatshap(
+		phase_input_files=['tests/data/no-readgroup.bam'],
+		variant_file='tests/data/onevariant.vcf',
+		output='/dev/null',
+		ignore_read_groups=True,
+		algorithm=algorithm)
 
 
-def test_requested_sample_not_found():
+def test_requested_sample_not_found(algorithm):
 	with raises(SystemExit):
-		run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
-			output='/dev/null', samples=['DOES_NOT_EXIST'])
+		run_whatshap(
+			phase_input_files=['tests/data/oneread.bam'],
+			variant_file='tests/data/onevariant.vcf',
+			output='/dev/null',
+			samples=['DOES_NOT_EXIST'],
+		        algorithm=algorithm)
 
 
-def test_with_reference():
+@mark.parametrize('algorithm,expected_vcf', [
+	('whatshap', 'tests/data/pacbio/phased.vcf'),
+	('hapchat', 'tests/data/pacbio/phased_hapchat.vcf'),
+])
+def test_with_reference(algorithm, expected_vcf):
 	# This tests also whether lowercase reference FASTA files work:
 	# If lowercase and uppercase are treated differently, then the
 	# output is slightly different from the expected.
+
+	# note: because hapchat has a different dynamic programming
+	# scheme, it may phase some variants differently, e.g., the
+	# variant at site 11221 of phased.vcf.  It also phases each
+	# heterozygous site, even if the scores (in the DP table) of
+	# its (two) possible phasings are identical -- such is the
+	# case for sites 13300 and 14324 of phased.vcf.  It is for
+	# this reason that we have a second phased_hapchat.vcf which
+	# is different in these above three sites.  Whether or not
+	# this a desired behaviour is subject to discussion --
+	# possible handling (i.e., avoiding the phasing of) sites with
+	# identical phasing scores is a possible future work, etc.
 	out = StringIO()
 	run_whatshap(
 		phase_input_files=['tests/data/pacbio/pacbio.bam'],
@@ -92,30 +134,50 @@ def test_with_reference():
 		reference='tests/data/pacbio/reference.fasta',
 		output=out,
 		write_command_line_header=False,  # for easier VCF comparison
+		algorithm=algorithm
 	)
-	with open('tests/data/pacbio/phased.vcf') as f:
+	with open(expected_vcf) as f:
 		expected = f.read()
 	assert out.getvalue() == expected, 'VCF output not as expected'
 
 
-def test_with_reference_and_indels():
-	run_whatshap(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
-		reference='tests/data/pacbio/reference.fasta', indels=True)
+def test_with_reference_and_indels(algorithm):
+	run_whatshap(
+		phase_input_files=['tests/data/pacbio/pacbio.bam'],
+		variant_file='tests/data/pacbio/variants.vcf',
+		reference='tests/data/pacbio/reference.fasta',
+		indels=True,
+		algorithm=algorithm)
 
 
-def test_ps_tag():
+@mark.parametrize('algorithm,expected_lines', [
+	('whatshap',
+		["1\t60906167\t.\tG\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t0/1:.\t0|1:60906167\t0/0:.\n",
+		 "1\t60907394\t.\tG\tA\t.\tPASS\tAC=4;AN=6\tGT:PS\t0|1:60907394\t1/1:.\t0/1:.\n",
+		 "1\t60907460\t.\tG\tT\t.\tPASS\tAC=2;AN=6\tGT:PS\t0|1:60907394\t0|1:60906167\t0/0:.\n",
+		 "1\t60907473\t.\tC\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t0|1:60907394\t0/1:.\t0/0:.\n",
+		 "1\t60909718\t.\tT\tC\t.\tPASS\tAC=2;AN=6\tGT\t0/1\t0/1\t0/0\n"]),
+	('hapchat',
+		["1\t60906167\t.\tG\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t0/1:.\t1|0:60906167\t0/0:.\n",
+		 "1\t60907394\t.\tG\tA\t.\tPASS\tAC=4;AN=6\tGT:PS\t1|0:60907394\t1/1:.\t0/1:.\n",
+		 "1\t60907460\t.\tG\tT\t.\tPASS\tAC=2;AN=6\tGT:PS\t1|0:60907394\t1|0:60906167\t0/0:.\n",
+		 "1\t60907473\t.\tC\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t1|0:60907394\t0/1:.\t0/0:.\n",
+		 "1\t60909718\t.\tT\tC\t.\tPASS\tAC=2;AN=6\tGT\t0/1\t0/1\t0/0\n"]),
+])
+def test_ps_tag(algorithm, expected_lines):
 	out = StringIO()
-	run_whatshap(variant_file='tests/data/trio.vcf', phase_input_files=['tests/data/trio.pacbio.bam'],
-	    output=out, tag='PS')
+	run_whatshap(
+		variant_file='tests/data/trio.vcf',
+		phase_input_files=['tests/data/trio.pacbio.bam'],
+		output=out,
+		tag='PS',
+		algorithm=algorithm)
 	out.seek(0)
 	lines = [ line for line in out.readlines() if not line.startswith('#') ]
 
-	# TODO This is quite an ugly way to test phased VCF writing
-	assert lines[0] == "1\t60906167\t.\tG\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t0/1:.\t0|1:60906167\t0/0:.\n"
-	assert lines[1]	== "1\t60907394\t.\tG\tA\t.\tPASS\tAC=4;AN=6\tGT:PS\t0|1:60907394\t1/1:.\t0/1:.\n"
-	assert lines[2] == "1\t60907460\t.\tG\tT\t.\tPASS\tAC=2;AN=6\tGT:PS\t0|1:60907394\t0|1:60906167\t0/0:.\n"
-	assert lines[3] == "1\t60907473\t.\tC\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t0|1:60907394\t0/1:.\t0/0:.\n"
-	assert lines[4] == "1\t60909718\t.\tT\tC\t.\tPASS\tAC=2;AN=6\tGT\t0/1\t0/1\t0/0\n"
+	# TODO This is quite an ugly way to test phased VCF writing (see parametrization)
+	for i in range(5) :
+		assert lines[i] == expected_lines[i]
 
 
 def assert_phasing(phases, expected_phases):
@@ -136,11 +198,16 @@ def assert_phasing(phases, expected_phases):
 	assert (p_unchanged == p_expected) or (p_inverted == p_expected)
 
 
-def test_phase_three_individuals():
+def test_phase_three_individuals(algorithm):
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		outreadlist = tempdir + '/readlist.tsv'
-		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', read_list_filename=outreadlist, output=outvcf)
+		run_whatshap(
+			phase_input_files=[trio_bamfile],
+			variant_file='tests/data/trio.vcf',
+			read_list_filename=outreadlist,
+			output=outvcf,
+			algorithm=algorithm)
 		assert os.path.isfile(outvcf)
 		assert os.path.isfile(outreadlist)
 
@@ -158,10 +225,15 @@ def test_phase_three_individuals():
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
 
 
-def test_phase_one_of_three_individuals():
+def test_phase_one_of_three_individuals(algorithm):
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
-		run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf', output=outvcf, samples=['HG003'])
+		run_whatshap(
+			phase_input_files=[trio_bamfile],
+			variant_file='tests/data/trio.vcf',
+			output=outvcf,
+			samples=['HG003'],
+			algorithm=algorithm)
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf, phases=True))
@@ -197,6 +269,19 @@ def test_phase_trio():
 		assert_phasing(table.phases_of('HG004'), [phase0, phase0, phase0, phase0, phase0])
 		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
 		assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
+
+
+def test_phase_trio_hapchat() :
+	# This needs to fail because pedigree phasing is not (yet) a
+	# feature of hapchat
+	with raises(SystemExit) :
+		run_whatshap(
+			phase_input_files=[trio_bamfile],
+			variant_file='tests/data/trio.vcf',
+			output='/dev/null',
+			ped='tests/data/trio.ped',
+			genmap='tests/data/trio.map',
+			algorithm='hapchat')
 
 
 def test_phase_trio_use_ped_samples():
@@ -623,16 +708,23 @@ def test_hapcut2vcf():
 			hapcut='tests/data/pacbio/hapcut.txt', vcf='tests/data/pacbio/variants.vcf', output=out)
 
 
-def test_ignore_read_groups():
-	run_whatshap(variant_file='tests/data/pacbio/variants.vcf',
+def test_ignore_read_groups(algorithm):
+	run_whatshap(
+		variant_file='tests/data/pacbio/variants.vcf',
 		phase_input_files=['tests/data/pacbio/pacbio.bam'],
-		reference='tests/data/pacbio/reference.fasta', ignore_read_groups=True, output='/dev/null')
+		reference='tests/data/pacbio/reference.fasta',
+		ignore_read_groups=True,
+		output='/dev/null',
+		algorithm=algorithm)
 
 
-def test_readgroup_without_sample_name():
-	run_whatshap(phase_input_files=['tests/data/oneread-readgroup-without-sample.bam'],
+def test_readgroup_without_sample_name(algorithm):
+	run_whatshap(
+		phase_input_files=['tests/data/oneread-readgroup-without-sample.bam'],
 		variant_file='tests/data/onevariant.vcf',
-		output='/dev/null', ignore_read_groups=True)
+		output='/dev/null',
+		ignore_read_groups=True,
+		algorithm=algorithm)
 
 
 def test_genetic_haplotyping():
@@ -683,14 +775,38 @@ def test_quartet2():
 		ped='tests/data/quartet2.ped', output='/dev/null')
 
 
-def test_phased_blocks():
+@mark.parametrize('algorithm,expected_blocks', [
+	('whatshap', [10, 10, None, 200, 200]),
+	('hapchat', [10, 10, 10, 10, 10]),
+])
+def test_phased_blocks(algorithm, expected_blocks):
+	# This test involves a simple example on a pair of reads which
+	# overlap a single site which is homozygous.  While we are
+	# distrusting genotypes AND including homozygous sites, i.e.,
+	# we are doing full genotyping, if we were phasing purely from
+	# the reads, then whether or not the pair of reads falls on
+	# the same or different haplotypes should not matter.  With
+	# this in mind, reasoning with genotype likelihoods slighly
+	# disfavours a cis-phasing of this pair, which is what
+	# whatshap does.  While hapchat, however, does take into
+	# account genotype likelihoods, while making the
+	# all-heterozygous assumption, hence cis-phasing this pair.
+
+	# Note that taking into account genotype likelihoods is a
+	# future work planned for hapchat.  Since the nature of the
+	# hapchat DP scheme is such that relaxing the all-heterozygous
+	# assumption would be too costly in terms of runtime and
+	# memory, a possibility is to (re-) exclude homozygous sites
+	# in a preprocessing step based on some threshold on the
+	# genotype likelihoods.
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_whatshap(
 			phase_input_files=[short_bamfile],
 			variant_file='tests/data/short-genome/short.vcf',
 			ignore_read_groups=True, distrust_genotypes=True,
-			include_homozygous=True, output=outvcf)
+			include_homozygous=True, output=outvcf,
+			algorithm=algorithm)
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf, phases=True))
@@ -701,10 +817,20 @@ def test_phased_blocks():
 		assert table.samples == ['sample']
 
 		blocks = [(p.block_id if p is not None else None) for p in table.phases_of('sample')]
-		assert blocks == [10, 10, None, 200, 200]
+		assert blocks == expected_blocks
 
 
-def test_duplicate_read():
+@mark.parametrize('algorithm,expected_block', [
+	('whatshap', [10, 10, None, None, None]),
+	('hapchat', [10, 10, 10, None, None]),
+])
+def test_duplicate_read(algorithm, expected_block):
+	# This test is very similar to the previous test_phased_blocks
+	# test, except that there is just a single read this time,
+	# with homozygous site.  Still, since hapchat would rather
+	# phase this homozygous site, since the context is full
+	# genotyping, it does so, regardless of any genotype
+	# likelihood.  See above test for more details.
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_whatshap(
@@ -713,7 +839,8 @@ def test_duplicate_read():
 			ignore_read_groups=True,
 			distrust_genotypes=True,
 			include_homozygous=True,
-			output=outvcf)
+			output=outvcf,
+			algorithm=algorithm)
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf, phases=True))
@@ -724,24 +851,30 @@ def test_duplicate_read():
 		assert table.samples == ['sample']
 
 		blocks = [(p.block_id if p is not None else None) for p in table.phases_of('sample')]
-		assert blocks == [10, 10, None, None, None]
+		assert blocks == expected_block
 
 
-def test_wrong_chromosome():
+def test_wrong_chromosome(algorithm):
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		with raises(SystemExit):
-			run_whatshap(phase_input_files=[short_bamfile],
+			run_whatshap(
+				phase_input_files=[short_bamfile],
 				ignore_read_groups=True,
-				variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)
+				variant_file='tests/data/short-genome/wrongchromosome.vcf',
+				output=outvcf,
+				algorithm=algorithm)
 
 
-def test_indel_phasing():
+def test_indel_phasing(algorithm):
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_whatshap(
-			phase_input_files=[indels_bamfile], indels=True, variant_file='tests/data/indels.vcf',
-			reference='tests/data/random0.fasta', output=outvcf)
+			phase_input_files=[indels_bamfile],
+			indels=True, variant_file='tests/data/indels.vcf',
+			reference='tests/data/random0.fasta',
+			output=outvcf,
+			algorithm=algorithm)
 		assert os.path.isfile(outvcf)
 
 		tables = list(VcfReader(outvcf, indels=True, phases=True))
@@ -756,16 +889,20 @@ def test_indel_phasing():
 		assert_phasing(table.phases_of('sample1'), [phase0, phase1, phase0, phase1])
 
 
-def test_full_genotyping():
+def test_full_genotyping(algorithm):
 	run_whatshap(
-		phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
-		output='/dev/null', full_genotyping=True)
+		phase_input_files=['tests/data/oneread.bam'],
+		variant_file='tests/data/onevariant.vcf',
+		output='/dev/null',
+		full_genotyping=True,
+		algorithm=algorithm)
 
 
-def test_with_read_merging() :
+def test_with_read_merging(algorithm) :
 	run_whatshap(
 		phase_input_files=['tests/data/pacbio/pacbio.bam'],
 		variant_file='tests/data/pacbio/variants.vcf',
 		reference='tests/data/pacbio/reference.fasta',
 		output='/dev/null',
-		read_merging=True)
+		read_merging=True,
+		algorithm=algorithm)

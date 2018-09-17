@@ -169,6 +169,7 @@ cdef class Read:
 		assert self.thisptr != NULL
 		return self.thisptr.hasBXTag()
 
+
 cdef class ReadSet:
 	def __cinit__(self):
 		self.thisptr = new cpp.ReadSet()
@@ -249,6 +250,7 @@ cdef class ReadSet:
 		del v
 		return result
 
+
 cdef class PedigreeDPTable:
 	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree, bool distrust_genotypes = False, positions = None):
 		"""Build the DP table from the given read set which is assumed to be sorted;
@@ -279,7 +281,7 @@ cdef class PedigreeDPTable:
 			read_sets.push_back(new cpp.ReadSet())
 		transmission_vector_ptr = new vector[unsigned int]()
 		self.thisptr.get_super_reads(read_sets, transmission_vector_ptr)
-
+		
 		results = []
 		for i in range(read_sets.size()):
 			rs = ReadSet()
@@ -395,6 +397,7 @@ cdef class GenotypeDPTable:
 	def get_genotype_likelihoods(self, sample_id, unsigned int pos):
 		return self.thisptr.get_genotype_likelihoods(self.numeric_sample_ids[sample_id],pos)
 
+
 def compute_genotypes(ReadSet readset, positions = None):
 	cdef vector[int]* genotypes_vector = new vector[int]()
 	cdef vector[cpp.GenotypeDistribution]* gl_vector = new vector[cpp.GenotypeDistribution]()
@@ -409,6 +412,37 @@ def compute_genotypes(ReadSet readset, positions = None):
 	del genotypes_vector
 	del gl_vector
 	return genotypes, gls
+
+
+cdef class HapChatCore:
+	def __cinit__(self, ReadSet readset):
+		self.thisptr = new cpp.HapChatCore(readset.thisptr)
+	def __dealloc__(self):
+		del self.thisptr
+	def get_length(self):
+		return self.thisptr.get_length()
+	def get_super_reads(self):
+		cdef vector[cpp.ReadSet*]* read_sets = new vector[cpp.ReadSet*]()
+		leng=self.thisptr.get_length()
+		for i in range(leng):
+			read_sets.push_back(new cpp.ReadSet())
+		self.thisptr.get_super_reads(read_sets)
+		
+		results = []
+		for i in range(read_sets.size()):
+			rs = ReadSet()
+			del rs.thisptr
+			rs.thisptr = deref(read_sets)[i]
+			results.append(rs)
+		
+		return results, None
+	def get_optimal_cost(self):
+		return self.thisptr.get_optimal_cost()
+	def get_optimal_partitioning(self):
+		cdef vector[bool]* p = self.thisptr.get_optimal_partitioning()
+		result = ['*' for x in p[0]]
+		del p
+		return result
 
 
 include 'readselect.pyx'

@@ -2,11 +2,16 @@ import math
 import os
 from tempfile import TemporaryDirectory
 
-from pytest import raises, approx
+from pytest import raises, approx, fixture
 from whatshap.core import PhredGenotypeLikelihoods
 from whatshap.phase import run_whatshap
 from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant, \
 	GenotypeLikelihoods
+
+
+@fixture(params=['whatshap', 'hapchat'])
+def algorithm(request) :
+	return request.param
 
 
 def test_read_phased():
@@ -221,12 +226,16 @@ def test_read_duplicate_position():
 	assert table.variants[1].alternative_allele == 'A'
 
 
-def test_do_not_phase_duplicate_position():
+def test_do_not_phase_duplicate_position(algorithm):
 	"""Ensure HP tag is added only to first of duplicate positions"""
 	with TemporaryDirectory() as tmpdir:
 		tmpvcf = os.path.join(tmpdir, 'duplicate-positions-phased.vcf')
-		run_whatshap(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/duplicate-positions.vcf',
-			output=tmpvcf)
+		run_whatshap(
+			phase_input_files=['tests/data/oneread.bam'],
+			variant_file='tests/data/duplicate-positions.vcf',
+			output=tmpvcf,
+			algorithm=algorithm)
+
 		import vcf
 		seen_positions = set()
 		records = list(vcf.Reader(filename=tmpvcf))

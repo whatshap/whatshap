@@ -20,7 +20,7 @@ from networkx import Graph, number_of_nodes, number_of_edges, connected_componen
 from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
 from . import __version__
-from .core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes
+from .core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, HapChatCore
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
@@ -497,7 +497,8 @@ def run_whatshap(
 		gtchange_list_filename=None,
 		default_gq=30,
 		write_command_line_header=True,
-		use_ped_samples=False
+		use_ped_samples=False,
+		algorithm='whatshap'
 	):
 	"""
 	Run WhatsHap.
@@ -523,6 +524,7 @@ def run_whatshap(
 	recombination_list_filename -- filename to write putative recombination events to
 	tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
 	read_list_filename -- name of file to write list of used reads to
+	algorithm -- algorithm to use, can be 'whatshap' or 'hapchat'
 	gl_regularizer -- float to be passed as regularization constant to GenotypeLikelihoods.as_phred
 	gtchange_list_filename -- filename to write list of changed genotypes to
 	default_gq -- genotype likelihood to be used when GL or PL not available
@@ -612,6 +614,10 @@ def run_whatshap(
 		family_finder = ComponentFinder(samples)
 
 		if ped:
+			if algorithm == 'hapchat' :
+				logger.error('The hapchat algorithm (for the time being) does single '
+					'individual phasing only, hence it does not handle pedigrees')
+				sys.exit(1)
 			all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, samples)
 			if genmap:
 				logger.info('Using region-specific recombination rates from genetic map %s.', genmap)
@@ -849,9 +855,17 @@ def run_whatshap(
 					problem_name = 'MEC' if len(family) == 1 else 'PedMEC'
 					logger.info('Phasing %d sample%s by solving the %s problem ...',
 						len(family), 's' if len(family) > 1 else '', problem_name)
-					dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
+
+					dp_table = None
+					if algorithm == 'hapchat' :
+						dp_table = HapChatCore(all_reads)
+					else :
+						dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
+
 					superreads_list, transmission_vector = dp_table.get_super_reads()
-					logger.info('%s cost: %d', problem_name, dp_table.get_optimal_cost())
+					optimal_cost = dp_table.get_optimal_cost()
+					logger.info('%s cost: %d', problem_name, optimal_cost)
+
 				with timers('components'):
 					master_block = None
 					heterozygous_positions_by_sample = None
@@ -912,6 +926,11 @@ def run_whatshap(
 					components[sample] = overall_components
 
 				if read_list_file:
+					if algorithm == 'hapchat' :
+						logger.warning(''
+'On which haplotype a read occurs in the inferred solution is not yet '
+'implemented in hapchat (TODO), and so the corresponding column in the '
+'read list file contains no information about this')
 					write_read_list(all_reads, dp_table.get_optimal_partitioning(), components, numeric_sample_ids, read_list_file)
 
 			with timers('write_vcf'):
@@ -979,6 +998,9 @@ def add_arguments(parser):
 			'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')
 	arg('--output-read-list', metavar='FILE', default=None, dest='read_list_filename',
 		help='Write reads that have been used for phasing to FILE.')
+	arg('--algorithm', choices=('whatshap', 'hapchat'), default = 'whatshap',
+		help='Choose an algorithm from whatshap or hapchat '
+			'(default: %(default)s)')
 
 	arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
 	arg('--merge-reads', dest = 'read_merging', default=False, action='store_true',

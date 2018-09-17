@@ -27,7 +27,12 @@ cdef class PedigreeDPTable:
 cdef class PhredGenotypeLikelihoods:
 	cdef cpp.PhredGenotypeLikelihoods *thisptr
 
+
 cdef class GenotypeDPTable:
 	cdef cpp.GenotypeDPTable *thisptr
 	cdef Pedigree pedigree
 	cdef NumericSampleIds numeric_sample_ids
+
+
+cdef class HapChatCore:
+	cdef cpp.HapChatCore *thisptr
