@@ -171,7 +171,7 @@ def test_diploid_phase3():
 # TODO approach to contructing partitioning works badly in such examples since intersection
 # of variants covered by all reads in a window is small
 # ==> several unconnected blocks and many unphased variants result
-#def test_diploid_phase4():
+#def test_diploid_phase5():
 #	reads = """
 #	  0             0
 #	  110111111111
@@ -185,34 +185,42 @@ def test_diploid_phase3():
 
 # TODO polyploid phasing not yet fully implemented!
 
-#def test_phase_trivial():
-#	reads = """
-#          111
-#          010
-#          101
-#	"""
-#	check_phasing_single_individual(reads, [2,2,2], 3, 3, 3)
-#
-#def test_phase1():
-#	reads = """
-#         11111
-#         00111
-#         11100
-#         11100
-#	"""
-#	check_phasing_single_individual(reads,[2,2,3,2,2], 3, 3, 5)
-#
-#def test_phase2():
-#	reads = """
-#         1111111
-#         0101011
-#         0011110
-#         0111011
-#         1111101
-#	"""
-#	check_phasing_single_individual(reads, [1,2,3,3,2,3,2], 3, 3, 5)
-#
-#def test_phase3():
+def test_polyploid_phase1():
+	reads = """
+          111
+          010
+          101
+	"""
+	genotypes = create_genotype_vector(3, [2,2,2])
+	check_phasing_single_individual(reads, genotypes, 3, 3, 3)
+
+def test_polyploid_phase2():
+	reads = """
+         11111
+         00111
+         11100
+         11100
+	"""
+	genotypes = create_genotype_vector(3, [2,2,3,2,2])
+	check_phasing_single_individual(reads, genotypes, 3, 3, 5)
+
+def test_polyploid_phase3():
+	reads = """
+         1111111
+         0101011
+         0011110
+         0111011
+         1111101
+	"""
+	genotypes = create_genotype_vector(3, [1,2,3,3,2,3,2])
+	check_phasing_single_individual(reads, genotypes, 3, 3, 5)
+
+# TODO: connection reads 1 and 5,6 are never in the same window.
+#	they will be put in the same set, since they are never compared
+#	and the others do not give any 'hints' on whether to cluster
+#	1 / 5,6 / ... or  1,5,6 / ..
+#	leads to wrong partitioning and much higher MEC score
+#def test_polyploid_phase4():
 #	reads="""
 #        1111011
 #        0101110
@@ -222,20 +230,22 @@ def test_diploid_phase3():
 #        0000001
 #        0000000
 #	"""
-#	check_phasing_single_individual(reads, [2,2,2,2,2,3,3], 4, 5, 5)
-#
-#def test_phase4():
-#	reads="""
-#        00000
-#        00010
-#        00101
-#        01101
-#        10001
-#        01110
-#	"""
-#	check_phasing_single_individual(reads, [1,1,2,1,1], 4, 6, 5)
-#
-#def test_phase4():
+#	genotypes = create_genotype_vector(4, [2,2,2,2,2,3,3])
+#	check_phasing_single_individual(reads, genotypes, 4, 5, 5)
+
+def test_polyploid_phase5():
+	reads="""
+        00000
+        00010
+        00101
+        01101
+        10001
+        01110
+	"""
+	genotypes =  create_genotype_vector(4, [1,1,2,1,1])
+	check_phasing_single_individual(reads, genotypes, 4, 6, 5)
+
+#def test_polyploid_phase6():
 #	reads="""
 #        11110000
 #        10101010
@@ -246,9 +256,10 @@ def test_diploid_phase3():
 #        11001100
 #        00110011 
 #	"""
-#	check_phasing_single_individual(reads, [4,4,4,4,3,3,3,3], 8, 10, 5)
+#	genotypes = create_genotype_vector(8, [4,4,4,4,3,3,3,3])
+#	check_phasing_single_individual(reads, genotypes, 8, 10, 5)
 #
-#def test_phase5():
+#def test_polyploid_phase7():
 #	reads="""
 #        11111111
 #        11111111
@@ -259,4 +270,5 @@ def test_diploid_phase3():
 #        00000000
 #        00001111
 #	"""
-#	check_phasing_single_individual(reads, [2,2,2,2,3,3,3,4], 7, 10, 5)
+#	genotypes = create_genotype_vector(7, [2,2,2,2,3,3,3,4])
+#	check_phasing_single_individual(reads, genotypes, 7, 10, 5)

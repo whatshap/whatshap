@@ -69,15 +69,15 @@ def solve_MEC(cluster_matrix, ploidy):
 #	print('SUPERREADS:', dp_table.get_super_reads()[0][0], dp_table.get_optimal_cost())
 
 
-def reorder_optimal_partitioning(readset1, partitioning, readset2):
-	"""
-	order the partitioning according to the read order in readset2.
-	"""
-	# map read id to partition (since sorting of reads can be different)
-	read_to_partition = {}
-	for i,read in enumerate(readset1):
-		read_to_partition[read.name] = partitioning[i]
-	return [ read_to_partition[r.name] for r in readset2]
+#def reorder_optimal_partitioning(readset1, partitioning, readset2):
+#	"""
+#	order the partitioning according to the read order in readset2.
+#	"""
+#	# map read id to partition (since sorting of reads can be different)
+#	read_to_partition = {}
+#	for i,read in enumerate(readset1):
+#		read_to_partition[read.name] = partitioning[i]
+#	return [ read_to_partition[r.name] for r in readset2]
 
 def test_clustering1():
 	reads = """
