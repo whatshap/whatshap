@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "readset.h"
-#include "phredgenotypelikelihoods.h"
+#include "genotypelikelihoods.h"
 #include "genotype.h"
 
 /** Computes genotypes (and genotype likelihoods) for a given read set. 

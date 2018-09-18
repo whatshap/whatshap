@@ -1,13 +1,13 @@
-#ifndef PHRED_GENOTYPE_LIKELIHOODS_H
-#define PHRED_GENOTYPE_LIKELIHOODS_H
+#ifndef GENOTYPE_LIKELIHOODS_H
+#define GENOTYPE_LIKELIHOODS_H
 
 #include <vector>
 #include <set>
 #include "genotype.h"
 
-class PhredGenotypeLikelihoods {
+class GenotypeLikelihoods {
 public:
-	PhredGenotypeLikelihoods(unsigned int ploidy, unsigned int n_alleles, const std::vector<double>& gl);
+	GenotypeLikelihoods(unsigned int ploidy, unsigned int n_alleles, const std::vector<double>& gl, bool is_phred_scaled = true);
 
 	double get(Genotype genotype) const;
 
@@ -21,13 +21,15 @@ public:
 
 	unsigned int get_n_alleles() const;
 
+	bool is_phred() const;
+
 	Genotype get_likeliest_genotype(double threshold_prob) const;
 
 private:
 	unsigned int ploidy;
 	unsigned int n_alleles;
 	std::vector<double> gl;
+	bool is_phred_scaled;
 };
-
 
 #endif

@@ -1,4 +1,4 @@
-from whatshap.core import Pedigree, PhredGenotypeLikelihoods, NumericSampleIds, Genotype
+from whatshap.core import Pedigree, GenotypeLikelihoods, NumericSampleIds, Genotype
 
 def test_pedigree_no_gls():
 	ped = Pedigree(NumericSampleIds(), 2)
@@ -21,17 +21,17 @@ def test_pedigree_with_gls():
 	ped = Pedigree(NumericSampleIds(), 2)
 	genotypes1 = [Genotype([0,0]), Genotype([0,1]), Genotype([0,0]), Genotype([1,1])]
 	gls1 = [
-		PhredGenotypeLikelihoods(2,2,[0, 1, 2]),
-		PhredGenotypeLikelihoods(2,2,[215, 81, 147]),
-		PhredGenotypeLikelihoods(2,2,[199, 49, 253]),
-		PhredGenotypeLikelihoods(2,2,[167, 200, 163]),
+		GenotypeLikelihoods(2,2,[0, 1, 2]),
+		GenotypeLikelihoods(2,2,[215, 81, 147]),
+		GenotypeLikelihoods(2,2,[199, 49, 253]),
+		GenotypeLikelihoods(2,2,[167, 200, 163]),
 	]
 	genotypes5 = [Genotype([0,1]), Genotype([1,1]), Genotype([1,1]), Genotype([0,0])]
 	gls5 = [
-		PhredGenotypeLikelihoods(2,2,[184, 71, 233]),
-		PhredGenotypeLikelihoods(2,2,[65, 32, 87]),
-		PhredGenotypeLikelihoods(2,2,[28, 215, 131]),
-		PhredGenotypeLikelihoods(2,2,[98, 250, 137]),
+		GenotypeLikelihoods(2,2,[184, 71, 233]),
+		GenotypeLikelihoods(2,2,[65, 32, 87]),
+		GenotypeLikelihoods(2,2,[28, 215, 131]),
+		GenotypeLikelihoods(2,2,[98, 250, 137]),
 	]
 	ped.add_individual('sample1', genotypes1, gls1)
 	assert len(ped) == 1

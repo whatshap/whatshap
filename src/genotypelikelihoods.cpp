@@ -1,7 +1,7 @@
 #include <sstream>
 #include <cassert>
 #include <algorithm>
-#include "phredgenotypelikelihoods.h"
+#include "genotypelikelihoods.h"
 #include "binomial.h"
 #include<iostream>
 
@@ -34,26 +34,26 @@ Genotype index_to_genotype(unsigned int genotype_index, unsigned int ploidy){
 	return Genotype(alleles);
 }
 
-PhredGenotypeLikelihoods::PhredGenotypeLikelihoods(unsigned int ploidy, unsigned int n_alleles, const vector<double>& gl) :ploidy(ploidy), n_alleles(n_alleles), gl(gl) 
+GenotypeLikelihoods::GenotypeLikelihoods(unsigned int ploidy, unsigned int n_alleles, const vector<double>& gl, bool is_phred_scaled) :ploidy(ploidy), n_alleles(n_alleles), gl(gl), is_phred_scaled(is_phred_scaled)
 {}
 
-double PhredGenotypeLikelihoods::get(Genotype genotype) const {
+double GenotypeLikelihoods::get(Genotype genotype) const {
 	unsigned int index = genotype.get_index(ploidy, n_alleles);
 	assert(index < gl.size());
 	return this->gl[index];
 }
 
-const vector<double>& PhredGenotypeLikelihoods::as_vector() const {
+const vector<double>& GenotypeLikelihoods::as_vector() const {
 	return gl;
 }
 
-size_t PhredGenotypeLikelihoods::genotype_count() const {
+size_t GenotypeLikelihoods::genotype_count() const {
 	return gl.size();
 }
 
-std::string PhredGenotypeLikelihoods::toString() const {
+std::string GenotypeLikelihoods::toString() const {
 	ostringstream oss;
-	oss << "PhredGenotypeLikelihoods( ";
+	oss << "GenotypeLikelihoods( ";
 	for (size_t i = 0; i < gl.size(); i++){
 		if (i > 0) oss << ",";
 		oss << gl[i];
@@ -63,15 +63,20 @@ std::string PhredGenotypeLikelihoods::toString() const {
 	return oss.str();
 }
 
-unsigned int PhredGenotypeLikelihoods::get_ploidy() const {
+unsigned int GenotypeLikelihoods::get_ploidy() const {
 	return ploidy;
 }
 
-unsigned int PhredGenotypeLikelihoods::get_n_alleles() const {
+unsigned int GenotypeLikelihoods::get_n_alleles() const {
 	return n_alleles;
 }
 
-Genotype PhredGenotypeLikelihoods::get_likeliest_genotype(double threshold_prob) const {
+bool GenotypeLikelihoods::is_phred() const {
+	return is_phred_scaled;
+}
+
+// TODO if is_phred, the likeliest genotype is the one with minimum score
+Genotype GenotypeLikelihoods::get_likeliest_genotype(double threshold_prob) const {
 	// vector of (likelihood,index) pairs
 	vector< pair<double,unsigned int> > likelihoods;
 	for ( size_t i = 0; i < gl.size(); i++){

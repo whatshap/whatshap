@@ -2,7 +2,7 @@
 #include "../read.h"
 #include "../pedigree.h"
 #include "../pedigreepartitions.h"
-#include "../phredgenotypelikelihoods.h"
+#include "../genotypelikelihoods.h"
 #include "../genotypedptable.h"
 #include "../pedigree.h"
 #include "../pedigreecolumncostcomputer.h"
@@ -162,17 +162,17 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
         vector<unsigned int> recombcost(positions->size(), 10);
         Pedigree* pedigree = new Pedigree(2);
 
-        vector<PhredGenotypeLikelihoods*> gl_mother;
-        vector<PhredGenotypeLikelihoods*> gl_father;
-        vector<PhredGenotypeLikelihoods*> gl_child;
+        vector<GenotypeLikelihoods*> gl_mother;
+        vector<GenotypeLikelihoods*> gl_father;
+        vector<GenotypeLikelihoods*> gl_child;
         vector<Genotype*> gt_mother;
         vector<Genotype*> gt_father;
         vector<Genotype*> gt_child;
 
         for(unsigned int i = 0; i < positions->size(); i++){
-            PhredGenotypeLikelihoods* n_m = new PhredGenotypeLikelihoods(2,2,{1/3.0,1/3.0,1/3.0});
-            PhredGenotypeLikelihoods* n_f = new PhredGenotypeLikelihoods(2,2,{1/3.0,1/3.0,1/3.0});
-            PhredGenotypeLikelihoods* n_c = new PhredGenotypeLikelihoods(2,2,{1/3.0,1/3.0,1/3.0});
+            GenotypeLikelihoods* n_m = new GenotypeLikelihoods(2,2,{1/3.0,1/3.0,1/3.0},false);
+            GenotypeLikelihoods* n_f = new GenotypeLikelihoods(2,2,{1/3.0,1/3.0,1/3.0},false);
+            GenotypeLikelihoods* n_c = new GenotypeLikelihoods(2,2,{1/3.0,1/3.0,1/3.0},false);
             gl_mother.push_back(n_m);
             gl_father.push_back(n_f);
             gl_child.push_back(n_c);
@@ -243,17 +243,17 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
         vector<unsigned int> recombcost(positions->size(), 10);
         Pedigree* pedigree = new Pedigree(2);
 
-        vector<PhredGenotypeLikelihoods*> gl_mother;
-        vector<PhredGenotypeLikelihoods*> gl_father;
-        vector<PhredGenotypeLikelihoods*> gl_child;
+        vector<GenotypeLikelihoods*> gl_mother;
+        vector<GenotypeLikelihoods*> gl_father;
+        vector<GenotypeLikelihoods*> gl_child;
         vector<Genotype*> gt_mother;
         vector<Genotype*> gt_father;
         vector<Genotype*> gt_child;
 
         for(unsigned int i = 0; i < positions->size(); i++){
-            PhredGenotypeLikelihoods* n_m = new PhredGenotypeLikelihoods(2,2,{0,1,0});
-            PhredGenotypeLikelihoods* n_f = new PhredGenotypeLikelihoods(2,2,{0,1,0});
-            PhredGenotypeLikelihoods* n_c = new PhredGenotypeLikelihoods(2,2,{0.25,0.5,0.25});
+            GenotypeLikelihoods* n_m = new GenotypeLikelihoods(2,2,{0,1,0},false);
+            GenotypeLikelihoods* n_f = new GenotypeLikelihoods(2,2,{0,1,0},false);
+            GenotypeLikelihoods* n_c = new GenotypeLikelihoods(2,2,{0.25,0.5,0.25},false);
             gl_mother.push_back(n_m);
             gl_father.push_back(n_f);
             gl_child.push_back(n_c);
@@ -316,10 +316,10 @@ TEST_CASE("test transition prob computer", "[test transition prob computer]"){
        vector<unsigned int> recombcost(positions->size(), 10);
        Pedigree* pedigree = new Pedigree(2);
 
-       vector<PhredGenotypeLikelihoods*> gl;
+       vector<GenotypeLikelihoods*> gl;
        vector<Genotype*> gt;
        for(unsigned int i = 0; i < positions->size(); i++){
-           PhredGenotypeLikelihoods* n = new PhredGenotypeLikelihoods(2,2,{1/3.0,1/3.0,1/3.0});
+           GenotypeLikelihoods* n = new GenotypeLikelihoods(2,2,{1/3.0,1/3.0,1/3.0},false);
            gl.push_back(n);
            Genotype* g = new Genotype({0,1});
            gt.push_back(g);
@@ -363,7 +363,7 @@ TEST_CASE("test ColumnCostComputers","[test column_cost_computer]"){
     for(unsigned int r = 0; r < reads.size(); r++){
         ReadSet* read_set = string_to_readset(reads[r],weights,false);
         vector<unsigned int>* positions = read_set->get_positions();
-        vector<PhredGenotypeLikelihoods*> genotype_likelihoods(positions->size(),nullptr);
+        vector<GenotypeLikelihoods*> genotype_likelihoods(positions->size(),nullptr);
         vector<Genotype*> genotypes;
         for(unsigned int i = 0; i < positions->size(); i++){
            genotypes.push_back(new Genotype({0,1}));
@@ -630,10 +630,10 @@ TEST_CASE("test polyploid_column_costs","[test column_cost_computer]"){
     for(unsigned int r = 0; r < reads.size(); r++){
         ReadSet* read_set = string_to_readset(reads[r],weights,false);
         vector<unsigned int>* positions = read_set->get_positions();
-        vector<PhredGenotypeLikelihoods*> genotype_likelihoods;
+        vector<GenotypeLikelihoods*> genotype_likelihoods;
         vector<Genotype*> genotypes;
         for(unsigned int pos = 0; pos < positions->size(); ++pos){
-            genotype_likelihoods.push_back(new PhredGenotypeLikelihoods(2,2,{0,0,0,0}));
+            genotype_likelihoods.push_back(new GenotypeLikelihoods(2,2,{0,0,0,0},false));
             genotypes.push_back(new Genotype({0,1}));
         }
 

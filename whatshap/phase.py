@@ -18,9 +18,9 @@ from xopen import xopen
 from networkx import Graph, number_of_nodes, number_of_edges, connected_components, node_connected_component, shortest_path
 
 from contextlib import ExitStack
-from .vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods, VcfGenotype
+from .vcf import VcfReader, PhasedVcfWriter, VcfGenotypeLikelihoods, VcfGenotype
 from . import __version__
-from .core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, Genotype, compute_genotypes
+from .core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, GenotypeLikelihoods, Genotype, compute_genotypes
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
@@ -526,7 +526,7 @@ def run_whatshap(
 	recombination_list_filename -- filename to write putative recombination events to
 	tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
 	read_list_filename -- name of file to write list of used reads to
-	gl_regularizer -- float to be passed as regularization constant to GenotypeLikelihoods.as_phred
+	gl_regularizer -- float to be passed as regularization constant to VcfGenotypeLikelihoods.as_phred
 	gtchange_list_filename -- filename to write list of changed genotypes to
 	default_gq -- genotype likelihood to be used when GL or PL not available
 	write_command_line_header -- whether to add a ##commandline header to the output VCF
@@ -681,7 +681,7 @@ def run_whatshap(
 						readset.sort()
 						genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
 						variant_table.set_genotypes_of(sample, [VcfGenotype(gt) for gt in genotypes])
-						variant_table.set_genotype_likelihoods_of(sample, [GenotypeLikelihoods(gl) for gl in genotype_likelihoods])
+						variant_table.set_genotype_likelihoods_of(sample, [VcfGenotypeLikelihoods(gl) for gl in genotype_likelihoods])
 
 			# These two variables hold the phasing results for all samples
 			superreads, components = dict(), dict()
@@ -830,9 +830,9 @@ def run_whatshap(
 								# ... which gets a 0
 								index = gt.get_genotype().get_index(2,2)
 								x[index] = 0
-								genotype_likelihoods.append(PhredGenotypeLikelihoods(2,2,x))
+								genotype_likelihoods.append(GenotypeLikelihoods(2,2,x))
 							else:
-								genotype_likelihoods.append(gl.as_phred(gl_regularizer))
+								genotype_likelihoods.append(gl.as_phred(2,2,gl_regularizer))
 					else:
 						genotype_likelihoods = None
 					ind_genotypes = [gt.get_genotype() for gt in phasable_variant_table.genotypes_of(sample)]

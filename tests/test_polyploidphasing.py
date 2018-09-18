@@ -1,4 +1,4 @@
-from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, Genotype
+from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, GenotypeLikelihoods, Genotype
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 from whatshap.phase import find_components
 from whatshap.readsetpruning import ReadSetPruning
@@ -21,7 +21,7 @@ def solve_MEC(cluster_matrix, ploidy, cluster_counts):
 	windows = cluster_matrix.get_positions()
 	# TODO compute number of genotypes
 	genotypes = [Genotype([i for i in range(0,ploidy)])] * len(windows)
-	pedigree.add_individual('0',genotypes,[PhredGenotypeLikelihoods(ploidy, ploidy, [0]*(ploidy+1))]*len(windows))
+	pedigree.add_individual('0',genotypes,[GenotypeLikelihoods(ploidy, ploidy, [0]*(ploidy+1))]*len(windows))
 	dp_table = PedigreeDPTable(cluster_matrix, [1]*len(windows), pedigree, ploidy, distrust_genotypes=False, allele_counts=cluster_counts)
 	result = []
 	for i in range(ploidy):
@@ -39,7 +39,7 @@ def derive_haplotypes(reads, positions, ploidy, given_genotypes, precomputed_par
 	"""
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, ploidy)
-	genotype_likelihoods = [None if given_genotypes[0] else PhredGenotypeLikelihoods(ploidy, 2, [0] * (ploidy+1))] * len(positions)
+	genotype_likelihoods = [None if given_genotypes[0] else GenotypeLikelihoods(ploidy, 2, [0] * (ploidy+1))] * len(positions)
 	genotypes = given_genotypes[1] if given_genotypes[0] else [Genotype([])]*len(positions)
 	pedigree.add_individual('0', genotypes, genotype_likelihoods)
 	dp_table = PedigreeDPTable(reads, [1]*len(positions), pedigree, ploidy, distrust_genotypes=not given_genotypes[0], positions=positions, precomputed_partitioning=precomputed_partitioning)

@@ -1,4 +1,4 @@
-from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, Genotype
+from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, GenotypeLikelihoods, Genotype
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 
 def test_phase_empty_readset():
@@ -52,7 +52,7 @@ def check_phasing_single_individual(reads, weights = None):
 	for all_heterozygous in [False, True]:
 		recombcost = [1] * len(positions) # recombination costs 1, should not occur
 		pedigree = Pedigree(NumericSampleIds(), 2)
-		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods(2,2,[0,0,0])] * len(positions)
+		genotype_likelihoods = [None if all_heterozygous else GenotypeLikelihoods(2,2,[0,0,0])] * len(positions)
 		pedigree.add_individual('individual0', [Genotype([0,1])] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 		print('test_phasing: ', readset, pedigree)
 		print("before DP table")
@@ -72,7 +72,7 @@ def check_phasing_single_individual(reads, weights = None):
 	for all_heterozygous in [False, True]:
 		recombcost = [1] * len(positions) # recombination costs 1, should not occur
 		pedigree = Pedigree(NumericSampleIds(), 2)
-		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods(2,2,[0,0,0])] * len(positions)
+		genotype_likelihoods = [None if all_heterozygous else GenotypeLikelihoods(2,2,[0,0,0])] * len(positions)
 		pedigree.add_individual('individual0', [Genotype([0,1])] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 		pedigree.add_individual('individual1', [Genotype([0,1])] * len(positions), genotype_likelihoods) # all genotypes heterozygous
 		pedigree.add_individual('individual2', [Genotype([0,1])] * len(positions), genotype_likelihoods) # all genotypes heterozygous

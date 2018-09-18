@@ -24,8 +24,8 @@ cdef class PedigreeDPTable:
 	cdef Pedigree pedigree
 
 
-cdef class PhredGenotypeLikelihoods:
-	cdef cpp.PhredGenotypeLikelihoods *thisptr
+cdef class GenotypeLikelihoods:
+	cdef cpp.GenotypeLikelihoods *thisptr
 
 cdef class Genotype:
 	cdef cpp.Genotype *thisptr

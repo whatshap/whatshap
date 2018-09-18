@@ -3,7 +3,7 @@ Test phasing of pedigrees (PedMEC algorithm)
 """
 from collections import defaultdict
 from pytest import raises
-from whatshap.core import PedigreeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, Genotype
+from whatshap.core import PedigreeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds, GenotypeLikelihoods, Genotype
 from whatshap.pedigree import centimorgen_to_phred
 from whatshap.testhelpers import string_to_readset, string_to_readset_pedigree, brute_force_phase
 
@@ -411,11 +411,11 @@ def test_phase_trio_genotype_likelihoods():
 	"""
 	pedigree = Pedigree(NumericSampleIds(), 2)
 	genotype_likelihoods_mother = [
-		PhredGenotypeLikelihoods(2,2,[0,0,0]),
-		PhredGenotypeLikelihoods(2,2,[0,0,1]),
-		PhredGenotypeLikelihoods(2,2,[5,0,5])
+		GenotypeLikelihoods(2,2,[0,0,0]),
+		GenotypeLikelihoods(2,2,[0,0,1]),
+		GenotypeLikelihoods(2,2,[5,0,5])
 	]
-	genotype_likelihoods0 = [PhredGenotypeLikelihoods(2,2,[0,0,0])] * 3
+	genotype_likelihoods0 = [GenotypeLikelihoods(2,2,[0,0,0])] * 3
 	pedigree.add_individual('individual0', [Genotype([0,0]), Genotype([0,0]), Genotype([0,0])], genotype_likelihoods_mother)
 	pedigree.add_individual('individual1', [Genotype([0,0]), Genotype([0,0]), Genotype([0,0])], genotype_likelihoods0)
 	pedigree.add_individual('individual2', [Genotype([0,0]), Genotype([0,0]), Genotype([0,0])], genotype_likelihoods0)

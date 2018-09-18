@@ -61,7 +61,7 @@ add_executable(testing test.cpp
  ../pedigreecolumncostcomputer.cpp ../pedigreecolumncostcomputer.h
  ../genotypedptable.cpp  ../genotypedptable.h ../graycodes.cpp 
  ../graycodes.h ../indexset.cpp ../indexset.h
- ../pedigree.cpp ../pedigree.h ../pedigreepartitions.cpp ../pedigreepartitions.h ../phredgenotypelikelihoods.cpp ../phredgenotypelikelihoods.h
+ ../pedigree.cpp ../pedigree.h ../pedigreepartitions.cpp ../pedigreepartitions.h ../genotypelikelihoods.cpp ../genotypelikelihoods.h
  ../read.cpp ../read.h ../readset.cpp ../readset.h  ../backwardcolumniterator.cpp ../backwardcolumniterator.h ../transitionprobabilitycomputer.cpp ../transitionprobabilitycomputer.h
  ../genotype.cpp ../genotype.h ../binomial.cpp ../binomial.h
  ../vector2d.h  catch.hpp)

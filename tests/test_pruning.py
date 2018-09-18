@@ -1,4 +1,4 @@
-from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, Genotype
+from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, GenotypeLikelihoods, Genotype
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 from whatshap.phase import find_components
 from whatshap.readsetpruning import ReadSetPruning
@@ -44,7 +44,7 @@ def solve_MEC(cluster_matrix, ploidy):
 	# TODO number of possible genotypes
 	# allowed genotypes (require different allele for each partition, e.g. gt 0/1/2/3 for ploidy=4)
 	genotypes = [Genotype([i for i in range(0,ploidy)])] * len(windows)
-	pedigree.add_individual('0', genotypes, [PhredGenotypeLikelihoods(ploidy, ploidy,[0]*(ploidy+1))]*len(windows))
+	pedigree.add_individual('0', genotypes, [GenotypeLikelihoods(ploidy, ploidy,[0]*(ploidy+1))]*len(windows))
 	# n_alleles per window == ploidy
 	allele_counts = [ploidy] * len(windows)
 	dp_table = PedigreeDPTable(cluster_matrix, [1]*len(windows), pedigree, ploidy, distrust_genotypes=True, allele_counts=allele_counts)
@@ -64,7 +64,7 @@ def solve_MEC(cluster_matrix, ploidy):
 #	"""
 #	numeric_sample_ids = NumericSampleIds()
 #	pedigree = Pedigree(numeric_sample_ids, ploidy)
-#	pedigree.add_individual('0', genotypes,	[PhredGenotypeLikelihoods([0]*(ploidy+1))]*len(genotypes))
+#	pedigree.add_individual('0', genotypes,	[GenotypeLikelihoods([0]*(ploidy+1))]*len(genotypes))
 #	dp_table = PedigreeDPTable(reads, [1]*len(positions), pedigree, ploidy, False, positions, precomputed_partitioning)
 #	print('SUPERREADS:', dp_table.get_super_reads()[0][0], dp_table.get_optimal_cost())
 

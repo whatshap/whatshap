@@ -8,7 +8,7 @@ import math
 from array import array
 from collections import namedtuple, defaultdict
 import vcf
-from .core import Read, PhredGenotypeLikelihoods, Genotype
+from .core import Read, GenotypeLikelihoods, Genotype
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ class VcfVariant:
 		return VcfVariant(pos, ref, alt)
 
 
-class GenotypeLikelihoods:
+class VcfGenotypeLikelihoods:
 	__slots__ = 'log_prob_genotypes'
 
 	def __init__(self, log_prob_genotypes):
@@ -89,20 +89,20 @@ class GenotypeLikelihoods:
 	def log10_probs(self):
 		return self.log_prob_genotypes
 
-	def log10_prob_of(self, genotype):
-		return self.log10_probs()[genotype]
+	def log10_prob_of(self, genotype_index):
+		return self.log10_probs()[genotype_index]
 
-	def as_phred(self, regularizer=None):
+	def as_phred(self, ploidy, n_alleles, regularizer=None):
 		if regularizer is None:
 			# shift log likelihoods such that the largest one is zero
 			m = max(self.log_prob_genotypes)
-			return PhredGenotypeLikelihoods(len(self.log_prob_genotypes)-1, 2, [ round((prob-m) * -10) for prob in self.log_prob_genotypes ] )
+			return GenotypeLikelihoods(ploidy, n_alleles, [ round((prob-m) * -10) for prob in self.log_prob_genotypes ] )
 		else:
 			p = [ 10**x for x in self.log_prob_genotypes ]
 			s = sum(p)
 			p = [ x/s + regularizer for x in p ]
 			m = max(p)
-			return PhredGenotypeLikelihoods(ploidy, 2, [round(-10*math.log10(x/m)) for x in p] )
+			return GenotypeLikelihoods(ploidy, n_alleles, [round(-10*math.log10(x/m)) for x in p] )
 
 	def as_vector(self):
 		return self.log_prob_genotypes
@@ -174,7 +174,7 @@ class VariantTable:
 		variant -- a VcfVariant
 		genotypes -- iterable of VcfGenotype objects that encode the genotypes of the samples
 		phases -- iterable of VariantCallPhase objects
-		genotype_likelihoods -- iterable of GenotypeLikelihoods objects
+		genotype_likelihoods -- iterable of VcfGenotypeLikelihoods objects
 		"""
 		if len(genotypes) != len(self.genotypes):
 			raise ValueError('Expecting as many genotypes as there are samples')
@@ -188,7 +188,7 @@ class VariantTable:
 			self.phases[i].append(phase)
 		for i, gl in enumerate(genotype_likelihoods):
 			if gl is not None:
-				assert isinstance(gl, GenotypeLikelihoods)
+				assert isinstance(gl, VcfGenotypeLikelihoods)
 			self.genotype_likelihoods[i].append(gl)
 
 	def genotypes_of(self, sample):
@@ -210,7 +210,7 @@ class VariantTable:
 		"""Set genotype likelihoods by sample name"""
 		for gl in genotype_likelihoods:
 			if gl is not None:
-				assert isinstance(gl, GenotypeLikelihoods)
+				assert isinstance(gl, VcfGenotypeLikelihoods)
 		assert len(genotype_likelihoods) == len(self.variants)
 		self.genotype_likelihoods[self._sample_to_index[sample]] = genotype_likelihoods
 
@@ -445,10 +445,10 @@ class VcfReader:
 					# Prefer GLs (floats) over PLs (ints) if both should be present
 					if GL is not None:
 #						assert len(GL) == (self.ploidy + 1)
-						genotype_likelihoods.append(GenotypeLikelihoods(GL))
+						genotype_likelihoods.append(VcfGenotypeLikelihoods(GL))
 					elif PL is not None:
 #						assert len(PL) == (self.ploidy + 1)
-						genotype_likelihoods.append(GenotypeLikelihoods( [pl/-10 for pl in PL] ))
+						genotype_likelihoods.append(VcfGenotypeLikelihoods( [pl/-10 for pl in PL] ))
 					else:
 						genotype_likelihoods.append(None)
 			else:
@@ -821,7 +821,7 @@ class GenotypeVcfWriter:
 					values = call.data._asdict()
 
 					geno = Genotype([])
-					geno_l = GenotypeLikelihoods([1/3.0] * 3)
+					geno_l = VcfGenotypeLikelihoods([1/3.0] * 3)
 					geno_q = '.'
 
 					# for genotyped variants, get computed likelihoods/genotypes (for all others, give uniform likelihoods)

@@ -14,9 +14,9 @@ from collections import defaultdict
 from xopen import xopen
 
 from contextlib import ExitStack
-from .vcf import VcfReader, GenotypeVcfWriter, GenotypeLikelihoods, VcfGenotype
+from .vcf import VcfReader, GenotypeVcfWriter, VcfGenotypeLikelihoods, VcfGenotype
 from . import __version__
-from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable, Genotype, compute_genotypes
+from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, GenotypeLikelihoods, GenotypeDPTable, Genotype, compute_genotypes
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
 			load_genetic_map, uniform_recombination_map, find_recombination)
@@ -31,7 +31,7 @@ from .phase import read_reads, select_reads, split_input_file_list, setup_pedigr
 logger = logging.getLogger(__name__)
 
 def determine_genotype(likelihoods, threshold_prob):
-	p = PhredGenotypeLikelihoods(2,2,likelihoods)
+	p = GenotypeLikelihoods(2,2,likelihoods,False)
 	return p.get_likeliest_genotype(threshold_prob)
 
 #def determine_genotype(likelihoods, threshold_prob):
@@ -248,14 +248,14 @@ def run_genotype(
 							# TODO update determine_genotype!
 							genotypes[gl] = determine_genotype(regularized, gt_prob)
 							reg_genotype_likelihoods.append(regularized)
-						variant_table.set_genotype_likelihoods_of(sample, [GenotypeLikelihoods(gl) for gl in reg_genotype_likelihoods])
+						variant_table.set_genotype_likelihoods_of(sample, [VcfGenotypeLikelihoods(gl) for gl in reg_genotype_likelihoods])
 						variant_table.set_genotypes_of(sample, [VcfGenotype(gt.as_vector()) for gt in genotypes])
 			else:
 
 				# use uniform genotype likelihoods for all individuals
 				for sample in samples:
 					default_likelihoods = [1.0/3.0] * 3
-					variant_table.set_genotype_likelihoods_of(sample, [GenotypeLikelihoods(default_likelihoods)] * len(positions))
+					variant_table.set_genotype_likelihoods_of(sample, [VcfGenotypeLikelihoods(default_likelihoods)] * len(positions))
 
 			# if desired, output the priors in separate vcf
 			if prioroutput != None:
@@ -308,9 +308,7 @@ def run_genotype(
 					# genotypes are assumed to be unknown, so ignore information that
 					# might already be present in the input vcf
 					all_genotype_likelihoods = variant_table.genotype_likelihoods_of(sample)
-					# TODO likelihoods are given as PhredGenotypeLikelihoods to Pedigree, although here, likelihoods are not phred scaled
-					genotype_l = [ PhredGenotypeLikelihoods(2,2,all_genotype_likelihoods[var_to_pos[a_p]].as_vector()) for a_p in accessible_positions]
-#					genotype_l = [ all_genotype_likelihoods[var_to_pos[a_p]] for a_p in accessible_positions]
+					genotype_l = [ GenotypeLikelihoods(2,2,all_genotype_likelihoods[var_to_pos[a_p]].as_vector(),False) for a_p in accessible_positions]
 					pedigree.add_individual(sample, [Genotype([])] * len(accessible_positions), genotype_l)
 				for trio in trios:
 					pedigree.add_relationship(
@@ -341,7 +339,7 @@ def run_genotype(
 							# compute genotypes from likelihoods and store information
 							geno = determine_genotype(likelihoods, gt_prob)
 							genotypes_list[var_to_pos[accessible_positions[pos]]] = VcfGenotype(geno.as_vector())
-							likelihood_list[var_to_pos[accessible_positions[pos]]] = GenotypeLikelihoods(likelihoods)
+							likelihood_list[var_to_pos[accessible_positions[pos]]] = VcfGenotypeLikelihoods(likelihoods)
 
 						print('likelihood_list:', likelihood_list)
 						variant_table.set_genotypes_of(s, genotypes_list)

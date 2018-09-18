@@ -58,12 +58,12 @@ cdef extern from "../src/readset.h":
 cdef extern from "../src/pedigree.h":
 	cdef cppclass Pedigree:
 		Pedigree(unsigned int ploidy) except +
-		void addIndividual(unsigned int id, vector[Genotype*] genotypes, vector[PhredGenotypeLikelihoods*]) except +
+		void addIndividual(unsigned int id, vector[Genotype*] genotypes, vector[GenotypeLikelihoods*]) except +
 		void addRelationship(unsigned int f, unsigned int m, unsigned int c) except +
 		unsigned int size()
 		string toString() except +
 		const Genotype* get_genotype_by_id(unsigned int, unsigned int) except +
-		const PhredGenotypeLikelihoods* get_genotype_likelihoods_by_id(unsigned int, unsigned int) except +
+		const GenotypeLikelihoods* get_genotype_likelihoods_by_id(unsigned int, unsigned int) except +
 		unsigned int get_variant_count() except +
 		unsigned int triple_count() except +
 
@@ -81,11 +81,11 @@ cdef extern from "../src/genotypedptable.h":
 		GenotypeDPTable(ReadSet*, vector[unsigned int], Pedigree* pedigree, unsigned int ploidy, vector[unsigned int]* positions) except +
 		vector[long double] get_genotype_likelihoods(unsigned int individual, unsigned int position) except +
 
-cdef extern from "../src/phredgenotypelikelihoods.h":
-	cdef cppclass PhredGenotypeLikelihoods:
-		PhredGenotypeLikelihoods() except +
-		PhredGenotypeLikelihoods(unsigned int ploidy, unsigned int n_alleles, vector[double]) except +
-		PhredGenotypeLikelihoods(PhredGenotypeLikelihoods) except +
+cdef extern from "../src/genotypelikelihoods.h":
+	cdef cppclass GenotypeLikelihoods:
+		GenotypeLikelihoods() except +
+		GenotypeLikelihoods(unsigned int ploidy, unsigned int n_alleles, vector[double], bool is_phred) except +
+		GenotypeLikelihoods(GenotypeLikelihoods) except +
 		double get(Genotype) except +
 		unsigned int genotype_count() except +
 		vector[double] as_vector() except +
@@ -93,6 +93,7 @@ cdef extern from "../src/phredgenotypelikelihoods.h":
 		unsigned int get_ploidy() except +
 		unsigned int get_n_alleles() except +
 		Genotype get_likeliest_genotype(double threshold_prob) except +
+		bool is_phred() except +
 
 cdef extern from "../src/genotype.h":
 	cdef cppclass Genotype:

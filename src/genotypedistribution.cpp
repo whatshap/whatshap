@@ -87,17 +87,18 @@ GenotypeDistribution operator*(const GenotypeDistribution& d1, const GenotypeDis
 	return GenotypeDistribution(d[0], d[1], d[2]);
 }
 
-PhredGenotypeLikelihoods GenotypeDistribution::toPhredLikelihoods() const {
+GenotypeLikelihoods GenotypeDistribution::toPhredLikelihoods() const {
 	double max = 0.0;
 	for (int i=0; i<3; ++i) {
 		if (distribution[i] > max) max = distribution[i];
 	}
-	if (max == 0.0) return PhredGenotypeLikelihoods(2,2,{0,0,0});
-	return PhredGenotypeLikelihoods(2,2,
+	if (max == 0.0) return GenotypeLikelihoods(2,2,{0,0,0},true);
+	return GenotypeLikelihoods(2,2,
 		{
 			(int)round(min(255.0,-log10(distribution[0]/max)*10.0)),
 			(int)round(min(255.0,-log10(distribution[1]/max)*10.0)),
-			(int)round(min(255.0,-log10(distribution[2]/max)*10.0))
+			(int)round(min(255.0,-log10(distribution[2]/max)*10.0)),
+			true
 		}
 	);
 }

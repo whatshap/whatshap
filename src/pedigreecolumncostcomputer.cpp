@@ -49,7 +49,7 @@ PedigreeColumnCostComputer::PedigreeColumnCostComputer(const std::vector <const 
 				genotype.add_allele(allele);
 			}
 			if (distrust_genotypes) {
-				const PhredGenotypeLikelihoods* gls = pedigree->get_genotype_likelihoods(individuals_index, column_index);
+				const GenotypeLikelihoods* gls = pedigree->get_genotype_likelihoods(individuals_index, column_index);
 				assert(gls != nullptr);
 				cost += gls->get(genotype);
 			} else {

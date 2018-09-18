@@ -29,7 +29,7 @@ Pedigree::~Pedigree() {
 }
 
 
-void Pedigree::addIndividual(unsigned int id, std::vector<Genotype*> genotypes, std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods) {
+void Pedigree::addIndividual(unsigned int id, std::vector<Genotype*> genotypes, std::vector<GenotypeLikelihoods*> genotype_likelihoods) {
 	if (variant_count == -1) {
 		variant_count = genotypes.size();
 	}
@@ -80,12 +80,12 @@ const Genotype* Pedigree::get_genotype_by_id(unsigned int individual_id, unsigne
 }
 
 
-const PhredGenotypeLikelihoods* Pedigree::get_genotype_likelihoods(size_t individual_index, size_t variant_index) const {
+const GenotypeLikelihoods* Pedigree::get_genotype_likelihoods(size_t individual_index, size_t variant_index) const {
 	return genotype_likelihoods[individual_index][variant_index];
 }
 
 
-const PhredGenotypeLikelihoods* Pedigree::get_genotype_likelihoods_by_id(unsigned int individual_id, unsigned int variant_index) const {
+const GenotypeLikelihoods* Pedigree::get_genotype_likelihoods_by_id(unsigned int individual_id, unsigned int variant_index) const {
 	assert(variant_index < variant_count);
 	return get_genotype_likelihoods(id_to_index(individual_id), variant_index);
 }

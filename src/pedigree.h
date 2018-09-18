@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "phredgenotypelikelihoods.h"
+#include "genotypelikelihoods.h"
 #include "genotype.h"
 
 /*
@@ -29,7 +29,7 @@ public:
 
 	/** Add an individual with associated genotypes and genotype_likelihoods.
 	 *  Ownership of pointer given in genotype_likelihoods and genotypes are transferred to Pedigree object. */
-	void addIndividual(unsigned int individual_id, std::vector<Genotype*> genotypes, std::vector<PhredGenotypeLikelihoods*> genotype_likelihoods);
+	void addIndividual(unsigned int individual_id, std::vector<Genotype*> genotypes, std::vector<GenotypeLikelihoods*> genotype_likelihoods);
 
 	// add a relationship (a mother/father/child triple)
 	void addRelationship(unsigned int father_id, unsigned int mother_id, unsigned int child_id);
@@ -45,10 +45,10 @@ public:
 	/** Returns the genotype likelihoods of individual with given index for the given variant_index.
 	 *  Note that index of an individual is not its id (in general), see id_to_index().
 	 */
-	const PhredGenotypeLikelihoods* get_genotype_likelihoods(size_t individual_index, size_t variant_index) const;
+	const GenotypeLikelihoods* get_genotype_likelihoods(size_t individual_index, size_t variant_index) const;
 
 	/** Returns a genotype based on an individuals id. */
-	const PhredGenotypeLikelihoods* get_genotype_likelihoods_by_id(unsigned int individual_id, unsigned int variant_index) const;
+	const GenotypeLikelihoods* get_genotype_likelihoods_by_id(unsigned int individual_id, unsigned int variant_index) const;
 
 	/** Turns the id of an individual into its index. */
 	size_t id_to_index(unsigned int individual_id) const;
@@ -83,7 +83,7 @@ private:
 	std::unordered_map<unsigned int, size_t> id_to_index_map;
 	// genotypes[i][j] is the genotype of individual with index i at locus j.
 	std::vector<std::vector<Genotype*>> genotypes;
-	std::vector<std::vector<PhredGenotypeLikelihoods*>> genotype_likelihoods;
+	std::vector<std::vector<GenotypeLikelihoods*>> genotype_likelihoods;
 };
 
 #endif

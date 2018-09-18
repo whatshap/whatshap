@@ -341,13 +341,13 @@ cdef class Pedigree:
 		cdef vector[cpp.Genotype*] gt_vector
 		for gt in genotypes:
 			gt_vector.push_back(new cpp.Genotype((<Genotype?>gt).thisptr[0]))
-		cdef vector[cpp.PhredGenotypeLikelihoods*] gl_vector
+		cdef vector[cpp.GenotypeLikelihoods*] gl_vector
 		if genotype_likelihoods:
 			for gl in genotype_likelihoods:
 				if gl is None:
 					gl_vector.push_back(NULL)
 				else:
-					gl_vector.push_back(new cpp.PhredGenotypeLikelihoods((<PhredGenotypeLikelihoods?>gl).thisptr[0]) )
+					gl_vector.push_back(new cpp.GenotypeLikelihoods((<GenotypeLikelihoods?>gl).thisptr[0]) )
 		else:
 			for _ in genotypes:
 				gl_vector.push_back(NULL)
@@ -366,11 +366,11 @@ cdef class Pedigree:
 		return Genotype(gt[0].as_vector())
 
 	def genotype_likelihoods(self, sample_id, unsigned int variant_index):
-		cdef const cpp.PhredGenotypeLikelihoods* gl = self.thisptr.get_genotype_likelihoods_by_id(self.numeric_sample_ids[sample_id], variant_index)
+		cdef const cpp.GenotypeLikelihoods* gl = self.thisptr.get_genotype_likelihoods_by_id(self.numeric_sample_ids[sample_id], variant_index)
 		if gl == NULL:
 			return None
 		else:
-			return PhredGenotypeLikelihoods(gl[0].get_ploidy(), gl[0].get_n_alleles(), gl[0].as_vector())
+			return GenotypeLikelihoods(gl[0].get_ploidy(), gl[0].get_n_alleles(), gl[0].as_vector(), gl[0].is_phred())
 
 	def __len__(self):
 		return self.thisptr.size()
@@ -379,9 +379,9 @@ cdef class Pedigree:
 		return self.thisptr.toString().decode('utf-8')
 
 
-cdef class PhredGenotypeLikelihoods:
-	def __cinit__(self, unsigned int ploidy, unsigned int n_alleles, vector[double] gl):
-		self.thisptr = new cpp.PhredGenotypeLikelihoods(ploidy, n_alleles, gl)
+cdef class GenotypeLikelihoods:
+	def __cinit__(self, unsigned int ploidy, unsigned int n_alleles, vector[double] gl, bool is_phred = True):
+		self.thisptr = new cpp.GenotypeLikelihoods(ploidy, n_alleles, gl, is_phred)
 
 	def __dealloc__(self):
 		del self.thisptr
@@ -413,6 +413,9 @@ cdef class PhredGenotypeLikelihoods:
 	def get_likeliest_genotype(self, double threshold_prob):
 		cdef cpp.Genotype gt = self.thisptr.get_likeliest_genotype(threshold_prob)
 		return Genotype(gt.as_vector())
+
+	def is_phred(self):
+		return self.thisptr.is_phred()
 
 
 cdef class Genotype:

@@ -3,7 +3,7 @@
 #include<iostream>
 #include <cassert>
 
-#include "phredgenotypelikelihoods.h"
+#include "genotypelikelihoods.h"
 #include "genotype.h"
 
 using namespace std;
@@ -59,7 +59,7 @@ TransitionProbabilityComputer::TransitionProbabilityComputer(size_t column_index
                 unsigned int allele1 = (a >> partition1) & 1;
 
                 Genotype genotype({allele0,allele1});
-                const PhredGenotypeLikelihoods* gls = pedigree->get_genotype_likelihoods(individuals_index, column_index);
+                const GenotypeLikelihoods* gls = pedigree->get_genotype_likelihoods(individuals_index, column_index);
                 assert(gls != nullptr);
                 prob *= gls->get(genotype);
                 genotype_vector.push_back(genotype);

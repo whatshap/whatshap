@@ -4,7 +4,7 @@ Test genotyping of pedigrees
 import math
 
 from whatshap.core import GenotypeDPTable, ReadSet, Pedigree, NumericSampleIds, \
-	PhredGenotypeLikelihoods, Genotype
+	GenotypeLikelihoods, Genotype
 from whatshap.testhelpers import string_to_readset_pedigree
 
 def create_genotype_vector(expected_genotypes):
@@ -38,7 +38,7 @@ def genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_g
 				assert(likelihoods == expected[individual][pos])
 
 			# find the likeliest genotype
-			p = PhredGenotypeLikelihoods(2,2,likelihoods)
+			p = GenotypeLikelihoods(2,2,likelihoods,False)
 			best_gt = p.get_likeliest_genotype(0);
 
 			# compare it to the expected genotype
@@ -72,9 +72,9 @@ def test_genotyping_trio111():
 	expected_genotypes = create_genotype_vector([[0,0],[2,2],[1,1]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0',[Genotype([0,1]), Genotype([0,1])],[PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 2)
-	pedigree.add_individual('individual1',[Genotype([0,1]), Genotype([0,1])],[PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 2)
-	pedigree.add_individual('individual2',[Genotype([0,1]), Genotype([0,1])],[PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 2)
+	pedigree.add_individual('individual0',[Genotype([0,1]), Genotype([0,1])],[GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 2)
+	pedigree.add_individual('individual1',[Genotype([0,1]), Genotype([0,1])],[GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 2)
+	pedigree.add_individual('individual2',[Genotype([0,1]), Genotype([0,1])],[GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 2)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -99,10 +99,10 @@ def test_genotyping_quartet1():
        expected_genotypes = create_genotype_vector([[1,1,1,1,1,1], [1,1,1,1,1,1], [1,2,1,1,0,1], [0,1,0,0,1,0]])
        numeric_sample_ids = NumericSampleIds()
        pedigree = Pedigree(numeric_sample_ids, 2)
-       pedigree.add_individual('individual0', [Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
-       pedigree.add_individual('individual1', [Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
-       pedigree.add_individual('individual2', [Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
-       pedigree.add_individual('individual3', [Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
+       pedigree.add_individual('individual0', [Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 6)
+       pedigree.add_individual('individual1', [Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 6)
+       pedigree.add_individual('individual2', [Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 6)
+       pedigree.add_individual('individual3', [Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 6)
        pedigree.add_relationship('individual0', 'individual1', 'individual2')
        pedigree.add_relationship('individual0', 'individual1', 'individual3')
        recombcost = [3,3,3,4,3,3]
@@ -121,9 +121,9 @@ def test_genotyping_trio2():
 	expected_genotypes = create_genotype_vector([[0,0] , [2,2], [1,1]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0',[Genotype([0,0])] * 2, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 2)
-	pedigree.add_individual('individual1',[Genotype([0,0])] * 2, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 2)
-	pedigree.add_individual('individual2',[Genotype([0,0])] * 2, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 2)
+	pedigree.add_individual('individual0',[Genotype([0,0])] * 2, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 2)
+	pedigree.add_individual('individual1',[Genotype([0,0])] * 2, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 2)
+	pedigree.add_individual('individual2',[Genotype([0,0])] * 2, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 2)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -149,9 +149,9 @@ def test_genotyping_trio3():
 	expected_genotypes = create_genotype_vector([[1,1,1,1,1,1] , [1,1,1,1,1,1], [1,2,1,1,0,1]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0',[Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
-	pedigree.add_individual('individual1',[Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
-	pedigree.add_individual('individual2',[Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
+	pedigree.add_individual('individual0',[Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 6)
+	pedigree.add_individual('individual1',[Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 6)
+	pedigree.add_individual('individual2',[Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 6)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [3,3,3,4,3,3]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -173,9 +173,9 @@ def test_genotyping_trio4():
 	expected_genotypes = create_genotype_vector([[2,2,2] , [2,1,2], [2,2,2]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0', [Genotype([0,0])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
-	pedigree.add_individual('individual1', [Genotype([0,0])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
-	pedigree.add_individual('individual2', [Genotype([0,0])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual0', [Genotype([0,0])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
+	pedigree.add_individual('individual1', [Genotype([0,0])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
+	pedigree.add_individual('individual2', [Genotype([0,0])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [1,1,1]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -196,9 +196,9 @@ def test_genotyping_trio5():
 	expected_genotypes = create_genotype_vector([[2,2,2] , [2,0,2], [2,1,2]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0', [Genotype([0,0])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
-	pedigree.add_individual('individual1', [Genotype([0,0])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
-	pedigree.add_individual('individual2', [Genotype([0,0])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual0', [Genotype([0,0])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
+	pedigree.add_individual('individual1', [Genotype([0,0])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
+	pedigree.add_individual('individual2', [Genotype([0,0])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [2,2,2]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -219,9 +219,9 @@ def test_genotyping_trio6():
 	expected_genotypes = create_genotype_vector([[1,1,1] , [2,2,2], [1,1,1]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0', [Genotype([0,1])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
-	pedigree.add_individual('individual1', [Genotype([0,1])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
-	pedigree.add_individual('individual2', [Genotype([0,1])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual0', [Genotype([0,1])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
+	pedigree.add_individual('individual1', [Genotype([0,1])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
+	pedigree.add_individual('individual2', [Genotype([0,1])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -244,10 +244,10 @@ def test_genotyping_quartet2():
 	expected_genotypes = create_genotype_vector([[1,2,0] , [1,1,1], [0,1,1], [0,1,1]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0', [Genotype([0,0])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
-	pedigree.add_individual('individual1', [Genotype([0,0])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
-	pedigree.add_individual('individual2', [Genotype([0,0])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
-	pedigree.add_individual('individual3', [Genotype([0,0])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual0', [Genotype([0,0])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
+	pedigree.add_individual('individual1', [Genotype([0,0])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
+	pedigree.add_individual('individual2', [Genotype([0,0])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
+	pedigree.add_individual('individual3', [Genotype([0,0])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	pedigree.add_relationship('individual0', 'individual1', 'individual3')
 	recombcost = [10,10,10]
@@ -267,10 +267,10 @@ def test_genotyping_quartet3():
 	expected_genotypes = create_genotype_vector([[1,1,1,1,1,1] , [1,1,1,1,1,1], [0,1,0,1,0,1], [0,1,0,1,0,1]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0', [Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
-	pedigree.add_individual('individual1', [Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
-	pedigree.add_individual('individual2', [Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
-	pedigree.add_individual('individual3', [Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
+	pedigree.add_individual('individual0', [Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 6)
+	pedigree.add_individual('individual1', [Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 6)
+	pedigree.add_individual('individual2', [Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 6)
+	pedigree.add_individual('individual3', [Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 6)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	pedigree.add_relationship('individual0', 'individual1', 'individual3')
 	recombcost = [3,3,3,3,3,3]
@@ -296,10 +296,10 @@ def test_genotyping_quartet4():
 	expected_genotypes = create_genotype_vector([[1,1,1,1,1,1] , [1,1,1,1,1,1], [1,2,1,1,0,1], [0,1,0,0,1,0]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0',[Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
-	pedigree.add_individual('individual1',[Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
-	pedigree.add_individual('individual2',[Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
-	pedigree.add_individual('individual3',[Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
+	pedigree.add_individual('individual0',[Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 6)
+	pedigree.add_individual('individual1',[Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 6)
+	pedigree.add_individual('individual2',[Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 6)
+	pedigree.add_individual('individual3',[Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 6)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	pedigree.add_relationship('individual0', 'individual1', 'individual3')
 	recombcost = [3,3,3,4,3,3]
@@ -320,9 +320,9 @@ def test_genotyping_trio7():
 	expected_genotypes = create_genotype_vector([[2,2,2] , [2,1,1], [2,1,2]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0',[Genotype([0,0])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
-	pedigree.add_individual('individual1',[Genotype([0,0])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
-	pedigree.add_individual('individual2',[Genotype([0,0])] * 3, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual0',[Genotype([0,0])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
+	pedigree.add_individual('individual1',[Genotype([0,0])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
+	pedigree.add_individual('individual2',[Genotype([0,0])] * 3, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 3)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [1,1,1]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -339,9 +339,9 @@ def test_genotyping_trio8():
 	expected_genotypes = create_genotype_vector([[1,1,1,1] , [2,2,1,0], [1,1,2,1]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0',[Genotype([0,0])] * 4, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
-	pedigree.add_individual('individual1',[Genotype([0,0])] * 4, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
-	pedigree.add_individual('individual2',[Genotype([0,0])] * 4, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
+	pedigree.add_individual('individual0',[Genotype([0,0])] * 4, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 4)
+	pedigree.add_individual('individual1',[Genotype([0,0])] * 4, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 4)
+	pedigree.add_individual('individual2',[Genotype([0,0])] * 4, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 4)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -368,9 +368,9 @@ def test_genotyping_trio9():
 	expected_genotypes = create_genotype_vector([[1,1,1,1] , [2,2,1,0], [1,1,2,1]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0',[Genotype([0,0])] * 4, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
-	pedigree.add_individual('individual1',[Genotype([0,0])] * 4, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
-	pedigree.add_individual('individual2',[Genotype([0,0])] * 4, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
+	pedigree.add_individual('individual0',[Genotype([0,0])] * 4, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 4)
+	pedigree.add_individual('individual1',[Genotype([0,0])] * 4, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 4)
+	pedigree.add_individual('individual2',[Genotype([0,0])] * 4, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 4)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -396,9 +396,9 @@ def test_weighted_genotyping():
 	expected_genotypes = create_genotype_vector([[1,1],[1,1],[2,2]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0',[Genotype([0,0])] * 4, [PhredGenotypeLikelihoods(2,2,[0.25,0.5,0.25])] * 4)
-	pedigree.add_individual('individual1',[Genotype([0,0])] * 4, [PhredGenotypeLikelihoods(2,2,[0.25,0.5,0.25])] * 4)
-	pedigree.add_individual('individual2',[Genotype([0,0])] * 4, [PhredGenotypeLikelihoods(2,2,[0.25,0.5,0.25])] * 4)
+	pedigree.add_individual('individual0',[Genotype([0,0])] * 4, [GenotypeLikelihoods(2,2,[0.25,0.5,0.25],False)] * 4)
+	pedigree.add_individual('individual1',[Genotype([0,0])] * 4, [GenotypeLikelihoods(2,2,[0.25,0.5,0.25],False)] * 4)
+	pedigree.add_individual('individual2',[Genotype([0,0])] * 4, [GenotypeLikelihoods(2,2,[0.25,0.5,0.25],False)] * 4)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	# recombination is extremely unlikely
 	recombcost = [1000,1000,1000,1000]
@@ -426,9 +426,9 @@ def test_genotyping_trio10():
 	expected_genotypes = create_genotype_vector([[2,2,2,2] , [0,0,0,0], [1,1,1,1]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0',[Genotype([0,0])] * 4, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
-	pedigree.add_individual('individual1',[Genotype([0,0])] * 4, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
-	pedigree.add_individual('individual2',[Genotype([0,0])] * 4, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
+	pedigree.add_individual('individual0',[Genotype([0,0])] * 4, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 4)
+	pedigree.add_individual('individual1',[Genotype([0,0])] * 4, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 4)
+	pedigree.add_individual('individual2',[Genotype([0,0])] * 4, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 4)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -445,9 +445,9 @@ def test_genotyping_trio11():
 	expected_genotypes = create_genotype_vector([[1,1,1] , [2,2,1], [1,1,0]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0',[Genotype([0,0])] * 4, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
-	pedigree.add_individual('individual1',[Genotype([0,0])] * 4, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
-	pedigree.add_individual('individual2',[Genotype([0,0])] * 4, [PhredGenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
+	pedigree.add_individual('individual0',[Genotype([0,0])] * 4, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 4)
+	pedigree.add_individual('individual1',[Genotype([0,0])] * 4, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 4)
+	pedigree.add_individual('individual2',[Genotype([0,0])] * 4, [GenotypeLikelihoods(2,2,[1.0/3.0,1.0/3.0,1.0/3.0],False)] * 4)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -468,9 +468,9 @@ def test_genotyping_trio13():
 	expected_genotypes = create_genotype_vector([[1,1,1,1,1,1] , [1,1,1,1,1,1], [1,1,1,1,1,1]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0',[Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[0,1,0])] * 6)
-	pedigree.add_individual('individual1',[Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[0,1,0])] * 6)
-	pedigree.add_individual('individual2',[Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[0.25,0.5,0.25])] * 6)
+	pedigree.add_individual('individual0',[Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[0,1,0],False)] * 6)
+	pedigree.add_individual('individual1',[Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[0,1,0],False)] * 6)
+	pedigree.add_individual('individual2',[Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[0.25,0.5,0.25],False)] * 6)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [1000000,1000000,1000000,1000000,1000000,1000000]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes, scaling=1000)
@@ -487,9 +487,9 @@ def test_genotyping_trio14():
 	expected_genotypes = create_genotype_vector([[2,2,2,2,2,2] , [1,1,1,1,1,1], [1,1,1,1,1,1]])
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, 2)
-	pedigree.add_individual('individual0',[Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1/3.0,1/3.0,1/3.0])] * 6)
-	pedigree.add_individual('individual1',[Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1/3.0,1/3.0,1/3.0])] * 6)
-	pedigree.add_individual('individual2',[Genotype([0,0])] * 6, [PhredGenotypeLikelihoods(2,2,[1/3.0,1/3.0,1/3.0])] * 6)
+	pedigree.add_individual('individual0',[Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1/3.0,1/3.0,1/3.0],False)] * 6)
+	pedigree.add_individual('individual1',[Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1/3.0,1/3.0,1/3.0],False)] * 6)
+	pedigree.add_individual('individual2',[Genotype([0,0])] * 6, [GenotypeLikelihoods(2,2,[1/3.0,1/3.0,1/3.0],False)] * 6)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [1000000,1000000,1000000,1000000,1000000,1000000]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes, scaling=1000)

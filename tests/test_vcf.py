@@ -3,10 +3,10 @@ import os
 from tempfile import TemporaryDirectory
 
 from pytest import raises, approx
-from whatshap.core import PhredGenotypeLikelihoods
+from whatshap.core import GenotypeLikelihoods
 from whatshap.phase import run_whatshap
 from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant, \
-	GenotypeLikelihoods, VcfGenotype
+	VcfGenotypeLikelihoods, VcfGenotype
 
 
 def test_read_phased():
@@ -67,16 +67,16 @@ def test_read_phased_vcf():
 		assert table_b.samples == ['sample1', 'sample2']
 
 		assert len(table_a.genotypes) == 2
-		genotypes1 = [Genotype([0,1]), Genotype([1,1]), Genotype([0,1]), Genotype([0,1])]
-		genotypes2 = [Genotype([0,1])]*4
+		genotypes1 = [VcfGenotype([0,1]), VcfGenotype([1,1]), VcfGenotype([0,1]), VcfGenotype([0,1])]
+		genotypes2 = [VcfGenotype([0,1])]*4
 		assert list(table_a.genotypes[0]) == genotypes1
 		assert list(table_a.genotypes[1]) == genotypes2
 		assert list(table_a.genotypes_of('sample1')) == genotypes1
 		assert list(table_a.genotypes_of('sample2')) == genotypes2
 
 		assert len(table_b.genotypes) == 2
-		genotypes1 = [Genotype([0,0]), Genotype([0,1])]
-		genotypes2 = [Genotype([0,1]), Genotype([1,1])]
+		genotypes1 = [VcfGenotype([0,0]), VcfGenotype([0,1])]
+		genotypes2 = [VcfGenotype([0,1]), VcfGenotype([1,1])]
 		assert list(table_b.genotypes[0]) == genotypes1
 		assert list(table_b.genotypes[1]) == genotypes2
 		assert list(table_b.genotypes_of('sample1')) == genotypes1
@@ -196,7 +196,7 @@ def test_phasing_to_reads():
 def test_unknown_genotype():
 	"""VCF with './.' genotype"""
 	tables = list(VcfReader('tests/data/unknown-genotype.vcf'))
-	assert tables[0].genotypes[1][0] == -1
+	assert tables[0].genotypes[1][0] == VcfGenotype([])
 
 
 def test_normalize():
@@ -265,13 +265,13 @@ def test_read_genotype_likelihoods():
 	assert len(table.variants) == 4
 
 	assert len(table.genotypes) == 2
-	assert list(table.genotypes[0]) == [2, 1, 1, 1]
-	assert list(table.genotypes[1]) == [1, 0, 0, 1]
+	assert list(table.genotypes[0]) == [VcfGenotype([1,1]),VcfGenotype([0,1]),VcfGenotype([0,1]),VcfGenotype([0,1])]
+	assert list(table.genotypes[1]) == [VcfGenotype([0,1]),VcfGenotype([0,0]),VcfGenotype([0,0]),VcfGenotype([0,1])]
 
-	gl0 = GenotypeLikelihoods([-2.1206, -0.8195, -0.07525])
-	gl1 = GenotypeLikelihoods([-10.3849, 0, -5.99143])
-	gl2 = GenotypeLikelihoods([-2.1, -0.8, -0.8])
-	gl3 = GenotypeLikelihoods([0, -10.0, -0.6])
+	gl0 = VcfGenotypeLikelihoods([-2.1206, -0.8195, -0.07525])
+	gl1 = VcfGenotypeLikelihoods([-10.3849, 0, -5.99143])
+	gl2 = VcfGenotypeLikelihoods([-2.1, -0.8, -0.8])
+	gl3 = VcfGenotypeLikelihoods([0, -10.0, -0.6])
 
 	assert len(table.genotype_likelihoods_of('sample1')) == 4
 	assert len(table.genotype_likelihoods_of('sample2')) == 4
@@ -285,9 +285,9 @@ def test_read_genotype_likelihoods():
 
 
 def test_genotype_likelihoods():
-	assert list(PhredGenotypeLikelihoods(2,2,[0,0,0])) == [0, 0, 0]
-	assert list(PhredGenotypeLikelihoods(2,2,[7, 1, 12])) == [7, 1, 12]
-	gl = GenotypeLikelihoods( [math.log10(x) for x in [1e-10, 0.5, 0.002]] )
-	print(list(gl.as_phred()))
-	assert list(gl.as_phred()) == [97, 0, 24]
-	assert list(gl.as_phred(regularizer=0.01)) == [20, 0, 19]
+	assert list(GenotypeLikelihoods(2,2,[0,0,0])) == [0, 0, 0]
+	assert list(GenotypeLikelihoods(2,2,[7, 1, 12])) == [7, 1, 12]
+	gl = VcfGenotypeLikelihoods( [math.log10(x) for x in [1e-10, 0.5, 0.002]] )
+	print(list(gl.as_phred(2,2)))
+	assert list(gl.as_phred(2,2)) == [97, 0, 24]
+	assert list(gl.as_phred(2,2,regularizer=0.01)) == [20, 0, 19]

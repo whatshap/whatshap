@@ -18,9 +18,9 @@ from xopen import xopen
 from networkx import Graph, number_of_nodes, number_of_edges, connected_components, node_connected_component, shortest_path
 
 from contextlib import ExitStack
-from .vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
+from .vcf import VcfReader, PhasedVcfWriter, VcfGenotypeLikelihoods
 from . import __version__
-from .core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes
+from .core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, GenotypeLikelihoods, compute_genotypes
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
@@ -213,7 +213,7 @@ def run_phasepoly(
 				# TODO: modify genotype contraints when multiallelic version is implemented
 				cluster_pedigree = Pedigree(numeric_sample_ids, ploidy)
 				windows = clusters_per_window.get_positions()
-				cluster_pedigree.add_individual(sample, [1]*len(windows), [PhredGenotypeLikelihoods([0]*(ploidy+1))]*len(windows))
+				cluster_pedigree.add_individual(sample, [1]*len(windows), [GenotypeLikelihoods([0]*(ploidy+1))]*len(windows))
 				recombination_costs = uniform_recombination_map(1.26, windows)
 				partitioning_dp_table = PedigreeDPTable(clusters_per_window, recombination_costs, cluster_pedigree, ploidy, False, cluster_counts, windows)
 				read_partitioning = partitioning_dp_table.get_optimal_partitioning()

@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "phredgenotypelikelihoods.h"
+#include "genotypelikelihoods.h"
 #include "genotype.h"
 
 class GenotypeDistribution {
@@ -28,7 +28,7 @@ public:
 	/** Returns the probability that the likeliest genotype is wrong. */
 	double errorProbability() const;
 
-	PhredGenotypeLikelihoods toPhredLikelihoods() const;
+	GenotypeLikelihoods toPhredLikelihoods() const;
 
 	friend GenotypeDistribution operator*(const GenotypeDistribution& d1, const GenotypeDistribution& d2);
 };

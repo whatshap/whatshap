@@ -70,7 +70,7 @@ extensions = [
 			'src/columnindexingiterator.cpp', 'src/columnindexingscheme.cpp',
 			'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',
 			'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp',
-			'src/pedigreepartitions.cpp', 'src/phredgenotypelikelihoods.cpp',
+			'src/pedigreepartitions.cpp', 'src/genotypelikelihoods.cpp',
 			'src/genotyper.cpp', 'src/genotypedistribution.cpp',
 			'src/genotypedptable.cpp', 'src/genotypecolumncostcomputer.cpp',
 			'src/backwardcolumniterator.cpp', 'src/transitionprobabilitycomputer.cpp',
