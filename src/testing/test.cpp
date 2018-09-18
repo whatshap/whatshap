@@ -689,7 +689,6 @@ TEST_CASE("test Genotype class", "[test Genotype class]"){
         vector<vector<unsigned int>> genotypes = { {0,0}, {0,1}, {1,0}, {1,1} };
         for(auto &g : genotypes){
             Genotype gt(g);
-//          cout << gt.toString() << endl;
             REQUIRE(gt.get_index(2,2) == g[0]+g[1]);
         }
     }
@@ -737,5 +736,37 @@ TEST_CASE("test Genotype class", "[test Genotype class]"){
 
        REQUIRE(!(het.is_homozygous()));
        REQUIRE(hom.is_homozygous());
+    }
+}
+
+TEST_CASE("test GenotypeLikelihoods class", "[test GenotypeLikelihoods class]"){
+    SECTION("test diploid + biallelic"){
+       GenotypeLikelihoods gl(2,2,{0.1,0.7,0.2},false);
+       REQUIRE(! gl.is_phred());
+       REQUIRE(2 == gl.get_ploidy());
+       REQUIRE(2 == gl.get_n_alleles());
+       REQUIRE( 0.1 == gl.get(Genotype({0,0})) );
+       REQUIRE( 0.7 == gl.get(Genotype({0,1})) );
+       REQUIRE( 0.7 == gl.get(Genotype({1,0})) );
+       REQUIRE( 0.2 == gl.get(Genotype({1,1})) );
+       REQUIRE( gl.get_likeliest_genotype(0) == Genotype({0,1}));
+    }
+
+    SECTION("test polyploid + biallelic"){
+       GenotypeLikelihoods gl(3,2,{0.2,0.1,0.4,0.3},false);
+       REQUIRE( 0.2 == gl.get(Genotype({0,0,0})) );
+       REQUIRE( 0.1 == gl.get(Genotype({0,0,1})) );
+       REQUIRE( 0.4 == gl.get(Genotype({0,1,1})) );
+       REQUIRE( 0.3 == gl.get(Genotype({1,1,1})) );
+       REQUIRE( gl.get_likeliest_genotype(0) == Genotype({0,1,1}));
+    }
+
+    SECTION("test polyploid + multiallelic"){
+       GenotypeLikelihoods gl(3,3,{0.1,0.1,0.1,0.0,0.0,0.3,0.1,0.0,0.0,0.2},false);
+       REQUIRE( 0.1 == gl.get(Genotype({0,1,1})) );
+       REQUIRE( 0.3 == gl.get(Genotype({0,1,2})) );
+       REQUIRE( 0.0 == gl.get(Genotype({1,2,2})) );
+       REQUIRE( 0.2 == gl.get(Genotype({2,2,2})) );
+       REQUIRE( gl.get_likeliest_genotype(0) == Genotype({0,1,2}));
     }
 }

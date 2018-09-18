@@ -7,7 +7,7 @@
 
 class GenotypeLikelihoods {
 public:
-	GenotypeLikelihoods(unsigned int ploidy, unsigned int n_alleles, const std::vector<double>& gl, bool is_phred_scaled = true);
+	GenotypeLikelihoods(unsigned int ploidy, unsigned int n_alleles, const std::vector<double>& gl, bool is_phred_scaled);
 
 	double get(Genotype genotype) const;
 

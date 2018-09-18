@@ -85,15 +85,39 @@ Genotype GenotypeLikelihoods::get_likeliest_genotype(double threshold_prob) cons
 	// sort according to likelihoods
 	sort(likelihoods.begin(),likelihoods.end(),compare);
 
+	// if empty list of likelihoods, return None-genotype
+	if (gl.size() == 0) return Genotype();
+
+	// if only one likelihood, return corresponding gt
+	if (gl.size()  == 1) return index_to_genotype(0,ploidy);
+
 	// check if there is a unique maximum and return best genotype
 	size_t last_index = likelihoods.size() - 1;
-	pair<double,unsigned int> best = likelihoods[last_index];
-	pair<double,unsigned int> second_best = likelihoods[last_index-1];
+	pair<double,unsigned int> best;
+	pair<double,unsigned int> second_best;
 
-	if ( (best.first > second_best.first) && (best.first > threshold_prob) ){
-		return index_to_genotype(best.second, ploidy);
+	// find the likeliest genotype
+	if (is_phred()){
+		// likeliest gt is the one with lowest (phred-scaled) probability
+		best = likelihoods[0];
+		second_best = likelihoods[1];
+
+		if ((best.first < second_best.first) && (best.first < threshold_prob)){
+			return index_to_genotype(best.second, ploidy);
+		} else {
+			return Genotype();
+		}
+
 	} else {
-		return Genotype();
+		// likeliest gt is the one with highest probability
+		best = likelihoods[last_index];
+		second_best = likelihoods[last_index-1];
+
+		if ((best.first > second_best.first) && (best.first > threshold_prob)){
+			return index_to_genotype(best.second, ploidy);
+		} else {
+			return Genotype();
+		}
 	}
 }
-	
+
