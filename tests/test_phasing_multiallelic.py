@@ -146,7 +146,7 @@ def test_multiallelic_phase4():
 	genotypes = [Genotype([0,1]), Genotype([0,1]), Genotype([0,2]), Genotype([1,1]), Genotype([2,3])]
 	check_phasing_single_individual(reads, 2, 4, genotypes, weights)
 
-def test_multiallelic_phase5():
+def test_multiallelic_polyploid_phase1():
 	reads =  """
 	 00000
 	 00010
@@ -156,4 +156,18 @@ def test_multiallelic_phase5():
 	 22212
 	"""
 	genotypes = [Genotype([0,1,2])] * 5
-	check_phasing_single_individual(reads, 3, 3, genotypes)	
+	check_phasing_single_individual(reads, 3, 3, genotypes)
+
+def test_multiallelic_polyploid_phase2():
+	reads = """
+	 00000
+	  1000
+	  111111
+	  1111
+	  0000
+	  02222
+	   22221
+	    2222
+	"""
+	genotypes = [Genotype([0,1,2]), Genotype([0,0,1]), Genotype([0,1,2]), Genotype([0,1,2]), Genotype([0,1,2]), Genotype([0,1,2]), Genotype([0,1,2])]
+	check_phasing_single_individual(reads, 3, 3, genotypes)

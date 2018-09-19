@@ -136,7 +136,7 @@ class ReadSetPruning:
 				for var in read:
 					if var.position in self._readname_to_positions[read.name]:
 						new_read.add_variant(var.position, var.allele, var.quality)
-				if len(new_read) > 2:
+				if len(new_read) > 1:
 					self._allele_matrix.add(new_read)
 			
 		# sort readsets
@@ -237,9 +237,9 @@ class ReadSetPruning:
 		for i in range(n):
 			id_to_names[clusters.find(i)].append(self._current_column[i][1].name)
 
-		print('current column clustering:', self._positions)
-		for k,v in id_to_names.items():
-			print(k,v)
+#		print('current column clustering:', self._positions)
+#		for k,v in id_to_names.items():
+#			print(k,v)
 
 		# store the clustering in MEC matrix
 		cluster_ids = list(id_to_names.keys())

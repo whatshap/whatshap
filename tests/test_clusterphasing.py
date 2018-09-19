@@ -21,9 +21,10 @@ def solve_MEC(cluster_matrix, ploidy, cluster_counts):
 	windows = cluster_matrix.get_positions()
 	# TODO compute number of genotypes
 	genotypes = [Genotype([i for i in range(0,ploidy)])] * len(windows)
-	pedigree.add_individual('0',genotypes,[GenotypeLikelihoods(ploidy, ploidy, [0]*(ploidy+1))]*len(windows))
+	pedigree.add_individual('0',genotypes,[GenotypeLikelihoods(ploidy, ploidy, [])]*len(windows))
 	dp_table = PedigreeDPTable(cluster_matrix, [1]*len(windows), pedigree, ploidy, distrust_genotypes=False, allele_counts=cluster_counts)
 	result = []
+	print('cost: ', dp_table.get_optimal_cost())
 	for i in range(ploidy):
 		result.append([])
 	optimal_partitioning = dp_table.get_optimal_partitioning()
@@ -43,6 +44,7 @@ def derive_haplotypes(reads, positions, ploidy, given_genotypes, precomputed_par
 	genotypes = given_genotypes[1] if given_genotypes[0] else [Genotype([])]*len(positions)
 	pedigree.add_individual('0', genotypes, genotype_likelihoods)
 	dp_table = PedigreeDPTable(reads, [1]*len(positions), pedigree, ploidy, distrust_genotypes=not given_genotypes[0], positions=positions, precomputed_partitioning=precomputed_partitioning)
+	print('cost 2: ', dp_table.get_optimal_cost())
 	return dp_table.get_super_reads()[0], dp_table.get_optimal_cost()
 
 def reorder_optimal_partitioning(readset1, partitioning, readset2):
@@ -158,15 +160,15 @@ def test_diploid_phase3():
 	genotypes = create_genotype_vector(2, [1,1,1,1,1,1,1,1,1])
 	check_phasing_single_individual(reads, genotypes, 2, 3, 3)
 
-#def test_diploid_phase4():
-#	reads = """
-#         1111111
-#         0000000
-#              1111111
-#              0000000
-#	"""
-#
-#	check_phasing_single_individual(reads, [1,1,1,1,1,1,1,1,1,1,1,1], 2, 4, 3)
+def test_diploid_phase4():
+	reads = """
+         1111111
+         0000000
+            111111111
+              0000000
+	"""
+	genotypes = create_genotype_vector(2, [1,1,1,1,1,1,1,1,1,1,1,1])
+	check_phasing_single_individual(reads, genotypes, 2, 2, 3)
 
 # TODO approach to contructing partitioning works badly in such examples since intersection
 # of variants covered by all reads in a window is small
@@ -247,28 +249,32 @@ def test_polyploid_phase5():
 
 #def test_polyploid_phase6():
 #	reads="""
-#        11110000
-#        10101010
-#        01010101
-#        00001111
-#        11111111
-#        00000000
-#        11001100
-#        00110011 
+##	00000
+#	00100
+#	00100
+#	01000
+#	10011
+#	01000
+#	01000
+#	00000
+#	01000
+#	10011
+#	00100
+#	10011
 #	"""
-#	genotypes = create_genotype_vector(8, [4,4,4,4,3,3,3,3])
-#	check_phasing_single_individual(reads, genotypes, 8, 10, 5)
+#	genotypes = create_genotype_vector(4, [1,1,1,1,1])
+#	check_phasing_single_individual(reads, genotypes, 4, 10, 5)
 #
 #def test_polyploid_phase7():
 #	reads="""
-#        11111111
-#        11111111
-#        01010101
-#        01100101
-#        10101010
-#        10101011
-#        00000000
-#        00001111
-#	"""
-#	genotypes = create_genotype_vector(7, [2,2,2,2,3,3,3,4])
-#	check_phasing_single_individual(reads, genotypes, 7, 10, 5)
+#10000000  
+#01000100 0
+#0000100000
+#0000100000
+#00110011 1
+#0100010000
+#0011001111
+#0000100 0
+#"""
+#	genotypes = create_genotype_vector(4, [1,1,1,1,1,1,1,1,1,1])
+#	check_phasing_single_individual(reads, genotypes, 4, 10, 5)

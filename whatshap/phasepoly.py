@@ -20,7 +20,7 @@ from networkx import Graph, number_of_nodes, number_of_edges, connected_componen
 from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter, VcfGenotypeLikelihoods
 from . import __version__
-from .core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, GenotypeLikelihoods, compute_genotypes
+from .core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, GenotypeLikelihoods, Genotype, compute_genotypes
 from .graph import ComponentFinder
 from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
@@ -39,7 +39,7 @@ def print_readset(readset):
 	result = ""
 	positions = readset.get_positions()
 	for read in readset:
-#		result += read.name + '\t' + '\t' + '\t'
+		result += read.name + '\t' + '\t' + '\t'
 		for pos in positions:
 			if pos in read:
 				# get corresponding variant
@@ -173,12 +173,12 @@ def run_phasepoly(
 
 				genotypes = variant_table.genotypes_of(sample)
 				for index, gt in enumerate(genotypes):
-					if gt == -1:
+					if gt.is_none():
 						missing_genotypes.add(index)
-					elif 0 < gt < ploidy:
+					elif not gt.is_homozygous():
 						heterozygous.add(index)
 					else:
-						assert gt in [0, ploidy]
+						assert gt.is_homozygous()
 
 				to_discard = set(range(len(variant_table))).difference(heterozygous)
 				phasable_variant_table = deepcopy(variant_table)
@@ -195,7 +195,7 @@ def run_phasepoly(
 				readset.sort()
 				readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
 				# TODO include this readselection step?
-				selected_reads = select_reads(readset, ploidy, preferred_source_ids = vcf_source_ids)
+				selected_reads = select_reads(readset, 2*ploidy, preferred_source_ids = vcf_source_ids)
 				readset = selected_reads
 				print_readset(readset)
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
@@ -210,16 +210,17 @@ def run_phasepoly(
 				readset = readsetpruner.get_allele_matrix()
 
 				# solve MEC to get overall partitioning, prepare input objects for this
-				# TODO: modify genotype contraints when multiallelic version is implemented
 				cluster_pedigree = Pedigree(numeric_sample_ids, ploidy)
 				windows = clusters_per_window.get_positions()
-				cluster_pedigree.add_individual(sample, [1]*len(windows), [GenotypeLikelihoods([0]*(ploidy+1))]*len(windows))
+				alleles = [i for i in range(0,ploidy)]
+				cluster_pedigree.add_individual(sample, [Genotype(alleles)]*len(windows), [GenotypeLikelihoods(ploidy, ploidy,[0])]*len(windows))
 				recombination_costs = uniform_recombination_map(1.26, windows)
 				partitioning_dp_table = PedigreeDPTable(clusters_per_window, recombination_costs, cluster_pedigree, ploidy, False, cluster_counts, windows)
 				read_partitioning = partitioning_dp_table.get_optimal_partitioning()
 
-#				print('CLUSTER MATRIX:', clusters_per_window)
-#				print('CLUSTERING MEC cost:', partitioning_dp_table.get_optimal_cost())
+				print('CLUSTER MATRIX:', clusters_per_window)
+				print_readset(clusters_per_window)
+				print('CLUSTERING MEC cost:', partitioning_dp_table.get_optimal_cost())
 				clu_to_r = defaultdict(list)
 				for read, partition in zip(readset,read_partitioning):
 					clu_to_r[partition].append(read.name)
@@ -237,7 +238,8 @@ def run_phasepoly(
 				assert len(phasable_variant_table.variants) == len(accessible_positions)
 
 				pedigree = Pedigree(numeric_sample_ids, ploidy)
-				pedigree.add_individual(sample, phasable_variant_table.genotypes_of(sample), None)
+				ind_genotypes = [gt.get_genotype() for gt in phasable_variant_table.genotypes_of(sample)]
+				pedigree.add_individual(sample, ind_genotypes, None)
 
 				# TODO the order of the reads in clusters_per_window and readset can differ. Therefore, reorder read_partitioning
 				read_to_partition = {}
@@ -245,6 +247,9 @@ def run_phasepoly(
 					read_to_partition[read.name] = read_partitioning[i]
 				optimal_partitioning =  [ read_to_partition[r.name] for r in readset  ]	
 
+				print('ALLELE MATRIX:', readset)
+				print(optimal_partitioning)
+				print_readset(readset)
 				# For the given partitioning of the reads, determine best allele configurations
 				with timers('phase'):
 					logger.info('Phasing %s by determining best allele assignment ... ', sample)
