@@ -490,5 +490,23 @@ def compute_genotypes(ReadSet readset, positions = None):
 	del gl_vector
 	return genotypes, gls
 
+# wrappers for cluster editing implementation
+cdef class LightCompleteGraph:
+	def __cinit__(self, int numNodes, bool param_pruneZeroEdges):
+		self.thisptr = new cpp.LightCompleteGraph(numNodes, param_pruneZeroEdges)
+	def setWeight(self, int node_id1, int node_id2, double weight):
+		self.thisptr.setWeight(node_id1, node_id2, weight)
+
+cdef class CoreAlgorithm:
+	def __cinit__(self, LightCompleteGraph graph):
+		self.thisptr = new cpp.CoreAlgorithm(graph.thisptr[0])
+		self.graph = graph
+	def run(self):
+		cdef cpp.ClusterEditingSolutionLight solution = self.thisptr.run()
+		clusters = []
+		n_clusters = solution.getNumClusters()
+		for i in range(n_clusters):
+			clusters.append(solution.getCluster(i))
+		return clusters
 
 include 'readselect.pyx'

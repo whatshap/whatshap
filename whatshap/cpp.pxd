@@ -109,12 +109,29 @@ cdef extern from "../src/genotype.h":
 	cdef bool operator==(Genotype,Genotype) except +
 	cdef bool operator!=(Genotype,Genotype) except +
 
-
 cdef extern from "../src/genotypedistribution.h":
 	cdef cppclass GenotypeDistribution:
 		GenotypeDistribution(double hom_ref_prob, double het_prob, double hom_alt_prob) except +
 		double probabilityOf(Genotype genotype) except +
 
-
 cdef extern from "../src/genotyper.h":
 	void compute_genotypes(ReadSet, vector[Genotype]* genotypes, vector[GenotypeDistribution]* genotype_likelihoods, vector[unsigned int]* positions)  except +
+
+cdef extern from "../src/clusterediting/LightCompleteGraph.h" namespace "ysk":
+	cdef cppclass LightCompleteGraph:
+		LightCompleteGraph(int numNodes, bool param_pruneZeroEdges) except +
+		void setWeight(int, int, double) except +
+		
+cdef extern from "../src/clusterediting/CoreAlgorithm.h" namespace "ysk":
+	cdef cppclass CoreAlgorithm:
+		CoreAlgorithm(LightCompleteGraph graph) except +
+		ClusterEditingSolutionLight run() except +
+
+cdef extern from "../src/clusterediting/ClusterEditingSolutionLight.h" namespace "ysk":
+	cdef cppclass ClusterEditingSolutionLight:
+		ClusterEditingSolutionLight() except +
+		ClusterEditingSolutionLight(ClusterEditingSolutionLight) except +
+		ClusterEditingSolutionLight(double pTotalCost, vector[vector[int]] pClusters) except +
+		vector[unsigned int] getCluster(int i) except +
+		double getTotalCost() except +
+		int getNumClusters() except +

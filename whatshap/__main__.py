@@ -16,7 +16,8 @@ COMMANDS = [
 	'unphase',
 	'haplotag',
 	'genotype',
-	'phasepoly'
+	'phasepoly',
+	'clusterediting'
 ]
 
 logger = logging.getLogger(__name__)

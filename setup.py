@@ -74,7 +74,15 @@ extensions = [
 			'src/genotyper.cpp', 'src/genotypedistribution.cpp',
 			'src/genotypedptable.cpp', 'src/genotypecolumncostcomputer.cpp',
 			'src/backwardcolumniterator.cpp', 'src/transitionprobabilitycomputer.cpp',
-			'src/genotype.cpp', 'src/binomial.cpp'
+			'src/genotype.cpp', 'src/binomial.cpp',
+			'src/clusterediting/ClusterEditingSolutionLight.cpp',
+			'src/clusterediting/CoreAlgorithm.cpp',
+			'src/clusterediting/EdgeHeap.cpp',
+			'src/clusterediting/Globals.cpp',
+			'src/clusterediting/Helpers.cpp',
+			'src/clusterediting/InducedCostHeuristic.cpp',
+			'src/clusterediting/LightCompleteGraph.cpp',
+			'src/clusterediting/SolutionChecker.cpp'
 		]),
 	CppExtension('whatshap.priorityqueue', sources=['whatshap/priorityqueue.pyx']),
 	CppExtension('whatshap.align', sources=['whatshap/align.pyx']),

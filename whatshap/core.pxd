@@ -27,10 +27,22 @@ cdef class PedigreeDPTable:
 cdef class GenotypeLikelihoods:
 	cdef cpp.GenotypeLikelihoods *thisptr
 
+
 cdef class Genotype:
 	cdef cpp.Genotype *thisptr
+
 
 cdef class GenotypeDPTable:
 	cdef cpp.GenotypeDPTable *thisptr
 	cdef Pedigree pedigree
 	cdef NumericSampleIds numeric_sample_ids
+
+
+cdef class LightCompleteGraph:
+	cdef cpp.LightCompleteGraph *thisptr
+
+
+cdef class CoreAlgorithm:
+	cdef cpp.CoreAlgorithm *thisptr
+	cdef LightCompleteGraph graph
+ 
