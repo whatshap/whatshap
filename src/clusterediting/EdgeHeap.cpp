@@ -93,8 +93,8 @@ void EdgeHeap::initInducedCosts() {
         perm_rank2edge.push_back(i);
     }
     
-    std::sort(forb_rank2edge.begin(), forb_rank2edge.end(), [this] (EdgeId& a, EdgeId& b) { return icf[a] > icf[b]; });
-    std::sort(perm_rank2edge.begin(), perm_rank2edge.end(), [this] (EdgeId& a, EdgeId& b) { return icp[a] > icp[b]; });
+    std::sort(forb_rank2edge.begin(), forb_rank2edge.end(), [this] (const EdgeId& a, const EdgeId& b) { return icf[a] > icf[b]; });
+    std::sort(perm_rank2edge.begin(), perm_rank2edge.end(), [this] (const EdgeId& a, const EdgeId& b) { return icp[a] > icp[b]; });
     
     for (EdgeId i = 0; i < graph.numEdges(); i++) {
         icf.push_back(LightCompleteGraph::Forbidden);
