@@ -1,5 +1,5 @@
 """
-Phase polyploid individual (clusterediting) by partitioing the reads into #ploidy sets
+Run polyploid phasing based on cluster editing.
 
 Read a VCF and one or more files with phase information (BAM/CRAM or VCF phased
 blocks) and phase the variants. The phased VCF is written to standard output.
@@ -28,7 +28,8 @@ from .bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNot
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
 from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
-from .readsetpruning import ReadSetPruning
+#from .readsetpruning import ReadSetPruning
+from .readscoring import score
 from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components, find_largest_component, write_read_list
 
 __author__ = "Jana Ebler" 
@@ -64,12 +65,12 @@ def run_clusterediting(
 	mapping_quality=20,
 	tag='PS',
 	write_command_line_header=True,
-	read_list_filename=None,
-	reads_per_window=4,
-	variants_per_window=4
+#	read_list_filename=None
+	errorrate = 0.1,
+	min_overlap = 3
 	):
 	"""
-	Run Polyploid Phasing.
+	Run Polyploid Phasing based on cluster editing.
 	
 	phase_input_files -- list of paths to BAM/CRAM/VCF files
 	variant-file -- path to input VCF
@@ -146,8 +147,8 @@ def run_clusterediting(
 		samples = frozenset(samples)
 
 		read_list_file = None
-		if read_list_filename:
-			read_list_file = create_read_list_file(read_list_filename)
+#		if read_list_filename:
+#			read_list_file = create_read_list_file(read_list_filename)
 		
 		timers.start('parse_vcf')
 		for variant_table in vcf_reader:
@@ -161,8 +162,6 @@ def run_clusterediting(
 					superreads, components = dict(), dict()
 					vcf_writer.write(chromosome, superreads, components)
 				continue
-#			# These two variables hold the phasing results for all samples
-#			superreads, components = dict(), dict()
 
 			# Iterate over all samples to process
 			for sample in samples:
@@ -194,20 +193,33 @@ def run_clusterediting(
 				readset, vcf_source_ids = read_reads(readset_reader, chromosome, phasable_variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
 				readset.sort()
 				readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
-#				# TODO include this readselection step?
-#				selected_reads = select_reads(readset, 2*ploidy, preferred_source_ids = vcf_source_ids)
-#				readset = selected_reads
+
+				# TODO: Keep readselection step?
+				selected_reads = select_reads(readset, 2*ploidy, preferred_source_ids = vcf_source_ids)
+				readset = selected_reads
+
+				print('readset: length: ' + str(len(readset)))
 				print_readset(readset)
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
-				# perform cluster editing and construct transformed matrix
-				# construct the input graph
+				# create read graph object
 				graph = LightCompleteGraph(len(readset),True)
-				# TODO: add the edges using computed similarities
+				# compute pairwise read similarities
+				similarities = score(readset, ploidy, errorrate, min_overlap)
+				# compute pairwise read similarities
+				print(similarities)
+				# insert edges into read graph
+				n_reads = len(readset)
+				for id1 in range(n_reads):
+					for id2 in range(id1+1, n_reads):
+						graph.setWeight(id1, id2, similarities[id1][id2 - id1 - 1])
+				# TODO: keep track of mapping of read ids to readnames
 				# run cluster editing
 				clusterediting = CoreAlgorithm(graph)	
 				readpartitioning = clusterediting.run()
 				print(readpartitioning)
+
+				# TODO: how to proceed??
 
 	if read_list_file:
 		read_list_file.close()
@@ -244,11 +256,11 @@ def add_arguments(parser):
 	arg('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')
-	arg('--tag', choices=('PS','HP'), default='PS',
-		help='Store phasing information with PS tag (standardized) or '
-			'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')
-	arg('--output-read-list', metavar='FILE', default=None, dest='read_list_filename',
-		help='Write reads that have been used for phasing to FILE.')
+#	arg('--tag', choices=('PS','HP'), default='PS',
+#		help='Store phasing information with PS tag (standardized) or '
+#			'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')
+#	arg('--output-read-list', metavar='FILE', default=None, dest='read_list_filename',
+#		help='Write reads that have been used for phasing to FILE.')
 
 	arg = parser.add_argument_group('Input pre-processing, selection, and filtering').add_argument
 	arg('--mapping-quality', '--mapq', metavar='QUAL',
@@ -265,11 +277,11 @@ def add_arguments(parser):
 		help='Name of chromosome to phase. If not given, all chromosomes in the '
 		'input VCF are phased. Can be used multiple times.')
 
-	arg = parser.add_argument_group('Parameters for read clustering').add_argument
-	arg('--reads-per-window', metavar='READSPERWINDOW', type=int, default=10,
-		help='Maximum number of reads to be considered in a window.')
-	arg('--variants-per-window', metavar='VARSPERWINDOW', type=int, default=4,
-		help='Minimum number of variants that need to be supported by all reads in a window.')
+	arg = parser.add_argument_group('Cluster editing').add_argument
+	arg('--errorrate', metavar='ERROR', default=0.1, type=float,
+		help='Read error rate (default: %(default)s)')
+	arg('--min-overlap', metavar='OVERLAP', default=3, type=int,
+		help='Minimum read overlap (default: %(default)s)')
 
 def validate(args, parser):
 	pass

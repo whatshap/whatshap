@@ -157,7 +157,7 @@ setup(
 	entry_points={'console_scripts': ['whatshap = whatshap.__main__:main']},
 	install_requires = ['pysam>=0.14.0', 'PyVCF', 'pyfaidx', 'xopen', 'networkx'] + requires,
 	extras_require = {
-		'dev': ['Cython', 'pytest', 'sphinx', 'sphinx_issues'],
+		'dev': ['Cython', 'pytest', 'sphinx', 'sphinx_issues', 'scipy'],
 	},
 	classifiers = [
 		"Development Status :: 4 - Beta",
