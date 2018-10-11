@@ -69,7 +69,7 @@ void LightCompleteGraph::setWeight(const Edge e, const EdgeWeight w) {
     weights[e.id()] = w;
 }
 
-void LightCompleteGraph::setWeight(const NodeId v, const NodeId u, const EdgeWeight w){
+void LightCompleteGraph::setWeight(NodeId v, NodeId u, const EdgeWeight w){
     Edge e(v,u);
     setWeight(e,w);
 }

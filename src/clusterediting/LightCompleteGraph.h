@@ -86,7 +86,7 @@ public:
     /**
     * Modifies the weight of an edge, given the Node IDs.
     */
-    void setWeight(const NodeId v, const NodeId u, const EdgeWeight w);
+    void setWeight(NodeId v, NodeId u, const EdgeWeight w);
     
     /**
     * Returns the number of nodes in the graph.

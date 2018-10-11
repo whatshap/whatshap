@@ -1,4 +1,5 @@
 from scipy.stats import binom
+from math import log
 
 def score(readset, ploidy, errorrate, min_overlap):
 	num_reads = len(readset)
@@ -35,7 +36,7 @@ def score(readset, ploidy, errorrate, min_overlap):
 			overlap[i].append(0)
 			matches[i].append(0)
 			start = max(begins[i], begins[j])
-			end = max(ends[i], ends[j])
+			end = min(ends[i], ends[j])
 			overlap[i][j-i-1] = end - start + 1
 			for k in range(start, end+1):
 				if (m[i][k] == m[j][k]):
@@ -51,7 +52,7 @@ def score(readset, ploidy, errorrate, min_overlap):
 
 	for i in range(num_reads):
 		for j in range(i+1, num_reads):
-			if (overlap[i][j-i-1] >= 1):
+			if (overlap[i][j-i-1] >= min_overlap):
 				num_pairs += 1
 				num_bases += overlap[i][j-i-1]
 				avg_disagr += float(overlap[i][j-i-1]-matches[i][j-i-1])
@@ -73,24 +74,21 @@ def score(readset, ploidy, errorrate, min_overlap):
 		sim.append([])
 		for j in range(i+1, num_reads):
 			sim[i].append(logratio_sim(overlap[i][j-i-1], matches[i][j-i-1], hammingdist_same, hammingdist_diff, min_overlap))
-
 	return sim
 
 def logratio_sim(overlap, matches, dist_same, dist_diff, min_overlap):
 	if (overlap < min_overlap):
 		return 0
 
-	p_same = binom.pmf(overlap, overlap - matches, dist_same)
-	p_diff = binom.pmf(overlap, overlap - matches, dist_diff)
+	p_same = binom.pmf(overlap - matches, overlap, dist_same)
+	p_diff = binom.pmf(overlap - matches, overlap, dist_diff)
 	score = 0.0
 	if (p_same == 0):
 		score = -float("inf")
 	elif (p_diff == 0):
 		score = float("inf")
 	else:
-		score = 1.0
-		#score = math.log(p_same / p_diff)
-	
+		score = log(p_same / p_diff)
 	return score
 
 if __name__ == "__main__":

@@ -49,26 +49,26 @@ def test_readscoring_toy():
 	read7.add_biallelic_variant(8, 0, 1)
 	read7.add_biallelic_variant(9, 1, 1)
 	readset.add(read7)
-	sim = score(readset, 2, 0.05, 1)
+	sim = score(readset, 2, 0.01, 2)
 
 	assert sim[0][0] < 0.0
 	assert sim[0][1] > 0.0
-	assert sim[0][2] < 0.0
-	assert sim[0][3] > 0.0
-	assert sim[0][4] < 0.0
-	assert sim[0][5] > 0.0
+	assert sim[0][2] <= 0.0
+	assert sim[0][3] >= 0.0
+	assert sim[0][4] <= 0.0
+	assert sim[0][5] >= 0.0
 	assert sim[1][0] < 0.0
 	assert sim[1][1] > 0.0
-	assert sim[1][2] < 0.0
-	assert sim[1][3] > 0.0
-	assert sim[1][4] < 0.0
+	assert sim[1][2] <= 0.0
+	assert sim[1][3] >= 0.0
+	assert sim[1][4] <= 0.0
 	assert sim[2][0] < 0.0
 	assert sim[2][1] > 0.0
-	assert sim[2][2] < 0.0
-	assert sim[2][3] > 0.0
+	assert sim[2][2] <= 0.0
+	assert sim[2][3] >= 0.0
 	assert sim[3][0] < 0.0
 	assert sim[3][1] > 0.0
-	assert sim[3][2] < 0.0
+	assert sim[3][2] <= 0.0
 	assert sim[4][0] < 0.0
 	assert sim[4][1] > 0.0
 	assert sim[5][0] < 0.0
