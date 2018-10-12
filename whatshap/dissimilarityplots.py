@@ -1,4 +1,6 @@
 import itertools
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from pylab import savefig
 
