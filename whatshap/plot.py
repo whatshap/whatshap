@@ -171,7 +171,7 @@ def run_plot(
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
 				# create some plots
-				draw_plots(readset, '{output}-{sample}-{chromosome}'.format(output=output, sample=sample, chromosome=chromosome))
+				draw_plots(readset, '{output}-{sample}-{chromosome}.png'.format(output=output, sample=sample, chromosome=chromosome))
 
 	logger.info('\n== SUMMARY ==')
 	timers.stop('overall')

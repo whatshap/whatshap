@@ -3,46 +3,9 @@ from math import log
 
 def score(readset, ploidy, errorrate, min_overlap):
 	num_reads = len(readset)
-	#num_vars = readset.positions()
-	num_vars = 0
-	m = []
 
-	# Map variant positions to [0,l)
-	index = {}
-	for position in readset.get_positions():
-		index[position] = num_vars
-		num_vars += 1
-
-	begins = [num_vars+1]*num_reads
-	ends = [-1]*num_reads
-
-	# Translate to matrix and determine start and end position (both inclusive)
-	for i in range(num_reads):
-		line = [-1]*num_vars
-		for variant in readset[i]:
-			if (variant.position in index):
-				begins[i] = min(begins[i], index[variant.position])
-				ends[i] = max(ends[i], index[variant.position])
-				line[index[variant.position]] = variant.allele
-		m.append(line)
-
-	# Calculate overlap and matches. Overlap for reads i and j is saved in overlap[min(i,j)][max(i,j)-min(i,j)-1].
-	overlap = [[]]
-	matches = [[]]
-	for i in range(num_reads):
-		overlap.append([])
-		matches.append([])
-		for j in range(i+1, num_reads):
-			overlap[i].append(0)
-			matches[i].append(0)
-			start = max(begins[i], begins[j])
-			end = min(ends[i], ends[j])
-			overlap[i][j-i-1] = end - start + 1
-			for k in range(start, end+1):
-				if (m[i][k] == m[j][k]):
-					matches[i][j-i-1] += 1
-
-	del m
+	# Calculate overlap and differences. Overlap for reads i and j is saved in overlap[min(i,j)][max(i,j)-min(i,j)-1].
+	overlap, diffs = calc_overlap_and_diffs(readset)
 
 	# Estimate hamming distance between read pairs of same/different haplotype
 	avg_disagr = 0.0
@@ -55,7 +18,7 @@ def score(readset, ploidy, errorrate, min_overlap):
 			if (overlap[i][j-i-1] >= min_overlap):
 				num_pairs += 1
 				num_bases += overlap[i][j-i-1]
-				avg_disagr += float(overlap[i][j-i-1]-matches[i][j-i-1])
+				avg_disagr += float(diffs[i][j-i-1])
 
 	avg_disagr = avg_disagr / num_bases
 		
@@ -73,15 +36,44 @@ def score(readset, ploidy, errorrate, min_overlap):
 	for i in range(num_reads):
 		sim.append([])
 		for j in range(i+1, num_reads):
-			sim[i].append(logratio_sim(overlap[i][j-i-1], matches[i][j-i-1], hammingdist_same, hammingdist_diff, min_overlap))
+			sim[i].append(logratio_sim(overlap[i][j-i-1], diffs[i][j-i-1], hammingdist_same, hammingdist_diff, min_overlap))
 	return sim
 
-def logratio_sim(overlap, matches, dist_same, dist_diff, min_overlap):
+def calc_overlap_and_diffs(readset):
+	num_reads = len(readset)
+	overlap = [[]]
+	diffs = [[]]
+	for i in range(num_reads):
+		overlap.append([])
+		diffs.append([])
+		for j in range(i+1, num_reads):
+			overlap[i].append(0)
+			diffs[i].append(0)
+			# if reads do not overlap, leave overlap and differences at 0 and skip
+			if (readset[i][-1].position < readset[j][0].position or readset[j][-1].position < readset[i][0].position):
+				continue
+
+			# perform a zigzag search over the variants of both reads
+			k, l = 0, 0
+			while (k < len(readset[i]) and l < len(readset[j])):
+				if (readset[i][k].position == readset[j][l].position):
+					overlap[i][j-i-1] += 1
+					if (readset[i][k].allele != readset[j][l].allele):
+						diffs[i][j-i-1] += 1
+					k += 1
+					l += 1
+				elif (readset[i][k].position < readset[j][l].position):
+					k += 1
+				else:
+					l += 1
+	return overlap, diffs
+
+def logratio_sim(overlap, diffs, dist_same, dist_diff, min_overlap):
 	if (overlap < min_overlap):
 		return 0
 
-	p_same = binom.pmf(overlap - matches, overlap, dist_same)
-	p_diff = binom.pmf(overlap - matches, overlap, dist_diff)
+	p_same = binom.pmf(diffs, overlap, dist_same)
+	p_diff = binom.pmf(diffs, overlap, dist_diff)
 	score = 0.0
 	if (p_same == 0):
 		score = -float("inf")
@@ -90,6 +82,3 @@ def logratio_sim(overlap, matches, dist_same, dist_diff, min_overlap):
 	else:
 		score = log(p_same / p_diff)
 	return score
-
-if __name__ == "__main__":
-	main()

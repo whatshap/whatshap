@@ -60,6 +60,7 @@ class MatrixTransformation:
 		for component_id, component in connected_components.items():
 			# get reads belonging to this component
 			self._component_reads = reads.subset(component)
+
 			# create new Read objects that hold the cluster assignments
 			self._readname_to_partitions = {}
 			for read in self._component_reads:
@@ -68,19 +69,16 @@ class MatrixTransformation:
 			self._current_column = []
 			# get all positions in this component
 			component_positions = self._component_reads.get_positions()
-#			print('component positions: ', component_positions)
 			for j, position in enumerate(component_positions):
 				self._current_column = []
 				# get all reads that cover current position
 				for i,read in enumerate(self._component_reads):
-					if read[0].position == position:
-#						print('add', read.name, leftmost_pos, rightmost_pos)
-						self._current_column.append( (i, read) )
-					self._current_column.append( (i,read) )		
+					if position in read:
+						self._current_column.append( (i, read) )		
 				if len(self._current_column) == 0:
 					continue
 				column = self._component_reads.subset([r[0] for r in self._current_column])
-				print([r[0] for r in self._current_column])
+				print('reads covering position ', position, [r.name for r in column])
 
 				# compute similarities for reads in column
 				similarities = score(column, ploidy, errorrate, min_overlap)

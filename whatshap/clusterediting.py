@@ -193,13 +193,18 @@ def run_clusterediting(
 				readset, vcf_source_ids = read_reads(readset_reader, chromosome, phasable_variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
 				readset.sort()
 				readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
-				print_readset(readset)
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
 
-#				# transform the allele matrix
-#				transformation = MatrixTransformation(readset, find_components(readset.get_positions(), readset), ploidy, errorrate, min_overlap)
-#				transformed_matrix = transformation.get_transformed_matrix()
+				# transform the allele matrix
+				selected_reads = select_reads(readset, 8, preferred_source_ids = vcf_source_ids)
+				readset = selected_reads
+				print_readset(readset)
+
+				transformation = MatrixTransformation(readset, find_components(readset.get_positions(), readset), ploidy, errorrate, min_overlap)
+				transformed_matrix = transformation.get_transformed_matrix()
+
+				print_readset(transformed_matrix)
 
 #				cluster_counts = transformation.get_cluster_counts()
 
