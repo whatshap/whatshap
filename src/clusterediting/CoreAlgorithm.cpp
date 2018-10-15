@@ -31,12 +31,7 @@ namespace ysk {
 		bool pruneZeroEdges = true;
 		InducedCostHeuristic hl(_graph, pruneZeroEdges);
 		ClusterEditingSolutionLight sol = hl.solve();
-
-		// TODO: lemon::Timer
-		if (verbosity > 1) {
-//			cout << "Finished in time:\t" << clk << endl;
-			cout << "Finished in time:\t TODO!!" << endl; 
-		}
+        
 		if (verbosity > 2) {
 			cout << "Total editing cost:\t" << sol.getTotalCost() << endl;
 		}

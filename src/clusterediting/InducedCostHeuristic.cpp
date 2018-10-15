@@ -25,7 +25,7 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
 		Edge eIcf = edgeHeap.getMaxIcfEdge();
 		Edge eIcp = edgeHeap.getMaxIcpEdge();
 		if (eIcf == LightCompleteGraph::InvalidEdge || eIcp == LightCompleteGraph::InvalidEdge) {
-		break;
+            break;
 		}
 		EdgeWeight mIcf = edgeHeap.getIcf(eIcf);
 		EdgeWeight mIcp = edgeHeap.getIcp(eIcp);
@@ -33,15 +33,31 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
 			// set eIcf to permanent
 			setPermanent(eIcf);
 			edgeHeap.removeEdge(eIcf);
+            if (verbosity >= 5) {
+                std::cout<<"Setting edge ("<<eIcf.u<<","<<eIcf.v<<") to permanent."<<std::endl;
+            }
 
 			// resolve implications
 			std::vector<NodeId> uClique(graph.getCliqueOf(eIcf.u));
 			std::vector<NodeId> vClique(graph.getCliqueOf(eIcf.v));
+            if (verbosity >= 5) {
+                std::cout<<"Clique of "<<eIcf.u<<": ";
+                for (const auto& i: uClique)
+                    std::cout << i << ' ';
+                std::cout<<std::endl;
+                std::cout<<"Clique of "<<eIcf.v<<": ";
+                for (const auto& i: vClique)
+                    std::cout << i << ' ';
+                std::cout<<std::endl;
+            }
 			for (NodeId x : uClique) {
 				for (NodeId y : vClique) {
-					if (x == y)
+                    Edge e = Edge(x,y);
+					if (x == y || graph.getWeight(e) == LightCompleteGraph::Permanent)
 						continue;
-					Edge e = Edge(x,y);
+                    if (verbosity >= 5) {
+                        std::cout<<"Making ("<<x<<","<<y<<") permanent due to implication."<<std::endl;
+                    }
 					setPermanent(e);
 					edgeHeap.removeEdge(e);
 				}
@@ -50,6 +66,9 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
 			// set eIcp fo forbidden
 			setForbidden(eIcp);
 			edgeHeap.removeEdge(eIcp);
+            if (verbosity >= 5) {
+                std::cout<<"Setting edge ("<<eIcp.u<<","<<eIcp.v<<") to forbidden."<<std::endl;
+            }
 			
 			// resolve implications
 			std::vector<NodeId> uClique(graph.getCliqueOf(eIcp.u));
@@ -76,14 +95,25 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
 	std::vector<int> clusterOfNode(graph.numNodes(), -1);
 	for (NodeId u = 0; u < graph.numNodes(); u++) {
 		// add cluster if not explored yet
-		std::cout<<"Completed "<<(u*100/graph.numNodes())<<"%\r"<<std::flush;
+        if (verbosity >= 4) {
+            std::cout<<"Processing node "<<u<<std::endl;
+        }
+        if (verbosity >= 1 && verbosity <= 4) {
+            std::cout<<"Completed "<<(u*100/graph.numNodes())<<"%\r"<<std::flush;
+        }
 		if (clusterOfNode[u] == -1) {
 			int c = clusters.size();
+            if (verbosity >= 4) {
+                std::cout<<"Node "<<u<<" not in any cluster yet. Creating new cluster "<<c<<" for this"<<std::endl;
+            }
 			clusterOfNode[u] = c;
 			clusters.push_back(std::vector<NodeId>(1, u));
 			for (NodeId v = u+1; v < graph.numNodes(); v++) {
 				if (graph.getWeight(Edge(u, v)) == LightCompleteGraph::Permanent) {
 				clusterOfNode[v] = c;
+                if (verbosity >= 4) {
+                    std::cout<<"Adding connected node "<<v<<" in same cluster."<<std::endl;
+                }
 				clusters[c].push_back(v);
 				}
 			}

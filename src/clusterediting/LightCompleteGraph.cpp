@@ -16,6 +16,8 @@ LightCompleteGraph::LightCompleteGraph(uint32_t numNodes, bool param_pruneZeroEd
     pruneZeroEdges(param_pruneZeroEdges),
     cliqueOf(size),
     unprunedNeighbours(size, vector<NodeId>(0)) {
+    for (NodeId u = 0; u < size; u++)
+        cliqueOf[u].push_back(u);
 }
 
 LightCompleteGraph::LightCompleteGraph(LightCompleteGraph& other) :
@@ -40,6 +42,8 @@ void LightCompleteGraph::clearAndResize(const uint32_t newSize) {
     size = newSize;
     weights.resize(size*(size-1)/2, 0.0);
     cliqueOf.resize(size, vector<NodeId>(0));
+    for (NodeId u = 0; u < newSize; u++)
+        cliqueOf[u].push_back(u);
     unprunedNeighbours.resize(size, vector<NodeId>(0));
 }
 
