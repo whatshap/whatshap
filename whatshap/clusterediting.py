@@ -197,29 +197,35 @@ def run_clusterediting(
 
 
 				# transform the allele matrix
-				selected_reads = select_reads(readset, 8, preferred_source_ids = vcf_source_ids)
+				selected_reads = select_reads(readset, 15, preferred_source_ids = vcf_source_ids)
 				readset = selected_reads
 				print_readset(readset)
 
 				transformation = MatrixTransformation(readset, find_components(readset.get_positions(), readset), ploidy, errorrate, min_overlap)
 				transformed_matrix = transformation.get_transformed_matrix()
 
+				# TODO: remove print
 				print_readset(transformed_matrix)
 
-#				cluster_counts = transformation.get_cluster_counts()
+				cluster_counts = transformation.get_cluster_counts()
+				# TODO: remove print
+				print('cluster counts:', cluster_counts)
 
-#				# TODO include this readselection step?
-##				selected_reads = select_reads(transformed_matrix, 10, preferred_source_ids = vcf_source_ids)
-##				transformed_matrix = selected_reads
+				# TODO include this readselection step?
+				selected_reads = select_reads(transformed_matrix, 10, preferred_source_ids = vcf_source_ids)
+				transformed_matrix = selected_reads
 
-#				# solve MEC to get overall partitioning, prepare input objects for this
-#				cluster_pedigree = Pedigree(numeric_sample_ids, ploidy)
-#				windows = transformed_matrix.get_positions()
-#				alleles = [i for i in range(0,ploidy)]
-#				cluster_pedigree.add_individual(sample, [Genotype(alleles)]*len(windows), [GenotypeLikelihoods(ploidy, ploidy,[0])]*len(windows))
-#				recombination_costs = uniform_recombination_map(1.26, windows)
-#				partitioning_dp_table = PedigreeDPTable(transformed_matrix, recombination_costs, cluster_pedigree, ploidy, False, cluster_counts, windows)
-#				read_partitioning = partitioning_dp_table.get_optimal_partitioning()
+				print_readset(transformed_matrix)
+				# solve MEC to get overall partitioning, prepare input objects for this
+				cluster_pedigree = Pedigree(numeric_sample_ids, ploidy)
+				positions = transformed_matrix.get_positions()
+				alleles = [i for i in range(0,ploidy)]
+				cluster_pedigree.add_individual(sample, [Genotype(alleles)]*len(positions), [GenotypeLikelihoods(ploidy, ploidy,[0])]*len(positions))
+				recombination_costs = uniform_recombination_map(1.26, positions)
+				partitioning_dp_table = PedigreeDPTable(transformed_matrix, recombination_costs, cluster_pedigree, ploidy, False, cluster_counts, positions)
+				read_partitioning = partitioning_dp_table.get_optimal_partitioning()
+
+				print('read partitioning: ', transformed_matrix)
 
 #				print('CLUSTER MATRIX:', transfored_matrix)
 #				print_readset(clusters_per_window)

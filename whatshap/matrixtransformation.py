@@ -35,8 +35,6 @@ class MatrixTransformation:
 		reads -- ReadSet with reads to be considered
 		position_to_component -- dict mapping variant positions to connected components
 		"""
-		# currently considered window
-		self._window = 0
 		# readset containing all reads of current connected component
 		self._component_reads = None
 		# set of reads covering current position
@@ -102,10 +100,11 @@ class MatrixTransformation:
 				for c,cluster in enumerate(readpartitioning):
 					for read_id in cluster:
 						# get readname
-						read_name = self._component_reads[read_id].name
+						read_name = column[read_id].name
 						quality = [10] * len(readpartitioning)
 						quality[c] = 0
-						self._readname_to_partitions[read_name].add_variant(self._window, c, quality)
+						print(read_name)
+						self._readname_to_partitions[read_name].add_variant(position, c, quality)
 				self._number_of_clusters.append(len(readpartitioning))
 
 			# add the computed reads to final ReadSet
@@ -126,4 +125,4 @@ class MatrixTransformation:
 		"""
 		Return the number of clusters per column in the cluster matrix.
 		"""
-		return [self._number_of_clusters] * len(self._cluster_matrix.get_positions())
+		return self._number_of_clusters
