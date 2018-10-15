@@ -212,7 +212,7 @@ def run_clusterediting(
 				print('cluster counts:', cluster_counts)
 
 				# TODO include this readselection step?
-				selected_reads = select_reads(transformed_matrix, 10, preferred_source_ids = vcf_source_ids)
+				selected_reads = select_reads(transformed_matrix, 7, preferred_source_ids = vcf_source_ids)
 				transformed_matrix = selected_reads
 
 				print_readset(transformed_matrix)
@@ -223,77 +223,77 @@ def run_clusterediting(
 				cluster_pedigree.add_individual(sample, [Genotype(alleles)]*len(positions), [GenotypeLikelihoods(ploidy, ploidy,[0])]*len(positions))
 				recombination_costs = uniform_recombination_map(1.26, positions)
 				partitioning_dp_table = PedigreeDPTable(transformed_matrix, recombination_costs, cluster_pedigree, ploidy, False, cluster_counts, positions)
-				read_partitioning = partitioning_dp_table.get_optimal_partitioning()
+				optimal_partitioning = partitioning_dp_table.get_optimal_partitioning()
 
-				print('read partitioning: ', transformed_matrix)
+				print('read partitioning: ', optimal_partitioning, partitioning_dp_table.get_optimal_cost())
 
-#				print('CLUSTER MATRIX:', transfored_matrix)
-#				print_readset(clusters_per_window)
-#				print('CLUSTERING MEC cost:', partitioning_dp_table.get_optimal_cost())
-#				clu_to_r = defaultdict(list)
-#				for read, partition in zip(readset,read_partitioning):
-#					clu_to_r[partition].append(read.name)
-#				
-#				for c,l in clu_to_r.items():
-#					print(c,l)
+				# printing
+				clu_to_r = defaultdict(list)
+				for read, partition in zip(readset,optimal_partitioning):
+					clu_to_r[partition].append(read.name)
+				
+				for c,l in clu_to_r.items():
+					print(c,l)
 
-#				# prepare input for determining the best allele configuration
-#				# Determine which variants can (in principle) be phased
-#				accessible_positions = sorted(readset.get_positions())
-#				logger.info('Variants covered by at least one phase-informative read: %d', len(accessible_positions))
-
-#				# Keep only accessible positions
-#				phasable_variant_table.subset_rows_by_position(accessible_positions)
-#				assert len(phasable_variant_table.variants) == len(accessible_positions)
-
-#				pedigree = Pedigree(numeric_sample_ids, ploidy)
-#				ind_genotypes = [gt.get_genotype() for gt in phasable_variant_table.genotypes_of(sample)]
-#				pedigree.add_individual(sample, ind_genotypes, None)
-
-#				# TODO the order of the reads in clusters_per_window and readset can differ. Therefore, reorder read_partitioning
+				# TODO the order of the reads in clusters_per_window and readset can differ. Therefore, reorder read_partitioning
 #				read_to_partition = {}
-#				for i,read in enumerate(clusters_per_window):
+#				for i,read in enumerate(transformed_matrix):
 #					read_to_partition[read.name] = read_partitioning[i]
-#				optimal_partitioning =  [ read_to_partition[r.name] for r in readset  ]	
+#				optimal_partitioning =  [ read_to_partition[r.name] for r in transformed_matrix]	
 
-#				print('ALLELE MATRIX:', readset)
-#				print(optimal_partitioning)
-#				print_readset(readset)
-#				# For the given partitioning of the reads, determine best allele configurations
-#				with timers('phase'):
-#					logger.info('Phasing %s by determining best allele assignment ... ', sample)
-#					recombination_costs = uniform_recombination_map(1.26, accessible_positions)
-##					print('ALLELE MATRIX ', readset)
-#					allele_assignment = PedigreeDPTable(readset, recombination_costs, pedigree, ploidy, False, None, accessible_positions, optimal_partitioning)
-#					superreads_list = allele_assignment.get_super_reads()
-#					logger.info('MEC cost: %d', allele_assignment.get_optimal_cost())
-#				with timers('components'):
-#					overall_components = find_components(accessible_positions, readset, None, None)
-#					n_phased_blocks = len(set(overall_components.values()))
-#					logger.info('No. of phased blocks: %d', n_phased_blocks)
-#					largest_component = find_largest_component(overall_components)
-#					if len(largest_component) > 0:
-#							logger.info('Largest component contains %d variants (%.1f%% of accessible variants) between position %d and %d', len(largest_component), len(largest_component)*100.0/len(accessible_positions), largest_component[0]+1, largest_component[-1]+1)
+				selected_names = [r.name for r in transformed_matrix]
+				# keep only those reads in original readset that have been selected in transformed matrix
+				to_keep = [ i for i,read in enumerate(readset) if read.name in selected_names]
+				readset = readset.subset(to_keep)
+				print_readset(readset)
 
-#				assert(len(superreads_list) == 2)
-#				sample_superreads = superreads_list[0]
-#				superreads[sample] = sample_superreads[0]
-#				assert len(sample_superreads[0]) == ploidy
-#				sr_sample_id = sample_superreads[0][0].sample_id
-#				for sr in sample_superreads[0]:
-#					assert sr.sample_id == sr_sample_id == numeric_sample_ids[sample]
-#				components[sample] = overall_components
+				# prepare input for determining the best allele configuration
+				# Determine which variants can (in principle) be phased
+				accessible_positions = sorted(readset.get_positions())
+				logger.info('Variants covered by at least one phase-informative read: %d', len(accessible_positions))
+
+				# Keep only accessible positions
+				phasable_variant_table.subset_rows_by_position(accessible_positions)
+				assert len(phasable_variant_table.variants) == len(accessible_positions)
+
+				pedigree = Pedigree(numeric_sample_ids, ploidy)
+				ind_genotypes = [gt.get_genotype() for gt in phasable_variant_table.genotypes_of(sample)]
+				pedigree.add_individual(sample, ind_genotypes, None)
+
+				# For the given partitioning of the reads, determine best allele configurations
+				with timers('phase'):
+					logger.info('Phasing %s by determining best allele assignment ... ', sample)
+					recombination_costs = uniform_recombination_map(1.26, accessible_positions)
+					allele_assignment = PedigreeDPTable(readset, recombination_costs, pedigree, ploidy, False, None, accessible_positions, optimal_partitioning)
+					superreads_list = allele_assignment.get_super_reads()
+					logger.info('MEC cost: %d', allele_assignment.get_optimal_cost())
+				with timers('components'):
+					overall_components = find_components(accessible_positions, readset, None, None)
+					n_phased_blocks = len(set(overall_components.values()))
+					logger.info('No. of phased blocks: %d', n_phased_blocks)
+					largest_component = find_largest_component(overall_components)
+					if len(largest_component) > 0:
+							logger.info('Largest component contains %d variants (%.1f%% of accessible variants) between position %d and %d', len(largest_component), len(largest_component)*100.0/len(accessible_positions), largest_component[0]+1, largest_component[-1]+1)
+
+				assert(len(superreads_list) == 2)
+				sample_superreads = superreads_list[0]
+				superreads[sample] = sample_superreads[0]
+				assert len(sample_superreads[0]) == ploidy
+				sr_sample_id = sample_superreads[0][0].sample_id
+				for sr in sample_superreads[0]:
+					assert sr.sample_id == sr_sample_id == numeric_sample_ids[sample]
+				components[sample] = overall_components
 
 #				if read_list_file:
 #					write_read_list(all_reads, allele_assignment.get_optimal_partitioning(), components, numeric_sample_ids, read_list_file)
-#			with timers('write_vcf'):
-#				logger.info('======== Writing VCF')
-#				changed_genotypes = vcf_writer.write(chromosome, superreads, components)
-#				logger.info('Done writing VCF')
-#				assert len(changed_genotypes) == 0
-#			logger.debug('Chromosome %r finished', chromosome)
-#			timers.start('parse_vcf')
-#		timers.stop('parse_vcf')
+			with timers('write_vcf'):
+				logger.info('======== Writing VCF')
+				changed_genotypes = vcf_writer.write(chromosome, superreads, components)
+				logger.info('Done writing VCF')
+				assert len(changed_genotypes) == 0
+			logger.debug('Chromosome %r finished', chromosome)
+			timers.start('parse_vcf')
+		timers.stop('parse_vcf')
 	
 	if read_list_file:
 		read_list_file.close()

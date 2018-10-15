@@ -28,6 +28,7 @@ from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
 from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components, find_largest_component, write_read_list
 from .dissimilarityplots import draw_plots
+from .matrixtransformation import MatrixTransformation
 
 __author__ = "Jana Ebler" 
 
@@ -60,7 +61,10 @@ def run_plot(
 	ignore_read_groups=False,
 	indels=True,
 	mapping_quality=20,
-	tag='PS'
+	tag='PS',
+	transform=False,
+	errorrate=0.1,
+	min_overlap=5
 	):
 	"""
 	Plot dissimilarities.
@@ -74,6 +78,7 @@ def run_plot(
 	ignore_read_groups
 	mapping_quality -- discard reads below this mapping quality
 	tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
+	transform -- Transform allele matrix by computing column wise clusterings.
 	"""
 	timers = StageTimer()
 	timers.start('overall')
@@ -170,7 +175,17 @@ def run_plot(
 				readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
-				# create some plots
+				# transform matrix if requested
+				if transform:
+					transformation = MatrixTransformation(readset, find_components(readset.get_positions(), readset), ploidy, errorrate, min_overlap)
+					readset = transformation.get_transformed_matrix()
+#					print(readset)
+
+				# create some plots TODO remove selection, was just used for testing
+#				print_readset(readset)
+#				selected_reads = select_reads(readset, 15, preferred_source_ids = vcf_source_ids)
+#				readset = selected_reads
+#				print_readset(selected_reads)
 				draw_plots(readset, '{output}-{sample}-{chromosome}.png'.format(output=output, sample=sample, chromosome=chromosome))
 
 	logger.info('\n== SUMMARY ==')
@@ -219,9 +234,15 @@ def add_arguments(parser):
 		help='Name of chromosome to phase. If not given, all chromosomes in the '
 		'input VCF are phased. Can be used multiple times.')
 
+	arg = parser.add_argument_group('Plotting options').add_argument
+	arg('--transform', dest='transform', default=False, action='store_true',
+		help='Plot dissimilarities of transformed matrix (default: %(default)s).')
+	arg('--errorrate', metavar='ERROR', type=float, default=0.1, help='Read error rate used for transformed matrix (default: %(default)s).')
+	arg('--min-overlap', metavar='OVERLAP', type=int, default=5, help='Minimum required read overlap used for transformed matrix (default: %(default)s).')
+
+
 
 def validate(args, parser):
 	pass
-
 def main(args):
 	run_plot(**vars(args))
