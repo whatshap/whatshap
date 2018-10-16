@@ -30,7 +30,8 @@ def score(readset, ploidy, errorrate, min_overlap):
 	# => ((1-frac_same)*num_pairs)*x = num_pairs*avg_disagr - (frac_same*num_pairs)*errorrate
 	# => x = (num_pairs*avg_disagr - (frac_same*num_pairs)*errorrate) / ((1-frac_same)*num_pairs)
 	hammingdist_diff = (num_pairs*avg_disagr - (frac_same*num_pairs)*hammingdist_same) / ((1.0-frac_same)*num_pairs)
-
+	hammingdist_diff = max(hammingdist_same, min(1.0, hammingdist_diff))
+	
 	# Calculate the actual similarities
 	sim = [[]]
 	for i in range(num_reads):
