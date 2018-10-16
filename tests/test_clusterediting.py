@@ -2,6 +2,7 @@ from whatshap.core import ReadSet, LightCompleteGraph, CoreAlgorithm
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 from whatshap.readscoring import score
 import itertools
+import math
 
 def test_clusterediting1():
 
@@ -49,5 +50,16 @@ def test_clusterediting1():
 	duplicates = set([ r for r in read_ids if read_ids.count(r) > 1 ])
 	print('duplicates:', duplicates)
 	assert(len(duplicates)  == 0)
+
+def test_similarities1():
+	reads = """
+	001001
+	110101
+	"""
+	readset = string_to_readset(reads)
+	similarities = score(readset, 2, 0.1, 4)
+	# computed similarity is 'nan'
+	print('computed similarities:', similarities)
+	assert(not math.isnan(similarities[0][0]))
 
 
