@@ -16,7 +16,7 @@ COMMANDS = [
 	'unphase',
 	'haplotag',
 	'genotype',
-	'phasepoly',
+	'windowphase',
 	'clusterediting',
 	'plot'
 ]

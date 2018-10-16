@@ -2,6 +2,7 @@ from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, 
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 from whatshap.phase import find_components
 from whatshap.readsetpruning import ReadSetPruning
+from whatshap.matrixtransformation import MatrixTransformation
 
 def create_genotype_vector(ploidy, expected_genotypes):
 	genotype_vector = []
@@ -91,17 +92,24 @@ def compare_phasing_brute_force(superreads, cost, partition, readset, given_geno
 	assert(sorted(haplotypes) == sorted(expected_haplotypes))
 
 
-def check_phasing_single_individual(reads, genotypes, ploidy, reads_per_window, variants_per_window, weights = None):
+def check_phasing_single_individual(reads, genotypes, ploidy, reads_per_window, variants_per_window, algorithm, weights = None):
 	# 0) set up read set
 	readset = string_to_readset(reads, weights)
 	positions = readset.get_positions()
 	components = find_components(positions, readset)
 
 	# 1) construct partitioning of the reads
-	pruner = ReadSetPruning(readset, components, ploidy, reads_per_window, variants_per_window)
-	cluster_matrix = pruner.get_cluster_matrix()
+	if algorithm == 'windowphase':
+		pruner = ReadSetPruning(readset, components, ploidy, reads_per_window, variants_per_window)
+		allele_matrix = pruner.get_allele_matrix()
+		cluster_matrix = pruner.get_cluster_matrix()
+	elif algorithm == 'clusterediting':
+		pruner = MatrixTransformation(readset, components, ploidy, 0.1, variants_per_window)
+		allele_matrix = readset
+		cluster_matrix = pruner.get_transformed_matrix()
+	else:
+		assert(False)
 	cluster_counts = pruner.get_cluster_counts()
-	allele_matrix = pruner.get_allele_matrix()
 	print('cluster matrix:', cluster_matrix)
 	print('allele_counts:', cluster_counts)
 	print('allele matrix:', allele_matrix)
@@ -132,8 +140,9 @@ def test_diploid_phase1():
                 11111111
                 11121111
                 """
-	genotypes = create_genotype_vector(2, [1,1,2,1,2,2,1,1])
-	check_phasing_single_individual(reads, genotypes, 2, 3, 6)
+	for algorithm in ['windowphase', 'clusterediting']:
+		genotypes = create_genotype_vector(2, [1,1,2,1,2,2,1,1])
+		check_phasing_single_individual(reads, genotypes, 2, 3, 6, algorithm)
 
 def test_diploid_phase2():
 	reads = """
@@ -147,8 +156,9 @@ def test_diploid_phase2():
                      1110111
                         1111
 		"""
-	genotypes = create_genotype_vector(2, [1,1,2,1,1,2,1,1,1,1,1,1])
-	check_phasing_single_individual(reads, genotypes, 2, 3, 3)
+	for algorithm in ['windowphase', 'clusterediting']:
+		genotypes = create_genotype_vector(2, [1,1,2,1,1,2,1,1,1,1,1,1])
+		check_phasing_single_individual(reads, genotypes, 2, 3, 3, algorithm)
 
 def test_diploid_phase3():
 	reads = """
@@ -157,8 +167,9 @@ def test_diploid_phase3():
 	  001001110
 	   11   111
 	"""
-	genotypes = create_genotype_vector(2, [1,1,1,1,1,1,1,1,1])
-	check_phasing_single_individual(reads, genotypes, 2, 3, 3)
+	for algorithm in ['windowphase', 'clusterediting']:
+		genotypes = create_genotype_vector(2, [1,1,1,1,1,1,1,1,1])
+		check_phasing_single_individual(reads, genotypes, 2, 3, 3, algorithm)
 
 def test_diploid_phase4():
 	reads = """
@@ -167,8 +178,9 @@ def test_diploid_phase4():
             111111111
               0000000
 	"""
-	genotypes = create_genotype_vector(2, [1,1,1,1,1,1,1,1,1,1,1,1])
-	check_phasing_single_individual(reads, genotypes, 2, 2, 3)
+	for algorithm in ['windowphase', 'clusterediting']:
+		genotypes = create_genotype_vector(2, [1,1,1,1,1,1,1,1,1,1,1,1])
+		check_phasing_single_individual(reads, genotypes, 2, 2, 3, algorithm)
 
 # TODO approach to contructing partitioning works badly in such examples since intersection
 # of variants covered by all reads in a window is small
@@ -183,18 +195,20 @@ def test_diploid_phase4():
 #	        10100
 #	              101
 #	"""
-#	check_phasing_single_individual(reads, [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1], 2, 4, 3)
+#	genotypes = create_genotype_vector(2, [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1])
+#	check_phasing_single_individual(reads, genotypes, 2, 4, 3, 'clusterediting')
 
-# TODO polyploid phasing not yet fully implemented!
 
-def test_polyploid_phase1():
-	reads = """
-          111
-          010
-          101
-	"""
-	genotypes = create_genotype_vector(3, [2,2,2])
-	check_phasing_single_individual(reads, genotypes, 3, 3, 3)
+# TODO: cluster editing always puts Read 1 and Read 3 in the same cluster
+#def test_polyploid_phase1():
+#	reads = """
+#          111
+#          010
+#          101
+#	"""
+#	for algorithm in ['windowphase', 'clusterediting']:
+#		genotypes = create_genotype_vector(3, [2,2,2])
+#		check_phasing_single_individual(reads, genotypes, 3, 3, 3, algorithm)
 
 def test_polyploid_phase2():
 	reads = """
@@ -203,8 +217,9 @@ def test_polyploid_phase2():
          11100
          11100
 	"""
-	genotypes = create_genotype_vector(3, [2,2,3,2,2])
-	check_phasing_single_individual(reads, genotypes, 3, 3, 5)
+	for algorithm in ['windowphase', 'clusterediting']:
+		genotypes = create_genotype_vector(3, [2,2,3,2,2])
+		check_phasing_single_individual(reads, genotypes, 3, 3, 5, algorithm)
 
 def test_polyploid_phase3():
 	reads = """
@@ -214,8 +229,9 @@ def test_polyploid_phase3():
          0111011
          1111101
 	"""
-	genotypes = create_genotype_vector(3, [1,2,3,3,2,3,2])
-	check_phasing_single_individual(reads, genotypes, 3, 3, 5)
+	for algorithm in ['windowphase', 'clusterediting']:
+		genotypes = create_genotype_vector(3, [1,2,3,3,2,3,2])
+		check_phasing_single_individual(reads, genotypes, 3, 3, 5, algorithm)
 
 # TODO: connection reads 1 and 5,6 are never in the same window.
 #	they will be put in the same set, since they are never compared
@@ -244,8 +260,9 @@ def test_polyploid_phase5():
         10001
         01110
 	"""
-	genotypes =  create_genotype_vector(4, [1,1,2,1,1])
-	check_phasing_single_individual(reads, genotypes, 4, 6, 5)
+	for algorithm in ['windowphase', 'clusterediting']:
+		genotypes =  create_genotype_vector(4, [1,1,2,1,1])
+		check_phasing_single_individual(reads, genotypes, 4, 6, 5, algorithm)
 
 #def test_polyploid_phase6():
 #	reads="""

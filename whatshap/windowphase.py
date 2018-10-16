@@ -1,8 +1,10 @@
 """
-Phase polyploid individual by partitioing the reads into #ploidy sets
+Compute transformation based on windows of reads and compute consensus clustering solving MEC.
 
 Read a VCF and one or more files with phase information (BAM/CRAM or VCF phased
 blocks) and phase the variants. The phased VCF is written to standard output.
+Windows of reads are considered, clustered, and the transformed matrix is solved
+to compute a consensus clustering.
 
 """
 import sys
@@ -51,7 +53,7 @@ def print_readset(readset):
 		result += '\n'
 	print(result)
 
-def run_phasepoly(
+def run_windowphase(
 	phase_input_files,
 	variant_file,
 	ploidy,
@@ -352,4 +354,4 @@ def validate(args, parser):
 	pass
 
 def main(args):
-	run_phasepoly(**vars(args))
+	run_windowphase(**vars(args))

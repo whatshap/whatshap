@@ -1,8 +1,10 @@
 """
-Phase polyploid individual by partitioing the reads into #ploidy sets.
+Compute transformation columnwise using cluster editing and compute consensus clustering solving MEC.
 
 Read a VCF and one or more files with phase information (BAM/CRAM or VCF phased
 blocks) and phase the variants. The phased VCF is written to standard output.
+For each column, cluster all reads covering in (cluster editing), and compute
+a consensus clustering using MEC.
 
 """
 import sys
@@ -195,19 +197,16 @@ def run_clusterediting(
 				readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
-
 				# transform the allele matrix
 				selected_reads = select_reads(readset, 15, preferred_source_ids = vcf_source_ids)
 				readset = selected_reads
 				print_readset(readset)
-
 				transformation = MatrixTransformation(readset, find_components(readset.get_positions(), readset), ploidy, errorrate, min_overlap)
 				transformed_matrix = transformation.get_transformed_matrix()
+				cluster_counts = transformation.get_cluster_counts()
 
 				# TODO: remove print
 				print_readset(transformed_matrix)
-
-				cluster_counts = transformation.get_cluster_counts()
 				# TODO: remove print
 				print('cluster counts:', cluster_counts)
 
@@ -352,8 +351,8 @@ def add_arguments(parser):
 		'input VCF are phased. Can be used multiple times.')
 
 	arg = parser.add_argument_group('Parameters for cluster editing').add_argument
-	arg('--errorrate', metavar='ERROR', default=0.1, help='Read error rate (default: %(default)s).')
-	arg('--min-overlap', metavar='OVERLAP', default=5, help='Minimum required read overlap (default: %(default)s).')
+	arg('--errorrate', metavar='ERROR', type=float, default=0.1, help='Read error rate (default: %(default)s).')
+	arg('--min-overlap', metavar='OVERLAP', type=int, default=5, help='Minimum required read overlap (default: %(default)s).')
 
 def validate(args, parser):
 	pass

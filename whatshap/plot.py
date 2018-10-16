@@ -179,12 +179,8 @@ def run_plot(
 				if transform:
 					transformation = MatrixTransformation(readset, find_components(readset.get_positions(), readset), ploidy, errorrate, min_overlap)
 					readset = transformation.get_transformed_matrix()
-#					print(readset)
 
-				# create some plots TODO remove selection, was just used for testing
-#				print_readset(readset)
-#				selected_reads = select_reads(readset, 15, preferred_source_ids = vcf_source_ids)
-#				readset = selected_reads
+				# create dissimilarity plots
 #				print_readset(selected_reads)
 				draw_plots(readset, '{output}-{sample}-{chromosome}.png'.format(output=output, sample=sample, chromosome=chromosome))
 

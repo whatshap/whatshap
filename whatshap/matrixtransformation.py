@@ -79,6 +79,7 @@ class MatrixTransformation:
 
 				# store the result in final MEC matrix
 				print('')
+				print(similarities)
 				print(position)
 				print(readpartitioning)
 				for c,cluster in enumerate(readpartitioning):
