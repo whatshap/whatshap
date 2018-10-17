@@ -130,9 +130,9 @@ def assert_phasing(phases, expected_phases):
 			continue
 		assert phase is not None and expected_phase is not None
 		assert phase.block_id == expected_phase.block_id
-		p_unchanged.append(phase.phase)
-		p_inverted.append(1-phase.phase)
-		p_expected.append(expected_phase.phase)
+		p_unchanged.append(phase.phase[0])
+		p_inverted.append(1-phase.phase[0])
+		p_expected.append(expected_phase.phase[0])
 	assert (p_unchanged == p_expected) or (p_inverted == p_expected)
 
 
@@ -151,8 +151,8 @@ def test_phase_three_individuals():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		phase1 = VariantCallPhase(60906167, 0, None)
-		phase3 = VariantCallPhase(60907394, 0, None)
+		phase1 = VariantCallPhase(60906167, [0,1], None)
+		phase3 = VariantCallPhase(60907394, [0,1], None)
 		assert_phasing(table.phases_of('HG004'), [None, phase3, phase3, phase3, None])
 		assert_phasing(table.phases_of('HG003'), [phase1, None, phase1, None, None])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
@@ -171,7 +171,7 @@ def test_phase_one_of_three_individuals():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		phase0 = VariantCallPhase(60906167,0,None)
+		phase0 = VariantCallPhase(60906167,[0,1],None)
 		assert_phasing(table.phases_of('HG004'), [None, None, None, None, None])
 		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, None, None])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
@@ -193,7 +193,7 @@ def test_phase_trio():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		phase0 = VariantCallPhase(60906167, 0, None)
+		phase0 = VariantCallPhase(60906167, [0,1], None)
 		assert_phasing(table.phases_of('HG004'), [phase0, phase0, phase0, phase0, phase0])
 		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
 		assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
@@ -216,8 +216,8 @@ def test_phase_trio_use_ped_samples():
 			assert len(table.variants) == 5
 			assert table.samples == ['HG004', 'HG003', 'HG002', 'orphan']
 
-			phase0 = VariantCallPhase(60906167, 0, None)
-			phase1 = VariantCallPhase(60907394, 0, None)
+			phase0 = VariantCallPhase(60906167, [0,1], None)
+			phase1 = VariantCallPhase(60907394, [0,1], None)
 			assert_phasing(table.phases_of('HG004'), [phase0, phase0, phase0, phase0, phase0])
 			assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
 			assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
@@ -267,7 +267,7 @@ def test_phase_trio_distrust_genotypes():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		phase0 = VariantCallPhase(60906167, 0, None)
+		phase0 = VariantCallPhase(60906167, [0,1], None)
 		assert_phasing(table.phases_of('HG004'), [None, phase0, phase0, phase0, None])
 		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
 		assert_phasing(table.phases_of('HG002'), [phase0, None, phase0, phase0, phase0])
@@ -290,8 +290,8 @@ def test_phase_trio_merged_blocks():
 		assert table.num_of_blocks_of('HG003') == 1
 		assert table.num_of_blocks_of('HG002') == 1
 
-		phase0 = VariantCallPhase(752566, 0, None)
-		phase1 = VariantCallPhase(752566, 1, None)
+		phase0 = VariantCallPhase(752566, [0,1], None)
+		phase1 = VariantCallPhase(752566, [1,0], None)
 		assert_phasing(table.phases_of('HG004'), [phase1, phase1, phase1, None, phase1, phase1, phase1, phase1])
 		assert_phasing(table.phases_of('HG003'), [None, None, None, None, phase0, phase0, phase0, phase1])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None, None, None, phase1])
@@ -314,9 +314,9 @@ def test_phase_trio_dont_merge_blocks():
 		assert table.num_of_blocks_of('HG003') == 1
 		assert table.num_of_blocks_of('HG002') == 1
 
-		phase1 = VariantCallPhase(752566, 1, None)
-		phase2_0 = VariantCallPhase(853954, 0, None)
-		phase2_1 = VariantCallPhase(853954, 1, None)
+		phase1 = VariantCallPhase(752566, [1,0], None)
+		phase2_0 = VariantCallPhase(853954, [0,1], None)
+		phase2_1 = VariantCallPhase(853954, [1,0], None)
 		assert_phasing(table.phases_of('HG004'), [phase1, phase1, phase1, None, phase2_1, phase2_1, phase2_1, phase2_1])
 		assert_phasing(table.phases_of('HG003'), [None, None, None, None, phase2_0, phase2_0, phase2_0, phase2_1])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None, None, None, phase2_1])
@@ -336,7 +336,7 @@ def test_genetic_phasing_symbolic_alt():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		phase0 = VariantCallPhase(60906167, 0, None)
+		phase0 = VariantCallPhase(60906167, [0,1], None)
 		assert_phasing(table.phases_of('HG004'), [phase0, phase0, phase0, phase0, phase0])
 		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
 		assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
@@ -356,7 +356,7 @@ def test_phase_mendelian_conflict():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		phase = VariantCallPhase(60906167, 0, None)
+		phase = VariantCallPhase(60906167, [0,1], None)
 		assert_phasing(table.phases_of('HG004'), [phase, None, phase, phase, phase])
 		assert_phasing(table.phases_of('HG003'), [phase, None, phase, phase, phase])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
@@ -376,7 +376,7 @@ def test_phase_missing_genotypes():
 		assert len(table.variants) == 5
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
-		phase = VariantCallPhase(60906167, 0, None)
+		phase = VariantCallPhase(60906167, [0,1], None)
 		assert_phasing(table.phases_of('HG004'), [phase, phase, None, phase, None])
 		assert_phasing(table.phases_of('HG003'), [phase, None, None, phase, None])
 		assert_phasing(table.phases_of('HG002'), [None, phase, None, None, None])
@@ -396,13 +396,13 @@ def test_phase_specific_chromosome():
 				assert len(table.variants) == 5
 				assert table.samples == ['HG004', 'HG003', 'HG002']
 				if table.chromosome == '1' == requested_chromosome:
-					phase0 = VariantCallPhase(60906167, 0, None)
+					phase0 = VariantCallPhase(60906167, [0,1], None)
 					assert_phasing(table.phases_of('HG004'), [phase0, phase0, phase0, phase0, phase0])
 					assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, phase0, phase0])
 					assert_phasing(table.phases_of('HG002'), [None, phase0, None, None, None])
 				elif table.chromosome == '2' == requested_chromosome:
-					phase0 = VariantCallPhase(60906167, 0, None)
-					phase1 = VariantCallPhase(60906167, 1, None)
+					phase0 = VariantCallPhase(60906167, [0,1], None)
+					phase1 = VariantCallPhase(60906167, [1,0], None)
 					assert_phasing(table.phases_of('HG004'), [phase0, None, None, None, phase1])
 					assert_phasing(table.phases_of('HG003'), [phase0, None, None, None, None])
 					assert_phasing(table.phases_of('HG002'), [None, None, None, None, phase0])
@@ -429,8 +429,8 @@ def test_phase_trio_paired_end_reads():
 		assert table.num_of_blocks_of('father') == 0
 		assert table.num_of_blocks_of('child') == 1
 
-		phase0 = VariantCallPhase(80050, 0, None)
-		phase1 = VariantCallPhase(80050, 1, None)
+		phase0 = VariantCallPhase(80050, [0,1], None)
+		phase1 = VariantCallPhase(80050, [1,0], None)
 
 		assert_phasing(table.phases_of('mother'), [phase1, phase1, phase0])
 		assert_phasing(table.phases_of('father'), [None, None, None])
@@ -463,8 +463,8 @@ def test_phase_quartet_recombination_breakpoints():
 			assert table.num_of_blocks_of('HG003') == 1
 			assert table.num_of_blocks_of('HG004') == 0
 
-			phase0 = VariantCallPhase(68735304, 0, None)
-			phase1 = VariantCallPhase(68735304, 1, None)
+			phase0 = VariantCallPhase(68735304, [0,1], None)
+			phase1 = VariantCallPhase(68735304, [1,0], None)
 
 			assert_phasing(table.phases_of('HG002'), [None, None, None, None])
 			assert_phasing(table.phases_of('HG005'), [None, None, None, None])
@@ -622,8 +622,8 @@ def test_genetic_haplotyping():
 		assert table.num_of_blocks_of('sampleD') == 1
 		assert table.num_of_blocks_of('sampleE') == 1
 
-		phase0 = VariantCallPhase(10327, 0, None)
-		phase1 = VariantCallPhase(10327, 1, None)
+		phase0 = VariantCallPhase(10327, [0,1], None)
+		phase1 = VariantCallPhase(10327, [1,0], None)
 
 		assert_phasing(table.phases_of('sampleA'), [phase0, phase0, phase1])
 		assert_phasing(table.phases_of('sampleB'), [phase0, None, None])
@@ -718,8 +718,8 @@ def test_indel_phasing():
 		assert len(table.variants) == 4
 		assert table.samples == ['sample1']
 
-		phase0 = VariantCallPhase(41, 0, None)
-		phase1 = VariantCallPhase(41, 1, None)
+		phase0 = VariantCallPhase(41, [0,1], None)
+		phase1 = VariantCallPhase(41, [1,0], None)
 		assert_phasing(table.phases_of('sample1'), [phase0, phase1, phase0, phase1])
 
 

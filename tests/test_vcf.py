@@ -87,14 +87,14 @@ def test_read_phased_vcf():
 		expected_phase_sample1 = [
 			None, 
 			None, 
-			VariantCallPhase(block_id=300, phase=1, quality=23),
-			VariantCallPhase(block_id=300, phase=0, quality=42)
+			VariantCallPhase(block_id=300, phase=[1,0], quality=23),
+			VariantCallPhase(block_id=300, phase=[0,1], quality=42)
 		]
 		expected_phase_sample2 = [
-			VariantCallPhase(block_id=100, phase=0, quality=10),
-			VariantCallPhase(block_id=100, phase=1, quality=20),
-			VariantCallPhase(block_id=300, phase=0, quality=30),
-			VariantCallPhase(block_id=300, phase=0, quality=None)
+			VariantCallPhase(block_id=100, phase=[0,1], quality=10),
+			VariantCallPhase(block_id=100, phase=[1,0], quality=20),
+			VariantCallPhase(block_id=300, phase=[0,1], quality=30),
+			VariantCallPhase(block_id=300, phase=[0,1], quality=None)
 		]
 		assert list(table_a.phases[0]) == expected_phase_sample1
 		assert list(table_a.phases[1]) == expected_phase_sample2

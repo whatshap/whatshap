@@ -149,7 +149,6 @@ class VariantTable:
 	def __init__(self, chromosome, samples):
 		self.chromosome = chromosome
 		self.samples = samples
-#		self.genotypes = [array('b', []) for _ in samples]
 		self.genotypes = [[] for _ in samples]
 		self.phases = [[] for _ in samples]
 		self.genotype_likelihoods = [[] for _ in samples]
@@ -283,10 +282,10 @@ class VariantTable:
 			else:
 				quality = phase.quality
 			if phase.block_id in read_map:
-				read_map[phase.block_id].add_biallelic_variant(variant.position, phase.phase, quality)
+				read_map[phase.block_id].add_biallelic_variant(variant.position, phase.phase[0], quality)
 			else:
 				r = Read('{}_block_{}'.format(sample, phase.block_id), mapq, source_id, numeric_sample_id)
-				r.add_biallelic_variant(variant.position, phase.phase, quality)
+				r.add_biallelic_variant(variant.position, phase.phase[0], quality)
 				read_map[phase.block_id] = r
 		for key, read in read_map.items():
 			read.sort()
@@ -302,7 +301,7 @@ VariantCallPhase = namedtuple('VariantCallPhase', ['block_id', 'phase', 'quality
 VariantCallPhase.__doc__ = \
 	"""
 	block_id is a numeric id of the phased block and
-	phase is either 0 or 1 (indicating whether the REF allele is on haplotype 0 or 1).
+	phase is a list of alleles representing the phasing, i.e. 1|0 => [1,0]
 	"""
 
 
@@ -361,21 +360,18 @@ class VcfReader:
 		for chromosome, records in self._group_by_chromosome():
 			yield self._process_single_chromosome(chromosome, records)
 
-	# TODO extend this to polyploid case
 	@staticmethod
 	def _extract_HP_phase(call):
 		HP = getattr(call.data, 'HP', None)
 		if HP is None:
 			return None
-		assert len(HP) == 2
 		fields = [[int(x) for x in s.split('-')] for s in HP]
-		assert fields[0][0] == fields[1][0]
+		for i in range(len(fields)):
+			assert fields[0][0] == fields[i][0]
 		block_id = fields[0][0]
-		phase1, phase2 = fields[0][1]-1, fields[1][1]-1
-		assert ((phase1, phase2) == (0, 1)) or ((phase1, phase2) == (1, 0))
-		return VariantCallPhase(block_id=block_id, phase=phase1, quality=getattr(call.data, 'PQ', None))
+		phase = [ fields[i][1]-1 for i in range(len(fields)) ]
+		return VariantCallPhase(block_id=block_id, phase=phase, quality=getattr(call.data, 'PQ', None))
 
-	# TODO extend this to polyploid case
 	@staticmethod
 	def _extract_GT_PS_phase(call):
 		if not call.is_het:
@@ -385,8 +381,7 @@ class VcfReader:
 		block_id = getattr(call.data, 'PS', 0)
 		if block_id is None:
 			block_id = 0
-		assert call.data.GT in ['0|1','1|0']
-		phase = int(call.data.GT[0])
+		phase = [ int(phase) for phase in call.data.GT.split('|')]
 		return VariantCallPhase(block_id=block_id, phase=phase, quality=getattr(call.data, 'PQ', None))
 
 	def _process_single_chromosome(self, chromosome, records):

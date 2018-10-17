@@ -175,7 +175,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 							genotypes = variant_table.genotypes_of(sample)
 							phases = variant_table.phases_of(sample)
 							variantpos_to_phaseinfo = {
-								v.position:(int(phases[i].block_id),phases[i].phase) for i,v in enumerate(variant_table.variants) if phases[i] is not None
+								v.position:(int(phases[i].block_id),phases[i].phase[0]) for i,v in enumerate(variant_table.variants) if phases[i] is not None
 							}
 							variants = [
 								v for v, gt, phase in zip(variant_table.variants, genotypes, phases) if not gt.is_homozygous() and phase is not None
