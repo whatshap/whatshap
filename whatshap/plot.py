@@ -172,7 +172,7 @@ def run_plot(
 				bam_sample = None if ignore_read_groups else sample
 				readset, vcf_source_ids = read_reads(readset_reader, chromosome, phasable_variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
 				readset.sort()
-				readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
+				readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= min_overlap])
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
 				# transform matrix if requested

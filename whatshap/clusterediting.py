@@ -194,10 +194,12 @@ def run_clusterediting(
 				bam_sample = None if ignore_read_groups else sample
 				readset, vcf_source_ids = read_reads(readset_reader, chromosome, phasable_variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
 				readset.sort()
-				readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
+				# TODO: len == min_overlap ?
+				readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= min_overlap])
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
 				# transform the allele matrix
+				# TODO:
 				selected_reads = select_reads(readset, 15, preferred_source_ids = vcf_source_ids)
 				readset = selected_reads
 				print_readset(readset)
@@ -208,7 +210,7 @@ def run_clusterediting(
 				# TODO: remove print
 				print_readset(transformed_matrix)
 				# TODO: remove print
-				print('cluster counts:', cluster_counts)
+#				print('cluster counts:', cluster_counts)
 
 				# TODO include this readselection step?
 				selected_reads = select_reads(transformed_matrix, 7, preferred_source_ids = vcf_source_ids)
@@ -223,16 +225,17 @@ def run_clusterediting(
 				recombination_costs = uniform_recombination_map(1.26, positions)
 				partitioning_dp_table = PedigreeDPTable(transformed_matrix, recombination_costs, cluster_pedigree, ploidy, False, cluster_counts, positions)
 				optimal_partitioning = partitioning_dp_table.get_optimal_partitioning()
+				print('Consensus MEC cost: ', partitioning_dp_table.get_optimal_cost())
 
 				print('read partitioning: ', optimal_partitioning, partitioning_dp_table.get_optimal_cost())
 
 				# printing
 				clu_to_r = defaultdict(list)
-				for read, partition in zip(readset,optimal_partitioning):
+				for read, partition in zip(transformed_matrix,optimal_partitioning):
 					clu_to_r[partition].append(read.name)
 				
-				for c,l in clu_to_r.items():
-					print(c,l)
+#				for c,l in clu_to_r.items():
+#					print(c,l)
 
 				# TODO the order of the reads in clusters_per_window and readset can differ. Therefore, reorder read_partitioning
 #				read_to_partition = {}

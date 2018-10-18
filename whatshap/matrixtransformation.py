@@ -78,17 +78,17 @@ class MatrixTransformation:
 				readpartitioning = clusterediting.run()
 
 				# store the result in final MEC matrix
-				print('')
+#				print('')
 				print(similarities)
-				print(position)
+#				print(position)
 				print(readpartitioning)
 				for c,cluster in enumerate(readpartitioning):
 					print('cluster: ', c, cluster)
 					for read_id in cluster:
 						# get readname
 						read_name = column[read_id].name
-						print(read_name, read_id)
-						quality = [10] * len(readpartitioning)
+#						print(read_name, read_id)
+						quality = [10] * max(ploidy,len(readpartitioning))
 						quality[c] = 0
 						self._readname_to_partitions[read_name].add_variant(position, c, quality)
 				self._number_of_clusters.append(max(ploidy,len(readpartitioning)))
@@ -99,7 +99,7 @@ class MatrixTransformation:
 					self._cluster_matrix.add(read)
 		# sort readsets
 		self._cluster_matrix.sort()
-		print('')
+#		print('')
 
 	def get_transformed_matrix(self):
 		"""

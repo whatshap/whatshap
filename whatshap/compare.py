@@ -143,7 +143,7 @@ def compare_block(phasing0, phasing1):
 		total_hamming = 0
 		for i in range(ploidy):
 			total_hamming += hamming(phasing1[i], permutation[i])
-		total_hamming /= ploidy
+		total_hamming /= float(ploidy)
 		minimum_hamming_distance = min(minimum_hamming_distance, total_hamming)
 
 	# TODO: extend switch/flip errors to polyploid genomes
@@ -155,7 +155,7 @@ def compare_block(phasing0, phasing1):
 
 	return PhasingErrors(
 		switches = switches,
-		hamming = int(minimum_hamming_distance),
+		hamming = minimum_hamming_distance,
 		switch_flips = switch_flips
 	)
 
