@@ -63,7 +63,7 @@ def test_compare2():
 		assert entry_chrB.largestblock_hamming == '1.0'
 
 
-def test_compare_polyploid():
+def test_compare_polyploid1():
 	with TemporaryDirectory() as tempdir:
 		outtsv = tempdir + '/output.tsv'
 		run_compare(vcf=['tests/data/phased.poly1.vcf', 'tests/data/phased.poly2.vcf'], ploidy=4, names='p1,p2', tsv_pairwise=outtsv, sample='sample1')
@@ -87,6 +87,33 @@ def test_compare_polyploid():
 		assert entry_chr22.all_switchflips == 'inf/inf'
 		assert entry_chr22.blockwise_hamming == '0.5'
 		assert entry_chr22.largestblock_assessed_pairs == '5'
+		assert entry_chr22.largestblock_switches == 'inf'
+		assert entry_chr22.largestblock_hamming == '0.5'
+
+def test_compare_polyploid2():
+	with TemporaryDirectory() as tempdir:
+		outtsv = tempdir + '/output.tsv'
+		run_compare(vcf=['tests/data/phased.poly1.vcf', 'tests/data/phased.poly2.vcf'], ploidy=4, names='p1,p2', tsv_pairwise=outtsv, sample='sample2')
+		lines = [l.split('\t') for l in open(outtsv)]
+		assert len(lines) == 3
+		Fields = namedtuple('Fields', [ f.strip('#\n') for f in lines[0] ])
+		entry_chr21, entry_chr22 = [Fields(*l) for l in lines[1:]]
+
+		assert entry_chr21.chromosome == 'chr21'
+		assert entry_chr21.all_assessed_pairs == '3'
+		assert entry_chr21.all_switches == 'inf'
+		assert entry_chr21.all_switchflips == 'inf/inf'
+		assert entry_chr21.blockwise_hamming == '0.5'
+		assert entry_chr21.largestblock_assessed_pairs == '3'
+		assert entry_chr21.largestblock_switches == 'inf'
+		assert entry_chr21.largestblock_hamming == '0.5'
+
+		assert entry_chr22.chromosome == 'chr22'
+		assert entry_chr22.all_assessed_pairs == '5'
+		assert entry_chr22.all_switches == 'inf'
+		assert entry_chr22.all_switchflips == 'inf/inf'
+		assert entry_chr22.blockwise_hamming == '1.0'
+		assert entry_chr22.largestblock_assessed_pairs == '3'
 		assert entry_chr22.largestblock_switches == 'inf'
 		assert entry_chr22.largestblock_hamming == '0.5'
 

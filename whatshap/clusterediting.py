@@ -199,8 +199,7 @@ def run_clusterediting(
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
 				# transform the allele matrix
-				# TODO:
-				selected_reads = select_reads(readset, 15, preferred_source_ids = vcf_source_ids)
+				selected_reads = select_reads(readset, 5*ploidy, preferred_source_ids = vcf_source_ids)
 				readset = selected_reads
 				print_readset(readset)
 				transformation = MatrixTransformation(readset, find_components(readset.get_positions(), readset), ploidy, errorrate, min_overlap)

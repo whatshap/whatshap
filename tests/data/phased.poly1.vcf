@@ -12,18 +12,18 @@
 ##bcftools_viewCommand=view -s HG00514 --phased vcf/HG00514.chr22.tmp.vcf.gz; Date=Tue Jul 17 15:11:30 2018
 ##bcftools_mergeVersion=1.6+htslib-1.6
 ##bcftools_mergeCommand=merge --missing-to-ref vcf/HG00514.chr22.vcf.gz vcf/NA19240.chr22.vcf.gz; Date=Tue Jul 17 16:20:29 2018
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample1
-chr21	10558266	.	G	A	.	.	AN=4;AC=0	GT	0/0/0/0
-chr21	10559451	.	C	T	.	.	AN=4;AC=2	GT:PS	0|1|1|0:0
-chr21	10560194	.	A	T	.	.	AN=4;AC=2	GT:PS	0|1|1|0:0
-chr21	10560958	.	G	C	.	.	AN=4;AC=1	GT:PS	1|0|0|0:0
-chr22	10561171	.	T	G	.	.	AN=4;AC=1	GT:PS	1|0|0|0:0
-chr22	10561516	.	G	T	.	.	AN=4;AC=0	GT:PS	0|0|0|1:0
-chr22	10561588	.	T	G	.	.	AN=4;AC=1	GT:PS	0|0|0|1:0
-chr22	10561922	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|1|0:0
-chr22	10562033	.	T	C	.	.	AN=4;AC=1	GT:PS	1|0|0|0:0
-chr22	10562407	.	G	A	.	.	AN=4;AC=1	GT:PS	1|0|0|0:0
-chr22	10564936	.	C	T	.	.	AN=4;AC=1	GT:PS	0|1|0|0:0
-chr22	10565319	.	G	T	.	.	AN=4;AC=0	GT:PS	0|0|0|0:0
-chr22	10566762	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|1|0:0
-chr22	10566807	.	C	T	.	.	AN=4;AC=1	GT:PS	1|0|0|0:0
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample1	sample2
+chr21	10558266	.	G	A	.	.	AN=4;AC=0	GT:PS	0/0/0/0:.	1|0|0|0:0
+chr21	10559451	.	C	T	.	.	AN=4;AC=2	GT:PS	0|1|1|0:0	0|1|0|0:0
+chr21	10560194	.	A	T	.	.	AN=4;AC=2	GT:PS	0|1|1|0:0	0|1|0|0:0
+chr21	10560958	.	G	C	.	.	AN=4;AC=1	GT:PS	1|0|0|0:0	0|0|1|0:0
+chr22	10561171	.	T	G	.	.	AN=4;AC=1	GT:PS	1|0|0|0:0	1|0|0|0:0
+chr22	10561516	.	G	T	.	.	AN=4;AC=0	GT:PS	0|0|0|1:0	0|1|1|0:0
+chr22	10561588	.	T	G	.	.	AN=4;AC=1	GT:PS	0|0|0|1:0	0|0|1|0:0
+chr22	10561922	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|1|0:0	1|0|1|0:0
+chr22	10562033	.	T	C	.	.	AN=4;AC=1	GT:PS	1|0|0|0:0	1|0|0|0:0
+chr22	10562407	.	G	A	.	.	AN=4;AC=1	GT:PS	1|0|0|0:0	1|0|0|0:0
+chr22	10564936	.	C	T	.	.	AN=4;AC=1	GT:PS	0|1|0|0:0	1|0|1|0:0
+chr22	10565319	.	G	T	.	.	AN=4;AC=0	GT:PS	0|0|0|0:0	0/0/1/1:.
+chr22	10566762	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|1|0:0	0/0/0/1:.
+chr22	10566807	.	C	T	.	.	AN=4;AC=1	GT:PS	1|0|0|0:0	0/0/0/0:.

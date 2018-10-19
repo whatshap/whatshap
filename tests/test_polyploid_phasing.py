@@ -1,6 +1,7 @@
 from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, GenotypeLikelihoods, Genotype
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 from whatshap.phase import find_components
+from whatshap.clusterediting import print_readset
 from whatshap.readsetpruning import ReadSetPruning
 from whatshap.matrixtransformation import MatrixTransformation
 
@@ -17,11 +18,13 @@ def solve_MEC(cluster_matrix, ploidy, cluster_counts):
 	"""
 	finds the best consensus clustering solving MEC.
 	"""
+	print_readset(cluster_matrix)
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids, ploidy)
 	windows = cluster_matrix.get_positions()
 	# TODO compute number of genotypes
 	genotypes = [Genotype([i for i in range(0,ploidy)])] * len(windows)
+	print(genotypes, cluster_counts)
 	pedigree.add_individual('0',genotypes,[GenotypeLikelihoods(ploidy, ploidy, [])]*len(windows))
 	dp_table = PedigreeDPTable(cluster_matrix, [1]*len(windows), pedigree, ploidy, distrust_genotypes=False, allele_counts=cluster_counts)
 	result = []
@@ -29,6 +32,7 @@ def solve_MEC(cluster_matrix, ploidy, cluster_counts):
 	for i in range(ploidy):
 		result.append([])
 	optimal_partitioning = dp_table.get_optimal_partitioning()
+	print(optimal_partitioning)
 	for i,partition in enumerate(optimal_partitioning):
 		result[partition].append(cluster_matrix[i].name)
 	for i in range(len(result)):
@@ -40,6 +44,7 @@ def derive_haplotypes(reads, positions, ploidy, given_genotypes, precomputed_par
 	given reads and a partitioning, computes the best allele assignment.
 	"""
 	numeric_sample_ids = NumericSampleIds()
+	print_readset(reads)
 	pedigree = Pedigree(numeric_sample_ids, ploidy)
 	genotype_likelihoods = [None if given_genotypes[0] else GenotypeLikelihoods(ploidy, 2, [0] * (ploidy+1))] * len(positions)
 	genotypes = given_genotypes[1] if given_genotypes[0] else [Genotype([])]*len(positions)
@@ -199,16 +204,16 @@ def test_diploid_phase4():
 #	check_phasing_single_individual(reads, genotypes, 2, 4, 3, 'clusterediting')
 
 
-# TODO: cluster editing always puts Read 1 and Read 3 in the same cluster
-#def test_polyploid_phase1():
-#	reads = """
-#          111
-#          010
-#          101
-#	"""
-#	for algorithm in ['windowphase', 'clusterediting']:
-#		genotypes = create_genotype_vector(3, [2,2,2])
-#		check_phasing_single_individual(reads, genotypes, 3, 3, 3, algorithm)
+# TODO: cluster editing always puts Read 1 and Read 3 in the same cluster since they are too similar
+def test_polyploid_phase1():
+	reads = """
+          111
+          010
+          101
+	"""
+	for algorithm in ['windowphase']:
+		genotypes = create_genotype_vector(3, [2,2,2])
+		check_phasing_single_individual(reads, genotypes, 3, 3, 3, algorithm)
 
 def test_polyploid_phase2():
 	reads = """
@@ -233,11 +238,13 @@ def test_polyploid_phase3():
 		genotypes = create_genotype_vector(3, [1,2,3,3,2,3,2])
 		check_phasing_single_individual(reads, genotypes, 3, 3, 5, algorithm)
 
-# TODO: connection reads 1 and 5,6 are never in the same window.
+# TODO: windowphase: connection reads 1 and 5,6 are never in the same window.
 #	they will be put in the same set, since they are never compared
 #	and the others do not give any 'hints' on whether to cluster
 #	1 / 5,6 / ... or  1,5,6 / ..
 #	leads to wrong partitioning and much higher MEC score
+#	clusterediting: reads 1 and 3,4,5 are put in the same cluster,
+#	since they are too similar
 #def test_polyploid_phase4():
 #	reads="""
 #        1111011
@@ -249,7 +256,7 @@ def test_polyploid_phase3():
 #        0000000
 #	"""
 #	genotypes = create_genotype_vector(4, [2,2,2,2,2,3,3])
-#	check_phasing_single_individual(reads, genotypes, 4, 5, 5)
+#	check_phasing_single_individual(reads, genotypes, 4, 5, 5, 'clusterediting')
 
 def test_polyploid_phase5():
 	reads="""
@@ -264,34 +271,4 @@ def test_polyploid_phase5():
 		genotypes =  create_genotype_vector(4, [1,1,2,1,1])
 		check_phasing_single_individual(reads, genotypes, 4, 6, 5, algorithm)
 
-#def test_polyploid_phase6():
-#	reads="""
-##	00000
-#	00100
-#	00100
-#	01000
-#	10011
-#	01000
-#	01000
-#	00000
-#	01000
-#	10011
-#	00100
-#	10011
-#	"""
-#	genotypes = create_genotype_vector(4, [1,1,1,1,1])
-#	check_phasing_single_individual(reads, genotypes, 4, 10, 5)
-#
-#def test_polyploid_phase7():
-#	reads="""
-#10000000  
-#01000100 0
-#0000100000
-#0000100000
-#00110011 1
-#0100010000
-#0011001111
-#0000100 0
-#"""
-#	genotypes = create_genotype_vector(4, [1,1,1,1,1,1,1,1,1,1])
-#	check_phasing_single_individual(reads, genotypes, 4, 10, 5)
+

@@ -79,11 +79,11 @@ class MatrixTransformation:
 
 				# store the result in final MEC matrix
 #				print('')
-				print(similarities)
+#				print(similarities)
 #				print(position)
-				print(readpartitioning)
+#				print(readpartitioning)
 				for c,cluster in enumerate(readpartitioning):
-					print('cluster: ', c, cluster)
+#					print('cluster: ', c, cluster)
 					for read_id in cluster:
 						# get readname
 						read_name = column[read_id].name

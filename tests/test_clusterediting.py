@@ -62,4 +62,18 @@ def test_similarities1():
 	print('computed similarities:', similarities)
 	assert(not math.isnan(similarities[0][0]))
 
+def test_similarities2():
+	reads = """
+	00000
+	00000
+	00000
+	00000
+	11111
+	11111
+	10101
+	10101
+	"""
 
+	readset = string_to_readset(reads)
+	similarities = score(readset, 4, 0.01, 4)
+	print('computed similarities:', similarities)
