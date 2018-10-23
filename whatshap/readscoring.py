@@ -30,13 +30,15 @@ def score(readset, ploidy, errorrate, min_overlap):
 	# => ((1-frac_same)*num_pairs)*x = num_pairs*avg_disagr - (frac_same*num_pairs)*errorrate
 	# => x = (num_pairs*avg_disagr - (frac_same*num_pairs)*errorrate) / ((1-frac_same)*num_pairs)
 	hammingdist_diff = (num_pairs*avg_disagr - (frac_same*num_pairs)*hammingdist_same) / ((1.0-frac_same)*num_pairs)
-	hammingdist_diff = max(hammingdist_same, min(1.0, hammingdist_diff))
+	#hammingdist_diff = max(hammingdist_same, min(1.0, hammingdist_diff))
+	hammingdist_diff = max(hammingdist_same, min((1.0+hammingdist_same)/2, hammingdist_diff))
 	
 	# Calculate the actual similarities
 	sim = [[]]
 	for i in range(num_reads):
 		sim.append([])
 		for j in range(i+1, num_reads):
+			print("Scoring "+str(i)+" -> "+str(j)+":")
 			sim[i].append(logratio_sim(overlap[i][j-i-1], diffs[i][j-i-1], hammingdist_same, hammingdist_diff, min_overlap))
 	return sim
 
@@ -70,11 +72,13 @@ def calc_overlap_and_diffs(readset):
 	return overlap, diffs
 
 def logratio_sim(overlap, diffs, dist_same, dist_diff, min_overlap):
+	print("overlap="+str(overlap)+" diffs="+str(diffs)+" dist_same="+str(dist_same)+" dist_diff="+str(dist_diff))
 	if (overlap < min_overlap):
 		return 0
 
 	p_same = binom.pmf(diffs, overlap, dist_same)
 	p_diff = binom.pmf(diffs, overlap, dist_diff)
+	print("p_same="+str(p_same)+" p_diff="+str(p_diff))
 	score = 0.0
 	if (p_same == 0):
 		score = -float("inf")

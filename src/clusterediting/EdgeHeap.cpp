@@ -18,12 +18,12 @@ EdgeHeap::EdgeHeap(LightCompleteGraph& param_graph, bool param_pruneZeroEdges) :
     edge2forb_rank(2*param_graph.numEdges(), 0),
     edge2perm_rank(2*param_graph.numEdges(), 0)
 {
-    initInducedCosts();
+    //initInducedCosts();
 }
 
 void EdgeHeap::initInducedCosts() {
     if (verbosity >= 1)
-        std::cout<<"Compute induced cost."<<std::endl;
+        std::cout<<"Compute induced costs.."<<std::endl;
     // preprocessing: sorted vector of non-zero neighbours for each node
     std::vector<std::vector<NodeId>> nonZeroNeighbours;
     for (NodeId u = 0; u < graph.numNodes(); u++) {

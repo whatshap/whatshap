@@ -1,4 +1,5 @@
 #include "InducedCostHeuristic.h"
+#include <queue>
 
 namespace ysk {
   
@@ -8,17 +9,26 @@ using EdgeId = LightCompleteGraph::EdgeId;
 using NodeId = LightCompleteGraph::NodeId;
 
 InducedCostHeuristic::InducedCostHeuristic(LightCompleteGraph& param_graph, bool param_pruneZeroEdges) :
-  pruneZeroEdges(param_pruneZeroEdges),
-  graph(param_graph),
-  edgeHeap(graph, param_pruneZeroEdges),
-  totalCost(0.0)
+    pruneZeroEdges(param_pruneZeroEdges),
+    graph(param_graph),
+    edgeHeap(graph, param_pruneZeroEdges),
+    totalCost(0.0)
 {
+    if (!resolvePermanentForbidden()) {
+        totalCost = std::numeric_limits<EdgeWeight>::infinity();
+    }
+    edgeHeap.initInducedCosts();
 }
 
 ClusterEditingSolutionLight InducedCostHeuristic::solve() {
 	// execute algorithm
 	if (verbosity >= 1)
 		std::cout<<"Running heuristic." << "."<<std::endl;
+    if (totalCost == std::numeric_limits<EdgeWeight>::infinity()) {
+        std::cout<<"Instance is infeasible!" <<std::endl;
+        ClusterEditingSolutionLight sol;
+        return sol;
+    }
   
 	int totalEdges = edgeHeap.numUnprocessed();
 	for (unsigned int i = 0; i < graph.numEdges() + 1; i++) {
@@ -90,7 +100,7 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
   
 	// calculate clustering
 	if (verbosity >= 1)
-		std::cout<<"Constructing result."<<std::endl;
+		std::cout<<"Constructing result.."<<std::endl;
 	std::vector<std::vector<NodeId>> clusters;
 	std::vector<int> clusterOfNode(graph.numNodes(), -1);
 	for (NodeId u = 0; u < graph.numNodes(); u++) {
@@ -120,6 +130,84 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
 		}
 	}
 	return ClusterEditingSolutionLight(totalCost, clusters);
+}
+
+bool InducedCostHeuristic::resolvePermanentForbidden() {
+    if (verbosity >= 1)
+		std::cout<<"Resolving forbidden and permanent edges." << "."<<std::endl;
+    // make cliques by connecting all nodes with inf path between them
+    std::vector<bool> processed(graph.numNodes(), false);
+    std::vector<std::vector<NodeId>> cliques;
+    for (NodeId u = 0; u < graph.numNodes() - 1; u++) {
+        if (processed[u])
+            continue;
+        std::vector<NodeId> clique;
+        std::queue<NodeId> remaining;
+        remaining.push(u);
+        while (!remaining.empty()) {
+            NodeId current = remaining.front();
+            remaining.pop();
+            clique.push_back(current);
+            for (NodeId v : graph.getCliqueOf(current)) {
+                if (!processed[v]) {
+                    remaining.push(v);
+                    processed[v] = true;
+                }
+            }
+        }
+        cliques.push_back(clique);
+        for (NodeId x : clique) {
+            for (NodeId y : clique) {
+                if (x != y) {
+                    Edge e (x,y);
+                    EdgeWeight w = graph.getWeight(e);
+                    if (w == LightCompleteGraph::Forbidden)
+                        return false;
+                    else if (w != LightCompleteGraph::Permanent) {
+                        if (w < 0.0)
+                            totalCost -= w;
+                        graph.setWeight(Edge(x,y), LightCompleteGraph::Permanent);
+                        if (verbosity >= 5) {
+                            std::cout<<"Making ("<<x<<","<<y<<") permanent due to implication."<<std::endl;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // disconnect all cliques which have a forbidden edge between them
+    for (unsigned int k = 0; k < cliques.size(); k++) {
+        for (unsigned int l = k+1; l < cliques.size(); l++) {
+            // search for forbidden edge between
+            bool found = false;
+            for (NodeId u : cliques[k]) {
+                if (found) break;
+                for (NodeId v : cliques[l]) {
+                    if (graph.getWeight(Edge(u, v)) == LightCompleteGraph::Forbidden) {
+                        found = true;
+                        break;
+                    }
+                }
+            }
+            // make all edges forbidden, if one forbidden edge was found
+            if (found) {
+                for (NodeId u : cliques[k]) {
+                    for (NodeId v : cliques[l]) {
+                        Edge e(u,v);
+                        if (graph.getWeight(e) != LightCompleteGraph::Forbidden) {
+                            graph.setWeight(e, LightCompleteGraph::Forbidden);
+                            if (verbosity >= 5) {
+                                std::cout<<"Making ("<<u<<","<<v<<") forbidden due to implication."<<std::endl;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    return true;
 }
 
 void InducedCostHeuristic::setForbidden(const Edge e) {
