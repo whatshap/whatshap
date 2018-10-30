@@ -3,7 +3,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from pylab import savefig
-from .readscoring import calc_overlap_and_diffs
+from .readscoring import calc_overlap_and_diffs, parse_haplotype
 
 def draw_plots(readset, path, min_overlap = 5):
 	num_reads = len(readset)
@@ -20,18 +20,6 @@ def draw_plots(readset, path, min_overlap = 5):
 			else:
 				dissims_diff.append(d)
 	createHistogram(dissims_same, dissims_diff, 100, path)
-
-def parse_haplotype(name):
-	tokens = name.split("_")
-	if (tokens[-2] == "HG00514" and tokens[-1] == "HAP1"):
-		return 0
-	elif (tokens[-2] == "HG00514" and tokens[-1] == "HAP2"):
-		return 1
-	elif (tokens[-2] == "NA19240" and tokens[-1] == "HAP1"):
-		return 2
-	elif (tokens[-2] == "NA19240" and tokens[-1] == "HAP2"):
-		return 3
-	return -1
 
 #Counts the fraction of ones in each column of the matrix
 def createHistogram(same, diff, steps, path):

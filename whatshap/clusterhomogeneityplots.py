@@ -1,13 +1,11 @@
-#import collections
-#import pandas
-#import seaborn as sns
-#import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import matplotlib
 import shutil
 import os
-from .dissimilarityplots import parse_haplotype
+from .core import Read, ReadSet, CoreAlgorithm, LightCompleteGraph
+from .readscoring import score, parse_haplotype
+from .kclustifier import k_clustify
 from copy import deepcopy
 
 def draw_heatmaps(readset, clustering, heatmap_folder):
@@ -34,7 +32,7 @@ def draw_heatmaps(readset, clustering, heatmap_folder):
 		fig = plt.figure(figsize=(12, 6), dpi=100)
 		legend_handles = {}
 		SCALING_FACTOR = 1
-		
+
 		read_id = 0
 		for read in clusters[c_id]:   
 			start = index[readset[read][0].position]
@@ -53,3 +51,29 @@ def draw_heatmaps(readset, clustering, heatmap_folder):
 		fig.savefig(heatmap_path)			
 		fig.clear()
 
+def cluster_and_draw(output, readset, ploidy, errorrate, min_overlap):
+	print("Clustering reads for homogeneity plots.")
+	print("Computing similarities ...")
+	similarities = score(readset, ploidy, errorrate, min_overlap)
+
+	print("Constructing graph ...")
+	# create read graph object
+	graph = LightCompleteGraph(len(readset),True)
+
+	# insert edges into read graph
+	n_reads = len(readset)
+	for id1 in range(n_reads):
+		for id2 in range(id1+1, n_reads):
+			graph.setWeight(id1, id2, similarities[id1][id2 - id1 - 1])
+
+	print("Solving cluster editing ...")
+	# run cluster editing
+	clusterediting = CoreAlgorithm(graph)	
+	readpartitioning = clusterediting.run()
+	
+	print("Merging clusters ...")
+	#kclusters = k_clustify(similarities, readpartitioning, ploidy)
+
+	print("Generating plots ...")
+	draw_heatmaps(readset, readpartitioning, output+".heatmaps/")
+	print("... finished")

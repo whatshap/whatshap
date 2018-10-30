@@ -2,7 +2,8 @@ from collections import defaultdict
 import sys
 from .graph import ComponentFinder
 from .core import Read, ReadSet, CoreAlgorithm, LightCompleteGraph
-from .readscoring import score
+from .readscoring import score, partial_scoring
+from .kclustifier import k_clustify
 import logging
 import pysam
 import itertools
@@ -50,6 +51,8 @@ class MatrixTransformation:
 			self._current_column = []
 			# get all positions in this component
 			component_positions = self._component_reads.get_positions()
+			similarities = score(self._component_reads, ploidy, errorrate, min_overlap)
+			num_clusters = []
 			for j, position in enumerate(component_positions):
 				self._current_column = []
 				# get all reads that cover current position
@@ -62,7 +65,11 @@ class MatrixTransformation:
 #				print('reads covering position ', position, [r.name for r in column])
 
 				# compute similarities for reads in column
-				similarities = score(column, ploidy, errorrate, min_overlap)
+				#print("Computing similarities for column "+str(j))
+				#similarities = score(column, ploidy, errorrate, min_overlap)
+
+				index_set = [e[0] for e in self._current_column]
+				#similarities = partial_scoring(all_similarities, index_set)
 
 				# create read graph object
 				graph = LightCompleteGraph(len(column),True)
@@ -71,11 +78,13 @@ class MatrixTransformation:
 				n_reads = len(column)
 				for id1 in range(n_reads):
 					for id2 in range(id1+1, n_reads):
-						graph.setWeight(id1, id2, similarities[id1][id2 - id1 - 1])
+						graph.setWeight(id1, id2, similarities[index_set[id1]][index_set[id2] - index_set[id1] - 1])
 
 				# run cluster editing
 				clusterediting = CoreAlgorithm(graph)	
 				readpartitioning = clusterediting.run()
+				num_clusters.append(len(readpartitioning))
+				#readpartitioning = k_clustify(partial_scoring(similarities, index_set), readpartitioning, ploidy)
 
 				# store the result in final MEC matrix
 #				print('')
@@ -92,7 +101,12 @@ class MatrixTransformation:
 						quality[c] = 0
 						self._readname_to_partitions[read_name].add_variant(position, c, quality)
 				self._number_of_clusters.append(max(ploidy,len(readpartitioning)))
-
+				
+			print("Num Clusterings:  "+str(len(num_clusters)))
+			print("Avg Num clusters: "+str(sum(num_clusters)/len(component_positions)))
+			print("Clusters > k    : "+str(sum([1 for cluster in num_clusters if cluster > ploidy])))
+			print("Clusters < k    : "+str(sum([1 for cluster in num_clusters if cluster < ploidy])))
+			
 			# add the computed reads to final ReadSet
 			for read in self._readname_to_partitions.values():
 				if len(read) > 0:

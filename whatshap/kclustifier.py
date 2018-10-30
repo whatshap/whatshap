@@ -19,9 +19,9 @@ def k_clustify_merge(sim, clusters, k):
 	active = [sorted_by_size[0]]
 	unprocessed = [c for c in range(m) if c not in active]
 	cluster_list = [[c] for c in range(m)]
-	print("active: "+str(active))
-	print("unprocessed: "+str(unprocessed))
-	print("cluster_list: "+str(cluster_list))
+	#print("active: "+str(active))
+	#print("unprocessed: "+str(unprocessed))
+	#print("cluster_list: "+str(cluster_list))
 
 	# Find initial k clusters
 	while len(active) < k:
@@ -30,9 +30,9 @@ def k_clustify_merge(sim, clusters, k):
 		active.sort()
 		unprocessed.remove(c)
 
-	print("active: "+str(active))
-	print("unprocessed: "+str(unprocessed))
-	print("cluster_list: "+str(cluster_list))
+	#print("active: "+str(active))
+	#print("unprocessed: "+str(unprocessed))
+	#print("cluster_list: "+str(cluster_list))
 
 	# Until <certain condition> add the currently most overlappint cluster and remove on out of k+1
 	while(len(unprocessed) > 0):
@@ -69,7 +69,7 @@ def k_clustify_merge(sim, clusters, k):
 
 	# Construct result
 	merged_clusters = [merged_cluster for merged_cluster in cluster_list if len(merged_cluster) > 0]
-	print("merged_clusters: "+str(merged_clusters))
+	#print("merged_clusters: "+str(merged_clusters))
 	return [[ item for i in merged_cluster for item in clusters[i] ] for merged_cluster in merged_clusters]
 
 def k_clustify_split(sim, clusters, k):
