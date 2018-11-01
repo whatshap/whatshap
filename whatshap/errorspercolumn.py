@@ -1,10 +1,10 @@
 """
-Compute transformation columnwise using cluster editing and compute consensus clustering solving MEC.
+Compute the number of errors per column based on the true partitioning encoded in the readnames.
 
-Read a VCF and one or more files with phase information (BAM/CRAM or VCF phased
-blocks) and phase the variants. The phased VCF is written to standard output.
-For each column, cluster all reads covering in (cluster editing), and compute
-a consensus clustering using MEC.
+Provided BAM is assumed to be modified in a way that the readnames encode the
+true origin of a read (haplotype).
+Construct the transformed matrix and compute the numbers of errors that 
+need to be corrected in each column to match the true partitioning.
 
 """
 import sys
@@ -53,7 +53,7 @@ def print_readset(readset):
 		result += '\n'
 	print(result)
 
-def run_clusterediting(
+def run_errorspercolumn(
 	phase_input_files,
 	variant_file,
 	ploidy,
@@ -64,9 +64,7 @@ def run_clusterediting(
 	ignore_read_groups=False,
 	indels=True,
 	mapping_quality=20,
-	tag='PS',
 	write_command_line_header=True,
-	read_list_filename=None,
 	errorrate = 0.1, 
 	min_overlap = 5
 	):
@@ -81,7 +79,6 @@ def run_clusterediting(
 	chromosomes -- names of chromosomes to phase. An empty list means: phase all chromosomes
 	ignore_read_groups
 	mapping_quality -- discard reads below this mapping quality
-	tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
 	write_command_line_header -- whether to add a ##commandline header to the output VCF
 	"""
 	timers = StageTimer()
@@ -125,8 +122,6 @@ def run_clusterediting(
 			command_line = '(whatshap {}) {}'.format(__version__, ' '.join(sys.argv[1:]))
 		else:
 			command_line = None
-		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file,
-			out_file=output, tag=tag, ploidy=ploidy)
 		# TODO for now, assume we always trust the genotypes
 		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=False, ploidy=ploidy)
 
@@ -157,12 +152,7 @@ def run_clusterediting(
 				logger.info('======== Working on chromosome %r', chromosome)
 			else:
 				logger.info('Leaving chromosome %r unchanged (present in VCF but not requested by option --chromosome)', chromosome)
-				with timers('write_vcf'):
-					superreads, components = dict(), dict()
-					vcf_writer.write(chromosome, superreads, components)
 				continue
-			# These two variables hold the phasing results for all samples
-			superreads, components = dict(), dict()
 
 			# Iterate over all samples to process
 			for sample in samples:
@@ -215,85 +205,7 @@ def run_clusterediting(
 				transformed_matrix = selected_reads
 
 				print_readset(transformed_matrix)
-				# solve MEC to get overall partitioning, prepare input objects for this
-				cluster_pedigree = Pedigree(numeric_sample_ids, ploidy)
-				positions = transformed_matrix.get_positions()
-				alleles = [i for i in range(0,ploidy)]
-				cluster_pedigree.add_individual(sample, [Genotype(alleles)]*len(positions), [GenotypeLikelihoods(ploidy, ploidy,[0])]*len(positions))
-				recombination_costs = uniform_recombination_map(1.26, positions)
-				partitioning_dp_table = PedigreeDPTable(transformed_matrix, recombination_costs, cluster_pedigree, ploidy, False, cluster_counts, positions)
-				optimal_partitioning = partitioning_dp_table.get_optimal_partitioning()
-				print('Consensus MEC cost: ', partitioning_dp_table.get_optimal_cost())
-
-				print('read partitioning: ', optimal_partitioning, partitioning_dp_table.get_optimal_cost())
-
-				# printing
-				clu_to_r = defaultdict(list)
-				for read, partition in zip(transformed_matrix,optimal_partitioning):
-					clu_to_r[partition].append(read.name)
-				
-#				for c,l in clu_to_r.items():
-#					print(c,l)
-
-				# TODO the order of the reads in clusters_per_window and readset can differ. Therefore, reorder read_partitioning
-#				read_to_partition = {}
-#				for i,read in enumerate(transformed_matrix):
-#					read_to_partition[read.name] = read_partitioning[i]
-#				optimal_partitioning =  [ read_to_partition[r.name] for r in transformed_matrix]	
-
-				selected_names = [r.name for r in transformed_matrix]
-				# keep only those reads in original readset that have been selected in transformed matrix
-				to_keep = [ i for i,read in enumerate(readset) if read.name in selected_names]
-				readset = readset.subset(to_keep)
-				print_readset(readset)
-
-				# prepare input for determining the best allele configuration
-				# Determine which variants can (in principle) be phased
-				accessible_positions = sorted(readset.get_positions())
-				logger.info('Variants covered by at least one phase-informative read: %d', len(accessible_positions))
-
-				# Keep only accessible positions
-				phasable_variant_table.subset_rows_by_position(accessible_positions)
-				assert len(phasable_variant_table.variants) == len(accessible_positions)
-
-				pedigree = Pedigree(numeric_sample_ids, ploidy)
-				ind_genotypes = [gt.get_genotype() for gt in phasable_variant_table.genotypes_of(sample)]
-				pedigree.add_individual(sample, ind_genotypes, None)
-
-				# For the given partitioning of the reads, determine best allele configurations
-				with timers('phase'):
-					logger.info('Phasing %s by determining best allele assignment ... ', sample)
-					recombination_costs = uniform_recombination_map(1.26, accessible_positions)
-					allele_assignment = PedigreeDPTable(readset, recombination_costs, pedigree, ploidy, False, None, accessible_positions, optimal_partitioning)
-					superreads_list = allele_assignment.get_super_reads()
-					logger.info('MEC cost: %d', allele_assignment.get_optimal_cost())
-				with timers('components'):
-					overall_components = find_components(accessible_positions, readset, None, None)
-					n_phased_blocks = len(set(overall_components.values()))
-					logger.info('No. of phased blocks: %d', n_phased_blocks)
-					largest_component = find_largest_component(overall_components)
-					if len(largest_component) > 0:
-							logger.info('Largest component contains %d variants (%.1f%% of accessible variants) between position %d and %d', len(largest_component), len(largest_component)*100.0/len(accessible_positions), largest_component[0]+1, largest_component[-1]+1)
-
-				assert(len(superreads_list) == 2)
-				sample_superreads = superreads_list[0]
-				superreads[sample] = sample_superreads[0]
-				assert len(sample_superreads[0]) == ploidy
-				sr_sample_id = sample_superreads[0][0].sample_id
-				for sr in sample_superreads[0]:
-					assert sr.sample_id == sr_sample_id == numeric_sample_ids[sample]
-				components[sample] = overall_components
-
-#				if read_list_file:
-#					write_read_list(all_reads, allele_assignment.get_optimal_partitioning(), components, numeric_sample_ids, read_list_file)
-			with timers('write_vcf'):
-				logger.info('======== Writing VCF')
-				changed_genotypes = vcf_writer.write(chromosome, superreads, components)
-				logger.info('Done writing VCF')
-				assert len(changed_genotypes) == 0
-			logger.debug('Chromosome %r finished', chromosome)
-			timers.start('parse_vcf')
-		timers.stop('parse_vcf')
+				# TODO compute numbers of errors per column based on the true partitioning encoded in the read name
 	
 	if read_list_file:
 		read_list_file.close()
@@ -330,12 +242,6 @@ def add_arguments(parser):
 	arg('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')
-	arg('--tag', choices=('PS','HP'), default='PS',
-		help='Store phasing information with PS tag (standardized) or '
-			'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')
-	arg('--output-read-list', metavar='FILE', default=None, dest='read_list_filename',
-		help='Write reads that have been used for phasing to FILE.')
-
 	arg = parser.add_argument_group('Input pre-processing, selection, and filtering').add_argument
 	arg('--mapping-quality', '--mapq', metavar='QUAL',
 		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
@@ -359,4 +265,4 @@ def validate(args, parser):
 	pass
 
 def main(args):
-	run_clusterediting(**vars(args))
+	run_errorspercolumn(**vars(args))

@@ -18,7 +18,8 @@ COMMANDS = [
 	'genotype',
 	'windowphase',
 	'clusterediting',
-	'plot'
+	'plot',
+	'errorspercolumn'
 ]
 
 logger = logging.getLogger(__name__)
