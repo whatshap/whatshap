@@ -32,6 +32,12 @@ from .variants import ReadSetReader, ReadSetError
 from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
 from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components, find_largest_component, write_read_list
+from .errorcomputer import ErrorsPerColumn
+
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as plt
+from pylab import savefig
 
 __author__ = "Jana Ebler" 
 
@@ -58,7 +64,7 @@ def run_errorspercolumn(
 	variant_file,
 	ploidy,
 	reference=None,
-	output=sys.stdout,
+	output='output',
 	samples=None,
 	chromosomes=None,
 	ignore_read_groups=False,
@@ -74,7 +80,7 @@ def run_errorspercolumn(
 	phase_input_files -- list of paths to BAM/CRAM/VCF files
 	variant-file -- path to input VCF
 	reference -- path to reference FASTA
-	output -- path to output VCF or a file like object
+	output -- name of output file
 	samples -- names of samples to phase. An empty list means: phase all samples
 	chromosomes -- names of chromosomes to phase. An empty list means: phase all chromosomes
 	ignore_read_groups
@@ -116,8 +122,6 @@ def run_errorspercolumn(
 		else:
 			fasta = None
 		del reference
-		if isinstance(output, str):
-			output = stack.enter_context(xopen(output, 'w'))
 		if write_command_line_header:
 			command_line = '(whatshap {}) {}'.format(__version__, ' '.join(sys.argv[1:]))
 		else:
@@ -139,10 +143,6 @@ def run_errorspercolumn(
 				sys.exit(1)
 
 		samples = frozenset(samples)
-
-		read_list_file = None
-		if read_list_filename:
-			read_list_file = create_read_list_file(read_list_filename)
 		
 		timers.start('parse_vcf')
 		for variant_table in vcf_reader:
@@ -188,7 +188,7 @@ def run_errorspercolumn(
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
 				# transform the allele matrix
-				selected_reads = select_reads(readset, 5*ploidy, preferred_source_ids = vcf_source_ids)
+				selected_reads = select_reads(readset, 10*ploidy, preferred_source_ids = vcf_source_ids)
 				readset = selected_reads
 				print_readset(readset)
 				transformation = MatrixTransformation(readset, find_components(readset.get_positions(), readset), ploidy, errorrate, min_overlap)
@@ -201,14 +201,33 @@ def run_errorspercolumn(
 #				print('cluster counts:', cluster_counts)
 
 				# TODO include this readselection step?
-				selected_reads = select_reads(transformed_matrix, 7, preferred_source_ids = vcf_source_ids)
-				transformed_matrix = selected_reads
+#				selected_reads = select_reads(transformed_matrix, 7, preferred_source_ids = vcf_source_ids)
+#				transformed_matrix = selected_reads
 
 				print_readset(transformed_matrix)
-				# TODO compute numbers of errors per column based on the true partitioning encoded in the read name
-	
-	if read_list_file:
-		read_list_file.close()
+				# compute numbers of errors per column based on the true partitioning encoded in the read name
+				error_computer = ErrorsPerColumn(transformed_matrix, ploidy)
+				column_costs = error_computer.get_column_costs()
+				normalized_costs = error_computer.get_normalized_column_costs()
+				# create barplots
+				n = len(column_costs)
+				x = range(n)
+				
+				# plot raw counts
+				plt.bar(x,column_costs, color="blue")
+				plt.title("error counts per column")
+				plt.xlabel("column index")
+				plt.ylabel("error count")
+				savefig(output + 'counts.eps', bbox_inches='tight')
+				plt.close()
+
+				# plot normalized counts
+				plt.bar(x, normalized_costs, color="red")
+				plt.title("fraction of errors per column")
+				plt.xlabel("column index")
+				plt.ylabel("errors/reads")
+				savefig(output + 'fractions.eps', bbox_inches='tight')
+				plt.close()
 
 	logger.info('\n== SUMMARY ==')
 	timers.stop('overall')
