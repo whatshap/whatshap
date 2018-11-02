@@ -112,6 +112,7 @@ def check_phasing_single_individual(reads, genotypes, ploidy, reads_per_window, 
 		pruner = MatrixTransformation(readset, components, ploidy, 0.1, variants_per_window)
 		allele_matrix = readset
 		cluster_matrix = pruner.get_transformed_matrix()
+		print_readset(cluster_matrix)
 	else:
 		assert(False)
 	cluster_counts = pruner.get_cluster_counts()
@@ -178,10 +179,10 @@ def test_diploid_phase3():
 
 def test_diploid_phase4():
 	reads = """
-         1111111
-         0000000
-            111111111
-              0000000
+        1111111
+        0000000
+           111111111
+             0000000
 	"""
 	for algorithm in ['windowphase', 'clusterediting']:
 		genotypes = create_genotype_vector(2, [1,1,1,1,1,1,1,1,1,1,1,1])
@@ -243,20 +244,18 @@ def test_polyploid_phase3():
 #	and the others do not give any 'hints' on whether to cluster
 #	1 / 5,6 / ... or  1,5,6 / ..
 #	leads to wrong partitioning and much higher MEC score
-#	clusterediting: reads 1 and 3,4,5 are put in the same cluster,
-#	since they are too similar
-#def test_polyploid_phase4():
-#	reads="""
-#        1111011
-#        0101110
-#        1110111
-#        1010111
-#        1010111
-#        0000001
-#        0000000
-#	"""
-#	genotypes = create_genotype_vector(4, [2,2,2,2,2,3,3])
-#	check_phasing_single_individual(reads, genotypes, 4, 5, 5, 'clusterediting')
+def test_polyploid_phase4():
+	reads="""
+        1111011
+        0101110
+        1110111
+        1010111
+        1010111
+        0000001
+        0000000
+	"""
+	genotypes = create_genotype_vector(4, [2,2,2,2,2,3,3])
+	check_phasing_single_individual(reads, genotypes, 4, 5, 5, 'clusterediting')
 
 def test_polyploid_phase5():
 	reads="""
@@ -271,4 +270,25 @@ def test_polyploid_phase5():
 		genotypes =  create_genotype_vector(4, [1,1,2,1,1])
 		check_phasing_single_individual(reads, genotypes, 4, 6, 5, algorithm)
 
+def test_polyploid_phase6():
+	reads="""
+	1111
+	0000
+	   1111
+	   0000
+	"""
+	genotypes = create_genotype_vector(2, [1,1,1,1,1,1,1])
+	check_phasing_single_individual(reads,genotypes, 2, 1, 1, 'clusterediting')
 
+# TODO: if min_overlap is > 1, some reads cannot be compared. Here, this leads to two independent clusterings
+#	for positions 4,5: The algorithm would either combine {R1,R2} with {R3} or with {R4}, easily causing
+#	a switch error. How to deal with these cases/ How to introduce a break?
+#def test_polyploid_phase7():
+#	reads = """
+#	00000
+#	00000
+#	   00000
+#	   11111
+#	"""
+#	genotypes = create_genotype_vector(2, [1,1,1,1,1,1,1,1])
+#	check_phasing_single_individual(reads, genotypes, 2, 4, 4, 'clusterediting')

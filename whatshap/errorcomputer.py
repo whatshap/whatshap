@@ -68,7 +68,7 @@ class ErrorsPerColumn:
 
 	def _compute_costs(self): 
 		n = len(self._current_column)
-		# first, get the clustering from the matrixcolumn
+		# get the clustering from the given readset
 		id_to_names = defaultdict(list)
 		for element in self._current_column:
 			read = element[1]
@@ -77,9 +77,9 @@ class ErrorsPerColumn:
 					cluster = var.allele
 					id_to_names[cluster].append(read.name)
 		# printing
-		print('computed column clustering:', self._positions)
-		for k,v in id_to_names.items():
-			print(k,v)
+#		print('computed column clustering:', self._positions)
+#		for k,v in id_to_names.items():
+#			print(k,v)
 
 		# store for each true haplotype the computed cluster assignments
 		individual_to_id = {'NA19240_HAP1':0, 'NA19240_HAP2':1, 'HG00514_HAP1':2, 'HG00514_HAP2':3}

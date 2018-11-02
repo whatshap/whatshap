@@ -1,6 +1,7 @@
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-import matplotlib
 import shutil
 import os
 from .core import Read, ReadSet, CoreAlgorithm, LightCompleteGraph
