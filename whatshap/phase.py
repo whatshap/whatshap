@@ -856,6 +856,13 @@ def run_whatshap(
 					logger.info('Phasing %d sample%s by solving the %s problem ...',
 						len(family), 's' if len(family) > 1 else '', problem_name)
 
+					if read_list_file :
+						print(file = read_list_file)
+						print(all_reads, file = read_list_file)
+						print(file = read_list_file)
+						print('exiting...', file = sys.stderr)
+						sys.exit(0)
+
 					dp_table = None
 					if algorithm == 'hapchat' :
 						dp_table = HapChatCore(all_reads)
