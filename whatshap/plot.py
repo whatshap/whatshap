@@ -182,8 +182,8 @@ def run_plot(
 
 				# create dissimilarity plots
 #				print_readset(selected_reads)
-				draw_plots_dissimilarity(readset, '{output}-{sample}-{chromosome}.png'.format(output=output, sample=sample, chromosome=chromosome))
-				#draw_plots_scoring(readset, '{output}-{sample}-{chromosome}.png'.format(output=output, sample=sample, chromosome=chromosome))
+				#draw_plots_dissimilarity(readset, '{output}-{sample}-{chromosome}.png'.format(output=output, sample=sample, chromosome=chromosome))
+				draw_plots_scoring(readset, '{output}-{sample}-{chromosome}.png'.format(output=output, sample=sample, chromosome=chromosome), ploidy, errorrate, steps = 600)
 				#draw_column_dissimilarity(readset, '{output}-{sample}-{chromosome}.png'.format(output=output, sample=sample, chromosome=chromosome))
 
 	logger.info('\n== SUMMARY ==')
