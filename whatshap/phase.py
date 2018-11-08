@@ -770,6 +770,13 @@ def run_whatshap(
 						bam_sample = None if ignore_read_groups else sample
 						readset, vcf_source_ids = read_reads(readset_reader, chromosome, phasable_variant_table.variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
 
+						if read_list_file :
+							print(file = read_list_file)
+							print(readset, file = read_list_file)
+							print(file = read_list_file)
+							print('exiting...', file = sys.stderr)
+							sys.exit(0)
+
 					# TODO: Read selection done w.r.t. all variants, where using heterozygous variants only
 					# TODO: would probably give better results.
 					with timers('select'):
