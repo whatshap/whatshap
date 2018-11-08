@@ -134,6 +134,9 @@ class ReadSetReader:
 			normalized_variants = [ variant.normalized() for variant in variants ]
 
 		i = 0  # index into variants
+		print()
+		print('reads...')
+		print()
 		for alignment in alignments:
 			# Skip variants that are to the left of this read
 			while i < len(normalized_variants) and normalized_variants[i].position < alignment.bam_alignment.reference_start:
@@ -152,7 +155,8 @@ class ReadSetReader:
 
 			else:
 				detected = self.detect_alleles_by_alignment(variants, i, alignment.bam_alignment, reference, self._overhang, self._use_affine, self._gap_start, self._gap_extend, self._default_mismatch)
-			for j, allele, quality in detected:
+			for j, base, allele, quality in detected:
+				print(alignment.bam_alignment.qname, variants[j].position, base, allele, quality)
 				read.add_variant(variants[j].position, allele, quality)
 			if read:  # At least one variant covered and detected
 				reads[(alignment.source_id, alignment.bam_alignment.qname, numeric_sample_id)].append(read)
@@ -192,7 +196,7 @@ class ReadSetReader:
 						elif base == variants[j].alternative_allele:
 							allele = 1
 						else:
-							allele = None
+							allele = 2 # None
 						if allele is not None:
 							# TODO
 							# Fix this: we can actually have indel and SNV
@@ -210,7 +214,7 @@ class ReadSetReader:
 									qual = bam_read.query_qualities[query_pos + offset]
 								else:
 									qual = 30  # TODO
-								yield (j, allele, qual)
+								yield (j, base, allele, qual)
 								seen_positions.add(variants[j].position)
 					elif len(variants[j].reference_allele) == 0:
 						assert len(variants[j].alternative_allele) > 0
