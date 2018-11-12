@@ -9,6 +9,7 @@ Wrappers for core C++ classes.
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libcpp.unordered_set cimport unordered_set
 cimport cpp
 
 from collections import namedtuple
@@ -413,6 +414,19 @@ def compute_genotypes(ReadSet readset, positions = None):
 	del gl_vector
 	return genotypes, gls
 
+def scoring_computation(haplofile, E_file, panelfile, mutation, out_costfile, out_pathfile):
+	filename_byte_string_haplo = haplofile.encode("UTF-8")
+	filename_byte_string_E = E_file.encode("UTF-8")
+	filename_byte_string_panel = panelfile.encode("UTF-8")
+	filename_byte_string_costs = out_costfile.encode("UTF-8")
+	filename_byte_string_paths = out_pathfile.encode("UTF-8")
+	cdef char* fname_haplo = filename_byte_string_haplo
+	cdef char* fname_E = filename_byte_string_E
+	cdef char* fname_panel = filename_byte_string_panel
+	cdef char* fname_costs = filename_byte_string_costs
+	cdef char* fname_paths = filename_byte_string_paths
+	cdef float mutation_parameter = int(mutation)
+	cpp.compute_scoring(fname_haplo, fname_E, fname_panel, mutation_parameter, fname_costs, fname_paths)
 
 cdef class HapChatCore:
 	def __cinit__(self, ReadSet readset):

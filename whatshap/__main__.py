@@ -15,7 +15,8 @@ COMMANDS = [
 	'hapcut2vcf',
 	'unphase',
 	'haplotag',
-	'genotype'
+	'genotype',
+	'connect'
 ]
 
 logger = logging.getLogger(__name__)

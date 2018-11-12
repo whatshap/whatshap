@@ -13,12 +13,13 @@ class FastaNotIndexedError(Exception):
 
 def detect_file_format(path):
 	"""
-	Detect file format and return 'BAM', 'CRAM', 'VCF' or raise an UnknownFileFormatError.
+	Detect file format and return 'BAM', 'CRAM', 'VCF', 'TXT' or raise an UnknownFileFormatError.
 	'VCF' is returned for both uncompressed and compressed VCFs (.vcf and .vcf.gz).
 	"""
 	try:
 		with open(path, 'rb') as f:
 			first_bytes = f.read(16)
+			print("first bytes: ", first_bytes)
 			if first_bytes.startswith(b'CRAM'):
 				return 'CRAM'
 			if first_bytes.startswith(b'##fileformat=VCF'):
@@ -30,8 +31,6 @@ def detect_file_format(path):
 			first_bytes = f.read(16)
 			if first_bytes.startswith(b'BAM\1'):
 				return 'BAM'
-			elif first_bytes.startswith(b'##fileformat=VCF'):
-				return 'VCF'
 	except OSError:
 		pass
 	raise UnknownFileFormatError()

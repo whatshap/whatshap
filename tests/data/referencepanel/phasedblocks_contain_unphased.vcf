@@ -1,0 +1,16 @@
+##fileformat=VCFv4.1
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PS,Number=1,Type=Integer,Description="Phase set identifier">
+##FILTER=<ID=PASS,Description="All filters passed">
+##contig=<ID=chr22,length=10>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample
+chr22	1	.	G	A	.	PASS	MTD=isaac_strelka,bwa_freebayes,bwa_platypus,bwa_gatk;KM=12.50;KFP=0;KFF=0	GT:PS	1|0:100
+chr22	2	.	A	T	.	PASS	MTD=isaac_strelka,bwa_freebayes,bwa_gatk;KM=10.17;KFP=0;KFF=0	GT:PS	1|0:100
+chr22	3	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=9.00;KFP=0;KFF=0	GT:PS	0|1:100
+chr22	4	.	G	T	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=9.00;KFP=0;KFF=0	GT	0/1
+chr22	5	.	T	C	.	PASS	MTD=isaac_strelka,bwa_freebayes,bwa_platypus,bwa_gatk;KM=18.73;KFP=0;KFF=0	GT:PS	1|0:100
+chr22	6	.	T	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=9.50;KFP=0;KFF=0	GT:PS	1|0:200
+chr22	7	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=8.00;KFP=0;KFF=0	GT:PS	0|1:200
+chr22	8	.	C	T	.	PASS	MTD=bwa_freebayes;KM=8.33;KFP=0;KFF=0	GT:PS	0|1:200
+chr22	9	.	C	T	.	PASS	MTD=bwa_freebayes;KM=5.33;KFP=0;KFF=0	GT:PS	1|0:300
+chr22	10	.	A	G	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.67;KFP=0;KFF=0	GT:PS	0|1:300

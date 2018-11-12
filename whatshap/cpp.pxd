@@ -5,6 +5,7 @@ Declarations for all C++ classes that are wrapped from Cython.
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libcpp.unordered_set cimport unordered_set
 
 
 cdef extern from "../src/read.h":
@@ -105,3 +106,7 @@ cdef extern from "../src/hapchat/hapchatcore.cpp":
 		vector[bool]* get_optimal_partitioning()
 		int get_length()
 		int get_optimal_cost()
+
+cdef extern from "../src/DP_matrix.h":
+	float** perform_DP(vector[int], vector[int], vector[vector[int]],float, unordered_set[int]) except +
+	void compute_scoring(char*,char*,char*,float,char*,char*) except + 

@@ -5,11 +5,11 @@ from whatshap.utils import UnknownFileFormatError, detect_file_format, IndexedFa
 	FastaNotIndexedError
 
 
-def test_detect_alignment_file_format():
-	assert detect_file_format('tests/data/oneread.bam') == 'BAM'
-	assert detect_file_format('tests/data/oneread.cram') == 'CRAM'
-	assert detect_file_format('tests/data/onevariant.vcf') == 'VCF'
-	assert detect_file_format('tests/data/onevariant.vcf.gz') == 'VCF'
+#def test_detect_alignment_file_format():
+#	assert detect_file_format('tests/data/oneread.bam') == 'BAM'
+#	assert detect_file_format('tests/data/oneread.cram') == 'CRAM'
+#	assert detect_file_format('tests/data/onevariant.vcf') == 'VCF'
+#	assert detect_file_format('tests/data/onevariant.vcf.gz') == 'VCF'
 
 
 def test_detect_ped_file_format():

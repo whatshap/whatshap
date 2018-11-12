@@ -85,6 +85,7 @@ unphase    Remove phasing information from a VCF file
 haplotag   Tag reads by haplotype
 haplofasta Write haplotypes in FASTA format from a phased VCF
 genotype   Genotype variants
+connect	   Connect haplotype blocks using a reference panel
 ========== ===================================================
 
 Not all are fully documented in this manual, yet. To get help for a
@@ -608,3 +609,30 @@ enable re-alignment mode::
 
     whatshap genotype --reference ref.fasta -o genotyped.vcf input.vcf input.bam
 
+
+Connecting phased haplotype blocks
+==================================
+
+WhatsHap is also able to integrate an external reference panel for connecting
+the phased haplotype blocks. Given a VCF file containing the phased blocks 
+and a VCF file containing a reference panel, the blocks are detected according to 
+the ``PS`` tag and assembled to whole-chromosome haplotypes using the information 
+found in the reference haplotypes. To perform this assembly step, run the 
+following subcommand::
+
+    whatshap connect input.vcf reference_panel.vcf output.vcf
+
+The updated haplotypes are stored in output.vcf. Note that the input VCF does not 
+necessarily have to be phased with WhatsHap as long as the phasing information is 
+presented using the ``PS`` tag.
+
+This command can also be used for inferring haplotypes at formerly unphased sites. 
+If the input data contains unphased variants and these should be newly phased using
+the reference panel, the additional option ``--include-unphased`` can be used::
+
+    whatshap connect input.vcf reference_panel.vcf output.vcf --include-unphased  
+
+To obtain the best phasing result, it is recommended to perform phasing using ``whatshap 
+phase`` first and then update the resulting haplotypes using reference-based phasing
+via ``whatshap connect``. This combined process will yield much more accurate results
+and longer haplotypes.

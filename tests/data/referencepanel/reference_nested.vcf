@@ -1,0 +1,41 @@
+##fileformat=VCFv4.1
+##INFO=<ID=MTD,Number=.,Type=String,Description="Methods that call this site pedigree consistently.">
+##INFO=<ID=KM,Number=1,Type=String,Description="Minimum normalized k-mer counts">
+##INFO=<ID=KFP,Number=1,Type=Integer,Description="K-mer GT failures in the main pedigree">
+##INFO=<ID=KFF,Number=1,Type=Integer,Description="K-mer failures in the founders">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PS,Number=1,Type=Integer,Description="Phase set identifier">
+##FILTER=<ID=PASS,Description="All filters passed">
+##contig=<ID=chr22,length=51304566>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Sample1	Sample2
+chr22	1	.	G	A	.	PASS	MTD=isaac_strelka,bwa_freebayes,bwa_platypus,bwa_gatk;KM=12.50;KFP=0;KFF=0	GT	1|0	0|1
+chr22	2	.	A	T	.	PASS	MTD=isaac_strelka,bwa_freebayes,bwa_gatk;KM=10.17;KFP=0;KFF=0	GT:PS	0|0	1|1
+chr22	3	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=9.00;KFP=0;KFF=0	GT:PS	1|0	1|1
+chr22	4	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=9.00;KFP=0;KFF=0	GT:PS	1|1	0|0
+chr22	5	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=9.00;KFP=0;KFF=0	GT:PS	0|0	1|1
+chr22	6	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=9.00;KFP=0;KFF=0	GT:PS	0|0	0|1
+chr22	7	.	T	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=9.50;KFP=0;KFF=0	GT:PS	1|1	0|1
+chr22	8	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=8.00;KFP=0;KFF=0	GT:PS	0|1	1|0
+chr22	9	.	C	T	.	PASS	MTD=bwa_freebayes;KM=8.33;KFP=0;KFF=0	GT:PS	0|0	1|1
+chr22	10	.	C	T	.	PASS	MTD=bwa_freebayes;KM=5.33;KFP=0;KFF=0	GT:PS	0|1	1|0
+chr22	11	.	C	T	.	PASS	MTD=bwa_freebayes;KM=5.33;KFP=0;KFF=0	GT:PS	1|0	0|1
+chr22	12	.	A	G	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.67;KFP=0;KFF=0	GT:PS	0|1	0|1
+chr22	13	.	A	C	.	PASS	MTD=bwa_freebayes;KM=5.83;KFP=0;KFF=0	GT:PS	0|0	1|1
+chr22	14	.	C	G	.	PASS	MTD=isaac_strelka,bwa_freebayes,bwa_platypus,bwa_gatk;KM=12.17;KFP=0;KFF=0	GT:PS	0|1	0|1
+chr22	15	.	A	C	.	PASS	MTD=bwa_freebayes;KM=5.83;KFP=0;KFF=0	GT:PS	1|0	1|0
+chr22	16	.	A	C	.	PASS	MTD=bwa_freebayes;KM=5.83;KFP=0;KFF=0	GT:PS	1|1	0|0
+chr22	17	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.83;KFP=0;KFF=0	GT:PS	0|0	1|0
+chr22	18	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.83;KFP=0;KFF=0	GT:PS	1|0	1|1
+chr22	20	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.83;KFP=0;KFF=0	GT:PS	0|1	0|0
+chr22	21	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.83;KFP=0;KFF=0	GT:PS	1|1	0|1
+chr22	22	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.83;KFP=0;KFF=0	GT:PS	1|1	0|0
+chr22	23	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.83;KFP=0;KFF=0	GT:PS	0|1	0|1
+chr22	24	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.83;KFP=0;KFF=0	GT:PS	0|1	1|0
+chr22	25	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.83;KFP=0;KFF=0	GT:PS	0|1	0|1
+chr22	26	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.83;KFP=0;KFF=0	GT:PS	0|1	1|0
+chr22	27	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.83;KFP=0;KFF=0	GT:PS	1|0	0|1
+chr22	28	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.83;KFP=0;KFF=0	GT:PS	0|1	1|0
+chr22	29	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.83;KFP=0;KFF=0	GT:PS	1|0	1|0
+chr22	30	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.83;KFP=0;KFF=0	GT:PS	0|1	0|1
+chr22	31	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.83;KFP=0;KFF=0	GT:PS	0|0	1|0
+chr22	32	.	G	A	.	PASS	MTD=bwa_freebayes,bwa_gatk;KM=6.83;KFP=0;KFF=0	GT:PS	1|0	0|1
