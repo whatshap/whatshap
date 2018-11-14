@@ -1,6 +1,50 @@
 from scipy.stats import binom
 from math import log
 
+class SparseTriangleMatrix:
+	__slots__ = ('size', 'values')
+	
+	def __init__(self):
+		self.size = 0
+		self.values = {}
+
+	def __hash__(self):
+		return hash((self.size, self.values))
+
+	def __eq__(self, other):
+		return (self.size == other.size) and \
+		       (cmp(self.values, other.values) == 0)
+
+	def __lt__(self, other):
+		return (self.size, self.values) < (other.size, other.values)
+	
+	def entry_index(self, i, j):
+		if (i < j):
+			return self.entry_index(j, i)
+		elif (i > j):
+			return (i*(i-1)/2)+j
+		else:
+			return -1
+		
+	def get_size(self):
+		return self.size
+
+	def get(self, i, j):
+		index = self.entry_index(i, j)
+		assert index >= 0
+		if index in self.values:
+			return self.values[index]
+		else:
+			return 0
+		
+	def set(self, i, j, value):
+		index = self.entry_index(i, j)
+		assert index >= 0
+		if index >= 0:
+			self.values[index] = value
+			self.size = max(i, self.size)
+			self.size = max(j, self.size)
+
 def score(readset, ploidy, errorrate, min_overlap):
 	num_reads = len(readset)
 
@@ -18,10 +62,10 @@ def score(readset, ploidy, errorrate, min_overlap):
 
 	for i in range(num_reads):
 		for j in range(i+1, num_reads):
-			if (overlap[i][j-i-1] >= min_overlap):
+			if (overlap.get(i, j) >= min_overlap):
 				num_pairs += 1
-				num_bases += overlap[i][j-i-1]
-				avg_disagr += float(diffs[i][j-i-1])
+				num_bases += overlap.get(i, j)
+				avg_disagr += float(diffs.get(i, j))
 	if (ploidy > 1):
 		frac_same = 1.0 / float(ploidy) # probability that a random read pair is from same haplotype
 	else:
@@ -39,35 +83,35 @@ def score(readset, ploidy, errorrate, min_overlap):
 		hammingdist_diff = max(hammingdist_same, min((1.0+hammingdist_same)/2, hammingdist_diff))
 	
 	# Calculate the actual similarities
-	sim = [[]]
+	sim = SparseTriangleMatrix()
 	cache = {}
 	for i in range(num_reads):
-		sim.append([])
 		for j in range(i+1, num_reads):
-			(ov, di) = (overlap[i][j-i-1], diffs[i][j-i-1])
+			(ov, di) = (overlap.get(i, j), diffs.get(i, j))
+			if (ov < min_overlap):
+				continue
 			if (ov, di) not in cache:
-				cache[(ov, di)] = logratio_sim(overlap[i][j-i-1], diffs[i][j-i-1], hammingdist_same, hammingdist_diff, min_overlap)
-			sim[i].append(cache[(ov, di)])
+				cache[(ov, di)] = logratio_sim(ov, di, hammingdist_same, hammingdist_diff, min_overlap)
+			sim.set(i, j, cache[(ov, di)])
 	return sim
 
 def partial_scoring(sim, subset):
 	# sim -- a two-dimensional list with the same format as the output of the score-function
 	# subset -- a list of indices indicating the subset to score
 	s = sorted(subset)
-	if (len(sim) <= s[-1]):
-		raise ValueError("Index out of bounds: Susbet contains index "+str(s[-1])+", which is higher than the size of similarity list")
-	psim = []
-	for index, item1 in enumerate(s):
-		row = []
-		for item2 in s[index+1:]:
-			row.append(sim[item1][item2-item1-1])
-		psim.append(row)
+	if (sim.get_size() < s[-1]):
+		raise ValueError("Index out of bounds: Susbet contains index "+str(s[-1])+", which is higher than the size of similarity matrix")
+		
+	psim = SparseTriangleMatrix()	
+	for i in range(len(s)):
+		for j in range(i+1, len(s)):
+			psim.set(i, j, sim.get(s[i], s[j]))
 	return psim
 
 def calc_overlap_and_diffs(readset):
 	num_reads = len(readset)
-	overlap = [[0]*(num_reads - i - 1) for i in range(num_reads)]
-	diffs = [[0]*(num_reads - i - 1) for i in range(num_reads)]
+	overlap = SparseTriangleMatrix()
+	diffs = SparseTriangleMatrix()
 	
 	# Copy information from readset into lists, because direct access is very slow
 	begins = [readset[i][0].position for i in range(num_reads)]
@@ -83,18 +127,22 @@ def calc_overlap_and_diffs(readset):
 				continue
 
 			# perform a zigzag search over the variants of both reads
+			ov = 0
+			di = 0
 			k, l = 0, 0
 			while (k < len(positions[i]) and l < len(positions[j])):
 				if (positions[i][k] == positions[j][l]):
-					overlap[i][j-i-1] += 1
+					ov += 1
 					if (alleles[i][k] != alleles[j][l]):
-						diffs[i][j-i-1] += 1
+						di += 1
 					k += 1
 					l += 1
 				elif (positions[i][k] < positions[j][l]):
 					k += 1
 				else:
 					l += 1
+			overlap.set(i, j, ov)
+			diffs.set(i, j, di)
 	return overlap, diffs
 
 def logratio_sim(overlap, diffs, dist_same, dist_diff, min_overlap):
@@ -121,11 +169,11 @@ def print_dist_between_haps(readset, overlap, diffs):
 			for k in haps[i]:
 				for l in haps[j]:
 					if (k < l):
-						total_overlap += overlap[k][l-k-1]
-						total_diff += diffs[k][l-k-1]
+						total_overlap += overlap.get(k, l)
+						total_diff += diffs.get(k, l)
 					elif (k > l):
-						total_overlap += overlap[l][k-l-1]
-						total_diff += diffs[l][k-l-1]
+						total_overlap += overlap.get(l, k)
+						total_diff += diffs.get(l, k)
 			print("Diff "+str(i)+" vs "+str(j)+" = "+str(total_diff/total_overlap))
 			
 def parse_haplotype(name):

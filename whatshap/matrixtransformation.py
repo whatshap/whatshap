@@ -69,7 +69,7 @@ class MatrixTransformation:
 				#similarities = score(column, ploidy, errorrate, min_overlap)
 
 				index_set = [e[0] for e in self._current_column]
-				#similarities = partial_scoring(all_similarities, index_set)
+				local_similarities = partial_scoring(similarities, index_set)
 
 				# create read graph object
 				graph = LightCompleteGraph(len(column),True)
@@ -78,7 +78,8 @@ class MatrixTransformation:
 				n_reads = len(column)
 				for id1 in range(n_reads):
 					for id2 in range(id1+1, n_reads):
-						graph.setWeight(id1, id2, similarities[index_set[id1]][index_set[id2] - index_set[id1] - 1])
+						if local_similarities.get(id1, id2) != 0:
+							graph.setWeight(id1, id2, local_similarities.get(id1, id2))
 
 				# run cluster editing
 				clusterediting = CoreAlgorithm(graph)	

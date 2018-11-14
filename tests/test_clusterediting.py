@@ -37,7 +37,7 @@ def test_clusterediting1():
 	# insert edges
 	for id1 in range(n_reads):
 		for id2 in range(id1+1, n_reads):
-			graph.setWeight(id1, id2, similarities[id1][id2 - id1 - 1])
+			graph.setWeight(id1, id2, similarities.get(id1, id2))
 
 	# run cluster editing
 	clusterediting = CoreAlgorithm(graph)	
@@ -79,7 +79,7 @@ def test_clusterediting2():
 	# insert edges
 	for id1 in range(n_reads):
 		for id2 in range(id1+1, n_reads):
-			graph.setWeight(id1, id2, similarities[id1][id2 - id1 - 1])
+			graph.setWeight(id1, id2, similarities.get(id1, id2))
 
 	# run cluster editing
 	clusterediting = CoreAlgorithm(graph)	
@@ -120,7 +120,7 @@ def test_clusterediting3():
 	# insert edges
 	for id1 in range(n_reads):
 		for id2 in range(id1+1, n_reads):
-			graph.setWeight(id1, id2, similarities[id1][id2 - id1 - 1])
+			graph.setWeight(id1, id2, similarities.get(id1, id2))
 
 	# run cluster editing
 	clusterediting = CoreAlgorithm(graph)
@@ -137,7 +137,7 @@ def test_similarities1():
 	similarities = score(readset, 2, 0.1, 4)
 	# computed similarity is 'nan'
 	print('computed similarities:', similarities)
-	assert(not math.isnan(similarities[0][0]))
+	assert(not math.isnan(similarities.get(0, 1)))
 
 def test_similarities2():
 	reads = """

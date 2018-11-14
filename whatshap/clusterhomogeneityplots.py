@@ -1,6 +1,6 @@
 import numpy as np
-from itertools import combinations
-from math import ceil
+import itertools as it
+from math import ceil, floor
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
@@ -26,7 +26,7 @@ def draw_heatmaps(readset, clustering, heatmap_folder):
 	for position in readset.get_positions():
 		index[position] = num_vars
 		num_vars += 1
-
+		
 	# Plot heatmaps
 	if os.path.exists(heatmap_folder):
 		shutil.rmtree(heatmap_folder)
@@ -82,9 +82,8 @@ def draw_superheatmap(readset, clustering, var_table, path):
 		tmp_table.subset_rows_by_position(readset.get_positions())
 		phase_rows = [variant.phase for variant in tmp_table.phases[0]]
 		phase_vectors = [[row[i] for row in phase_rows] for i in range(len(phase_rows[0]))]
-
 		chunk = 24
-		for i, j in combinations(range(len(phase_vectors)), 2):
+		for i, j in it.combinations(range(len(phase_vectors)), 2):
 			y_offset -= 104 + y_margin
 			colors = ['C'+str(i), 'C'+str(j)]
 			if colors[0] not in legend_handles:
@@ -92,6 +91,7 @@ def draw_superheatmap(readset, clustering, var_table, path):
 			if colors[1] not in legend_handles:
 				legend_handles[colors[1]] = mpatches.Patch(color=colors[1], label=j)
 			dist = [y_offset + 2 + 100*v for v in haplodist(phase_vectors[i], phase_vectors[j], 15)]
+			#print(str(i)+":"+str(j)+" = "+str(haplodist(phase_vectors[i], phase_vectors[j], 15)[1300:1450]))
 			plt.hlines(y=y_offset, xmin=0, xmax=num_vars, color='black', lw=1)
 			plt.hlines(y=y_offset+104, xmin=0, xmax=num_vars, color='black', lw=1)
 			for k in range(ceil(num_vars/chunk)):
@@ -138,6 +138,76 @@ def relative_hamming_dist(seq1, seq2):
 	else:
 		return sum([1 for i in range(len(seq1)) if seq1[i] != seq2[i]]) / len(seq1)
 	
+def draw_cluster_coverage(readset, clustering, path):
+	# Sort a deep copy of clustering
+	clusters = sorted(deepcopy(clustering), key = lambda x: min([readset[i][0].position for i in x]))
+
+	# Map variant positions to [0,l)
+	index = {}
+	num_vars = 0
+	for position in readset.get_positions():
+		index[position] = num_vars
+		num_vars += 1
+
+	# Plot heatmaps
+	fig = plt.figure(figsize=(num_vars/25, len(readset)/200), dpi=200)
+	
+	# Coverage plots
+	coverage = [[0]*num_vars for i in range(len(clusters))]
+	for c_id in range(0, len(clusters)):
+		read_id = 0
+		for read in clusters[c_id]:
+			start = index[readset[read][0].position]
+			end = index[readset[read][-1].position]
+			for pos in range(start, end+1):
+				coverage[c_id][pos] += 1
+	
+	coverage_sum = [sum([coverage[i][j] for i in range(len(clusters))]) for j in range(num_vars)]
+	#coverage_sum = [80 for j in range(num_vars)]
+	for c_id in range(0, len(clusters)):
+		padding = 40
+		coverage[c_id] = [sum(coverage[c_id][max(0, i-padding):min(i+padding+1, num_vars)]) / sum(coverage_sum[max(0, i-padding):min(i+padding+1, num_vars)]) for i in range(num_vars)]
+		#coverage[c_id] = [coverage[c_id][i] / coverage_sum[i] for i in range(num_vars)]
+
+	for pos in range(num_vars):
+		assign = assign_ploidy(4, [coverage[c_id][pos] for c_id in range(len(clusters))])
+		for c_id in range(len(clusters)):
+			coverage[c_id][pos] = assign[c_id]+c_id/(10*len(clusters))
+	
+	for c_id in range(0, len(clusters)):
+		if len(clusters[c_id]) >= 10:
+			plt.plot(list(range(num_vars)), coverage[c_id], lw=1)
+	
+	axes = plt.gca()
+	axes.set_xlim([0, num_vars])
+	fig.savefig(path)
+	fig.clear()
+	
+def assign_ploidy(ploidy, rel_cov):
+	cov = sorted([(i, rel_cov[i]) for i in range(len(rel_cov))], key = lambda x: x[1], reverse=True)
+	
+	# Only look at k biggest values (rest will have ploidy 0 anyways): Only neighbouring integers can be optimal, otherwise error > 1/k
+	possibilities = [[floor(cov[i][1]*ploidy), ceil(cov[i][1]*ploidy)] for i in range(ploidy)]
+	#print(possibilities)
+	min_cost = len(rel_cov)
+	min_comb = [1]*ploidy
+	#for comb in it.product(*possibilities):
+	#	print(comb)
+	for comb in it.product(*possibilities):
+		if sum(comb) == ploidy:
+			cur_cost = sum([abs(comb[i]/ploidy - cov[i][1]) for i in range(ploidy)])
+			if cur_cost < min_cost:
+				min_cost = cur_cost
+				min_comb = comb
+	#print(str(cov[:ploidy]) + " -> " + str(min_comb))
+	for i in range(ploidy):
+		cov[i] = (cov[i][0], min_comb[i])
+	for i in range(ploidy, len(cov)):
+		cov[i] = (cov[i][0], 0)
+		
+	cov.sort(key = lambda x: x[0])
+	return [cov[i][1] for i in range(len(cov))]				
+	
 def cluster_and_draw(output, readset, ploidy, errorrate, min_overlap, var_table=None):
 	print("Clustering reads for homogeneity plots.")
 	print("Computing similarities ...")
@@ -151,7 +221,8 @@ def cluster_and_draw(output, readset, ploidy, errorrate, min_overlap, var_table=
 	n_reads = len(readset)
 	for id1 in range(n_reads):
 		for id2 in range(id1+1, n_reads):
-			graph.setWeight(id1, id2, similarities[id1][id2 - id1 - 1])
+			if similarities.get(id1, id2) != 0:
+				graph.setWeight(id1, id2, similarities.get(id1, id2))
 
 	print("Solving cluster editing ...")
 	# run cluster editing
@@ -163,5 +234,6 @@ def cluster_and_draw(output, readset, ploidy, errorrate, min_overlap, var_table=
 
 	print("Generating plots ...")
 	#draw_heatmaps(readset, readpartitioning, output+".heatmaps/")
-	draw_superheatmap(readset, readpartitioning, var_table, output+".superheatmap.png")
+	#draw_superheatmap(readset, readpartitioning, var_table, output+".superheatmap.png")
+	draw_cluster_coverage(readset, readpartitioning, output+".superheatmap.png")
 	print("... finished")
