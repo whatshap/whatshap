@@ -22,6 +22,7 @@ def add_arguments(parser):
 		'comparison results from pair-wise comparison to (tab-separated).')
 	add('--tsv-multiway', metavar='TSVMULTIWAY', default=None, help='Filename to write '
 		'comparison results from multiway comparison to (tab-separated).')
+	add('--bed', metavar='BED', default=None, help='evaluate in these regions.')
 	add('--only-snvs', default=False, action="store_true", help='Only process SNVs '
 		'and ignore all other variants.')
 	add('--switch-error-bed', default=None, help='Write BED file with switch error positions '
@@ -369,8 +370,8 @@ def create_blocksize_histogram(filename, block_stats, names):
 	
 	
 
-def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, longest_block_tsv=None):
-	vcf_readers = [VcfReader(f, indels=not only_snvs, phases=True) for f in vcf]
+def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, longest_block_tsv=None, bed=None):
+	vcf_readers = [VcfReader(f, indels=not only_snvs, phases=True, bed_file=bed) for f in vcf]
 	if names:
 		dataset_names = names.split(',')
 		if len(dataset_names) != len(vcf):

@@ -19,7 +19,31 @@ def test_read_phased():
 	assert table.variants[1].reference_allele == 'G'
 	assert table.variants[1].alternative_allele == 'T'
 	assert table.genotypes[0][0] == table.genotypes[0][1] == 1
+	assert table.num_of_blocks_of('sample') == 1 
 
+
+def test_read_phased_bed():
+	tables = list(VcfReader('tests/data/phasedinput.vcf', phases=True, bed_file='tests/data/intervals.bed'))
+	assert len(tables) == 1
+	table = tables[0]
+	assert table.chromosome == 'ref'
+	assert table.samples == ['sample']
+	assert len(table.variants) == 2
+	assert table.variants[0].reference_allele == 'A'
+	assert table.variants[0].alternative_allele == 'C'
+	assert table.variants[1].reference_allele == 'G'
+	assert table.variants[1].alternative_allele == 'T'
+	assert table.genotypes[0][0] == table.genotypes[0][1] == 1
+	assert table.num_of_blocks_of('sample') == 2
+
+
+def test_read_phased_bed_2():
+	tables = list(VcfReader('tests/data/phasedinput.2.vcf', phases=True, bed_file='tests/data/intervals.2.bed'))
+	assert len(tables) == 2
+
+	assert tables[0].num_of_blocks_of('sample') == 3
+	assert tables[1].num_of_blocks_of('sample') == 3
+	
 
 def test_read_multisample_vcf():
 	tables = list(VcfReader('tests/data/multisample.vcf'))

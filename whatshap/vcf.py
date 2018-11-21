@@ -278,13 +278,14 @@ class VcfReader:
 	"""
 	Read a VCF file chromosome by chromosome.
 	"""
-	def __init__(self, path, indels=False, phases=False, genotype_likelihoods=False, ignore_genotypes=False):
+	def __init__(self, path, indels=False, phases=False, genotype_likelihoods=False, ignore_genotypes=False, bed_file=None):
 		"""
 		path -- Path to VCF file
 		indels -- Whether to include also insertions and deletions in the list of
 			variants.
 		ignore_genotypes: in case of genotyping algorithm, no genotypes may be given in
 								vcf, so ignore all genotypes
+		bed_file -- break phased blocks into regions given in this file
 		"""
 		# TODO Always include deletions since they can 'overlap' other variants
 		self._indels = indels
@@ -293,6 +294,36 @@ class VcfReader:
 		self._genotype_likelihoods = genotype_likelihoods
 		self.samples = self._vcf_reader.samples  # intentionally public
 		self.ignore_genotypes = ignore_genotypes
+		self._variant_to_interval = None if bed_file is None else {}
+
+		if bed_file is not None:
+			bed_intervals = defaultdict(list)
+			for line in open(bed_file, 'r'):
+				splitted = line.split()
+				bed_intervals[splitted[0]].append( (int(splitted[1]), int(splitted[2])) )
+			# assign each record the interval it falls in (None if outside of any interval)
+			chrom = None
+			current_start = -1
+			current_end = -1
+			current_id = -1
+
+			for record in vcf.Reader(filename=path):
+				if record.CHROM != chrom:
+					chrom = record.CHROM
+					current_id = 0
+					current_start = bed_intervals[chrom][current_id][0]
+					current_end = bed_intervals[chrom][current_id][1]
+				while(record.start >= current_end) and (current_id < len(bed_intervals[chrom]) - 1):
+#					print(record.start, current_start, current_end)
+					current_id += 1
+					current_start = bed_intervals[chrom][current_id][0]
+					current_end = bed_intervals[chrom][current_id][1]
+				if current_start < record.start < current_end:
+					self._variant_to_interval[(record.CHROM,record.start)] = current_id
+				else:
+#					print(record.CHROM, record.start, current_start, current_end)
+					self._variant_to_interval[(record.CHROM,record.start)] = None
+	
 		logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
 	def _group_by_chromosome(self):
@@ -322,7 +353,7 @@ class VcfReader:
 			yield self._process_single_chromosome(chromosome, records)
 
 	@staticmethod
-	def _extract_HP_phase(call):
+	def _extract_HP_phase(call, interval=None):
 		HP = getattr(call.data, 'HP', None)
 		if HP is None:
 			return None
@@ -331,11 +362,14 @@ class VcfReader:
 		assert fields[0][0] == fields[1][0]
 		block_id = fields[0][0]
 		phase1, phase2 = fields[0][1]-1, fields[1][1]-1
+		block_id_value = block_id
+		if interval is not None:
+			block_id_value = str(block_id) + '_' + str(interval)
 		assert ((phase1, phase2) == (0, 1)) or ((phase1, phase2) == (1, 0))
-		return VariantCallPhase(block_id=block_id, phase=phase1, quality=getattr(call.data, 'PQ', None))
+		return VariantCallPhase(block_id_value, phase=phase1, quality=getattr(call.data, 'PQ', None))
 
 	@staticmethod
-	def _extract_GT_PS_phase(call):
+	def _extract_GT_PS_phase(call, interval=None):
 		if not call.is_het:
 			return None
 		if not call.phased:
@@ -345,7 +379,10 @@ class VcfReader:
 			block_id = 0
 		assert call.data.GT in ['0|1','1|0']
 		phase = int(call.data.GT[0])
-		return VariantCallPhase(block_id=block_id, phase=phase, quality=getattr(call.data, 'PQ', None))
+		block_id_value = block_id
+		if interval is not None:
+			block_id_value = str(block_id) + '_' + str(interval)
+		return VariantCallPhase(block_id=block_id_value, phase=phase, quality=getattr(call.data, 'PQ', None))
 
 	def _process_single_chromosome(self, chromosome, records):
 		phase_detected = None
@@ -383,7 +420,8 @@ class VcfReader:
 				for call in record.samples:
 					phase = None
 					for extract_phase, phase_name in [(self._extract_HP_phase, 'HP'), (self._extract_GT_PS_phase, 'GT_PS')]:
-						p = extract_phase(call)
+						interval = None if self._variant_to_interval is None else self._variant_to_interval[(record.CHROM,pos)]
+						p = extract_phase(call, interval)
 						if p is not None:
 							if phase_detected is None:
 								phase_detected = phase_name
@@ -423,7 +461,13 @@ class VcfReader:
 				genotypes = array('b', ([-1] * len(self.samples)))
 				phases = [None] * len(self.samples)
 			variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
-			table.add_variant(variant, genotypes, phases, genotype_likelihoods)
+			
+			if self._variant_to_interval is None:
+				table.add_variant(variant, genotypes, phases, genotype_likelihoods)
+#				print(pos, phases)
+			elif self._variant_to_interval[(record.CHROM, pos)] is not None:
+#				print(pos, phases)
+				table.add_variant(variant, genotypes, phases, genotype_likelihoods)
 
 		logger.debug("Parsed %s SNVs and %s non-SNVs. Also skipped %s multi-ALTs.", n_snvs,
 			n_other, n_multi)
