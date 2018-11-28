@@ -1,129 +1,317 @@
 from copy import deepcopy
+from math import floor, ceil
+import itertools as it
 
-def k_clustify(sim, clusters, k):
-	if (len(clusters) == k):
-		return clusters
-	elif (len(clusters) > k):
-		return k_clustify_merge(sim, clusters, k)
+def clusters_to_haps(readset, clustering, ploidy, coverage_padding = 12, copynumber_max_artifact_len = 1.0, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = False):
+	print("Processing "+str(len(clustering))+" read clusters ...")
+	cluster_blocks = []
+	# Compute cluster blocks
+	if len(clustering) >= ploidy:
+		print("Processing "+str(len(clustering))+" read clusters ...")
+		coverage, copynumbers, cluster_blocks, cut_positions = clusters_to_blocks(readset, clustering, ploidy, coverage_padding, copynumber_max_artifact_len, copynumber_cut_contraction_dist, single_hap_cuts, verbose)
 	else:
-		return k_clustify_split(sim, clusters, k)
+		print("Processing "+str(len(clustering))+" read clusters ... could not create "+str(ploidy)+" haplotypes from this!")
+		return []
+		
+	# Compute consensus blocks
+	print("Received "+str(len(cluster_blocks))+" cluster blocks. Generating consensus sequences ...")
 	
-def k_clustify_merge(sim, clusters, k):
-	# Preprocessing
-	m = len(clusters)
-	clust_dist = [[calc_inter_cluster_weight(sim, clusters[c1], clusters[c2]) for c2 in range(c1+1, m)] for c1 in range(m-1)]
-	clust_dist_abs = [[calc_inter_cluster_weight_abs(sim, clusters[c1], clusters[c2]) for c2 in range(c1+1, m)] for c1 in range(m-1)]
-	sorted_by_size = sorted(list(range(m)), key = lambda x: -len(clusters[x]))
+	return cluster_blocks, cut_positions
 
-	# Lists to manage clusters
-	active = [sorted_by_size[0]]
-	unprocessed = [c for c in range(m) if c not in active]
-	cluster_list = [[c] for c in range(m)]
-	#print("active: "+str(active))
-	#print("unprocessed: "+str(unprocessed))
-	#print("cluster_list: "+str(cluster_list))
-
-	# Find initial k clusters
-	while len(active) < k:
-		c = find_most_overlapping_cluster(clust_dist_abs, unprocessed, active)
-		active.append(c)
-		active.sort()
-		unprocessed.remove(c)
-
-	#print("active: "+str(active))
-	#print("unprocessed: "+str(unprocessed))
-	#print("cluster_list: "+str(cluster_list))
-
-	# Until <certain condition> add the currently most overlappint cluster and remove on out of k+1
-	while(len(unprocessed) > 0):
-		# add new cluster to active clusters (so we have k+1 now)
-		c = find_most_overlapping_cluster(clust_dist_abs, unprocessed, active)
-		if (len(clusters[c]) < 0.1*len(clusters[sorted_by_size[k-1]])):
-			cluster_list[c] = []
-			unprocessed.remove(c)
-			continue
-		assert (c in unprocessed)
-		active.append(c)
-		assert(len(active) == k+1)
-		active.sort()
-		unprocessed.remove(c)
-
-		# find cluster to merge. i1 < i2. i1 and i2 are NO cluster ids, but indices for "active" !
-		i1, i2 = find_cheapest_merge(clust_dist, active)
-		c1 = active[i1]
-		c2 = active[i2]
-		active.remove(c2)
-		cluster_list[c1].extend(cluster_list[c2])
-		cluster_list[c2] = []
+	consensus_blocks = calc_consensus_blocks(cluster_blocks, readset)
+	
+	gaps = sum([sum([sum([1 for i in hap if hap[i] == -1]) for hap in block[2]]) for block in consensus_blocks])
+	print("Phased "+str(ploidy)+" haplotypes over "+str(len(readset.get_positions()))+" variant positions, using "+str(len(consensus_blocks))+" blocks with "+str(gaps)+" undefined sites.")
+	
+	return consensus_blocks
 		
-		# add distances between clusters, according to the merge
-		assert(len(unprocessed) == len(set(unprocessed)))
-		assert(len(active) == len(set(active)))
-		for x in set(unprocessed).union(set(active)).difference(set([c1,c2])):
-			sim[min(x,c1)][max(x,c1)-min(x,c1)-1] += sim[min(x,c2)][max(x,c2)-min(x,c1)-1]
-			sim[min(x,c2)][max(x,c2)-min(x,c2)-1] = 0
+def clusters_to_blocks(readset, clustering, ploidy, coverage_padding = 12, copynumber_max_artifact_len = 1.0, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = False):
+	# Sort a deep copy of clustering
+	clusters = sorted(deepcopy(clustering), key = lambda x: min([readset[i][0].position for i in x]))
+	readlen = avg_readlength(readset)
+	
+	# Map genome positions to [0,l)
+	index = {}
+	rev_index = []
+	num_vars = 0
+	for position in readset.get_positions():
+		index[position] = num_vars
+		rev_index.append(position)
+		num_vars += 1
+
+	# Get relative coverage for each cluster at each variant position
+	coverage = calc_coverage(readset, clusters, coverage_padding, index)
+	print("   ... computed relative coverage for all clusters")
+
+	# Assign haploid copy numbers to each cluster at each variant position
+	copynumbers = calc_haploid_copynumbers(coverage, num_vars, ploidy)
+	print("   ... assigned local copy numbers for all clusters")
+	
+	# Optimize copynumbers
+	postprocess_copynumbers(copynumbers, rev_index, num_vars, ploidy, readlen, copynumber_max_artifact_len, copynumber_cut_contraction_dist)
+	
+	# Compute cluster blocks
+	cut_positions, cluster_blocks = calc_cluster_blocks(readset, copynumbers, num_vars, ploidy, single_hap_cuts)
+	#print("Cut positions:")
+	#print(cut_positions)
+	
+	return coverage, copynumbers, cluster_blocks, cut_positions
+
+def avg_readlength(readset):
+	# Estiamtes the average read length in base pairs
+	if len(readset) > 0:
+		return sum([read[-1].position - read[0].position for read in readset]) / len(readset)
+	else:
+		return 0
+	
+def calc_coverage(readset, clustering, padding, index):
+	# Determines for every variant position the relative coverage of each cluster. 
+	# "Relative" means, that it is the fraction of the total coverage over all clusters at a certain position
+	num_vars = len(index)
+	coverage = [[0]*num_vars for i in range(len(clustering))]
+	for c_id in range(0, len(clustering)):
+		read_id = 0
+		for read in clustering[c_id]:
+			start = index[readset[read][0].position]
+			end = index[readset[read][-1].position]
+			for pos in range(start, end+1):
+				coverage[c_id][pos] += 1
+	
+	coverage_sum = [sum([coverage[i][j] for i in range(len(clustering))]) for j in range(num_vars)]
+	for c_id in range(0, len(clustering)):
+		coverage[c_id] = [sum(coverage[c_id][max(0, i-padding):min(i+padding+1, num_vars)]) / sum(coverage_sum[max(0, i-padding):min(i+padding+1, num_vars)]) for i in range(num_vars)]
+	
+	# cov[i][j] = relative coverage of cluster i at variant position j
+	return coverage
+
+def calc_haploid_copynumbers(coverage, num_vars, ploidy):
+	result = deepcopy(coverage)
+	
+	for pos in range(num_vars):
+		# Sort relative coverages in descending order, keep original index at first tuple position
+		cn = sorted([(i, coverage[i][pos]) for i in range(len(coverage))], key = lambda x: x[1], reverse=True)
+
+		# Only look at k biggest values (rest will have ploidy 0 anyways): Only neighbouring integers can be optimal, otherwise error > 1/k
+		possibilities = [[floor(cn[i][1]*ploidy), ceil(cn[i][1]*ploidy)] for i in range(ploidy)]
+		min_cost = len(coverage)
+		min_comb = [1]*ploidy
+		for comb in it.product(*possibilities):
+			if sum(comb) <= ploidy:
+				cur_cost = sum([abs(comb[i]/ploidy - cn[i][1]) for i in range(ploidy)])
+				if cur_cost < min_cost:
+					min_cost = cur_cost
+					min_comb = comb
+		for i in range(ploidy):
+			cn[i] = (cn[i][0], min_comb[i])
+		for i in range(ploidy, len(cn)):
+			cn[i] = (cn[i][0], 0)
+
+		# Sort computed copy numbers by index
+		cn.sort(key = lambda x: x[0])
+		new_cov = [cn[i][1] for i in range(len(cn))]
 		
-		#print("active: "+str(active))
-		#print("unprocessed: "+str(unprocessed))
-		#print("cluster_list: "+str(cluster_list))
+		# Write copy numbers into result
+		for c_id in range(len(cn)):
+			result[c_id][pos] = cn[c_id][1]
+	
+	return result
 
-	# Construct result
-	merged_clusters = [merged_cluster for merged_cluster in cluster_list if len(merged_cluster) > 0]
-	#print("merged_clusters: "+str(merged_clusters))
-	return [[ item for i in merged_cluster for item in clusters[i] ] for merged_cluster in merged_clusters]
-
-def k_clustify_split(sim, clusters, k):
-	#TODO: Implement!
-	return deepcopy(clusters)
-
-def find_most_overlapping_cluster(clust_overlap, unprocessed, active_list):
-	# Searches for the cluster, which has the highest overlap to all clusters in the list
-	# Different overlaps to clusters in the list are aggegrated by the minimum operator
-	best_c = -1
-	best_overlap = -float("inf")
-	for c in unprocessed:
-		overlap = min([clust_overlap[min(x,c)][max(x,c)-min(x,c)-1] for x in active_list])
-		if (overlap > best_overlap):
-			best_c = c
-			best_overlap = overlap
-	return best_c
-
-def find_cheapest_merge(clust_dist, active_list):
-	c1, c2 = -1, -1
-	best_score = -float("inf")
-	for a1 in range(len(active_list)-1):
-		for a2 in range(a1+1, len(active_list)):
-			assert (a1 < len(active_list))
-			assert (a2 < len(active_list))
-			assert (active_list[a1] < len(clust_dist))
-			assert (active_list[a2] - active_list[a1] - 1 < len(clust_dist[ active_list[a1] ]))
-			#print(str(a1)+"\t"+str(a2)+"\t"+str(len(active_list)))
-			#print(str(active_list[a1])+"\t"+str(active_list[a2])+"\t"+str(len(clust_dist))+"\t"+str(len(clust_dist[active_list[a1]])))
-			score = clust_dist[ active_list[a1] ][ active_list[a2] - active_list[a1] - 1]
-			if score > best_score:
-				best_score = score
-				c1, c2 = a1, a2
-	return c1, c2
-
-def calc_inter_cluster_weight(sim, cluster1, cluster2):
-	sum = 0
-	for read1 in cluster1:
-		for read2 in cluster2:
-			if (read1 < read2):
-				sum += sim[read1][read2-read1-1]
+def postprocess_copynumbers(copynumbers, rev_index, num_vars, ploidy, readlen, artifact_len, contraction_dist):
+	# Construct intervals of distinct assignments, start with first interval
+	start = 0
+	interval = []
+	intervals = []
+	for i in range(len(copynumbers)):
+		for j in range(copynumbers[i][0]):
+			interval.append(i)
+	interval.sort() # Sorted multiset of clusters present at the start
+	
+	for pos in range(1, num_vars):
+		# Create multiset of present clusters for current position
+		current = []
+		for i in range(len(copynumbers)):
+			for j in range(copynumbers[i][pos]):
+				current.append(i)
+		current.sort()
+		if current != interval:
+			# if assignment changes, append old interval to list and open new one
+			intervals.append((start, pos, deepcopy(interval)))
+			start = pos
+			interval = current
+	# Append last opened interval to list
+	intervals.append((start, num_vars, interval))
+	print("   ... divided variant location space into "+str(len(intervals))+" intervals")
+	
+	# Phase 1: Remove intermediate deviation
+	if artifact_len > 0.0:
+		i = 0
+		while i < len(intervals):
+			to_merge = -1
+			for j in range(i+1, len(intervals)):
+				if intervals[i][2] == intervals[j][2]:
+					len1 = intervals[i][1] - intervals[i][0]
+					len2 = intervals[j][1] - intervals[j][0]
+					gap = intervals[j][0] - intervals[i][1]
+					gaplen = rev_index[intervals[j][0]] - rev_index[intervals[i][1]]
+					if len1 > 2*gap and len2 > 2*gap and gaplen < readlen * artifact_len:
+						to_merge = j
+						break
+			if to_merge > i:
+				#print("merging interval "+str(i)+": "+str(intervals[i])+" with interval "+str(to_merge)+": "+str(intervals[to_merge]))
+				intervals = intervals[:i] + [(intervals[i][0], intervals[to_merge][1], intervals[i][2])] + intervals[to_merge+1:]
+				for k in range(intervals[i][0]+1, intervals[i][1]):
+					for l in range(len(copynumbers)):
+						copynumbers[l][k] = copynumbers[l][intervals[i][0]]
 			else:
-				sum += sim[read2][read1-read2-1]
-	return sum
-
-def calc_inter_cluster_weight_abs(sim, cluster1, cluster2):
-	sum = 0
-	for read1 in cluster1:
-		for read2 in cluster2:
-			if (read1 < read2):
-				sum += abs(sim[read1][read2-read1-1])
+				i += 1
+		print("   ... reduced intervals to "+str(len(intervals))+" by removing intermediate artifacts")
+	
+	# Questionable: Close k-1-gaps
+	if False:
+		i = 0
+		while i < len(intervals) - 1:
+			set1 = set(intervals[i][2])
+			set2 = set(intervals[i+1][2])
+			#print(str(i)+" int1="+str(intervals[i][2])+" int2="+str(intervals[i+1][2]))
+			if set1 >= set2 and len(intervals[i][2]) == len(intervals[i+1][2]) + 1:
+				intervals = intervals[:i] + [(intervals[i][0], intervals[i+1][1], intervals[i][2])] + intervals[i+2:]
+				for k in range(intervals[i][0]+1, intervals[i][1]):
+					for l in range(len(copynumbers)):
+						copynumbers[l][k] = copynumbers[l][intervals[i][0]]
 			else:
-				sum += abs(sim[read2][read1-read2-1])
-	return sum
+				i += 1
+		print("   ... reduced intervals to "+str(len(intervals))+" by extending intervals to uncovered sites")
+			
+	# Phase 2: Remove intervals with less than 1*read_length
+	if contraction_dist > 0.0:
+		i = 0
+		while i < len(intervals):
+			to_merge = -1
+			for j in range(i+2, len(intervals)):
+				if rev_index[intervals[j][0]] - rev_index[intervals[i][1]] <= readlen * contraction_dist:
+					to_merge = j
+				else:
+					break
+			if to_merge > i:
+				middle = (intervals[to_merge][0] + intervals[i][1]) // 2
+				#print("merging interval "+str(i)+": "+str(intervals[i])+" with interval "+str(to_merge)+": "+str(intervals[to_merge]))
+				intervals = intervals[:i] + [(intervals[i][0], middle, intervals[i][2]), (middle, intervals[to_merge][1], intervals[to_merge][2])] + intervals[to_merge+1:]
+				for k in range(intervals[i][0]+1, intervals[i][1]):
+					for l in range(len(copynumbers)):
+						copynumbers[l][k] = copynumbers[l][intervals[i][0]]
+				for k in range(intervals[i+1][0], intervals[i+1][1]-1):
+					for l in range(len(copynumbers)):
+						copynumbers[l][k] = copynumbers[l][intervals[i+1][1]-1]
+			else:
+				i += 1
+		print("   ... reduced intervals to "+str(len(intervals))+" by shifting proximate interval bounds")
+	
+def calc_cluster_blocks(readset, copynumbers, num_vars, ploidy, single_hap_cuts = False):
+	# Get all changes for each position
+	num_clust = len(copynumbers)
+	
+	# For each position: Get clusters which increase/decrease their copynumber right here. Position 0 contains all initial clusters as increasing.
+	increasing = []
+	decreasing = []
+	increasing.append([c for c in range(num_clust) if copynumbers[c][0] > 0])
+	decreasing.append([])
+	for pos in range(1, num_vars):
+		increasing.append([c for c in range(num_clust) if copynumbers[c][pos-1] < copynumbers[c][pos]])
+		decreasing.append([c for c in range(num_clust) if copynumbers[c][pos-1] > copynumbers[c][pos]])
+		
+	# Layout the clusters into haplotypes and indicate the actual set of cut positions
+	cut_positions = []
+	haps = [[None]*num_vars for i in range(ploidy)]
+	
+	# Usually, if a cluster increased in copynumber, i.e. from 1 to 2, then there is a potential block border. The same case is a decrease in copynumber.
+	# What really forces a new block is, if the copynumber developes like this: x -> y -> z with 0 < x < y > z > 0, i.e. an increase, followed by a decrease. 
+	# In this case it is unclear, how the haplotypes from copynumber x match the ones from copynumber z. So we need to cut, either for the shift from x to y 
+	# or from y to z or in between. The opposite case (0 < x > y < z > 0, y > 0) has the same problem. Consecutive increases (x < y < z) or decreases (x > y > z)
+	# force no problems. We therefore track for each cluster, if at the current position it is allowed to increase or decrease its copynumber.
+	increase_disallowed = set()
+	decrease_disallowed = set()
+	
+	# Start with clusters, that are present at position 0
+	h = 0
+	for c in increasing[0]:
+		for i in range(copynumbers[c][0]):
+			haps[h][0] = c
+			h += 1
+	
+	# Iterate over all positions
+	for pos in range(1, num_vars):
+		open_haps = []
+		assigned = [0]*num_clust
+		for h in range(ploidy):
+			c = haps[h][pos-1]
+			# If cluster does not decrease or if it decreases, but the new copynumber is not reached yet, just continue with current cluster on h
+			if c != None and (c not in decreasing[pos] or assigned[c] < copynumbers[c][pos]):
+				haps[h][pos] = c
+				assigned[c] += 1
+			else:
+				# Else, report haplotype slot as open
+				open_haps.append(h)
+				
+		# Assign unmatched cluster copynumbers to remaining, open slots
+		i = 0
+		for c in range(num_clust):
+			for x in range(copynumbers[c][pos] - assigned[c]):
+				haps[open_haps[i]][pos] = c
+				i += 1
+				
+		# Determine, whether this position is a new block
+		blocking_clusters = 0
+		msg = ""
+		for h in range(ploidy):
+			# Check for the following: If more than one haplotype needs a new block, we have to add this position as a cut position. If it is only one,
+			# we can just assume that the old and the new cluster belong together, implied by the other clusters not needing a change.
+			# Exception: If a cluster increases or decreases its copynumber without permission, we always cut
+			c = haps[h][pos]
+			if haps[h][pos-1] == c or c == None or haps[h][pos-1] == None:
+				# No cluster change -> nothing to do
+				continue
+			# Increase number of block forces by one, in all cases.
+			blocking_clusters += 1
+			if copynumbers[c][pos-1] == 0:
+				# new cluster
+				msg = msg + "Cluster "+str(c)+" is new and replacing an old cluster. "
+				pass
+			elif c in increasing[pos] and c in increase_disallowed:
+				# copynumber increases, but c already had a decrease before
+				msg = msg + "Cluster "+str(c)+" is increasing, but has decresed since the last cut. "
+				blocking_clusters += ploidy
+			elif c in decreasing[pos] and c in decrease_disallowed:
+				# copynumber increases, but c already had a decrease before
+				msg = msg + "Cluster "+str(c)+" is decreasing, but has incresed since the last cut. "
+				blocking_clusters += ploidy
+			else:
+				msg = msg + "Cluster "+str(c)+" is in/decreasing ("+str(copynumbers[c][pos-1])+","+str(copynumbers[c][pos])+") "
+		
+		if (blocking_clusters <= 1 and not single_hap_cuts) or blocking_clusters == 0:
+			#if blocking_clusters == 1:
+			#	print("Potential cut at pos="+str(pos)+": " + msg + "But single discontinued cluster can be resolved.")
+			# No block, but disallow increase/decrease for clusters with changed copynumber
+			for c in range(num_clust):
+				if c in increasing[pos] and copynumbers[c][pos-1] > 0:
+					decrease_disallowed.add(c)
+				elif c in decreasing[pos] and copynumbers[c][pos] > 0:
+					increase_disallowed.add(c)
+		else:
+			# Add cut positions and remove prohibitions regarding copynumber in/decreases
+			#print(msg + "Making a cut.")
+			cut_positions.append(pos)
+			decrease_disallowed.clear()
+			increase_disallowed.clear()
+	
+	# Return cluster blocks: List of blocks, each blocks ranges from one cut position to the next and contains <ploidy> sequences
+	# of cluster ids, which indicate, which cluster goes to which haplotype at which position.
+	cluster_blocks = []
+	old_pos = 0
+	for cut_pos in cut_positions:
+		cluster_blocks.append([hap[old_pos:cut_pos] for hap in haps])
+		old_pos = cut_pos
+		
+	return cut_positions, cluster_blocks
 
 def read_similarities(path):
 	read_names = []

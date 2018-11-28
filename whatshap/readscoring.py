@@ -11,6 +11,12 @@ class SparseTriangleMatrix:
 	def __hash__(self):
 		return hash((self.size, self.values))
 
+	def __iter__(self):
+		for i in range(self.size):
+			for j in range(i):
+				if self.get(i, j) != 0:
+					yield (i, j, self.get(i, j))
+	
 	def __eq__(self, other):
 		return (self.size == other.size) and \
 		       (cmp(self.values, other.values) == 0)

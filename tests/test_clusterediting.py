@@ -36,7 +36,7 @@ def test_clusterediting1():
 	
 	# insert edges
 	for id1 in range(n_reads):
-		for id2 in range(id1+1, n_reads):
+		for id2 in range(0, id1):
 			graph.setWeight(id1, id2, similarities.get(id1, id2))
 
 	# run cluster editing
@@ -78,7 +78,7 @@ def test_clusterediting2():
 	
 	# insert edges
 	for id1 in range(n_reads):
-		for id2 in range(id1+1, n_reads):
+		for id2 in range(0, id1):
 			graph.setWeight(id1, id2, similarities.get(id1, id2))
 
 	# run cluster editing
@@ -119,7 +119,7 @@ def test_clusterediting3():
 
 	# insert edges
 	for id1 in range(n_reads):
-		for id2 in range(id1+1, n_reads):
+		for id2 in range(0, id1):
 			graph.setWeight(id1, id2, similarities.get(id1, id2))
 
 	# run cluster editing

@@ -3,7 +3,6 @@ import sys
 from .graph import ComponentFinder
 from .core import Read, ReadSet, CoreAlgorithm, LightCompleteGraph
 from .readscoring import score, partial_scoring
-from .kclustifier import k_clustify
 import logging
 import pysam
 import itertools
@@ -51,8 +50,10 @@ class MatrixTransformation:
 			self._current_column = []
 			# get all positions in this component
 			component_positions = self._component_reads.get_positions()
-			similarities = score(self._component_reads, ploidy, errorrate, min_overlap)
+			#similarities = score(self._component_reads, ploidy, errorrate, min_overlap)
 			num_clusters = []
+			#print(component_positions)
+			#print(str(len(component_positions)))
 			for j, position in enumerate(component_positions):
 				self._current_column = []
 				# get all reads that cover current position
@@ -62,29 +63,32 @@ class MatrixTransformation:
 				if len(self._current_column) == 0:
 					continue
 				column = self._component_reads.subset([r[0] for r in self._current_column])
-#				print('reads covering position ', position, [r.name for r in column])
+				#print('reads covering position ', position, [r.name for r in column])
 
 				# compute similarities for reads in column
 				#print("Computing similarities for column "+str(j))
-				#similarities = score(column, ploidy, errorrate, min_overlap)
+				similarities = score(column, ploidy, errorrate, min_overlap)
+				#for (i, j, w) in similarities:
+				#	print("("+str(i)+","+str(j)+") -> "+str(w))
 
-				index_set = [e[0] for e in self._current_column]
-				local_similarities = partial_scoring(similarities, index_set)
-
+				#index_set = [e[0] for e in self._current_column]
+				#local_similarities = partial_scoring(similarities, index_set)
+				
 				# create read graph object
 				graph = LightCompleteGraph(len(column),True)
 	
 				# insert edges into read graph
 				n_reads = len(column)
 				for id1 in range(n_reads):
-					for id2 in range(id1+1, n_reads):
-						if local_similarities.get(id1, id2) != 0:
-							graph.setWeight(id1, id2, local_similarities.get(id1, id2))
-
+					for id2 in range(0, id1):
+						if similarities.get(id1, id2) != 0:
+							graph.setWeight(id1, id2, similarities.get(id1, id2))
+				
 				# run cluster editing
-				clusterediting = CoreAlgorithm(graph)	
+				clusterediting = CoreAlgorithm(graph)
 				readpartitioning = clusterediting.run()
 				num_clusters.append(len(readpartitioning))
+				
 				#readpartitioning = k_clustify(partial_scoring(similarities, index_set), readpartitioning, ploidy)
 
 				# store the result in final MEC matrix
