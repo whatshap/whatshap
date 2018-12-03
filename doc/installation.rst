@@ -45,3 +45,24 @@ This installs WhatsHap into ``$HOME/.local/bin``.  Then add
 
 Alternatively, you can also install WhatsHap into a virtual environment if you
 are familiar with that.
+
+
+Installing an unreleased development version
+--------------------------------------------
+
+If you for some reason want to use the most recent development version of
+WhatsHap, you can install it in the following way. These instructions will
+create a virtual environment in the directory ``whatshap-env`` that contains
+WhatsHap. Simply delete that directory to uninstall the software. Other WhatsHap
+versions you may have installed in other locations remain unaffected. ::
+
+	python3 -m venv whatshap-env
+	whatshap-env/bin/pip install Cython
+	whatshap-env/bin/pip install git+https://bitbucket.org/whatshap/whatshap
+
+You can then run WhatsHap like this::
+
+	whatshap-env/bin/whatshap --version
+
+You should see a version number like ``0.17+103.g71e5b3c``, which means that
+this version is 103 Git commits ahead of version 0.17.
