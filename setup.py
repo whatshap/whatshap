@@ -6,7 +6,7 @@ WhatsHap.
 """
 import sys
 import os.path
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 from distutils.version import LooseVersion
 from distutils.command.sdist import sdist as _sdist
 from distutils.command.build_ext import build_ext as _build_ext
@@ -59,7 +59,7 @@ def check_cython_version():
 
 def CppExtension(name, sources):
 	return Extension(name, sources=sources, language='c++',
-		extra_compile_args=['-std=c++11'], undef_macros = [ "NDEBUG" ])
+		extra_compile_args=['-std=c++11'], undef_macros = ["NDEBUG"])
 
 
 extensions = [
@@ -75,10 +75,9 @@ extensions = [
 			'src/genotypedptable.cpp', 'src/genotypecolumncostcomputer.cpp',
 			'src/backwardcolumniterator.cpp', 'src/transitionprobabilitycomputer.cpp',
 			'src/hapchat/basictypes.cpp', 'src/hapchat/balancedcombinations.cpp',
-			'src/hapchat/binomialcoefficient.cpp', 
-			'src/hapchat/hapchatcore.cpp',  
-			'src/hapchat/hapchatcolumniterator.cpp'
-
+			'src/hapchat/binomialcoefficient.cpp',
+			'src/hapchat/hapchatcore.cpp',
+			'src/hapchat/hapchatcolumniterator.cpp',
 		]),
 	CppExtension('whatshap.priorityqueue', sources=['whatshap/priorityqueue.pyx']),
 	CppExtension('whatshap.align', sources=['whatshap/align.pyx']),
@@ -145,7 +144,7 @@ setup(
 	license = 'MIT',
 	cmdclass = cmdclass,
 	ext_modules = extensions,
-	packages = ['whatshap'],
+	packages = find_packages(),
 	entry_points={'console_scripts': ['whatshap = whatshap.__main__:main']},
 	install_requires = [
 		'pysam>=0.14.0',
@@ -158,6 +157,7 @@ setup(
 	extras_require = {
 		'dev': ['Cython', 'pytest', 'sphinx', 'sphinx_issues'],
 	},
+	python_requires = '>=3.4',
 	classifiers = [
 		"Development Status :: 4 - Beta",
 		"Environment :: Console",
