@@ -1,6 +1,6 @@
 #include "transitionprobabilitycomputer.h"
-#include <math.h>
-#include<iostream>
+#include <cmath>
+#include <iostream>
 #include <cassert>
 
 #include "phredgenotypelikelihoods.h"
@@ -8,7 +8,7 @@
 using namespace std;
 
 TransitionProbabilityComputer::TransitionProbabilityComputer(size_t column_index, unsigned int recombcost, const Pedigree* pedigree, const std::vector<PedigreePartitions*>& pedigree_partitions)
-    :transmission_configurations(std::pow(4, pedigree->triple_count())),
+    :transmission_configurations(pow(4, pedigree->triple_count())),
      allele_assignments(1<<pedigree_partitions[0]->count()),
      transitions_transmissions(transmission_configurations,transmission_configurations,0.0L),
      pedigree(pedigree),

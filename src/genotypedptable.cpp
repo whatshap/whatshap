@@ -29,7 +29,7 @@ GenotypeDPTable::GenotypeDPTable(ReadSet* read_set, const vector<unsigned int>& 
    assert(input_column_iterator.get_column_count() == backward_input_column_iterator.get_column_count());
 
    // create all pedigree partitions
-   for(size_t i = 0; i < std::pow(4,pedigree->triple_count()); ++i)
+   for(size_t i = 0; i < pow(4,pedigree->triple_count()); ++i)
    {
        pedigree_partitions.push_back(new PedigreePartitions(*pedigree,i));
    }
@@ -88,7 +88,7 @@ void GenotypeDPTable::compute_index(){
     unique_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_input_column);
     ColumnIndexingScheme* next_indexer = new ColumnIndexingScheme(0, *next_read_ids);
     indexers[0] = next_indexer;
-    unsigned int transmission_configurations = std::pow(4, pedigree->triple_count());
+    unsigned int transmission_configurations = pow(4, pedigree->triple_count());
     transition_probability_table[0] = new TransitionProbabilityComputer(0, recombcost[0], pedigree, pedigree_partitions);
 
     for(size_t column_index=0; column_index < input_column_iterator.get_column_count(); ++column_index){
@@ -207,7 +207,7 @@ void GenotypeDPTable::compute_backward_column(size_t column_index, unique_ptr<ve
    assert(current_indexer != nullptr);
 
    // number of transmission values
-   unsigned int transmission_configurations = std::pow(4, pedigree->triple_count());
+   unsigned int transmission_configurations = pow(4, pedigree->triple_count());
 
    // if current input column was not provided, create it
    if(current_input_column.get() == nullptr) {
@@ -305,7 +305,7 @@ void GenotypeDPTable::compute_forward_column(size_t column_index, unique_ptr<vec
     assert(current_indexer != nullptr);
 
     // compute the number of different transmission vectors
-    unsigned int transmission_configurations = std::pow(4, pedigree->triple_count());
+    unsigned int transmission_configurations = pow(4, pedigree->triple_count());
 
     // if the current input column was not provided, then create it
     if(current_input_column.get() == nullptr) {
