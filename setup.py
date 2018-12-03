@@ -146,6 +146,7 @@ setup(
 	url = 'https://bitbucket.org/whatshap/whatshap/',
 	description = 'phase genomic variants using DNA sequencing reads',
 	long_description = long_description,
+	long_description_content_type = 'text/x-rst',
 	license = 'MIT',
 	cmdclass = cmdclass,
 	ext_modules = extensions,
