@@ -2,7 +2,7 @@ from collections import defaultdict
 import sys
 from .graph import ComponentFinder
 from .core import Read, ReadSet, CoreAlgorithm, LightCompleteGraph
-from .readscoring import score, partial_scoring
+from .readscoring import score, partial_scoring, locality_sensitive_score
 import logging
 import pysam
 import itertools

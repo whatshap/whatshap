@@ -8,8 +8,9 @@ import matplotlib.patches as mpatches
 import shutil
 import os
 from .core import Read, ReadSet, CoreAlgorithm, LightCompleteGraph
-from .readscoring import score, parse_haplotype
-from .kclustifier import clusters_to_haps, avg_readlength
+from .readscoring import score, locality_sensitive_score, parse_haplotype
+from .kclustifier import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks
+from .vectorerror import vector_error, vector_error_blockwise
 from copy import deepcopy
 
 def draw_heatmaps(readset, clustering, heatmap_folder):
@@ -245,10 +246,11 @@ def plot_haplotype_dissimilarity(legend_handles, y_offset, y_margin, index, rev_
 	y_margin = 5
 	
 	# Plot haplotype dissimilarity
-	tmp_table = deepcopy(var_table)
-	tmp_table.subset_rows_by_position(readset.get_positions())
-	phase_rows = [variant.phase for variant in tmp_table.phases[0]]
-	phase_vectors = [[row[i] for row in phase_rows] for i in range(len(phase_rows[0]))]
+	#tmp_table = deepcopy(var_table)
+	#tmp_table.subset_rows_by_position(readset.get_positions())
+	#phase_rows = [variant.phase for variant in tmp_table.phases[0]]
+	#phase_vectors = [[row[i] for row in phase_rows] for i in range(len(phase_rows[0]))]
+	phase_vectors = get_phase(readset, var_table)
 	chunk = 24
 	padding = readlen/2 # dissimilarity of position i is averaged over interval of 2*padding base pairs (not positions)
 
@@ -293,6 +295,12 @@ def plot_haplotype_dissimilarity(legend_handles, y_offset, y_margin, index, rev_
 				plt.plot(rev_index[start:end], dist[start:end], lw=1, color=colors[k % 2])
 			else:
 				plt.plot(list(range(start, end)), dist[start:end], lw=1, color=colors[k % 2])
+				
+def get_phase(readset, var_table):
+	tmp_table = deepcopy(var_table)
+	tmp_table.subset_rows_by_position(readset.get_positions())
+	phase_rows = [variant.phase for variant in tmp_table.phases[0]]
+	return [[row[i] for row in phase_rows] for i in range(len(phase_rows[0]))]
 	
 def haplodist(h1, h2, intervals):
 	if len(h1) != len(h2):
@@ -306,10 +314,29 @@ def relative_hamming_dist(seq1, seq2):
 	else:
 		return sum([1 for i in range(len(seq1)) if seq1[i] != seq2[i]]) / len(seq1)
 	
+def construct_ground_truth(readset):
+	true_hap = [parse_haplotype(read.name) for read in readset]
+	real_clusters = [[read_id for read_id in range(len(readset)) if true_hap[read_id] == hap_id] for hap_id in range(4)]
+	num_vars = len(readset.get_positions())
+	trivial_cluster_blocks = [[[hap_id]*num_vars for hap_id in range(4)]]
+	return calc_consensus_blocks(readset, real_clusters, trivial_cluster_blocks, [])[0]
+
+def construct_ground_truth_blockwise(readset, cut_positions):
+	true_hap = [parse_haplotype(read.name) for read in readset]
+	real_clusters = [[read_id for read_id in range(len(readset)) if true_hap[read_id] == hap_id] for hap_id in range(4)]
+	num_vars = len(readset.get_positions())
+	trivial_cluster_blocks = []
+	start = 0
+	for pos in cut_positions:
+		trivial_cluster_blocks.append([[hap_id]*(pos-start) for hap_id in range(4)])
+		start = pos
+	return calc_consensus_blocks(readset, real_clusters, trivial_cluster_blocks, cut_positions)
+	
 def cluster_and_draw(output, readset, ploidy, errorrate, min_overlap, var_table=None):
 	print("Clustering reads for homogeneity plots.")
 	print("Computing similarities ...")
 	similarities = score(readset, ploidy, errorrate, min_overlap)
+	#similarities = locality_sensitive_score(readset, ploidy, min_overlap)
 
 	print("Constructing graph ...")
 	# create read graph object
@@ -328,13 +355,27 @@ def cluster_and_draw(output, readset, ploidy, errorrate, min_overlap, var_table=
 	readpartitioning = clusterediting.run()
 	
 	print("Merging clusters ...")
-	#kclusters = k_clustify(similarities, readpartitioning, ploidy)
-	cluster_blocks, cut_positions = clusters_to_haps(readset, readpartitioning, ploidy, coverage_padding = 12, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = False)
+	#coverage, copynumbers, cluster_blocks, cut_positions = clusters_to_blocks(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
+	#consensus_blocks = clusters_to_haps(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
 
+	#truth = get_phase(readset, var_table)
+	#truth_cons = construct_ground_truth(readset)
+	
+	#truth_blocks = construct_ground_truth_blockwise(readset, cut_positions)
+	#for hap in truth:
+	#	print("".join(list(map(lambda x: str(x) if x >= 0 else ".", hap))))
+	#for hap in truth_cons:
+	#	print("".join(list(map(lambda x: str(x) if x >= 0 else ".", hap))))
+	#vec_error = vector_error_blockwise(consensus_blocks, truth, 1, 100000)
+	#print("Vector error = "+str(vec_error))
+	
+	#vec_error = vector_error_blockwise(consensus_blocks, truth_cons, 1, 100000)
+	#print("Vector error = "+str(vec_error))
+	
 	print("Generating plots ...")
 	#draw_heatmaps(readset, readpartitioning, output+".heatmaps/")
 	#draw_superheatmap(readset, readpartitioning, var_table, output+".superheatmap.png")
-	#draw_superheatmap(readset, readpartitioning, var_table, output+".superheatmapg.png", genome_space = False)
+	draw_superheatmap(readset, readpartitioning, var_table, output+".superheatmapg.png", genome_space = False)
 	#draw_cluster_coverage(readset, readpartitioning, output+".coverage.png")
-	draw_cluster_blocks(readset, readpartitioning, cluster_blocks, cut_positions, var_table, output+".haploblocks.png", genome_space = False)
+	#draw_cluster_blocks(readset, readpartitioning, cluster_blocks, cut_positions, var_table, output+".haploblocks.png", genome_space = False)
 	print("... finished")

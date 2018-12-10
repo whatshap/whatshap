@@ -3,7 +3,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 from pylab import savefig
-from .readscoring import calc_overlap_and_diffs, parse_haplotype, score
+from .readscoring import calc_overlap_and_diffs, parse_haplotype, score, locality_sensitive_score
 
 def draw_plots_dissimilarity(readset, path, min_overlap = 5, steps = 100):
 	num_reads = len(readset)
@@ -13,9 +13,8 @@ def draw_plots_dissimilarity(readset, path, min_overlap = 5, steps = 100):
 	dissims_diff = []
 
 	for i, j in itertools.combinations(range(num_reads), 2):
-		if (overlap[i][j-i-1] >= min_overlap):
-			d = diffs[i][j-i-1] / overlap[i][j-i-1]
-			d = similarities[i][j-i-1]
+		if (overlap.get(i, j) >= min_overlap):
+			d = diffs.get(i, j) / overlap.get(i, j)
 			if (haps[i] == haps[j]):
 				dissims_same.append(d)
 			else:
@@ -26,13 +25,14 @@ def draw_plots_scoring(readset, path, ploidy, error_rate, min_overlap = 5, steps
 	num_reads = len(readset)
 	overlap, diffs = calc_overlap_and_diffs(readset)
 	similarities = score(readset, ploidy, error_rate, min_overlap)
+	#similarities = locality_sensitive_score(readset, ploidy, min_overlap)
 	haps = [parse_haplotype(readset[i].name) for i in range(num_reads)]
 	dissims_same = []
 	dissims_diff = []
 
 	for i, j in itertools.combinations(range(num_reads), 2):
-		if (overlap[i][j-i-1] >= min_overlap):
-			d = similarities[i][j-i-1]
+		if (overlap.get(i, j) >= min_overlap):
+			d = similarities.get(i, j)
 			if (haps[i] == haps[j]):
 				dissims_same.append(d)
 			else:

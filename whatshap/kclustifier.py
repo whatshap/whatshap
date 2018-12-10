@@ -8,22 +8,67 @@ def clusters_to_haps(readset, clustering, ploidy, coverage_padding = 12, copynum
 	# Compute cluster blocks
 	if len(clustering) >= ploidy:
 		print("Processing "+str(len(clustering))+" read clusters ...")
-		coverage, copynumbers, cluster_blocks, cut_positions = clusters_to_blocks(readset, clustering, ploidy, coverage_padding, copynumber_max_artifact_len, copynumber_cut_contraction_dist, single_hap_cuts, verbose)
+		coverage, copynumbers, cluster_blocks, cut_positions = clusters_to_blocks(readset, clustering, ploidy, coverage_padding, copynumber_max_artifact_len, copynumber_cut_contraction_dist, single_hap_cuts)
 	else:
 		print("Processing "+str(len(clustering))+" read clusters ... could not create "+str(ploidy)+" haplotypes from this!")
 		return []
 		
 	# Compute consensus blocks
 	print("Received "+str(len(cluster_blocks))+" cluster blocks. Generating consensus sequences ...")
-	
-	return cluster_blocks, cut_positions
 
-	consensus_blocks = calc_consensus_blocks(cluster_blocks, readset)
+	consensus_blocks = calc_consensus_blocks(readset, clustering, cluster_blocks, cut_positions)
 	
-	gaps = sum([sum([sum([1 for i in hap if hap[i] == -1]) for hap in block[2]]) for block in consensus_blocks])
+	gaps = sum([sum([sum([1 for i in hap if hap[i] == -1]) for hap in block]) for block in consensus_blocks])
 	print("Phased "+str(ploidy)+" haplotypes over "+str(len(readset.get_positions()))+" variant positions, using "+str(len(consensus_blocks))+" blocks with "+str(gaps)+" undefined sites.")
 	
 	return consensus_blocks
+
+def calc_consensus_blocks(readset, clustering, cluster_blocks, cut_positions):
+	cluster_consensus = get_cluster_consensus(readset, clustering)
+	consensus_blocks = deepcopy(cluster_blocks)
+	for i, block in enumerate(consensus_blocks):
+		offset = cut_positions[i-1] if i > 0 else 0
+		for j, hap in enumerate(block):
+			for pos, clust in enumerate(hap):
+				consensus_blocks[i][j][pos] = cluster_consensus[clust][offset+pos] if clust != None else -1
+				
+	return consensus_blocks
+
+def get_cluster_consensus(readset, clustering):
+	# Map genome positions to [0,l)
+	index = {}
+	rev_index = []
+	num_vars = 0
+	for position in readset.get_positions():
+		index[position] = num_vars
+		rev_index.append(position)
+		num_vars += 1
+		
+	# Create consensus matrix
+	cluster_consensus = [[{} for j in range(num_vars)] for i in range(len(clustering))]
+	
+	# Count all alleles
+	for c in range(len(clustering)):
+		for read in clustering[c]:
+			alleles = [(index[var.position], var.allele) for var in readset[read]]
+			for (pos, allele) in alleles:
+				if allele not in cluster_consensus[c][pos]:
+					cluster_consensus[c][pos][allele] = 0
+				cluster_consensus[c][pos][allele] += 1
+				
+	# Compute consensus for all positions and clusters
+	for c in range(len(clustering)):
+		for pos in range(num_vars):
+			alleles = cluster_consensus[c][pos]
+			max_count = -1
+			max_allele = -1
+			for key in alleles:
+				if alleles[key] > max_count:
+					max_count = alleles[key]
+					max_allele = key
+			cluster_consensus[c][pos] = max_allele
+			
+	return cluster_consensus
 		
 def clusters_to_blocks(readset, clustering, ploidy, coverage_padding = 12, copynumber_max_artifact_len = 1.0, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = False):
 	# Sort a deep copy of clustering
@@ -52,8 +97,8 @@ def clusters_to_blocks(readset, clustering, ploidy, coverage_padding = 12, copyn
 	
 	# Compute cluster blocks
 	cut_positions, cluster_blocks = calc_cluster_blocks(readset, copynumbers, num_vars, ploidy, single_hap_cuts)
-	#print("Cut positions:")
-	#print(cut_positions)
+	print("Cut positions:")
+	print(cut_positions)
 	
 	return coverage, copynumbers, cluster_blocks, cut_positions
 

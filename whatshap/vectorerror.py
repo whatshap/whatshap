@@ -1,5 +1,27 @@
 from itertools import permutations
 
+def vector_error_blockwise(phasing_blocks, truth, flip_cost = 1, switch_cost = 1):
+	start = 0
+	errors = []
+	for block in phasing_blocks:
+		end = start + len(block[0])
+		error = vector_error(block, [truth[i][start:end] for i in range(len(truth))], flip_cost, switch_cost)
+		errors.append(error)
+		print("Block error = "+str(error)+" / "+str(len(block[0])))
+		print("Truth:")
+		for element in [truth[i][start:end] for i in range(len(truth))]:
+			#out = "".join([str(i) for i in element if i >= 0 else "."])
+			print(allele_list_to_string(element))
+		print("Phase:")
+		for element in block:
+			#out = "".join([str(i) for i in element if i >= 0 else "."])
+			print(allele_list_to_string(element))
+		start = end
+	return sum(errors)
+
+def allele_list_to_string(alleles):
+	return "".join(list(map(lambda x: str(x) if x >= 0 else ".", alleles)))
+
 def vector_error(phasing, truth, flip_cost = 1, switch_cost = 1):
 	if len(phasing) != len(truth):
 		raise ValueError("Incompatible phasings. Number of haplotypes is not equal ("+str(len(phasing))+" != "+str(len(truth))+").")
