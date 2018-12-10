@@ -452,7 +452,7 @@ class ReadSetReader:
 			allele, quality = ReadSetReader.realign(variants[index], bam_read, cigartuples, i,
 			            consumed, query_pos, reference, overhang, use_affine, gap_start, gap_extend, default_mismatch)
 			if allele in (0, 1):
-				yield (index, allele, quality)  # TODO quality???
+				yield (index, '?', allele, quality)  # TODO quality???
 
 	@staticmethod
 	def _merge_pair(read1, read2):
