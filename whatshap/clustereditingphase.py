@@ -22,17 +22,17 @@ from networkx import Graph, number_of_nodes, number_of_edges, connected_componen
 from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter, VcfGenotypeLikelihoods
 from . import __version__
-from .core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, GenotypeLikelihoods, Genotype, compute_genotypes
+from .core import Read, ReadSet, CoreAlgorithm, LightCompleteGraph, readselection, NumericSampleIds, GenotypeLikelihoods, Genotype, compute_genotypes
 from .graph import ComponentFinder
-from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
-                       load_genetic_map, uniform_recombination_map, find_recombination)
 from .bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
 from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
 from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components, find_largest_component, write_read_list
-from .clusterhomogeneityplots import cluster_and_draw
+from .clustereditingplots import draw_plots_dissimilarity, draw_plots_scoring, draw_column_dissimilarity, draw_heatmaps, draw_superheatmap, draw_cluster_coverage, draw_cluster_blocks
+from .readscoring import score, locality_sensitive_score
+from .kclustifier import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks
 
 __author__ = "Jana Ebler" 
 
@@ -54,7 +54,7 @@ def print_readset(readset):
 		result += '\n'
 	print(result)
 
-def run_clusterediting(
+def run_clustereditingphase(
 	phase_input_files,
 	variant_file,
 	ploidy,
@@ -69,7 +69,10 @@ def run_clusterediting(
 	write_command_line_header=True,
 	read_list_filename=None,
 	errorrate = 0.1, 
-	min_overlap = 5
+	min_overlap = 5,
+	transform = False,
+	plot_heatmap = False,
+	plot_haploblocks = False
 	):
 	"""
 	Run Polyploid Phasing.
@@ -120,6 +123,7 @@ def run_clusterediting(
 		else:
 			fasta = None
 		del reference
+		output_str = output
 		if isinstance(output, str):
 			output = stack.enter_context(xopen(output, 'w'))
 		if write_command_line_header:
@@ -198,101 +202,85 @@ def run_clusterediting(
 				readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= max(2,min_overlap)])
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
-				# transform the allele matrix
+				# sample allele matrix
 				selected_reads = select_reads(readset, 5*ploidy, preferred_source_ids = vcf_source_ids)
 				readset = selected_reads
 
-				print_readset(readset)
-				transformation = MatrixTransformation(readset, find_components(readset.get_positions(), readset), ploidy, errorrate, min_overlap)
-				transformed_matrix = transformation.get_transformed_matrix()
-				cluster_counts = transformation.get_cluster_counts()
+				# Transform allele matrix, if option selected
+				timers.start('transform_matrix')
+				if transform:
+					logger.info("Transforming allele matrix...")
+					transformation = MatrixTransformation(readset, find_components(readset.get_positions(), readset), ploidy, errorrate, min_overlap)
+					readset = transformation.get_transformed_matrix()
+					cluster_counts = transformation.get_cluster_counts()
+				timers.stop('transform_matrix')
+
+				# Compute similarity values for all read pairs
+				logger.info("Computing similarities for read pairs ...")
+				similarities = score(readset, ploidy, errorrate, min_overlap)
+				#similarities = locality_sensitive_score(readset, ploidy, min_overlap)
 				
-				# TODO: remove print
-				print_readset(transformed_matrix)
-				# TODO: remove print
-#				print('cluster counts:', cluster_counts)
+				# Create read graph object
+				logger.info("Constructing graph ...")
+				graph = LightCompleteGraph(len(readset),True)
 
-				# TODO include this readselection step?
-				selected_reads = select_reads(transformed_matrix, 7, preferred_source_ids = vcf_source_ids)
-				transformed_matrix = selected_reads
+				# Insert edges into read graph
+				n_reads = len(readset)
+				for id1 in range(n_reads):
+					for id2 in range(id1+1, n_reads):
+						if similarities.get(id1, id2) != 0:
+							graph.setWeight(id1, id2, similarities.get(id1, id2))
 
-				print_readset(transformed_matrix)
-				# solve MEC to get overall partitioning, prepare input objects for this
-				cluster_pedigree = Pedigree(numeric_sample_ids, ploidy)
-				positions = transformed_matrix.get_positions()
-				alleles = [i for i in range(0,ploidy)]
-				cluster_pedigree.add_individual(sample, [Genotype(alleles)]*len(positions), [GenotypeLikelihoods(ploidy, ploidy,[0])]*len(positions))
-				recombination_costs = uniform_recombination_map(1.26, positions)
-				partitioning_dp_table = PedigreeDPTable(transformed_matrix, recombination_costs, cluster_pedigree, ploidy, False, cluster_counts, positions)
-				optimal_partitioning = partitioning_dp_table.get_optimal_partitioning()
-				print('Consensus MEC cost: ', partitioning_dp_table.get_optimal_cost())
+				# Run cluster editing
+				logger.info("Solving cluster editing ...")
+				timers.start('solve_clusterediting')
+				clusterediting = CoreAlgorithm(graph)	
+				readpartitioning = clusterediting.run()
+				timers.stop('solve_clusterediting')
 
-				print('read partitioning: ', optimal_partitioning, partitioning_dp_table.get_optimal_cost())
+				# Assemble clusters to haplotypes
+				logger.info("Assembling haplotypes from read clusters ...")
+				timers.start('assemble_haplotypes')
 
-				# printing
-				clu_to_r = defaultdict(list)
-				for read, partition in zip(transformed_matrix,optimal_partitioning):
-					clu_to_r[partition].append(read.name)
+				#consensus_blocks = clusters_to_haps(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
+				coverage, copynumbers, cluster_blocks, cut_positions = clusters_to_blocks(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
+
+
+				#truth = get_phase(readset, phasable_variant_table)
+				#truth_cons = construct_ground_truth(readset)
+
+				#truth_blocks = construct_ground_truth_blockwise(readset, cut_positions)
+				#for hap in truth:
+				#	print("".join(list(map(lambda x: str(x) if x >= 0 else ".", hap))))
+				#for hap in truth_cons:
+				#	print("".join(list(map(lambda x: str(x) if x >= 0 else ".", hap))))
+				#vec_error = vector_error_blockwise(consensus_blocks, truth, 1, 100000)
+				#print("Vector error = "+str(vec_error))
+
+				#vec_error = vector_error_blockwise(consensus_blocks, truth_cons, 1, 100000)
+				#print("Vector error = "+str(vec_error))
+				timers.stop('assemble_haplotypes')
+
+				logger.info("Generating plots ...")
+				if plot_heatmap:
+					draw_superheatmap(readset, readpartitioning, phasable_variant_table, output_str+ ("_D" if transform else "_N") + ".superheatmapg.png", genome_space = False)
+				if plot_haploblocks:
+					draw_cluster_blocks(readset, readpartitioning, cluster_blocks, cut_positions, phasable_variant_table, output_str+ ("_D" if transform else "_N") + ".haploblocks.png", genome_space = False)
 				
-#				for c,l in clu_to_r.items():
-#					print(c,l)
-
-				# TODO the order of the reads in clusters_per_window and readset can differ. Therefore, reorder read_partitioning
-#				read_to_partition = {}
-#				for i,read in enumerate(transformed_matrix):
-#					read_to_partition[read.name] = read_partitioning[i]
-#				optimal_partitioning =  [ read_to_partition[r.name] for r in transformed_matrix]	
-
-				selected_names = [r.name for r in transformed_matrix]
-				# keep only those reads in original readset that have been selected in transformed matrix
-				to_keep = [ i for i,read in enumerate(readset) if read.name in selected_names]
-				readset = readset.subset(to_keep)
-				print_readset(readset)
-
-				# prepare input for determining the best allele configuration
-				# Determine which variants can (in principle) be phased
-				accessible_positions = sorted(readset.get_positions())
-				logger.info('Variants covered by at least one phase-informative read: %d', len(accessible_positions))
-
-				# Keep only accessible positions
-				phasable_variant_table.subset_rows_by_position(accessible_positions)
-				assert len(phasable_variant_table.variants) == len(accessible_positions)
-
-				pedigree = Pedigree(numeric_sample_ids, ploidy)
-				ind_genotypes = [gt.get_genotype() for gt in phasable_variant_table.genotypes_of(sample)]
-				pedigree.add_individual(sample, ind_genotypes, None)
-
-				# For the given partitioning of the reads, determine best allele configurations
-				with timers('phase'):
-					logger.info('Phasing %s by determining best allele assignment ... ', sample)
-					recombination_costs = uniform_recombination_map(1.26, accessible_positions)
-					allele_assignment = PedigreeDPTable(readset, recombination_costs, pedigree, ploidy, False, None, accessible_positions, optimal_partitioning)
-					superreads_list = allele_assignment.get_super_reads()
-					logger.info('MEC cost: %d', allele_assignment.get_optimal_cost())
-				with timers('components'):
-					overall_components = find_components(accessible_positions, readset, None, None)
-					n_phased_blocks = len(set(overall_components.values()))
-					logger.info('No. of phased blocks: %d', n_phased_blocks)
-					largest_component = find_largest_component(overall_components)
-					if len(largest_component) > 0:
-							logger.info('Largest component contains %d variants (%.1f%% of accessible variants) between position %d and %d', len(largest_component), len(largest_component)*100.0/len(accessible_positions), largest_component[0]+1, largest_component[-1]+1)
-
-				assert(len(superreads_list) == 2)
-				sample_superreads = superreads_list[0]
-				superreads[sample] = sample_superreads[0]
-				assert len(sample_superreads[0]) == ploidy
-				sr_sample_id = sample_superreads[0][0].sample_id
-				for sr in sample_superreads[0]:
-					assert sr.sample_id == sr_sample_id == numeric_sample_ids[sample]
-				components[sample] = overall_components
-
-#				if read_list_file:
-#					write_read_list(all_reads, allele_assignment.get_optimal_partitioning(), components, numeric_sample_ids, read_list_file)
+				#draw_cluster_coverage(readset, readpartitioning, output_str+ ("_D" if transform else "_N") + ".coverage.png")
+				
+				print("... finished")
+				
 			with timers('write_vcf'):
 				logger.info('======== Writing VCF')
-				changed_genotypes = vcf_writer.write(chromosome, superreads, components)
+				
+				# !!!
+				# TODO: Write results into VCF: Create superreads and components for VCF-Write call below
+				#changed_genotypes = vcf_writer.write(chromosome, superreads, components)
+				#assert len(changed_genotypes) == 0
+				# !!!
+
 				logger.info('Done writing VCF')
-				assert len(changed_genotypes) == 0
 			logger.debug('Chromosome %r finished', chromosome)
 			timers.start('parse_vcf')
 		timers.stop('parse_vcf')
@@ -309,7 +297,9 @@ def run_clusterediting(
 	logger.info('Time spent parsing VCF:                      %6.1f s', timers.elapsed('parse_vcf'))
 	logger.info('Time spent selecting reads:                  %6.1f s', timers.elapsed('select'))
 	logger.info('Time spent pruning readset:                  %6.1f s', timers.elapsed('prune'))
-	logger.info('Time spent phasing:                          %6.1f s', timers.elapsed('phase'))
+	logger.info('Time spent transforming allele matrix:       %6.1f s', timers.elapsed('transform_matrix'))
+	logger.info('Time spent solving cluster editing:          %6.1f s', timers.elapsed('solve_clusterediting'))
+	logger.info('Time spent assembling haplotypes:            %6.1f s', timers.elapsed('assemble_haplotypes'))
 	logger.info('Time spent writing VCF:                      %6.1f s', timers.elapsed('write_vcf'))
 	logger.info('Time spent finding components:               %6.1f s', timers.elapsed('components'))
 	logger.info('Time spent on rest:                          %6.1f s', 2 * timers.elapsed('overall') - timers.total())
@@ -356,9 +346,15 @@ def add_arguments(parser):
 	arg = parser.add_argument_group('Parameters for cluster editing').add_argument
 	arg('--errorrate', metavar='ERROR', type=float, default=0.1, help='Read error rate (default: %(default)s).')
 	arg('--min-overlap', metavar='OVERLAP', type=int, default=5, help='Minimum required read overlap (default: %(default)s).')
+	arg('--transform', dest='transform', default=False, action='store_true',
+		help='Use transformed matrix for read similarity scoring (default: %(default)s).')
+	arg('--plot-heatmap', dest='plot_heatmap', default=False, action='store_true',
+		help='Plot a super heatmap for the computed clustering (default: %(default)s).')
+	arg('--plot-haploblocks', dest='plot_haploblocks', default=False, action='store_true',
+		help='Plot the haplotype blocks with contained reads (default: %(default)s).')
 
 def validate(args, parser):
 	pass
 
 def main(args):
-	run_clusterediting(**vars(args))
+	run_clustereditingphase(**vars(args))

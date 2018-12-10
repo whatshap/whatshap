@@ -107,10 +107,15 @@ class MatrixTransformation:
 						self._readname_to_partitions[read_name].add_variant(position, c, quality)
 				self._number_of_clusters.append(max(ploidy,len(readpartitioning)))
 				
-			print("Num Clusterings:  "+str(len(num_clusters)))
-			print("Avg Num clusters: "+str(sum(num_clusters)/len(component_positions)))
-			print("Clusters > k    : "+str(sum([1 for cluster in num_clusters if cluster > ploidy])))
-			print("Clusters < k    : "+str(sum([1 for cluster in num_clusters if cluster < ploidy])))
+			avg_clusters = sum(num_clusters)/len(component_positions)
+			lt_k = sum([1 for cluster in num_clusters if cluster > ploidy])
+			ht_k = sum([1 for cluster in num_clusters if cluster < ploidy])
+			#logger.info("Transformed matrix of "+str(len(num_clusters))+" clustering with "+str(sum(num_clusters)/len(component_positions))+" clusters on average ("++" < k, "++" > k)")
+			logger.info("Transformed matrix of {} clustering with {} clusters on average ({} < k, {} > k)".format(len(num_clusters), avg_clusters, lt_k, ht_k))
+			#print("Num Clusterings:  "+str(len(num_clusters)))
+			#print("Avg Num clusters: "+str(sum(num_clusters)/len(component_positions)))
+			#print("Clusters > k    : "+str(sum([1 for cluster in num_clusters if cluster > ploidy])))
+			#print("Clusters < k    : "+str(sum([1 for cluster in num_clusters if cluster < ploidy])))
 			
 			# add the computed reads to final ReadSet
 			for read in self._readname_to_partitions.values():

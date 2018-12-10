@@ -1,16 +1,89 @@
 import itertools as it
 from math import ceil, floor
+from copy import deepcopy
+import shutil
+import os
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-import shutil
-import os
+from pylab import savefig
 from .core import Read, ReadSet, CoreAlgorithm, LightCompleteGraph
-from .readscoring import score, locality_sensitive_score, parse_haplotype
+from .readscoring import score, calc_overlap_and_diffs, parse_haplotype, score, locality_sensitive_score, parse_haplotype
 from .kclustifier import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks
 from .vectorerror import vector_error, vector_error_blockwise
-from copy import deepcopy
+
+def draw_plots_dissimilarity(readset, path, min_overlap = 5, steps = 100):
+	num_reads = len(readset)
+	overlap, diffs = calc_overlap_and_diffs(readset)
+	haps = [parse_haplotype(readset[i].name) for i in range(num_reads)]
+	dissims_same = []
+	dissims_diff = []
+
+	for i, j in it.combinations(range(num_reads), 2):
+		if (overlap.get(i, j) >= min_overlap):
+			d = diffs.get(i, j) / overlap.get(i, j)
+			if (haps[i] == haps[j]):
+				dissims_same.append(d)
+			else:
+				dissims_diff.append(d)
+	createHistogram(path, dissims_same, dissims_diff, steps, [0.0, 1.0], "Dissimilarity", "Read-pair comparison")
+	
+def draw_plots_scoring(readset, path, ploidy, error_rate, min_overlap = 5, steps=120, dim=[-60, 60]):
+	num_reads = len(readset)
+	overlap, diffs = calc_overlap_and_diffs(readset)
+	similarities = score(readset, ploidy, error_rate, min_overlap)
+	#similarities = locality_sensitive_score(readset, ploidy, min_overlap)
+	haps = [parse_haplotype(readset[i].name) for i in range(num_reads)]
+	dissims_same = []
+	dissims_diff = []
+
+	for i, j in it.combinations(range(num_reads), 2):
+		if (overlap.get(i, j) >= min_overlap):
+			d = similarities.get(i, j)
+			if (haps[i] == haps[j]):
+				dissims_same.append(d)
+			else:
+				dissims_diff.append(d)
+	createHistogram(path, dissims_same, dissims_diff, steps, dim, "Similarity score", "Read-pair comparison")
+	
+def draw_column_dissimilarity(readset, path, steps = 100):
+	num_reads = len(readset)
+	alleles = [[0]*4 for i in readset.get_positions()]
+	index = {}
+	num_vars = 0
+	for position in readset.get_positions():
+		index[position] = num_vars
+		num_vars += 1
+		
+	for read in readset:
+		for variant in read:
+			pos = index[variant.position]
+			allele = variant.allele
+			if allele > len(alleles[pos]):
+				for i in range(len(allele[pos]), allele):
+					allele[pos].append(0)
+			alleles[index[variant.position]][variant.allele] += 1
+			
+	sim1 = [max(alleles[i]) / sum(alleles[i]) for i in range(len(alleles))]
+	sim2 = [min([alleles[i][j] for j in range(len(alleles[i])) if alleles[i][j] > 0]) / sum(alleles[i]) for i in range(len(alleles))]
+	createHistogram(path, sim1, sim2, steps, [0.0, 1.0], "Frequency of most frequent allele", "Column-wise comparison", name1='most freqeunt', name2='least frequent')
+
+#Counts the fraction of ones in each column of the matrix
+def createHistogram(path, same, diff, steps, dim, x_label, title, name1='same', name2='diff'):
+	hist = {}
+	left_bound = dim[0]
+	right_bound = dim[1]
+	bins = [left_bound + i*(right_bound-left_bound)/steps for i in range(steps+1)]
+	plt.hist(same, bins, alpha=0.5, label=name1)
+	if len(diff) > 0:
+		plt.hist(diff, bins, alpha=0.5, label=name2)
+	plt.title(title)
+	plt.xlabel(x_label)
+	plt.ylabel("Frequency")
+	plt.legend(loc='upper center')
+	savefig(path, bbox_inches='tight')
+	plt.close()
 
 def draw_heatmaps(readset, clustering, heatmap_folder):
 
@@ -330,51 +403,3 @@ def construct_ground_truth_blockwise(readset, cut_positions):
 		trivial_cluster_blocks.append([[hap_id]*(pos-start) for hap_id in range(4)])
 		start = pos
 	return calc_consensus_blocks(readset, real_clusters, trivial_cluster_blocks, cut_positions)
-	
-def cluster_and_draw(output, readset, ploidy, errorrate, min_overlap, var_table=None):
-	print("Clustering reads for homogeneity plots.")
-	print("Computing similarities ...")
-	similarities = score(readset, ploidy, errorrate, min_overlap)
-	#similarities = locality_sensitive_score(readset, ploidy, min_overlap)
-
-	print("Constructing graph ...")
-	# create read graph object
-	graph = LightCompleteGraph(len(readset),True)
-
-	# insert edges into read graph
-	n_reads = len(readset)
-	for id1 in range(n_reads):
-		for id2 in range(id1+1, n_reads):
-			if similarities.get(id1, id2) != 0:
-				graph.setWeight(id1, id2, similarities.get(id1, id2))
-
-	print("Solving cluster editing ...")
-	# run cluster editing
-	clusterediting = CoreAlgorithm(graph)	
-	readpartitioning = clusterediting.run()
-	
-	print("Merging clusters ...")
-	#coverage, copynumbers, cluster_blocks, cut_positions = clusters_to_blocks(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
-	#consensus_blocks = clusters_to_haps(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
-
-	#truth = get_phase(readset, var_table)
-	#truth_cons = construct_ground_truth(readset)
-	
-	#truth_blocks = construct_ground_truth_blockwise(readset, cut_positions)
-	#for hap in truth:
-	#	print("".join(list(map(lambda x: str(x) if x >= 0 else ".", hap))))
-	#for hap in truth_cons:
-	#	print("".join(list(map(lambda x: str(x) if x >= 0 else ".", hap))))
-	#vec_error = vector_error_blockwise(consensus_blocks, truth, 1, 100000)
-	#print("Vector error = "+str(vec_error))
-	
-	#vec_error = vector_error_blockwise(consensus_blocks, truth_cons, 1, 100000)
-	#print("Vector error = "+str(vec_error))
-	
-	print("Generating plots ...")
-	#draw_heatmaps(readset, readpartitioning, output+".heatmaps/")
-	#draw_superheatmap(readset, readpartitioning, var_table, output+".superheatmap.png")
-	draw_superheatmap(readset, readpartitioning, var_table, output+".superheatmapg.png", genome_space = False)
-	#draw_cluster_coverage(readset, readpartitioning, output+".coverage.png")
-	#draw_cluster_blocks(readset, readpartitioning, cluster_blocks, cut_positions, var_table, output+".haploblocks.png", genome_space = False)
-	print("... finished")

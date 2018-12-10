@@ -1,25 +1,28 @@
 from copy import deepcopy
 from math import floor, ceil
 import itertools as it
+import logging
+
+logger = logging.getLogger(__name__)
 
 def clusters_to_haps(readset, clustering, ploidy, coverage_padding = 12, copynumber_max_artifact_len = 1.0, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = False):
-	print("Processing "+str(len(clustering))+" read clusters ...")
+	logger.info("   Processing "+str(len(clustering))+" read clusters ...")
 	cluster_blocks = []
 	# Compute cluster blocks
 	if len(clustering) >= ploidy:
-		print("Processing "+str(len(clustering))+" read clusters ...")
+		logger.info("   Processing "+str(len(clustering))+" read clusters ...")
 		coverage, copynumbers, cluster_blocks, cut_positions = clusters_to_blocks(readset, clustering, ploidy, coverage_padding, copynumber_max_artifact_len, copynumber_cut_contraction_dist, single_hap_cuts)
 	else:
-		print("Processing "+str(len(clustering))+" read clusters ... could not create "+str(ploidy)+" haplotypes from this!")
+		logger.info("   Processing "+str(len(clustering))+" read clusters ... could not create "+str(ploidy)+" haplotypes from this!")
 		return []
 		
 	# Compute consensus blocks
-	print("Received "+str(len(cluster_blocks))+" cluster blocks. Generating consensus sequences ...")
+	logger.info("   Received "+str(len(cluster_blocks))+" cluster blocks. Generating consensus sequences ...")
 
 	consensus_blocks = calc_consensus_blocks(readset, clustering, cluster_blocks, cut_positions)
 	
 	gaps = sum([sum([sum([1 for i in hap if hap[i] == -1]) for hap in block]) for block in consensus_blocks])
-	print("Phased "+str(ploidy)+" haplotypes over "+str(len(readset.get_positions()))+" variant positions, using "+str(len(consensus_blocks))+" blocks with "+str(gaps)+" undefined sites.")
+	logger.info("   Phased "+str(ploidy)+" haplotypes over "+str(len(readset.get_positions()))+" variant positions, using "+str(len(consensus_blocks))+" blocks with "+str(gaps)+" undefined sites.")
 	
 	return consensus_blocks
 
@@ -86,18 +89,18 @@ def clusters_to_blocks(readset, clustering, ploidy, coverage_padding = 12, copyn
 
 	# Get relative coverage for each cluster at each variant position
 	coverage = calc_coverage(readset, clusters, coverage_padding, index)
-	print("   ... computed relative coverage for all clusters")
+	logger.info("      ... computed relative coverage for all clusters")
 
 	# Assign haploid copy numbers to each cluster at each variant position
 	copynumbers = calc_haploid_copynumbers(coverage, num_vars, ploidy)
-	print("   ... assigned local copy numbers for all clusters")
+	logger.info("      ... assigned local copy numbers for all clusters")
 	
 	# Optimize copynumbers
 	postprocess_copynumbers(copynumbers, rev_index, num_vars, ploidy, readlen, copynumber_max_artifact_len, copynumber_cut_contraction_dist)
 	
 	# Compute cluster blocks
 	cut_positions, cluster_blocks = calc_cluster_blocks(readset, copynumbers, num_vars, ploidy, single_hap_cuts)
-	print("Cut positions:")
+	logger.info("   Cut positions:")
 	print(cut_positions)
 	
 	return coverage, copynumbers, cluster_blocks, cut_positions
@@ -185,7 +188,7 @@ def postprocess_copynumbers(copynumbers, rev_index, num_vars, ploidy, readlen, a
 			interval = current
 	# Append last opened interval to list
 	intervals.append((start, num_vars, interval))
-	print("   ... divided variant location space into "+str(len(intervals))+" intervals")
+	logger.info("      ... divided variant location space into "+str(len(intervals))+" intervals")
 	
 	# Phase 1: Remove intermediate deviation
 	if artifact_len > 0.0:
@@ -209,7 +212,7 @@ def postprocess_copynumbers(copynumbers, rev_index, num_vars, ploidy, readlen, a
 						copynumbers[l][k] = copynumbers[l][intervals[i][0]]
 			else:
 				i += 1
-		print("   ... reduced intervals to "+str(len(intervals))+" by removing intermediate artifacts")
+		logger.info("      ... reduced intervals to "+str(len(intervals))+" by removing intermediate artifacts")
 	
 	# Questionable: Close k-1-gaps
 	if False:
@@ -225,7 +228,7 @@ def postprocess_copynumbers(copynumbers, rev_index, num_vars, ploidy, readlen, a
 						copynumbers[l][k] = copynumbers[l][intervals[i][0]]
 			else:
 				i += 1
-		print("   ... reduced intervals to "+str(len(intervals))+" by extending intervals to uncovered sites")
+		logger.info("      ... reduced intervals to "+str(len(intervals))+" by extending intervals to uncovered sites")
 			
 	# Phase 2: Remove intervals with less than 1*read_length
 	if contraction_dist > 0.0:
@@ -249,7 +252,7 @@ def postprocess_copynumbers(copynumbers, rev_index, num_vars, ploidy, readlen, a
 						copynumbers[l][k] = copynumbers[l][intervals[i+1][1]-1]
 			else:
 				i += 1
-		print("   ... reduced intervals to "+str(len(intervals))+" by shifting proximate interval bounds")
+		logger.info("      ... reduced intervals to "+str(len(intervals))+" by shifting proximate interval bounds")
 	
 def calc_cluster_blocks(readset, copynumbers, num_vars, ploidy, single_hap_cuts = False):
 	# Get all changes for each position
@@ -357,66 +360,3 @@ def calc_cluster_blocks(readset, copynumbers, num_vars, ploidy, single_hap_cuts 
 		old_pos = cut_pos
 		
 	return cut_positions, cluster_blocks
-
-def read_similarities(path):
-	read_names = []
-	sim = []
-	with open(path, "r") as f:
-		lines = f.read().splitlines()
-		num_reads = int(lines[0])
-		for i in range(1, num_reads+1):
-			read_names.append(lines[i])
-		for i in range(num_reads+1, 2*num_reads):
-			tokens = lines[i].split()
-			#l = []
-			#for token in tokens:
-			#	print(token)
-			#	l.append(float(token))
-			#sim.append(l)
-			sim.append([float(s) for s in tokens])
-	return read_names, sim
-
-def read_clustering(path, read_names):
-	clusters = []
-	with open(path, "r") as f:
-		lines = f.read().splitlines()
-		num_reads = int(lines[0])
-		assert(num_reads == len(read_names))
-		num_clusters = int(lines[1])
-		clusters = [[] for i in range(num_clusters)]
-		for i in range(num_reads):
-			tokens = lines[i+3].split()
-			clusters[int(tokens[1])].append(read_names.index(tokens[0]))
-	return clusters
-
-def write_clusters(path, read_names, clusters):
-	to_cluster = [-1]*len(read_names)
-	for i in range(len(clusters)):
-		for read in clusters[i]:
-			to_cluster[read] = i
-	entries = []
-	for i in range(len(read_names)):
-		if to_cluster[i] >= 0:
-			entries.append((read_names[i], to_cluster[i]))
-	#entries = [(read_names[i], to_cluster[i]) for i in range(len(read_names))]
-	entries.sort(key = lambda x: x[1])
-	
-	with open(path, "w") as f:
-		f.write(str(len(read_names)))
-		f.write("\n")
-		f.write(str(len(clusters)))
-		f.write("\n")
-		f.write("name\tcluster")
-		f.write("\n")
-		for i in range(len(entries)):
-			f.write(entries[i][0]+"\t"+str(entries[i][1]))
-			f.write("\n")
-
-def test_main():
-	read_names, sim = read_similarities("/home/sven/workspace/wabi-k-clusterediting/k-cluster-editing-paper/snakemake/auxi/sim.2.0.005-p.rg")
-	clusters = read_clustering("/home/sven/workspace/wabi-k-clusterediting/k-cluster-editing-paper/snakemake/auxi/sim.2.0.005-p.clust.txt", read_names)
-	k_clusters = k_clustify(sim, clusters, 8)
-	write_clusters("/home/sven/workspace/wabi-k-clusterediting/k-cluster-editing-paper/snakemake/auxi/sim.2.0.005-p.k-clust.txt", read_names, k_clusters)
-
-if __name__ == "__main__":
-    test_main()

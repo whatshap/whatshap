@@ -18,6 +18,7 @@ COMMANDS = [
 	'genotype',
 	'windowphase',
 	'clusterediting',
+	'clustereditingphase',
 	'plot',
 	'errorspercolumn'
 ]
