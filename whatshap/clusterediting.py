@@ -32,6 +32,7 @@ from .variants import ReadSetReader, ReadSetError
 from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
 from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components, find_largest_component, write_read_list
+from .clusterhomogeneityplots import cluster_and_draw
 
 __author__ = "Jana Ebler" 
 
@@ -69,6 +70,7 @@ def run_clusterediting(
 	read_list_filename=None,
 	errorrate = 0.1, 
 	min_overlap = 5
+	transform = False
 	):
 	"""
 	Run Polyploid Phasing.
@@ -119,6 +121,7 @@ def run_clusterediting(
 		else:
 			fasta = None
 		del reference
+		output_str = output
 		if isinstance(output, str):
 			output = stack.enter_context(xopen(output, 'w'))
 		if write_command_line_header:
@@ -128,7 +131,7 @@ def run_clusterediting(
 		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file,
 			out_file=output, tag=tag, ploidy=ploidy)
 		# TODO for now, assume we always trust the genotypes
-		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=False, ploidy=ploidy)
+		vcf_reader = VcfReader(variant_file, indels=indels, phases=True, genotype_likelihoods=False, ploidy=ploidy)
 
 		if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
 			logger.error('When using --ignore-read-groups on a VCF with '
@@ -200,11 +203,25 @@ def run_clusterediting(
 				# transform the allele matrix
 				selected_reads = select_reads(readset, 5*ploidy, preferred_source_ids = vcf_source_ids)
 				readset = selected_reads
+
+				# This code block ist just used for internal testing and should stay disabled in every commit
+				experimental = False
+				if experimental:
+					if transform:
+						transformation = MatrixTransformation(readset, find_components(readset.get_positions(), readset), ploidy, errorrate, min_overlap)
+						transformed_matrix = transformation.get_transformed_matrix()
+						cluster_counts = transformation.get_cluster_counts()
+						cluster_and_draw(output_str+"_D", transformed_matrix, ploidy, errorrate, min_overlap, var_table = phasable_variant_table)
+					else:
+						cluster_and_draw(output_str+"_N", readset, ploidy, errorrate, min_overlap, var_table = phasable_variant_table)
+					print("Cluster and draw finished")
+					return
+
 				print_readset(readset)
 				transformation = MatrixTransformation(readset, find_components(readset.get_positions(), readset), ploidy, errorrate, min_overlap)
 				transformed_matrix = transformation.get_transformed_matrix()
 				cluster_counts = transformation.get_cluster_counts()
-
+				
 				# TODO: remove print
 				print_readset(transformed_matrix)
 				# TODO: remove print
@@ -354,6 +371,8 @@ def add_arguments(parser):
 	arg = parser.add_argument_group('Parameters for cluster editing').add_argument
 	arg('--errorrate', metavar='ERROR', type=float, default=0.1, help='Read error rate (default: %(default)s).')
 	arg('--min-overlap', metavar='OVERLAP', type=int, default=5, help='Minimum required read overlap (default: %(default)s).')
+	arg('--transform', dest='transform', default=False, action='store_true',
+		help='Use transformed matrix for read similarity scoring (default: %(default)s).')
 
 def validate(args, parser):
 	pass
