@@ -166,10 +166,17 @@ def run_haplotag(
 			header['PG'].append(PG_entry)
 		else:
 			header['PG'] = [PG_entry]
+		# check whether to write bam for cram format
 		if output:
-			bam_writer = pysam.AlignmentFile(output, 'wb', header=pysam.AlignmentHeader.from_dict(header))
+			if output.endswith('.bam'):
+				bam_writer = pysam.AlignmentFile(output, 'wb', header=pysam.AlignmentHeader.from_dict(header))
+			elif output.endswith('cram'):
+				bam_writer = pysam.AlignmentFile(output, 'wc', header=pysam.AlignmentHeader.from_dict(header))
 		else:
-			bam_writer = pysam.AlignmentFile('-', 'wb', header=pysam.AlignmentHeader.from_dict(header))
+			if alignment_file.endswith('.bam'):
+				bam_writer = pysam.AlignmentFile('-', 'wb', header=pysam.AlignmentHeader.from_dict(header))
+			elif alignment_file.endswith('cram'):
+				bam_writer = pysam.AlignmentFile('-', 'wc', header=pysam.AlignmentHeader.from_dict(header))
 
 		chromosome_name = None
 		chromosome_id = None
