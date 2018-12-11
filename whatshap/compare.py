@@ -7,7 +7,7 @@ import math
 import itertools
 from collections import defaultdict, namedtuple
 from contextlib import ExitStack
-from itertools import chain
+from itertools import chain, permutations
 from typing import Set, Iterable, List
 
 from whatshap.vcf import VcfReader, VcfVariant, VariantTable
@@ -130,6 +130,84 @@ def compute_switch_flips(phasing0, phasing1):
 		print('   switches={}, flips={}'.format(result.switches, result.flips))
 	return result
 
+def compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 1):
+	# Check input
+	if len(phasing0) != len(phasing1):
+		print("Incompatible phasings. Number of haplotypes is not equal ("+str(len(phasing))+" != "+str(len(truth))+").")
+	assert len(phasing0) == len(phasing1)
+	
+	num_pos = len(phasing0[0])
+	if (num_pos == 0):
+		return 0
+	ploidy = len(phasing0)
+	if (ploidy == 0):
+		return 0
+	for i in range(0, len(phasing1)):
+		if len(phasing1[i]) != num_pos:
+			print("Inconsistent input for phasing. Haplotypes have different lengths ( len(phasing1[0]="+str(num_pos)+" != len(phasing1["+str(i)+"]="+str(len(phasing1[i]))+".")
+		assert len(phasing1[i]) == num_pos
+		if len(phasing0[i]) != num_pos:
+			print("Inconsistent input for phasing. Haplotypes have different lengths ( len(phasing1[0]="+str(num_pos)+" != len(phasing0["+str(i)+"]="+str(len(phasing0[i]))+".")
+		assert len(phasing1[i]) == num_pos
+	if ploidy > 6:
+		print("Computing vector error with more than 6 haplotypes. This may take very long ...")
+
+	# List of all permutations in which haplotypes of the two phasings can be joined
+	perms = list(permutations(range(0, ploidy)))
+	
+	# dp table with SwitchFlip objects, which are initialized with infinite costs
+	d = [[SwitchFlips(float("inf"), float("inf")) for i in range(len(perms))] for j in range(num_pos)] 
+	
+	# Initialize first column
+	for i, perm in enumerate(perms):
+		e = 0
+		for k in range(ploidy):
+			# Count flips between phasing0 and phasing1 for current permutation
+			e += 1 if (phasing1[k][0] != phasing0[perm[k]][0] and phasing1[k][0] != '-' and phasing0[perm[k]][0] != '-') else 0;
+		d[0][i].switches = 0
+		d[0][i].flips = e
+		#print("d["+str(0)+"]["+str(i)+"] = "+str(d[0][i]))
+	
+	# Iterate over all positions
+	for j in range(1, num_pos):
+		for i, perm in enumerate(perms):
+			# Count number of flip errors if perm would be applied to this column
+			flips = 0
+			for k in range(ploidy):
+				flips += 1 if (phasing1[k][j] != phasing0[perm[k]][j] and phasing1[k][j] != '-' and phasing0[perm[k]][j] != '-') else 0;
+				
+			# Find the best previous solution by checking all rows of previous row
+			min_prev_err = float("inf")
+			min_l = -1
+			min_switches = float("inf")
+			for l, prev_perm in enumerate(perms):
+				# Consider the number switches between the rows
+				switches = sum([1 for i in range(len(perm)) if perm[i] != prev_perm[i]])
+				
+				# Find the best row for recursion by computing cost of previous rows combined with the switch cost to jump to the current one
+				current_err = d[j-1][l].switches * switch_cost + d[j-1][l].flips * flip_cost + switch_cost * switches
+				if current_err < min_prev_err:
+					min_prev_err = current_err
+					min_l = l
+					min_switches = switches
+			d[j][i].flips = d[j-1][min_l].flips + flips
+			d[j][i].switches = d[j-1][min_l].switches + min_switches
+			#print("d["+str(j)+"]["+str(i)+"] = "+str(d[j][i]))
+	
+	# Result is smallest combined error in last column
+	result = SwitchFlips()
+	min_column = -1
+	min_err = float("inf")
+	for l in range(len(perms)):
+		current_err = d[-1][l].switches * switch_cost + d[-1][l].flips * flip_cost
+		if current_err < min_err:
+			min_err = current_err
+			min_column = l
+			
+	result.switches = d[-1][min_column].switches
+	result.flips = d[-1][min_column].flips
+	return result
+
 # TODO extend to polyploid case
 def compare_block(phasing0, phasing1):
 	""" Input are two lists of haplotype sequences over {0,1}. """
@@ -152,6 +230,8 @@ def compare_block(phasing0, phasing1):
 	if ploidy == 2:
 		switches = hamming(switch_encoding(phasing0[0]), switch_encoding(phasing1[0]))
 		switch_flips = compute_switch_flips(phasing0[0], phasing1[0])
+	else:
+		switch_flips = compute_switch_flips_poly(phasing0, phasing1)
 
 	return PhasingErrors(
 		switches = switches,
