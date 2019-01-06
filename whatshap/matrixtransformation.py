@@ -1,7 +1,7 @@
 from collections import defaultdict
 import sys
 from .graph import ComponentFinder
-from .core import Read, ReadSet, CoreAlgorithm, LightCompleteGraph
+from .core import Read, ReadSet, CoreAlgorithm, StaticSparseGraph
 from .readscoring import score, partial_scoring, locality_sensitive_score
 import logging
 import pysam
@@ -75,14 +75,14 @@ class MatrixTransformation:
 				#local_similarities = partial_scoring(similarities, index_set)
 				
 				# create read graph object
-				graph = LightCompleteGraph(len(column),True)
+				graph = StaticSparseGraph(len(column),True)
 	
 				# insert edges into read graph
 				n_reads = len(column)
 				for id1 in range(n_reads):
 					for id2 in range(0, id1):
 						if similarities.get(id1, id2) != 0:
-							graph.setWeight(id1, id2, similarities.get(id1, id2))
+							graph.addEdge(id1, id2, similarities.get(id1, id2))
 				
 				# run cluster editing
 				clusterediting = CoreAlgorithm(graph)

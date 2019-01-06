@@ -22,7 +22,7 @@ from networkx import Graph, number_of_nodes, number_of_edges, connected_componen
 from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter, VcfGenotypeLikelihoods
 from . import __version__
-from .core import Read, ReadSet, CoreAlgorithm, LightCompleteGraph, readselection, NumericSampleIds, GenotypeLikelihoods, Genotype, compute_genotypes
+from .core import Read, ReadSet, CoreAlgorithm, StaticSparseGraph, readselection, NumericSampleIds, GenotypeLikelihoods, Genotype, compute_genotypes
 from .graph import ComponentFinder
 from .bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
 from .timer import StageTimer
@@ -203,8 +203,8 @@ def run_clustereditingphase(
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
 				# sample allele matrix
-				selected_reads = select_reads(readset, 5*ploidy, preferred_source_ids = vcf_source_ids)
-				readset = selected_reads
+				#selected_reads = select_reads(readset, 5*ploidy, preferred_source_ids = vcf_source_ids)
+				#readset = selected_reads
 
 				# Transform allele matrix, if option selected
 				timers.start('transform_matrix')
@@ -222,14 +222,14 @@ def run_clustereditingphase(
 				
 				# Create read graph object
 				logger.info("Constructing graph ...")
-				graph = LightCompleteGraph(len(readset),True)
+				graph = StaticSparseGraph(len(readset),True)
 
 				# Insert edges into read graph
 				n_reads = len(readset)
 				for id1 in range(n_reads):
 					for id2 in range(id1+1, n_reads):
 						if similarities.get(id1, id2) != 0:
-							graph.setWeight(id1, id2, similarities.get(id1, id2))
+							graph.addEdge(id1, id2, similarities.get(id1, id2))
 
 				# Run cluster editing
 				logger.info("Solving cluster editing ...")
@@ -276,8 +276,8 @@ def run_clustereditingphase(
 				
 				# !!!
 				# TODO: Write results into VCF: Create superreads and components for VCF-Write call below
-				#changed_genotypes = vcf_writer.write(chromosome, superreads, components)
-				#assert len(changed_genotypes) == 0
+				changed_genotypes = vcf_writer.write(chromosome, superreads, components)
+				assert len(changed_genotypes) == 0
 				# !!!
 
 				logger.info('Done writing VCF')

@@ -22,7 +22,7 @@ namespace ysk {
 			ClusterEditingSolutionLight sol;
             return sol;
 		}
-
+		
 		// Run heuristic
 		if (verbosity > 1) {
 			cout << "Starting CE Heuristic!" << endl;

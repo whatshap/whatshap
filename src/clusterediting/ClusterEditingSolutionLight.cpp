@@ -2,7 +2,7 @@
 
 namespace ysk {
   
-using NodeId = LightCompleteGraph::NodeId;
+using NodeId = StaticSparseGraph::NodeId;
 
 ClusterEditingSolutionLight::ClusterEditingSolutionLight() :
     valid(false),

@@ -117,14 +117,14 @@ cdef extern from "../src/genotypedistribution.h":
 cdef extern from "../src/genotyper.h":
 	void compute_genotypes(ReadSet, vector[Genotype]* genotypes, vector[GenotypeDistribution]* genotype_likelihoods, vector[unsigned int]* positions)  except +
 
-cdef extern from "../src/clusterediting/LightCompleteGraph.h" namespace "ysk":
-	cdef cppclass LightCompleteGraph:
-		LightCompleteGraph(int numNodes, bool param_pruneZeroEdges) except +
-		void setWeight(int, int, double) except +
+cdef extern from "../src/clusterediting/StaticSparseGraph.h" namespace "ysk":
+	cdef cppclass StaticSparseGraph:
+		StaticSparseGraph(int numNodes, bool param_pruneZeroEdges) except +
+		void addEdge(int, int, double) except +
 		
 cdef extern from "../src/clusterediting/CoreAlgorithm.h" namespace "ysk":
 	cdef cppclass CoreAlgorithm:
-		CoreAlgorithm(LightCompleteGraph graph) except +
+		CoreAlgorithm(StaticSparseGraph graph) except +
 		ClusterEditingSolutionLight run() except +
 
 cdef extern from "../src/clusterediting/ClusterEditingSolutionLight.h" namespace "ysk":

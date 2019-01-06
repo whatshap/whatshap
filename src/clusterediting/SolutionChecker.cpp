@@ -2,11 +2,15 @@
 
 using namespace ysk;
 using namespace std;
-using NodeId = LightCompleteGraph::NodeId;
-using Edge = LightCompleteGraph::Edge;
-using EdgeWeight = LightCompleteGraph::EdgeWeight;
+// using NodeId = LightCompleteGraph::NodeId;
+// using Edge = LightCompleteGraph::Edge;
+// using EdgeWeight = LightCompleteGraph::EdgeWeight;
+using NodeId = StaticSparseGraph::NodeId;
+using Edge = StaticSparseGraph::Edge;
+using EdgeWeight = StaticSparseGraph::EdgeWeight;
 
-bool SolutionChecker::verifySolution(const LightCompleteGraph& graph, const ClusterEditingSolutionLight& solution){
+//bool SolutionChecker::verifySolution(const LightCompleteGraph& graph, const ClusterEditingSolutionLight& solution){
+bool SolutionChecker::verifySolution(StaticSparseGraph& graph, const ClusterEditingSolutionLight& solution){
 	if (verbosity > 0) {
 		cout << "Checking solution integrity ..." << endl;
 	}

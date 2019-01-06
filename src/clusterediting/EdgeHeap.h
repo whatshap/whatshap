@@ -3,8 +3,7 @@
 
 #include <vector>
 #include <set>
-#include "LightCompleteGraph.h"
-#include "Globals.h"
+#include "StaticSparseGraph.h"
 
 namespace ysk {
 
@@ -14,7 +13,7 @@ public:
     /**
     * Constructs a new instance using the provided graph to precompute all icf and icp values.
     */
-    EdgeHeap(LightCompleteGraph& param_graph, bool param_pruneZeroEdges);
+    EdgeHeap(StaticSparseGraph& param_graph, bool param_pruneZeroEdges);
   
     /**
      * Initializes the induced costs for all edges. May take quite long!
@@ -23,39 +22,39 @@ public:
     /**
     * Returns the edge with the highest icf.
     */
-    LightCompleteGraph::Edge getMaxIcfEdge() const;
+    StaticSparseGraph::Edge getMaxIcfEdge() const;
     /**
     * Returns the edge with the highest icp.
     */
-    LightCompleteGraph::Edge getMaxIcpEdge() const;
+    StaticSparseGraph::Edge getMaxIcpEdge() const;
     /**
     * Returns the icf of the provided edge.
     */
-    LightCompleteGraph::EdgeWeight getIcf(const LightCompleteGraph::Edge e) const;
+    StaticSparseGraph::EdgeWeight getIcf(const StaticSparseGraph::Edge e) const;
     /**
     * Returns the icp of the provided edge.
     */
-    LightCompleteGraph::EdgeWeight getIcp(const LightCompleteGraph::Edge e) const;
+    StaticSparseGraph::EdgeWeight getIcp(const StaticSparseGraph::Edge e) const;
     /**
     * Adds the provided value to the icf of the given edge.
     */
-    void increaseIcf(const LightCompleteGraph::Edge e, const LightCompleteGraph::EdgeWeight w);
+    void increaseIcf(const StaticSparseGraph::Edge e, const StaticSparseGraph::EdgeWeight w);
     /**
     * Adds the provided value to the icp of the given edge.
     */
-    void increaseIcp(const LightCompleteGraph::Edge e, const LightCompleteGraph::EdgeWeight w);
+    void increaseIcp(const StaticSparseGraph::Edge e, const StaticSparseGraph::EdgeWeight w);
     /**
     * Removes the specified edge.
     */
-    void removeEdge(const LightCompleteGraph::Edge e);
+    void removeEdge(const StaticSparseGraph::Edge e);
     /**
         * Computes the induced cost for the the triple uvw, if uv is set to forbidden
         */
-    LightCompleteGraph::EdgeWeight getIcf(const LightCompleteGraph::EdgeWeight uw, const LightCompleteGraph::EdgeWeight vw) const;
+    StaticSparseGraph::EdgeWeight getIcf(const StaticSparseGraph::EdgeWeight uw, const StaticSparseGraph::EdgeWeight vw) const;
     /**
         * Computes the induced cost for the the triple uvw, if uv is set to permanent
         */
-    LightCompleteGraph::EdgeWeight getIcp(const LightCompleteGraph::EdgeWeight uw, const LightCompleteGraph::EdgeWeight vw) const;
+    StaticSparseGraph::EdgeWeight getIcp(const StaticSparseGraph::EdgeWeight uw, const StaticSparseGraph::EdgeWeight vw) const;
     
     int numUnprocessed() const;
 
@@ -65,20 +64,22 @@ private:
     * Provided are the id of the modified edge, new and old value, an index (which maps edge ids to their position in the heap)
     * and a score vector (which maps an edge id to either its icf or icp).
     */
-    void updateHeap(std::vector<LightCompleteGraph::EdgeId>& heap, const LightCompleteGraph::EdgeId e, const LightCompleteGraph::EdgeWeight change, 
-            std::vector<LightCompleteGraph::EdgeId>& index, const std::vector<LightCompleteGraph::EdgeWeight>& score);
+    void updateHeap(std::vector<StaticSparseGraph::RankId>& heap, const StaticSparseGraph::RankId e, const StaticSparseGraph::EdgeWeight change, 
+            std::vector<StaticSparseGraph::RankId>& index, const std::vector<StaticSparseGraph::EdgeWeight>& score);
     
     bool pruneZeroEdges;
-    LightCompleteGraph& graph;
+    StaticSparseGraph& graph;
     int unprocessed;
-    std::vector<LightCompleteGraph::EdgeWeight> icf;		// edge id -> icf of edge
-    std::vector<LightCompleteGraph::EdgeWeight> icp;		// edge id -> icp of edge
-    std::vector<LightCompleteGraph::EdgeId> forb_rank2edge;	// max-heap over edge ids, sorted by icf
-    std::vector<LightCompleteGraph::EdgeId> perm_rank2edge;	// max-heap over edge ids, sorted by icp
-    std::vector<LightCompleteGraph::EdgeId> edge2forb_rank;	// edge id -> position in icf-heap
-    std::vector<LightCompleteGraph::EdgeId> edge2perm_rank;	// edge id -> position in icp-heap
+    std::vector<StaticSparseGraph::Edge> edges;             // internal/rank id -> edge
+    std::vector<StaticSparseGraph::EdgeWeight> icf;		    // edge rank id -> icf of edge (zero edges have no icf)
+    std::vector<StaticSparseGraph::EdgeWeight> icp;		    // edge rank id -> icp of edge (zero edges have no icp)
+    std::vector<StaticSparseGraph::RankId> forb_rank2edge;	// max-heap over rank edge ids, sorted by icf
+    std::vector<StaticSparseGraph::RankId> perm_rank2edge;	// max-heap over rank edge ids, sorted by icp
+    std::vector<StaticSparseGraph::RankId> edge2forb_rank;	// rank edge id -> position in icf-heap
+    std::vector<StaticSparseGraph::RankId> edge2perm_rank;	// rank edge id -> position in icp-heap
 };
 
 } // namespace ysk;
 
 #endif // EDGEHEAP_H
+

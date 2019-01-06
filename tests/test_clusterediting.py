@@ -1,4 +1,4 @@
-from whatshap.core import ReadSet, LightCompleteGraph, CoreAlgorithm
+from whatshap.core import ReadSet, StaticSparseGraph, CoreAlgorithm
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 from whatshap.readscoring import score
 import itertools
@@ -32,12 +32,12 @@ def test_clusterediting1():
 
 	# create read graph
 	n_reads = len(readset)
-	graph = LightCompleteGraph(n_reads, True)
+	graph = StaticSparseGraph(n_reads, True)
 	
 	# insert edges
 	for id1 in range(n_reads):
 		for id2 in range(0, id1):
-			graph.setWeight(id1, id2, similarities.get(id1, id2))
+			graph.addEdge(id1, id2, similarities.get(id1, id2))
 
 	# run cluster editing
 	clusterediting = CoreAlgorithm(graph)	
@@ -74,12 +74,12 @@ def test_clusterediting2():
 
 	# create read graph
 	n_reads = len(readset)
-	graph = LightCompleteGraph(n_reads, True)
+	graph = StaticSparseGraph(n_reads, True)
 	
 	# insert edges
 	for id1 in range(n_reads):
 		for id2 in range(0, id1):
-			graph.setWeight(id1, id2, similarities.get(id1, id2))
+			graph.addEdge(id1, id2, similarities.get(id1, id2))
 
 	# run cluster editing
 	clusterediting = CoreAlgorithm(graph)	
@@ -115,12 +115,12 @@ def test_clusterediting3():
 
 	# create read graph
 	n_reads = len(readset)
-	graph = LightCompleteGraph(n_reads, True)
+	graph = StaticSparseGraph(n_reads, True)
 
 	# insert edges
 	for id1 in range(n_reads):
 		for id2 in range(0, id1):
-			graph.setWeight(id1, id2, similarities.get(id1, id2))
+			graph.addEdge(id1, id2, similarities.get(id1, id2))
 
 	# run cluster editing
 	clusterediting = CoreAlgorithm(graph)

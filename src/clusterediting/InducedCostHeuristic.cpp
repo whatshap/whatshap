@@ -3,12 +3,12 @@
 
 namespace ysk {
   
-using Edge = LightCompleteGraph::Edge;
-using EdgeWeight = LightCompleteGraph::EdgeWeight;
-using EdgeId = LightCompleteGraph::EdgeId;
-using NodeId = LightCompleteGraph::NodeId;
+using Edge = StaticSparseGraph::Edge;
+using EdgeWeight = StaticSparseGraph::EdgeWeight;
+using EdgeId = StaticSparseGraph::EdgeId;
+using NodeId = StaticSparseGraph::NodeId;
 
-InducedCostHeuristic::InducedCostHeuristic(LightCompleteGraph& param_graph, bool param_pruneZeroEdges) :
+InducedCostHeuristic::InducedCostHeuristic(StaticSparseGraph& param_graph, bool param_pruneZeroEdges) :
     pruneZeroEdges(param_pruneZeroEdges),
     graph(param_graph),
     edgeHeap(graph, param_pruneZeroEdges),
@@ -17,6 +17,7 @@ InducedCostHeuristic::InducedCostHeuristic(LightCompleteGraph& param_graph, bool
     if (!resolvePermanentForbidden()) {
         totalCost = std::numeric_limits<EdgeWeight>::infinity();
     }
+    graph.compile();
     edgeHeap.initInducedCosts();
 }
 
@@ -34,20 +35,20 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
 	for (unsigned int i = 0; i < graph.numEdges() + 1; i++) {
 		Edge eIcf = edgeHeap.getMaxIcfEdge();
 		Edge eIcp = edgeHeap.getMaxIcpEdge();
-		if (eIcf == LightCompleteGraph::InvalidEdge || eIcp == LightCompleteGraph::InvalidEdge) {
+        if (eIcf == StaticSparseGraph::InvalidEdge || eIcp == StaticSparseGraph::InvalidEdge) {
             break;
 		}
 		EdgeWeight mIcf = edgeHeap.getIcf(eIcf);
 		EdgeWeight mIcp = edgeHeap.getIcp(eIcp);
 		if (mIcf >= mIcp) {
 			// set eIcf to permanent
-			setPermanent(eIcf);
-			edgeHeap.removeEdge(eIcf);
             if (verbosity >= 5) {
                 std::cout<<"Setting edge ("<<eIcf.u<<","<<eIcf.v<<") to permanent."<<std::endl;
             }
 
-			// resolve implications
+			// get edges, which will become permanent due to implication. This must be done before the actual edge is
+			// modified, as this would implicitly modify the weights in the graph as well
+			std::vector<Edge> implications;
 			std::vector<NodeId> uClique(graph.getCliqueOf(eIcf.u));
 			std::vector<NodeId> vClique(graph.getCliqueOf(eIcf.v));
             if (verbosity >= 5) {
@@ -60,38 +61,64 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
                     std::cout << i << ' ';
                 std::cout<<std::endl;
             }
+            
 			for (NodeId x : uClique) {
 				for (NodeId y : vClique) {
                     Edge e = Edge(x,y);
-					if (x == y || graph.getWeight(e) == LightCompleteGraph::Permanent)
+                    if (x == y || graph.getWeight(e) == 0 || graph.getWeight(e) == StaticSparseGraph::Permanent || (x == eIcf.u && y == eIcf.v))
 						continue;
                     if (verbosity >= 5) {
                         std::cout<<"Making ("<<x<<","<<y<<") permanent due to implication."<<std::endl;
                     }
-					setPermanent(e);
-					edgeHeap.removeEdge(e);
+                    implications.push_back(e);
+// 					setPermanent(e);
+// 					edgeHeap.removeEdge(e);
 				}
 			}
+			
+			// set actual edge first
+			setPermanent(eIcf);
+			edgeHeap.removeEdge(eIcf);
+            
+            // then all implications
+            for (Edge e : implications) {
+                setPermanent(e);
+                edgeHeap.removeEdge(e);
+            }
+			
 		} else {
 			// set eIcp fo forbidden
-			setForbidden(eIcp);
-			edgeHeap.removeEdge(eIcp);
+// 			setForbidden(eIcp);
+// 			edgeHeap.removeEdge(eIcp);
             if (verbosity >= 5) {
                 std::cout<<"Setting edge ("<<eIcp.u<<","<<eIcp.v<<") to forbidden."<<std::endl;
             }
 			
-			// resolve implications
+			// get edges, which will become permanent due to implication. This must be done before the actual edge is
+			// modified, as this would implicitly modify the weights in the graph as well
+			std::vector<Edge> implications;
 			std::vector<NodeId> uClique(graph.getCliqueOf(eIcp.u));
 			std::vector<NodeId> vClique(graph.getCliqueOf(eIcp.v));
 			for (NodeId x : uClique) {
 				for (NodeId y : vClique) {
-					if (x == y)
+                    Edge e = Edge(x,y);
+					if (x == y || graph.getWeight(e) == 0 || graph.getWeight(e) == StaticSparseGraph::Forbidden || (x == eIcp.u && y == eIcp.v))
 						continue;
-					Edge e = Edge(x,y);
-					setForbidden(e);
-					edgeHeap.removeEdge(e);
+                    implications.push_back(e);
+// 					setForbidden(e);
+// 					edgeHeap.removeEdge(e);
 				}
 			}
+			
+			// set actual edge first
+			setForbidden(eIcp);
+			edgeHeap.removeEdge(eIcp);
+            
+            // then all implications
+            for (Edge e : implications) {
+                setForbidden(e);
+                edgeHeap.removeEdge(e);
+            }
 		}
 		if (verbosity >= 1 && i % 100 == 0) {
 			std::cout<<"Completed "<<((totalEdges - edgeHeap.numUnprocessed())*100 / totalEdges)<<"%\r"<<std::flush;
@@ -119,8 +146,8 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
 			clusterOfNode[u] = c;
 			clusters.push_back(std::vector<NodeId>(1, u));
 			for (NodeId v = u+1; v < graph.numNodes(); v++) {
-				if (graph.getWeight(Edge(u, v)) == LightCompleteGraph::Permanent) {
-				clusterOfNode[v] = c;
+                if (graph.getWeight(Edge(u, v)) == StaticSparseGraph::Permanent) {
+                    clusterOfNode[v] = c;
                 if (verbosity >= 4) {
                     std::cout<<"Adding connected node "<<v<<" in same cluster."<<std::endl;
                 }
@@ -161,12 +188,12 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
                 if (x != y) {
                     Edge e (x,y);
                     EdgeWeight w = graph.getWeight(e);
-                    if (w == LightCompleteGraph::Forbidden)
+                    if (w == StaticSparseGraph::Forbidden)
                         return false;
-                    else if (w != LightCompleteGraph::Permanent) {
+                    else if (w != StaticSparseGraph::Permanent) {
                         if (w < 0.0)
                             totalCost -= w;
-                        graph.setWeight(Edge(x,y), LightCompleteGraph::Permanent);
+                        graph.setPermanent(Edge(x,y));
                         if (verbosity >= 5) {
                             std::cout<<"Making ("<<x<<","<<y<<") permanent due to implication."<<std::endl;
                         }
@@ -184,7 +211,7 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
             for (NodeId u : cliques[k]) {
                 if (found) break;
                 for (NodeId v : cliques[l]) {
-                    if (graph.getWeight(Edge(u, v)) == LightCompleteGraph::Forbidden) {
+                    if (graph.getWeight(Edge(u, v)) == StaticSparseGraph::Forbidden) {
                         found = true;
                         break;
                     }
@@ -195,8 +222,8 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
                 for (NodeId u : cliques[k]) {
                     for (NodeId v : cliques[l]) {
                         Edge e(u,v);
-                        if (graph.getWeight(e) != LightCompleteGraph::Forbidden) {
-                            graph.setWeight(e, LightCompleteGraph::Forbidden);
+                        if (graph.getWeight(e) != StaticSparseGraph::Forbidden) {
+                            graph.setForbidden(e);
                             if (verbosity >= 5) {
                                 std::cout<<"Making ("<<u<<","<<v<<") forbidden due to implication."<<std::endl;
                             }
@@ -211,9 +238,9 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
 }
 
 void InducedCostHeuristic::setForbidden(const Edge e) {
-	if (graph.getWeight(e) == LightCompleteGraph::Forbidden) {
-		return;
-	}
+//     if (graph.getWeight(e) == StaticSparseGraph::Forbidden) {
+// 		return;
+// 	}
 	NodeId u = e.u;
 	NodeId v = e.v;
 	EdgeWeight uv = graph.getWeight(e);
@@ -233,13 +260,13 @@ void InducedCostHeuristic::setForbidden(const Edge e) {
 	}
 	if (graph.getWeight(e) > 0)
 		totalCost += graph.getWeight(e);
-	graph.setWeight(e, LightCompleteGraph::Forbidden);
+    graph.setForbidden(e);
 }
 
 void InducedCostHeuristic::setPermanent(const Edge e) {
-	if (graph.getWeight(e) == LightCompleteGraph::Permanent) {
-		return;
-	}
+//     if (graph.getWeight(e) == StaticSparseGraph::Permanent) {
+// 		return;
+// 	}
 	NodeId u = e.u;
 	NodeId v = e.v;
 	EdgeWeight uv = graph.getWeight(e);
@@ -259,7 +286,7 @@ void InducedCostHeuristic::setPermanent(const Edge e) {
 	}
 	if (graph.getWeight(e) < 0)
 		totalCost -= graph.getWeight(e);
-	graph.setWeight(e, LightCompleteGraph::Permanent);
+    graph.setPermanent(e);
 }
 
 void InducedCostHeuristic::updateTripleForbiddenUW(const EdgeWeight uv, const Edge uw, const EdgeWeight vw) {
@@ -267,8 +294,10 @@ void InducedCostHeuristic::updateTripleForbiddenUW(const EdgeWeight uv, const Ed
 	EdgeWeight icf_new = 0.0;
 	EdgeWeight icp_old = edgeHeap.getIcp(uv, vw);
 	EdgeWeight icp_new = std::max(0.0, vw);
-	edgeHeap.increaseIcf(uw, icf_new - icf_old);
-	edgeHeap.increaseIcp(uw, icp_new - icp_old);
+    if (icf_new != icf_old)
+        edgeHeap.increaseIcf(uw, icf_new - icf_old);
+    if (icp_new != icp_old)
+        edgeHeap.increaseIcp(uw, icp_new - icp_old);
 }
 
 void InducedCostHeuristic::updateTriplePermanentUW(const EdgeWeight uv, const Edge uw, const EdgeWeight vw) {
@@ -276,8 +305,10 @@ void InducedCostHeuristic::updateTriplePermanentUW(const EdgeWeight uv, const Ed
 	EdgeWeight icf_new = std::max(0.0, vw);
 	EdgeWeight icp_old = edgeHeap.getIcp(uv, vw);
 	EdgeWeight icp_new = std::max(0.0, -vw);
-	edgeHeap.increaseIcf(uw, icf_new - icf_old);
-	edgeHeap.increaseIcp(uw, icp_new - icp_old);
+    if (icf_new != icf_old)
+        edgeHeap.increaseIcf(uw, icf_new - icf_old);
+    if (icp_new != icp_old)
+        edgeHeap.increaseIcp(uw, icp_new - icp_old);
 }
 
 } // namespace ysk
