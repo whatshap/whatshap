@@ -510,3 +510,4 @@ cdef class CoreAlgorithm:
 		return clusters
 
 include 'readselect.pyx'
+include 'subset_clusters.pyx'

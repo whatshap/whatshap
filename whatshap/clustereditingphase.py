@@ -32,8 +32,8 @@ from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components, find_largest_component, write_read_list
 from .clustereditingplots import draw_plots_dissimilarity, draw_plots_scoring, draw_column_dissimilarity, draw_heatmaps, draw_superheatmap, draw_cluster_coverage, draw_cluster_blocks
 from .readscoring import score, locality_sensitive_score
-from .kclustifier import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks
-
+from .kclustifier import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks, subset_clusters
+#from .core import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks, subset_clusters
 __author__ = "Jana Ebler" 
 
 logger = logging.getLogger(__name__)
@@ -187,7 +187,6 @@ def run_clustereditingphase(
 
 				to_discard = set(range(len(variant_table))).difference(heterozygous)
 				phasable_variant_table = deepcopy(variant_table)
-
 				# Remove calls to be discarded from variant table
 				phasable_variant_table.remove_rows_by_index(to_discard)
 
@@ -243,8 +242,12 @@ def run_clustereditingphase(
 				timers.start('assemble_haplotypes')
 
 				#consensus_blocks = clusters_to_haps(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
-				coverage, copynumbers, cluster_blocks, cut_positions = clusters_to_blocks(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
+			#	coverage, copynumbers, cluster_blocks, cut_positions = clusters_to_blocks(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
 
+####################################### new ##################################
+				#add dynamic programming for finding the most likely subset of clusters
+				coverage, cut_positions, cluster_blocks = subset_clusters(readset, readpartitioning, ploidy)
+##############################################################################
 
 				#truth = get_phase(readset, phasable_variant_table)
 				#truth_cons = construct_ground_truth(readset)
