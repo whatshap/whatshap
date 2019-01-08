@@ -9,7 +9,7 @@
 
 #include "ClusterEditingSolutionLight.h"
 #include "InducedCostHeuristic.h"
-#include "LightCompleteGraph.h"
+#include "StaticSparseGraph.h"
 #include "Globals.h"
 
 namespace ysk {
@@ -19,7 +19,8 @@ namespace ysk {
 		public:
 
 		CoreAlgorithm(
-				LightCompleteGraph& graph
+				//LightCompleteGraph& graph
+				StaticSparseGraph& graph
 		)
 		:_graph(graph)
 		{};
@@ -32,7 +33,8 @@ namespace ysk {
 		void cancel();
 
 		private:
-			LightCompleteGraph& _graph;
+			//LightCompleteGraph& _graph;
+            StaticSparseGraph& _graph;
 	};
 }
 

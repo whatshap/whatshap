@@ -1,7 +1,6 @@
 #ifndef INDUCEDCOSTHEURISTICLIGHT_H
 #define INDUCEDCOSTHEURISTICLIGHT_H
 
-#include "LightCompleteGraph.h"
 #include "EdgeHeap.h"
 #include "ClusterEditingSolutionLight.h"
 
@@ -11,29 +10,29 @@ class InducedCostHeuristic {
   
 
 public:
-    InducedCostHeuristic(LightCompleteGraph& param_graph, bool param_pruneZeroEdges);
+    InducedCostHeuristic(StaticSparseGraph& param_graph, bool param_pruneZeroEdges);
     ClusterEditingSolutionLight solve();
 
 private:    
     void init();
     bool resolvePermanentForbidden();
-    void setForbidden(const LightCompleteGraph::Edge e);
-    void setPermanent(const LightCompleteGraph::Edge e);
+    void setForbidden(const StaticSparseGraph::Edge e);
+    void setPermanent(const StaticSparseGraph::Edge e);
     
     /**
     * Updates icf and icp for the edge uw under the assumption that edge uv will be set to forbidden.
     */
-    void updateTripleForbiddenUW(const LightCompleteGraph::EdgeWeight uv, const LightCompleteGraph::Edge uw, const LightCompleteGraph::EdgeWeight vw);
+    void updateTripleForbiddenUW(const StaticSparseGraph::EdgeWeight uv, const StaticSparseGraph::Edge uw, const StaticSparseGraph::EdgeWeight vw);
 
     /**
     * Updates icf and icp for the edge uw under the assumption that edge uv will be set to permanent.
     */
-    void updateTriplePermanentUW(const LightCompleteGraph::EdgeWeight uv, const LightCompleteGraph::Edge uw, const LightCompleteGraph::EdgeWeight vw);
+    void updateTriplePermanentUW(const StaticSparseGraph::EdgeWeight uv, const StaticSparseGraph::Edge uw, const StaticSparseGraph::EdgeWeight vw);
     
     bool pruneZeroEdges;
-    LightCompleteGraph graph;
+    StaticSparseGraph graph;
     EdgeHeap edgeHeap;
-    LightCompleteGraph::EdgeWeight totalCost;
+    StaticSparseGraph::EdgeWeight totalCost;
 };
 
 } // namespace ysk

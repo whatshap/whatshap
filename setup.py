@@ -81,7 +81,7 @@ extensions = [
 			'src/clusterediting/Globals.cpp',
 			'src/clusterediting/Helpers.cpp',
 			'src/clusterediting/InducedCostHeuristic.cpp',
-			'src/clusterediting/LightCompleteGraph.cpp',
+			'src/clusterediting/StaticSparseGraph.cpp',
 			'src/clusterediting/SolutionChecker.cpp'
 		]),
 	CppExtension('whatshap.priorityqueue', sources=['whatshap/priorityqueue.pyx']),

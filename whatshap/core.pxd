@@ -38,11 +38,11 @@ cdef class GenotypeDPTable:
 	cdef NumericSampleIds numeric_sample_ids
 
 
-cdef class LightCompleteGraph:
-	cdef cpp.LightCompleteGraph *thisptr
+cdef class StaticSparseGraph:
+	cdef cpp.StaticSparseGraph *thisptr
 
 
 cdef class CoreAlgorithm:
 	cdef cpp.CoreAlgorithm *thisptr
-	cdef LightCompleteGraph graph
+	cdef StaticSparseGraph graph
  

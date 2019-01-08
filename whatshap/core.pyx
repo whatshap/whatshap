@@ -491,14 +491,14 @@ def compute_genotypes(ReadSet readset, positions = None):
 	return genotypes, gls
 
 # wrappers for cluster editing implementation
-cdef class LightCompleteGraph:
+cdef class StaticSparseGraph:
 	def __cinit__(self, int numNodes, bool param_pruneZeroEdges):
-		self.thisptr = new cpp.LightCompleteGraph(numNodes, param_pruneZeroEdges)
-	def setWeight(self, int node_id1, int node_id2, double weight):
-		self.thisptr.setWeight(node_id1, node_id2, weight)
+		self.thisptr = new cpp.StaticSparseGraph(numNodes, param_pruneZeroEdges)
+	def addEdge(self, int node_id1, int node_id2, double weight):
+		self.thisptr.addEdge(node_id1, node_id2, weight)
 
 cdef class CoreAlgorithm:
-	def __cinit__(self, LightCompleteGraph graph):
+	def __cinit__(self, StaticSparseGraph graph):
 		self.thisptr = new cpp.CoreAlgorithm(graph.thisptr[0])
 		self.graph = graph
 	def run(self):

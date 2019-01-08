@@ -8,7 +8,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from pylab import savefig
-from .core import Read, ReadSet, CoreAlgorithm, LightCompleteGraph
+from .core import Read, ReadSet, CoreAlgorithm, StaticSparseGraph
 from .readscoring import score, calc_overlap_and_diffs, parse_haplotype, score, locality_sensitive_score, parse_haplotype
 from .kclustifier import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks
 from .vectorerror import vector_error, vector_error_blockwise
@@ -153,8 +153,7 @@ def draw_superheatmap(readset, clustering, var_table, path, genome_space = False
 	max_pos = max(readset.get_positions()) if genome_space else num_vars
 
 	# Plot heatmaps
-	fig = plt.figure(figsize=(num_vars/100, len(readset)/200), dpi=200)
-	fig = plt.figure(figsize=(num_vars/100, len(readset)/200), dpi=200)
+	fig = plt.figure(figsize=(num_vars/200, len(readset)/100), dpi=200)
 	legend_handles = {}
 	y_offset = 0
 	y_margin = 5
