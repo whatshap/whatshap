@@ -78,7 +78,7 @@ def get_cluster_consensus(readset, clustering):
 
 
 def subset_clusters(readset, clustering,ploidy):
-
+	print("initial number of clusters: ", len(clustering))
 	# Sort a deep copy of clustering
 	clusters = sorted(deepcopy(clustering), key = lambda x: min([readset[i][0].position for i in x]))
 	readlen = avg_readlength(readset)
@@ -91,27 +91,23 @@ def subset_clusters(readset, clustering,ploidy):
 		index[position] = num_vars
 		rev_index.append(position)
 		num_vars += 1
-	print("clustering: ", clustering)
-	clusterlengths = [len(c) for c in clustering]
-	print("cluster lengths: ", sorted(clusterlengths))
-	print("length clustering before: ", len(clustering))
 	
-	#Subset the set of clusters to clusters with the highest amount of reads
-	subset_clustering = [c for c in clustering if len(c) > 20]
-	subset_cids = [c_id for c_id in range(len(clustering)) if len(clustering[c_id]) > 20]
+	#Subset the set of clusters to clusters with the highest amount of reads and map the chosen clusters to their index in the original set
+	#TODO: change function for subsetting
+	cutoff = 80
+	cluster_lengths = [len(c) for c in clustering]
+	print("cluster_lengths", cluster_lengths)
+	subset_clustering = [c for c in clustering if len(c) > cutoff]
+	subset_cids = [c_id for c_id in range(len(clustering)) if len(clustering[c_id]) > cutoff]
+	print("number of chosen clusters: ", len(subset_clustering))
 	cluster_dict = {}
-	print("subset_clustering: ", subset_clustering)
-	print("length of subset_clustering: ", len(subset_clustering))
 	for i in range(len(clustering)):
 		for j in range(len(subset_clustering)):
 			if (clustering[i]==subset_clustering[j]):
 				cluster_dict[j] = i
-	print("cluster dict: ", cluster_dict)
-	
 
 	#for every cluster in clustering, compute its sequence of starting and ending positions
 	#create dictionary mapping the clusterID to a list of pairs (starting position, ending position)
-	print("number of variants: ", num_vars)
 	positions = defaultdict(list)
 	for c_id in range(0, len(subset_clustering)):
 		read_id = 0
@@ -131,100 +127,34 @@ def subset_clusters(readset, clustering,ploidy):
 			for pos in range(start, end+1):
 				coverage[c_id][pos] += 1
 
-	
 	coverage_sum = [sum([coverage[i][j] for i in range(len(subset_clustering))]) for j in range(num_vars)]
 
 	for c_id in range(0, len(subset_clustering)):
-	#	coverage[c_id] = [sum(coverage[c_id][i:i+1]) / sum(coverage_sum[0:num_vars]) for i in range(num_vars)]
 		coverage[c_id] = [((coverage[c_id][i])/coverage_sum[i]) if coverage_sum[i]!= 0 else 0 for i in range(num_vars)]	
 
-	cov_2 = [coverage[c_id][6] for c_id in range(len(subset_clustering))]
-	print("cov 2: ", cov_2)
-	solu = []	
-	for i in range(num_vars):
-		test = False
-		for j in range(len(subset_clustering)):
-			if (coverage[j][i]==1):
-				test = True
-		if test:
-			solu.append(i)
-	print("coverage equals 1: ", solu)
-	print("subset clustering: ", subset_clustering)
-	
-
-	#map the clusters to a list of IDs
+	#create a set of tuples (TODO: so far only tetraploid) of all clusters
 	c_ids = [c_id for c_id in range(0,len(subset_clustering))]
-	print("c_ids: ",c_ids)
-	print("subset c_ids: ", subset_cids)
 	cluster_tuples = [(i,j,k,l) for i in c_ids for j in c_ids for k in c_ids for l in c_ids]
-	print("cluster_tuples: ", cluster_tuples[:10], "length: ", len(cluster_tuples))
-	#map the cluster tuples to indices from [0, len(tuples)] 	
-	c_tuples = {}
-	for i in range(0, len(cluster_tuples)):
-		c_tuples[i] = cluster_tuples[i]
 	
-	#initialize matrix: make list for every possible 4-tuple of clusters in clustering to keep the matrix twodimensional
-	scoring = [[0]*num_vars for i in range(len(cluster_tuples))]	
-
-	#rows: tuple of cluster IDs, columns: var positions
-	#initialize first column: only coverage costs
-	for c_tuple in range(len(cluster_tuples)):
-		scoring[c_tuple][0] = (cov_costs(cluster_tuples[c_tuple], 0, coverage), -1)
-	first_col = [scoring[i][0][0] for i in range(len(cluster_tuples))]
-	#map each variant to a list of cluster tuple indices that do not cover the variant
-	uncovered = defaultdict(set)
+	#perform the dynamic programming to fill the scoring matrix (in Cython to speed up computation)
 	scoring = clustering_DP(num_vars,cluster_tuples,coverage, positions)
-	for i in range(num_vars):
-		test = []		
-		for j in range(len(cluster_tuples)):
-			if (scoring[i][j][0] < 1000000):
-				test.append(scoring[i][j])
-		if (len(test) == 0):
-			print("no clusters: ", i)
-			break
-#	for var in range(1,num_vars):
-#		print("var: ", var)
-#		for c_tuple in range(len(cluster_tuples)):
-#			if (cov_costs(cluster_tuples[c_tuple], var, coverage) == 1000):
-#				scoring[c_tuple][var] = (1000,c_tuple)
-#				uncovered[var].add(c_tuple)
-#			#minimum of (the column before plus switch costs) plus coverage costs
-#			else:
-#				#pred = [(scoring[i][var-1][0]+switch_costs(cluster_tuples[c_tuple], cluster_tuples[i],positions,var-1)) for i in range(len(cluster_tuples))]
-#				pred = []				
-#				for i in range(len(cluster_tuples)):
-#					if (i in uncovered[var]):
-#						pred.append(1000)
-#					else:
-#						pred.append(scoring[i][var-1][0]+switch_costs(cluster_tuples[c_tuple], cluster_tuples[i],positions,var-1))
-#									
-#				minimum, minimum_index = min((val, idx) for (idx,val) in enumerate(pred))
-#				scoring[c_tuple][var] = ((cov_costs(cluster_tuples[c_tuple], var, coverage) + minimum), minimum_index)
 
 	#start backtracing from the minimum in the last column
 	path = []
+	
+	#find the last column that contains a minimum other than INT_MAX (1000000, respectively) 
 	start_col = find_backtracing_start(scoring, num_vars, cluster_tuples)
-	print("start col: ", start_col)
-	#last_col = [scoring[num_vars-5][i][0] for i in range(len(cluster_tuples))]
-	last_col = [scoring[start_col][i][0] for i in range(len(cluster_tuples))]
-	first_col = [scoring[0][i][0] for i in range(len(cluster_tuples))]
-
-	second_col = [scoring[1][i][0] for i in range(len(cluster_tuples))]
-
-	last_min_idx = int(min((val, idx) for (idx, val) in enumerate(last_col))[1])
+	
+	last_min_idx = int(min((val, idx) for (idx, val) in enumerate(start_col))[1])
 	path.append(cluster_tuples[last_min_idx])
 	#append stored predecessor
 	for i in range(num_vars-5,0,-1):
 		pred = scoring[i][int(last_min_idx)][1]
 		path.append(cluster_tuples[int(pred)])
 		last_min_idx = pred
+	#path has been assembled from the last column and needs to be reversed
 	path.reverse()
 
-	counter = 0
-	for i in path:
-		if (i[0]==i[1]==i[2]==i[3]):
-			counter +=1
-	print("homzg: ", counter)
 	#determine cut positions: When at least two haplotypes change the cluster from position i to i+1, a new cut is made
 	#if only one haplotype changes the cluster, both clusters are assumed to belong together (?)
 	cut_positions = []
@@ -238,29 +168,22 @@ def subset_clusters(readset, clustering,ploidy):
 	print("cut positions: ", cut_positions)
 	#divide path of clusters into 4 paths of haplotypes
 	hap1 = [cluster_dict[tup[0]] for tup in path]
-	print("hap1: ", hap1, "length: ", len(hap1))
 	hap2 = [cluster_dict[tup[1]] for tup in path]
-#	print("hap2: ", hap2, "length: ", len(hap2))
 	hap3 = [cluster_dict[tup[2]] for tup in path]
-#	print("hap3: ", hap3, "length: ", len(hap3))
 	hap4 = [cluster_dict[tup[3]] for tup in path]
-#	print("hap4: ", hap4, "length: ", len(hap4))
-	print("num vars: ", num_vars)
 #	assert(len(hap1)==len(hap2)==len(hap3)==len(hap4)==num_vars)
 
 	haps=[hap1,hap2,hap3,hap4]
 	# Return cluster blocks: List of blocks, each blocks ranges from one cut position to the next and contains <ploidy> sequences
-	# of cluster ids, which indicat e, which cluster goes to which haplotype at which position.
+	# of cluster ids that indicate which cluster goes to which haplotype at which position.
 	cluster_blocks = []
 	old_pos = 0
 	for cut_pos in cut_positions:
 		cluster_blocks.append([hap[old_pos:cut_pos] for hap in haps])
 		old_pos = cut_pos
-	print("cluster_blocks: ", cluster_blocks[0])
 	return(coverage,cut_positions, cluster_blocks)
 
 def find_backtracing_start(scoring, num_vars, cluster_tuples):
-	[scoring[num_vars-5][i][0] for i in range(len(cluster_tuples))]
 	minimum = 1000000
 	last_col = num_vars-1
 	res = False
@@ -271,44 +194,7 @@ def find_backtracing_start(scoring, num_vars, cluster_tuples):
 		return(last_col)
 	else:
 		return(find_backtracing_start(scoring,last_col-1,cluster_tuples))
-			
-
-def cov_costs(c_tuple, var, coverage):
-	costs = 0
-	exp_cn = 0
-	#compute copy numbers for every cluster in c_tuple
-	for i in range(0,4):
-		cov = coverage[c_tuple[i]][var]
-		#if cluster does not cover the position var:
-		if (cov == 0):
-			#return (float('inf'))
-			return (1000)
-		#else compare the expected copy number to the real one
-		else:
-			if (cov > 0 and cov < 0.25):
-				exp_cn = 0
-			if (cov >= 0.25 and cov < 0.5):
-				exp_cn = 1
-			if (cov >= 0.5 and cov < 0.75):
-				exp_cn = 2
-			if (cov >= 0.75 and cov < 1):
-				exp_cn = 3
-		cn = c_tuple.count(c_tuple[i])
-		if (exp_cn != cn):
-			costs+= 1
-	return(costs)
-
-def switch_costs(c_tuple1, c_tuple2, positions, var):
-	costs = 0
-	#switch costs depend on the position: if var is the end of c_tuple1 or var+1 is the beginning of c_tuple2, switching is free
-	for i in range(0,4):
-		starts_list = [j[0] for j in positions[c_tuple2[i]]]
-		ends_list = [j[1] for j in positions[c_tuple1[i]]]
-		if (var not in ends_list and var+1 not in starts_list):
-			if (c_tuple1[i] != c_tuple2[i]):
-				costs += 1
-	return(costs)
-				
+						
 			
 def clusters_to_blocks(readset, clustering, ploidy, coverage_padding = 12, copynumber_max_artifact_len = 1.0, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = False):
 	# Sort a deep copy of clustering
