@@ -45,4 +45,11 @@ cdef class StaticSparseGraph:
 cdef class CoreAlgorithm:
 	cdef cpp.CoreAlgorithm *thisptr
 	cdef StaticSparseGraph graph
- 
+
+
+cdef class TriangleSparseMatrix:
+	cdef cpp.TriangleSparseMatrix *thisptr
+
+
+cdef class ReadScoring:
+	cdef cpp.ReadScoring *thisptr

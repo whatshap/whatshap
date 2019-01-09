@@ -82,7 +82,9 @@ extensions = [
 			'src/clusterediting/Helpers.cpp',
 			'src/clusterediting/InducedCostHeuristic.cpp',
 			'src/clusterediting/StaticSparseGraph.cpp',
-			'src/clusterediting/SolutionChecker.cpp'
+			'src/clusterediting/SolutionChecker.cpp',
+			 'src/clusterediting/TriangleSparseMatrix.cpp',
+			 'src/clusterediting/ReadScoring.cpp'
 		]),
 	CppExtension('whatshap.priorityqueue', sources=['whatshap/priorityqueue.pyx']),
 	CppExtension('whatshap.align', sources=['whatshap/align.pyx']),

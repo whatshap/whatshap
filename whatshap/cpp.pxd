@@ -5,7 +5,8 @@ Declarations for all C++ classes that are wrapped from Cython.
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
-
+from libcpp.pair cimport pair
+from libc.stdint cimport uint32_t
 
 cdef extern from "../src/read.h":
 	cdef cppclass Read:
@@ -135,3 +136,17 @@ cdef extern from "../src/clusterediting/ClusterEditingSolutionLight.h" namespace
 		vector[unsigned int] getCluster(int i) except +
 		double getTotalCost() except +
 		int getNumClusters() except +
+
+cdef extern from "../src/clusterediting/TriangleSparseMatrix.h":
+	cdef cppclass TriangleSparseMatrix:
+		TriangleSparseMatrix() except +
+		unsigned int entryToIndex(unsigned int i, unsigned int j) except +
+		unsigned int size() except +
+		float get(unsigned int i, unsigned int j) except +
+		void set(unsigned int i, unsigned int j, float v) except +
+		vector[pair[uint32_t, uint32_t]] getEntries() except +
+
+cdef extern from "../src/clusterediting/ReadScoring.h":
+	cdef cppclass ReadScoring:
+		ReadScoring() except +
+		void scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, double errorrate, unsigned int minOverlap, unsigned int ploidy) except +
