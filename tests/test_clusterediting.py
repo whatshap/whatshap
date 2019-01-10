@@ -32,12 +32,14 @@ def test_clusterediting1():
 
 	# create read graph
 	n_reads = len(readset)
-	graph = StaticSparseGraph(n_reads, True)
+	graph = StaticSparseGraph(n_reads)
 	
 	# insert edges
-	for id1 in range(n_reads):
-		for id2 in range(0, id1):
-			graph.addEdge(id1, id2, similarities.get(id1, id2))
+	#for id1 in range(n_reads):
+	#	for id2 in range(0, id1):
+	#		graph.addEdge(id1, id2, similarities.get(id1, id2))
+	for (read1, read2) in similarities:
+		graph.addEdge(read1, read2, similarities.get(read1, read2))
 
 	# run cluster editing
 	clusterediting = CoreAlgorithm(graph)	
@@ -74,12 +76,14 @@ def test_clusterediting2():
 
 	# create read graph
 	n_reads = len(readset)
-	graph = StaticSparseGraph(n_reads, True)
+	graph = StaticSparseGraph(n_reads)
 	
 	# insert edges
-	for id1 in range(n_reads):
-		for id2 in range(0, id1):
-			graph.addEdge(id1, id2, similarities.get(id1, id2))
+	#for id1 in range(n_reads):
+	#	for id2 in range(0, id1):
+	#		graph.addEdge(id1, id2, similarities.get(id1, id2))
+	for (read1, read2) in similarities:
+		graph.addEdge(read1, read2, similarities.get(read1, read2))
 
 	# run cluster editing
 	clusterediting = CoreAlgorithm(graph)	
@@ -115,12 +119,14 @@ def test_clusterediting3():
 
 	# create read graph
 	n_reads = len(readset)
-	graph = StaticSparseGraph(n_reads, True)
+	graph = StaticSparseGraph(n_reads)
 
 	# insert edges
-	for id1 in range(n_reads):
-		for id2 in range(0, id1):
-			graph.addEdge(id1, id2, similarities.get(id1, id2))
+	#for id1 in range(n_reads):
+	#	for id2 in range(0, id1):
+	#		graph.addEdge(id1, id2, similarities.get(id1, id2))
+	for (read1, read2) in similarities:
+		graph.addEdge(read1, read2, similarities.get(read1, read2))
 
 	# run cluster editing
 	clusterediting = CoreAlgorithm(graph)

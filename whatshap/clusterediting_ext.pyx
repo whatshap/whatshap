@@ -5,8 +5,8 @@ from libcpp.pair cimport pair
 cimport cpp
 
 cdef class StaticSparseGraph:
-	def __cinit__(self, int numNodes, bool param_pruneZeroEdges):
-		self.thisptr = new cpp.StaticSparseGraph(numNodes, param_pruneZeroEdges)
+	def __cinit__(self, int numNodes):
+		self.thisptr = new cpp.StaticSparseGraph(numNodes)
 	def addEdge(self, int node_id1, int node_id2, double weight):
 		self.thisptr.addEdge(node_id1, node_id2, weight)
 

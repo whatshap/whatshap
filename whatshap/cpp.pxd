@@ -120,7 +120,7 @@ cdef extern from "../src/genotyper.h":
 
 cdef extern from "../src/clusterediting/StaticSparseGraph.h" namespace "ysk":
 	cdef cppclass StaticSparseGraph:
-		StaticSparseGraph(int numNodes, bool param_pruneZeroEdges) except +
+		StaticSparseGraph(int numNodes) except +
 		void addEdge(int, int, double) except +
 		
 cdef extern from "../src/clusterediting/CoreAlgorithm.h" namespace "ysk":

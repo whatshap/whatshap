@@ -215,20 +215,19 @@ def run_clustereditingphase(
 				timers.stop('transform_matrix')
 
 				# Compute similarity values for all read pairs
+				timers.start('compute_graph')
 				logger.info("Computing similarities for read pairs ...")
 				similarities = score(readset, ploidy, errorrate, min_overlap)
 				#similarities = locality_sensitive_score(readset, ploidy, min_overlap)
 				
 				# Create read graph object
 				logger.info("Constructing graph ...")
-				graph = StaticSparseGraph(len(readset),True)
+				graph = StaticSparseGraph(len(readset))
 
 				# Insert edges into read graph
-				n_reads = len(readset)
-				for id1 in range(n_reads):
-					for id2 in range(id1+1, n_reads):
-						if similarities.get(id1, id2) != 0:
-							graph.addEdge(id1, id2, similarities.get(id1, id2))
+				for (read1, read2) in similarities:
+					graph.addEdge(read1, read2, similarities.get(read1, read2))
+				timers.stop('compute_graph')
 
 				# Run cluster editing
 				logger.info("Solving cluster editing ...")
@@ -242,7 +241,7 @@ def run_clustereditingphase(
 				timers.start('assemble_haplotypes')
 
 				#consensus_blocks = clusters_to_haps(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
-			#	coverage, copynumbers, cluster_blocks, cut_positions = clusters_to_blocks(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
+			#   coverage, copynumbers, cluster_blocks, cut_positions = clusters_to_blocks(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
 
 ####################################### new ##################################
 				#add dynamic programming for finding the most likely subset of clusters
@@ -301,6 +300,7 @@ def run_clustereditingphase(
 	logger.info('Time spent selecting reads:                  %6.1f s', timers.elapsed('select'))
 	logger.info('Time spent pruning readset:                  %6.1f s', timers.elapsed('prune'))
 	logger.info('Time spent transforming allele matrix:       %6.1f s', timers.elapsed('transform_matrix'))
+	logger.info('Time spent computing read graph:             %6.1f s', timers.elapsed('compute_graph'))
 	logger.info('Time spent solving cluster editing:          %6.1f s', timers.elapsed('solve_clusterediting'))
 	logger.info('Time spent assembling haplotypes:            %6.1f s', timers.elapsed('assemble_haplotypes'))
 	logger.info('Time spent writing VCF:                      %6.1f s', timers.elapsed('write_vcf'))

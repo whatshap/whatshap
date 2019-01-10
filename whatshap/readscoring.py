@@ -1,5 +1,6 @@
 from scipy.stats import binom
 from math import log, floor, ceil
+from .core import ReadScoring, TriangleSparseMatrix
 import itertools as it
 import random as rand
 
@@ -54,6 +55,13 @@ class SparseTriangleMatrix:
 			self.size = max(j, self.size)
 
 def score(readset, ploidy, errorrate, min_overlap):
+	
+	read_scoring = ReadScoring()
+	
+	return read_scoring.scoreReadset(readset, errorrate, min_overlap, ploidy)
+	
+def unused(readset, ploidy, errorrate, min_overlap):
+	
 	num_reads = len(readset)
 
 	# Calculate overlap and differences. Overlap for reads i and j is saved in overlap[min(i,j)][max(i,j)-min(i,j)-1].
