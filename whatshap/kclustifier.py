@@ -5,6 +5,8 @@ import logging
 from collections import defaultdict
 from .core import clustering_DP
 import numpy as np
+from .testhelpers import string_to_readset
+from .phase import find_components
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +79,7 @@ def get_cluster_consensus(readset, clustering):
 	return cluster_consensus
 
 
-def subset_clusters(readset, clustering,ploidy):
+def subset_clusters(readset, clustering,ploidy, sample):
 	print("initial number of clusters: ", len(clustering))
 	# Sort a deep copy of clustering
 	clusters = sorted(deepcopy(clustering), key = lambda x: min([readset[i][0].position for i in x]))
@@ -94,7 +96,7 @@ def subset_clusters(readset, clustering,ploidy):
 	
 	#Subset the set of clusters to clusters with the highest amount of reads and map the chosen clusters to their index in the original set
 	#TODO: change function for subsetting
-	cutoff = 80
+	cutoff = 400
 	cluster_lengths = [len(c) for c in clustering]
 	print("cluster_lengths", cluster_lengths)
 	subset_clustering = [c for c in clustering if len(c) > cutoff]
@@ -144,8 +146,8 @@ def subset_clusters(readset, clustering,ploidy):
 	
 	#find the last column that contains a minimum other than INT_MAX (1000000, respectively) 
 	start_col = find_backtracing_start(scoring, num_vars, cluster_tuples)
-	
-	last_min_idx = int(min((val, idx) for (idx, val) in enumerate(start_col))[1])
+	print("starting in column: ", start_col)
+	last_min_idx = int(min((val, idx) for (idx, val) in enumerate(scoring[start_col]))[1])
 	path.append(cluster_tuples[last_min_idx])
 	#append stored predecessor
 	for i in range(num_vars-5,0,-1):
@@ -181,7 +183,24 @@ def subset_clusters(readset, clustering,ploidy):
 	for cut_pos in cut_positions:
 		cluster_blocks.append([hap[old_pos:cut_pos] for hap in haps])
 		old_pos = cut_pos
-	return(coverage,cut_positions, cluster_blocks)
+
+	#write new VCF file
+	
+	superreads, components = dict(), dict()
+	
+	accessible_positions = sorted(readset.get_positions())
+
+	overall_components = find_components(accessible_positions, readset, None, None)
+	components[sample] = overall_components
+	print("components: ", overall_components)
+	print("number of components: ", len(overall_components))
+	
+	#test haplotype strings since until now, the above results show the cluster paths only 
+	test_hap1, test_hap2, test_hap3, test_hap4 = "01101", "11001", "01010", "11100"
+	readset = string_to_readset(test_hap1+'\n'+test_hap2+'\n'+test_hap3+'\n'+test_hap4+'\n')
+	superreads[sample] = readset
+	print("readset size: ", len(readset))
+	return(coverage,cut_positions, cluster_blocks, components, superreads)
 
 def find_backtracing_start(scoring, num_vars, cluster_tuples):
 	minimum = 1000000

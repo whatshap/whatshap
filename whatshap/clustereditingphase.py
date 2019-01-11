@@ -244,10 +244,10 @@ def run_clustereditingphase(
 				#consensus_blocks = clusters_to_haps(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
 			#	coverage, copynumbers, cluster_blocks, cut_positions = clusters_to_blocks(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
 
-####################################### new ##################################
 				#add dynamic programming for finding the most likely subset of clusters
-				coverage, cut_positions, cluster_blocks = subset_clusters(readset, readpartitioning, ploidy)
-##############################################################################
+				coverage, cut_positions, cluster_blocks, components, superreads = subset_clusters(readset, readpartitioning, ploidy, sample)
+				changed_genotypes = vcf_writer.write(chromosome, superreads, components)
+
 
 				#truth = get_phase(readset, phasable_variant_table)
 				#truth_cons = construct_ground_truth(readset)
@@ -262,26 +262,26 @@ def run_clustereditingphase(
 
 				#vec_error = vector_error_blockwise(consensus_blocks, truth_cons, 1, 100000)
 				#print("Vector error = "+str(vec_error))
-				timers.stop('assemble_haplotypes')
-
-				logger.info("Generating plots ...")
-				if plot_heatmap:
-					draw_superheatmap(readset, readpartitioning, phasable_variant_table, output_str+ ("_D" if transform else "_N") + ".superheatmapg.png", genome_space = False)
-				if plot_haploblocks:
-					draw_cluster_blocks(readset, readpartitioning, cluster_blocks, cut_positions, phasable_variant_table, output_str+ ("_D" if transform else "_N") + ".haploblocks.png", genome_space = False)
-				
-				#draw_cluster_coverage(readset, readpartitioning, output_str+ ("_D" if transform else "_N") + ".coverage.png")
-				
-				print("... finished")
-				
-			with timers('write_vcf'):
-				logger.info('======== Writing VCF')
-				
-				# !!!
-				# TODO: Write results into VCF: Create superreads and components for VCF-Write call below
-				changed_genotypes = vcf_writer.write(chromosome, superreads, components)
-				assert len(changed_genotypes) == 0
-				# !!!
+	#			timers.stop('assemble_haplotypes')
+	#
+	#			logger.info("Generating plots ...")
+	#			if plot_heatmap:
+	#				draw_superheatmap(readset, readpartitioning, phasable_variant_table, output_str+ ("_D" if transform else "_N") + ".superheatmapg.png", genome_space = False)
+	#			if plot_haploblocks:
+	#				draw_cluster_blocks(readset, readpartitioning, cluster_blocks, cut_positions, phasable_variant_table, output_str+ ("_D" if transform else "_N") + ".haploblocks.png", genome_space = False)
+	#			
+	#			#draw_cluster_coverage(readset, readpartitioning, output_str+ ("_D" if transform else "_N") + ".coverage.png")
+	#			
+	#			print("... finished")
+	#			
+	#		with timers('write_vcf'):
+	#			logger.info('======== Writing VCF')
+	#			
+	#			# !!!
+	#			# TODO: Write results into VCF: Create superreads and components for VCF-Write call below
+	#			changed_genotypes = vcf_writer.write(chromosome, superreads, components)
+	#			assert len(changed_genotypes) == 0
+	#			# !!!
 
 				logger.info('Done writing VCF')
 			logger.debug('Chromosome %r finished', chromosome)
