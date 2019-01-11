@@ -3,7 +3,7 @@ from math import floor, ceil
 import itertools as it
 import logging
 from collections import defaultdict
-from .core import clustering_DP
+from .core import clustering_DP, ReadSet, Read
 import numpy as np
 from .testhelpers import string_to_readset
 from .phase import find_components
@@ -196,8 +196,21 @@ def subset_clusters(readset, clustering,ploidy, sample):
 	print("number of components: ", len(overall_components))
 	
 	#test haplotype strings since until now, the above results show the cluster paths only 
-	test_hap1, test_hap2, test_hap3, test_hap4 = "01101", "11001", "01010", "11100"
-	readset = string_to_readset(test_hap1+'\n'+test_hap2+'\n'+test_hap3+'\n'+test_hap4+'\n')
+#	test_hap1, test_hap2, test_hap3, test_hap4 = "01101", "11001", "01010", "11100"
+#	readset = string_to_readset(test_hap1+'\n'+test_hap2+'\n'+test_hap3+'\n'+test_hap4+'\n')
+
+	testhap = ["01101", "11001", "01010", "11100"]
+	readset = ReadSet()
+	for i in range(4):
+		read = Read('superread {}'.format(i+1), 0, 0)
+		# insert alleles
+		for j,allele in enumerate(testhap[i]):
+			allele = int(allele)
+			qual = [10,10]
+			qual[allele] = 0
+			read.add_variant(accessible_positions[j], allele, qual)
+		readset.add(read)
+
 	superreads[sample] = readset
 	print("readset size: ", len(readset))
 	return(coverage,cut_positions, cluster_blocks, components, superreads)
