@@ -18,19 +18,18 @@ using EdgeId = StaticSparseGraph::EdgeId;
 using RankId = StaticSparseGraph::RankId;
 using NodeId = StaticSparseGraph::NodeId;
 
-StaticSparseGraph::StaticSparseGraph(uint32_t numNodes, bool param_pruneZeroEdges) :
+StaticSparseGraph::StaticSparseGraph(uint32_t numNodes) :
     size(numNodes),
     neighbours(size, vector<NodeId>(0)),
     compiled(false),
-    rank1((size*(size-1)/2)+1 / 4096),
-    offset1((size*(size-1)/2)+1 / 4096),
+    rank1((size*(size-1)/2) / 4096 + 1),
+    offset1((size*(size-1)/2) / 4096 + 1),
     rank2(0),
     offset2(0),
     weightv(0),
     cliqueOfNode(size),
     cliques(size, vector<NodeId>(0)),
     forbidden(size),
-    pruneZeroEdges(param_pruneZeroEdges),
     unprunedNeighbours(size, vector<NodeId>(0)) {
     for (NodeId u = 0; u < size; u++) {
         cliques[u].push_back(u);
@@ -52,7 +51,6 @@ StaticSparseGraph::StaticSparseGraph(StaticSparseGraph& other) :
     cliqueOfNode(other.cliqueOfNode),
     cliques(other.cliques),
     forbidden(other.forbidden),
-    pruneZeroEdges(other.pruneZeroEdges),
     unprunedNeighbours(other.unprunedNeighbours)
 {
     compile();
@@ -365,10 +363,10 @@ void StaticSparseGraph::refreshEdgeMetaData(const Edge e, const EdgeWeight oldW,
             std::cout<<"Error 1003"<<std::endl;
         }
     }
-    if ((oldW == Forbidden || oldW == Permanent || (oldW == 0.0 && pruneZeroEdges)) && ((newW != 0.0 || !pruneZeroEdges) && newW != Forbidden && newW != Permanent)) {
+    if ((oldW == Forbidden || oldW == Permanent || (oldW == 0.0)) && ((newW != 0.0) && newW != Forbidden && newW != Permanent)) {
         unprunedNeighbours[e.u].push_back(e.v);
         unprunedNeighbours[e.v].push_back(e.u);
-    } else if (oldW != Forbidden && oldW != Permanent && (oldW != 0.0 || !pruneZeroEdges) && ((newW == 0.0 && pruneZeroEdges) || newW == Forbidden || newW == Permanent)) {
+    } else if (oldW != Forbidden && oldW != Permanent && (oldW != 0.0) && ((newW == 0.0) || newW == Forbidden || newW == Permanent)) {
         if (!removeFromVector(unprunedNeighbours[e.u], e.v))
             std::cout<<"Error: Non-zero real neighbour not found"<<std::endl;
         if (!removeFromVector(unprunedNeighbours[e.v], e.u))

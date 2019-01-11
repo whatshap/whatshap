@@ -490,24 +490,6 @@ def compute_genotypes(ReadSet readset, positions = None):
 	del gl_vector
 	return genotypes, gls
 
-# wrappers for cluster editing implementation
-cdef class StaticSparseGraph:
-	def __cinit__(self, int numNodes, bool param_pruneZeroEdges):
-		self.thisptr = new cpp.StaticSparseGraph(numNodes, param_pruneZeroEdges)
-	def addEdge(self, int node_id1, int node_id2, double weight):
-		self.thisptr.addEdge(node_id1, node_id2, weight)
-
-cdef class CoreAlgorithm:
-	def __cinit__(self, StaticSparseGraph graph):
-		self.thisptr = new cpp.CoreAlgorithm(graph.thisptr[0])
-		self.graph = graph
-	def run(self):
-		cdef cpp.ClusterEditingSolutionLight solution = self.thisptr.run()
-		clusters = []
-		n_clusters = solution.getNumClusters()
-		for i in range(n_clusters):
-			clusters.append(solution.getCluster(i))
-		return clusters
-
 include 'readselect.pyx'
 include 'subset_clusters.pyx'
+include 'clusterediting_ext.pyx'

@@ -61,7 +61,7 @@ public:
     /**
      * Constructs a new empty graph with the specified number of nodes. Initializes all (non-)edges with weight 0.
      */
-    StaticSparseGraph(uint32_t numNodes, bool param_pruneZeroEdges);
+    StaticSparseGraph(uint32_t numNodes);
     
     /**
      * Creates a hard copy of the provided graph.
@@ -171,7 +171,6 @@ private:
     std::vector<std::set<NodeId>> forbidden;    // for each cluster, a set of forbidden clusters
     
     // additional information for efficient iteration over non-zero non-infinity neighbours
-    bool pruneZeroEdges;
     std::vector<std::vector<NodeId>> unprunedNeighbours;
     
     /**

@@ -75,14 +75,16 @@ class MatrixTransformation:
 				#local_similarities = partial_scoring(similarities, index_set)
 				
 				# create read graph object
-				graph = StaticSparseGraph(len(column),True)
+				graph = StaticSparseGraph(len(column))
 	
 				# insert edges into read graph
-				n_reads = len(column)
-				for id1 in range(n_reads):
-					for id2 in range(0, id1):
-						if similarities.get(id1, id2) != 0:
-							graph.addEdge(id1, id2, similarities.get(id1, id2))
+				for (read1, read2) in similarities:
+					graph.addEdge(read1, read2, similarities.get(read1, read2))
+				#n_reads = len(column)
+				#for id1 in range(n_reads):
+				#	for id2 in range(0, id1):
+				#		if similarities.get(id1, id2) != 0:
+				#			graph.addEdge(id1, id2, similarities.get(id1, id2))
 				
 				# run cluster editing
 				clusterediting = CoreAlgorithm(graph)
