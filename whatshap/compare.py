@@ -27,15 +27,15 @@ def add_arguments(parser):
 	add('--tsv-pairwise', metavar='TSVPAIRWISE', default=None, help='Filename to write '
 		'comparison results from pair-wise comparison to (tab-separated).')
 	add('--tsv-multiway', metavar='TSVMULTIWAY', default=None, help='Filename to write '
-		'comparison results from multiway comparison to (tab-separated).')
+		'comparison results from multiway comparison to (tab-separated). Only for diploid vcfs.')
 	add('--only-snvs', default=False, action="store_true", help='Only process SNVs '
 		'and ignore all other variants.')
 	add('--switch-error-bed', default=None, help='Write BED file with switch error positions '
-		'to given filename.')
+		'to given filename. Only for diploid vcfs.')
 	add('--plot-blocksizes', default=None, help='Write PDF file with a block length histogram '
 		'to given filename (requires matplotlib).')
 	add('--longest-block-tsv', default=None, help='Write position-wise agreement of longest '
-		'joint blocks in each chromosome to tab-separated file.')
+		'joint blocks in each chromosome to tab-separated file. Only for diploid vcfs.')
 	add('ploidy', metavar='PLOIDY', type=int, help='The ploidy of the samples (must be > 1).')
 	# TODO: what's the best way to request "two or more" VCFs?
 	add('vcf', nargs='+', metavar='VCF', help='At least two phased VCF files to be compared.')
@@ -46,6 +46,12 @@ def validate(args, parser):
 		parser.error('At least two VCFs need to be given.')
 	if args.ploidy < 2:
 		parser.error('Ploidy must be > 1.')
+	if args.ploidy > 2 and args.tsv_multiway:
+		parser.error('Option --tsv-multiway can only be used if ploidy=2.')
+	if args.ploidy > 2 and args.switch_error_bed:
+		parser.error('Option --switch-error-bed can only be used if ploidy=2.')
+	if args.ploidy > 2 and args.longest_block_tsv:
+		parser.error('Option --longest-block-tsv can only be used if ploidy=2.')
 
 
 class SwitchFlips:
@@ -394,7 +400,6 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
 		for block in block_intersection.values():
 			if len(block) < 2:
 				continue
-			# TODO extend to polyploid case
 			# we need #ploidy strings per vcf file now
 			phasing0 = []
 			phasing1 = []
@@ -403,13 +408,12 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
 				p1 = ''.join(str(phases[1][i].phase[j]) for i in block)
 				phasing0.append(p0)
 				phasing1.append(p1)
-#			print('phasing0:', phasing0, 'phasing1:', phasing1)
-
 			block_positions = [sorted_variants[i].position for i in block]
-			# TODO: continue from here
 			errors = compare_block(phasing0, phasing1)
-			bed_records.extend(create_bed_records(
-				variant_tables[0].chromosome, phasing0[0], phasing1[0], block_positions, '{}<-->{}'.format(*dataset_names)))
+			# TODO: extend to polyploid
+			if ploidy == 2:
+				bed_records.extend(create_bed_records(
+					variant_tables[0].chromosome, phasing0[0], phasing1[0], block_positions, '{}<-->{}'.format(*dataset_names)))
 			total_errors += errors
 			phased_pairs += len(block) - 1
 			total_compared_variants += len(block)
@@ -417,11 +421,12 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
 				longest_block = len(block)
 				longest_block_errors = errors
 				longest_block_positions = block_positions
-				# TODO: consider polyploid case
-				if hamming(phasing0[0], phasing1[0]) < hamming(phasing0[0], complement(phasing1[0])):
-					longest_block_agreement = [1*(p0 == p1) for p0, p1 in zip(phasing0[0],phasing1[0])]
-				else:
-					longest_block_agreement = [1*(p0 != p1) for p0, p1 in zip(phasing0[0],phasing1[0])]
+				# TODO: extend to polyploid
+				if ploidy == 2:
+					if hamming(phasing0[0], phasing1[0]) < hamming(phasing0[0], complement(phasing1[0])):
+						longest_block_agreement = [1*(p0 == p1) for p0, p1 in zip(phasing0[0],phasing1[0])]
+					else:
+						longest_block_agreement = [1*(p0 != p1) for p0, p1 in zip(phasing0[0],phasing1[0])]
 		longest_block_assessed_pairs = max(longest_block - 1, 0)
 		print_stat('ALL INTERSECTION BLOCKS', '-')
 		print_errors(total_errors, phased_pairs)
@@ -672,12 +677,14 @@ def run_compare(vcf, ploidy, names=None, sample=None, tsv_pairwise=None, tsv_mul
 						fields.extend([het_variants0, int(only_snvs)])
 						print(*fields, sep='\t', file=tsv_pairwise_file)
 					if longest_block_tsv_file:
+						assert(ploidy == 2)
 						assert len(longest_block_positions) == len(longest_block_agreement)
 						for position, phase_agreeing in zip(longest_block_positions, longest_block_agreement):
 							print(dataset_names[i], dataset_names[j], sample, chromosome, position, phase_agreeing, sep='\t', file=longest_block_tsv_file)
 
 			# if requested, write all switch errors found in the current chromosome to the bed file
 			if switch_error_bedfile:
+				assert(ploidy == 2)
 				all_bed_records.sort()
 				for record in all_bed_records:
 					print(*record, sep='\t', file=switch_error_bedfile)
@@ -688,6 +695,7 @@ def run_compare(vcf, ploidy, names=None, sample=None, tsv_pairwise=None, tsv_mul
 					variant_tables, sample, dataset_names, ploidy)
 				add_block_stats(block_stats)
 				if tsv_multiway_file:
+					assert(ploidy == 2)
 					for (dataset_list0, dataset_list1), count in multiway_results.items():
 						print(sample, chromosome, '{'+dataset_list0+'}', '{'+dataset_list1+'}', count, sep='\t', file=tsv_multiway_file)
 
