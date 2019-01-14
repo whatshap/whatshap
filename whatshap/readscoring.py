@@ -177,6 +177,10 @@ def logratio_sim(overlap, diffs, dist_same, dist_diff, min_overlap):
 	return score
 
 def locality_sensitive_score(readset, ploidy, min_overlap):
+	read_scoring = ReadScoring()
+	return read_scoring.scoreReadsetLocally(readset, min_overlap, ploidy)
+	
+def also_unused(readset, ploidy, min_overlap):
 	num_reads = len(readset)
 	
 	overlap, diffs = calc_overlap_and_diffs(readset)

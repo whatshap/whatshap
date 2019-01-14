@@ -54,3 +54,8 @@ cdef class ReadScoring:
 		sim = TriangleSparseMatrix()
 		self.thisptr.scoreReadset(sim.thisptr, readset.thisptr, errorrate, minOverlap, ploidy)
 		return sim
+	
+	def scoreReadsetLocally(self, ReadSet readset, unsigned int minOverlap, unsigned int ploidy):
+		sim = TriangleSparseMatrix()
+		self.thisptr.scoreReadset(sim.thisptr, readset.thisptr, minOverlap, ploidy)
+		return sim

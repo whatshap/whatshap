@@ -150,3 +150,4 @@ cdef extern from "../src/clusterediting/ReadScoring.h":
 	cdef cppclass ReadScoring:
 		ReadScoring() except +
 		void scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, double errorrate, unsigned int minOverlap, unsigned int ploidy) except +
+		void scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, unsigned int minOverlap, unsigned int ploidy) except +

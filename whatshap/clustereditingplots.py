@@ -153,7 +153,7 @@ def draw_superheatmap(readset, clustering, var_table, path, genome_space = False
 	max_pos = max(readset.get_positions()) if genome_space else num_vars
 
 	# Plot heatmaps
-	fig = plt.figure(figsize=(num_vars/200, len(readset)/100), dpi=200)
+	fig = plt.figure(figsize=(num_vars/100, len(readset)/100), dpi=100)
 	legend_handles = {}
 	y_offset = 0
 	y_margin = 5
