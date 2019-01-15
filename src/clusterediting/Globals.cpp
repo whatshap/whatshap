@@ -2,7 +2,7 @@
 
 namespace ysk {
 
-int verbosity = 0;
+int verbosity = 1;
 int time_limit = -1;
 //lemon::Timer clk;
 double eps = 1E-5;

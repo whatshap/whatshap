@@ -131,9 +131,14 @@ public:
     const std::vector<NodeId>& getCliqueOf(const NodeId v) const;
     
     /**
-     * For a node v, returns all adjacent nodes, which are connected to v via a real valued, non-zero edge.
+     * For a node v, returns all adjacent nodes, which are connected to v via a non infinite, non-zero edge.
      */
     const std::vector<NodeId>& getUnprunedNeighbours(const NodeId v) const;
+    
+        /**
+     * For a node v, returns all adjacent nodes, which are connected to v via a non-zero edge.
+     */
+    const std::vector<NodeId>& getNonZeroNeighbours(const NodeId v) const;
     
     /**
      * Returns an edge's index in the rank data structure. For non-existing edges, zero is returned.
@@ -153,7 +158,7 @@ private:
     const uint64_t h01 = 0x0101010101010101;
     
     // used for dynamic addition of edges
-    unsigned int size;
+    uint64_t size;
     std::map<EdgeId, EdgeWeight> weights;
     std::vector<std::vector<NodeId>> neighbours;
     
@@ -172,6 +177,9 @@ private:
     
     // additional information for efficient iteration over non-zero non-infinity neighbours
     std::vector<std::vector<NodeId>> unprunedNeighbours;
+    
+    // additional information for efficient iteration over non-zero neighbours
+    std::vector<std::vector<NodeId>> nonzeroNeighbours;
     
     /**
      * Refreshes interal data about edges. Necessary for consistency.

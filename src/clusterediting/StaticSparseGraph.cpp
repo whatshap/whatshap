@@ -30,7 +30,8 @@ StaticSparseGraph::StaticSparseGraph(uint32_t numNodes) :
     cliqueOfNode(size),
     cliques(size, vector<NodeId>(0)),
     forbidden(size),
-    unprunedNeighbours(size, vector<NodeId>(0)) {
+    unprunedNeighbours(size, vector<NodeId>(0)),
+    nonzeroNeighbours(size, vector<NodeId>(0)){
     for (NodeId u = 0; u < size; u++) {
         cliques[u].push_back(u);
         cliqueOfNode[u] = u;
@@ -51,7 +52,8 @@ StaticSparseGraph::StaticSparseGraph(StaticSparseGraph& other) :
     cliqueOfNode(other.cliqueOfNode),
     cliques(other.cliques),
     forbidden(other.forbidden),
-    unprunedNeighbours(other.unprunedNeighbours)
+    unprunedNeighbours(other.unprunedNeighbours),
+    nonzeroNeighbours(other.nonzeroNeighbours)
 {
     compile();
 }
@@ -61,11 +63,13 @@ void StaticSparseGraph::clearAndResize(const uint32_t newSize) {
     // clear old stuff
     for (unsigned int i = 0; i < size; i++) {
         unprunedNeighbours[i].clear();
+        nonzeroNeighbours[i].clear();
         cliques[i].clear();
         forbidden[i].clear();
     }
     neighbours.clear();
     unprunedNeighbours.clear();
+    nonzeroNeighbours.clear();
     cliqueOfNode.clear();
     cliques.clear();
     forbidden.clear();
@@ -81,6 +85,7 @@ void StaticSparseGraph::clearAndResize(const uint32_t newSize) {
     weightv.clear();
     neighbours.resize(size, vector<NodeId>(0));
     unprunedNeighbours.resize(size, vector<NodeId>(0));
+    nonzeroNeighbours.resize(size, vector<NodeId>(0));
     cliqueOfNode.resize(size, 0);
     cliques.resize(size, vector<NodeId>(0));
     forbidden.resize(size);
@@ -94,7 +99,7 @@ void StaticSparseGraph::clearAndResize(const uint32_t newSize) {
 void StaticSparseGraph::compile() {
     if (compiled)
         return;
-    if (verbosity >= 5) {
+    if (verbosity >= 3) {
         std::cout<<"Compiling graph with "<<size<<" nodes and "<<weights.size()<<" edges ..."<<std::endl;
     }
     // initialize weight vector with a zero for non-registered edges
@@ -108,10 +113,12 @@ void StaticSparseGraph::compile() {
     offset2.clear();
     
     unprunedNeighbours.clear();
+    nonzeroNeighbours.clear();
     cliqueOfNode.clear();
     cliques.clear();
     forbidden.clear();
     unprunedNeighbours.resize(size, vector<NodeId>(0));
+    nonzeroNeighbours.resize(size, vector<NodeId>(0));
     cliqueOfNode.resize(size, 0);
     cliques.resize(size, vector<NodeId>(0));
     forbidden.resize(size);
@@ -121,6 +128,7 @@ void StaticSparseGraph::compile() {
     }
     
     compiled = true;
+//     EdgeId critical = 0;
     
     // iterate over all edges
     for (NodeId i = 0; i < size; i++) {
@@ -130,9 +138,16 @@ void StaticSparseGraph::compile() {
 //             std::cout<<"Adding edge "<<i<<" "<<j<<" ("<<id<<") ============================================================"<<std::endl;
              
             // insert entry into rank structure
-            uint64_t block1 = id / 4096;
-            uint64_t block2 = (id/64) % 64;
+            uint64_t block1 = id / 4096UL;
+            uint64_t block2 = (id/64UL) % 64UL;
             uint64_t bitv = rank1[block1] >> (63 - block2);
+            
+//             if (block1 == 165207) {
+//                 if (critical != 0) {
+//                     std::cout<<"Critical edge with block1==165207 was "<<id<<std::endl;
+//                 }
+//                 critical = id;
+//             }
             
 //             std::cout<<"rank1["<<block1<<"] = \t"<<int2bin(rank1[block1])<<" "<<rank1[block1]<<std::endl;
             
@@ -155,7 +170,7 @@ void StaticSparseGraph::compile() {
             }
             
             block2 = offset1[block1] + popcount(bitv) - 1; //only count ones BEFORE current position
-            uint64_t block3 = id % 64;
+            uint64_t block3 = id % 64UL;
             bitv = rank2[block2] >> (63 - block3);
             
 //             std::cout<<"rank2["<<block2<<"] = \t"<<int2bin(rank2[block2])<<" "<<rank2[block2]<<std::endl;
@@ -187,10 +202,12 @@ void StaticSparseGraph::compile() {
 }
 
 void StaticSparseGraph::addEdge(const Edge e, const EdgeWeight w) {
-    neighbours[e.v].push_back(e.u);
-    weights[e.id()] = w;
-//     std::cout<<"addEdge "<<e.u<<" "<<e.v<<" "<<e.id()<<" / "<<cliqueOfNode[e.u]<<" "<<cliqueOfNode[e.v]<<std::endl;
-    compiled = false;
+    if (w != 0.0) {
+        neighbours[e.v].push_back(e.u);
+        weights[e.id()] = w;
+//      std::cout<<"addEdge "<<e.u<<" "<<e.v<<" "<<e.id()<<" / "<<cliqueOfNode[e.u]<<" "<<cliqueOfNode[e.v]<<std::endl;
+        compiled = false;
+    }
 }
 
 void StaticSparseGraph::addEdge(const NodeId v, const NodeId u, const EdgeWeight w) {
@@ -316,6 +333,10 @@ const std::vector<StaticSparseGraph::NodeId>& StaticSparseGraph::getUnprunedNeig
     return unprunedNeighbours[v];
 }
 
+const std::vector<StaticSparseGraph::NodeId>& StaticSparseGraph::getNonZeroNeighbours(const StaticSparseGraph::NodeId v) const {
+    return nonzeroNeighbours[v];
+}
+
 void StaticSparseGraph::refreshEdgeMetaData(const Edge e, const EdgeWeight oldW, const EdgeWeight newW) {
     if (oldW != Permanent && newW == Permanent) {
         NodeId merged, discarded; // merge smaller cluster into greater cluster        
@@ -370,6 +391,15 @@ void StaticSparseGraph::refreshEdgeMetaData(const Edge e, const EdgeWeight oldW,
         if (!removeFromVector(unprunedNeighbours[e.u], e.v))
             std::cout<<"Error: Non-zero real neighbour not found"<<std::endl;
         if (!removeFromVector(unprunedNeighbours[e.v], e.u))
+            std::cout<<"Error: Non-zero real neighbour not found"<<std::endl;
+    }
+    if (oldW == 0.0 && newW != 0.0) {
+        nonzeroNeighbours[e.u].push_back(e.v);
+        nonzeroNeighbours[e.v].push_back(e.u);
+    } else if (oldW != 0.0 && newW == 0.0) {
+        if (!removeFromVector(nonzeroNeighbours[e.u], e.v))
+            std::cout<<"Error: Non-zero real neighbour not found"<<std::endl;
+        if (!removeFromVector(nonzeroNeighbours[e.v], e.u))
             std::cout<<"Error: Non-zero real neighbour not found"<<std::endl;
     }
 }

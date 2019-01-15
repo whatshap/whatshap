@@ -165,12 +165,14 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
     // make cliques by connecting all nodes with inf path between them
     std::vector<bool> processed(graph.numNodes(), false);
     std::vector<std::vector<NodeId>> cliques;
-    for (NodeId u = 0; u < graph.numNodes() - 1; u++) {
+    std::vector<std::vector<NodeId>> moreThanOneCliques;
+    for (NodeId u = 0; u < graph.numNodes(); u++) {
         if (processed[u])
             continue;
         std::vector<NodeId> clique;
         std::queue<NodeId> remaining;
         remaining.push(u);
+        processed[u] = true;
         while (!remaining.empty()) {
             NodeId current = remaining.front();
             remaining.pop();
@@ -183,6 +185,9 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
             }
         }
         cliques.push_back(clique);
+        if (clique.size() > 1) {
+            moreThanOneCliques.push_back(clique);
+        }
         for (NodeId x : clique) {
             for (NodeId y : clique) {
                 if (x != y) {
@@ -205,12 +210,15 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
     
     // disconnect all cliques which have a forbidden edge between them
     for (unsigned int k = 0; k < cliques.size(); k++) {
-        for (unsigned int l = k+1; l < cliques.size(); l++) {
+        if (verbosity >= 1 && k % 100 == 0) {
+            std::cout<<"Completed "<<(((2UL*cliques.size()-(uint64_t)k+1UL)*(uint64_t)k*100UL)/((uint64_t)cliques.size()*((uint64_t)cliques.size()-1UL)))<<"%\r"<<std::flush;
+        }
+        for (unsigned int l = 0; l < moreThanOneCliques.size(); l++) {
             // search for forbidden edge between
             bool found = false;
             for (NodeId u : cliques[k]) {
                 if (found) break;
-                for (NodeId v : cliques[l]) {
+                for (NodeId v : moreThanOneCliques[l]) {
                     if (graph.getWeight(Edge(u, v)) == StaticSparseGraph::Forbidden) {
                         found = true;
                         break;
@@ -220,7 +228,7 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
             // make all edges forbidden, if one forbidden edge was found
             if (found) {
                 for (NodeId u : cliques[k]) {
-                    for (NodeId v : cliques[l]) {
+                    for (NodeId v : moreThanOneCliques[l]) {
                         Edge e(u,v);
                         if (graph.getWeight(e) != StaticSparseGraph::Forbidden) {
                             graph.setForbidden(e);
@@ -232,8 +240,7 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
                 }
             }
         }
-    }
-    
+    }    
     return true;
 }
 

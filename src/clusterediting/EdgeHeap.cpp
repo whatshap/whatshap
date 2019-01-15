@@ -26,23 +26,15 @@ EdgeHeap::EdgeHeap(StaticSparseGraph& param_graph, bool param_pruneZeroEdges) :
 void EdgeHeap::initInducedCosts() {
     if (verbosity >= 1)
         std::cout<<"Compute induced costs.."<<std::endl;
-    // preprocessing: sorted vector of non-zero neighbours for each node
-    std::vector<std::vector<NodeId>> nonZeroNeighbours;
-    for (NodeId u = 0; u < graph.numNodes(); u++) {
-        std::vector<NodeId> n;
-        for (NodeId v = 0; v < graph.numNodes(); v++) {
-            if (u != v && graph.getWeight(Edge(u,v)) != 0.0) {
-                n.push_back(v);
-            }
-        }
-        nonZeroNeighbours.push_back(n);
-    }
         
     // compute array: edge -> icf/icp
     for (NodeId u = 0; u < graph.numNodes(); u++) {
-        if (verbosity >= 1)
-            std::cout<<"Completed "<<(((2*graph.numNodes()-u)*(u+1)/2)*100/graph.numEdges())<<"%\r"<<std::flush;
-        for (NodeId v = u + 1; v < graph.numNodes(); v++) {
+        if (verbosity >= 1 && u % 100 == 0)
+            std::cout<<"Completed "<<(((2UL*graph.numNodes()-(uint64_t)u+1UL)*(uint64_t)u*50UL)/(((uint64_t)graph.numNodes()*((uint64_t)graph.numNodes()-1UL))/2UL))<<"%\r"<<std::flush;
+        for (NodeId v : graph.getNonZeroNeighbours(u)) {
+            if (v < u)
+                continue;
+            
             // iterate over all edges uv
             Edge uv(u,v);
             EdgeId id = uv.id();
@@ -50,7 +42,6 @@ void EdgeHeap::initInducedCosts() {
             
             // Zero edges have no icp/icf
             if (graph.findIndex(id) == 0) {
-//                 std::cout<<"Skipping zero edge ("<<u<<","<<v<<")"<<std::endl;
                 continue;
             } else {
                 edges[rId] = uv;
@@ -77,7 +68,8 @@ void EdgeHeap::initInducedCosts() {
             
             // look at all triangles uvw containing uv. Triangles with a zero edge can be ignored
             std::vector<NodeId> w_vec;
-            std::set_intersection(nonZeroNeighbours[u].begin(), nonZeroNeighbours[u].end(), nonZeroNeighbours[v].begin(), nonZeroNeighbours[v].end(), back_inserter(w_vec));
+            std::set_intersection(graph.getNonZeroNeighbours(u).begin(), graph.getNonZeroNeighbours(u).end(), 
+                                  graph.getNonZeroNeighbours(v).begin(), graph.getNonZeroNeighbours(v).end(), back_inserter(w_vec));
 
             for (NodeId w : w_vec) {
                 Edge uw(u,w);
