@@ -71,6 +71,7 @@ def run_clustereditingphase(
 	errorrate = 0.1, 
 	min_overlap = 5,
 	transform = False,
+	dp_phasing = False,
 	plot_heatmap = False,
 	plot_haploblocks = False
 	):
@@ -194,6 +195,7 @@ def run_clustereditingphase(
 				logger.info('Number of remaining heterozygous variants: %d', len(phasable_variant_table))
 
 				# Get the reads belonging to this sample
+				timers.start('read_bam')
 				bam_sample = None if ignore_read_groups else sample
 				readset, vcf_source_ids = read_reads(readset_reader, chromosome, phasable_variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
 				readset.sort()
@@ -204,6 +206,7 @@ def run_clustereditingphase(
 				# sample allele matrix
 				#selected_reads = select_reads(readset, 5*ploidy, preferred_source_ids = vcf_source_ids)
 				#readset = selected_reads
+				timers.stop('read_bam')
 
 				# Transform allele matrix, if option selected
 				timers.start('transform_matrix')
@@ -233,55 +236,83 @@ def run_clustereditingphase(
 				logger.info("Solving cluster editing ...")
 				timers.start('solve_clusterediting')
 				clusterediting = CoreAlgorithm(graph)	
-				readpartitioning = clusterediting.run()
+				readpartitioning = clusterediting.run()				
 				timers.stop('solve_clusterediting')
 
 				# Assemble clusters to haplotypes
 				logger.info("Assembling haplotypes from read clusters ...")
 				timers.start('assemble_haplotypes')
 
-				#consensus_blocks = clusters_to_haps(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
-			#   coverage, copynumbers, cluster_blocks, cut_positions = clusters_to_blocks(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
+				if dp_phasing:
+					#add dynamic programming for finding the most likely subset of clusters
+					coverage, cut_positions, cluster_blocks, components, superreads = subset_clusters(readset, readpartitioning, ploidy, sample)
+					
+				else:				
+					haploblocks = clusters_to_haps(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
 
-				#add dynamic programming for finding the most likely subset of clusters
-				coverage, cut_positions, cluster_blocks, components, superreads = subset_clusters(readset, readpartitioning, ploidy, sample)
+					# Create haplotype super strings
+					haplotypes = []
+					for i in range(ploidy):
+						hap = ""
+						alleles_as_strings = []
+						for haploblock in haploblocks:
+							for allele in haploblock[i]:
+								if allele == -1:
+									alleles_as_strings.append("n")
+									# TODO: Reconstruct unknown alleles using genotype information
+								else:
+									alleles_as_strings.append(str(allele))
+						hap = hap.join(alleles_as_strings)
+						haplotypes.append(hap)
+
+					accessible_positions = sorted(readset.get_positions())
+					super_readset = ReadSet()
+					for i in range(ploidy):
+						read = Read('superread {}'.format(i+1), 0, 0)
+						# insert alleles
+						for j,allele in enumerate(haplotypes[i]):
+							if (allele == "n"):
+								continue
+							allele = int(allele)
+							qual = [10,10]
+							qual[allele] = 0
+							read.add_variant(accessible_positions[j], allele, qual)
+						super_readset.add(read)
+
+					superreads[sample] = super_readset
+
+					# Reconstruct cut positions and create components
+					cut_positions = []
+					local_components = dict()
+					last_cut = 0
+					for haploblock in haploblocks:
+						next_cut = last_cut + len(haploblock[0])
+						cut_positions.append(accessible_positions[next_cut])
+						for pos in range(last_cut, next_cut):
+							local_components[accessible_positions[pos]] = accessible_positions[last_cut]
+							local_components[accessible_positions[pos]+1] = accessible_positions[last_cut]
+						last_cut = next_cut
+
+					#print(cut_positions)
+					components[sample] = local_components
+
+				timers.stop('assemble_haplotypes')
+
+				# Plot options
+				timers.start('create_plots')
+				if plot_heatmap or plot_haploblocks:
+					logger.info("Generating plots ...")
+					if plot_heatmap:
+						draw_superheatmap(readset, readpartitioning, phasable_variant_table, output_str+ ("_D" if transform else "_N") + ".superheatmapg.png", genome_space = False)
+					if plot_haploblocks:
+						draw_cluster_blocks(readset, readpartitioning, cluster_blocks, cut_positions, phasable_variant_table, output_str+ ("_D" if transform else "_N") + ".haploblocks.png", genome_space = False)
+				timers.stop('create_plots')
+
+			with timers('write_vcf'):
+				logger.info('======== Writing VCF')
 				changed_genotypes = vcf_writer.write(chromosome, superreads, components)
-
-
-				#truth = get_phase(readset, phasable_variant_table)
-				#truth_cons = construct_ground_truth(readset)
-
-				#truth_blocks = construct_ground_truth_blockwise(readset, cut_positions)
-				#for hap in truth:
-				#	print("".join(list(map(lambda x: str(x) if x >= 0 else ".", hap))))
-				#for hap in truth_cons:
-				#	print("".join(list(map(lambda x: str(x) if x >= 0 else ".", hap))))
-				#vec_error = vector_error_blockwise(consensus_blocks, truth, 1, 100000)
-				#print("Vector error = "+str(vec_error))
-
-				#vec_error = vector_error_blockwise(consensus_blocks, truth_cons, 1, 100000)
-				#print("Vector error = "+str(vec_error))
-	#			timers.stop('assemble_haplotypes')
-	#
-	#			logger.info("Generating plots ...")
-	#			if plot_heatmap:
-	#				draw_superheatmap(readset, readpartitioning, phasable_variant_table, output_str+ ("_D" if transform else "_N") + ".superheatmapg.png", genome_space = False)
-	#			if plot_haploblocks:
-	#				draw_cluster_blocks(readset, readpartitioning, cluster_blocks, cut_positions, phasable_variant_table, output_str+ ("_D" if transform else "_N") + ".haploblocks.png", genome_space = False)
-	#			
-	#			#draw_cluster_coverage(readset, readpartitioning, output_str+ ("_D" if transform else "_N") + ".coverage.png")
-	#			
-	#			print("... finished")
-	#			
-	#		with timers('write_vcf'):
-	#			logger.info('======== Writing VCF')
-	#			
-	#			# !!!
-	#			# TODO: Write results into VCF: Create superreads and components for VCF-Write call below
-	#			changed_genotypes = vcf_writer.write(chromosome, superreads, components)
-	#			assert len(changed_genotypes) == 0
-	#			# !!!
-
+				# TODO: Use genotype information to polish results
+				#assert len(changed_genotypes) == 0
 				logger.info('Done writing VCF')
 			logger.debug('Chromosome %r finished', chromosome)
 			timers.start('parse_vcf')
@@ -303,6 +334,7 @@ def run_clustereditingphase(
 	logger.info('Time spent computing read graph:             %6.1f s', timers.elapsed('compute_graph'))
 	logger.info('Time spent solving cluster editing:          %6.1f s', timers.elapsed('solve_clusterediting'))
 	logger.info('Time spent assembling haplotypes:            %6.1f s', timers.elapsed('assemble_haplotypes'))
+	logger.info('Time spent creating plots:                   %6.1f s', timers.elapsed('create_plots'))
 	logger.info('Time spent writing VCF:                      %6.1f s', timers.elapsed('write_vcf'))
 	logger.info('Time spent finding components:               %6.1f s', timers.elapsed('components'))
 	logger.info('Time spent on rest:                          %6.1f s', 2 * timers.elapsed('overall') - timers.total())
@@ -351,6 +383,8 @@ def add_arguments(parser):
 	arg('--min-overlap', metavar='OVERLAP', type=int, default=5, help='Minimum required read overlap (default: %(default)s).')
 	arg('--transform', dest='transform', default=False, action='store_true',
 		help='Use transformed matrix for read similarity scoring (default: %(default)s).')
+	arg('--dp-phasing', dest='dp_phasing', default=False, action='store_true',
+		help='Use dynamic programming to assemble haplotypes after read clustering (default: %(default)s).')
 	arg('--plot-heatmap', dest='plot_heatmap', default=False, action='store_true',
 		help='Plot a super heatmap for the computed clustering (default: %(default)s).')
 	arg('--plot-haploblocks', dest='plot_haploblocks', default=False, action='store_true',
