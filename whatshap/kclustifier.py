@@ -7,6 +7,7 @@ from .core import clustering_DP, ReadSet, Read
 import numpy as np
 from .testhelpers import string_to_readset
 from .phase import find_components
+from statistics import mean
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +34,10 @@ def clusters_to_haps(readset, clustering, ploidy, coverage_padding = 12, copynum
 
 def calc_consensus_blocks(readset, clustering, cluster_blocks, cut_positions):
 	cluster_consensus = get_cluster_consensus(readset, clustering)
-	consensus_blocks = deepcopy(cluster_blocks)
+	#consensus_blocks = deepcopy(cluster_blocks)
+	consensus_blocks = cluster_blocks	
 	for i, block in enumerate(consensus_blocks):
-		offset = cut_positions[i-1] if i > 0 else 0
+		offset = cut_positions[i-1] if i > 0 else 0	
 		for j, hap in enumerate(block):
 			for pos, clust in enumerate(hap):
 				consensus_blocks[i][j][pos] = cluster_consensus[clust][offset+pos] if clust != None else -1
@@ -74,17 +76,12 @@ def get_cluster_consensus(readset, clustering):
 				if alleles[key] > max_count:
 					max_count = alleles[key]
 					max_allele = key
-			cluster_consensus[c][pos] = max_allele
-			
+			cluster_consensus[c][pos] = max_allele		
 	return cluster_consensus
 
 
 def subset_clusters(readset, clustering,ploidy, sample):
-	print("initial number of clusters: ", len(clustering))
-	# Sort a deep copy of clustering
-	clusters = sorted(deepcopy(clustering), key = lambda x: min([readset[i][0].position for i in x]))
-	readlen = avg_readlength(readset)
-	
+
 	# Map genome positions to [0,l)
 	index = {}
 	rev_index = []
@@ -93,89 +90,96 @@ def subset_clusters(readset, clustering,ploidy, sample):
 		index[position] = num_vars
 		rev_index.append(position)
 		num_vars += 1
+	num_clusters = len(clustering)
 	
-	#Subset the set of clusters to clusters with the highest amount of reads and map the chosen clusters to their index in the original set
-	#TODO: change function for subsetting
-	cutoff = 400
-	cluster_lengths = [len(c) for c in clustering]
-	print("cluster_lengths", cluster_lengths)
-	subset_clustering = [c for c in clustering if len(c) > cutoff]
-	subset_cids = [c_id for c_id in range(len(clustering)) if len(clustering[c_id]) > cutoff]
-	print("number of chosen clusters: ", len(subset_clustering))
-	cluster_dict = {}
-	for i in range(len(clustering)):
-		for j in range(len(subset_clustering)):
-			if (clustering[i]==subset_clustering[j]):
-				cluster_dict[j] = i
-
+	#compute for each position the amount of clusters that 'cover' this position
+	#cov_map maps each position to the list of cluster IDS that appear at this position
+	cov_positions = [0 for i in range(num_vars)]
+	cov_map = defaultdict(list)
+	for c_id in range(num_clusters):
+		covered_positions = []
+		for read in clustering[c_id]:
+			start = index[readset[read][0].position]
+			end = index[readset[read][-1].position]
+			for pos in range(start, end+1):
+				if pos not in covered_positions:
+					covered_positions.append(pos)
+		for p in covered_positions:
+			cov_positions[p] += 1
+			cov_map[p].append(c_id)
+	assert(len(cov_map.keys()) == num_vars)
+		
 	#for every cluster in clustering, compute its sequence of starting and ending positions
 	#create dictionary mapping the clusterID to a list of pairs (starting position, ending position)
 	positions = defaultdict(list)
-	for c_id in range(0, len(subset_clustering)):
+	for c_id in range(num_clusters):
 		read_id = 0
-		for read in subset_clustering[c_id]:
+		for read in clustering[c_id]:
 			start = index[readset[read][0].position]
 			end = index[readset[read][-1].position]
 			positions[c_id].append((start,end))
+	assert(len(positions) == num_clusters)
 	
 	#for every cluster and every variant position, compute the relative coverage
-	num_vars = len(index)
-	coverage = [[0]*num_vars for i in range(len(subset_clustering))]
-	for c_id in range(0, len(subset_clustering)):
+	coverage = [[0]*num_vars for i in range(num_clusters)]
+	for c_id in range(num_clusters):
 		read_id = 0
-		for read in subset_clustering[c_id]:
+		for read in clustering[c_id]:
 			start = index[readset[read][0].position]
 			end = index[readset[read][-1].position]
 			for pos in range(start, end+1):
 				coverage[c_id][pos] += 1
 
-	coverage_sum = [sum([coverage[i][j] for i in range(len(subset_clustering))]) for j in range(num_vars)]
+	coverage_sum = [sum([coverage[i][j] for i in range(num_clusters)]) for j in range(num_vars)]
 
-	for c_id in range(0, len(subset_clustering)):
+	for c_id in range(num_clusters):
 		coverage[c_id] = [((coverage[c_id][i])/coverage_sum[i]) if coverage_sum[i]!= 0 else 0 for i in range(num_vars)]	
+	assert(len(coverage) == num_clusters)
+	assert(len(coverage[0]) == num_vars)
 
-	#create a set of tuples (TODO: so far only tetraploid) of all clusters
-	c_ids = [c_id for c_id in range(0,len(subset_clustering))]
-	cluster_tuples = [(i,j,k,l) for i in c_ids for j in c_ids for k in c_ids for l in c_ids]
+	#create the set of all cluster tuples
+	cluster_tuples = list(it.product([c_id for c_id in range(num_clusters)], repeat=ploidy))	
+	assert(len(cluster_tuples) == num_clusters**ploidy)
 	
 	#perform the dynamic programming to fill the scoring matrix (in Cython to speed up computation)
-	scoring = clustering_DP(num_vars,cluster_tuples,coverage, positions)
-
-	#start backtracing from the minimum in the last column
-	path = []
+	scoring = clustering_DP(num_vars,cluster_tuples,coverage, positions, cov_map, ploidy)
+	print("scoring matrix computed")
 	
+	#start the backtracing
+	path = []	
 	#find the last column that contains a minimum other than INT_MAX (1000000, respectively) 
 	start_col = find_backtracing_start(scoring, num_vars, cluster_tuples)
 	print("starting in column: ", start_col)
-	last_min_idx = int(min((val, idx) for (idx, val) in enumerate(scoring[start_col]))[1])
+	last_min_idx = min(scoring[start_col].keys(), key=(lambda k:scoring[start_col][k][0]))
 	path.append(cluster_tuples[last_min_idx])
 	#append stored predecessor
-	for i in range(num_vars-5,0,-1):
-		pred = scoring[i][int(last_min_idx)][1]
-		path.append(cluster_tuples[int(pred)])
+	for i in range(start_col,0,-1):
+		pred = scoring[i][last_min_idx][1]
+		path.append(cluster_tuples[pred])
 		last_min_idx = pred
 	#path has been assembled from the last column and needs to be reversed
 	path.reverse()
-
+	print("length of path: ", len(path))
+	assert(len(path) == start_col+1)
 	#determine cut positions: When at least two haplotypes change the cluster from position i to i+1, a new cut is made
 	#if only one haplotype changes the cluster, both clusters are assumed to belong together (?)
 	cut_positions = []
 	for i in range(len(path)-1):
 		dissim = 0
-		for j in range(0,4):
+		for j in range(0,ploidy):
 			if path[i][j] != path[i+1][j]:
 				dissim +=1
 		if (dissim > 1):
 			cut_positions.append(i)
 	print("cut positions: ", cut_positions)
-	#divide path of clusters into 4 paths of haplotypes
-	hap1 = [cluster_dict[tup[0]] for tup in path]
-	hap2 = [cluster_dict[tup[1]] for tup in path]
-	hap3 = [cluster_dict[tup[2]] for tup in path]
-	hap4 = [cluster_dict[tup[3]] for tup in path]
-#	assert(len(hap1)==len(hap2)==len(hap3)==len(hap4)==num_vars)
 
-	haps=[hap1,hap2,hap3,hap4]
+	#divide path of clusters into <ploidy> separate paths
+	haps = []
+	for i in range(ploidy):
+		temp = [tup[i] for tup in path]
+		haps.append(temp)
+	assert(len(haps) == ploidy)
+
 	# Return cluster blocks: List of blocks, each blocks ranges from one cut position to the next and contains <ploidy> sequences
 	# of cluster ids that indicate which cluster goes to which haplotype at which position.
 	cluster_blocks = []
@@ -183,28 +187,52 @@ def subset_clusters(readset, clustering,ploidy, sample):
 	for cut_pos in cut_positions:
 		cluster_blocks.append([hap[old_pos:cut_pos] for hap in haps])
 		old_pos = cut_pos
-
-	#write new VCF file
+	last_cut = cut_positions[len(cut_positions)-1]
+	cluster_blocks.append([hap[last_cut:] for hap in haps])
+	assert(len(cluster_blocks) == len(cut_positions)+1)
+	consensus_blocks = calc_consensus_blocks(readset, clustering, cluster_blocks, cut_positions)
+	#gaps = 0	
+	#for block in consensus_blocks:
+	#	for hap in block:
+	#		for i in hap:
+	#			if (i == -1):
+	#				gaps +=1
+	#print("undefined sites: ", gaps)
 	
+	haplotypes = []
+	for i in range(ploidy):
+		hap = ""
+		alleles_as_strings = []
+		for block in consensus_blocks:
+			for allele in block[i]:
+				if allele == -1:
+					alleles_as_strings.append("n")
+				else:
+					alleles_as_strings.append(str(allele))
+		hap = hap.join(alleles_as_strings)
+		haplotypes.append(hap)	
+
+	#write new VCF file	
 	superreads, components = dict(), dict()
 	
 	accessible_positions = sorted(readset.get_positions())
 
-	overall_components = find_components(accessible_positions, readset, None, None)
+	overall_components = {}
+	block_id = accessible_positions[0]
+	for var in accessible_positions:
+		overall_components[var] = block_id
+		if (var in cut_positions):
+			block_id = accessible_positions[var]
 	components[sample] = overall_components
-	print("components: ", overall_components)
 	print("number of components: ", len(overall_components))
-	
-	#test haplotype strings since until now, the above results show the cluster paths only 
-#	test_hap1, test_hap2, test_hap3, test_hap4 = "01101", "11001", "01010", "11100"
-#	readset = string_to_readset(test_hap1+'\n'+test_hap2+'\n'+test_hap3+'\n'+test_hap4+'\n')
 
-	testhap = ["01101", "11001", "01010", "11100"]
 	readset = ReadSet()
-	for i in range(4):
+	for i in range(ploidy):
 		read = Read('superread {}'.format(i+1), 0, 0)
 		# insert alleles
-		for j,allele in enumerate(testhap[i]):
+		for j,allele in enumerate(haplotypes[i]):
+			if (allele=="n"):
+				continue
 			allele = int(allele)
 			qual = [10,10]
 			qual[allele] = 0
@@ -219,7 +247,7 @@ def find_backtracing_start(scoring, num_vars, cluster_tuples):
 	minimum = 1000000
 	last_col = num_vars-1
 	res = False
-	for i in range(len(cluster_tuples)):
+	for i in scoring[last_col].keys():
 		if scoring[last_col][i][0] < minimum:
 			res = True
 	if res:
