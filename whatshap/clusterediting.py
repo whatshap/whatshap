@@ -53,6 +53,46 @@ def print_readset(readset):
 		result += '\n'
 	print(result)
 
+
+def get_polyploid_blocks(readset, optimal_partitioning):
+	partitions = defaultdict(list)
+	for i,position in enumerate(optimal_partitioning):
+		partitions[position].append(i)
+	# store first positions in a new block
+	cut_positions = set([])
+	all_positions = readset.get_positions()
+	# get reads beloning to each partition
+	for p,v in partitions.items():
+		# extract reads
+		reads = readset.subset(v)
+		# find connected components
+		positions = reads.get_positions()
+		components = find_components(positions, reads)
+		# determine cuts
+		previous_block = components[positions[0]]
+		for position in positions:
+			block_id = components[position]
+			if block_id != previous_block:
+				cut_positions.add(position)
+#				print(position)
+			previous_block = block_id
+		# add starting and end position of a block as well
+		cut_positions.add(positions[-1])
+		cut_positions.add(positions[0])
+#		print(p,v)
+#		print('')
+	# construct connected components
+	result = {}
+	block_id = all_positions[0]
+	for position in all_positions:
+		if position in cut_positions:
+			if not position in [all_positions[0], all_positions[-1]]:
+				block_id = position
+#		print(position, block_id)
+		result[position] = block_id
+	return result
+	
+
 def run_clusterediting(
 	phase_input_files,
 	variant_file,
@@ -198,24 +238,19 @@ def run_clusterediting(
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
 				# transform the allele matrix
-				selected_reads = select_reads(readset, 5*ploidy, preferred_source_ids = vcf_source_ids)
+				selected_reads = select_reads(readset, 2*ploidy, preferred_source_ids = vcf_source_ids)
 				readset = selected_reads
 
-				print_readset(readset)
+#				print_readset(readset)
 				transformation = MatrixTransformation(readset, find_components(readset.get_positions(), readset), ploidy, errorrate, min_overlap)
 				transformed_matrix = transformation.get_transformed_matrix()
 				cluster_counts = transformation.get_cluster_counts()
-				
-				# TODO: remove print
-				print_readset(transformed_matrix)
-				# TODO: remove print
-#				print('cluster counts:', cluster_counts)
 
 				# TODO include this readselection step?
 				selected_reads = select_reads(transformed_matrix, 7, preferred_source_ids = vcf_source_ids)
 				transformed_matrix = selected_reads
 
-				print_readset(transformed_matrix)
+#				print_readset(transformed_matrix)
 				# solve MEC to get overall partitioning, prepare input objects for this
 				cluster_pedigree = Pedigree(numeric_sample_ids, ploidy)
 				positions = transformed_matrix.get_positions()
@@ -224,14 +259,14 @@ def run_clusterediting(
 				recombination_costs = uniform_recombination_map(1.26, positions)
 				partitioning_dp_table = PedigreeDPTable(transformed_matrix, recombination_costs, cluster_pedigree, ploidy, False, cluster_counts, positions)
 				optimal_partitioning = partitioning_dp_table.get_optimal_partitioning()
-				print('Consensus MEC cost: ', partitioning_dp_table.get_optimal_cost())
+#				print('Consensus MEC cost: ', partitioning_dp_table.get_optimal_cost())
 
-				print('read partitioning: ', optimal_partitioning, partitioning_dp_table.get_optimal_cost())
+#				print('read partitioning: ', optimal_partitioning, partitioning_dp_table.get_optimal_cost())
 
 				# printing
-				clu_to_r = defaultdict(list)
-				for read, partition in zip(transformed_matrix,optimal_partitioning):
-					clu_to_r[partition].append(read.name)
+#				clu_to_r = defaultdict(list)
+#				for read, partition in zip(transformed_matrix,optimal_partitioning):
+#					clu_to_r[partition].append(read.name)
 				
 #				for c,l in clu_to_r.items():
 #					print(c,l)
@@ -246,7 +281,7 @@ def run_clusterediting(
 				# keep only those reads in original readset that have been selected in transformed matrix
 				to_keep = [ i for i,read in enumerate(readset) if read.name in selected_names]
 				readset = readset.subset(to_keep)
-				print_readset(readset)
+#				print_readset(readset)
 
 				# prepare input for determining the best allele configuration
 				# Determine which variants can (in principle) be phased
@@ -283,7 +318,11 @@ def run_clusterediting(
 				sr_sample_id = sample_superreads[0][0].sample_id
 				for sr in sample_superreads[0]:
 					assert sr.sample_id == sr_sample_id == numeric_sample_ids[sample]
-				components[sample] = overall_components
+
+				# find components, break into blocks as soon as at least one of the haplotypes is fragmented
+				components[sample] = get_polyploid_blocks(readset, optimal_partitioning)
+#				print_readset(readset)
+#				print(optimal_partitioning)
 
 #				if read_list_file:
 #					write_read_list(all_reads, allele_assignment.get_optimal_partitioning(), components, numeric_sample_ids, read_list_file)

@@ -4,8 +4,7 @@ Tests for 'whatshap compare'
 
 from tempfile import TemporaryDirectory
 from collections import namedtuple
-from whatshap.compare import run_compare, compute_switch_flips_poly
-
+from whatshap.compare import run_compare, compute_switch_flips_poly, compare_block, PhasingErrors
 
 def test_compare1():
 	with TemporaryDirectory() as tempdir:
@@ -117,6 +116,32 @@ def test_compare_polyploid2():
 		assert entry_chr22.largestblock_switches == 'inf'
 		assert entry_chr22.largestblock_hamming == '0.5'
 
+def test_compare_polyploid3():
+	with TemporaryDirectory() as tempdir:
+		outtsv = tempdir + '/output.tsv'
+		run_compare(vcf=['tests/data/phased.poly1.vcf', 'tests/data/phased.poly3.vcf'], ploidy=4, names='p1,p2', tsv_pairwise=outtsv, sample='sample1')
+		lines = [l.split('\t') for l in open(outtsv)]
+		assert len(lines) == 3
+		Fields = namedtuple('Fields', [ f.strip('#\n') for f in lines[0] ])
+		entry_chr21, entry_chr22 = [Fields(*l) for l in lines[1:]]
+		assert entry_chr21.chromosome == 'chr21'
+		assert entry_chr21.all_assessed_pairs == '2'
+		assert entry_chr21.all_switches == 'inf'
+		assert entry_chr21.all_switchflips == '0/0'
+		assert entry_chr21.blockwise_hamming == '0.0'
+		assert entry_chr21.largestblock_assessed_pairs == '2'
+		assert entry_chr21.largestblock_switches == 'inf'
+		assert entry_chr21.largestblock_hamming == '0.0'
+
+		assert entry_chr22.chromosome == 'chr22'
+		assert entry_chr22.all_assessed_pairs == '6'
+		assert entry_chr22.all_switches == 'inf'
+		assert entry_chr22.all_switchflips == '0/0'
+		assert entry_chr22.blockwise_hamming == '0.0'
+		assert entry_chr22.largestblock_assessed_pairs == '4'
+		assert entry_chr22.largestblock_switches == 'inf'
+		assert entry_chr22.largestblock_hamming == '0.0'
+
 def test_compare_only_snvs():
 	with TemporaryDirectory() as tempdir:
 		outtsv = tempdir + '/output.tsv'
@@ -206,3 +231,31 @@ def test_compute_switch_flips_poly():
 	#assert compute_switch_flips_poly(phasing, truth, flip_cost = float("inf"), switch_cost = 1) == float("inf")
 	sfp = compute_switch_flips_poly(phasing, truth, flip_cost = float("inf"), switch_cost = 1)
 	assert sfp.flips + sfp.switches * float("inf") == float("inf")
+
+def test_compare_block():
+	phasing = ['1111111111','0000000000']
+	truth = ['1111100000','0000011111']
+	phasing_errors = compare_block(phasing, truth)
+	assert(phasing_errors.switches == 1)
+	assert(phasing_errors.hamming == 5)
+
+	phasing = ['000000', '101111', '111010']
+	truth = ['000000', '101010', '111111']
+	phasing_errors = compare_block(phasing, truth)
+	assert(phasing_errors.hamming == 2.0/3.0)
+	switch_flips = phasing_errors.switch_flips
+	assert(switch_flips.switches == 2)
+	
+	phasing = ['1110001', '1011101', '0000010']
+	truth = ['1110001', '1010010', '0001101']
+	phasing_errors = compare_block(phasing, truth)
+	assert(phasing_errors.hamming == 4.0/3.0)
+	switch_flips = phasing_errors.switch_flips
+	assert(switch_flips.switches == 2)
+
+	phasing = ['1111101', '1010001', '0000010']
+	truth =   ['1110001', '1010010', '0001101']
+	phasing_errors = compare_block(phasing, truth)
+	assert(phasing_errors.hamming == 6.0/3.0)
+	switch_flips = phasing_errors.switch_flips
+	assert(switch_flips.switches == 3)
