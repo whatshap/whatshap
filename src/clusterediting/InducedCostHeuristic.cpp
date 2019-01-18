@@ -23,9 +23,14 @@ InducedCostHeuristic::InducedCostHeuristic(StaticSparseGraph& param_graph, bool 
 
 ClusterEditingSolutionLight InducedCostHeuristic::solve() {
 	// execute algorithm
-	if (verbosity >= 1)
-		std::cout<<"Running heuristic." << "."<<std::endl;
+	if (verbosity >= 1) {
+        if (verbosity == 1)
+            std::cout<<"Running heuristic.. \r" <<std::flush;
+        else
+            std::cout<<"Running heuristic.. " <<std::endl;
+    }
     if (totalCost == std::numeric_limits<EdgeWeight>::infinity()) {
+        // if resolving permanent and forbidden edges lead to contradiction, cost are infinte here, thus cancel algorithm
         std::cout<<"Instance is infeasible!" <<std::endl;
         ClusterEditingSolutionLight sol;
         return sol;
@@ -40,9 +45,13 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
 		}
 		EdgeWeight mIcf = edgeHeap.getIcf(eIcf);
 		EdgeWeight mIcp = edgeHeap.getIcp(eIcp);
+//         if (verbosity >= 4) {
+//             std::cout<<"Max icf edge = ("<<eIcf.v<<", "<<eIcf.u<<") with icf = "<<mIcf<<std::endl;
+//             std::cout<<"Max icp edge = ("<<eIcp.v<<", "<<eIcp.u<<") with icp = "<<mIcp<<std::endl;
+//         }
 		if (mIcf >= mIcp) {
 			// set eIcf to permanent
-            if (verbosity >= 5) {
+            if (verbosity >= 5/* || eIcf.u == 1090 || eIcf.v == 1090*/) {
                 std::cout<<"Setting edge ("<<eIcf.u<<","<<eIcf.v<<") to permanent."<<std::endl;
             }
 
@@ -65,14 +74,16 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
 			for (NodeId x : uClique) {
 				for (NodeId y : vClique) {
                     Edge e = Edge(x,y);
-                    if (x == y || graph.getWeight(e) == 0 || graph.getWeight(e) == StaticSparseGraph::Permanent || (x == eIcf.u && y == eIcf.v))
+                    if (x == y || graph.findIndex(e) == 0 || graph.getWeight(e) == StaticSparseGraph::Permanent || (x == eIcf.u && y == eIcf.v)) {
+                        if (verbosity >= 5/* || e.u == 1090 || e.v == 1000*/) {
+                            std::cout<<"Making ("<<x<<","<<y<<") silently not permanent due to implication."<<std::endl;
+                        }
 						continue;
-                    if (verbosity >= 5) {
+                    }
+                    if (verbosity >= 5/* || e.u == 1090 || e.v == 1090*/) {
                         std::cout<<"Making ("<<x<<","<<y<<") permanent due to implication."<<std::endl;
                     }
                     implications.push_back(e);
-// 					setPermanent(e);
-// 					edgeHeap.removeEdge(e);
 				}
 			}
 			
@@ -84,13 +95,14 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
             for (Edge e : implications) {
                 setPermanent(e);
                 edgeHeap.removeEdge(e);
+                if (verbosity >= 1 && edgeHeap.numUnprocessed() % 1000 == 0) {
+                    std::cout<<"Running heuristic.. "<<((totalEdges - edgeHeap.numUnprocessed())*100 / totalEdges)<<"%\r"<<std::flush;
+                }
             }
 			
 		} else {
 			// set eIcp fo forbidden
-// 			setForbidden(eIcp);
-// 			edgeHeap.removeEdge(eIcp);
-            if (verbosity >= 5) {
+            if (verbosity >= 5/* || eIcp.u == 1090 || eIcp.v == 1090*/) {
                 std::cout<<"Setting edge ("<<eIcp.u<<","<<eIcp.v<<") to forbidden."<<std::endl;
             }
 			
@@ -102,11 +114,16 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
 			for (NodeId x : uClique) {
 				for (NodeId y : vClique) {
                     Edge e = Edge(x,y);
-					if (x == y || graph.getWeight(e) == 0 || graph.getWeight(e) == StaticSparseGraph::Forbidden || (x == eIcp.u && y == eIcp.v))
+					if (x == y || graph.findIndex(e) == 0 || graph.getWeight(e) == StaticSparseGraph::Forbidden || (x == eIcp.u && y == eIcp.v)) {
+                        if (verbosity >= 5/* || e.u == 10900 || e.v == 10900*/) {
+                            std::cout<<"Making ("<<x<<","<<y<<") silently not forbidden due to implication."<<std::endl;
+                        }
 						continue;
+                    }
+                    if (verbosity >= 5/* || e.u == 10900 || e.v == 10900*/) {
+                        std::cout<<"Making ("<<x<<","<<y<<") forbidden due to implication."<<std::endl;
+                    }
                     implications.push_back(e);
-// 					setForbidden(e);
-// 					edgeHeap.removeEdge(e);
 				}
 			}
 			
@@ -118,16 +135,26 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
             for (Edge e : implications) {
                 setForbidden(e);
                 edgeHeap.removeEdge(e);
+                if (verbosity >= 1 && edgeHeap.numUnprocessed() % 1000 == 0) {
+                    std::cout<<"Running heuristic.. "<<((totalEdges - edgeHeap.numUnprocessed())*100 / totalEdges)<<"%\r"<<std::flush;
+                }
             }
 		}
-		if (verbosity >= 1 && i % 100 == 0) {
-			std::cout<<"Completed "<<((totalEdges - edgeHeap.numUnprocessed())*100 / totalEdges)<<"%\r"<<std::flush;
+		if (verbosity >= 1 && edgeHeap.numUnprocessed() % 100 == 0) {
+            std::cout<<"Running heuristic.. "<<((totalEdges - edgeHeap.numUnprocessed())*100 / totalEdges)<<"%\r"<<std::flush;
 		}
 	}
+	
+	if (verbosity >= 1)
+        std::cout<<"Running heuristic.. 100%   "<<std::endl;
   
 	// calculate clustering
-	if (verbosity >= 1)
-		std::cout<<"Constructing result.."<<std::endl;
+	if (verbosity >= 1) {
+        if (verbosity == 1)
+            std::cout<<"Constructing result.. \r"<<std::flush;
+        else
+            std::cout<<"Constructing result.. "<<std::endl;
+    }
 	std::vector<std::vector<NodeId>> clusters;
 	std::vector<int> clusterOfNode(graph.numNodes(), -1);
 	for (NodeId u = 0; u < graph.numNodes(); u++) {
@@ -136,7 +163,7 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
             std::cout<<"Processing node "<<u<<std::endl;
         }
         if (verbosity >= 1 && verbosity <= 4) {
-            std::cout<<"Completed "<<(u*100/graph.numNodes())<<"%\r"<<std::flush;
+            std::cout<<"Constructing result.. "<<(u*100/graph.numNodes())<<"%\r"<<std::flush;
         }
 		if (clusterOfNode[u] == -1) {
 			int c = clusters.size();
@@ -156,12 +183,18 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
 			}
 		}
 	}
+	if (verbosity >= 1)
+        std::cout<<"Constructing result.. 100%   "<<std::endl;
 	return ClusterEditingSolutionLight(totalCost, clusters);
 }
 
 bool InducedCostHeuristic::resolvePermanentForbidden() {
-    if (verbosity >= 1)
-		std::cout<<"Resolving forbidden and permanent edges." << "."<<std::endl;
+    if (verbosity >= 1) {
+        if (verbosity == 1)
+            std::cout<<"Resolving forbidden and permanent edges.. \r" <<std::flush;
+        else
+            std::cout<<"Resolving forbidden and permanent edges.. " <<std::endl;
+    }
     // make cliques by connecting all nodes with inf path between them
     std::vector<bool> processed(graph.numNodes(), false);
     std::vector<std::vector<NodeId>> cliques;
@@ -211,7 +244,7 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
     // disconnect all cliques which have a forbidden edge between them
     for (unsigned int k = 0; k < cliques.size(); k++) {
         if (verbosity >= 1 && k % 100 == 0) {
-            std::cout<<"Completed "<<(((2UL*cliques.size()-(uint64_t)k+1UL)*(uint64_t)k*100UL)/((uint64_t)cliques.size()*((uint64_t)cliques.size()-1UL)))<<"%\r"<<std::flush;
+            std::cout<<"Resolving forbidden and permanent edges.. "<<(((2UL*cliques.size()-(uint64_t)k+1UL)*(uint64_t)k*100UL)/((uint64_t)cliques.size()*((uint64_t)cliques.size()-1UL)))<<"%\r"<<std::flush;
         }
         for (unsigned int l = 0; l < moreThanOneCliques.size(); l++) {
             // search for forbidden edge between
@@ -240,14 +273,14 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
                 }
             }
         }
-    }    
+    }
+    if (verbosity >= 1)
+        std::cout<<"Resolving forbidden and permanent edges.. 100%   "<<std::endl;
     return true;
 }
 
 void InducedCostHeuristic::setForbidden(const Edge e) {
-//     if (graph.getWeight(e) == StaticSparseGraph::Forbidden) {
-// 		return;
-// 	}
+    // this has to be called to update ic, even if the edge already is forbidden
 	NodeId u = e.u;
 	NodeId v = e.v;
 	EdgeWeight uv = graph.getWeight(e);
@@ -271,9 +304,7 @@ void InducedCostHeuristic::setForbidden(const Edge e) {
 }
 
 void InducedCostHeuristic::setPermanent(const Edge e) {
-//     if (graph.getWeight(e) == StaticSparseGraph::Permanent) {
-// 		return;
-// 	}
+    // this has to be called to update ic, even if the edge already is permanent
 	NodeId u = e.u;
 	NodeId v = e.v;
 	EdgeWeight uv = graph.getWeight(e);
@@ -301,6 +332,8 @@ void InducedCostHeuristic::updateTripleForbiddenUW(const EdgeWeight uv, const Ed
 	EdgeWeight icf_new = 0.0;
 	EdgeWeight icp_old = edgeHeap.getIcp(uv, vw);
 	EdgeWeight icp_new = std::max(0.0, vw);
+    if (uv == StaticSparseGraph::Forbidden)
+        std::cout<<"updateTripleForbidden on already forbidden edge"<<std::endl;
     if (icf_new != icf_old)
         edgeHeap.increaseIcf(uw, icf_new - icf_old);
     if (icp_new != icp_old)
@@ -312,6 +345,8 @@ void InducedCostHeuristic::updateTriplePermanentUW(const EdgeWeight uv, const Ed
 	EdgeWeight icf_new = std::max(0.0, vw);
 	EdgeWeight icp_old = edgeHeap.getIcp(uv, vw);
 	EdgeWeight icp_new = std::max(0.0, -vw);
+    if (uv == StaticSparseGraph::Forbidden)
+        std::cout<<"updateTriplePermanent on already permanent edge"<<std::endl;
     if (icf_new != icf_old)
         edgeHeap.increaseIcf(uw, icf_new - icf_old);
     if (icp_new != icp_old)
