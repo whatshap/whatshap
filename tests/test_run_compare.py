@@ -259,3 +259,10 @@ def test_compare_block():
 	assert(phasing_errors.hamming == 6.0/3.0)
 	switch_flips = phasing_errors.switch_flips
 	assert(switch_flips.switches == 3)
+
+	phasing = ['111111', '111111', '111111']
+	truth = ['111111', '000000', '111111']
+	phasing_errors = compare_block(phasing, truth)
+	assert(phasing_errors.hamming == 2.0)
+	switch_flips = phasing_errors.switch_flips
+	assert(switch_flips.switches == 0)

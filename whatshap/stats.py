@@ -4,8 +4,8 @@ Print phasing statistics of a single VCF file
 import logging
 from collections import defaultdict, namedtuple
 from contextlib import ExitStack
-from .math import median
-from .vcf import VcfReader
+from whatshap.math import median
+from whatshap.vcf import VcfReader
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +27,11 @@ def add_arguments(parser):
 	add('--chromosome', dest='chromosome', metavar='CHROMOSOME', default=None,
 		help='Name of chromosome to process. If not given, all chromosomes in the '
 		'input VCF are considered.')
+	add('ploidy', metavar='PLOIDY', help='Ploidy of the sample.')
 	add('vcf', metavar='VCF', help='Phased VCF file')
 
+def validate(args, parser):
+	pass
 
 class PhasedBlock:
 	def __init__(self, chromosome=None):
@@ -125,7 +128,7 @@ def compute_n50(blocks, chr_lengths):
 		start, end = block.leftmost_variant.position, block.rightmost_variant.position
 		if i+1 < len(pos_sorted):
 			next_block = pos_sorted[i+1]
-			if end > next_block.leftmost_variant.position:
+			if (end > next_block.leftmost_variant.position) and (block.chromosome == next_block.chromosome):
 				#logger.warning('Blocks are interleaved, cutting first block: end=%s --> %s',  end, next_block.leftmost_variant.position)
 				end = next_block.leftmost_variant.position
 		block_lengths.append(end-start)
@@ -261,34 +264,34 @@ def parse_chr_lengths(filename):
 	return chr_lengths
 
 
-def main(args):
+def run_stats(ploidy, vcf, sample=None, gtf=None, tsv=None, block_list=None, only_snvs=False, chromosome=None, chr_lengths=None):
 	gtfwriter = tsv_file = block_list_file = None
 	with ExitStack() as stack:
-		if args.gtf:
-			gtf_file = stack.enter_context(open(args.gtf, 'wt'))
+		if gtf:
+			gtf_file = stack.enter_context(open(gtf, 'wt'))
 			gtfwriter = GtfWriter(gtf_file)
-		if args.tsv:
-			tsv_file = stack.enter_context(open(args.tsv, 'w'))
-		if args.block_list:
-			block_list_file = stack.enter_context(open(args.block_list, 'w'))
-
-		if args.chr_lengths:
-			chr_lengths = parse_chr_lengths(args.chr_lengths)
-			logger.info('Read length of %d chromosomes from %s', len(chr_lengths), args.chr_lengths)
+		if tsv:
+			tsv_file = stack.enter_context(open(tsv, 'w'))
+		if block_list:
+			block_list_file = stack.enter_context(open(block_list, 'w'))
+##
+		if chr_lengths:
+			chr_lengths = parse_chr_lengths(chr_lengths)
+			logger.info('Read length of %d chromosomes from %s', len(chr_lengths), chr_lengths)
 		else:
 			chr_lengths = None
 
-		vcf_reader = VcfReader(args.vcf, phases=True, indels=not args.only_snvs)
+		vcf_reader = VcfReader(vcf, phases=True, indels=not only_snvs, ploidy=ploidy)
 		if len(vcf_reader.samples) == 0:
 			logger.error('Input VCF does not contain any sample')
 			return 1
 		else:
 			logger.info('Found {} sample(s) in input VCF'.format(len(vcf_reader.samples)))
-		if args.sample:
-			if args.sample in vcf_reader.samples:
-				sample = args.sample
+		if sample:
+			if sample in vcf_reader.samples:
+				sample = sample
 			else:
-				logger.error('Requested sample ({}) not found'.format(args.sample))
+				logger.error('Requested sample ({}) not found'.format(sample))
 				return 1
 		else:
 			sample = vcf_reader.samples[0]
@@ -300,12 +303,13 @@ def main(args):
 		if block_list_file:
 			print('#sample', 'chromosome', 'phase_set', 'from', 'to', 'variants', sep='\t', file=block_list_file)
 
-		print('Phasing statistics for sample {} from file {}'.format(sample, args.vcf))
+		print('Phasing statistics for sample {} from file {}'.format(sample, vcf))
 		total_stats = PhasingStats()
 		chromosome_count = 0
+		given_chromosome = chromosome
 		for variant_table in vcf_reader:
-			if args.chromosome:
-				if variant_table.chromosome != args.chromosome:
+			if given_chromosome:
+				if variant_table.chromosome != given_chromosome:
 					continue
 			chromosome_count += 1
 			chromosome = variant_table.chromosome
@@ -320,7 +324,7 @@ def main(args):
 			prev_block_fragment_end = None
 			for variant, genotype, phase in zip(variant_table.variants, genotypes, phases):
 				stats.add_variants(1)
-				if genotype != 1:
+				if genotype.is_homozygous():
 					continue
 				stats.add_heterozygous_variants(1)
 				if variant.is_snv():
@@ -358,7 +362,7 @@ def main(args):
 			stats.add_blocks(blocks.values())
 			stats.print(chr_lengths)
 			if tsv_file:
-				print(sample, chromosome, args.vcf, sep='\t', end='\t', file=tsv_file)
+				print(sample, chromosome, vcf, sep='\t', end='\t', file=tsv_file)
 				print(*stats.get(chr_lengths), sep='\t', file=tsv_file)
 
 			total_stats += stats
@@ -367,5 +371,8 @@ def main(args):
 			print('---------------- ALL chromosomes (aggregated) ----------------')
 			total_stats.print(chr_lengths)
 			if tsv_file:
-				print(sample, 'ALL', args.vcf, sep='\t', end='\t', file=tsv_file)
+				print(sample, 'ALL', vcf, sep='\t', end='\t', file=tsv_file)
 				print(*total_stats.get(chr_lengths), sep='\t', file=tsv_file)
+
+def main(args):
+	run_stats(**vars(args))
