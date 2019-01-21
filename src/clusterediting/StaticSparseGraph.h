@@ -106,6 +106,11 @@ public:
     void setForbidden(const Edge e);
     
     /**
+     * Removed the specified edge in the sense, that its weight and rank id will become zero. This cannot be reversed.
+     */
+    void removeEdge(const Edge e);
+    
+    /**
      * Modifies the weight of an edge, given the Edge.
      */
     void setWeight(const Edge e, const EdgeWeight w);
@@ -129,6 +134,11 @@ public:
      * For a node v, returns all adjacent nodes, which are connected to v via a perment edge, including v itself.
      */
     const std::vector<NodeId>& getCliqueOf(const NodeId v) const;
+    
+    /**
+     * For a node v, returns all adjacent nodes, which are connected to v via a perment edge, including v itself.
+     */
+    NodeId getCliqueIdOf(const NodeId v) const;
     
     /**
      * For a node v, returns all adjacent nodes, which are connected to v via a non infinite, non-zero edge.
@@ -189,12 +199,18 @@ private:
     /**
      * Removes a specific node id from the vector.
      */
-    bool removeFromVector(std::vector<NodeId> vec, NodeId v);
+    bool removeFromVector(std::vector<NodeId>& vec, NodeId v);
     
     /**
      * Returns the number of set bits in a 64bit-word.
      */
     uint64_t popcount(uint64_t bitv) const;
+    
+        
+    /**
+     * Removes the specified edge from the rank index. Cannot be reversed.
+     */
+    void removeIndex(const EdgeId e);
     
     std::string int2bin(uint64_t u) {
         std::string s(64, '0');

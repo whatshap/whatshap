@@ -190,7 +190,7 @@ EdgeWeight EdgeHeap::getIcp(const Edge e) const {
 void EdgeHeap::increaseIcf(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
     if (rId == 0)
-        std::cout<<"increaseIcf called on zero edge"<<std::endl;
+        std::cout<<"increaseIcf called on zero edge ("<<e.id()<<") with rank id "<<rId<<std::endl;
     if (rId > 0 && w != 0 && icf[rId] >= 0) {
 //         std::cout<<"Increase icf on "<<rId<<" ("<<e.u<<","<<e.v<<") from "<<icf[rId]<<" by "<<w<<std::endl;
         icf[rId] += w;
@@ -202,7 +202,7 @@ void EdgeHeap::increaseIcf(const Edge e, const EdgeWeight w) {
 void EdgeHeap::increaseIcp(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
     if (rId == 0)
-        std::cout<<"increaseIcp called on zero edge"<<std::endl;
+        std::cout<<"increaseIcp called on zero edge ("<<e.id()<<") with rank id "<<rId<<std::endl;
     if (rId > 0 && w != 0 && icp[rId] >= 0) {
 //         std::cout<<"Increase icp on "<<rId<<" ("<<e.u<<","<<e.v<<") from "<<icp[rId]<<" by "<<w<<std::endl;
         icp[rId] += w;
@@ -214,7 +214,8 @@ void EdgeHeap::increaseIcp(const Edge e, const EdgeWeight w) {
 void EdgeHeap::removeEdge(const Edge e) {
     RankId rId = graph.findIndex(e);
     if (rId == 0) {
-        std::cout<<"removeEdge called on zero edge ("<<e.v<<", "<<e.u<<")"<<std::endl;
+        //std::cout<<"removeEdge called on zero edge ("<<e.v<<", "<<e.u<<")"<<std::endl;
+        return;
     }
 //     else
 //         std::cout<<"Removing edge ("<<e.u<<","<<e.v<<") from heap ("<<rId<<")"<<std::endl;
