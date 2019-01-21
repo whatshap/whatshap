@@ -24,13 +24,18 @@ EdgeHeap::EdgeHeap(StaticSparseGraph& param_graph, bool param_pruneZeroEdges) :
 }
 
 void EdgeHeap::initInducedCosts() {
-    if (verbosity >= 1)
-        std::cout<<"Compute induced costs.."<<std::endl;
-        
+    if (verbosity >= 1) {
+        if (verbosity == 1)
+            std::cout<<"Compute induced costs..\r"<<std::flush;
+        else
+            std::cout<<"Compute induced costs.."<<std::endl;
+    }
+    uint64_t numNodes = graph.numNodes();
     // compute array: edge -> icf/icp
-    for (NodeId u = 0; u < graph.numNodes(); u++) {
-        if (verbosity >= 1 && u % 100 == 0)
-            std::cout<<"Completed "<<(((2UL*graph.numNodes()-(uint64_t)u+1UL)*(uint64_t)u*50UL)/(((uint64_t)graph.numNodes()*((uint64_t)graph.numNodes()-1UL))/2UL))<<"%\r"<<std::flush;
+    for (NodeId u = 0; u < numNodes; u++) {
+        if (verbosity >= 1 && u % 50 == 0) {
+            std::cout<<"Compute induced costs.. "<<(((2UL*numNodes-(uint64_t)u+1UL)*(uint64_t)u*50UL)/((numNodes*(numNodes-1UL))/2UL))<<"%\r"<<std::flush;
+        }
         for (NodeId v : graph.getNonZeroNeighbours(u)) {
             if (v < u)
                 continue;
@@ -48,8 +53,8 @@ void EdgeHeap::initInducedCosts() {
             }
             
             EdgeWeight w_uv = graph.getWeight(uv);
-            if (w_uv == 0.0)
-                std::cout<<"Zero edge has reached icf/icp computation."<<std::endl;
+//             if (w_uv == 0.0)
+//                 std::cout<<"Zero edge has reached icf/icp computation."<<std::endl;
 
             if (w_uv == 0.0 || w_uv == StaticSparseGraph::Forbidden || w_uv == StaticSparseGraph::Permanent) {
                 continue;
@@ -133,6 +138,9 @@ void EdgeHeap::initInducedCosts() {
 //     for (const auto& i: perm_rank2edge)
 //         std::cout << i << ' ';
 //     std::cout<<std::endl;
+
+    if (verbosity >= 1)
+        std::cout<<"Compute induced costs.. 100%   "<<std::endl;
 }
 
 Edge EdgeHeap::getMaxIcfEdge() const {
@@ -182,7 +190,7 @@ EdgeWeight EdgeHeap::getIcp(const Edge e) const {
 void EdgeHeap::increaseIcf(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
     if (rId == 0)
-        std::cout<<"increaseIcf called on zero edge"<<std::endl;
+        std::cout<<"increaseIcf called on zero edge ("<<e.id()<<") with rank id "<<rId<<std::endl;
     if (rId > 0 && w != 0 && icf[rId] >= 0) {
 //         std::cout<<"Increase icf on "<<rId<<" ("<<e.u<<","<<e.v<<") from "<<icf[rId]<<" by "<<w<<std::endl;
         icf[rId] += w;
@@ -194,7 +202,7 @@ void EdgeHeap::increaseIcf(const Edge e, const EdgeWeight w) {
 void EdgeHeap::increaseIcp(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
     if (rId == 0)
-        std::cout<<"increaseIcp called on zero edge"<<std::endl;
+        std::cout<<"increaseIcp called on zero edge ("<<e.id()<<") with rank id "<<rId<<std::endl;
     if (rId > 0 && w != 0 && icp[rId] >= 0) {
 //         std::cout<<"Increase icp on "<<rId<<" ("<<e.u<<","<<e.v<<") from "<<icp[rId]<<" by "<<w<<std::endl;
         icp[rId] += w;
@@ -205,8 +213,10 @@ void EdgeHeap::increaseIcp(const Edge e, const EdgeWeight w) {
 
 void EdgeHeap::removeEdge(const Edge e) {
     RankId rId = graph.findIndex(e);
-    if (rId == 0)
-        std::cout<<"removeEdge called on zero edge"<<std::endl;
+    if (rId == 0) {
+        //std::cout<<"removeEdge called on zero edge ("<<e.v<<", "<<e.u<<")"<<std::endl;
+        return;
+    }
 //     else
 //         std::cout<<"Removing edge ("<<e.u<<","<<e.v<<") from heap ("<<rId<<")"<<std::endl;
     if (rId > 0 && icf[rId] != StaticSparseGraph::Forbidden && icp[rId] != StaticSparseGraph::Forbidden) {

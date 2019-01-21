@@ -27,7 +27,7 @@ def clusters_to_haps(readset, clustering, ploidy, coverage_padding = 12, copynum
 
 	consensus_blocks = calc_consensus_blocks(readset, clustering, cluster_blocks, cut_positions)
 	
-	gaps = sum([sum([sum([1 for i in hap if hap[i] == -1]) for hap in block]) for block in consensus_blocks])
+	gaps = sum([sum([sum([1 for i in range(len(hap)) if hap[i] == -1]) for hap in block]) for block in consensus_blocks])
 	logger.info("   Phased "+str(ploidy)+" haplotypes over "+str(len(readset.get_positions()))+" variant positions, using "+str(len(consensus_blocks))+" blocks with "+str(gaps)+" undefined sites.")
 	
 	return consensus_blocks
@@ -313,7 +313,7 @@ def clusters_to_blocks(readset, clustering, ploidy, coverage_padding = 12, copyn
 	# Compute cluster blocks
 	cut_positions, cluster_blocks = calc_cluster_blocks(readset, copynumbers, num_vars, ploidy, single_hap_cuts)
 	logger.info("   Cut positions:")
-	print(cut_positions)
+	#print(cut_positions)
 	
 	return coverage, copynumbers, cluster_blocks, cut_positions
 

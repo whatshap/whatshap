@@ -214,7 +214,7 @@ def compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 1
 	result.flips = d[-1][min_column].flips
 	return result
 
-# TODO extend to polyploid case
+
 def compare_block(phasing0, phasing1):
 	""" Input are two lists of haplotype sequences over {0,1}. """
 	assert(len(phasing0) == len(phasing1))
@@ -455,6 +455,7 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
 			largestblock_hamming_rate = safefraction(longest_block_errors.hamming, longest_block)
 		), bed_records, block_stats, longest_block_positions, longest_block_agreement, None
 	else:
+		assert ploidy == 2
 		histogram = defaultdict(int)
 		total_compared = 0
 		for block in block_intersection.values():
@@ -689,13 +690,13 @@ def run_compare(vcf, ploidy, names=None, sample=None, tsv_pairwise=None, tsv_mul
 				for record in all_bed_records:
 					print(*record, sep='\t', file=switch_error_bedfile)
 
-			if len(vcfs) > 2:
+			if len(vcfs) > 2 and ploidy == 2:
+				assert(ploidy == 2)
 				print('MULTIWAY COMPARISON OF ALL PHASINGS:')
 				results, bed_records, block_stats, longest_block_positions, longest_block_agreement, multiway_results = compare(
 					variant_tables, sample, dataset_names, ploidy)
 				add_block_stats(block_stats)
 				if tsv_multiway_file:
-					assert(ploidy == 2)
 					for (dataset_list0, dataset_list1), count in multiway_results.items():
 						print(sample, chromosome, '{'+dataset_list0+'}', '{'+dataset_list1+'}', count, sep='\t', file=tsv_multiway_file)
 
