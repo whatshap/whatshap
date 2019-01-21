@@ -80,7 +80,7 @@ def get_cluster_consensus(readset, clustering):
 	return cluster_consensus
 
 
-def subset_clusters(readset, clustering,ploidy, sample):
+def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 
 	# Map genome positions to [0,l)
 	index = {}
@@ -91,7 +91,7 @@ def subset_clusters(readset, clustering,ploidy, sample):
 		rev_index.append(position)
 		num_vars += 1
 	num_clusters = len(clustering)
-	
+	print('number of variants: ', num_vars)
 	#compute for each position the amount of clusters that 'cover' this position
 	#cov_map maps each position to the list of cluster IDS that appear at this position
 	cov_positions = [0 for i in range(num_vars)]
@@ -108,7 +108,7 @@ def subset_clusters(readset, clustering,ploidy, sample):
 			cov_positions[p] += 1
 			cov_map[p].append(c_id)
 	assert(len(cov_map.keys()) == num_vars)
-		
+
 	#for every cluster in clustering, compute its sequence of starting and ending positions
 	#create dictionary mapping the clusterID to a list of pairs (starting position, ending position)
 	positions = defaultdict(list)
@@ -119,7 +119,7 @@ def subset_clusters(readset, clustering,ploidy, sample):
 			end = index[readset[read][-1].position]
 			positions[c_id].append((start,end))
 	assert(len(positions) == num_clusters)
-	
+
 	#for every cluster and every variant position, compute the relative coverage
 	coverage = [[0]*num_vars for i in range(num_clusters)]
 	for c_id in range(num_clusters):
@@ -131,31 +131,50 @@ def subset_clusters(readset, clustering,ploidy, sample):
 				coverage[c_id][pos] += 1
 
 	coverage_sum = [sum([coverage[i][j] for i in range(num_clusters)]) for j in range(num_vars)]
-
+	
 	for c_id in range(num_clusters):
 		coverage[c_id] = [((coverage[c_id][i])/coverage_sum[i]) if coverage_sum[i]!= 0 else 0 for i in range(num_vars)]	
 	assert(len(coverage) == num_clusters)
 	assert(len(coverage[0]) == num_vars)
 
-	#create the set of all cluster tuples
-	cluster_tuples = list(it.product([c_id for c_id in range(num_clusters)], repeat=ploidy))	
-	assert(len(cluster_tuples) == num_clusters**ploidy)
-	
+	#compute the consensus sequences for every variant position and every cluster for integrating genotypes in the DP
+	consensus = get_cluster_consensus(readset, clustering)	
+
 	#perform the dynamic programming to fill the scoring matrix (in Cython to speed up computation)
-	scoring = clustering_DP(num_vars,cluster_tuples,coverage, positions, cov_map, ploidy)
-	print("scoring matrix computed")
+	scoring = clustering_DP(num_vars,clustering,coverage, positions, cov_map, ploidy, genotypes, consensus)
 	
 	#start the backtracing
 	path = []	
 	#find the last column that contains a minimum other than INT_MAX (1000000, respectively) 
-	start_col = find_backtracing_start(scoring, num_vars, cluster_tuples)
+	start_col = find_backtracing_start(scoring, num_vars)
 	print("starting in column: ", start_col)
-	last_min_idx = min(scoring[start_col].keys(), key=(lambda k:scoring[start_col][k][0]))
-	path.append(cluster_tuples[last_min_idx])
+#	last_min_idx = min(scoring[start_col].keys(), key=(lambda k:scoring[start_col][k][0]))
+	last_min_idx = min((val, idx) for (idx, val) in enumerate([i[0] for i in scoring[start_col]]))[1]
+
+	print('scoring: ', scoring[start_col])
+	print('[i[0] for i in scoring[start_col]]: ', [i[0] for i in scoring[start_col]])
+	print('index: ', last_min_idx)
+#	path.append(cluster_tuples[last_min_idx])
+	#instead of using all tuples, compute only the tuples relevant for the position start_col
+	clusters_tuples = list(it.product(cov_map[start_col],repeat = ploidy))
+
+	#genotype conform cluster tuples:
+	conf_clusters_tuples = [tup for tup in clusters_tuples if (compute_tuple_genotype(consensus,tup, start_col) == genotypes[start_col])]
+	if (len(conf_clusters_tuples) == 0):
+		conf_clusters_tuples = clusters_tuples
+
+	path.append(conf_clusters_tuples[last_min_idx])
 	#append stored predecessor
 	for i in range(start_col,0,-1):
 		pred = scoring[i][last_min_idx][1]
-		path.append(cluster_tuples[pred])
+		#compute variants relevant for position pred
+		#TODO: to avoid recomputation, store conf_tups at every position in a map?
+		tups = list(it.product(cov_map[i-1],repeat = ploidy))
+		conf_tups = [tup for tup in tups if (compute_tuple_genotype(consensus,tup, i-1) == genotypes[i-1])]
+		if (len(conf_tups) == 0):
+			conf_tups = tups
+	#	path.append(cluster_tuples[pred])
+		path.append(conf_tups[pred])	
 		last_min_idx = pred
 	#path has been assembled from the last column and needs to be reversed
 	path.reverse()
@@ -243,17 +262,27 @@ def subset_clusters(readset, clustering,ploidy, sample):
 	print("readset size: ", len(readset))
 	return(coverage,cut_positions, cluster_blocks, components, superreads)
 
-def find_backtracing_start(scoring, num_vars, cluster_tuples):
+def compute_tuple_genotype(consensus,tup, var):
+	genotype = 0
+	for i in tup:
+		allele = consensus[i][var]
+		genotype += allele
+	return(genotype)
+
+def find_backtracing_start(scoring, num_vars):
 	minimum = 1000000
 	last_col = num_vars-1
 	res = False
-	for i in scoring[last_col].keys():
-		if scoring[last_col][i][0] < minimum:
-			res = True
+#	for i in scoring[last_col].keys():
+#		if scoring[last_col][i][0] < minimum:
+#			res = True
+	for i in scoring[last_col]:
+		if i[0] < minimum:
+			res=True
 	if res:
 		return(last_col)
 	else:
-		return(find_backtracing_start(scoring,last_col-1,cluster_tuples))
+		return(find_backtracing_start(scoring,last_col-1))
 						
 			
 def clusters_to_blocks(readset, clustering, ploidy, coverage_padding = 12, copynumber_max_artifact_len = 1.0, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = False):

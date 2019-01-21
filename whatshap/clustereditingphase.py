@@ -184,8 +184,7 @@ def run_clustereditingphase(
 					elif not gt.is_homozygous():
 						heterozygous.add(index)
 					else:
-						assert gt.is_homozygous()
-
+						assert gt.is_homozygous()			
 				to_discard = set(range(len(variant_table))).difference(heterozygous)
 				phasable_variant_table = deepcopy(variant_table)
 				# Remove calls to be discarded from variant table
@@ -202,6 +201,18 @@ def run_clustereditingphase(
 				# TODO: len == min_overlap ?
 				readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= max(2,min_overlap)])
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
+
+				#adapt the variant table to the subset of reads
+				variant_table.subset_rows_by_position(readset.get_positions())
+				
+				#compute the genotypes that belong to the variant table and create a list of all genotypes				
+				all_genotypes = variant_table.genotypes_of(sample)
+				genotype_list = []
+				for pos in range(len(all_genotypes)):
+					gen = 0
+					for allele in all_genotypes[pos].get_genotype().as_vector():
+						gen += allele
+					genotype_list.append(gen)
 
 				# sample allele matrix
 				#selected_reads = select_reads(readset, 5*ploidy, preferred_source_ids = vcf_source_ids)
@@ -245,7 +256,8 @@ def run_clustereditingphase(
 
 				if dp_phasing:
 					#add dynamic programming for finding the most likely subset of clusters
-					coverage, cut_positions, cluster_blocks, components, superreads = subset_clusters(readset, readpartitioning, ploidy, sample)
+					coverage, cut_positions, cluster_blocks, components, superreads = subset_clusters(readset, readpartitioning, ploidy, sample,genotype_list)
+					
 					
 				else:				
 					haploblocks = clusters_to_haps(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
