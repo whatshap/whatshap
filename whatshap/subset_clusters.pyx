@@ -142,8 +142,7 @@ def cov_costs(c_tuple, var, coverage):
 	costs = 0
 	exp_cn = 0
 	#compute copy numbers for every cluster in c_tuple
-	for i in range(0,4):
-	
+	for i in range(0,4):	
 #	for i in range(0,2):
 		cov = coverage[c_tuple[i]][var]
 		#if cluster does not cover the position var:

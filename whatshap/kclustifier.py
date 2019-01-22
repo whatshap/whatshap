@@ -210,13 +210,6 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 	cluster_blocks.append([hap[last_cut:] for hap in haps])
 	assert(len(cluster_blocks) == len(cut_positions)+1)
 	consensus_blocks = calc_consensus_blocks(readset, clustering, cluster_blocks, cut_positions)
-	#gaps = 0	
-	#for block in consensus_blocks:
-	#	for hap in block:
-	#		for i in hap:
-	#			if (i == -1):
-	#				gaps +=1
-	#print("undefined sites: ", gaps)
 	
 	haplotypes = []
 	for i in range(ploidy):
@@ -234,16 +227,30 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 	#write new VCF file	
 	superreads, components = dict(), dict()
 	
-	accessible_positions = sorted(readset.get_positions())
+#	accessible_positions = sorted(readset.get_positions())
+#	overall_components = {}
+#	block_id = accessible_positions[0]
+#	cuts = 0
+#	for var in accessible_positions:
+#		overall_components[var] = block_id
+#		if (var in cut_positions):
+#			cuts += 1
+#			block_id = accessible_positions[var]
+#	components[sample] = overall_components
 
+	accessible_positions = sorted(readset.get_positions())
+	cut_positions = []
 	overall_components = {}
-	block_id = accessible_positions[0]
-	for var in accessible_positions:
-		overall_components[var] = block_id
-		if (var in cut_positions):
-			block_id = accessible_positions[var]
+	last_cut = 0
+	for haploblock in consensus_blocks[:len(consensus_blocks)-1]:
+		next_cut = last_cut + len(haploblock[0])
+		cut_positions.append(accessible_positions[next_cut])
+		
+		for pos in range(last_cut, next_cut):
+			overall_components[accessible_positions[pos]] = accessible_positions[last_cut]
+			overall_components[accessible_positions[pos]+1] = accessible_positions[last_cut]
+		last_cut = next_cut
 	components[sample] = overall_components
-	print("number of components: ", len(overall_components))
 
 	readset = ReadSet()
 	for i in range(ploidy):
@@ -313,7 +320,7 @@ def clusters_to_blocks(readset, clustering, ploidy, coverage_padding = 12, copyn
 	# Compute cluster blocks
 	cut_positions, cluster_blocks = calc_cluster_blocks(readset, copynumbers, num_vars, ploidy, single_hap_cuts)
 	logger.info("   Cut positions:")
-	#print(cut_positions)
+	print(cut_positions)
 	
 	return coverage, copynumbers, cluster_blocks, cut_positions
 

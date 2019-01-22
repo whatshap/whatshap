@@ -292,7 +292,6 @@ def run_clustereditingphase(
 						super_readset.add(read)
 
 					superreads[sample] = super_readset
-
 					# Reconstruct cut positions and create components
 					cut_positions = []
 					local_components = dict()
