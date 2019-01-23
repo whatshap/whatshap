@@ -214,7 +214,7 @@ def run_genotype(phase_input_files, variant_file, reference=None,
 					logger.info('---- Initial genotyping of %s', sample)
 					with timers('read_bam'):
 						bam_sample = None if ignore_read_groups else sample
-						readset, vcf_source_ids = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
+						readset, vcf_source_ids = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
 						readset.sort()
 						genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
 						# recompute genotypes based on given threshold
@@ -253,7 +253,7 @@ def run_genotype(phase_input_files, variant_file, reference=None,
 				for sample in family:
 					with timers('read_bam'):
 						bam_sample = None if ignore_read_groups else sample
-						readset, vcf_source_ids = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
+						readset, vcf_source_ids = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
 
 					with timers('select'):
 						readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])

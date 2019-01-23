@@ -1,0 +1,23 @@
+##fileformat=VCFv4.1
+##fileDate=20160706
+##source=freeBayes v1.0.0-19-gefe685d
+##reference=reference.fasta
+##commandline="freebayes -f reference.fasta illumina-full.bam"
+##commandline="(whatshap 0.17+106.g1dd1ed4) phase --reference reference.fasta variants.vcf pacbio.bam -o test.vcf"
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=GQ,Number=1,Type=Float,Description="Genotype Quality, the Phred-scaled marginal (or unconditional) probability of the called genotype">
+##FORMAT=<ID=GL,Number=G,Type=Float,Description="Genotype Likelihood, log10-scaled likelihoods of the data given the called genotype for each possible genotype generated from the reference and alternate alleles given the sample ploidy">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
+##FORMAT=<ID=RO,Number=1,Type=Integer,Description="Reference allele observation count">
+##FORMAT=<ID=QR,Number=1,Type=Integer,Description="Sum of quality of the reference observations">
+##FORMAT=<ID=AO,Number=A,Type=Integer,Description="Alternate allele observation count">
+##FORMAT=<ID=QA,Number=A,Type=Integer,Description="Sum of quality of the alternate observations">
+##FORMAT=<ID=MIN,Number=1,Type=Integer,Description="Minimum depth in gVCF output block.">
+##FORMAT=<ID=PS,Number=1,Type=Integer,Description="Phase set identifier">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG004_250bp_All sample2
+ref	20137	.	T	C	135.308	.	.	GT:PS	1|0:0	0/1:.
+ref	26081	.	G	T	17.3	.	.	GT:PS	0|1:0	0/1:.
+ref	90000	.	A	C	100.0	.	.	GT:PS	0|1:0	0/1:.
+ref	90100	.	G	T	200.0	.	.	GT:PS	1|0:0	0/1:.
+ref	91000	.	C	T	300.0	.	.	GT:PS	0|1:0	1|0:0
+ref	91900	.	A	T	400.0	.	.	GT:PS	0|1:0	1|0:0

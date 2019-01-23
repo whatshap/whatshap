@@ -248,6 +248,27 @@ def test_phase_one_of_three_individuals(algorithm):
 		assert_phasing(table.phases_of('HG003'), [phase0, None, phase0, None, None])
 		assert_phasing(table.phases_of('HG002'), [None, None, None, None, None])
 
+def test_phase_with_phased_blocks():
+	with TemporaryDirectory() as tempdir:
+		outvcf1 = tempdir + '/output1.vcf'
+		outvcf2 = tempdir + '/output2.vcf'
+		# run whatshap without --ignore-read-groups option
+		run_whatshap(
+			phase_input_files=['tests/data/phased-blocks.reads.bam', 'tests/data/phased-blocks.blocks.vcf'],
+			variant_file='tests/data/phased-blocks.variants.vcf',
+			output=outvcf1)
+		# run whatshap with --ignore-read-groups option
+		run_whatshap(
+			phase_input_files=['tests/data/phased-blocks.reads.bam', 'tests/data/phased-blocks.blocks.vcf'],
+			variant_file='tests/data/phased-blocks.variants.vcf',
+			output=outvcf2,
+			ignore_read_groups=True)
+		# the results should be identical
+		lines1 = [line for line in open(outvcf1, 'r') if line[0] != '#']
+		lines2 = [line for line in open(outvcf2, 'r') if line[0] != '#']
+
+		for l1,l2 in zip(lines1,lines2):
+			assert l1 == l2
 
 def test_phase_trio():
 	with TemporaryDirectory() as tempdir:
