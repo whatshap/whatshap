@@ -10,17 +10,15 @@ using EdgeId = StaticSparseGraph::EdgeId;
 using RankId = StaticSparseGraph::RankId;
 using NodeId = StaticSparseGraph::NodeId;
 
-EdgeHeap::EdgeHeap(StaticSparseGraph& param_graph) :
+EdgeHeap::EdgeHeap(StaticSparseGraph& param_graph, bool param_pruneZeroEdges) :
+    pruneZeroEdges(param_pruneZeroEdges),
     graph(param_graph),
     unprocessed(0),
-    heapUpdates(0),
     edges(1+param_graph.numEdges(), StaticSparseGraph::InvalidEdge),
     icf(1+param_graph.numEdges(), StaticSparseGraph::Forbidden),
     icp(1+param_graph.numEdges(), StaticSparseGraph::Forbidden),
-    edge2forb_rank(1+param_graph.numEdges(), 0),
-    edge2perm_rank(1+param_graph.numEdges(), 0),
-    edgeToBundle(1+param_graph.numEdges(), 0),
-    edgeBundles(1+param_graph.numEdges(), std::vector<RankId>(0))
+    edge2forb_rank(2+2*param_graph.numEdges(), 0),
+    edge2perm_rank(2+2*param_graph.numEdges(), 0)
 {
     //initInducedCosts();
 }
@@ -48,13 +46,15 @@ void EdgeHeap::initInducedCosts() {
             RankId rId = graph.findIndex(id);
             
             // Zero edges have no icp/icf
-            if (rId == 0) {
+            if (graph.findIndex(id) == 0) {
                 continue;
             } else {
                 edges[rId] = uv;
             }
             
-            EdgeWeight w_uv = graph.getWeight(rId);
+            EdgeWeight w_uv = graph.getWeight(uv);
+//             if (w_uv == 0.0)
+//                 std::cout<<"Zero edge has reached icf/icp computation."<<std::endl;
 
             if (w_uv == 0.0 || w_uv == StaticSparseGraph::Forbidden || w_uv == StaticSparseGraph::Permanent) {
                 continue;
@@ -84,6 +84,7 @@ void EdgeHeap::initInducedCosts() {
                 icf[rId] += getIcf(w_uw, w_vw);
                 icp[rId] += getIcp(w_uw, w_vw);
             }
+//             std::cout<<"Rank "<<rId<<" = ("<<u<<","<<v<<")"<<" icp="<<icp[rId]<<" icf="<<icf[rId]<<std::endl;
         }
     }
     
@@ -107,17 +108,36 @@ void EdgeHeap::initInducedCosts() {
     std::sort(forb_rank2edge.begin(), forb_rank2edge.end(), [this] (const EdgeId& a, const EdgeId& b) { return icf[a] > icf[b]; });
     std::sort(perm_rank2edge.begin(), perm_rank2edge.end(), [this] (const EdgeId& a, const EdgeId& b) { return icp[a] > icp[b]; });
     
+//     NodeId over = graph.numNodes()*(graph.numNodes()-1)/2+1;
+//     for (EdgeId i = 0; i < icf.size(); i++) {
+//         icf.push_back(StaticSparseGraph::Forbidden);
+//         icp.push_back(StaticSparseGraph::Forbidden);
+//         forb_rank2edge.push_back(over+i);
+//         perm_rank2edge.push_back(over+i);
+//     }
+    
     // save index in sorted vectors for each edge
     for (RankId i = 0; i < icf.size(); i++) {
         edge2forb_rank[forb_rank2edge[i]] = i;
         edge2perm_rank[perm_rank2edge[i]] = i;
     }
     
-    // initialize edge bundles
-    for (RankId id = 0; id < icf.size(); id++) {
-        edgeToBundle[id] = id;
-        edgeBundles[id].push_back(id);
-    }
+//     std::cout<<"icf = ";
+//     for (const auto& i: icf)
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
+//     std::cout<<"forb_rank2edge = ";
+//     for (const auto& i: forb_rank2edge)
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
+//     std::cout<<"icp = ";
+//     for (const auto& i: icp)
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
+//     std::cout<<"perm_rank2edge = ";
+//     for (const auto& i: perm_rank2edge)
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
 
     if (verbosity >= 1)
         std::cout<<"Compute induced costs.. 100%   "<<std::endl;
@@ -128,26 +148,17 @@ Edge EdgeHeap::getMaxIcfEdge() const {
     if (forb_rank2edge.size() <= 1) {
         // only rank 0 entry left
 //         std::cout<<"only 1 edge left on icf heap ("<<edges[ei].u<<","<<edges[ei].v<<")"<<std::endl;
-        std::cout<<"Heap updates: "<<heapUpdates<<std::endl;
         return StaticSparseGraph::InvalidEdge;
     }
     if (icf[ei] < 0) {
 //         std::cout<<"negative icf costs on top of icf heap ("<<edges[ei].u<<","<<edges[ei].v<<") ("<<ei<<") : "<<icf[ei]<<std::endl;
-        std::cout<<"Heap updates: "<<heapUpdates<<std::endl;
         return StaticSparseGraph::InvalidEdge;
     }
-    if (verbosity >= 6) {
-        std::cout<<"icf heap: ";
-        for (unsigned int i = 0; i < icf.size(); i++) {
-            RankId rid = forb_rank2edge[i];
-            Edge e = edges[rid];
-            std::cout << "("<<e.u<<","<<e.v<<")="<<icf[rid]<<" ; ";
-        }
-        std::cout<<std::endl;
-    } else if (verbosity >= 4) {
-        std::cout<<"Max icf edge = ("<<ei<<") = ("<<edges[ei].u<<","<<edges[ei].v<<") weight ("<<icf[ei]<<")"<<std::endl;
-    }
+//     std::cout<<"Max icf edge = ("<<ei<<") = ("<<edges[ei].u<<","<<edges[ei].v<<") weight ("<<icf[ei]<<")"<<std::endl;
     return edges[ei];
+//     NodeId u = std::ceil(std::sqrt(2*(ei+1)+0.25) - 0.5);
+//     NodeId v = ei - u * (u-1) / 2;
+//     return Edge(u, v);
 }
 
 Edge EdgeHeap::getMaxIcpEdge() const {
@@ -155,129 +166,59 @@ Edge EdgeHeap::getMaxIcpEdge() const {
     if (perm_rank2edge.size() <= 1) {
         // only rank 0 entry left
 //         std::cout<<"only 1 edge left on icf heap ("<<edges[ei].u<<","<<edges[ei].v<<")"<<std::endl;
-        std::cout<<"Heap updates: "<<heapUpdates<<std::endl;
         return StaticSparseGraph::InvalidEdge;
     }
     if (icp[ei] < 0) {
 //         std::cout<<"negative icf costs on top of icp heap ("<<edges[ei].u<<","<<edges[ei].v<<") : "<<icp[ei]<<std::endl;
-        std::cout<<"Heap updates: "<<heapUpdates<<std::endl;
         return StaticSparseGraph::InvalidEdge;
     }
-    if (verbosity >= 6) {
-        std::cout<<"icp heap: ";
-        for (unsigned int i = 0; i < icp.size(); i++) {
-            RankId rid = perm_rank2edge[i];
-            Edge e = edges[rid];
-            std::cout << "("<<e.u<<","<<e.v<<")="<<icp[rid]<<" ; ";
-        }
-        std::cout<<std::endl;
-    } else if (verbosity >= 4) {
-        std::cout<<"Max icp edge = ("<<ei<<") = ("<<edges[ei].u<<","<<edges[ei].v<<") weight ("<<icp[ei]<<")"<<std::endl;
-    }
+//     std::cout<<"Max icp edge = ("<<ei<<") = ("<<edges[ei].u<<","<<edges[ei].v<<") weight ("<<icp[ei]<<")"<<std::endl;
     return edges[ei];
+//     NodeId u = std::ceil(std::sqrt(2*(ei+1)+0.25) - 0.5);
+//     NodeId v = ei - u * (u-1) / 2;
+//     return Edge(u, v);
 }
 
 EdgeWeight EdgeHeap::getIcf(const Edge e) const {
-    if (graph.findIndex(e) == 0)
-        std::cout<<"getIcf on edge with rank 0"<<std::endl;
-    return icf[edgeToBundle[graph.findIndex(e)]];
+    return icf[graph.findIndex(e)];
 }
 
 EdgeWeight EdgeHeap::getIcp(const Edge e) const {
-    if (graph.findIndex(e) == 0)
-        std::cout<<"getIcf on edge with rank 0"<<std::endl;
-    return icp[edgeToBundle[graph.findIndex(e)]];
+    return icp[graph.findIndex(e)];
 }
 
 void EdgeHeap::increaseIcf(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
-    if (rId == 0) {
-//         std::cout<<"increaseIcf called on zero edge ("<<e.id()<<") with rank id "<<rId<<std::endl;
-    }
-
-    if (rId > 0 && w != 0 && icf[edgeToBundle[rId]] >= 0) {
+    if (rId == 0)
+        std::cout<<"increaseIcf called on zero edge ("<<e.id()<<") with rank id "<<rId<<std::endl;
+    if (rId > 0 && w != 0 && icf[rId] >= 0) {
 //         std::cout<<"Increase icf on "<<rId<<" ("<<e.u<<","<<e.v<<") from "<<icf[rId]<<" by "<<w<<std::endl;
-        RankId eb = edgeToBundle[rId];
-        icf[eb] += w;
-        icf[eb] = std::max(icf[eb], 0.0);
-        updateHeap(forb_rank2edge, eb, w, edge2forb_rank, icf);
+        icf[rId] += w;
+        icf[rId] = std::max(icf[rId], 0.0);
+        updateHeap(forb_rank2edge, rId, w, edge2forb_rank, icf);
     }
 }
 
 void EdgeHeap::increaseIcp(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
-    if (rId == 0) {
-//         std::cout<<"increaseIcp called on zero edge ("<<e.id()<<") with rank id "<<rId<<std::endl;
-    }
-        
-    if (rId > 0 && w != 0 && icp[edgeToBundle[rId]] >= 0) {
+    if (rId == 0)
+        std::cout<<"increaseIcp called on zero edge ("<<e.id()<<") with rank id "<<rId<<std::endl;
+    if (rId > 0 && w != 0 && icp[rId] >= 0) {
 //         std::cout<<"Increase icp on "<<rId<<" ("<<e.u<<","<<e.v<<") from "<<icp[rId]<<" by "<<w<<std::endl;
-        RankId eb = edgeToBundle[rId];
-        icp[eb] += w;
-        icp[eb] = std::max(icp[eb], 0.0);
-        updateHeap(perm_rank2edge, eb, w, edge2perm_rank, icp);
-    }
-}
-
-void EdgeHeap::mergeEdges(const Edge e1, const Edge e2) {
-    RankId r1 = graph.findIndex(e1);
-    RankId r2 = graph.findIndex(e2);
-    if ((r1 & r2) == 0)
-        return;
-    RankId eb1 = edgeToBundle[r1];
-    RankId eb2 = edgeToBundle[r2];
-    if (eb1 == eb2)
-        return;
-    
-    if (edgeBundles[eb1].size() > edgeBundles[eb2].size()) {
-        for (RankId toDelete : edgeBundles[eb2]) {
-            edgeBundles[eb1].push_back(toDelete);
-            edgeToBundle[toDelete] = eb1;
-        }
-        edgeBundles[eb2].clear();
-        if (icf[eb2] < 0.0) {
-            std::cout<<"Merged edge has negative icf"<<std::endl;
-        } else {
-            icf[eb1] += icf[eb2];
-        }
-        if (icp[eb2] < 0.0) {
-            std::cout<<"Merged edge has negative icp"<<std::endl;
-        } else {
-            icp[eb1] += icp[eb2];
-        }
-        removeEdge(eb2);
-    } else {
-        for (RankId toDelete : edgeBundles[eb1]) {
-            edgeBundles[eb2].push_back(toDelete);
-            edgeToBundle[toDelete] = eb2;
-        }
-        edgeBundles[eb1].clear();
-        if (icf[eb1] < 0.0) {
-            std::cout<<"Merged edge has negative icf"<<std::endl;
-        } else {
-            icf[eb2] += icf[eb1];
-        }
-        if (icp[eb1] < 0.0) {
-            std::cout<<"Merged edge has negative icp"<<std::endl;
-        } else {
-            icp[eb2] += icp[eb1];
-        }
-        removeEdge(eb1);
+        icp[rId] += w;
+        icp[rId] = std::max(icp[rId], 0.0);
+        updateHeap(perm_rank2edge, rId, w, edge2perm_rank, icp);
     }
 }
 
 void EdgeHeap::removeEdge(const Edge e) {
-    removeEdge(graph.findIndex(e));
-}
-
-void EdgeHeap::removeEdge(const RankId rId) {
+    RankId rId = graph.findIndex(e);
     if (rId == 0) {
-//         std::cout<<"removeEdge called on zero edge ("<<e.v<<","<<e.u<<")"<<std::endl;
+        //std::cout<<"removeEdge called on zero edge ("<<e.v<<", "<<e.u<<")"<<std::endl;
         return;
     }
-    else if (verbosity >= 4) {
-        std::cout<<"Removing edge ("<<edges[rId].u<<","<<edges[rId].v<<") from heap ("<<rId<<")"<<std::endl;
-    }
+//     else
+//         std::cout<<"Removing edge ("<<e.u<<","<<e.v<<") from heap ("<<rId<<")"<<std::endl;
     if (rId > 0 && icf[rId] != StaticSparseGraph::Forbidden && icp[rId] != StaticSparseGraph::Forbidden) {
         icf[rId] = StaticSparseGraph::Forbidden;
         icp[rId] = StaticSparseGraph::Forbidden;
@@ -285,6 +226,23 @@ void EdgeHeap::removeEdge(const RankId rId) {
         updateHeap(perm_rank2edge, rId, StaticSparseGraph::Forbidden, edge2perm_rank, icp);
         unprocessed--;
     }
+    
+//     std::cout<<"icf = ";
+//     for (const auto& i: icf)
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
+//     std::cout<<"forb_rank2edge = ";
+//     for (const auto& i: forb_rank2edge)
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
+//     std::cout<<"icp = ";
+//     for (const auto& i: icp)
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
+//     std::cout<<"perm_rank2edge = ";
+//     for (const auto& i: perm_rank2edge)
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
 }
 
 StaticSparseGraph::EdgeWeight EdgeHeap::getIcf(const EdgeWeight uw, const EdgeWeight vw) const {
@@ -311,7 +269,7 @@ int EdgeHeap::numUnprocessed() const {
 }
 
 void EdgeHeap::updateHeap(std::vector<RankId>& heap, const RankId e, const EdgeWeight change, std::vector<RankId>& index, const std::vector<EdgeWeight>& score) {
-    heapUpdates++;
+//     std::cout<<"   Score of "<<e<<": "<<score[e]<<" -> "<<(score[e]+change)<<std::endl;
     unsigned int pos = index[e];
     /*
      * index arithemetic for zero based array: parent = (index-1)/2, children = 2*index+1 and 2*index+2
@@ -323,6 +281,7 @@ void EdgeHeap::updateHeap(std::vector<RankId>& heap, const RankId e, const EdgeW
             std::swap(heap[pos], heap[(pos-1)/2]);
             index[heap[pos]] = pos;
             index[heap[(pos-1)/2]] = (pos-1)/2;
+//             std::cout<<"   Move "<<e<<" upwards in heap ("<<pos<<" -> "<<((pos-1)/2)<<")"<<std::endl;
             pos = (pos-1)/2;
         }
     } else {
@@ -334,12 +293,14 @@ void EdgeHeap::updateHeap(std::vector<RankId>& heap, const RankId e, const EdgeW
                 std::swap(heap[pos], heap[2*pos+2]);
                 index[heap[pos]] = pos;
                 index[heap[pos*2+2]] = pos*2+2;
+//                 std::cout<<"   Move "<<e<<" downwards in heap ("<<pos<<" -> "<<(2*pos+2)<<")"<<std::endl;
                 pos = 2*pos+2;
             } else {
                 // else swap with 2*pos+1
                 std::swap(heap[pos], heap[2*pos+1]);
                 index[heap[pos]] = pos;
                 index[heap[pos*2+1]] = pos*2+1;
+//                 std::cout<<"   Move "<<e<<" downwards in heap ("<<pos<<" -> "<<(2*pos+1)<<")"<<std::endl;
                 pos = 2*pos+1;
             }
         }

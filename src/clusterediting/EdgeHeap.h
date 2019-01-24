@@ -6,14 +6,14 @@
 #include "StaticSparseGraph.h"
 
 namespace ysk {
-    
+
 class EdgeHeap {
 public:
 
     /**
     * Constructs a new instance using the provided graph to precompute all icf and icp values.
     */
-    EdgeHeap(StaticSparseGraph& param_graph);
+    EdgeHeap(StaticSparseGraph& param_graph, bool param_pruneZeroEdges);
   
     /**
      * Initializes the induced costs for all edges. May take quite long!
@@ -44,17 +44,12 @@ public:
     */
     void increaseIcp(const StaticSparseGraph::Edge e, const StaticSparseGraph::EdgeWeight w);
     /**
-     * Bundles two edges together. This indicates that if either of the edges is set to permanent or forbidden, the other
-     * must be as well. One of the edges receives the induced costs for both edges, while the other is removed from the heap.
-     */
-    void mergeEdges(const StaticSparseGraph::Edge e1, const StaticSparseGraph::Edge e2);
-    /**
     * Removes the specified edge.
     */
     void removeEdge(const StaticSparseGraph::Edge e);
     /**
-     * Computes the induced cost for the the triple uvw, if uv is set to forbidden
-     */
+        * Computes the induced cost for the the triple uvw, if uv is set to forbidden
+        */
     StaticSparseGraph::EdgeWeight getIcf(const StaticSparseGraph::EdgeWeight uw, const StaticSparseGraph::EdgeWeight vw) const;
     /**
         * Computes the induced cost for the the triple uvw, if uv is set to permanent
@@ -65,29 +60,23 @@ public:
 
 private:
     /**
-     * Removes the edge with the specified rank
-     */
-    void removeEdge(const StaticSparseGraph::RankId rId);
-    /**
-     * Ensures that the heap structure of the given heap stays intact after the icf/icp value of an edge has been modified. 
-     * Provided are the id of the modified edge, new and old value, an index (which maps edge ids to their position in the heap)
-     * and a score vector (which maps an edge id to either its icf or icp).
-     */
+    * Ensures that the heap structure of the given heap stays intact after the icf/icp value of an edge has been modified. 
+    * Provided are the id of the modified edge, new and old value, an index (which maps edge ids to their position in the heap)
+    * and a score vector (which maps an edge id to either its icf or icp).
+    */
     void updateHeap(std::vector<StaticSparseGraph::RankId>& heap, const StaticSparseGraph::RankId e, const StaticSparseGraph::EdgeWeight change, 
             std::vector<StaticSparseGraph::RankId>& index, const std::vector<StaticSparseGraph::EdgeWeight>& score);
     
+    bool pruneZeroEdges;
     StaticSparseGraph& graph;
     int unprocessed;
-    int heapUpdates;
-    std::vector<StaticSparseGraph::Edge> edges;                         // internal/rank id -> edge
-    std::vector<StaticSparseGraph::EdgeWeight> icf;                     // edge rank id -> icf of edge (zero edges have no icf)
-    std::vector<StaticSparseGraph::EdgeWeight> icp;                     // edge rank id -> icp of edge (zero edges have no icp)
-    std::vector<StaticSparseGraph::RankId> forb_rank2edge;              // max-heap over rank edge ids, sorted by icf
-    std::vector<StaticSparseGraph::RankId> perm_rank2edge;              // max-heap over rank edge ids, sorted by icp
-    std::vector<StaticSparseGraph::RankId> edge2forb_rank;              // rank edge id -> position in icf-heap
-    std::vector<StaticSparseGraph::RankId> edge2perm_rank;              // rank edge id -> position in icp-heap
-    std::vector<StaticSparseGraph::RankId> edgeToBundle;                // edge rank id -> representant of edges bunch
-    std::vector<std::vector<StaticSparseGraph::RankId>> edgeBundles;    // edge bunch representant -> set of edges belonging to this bunch
+    std::vector<StaticSparseGraph::Edge> edges;             // internal/rank id -> edge
+    std::vector<StaticSparseGraph::EdgeWeight> icf;		    // edge rank id -> icf of edge (zero edges have no icf)
+    std::vector<StaticSparseGraph::EdgeWeight> icp;		    // edge rank id -> icp of edge (zero edges have no icp)
+    std::vector<StaticSparseGraph::RankId> forb_rank2edge;	// max-heap over rank edge ids, sorted by icf
+    std::vector<StaticSparseGraph::RankId> perm_rank2edge;	// max-heap over rank edge ids, sorted by icp
+    std::vector<StaticSparseGraph::RankId> edge2forb_rank;	// rank edge id -> position in icf-heap
+    std::vector<StaticSparseGraph::RankId> edge2perm_rank;	// rank edge id -> position in icp-heap
 };
 
 } // namespace ysk;

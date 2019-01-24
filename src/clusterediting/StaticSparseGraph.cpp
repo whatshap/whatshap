@@ -133,16 +133,22 @@ void StaticSparseGraph::compile() {
         for (NodeId j : neighbours[i]) {
             // add edge to weight vector
             EdgeId id = Edge(i,j).id();
+//             std::cout<<"Adding edge "<<i<<" "<<j<<" ("<<id<<") ============================================================"<<std::endl;
              
             // insert entry into rank structure
             uint64_t block1 = id / 4096UL;
             uint64_t block2 = (id/64UL) % 64UL;
             uint64_t bitv = rank1[block1] >> (63 - block2);
             
+//             std::cout<<"rank1["<<block1<<"] = \t"<<int2bin(rank1[block1])<<" "<<rank1[block1]<<std::endl;
+            
             // check if new block in rank1 has been reached
             if (rank1[block1] == 0UL) {
                 offset1[block1] = rank2.size();
             }
+            
+//             std::cout<<"offset1["<<block1<<"] = \t"<<offset1[block1]<<std::endl;
+//             std::cout<<"block2 = \t"<<block2<<std::endl;
             
             // check if rank1 already has a one at this position
             if ((bitv & 1UL) == 0) {
@@ -158,6 +164,10 @@ void StaticSparseGraph::compile() {
             uint64_t block3 = id % 64UL;
             bitv = rank2[block2] >> (63 - block3);
             
+//             std::cout<<"rank2["<<block2<<"] = \t"<<int2bin(rank2[block2])<<" "<<rank2[block2]<<std::endl;
+//             std::cout<<"offset2["<<block2<<"] = \t"<<offset2[block2]<<std::endl;
+//             std::cout<<"block3 = \t"<<block3<<std::endl;
+            
             // insert edge
             if((bitv & 1UL) != 0) {
                 std::cout<<"Assertion violated (Edge already inserted): "<<i<<" "<<j<<std::endl;
@@ -170,6 +180,11 @@ void StaticSparseGraph::compile() {
             }
             weightv.push_back(weights[id]);
             
+//             EdgeWeight checkWeight = getWeight(Edge(i,j));
+//             if(weights[id] != checkWeight && checkWeight != Permanent && checkWeight != Forbidden) {
+//                 std::cout<<"Assertion violated (Get != Set): "<<i<<" "<<j<<" "<<(weights[id])<<" "<<(getWeight(Edge(i,j)))<<std::endl;
+//             }
+            
             refreshEdgeMetaData(Edge(i,j), 0.0, weights[id]);
             
             EdgeWeight checkWeight = getWeight(Edge(i,j));
@@ -179,8 +194,26 @@ void StaticSparseGraph::compile() {
             
             if (verbosity >= 4)
                 std::cout<<"Compiled edge ("<<i<<","<<j<<") with weight "<<weights[id]<<std::endl;
+            
+//             if (checkWeight == Forbidden) {
+//                 NodeId cu = cliqueOfNode[i];
+//                 NodeId cv = cliqueOfNode[j];
+//                 if (forbidden[cu].find(cv) == forbidden[cu].end())
+//                     std::cout<<"("<<i<<", "<<j<<") was been made forbidden, but meta data does not support it.1"<<std::endl;
+//                 if (forbidden[cv].find(cu) == forbidden[cv].end())
+//                     std::cout<<"("<<i<<", "<<j<<") was been made forbidden, but meta data does not support it.2"<<std::endl;
+//             }
         }
     }
+    
+//     std::cout<<"Unpruned "<<1<<": ";
+//     for (const auto& i: unprunedNeighbours[1])
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
+//     std::cout<<"Unpruned "<<9<<": ";
+//     for (const auto& i: unprunedNeighbours[9])
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
     
 //     std::cout<<size<<std::endl;
 //     for (NodeId i = 0; i < size; i++) {
@@ -203,6 +236,7 @@ void StaticSparseGraph::addEdge(const Edge e, const EdgeWeight w) {
     if (w != 0.0) {
         neighbours[e.v].push_back(e.u);
         weights[e.id()] = w;
+//      std::cout<<"addEdge "<<e.u<<" "<<e.v<<" "<<e.id()<<" / "<<cliqueOfNode[e.u]<<" "<<cliqueOfNode[e.v]<<std::endl;
         compiled = false;
     }
 }
@@ -212,6 +246,7 @@ void StaticSparseGraph::addEdge(const NodeId v, const NodeId u, const EdgeWeight
 }
 
 EdgeWeight StaticSparseGraph::getWeight(const Edge e) {
+    
     if (!compiled) {
         std::cout<<"Cannot get weight from uncompiled graph!"<<std::endl;
         compile();
@@ -235,15 +270,6 @@ EdgeWeight StaticSparseGraph::getWeight(const Edge e) {
     return 0.0;
 }
 
-EdgeWeight StaticSparseGraph::getWeight(const RankId r) {
-    if (!compiled) {
-        std::cout<<"Cannot get weight from uncompiled graph!"<<std::endl;
-        compile();
-    }
-    
-    return weightv[r];
-}
-
 void StaticSparseGraph::setPermanent(const Edge e) {
     if (!compiled) {
         compile();
@@ -262,6 +288,14 @@ void StaticSparseGraph::setPermanent(const Edge e) {
     }
     refreshEdgeMetaData(e, weightv[rankIndex], Permanent);
     weightv[rankIndex] = Permanent;
+//     std::cout<<"Unpruned "<<1<<": ";
+//     for (const auto& i: unprunedNeighbours[1])
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
+//     std::cout<<"Unpruned "<<9<<": ";
+//     for (const auto& i: unprunedNeighbours[9])
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
 }
 
 void StaticSparseGraph::setForbidden(const Edge e) {
@@ -287,9 +321,60 @@ void StaticSparseGraph::setForbidden(const Edge e) {
     
     refreshEdgeMetaData(e, weightv[rankIndex], Forbidden);
     weightv[rankIndex] = Forbidden;
+//     std::cout<<"Unpruned "<<1<<": ";
+//     for (const auto& i: unprunedNeighbours[1])
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
+//     std::cout<<"Unpruned "<<9<<": ";
+//     for (const auto& i: unprunedNeighbours[9])
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
+}
+
+void StaticSparseGraph::removeEdge(const Edge e) {
+    if (!compiled) {
+        compile();
+    }
+    
+    /* If the edge already has rank id zero, there is nothing to do. */
+    RankId rankIndex = findIndex(e);
+    if (rankIndex == 0) {
+        return;
+    }
+    
+//     if (true || weightv[rankIndex] == weights[e.id()])
+//         std::cout<<"Edge ("<<e.u<<","<<e.v<<") has weight "<<weightv[rankIndex]<<" but originally it should be "<<weights[e.id()]<<std::endl;
+    
+    refreshEdgeMetaData(e, weightv[rankIndex], 0.0);
+    weightv[rankIndex] = -424242.0;
+    //removeIndex(e.id());
+    std::cout<<"Removed edge ("<<e.u<<","<<e.v<<")"<<std::endl;
+    if (findIndex(e) != 0) {
+        std::cout<<"Removed edge is still in index"<<std::endl;
+    }
+//     std::cout<<"Unpruned "<<1<<": ";
+//     for (const auto& i: unprunedNeighbours[1])
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
+//     std::cout<<"Unpruned "<<9<<": ";
+//     for (const auto& i: unprunedNeighbours[9])
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
 }
 
 void StaticSparseGraph::setWeight(const Edge e, const EdgeWeight w) {
+    if (compiled) {
+        RankId r = findIndex(e);
+        if (r > 0) {
+            refreshEdgeMetaData(e, weightv[r], w);
+            std::cout<<"setWeight for ("<<e.u<<","<<e.v<<") from "<<weightv[r]<<" to "<<w<<std::endl;
+            weightv[r] = w;
+            return;
+        }
+        std::cout<<"setWeight on zero edge!"<<std::endl;
+        return;
+    }
+    
     std::map<EdgeId, EdgeWeight>::iterator it = weights.find(e.id());
     if (it == weights.end()) {
         std::cout<<"setWeight tried to modify non existing edge ("<<e.u<<","<<e.v<<") to "<<w<<std::endl;
@@ -400,6 +485,8 @@ void StaticSparseGraph::refreshEdgeMetaData(const Edge e, const EdgeWeight oldW,
         nonzeroNeighbours[e.u].push_back(e.v);
         nonzeroNeighbours[e.v].push_back(e.u);
     } else if (oldW != 0.0 && newW == 0.0) {
+//         if ((e.u == 9 && e.v == 1) || (e.u == 1 && e.v == 9))
+//             std::cout<<"9 and 1 are involved =============================================================="<<std::endl;
         if (!removeFromVector(nonzeroNeighbours[e.u], e.v))
             std::cout<<"Error: Non-zero neighbour "<<e.v<<" of "<<e.u<<" not found. Weight was set from "<<oldW<<" to "<<newW<<std::endl;
         if (!removeFromVector(nonzeroNeighbours[e.v], e.u))
@@ -409,6 +496,10 @@ void StaticSparseGraph::refreshEdgeMetaData(const Edge e, const EdgeWeight oldW,
 
 bool StaticSparseGraph::removeFromVector(std::vector<NodeId>& vec, StaticSparseGraph::NodeId v) {
     bool found = false;
+//     std::cout<<"Vector before: ";
+//     for (const auto& i: vec)
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
     for (unsigned int i = 0; i < vec.size(); i++) {
         if (vec[i] == v) {
             vec[i] = vec.back();
@@ -417,6 +508,10 @@ bool StaticSparseGraph::removeFromVector(std::vector<NodeId>& vec, StaticSparseG
             break;
         }
     }
+//     std::cout<<"Vector after remove "<<v<<": ";
+//     for (const auto& i: vec)
+//         std::cout << i << ' ';
+//     std::cout<<std::endl;
     return found;
 }
 
@@ -431,6 +526,7 @@ RankId StaticSparseGraph::findIndex(const EdgeId id) const {
     
     // check if corresponding bit in rank block is unset
     if ((bitv & 1UL) == 0) {
+//         std::cout<<"findIndex("<<Edge(id).u<<","<<Edge(id).v<<") = "<<0<<" size of weights = "<<weights.size()<<std::endl;
         return 0;
     }
     
@@ -439,10 +535,37 @@ RankId StaticSparseGraph::findIndex(const EdgeId id) const {
     bitv = rank2[block2] >> (63 - block3);
     
     if ((bitv & 1UL) == 0) {
+//         std::cout<<"findIndex("<<Edge(id).u<<","<<Edge(id).v<<") = "<<0<<" size of weights = "<<weights.size()<<std::endl;
         return 0;
     }
     
-    return offset2[block2] + popcount(bitv) - 1;
+    block3 = offset2[block2] + popcount(bitv) - 1;
+//     std::cout<<"findIndex("<<Edge(id).u<<","<<Edge(id).v<<") = "<<block3<<" size of weights = "<<weights.size()<<std::endl;
+    if (weightv[block3] == -424242.0)
+        return 0;
+    else
+        return block3;
+}
+
+void StaticSparseGraph::removeIndex(const EdgeId id) {
+    u_int64_t block1 = id / 4096;
+    u_int64_t block2 = (id/64) % 64;
+    u_int64_t bitv = rank1[block1] >> (63 - block2);
+    
+    // check if corresponding bit in rank block is unset
+    if ((bitv & 1UL) == 0) {
+        return;
+    }
+    
+    block2 = offset1[block1] + popcount(bitv) - 1;
+    u_int64_t block3 = id % 64;
+    rank2[block2] -= (1L << (63 - block3));
+    
+    if (rank2[block2] == 0L) {
+        // if entire block in rank2 is empty, reset the 1-bit in rank 1 as well
+        block2 = (id/64) % 64;
+        rank1[block1] -= (1L << (63 - block2));
+    }
 }
 
 uint64_t StaticSparseGraph::popcount(uint64_t bitv) const {
