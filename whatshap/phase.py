@@ -111,9 +111,9 @@ def best_case_blocks(reads):
 	return len(component_sizes), len(non_singletons)
 
 
-def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames):
+def read_reads(readset_reader, chromosome, variants, bam_sample, vcf_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames):
 	"""Return a sorted ReadSet"""
-	for_sample = 'for sample {!r}'.format(sample) if sample is not None else ''
+	for_sample = 'for sample {!r}'.format(bam_sample) if bam_sample is not None else ''
 	logger.info('Reading alignments %sand detecting alleles ...', for_sample)
 	try:
 		reference = fasta[chromosome] if fasta else None
@@ -121,9 +121,9 @@ def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_
 		logger.error('Chromosome %r present in VCF file, but not in the reference FASTA %r', chromosome, fasta.filename)
 		sys.exit(1)
 	try:
-		readset = readset_reader.read(chromosome, variants, sample, reference)
+		readset = readset_reader.read(chromosome, variants, bam_sample, reference)
 	except SampleNotFoundError:
-		logger.warning("Sample %r not found in any BAM/CRAM file.", sample)
+		logger.warning("Sample %r not found in any BAM/CRAM file.", bam_sample)
 		readset = ReadSet()
 	except ReadSetError as e:
 		logger.error("%s", e)
@@ -137,7 +137,6 @@ def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_
 		if readset_reader.has_reference(alternative):
 			logger.error("Found %r instead", alternative)
 		sys.exit(1)
-
 	# Add phasing information from VCF files, if present
 	vcf_source_ids = set()
 	for i, phase_input_vcf in enumerate(phase_input_vcfs):
@@ -145,9 +144,8 @@ def read_reads(readset_reader, chromosome, variants, sample, fasta, phase_input_
 			vt = phase_input_vcf[chromosome]
 			source_id = len(phase_input_bam_filenames) + i
 			vcf_source_ids.add(source_id)
-			for read in vt.phased_blocks_as_reads(sample, variants, source_id, numeric_sample_ids[sample]):
+			for read in vt.phased_blocks_as_reads(vcf_sample, variants, source_id, numeric_sample_ids[vcf_sample]):
 				readset.add(read)
-
 	# TODO is this necessary?
 	for read in readset:
 		read.sort()
@@ -680,7 +678,7 @@ def run_whatshap(
 					logger.info('---- Initial genotyping of %s', sample)
 					with timers('read_bam'):
 						bam_sample = None if ignore_read_groups else sample
-						readset, vcf_source_ids = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
+						readset, vcf_source_ids = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
 						readset.sort()
 						genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
 						variant_table.set_genotypes_of(sample, genotypes)
@@ -768,7 +766,7 @@ def run_whatshap(
 				for sample in family:
 					with timers('read_bam'):
 						bam_sample = None if ignore_read_groups else sample
-						readset, vcf_source_ids = read_reads(readset_reader, chromosome, phasable_variant_table.variants, bam_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
+						readset, vcf_source_ids = read_reads(readset_reader, chromosome, phasable_variant_table.variants, bam_sample, sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
 
 					# TODO: Read selection done w.r.t. all variants, where using heterozygous variants only
 					# TODO: would probably give better results.
