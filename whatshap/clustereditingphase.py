@@ -256,7 +256,7 @@ def run_clustereditingphase(
 
 				if dp_phasing:
 					#add dynamic programming for finding the most likely subset of clusters
-					coverage, cut_positions, cluster_blocks, components, superreads = subset_clusters(readset, readpartitioning, ploidy, sample,genotype_list)
+					cut_positions, cluster_blocks, components, superreads = subset_clusters(readset, readpartitioning, ploidy, sample,genotype_list)
 					
 					
 				else:				
