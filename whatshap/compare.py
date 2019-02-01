@@ -21,7 +21,7 @@ count_width = 9
 switchflip_column_offset = 0
 switch_pos = []
 flip_pos = []
-switchflip_debug = False
+switchflip_debug = True
 #end debug section
 
 def add_arguments(parser):
@@ -242,7 +242,7 @@ def compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 1
 	result.flips = d[-1][min_row].flips
 	
 	# Backtracing
-	if switchflip_debug:
+	if switchflip_debug and (result.switches * switch_cost + result.flips * flip_cost < float("inf")):
 		flips_in_column = [0 for i in range(num_pos)]
 		switches_in_column = [0 for i in range(num_pos)]
 		col = num_pos - 1
@@ -265,7 +265,9 @@ def compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 1
 			for j in range(flips_in_column[i]):
 				flip_pos.append(switchflip_column_offset + i)
 		switchflip_column_offset += num_pos
-
+		
+	result.switches = result.switches / ploidy
+	result.flips = result.flips / ploidy
 	return result
 
 
@@ -598,7 +600,7 @@ def create_blocksize_histogram(filename, block_stats, names):
 			pdf.savefig()
 			pyplot.close()
 
-def create_switch_flip_histogram(filename = "./switchflips.png", bar_width = 25):
+def create_switch_flip_histogram(filename = "./switchflips.png", bar_width = 10):
 	global switchflip_column_offset
 	global switch_pos
 	global flip_pos

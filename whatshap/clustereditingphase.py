@@ -231,8 +231,10 @@ def run_clustereditingphase(
 				# Compute similarity values for all read pairs
 				timers.start('compute_graph')
 				logger.info("Computing similarities for read pairs ...")
-				similarities = score(readset, ploidy, errorrate, min_overlap)
-				#similarities = locality_sensitive_score(readset, ploidy, min_overlap)
+				if 0.0 <= errorrate < 1.0:
+					similarities = score(readset, ploidy, errorrate, min_overlap)
+				else:
+					similarities = locality_sensitive_score(readset, ploidy, min_overlap)
 				
 				# Create read graph object
 				logger.info("Constructing graph ...")
@@ -253,6 +255,11 @@ def run_clustereditingphase(
 				# Assemble clusters to haplotypes
 				logger.info("Assembling haplotypes from read clusters ...")
 				timers.start('assemble_haplotypes')
+				#print(len(readpartitioning))
+				#for i in range(len(readpartitioning)-1, -1, -1):
+				#	if (len(readpartitioning[i]) < 8):
+				#		del readpartitioning[i]
+				#print(len(readpartitioning))
 
 				if dp_phasing:
 					#add dynamic programming for finding the most likely subset of clusters
@@ -390,7 +397,7 @@ def add_arguments(parser):
 		'input VCF are phased. Can be used multiple times.')
 
 	arg = parser.add_argument_group('Parameters for cluster editing').add_argument
-	arg('--errorrate', metavar='ERROR', type=float, default=0.1, help='Read error rate (default: %(default)s).')
+	arg('--errorrate', metavar='ERROR', type=float, default=-1.0, help='Read error rate (default: %(default)s).')
 	arg('--min-overlap', metavar='OVERLAP', type=int, default=5, help='Minimum required read overlap (default: %(default)s).')
 	arg('--transform', dest='transform', default=False, action='store_true',
 		help='Use transformed matrix for read similarity scoring (default: %(default)s).')

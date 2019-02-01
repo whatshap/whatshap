@@ -50,7 +50,6 @@ class MatrixTransformation:
 			self._current_column = []
 			# get all positions in this component
 			component_positions = self._component_reads.get_positions()
-			#similarities = score(self._component_reads, ploidy, errorrate, min_overlap)
 			num_clusters = []
 			#print(component_positions)
 			#print(str(len(component_positions)))
@@ -63,16 +62,12 @@ class MatrixTransformation:
 				if len(self._current_column) == 0:
 					continue
 				column = self._component_reads.subset([r[0] for r in self._current_column])
-				#print('reads covering position ', position, [r.name for r in column])
 
 				# compute similarities for reads in column
-				#print("Computing similarities for column "+str(j))
-				similarities = score(column, ploidy, errorrate, min_overlap)
-				#for (i, j, w) in similarities:
-				#	print("("+str(i)+","+str(j)+") -> "+str(w))
-
-				#index_set = [e[0] for e in self._current_column]
-				#local_similarities = partial_scoring(similarities, index_set)
+				if 0.0 <= errorrate < 1.0:
+					similarities = score(column, ploidy, errorrate, min_overlap)
+				else:
+					similarities = locality_sensitive_score(column, ploidy, min_overlap)
 				
 				# create read graph object
 				graph = StaticSparseGraph(len(column))
@@ -80,11 +75,6 @@ class MatrixTransformation:
 				# insert edges into read graph
 				for (read1, read2) in similarities:
 					graph.addEdge(read1, read2, similarities.get(read1, read2))
-				#n_reads = len(column)
-				#for id1 in range(n_reads):
-				#	for id2 in range(0, id1):
-				#		if similarities.get(id1, id2) != 0:
-				#			graph.addEdge(id1, id2, similarities.get(id1, id2))
 				
 				# run cluster editing
 				clusterediting = CoreAlgorithm(graph)

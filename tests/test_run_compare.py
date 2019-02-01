@@ -127,7 +127,7 @@ def test_compare_polyploid3():
 		assert entry_chr21.chromosome == 'chr21'
 		assert entry_chr21.all_assessed_pairs == '2'
 		assert entry_chr21.all_switches == 'inf'
-		assert entry_chr21.all_switchflips == '0/0'
+		assert entry_chr21.all_switchflips == '0.0/0.0'
 		assert entry_chr21.blockwise_hamming == '0.0'
 		assert entry_chr21.largestblock_assessed_pairs == '2'
 		assert entry_chr21.largestblock_switches == 'inf'
@@ -136,7 +136,7 @@ def test_compare_polyploid3():
 		assert entry_chr22.chromosome == 'chr22'
 		assert entry_chr22.all_assessed_pairs == '6'
 		assert entry_chr22.all_switches == 'inf'
-		assert entry_chr22.all_switchflips == '0/0'
+		assert entry_chr22.all_switchflips == '0.0/0.0'
 		assert entry_chr22.blockwise_hamming == '0.0'
 		assert entry_chr22.largestblock_assessed_pairs == '4'
 		assert entry_chr22.largestblock_switches == 'inf'
@@ -176,59 +176,56 @@ def test_compute_switch_flips_poly():
 	phasing0 = ['0100', '1011']
 	phasing1 = ['0000', '1111']
 	sfp = compute_switch_flips_poly(phasing0, phasing1, flip_cost = 3)
-	assert sfp.switches == 4
+	assert sfp.switches == 2.0
 	assert sfp.flips == 0
 	
 	phasing = ['00000000', '11111111']
 	truth =   ['00000000', '11111111']
 	sfp = compute_switch_flips_poly(phasing, truth)
-	assert sfp.flips + sfp.switches == 0
+	assert sfp.flips + sfp.switches == 0.0
 	
 	phasing = [[0,0,0,0,0,0,0,0], [0,0,0,0,1,1,1,1]]
 	truth =   [[0,0,0,0,1,1,1,1], [0,0,0,0,0,0,0,0]]
 	sfp = compute_switch_flips_poly(phasing, truth)
-	assert sfp.flips + sfp.switches == 0
+	assert sfp.flips + sfp.switches == 0.0
 	
 	phasing = [[0,0,0,0,0,0,0,0], [0,0,0,0,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [0,0,0,0,0,0,0,0]]
 	sfp = compute_switch_flips_poly(phasing, truth)
-	assert sfp.flips + sfp.switches == 4
+	assert sfp.flips + sfp.switches == 2.0
 	
 	phasing = [[1,1,1,1,0,0,0,0], [0,0,0,0,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [1,1,1,1,1,1,1,1]]
 	sfp = compute_switch_flips_poly(phasing, truth)
-	assert sfp.flips + sfp.switches == 2
+	assert sfp.flips + sfp.switches == 1.0
 	
 	phasing = [[1,1,1,1,0,0,1,0], [0,0,0,0,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [1,1,1,1,1,1,1,1]]
 	sfp = compute_switch_flips_poly(phasing, truth)
-	assert sfp.flips + sfp.switches == 3
+	assert sfp.flips + sfp.switches == 1.5
 	
 	phasing = [[1,1,1,1,0,0,1,0], [0,0,0,0,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [1,1,1,1,1,1,1,1]]
 	sfp = compute_switch_flips_poly(phasing, truth, flip_cost = 5, switch_cost = 1)
-	assert sfp.flips * 5 + sfp.switches == 7
+	assert sfp.flips * 5 + sfp.switches == 3.5
 	
 	phasing = [[1,1,1,1,0,0,1,0], [0,0,0,0,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [1,1,1,1,1,1,1,1]]
 	sfp = compute_switch_flips_poly(phasing, truth, flip_cost = 1, switch_cost = 10)
-	assert sfp.flips + sfp.switches * 10 == 7
+	assert sfp.flips + sfp.switches * 10 == 3.5
 	
 	phasing = [[0,0,0,1,0,0,0,0], [1,1,1,0,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [1,1,1,1,1,1,1,1]]
-	#assert compute_switch_flips_poly(phasing, truth, 1, 1) == 2
 	sfp = compute_switch_flips_poly(phasing, truth)
-	assert sfp.flips + sfp.switches == 2
+	assert sfp.flips + sfp.switches == 1.0
 	
 	phasing = [[0,0,0,1,0,0,0,0], [1,1,1,0,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [1,1,1,1,1,1,1,1]]
-	#assert compute_switch_flips_poly(phasing, truth, 5, 1) == 4
 	sfp = compute_switch_flips_poly(phasing, truth, flip_cost = 5, switch_cost = 1)
-	assert sfp.flips * 5 + sfp.switches == 4
+	assert sfp.flips * 5 + sfp.switches == 2.0
 	
 	phasing = [[0,0,0,1,0,0,0,0], [1,1,1,1,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [1,1,1,1,1,1,1,1]]
-	#assert compute_switch_flips_poly(phasing, truth, flip_cost = float("inf"), switch_cost = 1) == float("inf")
 	sfp = compute_switch_flips_poly(phasing, truth, flip_cost = float("inf"), switch_cost = 1)
 	assert sfp.flips + sfp.switches * float("inf") == float("inf")
 
@@ -244,25 +241,25 @@ def test_compare_block():
 	phasing_errors = compare_block(phasing, truth)
 	assert(phasing_errors.hamming == 2.0/3.0)
 	switch_flips = phasing_errors.switch_flips
-	assert(switch_flips.switches == 2)
+	assert(switch_flips.switches == 2.0/3.0)
 	
 	phasing = ['1110001', '1011101', '0000010']
 	truth = ['1110001', '1010010', '0001101']
 	phasing_errors = compare_block(phasing, truth)
 	assert(phasing_errors.hamming == 4.0/3.0)
 	switch_flips = phasing_errors.switch_flips
-	assert(switch_flips.switches == 2)
+	assert(switch_flips.switches == 2.0/3.0)
 
 	phasing = ['1111101', '1010001', '0000010']
 	truth =   ['1110001', '1010010', '0001101']
 	phasing_errors = compare_block(phasing, truth)
 	assert(phasing_errors.hamming == 6.0/3.0)
 	switch_flips = phasing_errors.switch_flips
-	assert(switch_flips.switches == 3)
+	assert(switch_flips.switches == 3.0/3.0)
 
 	phasing = ['111111', '111111', '111111']
 	truth = ['111111', '000000', '111111']
 	phasing_errors = compare_block(phasing, truth)
 	assert(phasing_errors.hamming == 2.0)
 	switch_flips = phasing_errors.switch_flips
-	assert(switch_flips.switches == 0)
+	assert(switch_flips.switches == 0.0)
