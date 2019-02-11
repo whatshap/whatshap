@@ -95,9 +95,9 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 	num_clusters = len(clustering)
 	print('number of variants: ', num_vars)
 	print('number of clusters: ', num_clusters)
-	#compute for each position the amount of clusters that 'cover' this position
+	
 	#cov_map maps each position to the list of cluster IDS that appear at this position
-	cov_positions = [0 for i in range(num_vars)]
+	cov_positions = defaultdict()
 	cov_map = defaultdict(list)
 	for c_id in range(num_clusters):
 		covered_positions = []
@@ -108,10 +108,19 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 				if pos not in covered_positions:
 					covered_positions.append(pos)
 		for p in covered_positions:
-			cov_positions[p] += 1
 			cov_map[p].append(c_id)
 	assert(len(cov_map.keys()) == num_vars)
 	print("map of clusters at every position computed")
+	
+	#compute for each position the amount of clusters that 'cover' this position
+	for key in cov_map.keys():
+		cov_positions[key] = len(cov_map[key])
+	cov_positions_sorted = sorted(cov_positions.items(), key=lambda x: x[1], reverse=True)
+	
+	#restrict the number of clusters at each position to a maximum of 8 clusters with the largest number of reads	
+	for key in cov_map.keys():
+		largest_clusters = sorted(cov_map[key], key=lambda x: len(clustering[x]), reverse=True)[:8]
+		cov_map[key] = largest_clusters
 
 	#for every cluster in clustering, compute its sequence of starting and ending positions
 	#create dictionary mapping the clusterID to a list of pairs (starting position, ending position)
@@ -150,7 +159,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 	assert(len(coverage[0]) == num_vars)
 	print("relative coverage computed")
 	#compute the consensus sequences for every variant position and every cluster for integrating genotypes in the DP
-	consensus = get_cluster_consensus(readset, clustering)	
+	consensus = get_cluster_consensus(readset, clustering)
 	print("consensus sequences computed")
 
 	#perform the dynamic programming to fill the scoring matrix (in Cython to speed up computation)
