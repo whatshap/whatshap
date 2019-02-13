@@ -5,6 +5,7 @@ Thus, Cython does not need to be installed on the machine of the user installing
 WhatsHap.
 """
 import sys
+import os
 import os.path
 from setuptools import setup, Extension, find_packages
 from distutils.version import LooseVersion
@@ -125,6 +126,24 @@ class SDist(_sdist):
 with open('doc/README.rst', encoding='utf-8') as f:
 	long_description = f.read()
 
+
+# Avoid compilation if we are being installed within Read The Docs
+if os.environ.get('READTHEDOCS') == 'True':
+	cmdclass = {}
+	ext_modules = []
+	install_requires = []
+else:
+	cmdclass = {'build_ext': BuildExt, 'sdist': SDist}
+	ext_modules = extensions
+	install_requires = [
+		'pysam>=0.14.0',
+		'PyVCF',
+		'pyfaidx',
+		'xopen',
+		'networkx',
+		'typing; python_version<"3.5"',
+	]
+
 setup(
 	name='whatshap',
 	use_scm_version=True,
@@ -135,19 +154,12 @@ setup(
 	long_description=long_description,
 	long_description_content_type='text/x-rst',
 	license='MIT',
-	cmdclass={'build_ext': BuildExt, 'sdist': SDist},
-	ext_modules=extensions,
+	cmdclass=cmdclass,
+	ext_modules=ext_modules,
 	packages=find_packages(),
 	entry_points={'console_scripts': ['whatshap = whatshap.__main__:main']},
 	setup_requires=['setuptools_scm'],  # Support pip versions that don't know about pyproject.toml
-	install_requires=[
-		'pysam>=0.14.0',
-		'PyVCF',
-		'pyfaidx',
-		'xopen',
-		'networkx',
-		'typing; python_version<"3.5"',
-	],
+	install_requires=install_requires,
 	extras_require={
 		'dev': ['Cython', 'pytest', 'sphinx', 'sphinx_issues'],
 	},
