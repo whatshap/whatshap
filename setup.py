@@ -12,7 +12,6 @@ from distutils.command.sdist import sdist as _sdist
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils.sysconfig import customize_compiler
 
-
 MIN_CYTHON_VERSION = '0.17'
 
 if sys.version_info < (3, 4):
@@ -58,7 +57,7 @@ def check_cython_version():
 
 def CppExtension(name, sources):
 	return Extension(name, sources=sources, language='c++',
-		extra_compile_args=['-std=c++11'], undef_macros = ["NDEBUG"])
+		extra_compile_args=['-std=c++11'], undef_macros=["NDEBUG"])
 
 
 extensions = [
@@ -127,21 +126,21 @@ with open('doc/README.rst', encoding='utf-8') as f:
 	long_description = f.read()
 
 setup(
-	name = 'whatshap',
-	use_scm_version = True,
-	author = 'WhatsHap authors',
-	author_email = 'whatshap@cwi.nl',
-	url = 'https://bitbucket.org/whatshap/whatshap/',
-	description = 'phase genomic variants using DNA sequencing reads',
-	long_description = long_description,
-	long_description_content_type = 'text/x-rst',
-	license = 'MIT',
-	cmdclass = {'build_ext': BuildExt, 'sdist': SDist},
-	ext_modules = extensions,
-	packages = find_packages(),
+	name='whatshap',
+	use_scm_version=True,
+	author='WhatsHap authors',
+	author_email='whatshap@cwi.nl',
+	url='https://bitbucket.org/whatshap/whatshap/',
+	description='phase genomic variants using DNA sequencing reads',
+	long_description=long_description,
+	long_description_content_type='text/x-rst',
+	license='MIT',
+	cmdclass={'build_ext': BuildExt, 'sdist': SDist},
+	ext_modules=extensions,
+	packages=find_packages(),
 	entry_points={'console_scripts': ['whatshap = whatshap.__main__:main']},
 	setup_requires=['setuptools_scm'],  # Support pip versions that don't know about pyproject.toml
-	install_requires = [
+	install_requires=[
 		'pysam>=0.14.0',
 		'PyVCF',
 		'pyfaidx',
@@ -149,11 +148,11 @@ setup(
 		'networkx',
 		'typing; python_version<"3.5"',
 	],
-	extras_require = {
+	extras_require={
 		'dev': ['Cython', 'pytest', 'sphinx', 'sphinx_issues'],
 	},
-	python_requires = '>=3.4',
-	classifiers = [
+	python_requires='>=3.4',
+	classifiers=[
 		"Development Status :: 4 - Beta",
 		"Environment :: Console",
 		"Intended Audience :: Science/Research",
