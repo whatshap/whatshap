@@ -11,7 +11,6 @@ from distutils.version import LooseVersion
 from distutils.command.sdist import sdist as _sdist
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils.sysconfig import customize_compiler
-import versioneer
 
 
 MIN_CYTHON_VERSION = '0.17'
@@ -84,10 +83,8 @@ extensions = [
 	CppExtension('whatshap._variants', sources=['whatshap/_variants.pyx']),
 ]
 
-cmdclass = versioneer.get_cmdclass()
 
-
-class build_ext(cmdclass.get('build_ext', _build_ext)):
+class BuildExt(_build_ext):
 	def run(self):
 		# If we encounter a PKG-INFO file, then this is likely a .tar.gz/.zip
 		# file retrieved from PyPI that already includes the pre-cythonized
@@ -117,7 +114,7 @@ class build_ext(cmdclass.get('build_ext', _build_ext)):
 		super().build_extensions()
 
 
-class sdist(cmdclass.get('sdist', _sdist)):
+class SDist(_sdist):
 	def run(self):
 		# Make sure the compiled Cython files in the distribution are up-to-date
 		from Cython.Build import cythonize
@@ -126,15 +123,12 @@ class sdist(cmdclass.get('sdist', _sdist)):
 		super().run()
 
 
-cmdclass['build_ext'] = build_ext
-cmdclass['sdist'] = sdist
-
 with open('doc/README.rst', encoding='utf-8') as f:
 	long_description = f.read()
 
 setup(
 	name = 'whatshap',
-	version = versioneer.get_version(),
+	use_scm_version = True,
 	author = 'WhatsHap authors',
 	author_email = 'whatshap@cwi.nl',
 	url = 'https://bitbucket.org/whatshap/whatshap/',
@@ -142,10 +136,11 @@ setup(
 	long_description = long_description,
 	long_description_content_type = 'text/x-rst',
 	license = 'MIT',
-	cmdclass = cmdclass,
+	cmdclass = {'build_ext': BuildExt, 'sdist': SDist},
 	ext_modules = extensions,
 	packages = find_packages(),
 	entry_points={'console_scripts': ['whatshap = whatshap.__main__:main']},
+	setup_requires=['setuptools_scm'],  # Support pip versions that don't know about pyproject.toml
 	install_requires = [
 		'pysam>=0.14.0',
 		'PyVCF',
