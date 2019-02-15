@@ -33,6 +33,7 @@ def add_arguments(parser):
 		'to given filename.')
 	add('--plot-blocksizes', default=None, help='Write PDF file with a block length histogram '
 		'to given filename (requires matplotlib).')
+	add('--plot-sum-of-blocksizes', default=None, help='Write PDF file with a block length histogram in which the height of each bar corresponds to the sum of lengths.')
 	add('--longest-block-tsv', default=None, help='Write position-wise agreement of longest '
 		'joint blocks in each chromosome to tab-separated file.')
 	# TODO: what's the best way to request "two or more" VCFs?
@@ -373,7 +374,7 @@ def compare(variant_tables, sample: str, dataset_names):
 		return None, None, block_stats, None, None, multiway_results
 
 
-def create_blocksize_histogram(filename, block_stats, names):
+def create_blocksize_histogram(filename, block_stats, names, use_weights=False):
 	try:
 		import matplotlib
 		import numpy
@@ -399,7 +400,7 @@ def create_blocksize_histogram(filename, block_stats, names):
 			common_bins = numpy.logspace(0, math.ceil(math.log10(max_value)), 50)
 			for l, name, color in zip(block_stats, names, colors):
 				x = [what(stats) for stats in l]
-				n, bins, patches = pyplot.hist(x, bins=common_bins, alpha=0.6, color=color, label=name)
+				n, bins, patches = pyplot.hist(x, bins=common_bins, alpha=0.6, color=color, label=name, weights=x if use_weights else None )
 			pyplot.xlabel(xlabel)
 			pyplot.ylabel('Number of blocks')
 			pyplot.gca().set_xscale("log")
@@ -412,7 +413,7 @@ def create_blocksize_histogram(filename, block_stats, names):
 			pyplot.figure(figsize=(10, 8))
 			common_bins = numpy.logspace(0, math.ceil(math.log10(max_value)), 25)
 			x = [[what(stats) for stats in l] for l in block_stats]
-			n, bins, patches = pyplot.hist(x, bins=common_bins, alpha=0.6, color=colors, label=names)
+			n, bins, patches = pyplot.hist(x, bins=common_bins, alpha=0.6, color=colors, label=names, weights=x if use_weights else None)
 			pyplot.xlabel(xlabel)
 			pyplot.ylabel('Number of blocks')
 			pyplot.gca().set_xscale("log")
@@ -423,7 +424,7 @@ def create_blocksize_histogram(filename, block_stats, names):
 			pyplot.close()
 
 
-def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, longest_block_tsv=None):
+def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, plot_sum_of_blocksizes=None, longest_block_tsv=None):
 	vcf_readers = [VcfReader(f, indels=not only_snvs, phases=True) for f in vcf]
 	if names:
 		dataset_names = names.split(',')
@@ -578,6 +579,8 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 
 		if plot_blocksizes:
 			create_blocksize_histogram(plot_blocksizes, all_block_stats, dataset_names)
+		if plot_sum_of_blocksizes:
+			create_blocksize_histogram(plot_sum_of_blocksizes, all_block_stats, dataset_names, use_weights=True)
 
 
 def main(args):
