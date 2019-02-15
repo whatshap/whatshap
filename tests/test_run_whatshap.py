@@ -597,14 +597,6 @@ def test_phase_trio_zero_distance():
 		assert os.path.isfile(outvcf)
 
 
-def test_phase_quartet_recombination_breakpoints2():
-	parameter_sets = [
-		(False, {'genmap':'tests/data/recombination_breaks.map'}),
-		(True, {'recombrate':1000000}),
-		(False, {'recombrate':.0000001})
-	]
-
-
 def test_haplotag():
 	with TemporaryDirectory() as tempdir:
 		outbam1 = tempdir + '/output1.bam'
