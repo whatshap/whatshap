@@ -3,7 +3,7 @@
 
 SHELL := /bin/bash
 
-all: reference.fasta reference.fasta.fai pacbio.bam pacbio.bam.bai pacbio.cram pacbio.crai variants.vcf hapcut.txt
+all: reference.fasta reference.fasta.fai pacbio.bam pacbio.bam.bai pacbio.cram pacbio.crai variants.vcf hapcut.txt phased.vcf.gz phased.vcf.gz.tbi
 
 ucsc.hg19.fasta:
 	@echo "Please obtain file ucsc.hg19.fasta from the GATK resource bundle to continue"
@@ -41,6 +41,12 @@ variants.vcf: reference.fasta illumina-full.bam illumina.bam.bai
 
 phased.vcf: reference.fasta reference.fasta.fai pacbio.bam pacbio.bam.bai variants.vcf
 	whatshap phase --indels --reference=reference.fasta variants.vcf pacbio.bam | grep -v '^##commandline="(whatshap' > $@
+
+phased.vcf.gz: phased.vcf
+	bgzip < $< > $@
+
+phased.vcf.gz.tbi: phased.vcf.gz
+	tabix $<
 
 hairs.txt: reference.fasta variants.vcf pacbio.bam pacbio.bam.bai
 	extractHAIRS --ref reference.fasta --indels 1 --VCF variants.vcf --bam pacbio.bam --maxIS 600 > $@

@@ -4,13 +4,15 @@ Changes
 
 master branch
 -------------
-* Add option --plot-sum-of-blocksizes to ``whatshap compare``.
-* Fix in ``whatshap stats``: sometimes returned wrong N50 values if the end 
-  position of the last block of a chromosome was larger than the starting position 
+* Add option ``--plot-sum-of-blocksizes`` to ``whatshap compare``.
+* Fix in ``whatshap stats``: sometimes returned wrong N50 values if the end
+  position of the last block of a chromosome was larger than the starting position
   of the first block of the next chromosome.
-* :issue:`177` Option ``--ignore-read-groups`` did not work when phased blocks (VCF)\
-  were provided as input.
-* :issue:`122` Add ``--ignore-read-groups`` and ``--samples`` options to ``haplotag``.
+* :issue:`173`: The ``haplotag`` command should now be able to properly write
+  CRAM files.
+* :issue:`177`: Option ``--ignore-read-groups`` did not work when phased blocks
+  (VCF) were provided as input.
+* :issue:`122`: Add ``--ignore-read-groups`` and ``--samples`` options to ``haplotag``.
 * Integration of the HapChat algorithm as an alternative MEC solver, available
   through ``whatshap phase --algorithm=hapchat``. Contributed by the HapChat
   team, see https://doi.org/10.1186/s12859-018-2253-8.
