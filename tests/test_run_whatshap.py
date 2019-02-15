@@ -597,7 +597,7 @@ def test_phase_trio_zero_distance():
 		assert os.path.isfile(outvcf)
 
 
-def test_phase_quartet_recombination_breakpoints():
+def test_phase_quartet_recombination_breakpoints2():
 	parameter_sets = [
 		(False, {'genmap':'tests/data/recombination_breaks.map'}),
 		(True, {'recombrate':1000000}),
