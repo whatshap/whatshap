@@ -722,6 +722,13 @@ def test_haplotag_10X_2():
 				assert a1.get_tag('HP') == a2.get_tag('HP')
 
 
+def test_cram_output():
+	with TemporaryDirectory() as tempdir:
+		outcram = tempdir + '/output.cram'
+		run_haplotag(variant_file='tests/data/haplotag_1.vcf.gz', alignment_file='tests/data/haplotag.bam', output=outcram)
+		assert pysam.AlignmentFile(outcram).is_cram
+
+
 def test_hapcut2vcf():
 	with TemporaryDirectory() as tempdir:
 		out = os.path.join(tempdir, 'hapcut.vcf')
