@@ -191,9 +191,13 @@ must *not* be put between quotation marks even if it contains spaces.
 
        python3 setup.py sdist
 
-#. Upload the distribution to PyPI (the tarball must be regenerated since ``upload`` requires a preceding ``sdist``)::
+#. Build wheels (``.whl`` files). Docker needs to be installed for this::
 
-       twine upload dist/whatshap-x.yz.tar.gz
+       ./buildwheels.sh
+
+#. Upload the distribution to PyPI::
+
+       twine upload dist/whatshap-x.yz{.tar.gz,-*.whl}
 
    You may need to install the ``twine`` tool to run this command.
 #. Push the tag::
