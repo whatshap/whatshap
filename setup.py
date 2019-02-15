@@ -58,7 +58,7 @@ def check_cython_version():
 
 def CppExtension(name, sources):
 	return Extension(name, sources=sources, language='c++',
-		extra_compile_args=['-std=c++11'], undef_macros=["NDEBUG"])
+		extra_compile_args=['-std=c++11', '-Werror=return-type'], undef_macros=["NDEBUG"])
 
 
 extensions = [

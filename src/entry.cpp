@@ -57,4 +57,5 @@ std::ostream& operator<<(std::ostream& out, const Entry& e) {
 			assert(false);
 	}
 	out << ',' << ((int)e.phred_score) << ')';
+	return out;
 }
