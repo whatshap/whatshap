@@ -81,7 +81,7 @@ def run_haplotag(
 		given_samples=None,
 		linked_read_distance_cutoff=50000,
 		ignore_read_groups=False
-		):
+	):
 
 	timers = StageTimer()
 	timers.start('overall')
@@ -166,17 +166,18 @@ def run_haplotag(
 			header['PG'].append(PG_entry)
 		else:
 			header['PG'] = [PG_entry]
-		# check whether to write bam for cram format
-		if output:
-			if output.endswith('.bam'):
-				bam_writer = pysam.AlignmentFile(output, 'wb', header=pysam.AlignmentHeader.from_dict(header))
-			elif output.endswith('cram'):
-				bam_writer = pysam.AlignmentFile(output, 'wc', header=pysam.AlignmentHeader.from_dict(header))
+		if not output:
+			output = '-'
+		if output.endswith('.cram'):
+			# Write CRAM
+			if not reference:
+				logger.error("When writing CRAM, you need to provide a reference FASTA using --reference")
+				#sys.exit(1)
+			kwargs = dict(mode='wc', reference_filename=reference)
 		else:
-			if alignment_file.endswith('.bam'):
-				bam_writer = pysam.AlignmentFile('-', 'wb', header=pysam.AlignmentHeader.from_dict(header))
-			elif alignment_file.endswith('cram'):
-				bam_writer = pysam.AlignmentFile('-', 'wc', header=pysam.AlignmentHeader.from_dict(header))
+			# Write BAM
+			kwargs = dict(mode='wb')
+		bam_writer = pysam.AlignmentFile(output, header=pysam.AlignmentHeader.from_dict(header), **kwargs)
 
 		chromosome_name = None
 		chromosome_id = None
