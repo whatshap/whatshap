@@ -583,8 +583,8 @@ def test_phase_quartet_recombination_breakpoints():
 			lines = open(outlist).readlines()
 			if expect_recombination:
 				assert len(lines) == 3
-				assert lines[1]=='HG002 1 68735433 68738308 0 0 0 1 3\n'
-				assert lines[2]=='HG005 1 68735433 68738308 0 0 0 1 3\n'
+				assert lines[1]=='HG002 1 68735433 68738308 0 1 0 0 3\n'
+				assert lines[2]=='HG005 1 68735433 68738308 0 1 0 0 3\n'
 			else:
 				assert len(lines) == 1
 
