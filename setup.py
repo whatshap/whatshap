@@ -136,10 +136,10 @@ else:
 	cmdclass = {'build_ext': BuildExt, 'sdist': SDist}
 	ext_modules = extensions
 	install_requires = [
-		'pysam>=0.14.0',
+		'pysam>=0.15.0',
 		'PyVCF',
-		'pyfaidx',
-		'xopen',
+		'pyfaidx>=0.5.5.2',
+		'xopen>=0.5.0',
 		'networkx',
 		'typing; python_version<"3.5"',
 	]

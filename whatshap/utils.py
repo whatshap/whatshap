@@ -38,6 +38,8 @@ def detect_file_format(path):
 
 
 def IndexedFasta(path):
-	if not os.path.exists(path + '.fai'):
-		raise FastaNotIndexedError(path)
-	return pyfaidx.Fasta(path, as_raw=True, sequence_always_upper=True)
+	try:
+		f = pyfaidx.Fasta(path, as_raw=True, sequence_always_upper=True, build_index=False)
+	except pyfaidx.IndexNotFoundError:
+		raise FastaNotIndexedError()
+	return f
