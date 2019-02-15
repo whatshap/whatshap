@@ -59,12 +59,13 @@ WhatsHap. Simply delete that directory to uninstall the software. Other WhatsHap
 versions you may have installed in other locations remain unaffected. ::
 
 	python3 -m venv whatshap-env
-	whatshap-env/bin/pip install Cython
+	whatshap-env/bin/pip install --upgrade pip
 	whatshap-env/bin/pip install git+https://bitbucket.org/whatshap/whatshap
 
 You can then run WhatsHap like this::
 
 	whatshap-env/bin/whatshap --version
 
-You should see a version number like ``0.17+103.g71e5b3c``, which means that
-this version is 103 Git commits ahead of version 0.17.
+You should see a version number like ``0.18.dev119+g5ba23de``, which means that
+this is going to become version 0.18, with 119 commits ahead of the previous
+version (0.17).
