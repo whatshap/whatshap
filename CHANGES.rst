@@ -2,8 +2,8 @@
 Changes
 =======
 
-master branch
--------------
+v0.18 (2019-02-15)
+------------------
 * Add option ``--plot-sum-of-blocksizes`` to ``whatshap compare``.
 * Fix in ``whatshap stats``: sometimes returned wrong N50 values if the end
   position of the last block of a chromosome was larger than the starting position
