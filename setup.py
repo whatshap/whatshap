@@ -141,6 +141,7 @@ else:
 		'pyfaidx>=0.5.5.2',
 		'xopen>=0.5.0',
 		'networkx',
+		'biopython',  # pyfaidx needs this for reading bgzipped FASTA files
 		'typing; python_version<"3.5"',
 	]
 

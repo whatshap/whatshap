@@ -18,9 +18,11 @@ Then WhatsHap can be installed with this command::
 
     conda install whatshap
 
-If you have Conda, but not enabled bioconda, use this command::
+For a smaller download and installation size, add ``nomkl`` to this command.
+This will avoid installing the (quite large) “Intel Math Kernel Library”,
+which WhatsHap does not use anyway::
 
-    conda install -c bioconda -c conda-forge whatshap
+    conda install whatshap nomkl
 
 
 Installation with pip
