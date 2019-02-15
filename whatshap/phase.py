@@ -1005,7 +1005,10 @@ def add_arguments(parser):
 		help='Merge reads which are likely to come from the same haplotype '
 		'(default: do not merge reads)')
 	arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
-		help='Reduce coverage to at most MAXCOV (default: %(default)s).')
+		help='Coverage reduction parameter in the core phasing algorithm. '
+			'Phasing quality may improve slightly if this is increased, but '
+			'runtime increases exponentially! Do not increase beyond 20. '
+			'(default: %(default)s)')
 	arg('--mapping-quality', '--mapq', metavar='QUAL',
 		default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
 	arg('--indels', dest='indels', default=False, action='store_true',
@@ -1103,6 +1106,8 @@ def validate(args, parser):
 		parser.error('Option --use-ped-samples cannot be used together with --samples')
 	if len(args.phase_input_files) == 0 and not args.ped:
 		parser.error('Not providing any PHASEINPUT files only allowed in --ped mode.')
+	if args.max_coverage > 25:
+		parser.error('The maximum coverage (--max-coverage) may not exceed 25.')
 
 
 def main(args):
