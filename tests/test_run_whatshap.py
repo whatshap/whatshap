@@ -742,6 +742,36 @@ def test_haplotag_10X_2():
 				assert a1.get_tag('HP') == a2.get_tag('HP')
 
 
+def test_haplotag_supplementary():
+	# test --tag-supplementary option which assigns supplementary
+	# reads to haplotypes based on the tag of their primary alignment.
+	with TemporaryDirectory() as tempdir:
+		outbam1 = tempdir + '/supp-untagged.bam'
+		outbam2 = tempdir + '/supp-tagged.bam'
+		run_haplotag(variant_file='tests/data/haplotag.supplementary.vcf.gz', alignment_file='tests/data/haplotag.supplementary.bam', output=outbam1, ignore_read_groups=True)
+		run_haplotag(variant_file='tests/data/haplotag.supplementary.vcf.gz', alignment_file='tests/data/haplotag.supplementary.bam', output=outbam2, tag_supplementary=True, ignore_read_groups=True)
+		# map name->haplotype
+		primary_to_tag = {}
+		supplementary_to_tag = {}
+		for a1, a2 in zip(pysam.AlignmentFile(outbam1), pysam.AlignmentFile(outbam2)):
+			assert a1.query_name == a2.query_name
+			if a1.has_tag('HP') and a2.has_tag('HP'):
+				assert(a1.get_tag('HP') == a2.get_tag('HP'))
+				assert not a1.is_supplementary
+			if a2.has_tag('HP'):
+				tag = a2.get_tag('HP')
+				if a2.is_supplementary:
+					supplementary_to_tag[a2.query_name] = tag
+				else:
+					primary_to_tag[a2.query_name] = tag
+		# check if supplementary and primary tags agree
+		assert len(primary_to_tag.keys()) == len(supplementary_to_tag.keys()) == 3
+		for r,t in supplementary_to_tag.items():
+			assert r in primary_to_tag
+			primary_tag = primary_to_tag[r]
+			assert t == primary_tag
+	
+
 def test_cram_output(tmpdir):
 	outcram = str(tmpdir.join('output.cram'))
 	run_haplotag(
