@@ -264,8 +264,6 @@ def run_clustereditingphase(
 				if dp_phasing:
 					#add dynamic programming for finding the most likely subset of clusters
 					cut_positions, cluster_blocks, components, superreads = subset_clusters(readset, readpartitioning, ploidy, sample,genotype_list)
-					
-					
 				else:				
 					haploblocks = clusters_to_haps(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
 

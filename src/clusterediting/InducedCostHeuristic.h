@@ -18,8 +18,6 @@ private:
     bool resolvePermanentForbidden();
     void setForbidden(const StaticSparseGraph::Edge e);
     void setPermanent(const StaticSparseGraph::Edge e);
-    void setZero(const StaticSparseGraph::Edge e);
-    void setToWeight(const StaticSparseGraph::Edge e, const StaticSparseGraph::EdgeWeight newWeight);
     
     /**
     * Updates icf and icp for the edge uw under the assumption that edge uv will be set to forbidden.
@@ -30,16 +28,6 @@ private:
     * Updates icf and icp for the edge uw under the assumption that edge uv will be set to permanent.
     */
     void updateTriplePermanentUW(const StaticSparseGraph::EdgeWeight uv, const StaticSparseGraph::Edge uw, const StaticSparseGraph::EdgeWeight vw);
-    
-    /**
-    * Updates icf and icp for the edge uw under the assumption that edge uv will be set to zero.
-    */
-    void updateTripleZeroUW(const StaticSparseGraph::EdgeWeight uv, const StaticSparseGraph::Edge uw, const StaticSparseGraph::EdgeWeight vw);
-    
-        /**
-    * Updates icf and icp for the edge uw under the assumption that edge uv will be set to zero.
-    */
-    void updateTripleCustomWeightUW(const StaticSparseGraph::EdgeWeight uv, const StaticSparseGraph::EdgeWeight uv_new, const StaticSparseGraph::Edge uw, const StaticSparseGraph::EdgeWeight vw);
     
     bool pruneZeroEdges;
     StaticSparseGraph graph;

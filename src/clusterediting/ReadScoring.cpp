@@ -6,15 +6,16 @@
 #include <algorithm>
 
 void ReadScoring::scoreReadset(TriangleSparseMatrix *result, ReadSet *readset, const double errorrate, const uint32_t minOverlap, const uint32_t ploidy) const {
+    std::cout<<"scoreReadset"<<std::endl;
 
     // compute overlap and differences for all read pairs in sparse datastrcutures
     TriangleSparseMatrix overlaps;
     TriangleSparseMatrix diffs;
     
     // copy relevant information from readset for fast access
-    std::vector<uint64_t> begins;
-    std::vector<uint64_t> ends;
-    std::vector<std::vector<uint64_t>> positions;
+    std::vector<uint32_t> begins;
+    std::vector<uint32_t> ends;
+    std::vector<std::vector<uint32_t>> positions;
 	std::vector<std::vector<uint32_t>> alleles;
     
     // compute length of overlap and difference for all read pairs
@@ -69,6 +70,7 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix *result, ReadSet *readset, c
 }
 
 void ReadScoring::scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, const uint32_t minOverlap, const uint32_t ploidy) const {
+    std::cout<<"scoreReadsetLocally"<<std::endl;
     uint32_t numReads = readset->size();
     
     // compute overlap and differences for all read pairs in sparse datastrcutures
@@ -76,9 +78,9 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, c
     TriangleSparseMatrix diffs;
     
     // copy relevant information from readset for fast access
-    std::vector<uint64_t> begins;
-    std::vector<uint64_t> ends;
-    std::vector<std::vector<uint64_t>> positions;
+    std::vector<uint32_t> begins;
+    std::vector<uint32_t> ends;
+    std::vector<std::vector<uint32_t>> positions;
 	std::vector<std::vector<uint32_t>> alleles;
     
     // compute length of overlap and difference for all read pairs
@@ -124,7 +126,7 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, c
         longestReadLen = std::max(longestReadLen, len);
     }
     windowSize /= (2*numReads);
-
+    
     //divide snp positions by window size
     std::vector<uint32_t> windowStarts;
     std::vector<uint32_t>& snpPositions = *(readset->get_positions());
@@ -140,7 +142,7 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, c
         }
     }
     windowStarts.push_back(snpPositions.size()+1);
-
+    
     // determine relative hamming distance for same and different haplotypes for each window
     std::vector<double> sameDist;
     std::vector<double> diffDist;
@@ -164,14 +166,8 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, c
         std::vector<uint32_t> firstIdx;
         std::vector<uint32_t> lastIdx;
         for (uint32_t idx = 0; idx < coveredReads.size(); idx++) {
-			//if (idx >= coveredReads.size())
-			//	continue;
-			//if (coveredReads[idx] >= positions.size())
-			//	continue;
 			bool found = false;
             for (uint32_t k = 0; k < positions[coveredReads[idx]].size() && !found; k++) {
-				//if (k >= positions[coveredReads[idx]].size())
-				//	continue;
                 if (positions[coveredReads[idx]][k] >= start) {
                     firstIdx.push_back(k);
                     found = true;
@@ -181,8 +177,6 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, c
 				firstIdx.push_back(0);
 			found = false;
             for (uint32_t k = 0; k < positions[coveredReads[idx]].size() && !found; k++) {
-				//if (k >= positions[coveredReads[idx]].size())
-				//	continue;
                 if (positions[coveredReads[idx]][k] > end) {
                     lastIdx.push_back(k);
                     found = true;
@@ -195,23 +189,11 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, c
         // iterate over all read pairs and determine their relative hamming distance
         for (uint32_t idx1 = 0; idx1 < coveredReads.size(); idx1++) {
             for (uint32_t idx2 = idx1 + 1; idx2 < coveredReads.size(); idx2++) {
-				//if (idx1 >= firstIdx.size())
-				//	continue;
-				//if (idx2 >= firstIdx.size())
-				//	continue;
-				//if (idx1 >= lastIdx.size())
-				//	continue;
-				//if (idx2 >= lastIdx.size())
-				//	continue;
-				//if (coveredReads[idx1] >= positions.size())
-				//	continue;
-				//if (coveredReads[idx2] >= positions.size())
-				//	continue;
                 uint32_t ov = 0;
                 uint32_t di = 0;
                 uint32_t k = firstIdx[idx1];
                 uint32_t l = firstIdx[idx2];
-                while (k < lastIdx[idx1] && l < lastIdx[idx2] /*&& k < positions[coveredReads[idx1]].size() && l < positions[coveredReads[idx2]].size()*/) {
+                while (k < lastIdx[idx1] && l < lastIdx[idx2]) {
                     if (positions[coveredReads[idx1]][k] == positions[coveredReads[idx2]][l]) {
                         if (alleles[coveredReads[idx1]][k] != alleles[coveredReads[idx2]][l])
                             di++;
@@ -282,8 +264,8 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, c
         }
         same /= ov;
         diff /= ov;
-		//diff = (diff+2*same)/3;
-		same = std::max(same, 0.01);
+        //diff = (diff+2*same)/3;
+        same = std::max(same, 0.01);
 		diff = std::min(1.0, std::max(diff, same + 0.01));
         result->set(i, j, logratioSim(ov, di, same, diff));
     }
@@ -292,12 +274,196 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, c
     delete &snpPositions;
 }
 
-void ReadScoring::computeStartEndOverlapDiff(const ReadSet* readset, std::vector<uint64_t>& begins, std::vector<uint64_t>& ends, std::vector<std::vector<uint64_t>> &positions, std::vector<std::vector<uint32_t>> &alleles, TriangleSparseMatrix& overlaps, TriangleSparseMatrix& diffs, const uint32_t minOverlap) const {
+void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix *result, ReadSet *readset, const uint32_t windowSize, const uint32_t minOverlap, const uint32_t ploidy) const {
+//     std::cout<<"scoreReadsetLocal"<<std::endl;
+    
+    // compute overlap and differences for all read pairs in sparse datastrcutures
+    TriangleSparseMatrix overlaps;
+    TriangleSparseMatrix diffs;
+    
+    // copy relevant information from readset for fast access
+    std::vector<uint32_t> begins;
+    std::vector<uint32_t> ends;
+    std::vector<std::vector<uint32_t>> positions;
+	std::vector<std::vector<uint32_t>> alleles;
+    
+    // compute length of overlap and difference for all read pairs
+    computeStartEndOverlapDiff(readset, begins, ends, positions, alleles, overlaps, diffs, minOverlap);
+    
+    // create index that maps genome positions to variant positions
+    std::unordered_set<uint32_t> positionSet;
+    for (std::vector<uint32_t> l : positions) {
+        for (uint32_t p : l) {
+            positionSet.insert(p);
+        }
+    }
+    
+    std::vector<uint32_t> allPositions(positionSet.begin(), positionSet.end());
+    std::sort(allPositions.begin(), allPositions.end());
+    positionSet.clear();
+    std::unordered_map<uint32_t, uint32_t> posIndex;
+    for (uint32_t i = 0; i < allPositions.size(); i++) {
+        posIndex[allPositions[i]] = i;
+    }
+    
+    // compute pattern counts for each window
+    uint32_t numPatterns = std::pow(2, windowSize);
+    uint32_t numWindows = (allPositions.size() + windowSize - 1)/windowSize;
+    std::vector<std::vector<uint32_t>> patternCount;
+    std::vector<std::vector<uint32_t>> readsInWindow(numWindows, std::vector<uint32_t>());
+    std::vector<std::vector<uint8_t>> patternOfReadInWindow(numWindows, std::vector<uint8_t>());
+    std::vector<std::vector<uint8_t>> presentOfReadInWindow(numWindows, std::vector<uint8_t>());
+    
+    for (uint32_t i = 0; i < numWindows; i++) {
+        // add vector with <numPatterns> many zeroes for every window
+        patternCount.push_back(std::vector<uint32_t>(numPatterns, 0));
+    }
+    
+    for (uint32_t read = 0; read < positions.size(); read++) {
+        // increment pattern count for each window, where this read covers ALL positions
+        uint32_t lastWindow = 0xffffffff;
+        uint8_t curPattern = 0;
+        uint8_t present = 0;
+        for (uint32_t rpos = 0; rpos < alleles[read].size(); rpos++) {
+            uint32_t pos = positions[read][rpos];
+            uint32_t varPos = posIndex[pos];
+            uint32_t curWindow = varPos / windowSize;
+            uint32_t offset = (windowSize - 1) - (varPos % windowSize);
+            if (curWindow > lastWindow || lastWindow == 0xffffffff) {
+                // new window reached, check for pattern count increase in old window
+                if (present == numPatterns - 1) {
+                    patternCount[lastWindow][curPattern]++;
+                }
+                readsInWindow[curWindow].push_back(read);
+                patternOfReadInWindow[curWindow].push_back(curPattern);
+                presentOfReadInWindow[curWindow].push_back(present);
+                lastWindow = curWindow;
+                present = 0;
+                curPattern = 0;
+            }
+            curPattern |= (alleles[read][rpos] << offset);
+            present |= (1U << offset);
+        }
+    }
+    
+    // infer local haplotype patterns for each window
+    std::vector<std::vector<uint32_t>> patternsInWindow;
+    std::vector<std::vector<uint32_t>> patternMultiplicityInWindow;
+    for (uint32_t window = 0; window < numWindows; window++) {
+        /* determine relevant patterns: find pattern with highest count, until <ploidy> many patterns
+         * are chosen. To chose the same pattern k times, it must be more than k times more frequent
+         * than all other patterns. */
+        patternsInWindow.push_back(std::vector<uint32_t>());
+        patternMultiplicityInWindow.push_back(std::vector<uint32_t>());
+        std::vector<uint32_t> timesChosen(numPatterns, 0);
+        for (uint32_t j = 0; j < ploidy; j++) {
+            uint32_t maxCount = 0;
+            uint32_t maxPattern = 0;
+            for (uint32_t pattern = 0; pattern < numPatterns; pattern++) {
+                if (patternCount[window][pattern] / (timesChosen[pattern]+1) > maxCount) {
+                    maxCount = patternCount[window][pattern] / (timesChosen[pattern]+1);
+                    maxPattern = pattern;
+                }
+            }
+            timesChosen[maxPattern]++;
+        }
+        // write chosen patterns into 2D vector
+//         std::cout<<"Window "<<window<<": ";
+        for (uint32_t pattern = 0; pattern < numPatterns; pattern++) {
+            if (timesChosen[pattern] > 0) {
+                patternsInWindow[window].push_back(pattern);
+                patternMultiplicityInWindow[window].push_back(timesChosen[pattern]);
+//                 std::cout<<pattern<<" (x"<<timesChosen[pattern]<<"), ";
+            }
+        }
+//         std::cout<<std::endl;
+    }
+    
+    // iterate over all windows
+    for (uint32_t window = 0; window < numWindows; window++) {
+        // write patterns as allele vectors
+        std::vector<std::vector<uint32_t>> patternAlleles;
+        uint32_t numLocalPatterns = patternsInWindow[window].size();
+        for (uint32_t pattern = 0; pattern < numLocalPatterns; pattern++) {
+            std::vector<uint32_t> vec(windowSize, 0);
+            for (uint32_t pos = 0; pos < windowSize; pos++) {
+                vec[0] = (patternsInWindow[window][pattern] & (1U << (windowSize - 1 - pos))) > 0;
+            }
+            patternAlleles.push_back(vec);
+        }
+        
+        std::vector<std::vector<double>> prob;
+        double e = 0.05;
+        // compute probabilities for each read to originate from each pattern
+        for (uint32_t read = 0; read < readsInWindow[window].size(); read++) {
+            std::vector<double> probRead(numLocalPatterns, 0.0);
+            double sum = 0.0;
+            for (uint32_t pattern = 0; pattern < numLocalPatterns; pattern++) {
+                // bit magic: inner xor detects differences between pattern and read, outer operator ensures zero bits on undefined positions for read
+                uint64_t numMatch = popcount(((patternOfReadInWindow[window][read] ^ patternsInWindow[window][pattern]) ^ (numPatterns-1)) & (uint32_t)presentOfReadInWindow[window][read]);
+                uint64_t numMismatch = popcount((patternOfReadInWindow[window][read] ^ patternsInWindow[window][pattern]) & (uint32_t)presentOfReadInWindow[window][read]);
+                if (numMatch + numMismatch <= 0 || numMatch + numMismatch > windowSize) {
+                    std::cout<<"Invalid match/mismatch count "<<window<<"/"<<read<<": "<<numMatch<<" and "<<numMismatch<<std::endl;
+//                     std::cout<<((uint32_t)patternOfReadInWindow[window][read])<<" ^ "<<patternsInWindow[window][pattern]<<" ^ "<<(numPatterns-1)<<" & "<<((uint32_t)presentOfReadInWindow[window][read])<<std::endl;
+//                     std::cout<<((uint32_t)patternOfReadInWindow[window][read])<<" ^ "<<patternsInWindow[window][pattern]<<" & "<<((uint32_t)presentOfReadInWindow[window][read])<<std::endl;
+                    continue;
+                }
+//                 std::cout<<((uint32_t)patternOfReadInWindow[window][read])<<" ^ "<<patternsInWindow[window][pattern]<<" ^ "<<(numPatterns-1)<<" & "<<((uint32_t)presentOfReadInWindow[window][read])<<std::endl;
+                double factor = patternMultiplicityInWindow[window][pattern] * std::pow(e, numMismatch) * std::pow(1-e, numMatch);
+                probRead[pattern] = factor;
+                sum += factor;
+                if (factor == 0.0) {
+                    std::cout<<"Factor was zero for "<<(uint32_t)patternOfReadInWindow[window][read]<<" ("<<(uint32_t)presentOfReadInWindow[window][read]<<") and "<<patternsInWindow[window][pattern]<<std::endl;
+                }
+            }
+            for (uint32_t pattern = 0; pattern < numLocalPatterns; pattern++) {
+                probRead[pattern] /= sum;
+            }
+            prob.push_back(probRead);
+        }
+        
+        // compute scoring for all read pairs in current window
+        for (uint32_t read1 = 0; read1 < readsInWindow[window].size(); read1++) {
+            for (uint32_t read2 = read1 + 1; read2 < readsInWindow[window].size(); read2++) {
+                uint32_t readId1 = readsInWindow[window][read1];
+                uint32_t readId2 = readsInWindow[window][read2];
+                if (overlaps.get(readId1, readId2) < minOverlap)
+                    continue;
+                double pSame = 0.0;
+                double pDiff = 0.0;
+                for (uint32_t p1 = 0; p1 < numLocalPatterns; p1++) {
+                    for (uint32_t p2 = 0; p2 < numLocalPatterns; p2++) {
+                        if (p1 == p2) {
+                            pSame += prob[read1][p1] * prob[read2][p2];
+                        } else {
+                            pDiff += prob[read1][p1] * prob[read2][p2];
+                        }
+                    }
+                }
+                if (std::abs(1.0 - (pSame + pDiff)) > 0.0001) {
+                    std::cout<<"pSame + pDiff = "<<(pDiff+pSame)<<" in window "<<window<<std::endl;
+                } else {
+                    if (pSame == 0)
+                        result->set(readId1, readId2, -std::numeric_limits<float>::infinity());
+                    else if (pDiff == 0) {
+                        result->set(readId1, readId2, std::numeric_limits<float>::infinity());
+//                         std::cout<<window<<" : "<<read1<<"-"<<read2<<" : "<<readId1<<"-"<<readId2<<" : "<<(uint32_t)patternOfReadInWindow[window][read1]<<"-"<<(uint32_t)patternOfReadInWindow[window][read1]<<" : "<<(uint32_t)presentOfReadInWindow[window][read1]<<"-"<<(uint32_t)presentOfReadInWindow[window][read1]<<std::endl;
+                    }
+                    else
+                        result->set(readId1, readId2, result->get(readId1, readId2) + log(pSame / pDiff));
+                }
+            }
+        }
+    }
+}
+
+void ReadScoring::computeStartEndOverlapDiff(const ReadSet* readset, std::vector<uint32_t>& begins, std::vector<uint32_t>& ends, std::vector<std::vector<uint32_t>> &positions, std::vector<std::vector<uint32_t>> &alleles, TriangleSparseMatrix& overlaps, TriangleSparseMatrix& diffs, const uint32_t minOverlap) const {
+    // copy all relevant information from the readset into vectors for efficient access
     uint32_t numReads = readset->size();
     for (uint32_t i = 0; i < numReads; i++) {
         begins.push_back(readset->get(i)->firstPosition());
         ends.push_back(readset->get(i)->lastPosition());
-        std::vector<uint64_t> pos;
+        std::vector<uint32_t> pos;
         std::vector<uint32_t> all;
         for (int k = 0; k < readset->get(i)->getVariantCount(); k++) {
             pos.push_back(readset->get(i)->getPosition(k));
@@ -307,7 +473,23 @@ void ReadScoring::computeStartEndOverlapDiff(const ReadSet* readset, std::vector
         alleles.push_back(all);
     }
     
+    // determine length of the longest read
+    uint32_t longestReadLen = 0;
     for (uint32_t i = 0; i < numReads; i++) {
+        longestReadLen = std::max(longestReadLen, ends[i] - begins[i]);
+    }
+    
+    // iterate over all read pairs (efficiently omitting those who can certainly not overlap)
+    for (uint32_t i = 0; i < numReads; i++) {
+        
+        // binary search to find first read, which can theoretically overlap read i
+//         uint32_t firstIndex = std::lower_bound(begins.begin(), begins.end(), begins[i]-longestReadLen) - begins.begin();
+        // iterate until start position of read is behind required start
+//         for (uint32_t j = firstIndex; begins[j] <= ends[i] && j < numReads; j++) {
+            
+//         }
+        
+        
         for (uint32_t j = i+1; j < numReads; j++) {
             if (ends[i] < begins[j] || ends[j] < begins[i])
                 continue;
@@ -351,4 +533,13 @@ double ReadScoring::binomPmf(const uint32_t n, const uint32_t k, const double p)
         coeff *= ((n-i) / (k-i));
     }
     return coeff * pow(p, k) * pow(1-p, n-k);
+}
+
+uint64_t ReadScoring::popcount(uint64_t bitv) const {
+    // copied from Wikipedia (https://en.wikipedia.org/wiki/Hamming_weight)
+    bitv -= (bitv >> 1) & m1;
+    bitv = (bitv & m2) + ((bitv >> 2) & m2);
+    bitv = (bitv + (bitv >> 4)) & m4;
+    return (bitv * h01) >> 56;
+    // return _mm_popcnt_u64(bitv)
 }

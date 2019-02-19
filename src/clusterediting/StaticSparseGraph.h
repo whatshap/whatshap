@@ -94,6 +94,11 @@ public:
     EdgeWeight getWeight(const Edge e);
     
     /**
+     * Returns the weight of an edge by providing its rank id.
+     */
+    EdgeWeight getWeight(const RankId r);
+    
+    /**
      * Makes the specified edge e=(u,v) permanent. If u and v are connected to other nodes via permanent edges, then all edges
      * between u's clique and v's clique are made permanent as well.
      */
@@ -104,11 +109,6 @@ public:
      * between u's clique and v's clique are made forbidden as well.
      */
     void setForbidden(const Edge e);
-    
-    /**
-     * Removed the specified edge in the sense, that its weight and rank id will become zero. This cannot be reversed.
-     */
-    void removeEdge(const Edge e);
     
     /**
      * Modifies the weight of an edge, given the Edge.
@@ -205,12 +205,6 @@ private:
      * Returns the number of set bits in a 64bit-word.
      */
     uint64_t popcount(uint64_t bitv) const;
-    
-        
-    /**
-     * Removes the specified edge from the rank index. Cannot be reversed.
-     */
-    void removeIndex(const EdgeId e);
     
     std::string int2bin(uint64_t u) {
         std::string s(64, '0');

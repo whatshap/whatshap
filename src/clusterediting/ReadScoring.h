@@ -13,11 +13,22 @@ public:
      */
     void scoreReadset(TriangleSparseMatrix *result, ReadSet *readset, const double errorrate, const uint32_t minOverlap, const uint32_t ploidy) const;
     void scoreReadset(TriangleSparseMatrix *result, ReadSet *readset, const uint32_t minOverlap, const uint32_t ploidy) const;
+    void scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* readset, const uint32_t windowSize, const uint32_t minOverlap, const uint32_t ploidy) const;
 
 private:
-    void computeStartEndOverlapDiff(const ReadSet* readset, std::vector<uint64_t>& begins, std::vector<uint64_t>& ends, std::vector<std::vector<uint64_t>> &positions, std::vector<std::vector<uint32_t>> &alleles, TriangleSparseMatrix& overlaps, TriangleSparseMatrix& diffs, const uint32_t minOverlap) const;
+    void computeStartEndOverlapDiff(const ReadSet* readset, std::vector<uint32_t>& begins, std::vector<uint32_t>& ends, std::vector<std::vector<uint32_t>> &positions, std::vector<std::vector<uint32_t>> &alleles, TriangleSparseMatrix& overlaps, TriangleSparseMatrix& diffs, const uint32_t minOverlap) const;
     float logratioSim(const uint32_t overlap, const uint32_t diff, const double distSame, const double distDiff) const;
     double binomPmf(const uint32_t n, const uint32_t k, const double p) const;
+    
+    // used for inefficient popcount
+    const uint64_t m1  = 0x5555555555555555;
+    const uint64_t m2  = 0x3333333333333333;
+    const uint64_t m4  = 0x0f0f0f0f0f0f0f0f;
+    const uint64_t h01 = 0x0101010101010101;
+    /**
+     * Returns the number of set bits in a 64bit-word.
+     */
+    uint64_t popcount(uint64_t bitv) const;
 };
 
 #endif // READSCORING_H
