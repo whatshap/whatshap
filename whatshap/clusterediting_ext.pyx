@@ -11,8 +11,8 @@ cdef class StaticSparseGraph:
 		self.thisptr.addEdge(node_id1, node_id2, weight)
 
 cdef class CoreAlgorithm:
-	def __cinit__(self, StaticSparseGraph graph):
-		self.thisptr = new cpp.CoreAlgorithm(graph.thisptr[0])
+	def __cinit__(self, StaticSparseGraph graph, bundleEdges):
+		self.thisptr = new cpp.CoreAlgorithm(graph.thisptr[0], bundleEdges)
 		self.graph = graph
 	def run(self):
 		cdef cpp.ClusterEditingSolutionLight solution = self.thisptr.run()
@@ -50,17 +50,17 @@ cdef class ReadScoring:
 	def __cinit__(self):
 		self.thisptr = new cpp.ReadScoring()
 
-	def scoreReadset(self, ReadSet readset, double errorrate, unsigned int minOverlap, unsigned int ploidy):
+	def scoreReadsetGlobal(self, ReadSet readset, unsigned int minOverlap, unsigned int ploidy, double errorrate):
 		sim = TriangleSparseMatrix()
-		self.thisptr.scoreReadset(sim.thisptr, readset.thisptr, errorrate, minOverlap, ploidy)
+		self.thisptr.scoreReadsetGlobal(sim.thisptr, readset.thisptr, minOverlap, ploidy, errorrate)
 		return sim
 	
-	def scoreReadsetLocally(self, ReadSet readset, unsigned int minOverlap, unsigned int ploidy):
+	def scoreReadsetLocal(self, ReadSet readset, unsigned int minOverlap, unsigned int ploidy):
 		sim = TriangleSparseMatrix()
-		self.thisptr.scoreReadset(sim.thisptr, readset.thisptr, minOverlap, ploidy)
+		self.thisptr.scoreReadsetLocal(sim.thisptr, readset.thisptr, minOverlap, ploidy)
 		return sim
 	
-	def scoreReadsetLocal(self, ReadSet readset, unsigned int windowSize, unsigned int minOverlap, unsigned int ploidy):
+	def scoreReadsetPatterns(self, ReadSet readset, unsigned int minOverlap, unsigned int ploidy, double errorrate, unsigned int windowSize):
 		sim = TriangleSparseMatrix()
-		self.thisptr.scoreReadsetLocal(sim.thisptr, readset.thisptr, windowSize, minOverlap, ploidy)
+		self.thisptr.scoreReadsetPatterns(sim.thisptr, readset.thisptr, minOverlap, ploidy, errorrate, windowSize)
 		return sim

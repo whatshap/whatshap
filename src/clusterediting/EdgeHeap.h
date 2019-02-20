@@ -78,7 +78,6 @@ private:
     
     StaticSparseGraph& graph;
     int unprocessed;
-    int heapUpdates;
     std::vector<StaticSparseGraph::Edge> edges;                         // internal/rank id -> edge
     std::vector<StaticSparseGraph::EdgeWeight> icf;                     // edge rank id -> icf of edge (zero edges have no icf)
     std::vector<StaticSparseGraph::EdgeWeight> icp;                     // edge rank id -> icp of edge (zero edges have no icp)

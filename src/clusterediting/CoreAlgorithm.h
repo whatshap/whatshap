@@ -19,10 +19,10 @@ namespace ysk {
 		public:
 
 		CoreAlgorithm(
-				//LightCompleteGraph& graph
-				StaticSparseGraph& graph
+				StaticSparseGraph& graph,
+                bool bundleEdges
 		)
-		:_graph(graph)
+		:_graph(graph), bundleEdges(bundleEdges)
 		{};
 
 		ClusterEditingSolutionLight run();
@@ -33,8 +33,8 @@ namespace ysk {
 		void cancel();
 
 		private:
-			//LightCompleteGraph& _graph;
             StaticSparseGraph& _graph;
+            bool bundleEdges;
 	};
 }
 

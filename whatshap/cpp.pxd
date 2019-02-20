@@ -125,7 +125,7 @@ cdef extern from "../src/clusterediting/StaticSparseGraph.h" namespace "ysk":
 		
 cdef extern from "../src/clusterediting/CoreAlgorithm.h" namespace "ysk":
 	cdef cppclass CoreAlgorithm:
-		CoreAlgorithm(StaticSparseGraph graph) except +
+		CoreAlgorithm(StaticSparseGraph graph, bool bundleEdges) except +
 		ClusterEditingSolutionLight run() except +
 
 cdef extern from "../src/clusterediting/ClusterEditingSolutionLight.h" namespace "ysk":
@@ -149,6 +149,6 @@ cdef extern from "../src/clusterediting/TriangleSparseMatrix.h":
 cdef extern from "../src/clusterediting/ReadScoring.h":
 	cdef cppclass ReadScoring:
 		ReadScoring() except +
-		void scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, double errorrate, unsigned int minOverlap, unsigned int ploidy) except +
-		void scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, unsigned int minOverlap, unsigned int ploidy) except +
-		void scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* readset, unsigned int windowSize, unsigned int minOverlap, unsigned int ploidy) except +
+		void scoreReadsetGlobal(TriangleSparseMatrix* result, ReadSet* readset, unsigned int minOverlap, unsigned int ploidy, double errorrate) except +
+		void scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* readset, unsigned int minOverlap, unsigned int ploidy) except +
+		void scoreReadsetPatterns(TriangleSparseMatrix* result, ReadSet* readset, unsigned int minOverlap, unsigned int ploidy, double errorrate, unsigned int windowSize) except +

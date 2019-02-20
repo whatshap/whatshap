@@ -31,7 +31,7 @@ from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
 from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components, find_largest_component, write_read_list
 from .clustereditingplots import draw_plots_dissimilarity, draw_plots_scoring, draw_column_dissimilarity, draw_heatmaps, draw_superheatmap, draw_cluster_coverage, draw_cluster_blocks
-from .readscoring import score, locality_sensitive_score
+from .readscoring import score_global, score_local, score_local_patternbased
 from .kclustifier import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks, subset_clusters
 #from .core import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks, subset_clusters
 __author__ = "Jana Ebler" 
@@ -68,7 +68,9 @@ def run_clustereditingphase(
 	tag='PS',
 	write_command_line_header=True,
 	read_list_filename=None,
-	errorrate = 0.1, 
+	errorrate = 0.1,
+	ce_bundle_edges = False,
+	ce_score_with_patterns = False,
 	min_overlap = 5,
 	transform = False,
 	dp_phasing = False,
@@ -231,10 +233,12 @@ def run_clustereditingphase(
 				# Compute similarity values for all read pairs
 				timers.start('compute_graph')
 				logger.info("Computing similarities for read pairs ...")
-				if 0.0 <= errorrate < 1.0:
-					similarities = score(readset, ploidy, errorrate, min_overlap)
+				if ce_score_with_patterns:
+					similarities = score_local_patternbased(readset, ploidy, errorrate, min_overlap, 4)
+				elif 0.0 <= errorrate < 1.0:
+					similarities = score_global(readset, ploidy, errorrate, min_overlap)
 				else:
-					similarities = locality_sensitive_score(readset, ploidy, min_overlap)
+					similarities = score_local(readset, ploidy, min_overlap)
 				
 				# Create read graph object
 				logger.info("Constructing graph ...")
@@ -248,7 +252,7 @@ def run_clustereditingphase(
 				# Run cluster editing
 				logger.info("Solving cluster editing ...")
 				timers.start('solve_clusterediting')
-				clusterediting = CoreAlgorithm(graph)	
+				clusterediting = CoreAlgorithm(graph, ce_bundle_edges)	
 				readpartitioning = clusterediting.run()				
 				timers.stop('solve_clusterediting')
 
@@ -319,6 +323,8 @@ def run_clustereditingphase(
 				if plot_heatmap or plot_haploblocks:
 					logger.info("Generating plots ...")
 					if plot_heatmap:
+						if ce_score_with_patterns:
+							draw_plots_scoring(readset, similarities, output_str+ ("_D" if transform else "_N") + ".scoringplot.png", ploidy, errorrate, min_overlap)
 						draw_superheatmap(readset, readpartitioning, phasable_variant_table, output_str+ ("_D" if transform else "_N") + ".superheatmapg.png", genome_space = False)
 					if plot_haploblocks:
 						draw_cluster_blocks(readset, readpartitioning, cluster_blocks, cut_positions, phasable_variant_table, output_str+ ("_D" if transform else "_N") + ".haploblocks.png", genome_space = False)
@@ -396,6 +402,10 @@ def add_arguments(parser):
 
 	arg = parser.add_argument_group('Parameters for cluster editing').add_argument
 	arg('--errorrate', metavar='ERROR', type=float, default=-1.0, help='Read error rate (default: %(default)s).')
+	arg('--ce-score-with-patterns', dest='ce_score_with_patterns', default=False, action='store_true',
+		help='Uses a scoring method for reads, which is based on local haplotype inference through local patterns of the reads (default: %(default)s).')
+	arg('--ce-bundle-edges', dest='ce_bundle_edges', default=False, action='store_true',
+		help='Influences the cluster editing heuristic. Only for debug/developing purpose (default: %(default)s).')
 	arg('--min-overlap', metavar='OVERLAP', type=int, default=5, help='Minimum required read overlap (default: %(default)s).')
 	arg('--transform', dest='transform', default=False, action='store_true',
 		help='Use transformed matrix for read similarity scoring (default: %(default)s).')

@@ -5,9 +5,7 @@
 #include <cmath>
 #include <algorithm>
 
-void ReadScoring::scoreReadset(TriangleSparseMatrix *result, ReadSet *readset, const double errorrate, const uint32_t minOverlap, const uint32_t ploidy) const {
-    std::cout<<"scoreReadset"<<std::endl;
-
+void ReadScoring::scoreReadsetGlobal(TriangleSparseMatrix *result, ReadSet *readset, const uint32_t minOverlap, const uint32_t ploidy, const double errorrate) const {
     // compute overlap and differences for all read pairs in sparse datastrcutures
     TriangleSparseMatrix overlaps;
     TriangleSparseMatrix diffs;
@@ -69,8 +67,7 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix *result, ReadSet *readset, c
     
 }
 
-void ReadScoring::scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, const uint32_t minOverlap, const uint32_t ploidy) const {
-    std::cout<<"scoreReadsetLocally"<<std::endl;
+void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* readset, const uint32_t minOverlap, const uint32_t ploidy) const {
     uint32_t numReads = readset->size();
     
     // compute overlap and differences for all read pairs in sparse datastrcutures
@@ -138,7 +135,6 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, c
         if (snpPositions[current] - windowStartPosition > windowSize || current == 0) {
             windowStarts.push_back(current);
             windowStartPosition = snpPositions[current];
-//             std::cout<<"New SNP Window starts at "<<current<<" / "<<snpPositions[current]<<std::endl;
         }
     }
     windowStarts.push_back(snpPositions.size()+1);
@@ -274,9 +270,8 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, c
     delete &snpPositions;
 }
 
-void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix *result, ReadSet *readset, const uint32_t windowSize, const uint32_t minOverlap, const uint32_t ploidy) const {
-//     std::cout<<"scoreReadsetLocal"<<std::endl;
-    
+void ReadScoring::scoreReadsetPatterns(TriangleSparseMatrix *result, ReadSet *readset, const uint32_t minOverlap, const uint32_t ploidy, 
+                                       const double errorrate, const uint32_t windowSize) const {    
     // compute overlap and differences for all read pairs in sparse datastrcutures
     TriangleSparseMatrix overlaps;
     TriangleSparseMatrix diffs;
@@ -333,10 +328,12 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix *result, ReadSet *reads
                 // new window reached, check for pattern count increase in old window
                 if (present == numPatterns - 1) {
                     patternCount[lastWindow][curPattern]++;
+                } else if (present > 0) {
+                    readsInWindow[curWindow].push_back(read);
+                    patternOfReadInWindow[curWindow].push_back(curPattern);
+                    presentOfReadInWindow[curWindow].push_back(present);
+                    std::cout<<"Put Window "<<curWindow<<", Read "<<read<<" : "<<(uint32_t)curPattern<<", "<<(uint32_t)present<<std::endl;
                 }
-                readsInWindow[curWindow].push_back(read);
-                patternOfReadInWindow[curWindow].push_back(curPattern);
-                presentOfReadInWindow[curWindow].push_back(present);
                 lastWindow = curWindow;
                 present = 0;
                 curPattern = 0;
@@ -368,15 +365,16 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix *result, ReadSet *reads
             timesChosen[maxPattern]++;
         }
         // write chosen patterns into 2D vector
-//         std::cout<<"Window "<<window<<": ";
+        std::cout<<"Window "<<window<<": ";
         for (uint32_t pattern = 0; pattern < numPatterns; pattern++) {
             if (timesChosen[pattern] > 0) {
                 patternsInWindow[window].push_back(pattern);
                 patternMultiplicityInWindow[window].push_back(timesChosen[pattern]);
-//                 std::cout<<pattern<<" (x"<<timesChosen[pattern]<<"), ";
+                for (uint32_t i = 0; i < timesChosen[pattern]; i++)
+                    std::cout<<pattern<<"/";
             }
         }
-//         std::cout<<std::endl;
+        std::cout<<std::endl;
     }
     
     // iterate over all windows
@@ -393,7 +391,7 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix *result, ReadSet *reads
         }
         
         std::vector<std::vector<double>> prob;
-        double e = 0.05;
+        double e = errorrate > 0.0 && errorrate < 1.0 ? errorrate : 0.05;
         // compute probabilities for each read to originate from each pattern
         for (uint32_t read = 0; read < readsInWindow[window].size(); read++) {
             std::vector<double> probRead(numLocalPatterns, 0.0);
@@ -403,9 +401,9 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix *result, ReadSet *reads
                 uint64_t numMatch = popcount(((patternOfReadInWindow[window][read] ^ patternsInWindow[window][pattern]) ^ (numPatterns-1)) & (uint32_t)presentOfReadInWindow[window][read]);
                 uint64_t numMismatch = popcount((patternOfReadInWindow[window][read] ^ patternsInWindow[window][pattern]) & (uint32_t)presentOfReadInWindow[window][read]);
                 if (numMatch + numMismatch <= 0 || numMatch + numMismatch > windowSize) {
-                    std::cout<<"Invalid match/mismatch count "<<window<<"/"<<read<<": "<<numMatch<<" and "<<numMismatch<<std::endl;
-//                     std::cout<<((uint32_t)patternOfReadInWindow[window][read])<<" ^ "<<patternsInWindow[window][pattern]<<" ^ "<<(numPatterns-1)<<" & "<<((uint32_t)presentOfReadInWindow[window][read])<<std::endl;
-//                     std::cout<<((uint32_t)patternOfReadInWindow[window][read])<<" ^ "<<patternsInWindow[window][pattern]<<" & "<<((uint32_t)presentOfReadInWindow[window][read])<<std::endl;
+                    std::cout<<"Invalid match/mismatch count: Window "<<window<<", Read "<<readsInWindow[window][read]<<"("<<read<<"): "<<numMatch<<" and "<<numMismatch<<std::endl;
+                    std::cout<<((uint32_t)patternOfReadInWindow[window][read])<<" ^ "<<patternsInWindow[window][pattern]<<" ^ "<<(numPatterns-1)<<" & "<<((uint32_t)presentOfReadInWindow[window][read])<<std::endl;
+                    std::cout<<((uint32_t)patternOfReadInWindow[window][read])<<" ^ "<<patternsInWindow[window][pattern]<<" & "<<((uint32_t)presentOfReadInWindow[window][read])<<std::endl;
                     continue;
                 }
 //                 std::cout<<((uint32_t)patternOfReadInWindow[window][read])<<" ^ "<<patternsInWindow[window][pattern]<<" ^ "<<(numPatterns-1)<<" & "<<((uint32_t)presentOfReadInWindow[window][read])<<std::endl;

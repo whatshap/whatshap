@@ -57,11 +57,18 @@ class SparseTriangleMatrix:
 			self.size = max(i, self.size)
 			self.size = max(j, self.size)
 
-def score(readset, ploidy, errorrate, min_overlap):
+def score_global(readset, ploidy, errorrate, min_overlap):
 	read_scoring = ReadScoring()
+	return read_scoring.scoreReadsetGlobal(readset, min_overlap, ploidy, errorrate)
 	
-	return read_scoring.scoreReadset(readset, errorrate, min_overlap, ploidy)
-	
+def score_local(readset, ploidy, min_overlap):
+	read_scoring = ReadScoring()
+	return read_scoring.scoreReadsetLocal(readset, min_overlap, ploidy)
+
+def score_local_patternbased(readset, ploidy, errorrate, min_overlap, window_size):
+	read_scoring = ReadScoring()
+	return read_scoring.scoreReadsetPatterns(readset, min_overlap, ploidy, errorrate, window_size)
+
 def partial_scoring(sim, subset):
 	# sim -- a two-dimensional list with the same format as the output of the score-function
 	# subset -- a list of indices indicating the subset to score
@@ -126,12 +133,6 @@ def logratio_sim(overlap, diffs, dist_same, dist_diff, min_overlap):
 	else:
 		score = log(p_same / p_diff)
 	return score
-
-def locality_sensitive_score(readset, ploidy, min_overlap):
-	read_scoring = ReadScoring()
-	#return read_scoring.scoreReadsetLocal(readset, 4, min_overlap, ploidy)
-	return read_scoring.scoreReadsetLocally(readset, min_overlap, ploidy)
-	
 
 def print_dist_between_haps(readset, overlap, diffs):
 	haps = [[j for j in range(len(readset)) if parse_haplotype(readset[j].name) == i] for i in range(0, 4)]

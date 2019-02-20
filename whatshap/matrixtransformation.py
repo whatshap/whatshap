@@ -2,7 +2,7 @@ from collections import defaultdict
 import sys
 from .graph import ComponentFinder
 from .core import Read, ReadSet, CoreAlgorithm, StaticSparseGraph
-from .readscoring import score, partial_scoring, locality_sensitive_score
+from .readscoring import score_global, score_local, score_local_patternbased, partial_scoring
 import logging
 import pysam
 import itertools
@@ -65,9 +65,9 @@ class MatrixTransformation:
 
 				# compute similarities for reads in column
 				if 0.0 <= errorrate < 1.0:
-					similarities = score(column, ploidy, errorrate, min_overlap)
+					similarities = score_global(column, ploidy, errorrate, min_overlap)
 				else:
-					similarities = locality_sensitive_score(column, ploidy, min_overlap)
+					similarities = score_local(column, ploidy, min_overlap)
 				
 				# create read graph object
 				graph = StaticSparseGraph(len(column))
@@ -77,7 +77,7 @@ class MatrixTransformation:
 					graph.addEdge(read1, read2, similarities.get(read1, read2))
 				
 				# run cluster editing
-				clusterediting = CoreAlgorithm(graph)
+				clusterediting = CoreAlgorithm(graph, False)
 				readpartitioning = clusterediting.run()
 				num_clusters.append(len(readpartitioning))
 				

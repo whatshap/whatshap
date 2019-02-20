@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from pylab import savefig
 from .core import Read, ReadSet, CoreAlgorithm, StaticSparseGraph
-from .readscoring import score, calc_overlap_and_diffs, parse_haplotype, score, locality_sensitive_score, parse_haplotype
+from .readscoring import calc_overlap_and_diffs, parse_haplotype, parse_haplotype
 from .kclustifier import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks
 from .vectorerror import vector_error, vector_error_blockwise
 
@@ -29,11 +29,9 @@ def draw_plots_dissimilarity(readset, path, min_overlap = 5, steps = 100):
 				dissims_diff.append(d)
 	createHistogram(path, dissims_same, dissims_diff, steps, [0.0, 1.0], "Dissimilarity", "Read-pair comparison")
 	
-def draw_plots_scoring(readset, path, ploidy, error_rate, min_overlap = 5, steps=120, dim=[-60, 60]):
+def draw_plots_scoring(readset, similarities, path, ploidy, error_rate, min_overlap = 5, steps=120, dim=[-60, 60]):
 	num_reads = len(readset)
 	overlap, diffs = calc_overlap_and_diffs(readset)
-	similarities = score(readset, ploidy, error_rate, min_overlap)
-	#similarities = locality_sensitive_score(readset, ploidy, min_overlap)
 	haps = [parse_haplotype(readset[i].name) for i in range(num_reads)]
 	dissims_same = []
 	dissims_diff = []

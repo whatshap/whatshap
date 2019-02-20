@@ -11,8 +11,8 @@ using EdgeId = StaticSparseGraph::EdgeId;
 using NodeId = StaticSparseGraph::NodeId;
 using RankId = StaticSparseGraph::RankId;
 
-InducedCostHeuristic::InducedCostHeuristic(StaticSparseGraph& param_graph, bool param_pruneZeroEdges) :
-    pruneZeroEdges(param_pruneZeroEdges),
+InducedCostHeuristic::InducedCostHeuristic(StaticSparseGraph& param_graph, bool param_bundleEdges) :
+    bundleEdges(param_bundleEdges),
     graph(param_graph),
     edgeHeap(graph),
     totalCost(0.0)
@@ -100,37 +100,39 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
                 }
             }
             
-//             /* All outgoing edges of the current clique, which lead to the same clique, must be bundled together. If one of these
-//              edges is made permanent or forbidden, then all other edges must be as well. Therefore not the induced costs for all
-//              edges must be taken into account, not only the cost of the chosen edge.*/
-//             NodeId cu = graph.getCliqueIdOf(eIcf.u);
-//             if (verbosity >= 4)
-//                 std::cout<<"Contracting nodes of cluster id ("<<cu<<")."<<std::endl;
-//             std::unordered_map<NodeId, Edge> cliqueToRepresentative;
-//             uClique.insert(uClique.end(), vClique.begin(), vClique.end());
-//             for (NodeId x : uClique) {
-//                 for (NodeId xn : graph.getUnprunedNeighbours(x)) {
-//                     // this edge should not be inside the current cluster, as all internal edges should be permanent by now
-//                     Edge ex(x, xn);
-//                     NodeId cxn = graph.getCliqueIdOf(xn);
-//                     
-//                     if (std::find(uClique.begin(), uClique.end(), xn) != uClique.end()) {
-//                         if (verbosity >= 5)
-//                             std::cout<<"Observed edge ("<<x<<","<<xn<<") was inside the cluster!"<<std::endl;
-//                         continue;
-//                     }
-//                     if (graph.findIndex(ex) == 0) {
-//                         std::cout<<"Observed edge ("<<x<<","<<xn<<") was pruned edge with weight "<<graph.getWeight(ex)<<std::endl;
-//                         continue;
-//                     }
-//                     // if new cluster is "discovered", set edge as representative, otherwise bundle with present representative
-//                     if (cliqueToRepresentative.find(cxn) == cliqueToRepresentative.end()) {
-//                         cliqueToRepresentative[cxn] = ex;
-//                     } else {
-//                         edgeHeap.mergeEdges(ex, cliqueToRepresentative[cxn]);
-//                     }
-//                 }
-//             }
+            if (bundleEdges) {
+                /* All outgoing edges of the current clique, which lead to the same clique, must be bundled together. If one of these
+                edges is made permanent or forbidden, then all other edges must be as well. Therefore not the induced costs for all
+                edges must be taken into account, not only the cost of the chosen edge.*/
+                NodeId cu = graph.getCliqueIdOf(eIcf.u);
+                if (verbosity >= 4)
+                    std::cout<<"Contracting nodes of cluster id ("<<cu<<")."<<std::endl;
+                std::unordered_map<NodeId, Edge> cliqueToRepresentative;
+                uClique.insert(uClique.end(), vClique.begin(), vClique.end());
+                for (NodeId x : uClique) {
+                    for (NodeId xn : graph.getUnprunedNeighbours(x)) {
+                        // this edge should not be inside the current cluster, as all internal edges should be permanent by now
+                        Edge ex(x, xn);
+                        NodeId cxn = graph.getCliqueIdOf(xn);
+                        
+                        if (std::find(uClique.begin(), uClique.end(), xn) != uClique.end()) {
+                            if (verbosity >= 5)
+                                std::cout<<"Observed edge ("<<x<<","<<xn<<") was inside the cluster!"<<std::endl;
+                            continue;
+                        }
+                        if (graph.findIndex(ex) == 0) {
+                            std::cout<<"Observed edge ("<<x<<","<<xn<<") was pruned edge with weight "<<graph.getWeight(ex)<<std::endl;
+                            continue;
+                        }
+                        // if new cluster is "discovered", set edge as representative, otherwise bundle with present representative
+                        if (cliqueToRepresentative.find(cxn) == cliqueToRepresentative.end()) {
+                            cliqueToRepresentative[cxn] = ex;
+                        } else {
+                            edgeHeap.mergeEdges(ex, cliqueToRepresentative[cxn]);
+                        }
+                    }
+                }
+            }
         } else {
             // set eIcp fo forbidden
             if (verbosity >= 5) {

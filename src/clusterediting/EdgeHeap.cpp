@@ -13,7 +13,6 @@ using NodeId = StaticSparseGraph::NodeId;
 EdgeHeap::EdgeHeap(StaticSparseGraph& param_graph) :
     graph(param_graph),
     unprocessed(0),
-    heapUpdates(0),
     edges(1+param_graph.numEdges(), StaticSparseGraph::InvalidEdge),
     icf(1+param_graph.numEdges(), StaticSparseGraph::Forbidden),
     icp(1+param_graph.numEdges(), StaticSparseGraph::Forbidden),
@@ -127,13 +126,9 @@ Edge EdgeHeap::getMaxIcfEdge() const {
     RankId ei = forb_rank2edge[0];
     if (forb_rank2edge.size() <= 1) {
         // only rank 0 entry left
-//         std::cout<<"only 1 edge left on icf heap ("<<edges[ei].u<<","<<edges[ei].v<<")"<<std::endl;
-        std::cout<<"Heap updates: "<<heapUpdates<<std::endl;
         return StaticSparseGraph::InvalidEdge;
     }
     if (icf[ei] < 0) {
-//         std::cout<<"negative icf costs on top of icf heap ("<<edges[ei].u<<","<<edges[ei].v<<") ("<<ei<<") : "<<icf[ei]<<std::endl;
-        std::cout<<"Heap updates: "<<heapUpdates<<std::endl;
         return StaticSparseGraph::InvalidEdge;
     }
     if (verbosity >= 6) {
@@ -154,13 +149,9 @@ Edge EdgeHeap::getMaxIcpEdge() const {
     RankId ei = perm_rank2edge[0];
     if (perm_rank2edge.size() <= 1) {
         // only rank 0 entry left
-//         std::cout<<"only 1 edge left on icf heap ("<<edges[ei].u<<","<<edges[ei].v<<")"<<std::endl;
-        std::cout<<"Heap updates: "<<heapUpdates<<std::endl;
         return StaticSparseGraph::InvalidEdge;
     }
     if (icp[ei] < 0) {
-//         std::cout<<"negative icf costs on top of icp heap ("<<edges[ei].u<<","<<edges[ei].v<<") : "<<icp[ei]<<std::endl;
-        std::cout<<"Heap updates: "<<heapUpdates<<std::endl;
         return StaticSparseGraph::InvalidEdge;
     }
     if (verbosity >= 6) {
@@ -311,7 +302,6 @@ int EdgeHeap::numUnprocessed() const {
 }
 
 void EdgeHeap::updateHeap(std::vector<RankId>& heap, const RankId e, const EdgeWeight change, std::vector<RankId>& index, const std::vector<EdgeWeight>& score) {
-    heapUpdates++;
     unsigned int pos = index[e];
     /*
      * index arithemetic for zero based array: parent = (index-1)/2, children = 2*index+1 and 2*index+2

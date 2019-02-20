@@ -1,6 +1,6 @@
 from whatshap.core import ReadSet, StaticSparseGraph, CoreAlgorithm
 from whatshap.testhelpers import string_to_readset, brute_force_phase
-from whatshap.readscoring import score
+from whatshap.readscoring import score_global
 import itertools
 import math
 
@@ -28,7 +28,7 @@ def test_clusterediting1():
 	readset = string_to_readset(reads)
 
 	# compute similarities
-	similarities = score(readset, 4, 0.1, 5)
+	similarities = score_global(readset, 4, 0.1, 5)
 
 	# create read graph
 	n_reads = len(readset)
@@ -42,7 +42,7 @@ def test_clusterediting1():
 		graph.addEdge(read1, read2, similarities.get(read1, read2))
 
 	# run cluster editing
-	clusterediting = CoreAlgorithm(graph)	
+	clusterediting = CoreAlgorithm(graph, False)	
 	readpartitioning = clusterediting.run()
 
 	print('computed clusters: ', readpartitioning)
@@ -71,7 +71,7 @@ def test_clusterediting2():
 	readset = string_to_readset(reads)
 
 	# compute similarities
-	similarities = score(readset, 2, 0.01, 5)
+	similarities = score_global(readset, 2, 0.01, 5)
 	print(similarities)
 
 	# create read graph
@@ -86,7 +86,7 @@ def test_clusterediting2():
 		graph.addEdge(read1, read2, similarities.get(read1, read2))
 
 	# run cluster editing
-	clusterediting = CoreAlgorithm(graph)	
+	clusterediting = CoreAlgorithm(graph, False)	
 	readpartitioning = clusterediting.run()
 
 	print('computed clusters: ', readpartitioning)
@@ -113,7 +113,7 @@ def test_clusterediting3():
 	readset = string_to_readset(reads)
 	
 	# compute similarities
-	similarities = score(readset, 3, 0.01, 5)
+	similarities = score_global(readset, 3, 0.01, 5)
 
 	print(similarities)
 
@@ -129,7 +129,7 @@ def test_clusterediting3():
 		graph.addEdge(read1, read2, similarities.get(read1, read2))
 
 	# run cluster editing
-	clusterediting = CoreAlgorithm(graph)
+	clusterediting = CoreAlgorithm(graph, False)
 	readpartitioning = clusterediting.run()
 
 	print('computed clusters: ', readpartitioning)
@@ -140,7 +140,7 @@ def test_similarities1():
 	110101
 	"""
 	readset = string_to_readset(reads)
-	similarities = score(readset, 2, 0.1, 4)
+	similarities = score_global(readset, 2, 0.1, 4)
 	# computed similarity is 'nan'
 	print('computed similarities:', similarities)
 	assert(not math.isnan(similarities.get(0, 1)))
@@ -157,5 +157,5 @@ def test_similarities2():
 	10101
 	"""
 	readset = string_to_readset(reads)
-	similarities = score(readset, 4, 0.01, 4)
+	similarities = score_global(readset, 4, 0.01, 4)
 	print('computed similarities:', similarities)

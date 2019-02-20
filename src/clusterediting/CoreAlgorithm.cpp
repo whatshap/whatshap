@@ -28,8 +28,7 @@ namespace ysk {
 			cout << "Starting CE Heuristic!" << endl;
 		}
 		
-		bool pruneZeroEdges = true;
-		InducedCostHeuristic hl(_graph, pruneZeroEdges);
+		InducedCostHeuristic hl(_graph, bundleEdges);
 		ClusterEditingSolutionLight sol = hl.solve();
         
 		if (verbosity > 2) {
