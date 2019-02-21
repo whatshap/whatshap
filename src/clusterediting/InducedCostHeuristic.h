@@ -4,10 +4,8 @@
 #include "EdgeHeap.h"
 #include "ClusterEditingSolutionLight.h"
 
-namespace ysk {
-
 class InducedCostHeuristic {
-  
+
 
 public:
     InducedCostHeuristic(StaticSparseGraph& param_graph, bool param_bundleEdges);
@@ -34,7 +32,5 @@ private:
     EdgeHeap edgeHeap;
     StaticSparseGraph::EdgeWeight totalCost;
 };
-
-} // namespace ysk
 
 #endif // INDUCEDCOSTHEURISTICLIGHT_H

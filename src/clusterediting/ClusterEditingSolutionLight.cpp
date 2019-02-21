@@ -1,6 +1,4 @@
 #include "ClusterEditingSolutionLight.h"
-
-namespace ysk {
   
 using NodeId = StaticSparseGraph::NodeId;
 
@@ -31,5 +29,3 @@ unsigned int ClusterEditingSolutionLight::getNumClusters() const {
 const std::vector<NodeId>& ClusterEditingSolutionLight::getCluster(const unsigned int index) const {
   return clusters[index];
 }
-
-} //namespace ysk

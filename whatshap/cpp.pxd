@@ -118,17 +118,17 @@ cdef extern from "../src/genotypedistribution.h":
 cdef extern from "../src/genotyper.h":
 	void compute_genotypes(ReadSet, vector[Genotype]* genotypes, vector[GenotypeDistribution]* genotype_likelihoods, vector[unsigned int]* positions)  except +
 
-cdef extern from "../src/clusterediting/StaticSparseGraph.h" namespace "ysk":
+cdef extern from "../src/clusterediting/StaticSparseGraph.h":
 	cdef cppclass StaticSparseGraph:
 		StaticSparseGraph(int numNodes) except +
 		void addEdge(int, int, double) except +
 		
-cdef extern from "../src/clusterediting/CoreAlgorithm.h" namespace "ysk":
+cdef extern from "../src/clusterediting/CoreAlgorithm.h":
 	cdef cppclass CoreAlgorithm:
 		CoreAlgorithm(StaticSparseGraph graph, bool bundleEdges) except +
 		ClusterEditingSolutionLight run() except +
 
-cdef extern from "../src/clusterediting/ClusterEditingSolutionLight.h" namespace "ysk":
+cdef extern from "../src/clusterediting/ClusterEditingSolutionLight.h":
 	cdef cppclass ClusterEditingSolutionLight:
 		ClusterEditingSolutionLight() except +
 		ClusterEditingSolutionLight(ClusterEditingSolutionLight) except +

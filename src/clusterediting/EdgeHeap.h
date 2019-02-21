@@ -4,8 +4,6 @@
 #include <vector>
 #include <set>
 #include "StaticSparseGraph.h"
-
-namespace ysk {
     
 class EdgeHeap {
 public:
@@ -88,8 +86,6 @@ private:
     std::vector<StaticSparseGraph::RankId> edgeToBundle;                // edge rank id -> representant of edges bunch
     std::vector<std::vector<StaticSparseGraph::RankId>> edgeBundles;    // edge bunch representant -> set of edges belonging to this bunch
 };
-
-} // namespace ysk;
 
 #endif // EDGEHEAP_H
 

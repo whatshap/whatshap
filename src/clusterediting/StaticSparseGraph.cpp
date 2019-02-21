@@ -5,8 +5,6 @@
 
 using namespace std;
 
-namespace ysk {
-
 const StaticSparseGraph::EdgeWeight StaticSparseGraph::Forbidden = -std::numeric_limits< EdgeWeight >::infinity();
 const StaticSparseGraph::EdgeWeight StaticSparseGraph::Permanent = std::numeric_limits< EdgeWeight >::infinity();
 const StaticSparseGraph::Edge StaticSparseGraph::InvalidEdge = {std::numeric_limits<NodeId>::max(), std::numeric_limits<NodeId>::max()};
@@ -446,12 +444,10 @@ RankId StaticSparseGraph::findIndex(const EdgeId id) const {
 }
 
 uint64_t StaticSparseGraph::popcount(uint64_t bitv) const {
-        // copied from Wikipedia (https://en.wikipedia.org/wiki/Hamming_weight)
-        bitv -= (bitv >> 1) & m1;
-        bitv = (bitv & m2) + ((bitv >> 2) & m2);
-        bitv = (bitv + (bitv >> 4)) & m4;
-        return (bitv * h01) >> 56;
-        // return _mm_popcnt_u64(bitv)
-    }
-
-} // namespace ysk
+    // copied from Wikipedia (https://en.wikipedia.org/wiki/Hamming_weight)
+    bitv -= (bitv >> 1) & m1;
+    bitv = (bitv & m2) + ((bitv >> 2) & m2);
+    bitv = (bitv + (bitv >> 4)) & m4;
+    return (bitv * h01) >> 56;
+    // return _mm_popcnt_u64(bitv)
+}

@@ -4,8 +4,6 @@
 #include "StaticSparseGraph.h"
 #include <vector>
 
-namespace ysk {
-
 class ClusterEditingSolutionLight 
 {
 public:
@@ -21,7 +19,5 @@ private:
     double totalCost;
     std::vector<std::vector<StaticSparseGraph::NodeId>> clusters;
 };
-
-} // namespace ysk
 
 #endif // CLUSTEREDITINGSOLUTIONLIGHT_H

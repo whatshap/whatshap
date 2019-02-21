@@ -10,8 +10,6 @@
 #include <limits>
 #include "Globals.h"
 
-namespace ysk {
-
 class StaticSparseGraph {
 
 public:
@@ -215,7 +213,5 @@ private:
         return s;
     }
 };
-
-} //namespace ysk
 
 #endif // STATICSPARSEGRAPH_H

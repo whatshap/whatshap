@@ -1,10 +1,6 @@
 #include "SolutionChecker.h"
 
-using namespace ysk;
 using namespace std;
-// using NodeId = LightCompleteGraph::NodeId;
-// using Edge = LightCompleteGraph::Edge;
-// using EdgeWeight = LightCompleteGraph::EdgeWeight;
 using NodeId = StaticSparseGraph::NodeId;
 using Edge = StaticSparseGraph::Edge;
 using EdgeWeight = StaticSparseGraph::EdgeWeight;

@@ -5,8 +5,6 @@
 #include <fstream>
 #include <vector>
 
-namespace ysk {
-
 /* template <>
  struct std::tr1::hash<std::pair<int, int> > {
  public:
@@ -26,8 +24,6 @@ namespace ysk {
 	void tokenize(const std::string& str,
 				  std::vector<std::string>& tokens,
 				  const std::string& delimiters);
-
-} // namespace ysk
 
 #endif /* HELPERS_H */
 

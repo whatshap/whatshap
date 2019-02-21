@@ -2,8 +2,6 @@
 #include <queue>
 #include <algorithm>
 #include <unordered_map>
-
-namespace ysk {
   
 using Edge = StaticSparseGraph::Edge;
 using EdgeWeight = StaticSparseGraph::EdgeWeight;
@@ -401,5 +399,3 @@ void InducedCostHeuristic::updateTriplePermanentUW(const EdgeWeight uv, const Ed
     if (icp_new != icp_old)
         edgeHeap.increaseIcp(uw, icp_new - icp_old);
 }
-
-} // namespace ysk

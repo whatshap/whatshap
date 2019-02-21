@@ -1,8 +1,6 @@
 #include "EdgeHeap.h"
 #include <cmath>
 #include <algorithm>
-
-namespace ysk {
   
 using Edge = StaticSparseGraph::Edge;
 using EdgeWeight = StaticSparseGraph::EdgeWeight;
@@ -335,6 +333,3 @@ void EdgeHeap::updateHeap(std::vector<RankId>& heap, const RankId e, const EdgeW
         }
     }
 }
-
-} // namespace ysk
-

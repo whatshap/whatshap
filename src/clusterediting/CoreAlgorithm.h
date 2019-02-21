@@ -12,30 +12,27 @@
 #include "StaticSparseGraph.h"
 #include "Globals.h"
 
-namespace ysk {
+class CoreAlgorithm{
 
-	class CoreAlgorithm{
+    public:
 
-		public:
+    CoreAlgorithm(
+            StaticSparseGraph& graph,
+            bool bundleEdges
+    )
+    :_graph(graph), bundleEdges(bundleEdges)
+    {};
 
-		CoreAlgorithm(
-				StaticSparseGraph& graph,
-                bool bundleEdges
-		)
-		:_graph(graph), bundleEdges(bundleEdges)
-		{};
+    ClusterEditingSolutionLight run();
 
-		ClusterEditingSolutionLight run();
+    /**
+     * Attempts a "clean" interrupt of the solving process by stopping CPLEX and setting a kill-flag which is checked throughout the process
+     */
+    void cancel();
 
-		/**
-		 * Attempts a "clean" interrupt of the solving process by stopping CPLEX and setting a kill-flag which is checked throughout the process
-		 */
-		void cancel();
-
-		private:
-            StaticSparseGraph& _graph;
-            bool bundleEdges;
-	};
-}
+    private:
+        StaticSparseGraph& _graph;
+        bool bundleEdges;
+};
 
 #endif /* SRC_COREALGORITHM_H */
