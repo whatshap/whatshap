@@ -84,15 +84,31 @@ def get_cluster_consensus(readset, clustering):
 
 def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 
+
 	# Map genome positions to [0,l)
 	index = {}
 	rev_index = []
 	num_vars = 0
+	
 	for position in readset.get_positions():
 		index[position] = num_vars
 		rev_index.append(position)
 		num_vars += 1
+
 	num_clusters = len(clustering)
+#	num_clusters = len(clustering)
+#	suits_list = []
+#	for c_id in range(num_clusters):
+#		suitable = True
+#		for read in clustering[c_id]:
+#			end = readset[read][-1].position
+#			start = readset[read][0].position
+#			if ( start < 40000404 or end > 40999427):
+#				suitable = False
+#		if suitable:
+#			suits_list.append(c_id)
+#			print("c id: ", c_id)
+#	print("suits list: ", suits_list)
 	print('number of variants: ', num_vars)
 	print('number of clusters: ', num_clusters)
 	
@@ -102,9 +118,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 	for c_id in range(num_clusters):
 		covered_positions = []
 		for read in clustering[c_id]:
-			start = index[readset[read][0].position]
-			end = index[readset[read][-1].position]
-			for pos in range(start, end+1):
+			for pos in [index[var.position] for var in readset[read] ]:		
 				if pos not in covered_positions:
 					covered_positions.append(pos)
 		for p in covered_positions:
@@ -115,16 +129,15 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 	#compute for each position the amount of clusters that 'cover' this position
 	for key in cov_map.keys():
 		cov_positions[key] = len(cov_map[key])
-	#sort the positions by the amount of covered clusters (not used in the following, probably some artifact)
 	cov_positions_sorted = sorted(cov_positions.items(), key=lambda x: x[1], reverse=True)
 	
 	#restrict the number of clusters at each position to a maximum of 8 clusters with the largest number of reads	
 	for key in cov_map.keys():
-		#for each position, sort the list of clusters by their 'size' (number of reads)
 		largest_clusters = sorted(cov_map[key], key=lambda x: len(clustering[x]), reverse=True)[:8]
 		cov_map[key] = largest_clusters
 
-	#for every cluster in clustering, create dictionary mapping the clusterID to the starting and ending position
+	#for every cluster in clustering, compute its sequence of starting and ending positions
+	#create dictionary mapping the clusterID to a list of pairs (starting position, ending position)
 	positions = {}
 	for c_id in range(num_clusters):
 		read = clustering[c_id][0]
@@ -133,7 +146,6 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 		for read in clustering[c_id]:
 			readstart = index[readset[read][0].position]
 			readend = index[readset[read][-1].position]
-			#if any read is contained in cluster c_id that begins before the first read or ends after the last, update start and end
 			if (readstart < start):
 				start = readstart
 			if (readend > end):
@@ -143,26 +155,22 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 	print("map of clusters to their read positions computed")
 
 	#for every cluster and every variant position, compute the relative coverage
-	#first, compute the total coverage
 	coverage = [[0]*num_vars for i in range(num_clusters)]
 	for c_id in range(num_clusters):
-		read_id = 0
 		for read in clustering[c_id]:
-			start = index[readset[read][0].position]
-			end = index[readset[read][-1].position]
-			for pos in range(start, end+1):
+			for pos in [index[var.position] for var in readset[read]]:			
 				coverage[c_id][pos] += 1
 	print("total coverage computed")
-	#compute the relative coverage
-	coverage_sum = [sum([coverage[i][j] for i in range(num_clusters)]) for j in range(num_vars)]	
+	
+	coverage_sum = [sum([coverage[i][j] for i in range(num_clusters)]) for j in range(num_vars)]
+	
 	for c_id in range(num_clusters):
-		coverage[c_id] = [((coverage[c_id][i])/coverage_sum[i]) if coverage_sum[i]!= 0 else 0 for i in range(num_vars)]	
+		coverage[c_id] = [((coverage[c_id][i])/coverage_sum[i]) if coverage_sum[i]!= 0 else 0 for i in range(num_vars)]
 	assert(len(coverage) == num_clusters)
 	assert(len(coverage[0]) == num_vars)
 	print("relative coverage computed")
 	
 	#compute the consensus sequences for every variant position and every cluster for integrating genotypes in the DP
-	#TODO: Will be updated in order to also work for large genome parts like whole chromosomes
 	consensus = get_cluster_consensus(readset, clustering)
 	print("consensus sequences computed")
 
@@ -184,7 +192,6 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 	if (len(conf_clusters_tuples) == 0):
 		conf_clusters_tuples = clusters_tuples
 
-	
 	path.append(conf_clusters_tuples[last_min_idx])
 	#append stored predecessor
 	for i in range(start_col,0,-1):
@@ -192,7 +199,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 		#compute variants relevant for position pred
 		#TODO: to avoid recomputation, store conf_tups at every position in a map?
 		tups = list(it.product(cov_map[i-1],repeat = ploidy))
-		conf_tups = [tup for tup in tups if (compute_tuple_genotype(consensus,tup, i-1) == genotypes[i-1])]
+		conf_tups = [tup for tup in tups if (compute_tuple_genotype(consensus,tup, i-1) == genotypes[i-1])]	
 		if (len(conf_tups) == 0):
 			conf_tups = tups
 		path.append(conf_tups[pred])	
@@ -202,6 +209,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 	assert(len(path) == start_col+1)
 	
 	#determine cut positions: Currently, a cut position is created every time a path changes the used cluster from one position to the next
+#	cut_positions = [len(readset.get_positions())-1]
 	cut_positions = []
 	for i in range(len(path)-1):
 		dissim = 0
@@ -236,11 +244,15 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 	for cut_pos in cut_positions:
 		cluster_blocks.append([hap[old_pos:cut_pos] for hap in haps])
 		old_pos = cut_pos
-	last_cut = cut_positions[len(cut_positions)-1]
+	if (len(cut_positions) == 0):
+		last_cut = 0
+	else:	
+		last_cut = cut_positions[len(cut_positions)-1]
 	cluster_blocks.append([hap[last_cut:] for hap in haps])
 	assert(len(cluster_blocks) == len(cut_positions)+1)
+
 	consensus_blocks = calc_consensus_blocks(readset, clustering, cluster_blocks, cut_positions)
-	
+
 	haplotypes = []
 	for i in range(ploidy):
 		hap = ""
@@ -258,6 +270,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 	superreads, components = dict(), dict()
 	
 	accessible_positions = sorted(readset.get_positions())
+#	accessible_positions = local_positions
 	cut_positions = []
 	overall_components = {}
 	last_cut = 0
@@ -284,8 +297,6 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 		readset.add(read)
 
 	superreads[sample] = readset
-	print("readset size: ", len(readset))
-	
 
 	return(cut_positions, cluster_blocks, components, superreads)
 
@@ -300,9 +311,6 @@ def find_backtracing_start(scoring, num_vars):
 	minimum = 1000000
 	last_col = num_vars-1
 	res = False
-#	for i in scoring[last_col].keys():
-#		if scoring[last_col][i][0] < minimum:
-#			res = True
 	for i in scoring[last_col]:
 		if i[0] < minimum:
 			res=True
