@@ -45,7 +45,6 @@ cdef subsetting(num_vars, clustering, coverage, positions, cov_map, ploidy, geno
 		#find the suitable clusters that cover position var and compute the list of cluster tuples
 		c_ids = cov_map[var]
 		c_tups = list(it.product(c_ids,repeat=ploidy))
-<img src="switchflips.png" alt="" />
 		#create the genotype conform cluster tuples: compute the genotype expected by the tuple and the true genotype. If they are not equal, this tuple is omitted
 		conform_tups = [tup for tup in c_tups if compute_tuple_genotype(consensus,tup, var) == genotypes[var]]
 	#	conform_tups = [tup for tup in c_tups if compute_tuple_genotype(consensus,tup, var, genotypes[var]) <= 1]
