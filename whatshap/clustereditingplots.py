@@ -151,7 +151,7 @@ def draw_superheatmap(readset, clustering, var_table, path, genome_space = False
 	max_pos = max(readset.get_positions()) if genome_space else num_vars
 
 	# Plot heatmaps
-	fig = plt.figure(figsize=(num_vars/100, len(readset)/100), dpi=100)
+	fig = plt.figure(figsize=(num_vars/40, len(readset)/40), dpi=100)
 	legend_handles = {}
 	y_offset = 0
 	y_margin = 5
@@ -206,7 +206,7 @@ def draw_cluster_coverage(readset, clustering, path):
 		num_vars += 1
 
 	# Plot heatmaps
-	fig = plt.figure(figsize=(num_vars/25, len(readset)/200), dpi=200)
+	fig = plt.figure(figsize=(num_vars/10, len(readset)/80), dpi=200)
 	
 	# Get coverage from external function
 	coverage, copynumbers, cluster_blocks, cut_positions = clusters_to_blocks(readset, clustering, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 1.0, copynumber_cut_contraction_dist = 0.5)
@@ -238,7 +238,7 @@ def draw_cluster_blocks(readset, clustering, cluster_blocks, cut_positions, var_
 		num_vars += 1
 
 	# Plot heatmaps
-	fig = plt.figure(figsize=(num_vars/100, len(readset)/200), dpi=200)
+	fig = plt.figure(figsize=(num_vars/40, len(readset)/80), dpi=200)
 	legend_handles = {}
 	y_offset = 0
 	y_margin = 5
@@ -400,3 +400,46 @@ def construct_ground_truth_blockwise(readset, cut_positions):
 		trivial_cluster_blocks.append([[hap_id]*(pos-start) for hap_id in range(4)])
 		start = pos
 	return calc_consensus_blocks(readset, real_clusters, trivial_cluster_blocks, cut_positions)
+
+def draw_dp_threading(coverage, paths, path):
+	assert len(paths) > 0
+	ploidy = len(paths[0])
+	assert ploidy >= 2
+	num_c = len(coverage)
+	assert (num_c > ploidy)
+	num_vars = len(coverage[0])
+	
+	# Plot heatmaps
+	fig = plt.figure(figsize=(num_vars/40, num_c/4), dpi=100)
+	legend_handles = {}
+	x_scale = 1
+	y_margin = 0.1
+	y_offset = 0
+	c_height = 0.9
+	
+	# Plot cluster coverage
+	for c_id in range(num_c):
+		for pos in range(num_vars):
+			if (coverage[c_id][pos] > 0):
+				plt.vlines(x = x_scale*pos, ymin = y_offset, ymax = y_offset + c_height*coverage[c_id][pos], color = 'gray')
+		plt.hlines(y = y_offset + c_height + y_margin/2, xmin = 0, xmax = x_scale*num_vars - 1, color = 'black')
+		y_offset += (c_height + y_margin)
+		
+	# Plot paths
+	for p in range(ploidy):
+		legend_handles['C'+str(p)] = mpatches.Patch(color='C'+str(p), label=("Hap "+str(p)))
+		current = paths[0][p]
+		start = 0
+		for pos in range(1, num_vars):
+			if paths[pos][p] != current:
+				plt.hlines(y = (current+0.5)*(c_height+y_margin), xmin = x_scale*start, xmax = x_scale*pos, color = 'C'+str(p))
+				current = paths[pos][p]
+				start = pos
+		plt.hlines(y = (current+0.5)*(c_height+y_margin), xmin = x_scale*start, xmax = x_scale*num_vars - 1, color = 'C'+str(p))
+		
+	#plt.legend(handles=legend_handles.values(), loc='lower center', ncol=len(legend_handles))
+	axes = plt.gca()
+	axes.set_xlim([0, num_vars - 1])
+	fig.savefig(path)
+	fig.clear()
+	

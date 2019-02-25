@@ -30,7 +30,7 @@ from .variants import ReadSetReader, ReadSetError
 from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
 from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components, find_largest_component, write_read_list
-from .clustereditingplots import draw_plots_dissimilarity, draw_plots_scoring, draw_column_dissimilarity, draw_heatmaps, draw_superheatmap, draw_cluster_coverage, draw_cluster_blocks
+from .clustereditingplots import draw_plots_dissimilarity, draw_plots_scoring, draw_column_dissimilarity, draw_heatmaps, draw_superheatmap, draw_cluster_coverage, draw_cluster_blocks, draw_dp_threading
 from .readscoring import score_global, score_local, score_local_patternbased
 from .kclustifier import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks, subset_clusters
 #from .core import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks, subset_clusters
@@ -74,8 +74,9 @@ def run_clustereditingphase(
 	min_overlap = 5,
 	transform = False,
 	dp_phasing = False,
-	plot_heatmap = False,
-	plot_haploblocks = False
+	plot_clusters = False,
+	plot_haploblocks = False,
+	plot_threading = False
 	):
 	"""
 	Run Polyploid Phasing.
@@ -320,14 +321,16 @@ def run_clustereditingphase(
 
 				# Plot options
 				timers.start('create_plots')
-				if plot_heatmap or plot_haploblocks:
+				if plot_clusters or plot_haploblocks or plot_threading:
 					logger.info("Generating plots ...")
-					if plot_heatmap:
+					if plot_clusters:
 						if ce_score_with_patterns:
-							draw_plots_scoring(readset, similarities, output_str+ ("_D" if transform else "_N") + ".scoringplot.png", ploidy, errorrate, min_overlap)
-						draw_superheatmap(readset, readpartitioning, phasable_variant_table, output_str+ ("_D" if transform else "_N") + ".superheatmapg.png", genome_space = False)
+							draw_plots_scoring(readset, similarities, output_str+".scoringplot.pdf", ploidy, errorrate, min_overlap)
+						draw_superheatmap(readset, readpartitioning, phasable_variant_table, output_str+".clusters.pdf", genome_space = False)
 					if plot_haploblocks:
-						draw_cluster_blocks(readset, readpartitioning, cluster_blocks, cut_positions, phasable_variant_table, output_str+ ("_D" if transform else "_N") + ".haploblocks.png", genome_space = False)
+						draw_cluster_blocks(readset, readpartitioning, cluster_blocks, cut_positions, phasable_variant_table, output_str+".haploblocks.pdf", genome_space = False)
+					if plot_threading:
+						draw_dp_threading(coverage, paths, output_str+".threading.pdf")
 				timers.stop('create_plots')
 
 			with timers('write_vcf'):
@@ -356,7 +359,8 @@ def run_clustereditingphase(
 	logger.info('Time spent computing read graph:             %6.1f s', timers.elapsed('compute_graph'))
 	logger.info('Time spent solving cluster editing:          %6.1f s', timers.elapsed('solve_clusterediting'))
 	logger.info('Time spent assembling haplotypes:            %6.1f s', timers.elapsed('assemble_haplotypes'))
-	logger.info('Time spent creating plots:                   %6.1f s', timers.elapsed('create_plots'))
+	if plot_clusters or plot_haploblocks or plot_threading:
+		logger.info('Time spent creating plots:                   %6.1f s', timers.elapsed('create_plots'))
 	logger.info('Time spent writing VCF:                      %6.1f s', timers.elapsed('write_vcf'))
 	logger.info('Time spent finding components:               %6.1f s', timers.elapsed('components'))
 	logger.info('Time spent on rest:                          %6.1f s', 2 * timers.elapsed('overall') - timers.total())
@@ -412,10 +416,12 @@ def add_arguments(parser):
 		help='Use transformed matrix for read similarity scoring (default: %(default)s).')
 	arg('--dp-phasing', dest='dp_phasing', default=False, action='store_true',
 		help='Use dynamic programming to assemble haplotypes after read clustering (default: %(default)s).')
-	arg('--plot-heatmap', dest='plot_heatmap', default=False, action='store_true',
+	arg('--plot-clusters', dest='plot_clusters', default=False, action='store_true',
 		help='Plot a super heatmap for the computed clustering (default: %(default)s).')
 	arg('--plot-haploblocks', dest='plot_haploblocks', default=False, action='store_true',
 		help='Plot the haplotype blocks with contained reads (default: %(default)s).')
+	arg('--plot-threading', dest='plot_threading', default=False, action='store_true',
+		help='Plot the haplotypes\' threading through the read clusters (default: %(default)s).')
 
 def validate(args, parser):
 	pass
