@@ -298,7 +298,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 
 	superreads[sample] = readset
 
-	return(cut_positions, cluster_blocks, components, superreads)
+	return(cut_positions, cluster_blocks, components, superreads, coverage, path)
 
 def compute_tuple_genotype(consensus,tup, var):
 	genotype = 0
