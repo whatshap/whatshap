@@ -17,42 +17,45 @@ void ReadScoring::scoreReadsetGlobal(TriangleSparseMatrix *result, ReadSet *read
 	std::vector<std::vector<uint32_t>> alleles;
     
     // compute length of overlap and difference for all read pairs
-    double errorrate = computeStartEndOverlapDiff(readset, begins, ends, positions, alleles, overlaps, diffs, minOverlap, ploidy);
-    std::cout<<"Global error rate = "<<errorrate<<std::endl;
+    double hammingDistSame = 0;
+    double hammingDistDiff = 0;
+    computeStartEndOverlapDiff(readset, begins, ends, positions, alleles, overlaps, diffs, hammingDistSame, hammingDistDiff, minOverlap, ploidy);
+//     std::cout<<"Global error rate = "<<hammingDistSame<<std::endl;
+//     std::cout<<"Global diff rate = "<<hammingDistDiff<<std::endl;
     
     // estimte error rate for reads in same haplotype
        
-    double avgDisagr = 0.0;
-    size_t numPairs = 0;
-    size_t numBases = 0;
-    double hammingDistSame = 2*(1.0-errorrate)*errorrate;
+//     double avgDisagr = 0.0;
+//     size_t numPairs = 0;
+//     size_t numBases = 0;
+//     double hammingDistSame = errorrate; //2*(1.0-errorrate)*errorrate;
     
     std::vector<std::pair<uint32_t, uint32_t>> entries = overlaps.getEntries();
     
-    for (std::pair<size_t, size_t> p : entries) {
-        size_t i = p.first;
-        size_t j = p.second;
-        numPairs++;
-        numBases += overlaps.get(i, j);
-        avgDisagr += (double)(diffs.get(i, j));
-    }
+//     for (std::pair<size_t, size_t> p : entries) {
+//         size_t i = p.first;
+//         size_t j = p.second;
+//         numPairs++;
+//         numBases += overlaps.get(i, j);
+//         avgDisagr += (double)(diffs.get(i, j));
+//     }
     
-    double fracSame = ploidy > 1 ? 1.0/ploidy : 0.0;
-    double hammingDistDiff = 1.0;
-    
-    if (numBases == 0) {
-        avgDisagr = 0.0;
-        hammingDistDiff = (1.0+hammingDistSame)/2;
-    } else {
-        avgDisagr = avgDisagr / numBases;
-        /* 
-         * (frac_same*num_pairs)*errorrate + ((1-frac_same)*num_pairs)*x = num_pairs*avg_disagr
-		 * => ((1-frac_same)*num_pairs)*x = num_pairs*avg_disagr - (frac_same*num_pairs)*errorrate
-		 * => x = (num_pairs*avg_disagr - (frac_same*num_pairs)*errorrate) / ((1-frac_same)*num_pairs)
-         */
-		hammingDistDiff = (numPairs*avgDisagr - (fracSame*numPairs)*hammingDistSame) / ((1.0-fracSame)*numPairs);
-		hammingDistDiff = std::max(hammingDistSame, std::min((1.0+hammingDistSame)/2, hammingDistDiff));
-    }
+//     double fracSame = ploidy > 1 ? 1.0/ploidy : 0.0;
+//     /*double */hammingDistDiff = 1.0;
+//     
+//     if (numBases == 0) {
+//         avgDisagr = 0.0;
+//         hammingDistDiff = (1.0+hammingDistSame)/2;
+//     } else {
+//         avgDisagr = avgDisagr / numBases;
+//         /* 
+//          * (frac_same*num_pairs)*errorrate + ((1-frac_same)*num_pairs)*x = num_pairs*avg_disagr
+// 		 * => ((1-frac_same)*num_pairs)*x = num_pairs*avg_disagr - (frac_same*num_pairs)*errorrate
+// 		 * => x = (num_pairs*avg_disagr - (frac_same*num_pairs)*errorrate) / ((1-frac_same)*num_pairs)
+//          */
+// 		hammingDistDiff = (numPairs*avgDisagr - (fracSame*numPairs)*hammingDistSame) / ((1.0-fracSame)*numPairs);
+// 		hammingDistDiff = std::max(hammingDistSame, std::min((1.0+hammingDistSame)/2, hammingDistDiff));
+//     }
     
     std::unordered_map<uint64_t, float> cache;
     for (std::pair<uint32_t, uint32_t> p : entries) {
@@ -84,7 +87,9 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* reads
 	std::vector<std::vector<uint32_t>> alleles;
     
     // compute length of overlap and difference for all read pairs
-    computeStartEndOverlapDiff(readset, begins, ends, positions, alleles, overlaps, diffs, minOverlap, ploidy);
+    double hammingDistSame = 0;
+    double hammingDistDiff = 0;
+    computeStartEndOverlapDiff(readset, begins, ends, positions, alleles, overlaps, diffs, hammingDistSame, hammingDistDiff, minOverlap, ploidy);
     
     // determine default relative hamming distance for same and different haplotypes
     std::vector<std::pair<uint32_t, uint32_t>> entries = overlaps.getEntries();
@@ -285,7 +290,9 @@ void ReadScoring::scoreReadsetPatterns(TriangleSparseMatrix *result, ReadSet *re
 	std::vector<std::vector<uint32_t>> alleles;
     
     // compute length of overlap and difference for all read pairs
-    computeStartEndOverlapDiff(readset, begins, ends, positions, alleles, overlaps, diffs, minOverlap, ploidy);
+    double hammingDistSame = 0;
+    double hammingDistDiff = 0;
+    computeStartEndOverlapDiff(readset, begins, ends, positions, alleles, overlaps, diffs, hammingDistSame, hammingDistDiff, minOverlap, ploidy);
     
     // create index that maps genome positions to variant positions
     std::unordered_set<uint32_t> positionSet;
@@ -456,7 +463,7 @@ void ReadScoring::scoreReadsetPatterns(TriangleSparseMatrix *result, ReadSet *re
     }
 }
 
-double ReadScoring::computeStartEndOverlapDiff ( const ReadSet* readset, std::vector< uint32_t >& begins, std::vector< uint32_t >& ends, std::vector< std::vector< uint32_t > >& positions, std::vector< std::vector< uint32_t > >& alleles, TriangleSparseMatrix& overlaps, TriangleSparseMatrix& diffs, const uint32_t minOverlap, const uint32_t ploidy) const {
+void ReadScoring::computeStartEndOverlapDiff ( const ReadSet* readset, std::vector< uint32_t >& begins, std::vector< uint32_t >& ends, std::vector< std::vector< uint32_t > >& positions, std::vector< std::vector< uint32_t > >& alleles, TriangleSparseMatrix& overlaps, TriangleSparseMatrix& diffs, double& distSame, double& distDiff, const uint32_t minOverlap, const uint32_t ploidy) const {
     // copy all relevant information from the readset into vectors for efficient access
     uint32_t numReads = readset->size();
     for (uint32_t i = 0; i < numReads; i++) {
@@ -516,14 +523,41 @@ double ReadScoring::computeStartEndOverlapDiff ( const ReadSet* readset, std::ve
         }
     }
     
-    std::sort(relativeDiffs.begin(), relativeDiffs.end());
+    // estimate error rate of reads within equal haplotype
+    computeCutoff(numReads, ploidy, relativeDiffs, distSame, distDiff);
+}
+
+void ReadScoring::computeCutoff(const uint32_t numReads, const uint32_t ploidy, std::vector<double> relDiffs, double& distSame, double& distDiff) const {
+    std::sort(relDiffs.begin(), relDiffs.end());
+    double sameSum = 0.0;
+    int sameNum = 0;
     double diffSum = 0.0;
     int diffNum = 0;
-    for (unsigned int i = 0; i <= relativeDiffs.size() / ploidy; i++) {
-        diffSum += relativeDiffs[i];
-        diffNum++;
+    
+    double p = (double)ploidy;
+    double n = (double)numReads;
+    uint32_t cutoff = std::min((uint32_t)1, (uint32_t)(relDiffs.size() - 1));
+    if (ploidy < numReads) {
+        cutoff = (uint32_t) std::ceil((p * (n/p) * (n/p-1) / 2) / 
+                    ( (p * (n/p) * (n/p-1) / 2) + (p*(p-1)/2)*(n/p)*(n/p) ) * relDiffs.size());
+//         std::cout<<"cutoff = "<<cutoff<<" out of "<<relDiffs.size()<<std::endl;
+        for (unsigned int i = 0; i < relDiffs.size(); i++) {
+            if (i < cutoff) {
+                sameSum += relDiffs[i];
+                sameNum++;
+            } else {
+                diffSum += relDiffs[i];
+                diffNum++;
+            }
+        }
+        
+        if (cutoff == 0) {
+            distSame = 0.1;
+        } else {
+            distSame = sameSum/sameNum;
+        }
+        distDiff = diffSum/diffNum;
     }
-    return diffSum/diffNum;
 }
 
 float ReadScoring::logratioSim(const uint32_t overlap, const uint32_t diff, const double distSame, const double distDiff) const {
