@@ -26,6 +26,7 @@ cdef subsetting(num_vars, clustering, coverage, positions, cov_map, ploidy, geno
 	assert(len(c_tups)==len(c_ids)**ploidy)
 	#restrict the set of tuples by those whose genotypes coincide. Tuples with the wrong genotype at position 0 are discarded
 	geno_c_tups = [tup for tup in c_tups if (compute_tuple_genotype(consensus,tup, 0) == genotypes[0])]
+#	geno_c_tups = [tup for tup in c_tups if (compute_tuple_genotype(consensus,tup, 0, genotypes[0]) <= 1)]
 	if (len(geno_c_tups) == 0):
 		geno_c_tups = c_tups
 	#for the first column, only coverage costs are computed, the predecessor is set to -1
@@ -44,12 +45,12 @@ cdef subsetting(num_vars, clustering, coverage, positions, cov_map, ploidy, geno
 		#find the suitable clusters that cover position var and compute the list of cluster tuples
 		c_ids = cov_map[var]
 		c_tups = list(it.product(c_ids,repeat=ploidy))
-
+<img src="switchflips.png" alt="" />
 		#create the genotype conform cluster tuples: compute the genotype expected by the tuple and the true genotype. If they are not equal, this tuple is omitted
 		conform_tups = [tup for tup in c_tups if compute_tuple_genotype(consensus,tup, var) == genotypes[var]]
+	#	conform_tups = [tup for tup in c_tups if compute_tuple_genotype(consensus,tup, var, genotypes[var]) <= 1]
 		if (len(conform_tups) == 0):
 			conform_tups = c_tups
-	
 		for tup in conform_tups:
 			min_exists = False
 			pred.clear()
@@ -59,6 +60,7 @@ cdef subsetting(num_vars, clustering, coverage, positions, cov_map, ploidy, geno
 			pred_tups = list(it.product(cov_map[var-1],repeat = ploidy))
 			#compute the list of conform tuples, TODO: find an easier way
 			conf_pred_tups = [predtup for predtup in pred_tups if (compute_tuple_genotype(consensus,predtup, var-1) == genotypes[var-1])]
+	#		conf_pred_tups = [predtup for predtup in pred_tups if (compute_tuple_genotype(consensus,predtup, var-1, genotypes[var-1]) <=1)]
 			if (len(conf_pred_tups) == 0):
 				conf_pred_tups = pred_tups
 			#compute the minimum of the previous column plus costs for switching:
@@ -90,20 +92,49 @@ cdef subsetting(num_vars, clustering, coverage, positions, cov_map, ploidy, geno
 def compute_tuple_genotype(consensus,tup, var):
 	genotype = 0
 	for i in tup:
-		allele = consensus[i][var]
+		#allele = consensus[i][var]
+		allele = consensus[var][i]
 		genotype += allele
 	return(genotype)
+	
+#
+#def compute_tuple_genotype(consensus,tup, var, geno):
+#	genotype = 0
+#	for i in tup:
+#		allele = consensus[i][var]
+#		genotype += allele
+#	res = max((geno-genotype),(genotype-geno))
+#	return(res)
 
 #computes costs for switching between two cluster tuples c_tuple1 and c_tuple2 at position var
 cdef switch_costs(c_tuple1, c_tuple2, positions, var, ploidy):
 	cdef int costs = 0
 	#switch costs depend on the position: if var is the end of c_tuple1 or var+1 is the beginning of c_tuple2, switching is free
 	cdef int i
+	cdef int dissim = 0
 	for i in range(0,ploidy):
 		start = positions[c_tuple2[i]][0]
 		end = positions[c_tuple1[i]][1]
-		if (var != end and var+1 != start and (c_tuple1[i] != c_tuple2[i])):
-			costs += 1
+	#	if (var != end and var+1 != start and (c_tuple1[i] != c_tuple2[i])):
+		if (c_tuple1[i] != c_tuple2[i]):
+			costs += 8
+#			dissim += 1
+#	if (dissim == 1):
+#		costs == 32
+#	elif (dissim == 2):
+#		costs == 24
+#	elif (dissim == 3):
+#		costs == 16
+#	elif (dissim == 4):
+#		costs == 8
+
+	#	if (var != end and (c_tuple1[i] != c_tuple2[i])):
+	#		costs += 2
+	#		dissim += 1
+	#if (dissim > 1):
+	#	costs += dissim
+	#elif dissim == 1:
+	#	costs += 5
 	return(costs)
 
 #computes the costs for differences between expected copy number (due to coverage) and the real copy number
