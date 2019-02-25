@@ -13,12 +13,11 @@ class MatrixTransformation:
 	"""
 	Construct transformed matrix by computing clusterings for each variant positon.
 	"""
-	def __init__(self, reads, position_to_component, ploidy, errorrate, min_overlap):
+	def __init__(self, reads, position_to_component, ploidy, min_overlap):
 		"""
 		reads -- ReadSet with reads to be considered
 		position_to_component -- dict mapping variant positions to connected components
 		ploidy -- the ploidy of the data
-		errorrate -- read error rate
 		min_overlap -- minimum required overlap of two reads
 		"""
 		# readset containing all reads of current connected component
@@ -64,10 +63,7 @@ class MatrixTransformation:
 				column = self._component_reads.subset([r[0] for r in self._current_column])
 
 				# compute similarities for reads in column
-				if 0.0 <= errorrate < 1.0:
-					similarities = score_global(column, ploidy, errorrate, min_overlap)
-				else:
-					similarities = score_local(column, ploidy, min_overlap)
+				similarities = score_global(column, ploidy, min_overlap)
 				
 				# create read graph object
 				graph = StaticSparseGraph(len(column))

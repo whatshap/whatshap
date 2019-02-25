@@ -28,7 +28,7 @@ def test_clusterediting1():
 	readset = string_to_readset(reads)
 
 	# compute similarities
-	similarities = score_global(readset, 4, 0.1, 5)
+	similarities = score_global(readset, 4, 5)
 
 	# create read graph
 	n_reads = len(readset)
@@ -71,7 +71,7 @@ def test_clusterediting2():
 	readset = string_to_readset(reads)
 
 	# compute similarities
-	similarities = score_global(readset, 2, 0.01, 5)
+	similarities = score_global(readset, 2, 5)
 	print(similarities)
 
 	# create read graph
@@ -113,7 +113,7 @@ def test_clusterediting3():
 	readset = string_to_readset(reads)
 	
 	# compute similarities
-	similarities = score_global(readset, 3, 0.01, 5)
+	similarities = score_global(readset, 3, 5)
 
 	print(similarities)
 
@@ -140,7 +140,7 @@ def test_similarities1():
 	110101
 	"""
 	readset = string_to_readset(reads)
-	similarities = score_global(readset, 2, 0.1, 4)
+	similarities = score_global(readset, 2, 4)
 	# computed similarity is 'nan'
 	print('computed similarities:', similarities)
 	assert(not math.isnan(similarities.get(0, 1)))
@@ -157,5 +157,5 @@ def test_similarities2():
 	10101
 	"""
 	readset = string_to_readset(reads)
-	similarities = score_global(readset, 4, 0.01, 4)
+	similarities = score_global(readset, 4, 4)
 	print('computed similarities:', similarities)

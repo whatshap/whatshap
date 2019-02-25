@@ -50,9 +50,9 @@ cdef class ReadScoring:
 	def __cinit__(self):
 		self.thisptr = new cpp.ReadScoring()
 
-	def scoreReadsetGlobal(self, ReadSet readset, unsigned int minOverlap, unsigned int ploidy, double errorrate):
+	def scoreReadsetGlobal(self, ReadSet readset, unsigned int minOverlap, unsigned int ploidy):
 		sim = TriangleSparseMatrix()
-		self.thisptr.scoreReadsetGlobal(sim.thisptr, readset.thisptr, minOverlap, ploidy, errorrate)
+		self.thisptr.scoreReadsetGlobal(sim.thisptr, readset.thisptr, minOverlap, ploidy)
 		return sim
 	
 	def scoreReadsetLocal(self, ReadSet readset, unsigned int minOverlap, unsigned int ploidy):

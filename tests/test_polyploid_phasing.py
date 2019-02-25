@@ -109,7 +109,7 @@ def check_phasing_single_individual(reads, genotypes, ploidy, reads_per_window, 
 		allele_matrix = pruner.get_allele_matrix()
 		cluster_matrix = pruner.get_cluster_matrix()
 	elif algorithm == 'clusterediting':
-		pruner = MatrixTransformation(readset, components, ploidy, 0.1, variants_per_window)
+		pruner = MatrixTransformation(readset, components, ploidy, variants_per_window)
 		allele_matrix = readset
 		cluster_matrix = pruner.get_transformed_matrix()
 		print_readset(cluster_matrix)

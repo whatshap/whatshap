@@ -68,8 +68,8 @@ def run_clustereditingphase(
 	tag='PS',
 	write_command_line_header=True,
 	read_list_filename=None,
-	errorrate = 0.1,
 	ce_bundle_edges = False,
+	ce_score_local = False,
 	ce_score_with_patterns = False,
 	min_overlap = 5,
 	transform = False,
@@ -225,7 +225,7 @@ def run_clustereditingphase(
 				timers.start('transform_matrix')
 				if transform:
 					logger.info("Transforming allele matrix...")
-					transformation = MatrixTransformation(readset, find_components(readset.get_positions(), readset), ploidy, errorrate, min_overlap)
+					transformation = MatrixTransformation(readset, find_components(readset.get_positions(), readset), ploidy, min_overlap)
 					readset = transformation.get_transformed_matrix()
 					cluster_counts = transformation.get_cluster_counts()
 				timers.stop('transform_matrix')
@@ -235,10 +235,10 @@ def run_clustereditingphase(
 				logger.info("Computing similarities for read pairs ...")
 				if ce_score_with_patterns:
 					similarities = score_local_patternbased(readset, ploidy, errorrate, min_overlap, 4)
-				elif 0.0 <= errorrate < 1.0:
-					similarities = score_global(readset, ploidy, errorrate, min_overlap)
-				else:
+				elif ce_score_local:
 					similarities = score_local(readset, ploidy, min_overlap)
+				else:
+					similarities = score_global(readset, ploidy, min_overlap)
 				
 				# Create read graph object
 				logger.info("Constructing graph ...")
@@ -401,7 +401,8 @@ def add_arguments(parser):
 		'input VCF are phased. Can be used multiple times.')
 
 	arg = parser.add_argument_group('Parameters for cluster editing').add_argument
-	arg('--errorrate', metavar='ERROR', type=float, default=-1.0, help='Read error rate (default: %(default)s).')
+	arg('--ce-score-local', dest='ce_score_local', default=False, action='store_true',
+		help='Reads are scored with respect to their location inside the chromosome. (default: %(default)s).')
 	arg('--ce-score-with-patterns', dest='ce_score_with_patterns', default=False, action='store_true',
 		help='Uses a scoring method for reads, which is based on local haplotype inference through local patterns of the reads (default: %(default)s).')
 	arg('--ce-bundle-edges', dest='ce_bundle_edges', default=False, action='store_true',

@@ -57,9 +57,9 @@ class SparseTriangleMatrix:
 			self.size = max(i, self.size)
 			self.size = max(j, self.size)
 
-def score_global(readset, ploidy, errorrate, min_overlap):
+def score_global(readset, ploidy, min_overlap):
 	read_scoring = ReadScoring()
-	return read_scoring.scoreReadsetGlobal(readset, min_overlap, ploidy, errorrate)
+	return read_scoring.scoreReadsetGlobal(readset, min_overlap, ploidy)
 	
 def score_local(readset, ploidy, min_overlap):
 	read_scoring = ReadScoring()
