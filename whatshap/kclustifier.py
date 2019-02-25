@@ -329,6 +329,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 
 	return(cut_positions, cluster_blocks, components, superreads, coverage, path)
 
+
 def get_cluster_consensus_local(readset, clustering, cov_map):
 
 	# Map genome positions to [0,l)
@@ -363,6 +364,7 @@ def get_cluster_consensus_local(readset, clustering, cov_map):
 			newdict[c] = max_allele
 		cluster_consensus.append(newdict)
 	return cluster_consensus
+
 
 def compute_tuple_genotype(consensus,tup, var):
 	genotype = 0

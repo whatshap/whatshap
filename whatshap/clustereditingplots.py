@@ -409,6 +409,17 @@ def draw_dp_threading(coverage, paths, path):
 	assert (num_c > ploidy)
 	num_vars = len(coverage[0])
 	
+	# Detect relevant clusters
+	c_map = {}
+	all_threaded = set()
+	for p in range(ploidy):
+		for pos in range(num_vars):
+			all_threaded.add(paths[pos][p])
+	c_list = sorted(all_threaded)
+	for i, c_id in enumerate(c_list):
+		c_map[c_id] = i
+	num_c = len(c_list)
+	
 	# Plot heatmaps
 	fig = plt.figure(figsize=(num_vars/40, num_c/4), dpi=100)
 	legend_handles = {}
@@ -420,9 +431,9 @@ def draw_dp_threading(coverage, paths, path):
 	# Plot cluster coverage
 	for c_id in range(num_c):
 		for pos in range(num_vars):
-			if (coverage[c_id][pos] > 0):
-				plt.vlines(x = x_scale*pos, ymin = y_offset, ymax = y_offset + c_height*coverage[c_id][pos], color = 'gray')
-		plt.hlines(y = y_offset + c_height + y_margin/2, xmin = 0, xmax = x_scale*num_vars - 1, color = 'black')
+			if (coverage[c_list[c_id]][pos] > 0):
+				plt.vlines(x = x_scale*pos, ymin = y_offset, ymax = y_offset + c_height*coverage[c_list[c_id]][pos], color = 'gray')
+		plt.hlines(y = y_offset + c_height + y_margin/2, xmin = 0, xmax = x_scale*num_vars - 1, color = 'lightgray')
 		y_offset += (c_height + y_margin)
 		
 	# Plot paths
@@ -432,10 +443,10 @@ def draw_dp_threading(coverage, paths, path):
 		start = 0
 		for pos in range(1, num_vars):
 			if paths[pos][p] != current:
-				plt.hlines(y = (current+0.5)*(c_height+y_margin), xmin = x_scale*start, xmax = x_scale*pos, color = 'C'+str(p))
+				plt.hlines(y = (c_map[current]+0.25+p/ploidy*0.5)*(c_height+y_margin), xmin = x_scale*start, xmax = x_scale*pos, color = 'C'+str(p))
 				current = paths[pos][p]
 				start = pos
-		plt.hlines(y = (current+0.5)*(c_height+y_margin), xmin = x_scale*start, xmax = x_scale*num_vars - 1, color = 'C'+str(p))
+		plt.hlines(y = (c_map[current]+0.25+p/ploidy*0.5)*(c_height+y_margin), xmin = x_scale*start, xmax = x_scale*num_vars - 1, color = 'C'+str(p))
 		
 	#plt.legend(handles=legend_handles.values(), loc='lower center', ncol=len(legend_handles))
 	axes = plt.gca()
