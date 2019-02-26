@@ -12,6 +12,7 @@ from .core import Read, ReadSet, CoreAlgorithm, StaticSparseGraph
 from .readscoring import calc_overlap_and_diffs, parse_haplotype, parse_haplotype
 from .kclustifier import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks
 from .vectorerror import vector_error, vector_error_blockwise
+from .compare import compute_switch_flips_poly
 
 def draw_plots_dissimilarity(readset, path, min_overlap = 5, steps = 100):
 	num_reads = len(readset)
@@ -401,7 +402,7 @@ def construct_ground_truth_blockwise(readset, cut_positions):
 		start = pos
 	return calc_consensus_blocks(readset, real_clusters, trivial_cluster_blocks, cut_positions)
 
-def draw_dp_threading(coverage, paths, path):
+def draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, var_table, path):
 	assert len(paths) > 0
 	ploidy = len(paths[0])
 	assert ploidy >= 2
@@ -428,12 +429,25 @@ def draw_dp_threading(coverage, paths, path):
 	y_offset = 0
 	c_height = 0.9
 	
+	# Plot cut positions
+	all_pos = list(sorted(readset.get_positions()))
+	pos_map = {}
+	ext_cuts = [0]
+	for i, pos in enumerate(all_pos):
+		pos_map[pos] = i
+	for pos in cut_positions:
+		ext_cuts.append(pos_map[pos])
+	for pos in ext_cuts:
+		if (pos != 0):
+			plt.vlines(x = pos, ymin = 0, ymax = num_c*(c_height + y_margin), color = "lightgray", alpha = 0.3)
+	#ext_cuts.append(num_vars)
+	
 	# Plot cluster coverage
 	for c_id in range(num_c):
 		for pos in range(num_vars):
 			if (coverage[c_list[c_id]][pos] > 0):
 				plt.vlines(x = x_scale*pos, ymin = y_offset, ymax = y_offset + c_height*coverage[c_list[c_id]][pos], color = 'gray')
-		plt.hlines(y = y_offset + c_height + y_margin/2, xmin = 0, xmax = x_scale*num_vars - 1, color = 'lightgray')
+		plt.hlines(y = y_offset + c_height + y_margin/2, xmin = 0, xmax = x_scale*num_vars - 1, color = 'lightgray', alpha = 0.5)
 		y_offset += (c_height + y_margin)
 		
 	# Plot paths
@@ -443,10 +457,35 @@ def draw_dp_threading(coverage, paths, path):
 		start = 0
 		for pos in range(1, num_vars):
 			if paths[pos][p] != current:
-				plt.hlines(y = (c_map[current]+0.25+p/ploidy*0.5)*(c_height+y_margin), xmin = x_scale*start, xmax = x_scale*pos, color = 'C'+str(p))
+				plt.hlines(y = (c_map[current]+0.25+p/ploidy*0.5)*(c_height+y_margin), xmin = x_scale*start, xmax = x_scale*pos, color = 'C'+str(p), alpha = 0.9)
 				current = paths[pos][p]
 				start = pos
-		plt.hlines(y = (c_map[current]+0.25+p/ploidy*0.5)*(c_height+y_margin), xmin = x_scale*start, xmax = x_scale*num_vars - 1, color = 'C'+str(p))
+		plt.hlines(y = (c_map[current]+0.25+p/ploidy*0.5)*(c_height+y_margin), xmin = x_scale*start, xmax = x_scale*num_vars - 1, color = 'C'+str(p), alpha = 0.9)
+		
+	# Plot switch flip errors
+	
+	#print(cut_positions)
+	#print(ext_cuts)
+	#print(haplotypes)
+	phase_vectors = get_phase(readset, var_table)
+	truth = []
+	assert len(phase_vectors) == ploidy
+	for k in range(ploidy):
+		truth.append("".join(map(str, phase_vectors[k])))
+	for i in range(len(ext_cuts)-1):
+		#print(str(ext_cuts[i])+"-"+str(ext_cuts[i+1])+" "+str(len(haplotypes))+" "+str(len(truth)))
+		block1 = [h[ext_cuts[i]:ext_cuts[i+1]] for h in truth]
+		block2 = [h[ext_cuts[i]:ext_cuts[i+1]] for h in haplotypes]
+		#print(block1)
+		#print(block2)
+		switchflips, switches_in_column, flips_in_column = compute_switch_flips_poly(block1, block2, switch_cost = 1+1/(num_vars*ploidy))
+		for pos, e in enumerate(switches_in_column):
+			plt.vlines(x = ext_cuts[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*e, color = 'blue', alpha = 0.6)
+		for pos, flipped in enumerate(flips_in_column):
+			plt.vlines(x = ext_cuts[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*len(flipped), color = 'orange', alpha = 0.6)
+			for h in flipped:
+				c_id = c_map[paths[ext_cuts[i]+pos][h]]
+				plt.hlines(y = (c_id+0.25+h/ploidy*0.5)*(c_height+y_margin), xmin = ext_cuts[i]+pos-0.5, xmax = ext_cuts[i]+pos+0.5, color = 'black', alpha = 0.6)
 		
 	#plt.legend(handles=legend_handles.values(), loc='lower center', ncol=len(legend_handles))
 	axes = plt.gca()

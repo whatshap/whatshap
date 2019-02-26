@@ -268,7 +268,7 @@ def run_clustereditingphase(
 
 				if dp_phasing:
 					#add dynamic programming for finding the most likely subset of clusters
-					cut_positions, cluster_blocks, components, superreads, coverage, paths = subset_clusters(readset, readpartitioning, ploidy, sample,genotype_list)
+					cut_positions, cluster_blocks, components, superreads, coverage, paths, haplotypes = subset_clusters(readset, readpartitioning, ploidy, sample,genotype_list)
 				else:				
 					haploblocks = clusters_to_haps(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
 
@@ -330,7 +330,7 @@ def run_clustereditingphase(
 					if plot_haploblocks:
 						draw_cluster_blocks(readset, readpartitioning, cluster_blocks, cut_positions, phasable_variant_table, output_str+".haploblocks.pdf", genome_space = False)
 					if plot_threading:
-						draw_dp_threading(coverage, paths, output_str+".threading.pdf")
+						draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, phasable_variant_table, output_str+".threading.pdf")
 				timers.stop('create_plots')
 
 			with timers('write_vcf'):
