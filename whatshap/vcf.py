@@ -458,7 +458,7 @@ class VcfReader:
 				for call in record.samples:
 					sample_gt = VcfGenotype()
 					if call.gt_type is not None:
-						if len(call.gt_alleles) is not self.ploidy:
+						if len(call.gt_alleles) is not int(self.ploidy):
 							raise VcfPloidyError('Ploidy of VCF Samples do not match the ploidy given by --ploidy ({} instead of {}).'.format(len(call.gt_alleles), self.ploidy))
 						sample_gt = VcfGenotype([int(allele) for allele in call.gt_alleles])
 					sample_genotypes.append(sample_gt)
