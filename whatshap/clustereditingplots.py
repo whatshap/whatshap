@@ -432,7 +432,7 @@ def draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, var_t
 	# Plot cut positions
 	all_pos = list(sorted(readset.get_positions()))
 	pos_map = {}
-	ext_cuts = [0]
+	ext_cuts = []
 	for i, pos in enumerate(all_pos):
 		pos_map[pos] = i
 	for pos in cut_positions:
@@ -440,7 +440,7 @@ def draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, var_t
 	for pos in ext_cuts:
 		if (pos != 0):
 			plt.vlines(x = pos, ymin = 0, ymax = num_c*(c_height + y_margin), color = "lightgray", alpha = 0.3)
-	#ext_cuts.append(num_vars)
+	ext_cuts.append(num_vars)
 	
 	# Plot cluster coverage
 	for c_id in range(num_c):
