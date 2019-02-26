@@ -175,58 +175,58 @@ def test_compare_unphased():
 def test_compute_switch_flips_poly():
 	phasing0 = ['0100', '1011']
 	phasing1 = ['0000', '1111']
-	sfp = compute_switch_flips_poly(phasing0, phasing1, flip_cost = 3)
+	sfp, flip_loctions, switch_locations = compute_switch_flips_poly(phasing0, phasing1, flip_cost = 3)
 	assert sfp.switches == 2.0
 	assert sfp.flips == 0
 	
 	phasing = ['00000000', '11111111']
 	truth =   ['00000000', '11111111']
-	sfp = compute_switch_flips_poly(phasing, truth)
+	sfp, flip_loctions, switch_locations = compute_switch_flips_poly(phasing, truth)
 	assert sfp.flips + sfp.switches == 0.0
 	
 	phasing = [[0,0,0,0,0,0,0,0], [0,0,0,0,1,1,1,1]]
 	truth =   [[0,0,0,0,1,1,1,1], [0,0,0,0,0,0,0,0]]
-	sfp = compute_switch_flips_poly(phasing, truth)
+	sfp, flip_loctions, switch_locations = compute_switch_flips_poly(phasing, truth)
 	assert sfp.flips + sfp.switches == 0.0
 	
 	phasing = [[0,0,0,0,0,0,0,0], [0,0,0,0,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [0,0,0,0,0,0,0,0]]
-	sfp = compute_switch_flips_poly(phasing, truth)
+	sfp, flip_loctions, switch_locations = compute_switch_flips_poly(phasing, truth)
 	assert sfp.flips + sfp.switches == 2.0
 	
 	phasing = [[1,1,1,1,0,0,0,0], [0,0,0,0,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [1,1,1,1,1,1,1,1]]
-	sfp = compute_switch_flips_poly(phasing, truth)
+	sfp, flip_loctions, switch_locations = compute_switch_flips_poly(phasing, truth)
 	assert sfp.flips + sfp.switches == 1.0
 	
 	phasing = [[1,1,1,1,0,0,1,0], [0,0,0,0,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [1,1,1,1,1,1,1,1]]
-	sfp = compute_switch_flips_poly(phasing, truth)
+	sfp, flip_loctions, switch_locations = compute_switch_flips_poly(phasing, truth)
 	assert sfp.flips + sfp.switches == 1.5
 	
 	phasing = [[1,1,1,1,0,0,1,0], [0,0,0,0,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [1,1,1,1,1,1,1,1]]
-	sfp = compute_switch_flips_poly(phasing, truth, flip_cost = 5, switch_cost = 1)
+	sfp, flip_loctions, switch_locations = compute_switch_flips_poly(phasing, truth, flip_cost = 5, switch_cost = 1)
 	assert sfp.flips * 5 + sfp.switches == 3.5
 	
 	phasing = [[1,1,1,1,0,0,1,0], [0,0,0,0,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [1,1,1,1,1,1,1,1]]
-	sfp = compute_switch_flips_poly(phasing, truth, flip_cost = 1, switch_cost = 10)
+	sfp, flip_loctions, switch_locations = compute_switch_flips_poly(phasing, truth, flip_cost = 1, switch_cost = 10)
 	assert sfp.flips + sfp.switches * 10 == 3.5
 	
 	phasing = [[0,0,0,1,0,0,0,0], [1,1,1,0,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [1,1,1,1,1,1,1,1]]
-	sfp = compute_switch_flips_poly(phasing, truth)
+	sfp, flip_loctions, switch_locations = compute_switch_flips_poly(phasing, truth)
 	assert sfp.flips + sfp.switches == 1.0
 	
 	phasing = [[0,0,0,1,0,0,0,0], [1,1,1,0,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [1,1,1,1,1,1,1,1]]
-	sfp = compute_switch_flips_poly(phasing, truth, flip_cost = 5, switch_cost = 1)
+	sfp, flip_loctions, switch_locations = compute_switch_flips_poly(phasing, truth, flip_cost = 5, switch_cost = 1)
 	assert sfp.flips * 5 + sfp.switches == 2.0
 	
 	phasing = [[0,0,0,1,0,0,0,0], [1,1,1,1,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [1,1,1,1,1,1,1,1]]
-	sfp = compute_switch_flips_poly(phasing, truth, flip_cost = float("inf"), switch_cost = 1)
+	sfp, flip_loctions, switch_locations = compute_switch_flips_poly(phasing, truth, flip_cost = float("inf"), switch_cost = 1)
 	assert sfp.flips + sfp.switches * float("inf") == float("inf")
 
 def test_compare_block():
