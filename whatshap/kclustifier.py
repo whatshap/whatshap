@@ -317,7 +317,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, genotype_soft
 
 	superreads[sample] = readset
 
-	return(cut_positions, cluster_blocks, components, superreads, coverage, path)
+	return(cut_positions, cluster_blocks, components, superreads, coverage, path, haplotypes)
 
 
 def get_cluster_consensus_local(readset, clustering, cov_map, positions):

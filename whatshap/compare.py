@@ -243,32 +243,43 @@ def compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 1
 	
 	# Backtracing
 	if switchflip_debug and (result.switches * switch_cost + result.flips * flip_cost < float("inf")):
-		flips_in_column = [0 for i in range(num_pos)]
+		flips_in_column = [[] for i in range(num_pos)]
 		switches_in_column = [0 for i in range(num_pos)]
 		col = num_pos - 1
 		row = min_row
 		while col > 0:
 			prev_row = b[col][row]
 			switches_in_column[col] = d[col][row].switches - d[col-1][prev_row].switches
-			flips_in_column[col] = d[col][row].flips - d[col-1][prev_row].flips
+			for k in range(ploidy):
+				if phasing1[k][col] != phasing0[perms[row][k]][col] and phasing1[k][col] != '-' and phasing0[perms[row][k]][col] != '-':
+					flips_in_column[col].append(k)
+			assert len(flips_in_column[col]) == d[col][row].flips - d[col-1][prev_row].flips
+			#flips_in_column[col] = d[col][row].flips - d[col-1][prev_row].flips
 			col -= 1
 			row = prev_row
 		switches_in_column[0] = d[col][row].switches
-		flips_in_column[0] = d[col][row].flips
+		for k in range(ploidy):
+			if phasing1[k][col] != phasing0[perms[row][k]][col] and phasing1[k][col] != '-' and phasing0[perms[row][k]][col] != '-':
+				flips_in_column[col].append(k)
+		assert len(flips_in_column[col]) == d[col][row].flips
+		#flips_in_column[0] = d[col][row].flips
 
 		assert sum(switches_in_column) == result.switches
-		assert sum(flips_in_column) == result.flips
+		assert sum(map(len, flips_in_column)) == result.flips
 
 		for i in range(num_pos):
 			for j in range(switches_in_column[i]):
 				switch_pos.append(switchflip_column_offset + i)
-			for j in range(flips_in_column[i]):
+			for j in range(len(flips_in_column[i])):
 				flip_pos.append(switchflip_column_offset + i)
 		switchflip_column_offset += num_pos
-		
+	else:
+		switches_in_column = []
+		flips_in_column = []
+	
 	result.switches = result.switches / ploidy
 	result.flips = result.flips / ploidy
-	return result
+	return result, switches_in_column, flips_in_column
 
 
 def compare_block(phasing0, phasing1):
@@ -293,7 +304,7 @@ def compare_block(phasing0, phasing1):
 		switches = hamming(switch_encoding(phasing0[0]), switch_encoding(phasing1[0]))
 		switch_flips = compute_switch_flips(phasing0[0], phasing1[0])
 	else:
-		switch_flips = compute_switch_flips_poly(phasing0, phasing1)
+		switch_flips, switches_in_column, flips_in_column = compute_switch_flips_poly(phasing0, phasing1)
 
 	return PhasingErrors(
 		switches = switches,
