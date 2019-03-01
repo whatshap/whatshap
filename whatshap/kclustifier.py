@@ -44,6 +44,7 @@ def calc_consensus_blocks(readset, clustering, cluster_blocks, cut_positions, co
 			for pos, clust in enumerate(hap):
 			#	consensus_blocks[i][j][pos] = cluster_consensus[clust][offset+pos] if clust != None else -1
 				consensus_blocks[i][j][pos] = consensus[offset+pos][clust] if clust != None else -1
+				#consensus_blocks[i][j][pos] = consensus[clust][offset+pos] if clust != None else -1
 				
 	return consensus_blocks
 
@@ -83,7 +84,7 @@ def get_cluster_consensus(readset, clustering):
 	return cluster_consensus
 
 
-def subset_clusters(readset, clustering,ploidy, sample, genotypes):
+def subset_clusters(readset, clustering,ploidy, sample, genotypes, genotype_soft_cutoff):
 
 
 	# Map genome positions to [0,l)
@@ -97,19 +98,6 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 		num_vars += 1
 
 	num_clusters = len(clustering)
-#	num_clusters = len(clustering)
-#	suits_list = []
-#	for c_id in range(num_clusters):
-#		suitable = True
-#		for read in clustering[c_id]:
-#			end = readset[read][-1].position
-#			start = readset[read][0].position
-#			if ( start < 40000404 or end > 40999427):
-#				suitable = False
-#		if suitable:
-#			suits_list.append(c_id)
-#			print("c id: ", c_id)
-#	print("suits list: ", suits_list)
 	print('number of variants: ', num_vars)
 	print('number of clusters: ', num_clusters)
 	
@@ -137,8 +125,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 		largest_clusters = sorted(cov_map[key], key=lambda x: len(clustering[x]), reverse=True)[:8]
 		cov_map[key] = largest_clusters
 
-	#for every cluster in clustering, compute its sequence of starting and ending positions
-	#create dictionary mapping the clusterID to a list of pairs (starting position, ending position)
+	#create dictionary mapping a clusterID to a pair (starting position, ending position)
 	positions = {}
 	counter = 0
 	for c_id in range(num_clusters):
@@ -174,11 +161,23 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 	
 	#compute the consensus sequences for every variant position and every cluster for integrating genotypes in the DP
 #	consensus = get_cluster_consensus(readset, clustering)
-	consensus = get_cluster_consensus_local(readset, clustering, cov_map)
+	consensus = get_cluster_consensus_local(readset, clustering, cov_map, positions)
 	print("consensus sequences computed")
 
+	geno_map = defaultdict(list)
+	counter = 0
+	for pos in range(num_vars):
+		c_ids = sorted(cov_map[pos])
+		c_tuples = sorted(list(it.combinations_with_replacement(c_ids, ploidy)))
+		geno_tuples = [tup for tup in c_tuples if (compute_tuple_genotype(consensus,tup, pos) == genotypes[pos])]
+		if (len(geno_tuples) == 0):
+			#TODO add option to use the next best genotypes if also the next list is empty
+			geno_tuples = [tup for tup in c_tuples if (compute_tuple_genotype_soft(consensus,tup, pos, genotypes[pos]) == 1)]
+		geno_map[pos] = geno_tuples
+	print("No cluster with fitting genotype: ", counter)
+
 	#perform the dynamic programming to fill the scoring matrix (in Cython to speed up computation)
-	scoring = clustering_DP(num_vars,clustering,coverage, positions, cov_map, ploidy, genotypes, consensus)
+	scoring = clustering_DP(num_vars,clustering,coverage, positions, cov_map, ploidy, genotypes, consensus, geno_map)
 	
 	#start the backtracing
 	path = []	
@@ -188,27 +187,18 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 	last_min_idx = min((val, idx) for (idx, val) in enumerate([i[0] for i in scoring[start_col]]))[1]
 
 	#instead of using all tuples, compute only the tuples relevant for the position start_col
-	clusters_tuples = list(it.product(cov_map[start_col],repeat = ploidy))
-
-	#genotype conform cluster tuples:
-	conf_clusters_tuples = [tup for tup in clusters_tuples if (compute_tuple_genotype(consensus,tup, start_col) == genotypes[start_col])]
-#	conf_clusters_tuples = [tup for tup in clusters_tuples if (compute_tuple_genotype(consensus,tup, start_col, genotypes[start_col]) <= 1)]
-
-	if (len(conf_clusters_tuples) == 0):
-		conf_clusters_tuples = clusters_tuples
+	clusters_tuples = geno_map[start_col]
+	conf_clusters_tuples = list(it.chain.from_iterable(sorted(list(set(it.permutations(x)))) for x in clusters_tuples))
 
 	path.append(conf_clusters_tuples[last_min_idx])
 	#append stored predecessor
 	for i in range(start_col,0,-1):
 		pred = scoring[i][last_min_idx][1]
 		#compute variants relevant for position pred
-		#TODO: to avoid recomputation, store conf_tups at every position in a map?
-		tups = list(it.product(cov_map[i-1],repeat = ploidy))
-		conf_tups = [tup for tup in tups if (compute_tuple_genotype(consensus,tup, i-1) == genotypes[i-1])]	
-#		conf_tups = [tup for tup in tups if (compute_tuple_genotype(consensus,tup, i-1, genotypes[i-1]) <= 1)]	
-		if (len(conf_tups) == 0):
-			conf_tups = tups
-		path.append(conf_tups[pred])	
+		tups = geno_map[i-1]	
+		conf_tups = list(it.chain.from_iterable(sorted(list(set(it.permutations(x)))) for x in tups))
+
+		path.append(conf_tups[pred])
 		last_min_idx = pred
 	#path has been assembled from the last column and needs to be reversed
 	path.reverse()
@@ -232,8 +222,9 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 			cut_positions.append(i)
 	print("cut positions: ", cut_positions)
 	
+	#experimental: Computing longer blocks and discarding cut positions close to each other
 #	cuts = []
-#	for c in range(len(cut_positions)-1):
+#	for c in range(len(cut_positions)-2):
 #		dissim = 0
 #		current = cut_positions[c]
 #		next = cut_positions[c+1]
@@ -243,10 +234,11 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 #				dissim += 1
 #		if (dissim == 1):
 #			dist_bwd = current - prev
-#			dist_fwd = next - cut_positions[c+1]
+#			dist_fwd = cut_positions[c+2] - next
 #			if dist_bwd < 4 or dist_fwd < 4:
-#				cuts.append(c) 
+#				cuts.append(cut_positions[c])
 #	cut_positions = cuts[:]
+#	print("cut positions after: ", cut_positions)
 
 	#divide path of clusters into <ploidy> separate paths
 	haps = []
@@ -254,7 +246,6 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 		temp = [tup[i] for tup in path]
 		haps.append(temp)
 	assert(len(haps) == ploidy)
-
 
 	#for testing purposes: compute paths by randomly connecting clusters
 #	haps = [[] for i in range(ploidy)]
@@ -264,7 +255,6 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 #			random_cluster = random.choice(possible_clusters)
 #			haps[i].append(random_cluster)
 #	assert(len(haps[0]) == num_vars)
-
 
 	# Return cluster blocks: List of blocks, each blocks ranges from one cut position to the next and contains <ploidy> sequences
 	# of cluster ids that indicate which cluster goes to which haplotype at which position.
@@ -330,7 +320,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes):
 	return(cut_positions, cluster_blocks, components, superreads, coverage, path)
 
 
-def get_cluster_consensus_local(readset, clustering, cov_map):
+def get_cluster_consensus_local(readset, clustering, cov_map, positions):
 
 	# Map genome positions to [0,l)
 	index = {}
@@ -341,28 +331,78 @@ def get_cluster_consensus_local(readset, clustering, cov_map):
 		rev_index.append(position)
 		num_vars += 1
 		
+#	cluster_consensus = []
+#	for c in range(len(clustering)):
+#		row = defaultdict(list)
+#		consensus = defaultdict(int)
+#		for read in clustering[c]:
+#			for (pos, allele) in [(index[var.position], var.allele) for var in readset[read]]:
+#				
+#				row[pos][0] += allele
+#				row[pos][1] += 1
+#		for key in row.keys():
+#			max_allele = row[key][0]/row[key][1]
+#			if max_allele < 0.5:
+#				consensus[key] = 0
+#			else:
+#				consensus[key] = 1
+#		del row
+#		cluster_consensus.append(consensus)
+
+#	cluster_consensus = [[{} for j in range(num_vars)] for i in range(len(clustering))]						
+#
+#	for c in range(len(clustering)):
+#		for read in clustering[c]:
+#			alleles = [(index[var.position], var.allele) for var in readset[read]]
+#			for (pos, allele) in alleles:
+#				if allele not in cluster_consensus[c][pos]:
+#					cluster_consensus[c][pos][allele] = 0
+#				cluster_consensus[c][pos][allele] += 1
+#				
+#	# Compute consensus for all positions and clusters
+##	for c in range(len(clustering)):
+##		#for pos in range(positions[c][0], positions[c][1]+1):
+##		for read in clustering[c]:
+##			for pos in [index[var.position] for var in readset[read]]:
+#
+#
+#	
+#	for c in range(len(clustering)):
+#		for pos in range(num_vars):
+#			alleles = cluster_consensus[c][pos]
+#			max_count = -1
+#			max_allele = -1
+#			for key in alleles:
+#				if alleles[key] > max_count:
+#					max_count = alleles[key]
+#					max_allele = key
+#			cluster_consensus[c][pos] = max_allele	
+
 	cluster_consensus = []
 	for pos in range(num_vars):
+		if (pos%1000 == 0):
+			print("computing consensus for position: ", pos)
 		newdict = defaultdict()
 		for c in cov_map[pos]:
-			#newdict[c] = consensus
-			allele_dict = {}
+			allele0, allele1 = 0,0
 			for read in clustering[c]:
 				alleles = [(index[var.position], var.allele) for var in readset[read]]
+				#todo: get read[position].allele directly without iterating through every var in read?
 				for (posi, allele) in alleles:	
 					if (posi == pos):				
-						if allele not in allele_dict:
-							allele_dict[allele] = 0
-						allele_dict[allele] += 1
+						if allele == 1:
+							allele1 += 1
+						else:
+							allele0 += 1			
 			
-			max_count = -1
-			max_allele = -1
-			for key in allele_dict:
-				if allele_dict[key] > max_count:
-					max_count = allele_dict[key]
-					max_allele = key
+			max_allele = 0
+			if (allele1 > allele0):	
+				max_allele = 1	
+			else:
+				max_allele = 0
 			newdict[c] = max_allele
 		cluster_consensus.append(newdict)
+	
 	return cluster_consensus
 
 
@@ -374,13 +414,14 @@ def compute_tuple_genotype(consensus,tup, var):
 		genotype += allele
 	return(genotype)
 
-#def compute_tuple_genotype(consensus,tup, var, geno):
-#	genotype = 0
-#	for i in tup:
-#		allele = consensus[i][var]
-#		genotype += allele
-#	res = max((geno-genotype),(genotype-geno))
-#	return(res)
+def compute_tuple_genotype_soft(consensus,tup, var, geno):
+	genotype = 0
+	for i in tup:
+		allele = consensus[var][i]
+		#allele = consensus[i][var]
+		genotype += allele
+	res = max((geno-genotype),(genotype-geno))
+	return(res)
 
 def find_backtracing_start(scoring, num_vars):
 	minimum = 1000000
