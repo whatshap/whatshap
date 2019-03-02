@@ -38,13 +38,13 @@ cdef class GenotypeDPTable:
 	cdef NumericSampleIds numeric_sample_ids
 
 
-cdef class StaticSparseGraph:
-	cdef cpp.StaticSparseGraph *thisptr
+cdef class DynamicSparseGraph:
+	cdef cpp.DynamicSparseGraph *thisptr
 
 
 cdef class CoreAlgorithm:
 	cdef cpp.CoreAlgorithm *thisptr
-	cdef StaticSparseGraph graph
+	cdef DynamicSparseGraph graph
 
 
 cdef class TriangleSparseMatrix:

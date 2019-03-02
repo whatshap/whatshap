@@ -6,7 +6,6 @@
 
 class InducedCostHeuristic {
 
-
 public:
     InducedCostHeuristic(StaticSparseGraph& param_graph, bool param_bundleEdges);
     ClusterEditingSolutionLight solve();
@@ -14,23 +13,23 @@ public:
 private:    
     void init();
     bool resolvePermanentForbidden();
-    void setForbidden(const StaticSparseGraph::Edge e);
-    void setPermanent(const StaticSparseGraph::Edge e);
+    void setForbidden(const DynamicSparseGraph::Edge e);
+    void setPermanent(const DynamicSparseGraph::Edge e);
     
     /**
     * Updates icf and icp for the edge uw under the assumption that edge uv will be set to forbidden.
     */
-    void updateTripleForbiddenUW(const StaticSparseGraph::EdgeWeight uv, const StaticSparseGraph::Edge uw, const StaticSparseGraph::EdgeWeight vw);
+    void updateTripleForbiddenUW(const DynamicSparseGraph::EdgeWeight uv, const DynamicSparseGraph::Edge uw, const DynamicSparseGraph::EdgeWeight vw);
 
     /**
     * Updates icf and icp for the edge uw under the assumption that edge uv will be set to permanent.
     */
-    void updateTriplePermanentUW(const StaticSparseGraph::EdgeWeight uv, const StaticSparseGraph::Edge uw, const StaticSparseGraph::EdgeWeight vw);
+    void updateTriplePermanentUW(const DynamicSparseGraph::EdgeWeight uv, const DynamicSparseGraph::Edge uw, const DynamicSparseGraph::EdgeWeight vw);
     
     bool bundleEdges;
     StaticSparseGraph graph;
     EdgeHeap edgeHeap;
-    StaticSparseGraph::EdgeWeight totalCost;
+    DynamicSparseGraph::EdgeWeight totalCost;
 };
 
 #endif // INDUCEDCOSTHEURISTICLIGHT_H

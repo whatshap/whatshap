@@ -1,7 +1,7 @@
 from collections import defaultdict
 import sys
 from .graph import ComponentFinder
-from .core import Read, ReadSet, CoreAlgorithm, StaticSparseGraph
+from .core import Read, ReadSet, CoreAlgorithm, DynamicSparseGraph
 from .readscoring import score_global, score_local, score_local_patternbased, partial_scoring
 import logging
 import pysam
@@ -66,7 +66,7 @@ class MatrixTransformation:
 				similarities = score_global(column, ploidy, min_overlap)
 				
 				# create read graph object
-				graph = StaticSparseGraph(len(column))
+				graph = DynamicSparseGraph()
 	
 				# insert edges into read graph
 				for (read1, read2) in similarities:

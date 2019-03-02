@@ -16,8 +16,6 @@ extern int verbosity;
 extern int no_threads;
 extern double eps;
 
-extern bool isTerminated;
-
 /**
     * The different states that can occur during the clustering process
     */

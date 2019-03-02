@@ -1,4 +1,4 @@
-from whatshap.core import ReadSet, StaticSparseGraph, CoreAlgorithm
+from whatshap.core import ReadSet, DynamicSparseGraph, CoreAlgorithm
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 from whatshap.readscoring import score_global
 import itertools
@@ -32,7 +32,7 @@ def test_clusterediting1():
 
 	# create read graph
 	n_reads = len(readset)
-	graph = StaticSparseGraph(n_reads)
+	graph = DynamicSparseGraph()
 	
 	# insert edges
 	#for id1 in range(n_reads):
@@ -76,7 +76,7 @@ def test_clusterediting2():
 
 	# create read graph
 	n_reads = len(readset)
-	graph = StaticSparseGraph(n_reads)
+	graph = DynamicSparseGraph()
 	
 	# insert edges
 	#for id1 in range(n_reads):
@@ -119,7 +119,7 @@ def test_clusterediting3():
 
 	# create read graph
 	n_reads = len(readset)
-	graph = StaticSparseGraph(n_reads)
+	graph = DynamicSparseGraph()
 
 	# insert edges
 	#for id1 in range(n_reads):

@@ -77,6 +77,7 @@ extensions = [
 			'src/genotype.cpp', 'src/binomial.cpp',
 			'src/clusterediting/ClusterEditingSolutionLight.cpp',
 			'src/clusterediting/CoreAlgorithm.cpp',
+			'src/clusterediting/DynamicSparseGraph.cpp',
 			'src/clusterediting/EdgeHeap.cpp',
 			'src/clusterediting/Globals.cpp',
 			'src/clusterediting/Helpers.cpp',

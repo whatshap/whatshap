@@ -3,11 +3,11 @@
 #include <algorithm>
 #include <unordered_map>
   
-using Edge = StaticSparseGraph::Edge;
-using EdgeWeight = StaticSparseGraph::EdgeWeight;
-using EdgeId = StaticSparseGraph::EdgeId;
-using NodeId = StaticSparseGraph::NodeId;
-using RankId = StaticSparseGraph::RankId;
+using Edge = DynamicSparseGraph::Edge;
+using EdgeWeight = DynamicSparseGraph::EdgeWeight;
+using EdgeId = DynamicSparseGraph::EdgeId;
+using NodeId = DynamicSparseGraph::NodeId;
+using RankId = DynamicSparseGraph::RankId;
 
 InducedCostHeuristic::InducedCostHeuristic(StaticSparseGraph& param_graph, bool param_bundleEdges) :
     bundleEdges(param_bundleEdges),
@@ -18,7 +18,6 @@ InducedCostHeuristic::InducedCostHeuristic(StaticSparseGraph& param_graph, bool 
     if (!resolvePermanentForbidden()) {
         totalCost = std::numeric_limits<EdgeWeight>::infinity();
     }
-    graph.compile();
     edgeHeap.initInducedCosts();
 }
 
@@ -38,10 +37,10 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
     }
   
     int totalEdges = edgeHeap.numUnprocessed();
-    for (unsigned int i = 0; i < graph.numEdges() + 1; i++) {
+    for (uint64_t i = 0; i < graph.numEdges() + 1; i++) {
         Edge eIcf = edgeHeap.getMaxIcfEdge();
         Edge eIcp = edgeHeap.getMaxIcpEdge();
-        if (eIcf == StaticSparseGraph::InvalidEdge || eIcp == StaticSparseGraph::InvalidEdge) {
+        if (eIcf == DynamicSparseGraph::InvalidEdge || eIcp == DynamicSparseGraph::InvalidEdge) {
             break;
         }
         EdgeWeight mIcf = edgeHeap.getIcf(eIcf);
@@ -72,7 +71,7 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
             for (NodeId x : uClique) {
                 for (NodeId y : vClique) {
                     Edge e = Edge(x,y);
-                    if (x == y || graph.getWeight(e) == StaticSparseGraph::Permanent || (x == eIcf.u && y == eIcf.v)) {
+                    if (x == y || graph.getWeight(e) == DynamicSparseGraph::Permanent || (x == eIcf.u && y == eIcf.v)) {
                         if (verbosity >= 5) {
                             std::cout<<"Making ("<<x<<","<<y<<") silently not permanent due to implication."<<std::endl;
                         }
@@ -145,7 +144,7 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
             for (NodeId x : uClique) {
                 for (NodeId y : vClique) {
                     Edge e = Edge(x,y);
-                    if (x == y || graph.getWeight(e) == StaticSparseGraph::Forbidden || (x == eIcp.u && y == eIcp.v)) {
+                    if (x == y || graph.getWeight(e) == DynamicSparseGraph::Forbidden || (x == eIcp.u && y == eIcp.v)) {
                         if (verbosity >= 5) {
                             std::cout<<"Making ("<<x<<","<<y<<") silently not forbidden due to implication."<<std::endl;
                         }
@@ -204,12 +203,12 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
             clusterOfNode[u] = c;
             clusters.push_back(std::vector<NodeId>(1, u));
             for (NodeId v = u+1; v < graph.numNodes(); v++) {
-                if (graph.getWeight(Edge(u, v)) == StaticSparseGraph::Permanent) {
+                if (graph.getWeight(Edge(u, v)) == DynamicSparseGraph::Permanent) {
                     clusterOfNode[v] = c;
-                if (verbosity >= 4) {
-                    std::cout<<"Adding connected node "<<v<<" in same cluster."<<std::endl;
-                }
-                clusters[c].push_back(v);
+                    if (verbosity >= 4) {
+                        std::cout<<"Adding connected node "<<v<<" in same cluster."<<std::endl;
+                    }
+                    clusters[c].push_back(v);
                 }
             }
         }
@@ -257,9 +256,9 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
                 if (x != y) {
                     Edge e (x,y);
                     EdgeWeight w = graph.getWeight(e);
-                    if (w == StaticSparseGraph::Forbidden)
+                    if (w == DynamicSparseGraph::Forbidden)
                         return false;
-                    else if (w != StaticSparseGraph::Permanent) {
+                    else if (w != DynamicSparseGraph::Permanent) {
                         if (w < 0.0)
                             totalCost -= w;
                         graph.setPermanent(Edge(x,y));
@@ -283,7 +282,7 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
             for (NodeId u : cliques[k]) {
                 if (found) break;
                 for (NodeId v : moreThanOneCliques[l]) {
-                    if (graph.getWeight(Edge(u, v)) == StaticSparseGraph::Forbidden) {
+                    if (graph.getWeight(Edge(u, v)) == DynamicSparseGraph::Forbidden) {
                         found = true;
                         break;
                     }
@@ -294,7 +293,7 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
                 for (NodeId u : cliques[k]) {
                     for (NodeId v : moreThanOneCliques[l]) {
                         Edge e(u,v);
-                        if (graph.getWeight(e) != StaticSparseGraph::Forbidden) {
+                        if (graph.getWeight(e) != DynamicSparseGraph::Forbidden) {
                             graph.setForbidden(e);
                             if (verbosity >= 5) {
                                 std::cout<<"Making ("<<u<<","<<v<<") forbidden due to implication."<<std::endl;
@@ -318,7 +317,8 @@ void InducedCostHeuristic::setForbidden(const Edge e) {
     
     /* If the edge was a zero edge in the original graph, it might have been implicitly set to
      * permanent or forbidden without updating the ic. Therefore we assume the weight to be 0 here.*/
-    EdgeWeight uv = id == 0 ? 0.0 : graph.getWeight(id);
+    EdgeWeight uv = graph.getWeight(id);
+//     EdgeWeight uv = id == 0 ? 0.0 : graph.getWeight(id);
     
     for (NodeId w : graph.getUnprunedNeighbours(u)) {
         if (w == v)
@@ -352,7 +352,8 @@ void InducedCostHeuristic::setPermanent(const Edge e) {
     
     /* If the edge was a zero edge in the original graph, it might have been implicitly set to
      * permanent or forbidden without updating the ic. Therefore we assume the weight to be 0 here.*/
-    EdgeWeight uv = id == 0 ? 0.0 : graph.getWeight(id);
+    EdgeWeight uv = graph.getWeight(id);
+//     EdgeWeight uv = id == 0 ? 0.0 : graph.getWeight(id);
     
     for (NodeId w : graph.getUnprunedNeighbours(u)) {
         if (w == v)

@@ -2,18 +2,18 @@
 #include <cmath>
 #include <algorithm>
   
-using Edge = StaticSparseGraph::Edge;
-using EdgeWeight = StaticSparseGraph::EdgeWeight;
-using EdgeId = StaticSparseGraph::EdgeId;
-using RankId = StaticSparseGraph::RankId;
-using NodeId = StaticSparseGraph::NodeId;
+using Edge = DynamicSparseGraph::Edge;
+using EdgeWeight = DynamicSparseGraph::EdgeWeight;
+using EdgeId = DynamicSparseGraph::EdgeId;
+using RankId = DynamicSparseGraph::RankId;
+using NodeId = DynamicSparseGraph::NodeId;
 
 EdgeHeap::EdgeHeap(StaticSparseGraph& param_graph) :
     graph(param_graph),
     unprocessed(0),
-    edges(1+param_graph.numEdges(), StaticSparseGraph::InvalidEdge),
-    icf(1+param_graph.numEdges(), StaticSparseGraph::Forbidden),
-    icp(1+param_graph.numEdges(), StaticSparseGraph::Forbidden),
+    edges(1+param_graph.numEdges(), DynamicSparseGraph::InvalidEdge),
+    icf(1+param_graph.numEdges(), DynamicSparseGraph::Forbidden),
+    icp(1+param_graph.numEdges(), DynamicSparseGraph::Forbidden),
     edge2forb_rank(1+param_graph.numEdges(), 0),
     edge2perm_rank(1+param_graph.numEdges(), 0),
     edgeToBundle(1+param_graph.numEdges(), 0),
@@ -53,7 +53,7 @@ void EdgeHeap::initInducedCosts() {
             
             EdgeWeight w_uv = graph.getWeight(rId);
 
-            if (w_uv == 0.0 || w_uv == StaticSparseGraph::Forbidden || w_uv == StaticSparseGraph::Permanent) {
+            if (w_uv == 0.0 || w_uv == DynamicSparseGraph::Forbidden || w_uv == DynamicSparseGraph::Permanent) {
                 continue;
             } else {
                 icf[rId] = 0.0;
@@ -124,10 +124,10 @@ Edge EdgeHeap::getMaxIcfEdge() const {
     RankId ei = forb_rank2edge[0];
     if (forb_rank2edge.size() <= 1) {
         // only rank 0 entry left
-        return StaticSparseGraph::InvalidEdge;
+        return DynamicSparseGraph::InvalidEdge;
     }
     if (icf[ei] < 0) {
-        return StaticSparseGraph::InvalidEdge;
+        return DynamicSparseGraph::InvalidEdge;
     }
     if (verbosity >= 6) {
         std::cout<<"icf heap: ";
@@ -147,10 +147,10 @@ Edge EdgeHeap::getMaxIcpEdge() const {
     RankId ei = perm_rank2edge[0];
     if (perm_rank2edge.size() <= 1) {
         // only rank 0 entry left
-        return StaticSparseGraph::InvalidEdge;
+        return DynamicSparseGraph::InvalidEdge;
     }
     if (icp[ei] < 0) {
-        return StaticSparseGraph::InvalidEdge;
+        return DynamicSparseGraph::InvalidEdge;
     }
     if (verbosity >= 6) {
         std::cout<<"icp heap: ";
@@ -267,16 +267,16 @@ void EdgeHeap::removeEdge(const RankId rId) {
     else if (verbosity >= 4) {
         std::cout<<"Removing edge ("<<edges[rId].u<<","<<edges[rId].v<<") from heap ("<<rId<<")"<<std::endl;
     }
-    if (rId > 0 && icf[rId] != StaticSparseGraph::Forbidden && icp[rId] != StaticSparseGraph::Forbidden) {
-        icf[rId] = StaticSparseGraph::Forbidden;
-        icp[rId] = StaticSparseGraph::Forbidden;
-        updateHeap(forb_rank2edge, rId, StaticSparseGraph::Forbidden, edge2forb_rank, icf);
-        updateHeap(perm_rank2edge, rId, StaticSparseGraph::Forbidden, edge2perm_rank, icp);
+    if (rId > 0 && icf[rId] != DynamicSparseGraph::Forbidden && icp[rId] != DynamicSparseGraph::Forbidden) {
+        icf[rId] = DynamicSparseGraph::Forbidden;
+        icp[rId] = DynamicSparseGraph::Forbidden;
+        updateHeap(forb_rank2edge, rId, DynamicSparseGraph::Forbidden, edge2forb_rank, icf);
+        updateHeap(perm_rank2edge, rId, DynamicSparseGraph::Forbidden, edge2perm_rank, icp);
         unprocessed--;
     }
 }
 
-StaticSparseGraph::EdgeWeight EdgeHeap::getIcf(const EdgeWeight uw, const EdgeWeight vw) const {
+EdgeWeight EdgeHeap::getIcf(const EdgeWeight uw, const EdgeWeight vw) const {
     if (uw > 0 && vw > 0) {
         // if both other edges present, remove the cheapest of both
         return std::min(uw, vw); 
@@ -285,7 +285,7 @@ StaticSparseGraph::EdgeWeight EdgeHeap::getIcf(const EdgeWeight uw, const EdgeWe
     }
 }
 
-StaticSparseGraph::EdgeWeight EdgeHeap::getIcp(const EdgeWeight uw, const EdgeWeight vw) const {
+EdgeWeight EdgeHeap::getIcp(const EdgeWeight uw, const EdgeWeight vw) const {
     if (uw < 0 && vw > 0) {
         return std::min(vw, -uw); 	// either add uw or remove vw
     } else if (uw > 0 && vw < 0) {
@@ -300,7 +300,7 @@ int EdgeHeap::numUnprocessed() const {
 }
 
 void EdgeHeap::updateHeap(std::vector<RankId>& heap, const RankId e, const EdgeWeight change, std::vector<RankId>& index, const std::vector<EdgeWeight>& score) {
-    unsigned int pos = index[e];
+    uint64_t pos = index[e];
     /*
      * index arithemetic for zero based array: parent = (index-1)/2, children = 2*index+1 and 2*index+2
      */

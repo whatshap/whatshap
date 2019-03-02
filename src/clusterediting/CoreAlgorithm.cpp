@@ -1,37 +1,64 @@
 #include "CoreAlgorithm.h"
 
-using namespace std;
+using NodeId = DynamicSparseGraph::NodeId;
 
 /**
     * Generates a set of solutions from its internal parameters (instance and parameter set)
     * @return The solution set as CES*
     */
 ClusterEditingSolutionLight CoreAlgorithm::run() {
-    //At the beginning of a run we set the global termination flag to false ->
-    //If we use this software as a lib it might have been set to true in a previous run
-    isTerminated = false;
-
-    //Just a killswitch to prevent the program from running if the user has already cancelled it at this point
-    if (isTerminated){
-        ClusterEditingSolutionLight sol;
-        return sol;
-    }
+    // Split graph into components
+//     if (verbosity > 1) {
+//         std::cout << "Splitting the graph into connected components ..." << std::endl;
+//     }
+//     
+//     std::vector<std::vector<NodeId>> components = graph.getPositiveComponentes();
+//     std::vector<std::vector<NodeId>> clusters;
+//     double totalCost = 0.0;
+//     
+//     if (verbosity > 1) {
+//         std::cout<<"Found "<<components.size()<<" connected components."<< std::endl;
+//     }
+//     
+//     // Run one instance per connected component
+//     for (std::vector<NodeId> component : components) {
+//         
+//         if (component.size() <= 2) {
+//             // trivial solution for up to two nodes
+//             clusters.push_back(std::vector<NodeId>(component.begin(), component.end()));
+//         } else {
+//             // create static subgraph and solve cluster editing on it
+//             StaticSparseGraph subgraph(graph, component);
+//             InducedCostHeuristic instance(subgraph, bundleEdges);
+//             ClusterEditingSolutionLight subSol = instance.solve();
+//             
+//             // add local clusters to final clustering
+//             totalCost += subSol.getTotalCost();
+//             for (unsigned int i = 0; i < subSol.getNumClusters(); i++) {
+//                 std::vector<NodeId> cluster;
+//                 for (NodeId v : subSol.getCluster(i)) {
+//                     // instance's node ids must be mapped back to global node ids
+//                     cluster.push_back(component[v]);
+//                     
+//                 }
+//                 clusters.push_back(cluster);
+//             }
+//         }
+//         if (verbosity > 1) {
+//             std::cout<<"Solved sub-instance with "<<component.size()<<" nodes."<<std::endl;
+//         }
+//     }
+//     
+//     ClusterEditingSolutionLight solution(totalCost, clusters);
     
-    // Run heuristic
-    if (verbosity > 1) {
-        cout << "Starting CE Heuristic!" << endl;
-    }
-    
-    InducedCostHeuristic hl(_graph, bundleEdges);
-    ClusterEditingSolutionLight sol = hl.solve();
+    StaticSparseGraph sGraph(graph);
+    InducedCostHeuristic instance(sGraph, bundleEdges);
+    ClusterEditingSolutionLight solution = instance.solve();
     
     if (verbosity > 2) {
-        cout << "Total editing cost:\t" << sol.getTotalCost() << endl;
+        std::cout<<"Number of clusters:\t"<<solution.getNumClusters()<<std::endl;
+        std::cout<<"Total editing cost:\t"<<solution.getTotalCost()<<std::endl;
     }
 
-    return sol;
-}
-
-void CoreAlgorithm::cancel(){
-    isTerminated = true;
+    return solution;
 }

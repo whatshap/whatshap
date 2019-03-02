@@ -22,7 +22,7 @@ from networkx import Graph, number_of_nodes, number_of_edges, connected_componen
 from contextlib import ExitStack
 from .vcf import VcfReader, PhasedVcfWriter, VcfGenotypeLikelihoods
 from . import __version__
-from .core import Read, ReadSet, CoreAlgorithm, StaticSparseGraph, readselection, NumericSampleIds, GenotypeLikelihoods, Genotype, compute_genotypes
+from .core import Read, ReadSet, CoreAlgorithm, DynamicSparseGraph, readselection, NumericSampleIds, GenotypeLikelihoods, Genotype, compute_genotypes
 from .graph import ComponentFinder
 from .bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
 from .timer import StageTimer
@@ -243,7 +243,7 @@ def run_clustereditingphase(
 				
 				# Create read graph object
 				logger.info("Constructing graph ...")
-				graph = StaticSparseGraph(len(readset))
+				graph = DynamicSparseGraph()
 
 				# Insert edges into read graph
 				for (read1, read2) in similarities:

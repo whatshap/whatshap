@@ -8,7 +8,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from pylab import savefig
-from .core import Read, ReadSet, CoreAlgorithm, StaticSparseGraph
+from .core import Read, ReadSet, CoreAlgorithm, DynamicSparseGraph
 from .readscoring import calc_overlap_and_diffs, parse_haplotype, parse_haplotype
 from .kclustifier import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks
 from .vectorerror import vector_error, vector_error_blockwise

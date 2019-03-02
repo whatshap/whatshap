@@ -1,12 +1,12 @@
 #include "SolutionChecker.h"
 
 using namespace std;
-using NodeId = StaticSparseGraph::NodeId;
-using Edge = StaticSparseGraph::Edge;
-using EdgeWeight = StaticSparseGraph::EdgeWeight;
+using NodeId = DynamicSparseGraph::NodeId;
+using Edge = DynamicSparseGraph::Edge;
+using EdgeWeight = DynamicSparseGraph::EdgeWeight;
 
 //bool SolutionChecker::verifySolution(const LightCompleteGraph& graph, const ClusterEditingSolutionLight& solution){
-bool SolutionChecker::verifySolution(StaticSparseGraph& graph, const ClusterEditingSolutionLight& solution){
+bool SolutionChecker::verifySolution(DynamicSparseGraph& graph, const ClusterEditingSolutionLight& solution){
 	if (verbosity > 0) {
 		cout << "Checking solution integrity ..." << endl;
 	}

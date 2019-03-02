@@ -4,14 +4,14 @@ from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 cimport cpp
 
-cdef class StaticSparseGraph:
-	def __cinit__(self, int numNodes):
-		self.thisptr = new cpp.StaticSparseGraph(numNodes)
+cdef class DynamicSparseGraph:
+	def __cinit__(self):
+		self.thisptr = new cpp.DynamicSparseGraph()
 	def addEdge(self, int node_id1, int node_id2, double weight):
 		self.thisptr.addEdge(node_id1, node_id2, weight)
 
 cdef class CoreAlgorithm:
-	def __cinit__(self, StaticSparseGraph graph, bundleEdges):
+	def __cinit__(self, DynamicSparseGraph graph, bundleEdges):
 		self.thisptr = new cpp.CoreAlgorithm(graph.thisptr[0], bundleEdges)
 		self.graph = graph
 	def run(self):
