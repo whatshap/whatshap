@@ -1,6 +1,4 @@
 #include "StaticSparseGraph.h"
-#include <x86intrin.h>
-#include <bitset>
 #include <algorithm>
 
 using Edge = DynamicSparseGraph::Edge;
@@ -154,6 +152,18 @@ void StaticSparseGraph::compile(DynamicSparseGraph& dg, const std::vector<NodeId
 //         std::cout<<std::endl;
 //     }
     
+//     std::cout<<size<<std::endl;
+//     for (NodeId i = 0; i < size; i++) {
+//         std::cout<<"read_"<<i<<std::endl;
+//     }
+//     for (NodeId i = 0; i < size; i++) {
+//		 for (NodeId j : getNonZeroNeighbours(i)) {
+//			 if (i < j) {
+//				 std::cout<<i<<" "<<j<<" "<<getWeight(Edge(i,j))<<std::endl;
+//			 }
+//		 }
+//     }
+    
     weightv.shrink_to_fit();
 }
 
@@ -166,13 +176,14 @@ EdgeWeight StaticSparseGraph::getWeight(const Edge e) {
         NodeId cv = cliqueOfNode[e.v];
         if (cu == cv) {
             return DynamicSparseGraph::Permanent;
+        } else if (forbidden[cu].size() * forbidden[cv].size() == 0) {
+            return 0.0;
         } else if (forbidden[cu].size() < forbidden[cv].size() && forbidden[cu].find(cv) != forbidden[cu].end()) {
             return DynamicSparseGraph::Forbidden;
         } else if (forbidden[cv].find(cu) != forbidden[cv].end()) {
             return DynamicSparseGraph::Forbidden;
         }
     }
-    
     return 0.0;
 }
 
@@ -209,7 +220,6 @@ void StaticSparseGraph::setForbidden(const Edge e) {
     
     if (cu == cv) {
         std::cout<<"Making permanent edge forbidden ("<<e.u<<", "<<e.v<<")."<<std::endl;
-//         std::exit(EXIT_FAILURE);
         return;
     }
     
@@ -217,11 +227,11 @@ void StaticSparseGraph::setForbidden(const Edge e) {
     weightv[rankIndex] = DynamicSparseGraph::Forbidden;
 }
 
-unsigned int StaticSparseGraph::numNodes() const {
+uint64_t StaticSparseGraph::numNodes() const {
     return size;
 }
 
-unsigned long StaticSparseGraph::numEdges() const {
+uint64_t StaticSparseGraph::numEdges() const {
     return weightv.size() - 1;
 }
 
@@ -347,13 +357,4 @@ RankId StaticSparseGraph::findIndex(const EdgeId id) const {
     }
     
     return offset2[block2] + popcount(bitv) - 1;
-}
-
-uint64_t StaticSparseGraph::popcount(uint64_t bitv) const {
-    // copied from Wikipedia (https://en.wikipedia.org/wiki/Hamming_weight)
-    bitv -= (bitv >> 1) & m1;
-    bitv = (bitv & m2) + ((bitv >> 2) & m2);
-    bitv = (bitv + (bitv >> 4)) & m4;
-    return (bitv * h01) >> 56;
-    // return _mm_popcnt_u64(bitv)
 }

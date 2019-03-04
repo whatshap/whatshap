@@ -53,13 +53,28 @@ public:
     /**
      * Computes the induced cost for the the triple uvw, if uv is set to forbidden
      */
-    DynamicSparseGraph::EdgeWeight getIcf(const DynamicSparseGraph::EdgeWeight uw, const DynamicSparseGraph::EdgeWeight vw) const;
-    /**
-        * Computes the induced cost for the the triple uvw, if uv is set to permanent
-        */
-    DynamicSparseGraph::EdgeWeight getIcp(const DynamicSparseGraph::EdgeWeight uw, const DynamicSparseGraph::EdgeWeight vw) const;
+    inline DynamicSparseGraph::EdgeWeight getIcf(const DynamicSparseGraph::EdgeWeight uw, const DynamicSparseGraph::EdgeWeight vw) const  {
+        if (uw > 0 && vw > 0) {
+            // if both other edges present, remove the cheapest of both
+            return std::min(uw, vw); 
+        } else {
+            return 0;
+        }
+    }
+    /*
+     * Computes the induced cost for the the triple uvw, if uv is set to permanent
+     */
+    inline DynamicSparseGraph::EdgeWeight getIcp(const DynamicSparseGraph::EdgeWeight uw, const DynamicSparseGraph::EdgeWeight vw) const {
+        if (uw < 0 && vw > 0) {
+            return std::min(vw, -uw); 	// either add uw or remove vw
+        } else if (uw > 0 && vw < 0) {
+            return std::min(-vw, uw); 	// either add vw or remove uw
+        } else {
+            return 0;
+        }
+    }
     
-    int numUnprocessed() const;
+    uint64_t numUnprocessed() const;
 
 private:
     /**
@@ -75,7 +90,7 @@ private:
             std::vector<DynamicSparseGraph::RankId>& index, const std::vector<DynamicSparseGraph::EdgeWeight>& score);
     
     StaticSparseGraph& graph;
-    int unprocessed;
+    uint64_t unprocessed;
     std::vector<DynamicSparseGraph::Edge> edges;                         // internal/rank id -> edge
     std::vector<DynamicSparseGraph::EdgeWeight> icf;                     // edge rank id -> icf of edge (zero edges have no icf)
     std::vector<DynamicSparseGraph::EdgeWeight> icp;                     // edge rank id -> icp of edge (zero edges have no icp)

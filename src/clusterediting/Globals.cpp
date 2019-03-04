@@ -1,4 +1,5 @@
 #include "Globals.h"
+#include <iostream>
 
 int verbosity = 1;
 int time_limit = -1;

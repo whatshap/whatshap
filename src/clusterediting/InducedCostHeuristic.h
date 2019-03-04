@@ -12,9 +12,12 @@ public:
 
 private:    
     void init();
+    void choosePermanentEdge(const DynamicSparseGraph::Edge eIcf);
+    void chooseForbiddenEdge(const DynamicSparseGraph::Edge eIcp);
     bool resolvePermanentForbidden();
     void setForbidden(const DynamicSparseGraph::Edge e);
     void setPermanent(const DynamicSparseGraph::Edge e);
+    void printHeuristicProgress();
     
     /**
     * Updates icf and icp for the edge uw under the assumption that edge uv will be set to forbidden.
@@ -30,6 +33,7 @@ private:
     StaticSparseGraph graph;
     EdgeHeap edgeHeap;
     DynamicSparseGraph::EdgeWeight totalCost;
+    uint64_t totalEdges;
 };
 
 #endif // INDUCEDCOSTHEURISTICLIGHT_H

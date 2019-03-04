@@ -4,6 +4,7 @@
 #include "../readset.h"
 #include "../read.h"
 #include "TriangleSparseMatrix.h"
+#include "Globals.h"
 
 class ReadScoring {
  
@@ -20,16 +21,6 @@ private:
     void computeCutoff(const uint32_t numReads, const uint32_t ploidy, std::vector<double> relDiffs, double& distSame, double& distDiff) const;
     float logratioSim(const uint32_t overlap, const uint32_t diff, const double distSame, const double distDiff) const;
     double binomPmf(const uint32_t n, const uint32_t k, const double p) const;
-    
-    // used for inefficient popcount
-    const uint64_t m1  = 0x5555555555555555;
-    const uint64_t m2  = 0x3333333333333333;
-    const uint64_t m4  = 0x0f0f0f0f0f0f0f0f;
-    const uint64_t h01 = 0x0101010101010101;
-    /**
-     * Returns the number of set bits in a 64bit-word.
-     */
-    uint64_t popcount(uint64_t bitv) const;
 };
 
 #endif // READSCORING_H

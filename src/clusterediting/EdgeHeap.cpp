@@ -18,9 +18,7 @@ EdgeHeap::EdgeHeap(StaticSparseGraph& param_graph) :
     edge2perm_rank(1+param_graph.numEdges(), 0),
     edgeToBundle(1+param_graph.numEdges(), 0),
     edgeBundles(1+param_graph.numEdges(), std::vector<RankId>(0))
-{
-    //initInducedCosts();
-}
+{}
 
 void EdgeHeap::initInducedCosts() {
     if (verbosity >= 1) {
@@ -32,7 +30,7 @@ void EdgeHeap::initInducedCosts() {
     uint64_t numNodes = graph.numNodes();
     // compute array: edge -> icf/icp
     for (NodeId u = 0; u < numNodes; u++) {
-        if (verbosity >= 1 && u % 50 == 0) {
+        if (verbosity >= 1 && u % 100 == 0) {
             std::cout<<"Compute induced costs.. "<<(((2UL*numNodes-(uint64_t)u+1UL)*(uint64_t)u*50UL)/((numNodes*(numNodes-1UL))/2UL))<<"%\r"<<std::flush;
         }
         for (NodeId v : graph.getNonZeroNeighbours(u)) {
@@ -180,12 +178,7 @@ EdgeWeight EdgeHeap::getIcp(const Edge e) const {
 
 void EdgeHeap::increaseIcf(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
-    if (rId == 0) {
-//         std::cout<<"increaseIcf called on zero edge ("<<e.id()<<") with rank id "<<rId<<std::endl;
-    }
-
     if (rId > 0 && w != 0 && icf[edgeToBundle[rId]] >= 0) {
-//         std::cout<<"Increase icf on "<<rId<<" ("<<e.u<<","<<e.v<<") from "<<icf[rId]<<" by "<<w<<std::endl;
         RankId eb = edgeToBundle[rId];
         icf[eb] += w;
         icf[eb] = std::max(icf[eb], 0.0);
@@ -195,12 +188,7 @@ void EdgeHeap::increaseIcf(const Edge e, const EdgeWeight w) {
 
 void EdgeHeap::increaseIcp(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
-    if (rId == 0) {
-//         std::cout<<"increaseIcp called on zero edge ("<<e.id()<<") with rank id "<<rId<<std::endl;
-    }
-        
     if (rId > 0 && w != 0 && icp[edgeToBundle[rId]] >= 0) {
-//         std::cout<<"Increase icp on "<<rId<<" ("<<e.u<<","<<e.v<<") from "<<icp[rId]<<" by "<<w<<std::endl;
         RankId eb = edgeToBundle[rId];
         icp[eb] += w;
         icp[eb] = std::max(icp[eb], 0.0);
@@ -261,7 +249,6 @@ void EdgeHeap::removeEdge(const Edge e) {
 
 void EdgeHeap::removeEdge(const RankId rId) {
     if (rId == 0) {
-//         std::cout<<"removeEdge called on zero edge ("<<e.v<<","<<e.u<<")"<<std::endl;
         return;
     }
     else if (verbosity >= 4) {
@@ -276,26 +263,7 @@ void EdgeHeap::removeEdge(const RankId rId) {
     }
 }
 
-EdgeWeight EdgeHeap::getIcf(const EdgeWeight uw, const EdgeWeight vw) const {
-    if (uw > 0 && vw > 0) {
-        // if both other edges present, remove the cheapest of both
-        return std::min(uw, vw); 
-    } else {
-        return 0;
-    }
-}
-
-EdgeWeight EdgeHeap::getIcp(const EdgeWeight uw, const EdgeWeight vw) const {
-    if (uw < 0 && vw > 0) {
-        return std::min(vw, -uw); 	// either add uw or remove vw
-    } else if (uw > 0 && vw < 0) {
-        return std::min(-vw, uw); 	// either add vw or remove uw
-    } else {
-        return 0;
-    }
-}
-
-int EdgeHeap::numUnprocessed() const {
+uint64_t EdgeHeap::numUnprocessed() const {
     return unprocessed;
 }
 
@@ -306,30 +274,36 @@ void EdgeHeap::updateHeap(std::vector<RankId>& heap, const RankId e, const EdgeW
      */
     if (change > 0) {
         // value increased -> move edge upwards in heap
-        while(pos > 0 && score[heap[(pos-1)/2]] < score[heap[pos]]) {
+        uint64_t parent = (pos-1)/2;
+        while(pos > 0 && score[heap[parent]] < score[heap[pos]]) {
             // swap pos and pos/2
-            std::swap(heap[pos], heap[(pos-1)/2]);
+            std::swap(heap[pos], heap[parent]);
             index[heap[pos]] = pos;
-            index[heap[(pos-1)/2]] = (pos-1)/2;
-            pos = (pos-1)/2;
+            index[heap[parent]] = parent;
+            pos = parent;
+            parent = (pos-1)/2;
         }
     } else {
         // value decreased -> move edge downwards in heap
-        while((2*pos+1 < heap.size() && score[heap[pos]] < score[heap[2*pos+1]])
-            || (2*pos+2 < heap.size() && score[heap[pos]] < score[heap[2*pos+2]]) ) {
-            if (2*pos+2 < heap.size() && score[heap[2*pos+1]] < score[heap[2*pos+2]]) {
-                // element 2*pos+2 exists and is larger than 2*pos+1 -> swap pos with 2*pos+2
-                std::swap(heap[pos], heap[2*pos+2]);
+        uint64_t lChild = 2*pos+1;
+        uint64_t rChild = 2*pos+2;
+        while((lChild < heap.size() && score[heap[pos]] < score[heap[lChild]])
+            | (rChild < heap.size() && score[heap[pos]] < score[heap[rChild]]) ) {
+            if (rChild < heap.size() && score[heap[lChild]] < score[heap[rChild]]) {
+                // right child exists and is larger than left child -> swap pos with right child
+                std::swap(heap[pos], heap[rChild]);
                 index[heap[pos]] = pos;
-                index[heap[pos*2+2]] = pos*2+2;
-                pos = 2*pos+2;
+                index[heap[rChild]] = rChild;
+                pos = rChild;
             } else {
-                // else swap with 2*pos+1
-                std::swap(heap[pos], heap[2*pos+1]);
+                // else swap with left child
+                std::swap(heap[pos], heap[lChild]);
                 index[heap[pos]] = pos;
-                index[heap[pos*2+1]] = pos*2+1;
-                pos = 2*pos+1;
+                index[heap[lChild]] = lChild;
+                pos = lChild;
             }
+            lChild = 2*pos+1;
+            rChild = 2*pos+2;
         }
     }
 }

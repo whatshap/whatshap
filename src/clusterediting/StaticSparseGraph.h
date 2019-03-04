@@ -7,6 +7,7 @@
 #include <list>
 #include <cmath>
 #include <set>
+#include <unordered_set>
 #include <limits>
 #include "Globals.h"
 #include "DynamicSparseGraph.h"
@@ -54,12 +55,12 @@ public:
     /**
     * Returns the number of nodes in the graph.
     */
-    unsigned int numNodes() const;
+    uint64_t numNodes() const;
     
     /**
      * Returns the number of edges in the graph.
      */
-    unsigned long numEdges() const;
+    uint64_t numEdges() const;
     
     /**
      * For a node v, returns all adjacent nodes, which are connected to v via a perment edge, including v itself.
@@ -92,12 +93,6 @@ public:
     DynamicSparseGraph::RankId findIndex(const DynamicSparseGraph::EdgeId id) const;
 
 private:
-    // used for inefficient popcount
-    const uint64_t m1  = 0x5555555555555555;
-    const uint64_t m2  = 0x3333333333333333;
-    const uint64_t m4  = 0x0f0f0f0f0f0f0f0f;
-    const uint64_t h01 = 0x0101010101010101;
-    
     // used for sparse and fast storage of edge weights
     uint64_t size;
     std::vector<uint64_t> rank1;                // size = 8 bytes per 4096 possible edges (= size*(size-1)/1024)
@@ -115,7 +110,7 @@ private:
     // additional information for detecting, whether a (zero-)edge is acutally permanent/forbidden due to implication
     std::vector<DynamicSparseGraph::NodeId> cliqueOfNode;           // clique id of every node
     std::vector<std::vector<DynamicSparseGraph::NodeId>> cliques;   // all nodes, which belong to a certain cliqueOf
-    std::vector<std::set<DynamicSparseGraph::NodeId>> forbidden;    // for each cluster, a set of forbidden clusters
+    std::vector<std::unordered_set<DynamicSparseGraph::NodeId>> forbidden;    // for each cluster, a set of forbidden clusters
     
     /**
      * Inserts all added edges into the static data structure of this graph.
@@ -131,11 +126,6 @@ private:
      * Removes a specific node id from the vector.
      */
     bool removeFromVector(std::vector<DynamicSparseGraph::NodeId>& vec, DynamicSparseGraph::NodeId v);
-    
-    /**
-     * Returns the number of set bits in a 64bit-word.
-     */
-    uint64_t popcount(uint64_t bitv) const;
     
     std::string int2bin(uint64_t u) {
         std::string s(64, '0');
