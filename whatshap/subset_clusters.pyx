@@ -79,8 +79,8 @@ cdef int compute_tuple_genotype(consensus,tup,int var):
 	cdef int genotype = 0
 	cdef int i
 	for i in tup:
-		allele = consensus[i][var]
-		#allele = consensus[var][i]
+		#allele = consensus[i][var]
+		allele = consensus[var][i]
 		genotype += allele
 	return(genotype)
 	
@@ -88,8 +88,8 @@ cdef int compute_tuple_genotype(consensus,tup,int var):
 def compute_tuple_genotype_soft(consensus,tup, var, geno):
 	genotype = 0
 	for i in tup:
-		#allele = consensus[var][i]
-		allele = consensus[i][var]
+		allele = consensus[var][i]
+		#allele = consensus[i][var]
 		genotype += allele
 	res = max((geno-genotype),(genotype-geno))
 	return(res)

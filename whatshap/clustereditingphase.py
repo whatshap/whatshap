@@ -76,7 +76,8 @@ def run_clustereditingphase(
 	dp_phasing = False,
 	plot_clusters = False,
 	plot_haploblocks = False,
-	plot_threading = False
+	plot_threading = False,
+	single_block = False
 	):
 	"""
 	Run Polyploid Phasing.
@@ -268,7 +269,7 @@ def run_clustereditingphase(
 
 				if dp_phasing:
 					#add dynamic programming for finding the most likely subset of clusters
-					cut_positions, cluster_blocks, components, superreads, coverage, paths, haplotypes = subset_clusters(readset, readpartitioning, ploidy, sample,genotype_list)
+					cut_positions, cluster_blocks, components, superreads, coverage, paths, haplotypes = subset_clusters(readset, readpartitioning, ploidy, sample,genotype_list, single_block)
 				else:				
 					haploblocks = clusters_to_haps(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
 
@@ -422,6 +423,8 @@ def add_arguments(parser):
 		help='Plot the haplotype blocks with contained reads (default: %(default)s).')
 	arg('--plot-threading', dest='plot_threading', default=False, action='store_true',
 		help='Plot the haplotypes\' threading through the read clusters (default: %(default)s).')
+	arg('--single-block', dest='single_block', default=False, action='store_true',
+		help='Outout only one single block.')
 
 def validate(args, parser):
 	pass

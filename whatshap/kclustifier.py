@@ -42,9 +42,8 @@ def calc_consensus_blocks(readset, clustering, cluster_blocks, cut_positions, co
 		offset = cut_positions[i-1] if i > 0 else 0	
 		for j, hap in enumerate(block):
 			for pos, clust in enumerate(hap):
-			#	consensus_blocks[i][j][pos] = cluster_consensus[clust][offset+pos] if clust != None else -1
-				#consensus_blocks[i][j][pos] = consensus[offset+pos][clust] if clust != None else -1
-				consensus_blocks[i][j][pos] = consensus[clust][offset+pos] if clust != None else -1
+				consensus_blocks[i][j][pos] = consensus[offset+pos][clust] if clust != None else -1
+				#consensus_blocks[i][j][pos] = consensus[clust][offset+pos] if clust != None else -1
 				
 	return consensus_blocks
 
@@ -419,16 +418,16 @@ def get_cluster_consensus_local(readset, clustering, cov_map, positions):
 def compute_tuple_genotype(consensus,tup, var):
 	genotype = 0
 	for i in tup:
-		allele = consensus[i][var]
-		#allele = consensus[var][i]
+		#allele = consensus[i][var]
+		allele = consensus[var][i]
 		genotype += allele
 	return(genotype)
 
 def compute_tuple_genotype_soft(consensus,tup, var, geno):
 	genotype = 0
 	for i in tup:
-		#allele = consensus[var][i]
-		allele = consensus[i][var]
+		allele = consensus[var][i]
+		#allele = consensus[i][var]
 		genotype += allele
 	res = max((geno-genotype),(genotype-geno))
 	return(res)
