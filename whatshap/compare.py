@@ -12,7 +12,6 @@ from typing import Set, Iterable, List
 
 from whatshap.vcf import VcfReader, VcfVariant, VariantTable
 
-
 logger = logging.getLogger(__name__)
 
 count_width = 9
@@ -35,8 +34,6 @@ def add_arguments(parser):
 		'to given filename (requires matplotlib).')
 	add('--longest-block-tsv', default=None, help='Write position-wise agreement of longest '
 		'joint blocks in each chromosome to tab-separated file. Only for diploid vcfs.')
-	add('--plot-switchflip-locations', default=None, help='Write PNG file with histogram about '
-		'the number of switches and flips made at each location (requires matplotlib).')
 	add('ploidy', metavar='PLOIDY', type=int, help='The ploidy of the samples (must be > 1).')
 	# TODO: what's the best way to request "two or more" VCFs?
 	add('vcf', nargs='+', metavar='VCF', help='At least two phased VCF files to be compared.')
@@ -586,7 +583,7 @@ def create_blocksize_histogram(filename, block_stats, names):
 			pdf.savefig()
 			pyplot.close()
 
-def run_compare(vcf, ploidy, names=None, sample=None, tsv_pairwise=None, tsv_multiway=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, longest_block_tsv=None, plot_switchflip_locations = None):
+def run_compare(vcf, ploidy, names=None, sample=None, tsv_pairwise=None, tsv_multiway=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, longest_block_tsv=None):
 	vcf_readers = [VcfReader(f, indels=not only_snvs, phases=True, ploidy=ploidy) for f in vcf]
 	if names:
 		dataset_names = names.split(',')
@@ -744,9 +741,6 @@ def run_compare(vcf, ploidy, names=None, sample=None, tsv_pairwise=None, tsv_mul
 
 		if plot_blocksizes:
 			create_blocksize_histogram(plot_blocksizes, all_block_stats, dataset_names)
-			
-		if plot_switchflip_locations:
-			create_switch_flip_histogram()
 
 
 def main(args):
