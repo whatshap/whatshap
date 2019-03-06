@@ -79,8 +79,8 @@ cdef int compute_tuple_genotype(consensus,tup,int var):
 	cdef int genotype = 0
 	cdef int i
 	for i in tup:
-		#allele = consensus[i][var]
-		allele = consensus[var][i]
+		allele = consensus[i][var]
+		#allele = consensus[var][i]
 		genotype += allele
 	return(genotype)
 	
@@ -88,8 +88,8 @@ cdef int compute_tuple_genotype(consensus,tup,int var):
 def compute_tuple_genotype_soft(consensus,tup, var, geno):
 	genotype = 0
 	for i in tup:
-		allele = consensus[var][i]
-		#allele = consensus[i][var]
+		#allele = consensus[var][i]
+		allele = consensus[i][var]
 		genotype += allele
 	res = max((geno-genotype),(genotype-geno))
 	return(res)
@@ -99,13 +99,15 @@ cdef int switch_costs(c_tuple1, c_tuple2, positions,int var,int ploidy):
 	cdef int costs = 0
 	#switch costs depend on the position: if var is the end of c_tuple1 or var+1 is the beginning of c_tuple2, switching is free
 	cdef int i
-	cdef int dissim = 0
+	cdef int errors = 0
 	for i in range(0,ploidy):
 	#	start = positions[c_tuple2[i]][0]
 	#	end = positions[c_tuple1[i]][1]
 	#	if (var != end and var+1 != start and (c_tuple1[i] != c_tuple2[i])):
 		if (c_tuple1[i] != c_tuple2[i]):
 			costs += 32
+			#errors += 1
+	#costs = errors + 8
 	return(costs)
 
 #computes the costs for differences between expected copy number (due to coverage) and the real copy number

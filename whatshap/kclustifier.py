@@ -43,8 +43,8 @@ def calc_consensus_blocks(readset, clustering, cluster_blocks, cut_positions, co
 		for j, hap in enumerate(block):
 			for pos, clust in enumerate(hap):
 			#	consensus_blocks[i][j][pos] = cluster_consensus[clust][offset+pos] if clust != None else -1
-				consensus_blocks[i][j][pos] = consensus[offset+pos][clust] if clust != None else -1
-				#consensus_blocks[i][j][pos] = consensus[clust][offset+pos] if clust != None else -1
+				#consensus_blocks[i][j][pos] = consensus[offset+pos][clust] if clust != None else -1
+				consensus_blocks[i][j][pos] = consensus[clust][offset+pos] if clust != None else -1
 				
 	return consensus_blocks
 
@@ -84,7 +84,7 @@ def get_cluster_consensus(readset, clustering):
 	return cluster_consensus
 
 
-def subset_clusters(readset, clustering,ploidy, sample, genotypes, genotype_soft_cutoff):
+def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block):
 
 
 	# Map genome positions to [0,l)
@@ -173,6 +173,8 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, genotype_soft
 		if (len(geno_tuples) == 0):
 			#TODO add option to use the next best genotypes if also the next list is empty
 			geno_tuples = [tup for tup in c_tuples if (compute_tuple_genotype_soft(consensus,tup, pos, genotypes[pos]) == 1)]
+			if (len(geno_tuples) == 0):
+				geno_tuples = c_tuples
 		geno_map[pos] = geno_tuples
 	print("No cluster with fitting genotype: ", counter)
 
@@ -205,21 +207,23 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, genotype_soft
 	assert(len(path) == start_col+1)
 	
 	#determine cut positions: Currently, a cut position is created every time a path changes the used cluster from one position to the next
-#	cut_positions = [len(readset.get_positions())-1]
-	cut_positions = []
-	for i in range(len(path)-1):
-		dissim = 0
-		for j in range(0,ploidy):
-			#if (i < len(path) -2):
-#				if path[i][j] != path[i+1][j] and path[i][j] != path[i+2][j]:
-#					dissim +=1
-#			else:
-#				if path[i][j] != path[i+1][j]:
-#					dissim += 1
-			if path[i][j] != path[i+1][j]:
-				dissim += 1
-		if (dissim >= 1):
-			cut_positions.append(i)
+	if single_block:
+		cut_positions = [len(readset.get_positions())-1]
+	else:
+		cut_positions = []
+		for i in range(len(path)-1):
+			dissim = 0
+			for j in range(0,ploidy):
+				#if (i < len(path) -2):
+	#				if path[i][j] != path[i+1][j] and path[i][j] != path[i+2][j]:
+	#					dissim +=1
+	#			else:
+	#				if path[i][j] != path[i+1][j]:
+	#					dissim += 1
+				if path[i][j] != path[i+1][j]:
+					dissim += 1
+			if (dissim >= 1):
+				cut_positions.append(i)
 	print("cut positions: ", cut_positions)
 	
 	#experimental: Computing longer blocks and discarding cut positions close to each other
@@ -364,11 +368,17 @@ def get_cluster_consensus_local(readset, clustering, cov_map, positions):
 ##		#for pos in range(positions[c][0], positions[c][1]+1):
 ##		for read in clustering[c]:
 ##			for pos in [index[var.position] for var in readset[read]]:
-#
-#
-#	
+#	posi_map = defaultdict(list)
 #	for c in range(len(clustering)):
-#		for pos in range(num_vars):
+#		posis = []
+#		for read in clustering[c]:
+#			positions = [index[var.position] for var in readset[read]]
+#			posis.extend(positions)	
+#		pos =sorted(list(set(posis)))
+#		posi_map[c] = pos
+#		
+#	for c in range(len(clustering)):
+#		for pos in posi_map[c]:
 #			alleles = cluster_consensus[c][pos]
 #			max_count = -1
 #			max_allele = -1
@@ -409,16 +419,16 @@ def get_cluster_consensus_local(readset, clustering, cov_map, positions):
 def compute_tuple_genotype(consensus,tup, var):
 	genotype = 0
 	for i in tup:
-		#allele = consensus[i][var]
-		allele = consensus[var][i]
+		allele = consensus[i][var]
+		#allele = consensus[var][i]
 		genotype += allele
 	return(genotype)
 
 def compute_tuple_genotype_soft(consensus,tup, var, geno):
 	genotype = 0
 	for i in tup:
-		allele = consensus[var][i]
-		#allele = consensus[i][var]
+		#allele = consensus[var][i]
+		allele = consensus[i][var]
 		genotype += allele
 	res = max((geno-genotype),(genotype-geno))
 	return(res)
