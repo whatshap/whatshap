@@ -2,25 +2,23 @@
 #include <cmath>
 #include <algorithm>
   
-using Edge = StaticSparseGraph::Edge;
-using EdgeWeight = StaticSparseGraph::EdgeWeight;
-using EdgeId = StaticSparseGraph::EdgeId;
-using RankId = StaticSparseGraph::RankId;
-using NodeId = StaticSparseGraph::NodeId;
+using Edge = DynamicSparseGraph::Edge;
+using EdgeWeight = DynamicSparseGraph::EdgeWeight;
+using EdgeId = DynamicSparseGraph::EdgeId;
+using RankId = DynamicSparseGraph::RankId;
+using NodeId = DynamicSparseGraph::NodeId;
 
 EdgeHeap::EdgeHeap(StaticSparseGraph& param_graph) :
     graph(param_graph),
     unprocessed(0),
-    edges(1+param_graph.numEdges(), StaticSparseGraph::InvalidEdge),
-    icf(1+param_graph.numEdges(), StaticSparseGraph::Forbidden),
-    icp(1+param_graph.numEdges(), StaticSparseGraph::Forbidden),
+    edges(1+param_graph.numEdges(), DynamicSparseGraph::InvalidEdge),
+    icf(1+param_graph.numEdges(), DynamicSparseGraph::Forbidden),
+    icp(1+param_graph.numEdges(), DynamicSparseGraph::Forbidden),
     edge2forb_rank(1+param_graph.numEdges(), 0),
     edge2perm_rank(1+param_graph.numEdges(), 0),
     edgeToBundle(1+param_graph.numEdges(), 0),
     edgeBundles(1+param_graph.numEdges(), std::vector<RankId>(0))
-{
-    //initInducedCosts();
-}
+{}
 
 void EdgeHeap::initInducedCosts() {
     if (verbosity >= 1) {
@@ -32,7 +30,7 @@ void EdgeHeap::initInducedCosts() {
     uint64_t numNodes = graph.numNodes();
     // compute array: edge -> icf/icp
     for (NodeId u = 0; u < numNodes; u++) {
-        if (verbosity >= 1 && u % 50 == 0) {
+        if (verbosity >= 1 && u % 100 == 0) {
             std::cout<<"Compute induced costs.. "<<(((2UL*numNodes-(uint64_t)u+1UL)*(uint64_t)u*50UL)/((numNodes*(numNodes-1UL))/2UL))<<"%\r"<<std::flush;
         }
         for (NodeId v : graph.getNonZeroNeighbours(u)) {
@@ -53,7 +51,7 @@ void EdgeHeap::initInducedCosts() {
             
             EdgeWeight w_uv = graph.getWeight(rId);
 
-            if (w_uv == 0.0 || w_uv == StaticSparseGraph::Forbidden || w_uv == StaticSparseGraph::Permanent) {
+            if (w_uv == 0.0 || w_uv == DynamicSparseGraph::Forbidden || w_uv == DynamicSparseGraph::Permanent) {
                 continue;
             } else {
                 icf[rId] = 0.0;
@@ -124,10 +122,10 @@ Edge EdgeHeap::getMaxIcfEdge() const {
     RankId ei = forb_rank2edge[0];
     if (forb_rank2edge.size() <= 1) {
         // only rank 0 entry left
-        return StaticSparseGraph::InvalidEdge;
+        return DynamicSparseGraph::InvalidEdge;
     }
     if (icf[ei] < 0) {
-        return StaticSparseGraph::InvalidEdge;
+        return DynamicSparseGraph::InvalidEdge;
     }
     if (verbosity >= 6) {
         std::cout<<"icf heap: ";
@@ -147,10 +145,10 @@ Edge EdgeHeap::getMaxIcpEdge() const {
     RankId ei = perm_rank2edge[0];
     if (perm_rank2edge.size() <= 1) {
         // only rank 0 entry left
-        return StaticSparseGraph::InvalidEdge;
+        return DynamicSparseGraph::InvalidEdge;
     }
     if (icp[ei] < 0) {
-        return StaticSparseGraph::InvalidEdge;
+        return DynamicSparseGraph::InvalidEdge;
     }
     if (verbosity >= 6) {
         std::cout<<"icp heap: ";
@@ -180,12 +178,7 @@ EdgeWeight EdgeHeap::getIcp(const Edge e) const {
 
 void EdgeHeap::increaseIcf(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
-    if (rId == 0) {
-//         std::cout<<"increaseIcf called on zero edge ("<<e.id()<<") with rank id "<<rId<<std::endl;
-    }
-
     if (rId > 0 && w != 0 && icf[edgeToBundle[rId]] >= 0) {
-//         std::cout<<"Increase icf on "<<rId<<" ("<<e.u<<","<<e.v<<") from "<<icf[rId]<<" by "<<w<<std::endl;
         RankId eb = edgeToBundle[rId];
         icf[eb] += w;
         icf[eb] = std::max(icf[eb], 0.0);
@@ -195,12 +188,7 @@ void EdgeHeap::increaseIcf(const Edge e, const EdgeWeight w) {
 
 void EdgeHeap::increaseIcp(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
-    if (rId == 0) {
-//         std::cout<<"increaseIcp called on zero edge ("<<e.id()<<") with rank id "<<rId<<std::endl;
-    }
-        
     if (rId > 0 && w != 0 && icp[edgeToBundle[rId]] >= 0) {
-//         std::cout<<"Increase icp on "<<rId<<" ("<<e.u<<","<<e.v<<") from "<<icp[rId]<<" by "<<w<<std::endl;
         RankId eb = edgeToBundle[rId];
         icp[eb] += w;
         icp[eb] = std::max(icp[eb], 0.0);
@@ -261,75 +249,61 @@ void EdgeHeap::removeEdge(const Edge e) {
 
 void EdgeHeap::removeEdge(const RankId rId) {
     if (rId == 0) {
-//         std::cout<<"removeEdge called on zero edge ("<<e.v<<","<<e.u<<")"<<std::endl;
         return;
     }
     else if (verbosity >= 4) {
         std::cout<<"Removing edge ("<<edges[rId].u<<","<<edges[rId].v<<") from heap ("<<rId<<")"<<std::endl;
     }
-    if (rId > 0 && icf[rId] != StaticSparseGraph::Forbidden && icp[rId] != StaticSparseGraph::Forbidden) {
-        icf[rId] = StaticSparseGraph::Forbidden;
-        icp[rId] = StaticSparseGraph::Forbidden;
-        updateHeap(forb_rank2edge, rId, StaticSparseGraph::Forbidden, edge2forb_rank, icf);
-        updateHeap(perm_rank2edge, rId, StaticSparseGraph::Forbidden, edge2perm_rank, icp);
+    if (rId > 0 && icf[rId] != DynamicSparseGraph::Forbidden && icp[rId] != DynamicSparseGraph::Forbidden) {
+        icf[rId] = DynamicSparseGraph::Forbidden;
+        icp[rId] = DynamicSparseGraph::Forbidden;
+        updateHeap(forb_rank2edge, rId, DynamicSparseGraph::Forbidden, edge2forb_rank, icf);
+        updateHeap(perm_rank2edge, rId, DynamicSparseGraph::Forbidden, edge2perm_rank, icp);
         unprocessed--;
     }
 }
 
-StaticSparseGraph::EdgeWeight EdgeHeap::getIcf(const EdgeWeight uw, const EdgeWeight vw) const {
-    if (uw > 0 && vw > 0) {
-        // if both other edges present, remove the cheapest of both
-        return std::min(uw, vw); 
-    } else {
-        return 0;
-    }
-}
-
-StaticSparseGraph::EdgeWeight EdgeHeap::getIcp(const EdgeWeight uw, const EdgeWeight vw) const {
-    if (uw < 0 && vw > 0) {
-        return std::min(vw, -uw); 	// either add uw or remove vw
-    } else if (uw > 0 && vw < 0) {
-        return std::min(-vw, uw); 	// either add vw or remove uw
-    } else {
-        return 0;
-    }
-}
-
-int EdgeHeap::numUnprocessed() const {
+uint64_t EdgeHeap::numUnprocessed() const {
     return unprocessed;
 }
 
 void EdgeHeap::updateHeap(std::vector<RankId>& heap, const RankId e, const EdgeWeight change, std::vector<RankId>& index, const std::vector<EdgeWeight>& score) {
-    unsigned int pos = index[e];
+    uint64_t pos = index[e];
     /*
      * index arithemetic for zero based array: parent = (index-1)/2, children = 2*index+1 and 2*index+2
      */
     if (change > 0) {
         // value increased -> move edge upwards in heap
-        while(pos > 0 && score[heap[(pos-1)/2]] < score[heap[pos]]) {
+        uint64_t parent = (pos-1)/2;
+        while(pos > 0 && score[heap[parent]] < score[heap[pos]]) {
             // swap pos and pos/2
-            std::swap(heap[pos], heap[(pos-1)/2]);
+            std::swap(heap[pos], heap[parent]);
             index[heap[pos]] = pos;
-            index[heap[(pos-1)/2]] = (pos-1)/2;
-            pos = (pos-1)/2;
+            index[heap[parent]] = parent;
+            pos = parent;
+            parent = (pos-1)/2;
         }
     } else {
         // value decreased -> move edge downwards in heap
-        while((2*pos+1 < heap.size() && score[heap[pos]] < score[heap[2*pos+1]])
-            || (2*pos+2 < heap.size() && score[heap[pos]] < score[heap[2*pos+2]]) ) {
-            if (2*pos+2 < heap.size() && score[heap[2*pos+1]] < score[heap[2*pos+2]]) {
-                // element 2*pos+2 exists and is larger than 2*pos+1 -> swap pos with 2*pos+2
-                std::swap(heap[pos], heap[2*pos+2]);
+        uint64_t lChild = 2*pos+1;
+        uint64_t rChild = 2*pos+2;
+        while((lChild < heap.size() && score[heap[pos]] < score[heap[lChild]])
+            | (rChild < heap.size() && score[heap[pos]] < score[heap[rChild]]) ) {
+            if (rChild < heap.size() && score[heap[lChild]] < score[heap[rChild]]) {
+                // right child exists and is larger than left child -> swap pos with right child
+                std::swap(heap[pos], heap[rChild]);
                 index[heap[pos]] = pos;
-                index[heap[pos*2+2]] = pos*2+2;
-                pos = 2*pos+2;
+                index[heap[rChild]] = rChild;
+                pos = rChild;
             } else {
-                // else swap with 2*pos+1
-                std::swap(heap[pos], heap[2*pos+1]);
+                // else swap with left child
+                std::swap(heap[pos], heap[lChild]);
                 index[heap[pos]] = pos;
-                index[heap[pos*2+1]] = pos*2+1;
-                pos = 2*pos+1;
+                index[heap[lChild]] = lChild;
+                pos = lChild;
             }
+            lChild = 2*pos+1;
+            rChild = 2*pos+2;
         }
     }
 }

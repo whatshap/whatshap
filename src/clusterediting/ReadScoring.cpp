@@ -121,6 +121,12 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* reads
 		defaultDiffDist = (numPairs*avgDisagr - (fracSame*numPairs)*defaultSameDist) / ((1.0-fracSame)*numPairs);
 		defaultDiffDist = std::max(defaultSameDist, std::min((1.0+defaultSameDist)/2, defaultDiffDist));
     }
+//     std::cout<<"Classic same = "<<defaultSameDist<<std::endl;
+//     std::cout<<"Classic diff = "<<defaultDiffDist<<std::endl;
+//     std::cout<<"New same = "<<hammingDistSame<<std::endl;
+//     std::cout<<"New diff = "<<hammingDistDiff<<std::endl;
+//     double defaultSameDist = hammingDistSame;
+//     double defaultDiffDist = hammingDistDiff;
     
     // compute longest read length and average read length (in base pairs) and divide by 2
     uint32_t windowSize = 0;
@@ -488,16 +494,8 @@ void ReadScoring::computeStartEndOverlapDiff ( const ReadSet* readset, std::vect
     // iterate over all read pairs (efficiently omitting those who can certainly not overlap)
     std::vector<double> relativeDiffs;
     for (uint32_t i = 0; i < numReads; i++) {
-        
-        // binary search to find first read, which can theoretically overlap read i
-//         uint32_t firstIndex = std::lower_bound(begins.begin(), begins.end(), begins[i]-longestReadLen) - begins.begin();
         // iterate until start position of read is behind required start
-//         for (uint32_t j = firstIndex; begins[j] <= ends[i] && j < numReads; j++) {
-            
-//         }
-        
-        
-        for (uint32_t j = i+1; j < numReads; j++) {
+        for (uint32_t j = i+1; begins[j] <= ends[i] && j < numReads; j++) {
             if (ends[i] < begins[j] || ends[j] < begins[i])
                 continue;
             uint32_t ov = 0;
@@ -540,7 +538,6 @@ void ReadScoring::computeCutoff(const uint32_t numReads, const uint32_t ploidy, 
     if (ploidy < numReads) {
         cutoff = (uint32_t) std::ceil((p * (n/p) * (n/p-1) / 2) / 
                     ( (p * (n/p) * (n/p-1) / 2) + (p*(p-1)/2)*(n/p)*(n/p) ) * relDiffs.size());
-//         std::cout<<"cutoff = "<<cutoff<<" out of "<<relDiffs.size()<<std::endl;
         for (unsigned int i = 0; i < relDiffs.size(); i++) {
             if (i < cutoff) {
                 sameSum += relDiffs[i];
@@ -577,13 +574,4 @@ double ReadScoring::binomPmf(const uint32_t n, const uint32_t k, const double p)
         coeff *= ((n-i) / (k-i));
     }
     return coeff * pow(p, k) * pow(1-p, n-k);
-}
-
-uint64_t ReadScoring::popcount(uint64_t bitv) const {
-    // copied from Wikipedia (https://en.wikipedia.org/wiki/Hamming_weight)
-    bitv -= (bitv >> 1) & m1;
-    bitv = (bitv & m2) + ((bitv >> 2) & m2);
-    bitv = (bitv + (bitv >> 4)) & m4;
-    return (bitv * h01) >> 56;
-    // return _mm_popcnt_u64(bitv)
 }

@@ -8,11 +8,11 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from pylab import savefig
-from .core import Read, ReadSet, CoreAlgorithm, StaticSparseGraph
+from .core import Read, ReadSet, CoreAlgorithm, DynamicSparseGraph
 from .readscoring import calc_overlap_and_diffs, parse_haplotype, parse_haplotype
 from .kclustifier import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks
 from .vectorerror import vector_error, vector_error_blockwise
-from .compare import compute_switch_flips_poly
+from .compare import compute_switch_flips_poly_bt
 
 def draw_plots_dissimilarity(readset, path, min_overlap = 5, steps = 100):
 	num_reads = len(readset)
@@ -478,7 +478,7 @@ def draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, var_t
 		block2 = [h[ext_cuts[i]:ext_cuts[i+1]] for h in haplotypes]
 		#print(block1)
 		#print(block2)
-		switchflips, switches_in_column, flips_in_column = compute_switch_flips_poly(block1, block2, switch_cost = 1+1/(num_vars*ploidy))
+		switchflips, switches_in_column, flips_in_column = compute_switch_flips_poly_bt(block1, block2, report_error_positions = True, switch_cost = 1+1/(num_vars*ploidy))
 		for pos, e in enumerate(switches_in_column):
 			plt.vlines(x = ext_cuts[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*e, color = 'blue', alpha = 0.6)
 		for pos, flipped in enumerate(flips_in_column):

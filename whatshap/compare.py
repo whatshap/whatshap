@@ -12,17 +12,9 @@ from typing import Set, Iterable, List
 
 from whatshap.vcf import VcfReader, VcfVariant, VariantTable
 
-
 logger = logging.getLogger(__name__)
 
 count_width = 9
-
-# debug section
-switchflip_column_offset = 0
-switch_pos = []
-flip_pos = []
-switchflip_debug = True
-#end debug section
 
 def add_arguments(parser):
 	add = parser.add_argument
@@ -42,8 +34,6 @@ def add_arguments(parser):
 		'to given filename (requires matplotlib).')
 	add('--longest-block-tsv', default=None, help='Write position-wise agreement of longest '
 		'joint blocks in each chromosome to tab-separated file. Only for diploid vcfs.')
-	add('--plot-switchflip-locations', default=None, help='Write PNG file with histogram about '
-		'the number of switches and flips made at each location (requires matplotlib).')
 	add('ploidy', metavar='PLOIDY', type=int, help='The ploidy of the samples (must be > 1).')
 	# TODO: what's the best way to request "two or more" VCFs?
 	add('vcf', nargs='+', metavar='VCF', help='At least two phased VCF files to be compared.')
@@ -123,10 +113,6 @@ def switch_encoding(phasing):
 
 # TODO extend to polyplid case
 def compute_switch_flips(phasing0, phasing1):
-	global switchflip_debug
-	global switchflip_column_offset
-	global switch_pos
-	global flip_pos
 	assert len(phasing0) == len(phasing1)
 	s0 = switch_encoding(phasing0)
 	s1 = switch_encoding(phasing1)
@@ -136,17 +122,9 @@ def compute_switch_flips(phasing0, phasing1):
 		if p0 != p1:
 			switches_in_a_row += 1
 		if (i + 1 == len(s0)) or (p0 == p1):
-			if switchflip_debug:
-				if switches_in_a_row % 2 == 1:
-					switch_pos.append(switchflip_column_offset + i + 1)
-				for k in range(switches_in_a_row // 2):
-					flip_pos.append(switchflip_column_offset + i - k*2 - 1 - (switches_in_a_row % 2))
-				
 			result.flips += switches_in_a_row // 2
 			result.switches += switches_in_a_row % 2
 			switches_in_a_row = 0
-			
-	switchflip_column_offset += len(phasing0)
 	
 	if False:
 		print('switch_flips():')
@@ -158,10 +136,10 @@ def compute_switch_flips(phasing0, phasing1):
 	return result
 
 def compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 1):
-	global switchflip_debug
-	global switchflip_column_offset
-	global switch_pos
-	global flip_pos
+	result, switches_in_column, flips_in_column = compute_switch_flips_poly_bt(phasing0, phasing1, switch_cost = switch_cost, flip_cost = flip_cost)
+	return result
+
+def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = False, switch_cost = 1, flip_cost = 1):
 	# Check input
 	if len(phasing0) != len(phasing1):
 		print("Incompatible phasings. Number of haplotypes is not equal ("+str(len(phasing))+" != "+str(len(truth))+").")
@@ -242,7 +220,7 @@ def compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 1
 	result.flips = d[-1][min_row].flips
 	
 	# Backtracing
-	if switchflip_debug and (result.switches * switch_cost + result.flips * flip_cost < float("inf")):
+	if (report_error_positions and result.switches * switch_cost + result.flips * flip_cost < float("inf")):
 		flips_in_column = [[] for i in range(num_pos)]
 		switches_in_column = [0 for i in range(num_pos)]
 		col = num_pos - 1
@@ -267,12 +245,6 @@ def compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 1
 		assert sum(switches_in_column) == result.switches
 		assert sum(map(len, flips_in_column)) == result.flips
 
-		for i in range(num_pos):
-			for j in range(switches_in_column[i]):
-				switch_pos.append(switchflip_column_offset + i)
-			for j in range(len(flips_in_column[i])):
-				flip_pos.append(switchflip_column_offset + i)
-		switchflip_column_offset += num_pos
 	else:
 		switches_in_column = []
 		flips_in_column = []
@@ -304,7 +276,7 @@ def compare_block(phasing0, phasing1):
 		switches = hamming(switch_encoding(phasing0[0]), switch_encoding(phasing1[0]))
 		switch_flips = compute_switch_flips(phasing0[0], phasing1[0])
 	else:
-		switch_flips, switches_in_column, flips_in_column = compute_switch_flips_poly(phasing0, phasing1)
+		switch_flips = compute_switch_flips_poly(phasing0, phasing1)
 
 	return PhasingErrors(
 		switches = switches,
@@ -611,32 +583,7 @@ def create_blocksize_histogram(filename, block_stats, names):
 			pdf.savefig()
 			pyplot.close()
 
-def create_switch_flip_histogram(filename = "./switchflips.png", bar_width = 10):
-	global switchflip_column_offset
-	global switch_pos
-	global flip_pos
-	try:
-		import matplotlib 
-		import matplotlib.pyplot as plt
-		import matplotlib.patches as mpatches
-		from pylab import savefig
-	except ImportError:
-		logger.error('To use option --plot-switchflips, you need to have matplotlib and pylab installed.')
-		return
-
-	fig = plt.figure(figsize=(2+switchflip_column_offset/(bar_width*20), 4))
-	bins = [i*bar_width for i in range((switchflip_column_offset+bar_width-1) // bar_width)]
-	plt.hist(switch_pos, bins, alpha=0.4, label='switch errors')
-	plt.hist(flip_pos, bins, alpha=0.4, label='flip errors')
-	plt.title('Location of switch and flip errors')
-	plt.xlabel('Index of compared variant')
-	plt.ylabel('Number of errors per '+str(bar_width)+' positions')
-	plt.legend(loc='upper center')
-	savefig(filename, bbox_inches='tight')
-	plt.close()
-
-def run_compare(vcf, ploidy, names=None, sample=None, tsv_pairwise=None, tsv_multiway=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, longest_block_tsv=None, plot_switchflip_locations = None):
-	global switchflip_debug
+def run_compare(vcf, ploidy, names=None, sample=None, tsv_pairwise=None, tsv_multiway=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, longest_block_tsv=None):
 	vcf_readers = [VcfReader(f, indels=not only_snvs, phases=True, ploidy=ploidy) for f in vcf]
 	if names:
 		dataset_names = names.split(',')
@@ -727,9 +674,6 @@ def run_compare(vcf, ploidy, names=None, sample=None, tsv_pairwise=None, tsv_mul
 			assert len(block_stats) == len(all_block_stats)
 			for big_list, new_list in zip(all_block_stats, block_stats):
 				big_list.extend(new_list)
-				
-		if plot_switchflip_locations:
-			switchflip_debug = True
 
 		for chromosome in sorted(chromosomes):
 			print('---------------- Chromosome {} ----------------'.format(chromosome))
@@ -797,9 +741,6 @@ def run_compare(vcf, ploidy, names=None, sample=None, tsv_pairwise=None, tsv_mul
 
 		if plot_blocksizes:
 			create_blocksize_histogram(plot_blocksizes, all_block_stats, dataset_names)
-			
-		if plot_switchflip_locations:
-			create_switch_flip_histogram()
 
 
 def main(args):

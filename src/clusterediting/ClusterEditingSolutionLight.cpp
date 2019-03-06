@@ -1,6 +1,6 @@
 #include "ClusterEditingSolutionLight.h"
   
-using NodeId = StaticSparseGraph::NodeId;
+using NodeId = DynamicSparseGraph::NodeId;
 
 ClusterEditingSolutionLight::ClusterEditingSolutionLight() :
     valid(false),

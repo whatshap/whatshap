@@ -14,25 +14,20 @@
 
 class CoreAlgorithm{
 
-    public:
-
-    CoreAlgorithm(
-            StaticSparseGraph& graph,
-            bool bundleEdges
-    )
-    :_graph(graph), bundleEdges(bundleEdges)
+public:
+    CoreAlgorithm(DynamicSparseGraph& graph, bool bundleEdges) :
+    graph(graph), 
+    bundleEdges(bundleEdges)
     {};
 
+    /**
+     * Start the algorithm on the provided graph and settings
+     */
     ClusterEditingSolutionLight run();
 
-    /**
-     * Attempts a "clean" interrupt of the solving process by stopping CPLEX and setting a kill-flag which is checked throughout the process
-     */
-    void cancel();
-
-    private:
-        StaticSparseGraph& _graph;
-        bool bundleEdges;
+private:
+    DynamicSparseGraph& graph;
+    bool bundleEdges;
 };
 
 #endif /* SRC_COREALGORITHM_H */

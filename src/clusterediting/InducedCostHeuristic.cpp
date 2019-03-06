@@ -3,23 +3,24 @@
 #include <algorithm>
 #include <unordered_map>
   
-using Edge = StaticSparseGraph::Edge;
-using EdgeWeight = StaticSparseGraph::EdgeWeight;
-using EdgeId = StaticSparseGraph::EdgeId;
-using NodeId = StaticSparseGraph::NodeId;
-using RankId = StaticSparseGraph::RankId;
+using Edge = DynamicSparseGraph::Edge;
+using EdgeWeight = DynamicSparseGraph::EdgeWeight;
+using EdgeId = DynamicSparseGraph::EdgeId;
+using NodeId = DynamicSparseGraph::NodeId;
+using RankId = DynamicSparseGraph::RankId;
 
 InducedCostHeuristic::InducedCostHeuristic(StaticSparseGraph& param_graph, bool param_bundleEdges) :
     bundleEdges(param_bundleEdges),
     graph(param_graph),
     edgeHeap(graph),
-    totalCost(0.0)
+    totalCost(0.0),
+    totalEdges(0)
 {
     if (!resolvePermanentForbidden()) {
         totalCost = std::numeric_limits<EdgeWeight>::infinity();
     }
-    graph.compile();
     edgeHeap.initInducedCosts();
+    totalEdges = edgeHeap.numUnprocessed();
 }
 
 ClusterEditingSolutionLight InducedCostHeuristic::solve() {
@@ -37,11 +38,10 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
         return sol;
     }
   
-    int totalEdges = edgeHeap.numUnprocessed();
-    for (unsigned int i = 0; i < graph.numEdges() + 1; i++) {
+    for (uint64_t i = 0; i < graph.numEdges() + 1; i++) {
         Edge eIcf = edgeHeap.getMaxIcfEdge();
         Edge eIcp = edgeHeap.getMaxIcpEdge();
-        if (eIcf == StaticSparseGraph::InvalidEdge || eIcp == StaticSparseGraph::InvalidEdge) {
+        if (eIcf == DynamicSparseGraph::InvalidEdge || eIcp == DynamicSparseGraph::InvalidEdge) {
             break;
         }
         EdgeWeight mIcf = edgeHeap.getIcf(eIcf);
@@ -49,136 +49,17 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
         
         if (mIcf >= mIcp) {
             // set eIcf to permanent
-            if (verbosity >= 5) {
-                std::cout<<"Setting edge ("<<eIcf.u<<","<<eIcf.v<<") to permanent."<<std::endl;
-            }
-
-            // get edges, which will become permanent due to implication. This must be done before the actual edge is
-            // modified, as this would implicitly modify the weights in the graph as well
-            std::vector<Edge> implications;
-            std::vector<NodeId> uClique(graph.getCliqueOf(eIcf.u));
-            std::vector<NodeId> vClique(graph.getCliqueOf(eIcf.v));
-            if (verbosity >= 5) {
-                std::cout<<"Clique of "<<eIcf.u<<": ";
-                for (const auto& i: uClique)
-                    std::cout << i << ' ';
-                std::cout<<std::endl;
-                std::cout<<"Clique of "<<eIcf.v<<": ";
-                for (const auto& i: vClique)
-                    std::cout << i << ' ';
-                std::cout<<std::endl;
-            }
-            
-            for (NodeId x : uClique) {
-                for (NodeId y : vClique) {
-                    Edge e = Edge(x,y);
-                    if (x == y || graph.getWeight(e) == StaticSparseGraph::Permanent || (x == eIcf.u && y == eIcf.v)) {
-                        if (verbosity >= 5) {
-                            std::cout<<"Making ("<<x<<","<<y<<") silently not permanent due to implication."<<std::endl;
-                        }
-                        continue;
-                    }
-                    if (verbosity >= 5) {
-                        std::cout<<"Making ("<<x<<","<<y<<") permanent due to implication."<<std::endl;
-                    }
-                    implications.push_back(e);
-                }
-            }
-
-            // set actual edge first
-            setPermanent(eIcf);
-            edgeHeap.removeEdge(eIcf);
-            
-            // then all implications
-            for (Edge e : implications) {
-                setPermanent(e);
-                edgeHeap.removeEdge(e);
-                if (verbosity >= 1 && edgeHeap.numUnprocessed() % 1000 == 0) {
-                    std::cout<<"Running heuristic.. "<<((totalEdges - edgeHeap.numUnprocessed())*100 / totalEdges)<<"%\r"<<std::flush;
-                }
-            }
-            
-            if (bundleEdges) {
-                /* All outgoing edges of the current clique, which lead to the same clique, must be bundled together. If one of these
-                edges is made permanent or forbidden, then all other edges must be as well. Therefore not the induced costs for all
-                edges must be taken into account, not only the cost of the chosen edge.*/
-                NodeId cu = graph.getCliqueIdOf(eIcf.u);
-                if (verbosity >= 4)
-                    std::cout<<"Contracting nodes of cluster id ("<<cu<<")."<<std::endl;
-                std::unordered_map<NodeId, Edge> cliqueToRepresentative;
-                uClique.insert(uClique.end(), vClique.begin(), vClique.end());
-                for (NodeId x : uClique) {
-                    for (NodeId xn : graph.getUnprunedNeighbours(x)) {
-                        // this edge should not be inside the current cluster, as all internal edges should be permanent by now
-                        Edge ex(x, xn);
-                        NodeId cxn = graph.getCliqueIdOf(xn);
-                        
-                        if (std::find(uClique.begin(), uClique.end(), xn) != uClique.end()) {
-                            if (verbosity >= 5)
-                                std::cout<<"Observed edge ("<<x<<","<<xn<<") was inside the cluster!"<<std::endl;
-                            continue;
-                        }
-                        if (graph.findIndex(ex) == 0) {
-                            std::cout<<"Observed edge ("<<x<<","<<xn<<") was pruned edge with weight "<<graph.getWeight(ex)<<std::endl;
-                            continue;
-                        }
-                        // if new cluster is "discovered", set edge as representative, otherwise bundle with present representative
-                        if (cliqueToRepresentative.find(cxn) == cliqueToRepresentative.end()) {
-                            cliqueToRepresentative[cxn] = ex;
-                        } else {
-                            edgeHeap.mergeEdges(ex, cliqueToRepresentative[cxn]);
-                        }
-                    }
-                }
-            }
+            choosePermanentEdge(eIcf);
         } else {
             // set eIcp fo forbidden
-            if (verbosity >= 5) {
-                std::cout<<"Setting edge ("<<eIcp.u<<","<<eIcp.v<<") to forbidden."<<std::endl;
-            }
-
-            // get edges, which will become permanent due to implication. This must be done before the actual edge is
-            // modified, as this would implicitly modify the weights in the graph as well
-            std::vector<Edge> implications;
-            std::vector<NodeId> uClique(graph.getCliqueOf(eIcp.u));
-            std::vector<NodeId> vClique(graph.getCliqueOf(eIcp.v));
-            for (NodeId x : uClique) {
-                for (NodeId y : vClique) {
-                    Edge e = Edge(x,y);
-                    if (x == y || graph.getWeight(e) == StaticSparseGraph::Forbidden || (x == eIcp.u && y == eIcp.v)) {
-                        if (verbosity >= 5) {
-                            std::cout<<"Making ("<<x<<","<<y<<") silently not forbidden due to implication."<<std::endl;
-                        }
-                        continue;
-                    }
-                    if (verbosity >= 5) {
-                        std::cout<<"Making ("<<x<<","<<y<<") forbidden due to implication."<<std::endl;
-                    }
-                    implications.push_back(e);
-                }
-            }
-
-            // set actual edge first
-            setForbidden(eIcp);
-            edgeHeap.removeEdge(eIcp);
-            
-            // then all implications
-            for (Edge e : implications) {
-                setForbidden(e);
-                edgeHeap.removeEdge(e);
-                if (verbosity >= 1 && edgeHeap.numUnprocessed() % 1000 == 0) {
-                    std::cout<<"Running heuristic.. "<<((totalEdges - edgeHeap.numUnprocessed())*100 / totalEdges)<<"%\r"<<std::flush;
-                }
-            }
+            chooseForbiddenEdge(eIcp);
         }
-        if (verbosity >= 1 && edgeHeap.numUnprocessed() % 100 == 0) {
-            std::cout<<"Running heuristic.. "<<((totalEdges - edgeHeap.numUnprocessed())*100 / totalEdges)<<"%\r"<<std::flush;
-        }
+        printHeuristicProgress();
     }
 
     if (verbosity >= 1)
         std::cout<<"Running heuristic.. 100%   "<<std::endl;
-  
+
     // calculate clustering
     if (verbosity >= 1) {
         if (verbosity == 1)
@@ -203,21 +84,147 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
             }
             clusterOfNode[u] = c;
             clusters.push_back(std::vector<NodeId>(1, u));
-            for (NodeId v = u+1; v < graph.numNodes(); v++) {
-                if (graph.getWeight(Edge(u, v)) == StaticSparseGraph::Permanent) {
-                    clusterOfNode[v] = c;
+            for (NodeId v : graph.getCliqueOf(u)) {
+                if (u == v)
+                    continue;
+                clusterOfNode[v] = c;
                 if (verbosity >= 4) {
                     std::cout<<"Adding connected node "<<v<<" in same cluster."<<std::endl;
                 }
                 clusters[c].push_back(v);
-                }
             }
         }
+    }
+    for (std::vector<NodeId>& cluster : clusters) {
+        std::sort(cluster.begin(), cluster.end());
     }
     if (verbosity >= 1)
         std::cout<<"Constructing result.. 100%   "<<std::endl;
     return ClusterEditingSolutionLight(totalCost, clusters);
 }
+
+void InducedCostHeuristic::choosePermanentEdge(const DynamicSparseGraph::Edge eIcf) {
+    // set eIcf to permanent
+    if (verbosity >= 5) {
+        std::cout<<"Setting edge ("<<eIcf.u<<","<<eIcf.v<<") to permanent."<<std::endl;
+    }
+
+    // get edges, which will become permanent due to implication. This must be done before the actual edge is
+    // modified, as this would implicitly modify the weights in the graph as well
+    std::vector<Edge> implications;
+    std::vector<NodeId> uClique(graph.getCliqueOf(eIcf.u));
+    std::vector<NodeId> vClique(graph.getCliqueOf(eIcf.v));
+    if (verbosity >= 5) {
+        std::cout<<"Clique of "<<eIcf.u<<": ";
+        for (const auto& i: uClique)
+            std::cout << i << ' ';
+        std::cout<<std::endl;
+        std::cout<<"Clique of "<<eIcf.v<<": ";
+        for (const auto& i: vClique)
+            std::cout << i << ' ';
+        std::cout<<std::endl;
+    }
+    
+    for (NodeId x : uClique) {
+        for (NodeId y : vClique) {
+            Edge e = Edge(x,y);
+            if (x == y || graph.getWeight(e) == DynamicSparseGraph::Permanent || (x == eIcf.u && y == eIcf.v)) {
+                if (verbosity >= 5) {
+                    std::cout<<"Making ("<<x<<","<<y<<") silently not permanent due to implication."<<std::endl;
+                }
+                continue;
+            }
+            if (verbosity >= 5) {
+                std::cout<<"Making ("<<x<<","<<y<<") permanent due to implication."<<std::endl;
+            }
+            implications.push_back(e);
+        }
+    }
+
+    // set actual edge first
+    setPermanent(eIcf);
+    edgeHeap.removeEdge(eIcf);
+    
+    // then all implications
+    for (Edge e : implications) {
+        setPermanent(e);
+        edgeHeap.removeEdge(e);
+        printHeuristicProgress();
+    }
+    
+    if (bundleEdges) {
+        /* All outgoing edges of the current clique, which lead to the same clique, must be bundled together. If one of these
+        edges is made permanent or forbidden, then all other edges must be as well. Therefore not the induced costs for all
+        edges must be taken into account, not only the cost of the chosen edge.*/
+        NodeId cu = graph.getCliqueIdOf(eIcf.u);
+        if (verbosity >= 4)
+            std::cout<<"Contracting nodes of cluster id ("<<cu<<")."<<std::endl;
+        std::unordered_map<NodeId, Edge> cliqueToRepresentative;
+        uClique.insert(uClique.end(), vClique.begin(), vClique.end());
+        for (NodeId x : uClique) {
+            for (NodeId xn : graph.getUnprunedNeighbours(x)) {
+                // this edge should not be inside the current cluster, as all internal edges should be permanent by now
+                Edge ex(x, xn);
+                NodeId cxn = graph.getCliqueIdOf(xn);
+                
+                if (std::find(uClique.begin(), uClique.end(), xn) != uClique.end()) {
+                    if (verbosity >= 5)
+                        std::cout<<"Observed edge ("<<x<<","<<xn<<") was inside the cluster!"<<std::endl;
+                    continue;
+                }
+                if (graph.findIndex(ex) == 0) {
+                    std::cout<<"Observed edge ("<<x<<","<<xn<<") was pruned edge with weight "<<graph.getWeight(ex)<<std::endl;
+                    continue;
+                }
+                // if new cluster is "discovered", set edge as representative, otherwise bundle with present representative
+                if (cliqueToRepresentative.find(cxn) == cliqueToRepresentative.end()) {
+                    cliqueToRepresentative[cxn] = ex;
+                } else {
+                    edgeHeap.mergeEdges(ex, cliqueToRepresentative[cxn]);
+                }
+            }
+        }
+    }
+}
+
+void InducedCostHeuristic::chooseForbiddenEdge(const DynamicSparseGraph::Edge eIcp) {
+    if (verbosity >= 5) {
+        std::cout<<"Setting edge ("<<eIcp.u<<","<<eIcp.v<<") to forbidden."<<std::endl;
+    }
+
+    // get edges, which will become permanent due to implication. This must be done before the actual edge is
+    // modified, as this would implicitly modify the weights in the graph as well
+    std::vector<Edge> implications;
+    std::vector<NodeId> uClique(graph.getCliqueOf(eIcp.u));
+    std::vector<NodeId> vClique(graph.getCliqueOf(eIcp.v));
+    for (NodeId x : uClique) {
+        for (NodeId y : vClique) {
+            Edge e = Edge(x,y);
+            if (x == y || graph.getWeight(e) == DynamicSparseGraph::Forbidden || (x == eIcp.u && y == eIcp.v)) {
+                if (verbosity >= 5) {
+                    std::cout<<"Making ("<<x<<","<<y<<") silently not forbidden due to implication."<<std::endl;
+                }
+                continue;
+            }
+            if (verbosity >= 5) {
+                std::cout<<"Making ("<<x<<","<<y<<") forbidden due to implication."<<std::endl;
+            }
+            implications.push_back(e);
+        }
+    }
+
+    // set actual edge first
+    setForbidden(eIcp);
+    edgeHeap.removeEdge(eIcp);
+    
+    // then all implications
+    for (Edge e : implications) {
+        setForbidden(e);
+        edgeHeap.removeEdge(e);
+        printHeuristicProgress();
+    }
+}
+
 
 bool InducedCostHeuristic::resolvePermanentForbidden() {
     if (verbosity >= 1) {
@@ -257,9 +264,9 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
                 if (x != y) {
                     Edge e (x,y);
                     EdgeWeight w = graph.getWeight(e);
-                    if (w == StaticSparseGraph::Forbidden)
+                    if (w == DynamicSparseGraph::Forbidden)
                         return false;
-                    else if (w != StaticSparseGraph::Permanent) {
+                    else if (w != DynamicSparseGraph::Permanent) {
                         if (w < 0.0)
                             totalCost -= w;
                         graph.setPermanent(Edge(x,y));
@@ -283,7 +290,7 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
             for (NodeId u : cliques[k]) {
                 if (found) break;
                 for (NodeId v : moreThanOneCliques[l]) {
-                    if (graph.getWeight(Edge(u, v)) == StaticSparseGraph::Forbidden) {
+                    if (graph.getWeight(Edge(u, v)) == DynamicSparseGraph::Forbidden) {
                         found = true;
                         break;
                     }
@@ -294,7 +301,7 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
                 for (NodeId u : cliques[k]) {
                     for (NodeId v : moreThanOneCliques[l]) {
                         Edge e(u,v);
-                        if (graph.getWeight(e) != StaticSparseGraph::Forbidden) {
+                        if (graph.getWeight(e) != DynamicSparseGraph::Forbidden) {
                             graph.setForbidden(e);
                             if (verbosity >= 5) {
                                 std::cout<<"Making ("<<u<<","<<v<<") forbidden due to implication."<<std::endl;
@@ -318,7 +325,7 @@ void InducedCostHeuristic::setForbidden(const Edge e) {
     
     /* If the edge was a zero edge in the original graph, it might have been implicitly set to
      * permanent or forbidden without updating the ic. Therefore we assume the weight to be 0 here.*/
-    EdgeWeight uv = id == 0 ? 0.0 : graph.getWeight(id);
+    EdgeWeight uv = graph.getWeight(id);
     
     for (NodeId w : graph.getUnprunedNeighbours(u)) {
         if (w == v)
@@ -352,7 +359,7 @@ void InducedCostHeuristic::setPermanent(const Edge e) {
     
     /* If the edge was a zero edge in the original graph, it might have been implicitly set to
      * permanent or forbidden without updating the ic. Therefore we assume the weight to be 0 here.*/
-    EdgeWeight uv = id == 0 ? 0.0 : graph.getWeight(id);
+    EdgeWeight uv = graph.getWeight(id);
     
     for (NodeId w : graph.getUnprunedNeighbours(u)) {
         if (w == v)
@@ -398,4 +405,10 @@ void InducedCostHeuristic::updateTriplePermanentUW(const EdgeWeight uv, const Ed
         edgeHeap.increaseIcf(uw, icf_new - icf_old);
     if (icp_new != icp_old)
         edgeHeap.increaseIcp(uw, icp_new - icp_old);
+}
+
+void InducedCostHeuristic::printHeuristicProgress() {
+    if (verbosity >= 1 && edgeHeap.numUnprocessed() % 1000 == 0) {
+        std::cout<<"Running heuristic.. "<<((totalEdges - edgeHeap.numUnprocessed())*100 / totalEdges)<<"%\r"<<std::flush;
+    }
 }
