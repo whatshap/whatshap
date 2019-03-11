@@ -1,5 +1,5 @@
 """
-Generate candidate SNP positions from samtools mpileup output.
+Generate candidate SNP positions.
 """
 
 import pysam
@@ -8,7 +8,6 @@ import re
 import pyfaidx
 from collections import defaultdict
 import datetime
-#from whatshap.args import HelpfulArgumentParser as ArgumentParser
 import logging
 
 logger = logging.getLogger(__name__)
@@ -21,34 +20,49 @@ def add_arguments(parser):
 		help='Minimum relative ALT depth to call a SNP (default: %(default)s).')
 	add('--multi-allelics', default=False, action='store_true',
 		help='Also output multi-allelic sites, if not given only the best ALT allele is reported (if unique).')
-	add('--sample', metavar='SAMPLE', default=None, 
+	add('--sample', metavar='SAMPLE', default='sample', 
 		help='Put this sample column into VCF (default: output sites-only VCF).')
+	add('--pacbio', default=False, action='store_true',
+		help='Input is PacBio. Sets minrel=0.25 and minabs=3.')
+	add('--nanopore', default=False, action='store_true', 
+		help='Input is Nanopore. Sets minrel=0.4 and minabs=3.')
+	add('-o', '--output', default=sys.stdout,
+		help='Output VCF file.')
 	add('ref', metavar='REF', help='FASTA with reference genome')
 	add('bam', metavar='BAM', help='BAM file')
 
 
 def validate(args, parser):
-	pass
+	if args.pacbio and args.nanopore:
+		parser.error('Options --pacbio and --nanopore cannot be used together.')
 
 
-def main(args):
-	fasta = pyfaidx.Fasta(args.ref, as_raw=True)
-
-	print('##fileformat=VCFv4.2')
-	print('##fileDate={}'.format(datetime.datetime.now().strftime('%Y%m%d')))
-	print('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">')
-	print('##FILTER=<ID=PASS,Description="All filters passed">')
+def run_call(ref, bam, minabs=3, minrel=0.4, multi_allelics=False, pacbio=False, nanopore=False, sample='sample', output=sys.stdout):
+	outfile = open(output, 'w')
+	if pacbio:
+		assert not nanopore
+		minabs=3
+		minrel=0.25
+	if nanopore:
+		assert not pacbio
+		minabs=3
+		minrel=0.25
+	fasta = pyfaidx.Fasta(ref, as_raw=True)
+	print('##fileformat=VCFv4.2', file=outfile)
+	print('##fileDate={}'.format(datetime.datetime.now().strftime('%Y%m%d')), file=outfile)
+	print('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">', file=outfile)
+	print('##FILTER=<ID=PASS,Description="All filters passed">', file=outfile)
 	header_columns = ['#CHROM','POS','ID','REF','ALT','QUAL','FILTER','INFO']
-	if args.sample is not None:
-		header_columns += ['FORMAT', args.sample]
-	print(*header_columns, sep='\t')
+	if sample is not None:
+		header_columns += ['FORMAT', sample]
+	print(*header_columns, sep='\t', file=outfile)
 
 	re_nucleotide = re.compile('[ACGTNacgtn]')
 	re_indel = re.compile('[-\\+]([0-9]+)')
 	re_ref = re.compile('[,\\.]')
 	re_ignore = re.compile('([\\$\\*]|\\^.)')
 
-	bamfile = pysam.AlignmentFile(args.bam, "rb")
+	bamfile = pysam.AlignmentFile(bam, "rb")
 	for pileupcolumn in bamfile.pileup(min_mapping_quality=20, min_base_quality=5):
 		try:
 			pileup = ''.join(pileupcolumn.get_query_sequences(mark_matches=True, mark_ends=True, add_indels=True))
@@ -98,14 +112,14 @@ def main(args):
 		for base, count in bases.items():
 			if base == ref:
 				continue
-			if (count >= args.minabs) and (count / (count+ref_count) >= args.minrel):
+			if (count >= minabs) and (count / (count+ref_count) >= minrel):
 				alts.append( (count, base) )
 		alts.sort(reverse=True)
 		if len(alts) > 0:
 			columns = [chromosome, position, '.',  ref, '.', '.', 'PASS', '.']
-			if args.sample is not None:
+			if sample is not None:
 				columns += ['GT', '.']
-			if args.multi_allelics:
+			if multi_allelics:
 				columns[4] = ','.join(base for count, base in alts)
 			else:
 				# Do we have two equally supported ALT alleles
@@ -113,7 +127,8 @@ def main(args):
 					columns[4] = 'N'
 				else:
 					columns[4] = alts[0][1]
-			print(*columns, sep='\t')
+			print(*columns, sep='\t', file=outfile)
+	outfile.close()
 
-if __name__ == '__main__':
-	main()
+def main(args):
+	run_call(**vars(args))
