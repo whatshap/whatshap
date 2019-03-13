@@ -16,7 +16,7 @@ def add_arguments(parser):
 	add = parser.add_argument
 	add('--minabs', metavar='MIN_ABS', default=3, type=int,
 		help='Minimum absolute ALT depth to call a SNP (default: %(default)s).')
-	add('--minrel', metavar='MIN_REL', default=0.4, type=float,
+	add('--minrel', metavar='MIN_REL', default=0.25, type=float,
 		help='Minimum relative ALT depth to call a SNP (default: %(default)s).')
 	add('--multi-allelics', default=False, action='store_true',
 		help='Also output multi-allelic sites, if not given only the best ALT allele is reported (if unique).')
@@ -26,6 +26,8 @@ def add_arguments(parser):
 		help='Input is PacBio. Sets minrel=0.25 and minabs=3.')
 	add('--nanopore', default=False, action='store_true', 
 		help='Input is Nanopore. Sets minrel=0.4 and minabs=3.')
+	add('--illumina', default=False, action='store_true',
+		help='Input is Illumina. Sets minrel=0.25 and minabs=3.')
 	add('-o', '--output', default=sys.stdout,
 		help='Output VCF file.')
 	add('ref', metavar='REF', help='FASTA with reference genome')
@@ -34,16 +36,27 @@ def add_arguments(parser):
 
 def validate(args, parser):
 	if args.pacbio and args.nanopore:
-		parser.error('Options --pacbio and --nanopore cannot be used together.')
+		parser.error('Options --pacbio, --nanopore and --illumina cannot be used together.')
+	if args.nanopore and args.illumina:
+		parser.error('Options --pacbio, --nanopore and --illumina cannot be used together.')
+	if args.illumina and args.pacbio:
+		parser.error('Options --pacbio, --nanopore and --illumina cannot be used together.')
 
 
-def run_call(ref, bam, minabs=3, minrel=0.4, multi_allelics=False, pacbio=False, nanopore=False, sample='sample', output=sys.stdout):
+def run_call(ref, bam, minabs=3, minrel=0.25, multi_allelics=False, pacbio=False, nanopore=False, illumina=False, sample='sample', output=sys.stdout):
 	outfile = open(output, 'w')
 	if pacbio:
 		assert not nanopore
+		assert not illumina
 		minabs=3
 		minrel=0.25
 	if nanopore:
+		assert not pacbio
+		assert not illumina
+		minabs=3
+		minrel=0.4
+	if illumina:
+		assert not nanopore
 		assert not pacbio
 		minabs=3
 		minrel=0.25
@@ -77,6 +90,8 @@ def run_call(ref, bam, minabs=3, minrel=0.4, multi_allelics=False, pacbio=False,
 		#print('digesting pileup', pileup)
 		n = 0
 		ref = fasta[chromosome][position-1].upper()
+		if ref == 'N':
+			continue
 		while i < len(pileup):
 			m = re_nucleotide.match(pileup[i:])
 			if m is not None:
@@ -125,6 +140,7 @@ def run_call(ref, bam, minabs=3, minrel=0.4, multi_allelics=False, pacbio=False,
 				# Do we have two equally supported ALT alleles
 				if len(alts) > 1 and (alts[0][0] == alts[1][0]):
 					columns[4] = 'N'
+					continue
 				else:
 					columns[4] = alts[0][1]
 			print(*columns, sep='\t', file=outfile)

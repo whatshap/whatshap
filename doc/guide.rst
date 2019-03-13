@@ -608,7 +608,9 @@ enable re-alignment mode::
 
     whatshap genotype --reference ref.fasta -o genotyped.vcf variants.vcf reads.bam
 
-If no input VCF file is available, whatshap can produce SNP calls that can be used as
+If no input VCF file is available, WhatsHap can produce SNP calls that can be used as
 an input to the above mentioned genotyping commands. This can be done by running::
 
     whatshap call ref.fasta input.bam -o variants.vcf
+
+If Nanopore reads are used for calling SNPs, it is recommended to add option --nanopore to the above command.
