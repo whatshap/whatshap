@@ -410,11 +410,20 @@ def draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, var_t
 	assert (num_c > ploidy)
 	num_vars = len(coverage[0])
 	
+	#print("Printing debug information:")
+	#print("len(paths) = "+str(len(paths)))
+	#for i in range(len(paths)):
+	#	print("len(paths["+str(i)+"]) = "+str(len(paths[i])))
+	#print("len(coverage) = "+str(len(coverage)))
+	#for i in range(len(coverage)):
+	#	print("len(coverage["+str(i)+"]) = "+str(len(coverage[i])))
+	#print("len(cut_positions) = "+str(len(cut_positions)))
+	
 	# Detect relevant clusters
 	c_map = {}
 	all_threaded = set()
 	for p in range(ploidy):
-		for pos in range(num_vars):
+		for pos in range(len(paths)):
 			all_threaded.add(paths[pos][p])
 	c_list = sorted(all_threaded)
 	for i, c_id in enumerate(c_list):
@@ -455,7 +464,7 @@ def draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, var_t
 		legend_handles['C'+str(p)] = mpatches.Patch(color='C'+str(p), label=("Hap "+str(p)))
 		current = paths[0][p]
 		start = 0
-		for pos in range(1, num_vars):
+		for pos in range(1, len(paths)):
 			if paths[pos][p] != current:
 				plt.hlines(y = (c_map[current]+0.25+p/ploidy*0.5)*(c_height+y_margin), xmin = x_scale*start, xmax = x_scale*pos, color = 'C'+str(p), alpha = 0.9)
 				current = paths[pos][p]
@@ -474,14 +483,16 @@ def draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, var_t
 		truth.append("".join(map(str, phase_vectors[k])))
 	for i in range(len(ext_cuts)-1):
 		#print(str(ext_cuts[i])+"-"+str(ext_cuts[i+1])+" "+str(len(haplotypes))+" "+str(len(truth)))
-		block1 = [h[ext_cuts[i]:ext_cuts[i+1]] for h in truth]
-		block2 = [h[ext_cuts[i]:ext_cuts[i+1]] for h in haplotypes]
+		block1 = [h[ext_cuts[i]:min(len(paths), ext_cuts[i+1])] for h in truth]
+		block2 = [h[ext_cuts[i]:min(len(paths), ext_cuts[i+1])] for h in haplotypes]
 		#print(block1)
 		#print(block2)
 		switchflips, switches_in_column, flips_in_column = compute_switch_flips_poly_bt(block1, block2, report_error_positions = True, switch_cost = 1+1/(num_vars*ploidy))
 		for pos, e in enumerate(switches_in_column):
 			plt.vlines(x = ext_cuts[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*e, color = 'blue', alpha = 0.6)
 		for pos, flipped in enumerate(flips_in_column):
+			if ext_cuts[i]+pos >= len(paths):
+				continue
 			plt.vlines(x = ext_cuts[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*len(flipped), color = 'orange', alpha = 0.6)
 			for h in flipped:
 				c_id = c_map[paths[ext_cuts[i]+pos][h]]
