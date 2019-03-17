@@ -601,15 +601,28 @@ def test_haplotag():
 	with TemporaryDirectory() as tempdir:
 		outbam1 = tempdir + '/output1.bam'
 		outbam2 = tempdir + '/output2.bam'
+		outlist1 = tempdir + '/list1.tsv'
+		outlist2 = tempdir + '/list2.tsv'
 
 		# run haplotag with two vcfs containing opposite phasings (i.e. 1|0 - 0|1 ..)
-		run_haplotag(variant_file='tests/data/haplotag_1.vcf.gz', alignment_file='tests/data/haplotag.bam', output=outbam1)
-		run_haplotag(variant_file='tests/data/haplotag_2.vcf.gz', alignment_file='tests/data/haplotag.bam', output=outbam2)
+		run_haplotag(variant_file='tests/data/haplotag_1.vcf.gz', alignment_file='tests/data/haplotag.bam', haplotag_list=outlist1, output=outbam1)
+		run_haplotag(variant_file='tests/data/haplotag_2.vcf.gz', alignment_file='tests/data/haplotag.bam', haplotag_list=outlist2, output=outbam2)
 		for a1, a2 in zip(pysam.AlignmentFile(outbam1), pysam.AlignmentFile(outbam2)):
 			assert a1.query_name == a2.query_name
 			if a1.has_tag('HP'):
 				assert a2.has_tag('HP')
 				assert a1.get_tag('HP') != a2.get_tag('HP')
+		for n, (line1, line2) in enumerate(zip(open(outlist1), open(outlist2))):
+			fields1 = line1.split(sep='\t')
+			fields2 = line2.split(sep='\t')
+			assert len(fields1) == len(fields2) == 3
+			if n == 0:
+				continue
+			queryname1, haplotype1, phaseset1 = fields1
+			queryname2, haplotype2, phaseset2 = fields2
+			assert queryname1 == queryname2
+			assert (haplotype1 == haplotype2 == 'none') or (haplotype1 != haplotype2)
+		assert n == 20
 
 
 def test_haplotag2():

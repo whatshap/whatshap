@@ -7,6 +7,7 @@ are written to stdout.
 import logging
 import sys
 import pysam
+import gzip
 from hashlib import md5
 from collections import defaultdict
 
@@ -59,6 +60,9 @@ def add_arguments(parser):
 	arg('--sample', dest='given_samples', metavar='SAMPLE', default=[], action='append',
 		help='Name of a sample to phase. If not given, all samples in the '
 		'input VCF are phased. Can be used multiple times.')
+	arg('--output-haplotag-list', dest='haplotag_list', metavar='HAPLOTAG_LIST', default=None,
+		help='Write assignments of read names to haplotypes (tab separated) to given '
+		'output file. If filename ends in .gz, then output is gzipped.')
 	arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
 	arg('alignment_file', metavar='ALIGNMENTS',
 		help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
@@ -80,7 +84,8 @@ def run_haplotag(
 		ignore_linked_read=False,
 		given_samples=None,
 		linked_read_distance_cutoff=50000,
-		ignore_read_groups=False
+		ignore_read_groups=False,
+		haplotag_list=None,
 	):
 
 	timers = StageTimer()
@@ -179,6 +184,14 @@ def run_haplotag(
 			kwargs = dict(mode='wb')
 		bam_writer = pysam.AlignmentFile(output, header=pysam.AlignmentHeader.from_dict(header), **kwargs)
 
+		haplotag_list_file = None
+		if haplotag_list is not None:
+			if haplotag_list.endswith('.gz'):
+				haplotag_list_file = gzip.open(haplotag_list, 'wt')
+			else:
+				haplotag_list_file = open(haplotag_list, 'w')
+			print('#readname\thaplotype\tphaseset', file=haplotag_list_file)
+
 		chromosome_name = None
 		chromosome_id = None
 		skipped_vcf_chromosomes = set()
@@ -191,6 +204,7 @@ def run_haplotag(
 
 		for alignment in bam_reader:
 			n_alignments += 1
+			haplotype_name = 'none'
 			alignment.set_tag('HP', value=None)
 			alignment.set_tag('PC', value=None)
 			alignment.set_tag('PS', value=None)
@@ -281,6 +295,7 @@ def run_haplotag(
 				if (not alignment.is_secondary) and (alignment.flag & 2048 == 0):
 					try:
 						haplotype, quality, phaseset = read_to_haplotype[alignment.query_name]
+						haplotype_name = 'H{}'.format(haplotype + 1)
 						alignment.set_tag('HP', haplotype + 1)
 						alignment.set_tag('PC', quality)
 						alignment.set_tag('PS', phaseset)
@@ -291,11 +306,14 @@ def run_haplotag(
 							read_clouds = BX_tag_to_haplotype[alignment.get_tag('BX')]
 							for (reference_start, haplotype, phaseset) in read_clouds:
 								if abs(reference_start - alignment.reference_start) <= linked_read_distance_cutoff:
+									haplotype_name = 'H{}'.format(haplotype + 1)
 									alignment.set_tag('HP', haplotype + 1)
 									alignment.set_tag('PS', phaseset)
 									n_tagged += 1
 									break
 			bam_writer.write(alignment)
+			if haplotag_list_file is not None:
+				print(alignment.query_name, haplotype_name, phaseset, sep='\t', file=haplotag_list_file)
 			if n_alignments % 100000 == 0:
 				logger.info('Processed %d alignment records.', n_alignments)
 
@@ -304,6 +322,10 @@ def run_haplotag(
 	logger.info('Alignments that could be tagged:         %12d', n_tagged)
 	logger.info('Alignments spanning multiple phase sets: %12d', n_multiple_phase_sets)
 	bam_writer.close()
+
+	if haplotag_list_file is not None:
+		haplotag_list_file.close()
+
 
 
 def main(args):
