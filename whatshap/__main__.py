@@ -16,7 +16,7 @@ COMMANDS = [
 	'unphase',
 	'haplotag',
 	'genotype',
-	'call'
+	'find_snv_candidates',
 ]
 
 logger = logging.getLogger(__name__)
