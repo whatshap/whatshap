@@ -599,12 +599,18 @@ containing variant positions, it computes genotype likelihoods for all three
 genotypes (0/0, 0/1, 1/1) and outputs them in a VCF file together with a
 genotype prediction. Genotyping can be run using the following command::
 
-    whatshap genotype -o genotyped.vcf input.vcf input.bam
+    whatshap genotype -o genotyped.vcf variants.vcf reads.bam
 
 The predicted genotype is stored in the output VCF using the ``GT`` tag and the ``GL`` tag
 provides (log10-scaled) likelihoods computed by the genotyping algorithm.
 As for phasing, providing a reference sequence is strongly recommended in order to
 enable re-alignment mode::
 
-    whatshap genotype --reference ref.fasta -o genotyped.vcf input.vcf input.bam
+    whatshap genotype --reference ref.fasta -o genotyped.vcf variants.vcf reads.bam
 
+If no input VCF file is available, WhatsHap can produce candidate SNV positions that can be used as
+an input to the above mentioned genotyping commands. This can be done by running::
+
+    whatshap find_snv_candidates ref.fasta input.bam -o variants.vcf
+
+If Nanopore reads are used for calling SNPs, it is recommended to add option --nanopore to the above command.

@@ -15,7 +15,8 @@ COMMANDS = [
 	'hapcut2vcf',
 	'unphase',
 	'haplotag',
-	'genotype'
+	'genotype',
+	'find_snv_candidates',
 ]
 
 logger = logging.getLogger(__name__)
