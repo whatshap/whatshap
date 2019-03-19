@@ -32,6 +32,8 @@ def detect_file_format(path):
 				return 'BAM'
 			elif first_bytes.startswith(b'##fileformat=VCF'):
 				return 'VCF'
+	except FileNotFoundError:
+		raise
 	except OSError:
 		pass
 	raise UnknownFileFormatError()
