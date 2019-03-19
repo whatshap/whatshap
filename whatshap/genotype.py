@@ -55,7 +55,6 @@ def run_genotype(phase_input_files, variant_file, reference=None,
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
 	all variants are computed using the forward backward algorithm
 	"""
-	print('running only genotyping algorithm')
 	timers = StageTimer()
 	timers.start('overall')
 	logger.info("This is WhatsHap (genotyping) %s running under Python %s", __version__, platform.python_version())
