@@ -53,3 +53,7 @@ cdef class TriangleSparseMatrix:
 
 cdef class ReadScoring:
 	cdef cpp.ReadScoring *thisptr
+
+
+cdef class HaploThreader:
+	cdef cpp.HaploThreader *thisptr

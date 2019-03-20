@@ -493,3 +493,4 @@ def compute_genotypes(ReadSet readset, positions = None):
 include 'readselect.pyx'
 include 'subset_clusters.pyx'
 include 'clusterediting_ext.pyx'
+include 'haplo_threader.pyx'

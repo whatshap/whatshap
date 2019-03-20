@@ -152,3 +152,12 @@ cdef extern from "../src/clusterediting/ReadScoring.h":
 		void scoreReadsetGlobal(TriangleSparseMatrix* result, ReadSet* readset, unsigned int minOverlap, unsigned int ploidy) except +
 		void scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* readset, unsigned int minOverlap, unsigned int ploidy) except +
 		void scoreReadsetPatterns(TriangleSparseMatrix* result, ReadSet* readset, unsigned int minOverlap, unsigned int ploidy, double errorrate, unsigned int windowSize) except +
+		
+cdef extern from "../src/threading/HaploThreader.h":
+	cdef cppclass HaploThreader:
+		HaploThreader(uint32_t ploidy, double switchCost, double affineSwitchCost) except +
+		vector[vector[uint32_t]] computePaths(uint32_t num_vars, 
+					vector[vector[uint32_t]]& covMap,
+                    vector[vector[double]] &coverage, 
+                    vector[vector[uint32_t]] consensus,
+                    vector[uint32_t] genotypes) except +

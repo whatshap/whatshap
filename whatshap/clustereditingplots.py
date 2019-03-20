@@ -322,7 +322,7 @@ def plot_haplotype_dissimilarity(legend_handles, y_offset, y_margin, index, rev_
 	#phase_vectors = [[row[i] for row in phase_rows] for i in range(len(phase_rows[0]))]
 	phase_vectors = get_phase(readset, var_table)
 	chunk = 24
-	padding = readlen/2 # dissimilarity of position i is averaged over interval of 2*padding base pairs (not positions)
+	padding = int(readlen//2) # dissimilarity of position i is averaged over interval of 2*padding base pairs (not positions)
 
 	if genome_space:
 		# get variant density
