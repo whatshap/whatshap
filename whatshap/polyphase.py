@@ -1,10 +1,13 @@
 """
-Compute transformation columnwise using cluster editing and compute consensus clustering solving MEC.
+Cluster all reads based on their pairwise similarity using cluster editing and assemble multiple haplotypes from the clusters.
 
 Read a VCF and one or more files with phase information (BAM/CRAM or VCF phased
 blocks) and phase the variants. The phased VCF is written to standard output.
-For each column, cluster all reads covering in (cluster editing), and compute
-a consensus clustering using MEC.
+Each read is represented as a node in a graph with their pairwise score (based
+on similarity) as edge weights. Reads originating from the same haplotype with
+high confidence are clusterd togehter using cluster editing. The haplotype
+sequences are computed variant-wise by choosing a set of paths through the read
+clusters and by respecting coverage and genotype constraints.
 
 """
 import sys
@@ -55,7 +58,7 @@ def print_readset(readset):
 		result += '\n'
 	print(result)
 
-def run_clustereditingphase(
+def run_polyphase(
 	phase_input_files,
 	variant_file,
 	ploidy,
@@ -70,15 +73,15 @@ def run_clustereditingphase(
 	write_command_line_header=True,
 	read_list_filename=None,
 	ce_bundle_edges = False,
-	ce_score_local = False,
+	ce_score_global = False,
 	ce_score_with_patterns = False,
-	min_overlap = 5,
+	min_overlap = 2,
 	transform = False,
-	dp_phasing = False,
 	plot_clusters = False,
 	plot_haploblocks = False,
 	plot_threading = False,
-	single_block = False
+	single_block = False,
+	cpp_threading = False
 	):
 	"""
 	Run Polyploid Phasing.
@@ -238,10 +241,10 @@ def run_clustereditingphase(
 				logger.info("Computing similarities for read pairs ...")
 				if ce_score_with_patterns:
 					similarities = score_local_patternbased(readset, ploidy, errorrate, min_overlap, 4)
-				elif ce_score_local:
-					similarities = score_local(readset, ploidy, min_overlap)
-				else:
+				elif ce_score_global:
 					similarities = score_global(readset, ploidy, min_overlap)
+				else:
+					similarities = score_local(readset, ploidy, min_overlap)
 				
 				# Create read graph object
 				logger.info("Constructing graph ...")
@@ -268,56 +271,8 @@ def run_clustereditingphase(
 				#		del readpartitioning[i]
 				#print(len(readpartitioning))
 
-				if dp_phasing:
-					#add dynamic programming for finding the most likely subset of clusters
-					cut_positions, cluster_blocks, components, superreads, coverage, paths, haplotypes = subset_clusters(readset, readpartitioning, ploidy, sample,genotype_list, single_block)
-				else:				
-					haploblocks = clusters_to_haps(readset, readpartitioning, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 0.5, copynumber_cut_contraction_dist = 0.5, single_hap_cuts = True)
-
-					# Create haplotype super strings
-					haplotypes = []
-					for i in range(ploidy):
-						hap = ""
-						alleles_as_strings = []
-						for haploblock in haploblocks:
-							for allele in haploblock[i]:
-								if allele == -1:
-									alleles_as_strings.append("n")
-									# TODO: Reconstruct unknown alleles using genotype information
-								else:
-									alleles_as_strings.append(str(allele))
-						hap = hap.join(alleles_as_strings)
-						haplotypes.append(hap)
-
-					accessible_positions = sorted(readset.get_positions())
-					super_readset = ReadSet()
-					for i in range(ploidy):
-						read = Read('superread {}'.format(i+1), 0, 0)
-						# insert alleles
-						for j,allele in enumerate(haplotypes[i]):
-							if (allele == "n"):
-								continue
-							allele = int(allele)
-							qual = [10,10]
-							qual[allele] = 0
-							read.add_variant(accessible_positions[j], allele, qual)
-						super_readset.add(read)
-
-					superreads[sample] = super_readset
-					# Reconstruct cut positions and create components
-					cut_positions = []
-					local_components = dict()
-					last_cut = 0
-					for haploblock in haploblocks:
-						next_cut = last_cut + len(haploblock[0])
-						cut_positions.append(accessible_positions[next_cut])
-						for pos in range(last_cut, next_cut):
-							local_components[accessible_positions[pos]] = accessible_positions[last_cut]
-							local_components[accessible_positions[pos]+1] = accessible_positions[last_cut]
-						last_cut = next_cut
-
-					#print(cut_positions)
-					components[sample] = local_components
+				# Add dynamic programming for finding the most likely subset of clusters
+				cut_positions, cluster_blocks, components, superreads, coverage, paths, haplotypes = subset_clusters(readset, readpartitioning, ploidy, sample,genotype_list, single_block, cpp_threading)
 
 				timers.stop('assemble_haplotypes')
 
@@ -407,17 +362,15 @@ def add_arguments(parser):
 		'input VCF are phased. Can be used multiple times.')
 
 	arg = parser.add_argument_group('Parameters for cluster editing').add_argument
-	arg('--ce-score-local', dest='ce_score_local', default=False, action='store_true',
+	arg('--ce-score-global', dest='ce_score_global', default=False, action='store_true',
 		help='Reads are scored with respect to their location inside the chromosome. (default: %(default)s).')
 	arg('--ce-score-with-patterns', dest='ce_score_with_patterns', default=False, action='store_true',
 		help='Uses a scoring method for reads, which is based on local haplotype inference through local patterns of the reads (default: %(default)s).')
 	arg('--ce-bundle-edges', dest='ce_bundle_edges', default=False, action='store_true',
 		help='Influences the cluster editing heuristic. Only for debug/developing purpose (default: %(default)s).')
-	arg('--min-overlap', metavar='OVERLAP', type=int, default=5, help='Minimum required read overlap (default: %(default)s).')
+	arg('--min-overlap', metavar='OVERLAP', type=int, default=2, help='Minimum required read overlap (default: %(default)s).')
 	arg('--transform', dest='transform', default=False, action='store_true',
 		help='Use transformed matrix for read similarity scoring (default: %(default)s).')
-	arg('--dp-phasing', dest='dp_phasing', default=False, action='store_true',
-		help='Use dynamic programming to assemble haplotypes after read clustering (default: %(default)s).')
 	arg('--plot-clusters', dest='plot_clusters', default=False, action='store_true',
 		help='Plot a super heatmap for the computed clustering (default: %(default)s).')
 	arg('--plot-haploblocks', dest='plot_haploblocks', default=False, action='store_true',
@@ -425,10 +378,13 @@ def add_arguments(parser):
 	arg('--plot-threading', dest='plot_threading', default=False, action='store_true',
 		help='Plot the haplotypes\' threading through the read clusters (default: %(default)s).')
 	arg('--single-block', dest='single_block', default=False, action='store_true',
-		help='Outout only one single block.')
+		help='Output only one single block.')
+	arg('--cpp-threading', dest='cpp_threading', default=False, action='store_true',
+		help='Uses a C++ implementation to perform the haplotype threading.')
 
 def validate(args, parser):
 	pass
 
 def main(args):
-	run_clustereditingphase(**vars(args))
+	run_polyphase(**vars(args))
+
