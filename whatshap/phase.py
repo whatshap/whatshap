@@ -14,7 +14,6 @@ from collections import defaultdict
 from copy import deepcopy
 from math import log
 
-from xopen import xopen
 from networkx import Graph, number_of_nodes, number_of_edges, connected_components, node_connected_component, shortest_path
 
 from contextlib import ExitStack
@@ -570,14 +569,13 @@ def run_whatshap(
 		else:
 			fasta = None
 		del reference
-		if isinstance(output, str):
-			output = stack.enter_context(xopen(output, 'w'))
 		if write_command_line_header:
 			command_line = '(whatshap {}) {}'.format(__version__, ' '.join(sys.argv[1:]))
 		else:
 			command_line = None
-		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file,
-		        out_file=output, tag=tag)
+		vcf_writer = stack.enter_context(
+			PhasedVcfWriter(command_line=command_line, in_path=variant_file,
+		        out_file=output, tag=tag))
 		# Only read genotype likelihoods from VCFs when distrusting genotypes
 		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=distrust_genotypes)
 

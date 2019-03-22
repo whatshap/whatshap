@@ -135,6 +135,7 @@ def test_with_reference(algorithm, expected_vcf, tmpdir):
 		write_command_line_header=False,  # for easier VCF comparison
 		algorithm=algorithm
 	)
+	print('out:', out)
 	with open(expected_vcf) as f:
 		expected = f.read()
 	with open(out) as f:

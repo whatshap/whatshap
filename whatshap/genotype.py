@@ -11,15 +11,13 @@ import platform
 import resource
 from collections import defaultdict
 
-from xopen import xopen
-
 from contextlib import ExitStack
 from .vcf import VcfReader, GenotypeVcfWriter
 from . import __version__
 from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable, compute_genotypes
 from .graph import ComponentFinder
-from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
-			load_genetic_map, uniform_recombination_map, find_recombination)
+from .pedigree import (PedReader, recombination_cost_map,
+			load_genetic_map, uniform_recombination_map)
 from .bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
 from .timer import StageTimer
 from .variants import ReadSetReader
@@ -116,8 +114,7 @@ def run_genotype(
 		else:
 			fasta = None
 		del reference
-		if isinstance(output, str):
-			output = stack.enter_context(xopen(output, 'w'))
+
 		if write_command_line_header:
 			command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
 		else:

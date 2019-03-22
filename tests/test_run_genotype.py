@@ -2,9 +2,9 @@ from tempfile import TemporaryDirectory
 import os
 import pysam
 import math
-import vcf
 
-from pytest import raises
+import pytest
+from pysam import VariantFile
 from whatshap.genotype import run_genotype
 from whatshap.vcf import VcfReader
 
@@ -51,7 +51,7 @@ def test_bam_without_readgroup():
 
 
 def test_requested_sample_not_found():
-	with raises(SystemExit):
+	with pytest.raises(SystemExit):
 		run_genotype(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
 			output='/dev/null', samples=['DOES_NOT_EXIST'])
 
@@ -60,28 +60,34 @@ def test_with_reference():
 	run_genotype(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
 		reference='tests/data/pacbio/reference.fasta')
 
-def test_no_indels():
-	with TemporaryDirectory() as tempdir:
-		for priors in [[False, tempdir+'/priors.vcf'], [True,None]]:
-			outvcf = tempdir + '/output_gl.vcf'
-			run_genotype(phase_input_files=['tests/data/pacbio/pacbio.bam'], variant_file='tests/data/pacbio/variants.vcf',
-				reference='tests/data/pacbio/reference.fasta', output=outvcf, indels=False, nopriors=priors[0], prioroutput=priors[1])
 
-			result_vcfs = [outvcf]
-			if priors[0]:
-				result_vcfs.append(tempdir + '/priors.vcf')
+@pytest.mark.parametrize("priors", [True, False])
+def test_no_indels(tmpdir, priors):
+	prioroutput = str(tmpdir.join("priors.vcf")) if priors else None
+	outvcf = str(tmpdir.join("output_gl.vcf"))
+	run_genotype(
+		phase_input_files=['tests/data/pacbio/pacbio.bam'],
+		variant_file='tests/data/pacbio/variants.vcf',
+		reference='tests/data/pacbio/reference.fasta',
+		output=outvcf,
+		indels=False,
+		nopriors=not priors,
+		prioroutput=prioroutput
+	)
+	result_vcfs = [outvcf]
+	if priors:
+		result_vcfs.append(prioroutput)
 
-			# make sure indels not genotyped (also in priors.vcf if computed)
-			for o_vcf in result_vcfs:
-				vcf_reader = vcf.Reader(filename=o_vcf)
-				default_l = math.log10(1/3.0)
+	# make sure indels not genotyped (also in priors.vcf if computed)
+	for o_vcf in result_vcfs:
+		vcf_reader = VariantFile(o_vcf)
+		default_l = math.log10(1 / 3.0)
 
-				for record in vcf_reader:
-					if len(record.ALT[0]) > 1:
-						for call in record.samples:
-							GL = getattr(call.data, 'GL', None)
-							print('GL:', GL, record.POS)
-							assert(GL == [default_l, default_l, default_l])
+		for record in vcf_reader:
+			if len(record.alts[0]) != len(record.ref):
+				for call in record.samples.values():
+					for v in call['GL']:
+						assert pytest.approx(default_l) == v
 
 
 def likeliest_genotype(a, b, c, thres):
@@ -89,39 +95,36 @@ def likeliest_genotype(a, b, c, thres):
 	prob_b = 10 ** b
 	prob_c = 10 ** c
 
-	to_sort = [(prob_a,0),(prob_b,1),(prob_c,2)]
-	to_sort.sort(key=lambda x: x[0])
+	prob = sorted([(prob_a, 0), (prob_b, 1), (prob_c, 2)])
 
-	if (to_sort[2][0] > to_sort[1][0]) and (to_sort[2][0] > thres):
-		return to_sort[2][1]
+	if prob[2][0] > prob[1][0] and prob[2][0] > thres:
+		return prob[2][1]
 	else:
-		return '.'
+		return None
 
-def test_GtQualThreshold():
-	for threshold in [0,2,3,6,13,50]:
-		with TemporaryDirectory() as tempdir:
-			thres = 1-10**(-threshold/10.0)
 
-			out_vcf = tempdir + '/out.vcf'
-			priors_vcf = tempdir + '/priors.vcf'
-			run_genotype(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf',
-				output=out_vcf, gt_qual_threshold=threshold, indels=False, prioroutput=priors_vcf)
+@pytest.mark.parametrize("threshold", [0, 2, 3, 6, 13, 50])
+def test_gt_quality_threshold(threshold, tmpdir):
+	thres = 1 - 10 ** (-threshold / 10.0)
 
-			for out in [open(out_vcf,'r'), open(priors_vcf,'r')]:
-				out.seek(0)
-				lines = [line for line in out.readlines() if not line.startswith('#')]
+	out_vcf = str(tmpdir.join("out.vcf"))
+	priors_vcf = str(tmpdir.join("priors.vcf"))
+	run_genotype(phase_input_files=[trio_bamfile], variant_file="tests/data/trio.vcf",
+		output=out_vcf, gt_qual_threshold=threshold, indels=False, prioroutput=priors_vcf)
 
-				for line in lines:
-					entries = line.split()
-					likelihood_str = entries[9].split(':')[-1:][0]
-					likelihoods = [float(i) for i in likelihood_str.split(',')]
-					genotype = entries[9].split(':')[0]
-					if not genotype == '.':
-						genotype = int(genotype[0]) + int(genotype[2])
+	for path in [out_vcf, priors_vcf]:
+		for record in VariantFile(path):
+			for call in record.samples.values():
+				likelihoods = call['GL']
+				genotype = call['GT']
+				if genotype == (None, ):
+					genotype = None
+				else:
+					genotype = genotype[0] + genotype[1]
+				gt = likeliest_genotype(likelihoods[0], likelihoods[1], likelihoods[2], thres)
+				# print(likelihoods[0], likelihoods[1], likelihoods[2], gt, genotype, thres)
+				assert gt == genotype
 
-					gt = likeliest_genotype(likelihoods[0], likelihoods[1], likelihoods[2], thres)
-					print(likelihoods[0], likelihoods[1], likelihoods[2], gt, genotype, thres)
-					assert(gt == genotype)
 
 def test_genotyping_one_of_three_individuals():
 	with TemporaryDirectory() as tempdir:
@@ -140,11 +143,13 @@ def test_genotyping_one_of_three_individuals():
 			assert len(table.variants) == 5
 			assert table.samples == ['HG004', 'HG003', 'HG002']
 
-			# there should be no genotype predicitons for HG003/HG002
+			# there should be no genotype predictions for HG003/HG002
 			default_l = math.log10(1/3.0)
 			for l in [table.genotype_likelihoods_of('HG002'), table.genotype_likelihoods_of('HG004')]:
 				for var in l:
-					assert(var.log10_probs() == (default_l, default_l, default_l))
+					for v in var.log10_probs():
+						assert pytest.approx(default_l) == v
+
 
 def test_use_ped_samples():
 	with TemporaryDirectory() as tempdir:
@@ -162,7 +167,9 @@ def test_use_ped_samples():
 
 		default_l = math.log10(1/3.0)
 		for var in table.genotype_likelihoods_of('orphan'):
-			assert(var.log10_probs() == (default_l, default_l, default_l))
+			for v in var.log10_probs():
+				assert pytest.approx(default_l) == v
+
 
 def test_ped_sample():
 	with TemporaryDirectory() as tempdir:
@@ -251,15 +258,16 @@ def test_genotype_likelihoods_given():
 		assert table.samples == ['HG004', 'HG003', 'HG002']
 
 		# check if PL likelihoods (that were present before) are deleted
-		vcf_reader = vcf.Reader(filename=outvcf)
-		print(vcf_reader.samples, outvcf)
+		vcf_reader = VariantFile(outvcf)
+		# print(list(vcf_reader.samples), outvcf)
 		for record in vcf_reader:
-			for call in record.samples:
-				PL = getattr(call.data, 'PL', None)
-				GL = getattr(call.data, 'GL', None)
+			for call in record.samples.values():
+				PL = call.get('PL', None)
+				GL = call.get('GL', None)
 				print('GL:', GL, 'PL:', PL)
-				assert(PL==None)
-				assert(GL != None)
+				assert PL == (None, None, None)
+				assert GL is not None
+
 
 # GL field was already present, make sure it is replaced by new likelihoods
 def test_genotype_log_likelihoods_given():
@@ -280,15 +288,16 @@ def test_genotype_log_likelihoods_given():
 			assert table.samples == ['HG004', 'HG003', 'HG002']
 
 			# check if GL likelihoods were replaced
-			vcf_reader = vcf.Reader(filename=outfile)
-			print(vcf_reader.samples, outfile)
+			vcf_reader = VariantFile(outfile)
+			print(list(vcf_reader.header.samples), outfile)
 			for record in vcf_reader:
-				for call in record.samples:
-					GL = getattr(call.data, 'GL', None)
-					GQ = getattr(call.data, 'GQ', None)
+				for call in record.samples.values():
+					GL = call.get('GL', None)
+					GQ = call.get('GQ', None)
 					print('GL:', GL, 'GQ', GQ)
-					assert(GL != [-1,-1,-1])
-					assert(GQ != 100)
+					assert GL != [-1, -1, -1]
+					assert GQ != 100
+
 
 def test_empty_format_field():
 	with TemporaryDirectory() as tempdir:
@@ -297,10 +306,11 @@ def test_empty_format_field():
 
 		# check if sample fields now contain information
 		assert os.path.isfile(outvcf)
-		vcf_reader = vcf.Reader(filename=outvcf)
+		vcf_reader = VariantFile(outvcf)
 		for record in vcf_reader:
-			print(record.samples, outvcf)
-			assert(len(record.samples) == 3)
+			for sample, call in record.samples.items():
+				assert set(call) == {'GT', 'GL', 'GQ'}
+
 
 def test_phase_trio_paired_end_reads():
 	with TemporaryDirectory() as tempdir:
@@ -320,60 +330,46 @@ def test_phase_trio_paired_end_reads():
 def test_wrong_chromosome():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
-		with raises(SystemExit):
+		with pytest.raises(SystemExit):
 			run_genotype(phase_input_files=[short_bamfile],
 				ignore_read_groups=True,
 				variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)
 
 
-def extract_likelihoods(line):
-	entries = line.split()
-	likelihood_str = entries[9].split(':')[-1:][0]
-	likelihoods = [10.0**float(i) for i in likelihood_str.split(',')]
-	return likelihoods
+def extract_likelihoods(record):
+	return [10. ** gl for gl in record.samples[0]['GL']]
 
 
-def test_adding_constant():
-	for const in [0.1,0.2,0.3,0.5,0.7,1,2,5,10,20,100]:
-		with TemporaryDirectory() as tempdir:
-			priors_raw_vcf = tempdir + '/output.raw_priors.vcf'
-			outvcf_raw_vcf = tempdir + '/output_raw.vcf'
-			priors_const_vcf = tempdir + '/output.const_priors.vcf'
-			outvcf_const_vcf = tempdir + '/output_raw.vcf'
+@pytest.mark.parametrize("constant", [0.1, 0.2, 0.3, 0.5, 0.7, 1, 2, 5, 10, 20, 100])
+def test_adding_constant(constant, tmpdir):
+	priors_raw_vcf = str(tmpdir.join('output.raw_priors.vcf'))
+	outvcf_raw_vcf = str(tmpdir.join('output_raw.vcf'))
+	priors_const_vcf = str(tmpdir.join('output.const_priors.vcf'))
+	outvcf_const_vcf = str(tmpdir.join('output_raw.vcf'))
 
-			# run genotyping without adding constant to priors
-			run_genotype(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf',
-				prioroutput=priors_raw_vcf, output=outvcf_raw_vcf, indels=False)
+	# run genotyping without adding constant to priors
+	run_genotype(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf',
+		prioroutput=priors_raw_vcf, output=outvcf_raw_vcf, indels=False)
 
-			# run genotyping with modified priors
-			run_genotype(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf',
-				prioroutput=priors_const_vcf, output=outvcf_const_vcf, indels=False, constant=const)
+	# run genotyping with modified priors
+	run_genotype(phase_input_files=[trio_bamfile], variant_file='tests/data/trio.vcf',
+		prioroutput=priors_const_vcf, output=outvcf_const_vcf, indels=False, constant=constant)
 
-			# check if priors were modified properly
-			priors_raw = open(priors_raw_vcf, 'r')
-			priors_const = open(priors_const_vcf, 'r')
+	# check if priors were modified properly
+	with pysam.VariantFile(priors_raw_vcf) as f:
+		records_raw = list(f)
+	with pysam.VariantFile(priors_const_vcf) as f:
+		records_const = list(f)
 
-			priors_raw.seek(0)
-			priors_const.seek(0)
+	assert len(records_raw) == len(records_const)
 
-			lines_raw = [line for line in priors_raw.readlines() if not line.startswith('#')]
-			lines_const = [line for line in priors_const.readlines() if not line.startswith('#')]
+	for record_raw, record_const in zip(records_raw, records_const):
+		likelihoods_raw = extract_likelihoods(record_raw)
+		likelihoods_const = extract_likelihoods(record_const)
+		norm_sum = likelihoods_raw[0] + likelihoods_raw[1] + likelihoods_raw[2] + 3.0 * constant
+		# print(float(likelihoods_const[0]), float((likelihoods_raw[0] + constant)/norm_sum))
+		# print(float(likelihoods_const[1]), float((likelihoods_raw[1] + constant)/norm_sum))
+		# print(float(likelihoods_const[2]), float((likelihoods_raw[2] + constant)/norm_sum))
 
-			assert(len(lines_raw) == len(lines_const))
-
-			for i in range(len(lines_raw)):
-				likelihoods_raw = extract_likelihoods(lines_raw[i])
-				likelihoods_const = extract_likelihoods(lines_const[i])
-
-				norm_sum = likelihoods_raw[0]+likelihoods_raw[1]+likelihoods_raw[2] + 3.0*const
-				#print('raw likelihoods: ', likelihoods_raw, ' modified likelihoods: ', likelihoods_const)
-
-				print(float(likelihoods_const[0]),float((likelihoods_raw[0] + const)/norm_sum))
-				print(float(likelihoods_const[1]),float((likelihoods_raw[1] + const)/norm_sum))
-				print(float(likelihoods_const[2]),float((likelihoods_raw[2] + const)/norm_sum))
-
-				for j in range(3):
-					assert(round(likelihoods_const[j],10) == round((likelihoods_raw[j] + const)/norm_sum,10))
-
-			priors_raw.close()
-			priors_const.close()
+		for j in range(3):
+			assert pytest.approx(likelihoods_const[j], 1E-5) == (likelihoods_raw[j] + constant) / norm_sum

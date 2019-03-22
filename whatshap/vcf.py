@@ -5,9 +5,12 @@ import sys
 import logging
 import itertools
 import math
+from abc import ABC, abstractmethod
 from array import array
-from collections import namedtuple, defaultdict
-import vcf
+from collections import namedtuple
+from pysam import VariantFile
+from typing import List
+
 from .core import Read, PhredGenotypeLikelihoods
 
 logger = logging.getLogger(__name__)
@@ -22,12 +25,8 @@ class VcfVariant:
 
 	__slots__ = ('position', 'reference_allele', 'alternative_allele')
 
-	def __init__(self, position, reference_allele, alternative_allele):
+	def __init__(self, position: int, reference_allele: str, alternative_allele: str):
 		"""
-		position -- 0-based start coordinate
-		reference_allele -- string
-		alternative_allele -- string
-
 		Multi-ALT sites are not modelled.
 		"""
 		self.position = position
@@ -119,7 +118,7 @@ class VariantTable:
 	chromosome -- chromosome name
 	samples -- list of sample names
 	"""
-	def __init__(self, chromosome, samples):
+	def __init__(self, chromosome: str, samples: List[str]):
 		self.chromosome = chromosome
 		self.samples = samples
 		self.genotypes = [array('b', []) for _ in samples]
@@ -139,7 +138,7 @@ class VariantTable:
 		#self.samples.append(name)
 		#self.genotypes.append(genotypes)
 
-	def add_variant(self, variant, genotypes, phases, genotype_likelihoods):
+	def add_variant(self, variant: VcfVariant, genotypes, phases, genotype_likelihoods):
 		"""
 		Add a row to the table
 
@@ -164,11 +163,11 @@ class VariantTable:
 		for i, gl in enumerate(genotype_likelihoods):
 			self.genotype_likelihoods[i].append(gl)
 
-	def genotypes_of(self, sample):
+	def genotypes_of(self, sample: str):
 		"""Retrieve genotypes by sample name"""
 		return self.genotypes[self._sample_to_index[sample]]
 
-	def set_genotypes_of(self, sample, genotypes):
+	def set_genotypes_of(self, sample: str, genotypes):
 		"""Set genotypes by sample name"""
 		assert len(genotypes) == len(self.variants)
 		self.genotypes[self._sample_to_index[sample]] = genotypes
@@ -182,15 +181,15 @@ class VariantTable:
 		assert len(genotype_likelihoods) == len(self.variants)
 		self.genotype_likelihoods[self._sample_to_index[sample]] = genotype_likelihoods
 
-	def phases_of(self, sample):
+	def phases_of(self, sample: str):
 		"""Retrieve phases by sample name"""
 		return self.phases[self._sample_to_index[sample]]
 
-	def num_of_blocks_of(self, sample):
+	def num_of_blocks_of(self, sample: str):
 		""" Retrieve the number of blocks of the sample"""
 		return len(set([i.block_id for i in self.phases[self._sample_to_index[sample]] if i is not None]))
 
-	def id_of(self, sample):
+	def id_of(self, sample: str):
 		"""Return a unique int id of a sample given by name"""
 		return self._sample_to_index[sample]
 
@@ -287,10 +286,10 @@ class VcfReader:
 		"""
 		# TODO Always include deletions since they can 'overlap' other variants
 		self._indels = indels
-		self._vcf_reader = vcf.Reader(filename=path)
+		self._vcf_reader = VariantFile(path)
 		self._phases = phases
 		self._genotype_likelihoods = genotype_likelihoods
-		self.samples = self._vcf_reader.samples  # intentionally public
+		self.samples = list(self._vcf_reader.header.samples)  # intentionally public
 		self.ignore_genotypes = ignore_genotypes
 		logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
@@ -302,16 +301,16 @@ class VcfReader:
 		records = []
 		prev_chromosome = None
 		for record in self._vcf_reader:
-			if record.CHROM != prev_chromosome:
+			if record.chrom != prev_chromosome:
 				if prev_chromosome is not None:
 					yield (prev_chromosome, records)
-				prev_chromosome = record.CHROM
+				prev_chromosome = record.chrom
 				records = []
 			records.append(record)
 		if records:
 			yield (prev_chromosome, records)
 
-	def _fetch(self, chromosome):
+	def _fetch(self, chromosome: str):
 		"""
 		Return VariantTable object for a given chromosome.
 		"""
@@ -329,29 +328,28 @@ class VcfReader:
 
 	@staticmethod
 	def _extract_HP_phase(call):
-		HP = getattr(call.data, 'HP', None)
-		if HP is None:
+		hp = call.get('HP')
+		if hp is None or hp == ('.', ):
 			return None
-		assert len(HP) == 2
-		fields = [[int(x) for x in s.split('-')] for s in HP]
+		assert len(hp) == 2, hp
+		fields = [[int(x) for x in s.split('-')] for s in hp]
 		assert fields[0][0] == fields[1][0]
 		block_id = fields[0][0]
 		phase1, phase2 = fields[0][1]-1, fields[1][1]-1
-		assert ((phase1, phase2) == (0, 1)) or ((phase1, phase2) == (1, 0))
-		return VariantCallPhase(block_id=block_id, phase=phase1, quality=getattr(call.data, 'PQ', None))
+		assert (phase1, phase2) == (0, 1) or (phase1, phase2) == (1, 0)
+		return VariantCallPhase(block_id=block_id, phase=phase1, quality=call.get('PQ', None))
 
 	@staticmethod
 	def _extract_GT_PS_phase(call):
-		if not call.is_het:
+		is_het = call['GT'] == (0, 1) or call['GT'] == (1, 0)
+		if not is_het:
 			return None
 		if not call.phased:
 			return None
-		block_id = getattr(call.data, 'PS', 0)
-		if block_id is None:
-			block_id = 0
-		assert call.data.GT in ['0|1','1|0']
-		phase = int(call.data.GT[0])
-		return VariantCallPhase(block_id=block_id, phase=phase, quality=getattr(call.data, 'PQ', None))
+		block_id = call.get('PS', 0)
+		assert call['GT'] in ((0, 1), (1, 0))
+		phase = call['GT'][0]
+		return VariantCallPhase(block_id=block_id, phase=phase, quality=call.get('PQ', None))
 
 	def _process_single_chromosome(self, chromosome, records):
 		phase_detected = None
@@ -361,12 +359,12 @@ class VcfReader:
 		table = VariantTable(chromosome, self.samples)
 		prev_position = None
 		for record in records:
-			if len(record.ALT) > 1:
+			if len(record.alts) > 1:
 				# Multi-ALT sites are not supported, yet
 				n_multi += 1
 				continue
 
-			pos, ref, alt = record.start, str(record.REF), str(record.ALT[0])
+			pos, ref, alt = record.start, str(record.ref), str(record.alts[0])
 			if len(ref) == len(alt) == 1:
 				n_snvs += 1
 			else:
@@ -387,9 +385,12 @@ class VcfReader:
 			# if requested
 			if self._phases:
 				phases = []
-				for call in record.samples:
+				for sample_name, call in record.samples.items():
 					phase = None
-					for extract_phase, phase_name in [(self._extract_HP_phase, 'HP'), (self._extract_GT_PS_phase, 'GT_PS')]:
+					for extract_phase, phase_name in [
+						(self._extract_HP_phase, 'HP'),
+						(self._extract_GT_PS_phase, 'GT_PS')
+					]:
 						p = extract_phase(call)
 						if p is not None:
 							if phase_detected is None:
@@ -406,9 +407,9 @@ class VcfReader:
 			# Read genotype likelihoods, if requested
 			if self._genotype_likelihoods:
 				genotype_likelihoods = []
-				for call in record.samples:
-					GL = getattr(call.data, 'GL', None)
-					PL = getattr(call.data, 'PL', None)
+				for call in record.samples.values():
+					GL = call.get('GL', None)
+					PL = call.get('PL', None)
 					# Prefer GLs (floats) over PLs (ints) if both should be present
 					if GL is not None:
 						assert len(GL) == 3
@@ -421,13 +422,8 @@ class VcfReader:
 			else:
 				genotype_likelihoods = [None] * len(record.samples)
 
-			# PyVCF pecularity: gt_alleles is a list of the alleles in the
-			# GT field, but as strings.
-			# For example, when GT is 0/1, gt_alleles is ['0', '1'].
-			# And when GT is 2|1, gt_alleles is ['2', '1'].
-			GT_TO_INT = { 0: 0, 1: 1, 2: 2, None: -1 }
 			if not self.ignore_genotypes:
-				genotypes = array('b', (GT_TO_INT[call.gt_type] for call in record.samples))
+				genotypes = array('b', (genotype_code(call['GT'], unknown=-1) for call in record.samples.values()))
 			else:
 				genotypes = array('b', ([-1] * len(self.samples)))
 				phases = [None] * len(self.samples)
@@ -461,11 +457,64 @@ def remove_overlapping_calls(calls):
 
 GenotypeChange = namedtuple('GenotypeChange', ['sample', 'chromosome', 'variant', 'old_gt', 'new_gt'])
 
-class PhasedVcfWriter:
+
+class VcfAugmenter(ABC):
+	def __init__(self, in_path, command_line, out_file=sys.stdout):
+		"""
+		in_path -- Path to input VCF, used as template.
+		command_line -- A string that will be added as a VCF header entry
+			(use None to not add this to the VCF header)
+		out_file -- Open file-like object to which VCF is written.
+		tag -- which type of tag to write, either 'PS' or 'HP'. 'PS' is standardized;
+		    'HP' is compatible with GATK’s ReadBackedPhasing.
+		"""
+		self._reader = VariantFile(in_path)
+		header = self._reader.header
+		if command_line is not None:
+			command_line = '"' + command_line.replace('"', '') + '"'
+			header.add_meta('commandline', command_line)
+		self.setup_header(header)
+		self._writer = VariantFile(out_file, mode='w', header=header)
+		self._unprocessed_record = None
+		self._reader_iter = iter(self._reader)
+
+	@abstractmethod
+	def setup_header(self, header):
+		pass
+
+	def close(self):
+		self._writer.close()
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self, *args):
+		self.close()
+
+	@property
+	def samples(self):
+		return list(self._reader.header.samples)
+
+	def _iterrecords(self, chromosome):
+		"""Yield all records for the target chromosome"""
+		n = 0
+		if self._unprocessed_record is not None:
+			assert self._unprocessed_record.chrom == chromosome
+			yield self._unprocessed_record
+			n += 1
+		for record in self._reader_iter:
+			n += 1
+			if record.chrom != chromosome:
+				# save it for later
+				self._unprocessed_record = record
+				assert n != 1
+				return
+			yield record
+
+
+class PhasedVcfWriter(VcfAugmenter):
 	"""
 	Read in a VCF file and write it back out with added phasing information.
-	Phasing is written into HP and PQ tags, compatible with GATK’s
-	ReadBackedPhasing.
 
 	Avoid reading in full chromosomes as that uses too much memory for
 	multi-sample VCFs.
@@ -479,57 +528,49 @@ class PhasedVcfWriter:
 		tag -- which type of tag to write, either 'PS' or 'HP'. 'PS' is standardized;
 		    'HP' is compatible with GATK’s ReadBackedPhasing.
 		"""
-		self._reader = vcf.Reader(filename=in_path)
-		# FreeBayes adds phasing=none to its VCF output - remove that.
-		self._reader.metadata['phasing'] = []
-		if command_line is not None:
-			if 'commandline' not in self._reader.metadata:
-				self._reader.metadata['commandline'] = []
-			command_line = command_line.replace('"', '')
-			self._reader.metadata['commandline'].append('"' + command_line + '"')
 		if tag not in ('HP', 'PS'):
 			raise ValueError('Tag must be either "HP" or "PS"')
-		if tag == 'HP':
-			desc = 'Phasing haplotype identifier'
-			fmt = vcf.parser._Format(id=tag, num=None, type='String', desc=desc)
-		else:
-			desc = 'Phase set identifier'
-			fmt = vcf.parser._Format(id=tag, num=1, type='Integer', desc=desc)
-		self._reader.formats[tag] = fmt
-
-		# self._reader.formats['PQ'] = vcf.parser._Format(id='PQ', num=1, type='Float', desc='Phasing quality')
-
-		self._writer = vcf.Writer(out_file, template=self._reader)
-		self._unprocessed_record = None
-		self._reader_iter = iter(self._reader)
-		self._phase_tag_found_warned = False
 		self.tag = tag
+		super().__init__(in_path, command_line, out_file)
+		self._phase_tag_found_warned = False
 		self._set_phasing_tags = self._set_HP if tag == 'HP' else self._set_PS
 
-	@property
-	def samples(self):
-		return self._reader.samples
+	def setup_header(self, header):
+		"""Called by baseclass constructor"""
 
-	def _set_HP(self, values, component, phase):
+		# FreeBayes adds phasing=none to its VCF output - remove that.
+		for hr in header.records:
+			if hr.key == 'phasing':
+				hr.remove()
+				break
+
+		if self.tag == 'HP':
+			line = '##FORMAT=<ID=HP,Number=.,Type=String,Description="Phasing haplotype identifier">'
+		else:
+			line = '##FORMAT=<ID=PS,Number=1,Type=Integer,Description="Phase set identifier">'
+		header.add_line(line)
+
+	def _set_HP(self, call, component, phase):
 		"""
 		values -- tag dict to update
 		component -- name of the component
 		phase -- 0 or 1
 		"""
 		assert phase in [0, 1]
-		values['HP'] = '{}-{},{}-{}'.format(component + 1, phase + 1, component + 1, 2 - phase)
+		call['HP'] = '{}-{},{}-{}'.format(component + 1, phase + 1, component + 1, 2 - phase)
 
-	def _set_PS(self, values, component, phase):
+	def _set_PS(self, call, component, phase):
 		"""
 		values -- tag dict to update
 		component -- name of the component
 		phase -- 0 or 1
 		"""
 		assert phase in [0, 1]
-		values['PS'] = str(component + 1)
-		values['GT'] = '0|1' if phase == 0 else '1|0'
+		call['PS'] = component + 1
+		call['GT'] = (0, 1) if phase == 0 else (1, 0)
+		call.phased = True
 
-	def write(self, chromosome, sample_superreads, sample_components):
+	def write(self, chromosome: str, sample_superreads, sample_components):
 		"""
 		Add phasing information to all variants on a single chromosome.
 
@@ -547,14 +588,7 @@ class PhasedVcfWriter:
 
 		Returns a list of changed genotyes (i.e. a list of GenotypeChange objects)
 		"""
-		assert self._unprocessed_record is None or (self._unprocessed_record.CHROM == chromosome)
-
 		genotype_changes = []
-
-		if self._unprocessed_record is not None:
-			records_iter = itertools.chain([self._unprocessed_record], self._reader_iter)
-		else:
-			records_iter = self._reader_iter
 		allowed_alleles = frozenset({(0, 1), (1, 0), (0, 0), (1, 1)})
 		sample_phases = dict()
 		sample_genotypes = dict()
@@ -567,20 +601,12 @@ class PhasedVcfWriter:
 				v1.position: v1.allele + v2.allele for v1, v2 in zip(*superreads)
 					if (v1.allele, v2.allele) in allowed_alleles
 			}
-		n = 0
 		prev_pos = None
-		INT_TO_UNPHASED_GT = { 0: '0/0', 1: '0/1', 2: '1/1', -1: '.' }
-		for record in records_iter:
-			n += 1
-			pos, ref, alt = record.start, str(record.REF), str(record.ALT[0])
+		INT_TO_UNPHASED_GT = {0: (0, 0), 1: (0, 1), 2: (1, 1), -1: None}
+		for record in self._iterrecords(chromosome):
+			pos, ref, alt = record.start, record.ref, record.alts[0]
 
-			if record.CHROM != chromosome:
-				# save it for later
-				self._unprocessed_record = record
-				assert n != 1
-				break
-
-			if len(record.ALT) > 1:
+			if len(record.alts) > 1:
 				# we do not phase multiallelic sites currently
 				is_phased = False
 			elif pos == prev_pos:
@@ -589,7 +615,7 @@ class PhasedVcfWriter:
 			else:
 				# Determine whether the variant is phased in any sample
 				is_phased = True
-				for sample in self._reader.samples:
+				for sample in self.samples:
 					if sample in sample_superreads:
 						components = sample_components[sample]
 						phases = sample_phases[sample]
@@ -599,31 +625,16 @@ class PhasedVcfWriter:
 					is_phased = False
 
 			if self.tag == 'PS':
-				# Remove any existing phasing from the GT field, no matter
-				# whether we have phasing info for it or not
-				samp_fmt = self._reader._format_cache[record.FORMAT]
-				for sample, call in zip(self._reader.samples, record.samples):
-					if sample not in sample_superreads:
-						continue
-
-					if '|' in call.data.GT:
-						values = call.data._asdict()
-						gt_fields = call.data.GT.split('|')
-						values['GT'] = '/'.join(sorted(gt_fields))
-						call.data = samp_fmt(**values)
+				# Remove any existing phasing from the GT field
+				for sample, call in record.samples.items():
+					if sample in sample_superreads:
+						call.phased = False
+						if call['GT'] is not None and call['GT'][0] is not None and call['GT'][1] is not None:
+							call['GT'] = sorted(call['GT'])
 
 			if is_phased:
-				# Current PyVCF does not make it very easy to modify records/calls.
-				# Add HP tag to FORMAT
-				if self.tag not in record.FORMAT.split(':'):
-					record.add_format(self.tag)
-					if record.FORMAT not in self._reader._format_cache:
-						self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
-				samp_fmt = self._reader._format_cache[record.FORMAT]
-
-				# Set phase tag for all samples
-				for i, call in enumerate(record.samples):
-					sample = self._reader.samples[i]
+				# Set phase tag for all target samples
+				for sample, call in record.samples.items():
 					if sample not in sample_superreads:
 						# This sample has not been phased, leave unchanged
 						continue
@@ -631,38 +642,52 @@ class PhasedVcfWriter:
 					phases = sample_phases[sample]
 					genotypes = sample_genotypes[sample]
 
-					if (hasattr(call.data, self.tag) and getattr(call.data, self.tag) is not None
+					if (self.tag in call and call[self.tag] is not None
 							and not self._phase_tag_found_warned):
 						logger.warning('Ignoring existing phasing information '
 							'found in input VCF ({} tag exists).'.format(self.tag))
 						self._phase_tag_found_warned = True
 
-					values = call.data._asdict()
-					is_het = call.is_het
+					gt_type = genotype_code(call['GT'])
+					is_het = gt_type == 1
 
 					# is genotype to be changed?
-					if (pos in genotypes) and (genotypes[pos] != call.gt_type):
-						values['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
-						variant = VcfVariant(record.POS, record.REF, record.ALT[0])
-						genotype_changes.append(GenotypeChange(sample, chromosome, variant, call.gt_type, genotypes[pos]))
+					if pos in genotypes and genotypes[pos] != gt_type:
+						call['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
+						variant = VcfVariant(record.start, record.ref, record.alts[0])
+						genotype_changes.append(
+							GenotypeChange(sample, chromosome, variant, gt_type, genotypes[pos]))
 						is_het = genotypes[pos] == 1
 
 					if pos in components and pos in phases and is_het:
-						self._set_phasing_tags(values, components[pos], phases[pos])
+						self._set_phasing_tags(call, components[pos], phases[pos])
 					else:
 						# Unphased - set phase tag to '.'
-						values[self.tag] = None
-					call.data = samp_fmt(**values)
-			self._writer.write_record(record)
+						call[self.tag] = None
+			self._writer.write(record)
 			prev_pos = pos
 		return genotype_changes
+
+
+def genotype_code(gt, unknown=None):
+	"""Return genotype encoded as PyVCF-compatible number"""
+	if gt is None:
+		return unknown
+	if gt[0] is None or gt[1] is None:
+		return unknown
+	if gt == (0, 0):
+		return 0  # homozygous ref
+	if gt == (1, 1):
+		return 2  # homozygous alt
+	assert gt == (0, 1) or gt == (1, 0)
+	return 1  # heterozygous
 
 
 ############ class to print computed genotypes,likelihoods (still needs to be improved...) ###########
 # in input vcf, currently GT is still required..
 
 
-class GenotypeVcfWriter:
+class GenotypeVcfWriter(VcfAugmenter):
 	"""
 	Read in a VCF file and write it back out with added genotyping information.
 
@@ -675,33 +700,13 @@ class GenotypeVcfWriter:
 		command_line -- A string that will be added as a VCF header entry.
 		out_file -- Open file-like object to which VCF is written.
 		"""
-		self._reader = vcf.Reader(filename=in_path)
-		
-		if command_line is not None:
-			if 'commandline' not in self._reader.metadata:
-				self._reader.metadata['commandline'] = []
-			command_line = command_line.replace('"', '')
-			self._reader.metadata['commandline'] = [command_line]
+		super().__init__(in_path, command_line, out_file)
 
-		# add tag for genotype
-		fmt = vcf.parser._Format(id='GT', num=1, type='String', desc='Genotype computed by whatshap genotyping algorithm.')
-		self._reader.formats['GT'] = fmt
-
-		# add tag for genotype quality
-		fmt = vcf.parser._Format(id='GQ', num=1, type='Integer', desc='Phred scaled genotype quality computed by whatshap genotyping algorithm.')
-		self._reader.formats['GQ'] = fmt
-
-		# add tag for genotype likelihoods
-		fmt = vcf.parser._Format(id='GL', num='G', type='Float', desc='log10-scaled likelihoods for genotypes: 0/0,0/1,1/1, computed by whatshap genotyping algorithm.')
-		self._reader.formats['GL'] = fmt
-
-		self._writer = vcf.Writer(out_file, template=self._reader)
-		self._unprocessed_record = None
-		self._reader_iter = iter(self._reader)
-
-	@property
-	def samples(self):
-		return self._reader.samples
+	def setup_header(self, header):
+		"""Called by baseclass constructor"""
+		header.add_line('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype computed by WhatsHap genotyping algorithm">')
+		header.add_line('##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Phred-scaled genotype quality computed by WhatsHap genotyping algorithm">')
+		header.add_line('##FORMAT=<ID=GL,Number=G,Type=Float,Description="Log10-scaled likelihoods for genotypes: 0/0, 0/1, 1/1, computed by WhatsHap genotyping algorithm">')
 
 	def write_genotypes(self, chromosome, variant_table, indels, leave_unchanged=False):
 		"""
@@ -712,70 +717,22 @@ class GenotypeVcfWriter:
 		leave_unchanged -- if True, leaves records of current chromosome unchanged
 		"""
 
-		assert self._unprocessed_record is None or (self._unprocessed_record.CHROM == chromosome)
-
-		if self._unprocessed_record is not None:
-			records_iter = itertools.chain([self._unprocessed_record], self._reader_iter)
-		else:
-			records_iter = self._reader_iter
-
 		# map positions to index
 		genotyped_variants = dict()
 		for i in range(len(variant_table)):
 			genotyped_variants[variant_table.variants[i].position] = i
 
-		n = 0
-		prev_pos = None
-		INT_TO_UNPHASED_GT = { 0: '0/0', 1: '0/1', 2: '1/1', -1: '.' }
-		for record in records_iter:
-
-			n += 1
-			pos, ref, alt = record.start, str(record.REF), str(record.ALT[0])
-
-			if record.CHROM != chromosome:
-				# save it for later
-				self._unprocessed_record = record
-				assert n != 1
-				break
+		INT_TO_UNPHASED_GT = {0: (0, 0), 1: (0, 1), 2: (1, 1), -1: None}
+		GT_GL_GQ = frozenset(['GT', 'GL', 'GQ'])
+		for record in self._iterrecords(chromosome):
+			pos, ref, alt = record.start, record.ref, record.alts[0]
 
 			# if current chromosome was genotyped, write this new information to vcf
 			if not leave_unchanged:
-				no_format_field = False
-
-				# add GT,GQ,GL fields in case they are not present yet
-				if record.FORMAT == None:
-					record.FORMAT = 'GT'
-					no_format_field = True
-
-				else:
-					if 'GT' not in record.FORMAT.split(':'):
-						record.add_format('GT')
-
-				for field in ['GQ', 'GL']:
-					if field not in record.FORMAT.split(':'):
-						record.add_format(field)
-
-				if record.FORMAT not in self._reader._format_cache:
-					self._reader._format_cache[record.FORMAT] = self._reader._parse_sample_format(record.FORMAT)
-
-				samp_fmt = self._reader._format_cache[record.FORMAT]
-
-				# create call objects in case the format field was empty before
-				if no_format_field:
-					for sample in self._reader.samples:
-						call = vcf.model._Call(record, sample, [])
-						values = {'GT': '.', 'GQ': '.', 'GL': '.'}
-						call.data = samp_fmt(**values)
-						record.samples.append(call)
-
-
-				for i, call in enumerate(record.samples):
-					sample = self._reader.samples[i]
-					values = call.data._asdict()
-
+				for sample, call in record.samples.items():
 					geno = -1
 					geno_l = [1/3.0] * 3
-					geno_q = '.'
+					geno_q = None
 
 					# for genotyped variants, get computed likelihoods/genotypes (for all others, give uniform likelihoods)
 					if pos in genotyped_variants:
@@ -793,29 +750,30 @@ class GenotypeVcfWriter:
 					elif geno == 2:
 						geno_q = geno_l[0] + geno_l[1]
 
-					# store genotype
-					values['GT'] = INT_TO_UNPHASED_GT[geno]
+					# TODO default value ok?
+					# store likelihoods log10-scaled
+					# Temporarily overwrite the GT field with a (fake) genotype that indicates a
+					# diploid sample. Otherwise, if the GT field happens to be empty, pysam
+					# complains that we are setting an incorrect number of GL values.
+					call['GT'] = (0, 1)
+					call['GL'] = [max(math.log10(j), -1000) if j > 0 else -1000 for j in geno_l]
+
+					call['GT'] = INT_TO_UNPHASED_GT[geno]
+
 					# store quality as phred score
 					if not geno == -1:
 						# TODO default value ok?
-						if geno_q > 0:
-							values['GQ'] = min(round(-10.0 * math.log10(geno_q)), 10000)
+						if geno_q is not None:
+							call['GQ'] = min(round(-10.0 * math.log10(geno_q)), 10000)
 						else:
-							values['GQ'] = 10000
+							call['GQ'] = 10000
 					else:
-						values['GQ'] = '.'
+						call['GQ'] = None
 
-					# TODO default value ok?
-					# store likelihoods log10-scaled
-					values['GL'] = [max(math.log10(j),-1000) if j>0 else -1000 for j in geno_l]
-
-					record.QUAL = '.'
+					record.qual = None
 
 					# delete all other genotype information that might have been present before
-					for tag in record.FORMAT.split(':'):
-						if tag not in ['GT', 'GL', 'GQ']:
-							values[tag] = '.'
+					for tag in set(call.keys()) - GT_GL_GQ:
+						del call[tag]
 
-					call.data = samp_fmt(**values)
-			self._writer.write_record(record)
-			prev_pos = pos
+			self._writer.write(record)

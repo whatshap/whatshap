@@ -13,7 +13,8 @@ It is not an error if no phasing information was found.
 """
 import sys
 import logging
-import vcf
+from pysam import VariantFile
+
 
 logger = logging.getLogger(__name__)
 
@@ -25,47 +26,38 @@ def add_arguments(parser):
 	add('vcf', metavar='VCF', help='VCF file. Use "-" to read from standard input')
 
 
+def unphase_header(header):
+	for hr in header.records:
+		if hr.key == 'phasing':
+			hr.remove()
+			break
+
+	for tag in TAGS_TO_REMOVE:
+		if tag in header.formats:
+			header.formats.remove_header(tag)
+
+
 def run_unphase(vcf_path, outfile):
 	"""
 	Read a VCF file, remove phasing information, and write the result to
 	outfile, which must be a file-like object.
 	"""
 	if vcf_path == '-':
-		reader = vcf.Reader(fsock=sys.stdin)
+		reader = VariantFile(sys.stdin)
 	else:
-		reader = vcf.Reader(filename=vcf_path)
-	if 'phasing' in reader.metadata:
-		reader.metadata['phasing'] = []
-	for tag in TAGS_TO_REMOVE:
-		if tag in reader.formats:
-			del reader.formats[tag]
-	writer = vcf.Writer(outfile, template=reader)
-	for record in reader:
-		formats = record.FORMAT.split(':')
-		tag_removed = False
-		for tag in TAGS_TO_REMOVE:
-			if tag in formats:
-				formats.remove(tag)
-				tag_removed = True
-		if tag_removed:
-			record.FORMAT = ':'.join(formats)
-			if record.FORMAT not in reader._format_cache:
-				reader._format_cache[record.FORMAT] = reader._parse_sample_format(record.FORMAT)
-		samp_fmt = reader._format_cache[record.FORMAT]
+		reader = VariantFile(vcf_path)
 
-		for call in record.samples:
-			if tag_removed or '|' in call.data.GT:
-				values = call.data._asdict()
-				for tag in TAGS_TO_REMOVE:
-					if tag in values:
-						del values[tag]
-				gt = values['GT']
-				if '|' in gt:
-					gt_fields = gt.split('|')
-					values['GT'] = '/'.join(sorted(gt_fields))
-				call.data = samp_fmt(**values)
-
-		writer.write_record(record)
+	unphase_header(reader.header)
+	with VariantFile(outfile, mode="w", header=reader.header) as writer:
+		for record in reader:
+			for tag in TAGS_TO_REMOVE:
+				if tag in record.format:
+					del record.format[tag]
+			for call in record.samples.values():
+				if call['GT'] is not None and call['GT'][0] is not None and call['GT'][1] is not None:
+					call['GT'] = sorted(call['GT'])
+				call.phased = False
+			writer.write(record)
 
 
 def main(args):
