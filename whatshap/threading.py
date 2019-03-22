@@ -164,6 +164,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 		start_col = find_backtracing_start(scoring, num_vars)
 		print("starting in column: ", start_col)
 		last_min_idx = min((val, idx) for (idx, val) in enumerate([i[0] for i in scoring[start_col]]))[1]
+		#print("DP Score = "+str(min((val, idx) for (idx, val) in enumerate([i[0] for i in scoring[start_col]]))[0]))
 
 		#instead of using all tuples, compute only the tuples relevant for the position start_col
 		clusters_tuples = geno_map[start_col]

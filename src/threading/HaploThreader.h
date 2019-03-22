@@ -198,16 +198,17 @@ public:
      * @param genotypes The genotype for every positon
      */
     std::vector<std::vector<GlobalClusterId>> computePaths (Position num_vars, 
-                    std::vector<std::vector<GlobalClusterId>> &covMap,
-                    std::vector<std::vector<double>> &coverage, 
-                    std::vector<std::vector<uint32_t>> consensus,
-                    std::vector<uint32_t> genotypes 
+                    std::vector<std::vector<GlobalClusterId>>& covMap,
+                    std::vector<std::vector<double>>& coverage, 
+                    std::vector<std::vector<uint32_t>>& consensus,
+                    std::vector<uint32_t>& genotypes 
                    ) const;
 
 private:
     uint32_t ploidy;
     double switchCost;
     double affineSwitchCost;
+    std::vector<std::vector<std::vector<uint32_t>>> perms;
     
     /**
      * Computes the coverage cost of a tuple, considering the following coverage distribution. All cluster
@@ -220,6 +221,10 @@ private:
      */
     Score getSwitchCost(const ClusterTuple tuple1, const ClusterTuple tuple2, 
                         const std::vector<GlobalClusterId>& clusters1, const std::vector<GlobalClusterId>& clusters2) const;
+                        
+    std::vector<ClusterTuple> computeGenotypeConformTuples (const std::vector<GlobalClusterId>& covMap,
+                                                            const std::vector<uint32_t>& consensus, 
+                                                            uint32_t genotype, bool allowPermutations) const;
     
     /**
      * Computes all sets of clusters having are have a genotype, which is exactly distance away from the specified genotype.
@@ -227,12 +232,16 @@ private:
      * is a permutation of another one (they have to be extended if required).
      */
     std::vector<ClusterTuple> getGenotypeConformTuples (const std::vector<GlobalClusterId>& clusters, const std::vector<uint32_t>& consensus, 
-                                                     uint32_t genotype, uint32_t distance, bool allowPermutations) const;
+                                                        uint32_t genotype, uint32_t distance, bool allowPermutations) const;
     
     /**
      * Computes all permutations as tuples.
      */
     std::vector<ClusterTuple> getCombinations(uint32_t maxElem, bool allowPermutations) const;
+    
+    std::vector<ClusterTuple> getNonSymmetricExtensions(ClusterTuple tuple, const std::vector<GlobalClusterId>& clusters, 
+                                                        const std::vector<int32_t>& mapPos, std::vector<uint32_t>& numUsed, 
+                                                        uint32_t numClusters) const;
     
     /**
      * Computes all permutations as tuples.
