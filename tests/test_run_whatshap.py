@@ -3,7 +3,6 @@ Integration tests that use the command-line entry points run_whatshap, run_haplo
 """
 from tempfile import TemporaryDirectory
 import os
-from io import StringIO
 from collections import namedtuple
 from collections import defaultdict
 
@@ -111,7 +110,7 @@ def test_requested_sample_not_found(algorithm):
 	('whatshap', 'tests/data/pacbio/phased.vcf'),
 	('hapchat', 'tests/data/pacbio/phased_hapchat.vcf'),
 ])
-def test_with_reference(algorithm, expected_vcf):
+def test_with_reference(algorithm, expected_vcf, tmpdir):
 	# This tests also whether lowercase reference FASTA files work:
 	# If lowercase and uppercase are treated differently, then the
 	# output is slightly different from the expected.
@@ -127,7 +126,7 @@ def test_with_reference(algorithm, expected_vcf):
 	# this a desired behaviour is subject to discussion --
 	# possible handling (i.e., avoiding the phasing of) sites with
 	# identical phasing scores is a possible future work, etc.
-	out = StringIO()
+	out = str(tmpdir.join("out.vcf"))
 	run_whatshap(
 		phase_input_files=['tests/data/pacbio/pacbio.bam'],
 		variant_file='tests/data/pacbio/variants.vcf',
@@ -138,7 +137,10 @@ def test_with_reference(algorithm, expected_vcf):
 	)
 	with open(expected_vcf) as f:
 		expected = f.read()
-	assert out.getvalue() == expected, 'VCF output not as expected'
+	with open(out) as f:
+		actual = f.read()
+
+	assert actual == expected, 'VCF output not as expected'
 
 
 def test_with_reference_and_indels(algorithm):
@@ -164,16 +166,16 @@ def test_with_reference_and_indels(algorithm):
 		 "1\t60907473\t.\tC\tA\t.\tPASS\tAC=2;AN=6\tGT:PS\t1|0:60907394\t0/1:.\t0/0:.\n",
 		 "1\t60909718\t.\tT\tC\t.\tPASS\tAC=2;AN=6\tGT\t0/1\t0/1\t0/0\n"]),
 ])
-def test_ps_tag(algorithm, expected_lines):
-	out = StringIO()
+def test_ps_tag(algorithm, expected_lines, tmpdir):
+	out = str(tmpdir.join("out.vcf"))
 	run_whatshap(
 		variant_file='tests/data/trio.vcf',
 		phase_input_files=['tests/data/trio.pacbio.bam'],
 		output=out,
 		tag='PS',
 		algorithm=algorithm)
-	out.seek(0)
-	lines = [ line for line in out.readlines() if not line.startswith('#') ]
+	with open(out) as f:
+		lines = [line for line in f.readlines() if not line.startswith('#')]
 
 	# TODO This is quite an ugly way to test phased VCF writing (see parametrization)
 	for i in range(5):
@@ -396,7 +398,7 @@ def test_phase_trio_merged_blocks(tmpdir):
 		phase_input_files=[trio_merged_bamfile],
 		variant_file='tests/data/trio-merged-blocks.vcf',
 		output=outvcf,
-	    ped='tests/data/trio.ped',
+		ped='tests/data/trio.ped',
 		genmap='tests/data/trio.map',
 	)
 	assert os.path.isfile(outvcf)
