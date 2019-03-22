@@ -140,21 +140,21 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 	consensus = get_cluster_consensus_local(readset, clustering, cov_map, positions)
 	print("consensus sequences computed")
 
-	geno_map = defaultdict(list)
-	counter = 0
-	for pos in range(num_vars):
-		c_ids = sorted(cov_map[pos])
-		c_tuples = sorted(list(it.combinations_with_replacement(c_ids, ploidy)))
-		geno_tuples = [tup for tup in c_tuples if (compute_tuple_genotype(consensus,tup, pos) == genotypes[pos])]
-		if (len(geno_tuples) == 0):
-			#TODO add option to use the next best genotypes if also the next list is empty
-			geno_tuples = [tup for tup in c_tuples if (compute_tuple_genotype_soft(consensus,tup, pos, genotypes[pos]) == 1)]
-			if (len(geno_tuples) == 0):
-				geno_tuples = c_tuples
-		geno_map[pos] = geno_tuples
-	print("No cluster with fitting genotype: ", counter)
-
 	if not cpp_threading:
+		geno_map = defaultdict(list)
+		counter = 0
+		for pos in range(num_vars):
+			c_ids = sorted(cov_map[pos])
+			c_tuples = sorted(list(it.combinations_with_replacement(c_ids, ploidy)))
+			geno_tuples = [tup for tup in c_tuples if (compute_tuple_genotype(consensus,tup, pos) == genotypes[pos])]
+			if (len(geno_tuples) == 0):
+				#TODO add option to use the next best genotypes if also the next list is empty
+				geno_tuples = [tup for tup in c_tuples if (compute_tuple_genotype_soft(consensus,tup, pos, genotypes[pos]) == 1)]
+				if (len(geno_tuples) == 0):
+					geno_tuples = c_tuples
+			geno_map[pos] = geno_tuples
+		print("No cluster with fitting genotype: ", counter)
+		
 		#perform the dynamic programming to fill the scoring matrix (in Cython to speed up computation)
 		scoring = clustering_DP(num_vars,clustering,coverage, positions, cov_map, ploidy, genotypes, consensus, geno_map)
 
