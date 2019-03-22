@@ -44,13 +44,32 @@ def determine_genotype(likelihoods, threshold_prob):
 		return -1
 
 
-def run_genotype(phase_input_files, variant_file, reference=None,
-		output=sys.stdout, samples=None, chromosomes=None,
-		ignore_read_groups=False, indels=True, mapping_quality=20,
-		max_coverage=15, nopriors=False,
-		ped=None, recombrate=1.26, genmap=None, gt_qual_threshold=0,
-		prioroutput=None, constant=0.0, overhang=10,affine_gap=False, gap_start=10, gap_extend=7, mismatch=15,
-		write_command_line_header=True, use_ped_samples=False):
+def run_genotype(
+		phase_input_files,
+		variant_file,
+		reference=None,
+		output=sys.stdout,
+		samples=None,
+		chromosomes=None,
+		ignore_read_groups=False,
+		indels=True,
+		mapping_quality=20,
+		max_coverage=15,
+		nopriors=False,
+		ped=None,
+		recombrate=1.26,
+		genmap=None,
+		gt_qual_threshold=0,
+		prioroutput=None,
+		constant=0.0,
+		overhang=10,
+		affine_gap=False,
+		gap_start=10,
+		gap_extend=7,
+		mismatch=15,
+		write_command_line_header=True,
+		use_ped_samples=False,
+	):
 	"""
 	For now: this function only runs the genotyping algorithm. Genotype likelihoods for
 	all variants are computed using the forward backward algorithm
@@ -102,7 +121,7 @@ def run_genotype(phase_input_files, variant_file, reference=None,
 		if write_command_line_header:
 			command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
 		else:
-			command_line=None
+			command_line = None
 
 		# vcf writer for final genotype likelihoods
 		vcf_writer = GenotypeVcfWriter(command_line=command_line, in_path=variant_file,

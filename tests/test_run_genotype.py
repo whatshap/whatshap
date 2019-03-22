@@ -85,9 +85,9 @@ def test_no_indels():
 
 
 def likeliest_genotype(a, b, c, thres):
-	prob_a = 10**a
-	prob_b = 10**b
-	prob_c = 10**c
+	prob_a = 10 ** a
+	prob_b = 10 ** b
+	prob_c = 10 ** c
 
 	to_sort = [(prob_a,0),(prob_b,1),(prob_c,2)]
 	to_sort.sort(key=lambda x: x[0])
@@ -180,13 +180,14 @@ def test_ped_sample():
 			assert os.path.isfile(outvcf2)
 			tables1 = list(VcfReader(outvcf1, phases=True, genotype_likelihoods=True))
 			tables2 = list(VcfReader(outvcf2, phases=True, genotype_likelihoods=True))
-			assert( (len(tables1) == 1) and (len(tables2) == 1) )
+			assert (len(tables1) == 1) and (len(tables2) == 1)
 			table1, table2 = tables1[0], tables2[0]
 
 			for individual in sample_set:
 				for var1,var2 in zip(table1.genotype_likelihoods_of(individual), table2.genotype_likelihoods_of(individual)):
 					print(var1, var2)
-					assert(var1.log10_probs() == var2.log10_probs())
+					assert var1.log10_probs() == var2.log10_probs()
+
 
 def test_genotyping_trio():
 	with TemporaryDirectory() as tempdir:
@@ -204,6 +205,7 @@ def test_genotyping_trio():
 			assert table.chromosome == '1'
 			assert len(table.variants) == 5
 			assert table.samples == ['HG004', 'HG003', 'HG002']
+
 
 def test_genotyping_specific_chromosome():
 	for requested_chromosome in ['1','2']:

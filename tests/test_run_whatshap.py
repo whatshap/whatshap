@@ -176,7 +176,7 @@ def test_ps_tag(algorithm, expected_lines):
 	lines = [ line for line in out.readlines() if not line.startswith('#') ]
 
 	# TODO This is quite an ugly way to test phased VCF writing (see parametrization)
-	for i in range(5) :
+	for i in range(5):
 		assert lines[i] == expected_lines[i]
 
 
@@ -365,8 +365,15 @@ def test_phase_ped_sample(tmpdir, sample_set):
 def test_phase_trio_distrust_genotypes(tmpdir):
 	outvcf = str(tmpdir.join('output_gl.vcf'))
 	outreadlist = str(tmpdir.join('readlist.tsv'))
-	run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio_genotype_likelihoods.vcf', read_list_filename=outreadlist, output=outvcf,
-	        ped='tests/data/trio.ped', genmap='tests/data/trio.map', distrust_genotypes=True)
+	run_whatshap(
+		phase_input_files=[trio_bamfile],
+		variant_file='tests/data/trio_genotype_likelihoods.vcf',
+		read_list_filename=outreadlist,
+		output=outvcf,
+		ped='tests/data/trio.ped',
+		genmap='tests/data/trio.map',
+		distrust_genotypes=True,
+	)
 	assert os.path.isfile(outvcf)
 	assert os.path.isfile(outreadlist)
 
@@ -385,8 +392,13 @@ def test_phase_trio_distrust_genotypes(tmpdir):
 
 def test_phase_trio_merged_blocks(tmpdir):
 	outvcf = str(tmpdir.join('output-merged-blocks.vcf'))
-	run_whatshap(phase_input_files=[trio_merged_bamfile], variant_file='tests/data/trio-merged-blocks.vcf', output=outvcf,
-	        ped='tests/data/trio.ped', genmap='tests/data/trio.map')
+	run_whatshap(
+		phase_input_files=[trio_merged_bamfile],
+		variant_file='tests/data/trio-merged-blocks.vcf',
+		output=outvcf,
+	    ped='tests/data/trio.ped',
+		genmap='tests/data/trio.map',
+	)
 	assert os.path.isfile(outvcf)
 
 	tables = list(VcfReader(outvcf, phases=True))
@@ -489,7 +501,7 @@ def test_phase_missing_genotypes():
 
 
 def test_phase_specific_chromosome():
-	for requested_chromosome in ['1','2']:
+	for requested_chromosome in ['1', '2']:
 		with TemporaryDirectory() as tempdir:
 			outvcf = tempdir + '/output.vcf'
 			run_whatshap(phase_input_files=[trio_bamfile], variant_file='tests/data/trio-two-chromosomes.vcf', output=outvcf,

@@ -10,7 +10,7 @@ from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVari
 
 
 @fixture(params=['whatshap', 'hapchat'])
-def algorithm(request) :
+def algorithm(request):
 	return request.param
 
 
@@ -248,7 +248,7 @@ def test_do_not_phase_duplicate_position(algorithm):
 def test_multi_alt():
 	"""Skip multi-ALT in VCF"""
 	table = list(VcfReader('tests/data/unknown-genotype.vcf'))[0]
-	assert [ variant.position for variant in table.variants ] == [1, 4]
+	assert [variant.position for variant in table.variants] == [1, 4]
 
 
 def assert_genotype_likelihoods(actual, expected):

@@ -88,7 +88,7 @@ class GenotypeLikelihoods:
 		return "GenotypeLikelihoods({}, {}, {})".format(self.log_prob_g0, self.log_prob_g1, self.log_prob_g2)
 
 	def log10_probs(self):
-		return ( self.log_prob_g0, self.log_prob_g1, self.log_prob_g2 )
+		return (self.log_prob_g0, self.log_prob_g1, self.log_prob_g2)
 
 	def log10_prob_of(self, genotype):
 		return self.log10_probs()[genotype]
@@ -103,11 +103,11 @@ class GenotypeLikelihoods:
 				round((self.log_prob_g2-m) * -10)
 			)
 		else:
-			p = [ 10**x for x in (self.log_prob_g0, self.log_prob_g1, self.log_prob_g2) ]
+			p = [10**x for x in (self.log_prob_g0, self.log_prob_g1, self.log_prob_g2)]
 			s = sum(p)
-			p = [ x/s + regularizer for x in p ]
+			p = [x / s + regularizer for x in p]
 			m = max(p)
-			return PhredGenotypeLikelihoods( *(round(-10*math.log10(x/m)) for x in p) )
+			return PhredGenotypeLikelihoods(*(round(-10*math.log10(x/m)) for x in p))
 
 
 class VariantTable:
@@ -173,7 +173,6 @@ class VariantTable:
 		assert len(genotypes) == len(self.variants)
 		self.genotypes[self._sample_to_index[sample]] = genotypes
 
-
 	def genotype_likelihoods_of(self, sample):
 		"""Retrieve genotype likelihoods by sample name"""
 		return self.genotype_likelihoods[self._sample_to_index[sample]]
@@ -217,7 +216,7 @@ class VariantTable:
 	def subset_rows_by_position(self, positions):
 		"""Keep only rows given in positions, discard the rest"""
 		positions = frozenset(positions)
-		to_discard = [ i for i, v in enumerate(self.variants) if v.position not in positions ]
+		to_discard = [i for i, v in enumerate(self.variants) if v.position not in positions]
 		self.remove_rows_by_index(to_discard)
 
 	def phased_blocks_as_reads(self, sample, input_variants, source_id, numeric_sample_id, default_quality=20, mapq=100):
@@ -240,7 +239,7 @@ class VariantTable:
 		read_map = {} # maps block_id core.Read objects
 		assert len(self.variants) == len(self.genotypes[sample_index]) == len(self.phases[sample_index])
 		for variant, genotype, phase in zip(self.variants, self.genotypes[sample_index], self.phases[sample_index]):
-			if not variant in input_variant_set:
+			if variant not in input_variant_set:
 				continue
 			if genotype != 1:
 				continue
@@ -316,7 +315,7 @@ class VcfReader:
 		"""
 		Return VariantTable object for a given chromosome.
 		"""
-		records = [record for record in self._vcf_reader.fetch(chromosome)]
+		records = list(self._vcf_reader.fetch(chromosome))
 		return self._process_single_chromosome(chromosome, records)
 
 	def __iter__(self):
@@ -376,10 +375,11 @@ class VcfReader:
 					continue
 
 			if (prev_position is not None) and (prev_position > pos):
-				raise VcfNotSortedError('VCF not ordered: {}:{} appears before {}:{}'.format(chromosome, prev_position+1, chromosome, pos+1))
+				raise VcfNotSortedError('VCF not ordered: {}:{} appears before {}:{}'.format(
+					chromosome, prev_position + 1, chromosome, pos + 1))
 
 			if prev_position == pos:
-				logger.warning('Skipping duplicated position %s on chromosome %r', pos+1, chromosome)
+				logger.warning('Skipping duplicated position %s on chromosome %r', pos + 1, chromosome)
 				continue
 			prev_position = pos
 
@@ -395,11 +395,13 @@ class VcfReader:
 							if phase_detected is None:
 								phase_detected = phase_name
 							elif phase_detected != phase_name:
-								raise MixedPhasingError('Mixed phasing information in input VCF (e.g. mixing PS and HP fields)')
+								raise MixedPhasingError(
+									"Mixed phasing information in input VCF (e.g. mixing PS "
+									"and HP fields)")
 							phase = p
 					phases.append(phase)
 			else:
-				phases = [ None ] * len(record.samples)
+				phases = [None] * len(record.samples)
 
 			# Read genotype likelihoods, if requested
 			if self._genotype_likelihoods:
@@ -413,11 +415,11 @@ class VcfReader:
 						genotype_likelihoods.append(GenotypeLikelihoods(*GL))
 					elif PL is not None:
 						assert len(PL) == 3
-						genotype_likelihoods.append(GenotypeLikelihoods( *(pl/-10 for pl in PL) ))
+						genotype_likelihoods.append(GenotypeLikelihoods(*(pl/-10 for pl in PL)))
 					else:
 						genotype_likelihoods.append(None)
 			else:
-				genotype_likelihoods = [ None ] * len(record.samples)
+				genotype_likelihoods = [None] * len(record.samples)
 
 			# PyVCF pecularity: gt_alleles is a list of the alleles in the
 			# GT field, but as strings.
@@ -456,6 +458,7 @@ def remove_overlapping_calls(calls):
 	# TODO obviously, this is not implemented ...
 	return calls
 
+
 GenotypeChange = namedtuple('GenotypeChange', ['sample', 'chromosome', 'variant', 'old_gt', 'new_gt'])
 
 class PhasedVcfWriter:
@@ -473,7 +476,8 @@ class PhasedVcfWriter:
 		command_line -- A string that will be added as a VCF header entry
 			(use None to not add this to the VCF header)
 		out_file -- Open file-like object to which VCF is written.
-		tag -- which type of tag to write, either 'PS' or 'HP'
+		tag -- which type of tag to write, either 'PS' or 'HP'. 'PS' is standardized;
+		    'HP' is compatible with GATK’s ReadBackedPhasing.
 		"""
 		self._reader = vcf.Reader(filename=in_path)
 		# FreeBayes adds phasing=none to its VCF output - remove that.
@@ -530,8 +534,8 @@ class PhasedVcfWriter:
 		Add phasing information to all variants on a single chromosome.
 
 		chromosome -- name of chromosome
-		sample_superreads -- dictionary that maps each sample to a superread
-		sample_components -- a dictionary that maps each sample to its connected components
+		sample_superreads -- dictionary that maps a sample name to a superread
+		sample_components -- a dictionary that maps a sample to its connected components
 
 			Each component in turn is a dict that maps each variant position to a
 			component, where a component is identified by the position of its
@@ -777,7 +781,7 @@ class GenotypeVcfWriter:
 					if pos in genotyped_variants:
 						likelihoods = variant_table.genotype_likelihoods_of(sample)[genotyped_variants[pos]]
 						# likelihoods can be 'None' if position was not accessible
-						if not likelihoods==None:
+						if likelihoods is not None:
 							geno_l = likelihoods
 							geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
 
