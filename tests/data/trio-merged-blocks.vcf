@@ -3,6 +3,7 @@
 ##source=SHAPEIT2.v837
 ##log_file=shapeit_13012016_17h46m11s_ff4214f9-16e7-4ce4-a73a-d1b439b32359.log
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Phased Genotype">
+##contig=<ID=1>
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG002	HG003	HG004
 1	752566	.	G	A	.	PASS	.	GT	1/1	1/1	0/1
 1	754964	.	C	T	.	PASS	.	GT	1/1	1/1	0/1
