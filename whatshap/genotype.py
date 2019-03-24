@@ -188,8 +188,7 @@ def run_genotype(phase_input_files, variant_file, reference=None,
 		# compute genotype likelihood threshold
 		gt_prob = 1.0-(10 ** (-gt_qual_threshold/10.0))
 
-		timers.start('parse_vcf')
-		for variant_table in vcf_reader:
+		for variant_table in timers.iterate('parse_vcf', vcf_reader):
 
 			# create a mapping of genome positions to indices
 			var_to_pos = dict()
@@ -197,7 +196,6 @@ def run_genotype(phase_input_files, variant_file, reference=None,
 				var_to_pos[variant_table.variants[i].position] = i
 
 			chromosome = variant_table.chromosome
-			timers.stop('parse_vcf')
 			if (not chromosomes) or (chromosome in chromosomes):
 				logger.info('======== Working on chromosome %r', chromosome)
 			else:
@@ -325,8 +323,6 @@ def run_genotype(phase_input_files, variant_file, reference=None,
 				logger.info('Done writing VCF')
 
 			logger.debug('Chromosome %r finished', chromosome)
-			timers.start('parse_vcf')
-		timers.stop('parse_vcf')
 
 	logger.info('\n== SUMMARY ==')
 	timers.stop('overall')

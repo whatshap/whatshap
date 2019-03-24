@@ -17,7 +17,9 @@ class StageTimer:
 	def stop(self, stage):
 		"""Stop measuring elapsed time for a stage."""
 		t = time.time() - self._start[stage]
+		assert t > 0
 		self._elapsed[stage] += t
+		del self._start[stage]
 		return t
 
 	def elapsed(self, stage):
@@ -36,4 +38,14 @@ class StageTimer:
 	def __call__(self, stage):
 		self.start(stage)
 		yield
+		self.stop(stage)
+
+	def iterate(self, stage, iterator):
+		"""Measure iterator runtime"""
+
+		self.start(stage)
+		for item in iterator:
+			self.stop(stage)
+			yield item
+			self.start(stage)
 		self.stop(stage)

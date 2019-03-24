@@ -659,10 +659,8 @@ def run_whatshap(
 			phase_input_vcfs.append(m)
 		timers.stop('parse_phasing_vcfs')
 
-		timers.start('parse_vcf')
-		for variant_table in vcf_reader:
+		for variant_table in timers.iterate('parse_vcf', vcf_reader):
 			chromosome = variant_table.chromosome
-			timers.stop('parse_vcf')
 			if (not chromosomes) or (chromosome in chromosomes):
 				logger.info('======== Working on chromosome %r', chromosome)
 			else:
@@ -943,7 +941,7 @@ def run_whatshap(
 				logger.info('Writing list of changed genotypes to \'%s\'', gtchange_list_filename)
 				f = open(gtchange_list_filename, 'w')
 				print('#sample', 'chromosome', 'position', 'REF', 'ALT', 'old_gt', 'new_gt', sep='\t', file=f)
-				INT_TO_UNPHASED_GT = { 0: '0/0', 1: '0/1', 2: '1/1', -1: '.' }
+				INT_TO_UNPHASED_GT = {0: '0/0', 1: '0/1', 2: '1/1', -1: '.'}
 				for changed_genotype in changed_genotypes:
 					print(changed_genotype.sample, changed_genotype.chromosome, changed_genotype.variant.position, 
 						changed_genotype.variant.reference_allele, changed_genotype.variant.alternative_allele,
@@ -953,8 +951,6 @@ def run_whatshap(
 				f.close()
 
 			logger.debug('Chromosome %r finished', chromosome)
-			timers.start('parse_vcf')
-		timers.stop('parse_vcf')
 
 	if read_list_file:
 		read_list_file.close()
