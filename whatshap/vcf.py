@@ -526,7 +526,7 @@ class PhasedVcfWriter(VcfAugmenter):
 			(use None to not add this to the VCF header)
 		out_file -- Open file-like object to which VCF is written.
 		tag -- which type of tag to write, either 'PS' or 'HP'. 'PS' is standardized;
-		    'HP' is compatible with GATK’s ReadBackedPhasing.
+			'HP' is compatible with GATK’s ReadBackedPhasing.
 		"""
 		if tag not in ('HP', 'PS'):
 			raise ValueError('Tag must be either "HP" or "PS"')
@@ -593,14 +593,13 @@ class PhasedVcfWriter(VcfAugmenter):
 		sample_phases = dict()
 		sample_genotypes = dict()
 		for sample, superreads in sample_superreads.items():
-			sample_phases[sample] = {
-				v1.position: v1.allele for v1, v2 in zip(*superreads)
-					if (v1.allele, v2.allele) in allowed_alleles
+			alleles = {
+				(v1.position, v1.allele, v2.allele) for v1, v2 in zip(*superreads)
+				if (v1.allele, v2.allele) in allowed_alleles
 			}
+			sample_phases[sample] = {position: allele1 for position, allele1, allele2 in alleles}
 			sample_genotypes[sample] = {
-				v1.position: v1.allele + v2.allele for v1, v2 in zip(*superreads)
-					if (v1.allele, v2.allele) in allowed_alleles
-			}
+				position: allele1 + allele2 for position, allele1, allele2 in alleles}
 		prev_pos = None
 		INT_TO_UNPHASED_GT = {0: (0, 0), 1: (0, 1), 2: (1, 1), -1: None}
 		for record in self._iterrecords(chromosome):
@@ -662,7 +661,7 @@ class PhasedVcfWriter(VcfAugmenter):
 					if pos in components and pos in phases and is_het:
 						self._set_phasing_tags(call, components[pos], phases[pos])
 					else:
-						# Unphased - set phase tag to '.'
+						# Unphased
 						call[self.tag] = None
 			self._writer.write(record)
 			prev_pos = pos
