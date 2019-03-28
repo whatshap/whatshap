@@ -155,7 +155,7 @@ cdef extern from "../src/clusterediting/ReadScoring.h":
 		
 cdef extern from "../src/threading/HaploThreader.h":
 	cdef cppclass HaploThreader:
-		HaploThreader(uint32_t ploidy, double switchCost, double affineSwitchCost) except +
+		HaploThreader(uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit) except +
 		vector[vector[uint32_t]] computePaths(uint32_t num_vars, 
 					vector[vector[uint32_t]]& covMap,
                     vector[vector[double]] &coverage, 

@@ -164,7 +164,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 		start_col = find_backtracing_start(scoring, num_vars)
 		print("starting in column: ", start_col)
 		last_min_idx = min((val, idx) for (idx, val) in enumerate([i[0] for i in scoring[start_col]]))[1]
-		#print("DP Score = "+str(min((val, idx) for (idx, val) in enumerate([i[0] for i in scoring[start_col]]))[0]))
+		print("DP Score = "+str(min((val, idx) for (idx, val) in enumerate([i[0] for i in scoring[start_col]]))[0]))
 
 		#instead of using all tuples, compute only the tuples relevant for the position start_col
 		clusters_tuples = geno_map[start_col]
@@ -196,7 +196,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 			position_wise_coverage.append(coverage_list)
 			cov_map_as_list.append(cov_map[pos])
 			compressed_consensus.append(consensus_list)
-		threader = HaploThreader(ploidy, 32.0, 8.0)
+		threader = HaploThreader(ploidy, 32.0, 0.0, True, 0)
 		path = threader.computePaths(num_vars, cov_map_as_list, position_wise_coverage, compressed_consensus, genotypes)
 		assert(len(path) == num_vars)
 	

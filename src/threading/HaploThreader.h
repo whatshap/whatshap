@@ -7,6 +7,7 @@
 #include <iostream>
 #include <string> 
 #include <sstream>
+#include <algorithm>
     
 typedef uint32_t GlobalClusterId;
 typedef uint32_t LocalClusterId;
@@ -48,13 +49,7 @@ struct ClusterTuple {
      */
     ClusterTuple(const std::vector<LocalClusterId>& clusters) {
         tuple = 0;
-        if (clusters.size() >= MAX_PLOIDY) {
-            std::cout<<"Cluster tuple with size "<<clusters.size()<<" > MAX_PLOIDY detected!"<<std::endl;
-        }
         for (uint32_t i = 0; i < clusters.size(); i++) {
-            if (clusters[i] >= MAX_CLUSTERS_PER_COLUMN) {
-                std::cout<<"Cluster id "<<clusters[i]<<" > MAX_CLUSTERS_PER_COLUMN detected!"<<std::endl;
-            }
             tuple += (((TupleCode)clusters[i]) << (i*BITS_PER_CLUSTER));
         }
     }
@@ -122,6 +117,19 @@ struct ClusterTuple {
         return tuple;
     }
     
+    TupleCode fingerprint(uint32_t ploidy) const {
+        std::vector<LocalClusterId> clusters;
+        for (uint32_t i = 0; i < ploidy; i++) {
+            clusters.push_back(get(i));
+        }
+        std::sort(clusters.begin(), clusters.end());
+        TupleCode fp = 0;
+        for (uint32_t i = 0; i < ploidy; i++) {
+            fp += (((TupleCode)clusters[i]) << (i*BITS_PER_CLUSTER));
+        }
+        return fp;
+    }
+    
     /**
      * Converts the tuple into a vector with global cluster ids. Each local cluster id is mapped to a global id using the provided vector.
      */
@@ -155,8 +163,28 @@ struct ClusterTuple {
         return s.str();
     }
     
+    /**
+     * Returns a strin representation of the tuple.
+     */
+    std::string asString(uint32_t ploidy) const {
+        std::stringstream s;
+        s<<"[";
+        for (uint32_t i = 0; i < ploidy; i++) {
+            s<<get(i);
+            if (i < ploidy - 1) {
+                s<<", ";
+            } 
+        }
+        s<<"]";
+        return s.str();
+    }
+    
     bool operator==(const ClusterTuple& other) const {
         return tuple == other.tuple;
+    }
+    
+    bool operator!=(const ClusterTuple& other) const {
+        return tuple != other.tuple;
     }
 };
 
@@ -164,6 +192,32 @@ template <>
 struct std::hash<ClusterTuple> {
     std::size_t operator()(const ClusterTuple& t) const {
         return std::hash<TupleCode>()(t.tuple);
+    }
+};
+
+struct ClusterEntry {
+    Score score;
+    ClusterTuple pred;
+    
+    ClusterEntry() :
+    score(std::numeric_limits<Score>::infinity()),
+    pred(ClusterTuple::INVALID_TUPLE) {}
+    
+    ClusterEntry(const Score score, const ClusterTuple pred) :
+    score(score),
+    pred(pred){}
+    
+    ClusterEntry(const ClusterEntry& other) {
+        pred = other.pred;
+        score = other.score;
+    }
+    
+    bool operator==(const ClusterEntry& other) const {
+        return pred == other.pred && score == other.score;
+    }
+    
+    bool operator!=(const ClusterEntry& other) const {
+        return pred != other.pred || score != other.score;
     }
 };
 
@@ -185,7 +239,7 @@ public:
      * @param switchCost The factor how much a single cluster switches is penalized over a wrong copy number of a cluster (compared to its coverage)
      * @param affineSwitchCost Penalty for a position, in which a cluster switch occurs
      */
-    HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost);
+    HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit);
     
     /**
      * Computes a number of paths (depending on the provided ploidy), which run through the provided clusters. For each variant the result
@@ -208,7 +262,8 @@ private:
     uint32_t ploidy;
     double switchCost;
     double affineSwitchCost;
-    std::vector<std::vector<std::vector<uint32_t>>> perms;
+    bool symmetryOptimization;
+    uint32_t rowLimit;
     
     /**
      * Computes the coverage cost of a tuple, considering the following coverage distribution. All cluster
@@ -238,22 +293,6 @@ private:
      * Computes all permutations as tuples.
      */
     std::vector<ClusterTuple> getCombinations(uint32_t maxElem, bool allowPermutations) const;
-    
-    std::vector<ClusterTuple> getNonSymmetricExtensions(ClusterTuple tuple, const std::vector<GlobalClusterId>& clusters, 
-                                                        const std::vector<int32_t>& mapPos, std::vector<uint32_t>& numUsed, 
-                                                        uint32_t numClusters) const;
-    
-    /**
-     * Computes all permutations as tuples.
-     */
-    std::vector<std::vector<uint32_t>> getPermutationsVector(uint32_t maxElem) const;
-    
-    /**
-     * Generates a vector, which contains all permutations of the input tuples. There is no check for duplications,
-     * so the caller has to make sure, that no two input tuples are already permutations of each other. The input
-     * tuples themselves are included in the output.
-     */
-    std::vector<ClusterTuple> extendAll(const std::vector<ClusterTuple>& combinations) const;
 };
 
 #endif // HAPLOTHREADER_H

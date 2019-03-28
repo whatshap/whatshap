@@ -2,25 +2,18 @@
 #include <limits>
 #include <algorithm>
 #include <unordered_set>
+#include <random>
 
 constexpr uint64_t ClusterTuple::TUPLE_MASKS[];
 const ClusterTuple ClusterTuple::INVALID_TUPLE = ClusterTuple((TupleCode)-1);
 
-HaploThreader::HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost) :
+HaploThreader::HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit) :
     ploidy(ploidy),
     switchCost(switchCost),
-    affineSwitchCost(affineSwitchCost)
+    affineSwitchCost(affineSwitchCost),
+    symmetryOptimization(symmetryOptimization),
+    rowLimit(rowLimit)
 {
-    for (uint32_t p = 0; p <= ploidy; p++) {
-        std::vector<std::vector<uint32_t>> pPerms;
-        std::vector<uint32_t> n;
-        for (uint32_t i = 0; i < p; i++)
-            n.push_back(i);
-        do {
-            pPerms.push_back(n);
-        } while (std::next_permutation(n.begin(), n.end()));
-        perms.push_back(pPerms);
-    }
 }
 
 std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position num_vars, 
@@ -31,80 +24,53 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
                    ) const {
     
     // setup data structures
-    std::unordered_map<ClusterTuple, Score> pred;
-    std::vector<std::unordered_map<ClusterTuple, Score>> d;
-    std::vector<std::unordered_map<ClusterTuple, ClusterTuple>> b;
+    std::vector<std::unordered_map<ClusterTuple, ClusterEntry>> m;
     Position firstUnthreadedPosition = 0;
     std::vector<std::vector<GlobalClusterId>> path;
-    std::vector<std::vector<ClusterTuple>> confSets;
-    std::vector<std::vector<ClusterTuple>> confSetsExt;
-    
-    // aux data structures for symmetry pruning
-    GlobalClusterId numClusters = 0;
-    for (std::vector<GlobalClusterId>& clusters : covMap) {
-        for (GlobalClusterId cluster : clusters) {
-            numClusters = std::max(numClusters, cluster);
-        }
-    }
-    std::vector<int32_t> mapPos(numClusters*ploidy, -1);
-    std::vector<uint32_t> numUsed(numClusters, 0);
 
     // initialize first column
-    confSets.push_back(computeGenotypeConformTuples(covMap[0], consensus[0], genotypes[0], false));
-    confSetsExt.push_back(computeGenotypeConformTuples(covMap[0], consensus[0], genotypes[0], true));
-    for (ClusterTuple t : confSets[0]) {
-        for (uint32_t i = 0; i < ploidy; i++) {
-            if (t.get(i) >= covMap[0].size()) {
-                std::cout<<"Size error in pos "<<0<<std::endl;
-            }
-        }
-    }
-    for (ClusterTuple t : confSetsExt[0]) {
-        for (uint32_t i = 0; i < ploidy; i++) {
-            if (t.get(i) >= covMap[0].size()) {
-                std::cout<<"Size ext error in pos "<<0<<std::endl;
-            }
-        }
-    }
-    std::unordered_map<ClusterTuple, Score> scoreColumn;
-    std::unordered_map<ClusterTuple, ClusterTuple> btColumn;
-    if (confSetsExt[0].size() == 0) {
+    std::vector<ClusterTuple> confTuples = computeGenotypeConformTuples(covMap[0], consensus[0], genotypes[0], false);
+    std::unordered_map<ClusterTuple, ClusterEntry> column;
+    if (confTuples.size() == 0) {
         std::cout<<"First variant has no clusters!"<<std::endl;
         return path;
     }
     Score minimumInColumn = std::numeric_limits<Score>::infinity();
     ClusterTuple minimumTupleInColumn = ClusterTuple::INVALID_TUPLE;
     ClusterTuple minimumPredTupleInColumn = ClusterTuple::INVALID_TUPLE;
-    for (ClusterTuple t : confSetsExt[0]) {
-        scoreColumn[t] = getCoverageCost(t, coverage[0]);
-        btColumn[t] = ClusterTuple::INVALID_TUPLE;
+    uint32_t allEntries = 0;
+    uint32_t keptEntries = 0;
+    for (ClusterTuple t : confTuples) {
+        column[t] = ClusterEntry(getCoverageCost(t, coverage[0]), ClusterTuple::INVALID_TUPLE);
         firstUnthreadedPosition = 1;
-        if (scoreColumn[t] < minimumInColumn) {
-            minimumInColumn = scoreColumn[t];
+        if (column[t].score < minimumInColumn) {
+            minimumInColumn = column[t].score;
             minimumTupleInColumn = t;
         }
     }
-    d.push_back(scoreColumn);
-    b.push_back(btColumn);
     
-//     std::cout<<"Best score in column 0 is "<<minimumInColumn<<"("<<getCoverageCost(minimumTupleInColumn, coverage[0])<<") by "<<(minimumTupleInColumn.asString(ploidy, covMap[0]))<<std::endl;
+    // cut down rows if parameter is set
+    if (rowLimit > 0 && column.size() >= rowLimit) {
+        std::vector<std::pair<ClusterTuple, ClusterEntry>> tuplePairs(column.begin(), column.end());
+        std::sort(tuplePairs.begin(), tuplePairs.end(), [this] (const std::pair<ClusterTuple, ClusterEntry>& a, const std::pair<ClusterTuple, ClusterEntry>& b) { return a.second.score < b.second.score; });
+        for (uint32_t i = rowLimit; i < tuplePairs.size(); i++) {
+            column.erase(tuplePairs[i].first);
+        }
+    }
+    
+    m.push_back(std::unordered_map<ClusterTuple, ClusterEntry>(column.begin(), column.end()));
+    
+    std::cout<<"Best score in column 0 is "<<minimumInColumn<<"("<<getCoverageCost(minimumTupleInColumn, coverage[0])<<") by "<<(minimumTupleInColumn.asString(ploidy, covMap[0]))<<". Kept "<<column.size()<<" of "<<confTuples.size()<<"rows"<<std::endl;
+    allEntries += confTuples.size();
+    keptEntries += column.size();
     
     // iterate over positions
-    for (Position pos = 1; pos < num_vars; pos++) {
-        // compute conform tuples
-        confSets.push_back(computeGenotypeConformTuples(covMap[pos], consensus[pos], genotypes[pos], false));
-        confSetsExt.push_back(computeGenotypeConformTuples(covMap[pos], consensus[pos], genotypes[pos], true));
-        
-        // delete old tuples to save memory
-        if (pos >= 2) {
-            confSets[pos-2].clear();
-            confSetsExt[pos-2].clear();
-        }
+    for (Position pos = 1; pos < num_vars; pos++) {     
+        std::cout<<"Threading haplotypes through clusters .. ("<<pos<<"/"<<num_vars<<")\r"<<std::flush;
         
         // reset variables
-        scoreColumn.clear();
-        btColumn.clear();
-        
+        confTuples.clear();
+        column.clear();
         Score minimum = std::numeric_limits<Score>::infinity();
         ClusterTuple minimumPred = ClusterTuple::INVALID_TUPLE;
         bool minExists = false;
@@ -112,101 +78,105 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         minimumTupleInColumn = ClusterTuple::INVALID_TUPLE;
         minimumPredTupleInColumn = ClusterTuple::INVALID_TUPLE;
         
+        // compute conform tuples
+        confTuples = computeGenotypeConformTuples(covMap[pos], consensus[pos], genotypes[pos], true);
+        
         // iterate over rows
-        std::cout<<"Threading haplotypes through clusters .. ("<<pos<<"/"<<num_vars<<")\r"<<std::flush;
-        for (ClusterTuple rowTuple : confSetsExt[pos]) {
+        for (ClusterTuple rowTuple : confTuples) {
             minimum = std::numeric_limits<Score>::infinity();
             minimumPred = ClusterTuple::INVALID_TUPLE;
             
-            uint32_t extSize = 0;
-            if (confSetsExt[pos-1].size() > 100000*ploidy*ploidy) {
-                // optimize symmetry
-                // set up position map
-                for (uint32_t i = 0; i < ploidy; i++) {
-                    GlobalClusterId c = covMap[pos][rowTuple.get(i)];
-                    mapPos[c + numClusters*numUsed[c]] = i;
-                    numUsed[c]++;
-                }
-                // clear array after usage
-                for (uint32_t i = 0; i < ploidy; i++) {
-                    numUsed[covMap[pos][rowTuple.get(i)]] = 0;
-                }
-                
-                // iterate over non-permuted previous tuples and only generate necessary permutations from them
-                for (ClusterTuple predTup : confSets[pos-1]) {
-                    // generate extensions
-                    for (ClusterTuple extTup : getNonSymmetricExtensions(predTup, covMap[pos-1], mapPos, numUsed, numClusters)) {
-                        extSize++;
-                        Score s = d[pos-1][predTup] + getSwitchCost(rowTuple, extTup, covMap[pos], covMap[pos-1]);
-                        if (s < minimum) {
-                            minExists = true;
-                            minimum = s;
-                            minimumPred = extTup;
-                        }
-                    }
-                    
-                    // clear array after usage
-                    for (uint32_t i = 0; i < numClusters; i++) {
-                        numUsed[i] = 0;
-                    }
-                }
-                
-                // clean up after usage of arrays
-                for (uint32_t i = 0; i < ploidy; i++) {
-                    GlobalClusterId c = covMap[pos][rowTuple.get(i)];
-                    for (uint32_t j = 0; j < ploidy; j++)
-                        mapPos[c + j*numClusters] = -1;
-                }
-                for (uint32_t i = 0; i < ploidy; i++) {
-                    for (uint32_t j = 0; j < numClusters; j++)
-                        mapPos[j + i*numClusters] = -1;
-                }
-//                 std::cout<<"Ext: "<<confSetsExt[pos-1].size()<<"  Norm: "<<confSets[pos-1].size()<<" -> "<<extSize<<std::endl;
-            } else {
-                // brute force
-                for (ClusterTuple predTup : confSetsExt[pos-1]) {
-                    Score s = d[pos-1][predTup] + getSwitchCost(rowTuple, predTup, covMap[pos], covMap[pos-1]);
-                    if (s < minimum) {
-                        minExists = true;
-                        minimum = s;
-                        minimumPred = predTup;
-                    }
+            // iterate over previous rows
+            for (std::pair<ClusterTuple, ClusterEntry> predEntry : m[pos-1]) {
+                Score s = predEntry.second.score + getSwitchCost(rowTuple, predEntry.first, covMap[pos], covMap[pos-1]);
+                if (s < minimum) {
+                    minExists = true;
+                    minimum = s;
+                    minimumPred = predEntry.first;
                 }
             }
             
             // report best recursion
             if (minExists) {
-                scoreColumn[rowTuple] = minimum + getCoverageCost(rowTuple, coverage[pos]);
-                btColumn[rowTuple] = minimumPred;
+                column[rowTuple] = ClusterEntry(minimum + getCoverageCost(rowTuple, coverage[pos]), minimumPred);
             } else {
-                scoreColumn[rowTuple] = getCoverageCost(rowTuple, coverage[pos]);
-                btColumn[rowTuple] = ClusterTuple::INVALID_TUPLE;
+                column[rowTuple] = ClusterEntry(getCoverageCost(rowTuple, coverage[pos]), ClusterTuple::INVALID_TUPLE);
             }
             firstUnthreadedPosition = pos+1;
-            if (scoreColumn[rowTuple] < minimumInColumn) {
-                minimumInColumn = scoreColumn[rowTuple];
+            if (column[rowTuple].score < minimumInColumn) {
+                minimumInColumn = column[rowTuple].score;
                 minimumTupleInColumn = rowTuple;
                 minimumPredTupleInColumn = minimumPred;
             }
         }
         
-        // write column into dp table(s)
-        d.push_back(scoreColumn);
-        b.push_back(btColumn);
+        if (symmetryOptimization) {
+            // remove permutations among entries
+            std::unordered_map<TupleCode, std::pair<ClusterTuple, Score>> bestPerms;
+            std::vector<ClusterTuple> duplicates;
+            for (std::pair<ClusterTuple, ClusterEntry> e : column) {
+                TupleCode fp = e.first.fingerprint(ploidy);
+                if (e.second.score < bestPerms[fp].second || bestPerms[fp].first == ClusterTuple::INVALID_TUPLE) {
+                    bestPerms[fp] = std::pair<ClusterTuple, Score>(e.first, e.second.score);
+                } else {
+                    duplicates.push_back(e.first);
+                }
+            }
+            for (ClusterTuple t : duplicates) {
+                column.erase(t);
+            }
+            
+            // remove non-profitable entries
+            std::vector<ClusterTuple> profitableTuples;
+            profitableTuples.push_back(minimumTupleInColumn);
+    //         std::shuffle (confTuples.begin(), confTuples.end(), std::default_random_engine(0));
+    //         std::vector<std::pair<ClusterTuple, Score>> tuplePairs(scoreColumn.begin(), scoreColumn.end());
+    //         std::sort(tuplePairs.begin(), tuplePairs.end(), [this] (const std::pair<ClusterTuple, Score>& a, const std::pair<ClusterTuple, Score>& b) { return a.second < b.second; });
+            for (ClusterTuple t : confTuples) {
+                if (t == minimumTupleInColumn)
+                    continue;
+                bool profitable = true;
+                for (ClusterTuple p : profitableTuples) {
+                    if (column[t].score >= column[p].score + getSwitchCost(t, p, covMap[pos], covMap[pos])) {
+                        profitable = false;
+                        break;
+                    }
+                }
+                if (profitable) {
+                    if (profitableTuples.size() < ploidy) {
+                        profitableTuples.push_back(t);
+                    }
+                } else {
+                    column.erase(t);
+                }
+            }
+        }
         
-//         std::cout<<"Best score in column "<<pos<<" is "<<minimumInColumn<<"("<<getCoverageCost(minimumTupleInColumn, coverage[pos])<<" + "<<(minimumInColumn-getCoverageCost(minimumTupleInColumn, coverage[pos]))<<") by "<<(minimumTupleInColumn.asString(ploidy, covMap[pos]))<<" from "<<(minimumPredTupleInColumn.asString(ploidy, covMap[pos-1]))<<std::endl;
+        // cut down rows if parameter is set
+        if (rowLimit > 0 && column.size() >= rowLimit) {
+            std::vector<std::pair<ClusterTuple, ClusterEntry>> tuplePairs(column.begin(), column.end());
+            std::sort(tuplePairs.begin(), tuplePairs.end(), [this] (const std::pair<ClusterTuple, ClusterEntry>& a, const std::pair<ClusterTuple, ClusterEntry>& b) { return a.second.score < b.second.score; });
+            for (uint32_t i = rowLimit; i < tuplePairs.size(); i++) {
+                column.erase(tuplePairs[i].first);
+            }
+        }
+        
+        // write column into dp table(s)
+        m.push_back(std::unordered_map<ClusterTuple, ClusterEntry>(column.begin(), column.end()));
+        
+        std::cout<<"Best score in column "<<pos<<" is "<<minimumInColumn<<"("<<getCoverageCost(minimumTupleInColumn, coverage[pos])<<" + "<<(minimumInColumn-getCoverageCost(minimumTupleInColumn, coverage[pos]))<<") by "<<(minimumTupleInColumn.asString(ploidy, covMap[pos]))<<" from "<<(minimumPredTupleInColumn.asString(ploidy, covMap[pos-1]))<<". Kept "<<column.size()<<" of "<<confTuples.size()<<"rows"<<std::endl;
+        allEntries += confTuples.size();
+        keptEntries += column.size();
     }
     
     std::cout<<"Threading haplotypes through clusters .. ("<<num_vars<<"/"<<num_vars<<")"<<std::endl;
     
     // backtracking start
-//     std::cout<<"Start backtracking in column "<<(firstUnthreadedPosition-1)<<std::endl;
-    
     ClusterTuple currentRow = ClusterTuple::INVALID_TUPLE;
     Score minimum = std::numeric_limits<Score>::infinity();
-    for (std::pair<ClusterTuple, Score> entry : d[firstUnthreadedPosition-1]) {
-        if (entry.second < minimum) {
-            minimum = entry.second;
+    for (std::pair<ClusterTuple, ClusterEntry> entry : m[firstUnthreadedPosition-1]) {
+        if (entry.second.score < minimum) {
+            minimum = entry.second.score;
             currentRow = entry.first;
         }
     }
@@ -218,11 +188,12 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         path.push_back(currentRow.asVector(ploidy, covMap[firstUnthreadedPosition-1]));
     }
     
-//     std::cout<<"Optimal solution value = "<<(d[firstUnthreadedPosition-1][currentRow])<<std::endl;
+    std::cout<<"Kept "<<keptEntries<<" out of "<<allEntries<<" in DP table ("<<(keptEntries*100/allEntries)<<"%)"<<std::endl;
+    std::cout<<"Optimal solution value = "<<(m[firstUnthreadedPosition-1][currentRow].score)<<std::endl;
     
     // backtracking iteration
     for (Position pos = firstUnthreadedPosition-1; pos > 0; pos--) {
-        currentRow = b[pos][currentRow];
+        currentRow = m[pos][currentRow].pred;
         if (currentRow.asVector(ploidy, covMap[pos-1]).size() == 0) {
             std::cout<<"Problem occured at position "<<(pos-1)<<" in row "<<currentRow.asString(ploidy, covMap[pos-1])<<std::endl;
             std::vector<GlobalClusterId> fallback;
@@ -264,7 +235,7 @@ Score HaploThreader::getSwitchCost(const ClusterTuple tuple1, const ClusterTuple
     for (uint32_t i = 0; i < ploidy; i++) {
         switches += clusters1[tuple1.get(i)] != clusters2[tuple2.get(i)];
     }
-    return switches*switchCost;
+    return switches*switchCost + affineSwitchCost * (switches > 0);
 }
 
 std::vector<ClusterTuple> HaploThreader::computeGenotypeConformTuples (const std::vector<GlobalClusterId>& clusters,
@@ -344,101 +315,4 @@ std::vector<ClusterTuple> HaploThreader::getCombinations(uint32_t maxElem, bool 
     
     std::vector<ClusterTuple> uniqueTuples(tuples.begin(), tuples.end());
     return uniqueTuples;
-}
-
-std::vector<ClusterTuple> HaploThreader::getNonSymmetricExtensions(ClusterTuple tuple, const std::vector<GlobalClusterId>& clusters, 
-                                                                   const std::vector<int32_t>& mapPos, std::vector<uint32_t>& numUsed, 
-                                                                   uint32_t numClusters) const {
-    std::unordered_set<ClusterTuple> s;
-    
-    ClusterTuple bluePrint(0);
-    std::vector<bool> posUsed(ploidy, false);
-    std::vector<uint32_t> openLocalClusters;
-    std::vector<uint32_t> openPos;
-    std::vector<GlobalClusterId> cs;
-    
-    // for every entry in given tuple, find position for blue print
-    for (uint32_t i = 0; i < ploidy; i++) {
-        GlobalClusterId c = clusters[tuple.get(i)];
-        int32_t pos = mapPos[c + numClusters*numUsed[c]];
-        if (pos >= 0) {
-            if ((uint32_t)pos >= ploidy) {
-                std::cout<<"Map pos was higher than ploidy!"<<std::endl;
-            }
-            bluePrint.set(pos, tuple.get(i));
-            numUsed[c]++;
-            cs.push_back(c);
-            posUsed[pos] = true;
-        } else {
-            openLocalClusters.push_back(tuple.get(i));
-        }
-    }
-    // clean numUsed array
-    for (GlobalClusterId c : cs) {
-        numUsed[c] = 0;
-    }
-    
-    // collect all open positions in the blue print
-    for (uint32_t i = 0; i < ploidy; i++) {
-        if (!posUsed[i])
-            openPos.push_back(i);
-    }
-    
-    if (openPos.size() != openLocalClusters.size()) {
-        std::cout<<"Unequal number of open positions and open clusters!"<<std::endl;
-    }
-    
-    // permute only open clusters over open positions
-//     std::vector<std::vector<uint32_t>> perms = getPermutationsVector(openPos.size());
-//     std::cout<<perms.size()<<std::endl;
-    for (std::vector<uint32_t> perm : perms[openPos.size()]) {
-        ClusterTuple t(bluePrint);
-        for (uint32_t i = 0; i < perm.size(); i++) {
-            t.set(openPos[i], openLocalClusters[perm[i]]);
-        }
-        s.insert(t);
-    }
-    
-    return std::vector<ClusterTuple>(s.begin(), s.end());
-}
-
-std::vector<std::vector<uint32_t>> HaploThreader::getPermutationsVector(uint32_t maxElem) const {
-    std::vector<std::vector<uint32_t>> perms;
-    std::vector<LocalClusterId> curPerm(ploidy, 0);
-    
-    // enumerate all permutations of clusters
-    while (curPerm[ploidy-1] < maxElem) {
-        perms.push_back(curPerm);
-        
-        // increment permutation iterator
-        curPerm[0]++;
-        for (uint32_t i = 1; i < ploidy; i++) {
-            if (curPerm[i-1] >= maxElem) {
-                curPerm[i]++;
-                curPerm[i-1] = 0;
-            }
-        }
-    }
-    return perms;
-}
-
-std::vector<ClusterTuple> HaploThreader::extendAll(const std::vector<ClusterTuple>& combinations) const {
-    std::vector<ClusterTuple> tuples;
-    for (uint32_t i = 0; i < combinations.size(); i++) {
-        for (std::vector<uint32_t> perm : getPermutationsVector(ploidy)) {
-            ClusterTuple t(combinations[i]);
-            t.permute(perm);
-            tuples.push_back(t);
-        }
-    }
-    
-    std::unordered_set<TupleCode> s;
-    for (ClusterTuple t : tuples) {
-        s.insert(t.asNumber());
-    }
-    if (tuples.size() != s.size()) {
-        std::cout<<"Extended size was "<<tuples.size()<<" but only "<<s.size()<<" are distinct"<<std::endl;
-    }
-    
-    return tuples;
 }

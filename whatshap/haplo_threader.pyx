@@ -8,8 +8,8 @@ cimport cython
 cimport cpp
 
 cdef class HaploThreader:
-	def __cinit__(self, ploidy, switchCost, affineSwitchCost):
-		self.thisptr = new cpp.HaploThreader(ploidy, switchCost, affineSwitchCost)
+	def __cinit__(self, ploidy, switchCost, affineSwitchCost, symmetryOptimization, rowLimit):
+		self.thisptr = new cpp.HaploThreader(ploidy, switchCost, affineSwitchCost, symmetryOptimization, rowLimit)
 
 	def computePaths(self, uint32_t num_vars, vector[vector[uint32_t]] covMap, vector[vector[double]] coverage, vector[vector[uint32_t]] consensus, vector[uint32_t] genotypes):
 		cdef vector[vector[uint32_t]] path
