@@ -430,7 +430,7 @@ def draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, var_t
 		c_map[c_id] = i
 	num_c = len(c_list)
 	
-	# Plot heatmaps
+	# Setup figure
 	fig = plt.figure(figsize=(num_vars/40, num_c/4), dpi=100)
 	legend_handles = {}
 	x_scale = 1
@@ -452,10 +452,19 @@ def draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, var_t
 	ext_cuts.append(num_vars)
 	
 	# Plot cluster coverage
+	xs = list(range(num_vars))
 	for c_id in range(num_c):
+		min_pos = num_vars
+		max_pos = 0
 		for pos in range(num_vars):
 			if (coverage[c_list[c_id]][pos] > 0):
-				plt.vlines(x = x_scale*pos, ymin = y_offset, ymax = y_offset + c_height*coverage[c_list[c_id]][pos], color = 'gray')
+				min_pos = min(min_pos, pos)
+				max_pos = max(max_pos, pos)
+				#plt.vlines(x = x_scale*pos, ymin = y_offset, ymax = y_offset + c_height*coverage[c_list[c_id]][pos], color = 'gray')
+		#plt.plot(xs, coverage[c_list[c_id]], marker='.', lw=1)
+		#d = [y_offset for i in range(num_vars)]
+		ys = [y_offset + c_height*cov for cov in coverage[c_list[c_id]][min_pos:max_pos+1]]
+		plt.fill_between(x=xs[min_pos:max_pos+1], y1=ys, y2=y_offset, color='gray')
 		plt.hlines(y = y_offset + c_height + y_margin/2, xmin = 0, xmax = x_scale*num_vars - 1, color = 'lightgray', alpha = 0.5)
 		y_offset += (c_height + y_margin)
 		
@@ -472,7 +481,6 @@ def draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, var_t
 		plt.hlines(y = (c_map[current]+0.25+p/ploidy*0.5)*(c_height+y_margin), xmin = x_scale*start, xmax = x_scale*num_vars - 1, color = 'C'+str(p), alpha = 0.9)
 		
 	# Plot switch flip errors
-	
 	#print(cut_positions)
 	#print(ext_cuts)
 	#print(haplotypes)
@@ -489,8 +497,11 @@ def draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, var_t
 		#print(block2)
 		switchflips, switches_in_column, flips_in_column = compute_switch_flips_poly_bt(block1, block2, report_error_positions = True, switch_cost = 1+1/(num_vars*ploidy))
 		for pos, e in enumerate(switches_in_column):
-			plt.vlines(x = ext_cuts[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*e, color = 'blue', alpha = 0.6)
+			if e > 0:
+				plt.vlines(x = ext_cuts[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*e, color = 'blue', alpha = 0.6)
 		for pos, flipped in enumerate(flips_in_column):
+			if len(flipped) == 0:
+				continue
 			if ext_cuts[i]+pos >= len(paths):
 				continue
 			plt.vlines(x = ext_cuts[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*len(flipped), color = 'orange', alpha = 0.6)

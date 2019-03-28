@@ -3,6 +3,7 @@
 
 #include "EdgeHeap.h"
 #include "ClusterEditingSolutionLight.h"
+#include "ProgressPrinter.h"
 
 class InducedCostHeuristic {
 
@@ -12,8 +13,8 @@ public:
 
 private:    
     void init();
-    void choosePermanentEdge(const DynamicSparseGraph::Edge eIcf);
-    void chooseForbiddenEdge(const DynamicSparseGraph::Edge eIcp);
+    void choosePermanentEdge(const DynamicSparseGraph::Edge eIcf, ProgressPrinter& pp);
+    void chooseForbiddenEdge(const DynamicSparseGraph::Edge eIcp, ProgressPrinter& pp);
     bool resolvePermanentForbidden();
     void setForbidden(const DynamicSparseGraph::Edge e);
     void setPermanent(const DynamicSparseGraph::Edge e);

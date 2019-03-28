@@ -196,7 +196,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 			position_wise_coverage.append(coverage_list)
 			cov_map_as_list.append(cov_map[pos])
 			compressed_consensus.append(consensus_list)
-		threader = HaploThreader(ploidy, 32.0, 0.0, True, 0)
+		threader = HaploThreader(ploidy, 32.0, 8.0, True, 0)
 		path = threader.computePaths(num_vars, cov_map_as_list, position_wise_coverage, compressed_consensus, genotypes)
 		assert(len(path) == num_vars)
 	

@@ -82,6 +82,7 @@ extensions = [
 			'src/clusterediting/Globals.cpp',
 			'src/clusterediting/Helpers.cpp',
 			'src/clusterediting/InducedCostHeuristic.cpp',
+			'src/clusterediting/ProgressPrinter.cpp',
 			'src/clusterediting/StaticSparseGraph.cpp',
 			'src/clusterediting/SolutionChecker.cpp',
 			'src/clusterediting/TriangleSparseMatrix.cpp',

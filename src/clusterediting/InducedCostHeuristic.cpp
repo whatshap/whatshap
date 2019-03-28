@@ -25,12 +25,8 @@ InducedCostHeuristic::InducedCostHeuristic(StaticSparseGraph& param_graph, bool 
 
 ClusterEditingSolutionLight InducedCostHeuristic::solve() {
     // execute algorithm
-    if (verbosity >= 1) {
-        if (verbosity == 1)
-            std::cout<<"Running heuristic.. \r" <<std::flush;
-        else
-            std::cout<<"Running heuristic.. " <<std::endl;
-    }
+    ProgressPrinter hProgress("Running heuristic", 0, totalEdges);
+    
     if (totalCost == std::numeric_limits<EdgeWeight>::infinity()) {
         // if resolving permanent and forbidden edges lead to contradiction, cost are infinte here, thus cancel algorithm
         std::cout<<"Instance is infeasible!" <<std::endl;
@@ -49,24 +45,18 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
         
         if (mIcf >= mIcp) {
             // set eIcf to permanent
-            choosePermanentEdge(eIcf);
+            choosePermanentEdge(eIcf, hProgress);
         } else {
             // set eIcp fo forbidden
-            chooseForbiddenEdge(eIcp);
+            chooseForbiddenEdge(eIcp, hProgress);
         }
-        printHeuristicProgress();
+        hProgress.setProgress(totalEdges - edgeHeap.numUnprocessed());
     }
 
-    if (verbosity >= 1)
-        std::cout<<"Running heuristic.. 100%   "<<std::endl;
+    hProgress.setFinished();
 
     // calculate clustering
-    if (verbosity >= 1) {
-        if (verbosity == 1)
-            std::cout<<"Constructing result.. \r"<<std::flush;
-        else
-            std::cout<<"Constructing result.. "<<std::endl;
-    }
+    ProgressPrinter rProgress("Constructing result", 0, graph.numNodes());
     std::vector<std::vector<NodeId>> clusters;
     std::vector<int> clusterOfNode(graph.numNodes(), -1);
     for (NodeId u = 0; u < graph.numNodes(); u++) {
@@ -75,7 +65,7 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
             std::cout<<"Processing node "<<u<<std::endl;
         }
         if (verbosity >= 1 && verbosity <= 4) {
-            std::cout<<"Constructing result.. "<<(u*100/graph.numNodes())<<"%\r"<<std::flush;
+            rProgress.step();
         }
         if (clusterOfNode[u] == -1) {
             int c = clusters.size();
@@ -98,12 +88,11 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
     for (std::vector<NodeId>& cluster : clusters) {
         std::sort(cluster.begin(), cluster.end());
     }
-    if (verbosity >= 1)
-        std::cout<<"Constructing result.. 100%   "<<std::endl;
+    rProgress.setFinished();
     return ClusterEditingSolutionLight(totalCost, clusters);
 }
 
-void InducedCostHeuristic::choosePermanentEdge(const DynamicSparseGraph::Edge eIcf) {
+void InducedCostHeuristic::choosePermanentEdge(const DynamicSparseGraph::Edge eIcf, ProgressPrinter& pp) {
     // set eIcf to permanent
     if (verbosity >= 5) {
         std::cout<<"Setting edge ("<<eIcf.u<<","<<eIcf.v<<") to permanent."<<std::endl;
@@ -149,7 +138,7 @@ void InducedCostHeuristic::choosePermanentEdge(const DynamicSparseGraph::Edge eI
     for (Edge e : implications) {
         setPermanent(e);
         edgeHeap.removeEdge(e);
-        printHeuristicProgress();
+        pp.setProgress(totalEdges - edgeHeap.numUnprocessed());
     }
     
     if (bundleEdges) {
@@ -181,13 +170,14 @@ void InducedCostHeuristic::choosePermanentEdge(const DynamicSparseGraph::Edge eI
                     cliqueToRepresentative[cxn] = ex;
                 } else {
                     edgeHeap.mergeEdges(ex, cliqueToRepresentative[cxn]);
+                    pp.setProgress(totalEdges - edgeHeap.numUnprocessed());
                 }
             }
         }
     }
 }
 
-void InducedCostHeuristic::chooseForbiddenEdge(const DynamicSparseGraph::Edge eIcp) {
+void InducedCostHeuristic::chooseForbiddenEdge(const DynamicSparseGraph::Edge eIcp, ProgressPrinter& pp) {
     if (verbosity >= 5) {
         std::cout<<"Setting edge ("<<eIcp.u<<","<<eIcp.v<<") to forbidden."<<std::endl;
     }
@@ -221,25 +211,21 @@ void InducedCostHeuristic::chooseForbiddenEdge(const DynamicSparseGraph::Edge eI
     for (Edge e : implications) {
         setForbidden(e);
         edgeHeap.removeEdge(e);
-        printHeuristicProgress();
+        pp.setProgress(totalEdges - edgeHeap.numUnprocessed());
     }
 }
 
 
 bool InducedCostHeuristic::resolvePermanentForbidden() {
-    if (verbosity >= 1) {
-        if (verbosity == 1)
-            std::cout<<"Resolving forbidden and permanent edges.. \r" <<std::flush;
-        else
-            std::cout<<"Resolving forbidden and permanent edges.. " <<std::endl;
-    }
+    ProgressPrinter pProgress("Resolving permanent edges", 0, graph.numNodes());
     // make cliques by connecting all nodes with inf path between them
     std::vector<bool> processed(graph.numNodes(), false);
     std::vector<std::vector<NodeId>> cliques;
     std::vector<std::vector<NodeId>> moreThanOneCliques;
     for (NodeId u = 0; u < graph.numNodes(); u++) {
-        if (processed[u])
+        if (processed[u]) {
             continue;
+        }
         std::vector<NodeId> clique;
         std::queue<NodeId> remaining;
         remaining.push(u);
@@ -258,6 +244,7 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
         cliques.push_back(clique);
         if (clique.size() > 1) {
             moreThanOneCliques.push_back(clique);
+            pProgress.setProgress(u);
         }
         for (NodeId x : clique) {
             for (NodeId y : clique) {
@@ -278,42 +265,44 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
             }
         }
     }
+    if (pProgress.getProgress() > 0)
+        pProgress.setFinished();
     
     // disconnect all cliques which have a forbidden edge between them
-    for (unsigned int k = 0; k < cliques.size(); k++) {
-        if (verbosity >= 1 && k % 100 == 0) {
-            std::cout<<"Resolving forbidden and permanent edges.. "<<(((2UL*cliques.size()-(uint64_t)k+1UL)*(uint64_t)k*100UL)/((uint64_t)cliques.size()*((uint64_t)cliques.size()-1UL)))<<"%\r"<<std::flush;
-        }
-        for (unsigned int l = 0; l < moreThanOneCliques.size(); l++) {
-            // search for forbidden edge between
-            bool found = false;
-            for (NodeId u : cliques[k]) {
-                if (found) break;
-                for (NodeId v : moreThanOneCliques[l]) {
-                    if (graph.getWeight(Edge(u, v)) == DynamicSparseGraph::Forbidden) {
-                        found = true;
-                        break;
+    if (cliques.size() > 0) {
+        ProgressPrinter fProgress("Resolving forbidden edges", 0, cliques.size());
+        for (unsigned int k = 0; k < cliques.size(); k++) {
+            for (unsigned int l = 0; l < moreThanOneCliques.size(); l++) {
+                // search for forbidden edge between
+                bool found = false;
+                for (NodeId u : cliques[k]) {
+                    if (found) break;
+                    for (NodeId v : moreThanOneCliques[l]) {
+                        if (graph.getWeight(Edge(u, v)) == DynamicSparseGraph::Forbidden) {
+                            found = true;
+                            break;
+                        }
                     }
                 }
-            }
-            // make all edges forbidden, if one forbidden edge was found
-            if (found) {
-                for (NodeId u : cliques[k]) {
-                    for (NodeId v : moreThanOneCliques[l]) {
-                        Edge e(u,v);
-                        if (graph.getWeight(e) != DynamicSparseGraph::Forbidden) {
-                            graph.setForbidden(e);
-                            if (verbosity >= 5) {
-                                std::cout<<"Making ("<<u<<","<<v<<") forbidden due to implication."<<std::endl;
+                // make all edges forbidden, if one forbidden edge was found
+                if (found) {
+                    for (NodeId u : cliques[k]) {
+                        for (NodeId v : moreThanOneCliques[l]) {
+                            Edge e(u,v);
+                            if (graph.getWeight(e) != DynamicSparseGraph::Forbidden) {
+                                graph.setForbidden(e);
+                                if (verbosity >= 5) {
+                                    std::cout<<"Making ("<<u<<","<<v<<") forbidden due to implication."<<std::endl;
+                                }
                             }
                         }
                     }
                 }
             }
+            fProgress.step();
         }
+        fProgress.setFinished();
     }
-    if (verbosity >= 1)
-        std::cout<<"Resolving forbidden and permanent edges.. 100%   "<<std::endl;
     return true;
 }
 

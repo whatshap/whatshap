@@ -60,7 +60,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
     
     m.push_back(std::unordered_map<ClusterTuple, ClusterEntry>(column.begin(), column.end()));
     
-    std::cout<<"Best score in column 0 is "<<minimumInColumn<<"("<<getCoverageCost(minimumTupleInColumn, coverage[0])<<") by "<<(minimumTupleInColumn.asString(ploidy, covMap[0]))<<". Kept "<<column.size()<<" of "<<confTuples.size()<<"rows"<<std::endl;
+//     std::cout<<"Best score in column 0 is "<<minimumInColumn<<"("<<getCoverageCost(minimumTupleInColumn, coverage[0])<<") by "<<(minimumTupleInColumn.asString(ploidy, covMap[0]))<<". Kept "<<column.size()<<" of "<<confTuples.size()<<"rows"<<std::endl;
     allEntries += confTuples.size();
     keptEntries += column.size();
     
@@ -164,7 +164,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         // write column into dp table(s)
         m.push_back(std::unordered_map<ClusterTuple, ClusterEntry>(column.begin(), column.end()));
         
-        std::cout<<"Best score in column "<<pos<<" is "<<minimumInColumn<<"("<<getCoverageCost(minimumTupleInColumn, coverage[pos])<<" + "<<(minimumInColumn-getCoverageCost(minimumTupleInColumn, coverage[pos]))<<") by "<<(minimumTupleInColumn.asString(ploidy, covMap[pos]))<<" from "<<(minimumPredTupleInColumn.asString(ploidy, covMap[pos-1]))<<". Kept "<<column.size()<<" of "<<confTuples.size()<<"rows"<<std::endl;
+//         std::cout<<"Best score in column "<<pos<<" is "<<minimumInColumn<<"("<<getCoverageCost(minimumTupleInColumn, coverage[pos])<<" + "<<(minimumInColumn-getCoverageCost(minimumTupleInColumn, coverage[pos]))<<") by "<<(minimumTupleInColumn.asString(ploidy, covMap[pos]))<<" from "<<(minimumPredTupleInColumn.asString(ploidy, covMap[pos-1]))<<". Kept "<<column.size()<<" of "<<confTuples.size()<<"rows"<<std::endl;
         allEntries += confTuples.size();
         keptEntries += column.size();
     }

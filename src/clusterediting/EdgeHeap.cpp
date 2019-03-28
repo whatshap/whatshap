@@ -1,4 +1,5 @@
 #include "EdgeHeap.h"
+#include "ProgressPrinter.h"
 #include <cmath>
 #include <algorithm>
   
@@ -21,18 +22,10 @@ EdgeHeap::EdgeHeap(StaticSparseGraph& param_graph) :
 {}
 
 void EdgeHeap::initInducedCosts() {
-    if (verbosity >= 1) {
-        if (verbosity == 1)
-            std::cout<<"Compute induced costs..\r"<<std::flush;
-        else
-            std::cout<<"Compute induced costs.."<<std::endl;
-    }
     uint64_t numNodes = graph.numNodes();
+    ProgressPrinter pp("Precompute induced costs", 0, 1+(numNodes*(numNodes-1UL))/2UL);
     // compute array: edge -> icf/icp
     for (NodeId u = 0; u < numNodes; u++) {
-        if (verbosity >= 1 && u % 100 == 0) {
-            std::cout<<"Compute induced costs.. "<<(((2UL*numNodes-(uint64_t)u+1UL)*(uint64_t)u*50UL)/((numNodes*(numNodes-1UL))/2UL))<<"%\r"<<std::flush;
-        }
         for (NodeId v : graph.getNonZeroNeighbours(u)) {
             if (v < u)
                 continue;
@@ -80,6 +73,7 @@ void EdgeHeap::initInducedCosts() {
                 icp[rId] += getIcp(w_uw, w_vw);
             }
         }
+        pp.setProgress(((2UL*numNodes-(uint64_t)u+1UL)*(uint64_t)u)/2UL);
     }
     
     for (unsigned int i = 0; i < icf.size(); i++){
@@ -114,8 +108,7 @@ void EdgeHeap::initInducedCosts() {
         edgeBundles[id].push_back(id);
     }
 
-    if (verbosity >= 1)
-        std::cout<<"Compute induced costs.. 100%   "<<std::endl;
+    pp.setFinished();
 }
 
 Edge EdgeHeap::getMaxIcfEdge() const {
