@@ -1,0 +1,9 @@
+##fileformat=VCFv4.1
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample
+ref	2	.	A	T	500.0	.	AC=2;AN=6	GT:GL	0/1:-2.1206,-0.8195,-0.07525
+ref	100	.	A	T	500.0	.	.	GT:PS   0/1:100
+ref	167	.	N	<INS>	.	PASS	AC=2;AN=6	GT	0/1
+ref	350	.	G	T	500.0	.	.	GT:HP:PQ	0/1:350-1,350-2:42
+ref	460	.	N	<DEL>	.	PASS	AC=2;AN=6	GT	0/1
+ref	473	.	N	<DUP>	.	PASS	AC=2;AN=6	GT	0/1
+ref	718	.	N	<INS:ME>	.	PASS	AC=2;AN=6	GT	0/1

@@ -16,7 +16,11 @@ from .core import Read, PhredGenotypeLikelihoods
 logger = logging.getLogger(__name__)
 
 
-class VcfNotSortedError(Exception):
+class VcfError(Exception):
+	pass
+
+
+class VcfNotSortedError(VcfError):
 	pass
 
 
@@ -455,10 +459,152 @@ def remove_overlapping_calls(calls):
 	return calls
 
 
+class VcfHeader:
+	def __init__(self, format_or_info, id, number, typ, description):
+		self.format_or_info = format_or_info
+		self.id = id
+		self.number =  number
+		self.typ = typ
+		self.description = description
+
+	def line(self):
+		return '##{format_or_info}=<ID={id},Number={number},Type={typ},'\
+			'Description="{description}">'.format(
+				format_or_info=self.format_or_info,
+				id=self.id,
+				number=self.number,
+				typ=self.typ,
+				description=self.description
+			)
+
+
+PREDEFINED_FORMATS = {
+	'GL': VcfHeader('FORMAT', 'GL', 'G', 'Float', 'Genotype Likelihood, log10-scaled likelihoods of the data given the called genotype for each possible genotype generated from the reference and alternate alleles given the sample ploidy'),
+	'GQ': VcfHeader('FORMAT', 'GQ', 1, 'Integer', 'Phred-scaled genotype quality'),
+	'GT': VcfHeader('FORMAT', 'GT', 1, 'String', 'Genotype'),
+	'HP': VcfHeader('FORMAT', 'HP', '.', 'String', 'Phasing haplotype identifier'),
+	'PQ': VcfHeader('FORMAT', 'PQ', 1, 'Float', 'Phasing quality'),
+	'PS': VcfHeader('FORMAT', 'PS', 1, 'Integer', 'Phase set identifier'),
+}
+
+PREDEFINED_INFOS = {
+	'AC': VcfHeader('INFO', 'AC', 'A', 'Integer', 'Allele count in genotypes, for each ALT allele, in the same order as listed'),
+	'AN': VcfHeader('INFO', 'AN', 'A', 'Integer', 'Total number of alleles in called genotypes'),
+	'END': VcfHeader('INFO', 'END', 1, 'Integer', 'Stop position of the interval'),
+	'SVLEN': VcfHeader('INFO', 'SVLEN', '.', 'Integer', 'Difference in length between REF and ALT alleles'),
+	'SVTYPE': VcfHeader('INFO', 'SVTYPE', 1, 'String', 'Type of structural variant'),
+}
+
+
+def augment_header(header, contigs, formats, infos):
+	"""
+	Add contigs, formats and infos to a VariantHeader.
+
+	formats and infos are given as a list of strings, where each item is the ID of the header
+	line to add. The full header info (Number, Type, Description) is taken from the PREDEFINED_*
+	constants above. Any other FORMATs or INFOs that are not predefined will raise a VcfError.
+
+	The header is modified in place.
+	"""
+	for contig in contigs:
+		header.contigs.add(contig)
+
+	for fmt in formats:
+		if fmt in header.formats:
+			header.formats[fmt].remove_header()
+		try:
+			h = PREDEFINED_FORMATS[fmt]
+		except KeyError:
+			raise VcfError("FORMAT {!r} not defined in VCF header".format(fmt)) from None
+		header.add_line(h.line())
+
+	for info in infos:
+		try:
+			h = PREDEFINED_INFOS[info]
+		except KeyError:
+			raise VcfError("INFO {!r} not defined in VCF header".format(info)) from None
+		header.add_line(h.line())
+
+
+def missing_headers(path):
+	"""
+	Find contigs, FORMATs and INFOs that are used within the body of a VCF file, but are
+	not listed in the header or that have an incorrect type.
+
+	Return a tuple (contigs, formats, infos) where each of the items are lists of
+	strings.
+
+	The reason this function exists is that pysam.VariantFile crashes when we
+	try to write a VCF record to it that uses contigs, INFOs or FORMATs that
+	are missing from the header. See also
+	<https://github.com/pysam-developers/pysam/issues/771>
+	"""
+	with VariantFile(path) as variant_file:
+		header = variant_file.header.copy()
+		# Check for FORMATs that do not have the expected type
+		incorrect_formats = []
+		for fmt, v in variant_file.header.formats.items():
+			if fmt not in PREDEFINED_FORMATS:
+				continue
+			h = PREDEFINED_FORMATS[fmt]
+			if v.number != h.number or v.type != h.typ:
+				incorrect_formats.append(fmt)
+
+		# Iterate through entire file and check which contigs, formats and
+		# info fields are used
+		contigs = []  # contigs encountered, in the proper order
+		seen_contigs = set()
+		formats = []  # FORMATs encountered, in the proper order
+		seen_formats = set()
+		seen_infos = set()  # INFOs encountered
+
+		for record in variant_file:
+			seen_infos.update(record.info)
+			if record.alts is not None:
+				for alt in record.alts:
+					# If there are "vague" ALT alleles such as <INS>, <DEL> etc, then
+					# the header needs to contain a LEN info entry even if LEN
+					# is never used
+					if alt.startswith('<'):
+						seen_infos.add('END')
+
+			# For the contigs, we maintain a list *and* a set because we want to
+			# keep track of the order of the contigs.
+			if record.contig not in seen_contigs:
+				contigs.append(record.contig)
+			seen_contigs.add(record.contig)
+
+			for fmt in record.format:
+				if fmt not in seen_formats:
+					formats.append(fmt)
+				seen_formats.add(fmt)
+
+	# Determine which contigs are missing from the header
+	header_contigs = set(header.contigs)
+	missing_contigs = []
+	for contig in contigs:
+		if contig not in header_contigs:
+			missing_contigs.append(contig)
+
+	# Determine which FORMATs are missing from the header
+	header_formats = set(header.formats)
+	missing_formats = []
+	for fmt in formats:
+		if fmt in header_formats:
+			continue
+		missing_formats.append(fmt)
+
+	# Determine which INFOs are missing from the header
+	missing_infos = list(set(seen_infos) - set(header.info))
+
+	return (missing_contigs, incorrect_formats + missing_formats, missing_infos)
+
+
 GenotypeChange = namedtuple('GenotypeChange', ['sample', 'chromosome', 'variant', 'old_gt', 'new_gt'])
 
 
 class VcfAugmenter(ABC):
+
 	def __init__(self, in_path, command_line, out_file=sys.stdout):
 		"""
 		in_path -- Path to input VCF, used as template.
@@ -468,13 +614,18 @@ class VcfAugmenter(ABC):
 		tag -- which type of tag to write, either 'PS' or 'HP'. 'PS' is standardized;
 		    'HP' is compatible with GATK’s ReadBackedPhasing.
 		"""
+		# TODO This is slow because it reads in the entire VCF one extra time
+		contigs, formats, infos = missing_headers(in_path)
+		# We repair the header (adding missing contigs, formats, infos) of the *input* VCF because
+		# we will modify the records that we read. Because those are associated with the input file
+		# the header must be repaired for the input file.
 		self._reader = VariantFile(in_path)
-		header = self._reader.header
+		augment_header(self._reader.header, contigs, formats, infos)
 		if command_line is not None:
 			command_line = '"' + command_line.replace('"', '') + '"'
-			header.add_meta('commandline', command_line)
-		self.setup_header(header)
-		self._writer = VariantFile(out_file, mode='w', header=header)
+			self._reader.header.add_meta('commandline', command_line)
+		self.setup_header(self._reader.header)
+		self._writer = VariantFile(out_file, mode='w', header=self._reader.header)
 		self._unprocessed_record = None
 		self._reader_iter = iter(self._reader)
 
@@ -544,11 +695,7 @@ class PhasedVcfWriter(VcfAugmenter):
 				hr.remove()
 				break
 
-		if self.tag == 'HP':
-			line = '##FORMAT=<ID=HP,Number=.,Type=String,Description="Phasing haplotype identifier">'
-		else:
-			line = '##FORMAT=<ID=PS,Number=1,Type=Integer,Description="Phase set identifier">'
-		header.add_line(line)
+		header.add_line(PREDEFINED_FORMATS[self.tag].line())
 
 	def _set_HP(self, call, component, phase):
 		"""
@@ -598,6 +745,7 @@ class PhasedVcfWriter(VcfAugmenter):
 				if (v1.allele, v2.allele) in allowed_alleles
 			}
 			sample_phases[sample] = {position: allele1 for position, allele1, allele2 in alleles}
+			# Map position to encoded genotype
 			sample_genotypes[sample] = {
 				position: allele1 + allele2 for position, allele1, allele2 in alleles}
 		prev_pos = None

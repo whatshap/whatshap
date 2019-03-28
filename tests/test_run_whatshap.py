@@ -103,7 +103,7 @@ def test_requested_sample_not_found(algorithm):
 			variant_file='tests/data/onevariant.vcf',
 			output='/dev/null',
 			samples=['DOES_NOT_EXIST'],
-		        algorithm=algorithm)
+			algorithm=algorithm)
 
 
 @mark.parametrize('algorithm,expected_vcf', [
@@ -958,4 +958,13 @@ def test_with_read_merging(algorithm) :
 		reference='tests/data/pacbio/reference.fasta',
 		output='/dev/null',
 		read_merging=True,
+		algorithm=algorithm)
+
+
+def test_vcf_with_missing_headers(algorithm):
+	# Ensure this does not segfault
+	run_whatshap(
+		phase_input_files=['tests/data/oneread.bam'],
+		variant_file='tests/data/missing-headers.vcf',
+		output='/dev/null',
 		algorithm=algorithm)
