@@ -188,12 +188,14 @@ struct ClusterTuple {
     }
 };
 
-template <>
-struct std::hash<ClusterTuple> {
-    std::size_t operator()(const ClusterTuple& t) const {
-        return std::hash<TupleCode>()(t.tuple);
-    }
-};
+namespace std {
+    template <>
+    struct hash<ClusterTuple> {
+        size_t operator()(const ClusterTuple& t) const {
+            return hash<TupleCode>()(t.tuple);
+        }
+    };
+}
 
 struct ClusterEntry {
     Score score;
