@@ -41,7 +41,7 @@ uint64_t ProgressPrinter::getTotalSteps() {
 
 void ProgressPrinter::checkProgress() {
     if (progress >= progressOfNextPercentage) {
-        percentage = (progress*100)/totalSteps;
+        percentage = totalSteps != 0 ? (progress*100)/totalSteps : 100;
         if (verbosity >= 1) {
             if (verbosity >= 2 || progress == totalSteps) {
                 std::cout<<name<<" .. "<<percentage<<"%"<<std::endl;
