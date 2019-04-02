@@ -2,6 +2,15 @@
 Changes
 =======
 
+development version
+-------------------
+
+* Fixed :issue:`51` by switching to ``pysam.VariantFile`` for reading and
+  VCF files.
+* Fixed :issue:`110`. ``.vcf.gz`` output files are now compressed with bgzip, so
+  that they can be indexed with tabix.
+* Support ``.bcf`` output.
+
 v0.18 (2019-02-15)
 ------------------
 * Add option ``--plot-sum-of-blocksizes`` to ``whatshap compare``.
