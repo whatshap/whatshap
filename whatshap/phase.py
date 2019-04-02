@@ -26,7 +26,7 @@ from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
 from .bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
 from .timer import StageTimer
 from .variants import ReadSetReader, ReadSetError
-from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
+from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError, plural_s
 
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -849,7 +849,7 @@ def run_whatshap(
 				with timers('phase'):
 					problem_name = 'MEC' if len(family) == 1 else 'PedMEC'
 					logger.info('Phasing %d sample%s by solving the %s problem ...',
-						len(family), 's' if len(family) > 1 else '', problem_name)
+						len(family), plural_s(len(family)), problem_name)
 
 					if algorithm == 'hapchat':
 						dp_table = HapChatCore(all_reads)

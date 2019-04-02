@@ -44,3 +44,7 @@ def IndexedFasta(path):
 	except pyfaidx.IndexNotFoundError:
 		raise FastaNotIndexedError()
 	return f
+
+
+def plural_s(n: int) -> str:
+	return "" if n == 1 else "s"
