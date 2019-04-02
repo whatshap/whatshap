@@ -1,0 +1,6 @@
+##fileformat=VCFv4.2
+##contig=<ID=1,length=249250621>
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Consensus Genotype across all datasets with called genotype">
+##FORMAT=<ID=PS,Number=1,Type=String,Description="Phase set for GT">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG002
+1	100	.	T	C	50	PASS	.	GT:PS	1|1:HOMVAR
