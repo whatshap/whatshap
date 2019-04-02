@@ -1,6 +1,5 @@
 import gzip
 import pyfaidx
-import os.path
 
 
 class UnknownFileFormatError(Exception):

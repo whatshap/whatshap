@@ -1,6 +1,4 @@
 import math
-import os
-from tempfile import TemporaryDirectory
 
 from pytest import raises, approx, fixture
 from whatshap.core import PhredGenotypeLikelihoods
@@ -8,9 +6,11 @@ from whatshap.phase import run_whatshap
 from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant, \
 	GenotypeLikelihoods
 
+import pysam
+
 
 @fixture(params=['whatshap', 'hapchat'])
-def algorithm(request) :
+def algorithm(request):
 	return request.param
 
 
@@ -226,29 +226,27 @@ def test_read_duplicate_position():
 	assert table.variants[1].alternative_allele == 'A'
 
 
-def test_do_not_phase_duplicate_position(algorithm):
+def test_do_not_phase_duplicate_position(algorithm, tmpdir):
 	"""Ensure HP tag is added only to first of duplicate positions"""
-	with TemporaryDirectory() as tmpdir:
-		tmpvcf = os.path.join(tmpdir, 'duplicate-positions-phased.vcf')
-		run_whatshap(
-			phase_input_files=['tests/data/oneread.bam'],
-			variant_file='tests/data/duplicate-positions.vcf',
-			output=tmpvcf,
-			algorithm=algorithm)
+	tmpvcf = str(tmpdir.join('duplicate-positions-phased.vcf'))
+	run_whatshap(
+		phase_input_files=['tests/data/oneread.bam'],
+		variant_file='tests/data/duplicate-positions.vcf',
+		output=tmpvcf,
+		algorithm=algorithm)
 
-		import vcf
-		seen_positions = set()
-		records = list(vcf.Reader(filename=tmpvcf))
-		assert len(records) == 4
-		for record in records:
-			assert not (record.start in seen_positions and hasattr(record.samples[0].data, 'HP'))
-			seen_positions.add(record.start)
+	seen_positions = set()
+	records = list(pysam.VariantFile(tmpvcf))
+	assert len(records) == 4
+	for record in records:
+		assert not (record.start in seen_positions and "HP" in record.format)
+		seen_positions.add(record.start)
 
 
 def test_multi_alt():
 	"""Skip multi-ALT in VCF"""
 	table = list(VcfReader('tests/data/unknown-genotype.vcf'))[0]
-	assert [ variant.position for variant in table.variants ] == [1, 4]
+	assert [variant.position for variant in table.variants] == [1, 4]
 
 
 def assert_genotype_likelihoods(actual, expected):
@@ -256,7 +254,7 @@ def assert_genotype_likelihoods(actual, expected):
 		assert actual is None
 		return
 	for i in range(2):
-		assert expected.log10_prob_of(i) == approx(actual.log10_prob_of(i), rel=1E-10)
+		assert expected.log10_prob_of(i) == approx(actual.log10_prob_of(i), rel=1E-6)
 
 
 def test_read_genotype_likelihoods():

@@ -137,9 +137,7 @@ else:
 	ext_modules = extensions
 	install_requires = [
 		'pysam>=0.15.0',
-		'PyVCF',
 		'pyfaidx>=0.5.5.2',
-		'xopen>=0.5.0',
 		'networkx',
 		'biopython>=1.73',  # pyfaidx needs this for reading bgzipped FASTA files
 		'typing; python_version<"3.5"',

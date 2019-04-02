@@ -14,7 +14,6 @@ from collections import defaultdict
 from copy import deepcopy
 from math import log
 
-from xopen import xopen
 from networkx import Graph, number_of_nodes, number_of_edges, connected_components, node_connected_component, shortest_path
 
 from contextlib import ExitStack
@@ -570,14 +569,13 @@ def run_whatshap(
 		else:
 			fasta = None
 		del reference
-		if isinstance(output, str):
-			output = stack.enter_context(xopen(output, 'w'))
 		if write_command_line_header:
-			command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
+			command_line = '(whatshap {}) {}'.format(__version__, ' '.join(sys.argv[1:]))
 		else:
 			command_line = None
-		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file,
-		        out_file=output, tag=tag)
+		vcf_writer = stack.enter_context(
+			PhasedVcfWriter(command_line=command_line, in_path=variant_file,
+		        out_file=output, tag=tag))
 		# Only read genotype likelihoods from VCFs when distrusting genotypes
 		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=distrust_genotypes)
 
@@ -592,7 +590,7 @@ def run_whatshap(
 		if ped and use_ped_samples:
 			samples = set()
 			for trio in PedReader(ped, numeric_sample_ids):
-				if (trio.child is None or trio.mother is None or trio.father is None):
+				if trio.child is None or trio.mother is None or trio.father is None:
 					continue
 				samples.add(trio.father)
 				samples.add(trio.mother)
@@ -612,7 +610,7 @@ def run_whatshap(
 		family_finder = ComponentFinder(samples)
 
 		if ped:
-			if algorithm == 'hapchat' :
+			if algorithm == 'hapchat':
 				logger.error('The hapchat algorithm (for the time being) does single '
 					'individual phasing only, hence it does not handle pedigrees')
 				sys.exit(1)
@@ -938,7 +936,7 @@ def run_whatshap(
 					logger.info('Changed %d genotypes while writing VCF', len(changed_genotypes))
 
 			if gtchange_list_filename:
-				logger.info('Writing list of changed genotypes to \'%s\'', gtchange_list_filename)
+				logger.info('Writing list of changed genotypes to %r', gtchange_list_filename)
 				f = open(gtchange_list_filename, 'w')
 				print('#sample', 'chromosome', 'position', 'REF', 'ALT', 'old_gt', 'new_gt', sep='\t', file=f)
 				INT_TO_UNPHASED_GT = {0: '0/0', 1: '0/1', 2: '1/1', -1: '.'}

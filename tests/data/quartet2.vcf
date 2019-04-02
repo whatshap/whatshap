@@ -1,5 +1,6 @@
 ##fileformat=VCFv4.2
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##contig=<ID=1>
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	mother	father	child1	child2
 1	245449236	.	G	T	.	PASS	.	GT	0/0	1/1	0/1	0/1
 1	245449751	.	C	T	.	PASS	.	GT	0/0	1/1	0/1	0/1

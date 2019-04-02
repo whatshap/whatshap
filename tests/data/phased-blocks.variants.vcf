@@ -13,6 +13,7 @@
 ##FORMAT=<ID=AO,Number=A,Type=Integer,Description="Alternate allele observation count">
 ##FORMAT=<ID=QA,Number=A,Type=Integer,Description="Sum of quality of the alternate observations">
 ##FORMAT=<ID=MIN,Number=1,Type=Integer,Description="Minimum depth in gVCF output block.">
+##contig=<ID=ref>
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG004_250bp_All
 ref	10854	.	A	G	662.276	.	.	GT	0/1
 ref	11221	.	G	A	0.0010674	.	.	GT	0/1
