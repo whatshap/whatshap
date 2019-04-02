@@ -10,6 +10,7 @@ import sys
 import platform
 import resource
 from collections import defaultdict
+from typing import Sequence
 
 from contextlib import ExitStack
 from .vcf import VcfReader, GenotypeVcfWriter
@@ -29,10 +30,10 @@ from .phase import read_reads, select_reads, split_input_file_list, setup_pedigr
 logger = logging.getLogger(__name__)
 
 
-def determine_genotype(likelihoods, threshold_prob):
-	"""given genotype likelihoods for 0/0,0/1,1/1, determines likeliest genotype"""
+def determine_genotype(likelihoods: Sequence[float], threshold_prob: float) -> float:
+	"""given genotype likelihoods for 0/0, 0/1, 1/1, determines likeliest genotype"""
 
-	to_sort = [(likelihoods[0],0),(likelihoods[1],1),(likelihoods[2],2)]
+	to_sort = [(likelihoods[0], 0), (likelihoods[1], 1), (likelihoods[2], 2)]
 	to_sort.sort(key=lambda x: x[0])
 
 	# make sure there is a unique maximum which is greater than the threshold
@@ -76,8 +77,7 @@ def run_genotype(
 	timers.start('overall')
 	logger.info("This is WhatsHap (genotyping) %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
-
-		# read the given input files (bams,vcfs,ref...)
+		# read the given input files (BAMs, VCFs, ref...)
 		numeric_sample_ids = NumericSampleIds()
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
 		try:
@@ -125,7 +125,7 @@ def run_genotype(
 		        out_file=output)
 		# vcf writer for only the prior likelihoods (if output is desired)
 		prior_vcf_writer = None
-		if prioroutput != None:
+		if prioroutput is not None:
 			prior_vcf_writer = GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=open(prioroutput,'w'))
 
 		# parse vcf with input variants
@@ -201,7 +201,7 @@ def run_genotype(
 		timers.stop('parse_phasing_vcfs')
 
 		# compute genotype likelihood threshold
-		gt_prob = 1.0-(10 ** (-gt_qual_threshold/10.0))
+		gt_prob = 1.0 - (10 ** (-gt_qual_threshold / 10.0))
 
 		for variant_table in timers.iterate('parse_vcf', vcf_reader):
 
@@ -215,9 +215,9 @@ def run_genotype(
 				logger.info('======== Working on chromosome %r', chromosome)
 			else:
 				logger.info('Leaving chromosome %r unchanged (present in VCF but not requested by option --chromosome)', chromosome)
-				vcf_writer.write_genotypes(chromosome,variant_table,indels,leave_unchanged=True)
-				if prioroutput != None:
-					prior_vcf_writer.write_genotypes(chromosome,variant_table,indels,leave_unchanged=True)
+				vcf_writer.write_genotypes(chromosome, variant_table, indels, leave_unchanged=True)
+				if prioroutput is not None:
+					prior_vcf_writer.write_genotypes(chromosome, variant_table, indels, leave_unchanged=True)
 				continue
 
 			positions = [v.position for v in variant_table.variants]
@@ -243,11 +243,12 @@ def run_genotype(
 
 				# use uniform genotype likelihoods for all individuals
 				for sample in samples:
-					variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * len(positions))
+					variant_table.set_genotype_likelihoods_of(sample,
+						[PhredGenotypeLikelihoods(1/3, 1/3, 1/3)] * len(positions))
 
 			# if desired, output the priors in separate vcf
-			if prioroutput != None:
-				prior_vcf_writer.write_genotypes(chromosome,variant_table,indels)
+			if prioroutput is not None:
+				prior_vcf_writer.write_genotypes(chromosome, variant_table, indels)
 
 			# Iterate over all families to process, i.e. a separate DP table is created
 			# for each family.
@@ -427,15 +428,16 @@ def validate(args, parser):
 		parser.error('Option --ignore-read-groups cannot be used together with --ped')
 	if args.genmap and not args.ped:
 		parser.error('Option --genmap can only be used together with --ped')
-	if args.genmap and (len(args.chromosomes) != 1):
-		parser.error('Option --genmap can only be used when working on exactly one chromosome (use --chromosome)')
+	if args.genmap and len(args.chromosomes) != 1:
+		parser.error(
+			'Option --genmap can only be used when working on exactly one chromosome (use --chromosome)')
 	if len(args.phase_input_files) == 0:
 		parser.error('Not providing any PHASEINPUT files not allowed for genotyping.')
 	if args.gt_qual_threshold < 0:
 		parser.error('Genotype quality threshold (gt-qual-threshold) must be at least 0.')
-	if args.prioroutput != None and args.nopriors:
+	if args.prioroutput is not None and args.nopriors:
 		parser.error('Genotype priors are only computed if --no-priors is NOT set.')
-	if args.constant != 0  and args.nopriors:
+	if args.constant != 0 and args.nopriors:
 		parser.error('--constant can only be used if --no-priors is NOT set..')
 	if args.affine_gap and not args.reference:
 		parser.error('Option --affine-gap can only be used together with --reference.')

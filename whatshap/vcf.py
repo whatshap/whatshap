@@ -617,8 +617,7 @@ class VcfAugmenter(ABC):
 		# TODO This is slow because it reads in the entire VCF one extra time
 		contigs, formats, infos = missing_headers(in_path)
 		# We repair the header (adding missing contigs, formats, infos) of the *input* VCF because
-		# we will modify the records that we read. Because those are associated with the input file
-		# the header must be repaired for the input file.
+		# we will modify the records that we read, and these are associated with the input file.
 		self._reader = VariantFile(in_path)
 		augment_header(self._reader.header, contigs, formats, infos)
 		if command_line is not None:
@@ -872,9 +871,9 @@ class GenotypeVcfWriter(VcfAugmenter):
 		INT_TO_UNPHASED_GT = {0: (0, 0), 1: (0, 1), 2: (1, 1), -1: None}
 		GT_GL_GQ = frozenset(['GT', 'GL', 'GQ'])
 		for record in self._iterrecords(chromosome):
-			pos, ref, alt = record.start, record.ref, record.alts[0]
+			pos = record.start
 
-			# if current chromosome was genotyped, write this new information to vcf
+			# if current chromosome was genotyped, write this new information to VCF
 			if not leave_unchanged:
 				for sample, call in record.samples.items():
 					geno = -1
@@ -889,7 +888,7 @@ class GenotypeVcfWriter(VcfAugmenter):
 							geno_l = likelihoods
 							geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
 
-					# compute GQ
+					# Compute GQ
 					if geno == 0:
 						geno_q = geno_l[1] + geno_l[2]
 					elif geno == 1:
@@ -899,12 +898,13 @@ class GenotypeVcfWriter(VcfAugmenter):
 
 					# TODO default value ok?
 					# store likelihoods log10-scaled
+
 					# Temporarily overwrite the GT field with a (fake) genotype that indicates a
 					# diploid sample. Otherwise, if the GT field happens to be empty, pysam
 					# complains that we are setting an incorrect number of GL values.
 					call['GT'] = (0, 1)
-					call['GL'] = [max(math.log10(j), -1000) if j > 0 else -1000 for j in geno_l]
 
+					call['GL'] = [max(math.log10(j), -1000) if j > 0 else -1000 for j in geno_l]
 					call['GT'] = INT_TO_UNPHASED_GT[geno]
 
 					# store quality as phred score

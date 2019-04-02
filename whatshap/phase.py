@@ -55,17 +55,17 @@ def find_components(phased_positions, reads, master_block=None, heterozygous_pos
 	phased_positions = set(phased_positions)
 	for read in reads:
 		if heterozygous_positions is None:
-			positions = [ variant.position for variant in read if variant.position in phased_positions ]
+			positions = [variant.position for variant in read if variant.position in phased_positions]
 		else:
-			positions = [ variant.position for variant in read \
+			positions = [variant.position for variant in read
 				if (variant.position in phased_positions) and (variant.position in heterozygous_positions[read.sample_id])
 			]
 		for position in positions[1:]:
 			component_finder.merge(positions[0], position)
-	if not master_block is None:
+	if master_block is not None:
 		for position in master_block[1:]:
 			component_finder.merge(master_block[0], position)
-	components = { position : component_finder.find(position) for position in phased_positions }
+	components = {position: component_finder.find(position) for position in phased_positions}
 	return components
 
 
@@ -99,14 +99,14 @@ def best_case_blocks(reads):
 			positions.add(variant.position)
 	component_finder = ComponentFinder(positions)
 	for read in reads:
-		read_positions = [ variant.position for variant in read ]
+		read_positions = [variant.position for variant in read]
 		for position in read_positions[1:]:
 			component_finder.merge(read_positions[0], position)
 	# A dict that maps each component to the number of variants it contains
 	component_sizes = defaultdict(int)
 	for position in positions:
 		component_sizes[component_finder.find(position)] += 1
-	non_singletons = [ component for component, size in component_sizes.items() if size > 1]
+	non_singletons = [component for component, size in component_sizes.items() if size > 1]
 	return len(component_sizes), len(non_singletons)
 
 
@@ -164,14 +164,14 @@ def eval_overlap(n1, n2):
 	match, mismatch = (0, 0)
 	for (c1, c2) in overlap:
 		if c1 in ['A', 'C', 'G', 'T'] and c1 in ['A', 'C', 'G', 'T']:
-			if c1 ==  c2:
+			if c1 == c2:
 				match += 1
 			else:
 				mismatch += 1
 	return (match, mismatch)
 
 
-def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold) :
+def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold):
 	"""
 	Return a set of reads after merging together subsets of reads
 	(into super reads) from an input readset according to a
@@ -188,7 +188,10 @@ def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold) :
 	probabilities that a pair of reads come from the same haplotype
 	and different haplotypes.
 	"""
-	logger.info('Merging %d reads with error rate %.2f, maximum error rate %.2f, positive threshold %d and negative threshold %d ...', len(readset), error_rate, max_error_rate, threshold, neg_threshold)
+	logger.info(
+		'Merging %d reads with error rate %.2f, maximum error rate %.2f, '
+		'positive threshold %d and negative threshold %d ...',
+		len(readset), error_rate, max_error_rate, threshold, neg_threshold)
 	logger.debug("Merging started.")
 	gblue = Graph()
 	gred = Graph()
@@ -198,7 +201,7 @@ def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold) :
 	# Probability that any nucleotide is wrong
 	logger.debug("Error Rate: %s", error_rate)
 
-	# If an edge has too many errors, we discard it, since it is not reliable
+	# If an edge has too many errors, we discard it since it is not reliable
 	logger.debug("Max Error Rate: %s", max_error_rate)
 
 	# Threshold of the ratio between the probabilities that the two reads come from
@@ -225,16 +228,16 @@ def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold) :
 	reads = {}
 	for read in readset:
 		id += 1
-		begin_str =read[0][0]
+		begin_str = read[0][0]
 		snps = []
-		orgn=[]
+		orgn = []
 		for variant in read:
 
 			site = variant[0]
 			zyg = variant[1]
 			qual = variant[2]
 
-			orgn.append([str(site),str(zyg),str(qual)])
+			orgn.append([str(site), str(zyg), str(qual)])
 			if int(zyg) == 0:
 				snps.append('G')
 			else:
@@ -242,9 +245,8 @@ def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold) :
 
 		begin = int(begin_str)
 		end = begin + len(snps)
-		orig_reads[id]=orgn
+		orig_reads[id] = orgn
 		logger.debug("id: %s - pos: %s - snps: %s", id, begin, "".join(snps))
-
 
 		gblue.add_node(id, begin=begin, end=end, sites="".join(snps))
 		gnotblue.add_node(id, begin=begin, end=end, sites="".join(snps))
@@ -298,7 +300,7 @@ def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold) :
 	# same blue connected component
 
 	blue_component = {}
-	current_component = 0;
+	current_component = 0
 	for conncomp in connected_components(gblue):
 		for v in conncomp:
 			blue_component[v] = current_component
@@ -327,7 +329,7 @@ def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold) :
 	rep = {} # cluster representative of a read in a cluster
 
 	for cc in connected_components(gblue):
-		if len(cc) > 1 :
+		if len(cc) > 1:
 			r = min(cc)
 			superreads[r] = {}
 			for id in cc:
@@ -770,13 +772,13 @@ def run_whatshap(
 						readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
 						logger.info('Kept %d reads that cover at least two variants each', len(readset))
 						merged_reads = readset
-						if read_merging :
+						if read_merging:
 							merged_reads = merge_reads(readset, read_merging_error_rate, read_merging_max_error_rate, read_merging_positive_threshold, read_merging_negative_threshold)
 						selected_reads = select_reads(merged_reads, max_coverage_per_sample, preferred_source_ids = vcf_source_ids)
 
 					readsets[sample] = selected_reads
-					if (len(family) == 1) and not distrust_genotypes:
-						# When having a pedigree (i.e. len(family)>1), then blocks are also merged after phasing based on the
+					if len(family) == 1 and not distrust_genotypes:
+						# When having a pedigree (i.e. len(family) > 1), then blocks are also merged after phasing based on the
 						# pedigree information and hence these statistics are not so useful.
 						# When distrust_genotypes is ON, then the genotypes can change during phasing and so can the block
 						# structure. Therefore, we also don't print these stats in this case.
@@ -819,7 +821,7 @@ def run_whatshap(
 					# If distrusting genotypes, we pass genotype likelihoods on to pedigree object
 					if distrust_genotypes:
 						genotype_likelihoods = []
-						for gt, gl in zip(phasable_variant_table.genotypes_of(sample),phasable_variant_table.genotype_likelihoods_of(sample)):
+						for gt, gl in zip(phasable_variant_table.genotypes_of(sample), phasable_variant_table.genotype_likelihoods_of(sample)):
 							assert 0 <= gt <= 2
 							if gl is None:
 								# all genotypes get default_gq as genotype likelihood, exept the called genotype ...
@@ -850,10 +852,9 @@ def run_whatshap(
 					logger.info('Phasing %d sample%s by solving the %s problem ...',
 						len(family), 's' if len(family) > 1 else '', problem_name)
 
-					dp_table = None
-					if algorithm == 'hapchat' :
+					if algorithm == 'hapchat':
 						dp_table = HapChatCore(all_reads)
-					else :
+					else:
 						dp_table = PedigreeDPTable(all_reads, recombination_costs, pedigree, distrust_genotypes, accessible_positions)
 
 					superreads_list, transmission_vector = dp_table.get_super_reads()
@@ -863,7 +864,7 @@ def run_whatshap(
 				with timers('components'):
 					master_block = None
 					heterozygous_positions_by_sample = None
-					# If we distrusted genotypes, we need to re-determine which sites are homo-/heterzygous after phasing
+					# If we distrusted genotypes, we need to re-determine which sites are homo-/heterozygous after phasing
 					if distrust_genotypes:
 						hom_in_any_sample = set()
 						heterozygous_positions_by_sample = {}
@@ -881,10 +882,10 @@ def run_whatshap(
 								elif gt in homozygous_gts:
 									hom_in_any_sample.add(v1.position)
 							heterozygous_positions_by_sample[numeric_sample_ids[sample]] = hets
-						if (len(family) > 1) and genetic_haplotyping:
+						if len(family) > 1 and genetic_haplotyping:
 							master_block = sorted(hom_in_any_sample)
 					else:
-						if (len(family) > 1) and genetic_haplotyping:
+						if len(family) > 1 and genetic_haplotyping:
 							master_block = sorted(set(homozygous_positions).intersection(set(accessible_positions)))
 					overall_components = find_components(accessible_positions, all_reads, master_block, heterozygous_positions_by_sample)
 					n_phased_blocks = len(set(overall_components.values()))
@@ -920,18 +921,18 @@ def run_whatshap(
 					components[sample] = overall_components
 
 				if read_list_file:
-					if algorithm == 'hapchat' :
-						logger.warning(''
-'On which haplotype a read occurs in the inferred solution is not yet '
-'implemented in hapchat (TODO), and so the corresponding column in the '
-'read list file contains no information about this')
+					if algorithm == 'hapchat':
+						logger.warning(
+							'On which haplotype a read occurs in the inferred solution is not yet '
+							'implemented in hapchat (TODO), and so the corresponding column in the '
+							'read list file contains no information about this')
 					write_read_list(all_reads, dp_table.get_optimal_partitioning(), components, numeric_sample_ids, read_list_file)
 
 			with timers('write_vcf'):
 				logger.info('======== Writing VCF')
 				changed_genotypes = vcf_writer.write(chromosome, superreads, components)
 				logger.info('Done writing VCF')
-				if len(changed_genotypes) > 0:
+				if changed_genotypes:
 					assert distrust_genotypes
 					logger.info('Changed %d genotypes while writing VCF', len(changed_genotypes))
 
@@ -974,10 +975,10 @@ def add_arguments(parser):
 	arg = parser.add_argument
 	# Positional arguments
 	arg('variant_file', metavar='VCF',
-		help='VCF file with variants to be phased (can be gzip-compressed)')
+		help='VCF or BCF file with variants to be phased (can be gzip-compressed)')
 	arg('phase_input_files', nargs='*', metavar='PHASEINPUT',
-		help='BAM, CRAM or VCF file(s) with phase information, either through '
-			'sequencing reads (BAM/CRAM) or through phased blocks (VCF)')
+		help='BAM, CRAM, VCF or BCF file(s) with phase information, either through '
+			'sequencing reads (BAM, CRAM) or through phased blocks (VCF, BCF)')
 
 	arg('-o', '--output', default=sys.stdout,
 		help='Output VCF file. Add .gz to the file name to get compressed output. '
@@ -990,12 +991,11 @@ def add_arguments(parser):
 			'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')
 	arg('--output-read-list', metavar='FILE', default=None, dest='read_list_filename',
 		help='Write reads that have been used for phasing to FILE.')
-	arg('--algorithm', choices=('whatshap', 'hapchat'), default = 'whatshap',
-		help='Choose an algorithm from whatshap or hapchat '
-			'(default: %(default)s)')
+	arg('--algorithm', choices=('whatshap', 'hapchat'), default='whatshap',
+		help='Phasing algorithm to use (default: %(default)s)')
 
 	arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
-	arg('--merge-reads', dest = 'read_merging', default=False, action='store_true',
+	arg('--merge-reads', dest='read_merging', default=False, action='store_true',
 		help='Merge reads which are likely to come from the same haplotype '
 		'(default: do not merge reads)')
 	arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
@@ -1019,27 +1019,28 @@ def add_arguments(parser):
 
 	arg = parser.add_argument_group('Read merging',
 		'The options in this section are only active when --merge-reads is used').add_argument
-	arg('--error-rate', dest = 'read_merging_error_rate',
-		type = float, default = 0.15,
-		help = 'The probability that a nucleotide is wrong in read merging model '
-                '(default: %(default)s).')
+	arg('--error-rate', dest='read_merging_error_rate',
+		type=float, default=0.15,
+		help='The probability that a nucleotide is wrong in read merging model '
+            '(default: %(default)s).')
 	arg('--maximum-error-rate', dest='read_merging_max_error_rate',
-		type = float, default = 0.25,
-		help = 'The maximum error rate of any edge of the read merging graph '
+		type=float, default=0.25,
+		help='The maximum error rate of any edge of the read merging graph '
 		'before discarding it (default: %(default)s).')
-	arg('--threshold', dest = 'read_merging_positive_threshold',
-		type = int, default = 1000000,
-		help = 'The threshold of the ratio between the probabilities that a pair '
+	arg('--threshold', dest='read_merging_positive_threshold',
+		type=int, default=1000000,
+		help='The threshold of the ratio between the probabilities that a pair '
 		'of reads come from the same haplotype and different haplotypes in the '
 		'read merging model (default: %(default)s).')
-	arg('--negative-threshold', dest = 'read_merging_negative_threshold',
-		type = int, default = 1000,
-		help = 'The threshold of the ratio between the probabilities that a pair '
+	arg('--negative-threshold', dest='read_merging_negative_threshold',
+		type=int, default=1000,
+		help='The threshold of the ratio between the probabilities that a pair '
 		'of reads come from different haplotypes and the same haplotype in the '
 		'read merging model (default: %(default)s).')
 
 	arg = parser.add_argument_group('Genotyping',
-		'The options in this section require that either --distrust-genotypes or --full-genotyping is used').add_argument
+		'The options in this section require that either --distrust-genotypes or '
+		'--full-genotyping is used').add_argument
 	arg('--full-genotyping', dest='full_genotyping',
 		action='store_true', default=False,
 		help='Completely re-genotype all variants based on read data, ignores all genotype '
@@ -1091,7 +1092,8 @@ def validate(args, parser):
 	if args.genmap and not args.ped:
 		parser.error('Option --genmap can only be used together with --ped')
 	if args.genmap and (len(args.chromosomes) != 1):
-		parser.error('Option --genmap can only be used when working on exactly one chromosome (use --chromosome)')
+		parser.error(
+			'Option --genmap can only be used when working on exactly one chromosome (use --chromosome)')
 	if args.include_homozygous and not args.distrust_genotypes:
 		parser.error('Option --include-homozygous can only be used with --distrust-genotypes.')
 	if args.use_ped_samples and not args.ped:
