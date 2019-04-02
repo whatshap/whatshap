@@ -383,37 +383,53 @@ def select_reads(readset, max_coverage, preferred_source_ids):
 	return selected_reads
 
 
-def create_read_list_file(filename):
-	"""
-	Creates a file (including header line) for read list information to be written to and returns
-	the file object.
-	"""
-	f = open(filename, 'w')
-	print('#readname', 'source_id', 'sample', 'phaseset', 'haplotype', 'covered_variants', 'first_variant_pos', 'last_variant_pos', sep='\t', file=f)
-	return f
+class ReadList:
+	"""Write a list of reads that has been used for phasing to a file"""
 
+	def __init__(self, path):
+		self._path = path
+		self._file = None
 
-def write_read_list(readset, bipartition, sample_components, numeric_sample_ids, output_file):
-	"""
-	Write a list of reads that has been used for phasing to given file object.
-	readset -- core.ReadSet object with reads to be written
-	bipartition -- bipartition of reads, i.e. iterable with one entry from {0,1} for each read in readset
-	sample_components -- a dictionary that maps each sample to its connected components
+	def __enter__(self):
+		self._file = open(self._path, "w")
+		print("#readname", "source_id", "sample", "phaseset", "haplotype", "covered_variants",
+			"first_variant_pos", "last_variant_pos", sep="\t", file=self._file)
+		return self
 
-			Each component in turn is a dict that maps each variant position to a
-			component, where a component is identified by the position of its
-			left-most variant
+	def __exit__(self, *args):
+		self._file.close()
+		self._file = None
 
-	numeric_sample_ids -- core.NumericSampleIds object mapping sample names to numeric ids as stored in each read
-	output_file -- file object to write to
-	"""
-	assert len(readset) == len(bipartition)
-	numeric_id_to_name = numeric_sample_ids.inverse_mapping()
-	for read, haplotype in zip(readset, bipartition):
-		sample = numeric_id_to_name[read.sample_id]
-		components = sample_components[sample]
-		phaseset = components[read[0].position] + 1
-		print(read.name, read.source_id, sample, phaseset, haplotype, len(read), read[0].position+1, read[-1].position+1, file=output_file)
+	def write(self, readset, bipartition, sample_components, numeric_sample_ids):
+		"""
+		readset -- core.ReadSet object with reads to be written
+		bipartition -- bipartition of reads, i.e. iterable with one entry from {0,1} for each read in readset
+		sample_components -- a dictionary that maps each sample to its connected components
+
+				Each component in turn is a dict that maps each variant position to a
+				component, where a component is identified by the position of its
+				left-most variant
+
+		numeric_sample_ids -- core.NumericSampleIds object mapping sample names to numeric ids as stored in each read
+		"""
+		if self._file is None:
+			raise ValueError("Needs to be used as context manager (e.g. in a with statement")
+		assert len(readset) == len(bipartition)
+		numeric_id_to_name = numeric_sample_ids.inverse_mapping()
+		for read, haplotype in zip(readset, bipartition):
+			sample = numeric_id_to_name[read.sample_id]
+			components = sample_components[sample]
+			phaseset = components[read[0].position] + 1
+			print(
+				read.name,
+				read.source_id,
+				sample,
+				phaseset,
+				haplotype,
+				len(read),
+				read[0].position + 1,
+				read[-1].position + 1, file=self._file
+			)
 
 
 def split_input_file_list(input_files):
@@ -640,9 +656,9 @@ def run_whatshap(
 			logger.warning('The maximum coverage is too high! '
 				'WhatsHap may take a long time to finish and require a huge amount of memory.')
 
-		read_list_file = None
+		read_list = None
 		if read_list_filename:
-			read_list_file = create_read_list_file(read_list_filename)
+			read_list = stack.enter_context(ReadList(read_list_filename))
 
 		# Read phase information provided as VCF files, if provided.
 		# TODO: do this chromosome- and/or sample-wise on demand to save memory.
@@ -919,13 +935,14 @@ def run_whatshap(
 					# identical for all samples
 					components[sample] = overall_components
 
-				if read_list_file:
+				if read_list:
 					if algorithm == 'hapchat':
 						logger.warning(
 							'On which haplotype a read occurs in the inferred solution is not yet '
-							'implemented in hapchat (TODO), and so the corresponding column in the '
+							'implemented in hapchat, and so the corresponding column in the '
 							'read list file contains no information about this')
-					write_read_list(all_reads, dp_table.get_optimal_partitioning(), components, numeric_sample_ids, read_list_file)
+					read_list.write(all_reads, dp_table.get_optimal_partitioning(), components,
+						numeric_sample_ids)
 
 			with timers('write_vcf'):
 				logger.info('======== Writing VCF')
@@ -949,9 +966,6 @@ def run_whatshap(
 				f.close()
 
 			logger.debug('Chromosome %r finished', chromosome)
-
-	if read_list_file:
-		read_list_file.close()
 
 	total_time = timers.total()
 	logger.info('\n== SUMMARY ==')
