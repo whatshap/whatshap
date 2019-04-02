@@ -530,7 +530,6 @@ def run_whatshap(
 	write_command_line_header -- whether to add a ##commandline header to the output VCF
 	"""
 	timers = StageTimer()
-	timers.start('overall')
 	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
 		if full_genotyping:
@@ -954,8 +953,8 @@ def run_whatshap(
 	if read_list_file:
 		read_list_file.close()
 
+	total_time = timers.total()
 	logger.info('\n== SUMMARY ==')
-	timers.stop('overall')
 	if sys.platform == 'linux':
 		memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 		logger.info('Maximum memory usage: %.3f GB', memory_kb / 1E6)
@@ -967,8 +966,8 @@ def run_whatshap(
 	logger.info('Time spent phasing:                          %6.1f s', timers.elapsed('phase'))
 	logger.info('Time spent writing VCF:                      %6.1f s', timers.elapsed('write_vcf'))
 	logger.info('Time spent finding components:               %6.1f s', timers.elapsed('components'))
-	logger.info('Time spent on rest:                          %6.1f s', 2 * timers.elapsed('overall') - timers.total())
-	logger.info('Total elapsed time:                          %6.1f s', timers.elapsed('overall'))
+	logger.info('Time spent on rest:                          %6.1f s', total_time - timers.sum())
+	logger.info('Total elapsed time:                          %6.1f s', total_time)
 
 
 def add_arguments(parser):

@@ -4,11 +4,12 @@ from contextlib import contextmanager
 
 
 class StageTimer:
-	"""Measure run times of different stages of the program"""
+	"""Measure run times of multiple non-overlapping stages of a program"""
 
 	def __init__(self):
 		self._start = dict()
 		self._elapsed = defaultdict(float)
+		self._overall_start_time = time.time()
 
 	def start(self, stage):
 		"""Start measuring elapsed time for a stage"""
@@ -30,9 +31,12 @@ class StageTimer:
 		"""
 		return self._elapsed[stage]
 
-	def total(self):
+	def sum(self):
 		"""Return sum of all times"""
 		return sum(self._elapsed.values())
+
+	def total(self):
+		return time.time() - self._overall_start_time
 
 	@contextmanager
 	def __call__(self, stage):

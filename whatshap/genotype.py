@@ -74,7 +74,6 @@ def run_genotype(
 	all variants are computed using the forward backward algorithm
 	"""
 	timers = StageTimer()
-	timers.start('overall')
 	logger.info("This is WhatsHap (genotyping) %s running under Python %s", __version__, platform.python_version())
 	with ExitStack() as stack:
 		# read the given input files (BAMs, VCFs, ref...)
@@ -341,7 +340,7 @@ def run_genotype(
 			logger.debug('Chromosome %r finished', chromosome)
 
 	logger.info('\n== SUMMARY ==')
-	timers.stop('overall')
+	total_time = timers.total()
 	if sys.platform == 'linux':
 		memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
 		logger.info('Maximum memory usage: %.3f GB', memory_kb / 1E6)
@@ -352,8 +351,8 @@ def run_genotype(
 	logger.info('Time spent selecting reads:                  %6.1f s', timers.elapsed('select'))
 	logger.info('Time spent genotyping:                          %6.1f s', timers.elapsed('genotyping'))
 	logger.info('Time spent writing VCF:                      %6.1f s', timers.elapsed('write_vcf'))
-	logger.info('Time spent on rest:                          %6.1f s', 2 * timers.elapsed('overall') - timers.total())
-	logger.info('Total elapsed time:                          %6.1f s', timers.elapsed('overall'))
+	logger.info('Time spent on rest:                          %6.1f s', total_time - timers.sum())
+	logger.info('Total elapsed time:                          %6.1f s', total_time)
 
 
 def add_arguments(parser):
