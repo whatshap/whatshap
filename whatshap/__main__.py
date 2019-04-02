@@ -64,7 +64,7 @@ def main(argv=sys.argv[1:]):
 	for command_name in COMMANDS:
 		module = importlib.import_module('.' + command_name, 'whatshap')
 		subparser = subparsers.add_parser(command_name,
-				help=module.__doc__.split('\n')[1], description=module.__doc__)
+				help=module.__doc__.strip().split("\n", maxsplit=1)[0], description=module.__doc__)
 		subparser.set_defaults(module=module, subparser=subparser)
 		module.add_arguments(subparser)
 
