@@ -910,22 +910,10 @@ def run_whatshap(
 						logger.info('Largest component contains %d variants (%.1f%% of accessible variants) between position %d and %d', len(largest_component), len(largest_component)*100.0/len(accessible_positions), largest_component[0]+1, largest_component[-1]+1)
 
 				if recombination_list_filename:
-					n_recombination_total = 0
-					transmission_vector_trio = defaultdict(list)
-					for transmission_vector_value in transmission_vector:
-						for trio in trios:
-							value = transmission_vector_value % 4
-							transmission_vector_value = transmission_vector_value // 4
-							transmission_vector_trio[trio.child].append(value)
-					f = open(recombination_list_filename, 'w')
-					print('#child_id', 'chromosome', 'position1', 'position2', 'transmitted_hap_father1', 'transmitted_hap_father2' ,'transmitted_hap_mother1', 'transmitted_hap_mother2', 'recombination_cost', file=f)
-					for trio in trios:
-						recombination_events = find_recombination(transmission_vector_trio[trio.child], overall_components, accessible_positions, recombination_costs)
-						for e in recombination_events:
-							print(trio.child, chromosome, e.position1 + 1, e.position2 + 1, e.transmitted_hap_father1, e.transmitted_hap_father2, e.transmitted_hap_mother1, e.transmitted_hap_mother2, e.recombination_cost, file=f)
-
-						n_recombination_total += len(recombination_events)
-					logger.info('Total no. of detected recombination events: %d', n_recombination_total)
+					n_recombinations = write_recombination_list(recombination_list_filename,
+						chromosome, accessible_positions, overall_components, recombination_costs,
+						transmission_vector, trios)
+					logger.info('Total no. of detected recombination events: %d', n_recombinations)
 
 				# Superreads in superreads_list are in the same order as individuals were added to the pedigree
 				for sample, sample_superreads in zip(family, superreads_list):
@@ -954,16 +942,7 @@ def run_whatshap(
 
 			if gtchange_list_filename:
 				logger.info('Writing list of changed genotypes to %r', gtchange_list_filename)
-				f = open(gtchange_list_filename, 'w')
-				print('#sample', 'chromosome', 'position', 'REF', 'ALT', 'old_gt', 'new_gt', sep='\t', file=f)
-				INT_TO_UNPHASED_GT = {0: '0/0', 1: '0/1', 2: '1/1', -1: '.'}
-				for changed_genotype in changed_genotypes:
-					print(changed_genotype.sample, changed_genotype.chromosome, changed_genotype.variant.position, 
-						changed_genotype.variant.reference_allele, changed_genotype.variant.alternative_allele,
-						INT_TO_UNPHASED_GT[changed_genotype.old_gt], INT_TO_UNPHASED_GT[changed_genotype.new_gt],
-						sep='\t', file=f
-					)
-				f.close()
+				write_changed_genotypes(gtchange_list_filename, changed_genotypes)
 
 			logger.debug('Chromosome %r finished', chromosome)
 
@@ -982,6 +961,46 @@ def run_whatshap(
 	logger.info('Time spent finding components:               %6.1f s', timers.elapsed('components'))
 	logger.info('Time spent on rest:                          %6.1f s', total_time - timers.sum())
 	logger.info('Total elapsed time:                          %6.1f s', total_time)
+
+
+def write_changed_genotypes(gtchange_list_filename, changed_genotypes):
+	with open(gtchange_list_filename, 'w') as f:
+		print('#sample', 'chromosome', 'position', 'REF', 'ALT', 'old_gt', 'new_gt', sep='\t', file=f)
+		INT_TO_UNPHASED_GT = {0: '0/0', 1: '0/1', 2: '1/1', -1: '.'}
+		for changed_genotype in changed_genotypes:
+			print(changed_genotype.sample, changed_genotype.chromosome,
+				changed_genotype.variant.position,
+				changed_genotype.variant.reference_allele, changed_genotype.variant.alternative_allele,
+				INT_TO_UNPHASED_GT[changed_genotype.old_gt],
+				INT_TO_UNPHASED_GT[changed_genotype.new_gt],
+				sep='\t', file=f)
+
+
+def write_recombination_list(path, chromosome, accessible_positions,
+		overall_components, recombination_costs, transmission_vector, trios):
+	"""Return total number of recombinations"""
+
+	transmission_vector_trio = defaultdict(list)
+	for transmission_vector_value in transmission_vector:
+		for trio in trios:
+			value = transmission_vector_value % 4
+			transmission_vector_value = transmission_vector_value // 4
+			transmission_vector_trio[trio.child].append(value)
+	with open(path, 'w') as f:
+		n = 0
+		print('#child_id', 'chromosome', 'position1', 'position2', 'transmitted_hap_father1',
+			'transmitted_hap_father2', 'transmitted_hap_mother1', 'transmitted_hap_mother2',
+			'recombination_cost', file=f)
+		for trio in trios:
+			recombination_events = find_recombination(transmission_vector_trio[trio.child],
+				overall_components, accessible_positions, recombination_costs)
+			for e in recombination_events:
+				print(trio.child, chromosome, e.position1 + 1, e.position2 + 1,
+					e.transmitted_hap_father1, e.transmitted_hap_father2, e.transmitted_hap_mother1,
+					e.transmitted_hap_mother2, e.recombination_cost, file=f)
+
+			n += len(recombination_events)
+	return n
 
 
 def add_arguments(parser):

@@ -25,9 +25,10 @@ cdef class NumericSampleIds:
 	"""
 	def __cinit__(self):
 		self.mapping = {}
+		self.frozen = False
 
 	def __getitem__(self, sample):
-		if sample not in self.mapping:
+		if not self.frozen and sample not in self.mapping:
 			self.mapping[sample] = len(self.mapping)
 		return self.mapping[sample]
 
@@ -37,9 +38,15 @@ cdef class NumericSampleIds:
 	def __str__(self):
 		return str(self.mapping)
 
+	def freeze(self):
+		"""No longer allow modifications"""
+		# TODO We should try to have a second class (FrozenNumericSampleIds) for
+		# this or try to get rid of NumericSampleIds
+		self.frozen = True
+
 	def inverse_mapping(self):
 		"""Returns a dict mapping numeric ids to sample names."""
-		return { numeric_id:name for name, numeric_id in self.mapping.items() }
+		return {numeric_id:name for name, numeric_id in self.mapping.items()}
 
 
 cdef class Read:

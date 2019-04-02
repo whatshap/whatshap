@@ -3,6 +3,7 @@ cimport cpp
 
 cdef class NumericSampleIds:
 	cdef dict mapping
+	cdef bool frozen
 
 
 cdef class Read:
