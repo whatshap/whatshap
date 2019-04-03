@@ -196,15 +196,12 @@ class PedReader:
 	All fields except the individual, maternal and paternal ID are ignored by
 	this class. The entire file is read upon construction.
 	"""
-	def __init__(self, file, numeric_sample_ids):
+	def __init__(self, file):
 		if isinstance(file, str):
 			with open(file) as f:
 				self.trios = self._parse(f)
 		else:
 			self.trios = self._parse(file)
-		# Ensure that all mentioned individuals have a numeric id
-		for trio in self.trios:
-			numeric_sample_ids[trio.child]
 
 	@staticmethod
 	def _parse_record(line):
@@ -244,6 +241,17 @@ class PedReader:
 
 	def __iter__(self):
 		return iter(self.trios)
+
+	def samples(self):
+		"""Return a list of all mentioned individuals"""
+		samples = set()
+		for trio in self.trios:
+			if trio.child is None or trio.mother is None or trio.father is None:
+				continue
+			samples.add(trio.father)
+			samples.add(trio.mother)
+			samples.add(trio.child)
+		return list(samples)
 
 
 class CyclicGraphError(Exception):

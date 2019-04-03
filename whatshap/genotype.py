@@ -141,7 +141,7 @@ def run_genotype(
 		# if --use-ped-samples is set, use only samples from PED file
 		if ped and use_ped_samples:
 			samples = set()
-			for trio in PedReader(ped, numeric_sample_ids):
+			for trio in PedReader(ped):
 				if (trio.child is None or trio.mother is None or trio.father is None):
 					continue
 				samples.add(trio.mother)

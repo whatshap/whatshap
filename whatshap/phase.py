@@ -460,24 +460,26 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
 	"""
 	trios = []
 	pedigree_samples = set()
-	for trio in PedReader(ped_path, numeric_sample_ids):
-		if (trio.child is None or trio.mother is None or
-				    trio.father is None):
+	for trio in PedReader(ped_path):
+		if trio.child is None or trio.mother is None or trio.father is None:
 			logger.warning('Relationship %s/%s/%s ignored '
 			               'because at least one of the individuals is unknown',
 			               trio.child, trio.mother, trio.father)
-		else:
-			# if at least one individual is not is samples, skip trio
-			if( (trio.mother in samples) and (trio.father in samples) and (trio.child in samples) ):
-				trios.append(trio)
-				pedigree_samples.add(trio.child)
-				pedigree_samples.add(trio.father)
-				pedigree_samples.add(trio.mother)
-			else:
-				# happens in case --ped and --samples are used
-				logger.warning('Relationship %s/%s/%s ignored because at least one of the '
-						'individuals was not given by --samples.', 
-						trio.child, trio.mother, trio.father)
+			continue
+		# if at least one individual is not in samples, skip trio
+		if (trio.mother not in samples) or (trio.father not in samples) or (trio.child not in samples):
+			# happens in case --ped and --samples are used
+			logger.warning('Relationship %s/%s/%s ignored because at least one of the '
+					'individuals was not given by --samples.',
+					trio.child, trio.mother, trio.father)
+			continue
+
+		trios.append(trio)
+		pedigree_samples.add(trio.child)
+		pedigree_samples.add(trio.father)
+		pedigree_samples.add(trio.mother)
+		# Ensure that all mentioned individuals have a numeric id
+		numeric_sample_ids[trio.child]
 
 	return trios, pedigree_samples
 
@@ -605,13 +607,7 @@ def run_whatshap(
 
 		# if --use-ped-samples is set, use only samples from PED file
 		if ped and use_ped_samples:
-			samples = set()
-			for trio in PedReader(ped, numeric_sample_ids):
-				if trio.child is None or trio.mother is None or trio.father is None:
-					continue
-				samples.add(trio.father)
-				samples.add(trio.mother)
-				samples.add(trio.child)
+			samples = PedReader(ped).samples()
 
 		vcf_sample_set = set(vcf_reader.samples)
 		for sample in samples:
