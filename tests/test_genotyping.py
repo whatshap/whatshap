@@ -25,10 +25,10 @@ def compare_to_expected(dp_forward_backward, positions, expected=None, genotypes
 				max_val = likelihoods[j]
 				max_index = j
 
-		print('genotype likelihoods for position',i, likelihoods, ' likeliest genotype: ',max_index)
+		print('genotype likelihoods for position', i, likelihoods, ' likeliest genotype: ', max_index)
 
-		if not genotypes==None:
-			assert(max_index==genotypes[i])
+		if genotypes is not None:
+			assert max_index == genotypes[i]
 
 
 def test_genotyping_empty_readset():
@@ -42,7 +42,7 @@ def test_genotyping_empty_readset():
 	dp_forward_backward = GenotypeDPTable(numeric_sample_ids,rs, recombcost, pedigree)
 
 
-def check_genotyping_single_individual(reads, weights = None, expected = None, genotypes = None, scaling = None, genotype_priors = None):
+def check_genotyping_single_individual(reads, weights=None, expected=None, genotypes=None, scaling=None, genotype_priors=None):
 	# 0) set up read set
 	readset = string_to_readset(s=reads, w=weights, scale_quality=scaling)
 	positions = readset.get_positions()
@@ -51,9 +51,9 @@ def check_genotyping_single_individual(reads, weights = None, expected = None, g
 	recombcost = [1] * len(positions)
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	genotype_likelihoods = [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * len(positions)
+	genotype_likelihoods = [PhredGenotypeLikelihoods(1.0/3.0, 1.0/3.0, 1.0/3.0)] * len(positions)
 
-	if genotype_priors != None:
+	if genotype_priors is not None:
 		genotype_likelihoods = genotype_priors
 
 	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods)

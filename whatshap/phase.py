@@ -640,7 +640,6 @@ def run_whatshap(
 				family_finder.merge(trio.father, trio.child)
 				family_finder.merge(trio.mother, trio.child)
 
-
 		# map family representatives to lists of family members
 		families = defaultdict(list)
 		for sample in samples:
@@ -650,7 +649,8 @@ def run_whatshap(
 		for trio in all_trios:
 			family_trios[family_finder.find(trio.child)].append(trio)
 		largest_trio_count = max([0] + [len(trio_list) for trio_list in family_trios.values()])
-		logger.info('Working on %d samples from %d famil%s', len(samples), len(families), 'y' if len(families)==1 else 'ies')
+		logger.info('Working on %d%s samples from %d famil%s',
+			len(samples), plural_s(len(samples)), len(families), 'y' if len(families) == 1 else 'ies')
 
 		if max_coverage + 2 * largest_trio_count > 25:
 			logger.warning('The maximum coverage is too high! '
@@ -712,7 +712,7 @@ def run_whatshap(
 				logger.info('Using maximum coverage per sample of %dX', max_coverage_per_sample)
 				trios = family_trios[representative_sample]
 
-				assert (len(family) == 1) or (len(trios) > 0)
+				assert len(family) == 1 or len(trios) > 0
 
 				# variant indices with at least one missing genotype
 				missing_genotypes = set()
@@ -732,7 +732,7 @@ def run_whatshap(
 						elif gt == 1:
 							heterozygous.add(index)
 						else:
-							assert gt in [0,2]
+							assert gt in [0, 2]
 							homozygous.add(index)
 
 				# determine which variants have Mendelian conflicts
@@ -759,7 +759,7 @@ def run_whatshap(
 
 				# Determine positions of selected variants that are homozygous in at least one individual.
 				# These are used later to merge blocks containing these variants into one block (since
-				# the are conntected by "genetic haplotyping").
+				# the are connected by "genetic haplotyping").
 				homozygous_positions = [variant_table.variants[i].position for i in to_retain.intersection(homozygous)]
 
 				phasable_variant_table = deepcopy(variant_table)

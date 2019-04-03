@@ -115,7 +115,7 @@ def load_genetic_map(filename):
 	return genetic_map
 
 
-mendelian_conflict_sets = set([
+mendelian_conflict_sets = {
 	(0, 0, 1),
 	(0, 0, 2),
 	(0, 1, 2),
@@ -123,8 +123,8 @@ mendelian_conflict_sets = set([
 	(0, 2, 2),
 	(1, 2, 0),
 	(2, 2, 0),
-	(2, 2, 1)
-])
+	(2, 2, 1),
+}
 
 
 def mendelian_conflict(genotypem, genotypef, genotypec):
@@ -137,12 +137,20 @@ def mendelian_conflict(genotypem, genotypef, genotypec):
 def find_recombination(transmission_vector, components, positions, recombcost):
 	assert len(transmission_vector) == len(positions) == len(recombcost)
 	assert set(components.keys()).issubset(set(positions))
-	position_to_index = { pos: i for i, pos in enumerate(positions) }
+	position_to_index = {pos: i for i, pos in enumerate(positions)}
 	blocks = defaultdict(list)
 	for position, block_id in components.items():
 		blocks[block_id].append(position)
 
-	RecombinationEvent = namedtuple('RecombinationEvent', ['position1', 'position2', 'transmitted_hap_father1', 'transmitted_hap_father2' ,'transmitted_hap_mother1', 'transmitted_hap_mother2', 'recombination_cost'])
+	RecombinationEvent = namedtuple('RecombinationEvent', [
+		'position1',
+		'position2',
+		'transmitted_hap_father1',
+		'transmitted_hap_father2',
+		'transmitted_hap_mother1',
+		'transmitted_hap_mother2',
+		'recombination_cost',
+	])
 	event_list = []
 	cum_recomb_cost = 0
 	for block_id, block in blocks.items():
@@ -227,7 +235,7 @@ class PedReader:
 		"""
 		Ensure that each individual occurs only once in the file.
 		"""
-		children = [ trio.child for trio in trios ]
+		children = [trio.child for trio in trios]
 		if not children:
 			return
 		id, count = Counter(children).most_common()[0]

@@ -1,5 +1,6 @@
 from whatshap.core import Pedigree, PhredGenotypeLikelihoods, NumericSampleIds
 
+
 def test_pedigree_no_gls():
 	ped = Pedigree(NumericSampleIds())
 	genotypes1 = [ 0, 1, 0, 2 ]
