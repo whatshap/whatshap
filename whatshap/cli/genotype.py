@@ -13,18 +13,18 @@ from collections import defaultdict
 from typing import Sequence
 
 from contextlib import ExitStack
-from .vcf import VcfReader, GenotypeVcfWriter
-from . import __version__
-from .core import ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable, compute_genotypes
-from .graph import ComponentFinder
-from .pedigree import (PedReader, recombination_cost_map,
+from whatshap import __version__
+from whatshap.vcf import VcfReader, GenotypeVcfWriter
+from whatshap.core import ReadSet, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable, compute_genotypes
+from whatshap.graph import ComponentFinder
+from whatshap.pedigree import (PedReader, recombination_cost_map,
 			load_genetic_map, uniform_recombination_map)
-from .bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
-from .timer import StageTimer
-from .variants import ReadSetReader
-from .utils import IndexedFasta, FastaNotIndexedError
+from whatshap.bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
+from whatshap.timer import StageTimer
+from whatshap.variants import ReadSetReader
+from whatshap.utils import IndexedFasta, FastaNotIndexedError
 
-from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree
+from whatshap.cli.phase import read_reads, select_reads, split_input_file_list, setup_pedigree
 
 
 logger = logging.getLogger(__name__)

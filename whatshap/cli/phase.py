@@ -17,16 +17,16 @@ from math import log
 from networkx import Graph, number_of_nodes, number_of_edges, connected_components, node_connected_component, shortest_path
 
 from contextlib import ExitStack
-from .vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
-from . import __version__
-from .core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, HapChatCore
-from .graph import ComponentFinder
-from .pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
+from whatshap.vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
+from whatshap import __version__
+from whatshap.core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, HapChatCore
+from whatshap.graph import ComponentFinder
+from whatshap.pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
-from .bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
-from .timer import StageTimer
-from .variants import ReadSetReader, ReadSetError
-from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError, plural_s
+from whatshap.bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
+from whatshap.timer import StageTimer
+from whatshap.variants import ReadSetReader, ReadSetError
+from whatshap.utils import detect_file_format, IndexedFasta, FastaNotIndexedError, plural_s
 
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"

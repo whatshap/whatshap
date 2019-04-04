@@ -8,9 +8,9 @@ from collections import defaultdict
 
 from pytest import raises, fixture, mark
 import pysam
-from whatshap.phase import run_whatshap
-from whatshap.haplotag import run_haplotag
-from whatshap.hapcut2vcf import run_hapcut2vcf
+from whatshap.cli.phase import run_whatshap
+from whatshap.cli.haplotag import run_haplotag
+from whatshap.cli.hapcut2vcf import run_hapcut2vcf
 from whatshap.vcf import VcfReader, VariantCallPhase
 
 trio_bamfile = 'tests/data/trio.pacbio.bam'

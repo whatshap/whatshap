@@ -4,7 +4,7 @@ Tests for 'whatshap stats'
 
 from tempfile import TemporaryDirectory
 from collections import namedtuple
-from whatshap.stats import run_stats
+from whatshap.cli.stats import run_stats
 
 def test_stats1():
 	with TemporaryDirectory() as tempdir:

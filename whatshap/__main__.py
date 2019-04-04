@@ -62,7 +62,7 @@ def main(argv=sys.argv[1:]):
 
 	subparsers = parser.add_subparsers()
 	for command_name in COMMANDS:
-		module = importlib.import_module('.' + command_name, 'whatshap')
+		module = importlib.import_module('.cli.' + command_name, 'whatshap')
 		subparser = subparsers.add_parser(command_name,
 				help=module.__doc__.strip().split("\n", maxsplit=1)[0], description=module.__doc__)
 		subparser.set_defaults(module=module, subparser=subparser)

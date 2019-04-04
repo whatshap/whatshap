@@ -4,7 +4,7 @@ Tests for 'whatshap compare'
 
 from tempfile import TemporaryDirectory
 from collections import namedtuple
-from whatshap.compare import run_compare
+from whatshap.cli.compare import run_compare
 
 
 def test_compare1():

@@ -1,4 +1,4 @@
-from whatshap.find_snv_candidates import run_find_snv_candidates
+from whatshap.cli.find_snv_candidates import run_find_snv_candidates
 
 def test_call(tmpdir):
 	output = str(tmpdir.join('output.vcf'))
