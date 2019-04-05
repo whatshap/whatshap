@@ -297,23 +297,6 @@ class VcfReader:
 		self.ignore_genotypes = ignore_genotypes
 		logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
-	def _group_by_chromosome(self):
-		"""
-		Yield (chromosome, records) tuples, where records is a list of the
-		VCF records on that chromosome.
-		"""
-		records = []
-		prev_chromosome = None
-		for record in self._vcf_reader:
-			if record.chrom != prev_chromosome:
-				if prev_chromosome is not None:
-					yield (prev_chromosome, records)
-				prev_chromosome = record.chrom
-				records = []
-			records.append(record)
-		if records:
-			yield (prev_chromosome, records)
-
 	def _fetch(self, chromosome: str):
 		"""
 		Return VariantTable object for a given chromosome.
@@ -327,7 +310,7 @@ class VcfReader:
 
 		Multi-ALT sites are skipped.
 		"""
-		for chromosome, records in self._group_by_chromosome():
+		for chromosome, records in itertools.groupby(self._vcf_reader, lambda record: record.chrom):
 			yield self._process_single_chromosome(chromosome, records)
 
 	@staticmethod
