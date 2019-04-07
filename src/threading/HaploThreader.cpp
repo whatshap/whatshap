@@ -16,20 +16,44 @@ HaploThreader::HaploThreader (uint32_t ploidy, double switchCost, double affineS
 {
 }
 
-std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position num_vars, 
-                    std::vector<std::vector<GlobalClusterId>>& covMap,
-                    std::vector<std::vector<double>>& coverage, 
-                    std::vector<std::vector<uint32_t>>& consensus,
-                    std::vector<uint32_t>& genotypes
+std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (const std::vector<Position>& blockStarts, 
+                    const std::vector<std::vector<GlobalClusterId>>& covMap,
+                    const std::vector<std::vector<double>>& coverage, 
+                    const std::vector<std::vector<uint32_t>>& consensus,
+                    const std::vector<uint32_t>& genotypes
+                   ) const {
+    Position numVars = covMap.size();
+    std::vector<std::vector<GlobalClusterId>> path;
+    for (uint32_t i = 0; i < blockStarts.size(); i++) {
+        Position start = blockStarts[i];
+        Position end = i == blockStarts.size()-1 ? numVars : blockStarts[i+1];
+        if (end > start) {
+            std::vector<std::vector<GlobalClusterId>> section = computePaths(blockStarts[i], end, covMap, coverage, consensus, genotypes, numVars);
+            for (auto tuple : section) {
+                path.push_back(tuple);
+            }
+        }
+    }
+    return path;
+}
+
+std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position start, Position end, 
+                    const std::vector<std::vector<GlobalClusterId>>& covMap,
+                    const std::vector<std::vector<double>>& coverage, 
+                    const std::vector<std::vector<uint32_t>>& consensus,
+                    const std::vector<uint32_t>& genotypes,
+                    Position displayedEnd
                    ) const {
     
     // setup data structures
     std::vector<std::unordered_map<ClusterTuple, ClusterEntry>> m;
-    Position firstUnthreadedPosition = 0;
+    Position firstUnthreadedPosition = start;
     std::vector<std::vector<GlobalClusterId>> path;
 
     // initialize first column
-    std::vector<ClusterTuple> confTuples = computeGenotypeConformTuples(covMap[0], consensus[0], genotypes[0], false);
+    if (displayedEnd == 0)
+        displayedEnd = end;
+    std::vector<ClusterTuple> confTuples = computeGenotypeConformTuples(covMap[start], consensus[start], genotypes[start], false);
     std::unordered_map<ClusterTuple, ClusterEntry> column;
     if (confTuples.size() == 0) {
         std::cout<<"First variant has no clusters!"<<std::endl;
@@ -41,8 +65,8 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
     uint32_t allEntries = 0;
     uint32_t keptEntries = 0;
     for (ClusterTuple t : confTuples) {
-        column[t] = ClusterEntry(getCoverageCost(t, coverage[0]), ClusterTuple::INVALID_TUPLE);
-        firstUnthreadedPosition = 1;
+        column[t] = ClusterEntry(getCoverageCost(t, coverage[start]), ClusterTuple::INVALID_TUPLE);
+        firstUnthreadedPosition = start + 1;
         if (column[t].score < minimumInColumn) {
             minimumInColumn = column[t].score;
             minimumTupleInColumn = t;
@@ -65,8 +89,8 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
     keptEntries += column.size();
     
     // iterate over positions
-    for (Position pos = 1; pos < num_vars; pos++) {     
-        std::cout<<"Threading haplotypes through clusters .. ("<<pos<<"/"<<num_vars<<")\r"<<std::flush;
+    for (Position pos = start + 1; pos < end; pos++) {     
+        std::cout<<"Threading haplotypes through clusters .. ("<<pos<<"/"<<displayedEnd<<")\r"<<std::flush;
         
         // reset variables
         confTuples.clear();
@@ -87,7 +111,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
             minimumPred = ClusterTuple::INVALID_TUPLE;
             
             // iterate over previous rows
-            for (std::pair<ClusterTuple, ClusterEntry> predEntry : m[pos-1]) {
+            for (std::pair<ClusterTuple, ClusterEntry> predEntry : m[pos-1-start]) {
                 Score s = predEntry.second.score + getSwitchCost(rowTuple, predEntry.first, covMap[pos], covMap[pos-1]);
                 if (s < minimum) {
                     minExists = true;
@@ -169,12 +193,13 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         keptEntries += column.size();
     }
     
-    std::cout<<"Threading haplotypes through clusters .. ("<<num_vars<<"/"<<num_vars<<")"<<std::endl;
+    if (end == displayedEnd)
+        std::cout<<"Threading haplotypes through clusters .. ("<<end<<"/"<<end<<")"<<std::endl;
     
     // backtracking start
     ClusterTuple currentRow = ClusterTuple::INVALID_TUPLE;
     Score minimum = std::numeric_limits<Score>::infinity();
-    for (std::pair<ClusterTuple, ClusterEntry> entry : m[firstUnthreadedPosition-1]) {
+    for (std::pair<ClusterTuple, ClusterEntry> entry : m[firstUnthreadedPosition-1-start]) {
         if (entry.second.score < minimum) {
             minimum = entry.second.score;
             currentRow = entry.first;
@@ -188,12 +213,14 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         path.push_back(currentRow.asVector(ploidy, covMap[firstUnthreadedPosition-1]));
     }
     
-    std::cout<<"Kept "<<keptEntries<<" out of "<<allEntries<<" in DP table ("<<(keptEntries*100/allEntries)<<"%)"<<std::endl;
-    std::cout<<"Optimal solution value = "<<(m[firstUnthreadedPosition-1][currentRow].score)<<std::endl;
+//     if (end == displayedEnd) {
+//         std::cout<<"Kept "<<keptEntries<<" out of "<<allEntries<<" in DP table ("<<(keptEntries*100/allEntries)<<"%)"<<std::endl;
+//         std::cout<<"Optimal solution value = "<<(m[firstUnthreadedPosition-1-start][currentRow].score)<<std::endl;
+//     }
     
     // backtracking iteration
-    for (Position pos = firstUnthreadedPosition-1; pos > 0; pos--) {
-        currentRow = m[pos][currentRow].pred;
+    for (Position pos = firstUnthreadedPosition-1; pos > start; pos--) {
+        currentRow = m[pos-start][currentRow].pred;
         if (currentRow.asVector(ploidy, covMap[pos-1]).size() == 0) {
             std::cout<<"Problem occured at position "<<(pos-1)<<" in row "<<currentRow.asString(ploidy, covMap[pos-1])<<std::endl;
             std::vector<GlobalClusterId> fallback;

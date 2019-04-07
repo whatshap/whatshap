@@ -247,17 +247,37 @@ public:
      * Computes a number of paths (depending on the provided ploidy), which run through the provided clusters. For each variant the result
      * contains a tuple of cluster ids, which represent the paths.
      * 
-     * @param num_vars The number of variants to thread to.
+     * @param blockStarts A list of positions, from which the phasing runs have to start
+     * @param covMap A vector, which for every position contains the global cluster ids of the present clusters
+     * @param coverage A vector, which for every position contains the relative coverage of all local clusters at this position
+     * @param consensus For every position contains the consensus of all local clusters at this position
+     * @param genotypes The genotype for every positon
+     * 
+     */
+    std::vector<std::vector<GlobalClusterId>> computePaths (const std::vector<Position>& blockStarts,
+                    const std::vector<std::vector<GlobalClusterId>>& covMap,
+                    const std::vector<std::vector<double>>& coverage, 
+                    const std::vector<std::vector<uint32_t>>& consensus,
+                    const std::vector<uint32_t>& genotypes
+                   ) const;
+                  
+    /**
+     * Computes a number of paths (depending on the provided ploidy), which run through the provided clusters. For each variant the result
+     * contains a tuple of cluster ids, which represent the paths.
+     * 
+     * @param start First position to phase
+     * @param end First position not to phase
      * @param covMap A vector, which for every position contains the global cluster ids of the present clusters
      * @param coverage A vector, which for every position contains the relative coverage of all local clusters at this position
      * @param consensus For every position contains the consensus of all local clusters at this position
      * @param genotypes The genotype for every positon
      */
-    std::vector<std::vector<GlobalClusterId>> computePaths (Position num_vars, 
-                    std::vector<std::vector<GlobalClusterId>>& covMap,
-                    std::vector<std::vector<double>>& coverage, 
-                    std::vector<std::vector<uint32_t>>& consensus,
-                    std::vector<uint32_t>& genotypes 
+    std::vector<std::vector<GlobalClusterId>> computePaths (Position start, Position end,
+                    const std::vector<std::vector<GlobalClusterId>>& covMap,
+                    const std::vector<std::vector<double>>& coverage, 
+                    const std::vector<std::vector<uint32_t>>& consensus,
+                    const std::vector<uint32_t>& genotypes,
+                    Position displayedEnd = 0
                    ) const;
 
 private:

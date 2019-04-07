@@ -1,5 +1,6 @@
 #include "ReadScoring.h"
 #include <vector>
+#include <unordered_set>
 #include <unordered_map>
 #include <limits>
 #include <cmath>
@@ -73,7 +74,7 @@ void ReadScoring::scoreReadsetGlobal(TriangleSparseMatrix *result, ReadSet *read
     
 }
 
-void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* readset, const uint32_t minOverlap, const uint32_t ploidy) const {
+void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* readset, const uint32_t minOverlap, const uint32_t ploidy/*, const std::vector<uint32_t> genotypes*/) const {
     uint32_t numReads = readset->size();
     
     // compute overlap and differences for all read pairs in sparse datastrcutures
@@ -89,7 +90,7 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* reads
     // compute length of overlap and difference for all read pairs
     double hammingDistSame = 0;
     double hammingDistDiff = 0;
-    computeStartEndOverlapDiff(readset, begins, ends, positions, alleles, overlaps, diffs, hammingDistSame, hammingDistDiff, minOverlap, ploidy);
+    computeStartEndOverlapDiff(readset, begins, ends, positions, alleles, overlaps, diffs, hammingDistSame, hammingDistDiff, minOverlap, ploidy/*, genotypes*/);
     
     // determine default relative hamming distance for same and different haplotypes
     std::vector<std::pair<uint32_t, uint32_t>> entries = overlaps.getEntries();
@@ -469,9 +470,11 @@ void ReadScoring::scoreReadsetPatterns(TriangleSparseMatrix *result, ReadSet *re
     }
 }
 
-void ReadScoring::computeStartEndOverlapDiff ( const ReadSet* readset, std::vector< uint32_t >& begins, std::vector< uint32_t >& ends, std::vector< std::vector< uint32_t > >& positions, std::vector< std::vector< uint32_t > >& alleles, TriangleSparseMatrix& overlaps, TriangleSparseMatrix& diffs, double& distSame, double& distDiff, const uint32_t minOverlap, const uint32_t ploidy) const {
+void ReadScoring::computeStartEndOverlapDiff (const ReadSet* readset, std::vector<uint32_t>& begins, std::vector<uint32_t>& ends, std::vector<std::vector<uint32_t>>& positions, std::vector<std::vector<uint32_t>>& alleles, TriangleSparseMatrix& overlaps, TriangleSparseMatrix& diffs, double& distSame, double& distDiff, const uint32_t minOverlap, const uint32_t ploidy/*, const std::vector<uint32_t> genotypes*/) const {
     // copy all relevant information from the readset into vectors for efficient access
     uint32_t numReads = readset->size();
+    std::unordered_set<uint32_t> allPos;
+    std::unordered_map<uint32_t, uint32_t> posMap;
     for (uint32_t i = 0; i < numReads; i++) {
         begins.push_back(readset->get(i)->firstPosition());
         ends.push_back(readset->get(i)->lastPosition());
@@ -480,9 +483,17 @@ void ReadScoring::computeStartEndOverlapDiff ( const ReadSet* readset, std::vect
         for (int k = 0; k < readset->get(i)->getVariantCount(); k++) {
             pos.push_back(readset->get(i)->getPosition(k));
             all.push_back(readset->get(i)->getAllele(k));
+            allPos.insert(readset->get(i)->getPosition(k));
         }
         positions.push_back(pos);
         alleles.push_back(all);
+    }
+    
+    // create position map
+    std::vector<uint32_t> posList(allPos.begin(), allPos.end());
+    std::sort(posList.begin(), posList.end());
+    for (uint32_t i = 0; i < posList.size(); i++) {
+        posMap[posList[i]] = i;
     }
     
     // determine length of the longest read
@@ -504,15 +515,45 @@ void ReadScoring::computeStartEndOverlapDiff ( const ReadSet* readset, std::vect
             uint32_t l = 0;
             while (k < positions[i].size() && l < positions[j].size()) {
                 if (positions[i][k] == positions[j][l]) {
-                    if (alleles[i][k] != alleles[j][l])
+//                     if (alleles[i][k] != alleles[j][l]) {
+//                         di+=3; ov+=3;
+//                     } else if (!genotypes.empty()){
+//                         if (genotypes[posMap[positions[i][k]]] == 1) {
+//                             if (alleles[i][k] == 0) {
+//                                 ov+=2;
+//                             } else {
+//                                 ov+=6;
+//                             }
+//                         }
+//                         if (genotypes[posMap[positions[i][k]]] == 2) {
+//                             if (alleles[i][k] == 0) {
+//                                 ov+=3;
+//                             } else {
+//                                 ov+=3;
+//                             }
+//                         }
+//                         if (genotypes[posMap[positions[i][k]]] == 3) {
+//                             if (alleles[i][k] == 0) {
+//                                 ov+=6;
+//                             } else {
+//                                 ov+=2;
+//                             }
+//                         }
+//                     } else {
+//                         ov+=3;
+//                     }
+                    if (alleles[i][k] != alleles[j][l]) {
                         di++;
-                    ov++; k++; l++;
+                    }
+                    ov++; k++; l++; 
                 } else if (positions[i][k] < positions[j][l]) {
                     k++;
                 } else {
                     l++;
                 }
             }
+//             ov /= 3;
+//             di /= 3;
             if (ov >= minOverlap) {
                 overlaps.set(i, j, ov);
                 diffs.set(i, j, di);

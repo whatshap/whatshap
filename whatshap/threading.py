@@ -10,6 +10,7 @@ from .core import clustering_DP, ReadSet, Read, HaploThreader
 #from statistics import mean
 #import operator
 import random
+from queue import *
 
 logger = logging.getLogger(__name__)
 
@@ -74,8 +75,8 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 		num_vars += 1
 
 	num_clusters = len(clustering)
-	print('number of variants: ', num_vars)
-	print('number of clusters: ', num_clusters)
+	#print('number of variants: ', num_vars)
+	#print('number of clusters: ', num_clusters)
 	
 	#cov_map maps each position to the list of cluster IDS that appear at this position
 	cov_positions = defaultdict()
@@ -96,9 +97,9 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 		cov_positions[key] = len(cov_map[key])
 	cov_positions_sorted = sorted(cov_positions.items(), key=lambda x: x[1], reverse=True)
 	
-	#restrict the number of clusters at each position to a maximum of 8 clusters with the largest number of reads	
+	#restrict the number of clusters at each position to a maximum of 2*ploidy clusters with the largest number of reads	
 	for key in cov_map.keys():
-		largest_clusters = sorted(cov_map[key], key=lambda x: len(clustering[x]), reverse=True)[:8]
+		largest_clusters = sorted(cov_map[key], key=lambda x: len(clustering[x]), reverse=True)[:min(len(cov_map[key]), 2*ploidy)]
 		cov_map[key] = largest_clusters
 
 	#create dictionary mapping a clusterID to a pair (starting position, ending position)
@@ -183,7 +184,98 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 		#path has been assembled from the last column and needs to be reversed
 		path.reverse()
 		assert(len(path) == start_col+1)
+		
+		#determine cut positions: Currently, a cut position is created every time a path changes the used cluster from one position to the next
+		if single_block:
+			cut_positions = [len(readset.get_positions())-1]
+		else:
+			cut_positions = []
+			for i in range(len(path)-1):
+				dissim = 0
+				for j in range(0,ploidy):
+					#if (i < len(path) -2):
+		#				if path[i][j] != path[i+1][j] and path[i][j] != path[i+2][j]:
+		#					dissim +=1
+		#			else:
+		#				if path[i][j] != path[i+1][j]:
+		#					dissim += 1
+					if path[i][j] != path[i+1][j]:
+						dissim += 1
+				if (dissim >= 1):
+					cut_positions.append(i)
+		print("cut positions: ", cut_positions)
 	else:
+		# cut threshold
+		cut_threshold = 8 #TODO: Compute depending on ploidy
+		min_block_size = 2
+		
+		# compute absolute coverage for every position and the number of links between each pair of positions
+		pos_coverage = [0]*num_vars
+		link_coverage = [dict() for i in range(num_vars)]
+		for c_id in range(num_clusters):
+			for read in clustering[c_id]:
+				for pos in [index[var.position] for var in readset[read] ]:
+					pos_coverage[pos] += 1
+					for pos2 in [index[var.position] for var in readset[read] ]:
+						if pos2 not in link_coverage[pos]:
+							link_coverage[pos][pos2] = 0
+						link_coverage[pos][pos2] += 1
+		
+		# form connected sets
+		pos_clust = [0]*num_vars
+		clust_count = 0
+		for pos in range(num_vars):
+			current_cluster = 0
+			if pos_clust[pos] > 0:
+				#current_cluster = pos_clust[pos]
+				continue
+			else:
+				clust_count += 1
+				current_cluster = clust_count
+				pos_clust[pos] = current_cluster
+			pending = Queue()
+			pending.put(pos)
+			while not pending.empty():
+				cur = pending.get()
+				for linked in sorted(link_coverage[cur]):
+					if link_coverage[cur][linked] >= cut_threshold and pos_clust[linked] == 0:
+						pos_clust[linked] = current_cluster
+						pending.put(linked)
+		
+		# make intervals of connected positions
+		current_cluster = 0
+		current_begin = 0
+		intervals = []
+		block_starts = set()
+		for pos in range(num_vars):
+			#print("Pos "+str(pos)+": cov="+str(pos_coverage[pos])+" clust="+str(pos_clust[pos])+" linklast="+str(link_coverage[pos][pos-1] if (pos-1) in link_coverage[pos] else 0))
+			if pos_coverage[pos] < cut_threshold:
+				if pos - current_begin >= min_block_size:
+					intervals.append((current_begin, pos))
+				else:
+					for i in range(pos-1, current_begin, -1):
+						block_starts.add(i)
+				current_begin = pos + 1
+				current_cluster = 0
+				block_starts.add(pos)
+			else:
+				if current_cluster != pos_clust[pos]:
+					if pos - current_begin >= min_block_size:
+						intervals.append((current_begin, pos))
+					else:
+						for i in range(pos-1, current_begin, -1):
+							block_starts.add(i)
+					current_begin = pos
+					current_cluster = pos_clust[pos]
+					block_starts.add(pos)
+		if num_vars - current_begin >= min_block_size:
+			intervals.append((current_begin, num_vars))
+		else:
+			for i in range(num_vars-1, current_begin, -1):
+				block_starts.add(i)
+		#print("block starts positions: ", block_starts)
+		
+		# arrange data
 		position_wise_coverage = [] #rearrange the content of "coverage" in a position-wise way, such that the i-th coverage refers to the i-th cluster in cov_map
 		cov_map_as_list = []
 		compressed_consensus = [] #for every position, give a list of consensi, such that the i-th consensus refers to the i-th cluster in cov_map
@@ -196,29 +288,27 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 			position_wise_coverage.append(coverage_list)
 			cov_map_as_list.append(cov_map[pos])
 			compressed_consensus.append(consensus_list)
+			
+		# run threader
 		threader = HaploThreader(ploidy, 32.0, 8.0, True, 0)
-		path = threader.computePaths(num_vars, cov_map_as_list, position_wise_coverage, compressed_consensus, genotypes)
+		path = threader.computePaths(list(sorted(list(block_starts))), cov_map_as_list, position_wise_coverage, compressed_consensus, genotypes)
+			
 		assert(len(path) == num_vars)
 	
-	#determine cut positions: Currently, a cut position is created every time a path changes the used cluster from one position to the next
-	if single_block:
-		cut_positions = [len(readset.get_positions())-1]
-	else:
+		#determine cut positions: Currently, a cut position is created every time a path changes the used cluster from one position to the next
 		cut_positions = []
-		for i in range(len(path)-1):
-			dissim = 0
-			for j in range(0,ploidy):
-				#if (i < len(path) -2):
-	#				if path[i][j] != path[i+1][j] and path[i][j] != path[i+2][j]:
-	#					dissim +=1
-	#			else:
-	#				if path[i][j] != path[i+1][j]:
-	#					dissim += 1
-				if path[i][j] != path[i+1][j]:
-					dissim += 1
-			if (dissim >= 1):
+		for i in range(1, len(path)):
+			if i in block_starts:
 				cut_positions.append(i)
-	print("cut positions: ", cut_positions)
+			elif not single_block:
+				dissim = 0
+				for j in range(0,ploidy):
+					if path[i][j] != path[i-1][j]:
+						dissim += 1
+				if (dissim >= 2):
+					cut_positions.append(i)
+		print("cut positions: ", cut_positions)
+		#cut_positions.append(num_vars-1)
 	
 	#experimental: Computing longer blocks and discarding cut positions close to each other
 #	cuts = []
@@ -291,9 +381,10 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 	cut_positions = []
 	overall_components = {}
 	last_cut = 0
-	for haploblock in consensus_blocks[:len(consensus_blocks)-1]:
+	for haploblock in consensus_blocks[:len(consensus_blocks)]:
 		next_cut = last_cut + len(haploblock[0])
-		cut_positions.append(accessible_positions[next_cut])
+		#print("last_cut = "+str(last_cut)+" next_cut = "+str(next_cut))
+		cut_positions.append(accessible_positions[last_cut])
 		
 		for pos in range(last_cut, next_cut):
 			overall_components[accessible_positions[pos]] = accessible_positions[last_cut]

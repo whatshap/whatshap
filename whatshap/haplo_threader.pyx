@@ -10,10 +10,27 @@ cimport cpp
 cdef class HaploThreader:
 	def __cinit__(self, ploidy, switchCost, affineSwitchCost, symmetryOptimization, rowLimit):
 		self.thisptr = new cpp.HaploThreader(ploidy, switchCost, affineSwitchCost, symmetryOptimization, rowLimit)
-
-	def computePaths(self, uint32_t num_vars, vector[vector[uint32_t]] covMap, vector[vector[double]] coverage, vector[vector[uint32_t]] consensus, vector[uint32_t] genotypes):
+		
+	def computePaths(self, vector[uint32_t]& blockStarts, vector[vector[uint32_t]]& covMap, vector[vector[double]]& coverage, vector[vector[uint32_t]]& consensus, vector[uint32_t]& genotypes):
 		cdef vector[vector[uint32_t]] path
-		path = self.thisptr.computePaths(num_vars, covMap, coverage, consensus, genotypes)
+		path = self.thisptr.computePaths(blockStarts, covMap, coverage, consensus, genotypes)
+		
+		# convert to python data structure
+		py_path = []
+		path_len = path.size()
+		if path_len > 0:
+			ploidy = path[0].size()
+			for i in range(path_len):
+				pos = []
+				for j in range(ploidy):
+					pos.append(path[i][j])
+				py_path.append(pos)
+		
+		return py_path
+
+	def computePaths(self, uint32_t start, uint32_t end, vector[vector[uint32_t]]& covMap, vector[vector[double]]& coverage, vector[vector[uint32_t]]& consensus, vector[uint32_t]& genotypes):
+		cdef vector[vector[uint32_t]] path
+		path = self.thisptr.computePaths(start, end, covMap, coverage, consensus, genotypes)
 		
 		# convert to python data structure
 		py_path = []
