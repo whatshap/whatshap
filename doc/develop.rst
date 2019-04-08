@@ -17,8 +17,8 @@ using a virtualenv. This sequence of commands should work::
 	source venv/bin/activate
 	pip install -e .[dev]
 
-The last command installs also all the development dependencies, such as Cython. Use only
-``pip install -e .`` to omit those.
+The last command installs also all the development dependencies, such as Cython.
+Omit the ``[dev]`` (write only ``pip install -e .``) to leave them out.
 
 Next, you can run WhatsHap like this::
 
@@ -39,6 +39,7 @@ If you are using `Bioconda <https://bioconda.github.io/>`_, it is convenient to 
 The last command installs WhatsHap into your Conda environment named ``whatshap-dev``. So when
 executing ``whatshap`` you will run the latest version you just cloned.
 
+
 Running tests
 -------------
 
@@ -49,7 +50,7 @@ While in the virtual environment, you can run the tests for the current Python v
 Whenever you change any Cython code (``.pyx`` files), you need to re-run the
 ``pip install -e .`` step in order to compile it.
 
-Optionally, to run tests for *all* supported Python versions, you can run
+Optionally, to run tests for all supported Python versions, you can run
 `tox <https://tox.readthedocs.io/>`_. It creates separate virtual environments for each Python
 version, installs WhatsHap into it and then runs the tests. It also tests documentation generation
 with ``sphinx``. Run it like this::
@@ -90,6 +91,10 @@ running the tests)::
 After you get a SIGSEGV, let gdb print a backtrace:
 
 	(gdb) bt
+
+Another way is to set ``PYTHONFAULTHANDLER=1``::
+
+	PYTHONFAULTHANDLER=1 pytest -vxs tests/test_run_whatshap.py
 
 
 Wrapping C++ classes
