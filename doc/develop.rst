@@ -226,4 +226,33 @@ x.y to x.y.1. Do not change a version that has already been uploaded.
 Adding a new subcommand
 -----------------------
 
-Follow the instructions in ``whatshap/example.py``.
+Use one of the modules in ``whatshap/cli/``, and make sure to add it to the list
+of available subcommands in ``whatshap/__main__.py``.
+
+
+Download count statistics
+-------------------------
+
+Some statistics for the PyPI package are available at
+`pypistats.org <https://pypistats.org/packages/whatshap>`_.
+
+Here is a query for Google BigQuery that shows download counts (from PyPI)
+since a given date, broken down by version ::
+
+	SELECT
+		file.project,
+		file.version,
+		COUNT(*) as total_downloads,
+	FROM
+		TABLE_DATE_RANGE(
+			[the-psf:pypi.downloads],
+			TIMESTAMP("20170101"),
+			CURRENT_TIMESTAMP()
+		)
+	WHERE
+		file.project = 'whatshap'
+	GROUP BY
+		file.project, file.version
+
+Statistics for the Conda package are available on the
+`WhatsHap package detail page <https://anaconda.org/bioconda/whatshap/>`_.
