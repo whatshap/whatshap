@@ -5,7 +5,7 @@ import math
 
 import pytest
 from pysam import VariantFile
-from whatshap.genotype import run_genotype
+from whatshap.cli.genotype import run_genotype
 from whatshap.vcf import VcfReader
 
 trio_bamfile = 'tests/data/trio.pacbio.bam'

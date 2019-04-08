@@ -1,4 +1,4 @@
-from whatshap.phase import merge_reads
+from whatshap.cli.phase import merge_reads
 from whatshap.testhelpers import string_to_readset
 
 

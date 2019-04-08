@@ -1,4 +1,4 @@
-from whatshap.unphase import run_unphase
+from whatshap.cli.unphase import run_unphase
 
 
 def test_unphase(tmpdir):

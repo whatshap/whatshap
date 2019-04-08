@@ -4,8 +4,9 @@ Print phasing statistics of a single VCF file
 import logging
 from collections import defaultdict, namedtuple
 from contextlib import ExitStack
-from whatshap.math import median
-from whatshap.vcf import VcfReader
+
+from ..math import median
+from ..vcf import VcfReader
 
 logger = logging.getLogger(__name__)
 

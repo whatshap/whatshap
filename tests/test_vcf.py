@@ -2,7 +2,7 @@ import math
 
 from pytest import raises, approx, fixture
 from whatshap.core import PhredGenotypeLikelihoods
-from whatshap.phase import run_whatshap
+from whatshap.cli.phase import run_whatshap
 from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant, \
 	GenotypeLikelihoods
 
