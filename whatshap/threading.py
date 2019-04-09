@@ -207,7 +207,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 	else:
 		print("Precomputing cut positions based on low coverage and linkage")
 		# cut threshold
-		cut_threshold = 8 #TODO: Compute depending on ploidy
+		cut_threshold = ploidy*ploidy//2 #TODO: Compute depending on ploidy
 		min_block_size = 2
 		
 		# compute absolute coverage for every position and the number of links between each pair of positions

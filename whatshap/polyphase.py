@@ -341,7 +341,7 @@ def run_polyphase(
 						inconsistency_count = 0
 						for pos in range(num_vars):
 							for c_id in coverage[pos]:
-								if coverage[pos][c_id] > 0.333 and 0.30 <= consensus[pos][c_id] <= 0.70:
+								if coverage[pos][c_id] > 0.333 and c_id in consensus[pos] and 0.30 <= consensus[pos][c_id] <= 0.70:
 									#print("   inconsistency in cluster "+str(c_id)+" at position"+str(pos))
 									refine = True
 									inconsistency_count += 1
