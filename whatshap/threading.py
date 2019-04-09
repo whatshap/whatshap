@@ -296,17 +296,17 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 		assert(len(path) == num_vars)
 		
 		# remove single variant jumps from the path
-		for i in range(1, len(path)-1):
-			if i in block_starts:
-				continue
-			dissim = 0
-			for j in range(0,ploidy):
-				if path[i-1][j] != path[i+1][j]:
-					dissim += 1
-			if dissim == 0:
-				for j in range(0,ploidy):
-					if path[i-1][j] in consensus[i]:
-						path[i][j] = path[i-1][j]
+		#for i in range(1, len(path)-1):
+		#	if i in block_starts:
+		#		continue
+		#	dissim = 0
+		#	for j in range(0,ploidy):
+		#		if path[i-1][j] != path[i+1][j]:
+		#			dissim += 1
+		#	if dissim == 0:
+		#		for j in range(0,ploidy):
+		#			if path[i-1][j] in consensus[i]:
+		#				path[i][j] = path[i-1][j]
 					
 		# if wrong genotype, correct by changing multi-cluster-entries
 		#corrections = dict()
@@ -360,13 +360,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 						dissim += 1
 				if (not single_block and dissim >= 2):
 					cut_positions.append(i)
-				#if (dissim >= 1):
-				#	g2l = dict()
-				#	for k, cl in enumerate(cov_map_as_list[i]):
-				#		g2l[cl] = k
-				#	print("Switch("+str(i)+"): "+str(path[i-1][0])+"|"+str(path[i-1][1])+"|"+str(path[i-1][2])+"|"+str(path[i-1][3])+" -> "+str(path[i][0])+"|"+str(path[i][1])+"|"+str(path[i][2])+"|"+str(path[i][3])+" C:"+str(compressed_consensus[i][g2l[path[i][0]]])+"|"+str(compressed_consensus[i][g2l[path[i][1]]])+"|"+str(compressed_consensus[i][g2l[path[i][2]]])+"|"+str(compressed_consensus[i][g2l[path[i][3]]])+" G:"+str(genotypes[i]))
 		print("cut positions: ", cut_positions)
-		#cut_positions.append(num_vars-1)
 	
 	#experimental: Computing longer blocks and discarding cut positions close to each other
 #	cuts = []
