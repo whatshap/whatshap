@@ -205,6 +205,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 					cut_positions.append(i)
 		print("cut positions: ", cut_positions)
 	else:
+		print("Precomputing cut positions based on low coverage and linkage")
 		# cut threshold
 		cut_threshold = 8 #TODO: Compute depending on ploidy
 		min_block_size = 2
@@ -227,7 +228,6 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 		for pos in range(num_vars):
 			current_cluster = 0
 			if pos_clust[pos] > 0:
-				#current_cluster = pos_clust[pos]
 				continue
 			else:
 				clust_count += 1
@@ -294,19 +294,77 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 		path = threader.computePaths(list(sorted(list(block_starts))), cov_map_as_list, position_wise_coverage, compressed_consensus, genotypes)
 			
 		assert(len(path) == num_vars)
+		
+		# remove single variant jumps from the path
+		for i in range(1, len(path)-1):
+			if i in block_starts:
+				continue
+			dissim = 0
+			for j in range(0,ploidy):
+				if path[i-1][j] != path[i+1][j]:
+					dissim += 1
+			if dissim == 0:
+				for j in range(0,ploidy):
+					if path[i-1][j] in consensus[i]:
+						path[i][j] = path[i-1][j]
+					
+		# if wrong genotype, correct by changing multi-cluster-entries
+		#corrections = dict()
+		#
+		#fconsensus = get_cluster_consensus_local(readset, clustering, cov_map, positions, fractional = True)
+		#for i in range(0, len(path)):
+		#	phased_genotype = sum([consensus[i][path[i][j]] if path[i][j] in consensus[i] else -999 for j in range(ploidy)])
+		#	geno_diff = genotypes[i] - phased_genotype
+		#	if abs(geno_diff) == 1:
+		#		# count multiplicity of all present clusters
+		#		count = dict()
+		#		present = set()
+		#		max_count = 0
+		#		for j in range(ploidy):
+		#			if path[i][j] not in count:
+		#				count[path[i][j]] = 0
+		#				present.add(path[i][j])
+		#			count[path[i][j]] += 1
+		#			max_count = max(max_count, count[path[i][j]])
+		#			
+		#		if (max_count < 2):
+		#			# only single-hap clusters, nothing we can do here
+		#			continue
+		#			
+		#		# determine highest deviation from fractional consensus in desired direction
+		#		max_cid = -1
+		#		max_deviation = -float("inf")
+		#		for cid in present:
+		#			deviation = (fconsensus[i][cid] - consensus[i][cid]) * count[cid] * (geno_diff)
+		#			if deviation > max_deviation:
+		#				max_deviation = deviation
+		#				max_cid = cid
+		#				
+		#		if max_cid not in corrections:
+		#			corrections[max_cid] = []
+		#		
+		#		corrections[max_cid].append((i, genotypes[i] - phased_genotype))
+		#		print("Correction needed: Pos="+str(i)+" cluster="+str(max_cid)+" direction="+str(geno_diff))
+					
+		
 	
 		#determine cut positions: Currently, a cut position is created every time a path changes the used cluster from one position to the next
 		cut_positions = []
 		for i in range(1, len(path)):
 			if i in block_starts:
 				cut_positions.append(i)
-			elif not single_block:
+			else:
 				dissim = 0
 				for j in range(0,ploidy):
 					if path[i][j] != path[i-1][j]:
 						dissim += 1
-				if (dissim >= 2):
+				if (not single_block and dissim >= 2):
 					cut_positions.append(i)
+				#if (dissim >= 1):
+				#	g2l = dict()
+				#	for k, cl in enumerate(cov_map_as_list[i]):
+				#		g2l[cl] = k
+				#	print("Switch("+str(i)+"): "+str(path[i-1][0])+"|"+str(path[i-1][1])+"|"+str(path[i-1][2])+"|"+str(path[i-1][3])+" -> "+str(path[i][0])+"|"+str(path[i][1])+"|"+str(path[i][2])+"|"+str(path[i][3])+" C:"+str(compressed_consensus[i][g2l[path[i][0]]])+"|"+str(compressed_consensus[i][g2l[path[i][1]]])+"|"+str(compressed_consensus[i][g2l[path[i][2]]])+"|"+str(compressed_consensus[i][g2l[path[i][3]]])+" G:"+str(genotypes[i]))
 		print("cut positions: ", cut_positions)
 		#cut_positions.append(num_vars-1)
 	
@@ -408,7 +466,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 
 	return(cut_positions, cluster_blocks, components, superreads, coverage, path, haplotypes)
 
-def get_cluster_consensus_local(readset, clustering, cov_map, positions):
+def get_cluster_consensus_local(readset, clustering, cov_map, positions, fractional = False):
 	# Map genome positions to [0,l)
 	index = {}
 	rev_index = []
@@ -476,7 +534,10 @@ def get_cluster_consensus_local(readset, clustering, cov_map, positions):
 		for c in cov_map[pos]:
 			relevant_pos[c].append(pos)
 
-	clusterwise_consensus = [get_single_cluster_consensus(readset, clustering[i], index, relevant_pos[i]) for i in range(len(clustering))]
+	if fractional:
+		clusterwise_consensus = [get_single_cluster_consensus_frac(readset, clustering[i], index, relevant_pos[i]) for i in range(len(clustering))]
+	else:
+		clusterwise_consensus = [get_single_cluster_consensus(readset, clustering[i], index, relevant_pos[i]) for i in range(len(clustering))]
 	whole_consensus = []
 	for pos in range(num_vars):
 		#if (pos%1000 == 0):
@@ -544,6 +605,54 @@ def get_single_cluster_consensus(readset, cluster, index, relevant_pos):
 			cluster_consensus[pos] = 0
 	return cluster_consensus
 
+def get_single_cluster_consensus_frac(readset, cluster, index, relevant_pos):
+	# Count zeroes and one for every position
+	num_zero = {}
+	num_one = {}
+	for read in cluster:
+		for var in readset[read]:
+			pos = index[var.position]
+			if pos not in num_zero:
+				num_zero[pos] = 0
+				num_one[pos] = 0
+			if var.allele == 0:
+				num_zero[pos] += 1
+			else:
+				num_one[pos] += 1
+				
+	# Determine majority allele for every position
+	cluster_consensus = {}
+	for pos in relevant_pos:
+		if pos in num_zero:
+			cluster_consensus[pos] = float(num_one[pos]) / float(num_one[pos] + num_zero[pos])
+		else:
+			cluster_consensus[pos] = 0.5
+	return cluster_consensus
+
+def get_cluster_consensusfrac_local(readset, clustering, cov_map, positions):
+	# Map genome positions to [0,l)
+	index = {}
+	rev_index = []
+	num_vars = 0
+	for position in readset.get_positions():
+		index[position] = num_vars
+		rev_index.append(position)
+		num_vars += 1
+
+	relevant_pos = [[] for i in range(len(clustering))]
+	for pos in range(num_vars):
+		for c in cov_map[pos]:
+			relevant_pos[c].append(pos)
+
+	clusterwise_consensus = [get_single_cluster_consensus(readset, clustering[i], index, relevant_pos[i]) for i in range(len(clustering))]
+	whole_consensus = []
+	for pos in range(num_vars):
+		newdict = defaultdict()
+		for c in cov_map[pos]:
+			newdict[c] = clusterwise_consensus[c][pos]
+		whole_consensus.append(newdict)
+	
+	return whole_consensus
 
 def compute_tuple_genotype(consensus,tup, var):
 	genotype = 0

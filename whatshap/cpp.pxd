@@ -121,7 +121,8 @@ cdef extern from "../src/genotyper.h":
 cdef extern from "../src/clusterediting/DynamicSparseGraph.h":
 	cdef cppclass DynamicSparseGraph:
 		DynamicSparseGraph() except +
-		void addEdge(int, int, double) except +
+		void addEdge(uint32_t, uint32_t, double) except +
+		void setWeight(uint32_t, uint32_t, double) except +
 		
 cdef extern from "../src/clusterediting/CoreAlgorithm.h":
 	cdef cppclass CoreAlgorithm:
@@ -149,9 +150,9 @@ cdef extern from "../src/clusterediting/TriangleSparseMatrix.h":
 cdef extern from "../src/clusterediting/ReadScoring.h":
 	cdef cppclass ReadScoring:
 		ReadScoring() except +
-		void scoreReadsetGlobal(TriangleSparseMatrix* result, ReadSet* readset, unsigned int minOverlap, unsigned int ploidy) except +
-		void scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* readset, unsigned int minOverlap, unsigned int ploidy) except +
-		void scoreReadsetPatterns(TriangleSparseMatrix* result, ReadSet* readset, unsigned int minOverlap, unsigned int ploidy, double errorrate, unsigned int windowSize) except +
+		void scoreReadsetGlobal(TriangleSparseMatrix* result, ReadSet* readset, uint32_t minOverlap,uint32_t ploidy) except +
+		void scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* readset, uint32_t minOverlap, uint32_t ploidy) except +
+		void scoreReadsetPatterns(TriangleSparseMatrix* result, ReadSet* readset, uint32_t minOverlap, uint32_t ploidy, double errorrate, uint32_t windowSize) except +
 		
 cdef extern from "../src/threading/HaploThreader.h":
 	cdef cppclass HaploThreader:

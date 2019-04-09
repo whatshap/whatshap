@@ -36,7 +36,7 @@ from .phase import read_reads, select_reads, split_input_file_list, setup_pedigr
 from .clustereditingplots import draw_plots_dissimilarity, draw_plots_scoring, draw_column_dissimilarity, draw_heatmaps, draw_superheatmap, draw_cluster_coverage, draw_cluster_blocks, draw_dp_threading
 from .readscoring import score_global, score_local, score_local_patternbased
 from .kclustifier import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks
-from .threading import subset_clusters
+from .threading import subset_clusters, get_cluster_consensus_local
 #from .core import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks, subset_clusters
 __author__ = "Jana Ebler" 
 
@@ -81,7 +81,8 @@ def run_polyphase(
 	plot_haploblocks = False,
 	plot_threading = False,
 	single_block = False,
-	cpp_threading = False
+	cpp_threading = False,
+	ce_refine = False
 	):
 	"""
 	Run Polyploid Phasing.
@@ -258,21 +259,122 @@ def run_polyphase(
 				# Run cluster editing
 				logger.info("Solving cluster editing instance with {} nodes and {} edges ...".format(len(readset), len(similarities)))
 				timers.start('solve_clusterediting')
-				clusterediting = CoreAlgorithm(graph, ce_bundle_edges)	
-				readpartitioning = clusterediting.run()				
+				clusterediting = CoreAlgorithm(graph, ce_bundle_edges)
+				clustering = clusterediting.run()
+				
+				if ce_refine:
+					runs_remaining = 3
+					refine = True
+					while refine and runs_remaining > 0:
+						refine = False
+						runs_remaining -= 1
+						#for every cluster and every variant position, compute the relative coverage and consensus
+						#logger.info("Detecting single variant inconsistencies in clusters ...")
+
+						# Map genome positions to [0,l)
+						num_clusters = len(clustering)
+						index = {}
+						rev_index = []
+						num_vars = 0
+
+						for position in readset.get_positions():
+							index[position] = num_vars
+							rev_index.append(position)
+							num_vars += 1
+
+						#cov_map maps each position to the list of cluster IDS that appear at this position
+						cov_positions = defaultdict()
+						cov_map = defaultdict(list)
+						for c_id in range(num_clusters):
+							covered_positions = []
+							for read in clustering[c_id]:
+								for pos in [index[var.position] for var in readset[read] ]:		
+									if pos not in covered_positions:
+										covered_positions.append(pos)
+							for p in covered_positions:
+								cov_map[p].append(c_id)
+						#	assert(len(cov_map.keys()) == num_vars)
+
+						#compute for each position the amount of clusters that 'cover' this position
+						for key in cov_map.keys():
+							cov_positions[key] = len(cov_map[key])
+						cov_positions_sorted = sorted(cov_positions.items(), key=lambda x: x[1], reverse=True)
+
+						#restrict the number of clusters at each position to a maximum of 2*ploidy clusters with the largest number of reads	
+						for key in cov_map.keys():
+							largest_clusters = sorted(cov_map[key], key=lambda x: len(clustering[x]), reverse=True)[:min(len(cov_map[key]), 2*ploidy)]
+							cov_map[key] = largest_clusters
+
+						#create dictionary mapping a clusterID to a pair (starting position, ending position)
+						positions = {}
+						counter = 0
+						for c_id in range(num_clusters):
+							read = clustering[c_id][0]
+							start = index[readset[read][0].position]
+							end = index[readset[read][-1].position]
+							for read in clustering[c_id]:
+								readstart = index[readset[read][0].position]
+								readend = index[readset[read][-1].position]
+								if (readstart < start):
+									start = readstart
+								if (readend > end):
+									end = readend
+							positions[c_id] = (start,end)
+						assert(len(positions) == num_clusters)
+
+						coverage = [dict() for pos in range(num_vars)]
+						coverage_sum = [0 for pos in range(num_vars)]
+						for c_id in range(num_clusters):
+							for read in clustering[c_id]:
+								for pos in [index[var.position] for var in readset[read]]:
+									if c_id not in coverage[pos]:
+										coverage[pos][c_id] = 0
+									coverage[pos][c_id] += 1
+									coverage_sum[pos] += 1
+
+						for pos in range(num_vars):
+							for c_id in coverage[pos]:
+								coverage[pos][c_id] = coverage[pos][c_id]/coverage_sum[pos]
+
+						consensus = get_cluster_consensus_local(readset, clustering, cov_map, positions, fractional = True)
+
+						inconsistency_count = 0
+						for pos in range(num_vars):
+							for c_id in coverage[pos]:
+								if coverage[pos][c_id] > 0.333 and 0.30 <= consensus[pos][c_id] <= 0.70:
+									#print("   inconsistency in cluster "+str(c_id)+" at position"+str(pos))
+									refine = True
+									inconsistency_count += 1
+									zero_reads = []
+									one_reads = []
+									for read in clustering[c_id]:
+										for var in readset[read]:
+											if index[var.position] == pos:
+												if var.allele == 0:
+													zero_reads.append(read)
+												else:
+													one_reads.append(read)
+									for r0 in zero_reads:
+										for r1 in one_reads:
+											similarities.set(r0, r1, -10000)
+
+						refined_graph = DynamicSparseGraph()
+						for (read1, read2) in similarities:
+							refined_graph.addEdge(read1, read2, similarities.get(read1, read2))
+
+						if refine:
+							logger.info(str(inconsistency_count)+" inconsistent variants found. Refining clusters ...")
+							refined_clusterediting = CoreAlgorithm(refined_graph, ce_bundle_edges)
+							clustering = refined_clusterediting.run()
+				
 				timers.stop('solve_clusterediting')
 
 				# Assemble clusters to haplotypes
-				logger.info("Assembling {} haplotypes from {} clusters over {} positions ...".format(ploidy, len(readpartitioning), len(readset.get_positions())))
+				logger.info("Assembling {} haplotypes from {} clusters over {} positions ...".format(ploidy, len(clustering), len(readset.get_positions())))
 				timers.start('assemble_haplotypes')
-				#print(len(readpartitioning))
-				#for i in range(len(readpartitioning)-1, -1, -1):
-				#	if (len(readpartitioning[i]) < 8):
-				#		del readpartitioning[i]
-				#print(len(readpartitioning))
 
 				# Add dynamic programming for finding the most likely subset of clusters
-				cut_positions, cluster_blocks, components, superreads, coverage, paths, haplotypes = subset_clusters(readset, readpartitioning, ploidy, sample,genotype_list, single_block, cpp_threading)
+				cut_positions, cluster_blocks, components, superreads, coverage, paths, haplotypes = subset_clusters(readset, clustering, ploidy, sample,genotype_list, single_block, cpp_threading)
 
 				timers.stop('assemble_haplotypes')
 
@@ -283,9 +385,9 @@ def run_polyphase(
 					if plot_clusters:
 						if ce_score_with_patterns:
 							draw_plots_scoring(readset, similarities, output_str+".scoringplot.pdf", ploidy, errorrate, min_overlap)
-						draw_superheatmap(readset, readpartitioning, phasable_variant_table, output_str+".clusters.pdf", genome_space = False)
+						draw_superheatmap(readset, clustering, phasable_variant_table, output_str+".clusters.pdf", genome_space = False)
 					if plot_haploblocks:
-						draw_cluster_blocks(readset, readpartitioning, cluster_blocks, cut_positions, phasable_variant_table, output_str+".haploblocks.pdf", genome_space = False)
+						draw_cluster_blocks(readset, clustering, cluster_blocks, cut_positions, phasable_variant_table, output_str+".haploblocks.pdf", genome_space = False)
 					if plot_threading:
 						draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, phasable_variant_table, output_str+".threading.pdf")
 				timers.stop('create_plots')
@@ -381,6 +483,8 @@ def add_arguments(parser):
 		help='Output only one single block.')
 	arg('--cpp-threading', dest='cpp_threading', default=False, action='store_true',
 		help='Uses a C++ implementation to perform the haplotype threading.')
+	arg('--ce-refine', dest='ce_refine', default=False, action='store_true',
+		help='Refines the output of cluster editing by detecting inconsistencies within the clusters and rerunning the clustering.')
 
 def validate(args, parser):
 	pass

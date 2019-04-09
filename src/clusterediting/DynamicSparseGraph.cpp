@@ -41,11 +41,11 @@ void DynamicSparseGraph::clearAndResize(const uint32_t newSize) {
 }
 
 void DynamicSparseGraph::addEdge(const Edge e, const EdgeWeight w) {
-    if (e.v >= size) {
-        neighbours.resize(e.v+1, std::vector<NodeId>(0));
-        size = e.v+1;
-    }
     if (w != 0.0) {
+        if (e.v >= size) {
+            neighbours.resize(e.v+1, std::vector<NodeId>(0));
+            size = e.v+1;
+        }
         neighbours[e.v].push_back(e.u);
         weights[e.id()] = w;
     }
