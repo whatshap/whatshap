@@ -49,6 +49,12 @@ def add_arguments(parser):
 	arg('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')
+	arg('--regions', dest='regions', metavar='REGION', default=[], action='append',
+		help='Specify region(s) of interest to limit the tagging to reads/variants '
+			 'overlapping those regions. You can specify a space-separated list of '
+			 'regions in the form of chrom:start:end, chrom (consider entire chromosome), '
+			 'or chrom:start (consider region from this start to end of chromosome). '
+			 'DEFAULT: <empty>')
 	arg('--ignore-linked-read', default=False, action='store_true',
 		help='Ignore linkage information stored in BX tags of the reads.')
 	arg('--linked-read-distance-cutoff', '-d', metavar='LINKEDREADDISTANCE', default=50000, type=int,
@@ -78,11 +84,94 @@ def md5_of(filename):
 	return md5(open(filename,'rb').read()).hexdigest()
 
 
+def normalize_user_regions(regions):
+	"""
+	Process and accept user input of the following forms:
+
+	chr:start:end -> chr, start, end
+	chr -> chr, None, None
+	chr:start -> chr, start, None
+
+	This follows pysam's way of specifying regions to extract reads from
+
+	:param regions: list of user input regions
+	:return: sorted list of normalized regions
+	"""
+	norm_regions = []
+	for reg in regions:
+		parts = reg.split(':')
+		if len(parts) == 1:
+			# assume single chromosome
+			norm_reg = parts[0], None, None
+		elif len(parts) == 2:
+			# region from start to end of chromosome
+			norm_reg = parts[0], int(parts[1]), None
+		elif len(parts) == 3:
+			norm_reg = parts[0], int(parts[1]), int(parts[2])
+		else:
+			raise ValueError('Malformed region specified (must be: chrom[:start][:end]) -> {}'.format(reg))
+		logger.debug('Normalized region {} to {}'.format(reg, ' '.join(norm_reg)))
+		norm_regions.append(norm_reg)
+	return sorted(norm_regions)
+
+
+def prepare_alignmnet_file(aln_file_path, ref_genome, num_sample_ids, exit_stack, t_mapq=0):
+	"""
+	This function is a strong (mandatory) candidate for global refactoring as similar
+	input validation seems to be done in many other command modules.
+
+	:param aln_file_path:
+	:param ref_genome:
+	:param num_sample_ids:
+	:param exit_stack:
+	:param t_mapq:
+	:return:
+	"""
+	try:
+		readset_reader = exit_stack.enter_context(ReadSetReader([aln_file_path],
+																reference=ref_genome,
+																numeric_sample_ids=num_sample_ids,
+																mapq_threshold=t_mapq))
+	except OSError as e:
+		logger.error(e)
+		sys.exit(1)
+	except AlignmentFileNotIndexedError as e:
+		logger.error('The file %r is not indexed. Please create the appropriate BAM/CRAM '
+					 'index with "samtools index"', str(e))
+		sys.exit(1)
+	return readset_reader
+
+
+def prepare_reference_genome_file(ref_file_path, exit_stack):
+	"""
+	This function is a strong (mandatory) candidate for global refactoring as similar
+	input validation seems to be done in many other command modules.
+
+	:param ref_file_path:
+	:param exit_stack:
+	:return:
+	"""
+	if ref_file_path is None:
+		fasta = None
+	else:
+		try:
+			fasta = exit_stack.enter_context(IndexedFasta(ref_file_path))
+		except OSError as e:
+			logger.error('%s', e)
+			sys.exit(1)
+		except FastaNotIndexedError as e:
+			logger.error('An index file (.fai) for the reference %r could not be found. '
+						 'Please create one with "samtools faidx".', str(e))
+			sys.exit(1)
+	return fasta
+
+
 def run_haplotag(
 		variant_file,
 		alignment_file,
 		output=None,
 		reference=None,
+		regions=None,
 		ignore_linked_read=False,
 		given_samples=None,
 		linked_read_distance_cutoff=50000,
@@ -94,34 +183,26 @@ def run_haplotag(
 	timers = StageTimer()
 	timers.start('overall')
 
+	if regions is None:
+		regions = []
+	else:
+		regions = normalize_user_regions(regions)
+
 	with ExitStack() as stack:
 		numeric_sample_ids = NumericSampleIds()
-		try:
-			readset_reader = stack.enter_context(ReadSetReader([alignment_file],
-				reference=reference, numeric_sample_ids=numeric_sample_ids, mapq_threshold=0))
-		except OSError as e:
-			logger.error(e)
-			sys.exit(1)
-		except AlignmentFileNotIndexedError as e:
-			logger.error('The file %r is not indexed. Please create the appropriate BAM/CRAM '
-				'index with "samtools index"', str(e))
-			sys.exit(1)
-
-		if reference:
-			try:
-				fasta = stack.enter_context(IndexedFasta(reference))
-			except OSError as e:
-				logger.error('%s', e)
-				sys.exit(1)
-			except FastaNotIndexedError as e:
-				logger.error('An index file (.fai) for the reference %r could not be found. '
-					'Please create one with "samtools faidx".', str(e))
-				sys.exit(1)
-		else:
-			fasta = None
+		readset_reader = prepare_alignmnet_file(alignment_file,
+												reference,
+												numeric_sample_ids,
+												stack,
+												)
+		fasta = prepare_reference_genome_file(reference,
+												stack,
+												)
 
 		# require input VCF to be compressed
 		if not variant_file.endswith('gz'):
+			# FIXME hard-coded file extension
+			# TODO should this be checked by reading the magic number?
 			logger.error('The input VCF must be compressed (vcf.gz).')
 			sys.exit(1)
 
