@@ -63,10 +63,12 @@ def add_arguments(parser):
 	arg('--output-haplotag-list', dest='haplotag_list', metavar='HAPLOTAG_LIST', default=None,
 		help='Write assignments of read names to haplotypes (tab separated) to given '
 		'output file. If filename ends in .gz, then output is gzipped.')
+	arg('--tag-supplementary', default=False, action='store_true', 
+		help='Also tag supplementary alignments. Supplementary alignments are assigned to the same '
+			'haplotype the primary alignment has been assigned to (default: only tag primary alignments).')
 	arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
 	arg('alignment_file', metavar='ALIGNMENTS',
 		help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
-
 
 def validate(args, parser):
 	pass
@@ -86,6 +88,7 @@ def run_haplotag(
 		linked_read_distance_cutoff=50000,
 		ignore_read_groups=False,
 		haplotag_list=None,
+		tag_supplementary=False,
 	):
 
 	timers = StageTimer()
@@ -290,9 +293,13 @@ def run_haplotag(
 										for r in reads_to_consider:
 											read_to_haplotype[r.name] = (haplotype, abs(quality), phaseset)
 											logger.debug('Assigned read %s to haplotype %d with a quality of %d based on %d covered variants', r.name, haplotype, quality, len(r))
-
-				# Only attempt to assign phase of neither secondary nor supplementary
-				if (not alignment.is_secondary) and (alignment.flag & 2048 == 0):
+				if tag_supplementary:
+					# tag supplementary alignments based on primary alignments
+					consider_read = not alignment.is_secondary
+				else:
+					# do not consider supplementary alignments
+					consider_read = (not alignment.is_secondary) and (alignment.flag & 2048 == 0)
+				if consider_read:
 					try:
 						haplotype, quality, phaseset = read_to_haplotype[alignment.query_name]
 						haplotype_name = 'H{}'.format(haplotype + 1)
