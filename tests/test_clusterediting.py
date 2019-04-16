@@ -32,7 +32,7 @@ def test_clusterediting1():
 
 	# create read graph
 	n_reads = len(readset)
-	graph = DynamicSparseGraph()
+	graph = DynamicSparseGraph(n_reads)
 	
 	# insert edges
 	#for id1 in range(n_reads):
@@ -76,7 +76,7 @@ def test_clusterediting2():
 
 	# create read graph
 	n_reads = len(readset)
-	graph = DynamicSparseGraph()
+	graph = DynamicSparseGraph(n_reads)
 	
 	# insert edges
 	#for id1 in range(n_reads):
@@ -119,7 +119,7 @@ def test_clusterediting3():
 
 	# create read graph
 	n_reads = len(readset)
-	graph = DynamicSparseGraph()
+	graph = DynamicSparseGraph(n_reads)
 
 	# insert edges
 	#for id1 in range(n_reads):

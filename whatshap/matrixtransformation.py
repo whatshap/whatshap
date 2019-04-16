@@ -66,7 +66,7 @@ class MatrixTransformation:
 				similarities = score_global(column, ploidy, min_overlap)
 				
 				# create read graph object
-				graph = DynamicSparseGraph()
+				graph = DynamicSparseGraph(len(column))
 	
 				# insert edges into read graph
 				for (read1, read2) in similarities:

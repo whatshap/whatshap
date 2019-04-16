@@ -120,9 +120,10 @@ cdef extern from "../src/genotyper.h":
 
 cdef extern from "../src/clusterediting/DynamicSparseGraph.h":
 	cdef cppclass DynamicSparseGraph:
-		DynamicSparseGraph() except +
+		DynamicSparseGraph(uint32_t) except +
 		void addEdge(uint32_t, uint32_t, double) except +
 		void setWeight(uint32_t, uint32_t, double) except +
+		void clearAndResize(uint32_t) except +
 		
 cdef extern from "../src/clusterediting/CoreAlgorithm.h":
 	cdef cppclass CoreAlgorithm:
@@ -161,9 +162,11 @@ cdef extern from "../src/threading/HaploThreader.h":
 					vector[vector[uint32_t]]& covMap,
                     vector[vector[double]]& coverage, 
                     vector[vector[uint32_t]]& consensus,
-                    vector[uint32_t]& genotypes) except +
+                    vector[uint32_t]& genotypes,
+					vector[vector[vector[double]]]& clusterDissim) except +
 		vector[vector[uint32_t]] computePaths(vector[uint32_t]& blockStarts,
 					vector[vector[uint32_t]]& covMap,
                     vector[vector[double]]& coverage, 
                     vector[vector[uint32_t]]& consensus,
-                    vector[uint32_t]& genotypes) except +
+                    vector[uint32_t]& genotypes,
+					vector[vector[vector[double]]]& clusterDissim) except +

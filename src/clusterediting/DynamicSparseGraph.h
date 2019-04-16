@@ -60,9 +60,14 @@ public:
     static const NodeId InvalidNodeId;
     
     /**
-     * Constructs a new empty graph with the specified number of nodes. Initializes all (non-)edges with weight 0.
+     * Constructs a new empty graph with no nodes or edges.
      */
     DynamicSparseGraph();
+    
+    /**
+     * Constructs a new graph with the specified number of nodes and no edges (non-existing edges implicitly have a weight of 0)
+     */
+    DynamicSparseGraph(uint32_t numNodes);
     
     /**
      * Creates a hard copy of the provided graph.

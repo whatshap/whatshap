@@ -22,8 +22,8 @@ StaticSparseGraph::StaticSparseGraph(StaticSparseGraph& other) :
 
 StaticSparseGraph::StaticSparseGraph(DynamicSparseGraph& other) :
     size(other.numNodes()),
-    rank1((size*(size-1)/2 - 1) / 4096 + 1, 0UL),
-    offset1((size*(size-1)/2 - 1) / 4096 + 1, 0UL),
+    rank1(std::max(0, ((int32_t)size*((int32_t)size-1)/2 - 1) / 4096 + 1), 0UL),
+    offset1(std::max(0, ((int32_t)size*((int32_t)size-1)/2 - 1) / 4096 + 1), 0UL),
     rank2(0),
     offset2(0),
     weightv(0),

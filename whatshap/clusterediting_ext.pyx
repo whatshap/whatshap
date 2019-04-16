@@ -6,12 +6,14 @@ from libc.stdint cimport uint32_t
 cimport cpp
 
 cdef class DynamicSparseGraph:
-	def __cinit__(self):
-		self.thisptr = new cpp.DynamicSparseGraph()
+	def __cinit__(self, uint32_t initialNumNodes):
+		self.thisptr = new cpp.DynamicSparseGraph(initialNumNodes)
 	def addEdge(self, uint32_t node_id1, uint32_t node_id2, double weight):
 		self.thisptr.addEdge(node_id1, node_id2, weight)
 	def setWeight(self, uint32_t node_id1, uint32_t node_id2, double weight):
 		self.thisptr.setWeight(node_id1, node_id2, weight)
+	def clearAndResize(self, uint32_t initialNumNodes):
+		self.thisptr.clearAndResize(initialNumNodes)
 
 cdef class CoreAlgorithm:
 	def __cinit__(self, DynamicSparseGraph graph, bundleEdges):

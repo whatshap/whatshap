@@ -114,13 +114,14 @@ cdef int switch_costs(c_tuple1, c_tuple2, positions,int var,int ploidy):
 #TODO: change 'hard' cutoffs to probability function
 #TODO: does not work for a general <ploidy> yet
 cdef int cov_costs(c_tuple, int var, coverage):
+	#print(str(c_tuple)+" "+str(var))
 	cdef int costs = 0
 	cdef int exp_cn = 0
 	cdef int i = 0
 	#compute copy numbers for every cluster in c_tuple
 	for i in range(0,4):	
 #	for i in range(0,2):
-		cov = coverage[c_tuple[i]][var]
+		cov = coverage[var][c_tuple[i]] if c_tuple[i] in coverage[var] else 0
 		#if cluster does not cover the position var:
 		if (cov == 0):
 			return (1000000000)

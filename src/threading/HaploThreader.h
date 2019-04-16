@@ -8,6 +8,8 @@
 #include <string> 
 #include <sstream>
 #include <algorithm>
+//#include <Globals.h>
+#include "../clusterediting/Globals.h"
     
 typedef uint32_t GlobalClusterId;
 typedef uint32_t LocalClusterId;
@@ -258,7 +260,8 @@ public:
                     const std::vector<std::vector<GlobalClusterId>>& covMap,
                     const std::vector<std::vector<double>>& coverage, 
                     const std::vector<std::vector<uint32_t>>& consensus,
-                    const std::vector<uint32_t>& genotypes
+                    const std::vector<uint32_t>& genotypes,
+                    const std::vector<std::vector<std::vector<double>>>& clusterDissim
                    ) const;
                   
     /**
@@ -277,6 +280,7 @@ public:
                     const std::vector<std::vector<double>>& coverage, 
                     const std::vector<std::vector<uint32_t>>& consensus,
                     const std::vector<uint32_t>& genotypes,
+                    const std::vector<std::vector<std::vector<double>>>& clusterDissim,
                     Position displayedEnd = 0
                    ) const;
 
@@ -295,6 +299,15 @@ private:
     
     /**
      * Computes the switch cost of the two tuples. All cluster indices are local.
+     */
+    Score getSwitchCost(const ClusterTuple tuple1, const ClusterTuple tuple2, 
+                        const std::vector<GlobalClusterId>& clusters1, const std::vector<GlobalClusterId>& clusters2,
+                        const std::vector<std::vector<double>>& clusterDissim
+                       ) const;
+                       
+    /**
+     * Computes the switch cost of the two tuples. All cluster indices are local. Uniform switch cost between clusters
+     * are assumed
      */
     Score getSwitchCost(const ClusterTuple tuple1, const ClusterTuple tuple2, 
                         const std::vector<GlobalClusterId>& clusters1, const std::vector<GlobalClusterId>& clusters2) const;

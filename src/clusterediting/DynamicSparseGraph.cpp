@@ -21,6 +21,13 @@ DynamicSparseGraph::DynamicSparseGraph() :
     
 }
 
+DynamicSparseGraph::DynamicSparseGraph(uint32_t numNodes) :
+    size(numNodes),
+    neighbours(size, std::vector<NodeId>(0))
+{
+    
+}
+
 DynamicSparseGraph::DynamicSparseGraph(DynamicSparseGraph& other) :
     size(other.size),
     weights(other.weights),

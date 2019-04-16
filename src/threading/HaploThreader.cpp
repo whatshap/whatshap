@@ -20,7 +20,8 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (const std
                     const std::vector<std::vector<GlobalClusterId>>& covMap,
                     const std::vector<std::vector<double>>& coverage, 
                     const std::vector<std::vector<uint32_t>>& consensus,
-                    const std::vector<uint32_t>& genotypes
+                    const std::vector<uint32_t>& genotypes,
+                    const std::vector<std::vector<std::vector<double>>>& clusterDissim
                    ) const {
     Position numVars = covMap.size();
     std::vector<std::vector<GlobalClusterId>> path;
@@ -28,7 +29,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (const std
         Position start = blockStarts[i];
         Position end = i == blockStarts.size()-1 ? numVars : blockStarts[i+1];
         if (end > start) {
-            std::vector<std::vector<GlobalClusterId>> section = computePaths(blockStarts[i], end, covMap, coverage, consensus, genotypes, numVars);
+            std::vector<std::vector<GlobalClusterId>> section = computePaths(blockStarts[i], end, covMap, coverage, consensus, genotypes, clusterDissim, numVars);
             for (auto tuple : section) {
                 path.push_back(tuple);
             }
@@ -42,6 +43,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
                     const std::vector<std::vector<double>>& coverage, 
                     const std::vector<std::vector<uint32_t>>& consensus,
                     const std::vector<uint32_t>& genotypes,
+                    const std::vector<std::vector<std::vector<double>>>& clusterDissim,
                     Position displayedEnd
                    ) const {
     
@@ -84,13 +86,15 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
     
     m.push_back(std::unordered_map<ClusterTuple, ClusterEntry>(column.begin(), column.end()));
     
-//     std::cout<<"Best score in column 0 is "<<minimumInColumn<<"("<<getCoverageCost(minimumTupleInColumn, coverage[0])<<") by "<<(minimumTupleInColumn.asString(ploidy, covMap[0]))<<". Kept "<<column.size()<<" of "<<confTuples.size()<<"rows"<<std::endl;
+    if (verbosity >= 2)
+        std::cout<<"Best score in column 0 is "<<minimumInColumn<<"("<<getCoverageCost(minimumTupleInColumn, coverage[0])<<") by "<<(minimumTupleInColumn.asString(ploidy, covMap[0]))<<". Kept "<<column.size()<<" of "<<confTuples.size()<<"rows"<<std::endl;
     allEntries += confTuples.size();
     keptEntries += column.size();
     
     // iterate over positions
-    for (Position pos = start + 1; pos < end; pos++) {     
-        std::cout<<"Threading haplotypes through clusters .. ("<<pos<<"/"<<displayedEnd<<")\r"<<std::flush;
+    for (Position pos = start + 1; pos < end; pos++) {
+        if (verbosity >= 1)
+            std::cout<<"Threading haplotypes through clusters .. ("<<pos<<"/"<<displayedEnd<<")\r"<<std::flush;
         
         // reset variables
         confTuples.clear();
@@ -112,7 +116,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
             
             // iterate over previous rows
             for (std::pair<ClusterTuple, ClusterEntry> predEntry : m[pos-1-start]) {
-                Score s = predEntry.second.score + getSwitchCost(rowTuple, predEntry.first, covMap[pos], covMap[pos-1]);
+                Score s = predEntry.second.score + getSwitchCost(rowTuple, predEntry.first, covMap[pos], covMap[pos-1], clusterDissim[pos-1]);
                 if (s < minimum) {
                     minExists = true;
                     minimum = s;
@@ -188,13 +192,14 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         // write column into dp table(s)
         m.push_back(std::unordered_map<ClusterTuple, ClusterEntry>(column.begin(), column.end()));
         
-//         std::cout<<"Best score in column "<<pos<<" is "<<minimumInColumn<<"("<<getCoverageCost(minimumTupleInColumn, coverage[pos])<<" + "<<(minimumInColumn-getCoverageCost(minimumTupleInColumn, coverage[pos]))<<") by "<<(minimumTupleInColumn.asString(ploidy, covMap[pos]))<<" from "<<(minimumPredTupleInColumn.asString(ploidy, covMap[pos-1]))<<". Kept "<<column.size()<<" of "<<confTuples.size()<<"rows"<<std::endl;
+        if (verbosity >= 3)
+            std::cout<<"Best score in column "<<pos<<" is "<<minimumInColumn<<"("<<getCoverageCost(minimumTupleInColumn, coverage[pos])<<" + "<<(minimumInColumn-getCoverageCost(minimumTupleInColumn, coverage[pos]))<<") by "<<(minimumTupleInColumn.asString(ploidy, covMap[pos]))<<" from "<<(minimumPredTupleInColumn.asString(ploidy, covMap[pos-1]))<<". Kept "<<column.size()<<" of "<<confTuples.size()<<"rows"<<std::endl;
         allEntries += confTuples.size();
         keptEntries += column.size();
     }
     
-    if (end == displayedEnd)
-        std::cout<<"Threading haplotypes through clusters .. ("<<end<<"/"<<end<<")"<<std::endl;
+    if (verbosity >= 1 && end == displayedEnd)
+        std::cout<<"Threading haplotypes through clusters .. ("<<end<<"/"<<end<<")"<<std::flush;
     
     // backtracking start
     ClusterTuple currentRow = ClusterTuple::INVALID_TUPLE;
@@ -213,10 +218,10 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         path.push_back(currentRow.asVector(ploidy, covMap[firstUnthreadedPosition-1]));
     }
     
-//     if (end == displayedEnd) {
-//         std::cout<<"Kept "<<keptEntries<<" out of "<<allEntries<<" in DP table ("<<(keptEntries*100/allEntries)<<"%)"<<std::endl;
-//         std::cout<<"Optimal solution value = "<<(m[firstUnthreadedPosition-1-start][currentRow].score)<<std::endl;
-//     }
+    if (verbosity >= 2 && end == displayedEnd) {
+        std::cout<<"Kept "<<keptEntries<<" out of "<<allEntries<<" in DP table ("<<(keptEntries*100/allEntries)<<"%)"<<std::endl;
+        std::cout<<"Optimal solution value = "<<(m[firstUnthreadedPosition-1-start][currentRow].score)<<std::endl;
+    }
     
     // backtracking iteration
     for (Position pos = firstUnthreadedPosition-1; pos > start; pos--) {
@@ -253,6 +258,26 @@ Score HaploThreader::getCoverageCost(ClusterTuple tuple, const std::vector<doubl
         }
     }
     return cost;
+}
+
+Score HaploThreader::getSwitchCost(const ClusterTuple tuple1, const ClusterTuple tuple2, 
+                                   const std::vector<GlobalClusterId>& clusters1, const std::vector<GlobalClusterId>& clusters2,
+                                   const std::vector<std::vector<double>>& clusterDissim
+                                  ) const {
+    // tuple contains global cluster ids
+//     uint32_t switches = 0;
+//     for (uint32_t i = 0; i < ploidy; i++) {
+//         switches += clusters1[tuple1.get(i)] != clusters2[tuple2.get(i)];
+//     }
+//     double switches = 0;
+//     for (uint32_t i = 0; i < ploidy; i++) {
+//         switches += clusterDissim[clusters1[tuple1.get(i)]][clusters2[tuple2.get(i)]];
+//     }
+    double switches = 0;
+    for (uint32_t i = 0; i < ploidy; i++) {
+        switches += (1 + clusterDissim[tuple2.get(i)][tuple1.get(i)]) / 2;
+    }
+    return switches*switchCost + affineSwitchCost * (switches > 0);
 }
 
 Score HaploThreader::getSwitchCost(const ClusterTuple tuple1, const ClusterTuple tuple2, 

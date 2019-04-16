@@ -65,8 +65,8 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* reads
     computeOverlapDiff(readset, begins, ends, positions, alleles, posList, posMap, overlaps, diffs, defaultSameDist, defaultDiffDist, minOverlap, ploidy, longestReadSpan);
     
     std::vector<std::pair<uint32_t, uint32_t>> entries = overlaps.getEntries();
-    std::cout<<"default same = "<<defaultSameDist<<std::endl;
-    std::cout<<"default diff = "<<defaultDiffDist<<std::endl;
+//     std::cout<<"default same = "<<defaultSameDist<<std::endl;
+//     std::cout<<"default diff = "<<defaultDiffDist<<std::endl;
     
     // compute longest read length and average read length (in base pairs) and divide by 2
     uint32_t windowSize = 0;

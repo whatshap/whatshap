@@ -402,13 +402,13 @@ def construct_ground_truth_blockwise(readset, cut_positions):
 		start = pos
 	return calc_consensus_blocks(readset, real_clusters, trivial_cluster_blocks, cut_positions)
 
-def draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, var_table, path):
+def draw_dp_threading(readset, clustering, coverage, paths, cut_positions, haplotypes, var_table, genotypes, path):
 	assert len(paths) > 0
 	ploidy = len(paths[0])
 	assert ploidy >= 2
-	num_c = len(coverage)
+	num_c = len(clustering)
 	assert (num_c > ploidy)
-	num_vars = len(coverage[0])
+	num_vars = len(coverage)
 	
 	#print("Printing debug information:")
 	#print("len(paths) = "+str(len(paths)))
@@ -439,17 +439,9 @@ def draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, var_t
 	c_height = 0.9
 	
 	# Plot cut positions
-	all_pos = list(sorted(readset.get_positions()))
-	pos_map = {}
-	ext_cuts = []
-	for i, pos in enumerate(all_pos):
-		pos_map[pos] = i
-	for pos in cut_positions:
-		ext_cuts.append(pos_map[pos])
-	for pos in ext_cuts:
-		if (pos != 0):
-			plt.vlines(x = pos, ymin = 0, ymax = num_c*(c_height + y_margin), color = "lightgray", alpha = 0.3)
-	ext_cuts.append(num_vars)
+	cut_pos = cut_positions + [num_vars]
+	for pos in cut_pos:
+		plt.vlines(x = pos, ymin = 0, ymax = num_c*(c_height + y_margin), color = "lightgray", alpha = 0.3)
 	
 	# Plot cluster coverage
 	xs = list(range(num_vars))
@@ -457,13 +449,10 @@ def draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, var_t
 		min_pos = num_vars
 		max_pos = 0
 		for pos in range(num_vars):
-			if (coverage[c_list[c_id]][pos] > 0):
+			if c_list[c_id] in coverage[pos] and coverage[pos][c_list[c_id]] > 0:
 				min_pos = min(min_pos, pos)
 				max_pos = max(max_pos, pos)
-				#plt.vlines(x = x_scale*pos, ymin = y_offset, ymax = y_offset + c_height*coverage[c_list[c_id]][pos], color = 'gray')
-		#plt.plot(xs, coverage[c_list[c_id]], marker='.', lw=1)
-		#d = [y_offset for i in range(num_vars)]
-		ys = [y_offset + c_height*cov for cov in coverage[c_list[c_id]][min_pos:max_pos+1]]
+		ys = [y_offset + c_height*coverage[pos][c_list[c_id]] if c_list[c_id] in coverage[pos] else y_offset for pos in range(min_pos, max_pos+1)]
 		plt.fill_between(x=xs[min_pos:max_pos+1], y1=ys, y2=y_offset, color='gray')
 		plt.hlines(y = y_offset + c_height + y_margin/2, xmin = 0, xmax = x_scale*num_vars - 1, color = 'lightgray', alpha = 0.5)
 		y_offset += (c_height + y_margin)
@@ -482,32 +471,42 @@ def draw_dp_threading(coverage, paths, cut_positions, haplotypes, readset, var_t
 		
 	# Plot switch flip errors
 	#print(cut_positions)
-	#print(ext_cuts)
+	#print(cut_pos)
 	#print(haplotypes)
 	phase_vectors = get_phase(readset, var_table)
 	truth = []
 	assert len(phase_vectors) == ploidy
 	for k in range(ploidy):
 		truth.append("".join(map(str, phase_vectors[k])))
-	for i in range(len(ext_cuts)-1):
-		#print(str(ext_cuts[i])+"-"+str(ext_cuts[i+1])+" "+str(len(haplotypes))+" "+str(len(truth)))
-		block1 = [h[ext_cuts[i]:min(len(paths), ext_cuts[i+1])] for h in truth]
-		block2 = [h[ext_cuts[i]:min(len(paths), ext_cuts[i+1])] for h in haplotypes]
+	for i in range(len(cut_pos)-1):
+		#print(str(cut_pos[i])+"-"+str(cut_pos[i+1])+" "+str(len(haplotypes))+" "+str(len(truth)))
+		block1 = [h[cut_pos[i]:min(len(paths), cut_pos[i+1])] for h in truth]
+		block2 = [h[cut_pos[i]:min(len(paths), cut_pos[i+1])] for h in haplotypes]
 		#print(block1)
 		#print(block2)
+		for pos in range(len(block2[0])):
+			geno = 0
+			for k in range(ploidy):
+				if block2[k][pos] == "1":
+					geno += 1
+			if geno != genotypes[cut_pos[i]+pos]:
+				cur_c = list(filter(lambda x: c_list[x] in coverage[cut_pos[i]+pos] and coverage[cut_pos[i]+pos][c_list[x]] > 0, list(range(num_c))))
+				plt.vlines(x = cut_pos[i]+pos, ymax = max(cur_c), ymin = min(cur_c), color = 'green', alpha = 0.075)
+
 		switchflips, switches_in_column, flips_in_column = compute_switch_flips_poly_bt(block1, block2, report_error_positions = True, switch_cost = 1+1/(num_vars*ploidy))
 		for pos, e in enumerate(switches_in_column):
 			if e > 0:
-				plt.vlines(x = ext_cuts[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*e, color = 'blue', alpha = 0.6)
+				plt.vlines(x = cut_pos[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*e, color = 'blue', alpha = 0.6)
+				plt.vlines(x = cut_pos[i]+pos, ymax = len(all_threaded), ymin = 0, color = 'blue', alpha = 0.05)
 		for pos, flipped in enumerate(flips_in_column):
 			if len(flipped) == 0:
 				continue
-			if ext_cuts[i]+pos >= len(paths):
+			if cut_pos[i]+pos >= len(paths):
 				continue
-			plt.vlines(x = ext_cuts[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*len(flipped), color = 'orange', alpha = 0.6)
+			plt.vlines(x = cut_pos[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*len(flipped), color = 'orange', alpha = 0.6)
 			for h in flipped:
-				c_id = c_map[paths[ext_cuts[i]+pos][h]]
-				plt.hlines(y = (c_id+0.25+h/ploidy*0.5)*(c_height+y_margin), xmin = ext_cuts[i]+pos-0.5, xmax = ext_cuts[i]+pos+0.5, color = 'black', alpha = 0.6)
+				c_id = c_map[paths[cut_pos[i]+pos][h]]
+				plt.hlines(y = (c_id+0.25+h/ploidy*0.5)*(c_height+y_margin), xmin = cut_pos[i]+pos-0.5, xmax = cut_pos[i]+pos+0.5, color = 'black', alpha = 0.6)
 		
 	#plt.legend(handles=legend_handles.values(), loc='lower center', ncol=len(legend_handles))
 	axes = plt.gca()
