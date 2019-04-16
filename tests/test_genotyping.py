@@ -1,12 +1,11 @@
 import math
-from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable
-from whatshap.testhelpers import string_to_readset, brute_force_phase
-from whatshap.testhelpers import string_to_readset, string_to_readset_pedigree, brute_force_phase
+from whatshap.core import ReadSet, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable
+from whatshap.testhelpers import string_to_readset
 
 
 def compare_to_expected(dp_forward_backward, positions, expected=None, genotypes=None):
 	# check if computed likelihoods are equal to expected ones (if given)
-	if not expected==None:
+	if expected is not None:
 		for i in range(len(positions)):
 			likelihoods = dp_forward_backward.get_genotype_likelihoods('individual0',i)
 			print(likelihoods, expected[i], i)
