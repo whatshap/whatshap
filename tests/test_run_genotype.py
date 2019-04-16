@@ -29,12 +29,6 @@ def setup_module():
 		pysam.index(bam_path, catch_stdout=False)
 
 
-def teardown_module():
-	for path in bam_files:
-		os.remove(path)
-		os.remove(path + '.bai')
-
-
 def test_one_variant():
 	run_genotype(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
 		output='/dev/null')
