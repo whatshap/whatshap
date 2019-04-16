@@ -256,8 +256,8 @@ def test_genotyping_specific_chromosome():
 
 				# should be no genotype likelihoods for skipped chromosomes
 				for s in tables[index].samples:
-					tables[index].genotype_likelihoods_of(s) == [None] * 5
-					tables[not index].genotype_likelihoods_of(s) != [None] * 5
+					assert tables[index].genotype_likelihoods_of(s) == [None] * 5
+					assert tables[not index].genotype_likelihoods_of(s) != [None] * 5
 
 
 def test_genotype_likelihoods_given():
