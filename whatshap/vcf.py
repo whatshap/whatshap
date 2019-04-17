@@ -870,7 +870,7 @@ class GenotypeVcfWriter(VcfAugmenter):
 						likelihoods = variant_table.genotype_likelihoods_of(sample)[genotyped_variants[pos]]
 						# likelihoods can be 'None' if position was not accessible
 						if likelihoods is not None:
-							assert(n_alleles == 2)
+							assert n_alleles == 2
 							geno_l = likelihoods
 							geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
 
