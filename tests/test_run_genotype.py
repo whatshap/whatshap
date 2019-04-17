@@ -90,6 +90,23 @@ def test_no_indels(tmpdir, priors):
 						assert pytest.approx(default_l) == v
 
 
+def test_multiallelic(tmpdir):
+	outvcf = str(tmpdir.join("output_multi.vcf"))
+	run_genotype(
+		phase_input_files=['tests/data/pacbio/pacbio.bam'],
+		variant_file='tests/data/multiallelic.vcf',
+		reference='tests/data/pacbio/reference.fasta',
+		output=outvcf,
+		indels=False
+	)
+	vcf_reader = VariantFile(outvcf)
+	for record in vcf_reader:
+		n_alleles = len(record.alts) + 1
+		if n_alleles > 1:
+			for call in record.samples.values():
+				assert len(call['GL']) == ((n_alleles + 1)*n_alleles) / 2
+
+
 def likeliest_genotype(a, b, c, thres):
 	prob_a = 10 ** a
 	prob_b = 10 ** b

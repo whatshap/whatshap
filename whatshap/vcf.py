@@ -860,7 +860,9 @@ class GenotypeVcfWriter(VcfAugmenter):
 			if not leave_unchanged:
 				for sample, call in record.samples.items():
 					geno = -1
-					geno_l = [1/3.0] * 3
+					n_alleles = len(record.alts) + 1
+					n_genotypes = (n_alleles*n_alleles + n_alleles)/2
+					geno_l = [1/n_genotypes] * int(n_genotypes)
 					geno_q = None
 
 					# for genotyped variants, get computed likelihoods/genotypes (for all others, give uniform likelihoods)
@@ -868,6 +870,7 @@ class GenotypeVcfWriter(VcfAugmenter):
 						likelihoods = variant_table.genotype_likelihoods_of(sample)[genotyped_variants[pos]]
 						# likelihoods can be 'None' if position was not accessible
 						if likelihoods is not None:
+							assert n_alleles == 2
 							geno_l = likelihoods
 							geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
 
