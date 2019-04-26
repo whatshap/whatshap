@@ -20,7 +20,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (const std
                     const std::vector<std::vector<GlobalClusterId>>& covMap,
                     const std::vector<std::vector<double>>& coverage, 
                     const std::vector<std::vector<uint32_t>>& consensus,
-                    const std::vector<uint32_t>& genotypes,
+                    const std::vector<std::unordered_map<uint32_t, uint32_t>>& genotypes,
                     const std::vector<std::vector<std::vector<double>>>& clusterDissim
                    ) const {
     Position numVars = covMap.size();
@@ -42,7 +42,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
                     const std::vector<std::vector<GlobalClusterId>>& covMap,
                     const std::vector<std::vector<double>>& coverage, 
                     const std::vector<std::vector<uint32_t>>& consensus,
-                    const std::vector<uint32_t>& genotypes,
+                    const std::vector<std::unordered_map<uint32_t, uint32_t>>& genotypes,
                     const std::vector<std::vector<std::vector<double>>>& clusterDissim,
                     Position displayedEnd
                    ) const {
@@ -100,6 +100,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         confTuples.clear();
         column.clear();
         Score minimum = std::numeric_limits<Score>::infinity();
+        Score minDissim = std::numeric_limits<Score>::infinity();
         ClusterTuple minimumPred = ClusterTuple::INVALID_TUPLE;
         bool minExists = false;
         minimumInColumn = std::numeric_limits<Score>::infinity();
@@ -116,11 +117,15 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
             
             // iterate over previous rows
             for (std::pair<ClusterTuple, ClusterEntry> predEntry : m[pos-1-start]) {
-                Score s = predEntry.second.score + getSwitchCost(rowTuple, predEntry.first, covMap[pos], covMap[pos-1], clusterDissim[pos-1]);
-                if (s < minimum) {
-                    minExists = true;
-                    minimum = s;
-                    minimumPred = predEntry.first;
+                Score s = predEntry.second.score + getSwitchCost(rowTuple, predEntry.first, covMap[pos], covMap[pos-1]);
+                if (s <= minimum) {
+                    Score d = predEntry.second.score + getSwitchDissimilarity(rowTuple, predEntry.first, clusterDissim[pos-1]);
+                    if (s < minimum || d < minDissim) {
+                        minExists = true;
+                        minimum = s;
+                        minDissim = d;
+                        minimumPred = predEntry.first;
+                    }
                 }
             }
             
@@ -261,26 +266,6 @@ Score HaploThreader::getCoverageCost(ClusterTuple tuple, const std::vector<doubl
 }
 
 Score HaploThreader::getSwitchCost(const ClusterTuple tuple1, const ClusterTuple tuple2, 
-                                   const std::vector<GlobalClusterId>& clusters1, const std::vector<GlobalClusterId>& clusters2,
-                                   const std::vector<std::vector<double>>& clusterDissim
-                                  ) const {
-    // tuple contains global cluster ids
-//     uint32_t switches = 0;
-//     for (uint32_t i = 0; i < ploidy; i++) {
-//         switches += clusters1[tuple1.get(i)] != clusters2[tuple2.get(i)];
-//     }
-//     double switches = 0;
-//     for (uint32_t i = 0; i < ploidy; i++) {
-//         switches += clusterDissim[clusters1[tuple1.get(i)]][clusters2[tuple2.get(i)]];
-//     }
-    double switches = 0;
-    for (uint32_t i = 0; i < ploidy; i++) {
-        switches += (1 + clusterDissim[tuple2.get(i)][tuple1.get(i)]) / 2;
-    }
-    return switches*switchCost + affineSwitchCost * (switches > 0);
-}
-
-Score HaploThreader::getSwitchCost(const ClusterTuple tuple1, const ClusterTuple tuple2, 
                                    const std::vector<GlobalClusterId>& clusters1, const std::vector<GlobalClusterId>& clusters2) const {
     // tuple contains global cluster ids
     uint32_t switches = 0;
@@ -290,9 +275,20 @@ Score HaploThreader::getSwitchCost(const ClusterTuple tuple1, const ClusterTuple
     return switches*switchCost + affineSwitchCost * (switches > 0);
 }
 
+Score HaploThreader::getSwitchDissimilarity(const ClusterTuple tuple1, const ClusterTuple tuple2,
+                                   const std::vector<std::vector<double>>& clusterDissim
+                                  ) const {
+    // computes switch costs based on local cluster similarity
+    double dissim = 0;
+    for (uint32_t i = 0; i < ploidy; i++) {
+        dissim += (1 + clusterDissim[tuple2.get(i)][tuple1.get(i)]) / 2;
+    }
+    return dissim;
+}
+
 std::vector<ClusterTuple> HaploThreader::computeGenotypeConformTuples (const std::vector<GlobalClusterId>& clusters,
                                                                        const std::vector<uint32_t>& consensus,
-                                                                       uint32_t genotype, bool allowPermutations) const {
+                                                                       const std::unordered_map<uint32_t, uint32_t>& genotype, bool allowPermutations) const {
     std::vector<ClusterTuple> perfect = getGenotypeConformTuples (clusters, consensus, genotype, 0, allowPermutations);
     if (perfect.size() > 0) {
         return perfect;
@@ -308,20 +304,35 @@ std::vector<ClusterTuple> HaploThreader::computeGenotypeConformTuples (const std
 }
 
 std::vector<ClusterTuple> HaploThreader::getGenotypeConformTuples (const std::vector<GlobalClusterId>& clusters, const std::vector<uint32_t>& consensus, 
-                                                                uint32_t genotype, uint32_t distance, bool allowPermutations) const {
+                                                                const std::unordered_map<uint32_t, uint32_t>& genotype, uint32_t distance, bool allowPermutations) const {
     std::unordered_set<ClusterTuple> conformTuples;
     uint32_t maxElem = clusters.size();
     std::vector<LocalClusterId> curPerm(ploidy, 0);
     
+    // convert genotype map to vector
+    uint32_t maxAllele = 0;
+    for (std::pair<uint32_t, uint32_t> entry : genotype) {
+        maxAllele = std::max(maxAllele, entry.first);
+    }
+    std::vector<uint32_t> genotypeVec(maxAllele, 0);
+    for (std::pair<uint32_t, uint32_t> entry : genotype) {
+        genotypeVec[entry.first] = entry.second;
+    }
+    
     // enumerate all permutations of clusters
     while (curPerm[ploidy-1] < maxElem) {
         // check if genotype distance is correct
-        uint32_t g = 0;
-        for(uint32_t i = 0; i < ploidy; i++) {
-            g += consensus[curPerm[i]];
+        std::vector<uint32_t> tupGenotypeVec(maxAllele, 0);
+        for (uint32_t i = 0; i < ploidy; i++) {
+            tupGenotypeVec[consensus[curPerm[i]]] += 1;
         }
         
-        if ((g - genotype == distance) | (genotype - g == distance)) {
+        uint32_t difference = 0;
+        for (uint32_t i = 0; i < maxAllele; i++) {
+            difference += std::max(tupGenotypeVec[i] - genotypeVec[i], genotypeVec[i] - tupGenotypeVec[i]);
+        }
+        
+        if (difference == distance) {
             conformTuples.insert(ClusterTuple(curPerm));
         }
         

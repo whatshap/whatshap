@@ -11,7 +11,7 @@ from cython.operator import dereference, postincrement
 cimport cython
 cimport cpp
 
-cdef subsetting(num_vars, clustering, coverage, positions, cov_map, ploidy, genotypes, consensus, geno_map):
+cdef subsetting(num_vars, clustering, coverage, positions, cov_map, ploidy, consensus, geno_map):
 
 	cdef int num_clusters = len(positions)
 	cdef unordered_map[int, pair[int,int]] column
@@ -176,7 +176,7 @@ def compute_index(tup, ploidy, num_clusters):
 		index += tup[(ploidy-1)-i]*(num_clusters**i)
 	return(index)
 	
-def clustering_DP(num_vars,clustering,coverage,positions, cov_map, ploidy, genotypes, consensus, geno_map):
-	scoring_matrix = subsetting(num_vars, clustering, coverage,positions, cov_map, ploidy, genotypes, consensus, geno_map)
+def clustering_DP(num_vars,clustering,coverage,positions, cov_map, ploidy, consensus, geno_map):
+	scoring_matrix = subsetting(num_vars, clustering, coverage,positions, cov_map, ploidy, consensus, geno_map)
 	return(scoring_matrix)
 

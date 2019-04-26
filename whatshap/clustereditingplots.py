@@ -484,14 +484,14 @@ def draw_dp_threading(readset, clustering, coverage, paths, cut_positions, haplo
 		block2 = [h[cut_pos[i]:min(len(paths), cut_pos[i+1])] for h in haplotypes]
 		#print(block1)
 		#print(block2)
-		for pos in range(len(block2[0])):
-			geno = 0
-			for k in range(ploidy):
-				if block2[k][pos] == "1":
-					geno += 1
-			if geno != genotypes[cut_pos[i]+pos]:
-				cur_c = list(filter(lambda x: c_list[x] in coverage[cut_pos[i]+pos] and coverage[cut_pos[i]+pos][c_list[x]] > 0, list(range(num_c))))
-				plt.vlines(x = cut_pos[i]+pos, ymax = max(cur_c), ymin = min(cur_c), color = 'green', alpha = 0.075)
+		#for pos in range(len(block2[0])):
+		#	geno = 0
+		#	for k in range(ploidy):
+		#		if block2[k][pos] == "1":
+		#			geno += 1
+		#	if geno != genotypes[cut_pos[i]+pos]:
+		#		cur_c = list(filter(lambda x: c_list[x] in coverage[cut_pos[i]+pos] and coverage[cut_pos[i]+pos][c_list[x]] > 0, list(range(num_c))))
+		#		plt.vlines(x = cut_pos[i]+pos, ymax = max(cur_c), ymin = min(cur_c), color = 'green', alpha = 0.075)
 
 		switchflips, switches_in_column, flips_in_column = compute_switch_flips_poly_bt(block1, block2, report_error_positions = True, switch_cost = 1+1/(num_vars*ploidy))
 		for pos, e in enumerate(switches_in_column):

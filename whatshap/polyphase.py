@@ -18,6 +18,7 @@ import resource
 from collections import defaultdict
 from copy import deepcopy
 from math import log
+from scipy.stats import binom_test
 
 from xopen import xopen
 from networkx import Graph, number_of_nodes, number_of_edges, connected_components, node_connected_component, shortest_path
@@ -35,7 +36,7 @@ from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components, find_largest_component, write_read_list
 from .clustereditingplots import draw_plots_dissimilarity, draw_plots_scoring, draw_column_dissimilarity, draw_heatmaps, draw_superheatmap, draw_cluster_coverage, draw_cluster_blocks, draw_dp_threading
 from .readscoring import score_global, score_local, score_local_patternbased
-from .threading import subset_clusters, get_cluster_consensus_local, get_position_map, get_pos_to_clusters_map, get_cluster_start_end_positions, get_coverage, compute_linkage_based_block_starts
+from .threading import subset_clusters, get_local_cluster_consensus_withfrac, get_position_map, get_pos_to_clusters_map, get_cluster_start_end_positions, get_coverage, get_coverage_absolute, compute_linkage_based_block_starts
 #from .core import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks, subset_clusters
 __author__ = "Jana Ebler" 
 
@@ -215,11 +216,17 @@ def run_polyphase(
 				#compute the genotypes that belong to the variant table and create a list of all genotypes				
 				all_genotypes = variant_table.genotypes_of(sample)
 				genotype_list = []
+				genotype_list_multi = []
 				for pos in range(len(all_genotypes)):
 					gen = 0
+					allele_count = dict()
 					for allele in all_genotypes[pos].get_genotype().as_vector():
 						gen += allele
+						if allele not in allele_count:
+							allele_count[allele] = 0
+						allele_count[allele] += 1
 					genotype_list.append(gen)
+					genotype_list_multi.append(allele_count)
 
 				# sample allele matrix
 				#selected_reads = select_reads(readset, 5*ploidy, preferred_source_ids = vcf_source_ids)
@@ -335,7 +342,7 @@ def run_polyphase(
 					timers.start('assemble_haplotypes')
 
 					# Add dynamic programming for finding the most likely subset of clusters
-					genotype_slice = genotype_list[ext_block_starts[block_id]:ext_block_starts[block_id+1]]
+					genotype_slice = genotype_list_multi[ext_block_starts[block_id]:ext_block_starts[block_id+1]]
 					cut_positions, path, haplotypes = subset_clusters(block_readset, clustering, ploidy, sample, genotype_slice, single_block, cpp_threading, dynamic_switch_cost)
 					timers.stop('assemble_haplotypes')
 
@@ -411,11 +418,10 @@ def run_polyphase(
 					if plot_threading:
 						index, rev_index = get_position_map(combined_readset)
 						coverage = get_coverage(combined_readset, clustering, index)
-						draw_dp_threading(combined_readset, clustering, coverage, threading, cut_positions, haplotypes, phasable_variant_table, genotype_list, output_str+".threading.pdf")
+						draw_dp_threading(combined_readset, clustering, coverage, threading, cut_positions, haplotypes, phasable_variant_table, genotype_list_multi, output_str+".threading.pdf")
 				timers.stop('create_plots')
 
 			with timers('write_vcf'):
-				print("                                                                \r", end='')
 				logger.info('======== Writing VCF')
 				changed_genotypes = vcf_writer.write(chromosome, superreads, components)
 				# TODO: Use genotype information to polish results
@@ -454,6 +460,8 @@ def find_inconsistencies(readset, clustering, ploidy):
 	# Also returns a list of read pairs, which need to be seperated
 	num_inconsistent_positions = 0
 	separated_pairs = []
+	exp_error = 0.05
+	p_val_threshold = 0.02
 	
 	# Compute consensus and coverage
 	index, rev_index = get_position_map(readset)
@@ -463,14 +471,21 @@ def find_inconsistencies(readset, clustering, ploidy):
 	cov_map = get_pos_to_clusters_map(readset, clustering, index, ploidy)
 	positions = get_cluster_start_end_positions(readset, clustering, index)
 	coverage = get_coverage(readset, clustering, index)
-	consensus = get_cluster_consensus_local(readset, clustering, cov_map, positions, fractional = True)
+	abs_coverage = get_coverage_absolute(readset, clustering, index)
+	consensus = get_local_cluster_consensus_withfrac(readset, clustering, cov_map, positions)
 
 	# Search for positions in clusters with ambivalent consensus
 	for pos in range(num_vars):
 		#print(str(pos)+" -> "+str(len(coverage[pos]))+" , "+str(len(consensus[pos])))
 		for c_id in coverage[pos]:
-			if coverage[pos][c_id] > 0.25 and c_id in consensus[pos] and 0.30 <= consensus[pos][c_id] <= 0.70:
-				#print("   inconsistency in cluster "+str(c_id)+" at position"+str(pos))
+			if c_id not in consensus[pos]:
+				continue
+			# do binomial hypothesis test, whether the deviations from majority allele is significant enough for splitting
+			abs_count = abs_coverage[pos][c_id]
+			abs_deviations = int(abs_count * (1-consensus[pos][c_id][1]))
+			p_val = binom_test(abs_deviations, abs_count, exp_error, alternative='greater')
+			if p_val < p_val_threshold:
+				#print("   inconsistency in cluster "+str(c_id)+" at position"+str(pos)+" with coverage "+str(coverage[pos][c_id])+" and consensus "+str(consensus[pos][c_id]))
 				refine = True
 				num_inconsistent_positions += 1
 				zero_reads = []

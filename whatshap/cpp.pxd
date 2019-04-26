@@ -7,6 +7,7 @@ from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libc.stdint cimport uint32_t
+from libcpp.unordered_map cimport unordered_map
 
 cdef extern from "../src/read.h":
 	cdef cppclass Read:
@@ -162,11 +163,11 @@ cdef extern from "../src/threading/HaploThreader.h":
 					vector[vector[uint32_t]]& covMap,
                     vector[vector[double]]& coverage, 
                     vector[vector[uint32_t]]& consensus,
-                    vector[uint32_t]& genotypes,
+                    vector[unordered_map[uint32_t, uint32_t]]& genotypes,
 					vector[vector[vector[double]]]& clusterDissim) except +
 		vector[vector[uint32_t]] computePaths(vector[uint32_t]& blockStarts,
 					vector[vector[uint32_t]]& covMap,
                     vector[vector[double]]& coverage, 
                     vector[vector[uint32_t]]& consensus,
-                    vector[uint32_t]& genotypes,
+                    vector[unordered_map[uint32_t, uint32_t]]& genotypes,
 					vector[vector[vector[double]]]& clusterDissim) except +
