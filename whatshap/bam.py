@@ -91,7 +91,7 @@ class SampleBamReader:
 		"""Return whether this file contains reads for the given sample"""
 		return sample in self._sample_to_group_ids
 
-	def fetch(self, reference, sample):
+	def fetch(self, reference, sample, start=0, end=None):
 		"""
 		Yield instances of AlignmentWithSourceID, with source_id value given
 		at construction time.
@@ -103,7 +103,7 @@ class SampleBamReader:
 			# but also on other errors.
 			raise ReferenceNotFoundError(reference)
 		if sample is None:
-			for bam_read in self._samfile.fetch(reference):
+			for bam_read in self._samfile.fetch(reference, start=start, stop=end):
 				yield AlignmentWithSourceID(self.source_id, bam_read)
 		else:
 			try:
@@ -113,7 +113,7 @@ class SampleBamReader:
 			# TODO
 			# The multiple_iterators shouldn’t be necessary, but CRAM files
 			# don’t work without it in pysam 0.13
-			for bam_read in self._samfile.fetch(reference, multiple_iterators=True):
+			for bam_read in self._samfile.fetch(reference, multiple_iterators=True, start=start, stop=end):
 				if bam_read.opt('RG') in read_groups:
 					yield AlignmentWithSourceID(self.source_id, bam_read)
 
@@ -151,12 +151,12 @@ class MultiBamReader:
 		for source_id, path in enumerate(paths):
 			self._readers.append(SampleBamReader(path, source_id=source_id, reference=reference))
 
-	def fetch(self, reference=None, sample=None):
+	def fetch(self, reference=None, sample=None, start=0, end=None):
 		"""
 		Yield reads from the specified region in all the opened CRAM/BAM files,
 		merging them on the fly. Each CRAM/BAM file must be indexed.
 
-		Yields instances of AlignmentWithSourceID, where source_id corrsponds to 
+		Yields instances of AlignmentWithSourceID, where source_id corresponds to
 		index of BAM file name given at construction time.
 
 		If a sample name is given, only reads that belong to that sample are
@@ -164,7 +164,7 @@ class MultiBamReader:
 		"""
 		assert reference is not None
 		def make_comparable(reader):
-			for alignment in reader.fetch(reference, sample):
+			for alignment in reader.fetch(reference, sample, start, end):
 				yield ComparableAlignedSegment(alignment.bam_alignment, alignment.source_id)
 		iterators = []
 		for reader in self._readers:

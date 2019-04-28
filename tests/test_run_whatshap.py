@@ -11,7 +11,7 @@ import pysam
 from whatshap.cli.phase import run_whatshap
 from whatshap.cli.haplotag import run_haplotag
 from whatshap.cli.hapcut2vcf import run_hapcut2vcf
-from whatshap.vcf import VcfReader, VariantCallPhase
+from whatshap.vcf import VcfReader, VariantCallPhase, VcfError
 
 trio_bamfile = 'tests/data/trio.pacbio.bam'
 trio_merged_bamfile = 'tests/data/trio-merged-blocks.bam'
@@ -684,7 +684,7 @@ def test_haplotag_no_readgroups1():
 
 
 def test_haplotag_no_readgroups2():
-	with raises(SystemExit):
+	with raises((SystemExit, ValueError)):
 		# vcf contains multiple samples, there should be an error
 		run_haplotag(alignment_file='tests/data/haplotag_noRG.bam', variant_file='tests/data/haplotag_noRG.vcf.gz',
 			output='/dev/null', ignore_read_groups=True)

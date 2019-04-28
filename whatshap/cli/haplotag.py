@@ -5,15 +5,16 @@ Sequencing reads are read from file ALIGNMENTS (in BAM format) and tagged reads
 are written to stdout.
 """
 import logging
+import os
 import sys
 import pysam
 import gzip
-from hashlib import md5
-from collections import defaultdict
+import hashlib
+import collections
 
 from contextlib import ExitStack
 from whatshap import __version__
-from whatshap.vcf import VcfReader
+from whatshap.vcf import VcfReader, VcfError
 from whatshap.core import NumericSampleIds
 from whatshap.bam import AlignmentFileNotIndexedError, SampleNotFoundError
 from whatshap.timer import StageTimer
@@ -22,24 +23,6 @@ from whatshap.utils import IndexedFasta, FastaNotIndexedError
 
 
 logger = logging.getLogger(__name__)
-
-
-def read_reads(readset_reader, chromosome, variants, sample, fasta):
-	"""Return a sorted ReadSet"""
-	logger.info('Detecting alleles in reads mapped to chromosome %s for sample %r ...', chromosome, sample)
-	reference = fasta[chromosome] if fasta else None
-	try:
-		readset = readset_reader.read(chromosome, variants, sample, reference)
-	except ReadSetError as e:
-		logger.error("%s", e)
-		sys.exit(1)
-
-	# TODO is this necessary?
-	for read in readset:
-		read.sort()
-	readset.sort()
-
-	return readset
 
 
 def add_arguments(parser):
@@ -79,89 +62,432 @@ def validate(args, parser):
 
 
 def md5_of(filename):
-	return md5(open(filename,'rb').read()).hexdigest()
+	return hashlib.md5(open(filename,'rb').read()).hexdigest()
 
 
-def normalize_user_regions(regions):
+def read_reads(readset_reader, chromosome, variants, sample, fasta):
+	"""Return a sorted ReadSet"""
+	logger.info('Detecting alleles in reads mapped to chromosome %s for sample %r ...', chromosome, sample)
+	reference = fasta[chromosome] if fasta else None
+	try:
+		readset = readset_reader.read(chromosome, variants, sample, reference)
+	except ReadSetError as e:
+		logger.error("%s", e)
+		sys.exit(1)
+
+	# TODO is this necessary?
+	for read in readset:
+		read.sort()
+	readset.sort()
+
+	return readset
+
+
+def get_variant_information(variant_table, sample):
+	"""
+	:param variant_table:
+	:param sample:
+	:return:
+	"""
+	genotypes = variant_table.genotypes_of(sample)
+	phases = variant_table.phases_of(sample)
+
+	vpos_to_phase_info = dict()
+	variants = []
+	for idx, (v, gt) in enumerate(zip(variant_table.variants, genotypes)):
+		if phases[idx] is None:
+			continue
+		phase_info = int(phases[idx].block_id), phases[idx].phase
+		vpos_to_phase_info[v.position] = phase_info
+		if gt == 1:
+			variants.append(v)
+
+	return vpos_to_phase_info, variants
+
+
+def attempt_add_phase_information(alignment, read_to_haplotype, bxtag_to_haplotype, linked_read_cutoff):
+	"""
+	:param alignment:
+	:param read_to_haplotype:
+	:param bxtag_to_haplotype:
+	:param linked_read_cutoff:
+	:return:
+	"""
+	is_tagged = 0
+	haplotype_name = 'none'
+	phaseset = 'none'
+	try:
+		haplotype, quality, phaseset = read_to_haplotype[alignment.query_name]
+		haplotype_name = 'H{}'.format(haplotype + 1)
+		alignment.set_tag('HP', haplotype + 1)
+		alignment.set_tag('PC', quality)
+		alignment.set_tag('PS', phaseset)
+		is_tagged = 1
+	except KeyError:
+		# check if reads with same tag have been assigned
+		if alignment.has_tag('BX'):
+			read_clouds = bxtag_to_haplotype[alignment.get_tag('BX')]
+			for (reference_start, haplotype, phaseset) in read_clouds:
+				if abs(reference_start - alignment.reference_start) <= linked_read_cutoff:
+					haplotype_name = 'H{}'.format(haplotype + 1)
+					alignment.set_tag('HP', haplotype + 1)
+					alignment.set_tag('PS', phaseset)
+					is_tagged = 1
+					break
+	return is_tagged, haplotype_name, phaseset
+
+
+def load_chromosome_variants(vcf_reader, chromosome, regions):
+	"""
+	:param vcf_reader:
+	:param chromosome:
+	:param regions:
+	:return:
+	"""
+	try:
+		logger.debug('Loading variants from {} distinct region(s)'.format(len(regions)))
+		variant_table = vcf_reader._fetch_subsets(chromosome, regions)
+		logger.debug('Loaded {} variants for chromosome {} in VCF'.format(len(variant_table),
+																		chromosome))
+	except OSError as e:
+		# not entirely clear to me why this could raise
+		# an OSError at this point?
+		logger.error(str(e))
+		raise e
+	except ValueError:
+		logger.debug('No variants found for chromosome {} in the input VCF.'.format(chromosome))
+		variant_table = None
+	return variant_table
+
+
+def prepare_haplotag_information(variant_table, shared_samples, readset_reader, fasta,
+								 ignore_read_groups, ignore_linked_read, linked_read_cutoff):
+	"""
+	Read all reads for this chromosome once to create one core.ReadSet per sample
+	this allows to assign phase to paired-end reads based on both reads
+
+	:param variant_table:
+	:return:
+	"""
+	n_multiple_phase_sets = 0
+	BX_tag_to_haplotype = collections.defaultdict(list)
+	# maps read name to (haplotype, quality, phaseset)
+	read_to_haplotype = {}
+
+	for sample in shared_samples:
+		variantpos_to_phaseinfo, variants = get_variant_information(variant_table, sample)
+		bam_sample = None if ignore_read_groups else sample
+		read_set = read_reads(readset_reader, variant_table.chromosome, variants, bam_sample, fasta)
+
+		# map tag --> set of reads
+		BX_tag_to_readlist = collections.defaultdict(list)
+		for read in read_set:
+			if read.has_BX_tag():
+				BX_tag_to_readlist[read.BX_tag].append(read)
+		# all reads processed so far
+		processed_reads = set()
+		for read in read_set:
+			if read.name in processed_reads:
+				continue
+			# mapping: phaseset --> phred scaled difference between costs of assigning reads to haplotype 0 or 1
+			haplotype_costs = collections.defaultdict(int)
+			reads_to_consider = set()
+
+			processed_reads.add(read.name)
+			reads_to_consider.add(read)
+
+			# reads with same BX tag need to be considered too (unless --ignore-linked-read is set)
+			if read.has_BX_tag() and not ignore_linked_read:
+				for r in BX_tag_to_readlist[read.BX_tag]:
+					if r.name not in processed_reads:
+						# only select reads close to current one
+						if abs(read.reference_start - r.reference_start) <= linked_read_cutoff:
+							reads_to_consider.add(r)
+			for r in reads_to_consider:
+				processed_reads.add(r.name)
+				for v in r:
+					assert v.allele in [0, 1]
+					phaseset, allele = variantpos_to_phaseinfo[v.position]
+					if v.allele == allele:
+						haplotype_costs[phaseset] += v.quality
+					else:
+						haplotype_costs[phaseset] -= v.quality
+
+			l = list(haplotype_costs.items())
+			l.sort(key=lambda t: -abs(t[1]))
+			# logger.info('Read %s: %s', read.name, str(l))
+			if len(l) > 0:
+				if len(l) > 1:
+					n_multiple_phase_sets += 1
+				phaseset, quality = l[0]
+				if quality != 0:
+					haplotype = 0 if quality > 0 else 1
+					BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, haplotype, phaseset))
+					for r in reads_to_consider:
+						read_to_haplotype[r.name] = (haplotype, abs(quality), phaseset)
+						logger.debug('Assigned read {} to haplotype {} with a '
+									'quality of {} based on {} covered variants'.format(r.name, haplotype,
+																						quality, len(r)))
+	return BX_tag_to_haplotype, read_to_haplotype, n_multiple_phase_sets
+
+
+def normalize_user_regions(user_regions, bam_references):
 	"""
 	Process and accept user input of the following forms:
 
 	chr:start:end -> chr, start, end
-	chr -> chr, None, None
+	chr -> chr, 0, None
 	chr:start -> chr, start, None
 
-	This follows pysam's way of specifying regions to extract reads from
+	This should be compatible to pysam's way of specifying regions.
+	If the user did not specify any regions, all chromosomes (start to end)
+	from the input BAM will be considered.
 
-	:param regions: list of user input regions
+	:param user_regions: list of user input regions
+	:param bam_references: references of BAM file
 	:return: sorted list of normalized regions
 	"""
-	norm_regions = []
-	for reg in regions:
-		parts = reg.split(':')
-		if len(parts) == 1:
-			# assume single chromosome
-			norm_reg = parts[0], None, None
-		elif len(parts) == 2:
-			# region from start to end of chromosome
-			norm_reg = parts[0], int(parts[1]), None
-		elif len(parts) == 3:
-			norm_reg = parts[0], int(parts[1]), int(parts[2])
-		else:
-			raise ValueError('Malformed region specified (must be: chrom[:start][:end]) -> {}'.format(reg))
-		logger.debug('Normalized region {} to {}'.format(reg, ' '.join(norm_reg)))
-		norm_regions.append(norm_reg)
-	return sorted(norm_regions)
+	norm_regions = collections.defaultdict(list)
+	if user_regions is None:
+		for ref in bam_references:
+			norm_regions[ref].append((0, None))
+	else:
+		bam_references = set(bam_references)
+		for reg in user_regions:
+			parts = reg.split(':')
+			if len(parts) == 1:
+				# assume single chromosome
+				c, s, e = parts[0], 0, None
+			elif len(parts) == 2:
+				# region from start to end of chromosome
+				c, s, e = parts[0], int(parts[1]), None
+			elif len(parts) == 3:
+				s, e = int(parts[1]), int(parts[2])
+				if e <= s:
+					raise ValueError('Malformed region detected: '
+									'end must be larger than start: {} >= {}'.format(s, e))
+				c, s, e = parts[0], int(parts[1]), int(parts[2])
+			else:
+				raise ValueError('Malformed region specified (must be: chrom[:start][:end]) -> {}'.format(reg))
+			logger.debug('Normalized region {} to {}-{}-{}'.format(reg, c, s, e))
+			if c not in bam_references:
+				raise ValueError('Specified chromosome/reference is not contained '
+								'in input BAM file: {}'.format(c))
+			norm_regions[c].append((s, e))
+
+	return norm_regions
 
 
-def prepare_alignmnet_file(aln_file_path, ref_genome, num_sample_ids, exit_stack, t_mapq=0):
+def initialize_readset_reader(aln_file_path, ref_file_path, num_sample_ids, exit_stack, t_mapq=0):
 	"""
-	This function is a strong (mandatory) candidate for global refactoring as similar
-	input validation seems to be done in many other command modules.
-
 	:param aln_file_path:
-	:param ref_genome:
+	:param ref_file_path:
 	:param num_sample_ids:
 	:param exit_stack:
 	:param t_mapq:
-	:return:
+	:return: ReadSetReader object and FASTA reader (or None)
 	"""
+	readset_reader, fasta = None, None
 	try:
 		readset_reader = exit_stack.enter_context(ReadSetReader([aln_file_path],
-																reference=ref_genome,
+																reference=ref_file_path,
 																numeric_sample_ids=num_sample_ids,
 																mapq_threshold=t_mapq))
-	except OSError as e:
-		logger.error(e)
-		sys.exit(1)
+	except (IOError, OSError) as err:
+		logger.error('Error while initializing ReadSetReader: {}'.format(err))
+		raise err
 	except AlignmentFileNotIndexedError as e:
-		logger.error('The file %r is not indexed. Please create the appropriate BAM/CRAM '
-					 'index with "samtools index"', str(e))
-		sys.exit(1)
-	return readset_reader
+		logger.error('The alignment file {} is not indexed. '
+					 'Please create the appropriate BAM/CRAM '
+					 'index with "samtools index"'.format(e))
+		raise e
+	if ref_file_path is not None:
+		try:
+			fasta = exit_stack.enter_context(IndexedFasta(ref_file_path))
+		except (IOError, OSError) as err:
+			logger.error('Error while loading FASTA reference file: {}'.format(err))
+			raise err
+		except FastaNotIndexedError as e:
+			logger.error('An index file (.fai) for the reference FASTA {} '
+						 'could not be found. Please create one with '
+						 '"samtools faidx".'.format(e))
+			raise e
+	return readset_reader, fasta
 
 
-def prepare_reference_genome_file(ref_file_path, exit_stack):
+def prepare_variant_file(file_path, user_given_samples, ignore_read_groups, exit_stack):
 	"""
-	This function is a strong (mandatory) candidate for global refactoring as similar
-	input validation seems to be done in many other command modules.
+	Open variant file and load sample information - check if samples in VCF are compatible
+	with user specified list of samples.
 
-	:param ref_file_path:
+	:param file_path:
+	:param user_given_samples:
+	:param ignore_read_groups:
+	:param exit_stack:
+	:return: VCF reader object and set of VCF samples to use
+	"""
+	# FIXME hard-coded value
+	# TODO:
+	# this appears here and there, should there
+	# be a "constants" module to hold hard-coded
+	# values in a central location?
+	if not file_path.lower().endswith('.gz'):
+		raise VcfError('The input VCF must be gzipped compressed '
+						'and the file name must end in ".gz": {}'.format(file_path))
+	try:
+		vcf_reader = exit_stack.enter_context(VcfReader(file_path, indels=True, phases=True))
+	except (IOError, OSError) as err:
+		logger.error('Error while loading variant file {}: {}'.format(file_path, err))
+		raise err
+	samples_in_vcf = set(vcf_reader.samples)
+	if len(samples_in_vcf) < 1:
+		raise VcfError('No samples detected in VCF file {} '
+						'- cannot perform haplo-tagging'.format(file_path))
+	logger.info('Found {} samples in input VCF'.format(len(samples_in_vcf)))
+	logger.debug('Found the following samples in input VCF: {}'.format(' - '.join(sorted(samples_in_vcf))))
+
+	if ignore_read_groups and user_given_samples is None and len(samples_in_vcf) > 1:
+		raise ValueError('When setting "--ignore-read-groups" on '
+						 'a multi-sample VCF, samples to be used must '
+						 'be specified via the "--sample" parameter.')
+
+	given_samples = user_given_samples if user_given_samples is not None else samples_in_vcf
+	missing_samples = set(given_samples) - samples_in_vcf
+	if len(missing_samples) > 0:
+		raise VcfError('The following samples were specified via the '
+						'"--sample" parameter, but are not part of the '
+						'input VCF: {}'.format(sorted(missing_samples)))
+
+	samples_to_use = samples_in_vcf.intersection(given_samples)
+	logger.info('Keeping {} samples for haplo-tagging'.format(len(samples_to_use)))
+	logger.debug('Keeping the following samples for haplo-tagging: {}'.format(' - '.join(sorted(samples_to_use))))
+	return vcf_reader, samples_to_use
+
+
+def prepare_alignment_file(file_path, ignore_read_groups, vcf_samples, exit_stack):
+	"""
+	:param file_path:
+	:param ignore_read_groups:
+	:param vcf_samples:
+	:param exit_stack:
+	:return: BAM reader object and final samples to use for haplo-tagging
+	"""
+	try:
+		bam_reader = exit_stack.enter_context(pysam.AlignmentFile(file_path, 'rb', require_index=True))
+	except (OSError, IOError) as err:
+		logger.error('Error while loading alignment file {}: {}'.format(file_path, err))
+		raise err
+	read_groups = bam_reader.header.get('RG', [])
+	bam_samples = set((rg['SM'] if 'SM' in rg else None) for rg in read_groups)
+
+	logger.info('Found {} samples in BAM file'.format(len(bam_samples)))
+	logger.debug('Found the following samples in BAM file: {}'.format(','.join(sorted(bam_samples))))
+
+	if not ignore_read_groups:
+		shared_samples = bam_samples.intersection(vcf_samples)
+		if len(shared_samples) == 0:
+			raise ValueError('No common samples between VCF and BAM file detected. '
+								'You may restart the analysis setting "--ignore-read-groups" '
+								'(if appropriate) to avoid this error.')
+		elif len(shared_samples) < len(bam_samples):
+			missing_samples = ' | '.join(sorted(bam_samples - shared_samples))
+			logger.warning('Ignoring the following sample(s) for haplo-tagging '
+							'because they are not part of the VCF or '
+							'were not requested via "--sample": {}'.format(missing_samples))
+		else:
+			# situation is ok
+			pass
+	else:
+		shared_samples = vcf_samples
+	return bam_reader, shared_samples
+
+
+def prepare_output_files(aln_output, reference, haplotag_output, vcf_md5, bam_header, exit_stack):
+	"""
+	:param aln_output:
+	:param reference:
+	:param haplotag_output:
+	:param vcf_md5:
+	:param bam_header:
 	:param exit_stack:
 	:return:
 	"""
-	if ref_file_path is None:
-		fasta = None
+	# Prepare header
+	# TODO: convince pysam to allow @HS header line
+	command_line = ' '.join(['whatshap'] + sys.argv[1:])
+	PG_entry = {'ID': 'whatshap', 'PN': 'whatshap', 'VN': __version__, 'CL': command_line, 'm5': vcf_md5}
+	if 'PG' in bam_header:
+		bam_header['PG'].append(PG_entry)
 	else:
+		bam_header['PG'] = [PG_entry]
+	if aln_output is None:
+		aln_output = '-'
+		kwargs = dict()
+	elif aln_output.endswith('.cram'):  # FIXME hard-coded value
+		if reference is None:
+			raise ValueError('Writing CRAM output requires FASTA reference file given via "--reference"')
+		kwargs = dict(mode='wc', reference_filename=reference)
+	else:
+		# Write BAM
+		kwargs = dict(mode='wb')
+	try:
+		bam_writer = exit_stack.enter_context(pysam.AlignmentFile(aln_output,
+																header=pysam.AlignmentHeader.from_dict(bam_header),
+																  **kwargs))
+	except (IOError, OSError) as err:
+		logger.error('Error while initializing alignment output file at path: {}\n{}'.format(aln_output, err))
+		raise err
+
+	if haplotag_output is not None:
 		try:
-			fasta = exit_stack.enter_context(IndexedFasta(ref_file_path))
-		except OSError as e:
-			logger.error('%s', e)
-			sys.exit(1)
-		except FastaNotIndexedError as e:
-			logger.error('An index file (.fai) for the reference %r could not be found. '
-						 'Please create one with "samtools faidx".', str(e))
-			sys.exit(1)
-	return fasta
+			if haplotag_output.endswith('.gz'):  # FIXME hard-coded value
+				haplotag_writer = exit_stack.enter_context(gzip.open(haplotag_output, 'wt'))
+			else:
+				haplotag_writer = exit_stack.enter_context(open(haplotag_output, 'w'))
+		except (IOError, OSError) as err:
+			logger.error('Error while initializing haplotag list output at path: {}\n{}'.format(haplotag_output, err))
+			raise err
+	else:
+		haplotag_writer = exit_stack.enter_context(open(os.devnull, 'w'))
+	logger.debug('Writing header line to haplotag list output file')
+	_ = haplotag_writer.write('\t'.join(['#readname',
+										'haplotype',
+										'phaseset']) + '\n')
+
+	return bam_writer, haplotag_writer
+
+
+def ignore_read(alignment, tag_supplementary):
+	"""
+	If, in the future, supplementary alignments should also be tagged,
+	this should only take the haplo-tag of the primary
+	alignment into account - this leads to:
+
+	We ignore an alignment [aln]:
+	- IF aln is unmapped
+	- IF tag_supplementary AND aln is secondary
+	- IF not tag_supplementary AND aln is secondary OR aln is supplementary
+
+	:param alignment:
+	:param tag_supplementary:
+	:return:
+	"""
+	if alignment.is_unmapped:
+		ignore = True
+	elif tag_supplementary:
+		# we want: haplo-tagging based on
+		# 		haplo-tag information of
+		# 		primary read only
+		if alignment.is_secondary:
+			# this is not the primary alignment
+			ignore = True
+		else:
+			ignore = False
+	elif not tag_supplementary:
+		ignore = alignment.is_secondary or (alignment.flag & 2048 == 1)
+	else:
+		raise RuntimeError('Unconsidered filter situation for alignment: {}'.format(alignment.query_name))
+	return ignore
 
 
 def run_haplotag(
@@ -178,236 +504,110 @@ def run_haplotag(
 	):
 
 	timers = StageTimer()
-	timers.start('overall')
-
-	if regions is None:
-		regions = []
-	else:
-		regions = normalize_user_regions(regions)
+	timers.start('haplotag-run')
 
 	with ExitStack() as stack:
 		numeric_sample_ids = NumericSampleIds()
-		readset_reader = prepare_alignmnet_file(alignment_file,
-												reference,
-												numeric_sample_ids,
-												stack,
-												)
-		fasta = prepare_reference_genome_file(reference,
-												stack,
-												)
+		timers.start('haplotag-init')
+		# step 1: check and validate VCF information
+		vcf_reader, use_vcf_samples = prepare_variant_file(variant_file,
+															given_samples,
+															ignore_read_groups,
+															stack)
+		# step 2: check BAM file, in particular sample
+		# compatibility with VCF
+		bam_reader, shared_samples = prepare_alignment_file(alignment_file,
+															ignore_read_groups,
+															use_vcf_samples,
+															stack)
 
-		# require input VCF to be compressed
-		if not variant_file.endswith('gz'):
-			# FIXME hard-coded file extension
-			# TODO should this be checked by reading the magic number?
-			logger.error('The input VCF must be compressed (vcf.gz).')
-			sys.exit(1)
+		# step 3: check if user has specified a subset of regions per chromosome
+		user_regions = normalize_user_regions(regions, bam_reader.references)
 
-		vcf_reader = VcfReader(variant_file, indels=True, phases=True)
-		vcf_samples = set(vcf_reader.samples)
-		logger.info('Found %d samples in VCF file', len(vcf_samples))
+		# step 4: initialize ReadSetReader and FASTA reference
+		readset_reader, fasta = initialize_readset_reader(alignment_file,
+															reference,
+															numeric_sample_ids,
+															stack)
 
-		# determine which samples to consider
-		if ignore_read_groups and not given_samples and len(vcf_reader.samples) > 1:
-			logger.error('When using --ignore-read-groups on a VCF with '
-					'multiple samples, --sample must also be used.')
-			sys.exit(1)
+		# step 5: prepare output files
+		bam_writer, haplotag_writer = prepare_output_files(output,
+															reference,
+															haplotag_list,
+															md5_of(variant_file),
+															bam_reader.header.to_dict(),
+															stack)
+		timers.stop('haplotag-init')
+		logger.debug('All input/output files initialized (time: {})'.format(timers.elapsed('haplotag-init')))
+		timers.start('haplotag-process')
 
-		if not given_samples:
-			given_samples = vcf_reader.samples
-
-		for sample in given_samples:
-			if sample not in vcf_samples:
-				logger.error('Sample %r requested on command-line not found in VCF', sample)
-				sys.exit(1)
-
-		# keep only requested samples
-		vcf_samples = vcf_samples.intersection(given_samples)
-
-		# determine which samples are in BAM file
-		bam_reader = pysam.AlignmentFile(alignment_file)
-		read_groups = bam_reader.header.get('RG', []) 
-		bam_samples = set( (rg['SM'] if 'SM' in rg else None) for rg in read_groups )
-		rg_to_sample = { rg['ID']:rg['SM'] for rg in read_groups if ('ID' in rg) and ('SM' in rg) }
-		logger.info('Samples in BAM file: %s', ','.join(bam_samples))
-		samples = vcf_samples
-		if not ignore_read_groups:
-			samples = bam_samples.intersection(vcf_samples)
-			if len(samples) == 0:
-				logger.error('No common samples between VCF and BAM file. Aborting.')
-				sys.exit(1)
-			elif len(samples) < len(bam_samples):
-				logger.warning('Not adding phase information for sample(s) %s to BAM file, since they are not present in the VCF or were not given using --sample.', ','.join(bam_samples.difference(vcf_samples)))
-		else:
-			if len(samples) == 0:
-				logger.error('No samples present in VCF. In case --sample was used, the requested sample(s) are not present in the VCF. Aborting.')
-				sys.exit(1)
-
-		# Prepare header
-		# TODO: convince pysam to allow @HS header line
-		header = bam_reader.header.to_dict()
-		command_line = ' '.join(['whatshap'] + sys.argv[1:])
-		PG_entry = {'ID':'whatshap', 'PN':'whatshap', 'VN':__version__, 'CL':command_line, 'm5': md5_of(variant_file)}
-		if 'PG' in header:
-			header['PG'].append(PG_entry)
-		else:
-			header['PG'] = [PG_entry]
-		if not output:
-			output = '-'
-		if output.endswith('.cram'):
-			# Write CRAM
-			if not reference:
-				logger.error("When writing CRAM, you need to provide a reference FASTA using --reference")
-				#sys.exit(1)
-			kwargs = dict(mode='wc', reference_filename=reference)
-		else:
-			# Write BAM
-			kwargs = dict(mode='wb')
-		bam_writer = pysam.AlignmentFile(output, header=pysam.AlignmentHeader.from_dict(header), **kwargs)
-
-		haplotag_list_file = None
-		if haplotag_list is not None:
-			if haplotag_list.endswith('.gz'):
-				haplotag_list_file = gzip.open(haplotag_list, 'wt')
-			else:
-				haplotag_list_file = open(haplotag_list, 'w')
-			print('#readname\thaplotype\tphaseset', file=haplotag_list_file)
-
-		chromosome_name = None
-		chromosome_id = None
-		skipped_vcf_chromosomes = set()
 		n_alignments = 0
 		n_tagged = 0
 		n_multiple_phase_sets = 0
 
-		# map BX tag to assigned haplotype
-		BX_tag_to_haplotype = defaultdict(list)
+		for chrom, regions in user_regions.items():
+			logger.debug('Processing chromosome {}'.format(chrom))
+			variant_table = load_chromosome_variants(vcf_reader, chrom, regions)
+			if variant_table is not None:
+				logger.debug('Preparing haplotype information')
+				BX_tag_to_haplotype, read_to_haplotype, n_mult = prepare_haplotag_information(variant_table,
+																							shared_samples,
+																							readset_reader,
+																							fasta,
+																							ignore_read_groups,
+																							ignore_linked_read,
+																							linked_read_distance_cutoff)
+				n_multiple_phase_sets += n_mult
+			else:
+				# avoid uninitialized variables
+				BX_tag_to_haplotype = None
+				read_to_haplotype = None
 
-		for alignment in bam_reader:
-			n_alignments += 1
-			haplotype_name = 'none'
-			alignment.set_tag('HP', value=None)
-			alignment.set_tag('PC', value=None)
-			alignment.set_tag('PS', value=None)
-			if not alignment.is_unmapped:
-				# Has chromosome changed?
-				if chromosome_id != alignment.reference_id:
-					chromosome_id = alignment.reference_id
-					chromosome_name = alignment.reference_name
-					BX_tag_to_haplotype = defaultdict(list)
-					logger.info('Processing alignments on chromosome %s', chromosome_name)
-					# Read information on this chromsome from VCF
-					variant_table = None
-					try:
-						variant_table = vcf_reader._fetch(chromosome_name)
-						logger.info('... found %s variants for chromosome %s in VCF', len(variant_table), chromosome_name)
-					except OSError as e:
-						logger.error(str(e))
-						sys.exit(1)
-					except ValueError:
-						logger.info('No variants given for chromosome {} in the input VCF.'.format(chromosome_name))
+			for start, end in regions:
+				logger.debug('Iterating chromosome regions')
+				for alignment in bam_reader.fetch(contig=chrom, start=start, stop=end):
+					n_alignments += 1
+					haplotype_name = 'none'
+					phaseset = 'none'
+					alignment.set_tag('HP', value=None)
+					alignment.set_tag('PC', value=None)
+					alignment.set_tag('PS', value=None)
+					if ignore_read(alignment, False) or variant_table is None:
+						# - Ignored reads are simply
+						# written to the output BAM
+						# - If no variants for this chromosome,
+						# alignments just get written to output
+						pass
+					else:
+						is_tagged, haplotype_name, phaseset = attempt_add_phase_information(alignment,
+																							read_to_haplotype,
+																							BX_tag_to_haplotype,
+																							linked_read_distance_cutoff)
+						n_tagged += is_tagged
 
-					# maps read name to (haplotype, quality, phaseset)
-					read_to_haplotype = {}
-					# Read all reads for this chromosome once to create one core.ReadSet per sample
-					# this allows to assign phase to paired-end reads based on both reads
-					if variant_table is not None:
-						for sample in samples:
-							genotypes = variant_table.genotypes_of(sample)
-							phases = variant_table.phases_of(sample)
-							variantpos_to_phaseinfo = {
-								v.position:(int(phases[i].block_id),phases[i].phase) for i,v in enumerate(variant_table.variants) if phases[i] is not None
-							}
-							variants = [
-								v for v, gt, phase in zip(variant_table.variants, genotypes, phases) if gt == 1 and phase is not None
-							]
-							bam_sample = None if ignore_read_groups else sample
-							read_set = read_reads(readset_reader, chromosome_name, variants, bam_sample, fasta)
+					bam_writer.write(alignment)
+					_ = haplotag_writer.write('{}\t{}\t{}\n'.format(alignment.query_name,
+																		haplotype_name,
+																		phaseset))
+					if n_alignments % 100000 == 0:
+						logger.debug('Processed {} alignment records.'.format(n_alignments))
+		timers.stop('haplotag-process')
+		logger.debug('Processing complete (time: {})'.format(timers.elapsed('haplotag-process')))
 
-							# map tag --> set of reads
-							BX_tag_to_readlist = defaultdict(list)
-							for read in read_set:
-								if read.has_BX_tag():
-									BX_tag_to_readlist[read.BX_tag].append(read)
-							# all reads processed so far
-							processed_reads = set()
-							for read in read_set:
-								if read.name in processed_reads:
-									continue
-								# mapping: phaseset --> phred scaled difference between costs of assigning reads to haplotype 0 or 1
-								haplotype_costs = defaultdict(int)
-								reads_to_consider = set()
-
-								processed_reads.add(read.name)
-								reads_to_consider.add(read)
-
-								# reads with same BX tag need to be considered too (unless --ignore-linked-read is set)
-								if read.has_BX_tag() and not ignore_linked_read:
-									for r in BX_tag_to_readlist[read.BX_tag]:
-										if not r.name in processed_reads:
-											# only select reads close to current one
-											if abs(read.reference_start - r.reference_start) <= linked_read_distance_cutoff:
-												reads_to_consider.add(r)
-								for r in reads_to_consider:
-									processed_reads.add(r.name)
-									for v in r:
-										assert v.allele in [0,1]
-										phaseset, allele = variantpos_to_phaseinfo[v.position]
-										if v.allele == allele:
-											haplotype_costs[phaseset] += v.quality
-										else:
-											haplotype_costs[phaseset] -= v.quality
-
-								l = list(haplotype_costs.items())
-								l.sort(key=lambda t:-abs(t[1]))
-								#logger.info('Read %s: %s', read.name, str(l))
-								if len(l) > 0:
-									if len(l) > 1:
-										n_multiple_phase_sets += 1
-									phaseset, quality = l[0]
-									if quality != 0:
-										haplotype = 0 if quality > 0 else 1
-										BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, haplotype, phaseset))
-										for r in reads_to_consider:
-											read_to_haplotype[r.name] = (haplotype, abs(quality), phaseset)
-											logger.debug('Assigned read %s to haplotype %d with a quality of %d based on %d covered variants', r.name, haplotype, quality, len(r))
-
-				# Only attempt to assign phase of neither secondary nor supplementary
-				if (not alignment.is_secondary) and (alignment.flag & 2048 == 0):
-					try:
-						haplotype, quality, phaseset = read_to_haplotype[alignment.query_name]
-						haplotype_name = 'H{}'.format(haplotype + 1)
-						alignment.set_tag('HP', haplotype + 1)
-						alignment.set_tag('PC', quality)
-						alignment.set_tag('PS', phaseset)
-						n_tagged += 1
-					except KeyError:
-						# check if reads with same tag have been assigned
-						if alignment.has_tag('BX'):
-							read_clouds = BX_tag_to_haplotype[alignment.get_tag('BX')]
-							for (reference_start, haplotype, phaseset) in read_clouds:
-								if abs(reference_start - alignment.reference_start) <= linked_read_distance_cutoff:
-									haplotype_name = 'H{}'.format(haplotype + 1)
-									alignment.set_tag('HP', haplotype + 1)
-									alignment.set_tag('PS', phaseset)
-									n_tagged += 1
-									break
-			bam_writer.write(alignment)
-			if haplotag_list_file is not None:
-				print(alignment.query_name, haplotype_name, phaseset, sep='\t', file=haplotag_list_file)
-			if n_alignments % 100000 == 0:
-				logger.info('Processed %d alignment records.', n_alignments)
-
+	timers.stop('haplotag-run')
 	logger.info('\n== SUMMARY ==')
 	logger.info('Total alignments processed:              %12d', n_alignments)
 	logger.info('Alignments that could be tagged:         %12d', n_tagged)
 	logger.info('Alignments spanning multiple phase sets: %12d', n_multiple_phase_sets)
-	bam_writer.close()
-
-	if haplotag_list_file is not None:
-		haplotag_list_file.close()
-
+	logger.info('haplotag - total processing time: {}'.format(timers.elapsed('haplotag-run')))
+	return
 
 
 def main(args):
-	run_haplotag(**vars(args))
+	try:
+		run_haplotag(**vars(args))
+	except Exception as err:
+		logger.error('run_haplotag.py: error {}'.format(err))
+		sys.exit(1)
+	else:
+		sys.exit(0)
