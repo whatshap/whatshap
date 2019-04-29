@@ -11,7 +11,7 @@ import pysam
 from whatshap.cli.phase import run_whatshap
 from whatshap.cli.haplotag import run_haplotag
 from whatshap.cli.hapcut2vcf import run_hapcut2vcf
-from whatshap.vcf import VcfReader, VariantCallPhase, VcfError
+from whatshap.vcf import VcfReader, VariantCallPhase
 
 trio_bamfile = 'tests/data/trio.pacbio.bam'
 trio_merged_bamfile = 'tests/data/trio-merged-blocks.bam'
