@@ -59,6 +59,7 @@ def add_arguments(parser):
 	arg('alignment_file', metavar='ALIGNMENTS',
 		help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
 
+
 def validate(args, parser):
 	pass
 
@@ -67,12 +68,12 @@ def md5_of(filename):
 	return hashlib.md5(open(filename,'rb').read()).hexdigest()
 
 
-def read_reads(readset_reader, chromosome, variants, sample, fasta):
+def read_reads(readset_reader, chromosome, variants, sample, fasta, regions):
 	"""Return a sorted ReadSet"""
 	logger.info('Detecting alleles in reads mapped to chromosome %s for sample %r ...', chromosome, sample)
 	reference = fasta[chromosome] if fasta else None
 	try:
-		readset = readset_reader.read(chromosome, variants, sample, reference)
+		readset = readset_reader.read(chromosome, variants, sample, reference, regions)
 	except ReadSetError as e:
 		logger.error("%s", e)
 		sys.exit(1)
@@ -162,7 +163,7 @@ def load_chromosome_variants(vcf_reader, chromosome, regions):
 	return variant_table
 
 
-def prepare_haplotag_information(variant_table, shared_samples, readset_reader, fasta,
+def prepare_haplotag_information(variant_table, shared_samples, readset_reader, fasta, regions,
 								 ignore_read_groups, ignore_linked_read, linked_read_cutoff):
 	"""
 	Read all reads for this chromosome once to create one core.ReadSet per sample
@@ -179,7 +180,7 @@ def prepare_haplotag_information(variant_table, shared_samples, readset_reader, 
 	for sample in shared_samples:
 		variantpos_to_phaseinfo, variants = get_variant_information(variant_table, sample)
 		bam_sample = None if ignore_read_groups else sample
-		read_set = read_reads(readset_reader, variant_table.chromosome, variants, bam_sample, fasta)
+		read_set = read_reads(readset_reader, variant_table.chromosome, variants, bam_sample, fasta, regions)
 
 		# map tag --> set of reads
 		BX_tag_to_readlist = collections.defaultdict(list)
@@ -557,6 +558,7 @@ def run_haplotag(
 																							shared_samples,
 																							readset_reader,
 																							fasta,
+																							regions,
 																							ignore_read_groups,
 																							ignore_linked_read,
 																							linked_read_distance_cutoff)

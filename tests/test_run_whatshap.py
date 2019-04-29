@@ -770,7 +770,91 @@ def test_haplotag_supplementary():
 			assert r in primary_to_tag
 			primary_tag = primary_to_tag[r]
 			assert t == primary_tag
-	
+
+
+def test_haplotag_regions():
+	with TemporaryDirectory() as tempdir:
+		outbam1 = tempdir + '/output1.bam'
+		outbam2 = tempdir + '/output2.bam'
+		outlist1 = tempdir + '/list1.tsv'
+		outlist2 = tempdir + '/list2.tsv'
+
+		# run haplotag with identical VCF, but once specifying regions
+		# output must be identical
+		run_haplotag(variant_file='tests/data/haplotag_1.vcf.gz', alignment_file='tests/data/haplotag.bam',
+					 haplotag_list=outlist1, output=outbam1, regions=None)
+		run_haplotag(variant_file='tests/data/haplotag_1.vcf.gz', alignment_file='tests/data/haplotag.bam',
+					 haplotag_list=outlist2, output=outbam2, regions=['chr1'])
+		for a1, a2 in zip(pysam.AlignmentFile(outbam1), pysam.AlignmentFile(outbam2)):
+			assert a1.query_name == a2.query_name
+			if a1.has_tag('HP'):
+				assert a2.has_tag('HP')
+				assert a1.get_tag('HP') == a2.get_tag('HP')
+		for n, (line1, line2) in enumerate(zip(open(outlist1), open(outlist2))):
+			assert line1 == line2
+		assert n == 20
+
+
+def test_haplotag_nonexisting_region():
+	with raises(ValueError):
+		run_haplotag(
+			variant_file='tests/data/haplotag_1.vcf.gz',
+			alignment_file='tests/data/haplotag.bam',
+			haplotag_list=None,
+			output=None, regions=['chr2'])
+
+
+def test_haplotag_malformed_region():
+	with raises(ValueError):
+		run_haplotag(
+			variant_file='tests/data/haplotag_1.vcf.gz',
+			alignment_file='tests/data/haplotag.bam',
+			haplotag_list=None,
+			output=None, regions=['chr1:0:100', 'chr1:500:200'])
+
+
+def test_haplotag_selected_regions():
+	start1 = 1054025
+	end1 = 1069500
+	start2 = 1075700
+	with TemporaryDirectory() as tempdir:
+		outbam = tempdir + '/output.bam'
+		outlist = tempdir + '/haplolist.tsv'
+		run_haplotag(
+			variant_file='tests/data/haplotag_1.vcf.gz',
+			alignment_file='tests/data/haplotag.bam',
+			haplotag_list=outlist,
+			output=outbam,
+			regions=['chr1:{}:{}'.format(start1, end1),
+					'chr1:{}'.format(start2)])
+
+		var_region1 = set()
+		var_region2 = set()
+		unphased_variants = [1074910, 1075707, 1075715]
+		with pysam.VariantFile('tests/data/haplotag_1.vcf.gz', 'rb') as vcf:
+			for variant in vcf:
+				if variant.pos in unphased_variants:
+					continue
+				if start1 <= variant.start <= end1:
+					var_region1.add(variant.start)
+				elif start2 <= variant.start:
+					var_region2.add(variant.start)
+				else:
+					pass
+		# sanity check:
+		# there are no variants in the VCF
+		# overlapping region 1
+		assert len(var_region1) == 0
+
+		with pysam.AlignmentFile(outbam, 'rb') as test_bam:
+			# Since not all variants from the VCF are selected,
+			# count how many variants are overlapping the read.
+			# If more than 1 overlap, read must be phased / have HP tag
+			for aln in test_bam:
+				num_ovl = sum([int(aln.reference_start <= v <= aln.reference_end) for v in var_region2])
+				if num_ovl > 1:
+					assert aln.has_tag('HP')
+
 
 def test_cram_output(tmpdir):
 	outcram = str(tmpdir.join('output.cram'))
