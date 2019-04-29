@@ -1,0 +1,33 @@
+##fileformat=VCFv4.1
+##FILTER=<ID=PASS,Description="All filters passed">
+##fileDate=20160706
+##source=freeBayes v1.0.0-19-gefe685d
+##reference=reference.fasta
+##phasing=none
+##commandline="freebayes -f reference.fasta illumina-full.bam"
+##contig=<ID=ref>
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=GQ,Number=1,Type=Float,Description="Genotype Quality, the Phred-scaled marginal (or unconditional) probability of the called genotype">
+##FORMAT=<ID=GL,Number=G,Type=Float,Description="Genotype Likelihood, log10-scaled likelihoods of the data given the called genotype for each possible genotype generated from the reference and alternate alleles given the sample ploidy">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read Depth">
+##FORMAT=<ID=RO,Number=1,Type=Integer,Description="Reference allele observation count">
+##FORMAT=<ID=QR,Number=1,Type=Integer,Description="Sum of quality of the reference observations">
+##FORMAT=<ID=AO,Number=A,Type=Integer,Description="Alternate allele observation count">
+##FORMAT=<ID=QA,Number=A,Type=Integer,Description="Sum of quality of the alternate observations">
+##FORMAT=<ID=MIN,Number=1,Type=Integer,Description="Minimum depth in gVCF output block.">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG004_250bp_All
+ref	10854	.	A	G	662.276	.	.	.	.
+ref	11221	.	G	A,T	0.0010674	.	.	.	.
+ref	11254	.	G	C,T,A	448.263	.	.	.	.
+ref	11752	.	C	T	497.72	.	.	.	.
+ref	11805	.	C	T	458.925	.	.	.	.
+ref	11821	.	A	G	437.94	.	.	.	.
+ref	11990	.	G	C	784.602	.	.	.	.
+ref	12094	.	T	C,G	693.648	.	.	.	.
+ref	12099	.	C	G	688.247	.	.	.	.
+ref	12138	.	T	C	798.855	.	.	.	.
+ref	12490	.	A	C	941.913	.	.	.	.
+ref	12848	.	T	A,TA,G,C	933.804	.	.	.	.
+ref	12952	.	G	C	729.501	.	.	.	.
+ref	12987	.	G	A	644.446	.	.	.	.
+ref	13300	.	TAAAAAAAAAAT	TAAAAAAAAAAAAT	395.475	.	.	.	.

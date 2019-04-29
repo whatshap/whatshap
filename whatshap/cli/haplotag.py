@@ -52,10 +52,12 @@ def add_arguments(parser):
 	arg('--output-haplotag-list', dest='haplotag_list', metavar='HAPLOTAG_LIST', default=None,
 		help='Write assignments of read names to haplotypes (tab separated) to given '
 		'output file. If filename ends in .gz, then output is gzipped.')
+	arg('--tag-supplementary', default=False, action='store_true', 
+		help='Also tag supplementary alignments. Supplementary alignments are assigned to the same '
+			'haplotype the primary alignment has been assigned to (default: only tag primary alignments).')
 	arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
 	arg('alignment_file', metavar='ALIGNMENTS',
 		help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
-
 
 def validate(args, parser):
 	pass
@@ -459,7 +461,7 @@ def prepare_output_files(aln_output, reference, haplotag_output, vcf_md5, bam_he
 
 def ignore_read(alignment, tag_supplementary):
 	"""
-	If, in the future, supplementary alignments should also be tagged,
+	If supplementary alignments should also be tagged,
 	this should only take the haplo-tag of the primary
 	alignment into account - this leads to:
 
@@ -484,7 +486,7 @@ def ignore_read(alignment, tag_supplementary):
 		else:
 			ignore = False
 	elif not tag_supplementary:
-		ignore = alignment.is_secondary or (alignment.flag & 2048 == 1)
+		ignore = alignment.is_secondary or alignment.is_supplementary
 	else:
 		raise RuntimeError('Unconsidered filter situation for alignment: {}'.format(alignment.query_name))
 	return ignore
@@ -501,6 +503,7 @@ def run_haplotag(
 		linked_read_distance_cutoff=50000,
 		ignore_read_groups=False,
 		haplotag_list=None,
+		tag_supplementary=False,
 	):
 
 	timers = StageTimer()
@@ -572,7 +575,7 @@ def run_haplotag(
 					alignment.set_tag('HP', value=None)
 					alignment.set_tag('PC', value=None)
 					alignment.set_tag('PS', value=None)
-					if ignore_read(alignment, False) or variant_table is None:
+					if ignore_read(alignment, tag_supplementary) or variant_table is None:
 						# - Ignored reads are simply
 						# written to the output BAM
 						# - If no variants for this chromosome,
