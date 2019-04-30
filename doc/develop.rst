@@ -11,18 +11,18 @@ Development installation
 For development, make sure that you install Cython and tox. We also recommend
 using a virtualenv. This sequence of commands should work::
 
-	git clone https://bitbucket.org/whatshap/whatshap
-	cd whatshap
-	python3 -m venv venv
-	source venv/bin/activate
-	pip install -e .[dev]
+    git clone https://bitbucket.org/whatshap/whatshap
+    cd whatshap
+    python3 -m venv venv
+    source venv/bin/activate
+    pip install -e .[dev]
 
 The last command installs also all the development dependencies, such as Cython.
 Omit the ``[dev]`` (write only ``pip install -e .``) to leave them out.
 
 Next, you can run WhatsHap like this::
 
-	whatshap --help
+    whatshap --help
 
 
 Development installation when using Conda
@@ -30,11 +30,11 @@ Development installation when using Conda
 
 If you are using `Bioconda <https://bioconda.github.io/>`_, it is convenient to develop WhatsHap in a separate environment::
 
-	conda create -n whatshap-dev python=3.6 pysam PyVCF pyfaidx xopen Cython pytest sphinx-issues
-	source activate whatshap-dev
-	git clone https://bitbucket.org/whatshap/whatshap
-	cd whatshap
-	pip install -e .
+    conda create -n whatshap-dev python=3.6 pysam PyVCF pyfaidx xopen Cython pytest sphinx-issues
+    source activate whatshap-dev
+    git clone https://bitbucket.org/whatshap/whatshap
+    cd whatshap
+    pip install -e .
 
 The last command installs WhatsHap into your Conda environment named ``whatshap-dev``. So when
 executing ``whatshap`` you will run the latest version you just cloned.
@@ -45,7 +45,7 @@ Running tests
 
 While in the virtual environment, you can run the tests for the current Python version like this::
 
-	pytest
+    pytest
 
 Whenever you change any Cython code (``.pyx`` files), you need to re-run the
 ``pip install -e .`` step in order to compile it.
@@ -70,13 +70,13 @@ with older or newer Python versions, follow the instructions for enabling the
 `“deadsnakes” repository <https://launchpad.net/~deadsnakes/+archive/ubuntu/ppa>`_.
 After you have done so, ensure you have the following packages::
 
-	sudo apt install build-essential python-software-properties
+    sudo apt install build-essential python-software-properties
 
 Then get and install the desired Python versions. Make sure you install the ``-dev`` package.
 For example, for Python 3.4::
 
-	sudo apt update
-	sudo apt install python3.4-dev
+    sudo apt update
+    sudo apt install python3.4-dev
 
 
 Debugging
@@ -85,16 +85,16 @@ Debugging
 Here is one way to get a backtrace from gdb (assuming the bug occurs while
 running the tests)::
 
-	$ gdb python3
-	(gdb) run -m pytest
+    $ gdb python3
+    (gdb) run -m pytest
 
 After you get a SIGSEGV, let gdb print a backtrace:
 
-	(gdb) bt
+    (gdb) bt
 
 Another way is to set ``PYTHONFAULTHANDLER=1``::
 
-	PYTHONFAULTHANDLER=1 pytest -vxs tests/test_run_whatshap.py
+    PYTHONFAULTHANDLER=1 pytest -vxs tests/test_run_whatshap.py
 
 
 Wrapping C++ classes
@@ -168,13 +168,13 @@ If this is the first time you attempt to upload a distribution to PyPI, create a
 configuration file named ``.pypirc`` in your home directory with the following
 contents::
 
-	[distutils]
-	index-servers =
-	    pypi
+    [distutils]
+    index-servers =
+        pypi
 
-	[pypi]
-	username=my-user-name
-	password=my-password
+    [pypi]
+    username=my-user-name
+    password=my-password
 
 See also `this blog post about getting started with
 PyPI <http://peterdowns.com/posts/first-time-with-pypi.html>`_. In particular,
@@ -239,20 +239,20 @@ Some statistics for the PyPI package are available at
 Here is a query for Google BigQuery that shows download counts (from PyPI)
 since a given date, broken down by version ::
 
-	SELECT
-		file.project,
-		file.version,
-		COUNT(*) as total_downloads,
-	FROM
-		TABLE_DATE_RANGE(
-			[the-psf:pypi.downloads],
-			TIMESTAMP("20170101"),
-			CURRENT_TIMESTAMP()
-		)
-	WHERE
-		file.project = 'whatshap'
-	GROUP BY
-		file.project, file.version
+    SELECT
+        file.project,
+        file.version,
+        COUNT(*) as total_downloads,
+    FROM
+        TABLE_DATE_RANGE(
+            [the-psf:pypi.downloads],
+            TIMESTAMP("20170101"),
+            CURRENT_TIMESTAMP()
+        )
+    WHERE
+        file.project = 'whatshap'
+    GROUP BY
+        file.project, file.version
 
 Statistics for the Conda package are available on the
 `WhatsHap package detail page <https://anaconda.org/bioconda/whatshap/>`_.

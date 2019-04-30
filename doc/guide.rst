@@ -144,11 +144,11 @@ must have the ``RG`` tag, and at the same time, the read group must occur in the
 header of the BAM/CRAM file and have the correct sample name. In this example, a
 header might look like this::
 
-	@HD     VN:1.4  SO:coordinate
-	@SQ     SN:...  LN:...
-	...
-	@RG   ID:1  SM:SampleA
-	@RG   ID:2  SM:SampleB
+    @HD     VN:1.4  SO:coordinate
+    @SQ     SN:...  LN:...
+    ...
+    @RG   ID:1  SM:SampleA
+    @RG   ID:2  SM:SampleB
 
 The ``@RG`` header line will often contain more fields, such as ``PL`` for
 the platform and ``LB`` for the library name. WhatsHap only uses the ``SM``
@@ -161,9 +161,9 @@ in the `SAM/BAM specification <https://samtools.github.io/hts-specs/>`_.
 
 It is perfectly fine to have multiple read groups for a single sample::
 
-	@RG   ID:1a  SM:SampleA
-	@RG   ID:1b  SM:SampleA
-	@RG   ID:2   SM:SampleB
+    @RG   ID:1a  SM:SampleA
+    @RG   ID:1b  SM:SampleA
+    @RG   ID:2   SM:SampleB
 
 
 What to do when the metadata is not correct
@@ -390,7 +390,7 @@ pedigree *and* the reads to infer a combined, much better phasing.
 
 To turn on pedigree mode, run WhatsHap like this::
 
-	whatshap phase --ped pedigree.ped -o phased.vcf input.vcf input.bam
+    whatshap phase --ped pedigree.ped -o phased.vcf input.vcf input.bam
 
 where ``pedigree.ped`` is a plink-compatible PED file to describe the
 relationships between samples and ``input.vcf`` is a multi-sample VCF
@@ -450,14 +450,14 @@ In order to use region-specific recombination rates, a genetic map file
 can be provided via option ``--genmap``. WhatsHap expects a three-column
 text file like this::
 
-	position COMBINED_rate(cM/Mb) Genetic_Map(cM)
-	55550 0 0
-	568322 0 0
-	568527 0 0
-	721290 2.685807669 0.410292036939447
-	723819 2.8222713027 0.417429561063975
-	723891 2.9813105581 0.417644215424158
-	...
+    position COMBINED_rate(cM/Mb) Genetic_Map(cM)
+    55550 0 0
+    568322 0 0
+    568527 0 0
+    721290 2.685807669 0.410292036939447
+    723819 2.8222713027 0.417429561063975
+    723891 2.9813105581 0.417644215424158
+    ...
 
 The first (header) line is ignored and the three columns are expected to
 give the pysical position (in bp), the local recombination rate between the

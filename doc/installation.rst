@@ -37,7 +37,7 @@ dependencies.
 
 WhatsHap can then be installed with pip::
 
-	pip3 install --user whatshap
+    pip3 install --user whatshap
 
 This installs WhatsHap into ``$HOME/.local/bin``.  Then add
 ``$HOME/.local/bin`` to your ``$PATH`` and run the tool::
@@ -58,13 +58,13 @@ create a virtual environment in the directory ``whatshap-env`` that contains
 WhatsHap. Simply delete that directory to uninstall the software. Other WhatsHap
 versions you may have installed in other locations remain unaffected. ::
 
-	python3 -m venv whatshap-env
-	whatshap-env/bin/pip install --upgrade pip
-	whatshap-env/bin/pip install git+https://bitbucket.org/whatshap/whatshap
+    python3 -m venv whatshap-env
+    whatshap-env/bin/pip install --upgrade pip
+    whatshap-env/bin/pip install git+https://bitbucket.org/whatshap/whatshap
 
 You can then run WhatsHap like this::
 
-	whatshap-env/bin/whatshap --version
+    whatshap-env/bin/whatshap --version
 
 You should see a version number like ``0.18.dev119+g5ba23de``, which means that
 this is going to become version 0.18, with 119 commits ahead of the previous
