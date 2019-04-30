@@ -255,9 +255,9 @@ def normalize_user_regions(user_regions, bam_references):
 	chr -> chr, 0, None
 	chr:start -> chr, start, None
 
-	This should be compatible to pysam's way of specifying regions.
-	If the user did not specify any regions, all chromosomes (start to end)
-	from the input BAM will be considered.
+	User input is interpreted as 1-based closed intervals.
+	In pysam, coordinates are treated as 0-based half-open,
+	so convert user input chr1:1-100 into chr1:0-100
 
 	:param user_regions: list of user input regions
 	:param bam_references: references of BAM file
@@ -340,6 +340,7 @@ def initialize_readset_reader(aln_file_path, ref_file_path, num_sample_ids, exit
 				'"samtools faidx".'.format(err)
 			)
 			raise err
+
 	return readset_reader, fasta
 
 
@@ -554,6 +555,7 @@ def run_haplotag(
 		numeric_sample_ids = NumericSampleIds()
 
 		timers.start('haplotag-init')
+
 		# Check and validate VCF information
 		vcf_reader, use_vcf_samples = prepare_variant_file(
 			variant_file,
@@ -635,11 +637,11 @@ def run_haplotag(
 					alignment.set_tag('HP', value=None)
 					alignment.set_tag('PC', value=None)
 					alignment.set_tag('PS', value=None)
-					if ignore_read(alignment, tag_supplementary) or variant_table is None:
+					if variant_table is None or ignore_read(alignment, tag_supplementary):
+						# - If no variants in VCF for this chromosome,
+						# alignments just get written to output
 						# - Ignored reads are simply
 						# written to the output BAM
-						# - If no variants for this chromosome,
-						# alignments just get written to output
 						pass
 					else:
 						is_tagged, haplotype_name, phaseset = attempt_add_phase_information(
@@ -677,8 +679,8 @@ def run_haplotag(
 def main(args):
 	try:
 		run_haplotag(**vars(args))
-	except Exception as err:
-		logger.error('run_haplotag.py: error {}'.format(err))
+	except Exception as e:
+		logger.error('run_haplotag.py: error {}'.format(e))
 		sys.exit(1)
 	else:
 		sys.exit(0)
