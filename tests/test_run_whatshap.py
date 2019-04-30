@@ -825,13 +825,24 @@ def test_haplotag_nonexisting_region():
 			output=None, regions=['chr2'])
 
 
-def test_haplotag_malformed_region():
+def test_haplotag_malformed_region_interval():
+	# Region 2 has a start larger than the end
 	with raises(ValueError):
 		run_haplotag(
 			variant_file='tests/data/haplotag_1.vcf.gz',
 			alignment_file='tests/data/haplotag.bam',
 			haplotag_list=None,
-			output=None, regions=['chr1:0:100', 'chr1:500:200'])
+			output=None, regions=['chr1:0-100', 'chr1:500-200'])
+
+
+def test_haplotag_malformed_input_format():
+	# Region 2 uses colon twice as separator
+	with raises(ValueError):
+		run_haplotag(
+			variant_file='tests/data/haplotag_1.vcf.gz',
+			alignment_file='tests/data/haplotag.bam',
+			haplotag_list=None,
+			output=None, regions=['chr1:0', 'chr1:200:500'])
 
 
 def test_haplotag_selected_regions(tmpdir):
@@ -846,7 +857,7 @@ def test_haplotag_selected_regions(tmpdir):
 		alignment_file='tests/data/haplotag.bam',
 		haplotag_list=outlist,
 		output=outbam,
-		regions=['chr1:{}:{}'.format(start1, end1),
+		regions=['chr1:{}-{}'.format(start1, end1),
 				'chr1:{}'.format(start2)])
 
 	var_region1 = set()

@@ -324,8 +324,8 @@ class VcfReader:
 		:return:
 		"""
 		records = []
-		for s, e in regions:
-			records.extend(list(self._vcf_reader.fetch(chromosome, start=s, stop=e)))
+		for start, end in regions:
+			records.extend(list(self._vcf_reader.fetch(chromosome, start=start, stop=end)))
 		return self._process_single_chromosome(chromosome, records)
 
 	def __iter__(self):
