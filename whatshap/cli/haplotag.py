@@ -36,9 +36,8 @@ def add_arguments(parser):
 	arg('--regions', dest='regions', metavar='REGION', default=[], action='append',
 		help='Specify region(s) of interest to limit the tagging to reads/variants '
 			 'overlapping those regions. You can specify a space-separated list of '
-			 'regions in the form of chrom:start:end, chrom (consider entire chromosome), '
-			 'or chrom:start (consider region from this start to end of chromosome). '
-			 'DEFAULT: <empty>')
+			 'regions in the form of chrom:start-end, chrom (consider entire chromosome), '
+			 'or chrom:start (consider region from this start to end of chromosome).')
 	arg('--ignore-linked-read', default=False, action='store_true',
 		help='Ignore linkage information stored in BX tags of the reads.')
 	arg('--linked-read-distance-cutoff', '-d', metavar='LINKEDREADDISTANCE', default=50000, type=int,
@@ -151,8 +150,7 @@ def load_chromosome_variants(vcf_reader, chromosome, regions):
 	try:
 		logger.debug('Loading variants from {} distinct region(s)'.format(len(regions)))
 		variant_table = vcf_reader._fetch_subsets(chromosome, regions)
-		logger.debug('Loaded {} variants for chromosome {} in VCF'.format(len(variant_table),
-																		chromosome))
+		logger.debug('Loaded {} variants for chromosome {} in VCF'.format(len(variant_table), chromosome))
 	except OSError as err:
 		# not entirely clear to me why this could raise
 		# an OSError at this point?
@@ -228,21 +226,24 @@ def prepare_haplotag_information(variant_table, shared_samples, readset_reader,
 			l = list(haplotype_costs.items())
 			l.sort(key=lambda t: -abs(t[1]))
 			# logger.info('Read %s: %s', read.name, str(l))
-			if len(l) > 0:
-				if len(l) > 1:
-					n_multiple_phase_sets += 1
-				phaseset, quality = l[0]
-				if quality != 0:
-					haplotype = 0 if quality > 0 else 1
-					BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, haplotype, phaseset))
-					for r in reads_to_consider:
-						read_to_haplotype[r.name] = (haplotype, abs(quality), phaseset)
-						logger.debug(
-							'Assigned read {} to haplotype {} with a '
-							'quality of {} based on {} covered variants'.format(
-								r.name, haplotype, quality, len(r)
-							)
-						)
+
+			if len(l) == 0:
+				continue
+			if len(l) > 1:
+				n_multiple_phase_sets += 1
+			phaseset, quality = l[0]
+			if quality == 0:
+				continue
+			haplotype = 0 if quality > 0 else 1
+			BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, haplotype, phaseset))
+			for r in reads_to_consider:
+				read_to_haplotype[r.name] = (haplotype, abs(quality), phaseset)
+				logger.debug(
+					'Assigned read {} to haplotype {} with a '
+					'quality of {} based on {} covered variants'.format(
+						r.name, haplotype, quality, len(r)
+					)
+				)
 	return BX_tag_to_haplotype, read_to_haplotype, n_multiple_phase_sets
 
 
@@ -250,7 +251,7 @@ def normalize_user_regions(user_regions, bam_references):
 	"""
 	Process and accept user input of the following forms:
 
-	chr:start:end -> chr, start, end
+	chr:start-end -> chr, start, end
 	chr -> chr, 0, None
 	chr:start -> chr, start, None
 
@@ -260,12 +261,12 @@ def normalize_user_regions(user_regions, bam_references):
 
 	:param user_regions: list of user input regions
 	:param bam_references: references of BAM file
-	:return: sorted list of normalized regions
+	:return: dict of lists containing normalized regions per chromosome
 	"""
 	norm_regions = collections.defaultdict(list)
 	if user_regions is None:
-		for ref in bam_references:
-			norm_regions[ref].append((0, None))
+		for reference in bam_references:
+			norm_regions[reference].append((0, None))
 	else:
 		bam_references = set(bam_references)
 		for region in user_regions:
@@ -553,14 +554,15 @@ def run_haplotag(
 		numeric_sample_ids = NumericSampleIds()
 
 		timers.start('haplotag-init')
-		# check and validate VCF information
+		# Check and validate VCF information
 		vcf_reader, use_vcf_samples = prepare_variant_file(
 			variant_file,
 			given_samples,
 			ignore_read_groups,
 			stack
 		)
-		# check BAM file, in particular sample
+
+		# Check BAM file, in particular sample
 		# compatibility with VCF
 		bam_reader, shared_samples = prepare_alignment_file(
 			alignment_file,
@@ -569,13 +571,13 @@ def run_haplotag(
 			stack
 		)
 
-		# check if user has specified a subset of regions per chromosome
+		# Check if user has specified a subset of regions per chromosome
 		user_regions = normalize_user_regions(
 			regions,
 			bam_reader.references
 		)
 
-		# initialize ReadSetReader and FASTA reference
+		# Initialize ReadSetReader and FASTA reference
 		readset_reader, fasta = initialize_readset_reader(
 			alignment_file,
 			reference,
@@ -583,7 +585,7 @@ def run_haplotag(
 			stack
 		)
 
-		# prepare output files
+		# Prepare output files
 		bam_writer, haplotag_writer = prepare_output_files(
 			output,
 			reference,
