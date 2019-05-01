@@ -227,7 +227,7 @@ def test_compute_switch_flips_poly():
 	phasing = [[0,0,0,1,0,0,0,0], [1,1,1,1,1,1,1,1]]
 	truth =   [[0,0,0,0,0,0,0,0], [1,1,1,1,1,1,1,1]]
 	sfp = compute_switch_flips_poly(phasing, truth, flip_cost = float("inf"), switch_cost = 1)
-	assert sfp.flips + sfp.switches * float("inf") == float("inf")
+	assert sfp.flips * float("inf") + sfp.switches  == float("inf")
 
 def test_compare_block():
 	phasing = ['1111111111','0000000000']

@@ -222,7 +222,7 @@ def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = Fa
 				
 				# Find the best row for recursion by computing cost of previous rows combined with the switch cost to jump to the current one
 				current_err = s[j-1][pred] + switch_cost * switches
-				if current_err < min_prev_err:
+				if current_err < min_prev_err or min_pred == -1:
 					min_prev_err = current_err
 					min_pred = pred
 					min_switches = switches
@@ -256,7 +256,7 @@ def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = Fa
 	min_err = float("inf")
 	for row in s[-1]:
 		current_err = s[-1][row]
-		if current_err < min_err:
+		if current_err < min_err or min_row == -1:
 			min_err = current_err
 			min_row = row
 			
