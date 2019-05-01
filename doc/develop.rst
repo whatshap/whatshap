@@ -161,6 +161,63 @@ then open ``doc/_build/html/index.html`` in your browser. The theme that is
 used is a bit different from the one the Read the Docs uses.
 
 
+Coding style guidelines
+-----------------------
+
+Code formatting
++++++++++++++++
+The current WhatsHap code base uses **TABS for indentation**. At some point in the future,
+the code base will be re-formatted using the "black" (TODO: add link) code formatter.
+To be in line with these foreseeable changes, limit the **length of a single line** to
+**at most 120 characters**. Apart from that, try to (roughly) follow the recommendations
+of PEP8.
+
+Avoid deep intendation
+++++++++++++++++++++++
+Every additional level of indentation makes code often harder to read. Strategies to avoid
+indentation are, e.g., to move code blocks into separate functions instead of nesting them
+(generally a good idea!). A possibility often encountered, e.g., in loops is to check for
+the case that permits skipping the current iteration, i.e. ::
+
+    for ... in ...:
+        if read_length > 0:
+            # Bad: new indentation level
+            # do something
+
+    for ... in ...:
+        if read_length == 0:
+            continue
+        # Good: same indentation level
+        # do something
+
+Variable and function names
++++++++++++++++++++++++++++
+Variable and function names should usually be all lowercase, and individual words
+separated by underscores. Specifically, do not use single letters as variable or function
+names. For variable names, try to devise a name that indicates what piece of information is
+identified by this variable. Also, avoid including type information in the variable name for
+standard Python types such as list, dict and so on. Examples: ::
+
+    x = ...  # Bad: single letter
+    y = ...  # Bad: what does 'y' represent?
+    int_list = [1, 2, 3]  # Bad: omit type information
+    datapoints = ...  # Bad: what data?
+    phredscaledscore = ...  # Bad: separate words by underscores
+
+For functions, names should be descriptive of what the function does. In particular, functions
+performing checks and returning a boolean value should make the consequence of the check
+transparent via appropriate naming. Examples: ::
+
+    def compute_scores()  # Bad: what scores?
+    def load_data()  # Bad: what data?
+    def estimate_variance()  # Good: intent of function clear
+
+    def check_item()  # Bad: True/False interpretation unclear
+    def ignore_item()  # Good: True/False interpretation clear
+
+In general, using abbreviations as names is strongly discouraged.
+
+
 Making a release
 ----------------
 
