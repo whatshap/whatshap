@@ -164,23 +164,48 @@ def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = Fa
 	# List of all permutations in which haplotypes of the two phasings can be joined
 	perms = list(permutations(range(0, ploidy)))
 	
-	# dp table with SwitchFlip objects, which are initialized with infinite costs
-	d = [[SwitchFlips(float("inf"), float("inf")) for i in range(len(perms))] for j in range(num_pos)]
-	# table to store backtracing direction
-	b = [[0 for i in range(len(perms))] for j in range(num_pos)] 
+	# dp table with float scores
+	s = [dict() for j in range(num_pos)]
+	# dp table with SwitchFlip objects
+	c = [dict() for j in range(num_pos)]
+	# table to store the row of the previous column, which was used by dp recursion
+	b = [dict() for j in range(num_pos)]
+	
+	# Temp structures
+	current_scores = []
+	current_comp = []
+	current_bt = []
 	
 	# Initialize first column
+	best_score = float("inf")
+	best_perm = 0
 	for i, perm in enumerate(perms):
 		e = 0
 		for k in range(ploidy):
 			# Count flips between phasing0 and phasing1 for current permutation
 			e += 1 if (phasing1[k][0] != phasing0[perm[k]][0] and phasing1[k][0] != '-' and phasing0[perm[k]][0] != '-') else 0;
-		d[0][i].switches = 0
-		d[0][i].flips = e
+		current_scores.append(e * flip_cost)
+		current_comp.append(SwitchFlips(0, e))
+		if e*flip_cost < best_score:
+			best_score = e * flip_cost
+			best_perm = i
 		#print("d["+str(0)+"]["+str(i)+"] = "+str(d[0][i]))
+		
+	# Only keep profitable entries
+	s[0][best_perm] = current_scores[best_perm]
+	c[0][best_perm] = current_comp[best_perm]
+	for i in range(len(current_scores)):
+		if current_scores[i] < best_score + poly_num_switches(perms[best_perm], perms[i]) * switch_cost:
+			s[0][i] = current_scores[i]
+			c[0][i] = current_comp[i]	
 	
 	# Iterate over all positions
 	for j in range(1, num_pos):
+		current_scores[:] = []
+		current_comp[:] = []
+		current_bt[:] = []
+		best_score = float("inf")
+		best_perm = 0
 		for i, perm in enumerate(perms):
 			# Count number of flip errors if perm would be applied to this column
 			flips = 0
@@ -189,35 +214,54 @@ def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = Fa
 				
 			# Find the best previous solution by checking all rows of previous column
 			min_prev_err = float("inf")
-			min_l = -1
+			min_pred = -1
 			min_switches = float("inf")
-			for l, prev_perm in enumerate(perms):
+			for pred in s[j-1]:
 				# Consider the number switches between the rows
-				switches = sum([1 for i in range(len(perm)) if perm[i] != prev_perm[i]])
+				switches = poly_num_switches(perm, perms[pred])
 				
 				# Find the best row for recursion by computing cost of previous rows combined with the switch cost to jump to the current one
-				current_err = d[j-1][l].switches * switch_cost + d[j-1][l].flips * flip_cost + switch_cost * switches
+				current_err = s[j-1][pred] + switch_cost * switches
 				if current_err < min_prev_err:
 					min_prev_err = current_err
-					min_l = l
+					min_pred = pred
 					min_switches = switches
-			d[j][i].flips = d[j-1][min_l].flips + flips
-			d[j][i].switches = d[j-1][min_l].switches + min_switches
-			b[j][i] = min_l
-			#print("d["+str(j)+"]["+str(i)+"] = "+str(d[j][i]))
+					
+			# Aggregate total costs
+			total_switches = c[j-1][min_pred].switches + min_switches
+			total_flips = c[j-1][min_pred].flips + flips
+			total_score = switch_cost * total_switches + flip_cost * total_flips
+			current_scores.append(switch_cost * total_switches + flip_cost * total_flips)
+			current_comp.append(SwitchFlips(total_switches, total_flips))
+			current_bt.append(min_pred)
+			
+			# Remember best entry in column for pruning
+			if total_score < best_score:
+				best_score = total_score
+				best_perm = i
+			
+		# Only copy profitable entries into dp tables
+		s[j][best_perm] = current_scores[best_perm]
+		c[j][best_perm] = current_comp[best_perm]
+		b[j][best_perm] = current_bt[best_perm]
+		for i in range(len(current_scores)):
+			if current_scores[i] < best_score + poly_num_switches(perms[best_perm], perms[i]) * switch_cost:
+				s[j][i] = current_scores[i]
+				c[j][i] = current_comp[i]
+				b[j][i] = current_bt[i]
 	
 	# Result is smallest combined error in last column
 	result = SwitchFlips()
 	min_row = -1
 	min_err = float("inf")
-	for l in range(len(perms)):
-		current_err = d[-1][l].switches * switch_cost + d[-1][l].flips * flip_cost
+	for row in s[-1]:
+		current_err = s[-1][row]
 		if current_err < min_err:
 			min_err = current_err
-			min_row = l
+			min_row = row
 			
-	result.switches = d[-1][min_row].switches
-	result.flips = d[-1][min_row].flips
+	result.switches = c[-1][min_row].switches
+	result.flips = c[-1][min_row].flips
 	
 	# Backtracing
 	if (report_error_positions and result.switches * switch_cost + result.flips * flip_cost < float("inf")):
@@ -227,19 +271,19 @@ def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = Fa
 		row = min_row
 		while col > 0:
 			prev_row = b[col][row]
-			switches_in_column[col] = d[col][row].switches - d[col-1][prev_row].switches
+			switches_in_column[col] = c[col][row].switches - c[col-1][prev_row].switches
 			for k in range(ploidy):
 				if phasing1[k][col] != phasing0[perms[row][k]][col] and phasing1[k][col] != '-' and phasing0[perms[row][k]][col] != '-':
 					flips_in_column[col].append(k)
-			assert len(flips_in_column[col]) == d[col][row].flips - d[col-1][prev_row].flips
+			assert len(flips_in_column[col]) == c[col][row].flips - c[col-1][prev_row].flips
 			#flips_in_column[col] = d[col][row].flips - d[col-1][prev_row].flips
 			col -= 1
 			row = prev_row
-		switches_in_column[0] = d[col][row].switches
+		switches_in_column[0] = c[col][row].switches
 		for k in range(ploidy):
 			if phasing1[k][col] != phasing0[perms[row][k]][col] and phasing1[k][col] != '-' and phasing0[perms[row][k]][col] != '-':
 				flips_in_column[col].append(k)
-		assert len(flips_in_column[col]) == d[col][row].flips
+		assert len(flips_in_column[col]) == c[col][row].flips
 		#flips_in_column[0] = d[col][row].flips
 
 		assert sum(switches_in_column) == result.switches
@@ -252,6 +296,13 @@ def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = Fa
 	result.switches = result.switches / ploidy
 	result.flips = result.flips / ploidy
 	return result, switches_in_column, flips_in_column
+
+def poly_num_switches(perm0, perm1):
+	cost = 0
+	for i in range(len(perm0)):
+		if perm0[i] != perm1[i]:
+			cost += 1
+	return cost
 
 
 def compare_block(phasing0, phasing1):
