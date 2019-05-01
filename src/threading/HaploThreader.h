@@ -329,6 +329,10 @@ private:
      * Computes all permutations as tuples.
      */
     std::vector<ClusterTuple> getCombinations(uint32_t maxElem, bool allowPermutations) const;
+    
+    Score getGenotypeDist(const ClusterTuple tuple, 
+                          const std::vector<uint32_t>& consensus,
+                          std::vector<uint32_t>& genotypeVec) const;
 };
 
 #endif // HAPLOTHREADER_H

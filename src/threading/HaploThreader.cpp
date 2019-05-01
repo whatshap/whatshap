@@ -107,8 +107,49 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         minimumTupleInColumn = ClusterTuple::INVALID_TUPLE;
         minimumPredTupleInColumn = ClusterTuple::INVALID_TUPLE;
         
+        // convert genotype map to vector
+        uint32_t maxAllele = 0;
+        for (std::pair<uint32_t, uint32_t> entry : genotypes[pos]) {
+            maxAllele = std::max(maxAllele, entry.first);
+        }
+        std::vector<uint32_t> genotypeVec(maxAllele, 0);
+        for (std::pair<uint32_t, uint32_t> entry : genotypes[pos]) {
+            genotypeVec[entry.first] = entry.second;
+        }
+        
         // compute conform tuples
         confTuples = computeGenotypeConformTuples(covMap[pos], consensus[pos], genotypes[pos], true);
+        
+//         if (getGenotypeDist(confTuples[0], consensus[pos], genotypeVec) == 0) {
+//             // add tuples from last column if they still exist and are at most one off regarding genotype
+//             std::vector<int> prevToCur;
+//             for (uint32_t i = 0; i < covMap[pos-1].size(); i++) {
+//                 int cur = -1;
+//                 for (uint32_t j = 0; j < covMap[pos].size(); j++) {
+//                     if (covMap[pos-1][i] == covMap[pos][j]) {
+//                         cur = j;
+//                     }
+//                 }
+//                 prevToCur.push_back(cur);
+//             }
+//             uint32_t cont = 0;
+//             for (std::pair<ClusterTuple, ClusterEntry> predEntry : m[pos-1-start]) {
+//                 bool canContinue = true;
+//                 ClusterTuple t(0);
+//                 for (uint32_t p = 0; p < ploidy; p++) {
+//                     LocalClusterId l = predEntry.first.get(p);
+//                     if (l < prevToCur.size() && prevToCur[l] >= 0) {
+//                         t.set((LocalClusterId)prevToCur[l], p);
+//                     } else {
+//                         canContinue = false;
+//                     }
+//                 }
+//                 if (canContinue && getGenotypeDist(t, consensus[pos], genotypeVec) <= 1) {
+//     //                 confTuples.push_back(t);
+//                 }
+//             }
+//             std::cout<<(confTuples.size()-cont)<<" + "<<cont<<std::endl;
+//         }
         
         // iterate over rows
         for (ClusterTuple rowTuple : confTuples) {
@@ -129,11 +170,13 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
                 }
             }
             
+            Score coverageCost = getCoverageCost(rowTuple, coverage[pos]);
+            
             // report best recursion
             if (minExists) {
-                column[rowTuple] = ClusterEntry(minimum + getCoverageCost(rowTuple, coverage[pos]), minimumPred);
+                column[rowTuple] = ClusterEntry(minimum + coverageCost, minimumPred);
             } else {
-                column[rowTuple] = ClusterEntry(getCoverageCost(rowTuple, coverage[pos]), ClusterTuple::INVALID_TUPLE);
+                column[rowTuple] = ClusterEntry(coverageCost, ClusterTuple::INVALID_TUPLE);
             }
             firstUnthreadedPosition = pos+1;
             if (column[rowTuple].score < minimumInColumn) {
@@ -251,18 +294,32 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
 Score HaploThreader::getCoverageCost(ClusterTuple tuple, const std::vector<double>& coverage) const {
     // tuple contains local cluster ids, which have to be translated with covMap to get the global ids
     Score cost = 0.0;
+    
     for (uint32_t i = 0; i < ploidy; i++) {
         double cov = coverage[tuple.get(i)];
         if (cov == 0) {
             return std::numeric_limits<double>::infinity();
         } else {
             uint32_t expCount = std::round(cov*(double)ploidy);
-            if (tuple.count(tuple.get(i), ploidy) != expCount) {
+            uint32_t realCount = tuple.count(tuple.get(i), ploidy);
+            if (realCount != expCount) {
                 cost += 1.0;
             }
         }
     }
     return cost;
+    
+//     for (uint32_t i = 0; i < ploidy; i++) {
+//         double cov = coverage[tuple.get(i)];
+//         if (cov == 0) {
+//             return std::numeric_limits<double>::infinity();
+//         } else {
+//             uint32_t expCount = std::round(cov*(double)ploidy);
+//             uint32_t realCount = tuple.count(tuple.get(i), ploidy);
+//             cost += (expCount - realCount) * (expCount - realCount);
+//         }
+//     }
+//     return ploidy * ploidy * cost;
 }
 
 Score HaploThreader::getSwitchCost(const ClusterTuple tuple1, const ClusterTuple tuple2, 
@@ -378,4 +435,20 @@ std::vector<ClusterTuple> HaploThreader::getCombinations(uint32_t maxElem, bool 
     
     std::vector<ClusterTuple> uniqueTuples(tuples.begin(), tuples.end());
     return uniqueTuples;
+}
+
+Score HaploThreader::getGenotypeDist(const ClusterTuple tuple, 
+                                     const std::vector<uint32_t>& consensus,
+                                     std::vector<uint32_t>& genotypeVec) const {
+    std::vector<uint32_t> tupGenotypeVec(genotypeVec.size(), 0);
+    for (uint32_t i = 0; i < ploidy; i++) {
+        tupGenotypeVec[consensus[tuple.get(i)]] += 1;
+    }
+    
+    uint32_t difference = 0;
+    for (uint32_t i = 0; i < genotypeVec.size(); i++) {
+        difference += std::max(tupGenotypeVec[i] - genotypeVec[i], genotypeVec[i] - tupGenotypeVec[i]);
+    }
+    
+    return difference;
 }

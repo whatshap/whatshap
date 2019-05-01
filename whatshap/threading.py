@@ -14,7 +14,7 @@ from queue import *
 
 logger = logging.getLogger(__name__)
 
-def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block, cpp_threading, dynamic_switchcost):
+def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block, cython_threading):
 	logger.debug("Computing cluster coverages and consensi ..")
 	
 	# Map genome positions to [0,l)
@@ -34,7 +34,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 	#compute the consensus sequences for every variant position and every cluster for integrating genotypes in the DP
 	consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
 
-	if not cpp_threading:
+	if cython_threading:
 		geno_map = defaultdict(list)
 		counter = 0
 		for pos in range(num_vars):
@@ -104,29 +104,22 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 				cluster_zeroes[c_id][pos] = coverage_abs[pos][c_id] * (1-consensus[pos][c_id])
 				cluster_ones[c_id][pos] = coverage_abs[pos][c_id] * consensus[pos][c_id]
 				
-		avg_dissim = 0
 		count = 0
 		for var in range(num_vars-1):
 			for i, c1 in enumerate(cov_map[var]):
 				for j, c2 in enumerate(cov_map[var+1]):
-					if dynamic_switchcost:
-						same = 0
-						diff = 0
-						for pos in range(max(0, var-10), min(num_vars-1, var+10)):
-							if pos in cluster_zeroes[c1] and pos in cluster_zeroes[c2]:
-								same += cluster_zeroes[c1][pos] * cluster_zeroes[c2][pos] + cluster_ones[c1][pos] * cluster_ones[c2][pos]
-								diff += cluster_zeroes[c1][pos] * cluster_ones[c2][pos] + cluster_ones[c1][pos] * cluster_zeroes[c2][pos]
-						c_to_c_dissim[var][i][j] = diff / (same+diff) if diff > 0 else 0
-						if c1 != c2:
-							avg_dissim += c_to_c_dissim[var][i][j]
-							count += 1
-					else:
-						c_to_c_dissim[var][i][j] = 1 if c1 != c2 else 0
-						
-		avg_dissim = avg_dissim / count if count > 0 else 1.0
+					same = 0
+					diff = 0
+					for pos in range(max(0, var-10), min(num_vars-1, var+10)):
+						if pos in cluster_zeroes[c1] and pos in cluster_zeroes[c2]:
+							same += cluster_zeroes[c1][pos] * cluster_zeroes[c2][pos] + cluster_ones[c1][pos] * cluster_ones[c2][pos]
+							diff += cluster_zeroes[c1][pos] * cluster_ones[c2][pos] + cluster_ones[c1][pos] * cluster_zeroes[c2][pos]
+					c_to_c_dissim[var][i][j] = diff / (same+diff) if diff > 0 else 0
+					if c1 != c2:
+						count += 1
 			
 		# run threader
-		threader = HaploThreader(ploidy, 32.0/avg_dissim, 8.0, True, 0)
+		threader = HaploThreader(ploidy, 48.0, 8.0, True, 0)
 		path = threader.computePathsBlockwise([0], cov_map_as_list, compressed_coverage, compressed_consensus, genotypes, c_to_c_dissim)
 		assert(len(path) == num_vars)
 		
@@ -134,13 +127,42 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 	
 	# determine cut positions
 	cut_positions = [0]
-	for i in range(1, len(path)):
-		dissim = 0
-		for j in range(0,ploidy):
-			if path[i][j] != path[i-1][j]:
-				dissim += 1
-		if (not single_block and dissim >= 2):
-			cut_positions.append(i)
+	if not single_block:
+		copynrs = []
+		for i in range(0, len(path)):
+			copynr = dict()
+			for j in range(0, ploidy):
+				if path[i][j] not in copynr:
+					copynr[path[i][j]] = 0
+				copynr[path[i][j]] += 1
+			copynrs.append(copynr)
+			
+		cpn_rising = [False for c_id in range(num_clusters)]
+		cpn_falling = [False for c_id in range(num_clusters)]
+		
+		for i in range(1, len(path)):
+			dissim = 0
+			for j in range(0, ploidy):
+				old_c = path[i-1][j]
+				new_c = path[i][j]
+				if old_c != new_c:
+					# check if previous cluster went down from copy number >= 2 to a smaller one >= 1
+					if old_c in copynrs[i] and copynrs[i][old_c] >= 1:
+						cpn_falling[old_c] = True
+					# check if new cluster went up from copy number >= 1 to a greater one >= 2
+					if new_c in copynrs[i-1] and copynrs[i-1][new_c] >= 1:
+						cpn_rising[new_c] = True
+					# check if one cluster has been rising and falling in the current block
+					if (cpn_falling[old_c] and cpn_rising[old_c]) or (cpn_falling[new_c] and cpn_rising[old_c]):
+						dissim += ploidy
+						
+					# count general switches
+					dissim += 0
+			if dissim >= 2:
+				cut_positions.append(i)
+				cpn_rising = [False for c_id in range(num_clusters)]
+				cpn_falling = [False for c_id in range(num_clusters)]
+				
 	logger.debug("Cut positions: ", cut_positions)
 	
 	# compute haplotypes

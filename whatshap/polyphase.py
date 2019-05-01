@@ -79,9 +79,8 @@ def run_polyphase(
 	plot_clusters = False,
 	plot_threading = False,
 	single_block = False,
-	cpp_threading = False,
-	ce_refine = False,
-	dynamic_switch_cost = False
+	cython_threading = False,
+	ce_refinements = 5,
 	):
 	"""
 	Run Polyploid Phasing.
@@ -227,13 +226,11 @@ def run_polyphase(
 						allele_count[allele] += 1
 					genotype_list.append(gen)
 					genotype_list_multi.append(allele_count)
-
-				# sample allele matrix
-				#selected_reads = select_reads(readset, 5*ploidy, preferred_source_ids = vcf_source_ids)
-				#readset = selected_reads
 				timers.stop('read_bam')
 				
 				# Precompute block borders based on read coverage and linkage between variants
+				logger.info('Detecting connected components with weak interconnect ..')
+				timers.start('detecting_blocks')
 				index, rev_index = get_position_map(readset)
 				num_vars = len(rev_index)
 				block_starts = compute_linkage_based_block_starts(readset, index, ploidy)
@@ -246,7 +243,7 @@ def run_polyphase(
 						var_to_block[var] = i
 				block_readsets = [ReadSet() for i in range(len(block_starts))]
 				assert len(block_readsets) == len(block_starts)
-				logger.info("Split heterozygous variants into {} blocks, due to low coverage in between.".format(len(block_starts)))
+				logger.info("Split heterozygous variants into {} blocks.".format(len(block_starts)))
 								
 				for i, read in enumerate(readset):
 					if not read.is_sorted():
@@ -268,6 +265,7 @@ def run_polyphase(
 								#read_slice = Read(read.name, read.mapqs, read.source_id, read.sample_id, read.reference_start, read.BX_tag)
 							read_slice.add_variant(variant.position, variant.allele, variant.quality)
 						block_readsets[current_block].add(read_slice)
+				timers.stop('detecting_blocks')
 						
 				# Process blocks independently
 				blockwise_clustering = []
@@ -288,7 +286,7 @@ def run_polyphase(
 					timers.stop('transform_matrix')
 
 					# Compute similarity values for all read pairs
-					timers.start('compute_graph')
+					timers.start('solve_clusterediting')
 					logger.debug("Computing similarities for read pairs ...")
 					if ce_score_global:
 						similarities = score_global(block_readset, ploidy, min_overlap)
@@ -302,7 +300,6 @@ def run_polyphase(
 					# Insert edges into read graph
 					for (read1, read2) in similarities:
 						graph.addEdge(read1, read2, similarities.get(read1, read2))
-					timers.stop('compute_graph')
 
 					# Run cluster editing
 					logger.debug("Solving cluster editing instance with {} nodes and {} edges ..".format(len(block_readset), len(similarities)))
@@ -312,26 +309,25 @@ def run_polyphase(
 					del solver
 
 					# Refine clusters by solving inconsistencies in consensus
-					if ce_refine:
-						last_inc_count = len(clustering) * (ext_block_starts[block_id+1] - ext_block_starts[block_id]) # worst case number
-						runs_remaining = 5
-						refine = True
-						while refine and runs_remaining > 0:
-							refine = False
-							runs_remaining -= 1
-							new_inc_count, seperated_reads = find_inconsistencies(block_readset, clustering, ploidy)
-							for (r0, r1) in seperated_reads:
-								similarities.set(r0, r1, -float("inf"))
+					runs_remaining = ce_refinements
+					last_inc_count = len(clustering) * (ext_block_starts[block_id+1] - ext_block_starts[block_id]) # worst case number
+					refine = True
+					while refine and runs_remaining > 0:
+						refine = False
+						runs_remaining -= 1
+						new_inc_count, seperated_reads = find_inconsistencies(block_readset, clustering, ploidy)
+						for (r0, r1) in seperated_reads:
+							similarities.set(r0, r1, -float("inf"))
 
-							graph.clearAndResize(len(block_readset))
-							for (read1, read2) in similarities:
-								graph.addEdge(read1, read2, similarities.get(read1, read2))
+						graph.clearAndResize(len(block_readset))
+						for (read1, read2) in similarities:
+							graph.addEdge(read1, read2, similarities.get(read1, read2))
 
-							if 0 < new_inc_count < last_inc_count:
-								logger.debug("{} inconsistent variants found. Refining clusters ..\r".format(new_inc_count))
-								solver = CoreAlgorithm(graph, ce_bundle_edges)
-								clustering = solver.run()
-								del solver
+						if 0 < new_inc_count < last_inc_count:
+							logger.debug("{} inconsistent variants found. Refining clusters ..\r".format(new_inc_count))
+							solver = CoreAlgorithm(graph, ce_bundle_edges)
+							clustering = solver.run()
+							del solver
 
 					del similarities
 					del graph
@@ -339,12 +335,12 @@ def run_polyphase(
 
 					# Assemble clusters to haplotypes
 					logger.debug("Threading haplotypes through {} clusters..\r".format(len(clustering)))
-					timers.start('assemble_haplotypes')
+					timers.start('threading')
 
 					# Add dynamic programming for finding the most likely subset of clusters
 					genotype_slice = genotype_list_multi[ext_block_starts[block_id]:ext_block_starts[block_id+1]]
-					cut_positions, path, haplotypes = subset_clusters(block_readset, clustering, ploidy, sample, genotype_slice, single_block, cpp_threading, dynamic_switch_cost)
-					timers.stop('assemble_haplotypes')
+					cut_positions, path, haplotypes = subset_clusters(block_readset, clustering, ploidy, sample, genotype_slice, single_block, cython_threading)
+					timers.stop('threading')
 
 					# collect results from threading
 					blockwise_clustering.append(clustering)		
@@ -441,12 +437,11 @@ def run_polyphase(
 		logger.info('Maximum memory usage: %.3f GB', memory_kb / 1E6)
 	logger.info('Time spent reading BAM/CRAM:                 %6.1f s', timers.elapsed('read_bam'))
 	logger.info('Time spent parsing VCF:                      %6.1f s', timers.elapsed('parse_vcf'))
-	logger.info('Time spent selecting reads:                  %6.1f s', timers.elapsed('select'))
-	logger.info('Time spent pruning readset:                  %6.1f s', timers.elapsed('prune'))
-	logger.info('Time spent transforming allele matrix:       %6.1f s', timers.elapsed('transform_matrix'))
-	logger.info('Time spent computing read graph:             %6.1f s', timers.elapsed('compute_graph'))
+	logger.info('Time spent detecting blocks:                 %6.1f s', timers.elapsed('detecting_blocks'))
+	if transform:
+		logger.info('Time spent transforming allele matrix:       %6.1f s', timers.elapsed('transform_matrix'))
 	logger.info('Time spent solving cluster editing:          %6.1f s', timers.elapsed('solve_clusterediting'))
-	logger.info('Time spent assembling haplotypes:            %6.1f s', timers.elapsed('assemble_haplotypes'))
+	logger.info('Time spent threading haplotypes:             %6.1f s', timers.elapsed('threading'))
 	if plot_clusters or plot_threading:
 		logger.info('Time spent creating plots:                   %6.1f s', timers.elapsed('create_plots'))
 	logger.info('Time spent writing VCF:                      %6.1f s', timers.elapsed('write_vcf'))
@@ -554,12 +549,9 @@ def add_arguments(parser):
 		help='Plot the haplotypes\' threading through the read clusters (default: %(default)s).')
 	arg('--single-block', dest='single_block', default=False, action='store_true',
 		help='Output only one single block.')
-	arg('--cpp-threading', dest='cpp_threading', default=False, action='store_true',
+	arg('--cython-threading', dest='cython_threading', default=False, action='store_true',
 		help='Uses a C++ implementation to perform the haplotype threading.')
-	arg('--ce-refine', dest='ce_refine', default=False, action='store_true',
-		help='Refines the output of cluster editing by detecting inconsistencies within the clusters and rerunning the clustering.')
-	arg('--dynamic-switch-cost', dest='dynamic_switch_cost', default=False, action='store_true',
-		help='Uses non-uniform switch costs between clusters for the threading, based on cluster dissimilarity.')
+	arg('--ce-refinements', metavar='REFINEMENTS', type=int, default=5, help='Maximum number of refinement steps for cluster editing (default: %(default)s).')
 
 def validate(args, parser):
 	pass
