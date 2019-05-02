@@ -78,9 +78,9 @@ def run_polyphase(
 	transform = False,
 	plot_clusters = False,
 	plot_threading = False,
-	single_block = False,
 	cython_threading = False,
 	ce_refinements = 5,
+	block_cut_sensitivity = 5
 	):
 	"""
 	Run Polyploid Phasing.
@@ -155,6 +155,13 @@ def run_polyphase(
 			if sample not in vcf_sample_set:
 				logger.error('Sample %r requested on command-line not found in VCF', sample)
 				sys.exit(1)
+				
+		if block_cut_sensitivity < 0:
+			logger.warn("Block cut sensitivity was set to negative value. Lowest value (0) is assumed instead.")
+			block_cut_sensitivity = 0
+		elif block_cut_sensitivity > 6:
+			logger.warn("Block cut sensitivity level too large. Assuming highest valid value (6) instead.")
+			block_cut_sensitivity = 6
 
 		samples = frozenset(samples)
 
@@ -228,12 +235,20 @@ def run_polyphase(
 					genotype_list_multi.append(allele_count)
 				timers.stop('read_bam')
 				
+				#selected_reads = select_reads(readset, 40, preferred_source_ids = vcf_source_ids)
+				#readset = selected_reads
+				
 				# Precompute block borders based on read coverage and linkage between variants
 				logger.info('Detecting connected components with weak interconnect ..')
 				timers.start('detecting_blocks')
 				index, rev_index = get_position_map(readset)
 				num_vars = len(rev_index)
-				block_starts = compute_linkage_based_block_starts(readset, index, ploidy)
+				if block_cut_sensitivity == 0:
+					block_starts = [0]
+				elif block_cut_sensitivity == 1:
+					block_starts = compute_linkage_based_block_starts(readset, index, ploidy, True)
+				else:
+					block_starts = compute_linkage_based_block_starts(readset, index, ploidy)
 				
 				# Divide readset and process blocks individually
 				var_to_block = [0 for i in range(num_vars)]
@@ -339,7 +354,7 @@ def run_polyphase(
 
 					# Add dynamic programming for finding the most likely subset of clusters
 					genotype_slice = genotype_list_multi[ext_block_starts[block_id]:ext_block_starts[block_id+1]]
-					cut_positions, path, haplotypes = subset_clusters(block_readset, clustering, ploidy, sample, genotype_slice, single_block, cython_threading)
+					cut_positions, path, haplotypes = subset_clusters(block_readset, clustering, ploidy, sample, genotype_slice, block_cut_sensitivity, cython_threading)
 					timers.stop('threading')
 
 					# collect results from threading
@@ -547,11 +562,12 @@ def add_arguments(parser):
 		help='Plot a super heatmap for the computed clustering (default: %(default)s).')
 	arg('--plot-threading', dest='plot_threading', default=False, action='store_true',
 		help='Plot the haplotypes\' threading through the read clusters (default: %(default)s).')
-	arg('--single-block', dest='single_block', default=False, action='store_true',
-		help='Output only one single block.')
+	#arg('--single-block', dest='single_block', default=False, action='store_true',
+	#	help='Output only one single block.')
 	arg('--cython-threading', dest='cython_threading', default=False, action='store_true',
 		help='Uses a C++ implementation to perform the haplotype threading.')
 	arg('--ce-refinements', metavar='REFINEMENTS', type=int, default=5, help='Maximum number of refinement steps for cluster editing (default: %(default)s).')
+	arg('--block-cut-sensitivity', metavar='REFINEMENTS', type=int, default=5, help='Strategy to determine block borders. 0 yields the longest blocks with more switch errors, 6 has the shortest blocks with lowest switch error rate (default: %(default)s).')
 
 def validate(args, parser):
 	pass

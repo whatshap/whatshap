@@ -14,7 +14,7 @@ from queue import *
 
 logger = logging.getLogger(__name__)
 
-def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block, cython_threading):
+def subset_clusters(readset, clustering,ploidy, sample, genotypes, block_cut_sensitivity, cython_threading):
 	logger.debug("Computing cluster coverages and consensi ..")
 	
 	# Map genome positions to [0,l)
@@ -127,7 +127,20 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 	
 	# determine cut positions
 	cut_positions = [0]
-	if not single_block:
+	if block_cut_sensitivity >= 3:
+		if block_cut_sensitivity >= 6:
+			dissim_threshold = 1
+			rise_fall_dissim = ploidy+1
+		elif block_cut_sensitivity == 5:
+			dissim_threshold = 2
+			rise_fall_dissim = ploidy+1
+		elif block_cut_sensitivity == 4:
+			dissim_threshold = ploidy+1
+			rise_fall_dissim = ploidy+1
+		else:
+			dissim_threshold = 2
+			rise_fall_dissim = 0
+		
 		copynrs = []
 		for i in range(0, len(path)):
 			copynr = dict()
@@ -154,11 +167,11 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, single_block,
 						cpn_rising[new_c] = True
 					# check if one cluster has been rising and falling in the current block
 					if (cpn_falling[old_c] and cpn_rising[old_c]) or (cpn_falling[new_c] and cpn_rising[old_c]):
-						dissim += ploidy
+						dissim += rise_fall_dissim
 						
 					# count general switches
-					dissim += 0
-			if dissim >= 2:
+					dissim += 1
+			if dissim >= dissim_threshold:
 				cut_positions.append(i)
 				cpn_rising = [False for c_id in range(num_clusters)]
 				cpn_falling = [False for c_id in range(num_clusters)]
@@ -368,12 +381,12 @@ def find_backtracing_start(scoring, num_vars):
 	else:
 		return(find_backtracing_start(scoring,last_col-1))
 
-def compute_linkage_based_block_starts(readset, pos_index, ploidy):
+def compute_linkage_based_block_starts(readset, pos_index, ploidy, single_linkage = False):
 	num_vars = len(pos_index)
 
 	# cut threshold
 	min_block_size = 1
-	if ploidy == 2:
+	if ploidy == 2 or single_linkage:
 		cut_threshold = 1
 	else:
 		cut_threshold = ploidy*ploidy
@@ -384,6 +397,57 @@ def compute_linkage_based_block_starts(readset, pos_index, ploidy):
 				cut_threshold = i
 				break
 	logger.debug("Cut position threshold: coverage >= {}".format(cut_threshold))
+	
+	'''
+	# start by looking at neighbouring
+	link_to_next = [0 for i in range(num_vars)]
+	starts = []
+	ends = []
+	for read in readset:
+		pos_list = [pos_index[var.position] for var in read]
+		starts.append(pos_list[0])
+		ends.append(pos_list[-1])
+		for i in range(len(pos_list)-1):
+			if pos_list[i] + 1 == pos_list[i+1]:
+				link_to_next[i] += 1
+				
+	pos_clust = [0 for i in range(num_vars)]
+	for i in range(1, num_vars):
+		if link_to_next[i-1] >= cut_threshold:
+			pos_clust[i] = pos_clust[i-1]
+		else:
+			pos_clust[i] = pos_clust[i-1] + 1
+	num_clust = pos_clust[-1]+1
+			
+	# find linkage between clusters
+	link_coverage = [dict() for i in range(num_clust)]
+	for i, (start, end) in enumerate(zip(starts, ends)):
+		if pos_clust[start] != pos_clust[end]:
+			pos_list = [pos_index[var.position] for var in readset[i]]
+			for pos in pos_list:
+				for pos2 in pos_list:
+					if pos_clust[pos2] not in link_coverage[pos_clust[pos]]:
+						link_coverage[pos_clust[pos]][pos_clust[pos2]] = 0
+					link_coverage[pos_clust[pos]][pos_clust[pos2]] += 1
+					
+	# merge clusters
+	merge_lists = [[i] for i in range(num_clust)]
+	for i in range(num_clust):
+		for linked in link_coverage[i]:
+			if link_coverage[i][linked] >= cut_threshold:
+				temp_list = [merged for merged in merge_lists[i]]
+				for merged in temp_list:
+					merge_lists[merged].append(linked)
+					merge_lists[linked].append(merged)
+	
+					
+	# determine cut positions
+	cuts = [0]
+	for i in range(1, num_vars):
+		if pos_clust[i] != pos_clust:
+			if pos_clust[i] not in merge_lists[i-1]:
+				cuts.append(i)
+	'''
 
 	# compute absolute coverage for every position and the number of links between each pair of positions
 	pos_coverage = [0]*num_vars
@@ -449,4 +513,8 @@ def compute_linkage_based_block_starts(readset, pos_index, ploidy):
 	
 	block_list = list(block_starts)
 	block_list.sort()
+	
+	#print(block_list)
+	#print(cuts)
+	
 	return block_list
