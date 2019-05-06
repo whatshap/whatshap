@@ -1,10 +1,10 @@
 import math
 
-from pytest import raises, approx, fixture
+from pytest import raises, approx, fixture, set_trace
 from whatshap.core import PhredGenotypeLikelihoods
 from whatshap.cli.phase import run_whatshap
 from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant, \
-	GenotypeLikelihoods
+	GenotypeLikelihoods, GenotypeVcfWriter
 
 import pysam
 
@@ -291,3 +291,16 @@ def test_genotype_likelihoods():
 	gl = GenotypeLikelihoods(*(math.log10(x) for x in [1e-10, 0.5, 0.002]))
 	assert list(gl.as_phred()) == [97, 0, 24]
 	assert list(gl.as_phred(regularizer=0.01)) == [20, 0, 19]
+
+
+def test_write_float_gqualities(tmpdir):
+	outvcf = str(tmpdir.join('broken_gq.vcf'))
+	with raises(ValueError):
+		writer = GenotypeVcfWriter(
+			'tests/data/malformed_GQ-floats.vcf',
+			command_line='whatshap test',
+			out_file=outvcf
+		)
+		writer.write_genotypes(
+			'chr1', [], None, leave_unchanged=True
+		)
