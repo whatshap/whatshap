@@ -24,9 +24,9 @@ from xopen import xopen
 from networkx import Graph, number_of_nodes, number_of_edges, connected_components, node_connected_component, shortest_path
 
 from contextlib import ExitStack
-from .vcf import VcfReader, PhasedVcfWriter, VcfGenotypeLikelihoods
+from .vcf import VcfReader, PhasedVcfWriter, VcfGenotypeLikelihoods, VcfGenotype
 from . import __version__
-from .core import Read, ReadSet, CoreAlgorithm, DynamicSparseGraph, readselection, NumericSampleIds, GenotypeLikelihoods, Genotype, compute_genotypes
+from .core import Read, ReadSet, CoreAlgorithm, DynamicSparseGraph, readselection, NumericSampleIds, GenotypeLikelihoods, Genotype, compute_genotypes, compute_polyploid_genotypes
 from .graph import ComponentFinder
 from .bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
 from .timer import StageTimer
@@ -66,6 +66,7 @@ def run_polyphase(
 	output=sys.stdout,
 	samples=None,
 	chromosomes=None,
+	verify_genotypes=False,
 	ignore_read_groups=False,
 	indels=True,
 	mapping_quality=20,
@@ -181,6 +182,29 @@ def run_polyphase(
 					superreads, components = dict(), dict()
 					vcf_writer.write(chromosome, superreads, components)
 				continue
+			if verify_genotypes:
+				positions = [v.position for v in variant_table.variants]
+				for sample in samples:
+					logger.info('---- Veriify genotyping of %s', sample)
+					with timers('read_bam'):
+						bam_sample = None if ignore_read_groups else sample
+						readset, vcf_source_ids = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
+						readset.sort()
+						computed_genotypes = [VcfGenotype(gt) for gt in compute_polyploid_genotypes(readset, ploidy, positions)]
+						# skip all positions at which genotypes do not match
+						given_genotypes = variant_table.genotypes_of(sample)
+						matching_genotypes = []
+						print(computed_genotypes, len(computed_genotypes))
+						print(given_genotypes, len(given_genotypes))
+						print(len(positions))
+						for i,g in enumerate(given_genotypes):
+							c_g = computed_genotypes[i]
+							if (g == c_g) or (c_g is None):
+								matching_genotypes.append(g)
+							else:
+								matching_genotypes.append(VcfGenotype([]))
+						variant_table.set_genotypes_of(sample, matching_genotypes)
+
 			# These two variables hold the phasing results for all samples
 			superreads, components = dict(), dict()
 
@@ -549,6 +573,8 @@ def add_arguments(parser):
 	arg('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
 		help='Name of chromosome to phase. If not given, all chromosomes in the '
 		'input VCF are phased. Can be used multiple times.')
+	arg('--verify-genotypes', default=False, action='store_true',
+		help='Verify input genotypes by re-typing them using the given reads.')
 
 	arg = parser.add_argument_group('Parameters for cluster editing').add_argument
 	arg('--ce-score-global', dest='ce_score_global', default=False, action='store_true',
