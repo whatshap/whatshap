@@ -14,7 +14,7 @@ from queue import *
 
 logger = logging.getLogger(__name__)
 
-def subset_clusters(readset, clustering,ploidy, sample, genotypes, block_cut_sensitivity, cython_threading):
+def subset_clusters(readset, clustering, ploidy, sample, genotypes, block_cut_sensitivity, cython_threading):
 	logger.debug("Computing cluster coverages and consensi ..")
 	
 	# Map genome positions to [0,l)
@@ -176,7 +176,7 @@ def subset_clusters(readset, clustering,ploidy, sample, genotypes, block_cut_sen
 				cpn_rising = [False for c_id in range(num_clusters)]
 				cpn_falling = [False for c_id in range(num_clusters)]
 				
-	logger.debug("Cut positions: ", cut_positions)
+	logger.debug("Cut positions: {}".format(cut_positions))
 	
 	# compute haplotypes
 	haplotypes = []
@@ -398,7 +398,6 @@ def compute_linkage_based_block_starts(readset, pos_index, ploidy, single_linkag
 				break
 	logger.debug("Cut position threshold: coverage >= {}".format(cut_threshold))
 	
-	'''
 	# start by looking at neighbouring
 	link_to_next = [0 for i in range(num_vars)]
 	starts = []
@@ -409,7 +408,7 @@ def compute_linkage_based_block_starts(readset, pos_index, ploidy, single_linkag
 		ends.append(pos_list[-1])
 		for i in range(len(pos_list)-1):
 			if pos_list[i] + 1 == pos_list[i+1]:
-				link_to_next[i] += 1
+				link_to_next[pos_list[i]] += 1
 				
 	pos_clust = [0 for i in range(num_vars)]
 	for i in range(1, num_vars):
@@ -422,99 +421,33 @@ def compute_linkage_based_block_starts(readset, pos_index, ploidy, single_linkag
 	# find linkage between clusters
 	link_coverage = [dict() for i in range(num_clust)]
 	for i, (start, end) in enumerate(zip(starts, ends)):
-		if pos_clust[start] != pos_clust[end]:
-			pos_list = [pos_index[var.position] for var in readset[i]]
-			for pos in pos_list:
-				for pos2 in pos_list:
-					if pos_clust[pos2] not in link_coverage[pos_clust[pos]]:
-						link_coverage[pos_clust[pos]][pos_clust[pos2]] = 0
-					link_coverage[pos_clust[pos]][pos_clust[pos2]] += 1
+		covered_pos_clusts = set([pos_clust[pos_index[var.position]] for var in readset[i]])
+		for p1 in covered_pos_clusts:
+			for p2 in covered_pos_clusts:
+				if p2 not in link_coverage[p1]:
+					link_coverage[p1][p2] = 0
+				link_coverage[p1][p2] += 1
 					
 	# merge clusters
-	merge_lists = [[i] for i in range(num_clust)]
+	merged_clust = [-1 for i in range(num_clust)]
+	new_num_clust = 0
 	for i in range(num_clust):
-		for linked in link_coverage[i]:
-			if link_coverage[i][linked] >= cut_threshold:
-				temp_list = [merged for merged in merge_lists[i]]
-				for merged in temp_list:
-					merge_lists[merged].append(linked)
-					merge_lists[linked].append(merged)
-	
-					
+		if merged_clust[i] >= 0:
+			continue
+		q = Queue()
+		q.put(i)
+		while not q.empty():
+			cur = q.get()
+			merged_clust[cur] = new_num_clust
+			for linked in link_coverage[cur]:
+				if merged_clust[linked] < 0 and link_coverage[cur][linked] >= cut_threshold:
+					q.put(linked)
+		new_num_clust += 1
+		
 	# determine cut positions
 	cuts = [0]
 	for i in range(1, num_vars):
-		if pos_clust[i] != pos_clust:
-			if pos_clust[i] not in merge_lists[i-1]:
-				cuts.append(i)
-	'''
+		if merged_clust[pos_clust[i]] != merged_clust[pos_clust[i-1]]:
+			cuts.append(i)
 
-	# compute absolute coverage for every position and the number of links between each pair of positions
-	pos_coverage = [0]*num_vars
-	link_coverage = [dict() for i in range(num_vars)]
-	for read in readset:
-		for pos in [pos_index[var.position] for var in read]:
-			pos_coverage[pos] += 1
-			for pos2 in [pos_index[var.position] for var in read]:
-				if pos2 not in link_coverage[pos]:
-					link_coverage[pos][pos2] = 0
-				link_coverage[pos][pos2] += 1
-
-	# form connected sets
-	pos_clust = [0]*num_vars
-	clust_count = 0
-	for pos in range(num_vars):
-		current_cluster = 0
-		if pos_clust[pos] > 0:
-			continue
-		else:
-			clust_count += 1
-			current_cluster = clust_count
-			pos_clust[pos] = current_cluster
-		pending = Queue()
-		pending.put(pos)
-		while not pending.empty():
-			cur = pending.get()
-			for linked in sorted(link_coverage[cur]):
-				if link_coverage[cur][linked] >= cut_threshold and pos_clust[linked] == 0:
-					pos_clust[linked] = current_cluster
-					pending.put(linked)
-
-	# make intervals of connected positions
-	current_cluster = 0
-	current_begin = 0
-	intervals = []
-	block_starts = set()
-	for pos in range(num_vars):
-		if pos_coverage[pos] < cut_threshold:
-			if pos - current_begin >= min_block_size:
-				intervals.append((current_begin, pos))
-			else:
-				for i in range(pos-1, current_begin, -1):
-					block_starts.add(i)
-			current_begin = pos + 1
-			current_cluster = 0
-			block_starts.add(pos)
-		else:
-			if current_cluster != pos_clust[pos]:
-				if pos - current_begin >= min_block_size:
-					intervals.append((current_begin, pos))
-				else:
-					for i in range(pos-1, current_begin, -1):
-						block_starts.add(i)
-				current_begin = pos
-				current_cluster = pos_clust[pos]
-				block_starts.add(pos)
-	if num_vars - current_begin >= min_block_size:
-		intervals.append((current_begin, num_vars))
-	else:
-		for i in range(num_vars-1, current_begin, -1):
-			block_starts.add(i)
-	
-	block_list = list(block_starts)
-	block_list.sort()
-	
-	#print(block_list)
-	#print(cuts)
-	
-	return block_list
+	return cuts

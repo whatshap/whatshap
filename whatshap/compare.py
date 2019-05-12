@@ -136,7 +136,7 @@ def compute_switch_flips(phasing0, phasing1):
 	return result
 
 def compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 1):
-	result, switches_in_column, flips_in_column = compute_switch_flips_poly_bt(phasing0, phasing1, switch_cost = switch_cost, flip_cost = flip_cost)
+	result, switches_in_column, flips_in_column, poswise_config = compute_switch_flips_poly_bt(phasing0, phasing1, switch_cost = switch_cost, flip_cost = flip_cost)
 	return result
 
 def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = False, switch_cost = 1, flip_cost = 1):
@@ -265,10 +265,12 @@ def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = Fa
 	
 	# Backtracing
 	if (report_error_positions and result.switches * switch_cost + result.flips * flip_cost < float("inf")):
+		positionwise_config = [[] for i in range(num_pos)]
 		flips_in_column = [[] for i in range(num_pos)]
 		switches_in_column = [0 for i in range(num_pos)]
 		col = num_pos - 1
 		row = min_row
+		positionwise_config[col] = perms[row]
 		while col > 0:
 			prev_row = b[col][row]
 			switches_in_column[col] = c[col][row].switches - c[col-1][prev_row].switches
@@ -279,6 +281,7 @@ def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = Fa
 			#flips_in_column[col] = d[col][row].flips - d[col-1][prev_row].flips
 			col -= 1
 			row = prev_row
+			positionwise_config[col] = perms[row]
 		switches_in_column[0] = c[col][row].switches
 		for k in range(ploidy):
 			if phasing1[k][col] != phasing0[perms[row][k]][col] and phasing1[k][col] != '-' and phasing0[perms[row][k]][col] != '-':
@@ -292,10 +295,11 @@ def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = Fa
 	else:
 		switches_in_column = []
 		flips_in_column = []
+		positionwise_config = []
 	
 	result.switches = result.switches / ploidy
 	result.flips = result.flips / ploidy
-	return result, switches_in_column, flips_in_column
+	return result, switches_in_column, flips_in_column, positionwise_config
 
 def poly_num_switches(perm0, perm1):
 	cost = 0

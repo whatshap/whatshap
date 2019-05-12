@@ -493,7 +493,7 @@ def draw_dp_threading(readset, clustering, coverage, paths, cut_positions, haplo
 		#		cur_c = list(filter(lambda x: c_list[x] in coverage[cut_pos[i]+pos] and coverage[cut_pos[i]+pos][c_list[x]] > 0, list(range(num_c))))
 		#		plt.vlines(x = cut_pos[i]+pos, ymax = max(cur_c), ymin = min(cur_c), color = 'green', alpha = 0.075)
 
-		switchflips, switches_in_column, flips_in_column = compute_switch_flips_poly_bt(block1, block2, report_error_positions = True, switch_cost = 1+1/(num_vars*ploidy))
+		switchflips, switches_in_column, flips_in_column, poswise_config = compute_switch_flips_poly_bt(block1, block2, report_error_positions = True, switch_cost = 1+1/(num_vars*ploidy))
 		for pos, e in enumerate(switches_in_column):
 			if e > 0:
 				plt.vlines(x = cut_pos[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*e, color = 'blue', alpha = 0.6)
