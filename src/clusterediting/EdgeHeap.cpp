@@ -61,10 +61,12 @@ void EdgeHeap::initInducedCosts() {
             
             // look at all triangles uvw containing uv. Triangles with a zero edge can be ignored
             std::vector<NodeId> w_vec;
-            std::set_intersection(graph.getNonZeroNeighbours(u).begin(), graph.getNonZeroNeighbours(u).end(), 
+            std::set_union(graph.getNonZeroNeighbours(u).begin(), graph.getNonZeroNeighbours(u).end(), 
                                   graph.getNonZeroNeighbours(v).begin(), graph.getNonZeroNeighbours(v).end(), back_inserter(w_vec));
 
             for (NodeId w : w_vec) {
+                if (u == w || v == w)
+                    continue;
                 Edge uw(u,w);
                 Edge vw(v,w);
                 EdgeWeight w_uw = graph.getWeight(uw);
@@ -173,8 +175,7 @@ void EdgeHeap::increaseIcf(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
     if (rId > 0 && w != 0 && icf[edgeToBundle[rId]] >= 0) {
         RankId eb = edgeToBundle[rId];
-        icf[eb] += w;
-        icf[eb] = std::max(icf[eb], 0.0);
+        icf[eb] = std::max(icf[eb]+w, 0.0);
         updateHeap(forb_rank2edge, eb, w, edge2forb_rank, icf);
     }
 }
@@ -183,8 +184,7 @@ void EdgeHeap::increaseIcp(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
     if (rId > 0 && w != 0 && icp[edgeToBundle[rId]] >= 0) {
         RankId eb = edgeToBundle[rId];
-        icp[eb] += w;
-        icp[eb] = std::max(icp[eb], 0.0);
+        icp[eb] = std::max(icp[eb]+w, 0.0);
         updateHeap(perm_rank2edge, eb, w, edge2perm_rank, icp);
     }
 }

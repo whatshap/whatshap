@@ -22,8 +22,8 @@ StaticSparseGraph::StaticSparseGraph(StaticSparseGraph& other) :
 
 StaticSparseGraph::StaticSparseGraph(DynamicSparseGraph& other) :
     size(other.numNodes()),
-    rank1(std::max(0, ((int32_t)size*((int32_t)size-1)/2 - 1) / 4096 + 1), 0UL),
-    offset1(std::max(0, ((int32_t)size*((int32_t)size-1)/2 - 1) / 4096 + 1), 0UL),
+    rank1(std::max((int64_t)0, (int64_t)(size*(size-1)/2 - 1) / 4096 + 1), 0UL),
+    offset1(std::max((int64_t)0, (int64_t)(size*(size-1)/2 - 1) / 4096 + 1), 0UL),
     rank2(0),
     offset2(0),
     weightv(0),
@@ -44,8 +44,8 @@ StaticSparseGraph::StaticSparseGraph(DynamicSparseGraph& other) :
 
 StaticSparseGraph::StaticSparseGraph(DynamicSparseGraph& other, std::vector<NodeId>& nodes) :
     size(other.numNodes()),
-    rank1((size*(size-1)/2 - 1) / 4096 + 1, 0UL),
-    offset1((size*(size-1)/2 - 1) / 4096 + 1, 0UL),
+    rank1(std::max((int64_t)0, (int64_t)(size*(size-1)/2 - 1) / 4096 + 1), 0UL),
+    offset1(std::max((int64_t)0, (int64_t)(size*(size-1)/2 - 1) / 4096 + 1), 0UL),
     rank2(0),
     offset2(0),
     weightv(0),
@@ -87,6 +87,7 @@ void StaticSparseGraph::compile(DynamicSparseGraph& dg, const std::vector<NodeId
             // u and v are indices of this new graph, while i and j are the indices of the source graph
             NodeId u = globalToLocal[i];
             NodeId v = globalToLocal[j];
+            Edge e(u, v);
             
             // add edge to weight vector
             EdgeId id = Edge(u, v).id();
@@ -126,6 +127,10 @@ void StaticSparseGraph::compile(DynamicSparseGraph& dg, const std::vector<NodeId
                 std::cout<<"Assertion violated (Weight vector incorrect size): "<<u<<" "<<v<<" "<<(offset2[block2] + popcount(bitv) - 1)<<" "<<(weightv.size())<<std::endl;
             }
             weightv.push_back(w);
+            if (w == DynamicSparseGraph::Forbidden)
+                setForbidden(e, weightv.size()-1);
+            else if (w == DynamicSparseGraph::Permanent)
+                setPermanent(e, weightv.size()-1);
             
             refreshEdgeMetaData(Edge(u,v), 0.0, w);
             
@@ -168,63 +173,103 @@ void StaticSparseGraph::compile(DynamicSparseGraph& dg, const std::vector<NodeId
 }
 
 EdgeWeight StaticSparseGraph::getWeight(const Edge e) {
-    RankId r = findIndex(e);
-    if (r > 0) {
-        return weightv[r];
-    } else {
-        NodeId cu = cliqueOfNode[e.u];
-        NodeId cv = cliqueOfNode[e.v];
-        if (cu == cv) {
-            return DynamicSparseGraph::Permanent;
-        } else if (forbidden[cu].size() * forbidden[cv].size() == 0) {
-            return 0.0;
-        } else if (forbidden[cu].size() < forbidden[cv].size() && forbidden[cu].find(cv) != forbidden[cu].end()) {
-            return DynamicSparseGraph::Forbidden;
-        } else if (forbidden[cv].find(cu) != forbidden[cv].end()) {
-            return DynamicSparseGraph::Forbidden;
-        }
-    }
-    return 0.0;
+    return weightv[findIndex(e)];
 }
 
 EdgeWeight StaticSparseGraph::getWeight(const RankId r) {
     return weightv[r];
 }
 
+bool StaticSparseGraph::isPermanent(const DynamicSparseGraph::Edge e) {
+    NodeId cu = cliqueOfNode[e.u];
+    NodeId cv = cliqueOfNode[e.v];
+    return cu == cv;
+}
+
+bool StaticSparseGraph::isForbidden(const DynamicSparseGraph::Edge e) {
+    NodeId cu = cliqueOfNode[e.u];
+    NodeId cv = cliqueOfNode[e.v];
+    if (forbidden[cu].size() * forbidden[cv].size() == 0) {
+        return false;
+    } else {
+        return (forbidden[cu].size() < forbidden[cv].size() && forbidden[cu].find(cv) != forbidden[cu].end()) || forbidden[cv].find(cu) != forbidden[cv].end();
+    }
+}
+
 void StaticSparseGraph::setPermanent(const Edge e) {
     /* Zero edges will not explicitly set to permanent. Since zero edges are only modified by implication,
      * the meta is being taken care of other edges, so nothing to do here*/
     RankId rankIndex = findIndex(e);
-    if (rankIndex == 0) {
-        return;
+    if (rankIndex > 0) {
+        setPermanent(e, rankIndex);
     }
-    
+}
+
+void StaticSparseGraph::setPermanent(const Edge e, RankId r) {
     if (forbidden[cliqueOfNode[e.u]].find(cliqueOfNode[e.v]) != forbidden[cliqueOfNode[e.u]].end()) {
         std::cout<<"Making forbidden edge permanent ("<<e.u<<", "<<e.v<<")."<<std::endl;
         return;
     }
-    refreshEdgeMetaData(e, weightv[rankIndex], DynamicSparseGraph::Permanent);
-    weightv[rankIndex] = DynamicSparseGraph::Permanent;
+    
+    NodeId cu = cliqueOfNode[e.u];
+    NodeId cv = cliqueOfNode[e.v];
+    NodeId merged, discarded; // merge smaller cluster into greater cluster        
+    if (cliques[cu].size() < cliques[cv].size()) {
+        merged = cv;
+        discarded = cu;
+    } else {
+        merged = cu;
+        discarded = cv;
+    }
+    if (merged != discarded) {
+        // move nodes from discarded to merged cluster
+        for (NodeId d : cliques[discarded]) {
+            cliqueOfNode[d] = merged;
+            cliques[merged].push_back(d);
+        }
+        cliques[discarded].clear();
+        
+        // copy forbidden connections to merged cluster and update references
+        for (NodeId f : forbidden[discarded]) {
+            forbidden[merged].insert(f);
+            forbidden[f].insert(merged);
+            forbidden[f].erase(discarded);
+        }
+        forbidden[discarded].clear();
+        
+        if (cliqueOfNode[e.u] != cliqueOfNode[e.v]) {
+            std::cout<<"Error 1000 "<<cliqueOfNode[e.u]<<" != "<<cliqueOfNode[e.v]<<std::endl;
+        }
+    }
+    refreshEdgeMetaData(e, weightv[r], DynamicSparseGraph::Permanent);
+    if (r > 0)
+        weightv[r] = DynamicSparseGraph::Permanent;
 }
 
 void StaticSparseGraph::setForbidden(const Edge e) {
     /* Zero edges will not explicitly set to forbidden. Since zero edges are only modified by implication,
      * the meta is being taken care of other edges, so nothing to do here*/
     RankId rankIndex = findIndex(e);
-    if (rankIndex == 0) {
-        return;
+    if (rankIndex > 0) {
+        setForbidden(e, rankIndex);
     }
-    
+}
+
+void StaticSparseGraph::setForbidden(const Edge e, RankId r) {
     NodeId cu = cliqueOfNode[e.u];
     NodeId cv = cliqueOfNode[e.v];
     
     if (cu == cv) {
         std::cout<<"Making permanent edge forbidden ("<<e.u<<", "<<e.v<<")."<<std::endl;
         return;
+    } else {
+        // mark cluster pair as forbidden
+        forbidden[cu].insert(cv);
+        forbidden[cv].insert(cu);
     }
-    
-    refreshEdgeMetaData(e, weightv[rankIndex], DynamicSparseGraph::Forbidden);
-    weightv[rankIndex] = DynamicSparseGraph::Forbidden;
+    refreshEdgeMetaData(e, weightv[r], DynamicSparseGraph::Forbidden);
+    if (r > 0)
+        weightv[r] = DynamicSparseGraph::Forbidden;
 }
 
 uint64_t StaticSparseGraph::numNodes() const {
@@ -237,6 +282,17 @@ uint64_t StaticSparseGraph::numEdges() const {
 
 const std::vector<NodeId>& StaticSparseGraph::getCliqueOf(const NodeId v) const {
     return cliques[cliqueOfNode[v]];
+}
+
+const std::vector<NodeId> StaticSparseGraph::getForbiddenNeighbors(const NodeId v) const {
+    std::vector<NodeId> f;
+    NodeId cv = cliqueOfNode[v];
+    for (NodeId forbiddenClique : forbidden[cv]) {
+        for (NodeId forbiddenNode : cliques[forbiddenClique]) {
+            f.push_back(forbiddenNode);
+        }
+    }
+    return f;
 }
 
 NodeId StaticSparseGraph::getCliqueIdOf(const NodeId v) const {
@@ -252,51 +308,6 @@ const std::vector<NodeId>& StaticSparseGraph::getNonZeroNeighbours(const NodeId 
 }
 
 void StaticSparseGraph::refreshEdgeMetaData(const Edge e, const EdgeWeight oldW, const EdgeWeight newW) {
-    if (oldW != DynamicSparseGraph::Permanent && newW == DynamicSparseGraph::Permanent) {
-        NodeId merged, discarded; // merge smaller cluster into greater cluster        
-        if (cliques[cliqueOfNode[e.u]].size() < cliques[cliqueOfNode[e.v]].size()) {
-            merged = cliqueOfNode[e.v];
-            discarded = cliqueOfNode[e.u];
-        } else {
-            merged = cliqueOfNode[e.u];
-            discarded = cliqueOfNode[e.v];
-        }
-        if (merged != discarded) {
-            // move nodes from discarded to merged cluster
-            for (NodeId d : cliques[discarded]) {
-                cliqueOfNode[d] = merged;
-                cliques[merged].push_back(d);
-            }
-            cliques[discarded].clear();
-            
-            // copy forbidden connections to merged cluster and update references
-            for (NodeId f : forbidden[discarded]) {
-                forbidden[merged].insert(f);
-                forbidden[f].insert(merged);
-                forbidden[f].erase(discarded);
-            }
-            forbidden[discarded].clear();
-            
-            if (cliqueOfNode[e.u] != cliqueOfNode[e.v]) {
-                std::cout<<"Error 1000 "<<cliqueOfNode[e.u]<<" != "<<cliqueOfNode[e.v]<<std::endl;
-            }
-        }
-    } else if (oldW != DynamicSparseGraph::Forbidden && newW == DynamicSparseGraph::Forbidden) {
-        NodeId cu = cliqueOfNode[e.u];
-        NodeId cv = cliqueOfNode[e.v];
-        if (cu != cv) {
-            // mark cluster pair as forbidden
-            forbidden[cu].insert(cv);
-            forbidden[cv].insert(cu);
-            
-            if (forbidden[cu].find(cv) == forbidden[cu].end()) {
-                std::cout<<"Error 1002"<<std::endl;
-            }
-            if (forbidden[cv].find(cu) == forbidden[cv].end()) {
-                std::cout<<"Error 1003"<<std::endl;
-            }
-        }
-    }
     if ((oldW == DynamicSparseGraph::Forbidden || oldW == DynamicSparseGraph::Permanent || (oldW == 0.0)) && ((newW != 0.0) && newW != DynamicSparseGraph::Forbidden && newW != DynamicSparseGraph::Permanent)) {
         unprunedNeighbours[e.u].push_back(e.v);
         unprunedNeighbours[e.v].push_back(e.u);

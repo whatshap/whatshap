@@ -12,6 +12,23 @@
 #include "Globals.h"
 #include "DynamicSparseGraph.h"
 
+/**
+ * This class implements a pseudo-complete graph with floating point edge weights. Edges with weight zero are not
+ * stored explicitly. If a zero edge is queried, the graph will detect that this edge is not stored and return
+ * weight zero. The graph is static, i.e. it is not possible to modify edge weights. The only exception is, that
+ * non-forbidden, non-permanent edges can be made forbidden or permanent ONCE. For non-zero edges, the stored
+ * edge weight is modified accordingly. For zero edges, we use no storage, so whether a formally zero-edge is
+ * forbidden or permanent is derived from implicit information:
+ * Each node has a clique id. Nodes, which form a clique (connected by permanent edges) have the same clique id.
+ * If an edge is set to permanent, then the clique ids are adjusted accordingly. Therefore these clique ids are
+ * not stable and not accessable from outside. An edge, which is not stored can be detected as permanent, if the
+ * clique ids of its end vertices is equal. This also means that zero-edges can be set to permanent implicitly,
+ * if its end vertices end up in the same clique.
+ * To keep track of forbidden edges, for each clique the graph stores a set of "forbidden" cliques. This relation
+ * is symmetric and is basically a pair-relation between cliques to indicate which cliques cannot be merged
+ * anymore. Again, for former zero-edges the graph answers a weight query be checking whether the clique ids
+ * of its end vertices are in this forbidden-relation.
+ */
 class StaticSparseGraph {
 
 public:    
@@ -41,16 +58,34 @@ public:
     DynamicSparseGraph::EdgeWeight getWeight(const DynamicSparseGraph::RankId r);
     
     /**
-     * Makes the specified edge e=(u,v) permanent. If u and v are connected to other nodes via permanent edges, then all edges
-     * between u's clique and v's clique are made permanent as well.
+     * Returns whether the given edge is permanent.
+     */
+    bool isPermanent(const DynamicSparseGraph::Edge e);
+    
+    /**
+     * Returns whether the given edge is forbidden.
+     */
+    bool isForbidden(const DynamicSparseGraph::Edge e);
+    
+    /**
+     * Makes the specified edge e=(u,v) permanent. Any implications raising from this must be handled by the caller.
      */
     void setPermanent(const DynamicSparseGraph::Edge e);
     
     /**
-     * Makes the specified edge e=(u,v) forbidden. If u and v are connected to other nodes via permanent edges, then all edges
-     * between u's clique and v's clique are made forbidden as well.
+     * Makes the specified edge e=(u,v) forbidden. Any implications raising from this must be handled by the caller.
      */
     void setForbidden(const DynamicSparseGraph::Edge e);
+    
+    /**
+     * Makes the specified edge e=(u,v) permanent. Any implications raising from this must be handled by the caller.
+     */
+    void setPermanent(const DynamicSparseGraph::Edge e, const DynamicSparseGraph::RankId r);
+    
+    /**
+     * Makes the specified edge e=(u,v) forbidden. Any implications raising from this must be handled by the caller.
+     */
+    void setForbidden(const DynamicSparseGraph::Edge e, const DynamicSparseGraph::RankId r);
     
     /**
     * Returns the number of nodes in the graph.
@@ -66,6 +101,11 @@ public:
      * For a node v, returns all adjacent nodes, which are connected to v via a perment edge, including v itself.
      */
     const std::vector<DynamicSparseGraph::NodeId>& getCliqueOf(const DynamicSparseGraph::NodeId v) const;
+    
+    /**
+     * For a node v, returns all forbidden nodes, with which v cannot be connected.
+     */
+    const std::vector<DynamicSparseGraph::NodeId> getForbiddenNeighbors(const DynamicSparseGraph::NodeId v) const;
     
     /**
      * For a node v, returns all adjacent nodes, which are connected to v via a perment edge, including v itself.
@@ -100,6 +140,7 @@ private:
     std::vector<uint64_t> rank2;                // size: best case = 8 bytes per 64 existing edges, worst case = 8 bytes per existing edge
     std::vector<uint64_t> offset2;              // size = rank 2
     std::vector<DynamicSparseGraph::EdgeWeight> weightv;            // size = 8 bytes per existing edge
+    
     
     // additional information for efficient iteration over non-zero non-infinity neighbours
     std::vector<std::vector<DynamicSparseGraph::NodeId>> unprunedNeighbours;

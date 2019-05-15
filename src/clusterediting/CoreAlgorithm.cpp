@@ -55,6 +55,7 @@ ClusterEditingSolutionLight CoreAlgorithm::run() {
     ClusterEditingSolutionLight solution = instance.solve();
     
     if (verbosity >= 2) {
+        std::cout<<"                                         \r"<<std::endl;
         std::cout<<"Number of clusters:\t"<<solution.getNumClusters()<<std::endl;
         std::cout<<"Total editing cost:\t"<<solution.getTotalCost()<<std::endl;
     }

@@ -29,9 +29,6 @@ public:
             int ordered = pu < pv;
             u = ordered*pu + (1-ordered)*pv;
             v = ordered*pv + (1-ordered)*pu;
-            if (id() < u+v-1) {
-                std::cout<<"Edge id is smaller than sum of node indices ("<<id()<<" < "<<u<<"+"<<v<<"-1)"<<std::endl;
-            }
         }
         
         Edge(EdgeId i) {
