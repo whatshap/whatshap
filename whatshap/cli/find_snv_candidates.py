@@ -24,6 +24,8 @@ def add_arguments(parser):
 		help='Also output multi-allelic sites, if not given only the best ALT allele is reported (if unique).')
 	add('--sample', metavar='SAMPLE', default='sample', 
 		help='Put this sample column into VCF (default: output sites-only VCF).')
+	add('--chromosome', dest='chromosome', metavar='CHROMOSOME', default=None,
+		help='Name of chromosome to process. If not given, all chromosomes are processed.')
 	add('-o', '--output', default=sys.stdout,
 		help='Output VCF file.')
 	group = parser.add_mutually_exclusive_group()
@@ -39,7 +41,7 @@ def validate(args, parser):
 	pass
 
 
-def run_find_snv_candidates(ref, bam, minabs=3, minrel=0.25, multi_allelics=False, datatype=None, sample='sample', output=sys.stdout):
+def run_find_snv_candidates(ref, bam, minabs=3, minrel=0.25, multi_allelics=False, datatype=None, sample='sample', chromosome=None, output=sys.stdout):
 	outfile = output
 	if output != sys.stdout:
 		outfile = open(output, 'w')
@@ -69,7 +71,7 @@ def run_find_snv_candidates(ref, bam, minabs=3, minrel=0.25, multi_allelics=Fals
 	re_ignore = re.compile('([\\$\\*]|\\^.)')
 
 	bamfile = pysam.AlignmentFile(bam, "rb")
-	for pileupcolumn in bamfile.pileup(min_mapping_quality=20, min_base_quality=5):
+	for pileupcolumn in bamfile.pileup(contig=chromosome, min_mapping_quality=20, min_base_quality=5):
 		try:
 			pileup = ''.join(pileupcolumn.get_query_sequences(mark_matches=True, mark_ends=True, add_indels=True))
 		except AssertionError:
