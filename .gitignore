@@ -16,3 +16,4 @@ whatshap.egg-info/
 .idea
 /.pytest_cache
 .eggs/
+whatshap/_version.py

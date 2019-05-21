@@ -145,7 +145,7 @@ else:
 
 setup(
 	name='whatshap',
-	use_scm_version=True,
+	use_scm_version={'write_to': 'whatshap/_version.py'},
 	author='WhatsHap authors',
 	author_email='whatshap@cwi.nl',
 	url='https://bitbucket.org/whatshap/whatshap/',
