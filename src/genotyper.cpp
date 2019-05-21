@@ -85,10 +85,10 @@ void compute_polyploid_genotypes(const ReadSet& readset, size_t ploidy, std::vec
 			}
 		}
 		// determine the genotype
-		double alt_frac = ref_count / (double) (ref_count + alt_count);
+		double alt_frac = alt_count / (double) (ref_count + alt_count);
 		for (size_t i = 0; i <= ploidy; ++i){
 			double threshold = (i / (double) ploidy) + (1 / ((double) ploidy*2));
-			std::cout << alt_frac << " " << threshold << std::endl;
+//			std::cout << alt_frac << " " << threshold << std::endl;
 			if (alt_frac < threshold) {
 				Genotype genotype;
 				for (size_t j = 0; j < i; ++j){
@@ -101,11 +101,5 @@ void compute_polyploid_genotypes(const ReadSet& readset, size_t ploidy, std::vec
 				break;
 			}
 		}
-	// TODO
-	/*0000 1 0		< 0.125
-0001 0.75 0.25          < 0.315
-0011 0.5 0.5		< 0.615
-0111 0.25 0.75		< 0.8125
-1111 0 1*/
 	}
 }
