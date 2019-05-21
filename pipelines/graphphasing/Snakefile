@@ -1,0 +1,267 @@
+
+
+SCENARIO = config['run_scenario']
+
+if SCENARIO == 'testing':
+    SPECIES = 'human'
+    SAMPLE = 'HG00733'
+elif SCENARIO == 'replication':
+    SPECIES = 'yeast'
+else:
+    raise RuntimeError('Unknown execution scenario: {}'.format(config['run_scenario']))
+
+REFSEQ = config['ref_assembly'][SPECIES]
+
+rule all:
+    input:
+        expand('input/{scenario}/long_reads/{sample}.{chrom}.fastq.gz',
+                scenario=[SCENARIO],
+                sample=[SAMPLE],
+                chrom=config['chromosomes'][SPECIES]),
+
+        expand('output/{scenario}/assembled_contigs/{species}/{species}_{sample}.contigs.fasta',
+                scenario=[SCENARIO], sample=[SAMPLE],
+                species=[SPECIES]),
+
+        expand('references/{species}/{ref_assembly}.fai',
+                species=[SPECIES],
+                ref_assembly=[REFSEQ]),
+
+        expand('output/{scenario}/variation_graphs/{species}_{var_call_set}.{chrom}.vg',
+                scenario=[SCENARIO],
+                species=[SPECIES],
+                var_call_set=config['var_call_sets'][SPECIES],
+                chrom=config['chromosomes'][SPECIES]),
+
+        expand('output/{scenario}/variation_graphs/{species}_{var_call_set}.wg.vg',
+                scenario=[SCENARIO],
+                species=[SPECIES],
+                var_call_set=config['var_call_sets'][SPECIES]),
+
+        expand('output/{scenario}/bubbles/{species}_{var_call_set}.wg.{vg_out_type}.pb',
+                scenario=[SCENARIO],
+                species=[SPECIES],
+                var_call_set=config['var_call_sets'][SPECIES],
+                vg_out_type=['snarls', 'traversals']),
+
+        expand('output/{scenario}/long_read_aln/{species}_{sample}_{var_call_set}.gam',
+                var_call_set=config['var_call_sets'][SPECIES],
+                scenario=[SCENARIO],
+                sample=[SAMPLE],
+                species=[SPECIES]),
+
+        expand('output/{scenario}/contig_aln/{species}_{sample}_{var_call_set}.contig-aln.gam',
+                var_call_set=config['var_call_sets'][SPECIES],
+                scenario=[SCENARIO],
+                sample=[SAMPLE],
+                species=[SPECIES]),
+
+        expand('output/{scenario}/haplotyping/{species}_{sample}_{var_call_set}.haplotigs',
+                scenario=[SCENARIO],
+                sample=[SAMPLE],
+                species=[SPECIES],
+                var_call_set=config['var_call_sets'][SPECIES])
+
+    message: 'Executing ALL'
+
+onsuccess:
+    if config['notify']:
+        shell('mail -s "[Snakemake] WH graph phasing - success" {} < {{log}}'.format(config['notify_email']))
+
+onerror:
+    if config['notify']:
+        shell('mail -s "[Snakemake] WH graph phasing - ERRROR" {} < {{log}}'.format(config['notify_email']))
+
+
+############################
+# RULES for data processing
+############################
+
+
+rule build_variation_graph_per_chrom:
+    input:
+        refseq = 'references/{{species}}/{}'.format(REFSEQ),
+        refseq_idx = 'references/{{species}}/{}.fai'.format(REFSEQ),
+        variants = 'input/{scenario}/variants/{var_call_set}.{chrom}.vcf.gz'
+    output:
+        'output/{scenario}/variation_graphs/{species}_{var_call_set}.{chrom}.vg'
+    threads: 8
+    message: 'Constructing sequence variation graph ({wildcards.chrom})'
+    run:
+        exec = 'vg construct --threads {threads}'
+        exec += ' --region {wildcards.chrom}'
+        exec += ' --reference {input.refseq}'
+        exec += ' --vcf {input.variants}'
+        exec += ' > {output}'
+        shell(exec)
+
+
+rule build_variation_graph:
+    input:
+        refseq = 'references/{{species}}/{}'.format(REFSEQ),
+        refseq_idx = 'references/{{species}}/{}.fai'.format(REFSEQ),
+        variants = expand('input/{scenario}/variants/{var_call_set}.{chrom}.vcf.gz',
+                            var_call_set=config['var_call_sets'][SPECIES],
+                            chrom=config['chromosomes'][SPECIES],
+                            scenario=[SCENARIO])
+    output:
+        'output/{scenario}/variation_graphs/{species}_{var_call_set}.wg.vg'
+    threads: 16
+    message: 'Constructing sequence variation graph (wg)'
+    params:
+        collated_variants = lambda wildcards, input: ' --vcf '.join([''] + input.variants)
+    run:
+        exec = 'vg construct --threads {threads}'
+        exec += ' --reference {input.refseq}'
+        exec += ' {params.collated_variants}'
+        exec += ' > {output}'
+        shell(exec)
+
+
+rule compute_contig_assembly_layout:
+    input:
+        expand('input/{scenario}/long_reads/{sample}.{chrom}.fastq.gz',
+                chrom=config['chromosomes'][SPECIES],
+                scenario=[SCENARIO], sample=[SAMPLE])
+    output:
+        'output/{scenario}/assembly_layout/{species}/{species}_{sample}.ctg.layout.gz'
+    log: 'log/{scenario}/assembly_layout/{species}_{sample}.layout.log'
+    threads: 48
+    message: 'Running wtdbg2 assembler/layout on sample {wildcards.sample}'
+    params:
+        gsize = '3g' if SPECIES == 'human' else '-1',  # should fail if -1
+        datatype = 'rs' if SPECIES == 'human' else 'none'  # should fail if none
+    run:
+        exec = 'wtdbg2 -x {params.datatype}'  # parameter preset depending on seq. type
+        exec += ' -i ' + ' -i '.join(list(input))
+        exec += ' -g{params.gsize} -t {threads}'  # approx genome size
+        exec += ' -o output/{wildcards.scenario}/assembly_layout/{wildcards.species}/{wildcards.species}_{wildcards.sample}'
+        exec += ' &> {log}'
+        shell(exec)
+
+
+rule compute_contig_assembly_consensus:
+    input:
+        ctg_layout = 'output/{scenario}/assembly_layout/{species}/{species}_{sample}.ctg.layout.gz'
+    output:
+        'output/{scenario}/assembled_contigs/{species}/{species}_{sample}.contigs.fasta'
+    log: 'log/{scenario}/assembled_contigs/{species}_{sample}.consensus.log'
+    threads: 48
+    message: 'Running wtdbg2 assembler/consensus on sample {wildcards.sample}'
+    run:
+        exec = 'wtpoa-cns -t {threads}'
+        exec += ' -i {input.ctg_layout}'
+        exec += ' -o {output} &> {log}'
+        shell(exec)
+
+
+rule detect_bubbles:
+    input:
+        'output/{scenario}/variation_graphs/{species}_{var_call_set}.wg.vg'
+    output:
+        'output/{scenario}/bubbles/{species}_{var_call_set}.wg.snarls.pb',
+        'output/{scenario}/bubbles/{species}_{var_call_set}.wg.traversals.pb'
+    message: 'Detecting snarls/bubbles and traversals in sequence graph'
+    shell:
+        "vg snarls -l -r {output[1]} {input} > {output[0]}"
+
+
+rule align_long_reads_to_graph:
+    input:
+        graph = 'output/{scenario}/variation_graphs/{species}_{var_call_set}.wg.vg',
+        reads = expand('input/{scenario}/long_reads/{sample}.{chrom}.fastq.gz',
+                        chrom=config['chromosomes'][SPECIES],
+                        scenario=[SCENARIO],
+                        sample=[SAMPLE])
+    output:
+        'output/{scenario}/long_read_aln/{species}_{sample}_{var_call_set}.gam'
+    message: 'Aligning long reads to variation graph'
+    threads: 48
+    log:
+        'log/{scenario}/long_read_aln/{species}_{sample}_{var_call_set}.log'
+    run:
+        exec = 'GraphAligner --threads {threads}'
+        exec += ' --graph {input.graph}'
+        exec += ' --reads {input.reads}'
+        exec += ' --alignments-out {output}'
+        exec += ' --bandwidth 200 --ramp-bandwidth 500'
+        exec += ' &> {log}'
+        shell(exec)
+
+
+rule align_contigs_to_graph:
+    input:
+        graph = 'output/{scenario}/variation_graphs/{species}_{var_call_set}.wg.vg',
+        contigs = 'output/{scenario}/assembled_contigs/{species}/{species}_{sample}.contigs.fasta'
+    output:
+        'output/{scenario}/contig_aln/{species}_{sample}_{var_call_set}.contig-aln.gam'
+    message: 'Aligning assembled contigs to variation graph'
+    threads: 48
+    log:
+        'log/{scenario}/contig_aln/{species}_{sample}_{var_call_set}.contig-aln.log'
+    run:
+        exec = 'GraphAligner --threads {threads}'
+        exec += ' --graph {input.graph}'
+        exec += ' --reads {input.contigs}'
+        exec += ' --alignments-out {output}'
+        exec += ' --bandwidth 200 --ramp-bandwidth 500'
+        exec += ' &> {log}'
+        shell(exec)
+
+
+
+#usage: whatshap phaseg [-h] LOCUS PHASEINPUT GRAPH CANU_ALNS PREED_HAPLOTIGS
+#
+#Create association between reads and bubbles
+#
+#positional arguments:
+#  LOCUS            Variants in LOCUS file to phase
+#  PHASEINPUT       Read alignments in GAM file
+#  GRAPH            Sequence graph
+#  CANU_ALNS        Contigs from canu
+#
+
+
+rule build_graph_phased_haplotigs:
+    input:
+        traversals =  'output/{scenario}/bubbles/{species}_{var_call_set}.wg.traversals.pb',  # Variants in LOCUS file to phase
+        longread_aln = 'output/{scenario}/long_read_aln/{species}_{sample}_{var_call_set}.gam',  # Read alignments in GAM file
+        var_graph = 'output/{scenario}/variation_graphs/{species}_{var_call_set}.wg.vg',
+        contig_aln = 'output/{scenario}/contig_aln/{species}_{sample}_{var_call_set}.contig-aln.gam',  # Assembled contigs aligned to variation graph
+    output:
+        'output/{scenario}/haplotyping/{species}_{sample}_{var_call_set}.haplotigs'  # PREED_HAPLOTIGS  Write predicted haplotigs for every block
+    message: 'Building graph-phased haplotigs'
+    log:
+        'log/{scenario}/haplotyping/{species}_{sample}_{var_call_set}.log'
+    shell:
+        'whatshap phaseg {input.traversals} {input.longread_aln} {input.var_graph} {input.contig_aln} {output} &> {log}'
+
+
+###########################
+# RULES for reference data
+###########################
+
+# create FASTA index file for reference assembly
+rule index_fasta_reference:
+    input:
+        'references/{species}/{ref_assembly}'
+    output:
+        'references/{species}/{ref_assembly}.fai'
+    message: 'REF: index reference FASTA file'
+    shell:
+        'samtools faidx {input}'
+
+
+####################################################################
+# RULES TO ACCOMMODATE TESTING DATA - NOT PART OF STANDARD WORKFLOW
+####################################################################
+
+rule dump_pacbio_reads:
+    input:
+        'input/{scenario}/long_read_aln/{sample}.{chrom}.bam'
+    output:
+        'input/{scenario}/long_reads/{sample}.{chrom}.fastq.gz'
+    threads: 4  # this is to limit I/O for the slow /scratch
+    message: 'TESTING: dumping PacBio reads to FASTQ'
+    shell:
+        'bedtools bamtofastq -i {input} -fq /dev/stdout | gzip > {output}'

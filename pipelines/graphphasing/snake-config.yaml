@@ -1,0 +1,40 @@
+
+run_scenario: testing
+
+notify: True
+notify_email: pebert@mpi-inf.mpg.de
+
+ref_assembly:
+  human:
+    GRCh38_full_analysis_set_plus_decoy_hla.fa
+
+var_call_sets:
+  human:
+    PR05
+
+chromosomes:
+  human:
+    - chr1
+    - chr2
+    - chr3
+    - chr4
+    - chr5
+    - chr6
+    - chr7
+    - chr8
+    - chr9
+    - chr10
+    - chr11
+    - chr12
+    - chr13
+    - chr14
+    - chr15
+    - chr16
+    - chr17
+    - chr18
+    - chr19
+    - chr20
+    - chr21
+    - chr22
+
+vg_protobuf_spec: https://raw.githubusercontent.com/vgteam/vg/master/src/vg.proto
