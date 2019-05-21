@@ -159,14 +159,17 @@ def subset_clusters(readset, clustering, ploidy, sample, genotypes, block_cut_se
 				old_c = path[i-1][j]
 				new_c = path[i][j]
 				if old_c != new_c:
+					rise_fall = False
 					# check if previous cluster went down from copy number >= 2 to a smaller one >= 1
 					if old_c in copynrs[i] and copynrs[i][old_c] >= 1:
 						cpn_falling[old_c] = True
+						if cpn_rising[old_c]:
+							rise_fall = True
 					# check if new cluster went up from copy number >= 1 to a greater one >= 2
 					if new_c in copynrs[i-1] and copynrs[i-1][new_c] >= 1:
 						cpn_rising[new_c] = True
-					# check if one cluster has been rising and falling in the current block
-					if (cpn_falling[old_c] and cpn_rising[old_c]) or (cpn_falling[new_c] and cpn_rising[old_c]):
+					# check if one cluster has been rising and then falling in the current block
+					if rise_fall:
 						dissim += rise_fall_dissim
 						
 					# count general switches
