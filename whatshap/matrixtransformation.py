@@ -2,7 +2,7 @@ from collections import defaultdict
 import sys
 from .graph import ComponentFinder
 from .core import Read, ReadSet, CoreAlgorithm, DynamicSparseGraph
-from .readscoring import score_global, score_local, score_local_patternbased, partial_scoring
+from .readscoring import score_global
 import logging
 import pysam
 import itertools
@@ -50,8 +50,6 @@ class MatrixTransformation:
 			# get all positions in this component
 			component_positions = self._component_reads.get_positions()
 			num_clusters = []
-			#print(component_positions)
-			#print(str(len(component_positions)))
 			for j, position in enumerate(component_positions):
 				self._current_column = []
 				# get all reads that cover current position
@@ -76,20 +74,12 @@ class MatrixTransformation:
 				clusterediting = CoreAlgorithm(graph, False)
 				readpartitioning = clusterediting.run()
 				num_clusters.append(len(readpartitioning))
-				
-				#readpartitioning = k_clustify(partial_scoring(similarities, index_set), readpartitioning, ploidy)
 
 				# store the result in final MEC matrix
-#				print('')
-#				print(similarities)
-#				print(position)
-#				print(readpartitioning)
 				for c,cluster in enumerate(readpartitioning):
-#					print('cluster: ', c, cluster)
 					for read_id in cluster:
 						# get readname
 						read_name = column[read_id].name
-#						print(read_name, read_id)
 						quality = [10] * max(ploidy,len(readpartitioning))
 						quality[c] = 0
 						self._readname_to_partitions[read_name].add_variant(position, c, quality)
@@ -98,12 +88,7 @@ class MatrixTransformation:
 			avg_clusters = sum(num_clusters)/len(component_positions)
 			lt_k = sum([1 for cluster in num_clusters if cluster > ploidy])
 			ht_k = sum([1 for cluster in num_clusters if cluster < ploidy])
-			#logger.info("Transformed matrix of "+str(len(num_clusters))+" clustering with "+str(sum(num_clusters)/len(component_positions))+" clusters on average ("++" < k, "++" > k)")
-			logger.info("Transformed matrix of {} clustering with {} clusters on average ({} < k, {} > k)".format(len(num_clusters), avg_clusters, lt_k, ht_k))
-			#print("Num Clusterings:  "+str(len(num_clusters)))
-			#print("Avg Num clusters: "+str(sum(num_clusters)/len(component_positions)))
-			#print("Clusters > k    : "+str(sum([1 for cluster in num_clusters if cluster > ploidy])))
-			#print("Clusters < k    : "+str(sum([1 for cluster in num_clusters if cluster < ploidy])))
+			logger.debug("Transformed matrix of {} clustering with {} clusters on average ({} < k, {} > k)".format(len(num_clusters), avg_clusters, lt_k, ht_k))
 			
 			# add the computed reads to final ReadSet
 			for read in self._readname_to_partitions.values():
@@ -111,7 +96,6 @@ class MatrixTransformation:
 					self._cluster_matrix.add(read)
 		# sort readsets
 		self._cluster_matrix.sort()
-#		print('')
 
 	def get_transformed_matrix(self):
 		"""

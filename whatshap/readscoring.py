@@ -69,19 +69,6 @@ def score_local_patternbased(readset, ploidy, errorrate, min_overlap, window_siz
 	read_scoring = ReadScoring()
 	return read_scoring.scoreReadsetPatterns(readset, min_overlap, ploidy, errorrate, window_size)
 
-def partial_scoring(sim, subset):
-	# sim -- a two-dimensional list with the same format as the output of the score-function
-	# subset -- a list of indices indicating the subset to score
-	s = sorted(subset)
-	if (sim.get_size() < s[-1]):
-		raise ValueError("Index out of bounds: Susbet contains index "+str(s[-1])+", which is higher than the size of similarity matrix")
-		
-	psim = SparseTriangleMatrix()	
-	for i in range(len(s)):
-		for j in range(i+1, len(s)):
-			psim.set(i, j, sim.get(s[i], s[j]))
-	return psim
-
 def calc_overlap_and_diffs(readset):
 	num_reads = len(readset)
 	overlap = SparseTriangleMatrix()
@@ -133,23 +120,8 @@ def logratio_sim(overlap, diffs, dist_same, dist_diff, min_overlap):
 	else:
 		score = log(p_same / p_diff)
 	return score
-
-def print_dist_between_haps(readset, overlap, diffs):
-	haps = [[j for j in range(len(readset)) if parse_haplotype(readset[j].name) == i] for i in range(0, 4)]
-	for i in range(4):
-		for j in range(i, 4):
-			total_overlap = 0
-			total_diff = 0
-			for k in haps[i]:
-				for l in haps[j]:
-					if (k < l):
-						total_overlap += overlap.get(k, l)
-						total_diff += diffs.get(k, l)
-					elif (k > l):
-						total_overlap += overlap.get(l, k)
-						total_diff += diffs.get(l, k)
-			print("Diff "+str(i)+" vs "+str(j)+" = "+str(total_diff/total_overlap))
 			
+# only for debug purpose!!!
 def parse_haplotype(name):
 	tokens = name.split("_")
 	if (tokens[-2] == "HG00514" and tokens[-1] == "HAP1"):

@@ -27,7 +27,7 @@ from .variants import ReadSetReader, ReadSetError
 from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
 from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components, find_largest_component, write_read_list
-from .clustereditingplots import draw_plots_dissimilarity, draw_plots_scoring, draw_column_dissimilarity
+from .clustereditingplots import draw_plots_dissimilarity, draw_plots_scoring
 from .matrixtransformation import MatrixTransformation
 
 __author__ = "Jana Ebler" 
@@ -181,10 +181,8 @@ def run_plot(
 					readset = transformation.get_transformed_matrix()
 
 				# create dissimilarity plots
-#				print_readset(selected_reads)
 				#draw_plots_dissimilarity(readset, '{output}-{sample}-{chromosome}.png'.format(output=output, sample=sample, chromosome=chromosome))
 				draw_plots_scoring(readset, '{output}-{sample}-{chromosome}.png'.format(output=output, sample=sample, chromosome=chromosome), ploidy, errorrate, steps = 600)
-				#draw_column_dissimilarity(readset, '{output}-{sample}-{chromosome}.png'.format(output=output, sample=sample, chromosome=chromosome))
 
 	logger.info('\n== SUMMARY ==')
 	timers.stop('overall')

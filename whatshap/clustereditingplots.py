@@ -8,10 +8,8 @@ matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from pylab import savefig
-from .core import Read, ReadSet, CoreAlgorithm, DynamicSparseGraph
-from .readscoring import calc_overlap_and_diffs, parse_haplotype, parse_haplotype
-from .kclustifier import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks
-from .vectorerror import vector_error, vector_error_blockwise
+from .core import Read, ReadSet
+from .readscoring import calc_overlap_and_diffs, parse_haplotype
 from .compare import compute_switch_flips_poly_bt
 
 def draw_plots_dissimilarity(readset, path, min_overlap = 5, steps = 100):
@@ -28,7 +26,7 @@ def draw_plots_dissimilarity(readset, path, min_overlap = 5, steps = 100):
 				dissims_same.append(d)
 			else:
 				dissims_diff.append(d)
-	createHistogram(path, dissims_same, dissims_diff, steps, [0.0, 1.0], "Dissimilarity", "Read-pair comparison")
+	create_histogram(path, dissims_same, dissims_diff, steps, [0.0, 1.0], "Dissimilarity", "Read-pair comparison")
 	
 def draw_plots_scoring(readset, similarities, path, ploidy, error_rate, min_overlap = 5, steps=120, dim=[-60, 60]):
 	num_reads = len(readset)
@@ -44,32 +42,9 @@ def draw_plots_scoring(readset, similarities, path, ploidy, error_rate, min_over
 				dissims_same.append(d)
 			else:
 				dissims_diff.append(d)
-	createHistogram(path, dissims_same, dissims_diff, steps, dim, "Similarity score", "Read-pair comparison")
-	
-def draw_column_dissimilarity(readset, path, steps = 100):
-	num_reads = len(readset)
-	alleles = [[0]*4 for i in readset.get_positions()]
-	index = {}
-	num_vars = 0
-	for position in readset.get_positions():
-		index[position] = num_vars
-		num_vars += 1
-		
-	for read in readset:
-		for variant in read:
-			pos = index[variant.position]
-			allele = variant.allele
-			if allele > len(alleles[pos]):
-				for i in range(len(allele[pos]), allele):
-					allele[pos].append(0)
-			alleles[index[variant.position]][variant.allele] += 1
-			
-	sim1 = [max(alleles[i]) / sum(alleles[i]) for i in range(len(alleles))]
-	sim2 = [min([alleles[i][j] for j in range(len(alleles[i])) if alleles[i][j] > 0]) / sum(alleles[i]) for i in range(len(alleles))]
-	createHistogram(path, sim1, sim2, steps, [0.0, 1.0], "Frequency of most frequent allele", "Column-wise comparison", name1='most freqeunt', name2='least frequent')
+	create_histogram(path, dissims_same, dissims_diff, steps, dim, "Similarity score", "Read-pair comparison")
 
-#Counts the fraction of ones in each column of the matrix
-def createHistogram(path, same, diff, steps, dim, x_label, title, name1='same', name2='diff'):
+def create_histogram(path, same, diff, steps, dim, x_label, title, name1='same', name2='diff'):
 	hist = {}
 	left_bound = dim[0]
 	right_bound = dim[1]
@@ -83,53 +58,9 @@ def createHistogram(path, same, diff, steps, dim, x_label, title, name1='same', 
 	plt.legend(loc='upper center')
 	savefig(path, bbox_inches='tight')
 	plt.close()
-
-def draw_heatmaps(readset, clustering, heatmap_folder):
-
+		
+def draw_clustering(readset, clustering, var_table, path, genome_space = False):
 	# Sort a deep copy of clustering
-	clusters = sorted(deepcopy(clustering), key = lambda x: -len(x))
-
-	# Construct real and predicted haplotype per read
-	true_hap = [parse_haplotype(read.name) for read in readset]
-
-	# Map variant positions to [0,l)
-	index = {}
-	num_vars = 0
-	for position in readset.get_positions():
-		index[position] = num_vars
-		num_vars += 1
-		
-	# Plot heatmaps
-	if os.path.exists(heatmap_folder):
-		shutil.rmtree(heatmap_folder)
-	os.makedirs(heatmap_folder)
-
-	for c_id in range(0, len(clusters)):
-		fig = plt.figure(figsize=(12, 6), dpi=100)
-		legend_handles = {}
-		SCALING_FACTOR = 1
-
-		read_id = 0
-		for read in clusters[c_id]:   
-			start = index[readset[read][0].position]
-			end = index[readset[read][-1].position]
-			read_id += 1
-			
-			color_code = 'C'+str(true_hap[read]) if true_hap[read] != '-1' else 'black'
-			if color_code not in legend_handles:
-				legend_handles[color_code] = mpatches.Patch(color=color_code, label=true_hap[read])
-			plt.hlines(y=read_id*SCALING_FACTOR, xmin=start, xmax=end, color=color_code)
-		
-		plt.legend(handles=legend_handles.values())
-		axes = plt.gca()
-		axes.set_xlim([0, num_vars])
-		heatmap_path = heatmap_folder+"/cluster_"+str(c_id)+".png"
-		fig.savefig(heatmap_path)			
-		fig.clear()
-		
-def draw_superheatmap(readset, clustering, var_table, path, genome_space = False):
-	# Sort a deep copy of clustering
-	#clusters = sorted(deepcopy(clustering), key = lambda x: -len(x))
 	clusters = sorted(deepcopy(clustering), key = lambda x: min([readset[i][0].position for i in x]))
 
 	# Construct real and predicted haplotype per read
@@ -188,119 +119,6 @@ def draw_superheatmap(readset, clustering, var_table, path, genome_space = False
 	plt.legend(handles=legend_handles.values(), loc='lower center', ncol=len(legend_handles))
 	axes = plt.gca()
 	axes.set_xlim([min_pos, max_pos])
-	fig.savefig(path)
-	fig.clear()
-	
-def draw_cluster_coverage(readset, clustering, path):
-	ploidy = 4
-	
-	# Sort a deep copy of clustering
-	clusters = sorted(deepcopy(clustering), key = lambda x: min([readset[i][0].position for i in x]))
-
-	# Map variant positions to [0,l)
-	index = {}
-	rev_index = []
-	num_vars = 0
-	for position in readset.get_positions():
-		index[position] = num_vars
-		rev_index.append(position)
-		num_vars += 1
-
-	# Plot heatmaps
-	fig = plt.figure(figsize=(num_vars/10, len(readset)/80), dpi=200)
-	
-	# Get coverage from external function
-	coverage, copynumbers, cluster_blocks, cut_positions = clusters_to_blocks(readset, clustering, ploidy, coverage_padding = 7, copynumber_max_artifact_len = 1.0, copynumber_cut_contraction_dist = 0.5)
-	
-	for c_id in range(0, len(clusters)):
-		if len(clusters[c_id]) >= 10:
-			plt.plot(list(range(num_vars)), copynumbers[c_id], lw=1)
-	
-	axes = plt.gca()
-	axes.set_xlim([0, num_vars])
-	fig.savefig(path)
-	fig.clear()
-	
-def draw_cluster_blocks(readset, clustering, cluster_blocks, cut_positions, var_table, path, genome_space):
-	# Sort a deep copy of clustering
-	#clusters = sorted(deepcopy(clustering), key = lambda x: -len(x))
-	clusters = sorted(deepcopy(clustering), key = lambda x: min([readset[i][0].position for i in x]))
-
-	# Construct real and predicted haplotype per read
-	true_hap = [parse_haplotype(read.name) for read in readset]
-
-	# Map variant positions to [0,l)
-	index = {}
-	rev_index = []
-	num_vars = 0
-	for position in readset.get_positions():
-		index[position] = num_vars
-		rev_index.append(position)
-		num_vars += 1
-
-	# Plot heatmaps
-	fig = plt.figure(figsize=(num_vars/40, len(readset)/80), dpi=200)
-	legend_handles = {}
-	y_offset = 0
-	y_margin = 5
-	
-	# Plot haplotype dissimilarity
-	if var_table != None:
-		plot_haplotype_dissimilarity(legend_handles, y_offset, y_margin, index, rev_index, readset, var_table, genome_space)
-	
-	y_offset = 0
-	
-	# Plot cluster blocks
-	for i, block in enumerate(cluster_blocks):
-		y_offset = 0
-		# x-Positions for current block in plot
-		end = cut_positions[i]
-		start = cut_positions[i-1] if i > 0 else 0
-		for j, hap in enumerate(block):
-			# Split each haplotype by cluster: [(cluster1, start1, end1), (cluster2, start2, end2), ... ]
-			sections = []
-			section_start = 0
-			assert end - start == len(hap)
-			for k in range(len(hap)-1):
-				if hap[k] != hap[k+1]:
-					if hap[k] != None:
-						sections.append((hap[k], start + section_start, start + k+1))
-					section_start = k+1
-			if hap[-1] != None:
-				sections.append((hap[-1], start + section_start, end))
-			
-			# Collect all reads for each section, but cut off reads at section borders. Discard reads, which do not overlap the section at all.
-			# Reads are saved as: [(truth1, start1, end1), (truth2, start2, end2), ... ]
-			reads = []
-			for section in sections:
-				#print("block="+str(i)+" hap="+str(j)+" section="+str(section))
-				for read_id in clusters[section[0]]:
-					read_start = max(section[1], index[readset[read_id][0].position])
-					read_end = min(section[2]-1, index[readset[read_id][-1].position])
-					#print("    read=("+str(read_start)+","+str(read_end)+")")
-					if (read_end >= read_start):
-						reads.append((true_hap[read_id], read_start, read_end))
-			
-			# Plot reads:
-			#print("len(reads)="+str(len(reads)))
-			for k, read in enumerate(reads):
-				color_code = 'C'+str(read[0]) if read[0] != '-1' else 'black'
-				if color_code not in legend_handles:
-					legend_handles[color_code] = mpatches.Patch(color=color_code, label=true_hap[read])
-				plt.hlines(y=k+y_offset, xmin=read[1], xmax=read[2], color=color_code)
-				
-			# Haplotype seperator
-			y_offset += len(reads) + y_margin
-			plt.hlines(y = y_offset, xmin = start, xmax = end, color=(0.5, 0.5, 0.5, 0.5))
-			y_offset += y_margin
-			
-		# Plot block seperators
-		plt.vlines(x = start, ymin = 0, ymax = y_offset - y_margin, color=(0.5, 0.5, 0.5, 0.5))
-		plt.vlines(x = end, ymin = 0, ymax = y_offset - y_margin, color=(0.5, 0.5, 0.5, 0.5))
-		
-	plt.legend(handles=legend_handles.values(), loc='lower center', ncol=len(legend_handles))
-	axes = plt.gca()
-	axes.set_xlim([0, num_vars])
 	fig.savefig(path)
 	fig.clear()
 	
@@ -383,41 +201,14 @@ def relative_hamming_dist(seq1, seq2):
 		return -1
 	else:
 		return sum([1 for i in range(len(seq1)) if seq1[i] != seq2[i]]) / len(seq1)
-	
-def construct_ground_truth(readset):
-	true_hap = [parse_haplotype(read.name) for read in readset]
-	real_clusters = [[read_id for read_id in range(len(readset)) if true_hap[read_id] == hap_id] for hap_id in range(4)]
-	num_vars = len(readset.get_positions())
-	trivial_cluster_blocks = [[[hap_id]*num_vars for hap_id in range(4)]]
-	return calc_consensus_blocks(readset, real_clusters, trivial_cluster_blocks, [])[0]
 
-def construct_ground_truth_blockwise(readset, cut_positions):
-	true_hap = [parse_haplotype(read.name) for read in readset]
-	real_clusters = [[read_id for read_id in range(len(readset)) if true_hap[read_id] == hap_id] for hap_id in range(4)]
-	num_vars = len(readset.get_positions())
-	trivial_cluster_blocks = []
-	start = 0
-	for pos in cut_positions:
-		trivial_cluster_blocks.append([[hap_id]*(pos-start) for hap_id in range(4)])
-		start = pos
-	return calc_consensus_blocks(readset, real_clusters, trivial_cluster_blocks, cut_positions)
-
-def draw_dp_threading(readset, clustering, coverage, paths, cut_positions, haplotypes, var_table, genotypes, path):
+def draw_threading(readset, clustering, coverage, paths, cut_positions, haplotypes, var_table, genotypes, path):
 	assert len(paths) > 0
 	ploidy = len(paths[0])
 	assert ploidy >= 2
 	num_c = len(clustering)
 	assert (num_c > ploidy)
 	num_vars = len(coverage)
-	
-	#print("Printing debug information:")
-	#print("len(paths) = "+str(len(paths)))
-	#for i in range(len(paths)):
-	#	print("len(paths["+str(i)+"]) = "+str(len(paths[i])))
-	#print("len(coverage) = "+str(len(coverage)))
-	#for i in range(len(coverage)):
-	#	print("len(coverage["+str(i)+"]) = "+str(len(coverage[i])))
-	#print("len(cut_positions) = "+str(len(cut_positions)))
 	
 	# Detect relevant clusters
 	c_map = {}
@@ -479,19 +270,8 @@ def draw_dp_threading(readset, clustering, coverage, paths, cut_positions, haplo
 	for k in range(ploidy):
 		truth.append("".join(map(str, phase_vectors[k])))
 	for i in range(len(cut_pos)-1):
-		#print(str(cut_pos[i])+"-"+str(cut_pos[i+1])+" "+str(len(haplotypes))+" "+str(len(truth)))
 		block1 = [h[cut_pos[i]:min(len(paths), cut_pos[i+1])] for h in truth]
 		block2 = [h[cut_pos[i]:min(len(paths), cut_pos[i+1])] for h in haplotypes]
-		#print(block1)
-		#print(block2)
-		#for pos in range(len(block2[0])):
-		#	geno = 0
-		#	for k in range(ploidy):
-		#		if block2[k][pos] == "1":
-		#			geno += 1
-		#	if geno != genotypes[cut_pos[i]+pos]:
-		#		cur_c = list(filter(lambda x: c_list[x] in coverage[cut_pos[i]+pos] and coverage[cut_pos[i]+pos][c_list[x]] > 0, list(range(num_c))))
-		#		plt.vlines(x = cut_pos[i]+pos, ymax = max(cur_c), ymin = min(cur_c), color = 'green', alpha = 0.075)
 
 		switchflips, switches_in_column, flips_in_column, poswise_config = compute_switch_flips_poly_bt(block1, block2, report_error_positions = True, switch_cost = 1+1/(num_vars*ploidy))
 		for pos, e in enumerate(switches_in_column):
@@ -513,4 +293,11 @@ def draw_dp_threading(readset, clustering, coverage, paths, cut_positions, haplo
 	axes.set_xlim([0, num_vars - 1])
 	fig.savefig(path)
 	fig.clear()
+	
+def avg_readlength(readset):
+	# Estiamtes the average read length in base pairs
+	if len(readset) > 0:
+		return sum([read[-1].position - read[0].position for read in readset]) / len(readset)
+	else:
+		return 0
 	

@@ -1,20 +1,12 @@
-#from copy import deepcopy
-#from math import floor, ceil
 import itertools as it
 import logging
 from collections import defaultdict
 from .core import clustering_DP, ReadSet, Read, HaploThreader
-#import numpy as np
-#from .testhelpers import string_to_readset
-#from .phase import find_components
-#from statistics import mean
-#import operator
 import random
-from queue import *
 
 logger = logging.getLogger(__name__)
 
-def subset_clusters(readset, clustering, ploidy, sample, genotypes, block_cut_sensitivity, cython_threading):
+def run_threading(readset, clustering, ploidy, sample, genotypes, block_cut_sensitivity, cython_threading):
 	logger.debug("Computing cluster coverages and consensi ..")
 	
 	# Map genome positions to [0,l)
@@ -36,7 +28,6 @@ def subset_clusters(readset, clustering, ploidy, sample, genotypes, block_cut_se
 
 	if cython_threading:
 		geno_map = defaultdict(list)
-		counter = 0
 		for pos in range(num_vars):
 			c_ids = sorted(cov_map[pos])
 			c_tuples = sorted(list(it.combinations_with_replacement(c_ids, ploidy)))
@@ -47,7 +38,6 @@ def subset_clusters(readset, clustering, ploidy, sample, genotypes, block_cut_se
 				if (len(geno_tuples) == 0):
 					geno_tuples = c_tuples
 			geno_map[pos] = geno_tuples
-		#print("No cluster with fitting genotype: ", counter)
 		
 		#perform the dynamic programming to fill the scoring matrix (in Cython to speed up computation)
 		scoring = clustering_DP(num_vars,clustering,coverage, positions, cov_map, ploidy, consensus, geno_map)
@@ -129,15 +119,19 @@ def subset_clusters(readset, clustering, ploidy, sample, genotypes, block_cut_se
 	cut_positions = [0]
 	if block_cut_sensitivity >= 3:
 		if block_cut_sensitivity >= 6:
+			# cut every time a haplotype jumps
 			dissim_threshold = 1
 			rise_fall_dissim = ploidy+1
 		elif block_cut_sensitivity == 5:
+			# cut for every multi-switch and for every rise-fall-ploidy change
 			dissim_threshold = 2
 			rise_fall_dissim = ploidy+1
 		elif block_cut_sensitivity == 4:
+			# cut for rise-fall-ploidy change
 			dissim_threshold = ploidy+1
 			rise_fall_dissim = ploidy+1
 		else:
+			# cut for every multi-jump
 			dissim_threshold = 2
 			rise_fall_dissim = 0
 		
@@ -383,74 +377,3 @@ def find_backtracing_start(scoring, num_vars):
 		return(last_col)
 	else:
 		return(find_backtracing_start(scoring,last_col-1))
-
-def compute_linkage_based_block_starts(readset, pos_index, ploidy, single_linkage = False):
-	num_vars = len(pos_index)
-
-	# cut threshold
-	min_block_size = 1
-	if ploidy == 2 or single_linkage:
-		cut_threshold = 1
-	else:
-		cut_threshold = ploidy*ploidy
-		for i in range(ploidy-1, ploidy*ploidy):
-			# chance to cover at most ploidy-2 haplotypes with i reads
-			cut_threshold = i
-			if ploidy * pow((ploidy-2)/ploidy, i) < 0.02:
-				cut_threshold = i
-				break
-	logger.debug("Cut position threshold: coverage >= {}".format(cut_threshold))
-	
-	# start by looking at neighbouring
-	link_to_next = [0 for i in range(num_vars)]
-	starts = []
-	ends = []
-	for read in readset:
-		pos_list = [pos_index[var.position] for var in read]
-		starts.append(pos_list[0])
-		ends.append(pos_list[-1])
-		for i in range(len(pos_list)-1):
-			if pos_list[i] + 1 == pos_list[i+1]:
-				link_to_next[pos_list[i]] += 1
-				
-	pos_clust = [0 for i in range(num_vars)]
-	for i in range(1, num_vars):
-		if link_to_next[i-1] >= cut_threshold:
-			pos_clust[i] = pos_clust[i-1]
-		else:
-			pos_clust[i] = pos_clust[i-1] + 1
-	num_clust = pos_clust[-1]+1
-			
-	# find linkage between clusters
-	link_coverage = [dict() for i in range(num_clust)]
-	for i, (start, end) in enumerate(zip(starts, ends)):
-		covered_pos_clusts = set([pos_clust[pos_index[var.position]] for var in readset[i]])
-		for p1 in covered_pos_clusts:
-			for p2 in covered_pos_clusts:
-				if p2 not in link_coverage[p1]:
-					link_coverage[p1][p2] = 0
-				link_coverage[p1][p2] += 1
-					
-	# merge clusters
-	merged_clust = [-1 for i in range(num_clust)]
-	new_num_clust = 0
-	for i in range(num_clust):
-		if merged_clust[i] >= 0:
-			continue
-		q = Queue()
-		q.put(i)
-		while not q.empty():
-			cur = q.get()
-			merged_clust[cur] = new_num_clust
-			for linked in link_coverage[cur]:
-				if merged_clust[linked] < 0 and link_coverage[cur][linked] >= cut_threshold:
-					q.put(linked)
-		new_num_clust += 1
-		
-	# determine cut positions
-	cuts = [0]
-	for i in range(1, num_vars):
-		if merged_clust[pos_clust[i]] != merged_clust[pos_clust[i-1]]:
-			cuts.append(i)
-
-	return cuts

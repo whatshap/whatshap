@@ -19,26 +19,25 @@ from collections import defaultdict
 from copy import deepcopy
 from math import log
 from scipy.stats import binom_test
+from queue import Queue
 
 from xopen import xopen
-from networkx import Graph, number_of_nodes, number_of_edges, connected_components, node_connected_component, shortest_path
-
 from contextlib import ExitStack
-from .vcf import VcfReader, PhasedVcfWriter, VcfGenotypeLikelihoods, VcfGenotype
+
 from . import __version__
-from .core import Read, ReadSet, CoreAlgorithm, DynamicSparseGraph, readselection, NumericSampleIds, GenotypeLikelihoods, Genotype, compute_genotypes, compute_polyploid_genotypes
-from .graph import ComponentFinder
-from .bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
-from .timer import StageTimer
-from .variants import ReadSetReader, ReadSetError
-from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
+from .bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
+from .clustereditingplots import draw_clustering, draw_threading
+from .core import Read, ReadSet, CoreAlgorithm, DynamicSparseGraph, readselection, NumericSampleIds, compute_polyploid_genotypes
 from .matrixtransformation import MatrixTransformation
-from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components, find_largest_component, write_read_list
-from .clustereditingplots import draw_plots_dissimilarity, draw_plots_scoring, draw_column_dissimilarity, draw_heatmaps, draw_superheatmap, draw_cluster_coverage, draw_cluster_blocks, draw_dp_threading
+from .phase import read_reads, select_reads, split_input_file_list, find_components
 from .readscoring import score_global, score_local, score_local_patternbased
-from .threading import subset_clusters, get_local_cluster_consensus_withfrac, get_position_map, get_pos_to_clusters_map, get_cluster_start_end_positions, get_coverage, get_coverage_absolute, compute_linkage_based_block_starts
-#from .core import clusters_to_haps, clusters_to_blocks, avg_readlength, calc_consensus_blocks, subset_clusters
-__author__ = "Jana Ebler" 
+from .threading import run_threading, get_local_cluster_consensus_withfrac, get_position_map, get_pos_to_clusters_map, get_cluster_start_end_positions, get_coverage, get_coverage_absolute
+from .timer import StageTimer
+from .utils import IndexedFasta, FastaNotIndexedError
+from .variants import ReadSetReader
+from .vcf import VcfReader, PhasedVcfWriter, VcfGenotype
+
+__author__ = "Jana Ebler, Sven Schrinner" 
 
 logger = logging.getLogger(__name__)
 
@@ -259,6 +258,7 @@ def run_polyphase(
 					genotype_list_multi.append(allele_count)
 				timers.stop('read_bam')
 				
+				# Select reads, only for debug
 				#selected_reads = select_reads(readset, 40, preferred_source_ids = vcf_source_ids)
 				#readset = selected_reads
 				
@@ -378,7 +378,7 @@ def run_polyphase(
 
 					# Add dynamic programming for finding the most likely subset of clusters
 					genotype_slice = genotype_list_multi[ext_block_starts[block_id]:ext_block_starts[block_id+1]]
-					cut_positions, path, haplotypes = subset_clusters(block_readset, clustering, ploidy, sample, genotype_slice, block_cut_sensitivity, cython_threading)
+					cut_positions, path, haplotypes = run_threading(block_readset, clustering, ploidy, sample, genotype_slice, block_cut_sensitivity, cython_threading)
 					timers.stop('threading')
 
 					# collect results from threading
@@ -449,11 +449,11 @@ def run_polyphase(
 						for read in block_readset:
 							combined_readset.add(read)
 					if plot_clusters:
-						draw_superheatmap(combined_readset, clustering, phasable_variant_table, output_str+".clusters.pdf", genome_space = False)
+						draw_clustering(combined_readset, clustering, phasable_variant_table, output_str+".clusters.pdf", genome_space = False)
 					if plot_threading:
 						index, rev_index = get_position_map(combined_readset)
 						coverage = get_coverage(combined_readset, clustering, index)
-						draw_dp_threading(combined_readset, clustering, coverage, threading, cut_positions, haplotypes, phasable_variant_table, genotype_list_multi, output_str+".threading.pdf")
+						draw_threading(combined_readset, clustering, coverage, threading, cut_positions, haplotypes, phasable_variant_table, genotype_list_multi, output_str+".threading.pdf")
 				timers.stop('create_plots')
 
 			with timers('write_vcf'):
@@ -536,6 +536,77 @@ def find_inconsistencies(readset, clustering, ploidy):
 						separated_pairs.append((r0, r1))
 	
 	return num_inconsistent_positions, separated_pairs
+
+def compute_linkage_based_block_starts(readset, pos_index, ploidy, single_linkage = False):
+	num_vars = len(pos_index)
+
+	# cut threshold
+	min_block_size = 1
+	if ploidy == 2 or single_linkage:
+		cut_threshold = 1
+	else:
+		cut_threshold = ploidy*ploidy
+		for i in range(ploidy-1, ploidy*ploidy):
+			# chance to cover at most ploidy-2 haplotypes with i reads
+			cut_threshold = i
+			if ploidy * pow((ploidy-2)/ploidy, i) < 0.02:
+				cut_threshold = i
+				break
+	logger.debug("Cut position threshold: coverage >= {}".format(cut_threshold))
+	
+	# start by looking at neighbouring
+	link_to_next = [0 for i in range(num_vars)]
+	starts = []
+	ends = []
+	for read in readset:
+		pos_list = [pos_index[var.position] for var in read]
+		starts.append(pos_list[0])
+		ends.append(pos_list[-1])
+		for i in range(len(pos_list)-1):
+			if pos_list[i] + 1 == pos_list[i+1]:
+				link_to_next[pos_list[i]] += 1
+				
+	pos_clust = [0 for i in range(num_vars)]
+	for i in range(1, num_vars):
+		if link_to_next[i-1] >= cut_threshold:
+			pos_clust[i] = pos_clust[i-1]
+		else:
+			pos_clust[i] = pos_clust[i-1] + 1
+	num_clust = pos_clust[-1]+1
+			
+	# find linkage between clusters
+	link_coverage = [dict() for i in range(num_clust)]
+	for i, (start, end) in enumerate(zip(starts, ends)):
+		covered_pos_clusts = set([pos_clust[pos_index[var.position]] for var in readset[i]])
+		for p1 in covered_pos_clusts:
+			for p2 in covered_pos_clusts:
+				if p2 not in link_coverage[p1]:
+					link_coverage[p1][p2] = 0
+				link_coverage[p1][p2] += 1
+					
+	# merge clusters
+	merged_clust = [-1 for i in range(num_clust)]
+	new_num_clust = 0
+	for i in range(num_clust):
+		if merged_clust[i] >= 0:
+			continue
+		q = Queue()
+		q.put(i)
+		while not q.empty():
+			cur = q.get()
+			merged_clust[cur] = new_num_clust
+			for linked in link_coverage[cur]:
+				if merged_clust[linked] < 0 and link_coverage[cur][linked] >= cut_threshold:
+					q.put(linked)
+		new_num_clust += 1
+		
+	# determine cut positions
+	cuts = [0]
+	for i in range(1, num_vars):
+		if merged_clust[pos_clust[i]] != merged_clust[pos_clust[i-1]]:
+			cuts.append(i)
+
+	return cuts
 
 def add_arguments(parser):
 	arg = parser.add_argument
