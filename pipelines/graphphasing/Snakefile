@@ -124,7 +124,7 @@ rule compute_contig_assembly_layout:
                 chrom=config['chromosomes'][SPECIES],
                 scenario=[SCENARIO], sample=[SAMPLE])
     output:
-        'output/{scenario}/assembly_layout/{species}/{species}_{sample}.ctg.layout.gz'
+        'output/{scenario}/assembly_layout/{species}/{species}_{sample}.ctg.lay.gz'
     log: 'log/{scenario}/assembly_layout/{species}_{sample}.layout.log'
     threads: 48
     message: 'Running wtdbg2 assembler/layout on sample {wildcards.sample}'
@@ -142,7 +142,7 @@ rule compute_contig_assembly_layout:
 
 rule compute_contig_assembly_consensus:
     input:
-        ctg_layout = 'output/{scenario}/assembly_layout/{species}/{species}_{sample}.ctg.layout.gz'
+        ctg_layout = 'output/{scenario}/assembly_layout/{species}/{species}_{sample}.ctg.lay.gz'
     output:
         'output/{scenario}/assembled_contigs/{species}/{species}_{sample}.contigs.fasta'
     log: 'log/{scenario}/assembled_contigs/{species}_{sample}.consensus.log'
