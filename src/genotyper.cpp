@@ -69,6 +69,7 @@ void compute_polyploid_genotypes(const ReadSet& readset, size_t ploidy, std::vec
 	ColumnIterator column_iterator(readset, positions);
 	size_t column_index = 0;
 	while (column_iterator.has_next()) {
+		column_index += 1;
 		std::unique_ptr<std::vector<const Entry*> > column = column_iterator.get_next();
 		size_t ref_count = 0;
 		size_t alt_count = 0;
@@ -85,21 +86,29 @@ void compute_polyploid_genotypes(const ReadSet& readset, size_t ploidy, std::vec
 			}
 		}
 		// determine the genotype
-		double alt_frac = alt_count / (double) (ref_count + alt_count);
-		for (size_t i = 0; i <= ploidy; ++i){
-			double threshold = (i / (double) ploidy) + (1 / ((double) ploidy*2));
-//			std::cout << alt_frac << " " << threshold << std::endl;
-			if (alt_frac < threshold) {
-				Genotype genotype;
-				for (size_t j = 0; j < i; ++j){
-					genotype.add_allele(1);
+		size_t total_alleles = ref_count + alt_count;
+		if (total_alleles > 0) {
+			double alt_frac = alt_count / (double) (total_alleles);
+			for (size_t i = 0; i <= ploidy; ++i){
+				double threshold = (i / (double) ploidy) + (1 / ((double) ploidy*2));
+//				std::cout << alt_frac << " " << threshold << std::endl;
+				if (alt_frac < threshold) {
+					Genotype genotype;
+					for (size_t j = 0; j < i; ++j){
+						genotype.add_allele(1);
+					}
+					for (size_t j = 0; j < (ploidy-i); ++j){
+						genotype.add_allele(0);
+					}
+					genotypes->push_back(genotype);
+					break;
 				}
-				for (size_t j = 0; j < (ploidy-i); ++j){
-					genotype.add_allele(0);
-				}
-				genotypes->push_back(genotype);
-				break;
 			}
+		} else {
+			genotypes->push_back(Genotype());
 		}
 	}
+	cout << genotypes->size() << " " << positions->size() << column_index << endl;
+	assert(genotypes->size() == positions->size());
+	delete positions;
 }

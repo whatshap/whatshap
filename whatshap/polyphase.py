@@ -185,7 +185,7 @@ def run_polyphase(
 			if verify_genotypes:
 				positions = [v.position for v in variant_table.variants]
 				for sample in samples:
-					logger.info('---- Veriify genotyping of %s', sample)
+					logger.info('---- Verify genotyping of %s', sample)
 					with timers('read_bam'):
 						bam_sample = None if ignore_read_groups else sample
 						readset, vcf_source_ids = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
@@ -194,9 +194,9 @@ def run_polyphase(
 						# skip all positions at which genotypes do not match
 						given_genotypes = variant_table.genotypes_of(sample)
 						matching_genotypes = []
-						print(computed_genotypes, len(computed_genotypes))
-						print(given_genotypes, len(given_genotypes))
-						print(len(positions))
+#						print(computed_genotypes, len(computed_genotypes))
+#						print(given_genotypes, len(given_genotypes))
+#						print(len(positions))
 						for i,g in enumerate(given_genotypes):
 							c_g = computed_genotypes[i]
 							if (g == c_g) or (c_g is None):
