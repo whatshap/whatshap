@@ -151,7 +151,7 @@ def run_haplotag(
 		read_groups = bam_reader.header.get('RG', []) 
 		bam_samples = set( (rg['SM'] if 'SM' in rg else None) for rg in read_groups )
 		rg_to_sample = { rg['ID']:rg['SM'] for rg in read_groups if ('ID' in rg) and ('SM' in rg) }
-		logger.info('Samples in BAM file: %s', ','.join(bam_samples))
+		logger.info('Samples in BAM file: %s', ','.join([str(s) for s in bam_samples]))
 		samples = vcf_samples
 		if not ignore_read_groups:
 			samples = bam_samples.intersection(vcf_samples)
