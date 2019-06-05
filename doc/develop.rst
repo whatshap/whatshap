@@ -226,8 +226,8 @@ x.y to x.y.1. Do not change a version that has already been uploaded.
 Adding a new subcommand
 -----------------------
 
-Use one of the modules in ``whatshap/cli/``, and make sure to add it to the list
-of available subcommands in ``whatshap/__main__.py``.
+Use one of the modules in ``whatshap/cli/`` as a template. All modules in
+that directory are automatically used as subcommands.
 
 
 Download count statistics

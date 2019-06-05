@@ -1,23 +1,12 @@
 import sys
+import pkgutil
 import importlib
 import logging
+
+import whatshap.cli as cli_package
 from . import __version__
 from .args import HelpfulArgumentParser
 
-
-# List of all subcommands. A module of the given name must exist and define
-# add_arguments() and main() functions. Documentation is taken from the first
-# line of the module’s docstring.
-COMMANDS = [
-	'phase',
-	'stats',
-	'compare',
-	'hapcut2vcf',
-	'unphase',
-	'haplotag',
-	'genotype',
-	'find_snv_candidates',
-]
 
 logger = logging.getLogger(__name__)
 
@@ -59,11 +48,15 @@ def main(argv=sys.argv[1:]):
 	parser.add_argument('--version', action='version', version='%(prog)s ' + __version__)
 	parser.add_argument('--debug', action='store_true', default=False,
 		help='Print debug messages')
-
 	subparsers = parser.add_subparsers()
-	for command_name in COMMANDS:
-		module = importlib.import_module('.cli.' + command_name, 'whatshap')
-		subparser = subparsers.add_parser(command_name,
+
+	# Import each module that implements a subcommand and add a subparser for it.
+	# Each subcommand is implemented as a module in the cli subpackage.
+	# It needs to implement an add_arguments() and a main() function.
+	modules = pkgutil.iter_modules(cli_package.__path__)
+	for _, module_name, _ in modules:
+		module = importlib.import_module("." + module_name, cli_package.__name__)
+		subparser = subparsers.add_parser(module_name,
 				help=module.__doc__.strip().split("\n", maxsplit=1)[0], description=module.__doc__)
 		subparser.set_defaults(module=module, subparser=subparser)
 		module.add_arguments(subparser)
