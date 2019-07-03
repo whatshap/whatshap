@@ -121,15 +121,21 @@ def logratio_sim(overlap, diffs, dist_same, dist_diff, min_overlap):
 		score = log(p_same / p_diff)
 	return score
 			
-# only for debug purpose!!!
+'''
+This method only works for a test dataset, for which the true haplotype of read was encoded
+into its name. For any other read name, it just returns -1 for unknown haplotype
+'''
 def parse_haplotype(name):
-	tokens = name.split("_")
-	if (tokens[-2] == "HG00514" and tokens[-1] == "HAP1"):
-		return 0
-	elif (tokens[-2] == "HG00514" and tokens[-1] == "HAP2"):
-		return 1
-	elif (tokens[-2] == "NA19240" and tokens[-1] == "HAP1"):
-		return 2
-	elif (tokens[-2] == "NA19240" and tokens[-1] == "HAP2"):
-		return 3
+	try:
+		tokens = name.split("_")
+		if (tokens[-2] == "HG00514" and tokens[-1] == "HAP1"):
+			return 0
+		elif (tokens[-2] == "HG00514" and tokens[-1] == "HAP2"):
+			return 1
+		elif (tokens[-2] == "NA19240" and tokens[-1] == "HAP1"):
+			return 2
+		elif (tokens[-2] == "NA19240" and tokens[-1] == "HAP2"):
+			return 3
+	except:
+		pass
 	return -1

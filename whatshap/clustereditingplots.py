@@ -104,7 +104,7 @@ def draw_clustering(readset, clustering, var_table, path, genome_space = False):
 			end = index[readset[read][-1].position]
 			read_id += 1
 			
-			color_code = 'C'+str(true_hap[read]) if true_hap[read] != '-1' else 'black'
+			color_code = 'C'+str(true_hap[read]) if true_hap[read] != -1 else 'black'
 			if color_code not in legend_handles:
 				legend_handles[color_code] = mpatches.Patch(color=color_code, label=true_hap[read])
 			if genome_space:
@@ -139,6 +139,10 @@ def plot_haplotype_dissimilarity(legend_handles, y_offset, y_margin, index, rev_
 	#phase_rows = [variant.phase for variant in tmp_table.phases[0]]
 	#phase_vectors = [[row[i] for row in phase_rows] for i in range(len(phase_rows[0]))]
 	phase_vectors = get_phase(readset, var_table)
+	if not phase_vectors:
+		# No phasing information available
+		return
+	
 	chunk = 24
 	padding = int(readlen//2) # dissimilarity of position i is averaged over interval of 2*padding base pairs (not positions)
 
@@ -187,7 +191,10 @@ def plot_haplotype_dissimilarity(legend_handles, y_offset, y_margin, index, rev_
 def get_phase(readset, var_table):
 	tmp_table = deepcopy(var_table)
 	tmp_table.subset_rows_by_position(readset.get_positions())
-	phase_rows = [variant.phase for variant in tmp_table.phases[0]]
+	try:
+		phase_rows = [variant.phase for variant in tmp_table.phases[0]]
+	except AttributeError as e:
+		return None
 	return [[row[i] for row in phase_rows] for i in range(len(phase_rows[0]))]
 	
 def haplodist(h1, h2, intervals):
@@ -264,29 +271,37 @@ def draw_threading(readset, clustering, coverage, paths, cut_positions, haplotyp
 	#print(cut_positions)
 	#print(cut_pos)
 	#print(haplotypes)
-	phase_vectors = get_phase(readset, var_table)
-	truth = []
-	assert len(phase_vectors) == ploidy
-	for k in range(ploidy):
-		truth.append("".join(map(str, phase_vectors[k])))
-	for i in range(len(cut_pos)-1):
-		block1 = [h[cut_pos[i]:min(len(paths), cut_pos[i+1])] for h in truth]
-		block2 = [h[cut_pos[i]:min(len(paths), cut_pos[i+1])] for h in haplotypes]
+	
+	# If we have ground truth, retrieve it
+	compare = True
+	try:
+		phase_vectors = get_phase(readset, var_table)
+		truth = []
+		assert len(phase_vectors) == ploidy
+		for k in range(ploidy):
+			truth.append("".join(map(str, phase_vectors[k])))
+	except:
+		compare = False
+	
+	if compare:
+		for i in range(len(cut_pos)-1):
+			block1 = [h[cut_pos[i]:min(len(paths), cut_pos[i+1])] for h in truth]
+			block2 = [h[cut_pos[i]:min(len(paths), cut_pos[i+1])] for h in haplotypes]
 
-		switchflips, switches_in_column, flips_in_column, poswise_config = compute_switch_flips_poly_bt(block1, block2, report_error_positions = True, switch_cost = 1+1/(num_vars*ploidy))
-		for pos, e in enumerate(switches_in_column):
-			if e > 0:
-				plt.vlines(x = cut_pos[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*e, color = 'blue', alpha = 0.6)
-				plt.vlines(x = cut_pos[i]+pos, ymax = len(all_threaded), ymin = 0, color = 'blue', alpha = 0.05)
-		for pos, flipped in enumerate(flips_in_column):
-			if len(flipped) == 0:
-				continue
-			if cut_pos[i]+pos >= len(paths):
-				continue
-			plt.vlines(x = cut_pos[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*len(flipped), color = 'orange', alpha = 0.6)
-			for h in flipped:
-				c_id = c_map[paths[cut_pos[i]+pos][h]]
-				plt.hlines(y = (c_id+0.25+h/ploidy*0.5)*(c_height+y_margin), xmin = cut_pos[i]+pos-0.5, xmax = cut_pos[i]+pos+0.5, color = 'black', alpha = 0.6)
+			switchflips, switches_in_column, flips_in_column, poswise_config = compute_switch_flips_poly_bt(block1, block2, report_error_positions = True, switch_cost = 1+1/(num_vars*ploidy))
+			for pos, e in enumerate(switches_in_column):
+				if e > 0:
+					plt.vlines(x = cut_pos[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*e, color = 'blue', alpha = 0.6)
+					plt.vlines(x = cut_pos[i]+pos, ymax = len(all_threaded), ymin = 0, color = 'blue', alpha = 0.05)
+			for pos, flipped in enumerate(flips_in_column):
+				if len(flipped) == 0:
+					continue
+				if cut_pos[i]+pos >= len(paths):
+					continue
+				plt.vlines(x = cut_pos[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*len(flipped), color = 'orange', alpha = 0.6)
+				for h in flipped:
+					c_id = c_map[paths[cut_pos[i]+pos][h]]
+					plt.hlines(y = (c_id+0.25+h/ploidy*0.5)*(c_height+y_margin), xmin = cut_pos[i]+pos-0.5, xmax = cut_pos[i]+pos+0.5, color = 'black', alpha = 0.6)
 		
 	#plt.legend(handles=legend_handles.values(), loc='lower center', ncol=len(legend_handles))
 	axes = plt.gca()
