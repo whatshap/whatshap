@@ -262,6 +262,45 @@ def run_polyphase(
 				#selected_reads = select_reads(readset, 120, preferred_source_ids = vcf_source_ids)
 				#readset = selected_reads
 				
+				'''
+				logger.info('Removing reads in regions with unhealthy coverage ..')
+				index, rev_index = get_position_map(readset)
+				num_vars = len(rev_index)
+				clustering = [list(range(len(readset)))]
+
+				abs_coverage = get_coverage_absolute(readset, clustering, index)
+				abs_coverage2 = [abs_coverage[pos][0] for pos in range(num_vars)]
+				sorted_cov = sorted(abs_coverage2)
+				median_cov = sorted_cov[num_vars//2]
+				print("Positions: {}".format(num_vars))
+				print("Average coverage: {}".format(sum(sorted_cov) / num_vars))
+				print("Median coverage: {}".format(sorted_cov[num_vars//2]))
+				print("75% quantile: {}".format(sorted_cov[3*num_vars//4]))
+				print("90% quantile: {}".format(sorted_cov[9*num_vars//10]))
+				print("95% quantile: {}".format(sorted_cov[95*num_vars//100]))
+				print("96% quantile: {}".format(sorted_cov[96*num_vars//100]))
+				print("97% quantile: {}".format(sorted_cov[97*num_vars//100]))
+				print("98% quantile: {}".format(sorted_cov[98*num_vars//100]))
+				print("99% quantile: {}".format(sorted_cov[99*num_vars//100]))
+				print("99.5% quantile: {}".format(sorted_cov[995*num_vars//1000]))
+				print("99.75% quantile: {}".format(sorted_cov[9975*num_vars//10000]))
+				print("99.9% quantile: {}".format(sorted_cov[999*num_vars//1000]))
+				print("99.99% quantile: {}".format(sorted_cov[9999*num_vars//10000]))
+				
+				healthy_reads = ReadSet()
+				for i, read in enumerate(readset):
+					cov_sum = 0
+					num_pos = 0
+					for variant in read:
+						cov_sum += abs_coverage2[index[variant.position]]
+						num_pos += 1
+					if cov_sum/num_pos < 1.5*median_cov:
+						healthy_reads.add(read)
+						
+				readset = healthy_reads
+				logger.info('Kept {} reads with average coverage at most {}.'.format(len(readset), 1.5*median_cov))
+				'''
+				
 				# Precompute block borders based on read coverage and linkage between variants
 				logger.info('Detecting connected components with weak interconnect ..')
 				timers.start('detecting_blocks')
@@ -308,25 +347,15 @@ def run_polyphase(
 				timers.stop('detecting_blocks')
 				
 				'''
-				print("1")
 				index, rev_index = get_position_map(readset)
 				num_vars = len(rev_index)
 				num_clusters = 1
-				print("2")
 				clustering = [list(range(len(readset)))]
-				print("3")
-
-				#cov_map = get_pos_to_clusters_map(readset, clustering, index, ploidy)
-				#positions = get_cluster_start_end_positions(readset, clustering, index)
-				#coverage = get_coverage(readset, clustering, index)
 				abs_coverage = get_coverage_absolute(readset, clustering, index)
-				print("4")
 				abs_coverage2 = [abs_coverage[pos][0] for pos in range(num_vars)]
-				print("5")
 				readlen = [len(read) for read in readset]
 				readlen.sort()
 				numreads = len(readset)
-				print("6")
 				
 				sorted_cov = sorted(abs_coverage2)
 				print("Positions: {}".format(num_vars))
