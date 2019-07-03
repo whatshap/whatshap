@@ -65,8 +65,9 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* reads
     computeOverlapDiff(readset, begins, ends, positions, alleles, posList, posMap, overlaps, diffs, defaultSameDist, defaultDiffDist, minOverlap, ploidy, longestReadSpan);
     
     std::vector<std::pair<uint32_t, uint32_t>> entries = overlaps.getEntries();
-//     std::cout<<"default same = "<<defaultSameDist<<std::endl;
-//     std::cout<<"default diff = "<<defaultDiffDist<<std::endl;
+    //std::cout<<"defaultSameDist="<<defaultSameDist<<" defaultDiffDist="<<defaultDiffDist<<std::endl;
+    //defaultSameDist = std::max(0.05, defaultSameDist);
+    //defaultDiffDist = std::min(0.5, std::max(defaultDiffDist, defaultSameDist+0.15));
     
     // compute longest read length and average read length (in base pairs) and divide by 2
     uint32_t windowSize = 0;
@@ -91,8 +92,6 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* reads
     windowStarts.push_back(posList.size()+1);
     
     // determine relative hamming distance for same and different haplotypes for each window
-    std::vector<double> sameDist;
-    std::vector<double> diffDist;
     for (uint32_t windowIdx = 0; windowIdx < windowStarts.size()-1; windowIdx++) {
         // window bounds
         uint32_t start = posList[windowStarts[windowIdx]];
@@ -106,13 +105,15 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* reads
         computeOverlapDiff(readset, begins, ends, positions, alleles, posList, posMap, overlapsLocal, diffsLocal, 
                            localSameDist, localDiffDist, minOverlap, ploidy, longestReadSpan, start, end);
         
+        //localSameDist += 0.10;
+        //localDiffDist = std::min(0.5, localSameDist+0.15);
+        
         if (diffsLocal.getEntries().size() < ploidy) {
             localSameDist = defaultSameDist;
             localDiffDist = defaultDiffDist;
         }
         
-        sameDist.push_back(localSameDist);
-        sameDist.push_back(localDiffDist);
+        //std::cout<<"localSameDist="<<localSameDist<<" localDiffDist="<<localDiffDist<<std::endl;
         
         // store values in a map for every snp position
         for (uint32_t j = windowStarts[windowIdx]; j < windowStarts[windowIdx+1]; j++) {

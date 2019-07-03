@@ -61,7 +61,7 @@ def create_histogram(path, same, diff, steps, dim, x_label, title, name1='same',
 		
 def draw_clustering(readset, clustering, var_table, path, genome_space = False):
 	# Sort a deep copy of clustering
-	clusters = sorted(deepcopy(clustering), key = lambda x: min([readset[i][0].position for i in x]))
+	clusters = sorted(deepcopy(clustering), key = lambda x: min([readset[i][0].position for i in x]) if len(x) > 0 else 0)
 
 	# Construct real and predicted haplotype per read
 	true_hap = [parse_haplotype(read.name) for read in readset]

@@ -259,7 +259,7 @@ def run_polyphase(
 				timers.stop('read_bam')
 				
 				# Select reads, only for debug
-				#selected_reads = select_reads(readset, 40, preferred_source_ids = vcf_source_ids)
+				#selected_reads = select_reads(readset, 120, preferred_source_ids = vcf_source_ids)
 				#readset = selected_reads
 				
 				# Precompute block borders based on read coverage and linkage between variants
@@ -282,7 +282,8 @@ def run_polyphase(
 						var_to_block[var] = i
 				block_readsets = [ReadSet() for i in range(len(block_starts))]
 				assert len(block_readsets) == len(block_starts)
-				logger.info("Split heterozygous variants into {} blocks.".format(len(block_starts)))
+				num_non_singleton_blocks = len([i for i in range(len(block_starts)) if ext_block_starts[i] < ext_block_starts[i+1] - 1])
+				logger.info("Split heterozygous variants into {} blocks (and {} singleton blocks).".format(num_non_singleton_blocks, len(block_starts) - num_non_singleton_blocks))
 								
 				for i, read in enumerate(readset):
 					if not read.is_sorted():
@@ -305,14 +306,98 @@ def run_polyphase(
 							read_slice.add_variant(variant.position, variant.allele, variant.quality)
 						block_readsets[current_block].add(read_slice)
 				timers.stop('detecting_blocks')
-						
+				
+				'''
+				print("1")
+				index, rev_index = get_position_map(readset)
+				num_vars = len(rev_index)
+				num_clusters = 1
+				print("2")
+				clustering = [list(range(len(readset)))]
+				print("3")
+
+				#cov_map = get_pos_to_clusters_map(readset, clustering, index, ploidy)
+				#positions = get_cluster_start_end_positions(readset, clustering, index)
+				#coverage = get_coverage(readset, clustering, index)
+				abs_coverage = get_coverage_absolute(readset, clustering, index)
+				print("4")
+				abs_coverage2 = [abs_coverage[pos][0] for pos in range(num_vars)]
+				print("5")
+				readlen = [len(read) for read in readset]
+				readlen.sort()
+				numreads = len(readset)
+				print("6")
+				
+				sorted_cov = sorted(abs_coverage2)
+				print("Positions: {}".format(num_vars))
+				print("Average coverage: {}".format(sum(sorted_cov) / num_vars))
+				print("Median coverage: {}".format(sorted_cov[num_vars//2]))
+				print("75% quantile: {}".format(sorted_cov[3*num_vars//4]))
+				print("90% quantile: {}".format(sorted_cov[9*num_vars//10]))
+				print("95% quantile: {}".format(sorted_cov[95*num_vars//100]))
+				print("96% quantile: {}".format(sorted_cov[96*num_vars//100]))
+				print("97% quantile: {}".format(sorted_cov[97*num_vars//100]))
+				print("98% quantile: {}".format(sorted_cov[98*num_vars//100]))
+				print("99% quantile: {}".format(sorted_cov[99*num_vars//100]))
+				print("99.5% quantile: {}".format(sorted_cov[995*num_vars//1000]))
+				print("99.75% quantile: {}".format(sorted_cov[9975*num_vars//10000]))
+				print("99.9% quantile: {}".format(sorted_cov[999*num_vars//1000]))
+				print("99.99% quantile: {}".format(sorted_cov[9999*num_vars//10000]))
+				
+				print("Reads: {}".format(numreads))
+				print("Average length: {}".format(sum(readlen) / numreads))
+				print("Median length: {}".format(readlen[numreads//2]))
+				print("75% quantile: {}".format(readlen[3*numreads//4]))
+				print("90% quantile: {}".format(readlen[9*numreads//10]))
+				print("95% quantile: {}".format(readlen[95*numreads//100]))
+				print("96% quantile: {}".format(readlen[96*numreads//100]))
+				print("97% quantile: {}".format(readlen[97*numreads//100]))
+				print("98% quantile: {}".format(readlen[98*numreads//100]))
+				print("99% quantile: {}".format(readlen[99*numreads//100]))
+				print("99.5% quantile: {}".format(readlen[995*numreads//1000]))
+				print("99.75% quantile: {}".format(readlen[9975*numreads//10000]))
+				print("99.9% quantile: {}".format(readlen[999*numreads//1000]))
+				print("99.99% quantile: {}".format(readlen[9999*numreads//10000]))
+				'''
+										
 				# Process blocks independently
 				blockwise_clustering = []
 				blockwise_paths = []
 				blockwise_haplotypes = []
 				blockwise_cut_positions = []
+				processed_non_singleton_blocks = 0
 				for block_id, block_readset in enumerate(block_readsets):
-					logger.info("Processing block {} of {} with {} reads and {} variants.".format(block_id+1, len(block_readsets), len(block_readset), ext_block_starts[block_id+1] - ext_block_starts[block_id]))
+					
+					# Check for singleton blocks and handle them differently (for efficiency reasons)
+					if ext_block_starts[block_id+1] - ext_block_starts[block_id] == 1:
+						
+						# construct trivial solution for singleton blocks, by basically using the genotype as phasing
+						genotype_slice = genotype_list_multi[ext_block_starts[block_id]:ext_block_starts[block_id+1]]
+						genotype_to_id = dict()
+						for genotype in genotype_slice[0]:
+							if genotype not in genotype_to_id:
+								genotype_to_id[genotype] = len(genotype_to_id)
+						clustering = [[] for i in range(len(genotype_to_id))]
+						for i, read in enumerate(block_readset):
+							allele = read[0].allele
+							clustering[genotype_to_id[allele]].append(i)
+						
+						path = [[]]
+						haplotypes = []
+						for genotype in genotype_slice[0]:
+							for i in range(genotype_slice[0][genotype]):
+								path[0].append(genotype_to_id[genotype])
+								haplotypes.append(str(genotype))
+						
+						blockwise_clustering.append(clustering)		
+						blockwise_paths.append(path)
+						blockwise_haplotypes.append(haplotypes)
+						blockwise_cut_positions.append([0])
+						continue	
+					
+					# Block is non-singleton here, so run the normal routine
+					processed_non_singleton_blocks += 1
+					logger.info("Processing block {} of {} with {} reads and {} variants.".format(processed_non_singleton_blocks, num_non_singleton_blocks, len(block_readset), ext_block_starts[block_id+1] - ext_block_starts[block_id]))
 					assert len(block_readset.get_positions()) == ext_block_starts[block_id+1] - ext_block_starts[block_id]
 
 					# Transform allele matrix, if option selected
