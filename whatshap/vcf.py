@@ -896,7 +896,8 @@ class GenotypeVcfWriter(VcfAugmenter):
 					# store quality as phred score
 					if not geno == -1:
 						# TODO default value ok?
-						if geno_q is not None:
+						assert geno_q is not None
+						if geno_q > 0:
 							call['GQ'] = min(round(-10.0 * math.log10(geno_q)), 10000)
 						else:
 							call['GQ'] = 10000
