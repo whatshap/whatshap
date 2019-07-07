@@ -163,7 +163,7 @@ def eval_overlap(n1, n2):
 	overlap = zip(n1['sites'][hang1:], n2['sites'])
 	match, mismatch = (0, 0)
 	for (c1, c2) in overlap:
-		if c1 in ['A', 'C', 'G', 'T'] and c1 in ['A', 'C', 'G', 'T']:
+		if c1 in ['A', 'C', 'G', 'T'] and c2 in ['A', 'C', 'G', 'T']:
 			if c1 == c2:
 				match += 1
 			else:
