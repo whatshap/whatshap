@@ -8,6 +8,7 @@ venv*/
 tmp/
 *.bak
 MANIFEST
+pip-wheel-metadata/
 raw/
 doc/_build
 dist/
