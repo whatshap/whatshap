@@ -1,23 +1,25 @@
 """
 Phase reads mapped to bubble chains
 
-The output is a FASTA file with written to standard output
+The output is a FASTA file written to standard output that needs to be piped to a file
 """
 
 import logging
 import os
 import sys
+import time
 from copy import deepcopy
 from whatshap.core import ReadSet, Read, Pedigree, PedigreeDPTable, NumericSampleIds, readselection
 from whatshap.pedigree import uniform_recombination_map
 from whatshap.vg_pb2 import Alignment
 from whatshap.graph import ComponentFinder
 import stream
-import pdb
+#import pdb
 
 __author__ = "Fawaz Dabbaghie"
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class Node:
@@ -170,7 +172,7 @@ def compact_graph(nodes, k):
 
 
 def reverse_complement(seq):
-	complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A'}
+	complement = {'A': 'T', 'C': 'G', 'G': 'C', 'T': 'A', 'N': 'N'}
 	return ''.join([complement[base] for base in seq[::-1]])
 
 
@@ -182,10 +184,13 @@ def add_arguments(parser):
 
 
 def validate(args, parser):
+
 	if not os.path.exists(args.gfa_file):
+		os.remove("phaseb.log")
 		parser.error("The GFA file was not found")
 
 	if not os.path.exists(args.gam_file):
+		os.remove("phaseb.log")
 		parser.error("The GAM file was not found")
 
 
@@ -246,6 +251,9 @@ def read_gfa(gfa_file_path, modified=False):
 
 		k = int(line[1])
 		neighbor = int(line[3])
+		if (k not in nodes) or (neighbor not in nodes):
+			continue
+
 		if line[2] == "-":
 			from_start = True
 		else:
@@ -304,7 +312,12 @@ def build_readsets(nodes, gam_file_path):
 	# 	debugging_dict[x] = 0
 
 	with stream.open(str(gam_file_path), "rb") as instream:
+		counter = 0
 		for data in instream:
+			counter += 1
+			if (counter % 1000000) == 0:
+				logger.info("Processed {} reads and we have {} readsets".format(counter, len(all_readsets)))
+
 			g = Alignment()
 			g.ParseFromString(data)
 
@@ -335,19 +348,28 @@ def build_readsets(nodes, gam_file_path):
 			if len(read) >= 2:
 				# some reads are present more than once and map to the same chain
 				# maybe due to some big gaps that didn't map
+				if n_id not in nodes:
+					continue
 				try:
 					all_readsets[nodes[n_id].which_chain].add(read)
 				except RuntimeError:
+					if (int(nodes[n_id].which_allele) == 0) or (int(nodes[n_id].which_allele) == 1):
+						read.add_variant(nodes[n_id].which_b, nodes[n_id].which_allele, 30)
+				except KeyError:
+					all_readsets[nodes[n_id].which_chain] = ReadSet()
 					if (int(nodes[n_id].which_allele) == 0) or (int(nodes[n_id].which_allele) == 1):
 						read.add_variant(nodes[n_id].which_b, nodes[n_id].which_allele, 30)
 
 	return all_readsets
 
 
-def return_seq(nodes, haplotig, k):
+def return_seq(nodes, haplotig, k, chain_n, bubble_haplotigs):
 	"""
 	:param nodes: dictionary of node objects
 	:param haplotig: list of nodes in the haplotig to make a subgraph from and run
+	:param k: overlap length
+	:param chain_n: the chain key
+	:param bubble_haplotigs: dict of bubble_haplotigs
 	:return:
 	"""
 	path = dict()
@@ -366,20 +388,29 @@ def return_seq(nodes, haplotig, k):
 	try:
 		assert len(path) == 1
 		for value in path.values():
-			return value.seq
+			return [value.seq]
 
 	except AssertionError:
-		pdb.set_trace()
-	# pdb.set_trace()
+		logger.info("The path has length {} and its nodes are {} error happened on chain {} "
+					"and the bubble haplotigs are {} "
+					"and the haplotig is {}".format(len(path), list(path.keys()), chain_n, bubble_haplotigs, haplotig))
+		seqs = []
+		for value in path.values():
+			seqs.append(value.seq)
+
+		return seqs
 
 
-def output_fasta(nodes, bubble_chains, bubble_membership, k, split_components, bubble_haplotigs):
+def output_fasta(nodes, bubble_chains, bubble_membership, k, split_components, bubble_haplotigs, overall_components,
+				 chain_n):
 	"""
 	:param nodes: dictionary of node objects
 	:param bubble_chains: dict of bubble chains, each is a dict of bubble ids and nodes belonging to that bubble.
 	:param k: overlap between nodes
 	:param split_components: dicionary of readsets, and inside each one is split based on block
 	:param bubble_haplotigs: dictionary mapping each bubble to the haplotigs
+	:param overall_components: from whatshap
+	:param chain_n: for debugging
 	"""
 	# I had to add this dictionary because some read set can bridge between two chains
 	# I only know the original chain, but not the one it bridges too, but I know which bubbles it covered when
@@ -392,24 +423,49 @@ def output_fasta(nodes, bubble_chains, bubble_membership, k, split_components, b
 			haplotig_2 = []
 			for bubble in sub_block:
 				for node in bubble_chains[bubble_membership[bubble]][bubble]:
-					if nodes[node].which_allele == -1:
-						haplotig_1.append(node)
-						haplotig_2.append(node)
-					elif nodes[node].which_allele == bubble_haplotigs[bubble][0]:
-						haplotig_1.append(node)
-					elif nodes[node].which_allele == bubble_haplotigs[bubble][1]:
-						haplotig_2.append(node)
+					try:
+						if nodes[node].which_allele == -1:
+							haplotig_1.append(node)
+							haplotig_2.append(node)
 
-			seq_1 = return_seq(nodes, haplotig_1, k)
-			seq_2 = return_seq(nodes, haplotig_2, k)
-			print(">" + "chain" + str(bubble_membership[bubble]) + "|block" + str(block_n) +
-				  "|sub_block" + str(sub_block_n) + "|haplotig1")
-			print(seq_1)
+						elif nodes[node].which_allele == bubble_haplotigs[bubble][0]:
+							haplotig_1.append(node)
+						elif nodes[node].which_allele == bubble_haplotigs[bubble][1]:
+							haplotig_2.append(node)
+					except KeyError:
+						logger.info("Key error for bubble {}, this is weird".format(bubble))
 
-			print(">" + "chain" + str(bubble_membership[bubble]) + "|block" + str(block_n) +
-				  "|sub_block" + str(sub_block_n) + "|haplotig2")
-			print(seq_2)
-			# pdb.set_trace()
+			try:
+				assert len(haplotig_1) == len(haplotig_2)
+			except AssertionError:
+				logger.info("haplotig_1 and 2 are not the same size for {}".format(split_components))
+				continue
+
+			seq_1 = return_seq(nodes, haplotig_1, k, chain_n, bubble_haplotigs)
+			seq_2 = return_seq(nodes, haplotig_2, k, chain_n, bubble_haplotigs)
+			# return_seq(nodes, haplotig_1, k, str(bubble_membership[bubble]), bubble_haplotigs, 1)
+			# return_seq(nodes, haplotig_2, k, str(bubble_membership[bubble]), bubble_haplotigs, 2)
+			try:
+				assert len(seq_1) == len(seq_2)
+			except AssertionError:
+				logger.info("seq_1 and seq_2 were not equal in {}".format(overall_components))
+				continue
+
+			for idx, seq in enumerate(seq_1):
+				if seq is not None:
+					print(">" + "chain:" + str(chain_n) + "|block" + str(block_n) +
+						  "|sub_block" + str(sub_block_n) + "_" + str(idx) + "|haplotig1")
+					print(seq)
+			for idx, seq in enumerate(seq_2):
+				# todo implement the reverse thing better, but the aligner should handle both version
+				if seq[0:10] == reverse_complement(seq_1[idx])[0:10]:
+					# print("I am here {}".format(bubble_membership[bubble]))
+
+					seq = reverse_complement(seq)
+				if seq is not None:
+					print(">" + "chain:" + str(chain_n) + "|block" + str(block_n) +
+						  "|sub_block" + str(sub_block_n) + "_" + str(idx) + "|haplotig2")
+					print(seq)
 
 
 def split_blocks(overall_components):
@@ -425,11 +481,12 @@ def split_blocks(overall_components):
 			components[comp].append(pos)
 
 	# components now is a dictionary according to blocks
-	# superbubbles can break the blocks further, so we need to account for that
+	# superbubbles can break the blocks further, so we need to account for that and have sub-blocks
 	for comp_idx, comp in components.items():
 		comp.sort()
 		breaking_point = []
 		new_comp = {}
+		# pdb.set_trace()
 		for i in range(1, len(comp)):
 			# if there's a superbubble then the numbers for bubbles won't be consecutive
 			if comp[i] != comp[i - 1] + 1:
@@ -438,15 +495,37 @@ def split_blocks(overall_components):
 		if breaking_point:
 			for idx, i in enumerate(breaking_point):
 				if idx == 0:
-					new_comp[len(new_comp) + 1] = [x for x in comp if x < i]
+					block = [x for x in comp if x < i]
+					if block:
+						new_comp[len(new_comp) + 1] = block
 				if 0 < idx < len(breaking_point) - 1:
-					new_comp[len(new_comp) + 1] = [x for x in comp if breaking_point[idx - 1] < x < i]
-				if idx == len(new_comp) - 1:
-					new_comp[len(new_comp) + 1] = [x for x in comp if x > i]
+					block = [x for x in comp if breaking_point[idx - 1] < x < i]
+					if block:
+						new_comp[len(new_comp) + 1] = [x for x in comp if breaking_point[idx - 1] < x < i]
+				if idx == len(breaking_point) - 1:
+					block1 = [x for x in comp if breaking_point[idx - 1] < x < i]
+					block2 = [x for x in comp if x > i]
+					if block1:
+						new_comp[len(new_comp) + 1] = block1
+					if block2:
+						new_comp[len(new_comp) + 1] = block2
 
 				components[comp_idx] = new_comp
 		else:
 			components[comp_idx] = {1: comp}
+
+	# overall_components_keys = list(overall_components.keys())
+	# overall_components_keys.sort()
+	# split_components = []
+	# for block_n, block in components.items():
+	# 	for sub_block_n, sub_block in block.items():
+	# 		split_components += sub_block
+	# try:
+	# 	print(overall_components_keys)
+	# 	print(split_components)
+	# 	assert len(overall_components_keys) == len(split_components)
+	# except AssertionError:
+	# 	pdb.set_trace()
 
 	return components
 
@@ -469,7 +548,7 @@ def find_components(phased_positions, reads, master_block=None, heterozygous_pos
 							  positions. Component building is then restricted to variants
 							  at these positions. If none, all variants are used.
 	"""
-	logger.debug('Finding connected components ...')
+	# logger.debug('Finding connected components ...')
 	assert phased_positions == sorted(phased_positions)
 
 	# Find connected components.
@@ -500,23 +579,46 @@ def run_phaseb(gfa_file, k, gam_file):
 	:param gam_file: path to gam file
 	:return:
 	"""
-
+	logger.info("reading graph file now...")
 	nodes, bubble_chains = read_gfa(gfa_file, modified=True)
+	logger.info("finished reading graph file.")
 	bubble_membership = dict()
 	for chain_k, chain in bubble_chains.items():
 		for bubble in list(chain.keys()):
 			bubble_membership[bubble] = chain_k
 
+	logger.info("reading alignments and building readsets")
 	all_readsets = build_readsets(nodes, gam_file)
+	logger.info("finished reading alignments and building readset, there are {} readsets".format(len(all_readsets)))
 
+	counter = 0
 	for chain_n, readset in all_readsets.items():
+
+		logger.info("In chain {}".format(chain_n))
+		counter += 1
+		if (counter % 10000) == 0:
+			logger.info("processed {} readsets".format(counter))
 		if len(readset) == 0:
 			continue
 		# if chain_n != 1:
 		# 	continue
 		# sort by starting positions of the reads
-		for read in readset:
-			read.sort()
+		all_read_pos = set()
+		problematic_reads = set()
+		for idx, read in enumerate(readset):
+			all_read_pos.add(idx)
+			try:
+				read.sort()
+			except RuntimeError:
+				problematic_reads.add(idx)
+
+		if len(problematic_reads) > 0:
+			logger.info("Chain number {} with length {} had some problematic reads".format(chain_n, len(bubble_chains[chain_n])))
+			continue
+			# for i in problematic_reads:
+			# 	logger.info(readset[i])
+
+		# readset = readset.subset(all_read_pos - problematic_reads)
 
 		readset.sort()
 		# print(len(readset))
@@ -542,7 +644,9 @@ def run_phaseb(gfa_file, k, gam_file):
 		try:
 			assert len(recombination_cost) == len(positions)
 		except AssertionError:
-			pdb.set_trace()
+			logger.info("For some reason recombination_cost didn't have the same length as positions")
+			continue
+			# pdb.set_trace()
 		# assume all genotypes are heterozygous
 		distrust_genotypes = False
 		genotypes = [1] * len(positions)
@@ -559,42 +663,71 @@ def run_phaseb(gfa_file, k, gam_file):
 		# print(type(read_partitioning))
 		# print(read_partitioning)
 		overall_components = find_components(positions, readset)
+		if len(overall_components) < 2:  # in case there was only one bubble covered
+			continue
+
 		split_components = split_blocks(overall_components)
 		# pdb.set_trace()
 
 		# how to get the order of reads in readset:
 		ordered_readnames = [read.name for read in selected_reads]
-		assert len(read_partitioning) == len(ordered_readnames)
+		try:
+			assert len(read_partitioning) == len(ordered_readnames)
+		except AssertionError:
+			logger.info("For osme reason read_partitioning and ordered_readnames are not equal")
+			continue
 
 		# super_reads for later
 		superreads_list, transmission_vector = dp_table.get_super_reads()
 		two_haplotigs = superreads_list[0]
 		# print("for the bubble_chain {} the two haplotigs are and the number of reads is {}".format(chain_n,len(readset)))
-		for read in two_haplotigs:
-			haplotig = []
-			for x in list(read):
-				haplotig.append(x.allele)
-			# print(haplotig)
+		haplotig = []
+		for idx, read in enumerate(two_haplotigs):
+			if idx == 0:  # just taking the first path as the second is just the opposite positions
+				for x in list(read):
+					haplotig.append(x.allele)
+
 		# I need to make a dictionary of bubble_id haplotig
+		try:
+			assert len(haplotig) == len(overall_components.keys())
+		except AssertionError:
+			logger.info("haplotig and overall_components are not the same, something weird went wrong {}\t{}".format(haplotig, overall_components.keys()))
+
+		# todo the problem is somewhere around here
 		bubble_haplotigs = {}
-		counter = 0
-		for b in overall_components:
-			if haplotig[counter] == 0:
+		for idx, b in enumerate(list(overall_components.keys())):
+			if haplotig[idx] == 0:
 				bubble_haplotigs[b] = [0, 1]
-			elif haplotig[counter] == 1:
+			elif haplotig[idx] == 1:
 				bubble_haplotigs[b] = [1, 0]
+			else:
+				# this is in case I had equal scores, I'll change the seq in the branch nodes to N
+				# and I randomly assign 0 and 1
+				# I need the bubble_membership dict because the overall component can give back bubbles not in the
+				# current branch (some reads can branch out to other chains), so I can check where does the bubble come
+				# from, then check the nodes inside it
+				bubble_haplotigs[b] = [0, 1]
+				for node in bubble_chains[bubble_membership[b]][b]:
+					if (nodes[node].which_allele == 1) or (nodes[node].which_allele == 0):
+						nodes[node].seq = "N"*nodes[node].seq_len
 
-			counter += 1
-
+		try:
+			assert len(bubble_haplotigs) == len(overall_components)
+		except AssertionError:
+			logger.info("Split components are {} and haplotig vector is {} and "
+						"the superreads are {}".format(split_components, haplotig, two_haplotigs))
+			continue
 		# print(split_components)
 		# pdb.set_trace()
 		# print(overall_components)
 		# pdb.set_trace()
 		# print("##################################################################")
 
-		output_fasta(nodes, bubble_chains,bubble_membership, k, split_components, bubble_haplotigs)
+		output_fasta(nodes, bubble_chains, bubble_membership, k, split_components, bubble_haplotigs, overall_components,
+					 chain_n)
 
 
 def main(args):
+	logger.info("it's {}".format(time.time()))
 	# here all the main stuff going to happen
 	run_phaseb(**vars(args))
