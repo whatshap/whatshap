@@ -30,7 +30,7 @@ from .clustereditingplots import draw_clustering, draw_threading
 from .core import Read, ReadSet, CoreAlgorithm, DynamicSparseGraph, readselection, NumericSampleIds, compute_polyploid_genotypes
 from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, find_components
-from .readscoring import score_global, score_local, score_local_patternbased
+from .readscoring import score_global, score_local, score_local_patternbased, SparseTriangleMatrix
 from .threading import run_threading, get_local_cluster_consensus_withfrac, get_position_map, get_pos_to_clusters_map, get_cluster_start_end_positions, get_coverage, get_coverage_absolute
 from .timer import StageTimer
 from .utils import IndexedFasta, FastaNotIndexedError
@@ -306,60 +306,7 @@ def run_polyphase(
 							read_slice.add_variant(variant.position, variant.allele, variant.quality)
 						block_readsets[current_block].add(read_slice)
 				timers.stop('detecting_blocks')
-				
-				'''
-				print("1")
-				index, rev_index = get_position_map(readset)
-				num_vars = len(rev_index)
-				num_clusters = 1
-				print("2")
-				clustering = [list(range(len(readset)))]
-				print("3")
-
-				#cov_map = get_pos_to_clusters_map(readset, clustering, index, ploidy)
-				#positions = get_cluster_start_end_positions(readset, clustering, index)
-				#coverage = get_coverage(readset, clustering, index)
-				abs_coverage = get_coverage_absolute(readset, clustering, index)
-				print("4")
-				abs_coverage2 = [abs_coverage[pos][0] for pos in range(num_vars)]
-				print("5")
-				readlen = [len(read) for read in readset]
-				readlen.sort()
-				numreads = len(readset)
-				print("6")
-				
-				sorted_cov = sorted(abs_coverage2)
-				print("Positions: {}".format(num_vars))
-				print("Average coverage: {}".format(sum(sorted_cov) / num_vars))
-				print("Median coverage: {}".format(sorted_cov[num_vars//2]))
-				print("75% quantile: {}".format(sorted_cov[3*num_vars//4]))
-				print("90% quantile: {}".format(sorted_cov[9*num_vars//10]))
-				print("95% quantile: {}".format(sorted_cov[95*num_vars//100]))
-				print("96% quantile: {}".format(sorted_cov[96*num_vars//100]))
-				print("97% quantile: {}".format(sorted_cov[97*num_vars//100]))
-				print("98% quantile: {}".format(sorted_cov[98*num_vars//100]))
-				print("99% quantile: {}".format(sorted_cov[99*num_vars//100]))
-				print("99.5% quantile: {}".format(sorted_cov[995*num_vars//1000]))
-				print("99.75% quantile: {}".format(sorted_cov[9975*num_vars//10000]))
-				print("99.9% quantile: {}".format(sorted_cov[999*num_vars//1000]))
-				print("99.99% quantile: {}".format(sorted_cov[9999*num_vars//10000]))
-				
-				print("Reads: {}".format(numreads))
-				print("Average length: {}".format(sum(readlen) / numreads))
-				print("Median length: {}".format(readlen[numreads//2]))
-				print("75% quantile: {}".format(readlen[3*numreads//4]))
-				print("90% quantile: {}".format(readlen[9*numreads//10]))
-				print("95% quantile: {}".format(readlen[95*numreads//100]))
-				print("96% quantile: {}".format(readlen[96*numreads//100]))
-				print("97% quantile: {}".format(readlen[97*numreads//100]))
-				print("98% quantile: {}".format(readlen[98*numreads//100]))
-				print("99% quantile: {}".format(readlen[99*numreads//100]))
-				print("99.5% quantile: {}".format(readlen[995*numreads//1000]))
-				print("99.75% quantile: {}".format(readlen[9975*numreads//10000]))
-				print("99.9% quantile: {}".format(readlen[999*numreads//1000]))
-				print("99.99% quantile: {}".format(readlen[9999*numreads//10000]))
-				'''
-										
+								
 				# Process blocks independently
 				blockwise_clustering = []
 				blockwise_paths = []
@@ -393,7 +340,7 @@ def run_polyphase(
 						blockwise_paths.append(path)
 						blockwise_haplotypes.append(haplotypes)
 						blockwise_cut_positions.append([0])
-						continue	
+						continue
 					
 					# Block is non-singleton here, so run the normal routine
 					processed_non_singleton_blocks += 1
@@ -452,7 +399,21 @@ def run_polyphase(
 							solver = CoreAlgorithm(graph, ce_bundle_edges)
 							clustering = solver.run()
 							del solver
+							
+					# Compute inter-cluster score
+					read_to_cluster = [-1 for i in range(len(block_readset))]
+					for c in range(len(clustering)):
+						for r in clustering[c]:
+							read_to_cluster[r] = c
+							
+					cluster_sim = SparseTriangleMatrix()
+					for (read1, read2) in similarities:
+						c1 = read_to_cluster[read1]
+						c2 = read_to_cluster[read2]
+						if c1 != c2:
+							cluster_sim.set(c1, c2, cluster_sim.get(c1, c2) + similarities.get(read1, read2))
 
+					# Deallocate big datastructures, which are not needed anymore
 					del similarities
 					del graph
 					timers.stop('solve_clusterediting')
@@ -463,7 +424,7 @@ def run_polyphase(
 
 					# Add dynamic programming for finding the most likely subset of clusters
 					genotype_slice = genotype_list_multi[ext_block_starts[block_id]:ext_block_starts[block_id+1]]
-					cut_positions, path, haplotypes = run_threading(block_readset, clustering, ploidy, sample, genotype_slice, block_cut_sensitivity, cython_threading)
+					cut_positions, path, haplotypes = run_threading(block_readset, clustering, cluster_sim, ploidy, sample, genotype_slice, block_cut_sensitivity, cython_threading)
 					timers.stop('threading')
 
 					# collect results from threading
