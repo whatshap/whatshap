@@ -292,7 +292,10 @@ def draw_threading(readset, clustering, coverage, paths, cut_positions, haplotyp
 			for pos, e in enumerate(switches_in_column):
 				if e > 0:
 					plt.vlines(x = cut_pos[i]+pos, ymax = -y_margin, ymin = -y_margin - c_height*e, color = 'blue', alpha = 0.6)
-					plt.vlines(x = cut_pos[i]+pos, ymax = len(all_threaded), ymin = 0, color = 'blue', alpha = 0.05)
+					switches = [j for j in range(ploidy) if poswise_config[pos][j] != poswise_config[pos-1][j]]
+					for h in switches:
+						c_id = c_map[paths[cut_pos[i]+pos][h]]
+						plt.vlines(x = cut_pos[i]+pos, ymax = c_id+0.95*c_height, ymin = c_id+0.05*c_height, color = 'black', alpha = 0.3)
 			for pos, flipped in enumerate(flips_in_column):
 				if len(flipped) == 0:
 					continue
