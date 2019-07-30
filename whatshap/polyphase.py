@@ -306,7 +306,7 @@ def run_polyphase(
 							read_slice.add_variant(variant.position, variant.allele, variant.quality)
 						block_readsets[current_block].add(read_slice)
 				timers.stop('detecting_blocks')
-								
+
 				# Process blocks independently
 				blockwise_clustering = []
 				blockwise_paths = []
