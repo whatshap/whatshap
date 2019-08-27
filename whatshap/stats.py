@@ -5,7 +5,7 @@ import logging
 from collections import defaultdict, namedtuple
 from contextlib import ExitStack
 from whatshap.math import median
-from whatshap.vcf import VcfReader
+from whatshap.vcf import VcfReader, VariantCallPhase
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,7 @@ def add_arguments(parser):
 	add('--chromosome', dest='chromosome', metavar='CHROMOSOME', default=None,
 		help='Name of chromosome to process. If not given, all chromosomes in the '
 		'input VCF are considered.')
+	add('--bed', default=None, help='BED-file with non-overlapping intervals in which to evaluate phasing.')
 	add('ploidy', metavar='PLOIDY', help='Ploidy of the sample.')
 	add('vcf', metavar='VCF', help='Phased VCF file')
 
@@ -374,5 +375,184 @@ def run_stats(ploidy, vcf, sample=None, gtf=None, tsv=None, block_list=None, onl
 				print(sample, 'ALL', vcf, sep='\t', end='\t', file=tsv_file)
 				print(*total_stats.get(chr_lengths), sep='\t', file=tsv_file)
 
+class Interval:
+	def __init__(self, id, start, end):
+		assert start < end
+		self.id = id
+		self.start = start
+		self.end = end
+		self.variants = []
+	def __len__(self):
+		return self.end - self.start
+	def __eq__(self, other):
+		return (self.start == other.start) and (self.end == other.end)
+	def __hash__(self):
+		return hash((self.start, self.end));
+	def add_variant(self, variant, genotype, phase):
+		# break blocks covering several intervals
+		if phase is not None:
+			phase = VariantCallPhase(str(phase.block_id) + '_' + str(self.id), phase.phase, phase.quality)
+		self.variants.append( (variant, genotype, phase) )
+	def enumerate_variants(self):
+		for v in self.variants:
+			yield v
+	def covers_position(self, position):
+		return self.start <= position <= self.end
+
+
+# evaluate phasing only inside of BED-intervals
+def run_stats_bed(ploidy, vcf, bed=None, sample=None, gtf=None, tsv=None, block_list=None, only_snvs=False, chromosome=None, chr_lengths=None):
+	gtfwriter = tsv_file = block_list_file = None
+	with ExitStack() as stack:
+		if gtf:
+			gtf_file = stack.enter_context(open(gtf, 'wt'))
+			gtfwriter = GtfWriter(gtf_file)
+		if tsv:
+			tsv_file = stack.enter_context(open(tsv, 'w'))
+		if block_list:
+			block_list_file = stack.enter_context(open(block_list, 'w'))
+		if chr_lengths:
+			chr_lengths = parse_chr_lengths(chr_lengths)
+			logger.info('Read length of %d chromosomes from %s', len(chr_lengths), chr_lengths)
+		else:
+			chr_lengths = None
+
+		vcf_reader = VcfReader(vcf, phases=True, indels=not only_snvs, ploidy=ploidy)
+		if len(vcf_reader.samples) == 0:
+			logger.error('Input VCF does not contain any sample')
+			return 1
+		else:
+			logger.info('Found {} sample(s) in input VCF'.format(len(vcf_reader.samples)))
+		if sample:
+			if sample in vcf_reader.samples:
+				sample = sample
+			else:
+				logger.error('Requested sample ({}) not found'.format(sample))
+				return 1
+		else:
+			sample = vcf_reader.samples[0]
+			logger.info('Reporting results for sample {}'.format(sample))
+
+		if tsv_file:
+			print('#sample', 'chromosome', 'file_name', *detailed_stats_fields, sep='\t', file=tsv_file)
+
+		if block_list_file:
+			print('#sample', 'chromosome', 'phase_set', 'from', 'to', 'variants', sep='\t', file=block_list_file)
+
+		# read BED file
+		int_id = 0
+		chrom_to_intervals = defaultdict(list)
+		for line in open(bed, 'r'):
+			fields = line.split()
+			if fields[0] == 'track':
+				# skip track lines
+				continue
+			assert len(fields) > 2
+			chrom = fields[0]
+			start = int(fields[1])
+			end = int(fields[2])
+			interval = Interval(int_id, start, end)
+			chrom_to_intervals[chrom].append(interval);
+			int_id += 1
+
+		print('Phasing statistics for sample {} from file {}'.format(sample, vcf))
+		total_stats = PhasingStats()
+		chromosome_count = 0
+		given_chromosome = chromosome
+		for variant_table in vcf_reader:
+			if given_chromosome:
+				if variant_table.chromosome != given_chromosome:
+					continue
+			chromosome_count += 1
+			chromosome = variant_table.chromosome
+			stats = PhasingStats()
+			print('---------------- Chromosome {} ----------------'.format(chromosome))
+			genotypes = variant_table.genotypes_of(sample)
+			phases = variant_table.phases_of(sample)
+			assert len(genotypes) == len(phases) == len(variant_table.variants)
+
+			# assign variants to intervals
+			for variant, genotype, phase in zip(variant_table.variants, genotypes, phases):
+				last_interval = 0
+				for i in range(last_interval, len(chrom_to_intervals[chromosome])):
+					if chrom_to_intervals[chromosome][i].covers_position(variant.position):
+						chrom_to_intervals[chromosome][i].add_variant(variant, genotype, phase)
+						# assume intervals are not overlapping
+						last_interval = i
+						break
+
+			blocks = defaultdict(PhasedBlock)
+			prev_block_id = None
+			prev_block_fragment_start = None
+			prev_block_fragment_end = None
+
+			for interval in chrom_to_intervals[chromosome]:
+				interval_stats = PhasingStats()
+				interval_blocks = defaultdict(PhasedBlock)
+				for (variant, genotype, phase) in interval.enumerate_variants():
+					interval_stats.add_variants(1);
+					if genotype.is_homozygous():
+						continue
+					interval_stats.add_heterozygous_variants(1)
+					if variant.is_snv():
+						interval_stats.add_heterozygous_snvs(1)
+					if phase is None:
+						interval_stats.add_unphased()
+					else:
+						# a phased variant
+#						blocks[phase.block_id].add(variant, phase)
+						interval_blocks[phase.block_id].add(variant, phase)
+						if gtfwriter:
+							if prev_block_id is None:
+								prev_block_fragment_start = variant.position
+								prev_block_fragment_end = variant.position + 1
+								prev_block_id = phase.block_id
+							else:
+								if prev_block_id != phase.block_id:
+									gtfwriter.write(chromosome, prev_block_fragment_start, prev_block_fragment_end, prev_block_id)
+									prev_block_fragment_start = variant.position
+									prev_block_id = phase.block_id
+								prev_block_fragment_end = variant.position + 1
+				for block_id, block in interval_blocks.items():
+					block.chromosome = chromosome
+				interval_stats.add_blocks(interval_blocks.values())
+				interval_string = chromosome + ':' + str(interval.start) + '-' + str(interval.end)
+				interval_stats.print(chr_lengths)
+				if tsv_file:
+					print(sample, interval_string, vcf, sep='\t', end='\t', file=tsv_file)
+					print(*interval_stats.get(chr_lengths), sep='\t', file=tsv_file)
+				stats += interval_stats
+
+			# Add chromosome information to each block. This is needed to
+			# sort blocks later when we compute N50s
+			for block_id, block in blocks.items():
+				block.chromosome = chromosome
+
+			if gtfwriter and prev_block_id is not None:
+				gtfwriter.write(chromosome, prev_block_fragment_start, prev_block_fragment_end, prev_block_id)
+
+			if block_list_file:
+				block_ids = sorted(blocks.keys())
+				for block_id in block_ids:
+					print(sample, chromosome, block_id, blocks[block_id].leftmost_variant.position + 1, blocks[block_id].rightmost_variant.position + 1, len(blocks[block_id]), sep='\t', file=block_list_file)
+
+			stats.add_blocks(blocks.values())
+			stats.print(chr_lengths)
+			if tsv_file:
+				print(sample, chromosome, vcf, sep='\t', end='\t', file=tsv_file)
+				print(*stats.get(chr_lengths), sep='\t', file=tsv_file)
+
+			total_stats += stats
+
+		if chromosome_count > 1:
+			print('---------------- ALL chromosomes (aggregated) ----------------')
+			total_stats.print(chr_lengths)
+			if tsv_file:
+				print(sample, 'ALL', vcf, sep='\t', end='\t', file=tsv_file)
+				print(*total_stats.get(chr_lengths), sep='\t', file=tsv_file)
+
 def main(args):
-	run_stats(**vars(args))
+	if args.bed is not None:
+		run_stats_bed(**vars(args))
+	else:
+		run_stats(**vars(args))
