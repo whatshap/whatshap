@@ -518,13 +518,14 @@ def run_stats_bed(ploidy, vcf, bed=None, sample=None, gtf=None, tsv=None, block_
 					block.chromosome = chromosome
 				interval_stats.add_blocks(interval_blocks.values())
 				interval_string = chromosome + ':' + str(interval.start) + '-' + str(interval.end)
-				print('---- Interval ' + interval_string + ' ----')
+				print('\n---- Interval ' + interval_string + ' ----\n')
 				interval_stats.print(chr_lengths)
 				if tsv_file:
 					print(sample, interval_string, vcf, sep='\t', end='\t', file=tsv_file)
 					print(*interval_stats.get(chr_lengths), sep='\t', file=tsv_file)
 				stats += interval_stats
 
+			print('\n---- All intervals ----\n')
 			# Add chromosome information to each block. This is needed to
 			# sort blocks later when we compute N50s
 			for block_id, block in blocks.items():
