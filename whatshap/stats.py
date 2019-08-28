@@ -265,8 +265,9 @@ def parse_chr_lengths(filename):
 	return chr_lengths
 
 
-def run_stats(ploidy, vcf, sample=None, gtf=None, tsv=None, block_list=None, only_snvs=False, chromosome=None, chr_lengths=None):
+def run_stats(ploidy, vcf, bed=None, sample=None, gtf=None, tsv=None, block_list=None, only_snvs=False, chromosome=None, chr_lengths=None):
 	gtfwriter = tsv_file = block_list_file = None
+	assert bed is None
 	with ExitStack() as stack:
 		if gtf:
 			gtf_file = stack.enter_context(open(gtf, 'wt'))
@@ -517,6 +518,7 @@ def run_stats_bed(ploidy, vcf, bed=None, sample=None, gtf=None, tsv=None, block_
 					block.chromosome = chromosome
 				interval_stats.add_blocks(interval_blocks.values())
 				interval_string = chromosome + ':' + str(interval.start) + '-' + str(interval.end)
+				print('---- Interval ' + interval_string + ' ----')
 				interval_stats.print(chr_lengths)
 				if tsv_file:
 					print(sample, interval_string, vcf, sep='\t', end='\t', file=tsv_file)
