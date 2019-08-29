@@ -128,3 +128,54 @@ def test_stats_bed1():
 			assert entry_chrB.blocks == '0'
 			assert entry_chrB.variant_per_block_sum == '0'
 			assert entry_chrB.bp_per_block_sum == '0'
+
+def test_stats_bed2():
+	for (filename, ploidy) in [('tests/data/phased3.vcf', 2), ('tests/data/phased3-poly.vcf', 3)]:
+		with TemporaryDirectory() as tempdir:
+			outtsv = tempdir + '/output.tsv'
+			run_stats_bed(ploidy=ploidy, vcf=filename, bed='tests/data/phased3-overlapping.bed', tsv=outtsv, sample='sample2', chr_lengths='tests/data/chr-lengths.txt')
+			lines = [l.split('\t') for l in open(outtsv)]
+			assert len(lines) == 7
+			Fields = namedtuple('Fields', [f.strip('#\n') for f in lines[0]])
+			entry_interval1, entry_interval2, entry_interval3, entry_chrA, entry_chrB, entry_all = [Fields(*l) for l in lines[1:]]
+
+			assert entry_interval1.chromosome == 'chrA:99-399'
+			assert entry_interval1.variants == '4'
+			assert entry_interval1.phased == '4'
+			assert entry_interval1.unphased == '0'
+			assert entry_interval1.blocks == '2'
+			assert entry_interval1.variant_per_block_sum == '4'
+			assert entry_interval1.bp_per_block_sum == '102'
+
+			assert entry_interval2.chromosome == 'chrA:299-849'
+			assert entry_interval2.variants == '6'
+			assert entry_interval2.phased == '6'
+			assert entry_interval2.unphased == '0'
+			assert entry_interval2.blocks == '1'
+			assert entry_interval2.variant_per_block_sum == '6'
+			assert entry_interval2.bp_per_block_sum == '502'
+
+			assert entry_interval3.chromosome == 'chrA:599-749'
+			assert entry_interval3.variants == '2'
+			assert entry_interval3.phased == '2'
+			assert entry_interval3.unphased == '0'
+			assert entry_interval3.blocks == '1'
+			assert entry_interval3.variant_per_block_sum == '2'
+			assert entry_interval3.bp_per_block_sum == '101'
+
+			assert entry_chrA.chromosome == 'chrA'
+			assert entry_chrA.variants == '12'
+			assert entry_chrA.phased == '12'
+			assert entry_chrA.unphased == '0'
+			assert entry_chrA.blocks == '4'
+			assert entry_chrA.variant_per_block_sum == '12'
+			assert entry_chrA.bp_per_block_sum == '705'
+
+			assert entry_chrB.chromosome == 'chrB'
+			assert entry_chrB.variants == '0'
+			assert entry_chrB.phased == '0'
+			assert entry_chrB.unphased == '0'
+			assert entry_chrB.blocks == '0'
+			assert entry_chrB.variant_per_block_sum == '0'
+			assert entry_chrB.bp_per_block_sum == '0'
+

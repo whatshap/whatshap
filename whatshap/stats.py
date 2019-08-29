@@ -474,13 +474,12 @@ def run_stats_bed(ploidy, vcf, bed=None, sample=None, gtf=None, tsv=None, block_
 
 			# assign variants to intervals
 			for variant, genotype, phase in zip(variant_table.variants, genotypes, phases):
-				last_interval = 0
-				for i in range(last_interval, len(chrom_to_intervals[chromosome])):
+				for i in range(0, len(chrom_to_intervals[chromosome])):
+					if chrom_to_intervals[chromosome][i].start > variant.position:
+						break
 					if chrom_to_intervals[chromosome][i].covers_position(variant.position):
 						chrom_to_intervals[chromosome][i].add_variant(variant, genotype, phase)
-						# assume intervals are not overlapping
-						last_interval = i
-						break
+					
 
 			blocks = defaultdict(PhasedBlock)
 			prev_block_id = None
