@@ -596,9 +596,13 @@ def run_whatshap(
 			command_line = '(whatshap {}) {}'.format(__version__, ' '.join(sys.argv[1:]))
 		else:
 			command_line = None
-		vcf_writer = stack.enter_context(
-			PhasedVcfWriter(command_line=command_line, in_path=variant_file,
-		        out_file=output, tag=tag))
+		try:
+			vcf_writer = stack.enter_context(
+				PhasedVcfWriter(command_line=command_line, in_path=variant_file,
+			        out_file=output, tag=tag))
+		except OSError as e:
+			logger.error('%s', e)
+			sys.exit(1)
 		# Only read genotype likelihoods from VCFs when distrusting genotypes
 		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=distrust_genotypes)
 
