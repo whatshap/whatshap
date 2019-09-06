@@ -1,7 +1,7 @@
 import os.path
 
 from pytest import raises
-from whatshap.utils import UnknownFileFormatError, detect_file_format, IndexedFasta, \
+from whatshap.utils import detect_file_format, IndexedFasta, \
 	FastaNotIndexedError
 
 
@@ -13,8 +13,7 @@ def test_detect_alignment_file_format():
 
 
 def test_detect_ped_file_format():
-	with raises(UnknownFileFormatError):
-		detect_file_format('tests/data/pedigree.ped')
+	assert detect_file_format('tests/data/pedigree.ped') is None
 
 
 def test_missing_fai():

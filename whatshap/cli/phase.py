@@ -436,7 +436,11 @@ def split_input_file_list(input_files):
 	bams = []
 	vcfs = []
 	for filename in input_files:
-		file_format = detect_file_format(filename)
+		try:
+			file_format = detect_file_format(filename)
+		except OSError as e:
+			logger.error('%s', e)
+			sys.exit(1)
 		if file_format in ('BAM', 'CRAM'):
 			bams.append(filename)
 		elif file_format == 'VCF':

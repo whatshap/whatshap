@@ -5,9 +5,6 @@ import pysam
 import logging
 import heapq
 from collections import defaultdict, namedtuple
-import subprocess
-
-from .utils import detect_file_format
 
 
 logger = logging.getLogger(__name__)
