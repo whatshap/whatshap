@@ -710,7 +710,7 @@ def add_arguments(parser):
 	arg('--cython-threading', dest='cython_threading', default=False, action='store_true',
 		help='Uses a C++ implementation to perform the haplotype threading.')
 	arg('--ce-refinements', metavar='REFINEMENTS', type=int, default=5, help='Maximum number of refinement steps for cluster editing (default: %(default)s).')
-	arg('--block-cut-sensitivity', metavar='REFINEMENTS', type=int, default=5, help='Strategy to determine block borders. 0 yields the longest blocks with more switch errors, 6 has the shortest blocks with lowest switch error rate (default: %(default)s).')
+	arg('--block-cut-sensitivity', metavar='SENSITIVITY', type=int, default=4, help='Strategy to determine block borders. 0 yields the longest blocks with more switch errors, 5 has the shortest blocks with lowest switch error rate (default: %(default)s).')
 
 def validate(args, parser):
 	pass

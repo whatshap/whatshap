@@ -120,17 +120,13 @@ def run_threading(readset, clustering, cluster_sim, ploidy, sample, genotypes, b
 	dissim_threshold = 1
 	rise_fall_dissim = 0
 	if block_cut_sensitivity >= 3:
-		if block_cut_sensitivity >= 6:
+		if block_cut_sensitivity >= 5:
 			# cut every time a haplotype jumps
 			dissim_threshold = 1
 			rise_fall_dissim = ploidy+1
-		elif block_cut_sensitivity == 5:
+		elif block_cut_sensitivity == 4:
 			# cut for every multi-switch and for every rise-fall-ploidy change
 			dissim_threshold = 2
-			rise_fall_dissim = ploidy+1
-		elif block_cut_sensitivity == 4:
-			# cut for rise-fall-ploidy change
-			dissim_threshold = ploidy+1
 			rise_fall_dissim = ploidy+1
 		else:
 			# cut for every multi-jump
