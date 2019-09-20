@@ -56,6 +56,7 @@ def add_arguments(parser):
 	arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
 	arg('alignment_file', metavar='ALIGNMENTS',
 		help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
+	arg('ploidy', metavar='PLOIDY', help='ploidy of the sample')
 
 
 def validate(args, parser):
@@ -66,7 +67,7 @@ def md5_of(filename):
 	return md5(open(filename,'rb').read()).hexdigest()
 
 
-def run_haplotag(variant_file, alignment_file, output=None, reference=None, ignore_linked_read=False,
+def run_haplotag(variant_file, alignment_file, ploidy, output=None, reference=None, ignore_linked_read=False,
 	linked_read_distance_cutoff=50000):
 
 	timers = StageTimer()
@@ -103,7 +104,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 			logger.error('The input VCF must be compressed (vcf.gz).')
 			sys.exit(1)
 
-		vcf_reader = VcfReader(variant_file, indels=True, phases=True)
+		vcf_reader = VcfReader(variant_file, indels=True, phases=True, ploidy=ploidy)
 		vcf_samples = set(vcf_reader.samples)
 		logger.info('Found %d samples in VCF file', len(vcf_samples))
 
@@ -175,7 +176,8 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 							genotypes = variant_table.genotypes_of(sample)
 							phases = variant_table.phases_of(sample)
 							variantpos_to_phaseinfo = {
-								v.position:(int(phases[i].block_id),phases[i].phase[0]) for i,v in enumerate(variant_table.variants) if phases[i] is not None
+								# pos -> (block_id, list of phased alleles)
+								v.position:(int(phases[i].block_id),phases[i].phase) for i,v in enumerate(variant_table.variants) if phases[i] is not None
 							}
 							variants = [
 								v for v, gt, phase in zip(variant_table.variants, genotypes, phases) if not gt.is_homozygous() and phase is not None
@@ -193,7 +195,7 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 								if read.name in processed_reads:
 									continue
 								# mapping: phaseset --> phred scaled difference between costs of assigning reads to haplotype 0 or 1
-								haplotype_costs = defaultdict(int)
+								haplotype_costs = defaultdict(lambda:[0]*ploidy)
 								reads_to_consider = set()
 
 								processed_reads.add(read.name)
@@ -210,25 +212,31 @@ def run_haplotag(variant_file, alignment_file, output=None, reference=None, igno
 									processed_reads.add(r.name)
 									for v in r:
 										assert v.allele in [0,1]
-										phaseset, allele = variantpos_to_phaseinfo[v.position]
-										if v.allele == allele:
-											haplotype_costs[phaseset] += v.quality[not v.allele]
-										else:
-											haplotype_costs[phaseset] -= v.quality[not v.allele]
+										phaseset, phasing = variantpos_to_phaseinfo[v.position]
+										# compare read allele to each haplotype allele
+										for hap_index, hap_allele in enumerate(phasing):
+											if v.allele == hap_allele:
+												haplotype_costs[phaseset][hap_index] += v.quality[not v.allele]
 
 								l = list(haplotype_costs.items())
-								l.sort(key=lambda t:-abs(t[1]))
+								# sort by maximum quality score
+								l.sort(key=lambda t:max(t[1]), reverse=True)
 								#logger.info('Read %s: %s', read.name, str(l))
 								if len(l) > 0:
 									if len(l) > 1:
 										n_multiple_phase_sets += 1
-									phaseset, quality = l[0]
+									phaseset, scores = l[0]
+									# find best and second best haplotype scores for this phaseset
+									scores_list = [ s for s in enumerate(scores)]
+									scores_list.sort(key=lambda t:t[1], reverse=True)
+									first_ht, first_score = scores_list[0]
+									second_ht, second_score = scores_list[1]
+									quality = first_score - second_score
 									if quality != 0:
-										haplotype = 0 if quality > 0 else 1
-										BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, haplotype, phaseset))
+										BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, first_ht, phaseset))
 										for r in reads_to_consider:
-											read_to_haplotype[r.name] = (haplotype, abs(quality), phaseset)
-											logger.debug('Assigned read %s to haplotype %d with a quality of %d based on %d covered variants', r.name, haplotype, quality, len(r))
+											read_to_haplotype[r.name] = (first_ht, quality, phaseset)
+											logger.debug('Assigned read %s to haplotype %d with a quality of %d based on %d covered variants', r.name, first_ht, quality, len(r))
 
 				# Only attempt to assign phase of neither secondary nor supplementary
 				if (not alignment.is_secondary) and (alignment.flag & 2048 == 0):
