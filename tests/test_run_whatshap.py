@@ -536,14 +536,12 @@ def test_haplotag_polyploid():
 		# manually computed haplotag scores and haplotype assignments
 		readname_to_score = {'S1_31286_NA19240_HAP2': 6, 'S1_248595_HG00514_HAP1': 4, 'S1_284251_NA19240_HAP1': 14, 'S1_103518_HG00514_HAP2': 16}
 		readname_to_haplotype = {'S1_31286_NA19240_HAP2': 4, 'S1_248595_HG00514_HAP1': 1, 'S1_284251_NA19240_HAP1': 3, 'S1_103518_HG00514_HAP2': 2}
-		ps_count = 0
+		count = 0
 		for alignment in pysam.AlignmentFile(outbam):
-			if alignment.has_tag('PS'):
-				ps_count += 1
-			if alignment.query_name in readname_to_score:
-				assert readname_to_score[alignment.query_name] == alignment.get_tag('PC')
-				assert readname_to_haplotype[alignment.query_name] == alignment.get_tag('HP')
-		assert ps_count > 0
+			count += 1
+			assert readname_to_score[alignment.query_name] == alignment.get_tag('PC')
+			assert readname_to_haplotype[alignment.query_name] == alignment.get_tag('HP')
+		assert count == 4
 
 
 def test_haplotag_missing_chromosome():
