@@ -56,7 +56,7 @@ def add_arguments(parser):
 	arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
 	arg('alignment_file', metavar='ALIGNMENTS',
 		help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
-	arg('ploidy', metavar='PLOIDY', help='ploidy of the sample')
+	arg('ploidy', metavar='PLOIDY', help='ploidy of the sample', type=int)
 
 
 def validate(args, parser):
@@ -217,7 +217,6 @@ def run_haplotag(variant_file, alignment_file, ploidy, output=None, reference=No
 										for hap_index, hap_allele in enumerate(phasing):
 											if v.allele == hap_allele:
 												haplotype_costs[phaseset][hap_index] += v.quality[not v.allele]
-
 								l = list(haplotype_costs.items())
 								# sort by maximum quality score
 								l.sort(key=lambda t:max(t[1]), reverse=True)
