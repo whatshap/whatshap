@@ -6,7 +6,43 @@ import random
 
 logger = logging.getLogger(__name__)
 
-def run_threading(readset, clustering, cluster_sim, ploidy, sample, genotypes, block_cut_sensitivity, cython_threading):
+def run_threading(readset, clustering, cluster_sim, ploidy, genotypes, block_cut_sensitivity, cython_threading):
+	# compute threading through the clusters
+	path = compute_threading_path(readset, clustering, ploidy, genotypes, cython_threading)
+		
+	# determine cut positions
+	num_clusters = len(clustering)
+	cut_positions = compute_cut_positions(path, block_cut_sensitivity, num_clusters)
+	
+	# we can look at the sequences again to use the most likely continuation, when two or more clusters switch at the same position
+	corrected_path = improve_path_on_multiswitches(path, num_clusters, cluster_sim)
+
+	# use corrected path from now on
+	path = corrected_path
+
+	logger.debug("Cut positions: {}".format(cut_positions))
+	
+	# compute haplotypes
+	index, rev_index = get_position_map(readset)
+	cov_map = get_pos_to_clusters_map(readset, clustering, index, ploidy)
+	positions = get_cluster_start_end_positions(readset, clustering, index)
+	consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
+	haplotypes = []
+	for i in range(ploidy):
+		hap = ""
+		alleles_as_strings = []
+		for pos in range(len(path)):
+			c_id = path[pos][i]
+			allele = consensus[pos][c_id] if c_id in consensus[pos] else -1
+			if allele == -1:
+				alleles_as_strings.append("n")
+			else:
+				alleles_as_strings.append(str(allele))
+		haplotypes.append(hap.join(alleles_as_strings))
+		
+	return (cut_positions, path, haplotypes)
+
+def compute_threading_path(readset, clustering, ploidy, genotypes, cython_threading):
 	logger.debug("Computing cluster coverages and consensi ..")
 	
 	# Map genome positions to [0,l)
@@ -25,6 +61,8 @@ def run_threading(readset, clustering, cluster_sim, ploidy, sample, genotypes, b
 	
 	#compute the consensus sequences for every variant position and every cluster for integrating genotypes in the DP
 	consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
+	
+	logger.debug("Computing threading paths ..")
 
 	if cython_threading:
 		geno_map = defaultdict(list)
@@ -113,10 +151,15 @@ def run_threading(readset, clustering, cluster_sim, ploidy, sample, genotypes, b
 		path = threader.computePathsBlockwise([0], cov_map_as_list, compressed_coverage, compressed_consensus, genotypes, c_to_c_dissim)
 		assert(len(path) == num_vars)
 		
-	# end threading
-	
-	# determine cut positions
+	return path
+
+def compute_cut_positions(path, block_cut_sensitivity, num_clusters):
 	cut_positions = [0]
+	
+	if len(path) == 0:
+		return cut_positions
+	
+	ploidy = len(path[0])
 	dissim_threshold = 1
 	rise_fall_dissim = 0
 	if block_cut_sensitivity >= 3:
@@ -133,103 +176,90 @@ def run_threading(readset, clustering, cluster_sim, ploidy, sample, genotypes, b
 			dissim_threshold = 2
 			rise_fall_dissim = 0
 		
-	copynrs = []
-	for i in range(0, len(path)):
-		copynr = defaultdict(int)
-		for j in range(0, ploidy):
-			if path[i][j] not in copynr:
-				copynr[path[i][j]] = 0
-			copynr[path[i][j]] += 1
-		copynrs.append(copynr)
+	if block_cut_sensitivity >= 3:
+		copynrs = []
+		for i in range(0, len(path)):
+			copynr = defaultdict(int)
+			for j in range(0, ploidy):
+				if path[i][j] not in copynr:
+					copynr[path[i][j]] = 0
+				copynr[path[i][j]] += 1
+			copynrs.append(copynr)
 
-	cpn_rising = [False for c_id in range(num_clusters)]
+		cpn_rising = [False for c_id in range(num_clusters)]
+
+		for i in range(1, len(path)):
+			dissim = 0
+			for j in range(0, ploidy):
+				old_c = path[i-1][j]
+				new_c = path[i][j]
+				if old_c != new_c:
+					rise_fall = False
+					# check if previous cluster went down from copy number >= 2 to a smaller one >= 1
+					if copynrs[i-1][old_c] > copynrs[i][old_c] >= 1:
+						if cpn_rising[old_c]:
+							rise_fall = True
+					# check if new cluster went up from copy number >= 1 to a greater one >= 2
+					if copynrs[i][new_c] > copynrs[i-1][new_c] >= 1:
+						cpn_rising[new_c] = True
+					# check if one cluster has been rising and then falling in the current block
+					if rise_fall:
+						dissim += rise_fall_dissim
+
+					# count general switches
+					dissim += 1
+
+			if dissim >= dissim_threshold:
+				cpn_rising = [False for c_id in range(num_clusters)]
+				cut_positions.append(i)
+	return cut_positions
+				
+def improve_path_on_multiswitches(path, num_clusters, cluster_sim):
+	if len(path) == 0:
+		return []
 	
 	corrected_path = []
 	corrected_path.append(path[0])
+	ploidy = len(path[0])
 	current_perm = tuple(range(ploidy))
 	invers_perm = [i for i in range(ploidy)]
 
 	for i in range(1, len(path)):
-		copy_of_path_i_minus_1 = [path[i-1][j] for j in range(ploidy)]
-		copy_of_path_i = [path[i][j] for j in range(ploidy)]
-		dissim = 0
 		changed = [] # set of haplotypes, that changed cluster at current position
 		for j in range(0, ploidy):
 			old_c = path[i-1][j]
 			new_c = path[i][j]
 			if old_c != new_c:
-				rise_fall = False
-				# check if previous cluster went down from copy number >= 2 to a smaller one >= 1
-				if copynrs[i-1][old_c] > copynrs[i][old_c] >= 1:
-					if cpn_rising[old_c]:
-						rise_fall = True
-				# check if new cluster went up from copy number >= 1 to a greater one >= 2
-				if copynrs[i][new_c] > copynrs[i-1][new_c] >= 1:
-					cpn_rising[new_c] = True
-				# check if one cluster has been rising and then falling in the current block
-				if rise_fall:
-					dissim += rise_fall_dissim
-
 				# count general switches
-				dissim += 1
 				changed.append(j)
 				
-		if dissim >= dissim_threshold:
-			cpn_rising = [False for c_id in range(num_clusters)]
-			
-			# apply cut for higher sensitivities or determine best path composition for non-cuts
-			if block_cut_sensitivity >= 3:
-				cut_positions.append(i)
-			else:
-				if len(changed) >= 2:
-					# if at least two threads changed cluster: find optimal permutation of changed clusters
-					left_c = [path[i-1][j] for j in changed]
-					right_c = [path[i][j] for j in changed]
-					actual_score = sum([cluster_sim.get(left_c[j], right_c[j]) for j in range(len(changed))])
-					best_score = actual_score
-					best_perm = tuple(range(len(changed)))
-					for perm in it.permutations(range(len(changed))):
-						score = 0
-						for j, left in enumerate(left_c):
-							score += cluster_sim.get(left, right_c[perm[j]])
-						if score > best_score:
-							best_score = score
-							best_perm = perm
-					
-					# apply local best permutation to current global permutation
-					current_perm_copy = list(current_perm)
-					for j in range(len(changed)):
-						current_perm_copy[changed[j]] = current_perm[changed[best_perm[j]]]
-					current_perm = tuple(current_perm_copy)
-					for j in range(ploidy):
-						invers_perm[current_perm[j]] = j
+		if len(changed) >= 2:
+			# if at least two threads changed cluster: find optimal permutation of changed clusters
+			left_c = [path[i-1][j] for j in changed]
+			right_c = [path[i][j] for j in changed]
+			actual_score = sum([cluster_sim.get(left_c[j], right_c[j]) for j in range(len(changed))])
+			best_score = actual_score
+			best_perm = tuple(range(len(changed)))
+			for perm in it.permutations(range(len(changed))):
+				score = 0
+				for j, left in enumerate(left_c):
+					score += cluster_sim.get(left, right_c[perm[j]])
+				if score > best_score:
+					best_score = score
+					best_perm = perm
 
-					#print("{}: Actual score = {:.6}  Best score = {:.6}  Best perm = {}".format(i, float(actual_score), float(best_score), best_perm))
-					#print("Changed = {}  Current perm = {}".format(changed, current_perm))
+			# apply local best permutation to current global permutation
+			current_perm_copy = list(current_perm)
+			for j in range(len(changed)):
+				current_perm_copy[changed[j]] = current_perm[changed[best_perm[j]]]
+			current_perm = tuple(current_perm_copy)
+			for j in range(ploidy):
+				invers_perm[current_perm[j]] = j
 			
 		# apply current optimal permutation to local cluster config and add to corrected path
 		corrected_path.append([path[i][j] for j in invers_perm])
-
-	# use corrected path from now on
-	path = corrected_path
-
-	logger.debug("Cut positions: {}".format(cut_positions))
-	
-	# compute haplotypes
-	haplotypes = []
-	for i in range(ploidy):
-		hap = ""
-		alleles_as_strings = []
-		for pos in range(len(path)):
-			c_id = path[pos][i]
-			allele = consensus[pos][c_id] if c_id in consensus[pos] else -1
-			if allele == -1:
-				alleles_as_strings.append("n")
-			else:
-				alleles_as_strings.append(str(allele))
-		haplotypes.append(hap.join(alleles_as_strings))
 		
-	return (cut_positions, path, haplotypes)
+	return corrected_path
 
 def get_position_map(readset):
 	# Map genome positions to [0,l)

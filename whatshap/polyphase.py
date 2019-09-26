@@ -424,7 +424,7 @@ def run_polyphase(
 
 					# Add dynamic programming for finding the most likely subset of clusters
 					genotype_slice = genotype_list_multi[ext_block_starts[block_id]:ext_block_starts[block_id+1]]
-					cut_positions, path, haplotypes = run_threading(block_readset, clustering, cluster_sim, ploidy, sample, genotype_slice, block_cut_sensitivity, cython_threading)
+					cut_positions, path, haplotypes = run_threading(block_readset, clustering, cluster_sim, ploidy, genotype_slice, block_cut_sensitivity, cython_threading)
 					timers.stop('threading')
 
 					# collect results from threading
