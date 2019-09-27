@@ -291,3 +291,21 @@ def test_genotype_likelihoods():
 	gl = GenotypeLikelihoods(*(math.log10(x) for x in [1e-10, 0.5, 0.002]))
 	assert list(gl.as_phred()) == [97, 0, 24]
 	assert list(gl.as_phred(regularizer=0.01)) == [20, 0, 19]
+
+
+def test_read_region():
+	vcf_reader = VcfReader('tests/data/haplotag_1.vcf.gz')
+	tableA = vcf_reader._fetch('chr1')
+	tableB = vcf_reader._fetch('chr1', 1069570, 1079880)
+	assert tableA.chromosome == tableB.chromosome
+	assert len(tableA.variants) == len(tableB.variants)
+
+
+def test_read_region_subsets():
+	regions = [(1069570, 1070690), (1074910, 1076152)]
+	vcf_reader = VcfReader('tests/data/haplotag_1.vcf.gz', indels=True)
+	table = vcf_reader._fetch_subsets('chr1', regions)
+	assert table.chromosome == 'chr1'
+	assert len(table.variants) == 8
+	assert table.variants[5].reference_allele == 'CG'
+	assert table.variants[5].alternative_allele == 'C'

@@ -48,7 +48,7 @@ class ReadSetReader:
 		else:
 			self._reader = MultiBamReader(paths, reference=reference)
 
-	def read(self, chromosome, variants, sample, reference):
+	def read(self, chromosome, variants, sample, reference, regions=None):
 		"""
 		Return a ReadSet object representing the given variants.
 
@@ -64,6 +64,7 @@ class ReadSetReader:
 		sample -- name of sample to work on. If None, read group information is
 			ignored and all reads in the file are used.
 		reference -- reference sequence of the given chromosome (or None)
+		regions -- list of start,end tuples (end can be None)
 		"""
 		# Since variants are identified by position, positions must be unique.
 		if __debug__ and variants:
@@ -71,7 +72,7 @@ class ReadSetReader:
 			pos, count = varposc.most_common()[0]
 			assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
 
-		alignments = self._usable_alignments(chromosome, sample)
+		alignments = self._usable_alignments(chromosome, sample, regions)
 		reads = self._alignments_to_readdict(alignments, variants, sample, reference)
 		return self._readdict_to_readset(reads)
 
@@ -92,24 +93,27 @@ class ReadSetReader:
 				read_set.add(self._merge_pair(*readlist))
 		return read_set
 
-	def _usable_alignments(self, chromosome, sample):
+	def _usable_alignments(self, chromosome, sample, regions=None):
 		"""
 		Retrieve usable (suficient mapping quality, not secondary etc.)
 		alignments from the alignment file
 		"""
-		for alignment in self._reader.fetch(reference=chromosome, sample=sample):
-			# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
-			if alignment.bam_alignment.flag & 2048 != 0:
-				continue
-			if alignment.bam_alignment.mapping_quality < self._mapq_threshold:
-				continue
-			if alignment.bam_alignment.is_secondary:
-				continue
-			if alignment.bam_alignment.is_unmapped:
-				continue
-			if alignment.bam_alignment.is_duplicate:
-				continue
-			yield alignment
+		if regions is None:
+			regions = [(0, None)]
+		for s, e in regions:
+			for alignment in self._reader.fetch(reference=chromosome, sample=sample, start=s, end=e):
+				# TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
+				if alignment.bam_alignment.flag & 2048 != 0:
+					continue
+				if alignment.bam_alignment.mapping_quality < self._mapq_threshold:
+					continue
+				if alignment.bam_alignment.is_secondary:
+					continue
+				if alignment.bam_alignment.is_unmapped:
+					continue
+				if alignment.bam_alignment.is_duplicate:
+					continue
+				yield alignment
 
 	def has_reference(self, chromosome):
 		return self._reader.has_reference(chromosome)
