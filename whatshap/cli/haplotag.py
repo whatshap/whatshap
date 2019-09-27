@@ -27,7 +27,8 @@ logger = logging.getLogger(__name__)
 
 def add_arguments(parser):
 	arg = parser.add_argument
-	arg('-o', '--output', default=None,
+	arg('-o', '--output',
+		default=None,
 		help='Output file. If omitted, use standard output.')
 	arg('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
@@ -59,6 +60,7 @@ def add_arguments(parser):
 	arg('alignment_file', metavar='ALIGNMENTS',
 		help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
 
+
 def validate(args, parser):
 	pass
 
@@ -67,12 +69,12 @@ def md5_of(filename):
 	return hashlib.md5(open(filename,'rb').read()).hexdigest()
 
 
-def read_reads(readset_reader, chromosome, variants, sample, fasta):
+def read_reads(readset_reader, chromosome, variants, sample, fasta, regions):
 	"""Return a sorted ReadSet"""
 	logger.info('Detecting alleles in reads mapped to chromosome %s for sample %r ...', chromosome, sample)
 	reference = fasta[chromosome] if fasta else None
 	try:
-		readset = readset_reader.read(chromosome, variants, sample, reference)
+		readset = readset_reader.read(chromosome, variants, sample, reference, regions)
 	except ReadSetError as e:
 		logger.error("%s", e)
 		sys.exit(1)
@@ -162,13 +164,21 @@ def load_chromosome_variants(vcf_reader, chromosome, regions):
 	return variant_table
 
 
-def prepare_haplotag_information(variant_table, shared_samples, readset_reader, fasta,
-								 ignore_read_groups, ignore_linked_read, linked_read_cutoff):
+def prepare_haplotag_information(variant_table, shared_samples, readset_reader,
+								fasta, regions, ignore_read_groups, ignore_linked_read,
+								linked_read_cutoff):
 	"""
 	Read all reads for this chromosome once to create one core.ReadSet per sample
 	this allows to assign phase to paired-end reads based on both reads
 
 	:param variant_table:
+	:param shared_samples:
+	:param readset_reader:
+	:param fasta:
+	:param regions:
+	:param ignore_read_groups:
+	:param ignore_linked_read:
+	:param linked_read_cutoff:
 	:return:
 	"""
 	n_multiple_phase_sets = 0
@@ -179,7 +189,7 @@ def prepare_haplotag_information(variant_table, shared_samples, readset_reader, 
 	for sample in shared_samples:
 		variantpos_to_phaseinfo, variants = get_variant_information(variant_table, sample)
 		bam_sample = None if ignore_read_groups else sample
-		read_set = read_reads(readset_reader, variant_table.chromosome, variants, bam_sample, fasta)
+		read_set = read_reads(readset_reader, variant_table.chromosome, variants, bam_sample, fasta, regions)
 
 		# map tag --> set of reads
 		BX_tag_to_readlist = collections.defaultdict(list)
@@ -227,9 +237,12 @@ def prepare_haplotag_information(variant_table, shared_samples, readset_reader, 
 					BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, haplotype, phaseset))
 					for r in reads_to_consider:
 						read_to_haplotype[r.name] = (haplotype, abs(quality), phaseset)
-						logger.debug('Assigned read {} to haplotype {} with a '
-									'quality of {} based on {} covered variants'.format(r.name, haplotype,
-																						quality, len(r)))
+						logger.debug(
+							'Assigned read {} to haplotype {} with a '
+							'quality of {} based on {} covered variants'.format(
+								r.name, haplotype, quality, len(r)
+							)
+						)
 	return BX_tag_to_haplotype, read_to_haplotype, n_multiple_phase_sets
 
 
@@ -266,15 +279,19 @@ def normalize_user_regions(user_regions, bam_references):
 			elif len(parts) == 3:
 				start, end = int(parts[1]), int(parts[2])
 				if end <= start:
-					raise ValueError('Malformed region detected: '
-									'end must be larger than start: {} >= {}'.format(start, end))
+					raise ValueError(
+						'Malformed region detected: '
+						'end must be larger than start: {} >= {}'.format(start, end)
+					)
 				chrom, start, end = parts[0], int(parts[1]), int(parts[2])
 			else:
 				raise ValueError('Malformed region specified (must be: chrom[:start][:end]) -> {}'.format(region))
 			logger.debug('Normalized region {} to {}-{}-{}'.format(region, chrom, start, end))
 			if chrom not in bam_references:
-				raise ValueError('Specified chromosome/reference is not contained '
-								'in input BAM file: {}'.format(chrom))
+				raise ValueError(
+					'Specified chromosome/reference is not contained '
+					'in input BAM file: {}'.format(chrom)
+				)
 			norm_regions[chrom].append((start, end))
 
 	return norm_regions
@@ -303,9 +320,11 @@ def initialize_readset_reader(aln_file_path, ref_file_path, num_sample_ids, exit
 		logger.error('Error while initializing ReadSetReader: {}'.format(err))
 		raise err
 	except AlignmentFileNotIndexedError as err:
-		logger.error('The alignment file {} is not indexed. '
-					 'Please create the appropriate BAM/CRAM '
-					 'index with "samtools index"'.format(err))
+		logger.error(
+			'The alignment file {} is not indexed. '
+			'Please create the appropriate BAM/CRAM '
+			'index with "samtools index"'.format(err)
+		)
 		raise err
 	if ref_file_path is not None:
 		try:
@@ -314,9 +333,11 @@ def initialize_readset_reader(aln_file_path, ref_file_path, num_sample_ids, exit
 			logger.error('Error while loading FASTA reference file: {}'.format(err))
 			raise err
 		except FastaNotIndexedError as err:
-			logger.error('An index file (.fai) for the reference FASTA {} '
-						 'could not be found. Please create one with '
-						 '"samtools faidx".'.format(err))
+			logger.error(
+				'An index file (.fai) for the reference FASTA {} '
+				'could not be found. Please create one with '
+				'"samtools faidx".'.format(err)
+			)
 			raise err
 	return readset_reader, fasta
 
@@ -338,13 +359,17 @@ def prepare_variant_file(file_path, user_given_samples, ignore_read_groups, exit
 	# be a "constants" module to hold hard-coded
 	# values in a central location?
 	if not file_path.lower().endswith('.gz'):
-		raise VcfError('The input VCF must be gzipped compressed '
-						'and the file name must end in ".gz": {}'.format(file_path))
+		raise VcfError(
+			'The input VCF must be gzipped compressed '
+			'and the file name must end in ".gz": {}'.format(file_path)
+		)
+
 	try:
 		vcf_reader = exit_stack.enter_context(VcfReader(file_path, indels=True, phases=True))
 	except (IOError, OSError) as err:
 		logger.error('Error while loading variant file {}: {}'.format(file_path, err))
 		raise err
+
 	samples_in_vcf = set(vcf_reader.samples)
 	if len(samples_in_vcf) < 1:
 		raise VcfError('No samples detected in VCF file {} '
@@ -353,16 +378,20 @@ def prepare_variant_file(file_path, user_given_samples, ignore_read_groups, exit
 	logger.debug('Found the following samples in input VCF: {}'.format(' - '.join(sorted(samples_in_vcf))))
 
 	if ignore_read_groups and user_given_samples is None and len(samples_in_vcf) > 1:
-		raise ValueError('When setting "--ignore-read-groups" on '
-						 'a multi-sample VCF, samples to be used must '
-						 'be specified via the "--sample" parameter.')
+		raise ValueError(
+			'When setting "--ignore-read-groups" on '
+			'a multi-sample VCF, samples to be used must '
+			'be specified via the "--sample" parameter.'
+		)
 
 	given_samples = user_given_samples if user_given_samples is not None else samples_in_vcf
 	missing_samples = set(given_samples) - samples_in_vcf
 	if len(missing_samples) > 0:
-		raise VcfError('The following samples were specified via the '
-						'"--sample" parameter, but are not part of the '
-						'input VCF: {}'.format(sorted(missing_samples)))
+		raise VcfError(
+			'The following samples were specified via the '
+			'"--sample" parameter, but are not part of the '
+			'input VCF: {}'.format(sorted(missing_samples))
+		)
 
 	samples_to_use = samples_in_vcf.intersection(given_samples)
 	logger.info('Keeping {} samples for haplo-tagging'.format(len(samples_to_use)))
@@ -392,14 +421,18 @@ def prepare_alignment_file(file_path, ignore_read_groups, vcf_samples, exit_stac
 	if not ignore_read_groups:
 		shared_samples = bam_samples.intersection(vcf_samples)
 		if len(shared_samples) == 0:
-			raise ValueError('No common samples between VCF and BAM file detected. '
-								'You may restart the analysis setting "--ignore-read-groups" '
-								'(if appropriate) to avoid this error.')
+			raise ValueError(
+				'No common samples between VCF and BAM file detected. '
+				'You may restart the analysis setting "--ignore-read-groups" '
+				'(if appropriate) to avoid this error.'
+			)
 		elif len(shared_samples) < len(bam_samples):
 			missing_samples = ' | '.join(sorted(bam_samples - shared_samples))
-			logger.warning('Ignoring the following sample(s) for haplo-tagging '
-							'because they are not part of the VCF or '
-							'were not requested via "--sample": {}'.format(missing_samples))
+			logger.warning(
+				'Ignoring the following sample(s) for haplo-tagging '
+				'because they are not part of the VCF or '
+				'were not requested via "--sample": {}'.format(missing_samples)
+			)
 		else:
 			# situation is ok
 			pass
@@ -573,15 +606,18 @@ def run_haplotag(
 			variant_table = load_chromosome_variants(vcf_reader, chrom, regions)
 			if variant_table is not None:
 				logger.debug('Preparing haplotype information')
+
 				BX_tag_to_haplotype, read_to_haplotype, n_mult = prepare_haplotag_information(
 					variant_table,
 					shared_samples,
 					readset_reader,
 					fasta,
+					regions,
 					ignore_read_groups,
 					ignore_linked_read,
 					linked_read_distance_cutoff
 				)
+
 				n_multiple_phase_sets += n_mult
 			else:
 				# avoid uninitialized variables
