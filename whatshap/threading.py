@@ -42,7 +42,7 @@ def run_threading(readset, clustering, cluster_sim, ploidy, genotypes, block_cut
 		
 	return (cut_positions, path, haplotypes)
 
-def compute_threading_path(readset, clustering, ploidy, genotypes, cython_threading):
+def compute_threading_path(readset, clustering, ploidy, genotypes, cython_threading, switch_cost = 32.0, affine_switch_cost = 8.0):
 	logger.debug("Computing cluster coverages and consensi ..")
 	
 	# Map genome positions to [0,l)
@@ -147,7 +147,7 @@ def compute_threading_path(readset, clustering, ploidy, genotypes, cython_thread
 						count += 1
 			
 		# run threader
-		threader = HaploThreader(ploidy, 32.0, 8.0, True, 0)
+		threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, True, 0)
 		path = threader.computePathsBlockwise([0], cov_map_as_list, compressed_coverage, compressed_consensus, genotypes, c_to_c_dissim)
 		assert(len(path) == num_vars)
 		
