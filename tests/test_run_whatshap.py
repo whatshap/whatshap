@@ -611,7 +611,6 @@ def test_phase_trio_zero_distance():
 		        ped='tests/data/trio.ped', genmap='tests/data/zero-genetic-distance.map')
 		assert os.path.isfile(outvcf)
 
-
 def test_haplotag():
 	with TemporaryDirectory() as tempdir:
 		outbam1 = tempdir + '/output1.bam'
@@ -716,14 +715,17 @@ def test_haplotag_no_readgroups1():
 def test_haplotag_no_readgroups2():
 	with raises((SystemExit, ValueError)):
 		# vcf contains multiple samples, there should be an error
-		run_haplotag(alignment_file='tests/data/haplotag_noRG.bam', variant_file='tests/data/haplotag_noRG.vcf.gz',
-			output='/dev/null', ignore_read_groups=True)
+		run_haplotag(alignment_file='tests/data/haplotag_noRG.bam',
+					variant_file='tests/data/haplotag_noRG.vcf.gz',
+					output='/dev/null', ignore_read_groups=True)
 
 
 def test_haplotag_sample_given():
 	with TemporaryDirectory() as tempdir:
 		outbam = tempdir + '/output.bam'
-		run_haplotag(variant_file='tests/data/haplotag_sample.vcf.gz', alignment_file='tests/data/haplotag_sample.bam', given_samples=['mother'], output=outbam)
+		run_haplotag(variant_file='tests/data/haplotag_sample.vcf.gz',
+					 alignment_file='tests/data/haplotag_sample.bam',
+					 given_samples=['mother'], output=outbam)
 		for alignment in pysam.AlignmentFile(outbam):
 			if alignment.get_tag('RG') == 'mother':
 				assert alignment.has_tag('HP')
@@ -987,7 +989,7 @@ def test_quartet2():
 	('whatshap', [10, 10, None, 200, 200]),
 	('hapchat', [10, 10, 10, 10, 10]),
 ])
-def test_phased_blocks(algorithm, expected_blocks):
+def test_phased_blocks(algorithm, expected_blocks, tmpdir):
 	# This test involves a simple example on a pair of reads which
 	# overlap a single site which is homozygous.  While we are
 	# distrusting genotypes AND including homozygous sites, i.e.,

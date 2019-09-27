@@ -355,17 +355,6 @@ def prepare_variant_file(file_path, user_given_samples, ignore_read_groups, exit
 	:param exit_stack:
 	:return: VCF reader object and set of VCF samples to use
 	"""
-	# FIXME hard-coded value
-	# TODO:
-	# this appears here and there, should there
-	# be a "constants" module to hold hard-coded
-	# values in a central location?
-	if not file_path.lower().endswith('.gz'):
-		raise VcfError(
-			'The input VCF must be gzipped compressed '
-			'and the file name must end in ".gz": {}'.format(file_path)
-		)
-
 	try:
 		vcf_reader = exit_stack.enter_context(VcfReader(file_path, indels=True, phases=True))
 	except (IOError, OSError) as err:
@@ -505,14 +494,14 @@ def prepare_output_files(aln_output, reference, haplotag_output, vcf_md5, bam_he
 
 def ignore_read(alignment, tag_supplementary):
 	"""
-	If, in the future, supplementary alignments should also be tagged,
+	If supplementary alignments should also be tagged,
 	this should only take the haplo-tag of the primary
 	alignment into account - this leads to:
 
 	We ignore an alignment [aln]:
-	- IF aln is unmapped
-	- IF tag_supplementary AND aln is secondary
-	- IF not tag_supplementary AND aln is secondary OR aln is supplementary
+	- IF aln is_unmapped OR is_secondary
+	- IF tag_supplementary AND aln is_secondary
+	- IF not tag_supplementary AND is_supplementary
 
 	:param alignment:
 	:param tag_supplementary:
