@@ -15,10 +15,10 @@ def run_threading(readset, clustering, cluster_sim, ploidy, genotypes, block_cut
 	cut_positions = compute_cut_positions(path, block_cut_sensitivity, num_clusters)
 	
 	# we can look at the sequences again to use the most likely continuation, when two or more clusters switch at the same position
-	corrected_path = improve_path_on_multiswitches(path, num_clusters, cluster_sim)
-
-	# use corrected path from now on
-	path = corrected_path
+	path = improve_path_on_multiswitches(path, num_clusters, cluster_sim)
+	
+	# we can look at the sequences again to use the most likely continuation, when a haplotype leaves a collapsed cluster
+	#path = improve_path_on_collapsedswitches(corrected_path, num_clusters, cluster_sim)
 
 	logger.debug("Cut positions: {}".format(cut_positions))
 	
@@ -252,6 +252,92 @@ def improve_path_on_multiswitches(path, num_clusters, cluster_sim):
 			current_perm_copy = list(current_perm)
 			for j in range(len(changed)):
 				current_perm_copy[changed[j]] = current_perm[changed[best_perm[j]]]
+			current_perm = tuple(current_perm_copy)
+			for j in range(ploidy):
+				invers_perm[current_perm[j]] = j
+			
+		# apply current optimal permutation to local cluster config and add to corrected path
+		corrected_path.append([path[i][j] for j in invers_perm])
+		
+	return corrected_path
+
+def improve_path_on_collapsedswitches(path, num_clusters, cluster_sim):
+	if len(path) == 0:
+		return []
+	
+	corrected_path = []
+	corrected_path.append(path[0])
+	ploidy = len(path[0])
+	current_perm = tuple(range(ploidy))
+	invers_perm = [i for i in range(ploidy)]
+	
+	copynrs = []
+	for i in range(0, len(path)):
+		copynr = defaultdict(int)
+		for j in range(0, ploidy):
+			if path[i][j] not in copynr:
+				copynr[path[i][j]] = 0
+			copynr[path[i][j]] += 1
+		copynrs.append(copynr)
+
+	for i in range(1, len(path)):
+		changed = []
+		# iterate over present cluster ids
+		for c_id in copynrs[i]:
+			if copynrs[i-1][c_id] >= 2:
+				# for all collapsed clusters: find haplotypes, which go through and check whether one of them exits
+				outgoing_c = False
+				affected = []
+				for j in range(ploidy):
+					if path[i-1][j] == c_id:
+						affected.append(j)
+						if path[i][j] != c_id:
+							outgoing_c = True
+				# if haplotypes leaves collapsed cluster, all other might be equally suited, so add them
+				if outgoing_c:
+					changed.append(affected)
+					
+		for h_group in changed:
+			# for every group of haplotypes coming from a collapsed cluster:
+			collapsed_cid = path[i-1][h_group[0]]
+			left_c = []
+			
+			# find last cluster before collapsed one for every haplotype (or use collapsed one if this does not exist)
+			for j in h_group:
+				pos = i-1
+				while pos >= 0:
+					if path[pos][j] != collapsed_cid:
+						left_c.append(path[pos][j])
+						break
+					else:
+						pos -= 1
+				if pos == -1:
+					left_c.append(collapsed_cid)
+			right_c = [path[i][j] for j in h_group]
+			
+			# we need to catch the case, where we compare a cluster with itself
+			ident_sim = 0
+			for c1 in left_c:
+				for c2 in right_c:
+					if c1 != c2:
+						ident_sim = max(ident_sim, cluster_sim.get(c1, c2))
+			ident_sim = ident_sim * 2 + 1			
+			
+			actual_score = sum([cluster_sim.get(left_c[j], right_c[j]) if left_c[j] != right_c[j] else ident_sim for j in range(len(h_group))])
+			best_score = actual_score
+			best_perm = tuple(range(len(h_group)))
+			for perm in it.permutations(range(len(h_group))):
+				score = 0
+				for j, left in enumerate(left_c):
+					score += cluster_sim.get(left, right_c[perm[j]]) if left != right_c[perm[j]] else ident_sim
+				if score > best_score:
+					best_score = score
+					best_perm = perm
+
+			# apply local best permutation to current global permutation
+			current_perm_copy = list(current_perm)
+			for j in range(len(h_group)):
+				current_perm_copy[h_group[j]] = current_perm[h_group[best_perm[j]]]
 			current_perm = tuple(current_perm_copy)
 			for j in range(ploidy):
 				invers_perm[current_perm[j]] = j
