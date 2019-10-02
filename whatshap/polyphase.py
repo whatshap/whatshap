@@ -27,7 +27,7 @@ from contextlib import ExitStack
 from . import __version__
 from .bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
 from .clustereditingplots import draw_clustering, draw_threading
-from .core import Read, ReadSet, CoreAlgorithm, DynamicSparseGraph, readselection, NumericSampleIds, compute_polyploid_genotypes
+from .core import Read, ReadSet, Variant, CoreAlgorithm, DynamicSparseGraph, readselection, NumericSampleIds, compute_polyploid_genotypes
 from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, find_components
 from .readscoring import score_global, score_local, score_local_patternbased, SparseTriangleMatrix
@@ -80,7 +80,8 @@ def run_polyphase(
 	plot_threading = False,
 	cython_threading = False,
 	ce_refinements = 5,
-	block_cut_sensitivity = 5
+	block_cut_sensitivity = 5,
+	correct_rare_alleles = False
 	):
 	"""
 	Run Polyploid Phasing.
@@ -344,8 +345,70 @@ def run_polyphase(
 					
 					# Block is non-singleton here, so run the normal routine
 					processed_non_singleton_blocks += 1
-					logger.info("Processing block {} of {} with {} reads and {} variants.".format(processed_non_singleton_blocks, num_non_singleton_blocks, len(block_readset), ext_block_starts[block_id+1] - ext_block_starts[block_id]))
-					assert len(block_readset.get_positions()) == ext_block_starts[block_id+1] - ext_block_starts[block_id]
+					block_num_vars = ext_block_starts[block_id+1] - ext_block_starts[block_id]
+					logger.info("Processing block {} of {} with {} reads and {} variants.".format(processed_non_singleton_blocks, num_non_singleton_blocks, len(block_readset), block_num_vars))
+					assert len(block_readset.get_positions()) == block_num_vars
+					
+					# Correct read alleles by checking for rare allele-pairs. If too much below 1/ploidy, one of these alleles must be wrong.
+					if correct_rare_alleles:
+						timers.start('correct_rare_alleles')
+						max_dist = 5
+						allelefreq = [[defaultdict(int) for i in range(max_dist)] for j in range(block_num_vars - 1)]
+						#how to read: allelefreq[first position][second position as offset - 1][allele tuple] = absolute frequency
+						totalfreq = [[0 for i in range(max_dist)] for j in range(block_num_vars - 1)]
+						block_index, block_rev_index = get_position_map(block_readset)
+						for read in block_readset:
+							for i in range(len(read)):
+								for j in range(i+1, min(i+max_dist, len(read))):
+									first_pos = block_index[read[i].position]
+									second_pos = block_index[read[j].position] - first_pos - 1
+									if second_pos < max_dist:
+										allele_pair = (int(read[i].allele), int(read[j].allele))
+										allelefreq[first_pos][second_pos][allele_pair] += 1
+										totalfreq[first_pos][second_pos] += 1
+
+						cov_per_dist = [0 for i in range(max_dist)]
+						num_per_dist = [0 for i in range(max_dist)]
+						rare = [[defaultdict(lambda: False) for i in range(max_dist)] for j in range(block_num_vars - 1)]
+						for pos in range(block_num_vars-1):
+							for offset in range(max_dist):
+								cov_per_dist[offset] += totalfreq[pos][offset]
+								num_per_dist[offset] += 1
+								for allele in allelefreq[pos][offset]:
+									k = allelefreq[pos][offset][allele]
+									n = totalfreq[pos][offset]
+									p_val = binom_test(k, n=n, p=1/ploidy, alternative="less")
+									if p_val < 0.02:
+										rare[pos][offset][allele] = True
+										#print("Rare allele "+str(allele)+" at ("+str(pos)+","+str(pos+offset+1)+") with freq "+str(k)+" out of "+str(n))
+
+						'''
+						for i in range(max_dist):
+							print("dist "+str(i+1)+": "+str(cov_per_dist[i]/num_per_dist[i]))
+						'''
+
+						corrections = 0
+						for read in block_readset:
+							x = [0 for i in range(len(read))]
+							m = 0
+							for i in range(len(read)):
+								for j in range(i+1, min(i+max_dist, len(read))):
+									first_pos = block_index[read[i].position]
+									second_pos = block_index[read[j].position] - first_pos - 1
+									if second_pos < max_dist:
+										allele_pair = (int(read[i].allele), int(read[j].allele))
+										if rare[first_pos][second_pos][allele_pair]:
+											x[i] += 1
+											x[j] += 1
+											m = max(m, x[i], x[j])
+							if m >= 2:
+								for i in range(len(read)):
+									if x[i] == m:
+										read[i] = Variant(position=read[i].position, allele = 1 - read[i].allele, quality = read[i].quality)
+										corrections += 1
+
+						print("Corrected "+str(corrections)+" alleles.")
+						timers.stop('correct_rare_alleles')
 
 					# Transform allele matrix, if option selected
 					timers.start('transform_matrix')
@@ -523,6 +586,8 @@ def run_polyphase(
 	logger.info('Time spent reading BAM/CRAM:                 %6.1f s', timers.elapsed('read_bam'))
 	logger.info('Time spent parsing VCF:                      %6.1f s', timers.elapsed('parse_vcf'))
 	logger.info('Time spent detecting blocks:                 %6.1f s', timers.elapsed('detecting_blocks'))
+	if correct_rare_alleles:
+		logger.info('Time spent correcting rare alleles:          %6.1f s', timers.elapsed('correct_rare_alleles'))
 	if transform:
 		logger.info('Time spent transforming allele matrix:       %6.1f s', timers.elapsed('transform_matrix'))
 	logger.info('Time spent solving cluster editing:          %6.1f s', timers.elapsed('solve_clusterediting'))
@@ -708,9 +773,11 @@ def add_arguments(parser):
 	#arg('--single-block', dest='single_block', default=False, action='store_true',
 	#	help='Output only one single block.')
 	arg('--cython-threading', dest='cython_threading', default=False, action='store_true',
-		help='Uses a C++ implementation to perform the haplotype threading.')
+		help='Uses the Cython implementation to perform the haplotype threading instead of C++.')
 	arg('--ce-refinements', metavar='REFINEMENTS', type=int, default=5, help='Maximum number of refinement steps for cluster editing (default: %(default)s).')
 	arg('--block-cut-sensitivity', metavar='SENSITIVITY', type=int, default=4, help='Strategy to determine block borders. 0 yields the longest blocks with more switch errors, 5 has the shortest blocks with lowest switch error rate (default: %(default)s).')
+	arg('--correct-rare-alleles', dest='correct_rare_alleles', default=False, action='store_true',
+		help='Corrects alleles in allele pairs, which have very low support.')
 
 def validate(args, parser):
 	pass
