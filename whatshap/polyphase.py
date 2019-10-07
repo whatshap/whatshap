@@ -26,11 +26,11 @@ from contextlib import ExitStack
 
 from . import __version__
 from .bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
-from .clustereditingplots import draw_clustering, draw_threading
+from .clustereditingplots import draw_clustering, draw_threading, get_phase
 from .core import Read, ReadSet, Variant, CoreAlgorithm, DynamicSparseGraph, readselection, NumericSampleIds, compute_polyploid_genotypes
 from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, find_components
-from .readscoring import score_global, score_local, score_local_patternbased, SparseTriangleMatrix
+from .readscoring import score_global, score_local, score_local_patternbased, SparseTriangleMatrix, parse_haplotype
 from .threading import run_threading, get_local_cluster_consensus_withfrac, get_position_map, get_pos_to_clusters_map, get_cluster_start_end_positions, get_coverage, get_coverage_absolute
 from .timer import StageTimer
 from .utils import IndexedFasta, FastaNotIndexedError
@@ -352,14 +352,14 @@ def run_polyphase(
 					# Correct read alleles by checking for rare allele-pairs. If too much below 1/ploidy, one of these alleles must be wrong.
 					if correct_rare_alleles:
 						timers.start('correct_rare_alleles')
-						max_dist = 5
+						max_dist = 10
 						allelefreq = [[defaultdict(int) for i in range(max_dist)] for j in range(block_num_vars - 1)]
 						#how to read: allelefreq[first position][second position as offset - 1][allele tuple] = absolute frequency
 						totalfreq = [[0 for i in range(max_dist)] for j in range(block_num_vars - 1)]
 						block_index, block_rev_index = get_position_map(block_readset)
 						for read in block_readset:
 							for i in range(len(read)):
-								for j in range(i+1, min(i+max_dist, len(read))):
+								for j in range(i+1, min(i+max_dist+1, len(read))):
 									first_pos = block_index[read[i].position]
 									second_pos = block_index[read[j].position] - first_pos - 1
 									if second_pos < max_dist:
@@ -378,19 +378,36 @@ def run_polyphase(
 									k = allelefreq[pos][offset][allele]
 									n = totalfreq[pos][offset]
 									p_val = binom_test(k, n=n, p=1/ploidy, alternative="less")
-									if p_val < 0.02:
+									if p_val < 0.01:
 										rare[pos][offset][allele] = True
-										#print("Rare allele "+str(allele)+" at ("+str(pos)+","+str(pos+offset+1)+") with freq "+str(k)+" out of "+str(n))
 
 						'''
 						for i in range(max_dist):
 							print("dist "+str(i+1)+": "+str(cov_per_dist[i]/num_per_dist[i]))
 						'''
+						
+						# Create ground truth
+						#compare = True
+						compare = False
+						if compare:
+							try:
+								phase_vectors = get_phase(readset, phasable_variant_table)
+								truth = []
+								assert len(phase_vectors) == ploidy
+								for k in range(ploidy):
+									truth.append("".join(map(str, phase_vectors[k][ext_block_starts[block_id]:ext_block_starts[block_id+1]])))
+							except:
+								compare = False
 
+						# Correct alleles
 						corrections = 0
+						false_corrections = 0
+						alleles = 0
+						false_alleles = 0
 						for read in block_readset:
 							x = [0 for i in range(len(read))]
 							m = 0
+							pairs = []
 							for i in range(len(read)):
 								for j in range(i+1, min(i+max_dist, len(read))):
 									first_pos = block_index[read[i].position]
@@ -401,14 +418,53 @@ def run_polyphase(
 											x[i] += 1
 											x[j] += 1
 											m = max(m, x[i], x[j])
-							if m >= 2:
+											pairs.append((i,j))
+							while m >= 2 and correct_rare_alleles:
 								for i in range(len(read)):
-									if x[i] == m:
+									found = False
+									if x[i] == m and not found:
 										read[i] = Variant(position=read[i].position, allele = 1 - read[i].allele, quality = read[i].quality)
+										if compare:
+											true_hap = parse_haplotype(read.name)
+											var_pos = block_index[read[i].position]
+											new_allele = read[i].allele
+											correct_allele = int(truth[true_hap][var_pos])
+											if correct_allele != new_allele:
+												false_corrections += 1
 										corrections += 1
+										pairs = [(j,k) for (j,k) in pairs if j != i and k != i]
+										x = [0 for i in range(len(read))]
+										m = 0
+										for (j,k) in pairs:
+											x[j] += 1
+											x[k] += 1
+											m = max(m, x[j], x[j])
+										found = True
+										break
+							if compare:
+								for i in range(len(read)):
+									true_hap = parse_haplotype(read.name)
+									var_pos = block_index[read[i].position]
+									old_allele = read[i].allele
+									correct_allele = int(truth[true_hap][var_pos])
+									if correct_allele != old_allele:
+										false_alleles += 1
+									alleles += 1
 
-						print("Corrected "+str(corrections)+" alleles.")
-						timers.stop('correct_rare_alleles')
+						if compare:
+							print("Corrected "+str(corrections)+" alleles.")
+							if corrections > 0:
+								print("... of which {} were wrong ({:.2f}%)".format(false_corrections, 100*false_corrections/corrections))
+							print("Non-Corrected "+str(alleles-corrections)+" alleles.")
+							if alleles > 0:
+								print("... of which {} were wrong ({:.2f}%)".format(false_alleles-false_corrections, 100*(false_alleles-false_corrections)/(alleles-corrections)))
+							timers.stop('correct_rare_alleles')
+
+							print("Global allele error rate: {:.2f}%".format(100*(false_alleles)/(alleles)))
+							print("Correction recall:        {:.2f}%".format(100*(corrections-false_corrections)/(corrections-false_corrections+false_alleles)))
+							print("Correction precision:     {:.2f}%".format(100*(corrections-false_corrections)/(corrections)))
+						
+						#return
 
 					# Transform allele matrix, if option selected
 					timers.start('transform_matrix')
