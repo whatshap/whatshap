@@ -28,6 +28,7 @@ from . import __version__
 from .bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
 from .clustereditingplots import draw_clustering, draw_threading, get_phase
 from .core import Read, ReadSet, Variant, CoreAlgorithm, DynamicSparseGraph, readselection, NumericSampleIds, compute_polyploid_genotypes
+from .matrixcorrection import correct_rare_alleles2
 from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, find_components
 from .readscoring import score_global, score_local, score_local_patternbased, SparseTriangleMatrix, parse_haplotype
@@ -352,6 +353,20 @@ def run_polyphase(
 					# Correct read alleles by checking for rare allele-pairs. If too much below 1/ploidy, one of these alleles must be wrong.
 					if correct_rare_alleles:
 						timers.start('correct_rare_alleles')
+						
+						compare = True
+						if compare:
+							try:
+								truth = []
+								phase_vectors = get_phase(readset, phasable_variant_table)
+								assert len(phase_vectors) == ploidy
+								for k in range(ploidy):
+									truth.append("".join(map(str, phase_vectors[k][ext_block_starts[block_id]:ext_block_starts[block_id+1]])))
+							except:
+								truth = None
+						correct_rare_alleles2(readset, ploidy, ground_truth_haplotypes = truth)
+						
+						'''
 						max_dist = 10
 						allelefreq = [[defaultdict(int) for i in range(max_dist)] for j in range(block_num_vars - 1)]
 						#how to read: allelefreq[first position][second position as offset - 1][allele tuple] = absolute frequency
@@ -380,11 +395,6 @@ def run_polyphase(
 									p_val = binom_test(k, n=n, p=1/ploidy, alternative="less")
 									if p_val < 0.01:
 										rare[pos][offset][allele] = True
-
-						'''
-						for i in range(max_dist):
-							print("dist "+str(i+1)+": "+str(cov_per_dist[i]/num_per_dist[i]))
-						'''
 						
 						# Create ground truth
 						#compare = True
@@ -458,13 +468,14 @@ def run_polyphase(
 							print("Non-Corrected "+str(alleles-corrections)+" alleles.")
 							if alleles > 0:
 								print("... of which {} were wrong ({:.2f}%)".format(false_alleles-false_corrections, 100*(false_alleles-false_corrections)/(alleles-corrections)))
-							timers.stop('correct_rare_alleles')
 
 							print("Global allele error rate: {:.2f}%".format(100*(false_alleles)/(alleles)))
 							print("Correction recall:        {:.2f}%".format(100*(corrections-false_corrections)/(corrections-false_corrections+false_alleles)))
 							print("Correction precision:     {:.2f}%".format(100*(corrections-false_corrections)/(corrections)))
 						
 						#return
+						'''
+						timers.stop('correct_rare_alleles')
 
 					# Transform allele matrix, if option selected
 					timers.start('transform_matrix')
