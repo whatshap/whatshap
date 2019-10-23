@@ -297,11 +297,35 @@ class VcfReader:
 		self.ignore_genotypes = ignore_genotypes
 		logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
-	def _fetch(self, chromosome: str):
+	def __enter__(self):
+		return self
+
+	def __exit__(self, *args):
+		# follows same structure as for ReadSetReader
+		self.close()
+
+	def close(self):
+		self._vcf_reader.close()
+
+	def _fetch(self, chromosome: str, start=0, end=None):
 		"""
 		Return VariantTable object for a given chromosome.
 		"""
-		records = list(self._vcf_reader.fetch(chromosome))
+		records = list(self._vcf_reader.fetch(chromosome, start=start, stop=end))
+		return self._process_single_chromosome(chromosome, records)
+
+	def _fetch_subsets(self, chromosome, regions):
+		"""
+		Return VariantTable object for a given chromosome
+		restricted to a subset of regions for that chromosome
+
+		:param chromosome:
+		:param regions: a list of start,end tuples (end can be None)
+		:return:
+		"""
+		records = []
+		for start, end in regions:
+			records.extend(list(self._vcf_reader.fetch(chromosome, start=start, stop=end)))
 		return self._process_single_chromosome(chromosome, records)
 
 	def __iter__(self):
