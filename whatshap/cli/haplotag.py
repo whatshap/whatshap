@@ -507,6 +507,9 @@ def ignore_read(alignment, tag_supplementary):
 	:param tag_supplementary:
 	:return:
 	"""
+	# TODO: could be that some checks here are not needed
+	# due to default filtering in ReadSetReader::_usableAlignments
+
 	if alignment.is_unmapped or alignment.is_secondary:
 		# unmapped or secondary alignments are never tagged
 		ignore = True
