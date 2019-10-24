@@ -46,7 +46,7 @@ def add_arguments(parser):
 	arg('--ignore-read-groups', default=False, action='store_true',
 		help='Ignore read groups in BAM/CRAM header and assume all reads come '
 		'from the same sample.')
-	arg('--sample', dest='given_samples', metavar='SAMPLE', default=[], action='append',
+	arg('--sample', dest='given_samples', metavar='SAMPLE', default=None, action='append',
 		help='Name of a sample to phase. If not given, all samples in the '
 		'input VCF are phased. Can be used multiple times.')
 	arg('--output-haplotag-list', dest='haplotag_list', metavar='HAPLOTAG_LIST', default=None,
