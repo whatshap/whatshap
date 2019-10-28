@@ -14,6 +14,10 @@ development version
   This change includes support for region-based selection of reads/variants in modules
   ``variants::ReadSetReader`` and ``bam::SampleBamReader``.
 * Refactored ``haplotag`` subcommand module.
+* Implemented ``--discard-unknown-reads`` option for ``split`` subcommand. Reads that are in
+  the input reads file (BAM/FASTQ) but are not listed in the haplotag file will be
+  discarded (by default, they are part of the "untagged" output).
+* Refactored ``split`` subcommand module.
 
 v0.18 (2019-02-15)
 ------------------

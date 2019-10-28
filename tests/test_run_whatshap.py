@@ -629,13 +629,14 @@ def test_haplotag():
 		for n, (line1, line2) in enumerate(zip(open(outlist1), open(outlist2))):
 			fields1 = line1.split(sep='\t')
 			fields2 = line2.split(sep='\t')
-			assert len(fields1) == len(fields2) == 3
+			assert len(fields1) == len(fields2) == 4
 			if n == 0:
 				continue
-			queryname1, haplotype1, phaseset1 = fields1
-			queryname2, haplotype2, phaseset2 = fields2
+			queryname1, haplotype1, phaseset1, chromosome1 = fields1
+			queryname2, haplotype2, phaseset2, chromosome2 = fields2
 			assert queryname1 == queryname2
 			assert (haplotype1 == haplotype2 == 'none') or (haplotype1 != haplotype2)
+			assert chromosome1 == chromosome2
 		assert n == 20
 
 
@@ -674,13 +675,14 @@ def test_haplotag_missing_SM_tag():
 			for n, (line1, line2) in enumerate(zip(open(outlist1), open(outlist2))):
 				fields1 = line1.split(sep='\t')
 				fields2 = line2.split(sep='\t')
-				assert len(fields1) == len(fields2) == 3
+				assert len(fields1) == len(fields2) == 4
 				if n == 0:
 					continue
-				queryname1, haplotype1, phaseset1 = fields1
-				queryname2, haplotype2, phaseset2 = fields2
+				queryname1, haplotype1, phaseset1, chromosome1 = fields1
+				queryname2, haplotype2, phaseset2, chromosome2 = fields2
 				assert queryname1 == queryname2
 				assert haplotype1 == haplotype2
+				assert chromosome1 == chromosome2
 			assert n == 20
 
 
