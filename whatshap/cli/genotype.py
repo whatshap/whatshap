@@ -15,7 +15,7 @@ from typing import Sequence
 from contextlib import ExitStack
 from whatshap import __version__
 from whatshap.vcf import VcfReader, GenotypeVcfWriter
-from whatshap.core import ReadSet, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable, compute_genotypes
+from whatshap.core import ReadSet, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable, compute_genotypes, Genotype
 from whatshap.graph import ComponentFinder
 from whatshap.pedigree import (PedReader, recombination_cost_map,
 			load_genetic_map, uniform_recombination_map)
@@ -30,17 +30,31 @@ from whatshap.cli.phase import read_reads, select_reads, split_input_file_list, 
 logger = logging.getLogger(__name__)
 
 
+def gt22(numeric_repr):
+	'''Converts the classic numeric representation of biallelic, diploid genotypes
+	into a genotype object
+	'''
+	if numeric_repr == 0:
+		return Genotype([0, 0])
+	elif numeric_repr == 1:
+		return Genotype([0, 1])
+	elif numeric_repr == 2:
+		return Genotype([1, 1])
+	else:
+		return Genotype([])
+
+
 def determine_genotype(likelihoods: Sequence[float], threshold_prob: float) -> float:
 	"""given genotype likelihoods for 0/0, 0/1, 1/1, determines likeliest genotype"""
 
-	to_sort = [(likelihoods[0], 0), (likelihoods[1], 1), (likelihoods[2], 2)]
+	to_sort = [(likelihoods[gt22(0)], 0), (likelihoods[gt22(1)], 1), (likelihoods[gt22(2)], 2)]
 	to_sort.sort(key=lambda x: x[0])
 
 	# make sure there is a unique maximum which is greater than the threshold
 	if (to_sort[2][0] > to_sort[1][0]) and (to_sort[2][0] > threshold_prob):
-		return to_sort[2][1]
+		return gt22(to_sort[2][1])
 	else:
-		return -1
+		return gt22(-1)
 
 
 def run_genotype(
@@ -233,17 +247,21 @@ def run_genotype(
 						reg_genotype_likelihoods = []
 						for gl in range(len(genotype_likelihoods)):
 							norm_sum = genotype_likelihoods[gl][0] + genotype_likelihoods[gl][1] + genotype_likelihoods[gl][2] + 3*constant
-							regularized = ((genotype_likelihoods[gl][0]+constant)/norm_sum, (genotype_likelihoods[gl][1]+constant)/norm_sum, (genotype_likelihoods[gl][2]+constant)/norm_sum)
+							regularized = PhredGenotypeLikelihoods([
+								(genotype_likelihoods[gl][0]+constant)/norm_sum, 
+								(genotype_likelihoods[gl][1]+constant)/norm_sum, 
+								(genotype_likelihoods[gl][2]+constant)/norm_sum])
 							genotypes[gl] = determine_genotype(regularized, gt_prob)
+							assert isinstance(genotypes[gl], Genotype)
 							reg_genotype_likelihoods.append(regularized)
-						variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(*gl) for gl in reg_genotype_likelihoods])
+						variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(list(gl)) for gl in reg_genotype_likelihoods])
 						variant_table.set_genotypes_of(sample, genotypes)
 			else:
 
 				# use uniform genotype likelihoods for all individuals
 				for sample in samples:
 					variant_table.set_genotype_likelihoods_of(sample,
-						[PhredGenotypeLikelihoods(1/3, 1/3, 1/3)] * len(positions))
+						[PhredGenotypeLikelihoods([1/3, 1/3, 1/3])] * len(positions))
 
 			# if desired, output the priors in separate vcf
 			if prioroutput is not None:
@@ -297,7 +315,7 @@ def run_genotype(
 					# might already be present in the input vcf
 					all_genotype_likelihoods = variant_table.genotype_likelihoods_of(sample)
 					genotype_l = [ all_genotype_likelihoods[var_to_pos[a_p]] for a_p in accessible_positions]
-					pedigree.add_individual(sample, [3] * len(accessible_positions), genotype_l)
+					pedigree.add_individual(sample, [Genotype([]) for i in range(len(accessible_positions))], genotype_l)
 				for trio in trios:
 					pedigree.add_relationship(
 						father_id=trio.father,
@@ -323,9 +341,11 @@ def run_genotype(
 
 						for pos in range(len(accessible_positions)):
 							likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
+							print("like = {}".format(type(likelihoods)))
 
 							# compute genotypes from likelihoods and store information
 							geno = determine_genotype(likelihoods, gt_prob)
+							assert isinstance(geno, Genotype)
 							genotypes_list[var_to_pos[accessible_positions[pos]]] = geno
 							likelihood_list[var_to_pos[accessible_positions[pos]]] = likelihoods
 

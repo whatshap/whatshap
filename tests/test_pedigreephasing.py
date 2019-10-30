@@ -3,9 +3,27 @@ Test phasing of pedigrees (PedMEC algorithm)
 """
 from collections import defaultdict
 from pytest import raises
-from whatshap.core import PedigreeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
+from whatshap.core import PedigreeDPTable, ReadSet, Variant, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, Genotype
 from whatshap.pedigree import centimorgen_to_phred
 from whatshap.testhelpers import string_to_readset, string_to_readset_pedigree, brute_force_phase
+
+
+def gt(num_alt):
+	if num_alt == 0:
+		return Genotype([0, 0])
+	elif num_alt == 1:
+		return Genotype([0, 1])
+	elif num_alt == 2:
+		return Genotype([1, 1])
+	else:
+		return Genotype([])
+	
+	
+def gt_list(list_int):
+	''' Returns a list of diploid, biallelic genotype objects
+	according to the provided integer representation
+	'''
+	return [gt(i) for i in list_int]
 
 
 def phase_pedigree(reads, recombcost, pedigree, distrust_genotypes=False, positions=None):
@@ -85,9 +103,9 @@ def test_phase_trio1():
 	  C 010
 	"""
 	pedigree = Pedigree(NumericSampleIds())
-	pedigree.add_individual('individual0', [1,2,1])
-	pedigree.add_individual('individual1', [1,1,1])
-	pedigree.add_individual('individual2', [0,1,1])
+	pedigree.add_individual('individual0', gt_list([1,2,1]))
+	pedigree.add_individual('individual1', gt_list([1,1,1]))
+	pedigree.add_individual('individual2', gt_list([0,1,1]))
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10]
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
@@ -112,9 +130,9 @@ def test_phase_trio2():
 	  C 00
 	"""
 	pedigree = Pedigree(NumericSampleIds())
-	pedigree.add_individual('individual0', [2,2])
-	pedigree.add_individual('individual1', [0,0])
-	pedigree.add_individual('individual2', [1,1])
+	pedigree.add_individual('individual0', gt_list([2,2]))
+	pedigree.add_individual('individual1', gt_list([0,0]))
+	pedigree.add_individual('individual2', gt_list([1,1]))
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10]
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
@@ -146,9 +164,9 @@ def test_phase_trio3():
 	  B    010
 	"""
 	pedigree = Pedigree(NumericSampleIds())
-	pedigree.add_individual('individual0', [1,1,1,1,1,1])
-	pedigree.add_individual('individual1', [1,1,1,1,1,1])
-	pedigree.add_individual('individual2', [1,2,1,1,0,1])
+	pedigree.add_individual('individual0', gt_list([1,1,1,1,1,1]))
+	pedigree.add_individual('individual1', gt_list([1,1,1,1,1,1]))
+	pedigree.add_individual('individual2', gt_list([1,2,1,1,0,1]))
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [3,3,3,4,3,3]
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
@@ -176,9 +194,9 @@ def test_phase_trio4():
 	  C 111
 	"""
 	pedigree = Pedigree(NumericSampleIds())
-	pedigree.add_individual('individual0', [1,1,1])
-	pedigree.add_individual('individual1', [1,1,1])
-	pedigree.add_individual('individual2', [1,1,1])
+	pedigree.add_individual('individual0', gt_list([1,1,1]))
+	pedigree.add_individual('individual1', gt_list([1,1,1]))
+	pedigree.add_individual('individual2', gt_list([1,1,1]))
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [1,1,1]
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
@@ -206,9 +224,9 @@ def test_phase_trio5():
 	  C 111
 	"""
 	pedigree = Pedigree(NumericSampleIds())
-	pedigree.add_individual('individual0', [1,1,1])
-	pedigree.add_individual('individual1', [1,1,1])
-	pedigree.add_individual('individual2', [1,1,1])
+	pedigree.add_individual('individual0', gt_list([1,1,1]))
+	pedigree.add_individual('individual1', gt_list([1,1,1]))
+	pedigree.add_individual('individual2', gt_list([1,1,1]))
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [2,2,2]
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
@@ -226,9 +244,9 @@ def test_phase_trio5():
 def test_phase_trio_pure_genetic():
 	reads = ""
 	pedigree = Pedigree(NumericSampleIds())
-	pedigree.add_individual('individual0', [2,1,1,0])
-	pedigree.add_individual('individual1', [1,2,2,1])
-	pedigree.add_individual('individual2', [1,1,1,0])
+	pedigree.add_individual('individual0', gt_list([2,1,1,0]))
+	pedigree.add_individual('individual1', gt_list([1,2,2,1]))
+	pedigree.add_individual('individual2', gt_list([1,1,1,0]))
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [2,2,2]
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree, positions=[10,20,30,40])
@@ -246,11 +264,11 @@ def test_phase_trio_pure_genetic():
 def test_phase_doubletrio_pure_genetic():
 	reads = ""
 	pedigree = Pedigree(NumericSampleIds())
-	pedigree.add_individual('individualA', [1,2,1,0])
-	pedigree.add_individual('individualB', [1,0,1,1])
-	pedigree.add_individual('individualC', [2,1,1,0])
-	pedigree.add_individual('individualD', [1,2,2,1])
-	pedigree.add_individual('individualE', [1,1,1,0])
+	pedigree.add_individual('individualA', gt_list([1,2,1,0]))
+	pedigree.add_individual('individualB', gt_list([1,0,1,1]))
+	pedigree.add_individual('individualC', gt_list([2,1,1,0]))
+	pedigree.add_individual('individualD', gt_list([1,2,2,1]))
+	pedigree.add_individual('individualE', gt_list([1,1,1,0]))
 	pedigree.add_relationship('individualA', 'individualB', 'individualC')
 	pedigree.add_relationship('individualC', 'individualD', 'individualE')
 	recombcost = [2,2,2]
@@ -286,10 +304,10 @@ def test_phase_quartet1():
 	  D 010
 	"""
 	pedigree = Pedigree(NumericSampleIds())
-	pedigree.add_individual('individual0', [1,2,1])
-	pedigree.add_individual('individual1', [1,1,1])
-	pedigree.add_individual('individual2', [0,1,1])
-	pedigree.add_individual('individual3', [0,1,1])
+	pedigree.add_individual('individual0', gt_list([1,2,1]))
+	pedigree.add_individual('individual1', gt_list([1,1,1]))
+	pedigree.add_individual('individual2', gt_list([0,1,1]))
+	pedigree.add_individual('individual3', gt_list([0,1,1]))
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	pedigree.add_relationship('individual0', 'individual1', 'individual3')
 	recombcost = [10,10,10]
@@ -319,10 +337,10 @@ def test_phase_quartet2():
 	  D 010101
 	"""
 	pedigree = Pedigree(NumericSampleIds())
-	pedigree.add_individual('individual0', [1,1,1,1,1,1])
-	pedigree.add_individual('individual1', [1,1,1,1,1,1])
-	pedigree.add_individual('individual2', [0,1,0,1,0,1])
-	pedigree.add_individual('individual3', [0,1,0,1,0,1])
+	pedigree.add_individual('individual0', gt_list([1,1,1,1,1,1]))
+	pedigree.add_individual('individual1', gt_list([1,1,1,1,1,1]))
+	pedigree.add_individual('individual2', gt_list([0,1,0,1,0,1]))
+	pedigree.add_individual('individual3', gt_list([0,1,0,1,0,1]))
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	pedigree.add_relationship('individual0', 'individual1', 'individual3')
 	recombcost =[3,3,3,3,3,3]
@@ -360,10 +378,10 @@ def test_phase_quartet3():
 	  B   0101
 	"""
 	pedigree = Pedigree(NumericSampleIds())
-	pedigree.add_individual('individual0', [1,1,1,1,1,1])
-	pedigree.add_individual('individual1', [1,1,1,1,1,1])
-	pedigree.add_individual('individual2', [1,2,1,1,0,1])
-	pedigree.add_individual('individual3', [0,1,0,0,1,0])
+	pedigree.add_individual('individual0', gt_list([1,1,1,1,1,1]))
+	pedigree.add_individual('individual1', gt_list([1,1,1,1,1,1]))
+	pedigree.add_individual('individual2', gt_list([1,2,1,1,0,1]))
+	pedigree.add_individual('individual3', gt_list([0,1,0,0,1,0]))
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	pedigree.add_relationship('individual0', 'individual1', 'individual3')
 	recombcost = [3,3,3,4,3,3]
@@ -411,14 +429,14 @@ def test_phase_trio_genotype_likelihoods():
 	"""
 	pedigree = Pedigree(NumericSampleIds())
 	genotype_likelihoods_mother = [
-		PhredGenotypeLikelihoods(0,0,0),
-		PhredGenotypeLikelihoods(0,0,1),
-		PhredGenotypeLikelihoods(5,0,5)
+		PhredGenotypeLikelihoods([0,0,0]),
+		PhredGenotypeLikelihoods([0,0,1]),
+		PhredGenotypeLikelihoods([5,0,5])
 	]
-	genotype_likelihoods0 = [PhredGenotypeLikelihoods(0,0,0)] * 3
-	pedigree.add_individual('individual0', [0,0,0], genotype_likelihoods_mother)
-	pedigree.add_individual('individual1', [0,0,0], genotype_likelihoods0)
-	pedigree.add_individual('individual2', [0,0,0], genotype_likelihoods0)
+	genotype_likelihoods0 = [PhredGenotypeLikelihoods([0,0,0])] * 3
+	pedigree.add_individual('individual0', gt_list([0,0,0]), genotype_likelihoods_mother)
+	pedigree.add_individual('individual1', gt_list([0,0,0]), genotype_likelihoods0)
+	pedigree.add_individual('individual2', gt_list([0,0,0]), genotype_likelihoods0)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10]
 	superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree, True)

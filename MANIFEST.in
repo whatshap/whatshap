@@ -6,6 +6,7 @@ include src/pedigreepartitions.h src/vector2d.h
 include src/read.h src/entry.h src/readset.h src/columniterator.h src/dptable.h
 include src/columnindexingscheme.h src/columncostcomputer.h
 include src/columnindexingiterator.h src/graycodes.h src/indexset.h
+include src/genotype.h src/binomial.h
 include src/phredgenotypelikelihoods.h
 include src/genotypedistribution.h src/genotyper.h
 include src/genotypedptable.h src/genotypecolumncostcomputer.h

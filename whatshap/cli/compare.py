@@ -218,7 +218,7 @@ BlockStats = namedtuple('BlockStats', ['variant_count', 'span'])
 def collect_common_variants(variant_tables: List[VariantTable], sample) -> Set[VcfVariant]:
 	common_variants = None
 	for variant_table in variant_tables:
-		het_variants = [v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if gt == 1]
+		het_variants = [v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if not gt.is_homozygous()]
 		if common_variants is None:
 			common_variants = set(het_variants)
 		else:
@@ -529,7 +529,7 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 			print('VARIANT COUNTS (heterozygous / all): ')
 			for variant_table, name in zip(variant_tables, dataset_names):
 				all_variants_union.update(variant_table.variants)
-				het_variants = [v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if gt == 1]
+				het_variants = [v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if not gt.is_homozygous()]
 				if het_variants0 is None:
 					het_variants0 = len(het_variants)
 				het_variants_union.update(het_variants)

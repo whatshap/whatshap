@@ -324,7 +324,7 @@ def run_stats(vcf, sample=None, gtf=None, tsv=None, block_list=None, only_snvs=F
 			prev_block_fragment_end = None
 			for variant, genotype, phase in zip(variant_table.variants, genotypes, phases):
 				stats.add_variants(1)
-				if genotype != 1:
+				if genotype.is_homozygous():
 					continue
 				stats.add_heterozygous_variants(1)
 				if variant.is_snv():

@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include "vector2d.h"
 #include "pedigreecolumncostcomputer.h"
+#include "genotype.h"
 
 using namespace std;
 
@@ -29,14 +30,14 @@ PedigreeColumnCostComputer::PedigreeColumnCostComputer(const std::vector <const 
 			unsigned int partition1 = pedigree_partitions.haplotype_to_partition(individuals_index,1);
 			unsigned int allele0 = (i >> partition0) & 1;
 			unsigned int allele1 = (i >> partition1) & 1;
+			Genotype genotype(vector<unsigned int>{allele0,allele1});
 			if (distrust_genotypes) {
-				int genotype = allele0 + allele1;
 				const PhredGenotypeLikelihoods* gls = pedigree->get_genotype_likelihoods(individuals_index, column_index);
 				assert(gls != nullptr);
 				cost += gls->get(genotype);
 			} else {
-				int genotype = pedigree->get_genotype(individuals_index, column_index);
-				if (allele0 + allele1 != genotype) {
+				const Genotype* true_genotype = pedigree->get_genotype(individuals_index, column_index);
+				if (genotype != (*true_genotype)) {
 					genotypes_compatible = false;
 					break;
 				}

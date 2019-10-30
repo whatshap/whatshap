@@ -102,7 +102,7 @@ def get_variant_information(variant_table, sample):
 			continue
 		phase_info = int(phases[idx].block_id), phases[idx].phase
 		vpos_to_phase_info[v.position] = phase_info
-		if gt == 1:
+		if not gt.is_homozygous():
 			variants.append(v)
 
 	return vpos_to_phase_info, variants
