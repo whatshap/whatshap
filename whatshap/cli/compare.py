@@ -291,8 +291,8 @@ def compare(variant_tables, sample: str, dataset_names):
 		for block in block_intersection.values():
 			if len(block) < 2:
 				continue
-			phasing0 = ''.join(str(phases[0][i].phase) for i in block)
-			phasing1 = ''.join(str(phases[1][i].phase) for i in block)
+			phasing0 = ''.join(str(phases[0][i].phase[0]) for i in block)
+			phasing1 = ''.join(str(phases[1][i].phase[0]) for i in block)
 			block_positions = [sorted_variants[i].position for i in block]
 			errors = compare_block(phasing0, phasing1)
 			bed_records.extend(create_bed_records(
@@ -342,7 +342,7 @@ def compare(variant_tables, sample: str, dataset_names):
 			if len(block) < 2:
 				continue
 			total_compared += len(block) - 1
-			phasings = [''.join(str(phases[j][i].phase) for i in block) for j in range(len(phases))]
+			phasings = [''.join(str(phases[j][i].phase[0]) for i in block) for j in range(len(phases))]
 			switch_encodings = [switch_encoding(p) for p in phasings]
 			for i in range(len(block)-1):
 				s = ''.join(switch_encodings[j][i] for j in range(len(switch_encodings)))

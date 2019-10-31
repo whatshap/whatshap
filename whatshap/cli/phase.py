@@ -699,7 +699,7 @@ def run_whatshap(
 						readset.sort()
 						genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
 						variant_table.set_genotypes_of(sample, genotypes)
-						variant_table.set_genotype_likelihoods_of(sample, [GenotypeLikelihoods(*gl) for gl in genotype_likelihoods])
+						variant_table.set_genotype_likelihoods_of(sample, [GenotypeLikelihoods(gl) for gl in genotype_likelihoods])
 
 			# These two variables hold the phasing results for all samples
 			superreads, components = dict(), dict()
@@ -849,7 +849,7 @@ def run_whatshap(
 								x[gt.get_index(2, 2)] = 0
 								genotype_likelihoods.append(PhredGenotypeLikelihoods(x))
 							else:
-								genotype_likelihoods.append(gl.as_phred(gl_regularizer))
+								genotype_likelihoods.append(gl.as_phred(regularizer=gl_regularizer))
 					else:
 						genotype_likelihoods = None
 					pedigree.add_individual(sample, phasable_variant_table.genotypes_of(sample), genotype_likelihoods)

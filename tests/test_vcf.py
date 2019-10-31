@@ -104,14 +104,14 @@ def test_read_phased_vcf():
 		expected_phase_sample1 = [
 			None, 
 			None, 
-			VariantCallPhase(block_id=300, phase=1, quality=23),
-			VariantCallPhase(block_id=300, phase=0, quality=42)
+			VariantCallPhase(block_id=300, phase=(1,0), quality=23),
+			VariantCallPhase(block_id=300, phase=(0,1), quality=42)
 		]
 		expected_phase_sample2 = [
-			VariantCallPhase(block_id=100, phase=0, quality=10),
-			VariantCallPhase(block_id=100, phase=1, quality=20),
-			VariantCallPhase(block_id=300, phase=0, quality=30),
-			VariantCallPhase(block_id=300, phase=0, quality=None)
+			VariantCallPhase(block_id=100, phase=(0,1), quality=10),
+			VariantCallPhase(block_id=100, phase=(1,0), quality=20),
+			VariantCallPhase(block_id=300, phase=(0,1), quality=30),
+			VariantCallPhase(block_id=300, phase=(0,1), quality=None)
 		]
 		assert list(table_a.phases[0]) == expected_phase_sample1
 		assert list(table_a.phases[1]) == expected_phase_sample2
@@ -288,10 +288,10 @@ def test_read_genotype_likelihoods():
 	assert list(table.genotypes[0]) == gt_list([2, 1, 1, 1])
 	assert list(table.genotypes[1]) == gt_list([1, 0, 0, 1])
 
-	gl0 = GenotypeLikelihoods(-2.1206, -0.8195, -0.07525)
-	gl1 = GenotypeLikelihoods(-10.3849, 0, -5.99143)
-	gl2 = GenotypeLikelihoods(-2.1, -0.8, -0.8)
-	gl3 = GenotypeLikelihoods(0, -10.0, -0.6)
+	gl0 = GenotypeLikelihoods([-2.1206, -0.8195, -0.07525])
+	gl1 = GenotypeLikelihoods([-10.3849, 0, -5.99143])
+	gl2 = GenotypeLikelihoods([-2.1, -0.8, -0.8])
+	gl3 = GenotypeLikelihoods([0, -10.0, -0.6])
 
 	assert len(table.genotype_likelihoods_of('sample1')) == 4
 	assert len(table.genotype_likelihoods_of('sample2')) == 4
@@ -307,7 +307,7 @@ def test_read_genotype_likelihoods():
 def test_genotype_likelihoods():
 	assert list(PhredGenotypeLikelihoods([0, 0, 0])) == [0, 0, 0]
 	assert list(PhredGenotypeLikelihoods([7, 1, 12])) == [7, 1, 12]
-	gl = GenotypeLikelihoods(*(math.log10(x) for x in [1e-10, 0.5, 0.002]))
+	gl = GenotypeLikelihoods([math.log10(x) for x in [1e-10, 0.5, 0.002]])
 	assert list(gl.as_phred()) == [97, 0, 24]
 	assert list(gl.as_phred(regularizer=0.01)) == [20, 0, 19]
 
