@@ -311,3 +311,68 @@ def test_read_region_subsets():
 	assert len(table.variants) == 8
 	assert table.variants[5].reference_allele == 'CG'
 	assert table.variants[5].alternative_allele == 'C'
+
+
+def test_read_tetraploid_unphased():
+	tables = list(VcfReader('tests/data/polyploid.chr22.unphased.vcf', phases=False))
+	assert len(tables) == 1
+	table = tables[0]
+	assert table.chromosome == 'chr22'
+	assert table.samples == ['HG00514_NA19240']
+	assert len(table.variants) == 8
+	assert table.variants[0].reference_allele == 'A'
+	assert table.variants[0].alternative_allele == 'C'
+	assert table.variants[1].reference_allele == 'G'
+	assert table.variants[1].alternative_allele == 'A'
+	assert table.variants[2].reference_allele == 'G'
+	assert table.variants[2].alternative_allele == 'T'
+	assert table.variants[3].reference_allele == 'G'
+	assert table.variants[3].alternative_allele == 'C'
+	print("Got:")
+	for genotype in table.genotypes[0]:
+		print(genotype)
+	print("Exp:")
+	for genotypte in list_gt([3, 2, 0, 3, 3, 1, 1, 1]):
+		print(genotype)
+	assert table.genotypes[0] == list_gt([3, 2, 0, 3, 3, 1, 1, 1], 4)
+
+
+def test_read_tetraploid_phased():
+	tables = list(VcfReader('tests/data/polyploid.chr22.phased.vcf', phases=True))
+	assert len(tables) == 1
+	table = tables[0]
+	assert table.chromosome == 'chr22'
+	assert table.samples == ['HG00514_NA19240']
+	assert len(table.variants) == 8
+
+	expected_phase = [
+		VariantCallPhase(block_id=20000000, phase=(1,0,1,1), quality=None),
+		VariantCallPhase(block_id=20000000, phase=(1,0,1,0), quality=None),
+		None,
+		VariantCallPhase(block_id=20000000, phase=(1,0,1,1), quality=None),
+		VariantCallPhase(block_id=20001000, phase=(1,0,1,1), quality=None),
+		VariantCallPhase(block_id=20001000, phase=(0,0,0,1), quality=None),
+		VariantCallPhase(block_id=20001000, phase=(0,0,0,1), quality=None),
+		VariantCallPhase(block_id=20001000, phase=(0,0,0,1), quality=None)
+	]
+	print("Got:")
+	for variant in table.phases[0]:
+		print(variant)
+	print("Exp:")
+	for variant in expected_phase:
+		print(variant)
+	assert list(table.phases[0]) == expected_phase
+
+
+def test_read_tetraploid_genotype_likelihoods():
+	tables = list(VcfReader('tests/data/polyploid.chr22.unphased.vcf', phases=False,genotype_likelihoods=True))
+	assert len(tables) == 1
+	table = tables[0]
+	assert len(table.variants) == 8
+	exp_gl = [
+		GenotypeLikelihoods([-x/10 for x in [19,28,29,2,10,6]]),
+		GenotypeLikelihoods([-x/10 for x in [1,8,29,24,15,23]]),
+		GenotypeLikelihoods([-x/10 for x in [25,33,35,31,0,30]]),
+		GenotypeLikelihoods([-x/10 for x in [6,27,6,3,46,42]])
+	] * 2
+	assert table.genotype_likelihoods_of(table.samples[0]) == exp_gl

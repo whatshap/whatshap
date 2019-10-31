@@ -95,6 +95,13 @@ class GenotypeLikelihoods:
 
 	def __repr__(self):
 		return "GenotypeLikelihoods({})".format(self.log_prob_genotypes)
+	
+	def __eq__(self, other):
+		if other == None:
+			return False
+		if self.log_prob_genotypes == None and other.log_prob_genotypes == None:
+			return True
+		return self.log_prob_genotypes == other.log_prob_genotypes
 
 	def log10_probs(self):
 		return self.log_prob_genotypes
@@ -363,7 +370,6 @@ class VcfReader:
 		if not call.phased:
 			return None
 		block_id = call.get('PS', 0)
-		assert call['GT'] in ((0, 1), (1, 0))
 		phase = call['GT']
 		return VariantCallPhase(block_id=block_id, phase=phase, quality=call.get('PQ', None))
 
@@ -906,7 +912,6 @@ class GenotypeVcfWriter(VcfAugmenter):
 							geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
 
 					# Compute GQ
-					print(geno)
 					geno_index = geno.get_index()
 					geno_q = sum( geno_l[i] for i in range(n_genotypes) if i != geno_index)
 

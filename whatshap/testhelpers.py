@@ -161,26 +161,28 @@ def brute_force_phase(read_set, all_heterozygous):
 	haplotype2 = ''.join([str(allele2) for allele1, allele2 in best_haplotypes])
 	return best_cost, [(best_partition>>x) & 1 for x in range(len(read_set))], solution_count//2, haplotype1, haplotype2
 
-def int_gt(num_alt):
-	''' Takes the numeric representation of a biallelic and diploid genotpyte
+def int_gt(num_alt, ploidy=2):
+	''' Takes the numeric representation of a biallelic genotpyte and given ploidy
+	Diploid:
 	0 -> 0/0
 	1 -> 0/1
 	2 -> 1/1
-	rest -> .
+	Trioploid:
+	0 -> 0/0/0
+	1 -> 0/0/1
+	2 -> 0/1/1
+	3 -> 1/1/1
+	...
 	and converts it into a Genotype object
 	'''
-	if num_alt == 0:
-		return Genotype([0, 0])
-	elif num_alt == 1:
-		return Genotype([0, 1])
-	elif num_alt == 2:
-		return Genotype([1, 1])
+	if 0 <= num_alt <= ploidy:
+		return Genotype([0]*(ploidy-num_alt) + [1]*(num_alt))
 	else:
 		return Genotype([])
 	
 	
-def list_gt(list_int):
+def list_gt(list_int, ploidy=2):
 	''' Returns a list of diploid, biallelic genotype objects
 	according to the provided integer representation
 	'''
-	return [int_gt(i) for i in list_int]
+	return [int_gt(i,ploidy) for i in list_int]
