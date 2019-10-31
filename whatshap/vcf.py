@@ -911,7 +911,7 @@ class GenotypeVcfWriter(VcfAugmenter):
 
 					# Compute GQ
 					print(geno)
-					geno_index = geno.get_index(ploidy, n_alleles)
+					geno_index = geno.get_index()
 					geno_q = sum( geno_l[i] for i in range(n_genotypes) if i != geno_index)
 
 					# TODO default value ok?

@@ -417,8 +417,8 @@ cdef class Genotype:
 	def is_none(self):
 		return self.thisptr.is_none()
 
-	def get_index(self, unsigned int ploidy, unsigned int n_alleles):
-		return self.thisptr.get_index(ploidy, n_alleles)
+	def get_index(self):
+		return self.thisptr.get_index()
 
 	def as_vector(self):
 		result = []
@@ -429,6 +429,9 @@ cdef class Genotype:
 
 	def is_homozygous(self):
 		return self.thisptr.is_homozygous()
+	
+	def get_ploidy(self):
+		return self.thisptr.get_ploidy()
 
 	def __eq__(self, Genotype g):
 		return self.thisptr[0] == g.thisptr[0]

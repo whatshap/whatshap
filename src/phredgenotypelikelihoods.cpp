@@ -15,7 +15,8 @@ PhredGenotypeLikelihoods::PhredGenotypeLikelihoods(const vector<double>& gl, uns
 
 
 double PhredGenotypeLikelihoods::get(Genotype genotype) const {
-	unsigned int index = genotype.get_index(this->ploidy, this->nr_alleles);
+	assert(this->ploidy == genotype.get_ploidy());
+	unsigned int index = genotype.get_index();
 	assert(index < this->gl.size());
 	return this->gl[index];
 }

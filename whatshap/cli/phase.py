@@ -846,7 +846,7 @@ def run_whatshap(
 								# all genotypes get default_gq as genotype likelihood, exept the called genotype ...
 								x = [default_gq] * 3
 								# ... which gets a 0
-								x[gt.get_index(2, 2)] = 0
+								x[gt.get_index()] = 0
 								genotype_likelihoods.append(PhredGenotypeLikelihoods(x))
 							else:
 								genotype_likelihoods.append(gl.as_phred(regularizer=gl_regularizer))

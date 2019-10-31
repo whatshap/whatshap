@@ -29,11 +29,10 @@ Genotype::Genotype(unsigned int index, unsigned int ploidy) {
 	   }
 	}
 	// copy to our representation
-	this->ploidy = ploidy;
 	this->alleles = std::multiset<unsigned int>(genotype.begin(), genotype.end());
 }
 
-Genotype::Genotype(vector<unsigned int> alleles) :alleles(alleles.begin(), alleles.end()), ploidy(alleles.size()){}
+Genotype::Genotype(vector<unsigned int> alleles) :alleles(alleles.begin(), alleles.end()){}
 
 void Genotype::add_allele(unsigned int allele){
 	alleles.insert(allele);
@@ -47,7 +46,7 @@ bool Genotype::is_none() const{
 	return alleles.size() == 0;
 }
 
-unsigned int Genotype::get_index(unsigned int ploidy, unsigned int n_alleles) const {
+unsigned int Genotype::get_index() const {
 	// use formula given here: https://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
 	unsigned int index = 0;
 	unsigned int k = 1;
@@ -61,7 +60,6 @@ unsigned int Genotype::get_index(unsigned int ploidy, unsigned int n_alleles) co
 
 string Genotype::toString() const{
 	ostringstream oss;
-	oss << "Genotype:";
 	if (is_none()) {
 		oss << ".";
 		return oss.str();
@@ -82,6 +80,10 @@ bool Genotype::is_homozygous() const{
 	} else {
 		return false;
 	}
+}
+
+unsigned int Genotype::get_ploidy() const {
+	return alleles.size();
 }
 
 bool operator== (const Genotype &g1, const Genotype &g2){

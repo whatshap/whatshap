@@ -84,7 +84,8 @@ cdef extern from "../src/genotype.h":
 		void add_allele(unsigned int) except +
 		vector[unsigned int] as_vector() except +
 		bool is_none() except +
-		unsigned int get_index(unsigned int, unsigned int) except +
+		unsigned int get_index() except +
+		unsigned int get_ploidy() except +
 		string toString() except +
 		bool is_homozygous() except +
 	cdef bool operator==(Genotype,Genotype) except +
