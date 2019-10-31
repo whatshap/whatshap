@@ -1,24 +1,6 @@
 from pytest import fixture
 from whatshap.core import ReadSet, PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, HapChatCore, Genotype
-from whatshap.testhelpers import string_to_readset, brute_force_phase
-
-
-def gt(num_alt):
-	if num_alt == 0:
-		return Genotype([0, 0])
-	elif num_alt == 1:
-		return Genotype([0, 1])
-	elif num_alt == 2:
-		return Genotype([1, 1])
-	else:
-		return Genotype([])
-	
-	
-def gt_list(list_int):
-	''' Returns a list of diploid, biallelic genotype objects
-	according to the provided integer representation
-	'''
-	return [gt(i) for i in list_int]
+from whatshap.testhelpers import string_to_readset, brute_force_phase, int_gt, list_gt
 
 
 @fixture(params=['whatshap', 'hapchat'])
@@ -29,7 +11,7 @@ def algorithm(request) :
 def test_phase_empty_readset(algorithm):
 	rs = ReadSet()
 	recombcost = [1,1]
-	genotypes = gt_list([1,1])
+	genotypes = list_gt([1,1])
 	pedigree = Pedigree(NumericSampleIds())
 	genotype_likelihoods = [None, None]
 	pedigree.add_individual('individual0', genotypes, genotype_likelihoods)
@@ -92,7 +74,7 @@ def check_phasing_single_individual(reads, algorithm = 'whatshap', weights = Non
 		recombcost = [1] * len(positions) # recombination costs 1, should not occur
 		pedigree = Pedigree(NumericSampleIds())
 		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods([0,0,0])] * len(positions)
-		pedigree.add_individual('individual0', [Genotype([0, 1]) for i in range(len(positions))], genotype_likelihoods) # all genotypes heterozygous
+		pedigree.add_individual('individual0', [int_gt(1) for i in range(len(positions))], genotype_likelihoods) # all genotypes heterozygous
 		dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=not all_heterozygous)
 		superreads, transmission_vector = dp_table.get_super_reads()
 		cost = dp_table.get_optimal_cost()
@@ -106,9 +88,9 @@ def check_phasing_single_individual(reads, algorithm = 'whatshap', weights = Non
 		recombcost = [1] * len(positions) # recombination costs 1, should not occur
 		pedigree = Pedigree(NumericSampleIds())
 		genotype_likelihoods = [None if all_heterozygous else PhredGenotypeLikelihoods([0,0,0])] * len(positions)
-		pedigree.add_individual('individual0', [Genotype([0, 1]) for i in range(len(positions))], genotype_likelihoods) # all genotypes heterozygous
-		pedigree.add_individual('individual1', [Genotype([0, 1]) for i in range(len(positions))], genotype_likelihoods) # all genotypes heterozygous
-		pedigree.add_individual('individual2', [Genotype([0, 1]) for i in range(len(positions))], genotype_likelihoods) # all genotypes heterozygous
+		pedigree.add_individual('individual0', [int_gt(1) for i in range(len(positions))], genotype_likelihoods) # all genotypes heterozygous
+		pedigree.add_individual('individual1', [int_gt(1) for i in range(len(positions))], genotype_likelihoods) # all genotypes heterozygous
+		pedigree.add_individual('individual2', [int_gt(1) for i in range(len(positions))], genotype_likelihoods) # all genotypes heterozygous
 		pedigree.add_relationship('individual0', 'individual1', 'individual2')
 		dp_table = PedigreeDPTable(readset, recombcost, pedigree, distrust_genotypes=not all_heterozygous)
 		cost = dp_table.get_optimal_cost()

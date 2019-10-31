@@ -3,7 +3,7 @@ Utility functions only used by unit tests
 """
 import textwrap
 from collections import defaultdict
-from whatshap.core import Read, ReadSet, Variant
+from whatshap.core import Read, ReadSet, Variant, Genotype
 
 def string_to_readset(s, w = None, sample_ids = None, source_id=0, scale_quality = None):
 	s = textwrap.dedent(s).strip()
@@ -160,3 +160,27 @@ def brute_force_phase(read_set, all_heterozygous):
 	haplotype1 = ''.join([str(allele1) for allele1, allele2 in best_haplotypes])
 	haplotype2 = ''.join([str(allele2) for allele1, allele2 in best_haplotypes])
 	return best_cost, [(best_partition>>x) & 1 for x in range(len(read_set))], solution_count//2, haplotype1, haplotype2
+
+def int_gt(num_alt):
+	''' Takes the numeric representation of a biallelic and diploid genotpyte
+	0 -> 0/0
+	1 -> 0/1
+	2 -> 1/1
+	rest -> .
+	and converts it into a Genotype object
+	'''
+	if num_alt == 0:
+		return Genotype([0, 0])
+	elif num_alt == 1:
+		return Genotype([0, 1])
+	elif num_alt == 2:
+		return Genotype([1, 1])
+	else:
+		return Genotype([])
+	
+	
+def list_gt(list_int):
+	''' Returns a list of diploid, biallelic genotype objects
+	according to the provided integer representation
+	'''
+	return [int_gt(i) for i in list_int]

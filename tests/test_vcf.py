@@ -5,26 +5,9 @@ from whatshap.core import PhredGenotypeLikelihoods, Genotype
 from whatshap.cli.phase import run_whatshap
 from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant, \
 	GenotypeLikelihoods
+from whatshap.testhelpers import int_gt, list_gt
 
 import pysam
-
-
-def gt(num_alt):
-	if num_alt == 0:
-		return Genotype([0, 0])
-	elif num_alt == 1:
-		return Genotype([0, 1])
-	elif num_alt == 2:
-		return Genotype([1, 1])
-	else:
-		return Genotype([])
-	
-	
-def gt_list(list_int):
-	''' Returns a list of diploid, biallelic genotype objects
-	according to the provided integer representation
-	'''
-	return [gt(i) for i in list_int]
 
 
 @fixture(params=['whatshap', 'hapchat'])
@@ -43,7 +26,7 @@ def test_read_phased():
 	assert table.variants[0].alternative_allele == 'C'
 	assert table.variants[1].reference_allele == 'G'
 	assert table.variants[1].alternative_allele == 'T'
-	assert table.genotypes[0][0] == table.genotypes[0][1] == gt(1)
+	assert table.genotypes[0][0] == table.genotypes[0][1] == int_gt(1)
 
 
 def test_read_multisample_vcf():
@@ -65,11 +48,11 @@ def test_read_multisample_vcf():
 	assert table.variants[2].alternative_allele == 'T'
 
 	assert len(table.genotypes) == 2
-	assert list(table.genotypes[0]) == gt_list([1, 1, 1])
-	assert list(table.genotypes[1]) == gt_list([1, 1, 0])
+	assert list(table.genotypes[0]) == list_gt([1, 1, 1])
+	assert list(table.genotypes[1]) == list_gt([1, 1, 0])
 
-	assert list(table.genotypes_of('sample1')) == gt_list([1, 1, 1])
-	assert list(table.genotypes_of('sample2')) == gt_list([1, 1, 0])
+	assert list(table.genotypes_of('sample1')) == list_gt([1, 1, 1])
+	assert list(table.genotypes_of('sample2')) == list_gt([1, 1, 0])
 
 
 def test_read_phased_vcf():
@@ -88,16 +71,16 @@ def test_read_phased_vcf():
 		assert table_b.samples == ['sample1', 'sample2']
 
 		assert len(table_a.genotypes) == 2
-		assert list(table_a.genotypes[0]) == gt_list([1, 2, 1, 1])
-		assert list(table_a.genotypes[1]) == gt_list([1, 1, 1, 1])
-		assert list(table_a.genotypes_of('sample1')) == gt_list([1, 2, 1, 1])
-		assert list(table_a.genotypes_of('sample2')) == gt_list([1, 1, 1, 1])
+		assert list(table_a.genotypes[0]) == list_gt([1, 2, 1, 1])
+		assert list(table_a.genotypes[1]) == list_gt([1, 1, 1, 1])
+		assert list(table_a.genotypes_of('sample1')) == list_gt([1, 2, 1, 1])
+		assert list(table_a.genotypes_of('sample2')) == list_gt([1, 1, 1, 1])
 
 		assert len(table_b.genotypes) == 2
-		assert list(table_b.genotypes[0]) == gt_list([0, 1])
-		assert list(table_b.genotypes[1]) == gt_list([1, 2])
-		assert list(table_b.genotypes_of('sample1')) == gt_list([0, 1])
-		assert list(table_b.genotypes_of('sample2')) == gt_list([1, 2])
+		assert list(table_b.genotypes[0]) == list_gt([0, 1])
+		assert list(table_b.genotypes[1]) == list_gt([1, 2])
+		assert list(table_b.genotypes_of('sample1')) == list_gt([0, 1])
+		assert list(table_b.genotypes_of('sample2')) == list_gt([1, 2])
 
 		print(table_a.phases)
 		assert len(table_a.phases) == 2
@@ -285,8 +268,8 @@ def test_read_genotype_likelihoods():
 	assert len(table.variants) == 4
 
 	assert len(table.genotypes) == 2
-	assert list(table.genotypes[0]) == gt_list([2, 1, 1, 1])
-	assert list(table.genotypes[1]) == gt_list([1, 0, 0, 1])
+	assert list(table.genotypes[0]) == list_gt([2, 1, 1, 1])
+	assert list(table.genotypes[1]) == list_gt([1, 0, 0, 1])
 
 	gl0 = GenotypeLikelihoods([-2.1206, -0.8195, -0.07525])
 	gl1 = GenotypeLikelihoods([-10.3849, 0, -5.99143])

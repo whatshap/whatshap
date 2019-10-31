@@ -1,20 +1,11 @@
 from whatshap.core import Pedigree, PhredGenotypeLikelihoods, NumericSampleIds, Genotype
-
-def gt(num_alt):
-	if num_alt == 0:
-		return Genotype([0, 0])
-	elif num_alt == 1:
-		return Genotype([0, 1])
-	elif num_alt == 2:
-		return Genotype([1, 1])
-	else:
-		return Genotype([])
+from whatshap.testhelpers import int_gt, list_gt
 
 
 def test_pedigree_no_gls():
 	ped = Pedigree(NumericSampleIds())
-	genotypes1 = [ gt(0), gt(1), gt(0), gt(2) ]
-	genotypes5 = [ gt(1), gt(2), gt(2), gt(0) ]
+	genotypes1 = list_gt([0, 1, 0, 2])
+	genotypes5 = list_gt([1, 2, 2, 0])
 	ped.add_individual('sample1', genotypes1)
 	assert len(ped) == 1
 	assert ped.variant_count == 4, str(ped.variant_count)
@@ -30,19 +21,19 @@ def test_pedigree_no_gls():
 
 def test_pedigree_with_gls():
 	ped = Pedigree(NumericSampleIds())
-	genotypes1 = [ gt(0), gt(1), gt(0), gt(2) ]
+	genotypes1 = list_gt([0, 1, 0, 2])
 	gls1 = [
-		PhredGenotypeLikelihoods([0, 1, 2], 2),
-		PhredGenotypeLikelihoods([215, 81, 147], 2),
-		PhredGenotypeLikelihoods([199, 49, 253], 2),
-		PhredGenotypeLikelihoods([167, 200, 163], 2),
+		PhredGenotypeLikelihoods([0, 1, 2]),
+		PhredGenotypeLikelihoods([215, 81, 147]),
+		PhredGenotypeLikelihoods([199, 49, 253]),
+		PhredGenotypeLikelihoods([167, 200, 163]),
 	]
-	genotypes5 = [ gt(1), gt(2), gt(2), gt(0) ]
+	genotypes5 = list_gt([1, 2, 2, 0])
 	gls5 = [
-		PhredGenotypeLikelihoods([184, 71, 233], 2),
-		PhredGenotypeLikelihoods([65, 32, 87], 2),
-		PhredGenotypeLikelihoods([28, 215, 131], 2),
-		PhredGenotypeLikelihoods([98, 250, 137], 2),
+		PhredGenotypeLikelihoods([184, 71, 233]),
+		PhredGenotypeLikelihoods([65, 32, 87]),
+		PhredGenotypeLikelihoods([28, 215, 131]),
+		PhredGenotypeLikelihoods([98, 250, 137]),
 	]
 	ped.add_individual('sample1', genotypes1, gls1)
 	assert len(ped) == 1

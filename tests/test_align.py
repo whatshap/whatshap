@@ -5,7 +5,9 @@ The initial version was copied from https://bitbucket.org/marcelm/sqt/src/af255d
 """
 from whatshap.align import edit_distance as ed
 from whatshap.align import edit_distance_affine_gap as ed_aff
+from whatshap.testhelpers import string_to_readset, int_gt, list_gt
 from random import choice, seed, randint
+
 
 STRING_PAIRS = [
 	('', ''),
