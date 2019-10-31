@@ -285,7 +285,7 @@ class VcfReader:
 	"""
 	Read a VCF file chromosome by chromosome.
 	"""
-	def __init__(self, path, indels=False, phases=False, genotype_likelihoods=False, ignore_genotypes=False, ploidy=2):
+	def __init__(self, path, indels=False, phases=False, genotype_likelihoods=False, ignore_genotypes=False):
 		"""
 		path -- Path to VCF file
 		indels -- Whether to include also insertions and deletions in the list of
@@ -301,7 +301,6 @@ class VcfReader:
 		self._genotype_likelihoods = genotype_likelihoods
 		self.samples = list(self._vcf_reader.header.samples)  # intentionally public
 		self._ignore_genotypes = ignore_genotypes
-		self._ploidy = ploidy
 		logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
 	def __enter__(self):
@@ -429,10 +428,8 @@ class VcfReader:
 					PL = call.get('PL', None)
 					# Prefer GLs (floats) over PLs (ints) if both should be present
 					if GL is not None:
-						assert len(GL) == self._ploidy + 1
 						genotype_likelihoods.append(GenotypeLikelihoods(GL))
 					elif PL is not None:
-						assert len(PL) == self._ploidy + 1
 						genotype_likelihoods.append(GenotypeLikelihoods( [pl/-10 for pl in PL] ))
 					else:
 						genotype_likelihoods.append(None)
@@ -897,7 +894,6 @@ class GenotypeVcfWriter(VcfAugmenter):
 					geno = Genotype([])
 					n_alleles = len(record.alts) + 1
 					n_genotypes = binomial(ploidy + n_alleles - 1, n_alleles - 1) 
-					#geno_l = [1/n_genotypes] * int(n_genotypes)
 					geno_l = [1/n_genotypes] * int(n_genotypes)
 					geno_q = None
 
