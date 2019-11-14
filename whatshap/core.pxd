@@ -1,4 +1,5 @@
 from libcpp cimport bool
+from libc.stdint cimport uint32_t
 cimport cpp
 
 cdef class NumericSampleIds:

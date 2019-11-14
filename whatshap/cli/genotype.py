@@ -30,7 +30,7 @@ from whatshap.cli.phase import read_reads, select_reads, split_input_file_list, 
 logger = logging.getLogger(__name__)
 
 
-def gt22(numeric_repr):
+def int_to_diploid_biallelic_gt(numeric_repr):
 	'''Converts the classic numeric representation of biallelic, diploid genotypes
 	into a genotype object
 	'''
@@ -47,14 +47,14 @@ def gt22(numeric_repr):
 def determine_genotype(likelihoods: Sequence[float], threshold_prob: float) -> float:
 	"""given genotype likelihoods for 0/0, 0/1, 1/1, determines likeliest genotype"""
 
-	to_sort = [(likelihoods[gt22(0)], 0), (likelihoods[gt22(1)], 1), (likelihoods[gt22(2)], 2)]
+	to_sort = [(likelihoods[int_to_diploid_biallelic_gt(0)], 0), (likelihoods[int_to_diploid_biallelic_gt(1)], 1), (likelihoods[int_to_diploid_biallelic_gt(2)], 2)]
 	to_sort.sort(key=lambda x: x[0])
 
 	# make sure there is a unique maximum which is greater than the threshold
 	if (to_sort[2][0] > to_sort[1][0]) and (to_sort[2][0] > threshold_prob):
-		return gt22(to_sort[2][1])
+		return int_to_diploid_biallelic_gt(to_sort[2][1])
 	else:
-		return gt22(-1)
+		return int_to_diploid_biallelic_gt(-1)
 
 
 def run_genotype(

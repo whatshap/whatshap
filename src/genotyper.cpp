@@ -43,7 +43,7 @@ void compute_genotypes(const ReadSet& readset, std::vector<Genotype>* genotypes,
 		distribution.normalize();
 		Genotype genotype;
 		if (distribution.errorProbability() < 0.1) {
-			genotype = Genotype(distribution.likeliestGenotype(), 2);
+			genotype = Genotype(distribution.likeliestGenotype(), Genotype::DIPLOID);
 		}
 		genotypes->push_back(genotype);
 		genotype_likelihoods->push_back(distribution);

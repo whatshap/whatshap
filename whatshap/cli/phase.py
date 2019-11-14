@@ -736,7 +736,7 @@ def run_whatshap(
 						elif not gt.is_homozygous():
 							heterozygous.add(index)
 						else:
-							#assert gt in [0, 2]
+							assert gt.is_diploid_and_biallelic()
 							homozygous.add(index)
 
 				# determine which variants have Mendelian conflicts
@@ -841,7 +841,7 @@ def run_whatshap(
 					if distrust_genotypes:
 						genotype_likelihoods = []
 						for gt, gl in zip(phasable_variant_table.genotypes_of(sample), phasable_variant_table.genotype_likelihoods_of(sample)):
-							#assert 0 <= gt <= 2
+							assert gt.is_diploid_and_biallelic();
 							if gl is None:
 								# all genotypes get default_gq as genotype likelihood, exept the called genotype ...
 								x = [default_gq] * 3
@@ -970,15 +970,12 @@ def run_whatshap(
 def write_changed_genotypes(gtchange_list_filename, changed_genotypes):
 	with open(gtchange_list_filename, 'w') as f:
 		print('#sample', 'chromosome', 'position', 'REF', 'ALT', 'old_gt', 'new_gt', sep='\t', file=f)
-		#INT_TO_UNPHASED_GT = {0: '0/0', 1: '0/1', 2: '1/1', -1: '.'}
 		for changed_genotype in changed_genotypes:
 			print(changed_genotype.sample, changed_genotype.chromosome,
 				changed_genotype.variant.position,
 				changed_genotype.variant.reference_allele, changed_genotype.variant.alternative_allele,
-				#INT_TO_UNPHASED_GT[changed_genotype.old_gt],
-				#INT_TO_UNPHASED_GT[changed_genotype.new_gt],
-				tuple(changed_genotype.old_gt.as_vector()),
-				tuple(changed_genotype.new_gt.as_vector()),
+				repr(changed_genotype.old_gt),
+				repr(changed_genotype.new_gt),
 				sep='\t', file=f)
 
 

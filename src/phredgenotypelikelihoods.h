@@ -20,7 +20,7 @@ public:
 
 	const std::vector<double>& as_vector() const;
 
-	void get_genotypes(std::vector<Genotype>* genotypes) const;
+	void get_genotypes(std::vector<Genotype>& genotypes) const;
 
 private:
 	std::vector<double> gl;

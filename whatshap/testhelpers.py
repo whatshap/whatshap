@@ -161,8 +161,8 @@ def brute_force_phase(read_set, all_heterozygous):
 	haplotype2 = ''.join([str(allele2) for allele1, allele2 in best_haplotypes])
 	return best_cost, [(best_partition>>x) & 1 for x in range(len(read_set))], solution_count//2, haplotype1, haplotype2
 
-def int_gt(num_alt, ploidy=2):
-	''' Takes the numeric representation of a biallelic genotpyte and given ploidy
+def canonic_index_to_biallelic_gt(num_alt, ploidy=2):
+	''' Takes the numeric VCF representation of a biallelic genotpyte and given ploidy
 	Diploid:
 	0 -> 0/0
 	1 -> 0/1
@@ -174,6 +174,9 @@ def int_gt(num_alt, ploidy=2):
 	3 -> 1/1/1
 	...
 	and converts it into a Genotype object
+	
+	See this link for further explanation:
+	https://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
 	'''
 	if 0 <= num_alt <= ploidy:
 		return Genotype([0]*(ploidy-num_alt) + [1]*(num_alt))
@@ -181,8 +184,11 @@ def int_gt(num_alt, ploidy=2):
 		return Genotype([])
 	
 	
-def list_gt(list_int, ploidy=2):
+def canonic_index_list_to_biallelic_gt_list(list_int, ploidy=2):
 	''' Returns a list of diploid, biallelic genotype objects
 	according to the provided integer representation
+	
+	See this link for further explanation:
+	https://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
 	'''
-	return [int_gt(i,ploidy) for i in list_int]
+	return [canonic_index_to_biallelic_gt(i,ploidy) for i in list_int]

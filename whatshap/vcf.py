@@ -11,17 +11,10 @@ from collections import namedtuple
 from pysam import VariantFile
 from typing import List
 
-from .core import Read, PhredGenotypeLikelihoods, Genotype
+from .core import Read, PhredGenotypeLikelihoods, Genotype, binomial_coefficient
 from math import factorial as fac
 
 logger = logging.getLogger(__name__)
-
-def binomial(x,y):
-	try:
-		binom = fac(x) // fac(y) // fac(x-y)
-	except ValueError:
-		binom = 0
-	return binom
 
 
 class VcfError(Exception):
@@ -97,9 +90,9 @@ class GenotypeLikelihoods:
 		return "GenotypeLikelihoods({})".format(self.log_prob_genotypes)
 	
 	def __eq__(self, other):
-		if other == None:
+		if other is None:
 			return False
-		if self.log_prob_genotypes == None and other.log_prob_genotypes == None:
+		if self.log_prob_genotypes is None and other.log_prob_genotypes is None:
 			return True
 		return self.log_prob_genotypes == other.log_prob_genotypes
 
@@ -359,12 +352,12 @@ class VcfReader:
 		for i in range(len(fields)):
 			assert fields[0][0] == fields[i][0]
 		block_id = fields[0][0]
-		phase = tuple( fields[i][1] - 1 for i in range(len(fields)) )
+		phase = tuple( field[1] - 1 for field in fields)
 		return VariantCallPhase(block_id=block_id, phase=phase, quality=call.get('PQ', None))
 
 	@staticmethod
 	def _extract_GT_PS_phase(call):
-		is_het = not all( x == call['GT'][0] for x in call['GT'] )
+		is_het = not all(x == call['GT'][0] for x in call['GT'])
 		if not is_het:
 			return None
 		if not call.phased:
@@ -444,10 +437,8 @@ class VcfReader:
 
 			if not self._ignore_genotypes:
 				genotypes = [genotype_code(call['GT']) for call in record.samples.values()]
-				# genotypes = array('b', (genotype_code(call['GT'], unknown=-1) for call in record.samples.values()))
 			else:
 				genotypes = [Genotype([]) for i in range(len(self.samples))]
-				# genotypes = array('b', ([-1] * len(self.samples)))
 				phases = [None] * len(self.samples)
 			variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
 			table.add_variant(variant, genotypes, phases, genotype_likelihoods)
@@ -899,7 +890,7 @@ class GenotypeVcfWriter(VcfAugmenter):
 				for sample, call in record.samples.items():
 					geno = Genotype([])
 					n_alleles = len(record.alts) + 1
-					n_genotypes = binomial(ploidy + n_alleles - 1, n_alleles - 1) 
+					n_genotypes = binomial_coefficient(ploidy + n_alleles - 1, n_alleles - 1) 
 					geno_l = [1/n_genotypes] * int(n_genotypes)
 					geno_q = None
 

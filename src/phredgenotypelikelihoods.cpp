@@ -7,7 +7,7 @@
 using namespace std;
 
 PhredGenotypeLikelihoods::PhredGenotypeLikelihoods(const vector<double>& gl, unsigned int ploidy, unsigned int nr_alleles) : gl(gl), ploidy(ploidy), nr_alleles(nr_alleles) {
-	unsigned int expected_size = binomial_coeff(ploidy + nr_alleles - 1, nr_alleles - 1);
+	unsigned int expected_size = binomial_coefficient(ploidy + nr_alleles - 1, nr_alleles - 1);
 	if (expected_size != this->gl.size()) {
 		throw runtime_error("Error: wrong number of given genotype likelihoods given.");
 	}
@@ -48,8 +48,8 @@ const vector<double>& PhredGenotypeLikelihoods::as_vector() const {
 	return this->gl;
 }
 
-void PhredGenotypeLikelihoods::get_genotypes(vector<Genotype>* genotypes) const {
+void PhredGenotypeLikelihoods::get_genotypes(vector<Genotype>& genotypes) const {
 	for (unsigned int i = 0; i < this->size(); ++i) {
-		genotypes->push_back(Genotype(i, this->ploidy));
+		genotypes.push_back(Genotype(i, this->ploidy));
 	}
 } 

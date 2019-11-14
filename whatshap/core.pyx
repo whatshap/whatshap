@@ -9,6 +9,7 @@ Wrappers for core C++ classes.
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libc.stdint cimport uint32_t
 cimport cpp
 
 from collections import namedtuple
@@ -375,8 +376,7 @@ cdef class PhredGenotypeLikelihoods:
 
 	def __getitem__(self, Genotype genotype):
 		assert self.thisptr != NULL
-#		assert isinstance(genotype, int)
-#		assert 0 <= genotype <= 2
+		assert genotype.is_diploid_and_biallelic()
 		return self.thisptr.get(genotype.thisptr[0])
 
 	def __len__(self):
@@ -396,15 +396,19 @@ cdef class PhredGenotypeLikelihoods:
 		
 	def genotypes(self):
 		cdef vector[cpp.Genotype]* genotypes = new vector[cpp.Genotype]()
-		self.thisptr.get_genotypes(genotypes)
+		self.thisptr.get_genotypes(deref(genotypes))
 		result = [Genotype(genotype.as_vector()) for genotype in genotypes[0]]
 		del genotypes
 		return result
+	
+	
+def binomial_coefficient(int n, int k):
+	return cpp.binomial_coefficient(n, k)
 
 			
 cdef class Genotype:
 	
-	def __cinit__(self, vector[unsigned int] alleles):
+	def __cinit__(self, vector[uint32_t] alleles):
 		self.thisptr = new cpp.Genotype(alleles)
 		self.alleles = alleles
 
@@ -422,13 +426,16 @@ cdef class Genotype:
 
 	def as_vector(self):
 		result = []
-		cdef vector[unsigned int] alleles = self.thisptr.as_vector()
+		cdef vector[uint32_t] alleles = self.thisptr.as_vector()
 		for allele in alleles:
 			result.append(allele)
 		return alleles
 
 	def is_homozygous(self):
 		return self.thisptr.is_homozygous()
+	
+	def is_diploid_and_biallelic(self):
+		return self.thisptr.is_diploid_and_biallelic()
 	
 	def get_ploidy(self):
 		return self.thisptr.get_ploidy()

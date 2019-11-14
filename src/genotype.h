@@ -6,37 +6,70 @@
 #include<string>
 #include<algorithm>
 
+/**
+ * Representation of a genotype of arbitrary ploidy with multi-allelic variants. Genotypes are 
+ * unordered multisets of alleles and have a canonical index in the VCF-format:
+ * 
+ * https://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
+ * 
+ * Given the ploidy, there is a bijective mapping between genotypes and non-negative integer
+ * numbers. In the diploid, bi-allelic case, the index is equal to the number of alternative
+ * allles (either 0, 1 or 2).
+ */
 class Genotype{
 	public:
-		// construct empty genotype
+	
+		const static uint32_t DIPLOID = 2;
+	
+		/**
+		 * Creates an empty genotype with no alleles.
+		 */
 		Genotype();
 	
-		// construct genotype from given index and ploidy
-		Genotype(unsigned int index, unsigned int ploidy);
+		/**
+		 * Creates a genotype of given ploidy using the canonical index (see class description).
+		 */
+		Genotype(uint32_t index, uint32_t ploidy);
 	
-		// construct genotype from the given alleles
-		Genotype(std::vector<unsigned int> alleles);
+		/**
+		 * Creates a genotype from a list of given alleles.
+		 */
+		Genotype(std::vector<uint32_t> alleles);
 	
-		// add allele to the genotype
-		void add_allele(unsigned int allele);
+		/**
+		 * Returns the genotype's alleles as a vector.
+		 */
+		std::vector<uint32_t> as_vector() const;
 	
-		// return the alleles as (sorted) vector
-		std::vector<unsigned int> as_vector() const;
-	
-		// check if genotype is empty
+		/**
+		 * Returns whether the genotype is empty (i.e. invalid).
+		 */
 		bool is_none() const;
 	
-		// compute index of genotype in sorted list of all genotypes
-		unsigned int get_index() const;
+		/**
+		 * Returns the canonical index of the genotype (see class description).
+		 */
+		uint32_t get_index() const;
 	
-		// return string representation of the genotype
+		/**
+		 * Returns the genotype as readable string.
+		 */
 		std::string toString() const;
 	
-		// check if genotype is homozygous
+		/**
+		 * Returns whether the genotype is homozygous.
+		 */
 		bool is_homozygous() const;
 	
-		// return the ploidy of the genotype
-		unsigned int get_ploidy() const;
+		/**
+		 * Returns whether the genotype has ploidy 2 and only alleles 0 and 1.
+		 */
+		bool is_diploid_and_biallelic() const;
+	
+		/**
+		 * Returns the ploidy of the genotype.
+		 */
+		uint32_t get_ploidy() const;
 	
 		// operators
 		friend bool operator== (const Genotype &g1, const Genotype &g2);
@@ -44,7 +77,12 @@ class Genotype{
 		friend bool operator< (const Genotype &g1, const Genotype &g2);
 
 	private:
-		std::multiset<unsigned int> alleles;
+		std::multiset<uint32_t> alleles;
+	
+		/**
+		 * Creates a sorted vector of alleles from a given canonical index and ploidy.
+		 */
+		std::vector<uint32_t> convert_index_to_genotype(uint32_t index, uint32_t ploidy);
 };
 
 #endif // GENOTYPE_H

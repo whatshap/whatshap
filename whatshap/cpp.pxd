@@ -5,6 +5,7 @@ Declarations for all C++ classes that are wrapped from Cython.
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libc.stdint cimport uint32_t
 
 
 cdef extern from "../src/read.h":
@@ -76,18 +77,23 @@ cdef extern from "../src/pedigreedptable.h":
 		vector[bool]* get_optimal_partitioning()
 		
 		
+cdef extern from "../src/binomial.h":
+	cdef int binomial_coefficient(int n, int k) except +
+		
+		
 cdef extern from "../src/genotype.h":
 	cdef cppclass Genotype:
 		Genotype() except +
-		Genotype(vector[unsigned int]) except +
-		Genotype(Genotype) except +
-		void add_allele(unsigned int) except +
-		vector[unsigned int] as_vector() except +
+		Genotype(vector[uint32_t] alleles) except +
+		#Genotype(uint32_t index, uint32_t ploidy) except +
+		Genotype(Genotype genotype) except +
+		vector[uint32_t] as_vector() except +
 		bool is_none() except +
-		unsigned int get_index() except +
-		unsigned int get_ploidy() except +
+		uint32_t get_index() except +
+		uint32_t get_ploidy() except +
 		string toString() except +
 		bool is_homozygous() except +
+		bool is_diploid_and_biallelic() except +
 	cdef bool operator==(Genotype,Genotype) except +
 	cdef bool operator!=(Genotype,Genotype) except +
 	cdef bool operator<(Genotype,Genotype) except +
@@ -108,7 +114,7 @@ cdef extern from "../src/phredgenotypelikelihoods.h":
 		unsigned int get_nr_alleles() except +
 		unsigned int size() except +
 		vector[double] as_vector() except +
-		void get_genotypes(vector[Genotype]*) except +
+		void get_genotypes(vector[Genotype]&) except +
 
 
 cdef extern from "../src/genotypedistribution.h":

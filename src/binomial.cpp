@@ -1,6 +1,6 @@
 #include "binomial.h"
 
-int binomial_coeff(int n, int k){
+int binomial_coefficient(int n, int k){
 	if (k < 0 || n < 0 || n < k) return 0;
 	int result = 1;
 	if (k > n-k) k = n-k;

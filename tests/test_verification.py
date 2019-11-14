@@ -1,5 +1,5 @@
 from whatshap.core import PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, Genotype
-from whatshap.testhelpers import string_to_readset, matrix_to_readset, int_gt
+from whatshap.testhelpers import string_to_readset, matrix_to_readset, canonic_index_to_biallelic_gt
 from whatshap.verification import verify_mec_score_and_partitioning
 
 
@@ -11,7 +11,7 @@ def verify(rs, all_heterozygous=False):
 	genotype_likelihoods = [
 		None if all_heterozygous else PhredGenotypeLikelihoods([0, 0, 0])] * len(positions)
 	# all genotypes heterozygous
-	pedigree.add_individual('individual0', [int_gt(1) for i in range(len(positions))], genotype_likelihoods)
+	pedigree.add_individual('individual0', [canonic_index_to_biallelic_gt(1) for _ in range(len(positions))], genotype_likelihoods)
 	dp_table = PedigreeDPTable(rs, recombcost, pedigree, distrust_genotypes=not all_heterozygous)
 	verify_mec_score_and_partitioning(dp_table, rs)
 

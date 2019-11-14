@@ -15,15 +15,11 @@ Pedigree::Pedigree() {
 Pedigree::~Pedigree() {
 	for (size_t i=0; i<individual_ids.size(); ++i) {
 		for (size_t j=0; j<genotype_likelihoods[i].size(); ++j) {
-			if (genotype_likelihoods[i][j] != nullptr) {
-				delete genotype_likelihoods[i][j];
-			}
+			delete genotype_likelihoods[i][j];
 		}
 
 		for (size_t j=0; j<genotypes[i].size(); ++j) {
-			if (genotypes[i][j] != nullptr) {
-				delete genotypes[i][j];
-			}
+			delete genotypes[i][j];
 		}
 	}
 }
