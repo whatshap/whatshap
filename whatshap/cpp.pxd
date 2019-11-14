@@ -5,7 +5,7 @@ Declarations for all C++ classes that are wrapped from Cython.
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
-from libc.stdint cimport uint32_t
+from libc.stdint cimport uint32_t, uint64_t
 
 
 cdef extern from "../src/read.h":
@@ -84,16 +84,15 @@ cdef extern from "../src/binomial.h":
 cdef extern from "../src/genotype.h":
 	cdef cppclass Genotype:
 		Genotype() except +
-		Genotype(vector[uint32_t] alleles) except +
-		#Genotype(uint32_t index, uint32_t ploidy) except +
-		Genotype(Genotype genotype) except +
+		Genotype(vector[uint32_t]) except +
+		Genotype(Genotype) except +
 		vector[uint32_t] as_vector() except +
 		bool is_none() except +
-		uint32_t get_index() except +
-		uint32_t get_ploidy() except +
+		uint64_t get_index() except +
 		string toString() except +
 		bool is_homozygous() except +
 		bool is_diploid_and_biallelic() except +
+		uint32_t get_ploidy() except +
 	cdef bool operator==(Genotype,Genotype) except +
 	cdef bool operator!=(Genotype,Genotype) except +
 	cdef bool operator<(Genotype,Genotype) except +

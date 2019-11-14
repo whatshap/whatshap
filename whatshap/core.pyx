@@ -9,7 +9,7 @@ Wrappers for core C++ classes.
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
-from libc.stdint cimport uint32_t
+from libc.stdint cimport uint32_t, uint64_t
 cimport cpp
 
 from collections import namedtuple
