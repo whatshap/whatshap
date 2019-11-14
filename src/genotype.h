@@ -69,7 +69,7 @@ class Genotype{
 		/**
 		 * Creates a genotype of given ploidy using the canonical index (see class description).
 		 */
-		Genotype(uint32_t index, uint32_t ploidy);
+		Genotype(uint64_t index, uint32_t ploidy);
 	
 		/**
 		 * Creates a genotype from a list of given alleles.
@@ -128,11 +128,11 @@ class Genotype{
 		void set_ploidy(const uint32_t ploidy);
 		uint32_t get_position(const uint32_t pos) const;
 		void set_position(const uint32_t pos, const uint32_t allele);
-	
-		/**
-		 * Creates a sorted vector of alleles from a given canonical index and ploidy.
-		 */
-		std::vector<uint32_t> convert_index_to_alleles(uint32_t index, uint32_t ploidy) const;
 };
+
+/**
+ * Creates a sorted vector of alleles from a given canonical index and ploidy.
+ */
+std::vector<uint32_t> convert_index_to_alleles(uint64_t index, uint32_t ploidy);
 
 #endif // GENOTYPE_H

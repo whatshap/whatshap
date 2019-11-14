@@ -410,7 +410,8 @@ cdef class Genotype:
 	
 	def __cinit__(self, vector[uint32_t] alleles):
 		self.thisptr = new cpp.Genotype(alleles)
-		self.alleles = alleles
+		self.ploidy = self.thisptr.get_ploidy()
+		self.index = self.thisptr.get_index()
 
 	def __dealloc__(self):
 		del self.thisptr
@@ -455,7 +456,8 @@ cdef class Genotype:
 	def __reduce__(self):
 		# a tuple as specified in the pickle docs - (class_or_constructor, 
 		# (tuple, of, args, to, constructor))
-		return (self.__class__, tuple([self.alleles]))
+		cdef vector[uint32_t] alleles = cpp.convert_index_to_alleles(self.index, self.ploidy)
+		return (self.__class__, tuple([alleles]))
 
 
 cdef class GenotypeDPTable:

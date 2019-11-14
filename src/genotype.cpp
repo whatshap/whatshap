@@ -7,7 +7,7 @@ using namespace std;
 
 Genotype::Genotype() : gt(0) {}
 
-Genotype::Genotype(uint32_t index, uint32_t ploidy) {
+Genotype::Genotype(uint64_t index, uint32_t ploidy) {
 	std::vector<uint32_t> genotype = convert_index_to_alleles(index, ploidy);
 	
 	std::sort(genotype.begin(), genotype.end());
@@ -182,7 +182,7 @@ void Genotype::set_position(const uint32_t pos, const uint32_t allele) {
 	gt |= set_mask;
 }
 
-std::vector<uint32_t> Genotype::convert_index_to_alleles(uint32_t index, uint32_t ploidy) const {
+std::vector<uint32_t> convert_index_to_alleles(uint64_t index, uint32_t ploidy) {
 	/* The conversion code was taken from here: 
 	 * https://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
 	 */

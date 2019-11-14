@@ -96,6 +96,7 @@ cdef extern from "../src/genotype.h":
 	cdef bool operator==(Genotype,Genotype) except +
 	cdef bool operator!=(Genotype,Genotype) except +
 	cdef bool operator<(Genotype,Genotype) except +
+	cdef vector[uint32_t] convert_index_to_alleles(uint64_t index, uint32_t ploidy) except +
 
 
 cdef extern from "../src/genotypedptable.h":
