@@ -13,10 +13,10 @@ from distutils.command.sdist import sdist as _sdist
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils.sysconfig import customize_compiler
 
-MIN_CYTHON_VERSION = '0.17'
+MIN_CYTHON_VERSION = '0.29'
 
-if sys.version_info < (3, 4):
-	sys.stdout.write("At least Python 3.4 is required.\n")
+if sys.version_info < (3, 5):
+	sys.stdout.write("At least Python 3.5 is required.\n")
 	sys.exit(1)
 
 
@@ -140,7 +140,6 @@ else:
 		'pyfaidx>=0.5.5.2',
 		'networkx',
 		'biopython>=1.73',  # pyfaidx needs this for reading bgzipped FASTA files
-		'typing; python_version<"3.5"',
 	]
 
 setup(
@@ -162,7 +161,7 @@ setup(
 	extras_require={
 		'dev': ['Cython', 'pytest', 'sphinx', 'sphinx_issues'],
 	},
-	python_requires='>=3.4',
+	python_requires='>=3.5',
 	classifiers=[
 		"Development Status :: 4 - Beta",
 		"Environment :: Console",
