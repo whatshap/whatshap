@@ -28,12 +28,11 @@ which WhatsHap does not use anyway::
 Installation with pip
 ---------------------
 
-Before you can `pip install`, you need to install dependencies that pip cannot
+Before you can ``pip install``, you need to install dependencies that pip cannot
 install for you. WhatsHap is implemented in C++ and Python. You need to have a
-C++ compiler, Python 3.3 (or later) and the corresponding Python header files.
-Python 3.5 is slightly faster than 3.4. In Ubuntu, installing the packages
-``build-essential`` and ``python3-dev`` will take care of all required
-dependencies.
+C++ compiler, Python 3.5 (or later) and the corresponding Python header files.
+In Ubuntu, installing the packages ``build-essential`` and ``python3-dev`` will
+take care of all required dependencies.
 
 WhatsHap can then be installed with pip::
 
