@@ -135,4 +135,14 @@ class Genotype{
  */
 std::vector<uint32_t> convert_index_to_alleles(uint64_t index, uint32_t ploidy);
 
+/**
+ * Returns the maximum supported ploidy for genotypes
+ */
+uint32_t get_max_genotype_ploidy();
+
+/**
+ * Returns the maximum supported number of alleles per variant for genotypes
+ */
+uint32_t get_max_genotype_alleles();
+
 #endif // GENOTYPE_H

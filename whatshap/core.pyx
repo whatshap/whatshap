@@ -418,6 +418,9 @@ cdef class Genotype:
 
 	def __str__(self):
 		return self.thisptr.toString().decode('utf-8')
+	
+	def __repr__(self):
+		return self.thisptr.toString().decode('utf-8')
 
 	def is_none(self):
 		return self.thisptr.is_none()
@@ -458,6 +461,14 @@ cdef class Genotype:
 		# (tuple, of, args, to, constructor))
 		cdef vector[uint32_t] alleles = cpp.convert_index_to_alleles(self.index, self.ploidy)
 		return (self.__class__, tuple([alleles]))
+	
+	
+def get_max_genotype_ploidy():
+	return cpp.get_max_genotype_ploidy()
+
+
+def get_max_genotype_alleles():
+	return cpp.get_max_genotype_alleles()
 
 
 cdef class GenotypeDPTable:

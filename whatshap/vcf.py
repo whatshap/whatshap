@@ -11,7 +11,7 @@ from collections import namedtuple
 from pysam import VariantFile
 from typing import List
 
-from .core import Read, PhredGenotypeLikelihoods, Genotype, binomial_coefficient
+from .core import Read, PhredGenotypeLikelihoods, Genotype, binomial_coefficient, get_max_genotype_ploidy
 from math import factorial as fac
 
 logger = logging.getLogger(__name__)
@@ -22,6 +22,10 @@ class VcfError(Exception):
 
 
 class VcfNotSortedError(VcfError):
+	pass
+
+
+class PloidyError(VcfError):
 	pass
 
 
@@ -285,7 +289,7 @@ class VcfReader:
 	"""
 	Read a VCF file chromosome by chromosome.
 	"""
-	def __init__(self, path, indels=False, phases=False, genotype_likelihoods=False, ignore_genotypes=False):
+	def __init__(self, path, indels=False, phases=False, genotype_likelihoods=False, ignore_genotypes=False, ploidy=None):
 		"""
 		path -- Path to VCF file
 		indels -- Whether to include also insertions and deletions in the list of
@@ -301,6 +305,7 @@ class VcfReader:
 		self._genotype_likelihoods = genotype_likelihoods
 		self.samples = list(self._vcf_reader.header.samples)  # intentionally public
 		self._ignore_genotypes = ignore_genotypes
+		self.ploidy = ploidy
 		logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
 	def __enter__(self):
@@ -415,6 +420,21 @@ class VcfReader:
 									"Mixed phasing information in input VCF (e.g. mixing PS "
 									"and HP fields)")
 							phase = p
+							# check for ploidy consistency and limits
+							phase_ploidy = len(p.phase)
+							if phase_ploidy > get_max_genotype_ploidy():
+								raise PloidyError(
+									"Ploidies higher than {} are not supported."
+									"".format(get_max_genotype_ploidy()))
+							elif p is None or None in p:
+								pass
+							elif self.ploidy is None:
+								self.ploidy = phase_ploidy
+							elif phase_ploidy != self.ploidy:
+								print("phase= {}".format(phase))
+								raise PloidyError(
+									"Phasing information contains inconsistent ploidy ({} and "
+									"{})".format(self.ploidy, phase_ploidy))
 					phases.append(phase)
 			else:
 				phases = [None] * len(record.samples)
@@ -436,7 +456,25 @@ class VcfReader:
 				genotype_likelihoods = [None] * len(record.samples)
 
 			if not self._ignore_genotypes:
-				genotypes = [genotype_code(call['GT']) for call in record.samples.values()]
+				# check for ploidy consistency and limits
+				genotype_lists = [call['GT'] for call in record.samples.values()]
+				for geno in genotype_lists:
+					geno_ploidy = len(geno)
+					if geno_ploidy > get_max_genotype_ploidy():
+						raise PloidyError(
+							"Ploidies higher than {} are not supported."
+							"".format(get_max_genotype_ploidy()))
+					elif geno is None or None in geno:
+						pass
+					elif self.ploidy is None:
+						self.ploidy = geno_ploidy
+					elif geno_ploidy != self.ploidy:
+						print("genotype_lists= {}".format(genotype_lists))
+						raise PloidyError(
+							"Genotypes contain inconsistent ploidy ({} and "
+							"{})".format(self.ploidy, geno_ploidy))				
+				
+				genotypes = [genotype_code(geno_list) for geno_list in genotype_lists]
 			else:
 				genotypes = [Genotype([]) for i in range(len(self.samples))]
 				phases = [None] * len(self.samples)

@@ -3,7 +3,7 @@ import math
 from pytest import raises, approx, fixture
 from whatshap.core import PhredGenotypeLikelihoods, Genotype
 from whatshap.cli.phase import run_whatshap
-from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant, \
+from whatshap.vcf import VcfReader, MixedPhasingError, PloidyError, VariantCallPhase, VcfVariant, \
 	GenotypeLikelihoods
 from whatshap.testhelpers import canonic_index_to_biallelic_gt, canonic_index_list_to_biallelic_gt_list
 
@@ -376,3 +376,35 @@ def test_read_tetraploid_genotype_likelihoods():
 		GenotypeLikelihoods([-x/10 for x in [6,27,6,3,46,42]])
 	] * 2
 	assert table.genotype_likelihoods_of(table.samples[0]) == exp_gl
+	
+	
+def test_unsupported_ploidy():
+	try:
+		tables = list(VcfReader('tests/data/hexadecaploid.chr22.vcf', phases=False))
+	except PloidyError:
+		return
+	assert False
+	
+	
+def test_unsupported_ploidy_phased():
+	try:
+		tables = list(VcfReader('tests/data/hexadecaploid.chr22.vcf', phases=True))
+	except PloidyError:
+		return
+	assert False
+	
+	
+def test_inconsistent_ploidy():
+	try:
+		tables = list(VcfReader('tests/data/polyploid.chr22.inconsistent.vcf', phases=False))
+	except PloidyError:
+		return
+	assert False
+	
+	
+def test_inconsistent_ploidy_phased():
+	try:
+		tables = list(VcfReader('tests/data/polyploid.chr22.inconsistent.vcf', phases=True))
+	except PloidyError:
+		return
+	assert False

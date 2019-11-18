@@ -207,3 +207,11 @@ std::vector<uint32_t> convert_index_to_alleles(uint64_t index, uint32_t ploidy) 
 	}
 	return genotype;
 }
+
+uint32_t get_max_genotype_ploidy() {
+	return Genotype::MAX_PLOIDY;
+}
+
+uint32_t get_max_genotype_alleles() {
+	return Genotype::MAX_ALLELES;
+}
