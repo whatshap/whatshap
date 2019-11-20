@@ -1,4 +1,4 @@
-from whatshap.core import ReadSet, DynamicSparseGraph, CoreAlgorithm
+from whatshap.core import ReadSet, DynamicSparseGraph, ClusterEditingSolver
 from whatshap.testhelpers import string_to_readset, brute_force_phase
 from whatshap.readscoring import score_global
 import itertools
@@ -42,7 +42,7 @@ def test_clusterediting1():
 		graph.addEdge(read1, read2, similarities.get(read1, read2))
 
 	# run cluster editing
-	clusterediting = CoreAlgorithm(graph, False)	
+	clusterediting = ClusterEditingSolver(graph, False)	
 	readpartitioning = clusterediting.run()
 
 	print('computed clusters: ', readpartitioning)
@@ -86,7 +86,7 @@ def test_clusterediting2():
 		graph.addEdge(read1, read2, similarities.get(read1, read2))
 
 	# run cluster editing
-	clusterediting = CoreAlgorithm(graph, False)	
+	clusterediting = ClusterEditingSolver(graph, False)	
 	readpartitioning = clusterediting.run()
 
 	print('computed clusters: ', readpartitioning)
@@ -129,7 +129,7 @@ def test_clusterediting3():
 		graph.addEdge(read1, read2, similarities.get(read1, read2))
 
 	# run cluster editing
-	clusterediting = CoreAlgorithm(graph, False)
+	clusterediting = ClusterEditingSolver(graph, False)
 	readpartitioning = clusterediting.run()
 
 	print('computed clusters: ', readpartitioning)

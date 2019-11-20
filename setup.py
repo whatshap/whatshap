@@ -76,7 +76,7 @@ extensions = [
 			'src/backwardcolumniterator.cpp', 'src/transitionprobabilitycomputer.cpp',
 			'src/genotype.cpp', 'src/binomial.cpp',
 			'src/clusterediting/ClusterEditingSolutionLight.cpp',
-			'src/clusterediting/CoreAlgorithm.cpp',
+			'src/clusterediting/ClusterEditingSolver.cpp',
 			'src/clusterediting/DynamicSparseGraph.cpp',
 			'src/clusterediting/EdgeHeap.cpp',
 			'src/clusterediting/Globals.cpp',

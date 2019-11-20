@@ -15,9 +15,9 @@ cdef class DynamicSparseGraph:
 	def clearAndResize(self, uint32_t initialNumNodes):
 		self.thisptr.clearAndResize(initialNumNodes)
 
-cdef class CoreAlgorithm:
+cdef class ClusterEditingSolver:
 	def __cinit__(self, DynamicSparseGraph graph, bundleEdges):
-		self.thisptr = new cpp.CoreAlgorithm(graph.thisptr[0], bundleEdges)
+		self.thisptr = new cpp.ClusterEditingSolver(graph.thisptr[0], bundleEdges)
 		self.graph = graph
 	def run(self):
 		cdef cpp.ClusterEditingSolutionLight solution = self.thisptr.run()
@@ -63,12 +63,7 @@ cdef class ReadScoring:
 		self.thisptr.scoreReadsetGlobal(sim.thisptr, readset.thisptr, minOverlap, ploidy)
 		return sim
 	
-	def scoreReadsetLocal(self, ReadSet readset, uint32_t minOverlap, uint32_t ploidy):
+	def scoreReadsetLocal(self, ReadSet readset, vector[vector[uint32_t]] refHaplotypes, uint32_t minOverlap, uint32_t ploidy):
 		sim = TriangleSparseMatrix()
-		self.thisptr.scoreReadsetLocal(sim.thisptr, readset.thisptr, minOverlap, ploidy)
-		return sim
-	
-	def scoreReadsetPatterns(self, ReadSet readset, uint32_t minOverlap, uint32_t ploidy, double errorrate, uint32_t windowSize):
-		sim = TriangleSparseMatrix()
-		self.thisptr.scoreReadsetPatterns(sim.thisptr, readset.thisptr, minOverlap, ploidy, errorrate, windowSize)
+		self.thisptr.scoreReadsetLocal(sim.thisptr, readset.thisptr, refHaplotypes, minOverlap, ploidy)
 		return sim

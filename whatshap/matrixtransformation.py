@@ -1,7 +1,7 @@
 from collections import defaultdict
 import sys
 from .graph import ComponentFinder
-from .core import Read, ReadSet, CoreAlgorithm, DynamicSparseGraph
+from .core import Read, ReadSet, ClusterEditingSolver, DynamicSparseGraph
 from .readscoring import score_global
 import logging
 import pysam
@@ -71,7 +71,7 @@ class MatrixTransformation:
 					graph.addEdge(read1, read2, similarities.get(read1, read2))
 				
 				# run cluster editing
-				clusterediting = CoreAlgorithm(graph, False)
+				clusterediting = ClusterEditingSolver(graph, False)
 				readpartitioning = clusterediting.run()
 				num_clusters.append(len(readpartitioning))
 

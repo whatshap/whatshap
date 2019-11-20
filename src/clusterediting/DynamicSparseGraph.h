@@ -10,6 +10,10 @@
 #include <limits>
 #include "Globals.h"
 
+/**
+ * A sparse graph data structure, which is based on adjacency lists and a hashtable
+ * to map edge ids to weights.
+ */
 class DynamicSparseGraph {
 
 public:

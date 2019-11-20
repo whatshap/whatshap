@@ -5,6 +5,9 @@
 #include <set>
 #include "StaticSparseGraph.h"
     
+/**
+ * Data structure to manage the induced costs of a graph's edges.
+ */
 class EdgeHeap {
 public:
 
@@ -17,39 +20,48 @@ public:
      * Initializes the induced costs for all edges. May take quite long!
      */
     void initInducedCosts();
+    
     /**
     * Returns the edge with the highest icf.
     */
     DynamicSparseGraph::Edge getMaxIcfEdge() const;
+    
     /**
     * Returns the edge with the highest icp.
     */
     DynamicSparseGraph::Edge getMaxIcpEdge() const;
+    
     /**
     * Returns the icf of the provided edge.
     */
     DynamicSparseGraph::EdgeWeight getIcf(const DynamicSparseGraph::Edge e) const;
+    
     /**
     * Returns the icp of the provided edge.
     */
     DynamicSparseGraph::EdgeWeight getIcp(const DynamicSparseGraph::Edge e) const;
+    
     /**
     * Adds the provided value to the icf of the given edge.
     */
     void increaseIcf(const DynamicSparseGraph::Edge e, const DynamicSparseGraph::EdgeWeight w);
+    
     /**
     * Adds the provided value to the icp of the given edge.
     */
     void increaseIcp(const DynamicSparseGraph::Edge e, const DynamicSparseGraph::EdgeWeight w);
+    
     /**
      * Bundles two edges together. This indicates that if either of the edges is set to permanent or forbidden, the other
      * must be as well. One of the edges receives the induced costs for both edges, while the other is removed from the heap.
      */
     void mergeEdges(const DynamicSparseGraph::Edge e1, const DynamicSparseGraph::Edge e2);
+    
     /**
     * Removes the specified edge.
     */
     void removeEdge(const DynamicSparseGraph::Edge e);
+    
     /**
      * Computes the induced cost for the the triple uvw, if uv is set to forbidden
      */
@@ -61,6 +73,7 @@ public:
             return 0;
         }
     }
+    
     /*
      * Computes the induced cost for the the triple uvw, if uv is set to permanent
      */
@@ -80,12 +93,14 @@ private:
     /**
      * Removes the edge with the specified rank
      */
+    
     void removeEdge(const DynamicSparseGraph::RankId rId);
     /**
      * Ensures that the heap structure of the given heap stays intact after the icf/icp value of an edge has been modified. 
      * Provided are the id of the modified edge, new and old value, an index (which maps edge ids to their position in the heap)
      * and a score vector (which maps an edge id to either its icf or icp).
      */
+    
     void updateHeap(std::vector<DynamicSparseGraph::RankId>& heap, const DynamicSparseGraph::RankId e, const DynamicSparseGraph::EdgeWeight change, 
             std::vector<DynamicSparseGraph::RankId>& index, const std::vector<DynamicSparseGraph::EdgeWeight>& score);
     

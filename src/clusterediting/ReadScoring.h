@@ -14,7 +14,7 @@ public:
      */
     void scoreReadsetGlobal(TriangleSparseMatrix *result, ReadSet *readset, const uint32_t minOverlap, const uint32_t ploidy) const;
     void scoreReadsetLocal(TriangleSparseMatrix *result, ReadSet *readset, const uint32_t minOverlap, const uint32_t ploidy) const;
-    void scoreReadsetPatterns(TriangleSparseMatrix* result, ReadSet* readset, const uint32_t minOverlap, const uint32_t ploidy, const double errorrate, const uint32_t windowSize) const;
+    void scoreReadsetLocal(TriangleSparseMatrix *result, ReadSet *readset, std::vector<std::vector<uint32_t>>& refHaplotypes, const uint32_t minOverlap, const uint32_t ploidy) const;
 
 private:
     void computeStartEnd (const ReadSet* readset,

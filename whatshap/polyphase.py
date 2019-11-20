@@ -27,11 +27,11 @@ from contextlib import ExitStack
 from . import __version__
 from .bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
 from .clustereditingplots import draw_clustering, draw_threading, get_phase
-from .core import Read, ReadSet, Variant, CoreAlgorithm, DynamicSparseGraph, readselection, NumericSampleIds, compute_polyploid_genotypes
+from .core import Read, ReadSet, Variant, ClusterEditingSolver, DynamicSparseGraph, readselection, NumericSampleIds, compute_polyploid_genotypes
 from .matrixcorrection import correct_rare_alleles2
 from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, find_components
-from .readscoring import score_global, score_local, score_local_patternbased, SparseTriangleMatrix, parse_haplotype
+from .readscoring import score_global, score_local, SparseTriangleMatrix, parse_haplotype
 from .threading import run_threading, get_local_cluster_consensus_withfrac, get_position_map, get_pos_to_clusters_map, get_cluster_start_end_positions, get_coverage, get_coverage_absolute
 from .timer import StageTimer
 from .utils import IndexedFasta, FastaNotIndexedError
@@ -82,7 +82,8 @@ def run_polyphase(
 	cython_threading = False,
 	ce_refinements = 5,
 	block_cut_sensitivity = 5,
-	correct_rare_alleles = False
+	correct_rare_alleles = False,
+	reference_haps = False
 	):
 	"""
 	Run Polyploid Phasing.
@@ -161,9 +162,9 @@ def run_polyphase(
 		if block_cut_sensitivity < 0:
 			logger.warn("Block cut sensitivity was set to negative value. Lowest value (0) is assumed instead.")
 			block_cut_sensitivity = 0
-		elif block_cut_sensitivity > 6:
-			logger.warn("Block cut sensitivity level too large. Assuming highest valid value (6) instead.")
-			block_cut_sensitivity = 6
+		elif block_cut_sensitivity > 5:
+			logger.warn("Block cut sensitivity level too large. Assuming highest valid value (5) instead.")
+			block_cut_sensitivity = 5
 
 		samples = frozenset(samples)
 
@@ -492,7 +493,13 @@ def run_polyphase(
 					if ce_score_global:
 						similarities = score_global(block_readset, ploidy, min_overlap)
 					else:
-						similarities = score_local(block_readset, ploidy, min_overlap)
+						ref_haps = []
+						if reference_haps:
+							phase_vectors = get_phase(readset, phasable_variant_table)
+							for i in range(ploidy):
+								ref_haps.append([int(x) for x in phase_vectors[i][ext_block_starts[block_id]:ext_block_starts[block_id+1]]])
+						similarities = score_local(block_readset, ploidy, min_overlap, ref_haps)
+						#return
 
 					# Create read graph object
 					logger.debug("Constructing graph ...")
@@ -505,7 +512,7 @@ def run_polyphase(
 					# Run cluster editing
 					logger.debug("Solving cluster editing instance with {} nodes and {} edges ..".format(len(block_readset), len(similarities)))
 					timers.start('solve_clusterediting')
-					solver = CoreAlgorithm(graph, ce_bundle_edges)
+					solver = ClusterEditingSolver(graph, ce_bundle_edges)
 					clustering = solver.run()
 					del solver
 
@@ -526,7 +533,7 @@ def run_polyphase(
 
 						if 0 < new_inc_count < last_inc_count:
 							logger.debug("{} inconsistent variants found. Refining clusters ..\r".format(new_inc_count))
-							solver = CoreAlgorithm(graph, ce_bundle_edges)
+							solver = ClusterEditingSolver(graph, ce_bundle_edges)
 							clustering = solver.run()
 							del solver
 							
@@ -845,6 +852,8 @@ def add_arguments(parser):
 	arg('--block-cut-sensitivity', metavar='SENSITIVITY', type=int, default=4, help='Strategy to determine block borders. 0 yields the longest blocks with more switch errors, 5 has the shortest blocks with lowest switch error rate (default: %(default)s).')
 	arg('--correct-rare-alleles', dest='correct_rare_alleles', default=False, action='store_true',
 		help='Corrects alleles in allele pairs, which have very low support.')
+	arg('--reference-haps', dest='reference_haps', default=False, action='store_true',
+		help='Uses ground truth haplotypes to improve the read scoring.')
 
 def validate(args, parser):
 	pass

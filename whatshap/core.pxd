@@ -42,8 +42,8 @@ cdef class DynamicSparseGraph:
 	cdef cpp.DynamicSparseGraph *thisptr
 
 
-cdef class CoreAlgorithm:
-	cdef cpp.CoreAlgorithm *thisptr
+cdef class ClusterEditingSolver:
+	cdef cpp.ClusterEditingSolver *thisptr
 	cdef DynamicSparseGraph graph
 
 

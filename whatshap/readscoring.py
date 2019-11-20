@@ -61,13 +61,13 @@ def score_global(readset, ploidy, min_overlap):
 	read_scoring = ReadScoring()
 	return read_scoring.scoreReadsetGlobal(readset, min_overlap, ploidy)
 	
-def score_local(readset, ploidy, min_overlap):
-	read_scoring = ReadScoring()
-	return read_scoring.scoreReadsetLocal(readset, min_overlap, ploidy)
+#def score_local(readset, ploidy, min_overlap):
+#	read_scoring = ReadScoring()
+#	return read_scoring.scoreReadsetLocal(readset, min_overlap, ploidy)
 
-def score_local_patternbased(readset, ploidy, errorrate, min_overlap, window_size):
+def score_local(readset, ploidy, min_overlap, ref_haps = []):
 	read_scoring = ReadScoring()
-	return read_scoring.scoreReadsetPatterns(readset, min_overlap, ploidy, errorrate, window_size)
+	return read_scoring.scoreReadsetLocal(readset, ref_haps, min_overlap, ploidy)
 
 def calc_overlap_and_diffs(readset):
 	num_reads = len(readset)

@@ -114,8 +114,8 @@ void InducedCostHeuristic::choosePermanentEdge(const DynamicSparseGraph::Edge eI
     /* We cannot just set the edge eIcf=(u,v) to permanent, because we have to handle implications of this step as well.
      * According to the heuristic, u and v must be merged into one node. However, we do not do this here, but instead
      * make sure that u and v are handled as a clique:
-     * Node u and v might already permanently connected to other nodes. If u and v are connected, the cliques of u and v
-     * must be pairwise connected, too. For non-zero edges, we could let this be handled by the heuristic, but forbidden,
+     * Node u and v might already be permanently connected to other nodes. If u and v are connected, the cliques of u and v
+     * must be pairwise connected, too. For non-zero edges, we could let this be handled by the heuristic,
      * but for zero edges, we must do this.*/
     std::vector<Edge> implications;
     std::vector<Edge> implicationsForbidden;
@@ -237,7 +237,7 @@ void InducedCostHeuristic::chooseForbiddenEdge(const DynamicSparseGraph::Edge eI
     /* We cannot just set the edge eIcf=(u,v) to forbidden, because we have to handle implications of this step as well.
      * Node u and v might already permanently connected to other nodes. If we decide to not u and v into one clique, then
      * all other pair of nodes in the same clique as u and v must be a forbidden pair. For non-zero edges, we could let 
-     * this be handled by the heuristic, but forbidden, but for zero edges, we must do this.*/
+     * this be handled by the heuristic, but for zero edges, we must do this.*/
     std::vector<Edge> implications;
     std::vector<NodeId> uClique(graph.getCliqueOf(eIcp.u));
     std::vector<NodeId> vClique(graph.getCliqueOf(eIcp.v));

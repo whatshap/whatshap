@@ -146,7 +146,7 @@ def test_diploid_phase1():
                 11111111
                 11121111
                 """
-	for algorithm in ['windowphase', 'clusterediting']:
+	for algorithm in ['windowphase']:
 		genotypes = create_genotype_vector(2, [1,1,2,1,2,2,1,1])
 		check_phasing_single_individual(reads, genotypes, 2, 3, 6, algorithm)
 
@@ -162,7 +162,7 @@ def test_diploid_phase2():
                      1110111
                         1111
 		"""
-	for algorithm in ['windowphase', 'clusterediting']:
+	for algorithm in ['windowphase']:
 		genotypes = create_genotype_vector(2, [1,1,2,1,1,2,1,1,1,1,1,1])
 		check_phasing_single_individual(reads, genotypes, 2, 3, 3, algorithm)
 
