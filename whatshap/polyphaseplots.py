@@ -9,8 +9,50 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from pylab import savefig
 from .core import Read, ReadSet
-from .readscoring import calc_overlap_and_diffs, parse_haplotype
+from .readscoring import calc_overlap_and_diffs
 from .compare import compute_switch_flips_poly_bt
+
+'''
+This class is exclusively used for debugging and development.
+'''
+
+
+'''
+This method only works for a test dataset, for which the true haplotype of read was encoded
+into its name. For any other read name, it just returns -1 for unknown haplotype
+'''
+def parse_haplotype(name):
+	try:
+		tokens = name.split("_")
+		if (tokens[-2] == "HG00514" and tokens[-1] == "HAP1"):
+			return 0
+		elif (tokens[-2] == "HG00514" and tokens[-1] == "HAP2"):
+			return 1
+		elif (tokens[-2] == "NA19240" and tokens[-1] == "HAP1"):
+			return 2
+		elif (tokens[-2] == "NA19240" and tokens[-1] == "HAP2"):
+			return 3
+	except:
+		pass
+	return -1
+
+def avg_readlength(readset):
+	# Estiamtes the average read length in base pairs
+	if len(readset) > 0:
+		return sum([read[-1].position - read[0].position for read in readset]) / len(readset)
+	else:
+		return 0
+	
+	
+def get_phase(readset, var_table):
+	tmp_table = deepcopy(var_table)
+	tmp_table.subset_rows_by_position(readset.get_positions())
+	try:
+		phase_rows = [variant.phase for variant in tmp_table.phases[0]]
+	except AttributeError as e:
+		return None
+	return [[row[i] for row in phase_rows] for i in range(len(phase_rows[0]))]
+
 
 def draw_plots_dissimilarity(readset, path, min_overlap = 5, steps = 100):
 	num_reads = len(readset)
@@ -188,15 +230,7 @@ def plot_haplotype_dissimilarity(legend_handles, y_offset, y_margin, index, rev_
 			else:
 				plt.plot(list(range(start, end)), dist[start:end], lw=1, color=colors[k % 2])
 				
-def get_phase(readset, var_table):
-	tmp_table = deepcopy(var_table)
-	tmp_table.subset_rows_by_position(readset.get_positions())
-	try:
-		phase_rows = [variant.phase for variant in tmp_table.phases[0]]
-	except AttributeError as e:
-		return None
-	return [[row[i] for row in phase_rows] for i in range(len(phase_rows[0]))]
-	
+
 def haplodist(h1, h2, intervals):
 	if len(h1) != len(h2):
 		return -1
@@ -311,11 +345,4 @@ def draw_threading(readset, clustering, coverage, paths, cut_positions, haplotyp
 	axes.set_xlim([0, num_vars - 1])
 	fig.savefig(path)
 	fig.clear()
-	
-def avg_readlength(readset):
-	# Estiamtes the average read length in base pairs
-	if len(readset) > 0:
-		return sum([read[-1].position - read[0].position for read in readset]) / len(readset)
-	else:
-		return 0
 	

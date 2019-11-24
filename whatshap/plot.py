@@ -27,7 +27,7 @@ from .variants import ReadSetReader, ReadSetError
 from .utils import detect_file_format, IndexedFasta, FastaNotIndexedError
 from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, setup_pedigree, find_components, find_largest_component, write_read_list
-from .clustereditingplots import draw_plots_dissimilarity, draw_plots_scoring
+from .polyphaseplots import draw_plots_dissimilarity, draw_plots_scoring
 from .matrixtransformation import MatrixTransformation
 
 __author__ = "Jana Ebler" 

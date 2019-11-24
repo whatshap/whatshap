@@ -3,10 +3,10 @@ from scipy.stats import binom_test
 from collections import defaultdict
 
 from .core import Read, ReadSet, Variant
-from .readscoring import parse_haplotype
+from .polyphaseplots import parse_haplotype
 from .threading import get_position_map
 
-def correct_rare_alleles2(readset, ploidy, max_dist = 10, alpha = 0.01, ground_truth_haplotypes = None):
+def correct_rare_alleles(readset, ploidy, max_dist = 10, alpha = 0.01, ground_truth_haplotypes = None):
 	# alpha = level of significant for rare alleles. lower value = detect less, but more confident alleles
 
 	num_vars = len(readset.get_positions())

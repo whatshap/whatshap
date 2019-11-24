@@ -14,6 +14,7 @@ import sys
 import logging
 import platform
 import resource
+import argparse
 
 from collections import defaultdict
 from copy import deepcopy
@@ -26,12 +27,12 @@ from contextlib import ExitStack
 
 from . import __version__
 from .bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
-from .clustereditingplots import draw_clustering, draw_threading, get_phase
 from .core import Read, ReadSet, Variant, ClusterEditingSolver, DynamicSparseGraph, readselection, NumericSampleIds, compute_polyploid_genotypes
-from .matrixcorrection import correct_rare_alleles2
+from .matrixcorrection import correct_rare_alleles
 from .matrixtransformation import MatrixTransformation
 from .phase import read_reads, select_reads, split_input_file_list, find_components
-from .readscoring import score_global, score_local, SparseTriangleMatrix, parse_haplotype
+from .polyphaseplots import draw_clustering, draw_threading, get_phase, parse_haplotype
+from .readscoring import score_global, score_local, SparseTriangleMatrix
 from .threading import run_threading, get_local_cluster_consensus_withfrac, get_position_map, get_pos_to_clusters_map, get_cluster_start_end_positions, get_coverage, get_coverage_absolute
 from .timer import StageTimer
 from .utils import IndexedFasta, FastaNotIndexedError
@@ -82,7 +83,7 @@ def run_polyphase(
 	cython_threading = False,
 	ce_refinements = 5,
 	block_cut_sensitivity = 5,
-	correct_rare_alleles = False,
+	correct_alleles = False,
 	reference_haps = False
 	):
 	"""
@@ -273,12 +274,12 @@ def run_polyphase(
 				if block_cut_sensitivity == 0:
 					block_starts = [0]
 				elif block_cut_sensitivity == 1:
-					block_starts = compute_linkage_based_block_starts(readset, index, ploidy, True)
+					block_starts = compute_linkage_based_block_starts(readset, index, ploidy, single_linkage = True)
 				else:
-					block_starts = compute_linkage_based_block_starts(readset, index, ploidy)
+					block_starts = compute_linkage_based_block_starts(readset, index, ploidy, single_linkage = False)
 				
 				# Divide readset and process blocks individually
-				var_to_block = [0 for i in range(num_vars)]
+				var_to_block = [0 for _ in range(num_vars)]
 				ext_block_starts = block_starts + [num_vars]
 				for i in range(len(block_starts)):
 					for var in range(ext_block_starts[i], ext_block_starts[i+1]):
@@ -287,7 +288,7 @@ def run_polyphase(
 				assert len(block_readsets) == len(block_starts)
 				num_non_singleton_blocks = len([i for i in range(len(block_starts)) if ext_block_starts[i] < ext_block_starts[i+1] - 1])
 				logger.info("Split heterozygous variants into {} blocks (and {} singleton blocks).".format(num_non_singleton_blocks, len(block_starts) - num_non_singleton_blocks))
-								
+				
 				for i, read in enumerate(readset):
 					if not read.is_sorted():
 						read.sort()
@@ -322,20 +323,20 @@ def run_polyphase(
 					if ext_block_starts[block_id+1] - ext_block_starts[block_id] == 1:
 						
 						# construct trivial solution for singleton blocks, by basically using the genotype as phasing
-						genotype_slice = genotype_list_multi[ext_block_starts[block_id]:ext_block_starts[block_id+1]]
+						genotype_slice = genotype_list_multi[ext_block_starts[block_id]]
 						genotype_to_id = dict()
-						for genotype in genotype_slice[0]:
+						for genotype in genotype_slice:
 							if genotype not in genotype_to_id:
 								genotype_to_id[genotype] = len(genotype_to_id)
-						clustering = [[] for i in range(len(genotype_to_id))]
+						clustering = [[] for _ in range(len(genotype_to_id))]
 						for i, read in enumerate(block_readset):
 							allele = read[0].allele
 							clustering[genotype_to_id[allele]].append(i)
 						
 						path = [[]]
 						haplotypes = []
-						for genotype in genotype_slice[0]:
-							for i in range(genotype_slice[0][genotype]):
+						for genotype in genotype_slice:
+							for i in range(genotype_slice[genotype]):
 								path[0].append(genotype_to_id[genotype])
 								haplotypes.append(str(genotype))
 						
@@ -352,8 +353,8 @@ def run_polyphase(
 					assert len(block_readset.get_positions()) == block_num_vars
 					
 					# Correct read alleles by checking for rare allele-pairs. If too much below 1/ploidy, one of these alleles must be wrong.
-					if correct_rare_alleles:
-						timers.start('correct_rare_alleles')
+					if correct_alleles:
+						timers.start('correct_alleles')
 						
 						compare = True
 						if compare:
@@ -365,118 +366,9 @@ def run_polyphase(
 									truth.append("".join(map(str, phase_vectors[k][ext_block_starts[block_id]:ext_block_starts[block_id+1]])))
 							except:
 								truth = None
-						correct_rare_alleles2(readset, ploidy, ground_truth_haplotypes = truth)
-						
-						'''
-						max_dist = 10
-						allelefreq = [[defaultdict(int) for i in range(max_dist)] for j in range(block_num_vars - 1)]
-						#how to read: allelefreq[first position][second position as offset - 1][allele tuple] = absolute frequency
-						totalfreq = [[0 for i in range(max_dist)] for j in range(block_num_vars - 1)]
-						block_index, block_rev_index = get_position_map(block_readset)
-						for read in block_readset:
-							for i in range(len(read)):
-								for j in range(i+1, min(i+max_dist+1, len(read))):
-									first_pos = block_index[read[i].position]
-									second_pos = block_index[read[j].position] - first_pos - 1
-									if second_pos < max_dist:
-										allele_pair = (int(read[i].allele), int(read[j].allele))
-										allelefreq[first_pos][second_pos][allele_pair] += 1
-										totalfreq[first_pos][second_pos] += 1
+						correct_rare_alleles(readset, ploidy, ground_truth_haplotypes = truth)
 
-						cov_per_dist = [0 for i in range(max_dist)]
-						num_per_dist = [0 for i in range(max_dist)]
-						rare = [[defaultdict(lambda: False) for i in range(max_dist)] for j in range(block_num_vars - 1)]
-						for pos in range(block_num_vars-1):
-							for offset in range(max_dist):
-								cov_per_dist[offset] += totalfreq[pos][offset]
-								num_per_dist[offset] += 1
-								for allele in allelefreq[pos][offset]:
-									k = allelefreq[pos][offset][allele]
-									n = totalfreq[pos][offset]
-									p_val = binom_test(k, n=n, p=1/ploidy, alternative="less")
-									if p_val < 0.01:
-										rare[pos][offset][allele] = True
-						
-						# Create ground truth
-						#compare = True
-						compare = False
-						if compare:
-							try:
-								phase_vectors = get_phase(readset, phasable_variant_table)
-								truth = []
-								assert len(phase_vectors) == ploidy
-								for k in range(ploidy):
-									truth.append("".join(map(str, phase_vectors[k][ext_block_starts[block_id]:ext_block_starts[block_id+1]])))
-							except:
-								compare = False
-
-						# Correct alleles
-						corrections = 0
-						false_corrections = 0
-						alleles = 0
-						false_alleles = 0
-						for read in block_readset:
-							x = [0 for i in range(len(read))]
-							m = 0
-							pairs = []
-							for i in range(len(read)):
-								for j in range(i+1, min(i+max_dist, len(read))):
-									first_pos = block_index[read[i].position]
-									second_pos = block_index[read[j].position] - first_pos - 1
-									if second_pos < max_dist:
-										allele_pair = (int(read[i].allele), int(read[j].allele))
-										if rare[first_pos][second_pos][allele_pair]:
-											x[i] += 1
-											x[j] += 1
-											m = max(m, x[i], x[j])
-											pairs.append((i,j))
-							while m >= 2 and correct_rare_alleles:
-								for i in range(len(read)):
-									found = False
-									if x[i] == m and not found:
-										read[i] = Variant(position=read[i].position, allele = 1 - read[i].allele, quality = read[i].quality)
-										if compare:
-											true_hap = parse_haplotype(read.name)
-											var_pos = block_index[read[i].position]
-											new_allele = read[i].allele
-											correct_allele = int(truth[true_hap][var_pos])
-											if correct_allele != new_allele:
-												false_corrections += 1
-										corrections += 1
-										pairs = [(j,k) for (j,k) in pairs if j != i and k != i]
-										x = [0 for i in range(len(read))]
-										m = 0
-										for (j,k) in pairs:
-											x[j] += 1
-											x[k] += 1
-											m = max(m, x[j], x[j])
-										found = True
-										break
-							if compare:
-								for i in range(len(read)):
-									true_hap = parse_haplotype(read.name)
-									var_pos = block_index[read[i].position]
-									old_allele = read[i].allele
-									correct_allele = int(truth[true_hap][var_pos])
-									if correct_allele != old_allele:
-										false_alleles += 1
-									alleles += 1
-
-						if compare:
-							print("Corrected "+str(corrections)+" alleles.")
-							if corrections > 0:
-								print("... of which {} were wrong ({:.2f}%)".format(false_corrections, 100*false_corrections/corrections))
-							print("Non-Corrected "+str(alleles-corrections)+" alleles.")
-							if alleles > 0:
-								print("... of which {} were wrong ({:.2f}%)".format(false_alleles-false_corrections, 100*(false_alleles-false_corrections)/(alleles-corrections)))
-
-							print("Global allele error rate: {:.2f}%".format(100*(false_alleles)/(alleles)))
-							print("Correction recall:        {:.2f}%".format(100*(corrections-false_corrections)/(corrections-false_corrections+false_alleles)))
-							print("Correction precision:     {:.2f}%".format(100*(corrections-false_corrections)/(corrections)))
-						
-						#return
-						'''
-						timers.stop('correct_rare_alleles')
+						timers.stop('correct_alleles')
 
 					# Transform allele matrix, if option selected
 					timers.start('transform_matrix')
@@ -660,8 +552,8 @@ def run_polyphase(
 	logger.info('Time spent reading BAM/CRAM:                 %6.1f s', timers.elapsed('read_bam'))
 	logger.info('Time spent parsing VCF:                      %6.1f s', timers.elapsed('parse_vcf'))
 	logger.info('Time spent detecting blocks:                 %6.1f s', timers.elapsed('detecting_blocks'))
-	if correct_rare_alleles:
-		logger.info('Time spent correcting rare alleles:          %6.1f s', timers.elapsed('correct_rare_alleles'))
+	if correct_alleles:
+		logger.info('Time spent correcting alleles:               %6.1f s', timers.elapsed('correct_alleles'))
 	if transform:
 		logger.info('Time spent transforming allele matrix:       %6.1f s', timers.elapsed('transform_matrix'))
 	logger.info('Time spent solving cluster editing:          %6.1f s', timers.elapsed('solve_clusterediting'))
@@ -832,28 +724,29 @@ def add_arguments(parser):
 	arg('--verify-genotypes', default=False, action='store_true',
 		help='Verify input genotypes by re-typing them using the given reads.')
 
+	# add polyphase specific arguments
 	arg = parser.add_argument_group('Parameters for cluster editing').add_argument
-	arg('--ce-score-global', dest='ce_score_global', default=False, action='store_true',
-		help='Reads are scored with respect to their location inside the chromosome. (default: %(default)s).')
-	arg('--ce-bundle-edges', dest='ce_bundle_edges', default=False, action='store_true',
-		help='Influences the cluster editing heuristic. Only for debug/developing purpose (default: %(default)s).')
 	arg('--min-overlap', metavar='OVERLAP', type=int, default=2, help='Minimum required read overlap (default: %(default)s).')
-	arg('--transform', dest='transform', default=False, action='store_true',
-		help='Use transformed matrix for read similarity scoring (default: %(default)s).')
-	arg('--plot-clusters', dest='plot_clusters', default=False, action='store_true',
-		help='Plot a super heatmap for the computed clustering (default: %(default)s).')
-	arg('--plot-threading', dest='plot_threading', default=False, action='store_true',
-		help='Plot the haplotypes\' threading through the read clusters (default: %(default)s).')
-	#arg('--single-block', dest='single_block', default=False, action='store_true',
-	#	help='Output only one single block.')
-	arg('--cython-threading', dest='cython_threading', default=False, action='store_true',
-		help='Uses the Cython implementation to perform the haplotype threading instead of C++.')
 	arg('--ce-refinements', metavar='REFINEMENTS', type=int, default=5, help='Maximum number of refinement steps for cluster editing (default: %(default)s).')
 	arg('--block-cut-sensitivity', metavar='SENSITIVITY', type=int, default=4, help='Strategy to determine block borders. 0 yields the longest blocks with more switch errors, 5 has the shortest blocks with lowest switch error rate (default: %(default)s).')
-	arg('--correct-rare-alleles', dest='correct_rare_alleles', default=False, action='store_true',
-		help='Corrects alleles in allele pairs, which have very low support.')
+	
+	# more arguments, which are experimental or for debugging and should not be presented to the user
+	arg('--ce-score-global', dest='ce_score_global', default=False, action='store_true',
+		help=argparse.SUPPRESS) # help='Reads are scored with respect to their location inside the chromosome. (default: %(default)s).')
+	arg('--ce-bundle-edges', dest='ce_bundle_edges', default=False, action='store_true',
+		help=argparse.SUPPRESS) # help='Influences the cluster editing heuristic. Only for debug/developing purpose (default: %(default)s).')
+	arg('--transform', dest='transform', default=False, action='store_true',
+		help=argparse.SUPPRESS) # help='Use transformed matrix for read similarity scoring (default: %(default)s).')
+	arg('--plot-clusters', dest='plot_clusters', default=False, action='store_true',
+		help=argparse.SUPPRESS) # help='Plot a super heatmap for the computed clustering (default: %(default)s).')
+	arg('--plot-threading', dest='plot_threading', default=False, action='store_true',
+		help=argparse.SUPPRESS) # help='Plot the haplotypes\' threading through the read clusters (default: %(default)s).')
+	arg('--cython-threading', dest='cython_threading', default=False, action='store_true',
+		help=argparse.SUPPRESS) # help='Uses the Cython implementation to perform the haplotype threading instead of C++.')
+	arg('--correct-alleles', dest='correct_alleles', default=False, action='store_true',
+		help=argparse.SUPPRESS) # help='Corrects alleles in allele pairs, which have very low support.')
 	arg('--reference-haps', dest='reference_haps', default=False, action='store_true',
-		help='Uses ground truth haplotypes to improve the read scoring.')
+		help=argparse.SUPPRESS) # help='Uses ground truth haplotypes to improve the read scoring.')
 
 def validate(args, parser):
 	pass
