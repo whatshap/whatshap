@@ -478,7 +478,7 @@ def get_single_cluster_consensus_frac(readset, cluster, index, relevant_pos):
 			max_allele = 0
 			max_count = 0
 			sum_count = 0
-			for allele in poswise_allelecount[pos]:
+			for allele in sorted(poswise_allelecount[pos]):
 				cur_count = poswise_allelecount[pos][allele]
 				sum_count += cur_count
 				if cur_count > max_count:

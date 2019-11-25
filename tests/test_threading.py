@@ -166,7 +166,7 @@ def test_path_no_affine():
 	cluster_paths = ["".join([str(path[i][j]) for i in range(len(path))]) for j in range(3)]
 	
 	first_block = set([cluster_paths[0][:20], cluster_paths[1][:20], cluster_paths[2][:20]])
-	first_truth = set(["00000000033333333333", "11111111222222222222","04444444444444555555"])
+	first_truth = set(["00000000003333333333", "11111111222222222222","04444444444444555555"])
 	second_block = set([cluster_paths[0][20:], cluster_paths[1][20:], cluster_paths[2][20:]])
 	second_truth = set(["66", "77", "55"])
 	
