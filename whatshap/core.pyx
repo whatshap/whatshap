@@ -188,6 +188,7 @@ cdef class ReadSet:
 		self.thisptr.add(new cpp.Read(read.thisptr[0]))
 
 	def __str__(self):
+		#return ""
 		return self.thisptr.toString().decode('utf-8')
 
 	def __iter__(self):
@@ -503,6 +504,4 @@ def compute_polyploid_genotypes(ReadSet readset, ploidy, positions=None):
 	return genotypes
 
 include 'readselect.pyx'
-include 'subset_clusters.pyx'
-include 'clusterediting_solver.pyx'
-include 'threading_solver.pyx'
+include 'polyphase_solver.pyx'

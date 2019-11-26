@@ -8,8 +8,8 @@
 #include <string> 
 #include <sstream>
 #include <algorithm>
-#include <Globals.h>
-//#include "../clusterediting/Globals.h"
+#include "Globals.h"
+//#include "Globals.h"
     
 typedef uint32_t GlobalClusterId;
 typedef uint32_t LocalClusterId;
