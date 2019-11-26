@@ -1,6 +1,6 @@
 import math
-from whatshap.core import ReadSet, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable
-from whatshap.testhelpers import string_to_readset
+from whatshap.core import ReadSet, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable, Genotype
+from whatshap.testhelpers import string_to_readset, canonic_index_to_biallelic_gt, canonic_index_list_to_biallelic_gt_list
 
 
 def compare_to_expected(dp_forward_backward, positions, expected=None, genotypes=None):
@@ -16,23 +16,23 @@ def compare_to_expected(dp_forward_backward, positions, expected=None, genotypes
 		likelihoods = dp_forward_backward.get_genotype_likelihoods('individual0',i)
 		# find likeliest genotype
 		max_val = -1
-		max_index = -1
-		for j in range(3):
+		max_geno = -1
+		for genotype in likelihoods.genotypes():
 			# likelihood should not be nan
-			assert not math.isnan(likelihoods[j])
-			if likelihoods[j] > max_val:
-				max_val = likelihoods[j]
-				max_index = j
+			assert not math.isnan(likelihoods[genotype])
+			if likelihoods[genotype] > max_val:
+				max_val = likelihoods[genotype]
+				max_geno = genotype
 
-		print('genotype likelihoods for position', i, likelihoods, ' likeliest genotype: ', max_index)
+		print('genotype likelihoods for position', i, likelihoods, ' likeliest genotype: ', max_geno)
 
 		if genotypes is not None:
-			assert max_index == genotypes[i]
+			assert max_geno == genotypes[i]
 
 
 def test_genotyping_empty_readset():
 	rs = ReadSet()
-	genotypes = [1,1]
+	genotypes = canonic_index_list_to_biallelic_gt_list([1,1])
 	recombcost = [1,1]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
@@ -50,12 +50,12 @@ def check_genotyping_single_individual(reads, weights=None, expected=None, genot
 	recombcost = [1] * len(positions)
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	genotype_likelihoods = [PhredGenotypeLikelihoods(1.0/3.0, 1.0/3.0, 1.0/3.0)] * len(positions)
+	genotype_likelihoods = [PhredGenotypeLikelihoods([1.0/3.0, 1.0/3.0, 1.0/3.0])] * len(positions)
 
 	if genotype_priors is not None:
 		genotype_likelihoods = genotype_priors
 
-	pedigree.add_individual('individual0', [1] * len(positions), genotype_likelihoods)
+	pedigree.add_individual('individual0', [canonic_index_to_biallelic_gt(1) for i in range(len(positions))], genotype_likelihoods)
 	dp_forward_backward = GenotypeDPTable(numeric_sample_ids, readset, recombcost,pedigree)
 
 	# check the results
@@ -84,8 +84,8 @@ def test_geno_exact1() :
            01
         """
 
-	expected_likelihoods = [[0.06666666666666667, 0.3333333333333333, 0.6],[0.20930232558139536, 0.5813953488372093, 0.20930232558139536],[0.06666666666666667, 0.3333333333333333, 0.6]]
-	genotypes = [2,1,2]
+	expected_likelihoods = [PhredGenotypeLikelihoods([0.06666666666666667, 0.3333333333333333, 0.6]),PhredGenotypeLikelihoods([0.20930232558139536, 0.5813953488372093, 0.20930232558139536]),PhredGenotypeLikelihoods([0.06666666666666667, 0.3333333333333333, 0.6])]
+	genotypes = canonic_index_list_to_biallelic_gt_list([2,1,2])
 	check_genotyping_single_individual(reads,None,expected_likelihoods,genotypes,10)
 
 
@@ -99,8 +99,8 @@ def test_geno_exact2():
 		11
 		"""
 
-	expected_likelihoods = [[0.00914139256727894, 0.25040580948312685, 0.7404527979495942],[0.00914139256727894, 0.25040580948312685, 0.7404527979495942]]
-	genotypes = [2,2]
+	expected_likelihoods = [PhredGenotypeLikelihoods([0.00914139256727894, 0.25040580948312685, 0.7404527979495942]),PhredGenotypeLikelihoods([0.00914139256727894, 0.25040580948312685, 0.7404527979495942])]
+	genotypes = canonic_index_list_to_biallelic_gt_list([2,2])
 	check_genotyping_single_individual(reads,weights,expected_likelihoods,genotypes,10)
 
 
@@ -110,7 +110,7 @@ def test_geno_exact3():
           11
         """
 
-	expected_likelihoods = [[0.22163406214039125, 0.5567318757192175, 0.22163406214039125],[0.009896432681242807, 0.18849252013808976, 0.8016110471806674]]
+	expected_likelihoods = [PhredGenotypeLikelihoods([0.22163406214039125, 0.5567318757192175, 0.22163406214039125]),PhredGenotypeLikelihoods([0.009896432681242807, 0.18849252013808976, 0.8016110471806674])]
 	check_genotyping_single_individual(reads,None,expected_likelihoods,None,10)
 
 
@@ -120,8 +120,8 @@ def test_geno_priors1():
           11
         """
 
-	prior_likelihoods = [PhredGenotypeLikelihoods(0.1,0.8,0.1), PhredGenotypeLikelihoods(0.1,0.2,0.7)]
-	expected_likelihoods = [[0.04257892641700095, 0.9148421471659981, 0.04257892641700095],[0.0016688611936185199, 0.05208684202468078, 0.9462442967817007]]
+	prior_likelihoods = [PhredGenotypeLikelihoods([0.1,0.8,0.1]), PhredGenotypeLikelihoods([0.1,0.2,0.7])]
+	expected_likelihoods = [PhredGenotypeLikelihoods([0.04257892641700095, 0.9148421471659981, 0.04257892641700095]),PhredGenotypeLikelihoods([0.0016688611936185199, 0.05208684202468078, 0.9462442967817007])]
 	check_genotyping_single_individual(reads,None,expected_likelihoods,None,10, prior_likelihoods)
 
 
@@ -131,8 +131,8 @@ def test_geno_priors2():
 			 01
 			 """
 
-	prior_likelihoods = [PhredGenotypeLikelihoods(0,0.5,0.5), PhredGenotypeLikelihoods(0.25,0.5, 0.25), PhredGenotypeLikelihoods(0.1,0.4,0.5)]
-	expected_likelihoods = [[0.0, 0.35714285714285715, 0.6428571428571429],[0.1323529411764706, 0.7352941176470589, 0.1323529411764706],[0.015151515151515152, 0.30303030303030304, 0.6818181818181818]]
+	prior_likelihoods = [PhredGenotypeLikelihoods([0,0.5,0.5]), PhredGenotypeLikelihoods([0.25,0.5, 0.25]), PhredGenotypeLikelihoods([0.1,0.4,0.5])]
+	expected_likelihoods = [PhredGenotypeLikelihoods([0.0, 0.35714285714285715, 0.6428571428571429]),PhredGenotypeLikelihoods([0.1323529411764706, 0.7352941176470589, 0.1323529411764706]),PhredGenotypeLikelihoods([0.015151515151515152, 0.30303030303030304, 0.6818181818181818])]
 	check_genotyping_single_individual(reads,None,expected_likelihoods,None,10,prior_likelihoods)
 
 
@@ -143,7 +143,7 @@ def test_geno1():
 	0000011111
 	"""
 
-	genotypes = [1,1,1,1,1,2,2,2,2,2]
+	genotypes = canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,2,2,2,2,2])
 	check_genotyping_single_individual(reads,None,None,genotypes,10)
 
 
@@ -159,7 +159,7 @@ def test_geno2():
 	100
 	"""
 
-	genotypes = [2,0,1]
+	genotypes = canonic_index_list_to_biallelic_gt_list([2,0,1])
 	check_genotyping_single_individual(reads,None,None,genotypes,10)
 
 
@@ -176,7 +176,7 @@ def test_geno3():
 	100100
 	"""
 
-	genotypes = [1,1,0,1,1,0]
+	genotypes = canonic_index_list_to_biallelic_gt_list([1,1,0,1,1,0])
 	check_genotyping_single_individual(reads,None,None,genotypes,10)
 
 
@@ -201,7 +201,7 @@ def test_geno5():
 	        10100
 	              101
 	"""
-	genotypes = [1,1,1,1,1,1,1,1,2,1,1,1,1,0,1]
+	genotypes = canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1,1,1,2,1,1,1,1,0,1])
 	check_genotyping_single_individual(reads,None,None,genotypes,10)
 
 
@@ -223,7 +223,7 @@ def test_geno6():
 		1111001011111
 		0111111110  1
 		"""
-	genotypes = [1,2,1,1,1,1,1,0,1,1,1,1,1]
+	genotypes = canonic_index_list_to_biallelic_gt_list([1,2,1,1,1,1,1,0,1,1,1,1,1])
 	check_genotyping_single_individual(reads,None,None,genotypes,60)
 
 
@@ -238,7 +238,7 @@ def test_geno7():
 		010
 		000
 		"""
-	genotypes = [1,1,1]
+	genotypes = canonic_index_list_to_biallelic_gt_list([1,1,1])
 	check_genotyping_single_individual(reads,None,None,genotypes,60)
 
 
@@ -248,7 +248,7 @@ def test_geno8():
 	11
 	10
 	"""
-	genotypes = [2,1]
+	genotypes = canonic_index_list_to_biallelic_gt_list([2,1])
 	check_genotyping_single_individual(reads, None,None,genotypes,10)
 
 
@@ -263,7 +263,7 @@ def test_geno9():
 	   101
 	   101
 	"""
-	genotypes = [1,2,1,1,0,2]
+	genotypes = canonic_index_list_to_biallelic_gt_list([1,2,1,1,0,2])
 	check_genotyping_single_individual(reads,None,None,genotypes,10)
 
 
@@ -276,9 +276,9 @@ def test_geno_10():
 	110011
 	111111
 		 """
-	genotypes = [1,1,0,0,1,1]
-	genotype_priors = [PhredGenotypeLikelihoods(0.1,0.8,0.1), PhredGenotypeLikelihoods(0.1,0.8,0.1),
-	PhredGenotypeLikelihoods(0.7,0.2,0.1),PhredGenotypeLikelihoods(0.7,0.2,0.1),PhredGenotypeLikelihoods(0.1,0.8,0.1), PhredGenotypeLikelihoods(0.1,0.8,0.1)]
+	genotypes = canonic_index_list_to_biallelic_gt_list([1,1,0,0,1,1])
+	genotype_priors = [PhredGenotypeLikelihoods([0.1,0.8,0.1]), PhredGenotypeLikelihoods([0.1,0.8,0.1]),
+	PhredGenotypeLikelihoods([0.7,0.2,0.1]),PhredGenotypeLikelihoods([0.7,0.2,0.1]),PhredGenotypeLikelihoods([0.1,0.8,0.1]), PhredGenotypeLikelihoods([0.1,0.8,0.1])]
 	check_genotyping_single_individual(reads,None,None,genotypes, 50, genotype_priors)
 
 
@@ -296,7 +296,7 @@ def test_weighted_genotyping1():
 	   2    111
 	"""
 
-	genotypes = [1,1,2,1,1,1,2,1,1]
+	genotypes = canonic_index_list_to_biallelic_gt_list([1,1,2,1,1,1,2,1,1])
 	check_genotyping_single_individual(reads, weights,None,genotypes,10)
 
 
@@ -323,7 +323,7 @@ def test_weighted_genotyping2():
 	"""
 
 	# for the second position, each genotype should be equally likely
-	expected_likelihoods = [[0,1,0],[1.0/3.0,1.0/3.0,1.0/3.0],[0,1,0]]
+	expected_likelihoods = [PhredGenotypeLikelihoods([0,1,0]),PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0]),PhredGenotypeLikelihoods([0,1,0])]
 	check_genotyping_single_individual(reads, weights,expected_likelihoods,None,100)
 
 
@@ -336,7 +336,7 @@ def test_weighted_genotyping3():
 		999
 		999
 	"""
-	expected_likelihoods = [[2.0/3.0,1.0/3.0,0],[0,1.0/3.0,2.0/3.0],[0,1,0]]
+	expected_likelihoods = [PhredGenotypeLikelihoods([2.0/3.0,1.0/3.0,0]),PhredGenotypeLikelihoods([0,1.0/3.0,2.0/3.0]),PhredGenotypeLikelihoods([0,1,0])]
 	check_genotyping_single_individual(reads,weights,expected_likelihoods, None, 500)
 
 
@@ -364,7 +364,7 @@ def test_weighted_genotyping4():
 	  111
 	  1111
 	"""
-	genotypes = [1,1,1,1,1,1]
+	genotypes = canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1])
 	check_genotyping_single_individual(reads, weights,None,genotypes,10)
 
 
@@ -402,7 +402,7 @@ def test_weighted_genotyping5():
 	1111
 	1 11
 	"""
-	genotypes = [1,1,1,1]
+	genotypes = canonic_index_list_to_biallelic_gt_list([1,1,1,1])
 	check_genotyping_single_individual(reads, weights,None,genotypes,10)
 
 
@@ -415,8 +415,8 @@ def test_weighted_genotyping6():
 		99
 		99
 	"""
-	genotype_priors = [PhredGenotypeLikelihoods(0.5,0.5,0), PhredGenotypeLikelihoods(0,0.5,0.5)]
-	expected_likelihoods = [[0,1,0],[0,1,0]]
+	genotype_priors = [PhredGenotypeLikelihoods([0.5,0.5,0]), PhredGenotypeLikelihoods([0,0.5,0.5])]
+	expected_likelihoods = [PhredGenotypeLikelihoods([0,1,0]),PhredGenotypeLikelihoods([0,1,0])]
 	check_genotyping_single_individual(reads,weights,expected_likelihoods, None, 1000, genotype_priors)
 
 
@@ -425,5 +425,5 @@ def test_small_example():
 	11111111
 	00000000
 	"""
-	genotypes = [1,1,1,1,1,1,1,1]
+	genotypes = canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1,1,1])
 	check_genotyping_single_individual(reads, None,None,genotypes,1000)

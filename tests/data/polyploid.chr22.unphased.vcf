@@ -1,0 +1,26 @@
+##fileformat=VCFv4.1
+##FILTER=<ID=PASS,Description="All filters passed">
+##fileDate=20160603
+##source=consensus-genotypes-10X-freebayes.py
+##commandline="(whatshap 0.12+61.gc9d9c22) phase --indels --distrust-genotypes --output-read-list whatshap/consensus/pacbioblasr/single/SH032.chr22.used-reads.tsv --changed-genotype-list whatshap/consensus/pacbioblasr/single/SH032.chr22.genotype-changes.tsv --reference ref/GRCh38_full_analysis_set_plus_decoy_hla.fa -o whatshap/consensus/pacbioblasr/single/SH032.chr22.vcf consensus/freebayes_10X/SH032.chr22.vcf pacbio/HG00512.chr22.bam pacbio/HG00513.chr22.bam pacbio/HG00514.chr22.bam"
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PS,Number=1,Type=Integer,Description="Phase set identifier">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Normalized, Phred-scaled likelihoods for genotypes as defined in the VCF specification">
+##contig=<ID=chr22>
+##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes">
+##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">
+##bcftools_viewVersion=1.6+htslib-1.6
+##bcftools_viewCommand=view -s HG00514 --phased vcf/HG00514.chr22.tmp.vcf.gz; Date=Tue Jul 17 15:11:30 2018
+##bcftools_mergeVersion=1.6+htslib-1.6
+##bcftools_mergeCommand=merge --missing-to-ref vcf/HG00514.chr22.vcf.gz vcf/NA19240.chr22.vcf.gz; Date=Tue Jul 17 16:20:29 2018
+##bcftools_viewVersion=1.9+htslib-1.9
+##bcftools_viewCommand=view --regions chr22:20000000-21000000 -o ../data/red20-21_polyploid.chr22.vcf ../data/polyploid.chr22.vcf.gz; Date=Wed Feb 20 13:56:17 2019
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG00514_NA19240
+chr22	20000241	.	A	C	.	.	AN=4;AC=3	GT:PL	0/1/1/1:19,28,29,2,10,6
+chr22	20000722	.	G	A	.	.	AN=4;AC=2	GT:PL	0/0/1/1:1,8,29,24,15,23
+chr22	20000735	.	G	T	.	.	AN=4;AC=0	GT:PL	0/0/0/0:25,33,35,31,0,30
+chr22	20000994	.	G	C	.	.	AN=4;AC=3	GT:PL	0/1/1/1:6,27,6,3,46,42
+chr22	20001153	.	T	C	.	.	AN=4;AC=3	GT:PL	0/1/1/1:19,28,29,2,10,6
+chr22	20002119	.	A	G	.	.	AN=4;AC=1	GT:PL	0/0/0/1:1,8,29,24,15,23
+chr22	20002367	.	C	T	.	.	AN=4;AC=1	GT:PL	0/0/0/1:25,33,35,31,0,30
+chr22	20003266	.	G	T	.	.	AN=4;AC=1	GT:PL	0/0/0/1:6,27,6,3,46,42

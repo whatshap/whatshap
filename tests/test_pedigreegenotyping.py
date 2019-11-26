@@ -4,8 +4,8 @@ Test genotyping of pedigrees
 import math
 
 from whatshap.core import GenotypeDPTable, ReadSet, Pedigree, NumericSampleIds, \
-	PhredGenotypeLikelihoods
-from whatshap.testhelpers import string_to_readset_pedigree
+	PhredGenotypeLikelihoods, Genotype
+from whatshap.testhelpers import string_to_readset_pedigree, canonic_index_list_to_biallelic_gt_list
 
 
 def genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes, weights=None, expected=None, scaling=10, positions=None):
@@ -22,20 +22,20 @@ def genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_g
 			# if expected likelihoods given, compare
 			if expected is not None:
 				print('likelihoods: ',likelihoods,' expected likelihoods: ', expected[individual][pos])
-				assert(likelihoods == expected[individual][pos])
+				assert likelihoods == PhredGenotypeLikelihoods(expected[individual][pos])
 
 			# find the likeliest genotype
 			max_val = -1
-			max_index = -1
-			for i in range(len(likelihoods)):
-				assert( not math.isnan(likelihoods[i]) )
-				if likelihoods[i] > max_val:
-					max_val = likelihoods[i]
-					max_index = i
+			max_geno = Genotype([])
+			for genotype in likelihoods.genotypes():
+				assert not math.isnan(likelihoods[genotype])
+				if likelihoods[genotype] > max_val:
+					max_val = likelihoods[genotype]
+					max_geno = genotype
 
 			# compare it to the expected genotype
 			print('pos.: '+ str(pos) + ' individual ' + str(individual) + ': ',likelihoods,' expected genotype: ', expected_genotypes[individual][pos])
-			assert(max_index == expected_genotypes[individual][pos])
+			assert max_geno == expected_genotypes[individual][pos]
 		print("\n")
 
 
@@ -61,12 +61,12 @@ def test_genotyping_trio1():
 	  C 00
 	"""
 
-	expected_genotypes = [[0,0] , [2,2], [1,1]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([0,0]) , canonic_index_list_to_biallelic_gt_list([2,2]), canonic_index_list_to_biallelic_gt_list([1,1])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[1,1],[PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 2)
-	pedigree.add_individual('individual1',[1,1],[PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 2)
-	pedigree.add_individual('individual2',[1,1],[PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 2)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([1,1]),[PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 2)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([1,1]),[PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 2)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([1,1]),[PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 2)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -88,13 +88,13 @@ def test_genotyping_quartet1():
          B   1010
          B   0101
        """
-       expected_genotypes = [[1,1,1,1,1,1], [1,1,1,1,1,1], [1,2,1,1,0,1], [0,1,0,0,1,0]]
+       expected_genotypes = [canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1]), canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1]), canonic_index_list_to_biallelic_gt_list([1,2,1,1,0,1]), canonic_index_list_to_biallelic_gt_list([0,1,0,0,1,0])]
        numeric_sample_ids = NumericSampleIds()
        pedigree = Pedigree(numeric_sample_ids)
-       pedigree.add_individual('individual0', [0,0,0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 6)
-       pedigree.add_individual('individual1', [0,0,0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 6)
-       pedigree.add_individual('individual2', [0,0,0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 6)
-       pedigree.add_individual('individual3', [0,0,0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 6)
+       pedigree.add_individual('individual0', canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
+       pedigree.add_individual('individual1', canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
+       pedigree.add_individual('individual2', canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
+       pedigree.add_individual('individual3', canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
        pedigree.add_relationship('individual0', 'individual1', 'individual2')
        pedigree.add_relationship('individual0', 'individual1', 'individual3')
        recombcost = [3,3,3,4,3,3]
@@ -110,12 +110,12 @@ def test_genotyping_trio2():
 	  C 11
 	  C 00
 	"""
-	expected_genotypes = [[0,0] , [2,2], [1,1]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([0,0]) , canonic_index_list_to_biallelic_gt_list([2,2]), canonic_index_list_to_biallelic_gt_list([1,1])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 2)
-	pedigree.add_individual('individual1',[0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 2)
-	pedigree.add_individual('individual2',[0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 2)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 2)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 2)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 2)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -138,12 +138,12 @@ def test_genotyping_trio3():
 	  B   1010
 	  B    010
 	"""
-	expected_genotypes = [[1,1,1,1,1,1] , [1,1,1,1,1,1], [1,2,1,1,0,1]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1]) , canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1]), canonic_index_list_to_biallelic_gt_list([1,2,1,1,0,1])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 6)
-	pedigree.add_individual('individual1',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 6)
-	pedigree.add_individual('individual2',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 6)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [3,3,3,4,3,3]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -162,12 +162,12 @@ def test_genotyping_trio4():
 	  C 111
 	  C 111
 	"""
-	expected_genotypes = [[2,2,2] , [2,1,2], [2,2,2]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([2,2,2]) , canonic_index_list_to_biallelic_gt_list([2,1,2]), canonic_index_list_to_biallelic_gt_list([2,2,2])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
-	pedigree.add_individual('individual1',[0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
-	pedigree.add_individual('individual2',[0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [1,1,1]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -185,12 +185,12 @@ def test_genotyping_trio5():
 	  C 101
 	  C 101
 	"""
-	expected_genotypes = [[2,2,2] , [2,0,2], [2,1,2]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([2,2,2]) , canonic_index_list_to_biallelic_gt_list([2,0,2]), canonic_index_list_to_biallelic_gt_list([2,1,2])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
-	pedigree.add_individual('individual1',[0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
-	pedigree.add_individual('individual2',[0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [2,2,2]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -209,12 +209,12 @@ def test_genotyping_trio6():
 	  C 000
 	"""
 
-	expected_genotypes = [[1,1,1] , [2,2,2], [1,1,1]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([1,1,1]) , canonic_index_list_to_biallelic_gt_list([2,2,2]), canonic_index_list_to_biallelic_gt_list([1,1,1])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[1,1,1], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
-	pedigree.add_individual('individual1',[1,1,1], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
-	pedigree.add_individual('individual2',[1,1,1], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([1,1,1]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([1,1,1]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([1,1,1]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -234,13 +234,13 @@ def test_genotyping_quartet2():
 	  D 010
 	  D 010
 	"""
-	expected_genotypes = [[1,2,0] , [1,1,1], [0,1,1], [0,1,1]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([1,2,0]) , canonic_index_list_to_biallelic_gt_list([1,1,1]), canonic_index_list_to_biallelic_gt_list([0,1,1]), canonic_index_list_to_biallelic_gt_list([0,1,1])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
-	pedigree.add_individual('individual1',[0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
-	pedigree.add_individual('individual2',[0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
-	pedigree.add_individual('individual3',[0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual3',canonic_index_list_to_biallelic_gt_list([0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	pedigree.add_relationship('individual0', 'individual1', 'individual3')
 	recombcost = [10,10,10]
@@ -257,13 +257,13 @@ def test_genotyping_quartet3():
 	  D 000000
 	  D 010101
 	"""
-	expected_genotypes = [[1,1,1,1,1,1] , [1,1,1,1,1,1], [0,1,0,1,0,1], [0,1,0,1,0,1]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1]) , canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1]), canonic_index_list_to_biallelic_gt_list([0,1,0,1,0,1]), canonic_index_list_to_biallelic_gt_list([0,1,0,1,0,1])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 6)
-	pedigree.add_individual('individual1',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 6)
-	pedigree.add_individual('individual2',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 6)
-	pedigree.add_individual('individual3',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 6)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
+	pedigree.add_individual('individual3',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	pedigree.add_relationship('individual0', 'individual1', 'individual3')
 	recombcost = [3,3,3,3,3,3]
@@ -286,13 +286,13 @@ def test_genotyping_quartet4():
 	  B   1010
 	  B   0101
 	"""
-	expected_genotypes = [[1,1,1,1,1,1] , [1,1,1,1,1,1], [1,2,1,1,0,1], [0,1,0,0,1,0]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1]) , canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1]), canonic_index_list_to_biallelic_gt_list([1,2,1,1,0,1]), canonic_index_list_to_biallelic_gt_list([0,1,0,0,1,0])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 6)
-	pedigree.add_individual('individual1',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 6)
-	pedigree.add_individual('individual2',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 6)
-	pedigree.add_individual('individual3',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 6)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
+	pedigree.add_individual('individual3',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 6)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	pedigree.add_relationship('individual0', 'individual1', 'individual3')
 	recombcost = [3,3,3,4,3,3]
@@ -310,12 +310,12 @@ def test_genotyping_trio7():
 	  C 101
 	  C 101
 	"""
-	expected_genotypes = [[2,2,2] , [2,1,1], [2,1,2]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([2,2,2]) , canonic_index_list_to_biallelic_gt_list([2,1,1]), canonic_index_list_to_biallelic_gt_list([2,1,2])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
-	pedigree.add_individual('individual1',[0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
-	pedigree.add_individual('individual2',[0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 3)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 3)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [1,1,1]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -329,12 +329,12 @@ def test_genotyping_trio8():
 	  C 0011
 	  C 1110
 	"""
-	expected_genotypes = [[1,1,1,1] , [2,2,1,0], [1,1,2,1]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([1,1,1,1]) , canonic_index_list_to_biallelic_gt_list([2,2,1,0]), canonic_index_list_to_biallelic_gt_list([1,1,2,1])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 4)
-	pedigree.add_individual('individual1',[0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 4)
-	pedigree.add_individual('individual2',[0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 4)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -358,12 +358,12 @@ def test_genotyping_trio9():
 	  C 1110
 	  C 1110
 	"""
-	expected_genotypes = [[1,1,1,1] , [2,2,1,0], [1,1,2,1]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([1,1,1,1]) , canonic_index_list_to_biallelic_gt_list([2,2,1,0]), canonic_index_list_to_biallelic_gt_list([1,1,2,1])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 4)
-	pedigree.add_individual('individual1',[0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 4)
-	pedigree.add_individual('individual2',[0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 4)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -386,12 +386,12 @@ def test_weighted_genotyping():
 	  99
 	  99
 	"""
-	expected_genotypes = [[1,1],[1,1],[2,2]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([1,1]),canonic_index_list_to_biallelic_gt_list([1,1]),canonic_index_list_to_biallelic_gt_list([2,2])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0,0,0], [PhredGenotypeLikelihoods(0.25,0.5,0.25)] * 4)
-	pedigree.add_individual('individual1',[0,0,0,0], [PhredGenotypeLikelihoods(0.25,0.5,0.25)] * 4)
-	pedigree.add_individual('individual2',[0,0,0,0], [PhredGenotypeLikelihoods(0.25,0.5,0.25)] * 4)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([0,0,0,0]), [PhredGenotypeLikelihoods([0.25,0.5,0.25])] * 4)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([0,0,0,0]), [PhredGenotypeLikelihoods([0.25,0.5,0.25])] * 4)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([0,0,0,0]), [PhredGenotypeLikelihoods([0.25,0.5,0.25])] * 4)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	# recombination is extremely unlikely
 	recombcost = [1000,1000,1000,1000]
@@ -416,12 +416,12 @@ def test_genotyping_trio10():
 	"""
 
 	# no reads for child, but genotype must be 1/0 for each pos. (due to inheritance)
-	expected_genotypes = [[2,2,2,2] , [0,0,0,0], [1,1,1,1]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([2,2,2,2]) , canonic_index_list_to_biallelic_gt_list([0,0,0,0]), canonic_index_list_to_biallelic_gt_list([1,1,1,1])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 4)
-	pedigree.add_individual('individual1',[0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 4)
-	pedigree.add_individual('individual2',[0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 4)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -435,12 +435,12 @@ def test_genotyping_trio11():
 	  C 110
 	"""
 
-	expected_genotypes = [[1,1,1] , [2,2,1], [1,1,0]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([1,1,1]) , canonic_index_list_to_biallelic_gt_list([2,2,1]), canonic_index_list_to_biallelic_gt_list([1,1,0])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 4)
-	pedigree.add_individual('individual1',[0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 4)
-	pedigree.add_individual('individual2',[0,0,0,0], [PhredGenotypeLikelihoods(1.0/3.0,1.0/3.0,1.0/3.0)] * 4)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([0,0,0,0]), [PhredGenotypeLikelihoods([1.0/3.0,1.0/3.0,1.0/3.0])] * 4)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [10,10,10]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes)
@@ -458,12 +458,12 @@ def test_genotyping_trio13():
 	  B 0000
 	"""
 
-	expected_genotypes = [[1,1,1,1,1,1] , [1,1,1,1,1,1], [1,1,1,1,1,1]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1]), canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1]), canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(0,1,0)] * 6)
-	pedigree.add_individual('individual1',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(0,1,0)] * 6)
-	pedigree.add_individual('individual2',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(0.25,0.5,0.25)] * 6)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([0,1,0])] * 6)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([0,1,0])] * 6)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([0.25,0.5,0.25])] * 6)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [1000000,1000000,1000000,1000000,1000000,1000000]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes, scaling=1000)
@@ -477,12 +477,12 @@ def test_genotyping_trio14():
 	  C 000000
 	"""
 
-	expected_genotypes = [[2,2,2,2,2,2] , [1,1,1,1,1,1], [1,1,1,1,1,1]]
+	expected_genotypes = [canonic_index_list_to_biallelic_gt_list([2,2,2,2,2,2]) , canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1]), canonic_index_list_to_biallelic_gt_list([1,1,1,1,1,1])]
 	numeric_sample_ids = NumericSampleIds()
 	pedigree = Pedigree(numeric_sample_ids)
-	pedigree.add_individual('individual0',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1/3.0,1/3.0,1/3.0)] * 6)
-	pedigree.add_individual('individual1',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1/3.0,1/3.0,1/3.0)] * 6)
-	pedigree.add_individual('individual2',[0,0,0,0,0,0], [PhredGenotypeLikelihoods(1/3.0,1/3.0,1/3.0)] * 6)
+	pedigree.add_individual('individual0',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1/3.0,1/3.0,1/3.0])] * 6)
+	pedigree.add_individual('individual1',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1/3.0,1/3.0,1/3.0])] * 6)
+	pedigree.add_individual('individual2',canonic_index_list_to_biallelic_gt_list([0,0,0,0,0,0]), [PhredGenotypeLikelihoods([1/3.0,1/3.0,1/3.0])] * 6)
 	pedigree.add_relationship('individual0', 'individual1', 'individual2')
 	recombcost = [1000000,1000000,1000000,1000000,1000000,1000000]
 	genotype_pedigree(numeric_sample_ids,reads, recombcost, pedigree, expected_genotypes, scaling=1000)

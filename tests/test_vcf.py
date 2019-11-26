@@ -1,10 +1,11 @@
 import math
 
 from pytest import raises, approx, fixture
-from whatshap.core import PhredGenotypeLikelihoods
+from whatshap.core import PhredGenotypeLikelihoods, Genotype
 from whatshap.cli.phase import run_whatshap
-from whatshap.vcf import VcfReader, MixedPhasingError, VariantCallPhase, VcfVariant, \
+from whatshap.vcf import VcfReader, MixedPhasingError, PloidyError, VariantCallPhase, VcfVariant, \
 	GenotypeLikelihoods
+from whatshap.testhelpers import canonic_index_to_biallelic_gt, canonic_index_list_to_biallelic_gt_list
 
 import pysam
 
@@ -25,7 +26,7 @@ def test_read_phased():
 	assert table.variants[0].alternative_allele == 'C'
 	assert table.variants[1].reference_allele == 'G'
 	assert table.variants[1].alternative_allele == 'T'
-	assert table.genotypes[0][0] == table.genotypes[0][1] == 1
+	assert table.genotypes[0][0] == table.genotypes[0][1] == canonic_index_to_biallelic_gt(1)
 
 
 def test_read_multisample_vcf():
@@ -47,11 +48,11 @@ def test_read_multisample_vcf():
 	assert table.variants[2].alternative_allele == 'T'
 
 	assert len(table.genotypes) == 2
-	assert list(table.genotypes[0]) == [1, 1, 1]
-	assert list(table.genotypes[1]) == [1, 1, 0]
+	assert list(table.genotypes[0]) == canonic_index_list_to_biallelic_gt_list([1, 1, 1])
+	assert list(table.genotypes[1]) == canonic_index_list_to_biallelic_gt_list([1, 1, 0])
 
-	assert list(table.genotypes_of('sample1')) == [1, 1, 1]
-	assert list(table.genotypes_of('sample2')) == [1, 1, 0]
+	assert list(table.genotypes_of('sample1')) == canonic_index_list_to_biallelic_gt_list([1, 1, 1])
+	assert list(table.genotypes_of('sample2')) == canonic_index_list_to_biallelic_gt_list([1, 1, 0])
 
 
 def test_read_phased_vcf():
@@ -70,30 +71,30 @@ def test_read_phased_vcf():
 		assert table_b.samples == ['sample1', 'sample2']
 
 		assert len(table_a.genotypes) == 2
-		assert list(table_a.genotypes[0]) == [1, 2, 1, 1]
-		assert list(table_a.genotypes[1]) == [1, 1, 1, 1]
-		assert list(table_a.genotypes_of('sample1')) == [1, 2, 1, 1]
-		assert list(table_a.genotypes_of('sample2')) == [1, 1, 1, 1]
+		assert list(table_a.genotypes[0]) == canonic_index_list_to_biallelic_gt_list([1, 2, 1, 1])
+		assert list(table_a.genotypes[1]) == canonic_index_list_to_biallelic_gt_list([1, 1, 1, 1])
+		assert list(table_a.genotypes_of('sample1')) == canonic_index_list_to_biallelic_gt_list([1, 2, 1, 1])
+		assert list(table_a.genotypes_of('sample2')) == canonic_index_list_to_biallelic_gt_list([1, 1, 1, 1])
 
 		assert len(table_b.genotypes) == 2
-		assert list(table_b.genotypes[0]) == [0, 1]
-		assert list(table_b.genotypes[1]) == [1, 2]
-		assert list(table_b.genotypes_of('sample1')) == [0, 1]
-		assert list(table_b.genotypes_of('sample2')) == [1, 2]
+		assert list(table_b.genotypes[0]) == canonic_index_list_to_biallelic_gt_list([0, 1])
+		assert list(table_b.genotypes[1]) == canonic_index_list_to_biallelic_gt_list([1, 2])
+		assert list(table_b.genotypes_of('sample1')) == canonic_index_list_to_biallelic_gt_list([0, 1])
+		assert list(table_b.genotypes_of('sample2')) == canonic_index_list_to_biallelic_gt_list([1, 2])
 
 		print(table_a.phases)
 		assert len(table_a.phases) == 2
 		expected_phase_sample1 = [
 			None, 
 			None, 
-			VariantCallPhase(block_id=300, phase=1, quality=23),
-			VariantCallPhase(block_id=300, phase=0, quality=42)
+			VariantCallPhase(block_id=300, phase=(1,0), quality=23),
+			VariantCallPhase(block_id=300, phase=(0,1), quality=42)
 		]
 		expected_phase_sample2 = [
-			VariantCallPhase(block_id=100, phase=0, quality=10),
-			VariantCallPhase(block_id=100, phase=1, quality=20),
-			VariantCallPhase(block_id=300, phase=0, quality=30),
-			VariantCallPhase(block_id=300, phase=0, quality=None)
+			VariantCallPhase(block_id=100, phase=(0,1), quality=10),
+			VariantCallPhase(block_id=100, phase=(1,0), quality=20),
+			VariantCallPhase(block_id=300, phase=(0,1), quality=30),
+			VariantCallPhase(block_id=300, phase=(0,1), quality=None)
 		]
 		assert list(table_a.phases[0]) == expected_phase_sample1
 		assert list(table_a.phases[1]) == expected_phase_sample2
@@ -195,7 +196,8 @@ def test_phasing_to_reads():
 def test_unknown_genotype():
 	"""VCF with './.' genotype"""
 	tables = list(VcfReader('tests/data/unknown-genotype.vcf'))
-	assert tables[0].genotypes[1][0] == -1
+	assert tables[0].genotypes[1][0] == Genotype([])
+	assert tables[0].genotypes[1][0].is_none()
 
 
 def test_normalize():
@@ -266,13 +268,13 @@ def test_read_genotype_likelihoods():
 	assert len(table.variants) == 4
 
 	assert len(table.genotypes) == 2
-	assert list(table.genotypes[0]) == [2, 1, 1, 1]
-	assert list(table.genotypes[1]) == [1, 0, 0, 1]
+	assert list(table.genotypes[0]) == canonic_index_list_to_biallelic_gt_list([2, 1, 1, 1])
+	assert list(table.genotypes[1]) == canonic_index_list_to_biallelic_gt_list([1, 0, 0, 1])
 
-	gl0 = GenotypeLikelihoods(-2.1206, -0.8195, -0.07525)
-	gl1 = GenotypeLikelihoods(-10.3849, 0, -5.99143)
-	gl2 = GenotypeLikelihoods(-2.1, -0.8, -0.8)
-	gl3 = GenotypeLikelihoods(0, -10.0, -0.6)
+	gl0 = GenotypeLikelihoods([-2.1206, -0.8195, -0.07525])
+	gl1 = GenotypeLikelihoods([-10.3849, 0, -5.99143])
+	gl2 = GenotypeLikelihoods([-2.1, -0.8, -0.8])
+	gl3 = GenotypeLikelihoods([0, -10.0, -0.6])
 
 	assert len(table.genotype_likelihoods_of('sample1')) == 4
 	assert len(table.genotype_likelihoods_of('sample2')) == 4
@@ -286,9 +288,9 @@ def test_read_genotype_likelihoods():
 
 
 def test_genotype_likelihoods():
-	assert list(PhredGenotypeLikelihoods()) == [0, 0, 0]
-	assert list(PhredGenotypeLikelihoods(7, 1, 12)) == [7, 1, 12]
-	gl = GenotypeLikelihoods(*(math.log10(x) for x in [1e-10, 0.5, 0.002]))
+	assert list(PhredGenotypeLikelihoods([0, 0, 0])) == [0, 0, 0]
+	assert list(PhredGenotypeLikelihoods([7, 1, 12])) == [7, 1, 12]
+	gl = GenotypeLikelihoods([math.log10(x) for x in [1e-10, 0.5, 0.002]])
 	assert list(gl.as_phred()) == [97, 0, 24]
 	assert list(gl.as_phred(regularizer=0.01)) == [20, 0, 19]
 
@@ -309,3 +311,100 @@ def test_read_region_subsets():
 	assert len(table.variants) == 8
 	assert table.variants[5].reference_allele == 'CG'
 	assert table.variants[5].alternative_allele == 'C'
+
+
+def test_read_tetraploid_unphased():
+	tables = list(VcfReader('tests/data/polyploid.chr22.unphased.vcf', phases=False))
+	assert len(tables) == 1
+	table = tables[0]
+	assert table.chromosome == 'chr22'
+	assert table.samples == ['HG00514_NA19240']
+	assert len(table.variants) == 8
+	assert table.variants[0].reference_allele == 'A'
+	assert table.variants[0].alternative_allele == 'C'
+	assert table.variants[1].reference_allele == 'G'
+	assert table.variants[1].alternative_allele == 'A'
+	assert table.variants[2].reference_allele == 'G'
+	assert table.variants[2].alternative_allele == 'T'
+	assert table.variants[3].reference_allele == 'G'
+	assert table.variants[3].alternative_allele == 'C'
+	print("Got:")
+	for genotype in table.genotypes[0]:
+		print(genotype)
+	print("Exp:")
+	for genotypte in canonic_index_list_to_biallelic_gt_list([3, 2, 0, 3, 3, 1, 1, 1]):
+		print(genotype)
+	assert table.genotypes[0] == canonic_index_list_to_biallelic_gt_list([3, 2, 0, 3, 3, 1, 1, 1], 4)
+
+
+def test_read_tetraploid_phased():
+	tables = list(VcfReader('tests/data/polyploid.chr22.phased.vcf', phases=True))
+	assert len(tables) == 1
+	table = tables[0]
+	assert table.chromosome == 'chr22'
+	assert table.samples == ['HG00514_NA19240']
+	assert len(table.variants) == 8
+
+	expected_phase = [
+		VariantCallPhase(block_id=20000000, phase=(1,0,1,1), quality=None),
+		VariantCallPhase(block_id=20000000, phase=(1,0,1,0), quality=None),
+		None,
+		VariantCallPhase(block_id=20000000, phase=(1,0,1,1), quality=None),
+		VariantCallPhase(block_id=20001000, phase=(1,0,1,1), quality=None),
+		VariantCallPhase(block_id=20001000, phase=(0,0,0,1), quality=None),
+		VariantCallPhase(block_id=20001000, phase=(0,0,0,1), quality=None),
+		VariantCallPhase(block_id=20001000, phase=(0,0,0,1), quality=None)
+	]
+	print("Got:")
+	for variant in table.phases[0]:
+		print(variant)
+	print("Exp:")
+	for variant in expected_phase:
+		print(variant)
+	assert list(table.phases[0]) == expected_phase
+
+
+def test_read_tetraploid_genotype_likelihoods():
+	tables = list(VcfReader('tests/data/polyploid.chr22.unphased.vcf', phases=False,genotype_likelihoods=True))
+	assert len(tables) == 1
+	table = tables[0]
+	assert len(table.variants) == 8
+	exp_gl = [
+		GenotypeLikelihoods([-x/10 for x in [19,28,29,2,10,6]]),
+		GenotypeLikelihoods([-x/10 for x in [1,8,29,24,15,23]]),
+		GenotypeLikelihoods([-x/10 for x in [25,33,35,31,0,30]]),
+		GenotypeLikelihoods([-x/10 for x in [6,27,6,3,46,42]])
+	] * 2
+	assert table.genotype_likelihoods_of(table.samples[0]) == exp_gl
+	
+	
+def test_unsupported_ploidy():
+	try:
+		tables = list(VcfReader('tests/data/hexadecaploid.chr22.vcf', phases=False))
+	except PloidyError:
+		return
+	assert False
+	
+	
+def test_unsupported_ploidy_phased():
+	try:
+		tables = list(VcfReader('tests/data/hexadecaploid.chr22.vcf', phases=True))
+	except PloidyError:
+		return
+	assert False
+	
+	
+def test_inconsistent_ploidy():
+	try:
+		tables = list(VcfReader('tests/data/polyploid.chr22.inconsistent.vcf', phases=False))
+	except PloidyError:
+		return
+	assert False
+	
+	
+def test_inconsistent_ploidy_phased():
+	try:
+		tables = list(VcfReader('tests/data/polyploid.chr22.inconsistent.vcf', phases=True))
+	except PloidyError:
+		return
+	assert False

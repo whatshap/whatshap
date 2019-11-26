@@ -5,6 +5,7 @@ Declarations for all C++ classes that are wrapped from Cython.
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libc.stdint cimport uint32_t, uint64_t
 
 
 cdef extern from "../src/read.h":
@@ -58,11 +59,11 @@ cdef extern from "../src/readset.h":
 cdef extern from "../src/pedigree.h":
 	cdef cppclass Pedigree:
 		Pedigree() except +
-		void addIndividual(unsigned int id, vector[unsigned int] genotypes, vector[PhredGenotypeLikelihoods*]) except +
+		void addIndividual(unsigned int id, vector[Genotype*] genotypes, vector[PhredGenotypeLikelihoods*]) except +
 		void addRelationship(unsigned int f, unsigned int m, unsigned int c) except +
 		unsigned int size()
 		string toString() except +
-		unsigned int get_genotype_by_id(unsigned int, unsigned int) except +
+		const Genotype* get_genotype_by_id(unsigned int, unsigned int) except +
 		const PhredGenotypeLikelihoods* get_genotype_likelihoods_by_id(unsigned int, unsigned int) except +
 		unsigned int get_variant_count() except +
 		unsigned int triple_count() except +
@@ -74,6 +75,31 @@ cdef extern from "../src/pedigreedptable.h":
 		void get_super_reads(vector[ReadSet*]*, vector[unsigned int]* transmission_vector) except +
 		int get_optimal_score() except +
 		vector[bool]* get_optimal_partitioning()
+		
+		
+cdef extern from "../src/binomial.h":
+	cdef int binomial_coefficient(int n, int k) except +
+		
+		
+cdef extern from "../src/genotype.h":
+	cdef cppclass Genotype:
+		Genotype() except +
+		Genotype(vector[uint32_t]) except +
+		Genotype(Genotype) except +
+		vector[uint32_t] as_vector() except +
+		bool is_none() except +
+		uint64_t get_index() except +
+		string toString() except +
+		bool is_homozygous() except +
+		bool is_diploid_and_biallelic() except +
+		uint32_t get_ploidy() except +
+	cdef bool operator==(Genotype,Genotype) except +
+	cdef bool operator!=(Genotype,Genotype) except +
+	cdef bool operator<(Genotype,Genotype) except +
+	cdef vector[uint32_t] convert_index_to_alleles(uint64_t index, uint32_t ploidy) except +
+	cdef uint32_t get_max_genotype_ploidy() except +
+	cdef uint32_t get_max_genotype_alleles() except +
+
 
 cdef extern from "../src/genotypedptable.h":
 	cdef cppclass GenotypeDPTable:
@@ -82,10 +108,15 @@ cdef extern from "../src/genotypedptable.h":
 
 cdef extern from "../src/phredgenotypelikelihoods.h":
 	cdef cppclass PhredGenotypeLikelihoods:
-		PhredGenotypeLikelihoods(double, double, double) except +
+		PhredGenotypeLikelihoods(vector[double], unsigned int, unsigned int) except +
 		PhredGenotypeLikelihoods(PhredGenotypeLikelihoods) except +
-		double get(unsigned int) except +
+		double get(Genotype) except +
 		string toString() except +
+		unsigned int get_ploidy() except +
+		unsigned int get_nr_alleles() except +
+		unsigned int size() except +
+		vector[double] as_vector() except +
+		void get_genotypes(vector[Genotype]&) except +
 
 
 cdef extern from "../src/genotypedistribution.h":
@@ -95,7 +126,7 @@ cdef extern from "../src/genotypedistribution.h":
 
 
 cdef extern from "../src/genotyper.h":
-	void compute_genotypes(ReadSet, vector[int]* genotypes, vector[GenotypeDistribution]* genotype_likelihoods, vector[unsigned int]* positions)  except +
+	void compute_genotypes(ReadSet, vector[Genotype]* genotypes, vector[GenotypeDistribution]* genotype_likelihoods, vector[unsigned int]* positions)  except +
 
 
 cdef extern from "../src/hapchat/hapchatcore.cpp":

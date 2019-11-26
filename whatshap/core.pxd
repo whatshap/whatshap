@@ -1,4 +1,5 @@
 from libcpp cimport bool
+from libc.stdint cimport uint32_t, uint64_t
 cimport cpp
 
 cdef class NumericSampleIds:
@@ -27,6 +28,12 @@ cdef class PedigreeDPTable:
 
 cdef class PhredGenotypeLikelihoods:
 	cdef cpp.PhredGenotypeLikelihoods *thisptr
+	
+	
+cdef class Genotype:
+	cdef cpp.Genotype *thisptr
+	cdef uint64_t index
+	cdef uint32_t ploidy
 
 
 cdef class GenotypeDPTable:

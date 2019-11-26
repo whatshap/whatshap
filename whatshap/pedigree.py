@@ -115,23 +115,17 @@ def load_genetic_map(filename):
 	return genetic_map
 
 
-mendelian_conflict_sets = {
-	(0, 0, 1),
-	(0, 0, 2),
-	(0, 1, 2),
-	(0, 2, 0),
-	(0, 2, 2),
-	(1, 2, 0),
-	(2, 2, 0),
-	(2, 2, 1),
-}
-
-
 def mendelian_conflict(genotypem, genotypef, genotypec):
-	l = [genotypem, genotypef]
-	l.sort()
-	l.append(genotypec)
-	return tuple(l) in mendelian_conflict_sets
+	# TODO: Maybe inefficient
+	alleles_m = genotypem.as_vector()
+	alleles_f = genotypef.as_vector()
+	alleles_c = genotypec.as_vector()
+	if alleles_c[0] in alleles_m and alleles_c[1] in alleles_f:
+		return False
+	elif alleles_c[1] in alleles_m and alleles_c[0] in alleles_f:
+		return False
+	else:
+		return True
 
 
 def find_recombination(transmission_vector, components, positions, recombcost):

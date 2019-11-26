@@ -218,7 +218,7 @@ BlockStats = namedtuple('BlockStats', ['variant_count', 'span'])
 def collect_common_variants(variant_tables: List[VariantTable], sample) -> Set[VcfVariant]:
 	common_variants = None
 	for variant_table in variant_tables:
-		het_variants = [v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if gt == 1]
+		het_variants = [v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if not gt.is_homozygous()]
 		if common_variants is None:
 			common_variants = set(het_variants)
 		else:
@@ -291,8 +291,8 @@ def compare(variant_tables, sample: str, dataset_names):
 		for block in block_intersection.values():
 			if len(block) < 2:
 				continue
-			phasing0 = ''.join(str(phases[0][i].phase) for i in block)
-			phasing1 = ''.join(str(phases[1][i].phase) for i in block)
+			phasing0 = ''.join(str(phases[0][i].phase[0]) for i in block)
+			phasing1 = ''.join(str(phases[1][i].phase[0]) for i in block)
 			block_positions = [sorted_variants[i].position for i in block]
 			errors = compare_block(phasing0, phasing1)
 			bed_records.extend(create_bed_records(
@@ -342,7 +342,7 @@ def compare(variant_tables, sample: str, dataset_names):
 			if len(block) < 2:
 				continue
 			total_compared += len(block) - 1
-			phasings = [''.join(str(phases[j][i].phase) for i in block) for j in range(len(phases))]
+			phasings = [''.join(str(phases[j][i].phase[0]) for i in block) for j in range(len(phases))]
 			switch_encodings = [switch_encoding(p) for p in phasings]
 			for i in range(len(block)-1):
 				s = ''.join(switch_encodings[j][i] for j in range(len(switch_encodings)))
@@ -529,7 +529,7 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 			print('VARIANT COUNTS (heterozygous / all): ')
 			for variant_table, name in zip(variant_tables, dataset_names):
 				all_variants_union.update(variant_table.variants)
-				het_variants = [v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if gt == 1]
+				het_variants = [v for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample)) if not gt.is_homozygous()]
 				if het_variants0 is None:
 					het_variants0 = len(het_variants)
 				het_variants_union.update(het_variants)

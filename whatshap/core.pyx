@@ -9,6 +9,7 @@ Wrappers for core C++ classes.
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
+from libc.stdint cimport uint32_t, uint64_t
 cimport cpp
 
 from collections import namedtuple
@@ -321,7 +322,10 @@ cdef class Pedigree:
 	def __dealloc__(self):
 		del self.thisptr
 
-	def add_individual(self, id, vector[unsigned int] genotypes, genotype_likelihoods=None):
+	def add_individual(self, id, genotypes, genotype_likelihoods=None):
+		cdef vector[cpp.Genotype*] gt_vector
+		for gt in genotypes:
+			gt_vector.push_back(new cpp.Genotype((<Genotype?>gt).thisptr[0]))
 		cdef vector[cpp.PhredGenotypeLikelihoods*] gl_vector
 		if genotype_likelihoods:
 			for gl in genotype_likelihoods:
@@ -332,7 +336,7 @@ cdef class Pedigree:
 		else:
 			for _ in genotypes:
 				gl_vector.push_back(NULL)
-		self.thisptr.addIndividual(self.numeric_sample_ids[id], genotypes, gl_vector)
+		self.thisptr.addIndividual(self.numeric_sample_ids[id], gt_vector, gl_vector)
 
 	def add_relationship(self, father_id, mother_id, child_id):
 		self.thisptr.addRelationship(self.numeric_sample_ids[father_id], self.numeric_sample_ids[mother_id], self.numeric_sample_ids[child_id])
@@ -343,14 +347,15 @@ cdef class Pedigree:
 			return self.thisptr.get_variant_count()
 
 	def genotype(self, sample_id, unsigned int variant_index):
-		return self.thisptr.get_genotype_by_id(self.numeric_sample_ids[sample_id], variant_index)
+		cdef const cpp.Genotype* gt = self.thisptr.get_genotype_by_id(self.numeric_sample_ids[sample_id], variant_index)
+		return Genotype(gt[0].as_vector())
 
 	def genotype_likelihoods(self, sample_id, unsigned int variant_index):
 		cdef const cpp.PhredGenotypeLikelihoods* gl = self.thisptr.get_genotype_likelihoods_by_id(self.numeric_sample_ids[sample_id], variant_index)
 		if gl == NULL:
 			return None
 		else:
-			return PhredGenotypeLikelihoods(gl.get(0), gl.get(1), gl.get(2))
+			return PhredGenotypeLikelihoods(gl[0].as_vector(), gl[0].get_ploidy(), gl[0].get_nr_alleles())
 
 	def __len__(self):
 		return self.thisptr.size()
@@ -360,8 +365,8 @@ cdef class Pedigree:
 
 
 cdef class PhredGenotypeLikelihoods:
-	def __cinit__(self, double gl0 = 0, double gl1 = 0, double gl2 = 0):
-		self.thisptr = new cpp.PhredGenotypeLikelihoods(gl0, gl1, gl2)
+	def __cinit__(self, vector[double] gl, unsigned int ploidy=2, unsigned int nr_alleles=2):
+		self.thisptr = new cpp.PhredGenotypeLikelihoods(gl, ploidy, nr_alleles)
 
 	def __dealloc__(self):
 		del self.thisptr
@@ -369,18 +374,101 @@ cdef class PhredGenotypeLikelihoods:
 	def __str__(self):
 		return self.thisptr.toString().decode('utf-8')
 
-	def __getitem__(self, genotype):
+	def __getitem__(self, Genotype genotype):
 		assert self.thisptr != NULL
-		assert isinstance(genotype, int)
-		assert 0 <= genotype <= 2
-		return self.thisptr.get(genotype)
+		assert genotype.is_diploid_and_biallelic()
+		return self.thisptr.get(genotype.thisptr[0])
 
 	def __len__(self):
-		return 3
+		return self.thisptr.size()
 
 	def __iter__(self):
-		for i in range(3):
-			yield self[i]
+		for genotype in self.genotypes():
+			yield self[genotype]
+			
+	def __eq__(self, PhredGenotypeLikelihoods other):
+		if self.genotypes() != other.genotypes():
+			return False
+		for genotype in self.genotypes():
+			if self[genotype] != other[genotype]:
+				return False
+		return True
+		
+	def genotypes(self):
+		cdef vector[cpp.Genotype]* genotypes = new vector[cpp.Genotype]()
+		self.thisptr.get_genotypes(deref(genotypes))
+		result = [Genotype(genotype.as_vector()) for genotype in genotypes[0]]
+		del genotypes
+		return result
+	
+	
+def binomial_coefficient(int n, int k):
+	return cpp.binomial_coefficient(n, k)
+
+			
+cdef class Genotype:
+	
+	def __cinit__(self, vector[uint32_t] alleles):
+		self.thisptr = new cpp.Genotype(alleles)
+		self.ploidy = self.thisptr.get_ploidy()
+		self.index = self.thisptr.get_index()
+
+	def __dealloc__(self):
+		del self.thisptr
+
+	def __str__(self):
+		return self.thisptr.toString().decode('utf-8')
+	
+	def __repr__(self):
+		return self.thisptr.toString().decode('utf-8')
+
+	def is_none(self):
+		return self.thisptr.is_none()
+
+	def get_index(self):
+		return self.thisptr.get_index()
+
+	def as_vector(self):
+		result = []
+		cdef vector[uint32_t] alleles = self.thisptr.as_vector()
+		for allele in alleles:
+			result.append(allele)
+		return alleles
+
+	def is_homozygous(self):
+		return self.thisptr.is_homozygous()
+	
+	def is_diploid_and_biallelic(self):
+		return self.thisptr.is_diploid_and_biallelic()
+	
+	def get_ploidy(self):
+		return self.thisptr.get_ploidy()
+
+	def __eq__(self, Genotype g):
+		return self.thisptr[0] == g.thisptr[0]
+
+	def __ne__(self, Genotype g):
+		return self.thisptr[0] != g.thisptr[0]
+	
+	def __lt__(self, Genotype g):
+		return self.thisptr[0] < g.thisptr[0]
+	
+	def __hash__(self):
+		return hash(tuple(self.alleles))
+	
+	def __reduce__(self):
+		# a tuple as specified in the pickle docs - (class_or_constructor, 
+		# (tuple, of, args, to, constructor))
+		cdef vector[uint32_t] alleles = cpp.convert_index_to_alleles(self.index, self.ploidy)
+		return (self.__class__, tuple([alleles]))
+	
+	
+def get_max_genotype_ploidy():
+	return cpp.get_max_genotype_ploidy()
+
+
+def get_max_genotype_alleles():
+	return cpp.get_max_genotype_alleles()
 
 
 cdef class GenotypeDPTable:
@@ -402,11 +490,11 @@ cdef class GenotypeDPTable:
 		del self.thisptr
 
 	def get_genotype_likelihoods(self, sample_id, unsigned int pos):
-		return self.thisptr.get_genotype_likelihoods(self.numeric_sample_ids[sample_id],pos)
+		return PhredGenotypeLikelihoods(self.thisptr.get_genotype_likelihoods(self.numeric_sample_ids[sample_id],pos))
 
 
 def compute_genotypes(ReadSet readset, positions = None):
-	cdef vector[int]* genotypes_vector = new vector[int]()
+	cdef vector[cpp.Genotype]* genotypes_vector = new vector[cpp.Genotype]()
 	cdef vector[cpp.GenotypeDistribution]* gl_vector = new vector[cpp.GenotypeDistribution]()
 	cdef vector[unsigned int]* c_positions = NULL
 	if positions is not None:
@@ -414,7 +502,9 @@ def compute_genotypes(ReadSet readset, positions = None):
 		for pos in positions:
 			c_positions.push_back(pos)
 	cpp.compute_genotypes(readset.thisptr[0], genotypes_vector, gl_vector, c_positions)
-	genotypes = list(genotypes_vector[0])
+	# TODO: Inefficient
+	genotypes = [Genotype(genotype.as_vector()) for genotype in genotypes_vector[0]]
+	#genotypes = list(genotypes_vector[0])
 	gls = [(gl_vector[0][i].probabilityOf(0), gl_vector[0][i].probabilityOf(1), gl_vector[0][i].probabilityOf(2)) for i in range(gl_vector[0].size())]
 	del genotypes_vector
 	del gl_vector

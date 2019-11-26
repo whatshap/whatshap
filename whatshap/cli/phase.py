@@ -19,7 +19,7 @@ from networkx import Graph, number_of_nodes, number_of_edges, connected_componen
 from contextlib import ExitStack
 from whatshap.vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
 from whatshap import __version__
-from whatshap.core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, HapChatCore
+from whatshap.core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, HapChatCore, Genotype
 from whatshap.graph import ComponentFinder
 from whatshap.pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
@@ -699,7 +699,7 @@ def run_whatshap(
 						readset.sort()
 						genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
 						variant_table.set_genotypes_of(sample, genotypes)
-						variant_table.set_genotype_likelihoods_of(sample, [GenotypeLikelihoods(*gl) for gl in genotype_likelihoods])
+						variant_table.set_genotype_likelihoods_of(sample, [GenotypeLikelihoods(gl) for gl in genotype_likelihoods])
 
 			# These two variables hold the phasing results for all samples
 			superreads, components = dict(), dict()
@@ -731,12 +731,12 @@ def run_whatshap(
 				for sample in family:
 					genotypes = variant_table.genotypes_of(sample)
 					for index, gt in enumerate(genotypes):
-						if gt == -1:
+						if gt.is_none():
 							missing_genotypes.add(index)
-						elif gt == 1:
+						elif not gt.is_homozygous():
 							heterozygous.add(index)
 						else:
-							assert gt in [0, 2]
+							assert gt.is_diploid_and_biallelic()
 							homozygous.add(index)
 
 				# determine which variants have Mendelian conflicts
@@ -747,7 +747,7 @@ def run_whatshap(
 
 					for index, (gt_mother, gt_father, gt_child) in enumerate(zip(
 							genotypes_mother, genotypes_father, genotypes_child)):
-						if (gt_mother != -1) and (gt_father != -1) and (gt_child != -1):
+						if (not gt_mother.is_none()) and (not gt_father.is_none()) and (not gt_child.is_none()):
 							if mendelian_conflict(gt_mother, gt_father, gt_child):
 								mendelian_conflicts.add(index)
 
@@ -841,15 +841,15 @@ def run_whatshap(
 					if distrust_genotypes:
 						genotype_likelihoods = []
 						for gt, gl in zip(phasable_variant_table.genotypes_of(sample), phasable_variant_table.genotype_likelihoods_of(sample)):
-							assert 0 <= gt <= 2
+							assert gt.is_diploid_and_biallelic();
 							if gl is None:
 								# all genotypes get default_gq as genotype likelihood, exept the called genotype ...
 								x = [default_gq] * 3
 								# ... which gets a 0
-								x[gt] = 0
-								genotype_likelihoods.append(PhredGenotypeLikelihoods(*x))
+								x[gt.get_index()] = 0
+								genotype_likelihoods.append(PhredGenotypeLikelihoods(x))
 							else:
-								genotype_likelihoods.append(gl.as_phred(gl_regularizer))
+								genotype_likelihoods.append(gl.as_phred(regularizer=gl_regularizer))
 					else:
 						genotype_likelihoods = None
 					pedigree.add_individual(sample, phasable_variant_table.genotypes_of(sample), genotype_likelihoods)
@@ -970,13 +970,12 @@ def run_whatshap(
 def write_changed_genotypes(gtchange_list_filename, changed_genotypes):
 	with open(gtchange_list_filename, 'w') as f:
 		print('#sample', 'chromosome', 'position', 'REF', 'ALT', 'old_gt', 'new_gt', sep='\t', file=f)
-		INT_TO_UNPHASED_GT = {0: '0/0', 1: '0/1', 2: '1/1', -1: '.'}
 		for changed_genotype in changed_genotypes:
 			print(changed_genotype.sample, changed_genotype.chromosome,
 				changed_genotype.variant.position,
 				changed_genotype.variant.reference_allele, changed_genotype.variant.alternative_allele,
-				INT_TO_UNPHASED_GT[changed_genotype.old_gt],
-				INT_TO_UNPHASED_GT[changed_genotype.new_gt],
+				repr(changed_genotype.old_gt),
+				repr(changed_genotype.new_gt),
 				sep='\t', file=f)
 
 
