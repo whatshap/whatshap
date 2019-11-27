@@ -18,5 +18,4 @@ include doc/Makefile
 include tests/test*.py
 include versioneer.py
 include whatshap/_version.py
-include src/clusterediting/*.h
-include src/threading/*.h
+include src/polyphase/*.h
