@@ -6,7 +6,7 @@ import logging
 import math
 from collections import defaultdict, namedtuple
 from contextlib import ExitStack
-from itertools import chain
+from itertools import chain, permutations
 from typing import Set, Iterable, List
 
 from whatshap.vcf import VcfReader, VcfVariant, VariantTable
@@ -27,16 +27,17 @@ def add_arguments(parser):
 	add('--tsv-pairwise', metavar='TSVPAIRWISE', default=None, help='Filename to write '
 		'comparison results from pair-wise comparison to (tab-separated).')
 	add('--tsv-multiway', metavar='TSVMULTIWAY', default=None, help='Filename to write '
-		'comparison results from multiway comparison to (tab-separated).')
+		'comparison results from multiway comparison to (tab-separated). Only for diploid vcfs.')
 	add('--only-snvs', default=False, action="store_true", help='Only process SNVs '
 		'and ignore all other variants.')
 	add('--switch-error-bed', default=None, help='Write BED file with switch error positions '
-		'to given filename.')
+		'to given filename. Only for diploid vcfs.')
 	add('--plot-blocksizes', default=None, help='Write PDF file with a block length histogram '
 		'to given filename (requires matplotlib).')
 	add('--plot-sum-of-blocksizes', default=None, help='Write PDF file with a block length histogram in which the height of each bar corresponds to the sum of lengths.')
 	add('--longest-block-tsv', default=None, help='Write position-wise agreement of longest '
-		'joint blocks in each chromosome to tab-separated file.')
+		'joint blocks in each chromosome to tab-separated file. Only for diploid vcfs.')
+	add('ploidy', metavar='PLOIDY', type=int, help='The ploidy of the samples (must be > 1).')
 	# TODO: what's the best way to request "two or more" VCFs?
 	add('vcf', nargs='+', metavar='VCF', help='At least two phased VCF files to be compared.')
 
@@ -44,6 +45,14 @@ def add_arguments(parser):
 def validate(args, parser):
 	if len(args.vcf) < 2:
 		parser.error('At least two VCFs need to be given.')
+	if args.ploidy < 2:
+		parser.error('Ploidy must be > 1.')
+	if args.ploidy > 2 and args.tsv_multiway:
+		parser.error('Option --tsv-multiway can only be used if ploidy=2.')
+	if args.ploidy > 2 and args.switch_error_bed:
+		parser.error('Option --switch-error-bed can only be used if ploidy=2.')
+	if args.ploidy > 2 and args.longest_block_tsv:
+		parser.error('Option --longest-block-tsv can only be used if ploidy=2.')
 
 
 class SwitchFlips:
@@ -129,12 +138,209 @@ def compute_switch_flips(phasing0, phasing1):
 	return result
 
 
+def compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 1):
+	result, switches_in_column, flips_in_column, poswise_config = compute_switch_flips_poly_bt(phasing0, phasing1, switch_cost = switch_cost, flip_cost = flip_cost)
+	return result
+
+def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = False, switch_cost = 1, flip_cost = 1):
+	# Check input
+	if len(phasing0) != len(phasing1):
+		print("Incompatible phasings. Number of haplotypes is not equal ("+str(len(phasing))+" != "+str(len(truth))+").")
+	assert len(phasing0) == len(phasing1)
+	
+	num_pos = len(phasing0[0])
+	if (num_pos == 0):
+		return 0
+	ploidy = len(phasing0)
+	if (ploidy == 0):
+		return 0
+	for i in range(0, len(phasing1)):
+		if len(phasing1[i]) != num_pos:
+			print("Inconsistent input for phasing. Haplotypes have different lengths ( len(phasing1[0]="+str(num_pos)+" != len(phasing1["+str(i)+"]="+str(len(phasing1[i]))+".")
+		assert len(phasing1[i]) == num_pos
+		if len(phasing0[i]) != num_pos:
+			print("Inconsistent input for phasing. Haplotypes have different lengths ( len(phasing1[0]="+str(num_pos)+" != len(phasing0["+str(i)+"]="+str(len(phasing0[i]))+".")
+		assert len(phasing1[i]) == num_pos
+	if ploidy > 6:
+		print("Computing vector error with more than 6 haplotypes. This may take very long ...")
+
+	# List of all permutations in which haplotypes of the two phasings can be joined
+	perms = list(permutations(range(0, ploidy)))
+	
+	# dp table with float scores
+	s = [dict() for j in range(num_pos)]
+	# dp table with SwitchFlip objects
+	c = [dict() for j in range(num_pos)]
+	# table to store the row of the previous column, which was used by dp recursion
+	b = [dict() for j in range(num_pos)]
+	
+	# Temp structures
+	current_scores = []
+	current_comp = []
+	current_bt = []
+	
+	# Initialize first column
+	best_score = float("inf")
+	best_perm = 0
+	for i, perm in enumerate(perms):
+		e = 0
+		for k in range(ploidy):
+			# Count flips between phasing0 and phasing1 for current permutation
+			e += 1 if (phasing1[k][0] != phasing0[perm[k]][0] and phasing1[k][0] != '-' and phasing0[perm[k]][0] != '-') else 0;
+		current_scores.append(e * flip_cost)
+		current_comp.append(SwitchFlips(0, e))
+		if e*flip_cost < best_score:
+			best_score = e * flip_cost
+			best_perm = i
+		#print("d["+str(0)+"]["+str(i)+"] = "+str(d[0][i]))
+		
+	# Only keep profitable entries
+	s[0][best_perm] = current_scores[best_perm]
+	c[0][best_perm] = current_comp[best_perm]
+	for i in range(len(current_scores)):
+		if current_scores[i] < best_score + poly_num_switches(perms[best_perm], perms[i]) * switch_cost:
+			s[0][i] = current_scores[i]
+			c[0][i] = current_comp[i]	
+	
+	# Iterate over all positions
+	for j in range(1, num_pos):
+		current_scores[:] = []
+		current_comp[:] = []
+		current_bt[:] = []
+		best_score = float("inf")
+		best_perm = 0
+		for i, perm in enumerate(perms):
+			# Count number of flip errors if perm would be applied to this column
+			flips = 0
+			for k in range(ploidy):
+				flips += 1 if (phasing1[k][j] != phasing0[perm[k]][j] and phasing1[k][j] != '-' and phasing0[perm[k]][j] != '-') else 0;
+				
+			# Find the best previous solution by checking all rows of previous column
+			min_prev_err = float("inf")
+			min_pred = -1
+			min_switches = float("inf")
+			for pred in s[j-1]:
+				# Consider the number switches between the rows
+				switches = poly_num_switches(perm, perms[pred])
+				
+				# Find the best row for recursion by computing cost of previous rows combined with the switch cost to jump to the current one
+				current_err = s[j-1][pred] + switch_cost * switches
+				if current_err < min_prev_err or min_pred == -1:
+					min_prev_err = current_err
+					min_pred = pred
+					min_switches = switches
+					
+			# Aggregate total costs
+			total_switches = c[j-1][min_pred].switches + min_switches
+			total_flips = c[j-1][min_pred].flips + flips
+			total_score = switch_cost * total_switches + flip_cost * total_flips
+			current_scores.append(switch_cost * total_switches + flip_cost * total_flips)
+			current_comp.append(SwitchFlips(total_switches, total_flips))
+			current_bt.append(min_pred)
+			
+			# Remember best entry in column for pruning
+			if total_score < best_score:
+				best_score = total_score
+				best_perm = i
+			
+		# Only copy profitable entries into dp tables
+		s[j][best_perm] = current_scores[best_perm]
+		c[j][best_perm] = current_comp[best_perm]
+		b[j][best_perm] = current_bt[best_perm]
+		for i in range(len(current_scores)):
+			if current_scores[i] < best_score + poly_num_switches(perms[best_perm], perms[i]) * switch_cost:
+				s[j][i] = current_scores[i]
+				c[j][i] = current_comp[i]
+				b[j][i] = current_bt[i]
+	
+	# Result is smallest combined error in last column
+	result = SwitchFlips()
+	min_row = -1
+	min_err = float("inf")
+	for row in s[-1]:
+		current_err = s[-1][row]
+		if current_err < min_err or min_row == -1:
+			min_err = current_err
+			min_row = row
+			
+	result.switches = c[-1][min_row].switches
+	result.flips = c[-1][min_row].flips
+	
+	# Backtracing
+	if (report_error_positions and result.switches * switch_cost + result.flips * flip_cost < float("inf")):
+		positionwise_config = [[] for i in range(num_pos)]
+		flips_in_column = [[] for i in range(num_pos)]
+		switches_in_column = [0 for i in range(num_pos)]
+		col = num_pos - 1
+		row = min_row
+		positionwise_config[col] = perms[row]
+		while col > 0:
+			prev_row = b[col][row]
+			switches_in_column[col] = c[col][row].switches - c[col-1][prev_row].switches
+			for k in range(ploidy):
+				if phasing1[k][col] != phasing0[perms[row][k]][col] and phasing1[k][col] != '-' and phasing0[perms[row][k]][col] != '-':
+					flips_in_column[col].append(k)
+			assert len(flips_in_column[col]) == c[col][row].flips - c[col-1][prev_row].flips
+			#flips_in_column[col] = d[col][row].flips - d[col-1][prev_row].flips
+			col -= 1
+			row = prev_row
+			positionwise_config[col] = perms[row]
+		switches_in_column[0] = c[col][row].switches
+		for k in range(ploidy):
+			if phasing1[k][col] != phasing0[perms[row][k]][col] and phasing1[k][col] != '-' and phasing0[perms[row][k]][col] != '-':
+				flips_in_column[col].append(k)
+		assert len(flips_in_column[col]) == c[col][row].flips
+		#flips_in_column[0] = d[col][row].flips
+
+		assert sum(switches_in_column) == result.switches
+		assert sum(map(len, flips_in_column)) == result.flips
+
+	else:
+		switches_in_column = []
+		flips_in_column = []
+		positionwise_config = []
+	
+	result.switches = result.switches / ploidy
+	result.flips = result.flips / ploidy
+	return result, switches_in_column, flips_in_column, positionwise_config
+
+def poly_num_switches(perm0, perm1):
+	cost = 0
+	for i in range(len(perm0)):
+		if perm0[i] != perm1[i]:
+			cost += 1
+	return cost
+
+
 def compare_block(phasing0, phasing1):
-	"""Input are two strings over {0,1}. Output is a PhasingErrors object."""
+	""" Input are two lists of haplotype sequences over {0,1}. """
+	assert(len(phasing0) == len(phasing1))
+	ploidy = len(phasing0)
+
+	minimum_hamming_distance = float('inf')
+	# compute minimum hamming distance
+	for permutation in permutations(phasing0):
+		# compute sum of hamming distances
+		total_hamming = 0
+		for i in range(ploidy):
+			total_hamming += hamming(phasing1[i], permutation[i])
+		total_hamming /= float(ploidy)
+		minimum_hamming_distance = min(minimum_hamming_distance, total_hamming)
+
+	switches = float('inf')
+	switch_flips = SwitchFlips(float('inf'),float('inf'))
+	if ploidy == 2:
+		# conversion to int is allowed, as there should be fractional error counts for diploid comparisons
+		switches = int(hamming(switch_encoding(phasing0[0]), switch_encoding(phasing1[0])))
+		switch_flips = compute_switch_flips(phasing0[0], phasing1[0])
+		minimum_hamming_distance = int(minimum_hamming_distance)
+	else:
+		switch_flips = compute_switch_flips_poly(phasing0, phasing1)
+		
 	return PhasingErrors(
-		switches = hamming(switch_encoding(phasing0), switch_encoding(phasing1)),
-		hamming = min(hamming(phasing0, phasing1), hamming(phasing0, complement(phasing1))),
-		switch_flips = compute_switch_flips(phasing0, phasing1)
+		switches = switches,
+		hamming = minimum_hamming_distance,
+		switch_flips = switch_flips
 	)
 
 
@@ -227,7 +433,7 @@ def collect_common_variants(variant_tables: List[VariantTable], sample) -> Set[V
 	return common_variants
 
 
-def compare(variant_tables, sample: str, dataset_names):
+def compare(variant_tables, sample: str, dataset_names, ploidy):
 	"""
 	Return a PairwiseComparisonResults object if the variant_tables has a length of 2.
 	"""
@@ -292,12 +498,20 @@ def compare(variant_tables, sample: str, dataset_names):
 		for block in block_intersection.values():
 			if len(block) < 2:
 				continue
-			phasing0 = ''.join(str(phases[0][i].phase[0]) for i in block)
-			phasing1 = ''.join(str(phases[1][i].phase[0]) for i in block)
+			phasing0 = []
+			phasing1 = []
+			for j in range(ploidy):
+				p0 = ''.join(str(phases[0][i].phase[j]) for i in block)
+				p1 = ''.join(str(phases[1][i].phase[j]) for i in block)
+				phasing0.append(p0)
+				phasing1.append(p1)
 			block_positions = [sorted_variants[i].position for i in block]
 			errors = compare_block(phasing0, phasing1)
-			bed_records.extend(create_bed_records(
-				variant_tables[0].chromosome, phasing0, phasing1, block_positions, '{}<-->{}'.format(*dataset_names)))
+			
+			# TODO: extend to polyploid
+			if ploidy == 2:
+				bed_records.extend(create_bed_records(
+					variant_tables[0].chromosome, phasing0[0], phasing1[0], block_positions, '{}<-->{}'.format(*dataset_names)))
 			total_errors += errors
 			phased_pairs += len(block) - 1
 			total_compared_variants += len(block)
@@ -305,10 +519,12 @@ def compare(variant_tables, sample: str, dataset_names):
 				longest_block = len(block)
 				longest_block_errors = errors
 				longest_block_positions = block_positions
-				if hamming(phasing0, phasing1) < hamming(phasing0, complement(phasing1)):
-					longest_block_agreement = [1*(p0 == p1) for p0, p1 in zip(phasing0,phasing1)]
-				else:
-					longest_block_agreement = [1*(p0 != p1) for p0, p1 in zip(phasing0,phasing1)]
+				# TODO: extend to polyploid
+				if ploidy == 2:
+					if hamming(phasing0, phasing1) < hamming(phasing0[0], complement(phasing1[0])):
+						longest_block_agreement = [1*(p0 == p1) for p0, p1 in zip(phasing0[0],phasing1[0])]
+					else:
+						longest_block_agreement = [1*(p0 != p1) for p0, p1 in zip(phasing0[0],phasing1[0])]
 		longest_block_assessed_pairs = max(longest_block - 1, 0)
 		print_stat('ALL INTERSECTION BLOCKS', '-')
 		print_errors(total_errors, phased_pairs)
@@ -337,6 +553,7 @@ def compare(variant_tables, sample: str, dataset_names):
 			largestblock_hamming_rate = safefraction(longest_block_errors.hamming, longest_block)
 		), bed_records, block_stats, longest_block_positions, longest_block_agreement, None
 	else:
+		assert ploidy == 2
 		histogram = defaultdict(int)
 		total_compared = 0
 		for block in block_intersection.values():
@@ -424,8 +641,8 @@ def create_blocksize_histogram(filename, block_stats, names, use_weights=False):
 			pyplot.close()
 
 
-def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, plot_sum_of_blocksizes=None, longest_block_tsv=None):
-	vcf_readers = [VcfReader(f, indels=not only_snvs, phases=True) for f in vcf]
+def run_compare(vcf, ploidy, names=None, sample=None, tsv_pairwise=None, tsv_multiway=None, only_snvs=False, switch_error_bed=None, plot_blocksizes=None, plot_sum_of_blocksizes=None, longest_block_tsv=None):
+	vcf_readers = [VcfReader(f, indels=not only_snvs, phases=True, ploidy=ploidy) for f in vcf]
 	if names:
 		dataset_names = names.split(',')
 		if len(dataset_names) != len(vcf):
@@ -543,7 +760,7 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 				for j in range(i+1, len(vcfs)):
 					print('PAIRWISE COMPARISON: {} <--> {}:'.format(dataset_names[i],dataset_names[j]))
 					results, bed_records, block_stats, longest_block_positions, longest_block_agreement, multiway_results = compare(
-						[variant_tables[i], variant_tables[j]], sample, [dataset_names[i], dataset_names[j]])
+						[variant_tables[i], variant_tables[j]], sample, [dataset_names[i], dataset_names[j]], ploidy)
 					if len(vcfs) == 2:
 						add_block_stats(block_stats)
 					all_bed_records.extend(bed_records)
@@ -553,20 +770,23 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 						fields.extend([het_variants0, int(only_snvs)])
 						print(*fields, sep='\t', file=tsv_pairwise_file)
 					if longest_block_tsv_file:
+						assert(ploidy == 2)
 						assert len(longest_block_positions) == len(longest_block_agreement)
 						for position, phase_agreeing in zip(longest_block_positions, longest_block_agreement):
 							print(dataset_names[i], dataset_names[j], sample, chromosome, position, phase_agreeing, sep='\t', file=longest_block_tsv_file)
 
 			# if requested, write all switch errors found in the current chromosome to the bed file
 			if switch_error_bedfile:
+				assert(ploidy == 2)
 				all_bed_records.sort()
 				for record in all_bed_records:
 					print(*record, sep='\t', file=switch_error_bedfile)
 
 			if len(vcfs) > 2:
+				assert(ploidy == 2)
 				print('MULTIWAY COMPARISON OF ALL PHASINGS:')
 				results, bed_records, block_stats, longest_block_positions, longest_block_agreement, multiway_results = compare(
-					variant_tables, sample, dataset_names)
+					variant_tables, sample, dataset_names, ploidy)
 				add_block_stats(block_stats)
 				if tsv_multiway_file:
 					for (dataset_list0, dataset_list1), count in multiway_results.items():

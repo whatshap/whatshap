@@ -18,3 +18,4 @@ include doc/Makefile
 include tests/test*.py
 include src/hapchat/*.cpp
 include src/hapchat/*.h
+include src/polyphase/*.h

@@ -511,6 +511,19 @@ def compute_genotypes(ReadSet readset, positions = None):
 	return genotypes, gls
 
 
+def compute_polyploid_genotypes(ReadSet readset, ploidy, positions=None):
+	cdef vector[cpp.Genotype]* genotypes_vector = new vector[cpp.Genotype]()
+	cdef vector[unsigned int]* c_positions = NULL
+	if positions is not None:
+		c_positions = new vector[unsigned int]()
+		for pos in positions:
+			c_positions.push_back(pos)
+	cpp.compute_polyploid_genotypes(readset.thisptr[0], ploidy, genotypes_vector, c_positions)
+	genotypes = list([ gt.as_vector() for gt in genotypes_vector[0] ])
+	del genotypes_vector
+	return genotypes
+
+
 cdef class HapChatCore:
 	def __cinit__(self, ReadSet readset):
 		self.thisptr = new cpp.HapChatCore(readset.thisptr)
@@ -543,3 +556,4 @@ cdef class HapChatCore:
 
 
 include 'readselect.pyx'
+include 'polyphase_solver.pyx'
