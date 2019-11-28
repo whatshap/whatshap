@@ -680,6 +680,35 @@ def test_haplotag2():
 				assert true_ht == alignment.get_tag('HP')
 		assert ps_count > 0
 
+
+def test_haplotag_cli_parser():
+	"""
+	This test captures an error in the parser of the cli haplotag
+	module - a wrong default value of "[]" instead of "None" for the
+	"--regions" option leads to an empty output
+	:return:
+	"""
+	from whatshap.cli.haplotag import add_arguments as haplotag_add_arguments
+	import argparse as argp
+	with TemporaryDirectory() as tempdir:
+		outbam = tempdir + '/output.bam'
+		cli_string = '--output ' + outbam + ' tests/data/haplotag_2.vcf.gz tests/data/haplotag.bam'
+		parser = argp.ArgumentParser(description='haplotag_test_parser', prog='whatshap_pytest')
+		haplotag_add_arguments(parser)
+		haplotag_args = vars(parser.parse_args(cli_string.split()))
+		run_haplotag(**haplotag_args)
+		ps_count = 0
+		for alignment in pysam.AlignmentFile(outbam):
+			if alignment.has_tag('PS'):
+				ps_count += 1
+			if alignment.has_tag('HP'):
+				# simulated bam, we know from which haplotype each read originated (given in read name)
+				true_ht = int(alignment.query_name[-1])
+				assert true_ht == alignment.get_tag('HP')
+		assert ps_count > 0
+
+
+
 def test_haplotag_missing_SM_tag():
 	with TemporaryDirectory() as tempdir:
 		outbam1 = tempdir + '/output1.bam'
