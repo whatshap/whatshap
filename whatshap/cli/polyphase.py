@@ -18,11 +18,9 @@ import argparse
 
 from collections import defaultdict
 from copy import deepcopy
-from math import log
 from scipy.stats import binom_test
 from queue import Queue
 
-from xopen import xopen
 from contextlib import ExitStack
 
 from whatshap import __version__
@@ -31,6 +29,7 @@ from whatshap.core import Read, ReadSet, Variant, Genotype, ClusterEditingSolver
 from whatshap.matrixcorrection import correct_rare_alleles
 from whatshap.matrixtransformation import MatrixTransformation
 from whatshap.cli.phase import read_reads, select_reads, split_input_file_list, find_components
+from whatshap.polyphaseplots import draw_clustering, draw_threading, get_phase
 from whatshap.readscoring import score_global, score_local, SparseTriangleMatrix
 from whatshap.threading import run_threading, get_local_cluster_consensus_withfrac, get_position_map, get_pos_to_clusters_map, get_cluster_start_end_positions, get_coverage, get_coverage_absolute
 from whatshap.timer import StageTimer
@@ -136,8 +135,6 @@ def run_polyphase(
 			fasta = None
 		del reference
 		output_str = output
-		if isinstance(output, str):
-			output = stack.enter_context(xopen(output, 'w'))
 		if write_command_line_header:
 			command_line = '(whatshap {}) {}'.format(__version__, ' '.join(sys.argv[1:]))
 		else:
@@ -360,7 +357,6 @@ def run_polyphase(
 						compare = True
 						if compare:
 							try:
-								from whatshap.polyphaseplots import get_phase
 								truth = []
 								phase_vectors = get_phase(readset, phasable_variant_table)
 								assert len(phase_vectors) == ploidy
@@ -525,15 +521,11 @@ def run_polyphase(
 						for read in block_readset:
 							combined_readset.add(read)
 					if plot_clusters:
-						draw_clustering(combined_readset, clustering, phasable_variant_table, output_str+".clusters.pdf", genome_space = False)
+						draw_clustering(combined_readset, clustering, phasable_variant_table, output+".clusters.pdf", genome_space = False)
 					if plot_threading:
-						try:
-							from whatshap.polyphaseplots import draw_clustering, draw_threading
-							index, rev_index = get_position_map(combined_readset)
-							coverage = get_coverage(combined_readset, clustering, index)
-							draw_threading(combined_readset, clustering, coverage, threading, cut_positions, haplotypes, phasable_variant_table, genotype_list_multi, output_str+".threading.pdf")
-						except ImportError:
-							logger.error("Could not import plot function. You need matplotlib installed to use it")
+						index, rev_index = get_position_map(combined_readset)
+						coverage = get_coverage(combined_readset, clustering, index)
+						draw_threading(combined_readset, clustering, coverage, threading, cut_positions, haplotypes, phasable_variant_table, genotype_list_multi, output+".threading.pdf")
 				timers.stop('create_plots')
 
 			with timers('write_vcf'):

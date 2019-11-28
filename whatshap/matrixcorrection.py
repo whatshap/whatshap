@@ -3,6 +3,7 @@ from scipy.stats import binom_test
 from collections import defaultdict
 
 from .core import Read, ReadSet, Variant
+from whatshap.polyphaseplots import parse_haplotype, get_phase
 from .threading import get_position_map
 
 def correct_rare_alleles(readset, ploidy, max_dist = 10, alpha = 0.01, ground_truth_haplotypes = None):
@@ -100,16 +101,12 @@ def correct_rare_alleles(readset, ploidy, max_dist = 10, alpha = 0.01, ground_tr
 					
 					# Just for debugging and development!!!
 					if compare:
-						try:
-							from .polyphaseplots import parse_haplotype
-							true_hap = parse_haplotype(read.name)
-							var_pos = index[read[i].position]
-							new_allele = read[i].allele
-							correct_allele = int(ground_truth_haplotypes[true_hap][var_pos])
-							if correct_allele != new_allele:
-								false_corrections += 1
-						except ImportError:
-							logger.error('For evaluation in allele matrix correction, you need matplotlib installed.')
+						true_hap = parse_haplotype(read.name)
+						var_pos = index[read[i].position]
+						new_allele = read[i].allele
+						correct_allele = int(ground_truth_haplotypes[true_hap][var_pos])
+						if correct_allele != new_allele:
+							false_corrections += 1
 
 					corrections += 1
 					pairs = [(j,k) for (j,k) in pairs if j != i and k != i]
@@ -124,18 +121,14 @@ def correct_rare_alleles(readset, ploidy, max_dist = 10, alpha = 0.01, ground_tr
 		
 		# Just for debugging and development!!!
 		if compare:
-			try:
-				from .polyphaseplots import parse_haplotype
-				for i in range(len(read)):
-					true_hap = parse_haplotype(read.name)
-					var_pos = index[read[i].position]
-					old_allele = read[i].allele
-					correct_allele = int(ground_truth_haplotypes[true_hap][var_pos])
-					if correct_allele != old_allele:
-						false_alleles += 1
-					alleles += 1
-			except ImportError:
-				logger.error('For evaluation in allele matrix correction, you need matplotlib installed.')
+			for i in range(len(read)):
+				true_hap = parse_haplotype(read.name)
+				var_pos = index[read[i].position]
+				old_allele = read[i].allele
+				correct_allele = int(ground_truth_haplotypes[true_hap][var_pos])
+				if correct_allele != old_allele:
+					false_alleles += 1
+				alleles += 1
 
 	# Just for debugging and development!!!
 	if compare:

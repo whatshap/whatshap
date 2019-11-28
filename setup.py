@@ -154,6 +154,7 @@ else:
 		'pyfaidx>=0.5.5.2',
 		'networkx',
 		'biopython>=1.73',  # pyfaidx needs this for reading bgzipped FASTA files
+		'scipy',
 	]
 
 setup(
