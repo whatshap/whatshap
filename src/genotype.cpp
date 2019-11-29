@@ -1,4 +1,5 @@
 #include <sstream>
+#include <stdexcept>
 #include "genotype.h"
 #include "binomial.h"
 #include <iostream>
