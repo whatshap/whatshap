@@ -33,7 +33,7 @@ def add_arguments(parser):
 	arg('--reference', '-r', metavar='FASTA',
 		help='Reference file. Provide this to detect alleles through re-alignment. '
 			'If no index (.fai) exists, it will be created')
-	arg('--regions', dest='regions', metavar='REGION', default=[], action='append',
+	arg('--regions', dest='regions', metavar='REGION', default=None, action='append',
 		help='Specify region(s) of interest to limit the tagging to reads/variants '
 			 'overlapping those regions. You can specify a space-separated list of '
 			 'regions in the form of chrom:start-end, chrom (consider entire chromosome), '
