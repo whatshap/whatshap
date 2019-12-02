@@ -1,6 +1,5 @@
-from whatshap.core import ReadSet, DynamicSparseGraph, ClusterEditingSolver
-from whatshap.testhelpers import string_to_readset, brute_force_phase
-from whatshap.readscoring import score_global
+from whatshap.core import ReadSet, DynamicSparseGraph, ClusterEditingSolver, scoreReadsetGlobal, scoreReadsetLocal
+from whatshap.testhelpers import string_to_readset
 import itertools
 import math
 
@@ -28,7 +27,7 @@ def test_clusterediting1():
 	readset = string_to_readset(reads)
 
 	# compute similarities
-	similarities = score_global(readset, 4, 5)
+	similarities = scoreReadsetGlobal(readset, 5, 4)
 
 	# create read graph
 	n_reads = len(readset)
@@ -71,7 +70,7 @@ def test_clusterediting2():
 	readset = string_to_readset(reads)
 
 	# compute similarities
-	similarities = score_global(readset, 2, 5)
+	similarities = scoreReadsetGlobal(readset, 5, 2)
 	print(similarities)
 
 	# create read graph
@@ -113,7 +112,7 @@ def test_clusterediting3():
 	readset = string_to_readset(reads)
 	
 	# compute similarities
-	similarities = score_global(readset, 3, 5)
+	similarities = scoreReadsetGlobal(readset, 5, 3)
 
 	print(similarities)
 
@@ -140,7 +139,7 @@ def test_similarities1():
 	110101
 	"""
 	readset = string_to_readset(reads)
-	similarities = score_global(readset, 2, 4)
+	similarities = scoreReadsetGlobal(readset, 4, 2)
 	# computed similarity is 'nan'
 	print('computed similarities:', similarities)
 	assert(not math.isnan(similarities.get(0, 1)))
@@ -157,5 +156,5 @@ def test_similarities2():
 	10101
 	"""
 	readset = string_to_readset(reads)
-	similarities = score_global(readset, 4, 4)
+	similarities = scoreReadsetGlobal(readset, 4, 4)
 	print('computed similarities:', similarities)

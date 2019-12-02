@@ -3,8 +3,7 @@ Test Threading
 """
 
 from whatshap.threading import get_position_map, get_coverage, get_coverage_absolute, get_cluster_start_end_positions, compute_cut_positions, improve_path_on_multiswitches, compute_threading_path
-from whatshap.core import Read, ReadSet, Variant
-from whatshap.readscoring import SparseTriangleMatrix
+from whatshap.core import Read, ReadSet, Variant, TriangleSparseMatrix
 
 def create_testinstance1():
 	var_pos = [24, 56, 89, 113, 162, 166, 187, 205, 211, 248, 273, 299, 307, 324, 351, 370, 378, 400, 441, 455, 478, 492]
@@ -136,7 +135,7 @@ def test_cut_positions():
 	
 def test_multiswitch_improvement():
 	path = [[3,1,2,4], [3,1,2,4], [5,1,2,4], [5,1,2,4], [5,7,6,4], [5,7,6,4], [5,7,6,7], [5,7,6,4], [5,7,6,4], [8,9,10,4], [8,9,10,4]]
-	cluster_sim = SparseTriangleMatrix()
+	cluster_sim = TriangleSparseMatrix()
 	cluster_sim.set(1, 7, 0.6)
 	cluster_sim.set(1, 6, 0.7)
 	cluster_sim.set(2, 7, 0.8)
@@ -162,7 +161,7 @@ def test_path_no_affine():
 	readset, var_pos, clustering, genotypes = create_testinstance1()
 	ploidy = 3
 	
-	path = compute_threading_path(readset, clustering, ploidy, genotypes, False, affine_switch_cost = 0.0)
+	path = compute_threading_path(readset, clustering, ploidy, genotypes, affine_switch_cost = 0.0)
 	cluster_paths = ["".join([str(path[i][j]) for i in range(len(path))]) for j in range(3)]
 	
 	first_block = set([cluster_paths[0][:20], cluster_paths[1][:20], cluster_paths[2][:20]])
@@ -179,7 +178,7 @@ def test_path_with_affine():
 	readset, var_pos, clustering, genotypes = create_testinstance1()
 	ploidy = 3
 	
-	path = compute_threading_path(readset, clustering, ploidy, genotypes, False)
+	path = compute_threading_path(readset, clustering, ploidy, genotypes)
 	cluster_paths = ["".join([str(path[i][j]) for i in range(len(path))]) for j in range(3)]
 	
 	first_block = set([cluster_paths[0][:9], cluster_paths[1][:9], cluster_paths[2][:9]])

@@ -2,8 +2,7 @@
 Test ReadScoring
 """
 
-from whatshap.readscoring import score_global
-from whatshap.core import Read, ReadSet, Variant
+from whatshap.core import Read, ReadSet, Variant, scoreReadsetGlobal
 
 def test_readscoring_toy():
 	readset = ReadSet()
@@ -49,7 +48,7 @@ def test_readscoring_toy():
 	read7.add_variant(8, 0, 1)
 	read7.add_variant(9, 1, 1)
 	readset.add(read7)
-	sim = score_global(readset, 2, 2)
+	sim = scoreReadsetGlobal(readset, 2, 2)
 	
 	assert sim.get(0, 1) < 0.0
 	assert sim.get(0, 2) > 0.0

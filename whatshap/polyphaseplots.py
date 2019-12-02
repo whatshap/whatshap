@@ -4,7 +4,6 @@ from copy import deepcopy
 
 import logging
 from whatshap.core import Read, ReadSet
-from whatshap.readscoring import calc_overlap_and_diffs
 from whatshap.cli.compare import compute_switch_flips_poly_bt
 
 '''
@@ -48,6 +47,44 @@ def get_phase(readset, var_table):
 	except AttributeError as e:
 		return None
 	return [[row[i] for row in phase_rows] for i in range(len(phase_rows[0]))]
+
+
+def calc_overlap_and_diffs(readset):
+	num_reads = len(readset)
+	overlap = SparseTriangleMatrix()
+	diffs = SparseTriangleMatrix()
+	
+	# Copy information from readset into lists, because direct access is very slow
+	begins = [readset[i][0].position for i in range(num_reads)]
+	ends = [readset[i][-1].position for i in range(num_reads)]
+	positions = [[read[k].position for k in range(len(read))] for read in readset]
+	alleles = [[read[k].allele for k in range(len(read))] for read in readset]
+	
+	# Iterate over read pairs
+	for i in range(num_reads):
+		for j in range(i+1, num_reads):
+			# if reads do not overlap, leave overlap and differences at 0 and skip
+			if (ends[i] < begins[j] or ends[j] < begins[i]):
+				continue
+
+			# perform a zigzag search over the variants of both reads
+			ov = 0
+			di = 0
+			k, l = 0, 0
+			while (k < len(positions[i]) and l < len(positions[j])):
+				if (positions[i][k] == positions[j][l]):
+					ov += 1
+					if (alleles[i][k] != alleles[j][l]):
+						di += 1
+					k += 1
+					l += 1
+				elif (positions[i][k] < positions[j][l]):
+					k += 1
+				else:
+					l += 1
+			overlap.set(i, j, ov)
+			diffs.set(i, j, di)
+	return overlap, diffs
 
 
 def draw_plots_dissimilarity(readset, path, min_overlap = 5, steps = 100):

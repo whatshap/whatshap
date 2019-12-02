@@ -1,14 +1,14 @@
 import itertools as it
 import logging
 from collections import defaultdict
-from .core import clustering_DP, ReadSet, Read, HaploThreader
+from .core import ReadSet, Read, HaploThreader
 import random
 
 logger = logging.getLogger(__name__)
 
-def run_threading(readset, clustering, cluster_sim, ploidy, genotypes, block_cut_sensitivity, cython_threading):
+def run_threading(readset, clustering, cluster_sim, ploidy, genotypes, block_cut_sensitivity):
 	# compute threading through the clusters
-	path = compute_threading_path(readset, clustering, ploidy, genotypes, cython_threading)
+	path = compute_threading_path(readset, clustering, ploidy, genotypes)
 		
 	# determine cut positions
 	num_clusters = len(clustering)
@@ -42,7 +42,7 @@ def run_threading(readset, clustering, cluster_sim, ploidy, genotypes, block_cut
 		
 	return (cut_positions, path, haplotypes)
 
-def compute_threading_path(readset, clustering, ploidy, genotypes, cython_threading, switch_cost = 32.0, affine_switch_cost = 8.0):
+def compute_threading_path(readset, clustering, ploidy, genotypes, switch_cost = 32.0, affine_switch_cost = 8.0):
 	logger.debug("Computing cluster coverages and consensi ..")
 	
 	# Map genome positions to [0,l)
@@ -64,92 +64,49 @@ def compute_threading_path(readset, clustering, ploidy, genotypes, cython_thread
 	
 	logger.debug("Computing threading paths ..")
 
-	if cython_threading:
-		geno_map = defaultdict(list)
-		for pos in range(num_vars):
-			c_ids = sorted(cov_map[pos])
-			c_tuples = sorted(list(it.combinations_with_replacement(c_ids, ploidy)))
-			geno_tuples = [tup for tup in c_tuples if compute_tuple_genotype_dist(consensus,tup, pos, genotypes[pos]) == 0]
-			if (len(geno_tuples) == 0):
-				#TODO add option to use the next best genotypes if also the next list is empty
-				geno_tuples = [tup for tup in c_tuples if compute_tuple_genotype_dist(consensus,tup, pos, genotypes[pos]) == 1]
-				if (len(geno_tuples) == 0):
-					geno_tuples = c_tuples
-			geno_map[pos] = geno_tuples
-		
-		#perform the dynamic programming to fill the scoring matrix (in Cython to speed up computation)
-		scoring = clustering_DP(num_vars,clustering,coverage, positions, cov_map, ploidy, consensus, geno_map)
+	# arrange data
+	compressed_coverage = [] #rearrange the content of "coverage" in a position-wise way, such that the i-th coverage refers to the i-th cluster in cov_map
+	cov_map_as_list = []
+	compressed_consensus = [] #for every position, give a list of consensi, such that the i-th consensus refers to the i-th cluster in cov_map
+	for pos in range(num_vars):
+		coverage_list = []
+		consensus_list = []
+		for i in range(len(cov_map[pos])):
+			coverage_list.append(coverage[pos][cov_map[pos][i]])
+			consensus_list.append(consensus[pos][cov_map[pos][i]])
+		compressed_coverage.append(coverage_list)
+		cov_map_as_list.append(cov_map[pos])
+		compressed_consensus.append(consensus_list)
 
-		#start the backtracing
-		path = []	
-		#find the last column that contains a minimum other than INT_MAX (1000000, respectively) 
-		start_col = find_backtracing_start(scoring, num_vars)
-		#print("starting in column: ", start_col)
-		last_min_idx = min((val, idx) for (idx, val) in enumerate([i[0] for i in scoring[start_col]]))[1]
-		#print("DP Score = "+str(min((val, idx) for (idx, val) in enumerate([i[0] for i in scoring[start_col]]))[0]))
+	# compute cluster dissimilarity on consensus
+	coverage_abs = get_coverage_absolute(readset, clustering, index)
+	c_to_c_dissim = [[[0 for j in range(len(cov_map[p+1]))] for i in range(len(cov_map[p]))] for p in range(num_vars-1)]
 
-		#instead of using all tuples, compute only the tuples relevant for the position start_col
-		clusters_tuples = geno_map[start_col]
-		conf_clusters_tuples = list(it.chain.from_iterable(sorted(list(set(it.permutations(x)))) for x in clusters_tuples))
+	cluster_zeroes = [dict() for c_id in range(num_clusters)]
+	cluster_ones = [dict() for c_id in range(num_clusters)]
+	for pos in range(num_vars):
+		for c_id in consensus[pos]:
+			cluster_zeroes[c_id][pos] = coverage_abs[pos][c_id] * (1-consensus[pos][c_id])
+			cluster_ones[c_id][pos] = coverage_abs[pos][c_id] * consensus[pos][c_id]
 
-		path.append(conf_clusters_tuples[last_min_idx])
-		#append stored predecessor
-		for i in range(start_col,0,-1):
-			pred = scoring[i][last_min_idx][1]
-			#compute variants relevant for position pred
-			tups = geno_map[i-1]	
-			conf_tups = list(it.chain.from_iterable(sorted(list(set(it.permutations(x)))) for x in tups))
+	count = 0
+	for var in range(num_vars-1):
+		for i, c1 in enumerate(cov_map[var]):
+			for j, c2 in enumerate(cov_map[var+1]):
+				same = 0
+				diff = 0
+				for pos in range(max(0, var-10), min(num_vars-1, var+10)):
+					if pos in cluster_zeroes[c1] and pos in cluster_zeroes[c2]:
+						same += cluster_zeroes[c1][pos] * cluster_zeroes[c2][pos] + cluster_ones[c1][pos] * cluster_ones[c2][pos]
+						diff += cluster_zeroes[c1][pos] * cluster_ones[c2][pos] + cluster_ones[c1][pos] * cluster_zeroes[c2][pos]
+				c_to_c_dissim[var][i][j] = diff / (same+diff) if diff > 0 else 0
+				if c1 != c2:
+					count += 1
 
-			path.append(conf_tups[pred])
-			last_min_idx = pred
-		#path has been assembled from the last column and needs to be reversed
-		path.reverse()
-		assert(len(path) == start_col+1)
-
-	else:
-		# arrange data
-		compressed_coverage = [] #rearrange the content of "coverage" in a position-wise way, such that the i-th coverage refers to the i-th cluster in cov_map
-		cov_map_as_list = []
-		compressed_consensus = [] #for every position, give a list of consensi, such that the i-th consensus refers to the i-th cluster in cov_map
-		for pos in range(num_vars):
-			coverage_list = []
-			consensus_list = []
-			for i in range(len(cov_map[pos])):
-				coverage_list.append(coverage[pos][cov_map[pos][i]])
-				consensus_list.append(consensus[pos][cov_map[pos][i]])
-			compressed_coverage.append(coverage_list)
-			cov_map_as_list.append(cov_map[pos])
-			compressed_consensus.append(consensus_list)
-			
-		# compute cluster dissimilarity on consensus
-		coverage_abs = get_coverage_absolute(readset, clustering, index)
-		c_to_c_dissim = [[[0 for j in range(len(cov_map[p+1]))] for i in range(len(cov_map[p]))] for p in range(num_vars-1)]
-		
-		cluster_zeroes = [dict() for c_id in range(num_clusters)]
-		cluster_ones = [dict() for c_id in range(num_clusters)]
-		for pos in range(num_vars):
-			for c_id in consensus[pos]:
-				cluster_zeroes[c_id][pos] = coverage_abs[pos][c_id] * (1-consensus[pos][c_id])
-				cluster_ones[c_id][pos] = coverage_abs[pos][c_id] * consensus[pos][c_id]
-				
-		count = 0
-		for var in range(num_vars-1):
-			for i, c1 in enumerate(cov_map[var]):
-				for j, c2 in enumerate(cov_map[var+1]):
-					same = 0
-					diff = 0
-					for pos in range(max(0, var-10), min(num_vars-1, var+10)):
-						if pos in cluster_zeroes[c1] and pos in cluster_zeroes[c2]:
-							same += cluster_zeroes[c1][pos] * cluster_zeroes[c2][pos] + cluster_ones[c1][pos] * cluster_ones[c2][pos]
-							diff += cluster_zeroes[c1][pos] * cluster_ones[c2][pos] + cluster_ones[c1][pos] * cluster_zeroes[c2][pos]
-					c_to_c_dissim[var][i][j] = diff / (same+diff) if diff > 0 else 0
-					if c1 != c2:
-						count += 1
-			
-		# run threader
-		threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, True, 0)
-		path = threader.computePathsBlockwise([0], cov_map_as_list, compressed_coverage, compressed_consensus, genotypes, c_to_c_dissim)
-		assert(len(path) == num_vars)
+	# run threader
+	threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, True, 0)
+	path = threader.computePathsBlockwise([0], cov_map_as_list, compressed_coverage, compressed_consensus, genotypes, c_to_c_dissim)
+	assert(len(path) == num_vars)
 		
 	return path
 

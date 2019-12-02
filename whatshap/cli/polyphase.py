@@ -25,12 +25,10 @@ from contextlib import ExitStack
 
 from whatshap import __version__
 from whatshap.bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
-from whatshap.core import Read, ReadSet, Variant, Genotype, ClusterEditingSolver, DynamicSparseGraph, readselection, NumericSampleIds, compute_polyploid_genotypes
+from whatshap.core import Read, ReadSet, Variant, Genotype, ClusterEditingSolver, DynamicSparseGraph, TriangleSparseMatrix, readselection, NumericSampleIds, compute_polyploid_genotypes, scoreReadsetGlobal, scoreReadsetLocal
 from whatshap.matrixcorrection import correct_rare_alleles
-from whatshap.matrixtransformation import MatrixTransformation
 from whatshap.cli.phase import read_reads, select_reads, split_input_file_list, find_components
 from whatshap.polyphaseplots import draw_clustering, draw_threading, get_phase
-from whatshap.readscoring import score_global, score_local, SparseTriangleMatrix
 from whatshap.threading import run_threading, get_local_cluster_consensus_withfrac, get_position_map, get_pos_to_clusters_map, get_cluster_start_end_positions, get_coverage, get_coverage_absolute
 from whatshap.timer import StageTimer
 from whatshap.utils import IndexedFasta, FastaNotIndexedError
@@ -75,7 +73,6 @@ def run_polyphase(
 	ce_bundle_edges = False,
 	ce_score_global = False,
 	min_overlap = 2,
-	transform = False,
 	plot_clusters = False,
 	plot_threading = False,
 	cython_threading = False,
@@ -368,27 +365,20 @@ def run_polyphase(
 
 						timers.stop('correct_alleles')
 
-					# Transform allele matrix, if option selected
-					timers.start('transform_matrix')
-					if transform:
-						logger.debug("Transforming allele matrix ..")
-						transformation = MatrixTransformation(block_readset, find_components(block_readset.get_positions(), block_readset), ploidy, min_overlap)
-						block_readset = transformation.get_transformed_matrix()
-						cluster_counts = transformation.get_cluster_counts()
-					timers.stop('transform_matrix')
-
 					# Compute similarity values for all read pairs
 					timers.start('solve_clusterediting')
 					logger.debug("Computing similarities for read pairs ...")
 					if ce_score_global:
-						similarities = score_global(block_readset, ploidy, min_overlap)
+						#similarities = score_global(block_readset, ploidy, min_overlap)
+						similarities = scoreReadsetGlobal(block_readset, min_overlap, ploidy)
 					else:
 						ref_haps = []
 						if reference_haps:
 							phase_vectors = get_phase(readset, phasable_variant_table)
 							for i in range(ploidy):
 								ref_haps.append([int(x) for x in phase_vectors[i][ext_block_starts[block_id]:ext_block_starts[block_id+1]]])
-						similarities = score_local(block_readset, ploidy, min_overlap, ref_haps)
+						#similarities = score_local(block_readset, ploidy, min_overlap, ref_haps)
+						similarities = scoreReadsetLocal(block_readset, min_overlap, ploidy, ref_haps)
 						#return
 
 					# Create read graph object
@@ -433,7 +423,7 @@ def run_polyphase(
 						for r in clustering[c]:
 							read_to_cluster[r] = c
 							
-					cluster_sim = SparseTriangleMatrix()
+					cluster_sim = TriangleSparseMatrix()
 					for (read1, read2) in similarities:
 						c1 = read_to_cluster[read1]
 						c2 = read_to_cluster[read2]
@@ -451,7 +441,7 @@ def run_polyphase(
 
 					# Add dynamic programming for finding the most likely subset of clusters
 					genotype_slice = genotype_list_multi[ext_block_starts[block_id]:ext_block_starts[block_id+1]]
-					cut_positions, path, haplotypes = run_threading(block_readset, clustering, cluster_sim, ploidy, genotype_slice, block_cut_sensitivity, cython_threading)
+					cut_positions, path, haplotypes = run_threading(block_readset, clustering, cluster_sim, ploidy, genotype_slice, block_cut_sensitivity)
 					timers.stop('threading')
 
 					# collect results from threading
@@ -551,8 +541,6 @@ def run_polyphase(
 	logger.info('Time spent detecting blocks:                 %6.1f s', timers.elapsed('detecting_blocks'))
 	if correct_alleles:
 		logger.info('Time spent correcting alleles:               %6.1f s', timers.elapsed('correct_alleles'))
-	if transform:
-		logger.info('Time spent transforming allele matrix:       %6.1f s', timers.elapsed('transform_matrix'))
 	logger.info('Time spent solving cluster editing:          %6.1f s', timers.elapsed('solve_clusterediting'))
 	logger.info('Time spent threading haplotypes:             %6.1f s', timers.elapsed('threading'))
 	if plot_clusters or plot_threading:
@@ -732,14 +720,10 @@ def add_arguments(parser):
 		help=argparse.SUPPRESS) # help='Reads are scored with respect to their location inside the chromosome. (default: %(default)s).')
 	arg('--ce-bundle-edges', dest='ce_bundle_edges', default=False, action='store_true',
 		help=argparse.SUPPRESS) # help='Influences the cluster editing heuristic. Only for debug/developing purpose (default: %(default)s).')
-	arg('--transform', dest='transform', default=False, action='store_true',
-		help=argparse.SUPPRESS) # help='Use transformed matrix for read similarity scoring (default: %(default)s).')
 	arg('--plot-clusters', dest='plot_clusters', default=False, action='store_true',
 		help=argparse.SUPPRESS) # help='Plot a super heatmap for the computed clustering (default: %(default)s).')
 	arg('--plot-threading', dest='plot_threading', default=False, action='store_true',
 		help=argparse.SUPPRESS) # help='Plot the haplotypes\' threading through the read clusters (default: %(default)s).')
-	arg('--cython-threading', dest='cython_threading', default=False, action='store_true',
-		help=argparse.SUPPRESS) # help='Uses the Cython implementation to perform the haplotype threading instead of C++.')
 	arg('--correct-alleles', dest='correct_alleles', default=False, action='store_true',
 		help=argparse.SUPPRESS) # help='Corrects alleles in allele pairs, which have very low support.')
 	arg('--reference-haps', dest='reference_haps', default=False, action='store_true',
