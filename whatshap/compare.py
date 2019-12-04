@@ -163,10 +163,14 @@ def compute_vector_errors_poly(phasing0, phasing1, matching_pos):
 	assert all(len(phasing0[i]) == len(phasing0[0]) for i in range(1, len(phasing0)))
 	num_vars = len(phasing0[0])
 	
-	phasing0_matched = [[hap[i] for i in matching_pos] for hap in phasing0]
-	phasing1_matched = [[hap[i] for i in matching_pos] for hap in phasing1]
+	phasing0_matched = ["".join([hap[i] for i in matching_pos]) for hap in phasing0]
+	phasing1_matched = ["".join([hap[i] for i in matching_pos]) for hap in phasing1]
 	
-	vector_error = compute_switch_flips_poly(phasing0_matched, phasing1_matched, switch_cost = 1, flip_cost = 2*num_vars*len(phasing0)+1)#float("inf"))
+	print("phasing0={}".format(phasing0))
+	print("phasing1={}".format(phasing1))
+	print("phasing0m={}".format(phasing0_matched))
+	print("phasing1m={}".format(phasing1_matched))
+	vector_error = compute_switch_flips_poly(phasing0_matched, phasing1_matched, switch_cost = 1, flip_cost = 2*num_vars*len(phasing0)+1)
 	assert vector_error.flips == 0
 	
 	return vector_error.switches
@@ -187,10 +191,10 @@ def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = Fa
 	
 	num_pos = len(phasing0[0])
 	if (num_pos == 0):
-		return 0
+		return SwitchFlips(0.0, 0.0), None, None, None
 	ploidy = len(phasing0)
 	if (ploidy == 0):
-		return 0
+		return SwitchFlips(0.0, 0.0), None, None, None
 	for i in range(0, len(phasing1)):
 		if len(phasing1[i]) != num_pos:
 			print("Inconsistent input for phasing. Haplotypes have different lengths ( len(phasing1[0]="+str(num_pos)+" != len(phasing1["+str(i)+"]="+str(len(phasing1[i]))+".")
@@ -572,8 +576,8 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
 		print_errors(total_errors, phased_pairs)
 		print_stat('Block-wise Hamming distance', total_errors.hamming)
 		print_stat('Block-wise Hamming distance [%]', fraction2percentstr(total_errors.hamming, total_compared_variants))
-		print_stat('Different genotypes', errors.diff_genotypes)
-		print_stat('Different genotype rate', fraction2percentstr(errors.diff_genotypes, total_compared_variants))
+		print_stat('Different genotypes', total_errors.diff_genotypes)
+		print_stat('Different genotype rate', fraction2percentstr(total_errors.diff_genotypes, total_compared_variants))
 		print_stat('LARGEST INTERSECTION BLOCK', '-')
 		print_errors(longest_block_errors, longest_block_assessed_pairs)
 		print_stat('Hamming distance', longest_block_errors.hamming)

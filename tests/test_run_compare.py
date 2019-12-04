@@ -73,20 +73,20 @@ def test_compare_polyploid1():
 
 		assert entry_chr21.chromosome == 'chr21'
 		assert entry_chr21.all_assessed_pairs == '1'
-		assert entry_chr21.all_switches == 'inf'
+		assert entry_chr21.all_switches == '0.0'
 		#assert entry_chr21.all_switchflips == 'inf/inf'
 		assert entry_chr21.blockwise_hamming == '0.0'	
 		assert entry_chr21.largestblock_assessed_pairs == '1'
-		assert entry_chr21.largestblock_switches == 'inf'
+		assert entry_chr21.largestblock_switches == '0.0'
 		assert entry_chr21.largestblock_hamming == '0.0'
 
 		assert entry_chr22.chromosome == 'chr22'
 		assert entry_chr22.all_assessed_pairs == '6'
-		assert entry_chr22.all_switches == 'inf'
+		assert entry_chr22.all_switches == '1.0'
 		#assert entry_chr22.all_switchflips == 'inf/inf'
 		assert entry_chr22.blockwise_hamming == '0.5'
 		assert entry_chr22.largestblock_assessed_pairs == '5'
-		assert entry_chr22.largestblock_switches == 'inf'
+		assert entry_chr22.largestblock_switches == '1.0'
 		assert entry_chr22.largestblock_hamming == '0.5'
 
 def test_compare_polyploid2():
@@ -100,20 +100,20 @@ def test_compare_polyploid2():
 
 		assert entry_chr21.chromosome == 'chr21'
 		assert entry_chr21.all_assessed_pairs == '3'
-		assert entry_chr21.all_switches == 'inf'
+		assert entry_chr21.all_switches == '0.5'
 		#assert entry_chr21.all_switchflips == 'inf/inf'
 		assert entry_chr21.blockwise_hamming == '0.5'
 		assert entry_chr21.largestblock_assessed_pairs == '3'
-		assert entry_chr21.largestblock_switches == 'inf'
+		assert entry_chr21.largestblock_switches == '0.5'
 		assert entry_chr21.largestblock_hamming == '0.5'
 
 		assert entry_chr22.chromosome == 'chr22'
 		assert entry_chr22.all_assessed_pairs == '5'
-		assert entry_chr22.all_switches == 'inf'
+		assert entry_chr22.all_switches == '1.0'
 		#assert entry_chr22.all_switchflips == 'inf/inf'
 		assert entry_chr22.blockwise_hamming == '1.0'
 		assert entry_chr22.largestblock_assessed_pairs == '3'
-		assert entry_chr22.largestblock_switches == 'inf'
+		assert entry_chr22.largestblock_switches == '0.5'
 		assert entry_chr22.largestblock_hamming == '0.5'
 
 def test_compare_polyploid3():
@@ -126,20 +126,20 @@ def test_compare_polyploid3():
 		entry_chr21, entry_chr22 = [Fields(*l) for l in lines[1:]]
 		assert entry_chr21.chromosome == 'chr21'
 		assert entry_chr21.all_assessed_pairs == '2'
-		assert entry_chr21.all_switches == 'inf'
+		assert entry_chr21.all_switches == '0.0'
 		assert entry_chr21.all_switchflips == '0.0/0.0'
 		assert entry_chr21.blockwise_hamming == '0.0'
 		assert entry_chr21.largestblock_assessed_pairs == '2'
-		assert entry_chr21.largestblock_switches == 'inf'
+		assert entry_chr21.largestblock_switches == '0.0'
 		assert entry_chr21.largestblock_hamming == '0.0'
 
 		assert entry_chr22.chromosome == 'chr22'
 		assert entry_chr22.all_assessed_pairs == '6'
-		assert entry_chr22.all_switches == 'inf'
+		assert entry_chr22.all_switches == '0.0'
 		assert entry_chr22.all_switchflips == '0.0/0.0'
 		assert entry_chr22.blockwise_hamming == '0.0'
 		assert entry_chr22.largestblock_assessed_pairs == '4'
-		assert entry_chr22.largestblock_switches == 'inf'
+		assert entry_chr22.largestblock_switches == '0.0'
 		assert entry_chr22.largestblock_hamming == '0.0'
 
 def test_compare_only_snvs():
