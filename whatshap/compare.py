@@ -10,6 +10,7 @@ from contextlib import ExitStack
 from itertools import chain, permutations
 from typing import Set, Iterable, List
 
+from whatshap.core import Genotype
 from whatshap.vcf import VcfReader, VcfVariant, VariantTable
 
 logger = logging.getLogger(__name__)
@@ -70,19 +71,21 @@ class SwitchFlips:
 
 
 class PhasingErrors:
-	def __init__(self, switches=0, hamming=0, switch_flips=None):
+	def __init__(self, switches=0, hamming=0, switch_flips=None, diff_genotypes=0):
 		self.switches = switches
 		self.hamming = hamming
 		self.switch_flips = SwitchFlips() if switch_flips is None else switch_flips
+		self.diff_genotypes = diff_genotypes
 
 	def __iadd__(self, other):
 		self.switches += other.switches
 		self.hamming += other.hamming
 		self.switch_flips += other.switch_flips
+		self.diff_genotypes += other.diff_genotypes
 		return self
 
 	def __repr__(self):
-		return 'PhasingErrors(switches={}, hamming={}, switch_flips={})'.format(self.switches, self.hamming, self.switch_flips)
+		return 'PhasingErrors(switches={}, hamming={}, switch_flips={}, diff_genotypes={})'.format(self.switches, self.hamming, self.switch_flips, diff_genotypes)
 
 
 def complement(s):
@@ -135,7 +138,44 @@ def compute_switch_flips(phasing0, phasing1):
 		print('   switches={}, flips={}'.format(result.switches, result.flips))
 	return result
 
+def compute_matching_genotype_pos(phasing0, phasing1):
+	'''
+	Computes the positions on which both phasings agree on the genotype.
+	'''
+	assert len(phasing0) == len(phasing1)
+	assert len(phasing0) >= 2
+	assert len(phasing0[0]) == len(phasing1[0])
+	assert all(len(phasing0[i]) == len(phasing0[0]) for i in range(1, len(phasing0)))
+	num_vars = len(phasing0[0])
+	matching_pos = [i for i in range(num_vars) if Genotype([int(hap[i]) for hap in phasing0]) == Genotype([int(hap[i]) for hap in phasing1])]
+	
+	return matching_pos
+
+def compute_vector_errors_poly(phasing0, phasing1, matching_pos):
+	'''
+	Computes the number of necessary switches to transform phasing 0 into phasing 1 or vice versa.
+	Positions with non-matching genotypes are omitted and the rate non-matching positions is
+	returned as well.
+	'''
+	assert len(phasing0) == len(phasing1)
+	assert len(phasing0) >= 2
+	assert len(phasing0[0]) == len(phasing1[0])
+	assert all(len(phasing0[i]) == len(phasing0[0]) for i in range(1, len(phasing0)))
+	num_vars = len(phasing0[0])
+	
+	phasing0_matched = [[hap[i] for i in matching_pos] for hap in phasing0]
+	phasing1_matched = [[hap[i] for i in matching_pos] for hap in phasing1]
+	
+	vector_error = compute_switch_flips_poly(phasing0_matched, phasing1_matched, switch_cost = 1, flip_cost = 2*num_vars*len(phasing0)+1)#float("inf"))
+	assert vector_error.flips == 0
+	
+	return vector_error.switches
+
 def compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 1):
+	'''
+	Computes the combined number of switches and flips, which are needed to transform phasing 0 into
+	phasing 1 or vice versa.
+	'''
 	result, switches_in_column, flips_in_column, poswise_config = compute_switch_flips_poly_bt(phasing0, phasing1, switch_cost = switch_cost, flip_cost = flip_cost)
 	return result
 
@@ -311,8 +351,10 @@ def poly_num_switches(perm0, perm1):
 
 def compare_block(phasing0, phasing1):
 	""" Input are two lists of haplotype sequences over {0,1}. """
-	assert(len(phasing0) == len(phasing1))
+	assert len(phasing0) == len(phasing1)
+	assert len(phasing0) > 0
 	ploidy = len(phasing0)
+	num_vars = len(phasing0[0])
 
 	minimum_hamming_distance = float('inf')
 	# compute minimum hamming distance
@@ -327,16 +369,19 @@ def compare_block(phasing0, phasing1):
 	# TODO: extend switch/flip errors to polyploid genomes
 	switches = float('inf')
 	switch_flips = SwitchFlips(float('inf'),float('inf'))
+	matching_pos = compute_matching_genotype_pos(phasing0, phasing1)
 	if ploidy == 2:
 		switches = hamming(switch_encoding(phasing0[0]), switch_encoding(phasing1[0]))
 		switch_flips = compute_switch_flips(phasing0[0], phasing1[0])
 	else:
+		switches = compute_vector_errors_poly(phasing0, phasing1, matching_pos)
 		switch_flips = compute_switch_flips_poly(phasing0, phasing1)
 
 	return PhasingErrors(
 		switches = switches,
 		hamming = minimum_hamming_distance,
-		switch_flips = switch_flips
+		switch_flips = switch_flips,
+		diff_genotypes = num_vars - len(matching_pos)
 	)
 
 
@@ -527,6 +572,8 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
 		print_errors(total_errors, phased_pairs)
 		print_stat('Block-wise Hamming distance', total_errors.hamming)
 		print_stat('Block-wise Hamming distance [%]', fraction2percentstr(total_errors.hamming, total_compared_variants))
+		print_stat('Different genotypes', errors.diff_genotypes)
+		print_stat('Different genotype rate', fraction2percentstr(errors.diff_genotypes, total_compared_variants))
 		print_stat('LARGEST INTERSECTION BLOCK', '-')
 		print_errors(longest_block_errors, longest_block_assessed_pairs)
 		print_stat('Hamming distance', longest_block_errors.hamming)
