@@ -71,21 +71,24 @@ class SwitchFlips:
 
 
 class PhasingErrors:
-	def __init__(self, switches=0, hamming=0, switch_flips=None, diff_genotypes=0):
+	def __init__(self, switches=0, hamming=0, switch_flips=None, diff_genotypes=0, pair_mismatches=0):
 		self.switches = switches
 		self.hamming = hamming
 		self.switch_flips = SwitchFlips() if switch_flips is None else switch_flips
 		self.diff_genotypes = diff_genotypes
+		self.pair_mismatches = pair_mismatches
 
 	def __iadd__(self, other):
 		self.switches += other.switches
 		self.hamming += other.hamming
 		self.switch_flips += other.switch_flips
 		self.diff_genotypes += other.diff_genotypes
+		self.pair_mismatches += other.pair_mismatches
 		return self
 
 	def __repr__(self):
-		return 'PhasingErrors(switches={}, hamming={}, switch_flips={}, diff_genotypes={})'.format(self.switches, self.hamming, self.switch_flips, diff_genotypes)
+		return 'PhasingErrors(switches={}, hamming={}, switch_flips={}, diff_genotypes={}, pair_mismatches={})'.format(
+			self.switches, self.hamming, self.switch_flips, self.diff_genotypes, self.pair_mismatches)
 
 
 def complement(s):
@@ -114,7 +117,7 @@ def switch_encoding(phasing):
 	assert isinstance(phasing, str)
 	return ''.join(('0' if phasing[i-1] == phasing[i] else '1') for i in range(1, len(phasing)))
 
-# TODO extend to polyplid case
+
 def compute_switch_flips(phasing0, phasing1):
 	assert len(phasing0) == len(phasing1)
 	s0 = switch_encoding(phasing0)
@@ -138,6 +141,7 @@ def compute_switch_flips(phasing0, phasing1):
 		print('   switches={}, flips={}'.format(result.switches, result.flips))
 	return result
 
+
 def compute_matching_genotype_pos(phasing0, phasing1):
 	'''
 	Computes the positions on which both phasings agree on the genotype.
@@ -151,11 +155,27 @@ def compute_matching_genotype_pos(phasing0, phasing1):
 	
 	return matching_pos
 
-def compute_vector_errors_poly(phasing0, phasing1, matching_pos):
+
+def only_matching_genotypes(phasing0, phasing1, matching_pos=None):
+	assert len(phasing0) == len(phasing1)
+	assert len(phasing0) >= 2
+	assert len(phasing0[0]) == len(phasing1[0])
+	assert all(len(phasing0[i]) == len(phasing0[0]) for i in range(1, len(phasing0)))
+	num_vars = len(phasing0[0])
+	
+	if matching_pos is None:
+		matching_pos = compute_matching_genotype_pos(phasing0, phasing1)
+	
+	phasing0_matched = ["".join([hap[i] for i in matching_pos]) for hap in phasing0]
+	phasing1_matched = ["".join([hap[i] for i in matching_pos]) for hap in phasing1]
+	
+	return phasing0_matched, phasing1_matched
+
+
+def compute_vector_errors_poly(phasing0, phasing1):
 	'''
 	Computes the number of necessary switches to transform phasing 0 into phasing 1 or vice versa.
-	Positions with non-matching genotypes are omitted and the rate non-matching positions is
-	returned as well.
+	The phasings are required to have the same genotype on each position.
 	'''
 	assert len(phasing0) == len(phasing1)
 	assert len(phasing0) >= 2
@@ -163,17 +183,11 @@ def compute_vector_errors_poly(phasing0, phasing1, matching_pos):
 	assert all(len(phasing0[i]) == len(phasing0[0]) for i in range(1, len(phasing0)))
 	num_vars = len(phasing0[0])
 	
-	phasing0_matched = ["".join([hap[i] for i in matching_pos]) for hap in phasing0]
-	phasing1_matched = ["".join([hap[i] for i in matching_pos]) for hap in phasing1]
-	
-	print("phasing0={}".format(phasing0))
-	print("phasing1={}".format(phasing1))
-	print("phasing0m={}".format(phasing0_matched))
-	print("phasing1m={}".format(phasing1_matched))
-	vector_error = compute_switch_flips_poly(phasing0_matched, phasing1_matched, switch_cost = 1, flip_cost = 2*num_vars*len(phasing0)+1)
+	vector_error = compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 2*num_vars*len(phasing0)+1)
 	assert vector_error.flips == 0
 	
 	return vector_error.switches
+
 
 def compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 1):
 	'''
@@ -182,6 +196,7 @@ def compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 1
 	'''
 	result, switches_in_column, flips_in_column, poswise_config = compute_switch_flips_poly_bt(phasing0, phasing1, switch_cost = switch_cost, flip_cost = flip_cost)
 	return result
+
 
 def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = False, switch_cost = 1, flip_cost = 1):
 	# Check input
@@ -345,12 +360,34 @@ def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = Fa
 	result.flips = result.flips / ploidy
 	return result, switches_in_column, flips_in_column, positionwise_config
 
+
 def poly_num_switches(perm0, perm1):
 	cost = 0
 	for i in range(len(perm0)):
 		if perm0[i] != perm1[i]:
 			cost += 1
 	return cost
+
+
+def compute_position_pair_mismatches(phasing0, phasing1):
+	'''
+	Counts the number of position pairs, where the two phasings do no match
+	'''
+	num_vars = len(phasing0[0])
+	num_mismatches = 0
+	for i in range(num_vars):
+		for j in range(i+1, num_vars):
+			# could be much shorter with MultiSet
+			p0 = defaultdict(int)
+			p1 = defaultdict(int)
+			for pair in [(hap[i], hap[j]) for hap in phasing0]:
+				p0[pair] += 1
+			for pair in [(hap[i], hap[j]) for hap in phasing1]:
+				p1[pair] += 1
+			if p0 != p1:
+				num_mismatches += 1
+				
+	return num_mismatches
 
 
 def compare_block(phasing0, phasing1):
@@ -370,22 +407,26 @@ def compare_block(phasing0, phasing1):
 		total_hamming /= float(ploidy)
 		minimum_hamming_distance = min(minimum_hamming_distance, total_hamming)
 
-	# TODO: extend switch/flip errors to polyploid genomes
+	matching_pos = compute_matching_genotype_pos(phasing0, phasing1)
+	phasing0_m, phasing1_m = only_matching_genotypes(phasing0, phasing1, matching_pos)
+	
 	switches = float('inf')
 	switch_flips = SwitchFlips(float('inf'),float('inf'))
-	matching_pos = compute_matching_genotype_pos(phasing0, phasing1)
+	pair_mismatches = compute_position_pair_mismatches(phasing0, phasing1)
+	
 	if ploidy == 2:
 		switches = hamming(switch_encoding(phasing0[0]), switch_encoding(phasing1[0]))
 		switch_flips = compute_switch_flips(phasing0[0], phasing1[0])
 	else:
-		switches = compute_vector_errors_poly(phasing0, phasing1, matching_pos)
+		switches = compute_vector_errors_poly(phasing0_m, phasing1_m)
 		switch_flips = compute_switch_flips_poly(phasing0, phasing1)
 
 	return PhasingErrors(
 		switches = switches,
 		hamming = minimum_hamming_distance,
 		switch_flips = switch_flips,
-		diff_genotypes = num_vars - len(matching_pos)
+		diff_genotypes = num_vars - len(matching_pos),
+		pair_mismatches = pair_mismatches
 	)
 
 
@@ -454,15 +495,24 @@ pairwise_comparison_results_fields = [
 	'all_switchflip_rate',
 	'blockwise_hamming',
 	'blockwise_hamming_rate',
+	'blockwise_pair_mismatches',
+	'blockwise_pair_mismatches_rate',
+	'blockwise_diff_genotypes',
+	'blockwise_diff_genotypes_rate',
 	'largestblock_assessed_pairs',
 	'largestblock_switches',
 	'largestblock_switch_rate',
 	'largestblock_switchflips',
 	'largestblock_switchflip_rate',
 	'largestblock_hamming',
-	'largestblock_hamming_rate'
+	'largestblock_hamming_rate',
+	'largestblock_pair_mismatches',
+	'largestblock_pair_mismatches_rate',
+	'largestblock_diff_genotypes',
+	'largestblock_diff_genotypes_rate',
 ]
 PairwiseComparisonResults = namedtuple('PairwiseComparisonResults', pairwise_comparison_results_fields)
+
 
 BlockStats = namedtuple('BlockStats', ['variant_count', 'span'])
 
@@ -576,12 +626,18 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
 		print_errors(total_errors, phased_pairs)
 		print_stat('Block-wise Hamming distance', total_errors.hamming)
 		print_stat('Block-wise Hamming distance [%]', fraction2percentstr(total_errors.hamming, total_compared_variants))
+		print_stat('Block-wise pos. pair mismatches', total_errors.pair_mismatches)
+		print_stat('Block-wise pos. pair mismatches [%]', fraction2percentstr(total_errors.pair_mismatches, total_compared_variants*(total_compared_variants-1)/2))
 		print_stat('Different genotypes', total_errors.diff_genotypes)
-		print_stat('Different genotype rate', fraction2percentstr(total_errors.diff_genotypes, total_compared_variants))
+		print_stat('Different genotypes [%]', fraction2percentstr(total_errors.diff_genotypes, total_compared_variants))
 		print_stat('LARGEST INTERSECTION BLOCK', '-')
 		print_errors(longest_block_errors, longest_block_assessed_pairs)
 		print_stat('Hamming distance', longest_block_errors.hamming)
 		print_stat('Hamming distance [%]', fraction2percentstr(longest_block_errors.hamming, longest_block))
+		print_stat('Pos. pair mismatches', longest_block_errors.pair_mismatches)
+		print_stat('Pos. pair mismatches [%]', fraction2percentstr(longest_block_errors.pair_mismatches, longest_block*(longest_block-1)/2))
+		print_stat('Different genotypes', longest_block_errors.diff_genotypes)
+		print_stat('Different genotypes [%]', fraction2percentstr(longest_block_errors.diff_genotypes, longest_block))
 		return PairwiseComparisonResults(
 			intersection_blocks = intersection_block_count,
 			covered_variants = intersection_block_variants,
@@ -592,13 +648,21 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
 			all_switchflip_rate = safefraction(total_errors.switch_flips.switches+total_errors.switch_flips.flips, phased_pairs),
 			blockwise_hamming = total_errors.hamming,
 			blockwise_hamming_rate = safefraction(total_errors.hamming, total_compared_variants),
+			blockwise_pair_mismatches = total_errors.pair_mismatches,
+			blockwise_pair_mismatches_rate = safefraction(total_errors.pair_mismatches, total_compared_variants*(total_compared_variants-1)/2),
+			blockwise_diff_genotypes = total_errors.diff_genotypes,
+			blockwise_diff_genotypes_rate = safefraction(total_errors.diff_genotypes, total_compared_variants),
 			largestblock_assessed_pairs = longest_block_assessed_pairs,
 			largestblock_switches = longest_block_errors.switches,
 			largestblock_switch_rate = safefraction(longest_block_errors.switches, longest_block_assessed_pairs),
 			largestblock_switchflips = longest_block_errors.switch_flips,
 			largestblock_switchflip_rate = safefraction(longest_block_errors.switch_flips.switches+longest_block_errors.switch_flips.flips, longest_block_assessed_pairs),
 			largestblock_hamming = longest_block_errors.hamming,
-			largestblock_hamming_rate = safefraction(longest_block_errors.hamming, longest_block)
+			largestblock_hamming_rate = safefraction(longest_block_errors.hamming, longest_block),
+			largestblock_pair_mismatches = longest_block_errors.pair_mismatches,
+			largestblock_pair_mismatches_rate = safefraction(longest_block_errors.pair_mismatches, longest_block*(longest_block-1)/2),
+			largestblock_diff_genotypes = longest_block_errors.diff_genotypes,
+			largestblock_diff_genotypes_rate = safefraction(longest_block_errors.diff_genotypes, longest_block)
 		), bed_records, block_stats, longest_block_positions, longest_block_agreement, None
 	else:
 		assert ploidy == 2
