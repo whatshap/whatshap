@@ -486,7 +486,7 @@ def run_haplotag(
     given_samples=None,
     linked_read_distance_cutoff=50000,
     ignore_read_groups: bool = False,
-    haplotag_list: Optional[List[str]] = None,
+    haplotag_list: Optional[str] = None,
     tag_supplementary: bool = False,
     skip_missing_contigs: bool = False,
     output_threads: int = 1,
