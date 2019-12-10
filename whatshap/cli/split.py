@@ -210,27 +210,15 @@ def _bam_iterator(bam_file):
 	:param bam_file:
 	:return:
 	"""
-	initial_bam_position = bam_file.tell()
-	has_sequence = False
-
 	for record in bam_file:
-		try:
-			_ = len(record.query_sequence)
-			has_sequence = True
-		except TypeError:
-			# if no sequence present for record,
-			# the member is None: len(None) -> TypeError
-			has_sequence = False
-		break
-
-	bam_file.seek(initial_bam_position)
-
-	if has_sequence:
-		for record in bam_file:
-			yield record.query_name, len(record.query_sequence), record
-	else:
-		for record in bam_file:
-			yield record.query_name, 0, record
+		if record.query_length > 0:
+			yield record.query_name, record.query_length, record
+		else:
+			inferred_qlen = record.infer_query_length()
+			if inferred_qlen is not None:
+				yield record.query_name, inferred_qlen, record
+			else:
+				yield record.query_name, 0, record
 
 
 def _fastq_string_iterator(fastq_file):
