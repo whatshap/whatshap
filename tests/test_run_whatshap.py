@@ -10,6 +10,7 @@ from pytest import raises, fixture, mark
 import pysam
 from whatshap.cli.phase import run_whatshap
 from whatshap.cli.haplotag import run_haplotag
+from whatshap.cli.split import run_split
 from whatshap.cli.hapcut2vcf import run_hapcut2vcf
 from whatshap.vcf import VcfReader, VariantCallPhase
 
@@ -954,6 +955,23 @@ def test_haplotag_selected_regions():
 				num_ovl = sum([int(aln.reference_start <= v <= aln.reference_end) for v in var_region2])
 				if num_ovl > 1:
 					assert aln.has_tag('HP')
+
+
+def test_split_bam_no_sequence():
+	"""
+	Test that a BAM file w/o sequence records
+	can be processed - see issue 215
+	"""
+	input_bam = 'tests/data/reads-no-sequence.bam'
+	input_list = 'tests/data/reads-no-sequence.haplotags.tsv'
+	run_split(
+		input_bam,
+		input_list,
+		output_h1='/dev/null',
+		output_h2='/dev/null',
+		output_untagged='/dev/null',
+		read_lengths_histogram='/dev/null',
+		)
 
 
 def test_cram_output(tmpdir):
