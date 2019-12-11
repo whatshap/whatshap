@@ -211,8 +211,9 @@ def _bam_iterator(bam_file):
 	:return:
 	"""
 	for record in bam_file:
-		if record.query_length > 0:
-			yield record.query_name, record.query_length, record
+		qlen = record.query_length
+		if qlen > 0:
+			yield record.query_name, qlen, record
 		else:
 			inferred_qlen = record.infer_query_length()
 			if inferred_qlen is not None:
