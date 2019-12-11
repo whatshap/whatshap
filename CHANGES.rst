@@ -18,6 +18,8 @@ development version
   the input reads file (BAM/FASTQ) but are not listed in the haplotag file will be
   discarded (by default, they are part of the "untagged" output).
 * Refactored ``split`` subcommand module.
+* Fixed :issue:`215`. ``split`` subcommand can now process ``.bam`` files lacking the
+  ``sequence`` field for some/all reads.
 
 v0.18 (2019-02-15)
 ------------------
