@@ -211,7 +211,15 @@ def _bam_iterator(bam_file):
 	:return:
 	"""
 	for record in bam_file:
-		yield record.query_name, len(record.query_sequence), record
+		qlen = record.query_length
+		if qlen > 0:
+			yield record.query_name, qlen, record
+		else:
+			inferred_qlen = record.infer_query_length()
+			if inferred_qlen is not None:
+				yield record.query_name, inferred_qlen, record
+			else:
+				yield record.query_name, 0, record
 
 
 def _fastq_string_iterator(fastq_file):
