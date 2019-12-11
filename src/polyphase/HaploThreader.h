@@ -9,7 +9,6 @@
 #include <sstream>
 #include <algorithm>
 #include "Globals.h"
-//#include "Globals.h"
     
 typedef uint32_t GlobalClusterId;
 typedef uint32_t LocalClusterId;
@@ -238,8 +237,11 @@ public:
      * @param ploidy The number of paths, which have to be threaded through the clusters
      * @param switchCost The factor how much a single cluster switches is penalized over a wrong copy number of a cluster (compared to its coverage)
      * @param affineSwitchCost Penalty for a position, in which a cluster switch occurs
+     * @param symmetryOptimization Option to disable running time optimizations. Should only be used, if something is not working.
+     * @param rowLimit Limits the number of cluster combinations for each position. 0 means no limit. Any limit will drop the optimality, but can severly reduce running time.
+     * @param useGenotypes Whether to use the genotype information (always genotype conform clusters whenever possible) or not
      */
-    HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit);
+    HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit, bool useGenotypes);
     
     /**
      * Computes a number of paths (depending on the provided ploidy), which run through the provided clusters. For each variant the result
@@ -288,6 +290,7 @@ private:
     double affineSwitchCost;
     bool symmetryOptimization;
     uint32_t rowLimit;
+    bool useGenotypes;
     
     /**
      * Computes the coverage cost of a tuple, considering the following coverage distribution. All cluster

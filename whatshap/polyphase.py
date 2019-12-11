@@ -317,6 +317,10 @@ def run_polyphase(
 				blockwise_haplotypes = []
 				blockwise_cut_positions = []
 				processed_non_singleton_blocks = 0
+				
+				compare = True
+				if correct_alleles and compare:
+					phase_vectors = get_phase(readset, phasable_variant_table)
 				for block_id, block_readset in enumerate(block_readsets):
 					
 					# Check for singleton blocks and handle them differently (for efficiency reasons)
@@ -356,17 +360,15 @@ def run_polyphase(
 					if correct_alleles:
 						timers.start('correct_alleles')
 						
-						compare = True
 						if compare:
 							try:
 								truth = []
-								phase_vectors = get_phase(readset, phasable_variant_table)
 								assert len(phase_vectors) == ploidy
 								for k in range(ploidy):
 									truth.append("".join(map(str, phase_vectors[k][ext_block_starts[block_id]:ext_block_starts[block_id+1]])))
 							except:
 								truth = None
-						correct_rare_alleles(readset, ploidy, ground_truth_haplotypes = truth)
+						correct_rare_alleles(block_readset, ploidy, ground_truth_haplotypes = truth)
 
 						timers.stop('correct_alleles')
 

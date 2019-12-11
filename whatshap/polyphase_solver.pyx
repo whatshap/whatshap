@@ -78,8 +78,8 @@ cdef class ReadScoring:
 	
 	
 cdef class HaploThreader:
-	def __cinit__(self, ploidy, switchCost, affineSwitchCost, symmetryOptimization, rowLimit):
-		self.thisptr = new cpp.HaploThreader(ploidy, switchCost, affineSwitchCost, symmetryOptimization, rowLimit)
+	def __cinit__(self, ploidy, switchCost, affineSwitchCost, symmetryOptimization = True, rowLimit = 0, useGenotypes = True):
+		self.thisptr = new cpp.HaploThreader(ploidy, switchCost, affineSwitchCost, symmetryOptimization, rowLimit, useGenotypes)
 		
 	def computePathsBlockwise(self, vector[uint32_t]& blockStarts, vector[vector[uint32_t]]& covMap, vector[vector[double]]& coverage, vector[vector[uint32_t]]& consensus, vector[unordered_map[uint32_t, uint32_t]]& genotypes, vector[vector[vector[double]]]& clusterDissim):
 		cdef vector[vector[uint32_t]] path

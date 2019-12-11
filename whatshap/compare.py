@@ -152,38 +152,25 @@ def compute_matching_genotype_pos(phasing0, phasing1):
 	assert all(len(phasing0[i]) == len(phasing0[0]) for i in range(1, len(phasing0)))
 	num_vars = len(phasing0[0])
 	matching_pos = [i for i in range(num_vars) if Genotype([int(hap[i]) for hap in phasing0]) == Genotype([int(hap[i]) for hap in phasing1])]
-	
 	return matching_pos
 
 
-def only_matching_genotypes(phasing0, phasing1, matching_pos=None):
+def compute_vector_errors_poly(phasing0, phasing1, matching_pos):
+	'''
+	Computes the number of necessary switches to transform phasing 0 into phasing 1 or vice versa.
+	Positions with non-matching genotypes are omitted and the rate non-matching positions is
+	returned as well.
+	'''
 	assert len(phasing0) == len(phasing1)
 	assert len(phasing0) >= 2
 	assert len(phasing0[0]) == len(phasing1[0])
 	assert all(len(phasing0[i]) == len(phasing0[0]) for i in range(1, len(phasing0)))
 	num_vars = len(phasing0[0])
-	
-	if matching_pos is None:
-		matching_pos = compute_matching_genotype_pos(phasing0, phasing1)
 	
 	phasing0_matched = ["".join([hap[i] for i in matching_pos]) for hap in phasing0]
 	phasing1_matched = ["".join([hap[i] for i in matching_pos]) for hap in phasing1]
-	
-	return phasing0_matched, phasing1_matched
 
-
-def compute_vector_errors_poly(phasing0, phasing1):
-	'''
-	Computes the number of necessary switches to transform phasing 0 into phasing 1 or vice versa.
-	The phasings are required to have the same genotype on each position.
-	'''
-	assert len(phasing0) == len(phasing1)
-	assert len(phasing0) >= 2
-	assert len(phasing0[0]) == len(phasing1[0])
-	assert all(len(phasing0[i]) == len(phasing0[0]) for i in range(1, len(phasing0)))
-	num_vars = len(phasing0[0])
-	
-	vector_error = compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 2*num_vars*len(phasing0)+1)
+	vector_error = compute_switch_flips_poly(phasing0_matched, phasing1_matched, switch_cost = 1, flip_cost = 2*num_vars*len(phasing0)+1)
 	assert vector_error.flips == 0
 	
 	return vector_error.switches
@@ -407,18 +394,16 @@ def compare_block(phasing0, phasing1):
 		total_hamming /= float(ploidy)
 		minimum_hamming_distance = min(minimum_hamming_distance, total_hamming)
 
-	matching_pos = compute_matching_genotype_pos(phasing0, phasing1)
-	phasing0_m, phasing1_m = only_matching_genotypes(phasing0, phasing1, matching_pos)
-	
 	switches = float('inf')
 	switch_flips = SwitchFlips(float('inf'),float('inf'))
+	matching_pos = compute_matching_genotype_pos(phasing0, phasing1)
 	pair_mismatches = compute_position_pair_mismatches(phasing0, phasing1)
 	
 	if ploidy == 2:
 		switches = hamming(switch_encoding(phasing0[0]), switch_encoding(phasing1[0]))
 		switch_flips = compute_switch_flips(phasing0[0], phasing1[0])
 	else:
-		switches = compute_vector_errors_poly(phasing0_m, phasing1_m)
+		switches = compute_vector_errors_poly(phasing0, phasing1, matching_pos)
 		switch_flips = compute_switch_flips_poly(phasing0, phasing1)
 
 	return PhasingErrors(

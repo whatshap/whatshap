@@ -158,7 +158,7 @@ cdef extern from "../src/polyphase/ReadScoring.h":
 		
 cdef extern from "../src/polyphase/HaploThreader.h":
 	cdef cppclass HaploThreader:
-		HaploThreader(uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit) except +
+		HaploThreader(uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit, bool useGenotypes) except +
 		vector[vector[uint32_t]] computePaths(uint32_t start, uint32_t end,
 					vector[vector[uint32_t]]& covMap,
                     vector[vector[double]]& coverage, 

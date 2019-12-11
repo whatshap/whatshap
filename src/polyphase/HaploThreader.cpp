@@ -7,12 +7,13 @@
 constexpr uint64_t ClusterTuple::TUPLE_MASKS[];
 const ClusterTuple ClusterTuple::INVALID_TUPLE = ClusterTuple((TupleCode)-1);
 
-HaploThreader::HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit) :
+HaploThreader::HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit, bool useGenotypes) :
     ploidy(ploidy),
     switchCost(switchCost),
     affineSwitchCost(affineSwitchCost),
     symmetryOptimization(symmetryOptimization),
-    rowLimit(rowLimit)
+    rowLimit(rowLimit),
+    useGenotypes(useGenotypes)
 {
 }
 
@@ -55,7 +56,11 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
     // initialize first column
     if (displayedEnd == 0)
         displayedEnd = end;
-    std::vector<ClusterTuple> confTuples = computeGenotypeConformTuples(covMap[start], consensus[start], genotypes[start], false);
+    std::vector<ClusterTuple> confTuples;
+    if (useGenotypes)
+        confTuples = computeGenotypeConformTuples(covMap[start], consensus[start], genotypes[start], false);
+    else
+        confTuples = getCombinations(covMap[start].size(), false);
     std::unordered_map<ClusterTuple, ClusterEntry> column;
     if (confTuples.size() == 0) {
         std::cout<<"First variant has no clusters!"<<std::endl;
@@ -118,7 +123,10 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         }
         
         // compute conform tuples
-        confTuples = computeGenotypeConformTuples(covMap[pos], consensus[pos], genotypes[pos], true);
+        if (useGenotypes)
+            confTuples = computeGenotypeConformTuples(covMap[pos], consensus[pos], genotypes[pos], true);
+        else
+            confTuples = getCombinations(covMap[pos].size(), true);
         
         // iterate over rows
         for (ClusterTuple rowTuple : confTuples) {
