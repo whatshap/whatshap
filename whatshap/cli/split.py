@@ -19,20 +19,60 @@ from whatshap.timer import StageTimer
 
 logger = logging.getLogger(__name__)
 
+SPLIT_MODULE_WILDCARD_CHROMOSOME = '{chrom}'
+SPLIT_MODULE_WILDCARD_HAPLOTYPE = '{haplotype}'
+SPLIT_MODULE_WILDCARD_PHASEBLOCK = '{block}'
+SPLIT_MODULE_WILDCARDS_JOINT = '.'.join([
+	SPLIT_MODULE_WILDCARD_CHROMOSOME,
+	SPLIT_MODULE_WILDCARD_HAPLOTYPE,
+	SPLIT_MODULE_WILDCARD_PHASEBLOCK
+])
+
 
 def add_arguments(parser):
-	arg = parser.add_argument
-	arg('--output-h1', default=None,
+	arg_group_diploid = parser.add_argument_group(
+		'Diploid input:',
+		'DEPRECATED: specify each desired output file separately for '
+		'two haplotypes and the untagged reads. Only for diploid input!'
+	)
+	arg_group_diploid.add_argument(
+		'--output-h1',
+		default=None,
 		help='Output file to write reads from Haplotype 1 to. Use ending .gz to '
-		'create gzipped file.')
-	arg('--output-h2', default=None,
+		'create gzipped file.'
+	)
+	arg_group_diploid.add_argument(
+		'--output-h2',
+		default=None,
 		help='Output file to write reads from Haplotype 2 to. Use ending .gz to '
-		'create gzipped file.')
-	arg('--output-untagged', default=None,
+		'create gzipped file.'
+	)
+	arg_group_diploid.add_argument(
+		'--output-untagged',
+		default=None,
 		help='Output file to write untagged reads to. Use ending .gz to '
-		'create gzipped file.')
+		'create gzipped file.'
+	)
+
+	arg_group_nploid = parser.add_argument_group(
+		'N-ploid input:',
+		'Current interface: specify an output file pattern with wildcards '
+		'to indicate desired output. This interface can handle any ploidy '
+		'supported by WhatsHap, including the common diploid case.'
+	)
+	arg_group_nploid.add_argument(
+		'--output',
+		default=None,
+		help='Output file pattern with the following optional wildcards: '
+		'"' + SPLIT_MODULE_WILDCARD_CHROMOSOME + '" = split output per chromosome; '
+		'"' + SPLIT_MODULE_WILDCARD_HAPLOTYPE + '" = split output per haplotype; '
+		'"' + SPLIT_MODULE_WILDCARD_PHASEBLOCK + '" = split output per phased block. '
+		'Example: my_sample.' + SPLIT_MODULE_WILDCARDS_JOINT + '.fastq.gz'
+	)
+
+	arg = parser.add_argument
 	arg('--add-untagged', default=False, action='store_true',
-		help='Add reads without tag to both H1 and H2 output streams.')
+		help='Add reads without tag to all haplotype output files.')
 	arg('--pigz', default=False, action='store_true',
 		help='Use the pigz program for gzipping output.')
 	arg('--only-largest-block', default=False, action='store_true',
@@ -46,18 +86,87 @@ def add_arguments(parser):
 			'Please be sure that the read names match between the input FASTQ/BAM '
 			'and the haplotag list file.')
 	arg('--read-lengths-histogram', default=None,
-		help='Output file to write read lengths histogram to in tab separated format.')
+		help='Output file to write read lengths histogram to in tab separated format. '
+			'Note that the histogram output file can also be specified as an output '
+			'pattern (with the same wildcards as "--output"); if no wildcards are '
+			'specified, all read length information is dumped into a single file.')
+	arg('--lowercase-haplotypes', action='store_true', default=False,
+		help='Print haplotype identifiers in filenames in lowercase, e.g., h1 instead of H1. '
+			 'Default: False (use haplotype identifiers as-is)')
+	arg('--untagged-label', default='none',
+		help='Specify the label of untagged reads to be used in output filenames. '
+			'By default, this is "none".')
 	arg('reads_file', metavar='READS', help='Input FASTQ/BAM file with reads (fastq can be gzipped)')
 	arg('list_file', metavar='LIST',
 		help='Tab-separated list with (at least) two columns <readname> and <haplotype> (can be gzipped). '
-			'Currently, the two haplotypes have to be named H1 and H2 (or none). Alternatively, the '
-			'output of the "haplotag" command can be used (4 columns), and this is required for using '
-			'the "--only-largest-block" option (need phaseset and chromosome info).')
+			'Currently, the haplotypes have to be named Hn, where n is a number starting at 1. '
+			'Alternatively, the output of the "haplotag" command can be used (4 columns), '
+			'and this is required for using the "--only-largest-block" option '
+			'(need phaseset and chromosome info).')
 
 
 def validate(args, parser):
-	if (args.output_h1 is None) and (args.output_h2 is None) and (args.output_untagged is None):
-		parser.error('Nothing to be done since neither --output-h1 nor --output-h2 nor --output-untagged are given.')
+
+	if all([x is None for x in [args.output_h1, args.output_h2,
+								args.output_untagged, args.output,
+								args.read_lengths_histogram]]):
+		parser.error('Nothing to be done - no output file specified')
+	if any([x is not None for x in [args.output_h1, args.output_h2,
+									args.output_untagged]]) and args.output is not None:
+		parser.error(
+			'Specified at least one output file of the diploid interface and '
+			'also the output file for the N-ploid command line interface; '
+			'these interfaces are mutually exclusive.'
+		)
+	if args.output is None:
+		logger.warning(
+			'DEPRECATION WARNING:'
+			'No output file defined via the command line interface '
+			'supporting any ploidy (parameter "--output"). Your current '
+			'way of using WhatsHap-split is deprecated and will be removed '
+			'in a future release.'
+		)
+	validate_wildcards(args.output, args.read_lengths_histogram, parser)
+	return
+
+
+def validate_wildcards(out_pattern, hist_pattern, parser):
+	"""
+	:param out_pattern:
+	:param hist_pattern:
+	:param parser:
+	:return:
+	"""
+	output_wildcards = (False, False, False)
+	if out_pattern is not None:
+		output_wildcards = tuple([
+			SPLIT_MODULE_WILDCARD_CHROMOSOME in out_pattern,
+			SPLIT_MODULE_WILDCARD_HAPLOTYPE in out_pattern,
+			SPLIT_MODULE_WILDCARD_PHASEBLOCK in out_pattern
+		])
+
+	histogram_wildcards = (False, False, False)
+	if hist_pattern is not None:
+		histogram_wildcards = tuple([
+			SPLIT_MODULE_WILDCARD_CHROMOSOME in hist_pattern,
+			SPLIT_MODULE_WILDCARD_HAPLOTYPE in hist_pattern,
+			SPLIT_MODULE_WILDCARD_PHASEBLOCK in hist_pattern
+		])
+
+	if output_wildcards != histogram_wildcards and histogram_wildcards != (False, False, False):
+		parser.error(
+			'The output file pattern ("--output") and read lengths '
+			'histogram file pattern ("--read-lengths-histogram") must '
+			'have the same wildcards specified.'
+		)
+	if output_wildcards == (False, False, True):
+		parser.error(
+			'The output file pattern ("--output") contains only the wildcard '
+			' ' + SPLIT_MODULE_WILDCARD_PHASEBLOCK + '  for the phased block. '
+			'This produces output files of questionable value, and hence '
+			'WhatsHap-split does not support that output.'
+		)
+	return
 
 
 def open_possibly_gzipped(filename, exit_stack, readwrite='r', pigz=False):
@@ -390,11 +499,14 @@ def run_split(
 		output_h1=None,
 		output_h2=None,
 		output_untagged=None,
+		output=None,
 		add_untagged=False,
 		pigz=False,
 		only_largest_block=False,
 		discard_unknown_reads=False,
 		read_lengths_histogram=None,
+		lowercase_haplotypes=False,
+		untagged_label='none'
 	):
 
 	timers = StageTimer()
