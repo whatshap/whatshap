@@ -77,7 +77,7 @@ def run_polyphase(
 	plot_threading = False,
 	cython_threading = False,
 	ce_refinements = 5,
-	block_cut_sensitivity = 5,
+	block_cut_sensitivity = 4,
 	correct_alleles = False,
 	reference_haps = False
 	):

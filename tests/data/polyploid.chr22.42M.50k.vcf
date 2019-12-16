@@ -1,0 +1,90 @@
+##fileformat=VCFv4.1
+##FILTER=<ID=PASS,Description="All filters passed">
+##fileDate=20160603
+##source=consensus-genotypes-10X-freebayes.py
+##commandline="(whatshap 0.12+64.gca56fad) phase --ped ped/SH032.ped --indels --distrust-genotypes --output-read-list whatshap/consensus/pacbioblasr/single/SH032.chr22.used-reads.tsv --changed-genotype-list whatshap/consensus/pacbioblasr/trio/SH032.chr22.genotype-changes.tsv --reference ref/GRCh38_full_analysis_set_plus_decoy_hla.fa --recombination-list whatshap/consensus/pacbioblasr/trio/SH032.chr22.recomb -o whatshap/consensus/pacbioblasr/trio/SH032.chr22.vcf consensus/freebayes_10X/SH032.chr22.vcf pacbio/HG00512.chr22.bam pacbio/HG00513.chr22.bam pacbio/HG00514.chr22.bam"
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PS,Number=1,Type=Integer,Description="Phase set identifier">
+##contig=<ID=chr22>
+##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes">
+##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">
+##bcftools_viewVersion=1.9+htslib-1.9
+##bcftools_viewCommand=view -s HG00514 --output-type z --phased -o original-vcfs/HG00514.chr22.vcf.gz /local/data/hgsvc/whatshap/consensus/pacbioblasr/trio/SH032.chr22.vcf.gz; Date=Fri Feb 22 09:45:27 2019
+##CL=vcfmerge -o vcf/union.chr22.tmp.vcf.gz original-vcfs/HG00514.chr22.vcf.gz original-vcfs/NA19240.chr22.vcf.gz
+##CL=vcfsubset --keep-sample HG00514 -i vcf/union.chr22.tmp.vcf.gz -o vcf/intermediate-files/union.chr22.vcf.gz
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Phred scaled genotype quality computed by whatshap genotyping algorithm.">
+##FORMAT=<ID=GL,Number=G,Type=Float,Description="log10-scaled likelihoods for genotypes: 0/0,0/1,1/1, computed by whatshap genotyping algorithm.">
+##bcftools_mergeVersion=1.9+htslib-1.9
+##bcftools_mergeCommand=merge -o retyped/HG00514.chr22.combined.vcf original-vcfs/HG00514.chr22.vcf.gz retyped/HG00514.chr22.vcf.gz; Date=Fri Feb 22 10:31:00 2019
+##bcftools_mergeCommand=merge vcf/HG00514.chr22.all-variants.vcf.gz vcf/NA19240.chr22.all-variants.vcf.gz; Date=Fri Feb 22 10:31:03 2019
+##bcftools_viewCommand=view --genotype het; Date=Fri Mar 15 17:39:09 2019
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG00514_NA19240
+chr22	42000367	.	G	A	.	.	AN=4;AC=1	GT:PS	0|0|0|1:10530275
+chr22	42001022	.	A	G	.	.	AN=4;AC=1	GT:PS	0|0|0|1:10530275
+chr22	42002015	.	G	A	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42002191	.	T	C	.	.	AN=4;AC=1	GT:PS	0|0|0|1:10530275
+chr22	42002471	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42002825	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42003021	.	G	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42003543	.	T	A	.	.	AN=4;AC=1	GT:PS	0|0|0|1:10530275
+chr22	42005251	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42005349	.	A	G	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42005510	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|0|1:10530275
+chr22	42006382	.	G	A	.	.	AN=4;AC=1	GT:PS	0|1|0|0:10530275
+chr22	42006395	.	T	A	.	.	AN=4;AC=1	GT:PS	0|0|0|1:10530275
+chr22	42006718	.	A	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42007665	.	G	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42007976	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|0|1:10530275
+chr22	42009653	.	C	G	.	.	AN=4;AC=1	GT:PS	0|0|0|1:10530275
+chr22	42010784	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|0|1:10530275
+chr22	42011003	.	C	G	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42012514	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42013973	.	G	T	.	.	AN=4;AC=1	GT:PS	0|0|0|1:10530275
+chr22	42014415	.	T	C	.	.	AN=4;AC=1	GT:PS	0|0|0|1:10530275
+chr22	42014691	.	G	A	.	.	AN=4;AC=1	GT:PS	0|0|0|1:10530275
+chr22	42014989	.	T	C	.	.	AN=4;AC=1	GT:PS	0|0|0|1:10530275
+chr22	42016137	.	A	G	.	.	AN=4;AC=1	GT:PS	0|1|0|0:10530275
+chr22	42017974	.	C	A	.	.	AN=4;AC=1	GT:PS	0|1|0|0:10530275
+chr22	42018177	.	G	A	.	.	AN=4;AC=1	GT:PS	0|0|0|1:10530275
+chr22	42018935	.	A	T	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42021969	.	A	T	.	.	AN=4;AC=1	GT:PS	0|1|0|0:10530275
+chr22	42021981	.	G	A	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42022106	.	T	A	.	.	AN=4;AC=1	GT:PS	0|0|0|1:10530275
+chr22	42023649	.	G	A	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42024058	.	G	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42024533	.	T	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42025716	.	G	A	.	.	AN=4;AC=1	GT:PS	0|1|0|0:10530275
+chr22	42026223	.	G	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42027390	.	A	G	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42027710	.	C	A	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42028347	.	C	G	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42029081	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42031036	.	G	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42032267	.	A	G	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42032664	.	T	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42033070	.	T	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42034984	.	T	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42035101	.	T	G	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42035242	.	G	T	.	.	AN=4;AC=1	GT:PS	0|1|0|0:10530275
+chr22	42035450	.	T	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42037012	.	T	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42038587	.	T	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42038852	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42039223	.	C	A	.	.	AN=4;AC=1	GT:PS	1|0|0|0:10530275
+chr22	42039800	.	A	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42040308	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42041092	.	A	G	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42041895	.	G	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42042076	.	G	A	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42044362	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42045838	.	A	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42045915	.	G	A	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42046507	.	G	A	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42046990	.	T	G	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42047518	.	C	G	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42047904	.	A	G	.	.	AN=4;AC=1	GT:PS	0|1|0|0:10530275
+chr22	42048710	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42049090	.	A	G	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42049155	.	C	T	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42049465	.	T	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
+chr22	42049574	.	T	C	.	.	AN=4;AC=1	GT:PS	0|0|1|0:10530275
