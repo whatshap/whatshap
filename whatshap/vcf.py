@@ -788,7 +788,6 @@ class PhasedVcfWriter(VcfAugmenter):
 		"""
 		genotype_changes = []
 		# TODO
-#		allowed_alleles = frozenset({(0, 1), (1, 0), (0, 0), (1, 1)})
 		sample_phases = dict()
 		sample_genotypes = dict()
 		for sample, superreads in sample_superreads.items():

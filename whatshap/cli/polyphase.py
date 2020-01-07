@@ -136,9 +136,14 @@ def run_polyphase(
 			command_line = '(whatshap {}) {}'.format(__version__, ' '.join(sys.argv[1:]))
 		else:
 			command_line = None
-		vcf_writer = PhasedVcfWriter(command_line=command_line, in_path=variant_file,
-			out_file=output, tag=tag, ploidy=ploidy)
-		# TODO for now, assume we always trust the genotypes
+		try:
+			vcf_writer = stack.enter_context(
+				PhasedVcfWriter(command_line=command_line, in_path=variant_file,
+			        out_file=output, tag=tag, ploidy=ploidy))
+		except OSError as e:
+			logger.error('%s', e)
+			sys.exit(1)
+		
 		vcf_reader = VcfReader(variant_file, indels=indels, phases=True, genotype_likelihoods=False, ploidy=ploidy)
 
 		if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
@@ -210,7 +215,6 @@ def run_polyphase(
 				logger.info('---- Processing individual %s', sample)
 				missing_genotypes = set()
 				heterozygous = set()
-				homozygous = set()
 
 				genotypes = variant_table.genotypes_of(sample)
 				for index, gt in enumerate(genotypes):
@@ -219,7 +223,7 @@ def run_polyphase(
 					elif not gt.is_homozygous():
 						heterozygous.add(index)
 					else:
-						assert gt.is_homozygous()			
+						assert gt.is_homozygous()
 				to_discard = set(range(len(variant_table))).difference(heterozygous)
 				phasable_variant_table = deepcopy(variant_table)
 				# Remove calls to be discarded from variant table
@@ -238,10 +242,10 @@ def run_polyphase(
 				logger.info('Kept %d reads that cover at least two variants each', len(readset))
 
 				#adapt the variant table to the subset of reads
-				variant_table.subset_rows_by_position(readset.get_positions())
+				phasable_variant_table.subset_rows_by_position(readset.get_positions())
 				
 				#compute the genotypes that belong to the variant table and create a list of all genotypes				
-				all_genotypes = variant_table.genotypes_of(sample)
+				all_genotypes = phasable_variant_table.genotypes_of(sample)
 				genotype_list = []
 				genotype_list_multi = []
 				for pos in range(len(all_genotypes)):
@@ -369,7 +373,6 @@ def run_polyphase(
 					timers.start('solve_clusterediting')
 					logger.debug("Computing similarities for read pairs ...")
 					if ce_score_global:
-						#similarities = score_global(block_readset, ploidy, min_overlap)
 						similarities = scoreReadsetGlobal(block_readset, min_overlap, ploidy)
 					else:
 						ref_haps = []
@@ -377,9 +380,7 @@ def run_polyphase(
 							phase_vectors = get_phase(readset, phasable_variant_table)
 							for i in range(ploidy):
 								ref_haps.append([int(x) for x in phase_vectors[i][ext_block_starts[block_id]:ext_block_starts[block_id+1]]])
-						#similarities = score_local(block_readset, ploidy, min_overlap, ref_haps)
 						similarities = scoreReadsetLocal(block_readset, min_overlap, ploidy, ref_haps)
-						#return
 
 					# Create read graph object
 					logger.debug("Constructing graph ...")
@@ -476,8 +477,6 @@ def run_polyphase(
 						cut_positions.append(cut_pos + block_starts[i])
 				
 				#write new VCF file	
-				superreads, components = dict(), dict()
-
 				accessible_positions = sorted(readset.get_positions())
 				overall_components = {}
 
@@ -601,6 +600,10 @@ def find_inconsistencies(readset, clustering, ploidy):
 
 def compute_linkage_based_block_starts(readset, pos_index, ploidy, single_linkage = False):
 	num_vars = len(pos_index)
+	
+	# special case
+	if num_vars == 0:
+		return []
 
 	# cut threshold
 	min_block_size = 1
