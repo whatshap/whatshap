@@ -3,7 +3,6 @@
 
 #include "EdgeHeap.h"
 #include "ClusterEditingSolutionLight.h"
-#include "ProgressPrinter.h"
 
 /**
  * A heuristic for large cluster editing instances. The heuristic works in iterations,
@@ -45,13 +44,13 @@ private:
      * Invoked, when the heuristic decides the make the specified edge permanent.
      * All implications are resolved then.
      */
-    void choosePermanentEdge(const DynamicSparseGraph::Edge eIcf, ProgressPrinter& pp);
+    void choosePermanentEdge(const DynamicSparseGraph::Edge eIcf);
     
     /**
      * Invoked, when the heuristic decides the make the specified edge forbidden.
      * All implications are resolved then.
      */
-    void chooseForbiddenEdge(const DynamicSparseGraph::Edge eIcp, ProgressPrinter& pp);
+    void chooseForbiddenEdge(const DynamicSparseGraph::Edge eIcp);
     
     /**
      * Initial run on the instance to fill in all present implications. If nodes u and v
@@ -75,11 +74,6 @@ private:
      * and must therefore be called by chooseForbiddenEdge or choosePermanentEdge.
      */
     void setPermanent(const DynamicSparseGraph::Edge e);
-    
-    /**
-     * Prints the progress on the standard output.
-     */
-    void printHeuristicProgress();
     
     /**
      * Updates icf and icp for the edge uw under the assumption that edge uv will be set to forbidden.

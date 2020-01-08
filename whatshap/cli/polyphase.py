@@ -71,7 +71,6 @@ def run_polyphase(
 	write_command_line_header=True,
 	read_list_filename=None,
 	ce_bundle_edges = False,
-	ce_score_global = False,
 	min_overlap = 2,
 	plot_clusters = False,
 	plot_threading = False,
@@ -355,7 +354,7 @@ def run_polyphase(
 						timers.start('correct_alleles')
 
 						# Just for debugging and development!!!
-						compare = True
+						compare = False
 						if compare:
 							try:
 								truth = []
@@ -372,15 +371,13 @@ def run_polyphase(
 					# Compute similarity values for all read pairs
 					timers.start('solve_clusterediting')
 					logger.debug("Computing similarities for read pairs ...")
-					if ce_score_global:
-						similarities = scoreReadsetGlobal(block_readset, min_overlap, ploidy)
-					else:
-						ref_haps = []
-						if reference_haps:
-							phase_vectors = get_phase(readset, phasable_variant_table)
-							for i in range(ploidy):
-								ref_haps.append([int(x) for x in phase_vectors[i][ext_block_starts[block_id]:ext_block_starts[block_id+1]]])
-						similarities = scoreReadsetLocal(block_readset, min_overlap, ploidy, ref_haps)
+					ref_haps = []
+					if reference_haps:
+						# Just for debugging and development!!!
+						phase_vectors = get_phase(readset, phasable_variant_table)
+						for i in range(ploidy):
+							ref_haps.append([int(x) for x in phase_vectors[i][ext_block_starts[block_id]:ext_block_starts[block_id+1]]])
+					similarities = scoreReadsetLocal(block_readset, min_overlap, ploidy, ref_haps)
 
 					# Create read graph object
 					logger.debug("Constructing graph ...")
@@ -719,8 +716,6 @@ def add_arguments(parser):
 	arg('--block-cut-sensitivity', metavar='SENSITIVITY', type=int, default=4, help='Strategy to determine block borders. 0 yields the longest blocks with more switch errors, 5 has the shortest blocks with lowest switch error rate (default: %(default)s).')
 	
 	# more arguments, which are experimental or for debugging and should not be presented to the user
-	arg('--ce-score-global', dest='ce_score_global', default=False, action='store_true',
-		help=argparse.SUPPRESS) # help='Reads are scored with respect to their location inside the chromosome. (default: %(default)s).')
 	arg('--ce-bundle-edges', dest='ce_bundle_edges', default=False, action='store_true',
 		help=argparse.SUPPRESS) # help='Influences the cluster editing heuristic. Only for debug/developing purpose (default: %(default)s).')
 	arg('--plot-clusters', dest='plot_clusters', default=False, action='store_true',

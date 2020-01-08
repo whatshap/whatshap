@@ -17,7 +17,7 @@ def run_threading(readset, clustering, cluster_sim, ploidy, genotypes, block_cut
 	# we can look at the sequences again to use the most likely continuation, when two or more clusters switch at the same position
 	path = improve_path_on_multiswitches(path, num_clusters, cluster_sim)
 	
-	# we can look at the sequences again to use the most likely continuation, when a haplotype leaves a collapsed cluster
+	# we can look at the sequences again to use the most likely continuation, when a haplotype leaves a collapsed cluster (currently inactive)
 	#path = improve_path_on_collapsedswitches(corrected_path, num_clusters, cluster_sim)
 
 	logger.debug("Cut positions: {}".format(cut_positions))
@@ -446,47 +446,3 @@ def get_single_cluster_consensus_frac(readset, cluster, index, relevant_pos):
 			cluster_consensus[pos] = (0, 1.0)
 	
 	return cluster_consensus
-
-def compute_tuple_genotype(consensus,tup, var):
-	genotype = 0
-	for i in tup:
-		#allele = consensus[i][var]
-		allele = consensus[var][i]
-		genotype += allele
-	return(genotype)
-
-def compute_tuple_genotype_soft(consensus,tup, var, geno):
-	genotype = 0
-	for i in tup:
-		allele = consensus[var][i]
-		#allele = consensus[i][var]
-		genotype += allele
-	res = max((geno-genotype),(genotype-geno))
-	return(res)
-
-def compute_tuple_genotype_dist(consensus,tup, var, geno):
-	diff = 0
-	tup_geno = dict()
-	for i in tup:
-		allele = consensus[var][i]
-		if allele not in tup_geno:
-			tup_geno[allele] = 0
-		tup_geno[allele] += 1
-	for allele in geno:
-		if allele not in tup_geno:
-			diff += geno[allele]
-		else:
-			diff += abs(geno[allele] - tup_geno[allele])
-	return diff
-
-def find_backtracing_start(scoring, num_vars):
-	minimum = 1000000
-	last_col = num_vars-1
-	res = False
-	for i in scoring[last_col]:
-		if i[0] < minimum:
-			res=True
-	if res:
-		return(last_col)
-	else:
-		return(find_backtracing_start(scoring,last_col-1))

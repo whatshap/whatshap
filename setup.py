@@ -85,7 +85,6 @@ extensions = [
 			'src/polyphase/Helpers.cpp',
 			'src/polyphase/Globals.cpp',
 			'src/polyphase/InducedCostHeuristic.cpp',
-			'src/polyphase/ProgressPrinter.cpp',
 			'src/polyphase/StaticSparseGraph.cpp',
 			'src/polyphase/SolutionChecker.cpp',
 			'src/polyphase/TriangleSparseMatrix.cpp',
