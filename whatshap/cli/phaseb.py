@@ -6,15 +6,15 @@ The output is a FASTA file written to standard output that needs to be piped to 
 
 import logging
 import os
+import pickle
 import sys
-import time
 from copy import deepcopy
 from whatshap.core import ReadSet, Read, Pedigree, PedigreeDPTable, NumericSampleIds, readselection
 from whatshap.pedigree import uniform_recombination_map
 from whatshap.vg_pb2 import Alignment
 from whatshap.graph import ComponentFinder
 import stream
-#import pdb
+import pdb
 
 __author__ = "Fawaz Dabbaghie"
 
@@ -363,6 +363,76 @@ def build_readsets(nodes, gam_file_path):
 	return all_readsets
 
 
+def build_readsets_from_dict(nodes, chains):
+	"""
+	:param nodes: dictionary of nodes objects
+	:param chains: dictionary of read sets, inside dictionary of reads and variants
+	:return: returns a dictionary of readsets, where each read set object represent a bubble chain
+	"""
+	all_readsets = {}
+
+	counter = 0
+	nodes_not_in_graph = 0
+
+	for chain_n, chain in chains.items():
+		if (counter % 1000000) == 0:
+			logger.info("Processed {} reads and we have {} readsets".format(counter, len(all_readsets)))
+
+		all_readsets[chain_n] = ReadSet()
+		for read_name, read in chain.items():
+			counter += 1
+			read_obj = Read(read_name)
+			# variants_to_add = list(set(read))
+			# if len(variants_to_add) < 2:
+			# 	continue
+			for node in read:
+				if node in nodes:
+					read_obj.add_variant(nodes[node].which_b, int(nodes[node].which_allele), 30)
+				else:
+					nodes_not_in_graph += 1
+
+			all_readsets[chain_n].add(read_obj)
+
+	logger.info("Nodes in reads not in the graph are {}".format(nodes_not_in_graph))
+	return all_readsets
+
+
+def build_readsets_from_dict_debug_v(nodes, chains, list_of_chains):
+	"""
+	:param nodes: dictionary of nodes objects
+	:param chains: dictionary of read sets, inside dictionary of reads and variants
+	:param list_of_chains: for debugging
+	:return: returns a dictionary of readsets, where each read set object represent a bubble chain
+	"""
+	all_readsets = {}
+
+	counter = 0
+	nodes_not_in_graph = 0
+
+	for chain_n in list_of_chains:
+		chain = chains[chain_n]
+		if (counter % 1000000) == 0:
+			logger.info("Processed {} reads and we have {} readsets".format(counter, len(all_readsets)))
+
+		all_readsets[chain_n] = ReadSet()
+		for read_name, read in chain.items():
+			counter += 1
+			read_obj = Read(read_name)
+			# variants_to_add = list(set(read))
+			# if len(variants_to_add) < 2:
+			# 	continue
+			for node in read:
+				if node in nodes:
+					read_obj.add_variant(nodes[node].which_b, int(nodes[node].which_allele), 30)
+				else:
+					nodes_not_in_graph += 1
+
+			all_readsets[chain_n].add(read_obj)
+
+	logger.info("Nodes in reads not in the graph are {}".format(nodes_not_in_graph))
+	return all_readsets
+
+
 def return_seq(nodes, haplotig, k, chain_n, bubble_haplotigs):
 	"""
 	:param nodes: dictionary of node objects
@@ -443,8 +513,6 @@ def output_fasta(nodes, bubble_chains, bubble_membership, k, split_components, b
 
 			seq_1 = return_seq(nodes, haplotig_1, k, chain_n, bubble_haplotigs)
 			seq_2 = return_seq(nodes, haplotig_2, k, chain_n, bubble_haplotigs)
-			# return_seq(nodes, haplotig_1, k, str(bubble_membership[bubble]), bubble_haplotigs, 1)
-			# return_seq(nodes, haplotig_2, k, str(bubble_membership[bubble]), bubble_haplotigs, 2)
 			try:
 				assert len(seq_1) == len(seq_2)
 			except AssertionError:
@@ -457,9 +525,8 @@ def output_fasta(nodes, bubble_chains, bubble_membership, k, split_components, b
 						  "|sub_block" + str(sub_block_n) + "_" + str(idx) + "|haplotig1")
 					print(seq)
 			for idx, seq in enumerate(seq_2):
-				# todo implement the reverse thing better, but the aligner should handle both version
+				# todo implement the reverse thing better. However, the aligner should handle both version
 				if seq[0:10] == reverse_complement(seq_1[idx])[0:10]:
-					# print("I am here {}".format(bubble_membership[bubble]))
 
 					seq = reverse_complement(seq)
 				if seq is not None:
@@ -572,6 +639,12 @@ def find_components(phased_positions, reads, master_block=None, heterozygous_pos
 	return components
 
 
+def read_pickled_dict(file_name):
+	with open(file_name, 'rb') as handle:
+		reads = pickle.load(handle)
+	return reads
+
+
 def run_phaseb(gfa_file, k, gam_file):
 	"""
 	:param gfa_file: path to the graph file
@@ -579,6 +652,12 @@ def run_phaseb(gfa_file, k, gam_file):
 	:param gam_file: path to gam file
 	:return:
 	"""
+
+#	debugging_chains = [48765  # 4 bubbles, had the same SE chr10:66669806
+#		, 214543  # 4 bubbles, different SE, chr13:111364901
+#		, 103916  # 11 bubbles, different SE chr13:111108634
+#					   ]
+
 	logger.info("reading graph file now...")
 	nodes, bubble_chains = read_gfa(gfa_file, modified=True)
 	logger.info("finished reading graph file.")
@@ -588,13 +667,27 @@ def run_phaseb(gfa_file, k, gam_file):
 			bubble_membership[bubble] = chain_k
 
 	logger.info("reading alignments and building readsets")
-	all_readsets = build_readsets(nodes, gam_file)
+	if gam_file.endswith("pickle"):
+		chains = read_pickled_dict(gam_file)
+
+		# all_readsets = build_readsets_from_dict(nodes, chains)
+		all_readsets = build_readsets_from_dict_debug_v(nodes, chains, debugging_chains)
+	elif gam_file.endswith("gam"):
+		all_readsets = build_readsets(nodes, gam_file)
+	else:
+		logger.info("It's neither a gam file nor a pickled dictionary")
+		sys.exit(1)
+
 	logger.info("finished reading alignments and building readset, there are {} readsets".format(len(all_readsets)))
 
 	counter = 0
+
+#	for chain_n in debugging_chains:
+#		readset = all_readsets[chain_n]
+#		pdb.set_trace()
 	for chain_n, readset in all_readsets.items():
 
-		logger.info("In chain {}".format(chain_n))
+		logger.info("In chain {} with len {}".format(chain_n, len(bubble_chains[chain_n])))
 		counter += 1
 		if (counter % 10000) == 0:
 			logger.info("processed {} readsets".format(counter))
@@ -610,30 +703,26 @@ def run_phaseb(gfa_file, k, gam_file):
 			try:
 				read.sort()
 			except RuntimeError:
+				# this is happening when the same snp is mapped on both sides
+				# because of loop I think, need th through these reads out I guess
 				problematic_reads.add(idx)
 
 		if len(problematic_reads) > 0:
-			logger.info("Chain number {} with length {} had some problematic reads".format(chain_n, len(bubble_chains[chain_n])))
-			continue
-			# for i in problematic_reads:
-			# 	logger.info(readset[i])
+			try:
+				logger.info("Chain number {} with length {} "
+							"had {} problematic reads".format(chain_n, len(bubble_chains[chain_n]), len(problematic_reads)))
+			except KeyError:
+				pdb.set_trace()
 
-		# readset = readset.subset(all_read_pos - problematic_reads)
+		# removing problematic reads
+		readset = readset.subset(all_read_pos - problematic_reads)
 
 		readset.sort()
 		# print(len(readset))
 		selected_indices = readselection(readset, 15)
 		selected_reads = readset.subset(selected_indices)
-		# print(len(selected_reads))
-		# print(selected_reads)
-		# positions and recombination costs
-		positions = selected_reads.get_positions()
-		# print(selected_reads)
 
-		# recombination_cost = uniform_recombination_map(1.26, positions)
-		# ordered_readnames = [read.name for read in selected_reads]
-		# print(len(ordered_readnames))
-		# print(ordered_readnames)
+		positions = selected_reads.get_positions()
 		# construct pedigree
 		numeric_sample_ids = NumericSampleIds()
 		# print(numeric_sample_ids)
@@ -654,14 +743,13 @@ def run_phaseb(gfa_file, k, gam_file):
 		sample_name = gfa_file.split(".")[0]
 		pedigree.add_individual(sample_name, genotypes, genotype_likelihoods)
 		# solve MEC
+		# check positions
 		dp_table = PedigreeDPTable(selected_reads, recombination_cost, pedigree, distrust_genotypes, positions)
 
 		# cost = dp_table.get_optimal_cost()
 		# vector indicating for each read in which bartition (0 or 1) it ended up (ordered according to ReadSet)
 		read_partitioning = dp_table.get_optimal_partitioning()
-		# print("I am here")
-		# print(type(read_partitioning))
-		# print(read_partitioning)
+
 		overall_components = find_components(positions, readset)
 		if len(overall_components) < 2:  # in case there was only one bubble covered
 			continue
@@ -674,14 +762,14 @@ def run_phaseb(gfa_file, k, gam_file):
 		try:
 			assert len(read_partitioning) == len(ordered_readnames)
 		except AssertionError:
-			logger.info("For osme reason read_partitioning and ordered_readnames are not equal")
+			logger.info("For sosme reason read_partitioning and ordered_readnames are not equal")
 			continue
 
-		# super_reads for later
 		superreads_list, transmission_vector = dp_table.get_super_reads()
 		two_haplotigs = superreads_list[0]
 		# print("for the bubble_chain {} the two haplotigs are and the number of reads is {}".format(chain_n,len(readset)))
 		haplotig = []
+		# todo need to change this maybe to take both and make sure they are complementary
 		for idx, read in enumerate(two_haplotigs):
 			if idx == 0:  # just taking the first path as the second is just the opposite positions
 				for x in list(read):
@@ -693,7 +781,6 @@ def run_phaseb(gfa_file, k, gam_file):
 		except AssertionError:
 			logger.info("haplotig and overall_components are not the same, something weird went wrong {}\t{}".format(haplotig, overall_components.keys()))
 
-		# todo the problem is somewhere around here
 		bubble_haplotigs = {}
 		for idx, b in enumerate(list(overall_components.keys())):
 			if haplotig[idx] == 0:
@@ -717,17 +804,28 @@ def run_phaseb(gfa_file, k, gam_file):
 			logger.info("Split components are {} and haplotig vector is {} and "
 						"the superreads are {}".format(split_components, haplotig, two_haplotigs))
 			continue
+		pdb.set_trace()
+		if chain_n == 25:
+			print("These are the selected reads")
+			print(selected_reads)
+			print("These are the bubble haplotigs")
+			print(bubble_haplotigs)
+			print("These are the superreads")
+			print(two_haplotigs)
+			print("This is the order of reads")
+			for idx, r in enumerate(ordered_readnames):
+				print("idx\t{} belongs to haplotype {}".format(str(r), read_partitioning[idx]))
+			
 		# print(split_components)
 		# pdb.set_trace()
 		# print(overall_components)
 		# pdb.set_trace()
 		# print("##################################################################")
-
-		output_fasta(nodes, bubble_chains, bubble_membership, k, split_components, bubble_haplotigs, overall_components,
-					 chain_n)
+		#
+		# output_fasta(nodes, bubble_chains, bubble_membership, k, split_components, bubble_haplotigs, overall_components,
+		# 			 chain_n)
 
 
 def main(args):
-	logger.info("it's {}".format(time.time()))
 	# here all the main stuff going to happen
 	run_phaseb(**vars(args))
