@@ -602,8 +602,7 @@ def run_whatshap(
 
 		if ped:
 			if algorithm == 'hapchat':
-				raise CommandLineError('The hapchat algorithm (for the time being) does single '
-					'individual phasing only, hence it does not handle pedigrees')
+				raise CommandLineError("The hapchat algorithm cannot do pedigree phasing")
 			all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, samples)
 			if genmap:
 				logger.info('Using region-specific recombination rates from genetic map %s.', genmap)
