@@ -689,8 +689,6 @@ def run_whatshap(
 
 				# variant indices with at least one missing genotype
 				missing_genotypes = set()
-				# variant indices with at least one Mendelian conflict
-				mendelian_conflicts = set()
 				# variant indices with at least one heterozygous genotype
 				heterozygous = set()
 				# variant indices with at least one homozygous genotype
@@ -709,16 +707,8 @@ def run_whatshap(
 							homozygous.add(index)
 
 				# determine which variants have Mendelian conflicts
-				for trio in trios:
-					genotypes_mother = variant_table.genotypes_of(trio.mother)
-					genotypes_father = variant_table.genotypes_of(trio.father)
-					genotypes_child = variant_table.genotypes_of(trio.child)
-
-					for index, (gt_mother, gt_father, gt_child) in enumerate(zip(
-							genotypes_mother, genotypes_father, genotypes_child)):
-						if (not gt_mother.is_none()) and (not gt_father.is_none()) and (not gt_child.is_none()):
-							if mendelian_conflict(gt_mother, gt_father, gt_child):
-								mendelian_conflicts.add(index)
+				# variant indices with at least one Mendelian conflict
+				mendelian_conflicts = find_mendelian_conflicts(trios, variant_table)
 
 				# retain variants that are heterozygous in at least one individual (anywhere in the pedigree)
 				# and do not have neither missing genotypes nor Mendelian conflicts
@@ -934,6 +924,21 @@ def run_whatshap(
 	logger.info('Time spent finding components:               %6.1f s', timers.elapsed('components'))
 	logger.info('Time spent on rest:                          %6.1f s', total_time - timers.sum())
 	logger.info('Total elapsed time:                          %6.1f s', total_time)
+
+
+def find_mendelian_conflicts(trios, variant_table):
+	mendelian_conflicts = set()
+	for trio in trios:
+		genotypes_mother = variant_table.genotypes_of(trio.mother)
+		genotypes_father = variant_table.genotypes_of(trio.father)
+		genotypes_child = variant_table.genotypes_of(trio.child)
+
+		for index, (gt_mother, gt_father, gt_child) in enumerate(zip(
+			genotypes_mother, genotypes_father, genotypes_child)):
+			if (not gt_mother.is_none()) and (not gt_father.is_none()) and (not gt_child.is_none()):
+				if mendelian_conflict(gt_mother, gt_father, gt_child):
+					mendelian_conflicts.add(index)
+	return mendelian_conflicts
 
 
 def write_changed_genotypes(gtchange_list_filename, changed_genotypes):
