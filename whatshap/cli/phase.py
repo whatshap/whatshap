@@ -767,15 +767,7 @@ def run_whatshap(
 						logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
 							n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
 
-				# Merge reads into one ReadSet (note that each Read object
-				# knows the sample it originated from).
-				all_reads = ReadSet()
-				for sample, readset in readsets.items():
-					for read in readset:
-						assert read.is_sorted(), "Add a read.sort() here"
-						all_reads.add(read)
-
-				all_reads.sort()
+				all_reads = merge_readsets(readsets)
 
 				# Determine which variants can (in principle) be phased
 				accessible_positions = sorted(all_reads.get_positions())
@@ -793,30 +785,8 @@ def run_whatshap(
 				phasable_variant_table.subset_rows_by_position(accessible_positions)
 				assert len(phasable_variant_table.variants) == len(accessible_positions)
 
-				# Create Pedigree
-				pedigree = Pedigree(numeric_sample_ids)
-				for sample in family:
-					# If distrusting genotypes, we pass genotype likelihoods on to pedigree object
-					if distrust_genotypes:
-						genotype_likelihoods = []
-						for gt, gl in zip(phasable_variant_table.genotypes_of(sample), phasable_variant_table.genotype_likelihoods_of(sample)):
-							assert gt.is_diploid_and_biallelic();
-							if gl is None:
-								# all genotypes get default_gq as genotype likelihood, exept the called genotype ...
-								x = [default_gq] * 3
-								# ... which gets a 0
-								x[gt.get_index()] = 0
-								genotype_likelihoods.append(PhredGenotypeLikelihoods(x))
-							else:
-								genotype_likelihoods.append(gl.as_phred(regularizer=gl_regularizer))
-					else:
-						genotype_likelihoods = None
-					pedigree.add_individual(sample, phasable_variant_table.genotypes_of(sample), genotype_likelihoods)
-				for trio in trios:
-					pedigree.add_relationship(
-						father_id=trio.father,
-						mother_id=trio.mother,
-						child_id=trio.child)
+				pedigree = create_pedigree(default_gq, distrust_genotypes, family, gl_regularizer,
+					numeric_sample_ids, phasable_variant_table, trios)
 
 				if genmap:
 					# Load genetic map
@@ -924,6 +894,46 @@ def run_whatshap(
 	logger.info('Time spent finding components:               %6.1f s', timers.elapsed('components'))
 	logger.info('Time spent on rest:                          %6.1f s', total_time - timers.sum())
 	logger.info('Total elapsed time:                          %6.1f s', total_time)
+
+
+def merge_readsets(readsets):
+	all_reads = ReadSet()
+	for sample, readset in readsets.items():
+		for read in readset:
+			assert read.is_sorted(), "Add a read.sort() here"
+			all_reads.add(read)
+	all_reads.sort()
+	return all_reads
+
+
+def create_pedigree(default_gq, distrust_genotypes, family, gl_regularizer, numeric_sample_ids,
+	phasable_variant_table, trios):
+	pedigree = Pedigree(numeric_sample_ids)
+	for sample in family:
+		# If distrusting genotypes, we pass genotype likelihoods on to pedigree object
+		if distrust_genotypes:
+			genotype_likelihoods = []
+			for gt, gl in zip(phasable_variant_table.genotypes_of(sample),
+				phasable_variant_table.genotype_likelihoods_of(sample)):
+				assert gt.is_diploid_and_biallelic()
+				if gl is None:
+					# all genotypes get default_gq as genotype likelihood, exept the called genotype ...
+					x = [default_gq] * 3
+					# ... which gets a 0
+					x[gt.get_index()] = 0
+					genotype_likelihoods.append(PhredGenotypeLikelihoods(x))
+				else:
+					genotype_likelihoods.append(gl.as_phred(regularizer=gl_regularizer))
+		else:
+			genotype_likelihoods = None
+		pedigree.add_individual(sample, phasable_variant_table.genotypes_of(sample),
+			genotype_likelihoods)
+	for trio in trios:
+		pedigree.add_relationship(
+			father_id=trio.father,
+			mother_id=trio.mother,
+			child_id=trio.child)
+	return pedigree
 
 
 def find_mendelian_conflicts(trios, variant_table):
