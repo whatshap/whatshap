@@ -554,27 +554,27 @@ def run_whatshap(
 		distrust_genotypes = True
 		include_homozygous = True
 	numeric_sample_ids = NumericSampleIds()
+	if write_command_line_header:
+		command_line = '(whatshap {}) {}'.format(__version__, ' '.join(sys.argv[1:]))
+	else:
+		command_line = None
 
 	with ExitStack() as stack:
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
 		readset_reader = stack.enter_context(open_readset_reader(phase_input_bam_filenames,
 			reference, numeric_sample_ids, mapq_threshold=mapping_quality))
 		try:
-			phase_input_vcf_readers = [VcfReader(f, indels=indels, phases=True) for f in phase_input_vcf_filenames]
-		except OSError as e:
-			raise CommandLineError(e)
-		fasta = stack.enter_context(open_reference(reference)) if reference else None
-		del reference
-		if write_command_line_header:
-			command_line = '(whatshap {}) {}'.format(__version__, ' '.join(sys.argv[1:]))
-		else:
-			command_line = None
-		try:
+			phase_input_vcf_readers = [
+				stack.enter_context(VcfReader(f, indels=indels, phases=True))
+				for f in phase_input_vcf_filenames
+			]
 			vcf_writer = stack.enter_context(
 				PhasedVcfWriter(command_line=command_line, in_path=variant_file,
 			        out_file=output, tag=tag))
 		except OSError as e:
 			raise CommandLineError(e)
+		fasta = stack.enter_context(open_reference(reference)) if reference else None
+		del reference
 		# Only read genotype likelihoods from VCFs when distrusting genotypes
 		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=distrust_genotypes)
 
