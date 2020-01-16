@@ -633,19 +633,8 @@ def run_whatshap(
 		if read_list_filename:
 			read_list = stack.enter_context(ReadList(read_list_filename))
 
-		# Read phase information provided as VCF files, if provided.
-		# TODO: do this chromosome- and/or sample-wise on demand to save memory.
-		phase_input_vcfs = []
-
-		timers.start('parse_phasing_vcfs')
-		for reader in phase_input_vcf_readers:
-			# create dict mapping chromsome names to VariantTables
-			m = dict()
-			logger.info('Reading phased blocks from %r', reader.path)
-			for variant_table in reader:
-				m[variant_table.chromosome] = variant_table
-			phase_input_vcfs.append(m)
-		timers.stop('parse_phasing_vcfs')
+		with timers('parse_phasing_vcfs'):
+			phase_input_vcfs = read_phase_input_vcfs(phase_input_vcf_readers)
 
 		for variant_table in timers.iterate('parse_vcf', vcf_reader):
 			chromosome = variant_table.chromosome
@@ -894,6 +883,20 @@ def run_whatshap(
 	logger.info('Time spent finding components:               %6.1f s', timers.elapsed('components'))
 	logger.info('Time spent on rest:                          %6.1f s', total_time - timers.sum())
 	logger.info('Total elapsed time:                          %6.1f s', total_time)
+
+
+def read_phase_input_vcfs(phase_input_vcf_readers):
+	# Read phase information provided as VCF files, if provided.
+	# TODO: do this chromosome- and/or sample-wise on demand to save memory.
+	phase_input_vcfs = []
+	for reader in phase_input_vcf_readers:
+		# create dict mapping chromsome names to VariantTables
+		m = dict()
+		logger.info("Reading phased blocks from %r", reader.path)
+		for variant_table in reader:
+			m[variant_table.chromosome] = variant_table
+		phase_input_vcfs.append(m)
+	return phase_input_vcfs
 
 
 def merge_readsets(readsets):
