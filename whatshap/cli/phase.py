@@ -17,6 +17,7 @@ from math import log
 from networkx import Graph, number_of_nodes, number_of_edges, connected_components, node_connected_component, shortest_path
 
 from contextlib import ExitStack
+from whatshap.cli import CommandLineError
 from whatshap.vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
 from whatshap import __version__
 from whatshap.core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, HapChatCore, Genotype
@@ -117,25 +118,24 @@ def read_reads(readset_reader, chromosome, variants, bam_sample, vcf_sample, fas
 	try:
 		reference = fasta[chromosome] if fasta else None
 	except KeyError:
-		logger.error('Chromosome %r present in VCF file, but not in the reference FASTA %r', chromosome, fasta.filename)
-		sys.exit(1)
+		raise CommandLineError('Chromosome {!r} present in VCF file, but not in the reference FASTA {!r}'.format(chromosome, fasta.filename))
+
 	try:
 		readset = readset_reader.read(chromosome, variants, bam_sample, reference)
 	except SampleNotFoundError:
 		logger.warning("Sample %r not found in any BAM/CRAM file.", bam_sample)
 		readset = ReadSet()
 	except ReadSetError as e:
-		logger.error("%s", e)
-		sys.exit(1)
+		raise CommandLineError(e)
 	except ReferenceNotFoundError:
-		logger.error("The chromosome %r was not found in the BAM/CRAM file.", chromosome)
 		if chromosome.startswith('chr'):
 			alternative = chromosome[3:]
 		else:
 			alternative = 'chr' + chromosome
+		message = "The chromosome {!r} was not found in the BAM/CRAM file.".format(chromosome)
 		if readset_reader.has_reference(alternative):
-			logger.error("Found %r instead", alternative)
-		sys.exit(1)
+			message += " Found {!r} instead".format(alternative)
+		raise CommandLineError(message)
 	# Add phasing information from VCF files, if present
 	vcf_source_ids = set()
 	for i, phase_input_vcf in enumerate(phase_input_vcfs):
@@ -439,15 +439,13 @@ def split_input_file_list(input_files):
 		try:
 			file_format = detect_file_format(filename)
 		except OSError as e:
-			logger.error('%s', e)
-			sys.exit(1)
+			raise CommandLineError(e)
 		if file_format in ('BAM', 'CRAM'):
 			bams.append(filename)
 		elif file_format == 'VCF':
 			vcfs.append(filename)
 		else:
-			logger.error('Unable to determine type of input file %r', filename)
-			sys.exit(1)
+			raise CommandLineError('Unable to determine type of input file {!r}'.format(filename))
 	return bams, vcfs
 
 
@@ -563,32 +561,26 @@ def run_whatshap(
 			readset_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, reference,
 				numeric_sample_ids, mapq_threshold=mapping_quality))
 		except OSError as e:
-			logger.error(e)
-			sys.exit(1)
+			raise CommandLineError(e)
 		except AlignmentFileNotIndexedError as e:
-			logger.error('The file %r is not indexed. Please create the appropriate BAM/CRAM '
-				'index with "samtools index"', str(e))
-			sys.exit(1)
+			raise CommandLineError('The file {!r} is not indexed. Please create the appropriate BAM/CRAM '
+				'index with "samtools index"'.format(e))
 		except EmptyAlignmentFileError as e:
-			logger.error('No reads could be retrieved from %r. If this is a CRAM file, possibly the '
+			raise CommandLineError('No reads could be retrieved from {!r}. If this is a CRAM file, possibly the '
 				'reference could not be found. Try to use --reference=... or check you '
-			    '$REF_PATH/$REF_CACHE settings', str(e))
-			sys.exit(1)
+			    '$REF_PATH/$REF_CACHE settings'.format(e))
 		try:
 			phase_input_vcf_readers = [VcfReader(f, indels=indels, phases=True) for f in phase_input_vcf_filenames]
 		except OSError as e:
-			logger.error(e)
-			sys.exit(1)
+			raise CommandLineError(e)
 		if reference:
 			try:
 				fasta = stack.enter_context(IndexedFasta(reference))
 			except OSError as e:
-				logger.error('%s', e)
-				sys.exit(1)
+				raise CommandLineError(e)
 			except FastaNotIndexedError as e:
-				logger.error('An index file (.fai) for the reference %r could not be found. '
-					'Please create one with "samtools faidx".', str(e))
-				sys.exit(1)
+				raise CommandLineError('An index file (.fai) for the reference {!r} could not be found. '
+					'Please create one with "samtools faidx".'.format(e))
 		else:
 			fasta = None
 		del reference
@@ -601,15 +593,13 @@ def run_whatshap(
 				PhasedVcfWriter(command_line=command_line, in_path=variant_file,
 			        out_file=output, tag=tag))
 		except OSError as e:
-			logger.error('%s', e)
-			sys.exit(1)
+			raise CommandLineError(e)
 		# Only read genotype likelihoods from VCFs when distrusting genotypes
 		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=distrust_genotypes)
 
 		if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
-			logger.error('When using --ignore-read-groups on a VCF with '
+			raise CommandLineError('When using --ignore-read-groups on a VCF with '
 				'multiple samples, --sample must also be used.')
-			sys.exit(1)
 		if not samples:
 			samples = vcf_reader.samples
 
@@ -620,8 +610,7 @@ def run_whatshap(
 		vcf_sample_set = set(vcf_reader.samples)
 		for sample in samples:
 			if sample not in vcf_sample_set:
-				logger.error('Sample %r requested on command-line not found in VCF', sample)
-				sys.exit(1)
+				raise CommandLineError('Sample {!r} requested on command-line not found in VCF'.format(sample))
 
 		samples = frozenset(samples)
 		# list of all trios across all families
@@ -632,9 +621,8 @@ def run_whatshap(
 
 		if ped:
 			if algorithm == 'hapchat':
-				logger.error('The hapchat algorithm (for the time being) does single '
+				raise CommandLineError('The hapchat algorithm (for the time being) does single '
 					'individual phasing only, hence it does not handle pedigrees')
-				sys.exit(1)
 			all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, samples)
 			if genmap:
 				logger.info('Using region-specific recombination rates from genetic map %s.', genmap)

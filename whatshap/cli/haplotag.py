@@ -14,6 +14,7 @@ import collections
 
 from contextlib import ExitStack
 from whatshap import __version__
+from whatshap.cli import CommandLineError
 from whatshap.vcf import VcfReader, VcfError
 from whatshap.core import NumericSampleIds
 from whatshap.bam import AlignmentFileNotIndexedError, SampleNotFoundError
@@ -75,8 +76,7 @@ def read_reads(readset_reader, chromosome, variants, sample, fasta, regions):
 	try:
 		readset = readset_reader.read(chromosome, variants, sample, reference, regions)
 	except ReadSetError as e:
-		logger.error("%s", e)
-		sys.exit(1)
+		raise CommandLineError(e)
 
 	# TODO is this necessary?
 	for read in readset:
@@ -672,10 +672,4 @@ def run_haplotag(
 
 
 def main(args):
-	try:
-		run_haplotag(**vars(args))
-	except Exception as e:
-		logger.error('run_haplotag.py: error {}'.format(e))
-		sys.exit(1)
-	else:
-		sys.exit(0)
+	run_haplotag(**vars(args))

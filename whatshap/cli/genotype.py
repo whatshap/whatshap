@@ -23,7 +23,7 @@ from whatshap.bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
 from whatshap.timer import StageTimer
 from whatshap.variants import ReadSetReader
 from whatshap.utils import IndexedFasta, FastaNotIndexedError
-
+from whatshap.cli import CommandLineError
 from whatshap.cli.phase import read_reads, select_reads, split_input_file_list, setup_pedigree
 
 
@@ -98,32 +98,26 @@ def run_genotype(
 				phase_input_bam_filenames, reference, numeric_sample_ids, mapq_threshold=mapping_quality,
 				overhang=overhang, affine=affine_gap, gap_start=gap_start, gap_extend=gap_extend, default_mismatch=mismatch))
 		except OSError as e:
-			logger.error(e)
-			sys.exit(1)
+			raise CommandLineError(e)
 		except AlignmentFileNotIndexedError as e:
-			logger.error('The file %r is not indexed. Please create the appropriate BAM/CRAM '
-				'index with "samtools index"', str(e))
-			sys.exit(1)
+			raise CommandLineError('The file {!r} is not indexed. Please create the appropriate BAM/CRAM '
+				'index with "samtools index"', e)
 		except EmptyAlignmentFileError as e:
-			logger.error('No reads could be retrieved from %r. If this is a CRAM file, possibly the '
+			raise CommandLineError('No reads could be retrieved from {!r}. If this is a CRAM file, possibly the '
 				'reference could not be found. Try to use --reference=... or check you '
-				'$REF_PATH/$REF_CACHE settings', str(e))
-			sys.exit(1)
+				'$REF_PATH/$REF_CACHE settings'.format(e))
 		try:
 			phase_input_vcf_readers = [VcfReader(f, indels=indels, phases=True) for f in phase_input_vcf_filenames]
 		except OSError as e:
-			logger.error(e)
-			sys.exit(1)
+			raise CommandLineError(e)
 		if reference:
 			try:
 				fasta = stack.enter_context(IndexedFasta(reference))
 			except OSError as e:
-				logger.error('%s', e)
-				sys.exit(1)
+				raise CommandLineError(e)
 			except FastaNotIndexedError as e:
-				logger.error('An index file (.fai) for the reference %r could not be found. '
+				raise CommandLineError('An index file (.fai) for the reference %r could not be found. '
 					'Please create one with "samtools faidx".', str(e))
-				sys.exit(1)
 		else:
 			fasta = None
 		del reference
@@ -146,9 +140,8 @@ def run_genotype(
 		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=False, ignore_genotypes=True)
 
 		if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
-			logger.error('When using --ignore-read-groups on a VCF with '
+			raise CommandLineError('When using --ignore-read-groups on a VCF with '
 				'multiple samples, --sample must also be used.')
-			sys.exit(1)
 		if not samples:
 			samples = vcf_reader.samples
 
@@ -165,8 +158,7 @@ def run_genotype(
 		vcf_sample_set = set(vcf_reader.samples)
 		for sample in samples:
 			if sample not in vcf_sample_set:
-				logger.error('Sample %r requested on command-line not found in VCF', sample)
-				sys.exit(1)
+				raise CommandLineError('Sample {!r} requested on command-line not found in VCF'.format(sample))
 
 		samples = frozenset(samples)
 		# list of all trios across all families

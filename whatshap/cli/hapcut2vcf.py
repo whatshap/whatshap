@@ -19,6 +19,7 @@ from collections import namedtuple
 import itertools
 from contextlib import ExitStack
 
+from whatshap.cli import CommandLineError
 from whatshap.vcf import PhasedVcfWriter
 from whatshap.core import Read
 from whatshap import __version__
@@ -148,8 +149,7 @@ def run_hapcut2vcf(hapcut, vcf, output=sys.stdout):
 			# This would be easy to support with a --sample command-line parameter,
 			# but hapCUT does not seem to support multi-sample VCFs, so something
 			# must be wrong anyway.
-			logger.error('There is more than one sample in this VCF')
-			sys.exit(1)
+			raise CommandLineError('There is more than one sample in this VCF')
 		sample = writer.samples[0]
 
 		f = stack.enter_context(open(hapcut))
