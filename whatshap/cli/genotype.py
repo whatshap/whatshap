@@ -19,12 +19,9 @@ from whatshap.core import ReadSet, Pedigree, NumericSampleIds, PhredGenotypeLike
 from whatshap.graph import ComponentFinder
 from whatshap.pedigree import (PedReader, recombination_cost_map,
 			load_genetic_map, uniform_recombination_map)
-from whatshap.bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
 from whatshap.timer import StageTimer
-from whatshap.variants import ReadSetReader
-from whatshap.utils import IndexedFasta, FastaNotIndexedError
-from whatshap.cli import CommandLineError
 from whatshap.cli.phase import read_reads, select_reads, split_input_file_list, setup_pedigree
+from whatshap.cli import open_readset_reader, CommandLineError, open_reference
 
 
 logger = logging.getLogger(__name__)
@@ -93,33 +90,16 @@ def run_genotype(
 		# read the given input files (BAMs, VCFs, ref...)
 		numeric_sample_ids = NumericSampleIds()
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
-		try:
-			readset_reader = stack.enter_context(ReadSetReader(
-				phase_input_bam_filenames, reference, numeric_sample_ids, mapq_threshold=mapping_quality,
-				overhang=overhang, affine=affine_gap, gap_start=gap_start, gap_extend=gap_extend, default_mismatch=mismatch))
-		except OSError as e:
-			raise CommandLineError(e)
-		except AlignmentFileNotIndexedError as e:
-			raise CommandLineError('The file {!r} is not indexed. Please create the appropriate BAM/CRAM '
-				'index with "samtools index"', e)
-		except EmptyAlignmentFileError as e:
-			raise CommandLineError('No reads could be retrieved from {!r}. If this is a CRAM file, possibly the '
-				'reference could not be found. Try to use --reference=... or check you '
-				'$REF_PATH/$REF_CACHE settings'.format(e))
+		readset_reader = stack.enter_context(open_readset_reader(
+			phase_input_bam_filenames, reference, numeric_sample_ids, mapq_threshold=mapping_quality,
+			overhang=overhang, affine=affine_gap, gap_start=gap_start, gap_extend=gap_extend,
+			default_mismatch=mismatch))
 		try:
 			phase_input_vcf_readers = [VcfReader(f, indels=indels, phases=True) for f in phase_input_vcf_filenames]
 		except OSError as e:
 			raise CommandLineError(e)
-		if reference:
-			try:
-				fasta = stack.enter_context(IndexedFasta(reference))
-			except OSError as e:
-				raise CommandLineError(e)
-			except FastaNotIndexedError as e:
-				raise CommandLineError('An index file (.fai) for the reference %r could not be found. '
-					'Please create one with "samtools faidx".', str(e))
-		else:
-			fasta = None
+
+		fasta = stack.enter_context(open_reference(reference)) if reference else None
 		del reference
 
 		if write_command_line_header:

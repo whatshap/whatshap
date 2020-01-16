@@ -17,18 +17,17 @@ from math import log
 from networkx import Graph, number_of_nodes, number_of_edges, connected_components, node_connected_component, shortest_path
 
 from contextlib import ExitStack
-from whatshap.cli import CommandLineError
 from whatshap.vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
 from whatshap import __version__
-from whatshap.core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, HapChatCore, Genotype
+from whatshap.core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, HapChatCore
 from whatshap.graph import ComponentFinder
 from whatshap.pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
-from whatshap.bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
+from whatshap.bam import SampleNotFoundError, ReferenceNotFoundError
 from whatshap.timer import StageTimer
-from whatshap.variants import ReadSetReader, ReadSetError
-from whatshap.utils import detect_file_format, IndexedFasta, FastaNotIndexedError, plural_s
-
+from whatshap.variants import ReadSetError
+from whatshap.utils import detect_file_format, plural_s
+from whatshap.cli import CommandLineError, open_readset_reader, open_reference
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -551,38 +550,20 @@ def run_whatshap(
 	"""
 	timers = StageTimer()
 	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
+	if full_genotyping:
+		distrust_genotypes = True
+		include_homozygous = True
+	numeric_sample_ids = NumericSampleIds()
+
 	with ExitStack() as stack:
-		if full_genotyping:
-			distrust_genotypes = True
-			include_homozygous = True
-		numeric_sample_ids = NumericSampleIds()
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
-		try:
-			readset_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, reference,
-				numeric_sample_ids, mapq_threshold=mapping_quality))
-		except OSError as e:
-			raise CommandLineError(e)
-		except AlignmentFileNotIndexedError as e:
-			raise CommandLineError('The file {!r} is not indexed. Please create the appropriate BAM/CRAM '
-				'index with "samtools index"'.format(e))
-		except EmptyAlignmentFileError as e:
-			raise CommandLineError('No reads could be retrieved from {!r}. If this is a CRAM file, possibly the '
-				'reference could not be found. Try to use --reference=... or check you '
-			    '$REF_PATH/$REF_CACHE settings'.format(e))
+		readset_reader = stack.enter_context(open_readset_reader(phase_input_bam_filenames,
+			reference, numeric_sample_ids, mapq_threshold=mapping_quality))
 		try:
 			phase_input_vcf_readers = [VcfReader(f, indels=indels, phases=True) for f in phase_input_vcf_filenames]
 		except OSError as e:
 			raise CommandLineError(e)
-		if reference:
-			try:
-				fasta = stack.enter_context(IndexedFasta(reference))
-			except OSError as e:
-				raise CommandLineError(e)
-			except FastaNotIndexedError as e:
-				raise CommandLineError('An index file (.fai) for the reference {!r} could not be found. '
-					'Please create one with "samtools faidx".'.format(e))
-		else:
-			fasta = None
+		fasta = stack.enter_context(open_reference(reference)) if reference else None
 		del reference
 		if write_command_line_header:
 			command_line = '(whatshap {}) {}'.format(__version__, ' '.join(sys.argv[1:]))

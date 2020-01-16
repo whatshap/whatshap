@@ -14,13 +14,11 @@ import collections
 
 from contextlib import ExitStack
 from whatshap import __version__
-from whatshap.cli import CommandLineError
+from whatshap.cli import CommandLineError, open_readset_reader, open_reference
 from whatshap.vcf import VcfReader, VcfError
 from whatshap.core import NumericSampleIds
-from whatshap.bam import AlignmentFileNotIndexedError, SampleNotFoundError
 from whatshap.timer import StageTimer
-from whatshap.variants import ReadSetReader, ReadSetError
-from whatshap.utils import IndexedFasta, FastaNotIndexedError
+from whatshap.variants import ReadSetError
 
 
 logger = logging.getLogger(__name__)
@@ -299,52 +297,6 @@ def normalize_user_regions(user_regions, bam_references):
 	return norm_regions
 
 
-def initialize_readset_reader(aln_file_path, ref_file_path, num_sample_ids, exit_stack, t_mapq=0):
-	"""
-	:param aln_file_path:
-	:param ref_file_path:
-	:param num_sample_ids:
-	:param exit_stack:
-	:param t_mapq:
-	:return: ReadSetReader object and FASTA reader (or None)
-	"""
-	readset_reader, fasta = None, None
-	try:
-		readset_reader = exit_stack.enter_context(
-			ReadSetReader(
-				[aln_file_path],
-				reference=ref_file_path,
-				numeric_sample_ids=num_sample_ids,
-				mapq_threshold=t_mapq
-			)
-		)
-	except (IOError, OSError) as err:
-		logger.error('Error while initializing ReadSetReader: {}'.format(err))
-		raise err
-	except AlignmentFileNotIndexedError as err:
-		logger.error(
-			'The alignment file {} is not indexed. '
-			'Please create the appropriate BAM/CRAM '
-			'index with "samtools index"'.format(err)
-		)
-		raise err
-	if ref_file_path is not None:
-		try:
-			fasta = exit_stack.enter_context(IndexedFasta(ref_file_path))
-		except (IOError, OSError) as err:
-			logger.error('Error while loading FASTA reference file: {}'.format(err))
-			raise err
-		except FastaNotIndexedError as err:
-			logger.error(
-				'An index file (.fai) for the reference FASTA {} '
-				'could not be found. Please create one with '
-				'"samtools faidx".'.format(err)
-			)
-			raise err
-
-	return readset_reader, fasta
-
-
 def prepare_variant_file(file_path, user_given_samples, ignore_read_groups, exit_stack):
 	"""
 	Open variant file and load sample information - check if samples in VCF are compatible
@@ -573,12 +525,12 @@ def run_haplotag(
 		)
 
 		# Initialize ReadSetReader and FASTA reference
-		readset_reader, fasta = initialize_readset_reader(
-			alignment_file,
+		readset_reader = stack.enter_context(open_readset_reader(
+			[alignment_file],
 			reference,
 			numeric_sample_ids,
-			stack
-		)
+		))
+		fasta = stack.enter_context(open_reference(reference)) if reference else None
 
 		# Prepare output files
 		bam_writer, haplotag_writer = prepare_output_files(
