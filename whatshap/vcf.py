@@ -318,6 +318,10 @@ class VcfReader:
 	def close(self):
 		self._vcf_reader.close()
 
+	@property
+	def path(self):
+		return self._vcf_reader.filename.decode()
+
 	def _fetch(self, chromosome: str, start=0, end=None):
 		"""
 		Return VariantTable object for a given chromosome.

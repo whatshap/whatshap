@@ -669,10 +669,10 @@ def run_whatshap(
 		phase_input_vcfs = []
 
 		timers.start('parse_phasing_vcfs')
-		for reader, filename in zip(phase_input_vcf_readers, phase_input_vcf_filenames):
+		for reader in phase_input_vcf_readers:
 			# create dict mapping chromsome names to VariantTables
 			m = dict()
-			logger.info('Reading phased blocks from %r', filename)
+			logger.info('Reading phased blocks from %r', reader.path)
 			for variant_table in reader:
 				m[variant_table.chromosome] = variant_table
 			phase_input_vcfs.append(m)
