@@ -50,7 +50,6 @@ Documentation
   repository and in the downloaded tar distribution.
 
 
-Mailing list
-------------
-We run a `public mailing list <https://lists.cwi.nl/mailman/listinfo/whatshap>`_. Please
-don't hesitate to post questions and comments.
+Issue tracker
+-------------
+Please do not hesitate to use our `issue tracker <https://bitbucket.org/whatshap/whatshap/issues>`_ for bug reports and feature requests.
