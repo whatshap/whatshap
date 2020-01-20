@@ -5,6 +5,7 @@ from tempfile import TemporaryDirectory
 import os
 
 import pysam
+from pytest import raises
 from whatshap.cli.polyphase import run_polyphase
 from whatshap.vcf import VcfReader, VariantCallPhase, PloidyError
 
@@ -52,17 +53,13 @@ def test_polyphase_multiple_bam(tmpdir):
 def test_wrong_ploidy(tmpdir):
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
-		try:
+		with raises(SystemExit):
 			run_polyphase(
 				phase_input_files=['tests/data/polyploid.chr22.42M.50k.bam'],
 				variant_file='tests/data/polyploid.chr22.42M.50k.vcf',
 				ploidy=3,
 				ignore_read_groups=True,
 				output=outvcf)
-		except(PloidyError):
-			return
-
-		assert False
 
 
 def test_blockcut_sensitivities(tmpdir):

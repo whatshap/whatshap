@@ -7,6 +7,23 @@ import random
 logger = logging.getLogger(__name__)
 
 def run_threading(readset, clustering, cluster_sim, ploidy, genotypes, block_cut_sensitivity):
+	'''
+	Main method for the threading stage of the polyploid phasing algorithm. Takes the following input:
+	
+	readset -- The fragment matrix to phase
+	clustering -- A list of clusters. Each cluster is a list of read ids, indicating which reads it contains. Every read can
+	              only be present in one cluster.
+	cluster_sim -- A triangle matrix, containing the similarity score of the clustering stage between each pair of clusters.
+	               The higher the value the higher the agreement between the (overlapping) reads of two clusters.
+	ploidy -- Number of haplotypes to phase
+	block_cut_sensitivity -- Policy how conversative the block cuts have to be done. 0 is one phasing block no matter what, 5
+	                         is very short blocks
+							 
+	For every variant, the threading algorithm finds a tuple of clusters through which the haplotypes can be threaded with
+	minimal cost. Costs arise when the positional coverage of a cluster does not match the number of haplotypes threaded through it
+	or when haplotypes switch the cluster on two consecutive positions.
+	'''
+	
 	# compute threading through the clusters
 	path = compute_threading_path(readset, clustering, ploidy, genotypes)
 		
@@ -43,6 +60,14 @@ def run_threading(readset, clustering, cluster_sim, ploidy, genotypes, block_cut
 	return (cut_positions, path, haplotypes)
 
 def compute_threading_path(readset, clustering, ploidy, genotypes, switch_cost = 32.0, affine_switch_cost = 8.0):
+	'''
+	Runs the threading algorithm for the haplotypes using the given costs for switches. The normal switch cost is the
+	cost per haplotype, that switches clusters from one position to another (non matching coverage on single position
+	is always cost 1.0). The affine switch cost is an additional offset for every position, where a switch occurs.
+	These additional costs encourage the threading algorithm to summarize multiple switches on consecutive positions
+	into one big switch.
+	'''
+	
 	logger.debug("Computing cluster coverages and consensi ..")
 	
 	# Map genome positions to [0,l)
@@ -50,16 +75,16 @@ def compute_threading_path(readset, clustering, ploidy, genotypes, switch_cost =
 	num_vars = len(rev_index)
 	num_clusters = len(clustering)
 	
-	# for each position, compute the relevant list of clusters (sorted by descendant coverage)
+	# for each position, compute the relevant list of clusters (i.e. the 2*ploidy clusters with highest coverage), sorted by descendant coverage
 	cov_map = get_pos_to_clusters_map(readset, clustering, index, ploidy)
 
-	#create dictionary mapping a clusterID to a pair (starting position, ending position)
+	# create dictionary, mapping a clusterID to a pair (starting position, ending position)
 	positions = get_cluster_start_end_positions(readset, clustering, index)
 
-	#for every cluster and every variant position, compute the relative coverage	
+	# for every cluster and every variant position, compute the relative coverage	
 	coverage = get_coverage(readset, clustering, index)
 	
-	#compute the consensus sequences for every variant position and every cluster for integrating genotypes in the DP
+	# compute the consensus sequences for every variant position and every (relevant) cluster for integrating genotypes in the DP
 	consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
 	
 	logger.debug("Computing threading paths ..")
@@ -79,6 +104,7 @@ def compute_threading_path(readset, clustering, ploidy, genotypes, switch_cost =
 		compressed_consensus.append(consensus_list)
 
 	# compute cluster dissimilarity on consensus
+	# TODO: Is this really necessary here or isn't this already done by the postprocessing step?
 	coverage_abs = get_coverage_absolute(readset, clustering, index)
 	c_to_c_dissim = [[[0 for j in range(len(cov_map[p+1]))] for i in range(len(cov_map[p]))] for p in range(num_vars-1)]
 
@@ -111,6 +137,23 @@ def compute_threading_path(readset, clustering, ploidy, genotypes, switch_cost =
 	return path
 
 def compute_cut_positions(path, block_cut_sensitivity, num_clusters):
+	'''
+	Takes a threading as input and computes on which positions a cut should be made according the cut sensitivity. The levels mean:
+	
+	0 -- No cuts at all, even if regions are not connected by any reads
+	1 -- Only cut, when regions are not connected by any reads (is already done in advance, so nothing to do here)
+	2 -- Only cut, when regions are not connected by a sufficient number of reads (also lready done in advance)
+	3 -- Cut between two positions, if at least two haplotypes switch their cluster on this transition. In this case it is ambiguous,
+	     how the haplotype are continued and we might get switch errors if we choose arbitrarily.
+	4 -- Additionally to 3, cut every time a haplotype leaves a collapsed region. Collapsed regions are positions, where multiple
+	     haplotypes go through the same cluster. If one cluster leaves (e.g. due to decline in cluster coverage), we do not know
+		 which to pick, so we are conservative here. Exception: If a cluster contains a set of multiple haplotypes since the start of
+		 the current block and hap wants to leave, we do not need a cut, since it does not matter which haps leaves. Default option.
+	5 -- Cut every time a haplotype switches clusters. Most conservative, but also very short blocks.
+	
+	The list of cut positions contains the first position of every block. Therefore, position 0 is always in the cut list.
+	'''
+	
 	cut_positions = [0]
 	
 	if len(path) == 0:
@@ -172,6 +215,12 @@ def compute_cut_positions(path, block_cut_sensitivity, num_clusters):
 	return cut_positions
 				
 def improve_path_on_multiswitches(path, num_clusters, cluster_sim):
+	'''
+	Post processing step after the threading. If two or more haplotypes switch clusters on the same position, we could use
+	the similarity scores between the clusters to find the most likely continuation of the switching haplotypes. See the
+	description of the compute_cut_positions method for more details about block cuts.
+	'''
+	
 	if len(path) == 0:
 		return []
 	
@@ -219,6 +268,11 @@ def improve_path_on_multiswitches(path, num_clusters, cluster_sim):
 	return corrected_path
 
 def improve_path_on_collapsedswitches(path, num_clusters, cluster_sim):
+	'''
+	Post processing step after the threading. If a haplotype leaves a cluster on a collapsed region, we could use the
+	similarity scores between the clusters to find the most likely continuation of the switching haplotypes. See the
+	description of the compute_cut_positions method for more details about block cuts.
+	'''
 	if len(path) == 0:
 		return []
 	
@@ -305,6 +359,9 @@ def improve_path_on_collapsedswitches(path, num_clusters, cluster_sim):
 	return corrected_path
 
 def get_position_map(readset):
+	'''
+	Returns a mapping of genome (bp) positions to virtual positions (from 0 to l).
+	'''
 	# Map genome positions to [0,l)
 	index = {}
 	rev_index = []
@@ -318,7 +375,7 @@ def get_position_map(readset):
 	return index, rev_index
 
 def get_pos_to_clusters_map(readset, clustering, pos_index, ploidy):
-	#cov_map maps each position to the list of cluster IDS that appear at this position
+	# cov_map maps each position to the list of cluster IDS that appear at this position
 	num_clusters = len(clustering)
 	cov_map = defaultdict(list)
 	for c_id in range(num_clusters):
@@ -330,13 +387,17 @@ def get_pos_to_clusters_map(readset, clustering, pos_index, ploidy):
 		for p in covered_positions:
 			cov_map[p].append(c_id)
 
-	#restrict the number of clusters at each position to a maximum of 2*ploidy clusters with the largest number of reads	
+	# restrict the number of clusters at each position to a maximum of 2*ploidy clusters with the largest number of reads	
 	for key in cov_map.keys():
 		largest_clusters = sorted(cov_map[key], key=lambda x: len(clustering[x]), reverse=True)[:min(len(cov_map[key]), 2*ploidy)]
 		cov_map[key] = largest_clusters
 	return cov_map
 
 def get_coverage(readset, clustering, pos_index):
+	'''
+	Returns a list, which for every position contains a dictionary, mapping a cluster id to
+	a relative coverage on this position.
+	'''
 	num_vars = len(pos_index)
 	num_clusters = len(clustering)
 	coverage = [dict() for pos in range(num_vars)]
@@ -356,6 +417,10 @@ def get_coverage(readset, clustering, pos_index):
 	return coverage
 
 def get_coverage_absolute(readset, clustering, pos_index):
+	'''
+	Returns a list, which for every position contains a dictionary, mapping a cluster id to
+	an absolute coverage on this position.
+	'''
 	num_vars = len(pos_index)
 	num_clusters = len(clustering)
 	coverage = [dict() for pos in range(num_vars)]
@@ -388,6 +453,10 @@ def get_cluster_start_end_positions(readset, clustering, pos_index):
 	return positions
 
 def get_local_cluster_consensus(readset, clustering, cov_map, positions):
+	'''
+	Returns a list, which for every position contains a dictionary, mapping a cluster id to
+	its consensus on this position.
+	'''
 	return [{c_id : pos_cons[c_id][0] for c_id in pos_cons} for pos_cons in get_local_cluster_consensus_withfrac(readset, clustering, cov_map, positions)]
 
 def get_local_cluster_consensus_withfrac(readset, clustering, cov_map, positions):

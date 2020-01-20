@@ -84,9 +84,11 @@ void compute_polyploid_genotypes(const ReadSet& readset, size_t ploidy, std::vec
 		
 		// determine the genotype
 		size_t total_alleles = ref_count + alt_count;
-		if (total_alleles > 0) {
+		if (total_alleles == 0) {
+			genotypes->push_back(Genotype());
+		} else {
 			double alt_frac = alt_count / (double) (total_alleles);
-			uint32_t num_alts = (uint32_t)(ploidy*alt_frac+1/(2*ploidy)) / ploidy;
+			uint32_t num_alts = (uint32_t)(ploidy*alt_frac+1/(2*ploidy));
 			
 			std::vector<uint32_t> geno_alleles;
 			for (size_t j = 0; j < num_alts; ++j){
@@ -99,28 +101,6 @@ void compute_polyploid_genotypes(const ReadSet& readset, size_t ploidy, std::vec
 			assert(geno_alleles.size() == ploidy);
 			Genotype genotype(geno_alleles);
 			genotypes->push_back(genotype);
-			
-			/*
-			for (size_t i = 0; i <= ploidy; ++i){
-				double threshold = (i / (double) ploidy) + (1 / ((double) ploidy*2));
-//				std::cout << alt_frac << " " << threshold << std::endl;
-				if (alt_frac < threshold) {
-					Genotype genotype;
-					for (size_t j = 0; j < i; ++j){
-						geno_alleles.push_back(1);
-					}
-					for (size_t j = 0; j < (ploidy-i); ++j){
-						geno_alleles.push_back(0);
-					}
-					assert(geno_alleles.size() == ploidy);
-					Genotype genotype(geno_alleles);
-					genotypes->push_back(genotype);
-					break;
-				}
-			}
-			*/
-		} else {
-			genotypes->push_back(Genotype());
 		}
 	}
 	cout << genotypes->size() << " " << positions->size() << column_index << endl;
