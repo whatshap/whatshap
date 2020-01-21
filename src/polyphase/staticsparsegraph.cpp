@@ -1,4 +1,4 @@
-#include "StaticSparseGraph.h"
+#include "staticsparsegraph.h"
 #include <algorithm>
 
 using Edge = DynamicSparseGraph::Edge;
@@ -63,9 +63,6 @@ StaticSparseGraph::StaticSparseGraph(DynamicSparseGraph& other, std::vector<Node
 }
 
 void StaticSparseGraph::compile(DynamicSparseGraph& dg, const std::vector<NodeId >& nodes) {
-    if (verbosity >= 3) {
-        std::cout<<"Compiling graph with "<<nodes.size()<<" nodes ..."<<std::endl;
-    }
     weightv.push_back(0.0);
     
     // create mapping from global to local node id
@@ -138,36 +135,8 @@ void StaticSparseGraph::compile(DynamicSparseGraph& dg, const std::vector<NodeId
             if(w != checkWeight) {
                 std::cout<<"Assertion violated (Get != Set): "<<u<<" "<<v<<" "<<w<<" "<<(getWeight(Edge(u,v)))<<std::endl;
             }
-            
-            if (verbosity >= 4)
-                std::cout<<"Compiled edge ("<<u<<","<<v<<") with weight "<<w<<std::endl;
         }
     }
-    
-//     std::cout<<size<<std::endl;
-//     for (NodeId i = 0; i < size; i++) {
-//         std::cout<<"read_"<<i<<std::endl;
-//     }
-//     for (NodeId i = 0; i < size; i++) {
-//         if (i+1 < size)
-//             std::cout<<getWeight(Edge(i, i+1));
-//         for (NodeId j = i+2; j < size; j++) {
-//             std::cout<<" "<<getWeight(Edge(i, j));
-//         }
-//         std::cout<<std::endl;
-//     }
-    
-//     std::cout<<size<<std::endl;
-//     for (NodeId i = 0; i < size; i++) {
-//         std::cout<<"read_"<<i<<std::endl;
-//     }
-//     for (NodeId i = 0; i < size; i++) {
-//		 for (NodeId j : getNonZeroNeighbours(i)) {
-//			 if (i < j) {
-//				 std::cout<<i<<" "<<j<<" "<<getWeight(Edge(i,j))<<std::endl;
-//			 }
-//		 }
-//     }
     
     weightv.shrink_to_fit();
 }

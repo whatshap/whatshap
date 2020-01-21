@@ -132,7 +132,7 @@ def compute_threading_path(readset, clustering, ploidy, genotypes, switch_cost =
 	# run threader
 	threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, True, 0)
 	path = threader.computePathsBlockwise([0], cov_map_as_list, compressed_coverage, compressed_consensus, genotypes, c_to_c_dissim)
-	assert(len(path) == num_vars)
+	assert len(path) == num_vars
 		
 	return path
 
@@ -444,12 +444,12 @@ def get_cluster_start_end_positions(readset, clustering, pos_index):
 		for read in clustering[c_id]:
 			readstart = pos_index[readset[read][0].position]
 			readend = pos_index[readset[read][-1].position]
-			if (readstart < start):
+			if readstart < start:
 				start = readstart
-			if (readend > end):
+			if readend > end:
 				end = readend
 		positions[c_id] = (start,end)
-	assert(len(positions) == num_clusters)
+	assert len(positions) == num_clusters
 	return positions
 
 def get_local_cluster_consensus(readset, clustering, cov_map, positions):

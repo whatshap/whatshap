@@ -184,7 +184,7 @@ def compute_switch_errors_poly(phasing0, phasing1, matching_pos=None):
 	return vector_error.switches
 
 
-def compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 1):
+def compute_switch_flips_poly(phasing0, phasing1, switch_cost=1, flip_cost=1):
 	'''
 	Computes the combined number of switches and flips, which are needed to transform phasing 0 into
 	phasing 1 or vice versa.
@@ -192,27 +192,27 @@ def compute_switch_flips_poly(phasing0, phasing1, switch_cost = 1, flip_cost = 1
 	result, switches_in_column, flips_in_column, poswise_config = compute_switch_flips_poly_bt(phasing0, phasing1, switch_cost = switch_cost, flip_cost = flip_cost)
 	return result
 
-def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = False, switch_cost = 1, flip_cost = 1):
+def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions=False, switch_cost=1, flip_cost=1):
 	# Check input
 	if len(phasing0) != len(phasing1):
-		print("Incompatible phasings. Number of haplotypes is not equal ("+str(len(phasing))+" != "+str(len(truth))+").")
+		logger.error("Incompatible phasings. Number of haplotypes is not equal ("+str(len(phasing))+" != "+str(len(truth))+").")
 	assert len(phasing0) == len(phasing1)
 	
 	num_pos = len(phasing0[0])
-	if (num_pos == 0):
+	if num_pos == 0:
 		return SwitchFlips(0.0, 0.0), None, None, None
 	ploidy = len(phasing0)
-	if (ploidy == 0):
+	if ploidy == 0:
 		return SwitchFlips(0.0, 0.0), None, None, None
 	for i in range(0, len(phasing1)):
 		if len(phasing1[i]) != num_pos:
-			print("Inconsistent input for phasing. Haplotypes have different lengths ( len(phasing1[0]="+str(num_pos)+" != len(phasing1["+str(i)+"]="+str(len(phasing1[i]))+".")
+			logger.error("Inconsistent input for phasing. Haplotypes have different lengths ( len(phasing1[0]="+str(num_pos)+" != len(phasing1["+str(i)+"]="+str(len(phasing1[i]))+".")
 		assert len(phasing1[i]) == num_pos
 		if len(phasing0[i]) != num_pos:
-			print("Inconsistent input for phasing. Haplotypes have different lengths ( len(phasing1[0]="+str(num_pos)+" != len(phasing0["+str(i)+"]="+str(len(phasing0[i]))+".")
+			logger.error("Inconsistent input for phasing. Haplotypes have different lengths ( len(phasing1[0]="+str(num_pos)+" != len(phasing0["+str(i)+"]="+str(len(phasing0[i]))+".")
 		assert len(phasing1[i]) == num_pos
 	if ploidy > 6:
-		print("Computing vector error with more than 6 haplotypes. This may take very long ...")
+		logger.warning("Computing vector error with more than 6 haplotypes. This may take very long ...")
 
 	# List of all permutations in which haplotypes of the two phasings can be joined
 	perms = list(permutations(range(0, ploidy)))
@@ -236,7 +236,7 @@ def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = Fa
 		e = 0
 		for k in range(ploidy):
 			# Count flips between phasing0 and phasing1 for current permutation
-			e += 1 if (phasing1[k][0] != phasing0[perm[k]][0] and phasing1[k][0] != '-' and phasing0[perm[k]][0] != '-') else 0;
+			e += 1 if phasing1[k][0] != phasing0[perm[k]][0] and phasing1[k][0] != '-' and phasing0[perm[k]][0] != '-' else 0;
 		current_scores.append(e * flip_cost)
 		current_comp.append(SwitchFlips(0, e))
 		if e*flip_cost < best_score:
@@ -262,7 +262,7 @@ def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = Fa
 			# Count number of flip errors if perm would be applied to this column
 			flips = 0
 			for k in range(ploidy):
-				flips += 1 if (phasing1[k][j] != phasing0[perm[k]][j] and phasing1[k][j] != '-' and phasing0[perm[k]][j] != '-') else 0;
+				flips += 1 if phasing1[k][j] != phasing0[perm[k]][j] and phasing1[k][j] != '-' and phasing0[perm[k]][j] != '-' else 0;
 				
 			# Find the best previous solution by checking all rows of previous column
 			min_prev_err = float("inf")
@@ -316,7 +316,7 @@ def compute_switch_flips_poly_bt(phasing0, phasing1, report_error_positions = Fa
 	result.flips = c[-1][min_row].flips
 	
 	# Backtracing
-	if (report_error_positions and result.switches * switch_cost + result.flips * flip_cost < float("inf")):
+	if report_error_positions and result.switches * switch_cost + result.flips * flip_cost < float("inf"):
 		positionwise_config = [[] for i in range(num_pos)]
 		flips_in_column = [[] for i in range(num_pos)]
 		switches_in_column = [0 for i in range(num_pos)]

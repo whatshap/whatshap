@@ -23,7 +23,6 @@ from contextlib import ExitStack
 from whatshap import __version__
 from whatshap.bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
 from whatshap.core import Read, ReadSet, Variant, Genotype, ClusterEditingSolver, DynamicSparseGraph, TriangleSparseMatrix, readselection, NumericSampleIds, compute_polyploid_genotypes, scoreReadsetGlobal, scoreReadsetLocal
-from whatshap.matrixcorrection import correct_rare_alleles
 from whatshap.cli.phase import read_reads, select_reads, split_input_file_list, find_components
 from whatshap.polyphaseplots import draw_clustering, draw_threading, get_phase
 from whatshap.threading import run_threading, get_local_cluster_consensus_withfrac, get_position_map, get_pos_to_clusters_map, get_cluster_start_end_positions, get_coverage, get_coverage_absolute
@@ -371,7 +370,7 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
 		read = Read('superread {}'.format(i+1), 0, 0)
 		# insert alleles
 		for j,allele in enumerate(haplotypes[i]):
-			if (allele=="n"):
+			if allele == "n":
 				continue
 			allele = int(allele)
 			#TODO: Needs changes for multi-allelic and we might give an actual quality value
@@ -462,21 +461,20 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
 	if block_num_vars == 1:
 
 		# construct trivial solution for singleton blocks, by basically using the genotype as phasing
-		genotype_to_id = dict()
-		for genotype in genotype_slice:
-			if genotype not in genotype_to_id:
-				genotype_to_id[genotype] = len(genotype_to_id)
-		clustering = [[] for _ in range(len(genotype_to_id))]
+		allele_to_id = dict()
+		for allele in genotype_slice[0]:
+			if allele not in allele_to_id:
+				allele_to_id[allele] = len(allele_to_id)
+		clustering = [[] for _ in range(len(allele_to_id))]
 		for i, read in enumerate(block_readset):
-			allele = read[0].allele
-			clustering[genotype_to_id[allele]].append(i)
+			clustering[allele_to_id[read[0].allele]].append(i)
 
 		path = [[]]
 		haplotypes = []
-		for genotype in genotype_slice:
-			for i in range(genotype_slice[genotype]):
-				path[0].append(genotype_to_id[genotype])
-				haplotypes.append(str(genotype))
+		for allele in genotype_slice[0]:
+			for i in range(genotype_slice[0][allele]):
+				path[0].append(allele_to_id[allele])
+				haplotypes.append(str(allele))
 
 		return clustering, path, haplotypes, [0]
 

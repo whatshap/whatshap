@@ -141,7 +141,7 @@ cdef extern from "../src/hapchat/hapchatcore.cpp":
 		int get_optimal_cost()
 
 
-cdef extern from "../src/polyphase/DynamicSparseGraph.h":
+cdef extern from "../src/polyphase/dynamicsparsegraph.h":
 	cdef cppclass DynamicSparseGraph:
 		DynamicSparseGraph(uint32_t) except +
 		void addEdge(uint32_t, uint32_t, double) except +
@@ -149,23 +149,23 @@ cdef extern from "../src/polyphase/DynamicSparseGraph.h":
 		void clearAndResize(uint32_t) except +
 
 
-cdef extern from "../src/polyphase/ClusterEditingSolver.h":
+cdef extern from "../src/polyphase/clustereditingsolver.h":
 	cdef cppclass ClusterEditingSolver:
 		ClusterEditingSolver(DynamicSparseGraph graph, bool bundleEdges) except +
-		ClusterEditingSolutionLight run() except +
+		ClusterEditingSolution run() except +
 
 
-cdef extern from "../src/polyphase/ClusterEditingSolutionLight.h":
-	cdef cppclass ClusterEditingSolutionLight:
-		ClusterEditingSolutionLight() except +
-		ClusterEditingSolutionLight(ClusterEditingSolutionLight) except +
-		ClusterEditingSolutionLight(double pTotalCost, vector[vector[int]] pClusters) except +
+cdef extern from "../src/polyphase/clustereditingsolution.h":
+	cdef cppclass ClusterEditingSolution:
+		ClusterEditingSolution() except +
+		ClusterEditingSolution(ClusterEditingSolution) except +
+		ClusterEditingSolution(double pTotalCost, vector[vector[int]] pClusters) except +
 		vector[unsigned int] getCluster(int i) except +
 		double getTotalCost() except +
 		int getNumClusters() except +
 
 
-cdef extern from "../src/polyphase/TriangleSparseMatrix.h":
+cdef extern from "../src/polyphase/trianglesparsematrix.h":
 	cdef cppclass TriangleSparseMatrix:
 		TriangleSparseMatrix() except +
 		unsigned int entryToIndex(unsigned int i, unsigned int j) except +
@@ -175,14 +175,14 @@ cdef extern from "../src/polyphase/TriangleSparseMatrix.h":
 		vector[pair[uint32_t, uint32_t]] getEntries() except +
 
 
-cdef extern from "../src/polyphase/ReadScoring.h":
+cdef extern from "../src/polyphase/readscoring.h":
 	cdef cppclass ReadScoring:
 		ReadScoring() except +
 		void scoreReadsetGlobal(TriangleSparseMatrix* result, ReadSet* readset, uint32_t minOverlap,uint32_t ploidy) except +
 		void scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* readset, vector[vector[uint32_t]] refHaplotypes, uint32_t minOverlap, uint32_t ploidy) except +
 
 
-cdef extern from "../src/polyphase/HaploThreader.h":
+cdef extern from "../src/polyphase/haplothreader.h":
 	cdef cppclass HaploThreader:
 		HaploThreader(uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit) except +
 		vector[vector[uint32_t]] computePaths(uint32_t start, uint32_t end,

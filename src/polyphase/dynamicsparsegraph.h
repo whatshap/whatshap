@@ -8,7 +8,6 @@
 #include <cmath>
 #include <set>
 #include <limits>
-#include "Globals.h"
 
 /**
  * A sparse graph data structure, which is based on adjacency lists and a hashtable
@@ -133,4 +132,4 @@ private:
     std::vector<std::vector<NodeId>> neighbours;
 };
 
-#endif // DYNAMICSPARSEGRAPH_H
+#endif

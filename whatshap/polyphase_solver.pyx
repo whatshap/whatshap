@@ -26,7 +26,7 @@ cdef class ClusterEditingSolver:
 		self.thisptr = new cpp.ClusterEditingSolver(graph.thisptr[0], bundleEdges)
 		self.graph = graph
 	def run(self):
-		cdef cpp.ClusterEditingSolutionLight solution = self.thisptr.run()
+		cdef cpp.ClusterEditingSolution solution = self.thisptr.run()
 		clusters = []
 		n_clusters = solution.getNumClusters()
 		for i in range(n_clusters):

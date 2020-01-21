@@ -1,4 +1,4 @@
-#include "EdgeHeap.h"
+#include "edgeheap.h"
 #include <cmath>
 #include <algorithm>
   
@@ -117,17 +117,6 @@ Edge EdgeHeap::getMaxIcfEdge() const {
     if (icf[ei] < 0) {
         return DynamicSparseGraph::InvalidEdge;
     }
-    if (verbosity >= 6) {
-        std::cout<<"icf heap: ";
-        for (unsigned int i = 0; i < icf.size(); i++) {
-            RankId rid = forb_rank2edge[i];
-            Edge e = edges[rid];
-            std::cout << "("<<e.u<<","<<e.v<<")="<<icf[rid]<<" ; ";
-        }
-        std::cout<<std::endl;
-    } else if (verbosity >= 4) {
-        std::cout<<"Max icf edge = ("<<ei<<") = ("<<edges[ei].u<<","<<edges[ei].v<<") weight ("<<icf[ei]<<")"<<std::endl;
-    }
     return edges[ei];
 }
 
@@ -139,17 +128,6 @@ Edge EdgeHeap::getMaxIcpEdge() const {
     }
     if (icp[ei] < 0) {
         return DynamicSparseGraph::InvalidEdge;
-    }
-    if (verbosity >= 6) {
-        std::cout<<"icp heap: ";
-        for (unsigned int i = 0; i < icp.size(); i++) {
-            RankId rid = perm_rank2edge[i];
-            Edge e = edges[rid];
-            std::cout << "("<<e.u<<","<<e.v<<")="<<icp[rid]<<" ; ";
-        }
-        std::cout<<std::endl;
-    } else if (verbosity >= 4) {
-        std::cout<<"Max icp edge = ("<<ei<<") = ("<<edges[ei].u<<","<<edges[ei].v<<") weight ("<<icp[ei]<<")"<<std::endl;
     }
     return edges[ei];
 }
@@ -238,9 +216,6 @@ void EdgeHeap::removeEdge(const Edge e) {
 void EdgeHeap::removeEdge(const RankId rId) {
     if (rId == 0) {
         return;
-    }
-    else if (verbosity >= 4) {
-        std::cout<<"Removing edge ("<<edges[rId].u<<","<<edges[rId].v<<") from heap ("<<rId<<")"<<std::endl;
     }
     if (rId > 0 && icf[rId] != DynamicSparseGraph::Forbidden && icp[rId] != DynamicSparseGraph::Forbidden) {
         icf[rId] = DynamicSparseGraph::Forbidden;

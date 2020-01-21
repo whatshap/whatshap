@@ -1,9 +1,9 @@
-#include "DynamicSparseGraph.h"
+#include "dynamicsparsegraph.h"
 #include <algorithm>
 #include <queue>
 
-const DynamicSparseGraph::EdgeWeight DynamicSparseGraph::Forbidden = -std::numeric_limits< EdgeWeight >::infinity();
-const DynamicSparseGraph::EdgeWeight DynamicSparseGraph::Permanent = std::numeric_limits< EdgeWeight >::infinity();
+const DynamicSparseGraph::EdgeWeight DynamicSparseGraph::Forbidden = -std::numeric_limits<EdgeWeight>::infinity();
+const DynamicSparseGraph::EdgeWeight DynamicSparseGraph::Permanent = std::numeric_limits<EdgeWeight>::infinity();
 const DynamicSparseGraph::Edge DynamicSparseGraph::InvalidEdge = {std::numeric_limits<NodeId>::max(), std::numeric_limits<NodeId>::max()};
 const DynamicSparseGraph::EdgeId DynamicSparseGraph::InvalidEdgeId = -1;
 const DynamicSparseGraph::NodeId DynamicSparseGraph::InvalidNodeId = -1;
@@ -98,7 +98,7 @@ const std::vector<NodeId>& DynamicSparseGraph::getNeighbours(NodeId u) const {
     return neighbours[u];
 }
 
-std::vector<std::vector<NodeId> > DynamicSparseGraph::getPositiveComponentes() const {
+std::vector<std::vector<NodeId>> DynamicSparseGraph::getPositiveComponentes() const {
     // create reverse neighbours temporarily
     std::vector<std::vector<NodeId>> revNeighbours(size, std::vector<NodeId>(0));
     for (NodeId u = 0; u < size; u++) {
@@ -114,39 +114,31 @@ std::vector<std::vector<NodeId> > DynamicSparseGraph::getPositiveComponentes() c
         int c = componentOfNode[u];
         if (c >= 0) {
             continue;
-        } else {
-            c = components.size();
-            componentOfNode[u] = c;
-            components.push_back(std::vector<NodeId>(0));
-//             std::cout<<"New component reached: "<<c<<std::endl;
         }
+		c = components.size();
+		componentOfNode[u] = c;
+		components.push_back(std::vector<NodeId>(0));
         
         // add all connected nodes to same component
         std::queue<NodeId> remaining;
         remaining.push(u);
-//         std::cout<<"Adding to component "<<c<<": ";
         while (!remaining.empty()) {
             NodeId current = remaining.front();
             remaining.pop();
             components[c].push_back(current);
-//             std::cout<<current<<" ( ";
             for (NodeId v : neighbours[current]) {
                 if (componentOfNode[v] == -1 && getWeight(Edge(current, v)) > 0.0) {
-//                     std::cout<<v<<" ";
                     componentOfNode[v] = c;
                     remaining.push(v);
                 }
             }
             for (NodeId v : revNeighbours[current]) {
                 if (componentOfNode[v] == -1 && getWeight(Edge(current, v)) > 0.0) {
-//                     std::cout<<v<<" ";
                     componentOfNode[v] = c;
                     remaining.push(v);
                 }
             }
-//             std::cout<<") ; ";
         }
-//         std::cout<<std::endl;
         std::sort(components[c].begin(), components[c].end());
     }
     

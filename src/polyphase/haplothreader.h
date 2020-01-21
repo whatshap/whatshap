@@ -8,8 +8,6 @@
 #include <string> 
 #include <sstream>
 #include <algorithm>
-#include "Globals.h"
-//#include "Globals.h"
     
 typedef uint32_t GlobalClusterId;
 typedef uint32_t LocalClusterId;
@@ -26,7 +24,7 @@ typedef uint64_t TupleCode;
 
 struct ClusterTuple {
     const static uint32_t BITS_PER_CLUSTER = 5;
-    const static uint32_t MAX_CLUSTERS_PER_COLUMN = 32; // must be 2^BITS_PER_CLUSTER
+    const static uint32_t MAX_CLUSTERS_PER_COLUMN = 1 << BITS_PER_CLUSTER; // must be 2^BITS_PER_CLUSTER
     const static uint32_t MAX_PLOIDY = 64/BITS_PER_CLUSTER;
     static constexpr uint64_t TUPLE_MASKS[12] = {31UL << 0, 31UL << 5, 31UL << 10, 31UL << 15, 
         31UL << 20, 31UL << 25, 31UL << 30, 31UL << 35, 
@@ -331,4 +329,4 @@ private:
                           std::vector<uint32_t>& genotypeVec) const;
 };
 
-#endif // HAPLOTHREADER_H
+#endif

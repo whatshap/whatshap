@@ -34,9 +34,6 @@ def test_clusterediting1():
 	graph = DynamicSparseGraph(n_reads)
 	
 	# insert edges
-	#for id1 in range(n_reads):
-	#	for id2 in range(0, id1):
-	#		graph.addEdge(id1, id2, similarities.get(id1, id2))
 	for (read1, read2) in similarities:
 		graph.addEdge(read1, read2, similarities.get(read1, read2))
 
@@ -50,7 +47,7 @@ def test_clusterediting1():
 	read_ids = list(itertools.chain.from_iterable(readpartitioning))
 	duplicates = set([ r for r in read_ids if read_ids.count(r) > 1 ])
 	print('duplicates:', duplicates)
-	assert(len(duplicates)  == 0)
+	assert len(duplicates)  == 0
 
 def test_clusterediting2():
 
@@ -78,9 +75,6 @@ def test_clusterediting2():
 	graph = DynamicSparseGraph(n_reads)
 	
 	# insert edges
-	#for id1 in range(n_reads):
-	#	for id2 in range(0, id1):
-	#		graph.addEdge(id1, id2, similarities.get(id1, id2))
 	for (read1, read2) in similarities:
 		graph.addEdge(read1, read2, similarities.get(read1, read2))
 
@@ -94,7 +88,7 @@ def test_clusterediting2():
 	read_ids = list(itertools.chain.from_iterable(readpartitioning))
 	duplicates = set([ r for r in read_ids if read_ids.count(r) > 1 ])
 	print('duplicates:', duplicates)
-	assert(len(duplicates)  == 0)
+	assert len(duplicates)  == 0
 
 def test_clusterediting3():
 	reads = """
@@ -121,9 +115,6 @@ def test_clusterediting3():
 	graph = DynamicSparseGraph(n_reads)
 
 	# insert edges
-	#for id1 in range(n_reads):
-	#	for id2 in range(0, id1):
-	#		graph.addEdge(id1, id2, similarities.get(id1, id2))
 	for (read1, read2) in similarities:
 		graph.addEdge(read1, read2, similarities.get(read1, read2))
 
@@ -142,7 +133,7 @@ def test_similarities1():
 	similarities = scoreReadsetGlobal(readset, 4, 2)
 	# computed similarity is 'nan'
 	print('computed similarities:', similarities)
-	assert(not math.isnan(similarities.get(0, 1)))
+	assert not math.isnan(similarities.get(0, 1))
 
 def test_similarities2():
 	reads = """

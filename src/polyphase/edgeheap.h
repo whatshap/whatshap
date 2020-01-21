@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <set>
-#include "StaticSparseGraph.h"
+#include "staticsparsegraph.h"
     
 /**
  * Data structure to manage the induced costs of a graph's edges.
@@ -117,5 +117,5 @@ private:
     std::vector<std::vector<DynamicSparseGraph::RankId>> edgeBundles;    // edge bunch representant -> set of edges belonging to this bunch
 };
 
-#endif // EDGEHEAP_H
+#endif
 

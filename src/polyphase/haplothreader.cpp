@@ -1,4 +1,4 @@
-#include "HaploThreader.h"
+#include "haplothreader.h"
 #include <limits>
 #include <algorithm>
 #include <unordered_set>
@@ -85,16 +85,11 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
     }
     
     m.push_back(std::unordered_map<ClusterTuple, ClusterEntry>(column.begin(), column.end()));
-    
-    if (verbosity >= 2)
-        std::cout<<"Best score in column 0 is "<<minimumInColumn<<"("<<getCoverageCost(minimumTupleInColumn, coverage[0])<<") by "<<(minimumTupleInColumn.asString(ploidy, covMap[0]))<<". Kept "<<column.size()<<" of "<<confTuples.size()<<"rows"<<std::endl;
     allEntries += confTuples.size();
     keptEntries += column.size();
     
     // iterate over positions
     for (Position pos = start + 1; pos < end; pos++) {
-        if (verbosity >= 1)
-            std::cout<<"Threading haplotypes through clusters .. ("<<pos<<"/"<<displayedEnd<<")\r"<<std::flush;
         
         // reset variables
         confTuples.clear();
@@ -206,15 +201,9 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         
         // write column into dp table(s)
         m.push_back(std::unordered_map<ClusterTuple, ClusterEntry>(column.begin(), column.end()));
-        
-        if (verbosity >= 3)
-            std::cout<<"Best score in column "<<pos<<" is "<<minimumInColumn<<"("<<getCoverageCost(minimumTupleInColumn, coverage[pos])<<" + "<<(minimumInColumn-getCoverageCost(minimumTupleInColumn, coverage[pos]))<<") by "<<(minimumTupleInColumn.asString(ploidy, covMap[pos]))<<" from "<<(minimumPredTupleInColumn.asString(ploidy, covMap[pos-1]))<<". Kept "<<column.size()<<" of "<<confTuples.size()<<"rows"<<std::endl;
         allEntries += confTuples.size();
         keptEntries += column.size();
     }
-    
-    if (verbosity >= 1 && end == displayedEnd)
-        std::cout<<"Threading haplotypes through clusters .. ("<<end<<"/"<<end<<")"<<std::flush;
     
     // backtracking start
     ClusterTuple currentRow = ClusterTuple::INVALID_TUPLE;
@@ -231,11 +220,6 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         if (currentRow.asVector(ploidy, covMap[firstUnthreadedPosition-1]).size() == 0)
             std::cout<<"Problem occured at position "<<(firstUnthreadedPosition-1)<<" in row "<<currentRow.asString(ploidy, covMap[firstUnthreadedPosition-1])<<std::endl;
         path.push_back(currentRow.asVector(ploidy, covMap[firstUnthreadedPosition-1]));
-    }
-    
-    if (verbosity >= 2 && end == displayedEnd) {
-        std::cout<<"Kept "<<keptEntries<<" out of "<<allEntries<<" in DP table ("<<(keptEntries*100/allEntries)<<"%)"<<std::endl;
-        std::cout<<"Optimal solution value = "<<(m[firstUnthreadedPosition-1-start][currentRow].score)<<std::endl;
     }
     
     // backtracking iteration

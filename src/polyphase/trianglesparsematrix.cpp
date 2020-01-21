@@ -1,4 +1,4 @@
-#include "TriangleSparseMatrix.h"
+#include "trianglesparsematrix.h"
 #include <cmath>
 
 //using namespace std;

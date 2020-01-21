@@ -3,8 +3,7 @@
 
 #include "../readset.h"
 #include "../read.h"
-#include "TriangleSparseMatrix.h"
-#include "Globals.h"
+#include "trianglesparsematrix.h"
 
 class ReadScoring {
  
@@ -62,4 +61,4 @@ private:
     double binomPmf(const uint32_t n, const uint32_t k, const double p) const;
 };
 
-#endif // READSCORING_H
+#endif

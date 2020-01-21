@@ -1,14 +1,13 @@
 #ifndef CLUSTEREDITINGSOLUTIONLIGHT_H
 #define CLUSTEREDITINGSOLUTIONLIGHT_H
 
-#include "DynamicSparseGraph.h"
+#include "dynamicsparsegraph.h"
 #include <vector>
 
-class ClusterEditingSolutionLight 
-{
+class ClusterEditingSolution {
 public:
-    ClusterEditingSolutionLight();
-    ClusterEditingSolutionLight(double pTotalCost, std::vector<std::vector<DynamicSparseGraph::NodeId>> &pClusters);
+    ClusterEditingSolution();
+    ClusterEditingSolution(double pTotalCost, std::vector<std::vector<DynamicSparseGraph::NodeId>> &pClusters);
     bool isValid() const;
     unsigned int getNumClusters() const;
     const std::vector<DynamicSparseGraph::NodeId>& getCluster(const unsigned int index) const;
@@ -20,4 +19,4 @@ private:
     std::vector<std::vector<DynamicSparseGraph::NodeId>> clusters;
 };
 
-#endif // CLUSTEREDITINGSOLUTIONLIGHT_H
+#endif

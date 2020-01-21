@@ -1,8 +1,8 @@
-#ifndef INDUCEDCOSTHEURISTICLIGHT_H
-#define INDUCEDCOSTHEURISTICLIGHT_H
+#ifndef INDUCEDCOSTHEURISTIC_H
+#define INDUCEDCOSTHEURISTIC_H
 
-#include "EdgeHeap.h"
-#include "ClusterEditingSolutionLight.h"
+#include "edgeheap.h"
+#include "clustereditingsolution.h"
 
 /**
  * A heuristic for large cluster editing instances. The heuristic works in iterations,
@@ -37,7 +37,7 @@ public:
      * @return An object containing the clusters (with node ids) and the total editing
      *      cost.
      */
-    ClusterEditingSolutionLight solve();
+    ClusterEditingSolution solve();
 
 private:    
     /**
@@ -92,4 +92,4 @@ private:
     uint64_t totalEdges;
 };
 
-#endif // INDUCEDCOSTHEURISTICLIGHT_H
+#endif

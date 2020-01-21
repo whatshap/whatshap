@@ -18,13 +18,13 @@ into its name. For any other read name, it just returns -1 for unknown haplotype
 def parse_haplotype(name):
 	try:
 		tokens = name.split("_")
-		if (tokens[-2] == "HG00514" and tokens[-1] == "HAP1"):
+		if tokens[-2] == "HG00514" and tokens[-1] == "HAP1":
 			return 0
-		elif (tokens[-2] == "HG00514" and tokens[-1] == "HAP2"):
+		elif tokens[-2] == "HG00514" and tokens[-1] == "HAP2":
 			return 1
-		elif (tokens[-2] == "NA19240" and tokens[-1] == "HAP1"):
+		elif tokens[-2] == "NA19240" and tokens[-1] == "HAP1":
 			return 2
-		elif (tokens[-2] == "NA19240" and tokens[-1] == "HAP2"):
+		elif tokens[-2] == "NA19240" and tokens[-1] == "HAP2":
 			return 3
 	except:
 		pass
@@ -64,21 +64,21 @@ def calc_overlap_and_diffs(readset):
 	for i in range(num_reads):
 		for j in range(i+1, num_reads):
 			# if reads do not overlap, leave overlap and differences at 0 and skip
-			if (ends[i] < begins[j] or ends[j] < begins[i]):
+			if ends[i] < begins[j] or ends[j] < begins[i]:
 				continue
 
 			# perform a zigzag search over the variants of both reads
 			ov = 0
 			di = 0
 			k, l = 0, 0
-			while (k < len(positions[i]) and l < len(positions[j])):
-				if (positions[i][k] == positions[j][l]):
+			while k < len(positions[i]) and l < len(positions[j]):
+				if positions[i][k] == positions[j][l]:
 					ov += 1
-					if (alleles[i][k] != alleles[j][l]):
+					if alleles[i][k] != alleles[j][l]:
 						di += 1
 					k += 1
 					l += 1
-				elif (positions[i][k] < positions[j][l]):
+				elif positions[i][k] < positions[j][l]:
 					k += 1
 				else:
 					l += 1
@@ -101,9 +101,9 @@ def draw_plots_dissimilarity(readset, path, min_overlap = 5, steps = 100):
 		dissims_diff = []
 
 		for i, j in it.combinations(range(num_reads), 2):
-			if (overlap.get(i, j) >= min_overlap):
+			if overlap.get(i, j) >= min_overlap:
 				d = diffs.get(i, j) / overlap.get(i, j)
-				if (haps[i] == haps[j]):
+				if haps[i] == haps[j]:
 					dissims_same.append(d)
 				else:
 					dissims_diff.append(d)
@@ -127,9 +127,9 @@ def draw_plots_scoring(readset, similarities, path, ploidy, error_rate, min_over
 		dissims_diff = []
 
 		for i, j in it.combinations(range(num_reads), 2):
-			if (overlap.get(i, j) >= min_overlap):
+			if overlap.get(i, j) >= min_overlap:
 				d = similarities.get(i, j)
-				if (haps[i] == haps[j]):
+				if haps[i] == haps[j]:
 					dissims_same.append(d)
 				else:
 					dissims_diff.append(d)
@@ -336,7 +336,7 @@ def draw_threading(readset, clustering, coverage, paths, cut_positions, haplotyp
 		ploidy = len(paths[0])
 		assert ploidy >= 2
 		num_c = len(clustering)
-		assert (num_c > ploidy)
+		assert num_c > ploidy
 		num_vars = len(coverage)
 
 		# Detect relevant clusters

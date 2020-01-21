@@ -1,4 +1,4 @@
-#include "InducedCostHeuristic.h"
+#include "inducedcostheuristic.h"
 #include <queue>
 #include <algorithm>
 #include <unordered_map>
@@ -26,12 +26,12 @@ InducedCostHeuristic::InducedCostHeuristic(StaticSparseGraph& param_graph, bool 
     totalEdges = edgeHeap.numUnprocessed();
 }
 
-ClusterEditingSolutionLight InducedCostHeuristic::solve() {
+ClusterEditingSolution InducedCostHeuristic::solve() {
     // check if instance is solvable at all
     if (totalCost == std::numeric_limits<EdgeWeight>::infinity()) {
         // if resolving permanent and forbidden edges lead to contradiction, cost are infinte here, thus cancel algorithm
         std::cout<<"Instance is infeasible!" <<std::endl;
-        ClusterEditingSolutionLight sol;
+        ClusterEditingSolution sol;
         return sol;
     }
   
@@ -66,24 +66,15 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
     std::vector<std::vector<NodeId>> clusters;
     std::vector<int> clusterOfNode(graph.numNodes(), -1);
     for (NodeId u = 0; u < graph.numNodes(); u++) {
-        if (verbosity >= 4) {
-            std::cout<<"Processing node "<<u<<std::endl;
-        }
         // if u is not in a cluster yet, create a new cluster with u in it
         if (clusterOfNode[u] == -1) {
             int c = clusters.size();
-            if (verbosity >= 4) {
-                std::cout<<"Node "<<u<<" not in any cluster yet. Creating new cluster "<<c<<" for this"<<std::endl;
-            }
             clusterOfNode[u] = c;
             clusters.push_back(std::vector<NodeId>(1, u));
             for (NodeId v : graph.getCliqueOf(u)) {
                 if (u == v)
                     continue;
                 clusterOfNode[v] = c;
-                if (verbosity >= 4) {
-                    std::cout<<"Adding connected node "<<v<<" in same cluster."<<std::endl;
-                }
                 clusters[c].push_back(v);
             }
         }
@@ -93,13 +84,10 @@ ClusterEditingSolutionLight InducedCostHeuristic::solve() {
     for (std::vector<NodeId>& cluster : clusters) {
         std::sort(cluster.begin(), cluster.end());
     }
-    return ClusterEditingSolutionLight(totalCost, clusters);
+    return ClusterEditingSolution(totalCost, clusters);
 }
 
 void InducedCostHeuristic::choosePermanentEdge(const DynamicSparseGraph::Edge eIcf) {
-    if (verbosity >= 5) {
-        std::cout<<"Setting edge ("<<eIcf.u<<","<<eIcf.v<<") to permanent."<<std::endl;
-    }
     /* We cannot just set the edge eIcf=(u,v) to permanent, because we have to handle implications of this step as well.
      * According to the heuristic, u and v must be merged into one node. However, we do not do this here, but instead
      * make sure that u and v are handled as a clique:
@@ -110,16 +98,6 @@ void InducedCostHeuristic::choosePermanentEdge(const DynamicSparseGraph::Edge eI
     std::vector<Edge> implicationsForbidden;
     std::vector<NodeId> uClique(graph.getCliqueOf(eIcf.u));
     std::vector<NodeId> vClique(graph.getCliqueOf(eIcf.v));
-    if (verbosity >= 5) {
-        std::cout<<"Clique of "<<eIcf.u<<": ";
-        for (const auto& i: uClique)
-            std::cout << i << ' ';
-        std::cout<<std::endl;
-        std::cout<<"Clique of "<<eIcf.v<<": ";
-        for (const auto& i: vClique)
-            std::cout << i << ' ';
-        std::cout<<std::endl;
-    }
     
     /* All pairs from uClique and vClique are found. We must be careful not to add eIcf to our list (we already have it) and
      * to not add edges, which are already permanent. We delay the actual modification of the edge until we know, which edges
@@ -130,13 +108,7 @@ void InducedCostHeuristic::choosePermanentEdge(const DynamicSparseGraph::Edge eI
         for (NodeId y : vClique) {
             Edge e = Edge(x,y);
             if (x == y || graph.findIndex(e) == 0 || (x == eIcf.u && y == eIcf.v)) {
-                if (verbosity >= 5) {
-                    std::cout<<"Making ("<<x<<","<<y<<") silently not permanent due to implication."<<std::endl;
-                }
                 continue;
-            }
-            if (verbosity >= 5) {
-                std::cout<<"Making ("<<x<<","<<y<<") permanent due to implication."<<std::endl;
             }
             implications.push_back(e);
         }
@@ -182,9 +154,6 @@ void InducedCostHeuristic::choosePermanentEdge(const DynamicSparseGraph::Edge eI
          * of the clique, there must be uniform induced costs for making the connecting edge forbidden or permanent. To accomplish this
          * the edge heap organizes edges in bundles. At first every edge is its own bundle. If two nodes u and v are merged, all edges,
          * which to the same node w (w != u and w != v and w not in the same clique as u and v) are bundled together.*/
-        NodeId cu = graph.getCliqueIdOf(eIcf.u);
-        if (verbosity >= 4)
-            std::cout<<"Contracting nodes of cluster id ("<<cu<<")."<<std::endl;
         std::unordered_map<NodeId, Edge> cliqueToRepresentative;
         /* Idea: We iterate over all outgoing edges from the combined clique of u and v. If we reach another cluster, we have not seen
          * before, we memorize the outgoing edge as representative edge for this cluster. When we find another edge leading to a cluster,
@@ -197,12 +166,9 @@ void InducedCostHeuristic::choosePermanentEdge(const DynamicSparseGraph::Edge eI
                 NodeId cxn = graph.getCliqueIdOf(xn);
                 
                 if (std::find(uClique.begin(), uClique.end(), xn) != uClique.end()) {
-                    if (verbosity >= 5)
-                        std::cout<<"Observed edge ("<<x<<","<<xn<<") was inside the cluster!"<<std::endl;
                     continue;
                 }
                 if (graph.findIndex(ex) == 0) {
-                    std::cout<<"Observed edge ("<<x<<","<<xn<<") was pruned edge with weight "<<graph.getWeight(ex)<<std::endl;
                     continue;
                 }
                 // if new cluster is "discovered", set edge as representative, otherwise bundle with present representative
@@ -217,9 +183,6 @@ void InducedCostHeuristic::choosePermanentEdge(const DynamicSparseGraph::Edge eI
 }
 
 void InducedCostHeuristic::chooseForbiddenEdge(const DynamicSparseGraph::Edge eIcp) {
-    if (verbosity >= 5) {
-        std::cout<<"Setting edge ("<<eIcp.u<<","<<eIcp.v<<") to forbidden."<<std::endl;
-    }
     /* We cannot just set the edge eIcf=(u,v) to forbidden, because we have to handle implications of this step as well.
      * Node u and v might already permanently connected to other nodes. If we decide to not u and v into one clique, then
      * all other pair of nodes in the same clique as u and v must be a forbidden pair. For non-zero edges, we could let 
@@ -237,13 +200,7 @@ void InducedCostHeuristic::chooseForbiddenEdge(const DynamicSparseGraph::Edge eI
         for (NodeId y : vClique) {
             Edge e = Edge(x,y);
             if (x == y || graph.findIndex(e) == 0 || (x == eIcp.u && y == eIcp.v)) {
-                if (verbosity >= 5) {
-                    std::cout<<"Making ("<<x<<","<<y<<") silently not forbidden due to implication."<<std::endl;
-                }
                 continue;
-            }
-            if (verbosity >= 5) {
-                std::cout<<"Making ("<<x<<","<<y<<") forbidden due to implication."<<std::endl;
             }
             implications.push_back(e);
         }
@@ -300,9 +257,6 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
                         if (w < 0.0)
                             totalCost -= w;
                         graph.setPermanent(Edge(x,y));
-                        if (verbosity >= 5) {
-                            std::cout<<"Making ("<<x<<","<<y<<") permanent due to implication."<<std::endl;
-                        }
                     }
                 }
             }
@@ -331,9 +285,6 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
                             Edge e(u,v);
                             if (graph.getWeight(e) != DynamicSparseGraph::Forbidden) {
                                 graph.setForbidden(e);
-                                if (verbosity >= 5) {
-                                    std::cout<<"Making ("<<u<<","<<v<<") forbidden due to implication."<<std::endl;
-                                }
                             }
                         }
                     }

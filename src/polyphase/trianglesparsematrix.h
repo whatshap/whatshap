@@ -23,5 +23,5 @@ private:
 	std::unordered_map<uint64_t, float> m;
 };
 
-#endif // TRIANGLESPARSEMATRIX_H
+#endif
 

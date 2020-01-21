@@ -13,8 +13,8 @@ def test_polyphase_short_chr22():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
 		run_polyphase(
-			phase_input_files=['tests/data/polyploid.chr22.42M.50k.bam'],
-			variant_file='tests/data/polyploid.chr22.42M.50k.vcf',
+			phase_input_files=['tests/data/polyploid.chr22.42M.12k.bam'],
+			variant_file='tests/data/polyploid.chr22.42M.12k.vcf',
 			ploidy=4,
 			ignore_read_groups=True,
 			output=outvcf)
@@ -24,7 +24,7 @@ def test_polyphase_short_chr22():
 		assert len(tables) == 1
 		table = tables[0]
 		assert table.chromosome == 'chr22'
-		assert len(table.variants) == 69
+		assert len(table.variants) == 42
 		assert table.samples == ['HG00514_NA19240']
 
 
@@ -33,8 +33,8 @@ def test_polyphase_multiple_bam(tmpdir):
 		outvcf = tempdir + '/output.vcf'
 		outvcf = 'output.vcf'
 		run_polyphase(
-			phase_input_files=['tests/data/polyploid.human1.chr22.42M.50k.bam', 'tests/data/polyploid.human2.chr22.42M.50k.bam'],
-			variant_file='tests/data/polyploid.split.multisample.chr22.42M.50k.vcf',
+			phase_input_files=['tests/data/polyploid.human1.chr22.42M.5k.bam', 'tests/data/polyploid.human2.chr22.42M.5k.bam'],
+			variant_file='tests/data/polyploid.multisample.chr22.42M.5k.vcf',
 			ploidy=2,
 			ignore_read_groups=False,
 			output=outvcf)
@@ -44,7 +44,7 @@ def test_polyphase_multiple_bam(tmpdir):
 		assert len(tables) == 1
 		table = tables[0]
 		assert table.chromosome == 'chr22'
-		assert len(table.variants) == 82
+		assert len(table.variants) == 9
 		assert set(table.samples) == set(['HG00514','NA19240'])
 		assert not all(p is None for p in table.phases_of('HG00514'))
 		assert not all(p is None for p in table.phases_of('NA19240'))
@@ -55,8 +55,8 @@ def test_wrong_ploidy(tmpdir):
 		outvcf = tempdir + '/output.vcf'
 		with raises(SystemExit):
 			run_polyphase(
-				phase_input_files=['tests/data/polyploid.chr22.42M.50k.bam'],
-				variant_file='tests/data/polyploid.chr22.42M.50k.vcf',
+				phase_input_files=['tests/data/polyploid.chr22.42M.12k.bam'],
+				variant_file='tests/data/polyploid.chr22.42M.12k.vcf',
 				ploidy=3,
 				ignore_read_groups=True,
 				output=outvcf)
@@ -71,8 +71,8 @@ def test_blockcut_sensitivities(tmpdir):
 		with TemporaryDirectory() as tempdir:
 			outvcf = tempdir + '/output.vcf'
 			run_polyphase(
-				phase_input_files=['tests/data/polyploid.chr22.42M.100k.bam'],
-				variant_file='tests/data/polyploid.chr22.42M.100k.vcf',
+				phase_input_files=['tests/data/polyploid.chr22.42M.12k.bam'],
+				variant_file='tests/data/polyploid.chr22.42M.12k.vcf',
 				ploidy=4,
 				ignore_read_groups=True,
 				block_cut_sensitivity=s,

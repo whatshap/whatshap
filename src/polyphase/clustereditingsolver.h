@@ -1,5 +1,5 @@
-#ifndef SRC_CLUSTEREDITINGSOLVER_H
-#define SRC_CLUSTEREDITINGSOLVER_H
+#ifndef CLUSTEREDITINGSOLVER_H
+#define CLUSTEREDITINGSOLVER_H
 
 #include <iostream>
 #include <vector>
@@ -7,10 +7,9 @@
 #include <bitset>
 #include <set>
 
-#include "ClusterEditingSolutionLight.h"
-#include "InducedCostHeuristic.h"
-#include "StaticSparseGraph.h"
-#include "Globals.h"
+#include "clustereditingsolution.h"
+#include "inducedcostheuristic.h"
+#include "staticsparsegraph.h"
 
 /**
  * Central solver for cluster editing instances. Uses a InducedCostHeuristic to
@@ -32,8 +31,8 @@ public:
      *      individually.
      */
     ClusterEditingSolver(DynamicSparseGraph& graph, bool bundleEdges) :
-    graph(graph), 
-    bundleEdges(bundleEdges)
+		graph(graph), 
+		bundleEdges(bundleEdges)
     {};
 
     /**
@@ -42,12 +41,12 @@ public:
      * @return An object containing the clusters (with node ids) and the total editing
      *      cost.
      */
-    ClusterEditingSolutionLight run();
+    ClusterEditingSolution run();
 
 private:
     DynamicSparseGraph& graph;
     bool bundleEdges;
 };
 
-#endif /* SRC_CLUSTEREDITINGSOLVER_H */
+#endif
 
