@@ -10,6 +10,7 @@ from itertools import chain
 from typing import Set, Iterable, List
 
 from whatshap.vcf import VcfReader, VcfVariant, VariantTable
+from whatshap.cli import CommandLineError
 
 
 logger = logging.getLogger(__name__)
@@ -382,8 +383,7 @@ def create_blocksize_histogram(filename, block_stats, names, use_weights=False):
 		from matplotlib import pyplot
 		from matplotlib.backends.backend_pdf import PdfPages
 	except ImportError:
-		logger.error('To use option --plot-blocksizes, you need to have numpy and matplotlib installed.')
-		sys.exit(1)
+		raise CommandLineError('To use option --plot-blocksizes, you need to have numpy and matplotlib installed.')
 
 	assert len(block_stats) == len(names)
 	
@@ -429,8 +429,7 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 	if names:
 		dataset_names = names.split(',')
 		if len(dataset_names) != len(vcf):
-			logger.error('Number of names given with --names does not equal number of VCFs.')
-			sys.exit(1)
+			raise CommandLineError('Number of names given with --names does not equal number of VCFs.')
 	else:
 		dataset_names = ['file{}'.format(i) for i in range(len(vcf))]
 	longest_name = max(len(n) for n in dataset_names)
@@ -447,18 +446,15 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 	if sample:
 		sample_intersection.intersection_update([sample])
 		if len(sample_intersection) == 0:
-			logger.error('Sample %r requested on command-line not found in all VCFs', sample)
-			sys.exit(1)
+			raise CommandLineError('Sample {!r} requested on command-line not found in all VCFs'.format(sample))
 		sample = sample
 	else:
 		if len(sample_intersection) == 0:
-			logger.error('None of the samples is present in all VCFs')
-			sys.exit(1)
+			raise CommandLineError('None of the samples is present in all VCFs')
 		elif len(sample_intersection) == 1:
 			sample = list(sample_intersection)[0]
 		else:
-			logger.error('More than one sample is present in all VCFs, please use --sample to specify which sample to work on.')
-			sys.exit(1)
+			raise CommandLineError('More than one sample is present in all VCFs, please use --sample to specify which sample to work on.')
 
 	with ExitStack() as stack:
 		tsv_pairwise_file = tsv_multiway_file = longest_block_tsv_file = switch_error_bedfile = None
@@ -489,8 +485,7 @@ def run_compare(vcf, names=None, sample=None, tsv_pairwise=None, tsv_multiway=No
 			else:
 				chromosomes.intersection_update(m.keys())
 		if len(chromosomes) == 0:
-			logger.error('No chromosome is contained in all VCFs. Aborting.')
-			sys.exit(1)
+			raise CommandLineError('No chromosome is contained in all VCFs. Aborting.')
 
 		logger.info('Chromosomes present in all VCFs: %s', ', '.join(sorted(chromosomes)))
 

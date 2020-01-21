@@ -12,7 +12,9 @@ from whatshap.cli.phase import run_whatshap
 from whatshap.cli.haplotag import run_haplotag
 from whatshap.cli.split import run_split
 from whatshap.cli.hapcut2vcf import run_hapcut2vcf
+from whatshap.cli import CommandLineError
 from whatshap.vcf import VcfReader, VariantCallPhase
+
 
 trio_bamfile = 'tests/data/trio.pacbio.bam'
 trio_merged_bamfile = 'tests/data/trio-merged-blocks.bam'
@@ -80,7 +82,7 @@ def test_cram_no_reference(algorithm):
 	# If REF_PATH is not set, pysam/htslib tries to retrieve the reference from EBI via
 	# the internet.
 	os.environ['REF_PATH'] = '/does/not/exist'
-	with raises(SystemExit):
+	with raises(CommandLineError):
 		run_whatshap(
 			phase_input_files=['tests/data/oneread.cram'],
 			variant_file='tests/data/onevariant.vcf',
@@ -98,7 +100,7 @@ def test_bam_without_readgroup(algorithm):
 
 
 def test_requested_sample_not_found(algorithm):
-	with raises(SystemExit):
+	with raises(CommandLineError):
 		run_whatshap(
 			phase_input_files=['tests/data/oneread.bam'],
 			variant_file='tests/data/onevariant.vcf',
@@ -323,7 +325,7 @@ def test_phase_trio(tmpdir):
 def test_phase_trio_hapchat() :
 	# This needs to fail because pedigree phasing is not (yet) a
 	# feature of hapchat
-	with raises(SystemExit) :
+	with raises(CommandLineError) :
 		run_whatshap(
 			phase_input_files=[trio_bamfile],
 			variant_file='tests/data/trio.vcf',
@@ -771,7 +773,7 @@ def test_haplotag_no_readgroups1():
 
 
 def test_haplotag_no_readgroups2():
-	with raises((SystemExit, ValueError)):
+	with raises((CommandLineError, ValueError)):
 		# vcf contains multiple samples, there should be an error
 		run_haplotag(alignment_file='tests/data/haplotag_noRG.bam',
 					variant_file='tests/data/haplotag_noRG.vcf.gz',
@@ -1163,7 +1165,7 @@ def test_duplicate_read(algorithm, expected_block):
 def test_wrong_chromosome(algorithm):
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
-		with raises(SystemExit):
+		with raises(CommandLineError):
 			run_whatshap(
 				phase_input_files=[short_bamfile],
 				ignore_read_groups=True,

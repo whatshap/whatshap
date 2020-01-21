@@ -6,6 +6,7 @@ import math
 import pytest
 from pysam import VariantFile
 from whatshap.cli.genotype import run_genotype
+from whatshap.cli import CommandLineError
 from whatshap.vcf import VcfReader
 
 trio_bamfile = 'tests/data/trio.pacbio.bam'
@@ -45,7 +46,7 @@ def test_bam_without_readgroup():
 
 
 def test_requested_sample_not_found():
-	with pytest.raises(SystemExit):
+	with pytest.raises(CommandLineError):
 		run_genotype(phase_input_files=['tests/data/oneread.bam'], variant_file='tests/data/onevariant.vcf',
 			output='/dev/null', samples=['DOES_NOT_EXIST'])
 
@@ -341,7 +342,7 @@ def test_phase_trio_paired_end_reads():
 def test_wrong_chromosome():
 	with TemporaryDirectory() as tempdir:
 		outvcf = tempdir + '/output.vcf'
-		with pytest.raises(SystemExit):
+		with pytest.raises(CommandLineError):
 			run_genotype(phase_input_files=[short_bamfile],
 				ignore_read_groups=True,
 				variant_file='tests/data/short-genome/wrongchromosome.vcf', output=outvcf)

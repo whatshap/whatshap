@@ -19,12 +19,9 @@ from whatshap.core import ReadSet, Pedigree, NumericSampleIds, PhredGenotypeLike
 from whatshap.graph import ComponentFinder
 from whatshap.pedigree import (PedReader, recombination_cost_map,
 			load_genetic_map, uniform_recombination_map)
-from whatshap.bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
 from whatshap.timer import StageTimer
-from whatshap.variants import ReadSetReader
-from whatshap.utils import IndexedFasta, FastaNotIndexedError
-
 from whatshap.cli.phase import read_reads, select_reads, split_input_file_list, setup_pedigree
+from whatshap.cli import open_readset_reader, CommandLineError, open_reference
 
 
 logger = logging.getLogger(__name__)
@@ -89,66 +86,41 @@ def run_genotype(
 	"""
 	timers = StageTimer()
 	logger.info("This is WhatsHap (genotyping) %s running under Python %s", __version__, platform.python_version())
+	if write_command_line_header:
+		command_line = '(whatshap {}) {}'.format(__version__, ' '.join(sys.argv[1:]))
+	else:
+		command_line = None
 	with ExitStack() as stack:
 		# read the given input files (BAMs, VCFs, ref...)
 		numeric_sample_ids = NumericSampleIds()
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
+		readset_reader = stack.enter_context(open_readset_reader(
+			phase_input_bam_filenames, reference, numeric_sample_ids, mapq_threshold=mapping_quality,
+			overhang=overhang, affine=affine_gap, gap_start=gap_start, gap_extend=gap_extend,
+			default_mismatch=mismatch))
 		try:
-			readset_reader = stack.enter_context(ReadSetReader(
-				phase_input_bam_filenames, reference, numeric_sample_ids, mapq_threshold=mapping_quality,
-				overhang=overhang, affine=affine_gap, gap_start=gap_start, gap_extend=gap_extend, default_mismatch=mismatch))
+			phase_input_vcf_readers = [stack.enter_context(VcfReader(f, indels=indels, phases=True)) for f in phase_input_vcf_filenames]
 		except OSError as e:
-			logger.error(e)
-			sys.exit(1)
-		except AlignmentFileNotIndexedError as e:
-			logger.error('The file %r is not indexed. Please create the appropriate BAM/CRAM '
-				'index with "samtools index"', str(e))
-			sys.exit(1)
-		except EmptyAlignmentFileError as e:
-			logger.error('No reads could be retrieved from %r. If this is a CRAM file, possibly the '
-				'reference could not be found. Try to use --reference=... or check you '
-				'$REF_PATH/$REF_CACHE settings', str(e))
-			sys.exit(1)
-		try:
-			phase_input_vcf_readers = [VcfReader(f, indels=indels, phases=True) for f in phase_input_vcf_filenames]
-		except OSError as e:
-			logger.error(e)
-			sys.exit(1)
-		if reference:
-			try:
-				fasta = stack.enter_context(IndexedFasta(reference))
-			except OSError as e:
-				logger.error('%s', e)
-				sys.exit(1)
-			except FastaNotIndexedError as e:
-				logger.error('An index file (.fai) for the reference %r could not be found. '
-					'Please create one with "samtools faidx".', str(e))
-				sys.exit(1)
-		else:
-			fasta = None
+			raise CommandLineError(e)
+
+		fasta = stack.enter_context(open_reference(reference)) if reference else None
 		del reference
 
-		if write_command_line_header:
-			command_line = '(whatshap {}) {}'.format(__version__ , ' '.join(sys.argv[1:]))
-		else:
-			command_line = None
-
 		# vcf writer for final genotype likelihoods
-		vcf_writer = GenotypeVcfWriter(command_line=command_line, in_path=variant_file,
-		        out_file=output)
+		vcf_writer = stack.enter_context(GenotypeVcfWriter(command_line=command_line, in_path=variant_file,
+		        out_file=output))
 		# vcf writer for only the prior likelihoods (if output is desired)
 		prior_vcf_writer = None
 		if prioroutput is not None:
-			prior_vcf_writer = GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=open(prioroutput,'w'))
+			prior_vcf_writer = stack.enter_context(GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=stack.enter_context(open(prioroutput, 'w'))))
 
 		# parse vcf with input variants
 		# remove all likelihoods that may already be present
-		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=False, ignore_genotypes=True)
+		vcf_reader = stack.enter_context(VcfReader(variant_file, indels=indels, genotype_likelihoods=False, ignore_genotypes=True))
 
 		if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
-			logger.error('When using --ignore-read-groups on a VCF with '
+			raise CommandLineError('When using --ignore-read-groups on a VCF with '
 				'multiple samples, --sample must also be used.')
-			sys.exit(1)
 		if not samples:
 			samples = vcf_reader.samples
 
@@ -156,7 +128,7 @@ def run_genotype(
 		if ped and use_ped_samples:
 			samples = set()
 			for trio in PedReader(ped):
-				if (trio.child is None or trio.mother is None or trio.father is None):
+				if trio.child is None or trio.mother is None or trio.father is None:
 					continue
 				samples.add(trio.mother)
 				samples.add(trio.father)
@@ -165,8 +137,7 @@ def run_genotype(
 		vcf_sample_set = set(vcf_reader.samples)
 		for sample in samples:
 			if sample not in vcf_sample_set:
-				logger.error('Sample %r requested on command-line not found in VCF', sample)
-				sys.exit(1)
+				raise CommandLineError('Sample {!r} requested on command-line not found in VCF'.format(sample))
 
 		samples = frozenset(samples)
 		# list of all trios across all families
@@ -204,10 +175,10 @@ def run_genotype(
 		# Read phase information provided as VCF files, if provided.
 		phase_input_vcfs = []
 		timers.start('parse_phasing_vcfs')
-		for reader, filename in zip(phase_input_vcf_readers, phase_input_vcf_filenames):
+		for reader in phase_input_vcf_readers:
 			# create dict mapping chromsome names to VariantTables
 			m = dict()
-			logger.info('Reading phased blocks from %r', filename)
+			logger.info('Reading phased blocks from %r', reader.path)
 			for variant_table in reader:
 				m[variant_table.chromosome] = variant_table
 			phase_input_vcfs.append(m)

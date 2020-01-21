@@ -19,15 +19,15 @@ from networkx import Graph, number_of_nodes, number_of_edges, connected_componen
 from contextlib import ExitStack
 from whatshap.vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
 from whatshap import __version__
-from whatshap.core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, HapChatCore, Genotype
+from whatshap.core import Read, ReadSet, readselection, Pedigree, PedigreeDPTable, NumericSampleIds, PhredGenotypeLikelihoods, compute_genotypes, HapChatCore
 from whatshap.graph import ComponentFinder
 from whatshap.pedigree import (PedReader, mendelian_conflict, recombination_cost_map,
                        load_genetic_map, uniform_recombination_map, find_recombination)
-from whatshap.bam import AlignmentFileNotIndexedError, SampleNotFoundError, ReferenceNotFoundError, EmptyAlignmentFileError
+from whatshap.bam import SampleNotFoundError, ReferenceNotFoundError
 from whatshap.timer import StageTimer
-from whatshap.variants import ReadSetReader, ReadSetError
-from whatshap.utils import detect_file_format, IndexedFasta, FastaNotIndexedError, plural_s
-
+from whatshap.variants import ReadSetError
+from whatshap.utils import detect_file_format, plural_s
+from whatshap.cli import CommandLineError, open_readset_reader, open_reference
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -112,30 +112,29 @@ def best_case_blocks(reads):
 
 def read_reads(readset_reader, chromosome, variants, bam_sample, vcf_sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames):
 	"""Return a sorted ReadSet"""
-	for_sample = 'for sample {!r}'.format(bam_sample) if bam_sample is not None else ''
+	for_sample = 'for sample {!r} '.format(bam_sample) if bam_sample is not None else ''
 	logger.info('Reading alignments %sand detecting alleles ...', for_sample)
 	try:
 		reference = fasta[chromosome] if fasta else None
 	except KeyError:
-		logger.error('Chromosome %r present in VCF file, but not in the reference FASTA %r', chromosome, fasta.filename)
-		sys.exit(1)
+		raise CommandLineError('Chromosome {!r} present in VCF file, but not in the reference FASTA {!r}'.format(chromosome, fasta.filename))
+
 	try:
 		readset = readset_reader.read(chromosome, variants, bam_sample, reference)
 	except SampleNotFoundError:
 		logger.warning("Sample %r not found in any BAM/CRAM file.", bam_sample)
 		readset = ReadSet()
 	except ReadSetError as e:
-		logger.error("%s", e)
-		sys.exit(1)
+		raise CommandLineError(e)
 	except ReferenceNotFoundError:
-		logger.error("The chromosome %r was not found in the BAM/CRAM file.", chromosome)
 		if chromosome.startswith('chr'):
 			alternative = chromosome[3:]
 		else:
 			alternative = 'chr' + chromosome
+		message = "The chromosome {!r} was not found in the BAM/CRAM file.".format(chromosome)
 		if readset_reader.has_reference(alternative):
-			logger.error("Found %r instead", alternative)
-		sys.exit(1)
+			message += " Found {!r} instead".format(alternative)
+		raise CommandLineError(message)
 	# Add phasing information from VCF files, if present
 	vcf_source_ids = set()
 	for i, phase_input_vcf in enumerate(phase_input_vcfs):
@@ -439,15 +438,13 @@ def split_input_file_list(input_files):
 		try:
 			file_format = detect_file_format(filename)
 		except OSError as e:
-			logger.error('%s', e)
-			sys.exit(1)
+			raise CommandLineError(e)
 		if file_format in ('BAM', 'CRAM'):
 			bams.append(filename)
 		elif file_format == 'VCF':
 			vcfs.append(filename)
 		else:
-			logger.error('Unable to determine type of input file %r', filename)
-			sys.exit(1)
+			raise CommandLineError('Unable to determine type of input file {!r}'.format(filename))
 	return bams, vcfs
 
 
@@ -553,63 +550,37 @@ def run_whatshap(
 	"""
 	timers = StageTimer()
 	logger.info("This is WhatsHap %s running under Python %s", __version__, platform.python_version())
+	if full_genotyping:
+		distrust_genotypes = True
+		include_homozygous = True
+	numeric_sample_ids = NumericSampleIds()
+	if write_command_line_header:
+		command_line = '(whatshap {}) {}'.format(__version__, ' '.join(sys.argv[1:]))
+	else:
+		command_line = None
+
 	with ExitStack() as stack:
-		if full_genotyping:
-			distrust_genotypes = True
-			include_homozygous = True
-		numeric_sample_ids = NumericSampleIds()
 		phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
+		readset_reader = stack.enter_context(open_readset_reader(phase_input_bam_filenames,
+			reference, numeric_sample_ids, mapq_threshold=mapping_quality))
 		try:
-			readset_reader = stack.enter_context(ReadSetReader(phase_input_bam_filenames, reference,
-				numeric_sample_ids, mapq_threshold=mapping_quality))
-		except OSError as e:
-			logger.error(e)
-			sys.exit(1)
-		except AlignmentFileNotIndexedError as e:
-			logger.error('The file %r is not indexed. Please create the appropriate BAM/CRAM '
-				'index with "samtools index"', str(e))
-			sys.exit(1)
-		except EmptyAlignmentFileError as e:
-			logger.error('No reads could be retrieved from %r. If this is a CRAM file, possibly the '
-				'reference could not be found. Try to use --reference=... or check you '
-			    '$REF_PATH/$REF_CACHE settings', str(e))
-			sys.exit(1)
-		try:
-			phase_input_vcf_readers = [VcfReader(f, indels=indels, phases=True) for f in phase_input_vcf_filenames]
-		except OSError as e:
-			logger.error(e)
-			sys.exit(1)
-		if reference:
-			try:
-				fasta = stack.enter_context(IndexedFasta(reference))
-			except OSError as e:
-				logger.error('%s', e)
-				sys.exit(1)
-			except FastaNotIndexedError as e:
-				logger.error('An index file (.fai) for the reference %r could not be found. '
-					'Please create one with "samtools faidx".', str(e))
-				sys.exit(1)
-		else:
-			fasta = None
-		del reference
-		if write_command_line_header:
-			command_line = '(whatshap {}) {}'.format(__version__, ' '.join(sys.argv[1:]))
-		else:
-			command_line = None
-		try:
+			phase_input_vcf_readers = [
+				stack.enter_context(VcfReader(f, indels=indels, phases=True))
+				for f in phase_input_vcf_filenames
+			]
 			vcf_writer = stack.enter_context(
 				PhasedVcfWriter(command_line=command_line, in_path=variant_file,
 			        out_file=output, tag=tag))
 		except OSError as e:
-			logger.error('%s', e)
-			sys.exit(1)
+			raise CommandLineError(e)
+		fasta = stack.enter_context(open_reference(reference)) if reference else None
+		del reference
 		# Only read genotype likelihoods from VCFs when distrusting genotypes
 		vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=distrust_genotypes)
 
 		if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
-			logger.error('When using --ignore-read-groups on a VCF with '
+			raise CommandLineError('When using --ignore-read-groups on a VCF with '
 				'multiple samples, --sample must also be used.')
-			sys.exit(1)
 		if not samples:
 			samples = vcf_reader.samples
 
@@ -620,8 +591,7 @@ def run_whatshap(
 		vcf_sample_set = set(vcf_reader.samples)
 		for sample in samples:
 			if sample not in vcf_sample_set:
-				logger.error('Sample %r requested on command-line not found in VCF', sample)
-				sys.exit(1)
+				raise CommandLineError('Sample {!r} requested on command-line not found in VCF'.format(sample))
 
 		samples = frozenset(samples)
 		# list of all trios across all families
@@ -632,9 +602,7 @@ def run_whatshap(
 
 		if ped:
 			if algorithm == 'hapchat':
-				logger.error('The hapchat algorithm (for the time being) does single '
-					'individual phasing only, hence it does not handle pedigrees')
-				sys.exit(1)
+				raise CommandLineError("The hapchat algorithm cannot do pedigree phasing")
 			all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, samples)
 			if genmap:
 				logger.info('Using region-specific recombination rates from genetic map %s.', genmap)
@@ -664,19 +632,8 @@ def run_whatshap(
 		if read_list_filename:
 			read_list = stack.enter_context(ReadList(read_list_filename))
 
-		# Read phase information provided as VCF files, if provided.
-		# TODO: do this chromosome- and/or sample-wise on demand to save memory.
-		phase_input_vcfs = []
-
-		timers.start('parse_phasing_vcfs')
-		for reader, filename in zip(phase_input_vcf_readers, phase_input_vcf_filenames):
-			# create dict mapping chromsome names to VariantTables
-			m = dict()
-			logger.info('Reading phased blocks from %r', filename)
-			for variant_table in reader:
-				m[variant_table.chromosome] = variant_table
-			phase_input_vcfs.append(m)
-		timers.stop('parse_phasing_vcfs')
+		with timers('parse_phasing_vcfs'):
+			phase_input_vcfs = read_phase_input_vcfs(phase_input_vcf_readers)
 
 		for variant_table in timers.iterate('parse_vcf', vcf_reader):
 			chromosome = variant_table.chromosome
@@ -720,8 +677,6 @@ def run_whatshap(
 
 				# variant indices with at least one missing genotype
 				missing_genotypes = set()
-				# variant indices with at least one Mendelian conflict
-				mendelian_conflicts = set()
 				# variant indices with at least one heterozygous genotype
 				heterozygous = set()
 				# variant indices with at least one homozygous genotype
@@ -740,16 +695,8 @@ def run_whatshap(
 							homozygous.add(index)
 
 				# determine which variants have Mendelian conflicts
-				for trio in trios:
-					genotypes_mother = variant_table.genotypes_of(trio.mother)
-					genotypes_father = variant_table.genotypes_of(trio.father)
-					genotypes_child = variant_table.genotypes_of(trio.child)
-
-					for index, (gt_mother, gt_father, gt_child) in enumerate(zip(
-							genotypes_mother, genotypes_father, genotypes_child)):
-						if (not gt_mother.is_none()) and (not gt_father.is_none()) and (not gt_child.is_none()):
-							if mendelian_conflict(gt_mother, gt_father, gt_child):
-								mendelian_conflicts.add(index)
+				# variant indices with at least one Mendelian conflict
+				mendelian_conflicts = find_mendelian_conflicts(trios, variant_table)
 
 				# retain variants that are heterozygous in at least one individual (anywhere in the pedigree)
 				# and do not have neither missing genotypes nor Mendelian conflicts
@@ -808,15 +755,7 @@ def run_whatshap(
 						logger.info('... after read selection: %d non-singleton phased blocks (%d in total)',
 							n_best_case_nonsingleton_blocks_cov, n_best_case_blocks_cov)
 
-				# Merge reads into one ReadSet (note that each Read object
-				# knows the sample it originated from).
-				all_reads = ReadSet()
-				for sample, readset in readsets.items():
-					for read in readset:
-						assert read.is_sorted(), "Add a read.sort() here"
-						all_reads.add(read)
-
-				all_reads.sort()
+				all_reads = merge_readsets(readsets)
 
 				# Determine which variants can (in principle) be phased
 				accessible_positions = sorted(all_reads.get_positions())
@@ -834,30 +773,8 @@ def run_whatshap(
 				phasable_variant_table.subset_rows_by_position(accessible_positions)
 				assert len(phasable_variant_table.variants) == len(accessible_positions)
 
-				# Create Pedigree
-				pedigree = Pedigree(numeric_sample_ids)
-				for sample in family:
-					# If distrusting genotypes, we pass genotype likelihoods on to pedigree object
-					if distrust_genotypes:
-						genotype_likelihoods = []
-						for gt, gl in zip(phasable_variant_table.genotypes_of(sample), phasable_variant_table.genotype_likelihoods_of(sample)):
-							assert gt.is_diploid_and_biallelic();
-							if gl is None:
-								# all genotypes get default_gq as genotype likelihood, exept the called genotype ...
-								x = [default_gq] * 3
-								# ... which gets a 0
-								x[gt.get_index()] = 0
-								genotype_likelihoods.append(PhredGenotypeLikelihoods(x))
-							else:
-								genotype_likelihoods.append(gl.as_phred(regularizer=gl_regularizer))
-					else:
-						genotype_likelihoods = None
-					pedigree.add_individual(sample, phasable_variant_table.genotypes_of(sample), genotype_likelihoods)
-				for trio in trios:
-					pedigree.add_relationship(
-						father_id=trio.father,
-						mother_id=trio.mother,
-						child_id=trio.child)
+				pedigree = create_pedigree(default_gq, distrust_genotypes, family, gl_regularizer,
+					numeric_sample_ids, phasable_variant_table, trios)
 
 				if genmap:
 					# Load genetic map
@@ -965,6 +882,75 @@ def run_whatshap(
 	logger.info('Time spent finding components:               %6.1f s', timers.elapsed('components'))
 	logger.info('Time spent on rest:                          %6.1f s', total_time - timers.sum())
 	logger.info('Total elapsed time:                          %6.1f s', total_time)
+
+
+def read_phase_input_vcfs(phase_input_vcf_readers):
+	# Read phase information provided as VCF files, if provided.
+	# TODO: do this chromosome- and/or sample-wise on demand to save memory.
+	phase_input_vcfs = []
+	for reader in phase_input_vcf_readers:
+		# create dict mapping chromsome names to VariantTables
+		m = dict()
+		logger.info("Reading phased blocks from %r", reader.path)
+		for variant_table in reader:
+			m[variant_table.chromosome] = variant_table
+		phase_input_vcfs.append(m)
+	return phase_input_vcfs
+
+
+def merge_readsets(readsets):
+	all_reads = ReadSet()
+	for sample, readset in readsets.items():
+		for read in readset:
+			assert read.is_sorted(), "Add a read.sort() here"
+			all_reads.add(read)
+	all_reads.sort()
+	return all_reads
+
+
+def create_pedigree(default_gq, distrust_genotypes, family, gl_regularizer, numeric_sample_ids,
+	phasable_variant_table, trios):
+	pedigree = Pedigree(numeric_sample_ids)
+	for sample in family:
+		# If distrusting genotypes, we pass genotype likelihoods on to pedigree object
+		if distrust_genotypes:
+			genotype_likelihoods = []
+			for gt, gl in zip(phasable_variant_table.genotypes_of(sample),
+				phasable_variant_table.genotype_likelihoods_of(sample)):
+				assert gt.is_diploid_and_biallelic()
+				if gl is None:
+					# all genotypes get default_gq as genotype likelihood, exept the called genotype ...
+					x = [default_gq] * 3
+					# ... which gets a 0
+					x[gt.get_index()] = 0
+					genotype_likelihoods.append(PhredGenotypeLikelihoods(x))
+				else:
+					genotype_likelihoods.append(gl.as_phred(regularizer=gl_regularizer))
+		else:
+			genotype_likelihoods = None
+		pedigree.add_individual(sample, phasable_variant_table.genotypes_of(sample),
+			genotype_likelihoods)
+	for trio in trios:
+		pedigree.add_relationship(
+			father_id=trio.father,
+			mother_id=trio.mother,
+			child_id=trio.child)
+	return pedigree
+
+
+def find_mendelian_conflicts(trios, variant_table):
+	mendelian_conflicts = set()
+	for trio in trios:
+		genotypes_mother = variant_table.genotypes_of(trio.mother)
+		genotypes_father = variant_table.genotypes_of(trio.father)
+		genotypes_child = variant_table.genotypes_of(trio.child)
+
+		for index, (gt_mother, gt_father, gt_child) in enumerate(zip(
+			genotypes_mother, genotypes_father, genotypes_child)):
+			if (not gt_mother.is_none()) and (not gt_father.is_none()) and (not gt_child.is_none()):
+				if mendelian_conflict(gt_mother, gt_father, gt_child):
+					mendelian_conflicts.add(index)
+	return mendelian_conflicts
 
 
 def write_changed_genotypes(gtchange_list_filename, changed_genotypes):

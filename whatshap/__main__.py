@@ -6,6 +6,7 @@ import logging
 import whatshap.cli as cli_package
 from . import __version__
 from .args import HelpfulArgumentParser
+from .cli import CommandLineError
 
 
 logger = logging.getLogger(__name__)
@@ -74,7 +75,11 @@ def main(argv=sys.argv[1:]):
 		del args.subparser
 		del args.module
 		del args.debug
-		module.main(args)
+		try:
+			module.main(args)
+		except CommandLineError as e:
+			logger.error("whatshap error: %s", str(e))
+			sys.exit(1)
 
 
 if __name__ == '__main__':
