@@ -9,7 +9,7 @@ from contextlib import ExitStack
 from itertools import chain, permutations
 from typing import Set, Iterable, List
 
-from whatshap.vcf import VcfReader, VcfVariant, VariantTable
+from whatshap.vcf import VcfReader, VcfVariant, VariantTable, PloidyError
 from whatshap.core import Genotype
 from whatshap.cli import CommandLineError
 
@@ -38,7 +38,7 @@ def add_arguments(parser):
 	add('--plot-sum-of-blocksizes', default=None, help='Write PDF file with a block length histogram in which the height of each bar corresponds to the sum of lengths.')
 	add('--longest-block-tsv', default=None, help='Write position-wise agreement of longest '
 		'joint blocks in each chromosome to tab-separated file. Only for diploid vcfs.')
-	add('ploidy', metavar='PLOIDY', type=int, help='The ploidy of the samples (must be > 1).')
+	add('--ploidy', '-p', metavar='PLOIDY', type=int, default=2, help='The ploidy of the sample(s) (default: %(default)s).')
 	# TODO: what's the best way to request "two or more" VCFs?
 	add('vcf', nargs='+', metavar='VCF', help='At least two phased VCF files to be compared.')
 
@@ -132,13 +132,7 @@ def compute_switch_flips(phasing0, phasing1):
 			result.flips += switches_in_a_row // 2
 			result.switches += switches_in_a_row % 2
 			switches_in_a_row = 0
-	if False:
-		print('switch_flips():')
-		print('   phasing0={}'.format(phasing0))
-		print('   phasing1={}'.format(phasing1))
-		print('         s0={}'.format(s0))
-		print('         s1={}'.format(s1))
-		print('   switches={}, flips={}'.format(result.switches, result.flips))
+
 	return result
 
 
@@ -172,11 +166,6 @@ def compute_switch_errors_poly(phasing0, phasing1, matching_pos=None):
 	
 	phasing0_matched = ["".join([hap[i] for i in matching_pos]) for hap in phasing0]
 	phasing1_matched = ["".join([hap[i] for i in matching_pos]) for hap in phasing1]
-	
-	print(phasing0)
-	print(phasing1)
-	print(phasing0_matched)
-	print(phasing1_matched)
 
 	vector_error = compute_switch_flips_poly(phasing0_matched, phasing1_matched, switch_cost = 1, flip_cost = 2*num_vars*len(phasing0)+1)
 	assert vector_error.flips == 0
@@ -757,8 +746,11 @@ def run_compare(vcf, ploidy, names=None, sample=None, tsv_pairwise=None, tsv_mul
 			# create dict mapping chromosome names to VariantTables
 			m = dict()
 			logger.info('Reading phasing from %r', filename)
-			for variant_table in reader:
-				m[variant_table.chromosome] = variant_table
+			try:
+				for variant_table in reader:
+					m[variant_table.chromosome] = variant_table
+			except PloidyError as e:
+				raise CommandLineError('Provided ploidy is invalid: {}. Aborting.'.format(e))
 			vcfs.append(m)
 			if chromosomes is None:
 				chromosomes = set(m.keys())

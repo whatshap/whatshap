@@ -473,9 +473,8 @@ class VcfReader:
 					elif self.ploidy is None:
 						self.ploidy = geno_ploidy
 					elif geno_ploidy != self.ploidy:
-						print("genotype_lists= {}".format(genotype_lists))
 						raise PloidyError(
-							"Genotypes contain inconsistent ploidy ({} and "
+							"Inconsistent ploidy ({} and "
 							"{})".format(self.ploidy, geno_ploidy))				
 				
 				genotypes = [genotype_code(geno_list) for geno_list in genotype_lists]
