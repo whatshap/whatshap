@@ -206,7 +206,7 @@ def test_phase4(algorithm):
     check_phasing_single_individual(reads, algorithm)
 
 
-def test_phase4(algorithm):
+def test_phase4a(algorithm):
     reads = """
       1  11010
       00 00101
