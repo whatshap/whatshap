@@ -11,6 +11,7 @@ from ..vcf import VcfReader
 logger = logging.getLogger(__name__)
 
 
+# fmt: off
 def add_arguments(parser):
     add = parser.add_argument
     add('--gtf', default=None, help='Write phased blocks to GTF file.')
@@ -29,6 +30,8 @@ def add_arguments(parser):
         help='Name of chromosome to process. If not given, all chromosomes in the '
         'input VCF are considered.')
     add('vcf', metavar='VCF', help='Phased VCF file')
+# fmt: on
+
 
 def validate(args, parser):
     pass

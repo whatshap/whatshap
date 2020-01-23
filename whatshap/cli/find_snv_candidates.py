@@ -12,6 +12,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# fmt: off
 def add_arguments(parser):
     add = parser.add_argument
     add('ref', metavar='REF', help='FASTA with reference genome')
@@ -35,6 +36,7 @@ def add_arguments(parser):
         help='Input is Nanopore. Sets minrel=0.4 and minabs=3.')
     group.add_argument('--illumina', dest='datatype', action='store_const', const='illumina',
         help='Input is Illumina. Sets minrel=0.25 and minabs=3.')
+# fmt: on
 
 
 def validate(args, parser):

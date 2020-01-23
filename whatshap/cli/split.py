@@ -20,6 +20,7 @@ from whatshap.timer import StageTimer
 logger = logging.getLogger(__name__)
 
 
+# fmt: off
 def add_arguments(parser):
     arg = parser.add_argument
     arg('--output-h1', default=None,
@@ -53,6 +54,7 @@ def add_arguments(parser):
             'Currently, the two haplotypes have to be named H1 and H2 (or none). Alternatively, the '
             'output of the "haplotag" command can be used (4 columns), and this is required for using '
             'the "--only-largest-block" option (need phaseset and chromosome info).')
+# fmt: on
 
 
 def validate(args, parser):

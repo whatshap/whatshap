@@ -24,6 +24,7 @@ from whatshap.variants import ReadSetError
 logger = logging.getLogger(__name__)
 
 
+# fmt: off
 def add_arguments(parser):
     arg = parser.add_argument
     arg('-o', '--output',
@@ -57,6 +58,7 @@ def add_arguments(parser):
     arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
     arg('alignment_file', metavar='ALIGNMENTS',
         help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
+# fmt: on
 
 
 def validate(args, parser):

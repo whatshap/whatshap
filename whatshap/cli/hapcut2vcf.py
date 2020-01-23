@@ -27,12 +27,14 @@ from whatshap import __version__
 logger = logging.getLogger(__name__)
 
 
+# fmt: off
 def add_arguments(parser):
     add = parser.add_argument
     add('-o', '--output', default=sys.stdout,
         help='Output VCF file. If omitted, use standard output.')
     add('vcf', metavar='VCF', help='VCF file')
     add('hapcut', metavar='HAPCUT-RESULT', help='hapCUT result file')
+# fmt: on
 
 
 HapCutVariant = namedtuple('HapCutVariant', ['chromosome', 'position', 'haplotype1', 'haplotype2', 'component_id'])

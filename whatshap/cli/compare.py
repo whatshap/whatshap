@@ -19,6 +19,7 @@ logger = logging.getLogger(__name__)
 count_width = 9
 
 
+# fmt: off
 def add_arguments(parser):
     add = parser.add_argument
     add('--sample', metavar='SAMPLE', default=None, help='Name of the sample '
@@ -41,6 +42,7 @@ def add_arguments(parser):
     add('--ploidy', '-p', metavar='PLOIDY', type=int, default=2, help='The ploidy of the sample(s) (default: %(default)s).')
     # TODO: what's the best way to request "two or more" VCFs?
     add('vcf', nargs='+', metavar='VCF', help='At least two phased VCF files to be compared.')
+# fmt: on
 
 
 def validate(args, parser):

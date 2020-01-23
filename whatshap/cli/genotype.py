@@ -345,6 +345,7 @@ def run_genotype(
     logger.info('Total elapsed time:                          %6.1f s', total_time)
 
 
+# fmt: off
 def add_arguments(parser):
     arg = parser.add_argument
     # Positional arguments
@@ -410,6 +411,7 @@ def add_arguments(parser):
     arg('--use-ped-samples', dest='use_ped_samples',
         action='store_true', default=False,
         help='Only work on samples mentioned in the provided PED file.')
+# fmt: on
 
 
 def validate(args, parser):

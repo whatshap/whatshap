@@ -992,6 +992,7 @@ def write_recombination_list(path, chromosome, accessible_positions,
     return n
 
 
+# fmt: off
 def add_arguments(parser):
     arg = parser.add_argument
     # Positional arguments
@@ -1105,7 +1106,7 @@ def add_arguments(parser):
     arg('--use-ped-samples', dest='use_ped_samples',
         action='store_true', default=False,
         help='Only work on samples mentioned in the provided PED file.')
-
+# fmt: on
 
 def validate(args, parser):
     if args.ignore_read_groups and args.ped:
