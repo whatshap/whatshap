@@ -872,16 +872,18 @@ def run_whatshap(
     if sys.platform == 'linux':
         memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         logger.info('Maximum memory usage: %.3f GB', memory_kb / 1E6)
-    logger.info('Time spent reading BAM/CRAM:                 %6.1f s', timers.elapsed('read_bam'))
-    logger.info('Time spent parsing VCF:                      %6.1f s', timers.elapsed('parse_vcf'))
+    # fmt: off
+    logger.info("Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"))
+    logger.info("Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"))
     if len(phase_input_vcfs) > 0:
-        logger.info('Time spent parsing input phasings from VCFs: %6.1f s', timers.elapsed('parse_phasing_vcfs'))
-    logger.info('Time spent selecting reads:                  %6.1f s', timers.elapsed('select'))
-    logger.info('Time spent phasing:                          %6.1f s', timers.elapsed('phase'))
-    logger.info('Time spent writing VCF:                      %6.1f s', timers.elapsed('write_vcf'))
-    logger.info('Time spent finding components:               %6.1f s', timers.elapsed('components'))
-    logger.info('Time spent on rest:                          %6.1f s', total_time - timers.sum())
-    logger.info('Total elapsed time:                          %6.1f s', total_time)
+        logger.info("Time spent parsing input phasings from VCFs: %6.1f s", timers.elapsed("parse_phasing_vcfs"))
+    logger.info("Time spent selecting reads:                  %6.1f s", timers.elapsed("select"))
+    logger.info("Time spent phasing:                          %6.1f s", timers.elapsed("phase"))
+    logger.info("Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"))
+    logger.info("Time spent finding components:               %6.1f s", timers.elapsed("components"))
+    logger.info("Time spent on rest:                          %6.1f s", total_time - timers.sum())
+    logger.info("Total elapsed time:                          %6.1f s", total_time)
+    # fmt: on
 
 
 def read_phase_input_vcfs(phase_input_vcf_readers):
@@ -996,116 +998,116 @@ def write_recombination_list(path, chromosome, accessible_positions,
 def add_arguments(parser):
     arg = parser.add_argument
     # Positional arguments
-    arg('variant_file', metavar='VCF',
-        help='VCF or BCF file with variants to be phased (can be gzip-compressed)')
-    arg('phase_input_files', nargs='*', metavar='PHASEINPUT',
-        help='BAM, CRAM, VCF or BCF file(s) with phase information, either through '
-            'sequencing reads (BAM, CRAM) or through phased blocks (VCF, BCF)')
+    arg("variant_file", metavar="VCF",
+        help="VCF or BCF file with variants to be phased (can be gzip-compressed)")
+    arg("phase_input_files", nargs="*", metavar="PHASEINPUT",
+        help="BAM, CRAM, VCF or BCF file(s) with phase information, either through "
+            "sequencing reads (BAM, CRAM) or through phased blocks (VCF, BCF)")
 
-    arg('-o', '--output', default=sys.stdout,
-        help='Output VCF file. Add .gz to the file name to get compressed output. '
-            'If omitted, use standard output.')
-    arg('--reference', '-r', metavar='FASTA',
-        help='Reference file. Provide this to detect alleles through re-alignment. '
-            'If no index (.fai) exists, it will be created')
-    arg('--tag', choices=('PS', 'HP'), default='PS',
-        help='Store phasing information with PS tag (standardized) or '
-            'HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)')
-    arg('--output-read-list', metavar='FILE', default=None, dest='read_list_filename',
-        help='Write reads that have been used for phasing to FILE.')
-    arg('--algorithm', choices=('whatshap', 'hapchat'), default='whatshap',
-        help='Phasing algorithm to use (default: %(default)s)')
+    arg("-o", "--output", default=sys.stdout,
+        help="Output VCF file. Add .gz to the file name to get compressed output. "
+            "If omitted, use standard output.")
+    arg("--reference", "-r", metavar="FASTA",
+        help="Reference file. Provide this to detect alleles through re-alignment. "
+            "If no index (.fai) exists, it will be created")
+    arg("--tag", choices=("PS", "HP"), default="PS",
+        help="Store phasing information with PS tag (standardized) or "
+            "HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)")
+    arg("--output-read-list", metavar="FILE", default=None, dest="read_list_filename",
+        help="Write reads that have been used for phasing to FILE.")
+    arg("--algorithm", choices=("whatshap", "hapchat"), default="whatshap",
+        help="Phasing algorithm to use (default: %(default)s)")
 
-    arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
-    arg('--merge-reads', dest='read_merging', default=False, action='store_true',
-        help='Merge reads which are likely to come from the same haplotype '
-        '(default: do not merge reads)')
-    arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
-        help='Coverage reduction parameter in the core phasing algorithm. '
-            'Phasing quality may improve slightly if this is increased, but '
-            'runtime increases exponentially! Do not increase beyond 20. '
-            '(default: %(default)s)')
-    arg('--mapping-quality', '--mapq', metavar='QUAL',
-        default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
-    arg('--indels', dest='indels', default=False, action='store_true',
-        help='Also phase indels (default: do not phase indels)')
-    arg('--ignore-read-groups', default=False, action='store_true',
-        help='Ignore read groups in BAM/CRAM header and assume all reads come '
-        'from the same sample.')
-    arg('--sample', dest='samples', metavar='SAMPLE', default=[], action='append',
-        help='Name of a sample to phase. If not given, all samples in the '
-        'input VCF are phased. Can be used multiple times.')
-    arg('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
-        help='Name of chromosome to phase. If not given, all chromosomes in the '
-        'input VCF are phased. Can be used multiple times.')
+    arg = parser.add_argument_group("Input pre-processing, selection and filtering").add_argument
+    arg("--merge-reads", dest="read_merging", default=False, action="store_true",
+        help="Merge reads which are likely to come from the same haplotype "
+        "(default: do not merge reads)")
+    arg("--max-coverage", "-H", metavar="MAXCOV", default=15, type=int,
+        help="Coverage reduction parameter in the core phasing algorithm. "
+            "Phasing quality may improve slightly if this is increased, but "
+            "runtime increases exponentially! Do not increase beyond 20. "
+            "(default: %(default)s)")
+    arg("--mapping-quality", "--mapq", metavar="QUAL",
+        default=20, type=int, help="Minimum mapping quality (default: %(default)s)")
+    arg("--indels", dest="indels", default=False, action="store_true",
+        help="Also phase indels (default: do not phase indels)")
+    arg("--ignore-read-groups", default=False, action="store_true",
+        help="Ignore read groups in BAM/CRAM header and assume all reads come "
+        "from the same sample.")
+    arg("--sample", dest="samples", metavar="SAMPLE", default=[], action="append",
+        help="Name of a sample to phase. If not given, all samples in the "
+        "input VCF are phased. Can be used multiple times.")
+    arg("--chromosome", dest="chromosomes", metavar="CHROMOSOME", default=[], action="append",
+        help="Name of chromosome to phase. If not given, all chromosomes in the "
+        "input VCF are phased. Can be used multiple times.")
 
-    arg = parser.add_argument_group('Read merging',
-        'The options in this section are only active when --merge-reads is used').add_argument
-    arg('--error-rate', dest='read_merging_error_rate',
+    arg = parser.add_argument_group("Read merging",
+        "The options in this section are only active when --merge-reads is used").add_argument
+    arg("--error-rate", dest="read_merging_error_rate",
         type=float, default=0.15,
-        help='The probability that a nucleotide is wrong in read merging model '
-            '(default: %(default)s).')
-    arg('--maximum-error-rate', dest='read_merging_max_error_rate',
+        help="The probability that a nucleotide is wrong in read merging model "
+            "(default: %(default)s).")
+    arg("--maximum-error-rate", dest="read_merging_max_error_rate",
         type=float, default=0.25,
-        help='The maximum error rate of any edge of the read merging graph '
-        'before discarding it (default: %(default)s).')
-    arg('--threshold', dest='read_merging_positive_threshold',
+        help="The maximum error rate of any edge of the read merging graph "
+        "before discarding it (default: %(default)s).")
+    arg("--threshold", dest="read_merging_positive_threshold",
         type=int, default=1000000,
-        help='The threshold of the ratio between the probabilities that a pair '
-        'of reads come from the same haplotype and different haplotypes in the '
-        'read merging model (default: %(default)s).')
-    arg('--negative-threshold', dest='read_merging_negative_threshold',
+        help="The threshold of the ratio between the probabilities that a pair "
+        "of reads come from the same haplotype and different haplotypes in the "
+        "read merging model (default: %(default)s).")
+    arg("--negative-threshold", dest="read_merging_negative_threshold",
         type=int, default=1000,
-        help='The threshold of the ratio between the probabilities that a pair '
-        'of reads come from different haplotypes and the same haplotype in the '
-        'read merging model (default: %(default)s).')
+        help="The threshold of the ratio between the probabilities that a pair "
+        "of reads come from different haplotypes and the same haplotype in the "
+        "read merging model (default: %(default)s).")
 
-    arg = parser.add_argument_group('Genotyping',
-        'The options in this section require that either --distrust-genotypes or '
-        '--full-genotyping is used').add_argument
-    arg('--full-genotyping', dest='full_genotyping',
-        action='store_true', default=False,
-        help='Completely re-genotype all variants based on read data, ignores all genotype '
-        'data that might be present in the VCF (EXPERIMENTAL FEATURE).')
-    arg('--distrust-genotypes', dest='distrust_genotypes',
-        action='store_true', default=False,
-        help='Allow switching variants from hetero- to homozygous in an '
-        'optimal solution (see documentation).')
-    arg('--include-homozygous', dest='include_homozygous',
-        action='store_true', default=False,
-        help='Also work on homozygous variants, which might be turned to '
-        'heterozygous')
-    arg('--default-gq', dest='default_gq', type=int, default=30,
-        help='Default genotype quality used as cost of changing a genotype '
-        'when no genotype likelihoods are available (default %(default)s)')
-    arg('--gl-regularizer', dest='gl_regularizer', type=float, default=None,
-        help='Constant (float) to be used to regularize genotype likelihoods read '
-        'from input VCF (default %(default)s).')
-    arg('--changed-genotype-list', metavar='FILE', dest='gtchange_list_filename', default=None,
-        help='Write list of changed genotypes to FILE.')
+    arg = parser.add_argument_group("Genotyping",
+        "The options in this section require that either --distrust-genotypes or "
+        "--full-genotyping is used").add_argument
+    arg("--full-genotyping", dest="full_genotyping",
+        action="store_true", default=False,
+        help="Completely re-genotype all variants based on read data, ignores all genotype "
+        "data that might be present in the VCF (EXPERIMENTAL FEATURE).")
+    arg("--distrust-genotypes", dest="distrust_genotypes",
+        action="store_true", default=False,
+        help="Allow switching variants from hetero- to homozygous in an "
+        "optimal solution (see documentation).")
+    arg("--include-homozygous", dest="include_homozygous",
+        action="store_true", default=False,
+        help="Also work on homozygous variants, which might be turned to "
+        "heterozygous")
+    arg("--default-gq", dest="default_gq", type=int, default=30,
+        help="Default genotype quality used as cost of changing a genotype "
+        "when no genotype likelihoods are available (default %(default)s)")
+    arg("--gl-regularizer", dest="gl_regularizer", type=float, default=None,
+        help="Constant (float) to be used to regularize genotype likelihoods read "
+        "from input VCF (default %(default)s).")
+    arg("--changed-genotype-list", metavar="FILE", dest="gtchange_list_filename", default=None,
+        help="Write list of changed genotypes to FILE.")
 
-    arg = parser.add_argument_group('Pedigree phasing').add_argument
-    arg('--ped', metavar='PED/FAM',
-        help='Use pedigree information in PED file to improve phasing '
-        '(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, '
-        'mother, and father sample names as used in the VCF and BAM/CRAM. '
-        'Other columns are ignored.')
-    arg('--recombination-list', metavar='FILE', dest='recombination_list_filename', default=None,
-        help='Write putative recombination events to FILE.')
-    arg('--recombrate', metavar='RECOMBRATE', type=float, default=1.26,
-        help='Recombination rate in cM/Mb (used with --ped). If given, a constant recombination '
-        'rate is assumed (default: %(default)gcM/Mb).')
-    arg('--genmap', metavar='FILE',
-        help='File with genetic map (used with --ped) to be used instead of constant recombination '
-        'rate, i.e. overrides option --recombrate.')
-    arg('--no-genetic-haplotyping', dest='genetic_haplotyping',
-        action='store_false', default=True,
-        help='Do not merge blocks that are not connected by reads (i.e. solely based on genotype '
-        'status). Default: when in --ped mode, merge all blocks that contain at least one '
-        'homozygous genotype in at least one individual into one block.')
-    arg('--use-ped-samples', dest='use_ped_samples',
-        action='store_true', default=False,
-        help='Only work on samples mentioned in the provided PED file.')
+    arg = parser.add_argument_group("Pedigree phasing").add_argument
+    arg("--ped", metavar="PED/FAM",
+        help="Use pedigree information in PED file to improve phasing "
+        "(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, "
+        "mother, and father sample names as used in the VCF and BAM/CRAM. "
+        "Other columns are ignored.")
+    arg("--recombination-list", metavar="FILE", dest="recombination_list_filename", default=None,
+        help="Write putative recombination events to FILE.")
+    arg("--recombrate", metavar="RECOMBRATE", type=float, default=1.26,
+        help="Recombination rate in cM/Mb (used with --ped). If given, a constant recombination "
+        "rate is assumed (default: %(default)gcM/Mb).")
+    arg("--genmap", metavar="FILE",
+        help="File with genetic map (used with --ped) to be used instead of constant recombination "
+        "rate, i.e. overrides option --recombrate.")
+    arg("--no-genetic-haplotyping", dest="genetic_haplotyping",
+        action="store_false", default=True,
+        help="Do not merge blocks that are not connected by reads (i.e. solely based on genotype "
+        "status). Default: when in --ped mode, merge all blocks that contain at least one "
+        "homozygous genotype in at least one individual into one block.")
+    arg("--use-ped-samples", dest="use_ped_samples",
+        action="store_true", default=False,
+        help="Only work on samples mentioned in the provided PED file.")
 # fmt: on
 
 def validate(args, parser):

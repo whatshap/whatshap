@@ -14,22 +14,22 @@ logger = logging.getLogger(__name__)
 # fmt: off
 def add_arguments(parser):
     add = parser.add_argument
-    add('--gtf', default=None, help='Write phased blocks to GTF file.')
-    add('--sample', metavar='SAMPLE', default=None, help='Name of the sample '
-            'to process. If not given, use first sample found in VCF.')
-    add('--chr-lengths', default=None, help='File with chromosome lengths '
-            '(one line per chromosome, tab separated "<chr> <length>") '
-            'needed to compute N50 values.')
-    add('--tsv', metavar='TSV', default=None, help='Filename to write '
-        'statistics to (tab-separated).')
-    add('--only-snvs', default=False, action="store_true", help='Only process SNVs '
-        'and ignore all other variants.')
-    add('--block-list', action="store", default=None, help='Filename to write '
-        'list of all blocks to (one block per line).')
-    add('--chromosome', dest='chromosome', metavar='CHROMOSOME', default=None,
-        help='Name of chromosome to process. If not given, all chromosomes in the '
-        'input VCF are considered.')
-    add('vcf', metavar='VCF', help='Phased VCF file')
+    add("--gtf", default=None, help="Write phased blocks to GTF file.")
+    add("--sample", metavar="SAMPLE", default=None, help="Name of the sample "
+            "to process. If not given, use first sample found in VCF.")
+    add("--chr-lengths", default=None, help="File with chromosome lengths "
+            "(one line per chromosome, tab separated '<chr> <length>') "
+            "needed to compute N50 values.")
+    add("--tsv", metavar="TSV", default=None, help="Filename to write "
+        "statistics to (tab-separated).")
+    add("--only-snvs", default=False, action="store_true", help="Only process SNVs "
+        "and ignore all other variants.")
+    add("--block-list", action="store", default=None, help="Filename to write "
+        "list of all blocks to (one block per line).")
+    add("--chromosome", dest="chromosome", metavar="CHROMOSOME", default=None,
+        help="Name of chromosome to process. If not given, all chromosomes in the "
+        "input VCF are considered.")
+    add("vcf", metavar="VCF", help="Phased VCF file")
 # fmt: on
 
 
