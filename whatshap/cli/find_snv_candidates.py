@@ -12,6 +12,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 # fmt: off
 def add_arguments(parser):
     add = parser.add_argument

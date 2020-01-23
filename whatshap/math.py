@@ -1,5 +1,7 @@
 # This function was copied from Python 3.5’s statistics module.
 # The StatisticsError was changed to a ValueError.
+
+
 def _median(data):
     """Return the median (middle value) of numeric data.
 
