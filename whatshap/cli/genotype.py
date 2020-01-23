@@ -15,12 +15,29 @@ from typing import Sequence
 from contextlib import ExitStack
 from whatshap import __version__
 from whatshap.vcf import VcfReader, GenotypeVcfWriter
-from whatshap.core import ReadSet, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods, GenotypeDPTable, compute_genotypes, Genotype
+from whatshap.core import (
+    ReadSet,
+    Pedigree,
+    NumericSampleIds,
+    PhredGenotypeLikelihoods,
+    GenotypeDPTable,
+    compute_genotypes,
+    Genotype,
+)
 from whatshap.graph import ComponentFinder
-from whatshap.pedigree import (PedReader, recombination_cost_map,
-            load_genetic_map, uniform_recombination_map)
+from whatshap.pedigree import (
+    PedReader,
+    recombination_cost_map,
+    load_genetic_map,
+    uniform_recombination_map,
+)
 from whatshap.timer import StageTimer
-from whatshap.cli.phase import read_reads, select_reads, split_input_file_list, setup_pedigree
+from whatshap.cli.phase import (
+    read_reads,
+    select_reads,
+    split_input_file_list,
+    setup_pedigree,
+)
 from whatshap.cli import open_readset_reader, CommandLineError, open_reference
 
 
@@ -28,9 +45,9 @@ logger = logging.getLogger(__name__)
 
 
 def int_to_diploid_biallelic_gt(numeric_repr):
-    '''Converts the classic numeric representation of biallelic, diploid genotypes
+    """Converts the classic numeric representation of biallelic, diploid genotypes
     into a genotype object
-    '''
+    """
     if numeric_repr == 0:
         return Genotype([0, 0])
     elif numeric_repr == 1:
@@ -44,7 +61,11 @@ def int_to_diploid_biallelic_gt(numeric_repr):
 def determine_genotype(likelihoods: Sequence[float], threshold_prob: float) -> float:
     """given genotype likelihoods for 0/0, 0/1, 1/1, determines likeliest genotype"""
 
-    to_sort = [(likelihoods[int_to_diploid_biallelic_gt(0)], 0), (likelihoods[int_to_diploid_biallelic_gt(1)], 1), (likelihoods[int_to_diploid_biallelic_gt(2)], 2)]
+    to_sort = [
+        (likelihoods[int_to_diploid_biallelic_gt(0)], 0),
+        (likelihoods[int_to_diploid_biallelic_gt(1)], 1),
+        (likelihoods[int_to_diploid_biallelic_gt(2)], 2),
+    ]
     to_sort.sort(key=lambda x: x[0])
 
     # make sure there is a unique maximum which is greater than the threshold
@@ -55,51 +76,69 @@ def determine_genotype(likelihoods: Sequence[float], threshold_prob: float) -> f
 
 
 def run_genotype(
-        phase_input_files,
-        variant_file,
-        reference=None,
-        output=sys.stdout,
-        samples=None,
-        chromosomes=None,
-        ignore_read_groups=False,
-        indels=True,
-        mapping_quality=20,
-        max_coverage=15,
-        nopriors=False,
-        ped=None,
-        recombrate=1.26,
-        genmap=None,
-        gt_qual_threshold=0,
-        prioroutput=None,
-        constant=0.0,
-        overhang=10,
-        affine_gap=False,
-        gap_start=10,
-        gap_extend=7,
-        mismatch=15,
-        write_command_line_header=True,
-        use_ped_samples=False,
-    ):
+    phase_input_files,
+    variant_file,
+    reference=None,
+    output=sys.stdout,
+    samples=None,
+    chromosomes=None,
+    ignore_read_groups=False,
+    indels=True,
+    mapping_quality=20,
+    max_coverage=15,
+    nopriors=False,
+    ped=None,
+    recombrate=1.26,
+    genmap=None,
+    gt_qual_threshold=0,
+    prioroutput=None,
+    constant=0.0,
+    overhang=10,
+    affine_gap=False,
+    gap_start=10,
+    gap_extend=7,
+    mismatch=15,
+    write_command_line_header=True,
+    use_ped_samples=False,
+):
     """
     For now: this function only runs the genotyping algorithm. Genotype likelihoods for
     all variants are computed using the forward backward algorithm
     """
     timers = StageTimer()
-    logger.info("This is WhatsHap (genotyping) %s running under Python %s", __version__, platform.python_version())
+    logger.info(
+        "This is WhatsHap (genotyping) %s running under Python %s",
+        __version__,
+        platform.python_version(),
+    )
     if write_command_line_header:
-        command_line = '(whatshap {}) {}'.format(__version__, ' '.join(sys.argv[1:]))
+        command_line = "(whatshap {}) {}".format(__version__, " ".join(sys.argv[1:]))
     else:
         command_line = None
     with ExitStack() as stack:
         # read the given input files (BAMs, VCFs, ref...)
         numeric_sample_ids = NumericSampleIds()
-        phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(phase_input_files)
-        readset_reader = stack.enter_context(open_readset_reader(
-            phase_input_bam_filenames, reference, numeric_sample_ids, mapq_threshold=mapping_quality,
-            overhang=overhang, affine=affine_gap, gap_start=gap_start, gap_extend=gap_extend,
-            default_mismatch=mismatch))
+        phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(
+            phase_input_files
+        )
+        readset_reader = stack.enter_context(
+            open_readset_reader(
+                phase_input_bam_filenames,
+                reference,
+                numeric_sample_ids,
+                mapq_threshold=mapping_quality,
+                overhang=overhang,
+                affine=affine_gap,
+                gap_start=gap_start,
+                gap_extend=gap_extend,
+                default_mismatch=mismatch,
+            )
+        )
         try:
-            phase_input_vcf_readers = [stack.enter_context(VcfReader(f, indels=indels, phases=True)) for f in phase_input_vcf_filenames]
+            phase_input_vcf_readers = [
+                stack.enter_context(VcfReader(f, indels=indels, phases=True))
+                for f in phase_input_vcf_filenames
+            ]
         except OSError as e:
             raise CommandLineError(e)
 
@@ -107,20 +146,38 @@ def run_genotype(
         del reference
 
         # vcf writer for final genotype likelihoods
-        vcf_writer = stack.enter_context(GenotypeVcfWriter(command_line=command_line, in_path=variant_file,
-                out_file=output))
+        vcf_writer = stack.enter_context(
+            GenotypeVcfWriter(
+                command_line=command_line, in_path=variant_file, out_file=output
+            )
+        )
         # vcf writer for only the prior likelihoods (if output is desired)
         prior_vcf_writer = None
         if prioroutput is not None:
-            prior_vcf_writer = stack.enter_context(GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=stack.enter_context(open(prioroutput, 'w'))))
+            prior_vcf_writer = stack.enter_context(
+                GenotypeVcfWriter(
+                    command_line=command_line,
+                    in_path=variant_file,
+                    out_file=stack.enter_context(open(prioroutput, "w")),
+                )
+            )
 
         # parse vcf with input variants
         # remove all likelihoods that may already be present
-        vcf_reader = stack.enter_context(VcfReader(variant_file, indels=indels, genotype_likelihoods=False, ignore_genotypes=True))
+        vcf_reader = stack.enter_context(
+            VcfReader(
+                variant_file,
+                indels=indels,
+                genotype_likelihoods=False,
+                ignore_genotypes=True,
+            )
+        )
 
         if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
-            raise CommandLineError('When using --ignore-read-groups on a VCF with '
-                'multiple samples, --sample must also be used.')
+            raise CommandLineError(
+                "When using --ignore-read-groups on a VCF with "
+                "multiple samples, --sample must also be used."
+            )
         if not samples:
             samples = vcf_reader.samples
 
@@ -137,7 +194,11 @@ def run_genotype(
         vcf_sample_set = set(vcf_reader.samples)
         for sample in samples:
             if sample not in vcf_sample_set:
-                raise CommandLineError('Sample {!r} requested on command-line not found in VCF'.format(sample))
+                raise CommandLineError(
+                    "Sample {!r} requested on command-line not found in VCF".format(
+                        sample
+                    )
+                )
 
         samples = frozenset(samples)
         # list of all trios across all families
@@ -148,11 +209,16 @@ def run_genotype(
 
         # if pedigree information present, parse it
         if ped:
-            all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, samples)
+            all_trios, pedigree_samples = setup_pedigree(
+                ped, numeric_sample_ids, samples
+            )
             if genmap:
-                logger.info('Using region-specific recombination rates from genetic map %s.', genmap)
+                logger.info(
+                    "Using region-specific recombination rates from genetic map %s.",
+                    genmap,
+                )
             else:
-                logger.info('Using uniform recombination rate of %g cM/Mb.', recombrate)
+                logger.info("Using uniform recombination rate of %g cM/Mb.", recombrate)
             for trio in all_trios:
                 family_finder.merge(trio.mother, trio.child)
                 family_finder.merge(trio.father, trio.child)
@@ -165,29 +231,38 @@ def run_genotype(
         family_trios = defaultdict(list)
         for trio in all_trios:
             family_trios[family_finder.find(trio.child)].append(trio)
-        largest_trio_count = max([0] + [len(trio_list) for trio_list in family_trios.values()])
-        logger.info('Working on %d samples from %d famil%s', len(samples), len(families), 'y' if len(families)==1 else 'ies')
+        largest_trio_count = max(
+            [0] + [len(trio_list) for trio_list in family_trios.values()]
+        )
+        logger.info(
+            "Working on %d samples from %d famil%s",
+            len(samples),
+            len(families),
+            "y" if len(families) == 1 else "ies",
+        )
 
         if max_coverage + 2 * largest_trio_count > 25:
-            logger.warning('The maximum coverage is too high! '
-                'WhatsHap may take a long time to finish and require a huge amount of memory.')
+            logger.warning(
+                "The maximum coverage is too high! "
+                "WhatsHap may take a long time to finish and require a huge amount of memory."
+            )
 
         # Read phase information provided as VCF files, if provided.
         phase_input_vcfs = []
-        timers.start('parse_phasing_vcfs')
+        timers.start("parse_phasing_vcfs")
         for reader in phase_input_vcf_readers:
             # create dict mapping chromsome names to VariantTables
             m = dict()
-            logger.info('Reading phased blocks from %r', reader.path)
+            logger.info("Reading phased blocks from %r", reader.path)
             for variant_table in reader:
                 m[variant_table.chromosome] = variant_table
             phase_input_vcfs.append(m)
-        timers.stop('parse_phasing_vcfs')
+        timers.stop("parse_phasing_vcfs")
 
         # compute genotype likelihood threshold
         gt_prob = 1.0 - (10 ** (-gt_qual_threshold / 10.0))
 
-        for variant_table in timers.iterate('parse_vcf', vcf_reader):
+        for variant_table in timers.iterate("parse_vcf", vcf_reader):
 
             # create a mapping of genome positions to indices
             var_to_pos = dict()
@@ -196,43 +271,79 @@ def run_genotype(
 
             chromosome = variant_table.chromosome
             if (not chromosomes) or (chromosome in chromosomes):
-                logger.info('======== Working on chromosome %r', chromosome)
+                logger.info("======== Working on chromosome %r", chromosome)
             else:
-                logger.info('Leaving chromosome %r unchanged (present in VCF but not requested by option --chromosome)', chromosome)
-                vcf_writer.write_genotypes(chromosome, variant_table, indels, leave_unchanged=True)
+                logger.info(
+                    "Leaving chromosome %r unchanged (present in VCF but not requested by option --chromosome)",
+                    chromosome,
+                )
+                vcf_writer.write_genotypes(
+                    chromosome, variant_table, indels, leave_unchanged=True
+                )
                 if prioroutput is not None:
-                    prior_vcf_writer.write_genotypes(chromosome, variant_table, indels, leave_unchanged=True)
+                    prior_vcf_writer.write_genotypes(
+                        chromosome, variant_table, indels, leave_unchanged=True
+                    )
                 continue
 
             positions = [v.position for v in variant_table.variants]
             if not nopriors:
                 # compute prior genotype likelihoods based on all reads
                 for sample in samples:
-                    logger.info('---- Initial genotyping of %s', sample)
-                    with timers('read_bam'):
+                    logger.info("---- Initial genotyping of %s", sample)
+                    with timers("read_bam"):
                         bam_sample = None if ignore_read_groups else sample
-                        readset, vcf_source_ids = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, sample, fasta, [], numeric_sample_ids, phase_input_bam_filenames)
+                        readset, vcf_source_ids = read_reads(
+                            readset_reader,
+                            chromosome,
+                            variant_table.variants,
+                            bam_sample,
+                            sample,
+                            fasta,
+                            [],
+                            numeric_sample_ids,
+                            phase_input_bam_filenames,
+                        )
                         readset.sort()
-                        genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
+                        genotypes, genotype_likelihoods = compute_genotypes(
+                            readset, positions
+                        )
                         # recompute genotypes based on given threshold
                         reg_genotype_likelihoods = []
                         for gl in range(len(genotype_likelihoods)):
-                            norm_sum = genotype_likelihoods[gl][0] + genotype_likelihoods[gl][1] + genotype_likelihoods[gl][2] + 3*constant
-                            regularized = PhredGenotypeLikelihoods([
-                                (genotype_likelihoods[gl][0]+constant)/norm_sum, 
-                                (genotype_likelihoods[gl][1]+constant)/norm_sum, 
-                                (genotype_likelihoods[gl][2]+constant)/norm_sum])
+                            norm_sum = (
+                                genotype_likelihoods[gl][0]
+                                + genotype_likelihoods[gl][1]
+                                + genotype_likelihoods[gl][2]
+                                + 3 * constant
+                            )
+                            regularized = PhredGenotypeLikelihoods(
+                                [
+                                    (genotype_likelihoods[gl][0] + constant) / norm_sum,
+                                    (genotype_likelihoods[gl][1] + constant) / norm_sum,
+                                    (genotype_likelihoods[gl][2] + constant) / norm_sum,
+                                ]
+                            )
                             genotypes[gl] = determine_genotype(regularized, gt_prob)
                             assert isinstance(genotypes[gl], Genotype)
                             reg_genotype_likelihoods.append(regularized)
-                        variant_table.set_genotype_likelihoods_of(sample, [PhredGenotypeLikelihoods(list(gl)) for gl in reg_genotype_likelihoods])
+                        variant_table.set_genotype_likelihoods_of(
+                            sample,
+                            [
+                                PhredGenotypeLikelihoods(list(gl))
+                                for gl in reg_genotype_likelihoods
+                            ],
+                        )
                         variant_table.set_genotypes_of(sample, genotypes)
             else:
 
                 # use uniform genotype likelihoods for all individuals
                 for sample in samples:
-                    variant_table.set_genotype_likelihoods_of(sample,
-                        [PhredGenotypeLikelihoods([1/3, 1/3, 1/3])] * len(positions))
+                    variant_table.set_genotype_likelihoods_of(
+                        sample,
+                        [PhredGenotypeLikelihoods([1 / 3, 1 / 3, 1 / 3])]
+                        * len(positions),
+                    )
 
             # if desired, output the priors in separate vcf
             if prioroutput is not None:
@@ -242,25 +353,48 @@ def run_genotype(
             # for each family.
             for representative_sample, family in sorted(families.items()):
                 if len(family) == 1:
-                    logger.info('---- Processing individual %s', representative_sample)
+                    logger.info("---- Processing individual %s", representative_sample)
                 else:
-                    logger.info('---- Processing family with individuals: %s', ','.join(family))
+                    logger.info(
+                        "---- Processing family with individuals: %s", ",".join(family)
+                    )
                 max_coverage_per_sample = max(1, max_coverage // len(family))
-                logger.info('Using maximum coverage per sample of %dX', max_coverage_per_sample)
+                logger.info(
+                    "Using maximum coverage per sample of %dX", max_coverage_per_sample
+                )
                 trios = family_trios[representative_sample]
                 assert (len(family) == 1) or (len(trios) > 0)
 
                 # Get the reads belonging to each sample
                 readsets = dict()
                 for sample in family:
-                    with timers('read_bam'):
+                    with timers("read_bam"):
                         bam_sample = None if ignore_read_groups else sample
-                        readset, vcf_source_ids = read_reads(readset_reader, chromosome, variant_table.variants, bam_sample, sample, fasta, phase_input_vcfs, numeric_sample_ids, phase_input_bam_filenames)
+                        readset, vcf_source_ids = read_reads(
+                            readset_reader,
+                            chromosome,
+                            variant_table.variants,
+                            bam_sample,
+                            sample,
+                            fasta,
+                            phase_input_vcfs,
+                            numeric_sample_ids,
+                            phase_input_bam_filenames,
+                        )
 
-                    with timers('select'):
-                        readset = readset.subset([i for i, read in enumerate(readset) if len(read) >= 2])
-                        logger.info('Kept %d reads that cover at least two variants each', len(readset))
-                        selected_reads = select_reads(readset, max_coverage_per_sample, preferred_source_ids = vcf_source_ids)
+                    with timers("select"):
+                        readset = readset.subset(
+                            [i for i, read in enumerate(readset) if len(read) >= 2]
+                        )
+                        logger.info(
+                            "Kept %d reads that cover at least two variants each",
+                            len(readset),
+                        )
+                        selected_reads = select_reads(
+                            readset,
+                            max_coverage_per_sample,
+                            preferred_source_ids=vcf_source_ids,
+                        )
                     readsets[sample] = selected_reads
 
                 # Merge reads into one ReadSet (note that each Read object
@@ -275,74 +409,124 @@ def run_genotype(
 
                 # Determine which variants can (in principle) be phased
                 accessible_positions = sorted(all_reads.get_positions())
-                logger.info('Variants covered by at least one phase-informative '
-                    'read in at least one individual after read selection: %d',
-                    len(accessible_positions))
+                logger.info(
+                    "Variants covered by at least one phase-informative "
+                    "read in at least one individual after read selection: %d",
+                    len(accessible_positions),
+                )
 
                 # Create Pedigree
                 pedigree = Pedigree(numeric_sample_ids)
                 for sample in family:
                     # genotypes are assumed to be unknown, so ignore information that
                     # might already be present in the input vcf
-                    all_genotype_likelihoods = variant_table.genotype_likelihoods_of(sample)
-                    genotype_l = [ all_genotype_likelihoods[var_to_pos[a_p]] for a_p in accessible_positions]
-                    pedigree.add_individual(sample, [Genotype([]) for i in range(len(accessible_positions))], genotype_l)
+                    all_genotype_likelihoods = variant_table.genotype_likelihoods_of(
+                        sample
+                    )
+                    genotype_l = [
+                        all_genotype_likelihoods[var_to_pos[a_p]]
+                        for a_p in accessible_positions
+                    ]
+                    pedigree.add_individual(
+                        sample,
+                        [Genotype([]) for i in range(len(accessible_positions))],
+                        genotype_l,
+                    )
                 for trio in trios:
                     pedigree.add_relationship(
                         father_id=trio.father,
                         mother_id=trio.mother,
-                        child_id=trio.child)
+                        child_id=trio.child,
+                    )
 
                 if genmap:
                     # Load genetic map
-                    recombination_costs = recombination_cost_map(load_genetic_map(genmap), accessible_positions)
+                    recombination_costs = recombination_cost_map(
+                        load_genetic_map(genmap), accessible_positions
+                    )
                 else:
-                    recombination_costs = uniform_recombination_map(recombrate, accessible_positions)
+                    recombination_costs = uniform_recombination_map(
+                        recombrate, accessible_positions
+                    )
 
                 # Finally, run genotyping algorithm
-                with timers('genotyping'):
-                    problem_name = 'genotyping'
-                    logger.info('Genotype %d sample%s by solving the %s problem ...',
-                        len(family), 's' if len(family) > 1 else '', problem_name)
-                    forward_backward_table = GenotypeDPTable(numeric_sample_ids, all_reads, recombination_costs, pedigree, accessible_positions)
+                with timers("genotyping"):
+                    problem_name = "genotyping"
+                    logger.info(
+                        "Genotype %d sample%s by solving the %s problem ...",
+                        len(family),
+                        "s" if len(family) > 1 else "",
+                        problem_name,
+                    )
+                    forward_backward_table = GenotypeDPTable(
+                        numeric_sample_ids,
+                        all_reads,
+                        recombination_costs,
+                        pedigree,
+                        accessible_positions,
+                    )
                     # store results
                     for s in family:
                         likelihood_list = variant_table.genotype_likelihoods_of(s)
                         genotypes_list = variant_table.genotypes_of(s)
 
                         for pos in range(len(accessible_positions)):
-                            likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
+                            likelihoods = forward_backward_table.get_genotype_likelihoods(
+                                s, pos
+                            )
 
                             # compute genotypes from likelihoods and store information
                             geno = determine_genotype(likelihoods, gt_prob)
                             assert isinstance(geno, Genotype)
                             genotypes_list[var_to_pos[accessible_positions[pos]]] = geno
-                            likelihood_list[var_to_pos[accessible_positions[pos]]] = likelihoods
+                            likelihood_list[
+                                var_to_pos[accessible_positions[pos]]
+                            ] = likelihoods
 
                         variant_table.set_genotypes_of(s, genotypes_list)
-                        variant_table.set_genotype_likelihoods_of(s,likelihood_list)
+                        variant_table.set_genotype_likelihoods_of(s, likelihood_list)
 
-            with timers('write_vcf'):
-                logger.info('======== Writing VCF')
-                vcf_writer.write_genotypes(chromosome,variant_table,indels)
-                logger.info('Done writing VCF')
+            with timers("write_vcf"):
+                logger.info("======== Writing VCF")
+                vcf_writer.write_genotypes(chromosome, variant_table, indels)
+                logger.info("Done writing VCF")
 
-            logger.debug('Chromosome %r finished', chromosome)
+            logger.debug("Chromosome %r finished", chromosome)
 
-    logger.info('\n== SUMMARY ==')
+    logger.info("\n== SUMMARY ==")
     total_time = timers.total()
-    if sys.platform == 'linux':
+    if sys.platform == "linux":
         memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        logger.info('Maximum memory usage: %.3f GB', memory_kb / 1E6)
-    logger.info('Time spent reading BAM:                      %6.1f s', timers.elapsed('read_bam'))
-    logger.info('Time spent parsing VCF:                      %6.1f s', timers.elapsed('parse_vcf'))
+        logger.info("Maximum memory usage: %.3f GB", memory_kb / 1e6)
+    logger.info(
+        "Time spent reading BAM:                      %6.1f s",
+        timers.elapsed("read_bam"),
+    )
+    logger.info(
+        "Time spent parsing VCF:                      %6.1f s",
+        timers.elapsed("parse_vcf"),
+    )
     if len(phase_input_vcfs) > 0:
-        logger.info('Time spent parsing input phasings from VCFs: %6.1f s', timers.elapsed('parse_phasing_vcfs'))
-    logger.info('Time spent selecting reads:                  %6.1f s', timers.elapsed('select'))
-    logger.info('Time spent genotyping:                          %6.1f s', timers.elapsed('genotyping'))
-    logger.info('Time spent writing VCF:                      %6.1f s', timers.elapsed('write_vcf'))
-    logger.info('Time spent on rest:                          %6.1f s', total_time - timers.sum())
-    logger.info('Total elapsed time:                          %6.1f s', total_time)
+        logger.info(
+            "Time spent parsing input phasings from VCFs: %6.1f s",
+            timers.elapsed("parse_phasing_vcfs"),
+        )
+    logger.info(
+        "Time spent selecting reads:                  %6.1f s", timers.elapsed("select")
+    )
+    logger.info(
+        "Time spent genotyping:                          %6.1f s",
+        timers.elapsed("genotyping"),
+    )
+    logger.info(
+        "Time spent writing VCF:                      %6.1f s",
+        timers.elapsed("write_vcf"),
+    )
+    logger.info(
+        "Time spent on rest:                          %6.1f s",
+        total_time - timers.sum(),
+    )
+    logger.info("Total elapsed time:                          %6.1f s", total_time)
 
 
 # fmt: off
@@ -416,26 +600,31 @@ def add_arguments(parser):
 
 def validate(args, parser):
     if args.ignore_read_groups and args.ped:
-        parser.error('Option --ignore-read-groups cannot be used together with --ped')
+        parser.error("Option --ignore-read-groups cannot be used together with --ped")
     if args.genmap and not args.ped:
-        parser.error('Option --genmap can only be used together with --ped')
+        parser.error("Option --genmap can only be used together with --ped")
     if args.genmap and len(args.chromosomes) != 1:
         parser.error(
-            'Option --genmap can only be used when working on exactly one chromosome (use --chromosome)')
+            "Option --genmap can only be used when working on exactly one chromosome (use --chromosome)"
+        )
     if len(args.phase_input_files) == 0:
-        parser.error('Not providing any PHASEINPUT files not allowed for genotyping.')
+        parser.error("Not providing any PHASEINPUT files not allowed for genotyping.")
     if args.gt_qual_threshold < 0:
-        parser.error('Genotype quality threshold (gt-qual-threshold) must be at least 0.')
+        parser.error(
+            "Genotype quality threshold (gt-qual-threshold) must be at least 0."
+        )
     if args.prioroutput is not None and args.nopriors:
-        parser.error('Genotype priors are only computed if --no-priors is NOT set.')
+        parser.error("Genotype priors are only computed if --no-priors is NOT set.")
     if args.constant != 0 and args.nopriors:
-        parser.error('--constant can only be used if --no-priors is NOT set..')
+        parser.error("--constant can only be used if --no-priors is NOT set..")
     if args.affine_gap and not args.reference:
-        parser.error('Option --affine-gap can only be used together with --reference.')
+        parser.error("Option --affine-gap can only be used together with --reference.")
     if args.use_ped_samples and not args.ped:
-        parser.error('Option --use-ped-samples can only be used when PED file is provided (--ped).')
+        parser.error(
+            "Option --use-ped-samples can only be used when PED file is provided (--ped)."
+        )
     if args.use_ped_samples and args.samples:
-        parser.error('Option --use-ped-samples cannot be used together with --samples')
+        parser.error("Option --use-ped-samples cannot be used together with --samples")
 
 
 def main(args):

@@ -13,7 +13,7 @@ from distutils.command.sdist import sdist as _sdist
 from distutils.command.build_ext import build_ext as _build_ext
 from distutils.sysconfig import customize_compiler
 
-MIN_CYTHON_VERSION = '0.29'
+MIN_CYTHON_VERSION = "0.29"
 
 if sys.version_info < (3, 5):
     sys.stdout.write("At least Python 3.5 is required.\n")
@@ -30,11 +30,11 @@ def no_cythonize(extensions, **_ignore):
         sources = []
         for sfile in extension.sources:
             path, ext = os.path.splitext(sfile)
-            if ext in ('.pyx', '.py'):
-                if extension.language == 'c++':
-                    ext = '.cpp'
+            if ext in (".pyx", ".py"):
+                if extension.language == "c++":
+                    ext = ".cpp"
                 else:
-                    ext = '.c'
+                    ext = ".c"
                 sfile = path + ext
             sources.append(sfile)
         extension.sources[:] = sources
@@ -46,51 +46,77 @@ def check_cython_version():
         from Cython import __version__ as cyversion
     except ImportError:
         sys.stdout.write(
-            "ERROR: Cython is not installed. Install at least Cython version " +
-            str(MIN_CYTHON_VERSION) + " to continue.\n")
+            "ERROR: Cython is not installed. Install at least Cython version "
+            + str(MIN_CYTHON_VERSION)
+            + " to continue.\n"
+        )
         sys.exit(1)
     if LooseVersion(cyversion) < LooseVersion(MIN_CYTHON_VERSION):
         sys.stdout.write(
-            "ERROR: Your Cython is at version '" + str(cyversion) +
-            "', but at least version " + str(MIN_CYTHON_VERSION) + " is required.\n")
+            "ERROR: Your Cython is at version '"
+            + str(cyversion)
+            + "', but at least version "
+            + str(MIN_CYTHON_VERSION)
+            + " is required.\n"
+        )
         sys.exit(1)
 
 
 def CppExtension(name, sources):
-    return Extension(name, sources=sources, language='c++',
-        extra_compile_args=['-std=c++11', '-Werror=return-type'], undef_macros=["NDEBUG"])
+    return Extension(
+        name,
+        sources=sources,
+        language="c++",
+        extra_compile_args=["-std=c++11", "-Werror=return-type"],
+        undef_macros=["NDEBUG"],
+    )
 
 
 extensions = [
-    CppExtension('whatshap.core',
-        sources=['whatshap/core.pyx',
-            'src/pedigree.cpp',
-            'src/pedigreedptable.cpp', 'src/pedigreecolumncostcomputer.cpp',
-            'src/columnindexingiterator.cpp', 'src/columnindexingscheme.cpp',
-            'src/entry.cpp', 'src/graycodes.cpp', 'src/read.cpp',
-            'src/readset.cpp', 'src/columniterator.cpp', 'src/indexset.cpp',
-            'src/genotype.cpp', 'src/binomial.cpp',
-            'src/pedigreepartitions.cpp', 'src/phredgenotypelikelihoods.cpp',
-            'src/genotyper.cpp', 'src/genotypedistribution.cpp',
-            'src/genotypedptable.cpp', 'src/genotypecolumncostcomputer.cpp',
-            'src/backwardcolumniterator.cpp', 'src/transitionprobabilitycomputer.cpp',
-            'src/hapchat/basictypes.cpp', 'src/hapchat/balancedcombinations.cpp',
-            'src/hapchat/binomialcoefficient.cpp',
-            'src/hapchat/hapchatcore.cpp',
-            'src/hapchat/hapchatcolumniterator.cpp',
-            'src/polyphase/clustereditingsolution.cpp',
-            'src/polyphase/clustereditingsolver.cpp',
-            'src/polyphase/dynamicsparsegraph.cpp',
-            'src/polyphase/edgeheap.cpp',
-            'src/polyphase/inducedcostheuristic.cpp',
-            'src/polyphase/staticsparsegraph.cpp',
-            'src/polyphase/trianglesparsematrix.cpp',
-            'src/polyphase/readscoring.cpp',
-            'src/polyphase/haplothreader.cpp'
-        ]),
-    CppExtension('whatshap.priorityqueue', sources=['whatshap/priorityqueue.pyx']),
-    CppExtension('whatshap.align', sources=['whatshap/align.pyx']),
-    CppExtension('whatshap._variants', sources=['whatshap/_variants.pyx']),
+    CppExtension(
+        "whatshap.core",
+        sources=[
+            "whatshap/core.pyx",
+            "src/pedigree.cpp",
+            "src/pedigreedptable.cpp",
+            "src/pedigreecolumncostcomputer.cpp",
+            "src/columnindexingiterator.cpp",
+            "src/columnindexingscheme.cpp",
+            "src/entry.cpp",
+            "src/graycodes.cpp",
+            "src/read.cpp",
+            "src/readset.cpp",
+            "src/columniterator.cpp",
+            "src/indexset.cpp",
+            "src/genotype.cpp",
+            "src/binomial.cpp",
+            "src/pedigreepartitions.cpp",
+            "src/phredgenotypelikelihoods.cpp",
+            "src/genotyper.cpp",
+            "src/genotypedistribution.cpp",
+            "src/genotypedptable.cpp",
+            "src/genotypecolumncostcomputer.cpp",
+            "src/backwardcolumniterator.cpp",
+            "src/transitionprobabilitycomputer.cpp",
+            "src/hapchat/basictypes.cpp",
+            "src/hapchat/balancedcombinations.cpp",
+            "src/hapchat/binomialcoefficient.cpp",
+            "src/hapchat/hapchatcore.cpp",
+            "src/hapchat/hapchatcolumniterator.cpp",
+            "src/polyphase/clustereditingsolution.cpp",
+            "src/polyphase/clustereditingsolver.cpp",
+            "src/polyphase/dynamicsparsegraph.cpp",
+            "src/polyphase/edgeheap.cpp",
+            "src/polyphase/inducedcostheuristic.cpp",
+            "src/polyphase/staticsparsegraph.cpp",
+            "src/polyphase/trianglesparsematrix.cpp",
+            "src/polyphase/readscoring.cpp",
+            "src/polyphase/haplothreader.cpp",
+        ],
+    ),
+    CppExtension("whatshap.priorityqueue", sources=["whatshap/priorityqueue.pyx"]),
+    CppExtension("whatshap.align", sources=["whatshap/align.pyx"]),
+    CppExtension("whatshap._variants", sources=["whatshap/_variants.pyx"]),
 ]
 
 
@@ -99,13 +125,14 @@ class BuildExt(_build_ext):
         # If we encounter a PKG-INFO file, then this is likely a .tar.gz/.zip
         # file retrieved from PyPI that already includes the pre-cythonized
         # extension modules, and then we do not need to run cythonize().
-        if os.path.exists('PKG-INFO'):
+        if os.path.exists("PKG-INFO"):
             no_cythonize(extensions)
         else:
             # Otherwise, this is a 'developer copy' of the code, and then the
             # only sensible thing is to require Cython to be installed.
             check_cython_version()
             from Cython.Build import cythonize
+
             self.extensions = cythonize(self.extensions)
         super().run()
 
@@ -113,10 +140,10 @@ class BuildExt(_build_ext):
         # Remove the warning about “-Wstrict-prototypes” not being valid for C++,
         # see http://stackoverflow.com/a/36293331/715090
         customize_compiler(self.compiler)
-        if self.compiler.compiler_so[0].endswith('clang'):
+        if self.compiler.compiler_so[0].endswith("clang"):
             # Clang needs this option in order to find the unordered_set header
-            print('detected clang, using option -stdlib=libc++')
-            self.compiler.compiler_so.append('-stdlib=libc++')
+            print("detected clang, using option -stdlib=libc++")
+            self.compiler.compiler_so.append("-stdlib=libc++")
         try:
             self.compiler.compiler_so.remove("-Wstrict-prototypes")
         except (AttributeError, ValueError):
@@ -128,51 +155,52 @@ class SDist(_sdist):
     def run(self):
         # Make sure the compiled Cython files in the distribution are up-to-date
         from Cython.Build import cythonize
+
         check_cython_version()
         cythonize(extensions)
         super().run()
 
 
-with open('doc/README.rst', encoding='utf-8') as f:
+with open("doc/README.rst", encoding="utf-8") as f:
     long_description = f.read()
 
 
 # Avoid compilation if we are being installed within Read The Docs
-if os.environ.get('READTHEDOCS') == 'True':
+if os.environ.get("READTHEDOCS") == "True":
     cmdclass = {}
     ext_modules = []
     install_requires = []
 else:
-    cmdclass = {'build_ext': BuildExt, 'sdist': SDist}
+    cmdclass = {"build_ext": BuildExt, "sdist": SDist}
     ext_modules = extensions
     install_requires = [
-        'pysam>=0.15.0',
-        'pyfaidx>=0.5.5.2',
-        'networkx',
-        'biopython>=1.73',  # pyfaidx needs this for reading bgzipped FASTA files
-        'scipy',
+        "pysam>=0.15.0",
+        "pyfaidx>=0.5.5.2",
+        "networkx",
+        "biopython>=1.73",  # pyfaidx needs this for reading bgzipped FASTA files
+        "scipy",
     ]
 
 setup(
-    name='whatshap',
-    use_scm_version={'write_to': 'whatshap/_version.py'},
-    author='WhatsHap authors',
-    author_email='whatshap@cwi.nl',
-    url='https://bitbucket.org/whatshap/whatshap/',
-    description='phase genomic variants using DNA sequencing reads',
+    name="whatshap",
+    use_scm_version={"write_to": "whatshap/_version.py"},
+    author="WhatsHap authors",
+    author_email="whatshap@cwi.nl",
+    url="https://bitbucket.org/whatshap/whatshap/",
+    description="phase genomic variants using DNA sequencing reads",
     long_description=long_description,
-    long_description_content_type='text/x-rst',
-    license='MIT',
+    long_description_content_type="text/x-rst",
+    license="MIT",
     cmdclass=cmdclass,
     ext_modules=ext_modules,
     packages=find_packages(),
-    entry_points={'console_scripts': ['whatshap = whatshap.__main__:main']},
-    setup_requires=['setuptools_scm'],  # Support pip versions that don't know about pyproject.toml
+    entry_points={"console_scripts": ["whatshap = whatshap.__main__:main"]},
+    setup_requires=[
+        "setuptools_scm"
+    ],  # Support pip versions that don't know about pyproject.toml
     install_requires=install_requires,
-    extras_require={
-        'dev': ['Cython', 'pytest', 'sphinx', 'sphinx_issues'],
-    },
-    python_requires='>=3.5',
+    extras_require={"dev": ["Cython", "pytest", "sphinx", "sphinx_issues"],},
+    python_requires=">=3.5",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: Console",
@@ -182,6 +210,6 @@ setup(
         "Programming Language :: Cython",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Topic :: Scientific/Engineering :: Bio-Informatics"
-    ]
+        "Topic :: Scientific/Engineering :: Bio-Informatics",
+    ],
 )

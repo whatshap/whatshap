@@ -9,7 +9,9 @@ from collections import defaultdict, namedtuple
 
 logger = logging.getLogger(__name__)
 
-AlignmentWithSourceID = namedtuple('AlignmentWithSourceID', ['source_id', 'bam_alignment'])
+AlignmentWithSourceID = namedtuple(
+    "AlignmentWithSourceID", ["source_id", "bam_alignment"]
+)
 
 
 class AlignmentFileNotIndexedError(Exception):
@@ -29,7 +31,7 @@ class EmptyAlignmentFileError(Exception):
 
 
 def is_local(path):
-    return urlparse(path).scheme == ''
+    return urlparse(path).scheme == ""
 
 
 class SampleBamReader:
@@ -38,6 +40,7 @@ class SampleBamReader:
     that belong to a specified sample. The BAM/CRAM file must have an index
     (bai/crai).
     """
+
     def __init__(self, path, *, source_id=0, reference=None):
         """
         path -- URL or path to BAM or CRAM file
@@ -73,16 +76,20 @@ class SampleBamReader:
         """
         Create a dictionary that maps a sample name to a set of read group ids.
         """
-        read_groups = self._samfile.header.get('RG', [])  # a list of dicts
-        logger.debug('Read groups in CRAM/BAM header: %s', read_groups)
+        read_groups = self._samfile.header.get("RG", [])  # a list of dicts
+        logger.debug("Read groups in CRAM/BAM header: %s", read_groups)
         samples = defaultdict(list)
         for read_group in read_groups:
-            if 'SM' in read_group:
-                samples[read_group['SM']].append(read_group['ID'])
+            if "SM" in read_group:
+                samples[read_group["SM"]].append(read_group["ID"])
             else:
-                logger.warning('Read group "%s" does not contain an SM field to assign it to a sample. Use --ignore-read-groups to use these alignments anyway.', read_group['ID'])
+                logger.warning(
+                    'Read group "%s" does not contain an SM field to assign it to a sample. Use --ignore-read-groups to use these alignments anyway.',
+                    read_group["ID"],
+                )
         self._sample_to_group_ids = {
-            id: frozenset(values) for id, values in samples.items() }
+            id: frozenset(values) for id, values in samples.items()
+        }
 
     def has_sample(self, sample):
         """Return whether this file contains reads for the given sample"""
@@ -110,8 +117,10 @@ class SampleBamReader:
             # TODO
             # The multiple_iterators shouldn’t be necessary, but CRAM files
             # don’t work without it in pysam 0.13
-            for bam_read in self._samfile.fetch(reference, multiple_iterators=True, start=start, stop=end):
-                if bam_read.opt('RG') in read_groups:
+            for bam_read in self._samfile.fetch(
+                reference, multiple_iterators=True, start=start, stop=end
+            ):
+                if bam_read.opt("RG") in read_groups:
                     yield AlignmentWithSourceID(self.source_id, bam_read)
 
     def close(self):
@@ -123,6 +132,7 @@ class ComparableAlignedSegment:
     Heapsort wants to be able to use the less than operator. Native
     AlignedSegment instances do not support this.
     """
+
     def __init__(self, aligned_segment, source_id):
         self.segment = aligned_segment
         self.source_id = source_id
@@ -130,8 +140,9 @@ class ComparableAlignedSegment:
     def __lt__(self, other):
         self_pos = self.segment.reference_start
         other_pos = other.segment.reference_start
-        return (self_pos < other_pos) or \
-            (self_pos == other_pos and self.source_id < other.source_id)
+        return (self_pos < other_pos) or (
+            self_pos == other_pos and self.source_id < other.source_id
+        )
 
 
 class MultiBamReader:
@@ -146,7 +157,9 @@ class MultiBamReader:
     def __init__(self, paths, *, reference=None):
         self._readers = []
         for source_id, path in enumerate(paths):
-            self._readers.append(SampleBamReader(path, source_id=source_id, reference=reference))
+            self._readers.append(
+                SampleBamReader(path, source_id=source_id, reference=reference)
+            )
 
     def fetch(self, reference=None, sample=None, start=0, end=None):
         """
@@ -160,15 +173,19 @@ class MultiBamReader:
         returned (the RG tags of each read and the RG header are used for that).
         """
         assert reference is not None
+
         def make_comparable(reader):
             for alignment in reader.fetch(reference, sample, start, end):
-                yield ComparableAlignedSegment(alignment.bam_alignment, alignment.source_id)
+                yield ComparableAlignedSegment(
+                    alignment.bam_alignment, alignment.source_id
+                )
+
         iterators = []
         for reader in self._readers:
             if sample is None or reader.has_sample(sample):
                 iterators.append(make_comparable(reader))
         if not iterators:
-            raise SampleNotFoundError('Sample not found in any input CRAM/BAM file')
+            raise SampleNotFoundError("Sample not found in any input CRAM/BAM file")
         for it in heapq.merge(*iterators):
             yield AlignmentWithSourceID(it.source_id, it.segment)
 

@@ -26,8 +26,9 @@ class ComponentFinder:
     representative. It could perhaps be optimized, but this function is not
     the current bottleneck.
     """
+
     def __init__(self, values):
-        self.nodes = { x: Node(x, None) for x in values }
+        self.nodes = {x: Node(x, None) for x in values}
 
     def merge(self, x, y):
         assert x != y
@@ -62,4 +63,4 @@ class ComponentFinder:
 
     def print(self):
         for x in sorted(self.nodes):
-            print(x, ':', self.nodes[x], 'is represented by', self._find_node(x))
+            print(x, ":", self.nodes[x], "is represented by", self._find_node(x))

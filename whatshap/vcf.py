@@ -11,7 +11,13 @@ from collections import namedtuple
 from pysam import VariantFile
 from typing import List
 
-from .core import Read, PhredGenotypeLikelihoods, Genotype, binomial_coefficient, get_max_genotype_ploidy
+from .core import (
+    Read,
+    PhredGenotypeLikelihoods,
+    Genotype,
+    binomial_coefficient,
+    get_max_genotype_ploidy,
+)
 from math import factorial as fac
 
 logger = logging.getLogger(__name__)
@@ -32,7 +38,7 @@ class PloidyError(VcfError):
 class VcfVariant:
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
-    __slots__ = ('position', 'reference_allele', 'alternative_allele')
+    __slots__ = ("position", "reference_allele", "alternative_allele")
 
     def __init__(self, position: int, reference_allele: str, alternative_allele: str):
         """
@@ -43,23 +49,31 @@ class VcfVariant:
         self.alternative_allele = alternative_allele
 
     def __repr__(self):
-        return "VcfVariant({}, {!r}, {!r})".format(self.position,
-            self.reference_allele, self.alternative_allele)
+        return "VcfVariant({}, {!r}, {!r})".format(
+            self.position, self.reference_allele, self.alternative_allele
+        )
 
     def __hash__(self):
         return hash((self.position, self.reference_allele, self.alternative_allele))
 
     def __eq__(self, other):
-        return (self.position == other.position) and \
-               (self.reference_allele == other.reference_allele) and \
-               (self.alternative_allele == other.alternative_allele)
+        return (
+            (self.position == other.position)
+            and (self.reference_allele == other.reference_allele)
+            and (self.alternative_allele == other.alternative_allele)
+        )
 
     def __lt__(self, other):
-        return (self.position, self.reference_allele, self.alternative_allele) < (other.position, other.reference_allele, other.alternative_allele)
+        return (self.position, self.reference_allele, self.alternative_allele) < (
+            other.position,
+            other.reference_allele,
+            other.alternative_allele,
+        )
 
     def is_snv(self):
         return (self.reference_allele != self.alternative_allele) and (
-            len(self.reference_allele) == len(self.alternative_allele) == 1)
+            len(self.reference_allele) == len(self.alternative_allele) == 1
+        )
 
     def normalized(self):
         """
@@ -83,7 +97,7 @@ class VcfVariant:
 
 
 class GenotypeLikelihoods:
-    __slots__ = 'log_prob_genotypes'
+    __slots__ = "log_prob_genotypes"
 
     def __init__(self, log_prob_genotypes):
         """ Likelihoods of all genotypes to be given as log10 of
@@ -92,7 +106,7 @@ class GenotypeLikelihoods:
 
     def __repr__(self):
         return "GenotypeLikelihoods({})".format(self.log_prob_genotypes)
-    
+
     def __eq__(self, other):
         if other is None:
             return False
@@ -111,14 +125,17 @@ class GenotypeLikelihoods:
             # shift log likelihoods such that the largest one is zero
             m = max(self.log_prob_genotypes)
             return PhredGenotypeLikelihoods(
-                [ round((prob-m) * -10) for prob in self.log_prob_genotypes ], ploidy=ploidy
+                [round((prob - m) * -10) for prob in self.log_prob_genotypes],
+                ploidy=ploidy,
             )
         else:
-            p = [10**x for x in self.log_prob_genotypes]
+            p = [10 ** x for x in self.log_prob_genotypes]
             s = sum(p)
             p = [x / s + regularizer for x in p]
             m = max(p)
-            return PhredGenotypeLikelihoods([round(-10*math.log10(x/m)) for x in p], ploidy=ploidy)
+            return PhredGenotypeLikelihoods(
+                [round(-10 * math.log10(x / m)) for x in p], ploidy=ploidy
+            )
 
 
 class VariantTable:
@@ -130,6 +147,7 @@ class VariantTable:
     chromosome -- chromosome name
     samples -- list of sample names
     """
+
     def __init__(self, chromosome: str, samples: List[str]):
         self.chromosome = chromosome
         self.samples = samples
@@ -143,13 +161,13 @@ class VariantTable:
         return len(self.variants)
 
     # fmt: off
-    #def add_sample(self, name, genotypes):
-        #"Add a column to the table"
-        #if len(genotypes) != len(self.variants):
-            #raise ValueError('Expecting as many genotypes as there are variants')
-        #self._name_to_index[name] = len(self.samples)
-        #self.samples.append(name)
-        #self.genotypes.append(genotypes)
+    # def add_sample(self, name, genotypes):
+    # "Add a column to the table"
+    # if len(genotypes) != len(self.variants):
+    # raise ValueError('Expecting as many genotypes as there are variants')
+    # self._name_to_index[name] = len(self.samples)
+    # self.samples.append(name)
+    # self.genotypes.append(genotypes)
     # fmt: on
 
     def add_variant(self, variant: VcfVariant, genotypes, phases, genotype_likelihoods):
@@ -162,9 +180,9 @@ class VariantTable:
         genotype_likelihoods -- iterable of GenotypeLikelihoods objects
         """
         if len(genotypes) != len(self.genotypes):
-            raise ValueError('Expecting as many genotypes as there are samples')
+            raise ValueError("Expecting as many genotypes as there are samples")
         if len(phases) != len(self.phases):
-            raise ValueError('Expecting as many phases as there are samples')
+            raise ValueError("Expecting as many phases as there are samples")
         self.variants.append(variant)
         for i, genotype in enumerate(genotypes):
             assert isinstance(genotype, Genotype)
@@ -198,7 +216,15 @@ class VariantTable:
 
     def num_of_blocks_of(self, sample: str):
         """ Retrieve the number of blocks of the sample"""
-        return len(set([i.block_id for i in self.phases[self._sample_to_index[sample]] if i is not None]))
+        return len(
+            set(
+                [
+                    i.block_id
+                    for i in self.phases[self._sample_to_index[sample]]
+                    if i is not None
+                ]
+            )
+        )
 
     def id_of(self, sample: str):
         """Return a unique int id of a sample given by name"""
@@ -221,16 +247,31 @@ class VariantTable:
             assert len(self.variants) == len(ph)
         for gl in self.genotype_likelihoods:
             assert len(self.variants) == len(gl)
-        assert len(self.samples) == len(self.genotypes) == len(self.phases) == len(self.genotype_likelihoods)
+        assert (
+            len(self.samples)
+            == len(self.genotypes)
+            == len(self.phases)
+            == len(self.genotype_likelihoods)
+        )
 
     def subset_rows_by_position(self, positions):
         """Keep only rows given in positions, discard the rest"""
         positions = frozenset(positions)
-        to_discard = [i for i, v in enumerate(self.variants) if v.position not in positions]
+        to_discard = [
+            i for i, v in enumerate(self.variants) if v.position not in positions
+        ]
         self.remove_rows_by_index(to_discard)
 
     # TODO: extend this to polyploid case
-    def phased_blocks_as_reads(self, sample, input_variants, source_id, numeric_sample_id, default_quality=20, mapq=100):
+    def phased_blocks_as_reads(
+        self,
+        sample,
+        input_variants,
+        source_id,
+        numeric_sample_id,
+        default_quality=20,
+        mapq=100,
+    ):
         """
         Yields one sorted core.Read object per phased block, encoding the phase information as
         if this block was a single sequencing read. Reads are yielded in arbitrary order.
@@ -247,9 +288,15 @@ class VariantTable:
         except KeyError:
             return
         input_variant_set = set(input_variants)
-        read_map = {} # maps block_id core.Read objects
-        assert len(self.variants) == len(self.genotypes[sample_index]) == len(self.phases[sample_index])
-        for variant, genotype, phase in zip(self.variants, self.genotypes[sample_index], self.phases[sample_index]):
+        read_map = {}  # maps block_id core.Read objects
+        assert (
+            len(self.variants)
+            == len(self.genotypes[sample_index])
+            == len(self.phases[sample_index])
+        )
+        for variant, genotype, phase in zip(
+            self.variants, self.genotypes[sample_index], self.phases[sample_index]
+        ):
             if len(genotype.as_vector()) > 2:
                 # only use diploid variants
                 continue
@@ -264,9 +311,16 @@ class VariantTable:
             else:
                 quality = phase.quality
             if phase.block_id in read_map:
-                read_map[phase.block_id].add_variant(variant.position, phase.phase[0], quality)
+                read_map[phase.block_id].add_variant(
+                    variant.position, phase.phase[0], quality
+                )
             else:
-                r = Read('{}_block_{}'.format(sample, phase.block_id), mapq, source_id, numeric_sample_id)
+                r = Read(
+                    "{}_block_{}".format(sample, phase.block_id),
+                    mapq,
+                    source_id,
+                    numeric_sample_id,
+                )
                 r.add_variant(variant.position, phase.phase[0], quality)
                 read_map[phase.block_id] = r
         for key, read in read_map.items():
@@ -279,9 +333,8 @@ class MixedPhasingError(Exception):
     pass
 
 
-VariantCallPhase = namedtuple('VariantCallPhase', ['block_id', 'phase', 'quality'])
-VariantCallPhase.__doc__ = \
-    """
+VariantCallPhase = namedtuple("VariantCallPhase", ["block_id", "phase", "quality"])
+VariantCallPhase.__doc__ = """
     block_id is a numeric id of the phased block and
     phase is a tuple of alleles representing the phasing, i.e. 1|0 -> (1,0).
     """
@@ -291,7 +344,16 @@ class VcfReader:
     """
     Read a VCF file chromosome by chromosome.
     """
-    def __init__(self, path, indels=False, phases=False, genotype_likelihoods=False, ignore_genotypes=False, ploidy=None):
+
+    def __init__(
+        self,
+        path,
+        indels=False,
+        phases=False,
+        genotype_likelihoods=False,
+        ignore_genotypes=False,
+        ploidy=None,
+    ):
         """
         path -- Path to VCF file
         indels -- Whether to include also insertions and deletions in the list of
@@ -342,7 +404,9 @@ class VcfReader:
         """
         records = []
         for start, end in regions:
-            records.extend(list(self._vcf_reader.fetch(chromosome, start=start, stop=end)))
+            records.extend(
+                list(self._vcf_reader.fetch(chromosome, start=start, stop=end))
+            )
         return self._process_single_chromosome(chromosome, records)
 
     def __iter__(self):
@@ -351,31 +415,37 @@ class VcfReader:
 
         Multi-ALT sites are skipped.
         """
-        for chromosome, records in itertools.groupby(self._vcf_reader, lambda record: record.chrom):
+        for chromosome, records in itertools.groupby(
+            self._vcf_reader, lambda record: record.chrom
+        ):
             yield self._process_single_chromosome(chromosome, records)
 
     @staticmethod
     def _extract_HP_phase(call):
-        hp = call.get('HP')
-        if hp is None or hp == ('.', ):
+        hp = call.get("HP")
+        if hp is None or hp == (".",):
             return None
-        fields = [[int(x) for x in s.split('-')] for s in hp]
+        fields = [[int(x) for x in s.split("-")] for s in hp]
         for i in range(len(fields)):
             assert fields[0][0] == fields[i][0]
         block_id = fields[0][0]
-        phase = tuple( field[1] - 1 for field in fields)
-        return VariantCallPhase(block_id=block_id, phase=phase, quality=call.get('PQ', None))
+        phase = tuple(field[1] - 1 for field in fields)
+        return VariantCallPhase(
+            block_id=block_id, phase=phase, quality=call.get("PQ", None)
+        )
 
     @staticmethod
     def _extract_GT_PS_phase(call):
-        is_het = not all(x == call['GT'][0] for x in call['GT'])
+        is_het = not all(x == call["GT"][0] for x in call["GT"])
         if not is_het:
             return None
         if not call.phased:
             return None
-        block_id = call.get('PS', 0)
-        phase = call['GT']
-        return VariantCallPhase(block_id=block_id, phase=phase, quality=call.get('PQ', None))
+        block_id = call.get("PS", 0)
+        phase = call["GT"]
+        return VariantCallPhase(
+            block_id=block_id, phase=phase, quality=call.get("PQ", None)
+        )
 
     def _process_single_chromosome(self, chromosome, records):
         phase_detected = None
@@ -399,11 +469,18 @@ class VcfReader:
                     continue
 
             if (prev_position is not None) and (prev_position > pos):
-                raise VcfNotSortedError('VCF not ordered: {}:{} appears before {}:{}'.format(
-                    chromosome, prev_position + 1, chromosome, pos + 1))
+                raise VcfNotSortedError(
+                    "VCF not ordered: {}:{} appears before {}:{}".format(
+                        chromosome, prev_position + 1, chromosome, pos + 1
+                    )
+                )
 
             if prev_position == pos:
-                logger.warning('Skipping duplicated position %s on chromosome %r', pos + 1, chromosome)
+                logger.warning(
+                    "Skipping duplicated position %s on chromosome %r",
+                    pos + 1,
+                    chromosome,
+                )
                 continue
             prev_position = pos
 
@@ -414,8 +491,8 @@ class VcfReader:
                 for sample_name, call in record.samples.items():
                     phase = None
                     for extract_phase, phase_name in [
-                        (self._extract_HP_phase, 'HP'),
-                        (self._extract_GT_PS_phase, 'GT_PS')
+                        (self._extract_HP_phase, "HP"),
+                        (self._extract_GT_PS_phase, "GT_PS"),
                     ]:
                         p = extract_phase(call)
                         if p is not None:
@@ -424,14 +501,16 @@ class VcfReader:
                             elif phase_detected != phase_name:
                                 raise MixedPhasingError(
                                     "Mixed phasing information in input VCF (e.g. mixing PS "
-                                    "and HP fields)")
+                                    "and HP fields)"
+                                )
                             phase = p
                             # check for ploidy consistency and limits
                             phase_ploidy = len(p.phase)
                             if phase_ploidy > get_max_genotype_ploidy():
                                 raise PloidyError(
                                     "Ploidies higher than {} are not supported."
-                                    "".format(get_max_genotype_ploidy()))
+                                    "".format(get_max_genotype_ploidy())
+                                )
                             elif p is None or None in p:
                                 pass
                             elif self.ploidy is None:
@@ -440,7 +519,8 @@ class VcfReader:
                                 print("phase= {}".format(phase))
                                 raise PloidyError(
                                     "Phasing information contains inconsistent ploidy ({} and "
-                                    "{})".format(self.ploidy, phase_ploidy))
+                                    "{})".format(self.ploidy, phase_ploidy)
+                                )
                     phases.append(phase)
             else:
                 phases = [None] * len(record.samples)
@@ -449,13 +529,15 @@ class VcfReader:
             if self._genotype_likelihoods:
                 genotype_likelihoods = []
                 for call in record.samples.values():
-                    GL = call.get('GL', None)
-                    PL = call.get('PL', None)
+                    GL = call.get("GL", None)
+                    PL = call.get("PL", None)
                     # Prefer GLs (floats) over PLs (ints) if both should be present
                     if GL is not None:
                         genotype_likelihoods.append(GenotypeLikelihoods(GL))
                     elif PL is not None:
-                        genotype_likelihoods.append(GenotypeLikelihoods( [pl/-10 for pl in PL] ))
+                        genotype_likelihoods.append(
+                            GenotypeLikelihoods([pl / -10 for pl in PL])
+                        )
                     else:
                         genotype_likelihoods.append(None)
             else:
@@ -463,13 +545,14 @@ class VcfReader:
 
             if not self._ignore_genotypes:
                 # check for ploidy consistency and limits
-                genotype_lists = [call['GT'] for call in record.samples.values()]
+                genotype_lists = [call["GT"] for call in record.samples.values()]
                 for geno in genotype_lists:
                     geno_ploidy = len(geno)
                     if geno_ploidy > get_max_genotype_ploidy():
                         raise PloidyError(
                             "Ploidies higher than {} are not supported."
-                            "".format(get_max_genotype_ploidy()))
+                            "".format(get_max_genotype_ploidy())
+                        )
                     elif geno is None or None in geno:
                         pass
                     elif self.ploidy is None:
@@ -477,17 +560,24 @@ class VcfReader:
                     elif geno_ploidy != self.ploidy:
                         raise PloidyError(
                             "Inconsistent ploidy ({} and "
-                            "{})".format(self.ploidy, geno_ploidy))                
-                
+                            "{})".format(self.ploidy, geno_ploidy)
+                        )
+
                 genotypes = [genotype_code(geno_list) for geno_list in genotype_lists]
             else:
                 genotypes = [Genotype([]) for i in range(len(self.samples))]
                 phases = [None] * len(self.samples)
-            variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
+            variant = VcfVariant(
+                position=pos, reference_allele=ref, alternative_allele=alt
+            )
             table.add_variant(variant, genotypes, phases, genotype_likelihoods)
 
-        logger.debug("Parsed %s SNVs and %s non-SNVs. Also skipped %s multi-ALTs.", n_snvs,
-            n_other, n_multi)
+        logger.debug(
+            "Parsed %s SNVs and %s non-SNVs. Also skipped %s multi-ALTs.",
+            n_snvs,
+            n_other,
+            n_multi,
+        )
 
         # TODO remove overlapping variants
         return table
@@ -515,36 +605,58 @@ class VcfHeader:
     def __init__(self, format_or_info, id, number, typ, description):
         self.format_or_info = format_or_info
         self.id = id
-        self.number =  number
+        self.number = number
         self.typ = typ
         self.description = description
 
     def line(self):
-        return '##{format_or_info}=<ID={id},Number={number},Type={typ},'\
+        return (
+            "##{format_or_info}=<ID={id},Number={number},Type={typ},"
             'Description="{description}">'.format(
                 format_or_info=self.format_or_info,
                 id=self.id,
                 number=self.number,
                 typ=self.typ,
-                description=self.description
+                description=self.description,
             )
+        )
 
 
 PREDEFINED_FORMATS = {
-    'GL': VcfHeader('FORMAT', 'GL', 'G', 'Float', 'Genotype Likelihood, log10-scaled likelihoods of the data given the called genotype for each possible genotype generated from the reference and alternate alleles given the sample ploidy'),
-    'GQ': VcfHeader('FORMAT', 'GQ', 1, 'Integer', 'Phred-scaled genotype quality'),
-    'GT': VcfHeader('FORMAT', 'GT', 1, 'String', 'Genotype'),
-    'HP': VcfHeader('FORMAT', 'HP', '.', 'String', 'Phasing haplotype identifier'),
-    'PQ': VcfHeader('FORMAT', 'PQ', 1, 'Float', 'Phasing quality'),
-    'PS': VcfHeader('FORMAT', 'PS', 1, 'Integer', 'Phase set identifier'),
+    "GL": VcfHeader(
+        "FORMAT",
+        "GL",
+        "G",
+        "Float",
+        "Genotype Likelihood, log10-scaled likelihoods of the data given the called genotype for each possible genotype generated from the reference and alternate alleles given the sample ploidy",
+    ),
+    "GQ": VcfHeader("FORMAT", "GQ", 1, "Integer", "Phred-scaled genotype quality"),
+    "GT": VcfHeader("FORMAT", "GT", 1, "String", "Genotype"),
+    "HP": VcfHeader("FORMAT", "HP", ".", "String", "Phasing haplotype identifier"),
+    "PQ": VcfHeader("FORMAT", "PQ", 1, "Float", "Phasing quality"),
+    "PS": VcfHeader("FORMAT", "PS", 1, "Integer", "Phase set identifier"),
 }
 
 PREDEFINED_INFOS = {
-    'AC': VcfHeader('INFO', 'AC', 'A', 'Integer', 'Allele count in genotypes, for each ALT allele, in the same order as listed'),
-    'AN': VcfHeader('INFO', 'AN', 'A', 'Integer', 'Total number of alleles in called genotypes'),
-    'END': VcfHeader('INFO', 'END', 1, 'Integer', 'Stop position of the interval'),
-    'SVLEN': VcfHeader('INFO', 'SVLEN', '.', 'Integer', 'Difference in length between REF and ALT alleles'),
-    'SVTYPE': VcfHeader('INFO', 'SVTYPE', 1, 'String', 'Type of structural variant'),
+    "AC": VcfHeader(
+        "INFO",
+        "AC",
+        "A",
+        "Integer",
+        "Allele count in genotypes, for each ALT allele, in the same order as listed",
+    ),
+    "AN": VcfHeader(
+        "INFO", "AN", "A", "Integer", "Total number of alleles in called genotypes"
+    ),
+    "END": VcfHeader("INFO", "END", 1, "Integer", "Stop position of the interval"),
+    "SVLEN": VcfHeader(
+        "INFO",
+        "SVLEN",
+        ".",
+        "Integer",
+        "Difference in length between REF and ALT alleles",
+    ),
+    "SVTYPE": VcfHeader("INFO", "SVTYPE", 1, "String", "Type of structural variant"),
 }
 
 
@@ -567,7 +679,9 @@ def augment_header(header, contigs, formats, infos):
         try:
             h = PREDEFINED_FORMATS[fmt]
         except KeyError:
-            raise VcfError("FORMAT {!r} not defined in VCF header".format(fmt)) from None
+            raise VcfError(
+                "FORMAT {!r} not defined in VCF header".format(fmt)
+            ) from None
         header.add_line(h.line())
 
     for info in infos:
@@ -617,8 +731,8 @@ def missing_headers(path):
                     # If there are "vague" ALT alleles such as <INS>, <DEL> etc, then
                     # the header needs to contain a LEN info entry even if LEN
                     # is never used
-                    if alt.startswith('<'):
-                        seen_infos.add('END')
+                    if alt.startswith("<"):
+                        seen_infos.add("END")
 
             # For the contigs, we maintain a list *and* a set because we want to
             # keep track of the order of the contigs.
@@ -652,11 +766,12 @@ def missing_headers(path):
     return (missing_contigs, incorrect_formats + missing_formats, missing_infos)
 
 
-GenotypeChange = namedtuple('GenotypeChange', ['sample', 'chromosome', 'variant', 'old_gt', 'new_gt'])
+GenotypeChange = namedtuple(
+    "GenotypeChange", ["sample", "chromosome", "variant", "old_gt", "new_gt"]
+)
 
 
 class VcfAugmenter(ABC):
-
     def __init__(self, in_path, command_line, out_file=sys.stdout):
         """
         in_path -- Path to input VCF, used as template.
@@ -673,10 +788,10 @@ class VcfAugmenter(ABC):
         self._reader = VariantFile(in_path)
         augment_header(self._reader.header, contigs, formats, infos)
         if command_line is not None:
-            command_line = '"' + command_line.replace('"', '') + '"'
-            self._reader.header.add_meta('commandline', command_line)
+            command_line = '"' + command_line.replace('"', "") + '"'
+            self._reader.header.add_meta("commandline", command_line)
         self.setup_header(self._reader.header)
-        self._writer = VariantFile(out_file, mode='w', header=self._reader.header)
+        self._writer = VariantFile(out_file, mode="w", header=self._reader.header)
         self._unprocessed_record = None
         self._reader_iter = iter(self._reader)
 
@@ -721,7 +836,8 @@ class PhasedVcfWriter(VcfAugmenter):
     Avoid reading in full chromosomes as that uses too much memory for
     multi-sample VCFs.
     """
-    def __init__(self, in_path, command_line, out_file=sys.stdout, tag='PS', ploidy=2):
+
+    def __init__(self, in_path, command_line, out_file=sys.stdout, tag="PS", ploidy=2):
         """
         in_path -- Path to input VCF, used as template.
         command_line -- A string that will be added as a VCF header entry
@@ -730,20 +846,20 @@ class PhasedVcfWriter(VcfAugmenter):
         tag -- which type of tag to write, either 'PS' or 'HP'. 'PS' is standardized;
             'HP' is compatible with GATK’s ReadBackedPhasing.
         """
-        if tag not in ('HP', 'PS'):
+        if tag not in ("HP", "PS"):
             raise ValueError('Tag must be either "HP" or "PS"')
         self.tag = tag
         self.ploidy = ploidy
         super().__init__(in_path, command_line, out_file)
         self._phase_tag_found_warned = False
-        self._set_phasing_tags = self._set_HP if tag == 'HP' else self._set_PS
+        self._set_phasing_tags = self._set_HP if tag == "HP" else self._set_PS
 
     def setup_header(self, header):
         """Called by baseclass constructor"""
 
         # FreeBayes adds phasing=none to its VCF output - remove that.
         for hr in header.records:
-            if hr.key == 'phasing':
+            if hr.key == "phasing":
                 hr.remove()
                 break
 
@@ -755,8 +871,10 @@ class PhasedVcfWriter(VcfAugmenter):
         component -- name of the component
         phase -- tuple of alleles
         """
-        assert all( allele in [0,1] for allele in phase )
-        call['HP'] = ','.join('{}-{}'.format(component + 1, allele + 1) for allele in phase)
+        assert all(allele in [0, 1] for allele in phase)
+        call["HP"] = ",".join(
+            "{}-{}".format(component + 1, allele + 1) for allele in phase
+        )
 
     def _set_PS(self, call, component, phase):
         """
@@ -764,9 +882,9 @@ class PhasedVcfWriter(VcfAugmenter):
         component -- name of the component
         phase -- tuple of alleles
         """
-        assert all( allele in [0,1] for allele in phase )
-        call['PS'] = component + 1
-        call['GT'] = phase
+        assert all(allele in [0, 1] for allele in phase)
+        call["PS"] = component + 1
+        call["GT"] = phase
         call.phased = True
 
     def write(self, chromosome: str, sample_superreads, sample_components):
@@ -798,13 +916,15 @@ class PhasedVcfWriter(VcfAugmenter):
                 phasing = tuple(v.allele for v in variants)
                 allowed_alleles = True
                 for allele in phasing:
-                    if allele not in [0,1]:
+                    if allele not in [0, 1]:
                         allowed_alleles = False
                         break
                 if allowed_alleles:
                     sample_phases[sample][variants[0].position] = phasing
-                    sample_genotypes[sample][variants[0].position] = Genotype(list(phasing))
-            
+                    sample_genotypes[sample][variants[0].position] = Genotype(
+                        list(phasing)
+                    )
+
         prev_pos = None
         for record in self._iterrecords(chromosome):
             pos, ref, alt = record.start, record.ref, record.alts[0]
@@ -827,13 +947,15 @@ class PhasedVcfWriter(VcfAugmenter):
                 else:
                     is_phased = False
 
-            if self.tag == 'PS':
+            if self.tag == "PS":
                 # Remove any existing phasing from the GT field
                 for sample, call in record.samples.items():
                     if sample in sample_superreads:
                         call.phased = False
-                        if call['GT'] is not None and all(allele is not None for allele in call['GT']):
-                            call['GT'] = sorted(call['GT'])
+                        if call["GT"] is not None and all(
+                            allele is not None for allele in call["GT"]
+                        ):
+                            call["GT"] = sorted(call["GT"])
 
             if is_phased:
                 # Set phase tag for all target samples
@@ -845,22 +967,30 @@ class PhasedVcfWriter(VcfAugmenter):
                     phases = sample_phases[sample]
                     genotypes = sample_genotypes[sample]
 
-                    if (self.tag in call and call[self.tag] is not None
-                            and not self._phase_tag_found_warned):
-                        logger.warning('Ignoring existing phasing information '
-                            'found in input VCF ({} tag exists).'.format(self.tag))
+                    if (
+                        self.tag in call
+                        and call[self.tag] is not None
+                        and not self._phase_tag_found_warned
+                    ):
+                        logger.warning(
+                            "Ignoring existing phasing information "
+                            "found in input VCF ({} tag exists).".format(self.tag)
+                        )
                         self._phase_tag_found_warned = True
 
-                    gt_type = genotype_code(call['GT'])
+                    gt_type = genotype_code(call["GT"])
                     is_het = not gt_type.is_homozygous()
 
                     # is genotype to be changed?
                     if pos in genotypes and genotypes[pos] != gt_type:
-                        #call['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
-                        call['GT'] = tuple(genotypes[pos].as_vector())
+                        # call['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
+                        call["GT"] = tuple(genotypes[pos].as_vector())
                         variant = VcfVariant(record.start, record.ref, record.alts[0])
                         genotype_changes.append(
-                            GenotypeChange(sample, chromosome, variant, gt_type, genotypes[pos]))
+                            GenotypeChange(
+                                sample, chromosome, variant, gt_type, genotypes[pos]
+                            )
+                        )
                         is_het = not genotypes[pos].is_homozygous()
 
                     if pos in components and pos in phases and is_het:
@@ -877,11 +1007,11 @@ def genotype_code(gt):
     """Return genotype encoded as PyVCF-compatible number"""
     if gt is None:
         result = Genotype([])
-    elif any( allele is None for allele in gt):
+    elif any(allele is None for allele in gt):
         result = Genotype([])
     else:
-         result = Genotype([allele for allele in gt])
-    return result;
+        result = Genotype([allele for allele in gt])
+    return result
 
 
 ############ class to print computed genotypes,likelihoods (still needs to be improved...) ###########
@@ -895,6 +1025,7 @@ class GenotypeVcfWriter(VcfAugmenter):
     Avoid reading in full chromosomes as that uses too much memory for
     multi-sample VCFs.
     """
+
     def __init__(self, in_path, command_line, out_file=sys.stdout):
         """
         in_path -- Path to input VCF, used as template.
@@ -905,11 +1036,19 @@ class GenotypeVcfWriter(VcfAugmenter):
 
     def setup_header(self, header):
         """Called by baseclass constructor"""
-        header.add_line('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype computed by WhatsHap genotyping algorithm">')
-        header.add_line('##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Phred-scaled genotype quality computed by WhatsHap genotyping algorithm">')
-        header.add_line('##FORMAT=<ID=GL,Number=G,Type=Float,Description="Log10-scaled likelihoods for genotypes: 0/0, 0/1, 1/1, computed by WhatsHap genotyping algorithm">')
+        header.add_line(
+            '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype computed by WhatsHap genotyping algorithm">'
+        )
+        header.add_line(
+            '##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Phred-scaled genotype quality computed by WhatsHap genotyping algorithm">'
+        )
+        header.add_line(
+            '##FORMAT=<ID=GL,Number=G,Type=Float,Description="Log10-scaled likelihoods for genotypes: 0/0, 0/1, 1/1, computed by WhatsHap genotyping algorithm">'
+        )
 
-    def write_genotypes(self, chromosome, variant_table, indels, leave_unchanged=False, ploidy=2):
+    def write_genotypes(
+        self, chromosome, variant_table, indels, leave_unchanged=False, ploidy=2
+    ):
         """
         Add genotyping information to all variants on a single chromosome.
 
@@ -923,8 +1062,8 @@ class GenotypeVcfWriter(VcfAugmenter):
         for i in range(len(variant_table)):
             genotyped_variants[variant_table.variants[i].position] = i
 
-        #INT_TO_UNPHASED_GT = {0: (0, 0), 1: (0, 1), 2: (1, 1), -1: None}
-        GT_GL_GQ = frozenset(['GT', 'GL', 'GQ'])
+        # INT_TO_UNPHASED_GT = {0: (0, 0), 1: (0, 1), 2: (1, 1), -1: None}
+        GT_GL_GQ = frozenset(["GT", "GL", "GQ"])
         for record in self._iterrecords(chromosome):
             pos = record.start
 
@@ -933,21 +1072,29 @@ class GenotypeVcfWriter(VcfAugmenter):
                 for sample, call in record.samples.items():
                     geno = Genotype([])
                     n_alleles = len(record.alts) + 1
-                    n_genotypes = binomial_coefficient(ploidy + n_alleles - 1, n_alleles - 1) 
-                    geno_l = [1/n_genotypes] * int(n_genotypes)
+                    n_genotypes = binomial_coefficient(
+                        ploidy + n_alleles - 1, n_alleles - 1
+                    )
+                    geno_l = [1 / n_genotypes] * int(n_genotypes)
                     geno_q = None
 
                     # for genotyped variants, get computed likelihoods/genotypes (for all others, give uniform likelihoods)
                     if pos in genotyped_variants:
-                        likelihoods = variant_table.genotype_likelihoods_of(sample)[genotyped_variants[pos]]
+                        likelihoods = variant_table.genotype_likelihoods_of(sample)[
+                            genotyped_variants[pos]
+                        ]
                         # likelihoods can be 'None' if position was not accessible
                         if likelihoods is not None:
                             geno_l = [l for l in likelihoods]
-                            geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
+                            geno = variant_table.genotypes_of(sample)[
+                                genotyped_variants[pos]
+                            ]
 
                     # Compute GQ
                     geno_index = geno.get_index()
-                    geno_q = sum( geno_l[i] for i in range(n_genotypes) if i != geno_index)
+                    geno_q = sum(
+                        geno_l[i] for i in range(n_genotypes) if i != geno_index
+                    )
 
                     # TODO default value ok?
                     # store likelihoods log10-scaled
@@ -955,21 +1102,23 @@ class GenotypeVcfWriter(VcfAugmenter):
                     # Temporarily overwrite the GT field with a (fake) genotype that indicates a
                     # diploid sample. Otherwise, if the GT field happens to be empty, pysam
                     # complains that we are setting an incorrect number of GL values.
-                    call['GT'] = tuple(0 for i in range(ploidy))
+                    call["GT"] = tuple(0 for i in range(ploidy))
 
-                    call['GL'] = [max(math.log10(j), -1000) if j > 0 else -1000 for j in geno_l]
-                    call['GT'] = tuple(geno.as_vector())
+                    call["GL"] = [
+                        max(math.log10(j), -1000) if j > 0 else -1000 for j in geno_l
+                    ]
+                    call["GT"] = tuple(geno.as_vector())
 
                     # store quality as phred score
                     if not geno.is_none():
                         # TODO default value ok?
                         assert geno_q is not None
                         if geno_q > 0:
-                            call['GQ'] = min(round(-10.0 * math.log10(geno_q)), 10000)
+                            call["GQ"] = min(round(-10.0 * math.log10(geno_q)), 10000)
                         else:
-                            call['GQ'] = 10000
+                            call["GQ"] = 10000
                     else:
-                        call['GQ'] = None
+                        call["GQ"] = None
 
                     record.qual = None
 

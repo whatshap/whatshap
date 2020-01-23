@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 def add_arguments(parser):
     add = parser.add_argument
-    add('number', type=int, help='The number to square (at least 10)')
+    add("number", type=int, help="The number to square (at least 10)")
 
 
 def validate(args, parser):
@@ -30,4 +30,4 @@ def validate(args, parser):
 
 
 def main(args):
-    print('{} * {} = {}'.format(args.number, args.number, args.number * args.number))
+    print("{} * {} = {}".format(args.number, args.number, args.number * args.number))

@@ -1,7 +1,14 @@
-from whatshap.core import ReadSet, DynamicSparseGraph, ClusterEditingSolver, scoreReadsetGlobal, scoreReadsetLocal
+from whatshap.core import (
+    ReadSet,
+    DynamicSparseGraph,
+    ClusterEditingSolver,
+    scoreReadsetGlobal,
+    scoreReadsetLocal,
+)
 from whatshap.testhelpers import string_to_readset
 import itertools
 import math
+
 
 def test_clusterediting1():
 
@@ -32,22 +39,23 @@ def test_clusterediting1():
     # create read graph
     n_reads = len(readset)
     graph = DynamicSparseGraph(n_reads)
-    
+
     # insert edges
     for (read1, read2) in similarities:
         graph.addEdge(read1, read2, similarities.get(read1, read2))
 
     # run cluster editing
-    clusterediting = ClusterEditingSolver(graph, False)    
+    clusterediting = ClusterEditingSolver(graph, False)
     readpartitioning = clusterediting.run()
 
-    print('computed clusters: ', readpartitioning)
+    print("computed clusters: ", readpartitioning)
 
     # make sure each read occurs only once
     read_ids = list(itertools.chain.from_iterable(readpartitioning))
-    duplicates = set([ r for r in read_ids if read_ids.count(r) > 1 ])
-    print('duplicates:', duplicates)
-    assert len(duplicates)  == 0
+    duplicates = set([r for r in read_ids if read_ids.count(r) > 1])
+    print("duplicates:", duplicates)
+    assert len(duplicates) == 0
+
 
 def test_clusterediting2():
 
@@ -73,22 +81,23 @@ def test_clusterediting2():
     # create read graph
     n_reads = len(readset)
     graph = DynamicSparseGraph(n_reads)
-    
+
     # insert edges
     for (read1, read2) in similarities:
         graph.addEdge(read1, read2, similarities.get(read1, read2))
 
     # run cluster editing
-    clusterediting = ClusterEditingSolver(graph, False)    
+    clusterediting = ClusterEditingSolver(graph, False)
     readpartitioning = clusterediting.run()
 
-    print('computed clusters: ', readpartitioning)
+    print("computed clusters: ", readpartitioning)
 
     # make sure each read occurs only once
     read_ids = list(itertools.chain.from_iterable(readpartitioning))
-    duplicates = set([ r for r in read_ids if read_ids.count(r) > 1 ])
-    print('duplicates:', duplicates)
-    assert len(duplicates)  == 0
+    duplicates = set([r for r in read_ids if read_ids.count(r) > 1])
+    print("duplicates:", duplicates)
+    assert len(duplicates) == 0
+
 
 def test_clusterediting3():
     reads = """
@@ -104,7 +113,7 @@ def test_clusterediting3():
     """
     # construct a ReadSet
     readset = string_to_readset(reads)
-    
+
     # compute similarities
     similarities = scoreReadsetGlobal(readset, 5, 3)
 
@@ -122,7 +131,8 @@ def test_clusterediting3():
     clusterediting = ClusterEditingSolver(graph, False)
     readpartitioning = clusterediting.run()
 
-    print('computed clusters: ', readpartitioning)
+    print("computed clusters: ", readpartitioning)
+
 
 def test_similarities1():
     reads = """
@@ -132,8 +142,9 @@ def test_similarities1():
     readset = string_to_readset(reads)
     similarities = scoreReadsetGlobal(readset, 4, 2)
     # computed similarity is 'nan'
-    print('computed similarities:', similarities)
+    print("computed similarities:", similarities)
     assert not math.isnan(similarities.get(0, 1))
+
 
 def test_similarities2():
     reads = """
@@ -148,4 +159,4 @@ def test_similarities2():
     """
     readset = string_to_readset(reads)
     similarities = scoreReadsetGlobal(readset, 4, 4)
-    print('computed similarities:', similarities)
+    print("computed similarities:", similarities)

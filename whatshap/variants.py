@@ -26,7 +26,18 @@ class ReadSetReader:
     knowledge in the VCF of where they should occur.
     """
 
-    def __init__(self, paths, reference, numeric_sample_ids, mapq_threshold=20, overhang=10, affine=False, gap_start=10, gap_extend=7, default_mismatch=15):
+    def __init__(
+        self,
+        paths,
+        reference,
+        numeric_sample_ids,
+        mapq_threshold=20,
+        overhang=10,
+        affine=False,
+        gap_start=10,
+        gap_extend=7,
+        default_mismatch=15,
+    ):
         """
         paths -- list of BAM paths
         reference -- path to reference FASTA (can be None)
@@ -70,7 +81,9 @@ class ReadSetReader:
         if __debug__ and variants:
             varposc = Counter(variant.position for variant in variants)
             pos, count = varposc.most_common()[0]
-            assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
+            assert (
+                count == 1
+            ), "Position {} occurs more than once in variant list.".format(pos)
 
         alignments = self._usable_alignments(chromosome, sample, regions)
         reads = self._alignments_to_readdict(alignments, variants, sample, reference)
@@ -86,7 +99,11 @@ class ReadSetReader:
         for readlist in reads.values():
             assert len(readlist) > 0
             if len(readlist) > 2:
-                raise ReadSetError("Read name {!r} occurs more than twice in the input file".format(readlist[0].name))
+                raise ReadSetError(
+                    "Read name {!r} occurs more than twice in the input file".format(
+                        readlist[0].name
+                    )
+                )
             if len(readlist) == 1:
                 read_set.add(readlist[0])
             else:
@@ -101,7 +118,9 @@ class ReadSetReader:
         if regions is None:
             regions = [(0, None)]
         for s, e in regions:
-            for alignment in self._reader.fetch(reference=chromosome, sample=sample, start=s, end=e):
+            for alignment in self._reader.fetch(
+                reference=chromosome, sample=sample, start=s, end=e
+            ):
                 # TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
                 if alignment.bam_alignment.flag & 2048 != 0:
                     continue
@@ -135,31 +154,58 @@ class ReadSetReader:
             reference = reference[:]
             normalized_variants = variants
         else:
-            normalized_variants = [ variant.normalized() for variant in variants ]
+            normalized_variants = [variant.normalized() for variant in variants]
 
         i = 0  # index into variants
         for alignment in alignments:
             # Skip variants that are to the left of this read
-            while i < len(normalized_variants) and normalized_variants[i].position < alignment.bam_alignment.reference_start:
+            while (
+                i < len(normalized_variants)
+                and normalized_variants[i].position
+                < alignment.bam_alignment.reference_start
+            ):
                 i += 1
-            
-            BX_tag = ''
-            if alignment.bam_alignment.has_tag('BX'):
-                BX_tag = alignment.bam_alignment.get_tag('BX')
 
-            read = Read(alignment.bam_alignment.qname,
-                    alignment.bam_alignment.mapq, alignment.source_id,
-                    numeric_sample_id, alignment.bam_alignment.reference_start, BX_tag)
+            BX_tag = ""
+            if alignment.bam_alignment.has_tag("BX"):
+                BX_tag = alignment.bam_alignment.get_tag("BX")
+
+            read = Read(
+                alignment.bam_alignment.qname,
+                alignment.bam_alignment.mapq,
+                alignment.source_id,
+                numeric_sample_id,
+                alignment.bam_alignment.reference_start,
+                BX_tag,
+            )
 
             if reference is None:
-                detected = self.detect_alleles(normalized_variants, i, alignment.bam_alignment)
+                detected = self.detect_alleles(
+                    normalized_variants, i, alignment.bam_alignment
+                )
 
             else:
-                detected = self.detect_alleles_by_alignment(variants, i, alignment.bam_alignment, reference, self._overhang, self._use_affine, self._gap_start, self._gap_extend, self._default_mismatch)
+                detected = self.detect_alleles_by_alignment(
+                    variants,
+                    i,
+                    alignment.bam_alignment,
+                    reference,
+                    self._overhang,
+                    self._use_affine,
+                    self._gap_start,
+                    self._gap_extend,
+                    self._default_mismatch,
+                )
             for j, allele, quality in detected:
                 read.add_variant(variants[j].position, allele, quality)
             if read:  # At least one variant covered and detected
-                reads[(alignment.source_id, alignment.bam_alignment.qname, numeric_sample_id)].append(read)
+                reads[
+                    (
+                        alignment.source_id,
+                        alignment.bam_alignment.qname,
+                        numeric_sample_id,
+                    )
+                ].append(read)
         return reads
 
     @staticmethod
@@ -187,7 +233,11 @@ class ReadSetReader:
             if cigar_op in (0, 7, 8):  # M, X, = operators (match)
                 # Iterate over all variants that are in this region
                 while j < len(variants) and variants[j].position < ref_pos + length:
-                    if len(variants[j].reference_allele) == len(variants[j].alternative_allele) == 1:
+                    if (
+                        len(variants[j].reference_allele)
+                        == len(variants[j].alternative_allele)
+                        == 1
+                    ):
                         # Variant is a SNV
                         offset = variants[j].position - ref_pos
                         base = bam_read.query_sequence[query_pos + offset]
@@ -203,8 +253,10 @@ class ReadSetReader:
                             # calls at identical positions. For now, ignore the
                             # second variant.
                             if variants[j].position in seen_positions:
-                                logger.debug("Found two variants at identical positions. Ignoring the second one: %s",
-                                    variants[j])
+                                logger.debug(
+                                    "Found two variants at identical positions. Ignoring the second one: %s",
+                                    variants[j],
+                                )
                             else:
                                 # Do not use bam_read.qual here as it is extremely slow.
                                 # If we ever decide to be compatible with older pysam
@@ -228,16 +280,26 @@ class ReadSetReader:
                         # This variant is a deletion that was not observed.
                         # Add it only if the next variant is not located 'within'
                         # the deletion.
-                        deletion_end = variants[j].position + len(variants[j].reference_allele)
-                        if not (j + 1 < len(variants) and variants[j + 1].position < deletion_end):
+                        deletion_end = variants[j].position + len(
+                            variants[j].reference_allele
+                        )
+                        if not (
+                            j + 1 < len(variants)
+                            and variants[j + 1].position < deletion_end
+                        ):
                             qual = 30  # TODO
                             yield (j, 0, qual)
                             seen_positions.add(variants[j].position)
                         else:
-                            logger.info('Skipped a deletion overlapping another variant at pos. %d',
-                                variants[j].position)
+                            logger.info(
+                                "Skipped a deletion overlapping another variant at pos. %d",
+                                variants[j].position,
+                            )
                             # Also skip all variants that this deletion overlaps
-                            while j + 1 < len(variants) and variants[j + 1].position < deletion_end:
+                            while (
+                                j + 1 < len(variants)
+                                and variants[j + 1].position < deletion_end
+                            ):
                                 j += 1
                             # One additional j += 1 is done below
                     else:
@@ -246,9 +308,13 @@ class ReadSetReader:
                 query_pos += length
                 ref_pos += length
             elif cigar_op == 1:  # I operator (insertion)
-                if j < len(variants) and variants[j].position == ref_pos and \
-                        len(variants[j].reference_allele) == 0 and \
-                        variants[j].alternative_allele == bam_read.query_sequence[query_pos:query_pos + length]:
+                if (
+                    j < len(variants)
+                    and variants[j].position == ref_pos
+                    and len(variants[j].reference_allele) == 0
+                    and variants[j].alternative_allele
+                    == bam_read.query_sequence[query_pos : query_pos + length]
+                ):
                     qual = 30  # TODO
                     assert variants[j].position not in seen_positions
                     yield (j, 1, qual)
@@ -259,20 +325,34 @@ class ReadSetReader:
                 # We only check the length of the deletion, not the sequence
                 # that gets deleted since we don’t have the reference available.
                 # (We could parse the MD tag if it exists.)
-                if j < len(variants) and variants[j].position == ref_pos and \
-                        len(variants[j].alternative_allele) == 0 and \
-                        len(variants[j].reference_allele) == length:
+                if (
+                    j < len(variants)
+                    and variants[j].position == ref_pos
+                    and len(variants[j].alternative_allele) == 0
+                    and len(variants[j].reference_allele) == length
+                ):
                     qual = 30  # TODO
-                    deletion_end = variants[j].position + len(variants[j].reference_allele)
-                    if not (j + 1 < len(variants) and variants[j + 1].position < deletion_end):
+                    deletion_end = variants[j].position + len(
+                        variants[j].reference_allele
+                    )
+                    if not (
+                        j + 1 < len(variants)
+                        and variants[j + 1].position < deletion_end
+                    ):
                         qual = 30  # TODO
                         assert variants[j].position not in seen_positions
                         yield (j, 1, qual)
                         seen_positions.add(variants[j].position)
                     else:
-                        logger.info('Skipped a deletion overlapping another variant at pos. %d', variants[j].position)
+                        logger.info(
+                            "Skipped a deletion overlapping another variant at pos. %d",
+                            variants[j].position,
+                        )
                         # Also skip all variants that this deletion overlaps
-                        while j + 1 < len(variants) and variants[j + 1].position < deletion_end:
+                        while (
+                            j + 1 < len(variants)
+                            and variants[j + 1].position < deletion_end
+                        ):
                             j += 1
                         # One additional j += 1 is done below
                     j += 1
@@ -314,9 +394,9 @@ class ReadSetReader:
         else:
             left = cigar[:i]
         if consumed < middle_length:
-            right = [(middle_op, middle_length-consumed)] + cigar[i+1:]
+            right = [(middle_op, middle_length - consumed)] + cigar[i + 1 :]
         else:
-            right = cigar[i+1:]
+            right = cigar[i + 1 :]
         return left, right
 
     @staticmethod
@@ -358,12 +438,25 @@ class ReadSetReader:
                 # Always stop at reference skips
                 return (reference_bases, query_pos)
             else:
-                assert False, 'unknown CIGAR operator'
+                assert False, "unknown CIGAR operator"
         assert ref_pos < reference_bases
         return (ref_pos, query_pos)
 
     @staticmethod
-    def realign(variant, bam_read, cigartuples, i, consumed, query_pos, reference, overhang, use_affine, gap_start, gap_extend,default_mismatch):
+    def realign(
+        variant,
+        bam_read,
+        cigartuples,
+        i,
+        consumed,
+        query_pos,
+        reference,
+        overhang,
+        use_affine,
+        gap_start,
+        gap_extend,
+        default_mismatch,
+    ):
         """
         Realign a read to the two alleles of a single variant.
         i and consumed describe where to split the cigar into a part before the
@@ -381,22 +474,36 @@ class ReadSetReader:
         default_mismatch -- if affine_gap=true, use this as mismatch cost in case no base qualities are in bam
         """
         # Do not process symbolic alleles like <DEL>, <DUP>, etc.
-        if variant.alternative_allele.startswith('<'):
+        if variant.alternative_allele.startswith("<"):
             return None, None
 
         left_cigar, right_cigar = ReadSetReader.split_cigar(cigartuples, i, consumed)
 
-        left_ref_bases, left_query_bases = ReadSetReader.cigar_prefix_length(left_cigar[::-1], overhang)
-        right_ref_bases, right_query_bases = ReadSetReader.cigar_prefix_length(right_cigar,
-            len(variant.reference_allele) + overhang)
+        left_ref_bases, left_query_bases = ReadSetReader.cigar_prefix_length(
+            left_cigar[::-1], overhang
+        )
+        right_ref_bases, right_query_bases = ReadSetReader.cigar_prefix_length(
+            right_cigar, len(variant.reference_allele) + overhang
+        )
 
         assert variant.position - left_ref_bases >= 0
         assert variant.position + right_ref_bases <= len(reference)
 
-        query = bam_read.query_sequence[query_pos-left_query_bases:query_pos+right_query_bases]
-        ref = reference[variant.position - left_ref_bases:variant.position + right_ref_bases]
-        alt = reference[variant.position - left_ref_bases:variant.position] + variant.alternative_allele + \
-                reference[variant.position+len(variant.reference_allele):variant.position + right_ref_bases]
+        query = bam_read.query_sequence[
+            query_pos - left_query_bases : query_pos + right_query_bases
+        ]
+        ref = reference[
+            variant.position - left_ref_bases : variant.position + right_ref_bases
+        ]
+        alt = (
+            reference[variant.position - left_ref_bases : variant.position]
+            + variant.alternative_allele
+            + reference[
+                variant.position
+                + len(variant.reference_allele) : variant.position
+                + right_ref_bases
+            ]
+        )
 
         distance_ref = 0
         distance_alt = 0
@@ -410,13 +517,17 @@ class ReadSetReader:
 
             # get base qualities if present (to be used as mismatch costs)
             base_qualities = [default_mismatch] * len(query)
-            #if bam_read.query_qualities != None:
+            # if bam_read.query_qualities != None:
             #    base_qualities = bam_read.query_qualities[query_pos-left_query_bases:query_pos+right_query_bases]
 
             # compute edit dist. with affine gap costs using base qual. as mismatch cost
-            distance_ref = edit_distance_affine_gap(query,ref,base_qualities,gap_start,gap_extend)
-            distance_alt = edit_distance_affine_gap(query,alt,base_qualities,gap_start,gap_extend)
-            base_qual_score = abs(distance_ref-distance_alt)
+            distance_ref = edit_distance_affine_gap(
+                query, ref, base_qualities, gap_start, gap_extend
+            )
+            distance_alt = edit_distance_affine_gap(
+                query, alt, base_qualities, gap_start, gap_extend
+            )
+            base_qual_score = abs(distance_ref - distance_alt)
 
         else:
             distance_ref = edit_distance(query, ref)
@@ -430,7 +541,17 @@ class ReadSetReader:
             return None, None  # cannot decide
 
     @staticmethod
-    def detect_alleles_by_alignment(variants, j, bam_read, reference, overhang=10, use_affine=False, gap_start=None, gap_extend=None, default_mismatch=None):
+    def detect_alleles_by_alignment(
+        variants,
+        j,
+        bam_read,
+        reference,
+        overhang=10,
+        use_affine=False,
+        gap_start=None,
+        gap_extend=None,
+        default_mismatch=None,
+    ):
         """
         Detect which alleles the given bam_read covers. Detect the correct
         alleles of the variants that are covered by the given bam_read.
@@ -448,9 +569,23 @@ class ReadSetReader:
         if not cigartuples:
             return
 
-        for index, i, consumed, query_pos in _iterate_cigar(variants, j, bam_read, cigartuples):
-            allele, quality = ReadSetReader.realign(variants[index], bam_read, cigartuples, i,
-                        consumed, query_pos, reference, overhang, use_affine, gap_start, gap_extend, default_mismatch)
+        for index, i, consumed, query_pos in _iterate_cigar(
+            variants, j, bam_read, cigartuples
+        ):
+            allele, quality = ReadSetReader.realign(
+                variants[index],
+                bam_read,
+                cigartuples,
+                i,
+                consumed,
+                query_pos,
+                reference,
+                overhang,
+                use_affine,
+                gap_start,
+                gap_extend,
+                default_mismatch,
+            )
             if allele in (0, 1):
                 yield (index, allele, quality)  # TODO quality???
 
@@ -464,7 +599,14 @@ class ReadSetReader:
         modified.
         """
         if read2:
-            result = Read(read1.name, read1.mapqs[0], read1.source_id, read1.sample_id, read1.reference_start, read1.BX_tag)
+            result = Read(
+                read1.name,
+                read1.mapqs[0],
+                read1.source_id,
+                read1.sample_id,
+                read1.reference_start,
+                read1.BX_tag,
+            )
             result.add_mapq(read2.mapqs[0])
         else:
             return read1

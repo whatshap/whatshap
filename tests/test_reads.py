@@ -62,46 +62,46 @@ def test_empty_readset():
 
 def test_readset():
     rs = ReadSet()
-    r = Read('Read A', 56)
+    r = Read("Read A", 56)
     r.add_variant(100, 1, 37)
     r.add_variant(101, 0, 18)
     rs.add(r)
 
-    r = Read('Read B', 0)
+    r = Read("Read B", 0)
     r.add_variant(101, 0, 23)
     rs.add(r)
 
-    r = Read('Read C', 17)
+    r = Read("Read C", 17)
     r.add_variant(99, 1, 27)
     r.add_variant(80, 1, 17)
     r[1] = Variant(position=105, allele=0, quality=14)
     rs.add(r)
 
-    assert rs[0].name == 'Read A'
-    assert rs[1].name == 'Read B'
-    assert rs[2].name == 'Read C'
+    assert rs[0].name == "Read A"
+    assert rs[1].name == "Read B"
+    assert rs[2].name == "Read C"
 
     rs.sort()
 
     # should be sorted after finalization
-    assert rs[0].name == 'Read C'
-    assert rs[1].name == 'Read A'
-    assert rs[2].name == 'Read B'
+    assert rs[0].name == "Read C"
+    assert rs[1].name == "Read A"
+    assert rs[2].name == "Read B"
 
     assert len(rs) == 3
 
     assert rs.get_positions() == [99, 100, 101, 105]
 
-    r = rs[(0, 'Read A')]
-    assert r.name == 'Read A'
+    r = rs[(0, "Read A")]
+    assert r.name == "Read A"
     assert r.mapqs == (56,), str(r.mapqs)
 
-    r = rs[(0, 'Read B')]
-    assert r.name == 'Read B'
+    r = rs[(0, "Read B")]
+    assert r.name == "Read B"
     assert r.mapqs == (0,)
 
-    r = rs[(0, 'Read C')]
-    assert r.name == 'Read C'
+    r = rs[(0, "Read C")]
+    assert r.name == "Read C"
     assert r.mapqs == (17,)
     assert len(r) == 2
     assert r[0] == Variant(position=99, allele=1, quality=27)
@@ -110,32 +110,32 @@ def test_readset():
 
 def test_readset2():
     rs = ReadSet()
-    rs.add(Read('Read A', 1, 23))
-    rs.add(Read('Read A', 2, 70))
-    rs.add(Read('Read B', 3, 23))
-    assert rs[(23, 'Read A')].mapqs == (1,)
-    assert rs[(70, 'Read A')].mapqs == (2,)
-    assert rs[(23, 'Read B')].mapqs == (3,)
+    rs.add(Read("Read A", 1, 23))
+    rs.add(Read("Read A", 2, 70))
+    rs.add(Read("Read B", 3, 23))
+    assert rs[(23, "Read A")].mapqs == (1,)
+    assert rs[(70, "Read A")].mapqs == (2,)
+    assert rs[(23, "Read B")].mapqs == (3,)
 
 
 def test_non_existing_read_name():
     rs = ReadSet()
-    r = Read('Read A', 56)
+    r = Read("Read A", 56)
     r.add_variant(100, 1, 37)
     r.add_variant(101, 0, 18)
     rs.add(r)
     with raises(KeyError):
-        _ = rs[(0, 'foo')]
+        _ = rs[(0, "foo")]
 
 
 def test_non_existing_read_name2():
     rs = ReadSet()
-    r = Read('Read A', 56, 1)
+    r = Read("Read A", 56, 1)
     r.add_variant(100, 1, 37)
     r.add_variant(101, 0, 18)
     rs.add(r)
     with raises(KeyError):
-        _ = rs[(2, 'Read A')]
+        _ = rs[(2, "Read A")]
 
 
 # TODO: Test subset method

@@ -18,11 +18,11 @@ def assert_toposort(tuples):
 def test_graph():
     tuples = [
         # mother, father, child
-        ('mmm', 'mmf', 'mm'),
-        ('mf', 'mm', 'm'),
-        ('m', 'f', 'c1'),
-        ('m', 'f', 'c2'),
-        ('ff', 'fm', 'f'),
+        ("mmm", "mmf", "mm"),
+        ("mf", "mm", "m"),
+        ("m", "f", "c1"),
+        ("m", "f", "c2"),
+        ("ff", "fm", "f"),
     ]
     assert_toposort(tuples)
 
@@ -30,8 +30,7 @@ def test_graph():
 def test_charles_ii():
     # source: https://en.wikipedia.org/wiki/Charles_II_of_Spain
     # fields are: child, father, mother
-    pedigree = \
-    """
+    pedigree = """
     Charles II of Spain, Philip IV of Spain, Mariana of Austria
 
     Mariana of Austria, Ferdinand III, Maria Anna of Spain
@@ -63,11 +62,11 @@ def test_charles_ii():
     """
     individuals = set()
     tuples = []
-    for line in pedigree.split('\n'):
+    for line in pedigree.split("\n"):
         line = line.strip()
-        if line == '':
+        if line == "":
             continue
-        child, father, mother = line.split(', ')
+        child, father, mother = line.split(", ")
         assert child not in individuals, child
         tuples.append((mother, father, child))
     assert_toposort(tuples)
@@ -77,12 +76,12 @@ def test_cyclic():
     graph = Graph()
     tuples = [
         # mother, father, child
-        ('mmm', 'mmf', 'mm'),
-        ('mf', 'mm', 'm'),
-        ('m', 'f', 'c1'),
-        ('m', 'f', 'c2'),
-        ('ff', 'fm', 'f'),
-        ('c1', 'c2', 'mmf')  # this makes it cyclic
+        ("mmm", "mmf", "mm"),
+        ("mf", "mm", "m"),
+        ("m", "f", "c1"),
+        ("m", "f", "c2"),
+        ("ff", "fm", "f"),
+        ("c1", "c2", "mmf"),  # this makes it cyclic
     ]
     for mother, father, child in tuples:
         graph.add_edge(child, mother)
