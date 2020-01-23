@@ -142,6 +142,7 @@ class VariantTable:
     def __len__(self):
         return len(self.variants)
 
+    # fmt: off
     #def add_sample(self, name, genotypes):
         #"Add a column to the table"
         #if len(genotypes) != len(self.variants):
@@ -149,6 +150,7 @@ class VariantTable:
         #self._name_to_index[name] = len(self.samples)
         #self.samples.append(name)
         #self.genotypes.append(genotypes)
+    # fmt: on
 
     def add_variant(self, variant: VcfVariant, genotypes, phases, genotype_likelihoods):
         """

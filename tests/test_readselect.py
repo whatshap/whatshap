@@ -91,7 +91,7 @@ def test_selection_with_preferred_sources():
     selected_reads = readselection(readset, max_cov = 2, preferred_source_ids = set([3]), bridging = True)
     assert selected_reads == set([0,1,3]), str(selected_reads)
 
-
+# fmt: off
 #TODO: the below test case seems to be incomplete
 #def test_tuple_scores():
     #'Only example at the moment '
@@ -111,3 +111,4 @@ def test_selection_with_preferred_sources():
     #selected_reads, skipped_reads = readselection(reads, max_cov = 2, bridging= False)
     #selected_reads, skipped_reads = readselection(reads, max_cov = 2, bridging= True)
 
+# fmt: on
