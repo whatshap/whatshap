@@ -473,9 +473,8 @@ class VcfReader:
 					elif self.ploidy is None:
 						self.ploidy = geno_ploidy
 					elif geno_ploidy != self.ploidy:
-						print("genotype_lists= {}".format(genotype_lists))
 						raise PloidyError(
-							"Genotypes contain inconsistent ploidy ({} and "
+							"Inconsistent ploidy ({} and "
 							"{})".format(self.ploidy, geno_ploidy))				
 				
 				genotypes = [genotype_code(geno_list) for geno_list in genotype_lists]
@@ -720,7 +719,7 @@ class PhasedVcfWriter(VcfAugmenter):
 	Avoid reading in full chromosomes as that uses too much memory for
 	multi-sample VCFs.
 	"""
-	def __init__(self, in_path, command_line, out_file=sys.stdout, tag='PS'):
+	def __init__(self, in_path, command_line, out_file=sys.stdout, tag='PS', ploidy=2):
 		"""
 		in_path -- Path to input VCF, used as template.
 		command_line -- A string that will be added as a VCF header entry
@@ -732,6 +731,7 @@ class PhasedVcfWriter(VcfAugmenter):
 		if tag not in ('HP', 'PS'):
 			raise ValueError('Tag must be either "HP" or "PS"')
 		self.tag = tag
+		self.ploidy = ploidy
 		super().__init__(in_path, command_line, out_file)
 		self._phase_tag_found_warned = False
 		self._set_phasing_tags = self._set_HP if tag == 'HP' else self._set_PS
@@ -787,7 +787,6 @@ class PhasedVcfWriter(VcfAugmenter):
 		"""
 		genotype_changes = []
 		# TODO
-#		allowed_alleles = frozenset({(0, 1), (1, 0), (0, 0), (1, 1)})
 		sample_phases = dict()
 		sample_genotypes = dict()
 		for sample, superreads in sample_superreads.items():

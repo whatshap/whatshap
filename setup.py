@@ -78,6 +78,15 @@ extensions = [
 			'src/hapchat/binomialcoefficient.cpp',
 			'src/hapchat/hapchatcore.cpp',
 			'src/hapchat/hapchatcolumniterator.cpp',
+			'src/polyphase/clustereditingsolution.cpp',
+			'src/polyphase/clustereditingsolver.cpp',
+			'src/polyphase/dynamicsparsegraph.cpp',
+			'src/polyphase/edgeheap.cpp',
+			'src/polyphase/inducedcostheuristic.cpp',
+			'src/polyphase/staticsparsegraph.cpp',
+			'src/polyphase/trianglesparsematrix.cpp',
+			'src/polyphase/readscoring.cpp',
+			'src/polyphase/haplothreader.cpp'
 		]),
 	CppExtension('whatshap.priorityqueue', sources=['whatshap/priorityqueue.pyx']),
 	CppExtension('whatshap.align', sources=['whatshap/align.pyx']),
@@ -141,6 +150,7 @@ else:
 		'pyfaidx>=0.5.5.2',
 		'networkx',
 		'biopython>=1.73',  # pyfaidx needs this for reading bgzipped FASTA files
+		'scipy',
 	]
 
 setup(
