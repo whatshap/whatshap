@@ -312,7 +312,6 @@ def run_genotype(
 
 						for pos in range(len(accessible_positions)):
 							likelihoods = forward_backward_table.get_genotype_likelihoods(s,pos)
-							print("like = {}".format(type(likelihoods)))
 
 							# compute genotypes from likelihoods and store information
 							geno = determine_genotype(likelihoods, gt_prob)
