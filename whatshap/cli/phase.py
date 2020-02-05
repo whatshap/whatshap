@@ -10,6 +10,7 @@ import sys
 import platform
 import resource
 
+from argparse import SUPPRESS
 from collections import defaultdict
 from copy import deepcopy
 from math import log
@@ -778,7 +779,7 @@ def run_whatshap(
             "y" if len(families) == 1 else "ies",
         )
 
-        if max_coverage + 2 * largest_trio_count > 25:
+        if max_coverage + 2 * largest_trio_count > 23:
             logger.warning(
                 "The maximum coverage is too high! "
                 "WhatsHap may take a long time to finish and require a huge amount of memory."
@@ -1380,11 +1381,12 @@ def add_arguments(parser):
     arg("--merge-reads", dest="read_merging", default=False, action="store_true",
         help="Merge reads which are likely to come from the same haplotype "
         "(default: do not merge reads)")
-    arg("--max-coverage", "-H", metavar="MAXCOV", default=15, type=int,
-        help="Coverage reduction parameter in the core phasing algorithm. "
-            "Phasing quality may improve slightly if this is increased, but "
-            "runtime increases exponentially! Do not increase beyond 20. "
-            "(default: %(default)s)")
+    arg("--max-coverage", "-H", metavar="MAXCOV", type=int,
+        dest="max_coverage_was_used", help=SUPPRESS)
+    arg("--internal-downsampling", metavar="COVERAGE", dest="max_coverage", default=15, type=int,
+        help="Coverage reduction parameter in the internal core phasing algorithm. "
+            "Higher values increase runtime *exponentially* while possibly improving phasing "
+            "quality marginally. Avoid using this in the normal case! (default: %(default)s)")
     arg("--mapping-quality", "--mapq", metavar="QUAL",
         default=20, type=int, help="Minimum mapping quality (default: %(default)s)")
     arg("--indels", dest="indels", default=False, action="store_true",
@@ -1490,9 +1492,18 @@ def validate(args, parser):
         parser.error("Option --use-ped-samples cannot be used together with --samples")
     if len(args.phase_input_files) == 0 and not args.ped:
         parser.error("Not providing any PHASEINPUT files only allowed in --ped mode.")
-    if args.max_coverage > 25:
-        parser.error("The maximum coverage (--max-coverage) may not exceed 25.")
+    if args.max_coverage > 23:
+        parser.error("Coverage downsampling parameter must not exceed 23.")
+    if args.max_coverage_was_used is not None:
+        logger.warning(
+            "The --max-coverage and -H options are no longer supported. "
+            "The coverage reduction parameter in the internal core phasing algorithm can now "
+            "be adjusted with --internal-downsampling. Higher values increase runtime "
+            "*exponentially* while possibly improving phasing quality marginally. "
+            "Avoid using this in the normal case!"
+        )
 
 
 def main(args):
+    del args.max_coverage_was_used
     run_whatshap(**vars(args))
