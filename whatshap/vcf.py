@@ -1014,7 +1014,7 @@ def genotype_code(gt):
     return result
 
 
-############ class to print computed genotypes,likelihoods (still needs to be improved...) ###########
+# class to print computed genotypes,likelihoods (still needs to be improved...)
 # in input vcf, currently GT is still required..
 
 
