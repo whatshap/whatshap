@@ -1,3 +1,4 @@
+# flake8: noqa
 import itertools as it
 from math import ceil, floor
 from copy import deepcopy

@@ -246,7 +246,8 @@ def run_polyphase(
 
         read_list_file = None
         if read_list_filename:
-            read_list_file = create_read_list_file(read_list_filename)
+            raise NotImplementedError("create_read_list_file not implemented")
+            # read_list_file = create_read_list_file(read_list_filename)
 
         # Store phasing parameters in tuple to keep function signatures cleaner
         phasing_param = PhasingParameter(

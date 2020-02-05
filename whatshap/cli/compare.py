@@ -211,9 +211,9 @@ def compute_switch_flips_poly_bt(
     if len(phasing0) != len(phasing1):
         logger.error(
             "Incompatible phasings. Number of haplotypes is not equal ("
-            + str(len(phasing))
+            + str(len(phasing0))
             + " != "
-            + str(len(truth))
+            + str(len(phasing1))
             + ")."
         )
     assert len(phasing0) == len(phasing1)
