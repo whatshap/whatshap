@@ -24,7 +24,7 @@ def add_arguments(parser):
         help='Minimum relative ALT depth to call a SNP (default: %(default)s).')
     add('--multi-allelics', default=False, action='store_true',
         help='Also output multi-allelic sites, if not given only the best ALT allele is reported (if unique).')
-    add('--sample', metavar='SAMPLE', default='sample', 
+    add('--sample', metavar='SAMPLE', default='sample',
         help='Put this sample column into VCF (default: output sites-only VCF).')
     add('--chromosome', dest='chromosome', metavar='CHROMOSOME', default=None,
         help='Name of chromosome to process. If not given, all chromosomes are processed.')

@@ -117,7 +117,7 @@ def run_polyphase(
 ):
     """
     Run Polyploid Phasing.
-    
+
     phase_input_files -- list of paths to BAM/CRAM/VCF files
     variant-file -- path to input VCF
     reference -- path to reference FASTA
@@ -684,13 +684,13 @@ def split_readset(readset, ext_block_starts, index):
 
 def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
     """
-    Takes as input data the reads from a single (pre-computed) block and the genotypes for all variants inside the block. 
-    Also requires a ploidy and block cut sensitivity as parameters. Runs a two-phase algorithm to compute a phasing for 
-    this isolated block. The phasing algorithm may create additional block cut, i.e. it may indicate where new phasing 
+    Takes as input data the reads from a single (pre-computed) block and the genotypes for all variants inside the block.
+    Also requires a ploidy and block cut sensitivity as parameters. Runs a two-phase algorithm to compute a phasing for
+    this isolated block. The phasing algorithm may create additional block cut, i.e. it may indicate where new phasing
     blocks should start.
-    
+
     Output are four objects:
-    
+
     clustering -- A list of clusters, which were the result of the cluster editing step. A cluster is a list of read ids.
     path -- A list with one entry per variant. Each entry contains the tuple of clusters, through which the haplotypes
             have been threaded in the threading step.
@@ -966,13 +966,13 @@ def compute_linkage_based_block_starts(
     Based on the connectivity of the reads, we want to divide the phasing input, as non- or poorly connected
     regions can be phased independently. This is done based on how pairs of variants are connected. There are
     two modes how to decide whether two variants are connected:
-    
+
     single_linkage=True -- If there exists a read in the readset, which covers both variants, they are connected
     single_linkage=False -- In order to connect two variants, we need at least reads from ploidy-1 different
                             haplotypes. Two variants count as connected, if there sufficiently many reads covering
                             both variants, with "sufficient" meaning, that the connecting reads have a chance of
                             at least 98% that they cover at least ploidy-1 haplotypes.
-                            
+
     First, only consecutive pairs are inspected. Then, this connectivity is made transitive, i.e. if the pair
     (A,C) is connected, as well as the pair (B,C), then (A,B) is also connected. If the special case occurs, that
     for three variants (in this order) A and C are connected, but neither is connected to variant B in between them,

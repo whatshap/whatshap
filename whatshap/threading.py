@@ -12,7 +12,7 @@ def run_threading(
 ):
     """
     Main method for the threading stage of the polyploid phasing algorithm. Takes the following input:
-    
+
     readset -- The fragment matrix to phase
     clustering -- A list of clusters. Each cluster is a list of read ids, indicating which reads it contains. Every read can
                   only be present in one cluster.
@@ -21,7 +21,7 @@ def run_threading(
     ploidy -- Number of haplotypes to phase
     block_cut_sensitivity -- Policy how conversative the block cuts have to be done. 0 is one phasing block no matter what, 5
                              is very short blocks
-                             
+
     For every variant, the threading algorithm finds a tuple of clusters through which the haplotypes can be threaded with
     minimal cost. Costs arise when the positional coverage of a cluster does not match the number of haplotypes threaded through it
     or when haplotypes switch the cluster on two consecutive positions.
@@ -168,7 +168,7 @@ def compute_threading_path(
 def compute_cut_positions(path, block_cut_sensitivity, num_clusters):
     """
     Takes a threading as input and computes on which positions a cut should be made according the cut sensitivity. The levels mean:
-    
+
     0 -- No cuts at all, even if regions are not connected by any reads
     1 -- Only cut, when regions are not connected by any reads (is already done in advance, so nothing to do here)
     2 -- Only cut, when regions are not connected by a sufficient number of reads (also lready done in advance)
@@ -179,7 +179,7 @@ def compute_cut_positions(path, block_cut_sensitivity, num_clusters):
          which to pick, so we are conservative here. Exception: If a cluster contains a set of multiple haplotypes since the start of
          the current block and hap wants to leave, we do not need a cut, since it does not matter which haps leaves. Default option.
     5 -- Cut every time a haplotype switches clusters. Most conservative, but also very short blocks.
-    
+
     The list of cut positions contains the first position of every block. Therefore, position 0 is always in the cut list.
     """
 

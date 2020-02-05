@@ -192,7 +192,7 @@ def canonic_index_to_biallelic_gt(num_alt, ploidy=2):
     3 -> 1/1/1
     ...
     and converts it into a Genotype object
-    
+
     See this link for further explanation:
     https://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
     """
@@ -205,7 +205,7 @@ def canonic_index_to_biallelic_gt(num_alt, ploidy=2):
 def canonic_index_list_to_biallelic_gt_list(list_int, ploidy=2):
     """ Returns a list of diploid, biallelic genotype objects
     according to the provided integer representation
-    
+
     See this link for further explanation:
     https://genome.sph.umich.edu/wiki/Relationship_between_Ploidy,_Alleles_and_Genotypes
     """

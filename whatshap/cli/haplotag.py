@@ -52,7 +52,7 @@ def add_arguments(parser):
     arg('--output-haplotag-list', dest='haplotag_list', metavar='HAPLOTAG_LIST', default=None,
         help='Write assignments of read names to haplotypes (tab separated) to given '
         'output file. If filename ends in .gz, then output is gzipped.')
-    arg('--tag-supplementary', default=False, action='store_true', 
+    arg('--tag-supplementary', default=False, action='store_true',
         help='Also tag supplementary alignments. Supplementary alignments are assigned to the same '
             'haplotype the primary alignment has been assigned to (default: only tag primary alignments).')
     arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
