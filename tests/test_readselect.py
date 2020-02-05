@@ -75,7 +75,7 @@ def bridging():
     assert selected_reads == set([0, 3, 5, 6])
 
 
-###Component comparison does not work
+# Component comparison does not work
 def test_components_of_readselection():
     reads = string_to_readset(
         """
@@ -133,7 +133,7 @@ def test_selection_with_preferred_sources():
 # fmt: off
 # TODO: the below test case seems to be incomplete
 # def test_tuple_scores():
-#'Only example at the moment '
+# 'Only example at the moment '
 # reads = """
 # 1  11010
 # 00 00101
