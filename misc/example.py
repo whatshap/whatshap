@@ -20,14 +20,14 @@ logger = logging.getLogger(__name__)
 
 
 def add_arguments(parser):
-	add = parser.add_argument
-	add('number', type=int, help='The number to square (at least 10)')
+    add = parser.add_argument
+    add("number", type=int, help="The number to square (at least 10)")
 
 
 def validate(args, parser):
-	if args.number <= 10:
-		parser.error("Sorry, this is too simple!")
+    if args.number <= 10:
+        parser.error("Sorry, this is too simple!")
 
 
 def main(args):
-	print('{} * {} = {}'.format(args.number, args.number, args.number * args.number))
+    print("{} * {} = {}".format(args.number, args.number, args.number * args.number))

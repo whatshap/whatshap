@@ -6,512 +6,576 @@ import random
 
 logger = logging.getLogger(__name__)
 
-def run_threading(readset, clustering, cluster_sim, ploidy, genotypes, block_cut_sensitivity):
-	'''
-	Main method for the threading stage of the polyploid phasing algorithm. Takes the following input:
-	
-	readset -- The fragment matrix to phase
-	clustering -- A list of clusters. Each cluster is a list of read ids, indicating which reads it contains. Every read can
-	              only be present in one cluster.
-	cluster_sim -- A triangle matrix, containing the similarity score of the clustering stage between each pair of clusters.
-	               The higher the value the higher the agreement between the (overlapping) reads of two clusters.
-	ploidy -- Number of haplotypes to phase
-	block_cut_sensitivity -- Policy how conversative the block cuts have to be done. 0 is one phasing block no matter what, 5
-	                         is very short blocks
-							 
-	For every variant, the threading algorithm finds a tuple of clusters through which the haplotypes can be threaded with
-	minimal cost. Costs arise when the positional coverage of a cluster does not match the number of haplotypes threaded through it
-	or when haplotypes switch the cluster on two consecutive positions.
-	'''
-	
-	# compute threading through the clusters
-	path = compute_threading_path(readset, clustering, ploidy, genotypes)
-		
-	# determine cut positions
-	num_clusters = len(clustering)
-	cut_positions = compute_cut_positions(path, block_cut_sensitivity, num_clusters)
-	
-	# we can look at the sequences again to use the most likely continuation, when two or more clusters switch at the same position
-	path = improve_path_on_multiswitches(path, num_clusters, cluster_sim)
-	
-	# we can look at the sequences again to use the most likely continuation, when a haplotype leaves a collapsed cluster (currently inactive)
-	#path = improve_path_on_collapsedswitches(corrected_path, num_clusters, cluster_sim)
 
-	logger.debug("Cut positions: {}".format(cut_positions))
-	
-	# compute haplotypes
-	index, rev_index = get_position_map(readset)
-	cov_map = get_pos_to_clusters_map(readset, clustering, index, ploidy)
-	positions = get_cluster_start_end_positions(readset, clustering, index)
-	consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
-	haplotypes = []
-	for i in range(ploidy):
-		hap = ""
-		alleles_as_strings = []
-		for pos in range(len(path)):
-			c_id = path[pos][i]
-			allele = consensus[pos][c_id] if c_id in consensus[pos] else -1
-			if allele == -1:
-				alleles_as_strings.append("n")
-			else:
-				alleles_as_strings.append(str(allele))
-		haplotypes.append(hap.join(alleles_as_strings))
-		
-	return (cut_positions, path, haplotypes)
+def run_threading(
+    readset, clustering, cluster_sim, ploidy, genotypes, block_cut_sensitivity
+):
+    """
+    Main method for the threading stage of the polyploid phasing algorithm. Takes the following input:
 
-def compute_threading_path(readset, clustering, ploidy, genotypes, switch_cost = 32.0, affine_switch_cost = 8.0):
-	'''
-	Runs the threading algorithm for the haplotypes using the given costs for switches. The normal switch cost is the
-	cost per haplotype, that switches clusters from one position to another (non matching coverage on single position
-	is always cost 1.0). The affine switch cost is an additional offset for every position, where a switch occurs.
-	These additional costs encourage the threading algorithm to summarize multiple switches on consecutive positions
-	into one big switch.
-	'''
-	
-	logger.debug("Computing cluster coverages and consensi ..")
-	
-	# Map genome positions to [0,l)
-	index, rev_index = get_position_map(readset)
-	num_vars = len(rev_index)
-	num_clusters = len(clustering)
-	
-	# for each position, compute the relevant list of clusters (i.e. the 2*ploidy clusters with highest coverage), sorted by descendant coverage
-	cov_map = get_pos_to_clusters_map(readset, clustering, index, ploidy)
+    readset -- The fragment matrix to phase
+    clustering -- A list of clusters. Each cluster is a list of read ids, indicating which reads it contains. Every read can
+                  only be present in one cluster.
+    cluster_sim -- A triangle matrix, containing the similarity score of the clustering stage between each pair of clusters.
+                   The higher the value the higher the agreement between the (overlapping) reads of two clusters.
+    ploidy -- Number of haplotypes to phase
+    block_cut_sensitivity -- Policy how conversative the block cuts have to be done. 0 is one phasing block no matter what, 5
+                             is very short blocks
 
-	# create dictionary, mapping a clusterID to a pair (starting position, ending position)
-	positions = get_cluster_start_end_positions(readset, clustering, index)
+    For every variant, the threading algorithm finds a tuple of clusters through which the haplotypes can be threaded with
+    minimal cost. Costs arise when the positional coverage of a cluster does not match the number of haplotypes threaded through it
+    or when haplotypes switch the cluster on two consecutive positions.
+    """
 
-	# for every cluster and every variant position, compute the relative coverage	
-	coverage = get_coverage(readset, clustering, index)
-	
-	# compute the consensus sequences for every variant position and every (relevant) cluster for integrating genotypes in the DP
-	consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
-	
-	logger.debug("Computing threading paths ..")
+    # compute threading through the clusters
+    path = compute_threading_path(readset, clustering, ploidy, genotypes)
 
-	# arrange data
-	compressed_coverage = [] #rearrange the content of "coverage" in a position-wise way, such that the i-th coverage refers to the i-th cluster in cov_map
-	cov_map_as_list = []
-	compressed_consensus = [] #for every position, give a list of consensi, such that the i-th consensus refers to the i-th cluster in cov_map
-	for pos in range(num_vars):
-		coverage_list = []
-		consensus_list = []
-		for i in range(len(cov_map[pos])):
-			coverage_list.append(coverage[pos][cov_map[pos][i]])
-			consensus_list.append(consensus[pos][cov_map[pos][i]])
-		compressed_coverage.append(coverage_list)
-		cov_map_as_list.append(cov_map[pos])
-		compressed_consensus.append(consensus_list)
+    # determine cut positions
+    num_clusters = len(clustering)
+    cut_positions = compute_cut_positions(path, block_cut_sensitivity, num_clusters)
 
-	# compute cluster dissimilarity on consensus
-	# TODO: Is this really necessary here or isn't this already done by the postprocessing step?
-	coverage_abs = get_coverage_absolute(readset, clustering, index)
-	c_to_c_dissim = [[[0 for j in range(len(cov_map[p+1]))] for i in range(len(cov_map[p]))] for p in range(num_vars-1)]
+    # we can look at the sequences again to use the most likely continuation, when two or more clusters switch at the same position
+    path = improve_path_on_multiswitches(path, num_clusters, cluster_sim)
 
-	cluster_zeroes = [dict() for c_id in range(num_clusters)]
-	cluster_ones = [dict() for c_id in range(num_clusters)]
-	for pos in range(num_vars):
-		for c_id in consensus[pos]:
-			cluster_zeroes[c_id][pos] = coverage_abs[pos][c_id] * (1-consensus[pos][c_id])
-			cluster_ones[c_id][pos] = coverage_abs[pos][c_id] * consensus[pos][c_id]
+    # we can look at the sequences again to use the most likely continuation, when a haplotype leaves a collapsed cluster (currently inactive)
+    # path = improve_path_on_collapsedswitches(corrected_path, num_clusters, cluster_sim)
 
-	count = 0
-	for var in range(num_vars-1):
-		for i, c1 in enumerate(cov_map[var]):
-			for j, c2 in enumerate(cov_map[var+1]):
-				same = 0
-				diff = 0
-				for pos in range(max(0, var-10), min(num_vars-1, var+10)):
-					if pos in cluster_zeroes[c1] and pos in cluster_zeroes[c2]:
-						same += cluster_zeroes[c1][pos] * cluster_zeroes[c2][pos] + cluster_ones[c1][pos] * cluster_ones[c2][pos]
-						diff += cluster_zeroes[c1][pos] * cluster_ones[c2][pos] + cluster_ones[c1][pos] * cluster_zeroes[c2][pos]
-				c_to_c_dissim[var][i][j] = diff / (same+diff) if diff > 0 else 0
-				if c1 != c2:
-					count += 1
+    logger.debug("Cut positions: {}".format(cut_positions))
 
-	# run threader
-	threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, True, 0)
-	path = threader.computePathsBlockwise([0], cov_map_as_list, compressed_coverage, compressed_consensus, genotypes, c_to_c_dissim)
-	assert len(path) == num_vars
-		
-	return path
+    # compute haplotypes
+    index, rev_index = get_position_map(readset)
+    cov_map = get_pos_to_clusters_map(readset, clustering, index, ploidy)
+    positions = get_cluster_start_end_positions(readset, clustering, index)
+    consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
+    haplotypes = []
+    for i in range(ploidy):
+        hap = ""
+        alleles_as_strings = []
+        for pos in range(len(path)):
+            c_id = path[pos][i]
+            allele = consensus[pos][c_id] if c_id in consensus[pos] else -1
+            if allele == -1:
+                alleles_as_strings.append("n")
+            else:
+                alleles_as_strings.append(str(allele))
+        haplotypes.append(hap.join(alleles_as_strings))
+
+    return (cut_positions, path, haplotypes)
+
+
+def compute_threading_path(
+    readset, clustering, ploidy, genotypes, switch_cost=32.0, affine_switch_cost=8.0
+):
+    """
+    Runs the threading algorithm for the haplotypes using the given costs for switches. The normal switch cost is the
+    cost per haplotype, that switches clusters from one position to another (non matching coverage on single position
+    is always cost 1.0). The affine switch cost is an additional offset for every position, where a switch occurs.
+    These additional costs encourage the threading algorithm to summarize multiple switches on consecutive positions
+    into one big switch.
+    """
+
+    logger.debug("Computing cluster coverages and consensi ..")
+
+    # Map genome positions to [0,l)
+    index, rev_index = get_position_map(readset)
+    num_vars = len(rev_index)
+    num_clusters = len(clustering)
+
+    # for each position, compute the relevant list of clusters (i.e. the 2*ploidy clusters with highest coverage), sorted by descendant coverage
+    cov_map = get_pos_to_clusters_map(readset, clustering, index, ploidy)
+
+    # create dictionary, mapping a clusterID to a pair (starting position, ending position)
+    positions = get_cluster_start_end_positions(readset, clustering, index)
+
+    # for every cluster and every variant position, compute the relative coverage
+    coverage = get_coverage(readset, clustering, index)
+
+    # compute the consensus sequences for every variant position and every (relevant) cluster for integrating genotypes in the DP
+    consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
+
+    logger.debug("Computing threading paths ..")
+
+    # arrange data
+    compressed_coverage = (
+        []
+    )  # rearrange the content of "coverage" in a position-wise way, such that the i-th coverage refers to the i-th cluster in cov_map
+    cov_map_as_list = []
+    compressed_consensus = (
+        []
+    )  # for every position, give a list of consensi, such that the i-th consensus refers to the i-th cluster in cov_map
+    for pos in range(num_vars):
+        coverage_list = []
+        consensus_list = []
+        for i in range(len(cov_map[pos])):
+            coverage_list.append(coverage[pos][cov_map[pos][i]])
+            consensus_list.append(consensus[pos][cov_map[pos][i]])
+        compressed_coverage.append(coverage_list)
+        cov_map_as_list.append(cov_map[pos])
+        compressed_consensus.append(consensus_list)
+
+    # compute cluster dissimilarity on consensus
+    # TODO: Is this really necessary here or isn't this already done by the postprocessing step?
+    coverage_abs = get_coverage_absolute(readset, clustering, index)
+    c_to_c_dissim = [
+        [[0 for j in range(len(cov_map[p + 1]))] for i in range(len(cov_map[p]))]
+        for p in range(num_vars - 1)
+    ]
+
+    cluster_zeroes = [dict() for c_id in range(num_clusters)]
+    cluster_ones = [dict() for c_id in range(num_clusters)]
+    for pos in range(num_vars):
+        for c_id in consensus[pos]:
+            cluster_zeroes[c_id][pos] = coverage_abs[pos][c_id] * (
+                1 - consensus[pos][c_id]
+            )
+            cluster_ones[c_id][pos] = coverage_abs[pos][c_id] * consensus[pos][c_id]
+
+    count = 0
+    for var in range(num_vars - 1):
+        for i, c1 in enumerate(cov_map[var]):
+            for j, c2 in enumerate(cov_map[var + 1]):
+                same = 0
+                diff = 0
+                for pos in range(max(0, var - 10), min(num_vars - 1, var + 10)):
+                    if pos in cluster_zeroes[c1] and pos in cluster_zeroes[c2]:
+                        same += (
+                            cluster_zeroes[c1][pos] * cluster_zeroes[c2][pos]
+                            + cluster_ones[c1][pos] * cluster_ones[c2][pos]
+                        )
+                        diff += (
+                            cluster_zeroes[c1][pos] * cluster_ones[c2][pos]
+                            + cluster_ones[c1][pos] * cluster_zeroes[c2][pos]
+                        )
+                c_to_c_dissim[var][i][j] = diff / (same + diff) if diff > 0 else 0
+                if c1 != c2:
+                    count += 1
+
+    # run threader
+    threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, True, 0)
+    path = threader.computePathsBlockwise(
+        [0],
+        cov_map_as_list,
+        compressed_coverage,
+        compressed_consensus,
+        genotypes,
+        c_to_c_dissim,
+    )
+    assert len(path) == num_vars
+
+    return path
+
 
 def compute_cut_positions(path, block_cut_sensitivity, num_clusters):
-	'''
-	Takes a threading as input and computes on which positions a cut should be made according the cut sensitivity. The levels mean:
-	
-	0 -- No cuts at all, even if regions are not connected by any reads
-	1 -- Only cut, when regions are not connected by any reads (is already done in advance, so nothing to do here)
-	2 -- Only cut, when regions are not connected by a sufficient number of reads (also lready done in advance)
-	3 -- Cut between two positions, if at least two haplotypes switch their cluster on this transition. In this case it is ambiguous,
-	     how the haplotype are continued and we might get switch errors if we choose arbitrarily.
-	4 -- Additionally to 3, cut every time a haplotype leaves a collapsed region. Collapsed regions are positions, where multiple
-	     haplotypes go through the same cluster. If one cluster leaves (e.g. due to decline in cluster coverage), we do not know
-		 which to pick, so we are conservative here. Exception: If a cluster contains a set of multiple haplotypes since the start of
-		 the current block and hap wants to leave, we do not need a cut, since it does not matter which haps leaves. Default option.
-	5 -- Cut every time a haplotype switches clusters. Most conservative, but also very short blocks.
-	
-	The list of cut positions contains the first position of every block. Therefore, position 0 is always in the cut list.
-	'''
-	
-	cut_positions = [0]
-	
-	if len(path) == 0:
-		return cut_positions
-	
-	ploidy = len(path[0])
-	dissim_threshold = 1
-	rise_fall_dissim = 0
-	if block_cut_sensitivity >= 3:
-		if block_cut_sensitivity >= 5:
-			# cut every time a haplotype jumps
-			dissim_threshold = 1
-			rise_fall_dissim = ploidy+1
-		elif block_cut_sensitivity == 4:
-			# cut for every multi-switch and for every rise-fall-ploidy change
-			dissim_threshold = 2
-			rise_fall_dissim = ploidy+1
-		else:
-			# cut for every multi-jump
-			dissim_threshold = 2
-			rise_fall_dissim = 0
-		
-	if block_cut_sensitivity >= 3:
-		copynrs = []
-		for i in range(0, len(path)):
-			copynr = defaultdict(int)
-			for j in range(0, ploidy):
-				if path[i][j] not in copynr:
-					copynr[path[i][j]] = 0
-				copynr[path[i][j]] += 1
-			copynrs.append(copynr)
+    """
+    Takes a threading as input and computes on which positions a cut should be made according the cut sensitivity. The levels mean:
 
-		cpn_rising = [False for c_id in range(num_clusters)]
+    0 -- No cuts at all, even if regions are not connected by any reads
+    1 -- Only cut, when regions are not connected by any reads (is already done in advance, so nothing to do here)
+    2 -- Only cut, when regions are not connected by a sufficient number of reads (also lready done in advance)
+    3 -- Cut between two positions, if at least two haplotypes switch their cluster on this transition. In this case it is ambiguous,
+         how the haplotype are continued and we might get switch errors if we choose arbitrarily.
+    4 -- Additionally to 3, cut every time a haplotype leaves a collapsed region. Collapsed regions are positions, where multiple
+         haplotypes go through the same cluster. If one cluster leaves (e.g. due to decline in cluster coverage), we do not know
+         which to pick, so we are conservative here. Exception: If a cluster contains a set of multiple haplotypes since the start of
+         the current block and hap wants to leave, we do not need a cut, since it does not matter which haps leaves. Default option.
+    5 -- Cut every time a haplotype switches clusters. Most conservative, but also very short blocks.
 
-		for i in range(1, len(path)):
-			dissim = 0
-			for j in range(0, ploidy):
-				old_c = path[i-1][j]
-				new_c = path[i][j]
-				if old_c != new_c:
-					rise_fall = False
-					# check if previous cluster went down from copy number >= 2 to a smaller one >= 1
-					if copynrs[i-1][old_c] > copynrs[i][old_c] >= 1:
-						if cpn_rising[old_c]:
-							rise_fall = True
-					# check if new cluster went up from copy number >= 1 to a greater one >= 2
-					if copynrs[i][new_c] > copynrs[i-1][new_c] >= 1:
-						cpn_rising[new_c] = True
-					# check if one cluster has been rising and then falling in the current block
-					if rise_fall:
-						dissim += rise_fall_dissim
+    The list of cut positions contains the first position of every block. Therefore, position 0 is always in the cut list.
+    """
 
-					# count general switches
-					dissim += 1
+    cut_positions = [0]
 
-			if dissim >= dissim_threshold:
-				cpn_rising = [False for c_id in range(num_clusters)]
-				cut_positions.append(i)
-	return cut_positions
-				
+    if len(path) == 0:
+        return cut_positions
+
+    ploidy = len(path[0])
+    dissim_threshold = 1
+    rise_fall_dissim = 0
+    if block_cut_sensitivity >= 3:
+        if block_cut_sensitivity >= 5:
+            # cut every time a haplotype jumps
+            dissim_threshold = 1
+            rise_fall_dissim = ploidy + 1
+        elif block_cut_sensitivity == 4:
+            # cut for every multi-switch and for every rise-fall-ploidy change
+            dissim_threshold = 2
+            rise_fall_dissim = ploidy + 1
+        else:
+            # cut for every multi-jump
+            dissim_threshold = 2
+            rise_fall_dissim = 0
+
+    if block_cut_sensitivity >= 3:
+        copynrs = []
+        for i in range(0, len(path)):
+            copynr = defaultdict(int)
+            for j in range(0, ploidy):
+                if path[i][j] not in copynr:
+                    copynr[path[i][j]] = 0
+                copynr[path[i][j]] += 1
+            copynrs.append(copynr)
+
+        cpn_rising = [False for c_id in range(num_clusters)]
+
+        for i in range(1, len(path)):
+            dissim = 0
+            for j in range(0, ploidy):
+                old_c = path[i - 1][j]
+                new_c = path[i][j]
+                if old_c != new_c:
+                    rise_fall = False
+                    # check if previous cluster went down from copy number >= 2 to a smaller one >= 1
+                    if copynrs[i - 1][old_c] > copynrs[i][old_c] >= 1:
+                        if cpn_rising[old_c]:
+                            rise_fall = True
+                    # check if new cluster went up from copy number >= 1 to a greater one >= 2
+                    if copynrs[i][new_c] > copynrs[i - 1][new_c] >= 1:
+                        cpn_rising[new_c] = True
+                    # check if one cluster has been rising and then falling in the current block
+                    if rise_fall:
+                        dissim += rise_fall_dissim
+
+                    # count general switches
+                    dissim += 1
+
+            if dissim >= dissim_threshold:
+                cpn_rising = [False for c_id in range(num_clusters)]
+                cut_positions.append(i)
+    return cut_positions
+
+
 def improve_path_on_multiswitches(path, num_clusters, cluster_sim):
-	'''
-	Post processing step after the threading. If two or more haplotypes switch clusters on the same position, we could use
-	the similarity scores between the clusters to find the most likely continuation of the switching haplotypes. See the
-	description of the compute_cut_positions method for more details about block cuts.
-	'''
-	
-	if len(path) == 0:
-		return []
-	
-	corrected_path = []
-	corrected_path.append(path[0])
-	ploidy = len(path[0])
-	current_perm = tuple(range(ploidy))
-	invers_perm = [i for i in range(ploidy)]
+    """
+    Post processing step after the threading. If two or more haplotypes switch clusters on the same position, we could use
+    the similarity scores between the clusters to find the most likely continuation of the switching haplotypes. See the
+    description of the compute_cut_positions method for more details about block cuts.
+    """
 
-	for i in range(1, len(path)):
-		changed = [] # set of haplotypes, that changed cluster at current position
-		for j in range(0, ploidy):
-			old_c = path[i-1][j]
-			new_c = path[i][j]
-			if old_c != new_c:
-				# count general switches
-				changed.append(j)
-				
-		if len(changed) >= 2:
-			# if at least two threads changed cluster: find optimal permutation of changed clusters
-			left_c = [path[i-1][j] for j in changed]
-			right_c = [path[i][j] for j in changed]
-			actual_score = sum([cluster_sim.get(left_c[j], right_c[j]) for j in range(len(changed))])
-			best_score = actual_score
-			best_perm = tuple(range(len(changed)))
-			for perm in it.permutations(range(len(changed))):
-				score = 0
-				for j, left in enumerate(left_c):
-					score += cluster_sim.get(left, right_c[perm[j]])
-				if score > best_score:
-					best_score = score
-					best_perm = perm
+    if len(path) == 0:
+        return []
 
-			# apply local best permutation to current global permutation
-			current_perm_copy = list(current_perm)
-			for j in range(len(changed)):
-				current_perm_copy[changed[j]] = current_perm[changed[best_perm[j]]]
-			current_perm = tuple(current_perm_copy)
-			for j in range(ploidy):
-				invers_perm[current_perm[j]] = j
-			
-		# apply current optimal permutation to local cluster config and add to corrected path
-		corrected_path.append([path[i][j] for j in invers_perm])
-		
-	return corrected_path
+    corrected_path = []
+    corrected_path.append(path[0])
+    ploidy = len(path[0])
+    current_perm = tuple(range(ploidy))
+    invers_perm = [i for i in range(ploidy)]
+
+    for i in range(1, len(path)):
+        changed = []  # set of haplotypes, that changed cluster at current position
+        for j in range(0, ploidy):
+            old_c = path[i - 1][j]
+            new_c = path[i][j]
+            if old_c != new_c:
+                # count general switches
+                changed.append(j)
+
+        if len(changed) >= 2:
+            # if at least two threads changed cluster: find optimal permutation of changed clusters
+            left_c = [path[i - 1][j] for j in changed]
+            right_c = [path[i][j] for j in changed]
+            actual_score = sum(
+                [cluster_sim.get(left_c[j], right_c[j]) for j in range(len(changed))]
+            )
+            best_score = actual_score
+            best_perm = tuple(range(len(changed)))
+            for perm in it.permutations(range(len(changed))):
+                score = 0
+                for j, left in enumerate(left_c):
+                    score += cluster_sim.get(left, right_c[perm[j]])
+                if score > best_score:
+                    best_score = score
+                    best_perm = perm
+
+            # apply local best permutation to current global permutation
+            current_perm_copy = list(current_perm)
+            for j in range(len(changed)):
+                current_perm_copy[changed[j]] = current_perm[changed[best_perm[j]]]
+            current_perm = tuple(current_perm_copy)
+            for j in range(ploidy):
+                invers_perm[current_perm[j]] = j
+
+        # apply current optimal permutation to local cluster config and add to corrected path
+        corrected_path.append([path[i][j] for j in invers_perm])
+
+    return corrected_path
+
 
 def improve_path_on_collapsedswitches(path, num_clusters, cluster_sim):
-	'''
-	Post processing step after the threading. If a haplotype leaves a cluster on a collapsed region, we could use the
-	similarity scores between the clusters to find the most likely continuation of the switching haplotypes. See the
-	description of the compute_cut_positions method for more details about block cuts.
-	'''
-	if len(path) == 0:
-		return []
-	
-	corrected_path = []
-	corrected_path.append(path[0])
-	ploidy = len(path[0])
-	current_perm = tuple(range(ploidy))
-	invers_perm = [i for i in range(ploidy)]
-	
-	copynrs = []
-	for i in range(0, len(path)):
-		copynr = defaultdict(int)
-		for j in range(0, ploidy):
-			if path[i][j] not in copynr:
-				copynr[path[i][j]] = 0
-			copynr[path[i][j]] += 1
-		copynrs.append(copynr)
+    """
+    Post processing step after the threading. If a haplotype leaves a cluster on a collapsed region, we could use the
+    similarity scores between the clusters to find the most likely continuation of the switching haplotypes. See the
+    description of the compute_cut_positions method for more details about block cuts.
+    """
+    if len(path) == 0:
+        return []
 
-	for i in range(1, len(path)):
-		changed = []
-		# iterate over present cluster ids
-		for c_id in copynrs[i]:
-			if copynrs[i-1][c_id] >= 2:
-				# for all collapsed clusters: find haplotypes, which go through and check whether one of them exits
-				outgoing_c = False
-				affected = []
-				for j in range(ploidy):
-					if path[i-1][j] == c_id:
-						affected.append(j)
-						if path[i][j] != c_id:
-							outgoing_c = True
-				# if haplotypes leaves collapsed cluster, all other might be equally suited, so add them
-				if outgoing_c:
-					changed.append(affected)
-					
-		for h_group in changed:
-			# for every group of haplotypes coming from a collapsed cluster:
-			collapsed_cid = path[i-1][h_group[0]]
-			left_c = []
-			
-			# find last cluster before collapsed one for every haplotype (or use collapsed one if this does not exist)
-			for j in h_group:
-				pos = i-1
-				while pos >= 0:
-					if path[pos][j] != collapsed_cid:
-						left_c.append(path[pos][j])
-						break
-					else:
-						pos -= 1
-				if pos == -1:
-					left_c.append(collapsed_cid)
-			right_c = [path[i][j] for j in h_group]
-			
-			# we need to catch the case, where we compare a cluster with itself
-			ident_sim = 0
-			for c1 in left_c:
-				for c2 in right_c:
-					if c1 != c2:
-						ident_sim = max(ident_sim, cluster_sim.get(c1, c2))
-			ident_sim = ident_sim * 2 + 1			
-			
-			actual_score = sum([cluster_sim.get(left_c[j], right_c[j]) if left_c[j] != right_c[j] else ident_sim for j in range(len(h_group))])
-			best_score = actual_score
-			best_perm = tuple(range(len(h_group)))
-			for perm in it.permutations(range(len(h_group))):
-				score = 0
-				for j, left in enumerate(left_c):
-					score += cluster_sim.get(left, right_c[perm[j]]) if left != right_c[perm[j]] else ident_sim
-				if score > best_score:
-					best_score = score
-					best_perm = perm
+    corrected_path = []
+    corrected_path.append(path[0])
+    ploidy = len(path[0])
+    current_perm = tuple(range(ploidy))
+    invers_perm = [i for i in range(ploidy)]
 
-			# apply local best permutation to current global permutation
-			current_perm_copy = list(current_perm)
-			for j in range(len(h_group)):
-				current_perm_copy[h_group[j]] = current_perm[h_group[best_perm[j]]]
-			current_perm = tuple(current_perm_copy)
-			for j in range(ploidy):
-				invers_perm[current_perm[j]] = j
-			
-		# apply current optimal permutation to local cluster config and add to corrected path
-		corrected_path.append([path[i][j] for j in invers_perm])
-		
-	return corrected_path
+    copynrs = []
+    for i in range(0, len(path)):
+        copynr = defaultdict(int)
+        for j in range(0, ploidy):
+            if path[i][j] not in copynr:
+                copynr[path[i][j]] = 0
+            copynr[path[i][j]] += 1
+        copynrs.append(copynr)
+
+    for i in range(1, len(path)):
+        changed = []
+        # iterate over present cluster ids
+        for c_id in copynrs[i]:
+            if copynrs[i - 1][c_id] >= 2:
+                # for all collapsed clusters: find haplotypes, which go through and check whether one of them exits
+                outgoing_c = False
+                affected = []
+                for j in range(ploidy):
+                    if path[i - 1][j] == c_id:
+                        affected.append(j)
+                        if path[i][j] != c_id:
+                            outgoing_c = True
+                # if haplotypes leaves collapsed cluster, all other might be equally suited, so add them
+                if outgoing_c:
+                    changed.append(affected)
+
+        for h_group in changed:
+            # for every group of haplotypes coming from a collapsed cluster:
+            collapsed_cid = path[i - 1][h_group[0]]
+            left_c = []
+
+            # find last cluster before collapsed one for every haplotype (or use collapsed one if this does not exist)
+            for j in h_group:
+                pos = i - 1
+                while pos >= 0:
+                    if path[pos][j] != collapsed_cid:
+                        left_c.append(path[pos][j])
+                        break
+                    else:
+                        pos -= 1
+                if pos == -1:
+                    left_c.append(collapsed_cid)
+            right_c = [path[i][j] for j in h_group]
+
+            # we need to catch the case, where we compare a cluster with itself
+            ident_sim = 0
+            for c1 in left_c:
+                for c2 in right_c:
+                    if c1 != c2:
+                        ident_sim = max(ident_sim, cluster_sim.get(c1, c2))
+            ident_sim = ident_sim * 2 + 1
+
+            actual_score = sum(
+                [
+                    cluster_sim.get(left_c[j], right_c[j])
+                    if left_c[j] != right_c[j]
+                    else ident_sim
+                    for j in range(len(h_group))
+                ]
+            )
+            best_score = actual_score
+            best_perm = tuple(range(len(h_group)))
+            for perm in it.permutations(range(len(h_group))):
+                score = 0
+                for j, left in enumerate(left_c):
+                    score += (
+                        cluster_sim.get(left, right_c[perm[j]])
+                        if left != right_c[perm[j]]
+                        else ident_sim
+                    )
+                if score > best_score:
+                    best_score = score
+                    best_perm = perm
+
+            # apply local best permutation to current global permutation
+            current_perm_copy = list(current_perm)
+            for j in range(len(h_group)):
+                current_perm_copy[h_group[j]] = current_perm[h_group[best_perm[j]]]
+            current_perm = tuple(current_perm_copy)
+            for j in range(ploidy):
+                invers_perm[current_perm[j]] = j
+
+        # apply current optimal permutation to local cluster config and add to corrected path
+        corrected_path.append([path[i][j] for j in invers_perm])
+
+    return corrected_path
+
 
 def get_position_map(readset):
-	'''
-	Returns a mapping of genome (bp) positions to virtual positions (from 0 to l).
-	'''
-	# Map genome positions to [0,l)
-	index = {}
-	rev_index = []
-	num_vars = 0
+    """
+    Returns a mapping of genome (bp) positions to virtual positions (from 0 to l).
+    """
+    # Map genome positions to [0,l)
+    index = {}
+    rev_index = []
+    num_vars = 0
 
-	for position in readset.get_positions():
-		index[position] = num_vars
-		rev_index.append(position)
-		num_vars += 1
-		
-	return index, rev_index
+    for position in readset.get_positions():
+        index[position] = num_vars
+        rev_index.append(position)
+        num_vars += 1
+
+    return index, rev_index
+
 
 def get_pos_to_clusters_map(readset, clustering, pos_index, ploidy):
-	# cov_map maps each position to the list of cluster IDS that appear at this position
-	num_clusters = len(clustering)
-	cov_map = defaultdict(list)
-	for c_id in range(num_clusters):
-		covered_positions = []
-		for read in clustering[c_id]:
-			for pos in [pos_index[var.position] for var in readset[read] ]:		
-				if pos not in covered_positions:
-					covered_positions.append(pos)
-		for p in covered_positions:
-			cov_map[p].append(c_id)
+    # cov_map maps each position to the list of cluster IDS that appear at this position
+    num_clusters = len(clustering)
+    cov_map = defaultdict(list)
+    for c_id in range(num_clusters):
+        covered_positions = []
+        for read in clustering[c_id]:
+            for pos in [pos_index[var.position] for var in readset[read]]:
+                if pos not in covered_positions:
+                    covered_positions.append(pos)
+        for p in covered_positions:
+            cov_map[p].append(c_id)
 
-	# restrict the number of clusters at each position to a maximum of 2*ploidy clusters with the largest number of reads	
-	for key in cov_map.keys():
-		largest_clusters = sorted(cov_map[key], key=lambda x: len(clustering[x]), reverse=True)[:min(len(cov_map[key]), 2*ploidy)]
-		cov_map[key] = largest_clusters
-	return cov_map
+    # restrict the number of clusters at each position to a maximum of 2*ploidy clusters with the largest number of reads
+    for key in cov_map.keys():
+        largest_clusters = sorted(
+            cov_map[key], key=lambda x: len(clustering[x]), reverse=True
+        )[: min(len(cov_map[key]), 2 * ploidy)]
+        cov_map[key] = largest_clusters
+    return cov_map
+
 
 def get_coverage(readset, clustering, pos_index):
-	'''
-	Returns a list, which for every position contains a dictionary, mapping a cluster id to
-	a relative coverage on this position.
-	'''
-	num_vars = len(pos_index)
-	num_clusters = len(clustering)
-	coverage = [dict() for pos in range(num_vars)]
-	coverage_sum = [0 for pos in range(num_vars)]
-	for c_id in range(num_clusters):
-		for read in clustering[c_id]:
-			for pos in [pos_index[var.position] for var in readset[read]]:
-				if c_id not in coverage[pos]:
-					coverage[pos][c_id] = 0
-				coverage[pos][c_id] += 1
-				coverage_sum[pos] += 1
+    """
+    Returns a list, which for every position contains a dictionary, mapping a cluster id to
+    a relative coverage on this position.
+    """
+    num_vars = len(pos_index)
+    num_clusters = len(clustering)
+    coverage = [dict() for pos in range(num_vars)]
+    coverage_sum = [0 for pos in range(num_vars)]
+    for c_id in range(num_clusters):
+        for read in clustering[c_id]:
+            for pos in [pos_index[var.position] for var in readset[read]]:
+                if c_id not in coverage[pos]:
+                    coverage[pos][c_id] = 0
+                coverage[pos][c_id] += 1
+                coverage_sum[pos] += 1
 
-	for pos in range(num_vars):
-		for c_id in coverage[pos]:
-			coverage[pos][c_id] = coverage[pos][c_id]/coverage_sum[pos]
-	
-	return coverage
+    for pos in range(num_vars):
+        for c_id in coverage[pos]:
+            coverage[pos][c_id] = coverage[pos][c_id] / coverage_sum[pos]
+
+    return coverage
+
 
 def get_coverage_absolute(readset, clustering, pos_index):
-	'''
-	Returns a list, which for every position contains a dictionary, mapping a cluster id to
-	an absolute coverage on this position.
-	'''
-	num_vars = len(pos_index)
-	num_clusters = len(clustering)
-	coverage = [dict() for pos in range(num_vars)]
-	for c_id in range(num_clusters):
-		for read in clustering[c_id]:
-			for pos in [pos_index[var.position] for var in readset[read]]:
-				if c_id not in coverage[pos]:
-					coverage[pos][c_id] = 0
-				coverage[pos][c_id] += 1
-	
-	return coverage
+    """
+    Returns a list, which for every position contains a dictionary, mapping a cluster id to
+    an absolute coverage on this position.
+    """
+    num_vars = len(pos_index)
+    num_clusters = len(clustering)
+    coverage = [dict() for pos in range(num_vars)]
+    for c_id in range(num_clusters):
+        for read in clustering[c_id]:
+            for pos in [pos_index[var.position] for var in readset[read]]:
+                if c_id not in coverage[pos]:
+                    coverage[pos][c_id] = 0
+                coverage[pos][c_id] += 1
+
+    return coverage
+
 
 def get_cluster_start_end_positions(readset, clustering, pos_index):
-	num_clusters = len(clustering)
-	positions = {}
-	counter = 0
-	for c_id in range(num_clusters):
-		read = clustering[c_id][0]
-		start = pos_index[readset[read][0].position]
-		end = pos_index[readset[read][-1].position]
-		for read in clustering[c_id]:
-			readstart = pos_index[readset[read][0].position]
-			readend = pos_index[readset[read][-1].position]
-			if readstart < start:
-				start = readstart
-			if readend > end:
-				end = readend
-		positions[c_id] = (start,end)
-	assert len(positions) == num_clusters
-	return positions
+    num_clusters = len(clustering)
+    positions = {}
+    counter = 0
+    for c_id in range(num_clusters):
+        read = clustering[c_id][0]
+        start = pos_index[readset[read][0].position]
+        end = pos_index[readset[read][-1].position]
+        for read in clustering[c_id]:
+            readstart = pos_index[readset[read][0].position]
+            readend = pos_index[readset[read][-1].position]
+            if readstart < start:
+                start = readstart
+            if readend > end:
+                end = readend
+        positions[c_id] = (start, end)
+    assert len(positions) == num_clusters
+    return positions
+
 
 def get_local_cluster_consensus(readset, clustering, cov_map, positions):
-	'''
-	Returns a list, which for every position contains a dictionary, mapping a cluster id to
-	its consensus on this position.
-	'''
-	return [{c_id : pos_cons[c_id][0] for c_id in pos_cons} for pos_cons in get_local_cluster_consensus_withfrac(readset, clustering, cov_map, positions)]
+    """
+    Returns a list, which for every position contains a dictionary, mapping a cluster id to
+    its consensus on this position.
+    """
+    return [
+        {c_id: pos_cons[c_id][0] for c_id in pos_cons}
+        for pos_cons in get_local_cluster_consensus_withfrac(
+            readset, clustering, cov_map, positions
+        )
+    ]
+
 
 def get_local_cluster_consensus_withfrac(readset, clustering, cov_map, positions):
-	# Map genome positions to [0,l)
-	index = {}
-	rev_index = []
-	num_vars = 0
-	for position in readset.get_positions():
-		index[position] = num_vars
-		rev_index.append(position)
-		num_vars += 1
+    # Map genome positions to [0,l)
+    index = {}
+    rev_index = []
+    num_vars = 0
+    for position in readset.get_positions():
+        index[position] = num_vars
+        rev_index.append(position)
+        num_vars += 1
 
-	relevant_pos = [[] for i in range(len(clustering))]
-	for pos in range(num_vars):
-		for c in cov_map[pos]:
-			relevant_pos[c].append(pos)
-	
-	clusterwise_consensus = [get_single_cluster_consensus_frac(readset, clustering[i], index, relevant_pos[i]) for i in range(len(clustering))]
-	whole_consensus = []
-	for pos in range(num_vars):
-		newdict = defaultdict()
-		for c in cov_map[pos]:
-			newdict[c] = clusterwise_consensus[c][pos]
-		whole_consensus.append(newdict)	
-	return whole_consensus
+    relevant_pos = [[] for i in range(len(clustering))]
+    for pos in range(num_vars):
+        for c in cov_map[pos]:
+            relevant_pos[c].append(pos)
+
+    clusterwise_consensus = [
+        get_single_cluster_consensus_frac(
+            readset, clustering[i], index, relevant_pos[i]
+        )
+        for i in range(len(clustering))
+    ]
+    whole_consensus = []
+    for pos in range(num_vars):
+        newdict = defaultdict()
+        for c in cov_map[pos]:
+            newdict[c] = clusterwise_consensus[c][pos]
+        whole_consensus.append(newdict)
+    return whole_consensus
+
 
 def get_single_cluster_consensus_frac(readset, cluster, index, relevant_pos):
-	# Count zeroes and one for every position
-	poswise_allelecount = dict()
-	num_zero = {}
-	num_one = {}
-	for read in cluster:
-		for var in readset[read]:
-			pos = index[var.position]
-			if pos not in poswise_allelecount:
-				poswise_allelecount[pos] = dict()
-			if var.allele not in poswise_allelecount[pos]:
-				poswise_allelecount[pos][var.allele] = 0
-			poswise_allelecount[pos][var.allele] += 1
-			
-	# Determine majority allele
-	cluster_consensus = {}
-	for pos in relevant_pos:
-		if pos in poswise_allelecount:
-			max_allele = 0
-			max_count = 0
-			sum_count = 0
-			for allele in sorted(poswise_allelecount[pos]):
-				cur_count = poswise_allelecount[pos][allele]
-				sum_count += cur_count
-				if cur_count > max_count:
-					max_allele = allele
-					max_count = cur_count
-			cluster_consensus[pos] = (max_allele, max_count / sum_count)
-		else:
-			cluster_consensus[pos] = (0, 1.0)
-	
-	return cluster_consensus
+    # Count zeroes and one for every position
+    poswise_allelecount = dict()
+    num_zero = {}
+    num_one = {}
+    for read in cluster:
+        for var in readset[read]:
+            pos = index[var.position]
+            if pos not in poswise_allelecount:
+                poswise_allelecount[pos] = dict()
+            if var.allele not in poswise_allelecount[pos]:
+                poswise_allelecount[pos][var.allele] = 0
+            poswise_allelecount[pos][var.allele] += 1
+
+    # Determine majority allele
+    cluster_consensus = {}
+    for pos in relevant_pos:
+        if pos in poswise_allelecount:
+            max_allele = 0
+            max_count = 0
+            sum_count = 0
+            for allele in sorted(poswise_allelecount[pos]):
+                cur_count = poswise_allelecount[pos][allele]
+                sum_count += cur_count
+                if cur_count > max_count:
+                    max_allele = allele
+                    max_count = cur_count
+            cluster_consensus[pos] = (max_allele, max_count / sum_count)
+        else:
+            cluster_consensus[pos] = (0, 1.0)
+
+    return cluster_consensus
