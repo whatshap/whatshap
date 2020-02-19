@@ -1,11 +1,17 @@
 #include "staticsparsegraph.h"
 #include <algorithm>
 
-using Edge = DynamicSparseGraph::Edge;
-using EdgeWeight = DynamicSparseGraph::EdgeWeight;
-using EdgeId = DynamicSparseGraph::EdgeId;
-using RankId = DynamicSparseGraph::RankId;
-using NodeId = DynamicSparseGraph::NodeId;
+const StaticSparseGraph::EdgeWeight StaticSparseGraph::Forbidden = -std::numeric_limits<EdgeWeight>::infinity();
+const StaticSparseGraph::EdgeWeight StaticSparseGraph::Permanent = std::numeric_limits<EdgeWeight>::infinity();
+const StaticSparseGraph::Edge StaticSparseGraph::InvalidEdge = {std::numeric_limits<NodeId>::max(), std::numeric_limits<NodeId>::max()};
+const StaticSparseGraph::EdgeId StaticSparseGraph::InvalidEdgeId = -1;
+const StaticSparseGraph::NodeId StaticSparseGraph::InvalidNodeId = -1;
+
+using Edge = StaticSparseGraph::Edge;
+using EdgeWeight = StaticSparseGraph::EdgeWeight;
+using EdgeId = StaticSparseGraph::EdgeId;
+using RankId = StaticSparseGraph::RankId;
+using NodeId = StaticSparseGraph::NodeId;
 
 StaticSparseGraph::StaticSparseGraph(StaticSparseGraph& other) :
     size(other.size),
@@ -20,8 +26,8 @@ StaticSparseGraph::StaticSparseGraph(StaticSparseGraph& other) :
     cliques(other.cliques),
     forbidden(other.forbidden) {}
 
-StaticSparseGraph::StaticSparseGraph(DynamicSparseGraph& other) :
-    size(other.numNodes()),
+StaticSparseGraph::StaticSparseGraph(TriangleSparseMatrix& m) :
+    size((uint64_t)m.getMaxDim()),
     rank1(std::max((int64_t)0, (int64_t)(size*(size-1)/2 - 1) / 4096 + 1), 0UL),
     offset1(std::max((int64_t)0, (int64_t)(size*(size-1)/2 - 1) / 4096 + 1), 0UL),
     rank2(0),
@@ -39,102 +45,63 @@ StaticSparseGraph::StaticSparseGraph(DynamicSparseGraph& other) :
         cliqueOfNode[i] = i;
         cliques[i].push_back(i);
     }
-    compile(other, nodes);
+    compile(m);
 }
 
-StaticSparseGraph::StaticSparseGraph(DynamicSparseGraph& other, std::vector<NodeId>& nodes) :
-    size(other.numNodes()),
-    rank1(std::max((int64_t)0, (int64_t)(size*(size-1)/2 - 1) / 4096 + 1), 0UL),
-    offset1(std::max((int64_t)0, (int64_t)(size*(size-1)/2 - 1) / 4096 + 1), 0UL),
-    rank2(0),
-    offset2(0),
-    weightv(0),
-    unprunedNeighbours(size, std::vector<NodeId>(0)),
-    nonzeroNeighbours(size, std::vector<NodeId>(0)),
-    cliqueOfNode(size, 0),
-    cliques(size, std::vector<NodeId>(0)),
-    forbidden(size)
-{
-    for (NodeId i = 0; i < size; i++) {
-        cliqueOfNode[i] = i;
-        cliques[i].push_back(i);
-    }
-    compile(other, nodes);
-}
-
-void StaticSparseGraph::compile(DynamicSparseGraph& dg, const std::vector<NodeId >& nodes) {
+void StaticSparseGraph::compile(TriangleSparseMatrix& m) {
     weightv.push_back(0.0);
     
-    // create mapping from global to local node id
-    std::map<NodeId, NodeId> globalToLocal;
-    for (uint32_t i = 0; i < nodes.size(); i++) {
-        globalToLocal[nodes[i]] = i;
-    }
+    // iterate over all sorted edges
+    for (EdgeId id : m.getIndices()) {
+        NodeId u = std::ceil(std::sqrt(2*(id+1)+0.25) - 0.5);
+        NodeId v = (NodeId)(id - (uint64_t)u * (uint64_t)(u-1) / 2);
+        EdgeWeight w = m.get(u, v);
         
-    // iterate over all edges
-    for (NodeId i : nodes) {
-        for (NodeId j : dg.getNeighbours(i)) {
-            // check whether (i,j) is in induced graph and whether edge is relevant
-            if (globalToLocal.find(j) == globalToLocal.end())
-                continue;
-            EdgeWeight w = dg.getWeight(Edge(i,j));
-            if (w == 0.0)
-                continue;
-            
-            // u and v are indices of this new graph, while i and j are the indices of the source graph
-            NodeId u = globalToLocal[i];
-            NodeId v = globalToLocal[j];
-            Edge e(u, v);
-            
-            // add edge to weight vector
-            EdgeId id = Edge(u, v).id();
-             
-            // insert entry into rank structure
-            uint64_t block1 = id / 4096UL;
-            uint64_t block2 = (id/64UL) % 64UL;
-            uint64_t bitv = rank1[block1] >> (63 - block2);
-            
-            // check if new block in rank1 has been reached
-            if (rank1[block1] == 0UL) {
-                offset1[block1] = rank2.size();
-            }
-            
-            // check if rank1 already has a one at this position
-            if ((bitv & 1UL) == 0) {
-                // set bit in rank1 to one
-                rank1[block1] |= (1UL << (63 - block2));
-                bitv |= 1UL;
-                // create new block for rank2
-                rank2.push_back(0UL);
-                offset2.push_back(weightv.size());
-            }
-            
-            block2 = offset1[block1] + popcount(bitv) - 1; //only count ones BEFORE current position
-            uint64_t block3 = id % 64UL;
-            bitv = rank2[block2] >> (63 - block3);
-            
-            // insert edge
-            if((bitv & 1UL) != 0) {
-                std::cout<<"Assertion violated (Edge already inserted): "<<u<<" "<<v<<std::endl;
-            }
-            rank2[block2] |= (1UL << (63 - block3));
+        // insert entry into rank structure
+        uint64_t block1 = id / 4096UL;
+        uint64_t block2 = (id/64UL) % 64UL;
+        uint64_t bitv = rank1[block1] >> (63 - block2);
+        
+        // check if new block in rank1 has been reached
+        if (rank1[block1] == 0UL) {
+            offset1[block1] = rank2.size();
+        }
+        
+        // check if rank1 already has a one at this position
+        if ((bitv & 1UL) == 0) {
+            // set bit in rank1 to one
+            rank1[block1] |= (1UL << (63 - block2));
             bitv |= 1UL;
-            
-            if(offset2[block2] + popcount(bitv) - 1 != weightv.size()) {
-                std::cout<<"Assertion violated (Weight vector incorrect size): "<<u<<" "<<v<<" "<<(offset2[block2] + popcount(bitv) - 1)<<" "<<(weightv.size())<<std::endl;
-            }
-            weightv.push_back(w);
-            if (w == DynamicSparseGraph::Forbidden)
-                setForbidden(e, weightv.size()-1);
-            else if (w == DynamicSparseGraph::Permanent)
-                setPermanent(e, weightv.size()-1);
-            
-            refreshEdgeMetaData(Edge(u,v), 0.0, w);
-            
-            EdgeWeight checkWeight = getWeight(Edge(u,v));
-            if(w != checkWeight) {
-                std::cout<<"Assertion violated (Get != Set): "<<u<<" "<<v<<" "<<w<<" "<<(getWeight(Edge(u,v)))<<std::endl;
-            }
+            // create new block for rank2
+            rank2.push_back(0UL);
+            offset2.push_back(weightv.size());
+        }
+        
+        block2 = offset1[block1] + popcount(bitv) - 1; //only count ones BEFORE current position
+        uint64_t block3 = id % 64UL;
+        bitv = rank2[block2] >> (63 - block3);
+        
+        // insert edge
+        if((bitv & 1UL) != 0) {
+            std::cout<<"Assertion violated (Edge already inserted): "<<u<<" "<<v<<std::endl;
+        }
+        rank2[block2] |= (1UL << (63 - block3));
+        bitv |= 1UL;
+        
+        if(offset2[block2] + popcount(bitv) - 1 != weightv.size()) {
+            std::cout<<"Assertion violated (Weight vector incorrect size): "<<u<<" "<<v<<" "<<(offset2[block2] + popcount(bitv) - 1)<<" "<<(weightv.size())<<std::endl;
+        }
+        weightv.push_back(w);
+        if (w == StaticSparseGraph::Forbidden)
+            setForbidden(Edge(u, v), weightv.size()-1);
+        else if (w == StaticSparseGraph::Permanent)
+            setPermanent(Edge(u, v), weightv.size()-1);
+        
+        refreshEdgeMetaData(Edge(u,v), 0.0, w);
+        
+        EdgeWeight checkWeight = getWeight(Edge(u,v));
+        if(w != checkWeight) {
+            std::cout<<"Assertion violated (Get != Set): "<<u<<" "<<v<<" "<<w<<" "<<(getWeight(Edge(u,v)))<<std::endl;
         }
     }
     
@@ -149,13 +116,13 @@ EdgeWeight StaticSparseGraph::getWeight(const RankId r) {
     return weightv[r];
 }
 
-bool StaticSparseGraph::isPermanent(const DynamicSparseGraph::Edge e) {
+bool StaticSparseGraph::isPermanent(const Edge e) {
     NodeId cu = cliqueOfNode[e.u];
     NodeId cv = cliqueOfNode[e.v];
     return cu == cv;
 }
 
-bool StaticSparseGraph::isForbidden(const DynamicSparseGraph::Edge e) {
+bool StaticSparseGraph::isForbidden(const Edge e) {
     NodeId cu = cliqueOfNode[e.u];
     NodeId cv = cliqueOfNode[e.v];
     if (forbidden[cu].size() * forbidden[cv].size() == 0) {
@@ -210,9 +177,9 @@ void StaticSparseGraph::setPermanent(const Edge e, RankId r) {
             std::cout<<"Error 1000 "<<cliqueOfNode[e.u]<<" != "<<cliqueOfNode[e.v]<<std::endl;
         }
     }
-    refreshEdgeMetaData(e, weightv[r], DynamicSparseGraph::Permanent);
+    refreshEdgeMetaData(e, weightv[r], StaticSparseGraph::Permanent);
     if (r > 0)
-        weightv[r] = DynamicSparseGraph::Permanent;
+        weightv[r] = StaticSparseGraph::Permanent;
 }
 
 void StaticSparseGraph::setForbidden(const Edge e) {
@@ -236,9 +203,9 @@ void StaticSparseGraph::setForbidden(const Edge e, RankId r) {
         forbidden[cu].insert(cv);
         forbidden[cv].insert(cu);
     }
-    refreshEdgeMetaData(e, weightv[r], DynamicSparseGraph::Forbidden);
+    refreshEdgeMetaData(e, weightv[r], StaticSparseGraph::Forbidden);
     if (r > 0)
-        weightv[r] = DynamicSparseGraph::Forbidden;
+        weightv[r] = StaticSparseGraph::Forbidden;
 }
 
 uint64_t StaticSparseGraph::numNodes() const {
@@ -277,10 +244,10 @@ const std::vector<NodeId>& StaticSparseGraph::getNonZeroNeighbours(const NodeId 
 }
 
 void StaticSparseGraph::refreshEdgeMetaData(const Edge e, const EdgeWeight oldW, const EdgeWeight newW) {
-    if ((oldW == DynamicSparseGraph::Forbidden || oldW == DynamicSparseGraph::Permanent || (oldW == 0.0)) && ((newW != 0.0) && newW != DynamicSparseGraph::Forbidden && newW != DynamicSparseGraph::Permanent)) {
+    if ((oldW == StaticSparseGraph::Forbidden || oldW == StaticSparseGraph::Permanent || (oldW == 0.0)) && ((newW != 0.0) && newW != StaticSparseGraph::Forbidden && newW != StaticSparseGraph::Permanent)) {
         unprunedNeighbours[e.u].push_back(e.v);
         unprunedNeighbours[e.v].push_back(e.u);
-    } else if (oldW != DynamicSparseGraph::Forbidden && oldW != DynamicSparseGraph::Permanent && (oldW != 0.0) && ((newW == 0.0) || newW == DynamicSparseGraph::Forbidden || newW == DynamicSparseGraph::Permanent)) {
+    } else if (oldW != StaticSparseGraph::Forbidden && oldW != StaticSparseGraph::Permanent && (oldW != 0.0) && ((newW == 0.0) || newW == StaticSparseGraph::Forbidden || newW == StaticSparseGraph::Permanent)) {
         if (!removeFromVector(unprunedNeighbours[e.u], e.v))
             std::cout<<"Error: Non-zero real neighbour "<<e.v<<" of "<<e.u<<" not found. Weight was set from "<<oldW<<" to "<<newW<<std::endl;
         if (!removeFromVector(unprunedNeighbours[e.v], e.u))

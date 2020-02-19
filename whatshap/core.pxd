@@ -45,14 +45,10 @@ cdef class GenotypeDPTable:
 cdef class HapChatCore:
 	cdef cpp.HapChatCore *thisptr
 
-	
-cdef class DynamicSparseGraph:
-	cdef cpp.DynamicSparseGraph *thisptr
-
 
 cdef class ClusterEditingSolver:
 	cdef cpp.ClusterEditingSolver *thisptr
-	cdef DynamicSparseGraph graph
+	cdef TriangleSparseMatrix m
 
 
 cdef class TriangleSparseMatrix:

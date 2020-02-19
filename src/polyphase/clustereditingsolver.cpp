@@ -1,7 +1,7 @@
 #include "clustereditingsolver.h"
 
 ClusterEditingSolution ClusterEditingSolver::run() {
-    StaticSparseGraph sGraph(graph);
+    StaticSparseGraph sGraph(m);
     InducedCostHeuristic instance(sGraph, bundleEdges);
     ClusterEditingSolution solution = instance.solve();
 

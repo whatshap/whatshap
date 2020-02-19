@@ -44,13 +44,13 @@ private:
      * Invoked, when the heuristic decides the make the specified edge permanent.
      * All implications are resolved then.
      */
-    void choosePermanentEdge(const DynamicSparseGraph::Edge eIcf);
+    void choosePermanentEdge(const StaticSparseGraph::Edge eIcf);
     
     /**
      * Invoked, when the heuristic decides the make the specified edge forbidden.
      * All implications are resolved then.
      */
-    void chooseForbiddenEdge(const DynamicSparseGraph::Edge eIcp);
+    void chooseForbiddenEdge(const StaticSparseGraph::Edge eIcp);
     
     /**
      * Initial run on the instance to fill in all present implications. If nodes u and v
@@ -66,29 +66,29 @@ private:
      * costs accordingly. This step does not resolve implications and dependencies
      * and must therefore be called by chooseForbiddenEdge or choosePermanentEdge.
      */
-    void setForbidden(const DynamicSparseGraph::Edge e);
+    void setForbidden(const StaticSparseGraph::Edge e);
     
     /**
      * Sets an edge to permanent by actually manipulating the graph. Updates the induced
      * costs accordingly. This step does not resolve implications and dependencies
      * and must therefore be called by chooseForbiddenEdge or choosePermanentEdge.
      */
-    void setPermanent(const DynamicSparseGraph::Edge e);
+    void setPermanent(const StaticSparseGraph::Edge e);
     
     /**
      * Updates icf and icp for the edge uw under the assumption that edge uv will be set to forbidden.
      */
-    void updateTripleForbiddenUW(const DynamicSparseGraph::EdgeWeight uv, const DynamicSparseGraph::Edge uw, const DynamicSparseGraph::EdgeWeight vw);
+    void updateTripleForbiddenUW(const StaticSparseGraph::EdgeWeight uv, const StaticSparseGraph::Edge uw, const StaticSparseGraph::EdgeWeight vw);
 
     /**
      * Updates icf and icp for the edge uw under the assumption that edge uv will be set to permanent.
      */
-    void updateTriplePermanentUW(const DynamicSparseGraph::EdgeWeight uv, const DynamicSparseGraph::Edge uw, const DynamicSparseGraph::EdgeWeight vw);
+    void updateTriplePermanentUW(const StaticSparseGraph::EdgeWeight uv, const StaticSparseGraph::Edge uw, const StaticSparseGraph::EdgeWeight vw);
     
     bool bundleEdges;
     StaticSparseGraph graph;
     EdgeHeap edgeHeap;
-    DynamicSparseGraph::EdgeWeight totalCost;
+    StaticSparseGraph::EdgeWeight totalCost;
     uint64_t totalEdges;
 };
 

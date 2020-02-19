@@ -10,21 +10,10 @@ cimport cpp
 cimport cython
 
 
-cdef class DynamicSparseGraph:
-	def __cinit__(self, uint32_t initialNumNodes):
-		self.thisptr = new cpp.DynamicSparseGraph(initialNumNodes)
-	def addEdge(self, uint32_t node_id1, uint32_t node_id2, double weight):
-		self.thisptr.addEdge(node_id1, node_id2, weight)
-	def setWeight(self, uint32_t node_id1, uint32_t node_id2, double weight):
-		self.thisptr.setWeight(node_id1, node_id2, weight)
-	def clearAndResize(self, uint32_t initialNumNodes):
-		self.thisptr.clearAndResize(initialNumNodes)
-
-
 cdef class ClusterEditingSolver:
-	def __cinit__(self, DynamicSparseGraph graph, bundleEdges):
-		self.thisptr = new cpp.ClusterEditingSolver(graph.thisptr[0], bundleEdges)
-		self.graph = graph
+	def __cinit__(self, TriangleSparseMatrix m, bundleEdges):
+		self.thisptr = new cpp.ClusterEditingSolver(m.thisptr[0], bundleEdges)
+		self.m = m
 	def run(self):
 		cdef cpp.ClusterEditingSolution solution = self.thisptr.run()
 		clusters = []

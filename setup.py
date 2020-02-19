@@ -105,7 +105,6 @@ extensions = [
             "src/hapchat/hapchatcolumniterator.cpp",
             "src/polyphase/clustereditingsolution.cpp",
             "src/polyphase/clustereditingsolver.cpp",
-            "src/polyphase/dynamicsparsegraph.cpp",
             "src/polyphase/edgeheap.cpp",
             "src/polyphase/inducedcostheuristic.cpp",
             "src/polyphase/staticsparsegraph.cpp",

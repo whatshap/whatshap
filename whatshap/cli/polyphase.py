@@ -25,7 +25,6 @@ from whatshap.core import (
     ReadSet,
     Genotype,
     ClusterEditingSolver,
-    DynamicSparseGraph,
     TriangleSparseMatrix,
     NumericSampleIds,
     compute_polyploid_genotypes,
@@ -620,14 +619,6 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
     logger.debug("Computing similarities for read pairs ...")
     similarities = scoreReadsetLocal(block_readset, phasing_param.min_overlap, phasing_param.ploidy)
 
-    # Create read graph object
-    logger.debug("Constructing graph ...")
-    graph = DynamicSparseGraph(len(block_readset))
-
-    # Insert edges into read graph
-    for (read1, read2) in similarities:
-        graph.addEdge(read1, read2, similarities.get(read1, read2))
-
     # Run cluster editing
     logger.debug(
         "Solving cluster editing instance with {} nodes and {} edges ..".format(
@@ -656,10 +647,6 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
         for (r0, r1) in seperated_reads:
             similarities.set(r0, r1, -float("inf"))
 
-        graph.clearAndResize(len(block_readset))
-        for (read1, read2) in similarities:
-            graph.addEdge(read1, read2, similarities.get(read1, read2))
-
         if 0 < new_inc_count < last_inc_count:
             logger.debug(
                 "{} inconsistent variants found. Refining clusters ..\r".format(new_inc_count)
@@ -683,7 +670,6 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
 
     # Deallocate big datastructures, which are not needed anymore
     del similarities
-    del graph
     timers.stop("solve_clusterediting")
 
     # Phase II: Threading

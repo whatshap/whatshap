@@ -141,17 +141,9 @@ cdef extern from "../src/hapchat/hapchatcore.cpp":
 		int get_optimal_cost()
 
 
-cdef extern from "../src/polyphase/dynamicsparsegraph.h":
-	cdef cppclass DynamicSparseGraph:
-		DynamicSparseGraph(uint32_t) except +
-		void addEdge(uint32_t, uint32_t, double) except +
-		void setWeight(uint32_t, uint32_t, double) except +
-		void clearAndResize(uint32_t) except +
-
-
 cdef extern from "../src/polyphase/clustereditingsolver.h":
 	cdef cppclass ClusterEditingSolver:
-		ClusterEditingSolver(DynamicSparseGraph graph, bool bundleEdges) except +
+		ClusterEditingSolver(TriangleSparseMatrix m, bool bundleEdges) except +
 		ClusterEditingSolution run() except +
 
 
