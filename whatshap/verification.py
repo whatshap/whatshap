@@ -19,9 +19,7 @@ def verify_mec_score_and_partitioning(dp_table, reads):
                 allele = j
             new_superreads[j].add_variant(v.position, allele, v.quality)
     partitioning = dp_table.get_optimal_partitioning()
-    position_to_index = {
-        variant.position: index for index, variant in enumerate(new_superreads[0])
-    }
+    position_to_index = {variant.position: index for index, variant in enumerate(new_superreads[0])}
     swapped = False
     mec_score = 0
     n = 0
@@ -30,15 +28,9 @@ def verify_mec_score_and_partitioning(dp_table, reads):
         cost1 = 0
         for variant in read:
             if variant.position in position_to_index:
-                if (
-                    new_superreads[0][position_to_index[variant.position]].allele
-                    != variant.allele
-                ):
+                if new_superreads[0][position_to_index[variant.position]].allele != variant.allele:
                     cost0 = cost0 + variant.quality
-                if (
-                    new_superreads[1][position_to_index[variant.position]].allele
-                    != variant.allele
-                ):
+                if new_superreads[1][position_to_index[variant.position]].allele != variant.allele:
                     cost1 = cost1 + variant.quality
         mec_score += min(cost0, cost1)
         if cost0 == cost1:

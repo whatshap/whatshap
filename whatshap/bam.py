@@ -9,9 +9,7 @@ from collections import defaultdict, namedtuple
 
 logger = logging.getLogger(__name__)
 
-AlignmentWithSourceID = namedtuple(
-    "AlignmentWithSourceID", ["source_id", "bam_alignment"]
-)
+AlignmentWithSourceID = namedtuple("AlignmentWithSourceID", ["source_id", "bam_alignment"])
 
 
 class AlignmentFileNotIndexedError(Exception):
@@ -87,9 +85,7 @@ class SampleBamReader:
                     'Read group "%s" does not contain an SM field to assign it to a sample. Use --ignore-read-groups to use these alignments anyway.',
                     read_group["ID"],
                 )
-        self._sample_to_group_ids = {
-            id: frozenset(values) for id, values in samples.items()
-        }
+        self._sample_to_group_ids = {id: frozenset(values) for id, values in samples.items()}
 
     def has_sample(self, sample):
         """Return whether this file contains reads for the given sample"""
@@ -157,9 +153,7 @@ class MultiBamReader:
     def __init__(self, paths, *, reference=None):
         self._readers = []
         for source_id, path in enumerate(paths):
-            self._readers.append(
-                SampleBamReader(path, source_id=source_id, reference=reference)
-            )
+            self._readers.append(SampleBamReader(path, source_id=source_id, reference=reference))
 
     def fetch(self, reference=None, sample=None, start=0, end=None):
         """
@@ -176,9 +170,7 @@ class MultiBamReader:
 
         def make_comparable(reader):
             for alignment in reader.fetch(reference, sample, start, end):
-                yield ComparableAlignedSegment(
-                    alignment.bam_alignment, alignment.source_id
-                )
+                yield ComparableAlignedSegment(alignment.bam_alignment, alignment.source_id)
 
         iterators = []
         for reader in self._readers:

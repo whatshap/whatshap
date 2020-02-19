@@ -58,11 +58,7 @@ def add_arguments(parser):
 
 
 def validate(args, parser):
-    if (
-        (args.output_h1 is None)
-        and (args.output_h2 is None)
-        and (args.output_untagged is None)
-    ):
+    if (args.output_h1 is None) and (args.output_h2 is None) and (args.output_untagged is None):
         parser.error(
             "Nothing to be done since neither --output-h1 nor --output-h2 nor --output-untagged are given."
         )
@@ -101,9 +97,7 @@ def open_possibly_gzipped(filename, exit_stack, readwrite="r", pigz=False):
         else:
             requested_file = exit_stack.enter_context(open(filename, "w"))
     else:
-        raise ValueError(
-            'Invalid file open mode (must be "r" or "w"): {}'.format(readwrite)
-        )
+        raise ValueError('Invalid file open mode (must be "r" or "w"): {}'.format(readwrite))
     return requested_file
 
 
@@ -122,9 +116,7 @@ def select_reads_in_largest_phased_blocks(block_sizes, block_to_readnames):
                 chromosome, block_name, reads_in_block
             )
         )
-        selected_reads = selected_reads.union(
-            set(block_to_readnames[(chromosome, block_name)])
-        )
+        selected_reads = selected_reads.union(set(block_to_readnames[(chromosome, block_name)]))
     logger.info(
         "Total number of haplo-tagged reads in all largest phased blocks: {}".format(
             len(selected_reads)
@@ -207,9 +199,7 @@ def process_haplotag_list_file(
         )
 
     if only_largest_blocks:
-        selected_reads = select_reads_in_largest_phased_blocks(
-            block_sizes, blocks_to_readnames
-        )
+        selected_reads = select_reads_in_largest_phased_blocks(block_sizes, blocks_to_readnames)
         readname_to_haplotype = defaultdict(
             int, {k: readname_to_haplotype[k] for k in selected_reads}
         )
@@ -305,9 +295,7 @@ def check_haplotag_list_information(haplotag_list, exit_stack):
     return haplo_list, has_chrom_info, line_parser
 
 
-def initialize_io_files(
-    reads_file, output_h1, output_h2, output_untagged, use_pigz, exit_stack
-):
+def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, use_pigz, exit_stack):
     """
     :param reads_file:
     :param output_h1:
@@ -337,8 +325,7 @@ def initialize_io_files(
         pass
     elif input_format in ["VCF", "CRAM"]:
         raise ValueError(
-            "Input file format detected as: {} "
-            "Currently, only BAM and FASTQ is supported."
+            "Input file format detected as: {} " "Currently, only BAM and FASTQ is supported."
         )
     else:
         # this means somebody changed utils::detect_file_format w/o
@@ -361,9 +348,7 @@ def initialize_io_files(
         for hap, outfile in zip([0, 1, 2], [output_untagged, output_h1, output_h2]):
             output_writers[hap] = exit_stack.enter_context(
                 pysam.AlignmentFile(
-                    os.devnull if outfile is None else outfile,
-                    mode="wb",
-                    template=input_reader,
+                    os.devnull if outfile is None else outfile, mode="wb", template=input_reader,
                 )
             )
 
@@ -387,9 +372,7 @@ def initialize_io_files(
             output_writers[hap] = open_handle
     else:
         # and this means I overlooked something...
-        raise ValueError(
-            "Unhandled file format for input reads: {}".format(input_format)
-        )
+        raise ValueError("Unhandled file format for input reads: {}".format(input_format))
     return input_reader, input_iter, output_writers
 
 
@@ -405,15 +388,11 @@ def write_read_length_histogram(length_counts, histogram_file, exit_stack):
     untag = length_counts[0]
     all_read_lengths = sorted(itertools.chain(*(h1.keys(), h2.keys(), untag.keys())))
     tsv_file = open_possibly_gzipped(histogram_file, exit_stack, "w", pigz=False)
-    _ = tsv_file.write(
-        "\t".join(["#length", "count-untagged", "count-h1", "count-h2"]) + "\n"
-    )
+    _ = tsv_file.write("\t".join(["#length", "count-untagged", "count-h1", "count-h2"]) + "\n")
 
     line = "{}\t{}\t{}\t{}"
 
-    out_lines = [
-        line.format(rlen, untag[rlen], h1[rlen], h2[rlen]) for rlen in all_read_lengths
-    ]
+    out_lines = [line.format(rlen, untag[rlen], h1[rlen], h2[rlen]) for rlen in all_read_lengths]
 
     _ = tsv_file.write("\n".join(out_lines))
 
@@ -461,11 +440,7 @@ def run_split(
         timers.start("split-process-haplotag-list")
 
         readname_to_haplotype, known_reads = process_haplotag_list_file(
-            haplo_list,
-            line_parser,
-            haplotype_to_int,
-            only_largest_block,
-            discard_unknown_reads,
+            haplo_list, line_parser, haplotype_to_int, only_largest_block, discard_unknown_reads,
         )
         if discard_unknown_reads:
             logger.debug(
@@ -541,13 +516,9 @@ def run_split(
     logger.info('Number of output reads "untagged": {}'.format(read_counter[0]))
     logger.info("Number of output reads haplotype 1: {}".format(read_counter[1]))
     logger.info("Number of output reads haplotype 2: {}".format(read_counter[2]))
+    logger.info("Number of unknown (dropped) reads: {}".format(read_counter["unknown_reads"]))
     logger.info(
-        "Number of unknown (dropped) reads: {}".format(read_counter["unknown_reads"])
-    )
-    logger.info(
-        "Number of skipped reads (per user request): {}".format(
-            read_counter["skipped_reads"]
-        )
+        "Number of skipped reads (per user request): {}".format(read_counter["skipped_reads"])
     )
 
     logger.info(
@@ -557,9 +528,7 @@ def run_split(
     )
 
     logger.info(
-        "Time for total initial setup: {} sec".format(
-            round(timers.elapsed("split-init"), 3)
-        )
+        "Time for total initial setup: {} sec".format(round(timers.elapsed("split-init"), 3))
     )
 
     logger.info(

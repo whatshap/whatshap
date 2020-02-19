@@ -81,9 +81,7 @@ class ReadSetReader:
         if __debug__ and variants:
             varposc = Counter(variant.position for variant in variants)
             pos, count = varposc.most_common()[0]
-            assert (
-                count == 1
-            ), "Position {} occurs more than once in variant list.".format(pos)
+            assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
 
         alignments = self._usable_alignments(chromosome, sample, regions)
         reads = self._alignments_to_readdict(alignments, variants, sample, reference)
@@ -161,8 +159,7 @@ class ReadSetReader:
             # Skip variants that are to the left of this read
             while (
                 i < len(normalized_variants)
-                and normalized_variants[i].position
-                < alignment.bam_alignment.reference_start
+                and normalized_variants[i].position < alignment.bam_alignment.reference_start
             ):
                 i += 1
 
@@ -180,9 +177,7 @@ class ReadSetReader:
             )
 
             if reference is None:
-                detected = self.detect_alleles(
-                    normalized_variants, i, alignment.bam_alignment
-                )
+                detected = self.detect_alleles(normalized_variants, i, alignment.bam_alignment)
 
             else:
                 detected = self.detect_alleles_by_alignment(
@@ -200,11 +195,7 @@ class ReadSetReader:
                 read.add_variant(variants[j].position, allele, quality)
             if read:  # At least one variant covered and detected
                 reads[
-                    (
-                        alignment.source_id,
-                        alignment.bam_alignment.qname,
-                        numeric_sample_id,
-                    )
+                    (alignment.source_id, alignment.bam_alignment.qname, numeric_sample_id,)
                 ].append(read)
         return reads
 
@@ -280,13 +271,8 @@ class ReadSetReader:
                         # This variant is a deletion that was not observed.
                         # Add it only if the next variant is not located 'within'
                         # the deletion.
-                        deletion_end = variants[j].position + len(
-                            variants[j].reference_allele
-                        )
-                        if not (
-                            j + 1 < len(variants)
-                            and variants[j + 1].position < deletion_end
-                        ):
+                        deletion_end = variants[j].position + len(variants[j].reference_allele)
+                        if not (j + 1 < len(variants) and variants[j + 1].position < deletion_end):
                             qual = 30  # TODO
                             yield (j, 0, qual)
                             seen_positions.add(variants[j].position)
@@ -296,10 +282,7 @@ class ReadSetReader:
                                 variants[j].position,
                             )
                             # Also skip all variants that this deletion overlaps
-                            while (
-                                j + 1 < len(variants)
-                                and variants[j + 1].position < deletion_end
-                            ):
+                            while j + 1 < len(variants) and variants[j + 1].position < deletion_end:
                                 j += 1
                             # One additional j += 1 is done below
                     else:
@@ -332,13 +315,8 @@ class ReadSetReader:
                     and len(variants[j].reference_allele) == length
                 ):
                     qual = 30  # TODO
-                    deletion_end = variants[j].position + len(
-                        variants[j].reference_allele
-                    )
-                    if not (
-                        j + 1 < len(variants)
-                        and variants[j + 1].position < deletion_end
-                    ):
+                    deletion_end = variants[j].position + len(variants[j].reference_allele)
+                    if not (j + 1 < len(variants) and variants[j + 1].position < deletion_end):
                         qual = 30  # TODO
                         assert variants[j].position not in seen_positions
                         yield (j, 1, qual)
@@ -349,10 +327,7 @@ class ReadSetReader:
                             variants[j].position,
                         )
                         # Also skip all variants that this deletion overlaps
-                        while (
-                            j + 1 < len(variants)
-                            and variants[j + 1].position < deletion_end
-                        ):
+                        while j + 1 < len(variants) and variants[j + 1].position < deletion_end:
                             j += 1
                         # One additional j += 1 is done below
                     j += 1
@@ -492,9 +467,7 @@ class ReadSetReader:
         query = bam_read.query_sequence[
             query_pos - left_query_bases : query_pos + right_query_bases
         ]
-        ref = reference[
-            variant.position - left_ref_bases : variant.position + right_ref_bases
-        ]
+        ref = reference[variant.position - left_ref_bases : variant.position + right_ref_bases]
         alt = (
             reference[variant.position - left_ref_bases : variant.position]
             + variant.alternative_allele
@@ -569,9 +542,7 @@ class ReadSetReader:
         if not cigartuples:
             return
 
-        for index, i, consumed, query_pos in _iterate_cigar(
-            variants, j, bam_read, cigartuples
-        ):
+        for index, i, consumed, query_pos in _iterate_cigar(variants, j, bam_read, cigartuples):
             allele, quality = ReadSetReader.realign(
                 variants[index],
                 bam_read,

@@ -7,9 +7,7 @@ import random
 logger = logging.getLogger(__name__)
 
 
-def run_threading(
-    readset, clustering, cluster_sim, ploidy, genotypes, block_cut_sensitivity
-):
+def run_threading(readset, clustering, cluster_sim, ploidy, genotypes, block_cut_sensitivity):
     """
     Main method for the threading stage of the polyploid phasing algorithm. Takes the following input:
 
@@ -125,9 +123,7 @@ def compute_threading_path(
     cluster_ones = [dict() for c_id in range(num_clusters)]
     for pos in range(num_vars):
         for c_id in consensus[pos]:
-            cluster_zeroes[c_id][pos] = coverage_abs[pos][c_id] * (
-                1 - consensus[pos][c_id]
-            )
+            cluster_zeroes[c_id][pos] = coverage_abs[pos][c_id] * (1 - consensus[pos][c_id])
             cluster_ones[c_id][pos] = coverage_abs[pos][c_id] * consensus[pos][c_id]
 
     count = 0
@@ -153,12 +149,7 @@ def compute_threading_path(
     # run threader
     threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, True, 0)
     path = threader.computePathsBlockwise(
-        [0],
-        cov_map_as_list,
-        compressed_coverage,
-        compressed_consensus,
-        genotypes,
-        c_to_c_dissim,
+        [0], cov_map_as_list, compressed_coverage, compressed_consensus, genotypes, c_to_c_dissim,
     )
     assert len(path) == num_vars
 
@@ -369,9 +360,7 @@ def improve_path_on_collapsedswitches(path, num_clusters, cluster_sim):
 
             actual_score = sum(
                 [
-                    cluster_sim.get(left_c[j], right_c[j])
-                    if left_c[j] != right_c[j]
-                    else ident_sim
+                    cluster_sim.get(left_c[j], right_c[j]) if left_c[j] != right_c[j] else ident_sim
                     for j in range(len(h_group))
                 ]
             )
@@ -435,9 +424,9 @@ def get_pos_to_clusters_map(readset, clustering, pos_index, ploidy):
 
     # restrict the number of clusters at each position to a maximum of 2*ploidy clusters with the largest number of reads
     for key in cov_map.keys():
-        largest_clusters = sorted(
-            cov_map[key], key=lambda x: len(clustering[x]), reverse=True
-        )[: min(len(cov_map[key]), 2 * ploidy)]
+        largest_clusters = sorted(cov_map[key], key=lambda x: len(clustering[x]), reverse=True)[
+            : min(len(cov_map[key]), 2 * ploidy)
+        ]
         cov_map[key] = largest_clusters
     return cov_map
 
@@ -533,9 +522,7 @@ def get_local_cluster_consensus_withfrac(readset, clustering, cov_map, positions
             relevant_pos[c].append(pos)
 
     clusterwise_consensus = [
-        get_single_cluster_consensus_frac(
-            readset, clustering[i], index, relevant_pos[i]
-        )
+        get_single_cluster_consensus_frac(readset, clustering[i], index, relevant_pos[i])
         for i in range(len(clustering))
     ]
     whole_consensus = []

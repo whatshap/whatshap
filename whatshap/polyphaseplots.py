@@ -37,9 +37,7 @@ def parse_haplotype(name):
 def avg_readlength(readset):
     # Estiamtes the average read length in base pairs
     if len(readset) > 0:
-        return sum([read[-1].position - read[0].position for read in readset]) / len(
-            readset
-        )
+        return sum([read[-1].position - read[0].position for read in readset]) / len(readset)
     else:
         return 0
 
@@ -128,14 +126,7 @@ def draw_plots_dissimilarity(readset, path, min_overlap=5, steps=100):
 
 
 def draw_plots_scoring(
-    readset,
-    similarities,
-    path,
-    ploidy,
-    error_rate,
-    min_overlap=5,
-    steps=120,
-    dim=[-60, 60],
+    readset, similarities, path, ploidy, error_rate, min_overlap=5, steps=120, dim=[-60, 60],
 ):
     try:
         import matplotlib
@@ -170,9 +161,7 @@ def draw_plots_scoring(
         logger.error("Plotting read scores requires matplotlib to be installed")
 
 
-def create_histogram(
-    path, same, diff, steps, dim, x_label, title, name1="same", name2="diff"
-):
+def create_histogram(path, same, diff, steps, dim, x_label, title, name1="same", name2="diff"):
     try:
         import matplotlib
 
@@ -184,10 +173,7 @@ def create_histogram(
         hist = {}
         left_bound = dim[0]
         right_bound = dim[1]
-        bins = [
-            left_bound + i * (right_bound - left_bound) / steps
-            for i in range(steps + 1)
-        ]
+        bins = [left_bound + i * (right_bound - left_bound) / steps for i in range(steps + 1)]
         plt.hist(same, bins, alpha=0.5, label=name1)
         if len(diff) > 0:
             plt.hist(diff, bins, alpha=0.5, label=name2)
@@ -266,9 +252,7 @@ def draw_clustering(readset, clustering, var_table, path, genome_space=False):
                 end = index[readset[read][-1].position]
                 read_id += 1
 
-                color_code = (
-                    "C" + str(true_hap[read]) if true_hap[read] != -1 else "black"
-                )
+                color_code = "C" + str(true_hap[read]) if true_hap[read] != -1 else "black"
                 if color_code not in legend_handles:
                     legend_handles[color_code] = mpatches.Patch(
                         color=color_code, label=true_hap[read]
@@ -281,20 +265,14 @@ def draw_clustering(readset, clustering, var_table, path, genome_space=False):
                         color=color_code,
                     )
                 else:
-                    plt.hlines(
-                        y=read_id + y_offset, xmin=start, xmax=end, color=color_code
-                    )
+                    plt.hlines(y=read_id + y_offset, xmin=start, xmax=end, color=color_code)
 
             y_offset += len(clusters[c_id]) + y_margin
-            plt.hlines(
-                y=y_offset, xmin=min_pos, xmax=max_pos, color=(0.5, 0.5, 0.5, 0.5)
-            )
+            plt.hlines(y=y_offset, xmin=min_pos, xmax=max_pos, color=(0.5, 0.5, 0.5, 0.5))
             y_offset += y_margin
 
         plt.legend(
-            handles=legend_handles.values(),
-            loc="lower center",
-            ncol=len(legend_handles),
+            handles=legend_handles.values(), loc="lower center", ncol=len(legend_handles),
         )
         axes = plt.gca()
         axes.set_xlim([min_pos, max_pos])
@@ -306,14 +284,7 @@ def draw_clustering(readset, clustering, var_table, path, genome_space=False):
 
 
 def plot_haplotype_dissimilarity(
-    legend_handles,
-    y_offset,
-    y_margin,
-    index,
-    rev_index,
-    readset,
-    var_table,
-    genome_space=False,
+    legend_handles, y_offset, y_margin, index, rev_index, readset, var_table, genome_space=False,
 ):
     try:
         import matplotlib
@@ -350,11 +321,7 @@ def plot_haplotype_dissimilarity(
             # get variant density
             dens_pos = list(range(min_pos + padding, max_pos - padding, 2 * padding))
             dens_list = [
-                len(
-                    list(
-                        filter(lambda x: pos - padding <= x <= pos + padding, rev_index)
-                    )
-                )
+                len(list(filter(lambda x: pos - padding <= x <= pos + padding, rev_index)))
                 for pos in dens_pos
             ]
             max_dens = max(dens_list)
@@ -362,14 +329,9 @@ def plot_haplotype_dissimilarity(
 
             y_offset -= 104 + y_margin
             plt.hlines(y=y_offset, xmin=min_pos, xmax=max_pos, color="black", lw=1)
-            plt.hlines(
-                y=y_offset + 104, xmin=min_pos, xmax=max_pos, color="black", lw=1
-            )
+            plt.hlines(y=y_offset + 104, xmin=min_pos, xmax=max_pos, color="black", lw=1)
             plt.plot(
-                dens_pos,
-                [100 * x / max_dens + y_offset for x in dens_list],
-                lw=1,
-                color="blue",
+                dens_pos, [100 * x / max_dens + y_offset for x in dens_list], lw=1, color="blue",
             )
 
         # determines for each position, over which interval of positions the average must be taken
@@ -396,28 +358,19 @@ def plot_haplotype_dissimilarity(
                 for v in haplodist(phase_vectors[i], phase_vectors[j], intervals)
             ]
             plt.hlines(y=y_offset, xmin=min_pos, xmax=max_pos, color="black", lw=1)
-            plt.hlines(
-                y=y_offset + 104, xmin=min_pos, xmax=max_pos, color="black", lw=1
-            )
+            plt.hlines(y=y_offset + 104, xmin=min_pos, xmax=max_pos, color="black", lw=1)
             for k in range(ceil(num_vars / chunk)):
                 start = k * chunk
                 end = min(num_vars, (k + 1) * chunk + 1)
                 if genome_space:
-                    plt.plot(
-                        rev_index[start:end], dist[start:end], lw=1, color=colors[k % 2]
-                    )
+                    plt.plot(rev_index[start:end], dist[start:end], lw=1, color=colors[k % 2])
                 else:
                     plt.plot(
-                        list(range(start, end)),
-                        dist[start:end],
-                        lw=1,
-                        color=colors[k % 2],
+                        list(range(start, end)), dist[start:end], lw=1, color=colors[k % 2],
                     )
 
     except ImportError:
-        logger.error(
-            "Plotting haplotype dissimilarities requires matplotlib to be installed"
-        )
+        logger.error("Plotting haplotype dissimilarities requires matplotlib to be installed")
 
 
 def haplodist(h1, h2, intervals):
@@ -441,15 +394,7 @@ def relative_hamming_dist(seq1, seq2):
 
 
 def draw_threading(
-    readset,
-    clustering,
-    coverage,
-    paths,
-    cut_positions,
-    haplotypes,
-    var_table,
-    genotypes,
-    path,
+    readset, clustering, coverage, paths, cut_positions, haplotypes, var_table, genotypes, path,
 ):
     try:
         import matplotlib
@@ -489,11 +434,7 @@ def draw_threading(
         cut_pos = cut_positions + [num_vars]
         for pos in cut_pos:
             plt.vlines(
-                x=pos,
-                ymin=0,
-                ymax=num_c * (c_height + y_margin),
-                color="lightgray",
-                alpha=0.3,
+                x=pos, ymin=0, ymax=num_c * (c_height + y_margin), color="lightgray", alpha=0.3,
             )
 
         # Plot cluster coverage
@@ -511,9 +452,7 @@ def draw_threading(
                 else y_offset
                 for pos in range(min_pos, max_pos + 1)
             ]
-            plt.fill_between(
-                x=xs[min_pos : max_pos + 1], y1=ys, y2=y_offset, color="gray"
-            )
+            plt.fill_between(x=xs[min_pos : max_pos + 1], y1=ys, y2=y_offset, color="gray")
             plt.hlines(
                 y=y_offset + c_height + y_margin / 2,
                 xmin=0,
@@ -533,8 +472,7 @@ def draw_threading(
             for pos in range(1, len(paths)):
                 if paths[pos][p] != current:
                     plt.hlines(
-                        y=(c_map[current] + 0.25 + p / ploidy * 0.5)
-                        * (c_height + y_margin),
+                        y=(c_map[current] + 0.25 + p / ploidy * 0.5) * (c_height + y_margin),
                         xmin=x_scale * start,
                         xmax=x_scale * pos,
                         color="C" + str(p),
@@ -568,12 +506,8 @@ def draw_threading(
 
         if compare:
             for i in range(len(cut_pos) - 1):
-                block1 = [
-                    h[cut_pos[i] : min(len(paths), cut_pos[i + 1])] for h in truth
-                ]
-                block2 = [
-                    h[cut_pos[i] : min(len(paths), cut_pos[i + 1])] for h in haplotypes
-                ]
+                block1 = [h[cut_pos[i] : min(len(paths), cut_pos[i + 1])] for h in truth]
+                block2 = [h[cut_pos[i] : min(len(paths), cut_pos[i + 1])] for h in haplotypes]
 
                 (
                     switchflips,

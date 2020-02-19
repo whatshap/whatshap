@@ -58,9 +58,7 @@ __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel M
 logger = logging.getLogger(__name__)
 
 
-def find_components(
-    phased_positions, reads, master_block=None, heterozygous_positions=None
-):
+def find_components(phased_positions, reads, master_block=None, heterozygous_positions=None):
     """
     Return a dict that maps each variant position to the component it is in.
     Variants are considered to be in the same component if a read exists that
@@ -82,9 +80,7 @@ def find_components(
     for read in reads:
         if heterozygous_positions is None:
             positions = [
-                variant.position
-                for variant in read
-                if variant.position in phased_positions
+                variant.position for variant in read if variant.position in phased_positions
             ]
         else:
             positions = [
@@ -98,9 +94,7 @@ def find_components(
     if master_block is not None:
         for position in master_block[1:]:
             component_finder.merge(master_block[0], position)
-    components = {
-        position: component_finder.find(position) for position in phased_positions
-    }
+    components = {position: component_finder.find(position) for position in phased_positions}
     return components
 
 
@@ -141,9 +135,7 @@ def best_case_blocks(reads):
     component_sizes = defaultdict(int)
     for position in positions:
         component_sizes[component_finder.find(position)] += 1
-    non_singletons = [
-        component for component, size in component_sizes.items() if size > 1
-    ]
+    non_singletons = [component for component, size in component_sizes.items() if size > 1]
     return len(component_sizes), len(non_singletons)
 
 
@@ -182,9 +174,7 @@ def read_reads(
             alternative = chromosome[3:]
         else:
             alternative = "chr" + chromosome
-        message = "The chromosome {!r} was not found in the BAM/CRAM file.".format(
-            chromosome
-        )
+        message = "The chromosome {!r} was not found in the BAM/CRAM file.".format(chromosome)
         if readset_reader.has_reference(alternative):
             message += " Found {!r} instead".format(alternative)
         raise CommandLineError(message)
@@ -205,9 +195,7 @@ def read_reads(
     readset.sort()
 
     logger.info(
-        "Found %d reads covering %d variants",
-        len(readset),
-        len(readset.get_positions()),
+        "Found %d reads covering %d variants", len(readset), len(readset.get_positions()),
     )
     return readset, vcf_source_ids
 
@@ -396,8 +384,7 @@ def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold):
             # and remove the minimum (u,v)-cut
             w, x = min(
                 zip(path[:-1], path[1:]),
-                key=lambda p: gblue[p[0]][p[1]]["match"]
-                - gblue[p[0]][p[1]]["mismatch"],
+                key=lambda p: gblue[p[0]][p[1]]["match"] - gblue[p[0]][p[1]]["mismatch"],
             )
             gblue.remove_edge(w, x)
 
@@ -447,9 +434,7 @@ def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold):
 
     logger.debug("Finished merging reads.")
     logger.info(
-        "... after merging: merged %d reads into %d reads",
-        len(readset),
-        len(merged_reads),
+        "... after merging: merged %d reads into %d reads", len(readset), len(merged_reads),
     )
 
     return merged_reads
@@ -457,8 +442,7 @@ def merge_reads(readset, error_rate, max_error_rate, threshold, neg_threshold):
 
 def select_reads(readset, max_coverage, preferred_source_ids):
     logger.info(
-        "Reducing coverage to at most %dX by selecting most informative reads ...",
-        max_coverage,
+        "Reducing coverage to at most %dX by selecting most informative reads ...", max_coverage,
     )
     selected_indices = readselection(readset, max_coverage, preferred_source_ids)
     selected_reads = readset.subset(selected_indices)
@@ -511,9 +495,7 @@ class ReadList:
         numeric_sample_ids -- core.NumericSampleIds object mapping sample names to numeric ids as stored in each read
         """
         if self._file is None:
-            raise ValueError(
-                "Needs to be used as context manager (e.g. in a with statement"
-            )
+            raise ValueError("Needs to be used as context manager (e.g. in a with statement")
         assert len(readset) == len(bipartition)
         numeric_id_to_name = numeric_sample_ids.inverse_mapping()
         for read, haplotype in zip(readset, bipartition):
@@ -546,9 +528,7 @@ def split_input_file_list(input_files):
         elif file_format == "VCF":
             vcfs.append(filename)
         else:
-            raise CommandLineError(
-                "Unable to determine type of input file {!r}".format(filename)
-            )
+            raise CommandLineError("Unable to determine type of input file {!r}".format(filename))
     return bams, vcfs
 
 
@@ -666,9 +646,7 @@ def run_whatshap(
     """
     timers = StageTimer()
     logger.info(
-        "This is WhatsHap %s running under Python %s",
-        __version__,
-        platform.python_version(),
+        "This is WhatsHap %s running under Python %s", __version__, platform.python_version(),
     )
     if full_genotyping:
         distrust_genotypes = True
@@ -698,10 +676,7 @@ def run_whatshap(
             ]
             vcf_writer = stack.enter_context(
                 PhasedVcfWriter(
-                    command_line=command_line,
-                    in_path=variant_file,
-                    out_file=output,
-                    tag=tag,
+                    command_line=command_line, in_path=variant_file, out_file=output, tag=tag,
                 )
             )
         except OSError as e:
@@ -709,9 +684,7 @@ def run_whatshap(
         fasta = stack.enter_context(open_reference(reference)) if reference else None
         del reference
         # Only read genotype likelihoods from VCFs when distrusting genotypes
-        vcf_reader = VcfReader(
-            variant_file, indels=indels, genotype_likelihoods=distrust_genotypes
-        )
+        vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=distrust_genotypes)
 
         if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
             raise CommandLineError(
@@ -729,9 +702,7 @@ def run_whatshap(
         for sample in samples:
             if sample not in vcf_sample_set:
                 raise CommandLineError(
-                    "Sample {!r} requested on command-line not found in VCF".format(
-                        sample
-                    )
+                    "Sample {!r} requested on command-line not found in VCF".format(sample)
                 )
 
         samples = frozenset(samples)
@@ -743,16 +714,11 @@ def run_whatshap(
 
         if ped:
             if algorithm == "hapchat":
-                raise CommandLineError(
-                    "The hapchat algorithm cannot do pedigree phasing"
-                )
-            all_trios, pedigree_samples = setup_pedigree(
-                ped, numeric_sample_ids, samples
-            )
+                raise CommandLineError("The hapchat algorithm cannot do pedigree phasing")
+            all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, samples)
             if genmap:
                 logger.info(
-                    "Using region-specific recombination rates from genetic map %s.",
-                    genmap,
+                    "Using region-specific recombination rates from genetic map %s.", genmap,
                 )
             else:
                 logger.info("Using uniform recombination rate of %g cM/Mb.", recombrate)
@@ -768,9 +734,7 @@ def run_whatshap(
         family_trios = defaultdict(list)
         for trio in all_trios:
             family_trios[family_finder.find(trio.child)].append(trio)
-        largest_trio_count = max(
-            [0] + [len(trio_list) for trio_list in family_trios.values()]
-        )
+        largest_trio_count = max([0] + [len(trio_list) for trio_list in family_trios.values()])
         logger.info(
             "Working on %d%s samples from %d famil%s",
             len(samples),
@@ -824,13 +788,10 @@ def run_whatshap(
                             phase_input_bam_filenames,
                         )
                         readset.sort()
-                        genotypes, genotype_likelihoods = compute_genotypes(
-                            readset, positions
-                        )
+                        genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
                         variant_table.set_genotypes_of(sample, genotypes)
                         variant_table.set_genotype_likelihoods_of(
-                            sample,
-                            [GenotypeLikelihoods(gl) for gl in genotype_likelihoods],
+                            sample, [GenotypeLikelihoods(gl) for gl in genotype_likelihoods],
                         )
 
             # These two variables hold the phasing results for all samples
@@ -843,13 +804,9 @@ def run_whatshap(
                 if len(family) == 1:
                     logger.info("---- Processing individual %s", representative_sample)
                 else:
-                    logger.info(
-                        "---- Processing family with individuals: %s", ",".join(family)
-                    )
+                    logger.info("---- Processing family with individuals: %s", ",".join(family))
                 max_coverage_per_sample = max(1, max_coverage // len(family))
-                logger.info(
-                    "Using maximum coverage per sample of %dX", max_coverage_per_sample
-                )
+                logger.info("Using maximum coverage per sample of %dX", max_coverage_per_sample)
                 trios = family_trios[representative_sample]
 
                 assert len(family) == 1 or len(trios) > 0
@@ -883,9 +840,7 @@ def run_whatshap(
                     to_retain = set(range(len(variant_table)))
                 else:
                     to_retain = heterozygous
-                to_retain = to_retain.difference(missing_genotypes).difference(
-                    mendelian_conflicts
-                )
+                to_retain = to_retain.difference(missing_genotypes).difference(mendelian_conflicts)
                 # discard every variant that is not to be retained
                 to_discard = set(range(len(variant_table))).difference(to_retain)
 
@@ -893,8 +848,7 @@ def run_whatshap(
                 # These are used later to merge blocks containing these variants into one block (since
                 # the are connected by "genetic haplotyping").
                 homozygous_positions = [
-                    variant_table.variants[i].position
-                    for i in to_retain.intersection(homozygous)
+                    variant_table.variants[i].position for i in to_retain.intersection(homozygous)
                 ]
 
                 phasable_variant_table = deepcopy(variant_table)
@@ -946,8 +900,7 @@ def run_whatshap(
                             [i for i, read in enumerate(readset) if len(read) >= 2]
                         )
                         logger.info(
-                            "Kept %d reads that cover at least two variants each",
-                            len(readset),
+                            "Kept %d reads that cover at least two variants each", len(readset),
                         )
                         merged_reads = readset
                         if read_merging:
@@ -970,10 +923,9 @@ def run_whatshap(
                         # pedigree information and hence these statistics are not so useful.
                         # When distrust_genotypes is ON, then the genotypes can change during phasing and so can the block
                         # structure. Therefore, we also don't print these stats in this case.
-                        (
-                            n_best_case_blocks,
-                            n_best_case_nonsingleton_blocks,
-                        ) = best_case_blocks(readset)
+                        (n_best_case_blocks, n_best_case_nonsingleton_blocks,) = best_case_blocks(
+                            readset
+                        )
                         (
                             n_best_case_blocks_cov,
                             n_best_case_nonsingleton_blocks_cov,
@@ -1079,17 +1031,13 @@ def run_whatshap(
                                     hets.add(v1.position)
                                 elif gt in homozygous_gts:
                                     hom_in_any_sample.add(v1.position)
-                            heterozygous_positions_by_sample[
-                                numeric_sample_ids[sample]
-                            ] = hets
+                            heterozygous_positions_by_sample[numeric_sample_ids[sample]] = hets
                         if len(family) > 1 and genetic_haplotyping:
                             master_block = sorted(hom_in_any_sample)
                     else:
                         if len(family) > 1 and genetic_haplotyping:
                             master_block = sorted(
-                                set(homozygous_positions).intersection(
-                                    set(accessible_positions)
-                                )
+                                set(homozygous_positions).intersection(set(accessible_positions))
                             )
                     overall_components = find_components(
                         accessible_positions,
@@ -1120,8 +1068,7 @@ def run_whatshap(
                         trios,
                     )
                     logger.info(
-                        "Total no. of detected recombination events: %d",
-                        n_recombinations,
+                        "Total no. of detected recombination events: %d", n_recombinations,
                     )
 
                 # Superreads in superreads_list are in the same order as individuals were added to the pedigree
@@ -1156,14 +1103,10 @@ def run_whatshap(
                 logger.info("Done writing VCF")
                 if changed_genotypes:
                     assert distrust_genotypes
-                    logger.info(
-                        "Changed %d genotypes while writing VCF", len(changed_genotypes)
-                    )
+                    logger.info("Changed %d genotypes while writing VCF", len(changed_genotypes))
 
             if gtchange_list_filename:
-                logger.info(
-                    "Writing list of changed genotypes to %r", gtchange_list_filename
-                )
+                logger.info("Writing list of changed genotypes to %r", gtchange_list_filename)
                 write_changed_genotypes(gtchange_list_filename, changed_genotypes)
 
             logger.debug("Chromosome %r finished", chromosome)
@@ -1244,9 +1187,7 @@ def create_pedigree(
             sample, phasable_variant_table.genotypes_of(sample), genotype_likelihoods
         )
     for trio in trios:
-        pedigree.add_relationship(
-            father_id=trio.father, mother_id=trio.mother, child_id=trio.child
-        )
+        pedigree.add_relationship(father_id=trio.father, mother_id=trio.mother, child_id=trio.child)
     return pedigree
 
 
@@ -1260,11 +1201,7 @@ def find_mendelian_conflicts(trios, variant_table):
         for index, (gt_mother, gt_father, gt_child) in enumerate(
             zip(genotypes_mother, genotypes_father, genotypes_child)
         ):
-            if (
-                (not gt_mother.is_none())
-                and (not gt_father.is_none())
-                and (not gt_child.is_none())
-            ):
+            if (not gt_mother.is_none()) and (not gt_father.is_none()) and (not gt_child.is_none()):
                 if mendelian_conflict(gt_mother, gt_father, gt_child):
                     mendelian_conflicts.add(index)
     return mendelian_conflicts
@@ -1273,15 +1210,7 @@ def find_mendelian_conflicts(trios, variant_table):
 def write_changed_genotypes(gtchange_list_filename, changed_genotypes):
     with open(gtchange_list_filename, "w") as f:
         print(
-            "#sample",
-            "chromosome",
-            "position",
-            "REF",
-            "ALT",
-            "old_gt",
-            "new_gt",
-            sep="\t",
-            file=f,
+            "#sample", "chromosome", "position", "REF", "ALT", "old_gt", "new_gt", sep="\t", file=f,
         )
         for changed_genotype in changed_genotypes:
             print(
@@ -1481,13 +1410,9 @@ def validate(args, parser):
             "Option --genmap can only be used when working on exactly one chromosome (use --chromosome)"
         )
     if args.include_homozygous and not args.distrust_genotypes:
-        parser.error(
-            "Option --include-homozygous can only be used with --distrust-genotypes."
-        )
+        parser.error("Option --include-homozygous can only be used with --distrust-genotypes.")
     if args.use_ped_samples and not args.ped:
-        parser.error(
-            "Option --use-ped-samples can only be used when PED file is provided (--ped)."
-        )
+        parser.error("Option --use-ped-samples can only be used when PED file is provided (--ped).")
     if args.use_ped_samples and args.samples:
         parser.error("Option --use-ped-samples cannot be used together with --samples")
     if len(args.phase_input_files) == 0 and not args.ped:

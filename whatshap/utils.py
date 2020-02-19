@@ -34,9 +34,7 @@ def detect_file_format(path):
 
 def IndexedFasta(path):
     try:
-        f = pyfaidx.Fasta(
-            path, as_raw=True, sequence_always_upper=True, build_index=False
-        )
+        f = pyfaidx.Fasta(path, as_raw=True, sequence_always_upper=True, build_index=False)
     except pyfaidx.IndexNotFoundError:
         raise FastaNotIndexedError(path)
     return f

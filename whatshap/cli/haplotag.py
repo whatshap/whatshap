@@ -72,9 +72,7 @@ def md5_of(filename):
 def read_reads(readset_reader, chromosome, variants, sample, fasta, regions):
     """Return a sorted ReadSet"""
     logger.info(
-        "Detecting alleles in reads mapped to chromosome %s for sample %r ...",
-        chromosome,
-        sample,
+        "Detecting alleles in reads mapped to chromosome %s for sample %r ...", chromosome, sample,
     )
     reference = fasta[chromosome] if fasta else None
     try:
@@ -138,10 +136,7 @@ def attempt_add_phase_information(
         if alignment.has_tag("BX"):
             read_clouds = bxtag_to_haplotype[alignment.get_tag("BX")]
             for (reference_start, haplotype, phaseset) in read_clouds:
-                if (
-                    abs(reference_start - alignment.reference_start)
-                    <= linked_read_cutoff
-                ):
+                if abs(reference_start - alignment.reference_start) <= linked_read_cutoff:
                     haplotype_name = "H{}".format(haplotype + 1)
                     alignment.set_tag("HP", haplotype + 1)
                     alignment.set_tag("PS", phaseset)
@@ -161,9 +156,7 @@ def load_chromosome_variants(vcf_reader, chromosome, regions):
         logger.debug("Loading variants from {} distinct region(s)".format(len(regions)))
         variant_table = vcf_reader._fetch_subsets(chromosome, regions)
         logger.debug(
-            "Loaded {} variants for chromosome {} in VCF".format(
-                len(variant_table), chromosome
-            )
+            "Loaded {} variants for chromosome {} in VCF".format(len(variant_table), chromosome)
         )
     except OSError as err:
         # not entirely clear to me why this could raise
@@ -171,9 +164,7 @@ def load_chromosome_variants(vcf_reader, chromosome, regions):
         logger.error(str(err))
         raise err
     except ValueError:
-        logger.debug(
-            "No variants found for chromosome {} in the input VCF.".format(chromosome)
-        )
+        logger.debug("No variants found for chromosome {} in the input VCF.".format(chromosome))
         variant_table = None
     return variant_table
 
@@ -208,17 +199,10 @@ def prepare_haplotag_information(
     read_to_haplotype = {}
 
     for sample in shared_samples:
-        variantpos_to_phaseinfo, variants = get_variant_information(
-            variant_table, sample
-        )
+        variantpos_to_phaseinfo, variants = get_variant_information(variant_table, sample)
         bam_sample = None if ignore_read_groups else sample
         read_set = read_reads(
-            readset_reader,
-            variant_table.chromosome,
-            variants,
-            bam_sample,
-            fasta,
-            regions,
+            readset_reader, variant_table.chromosome, variants, bam_sample, fasta, regions,
         )
 
         # map tag --> set of reads
@@ -243,10 +227,7 @@ def prepare_haplotag_information(
                 for r in BX_tag_to_readlist[read.BX_tag]:
                     if r.name not in processed_reads:
                         # only select reads close to current one
-                        if (
-                            abs(read.reference_start - r.reference_start)
-                            <= linked_read_cutoff
-                        ):
+                        if abs(read.reference_start - r.reference_start) <= linked_read_cutoff:
                             reads_to_consider.add(r)
             for r in reads_to_consider:
                 processed_reads.add(r.name)
@@ -270,9 +251,7 @@ def prepare_haplotag_information(
             if quality == 0:
                 continue
             haplotype = 0 if quality > 0 else 1
-            BX_tag_to_haplotype[read.BX_tag].append(
-                (read.reference_start, haplotype, phaseset)
-            )
+            BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, haplotype, phaseset))
             for r in reads_to_consider:
                 read_to_haplotype[r.name] = (haplotype, abs(quality), phaseset)
                 logger.debug(
@@ -324,13 +303,9 @@ def normalize_user_regions(user_regions, bam_references):
                 chrom, start, end = parts[0], int(parts[1]), int(parts[2])
             else:
                 raise ValueError(
-                    "Malformed region specified (must be: chrom[:start][:end]) -> {}".format(
-                        region
-                    )
+                    "Malformed region specified (must be: chrom[:start][:end]) -> {}".format(region)
                 )
-            logger.debug(
-                "Normalized region {} to {}-{}-{}".format(region, chrom, start, end)
-            )
+            logger.debug("Normalized region {} to {}-{}-{}".format(region, chrom, start, end))
             if chrom not in bam_references:
                 raise ValueError(
                     "Specified chromosome/reference is not contained "
@@ -353,9 +328,7 @@ def prepare_variant_file(file_path, user_given_samples, ignore_read_groups, exit
     :return: VCF reader object and set of VCF samples to use
     """
     try:
-        vcf_reader = exit_stack.enter_context(
-            VcfReader(file_path, indels=True, phases=True)
-        )
+        vcf_reader = exit_stack.enter_context(VcfReader(file_path, indels=True, phases=True))
     except (IOError, OSError) as err:
         logger.error("Error while loading variant file {}: {}".format(file_path, err))
         raise err
@@ -363,14 +336,11 @@ def prepare_variant_file(file_path, user_given_samples, ignore_read_groups, exit
     samples_in_vcf = set(vcf_reader.samples)
     if len(samples_in_vcf) < 1:
         raise VcfError(
-            "No samples detected in VCF file {} "
-            "- cannot perform haplo-tagging".format(file_path)
+            "No samples detected in VCF file {} " "- cannot perform haplo-tagging".format(file_path)
         )
     logger.info("Found {} samples in input VCF".format(len(samples_in_vcf)))
     logger.debug(
-        "Found the following samples in input VCF: {}".format(
-            " - ".join(sorted(samples_in_vcf))
-        )
+        "Found the following samples in input VCF: {}".format(" - ".join(sorted(samples_in_vcf)))
     )
 
     if ignore_read_groups and user_given_samples is None and len(samples_in_vcf) > 1:
@@ -380,9 +350,7 @@ def prepare_variant_file(file_path, user_given_samples, ignore_read_groups, exit
             'be specified via the "--sample" parameter.'
         )
 
-    given_samples = (
-        user_given_samples if user_given_samples is not None else samples_in_vcf
-    )
+    given_samples = user_given_samples if user_given_samples is not None else samples_in_vcf
     missing_samples = set(given_samples) - samples_in_vcf
     if len(missing_samples) > 0:
         raise VcfError(
@@ -421,9 +389,7 @@ def prepare_alignment_file(file_path, ignore_read_groups, vcf_samples, exit_stac
 
     logger.info("Found {} samples in BAM file".format(len(bam_samples)))
     logger.debug(
-        "Found the following samples in BAM file: {}".format(
-            ",".join(sorted(bam_samples))
-        )
+        "Found the following samples in BAM file: {}".format(",".join(sorted(bam_samples)))
     )
 
     if not ignore_read_groups:
@@ -449,9 +415,7 @@ def prepare_alignment_file(file_path, ignore_read_groups, vcf_samples, exit_stac
     return bam_reader, shared_samples
 
 
-def prepare_output_files(
-    aln_output, reference, haplotag_output, vcf_md5, bam_header, exit_stack
-):
+def prepare_output_files(aln_output, reference, haplotag_output, vcf_md5, bam_header, exit_stack):
     """
     :param aln_output:
     :param reference:
@@ -495,18 +459,14 @@ def prepare_output_files(
         )
     except (IOError, OSError) as err:
         logger.error(
-            "Error while initializing alignment output file at path: {}\n{}".format(
-                aln_output, err
-            )
+            "Error while initializing alignment output file at path: {}\n{}".format(aln_output, err)
         )
         raise err
 
     if haplotag_output is not None:
         try:
             if haplotag_output.endswith(".gz"):  # FIXME hard-coded value
-                haplotag_writer = exit_stack.enter_context(
-                    gzip.open(haplotag_output, "wt")
-                )
+                haplotag_writer = exit_stack.enter_context(gzip.open(haplotag_output, "wt"))
             else:
                 haplotag_writer = exit_stack.enter_context(open(haplotag_output, "w"))
         except (IOError, OSError) as err:
@@ -614,9 +574,7 @@ def run_haplotag(
 
         timers.stop("haplotag-init")
         logger.debug(
-            "All input/output files initialized (time: {})".format(
-                timers.elapsed("haplotag-init")
-            )
+            "All input/output files initialized (time: {})".format(timers.elapsed("haplotag-init"))
         )
         timers.start("haplotag-process")
 
@@ -630,11 +588,7 @@ def run_haplotag(
             if variant_table is not None:
                 logger.debug("Preparing haplotype information")
 
-                (
-                    BX_tag_to_haplotype,
-                    read_to_haplotype,
-                    n_mult,
-                ) = prepare_haplotag_information(
+                (BX_tag_to_haplotype, read_to_haplotype, n_mult,) = prepare_haplotag_information(
                     variant_table,
                     shared_samples,
                     readset_reader,
@@ -660,20 +614,14 @@ def run_haplotag(
                     alignment.set_tag("HP", value=None)
                     alignment.set_tag("PC", value=None)
                     alignment.set_tag("PS", value=None)
-                    if variant_table is None or ignore_read(
-                        alignment, tag_supplementary
-                    ):
+                    if variant_table is None or ignore_read(alignment, tag_supplementary):
                         # - If no variants in VCF for this chromosome,
                         # alignments just get written to output
                         # - Ignored reads are simply
                         # written to the output BAM
                         pass
                     else:
-                        (
-                            is_tagged,
-                            haplotype_name,
-                            phaseset,
-                        ) = attempt_add_phase_information(
+                        (is_tagged, haplotype_name, phaseset,) = attempt_add_phase_information(
                             alignment,
                             read_to_haplotype,
                             BX_tag_to_haplotype,
@@ -690,13 +638,9 @@ def run_haplotag(
                         )
 
                     if n_alignments % 100000 == 0:
-                        logger.debug(
-                            "Processed {} alignment records.".format(n_alignments)
-                        )
+                        logger.debug("Processed {} alignment records.".format(n_alignments))
         timers.stop("haplotag-process")
-        logger.debug(
-            "Processing complete (time: {})".format(timers.elapsed("haplotag-process"))
-        )
+        logger.debug("Processing complete (time: {})".format(timers.elapsed("haplotag-process")))
 
     timers.stop("haplotag-run")
 
@@ -704,9 +648,7 @@ def run_haplotag(
     logger.info("Total alignments processed:              %12d", n_alignments)
     logger.info("Alignments that could be tagged:         %12d", n_tagged)
     logger.info("Alignments spanning multiple phase sets: %12d", n_multiple_phase_sets)
-    logger.info(
-        "haplotag - total processing time: {}".format(timers.elapsed("haplotag-run"))
-    )
+    logger.info("haplotag - total processing time: {}".format(timers.elapsed("haplotag-run")))
 
 
 def main(args):

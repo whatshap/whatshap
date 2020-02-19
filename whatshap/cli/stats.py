@@ -134,15 +134,12 @@ def compute_n50(blocks, chr_lengths):
             target_length += chr_lengths[chromosome]
         except KeyError:
             logger.warning(
-                "Not able to compute N50 because chromosome length of %s not available",
-                chromosome,
+                "Not able to compute N50 because chromosome length of %s not available", chromosome,
             )
             return float("nan")
 
     # Cut interleaved blocks to avoid inflating N50 in this case
-    pos_sorted = sorted(
-        blocks, key=lambda b: (b.chromosome, b.leftmost_variant.position)
-    )
+    pos_sorted = sorted(blocks, key=lambda b: (b.chromosome, b.leftmost_variant.position))
     block_lengths = []
     for i, block in enumerate(pos_sorted):
         if len(block) < 2:
@@ -260,23 +257,16 @@ class PhasingStats:
         print("Variants in VCF:".rjust(WIDTH), "{:8d}".format(stats.variants))
         print(
             "Heterozygous:".rjust(WIDTH),
-            "{:8d} ({:8d} SNVs)".format(
-                stats.heterozygous_variants, stats.heterozygous_snvs
-            ),
+            "{:8d} ({:8d} SNVs)".format(stats.heterozygous_variants, stats.heterozygous_snvs),
         )
         print(
-            "Phased:".rjust(WIDTH),
-            "{:8d} ({:8d} SNVs)".format(stats.phased, stats.phased_snvs),
+            "Phased:".rjust(WIDTH), "{:8d} ({:8d} SNVs)".format(stats.phased, stats.phased_snvs),
         )
         print(
-            "Unphased:".rjust(WIDTH),
-            "{:8d}".format(stats.unphased),
-            "(not considered below)",
+            "Unphased:".rjust(WIDTH), "{:8d}".format(stats.unphased), "(not considered below)",
         )
         print(
-            "Singletons:".rjust(WIDTH),
-            "{:8d}".format(stats.singletons),
-            "(not considered below)",
+            "Singletons:".rjust(WIDTH), "{:8d}".format(stats.singletons), "(not considered below)",
         )
         print("Blocks:".rjust(WIDTH), "{:8d}".format(stats.blocks))
         print()
@@ -290,37 +280,24 @@ class PhasingStats:
             "{:11.2f} variants".format(stats.variant_per_block_avg),
         )
         print(
-            "Largest block:".rjust(WIDTH),
-            "{:8d}    variants".format(stats.variant_per_block_max),
+            "Largest block:".rjust(WIDTH), "{:8d}    variants".format(stats.variant_per_block_max),
         )
         print(
-            "Smallest block:".rjust(WIDTH),
-            "{:8d}    variants".format(stats.variant_per_block_min),
+            "Smallest block:".rjust(WIDTH), "{:8d}    variants".format(stats.variant_per_block_min),
         )
         print()
         print("Block lengths (basepairs)")
+        print("Sum of lengths:".rjust(WIDTH), "{:8d}    bp".format(stats.bp_per_block_sum))
         print(
-            "Sum of lengths:".rjust(WIDTH), "{:8d}    bp".format(stats.bp_per_block_sum)
+            "Median block length:".rjust(WIDTH), "{:11.2f} bp".format(stats.bp_per_block_median),
         )
         print(
-            "Median block length:".rjust(WIDTH),
-            "{:11.2f} bp".format(stats.bp_per_block_median),
+            "Average block length:".rjust(WIDTH), "{:11.2f} bp".format(stats.bp_per_block_avg),
         )
-        print(
-            "Average block length:".rjust(WIDTH),
-            "{:11.2f} bp".format(stats.bp_per_block_avg),
-        )
-        print(
-            "Longest block:".rjust(WIDTH), "{:8d}    bp".format(stats.bp_per_block_max)
-        )
-        print(
-            "Shortest block:".rjust(WIDTH), "{:8d}    bp".format(stats.bp_per_block_min)
-        )
+        print("Longest block:".rjust(WIDTH), "{:8d}    bp".format(stats.bp_per_block_max))
+        print("Shortest block:".rjust(WIDTH), "{:8d}    bp".format(stats.bp_per_block_min))
         print("Block N50:".rjust(WIDTH), "{:8.0f}    bp".format(stats.block_n50))
-        assert (
-            stats.phased + stats.unphased + stats.singletons
-            == stats.heterozygous_variants
-        )
+        assert stats.phased + stats.unphased + stats.singletons == stats.heterozygous_variants
 
 
 def parse_chr_lengths(filename):
@@ -355,9 +332,7 @@ def run_stats(
         ##
         if chr_lengths:
             chr_lengths = parse_chr_lengths(chr_lengths)
-            logger.info(
-                "Read length of %d chromosomes from %s", len(chr_lengths), chr_lengths
-            )
+            logger.info("Read length of %d chromosomes from %s", len(chr_lengths), chr_lengths)
         else:
             chr_lengths = None
 
@@ -366,9 +341,7 @@ def run_stats(
             logger.error("Input VCF does not contain any sample")
             return 1
         else:
-            logger.info(
-                "Found {} sample(s) in input VCF".format(len(vcf_reader.samples))
-            )
+            logger.info("Found {} sample(s) in input VCF".format(len(vcf_reader.samples)))
         if sample:
             if sample in vcf_reader.samples:
                 sample = sample
@@ -420,9 +393,7 @@ def run_stats(
             prev_block_id = None
             prev_block_fragment_start = None
             prev_block_fragment_end = None
-            for variant, genotype, phase in zip(
-                variant_table.variants, genotypes, phases
-            ):
+            for variant, genotype, phase in zip(variant_table.variants, genotypes, phases):
                 stats.add_variants(1)
                 if genotype.is_homozygous():
                     continue
@@ -458,10 +429,7 @@ def run_stats(
 
             if gtfwriter and prev_block_id is not None:
                 gtfwriter.write(
-                    chromosome,
-                    prev_block_fragment_start,
-                    prev_block_fragment_end,
-                    prev_block_id,
+                    chromosome, prev_block_fragment_start, prev_block_fragment_end, prev_block_id,
                 )
 
             if block_list_file:

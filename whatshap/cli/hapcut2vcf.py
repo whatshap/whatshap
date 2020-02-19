@@ -38,8 +38,7 @@ def add_arguments(parser):
 
 
 HapCutVariant = namedtuple(
-    "HapCutVariant",
-    ["chromosome", "position", "haplotype1", "haplotype2", "component_id"],
+    "HapCutVariant", ["chromosome", "position", "haplotype1", "haplotype2", "component_id"],
 )
 
 
@@ -90,9 +89,7 @@ class HapCutParser:
             if state == "BLOCK":
                 state = "VARIANT"
                 if not line.startswith("BLOCK:"):
-                    raise ParseError(
-                        'Expected a new block (line starting with "BLOCK:")'
-                    )
+                    raise ParseError('Expected a new block (line starting with "BLOCK:")')
                 m = self.block_re.match(line)
                 if not m:
                     raise ParseError("BLOCK line malformed")
@@ -130,9 +127,7 @@ class HapCutParser:
                                 raise ParseError('Expected "FV" after last colon')
                             fields = fields[:-1]
                         if not len(fields) == 4:
-                            raise ParseError(
-                                "Too few elements in last (colon-separated) field"
-                            )
+                            raise ParseError("Too few elements in last (colon-separated) field")
                         # allele_counts, genotype_likelihoods, delta, mec_variant = fields
                         # allele_counts = [ int(s) for s in allele_counts.split(',') ]
                         # genotype_likelihoods = [ float(s) for s in genotype_likelihoods.split(',') ]
@@ -157,9 +152,7 @@ class HapCutParser:
             yield block
 
     def _by_chromosome(self):
-        for chromosome, block in itertools.groupby(
-            self.parse_blocks(), lambda b: b[0].chromosome
-        ):
+        for chromosome, block in itertools.groupby(self.parse_blocks(), lambda b: b[0].chromosome):
             yield chromosome, list(block)
 
 
@@ -180,9 +173,7 @@ def run_hapcut2vcf(hapcut, vcf, output=sys.stdout):
         f = stack.enter_context(open(hapcut))
         parser = HapCutParser(f)
         for chromosome, blocks in parser:
-            logger.info(
-                "Read %d phased blocks for chromosome %s", len(blocks), chromosome
-            )
+            logger.info("Read %d phased blocks for chromosome %s", len(blocks), chromosome)
 
             # Build one read for each haplotype and the connected components
             haplotypes = [Read(str(i)) for i in (1, 2)]

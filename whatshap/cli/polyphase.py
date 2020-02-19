@@ -187,9 +187,7 @@ def run_polyphase(
         del reference
         output_str = output
         if write_command_line_header:
-            command_line = "(whatshap {}) {}".format(
-                __version__, " ".join(sys.argv[1:])
-            )
+            command_line = "(whatshap {}) {}".format(__version__, " ".join(sys.argv[1:]))
         else:
             command_line = None
         try:
@@ -207,11 +205,7 @@ def run_polyphase(
             sys.exit(1)
 
         vcf_reader = VcfReader(
-            variant_file,
-            indels=indels,
-            phases=True,
-            genotype_likelihoods=False,
-            ploidy=ploidy,
+            variant_file, indels=indels, phases=True, genotype_likelihoods=False, ploidy=ploidy,
         )
 
         if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
@@ -226,9 +220,7 @@ def run_polyphase(
         vcf_sample_set = set(vcf_reader.samples)
         for sample in samples:
             if sample not in vcf_sample_set:
-                logger.error(
-                    "Sample %r requested on command-line not found in VCF", sample
-                )
+                logger.error("Sample %r requested on command-line not found in VCF", sample)
                 sys.exit(1)
 
         if block_cut_sensitivity < 0:
@@ -330,14 +322,10 @@ def run_polyphase(
                     # Verify genotypes
                     if verify_genotypes:
                         logger.info("Verify genotyping of %s", sample)
-                        positions = [
-                            v.position for v in phasable_variant_table.variants
-                        ]
+                        positions = [v.position for v in phasable_variant_table.variants]
                         computed_genotypes = [
                             Genotype(gt)
-                            for gt in compute_polyploid_genotypes(
-                                readset, ploidy, positions
-                            )
+                            for gt in compute_polyploid_genotypes(readset, ploidy, positions)
                         ]
                         # skip all positions at which genotypes do not match
                         given_genotypes = phasable_variant_table.genotypes_of(sample)
@@ -353,9 +341,7 @@ def run_polyphase(
                             else:
                                 matching_genotypes.append(Genotype([]))
                                 missing_genotypes.add(i)
-                        phasable_variant_table.set_genotypes_of(
-                            sample, matching_genotypes
-                        )
+                        phasable_variant_table.set_genotypes_of(sample, matching_genotypes)
 
                         # Remove variants with deleted genotype
                         phasable_variant_table.remove_rows_by_index(missing_genotypes)
@@ -384,30 +370,18 @@ def run_polyphase(
 
                     # Remove reads with insufficient variants
                     readset = readset.subset(
-                        [
-                            i
-                            for i, read in enumerate(readset)
-                            if len(read) >= max(2, min_overlap)
-                        ]
+                        [i for i, read in enumerate(readset) if len(read) >= max(2, min_overlap)]
                     )
                     logger.info(
-                        "Kept %d reads that cover at least two variants each",
-                        len(readset),
+                        "Kept %d reads that cover at least two variants each", len(readset),
                     )
 
                     # Adapt the variant table to the subset of reads
-                    phasable_variant_table.subset_rows_by_position(
-                        readset.get_positions()
-                    )
+                    phasable_variant_table.subset_rows_by_position(readset.get_positions())
 
                     # Run the actual phasing
                     sample_components, sample_superreads = phase_single_individual(
-                        readset,
-                        phasable_variant_table,
-                        sample,
-                        phasing_param,
-                        output,
-                        timers,
+                        readset, phasable_variant_table, sample, phasing_param, output, timers,
                     )
 
                     # Collect results
@@ -416,9 +390,7 @@ def run_polyphase(
 
                 with timers("write_vcf"):
                     logger.info("======== Writing VCF")
-                    changed_genotypes = vcf_writer.write(
-                        chromosome, superreads, components
-                    )
+                    changed_genotypes = vcf_writer.write(chromosome, superreads, components)
                     # TODO: Use genotype information to polish results
                     # assert len(changed_genotypes) == 0
                     logger.info("Done writing VCF")
@@ -438,51 +410,41 @@ def run_polyphase(
         memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         logger.info("Maximum memory usage: %.3f GB", memory_kb / 1e6)
     logger.info(
-        "Time spent reading BAM/CRAM:                 %6.1f s",
-        timers.elapsed("read_bam"),
+        "Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"),
     )
     logger.info(
-        "Time spent parsing VCF:                      %6.1f s",
-        timers.elapsed("parse_vcf"),
+        "Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"),
     )
     logger.info(
-        "Time spent detecting blocks:                 %6.1f s",
-        timers.elapsed("detecting_blocks"),
+        "Time spent detecting blocks:                 %6.1f s", timers.elapsed("detecting_blocks"),
     )
     logger.info(
         "Time spent solving cluster editing:          %6.1f s",
         timers.elapsed("solve_clusterediting"),
     )
     logger.info(
-        "Time spent threading haplotypes:             %6.1f s",
-        timers.elapsed("threading"),
+        "Time spent threading haplotypes:             %6.1f s", timers.elapsed("threading"),
     )
     if plot_clusters or plot_threading:
         logger.info(
-            "Time spent creating plots:                   %6.1f s",
-            timers.elapsed("create_plots"),
+            "Time spent creating plots:                   %6.1f s", timers.elapsed("create_plots"),
         )
     logger.info(
-        "Time spent writing VCF:                      %6.1f s",
-        timers.elapsed("write_vcf"),
+        "Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"),
     )
     logger.info(
-        "Time spent finding components:               %6.1f s",
-        timers.elapsed("components"),
+        "Time spent finding components:               %6.1f s", timers.elapsed("components"),
     )
     logger.info(
         "Time spent on rest:                          %6.1f s",
         2 * timers.elapsed("overall") - timers.total(),
     )
     logger.info(
-        "Total elapsed time:                          %6.1f s",
-        timers.elapsed("overall"),
+        "Total elapsed time:                          %6.1f s", timers.elapsed("overall"),
     )
 
 
-def phase_single_individual(
-    readset, phasable_variant_table, sample, phasing_param, output, timers
-):
+def phase_single_individual(readset, phasable_variant_table, sample, phasing_param, output, timers):
 
     # Compute the genotypes that belong to the variant table and create a list of all genotypes
     genotype_list = create_genotype_list(phasable_variant_table, sample)
@@ -510,11 +472,7 @@ def phase_single_individual(
     # Set block borders and split readset
     ext_block_starts = block_starts + [num_vars]
     num_non_singleton_blocks = len(
-        [
-            i
-            for i in range(len(block_starts))
-            if ext_block_starts[i] < ext_block_starts[i + 1] - 1
-        ]
+        [i for i in range(len(block_starts)) if ext_block_starts[i] < ext_block_starts[i + 1] - 1]
     )
     logger.info(
         "Split heterozygous variants into {} blocks (and {} singleton blocks).".format(
@@ -526,12 +484,12 @@ def phase_single_individual(
     timers.stop("detecting_blocks")
 
     # Process blocks independently
-    (
-        blockwise_clustering,
-        blockwise_paths,
-        blockwise_haplotypes,
-        blockwise_cut_positions,
-    ) = ([], [], [], [])
+    (blockwise_clustering, blockwise_paths, blockwise_haplotypes, blockwise_cut_positions,) = (
+        [],
+        [],
+        [],
+        [],
+    )
     processed_non_singleton_blocks = 0
     for block_id, block_readset in enumerate(block_readsets):
         block_start = ext_block_starts[block_id]
@@ -581,9 +539,7 @@ def phase_single_individual(
     for i, cut_pos in enumerate(cut_positions):
         for pos in range(ext_cuts[i], ext_cuts[i + 1]):
             components[accessible_positions[pos]] = accessible_positions[ext_cuts[i]]
-            components[accessible_positions[pos] + 1] = accessible_positions[
-                ext_cuts[i]
-            ]
+            components[accessible_positions[pos] + 1] = accessible_positions[ext_cuts[i]]
 
     superreads = ReadSet()
     for i in range(phasing_param.ploidy):
@@ -675,9 +631,7 @@ def split_readset(readset, ext_block_starts, index):
                         reference_start=read.sample_id,
                         BX_tag=read.BX_tag,
                     )
-                read_slice.add_variant(
-                    variant.position, variant.allele, variant.quality
-                )
+                read_slice.add_variant(variant.position, variant.allele, variant.quality)
             block_readsets[current_block].add(read_slice)
     return block_readsets
 
@@ -729,9 +683,7 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
     # Compute similarity values for all read pairs
     timers.start("solve_clusterediting")
     logger.debug("Computing similarities for read pairs ...")
-    similarities = scoreReadsetLocal(
-        block_readset, phasing_param.min_overlap, phasing_param.ploidy
-    )
+    similarities = scoreReadsetLocal(block_readset, phasing_param.min_overlap, phasing_param.ploidy)
 
     # Create read graph object
     logger.debug("Constructing graph ...")
@@ -775,9 +727,7 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
 
         if 0 < new_inc_count < last_inc_count:
             logger.debug(
-                "{} inconsistent variants found. Refining clusters ..\r".format(
-                    new_inc_count
-                )
+                "{} inconsistent variants found. Refining clusters ..\r".format(new_inc_count)
             )
             solver = ClusterEditingSolver(graph, phasing_param.ce_bundle_edges)
             clustering = solver.run()
@@ -794,9 +744,7 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
         c1 = read_to_cluster[read1]
         c2 = read_to_cluster[read2]
         if c1 != c2:
-            cluster_sim.set(
-                c1, c2, cluster_sim.get(c1, c2) + similarities.get(read1, read2)
-            )
+            cluster_sim.set(c1, c2, cluster_sim.get(c1, c2) + similarities.get(read1, read2))
 
     # Deallocate big datastructures, which are not needed anymore
     del similarities
@@ -923,9 +871,7 @@ def find_inconsistencies(readset, clustering, ploidy):
     positions = get_cluster_start_end_positions(readset, clustering, index)
     coverage = get_coverage(readset, clustering, index)
     abs_coverage = get_coverage_absolute(readset, clustering, index)
-    consensus = get_local_cluster_consensus_withfrac(
-        readset, clustering, cov_map, positions
-    )
+    consensus = get_local_cluster_consensus_withfrac(readset, clustering, cov_map, positions)
 
     # Search for positions in clusters with ambivalent consensus
     for pos in range(num_vars):
@@ -936,9 +882,7 @@ def find_inconsistencies(readset, clustering, ploidy):
             # do binomial hypothesis test, whether the deviations from majority allele is significant enough for splitting
             abs_count = abs_coverage[pos][c_id]
             abs_deviations = int(abs_count * (1 - consensus[pos][c_id][1]))
-            p_val = binom_test(
-                abs_deviations, abs_count, exp_error, alternative="greater"
-            )
+            p_val = binom_test(abs_deviations, abs_count, exp_error, alternative="greater")
             if p_val < p_val_threshold:
                 # print("   inconsistency in cluster "+str(c_id)+" at position"+str(pos)+" with coverage "+str(coverage[pos][c_id])+" and consensus "+str(consensus[pos][c_id]))
                 refine = True
@@ -959,9 +903,7 @@ def find_inconsistencies(readset, clustering, ploidy):
     return num_inconsistent_positions, separated_pairs
 
 
-def compute_linkage_based_block_starts(
-    readset, pos_index, ploidy, single_linkage=False
-):
+def compute_linkage_based_block_starts(readset, pos_index, ploidy, single_linkage=False):
     """
     Based on the connectivity of the reads, we want to divide the phasing input, as non- or poorly connected
     regions can be phased independently. This is done based on how pairs of variants are connected. There are
@@ -1023,9 +965,7 @@ def compute_linkage_based_block_starts(
     # find linkage between clusters
     link_coverage = [dict() for i in range(num_clust)]
     for i, (start, end) in enumerate(zip(starts, ends)):
-        covered_pos_clusts = set(
-            [pos_clust[pos_index[var.position]] for var in readset[i]]
-        )
+        covered_pos_clusts = set([pos_clust[pos_index[var.position]] for var in readset[i]])
         for p1 in covered_pos_clusts:
             for p2 in covered_pos_clusts:
                 if p2 not in link_coverage[p1]:
@@ -1044,10 +984,7 @@ def compute_linkage_based_block_starts(
             cur = q.get()
             merged_clust[cur] = new_num_clust
             for linked in link_coverage[cur]:
-                if (
-                    merged_clust[linked] < 0
-                    and link_coverage[cur][linked] >= cut_threshold
-                ):
+                if merged_clust[linked] < 0 and link_coverage[cur][linked] >= cut_threshold:
                     q.put(linked)
         new_num_clust += 1
 
@@ -1106,9 +1043,7 @@ def add_arguments(parser):
         help="Write reads that have been used for phasing to FILE.",
     )
 
-    arg = parser.add_argument_group(
-        "Input pre-processing, selection, and filtering"
-    ).add_argument
+    arg = parser.add_argument_group("Input pre-processing, selection, and filtering").add_argument
     arg(
         "--mapping-quality",
         "--mapq",

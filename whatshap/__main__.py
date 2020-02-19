@@ -48,12 +48,8 @@ def ensure_pysam_version():
 def main(argv=sys.argv[1:]):
     ensure_pysam_version()
     parser = HelpfulArgumentParser(description=__doc__, prog="whatshap")
-    parser.add_argument(
-        "--version", action="version", version="%(prog)s " + __version__
-    )
-    parser.add_argument(
-        "--debug", action="store_true", default=False, help="Print debug messages"
-    )
+    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
+    parser.add_argument("--debug", action="store_true", default=False, help="Print debug messages")
     subparsers = parser.add_subparsers()
 
     # Import each module that implements a subcommand and add a subparser for it.

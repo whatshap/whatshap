@@ -125,8 +125,7 @@ class GenotypeLikelihoods:
             # shift log likelihoods such that the largest one is zero
             m = max(self.log_prob_genotypes)
             return PhredGenotypeLikelihoods(
-                [round((prob - m) * -10) for prob in self.log_prob_genotypes],
-                ploidy=ploidy,
+                [round((prob - m) * -10) for prob in self.log_prob_genotypes], ploidy=ploidy,
             )
         else:
             p = [10 ** x for x in self.log_prob_genotypes]
@@ -217,13 +216,7 @@ class VariantTable:
     def num_of_blocks_of(self, sample: str):
         """ Retrieve the number of blocks of the sample"""
         return len(
-            set(
-                [
-                    i.block_id
-                    for i in self.phases[self._sample_to_index[sample]]
-                    if i is not None
-                ]
-            )
+            set([i.block_id for i in self.phases[self._sample_to_index[sample]] if i is not None])
         )
 
     def id_of(self, sample: str):
@@ -257,20 +250,12 @@ class VariantTable:
     def subset_rows_by_position(self, positions):
         """Keep only rows given in positions, discard the rest"""
         positions = frozenset(positions)
-        to_discard = [
-            i for i, v in enumerate(self.variants) if v.position not in positions
-        ]
+        to_discard = [i for i, v in enumerate(self.variants) if v.position not in positions]
         self.remove_rows_by_index(to_discard)
 
     # TODO: extend this to polyploid case
     def phased_blocks_as_reads(
-        self,
-        sample,
-        input_variants,
-        source_id,
-        numeric_sample_id,
-        default_quality=20,
-        mapq=100,
+        self, sample, input_variants, source_id, numeric_sample_id, default_quality=20, mapq=100,
     ):
         """
         Yields one sorted core.Read object per phased block, encoding the phase information as
@@ -311,9 +296,7 @@ class VariantTable:
             else:
                 quality = phase.quality
             if phase.block_id in read_map:
-                read_map[phase.block_id].add_variant(
-                    variant.position, phase.phase[0], quality
-                )
+                read_map[phase.block_id].add_variant(variant.position, phase.phase[0], quality)
             else:
                 r = Read(
                     "{}_block_{}".format(sample, phase.block_id),
@@ -404,9 +387,7 @@ class VcfReader:
         """
         records = []
         for start, end in regions:
-            records.extend(
-                list(self._vcf_reader.fetch(chromosome, start=start, stop=end))
-            )
+            records.extend(list(self._vcf_reader.fetch(chromosome, start=start, stop=end)))
         return self._process_single_chromosome(chromosome, records)
 
     def __iter__(self):
@@ -415,9 +396,7 @@ class VcfReader:
 
         Multi-ALT sites are skipped.
         """
-        for chromosome, records in itertools.groupby(
-            self._vcf_reader, lambda record: record.chrom
-        ):
+        for chromosome, records in itertools.groupby(self._vcf_reader, lambda record: record.chrom):
             yield self._process_single_chromosome(chromosome, records)
 
     @staticmethod
@@ -430,9 +409,7 @@ class VcfReader:
             assert fields[0][0] == fields[i][0]
         block_id = fields[0][0]
         phase = tuple(field[1] - 1 for field in fields)
-        return VariantCallPhase(
-            block_id=block_id, phase=phase, quality=call.get("PQ", None)
-        )
+        return VariantCallPhase(block_id=block_id, phase=phase, quality=call.get("PQ", None))
 
     @staticmethod
     def _extract_GT_PS_phase(call):
@@ -443,9 +420,7 @@ class VcfReader:
             return None
         block_id = call.get("PS", 0)
         phase = call["GT"]
-        return VariantCallPhase(
-            block_id=block_id, phase=phase, quality=call.get("PQ", None)
-        )
+        return VariantCallPhase(block_id=block_id, phase=phase, quality=call.get("PQ", None))
 
     def _process_single_chromosome(self, chromosome, records):
         phase_detected = None
@@ -477,9 +452,7 @@ class VcfReader:
 
             if prev_position == pos:
                 logger.warning(
-                    "Skipping duplicated position %s on chromosome %r",
-                    pos + 1,
-                    chromosome,
+                    "Skipping duplicated position %s on chromosome %r", pos + 1, chromosome,
                 )
                 continue
             prev_position = pos
@@ -535,9 +508,7 @@ class VcfReader:
                     if GL is not None:
                         genotype_likelihoods.append(GenotypeLikelihoods(GL))
                     elif PL is not None:
-                        genotype_likelihoods.append(
-                            GenotypeLikelihoods([pl / -10 for pl in PL])
-                        )
+                        genotype_likelihoods.append(GenotypeLikelihoods([pl / -10 for pl in PL]))
                     else:
                         genotype_likelihoods.append(None)
             else:
@@ -559,24 +530,18 @@ class VcfReader:
                         self.ploidy = geno_ploidy
                     elif geno_ploidy != self.ploidy:
                         raise PloidyError(
-                            "Inconsistent ploidy ({} and "
-                            "{})".format(self.ploidy, geno_ploidy)
+                            "Inconsistent ploidy ({} and " "{})".format(self.ploidy, geno_ploidy)
                         )
 
                 genotypes = [genotype_code(geno_list) for geno_list in genotype_lists]
             else:
                 genotypes = [Genotype([]) for i in range(len(self.samples))]
                 phases = [None] * len(self.samples)
-            variant = VcfVariant(
-                position=pos, reference_allele=ref, alternative_allele=alt
-            )
+            variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
             table.add_variant(variant, genotypes, phases, genotype_likelihoods)
 
         logger.debug(
-            "Parsed %s SNVs and %s non-SNVs. Also skipped %s multi-ALTs.",
-            n_snvs,
-            n_other,
-            n_multi,
+            "Parsed %s SNVs and %s non-SNVs. Also skipped %s multi-ALTs.", n_snvs, n_other, n_multi,
         )
 
         # TODO remove overlapping variants
@@ -645,16 +610,10 @@ PREDEFINED_INFOS = {
         "Integer",
         "Allele count in genotypes, for each ALT allele, in the same order as listed",
     ),
-    "AN": VcfHeader(
-        "INFO", "AN", "A", "Integer", "Total number of alleles in called genotypes"
-    ),
+    "AN": VcfHeader("INFO", "AN", "A", "Integer", "Total number of alleles in called genotypes"),
     "END": VcfHeader("INFO", "END", 1, "Integer", "Stop position of the interval"),
     "SVLEN": VcfHeader(
-        "INFO",
-        "SVLEN",
-        ".",
-        "Integer",
-        "Difference in length between REF and ALT alleles",
+        "INFO", "SVLEN", ".", "Integer", "Difference in length between REF and ALT alleles",
     ),
     "SVTYPE": VcfHeader("INFO", "SVTYPE", 1, "String", "Type of structural variant"),
 }
@@ -679,9 +638,7 @@ def augment_header(header, contigs, formats, infos):
         try:
             h = PREDEFINED_FORMATS[fmt]
         except KeyError:
-            raise VcfError(
-                "FORMAT {!r} not defined in VCF header".format(fmt)
-            ) from None
+            raise VcfError("FORMAT {!r} not defined in VCF header".format(fmt)) from None
         header.add_line(h.line())
 
     for info in infos:
@@ -872,9 +829,7 @@ class PhasedVcfWriter(VcfAugmenter):
         phase -- tuple of alleles
         """
         assert all(allele in [0, 1] for allele in phase)
-        call["HP"] = ",".join(
-            "{}-{}".format(component + 1, allele + 1) for allele in phase
-        )
+        call["HP"] = ",".join("{}-{}".format(component + 1, allele + 1) for allele in phase)
 
     def _set_PS(self, call, component, phase):
         """
@@ -921,9 +876,7 @@ class PhasedVcfWriter(VcfAugmenter):
                         break
                 if allowed_alleles:
                     sample_phases[sample][variants[0].position] = phasing
-                    sample_genotypes[sample][variants[0].position] = Genotype(
-                        list(phasing)
-                    )
+                    sample_genotypes[sample][variants[0].position] = Genotype(list(phasing))
 
         prev_pos = None
         for record in self._iterrecords(chromosome):
@@ -987,9 +940,7 @@ class PhasedVcfWriter(VcfAugmenter):
                         call["GT"] = tuple(genotypes[pos].as_vector())
                         variant = VcfVariant(record.start, record.ref, record.alts[0])
                         genotype_changes.append(
-                            GenotypeChange(
-                                sample, chromosome, variant, gt_type, genotypes[pos]
-                            )
+                            GenotypeChange(sample, chromosome, variant, gt_type, genotypes[pos])
                         )
                         is_het = not genotypes[pos].is_homozygous()
 
@@ -1046,9 +997,7 @@ class GenotypeVcfWriter(VcfAugmenter):
             '##FORMAT=<ID=GL,Number=G,Type=Float,Description="Log10-scaled likelihoods for genotypes: 0/0, 0/1, 1/1, computed by WhatsHap genotyping algorithm">'
         )
 
-    def write_genotypes(
-        self, chromosome, variant_table, indels, leave_unchanged=False, ploidy=2
-    ):
+    def write_genotypes(self, chromosome, variant_table, indels, leave_unchanged=False, ploidy=2):
         """
         Add genotyping information to all variants on a single chromosome.
 
@@ -1072,9 +1021,7 @@ class GenotypeVcfWriter(VcfAugmenter):
                 for sample, call in record.samples.items():
                     geno = Genotype([])
                     n_alleles = len(record.alts) + 1
-                    n_genotypes = binomial_coefficient(
-                        ploidy + n_alleles - 1, n_alleles - 1
-                    )
+                    n_genotypes = binomial_coefficient(ploidy + n_alleles - 1, n_alleles - 1)
                     geno_l = [1 / n_genotypes] * int(n_genotypes)
                     geno_q = None
 
@@ -1086,15 +1033,11 @@ class GenotypeVcfWriter(VcfAugmenter):
                         # likelihoods can be 'None' if position was not accessible
                         if likelihoods is not None:
                             geno_l = [l for l in likelihoods]
-                            geno = variant_table.genotypes_of(sample)[
-                                genotyped_variants[pos]
-                            ]
+                            geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
 
                     # Compute GQ
                     geno_index = geno.get_index()
-                    geno_q = sum(
-                        geno_l[i] for i in range(n_genotypes) if i != geno_index
-                    )
+                    geno_q = sum(geno_l[i] for i in range(n_genotypes) if i != geno_index)
 
                     # TODO default value ok?
                     # store likelihoods log10-scaled
@@ -1104,9 +1047,7 @@ class GenotypeVcfWriter(VcfAugmenter):
                     # complains that we are setting an incorrect number of GL values.
                     call["GT"] = tuple(0 for i in range(ploidy))
 
-                    call["GL"] = [
-                        max(math.log10(j), -1000) if j > 0 else -1000 for j in geno_l
-                    ]
+                    call["GL"] = [max(math.log10(j), -1000) if j > 0 else -1000 for j in geno_l]
                     call["GT"] = tuple(geno.as_vector())
 
                     # store quality as phred score

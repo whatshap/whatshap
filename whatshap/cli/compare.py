@@ -119,9 +119,7 @@ def switch_encoding(phasing):
     '001110'
     """
     assert isinstance(phasing, str)
-    return "".join(
-        ("0" if phasing[i - 1] == phasing[i] else "1") for i in range(1, len(phasing))
-    )
+    return "".join(("0" if phasing[i - 1] == phasing[i] else "1") for i in range(1, len(phasing)))
 
 
 def compute_switch_flips(phasing0, phasing1):
@@ -193,12 +191,7 @@ def compute_switch_flips_poly(phasing0, phasing1, switch_cost=1, flip_cost=1):
     Computes the combined number of switches and flips, which are needed to transform phasing 0 into
     phasing 1 or vice versa.
     """
-    (
-        result,
-        switches_in_column,
-        flips_in_column,
-        poswise_config,
-    ) = compute_switch_flips_poly_bt(
+    (result, switches_in_column, flips_in_column, poswise_config,) = compute_switch_flips_poly_bt(
         phasing0, phasing1, switch_cost=switch_cost, flip_cost=flip_cost
     )
     return result
@@ -336,9 +329,7 @@ def compute_switch_flips_poly_bt(
             total_switches = c[j - 1][min_pred].switches + min_switches
             total_flips = c[j - 1][min_pred].flips + flips
             total_score = switch_cost * total_switches + flip_cost * total_flips
-            current_scores.append(
-                switch_cost * total_switches + flip_cost * total_flips
-            )
+            current_scores.append(switch_cost * total_switches + flip_cost * total_flips)
             current_comp.append(SwitchFlips(total_switches, total_flips))
             current_bt.append(min_pred)
 
@@ -354,8 +345,7 @@ def compute_switch_flips_poly_bt(
         for i in range(len(current_scores)):
             if (
                 current_scores[i]
-                < best_score
-                + poly_num_switches(perms[best_perm], perms[i]) * switch_cost
+                < best_score + poly_num_switches(perms[best_perm], perms[i]) * switch_cost
             ):
                 s[j][i] = current_scores[i]
                 c[j][i] = current_comp[i]
@@ -375,9 +365,8 @@ def compute_switch_flips_poly_bt(
     result.flips = c[-1][min_row].flips
 
     # Backtracing
-    if (
-        report_error_positions
-        and result.switches * switch_cost + result.flips * flip_cost < float("inf")
+    if report_error_positions and result.switches * switch_cost + result.flips * flip_cost < float(
+        "inf"
     ):
         positionwise_config = [[] for i in range(num_pos)]
         flips_in_column = [[] for i in range(num_pos)]
@@ -387,9 +376,7 @@ def compute_switch_flips_poly_bt(
         positionwise_config[col] = perms[row]
         while col > 0:
             prev_row = b[col][row]
-            switches_in_column[col] = (
-                c[col][row].switches - c[col - 1][prev_row].switches
-            )
+            switches_in_column[col] = c[col][row].switches - c[col - 1][prev_row].switches
             for k in range(ploidy):
                 if (
                     phasing1[k][col] != phasing0[perms[row][k]][col]
@@ -397,10 +384,7 @@ def compute_switch_flips_poly_bt(
                     and phasing0[perms[row][k]][col] != "-"
                 ):
                     flips_in_column[col].append(k)
-            assert (
-                len(flips_in_column[col])
-                == c[col][row].flips - c[col - 1][prev_row].flips
-            )
+            assert len(flips_in_column[col]) == c[col][row].flips - c[col - 1][prev_row].flips
             col -= 1
             row = prev_row
             positionwise_config[col] = perms[row]
@@ -456,9 +440,7 @@ def compare_block(phasing0, phasing1):
 
     if ploidy == 2:
         # conversion to int is allowed, as there should be no fractional error counts for diploid comparisons
-        switches = int(
-            hamming(switch_encoding(phasing0[0]), switch_encoding(phasing1[0]))
-        )
+        switches = int(hamming(switch_encoding(phasing0[0]), switch_encoding(phasing1[0])))
         switch_flips = compute_switch_flips(phasing0[0], phasing1[0])
         minimum_hamming_distance = int(minimum_hamming_distance)
     else:
@@ -532,9 +514,7 @@ def print_errors(errors, phased_pairs):
     print_stat("switch/flip decomposition", errors.switch_flips)
     print_stat(
         "switch/flip rate",
-        fraction2percentstr(
-            errors.switch_flips.switches + errors.switch_flips.flips, phased_pairs
-        ),
+        fraction2percentstr(errors.switch_flips.switches + errors.switch_flips.flips, phased_pairs),
     )
 
 
@@ -567,9 +547,7 @@ PairwiseComparisonResults = namedtuple(
 BlockStats = namedtuple("BlockStats", ["variant_count", "span"])
 
 
-def collect_common_variants(
-    variant_tables: List[VariantTable], sample
-) -> Set[VcfVariant]:
+def collect_common_variants(variant_tables: List[VariantTable], sample) -> Set[VcfVariant]:
     common_variants = None
     for variant_table in variant_tables:
         het_variants = [
@@ -599,14 +577,10 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
     for variant_table in variant_tables:
         p = [
             phase
-            for variant, phase in zip(
-                variant_table.variants, variant_table.phases_of(sample)
-            )
+            for variant, phase in zip(variant_table.variants, variant_table.phases_of(sample))
             if variant in common_variants
         ]
-        assert [
-            v for v in variant_table.variants if v in common_variants
-        ] == sorted_variants
+        assert [v for v in variant_table.variants if v in common_variants] == sorted_variants
         assert len(p) == len(common_variants)
         phases.append(p)
 
@@ -622,9 +596,7 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
             else:
                 blocks[i][phase.block_id].append(variant_index)
         if not any_none:
-            joint_block_id = tuple(
-                phases[i][variant_index].block_id for i in range(len(phases))
-            )
+            joint_block_id = tuple(phases[i][variant_index].block_id for i in range(len(phases)))
             block_intersection[joint_block_id].append(variant_index)
 
     # create statistics on each block in each data set
@@ -646,14 +618,10 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
             "non-singleton blocks in {}".format(dataset_name),
             len([b for b in block.values() if len(b) > 1]),
         )
-        print_stat(
-            "--> covered variants", sum(len(b) for b in block.values() if len(b) > 1)
-        )
+        print_stat("--> covered variants", sum(len(b) for b in block.values() if len(b) > 1))
 
     intersection_block_count = sum(1 for b in block_intersection.values() if len(b) > 1)
-    intersection_block_variants = sum(
-        len(b) for b in block_intersection.values() if len(b) > 1
-    )
+    intersection_block_variants = sum(len(b) for b in block_intersection.values() if len(b) > 1)
     print_stat("non-singleton intersection blocks", intersection_block_count)
     print_stat("--> covered variants", intersection_block_variants)
     longest_block = 0
@@ -698,9 +666,7 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
                 longest_block_positions = block_positions
                 # TODO: extend to polyploid
                 if ploidy == 2:
-                    if hamming(phasing0, phasing1) < hamming(
-                        phasing0[0], complement(phasing1[0])
-                    ):
+                    if hamming(phasing0, phasing1) < hamming(phasing0[0], complement(phasing1[0])):
                         longest_block_agreement = [
                             1 * (p0 == p1) for p0, p1 in zip(phasing0[0], phasing1[0])
                         ]
@@ -742,14 +708,11 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
                 all_switch_rate=safefraction(total_errors.switches, phased_pairs),
                 all_switchflips=total_errors.switch_flips,
                 all_switchflip_rate=safefraction(
-                    total_errors.switch_flips.switches
-                    + total_errors.switch_flips.flips,
+                    total_errors.switch_flips.switches + total_errors.switch_flips.flips,
                     phased_pairs,
                 ),
                 blockwise_hamming=total_errors.hamming,
-                blockwise_hamming_rate=safefraction(
-                    total_errors.hamming, total_compared_variants
-                ),
+                blockwise_hamming_rate=safefraction(total_errors.hamming, total_compared_variants),
                 blockwise_diff_genotypes=total_errors.diff_genotypes,
                 blockwise_diff_genotypes_rate=safefraction(
                     total_errors.diff_genotypes, total_compared_variants
@@ -766,9 +729,7 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
                     longest_block_assessed_pairs,
                 ),
                 largestblock_hamming=longest_block_errors.hamming,
-                largestblock_hamming_rate=safefraction(
-                    longest_block_errors.hamming, longest_block
-                ),
+                largestblock_hamming_rate=safefraction(longest_block_errors.hamming, longest_block),
                 largestblock_diff_genotypes=longest_block_errors.diff_genotypes,
                 largestblock_diff_genotypes_rate=safefraction(
                     longest_block_errors.diff_genotypes, longest_block
@@ -789,14 +750,11 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
                 continue
             total_compared += len(block) - 1
             phasings = [
-                "".join(str(phases[j][i].phase[0]) for i in block)
-                for j in range(len(phases))
+                "".join(str(phases[j][i].phase[0]) for i in block) for j in range(len(phases))
             ]
             switch_encodings = [switch_encoding(p) for p in phasings]
             for i in range(len(block) - 1):
-                s = "".join(
-                    switch_encodings[j][i] for j in range(len(switch_encodings))
-                )
+                s = "".join(switch_encodings[j][i] for j in range(len(switch_encodings)))
                 s = min(s, complement(s))
                 histogram[s] += 1
         print_stat("Compared pairs of variants", total_compared)
@@ -907,9 +865,7 @@ def run_compare(
     plot_sum_of_blocksizes=None,
     longest_block_tsv=None,
 ):
-    vcf_readers = [
-        VcfReader(f, indels=not only_snvs, phases=True, ploidy=ploidy) for f in vcf
-    ]
+    vcf_readers = [VcfReader(f, indels=not only_snvs, phases=True, ploidy=ploidy) for f in vcf]
     if names:
         dataset_names = names.split(",")
         if len(dataset_names) != len(vcf):
@@ -933,9 +889,7 @@ def run_compare(
         sample_intersection.intersection_update([sample])
         if len(sample_intersection) == 0:
             raise CommandLineError(
-                "Sample {!r} requested on command-line not found in all VCFs".format(
-                    sample
-                )
+                "Sample {!r} requested on command-line not found in all VCFs".format(sample)
             )
         sample = sample
     else:
@@ -949,9 +903,7 @@ def run_compare(
             )
 
     with ExitStack() as stack:
-        tsv_pairwise_file = (
-            tsv_multiway_file
-        ) = longest_block_tsv_file = switch_error_bedfile = None
+        tsv_pairwise_file = tsv_multiway_file = longest_block_tsv_file = switch_error_bedfile = None
         if tsv_pairwise:
             tsv_pairwise_file = stack.enter_context(open(tsv_pairwise, "w"))
 
@@ -992,9 +944,7 @@ def run_compare(
                 for variant_table in reader:
                     m[variant_table.chromosome] = variant_table
             except PloidyError as e:
-                raise CommandLineError(
-                    "Provided ploidy is invalid: {}. Aborting.".format(e)
-                )
+                raise CommandLineError("Provided ploidy is invalid: {}. Aborting.".format(e))
             vcfs.append(m)
             if chromosomes is None:
                 chromosomes = set(m.keys())
@@ -1003,9 +953,7 @@ def run_compare(
         if len(chromosomes) == 0:
             raise CommandLineError("No chromosome is contained in all VCFs. Aborting.")
 
-        logger.info(
-            "Chromosomes present in all VCFs: %s", ", ".join(sorted(chromosomes))
-        )
+        logger.info("Chromosomes present in all VCFs: %s", ", ".join(sorted(chromosomes)))
 
         if tsv_pairwise_file:
             fields = [
@@ -1051,9 +999,7 @@ def run_compare(
                 all_variants_union.update(variant_table.variants)
                 het_variants = [
                     v
-                    for v, gt in zip(
-                        variant_table.variants, variant_table.genotypes_of(sample)
-                    )
+                    for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample))
                     if not gt.is_homozygous()
                 ]
                 if het_variants0 is None:
@@ -1063,9 +1009,7 @@ def run_compare(
                     all_variants_intersection = set(variant_table.variants)
                     het_variants_intersection = set(het_variants)
                 else:
-                    all_variants_intersection.intersection_update(
-                        variant_table.variants
-                    )
+                    all_variants_intersection.intersection_update(variant_table.variants)
                     het_variants_intersection.intersection_update(het_variants)
                 het_variant_sets.append(set(het_variants))
                 print(
@@ -1124,9 +1068,7 @@ def run_compare(
                         print(*fields, sep="\t", file=tsv_pairwise_file)
                     if longest_block_tsv_file:
                         assert ploidy == 2
-                        assert len(longest_block_positions) == len(
-                            longest_block_agreement
-                        )
+                        assert len(longest_block_positions) == len(longest_block_agreement)
                         for position, phase_agreeing in zip(
                             longest_block_positions, longest_block_agreement
                         ):
@@ -1161,10 +1103,7 @@ def run_compare(
                 ) = compare(variant_tables, sample, dataset_names, ploidy)
                 add_block_stats(block_stats)
                 if tsv_multiway_file:
-                    for (
-                        (dataset_list0, dataset_list1),
-                        count,
-                    ) in multiway_results.items():
+                    for ((dataset_list0, dataset_list1), count,) in multiway_results.items():
                         print(
                             sample,
                             chromosome,

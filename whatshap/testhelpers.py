@@ -25,9 +25,7 @@ def string_to_readset(s, w=None, sample_ids=None, source_id=0, scale_quality=Non
             if w is not None:
                 q = int(w[index][pos])
             if not scale_quality == None:
-                read.add_variant(
-                    position=(pos + 1) * 10, allele=int(c), quality=q * scale_quality
-                )
+                read.add_variant(position=(pos + 1) * 10, allele=int(c), quality=q * scale_quality)
             else:
                 read.add_variant(position=(pos + 1) * 10, allele=int(c), quality=q)
         assert len(read) > 1, "Reads covering less than two variants are not allowed"
@@ -47,9 +45,7 @@ def string_to_readset_pedigree(s, w=None, scaling_quality=None):
         assert 0 <= individual < 26
         read_sources.append(individual)
         s2 += line[1:] + "\n"
-    rs = string_to_readset(
-        s=s2, w=w, sample_ids=read_sources, scale_quality=scaling_quality
-    )
+    rs = string_to_readset(s=s2, w=w, sample_ids=read_sources, scale_quality=scaling_quality)
     print("read_sources:", read_sources)
     return rs
 
@@ -151,11 +147,7 @@ def brute_force_phase(read_set, all_heterozygous):
                     if variant.position == p:
                         variants[i].append(variant)
             c, assignment = column_cost(variants, possible_assignments)
-            print(
-                "    position: {}, variants: {} --> cost = {}".format(
-                    p, str(variants), c
-                )
-            )
+            print("    position: {}, variants: {} --> cost = {}".format(p, str(variants), c))
             cost += c
             haplotypes.append(assignment)
         print("  --> cost for this partitioning:", cost)

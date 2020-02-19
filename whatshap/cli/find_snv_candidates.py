@@ -70,9 +70,7 @@ def run_find_snv_candidates(
     print(minabs, minrel)
     fasta = pyfaidx.Fasta(ref, as_raw=True)
     print("##fileformat=VCFv4.2", file=outfile)
-    print(
-        "##fileDate={}".format(datetime.datetime.now().strftime("%Y%m%d")), file=outfile
-    )
+    print("##fileDate={}".format(datetime.datetime.now().strftime("%Y%m%d")), file=outfile)
     print('##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">', file=outfile)
     print('##FILTER=<ID=PASS,Description="All filters passed">', file=outfile)
     header_columns = ["#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO"]
@@ -91,9 +89,7 @@ def run_find_snv_candidates(
     ):
         try:
             pileup = "".join(
-                pileupcolumn.get_query_sequences(
-                    mark_matches=True, mark_ends=True, add_indels=True
-                )
+                pileupcolumn.get_query_sequences(mark_matches=True, mark_ends=True, add_indels=True)
             )
         except AssertionError:
             # TODO: seems to happen when there are large insertions/deletions

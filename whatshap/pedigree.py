@@ -8,9 +8,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-RecombinationMapEntry = namedtuple(
-    "RecombinationMapEntry", ["position", "cum_distance"]
-)
+RecombinationMapEntry = namedtuple("RecombinationMapEntry", ["position", "cum_distance"])
 
 
 def interpolate(point, start_pos, end_pos, start_value, end_value):
@@ -18,9 +16,7 @@ def interpolate(point, start_pos, end_pos, start_value, end_value):
     if start_pos == point == end_pos:
         assert start_value == end_value
         return start_value
-    return start_value + (
-        (point - start_pos) * (end_value - start_value) / (end_pos - start_pos)
-    )
+    return start_value + ((point - start_pos) * (end_value - start_value) / (end_pos - start_pos))
 
 
 MINIMUM_GENETIC_DISTANCE = 1e-10  # cM
@@ -43,9 +39,7 @@ def recombination_cost_map(genetic_map, positions):
         if (i == None) and (genetic_map[0].position <= position):
             i = 0
         while (
-            (i != None)
-            and (i + 1 < len(genetic_map))
-            and (genetic_map[i + 1].position <= position)
+            (i != None) and (i + 1 < len(genetic_map)) and (genetic_map[i + 1].position <= position)
         ):
             i += 1
 
@@ -59,16 +53,11 @@ def recombination_cost_map(genetic_map, positions):
         # interpolate
         if i == None:
             assert j != None
-            d = interpolate(
-                position, 0, genetic_map[j].position, 0, genetic_map[j].cum_distance
-            )
+            d = interpolate(position, 0, genetic_map[j].position, 0, genetic_map[j].cum_distance)
         elif j == None:
             # Point outside the genetic map --> extrapolating using average recombination rate
             avg_rate = genetic_map[-1].cum_distance / genetic_map[-1].position
-            d = (
-                genetic_map[-1].cum_distance
-                + (position - genetic_map[-1].position) * avg_rate
-            )
+            d = genetic_map[-1].cum_distance + (position - genetic_map[-1].position) * avg_rate
         else:
             assert genetic_map[i].position <= position <= genetic_map[j].position
             d = interpolate(
@@ -98,9 +87,7 @@ def uniform_recombination_map(recombrate, positions):
     positions[i-1] and positions[i].
     """
     return [0] + [
-        round(
-            centimorgen_to_phred((positions[i] - positions[i - 1]) * 1e-6 * recombrate)
-        )
+        round(centimorgen_to_phred((positions[i] - positions[i - 1]) * 1e-6 * recombrate))
         for i in range(1, len(positions))
     ]
 
@@ -130,9 +117,7 @@ def load_genetic_map(filename):
             line_spl = line.strip().split()
             assert len(line_spl) == 3
             genetic_map.append(
-                RecombinationMapEntry(
-                    position=int(line_spl[0]), cum_distance=float(line_spl[2])
-                )
+                RecombinationMapEntry(position=int(line_spl[0]), cum_distance=float(line_spl[2]))
             )
             if len(genetic_map) >= 2:
                 if not warned_zero_distance and (
@@ -181,9 +166,7 @@ def find_recombination(transmission_vector, components, positions, recombcost):
     cum_recomb_cost = 0
     for block_id, block in blocks.items():
         block.sort()
-        block_transmission_vector = [
-            transmission_vector[position_to_index[i]] for i in block
-        ]
+        block_transmission_vector = [transmission_vector[position_to_index[i]] for i in block]
         block_recomb_cost = [recombcost[position_to_index[i]] for i in block]
         if len(block) <= 2:
             continue
@@ -276,9 +259,7 @@ class PedReader:
             return
         id, count = Counter(children).most_common()[0]
         if count > 1:
-            raise ParseError(
-                "Individual {!r} occurs more than once in PED file".format(id)
-            )
+            raise ParseError("Individual {!r} occurs more than once in PED file".format(id))
 
     def __iter__(self):
         return iter(self.trios)
