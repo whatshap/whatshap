@@ -1111,6 +1111,10 @@ def run_whatshap(
 
             logger.debug("Chromosome %r finished", chromosome)
 
+    log_time_and_memory_usage(timers, show_phase_vcfs=len(phase_input_vcfs) > 0)
+
+
+def log_time_and_memory_usage(timers, show_phase_vcfs):
     total_time = timers.total()
     logger.info("\n== SUMMARY ==")
     if sys.platform == "linux":
@@ -1119,7 +1123,7 @@ def run_whatshap(
     # fmt: off
     logger.info("Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"))
     logger.info("Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"))
-    if len(phase_input_vcfs) > 0:
+    if show_phase_vcfs:
         logger.info("Time spent parsing input phasings from VCFs: %6.1f s", timers.elapsed("parse_phasing_vcfs"))
     logger.info("Time spent selecting reads:                  %6.1f s", timers.elapsed("select"))
     logger.info("Time spent phasing:                          %6.1f s", timers.elapsed("phase"))
