@@ -576,27 +576,11 @@ def run_whatshap(
 
                     readsets[sample] = selected_reads
                     if len(family) == 1 and not distrust_genotypes:
-                        # When having a pedigree (i.e. len(family) > 1), then blocks are also merged after phasing based on the
-                        # pedigree information and hence these statistics are not so useful.
-                        # When distrust_genotypes is ON, then the genotypes can change during phasing and so can the block
-                        # structure. Therefore, we also don't print these stats in this case.
-                        (n_best_case_blocks, n_best_case_nonsingleton_blocks,) = best_case_blocks(
-                            readset
-                        )
-                        (
-                            n_best_case_blocks_cov,
-                            n_best_case_nonsingleton_blocks_cov,
-                        ) = best_case_blocks(selected_reads)
-                        logger.info(
-                            "Best-case phasing would result in %d non-singleton phased blocks (%d in total)",
-                            n_best_case_nonsingleton_blocks,
-                            n_best_case_blocks,
-                        )
-                        logger.info(
-                            "... after read selection: %d non-singleton phased blocks (%d in total)",
-                            n_best_case_nonsingleton_blocks_cov,
-                            n_best_case_blocks_cov,
-                        )
+                        # When having a pedigree (len(family) > 1), blocks are also merged after
+                        # phasing based on the pedigree information and these statistics are not
+                        # so useful. When distrust_genotypes, genotypes can change during phasing
+                        # and so can the block structure. So don't print these stats in those cases
+                        log_best_case_phasing_info(readset, selected_reads)
 
                 all_reads = merge_readsets(readsets)
 
@@ -769,6 +753,23 @@ def run_whatshap(
             logger.debug("Chromosome %r finished", chromosome)
 
     log_time_and_memory_usage(timers, show_phase_vcfs=len(phase_input_vcfs) > 0)
+
+
+def log_best_case_phasing_info(readset, selected_reads):
+    (n_best_case_blocks, n_best_case_nonsingleton_blocks,) = best_case_blocks(readset)
+    (n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov,) = best_case_blocks(
+        selected_reads
+    )
+    logger.info(
+        "Best-case phasing would result in %d non-singleton phased blocks (%d in total)",
+        n_best_case_nonsingleton_blocks,
+        n_best_case_blocks,
+    )
+    logger.info(
+        "... after read selection: %d non-singleton phased blocks (%d in total)",
+        n_best_case_nonsingleton_blocks_cov,
+        n_best_case_blocks_cov,
+    )
 
 
 def raise_if_any_sample_not_in_vcf(vcf_reader, samples):
