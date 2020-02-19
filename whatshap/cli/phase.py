@@ -644,6 +644,10 @@ def run_whatshap(
     default_gq -- genotype likelihood to be used when GL or PL not available
     write_command_line_header -- whether to add a ##commandline header to the output VCF
     """
+
+    if algorithm == "hapchat" and ped is not None:
+        raise CommandLineError("The hapchat algorithm cannot do pedigree phasing")
+
     timers = StageTimer()
     logger.info(
         "This is WhatsHap %s running under Python %s", __version__, platform.python_version(),
@@ -698,56 +702,18 @@ def run_whatshap(
         if ped and use_ped_samples:
             samples = PedReader(ped).samples()
 
-        vcf_sample_set = set(vcf_reader.samples)
-        for sample in samples:
-            if sample not in vcf_sample_set:
-                raise CommandLineError(
-                    "Sample {!r} requested on command-line not found in VCF".format(sample)
-                )
+        raise_if_any_sample_not_in_vcf(vcf_reader, samples)
+
+        if ped and genmap:
+            logger.info(
+                "Using region-specific recombination rates from genetic map %s.", genmap,
+            )
+        elif ped:
+            logger.info("Using uniform recombination rate of %g cM/Mb.", recombrate)
 
         samples = frozenset(samples)
-        # list of all trios across all families
-        all_trios = dict()
 
-        # Keep track of connected components (aka families) in the pedigree
-        family_finder = ComponentFinder(samples)
-
-        if ped:
-            if algorithm == "hapchat":
-                raise CommandLineError("The hapchat algorithm cannot do pedigree phasing")
-            all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, samples)
-            if genmap:
-                logger.info(
-                    "Using region-specific recombination rates from genetic map %s.", genmap,
-                )
-            else:
-                logger.info("Using uniform recombination rate of %g cM/Mb.", recombrate)
-            for trio in all_trios:
-                family_finder.merge(trio.father, trio.child)
-                family_finder.merge(trio.mother, trio.child)
-
-        # map family representatives to lists of family members
-        families = defaultdict(list)
-        for sample in samples:
-            families[family_finder.find(sample)].append(sample)
-        # map family representatives to lists of trios for this family
-        family_trios = defaultdict(list)
-        for trio in all_trios:
-            family_trios[family_finder.find(trio.child)].append(trio)
-        largest_trio_count = max([0] + [len(trio_list) for trio_list in family_trios.values()])
-        logger.info(
-            "Working on %d%s samples from %d famil%s",
-            len(samples),
-            plural_s(len(samples)),
-            len(families),
-            "y" if len(families) == 1 else "ies",
-        )
-
-        if max_coverage + 2 * largest_trio_count > 23:
-            logger.warning(
-                "The maximum coverage is too high! "
-                "WhatsHap may take a long time to finish and require a huge amount of memory."
-            )
+        families, family_trios = setup_families(samples, ped, numeric_sample_ids, max_coverage)
 
         read_list = None
         if read_list_filename:
@@ -811,70 +777,9 @@ def run_whatshap(
 
                 assert len(family) == 1 or len(trios) > 0
 
-                # variant indices with at least one missing genotype
-                missing_genotypes = set()
-                # variant indices with at least one heterozygous genotype
-                heterozygous = set()
-                # variant indices with at least one homozygous genotype
-                homozygous = set()
-
-                # determine which variants have missing/heterozygous/homozygous genotypes in any sample
-                for sample in family:
-                    genotypes = variant_table.genotypes_of(sample)
-                    for index, gt in enumerate(genotypes):
-                        if gt.is_none():
-                            missing_genotypes.add(index)
-                        elif not gt.is_homozygous():
-                            heterozygous.add(index)
-                        else:
-                            assert gt.is_diploid_and_biallelic()
-                            homozygous.add(index)
-
-                # determine which variants have Mendelian conflicts
-                # variant indices with at least one Mendelian conflict
-                mendelian_conflicts = find_mendelian_conflicts(trios, variant_table)
-
-                # retain variants that are heterozygous in at least one individual (anywhere in the pedigree)
-                # and do not have neither missing genotypes nor Mendelian conflicts
-                if include_homozygous:
-                    to_retain = set(range(len(variant_table)))
-                else:
-                    to_retain = heterozygous
-                to_retain = to_retain.difference(missing_genotypes).difference(mendelian_conflicts)
-                # discard every variant that is not to be retained
-                to_discard = set(range(len(variant_table))).difference(to_retain)
-
-                # Determine positions of selected variants that are homozygous in at least one individual.
-                # These are used later to merge blocks containing these variants into one block (since
-                # the are connected by "genetic haplotyping").
-                homozygous_positions = [
-                    variant_table.variants[i].position for i in to_retain.intersection(homozygous)
-                ]
-
-                phasable_variant_table = deepcopy(variant_table)
-
-                # Remove calls to be discarded from variant table
-                phasable_variant_table.remove_rows_by_index(to_discard)
-
-                logger.info(
-                    "Number of variants skipped due to missing genotypes: %d",
-                    len(missing_genotypes),
+                homozygous_positions, phasable_variant_table = find_phaseable_variants(
+                    family, include_homozygous, trios, variant_table
                 )
-                if len(family) == 1:
-                    logger.info(
-                        "Number of remaining%s variants: %d",
-                        "" if include_homozygous else " heterozygous",
-                        len(phasable_variant_table),
-                    )
-                else:
-                    logger.info(
-                        "Number of variants skipped due to Mendelian conflicts: %d",
-                        len(mendelian_conflicts),
-                    )
-                    logger.info(
-                        "Number of remaining variants heterozygous in at least one individual: %d",
-                        len(phasable_variant_table),
-                    )
 
                 # Get the reads belonging to each sample
                 readsets = dict()  # TODO this could become a list
@@ -1112,6 +1017,121 @@ def run_whatshap(
             logger.debug("Chromosome %r finished", chromosome)
 
     log_time_and_memory_usage(timers, show_phase_vcfs=len(phase_input_vcfs) > 0)
+
+
+def raise_if_any_sample_not_in_vcf(vcf_reader, samples):
+    vcf_sample_set = set(vcf_reader.samples)
+    for sample in samples:
+        if sample not in vcf_sample_set:
+            raise CommandLineError(
+                "Sample {!r} requested on command-line not found in VCF".format(sample)
+            )
+
+
+def setup_families(samples, ped, numeric_sample_ids, max_coverage):
+    """
+    Return families, family_trios pair.
+
+    families maps a family representative to a list of family members
+
+    family_trios maps a family representative to a list of trios in this family
+    """
+
+    # list of all trios across all families
+    all_trios = dict()
+
+    # Keep track of connected components (aka families) in the pedigree
+    family_finder = ComponentFinder(samples)
+
+    if ped:
+        all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, samples)
+        for trio in all_trios:
+            family_finder.merge(trio.father, trio.child)
+            family_finder.merge(trio.mother, trio.child)
+
+    # map family representatives to lists of family members
+    families = defaultdict(list)
+    for sample in samples:
+        families[family_finder.find(sample)].append(sample)
+
+    # map family representatives to lists of trios for this family
+    family_trios = defaultdict(list)
+    for trio in all_trios:
+        family_trios[family_finder.find(trio.child)].append(trio)
+    logger.info(
+        "Working on %d%s samples from %d famil%s",
+        len(samples),
+        plural_s(len(samples)),
+        len(families),
+        "y" if len(families) == 1 else "ies",
+    )
+
+    largest_trio_count = max([0] + [len(trio_list) for trio_list in family_trios.values()])
+    if max_coverage + 2 * largest_trio_count > 23:
+        logger.warning(
+            "The maximum coverage is too high! "
+            "WhatsHap may take a long time to finish and require a huge amount of memory."
+        )
+    return families, family_trios
+
+
+def find_phaseable_variants(family, include_homozygous, trios, variant_table):
+    # variant indices with at least one missing genotype
+    missing_genotypes = set()
+    # variant indices with at least one heterozygous genotype
+    heterozygous = set()
+    # variant indices with at least one homozygous genotype
+    homozygous = set()
+    # determine which variants have missing/heterozygous/homozygous genotypes in any sample
+    for sample in family:
+        genotypes = variant_table.genotypes_of(sample)
+        for index, gt in enumerate(genotypes):
+            if gt.is_none():
+                missing_genotypes.add(index)
+            elif not gt.is_homozygous():
+                heterozygous.add(index)
+            else:
+                assert gt.is_diploid_and_biallelic()
+                homozygous.add(index)
+    # determine which variants have Mendelian conflicts
+    # variant indices with at least one Mendelian conflict
+    mendelian_conflicts = find_mendelian_conflicts(trios, variant_table)
+    # retain variants that are heterozygous in at least one individual (anywhere in the pedigree)
+    # and do not have neither missing genotypes nor Mendelian conflicts
+    if include_homozygous:
+        to_retain = set(range(len(variant_table)))
+    else:
+        to_retain = heterozygous
+    to_retain = to_retain.difference(missing_genotypes).difference(mendelian_conflicts)
+    # discard every variant that is not to be retained
+    to_discard = set(range(len(variant_table))).difference(to_retain)
+    # Determine positions of selected variants that are homozygous in at least one individual.
+    # These are used later to merge blocks containing these variants into one block (since
+    # the are connected by "genetic haplotyping").
+    homozygous_positions = [
+        variant_table.variants[i].position for i in to_retain.intersection(homozygous)
+    ]
+    phasable_variant_table = deepcopy(variant_table)
+    # Remove calls to be discarded from variant table
+    phasable_variant_table.remove_rows_by_index(to_discard)
+    logger.info(
+        "Number of variants skipped due to missing genotypes: %d", len(missing_genotypes),
+    )
+    if len(family) == 1:
+        logger.info(
+            "Number of remaining%s variants: %d",
+            "" if include_homozygous else " heterozygous",
+            len(phasable_variant_table),
+        )
+    else:
+        logger.info(
+            "Number of variants skipped due to Mendelian conflicts: %d", len(mendelian_conflicts),
+        )
+        logger.info(
+            "Number of remaining variants heterozygous in at least one individual: %d",
+            len(phasable_variant_table),
+        )
+    return homozygous_positions, phasable_variant_table
 
 
 def log_time_and_memory_usage(timers, show_phase_vcfs):

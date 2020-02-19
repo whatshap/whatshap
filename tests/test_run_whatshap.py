@@ -368,17 +368,15 @@ def test_phase_trio(tmpdir):
 
 
 def test_phase_trio_hapchat():
-    # This needs to fail because pedigree phasing is not (yet) a
-    # feature of hapchat
-    with raises(CommandLineError):
+    with raises(CommandLineError) as e:
         run_whatshap(
             phase_input_files=[trio_bamfile],
             variant_file="tests/data/trio.vcf",
             output="/dev/null",
             ped="tests/data/trio.ped",
-            genmap="tests/data/trio.map",
             algorithm="hapchat",
         )
+    assert "cannot do pedigree phasing" in e.value.args[0]
 
 
 @mark.parametrize("ped_samples", [True, False])
