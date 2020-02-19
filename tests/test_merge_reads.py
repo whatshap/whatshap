@@ -1,4 +1,4 @@
-from whatshap.cli.phase import merge_reads
+from whatshap.merge import ReadMerger
 from whatshap.testhelpers import string_to_readset
 
 
@@ -24,7 +24,8 @@ def test_read_merging():
     """,
     )
 
-    merged_reads = merge_reads(reads, 0.15, 0.25, 100000, 1000)
+    merger = ReadMerger(0.15, 0.25, 100000, 1000)
+    merged_reads = merger.merge(reads)
     # default parameter settings
 
     expected = string_to_readset(
@@ -58,8 +59,8 @@ def test_read_merging2():
       8 46626
     """,
     )
-
-    merged_reads = merge_reads(reads, 0.5, 0.5, 1000, 100000)
+    merger = ReadMerger(0.5, 0.5, 1000, 100000)
+    merged_reads = merger.merge(reads)
     # error rates and thresholds so high that no merging occurs
 
     assert_variants(merged_reads, reads)
