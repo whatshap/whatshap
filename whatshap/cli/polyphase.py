@@ -32,12 +32,10 @@ from whatshap.core import (
     scoreReadsetGlobal,
     scoreReadsetLocal,
 )
-from whatshap.cli import log_memory_usage
+from whatshap.cli import log_memory_usage, PhasedInputReader
 from whatshap.cli.phase import (
-    read_reads,
     split_input_file_list,
     open_readset_reader,
-    open_reference,
 )
 from whatshap.polyphaseplots import draw_clustering, draw_threading, get_phase
 from whatshap.threading import (
@@ -136,6 +134,7 @@ def run_polyphase(
         phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(
             phase_input_files
         )
+        assert len(phase_input_vcf_filenames) == 0
         assert len(phase_input_bam_filenames) > 0
         readset_reader = stack.enter_context(
             open_readset_reader(
@@ -145,7 +144,9 @@ def run_polyphase(
                 mapq_threshold=mapping_quality,
             )
         )
-        fasta = stack.enter_context(open_reference(reference)) if reference else None
+        phased_input_reader = stack.enter_context(
+            PhasedInputReader(readset_reader, [], reference, numeric_sample_ids, ignore_read_groups)
+        )
         del reference
         if write_command_line_header:
             command_line = "(whatshap {}) {}".format(__version__, " ".join(sys.argv[1:]))
@@ -268,16 +269,8 @@ def run_polyphase(
 
                     # Get the reads belonging to this sample
                     timers.start("read_bam")
-                    bam_sample = None if ignore_read_groups else sample
-                    readset, vcf_source_ids = read_reads(
-                        readset_reader,
-                        chromosome,
-                        phasable_variant_table.variants,
-                        bam_sample,
-                        sample,
-                        fasta,
-                        [],
-                        numeric_sample_ids,
+                    readset, vcf_source_ids = phased_input_reader.read(
+                        chromosome, phasable_variant_table.variants, sample,
                     )
                     readset.sort()
 
@@ -317,15 +310,8 @@ def run_polyphase(
                         )
 
                         # Re-read the readset to remove discarded variants
-                        readset, vcf_source_ids = read_reads(
-                            readset_reader,
-                            chromosome,
-                            phasable_variant_table.variants,
-                            bam_sample,
-                            sample,
-                            fasta,
-                            [],
-                            numeric_sample_ids,
+                        readset, vcf_source_ids = phased_input_reader.read(
+                            chromosome, phasable_variant_table.variants, sample,
                         )
                         readset.sort()
 

@@ -14,11 +14,10 @@ import collections
 
 from contextlib import ExitStack
 from whatshap import __version__
-from whatshap.cli import CommandLineError, open_readset_reader, open_reference
+from whatshap.cli import PhasedInputReader, open_readset_reader
 from whatshap.vcf import VcfReader, VcfError
 from whatshap.core import NumericSampleIds
 from whatshap.timer import StageTimer
-from whatshap.variants import ReadSetError
 
 
 logger = logging.getLogger(__name__)
@@ -67,25 +66,6 @@ def validate(args, parser):
 
 def md5_of(filename):
     return hashlib.md5(open(filename, "rb").read()).hexdigest()
-
-
-def read_reads(readset_reader, chromosome, variants, sample, fasta, regions):
-    """Return a sorted ReadSet"""
-    logger.info(
-        "Detecting alleles in reads mapped to chromosome %s for sample %r ...", chromosome, sample,
-    )
-    reference = fasta[chromosome] if fasta else None
-    try:
-        readset = readset_reader.read(chromosome, variants, sample, reference, regions)
-    except ReadSetError as e:
-        raise CommandLineError(e)
-
-    # TODO is this necessary?
-    for read in readset:
-        read.sort()
-    readset.sort()
-
-    return readset
 
 
 def get_variant_information(variant_table, sample):
@@ -172,26 +152,14 @@ def load_chromosome_variants(vcf_reader, chromosome, regions):
 def prepare_haplotag_information(
     variant_table,
     shared_samples,
-    readset_reader,
-    fasta,
+    phased_input_reader,
     regions,
-    ignore_read_groups,
     ignore_linked_read,
     linked_read_cutoff,
 ):
     """
     Read all reads for this chromosome once to create one core.ReadSet per sample
     this allows to assign phase to paired-end reads based on both reads
-
-    :param variant_table:
-    :param shared_samples:
-    :param readset_reader:
-    :param fasta:
-    :param regions:
-    :param ignore_read_groups:
-    :param ignore_linked_read:
-    :param linked_read_cutoff:
-    :return:
     """
     n_multiple_phase_sets = 0
     BX_tag_to_haplotype = collections.defaultdict(list)
@@ -200,9 +168,8 @@ def prepare_haplotag_information(
 
     for sample in shared_samples:
         variantpos_to_phaseinfo, variants = get_variant_information(variant_table, sample)
-        bam_sample = None if ignore_read_groups else sample
-        read_set = read_reads(
-            readset_reader, variant_table.chromosome, variants, bam_sample, fasta, regions,
+        read_set, _ = phased_input_reader.read(
+            variant_table.chromosome, variants, sample, regions=regions,
         )
 
         # map tag --> set of reads
@@ -560,7 +527,9 @@ def run_haplotag(
         readset_reader = stack.enter_context(
             open_readset_reader([alignment_file], reference, numeric_sample_ids,)
         )
-        fasta = stack.enter_context(open_reference(reference)) if reference else None
+        phased_input_reader = stack.enter_context(
+            PhasedInputReader(readset_reader, [], reference, numeric_sample_ids, ignore_read_groups)
+        )
 
         # Prepare output files
         bam_writer, haplotag_writer = prepare_output_files(
@@ -591,10 +560,8 @@ def run_haplotag(
                 (BX_tag_to_haplotype, read_to_haplotype, n_mult,) = prepare_haplotag_information(
                     variant_table,
                     shared_samples,
-                    readset_reader,
-                    fasta,
+                    phased_input_reader,
                     regions,
-                    ignore_read_groups,
                     ignore_linked_read,
                     linked_read_distance_cutoff,
                 )

@@ -64,7 +64,7 @@ class ReadSetReader:
     def n_paths(self):
         return len(self._paths)
 
-    def read(self, chromosome, variants, sample, reference, regions=None):
+    def read(self, chromosome, variants, sample, reference, regions=None) -> ReadSet:
         """
         Return a ReadSet object representing the given variants.
 

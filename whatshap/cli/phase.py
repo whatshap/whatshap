@@ -34,11 +34,9 @@ from whatshap.pedigree import (
     GeneticMapRecombinationCostComputer,
     find_recombination,
 )
-from whatshap.bam import SampleNotFoundError, ReferenceNotFoundError
 from whatshap.timer import StageTimer
-from whatshap.variants import ReadSetError
 from whatshap.utils import detect_file_format, plural_s
-from whatshap.cli import CommandLineError, open_readset_reader, open_reference, log_memory_usage
+from whatshap.cli import CommandLineError, open_readset_reader, log_memory_usage, PhasedInputReader
 from whatshap.merge import ReadMerger, DoNothingReadMerger
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -125,66 +123,6 @@ def best_case_blocks(reads):
         component_sizes[component_finder.find(position)] += 1
     non_singletons = [component for component, size in component_sizes.items() if size > 1]
     return len(component_sizes), len(non_singletons)
-
-
-def read_reads(
-    readset_reader,
-    chromosome,
-    variants,
-    bam_sample,
-    vcf_sample,
-    fasta,
-    phase_input_vcfs,
-    numeric_sample_ids,
-):
-    """Return a sorted ReadSet"""
-    for_sample = "for sample {!r} ".format(bam_sample) if bam_sample is not None else ""
-    logger.info("Reading alignments %sand detecting alleles ...", for_sample)
-    try:
-        reference = fasta[chromosome] if fasta else None
-    except KeyError:
-        raise CommandLineError(
-            "Chromosome {!r} present in VCF file, but not in the reference FASTA {!r}".format(
-                chromosome, fasta.filename
-            )
-        )
-
-    try:
-        readset = readset_reader.read(chromosome, variants, bam_sample, reference)
-    except SampleNotFoundError:
-        logger.warning("Sample %r not found in any BAM/CRAM file.", bam_sample)
-        readset = ReadSet()
-    except ReadSetError as e:
-        raise CommandLineError(e)
-    except ReferenceNotFoundError:
-        if chromosome.startswith("chr"):
-            alternative = chromosome[3:]
-        else:
-            alternative = "chr" + chromosome
-        message = "The chromosome {!r} was not found in the BAM/CRAM file.".format(chromosome)
-        if readset_reader.has_reference(alternative):
-            message += " Found {!r} instead".format(alternative)
-        raise CommandLineError(message)
-    # Add phasing information from VCF files, if present
-    vcf_source_ids = set()
-    for i, phase_input_vcf in enumerate(phase_input_vcfs):
-        if chromosome in phase_input_vcf:
-            vt = phase_input_vcf[chromosome]
-            source_id = readset_reader.n_paths + i
-            vcf_source_ids.add(source_id)
-            for read in vt.phased_blocks_as_reads(
-                vcf_sample, variants, source_id, numeric_sample_ids[vcf_sample]
-            ):
-                readset.add(read)
-    # TODO is this necessary?
-    for read in readset:
-        read.sort()
-    readset.sort()
-
-    logger.info(
-        "Found %d reads covering %d variants", len(readset), len(readset.get_positions()),
-    )
-    return readset, vcf_source_ids
 
 
 def select_reads(readset, max_coverage, preferred_source_ids):
@@ -442,7 +380,16 @@ def run_whatshap(
             )
         except OSError as e:
             raise CommandLineError(e)
-        fasta = stack.enter_context(open_reference(reference)) if reference else None
+
+        phased_input_reader = stack.enter_context(
+            PhasedInputReader(
+                readset_reader,
+                phase_input_vcf_readers,
+                reference,
+                numeric_sample_ids,
+                ignore_read_groups,
+            )
+        )
         del reference
         # Only read genotype likelihoods from VCFs when distrusting genotypes
         vcf_reader = stack.enter_context(
@@ -509,17 +456,10 @@ def run_whatshap(
                     logger.info("---- Initial genotyping of %s", sample)
                     with timers("read_bam"):
                         bam_sample = None if ignore_read_groups else sample
-                        readset, vcf_source_ids = read_reads(
-                            readset_reader,
-                            chromosome,
-                            variant_table.variants,
-                            bam_sample,
-                            sample,
-                            fasta,
-                            [],
-                            numeric_sample_ids,
+                        readset, vcf_source_ids = phased_input_reader.read(
+                            chromosome, variant_table.variants, bam_sample, read_vcf=False,
                         )
-                        readset.sort()
+                        readset.sort()  # TODO can be removed
                         genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
                         variant_table.set_genotypes_of(sample, genotypes)
                         variant_table.set_genotype_likelihoods_of(
@@ -550,20 +490,12 @@ def run_whatshap(
                 readsets = dict()  # TODO this could become a list
                 for sample in family:
                     with timers("read_bam"):
-                        bam_sample = None if ignore_read_groups else sample
-                        readset, vcf_source_ids = read_reads(
-                            readset_reader,
-                            chromosome,
-                            phasable_variant_table.variants,
-                            bam_sample,
-                            sample,
-                            fasta,
-                            phase_input_vcfs,
-                            numeric_sample_ids,
+                        readset, vcf_source_ids = phased_input_reader.read(
+                            chromosome, phasable_variant_table.variants, sample,
                         )
 
-                    # TODO: Read selection done w.r.t. all variants, where using heterozygous variants only
-                    # TODO: would probably give better results.
+                    # TODO: Read selection done w.r.t. all variants, where using heterozygous
+                    #  variants only would probably give better results.
                     with timers("select"):
                         readset = readset.subset(
                             [i for i, read in enumerate(readset) if len(read) >= 2]
@@ -595,8 +527,8 @@ def run_whatshap(
                     "read in at least one individual after read selection: %d",
                     len(accessible_positions),
                 )
-                if (len(family) > 1) and genetic_haplotyping:
-                    # In case of genetic haplotyping, also retain all positions positions homozygous
+                if len(family) > 1 and genetic_haplotyping:
+                    # In case of genetic haplotyping, also retain all positions homozygous
                     # in at least one individual (because they might be phased based on genotypes)
                     accessible_positions = sorted(
                         set(accessible_positions).union(homozygous_positions)

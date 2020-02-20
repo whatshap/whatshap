@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Genotype variants
 
@@ -30,12 +29,11 @@ from whatshap.pedigree import (
 from whatshap.timer import StageTimer
 from whatshap.cli import log_memory_usage
 from whatshap.cli.phase import (
-    read_reads,
     select_reads,
     split_input_file_list,
     setup_families,
 )
-from whatshap.cli import open_readset_reader, CommandLineError, open_reference
+from whatshap.cli import open_readset_reader, CommandLineError, PhasedInputReader
 
 
 logger = logging.getLogger(__name__)
@@ -139,7 +137,15 @@ def run_genotype(
         except OSError as e:
             raise CommandLineError(e)
 
-        fasta = stack.enter_context(open_reference(reference)) if reference else None
+        phased_input_reader = stack.enter_context(
+            PhasedInputReader(
+                readset_reader,
+                phase_input_vcf_readers,
+                reference,
+                numeric_sample_ids,
+                ignore_read_groups,
+            )
+        )
         del reference
 
         # vcf writer for final genotype likelihoods
@@ -246,16 +252,8 @@ def run_genotype(
                 for sample in samples:
                     logger.info("---- Initial genotyping of %s", sample)
                     with timers("read_bam"):
-                        bam_sample = None if ignore_read_groups else sample
-                        readset, vcf_source_ids = read_reads(
-                            readset_reader,
-                            chromosome,
-                            variant_table.variants,
-                            bam_sample,
-                            sample,
-                            fasta,
-                            [],
-                            numeric_sample_ids,
+                        readset, vcf_source_ids = phased_input_reader.read(
+                            chromosome, variant_table.variants, sample, read_vcf=False,
                         )
                         readset.sort()
                         genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
@@ -311,16 +309,8 @@ def run_genotype(
                 readsets = dict()
                 for sample in family:
                     with timers("read_bam"):
-                        bam_sample = None if ignore_read_groups else sample
-                        readset, vcf_source_ids = read_reads(
-                            readset_reader,
-                            chromosome,
-                            variant_table.variants,
-                            bam_sample,
-                            sample,
-                            fasta,
-                            phase_input_vcfs,
-                            numeric_sample_ids,
+                        readset, vcf_source_ids = phased_input_reader.read(
+                            chromosome, variant_table.variants, sample,
                         )
 
                     with timers("select"):
