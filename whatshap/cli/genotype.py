@@ -9,7 +9,6 @@ import logging
 import sys
 import platform
 import resource
-from collections import defaultdict
 from typing import Sequence
 
 from contextlib import ExitStack
@@ -24,7 +23,6 @@ from whatshap.core import (
     compute_genotypes,
     Genotype,
 )
-from whatshap.graph import ComponentFinder
 from whatshap.pedigree import (
     PedReader,
     UniformRecombinationCostComputer,
@@ -35,7 +33,7 @@ from whatshap.cli.phase import (
     read_reads,
     select_reads,
     split_input_file_list,
-    setup_pedigree,
+    setup_families,
 )
 from whatshap.cli import open_readset_reader, CommandLineError, open_reference
 
@@ -203,46 +201,7 @@ def run_genotype(
             recombination_cost_computer = UniformRecombinationCostComputer(recombrate)
 
         samples = frozenset(samples)
-        # list of all trios across all families
-        all_trios = dict()
-
-        # Keep track of connected components (aka families) in the pedigree
-        family_finder = ComponentFinder(samples)
-
-        # if pedigree information present, parse it
-        if ped:
-            all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, samples)
-            if genmap:
-                logger.info(
-                    "Using region-specific recombination rates from genetic map %s.", genmap,
-                )
-            else:
-                logger.info("Using uniform recombination rate of %g cM/Mb.", recombrate)
-            for trio in all_trios:
-                family_finder.merge(trio.mother, trio.child)
-                family_finder.merge(trio.father, trio.child)
-
-        # map family representatives to lists of family members
-        families = defaultdict(list)
-        for sample in samples:
-            families[family_finder.find(sample)].append(sample)
-        # map family representatives to lists of trios for this family
-        family_trios = defaultdict(list)
-        for trio in all_trios:
-            family_trios[family_finder.find(trio.child)].append(trio)
-        largest_trio_count = max([0] + [len(trio_list) for trio_list in family_trios.values()])
-        logger.info(
-            "Working on %d samples from %d famil%s",
-            len(samples),
-            len(families),
-            "y" if len(families) == 1 else "ies",
-        )
-
-        if max_coverage + 2 * largest_trio_count > 25:
-            logger.warning(
-                "The maximum coverage is too high! "
-                "WhatsHap may take a long time to finish and require a huge amount of memory."
-            )
+        families, family_trios = setup_families(samples, ped, numeric_sample_ids, max_coverage)
 
         # Read phase information provided as VCF files, if provided.
         phase_input_vcfs = []
