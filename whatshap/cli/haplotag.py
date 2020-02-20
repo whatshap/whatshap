@@ -65,7 +65,8 @@ def validate(args, parser):
 
 
 def md5_of(filename):
-    return hashlib.md5(open(filename, "rb").read()).hexdigest()
+    with open(filename, "rb") as f:
+        return hashlib.md5(f.read()).hexdigest()
 
 
 def get_variant_information(variant_table, sample):
