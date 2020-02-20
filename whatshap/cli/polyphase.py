@@ -13,7 +13,7 @@ import platform
 import resource
 import argparse
 
-from collections import defaultdict, namedtuple
+from collections import namedtuple
 from copy import deepcopy
 from scipy.stats import binom_test
 from queue import Queue
@@ -21,16 +21,13 @@ from queue import Queue
 from contextlib import ExitStack
 
 from whatshap import __version__
-from whatshap.bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
 from whatshap.core import (
     Read,
     ReadSet,
-    Variant,
     Genotype,
     ClusterEditingSolver,
     DynamicSparseGraph,
     TriangleSparseMatrix,
-    readselection,
     NumericSampleIds,
     compute_polyploid_genotypes,
     scoreReadsetGlobal,
@@ -38,9 +35,9 @@ from whatshap.core import (
 )
 from whatshap.cli.phase import (
     read_reads,
-    select_reads,
     split_input_file_list,
-    find_components,
+    open_readset_reader,
+    open_reference,
 )
 from whatshap.polyphaseplots import draw_clustering, draw_threading, get_phase
 from whatshap.threading import (
@@ -53,8 +50,6 @@ from whatshap.threading import (
     get_coverage_absolute,
 )
 from whatshap.timer import StageTimer
-from whatshap.utils import IndexedFasta, FastaNotIndexedError
-from whatshap.variants import ReadSetReader
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
 
 __author__ = "Jana Ebler, Sven Schrinner"
@@ -136,56 +131,22 @@ def run_polyphase(
         __version__,
         platform.python_version(),
     )
+    numeric_sample_ids = NumericSampleIds()
     with ExitStack() as stack:
-        numeric_sample_ids = NumericSampleIds()
         phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(
             phase_input_files
         )
         assert len(phase_input_bam_filenames) > 0
-        try:
-            readset_reader = stack.enter_context(
-                ReadSetReader(
-                    phase_input_bam_filenames,
-                    reference,
-                    numeric_sample_ids,
-                    mapq_threshold=mapping_quality,
-                )
+        readset_reader = stack.enter_context(
+            open_readset_reader(
+                phase_input_bam_filenames,
+                reference,
+                numeric_sample_ids,
+                mapq_threshold=mapping_quality,
             )
-        except OSError as e:
-            logger.error(e)
-            sys.exit(1)
-        except AlignmentFileNotIndexedError as e:
-            logger.error(
-                "The file %r is not indexed. Please create the appropriate BAM/CRAM "
-                'index with "samtools index"',
-                str(e),
-            )
-            sys.exit(1)
-        except EmptyAlignmentFileError as e:
-            logger.error(
-                "No reads could be retrieved from %r. If this is a CRAM file, possibly the "
-                "reference could not be found. Try to use --reference=... or check you "
-                "$REF_PATH/$REF_CACHE settings",
-                str(e),
-            )
-            sys.exit(1)
-        if reference:
-            try:
-                fasta = stack.enter_context(IndexedFasta(reference))
-            except OSError as e:
-                logger.error("%s", e)
-                sys.exit(1)
-            except FastaNotIndexedError as e:
-                logger.error(
-                    "An index file (.fai) for the reference %r could not be found. "
-                    'Please create one with "samtools faidx".',
-                    str(e),
-                )
-                sys.exit(1)
-        else:
-            fasta = None
+        )
+        fasta = stack.enter_context(open_reference(reference)) if reference else None
         del reference
-        output_str = output
         if write_command_line_header:
             command_line = "(whatshap {}) {}".format(__version__, " ".join(sys.argv[1:]))
         else:
@@ -204,8 +165,10 @@ def run_polyphase(
             logger.error("%s", e)
             sys.exit(1)
 
-        vcf_reader = VcfReader(
-            variant_file, indels=indels, phases=True, genotype_likelihoods=False, ploidy=ploidy,
+        vcf_reader = stack.enter_context(
+            VcfReader(
+                variant_file, indels=indels, phases=True, genotype_likelihoods=False, ploidy=ploidy,
+            )
         )
 
         if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
