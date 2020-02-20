@@ -8,7 +8,6 @@ blocks) and phase the variants. The phased VCF is written to standard output.
 import logging
 import sys
 import platform
-import resource
 
 from argparse import SUPPRESS
 from collections import defaultdict
@@ -39,7 +38,7 @@ from whatshap.bam import SampleNotFoundError, ReferenceNotFoundError
 from whatshap.timer import StageTimer
 from whatshap.variants import ReadSetError
 from whatshap.utils import detect_file_format, plural_s
-from whatshap.cli import CommandLineError, open_readset_reader, open_reference
+from whatshap.cli import CommandLineError, open_readset_reader, open_reference, log_memory_usage
 from whatshap.merge import ReadMerger, DoNothingReadMerger
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -881,9 +880,7 @@ def find_phaseable_variants(family, include_homozygous, trios, variant_table):
 def log_time_and_memory_usage(timers, show_phase_vcfs):
     total_time = timers.total()
     logger.info("\n== SUMMARY ==")
-    if sys.platform == "linux":
-        memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        logger.info("Maximum memory usage: %.3f GB", memory_kb / 1e6)
+    log_memory_usage()
     # fmt: off
     logger.info("Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"))
     logger.info("Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"))

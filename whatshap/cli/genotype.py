@@ -8,7 +8,6 @@ forward backward algorithm.
 import logging
 import sys
 import platform
-import resource
 from typing import Sequence
 
 from contextlib import ExitStack
@@ -29,6 +28,7 @@ from whatshap.pedigree import (
     GeneticMapRecombinationCostComputer,
 )
 from whatshap.timer import StageTimer
+from whatshap.cli import log_memory_usage
 from whatshap.cli.phase import (
     read_reads,
     select_reads,
@@ -416,9 +416,7 @@ def run_genotype(
 
     logger.info("\n== SUMMARY ==")
     total_time = timers.total()
-    if sys.platform == "linux":
-        memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        logger.info("Maximum memory usage: %.3f GB", memory_kb / 1e6)
+    log_memory_usage()
     logger.info(
         "Time spent reading BAM:                      %6.1f s", timers.elapsed("read_bam"),
     )

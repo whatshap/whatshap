@@ -10,7 +10,6 @@ cut sensitivity to balance out length and accuracy of phased blocks.
 import sys
 import logging
 import platform
-import resource
 import argparse
 
 from collections import namedtuple
@@ -33,6 +32,7 @@ from whatshap.core import (
     scoreReadsetGlobal,
     scoreReadsetLocal,
 )
+from whatshap.cli import log_memory_usage
 from whatshap.cli.phase import (
     read_reads,
     split_input_file_list,
@@ -367,9 +367,7 @@ def run_polyphase(
 
     logger.info("\n== SUMMARY ==")
     timers.stop("overall")
-    if sys.platform == "linux":
-        memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        logger.info("Maximum memory usage: %.3f GB", memory_kb / 1e6)
+    log_memory_usage()
     logger.info(
         "Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"),
     )

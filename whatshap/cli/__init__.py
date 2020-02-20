@@ -1,6 +1,13 @@
+import sys
+import resource
+import logging
+
 from whatshap.bam import AlignmentFileNotIndexedError, EmptyAlignmentFileError
 from whatshap.variants import ReadSetReader
 from whatshap.utils import IndexedFasta, FastaNotIndexedError
+
+
+logger = logging.getLogger(__name__)
 
 
 class CommandLineError(Exception):
@@ -40,3 +47,9 @@ def open_reference(path):
             '"samtools faidx".'.format(e)
         )
     return indexed_fasta
+
+
+def log_memory_usage():
+    if sys.platform == "linux":
+        memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        logger.info("Maximum memory usage: %.3f GB", memory_kb / 1e6)
