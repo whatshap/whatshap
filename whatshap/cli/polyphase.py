@@ -33,10 +33,6 @@ from whatshap.core import (
     scoreReadsetLocal,
 )
 from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
-from whatshap.cli.phase import (
-    split_input_file_list,
-    open_readset_reader,
-)
 from whatshap.polyphaseplots import draw_clustering, draw_threading, get_phase
 from whatshap.threading import (
     run_threading,
@@ -131,22 +127,19 @@ def run_polyphase(
     )
     numeric_sample_ids = NumericSampleIds()
     with ExitStack() as stack:
-        phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(
-            phase_input_files
-        )
-        assert len(phase_input_vcf_filenames) == 0
-        assert len(phase_input_bam_filenames) > 0
+        assert phase_input_files
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
-                phase_input_bam_filenames,
-                [],
+                phase_input_files,
                 reference,
                 numeric_sample_ids,
                 ignore_read_groups,
+                indels=indels,
                 mapq_threshold=mapping_quality,
             )
         )
-        del reference
+        assert not phased_input_reader.has_vcfs
+
         if write_command_line_header:
             command_line = "(whatshap {}) {}".format(__version__, " ".join(sys.argv[1:]))
         else:

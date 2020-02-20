@@ -524,7 +524,7 @@ def run_haplotag(
 
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
-                [alignment_file], [], reference, numeric_sample_ids, ignore_read_groups
+                [alignment_file], reference, numeric_sample_ids, ignore_read_groups, indels=False
             )
         )
 

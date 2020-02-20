@@ -30,10 +30,9 @@ from whatshap.timer import StageTimer
 from whatshap.cli import log_memory_usage
 from whatshap.cli.phase import (
     select_reads,
-    split_input_file_list,
     setup_families,
 )
-from whatshap.cli import open_readset_reader, CommandLineError, PhasedInputReader
+from whatshap.cli import CommandLineError, PhasedInputReader
 
 
 logger = logging.getLogger(__name__)
@@ -113,24 +112,13 @@ def run_genotype(
     with ExitStack() as stack:
         # read the given input files (BAMs, VCFs, ref...)
         numeric_sample_ids = NumericSampleIds()
-        phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(
-            phase_input_files
-        )
-        try:
-            phase_input_vcf_readers = [
-                stack.enter_context(VcfReader(f, indels=indels, phases=True))
-                for f in phase_input_vcf_filenames
-            ]
-        except OSError as e:
-            raise CommandLineError(e)
-
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
-                phase_input_bam_filenames,
-                phase_input_vcf_readers,
+                phase_input_files,
                 reference,
                 numeric_sample_ids,
                 ignore_read_groups,
+                indels=indels,
                 mapq_threshold=mapping_quality,
                 overhang=overhang,
                 affine=affine_gap,
@@ -139,7 +127,7 @@ def run_genotype(
                 default_mismatch=mismatch,
             )
         )
-        del reference
+        show_phase_vcfs = phased_input_reader.has_vcfs
 
         # vcf writer for final genotype likelihoods
         vcf_writer = stack.enter_context(
@@ -204,15 +192,8 @@ def run_genotype(
 
         # Read phase information provided as VCF files, if provided.
         phase_input_vcfs = []
-        timers.start("parse_phasing_vcfs")
-        for reader in phase_input_vcf_readers:
-            # create dict mapping chromsome names to VariantTables
-            m = dict()
-            logger.info("Reading phased blocks from %r", reader.path)
-            for variant_table in reader:
-                m[variant_table.chromosome] = variant_table
-            phase_input_vcfs.append(m)
-        timers.stop("parse_phasing_vcfs")
+        with timers("parse_phasing_vcfs"):
+            phased_input_reader.read_vcfs()
 
         # compute genotype likelihood threshold
         gt_prob = 1.0 - (10 ** (-gt_qual_threshold / 10.0))
@@ -406,7 +387,7 @@ def run_genotype(
     logger.info(
         "Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"),
     )
-    if len(phase_input_vcfs) > 0:
+    if show_phase_vcfs:
         logger.info(
             "Time spent parsing input phasings from VCFs: %6.1f s",
             timers.elapsed("parse_phasing_vcfs"),

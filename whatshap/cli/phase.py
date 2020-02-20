@@ -35,8 +35,8 @@ from whatshap.pedigree import (
     find_recombination,
 )
 from whatshap.timer import StageTimer
-from whatshap.utils import detect_file_format, plural_s
-from whatshap.cli import CommandLineError, open_readset_reader, log_memory_usage, PhasedInputReader
+from whatshap.utils import plural_s
+from whatshap.cli import CommandLineError, log_memory_usage, PhasedInputReader
 from whatshap.merge import ReadMerger, DoNothingReadMerger
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
@@ -200,23 +200,6 @@ class ReadList:
             )
 
 
-def split_input_file_list(input_files):
-    bams = []
-    vcfs = []
-    for filename in input_files:
-        try:
-            file_format = detect_file_format(filename)
-        except OSError as e:
-            raise CommandLineError(e)
-        if file_format in ("BAM", "CRAM"):
-            bams.append(filename)
-        elif file_format == "VCF":
-            vcfs.append(filename)
-        else:
-            raise CommandLineError("Unable to determine type of input file {!r}".format(filename))
-    return bams, vcfs
-
-
 def setup_pedigree(ped_path, numeric_sample_ids, samples):
     """
     Read in PED file to set up list of relationships.
@@ -357,14 +340,7 @@ def run_whatshap(
         read_merger = DoNothingReadMerger()
 
     with ExitStack() as stack:
-        phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(
-            phase_input_files
-        )
         try:
-            phase_input_vcf_readers = [
-                stack.enter_context(VcfReader(f, indels=indels, phases=True))
-                for f in phase_input_vcf_filenames
-            ]
             vcf_writer = stack.enter_context(
                 PhasedVcfWriter(
                     command_line=command_line, in_path=variant_file, out_file=output, tag=tag,
@@ -375,15 +351,16 @@ def run_whatshap(
 
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
-                phase_input_bam_filenames,
-                phase_input_vcf_readers,
+                phase_input_files,
                 reference,
                 numeric_sample_ids,
                 ignore_read_groups,
                 mapq_threshold=mapping_quality,
+                indels=indels,
             )
         )
-        del reference
+        show_phase_vcfs = phased_input_reader.has_vcfs
+
         # Only read genotype likelihoods from VCFs when distrusting genotypes
         vcf_reader = stack.enter_context(
             VcfReader(variant_file, indels=indels, genotype_likelihoods=distrust_genotypes)
@@ -427,7 +404,8 @@ def run_whatshap(
                 )
 
         with timers("parse_phasing_vcfs"):
-            phase_input_vcfs = read_phase_input_vcfs(phase_input_vcf_readers)
+            # TODO should this be done in PhasedInputReader.__init__?
+            phased_input_reader.read_vcfs()
 
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
             chromosome = variant_table.chromosome
@@ -667,7 +645,7 @@ def run_whatshap(
 
             logger.debug("Chromosome %r finished", chromosome)
 
-    log_time_and_memory_usage(timers, show_phase_vcfs=len(phase_input_vcfs) > 0)
+    log_time_and_memory_usage(timers, show_phase_vcfs=show_phase_vcfs)
 
 
 def log_best_case_phasing_info(readset, selected_reads):
@@ -818,20 +796,6 @@ def log_time_and_memory_usage(timers, show_phase_vcfs):
     logger.info("Time spent on rest:                          %6.1f s", total_time - timers.sum())
     logger.info("Total elapsed time:                          %6.1f s", total_time)
     # fmt: on
-
-
-def read_phase_input_vcfs(phase_input_vcf_readers):
-    # Read phase information provided as VCF files, if provided.
-    # TODO: do this chromosome- and/or sample-wise on demand to save memory.
-    phase_input_vcfs = []
-    for reader in phase_input_vcf_readers:
-        # create dict mapping chromsome names to VariantTables
-        m = dict()
-        logger.info("Reading phased blocks from %r", reader.path)
-        for variant_table in reader:
-            m[variant_table.chromosome] = variant_table
-        phase_input_vcfs.append(m)
-    return phase_input_vcfs
 
 
 def merge_readsets(readsets) -> ReadSet:
