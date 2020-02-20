@@ -116,19 +116,6 @@ def run_genotype(
         phase_input_bam_filenames, phase_input_vcf_filenames = split_input_file_list(
             phase_input_files
         )
-        readset_reader = stack.enter_context(
-            open_readset_reader(
-                phase_input_bam_filenames,
-                reference,
-                numeric_sample_ids,
-                mapq_threshold=mapping_quality,
-                overhang=overhang,
-                affine=affine_gap,
-                gap_start=gap_start,
-                gap_extend=gap_extend,
-                default_mismatch=mismatch,
-            )
-        )
         try:
             phase_input_vcf_readers = [
                 stack.enter_context(VcfReader(f, indels=indels, phases=True))
@@ -139,11 +126,17 @@ def run_genotype(
 
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
-                readset_reader,
+                phase_input_bam_filenames,
                 phase_input_vcf_readers,
                 reference,
                 numeric_sample_ids,
                 ignore_read_groups,
+                mapq_threshold=mapping_quality,
+                overhang=overhang,
+                affine=affine_gap,
+                gap_start=gap_start,
+                gap_extend=gap_extend,
+                default_mismatch=mismatch,
             )
         )
         del reference

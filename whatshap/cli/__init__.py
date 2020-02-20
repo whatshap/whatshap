@@ -43,13 +43,23 @@ def open_readset_reader(*args, **kwargs):
 
 class PhasedInputReader:
     def __init__(
-        self, readset_reader, vcf_readers, reference, numeric_sample_ids, ignore_read_groups
+        self,
+        bam_paths,
+        vcf_readers,
+        reference,
+        numeric_sample_ids,
+        ignore_read_groups,
+        **kwargs,  # passed to ReadSetReader constructor
     ):
-        self._readset_reader = readset_reader
+        # TODO exit stack!
         self._numeric_sample_ids = numeric_sample_ids
         self._fasta = self._open_reference(reference) if reference else None
         self._vcf_readers = vcf_readers
         self._ignore_read_groups = ignore_read_groups
+
+        self._readset_reader = open_readset_reader(
+            bam_paths, reference, numeric_sample_ids, **kwargs,
+        )
 
     def __enter__(self):
         return self

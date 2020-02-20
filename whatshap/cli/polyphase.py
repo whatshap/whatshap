@@ -136,16 +136,15 @@ def run_polyphase(
         )
         assert len(phase_input_vcf_filenames) == 0
         assert len(phase_input_bam_filenames) > 0
-        readset_reader = stack.enter_context(
-            open_readset_reader(
+        phased_input_reader = stack.enter_context(
+            PhasedInputReader(
                 phase_input_bam_filenames,
+                [],
                 reference,
                 numeric_sample_ids,
+                ignore_read_groups,
                 mapq_threshold=mapping_quality,
             )
-        )
-        phased_input_reader = stack.enter_context(
-            PhasedInputReader(readset_reader, [], reference, numeric_sample_ids, ignore_read_groups)
         )
         del reference
         if write_command_line_header:

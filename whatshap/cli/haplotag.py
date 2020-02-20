@@ -522,12 +522,10 @@ def run_haplotag(
         # Check if user has specified a subset of regions per chromosome
         user_regions = normalize_user_regions(regions, bam_reader.references)
 
-        # Initialize ReadSetReader and FASTA reference
-        readset_reader = stack.enter_context(
-            open_readset_reader([alignment_file], reference, numeric_sample_ids,)
-        )
         phased_input_reader = stack.enter_context(
-            PhasedInputReader(readset_reader, [], reference, numeric_sample_ids, ignore_read_groups)
+            PhasedInputReader(
+                [alignment_file], [], reference, numeric_sample_ids, ignore_read_groups
+            )
         )
 
         # Prepare output files
