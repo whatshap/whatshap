@@ -4,10 +4,9 @@ Integration tests that use the command-line entry point run_polyphase.
 from tempfile import TemporaryDirectory
 import os
 
-import pysam
 from pytest import raises
-from whatshap.cli.polyphase import run_polyphase
-from whatshap.vcf import VcfReader, VariantCallPhase, PloidyError
+from whatshap.cli.polyphase import run_polyphase, CommandLineError
+from whatshap.vcf import VcfReader
 
 
 def test_polyphase_short_chr22():
@@ -59,7 +58,7 @@ def test_polyphase_multiple_bam(tmpdir):
 def test_wrong_ploidy(tmpdir):
     with TemporaryDirectory() as tempdir:
         outvcf = tempdir + "/output.vcf"
-        with raises(SystemExit):
+        with raises(CommandLineError):
             run_polyphase(
                 phase_input_files=["tests/data/polyploid.chr22.42M.12k.bam"],
                 variant_file="tests/data/polyploid.chr22.42M.12k.vcf",

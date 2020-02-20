@@ -32,7 +32,7 @@ from whatshap.core import (
     scoreReadsetGlobal,
     scoreReadsetLocal,
 )
-from whatshap.cli import log_memory_usage, PhasedInputReader
+from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
 from whatshap.cli.phase import (
     split_input_file_list,
     open_readset_reader,
@@ -163,8 +163,7 @@ def run_polyphase(
                 )
             )
         except OSError as e:
-            logger.error("%s", e)
-            sys.exit(1)
+            raise CommandLineError(e)
 
         vcf_reader = stack.enter_context(
             VcfReader(
@@ -173,19 +172,19 @@ def run_polyphase(
         )
 
         if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
-            logger.error(
+            raise CommandLineError(
                 "When using --ignore-read-groups on a VCF with "
                 "multiple samples, --sample must also be used."
             )
-            sys.exit(1)
         if not samples:
             samples = vcf_reader.samples
 
         vcf_sample_set = set(vcf_reader.samples)
         for sample in samples:
             if sample not in vcf_sample_set:
-                logger.error("Sample %r requested on command-line not found in VCF", sample)
-                sys.exit(1)
+                raise CommandLineError(
+                    "Sample {!r} requested on command-line not found in VCF".format(sample)
+                )
 
         if block_cut_sensitivity < 0:
             logger.warn(
@@ -345,8 +344,7 @@ def run_polyphase(
                 timers.start("parse_vcf")
             timers.stop("parse_vcf")
         except PloidyError as e:
-            logger.error("%s", e)
-            sys.exit(1)
+            raise CommandLineError(e)
 
     if read_list_file:
         read_list_file.close()
