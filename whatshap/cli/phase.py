@@ -323,7 +323,7 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
         pedigree_samples.add(trio.father)
         pedigree_samples.add(trio.mother)
         # Ensure that all mentioned individuals have a numeric id
-        numeric_sample_ids[trio.child]
+        _ = numeric_sample_ids[trio.child]
 
     return trios, pedigree_samples
 
