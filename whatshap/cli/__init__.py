@@ -49,7 +49,7 @@ class PhasedInputReader:
         numeric_sample_ids,
         ignore_read_groups,
         indels,
-        **kwargs,  # passed to ReadSetReader constructor
+        **kwargs  # passed to ReadSetReader constructor
     ):
         self._bam_paths, self._vcf_paths = self._split_input_file_list(bam_or_vcf_paths)
 

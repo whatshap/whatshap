@@ -359,7 +359,7 @@ def run_stats(
                 "file_name",
                 *detailed_stats_fields,
                 sep="\t",
-                file=tsv_file
+                file=tsv_file,
             )
 
         if block_list_file:

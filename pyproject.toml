@@ -3,3 +3,4 @@ requires = ["setuptools", "wheel", "setuptools_scm", "cython"]
 
 [tool.black]
 line-length = 100
+target-version = ['py35']
