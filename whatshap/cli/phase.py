@@ -448,7 +448,9 @@ def run_whatshap(
         fasta = stack.enter_context(open_reference(reference)) if reference else None
         del reference
         # Only read genotype likelihoods from VCFs when distrusting genotypes
-        vcf_reader = VcfReader(variant_file, indels=indels, genotype_likelihoods=distrust_genotypes)
+        vcf_reader = stack.enter_context(
+            VcfReader(variant_file, indels=indels, genotype_likelihoods=distrust_genotypes)
+        )
 
         if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
             raise CommandLineError(
@@ -534,7 +536,6 @@ def run_whatshap(
                 max_coverage_per_sample = max(1, max_coverage // len(family))
                 logger.info("Using maximum coverage per sample of %dX", max_coverage_per_sample)
                 trios = family_trios[representative_sample]
-
                 assert len(family) == 1 or len(trios) > 0
 
                 homozygous_positions, phasable_variant_table = find_phaseable_variants(
@@ -921,7 +922,7 @@ def read_phase_input_vcfs(phase_input_vcf_readers):
     return phase_input_vcfs
 
 
-def merge_readsets(readsets):
+def merge_readsets(readsets) -> ReadSet:
     all_reads = ReadSet()
     for sample, readset in readsets.items():
         for read in readset:
