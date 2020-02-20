@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 RecombinationMapEntry = namedtuple("RecombinationMapEntry", ["position", "cum_distance"])
 
 
-def interpolate(point, start_pos, end_pos, start_value, end_value):
+def _interpolate(point, start_pos, end_pos, start_value, end_value):
     assert start_pos <= point <= end_pos
     if start_pos == point == end_pos:
         assert start_value == end_value
@@ -36,31 +36,33 @@ def recombination_cost_map(genetic_map, positions):
 
     for position in positions:
         # update i to meet the invariant
-        if (i == None) and (genetic_map[0].position <= position):
+        if (i is None) and (genetic_map[0].position <= position):
             i = 0
         while (
-            (i != None) and (i + 1 < len(genetic_map)) and (genetic_map[i + 1].position <= position)
+            (i is not None)
+            and (i + 1 < len(genetic_map))
+            and (genetic_map[i + 1].position <= position)
         ):
             i += 1
 
         # update j to meet the invariant
-        while (j != None) and (genetic_map[j].position < position):
+        while (j is not None) and (genetic_map[j].position < position):
             if j + 1 < len(genetic_map):
                 j += 1
             else:
                 j = None
 
         # interpolate
-        if i == None:
-            assert j != None
-            d = interpolate(position, 0, genetic_map[j].position, 0, genetic_map[j].cum_distance)
-        elif j == None:
+        if i is None:
+            assert j is not None
+            d = _interpolate(position, 0, genetic_map[j].position, 0, genetic_map[j].cum_distance)
+        elif j is None:
             # Point outside the genetic map --> extrapolating using average recombination rate
             avg_rate = genetic_map[-1].cum_distance / genetic_map[-1].position
             d = genetic_map[-1].cum_distance + (position - genetic_map[-1].position) * avg_rate
         else:
             assert genetic_map[i].position <= position <= genetic_map[j].position
-            d = interpolate(
+            d = _interpolate(
                 position,
                 genetic_map[i].position,
                 genetic_map[j].position,
