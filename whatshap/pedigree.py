@@ -81,19 +81,6 @@ def recombination_cost_map(genetic_map, positions):
     return result
 
 
-def uniform_recombination_map(recombrate, positions):
-    """
-    For a list of positions and a constant recombination rate (in cM/Mb),
-    return a list "results" of the same length as "positions" such that
-    results[i] is the phred-scaled recombination probability between
-    positions[i-1] and positions[i].
-    """
-    return [0] + [
-        round(centimorgen_to_phred((positions[i] - positions[i - 1]) * 1e-6 * recombrate))
-        for i in range(1, len(positions))
-    ]
-
-
 def centimorgen_to_phred(distance):
     assert distance >= 0
     if distance == 0:
@@ -103,32 +90,6 @@ def centimorgen_to_phred(distance):
     else:
         p = (1.0 - math.exp(-(2.0 * distance) / 100)) / 2.0
         return -10 * math.log10(p)
-
-
-def load_genetic_map(filename):
-    genetic_map = []
-
-    warned_zero_distance = False
-    with open(filename, "r") as fid:
-
-        # read and ignore first line
-        fid.readline()
-
-        # for each line only store the first and third value in two seperate list
-        for line in fid:
-            line_spl = line.strip().split()
-            assert len(line_spl) == 3
-            genetic_map.append(
-                RecombinationMapEntry(position=int(line_spl[0]), cum_distance=float(line_spl[2]))
-            )
-            if len(genetic_map) >= 2:
-                if not warned_zero_distance and (
-                    genetic_map[-2].cum_distance == genetic_map[-1].cum_distance
-                ):
-                    logger.warning("Zero genetic distances encountered in %s", filename)
-                    warned_zero_distance = True
-
-    return genetic_map
 
 
 def mendelian_conflict(genotypem, genotypef, genotypec):
@@ -190,6 +151,60 @@ def find_recombination(transmission_vector, components, positions, recombcost):
     logger.info("Cost accounted for by recombination events: %d", cum_recomb_cost)
     event_list.sort()
     return event_list
+
+
+class GeneticMapRecombinationCostComputer:
+    def __init__(self, genetic_map_path):
+        self._genetic_map = self.load_genetic_map(genetic_map_path)
+
+    @staticmethod
+    def load_genetic_map(filename):
+        genetic_map = []
+
+        warned_zero_distance = False
+        with open(filename) as fid:
+            # skip first line
+            fid.readline()
+
+            # for each line only store the first and third value in two seperate list
+            for line in fid:
+                fields = line.strip().split()
+                assert len(fields) == 3
+                genetic_map.append(
+                    RecombinationMapEntry(position=int(fields[0]), cum_distance=float(fields[2]))
+                )
+                if len(genetic_map) >= 2:
+                    if not warned_zero_distance and (
+                        genetic_map[-2].cum_distance == genetic_map[-1].cum_distance
+                    ):
+                        logger.warning("Zero genetic distances encountered in %s", filename)
+                        warned_zero_distance = True
+
+        return genetic_map
+
+    def compute(self, positions):
+        return recombination_cost_map(self._genetic_map, positions)
+
+
+class UniformRecombinationCostComputer:
+    def __init__(self, recombination_rate):
+        self._recombination_rate = recombination_rate
+
+    @staticmethod
+    def uniform_recombination_map(recombrate, positions):
+        """
+        For a list of positions and a constant recombination rate (in cM/Mb),
+        return a list "results" of the same length as "positions" such that
+        results[i] is the phred-scaled recombination probability between
+        positions[i-1] and positions[i].
+        """
+        return [0] + [
+            round(centimorgen_to_phred((positions[i] - positions[i - 1]) * 1e-6 * recombrate))
+            for i in range(1, len(positions))
+        ]
+
+    def compute(self, positions):
+        return self.uniform_recombination_map(self._recombination_rate, positions)
 
 
 class ParseError(Exception):

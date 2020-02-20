@@ -27,9 +27,8 @@ from whatshap.core import (
 from whatshap.graph import ComponentFinder
 from whatshap.pedigree import (
     PedReader,
-    recombination_cost_map,
-    load_genetic_map,
-    uniform_recombination_map,
+    UniformRecombinationCostComputer,
+    GeneticMapRecombinationCostComputer,
 )
 from whatshap.timer import StageTimer
 from whatshap.cli.phase import (
@@ -192,6 +191,16 @@ def run_genotype(
                 raise CommandLineError(
                     "Sample {!r} requested on command-line not found in VCF".format(sample)
                 )
+
+        if ped and genmap:
+            logger.info(
+                "Using region-specific recombination rates from genetic map %s.", genmap,
+            )
+            recombination_cost_computer = GeneticMapRecombinationCostComputer(genmap)
+        else:
+            if ped:
+                logger.info("Using uniform recombination rate of %g cM/Mb.", recombrate)
+            recombination_cost_computer = UniformRecombinationCostComputer(recombrate)
 
         samples = frozenset(samples)
         # list of all trios across all families
@@ -406,15 +415,7 @@ def run_genotype(
                         father_id=trio.father, mother_id=trio.mother, child_id=trio.child,
                     )
 
-                if genmap:
-                    # Load genetic map
-                    recombination_costs = recombination_cost_map(
-                        load_genetic_map(genmap), accessible_positions
-                    )
-                else:
-                    recombination_costs = uniform_recombination_map(
-                        recombrate, accessible_positions
-                    )
+                recombination_costs = recombination_cost_computer.compute(accessible_positions)
 
                 # Finally, run genotyping algorithm
                 with timers("genotyping"):
