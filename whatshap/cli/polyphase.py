@@ -315,7 +315,6 @@ def run_polyphase(
                         fasta,
                         [],
                         numeric_sample_ids,
-                        phase_input_bam_filenames,
                     )
                     readset.sort()
 
@@ -364,7 +363,6 @@ def run_polyphase(
                             fasta,
                             [],
                             numeric_sample_ids,
-                            phase_input_bam_filenames,
                         )
                         readset.sort()
 

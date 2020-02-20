@@ -137,7 +137,6 @@ def read_reads(
     fasta,
     phase_input_vcfs,
     numeric_sample_ids,
-    phase_input_bam_filenames,
 ):
     """Return a sorted ReadSet"""
     for_sample = "for sample {!r} ".format(bam_sample) if bam_sample is not None else ""
@@ -172,7 +171,7 @@ def read_reads(
     for i, phase_input_vcf in enumerate(phase_input_vcfs):
         if chromosome in phase_input_vcf:
             vt = phase_input_vcf[chromosome]
-            source_id = len(phase_input_bam_filenames) + i
+            source_id = readset_reader.n_paths + i
             vcf_source_ids.add(source_id)
             for read in vt.phased_blocks_as_reads(
                 vcf_sample, variants, source_id, numeric_sample_ids[vcf_sample]
@@ -481,6 +480,12 @@ def run_whatshap(
         read_list = None
         if read_list_filename:
             read_list = stack.enter_context(ReadList(read_list_filename))
+            if algorithm == "hapchat":
+                logger.warning(
+                    "On which haplotype a read occurs in the inferred solution is not yet "
+                    "implemented in hapchat, and so the corresponding column in the "
+                    "read list file contains no information about this"
+                )
 
         with timers("parse_phasing_vcfs"):
             phase_input_vcfs = read_phase_input_vcfs(phase_input_vcf_readers)
@@ -514,7 +519,6 @@ def run_whatshap(
                             fasta,
                             [],
                             numeric_sample_ids,
-                            phase_input_bam_filenames,
                         )
                         readset.sort()
                         genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
@@ -557,7 +561,6 @@ def run_whatshap(
                             fasta,
                             phase_input_vcfs,
                             numeric_sample_ids,
-                            phase_input_bam_filenames,
                         )
 
                     # TODO: Read selection done w.r.t. all variants, where using heterozygous variants only
@@ -719,12 +722,6 @@ def run_whatshap(
                     components[sample] = overall_components
 
                 if read_list:
-                    if algorithm == "hapchat":
-                        logger.warning(
-                            "On which haplotype a read occurs in the inferred solution is not yet "
-                            "implemented in hapchat, and so the corresponding column in the "
-                            "read list file contains no information about this"
-                        )
                     read_list.write(
                         all_reads,
                         dp_table.get_optimal_partitioning(),

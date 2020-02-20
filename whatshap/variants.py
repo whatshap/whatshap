@@ -54,10 +54,15 @@ class ReadSetReader:
         self._gap_extend = gap_extend
         self._default_mismatch = default_mismatch
         self._overhang = overhang
+        self._paths = paths
         if len(paths) == 1:
             self._reader = SampleBamReader(paths[0], reference=reference)
         else:
             self._reader = MultiBamReader(paths, reference=reference)
+
+    @property
+    def n_paths(self):
+        return len(self._paths)
 
     def read(self, chromosome, variants, sample, reference, regions=None):
         """

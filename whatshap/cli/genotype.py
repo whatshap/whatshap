@@ -256,7 +256,6 @@ def run_genotype(
                             fasta,
                             [],
                             numeric_sample_ids,
-                            phase_input_bam_filenames,
                         )
                         readset.sort()
                         genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
@@ -322,7 +321,6 @@ def run_genotype(
                             fasta,
                             phase_input_vcfs,
                             numeric_sample_ids,
-                            phase_input_bam_filenames,
                         )
 
                     with timers("select"):
