@@ -187,12 +187,12 @@ def run_polyphase(
                 )
 
         if block_cut_sensitivity < 0:
-            logger.warn(
+            logger.warning(
                 "Block cut sensitivity was set to negative value. Lowest value (0) is assumed instead."
             )
             block_cut_sensitivity = 0
         elif block_cut_sensitivity > 5:
-            logger.warn(
+            logger.warning(
                 "Block cut sensitivity level too large. Assuming highest valid value (5) instead."
             )
             block_cut_sensitivity = 5
