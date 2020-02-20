@@ -27,14 +27,16 @@ from whatshap import __version__
 logger = logging.getLogger(__name__)
 
 
-# fmt: off
 def add_arguments(parser):
     add = parser.add_argument
-    add('-o', '--output', default=sys.stdout,
-        help='Output VCF file. If omitted, use standard output.')
-    add('vcf', metavar='VCF', help='VCF file')
-    add('hapcut', metavar='HAPCUT-RESULT', help='hapCUT result file')
-# fmt: on
+    add(
+        "-o",
+        "--output",
+        default=sys.stdout,
+        help="Output VCF file. If omitted, use standard output.",
+    )
+    add("vcf", metavar="VCF", help="VCF file")
+    add("hapcut", metavar="HAPCUT-RESULT", help="hapCUT result file")
 
 
 HapCutVariant = namedtuple(
@@ -64,12 +66,16 @@ class HapCutParser:
     # HapCUT2 output format is slightly different:
     #
     # BLOCK: offset: 306 len: 37 phased: 27 SPAN: 38662 fragments 140
-    # 306     0       1       1       1065296 T       C       0/1     0       0.000000        -0.000000
-    # 307     0       1       1       1066259 G       C       0/1     0       0.000000        0.000000
+    # 306  0  1  1  1065296 T  C  0/1  0  0.000000  -0.000000
+    # 307  0  1  1  1066259 G  C  0/1  0  0.000000  0.000000
 
     block_re = re.compile(
-        "BLOCK: offset: (?P<offset>\d+) len: (?P<len>\d+) phased: (?P<phased>\d+) SPAN: (?P<span>\d+) "
-        "(MECscore (?P<mecscore>\d+\.\d+) )?fragments (?P<fragments>\d+)"
+        r"BLOCK: "
+        r"offset: (?P<offset>\d+) "
+        r"len: (?P<len>\d+) "
+        r"phased: (?P<phased>\d+) "
+        r"SPAN: (?P<span>\d+) "
+        r"(MECscore (?P<mecscore>\d+\.\d+) )?fragments (?P<fragments>\d+)"
     )
 
     def __init__(self, file):
@@ -104,7 +110,8 @@ class HapCutParser:
                     fields = line.strip().split()
                     if len(fields) not in (9, 11):
                         raise ParseError(
-                            "Expected nine fields (for hapCUT 1) or eleven fields (for hapCUT 2) in variant line"
+                            "Expected nine fields (for hapCUT 1) "
+                            "or eleven fields (for hapCUT 2) in variant line"
                         )
                     (
                         variant_id,
@@ -139,7 +146,7 @@ class HapCutParser:
                     if haplotype_1 == "-" or haplotype_2 == "-":
                         # This happens in hapCUT 2 sometimes
                         continue
-                    variant_id = int(variant_id)
+                    _variant_id = int(variant_id)
                     haplotype_1 = int(haplotype_1)
                     haplotype_2 = int(haplotype_2)
                     position = int(position) - 1
