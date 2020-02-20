@@ -1,6 +1,5 @@
 from whatshap.core import (
     ReadSet,
-    DynamicSparseGraph,
     ClusterEditingSolver,
     scoreReadsetGlobal,
     scoreReadsetLocal,
@@ -36,16 +35,8 @@ def test_clusterediting1():
     # compute similarities
     similarities = scoreReadsetGlobal(readset, 5, 4)
 
-    # create read graph
-    n_reads = len(readset)
-    graph = DynamicSparseGraph(n_reads)
-
-    # insert edges
-    for (read1, read2) in similarities:
-        graph.addEdge(read1, read2, similarities.get(read1, read2))
-
     # run cluster editing
-    clusterediting = ClusterEditingSolver(graph, False)
+    clusterediting = ClusterEditingSolver(similarities, False)
     readpartitioning = clusterediting.run()
 
     print("computed clusters: ", readpartitioning)
@@ -78,16 +69,8 @@ def test_clusterediting2():
     similarities = scoreReadsetGlobal(readset, 5, 2)
     print(similarities)
 
-    # create read graph
-    n_reads = len(readset)
-    graph = DynamicSparseGraph(n_reads)
-
-    # insert edges
-    for (read1, read2) in similarities:
-        graph.addEdge(read1, read2, similarities.get(read1, read2))
-
     # run cluster editing
-    clusterediting = ClusterEditingSolver(graph, False)
+    clusterediting = ClusterEditingSolver(similarities, False)
     readpartitioning = clusterediting.run()
 
     print("computed clusters: ", readpartitioning)
@@ -116,19 +99,10 @@ def test_clusterediting3():
 
     # compute similarities
     similarities = scoreReadsetGlobal(readset, 5, 3)
-
     print(similarities)
 
-    # create read graph
-    n_reads = len(readset)
-    graph = DynamicSparseGraph(n_reads)
-
-    # insert edges
-    for (read1, read2) in similarities:
-        graph.addEdge(read1, read2, similarities.get(read1, read2))
-
     # run cluster editing
-    clusterediting = ClusterEditingSolver(graph, False)
+    clusterediting = ClusterEditingSolver(similarities, False)
     readpartitioning = clusterediting.run()
 
     print("computed clusters: ", readpartitioning)
