@@ -29,14 +29,14 @@ def open_readset_reader(*args, **kwargs):
         raise CommandLineError(e)
     except AlignmentFileNotIndexedError as e:
         raise CommandLineError(
-            "The file {!r} is not indexed. Please create the appropriate BAM/CRAM "
-            'index with "samtools index"'.format(e)
+            "The file '{}' is not indexed. Please create the appropriate BAM/CRAM "
+            'index with "samtools index"'.format(e.args[0])
         )
     except EmptyAlignmentFileError as e:
         raise CommandLineError(
-            "No reads could be retrieved from {!r}. If this is a CRAM file, possibly the "
-            "reference could not be found. Try to use --reference=... or check you "
-            "$REF_PATH/$REF_CACHE settings".format(e)
+            "No reads could be retrieved from '{}'. If this is a CRAM file, possibly the "
+            "reference could not be found. Try to use --reference=... or check your "
+            "$REF_PATH/$REF_CACHE settings".format(e.args[0])
         )
     return readset_reader
 
