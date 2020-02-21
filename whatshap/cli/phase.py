@@ -33,6 +33,7 @@ from whatshap.pedigree import (
     UniformRecombinationCostComputer,
     GeneticMapRecombinationCostComputer,
     find_recombination,
+    ParseError,
 )
 from whatshap.timer import StageTimer
 from whatshap.utils import plural_s
@@ -384,7 +385,10 @@ def run_whatshap(
             logger.info(
                 "Using region-specific recombination rates from genetic map %s.", genmap,
             )
-            recombination_cost_computer = GeneticMapRecombinationCostComputer(genmap)
+            try:
+                recombination_cost_computer = GeneticMapRecombinationCostComputer(genmap)
+            except ParseError as e:
+                raise CommandLineError(e)
         else:
             if ped:
                 logger.info("Using uniform recombination rate of %g cM/Mb.", recombrate)

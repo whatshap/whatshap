@@ -11,6 +11,10 @@ logger = logging.getLogger(__name__)
 RecombinationMapEntry = namedtuple("RecombinationMapEntry", ["position", "cum_distance"])
 
 
+class ParseError(Exception):
+    pass
+
+
 def _interpolate(point, start_pos, end_pos, start_value, end_value):
     assert start_pos <= point <= end_pos
     if start_pos == point == end_pos:
@@ -163,15 +167,29 @@ class GeneticMapRecombinationCostComputer:
 
         warned_zero_distance = False
         with open(filename) as fid:
-            # skip first line
-            fid.readline()
-
-            # for each line only store the first and third value in two seperate list
-            for line in fid:
+            for line_number, line in enumerate(fid, 1):
+                if line_number == 1:
+                    continue
                 fields = line.strip().split()
-                assert len(fields) == 3
+                if not fields:
+                    # Skip empty lines
+                    continue
+                if len(fields) != 3:
+                    raise ParseError(
+                        "Error at line {} of genetic map file '{}': "
+                        "Found {} fields instead of 3".format(line_number, filename, len(fields))
+                    )
+                try:
+                    position = int(fields[0])
+                    cum_distance = float(fields[2])
+                except ValueError as e:
+                    raise ParseError(
+                        "Error at line {} of genetic map file '{}': {}".format(
+                            line_number, filename, e
+                        )
+                    )
                 genetic_map.append(
-                    RecombinationMapEntry(position=int(fields[0]), cum_distance=float(fields[2]))
+                    RecombinationMapEntry(position=position, cum_distance=cum_distance)
                 )
                 if len(genetic_map) >= 2:
                     if not warned_zero_distance and (
@@ -205,10 +223,6 @@ class UniformRecombinationCostComputer:
 
     def compute(self, positions):
         return self.uniform_recombination_map(self._recombination_rate, positions)
-
-
-class ParseError(Exception):
-    pass
 
 
 Trio = namedtuple("Trio", ["child", "father", "mother"])

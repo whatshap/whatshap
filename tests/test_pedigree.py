@@ -1,4 +1,4 @@
-from whatshap.core import Pedigree, PhredGenotypeLikelihoods, NumericSampleIds, Genotype
+from whatshap.core import Pedigree, PhredGenotypeLikelihoods, NumericSampleIds
 from whatshap.testhelpers import canonic_index_list_to_biallelic_gt_list
 
 
