@@ -61,3 +61,7 @@ cdef class ReadScoring:
 
 cdef class HaploThreader:
 	cdef cpp.HaploThreader *thisptr
+	
+cdef class SwitchFlipCalculator:
+	cdef cpp.SwitchFlipCalculator *thisptr
+	cdef uint32_t ploidy

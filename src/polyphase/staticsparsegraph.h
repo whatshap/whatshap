@@ -36,6 +36,15 @@ public:
     typedef uint32_t RankId;
     typedef float EdgeWeight;
     
+    static inline uint64_t popcount(uint64_t bitv) {
+		// copied from Wikipedia (https://en.wikipedia.org/wiki/Hamming_weight)
+		bitv -= (bitv >> 1) & m1;
+		bitv = (bitv & m2) + ((bitv >> 2) & m2);
+		bitv = (bitv + (bitv >> 4)) & m4;
+		return (bitv * h01) >> 56;
+		//return _mm_popcnt_u64(bitv); //TODO: can be used instead as a speedup, but requires <x86intrin.h> to be included
+	}
+    
     /**
     * Compact data structure to represent an edge. It consists of two node indices.
     */
@@ -171,18 +180,10 @@ public:
 
 private:
 	// masks and algorithm to compute popcounts on 64bit words
-	const uint64_t m1  = 0x5555555555555555;
-	const uint64_t m2  = 0x3333333333333333;
-	const uint64_t m4  = 0x0f0f0f0f0f0f0f0f;
-	const uint64_t h01 = 0x0101010101010101;
-	inline uint64_t popcount(uint64_t bitv) const {
-		// copied from Wikipedia (https://en.wikipedia.org/wiki/Hamming_weight)
-		bitv -= (bitv >> 1) & m1;
-		bitv = (bitv & m2) + ((bitv >> 2) & m2);
-		bitv = (bitv + (bitv >> 4)) & m4;
-		return (bitv * h01) >> 56;
-		//return _mm_popcnt_u64(bitv); //TODO: can be used instead as a speedup, but requires <x86intrin.h> to be included
-	}
+	static const uint64_t m1  = 0x5555555555555555;
+	static const uint64_t m2  = 0x3333333333333333;
+	static const uint64_t m4  = 0x0f0f0f0f0f0f0f0f;
+	static const uint64_t h01 = 0x0101010101010101;
 	
     // used for sparse and fast storage of edge weights
     uint64_t size;

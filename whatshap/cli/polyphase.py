@@ -626,7 +626,7 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
         )
     )
     timers.start("solve_clusterediting")
-    solver = ClusterEditingSolver(graph, phasing_param.ce_bundle_edges)
+    solver = ClusterEditingSolver(similarities, phasing_param.ce_bundle_edges)
     clustering = solver.run()
     del solver
 
@@ -651,7 +651,7 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
             logger.debug(
                 "{} inconsistent variants found. Refining clusters ..\r".format(new_inc_count)
             )
-            solver = ClusterEditingSolver(graph, phasing_param.ce_bundle_edges)
+            solver = ClusterEditingSolver(similarities, phasing_param.ce_bundle_edges)
             clustering = solver.run()
             del solver
 

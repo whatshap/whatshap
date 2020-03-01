@@ -189,3 +189,12 @@ cdef extern from "../src/polyphase/haplothreader.h":
                     vector[vector[uint32_t]]& consensus,
                     vector[unordered_map[uint32_t, uint32_t]]& genotypes,
 					vector[vector[vector[double]]]& clusterDissim) except +
+		
+cdef extern from "../src/polyphase/switchflipcalculator.h":
+	cdef cppclass SwitchFlipCalculator:
+		SwitchFlipCalculator(uint32_t ploidy, double switchCost, double flipCost) except +
+		pair[double, double] compare(vector[vector[uint32_t]]& phasing0,
+                    vector[vector[uint32_t]]& phasing1,
+                    vector[uint32_t]& switchesInColumn,
+                    vector[vector[uint32_t]]& flippedHapsInColumn,
+                    vector[vector[uint32_t]]& permInColumn) except +

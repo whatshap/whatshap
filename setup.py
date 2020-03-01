@@ -108,6 +108,7 @@ extensions = [
             "src/polyphase/edgeheap.cpp",
             "src/polyphase/inducedcostheuristic.cpp",
             "src/polyphase/staticsparsegraph.cpp",
+			"src/polyphase/switchflipcalculator.cpp",
             "src/polyphase/trianglesparsematrix.cpp",
             "src/polyphase/readscoring.cpp",
             "src/polyphase/haplothreader.cpp",
