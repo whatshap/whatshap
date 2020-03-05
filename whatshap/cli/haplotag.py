@@ -116,11 +116,12 @@ def attempt_add_phase_information(
         # check if reads with same tag have been assigned
         if alignment.has_tag("BX"):
             read_clouds = bxtag_to_haplotype[alignment.get_tag("BX")]
-            for (reference_start, haplotype, phaseset) in read_clouds:
+            for (reference_start, haplotype, ps) in read_clouds:
                 if abs(reference_start - alignment.reference_start) <= linked_read_cutoff:
                     haplotype_name = "H{}".format(haplotype + 1)
                     alignment.set_tag("HP", haplotype + 1)
-                    alignment.set_tag("PS", phaseset)
+                    alignment.set_tag("PS", ps)
+                    phaseset = ps
                     is_tagged = 1
                     break
     return is_tagged, haplotype_name, phaseset

@@ -1046,6 +1046,37 @@ def test_haplotag_10X_2():
                 assert a1.get_tag("HP") == a2.get_tag("HP")
 
 
+def test_haplotag_10X_3():
+    with TemporaryDirectory() as tempdir:
+        outbam_links = tempdir + "/with_links.bam"
+        outtsv_links = tempdir + "/with_links.tsv"
+        run_haplotag(
+            variant_file="tests/data/haplotag.10X.vcf.gz",
+            alignment_file="tests/data/haplotag.10X_3.bam",
+            output=outbam_links,
+            haplotag_list=outtsv_links,
+        )
+        bam_result = {}
+        tsv_result = {}
+        for a in pysam.AlignmentFile(outbam_links):
+            haplotype = 'none'
+            ps = 'none'
+            if a.has_tag('HP'):
+                haplotype = 'H' + str(a.get_tag('HP'))
+            if a.has_tag('PS'):
+                ps = str(a.get_tag('PS'))
+            bam_result[a.query_name] = (haplotype, ps)
+        for t in open(outtsv_links, 'r'):
+            if t.startswith('#'):
+                continue
+            fields = t.split('\t')
+            haplotype = fields[1]
+            ps = fields[2]
+            tsv_result[fields[0]] = (haplotype, ps)
+        assert bam_result == tsv_result
+
+
+
 def test_haplotag_supplementary():
     # test --tag-supplementary option which assigns supplementary
     # reads to haplotypes based on the tag of their primary alignment.
