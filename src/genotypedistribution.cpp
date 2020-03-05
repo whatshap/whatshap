@@ -77,9 +77,11 @@ PhredGenotypeLikelihoods GenotypeDistribution::toPhredLikelihoods() const {
 	}
 	if (max == 0.0) return PhredGenotypeLikelihoods(vector<double>{0.0,0.0,0.0}, 2, 2);
 	return PhredGenotypeLikelihoods(
-		vector<double>{(int)round(min(255.0,-log10(distribution[0]/max)*10.0)),
-		(int)round(min(255.0,-log10(distribution[1]/max)*10.0)),
-		(int)round(min(255.0,-log10(distribution[2]/max)*10.0))},
+		vector<double>{
+			round(min(255.0, -log10(distribution[0]/max)*10.0)),
+			round(min(255.0, -log10(distribution[1]/max)*10.0)),
+			round(min(255.0, -log10(distribution[2]/max)*10.0))
+		},
 		2,
 		2
 	);
