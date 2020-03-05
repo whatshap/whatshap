@@ -1076,7 +1076,6 @@ def test_haplotag_10X_3():
         assert bam_result == tsv_result
 
 
-
 def test_haplotag_supplementary():
     # test --tag-supplementary option which assigns supplementary
     # reads to haplotypes based on the tag of their primary alignment.
