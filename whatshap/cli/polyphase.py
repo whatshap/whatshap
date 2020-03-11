@@ -367,9 +367,6 @@ def run_polyphase(
         "Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"),
     )
     logger.info(
-        "Time spent finding components:               %6.1f s", timers.elapsed("components"),
-    )
-    logger.info(
         "Time spent on rest:                          %6.1f s",
         2 * timers.elapsed("overall") - timers.total(),
     )
@@ -788,9 +785,9 @@ def find_inconsistencies(readset, clustering, ploidy):
     num_vars = len(rev_index)
     num_clusters = len(clustering)
 
-    cov_map = get_pos_to_clusters_map(readset, clustering, index, ploidy)
-    positions = get_cluster_start_end_positions(readset, clustering, index)
     coverage = get_coverage(readset, clustering, index)
+    cov_map = get_pos_to_clusters_map(coverage, ploidy)
+    positions = get_cluster_start_end_positions(readset, clustering, index)
     abs_coverage = get_coverage_absolute(readset, clustering, index)
     consensus = get_local_cluster_consensus_withfrac(readset, clustering, cov_map, positions)
 

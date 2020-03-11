@@ -40,9 +40,10 @@ def run_threading(readset, clustering, cluster_sim, ploidy, genotypes, block_cut
 
     logger.debug("Cut positions: {}".format(cut_positions))
 
-    # compute haplotypes
+    # compute haplotypes (TODO: Avoid duplicate computation of coverage and cov_map)
     index, rev_index = get_position_map(readset)
-    cov_map = get_pos_to_clusters_map(readset, clustering, index, ploidy)
+    coverage = get_coverage(readset, clustering, index)
+    cov_map = get_pos_to_clusters_map(coverage, ploidy)
     positions = get_cluster_start_end_positions(readset, clustering, index)
     consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
     haplotypes = []
@@ -79,14 +80,14 @@ def compute_threading_path(
     num_vars = len(rev_index)
     num_clusters = len(clustering)
 
-    # for each position, compute the relevant list of clusters (i.e. the 2*ploidy clusters with highest coverage), sorted by descendant coverage
-    cov_map = get_pos_to_clusters_map(readset, clustering, index, ploidy)
-
     # create dictionary, mapping a clusterID to a pair (starting position, ending position)
     positions = get_cluster_start_end_positions(readset, clustering, index)
 
     # for every cluster and every variant position, compute the relative coverage
     coverage = get_coverage(readset, clustering, index)
+
+    # for each position, compute the relevant list of clusters (i.e. the 2*ploidy clusters with highest coverage), sorted by descendant coverage
+    cov_map = get_pos_to_clusters_map(coverage, ploidy)
 
     # compute the consensus sequences for every variant position and every (relevant) cluster for integrating genotypes in the DP
     consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
@@ -409,6 +410,7 @@ def get_position_map(readset):
     return index, rev_index
 
 
+''' Old implementation, that actually does not do what it is supposed to do
 def get_pos_to_clusters_map(readset, clustering, pos_index, ploidy):
     # cov_map maps each position to the list of cluster IDS that appear at this position
     num_clusters = len(clustering)
@@ -428,6 +430,20 @@ def get_pos_to_clusters_map(readset, clustering, pos_index, ploidy):
             : min(len(cov_map[key]), 2 * ploidy)
         ]
         cov_map[key] = largest_clusters
+    return cov_map
+'''
+
+
+def get_pos_to_clusters_map(coverage, ploidy):
+    cov_map = defaultdict(list)
+    for pos in range(len(coverage)):
+        sorted_cids = sorted([cid for cid in coverage[pos]], key=lambda x: coverage[pos][x], reverse=True)
+        cut_off = len(sorted_cids)
+        for i in range(ploidy, min(2*ploidy, len(sorted_cids))):
+            if sorted_cids[i] < (1.0/(4.0*ploidy)):
+                cut_off = i
+                break
+        cov_map[pos] = sorted_cids[:cut_off]
     return cov_map
 
 
