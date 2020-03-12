@@ -280,13 +280,6 @@ private:
      * indices are local.
      */
     Score getCoverageCost(ClusterTuple tuple, const std::vector<double>& coverage) const;
-    
-    /**
-     * Computes the switch cost of the two tuples. All cluster indices are local. Uniform switch cost between clusters
-     * are assumed
-     */
-    Score getSwitchCost(const ClusterTuple tuple1, const ClusterTuple tuple2, 
-                        const std::vector<GlobalClusterId>& clusters1, const std::vector<GlobalClusterId>& clusters2) const;
 
     /**
      * Computes the switch cost between one tuple and all permutations of another tuple. The tuples must have global cluster ids,

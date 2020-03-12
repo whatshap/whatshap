@@ -47,26 +47,44 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
                     Position displayedEnd
                    ) const {
     
-    // setup data structures
+    // the actual DP table with sparse columns
     std::vector<std::unordered_map<ClusterTuple, ClusterEntry>> m;
-    Position firstUnthreadedPosition = start;
+    
+    // data structure to store the final result
     std::vector<std::vector<GlobalClusterId>> path;
 
     // initialize first column
     if (displayedEnd == 0)
         displayedEnd = end;
+    Position firstUnthreadedPosition = start;
+    
+    /*
+     * Compute the genotype conform tuples for the first column and quit if this set is empty.
+     * Note that tuples in general only contain local cluster ids, which must be mapped by covMap[column_id]
+     * in order to retrieve global cluster ids. The local ids make for a compact representation, but the global
+     * ids are necessary to compare tuples from different column.
+     */
     std::vector<ClusterTuple> confTuples = computeGenotypeConformTuples(covMap[start], consensus[start], genotypes[start]);
-    std::vector<ClusterTuple> permedTuples;
-    std::unordered_map<ClusterTuple, ClusterEntry> column;
-    std::unordered_map<ClusterTuple, std::vector<GlobalClusterId>> sortedGlobalTuples;
     if (confTuples.size() == 0) {
         std::cout<<"First variant has no clusters!"<<std::endl;
         return path;
     }
+    
+    // auxiliary vector to store the optimal permutations of the conform tuples
+    std::vector<ClusterTuple> permedTuples;
+    
+    // auxiliary vector to store a vector for each tuple of a column. This vector contains the global cluster ids and is sorted
+    std::unordered_map<ClusterTuple, std::vector<GlobalClusterId>> sortedGlobalTuples;
+    
+    // allocated space to store the current column, before it is stored in the DP table
+    std::unordered_map<ClusterTuple, ClusterEntry> column;
+    
+    // allocated space to store the optima for the current column
     Score minimumInColumn = std::numeric_limits<Score>::infinity();
     ClusterTuple minimumTupleInColumn = ClusterTuple::INVALID_TUPLE;
     ClusterTuple minimumPredTupleInColumn = ClusterTuple::INVALID_TUPLE;
 
+    // fill first column by only using the coverage cost of each candidate tuple
     for (ClusterTuple t : confTuples) {
         column[t] = ClusterEntry(getCoverageCost(t, coverage[start]), ClusterTuple::INVALID_TUPLE);
         firstUnthreadedPosition = start + 1;
@@ -85,16 +103,47 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         }
     }
     
+    // store first column in DP table
     m.push_back(std::unordered_map<ClusterTuple, ClusterEntry>(column.begin(), column.end()));
     
-    // iterate over positions
+    // precompute the sorted vector with global cluster ids for every entry in first column
+    for (std::pair<ClusterTuple, ClusterEntry> predEntry : m[0]) {
+        std::vector<GlobalClusterId> tupleGlobal = predEntry.first.asVector(ploidy, covMap[0]);
+        std::sort(tupleGlobal.begin(), tupleGlobal.end());
+        sortedGlobalTuples[predEntry.first] = tupleGlobal;
+    }
+    
+    /*
+     * The basic idea of this algorithm is, that for every position we generate candidate tuples, which represent
+     * the multiset of clusters, through which the haplotypes are threaded at this exact position. Therefore, for
+     * every candidate we have to compute the coverage costs and the best predecessor tuple from the last column.
+     * The best predecessor is the tuple, which minimizes the sum over its own total cost, plus the switch costs
+     * to the candidate of the current column.
+     * 
+     * There is heavy symmetry optimization included in this algorithm. First, for a completely computed column
+     * there is no point in having two tuples t1 and t2, which are permutations of each other. Since we consider
+     * all genotype conform tuples in the next column anyways, we only need to store the better of the two t1 and
+     * t2. This elimination of permutations is mainly done by the candidate generation and by the switch cost
+     * functions:
+     * 
+     * 1. The candidate generator avoids permutations by construction.
+     * 2. The advanced switch cost function is able to compute the minimal switch costs between a tuple t1 and all
+     *    permutations of a tuple t2. If one candidate for the current column is processed, all of its
+     *    permutations are actually processed as well. We only keep the permutation of t2 with the lowest switch
+     *    cost, since all other permutations have equal coverage costs and can thus be discarded.
+     * 
+     * After a column is computed, it is optionally pruned by removing non-profitable tuples. Let t1 and t2 be
+     * tuples in the current column. Then t2 is non-profitable if it holds that
+     * 
+     * total_cost(t2) >= total_cost(t1) + switch_cost(t1, t2)
+     * 
+     */
     for (Position pos = start + 1; pos < end; pos++) {
-        
+
         // reset variables
         confTuples.clear();
         permedTuples.clear();
         column.clear();
-        sortedGlobalTuples.clear();
         Score minimum = std::numeric_limits<Score>::infinity();
         Score minDissim = std::numeric_limits<Score>::infinity();
         ClusterTuple minimumPred = ClusterTuple::INVALID_TUPLE;
@@ -103,59 +152,40 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         minimumTupleInColumn = ClusterTuple::INVALID_TUPLE;
         minimumPredTupleInColumn = ClusterTuple::INVALID_TUPLE;
         
-        // convert genotype map to vector
-        uint32_t maxAllele = 0;
-        for (std::pair<uint32_t, uint32_t> entry : genotypes[pos]) {
-            maxAllele = std::max(maxAllele, entry.first);
-        }
-        std::vector<uint32_t> genotypeVec(maxAllele, 0);
-        for (std::pair<uint32_t, uint32_t> entry : genotypes[pos]) {
-            genotypeVec[entry.first] = entry.second;
-        }
-        
-        // compute conform tuples
+        // compute genotype conform tuples
         confTuples = computeGenotypeConformTuples(covMap[pos], consensus[pos], genotypes[pos]);
         
-        // compute sorted global-id tuples of previous column
-        for (std::pair<ClusterTuple, ClusterEntry> predEntry : m[pos-1-start]) {
-            std::vector<GlobalClusterId> prevTupleGlobal = predEntry.first.asVector(ploidy, covMap[pos-1]);
-            std::sort(prevTupleGlobal.begin(), prevTupleGlobal.end());
-            sortedGlobalTuples[predEntry.first] = prevTupleGlobal;
-        }
-        
-        // iterate over rows
+        // iterate over generated tuples
         for (ClusterTuple rowTuple : confTuples) {
+            // variables to store best score and backtracking direction
             minimum = std::numeric_limits<Score>::infinity();
             minimumPred = ClusterTuple::INVALID_TUPLE;
+            
+            // auxiliary data, is precomputed once here
             std::vector<GlobalClusterId> rowTupleGlobal = rowTuple.asVector(ploidy, covMap[pos]);
             std::sort(rowTupleGlobal.begin(), rowTupleGlobal.end());
+            
+            // this is the tuple into which the rowTuple will be transformed when the best permutation is found
             ClusterTuple bestPerm;
             
-            // iterate over previous rows
+            // compare each new tuple with every tuple from previous column
             for (std::pair<ClusterTuple, ClusterEntry> predEntry : m[pos-1-start]) {
                 
-                // generate tuple of global ids
+                // retrieve precomputed sorted vector over global ids
                 std::vector<GlobalClusterId> prevTupleGlobal = sortedGlobalTuples[predEntry.first];
                 
                 // compute optimal switch cost
                 Score s = predEntry.second.score + getSwitchCostAllPerms(prevTupleGlobal, rowTupleGlobal);
                 
-                // score can now be computed
-//                 Score s = predEntry.second.score + getSwitchCost(rowTuple, predEntry.first, covMap[pos], covMap[pos-1]);
-//                 if (s <= minimum) {
-//                     Score d = predEntry.second.score + getSwitchDissimilarity(rowTuple, predEntry.first, clusterDissim[pos-1]);
-//                     if (s < minimum || d < minDissim) {
-//                         minExists = true;
-//                         minimum = s;
-//                         minDissim = d;
-//                         minimumPred = predEntry.first;
-//                     }
-//                 }
-                
-                if (s < minimum) {
-                    minExists = true;
-                    minimum = s;
-                    minimumPred = predEntry.first;        
+                if (s <= minimum) {
+                    //TODO: Implement permutation-wide cluster dissimilarity
+                    // Score d = predEntry.second.score + getSwitchDissimilarity(rowTuple, predEntry.first, clusterDissim[pos-1]);
+                    if (s < minimum /* || d < minDissim*/) {
+                        minExists = true;
+                        minimum = s;
+                        // minDissim = d;
+                        minimumPred = predEntry.first;
+                    }
                 }
             }
             
@@ -164,7 +194,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
                 std::vector<GlobalClusterId> prevTuple = sortedGlobalTuples[minimumPred];
                 std::vector<uint32_t> residualPosPrev; // positions in previous tuple, which could not be matched to position in current tuple
                 std::vector<uint32_t> residualPosCur; // positions in current tuple, which could not be matched to position in previous tuple
-                Score s = getSwitchCostAllPerms(prevTuple, rowTupleGlobal, residualPosPrev, residualPosCur);
+                getSwitchCostAllPerms(prevTuple, rowTupleGlobal, residualPosPrev, residualPosCur);
                 
                 if (residualPosPrev.size() != residualPosCur.size()) {
                     std::cout<<"Residual sizes unequal"<<std::endl;
@@ -193,22 +223,6 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
                     globalToLocal[covMap[pos][i]] = i;
                 for (uint32_t i = 0; i < ploidy; i++)
                     bestPerm.set(globalToLocal[bestPermGlobal[i]], i);
-            
-//                     std::cout<<"From "<<minimumPred.asString(ploidy, covMap[pos-1])<<" to "<<bestPerm.asString(ploidy, covMap[pos]);
-//                     std::cout<<" (residuals: prev = [ ";
-//                     for (auto i = residualPosPrev.begin(); i != residualPosPrev.end(); ++i)
-//                         std::cout << *i << ' ';
-//                     std::cout<<"] cur = [ ";
-//                     for (auto i = residualPosCur.begin(); i != residualPosCur.end(); ++i)
-//                         std::cout << *i << ' ';
-//                     std::cout<<"] )"<<std::endl;
-//                     std::cout<<" (Vectors: prev = [ ";
-//                     for (auto i = rowTupleGlobal.begin(); i != rowTupleGlobal.end(); ++i)
-//                         std::cout << *i << ' ';
-//                     std::cout<<"] cur = [ ";
-//                     for (auto i = rowTupleGlobal.begin(); i != rowTupleGlobal.end(); ++i)
-//                         std::cout << *i << ' ';
-//                     std::cout<<"] )"<<std::endl;
             } else {
                 bestPerm = rowTuple;
             }
@@ -235,33 +249,48 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
             permedTuples.push_back(bestPerm);
         }
         
+        // precompute the sorted vectors with global cluster ids for this column (will be reused in next column)
+        sortedGlobalTuples.clear();
+        for (ClusterTuple t : permedTuples) {
+            std::vector<GlobalClusterId> tupleGlobal = t.asVector(ploidy, covMap[pos]);
+            std::sort(tupleGlobal.begin(), tupleGlobal.end());
+            sortedGlobalTuples[t] = tupleGlobal;
+        }
+        
         uint32_t allRows = column.size();
         if (symmetryOptimization) {
             // remove non-profitable entries
             std::vector<ClusterTuple> profitableTuples;
+            std::vector<ClusterTuple> pivotTuples;
             profitableTuples.push_back(minimumTupleInColumn);
+            pivotTuples.push_back(minimumTupleInColumn);
             
-            for (ClusterTuple t : permedTuples) {
-                if (t == minimumTupleInColumn)
-                    continue;
-                bool profitable = true;
-                std::vector<GlobalClusterId> tVec = t.asVector(ploidy, covMap[pos]);
-                std::sort(tVec.begin(), tVec.end());
-                for (ClusterTuple p : profitableTuples) {
-                    std::vector<GlobalClusterId> pVec = p.asVector(ploidy, covMap[pos]);
-                    std::sort(pVec.begin(), pVec.end());
-                    Score s = getSwitchCostAllPerms(pVec, tVec);
-                    if (column[t].score >= column[p].score + s) {
-                        profitable = false;
-                        break;
+            uint32_t rounds = 2;
+            for (uint32_t i = 0; i < rounds; i++) {
+                for (ClusterTuple t : permedTuples) {
+                    bool profitable = true;
+                    bool pivot = true;
+                    
+                    for (ClusterTuple p : pivotTuples) {
+                        if (p == t)
+                            continue;
+                        Score s = getSwitchCostAllPerms(sortedGlobalTuples[p], sortedGlobalTuples[t]);
+                        if (column[t].score >= column[p].score + s) {
+                            profitable = false;
+                            pivot = false;
+                            break;
+                        } else if (s < (double)(rounds-i) * switchCost) {
+                            pivot = false;
+                        }
                     }
-                }
-                if (profitable) {
-                    if (profitableTuples.size() < ploidy) {
+                    if (profitable) {
                         profitableTuples.push_back(t);
+                        if (pivot && pivotTuples.size() < ploidy*ploidy) {
+                            pivotTuples.push_back(t);
+                        }
+                    } else {
+                        column.erase(t);
                     }
-                } else {
-                    column.erase(t);
                 }
             }
         }
@@ -275,11 +304,14 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
             }
         }
         
-        std::cout<<"Column "<<pos<<": "<<minimumInColumn<<"\t ("<<column.size()<<" rows, before "<<allRows<<")"<<std::endl;
+        //std::cout<<"Column "<<pos<<": "<<minimumInColumn<<"\t ("<<column.size()<<" rows, before "<<allRows<<")"<<std::endl;
         
         // write column into dp table(s)
         m.push_back(std::unordered_map<ClusterTuple, ClusterEntry>(column.begin(), column.end()));
     }
+    
+    // discard auxiliary data
+    sortedGlobalTuples.clear();
     
     // backtracking start
     ClusterTuple currentRow = ClusterTuple::INVALID_TUPLE;
@@ -335,16 +367,6 @@ Score HaploThreader::getCoverageCost(ClusterTuple tuple, const std::vector<doubl
         }
     }
     return cost;
-}
-
-Score HaploThreader::getSwitchCost(const ClusterTuple tuple1, const ClusterTuple tuple2, 
-                                   const std::vector<GlobalClusterId>& clusters1, const std::vector<GlobalClusterId>& clusters2) const {
-    // tuple contains global cluster ids
-    uint32_t switches = 0;
-    for (uint32_t i = 0; i < ploidy; i++) {
-        switches += clusters1[tuple1.get(i)] != clusters2[tuple2.get(i)];
-    }
-    return switches*switchCost + affineSwitchCost*(switches > 0);
 }
 
 Score HaploThreader::getSwitchCostAllPerms(const std::vector<GlobalClusterId>& prevTuple, const std::vector<GlobalClusterId>& curTuple) const {

@@ -410,37 +410,20 @@ def get_position_map(readset):
     return index, rev_index
 
 
-''' Old implementation, that actually does not do what it is supposed to do
-def get_pos_to_clusters_map(readset, clustering, pos_index, ploidy):
-    # cov_map maps each position to the list of cluster IDS that appear at this position
-    num_clusters = len(clustering)
-    cov_map = defaultdict(list)
-    for c_id in range(num_clusters):
-        covered_positions = []
-        for read in clustering[c_id]:
-            for pos in [pos_index[var.position] for var in readset[read]]:
-                if pos not in covered_positions:
-                    covered_positions.append(pos)
-        for p in covered_positions:
-            cov_map[p].append(c_id)
-
-    # restrict the number of clusters at each position to a maximum of 2*ploidy clusters with the largest number of reads
-    for key in cov_map.keys():
-        largest_clusters = sorted(cov_map[key], key=lambda x: len(clustering[x]), reverse=True)[
-            : min(len(cov_map[key]), 2 * ploidy)
-        ]
-        cov_map[key] = largest_clusters
-    return cov_map
-'''
-
-
 def get_pos_to_clusters_map(coverage, ploidy):
+    '''
+    For every position, computes a list of relevant clusters for the threading
+    algorithm. Relevant means, that the relative coverage is at least 1/8 of
+    what a single haplotype is expected to have for the given ploidy. Apart
+    from that, at least <ploidy> and at most <2*ploidy> many clusters are
+    selected to avoid exponential blow-up.
+    '''
     cov_map = defaultdict(list)
     for pos in range(len(coverage)):
         sorted_cids = sorted([cid for cid in coverage[pos]], key=lambda x: coverage[pos][x], reverse=True)
-        cut_off = len(sorted_cids)
-        for i in range(ploidy, min(2*ploidy, len(sorted_cids))):
-            if sorted_cids[i] < (1.0/(4.0*ploidy)):
+        cut_off = min(len(sorted_cids), 2*ploidy)
+        for i in range(ploidy, min(len(sorted_cids), 2*ploidy)):
+            if coverage[pos][sorted_cids[i]] < (1.0/(8.0*ploidy)):
                 cut_off = i
                 break
         cov_map[pos] = sorted_cids[:cut_off]
