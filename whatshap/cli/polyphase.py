@@ -12,7 +12,7 @@ import logging
 import platform
 import argparse
 
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from copy import deepcopy
 from scipy.stats import binom_test
 from queue import Queue
@@ -118,7 +118,6 @@ def run_polyphase(
     write_command_line_header -- whether to add a ##commandline header to the output VCF
     """
     timers = StageTimer()
-    timers.start("overall")
     logger.info(
         "This is WhatsHap (polyploid) %s running under Python %s",
         __version__,
@@ -263,9 +262,11 @@ def run_polyphase(
                         chromosome, phasable_variant_table.variants, sample,
                     )
                     readset.sort()
+                    timers.stop("read_bam")
 
                     # Verify genotypes
                     if verify_genotypes:
+                        timers.start("verify_genotypes")
                         logger.info("Verify genotyping of %s", sample)
                         positions = [v.position for v in phasable_variant_table.variants]
                         computed_genotypes = [
@@ -304,6 +305,7 @@ def run_polyphase(
                             chromosome, phasable_variant_table.variants, sample,
                         )
                         readset.sort()
+                        timers.stop("verify_genotypes")
 
                     # Remove reads with insufficient variants
                     readset = readset.subset(
@@ -341,7 +343,7 @@ def run_polyphase(
         read_list_file.close()
 
     logger.info("\n== SUMMARY ==")
-    timers.stop("overall")
+
     log_memory_usage()
     logger.info(
         "Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"),
@@ -349,8 +351,16 @@ def run_polyphase(
     logger.info(
         "Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"),
     )
+    if verify_genotypes:
+        logger.info(
+            "Time spent verifying genotypes:              %6.1f s", timers.elapsed("verify_genotypes"),
+        )
     logger.info(
         "Time spent detecting blocks:                 %6.1f s", timers.elapsed("detecting_blocks"),
+    )
+    logger.info(
+        "Time spent scoring reads:                    %6.1f s",
+        timers.elapsed("read_scoring"),
     )
     logger.info(
         "Time spent solving cluster editing:          %6.1f s",
@@ -368,10 +378,10 @@ def run_polyphase(
     )
     logger.info(
         "Time spent on rest:                          %6.1f s",
-        2 * timers.elapsed("overall") - timers.total(),
+        timers.total() - timers.sum(),
     )
     logger.info(
-        "Total elapsed time:                          %6.1f s", timers.elapsed("overall"),
+        "Total elapsed time:                          %6.1f s", timers.total(),
     )
 
 
@@ -612,7 +622,7 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
     # Phase I: Cluster Editing
 
     # Compute similarity values for all read pairs
-    timers.start("solve_clusterediting")
+    timers.start("read_scoring")
     logger.debug("Computing similarities for read pairs ...")
     similarities = scoreReadsetLocal(block_readset, phasing_param.min_overlap, phasing_param.ploidy)
 
@@ -622,6 +632,7 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
             len(block_readset), len(similarities)
         )
     )
+    timers.stop("read_scoring")
     timers.start("solve_clusterediting")
     solver = ClusterEditingSolver(similarities, phasing_param.ce_bundle_edges)
     clustering = solver.run()
@@ -652,19 +663,6 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
             clustering = solver.run()
             del solver
 
-    # Compute inter-cluster score
-    read_to_cluster = [-1 for i in range(len(block_readset))]
-    for c in range(len(clustering)):
-        for r in clustering[c]:
-            read_to_cluster[r] = c
-
-    cluster_sim = TriangleSparseMatrix()
-    for (read1, read2) in similarities:
-        c1 = read_to_cluster[read1]
-        c2 = read_to_cluster[read2]
-        if c1 != c2:
-            cluster_sim.set(c1, c2, cluster_sim.get(c1, c2) + similarities.get(read1, read2))
-
     # Deallocate big datastructures, which are not needed anymore
     del similarities
     timers.stop("solve_clusterediting")
@@ -679,7 +677,6 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
     cut_positions, path, haplotypes = run_threading(
         block_readset,
         clustering,
-        cluster_sim,
         phasing_param.ploidy,
         genotype_slice,
         phasing_param.block_cut_sensitivity,
@@ -1030,7 +1027,7 @@ def add_arguments(parser):
         "--ce-refinements",
         metavar="REFINEMENTS",
         type=int,
-        default=5,
+        default=1,
         help="Maximum number of refinement steps for internal read clustering stage (default: %(default)s).",
     )
     arg(

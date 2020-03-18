@@ -242,9 +242,7 @@ public:
                     const std::vector<std::vector<GlobalClusterId>>& covMap,
                     const std::vector<std::vector<double>>& coverage, 
                     const std::vector<std::vector<uint32_t>>& consensus,
-                    const std::vector<std::unordered_map<uint32_t, uint32_t>>& genotypes,
-                    //const std::vector<uint32_t>& genotypes,
-                    const std::vector<std::vector<std::vector<double>>>& clusterDissim
+                    const std::vector<std::unordered_map<uint32_t, uint32_t>>& genotypes
                    ) const;
                   
     /**
@@ -263,8 +261,6 @@ public:
                     const std::vector<std::vector<double>>& coverage, 
                     const std::vector<std::vector<uint32_t>>& consensus,
                     const std::vector<std::unordered_map<uint32_t, uint32_t>>& genotypes,
-                    //const std::vector<uint32_t>& genotypes,
-                    const std::vector<std::vector<std::vector<double>>>& clusterDissim,
                     Position displayedEnd = 0
                    ) const;
 
@@ -294,14 +290,8 @@ private:
      */
     Score getSwitchCostAllPerms(const std::vector<GlobalClusterId>& prevTuple, const std::vector<GlobalClusterId>& curTuple,
                                 std::vector<uint32_t>& residualPosPrev, std::vector<uint32_t>& residualPosCur) const;
-                        
-    /**
-     * Computes the dissimalirity between clusters involved in switching from tuple1 to tupel2
-     */
-    Score getSwitchDissimilarity(const ClusterTuple tuple1, const ClusterTuple tuple2, 
-                                 const std::vector<std::vector<double>>& clusterDissim
-                                ) const;
-                        
+    
+    
     std::vector<ClusterTuple> computeGenotypeConformTuples (const std::vector<GlobalClusterId>& covMap,
                                                             const std::vector<uint32_t>& consensus, 
                                                             const std::unordered_map<uint32_t, uint32_t>& genotype) const;

@@ -84,9 +84,9 @@ cdef class HaploThreader:
     def __cinit__(self, ploidy, switchCost, affineSwitchCost, symmetryOptimization, rowLimit):
         self.thisptr = new cpp.HaploThreader(ploidy, switchCost, affineSwitchCost, symmetryOptimization, rowLimit)
         
-    def computePathsBlockwise(self, vector[uint32_t]& blockStarts, vector[vector[uint32_t]]& covMap, vector[vector[double]]& coverage, vector[vector[uint32_t]]& consensus, vector[unordered_map[uint32_t, uint32_t]]& genotypes, vector[vector[vector[double]]]& clusterDissim):
+    def computePathsBlockwise(self, vector[uint32_t]& blockStarts, vector[vector[uint32_t]]& covMap, vector[vector[double]]& coverage, vector[vector[uint32_t]]& consensus, vector[unordered_map[uint32_t, uint32_t]]& genotypes):
         cdef vector[vector[uint32_t]] path
-        path = self.thisptr.computePaths(blockStarts, covMap, coverage, consensus, genotypes, clusterDissim)
+        path = self.thisptr.computePaths(blockStarts, covMap, coverage, consensus, genotypes)
         
         # convert to python data structure
         py_path = []
@@ -101,9 +101,9 @@ cdef class HaploThreader:
         
         return py_path
 
-    def computePaths(self, uint32_t start, uint32_t end, vector[vector[uint32_t]]& covMap, vector[vector[double]]& coverage, vector[vector[uint32_t]]& consensus, vector[unordered_map[uint32_t, uint32_t]]& genotypes, vector[vector[vector[double]]]& clusterDissim):
+    def computePaths(self, uint32_t start, uint32_t end, vector[vector[uint32_t]]& covMap, vector[vector[double]]& coverage, vector[vector[uint32_t]]& consensus, vector[unordered_map[uint32_t, uint32_t]]& genotypes):
         cdef vector[vector[uint32_t]] path
-        path = self.thisptr.computePaths(start, end, covMap, coverage, consensus, genotypes, clusterDissim)
+        path = self.thisptr.computePaths(start, end, covMap, coverage, consensus, genotypes)
         
         # convert to python data structure
         py_path = []

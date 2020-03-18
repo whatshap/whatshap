@@ -181,14 +181,12 @@ cdef extern from "../src/polyphase/haplothreader.h":
 					vector[vector[uint32_t]]& covMap,
                     vector[vector[double]]& coverage, 
                     vector[vector[uint32_t]]& consensus,
-                    vector[unordered_map[uint32_t, uint32_t]]& genotypes,
-					vector[vector[vector[double]]]& clusterDissim) except +
+                    vector[unordered_map[uint32_t, uint32_t]]& genotypes) except +
 		vector[vector[uint32_t]] computePaths(vector[uint32_t]& blockStarts,
 					vector[vector[uint32_t]]& covMap,
                     vector[vector[double]]& coverage, 
                     vector[vector[uint32_t]]& consensus,
-                    vector[unordered_map[uint32_t, uint32_t]]& genotypes,
-					vector[vector[vector[double]]]& clusterDissim) except +
+                    vector[unordered_map[uint32_t, uint32_t]]& genotypes) except +
 		
 cdef extern from "../src/polyphase/switchflipcalculator.h":
 	cdef cppclass SwitchFlipCalculator:

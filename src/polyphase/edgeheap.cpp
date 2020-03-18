@@ -133,14 +133,14 @@ Edge EdgeHeap::getMaxIcpEdge() const {
 }
 
 EdgeWeight EdgeHeap::getIcf(const Edge e) const {
-    if (graph.findIndex(e) == 0)
-        std::cout<<"getIcf on edge with rank 0"<<std::endl;
+//     if (graph.findIndex(e) == 0)
+//         std::cout<<"getIcf on edge with rank 0"<<std::endl;
     return icf[edgeToBundle[graph.findIndex(e)]];
 }
 
 EdgeWeight EdgeHeap::getIcp(const Edge e) const {
-    if (graph.findIndex(e) == 0)
-        std::cout<<"getIcf on edge with rank 0"<<std::endl;
+//     if (graph.findIndex(e) == 0)
+//         std::cout<<"getIcf on edge with rank 0"<<std::endl;
     return icp[edgeToBundle[graph.findIndex(e)]];
 }
 
