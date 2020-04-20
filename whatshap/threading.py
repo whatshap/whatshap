@@ -32,14 +32,18 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
     consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
 
     # compute threading through the clusters
-    path = compute_threading_path(readset, clustering, num_vars, coverage, cov_map, consensus, ploidy, genotypes)
+    path = compute_threading_path(
+        readset, clustering, num_vars, coverage, cov_map, consensus, ploidy, genotypes
+    )
 
     # determine cut positions
     num_clusters = len(clustering)
     cut_positions = compute_cut_positions(path, block_cut_sensitivity, num_clusters)
 
     # we can look at the sequences again to use the most likely continuation, when two or more clusters switch at the same position
-    c_to_c_global = compute_cluster_to_cluster_similarity(readset, clustering, index, consensus, cov_map)
+    c_to_c_global = compute_cluster_to_cluster_similarity(
+        readset, clustering, index, consensus, cov_map
+    )
     path = improve_path_on_multiswitches(path, num_clusters, c_to_c_global)
 
     # we can look at the sequences again to use the most likely continuation, when a haplotype leaves a collapsed cluster (currently inactive)
@@ -65,7 +69,16 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
 
 
 def compute_threading_path(
-    readset, clustering, num_vars, coverage, cov_map, consensus, ploidy, genotypes, switch_cost=32.0, affine_switch_cost=8.0
+    readset,
+    clustering,
+    num_vars,
+    coverage,
+    cov_map,
+    consensus,
+    ploidy,
+    genotypes,
+    switch_cost=32.0,
+    affine_switch_cost=8.0,
 ):
     """
     Runs the threading algorithm for the haplotypes using the given costs for switches. The normal switch cost is the
@@ -215,7 +228,7 @@ def compute_cluster_to_cluster_similarity(readset, clustering, index, consensus,
                             cluster_zeroes[c1][pos] * cluster_ones[c2][pos]
                             + cluster_ones[c1][pos] * cluster_zeroes[c2][pos]
                         )
-                c_to_c_sim[var][(c1,c2)] = same / (same+diff) if same > 0 else 0
+                c_to_c_sim[var][(c1, c2)] = same / (same + diff) if same > 0 else 0
 
     return c_to_c_sim
 
@@ -346,7 +359,9 @@ def improve_path_on_collapsedswitches(path, num_clusters, cluster_sim):
             for j in range(len(h_group)):
                 actual_score = sum(
                     [
-                        cluster_sim[i][(left_c[j], right_c[j])] if left_c[j] != right_c[j] else ident_sim
+                        cluster_sim[i][(left_c[j], right_c[j])]
+                        if left_c[j] != right_c[j]
+                        else ident_sim
                         for j in range(len(h_group))
                     ]
                 )
@@ -396,19 +411,21 @@ def get_position_map(readset):
 
 
 def get_pos_to_clusters_map(coverage, ploidy):
-    '''
+    """
     For every position, computes a list of relevant clusters for the threading
     algorithm. Relevant means, that the relative coverage is at least 1/8 of
     what a single haplotype is expected to have for the given ploidy. Apart
     from that, at least <ploidy> and at most <2*ploidy> many clusters are
     selected to avoid exponential blow-up.
-    '''
+    """
     cov_map = [[] for _ in range(len(coverage))]
     for pos in range(len(coverage)):
-        sorted_cids = sorted([cid for cid in coverage[pos]], key=lambda x: coverage[pos][x], reverse=True)
-        cut_off = min(len(sorted_cids), 2*ploidy)
-        for i in range(ploidy, min(len(sorted_cids), 2*ploidy)):
-            if coverage[pos][sorted_cids[i]] < (1.0/(8.0*ploidy)):
+        sorted_cids = sorted(
+            [cid for cid in coverage[pos]], key=lambda x: coverage[pos][x], reverse=True
+        )
+        cut_off = min(len(sorted_cids), 2 * ploidy)
+        for i in range(ploidy, min(len(sorted_cids), 2 * ploidy)):
+            if coverage[pos][sorted_cids[i]] < (1.0 / (8.0 * ploidy)):
                 cut_off = i
                 break
         cov_map[pos] = sorted_cids[:cut_off]

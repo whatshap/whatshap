@@ -248,7 +248,13 @@ def compute_switch_flips_poly_bt(
     # Compute comparison
     calc = SwitchFlipCalculator(ploidy, switch_cost, flip_cost)
     result = SwitchFlips()
-    switches, flips, switches_in_column, flips_in_column, positionwise_config = calc.compute_switch_flips_poly(phasing0, phasing1)
+    (
+        switches,
+        flips,
+        switches_in_column,
+        flips_in_column,
+        positionwise_config,
+    ) = calc.compute_switch_flips_poly(phasing0, phasing1)
 
     # Aggregate results
     result.switches = switches / ploidy

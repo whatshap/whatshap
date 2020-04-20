@@ -353,14 +353,14 @@ def run_polyphase(
     )
     if verify_genotypes:
         logger.info(
-            "Time spent verifying genotypes:              %6.1f s", timers.elapsed("verify_genotypes"),
+            "Time spent verifying genotypes:              %6.1f s",
+            timers.elapsed("verify_genotypes"),
         )
     logger.info(
         "Time spent detecting blocks:                 %6.1f s", timers.elapsed("detecting_blocks"),
     )
     logger.info(
-        "Time spent scoring reads:                    %6.1f s",
-        timers.elapsed("read_scoring"),
+        "Time spent scoring reads:                    %6.1f s", timers.elapsed("read_scoring"),
     )
     logger.info(
         "Time spent solving cluster editing:          %6.1f s",
@@ -377,8 +377,7 @@ def run_polyphase(
         "Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"),
     )
     logger.info(
-        "Time spent on rest:                          %6.1f s",
-        timers.total() - timers.sum(),
+        "Time spent on rest:                          %6.1f s", timers.total() - timers.sum(),
     )
     logger.info(
         "Total elapsed time:                          %6.1f s", timers.total(),
