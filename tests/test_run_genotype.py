@@ -49,8 +49,7 @@ def test_one_variant():
 def test_default_output():
     """Output to stdout"""
     run_genotype(
-        phase_input_files=["tests/data/oneread.bam"],
-        variant_file="tests/data/onevariant.vcf",
+        phase_input_files=["tests/data/oneread.bam"], variant_file="tests/data/onevariant.vcf",
     )
 
 
@@ -164,9 +163,7 @@ def test_gt_quality_threshold(threshold, tmpdir):
                     genotype = None
                 else:
                     genotype = genotype[0] + genotype[1]
-                gt = likeliest_genotype(
-                    likelihoods[0], likelihoods[1], likelihoods[2], thres
-                )
+                gt = likeliest_genotype(likelihoods[0], likelihoods[1], likelihoods[2], thres)
                 # print(likelihoods[0], likelihoods[1], likelihoods[2], gt, genotype, thres)
                 assert gt == genotype
 
@@ -492,12 +489,7 @@ def test_adding_constant(constant, tmpdir):
     for record_raw, record_const in zip(records_raw, records_const):
         likelihoods_raw = extract_likelihoods(record_raw)
         likelihoods_const = extract_likelihoods(record_const)
-        norm_sum = (
-            likelihoods_raw[0]
-            + likelihoods_raw[1]
-            + likelihoods_raw[2]
-            + 3.0 * constant
-        )
+        norm_sum = likelihoods_raw[0] + likelihoods_raw[1] + likelihoods_raw[2] + 3.0 * constant
         # print(float(likelihoods_const[0]), float((likelihoods_raw[0] + constant)/norm_sum))
         # print(float(likelihoods_const[1]), float((likelihoods_raw[1] + constant)/norm_sum))
         # print(float(likelihoods_const[2]), float((likelihoods_raw[2] + constant)/norm_sum))

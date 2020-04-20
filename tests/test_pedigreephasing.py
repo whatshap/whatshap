@@ -21,9 +21,7 @@ from whatshap.testhelpers import (
 )
 
 
-def phase_pedigree(
-    reads, recombcost, pedigree, distrust_genotypes=False, positions=None
-):
+def phase_pedigree(reads, recombcost, pedigree, distrust_genotypes=False, positions=None):
     rs = string_to_readset_pedigree(reads)
     dp_table = PedigreeDPTable(rs, recombcost, pedigree, distrust_genotypes, positions)
     superreads_list, transmission_vector = dp_table.get_super_reads()
@@ -38,14 +36,10 @@ def phase_pedigree(
 
 
 def assert_haplotypes(superreads_list, all_expected_haplotypes, length):
-    for superreads, expected_haplotypes in zip(
-        superreads_list, all_expected_haplotypes
-    ):
+    for superreads, expected_haplotypes in zip(superreads_list, all_expected_haplotypes):
         assert len(superreads) == 2
         assert len(superreads[0]) == len(superreads[1]) == length
-        haplotypes = tuple(
-            sorted("".join(str(v.allele) for v in sr) for sr in superreads)
-        )
+        haplotypes = tuple(sorted("".join(str(v.allele) for v in sr) for sr in superreads))
         assert (haplotypes == (expected_haplotypes[0], expected_haplotypes[1])) or (
             haplotypes == (expected_haplotypes[1], expected_haplotypes[0])
         )
@@ -100,10 +94,7 @@ def test_phase_empty_trio():
     pedigree.add_individual("individual2", [])
     pedigree.add_relationship("individual0", "individual1", "individual2")
     dp_table = PedigreeDPTable(rs, recombcost, pedigree)
-    (
-        (superreadsm, superreadsf, superreadsc),
-        transmission_vector,
-    ) = dp_table.get_super_reads()
+    ((superreadsm, superreadsf, superreadsc), transmission_vector,) = dp_table.get_super_reads()
 
 
 def test_phase_trio1():
@@ -119,20 +110,12 @@ def test_phase_trio1():
       C 010
     """
     pedigree = Pedigree(NumericSampleIds())
-    pedigree.add_individual(
-        "individual0", canonic_index_list_to_biallelic_gt_list([1, 2, 1])
-    )
-    pedigree.add_individual(
-        "individual1", canonic_index_list_to_biallelic_gt_list([1, 1, 1])
-    )
-    pedigree.add_individual(
-        "individual2", canonic_index_list_to_biallelic_gt_list([0, 1, 1])
-    )
+    pedigree.add_individual("individual0", canonic_index_list_to_biallelic_gt_list([1, 2, 1]))
+    pedigree.add_individual("individual1", canonic_index_list_to_biallelic_gt_list([1, 1, 1]))
+    pedigree.add_individual("individual2", canonic_index_list_to_biallelic_gt_list([0, 1, 1]))
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [10, 10, 10]
-    superreads_list, transmission_vector, cost = phase_pedigree(
-        reads, recombcost, pedigree
-    )
+    superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
     assert cost == 2
     assert len(set(transmission_vector)) == 1
     all_expected_haplotypes = [("111", "010"), ("001", "110"), ("010", "001")]
@@ -150,20 +133,12 @@ def test_phase_trio2():
       C 00
     """
     pedigree = Pedigree(NumericSampleIds())
-    pedigree.add_individual(
-        "individual0", canonic_index_list_to_biallelic_gt_list([2, 2])
-    )
-    pedigree.add_individual(
-        "individual1", canonic_index_list_to_biallelic_gt_list([0, 0])
-    )
-    pedigree.add_individual(
-        "individual2", canonic_index_list_to_biallelic_gt_list([1, 1])
-    )
+    pedigree.add_individual("individual0", canonic_index_list_to_biallelic_gt_list([2, 2]))
+    pedigree.add_individual("individual1", canonic_index_list_to_biallelic_gt_list([0, 0]))
+    pedigree.add_individual("individual2", canonic_index_list_to_biallelic_gt_list([1, 1]))
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [10, 10, 10]
-    superreads_list, transmission_vector, cost = phase_pedigree(
-        reads, recombcost, pedigree
-    )
+    superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
     assert cost == 8
     assert len(set(transmission_vector)) == 1
     all_expected_haplotypes = [("11", "11"), ("00", "00"), ("00", "11")]
@@ -199,9 +174,7 @@ def test_phase_trio3():
     )
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [3, 3, 3, 4, 3, 3]
-    superreads_list, transmission_vector, cost = phase_pedigree(
-        reads, recombcost, pedigree
-    )
+    superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
     assert cost == 4
     assert transmission_vector in (
         [0, 0, 0, 1, 1, 1],
@@ -231,20 +204,12 @@ def test_phase_trio4():
       C 111
     """
     pedigree = Pedigree(NumericSampleIds())
-    pedigree.add_individual(
-        "individual0", canonic_index_list_to_biallelic_gt_list([1, 1, 1])
-    )
-    pedigree.add_individual(
-        "individual1", canonic_index_list_to_biallelic_gt_list([1, 1, 1])
-    )
-    pedigree.add_individual(
-        "individual2", canonic_index_list_to_biallelic_gt_list([1, 1, 1])
-    )
+    pedigree.add_individual("individual0", canonic_index_list_to_biallelic_gt_list([1, 1, 1]))
+    pedigree.add_individual("individual1", canonic_index_list_to_biallelic_gt_list([1, 1, 1]))
+    pedigree.add_individual("individual2", canonic_index_list_to_biallelic_gt_list([1, 1, 1]))
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [1, 1, 1]
-    superreads_list, transmission_vector, cost = phase_pedigree(
-        reads, recombcost, pedigree
-    )
+    superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
     assert cost == 2
     assert transmission_vector in ([0, 2, 0], [2, 0, 2], [1, 3, 1], [3, 1, 3])
     all_expected_haplotypes = [("111", "000"), ("101", "010"), ("111", "000")]
@@ -265,20 +230,12 @@ def test_phase_trio5():
       C 111
     """
     pedigree = Pedigree(NumericSampleIds())
-    pedigree.add_individual(
-        "individual0", canonic_index_list_to_biallelic_gt_list([1, 1, 1])
-    )
-    pedigree.add_individual(
-        "individual1", canonic_index_list_to_biallelic_gt_list([1, 1, 1])
-    )
-    pedigree.add_individual(
-        "individual2", canonic_index_list_to_biallelic_gt_list([1, 1, 1])
-    )
+    pedigree.add_individual("individual0", canonic_index_list_to_biallelic_gt_list([1, 1, 1]))
+    pedigree.add_individual("individual1", canonic_index_list_to_biallelic_gt_list([1, 1, 1]))
+    pedigree.add_individual("individual2", canonic_index_list_to_biallelic_gt_list([1, 1, 1]))
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [2, 2, 2]
-    superreads_list, transmission_vector, cost = phase_pedigree(
-        reads, recombcost, pedigree
-    )
+    superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
     assert cost == 3
     assert len(set(transmission_vector)) == 1
     all_expected_haplotypes = [("111", "000"), ("111", "000"), ("111", "000")]
@@ -289,15 +246,9 @@ def test_phase_trio5():
 def test_phase_trio_pure_genetic():
     reads = ""
     pedigree = Pedigree(NumericSampleIds())
-    pedigree.add_individual(
-        "individual0", canonic_index_list_to_biallelic_gt_list([2, 1, 1, 0])
-    )
-    pedigree.add_individual(
-        "individual1", canonic_index_list_to_biallelic_gt_list([1, 2, 2, 1])
-    )
-    pedigree.add_individual(
-        "individual2", canonic_index_list_to_biallelic_gt_list([1, 1, 1, 0])
-    )
+    pedigree.add_individual("individual0", canonic_index_list_to_biallelic_gt_list([2, 1, 1, 0]))
+    pedigree.add_individual("individual1", canonic_index_list_to_biallelic_gt_list([1, 2, 2, 1]))
+    pedigree.add_individual("individual2", canonic_index_list_to_biallelic_gt_list([1, 1, 1, 0]))
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [2, 2, 2]
     superreads_list, transmission_vector, cost = phase_pedigree(
@@ -313,21 +264,11 @@ def test_phase_trio_pure_genetic():
 def test_phase_doubletrio_pure_genetic():
     reads = ""
     pedigree = Pedigree(NumericSampleIds())
-    pedigree.add_individual(
-        "individualA", canonic_index_list_to_biallelic_gt_list([1, 2, 1, 0])
-    )
-    pedigree.add_individual(
-        "individualB", canonic_index_list_to_biallelic_gt_list([1, 0, 1, 1])
-    )
-    pedigree.add_individual(
-        "individualC", canonic_index_list_to_biallelic_gt_list([2, 1, 1, 0])
-    )
-    pedigree.add_individual(
-        "individualD", canonic_index_list_to_biallelic_gt_list([1, 2, 2, 1])
-    )
-    pedigree.add_individual(
-        "individualE", canonic_index_list_to_biallelic_gt_list([1, 1, 1, 0])
-    )
+    pedigree.add_individual("individualA", canonic_index_list_to_biallelic_gt_list([1, 2, 1, 0]))
+    pedigree.add_individual("individualB", canonic_index_list_to_biallelic_gt_list([1, 0, 1, 1]))
+    pedigree.add_individual("individualC", canonic_index_list_to_biallelic_gt_list([2, 1, 1, 0]))
+    pedigree.add_individual("individualD", canonic_index_list_to_biallelic_gt_list([1, 2, 2, 1]))
+    pedigree.add_individual("individualE", canonic_index_list_to_biallelic_gt_list([1, 1, 1, 0]))
     pedigree.add_relationship("individualA", "individualB", "individualC")
     pedigree.add_relationship("individualC", "individualD", "individualE")
     recombcost = [2, 2, 2]
@@ -365,24 +306,14 @@ def test_phase_quartet1():
       D 010
     """
     pedigree = Pedigree(NumericSampleIds())
-    pedigree.add_individual(
-        "individual0", canonic_index_list_to_biallelic_gt_list([1, 2, 1])
-    )
-    pedigree.add_individual(
-        "individual1", canonic_index_list_to_biallelic_gt_list([1, 1, 1])
-    )
-    pedigree.add_individual(
-        "individual2", canonic_index_list_to_biallelic_gt_list([0, 1, 1])
-    )
-    pedigree.add_individual(
-        "individual3", canonic_index_list_to_biallelic_gt_list([0, 1, 1])
-    )
+    pedigree.add_individual("individual0", canonic_index_list_to_biallelic_gt_list([1, 2, 1]))
+    pedigree.add_individual("individual1", canonic_index_list_to_biallelic_gt_list([1, 1, 1]))
+    pedigree.add_individual("individual2", canonic_index_list_to_biallelic_gt_list([0, 1, 1]))
+    pedigree.add_individual("individual3", canonic_index_list_to_biallelic_gt_list([0, 1, 1]))
     pedigree.add_relationship("individual0", "individual1", "individual2")
     pedigree.add_relationship("individual0", "individual1", "individual3")
     recombcost = [10, 10, 10]
-    superreads_list, transmission_vector, cost = phase_pedigree(
-        reads, recombcost, pedigree
-    )
+    superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
     assert cost == 2
     assert len(set(transmission_vector)) == 1
     all_expected_haplotypes = [
@@ -429,9 +360,7 @@ def test_phase_quartet2():
     pedigree.add_relationship("individual0", "individual1", "individual3")
     recombcost = [3, 3, 3, 3, 3, 3]
 
-    superreads_list, transmission_vector, cost = phase_pedigree(
-        reads, recombcost, pedigree
-    )
+    superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
     assert cost == 0
     assert len(set(transmission_vector)) == 1
     all_expected_haplotypes = [
@@ -483,9 +412,7 @@ def test_phase_quartet3():
     pedigree.add_relationship("individual0", "individual1", "individual2")
     pedigree.add_relationship("individual0", "individual1", "individual3")
     recombcost = [3, 3, 3, 4, 3, 3]
-    superreads_list, transmission_vector, cost = phase_pedigree(
-        reads, recombcost, pedigree
-    )
+    superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree)
     print(cost)
     print(transmission_vector)
     assert cost == 8
@@ -544,20 +471,14 @@ def test_phase_trio_genotype_likelihoods():
         genotype_likelihoods_mother,
     )
     pedigree.add_individual(
-        "individual1",
-        canonic_index_list_to_biallelic_gt_list([0, 0, 0]),
-        genotype_likelihoods0,
+        "individual1", canonic_index_list_to_biallelic_gt_list([0, 0, 0]), genotype_likelihoods0,
     )
     pedigree.add_individual(
-        "individual2",
-        canonic_index_list_to_biallelic_gt_list([0, 0, 0]),
-        genotype_likelihoods0,
+        "individual2", canonic_index_list_to_biallelic_gt_list([0, 0, 0]), genotype_likelihoods0,
     )
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [10, 10, 10]
-    superreads_list, transmission_vector, cost = phase_pedigree(
-        reads, recombcost, pedigree, True
-    )
+    superreads_list, transmission_vector, cost = phase_pedigree(reads, recombcost, pedigree, True)
     assert cost == 3
     assert len(set(transmission_vector)) == 1
     all_expected_haplotypes = [("111", "010"), ("001", "110"), ("001", "010")]

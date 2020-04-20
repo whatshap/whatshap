@@ -21,9 +21,7 @@ def test_read_sample_not_found():
 
 
 def test_read_cram():
-    sbr = SampleBamReader(
-        "tests/data/oneread.cram", reference="tests/data/oneread-ref.fasta"
-    )
+    sbr = SampleBamReader("tests/data/oneread.cram", reference="tests/data/oneread-ref.fasta")
     reads = list(sbr.fetch("ref", "sample"))
     assert len(reads) == 1
     assert reads[0].bam_alignment.opt("RG") == "1"

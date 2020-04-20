@@ -12,7 +12,7 @@ from whatshap.threading import (
     improve_path_on_multiswitches,
     compute_threading_path,
     get_pos_to_clusters_map,
-    get_local_cluster_consensus
+    get_local_cluster_consensus,
 )
 from whatshap.core import Read, ReadSet, Variant, TriangleSparseMatrix
 
@@ -292,21 +292,21 @@ def test_path_no_affine():
     consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
 
     path = compute_threading_path(
-        readset, clustering, num_vars, coverage, cov_map, consensus, ploidy, genotypes, affine_switch_cost=0.0
+        readset,
+        clustering,
+        num_vars,
+        coverage,
+        cov_map,
+        consensus,
+        ploidy,
+        genotypes,
+        affine_switch_cost=0.0,
     )
-    cluster_paths = [
-        "".join([str(path[i][j]) for i in range(len(path))]) for j in range(3)
-    ]
+    cluster_paths = ["".join([str(path[i][j]) for i in range(len(path))]) for j in range(3)]
 
-    first_block = set(
-        [cluster_paths[0][:20], cluster_paths[1][:20], cluster_paths[2][:20]]
-    )
-    first_truth = set(
-        ["00000000003333333333", "11111111222222222222", "04444444444444555555"]
-    )
-    second_block = set(
-        [cluster_paths[0][20:], cluster_paths[1][20:], cluster_paths[2][20:]]
-    )
+    first_block = set([cluster_paths[0][:20], cluster_paths[1][:20], cluster_paths[2][:20]])
+    first_truth = set(["00000000003333333333", "11111111222222222222", "04444444444444555555"])
+    second_block = set([cluster_paths[0][20:], cluster_paths[1][20:], cluster_paths[2][20:]])
     second_truth = set(["66", "77", "55"])
 
     print(cluster_paths)
@@ -329,21 +329,13 @@ def test_path_with_affine():
     path = compute_threading_path(
         readset, clustering, num_vars, coverage, cov_map, consensus, ploidy, genotypes
     )
-    cluster_paths = [
-        "".join([str(path[i][j]) for i in range(len(path))]) for j in range(3)
-    ]
+    cluster_paths = ["".join([str(path[i][j]) for i in range(len(path))]) for j in range(3)]
 
-    first_block = set(
-        [cluster_paths[0][:9], cluster_paths[1][:9], cluster_paths[2][:9]]
-    )
+    first_block = set([cluster_paths[0][:9], cluster_paths[1][:9], cluster_paths[2][:9]])
     first_truth = set(["000000000", "111111111", "044444444"])
-    second_block = set(
-        [cluster_paths[0][9:20], cluster_paths[1][9:20], cluster_paths[2][9:20]]
-    )
+    second_block = set([cluster_paths[0][9:20], cluster_paths[1][9:20], cluster_paths[2][9:20]])
     second_truth = set(["33333333333", "22222222222", "44444555555"])
-    third_block = set(
-        [cluster_paths[0][20:], cluster_paths[1][20:], cluster_paths[2][20:]]
-    )
+    third_block = set([cluster_paths[0][20:], cluster_paths[1][20:], cluster_paths[2][20:]])
     third_truth = set(["66", "77", "55"])
 
     print(cluster_paths)

@@ -27,9 +27,7 @@ def verify(rs, all_heterozygous=False):
         [canonic_index_to_biallelic_gt(1) for _ in range(len(positions))],
         genotype_likelihoods,
     )
-    dp_table = PedigreeDPTable(
-        rs, recombcost, pedigree, distrust_genotypes=not all_heterozygous
-    )
+    dp_table = PedigreeDPTable(rs, recombcost, pedigree, distrust_genotypes=not all_heterozygous)
     verify_mec_score_and_partitioning(dp_table, rs)
 
 

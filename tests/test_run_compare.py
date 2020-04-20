@@ -232,11 +232,7 @@ def test_compare_only_snvs():
 def test_compare_unphased():
     with TemporaryDirectory() as tempdir:
         run_compare(
-            vcf=[
-                "tests/data/unphased.vcf",
-                "tests/data/unphased.vcf",
-                "tests/data/unphased.vcf",
-            ],
+            vcf=["tests/data/unphased.vcf", "tests/data/unphased.vcf", "tests/data/unphased.vcf",],
             ploidy=2,
             sample="sample1",
         )
@@ -296,9 +292,7 @@ def test_compute_switch_flips_poly():
 
     phasing = [[0, 0, 0, 1, 0, 0, 0, 0], [1, 1, 1, 1, 1, 1, 1, 1]]
     truth = [[0, 0, 0, 0, 0, 0, 0, 0], [1, 1, 1, 1, 1, 1, 1, 1]]
-    sfp = compute_switch_flips_poly(
-        phasing, truth, flip_cost=float("inf"), switch_cost=1
-    )
+    sfp = compute_switch_flips_poly(phasing, truth, flip_cost=float("inf"), switch_cost=1)
     assert sfp.flips * float("inf") + sfp.switches == float("inf")
 
 

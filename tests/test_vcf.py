@@ -35,11 +35,7 @@ def test_read_phased():
     assert table.variants[0].alternative_allele == "C"
     assert table.variants[1].reference_allele == "G"
     assert table.variants[1].alternative_allele == "T"
-    assert (
-        table.genotypes[0][0]
-        == table.genotypes[0][1]
-        == canonic_index_to_biallelic_gt(1)
-    )
+    assert table.genotypes[0][0] == table.genotypes[0][1] == canonic_index_to_biallelic_gt(1)
 
 
 def test_read_multisample_vcf():
@@ -61,19 +57,11 @@ def test_read_multisample_vcf():
     assert table.variants[2].alternative_allele == "T"
 
     assert len(table.genotypes) == 2
-    assert list(table.genotypes[0]) == canonic_index_list_to_biallelic_gt_list(
-        [1, 1, 1]
-    )
-    assert list(table.genotypes[1]) == canonic_index_list_to_biallelic_gt_list(
-        [1, 1, 0]
-    )
+    assert list(table.genotypes[0]) == canonic_index_list_to_biallelic_gt_list([1, 1, 1])
+    assert list(table.genotypes[1]) == canonic_index_list_to_biallelic_gt_list([1, 1, 0])
 
-    assert list(
-        table.genotypes_of("sample1")
-    ) == canonic_index_list_to_biallelic_gt_list([1, 1, 1])
-    assert list(
-        table.genotypes_of("sample2")
-    ) == canonic_index_list_to_biallelic_gt_list([1, 1, 0])
+    assert list(table.genotypes_of("sample1")) == canonic_index_list_to_biallelic_gt_list([1, 1, 1])
+    assert list(table.genotypes_of("sample2")) == canonic_index_list_to_biallelic_gt_list([1, 1, 0])
 
 
 def test_read_phased_vcf():
@@ -92,32 +80,24 @@ def test_read_phased_vcf():
         assert table_b.samples == ["sample1", "sample2"]
 
         assert len(table_a.genotypes) == 2
-        assert list(table_a.genotypes[0]) == canonic_index_list_to_biallelic_gt_list(
+        assert list(table_a.genotypes[0]) == canonic_index_list_to_biallelic_gt_list([1, 2, 1, 1])
+        assert list(table_a.genotypes[1]) == canonic_index_list_to_biallelic_gt_list([1, 1, 1, 1])
+        assert list(table_a.genotypes_of("sample1")) == canonic_index_list_to_biallelic_gt_list(
             [1, 2, 1, 1]
         )
-        assert list(table_a.genotypes[1]) == canonic_index_list_to_biallelic_gt_list(
+        assert list(table_a.genotypes_of("sample2")) == canonic_index_list_to_biallelic_gt_list(
             [1, 1, 1, 1]
         )
-        assert list(
-            table_a.genotypes_of("sample1")
-        ) == canonic_index_list_to_biallelic_gt_list([1, 2, 1, 1])
-        assert list(
-            table_a.genotypes_of("sample2")
-        ) == canonic_index_list_to_biallelic_gt_list([1, 1, 1, 1])
 
         assert len(table_b.genotypes) == 2
-        assert list(table_b.genotypes[0]) == canonic_index_list_to_biallelic_gt_list(
+        assert list(table_b.genotypes[0]) == canonic_index_list_to_biallelic_gt_list([0, 1])
+        assert list(table_b.genotypes[1]) == canonic_index_list_to_biallelic_gt_list([1, 2])
+        assert list(table_b.genotypes_of("sample1")) == canonic_index_list_to_biallelic_gt_list(
             [0, 1]
         )
-        assert list(table_b.genotypes[1]) == canonic_index_list_to_biallelic_gt_list(
+        assert list(table_b.genotypes_of("sample2")) == canonic_index_list_to_biallelic_gt_list(
             [1, 2]
         )
-        assert list(
-            table_b.genotypes_of("sample1")
-        ) == canonic_index_list_to_biallelic_gt_list([0, 1])
-        assert list(
-            table_b.genotypes_of("sample2")
-        ) == canonic_index_list_to_biallelic_gt_list([1, 2])
 
         print(table_a.phases)
         assert len(table_a.phases) == 2
@@ -255,17 +235,11 @@ def test_normalize():
     assert VcfVariant(100, "A", "").normalized() == VcfVariant(100, "A", "")
     assert VcfVariant(100, "A", "AC").normalized() == VcfVariant(101, "", "C")
     assert VcfVariant(100, "AC", "A").normalized() == VcfVariant(101, "C", "")
-    assert VcfVariant(100, "ACAGACC", "ACAGACT").normalized() == VcfVariant(
-        106, "C", "T"
-    )
+    assert VcfVariant(100, "ACAGACC", "ACAGACT").normalized() == VcfVariant(106, "C", "T")
     assert VcfVariant(100, "GCTG", "GCTAAA").normalized() == VcfVariant(103, "G", "AAA")
     assert VcfVariant(100, "ATTA", "ATA").normalized() == VcfVariant(101, "T", "")
-    assert VcfVariant(100, "ATTTC", "ATTTTTTC").normalized() == VcfVariant(
-        101, "", "TTT"
-    )
-    assert VcfVariant(100, "GCTGTT", "GCTAAATT").normalized() == VcfVariant(
-        103, "G", "AAA"
-    )
+    assert VcfVariant(100, "ATTTC", "ATTTTTTC").normalized() == VcfVariant(101, "", "TTT")
+    assert VcfVariant(100, "GCTGTT", "GCTAAATT").normalized() == VcfVariant(103, "G", "AAA")
 
 
 def test_read_duplicate_position():
@@ -316,9 +290,7 @@ def assert_genotype_likelihoods(actual, expected):
 
 
 def test_read_genotype_likelihoods():
-    tables = list(
-        VcfReader("tests/data/genotype-likelihoods.vcf", genotype_likelihoods=True)
-    )
+    tables = list(VcfReader("tests/data/genotype-likelihoods.vcf", genotype_likelihoods=True))
     assert len(tables) == 1
     table = tables[0]
     assert table.chromosome == "chrA"
@@ -326,12 +298,8 @@ def test_read_genotype_likelihoods():
     assert len(table.variants) == 4
 
     assert len(table.genotypes) == 2
-    assert list(table.genotypes[0]) == canonic_index_list_to_biallelic_gt_list(
-        [2, 1, 1, 1]
-    )
-    assert list(table.genotypes[1]) == canonic_index_list_to_biallelic_gt_list(
-        [1, 0, 0, 1]
-    )
+    assert list(table.genotypes[0]) == canonic_index_list_to_biallelic_gt_list([2, 1, 1, 1])
+    assert list(table.genotypes[1]) == canonic_index_list_to_biallelic_gt_list([1, 0, 0, 1])
 
     gl0 = GenotypeLikelihoods([-2.1206, -0.8195, -0.07525])
     gl1 = GenotypeLikelihoods([-10.3849, 0, -5.99143])
@@ -343,13 +311,9 @@ def test_read_genotype_likelihoods():
 
     expected1 = [gl0, gl2, None, gl0]
     expected2 = [gl1, gl3, None, gl1]
-    for actual_gl, expected_gl in zip(
-        table.genotype_likelihoods_of("sample1"), expected1
-    ):
+    for actual_gl, expected_gl in zip(table.genotype_likelihoods_of("sample1"), expected1):
         assert_genotype_likelihoods(actual_gl, expected_gl)
-    for actual_gl, expected_gl in zip(
-        table.genotype_likelihoods_of("sample2"), expected2
-    ):
+    for actual_gl, expected_gl in zip(table.genotype_likelihoods_of("sample2"), expected2):
         assert_genotype_likelihoods(actual_gl, expected_gl)
 
 
@@ -435,9 +399,7 @@ def test_read_tetraploid_phased():
 def test_read_tetraploid_genotype_likelihoods():
     tables = list(
         VcfReader(
-            "tests/data/polyploid.chr22.unphased.vcf",
-            phases=False,
-            genotype_likelihoods=True,
+            "tests/data/polyploid.chr22.unphased.vcf", phases=False, genotype_likelihoods=True,
         )
     )
     assert len(tables) == 1
@@ -470,9 +432,7 @@ def test_unsupported_ploidy_phased():
 
 def test_inconsistent_ploidy():
     try:
-        tables = list(
-            VcfReader("tests/data/polyploid.chr22.inconsistent.vcf", phases=False)
-        )
+        tables = list(VcfReader("tests/data/polyploid.chr22.inconsistent.vcf", phases=False))
     except PloidyError:
         return
     assert False
@@ -480,9 +440,7 @@ def test_inconsistent_ploidy():
 
 def test_inconsistent_ploidy_phased():
     try:
-        tables = list(
-            VcfReader("tests/data/polyploid.chr22.inconsistent.vcf", phases=True)
-        )
+        tables = list(VcfReader("tests/data/polyploid.chr22.inconsistent.vcf", phases=True))
     except PloidyError:
         return
     assert False

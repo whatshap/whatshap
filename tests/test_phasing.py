@@ -39,13 +39,7 @@ def test_phase_empty_readset(algorithm):
 
 
 def compare_phasing_brute_force(
-    superreads,
-    cost,
-    partition,
-    readset,
-    all_heterozygous,
-    weights=None,
-    algorithm="whatshap",
+    superreads, cost, partition, readset, all_heterozygous, weights=None, algorithm="whatshap",
 ):
     """Compares DPTable based phasing to brute force phasing and returns string representation of superreads."""
     assert len(superreads) == 2
@@ -76,9 +70,7 @@ def compare_phasing_brute_force(
     # TODO: implement the reporting of an optimal partitioning in hapchat
     if algorithm == "whatshap":
         inverse_partition = [1 - p for p in partition]
-        assert (partition == expected_partition) or (
-            inverse_partition == expected_partition
-        )
+        assert (partition == expected_partition) or (inverse_partition == expected_partition)
     assert solution_count == 1
     assert cost == expected_cost
     assert (haplotypes == (expected_haplotype1, expected_haplotype2)) or (

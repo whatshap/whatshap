@@ -29,9 +29,7 @@ def genotype_pedigree(
     positions=None,
 ):
     rs = string_to_readset_pedigree(s=reads, w=weights, scaling_quality=scaling)
-    dp_forward_backward = GenotypeDPTable(
-        numeric_sample_ids, rs, recombcost, pedigree, positions
-    )
+    dp_forward_backward = GenotypeDPTable(numeric_sample_ids, rs, recombcost, pedigree, positions)
 
     # for each position compare the likeliest genotype to the expected ones
     print("expected genotypes: ", expected_genotypes)
@@ -50,9 +48,7 @@ def genotype_pedigree(
                     " expected likelihoods: ",
                     expected[individual][pos],
                 )
-                assert likelihoods == PhredGenotypeLikelihoods(
-                    expected[individual][pos]
-                )
+                assert likelihoods == PhredGenotypeLikelihoods(expected[individual][pos])
 
             # find the likeliest genotype
             max_val = -1
@@ -120,9 +116,7 @@ def test_genotyping_trio1():
     )
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [10, 10]
-    genotype_pedigree(
-        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes
-    )
+    genotype_pedigree(numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes)
 
 
 def test_genotyping_quartet1():
@@ -173,9 +167,7 @@ def test_genotyping_quartet1():
     pedigree.add_relationship("individual0", "individual1", "individual2")
     pedigree.add_relationship("individual0", "individual1", "individual3")
     recombcost = [3, 3, 3, 4, 3, 3]
-    genotype_pedigree(
-        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes
-    )
+    genotype_pedigree(numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes)
 
 
 def test_genotyping_trio2():
@@ -211,9 +203,7 @@ def test_genotyping_trio2():
     )
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [10, 10, 10]
-    genotype_pedigree(
-        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes
-    )
+    genotype_pedigree(numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes)
 
 
 def test_genotyping_trio3():
@@ -257,9 +247,7 @@ def test_genotyping_trio3():
     )
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [3, 3, 3, 4, 3, 3]
-    genotype_pedigree(
-        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes
-    )
+    genotype_pedigree(numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes)
 
 
 # TODO: what about such cases, where the given reads are like below? What would be the expected genotypes
@@ -300,9 +288,7 @@ def test_genotyping_trio4():
     )
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [1, 1, 1]
-    genotype_pedigree(
-        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes
-    )
+    genotype_pedigree(numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes)
 
 
 def test_genotyping_trio5():
@@ -342,9 +328,7 @@ def test_genotyping_trio5():
     )
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [2, 2, 2]
-    genotype_pedigree(
-        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes
-    )
+    genotype_pedigree(numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes)
 
 
 def test_genotyping_trio6():
@@ -385,9 +369,7 @@ def test_genotyping_trio6():
     )
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [10, 10, 10]
-    genotype_pedigree(
-        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes
-    )
+    genotype_pedigree(numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes)
 
 
 def test_genotyping_quartet2():
@@ -436,9 +418,7 @@ def test_genotyping_quartet2():
     pedigree.add_relationship("individual0", "individual1", "individual2")
     pedigree.add_relationship("individual0", "individual1", "individual3")
     recombcost = [10, 10, 10]
-    genotype_pedigree(
-        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes
-    )
+    genotype_pedigree(numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes)
 
 
 def test_genotyping_quartet3():
@@ -483,9 +463,7 @@ def test_genotyping_quartet3():
     pedigree.add_relationship("individual0", "individual1", "individual2")
     pedigree.add_relationship("individual0", "individual1", "individual3")
     recombcost = [3, 3, 3, 3, 3, 3]
-    genotype_pedigree(
-        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes
-    )
+    genotype_pedigree(numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes)
 
 
 def test_genotyping_quartet4():
@@ -536,9 +514,7 @@ def test_genotyping_quartet4():
     pedigree.add_relationship("individual0", "individual1", "individual2")
     pedigree.add_relationship("individual0", "individual1", "individual3")
     recombcost = [3, 3, 3, 4, 3, 3]
-    genotype_pedigree(
-        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes
-    )
+    genotype_pedigree(numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes)
 
 
 def test_genotyping_trio7():
@@ -577,9 +553,7 @@ def test_genotyping_trio7():
     )
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [1, 1, 1]
-    genotype_pedigree(
-        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes
-    )
+    genotype_pedigree(numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes)
 
 
 def test_genotyping_trio8():
@@ -615,9 +589,7 @@ def test_genotyping_trio8():
     )
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [10, 10, 10, 10]
-    genotype_pedigree(
-        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes
-    )
+    genotype_pedigree(numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes)
 
 
 def test_genotyping_trio9():
@@ -663,9 +635,7 @@ def test_genotyping_trio9():
     )
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [10, 10, 10, 10]
-    genotype_pedigree(
-        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes
-    )
+    genotype_pedigree(numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes)
 
 
 # TODO when using uniform priors (1/3,1/3,1/3) result for child is (0,0.2,0.8)
@@ -770,9 +740,7 @@ def test_genotyping_trio10():
     )
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [10, 10, 10, 10]
-    genotype_pedigree(
-        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes
-    )
+    genotype_pedigree(numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes)
 
 
 def test_genotyping_trio11():
@@ -808,9 +776,7 @@ def test_genotyping_trio11():
     )
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [10, 10, 10]
-    genotype_pedigree(
-        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes
-    )
+    genotype_pedigree(numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes)
 
 
 # TODO: model fails to infer the correct genotype likelihoods of the child, if uniform priors are used for child.
@@ -850,12 +816,7 @@ def test_genotyping_trio13():
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [1000000, 1000000, 1000000, 1000000, 1000000, 1000000]
     genotype_pedigree(
-        numeric_sample_ids,
-        reads,
-        recombcost,
-        pedigree,
-        expected_genotypes,
-        scaling=1000,
+        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes, scaling=1000,
     )
 
 
@@ -893,10 +854,5 @@ def test_genotyping_trio14():
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [1000000, 1000000, 1000000, 1000000, 1000000, 1000000]
     genotype_pedigree(
-        numeric_sample_ids,
-        reads,
-        recombcost,
-        pedigree,
-        expected_genotypes,
-        scaling=1000,
+        numeric_sample_ids, reads, recombcost, pedigree, expected_genotypes, scaling=1000,
     )

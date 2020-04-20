@@ -15,21 +15,13 @@ def test_selection():
       1    1
     """
     )
-    selected_reads = readselection(
-        reads, max_cov=1, preferred_source_ids=None, bridging=False
-    )
+    selected_reads = readselection(reads, max_cov=1, preferred_source_ids=None, bridging=False)
     assert selected_reads == set([1, 5])
-    selected_reads = readselection(
-        reads, max_cov=2, preferred_source_ids=None, bridging=False
-    )
+    selected_reads = readselection(reads, max_cov=2, preferred_source_ids=None, bridging=False)
     assert selected_reads == set([1, 3, 5]), str(selected_reads)
-    selected_reads = readselection(
-        reads, max_cov=3, preferred_source_ids=None, bridging=False
-    )
+    selected_reads = readselection(reads, max_cov=3, preferred_source_ids=None, bridging=False)
     assert selected_reads == set([1, 3, 5, 7]), str(selected_reads)
-    selected_reads = readselection(
-        reads, max_cov=3, preferred_source_ids=None, bridging=True
-    )
+    selected_reads = readselection(reads, max_cov=3, preferred_source_ids=None, bridging=True)
     # Here the assert is wrong, because the bridging doesn't come into account , because in the slice_read the selected
     # reads  have already coverage 3 by set ([1,3,5,7]) because first each position has to covered at least once before
     # the bridging starts
@@ -46,9 +38,7 @@ def test_selection2():
         1      11
     """
     )
-    selected_reads = readselection(
-        reads, max_cov=4, preferred_source_ids=None, bridging=False
-    )
+    selected_reads = readselection(reads, max_cov=4, preferred_source_ids=None, bridging=False)
     assert selected_reads == set([0, 1, 2, 3]), str(selected_reads)
 
 
@@ -64,13 +54,9 @@ def bridging():
       1    1
     """
     )
-    selected_reads = readselection(
-        reads, max_cov=2, preferred_source_ids=None, bridging=False
-    )
+    selected_reads = readselection(reads, max_cov=2, preferred_source_ids=None, bridging=False)
     assert selected_reads == set([0, 1, 2, 3, 4, 5])
-    selected_reads = readselection(
-        reads, max_cov=2, preferred_source_ids=None, bridging=True
-    )
+    selected_reads = readselection(reads, max_cov=2, preferred_source_ids=None, bridging=True)
     # Not sure why 0 is there selected and not 1...
     assert selected_reads == set([0, 3, 5, 6])
 
@@ -86,14 +72,10 @@ def test_components_of_readselection():
        1   1
     """
     )
-    selected_reads = readselection(
-        reads, max_cov=2, preferred_source_ids=None, bridging=False
-    )
+    selected_reads = readselection(reads, max_cov=2, preferred_source_ids=None, bridging=False)
     assert selected_reads == set([0, 1, 2, 3]), str(selected_reads)
     #    assert len(set(new_components.values())) == 2
-    selected_reads = readselection(
-        reads, max_cov=2, preferred_source_ids=None, bridging=True
-    )
+    selected_reads = readselection(reads, max_cov=2, preferred_source_ids=None, bridging=True)
     assert selected_reads == set([0, 1, 4]), str(selected_reads)
 
 
@@ -119,14 +101,10 @@ def test_selection_with_preferred_sources():
     for read in more_reads:
         readset.add(read)
 
-    selected_reads = readselection(
-        readset, max_cov=2, preferred_source_ids=None, bridging=True
-    )
+    selected_reads = readselection(readset, max_cov=2, preferred_source_ids=None, bridging=True)
     assert selected_reads == set([1, 2, 3]), str(selected_reads)
 
-    selected_reads = readselection(
-        readset, max_cov=2, preferred_source_ids=set([3]), bridging=True
-    )
+    selected_reads = readselection(readset, max_cov=2, preferred_source_ids=set([3]), bridging=True)
     assert selected_reads == set([0, 1, 3]), str(selected_reads)
 
 

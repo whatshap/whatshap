@@ -111,10 +111,7 @@ def test_edit_distance_affine():
                         ed_aff(s, "", [mismatch_cost] * len(s), gap_start, 10)
                         == gap_start + (len(s) - 1) * 10
                     )
-                    assert (
-                        ed_aff("", s, [], gap_start, 10)
-                        == gap_start + (len(s) - 1) * 10
-                    )
+                    assert ed_aff("", s, [], gap_start, 10) == gap_start + (len(s) - 1) * 10
                 assert ed_aff(s, t, [mismatch_cost] * len(s), gap_start, 10) == ed_aff(
                     t, s, [mismatch_cost] * len(t), gap_start, 10
                 )
@@ -141,10 +138,7 @@ def test_edit_distance_affine_bytes():
                         ed_aff(s, b"", [mismatch_cost] * len(s), gap_start, 10)
                         == gap_start + (len(s) - 1) * 10
                     )
-                    assert (
-                        ed_aff(b"", s, [], gap_start, 10)
-                        == gap_start + (len(s) - 1) * 10
-                    )
+                    assert ed_aff(b"", s, [], gap_start, 10) == gap_start + (len(s) - 1) * 10
                 assert ed_aff(s, t, [mismatch_cost] * len(s), gap_start, 10) == ed_aff(
                     t, s, [mismatch_cost] * len(t), gap_start, 10
                 )
@@ -159,10 +153,7 @@ def test_mismatches():
 
 
 def test_small_examples():
-    assert (
-        ed_aff("AGTCCGGTG", "AGTCCATCGGTC", [30, 40, 20, 20, 50, 60, 10, 20, 5], 40, 10)
-        == 65
-    )
+    assert ed_aff("AGTCCGGTG", "AGTCCATCGGTC", [30, 40, 20, 20, 50, 60, 10, 20, 5], 40, 10) == 65
     assert ed_aff("ATGGCCG", "ATCGCTG", [40, 50, 10, 40, 50, 10, 40], 20, 10) == 20
     assert ed_aff("ATCCTC", "ATCGGGCTC", [50] * 6, 10, 5) == 20
 

@@ -416,14 +416,7 @@ def test_phase_trio_use_ped_samples(ped_samples, tmpdir):
 
 @mark.parametrize(
     "sample_set",
-    [
-        ["HG002"],
-        ["HG003"],
-        ["HG004"],
-        ["HG002", "HG003"],
-        ["HG002", "HG004"],
-        ["HG003", "HG004"],
-    ],
+    [["HG002"], ["HG003"], ["HG004"], ["HG002", "HG003"], ["HG002", "HG004"], ["HG003", "HG004"],],
 )
 def test_phase_ped_sample(tmpdir, sample_set):
     # running with --ped and --sample on subset of trio, should give same results as running with only --sample
@@ -509,16 +502,12 @@ def test_phase_trio_merged_blocks(tmpdir):
     phase0 = VariantCallPhase(752566, (0, 1), None)
     phase1 = VariantCallPhase(752566, (1, 0), None)
     assert_phasing(
-        table.phases_of("HG004"),
-        [phase1, phase1, phase1, None, phase1, phase1, phase1, phase1],
+        table.phases_of("HG004"), [phase1, phase1, phase1, None, phase1, phase1, phase1, phase1],
     )
     assert_phasing(
-        table.phases_of("HG003"),
-        [None, None, None, None, phase0, phase0, phase0, phase1],
+        table.phases_of("HG003"), [None, None, None, None, phase0, phase0, phase0, phase1],
     )
-    assert_phasing(
-        table.phases_of("HG002"), [None, None, None, None, None, None, None, phase1]
-    )
+    assert_phasing(table.phases_of("HG002"), [None, None, None, None, None, None, None, phase1])
 
 
 def test_phase_trio_dont_merge_blocks(tmpdir):
@@ -551,12 +540,9 @@ def test_phase_trio_dont_merge_blocks(tmpdir):
         [phase1, phase1, phase1, None, phase2_1, phase2_1, phase2_1, phase2_1],
     )
     assert_phasing(
-        table.phases_of("HG003"),
-        [None, None, None, None, phase2_0, phase2_0, phase2_0, phase2_1],
+        table.phases_of("HG003"), [None, None, None, None, phase2_0, phase2_0, phase2_0, phase2_1],
     )
-    assert_phasing(
-        table.phases_of("HG002"), [None, None, None, None, None, None, None, phase2_1]
-    )
+    assert_phasing(table.phases_of("HG002"), [None, None, None, None, None, None, None, phase2_1])
 
 
 def test_genetic_phasing_symbolic_alt(tmpdir):
@@ -654,37 +640,20 @@ def test_phase_specific_chromosome():
                 if table.chromosome == "1" == requested_chromosome:
                     phase0 = VariantCallPhase(60906167, (0, 1), None)
                     assert_phasing(
-                        table.phases_of("HG004"),
-                        [phase0, phase0, phase0, phase0, phase0],
+                        table.phases_of("HG004"), [phase0, phase0, phase0, phase0, phase0],
                     )
-                    assert_phasing(
-                        table.phases_of("HG003"), [phase0, None, phase0, phase0, phase0]
-                    )
-                    assert_phasing(
-                        table.phases_of("HG002"), [None, phase0, None, None, None]
-                    )
+                    assert_phasing(table.phases_of("HG003"), [phase0, None, phase0, phase0, phase0])
+                    assert_phasing(table.phases_of("HG002"), [None, phase0, None, None, None])
                 elif table.chromosome == "2" == requested_chromosome:
                     phase0 = VariantCallPhase(60906167, (0, 1), None)
                     phase1 = VariantCallPhase(60906167, (1, 0), None)
-                    assert_phasing(
-                        table.phases_of("HG004"), [phase0, None, None, None, phase1]
-                    )
-                    assert_phasing(
-                        table.phases_of("HG003"), [phase0, None, None, None, None]
-                    )
-                    assert_phasing(
-                        table.phases_of("HG002"), [None, None, None, None, phase0]
-                    )
+                    assert_phasing(table.phases_of("HG004"), [phase0, None, None, None, phase1])
+                    assert_phasing(table.phases_of("HG003"), [phase0, None, None, None, None])
+                    assert_phasing(table.phases_of("HG002"), [None, None, None, None, phase0])
                 else:
-                    assert_phasing(
-                        table.phases_of("HG004"), [None, None, None, None, None]
-                    )
-                    assert_phasing(
-                        table.phases_of("HG003"), [None, None, None, None, None]
-                    )
-                    assert_phasing(
-                        table.phases_of("HG002"), [None, None, None, None, None]
-                    )
+                    assert_phasing(table.phases_of("HG004"), [None, None, None, None, None])
+                    assert_phasing(table.phases_of("HG003"), [None, None, None, None, None])
+                    assert_phasing(table.phases_of("HG002"), [None, None, None, None, None])
 
 
 def test_phase_trio_paired_end_reads():
@@ -734,7 +703,7 @@ def test_phase_quartet_recombination_breakpoints():
                 output=outvcf,
                 ped="tests/data/recombination_breaks.ped",
                 recombination_list_filename=outlist,
-                **parameters
+                **parameters,
             )
             assert os.path.isfile(outvcf)
 
@@ -852,14 +821,8 @@ def test_haplotag_cli_parser():
 
     with TemporaryDirectory() as tempdir:
         outbam = tempdir + "/output.bam"
-        cli_string = (
-            "--output "
-            + outbam
-            + " tests/data/haplotag_2.vcf.gz tests/data/haplotag.bam"
-        )
-        parser = argp.ArgumentParser(
-            description="haplotag_test_parser", prog="whatshap_pytest"
-        )
+        cli_string = "--output " + outbam + " tests/data/haplotag_2.vcf.gz tests/data/haplotag.bam"
+        parser = argp.ArgumentParser(description="haplotag_test_parser", prog="whatshap_pytest")
         haplotag_add_arguments(parser)
         haplotag_args = vars(parser.parse_args(cli_string.split()))
         run_haplotag(**haplotag_args)
@@ -1038,8 +1001,7 @@ def test_haplotag_10X_2():
             output=outbam,
         )
         for a1, a2 in zip(
-            pysam.AlignmentFile("tests/data/haplotag.10X.bam"),
-            pysam.AlignmentFile(outbam),
+            pysam.AlignmentFile("tests/data/haplotag.10X.bam"), pysam.AlignmentFile(outbam),
         ):
             assert a1.query_name == a2.query_name
             if a1.has_tag("HP") and a2.has_tag("HP"):
@@ -1194,10 +1156,7 @@ def test_haplotag_selected_regions():
             # If more than 1 overlap, read must be phased / have HP tag
             for aln in test_bam:
                 num_ovl = sum(
-                    [
-                        int(aln.reference_start <= v <= aln.reference_end)
-                        for v in var_region2
-                    ]
+                    [int(aln.reference_start <= v <= aln.reference_end) for v in var_region2]
                 )
                 if num_ovl > 1:
                     assert aln.has_tag("HP")
@@ -1257,9 +1216,7 @@ def test_hapcut2vcf():
     with TemporaryDirectory() as tempdir:
         out = os.path.join(tempdir, "hapcut.vcf")
         run_hapcut2vcf(
-            hapcut="tests/data/pacbio/hapcut.txt",
-            vcf="tests/data/pacbio/variants.vcf",
-            output=out,
+            hapcut="tests/data/pacbio/hapcut.txt", vcf="tests/data/pacbio/variants.vcf", output=out,
         )
 
 
@@ -1384,9 +1341,7 @@ def test_phased_blocks(algorithm, expected_blocks, tmpdir):
         assert len(table.variants) == 5
         assert table.samples == ["sample"]
 
-        blocks = [
-            (p.block_id if p is not None else None) for p in table.phases_of("sample")
-        ]
+        blocks = [(p.block_id if p is not None else None) for p in table.phases_of("sample")]
         assert blocks == expected_blocks
 
 
@@ -1421,9 +1376,7 @@ def test_duplicate_read(algorithm, expected_block):
         assert len(table.variants) == 5
         assert table.samples == ["sample"]
 
-        blocks = [
-            (p.block_id if p is not None else None) for p in table.phases_of("sample")
-        ]
+        blocks = [(p.block_id if p is not None else None) for p in table.phases_of("sample")]
         assert blocks == expected_block
 
 
