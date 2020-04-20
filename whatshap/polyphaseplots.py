@@ -18,6 +18,9 @@ into its name. For any other read name, it just returns -1 for unknown haplotype
 """
 
 
+logger = logging.getLogger(__name__)
+
+
 def parse_haplotype(name):
     try:
         tokens = name.split("_")

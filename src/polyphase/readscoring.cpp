@@ -11,29 +11,28 @@ void ReadScoring::scoreReadsetGlobal(TriangleSparseMatrix *result, ReadSet *read
     std::vector<uint32_t> begins;
     std::vector<uint32_t> ends;
     std::vector<std::vector<uint32_t>> positions;
-	std::vector<std::vector<uint32_t>> alleles;
+	std::vector<std::vector<uint8_t>> alleles;
     std::vector<uint32_t> posList;
     std::unordered_map<uint32_t, uint32_t> posMap;
     uint32_t longestReadSpan = 0;
     computeStartEnd(readset, begins, ends, positions, alleles, posList, posMap, longestReadSpan);
     
     // compute length of overlap and difference for all read pairs
-    TriangleSparseMatrix overlaps;
-    TriangleSparseMatrix diffs;
     double hammingDistSame = 0;
     double hammingDistDiff = 0;
-    computeOverlapDiff(readset, begins, ends, positions, alleles, posList, posMap, overlaps, diffs, hammingDistSame, hammingDistDiff, minOverlap, ploidy, longestReadSpan);
+    computeOverlapDiff(readset, begins, ends, positions, alleles, posList, posMap, result, hammingDistSame, hammingDistDiff, minOverlap, ploidy, longestReadSpan);
     hammingDistSame = 0.10;
     hammingDistDiff = 0.40;
     
     // compute pair wise scores
-    std::vector<std::pair<uint32_t, uint32_t>> entries = overlaps.getEntries();
+    std::vector<std::pair<uint32_t, uint32_t>> entries = result->getEntries();
     std::unordered_map<uint64_t, float> cache;
     for (std::pair<uint32_t, uint32_t> p : entries) {
         uint32_t i = p.first;
         uint32_t j = p.second;
-        uint32_t ov = overlaps.get(i, j);
-        uint32_t di = diffs.get(i, j);
+        TriangleSparseMatrix::DoubleInt d = result->getDoubleInt(i, j);
+        uint32_t ov = d.u1;
+        uint32_t di = d.u2;
         uint64_t ovdi = (ov*(ov+1))/2+di;
         std::unordered_map<uint64_t, float>::const_iterator it = cache.find(ovdi);
         if (it == cache.end()) {
@@ -62,7 +61,7 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* reads
     std::vector<uint32_t> begins;
     std::vector<uint32_t> ends;
     std::vector<std::vector<uint32_t>> positions;
-	std::vector<std::vector<uint32_t>> alleles;
+	std::vector<std::vector<uint8_t>> alleles;
     std::vector<uint32_t> posList;
     std::unordered_map<uint32_t, uint32_t> posMap;
     uint32_t longestReadSpan = 0;
@@ -82,13 +81,10 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* reads
     }
     
     // compute length of overlap and difference for all read pairs
-    TriangleSparseMatrix overlaps;
-    TriangleSparseMatrix diffs;
+    // reuse the result matrix to store overlaps and diffs. they will be overwritten later on
     double defaultSameDist = 0;
     double defaultDiffDist = 0;
-    computeOverlapDiff(readset, begins, ends, positions, alleles, posList, posMap, overlaps, diffs, defaultSameDist, defaultDiffDist, minOverlap, ploidy, longestReadSpan);
-    
-    std::vector<std::pair<uint32_t, uint32_t>> entries = overlaps.getEntries();
+    computeOverlapDiff(readset, begins, ends, positions, alleles, posList, posMap, result, defaultSameDist, defaultDiffDist, minOverlap, ploidy, longestReadSpan);
     
     // compute longest read length and average read length (in base pairs) and divide by 2
     uint32_t windowSize = 0;
@@ -121,14 +117,13 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* reads
         uint32_t end = posList[endVariant-1];
 
         // compute length of overlap and difference for all read pairs
-        TriangleSparseMatrix overlapsLocal;
-        TriangleSparseMatrix diffsLocal;
+        TriangleSparseMatrix overlapsDiffsLocal;
         double localSameDist = 0;
         double localDiffDist = 0;
-        computeOverlapDiff(readset, begins, ends, positions, alleles, posList, posMap, overlapsLocal, diffsLocal, 
+        computeOverlapDiff(readset, begins, ends, positions, alleles, posList, posMap, &overlapsDiffsLocal, 
                            localSameDist, localDiffDist, minOverlap, ploidy, longestReadSpan, start, end);
         
-        if (diffsLocal.getEntries().size() < ploidy) {
+        if (overlapsDiffsLocal.getEntries().size() < ploidy) {
             // too few read pairs, use average over all reads instead
             localSameDist = defaultSameDist;
             localDiffDist = defaultDiffDist;
@@ -169,11 +164,13 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* reads
     }
             
     // now, iterate over all overlapping read pairs and compute their score
+    std::vector<std::pair<uint32_t, uint32_t>> entries = result->getEntries();
     for (std::pair<uint32_t, uint32_t> p : entries) {
         uint32_t i = p.first;
         uint32_t j = p.second;
-        uint32_t ov = overlaps.get(i, j);
-        uint32_t di = diffs.get(i, j);
+        TriangleSparseMatrix::DoubleInt ovdi = result->getDoubleInt(i, j);
+        uint32_t ov = ovdi.u1;
+        uint32_t di = ovdi.u2;
         
         // zig zag over read positions to determine their individual same/diff dists
         double same = 0.0;
@@ -203,7 +200,7 @@ void ReadScoring::computeStartEnd (const ReadSet* readset,
                                    std::vector<uint32_t>& begins,
                                    std::vector<uint32_t>& ends,
                                    std::vector<std::vector<uint32_t>>& positions,
-                                   std::vector<std::vector<uint32_t>>& alleles,
+                                   std::vector<std::vector<uint8_t>>& alleles,
                                    std::vector<uint32_t>& posList,
                                    std::unordered_map<uint32_t, uint32_t>& posMap,
                                    uint32_t& longestReadSpan) const {
@@ -214,10 +211,10 @@ void ReadScoring::computeStartEnd (const ReadSet* readset,
         begins.push_back(readset->get(i)->firstPosition());
         ends.push_back(readset->get(i)->lastPosition());
         std::vector<uint32_t> pos;
-        std::vector<uint32_t> all;
+        std::vector<uint8_t> all;
         for (int k = 0; k < readset->get(i)->getVariantCount(); k++) {
             pos.push_back(readset->get(i)->getPosition(k));
-            all.push_back(readset->get(i)->getAllele(k));
+            all.push_back((uint8_t)(readset->get(i)->getAllele(k)));
             allPos.insert(readset->get(i)->getPosition(k));
         }
         positions.push_back(pos);
@@ -245,11 +242,10 @@ void ReadScoring::computeOverlapDiff (const ReadSet* readset,
                                       const std::vector<uint32_t>& begins,
                                       const std::vector<uint32_t>& ends,
                                       const std::vector<std::vector<uint32_t>>& positions,
-                                      const std::vector<std::vector<uint32_t>>& alleles,
+                                      const std::vector<std::vector<uint8_t>>& alleles,
                                       const std::vector<uint32_t>& posList,
                                       std::unordered_map<uint32_t, uint32_t>& posMap,
-                                      TriangleSparseMatrix& overlaps,
-                                      TriangleSparseMatrix& diffs,
+                                      TriangleSparseMatrix* overlapDiffs,
                                       double& distSame,
                                       double& distDiff,
                                       const uint32_t minOverlap,
@@ -302,8 +298,7 @@ void ReadScoring::computeOverlapDiff (const ReadSet* readset,
                 }
             }
             if (ov >= minOverlap) {
-                overlaps.set(ci, cj, ov);
-                diffs.set(ci, cj, di);
+                overlapDiffs->setDoubleInt(ci, cj, (uint16_t)ov, (uint16_t)di);
                 relativeDiffs.push_back((double)di / (double)ov);
             }
         }
@@ -317,17 +312,16 @@ void ReadScoring::computeOverlapDiff (const ReadSet* readset,
                                       const std::vector<uint32_t>& begins,
                                       const std::vector<uint32_t>& ends,
                                       const std::vector<std::vector<uint32_t>>& positions,
-                                      const std::vector<std::vector<uint32_t>>& alleles,
+                                      const std::vector<std::vector<uint8_t>>& alleles,
                                       const std::vector<uint32_t>& posList,
                                       std::unordered_map<uint32_t, uint32_t>& posMap,
-                                      TriangleSparseMatrix& overlaps,
-                                      TriangleSparseMatrix& diffs,
+                                      TriangleSparseMatrix* overlapDiffs,
                                       double& distSame,
                                       double& distDiff,
                                       const uint32_t minOverlap,
                                       const uint32_t ploidy,
                                       const uint32_t longestReadSpan) const {
-    computeOverlapDiff(readset, begins, ends, positions, alleles, posList, posMap, overlaps, diffs, distSame, distDiff, minOverlap, ploidy, longestReadSpan, 0, begins.size());
+    computeOverlapDiff(readset, begins, ends, positions, alleles, posList, posMap, overlapDiffs, distSame, distDiff, minOverlap, ploidy, longestReadSpan, 0, begins.size());
 }
 
 void ReadScoring::computeCutoff(const std::vector<uint32_t>& coveredReads, const uint32_t ploidy, std::vector<double> relDiffs, double& distSame, double& distDiff) const {

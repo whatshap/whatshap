@@ -10,6 +10,7 @@
 #include "clustereditingsolution.h"
 #include "inducedcostheuristic.h"
 #include "staticsparsegraph.h"
+#include "trianglesparsematrix.h"
 
 /**
  * Central solver for cluster editing instances. Uses a InducedCostHeuristic to
@@ -21,7 +22,7 @@ public:
     /**
      * Creates a solver object using the provided weighted graph.
      * 
-     * @param param_graph The graph instance to solve.
+     * @param m The graph instance to solve, given as sparse matrix with non-zero edge weights
      * @param bundleEdges Changes how edge merges are handled. Merging an edge
      *      also means that the two end nodes must be merged, which induces
      *      even more edge merges. In the heuristic, nodes are not merged explicitly,
@@ -30,8 +31,9 @@ public:
      *      with shared and combined induced costs. If disabled, each edge is treated
      *      individually.
      */
-    ClusterEditingSolver(DynamicSparseGraph& graph, bool bundleEdges) :
-		graph(graph), 
+
+    ClusterEditingSolver(TriangleSparseMatrix& m, bool bundleEdges) :
+		m(m), 
 		bundleEdges(bundleEdges)
     {};
 
@@ -44,7 +46,7 @@ public:
     ClusterEditingSolution run();
 
 private:
-    DynamicSparseGraph& graph;
+    TriangleSparseMatrix& m;
     bool bundleEdges;
 };
 

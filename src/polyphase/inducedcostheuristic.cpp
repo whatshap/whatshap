@@ -3,11 +3,11 @@
 #include <algorithm>
 #include <unordered_map>
   
-using Edge = DynamicSparseGraph::Edge;
-using EdgeWeight = DynamicSparseGraph::EdgeWeight;
-using EdgeId = DynamicSparseGraph::EdgeId;
-using NodeId = DynamicSparseGraph::NodeId;
-using RankId = DynamicSparseGraph::RankId;
+using Edge = StaticSparseGraph::Edge;
+using EdgeWeight = StaticSparseGraph::EdgeWeight;
+using EdgeId = StaticSparseGraph::EdgeId;
+using NodeId = StaticSparseGraph::NodeId;
+using RankId = StaticSparseGraph::RankId;
 
 InducedCostHeuristic::InducedCostHeuristic(StaticSparseGraph& param_graph, bool param_bundleEdges) :
     bundleEdges(param_bundleEdges),
@@ -42,7 +42,7 @@ ClusterEditingSolution InducedCostHeuristic::solve() {
         Edge eIcp = edgeHeap.getMaxIcpEdge();
         
         // if edge heap returns an invalid edge, we know the heap is empty and all edges are processed
-        if (eIcf == DynamicSparseGraph::InvalidEdge || eIcp == DynamicSparseGraph::InvalidEdge) {
+        if (eIcf == StaticSparseGraph::InvalidEdge || eIcp == StaticSparseGraph::InvalidEdge) {
             break;
         }
         
@@ -87,7 +87,7 @@ ClusterEditingSolution InducedCostHeuristic::solve() {
     return ClusterEditingSolution(totalCost, clusters);
 }
 
-void InducedCostHeuristic::choosePermanentEdge(const DynamicSparseGraph::Edge eIcf) {
+void InducedCostHeuristic::choosePermanentEdge(const StaticSparseGraph::Edge eIcf) {
     /* We cannot just set the edge eIcf=(u,v) to permanent, because we have to handle implications of this step as well.
      * According to the heuristic, u and v must be merged into one node. However, we do not do this here, but instead
      * make sure that u and v are handled as a clique:
@@ -182,7 +182,7 @@ void InducedCostHeuristic::choosePermanentEdge(const DynamicSparseGraph::Edge eI
     }
 }
 
-void InducedCostHeuristic::chooseForbiddenEdge(const DynamicSparseGraph::Edge eIcp) {
+void InducedCostHeuristic::chooseForbiddenEdge(const StaticSparseGraph::Edge eIcp) {
     /* We cannot just set the edge eIcf=(u,v) to forbidden, because we have to handle implications of this step as well.
      * Node u and v might already permanently connected to other nodes. If we decide to not u and v into one clique, then
      * all other pair of nodes in the same clique as u and v must be a forbidden pair. For non-zero edges, we could let 
@@ -251,9 +251,9 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
                 if (x != y) {
                     Edge e (x,y);
                     EdgeWeight w = graph.getWeight(e);
-                    if (w == DynamicSparseGraph::Forbidden)
+                    if (w == StaticSparseGraph::Forbidden)
                         return false;
-                    else if (w != DynamicSparseGraph::Permanent) {
+                    else if (w != StaticSparseGraph::Permanent) {
                         if (w < 0.0)
                             totalCost -= w;
                         graph.setPermanent(Edge(x,y));
@@ -272,7 +272,7 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
                 for (NodeId u : cliques[k]) {
                     if (found) break;
                     for (NodeId v : moreThanOneCliques[l]) {
-                        if (graph.getWeight(Edge(u, v)) == DynamicSparseGraph::Forbidden) {
+                        if (graph.getWeight(Edge(u, v)) == StaticSparseGraph::Forbidden) {
                             found = true;
                             break;
                         }
@@ -283,7 +283,7 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
                     for (NodeId u : cliques[k]) {
                         for (NodeId v : moreThanOneCliques[l]) {
                             Edge e(u,v);
-                            if (graph.getWeight(e) != DynamicSparseGraph::Forbidden) {
+                            if (graph.getWeight(e) != StaticSparseGraph::Forbidden) {
                                 graph.setForbidden(e);
                             }
                         }
@@ -367,7 +367,7 @@ void InducedCostHeuristic::updateTripleForbiddenUW(const EdgeWeight uv, const Ed
     EdgeWeight icf_old = edgeHeap.getIcf(uv, vw);
     EdgeWeight icf_new = 0.0;
     EdgeWeight icp_old = edgeHeap.getIcp(uv, vw);
-    EdgeWeight icp_new = std::max(0.0, vw);
+    EdgeWeight icp_new = std::max(0.0f, vw);
     if (icf_new != icf_old)
         edgeHeap.increaseIcf(uw, icf_new - icf_old);
     if (icp_new != icp_old)
@@ -376,9 +376,9 @@ void InducedCostHeuristic::updateTripleForbiddenUW(const EdgeWeight uv, const Ed
 
 void InducedCostHeuristic::updateTriplePermanentUW(const EdgeWeight uv, const Edge uw, const EdgeWeight vw) {
     EdgeWeight icf_old = edgeHeap.getIcf(uv, vw);
-    EdgeWeight icf_new = std::max(0.0, vw);
+    EdgeWeight icf_new = std::max(0.0f, vw);
     EdgeWeight icp_old = edgeHeap.getIcp(uv, vw);
-    EdgeWeight icp_new = std::max(0.0, -vw);
+    EdgeWeight icp_new = std::max(0.0f, -vw);
     if (icf_new != icf_old)
         edgeHeap.increaseIcf(uw, icf_new - icf_old);
     if (icp_new != icp_old)

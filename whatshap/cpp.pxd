@@ -141,17 +141,9 @@ cdef extern from "../src/hapchat/hapchatcore.cpp":
 		int get_optimal_cost()
 
 
-cdef extern from "../src/polyphase/dynamicsparsegraph.h":
-	cdef cppclass DynamicSparseGraph:
-		DynamicSparseGraph(uint32_t) except +
-		void addEdge(uint32_t, uint32_t, double) except +
-		void setWeight(uint32_t, uint32_t, double) except +
-		void clearAndResize(uint32_t) except +
-
-
 cdef extern from "../src/polyphase/clustereditingsolver.h":
 	cdef cppclass ClusterEditingSolver:
-		ClusterEditingSolver(DynamicSparseGraph graph, bool bundleEdges) except +
+		ClusterEditingSolver(TriangleSparseMatrix m, bool bundleEdges) except +
 		ClusterEditingSolution run() except +
 
 
@@ -189,11 +181,18 @@ cdef extern from "../src/polyphase/haplothreader.h":
 					vector[vector[uint32_t]]& covMap,
                     vector[vector[double]]& coverage, 
                     vector[vector[uint32_t]]& consensus,
-                    vector[unordered_map[uint32_t, uint32_t]]& genotypes,
-					vector[vector[vector[double]]]& clusterDissim) except +
+                    vector[unordered_map[uint32_t, uint32_t]]& genotypes) except +
 		vector[vector[uint32_t]] computePaths(vector[uint32_t]& blockStarts,
 					vector[vector[uint32_t]]& covMap,
                     vector[vector[double]]& coverage, 
                     vector[vector[uint32_t]]& consensus,
-                    vector[unordered_map[uint32_t, uint32_t]]& genotypes,
-					vector[vector[vector[double]]]& clusterDissim) except +
+                    vector[unordered_map[uint32_t, uint32_t]]& genotypes) except +
+		
+cdef extern from "../src/polyphase/switchflipcalculator.h":
+	cdef cppclass SwitchFlipCalculator:
+		SwitchFlipCalculator(uint32_t ploidy, double switchCost, double flipCost) except +
+		pair[double, double] compare(vector[vector[uint32_t]]& phasing0,
+                    vector[vector[uint32_t]]& phasing1,
+                    vector[uint32_t]& switchesInColumn,
+                    vector[vector[uint32_t]]& flippedHapsInColumn,
+                    vector[vector[uint32_t]]& permInColumn) except +

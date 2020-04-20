@@ -2,6 +2,7 @@
 Test Threading
 """
 
+from collections import defaultdict
 from whatshap.threading import (
     get_position_map,
     get_coverage,
@@ -10,6 +11,8 @@ from whatshap.threading import (
     compute_cut_positions,
     improve_path_on_multiswitches,
     compute_threading_path,
+    get_pos_to_clusters_map,
+    get_local_cluster_consensus
 )
 from whatshap.core import Read, ReadSet, Variant, TriangleSparseMatrix
 
@@ -241,20 +244,21 @@ def test_multiswitch_improvement():
         [8, 9, 10, 4],
         [8, 9, 10, 4],
     ]
-    cluster_sim = TriangleSparseMatrix()
-    cluster_sim.set(1, 7, 0.6)
-    cluster_sim.set(1, 6, 0.7)
-    cluster_sim.set(2, 7, 0.8)
-    cluster_sim.set(2, 6, 0.65)
-    cluster_sim.set(5, 8, 0.3)
-    cluster_sim.set(5, 9, 0.5)
-    cluster_sim.set(5, 10, 0.8)
-    cluster_sim.set(7, 8, 0.5)
-    cluster_sim.set(7, 9, 0.8)
-    cluster_sim.set(7, 10, 0.85)
-    cluster_sim.set(6, 8, 0.9)
-    cluster_sim.set(6, 9, 0.9)
-    cluster_sim.set(6, 10, 0.6)
+    cluster_sim = [defaultdict(float) for _ in range(len(path))]
+    for i in range(len(path)):
+        cluster_sim[i][(1, 7)] = 0.6
+        cluster_sim[i][(1, 6)] = 0.7
+        cluster_sim[i][(2, 7)] = 0.8
+        cluster_sim[i][(2, 6)] = 0.65
+        cluster_sim[i][(5, 8)] = 0.3
+        cluster_sim[i][(5, 9)] = 0.5
+        cluster_sim[i][(5, 10)] = 0.8
+        cluster_sim[i][(7, 8)] = 0.5
+        cluster_sim[i][(7, 9)] = 0.8
+        cluster_sim[i][(7, 10)] = 0.85
+        cluster_sim[i][(6, 8)] = 0.9
+        cluster_sim[i][(6, 9)] = 0.9
+        cluster_sim[i][(6, 10)] = 0.6
 
     corrected_path = improve_path_on_multiswitches(path, 11, cluster_sim)
 
@@ -280,8 +284,15 @@ def test_path_no_affine():
     readset, var_pos, clustering, genotypes = create_testinstance1()
     ploidy = 3
 
+    index, rev_index = get_position_map(readset)
+    num_vars = len(rev_index)
+    positions = get_cluster_start_end_positions(readset, clustering, index)
+    coverage = get_coverage(readset, clustering, index)
+    cov_map = get_pos_to_clusters_map(coverage, ploidy)
+    consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
+
     path = compute_threading_path(
-        readset, clustering, ploidy, genotypes, affine_switch_cost=0.0
+        readset, clustering, num_vars, coverage, cov_map, consensus, ploidy, genotypes, affine_switch_cost=0.0
     )
     cluster_paths = [
         "".join([str(path[i][j]) for i in range(len(path))]) for j in range(3)
@@ -308,7 +319,16 @@ def test_path_with_affine():
     readset, var_pos, clustering, genotypes = create_testinstance1()
     ploidy = 3
 
-    path = compute_threading_path(readset, clustering, ploidy, genotypes)
+    index, rev_index = get_position_map(readset)
+    num_vars = len(rev_index)
+    positions = get_cluster_start_end_positions(readset, clustering, index)
+    coverage = get_coverage(readset, clustering, index)
+    cov_map = get_pos_to_clusters_map(coverage, ploidy)
+    consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
+
+    path = compute_threading_path(
+        readset, clustering, num_vars, coverage, cov_map, consensus, ploidy, genotypes
+    )
     cluster_paths = [
         "".join([str(path[i][j]) for i in range(len(path))]) for j in range(3)
     ]

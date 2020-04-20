@@ -9,7 +9,7 @@
 #include <set>
 #include <unordered_set>
 #include <limits>
-#include "dynamicsparsegraph.h"
+#include "trianglesparsematrix.h"
 
 /**
  * This class implements a pseudo-complete graph with floating point edge weights. Edges with weight zero are not
@@ -30,61 +30,108 @@
  */
 class StaticSparseGraph {
 
-public:    
+public:
+    typedef uint32_t NodeId;
+    typedef uint64_t EdgeId;
+    typedef uint32_t RankId;
+    typedef float EdgeWeight;
+    
+    static inline uint64_t popcount(uint64_t bitv) {
+		// copied from Wikipedia (https://en.wikipedia.org/wiki/Hamming_weight)
+		bitv -= (bitv >> 1) & m1;
+		bitv = (bitv & m2) + ((bitv >> 2) & m2);
+		bitv = (bitv + (bitv >> 4)) & m4;
+		return (bitv * h01) >> 56;
+		//return _mm_popcnt_u64(bitv); //TODO: can be used instead as a speedup, but requires <x86intrin.h> to be included
+	}
+    
+    /**
+    * Compact data structure to represent an edge. It consists of two node indices.
+    */
+    struct Edge {
+        NodeId u;
+        NodeId v;
+        
+        Edge(NodeId pu, NodeId pv) {
+            int ordered = pu < pv;
+            u = ordered*pu + (1-ordered)*pv;
+            v = ordered*pv + (1-ordered)*pu;
+        }
+        
+        Edge(EdgeId i) {
+            u = std::ceil(std::sqrt(2*(i+1)+0.25) - 0.5);
+            v = (NodeId)(i - (uint64_t)u * (uint64_t)(u-1) / 2);
+        }
+        
+        Edge() : u(0), v(1) {};
+        
+        /**
+        * Returns the id of this edge for a triangle adjacency matrix representation.
+        */
+        EdgeId id() const {
+            return ((uint64_t)v)*((uint64_t)(v-1))/2 + (uint64_t)u;
+        }
+        
+        bool operator==(const Edge& other) const {
+            return u == other.u && v == other.v;
+        }
+    };
+    
+    static const EdgeWeight Forbidden;
+    static const EdgeWeight Permanent;
+    static const Edge InvalidEdge;
+    static const EdgeId InvalidEdgeId;
+    static const NodeId InvalidNodeId;
+    
     /**
      * Creates a hard copy of the provided graph.
      */
     StaticSparseGraph(StaticSparseGraph& other);
     
     /**
-     * Creates a copy of the provided graph.
+     * Creates a hard copy of the provided graph.
      */
-    StaticSparseGraph(DynamicSparseGraph& other);
-    
-    /**
-     * Creates a graph, which only contains a subset of nodes of the provided graph.
-     */
-    StaticSparseGraph(DynamicSparseGraph& other, std::vector<DynamicSparseGraph::NodeId>& nodes);
+    StaticSparseGraph(TriangleSparseMatrix& other);
 
     /**
      * Returns the weight of an edge.
      */
-    DynamicSparseGraph::EdgeWeight getWeight(const DynamicSparseGraph::Edge e);
+    EdgeWeight getWeight(const Edge e);
 
     /**
      * Returns the weight of an edge by providing its rank id.
      */
-    DynamicSparseGraph::EdgeWeight getWeight(const DynamicSparseGraph::RankId r);
+    EdgeWeight getWeight(const RankId r);
     
     /**
      * Returns whether the given edge is permanent.
      */
-    bool isPermanent(const DynamicSparseGraph::Edge e);
+    bool isPermanent(const Edge e);
     
     /**
      * Returns whether the given edge is forbidden.
      */
-    bool isForbidden(const DynamicSparseGraph::Edge e);
+    bool isForbidden(const Edge e);
     
     /**
      * Makes the specified edge e=(u,v) permanent. Any implications raising from this must be handled by the caller.
      */
-    void setPermanent(const DynamicSparseGraph::Edge e);
+    void setPermanent(const Edge e);
     
     /**
      * Makes the specified edge e=(u,v) forbidden. Any implications raising from this must be handled by the caller.
      */
-    void setForbidden(const DynamicSparseGraph::Edge e);
+    void setForbidden(const Edge e);
     
     /**
      * Makes the specified edge e=(u,v) permanent. Any implications raising from this must be handled by the caller.
      */
-    void setPermanent(const DynamicSparseGraph::Edge e, const DynamicSparseGraph::RankId r);
+    void setPermanent(const Edge e, const RankId r);
     
     /**
      * Makes the specified edge e=(u,v) forbidden. Any implications raising from this must be handled by the caller.
      */
-    void setForbidden(const DynamicSparseGraph::Edge e, const DynamicSparseGraph::RankId r);
+    void setForbidden(const Edge e, const RankId r);
     
     /**
     * Returns the number of nodes in the graph.
@@ -99,52 +146,44 @@ public:
     /**
      * For a node v, returns all adjacent nodes, which are connected to v via a perment edge, including v itself.
      */
-    const std::vector<DynamicSparseGraph::NodeId>& getCliqueOf(const DynamicSparseGraph::NodeId v) const;
+    const std::vector<NodeId>& getCliqueOf(const NodeId v) const;
     
     /**
      * For a node v, returns all forbidden nodes, with which v cannot be connected.
      */
-    const std::vector<DynamicSparseGraph::NodeId> getForbiddenNeighbors(const DynamicSparseGraph::NodeId v) const;
+    const std::vector<NodeId> getForbiddenNeighbors(const NodeId v) const;
     
     /**
      * For a node v, returns all adjacent nodes, which are connected to v via a perment edge, including v itself.
      */
-    DynamicSparseGraph::NodeId getCliqueIdOf(const DynamicSparseGraph::NodeId v) const;
+    NodeId getCliqueIdOf(const NodeId v) const;
     
     /**
      * For a node v, returns all adjacent nodes, which are connected to v via a non infinite, non-zero edge.
      */
-    const std::vector<DynamicSparseGraph::NodeId>& getUnprunedNeighbours(const DynamicSparseGraph::NodeId v) const;
+    const std::vector<NodeId>& getUnprunedNeighbours(const NodeId v) const;
     
     /**
      * For a node v, returns all adjacent nodes, which are connected to v via a non-zero edge.
      */
-    const std::vector<DynamicSparseGraph::NodeId>& getNonZeroNeighbours(const DynamicSparseGraph::NodeId v) const;
+    const std::vector<NodeId>& getNonZeroNeighbours(const NodeId v) const;
     
     /**
      * Returns an edge's index in the rank data structure. For non-existing edges, zero is returned.
      */
-    DynamicSparseGraph::RankId findIndex(const DynamicSparseGraph::Edge e) const;
+    RankId findIndex(const Edge e) const;
     
     /**
      * Returns an edge's index in the rank data structure. For non-existing edges, zero is returned.
      */
-    DynamicSparseGraph::RankId findIndex(const DynamicSparseGraph::EdgeId id) const;
+    RankId findIndex(const EdgeId id) const;
 
 private:
 	// masks and algorithm to compute popcounts on 64bit words
-	const uint64_t m1  = 0x5555555555555555;
-	const uint64_t m2  = 0x3333333333333333;
-	const uint64_t m4  = 0x0f0f0f0f0f0f0f0f;
-	const uint64_t h01 = 0x0101010101010101;
-	inline uint64_t popcount(uint64_t bitv) const {
-		// copied from Wikipedia (https://en.wikipedia.org/wiki/Hamming_weight)
-		bitv -= (bitv >> 1) & m1;
-		bitv = (bitv & m2) + ((bitv >> 2) & m2);
-		bitv = (bitv + (bitv >> 4)) & m4;
-		return (bitv * h01) >> 56;
-		//return _mm_popcnt_u64(bitv); //TODO: can be used instead as a speedup, but requires <x86intrin.h> to be included
-	}
+	static const uint64_t m1  = 0x5555555555555555;
+	static const uint64_t m2  = 0x3333333333333333;
+	static const uint64_t m4  = 0x0f0f0f0f0f0f0f0f;
+	static const uint64_t h01 = 0x0101010101010101;
 	
     // used for sparse and fast storage of edge weights
     uint64_t size;
@@ -152,34 +191,34 @@ private:
     std::vector<uint64_t> offset1;              // size = rank1
     std::vector<uint64_t> rank2;                // size: best case = 8 bytes per 64 existing edges, worst case = 8 bytes per existing edge
     std::vector<uint64_t> offset2;              // size = rank 2
-    std::vector<DynamicSparseGraph::EdgeWeight> weightv;            // size = 8 bytes per existing edge
+    std::vector<EdgeWeight> weightv;            // size = 8 bytes per existing edge
     
     
     // additional information for efficient iteration over non-zero non-infinity neighbours
-    std::vector<std::vector<DynamicSparseGraph::NodeId>> unprunedNeighbours;
+    std::vector<std::vector<NodeId>> unprunedNeighbours;
     
     // additional information for efficient iteration over non-zero neighbours
-    std::vector<std::vector<DynamicSparseGraph::NodeId>> nonzeroNeighbours;
+    std::vector<std::vector<NodeId>> nonzeroNeighbours;
     
     // additional information for detecting, whether a (zero-)edge is acutally permanent/forbidden due to implication
-    std::vector<DynamicSparseGraph::NodeId> cliqueOfNode;           // clique id of every node
-    std::vector<std::vector<DynamicSparseGraph::NodeId>> cliques;   // all nodes, which belong to a certain cliqueOf
-    std::vector<std::unordered_set<DynamicSparseGraph::NodeId>> forbidden;    // for each cluster, a set of forbidden clusters
+    std::vector<NodeId> cliqueOfNode;           // clique id of every node
+    std::vector<std::vector<NodeId>> cliques;   // all nodes, which belong to a certain cliqueOf
+    std::vector<std::unordered_set<NodeId>> forbidden;    // for each cluster, a set of forbidden clusters
     
     /**
      * Inserts all added edges into the static data structure of this graph.
      */
-    void compile(DynamicSparseGraph& dg, const std::vector<DynamicSparseGraph::NodeId>& nodes);
+    void compile(TriangleSparseMatrix& m);
     
     /**
      * Refreshes interal data about edges. Necessary for consistency.
      */
-    void refreshEdgeMetaData(const DynamicSparseGraph::Edge e, const DynamicSparseGraph::EdgeWeight oldW, const DynamicSparseGraph::EdgeWeight newW);
+    void refreshEdgeMetaData(const Edge e, const EdgeWeight oldW, const EdgeWeight newW);
     
     /**
      * Removes a specific node id from the vector.
      */
-    bool removeFromVector(std::vector<DynamicSparseGraph::NodeId>& vec, DynamicSparseGraph::NodeId v);
+    bool removeFromVector(std::vector<NodeId>& vec, NodeId v);
     
     std::string int2bin(uint64_t u) {
         std::string s(64, '0');

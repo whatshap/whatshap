@@ -51,13 +51,6 @@ struct ClusterTuple {
     }
     
     /**
-     * Copy constructor
-     */
-    ClusterTuple(const ClusterTuple& other) {
-        tuple = other.tuple;
-    }
-    
-    /**
      * Constructs a tuple from a numeric representation.
      */
     ClusterTuple(TupleCode other) {
@@ -205,11 +198,6 @@ struct ClusterEntry {
     score(score),
     pred(pred){}
     
-    ClusterEntry(const ClusterEntry& other) {
-        pred = other.pred;
-        score = other.score;
-    }
-    
     bool operator==(const ClusterEntry& other) const {
         return pred == other.pred && score == other.score;
     }
@@ -254,9 +242,7 @@ public:
                     const std::vector<std::vector<GlobalClusterId>>& covMap,
                     const std::vector<std::vector<double>>& coverage, 
                     const std::vector<std::vector<uint32_t>>& consensus,
-                    const std::vector<std::unordered_map<uint32_t, uint32_t>>& genotypes,
-                    //const std::vector<uint32_t>& genotypes,
-                    const std::vector<std::vector<std::vector<double>>>& clusterDissim
+                    const std::vector<std::unordered_map<uint32_t, uint32_t>>& genotypes
                    ) const;
                   
     /**
@@ -275,8 +261,6 @@ public:
                     const std::vector<std::vector<double>>& coverage, 
                     const std::vector<std::vector<uint32_t>>& consensus,
                     const std::vector<std::unordered_map<uint32_t, uint32_t>>& genotypes,
-                    //const std::vector<uint32_t>& genotypes,
-                    const std::vector<std::vector<std::vector<double>>>& clusterDissim,
                     Position displayedEnd = 0
                    ) const;
 
@@ -292,41 +276,33 @@ private:
      * indices are local.
      */
     Score getCoverageCost(ClusterTuple tuple, const std::vector<double>& coverage) const;
+
+    /**
+     * Computes the switch cost between one tuple and all permutations of another tuple. The tuples must have global cluster ids,
+     * by which they must be sorted in ascending order.
+     */
+    Score getSwitchCostAllPerms(const std::vector<GlobalClusterId>& prevTuple, const std::vector<GlobalClusterId>& curTuple) const;
+                        
+    /**
+     * Computes the switch cost between one tuple and all permutations of another tuple. The tuples must have global cluster ids,
+     * by which they must be sorted in ascending order. Writes residual positions (positions in either tuple, which could not be
+     * matched to the other one) into the provided vectors.
+     */
+    Score getSwitchCostAllPerms(const std::vector<GlobalClusterId>& prevTuple, const std::vector<GlobalClusterId>& curTuple,
+                                std::vector<uint32_t>& residualPosPrev, std::vector<uint32_t>& residualPosCur) const;
     
-    /**
-     * Computes the switch cost of the two tuples. All cluster indices are local. Uniform switch cost between clusters
-     * are assumed
-     */
-    Score getSwitchCost(const ClusterTuple tuple1, const ClusterTuple tuple2, 
-                        const std::vector<GlobalClusterId>& clusters1, const std::vector<GlobalClusterId>& clusters2) const;
-                        
-    /**
-     * Computes the dissimalirity between clusters involved in switching from tuple1 to tupel2
-     */
-    Score getSwitchDissimilarity(const ClusterTuple tuple1, const ClusterTuple tuple2, 
-                                 const std::vector<std::vector<double>>& clusterDissim
-                                ) const;
-                        
+    
     std::vector<ClusterTuple> computeGenotypeConformTuples (const std::vector<GlobalClusterId>& covMap,
                                                             const std::vector<uint32_t>& consensus, 
-                                                            const std::unordered_map<uint32_t, uint32_t>& genotype, bool allowPermutations) const;
-    
+                                                            const std::unordered_map<uint32_t, uint32_t>& genotype) const;
+                                                            
     /**
      * Computes all sets of clusters having are have a genotype, which is exactly distance away from the specified genotype.
      * Result is returned as a vector of tuples over the local index space, i.e. from 0 to size of clusters - 1. No tuple
      * is a permutation of another one (they have to be extended if required).
      */
     std::vector<ClusterTuple> getGenotypeConformTuples (const std::vector<GlobalClusterId>& clusters, const std::vector<uint32_t>& consensus, 
-                                                        const std::unordered_map<uint32_t, uint32_t>& genotype, uint32_t distance, bool allowPermutations) const;
-    
-    /**
-     * Computes all permutations as tuples.
-     */
-    std::vector<ClusterTuple> getCombinations(uint32_t maxElem, bool allowPermutations) const;
-    
-    Score getGenotypeDist(const ClusterTuple tuple, 
-                          const std::vector<uint32_t>& consensus,
-                          std::vector<uint32_t>& genotypeVec) const;
+                                                        const std::unordered_map<uint32_t, uint32_t>& genotype) const;
 };
 
 #endif

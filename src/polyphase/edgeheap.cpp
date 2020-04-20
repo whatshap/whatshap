@@ -2,18 +2,18 @@
 #include <cmath>
 #include <algorithm>
   
-using Edge = DynamicSparseGraph::Edge;
-using EdgeWeight = DynamicSparseGraph::EdgeWeight;
-using EdgeId = DynamicSparseGraph::EdgeId;
-using RankId = DynamicSparseGraph::RankId;
-using NodeId = DynamicSparseGraph::NodeId;
+using Edge = StaticSparseGraph::Edge;
+using EdgeWeight = StaticSparseGraph::EdgeWeight;
+using EdgeId = StaticSparseGraph::EdgeId;
+using RankId = StaticSparseGraph::RankId;
+using NodeId = StaticSparseGraph::NodeId;
 
 EdgeHeap::EdgeHeap(StaticSparseGraph& param_graph) :
     graph(param_graph),
     unprocessed(0),
-    edges(1+param_graph.numEdges(), DynamicSparseGraph::InvalidEdge),
-    icf(1+param_graph.numEdges(), DynamicSparseGraph::Forbidden),
-    icp(1+param_graph.numEdges(), DynamicSparseGraph::Forbidden),
+    edges(1+param_graph.numEdges(), StaticSparseGraph::InvalidEdge),
+    icf(1+param_graph.numEdges(), StaticSparseGraph::Forbidden),
+    icp(1+param_graph.numEdges(), StaticSparseGraph::Forbidden),
     edge2forb_rank(1+param_graph.numEdges(), 0),
     edge2perm_rank(1+param_graph.numEdges(), 0),
     edgeToBundle(1+param_graph.numEdges(), 0),
@@ -42,7 +42,7 @@ void EdgeHeap::initInducedCosts() {
             
             EdgeWeight w_uv = graph.getWeight(rId);
 
-            if (w_uv == 0.0 || w_uv == DynamicSparseGraph::Forbidden || w_uv == DynamicSparseGraph::Permanent) {
+            if (w_uv == 0.0 || w_uv == StaticSparseGraph::Forbidden || w_uv == StaticSparseGraph::Permanent) {
                 continue;
             } else {
                 icf[rId] = 0.0;
@@ -112,10 +112,10 @@ Edge EdgeHeap::getMaxIcfEdge() const {
     RankId ei = forb_rank2edge[0];
     if (forb_rank2edge.size() <= 1) {
         // only rank 0 entry left
-        return DynamicSparseGraph::InvalidEdge;
+        return StaticSparseGraph::InvalidEdge;
     }
     if (icf[ei] < 0) {
-        return DynamicSparseGraph::InvalidEdge;
+        return StaticSparseGraph::InvalidEdge;
     }
     return edges[ei];
 }
@@ -124,23 +124,23 @@ Edge EdgeHeap::getMaxIcpEdge() const {
     RankId ei = perm_rank2edge[0];
     if (perm_rank2edge.size() <= 1) {
         // only rank 0 entry left
-        return DynamicSparseGraph::InvalidEdge;
+        return StaticSparseGraph::InvalidEdge;
     }
     if (icp[ei] < 0) {
-        return DynamicSparseGraph::InvalidEdge;
+        return StaticSparseGraph::InvalidEdge;
     }
     return edges[ei];
 }
 
 EdgeWeight EdgeHeap::getIcf(const Edge e) const {
-    if (graph.findIndex(e) == 0)
-        std::cout<<"getIcf on edge with rank 0"<<std::endl;
+//     if (graph.findIndex(e) == 0)
+//         std::cout<<"getIcf on edge with rank 0"<<std::endl;
     return icf[edgeToBundle[graph.findIndex(e)]];
 }
 
 EdgeWeight EdgeHeap::getIcp(const Edge e) const {
-    if (graph.findIndex(e) == 0)
-        std::cout<<"getIcf on edge with rank 0"<<std::endl;
+//     if (graph.findIndex(e) == 0)
+//         std::cout<<"getIcf on edge with rank 0"<<std::endl;
     return icp[edgeToBundle[graph.findIndex(e)]];
 }
 
@@ -148,7 +148,7 @@ void EdgeHeap::increaseIcf(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
     if (rId > 0 && w != 0 && icf[edgeToBundle[rId]] >= 0) {
         RankId eb = edgeToBundle[rId];
-        icf[eb] = std::max(icf[eb]+w, 0.0);
+        icf[eb] = std::max(icf[eb]+w, 0.0f);
         updateHeap(forb_rank2edge, eb, w, edge2forb_rank, icf);
     }
 }
@@ -157,7 +157,7 @@ void EdgeHeap::increaseIcp(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
     if (rId > 0 && w != 0 && icp[edgeToBundle[rId]] >= 0) {
         RankId eb = edgeToBundle[rId];
-        icp[eb] = std::max(icp[eb]+w, 0.0);
+        icp[eb] = std::max(icp[eb]+w, 0.0f);
         updateHeap(perm_rank2edge, eb, w, edge2perm_rank, icp);
     }
 }
@@ -178,12 +178,12 @@ void EdgeHeap::mergeEdges(const Edge e1, const Edge e2) {
             edgeToBundle[toDelete] = eb1;
         }
         edgeBundles[eb2].clear();
-        if (icf[eb2] < 0.0) {
+        if (icf[eb2] < 0.0f) {
             std::cout<<"Merged edge has negative icf"<<std::endl;
         } else {
             icf[eb1] += icf[eb2];
         }
-        if (icp[eb2] < 0.0) {
+        if (icp[eb2] < 0.0f) {
             std::cout<<"Merged edge has negative icp"<<std::endl;
         } else {
             icp[eb1] += icp[eb2];
@@ -195,12 +195,12 @@ void EdgeHeap::mergeEdges(const Edge e1, const Edge e2) {
             edgeToBundle[toDelete] = eb2;
         }
         edgeBundles[eb1].clear();
-        if (icf[eb1] < 0.0) {
+        if (icf[eb1] < 0.0f) {
             std::cout<<"Merged edge has negative icf"<<std::endl;
         } else {
             icf[eb2] += icf[eb1];
         }
-        if (icp[eb1] < 0.0) {
+        if (icp[eb1] < 0.0f) {
             std::cout<<"Merged edge has negative icp"<<std::endl;
         } else {
             icp[eb2] += icp[eb1];
@@ -217,11 +217,11 @@ void EdgeHeap::removeEdge(const RankId rId) {
     if (rId == 0) {
         return;
     }
-    if (rId > 0 && icf[rId] != DynamicSparseGraph::Forbidden && icp[rId] != DynamicSparseGraph::Forbidden) {
-        icf[rId] = DynamicSparseGraph::Forbidden;
-        icp[rId] = DynamicSparseGraph::Forbidden;
-        updateHeap(forb_rank2edge, rId, DynamicSparseGraph::Forbidden, edge2forb_rank, icf);
-        updateHeap(perm_rank2edge, rId, DynamicSparseGraph::Forbidden, edge2perm_rank, icp);
+    if (rId > 0 && icf[rId] != StaticSparseGraph::Forbidden && icp[rId] != StaticSparseGraph::Forbidden) {
+        icf[rId] = StaticSparseGraph::Forbidden;
+        icp[rId] = StaticSparseGraph::Forbidden;
+        updateHeap(forb_rank2edge, rId, StaticSparseGraph::Forbidden, edge2forb_rank, icf);
+        updateHeap(perm_rank2edge, rId, StaticSparseGraph::Forbidden, edge2perm_rank, icp);
         unprocessed--;
     }
 }
