@@ -62,6 +62,14 @@ However, you need to have all tested Python versions installed on the system! Se
 below for how to do this on Ubuntu.
 
 
+Coding style
+------------
+
+Python code needs to be formatted with `Black <https://github.com/psf/black>`_.
+Either run `black whatshap tests` manually before you commit or use the
+`pre-commit <https://pre-commit.com/>`_ framework to automate this.
+
+
 Installing other Python versions in Ubuntu
 ------------------------------------------
 
