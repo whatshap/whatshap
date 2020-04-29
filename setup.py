@@ -108,7 +108,7 @@ extensions = [
             "src/polyphase/edgeheap.cpp",
             "src/polyphase/inducedcostheuristic.cpp",
             "src/polyphase/staticsparsegraph.cpp",
-			"src/polyphase/switchflipcalculator.cpp",
+            "src/polyphase/switchflipcalculator.cpp",
             "src/polyphase/trianglesparsematrix.cpp",
             "src/polyphase/readscoring.cpp",
             "src/polyphase/haplothreader.cpp",
@@ -195,9 +195,7 @@ setup(
     ext_modules=ext_modules,
     packages=find_packages(),
     entry_points={"console_scripts": ["whatshap = whatshap.__main__:main"]},
-    setup_requires=[
-        "setuptools_scm"
-    ],  # Support pip versions that don't know about pyproject.toml
+    setup_requires=["setuptools_scm"],  # Support pip versions that don't know about pyproject.toml
     install_requires=install_requires,
     extras_require={"dev": ["Cython", "pytest", "sphinx", "sphinx_issues"],},
     python_requires=">=3.5",
