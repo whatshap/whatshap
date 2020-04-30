@@ -593,7 +593,9 @@ PREDEFINED_FORMATS = {
         "GL",
         "G",
         "Float",
-        "Genotype Likelihood, log10-scaled likelihoods of the data given the called genotype for each possible genotype generated from the reference and alternate alleles given the sample ploidy",
+        "Genotype Likelihood, log10-scaled likelihoods of the data given the"
+        " called genotype for each possible genotype generated from the"
+        " reference and alternate alleles given the sample ploidy",
     ),
     "GQ": VcfHeader("FORMAT", "GQ", 1, "Integer", "Phred-scaled genotype quality"),
     "GT": VcfHeader("FORMAT", "GT", 1, "String", "Genotype"),
