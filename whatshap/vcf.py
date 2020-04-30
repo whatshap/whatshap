@@ -882,6 +882,7 @@ class PhasedVcfWriter(VcfAugmenter):
 
         prev_pos = None
         for record in self._iterrecords(chromosome):
+            self._remove_existing_phasing(record, sample_superreads)
             pos, ref, alt = record.start, record.ref, record.alts[0]
 
             if len(record.alts) > 1:
@@ -902,21 +903,11 @@ class PhasedVcfWriter(VcfAugmenter):
                 else:
                     is_phased = False
 
-            if self.tag == "PS":
-                # Remove any existing phasing from the GT field
-                for sample, call in record.samples.items():
-                    if sample in sample_superreads:
-                        call.phased = False
-                        if call["GT"] is not None and all(
-                            allele is not None for allele in call["GT"]
-                        ):
-                            call["GT"] = sorted(call["GT"])
-
             if is_phased:
                 # Set phase tag for all target samples
                 for sample, call in record.samples.items():
                     if sample not in sample_superreads:
-                        # This sample has not been phased, leave unchanged
+                        # This sample has not been phased
                         continue
                     components = sample_components[sample]
                     phases = sample_phases[sample]
@@ -954,6 +945,15 @@ class PhasedVcfWriter(VcfAugmenter):
             self._writer.write(record)
             prev_pos = pos
         return genotype_changes
+
+    def _remove_existing_phasing(self, record, sample_superreads):
+        if self.tag == "PS":
+            # TODO iterate over sample_superreads instead?
+            for sample, call in record.samples.items():
+                if sample in sample_superreads:
+                    call.phased = False
+                    if call["GT"] is not None and all(allele is not None for allele in call["GT"]):
+                        call["GT"] = sorted(call["GT"])
 
 
 def genotype_code(gt):
