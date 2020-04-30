@@ -14,7 +14,7 @@ from collections import defaultdict
 from copy import deepcopy
 
 from contextlib import ExitStack
-from whatshap.vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods
+from whatshap.vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods, VcfError
 from whatshap import __version__
 from whatshap.core import (
     ReadSet,
@@ -347,7 +347,7 @@ def run_whatshap(
                     command_line=command_line, in_path=variant_file, out_file=output, tag=tag,
                 )
             )
-        except OSError as e:
+        except (OSError, VcfError) as e:
             raise CommandLineError(e)
 
         phased_input_reader = stack.enter_context(
