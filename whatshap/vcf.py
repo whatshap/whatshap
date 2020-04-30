@@ -673,6 +673,14 @@ def missing_headers(path):
                 continue
             h = PREDEFINED_FORMATS[fmt]
             if v.number != h.number or v.type != h.typ:
+                if fmt == "PS" and v.type != h.typ:
+                    raise VcfError(
+                        "The input VCF/BCF contains phase set ('PS') tags that are of the"
+                        " non-standard type '{}' instead of 'Integer'. WhatsHap cannot"
+                        " overwrite these as it could produce inconsistent files."
+                        " To proceed, you can use 'whatshap unphase' to remove phasing"
+                        " information from the input file".format(v.type)
+                    )
                 incorrect_formats.append(fmt)
 
         # Iterate through entire file and check which contigs, formats and
@@ -693,7 +701,7 @@ def missing_headers(path):
                     if alt.startswith("<"):
                         seen_infos.add("END")
 
-            # For the contigs, we maintain a list *and* a set because we want to
+            # For the contigs, we maintain a set *and* a list because we want to
             # keep track of the order of the contigs.
             if record.contig not in seen_contigs:
                 contigs.append(record.contig)
