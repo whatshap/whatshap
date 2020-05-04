@@ -891,7 +891,7 @@ class PhasedVcfWriter(VcfAugmenter):
         prev_pos = None
         for record in self._iterrecords(chromosome):
             self._remove_existing_phasing(record, sample_superreads)
-            pos, ref, alt = record.start, record.ref, record.alts[0]
+            pos = record.start
 
             if len(record.alts) > 1:
                 # we do not phase multiallelic sites currently
