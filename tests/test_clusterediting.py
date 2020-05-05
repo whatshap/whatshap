@@ -1,9 +1,4 @@
-from whatshap.core import (
-    ReadSet,
-    ClusterEditingSolver,
-    scoreReadsetGlobal,
-    scoreReadsetLocal,
-)
+from whatshap.core import ClusterEditingSolver, scoreReadsetGlobal
 from whatshap.testhelpers import string_to_readset
 import itertools
 import math

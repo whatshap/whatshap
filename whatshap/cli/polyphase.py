@@ -12,7 +12,7 @@ import logging
 import platform
 import argparse
 
-from collections import namedtuple, defaultdict
+from collections import namedtuple
 from copy import deepcopy
 from scipy.stats import binom_test
 from queue import Queue
@@ -25,14 +25,12 @@ from whatshap.core import (
     ReadSet,
     Genotype,
     ClusterEditingSolver,
-    TriangleSparseMatrix,
     NumericSampleIds,
     compute_polyploid_genotypes,
-    scoreReadsetGlobal,
     scoreReadsetLocal,
 )
 from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
-from whatshap.polyphaseplots import draw_clustering, draw_threading, get_phase
+from whatshap.polyphaseplots import draw_clustering, draw_threading
 from whatshap.threading import (
     run_threading,
     get_local_cluster_consensus_withfrac,

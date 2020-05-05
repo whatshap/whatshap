@@ -3,7 +3,7 @@ Utility functions only used by unit tests
 """
 import textwrap
 from collections import defaultdict
-from whatshap.core import Read, ReadSet, Variant, Genotype
+from whatshap.core import Read, ReadSet, Genotype
 
 
 def string_to_readset(s, w=None, sample_ids=None, source_id=0, scale_quality=None):

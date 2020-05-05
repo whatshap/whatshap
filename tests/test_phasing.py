@@ -6,7 +6,6 @@ from whatshap.core import (
     NumericSampleIds,
     PhredGenotypeLikelihoods,
     HapChatCore,
-    Genotype,
 )
 from whatshap.testhelpers import (
     string_to_readset,

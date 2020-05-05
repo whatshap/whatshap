@@ -1,8 +1,7 @@
 import itertools as it
 import logging
 from collections import defaultdict
-from .core import ReadSet, Read, HaploThreader
-import random
+from .core import HaploThreader
 
 logger = logging.getLogger(__name__)
 

@@ -1,13 +1,12 @@
 """
 Compare two or more phasings
 """
-import sys
 import logging
 import math
 from collections import defaultdict, namedtuple
 from contextlib import ExitStack
 from itertools import chain, permutations
-from typing import Set, Iterable, List
+from typing import Set, List
 
 from whatshap.vcf import VcfReader, VcfVariant, VariantTable, PloidyError
 from whatshap.core import Genotype, SwitchFlipCalculator

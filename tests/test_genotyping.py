@@ -5,7 +5,6 @@ from whatshap.core import (
     NumericSampleIds,
     PhredGenotypeLikelihoods,
     GenotypeDPTable,
-    Genotype,
 )
 from whatshap.testhelpers import (
     string_to_readset,

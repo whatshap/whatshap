@@ -14,7 +14,7 @@ import collections
 
 from contextlib import ExitStack
 from whatshap import __version__
-from whatshap.cli import PhasedInputReader, open_readset_reader
+from whatshap.cli import PhasedInputReader
 from whatshap.vcf import VcfReader, VcfError
 from whatshap.core import NumericSampleIds
 from whatshap.timer import StageTimer

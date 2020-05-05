@@ -14,7 +14,7 @@ from whatshap.threading import (
     get_pos_to_clusters_map,
     get_local_cluster_consensus,
 )
-from whatshap.core import Read, ReadSet, Variant, TriangleSparseMatrix
+from whatshap.core import Read, ReadSet
 
 
 def create_testinstance1():

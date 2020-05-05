@@ -6,7 +6,6 @@ import logging
 import itertools
 import math
 from abc import ABC, abstractmethod
-from array import array
 from collections import namedtuple
 from pysam import VariantFile
 from typing import List
@@ -18,7 +17,6 @@ from .core import (
     binomial_coefficient,
     get_max_genotype_ploidy,
 )
-from math import factorial as fac
 
 logger = logging.getLogger(__name__)
 

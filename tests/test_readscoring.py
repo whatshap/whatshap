@@ -2,7 +2,7 @@
 Test ReadScoring
 """
 
-from whatshap.core import Read, ReadSet, Variant, scoreReadsetGlobal
+from whatshap.core import Read, ReadSet, scoreReadsetGlobal
 
 
 def test_readscoring_toy():

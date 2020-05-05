@@ -3,7 +3,6 @@ from whatshap.core import (
     Pedigree,
     NumericSampleIds,
     PhredGenotypeLikelihoods,
-    Genotype,
 )
 from whatshap.testhelpers import (
     string_to_readset,

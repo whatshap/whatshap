@@ -6,19 +6,12 @@ from pytest import raises
 from whatshap.core import (
     PedigreeDPTable,
     ReadSet,
-    Variant,
     Pedigree,
     NumericSampleIds,
     PhredGenotypeLikelihoods,
-    Genotype,
 )
 from whatshap.pedigree import centimorgen_to_phred
-from whatshap.testhelpers import (
-    string_to_readset,
-    string_to_readset_pedigree,
-    brute_force_phase,
-    canonic_index_list_to_biallelic_gt_list,
-)
+from whatshap.testhelpers import string_to_readset_pedigree, canonic_index_list_to_biallelic_gt_list
 
 
 def phase_pedigree(reads, recombcost, pedigree, distrust_genotypes=False, positions=None):
