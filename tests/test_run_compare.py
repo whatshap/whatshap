@@ -230,12 +230,11 @@ def test_compare_only_snvs():
 
 
 def test_compare_unphased():
-    with TemporaryDirectory() as tempdir:
-        run_compare(
-            vcf=["tests/data/unphased.vcf", "tests/data/unphased.vcf", "tests/data/unphased.vcf",],
-            ploidy=2,
-            sample="sample1",
-        )
+    run_compare(
+        vcf=["tests/data/unphased.vcf", "tests/data/unphased.vcf", "tests/data/unphased.vcf",],
+        ploidy=2,
+        sample="sample1",
+    )
 
 
 def test_compute_switch_flips_poly():

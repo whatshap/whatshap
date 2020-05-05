@@ -28,13 +28,12 @@ def test_phase_empty_readset(algorithm):
     genotype_likelihoods = [None, None]
     pedigree.add_individual("individual0", genotypes, genotype_likelihoods)
 
-    dp_table = None
     if algorithm == "hapchat":
         dp_table = HapChatCore(rs)
     else:
         dp_table = PedigreeDPTable(rs, recombcost, pedigree)
 
-    superreads = dp_table.get_super_reads()
+    _ = dp_table.get_super_reads()
 
 
 def compare_phasing_brute_force(

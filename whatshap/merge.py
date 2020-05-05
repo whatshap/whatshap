@@ -80,7 +80,6 @@ class ReadMerger:
         logger.debug("Start reading the reads...")
         id = 0
         orig_reads = {}
-        site_alleles = {}
         queue = {}
         reads = {}
         for read in readset:
@@ -180,10 +179,6 @@ class ReadMerger:
             (v, w) for (v, w) in gnotblue.edges() if blue_component[v] == blue_component[w]
         ]
 
-        notblue_counter = 0
-        num_notblue = len(good_notblue_edges)
-        block = num_notblue // 100
-        num_blue = len(list(connected_components(gblue)))
         for (u, v) in good_notblue_edges:
             while v in node_connected_component(gblue, u):
                 path = shortest_path(gblue, source=u, target=v)

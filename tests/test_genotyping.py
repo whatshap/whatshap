@@ -50,7 +50,7 @@ def test_genotyping_empty_readset():
     pedigree = Pedigree(numeric_sample_ids)
     genotype_likelihoods = [None, None]
     pedigree.add_individual("individual0", genotypes, genotype_likelihoods)
-    dp_forward_backward = GenotypeDPTable(numeric_sample_ids, rs, recombcost, pedigree)
+    _ = GenotypeDPTable(numeric_sample_ids, rs, recombcost, pedigree)
 
 
 def check_genotyping_single_individual(

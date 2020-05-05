@@ -191,7 +191,6 @@ def run_genotype(
         families, family_trios = setup_families(samples, ped, numeric_sample_ids, max_coverage)
 
         # Read phase information provided as VCF files, if provided.
-        phase_input_vcfs = []
         with timers("parse_phasing_vcfs"):
             phased_input_reader.read_vcfs()
 

@@ -327,7 +327,7 @@ def run_polyphase(
 
                 with timers("write_vcf"):
                     logger.info("======== Writing VCF")
-                    changed_genotypes = vcf_writer.write(chromosome, superreads, components)
+                    vcf_writer.write(chromosome, superreads, components)
                     # TODO: Use genotype information to polish results
                     # assert len(changed_genotypes) == 0
                     logger.info("Done writing VCF")
@@ -777,7 +777,6 @@ def find_inconsistencies(readset, clustering, ploidy):
     # Compute consensus and coverage
     index, rev_index = get_position_map(readset)
     num_vars = len(rev_index)
-    num_clusters = len(clustering)
 
     coverage = get_coverage(readset, clustering, index)
     cov_map = get_pos_to_clusters_map(coverage, ploidy)
@@ -797,7 +796,6 @@ def find_inconsistencies(readset, clustering, ploidy):
             p_val = binom_test(abs_deviations, abs_count, exp_error, alternative="greater")
             if p_val < p_val_threshold:
                 # print("   inconsistency in cluster "+str(c_id)+" at position"+str(pos)+" with coverage "+str(coverage[pos][c_id])+" and consensus "+str(consensus[pos][c_id]))
-                refine = True
                 num_inconsistent_positions += 1
                 zero_reads = []
                 one_reads = []
@@ -841,7 +839,6 @@ def compute_linkage_based_block_starts(readset, pos_index, ploidy, single_linkag
         return []
 
     # cut threshold
-    min_block_size = 1
     if ploidy == 2 or single_linkage:
         cut_threshold = 1
     else:

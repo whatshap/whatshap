@@ -476,7 +476,6 @@ def get_coverage_absolute(readset, clustering, pos_index):
 def get_cluster_start_end_positions(readset, clustering, pos_index):
     num_clusters = len(clustering)
     positions = {}
-    counter = 0
     for c_id in range(num_clusters):
         read = clustering[c_id][0]
         start = pos_index[readset[read][0].position]
@@ -537,8 +536,6 @@ def get_local_cluster_consensus_withfrac(readset, clustering, cov_map, positions
 def get_single_cluster_consensus_frac(readset, cluster, index, relevant_pos):
     # Count zeroes and one for every position
     poswise_allelecount = dict()
-    num_zero = {}
-    num_one = {}
     for read in cluster:
         for var in readset[read]:
             pos = index[var.position]

@@ -416,7 +416,7 @@ def test_read_tetraploid_genotype_likelihoods():
 
 def test_unsupported_ploidy():
     try:
-        tables = list(VcfReader("tests/data/hexadecaploid.chr22.vcf", phases=False))
+        _ = list(VcfReader("tests/data/hexadecaploid.chr22.vcf", phases=False))
     except PloidyError:
         return
     assert False
@@ -424,7 +424,7 @@ def test_unsupported_ploidy():
 
 def test_unsupported_ploidy_phased():
     try:
-        tables = list(VcfReader("tests/data/hexadecaploid.chr22.vcf", phases=True))
+        _ = list(VcfReader("tests/data/hexadecaploid.chr22.vcf", phases=True))
     except PloidyError:
         return
     assert False
@@ -432,7 +432,7 @@ def test_unsupported_ploidy_phased():
 
 def test_inconsistent_ploidy():
     try:
-        tables = list(VcfReader("tests/data/polyploid.chr22.inconsistent.vcf", phases=False))
+        _ = list(VcfReader("tests/data/polyploid.chr22.inconsistent.vcf", phases=False))
     except PloidyError:
         return
     assert False
@@ -440,7 +440,7 @@ def test_inconsistent_ploidy():
 
 def test_inconsistent_ploidy_phased():
     try:
-        tables = list(VcfReader("tests/data/polyploid.chr22.inconsistent.vcf", phases=True))
+        _ = list(VcfReader("tests/data/polyploid.chr22.inconsistent.vcf", phases=True))
     except PloidyError:
         return
     assert False

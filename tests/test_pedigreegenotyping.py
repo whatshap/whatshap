@@ -79,7 +79,7 @@ def test_genotyping_empty_trio():
     pedigree.add_individual("individual1", [], [])
     pedigree.add_individual("individual2", [], [])
     pedigree.add_relationship("individual0", "individual1", "individual2")
-    dp_forward_backward = GenotypeDPTable(numeric_sample_ids, rs, recombcost, pedigree)
+    _ = GenotypeDPTable(numeric_sample_ids, rs, recombcost, pedigree)
 
 
 def test_genotyping_trio1():

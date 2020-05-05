@@ -146,7 +146,7 @@ class HapCutParser:
                     if haplotype_1 == "-" or haplotype_2 == "-":
                         # This happens in hapCUT 2 sometimes
                         continue
-                    _variant_id = int(variant_id)
+                    _ = int(variant_id)
                     haplotype_1 = int(haplotype_1)
                     haplotype_2 = int(haplotype_2)
                     position = int(position) - 1
