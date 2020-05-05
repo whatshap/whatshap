@@ -913,10 +913,8 @@ class PhasedVcfWriter(VcfAugmenter):
 
             if is_phased:
                 # Set phase tag for all target samples
-                for sample, call in record.samples.items():
-                    if sample not in sample_superreads:
-                        # This sample has not been phased
-                        continue
+                for sample in sample_superreads:
+                    call = record.samples[sample]
                     components = sample_components[sample]
                     phases = sample_phases[sample]
                     genotypes = sample_genotypes[sample]
@@ -956,12 +954,11 @@ class PhasedVcfWriter(VcfAugmenter):
 
     def _remove_existing_phasing(self, record, sample_superreads):
         if self.tag == "PS":
-            # TODO iterate over sample_superreads instead?
-            for sample, call in record.samples.items():
-                if sample in sample_superreads:
-                    call.phased = False
-                    if call["GT"] is not None and all(allele is not None for allele in call["GT"]):
-                        call["GT"] = sorted(call["GT"])
+            for sample in sample_superreads:
+                call = record.samples[sample]
+                call.phased = False
+                if call["GT"] is not None and all(allele is not None for allele in call["GT"]):
+                    call["GT"] = sorted(call["GT"])
 
 
 def genotype_code(gt):
