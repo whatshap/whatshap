@@ -20,7 +20,7 @@ class ReadSetReader:
     """
     Associate VCF variants with BAM reads.
 
-    A VCF file contain variants, and a BAM file contain reads, but the
+    A VCF file contains variants, and a BAM file contain reads, but the
     information which read contains which variant is not available. This
     class re-discovers the variants in each read, using the
     knowledge in the VCF of where they should occur.
@@ -69,7 +69,7 @@ class ReadSetReader:
         Return a ReadSet object representing the given variants.
 
         If a reference is provided (reference is not None), alleles are
-        detected by re-aligning    sections of the query to the REF and ALT
+        detected by re-aligning sections of the query to the REF and ALT
         sequence extended a few bases to the left and right.
 
         If reference is None, alleles are detected by inspecting the
@@ -124,16 +124,15 @@ class ReadSetReader:
             for alignment in self._reader.fetch(
                 reference=chromosome, sample=sample, start=s, end=e
             ):
-                # TODO: handle additional alignments correctly! find out why they are sometimes overlapping/redundant
-                if alignment.bam_alignment.flag & 2048 != 0:
-                    continue
-                if alignment.bam_alignment.mapping_quality < self._mapq_threshold:
-                    continue
-                if alignment.bam_alignment.is_secondary:
-                    continue
-                if alignment.bam_alignment.is_unmapped:
-                    continue
-                if alignment.bam_alignment.is_duplicate:
+                # TODO handle additional alignments correctly!
+                # find out why they are sometimes overlapping/redundant
+                if (
+                    alignment.bam_alignment.flag & 2048 != 0
+                    or alignment.bam_alignment.mapping_quality < self._mapq_threshold
+                    or alignment.bam_alignment.is_secondary
+                    or alignment.bam_alignment.is_unmapped
+                    or alignment.bam_alignment.is_duplicate
+                ):
                     continue
                 yield alignment
 

@@ -82,7 +82,8 @@ class SampleBamReader:
                 samples[read_group["SM"]].append(read_group["ID"])
             else:
                 logger.warning(
-                    'Read group "%s" does not contain an SM field to assign it to a sample. Use --ignore-read-groups to use these alignments anyway.',
+                    'Read group "%s" does not contain an SM field to assign it to a sample.'
+                    " Use --ignore-read-groups to use these alignments anyway.",
                     read_group["ID"],
                 )
         self._sample_to_group_ids = {id: frozenset(values) for id, values in samples.items()}
