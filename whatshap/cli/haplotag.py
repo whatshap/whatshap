@@ -411,7 +411,7 @@ def prepare_output_files(aln_output, reference, haplotag_output, vcf_md5, bam_he
     if aln_output is None:
         aln_output = "-"
         kwargs = dict()
-    elif aln_output.endswith(".cram"):  # FIXME hard-coded value
+    elif str(aln_output).endswith(".cram"):  # FIXME hard-coded value
         if reference is None:
             raise ValueError(
                 'Writing CRAM output requires FASTA reference file given via "--reference"'
