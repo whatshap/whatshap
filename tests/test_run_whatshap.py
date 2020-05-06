@@ -1178,7 +1178,7 @@ def test_split_bam_no_sequence():
         "6750\t1\t0\t0\n",
         "11263\t1\t0\t0\n",
         "12930\t0\t1\t0\n",
-        "23225\t0\t1\t0",
+        "23225\t0\t1\t0\n",
     ]
 
     with TemporaryDirectory() as tempdir:

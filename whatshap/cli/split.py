@@ -306,13 +306,12 @@ def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, exit_
         )
         input_iter = _bam_iterator
         output_writers = dict()
-        for hap, outfile in zip([0, 1, 2], [output_untagged, output_h1, output_h2]):
+        for hap, outfile in enumerate([output_untagged, output_h1, output_h2]):
             output_writers[hap] = exit_stack.enter_context(
                 pysam.AlignmentFile(
                     os.devnull if outfile is None else outfile, mode="wb", template=input_reader,
                 )
             )
-
     elif input_format == "FASTQ":
         # raw or gzipped is both handled by PySam
         input_reader = exit_stack.enter_context(pysam.FastxFile(reads_file))
@@ -332,27 +331,15 @@ def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, exit_
     return input_reader, input_iter, output_writers
 
 
-def write_read_length_histogram(length_counts, histogram_file, exit_stack):
-    """
-    :param length_counts:
-    :param histogram_file:
-    :param exit_stack:
-    :return:
-    """
+def write_read_length_histogram(length_counts, path):
     h1 = length_counts[1]
     h2 = length_counts[2]
     untag = length_counts[0]
     all_read_lengths = sorted(itertools.chain(*(h1.keys(), h2.keys(), untag.keys())))
-    tsv_file = exit_stack.enter_context(xopen(histogram_file, "w"))
-    _ = tsv_file.write("\t".join(["#length", "count-untagged", "count-h1", "count-h2"]) + "\n")
-
-    line = "{}\t{}\t{}\t{}"
-
-    out_lines = [line.format(rlen, untag[rlen], h1[rlen], h2[rlen]) for rlen in all_read_lengths]
-
-    _ = tsv_file.write("\n".join(out_lines))
-
-    return
+    with xopen(path, "w") as tsv_file:
+        print("#length", "count-untagged", "count-h1", "count-h2", sep="\t", file=tsv_file)
+        for rlen in all_read_lengths:
+            print(rlen, untag[rlen], h1[rlen], h2[rlen], sep="\t", file=tsv_file)
 
 
 def run_split(
@@ -463,7 +450,7 @@ def run_split(
 
         if read_lengths_histogram is not None:
             timers.start("split-length-histogram")
-            write_read_length_histogram(histogram_data, read_lengths_histogram, stack)
+            write_read_length_histogram(histogram_data, read_lengths_histogram)
             timers.stop("split-length-histogram")
 
     timers.stop("split-run")
