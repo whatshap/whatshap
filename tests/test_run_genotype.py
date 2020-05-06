@@ -1,4 +1,3 @@
-from tempfile import TemporaryDirectory
 import os
 import pysam
 import math
@@ -168,284 +167,262 @@ def test_gt_quality_threshold(threshold, tmpdir):
                 assert gt == genotype
 
 
-def test_genotyping_one_of_three_individuals():
-    with TemporaryDirectory() as tempdir:
-        outvcf = tempdir + "/output.vcf"
-        outpriors = tempdir + "/priors.vcf"
-        run_genotype(
-            phase_input_files=[trio_bamfile],
-            variant_file="tests/data/trio.vcf",
-            output=outvcf,
-            samples=["HG003"],
-            prioroutput=outpriors,
-        )
+def test_genotyping_one_of_three_individuals(tmp_path):
+    outvcf = tmp_path / "output.vcf"
+    outpriors = tmp_path / "priors.vcf"
+    run_genotype(
+        phase_input_files=[trio_bamfile],
+        variant_file="tests/data/trio.vcf",
+        output=outvcf,
+        samples=["HG003"],
+        prioroutput=outpriors,
+    )
 
-        for outfile in [outvcf, outpriors]:
-            assert os.path.isfile(outfile)
+    for outfile in [outvcf, outpriors]:
+        assert os.path.isfile(outfile)
 
-            tables = list(VcfReader(outfile, phases=True, genotype_likelihoods=True))
-            assert len(tables) == 1
-            table = tables[0]
-            assert table.chromosome == "1"
-            assert len(table.variants) == 5
-            assert table.samples == ["HG004", "HG003", "HG002"]
-
-            # there should be no genotype predictions for HG003/HG002
-            default_l = math.log10(1 / 3.0)
-            for l in [
-                table.genotype_likelihoods_of("HG002"),
-                table.genotype_likelihoods_of("HG004"),
-            ]:
-                for var in l:
-                    for v in var.log10_probs():
-                        assert pytest.approx(default_l) == v
-
-
-def test_use_ped_samples():
-    with TemporaryDirectory() as tempdir:
-        outvcf = tempdir + "/output_ped_samples.vcf"
-        run_genotype(
-            phase_input_files=[ped_samples_bamfile],
-            variant_file="tests/data/ped_samples.vcf",
-            output=outvcf,
-            ped="tests/data/trio.ped",
-            genmap="tests/data/trio.map",
-            use_ped_samples=True,
-        )
-        assert os.path.isfile(outvcf)
-
-        tables = list(VcfReader(outvcf, phases=True, genotype_likelihoods=True))
-        assert len(tables) == 1
-        table = tables[0]
-        assert table.chromosome == "1"
-        assert len(table.variants) == 5
-        assert table.samples == ["HG004", "HG003", "HG002", "orphan"]
-
-        default_l = math.log10(1 / 3.0)
-        for var in table.genotype_likelihoods_of("orphan"):
-            for v in var.log10_probs():
-                assert pytest.approx(default_l) == v
-
-
-def test_ped_sample():
-    with TemporaryDirectory() as tempdir:
-        # running with --ped and --sample on subset of trio, should give same results as running with only --sample
-        # the trio information should be ignored
-        outvcf1 = tempdir + "/output1.vcf"
-        outvcf2 = tempdir + "/output2.vcf"
-        for sample_set in [
-            ["HG002"],
-            ["HG003"],
-            ["HG004"],
-            ["HG002", "HG003"],
-            ["HG002", "HG004"],
-            ["HG003", "HG004"],
-        ]:
-            run_genotype(
-                phase_input_files=[ped_samples_bamfile],
-                variant_file="tests/data/ped_samples.vcf",
-                output=outvcf1,
-                ped="tests/data/trio.ped",
-                samples=sample_set,
-            )
-            run_genotype(
-                phase_input_files=[ped_samples_bamfile],
-                variant_file="tests/data/ped_samples.vcf",
-                output=outvcf2,
-                samples=sample_set,
-            )
-
-            assert os.path.isfile(outvcf1)
-            assert os.path.isfile(outvcf2)
-            tables1 = list(VcfReader(outvcf1, phases=True, genotype_likelihoods=True))
-            tables2 = list(VcfReader(outvcf2, phases=True, genotype_likelihoods=True))
-            assert (len(tables1) == 1) and (len(tables2) == 1)
-            table1, table2 = tables1[0], tables2[0]
-
-            for individual in sample_set:
-                for var1, var2 in zip(
-                    table1.genotype_likelihoods_of(individual),
-                    table2.genotype_likelihoods_of(individual),
-                ):
-                    print(var1, var2)
-                    assert var1.log10_probs() == var2.log10_probs()
-
-
-def test_genotyping_trio():
-    with TemporaryDirectory() as tempdir:
-        outvcf = tempdir + "/output.vcf"
-        outpriors = tempdir + "priors.vcf"
-        run_genotype(
-            phase_input_files=[trio_bamfile],
-            variant_file="tests/data/trio.vcf",
-            output=outvcf,
-            ped="tests/data/trio.ped",
-            genmap="tests/data/trio.map",
-            prioroutput=outpriors,
-        )
-
-        for outfile in [outvcf, outpriors]:
-            assert os.path.isfile(outfile)
-
-            tables = list(VcfReader(outfile, phases=True))
-            assert len(tables) == 1
-            table = tables[0]
-            assert table.chromosome == "1"
-            assert len(table.variants) == 5
-            assert table.samples == ["HG004", "HG003", "HG002"]
-
-
-def test_genotyping_specific_chromosome():
-    for requested_chromosome in ["1", "2"]:
-        with TemporaryDirectory() as tempdir:
-            outvcf = tempdir + "/output.vcf"
-            outpriors = tempdir + "/priors.vcf"
-            run_genotype(
-                phase_input_files=[trio_bamfile],
-                variant_file="tests/data/trio-two-chromosomes.vcf",
-                output=outvcf,
-                ped="tests/data/trio.ped",
-                genmap="tests/data/trio.map",
-                chromosomes=[requested_chromosome],
-                prioroutput=outpriors,
-            )
-
-            for outfile in [outvcf, outpriors]:
-                assert os.path.isfile(outfile)
-
-                tables = list(VcfReader(outfile, genotype_likelihoods=True))
-
-                assert len(tables) == 2
-                for table in tables:
-                    assert len(table.variants) == 5
-                    assert table.samples == ["HG004", "HG003", "HG002"]
-
-                index = 0
-                if requested_chromosome == "1":
-                    index = 1
-
-                # should be no genotype likelihoods for skipped chromosomes
-                for s in tables[index].samples:
-                    assert tables[index].genotype_likelihoods_of(s) == [None] * 5
-                    assert tables[not index].genotype_likelihoods_of(s) != [None] * 5
-
-
-def test_genotype_likelihoods_given():
-    with TemporaryDirectory() as tempdir:
-        outvcf = tempdir + "/output_gl.vcf"
-        run_genotype(
-            phase_input_files=[trio_bamfile],
-            variant_file="tests/data/trio_genotype_likelihoods.vcf",
-            output=outvcf,
-            ped="tests/data/trio.ped",
-            genmap="tests/data/trio.map",
-        )
-        assert os.path.isfile(outvcf)
-
-        tables = list(VcfReader(outvcf, phases=True, genotype_likelihoods=True))
+        tables = list(VcfReader(outfile, phases=True, genotype_likelihoods=True))
         assert len(tables) == 1
         table = tables[0]
         assert table.chromosome == "1"
         assert len(table.variants) == 5
         assert table.samples == ["HG004", "HG003", "HG002"]
 
-        # check if PL likelihoods (that were present before) are deleted
-        vcf_reader = VariantFile(outvcf)
-        # print(list(vcf_reader.samples), outvcf)
-        for record in vcf_reader:
-            for call in record.samples.values():
-                PL = call.get("PL", None)
-                GL = call.get("GL", None)
-                print("GL:", GL, "PL:", PL)
-                assert PL == (None, None, None)
-                assert GL is not None
+        # there should be no genotype predictions for HG003/HG002
+        default_l = math.log10(1 / 3.0)
+        for l in [
+            table.genotype_likelihoods_of("HG002"),
+            table.genotype_likelihoods_of("HG004"),
+        ]:
+            for var in l:
+                for v in var.log10_probs():
+                    assert pytest.approx(default_l) == v
 
 
-# GL field was already present, make sure it is replaced by new likelihoods
-def test_genotype_log_likelihoods_given():
-    with TemporaryDirectory() as tempdir:
-        outvcf = tempdir + "/output_gl_log.vcf"
-        outpriors = tempdir + "/priors.vcf"
-        run_genotype(
-            phase_input_files=[trio_bamfile],
-            variant_file="tests/data/trio_genotype_log_likelihoods.vcf",
-            output=outvcf,
-            ped="tests/data/trio.ped",
-            genmap="tests/data/trio.map",
-            gt_qual_threshold=0,
-            prioroutput=outpriors,
-        )
+def test_use_ped_samples(tmp_path):
+    outvcf = tmp_path / "output_ped_samples.vcf"
+    run_genotype(
+        phase_input_files=[ped_samples_bamfile],
+        variant_file="tests/data/ped_samples.vcf",
+        output=outvcf,
+        ped="tests/data/trio.ped",
+        genmap="tests/data/trio.map",
+        use_ped_samples=True,
+    )
+    assert os.path.isfile(outvcf)
 
-        for outfile in [outvcf, outpriors]:
-            assert os.path.isfile(outfile)
+    tables = list(VcfReader(outvcf, phases=True, genotype_likelihoods=True))
+    assert len(tables) == 1
+    table = tables[0]
+    assert table.chromosome == "1"
+    assert len(table.variants) == 5
+    assert table.samples == ["HG004", "HG003", "HG002", "orphan"]
 
-            tables = list(VcfReader(outfile, phases=True, genotype_likelihoods=True))
-            assert len(tables) == 1
-            table = tables[0]
-            assert table.chromosome == "1"
-            assert len(table.variants) == 5
-            assert table.samples == ["HG004", "HG003", "HG002"]
-
-            # check if GL likelihoods were replaced
-            vcf_reader = VariantFile(outfile)
-            print(list(vcf_reader.header.samples), outfile)
-            for record in vcf_reader:
-                for call in record.samples.values():
-                    GL = call.get("GL", None)
-                    GQ = call.get("GQ", None)
-                    print("GL:", GL, "GQ", GQ)
-                    assert GL != [-1, -1, -1]
-                    assert GQ != 100
+    default_l = math.log10(1 / 3.0)
+    for var in table.genotype_likelihoods_of("orphan"):
+        for v in var.log10_probs():
+            assert pytest.approx(default_l) == v
 
 
-def test_empty_format_field():
-    with TemporaryDirectory() as tempdir:
-        outvcf = tempdir + "/output_empty_format.vcf"
-        run_genotype(
-            phase_input_files=[trio_bamfile],
-            variant_file="tests/data/empty_format.vcf",
-            output=outvcf,
-            gt_qual_threshold=0,
-        )
+@pytest.mark.parametrize(
+    "sample_set",
+    [["HG002"], ["HG003"], ["HG004"], ["HG002", "HG003"], ["HG002", "HG004"], ["HG003", "HG004"],],
+)
+def test_ped_sample(sample_set, tmp_path):
+    # running with --ped and --sample on subset of trio,
+    # should give same results as running with only --sample
+    # the trio information should be ignored
+    outvcf1 = tmp_path / "output1.vcf"
+    outvcf2 = tmp_path / "output2.vcf"
+    run_genotype(
+        phase_input_files=[ped_samples_bamfile],
+        variant_file="tests/data/ped_samples.vcf",
+        output=outvcf1,
+        ped="tests/data/trio.ped",
+        samples=sample_set,
+    )
+    run_genotype(
+        phase_input_files=[ped_samples_bamfile],
+        variant_file="tests/data/ped_samples.vcf",
+        output=outvcf2,
+        samples=sample_set,
+    )
+    assert os.path.isfile(outvcf1)
+    assert os.path.isfile(outvcf2)
+    tables1 = list(VcfReader(outvcf1, phases=True, genotype_likelihoods=True))
+    tables2 = list(VcfReader(outvcf2, phases=True, genotype_likelihoods=True))
+    assert (len(tables1) == 1) and (len(tables2) == 1)
+    table1, table2 = tables1[0], tables2[0]
 
-        # check if sample fields now contain information
-        assert os.path.isfile(outvcf)
-        vcf_reader = VariantFile(outvcf)
-        for record in vcf_reader:
-            for sample, call in record.samples.items():
-                assert set(call) == {"GT", "GL", "GQ"}
+    for individual in sample_set:
+        for var1, var2 in zip(
+            table1.genotype_likelihoods_of(individual), table2.genotype_likelihoods_of(individual),
+        ):
+            print(var1, var2)
+            assert var1.log10_probs() == var2.log10_probs()
 
 
-def test_phase_trio_paired_end_reads():
-    with TemporaryDirectory() as tempdir:
-        outvcf = tempdir + "/output-paired_end.vcf"
-        run_genotype(
-            phase_input_files=[trio_paired_end_bamfile],
-            variant_file="tests/data/paired_end.sorted.vcf",
-            output=outvcf,
-            ped="tests/data/trio_paired_end.ped",
-            genmap="tests/data/trio.map",
-        )
-        assert os.path.isfile(outvcf)
+def test_genotyping_trio(tmp_path):
+    outvcf = tmp_path / "output.vcf"
+    outpriors = tmp_path / "priors.vcf"
+    run_genotype(
+        phase_input_files=[trio_bamfile],
+        variant_file="tests/data/trio.vcf",
+        output=outvcf,
+        ped="tests/data/trio.ped",
+        genmap="tests/data/trio.map",
+        prioroutput=outpriors,
+    )
 
-        tables = list(VcfReader(outvcf, phases=True))
+    for outfile in [outvcf, outpriors]:
+        assert os.path.isfile(outfile)
+
+        tables = list(VcfReader(outfile, phases=True))
         assert len(tables) == 1
         table = tables[0]
         assert table.chromosome == "1"
-        assert len(table.variants) == 3
-        assert table.samples == ["mother", "father", "child"]
+        assert len(table.variants) == 5
+        assert table.samples == ["HG004", "HG003", "HG002"]
 
 
-def test_wrong_chromosome():
-    with TemporaryDirectory() as tempdir:
-        outvcf = tempdir + "/output.vcf"
-        with pytest.raises(CommandLineError):
-            run_genotype(
-                phase_input_files=[short_bamfile],
-                ignore_read_groups=True,
-                variant_file="tests/data/short-genome/wrongchromosome.vcf",
-                output=outvcf,
-            )
+@pytest.mark.parametrize("chromosome", ["1", "2"])
+def test_genotyping_specific_chromosome(chromosome, tmp_path):
+    outvcf = tmp_path / "output.vcf"
+    outpriors = tmp_path / "priors.vcf"
+    run_genotype(
+        phase_input_files=[trio_bamfile],
+        variant_file="tests/data/trio-two-chromosomes.vcf",
+        output=outvcf,
+        ped="tests/data/trio.ped",
+        genmap="tests/data/trio.map",
+        chromosomes=[chromosome],
+        prioroutput=outpriors,
+    )
+    for outfile in [outvcf, outpriors]:
+        assert os.path.isfile(outfile)
+        tables = list(VcfReader(outfile, genotype_likelihoods=True))
+        assert len(tables) == 2
+        for table in tables:
+            assert len(table.variants) == 5
+            assert table.samples == ["HG004", "HG003", "HG002"]
+
+        index = 0
+        if chromosome == "1":
+            index = 1
+
+        # should be no genotype likelihoods for skipped chromosomes
+        for s in tables[index].samples:
+            assert tables[index].genotype_likelihoods_of(s) == [None] * 5
+            assert tables[not index].genotype_likelihoods_of(s) != [None] * 5
+
+
+def test_genotype_likelihoods_given(tmp_path):
+    outvcf = tmp_path / "output_gl.vcf"
+    run_genotype(
+        phase_input_files=[trio_bamfile],
+        variant_file="tests/data/trio_genotype_likelihoods.vcf",
+        output=outvcf,
+        ped="tests/data/trio.ped",
+        genmap="tests/data/trio.map",
+    )
+    assert os.path.isfile(outvcf)
+    tables = list(VcfReader(outvcf, phases=True, genotype_likelihoods=True))
+    assert len(tables) == 1
+    table = tables[0]
+    assert table.chromosome == "1"
+    assert len(table.variants) == 5
+    assert table.samples == ["HG004", "HG003", "HG002"]
+
+    # check if PL likelihoods (that were present before) are deleted
+    vcf_reader = VariantFile(outvcf)
+    # print(list(vcf_reader.samples), outvcf)
+    for record in vcf_reader:
+        for call in record.samples.values():
+            PL = call.get("PL", None)
+            GL = call.get("GL", None)
+            print("GL:", GL, "PL:", PL)
+            assert PL == (None, None, None)
+            assert GL is not None
+
+
+# GL field was already present, make sure it is replaced by new likelihoods
+def test_genotype_log_likelihoods_given(tmp_path):
+    outvcf = tmp_path / "output_gl_log.vcf"
+    outpriors = tmp_path / "priors.vcf"
+    run_genotype(
+        phase_input_files=[trio_bamfile],
+        variant_file="tests/data/trio_genotype_log_likelihoods.vcf",
+        output=outvcf,
+        ped="tests/data/trio.ped",
+        genmap="tests/data/trio.map",
+        gt_qual_threshold=0,
+        prioroutput=outpriors,
+    )
+    for outfile in [outvcf, outpriors]:
+        assert os.path.isfile(outfile)
+        tables = list(VcfReader(outfile, phases=True, genotype_likelihoods=True))
+        assert len(tables) == 1
+        table = tables[0]
+        assert table.chromosome == "1"
+        assert len(table.variants) == 5
+        assert table.samples == ["HG004", "HG003", "HG002"]
+
+        # check if GL likelihoods were replaced
+        vcf_reader = VariantFile(outfile)
+        print(list(vcf_reader.header.samples), outfile)
+        for record in vcf_reader:
+            for call in record.samples.values():
+                GL = call.get("GL", None)
+                GQ = call.get("GQ", None)
+                print("GL:", GL, "GQ", GQ)
+                assert GL != [-1, -1, -1]
+                assert GQ != 100
+
+
+def test_empty_format_field(tmp_path):
+    outvcf = tmp_path / "output_empty_format.vcf"
+    run_genotype(
+        phase_input_files=[trio_bamfile],
+        variant_file="tests/data/empty_format.vcf",
+        output=outvcf,
+        gt_qual_threshold=0,
+    )
+
+    # check if sample fields now contain information
+    assert os.path.isfile(outvcf)
+    vcf_reader = VariantFile(outvcf)
+    for record in vcf_reader:
+        for sample, call in record.samples.items():
+            assert set(call) == {"GT", "GL", "GQ"}
+
+
+def test_phase_trio_paired_end_reads(tmp_path):
+    outvcf = tmp_path / "output-paired_end.vcf"
+    run_genotype(
+        phase_input_files=[trio_paired_end_bamfile],
+        variant_file="tests/data/paired_end.sorted.vcf",
+        output=outvcf,
+        ped="tests/data/trio_paired_end.ped",
+        genmap="tests/data/trio.map",
+    )
+    assert os.path.isfile(outvcf)
+    tables = list(VcfReader(outvcf, phases=True))
+    assert len(tables) == 1
+    table = tables[0]
+    assert table.chromosome == "1"
+    assert len(table.variants) == 3
+    assert table.samples == ["mother", "father", "child"]
+
+
+def test_wrong_chromosome(tmp_path):
+    outvcf = tmp_path / "output.vcf"
+    with pytest.raises(CommandLineError):
+        run_genotype(
+            phase_input_files=[short_bamfile],
+            ignore_read_groups=True,
+            variant_file="tests/data/short-genome/wrongchromosome.vcf",
+            output=outvcf,
+        )
 
 
 def extract_likelihoods(record):
