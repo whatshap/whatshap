@@ -102,7 +102,7 @@ class PhasedInputReader:
     def _open_reference(path):
         try:
             indexed_fasta = IndexedFasta(path)
-        except (IOError, OSError) as e:
+        except OSError as e:
             raise CommandLineError("Error while opening FASTA reference file: {}".format(e))
         except FastaNotIndexedError as e:
             raise CommandLineError(

@@ -297,7 +297,7 @@ def prepare_variant_file(file_path, user_given_samples, ignore_read_groups, exit
     """
     try:
         vcf_reader = exit_stack.enter_context(VcfReader(file_path, indels=True, phases=True))
-    except (IOError, OSError) as err:
+    except OSError as err:
         logger.error("Error while loading variant file {}: {}".format(file_path, err))
         raise err
 
@@ -349,7 +349,7 @@ def prepare_alignment_file(file_path, ignore_read_groups, vcf_samples, exit_stac
         bam_reader = exit_stack.enter_context(
             pysam.AlignmentFile(file_path, "rb", require_index=True)
         )
-    except (OSError, IOError) as err:
+    except OSError as err:
         logger.error("Error while loading alignment file {}: {}".format(file_path, err))
         raise err
     read_groups = bam_reader.header.get("RG", [])
@@ -425,7 +425,7 @@ def prepare_output_files(aln_output, reference, haplotag_output, vcf_md5, bam_he
                 aln_output, header=pysam.AlignmentHeader.from_dict(bam_header), **kwargs
             )
         )
-    except (IOError, OSError) as err:
+    except OSError as err:
         logger.error(
             "Error while initializing alignment output file at path: {}\n{}".format(aln_output, err)
         )
@@ -437,7 +437,7 @@ def prepare_output_files(aln_output, reference, haplotag_output, vcf_md5, bam_he
                 haplotag_writer = exit_stack.enter_context(gzip.open(haplotag_output, "wt"))
             else:
                 haplotag_writer = exit_stack.enter_context(open(haplotag_output, "w"))
-        except (IOError, OSError) as err:
+        except OSError as err:
             logger.error(
                 "Error while initializing haplotag list output at path: {}\n{}".format(
                     haplotag_output, err

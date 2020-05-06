@@ -249,7 +249,8 @@ class ReadSetReader:
                             # second variant.
                             if variants[j].position in seen_positions:
                                 logger.debug(
-                                    "Found two variants at identical positions. Ignoring the second one: %s",
+                                    "Found two variants at identical positions."
+                                    " Ignoring the second one: %s",
                                     variants[j],
                                 )
                             else:
