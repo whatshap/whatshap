@@ -167,9 +167,9 @@ class ReadSetReader:
             ):
                 i += 1
 
-            BX_tag = ""
+            barcode = ""
             if alignment.bam_alignment.has_tag("BX"):
-                BX_tag = alignment.bam_alignment.get_tag("BX")
+                barcode = alignment.bam_alignment.get_tag("BX")
 
             read = Read(
                 alignment.bam_alignment.qname,
@@ -177,7 +177,7 @@ class ReadSetReader:
                 alignment.source_id,
                 numeric_sample_id,
                 alignment.bam_alignment.reference_start,
-                BX_tag,
+                barcode,
             )
 
             if reference is None:
@@ -483,15 +483,10 @@ class ReadSetReader:
             ]
         )
 
-        distance_ref = 0
-        distance_alt = 0
-
-        base_qual_score = 30
-
         if use_affine:
-            assert gap_start != None
-            assert gap_extend != None
-            assert default_mismatch != None
+            assert gap_start is not None
+            assert gap_extend is not None
+            assert default_mismatch is not None
 
             # get base qualities if present (to be used as mismatch costs)
             base_qualities = [default_mismatch] * len(query)
@@ -506,8 +501,8 @@ class ReadSetReader:
                 query, alt, base_qualities, gap_start, gap_extend
             )
             base_qual_score = abs(distance_ref - distance_alt)
-
         else:
+            base_qual_score = 30
             distance_ref = edit_distance(query, ref)
             distance_alt = edit_distance(query, alt)
 
