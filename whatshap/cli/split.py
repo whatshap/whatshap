@@ -7,11 +7,12 @@ BAM mode is intended for unmapped BAMs (such as provided by PacBio).
 """
 import logging
 import os
-import gzip
 import pysam
 from collections import defaultdict, Counter
-from subprocess import Popen, PIPE
 import itertools
+from argparse import SUPPRESS
+
+from xopen import xopen
 
 from contextlib import ExitStack
 from whatshap.utils import detect_file_format
@@ -34,8 +35,7 @@ def add_arguments(parser):
         'create gzipped file.')
     arg('--add-untagged', default=False, action='store_true',
         help='Add reads without tag to both H1 and H2 output streams.')
-    arg('--pigz', default=False, action='store_true',
-        help='Use the pigz program for gzipping output.')
+    arg('--pigz', dest='pigz_deprecated', action='store_true', help=SUPPRESS)
     arg('--only-largest-block', default=False, action='store_true',
         help='Only consider reads to be tagged if they belong to the largest '
         'phased block (in terms of read count) on their respective chromosome')
@@ -48,7 +48,7 @@ def add_arguments(parser):
             'and the haplotag list file.')
     arg('--read-lengths-histogram', default=None,
         help='Output file to write read lengths histogram to in tab separated format.')
-    arg('reads_file', metavar='READS', help='Input FASTQ/BAM file with reads (fastq can be gzipped)')
+    arg('reads_file', metavar='READS', help='Input FASTQ/BAM file with reads (FASTQ can be gzipped)')
     arg('list_file', metavar='LIST',
         help='Tab-separated list with (at least) two columns <readname> and <haplotype> (can be gzipped). '
             'Currently, the two haplotypes have to be named H1 and H2 (or none). Alternatively, the '
@@ -62,43 +62,6 @@ def validate(args, parser):
         parser.error(
             "Nothing to be done since neither --output-h1 nor --output-h2 nor --output-untagged are given."
         )
-
-
-def open_possibly_gzipped(filename, exit_stack, readwrite="r", pigz=False):
-    """
-    TODO: this should be simplified after the the utils::detect_file_format
-    function has been extended for more file formats
-
-    TODO: the implicit dependency to the external tool pigz for faster I/O
-    should be replaced with proper multi-threaded and buffered writers
-    for the FASTQ output
-
-    :param filename:
-    :param exit_stack:
-    :param readwrite:
-    :param pigz:
-    :return:
-    """
-    if filename is None:
-        # this case is used in initialize_io_files
-        requested_file = None
-    elif readwrite == "r":
-        if filename.endswith(".gz"):
-            requested_file = exit_stack.enter_context(gzip.open(filename, "rt"))
-        else:
-            requested_file = exit_stack.enter_context(open(filename, "r"))
-    elif readwrite == "w":
-        if filename.endswith(".gz"):
-            if pigz:
-                g = Popen(["pigz"], stdout=open(filename, "w"), stdin=PIPE)
-                requested_file = exit_stack.enter_context(g.stdin)
-            else:
-                requested_file = exit_stack.enter_context(gzip.open(filename, "wt"))
-        else:
-            requested_file = exit_stack.enter_context(open(filename, "w"))
-    else:
-        raise ValueError('Invalid file open mode (must be "r" or "w"): {}'.format(readwrite))
-    return requested_file
 
 
 def select_reads_in_largest_phased_blocks(block_sizes, block_to_readnames):
@@ -243,7 +206,6 @@ def _fastq_string_iterator(fastq_file):
     Explicit casting to string because pysam does not seem to
     have a writer for FASTQ files - note that this relies
     on opening all compressed files in "text" mode
-    (see open_possibly_gzipped)
 
     :param fastq_file:
     :return:
@@ -273,7 +235,7 @@ def check_haplotag_list_information(haplotag_list, exit_stack):
     :param exit_stack:
     :return:
     """
-    haplo_list = open_possibly_gzipped(haplotag_list, exit_stack)
+    haplo_list = exit_stack.enter_context(xopen(haplotag_list))
     first_line = haplo_list.readline().strip()
     # rewind to make sure a header-less file is processed correctly
     haplo_list.seek(0)
@@ -295,13 +257,12 @@ def check_haplotag_list_information(haplotag_list, exit_stack):
     return haplo_list, has_chrom_info, line_parser
 
 
-def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, use_pigz, exit_stack):
+def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, exit_stack):
     """
     :param reads_file:
     :param output_h1:
     :param output_h2:
     :param output_untagged:
-    :param use_pigz:
     :param exit_stack:
     :return:
     """
@@ -358,15 +319,10 @@ def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, use_p
         input_mode = "wb"
         if not (reads_file.endswith(".gz") or reads_file.endswith(".gzip")):
             input_mode = "w"
-        if use_pigz:
-            input_iter = _fastq_binary_iterator
-        else:
-            input_iter = _fastq_string_iterator
+        input_iter = _fastq_string_iterator
         output_writers = dict()
-        for hap, outfile in zip([0, 1, 2], [output_untagged, output_h1, output_h2]):
-            # TODO jump through a hoop here to not break pigz feature; should be
-            # changed to WhatsHap-internal features
-            open_handle = open_possibly_gzipped(outfile, exit_stack, "w", use_pigz)
+        for hap, outfile in enumerate([output_untagged, output_h1, output_h2]):
+            open_handle = exit_stack.enter_context(xopen(outfile, "w"))
             if open_handle is None:
                 open_handle = exit_stack.enter_context(open(os.devnull, input_mode))
             output_writers[hap] = open_handle
@@ -387,7 +343,7 @@ def write_read_length_histogram(length_counts, histogram_file, exit_stack):
     h2 = length_counts[2]
     untag = length_counts[0]
     all_read_lengths = sorted(itertools.chain(*(h1.keys(), h2.keys(), untag.keys())))
-    tsv_file = open_possibly_gzipped(histogram_file, exit_stack, "w", pigz=False)
+    tsv_file = exit_stack.enter_context(xopen(histogram_file, "w"))
     _ = tsv_file.write("\t".join(["#length", "count-untagged", "count-h1", "count-h2"]) + "\n")
 
     line = "{}\t{}\t{}\t{}"
@@ -406,12 +362,13 @@ def run_split(
     output_h2=None,
     output_untagged=None,
     add_untagged=False,
-    pigz=False,
+    pigz_deprecated=False,
     only_largest_block=False,
     discard_unknown_reads=False,
     read_lengths_histogram=None,
 ):
-
+    if pigz_deprecated:
+        logger.warning("Ignoring deprecated --pigz option")
     timers = StageTimer()
     timers.start("split-run")
 
@@ -457,7 +414,7 @@ def run_split(
         timers.stop("split-process-haplotag-list")
 
         input_reader, input_iterator, output_writers = initialize_io_files(
-            reads_file, output_h1, output_h2, output_untagged, pigz, stack,
+            reads_file, output_h1, output_h2, output_untagged, stack,
         )
 
         timers.stop("split-init")

@@ -179,6 +179,7 @@ else:
         "networkx",
         "biopython>=1.73",  # pyfaidx needs this for reading bgzipped FASTA files
         "scipy",
+        "xopen",
     ]
 
 setup(

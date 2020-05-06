@@ -8,9 +8,10 @@ import logging
 import os
 import sys
 import pysam
-import gzip
 import hashlib
 import collections
+
+from xopen import xopen
 
 from contextlib import ExitStack
 from whatshap import __version__
@@ -433,10 +434,7 @@ def prepare_output_files(aln_output, reference, haplotag_output, vcf_md5, bam_he
 
     if haplotag_output is not None:
         try:
-            if haplotag_output.endswith(".gz"):  # FIXME hard-coded value
-                haplotag_writer = exit_stack.enter_context(gzip.open(haplotag_output, "wt"))
-            else:
-                haplotag_writer = exit_stack.enter_context(open(haplotag_output, "w"))
+            haplotag_writer = exit_stack.enter_context(xopen(haplotag_output, "wt"))
         except OSError as err:
             logger.error(
                 "Error while initializing haplotag list output at path: {}\n{}".format(
