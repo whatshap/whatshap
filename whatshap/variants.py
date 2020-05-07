@@ -66,7 +66,7 @@ class ReadSetReader:
 
     def read(self, chromosome, variants, sample, reference, regions=None) -> ReadSet:
         """
-        Return a ReadSet object representing the given variants.
+        Detect alleles and return a ReadSet object representing the given variants.
 
         If a reference is provided (reference is not None), alleles are
         detected by re-aligning sections of the query to the REF and ALT
@@ -89,8 +89,14 @@ class ReadSetReader:
             assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
 
         alignments = self._usable_alignments(chromosome, sample, regions)
-        reads = self._alignments_to_readdict(alignments, variants, sample, reference)
-        return self._readdict_to_readset(reads)
+        reads = self._alignments_to_reads(alignments, variants, sample, reference)
+
+        # Maps read names to lists of Read objects. Each list has two entries for
+        # paired-end reads, one entry for single-end reads.
+        readdict = defaultdict(list)
+        for read in reads:
+            readdict[(read.source_id, read.name, read.sample_id)].append(read)
+        return self._readdict_to_readset(readdict)
 
     def _readdict_to_readset(self, reads):
         """
@@ -139,18 +145,16 @@ class ReadSetReader:
     def has_reference(self, chromosome):
         return self._reader.has_reference(chromosome)
 
-    def _alignments_to_readdict(self, alignments, variants, sample, reference):
+    def _alignments_to_reads(self, alignments, variants, sample, reference):
         """
         Convert BAM alignments to Read objects.
 
         If reference is not None, alleles are detected through re-alignment.
 
-        Return a dict that maps read names to lists of Read objects. Each list
-        has two entries for paired-end reads, one entry for single-end reads.
+        Yield Read objects.
         """
         # FIXME hard-coded zero
         numeric_sample_id = 0 if sample is None else self._numeric_sample_ids[sample]
-        reads = defaultdict(list)
         if reference is not None:
             # Copy the pyfaidx.FastaRecord into a str for faster access
             reference = reference[:]
@@ -182,7 +186,6 @@ class ReadSetReader:
 
             if reference is None:
                 detected = self.detect_alleles(normalized_variants, i, alignment.bam_alignment)
-
             else:
                 detected = self.detect_alleles_by_alignment(
                     variants,
@@ -198,10 +201,7 @@ class ReadSetReader:
             for j, allele, quality in detected:
                 read.add_variant(variants[j].position, allele, quality)
             if read:  # At least one variant covered and detected
-                reads[
-                    (alignment.source_id, alignment.bam_alignment.qname, numeric_sample_id,)
-                ].append(read)
-        return reads
+                yield read
 
     @staticmethod
     def detect_alleles(variants, j, bam_read):
