@@ -3,6 +3,8 @@ Detect variants in reads.
 """
 from collections import defaultdict, Counter
 import logging
+from typing import Iterable, Iterator, List
+
 from .core import Read, ReadSet
 from .bam import SampleBamReader, MultiBamReader
 from .align import edit_distance, edit_distance_affine_gap
@@ -66,7 +68,8 @@ class ReadSetReader:
 
     def read(self, chromosome, variants, sample, reference, regions=None) -> ReadSet:
         """
-        Detect alleles and return a ReadSet object representing the given variants.
+        Detect alleles and return a ReadSet object containing reads representing
+        the given variants.
 
         If a reference is provided (reference is not None), alleles are
         detected by re-aligning sections of the query to the REF and ALT
@@ -90,34 +93,39 @@ class ReadSetReader:
 
         alignments = self._usable_alignments(chromosome, sample, regions)
         reads = self._alignments_to_reads(alignments, variants, sample, reference)
+        readset = self._make_readset(reads)
+        return readset
 
-        # Maps read names to lists of Read objects. Each list has two entries for
-        # paired-end reads, one entry for single-end reads.
-        readdict = defaultdict(list)
-        for read in reads:
-            readdict[(read.source_id, read.name, read.sample_id)].append(read)
-        return self._readdict_to_readset(readdict)
-
-    def _readdict_to_readset(self, reads):
+    def _make_readset(self, reads: Iterable[Read]) -> ReadSet:
         """
-        reads is a dict that maps read names to Read objects
-
-        TODO this functionality should be within ReadSet
+        Convert reads into a ReadSet
         """
         read_set = ReadSet()
-        for readlist in reads.values():
-            assert len(readlist) > 0
-            if len(readlist) > 2:
-                raise ReadSetError(
-                    "Read name {!r} occurs more than twice in the input file".format(
-                        readlist[0].name
-                    )
-                )
-            if len(readlist) == 1:
-                read_set.add(readlist[0])
+        for group in self._group_reads_by_name(reads):
+            if len(group) == 1:
+                read_set.add(group[0])
+            elif len(group) == 2:
+                read_set.add(self._merge_pair(*group))
             else:
-                read_set.add(self._merge_pair(*readlist))
+                assert len(group) > 0
+                raise ReadSetError(
+                    "Read name {!r} occurs more than twice in the input file".format(group[0].name)
+                )
         return read_set
+
+    @staticmethod
+    def _group_reads_by_name(reads: Iterable[Read]) -> Iterator[List[Read]]:
+        """
+        Group reads by name, source_id and sample_id
+
+        TODO
+        grouping by name should be sufficient since the SAM spec states:
+        "Reads/segments having identical QNAME are regarded to come from the same template."
+        """
+        groups = defaultdict(list)
+        for read in reads:
+            groups[(read.source_id, read.name, read.sample_id)].append(read)
+        yield from groups.values()
 
     def _usable_alignments(self, chromosome, sample, regions=None):
         """
