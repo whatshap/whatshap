@@ -9,14 +9,15 @@ import os
 import sys
 import pysam
 import hashlib
-import collections
+from collections import defaultdict
+from typing import List
 
 from xopen import xopen
 
 from contextlib import ExitStack
 from whatshap import __version__
-from whatshap.cli import PhasedInputReader
-from whatshap.vcf import VcfReader, VcfError
+from whatshap.cli import PhasedInputReader, CommandLineError
+from whatshap.vcf import VcfReader, VcfError, VariantTable, VariantCallPhase
 from whatshap.core import NumericSampleIds
 from whatshap.timer import StageTimer
 
@@ -70,14 +71,14 @@ def md5_of(filename):
         return hashlib.md5(f.read()).hexdigest()
 
 
-def get_variant_information(variant_table, sample):
+def get_variant_information(variant_table: VariantTable, sample: str):
     """
-    :param variant_table:
-    :param sample:
-    :return:
+    Return (vpos_to_phase_info, variants) pair, where vpos_to_phase_info maps
+    a variant position to a pair (integer block_id, phase0),
+    and variants is a list of all non-homozygous variants.
     """
     genotypes = variant_table.genotypes_of(sample)
-    phases = variant_table.phases_of(sample)
+    phases = variant_table.phases_of(sample)  # type: List[VariantCallPhase]
 
     vpos_to_phase_info = dict()
     variants = []
@@ -160,11 +161,11 @@ def prepare_haplotag_information(
     linked_read_cutoff,
 ):
     """
-    Read all reads for this chromosome once to create one core.ReadSet per sample
-    this allows to assign phase to paired-end reads based on both reads
+    Read all reads for this chromosome once to create one core.ReadSet per sample.
+    This allows to assign phase to paired-end reads based on both reads
     """
     n_multiple_phase_sets = 0
-    BX_tag_to_haplotype = collections.defaultdict(list)
+    BX_tag_to_haplotype = defaultdict(list)
     # maps read name to (haplotype, quality, phaseset)
     read_to_haplotype = {}
 
@@ -174,26 +175,25 @@ def prepare_haplotag_information(
             variant_table.chromosome, variants, sample, regions=regions,
         )
 
-        # map tag --> set of reads
-        BX_tag_to_readlist = collections.defaultdict(list)
+        # map BX tag to list of reads
+        bx_tag_to_readlist = defaultdict(list)
         for read in read_set:
             if read.has_BX_tag():
-                BX_tag_to_readlist[read.BX_tag].append(read)
-        # all reads processed so far
+                bx_tag_to_readlist[read.BX_tag].append(read)
+
         processed_reads = set()
         for read in read_set:
             if read.name in processed_reads:
                 continue
             # mapping: phaseset --> phred scaled difference between costs of assigning reads to haplotype 0 or 1
-            haplotype_costs = collections.defaultdict(int)
-            reads_to_consider = set()
+            haplotype_costs = defaultdict(int)
 
             processed_reads.add(read.name)
-            reads_to_consider.add(read)
+            reads_to_consider = {read}
 
             # reads with same BX tag need to be considered too (unless --ignore-linked-read is set)
             if read.has_BX_tag() and not ignore_linked_read:
-                for r in BX_tag_to_readlist[read.BX_tag]:
+                for r in bx_tag_to_readlist[read.BX_tag]:
                     if r.name not in processed_reads:
                         # only select reads close to current one
                         if abs(read.reference_start - r.reference_start) <= linked_read_cutoff:
@@ -248,7 +248,7 @@ def normalize_user_regions(user_regions, bam_references):
     :param bam_references: references of BAM file
     :return: dict of lists containing normalized regions per chromosome
     """
-    norm_regions = collections.defaultdict(list)
+    norm_regions = defaultdict(list)
     if user_regions is None:
         for reference in bam_references:
             norm_regions[reference].append((0, None))
@@ -285,28 +285,16 @@ def normalize_user_regions(user_regions, bam_references):
     return norm_regions
 
 
-def prepare_variant_file(file_path, user_given_samples, ignore_read_groups, exit_stack):
+def compute_variant_file_samples_to_use(vcf_reader, user_given_samples, ignore_read_groups):
     """
     Open variant file and load sample information - check if samples in VCF are compatible
     with user specified list of samples.
 
-    :param file_path:
-    :param user_given_samples:
-    :param ignore_read_groups:
-    :param exit_stack:
-    :return: VCF reader object and set of VCF samples to use
+    return iterable of VCF samples to use
     """
-    try:
-        vcf_reader = exit_stack.enter_context(VcfReader(file_path, indels=True, phases=True))
-    except OSError as err:
-        logger.error("Error while loading variant file {}: {}".format(file_path, err))
-        raise err
-
     samples_in_vcf = set(vcf_reader.samples)
     if len(samples_in_vcf) < 1:
-        raise VcfError(
-            "No samples detected in VCF file {} " "- cannot perform haplo-tagging".format(file_path)
-        )
+        raise VcfError("No samples detected in VCF file; cannot perform haplotagging")
     logger.info("Found {} samples in input VCF".format(len(samples_in_vcf)))
     logger.debug(
         "Found the following samples in input VCF: {}".format(" - ".join(sorted(samples_in_vcf)))
@@ -335,24 +323,13 @@ def prepare_variant_file(file_path, user_given_samples, ignore_read_groups, exit
             " - ".join(sorted(samples_to_use))
         )
     )
-    return vcf_reader, samples_to_use
+    return samples_to_use
 
 
-def prepare_alignment_file(file_path, ignore_read_groups, vcf_samples, exit_stack):
+def compute_shared_samples(bam_reader, ignore_read_groups, vcf_samples):
     """
-    :param file_path:
-    :param ignore_read_groups:
-    :param vcf_samples:
-    :param exit_stack:
-    :return: BAM reader object and final samples to use for haplo-tagging
+    Return final samples to use for haplo-tagging
     """
-    try:
-        bam_reader = exit_stack.enter_context(
-            pysam.AlignmentFile(file_path, "rb", require_index=True)
-        )
-    except OSError as err:
-        logger.error("Error while loading alignment file {}: {}".format(file_path, err))
-        raise err
     read_groups = bam_reader.header.get("RG", [])
     bam_samples = set((rg["SM"] if "SM" in rg else "") for rg in read_groups)
 
@@ -381,14 +358,13 @@ def prepare_alignment_file(file_path, ignore_read_groups, vcf_samples, exit_stac
             pass
     else:
         shared_samples = vcf_samples
-    return bam_reader, shared_samples
+    return shared_samples
 
 
-def prepare_output_files(aln_output, reference, haplotag_output, vcf_md5, bam_header, exit_stack):
+def open_output_alignment_file(aln_output, reference, vcf_md5, bam_header):
     """
     :param aln_output:
     :param reference:
-    :param haplotag_output:
     :param vcf_md5:
     :param bam_header:
     :param exit_stack:
@@ -421,33 +397,29 @@ def prepare_output_files(aln_output, reference, haplotag_output, vcf_md5, bam_he
         # Write BAM
         kwargs = dict(mode="wb")
     try:
-        bam_writer = exit_stack.enter_context(
-            pysam.AlignmentFile(
-                aln_output, header=pysam.AlignmentHeader.from_dict(bam_header), **kwargs
-            )
+        bam_writer = pysam.AlignmentFile(
+            aln_output, header=pysam.AlignmentHeader.from_dict(bam_header), **kwargs
         )
     except OSError as err:
-        logger.error(
+        raise CommandLineError(
             "Error while initializing alignment output file at path: {}\n{}".format(aln_output, err)
         )
-        raise err
 
-    if haplotag_output is not None:
-        try:
-            haplotag_writer = exit_stack.enter_context(xopen(haplotag_output, "wt"))
-        except OSError as err:
-            logger.error(
-                "Error while initializing haplotag list output at path: {}\n{}".format(
-                    haplotag_output, err
-                )
-            )
-            raise err
-    else:
-        haplotag_writer = exit_stack.enter_context(open(os.devnull, "w"))
+    return bam_writer
+
+
+def open_haplotag_writer(path):
+    if path is None:
+        path = os.devnull
+    try:
+        writer = xopen(path, "wt")
+    except OSError as err:
+        raise CommandLineError(
+            "Error while initializing haplotag list output at path: {}\n{}".format(path, err)
+        )
     logger.debug("Writing header line to haplotag list output file")
-    print("#readname", "haplotype", "phaseset", "chromosome", sep="\t", file=haplotag_writer)
-
-    return bam_writer, haplotag_writer
+    print("#readname", "haplotype", "phaseset", "chromosome", sep="\t", file=writer)
+    return writer
 
 
 def ignore_read(alignment, tag_supplementary):
@@ -502,39 +474,42 @@ def run_haplotag(
     timers.start("haplotag-run")
 
     with ExitStack() as stack:
-        numeric_sample_ids = NumericSampleIds()
-
         timers.start("haplotag-init")
+        try:
+            vcf_reader = stack.enter_context(VcfReader(variant_file, indels=True, phases=True))
+        except OSError as err:
+            logger.error("Error while loading variant file {}: {}".format(variant_file, err))
+            raise err
 
-        # Check and validate VCF information
-        vcf_reader, use_vcf_samples = prepare_variant_file(
-            variant_file, given_samples, ignore_read_groups, stack
+        use_vcf_samples = compute_variant_file_samples_to_use(
+            vcf_reader, given_samples, ignore_read_groups
         )
 
-        # Check BAM file, in particular sample
-        # compatibility with VCF
-        bam_reader, shared_samples = prepare_alignment_file(
-            alignment_file, ignore_read_groups, use_vcf_samples, stack
-        )
+        try:
+            bam_reader = stack.enter_context(
+                pysam.AlignmentFile(alignment_file, "rb", require_index=True)
+            )
+        except OSError as err:
+            logger.error("Error while loading alignment file {}: {}".format(alignment_file, err))
+            raise err
+        # This checks also sample compatibility with VCF
+        shared_samples = compute_shared_samples(bam_reader, ignore_read_groups, use_vcf_samples)
 
         # Check if user has specified a subset of regions per chromosome
         user_regions = normalize_user_regions(regions, bam_reader.references)
 
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
-                [alignment_file], reference, numeric_sample_ids, ignore_read_groups, indels=False
+                [alignment_file], reference, NumericSampleIds(), ignore_read_groups, indels=False
             )
         )
 
-        # Prepare output files
-        bam_writer, haplotag_writer = prepare_output_files(
-            output,
-            reference,
-            haplotag_list,
-            md5_of(variant_file),
-            bam_reader.header.to_dict(),
-            stack,
+        bam_writer = stack.enter_context(
+            open_output_alignment_file(
+                output, reference, md5_of(variant_file), bam_reader.header.to_dict(),
+            )
         )
+        haplotag_writer = stack.enter_context(open_haplotag_writer(haplotag_list))
 
         timers.stop("haplotag-init")
         logger.debug(
@@ -552,7 +527,7 @@ def run_haplotag(
             if variant_table is not None:
                 logger.debug("Preparing haplotype information")
 
-                (BX_tag_to_haplotype, read_to_haplotype, n_mult,) = prepare_haplotag_information(
+                (BX_tag_to_haplotype, read_to_haplotype, n_mult) = prepare_haplotag_information(
                     variant_table,
                     shared_samples,
                     phased_input_reader,
@@ -560,7 +535,6 @@ def run_haplotag(
                     ignore_linked_read,
                     linked_read_distance_cutoff,
                 )
-
                 n_multiple_phase_sets += n_mult
             else:
                 # avoid uninitialized variables
@@ -583,7 +557,7 @@ def run_haplotag(
                         # written to the output BAM
                         pass
                     else:
-                        (is_tagged, haplotype_name, phaseset,) = attempt_add_phase_information(
+                        (is_tagged, haplotype_name, phaseset) = attempt_add_phase_information(
                             alignment,
                             read_to_haplotype,
                             BX_tag_to_haplotype,
