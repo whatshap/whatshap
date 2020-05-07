@@ -15,7 +15,7 @@ from distutils.sysconfig import customize_compiler
 
 MIN_CYTHON_VERSION = "0.29"
 
-if sys.version_info < (3, 5):
+if sys.version_info < (3, 6):
     sys.stdout.write("At least Python 3.5 is required.\n")
     sys.exit(1)
 
@@ -199,7 +199,7 @@ setup(
     setup_requires=["setuptools_scm"],  # Support pip versions that don't know about pyproject.toml
     install_requires=install_requires,
     extras_require={"dev": ["Cython", "pytest", "sphinx", "sphinx_issues"],},
-    python_requires=">=3.5",
+    python_requires=">=3.6",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: Console",

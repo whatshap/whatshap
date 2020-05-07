@@ -20,6 +20,7 @@ development version
 * Refactored ``split`` subcommand module.
 * Fixed :issue:`215`. ``split`` subcommand can now process ``.bam`` files lacking the
   ``sequence`` field for some/all reads.
+* The minimum required Python version is now 3.6.
 
 v0.18 (2019-02-15)
 ------------------
