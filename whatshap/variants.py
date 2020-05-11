@@ -105,7 +105,7 @@ class ReadSetReader:
             if len(group) == 1:
                 read_set.add(group[0])
             elif len(group) == 2:
-                read_set.add(self._merge_pair(*group))
+                read_set.add(merge_two_reads(*group))
             else:
                 assert len(group) > 0
                 raise ReadSetError(
@@ -568,71 +568,6 @@ class ReadSetReader:
             if allele in (0, 1):
                 yield (index, allele, quality)  # TODO quality???
 
-    @staticmethod
-    def _merge_pair(read1, read2):
-        """
-        Merge the two ends of a paired-end read into a single core.Read. Also
-        takes care of self-overlapping read pairs.
-
-        TODO this can be simplified as soon as a variant in a read can be
-        modified.
-        """
-        if read2:
-            result = Read(
-                read1.name,
-                read1.mapqs[0],
-                read1.source_id,
-                read1.sample_id,
-                read1.reference_start,
-                read1.BX_tag,
-            )
-            result.add_mapq(read2.mapqs[0])
-        else:
-            return read1
-
-        i1 = 0
-        i2 = 0
-
-        def add1():
-            result.add_variant(read1[i1].position, read1[i1].allele, read1[i1].quality)
-
-        def add2():
-            result.add_variant(read2[i2].position, read2[i2].allele, read2[i2].quality)
-
-        while i1 < len(read1) or i2 < len(read2):
-            if i1 == len(read1):
-                add2()
-                i2 += 1
-                continue
-            if i2 == len(read2):
-                add1()
-                i1 += 1
-                continue
-            variant1 = read1[i1]
-            variant2 = read2[i2]
-            if variant2.position < variant1.position:
-                add2()
-                i2 += 1
-            elif variant2.position > variant1.position:
-                add1()
-                i1 += 1
-            else:
-                # Variant on self-overlapping read pair
-                assert read1[i1].position == read2[i2].position
-                # If both alleles agree, merge into single variant and add up qualities
-                if read1[i1].allele == read2[i2].allele:
-                    quality = read1[i1].quality + read2[i2].quality
-                    result.add_variant(read1[i1].position, read1[i1].allele, quality)
-                else:
-                    # Otherwise, take variant with highest base quality and discard the other.
-                    if read1[i1].quality >= read2[i2].quality:
-                        add1()
-                    else:
-                        add2()
-                i1 += 1
-                i2 += 1
-        return result
-
     def __enter__(self):
         return self
 
@@ -641,3 +576,65 @@ class ReadSetReader:
 
     def close(self):
         self._reader.close()
+
+
+def merge_two_reads(read1: Read, read2: Read) -> Read:
+    """
+    Merge two reads *that belong to the same haplotype* (such as the two
+    ends of a paired-end read) into a single Read. Overlaps are allowed.
+    """
+    if read2:
+        result = Read(
+            read1.name,
+            read1.mapqs[0],
+            read1.source_id,
+            read1.sample_id,
+            read1.reference_start,
+            read1.BX_tag,
+        )
+        result.add_mapq(read2.mapqs[0])
+    else:
+        return read1
+
+    i1 = 0
+    i2 = 0
+
+    def add1():
+        result.add_variant(read1[i1].position, read1[i1].allele, read1[i1].quality)
+
+    def add2():
+        result.add_variant(read2[i2].position, read2[i2].allele, read2[i2].quality)
+
+    while i1 < len(read1) or i2 < len(read2):
+        if i1 == len(read1):
+            add2()
+            i2 += 1
+            continue
+        if i2 == len(read2):
+            add1()
+            i1 += 1
+            continue
+        variant1 = read1[i1]
+        variant2 = read2[i2]
+        if variant2.position < variant1.position:
+            add2()
+            i2 += 1
+        elif variant2.position > variant1.position:
+            add1()
+            i1 += 1
+        else:
+            # Variant on self-overlapping read pair
+            assert read1[i1].position == read2[i2].position
+            # If both alleles agree, merge into single variant and add up qualities
+            if read1[i1].allele == read2[i2].allele:
+                quality = read1[i1].quality + read2[i2].quality
+                result.add_variant(read1[i1].position, read1[i1].allele, quality)
+            else:
+                # Otherwise, take variant with highest base quality and discard the other.
+                if read1[i1].quality >= read2[i2].quality:
+                    add1()
+                else:
+                    add2()
+            i1 += 1
+            i2 += 1
+    return result
