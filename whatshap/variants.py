@@ -1,8 +1,8 @@
 """
 Detect variants in reads.
 """
-from collections import defaultdict, Counter
 import logging
+from collections import defaultdict, Counter
 from typing import Iterable, Iterator, List
 
 from .core import Read, ReadSet
@@ -583,6 +583,8 @@ def merge_two_reads(read1: Read, read2: Read) -> Read:
     Merge two reads *that belong to the same haplotype* (such as the two
     ends of a paired-end read) into a single Read. Overlaps are allowed.
     """
+    assert read1.is_sorted()
+    assert read2.is_sorted()
     if read2:
         result = Read(
             read1.name,
@@ -638,3 +640,27 @@ def merge_two_reads(read1: Read, read2: Read) -> Read:
             i1 += 1
             i2 += 1
     return result
+
+
+def merge_reads(*reads: Read) -> Read:
+    """
+    Merge multiple reads that belong to the same haplotype into a single Read.
+
+    If the iterable is empty, a ValueError is raised.
+
+    This 'naive' version just calls merge_two_reads repeatedly on all the reads.
+
+    # TODO
+    # The actual challenge is dealing with conflicts in variants covered by
+    # more than one read. A solution would be to not merge if there are any
+    # (or too many) conflicts and let the main algorithm deal with it.
+    """
+    it = iter(reads)
+    try:
+        read = next(it)
+    except StopIteration:
+        raise ValueError("no reads to merge")
+    assert read.is_sorted()
+    for partner in it:
+        read = merge_two_reads(read, partner)
+    return read
