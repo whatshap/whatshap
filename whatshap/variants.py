@@ -93,39 +93,36 @@ class ReadSetReader:
 
         alignments = self._usable_alignments(chromosome, sample, regions)
         reads = self._alignments_to_reads(alignments, variants, sample, reference)
-        readset = self._make_readset(reads)
+        grouped_reads = self._group_paired_reads(reads)
+        readset = self._make_readset_from_grouped_reads(grouped_reads)
         return readset
 
-    def _make_readset(self, reads: Iterable[Read]) -> ReadSet:
-        """
-        Convert reads into a ReadSet
-        """
+    @staticmethod
+    def _make_readset_from_grouped_reads(groups: Iterable[List[Read]]) -> ReadSet:
         read_set = ReadSet()
-        for group in self._group_reads_by_name(reads):
-            if len(group) == 1:
-                read_set.add(group[0])
-            elif len(group) == 2:
-                read_set.add(merge_two_reads(*group))
-            else:
-                assert len(group) > 0
-                raise ReadSetError(
-                    "Read name {!r} occurs more than twice in the input file".format(group[0].name)
-                )
+        for group in groups:
+            read_set.add(merge_reads(*group))
         return read_set
 
     @staticmethod
-    def _group_reads_by_name(reads: Iterable[Read]) -> Iterator[List[Read]]:
+    def _group_paired_reads(reads: Iterable[Read]) -> Iterator[List[Read]]:
         """
-        Group reads by name, source_id and sample_id
+        Group reads into paired-end read pairs. Uses name, source_id and sample_id
+        as grouping key.
 
         TODO
-        grouping by name should be sufficient since the SAM spec states:
+        Grouping by name should be sufficient since the SAM spec states:
         "Reads/segments having identical QNAME are regarded to come from the same template."
         """
         groups = defaultdict(list)
         for read in reads:
             groups[(read.source_id, read.name, read.sample_id)].append(read)
-        yield from groups.values()
+        for group in groups.values():
+            if len(group) > 2:
+                raise ReadSetError(
+                    "Read name {!r} occurs more than twice in the input file".format(group[0].name)
+                )
+            yield group
 
     def _usable_alignments(self, chromosome, sample, regions=None):
         """
