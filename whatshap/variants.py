@@ -39,6 +39,8 @@ class ReadSetReader:
         gap_start=10,
         gap_extend=7,
         default_mismatch=15,
+        linked=False,
+        max_linking_distance=50_000,
     ):
         """
         paths -- list of BAM paths
@@ -48,6 +50,7 @@ class ReadSetReader:
         overhang -- extend alignment by this many bases to left and right
         affine -- use affine gap costs
         gap_start, gap_extend, default_mismatch -- parameters for affine gap cost alignment
+        linked -- whether reads need to be linked into read clouds (requires BX tag)
         """
         self._mapq_threshold = mapq_threshold
         self._numeric_sample_ids = numeric_sample_ids
@@ -57,6 +60,8 @@ class ReadSetReader:
         self._default_mismatch = default_mismatch
         self._overhang = overhang
         self._paths = paths
+        self._linked = linked
+        self._max_linking_distance = max_linking_distance
         if len(paths) == 1:
             self._reader = SampleBamReader(paths[0], reference=reference)
         else:
@@ -93,7 +98,10 @@ class ReadSetReader:
 
         alignments = self._usable_alignments(chromosome, sample, regions)
         reads = self._alignments_to_reads(alignments, variants, sample, reference)
-        grouped_reads = self._group_paired_reads(reads)
+        if self._linked:
+            grouped_reads = self._group_linked_reads(reads, self._max_linking_distance)
+        else:
+            grouped_reads = self._group_paired_reads(reads)
         readset = self._make_readset_from_grouped_reads(grouped_reads)
         return readset
 
@@ -123,6 +131,46 @@ class ReadSetReader:
                     "Read name {!r} occurs more than twice in the input file".format(group[0].name)
                 )
             yield group
+
+    def _group_linked_reads(
+        self, reads: Iterable[Read], max_distance=50_000
+    ) -> Iterator[List[Read]]:
+        """
+        Group reads into read clouds using the value of the BX tag ("Chromium barcode sequence").
+        If the distance between two neighboring variants exceeds *max_distance*, the corresponding
+        reads are put into separate groups.
+
+        Reads without BX tag are grouped using _group_reads_by_name.
+        """
+        groups = defaultdict(list)
+        no_bx = []
+        for read in reads:
+            if not read.has_BX_tag():
+                no_bx.append(read)
+                continue
+            groups[(read.source_id, read.sample_id, read.BX_tag)].append(read)
+        for group in groups.values():
+            yield from self._split_by_distance(group, max_distance)
+
+        yield from self._group_paired_reads(no_bx)
+
+    @staticmethod
+    def _split_by_distance(reads: List[Read], max_distance: int) -> Iterator[List[Read]]:
+        # TODO
+        # Because this uses core.Read objects, this splits by distance between variants,
+        # not by distance between the actual 5' and 3' ends of AlignedSegments.
+        current = []
+        prev_right = 0
+        for read in reads:
+            if read and current:
+                if read[0].position - prev_right > max_distance:
+                    yield current
+                    current = []
+            if read:
+                prev_right = read[-1].position
+            current.append(read)
+        if current is not None:
+            yield current
 
     def _usable_alignments(self, chromosome, sample, regions=None):
         """

@@ -1,7 +1,7 @@
 import pytest
 
 from whatshap.core import Read, Variant
-from whatshap.variants import merge_two_reads, merge_reads
+from whatshap.variants import merge_two_reads, merge_reads, ReadSetReader
 
 
 @pytest.mark.parametrize("merge", [merge_two_reads, merge_reads])
@@ -90,3 +90,38 @@ def test_merge_many_reads():
     # TODO merging should not depend on the order of reads
     expected[1] = Variant(200, 0, 51)
     assert expected == list(merge_reads(*reads[::-1]))
+
+
+def test_split_by_distance():
+    reads = [
+        Read("Name1"),
+        Read("Name2"),
+        Read("Name3"),
+        Read("Name4"),
+    ]
+    reads[0].add_variant(100, 0, 31)
+    reads[0].add_variant(200, 0, 32)
+
+    reads[1].add_variant(1000, 0, 41)
+    reads[1].add_variant(1100, 0, 42)
+    reads[1].add_variant(2000, 0, 42)
+
+    # No variants on third read
+
+    reads[3].add_variant(3000, 0, 51)
+    reads[3].add_variant(3100, 0, 52)
+
+    for distance, expected in [
+        (10, [["Name1"], ["Name2", "Name3"], ["Name4"]]),
+        (100, [["Name1"], ["Name2", "Name3"], ["Name4"]]),
+        (799, [["Name1"], ["Name2", "Name3"], ["Name4"]]),
+        (800, [["Name1", "Name2", "Name3"], ["Name4"]]),
+        (999, [["Name1", "Name2", "Name3"], ["Name4"]]),
+        (1000, [["Name1", "Name2", "Name3", "Name4"]]),
+        (2000, [["Name1", "Name2", "Name3", "Name4"]]),
+    ]:
+        result = [
+            [r.name for r in reads]
+            for reads in ReadSetReader._split_by_distance(reads, max_distance=distance)
+        ]
+        assert expected == result, distance
