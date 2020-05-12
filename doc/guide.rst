@@ -12,7 +12,7 @@ phasing information.
 
 The basic command-line for running WhatsHap is this::
 
-    whatshap phase -o phased.vcf input.vcf input.bam
+    whatshap phase -o phased.vcf --reference=reference.fasta input.vcf input.bam
 
 The reads used for variant calling (to create the input VCF) do not
 need to be the same as the ones that are used for phasing. We
@@ -31,16 +31,18 @@ If you want to phase samples of individuals that are related, you can use
 :ref:`pedigree phasing <phasing-pedigrees>` mode to improve results.
 In this mode, WhatsHap is no longer purely a read-based phasing tool.
 
-With error-prone reads (PacBio, Nanopore), we strongly recommend that you
-enable re-alignment mode by providing a reference in FASTA format::
-
-    whatshap phase --reference ref.fasta -o phased.vcf input.vcf input.bam
-
 You can also phase indels by adding the option ``--indels``.
+
+Providing a FASTA reference with ``--reference`` is highly recommended, in
+particular for error-prone reads (PacBio, Nanopore), as it is enables the
+re-alignment variant detection algorithm. If a reference is not available,
+``--no-reference`` can instead be provided, but at the expense of phasing
+quality.
 
 WhatsHap adds the phasing information to the input VCF file and writes it to
 the output VCF file. :ref:`See below to understand how phasing information
 is represented <phasing_in_vcfs>`.
+
 The VCF file can also be gzip-compressed.
 
 
@@ -198,7 +200,7 @@ used to combine reads from multiple technologies. For example, if you have
 Nanopore reads in one BAM file and PacBio reads in another CRAM file, you can
 run the phasing like this::
 
-    whatshap phase -o phased.vcf input.vcf nanopore.bam pacbio.cram
+    whatshap phase -o phased.vcf --reference=reference.fasta input.vcf nanopore.bam pacbio.cram
 
 You need to make sure that read group information
 :ref:`is accurate in all files <input-data-requirements>`.
@@ -390,7 +392,7 @@ pedigree *and* the reads to infer a combined, much better phasing.
 
 To turn on pedigree mode, run WhatsHap like this::
 
-    whatshap phase --ped pedigree.ped -o phased.vcf input.vcf input.bam
+    whatshap phase --ped pedigree.ped --reference=reference.fasta -o phased.vcf input.vcf input.bam
 
 where ``pedigree.ped`` is a plink-compatible PED file to describe the
 relationships between samples and ``input.vcf`` is a multi-sample VCF
