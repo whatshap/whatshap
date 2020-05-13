@@ -309,6 +309,7 @@ def run_whatshap(
     write_command_line_header: bool = True,
     use_ped_samples: bool = False,
     algorithm: str = "whatshap",
+    linked_reads: bool = False,
 ) -> None:
     """
     Run WhatsHap.
@@ -375,6 +376,7 @@ def run_whatshap(
                 ignore_read_groups,
                 mapq_threshold=mapping_quality,
                 indels=indels,
+                linked=linked_reads,
             )
         )
         show_phase_vcfs = phased_input_reader.has_vcfs
@@ -1033,6 +1035,9 @@ def add_arguments(parser):
     arg("--merge-reads", dest="read_merging", default=False, action="store_true",
         help="Merge reads which are likely to come from the same haplotype "
         "(default: do not merge reads)")
+    arg("--linked-reads", default=False, action="store_true",
+        help="Treat reads that have the same BX tag value as coming from the same molecule. "
+             "Use this to phase data from 10X Chromium or similar technologies.")
     arg("--max-coverage", "-H", metavar="MAXCOV", type=int,
         dest="max_coverage_was_used", help=SUPPRESS)
     arg("--internal-downsampling", metavar="COVERAGE", dest="max_coverage", default=15, type=int,
