@@ -149,6 +149,8 @@ class ReadSetReader:
                 no_bx.append(read)
                 continue
             groups[(read.source_id, read.sample_id, read.BX_tag)].append(read)
+        logger.debug(f"Found {len(groups)} unique BX tag values")
+        logger.debug(f"Found {len(no_bx)} reads or read pairs without BX tag")
         for group in groups.values():
             yield from self._split_by_distance(group, max_distance)
 
@@ -179,10 +181,13 @@ class ReadSetReader:
         """
         if regions is None:
             regions = [(0, None)]
+        total = 0
+        usable = 0
         for s, e in regions:
             for alignment in self._reader.fetch(
                 reference=chromosome, sample=sample, start=s, end=e
             ):
+                total += 1
                 # TODO handle additional alignments correctly!
                 # find out why they are sometimes overlapping/redundant
                 if (
@@ -193,7 +198,9 @@ class ReadSetReader:
                     or alignment.bam_alignment.is_duplicate
                 ):
                     continue
+                usable += 1
                 yield alignment
+        logger.debug(f"{total} alignments in input file, {usable} remain after quality filtering")
 
     def has_reference(self, chromosome):
         return self._reader.has_reference(chromosome)
@@ -215,6 +222,7 @@ class ReadSetReader:
         else:
             normalized_variants = [variant.normalized() for variant in variants]
 
+        with_variants = 0
         i = 0  # index into variants
         for alignment in alignments:
             # Skip variants that are to the left of this read
@@ -255,6 +263,8 @@ class ReadSetReader:
                 read.add_variant(variants[j].position, allele, quality)
             if read:  # At least one variant covered and detected
                 yield read
+                with_variants += 1
+        logger.debug(f"Found {with_variants} alignments covering at least one variant")
 
     @staticmethod
     def detect_alleles(variants, j, bam_read):
