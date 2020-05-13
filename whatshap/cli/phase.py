@@ -956,6 +956,9 @@ def add_arguments(parser):
     arg("--reference", "-r", metavar="FASTA",
         help="Reference file. Provide this to detect alleles through re-alignment. "
             "If no index (.fai) exists, it will be created")
+    arg("--no-reference", action="store_true", default=False,
+        help="Detect alleles without requiring a reference, at the expense of phasing quality "
+             "(in particular for long reads)")
     arg("--tag", choices=("PS", "HP"), default="PS",
         help="Store phasing information with PS tag (standardized) or "
             "HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)")
@@ -1059,13 +1062,21 @@ def add_arguments(parser):
 
 
 def validate(args, parser):
+    if args.reference is None and not args.no_reference:
+        parser.error(
+            "A reference FASTA needs to be provided with -r/--reference; "
+            "or use --no-reference at the expense of phasing quality."
+        )
+    if args.reference is not None and args.no_reference:
+        parser.error("Options --reference and --no-reference cannot be used together")
     if args.ignore_read_groups and args.ped:
         parser.error("Option --ignore-read-groups cannot be used together with --ped")
     if args.genmap and not args.ped:
         parser.error("Option --genmap can only be used together with --ped")
     if args.genmap and (len(args.chromosomes) != 1):
         parser.error(
-            "Option --genmap can only be used when working on exactly one chromosome (use --chromosome)"
+            "Option --genmap can only be used when working on exactly one "
+            "chromosome (use --chromosome)"
         )
     if args.include_homozygous and not args.distrust_genotypes:
         parser.error("Option --include-homozygous can only be used with --distrust-genotypes.")
@@ -1089,4 +1100,5 @@ def validate(args, parser):
 
 def main(args):
     del args.max_coverage_was_used
+    del args.no_reference
     run_whatshap(**vars(args))

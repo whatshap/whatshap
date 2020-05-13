@@ -53,6 +53,13 @@ def teardown_module():
         os.remove(path + ".bai")
 
 
+def test_run_phase_without_reference():
+    from whatshap.__main__ import main
+
+    with raises(SystemExit):
+        main(["phase", "-o", "/dev/null", "tests/data/onevariant.vcf", "tests/data/oneread.bam"])
+
+
 def test_one_variant(algorithm):
     run_whatshap(
         phase_input_files=["tests/data/oneread.bam"],
