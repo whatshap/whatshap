@@ -102,7 +102,6 @@ class ReadMerger:
             begin = int(begin_str)
             end = begin + len(snps)
             orig_reads[id] = orgn
-            logger.debug("id: %s - pos: %s - snps: %s", id, begin, "".join(snps))
 
             gblue.add_node(id, begin=begin, end=end, sites="".join(snps))
             gnotblue.add_node(id, begin=begin, end=end, sites="".join(snps))
@@ -202,7 +201,6 @@ class ReadMerger:
                 superreads[r] = {}
                 for id in cc:
                     rep[id] = r
-                logger.debug("rep: %s - cc: %s", r, ",".join([str(id) for id in cc]))
 
         for id in orig_reads:
             if id in rep:
