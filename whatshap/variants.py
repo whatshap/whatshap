@@ -108,8 +108,19 @@ class ReadSetReader:
     @staticmethod
     def _make_readset_from_grouped_reads(groups: Iterable[List[Read]]) -> ReadSet:
         read_set = ReadSet()
+        names = set()
         for group in groups:
-            read_set.add(merge_reads(*group))
+            read = merge_reads(*group)
+            if read.name in names:
+                # Two reads can have the same name because linked reads are
+                # only grouped by BX tag value, not by name. That is, both the
+                # left and right read could start a read cloud. Since the name
+                # of the merged read resulting from a read cloud is the name
+                # of its leftmost read, this leads to a collision.
+                # This happens very rarely.
+                continue
+            read_set.add(read)
+            names.add(read.name)
         return read_set
 
     @staticmethod
