@@ -662,6 +662,12 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
 
     # Deallocate big datastructures, which are not needed anymore
     del similarities
+
+    # Add trailing isolated nodes to single-ton clusters, if missing
+    nodes_in_c = sum([len(c) for c in clustering])
+    for i in range(nodes_in_c, len(block_readset)):
+        clustering.append([i])
+
     timers.stop("solve_clusterediting")
 
     # Phase II: Threading
