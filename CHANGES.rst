@@ -5,7 +5,9 @@ Changes
 development version
 -------------------
 
-* The minimum required Python version for WhatsHap is now 3.6.
+* WhatsHap has gained initial support for phasing polyploid samples! While this feature may not be
+  quite ready for production use, we encourage you to test it by using the ``whatshap polyphase``
+  subcommand and to report any issues you find back to us.
 * :issue:`51`: Reading and writing VCF files is now significantly faster because we switched
   to a different library for that task (``pysam.VariantFile``).
 * The switch to ``pysam.VariantFile`` also makes WhatsHap stricter in which VCF files it accepts.
@@ -23,6 +25,7 @@ development version
   discarded (by default, they are part of the "untagged" output).
 * Fixed :issue:`215`. ``split`` subcommand can now process ``.bam`` files lacking the
   ``sequence`` field for some/all reads.
+* The minimum required Python version for WhatsHap is now 3.6.
 
 v0.18 (2019-02-15)
 ------------------
