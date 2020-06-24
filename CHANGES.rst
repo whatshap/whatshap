@@ -7,7 +7,8 @@ development version
 
 * WhatsHap has gained initial support for phasing polyploid samples! While this feature may not be
   quite ready for production use, we encourage you to test it by using the ``whatshap polyphase``
-  subcommand and to report any issues you find back to us.
+  subcommand and to report any issues you find back to us. See also the pre-print at
+  <https://doi.org/10.1101/2020.02.04.933523> for details.
 * :issue:`51`: Reading and writing VCF files is now significantly faster because we switched
   to a different library for that task (``pysam.VariantFile``).
 * The switch to ``pysam.VariantFile`` also makes WhatsHap stricter in which VCF files it accepts.

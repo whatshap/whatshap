@@ -53,3 +53,11 @@ pWhatsHap is currently not integrated into the main WhatsHap source code. It
 is available in
 `branch parallel <https://bitbucket.org/whatshap/whatshap/branch/parallel>`_
 in the Git repository.
+
+If you use the polyploid phasing algorithm (``whatshap polyphase``), please refer to
+
+    | Sven D. Schrinner, Rebecca Serra Mari, Jana Ebler, Mikko Rautiainen, Lancelot Seillier,
+    | Julia J. Reimer, Björn Usadel, Tobias Marschall, Gunnar W. Klau.
+    | *Haplotype Threading: Accurate Polyploid Phasing from Long Reads*
+    | bioRxiv
+    | doi: `10.1101/2020.02.04.933523 <https://doi.org/10.1101/2020.02.04.933523>`_
