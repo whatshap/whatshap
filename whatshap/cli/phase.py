@@ -54,7 +54,7 @@ from whatshap.pedigree import (
 from whatshap.timer import StageTimer
 from whatshap.utils import plural_s, warn_once
 from whatshap.cli import CommandLineError, log_memory_usage, PhasedInputReader
-from whatshap.merge import ReadMerger, DoNothingReadMerger, ReadMergerBase
+from whatshap.merge import ReadMerger, DoNothingReadMerger, ReadMergerBase, IdenticalReadMerger
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -357,12 +357,13 @@ def run_whatshap(
 
     read_merger: ReadMergerBase
     if read_merging:
-        read_merger = ReadMerger(
-            read_merging_error_rate,
-            read_merging_max_error_rate,
-            read_merging_positive_threshold,
-            read_merging_negative_threshold,
-        )
+        read_merger = IdenticalReadMerger()
+        # read_merger = ReadMerger(
+        #     read_merging_error_rate,
+        #     read_merging_max_error_rate,
+        #     read_merging_positive_threshold,
+        #     read_merging_negative_threshold,
+        # )
     else:
         read_merger = DoNothingReadMerger()
 
@@ -488,6 +489,26 @@ def run_whatshap(
                     family, include_homozygous, trios, variant_table
                 )
 
+                def search_for_variant(rs):
+                    return
+                    vc = 0
+                    for read in rs:
+                        for variant in read:
+                            if variant.position == 19862646:
+                                logger.debug(
+                                    f"Found the variant in read {read.name} {read.reference_start}"
+                                )
+                                prev = None
+                                for v in read:
+
+                                    logger.debug(
+                                        f"  {v.position} {v.allele} {v.quality} {v.position - prev if prev is not None else ''}"
+                                    )
+                                    prev = v.position
+                                vc += 1
+                                break
+                    logger.info(f"found variant in {vc} reads")
+
                 # Get the reads belonging to each sample
                 readsets = dict()  # TODO this could become a list
                 for sample in family:
@@ -502,6 +523,8 @@ def run_whatshap(
                         readset = readset.subset(
                             [i for i, read in enumerate(readset) if len(read) >= 2]
                         )
+                        search_for_variant(readset)
+
                         logger.info(
                             "Kept %d reads that cover at least two variants each", len(readset)
                         )
@@ -511,6 +534,7 @@ def run_whatshap(
                             max_coverage_per_sample,
                             preferred_source_ids=vcf_source_ids,
                         )
+                        search_for_variant(selected_reads)
 
                     readsets[sample] = selected_reads
                     if len(family) == 1 and not distrust_genotypes:
