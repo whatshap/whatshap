@@ -5,22 +5,24 @@ Changes
 development version
 -------------------
 
-* Fixed :issue:`51` by switching to ``pysam.VariantFile`` for reading and
-  VCF files.
-* Fixed :issue:`110`. ``.vcf.gz`` output files are now compressed with bgzip, so
-  that they can be indexed with tabix.
-* Support ``.bcf`` output.
-* Implemented ``--regions`` option for ``haplotag`` subcommand as suggested in :issue:`187`.
-  This change includes support for region-based selection of reads/variants in modules
-  ``variants::ReadSetReader`` and ``bam::SampleBamReader``.
-* Refactored ``haplotag`` subcommand module.
-* Implemented ``--discard-unknown-reads`` option for ``split`` subcommand. Reads that are in
-  the input reads file (BAM/FASTQ) but are not listed in the haplotag file will be
+* The minimum required Python version for WhatsHap is now 3.6.
+* :issue:`51`: Reading and writing VCF files is now significantly faster because we switched
+  to a different library for that task (``pysam.VariantFile``).
+* The switch to ``pysam.VariantFile`` also makes WhatsHap stricter in which VCF files it accepts.
+  We have tried to give sensible error messages in these cases, but please report any remaining
+  issues.
+* ``.bcf`` files can now be read and written.
+* :issue:`110`: ``.vcf.gz`` output files are now compressed with bgzip so that they can be
+  indexed with tabix.
+* Providing an indexed reference FASTA is now mandatory (with ``-r`` or ``--reference``). It
+  is possible to bypass this by using ``--no-reference``, but that will disable realignment and
+  therefore give worse phasing results on error-prone reads (PacBio, Nanopore).
+* :issue:`187`: Implemented a ``--regions`` option for the ``haplotag`` subcommand.
+* Implemented a ``--discard-unknown-reads`` option for the ``split`` subcommand. Reads that are in
+  the input reads file (BAM/FASTQ), but are not listed in the haplotag file will be
   discarded (by default, they are part of the "untagged" output).
-* Refactored ``split`` subcommand module.
 * Fixed :issue:`215`. ``split`` subcommand can now process ``.bam`` files lacking the
   ``sequence`` field for some/all reads.
-* The minimum required Python version is now 3.6.
 
 v0.18 (2019-02-15)
 ------------------
