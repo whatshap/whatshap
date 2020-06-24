@@ -2,8 +2,11 @@
 Changes
 =======
 
-development version
--------------------
+v1.0 (2020-06-24)
+-----------------
+
+WhatsHap has not seen a release in over a year although development has continued. To make up for
+it, we decided to leave `ZeroVer <https://0ver.org/>`_ behind and set the version number to 1.0.
 
 * WhatsHap has gained initial support for phasing polyploid samples! While this feature may not be
   quite ready for production use, we encourage you to test it by using the ``whatshap polyphase``
