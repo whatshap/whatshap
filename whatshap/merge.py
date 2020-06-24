@@ -1,4 +1,6 @@
 import logging
+import itertools
+from collections import defaultdict
 from math import log
 
 from networkx import (
@@ -9,7 +11,8 @@ from networkx import (
     node_connected_component,
     shortest_path,
 )
-from whatshap.core import Read, ReadSet
+from .core import Read, ReadSet
+from .variants import merge_reads
 
 logger = logging.getLogger(__name__)
 
@@ -245,6 +248,47 @@ class DoNothingReadMerger:
     @staticmethod
     def merge(readset):
         return readset
+
+
+class IdenticalReadMerger:
+    """Merge identical reads (supporting an identical set of variants)"""
+
+    @staticmethod
+    def merge(readset):
+        # This is annoying. I want SortedRead and SortedReadSet.
+        for read in readset:
+            assert read.is_sorted()
+        readset.sort()
+
+        logger.debug(f"Calling merge with {len(readset)} reads")
+        result = ReadSet()
+        for pos, group in itertools.groupby(readset, key=lambda r: r[0].position):
+            g = defaultdict(list)
+            for read in group:
+                key = tuple((variant.position, variant.allele) for variant in read)
+                g[key].append(read)
+            for identical_reads in g.values():
+                result.add(merge_reads(*identical_reads))
+        logger.debug(f"Merged readset contains {len(result)} reads")
+        return readset
+
+
+class SimplisticReadMerger:
+    """
+    Merge reads for which one supports a subset of the variants of the other, no conflicts allowed
+    """
+
+    @staticmethod
+    def merge(readset):
+        # This is annoying. I want SortedRead and SortedReadSet.
+        for read in readset:
+            assert read.is_sorted()
+        readset.sort()
+
+        logger.debug(f"Calling merge with {len(readset)} reads")
+        result = ReadSet()
+
+        return ...
 
 
 def eval_overlap(n1, n2):
