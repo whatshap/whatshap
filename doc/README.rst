@@ -20,8 +20,6 @@ WhatsHap is a software for phasing genomic variants using DNA sequencing
 reads, also called *read-based phasing* or *haplotype assembly*. It is
 especially suitable for long reads, but works also well with short reads.
 
-Please :ref:`cite us if you use WhatsHap <howtocite>`.
-
 
 Features
 ========
@@ -33,8 +31,8 @@ Features
   * Pedigree phasing mode uses reads from related individuals (such as trios)
     to improve results and to reduce coverage requirements
     (Garg et al., `Read-Based Phasing of Related Individuals <https://doi.org/10.1093/bioinformatics/btw276>`_).
-  * WhatsHap is :ref:`easy to install <installation>`
-  * It is :ref:`easy to use <user-guide>`: Pass in a VCF and one or more BAM files, get out a phased VCF.
+  * WhatsHap is easy to install
+  * It is easy to use: Pass in a VCF and one or more BAM files, get out a phased VCF.
     Supports multi-sample VCFs.
   * It produces standard-compliant VCF output by default
   * If desired, get output that is compatible with ReadBackedPhasing
