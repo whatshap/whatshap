@@ -1,6 +1,6 @@
 from collections import defaultdict
 import pysam
-from pytest import raises
+import pytest
 
 from whatshap.cli.haplotag import run_haplotag
 from whatshap.cli import CommandLineError
@@ -175,7 +175,7 @@ def test_haplotag_no_readgroups1(tmp_path):
 
 
 def test_haplotag_no_readgroups2():
-    with raises((CommandLineError, ValueError)):
+    with pytest.raises((CommandLineError, ValueError)):
         # VCF contains multiple samples, there should be an error
         run_haplotag(
             alignment_file="tests/data/haplotag_noRG.bam",
@@ -329,7 +329,7 @@ def test_haplotag_regions(tmp_path):
 
 
 def test_haplotag_nonexisting_region():
-    with raises(ValueError):
+    with pytest.raises(ValueError):
         run_haplotag(
             variant_file="tests/data/haplotag_1.vcf.gz",
             alignment_file="tests/data/haplotag.bam",
@@ -341,7 +341,7 @@ def test_haplotag_nonexisting_region():
 
 def test_haplotag_malformed_region_interval():
     # Region 2 has a start larger than the end
-    with raises(ValueError):
+    with pytest.raises(ValueError):
         run_haplotag(
             variant_file="tests/data/haplotag_1.vcf.gz",
             alignment_file="tests/data/haplotag.bam",
@@ -353,7 +353,7 @@ def test_haplotag_malformed_region_interval():
 
 def test_haplotag_malformed_input_format():
     # Region 2 uses colon twice as separator
-    with raises(ValueError):
+    with pytest.raises(ValueError):
         run_haplotag(
             variant_file="tests/data/haplotag_1.vcf.gz",
             alignment_file="tests/data/haplotag.bam",
