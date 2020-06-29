@@ -44,12 +44,18 @@ def test_haplotag(tmp_path):
     assert n == 20
 
 
-def test_haplotag2(tmp_path):
+@pytest.mark.parametrize(
+    "vcf_path",
+    [
+        "tests/data/haplotag_2.vcf.gz",
+        "tests/data/haplotag_with_csi_index.vcf.gz",
+        "tests/data/haplotag_2.bcf",
+    ],
+)
+def test_haplotag2(tmp_path, vcf_path):
     outbam = tmp_path / "output.bam"
     run_haplotag(
-        variant_file="tests/data/haplotag_2.vcf.gz",
-        alignment_file="tests/data/haplotag.bam",
-        output=outbam,
+        variant_file=vcf_path, alignment_file="tests/data/haplotag.bam", output=outbam,
     )
     ps_count = 0
     for alignment in pysam.AlignmentFile(outbam):
