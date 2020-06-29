@@ -285,14 +285,14 @@ def normalize_user_regions(user_regions, bam_references):
     return norm_regions
 
 
-def compute_variant_file_samples_to_use(vcf_reader, user_given_samples, ignore_read_groups):
+def compute_variant_file_samples_to_use(vcf_samples, user_given_samples, ignore_read_groups):
     """
     Open variant file and load sample information - check if samples in VCF are compatible
     with user specified list of samples.
 
     return iterable of VCF samples to use
     """
-    samples_in_vcf = set(vcf_reader.samples)
+    samples_in_vcf = set(vcf_samples)
     if len(samples_in_vcf) < 1:
         raise VcfError("No samples detected in VCF file; cannot perform haplotagging")
     logger.info("Found {} samples in input VCF".format(len(samples_in_vcf)))
@@ -482,7 +482,7 @@ def run_haplotag(
             raise err
 
         use_vcf_samples = compute_variant_file_samples_to_use(
-            vcf_reader, given_samples, ignore_read_groups
+            vcf_reader.samples, given_samples, ignore_read_groups
         )
 
         try:
