@@ -184,8 +184,8 @@ def test_haplotag_no_readgroups2():
     with pytest.raises((CommandLineError, ValueError)):
         # VCF contains multiple samples, there should be an error
         run_haplotag(
-            alignment_file="tests/data/haplotag_noRG.bam",
             variant_file="tests/data/haplotag_noRG.vcf.gz",
+            alignment_file="tests/data/haplotag_noRG.bam",
             output="/dev/null",
             ignore_read_groups=True,
         )
