@@ -138,7 +138,7 @@ def load_chromosome_variants(vcf_reader, chromosome, regions):
     """
     try:
         logger.debug("Loading variants from {} distinct region(s)".format(len(regions)))
-        variant_table = vcf_reader._fetch_subsets(chromosome, regions)
+        variant_table = vcf_reader.fetch_regions(chromosome, regions)
         logger.debug(
             "Loaded {} variants for chromosome {} in VCF".format(len(variant_table), chromosome)
         )
@@ -147,9 +147,6 @@ def load_chromosome_variants(vcf_reader, chromosome, regions):
         # an OSError at this point?
         logger.error(str(err))
         raise err
-    except ValueError:
-        logger.debug("No variants found for chromosome {} in the input VCF.".format(chromosome))
-        variant_table = None
     return variant_table
 
 
@@ -489,8 +486,9 @@ def run_haplotag(
         try:
             vcf_reader = stack.enter_context(VcfReader(variant_file, indels=True, phases=True))
         except OSError as err:
-            logger.error("Error while loading variant file {}: {}".format(variant_file, err))
-            raise err
+            raise CommandLineError(
+                "Error while loading variant file {}: {}".format(variant_file, err)
+            )
 
         use_vcf_samples = compute_variant_file_samples_to_use(
             vcf_reader.samples, given_samples, ignore_read_groups
@@ -501,8 +499,9 @@ def run_haplotag(
                 pysam.AlignmentFile(alignment_file, "rb", require_index=True)
             )
         except OSError as err:
-            logger.error("Error while loading alignment file {}: {}".format(alignment_file, err))
-            raise err
+            raise CommandLineError(
+                "Error while loading alignment file {}: {}".format(alignment_file, err)
+            )
         # This checks also sample compatibility with VCF
         shared_samples = compute_shared_samples(bam_reader, ignore_read_groups, use_vcf_samples)
 
@@ -534,10 +533,22 @@ def run_haplotag(
 
         for chrom, regions in user_regions.items():
             logger.debug("Processing chromosome {}".format(chrom))
-            variant_table = load_chromosome_variants(vcf_reader, chrom, regions)
+
+            # If there are no alignments for this chromosome, skip it. This allows to have
+            # extra chromosomes in the BAM compared to the VCF as long as they are not actually
+            # used.
+            has_any_alignments = False
+            for _ in bam_reader.fetch(contig=chrom):
+                has_any_alignments = True
+                break
+            if not has_any_alignments:
+                continue
+            try:
+                variant_table = load_chromosome_variants(vcf_reader, chrom, regions)
+            except VcfError as e:
+                raise CommandLineError(str(e))
             if variant_table is not None:
                 logger.debug("Preparing haplotype information")
-
                 (BX_tag_to_haplotype, read_to_haplotype, n_mult) = prepare_haplotag_information(
                     variant_table,
                     shared_samples,

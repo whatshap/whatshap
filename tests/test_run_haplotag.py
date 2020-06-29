@@ -1,4 +1,5 @@
 from collections import defaultdict
+import shutil
 import pysam
 import pytest
 
@@ -66,6 +67,16 @@ def test_haplotag2(tmp_path, vcf_path):
             true_ht = int(alignment.query_name[-1])
             assert true_ht == alignment.get_tag("HP")
     assert ps_count > 0
+
+
+def test_haplotag_fails_if_index_missing(tmp_path):
+    outbam = tmp_path / "output.bam"
+    vcf_path = tmp_path / "vcf_without_index.vcf.gz"
+    shutil.copy("tests/data/haplotag_1.vcf.gz", vcf_path)
+    with pytest.raises(CommandLineError):
+        run_haplotag(
+            variant_file=vcf_path, alignment_file="tests/data/haplotag.bam", output=outbam,
+        )
 
 
 def test_haplotag_cli_parser(tmp_path):

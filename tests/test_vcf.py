@@ -10,6 +10,7 @@ from whatshap.vcf import (
     VariantCallPhase,
     VcfVariant,
     GenotypeLikelihoods,
+    VcfIndexMissing,
 )
 from whatshap.testhelpers import (
     canonic_index_to_biallelic_gt,
@@ -327,8 +328,8 @@ def test_genotype_likelihoods():
 
 def test_read_region():
     vcf_reader = VcfReader("tests/data/haplotag_1.vcf.gz")
-    tableA = vcf_reader._fetch("chr1")
-    tableB = vcf_reader._fetch("chr1", 1069570, 1079880)
+    tableA = vcf_reader.fetch("chr1")
+    tableB = vcf_reader.fetch("chr1", 1069570, 1079880)
     assert tableA.chromosome == tableB.chromosome
     assert len(tableA.variants) == len(tableB.variants)
 
@@ -336,7 +337,7 @@ def test_read_region():
 def test_read_region_subsets():
     regions = [(1069570, 1070690), (1074910, 1076152)]
     vcf_reader = VcfReader("tests/data/haplotag_1.vcf.gz", indels=True)
-    table = vcf_reader._fetch_subsets("chr1", regions)
+    table = vcf_reader.fetch_regions("chr1", regions)
     assert table.chromosome == "chr1"
     assert len(table.variants) == 8
     assert table.variants[5].reference_allele == "CG"
@@ -444,3 +445,13 @@ def test_inconsistent_ploidy_phased():
     except PloidyError:
         return
     assert False
+
+
+def test_vcf_without_index(tmp_path):
+    vcf_path = tmp_path / "file.vcf.gz"
+    import shutil
+
+    shutil.copy("tests/data/haplotag_1.vcf.gz", vcf_path)
+    with raises(VcfIndexMissing):
+        with VcfReader(vcf_path) as vr:
+            list(vr.fetch("chr1"))

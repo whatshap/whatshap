@@ -33,6 +33,14 @@ class PloidyError(VcfError):
     pass
 
 
+class VcfIndexMissing(VcfError):
+    pass
+
+
+class VcfInvalidChromosome(VcfError):
+    pass
+
+
 class VcfVariant:
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
@@ -346,10 +354,11 @@ class VcfReader:
         # TODO Always include deletions since they can 'overlap' other variants
         self._indels = indels
         self._vcf_reader = VariantFile(path)
+        self._path = path
         self._phases = phases
         self._genotype_likelihoods = genotype_likelihoods
-        self.samples = list(self._vcf_reader.header.samples)  # intentionally public
         self._ignore_genotypes = ignore_genotypes
+        self.samples = list(self._vcf_reader.header.samples)  # intentionally public
         self.ploidy = ploidy
         logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
@@ -368,24 +377,37 @@ class VcfReader:
         return self._vcf_reader.filename.decode()
 
     def _fetch(self, chromosome: str, start=0, end=None):
+        try:
+            records = self._vcf_reader.fetch(chromosome, start=start, stop=end)
+        except ValueError as e:
+            if "invalid contig" in e.args[0]:
+                raise VcfInvalidChromosome(e.args[0]) from None
+            elif "fetch requires an index" in e.args[0]:
+                raise VcfIndexMissing(
+                    "{} is missing an index (.tbi or .csi)".format(self._path)
+                ) from None
+            else:
+                raise
+        return records
+
+    def fetch(self, chromosome: str, start=0, end=None):
         """
-        Return VariantTable object for a given chromosome.
+        Fetch records from a single chromosome, optionally restricted to a single region.
+
+        Return a VariantTable object.
         """
-        records = list(self._vcf_reader.fetch(chromosome, start=start, stop=end))
+        records = list(self._fetch(chromosome, start=start, end=end))
         return self._process_single_chromosome(chromosome, records)
 
-    def _fetch_subsets(self, chromosome, regions):
+    def fetch_regions(self, chromosome: str, regions):
         """
-        Return VariantTable object for a given chromosome
-        restricted to a subset of regions for that chromosome
+        Fetch records from a single chromosome that overlap the given regions.
 
-        :param chromosome:
-        :param regions: a list of start,end tuples (end can be None)
-        :return:
+        :param regions: a list of start, end tuples (end can be None)
         """
         records = []
         for start, end in regions:
-            records.extend(list(self._vcf_reader.fetch(chromosome, start=start, stop=end)))
+            records.extend(list(self._fetch(chromosome, start=start, end=end)))
         return self._process_single_chromosome(chromosome, records)
 
     def __iter__(self):
