@@ -180,6 +180,7 @@ else:
         "biopython>=1.73",  # pyfaidx needs this for reading bgzipped FASTA files
         "scipy",
         "xopen",
+        "dataclasses; python_version<'3.7'",
     ]
 
 setup(
