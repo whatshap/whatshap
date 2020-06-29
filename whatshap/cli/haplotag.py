@@ -269,28 +269,38 @@ class Region:
     start: int
     end: int
 
+    def __repr__(self):
+        return f'Region("{self.chromosome}", {self.start}, {self.end})'
+
     @staticmethod
     def parse(spec: str):
-        parts = spec.split(":")
-        if len(parts) == 1:
-            # assume single chromosome
-            chrom, start, end = parts[0], 0, None
-        elif len(parts) == 2:
-            # region from start to end of chromosome
-            chrom, start, end = parts[0], int(parts[1]), None
-        elif len(parts) == 3:
-            start, end = int(parts[1]), int(parts[2])
-            if end <= start:
-                raise ValueError(
-                    "Malformed region detected: "
-                    "end must be larger than start: {} >= {}".format(start, end)
-                )
-            chrom, start, end = parts[0], int(parts[1]), int(parts[2])
+        """
+        >>> Region.parse("chr1")
+        Region("chr1", 0, None)
+        >>> Region.parse("chr1:")
+        Region("chr1", 0, None)
+        >>> Region.parse("chr1:101")
+        Region("chr1", 100, None)
+        >>> Region.parse("chr1:101-")
+        Region("chr1", 100, None)
+        >>> Region.parse("chr1:101-200")
+        Region("chr1", 100, 200)
+        """
+        parts = spec.split(":", maxsplit=1)
+        chromosome = parts[0]
+        if len(parts) == 1 or not parts[1]:
+            start, end = 0, None
         else:
-            raise ValueError(
-                "Malformed region specified (must be: chrom[:start[:end]]) -> {}".format(spec)
-            )
-        return Region(chrom, start, end)
+            try:
+                start_end = parts[1].split("-", maxsplit=1)
+                start = int(start_end[0]) - 1
+                if len(start_end) == 1 or not start_end[1]:
+                    end = None
+                else:
+                    end = int(start_end[1])
+            except ValueError:
+                raise ValueError("Region must be specified as chrom[:start[-end]])") from None
+        return Region(chromosome, start, end)
 
 
 def compute_variant_file_samples_to_use(vcf_samples, user_given_samples, ignore_read_groups):

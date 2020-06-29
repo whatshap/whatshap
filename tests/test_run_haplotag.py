@@ -391,7 +391,7 @@ def test_haplotag_selected_regions(tmp_path):
         alignment_file="tests/data/haplotag.bam",
         haplotag_list=outlist,
         output=outbam,
-        regions=["chr1:{}:{}".format(start1, end1), "chr1:{}".format(start2)],
+        regions=["chr1:{}-{}".format(start1, end1), "chr1:{}".format(start2)],
     )
 
     var_region1 = set()
