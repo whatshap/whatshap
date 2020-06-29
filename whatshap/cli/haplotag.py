@@ -11,6 +11,7 @@ import pysam
 import hashlib
 from collections import defaultdict
 from typing import List
+from dataclasses import dataclass
 
 from xopen import xopen
 
@@ -254,35 +255,45 @@ def normalize_user_regions(user_regions, bam_references):
             norm_regions[reference].append((0, None))
     else:
         bam_references = set(bam_references)
-        for region in user_regions:
-            parts = region.split(":")
-            if len(parts) == 1:
-                # assume single chromosome
-                chrom, start, end = parts[0], 0, None
-            elif len(parts) == 2:
-                # region from start to end of chromosome
-                chrom, start, end = parts[0], int(parts[1]), None
-            elif len(parts) == 3:
-                start, end = int(parts[1]), int(parts[2])
-                if end <= start:
-                    raise ValueError(
-                        "Malformed region detected: "
-                        "end must be larger than start: {} >= {}".format(start, end)
-                    )
-                chrom, start, end = parts[0], int(parts[1]), int(parts[2])
-            else:
-                raise ValueError(
-                    "Malformed region specified (must be: chrom[:start][:end]) -> {}".format(region)
-                )
-            logger.debug("Normalized region {} to {}-{}-{}".format(region, chrom, start, end))
-            if chrom not in bam_references:
+        for region_spec in user_regions:
+            region = Region.parse(region_spec)
+            if region.chromosome not in bam_references:
                 raise ValueError(
                     "Specified chromosome/reference is not contained "
-                    "in input BAM file: {}".format(chrom)
+                    "in input BAM file: {}".format(region.chromosome)
                 )
-            norm_regions[chrom].append((start, end))
-
+            norm_regions[region.chromosome].append((region.start, region.end))
     return norm_regions
+
+
+@dataclass
+class Region:
+    chromosome: str
+    start: int
+    end: int
+
+    @staticmethod
+    def parse(spec: str):
+        parts = spec.split(":")
+        if len(parts) == 1:
+            # assume single chromosome
+            chrom, start, end = parts[0], 0, None
+        elif len(parts) == 2:
+            # region from start to end of chromosome
+            chrom, start, end = parts[0], int(parts[1]), None
+        elif len(parts) == 3:
+            start, end = int(parts[1]), int(parts[2])
+            if end <= start:
+                raise ValueError(
+                    "Malformed region detected: "
+                    "end must be larger than start: {} >= {}".format(start, end)
+                )
+            chrom, start, end = parts[0], int(parts[1]), int(parts[2])
+        else:
+            raise ValueError(
+                "Malformed region specified (must be: chrom[:start[:end]]) -> {}".format(spec)
+            )
+        return Region(chrom, start, end)
 
 
 def compute_variant_file_samples_to_use(vcf_samples, user_given_samples, ignore_read_groups):
