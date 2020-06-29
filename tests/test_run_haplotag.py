@@ -144,7 +144,7 @@ def test_haplotag_missing_SM_tag(tmp_path):
 def test_haplotag_missing_chromosome(tmp_path):
     outbam = tmp_path / "output.bam"
 
-    # input BAM contains a chromosom for which there is no variant in the input VCF
+    # input BAM contains a chromosome for which there is no variant in the input VCF
     run_haplotag(
         variant_file="tests/data/haplotag.missing_chr.vcf.gz",
         alignment_file="tests/data/haplotag.large.bam",
