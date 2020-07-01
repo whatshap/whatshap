@@ -96,7 +96,7 @@ def get_variant_information(variant_table: VariantTable, sample: str):
 
 
 def attempt_add_phase_information(
-    alignment, read_to_haplotype, bxtag_to_haplotype, linked_read_cutoff
+    alignment, read_to_haplotype, bxtag_to_haplotype, linked_read_cutoff, ignore_linked_read
 ):
     """
     :param alignment:
@@ -117,7 +117,7 @@ def attempt_add_phase_information(
         is_tagged = 1
     except KeyError:
         # check if reads with same tag have been assigned
-        if alignment.has_tag("BX"):
+        if alignment.has_tag("BX") and not ignore_linked_read:
             read_clouds = bxtag_to_haplotype[alignment.get_tag("BX")]
             for (reference_start, haplotype, phaseset) in read_clouds:
                 if abs(reference_start - alignment.reference_start) <= linked_read_cutoff:
@@ -157,6 +157,7 @@ def prepare_haplotag_information(
     regions,
     ignore_linked_read,
     linked_read_cutoff,
+    ingore_linked_read,
 ):
     """
     Read all reads for this chromosome once to create one core.ReadSet per sample.
@@ -170,15 +171,17 @@ def prepare_haplotag_information(
     for sample in shared_samples:
         variantpos_to_phaseinfo, variants = get_variant_information(variant_table, sample)
         read_set, _ = phased_input_reader.read(
-            variant_table.chromosome, variants, sample, regions=regions,
+            variant_table.chromosome, variants, sample, regions=regions
         )
 
         # map BX tag to list of reads
         bx_tag_to_readlist = defaultdict(list)
         for read in read_set:
-            if read.has_BX_tag():
+            if read.has_BX_tag() and not ignore_linked_read:
                 bx_tag_to_readlist[read.BX_tag].append(read)
-
+            if read.has_BX_tag() and not ignore_linked_read:
+                bx_tag_to_readlist[read.BX_tag].append(read)
+        # all reads processed so far
         processed_reads = set()
         for read in read_set:
             if read.name in processed_reads:
@@ -566,6 +569,7 @@ def run_haplotag(
                     regions,
                     ignore_linked_read,
                     linked_read_distance_cutoff,
+                    ignore_linked_read,
                 )
                 n_multiple_phase_sets += n_mult
             else:
@@ -594,6 +598,7 @@ def run_haplotag(
                             read_to_haplotype,
                             BX_tag_to_haplotype,
                             linked_read_distance_cutoff,
+                            ignore_linked_read,
                         )
                         n_tagged += is_tagged
 
