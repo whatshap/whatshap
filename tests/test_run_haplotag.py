@@ -55,9 +55,7 @@ def test_haplotag(tmp_path):
 )
 def test_haplotag2(tmp_path, vcf_path):
     outbam = tmp_path / "output.bam"
-    run_haplotag(
-        variant_file=vcf_path, alignment_file="tests/data/haplotag.bam", output=outbam,
-    )
+    run_haplotag(variant_file=vcf_path, alignment_file="tests/data/haplotag.bam", output=outbam)
     ps_count = 0
     for alignment in pysam.AlignmentFile(outbam):
         if alignment.has_tag("PS"):
@@ -74,9 +72,7 @@ def test_haplotag_fails_if_index_missing(tmp_path):
     vcf_path = tmp_path / "vcf_without_index.vcf.gz"
     shutil.copy("tests/data/haplotag_1.vcf.gz", vcf_path)
     with pytest.raises(CommandLineError):
-        run_haplotag(
-            variant_file=vcf_path, alignment_file="tests/data/haplotag.bam", output=outbam,
-        )
+        run_haplotag(variant_file=vcf_path, alignment_file="tests/data/haplotag.bam", output=outbam)
 
 
 def test_haplotag_cli_parser(tmp_path):
@@ -94,7 +90,7 @@ def test_haplotag_cli_parser(tmp_path):
     haplotag_add_arguments(parser)
     haplotag_args = vars(
         parser.parse_args(
-            ["--output", str(outbam), "tests/data/haplotag_2.vcf.gz", "tests/data/haplotag.bam",]
+            ["--output", str(outbam), "tests/data/haplotag_2.vcf.gz", "tests/data/haplotag.bam"]
         )
     )
     run_haplotag(**haplotag_args)
@@ -247,14 +243,14 @@ def test_haplotag_10X(tmp_path):
         output=outbam,
     )
     # map BX tag --> readlist
-    BX_tag_to_readlist = defaultdict(list)
+    bx_tag_to_readlist = defaultdict(list)
     for alignment in pysam.AlignmentFile(outbam):
         if alignment.has_tag("BX") and alignment.has_tag("HP"):
-            BX_tag_to_readlist[alignment.get_tag("BX")].append(alignment)
+            bx_tag_to_readlist[alignment.get_tag("BX")].append(alignment)
     # reads having same BX tag need to be assigned to same haplotype
-    for tag in BX_tag_to_readlist.keys():
-        haplotype = BX_tag_to_readlist[tag][0].get_tag("HP")
-        for read in BX_tag_to_readlist[tag]:
+    for tag in bx_tag_to_readlist.keys():
+        haplotype = bx_tag_to_readlist[tag][0].get_tag("HP")
+        for read in bx_tag_to_readlist[tag]:
             assert haplotype == read.get_tag("HP")
 
 
@@ -266,11 +262,43 @@ def test_haplotag_10X_2(tmp_path):
         output=outbam,
     )
     for a1, a2 in zip(
-        pysam.AlignmentFile("tests/data/haplotag.10X.bam"), pysam.AlignmentFile(outbam),
+        pysam.AlignmentFile("tests/data/haplotag.10X.bam"), pysam.AlignmentFile(outbam)
     ):
         assert a1.query_name == a2.query_name
         if a1.has_tag("HP") and a2.has_tag("HP"):
             assert a1.get_tag("HP") == a2.get_tag("HP")
+
+
+def test_haplotag_10X_ignore_linked_read(tmp_path):
+    outbam_links = tmp_path / "with_links.bam"
+    outbam_nolinks = tmp_path / "no_links.bam"
+    run_haplotag(
+        variant_file="tests/data/haplotag.10X.vcf.gz",
+        alignment_file="tests/data/haplotag.10X_3.bam",
+        output=outbam_links,
+    )
+    run_haplotag(
+        variant_file="tests/data/haplotag.10X.vcf.gz",
+        alignment_file="tests/data/haplotag.10X_3.bam",
+        output=outbam_nolinks,
+        ignore_linked_read=True,
+    )
+    expected_links = {"read1": [1, 4], "read2": [1, 4], "read3": [1, 11], "read4": [1, 11]}
+    expected_no_links = {"read1": [2, 66], "read2": [1, 70], "read3": [2, 55], "read4": [1, 66]}
+    for a1, a2 in zip(pysam.AlignmentFile(outbam_links), pysam.AlignmentFile(outbam_nolinks)):
+        assert a1.query_name == a2.query_name
+        name = a1.query_name
+        if name == "read5":
+            # read5 assigned according to other reads with same BX tag
+            assert a1.has_tag("HP")
+            assert a1.get_tag("HP") == 1
+            # using --ignore-linked-read, read5 must be untagged
+            assert not a2.has_tag("HP")
+        else:
+            assert a1.get_tag("HP") == expected_links[name][0]
+            assert a1.get_tag("PC") == expected_links[name][1]
+            assert a2.get_tag("HP") == expected_no_links[name][0]
+            assert a2.get_tag("PC") == expected_no_links[name][1]
 
 
 def test_haplotag_supplementary(tmp_path):
