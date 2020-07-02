@@ -44,9 +44,9 @@ master_doc = "index"
 
 
 # General information about the project.
-authors = u"Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
+authors = u"Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin and WhatsHap contributors"
 project = u"whatshap"
-copyright = u"2014-2019, " + authors
+copyright = u"2014-2020, " + authors
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
