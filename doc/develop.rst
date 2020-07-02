@@ -34,7 +34,7 @@ If you are using `Bioconda <https://bioconda.github.io/>`_, it is convenient to 
 
     conda create -n whatshap-dev python=3.6 pysam PyVCF pyfaidx xopen Cython pytest sphinx-issues
     source activate whatshap-dev
-    git clone https://bitbucket.org/whatshap/whatshap
+    git clone git@github.com:whatshap/whatshap.git
     cd whatshap
     pip install -e .
 
