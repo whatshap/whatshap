@@ -1,8 +1,7 @@
 .. image:: https://img.shields.io/pypi/v/whatshap.svg?branch=master
     :target: https://pypi.python.org/pypi/whatshap
 
-.. image:: https://semaphoreci.com/api/v1/whatshap/whatshap/branches/master/shields_badge.svg
-    :target: https://semaphoreci.com/whatshap/whatshap
+.. image:: https://github.com/whatshap/whatshap/workflows/CI/badge.svg
 
 .. image:: https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg
     :target: http://bioconda.github.io/recipes/whatshap/README.html
