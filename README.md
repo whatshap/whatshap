@@ -1,5 +1,5 @@
 [![PyPI](https://img.shields.io/pypi/v/whatshap.svg)](https://pypi.python.org/pypi/whatshap)
-[![Build Status](https://github.com/whatshap/whatshap/workflows/CI/badge.svg)
+![CI](https://github.com/whatshap/whatshap/workflows/CI/badge.svg)
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg)](http://bioconda.github.io/recipes/whatshap/README.html)
 
 ![WhatsHap logo](https://bitbucket.org/repo/8AjxBd/images/543323972-whatshap_logo.png)
