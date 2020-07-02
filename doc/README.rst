@@ -9,7 +9,7 @@
 
 |
 
-.. image:: https://bitbucket.org/repo/8AjxBd/images/543323972-whatshap_logo.png
+.. image:: https://github.com/whatshap/whatshap/raw/master/logo/whatshap_logo.png
 
 |
 
@@ -42,7 +42,7 @@ Features
 Documentation
 -------------
 
-* `Bitbucket page <https://bitbucket.org/whatshap/whatshap/>`_
+* `GitHub repository <https://github.com/whatshap/whatshap/>`_
 * `Read the documentation online <https://whatshap.readthedocs.io/>`_.
   Offline documentation is available in the ``doc/`` subdirectory in the
   repository and in the downloaded tar distribution.
@@ -50,4 +50,4 @@ Documentation
 
 Issue tracker
 -------------
-Please do not hesitate to use our `issue tracker <https://bitbucket.org/whatshap/whatshap/issues>`_ for bug reports and feature requests.
+Please do not hesitate to use our `issue tracker <https://github.com/whatshap/whatshap/issues>`_ for bug reports and feature requests.

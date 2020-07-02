@@ -1,7 +1,7 @@
 Developing
 ==========
 
-The `WhatsHap source code is on Bitbucket <https://bitbucket.org/whatshap/whatshap/>`_.
+The `WhatsHap source code is on GitHub <https://github.com/whatshap/whatshap/>`_.
 WhatsHap is developed in Python 3, Cython and C++.
 
 
@@ -9,9 +9,11 @@ Development installation
 ------------------------
 
 For development, make sure that you install Cython and tox. We also recommend
-using a virtualenv. This sequence of commands should work::
+using a virtualenv. This sequence of commands should work (use
+``https://github.com/whatshap/whatshap.git`` as URL if you do not have a
+GitHub account)::
 
-    git clone https://bitbucket.org/whatshap/whatshap
+    git clone git@github.com:whatshap/whatshap.git
     cd whatshap
     python3 -m venv venv
     source venv/bin/activate
@@ -155,18 +157,17 @@ Documentation is located in the ``doc/`` subdirectory. It is written in
 and is translated by `Sphinx <http://www.sphinx-doc.org/>`_ into HTML format.
 
 Documentation is hosted on `Read the Docs <https://readthedocs.org/>`_.
-In theory, it is built automatically whenever a commit is made. The documentation in the
-``master`` branch should be visible at `https://whatshap.readthedocs.io/en/latest/ <https://whatshap.readthedocs.io/en/latest/>`_
-and documentation for the most recent released version should be visible at `https://whatshap.readthedocs.io/en/stable/ <https://whatshap.readthedocs.io/en/stable/>`_.
-However, the connection between Bitbucket and Read the Docs has never worked
-well in this particular project, so builds actually need to be triggered manually
-until we have solved this problem.
+It is built automatically whenever a commit is made. The documentation in the
+``master`` branch should be visible at
+`https://whatshap.readthedocs.io/en/latest/ <https://whatshap.readthedocs.io/en/latest/>`_
+and documentation for the most recent released version should be visible at
+`https://whatshap.readthedocs.io/en/stable/ <https://whatshap.readthedocs.io/en/stable/>`_.
 
-To generate documentation locally, ensure that you installed sphinx and add-ons
-necessary to build documantation (running ``pip install -e .[dev]`` will take
-care of this). Then go into the ``doc/`` directory and run ``make``. You can
+To generate documentation locally, ensure that you installed sphinx and the
+add-ons necessary to build documentation (running ``pip install -e .[dev]`` will
+take care of this). Then go into the ``doc/`` directory and run ``make``. You can
 then open ``doc/_build/html/index.html`` in your browser. The theme that is
-used is a bit different from the one the Read the Docs uses.
+used is a bit different from the one used on Read the Docs.
 
 
 Making a release

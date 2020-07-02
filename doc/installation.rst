@@ -59,7 +59,7 @@ versions you may have installed in other locations remain unaffected. ::
 
     python3 -m venv whatshap-env
     whatshap-env/bin/pip install --upgrade pip
-    whatshap-env/bin/pip install git+https://bitbucket.org/whatshap/whatshap
+    whatshap-env/bin/pip install git+https://github.com/whatshap/whatshap
 
 You can then run WhatsHap like this::
 
