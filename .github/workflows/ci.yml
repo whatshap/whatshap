@@ -9,6 +9,16 @@ jobs:
     strategy:
       matrix:
         python-version: [3.6, 3.7, 3.8]
+        toxenv: [py]
+        include:
+        - python-version: 3.7
+          toxenv: flake8
+        - python-version: 3.7
+          toxenv: docs
+        - python-version: 3.7
+          toxenv: twinecheck
+        - python-version: 3.7
+          toxenv: black
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -21,4 +31,4 @@ jobs:
         python -m pip install tox
     - name: Test with tox
       run: |
-        tox -e py
+        tox -e ${{ matrix.toxenv }}
