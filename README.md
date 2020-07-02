@@ -2,7 +2,7 @@
 ![CI](https://github.com/whatshap/whatshap/workflows/CI/badge.svg)
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg)](http://bioconda.github.io/recipes/whatshap/README.html)
 
-![WhatsHap logo](https://bitbucket.org/repo/8AjxBd/images/543323972-whatshap_logo.png)
+![WhatsHap logo](https://github.com/whatshap/whatshap/raw/master/logo/whatshap_logo.png)
 
 WhatsHap is a software for phasing genomic variants using DNA sequencing
 reads, also called *read-based phasing* or *haplotype assembly*. It is
