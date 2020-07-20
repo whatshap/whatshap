@@ -622,6 +622,7 @@ PREDEFINED_FORMATS = {
     "HP": VcfHeader("FORMAT", "HP", ".", "String", "Phasing haplotype identifier"),
     "PQ": VcfHeader("FORMAT", "PQ", 1, "Float", "Phasing quality"),
     "PS": VcfHeader("FORMAT", "PS", 1, "Integer", "Phase set identifier"),
+    "HS": VcfHeader("FORMAT", "HS", ".", "Integer", "Haploid phase set identifier"),
 }
 
 PREDEFINED_INFOS = {
@@ -759,7 +760,9 @@ GenotypeChange = namedtuple(
 
 
 class VcfAugmenter(ABC):
-    def __init__(self, in_path, command_line, out_file=sys.stdout):
+    def __init__(
+        self, in_path, command_line, out_file=sys.stdout, include_haploid_phase_sets=False
+    ):
         """
         in_path -- Path to input VCF, used as template.
         command_line -- A string that will be added as a VCF header entry
@@ -770,6 +773,9 @@ class VcfAugmenter(ABC):
         """
         # TODO This is slow because it reads in the entire VCF one extra time
         contigs, formats, infos = missing_headers(in_path)
+        # TODO It would actually look nicer if the custom HS header was directly below PS
+        if include_haploid_phase_sets and "HS" not in formats:
+            formats.append("HS")
         # We repair the header (adding missing contigs, formats, infos) of the *input* VCF because
         # we will modify the records that we read, and these are associated with the input file.
         self._reader = VariantFile(in_path)
@@ -824,7 +830,15 @@ class PhasedVcfWriter(VcfAugmenter):
     multi-sample VCFs.
     """
 
-    def __init__(self, in_path, command_line, out_file=sys.stdout, tag="PS", ploidy=2):
+    def __init__(
+        self,
+        in_path,
+        command_line,
+        out_file=sys.stdout,
+        tag="PS",
+        ploidy=2,
+        include_haploid_sets=False,
+    ):
         """
         in_path -- Path to input VCF, used as template.
         command_line -- A string that will be added as a VCF header entry
@@ -837,7 +851,7 @@ class PhasedVcfWriter(VcfAugmenter):
             raise ValueError('Tag must be either "HP" or "PS"')
         self.tag = tag
         self.ploidy = ploidy
-        super().__init__(in_path, command_line, out_file)
+        super().__init__(in_path, command_line, out_file, include_haploid_sets)
         self._phase_tag_found_warned = False
         self._set_phasing_tags = self._set_HP if tag == "HP" else self._set_PS
 
@@ -861,7 +875,7 @@ class PhasedVcfWriter(VcfAugmenter):
         assert all(allele in [0, 1] for allele in phase)
         call["HP"] = ",".join("{}-{}".format(component + 1, allele + 1) for allele in phase)
 
-    def _set_PS(self, call, component, phase):
+    def _set_PS(self, call, component, phase, haploid_component=None):
         """
         values -- tag dict to update
         component -- name of the component
@@ -870,9 +884,13 @@ class PhasedVcfWriter(VcfAugmenter):
         assert all(allele in [0, 1] for allele in phase)
         call["PS"] = component + 1
         call["GT"] = phase
+        if haploid_component:
+            call["HS"] = [comp + 1 for comp in haploid_component]
         call.phased = True
 
-    def write(self, chromosome: str, sample_superreads, sample_components):
+    def write(
+        self, chromosome: str, sample_superreads, sample_components, sample_haploid_components=None
+    ):
         """
         Add phasing information to all variants on a single chromosome.
 
@@ -936,6 +954,9 @@ class PhasedVcfWriter(VcfAugmenter):
                 for sample in sample_superreads:
                     call = record.samples[sample]
                     components = sample_components[sample]
+                    haploid_components = (
+                        sample_haploid_components[sample] if sample_haploid_components else None
+                    )
                     phases = sample_phases[sample]
                     genotypes = sample_genotypes[sample]
 
@@ -963,7 +984,18 @@ class PhasedVcfWriter(VcfAugmenter):
                         )
                         is_het = not genotypes[pos].is_homozygous()
 
-                    if pos in components and pos in phases and is_het:
+                    if (
+                        pos in components
+                        and pos in phases
+                        and is_het
+                        and haploid_components
+                        and pos in haploid_components
+                        and len(haploid_components[pos]) == self.ploidy
+                    ):
+                        self._set_phasing_tags(
+                            call, components[pos], phases[pos], haploid_components[pos]
+                        )
+                    elif pos in components and pos in phases and is_het:
                         self._set_phasing_tags(call, components[pos], phases[pos])
                     else:
                         # Unphased

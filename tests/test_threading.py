@@ -223,14 +223,18 @@ def test_cut_positions():
     cuts3 = compute_cut_positions(path, 3, 12)
     cuts4 = compute_cut_positions(path, 4, 12)
     cuts5 = compute_cut_positions(path, 5, 12)
-    cuts6 = compute_cut_positions(path, 6, 12)
 
-    assert cuts1 == [0]
-    assert cuts2 == [0]
-    assert cuts3 == [0, 4, 11]
-    assert cuts4 == [0, 4, 9, 11]
-    assert cuts5 == [0, 2, 4, 5, 7, 8, 9, 11, 12]
-    assert cuts6 == cuts5
+    assert cuts1[0] == [0]
+    assert cuts2[0] == [0]
+    assert cuts3[0] == [0, 4, 11]
+    assert cuts4[0] == [0, 4, 9, 11]
+    assert cuts5[0] == [0, 2, 4, 5, 7, 8, 9, 11, 12]
+
+    assert cuts1[1] == [[0], [0], [0], [0]]
+    assert cuts2[1] == [[0], [0], [0], [0]]
+    assert cuts3[1] == [[0, 4], [0, 4], [0, 11], [0, 11]]
+    assert cuts4[1] == [[0, 4], [0, 4], [0, 9, 11], [0, 9, 11]]
+    assert cuts5[1] == [[0, 4, 5, 8, 12], [0, 4, 12], [0, 2, 9, 11], [0, 7, 9, 11]]
 
 
 def test_multiswitch_improvement():
