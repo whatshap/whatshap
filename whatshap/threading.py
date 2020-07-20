@@ -35,11 +35,8 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
         readset, clustering, num_vars, coverage, cov_map, consensus, ploidy, genotypes
     )
 
-    # determine cut positions
-    num_clusters = len(clustering)
-    cut_positions = compute_cut_positions(path, block_cut_sensitivity, num_clusters)
-
     # we can look at the sequences again to use the most likely continuation, when two or more clusters switch at the same position
+    num_clusters = len(clustering)
     c_to_c_global = compute_cluster_to_cluster_similarity(
         readset, clustering, index, consensus, cov_map
     )
@@ -48,7 +45,12 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
     # we can look at the sequences again to use the most likely continuation, when a haplotype leaves a collapsed cluster (currently inactive)
     path = improve_path_on_collapsedswitches(path, num_clusters, c_to_c_global)
 
+    # determine cut positions
+    cut_positions, haploid_cuts = compute_cut_positions(path, block_cut_sensitivity, num_clusters)
+
     logger.debug("Cut positions: {}".format(cut_positions))
+    for i in range(ploidy):
+        logger.debug("Cut positions on phase {}: {}".format(i, haploid_cuts[i]))
 
     # compute haplotypes
     haplotypes = []
@@ -64,7 +66,7 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
                 alleles_as_strings.append(str(allele))
         haplotypes.append(hap.join(alleles_as_strings))
 
-    return (cut_positions, path, haplotypes)
+    return (cut_positions, haploid_cuts, path, haplotypes)
 
 
 def compute_threading_path(
@@ -132,15 +134,19 @@ def compute_cut_positions(path, block_cut_sensitivity, num_clusters):
          the current block and hap wants to leave, we do not need a cut, since it does not matter which haps leaves. Default option.
     5 -- Cut every time a haplotype switches clusters. Most conservative, but also very short blocks.
 
-    The list of cut positions contains the first position of every block. Therefore, position 0 is always in the cut list.
+    The list of cut positions contains the first position of every block. Therefore, position 0 is always in the cut list. The second
+    return value is a list of cut positions for every haplotype individually.
     """
 
     cut_positions = [0]
+    haploid_cut_positions = []
 
     if len(path) == 0:
         return cut_positions
 
     ploidy = len(path[0])
+    haploid_cut_positions = [[0] for _ in range(ploidy)]
+
     dissim_threshold = 1
     rise_fall_dissim = 0
     if block_cut_sensitivity >= 3:
@@ -171,10 +177,12 @@ def compute_cut_positions(path, block_cut_sensitivity, num_clusters):
 
         for i in range(1, len(path)):
             dissim = 0
+            clusters_cut = set()
             for j in range(0, ploidy):
                 old_c = path[i - 1][j]
                 new_c = path[i][j]
                 if old_c != new_c:
+                    clusters_cut.add(old_c)
                     rise_fall = False
                     # check if previous cluster went down from copy number >= 2 to a smaller one >= 1
                     if copynrs[i - 1][old_c] > copynrs[i][old_c] >= 1:
@@ -193,7 +201,13 @@ def compute_cut_positions(path, block_cut_sensitivity, num_clusters):
             if dissim >= dissim_threshold:
                 cpn_rising = [False for c_id in range(num_clusters)]
                 cut_positions.append(i)
-    return cut_positions
+
+                # get all cut threads
+                threads_cut = [j for j in range(ploidy) if path[i - 1][j] in clusters_cut]
+                for thread in threads_cut:
+                    haploid_cut_positions[thread].append(i)
+
+    return cut_positions, haploid_cut_positions
 
 
 def compute_cluster_to_cluster_similarity(readset, clustering, index, consensus, cov_map):
