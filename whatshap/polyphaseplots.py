@@ -11,14 +11,55 @@ from whatshap.cli.compare import compute_switch_flips_poly_bt
 This class is exclusively used for debugging and development.
 """
 
+logger = logging.getLogger(__name__)
+
+
+def draw_plots(
+    block_readsets,
+    clustering,
+    threading,
+    haplotypes,
+    cut_positions,
+    genotype_list_multi,
+    phasable_variant_table,
+    plot_clusters,
+    plot_threading,
+    output,
+):
+    # Plot options
+    logger.info("Generating plots ...")
+    combined_readset = ReadSet()
+    for block_readset in block_readsets:
+        for read in block_readset:
+            combined_readset.add(read)
+    if plot_clusters:
+        draw_clustering(
+            combined_readset,
+            clustering,
+            phasable_variant_table,
+            output + ".clusters.pdf",
+            genome_space=False,
+        )
+    if plot_threading:
+        index, rev_index = get_position_map(combined_readset)
+        coverage = get_coverage(combined_readset, clustering, index)
+        draw_threading(
+            combined_readset,
+            clustering,
+            coverage,
+            threading,
+            cut_positions,
+            haplotypes,
+            phasable_variant_table,
+            genotype_list_multi,
+            output + ".threading.pdf",
+        )
+
 
 """
 This method only works for a test dataset, for which the true haplotype of read was encoded
 into its name. For any other read name, it just returns -1 for unknown haplotype
 """
-
-
-logger = logging.getLogger(__name__)
 
 
 def parse_haplotype(name):
@@ -32,6 +73,10 @@ def parse_haplotype(name):
             return 2
         elif tokens[-2] == "NA19240" and tokens[-1] == "HAP2":
             return 3
+        elif tokens[-2] == "HG00733" and tokens[-1] == "HAP1":
+            return 4
+        elif tokens[-2] == "HG00733" and tokens[-1] == "HAP2":
+            return 5
     except:
         pass
     return -1

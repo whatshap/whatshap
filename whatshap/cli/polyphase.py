@@ -16,6 +16,7 @@ from collections import namedtuple
 from copy import deepcopy
 from scipy.stats import binom_test
 from queue import Queue
+from multiprocessing import Pool
 
 from contextlib import ExitStack
 
@@ -30,7 +31,7 @@ from whatshap.core import (
     scoreReadsetLocal,
 )
 from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
-from whatshap.polyphaseplots import draw_clustering, draw_threading
+from whatshap.polyphaseplots import draw_plots
 from whatshap.threading import (
     run_threading,
     get_local_cluster_consensus_withfrac,
@@ -56,6 +57,7 @@ PhasingParameter = namedtuple(
         "block_cut_sensitivity",
         "plot_clusters",
         "plot_threading",
+        "threads",
     ],
 )
 
@@ -101,6 +103,7 @@ def run_polyphase(
     plot_threading=False,
     ce_refinements=5,
     block_cut_sensitivity=4,
+    threads=1,
 ):
     """
     Run Polyploid Phasing.
@@ -204,6 +207,7 @@ def run_polyphase(
             block_cut_sensitivity=block_cut_sensitivity,
             plot_clusters=plot_clusters,
             plot_threading=plot_threading,
+            threads=threads,
         )
 
         timers.start("parse_vcf")
@@ -252,13 +256,14 @@ def run_polyphase(
                         len(missing_genotypes),
                     )
                     logger.info(
-                        "Number of remaining heterozygous variants: %d", len(phasable_variant_table)
+                        "Number of remaining heterozygous variants: %d",
+                        len(phasable_variant_table),
                     )
 
                     # Get the reads belonging to this sample
                     timers.start("read_bam")
                     readset, vcf_source_ids = phased_input_reader.read(
-                        chromosome, phasable_variant_table.variants, sample
+                        chromosome, phasable_variant_table.variants, sample,
                     )
                     readset.sort()
                     timers.stop("read_bam")
@@ -301,7 +306,7 @@ def run_polyphase(
 
                         # Re-read the readset to remove discarded variants
                         readset, vcf_source_ids = phased_input_reader.read(
-                            chromosome, phasable_variant_table.variants, sample
+                            chromosome, phasable_variant_table.variants, sample,
                         )
                         readset.sort()
                         timers.stop("verify_genotypes")
@@ -310,7 +315,9 @@ def run_polyphase(
                     readset = readset.subset(
                         [i for i, read in enumerate(readset) if len(read) >= max(2, min_overlap)]
                     )
-                    logger.info("Kept %d reads that cover at least two variants each", len(readset))
+                    logger.info(
+                        "Kept %d reads that cover at least two variants each", len(readset),
+                    )
 
                     # Adapt the variant table to the subset of reads
                     phasable_variant_table.subset_rows_by_position(readset.get_positions())
@@ -352,33 +359,48 @@ def run_polyphase(
     logger.info("\n== SUMMARY ==")
 
     log_memory_usage()
-    logger.info("Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"))
-    logger.info("Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"))
+    logger.info(
+        "Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"),
+    )
+    logger.info(
+        "Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"),
+    )
     if verify_genotypes:
         logger.info(
             "Time spent verifying genotypes:              %6.1f s",
             timers.elapsed("verify_genotypes"),
         )
     logger.info(
-        "Time spent detecting blocks:                 %6.1f s", timers.elapsed("detecting_blocks")
+        "Time spent detecting blocks:                 %6.1f s", timers.elapsed("detecting_blocks"),
     )
-    logger.info(
-        "Time spent scoring reads:                    %6.1f s", timers.elapsed("read_scoring")
-    )
-    logger.info(
-        "Time spent solving cluster editing:          %6.1f s",
-        timers.elapsed("solve_clusterediting"),
-    )
-    logger.info("Time spent threading haplotypes:             %6.1f s", timers.elapsed("threading"))
+    if threads == 1:
+        logger.info(
+            "Time spent scoring reads:                    %6.1f s", timers.elapsed("read_scoring"),
+        )
+        logger.info(
+            "Time spent solving cluster editing:          %6.1f s",
+            timers.elapsed("solve_clusterediting"),
+        )
+        logger.info(
+            "Time spent threading haplotypes:             %6.1f s", timers.elapsed("threading"),
+        )
+    else:
+        logger.info(
+            "Time spent phasing blocks:                   %6.1f s", timers.elapsed("phase_blocks"),
+        )
     if plot_clusters or plot_threading:
         logger.info(
-            "Time spent creating plots:                   %6.1f s", timers.elapsed("create_plots")
+            "Time spent creating plots:                   %6.1f s", timers.elapsed("create_plots"),
         )
-    logger.info("Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"))
     logger.info(
-        "Time spent on rest:                          %6.1f s", timers.total() - timers.sum()
+        "Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"),
     )
-    logger.info("Total elapsed time:                          %6.1f s", timers.total())
+    logger.info(
+        "Time spent on rest:                          %6.1f s", timers.total() - timers.sum(),
+    )
+    logger.info(
+        "Total elapsed time:                          %6.1f s", timers.total(),
+    )
 
 
 def phase_single_individual(readset, phasable_variant_table, sample, phasing_param, output, timers):
@@ -435,29 +457,85 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
         block_num_vars = block_end - block_start
 
         assert len(block_readset.get_positions()) == block_num_vars
+        genotype_slices.append(genotype_list[block_start:block_end])
 
-        if block_num_vars > 1:
-            # Only print for non-singleton block
-            processed_non_singleton_blocks += 1
-            logger.info(
-                "Processing block {} of {} with {} reads and {} variants.".format(
-                    processed_non_singleton_blocks,
-                    num_non_singleton_blocks,
-                    len(block_readset),
-                    block_num_vars,
+    processed_non_singleton_blocks = 0
+    # use process pool for multiple threads
+    if phasing_param.threads == 1:
+        # for single-threading, process everything individually to minimize memory footprint
+        for block_id, block_readset in enumerate(block_readsets):
+            block_num_vars = ext_block_starts[block_id + 1] - ext_block_starts[block_id]
+            if block_num_vars > 1:
+                # Only print for non-singleton block
+                processed_non_singleton_blocks += 1
+                logger.info(
+                    "Processing block {} of {} with {} reads and {} variants.".format(
+                        processed_non_singleton_blocks,
+                        num_non_singleton_blocks,
+                        len(block_readset),
+                        block_num_vars,
+                    )
                 )
-            )
 
-        genotype_slice = genotype_list[block_start:block_end]
-        clustering, path, haplotypes, cut_positions, haploid_cuts = phase_single_block(
-            block_readset, genotype_slice, phasing_param, timers
-        )
+	    clustering, path, haplotypes, cut_positions, haploid_cuts = phase_single_block(
+	        block_readset, genotype_slices[block_id], phasing_param, timers
+	    )
 
-        blockwise_clustering.append(clustering)
-        blockwise_paths.append(path)
-        blockwise_haplotypes.append(haplotypes)
-        blockwise_cut_positions.append(cut_positions)
-        blockwise_haploid_cuts.append(haploid_cuts)
+	    blockwise_clustering.append(clustering)
+	    blockwise_paths.append(path)
+	    blockwise_haplotypes.append(haplotypes)
+	    blockwise_cut_positions.append(cut_positions)
+	    blockwise_haploid_cuts.append(haploid_cuts)
+
+    else:
+        # sort block readsets in descending order by number of reads
+        joblist = [(i, len(block_readsets[i])) for i in range(len(block_readsets))]
+        joblist.sort(key=lambda x: -x[1])
+
+        timers.start("phase_blocks")
+
+        # process large jobs first, 4/3-approximation for scheduling problem
+        with Pool(processes=phasing_param.threads) as pool:
+            """
+            TODO: The way the block readsets are processed is ugly, but it is very tough
+            to actually do it right. Python's multiprocessing makes hard copies of the passed
+            arguments, but this is not trivial for cython objects, especially when they
+            contain pointers to other cython objects. Therefore, every partial readset is
+            converted into some python structure and immediately unpacked inside the job, creaing
+            some memory overhead.
+            One better way could be to share the main readset between processes and create the
+            partial readsets in the jobs as well. If this is possible without duplicating the
+            main readset, it would be the most memory efficient solution.
+            """
+            process_results = [
+                pool.apply_async(
+                    phase_single_block_mt,
+                    (
+                        pythonize_readset(block_readsets[block_id]),
+                        genotype_slices[block_id],
+                        phasing_param,
+                        timers,
+                        block_id,
+                        job_id,
+                        num_non_singleton_blocks,
+                    ),
+                )
+                for job_id, (block_id, block_readset) in enumerate(joblist)
+            ]
+            blockwise_results = [res.get() for res in process_results]
+
+            # reorder results again
+            blockwise_results.sort(key=lambda x: x[-1])
+
+            # collect all blockwise results
+            for (clustering, path, haplotypes, cut_positions, haploid_cuts, block_id) in blockwise_results:
+                blockwise_clustering.append(clustering)
+                blockwise_paths.append(path)
+                blockwise_haplotypes.append(haplotypes)
+                blockwise_cut_positions.append(cut_positions)
+                blockwise_haploid_cuts.append(haploid_cuts)
+
+        timers.stop("phase_blocks")
 
     # Aggregate blockwise results
     clustering, threading, haplotypes, cut_positions, haploid_cuts = aggregate_phasing_blocks(
@@ -516,7 +594,8 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
             cut_positions,
             genotype_list,
             phasable_variant_table,
-            phasing_param,
+            phasing_param.plot_clusters,
+            phasing_param.plot_threading,
             output,
         )
         timers.stop("create_plots")
@@ -586,6 +665,34 @@ def split_readset(readset, ext_block_starts, index):
                 read_slice.add_variant(variant.position, variant.allele, variant.quality)
             block_readsets[current_block].add(read_slice)
     return block_readsets
+
+
+def pythonize_readset(readset):
+    """
+    Converts a readset into a native Python data structure, which can be copied between multiple
+    CPU processes. Is only needed, when doing multithreading on the phase_single_block
+    function.
+    """
+    readlist = []
+    for read in readset:
+        readlist.append(
+            (read.name, read.source_id, [(var.position, var.allele, var.quality) for var in read])
+        )
+    return readlist
+
+
+def unpythonize_readset(python_readset):
+    """
+    Unpacks a pythonized readset back into a cython ReadSet. Can only be used in combination
+    with pythonized_readset().
+    """
+    readset = ReadSet()
+    for read in python_readset:
+        cread = Read(name=read[0], source_id=read[1])
+        for var in read[-1]:
+            cread.add_variant(var[0], var[1], var[2])
+        readset.add(cread)
+    return readset
 
 
 def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
@@ -704,45 +811,29 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
     return clustering, path, haplotypes, cut_positions, haploid_cuts
 
 
-def draw_plots(
-    block_readsets,
-    clustering,
-    threading,
-    haplotypes,
-    cut_positions,
-    genotype_list_multi,
-    phasable_variant_table,
-    phasing_param,
-    output,
+def phase_single_block_mt(
+    python_readset, genotype_slice, phasing_param, timers, block_id, job_id, num_blocks
 ):
-    # Plot options
-    logger.info("Generating plots ...")
-    combined_readset = ReadSet()
-    for block_readset in block_readsets:
-        for read in block_readset:
-            combined_readset.add(read)
-    if phasing_param.plot_clusters:
-        draw_clustering(
-            combined_readset,
-            clustering,
-            phasable_variant_table,
-            output + ".clusters.pdf",
-            genome_space=False,
+    """
+    Wrapper for the phase_single_block() function. Carries a block_id through to the results
+    and unpythonizes the given readset, because cython objects are very troublesome to hardcopy.
+    """
+    block_readset = unpythonize_readset(python_readset)
+    block_vars = len(block_readset.get_positions())
+    if block_vars > 1:
+        logger.info(
+            "Phasing block {} of {} with {} reads and {} variants.".format(
+                job_id + 1, num_blocks, len(python_readset), block_vars
+            )
         )
-    if phasing_param.plot_threading:
-        index, rev_index = get_position_map(combined_readset)
-        coverage = get_coverage(combined_readset, clustering, index)
-        draw_threading(
-            combined_readset,
-            clustering,
-            coverage,
-            threading,
-            cut_positions,
-            haplotypes,
-            phasable_variant_table,
-            genotype_list_multi,
-            output + ".threading.pdf",
-        )
+    clustering, path, haplotypes, cut_positions, haploid_cuts = phase_single_block(
+        block_readset, genotype_slice, phasing_param, timers
+    )
+    del block_readset
+    del python_readset
+    if block_vars > 1:
+        logger.info("Finished block {}.".format(job_id + 1))
+    return clustering, path, haplotypes, cut_positions, block_id
 
 
 def aggregate_phasing_blocks(
@@ -1064,6 +1155,14 @@ def add_arguments(parser):
         type=int,
         default=4,
         help="Strategy to determine block borders. 0 yields the longest blocks with more switch errors, 5 has the shortest blocks with lowest switch error rate (default: %(default)s).",
+    )
+    arg(
+        "--threads",
+        "-t",
+        metavar="THREADS",
+        type=int,
+        default=1,
+        help="Maximum number of CPU threads used (default: %(default)s).",
     )
 
     # more arguments, which are experimental or for debugging and should not be presented to the user
