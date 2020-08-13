@@ -157,7 +157,7 @@ def run_polyphase(
 
         vcf_reader = stack.enter_context(
             VcfReader(
-                variant_file, indels=indels, phases=True, genotype_likelihoods=False, ploidy=ploidy
+                variant_file, indels=indels, phases=True, genotype_likelihoods=False, ploidy=ploidy,
             )
         )
 
@@ -331,10 +331,12 @@ def run_polyphase(
 
                 with timers("write_vcf"):
                     logger.info("======== Writing VCF")
-                    if include_haploid_sets:
-                        vcf_writer.write(chromosome, superreads, components, haploid_components)
-                    else:
-                        vcf_writer.write(chromosome, superreads, components)
+                    vcf_writer.write(
+                        chromosome,
+                        superreads,
+                        components,
+                        haploid_components if include_haploid_sets else None,
+                    )
                     # TODO: Use genotype information to polish results
                     # assert len(changed_genotypes) == 0
                     logger.info("Done writing VCF")
@@ -479,10 +481,8 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
         for pos in range(ext_cuts[i], ext_cuts[i + 1]):
             components[accessible_positions[pos]] = accessible_positions[ext_cuts[i]]
             components[accessible_positions[pos] + 1] = accessible_positions[ext_cuts[i]]
-            haploid_components[accessible_positions[pos]] = [0 for _ in range(phasing_param.ploidy)]
-            haploid_components[accessible_positions[pos] + 1] = [
-                0 for _ in range(phasing_param.ploidy)
-            ]
+            haploid_components[accessible_positions[pos]] = [0] * phasing_param.ploidy
+            haploid_components[accessible_positions[pos] + 1] = [0] * phasing_param.ploidy
 
     for j in range(phasing_param.ploidy):
         ext_cuts = haploid_cuts[j] + [num_vars]
@@ -1006,7 +1006,7 @@ def add_arguments(parser):
         "--include-haploid-sets",
         default=False,
         action="store_true",
-        help="Includes the phase set information for every single haplotype in a custom VCF format field 'HS'.",
+        help="Include the phase set information for every single haplotype in a custom VCF format field 'HS'.",
     )
     arg(
         "--sample",
