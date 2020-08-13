@@ -45,7 +45,6 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
     # we can look at the sequences again to use the most likely continuation, when a haplotype leaves a collapsed cluster (currently inactive)
     path = improve_path_on_collapsedswitches(path, num_clusters, c_to_c_global)
 
-    # determine cut positions
     cut_positions, haploid_cuts = compute_cut_positions(path, block_cut_sensitivity, num_clusters)
 
     logger.debug("Cut positions: {}".format(cut_positions))
@@ -198,8 +197,9 @@ def compute_cut_positions(path, block_cut_sensitivity, num_clusters):
                     # count general switches
                     dissim += 1
 
+            # TODO: Avoid deep indentation by using functions
             if dissim >= dissim_threshold:
-                cpn_rising = [False for c_id in range(num_clusters)]
+                cpn_rising = [False] * num_clusters
                 cut_positions.append(i)
 
                 # get all cut threads

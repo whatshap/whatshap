@@ -866,7 +866,7 @@ class PhasedVcfWriter(VcfAugmenter):
 
         header.add_line(PREDEFINED_FORMATS[self.tag].line())
 
-    def _set_HP(self, call, component, phase):
+    def _set_HP(self, call, component, phase, haploid_component=None):
         """
         values -- tag dict to update
         component -- name of the component
@@ -874,6 +874,8 @@ class PhasedVcfWriter(VcfAugmenter):
         """
         assert all(allele in [0, 1] for allele in phase)
         call["HP"] = ",".join("{}-{}".format(component + 1, allele + 1) for allele in phase)
+        if haploid_component:
+            call["HS"] = [comp + 1 for comp in haploid_component]
 
     def _set_PS(self, call, component, phase, haploid_component=None):
         """
@@ -984,19 +986,17 @@ class PhasedVcfWriter(VcfAugmenter):
                         )
                         is_het = not genotypes[pos].is_homozygous()
 
-                    if (
-                        pos in components
-                        and pos in phases
-                        and is_het
-                        and haploid_components
-                        and pos in haploid_components
-                        and len(haploid_components[pos]) == self.ploidy
-                    ):
+                    if pos in components and pos in phases and is_het:
                         self._set_phasing_tags(
-                            call, components[pos], phases[pos], haploid_components[pos]
+                            call,
+                            components[pos],
+                            phases[pos],
+                            haploid_components[pos]
+                            if haploid_components
+                            and pos in haploid_components
+                            and len(haploid_components[pos]) == self.ploidy
+                            else None,
                         )
-                    elif pos in components and pos in phases and is_het:
-                        self._set_phasing_tags(call, components[pos], phases[pos])
                     else:
                         # Unphased
                         call[self.tag] = None
