@@ -272,6 +272,8 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
                 for (NodeId u : cliques[k]) {
                     if (found) break;
                     for (NodeId v : moreThanOneCliques[l]) {
+                        if (u == v)
+                            continue;
                         if (graph.getWeight(Edge(u, v)) == StaticSparseGraph::Forbidden) {
                             found = true;
                             break;
