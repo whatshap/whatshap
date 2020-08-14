@@ -106,7 +106,9 @@ def compute_threading_path(
         compressed_consensus.append(consensus_list)
 
     # run threader
-    threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, True, 0)
+    threader = HaploThreader(
+        ploidy, switch_cost, affine_switch_cost, True, 16 * 2 ** ploidy if ploidy > 6 else 0
+    )
     path = threader.computePathsBlockwise(
         [0], cov_map, compressed_coverage, compressed_consensus, genotypes
     )
