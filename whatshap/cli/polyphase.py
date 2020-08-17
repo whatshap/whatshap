@@ -511,7 +511,7 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
                 pool.apply_async(
                     phase_single_block_mt,
                     (
-                        pythonize_readset(block_readsets[block_id]),
+                        block_readsets[block_id],
                         genotype_slices[block_id],
                         phasing_param,
                         timers,
@@ -667,34 +667,6 @@ def split_readset(readset, ext_block_starts, index):
     return block_readsets
 
 
-def pythonize_readset(readset):
-    """
-    Converts a readset into a native Python data structure, which can be copied between multiple
-    CPU processes. Is only needed, when doing multithreading on the phase_single_block
-    function.
-    """
-    readlist = []
-    for read in readset:
-        readlist.append(
-            (read.name, read.source_id, [(var.position, var.allele, var.quality) for var in read])
-        )
-    return readlist
-
-
-def unpythonize_readset(python_readset):
-    """
-    Unpacks a pythonized readset back into a cython ReadSet. Can only be used in combination
-    with pythonized_readset().
-    """
-    readset = ReadSet()
-    for read in python_readset:
-        cread = Read(name=read[0], source_id=read[1])
-        for var in read[-1]:
-            cread.add_variant(var[0], var[1], var[2])
-        readset.add(cread)
-    return readset
-
-
 def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
     """
     Takes as input data the reads from a single (pre-computed) block and the genotypes for all variants inside the block.
@@ -812,25 +784,23 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
 
 
 def phase_single_block_mt(
-    python_readset, genotype_slice, phasing_param, timers, block_id, job_id, num_blocks
+    block_readset, genotype_slice, phasing_param, timers, block_id, job_id, num_blocks
 ):
     """
     Wrapper for the phase_single_block() function. Carries a block_id through to the results
     and unpythonizes the given readset, because cython objects are very troublesome to hardcopy.
     """
-    block_readset = unpythonize_readset(python_readset)
     block_vars = len(block_readset.get_positions())
     if block_vars > 1:
         logger.info(
             "Phasing block {} of {} with {} reads and {} variants.".format(
-                job_id + 1, num_blocks, len(python_readset), block_vars
+                job_id + 1, num_blocks, len(block_readset), block_vars
             )
         )
     clustering, path, haplotypes, cut_positions, haploid_cuts = phase_single_block(
         block_readset, genotype_slice, phasing_param, timers
     )
     del block_readset
-    del python_readset
     if block_vars > 1:
         logger.info("Finished block {}.".format(job_id + 1))
     return clustering, path, haplotypes, cut_positions, block_id
