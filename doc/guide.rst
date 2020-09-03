@@ -79,13 +79,13 @@ WhatsHap comes with the following subcommands.
 ========== ===================================================
 Subcommand Description
 ========== ===================================================
-phase      Phase variants in a VCF with the WhatsHap algorithm
+phase      Phase diploid variants
+polyphase  Phase polyploid variants
 stats      Print phasing statistics
 compare    Compare two or more phasings
 hapcut2vcf Convert hapCUT output format to VCF
 unphase    Remove phasing information from a VCF file
 haplotag   Tag reads by haplotype
-haplofasta Write haplotypes in FASTA format from a phased VCF
 genotype   Genotype variants
 ========== ===================================================
 
