@@ -2,6 +2,14 @@
 Changes
 =======
 
+development version
+-------------------
+
+* :issue:`223`: Fix ``haplotag --ignore-linked-reads`` not working
+* :issue:`241`: Fix some ``polyphase`` problems.
+* :issue:`249`: Fix crash in the ``haplotag`` command on reading a VCF with the
+  ``PS`` tag set to ``.``.
+
 v1.0 (2020-06-24)
 -----------------
 
