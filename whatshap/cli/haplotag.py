@@ -157,7 +157,6 @@ def prepare_haplotag_information(
     regions,
     ignore_linked_read,
     linked_read_cutoff,
-    ingore_linked_read,
 ):
     """
     Read all reads for this chromosome once to create one core.ReadSet per sample.
@@ -569,7 +568,6 @@ def run_haplotag(
                     regions,
                     ignore_linked_read,
                     linked_read_distance_cutoff,
-                    ignore_linked_read,
                 )
                 n_multiple_phase_sets += n_mult
             else:
