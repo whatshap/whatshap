@@ -363,7 +363,7 @@ def test_read_tetraploid_unphased():
     for genotype in table.genotypes[0]:
         print(genotype)
     print("Exp:")
-    for genotypte in canonic_index_list_to_biallelic_gt_list([3, 2, 0, 3, 3, 1, 1, 1]):
+    for genotype in canonic_index_list_to_biallelic_gt_list([3, 2, 0, 3, 3, 1, 1, 1]):
         print(genotype)
     assert table.genotypes[0] == canonic_index_list_to_biallelic_gt_list(
         [3, 2, 0, 3, 3, 1, 1, 1], 4
