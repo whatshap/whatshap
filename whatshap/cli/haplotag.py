@@ -84,7 +84,7 @@ def get_variant_information(variant_table: VariantTable, sample: str):
     vpos_to_phase_info = dict()
     variants = []
     for idx, (v, gt) in enumerate(zip(variant_table.variants, genotypes)):
-        if phases[idx] is None:
+        if phases[idx] is None or phases[idx].block_id is None:
             continue
         # assuming ploidy = 2
         phase_info = int(phases[idx].block_id), phases[idx].phase[0]

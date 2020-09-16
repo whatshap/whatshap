@@ -329,7 +329,7 @@ def test_genotype_likelihoods():
 def test_read_region():
     vcf_reader = VcfReader("tests/data/haplotag_1.vcf.gz")
     tableA = vcf_reader.fetch("chr1")
-    tableB = vcf_reader.fetch("chr1", 1069570, 1079880)
+    tableB = vcf_reader.fetch("chr1", 1_069_570, 1_080_000)
     assert tableA.chromosome == tableB.chromosome
     assert len(tableA.variants) == len(tableB.variants)
 
