@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 def add_arguments(parser):
     arg = parser.add_argument
     arg('-o', '--output',
-        default=None,
+        default="/dev/stdout",
         help='Output file. If omitted, use standard output.')
     arg('--reference', '-r', metavar='FASTA',
         help='Reference file. Provide this to detect alleles through re-alignment. '
@@ -193,7 +193,7 @@ def prepare_haplotag_information(
 
             # reads with same BX tag need to be considered too (unless --ignore-linked-read is set)
             if read.has_BX_tag() and not ignore_linked_read:
-                for r in bx_tag_to_readlist[read.BX_tag]:
+                for r in bx_tag_to_readlist[read.BX_tafg]:
                     if r.name not in processed_reads:
                         # only select reads close to current one
                         if abs(read.reference_start - r.reference_start) <= linked_read_cutoff:
