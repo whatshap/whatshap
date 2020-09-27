@@ -193,7 +193,7 @@ def prepare_haplotag_information(
 
             # reads with same BX tag need to be considered too (unless --ignore-linked-read is set)
             if read.has_BX_tag() and not ignore_linked_read:
-                for r in bx_tag_to_readlist[read.BX_tafg]:
+                for r in bx_tag_to_readlist[read.BX_tag]:
                     if r.name not in processed_reads:
                         # only select reads close to current one
                         if abs(read.reference_start - r.reference_start) <= linked_read_cutoff:
