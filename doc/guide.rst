@@ -499,6 +499,57 @@ will contain the two haplotypes.
     reference FASTA.
 
 
+``whatshap stats``
+==================
+
+The ``stats`` subcommand prints phasing statistics for a single VCF file::
+
+    whatshap stats input.vcf
+
+
+Writing haplotype blocks in TSV format
+--------------------------------------
+
+With option ``--block-list=filename.tsv``, a file in tab-separated value
+format (TSV) is created with the haplotype blocks, one block per line.
+The columns are:
+sample, chromosome, phase_set, from, to, variants.
+
+phase_set
+    value of the PS tag of this block
+
+from
+    1-based starting position of the leftmost variant in this block
+
+to
+    1-based starting position of the rightmost variant in this block
+
+variants
+    Number of variants in this block
+
+This output format does not allow you to see interleaved haplotype blocks. Use
+`--gtf`` instead if you need this information.
+
+As an example, assume the input is this VCF::
+
+    #CHROM POS ID REF ALT ... FORMAT sample
+    ref    2   .  A   C   ... GT     0|1
+    ref    5   .  G   T   ... GT     1|0
+
+Then this will be the output::
+
+    #sample chromosome phase_set from to variants
+    sample  ref        0         2    5  2
+
+
+Writing haplotype blocks in GTF format
+--------------------------------------
+
+With ``--gtf=filename.gtf``, a GTF file is created that describes the haplotype blocks,
+see `GTF with haplotype blocks`_.
+
+
+
 Visualizing phasing results
 ===========================
 
