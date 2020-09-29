@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 def add_arguments(parser):
     arg = parser.add_argument
     arg('-o', '--output',
-        default=None,
+        default=sys.stdout,
         help='Output file. If omitted, use standard output.')
     arg('--reference', '-r', metavar='FASTA',
         help='Reference file. Provide this to detect alleles through re-alignment. '
