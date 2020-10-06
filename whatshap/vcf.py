@@ -987,15 +987,17 @@ class PhasedVcfWriter(VcfAugmenter):
                         is_het = not genotypes[pos].is_homozygous()
 
                     if pos in components and pos in phases and is_het:
+                        haploid_component = (
+                            phases[pos]
+                            if (
+                                haploid_components
+                                and pos in haploid_components
+                                and len(haploid_components[pos]) == self.ploidy
+                            )
+                            else None
+                        )
                         self._set_phasing_tags(
-                            call,
-                            components[pos],
-                            phases[pos],
-                            haploid_components[pos]
-                            if haploid_components
-                            and pos in haploid_components
-                            and len(haploid_components[pos]) == self.ploidy
-                            else None,
+                            call, components[pos], phases[pos], haploid_component
                         )
                     else:
                         # Unphased
