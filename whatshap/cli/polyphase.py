@@ -92,6 +92,7 @@ def run_polyphase(
     indels=True,
     mapping_quality=20,
     tag="PS",
+    include_haploid_sets=False,
     write_command_line_header=True,
     read_list_filename=None,
     ce_bundle_edges=False,
@@ -148,6 +149,7 @@ def run_polyphase(
                     out_file=output,
                     tag=tag,
                     ploidy=ploidy,
+                    include_haploid_sets=include_haploid_sets,
                 )
             )
         except OSError as e:
@@ -222,7 +224,7 @@ def run_polyphase(
                     continue
 
                 # These two variables hold the phasing results for all samples
-                superreads, components = dict(), dict()
+                superreads, components, haploid_components = dict(), dict(), dict()
 
                 # Iterate over all samples to process
                 for sample in samples:
@@ -250,14 +252,13 @@ def run_polyphase(
                         len(missing_genotypes),
                     )
                     logger.info(
-                        "Number of remaining heterozygous variants: %d",
-                        len(phasable_variant_table),
+                        "Number of remaining heterozygous variants: %d", len(phasable_variant_table)
                     )
 
                     # Get the reads belonging to this sample
                     timers.start("read_bam")
                     readset, vcf_source_ids = phased_input_reader.read(
-                        chromosome, phasable_variant_table.variants, sample,
+                        chromosome, phasable_variant_table.variants, sample
                     )
                     readset.sort()
                     timers.stop("read_bam")
@@ -300,7 +301,7 @@ def run_polyphase(
 
                         # Re-read the readset to remove discarded variants
                         readset, vcf_source_ids = phased_input_reader.read(
-                            chromosome, phasable_variant_table.variants, sample,
+                            chromosome, phasable_variant_table.variants, sample
                         )
                         readset.sort()
                         timers.stop("verify_genotypes")
@@ -309,25 +310,33 @@ def run_polyphase(
                     readset = readset.subset(
                         [i for i, read in enumerate(readset) if len(read) >= max(2, min_overlap)]
                     )
-                    logger.info(
-                        "Kept %d reads that cover at least two variants each", len(readset),
-                    )
+                    logger.info("Kept %d reads that cover at least two variants each", len(readset))
 
                     # Adapt the variant table to the subset of reads
                     phasable_variant_table.subset_rows_by_position(readset.get_positions())
 
                     # Run the actual phasing
-                    sample_components, sample_superreads = phase_single_individual(
-                        readset, phasable_variant_table, sample, phasing_param, output, timers,
+                    (
+                        sample_components,
+                        sample_haploid_components,
+                        sample_superreads,
+                    ) = phase_single_individual(
+                        readset, phasable_variant_table, sample, phasing_param, output, timers
                     )
 
                     # Collect results
                     components[sample] = sample_components
+                    haploid_components[sample] = sample_haploid_components
                     superreads[sample] = sample_superreads
 
                 with timers("write_vcf"):
                     logger.info("======== Writing VCF")
-                    vcf_writer.write(chromosome, superreads, components)
+                    vcf_writer.write(
+                        chromosome,
+                        superreads,
+                        components,
+                        haploid_components if include_haploid_sets else None,
+                    )
                     # TODO: Use genotype information to polish results
                     # assert len(changed_genotypes) == 0
                     logger.info("Done writing VCF")
@@ -343,43 +352,33 @@ def run_polyphase(
     logger.info("\n== SUMMARY ==")
 
     log_memory_usage()
-    logger.info(
-        "Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"),
-    )
-    logger.info(
-        "Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"),
-    )
+    logger.info("Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"))
+    logger.info("Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"))
     if verify_genotypes:
         logger.info(
             "Time spent verifying genotypes:              %6.1f s",
             timers.elapsed("verify_genotypes"),
         )
     logger.info(
-        "Time spent detecting blocks:                 %6.1f s", timers.elapsed("detecting_blocks"),
+        "Time spent detecting blocks:                 %6.1f s", timers.elapsed("detecting_blocks")
     )
     logger.info(
-        "Time spent scoring reads:                    %6.1f s", timers.elapsed("read_scoring"),
+        "Time spent scoring reads:                    %6.1f s", timers.elapsed("read_scoring")
     )
     logger.info(
         "Time spent solving cluster editing:          %6.1f s",
         timers.elapsed("solve_clusterediting"),
     )
-    logger.info(
-        "Time spent threading haplotypes:             %6.1f s", timers.elapsed("threading"),
-    )
+    logger.info("Time spent threading haplotypes:             %6.1f s", timers.elapsed("threading"))
     if plot_clusters or plot_threading:
         logger.info(
-            "Time spent creating plots:                   %6.1f s", timers.elapsed("create_plots"),
+            "Time spent creating plots:                   %6.1f s", timers.elapsed("create_plots")
         )
+    logger.info("Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"))
     logger.info(
-        "Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"),
+        "Time spent on rest:                          %6.1f s", timers.total() - timers.sum()
     )
-    logger.info(
-        "Time spent on rest:                          %6.1f s", timers.total() - timers.sum(),
-    )
-    logger.info(
-        "Total elapsed time:                          %6.1f s", timers.total(),
-    )
+    logger.info("Total elapsed time:                          %6.1f s", timers.total())
 
 
 def phase_single_individual(readset, phasable_variant_table, sample, phasing_param, output, timers):
@@ -422,12 +421,13 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
     timers.stop("detecting_blocks")
 
     # Process blocks independently
-    (blockwise_clustering, blockwise_paths, blockwise_haplotypes, blockwise_cut_positions,) = (
-        [],
-        [],
-        [],
-        [],
-    )
+    (
+        blockwise_clustering,
+        blockwise_paths,
+        blockwise_haplotypes,
+        blockwise_cut_positions,
+        blockwise_haploid_cuts,
+    ) = ([], [], [], [], [])
     processed_non_singleton_blocks = 0
     for block_id, block_readset in enumerate(block_readsets):
         block_start = ext_block_starts[block_id]
@@ -449,7 +449,7 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
             )
 
         genotype_slice = genotype_list[block_start:block_end]
-        clustering, path, haplotypes, cut_positions = phase_single_block(
+        clustering, path, haplotypes, cut_positions, haploid_cuts = phase_single_block(
             block_readset, genotype_slice, phasing_param, timers
         )
 
@@ -457,27 +457,41 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
         blockwise_paths.append(path)
         blockwise_haplotypes.append(haplotypes)
         blockwise_cut_positions.append(cut_positions)
+        blockwise_haploid_cuts.append(haploid_cuts)
 
     # Aggregate blockwise results
-    clustering, threading, haplotypes, cut_positions = aggregate_phasing_blocks(
+    clustering, threading, haplotypes, cut_positions, haploid_cuts = aggregate_phasing_blocks(
         block_starts,
         block_readsets,
         blockwise_clustering,
         blockwise_paths,
         blockwise_haplotypes,
         blockwise_cut_positions,
+        blockwise_haploid_cuts,
         phasing_param,
     )
 
-    # Write new VCF file
+    # Summarize data for VCF file
     accessible_positions = sorted(readset.get_positions())
     components = {}
+    haploid_components = {}
 
     ext_cuts = cut_positions + [num_vars]
     for i, cut_pos in enumerate(cut_positions):
         for pos in range(ext_cuts[i], ext_cuts[i + 1]):
             components[accessible_positions[pos]] = accessible_positions[ext_cuts[i]]
             components[accessible_positions[pos] + 1] = accessible_positions[ext_cuts[i]]
+            haploid_components[accessible_positions[pos]] = [0] * phasing_param.ploidy
+            haploid_components[accessible_positions[pos] + 1] = [0] * phasing_param.ploidy
+
+    for j in range(phasing_param.ploidy):
+        ext_cuts = haploid_cuts[j] + [num_vars]
+        for i, cut_pos in enumerate(haploid_cuts[j]):
+            for pos in range(ext_cuts[i], ext_cuts[i + 1]):
+                haploid_components[accessible_positions[pos]][j] = accessible_positions[ext_cuts[i]]
+                haploid_components[accessible_positions[pos] + 1][j] = accessible_positions[
+                    ext_cuts[i]
+                ]
 
     superreads = ReadSet()
     for i in range(phasing_param.ploidy):
@@ -508,7 +522,7 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
         timers.stop("create_plots")
 
     # Return results
-    return components, superreads
+    return components, haploid_components, superreads
 
 
 def create_genotype_list(phasable_variant_table, sample):
@@ -613,7 +627,7 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
                 path[0].append(allele_to_id[allele])
                 haplotypes.append(str(allele))
 
-        return clustering, path, haplotypes, [0]
+        return clustering, path, haplotypes, [0], [[0] for _ in range(phasing_param.ploidy)]
 
     # Block is non-singleton here, so run the normal routine
     # Phase I: Cluster Editing
@@ -677,7 +691,7 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
     timers.start("threading")
 
     # Add dynamic programming for finding the most likely subset of clusters
-    cut_positions, path, haplotypes = run_threading(
+    cut_positions, haploid_cuts, path, haplotypes = run_threading(
         block_readset,
         clustering,
         phasing_param.ploidy,
@@ -687,7 +701,7 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
     timers.stop("threading")
 
     # collect results from threading
-    return clustering, path, haplotypes, cut_positions
+    return clustering, path, haplotypes, cut_positions, haploid_cuts
 
 
 def draw_plots(
@@ -738,6 +752,7 @@ def aggregate_phasing_blocks(
     blockwise_paths,
     blockwise_haplotypes,
     blockwise_cut_positions,
+    blockwise_haploid_cuts,
     phasing_param,
 ):
     """
@@ -768,7 +783,13 @@ def aggregate_phasing_blocks(
         for cut_pos in blockwise_cut_positions[i]:
             cut_positions.append(cut_pos + block_starts[i])
 
-    return clustering, threading, haplotypes, cut_positions
+    haploid_cuts = [[] for _ in range(phasing_param.ploidy)]
+    for i in range(len(block_starts)):
+        for j in range(phasing_param.ploidy):
+            for cut_pos in blockwise_haploid_cuts[i][j]:
+                haploid_cuts[j].append(cut_pos + block_starts[i])
+
+    return clustering, threading, haplotypes, cut_positions, haploid_cuts
 
 
 def find_inconsistencies(readset, clustering, ploidy):
@@ -980,6 +1001,12 @@ def add_arguments(parser):
         action="store_true",
         help="Ignore read groups in BAM/CRAM header and assume all reads come "
         "from the same sample.",
+    )
+    arg(
+        "--include-haploid-sets",
+        default=False,
+        action="store_true",
+        help="Include the phase set information for every single haplotype in a custom VCF format field 'HS'.",
     )
     arg(
         "--sample",
