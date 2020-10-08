@@ -217,8 +217,7 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
     for trio in PedReader(ped_path):
         if trio.child is None or trio.mother is None or trio.father is None:
             logger.warning(
-                "Relationship %s/%s/%s ignored "
-                "because at least one of the individuals is unknown",
+                "Relationship %s/%s/%s ignored because at least one of the individuals is unknown",
                 trio.child,
                 trio.mother,
                 trio.father,
@@ -318,9 +317,7 @@ def run_whatshap(
         raise CommandLineError("The hapchat algorithm cannot do pedigree phasing")
 
     timers = StageTimer()
-    logger.info(
-        "This is WhatsHap %s running under Python %s", __version__, platform.python_version(),
-    )
+    logger.info(f"This is WhatsHap {__version__} running under Python {platform.python_version()}")
     if full_genotyping:
         distrust_genotypes = True
         include_homozygous = True
@@ -382,9 +379,7 @@ def run_whatshap(
         raise_if_any_sample_not_in_vcf(vcf_reader, samples)
 
         if ped and genmap:
-            logger.info(
-                "Using region-specific recombination rates from genetic map %s.", genmap,
-            )
+            logger.info("Using region-specific recombination rates from genetic map %s.", genmap)
             try:
                 recombination_cost_computer = GeneticMapRecombinationCostComputer(genmap)
             except ParseError as e:
@@ -611,9 +606,7 @@ def run_whatshap(
                         transmission_vector,
                         trios,
                     )
-                    logger.info(
-                        "Total no. of detected recombination events: %d", n_recombinations,
-                    )
+                    logger.info("Total no. of detected recombination events: %d", n_recombinations)
 
                 # Superreads in superreads_list are in the same order as individuals were added to the pedigree
                 for sample, sample_superreads in zip(family, superreads_list):
