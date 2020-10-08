@@ -16,7 +16,7 @@ from distutils.sysconfig import customize_compiler
 MIN_CYTHON_VERSION = "0.29"
 
 if sys.version_info < (3, 6):
-    sys.stdout.write("At least Python 3.5 is required.\n")
+    sys.stdout.write("At least Python 3.6 is required.\n")
     sys.exit(1)
 
 
