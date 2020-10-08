@@ -83,6 +83,7 @@ def main(argv=sys.argv[1:]):
             module.main(args)
         except CommandLineError as e:
             logger.error("whatshap error: %s", str(e))
+            logger.debug("Command line error. Traceback:", exc_info=True)
             sys.exit(1)
 
 
