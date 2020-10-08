@@ -315,7 +315,7 @@ def compute_variant_file_samples_to_use(vcf_samples, user_given_samples, ignore_
     samples_in_vcf = set(vcf_samples)
     if len(samples_in_vcf) < 1:
         raise VcfError("No samples detected in VCF file; cannot perform haplotagging")
-    logger.info("Found {} samples in input VCF".format(len(samples_in_vcf)))
+    logger.info("Found {} sample(s) in input VCF".format(len(samples_in_vcf)))
     logger.debug(
         "Found the following samples in input VCF: {}".format(" - ".join(sorted(samples_in_vcf)))
     )
@@ -337,7 +337,7 @@ def compute_variant_file_samples_to_use(vcf_samples, user_given_samples, ignore_
         )
 
     samples_to_use = samples_in_vcf.intersection(given_samples)
-    logger.info("Keeping {} samples for haplo-tagging".format(len(samples_to_use)))
+    logger.info("Keeping {} sample(s) for haplo-tagging".format(len(samples_to_use)))
     logger.debug(
         "Keeping the following samples for haplo-tagging: {}".format(
             " - ".join(sorted(samples_to_use))
@@ -353,7 +353,7 @@ def compute_shared_samples(bam_reader, ignore_read_groups, vcf_samples):
     read_groups = bam_reader.header.get("RG", [])
     bam_samples = set((rg["SM"] if "SM" in rg else "") for rg in read_groups)
 
-    logger.info("Found {} samples in BAM file".format(len(bam_samples)))
+    logger.info("Found {} sample(s) in BAM file".format(len(bam_samples)))
     logger.debug(
         "Found the following samples in BAM file: {}".format(",".join(sorted(bam_samples)))
     )
