@@ -201,7 +201,7 @@ class ReadList:
             )
 
 
-def setup_pedigree(ped_path, numeric_sample_ids, samples):
+def setup_pedigree(ped_path, samples):
     """
     Read in PED file to set up list of relationships.
 
@@ -243,8 +243,6 @@ def setup_pedigree(ped_path, numeric_sample_ids, samples):
         pedigree_samples.add(trio.child)
         pedigree_samples.add(trio.father)
         pedigree_samples.add(trio.mother)
-        # Ensure that all mentioned individuals have a numeric id
-        _ = numeric_sample_ids[trio.child]
 
     return trios, pedigree_samples
 
@@ -390,7 +388,11 @@ def run_whatshap(
             recombination_cost_computer = UniformRecombinationCostComputer(recombrate)
 
         samples = frozenset(samples)
-        families, family_trios = setup_families(samples, ped, numeric_sample_ids, max_coverage)
+        families, family_trios = setup_families(samples, ped, max_coverage)
+        for trios in family_trios.values():
+            for trio in trios:
+                # Ensure that all mentioned individuals have a numeric id
+                _ = numeric_sample_ids[trio.child]
 
         read_list = None
         if read_list_filename:
@@ -682,7 +684,7 @@ def raise_if_any_sample_not_in_vcf(vcf_reader, samples):
             )
 
 
-def setup_families(samples, ped, numeric_sample_ids, max_coverage):
+def setup_families(samples, ped, max_coverage):
     """
     Return families, family_trios pair.
 
@@ -698,7 +700,7 @@ def setup_families(samples, ped, numeric_sample_ids, max_coverage):
     family_finder = ComponentFinder(samples)
 
     if ped:
-        all_trios, pedigree_samples = setup_pedigree(ped, numeric_sample_ids, samples)
+        all_trios, pedigree_samples = setup_pedigree(ped, samples)
         for trio in all_trios:
             family_finder.merge(trio.father, trio.child)
             family_finder.merge(trio.mother, trio.child)

@@ -188,7 +188,11 @@ def run_genotype(
             recombination_cost_computer = UniformRecombinationCostComputer(recombrate)
 
         samples = frozenset(samples)
-        families, family_trios = setup_families(samples, ped, numeric_sample_ids, max_coverage)
+        families, family_trios = setup_families(samples, ped, max_coverage)
+        for trios in family_trios.values():
+            for trio in trios:
+                # Ensure that all mentioned individuals have a numeric id
+                _ = numeric_sample_ids[trio.child]
 
         # Read phase information provided as VCF files, if provided.
         with timers("parse_phasing_vcfs"):
