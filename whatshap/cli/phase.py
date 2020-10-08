@@ -421,20 +421,11 @@ def run_whatshap(
                 continue
 
             if full_genotyping:
-                positions = [v.position for v in variant_table.variants]
-                for sample in samples:
-                    logger.info("---- Initial genotyping of %s", sample)
-                    with timers("read_bam"):
-                        bam_sample = None if ignore_read_groups else sample
-                        readset, vcf_source_ids = phased_input_reader.read(
-                            chromosome, variant_table.variants, bam_sample, read_vcf=False,
-                        )
-                        readset.sort()  # TODO can be removed
-                        genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
-                        variant_table.set_genotypes_of(sample, genotypes)
-                        variant_table.set_genotype_likelihoods_of(
-                            sample, [GenotypeLikelihoods(gl) for gl in genotype_likelihoods],
-                        )
+                with timers("read_bam"):
+                    # This modifies variant_table
+                    recompute_variant_table_genotypes(
+                        variant_table, chromosome, phased_input_reader, samples
+                    )
 
             # These two variables hold the phasing results for all samples
             superreads, components = dict(), dict()
@@ -633,6 +624,23 @@ def run_whatshap(
             logger.debug("Chromosome %r finished", chromosome)
 
     log_time_and_memory_usage(timers, show_phase_vcfs=show_phase_vcfs)
+
+
+def recompute_variant_table_genotypes(variant_table, chromosome, phased_input_reader, samples):
+    """Compute genotypes using reads from phased_input_reader and update variant_table in place"""
+
+    positions = [v.position for v in variant_table.variants]
+    for sample in samples:
+        logger.info("---- Initial genotyping of %s", sample)
+        readset, vcf_source_ids = phased_input_reader.read(
+            chromosome, variant_table.variants, sample, read_vcf=False,
+        )
+        readset.sort()  # TODO can be removed
+        genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
+        variant_table.set_genotypes_of(sample, genotypes)
+        variant_table.set_genotype_likelihoods_of(
+            sample, [GenotypeLikelihoods(gl) for gl in genotype_likelihoods],
+        )
 
 
 def log_component_stats(components, n_accessible_positions):
