@@ -584,17 +584,7 @@ def run_whatshap(
                         master_block,
                         heterozygous_positions_by_sample,
                     )
-                    n_phased_blocks = len(set(overall_components.values()))
-                    logger.info("No. of phased blocks: %d", n_phased_blocks)
-                    largest_component = find_largest_component(overall_components)
-                    if len(largest_component) > 0:
-                        logger.info(
-                            "Largest component contains %d variants (%.1f%% of accessible variants) between position %d and %d",
-                            len(largest_component),
-                            len(largest_component) * 100.0 / len(accessible_positions),
-                            largest_component[0] + 1,
-                            largest_component[-1] + 1,
-                        )
+                    log_component_stats(overall_components, len(accessible_positions))
 
                 if recombination_list_filename:
                     n_recombinations = write_recombination_list(
@@ -643,6 +633,19 @@ def run_whatshap(
             logger.debug("Chromosome %r finished", chromosome)
 
     log_time_and_memory_usage(timers, show_phase_vcfs=show_phase_vcfs)
+
+
+def log_component_stats(components, n_accessible_positions):
+    n_phased_blocks = len(set(components.values()))
+    logger.info(f"No. of phased blocks: {n_phased_blocks}")
+    largest = find_largest_component(components)
+    if not largest:
+        return
+    logger.info(
+        f"Largest block contains {len(largest)} variants"
+        f" ({len(largest) / n_accessible_positions:.1%} of accessible variants)"
+        f" between position {largest[0] + 1} and {largest[-1] + 1}"
+    )
 
 
 def log_best_case_phasing_info(readset, selected_reads):
