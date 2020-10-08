@@ -596,8 +596,10 @@ haplotype it belongs to, and also adds a ``PS`` tag that describes in which
 haplotype block the read is. With your aligned reads in ``alignments.bam``,
 run ::
 
-    whatshap haplotag -o haplotagged.bam --reference reference.fasta phased.vcf alignments.bam
+    whatshap haplotag -o haplotagged.bam --reference reference.fasta phased.vcf.gz alignments.bam
 
+Currently, the ``haplotag`` command requires a ``.vcf.gz`` or ``.bcf`` input file
+for which an index exists (use ``tabix`` to create one).
 The ``haplotag`` commands re-detects the alleles in the reads in the same way
 the main ``phase`` command does it. Since availability of a reference influences
 how this is done, if you used ``--reference`` with your ``phase`` command, you
