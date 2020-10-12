@@ -24,9 +24,9 @@ def add_arguments(parser):
     add("--only-snvs", default=False, action="store_true", help="Only process SNVs "
         "and ignore all other variants.")
     add("--block-list", metavar="FILE", help="Write list of all blocks to FILE (one block per line)")
-    add("--chromosome", dest="chromosome", metavar="CHROMOSOME", default=None,
+    add("--chromosome", dest="chromosomes", metavar="CHROMOSOME", default=[], action="append",
         help="Name of chromosome to process. If not given, all chromosomes in the "
-        "input VCF are considered.")
+        "input VCF are considered. Can be used multiple times")
     add("vcf", metavar="VCF", help="Phased VCF file")
 # fmt: on
 
@@ -315,7 +315,7 @@ def run_stats(
     tsv=None,
     block_list=None,
     only_snvs=False,
-    chromosome=None,
+    chromosomes=None,
     chr_lengths=None,
 ):
     gtfwriter = tsv_file = block_list_file = None
@@ -375,10 +375,10 @@ def run_stats(
         print("Phasing statistics for sample {} from file {}".format(sample, vcf))
         total_stats = PhasingStats()
         chromosome_count = 0
-        given_chromosome = chromosome
+        given_chromosomes = chromosomes
         for variant_table in vcf_reader:
-            if given_chromosome:
-                if variant_table.chromosome != given_chromosome:
+            if given_chromosomes:
+                if variant_table.chromosome not in given_chromosomes:
                     continue
             chromosome_count += 1
             chromosome = variant_table.chromosome
