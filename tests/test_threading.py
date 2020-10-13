@@ -3,6 +3,7 @@ Test Threading
 """
 
 from collections import defaultdict
+from whatshap.cli.polyphase import phase_single_block, PhasingParameter
 from whatshap.threading import (
     get_position_map,
     get_coverage,
@@ -13,8 +14,10 @@ from whatshap.threading import (
     compute_threading_path,
     get_pos_to_clusters_map,
     get_local_cluster_consensus,
+    run_threading,
 )
 from whatshap.core import Read, ReadSet
+from whatshap.timer import StageTimer
 
 
 def create_testinstance1():
@@ -343,3 +346,39 @@ def test_path_with_affine():
     assert first_block == first_truth
     assert second_block == second_truth
     assert third_block == third_truth
+
+
+def test_multiallelic_1():
+    readset = ReadSet()
+    lines = [[0, 1, 1, 3], [1, 0, 0, 1], [0, 1, 1, 3], [1, 0, 0, 1]]
+    for i, line in enumerate(lines):
+        read = Read(str(i))
+        for pos in range(len(line)):
+            read.add_variant(pos, line[pos], 30)
+        readset.add(read)
+    clustering = [[0, 2], [1, 3]]
+    genotype_list = [{0: 2, 1: 2}, {0: 2, 1: 2}, {0: 2, 1: 2}, {1: 2, 3: 2}]
+
+    cut_positions, path, haplotypes = run_threading(readset, clustering, 4, genotype_list, 4,)
+
+    assert sorted(path) == sorted([[0, 0, 1, 1], [0, 0, 1, 1], [0, 0, 1, 1], [0, 0, 1, 1]])
+    assert sorted(haplotypes) == sorted(["0113", "0113", "1001", "1001"])
+    return
+
+
+def test_multiallelic_2():
+    readset = ReadSet()
+    lines = [[0, 1, 1, 3], [1, 0, 0, 1], [0, 1, 1, 3], [1, 0, 0, 1]]
+    for i, line in enumerate(lines):
+        read = Read(str(i))
+        for pos in range(len(line)):
+            read.add_variant(pos, line[pos], 30)
+        readset.add(read)
+    clustering = [[0, 2], [1, 3]]
+    genotype_list = [{0: 2, 1: 2}, {0: 2, 1: 2}, {0: 2, 1: 2}, {1: 2, 2: 2}]
+
+    cut_positions, path, haplotypes = run_threading(readset, clustering, 4, genotype_list, 4,)
+
+    assert sorted(path) == sorted([[0, 0, 1, 1], [0, 0, 1, 1], [0, 0, 1, 1], [0, 0, 1, 1]])
+    assert sorted(haplotypes) == sorted(["0113", "0113", "1001", "1001"])
+    return
