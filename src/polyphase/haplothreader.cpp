@@ -429,10 +429,15 @@ std::vector<ClusterTuple> HaploThreader::getGenotypeConformTuples (const std::ve
     for (std::pair<uint32_t, uint32_t> entry : genotype) {
         maxAllele = std::max(maxAllele, entry.first+1);
     }
+    for (uint32_t cons : consensus) {
+        maxAllele = std::max(maxAllele, cons+1);
+    }
+    
     std::vector<uint32_t> genotypeVec(maxAllele, 0);
     for (std::pair<uint32_t, uint32_t> entry : genotype) {
         genotypeVec[entry.first] = entry.second;
     }
+    
     // split clusters by consensus-allele
     std::vector<std::vector<LocalClusterId>> clusterGroups(maxAllele, std::vector<LocalClusterId>(0));
     for (LocalClusterId i = 0; i < clusters.size(); i++) {

@@ -3,7 +3,6 @@ Test Threading
 """
 
 from collections import defaultdict
-from whatshap.cli.polyphase import phase_single_block, PhasingParameter
 from whatshap.threading import (
     get_position_map,
     get_coverage,
@@ -17,7 +16,6 @@ from whatshap.threading import (
     run_threading,
 )
 from whatshap.core import Read, ReadSet
-from whatshap.timer import StageTimer
 
 
 def create_testinstance1():
@@ -363,7 +361,9 @@ def test_multiallelic_1():
     clustering = [[0, 2], [1, 3]]
     genotype_list = [{0: 2, 1: 2}, {0: 2, 1: 2}, {0: 2, 1: 2}, {1: 2, 3: 2}]
 
-    cut_positions, path, haplotypes = run_threading(readset, clustering, 4, genotype_list, 4,)
+    cut_positions, haploid_cuts, path, haplotypes = run_threading(
+        readset, clustering, 4, genotype_list, 4,
+    )
 
     assert sorted(path) == sorted([[0, 0, 1, 1], [0, 0, 1, 1], [0, 0, 1, 1], [0, 0, 1, 1]])
     assert sorted(haplotypes) == sorted(["0113", "0113", "1001", "1001"])
@@ -381,7 +381,9 @@ def test_multiallelic_2():
     clustering = [[0, 2], [1, 3]]
     genotype_list = [{0: 2, 1: 2}, {0: 2, 1: 2}, {0: 2, 1: 2}, {1: 2, 2: 2}]
 
-    cut_positions, path, haplotypes = run_threading(readset, clustering, 4, genotype_list, 4,)
+    cut_positions, haploid_cuts, path, haplotypes = run_threading(
+        readset, clustering, 4, genotype_list, 4,
+    )
 
     assert sorted(path) == sorted([[0, 0, 1, 1], [0, 0, 1, 1], [0, 0, 1, 1], [0, 0, 1, 1]])
     assert sorted(haplotypes) == sorted(["0113", "0113", "1001", "1001"])
