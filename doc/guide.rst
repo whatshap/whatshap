@@ -507,6 +507,79 @@ The ``stats`` subcommand prints phasing statistics for a single VCF file::
     whatshap stats input.vcf
 
 
+The TSV statistics format
+-------------------------
+
+With ``--tsv=FILENAME``, statistics are written in tab-separated value format
+to a file. The following columns are written.
+
+sample
+    The name of the sample the numbers in this row refer to.
+
+chromosome
+    The name of the chromosome the numbers in this row refer to.
+    The special name "ALL" is used for summary statistics about all processed chromosomes.
+
+file_name
+    The VCF file name to which the numbers in this row refer to.
+
+The numbers in these following columns are computed on the variant level.
+
+variants
+    Number of biallelic variants in the input VCF, but excluding any non-SNV variants if
+    ``--only-snvs`` was used.
+
+heterozygous_variants
+    The number of biallelic, heterozygous variants in the input VCF.
+    This is a subset of *variants* as defined above.
+
+heterozygous_snvs
+    The number of biallelic, heterozygous SNVs in the input VCF.
+    This is a subset of *heterozygous_variants*.
+
+unphased
+    The number of biallelic, heterozygous variants that are *not* marked as phased in the input VCF.
+    This is also a subset of *heterozygous_variants*.
+
+phased
+    The number of biallelic, heterozygous variants that *are* marked as phased in the input VCF.
+    This is again a subset of *heterozygous_variants*. Also, phased + unphased = heterozygous_variants.
+
+phased_snvs
+    The number of biallelic, heterozygous SNVs that are marked as phased in the input VCF.
+    This is a subset of *phased*.
+
+Each phased variant is part of exactly one *phase set* (stored in the PS tag in VCF) or *block*.
+The numbers in the following columns describe these blocks.
+
+blocks
+    The total number of phase sets/blocks.
+
+singletons
+    The number of blocks that contain exactly one variant.
+
+variant_per_block_median
+variant_per_block_avg
+variant_per_block_min
+variant_per_block_max
+variant_per_block_sum
+    Description of the distribution of non-singleton block sizes, where the size of a block is the *number of variants* it contains.
+    Median number of variants, average (mean) number of variants, minimum number of variants, maximum number of variants, sum of the number of variants.
+    (To Do: It should be the case that singletons + variant_per_block_sum = phased)
+
+bp_per_block_median
+bp_per_block_avg
+bp_per_block_min
+bp_per_block_max
+bp_per_block_sum
+    Description of the distribution of non-singleton block lengths, where the length of a block is the *number of basepairs* it covers minus 1. That is, a block with two variants at positions 2 and 5 has length 3.
+    Median length, average (mean) length minimum length, maximum length, sum of lengths.
+
+block_n50
+    The NG50 value of the distribution of the block lengths.
+    Interleaved blocks are cut in order to avoid artificially inflating this value.
+
+
 Writing haplotype blocks in TSV format
 --------------------------------------
 
