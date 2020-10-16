@@ -450,7 +450,9 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
         blockwise_cut_positions,
         blockwise_haploid_cuts,
     ) = ([], [], [], [], [])
-    processed_non_singleton_blocks = 0
+
+    # Create genotype slices for blocks
+    genotype_slices = []
     for block_id, block_readset in enumerate(block_readsets):
         block_start = ext_block_starts[block_id]
         block_end = ext_block_starts[block_id + 1]
@@ -477,15 +479,15 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
                     )
                 )
 
-	    clustering, path, haplotypes, cut_positions, haploid_cuts = phase_single_block(
-	        block_readset, genotype_slices[block_id], phasing_param, timers
-	    )
+            clustering, path, haplotypes, cut_positions, haploid_cuts = phase_single_block(
+                block_readset, genotype_slices[block_id], phasing_param, timers
+            )
 
-	    blockwise_clustering.append(clustering)
-	    blockwise_paths.append(path)
-	    blockwise_haplotypes.append(haplotypes)
-	    blockwise_cut_positions.append(cut_positions)
-	    blockwise_haploid_cuts.append(haploid_cuts)
+            blockwise_clustering.append(clustering)
+            blockwise_paths.append(path)
+            blockwise_haplotypes.append(haplotypes)
+            blockwise_cut_positions.append(cut_positions)
+            blockwise_haploid_cuts.append(haploid_cuts)
 
     else:
         # sort block readsets in descending order by number of reads
@@ -528,7 +530,14 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
             blockwise_results.sort(key=lambda x: x[-1])
 
             # collect all blockwise results
-            for (clustering, path, haplotypes, cut_positions, haploid_cuts, block_id) in blockwise_results:
+            for (
+                clustering,
+                path,
+                haplotypes,
+                cut_positions,
+                haploid_cuts,
+                block_id,
+            ) in blockwise_results:
                 blockwise_clustering.append(clustering)
                 blockwise_paths.append(path)
                 blockwise_haplotypes.append(haplotypes)
@@ -803,7 +812,7 @@ def phase_single_block_mt(
     del block_readset
     if block_vars > 1:
         logger.info("Finished block {}.".format(job_id + 1))
-    return clustering, path, haplotypes, cut_positions, block_id
+    return clustering, path, haplotypes, cut_positions, haploid_cuts, block_id
 
 
 def aggregate_phasing_blocks(
