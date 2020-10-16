@@ -559,18 +559,26 @@ singletons
     The number of blocks that contain exactly one variant.
 
 variant_per_block_median
+
 variant_per_block_avg
+
 variant_per_block_min
+
 variant_per_block_max
+
 variant_per_block_sum
     Description of the distribution of non-singleton block sizes, where the size of a block is the *number of variants* it contains.
     Median number of variants, average (mean) number of variants, minimum number of variants, maximum number of variants, sum of the number of variants.
     (To Do: It should be the case that singletons + variant_per_block_sum = phased)
 
 bp_per_block_median
+
 bp_per_block_avg
+
 bp_per_block_min
+
 bp_per_block_max
+
 bp_per_block_sum
     Description of the distribution of non-singleton block lengths, where the length of a block is the *number of basepairs* it covers minus 1. That is, a block with two variants at positions 2 and 5 has length 3.
     Median length, average (mean) length minimum length, maximum length, sum of lengths.
