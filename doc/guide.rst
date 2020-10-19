@@ -770,11 +770,8 @@ Therefore the output genotypes can be different than the input genotypes.
 
 3. Polyploid phasing on pedigrees is not supported yet.
 
-4. Structural variants are not considered during the phasing. Long indels can 
-cause some variants to not be present on all haplotypes. As of now, these 
-variants are not handled by the phasing algorithm. Thus, it will always output 
-as many haplotypes on all variants as were specified by the command line 
-argument.
+4. The phasing algorithm does not consider copy number variants and always 
+produces the provided number of haplotypes at any location.
 
 There is no strict limitation regarding the coverage of the input reads. 
 However, the running time grows quadratically with the coverage. For that
