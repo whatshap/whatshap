@@ -61,3 +61,9 @@ If you use the polyploid phasing algorithm (``whatshap polyphase``), please refe
     | *Haplotype Threading: Accurate Polyploid Phasing from Long Reads*
     | bioRxiv
     | doi: `10.1101/2020.02.04.933523 <https://doi.org/10.1101/2020.02.04.933523>`_
+
+    | Sven D. Schrinner, Rebecca Serra Mari, Jana Ebler, Mikko Rautiainen, Lancelot Seillier,
+    | Julia J. Reimer, Björn Usadel, Tobias Marschall, Gunnar W. Klau.
+    | *Haplotype threading: accurate polyploid phasing from long reads*
+    | Genome Biology
+    | doi: `10.1186/s13059-020-02158-1 <https://doi.org/10.1186/s13059-020-02158-1>`_
