@@ -766,31 +766,35 @@ higher than 6 may take very long to process.
 2. WhatsHap will use available genotype information from the VCF file(s), but
 the computed haplotypes are not guaranteed to follow these genotypes, if they
 deviate too much from the allele distribution among the aligned reads.
+Therefore the output genotypes can be different than the input genotypes.
 
 3. Polyploid phasing on pedigrees is not supported yet.
 
-4. Structural variants are not considered during the phasing. The algorithm
-will always produce the provided number of haplotypes at any location.
+4. Structural variants are not considered during the phasing. Long indels can 
+cause some variants to not be present on all haplotypes. As of now, these 
+variants are not handled by the phasing algorithm. Thus, it will always output 
+as many haplotypes on all variants as were specified by the command line 
+argument.
 
-Opposed to the diploid phasing algorithm, there is no strict limitation
-regarding the coverage of the input reads. However, it still increases the
-running time and we do not recommend to use more than 120X. In principle it is
+There is no strict limitation regarding the coverage of the input reads. 
+However, the running time grows quadratically with the coverage. For that
+reason and we do not recommend to use more than 120X. In principle it is
 possible to phase diploid samples via the ``polyphase`` command, but the
 results will likely be less accurate than the diploid phasing mode, as the
 latter is more specialized for the diploid case.
 
-A problem, which occurs in polyploid phasings is the connectivity of phased
-variants. The more haplotypes exist the more reads are required between
-consecutive variants to properly connect haplotype fragments from both sides.
+To achieve reliable phasing, as many haplotypes as possible should be
+represented in the input reads. In case of unrepresented haplotypes, phasing 
+can become impossible and the output haplotypes are broken into phased blocks.
 As a result, every phased variant will receive a phased block ID, such that
 all variants with the same ID belong to the same haplotype block. By default
-WhatsHap is very conservative with these blocks and splits them, if it could 
-not resolve ambiguity between consecutive variants. This behavior can be
+WhatsHap is very conservative with these blocks and splits them whenever it 
+could not resolve ambiguity between consecutive variants. This behavior can be
 adjusted via the ``--block-cut-sensitivity`` parameter. Valid values range from
 0 to 5 (including) with a default of 4. A lower sensitivity will produce longer
 phasing blocks, which might contain more switch errors, though. A sensitivity
-of 1 means that haplotypes are only cut, where there was no read connecting two
-consecutive variants.
+of 1 means that haplotypes are only cut at positions where there was no read 
+connecting two consecutive variants (in any haplotype).
 
 In VCF format, it is common to specifiy the block IDs in the 
 ``Phase set identifier`` field (``PS``). Since this ID refers to the variant
