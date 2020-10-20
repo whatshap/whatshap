@@ -385,6 +385,11 @@ def run_polyphase(
             "Time spent threading haplotypes:             %6.1f s", timers.elapsed("threading"),
         )
     else:
+        """
+        TODO: The runtime measurement for the different stages does not properly for multithreading,
+        because the global timer is not visible from within the phase_single_block_mt method.
+        Workaround is to only report the total phasing time.
+        """
         logger.info(
             "Time spent phasing blocks:                   %6.1f s", timers.elapsed("phase_blocks"),
         )
@@ -499,15 +504,16 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
         # process large jobs first, 4/3-approximation for scheduling problem
         with Pool(processes=phasing_param.threads) as pool:
             """
-            TODO: The way the block readsets are processed is ugly, but it is very tough
-            to actually do it right. Python's multiprocessing makes hard copies of the passed
-            arguments, but this is not trivial for cython objects, especially when they
-            contain pointers to other cython objects. Therefore, every partial readset is
-            converted into some python structure and immediately unpacked inside the job, creaing
-            some memory overhead.
-            One better way could be to share the main readset between processes and create the
-            partial readsets in the jobs as well. If this is possible without duplicating the
-            main readset, it would be the most memory efficient solution.
+            TODO: Python's multiprocessing makes hard copies of the passed
+            arguments, which is not trivial for cython objects, especially when they
+            contain pointers to other cython objects. Any passed object must be
+            (de)serializable (in Python: pickle).
+            All other objects created in the main thread are also accessible by the
+            workers, but they are handled via the copy-on-write policy. This means,
+            that e.g. the large main readset is not hardcopied for every thread,
+            as long as it is not modified there. Since this would cause a massive
+            waste of memory, this must not be done and the main readset must
+            also never be passed as argument to the workers.
             """
             process_results = [
                 pool.apply_async(
