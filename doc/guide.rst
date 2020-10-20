@@ -750,3 +750,54 @@ an input to the above mentioned genotyping commands. This can be done by running
     whatshap find_snv_candidates ref.fasta input.bam -o variants.vcf
 
 If Nanopore reads are used for calling SNPs, it is recommended to add option --nanopore to the above command.
+
+Polyploid Phasing
+=================
+
+In addition to diploid phasing, WhatsHap also supports polyploid phasing 
+through a different algorithm. The ``whatshap polyphase`` command works 
+almost the same as the ``phase`` command with a few restrictions:
+
+1. An additional integer argument ``--ploidy`` must be specified. This ploidy
+must match the ploidy in the provided VCF file(s). The ploidy also greatly
+impacts the running time as the phasing becomes more complex. Ploidies
+higher than 6 may take very long to process.
+
+2. WhatsHap will use available genotype information from the VCF file(s), but
+the computed haplotypes are not guaranteed to follow these genotypes, if they
+deviate too much from the allele distribution among the aligned reads.
+Therefore the output genotypes can be different than the input genotypes.
+
+3. Polyploid phasing on pedigrees is not supported yet.
+
+4. The phasing algorithm does not consider copy number variants and always 
+produces the provided number of haplotypes at any location.
+
+There is no strict limitation regarding the coverage of the input reads. 
+However, the running time grows quadratically with the coverage. For that
+reason and we do not recommend to use more than 120X. In principle it is
+possible to phase diploid samples via the ``polyphase`` command, but the
+results will likely be less accurate than the diploid phasing mode, as the
+latter is more specialized for the diploid case.
+
+To achieve reliable phasing, as many haplotypes as possible should be
+represented in the input reads. In case of unrepresented haplotypes, phasing 
+can become impossible and the output haplotypes are broken into phased blocks.
+As a result, every phased variant will receive a phased block ID, such that
+all variants with the same ID belong to the same haplotype block. By default
+WhatsHap is very conservative with these blocks and splits them whenever it 
+could not resolve ambiguity between consecutive variants. This behavior can be
+adjusted via the ``--block-cut-sensitivity`` parameter. Valid values range from
+0 to 5 (including) with a default of 4. A lower sensitivity will produce longer
+phasing blocks, which might contain more switch errors, though. A sensitivity
+of 1 means that haplotypes are only cut at positions where there was no read 
+connecting two consecutive variants (in any haplotype).
+
+In VCF format, it is common to specifiy the block IDs in the 
+``Phase set identifier`` field (``PS``). Since this ID refers to the variant
+itself, it is not possible to report which haplotypes should be cut and which
+ones could be phased through. This information can be accessed via the ``HS``
+field in the VCF, if the ``--include-haploid-sets`` flag is set. This is a
+custom field, which is only used to provide this information. It is not
+supported by other tools and also the ``compare`` and ``stats`` modules of
+WhatsHap will still use the common ``PS`` field to consider block borders.
