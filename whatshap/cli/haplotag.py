@@ -265,6 +265,10 @@ def normalize_user_regions(user_regions, bam_references):
     return norm_regions
 
 
+class InvalidRegion(Exception):
+    pass
+
+
 @dataclass
 class Region:
     chromosome: str
@@ -303,8 +307,10 @@ class Region:
                     end = None
                 else:
                     end = int(start_end[1])
+                    if end <= start:
+                        raise InvalidRegion("end is before start in specified region")
             except ValueError:
-                raise ValueError("Region must be specified as chrom[:start[-end]])") from None
+                raise InvalidRegion("Region must be specified as chrom[:start[-end]])") from None
         return Region(chromosome, start, end)
 
 

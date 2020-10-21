@@ -3,7 +3,7 @@ import shutil
 import pysam
 import pytest
 
-from whatshap.cli.haplotag import run_haplotag
+from whatshap.cli.haplotag import run_haplotag, Region, InvalidRegion
 from whatshap.cli import CommandLineError
 
 
@@ -384,28 +384,13 @@ def test_haplotag_nonexisting_region():
         )
 
 
-def test_haplotag_malformed_region_interval():
-    # Region 2 has a start larger than the end
-    with pytest.raises(ValueError):
-        run_haplotag(
-            variant_file="tests/data/haplotag_1.vcf.gz",
-            alignment_file="tests/data/haplotag.bam",
-            haplotag_list=None,
-            output=None,
-            regions=["chr1:0-100", "chr1:500-200"],
-        )
-
-
-def test_haplotag_malformed_input_format():
-    # Region 2 uses colon twice as separator
-    with pytest.raises(ValueError):
-        run_haplotag(
-            variant_file="tests/data/haplotag_1.vcf.gz",
-            alignment_file="tests/data/haplotag.bam",
-            haplotag_list=None,
-            output=None,
-            regions=["chr1:0", "chr1:200:500"],
-        )
+def test_haplotag_region_start_greater_than_end():
+    with pytest.raises(InvalidRegion):
+        Region.parse("chr1:500-200")
+    with pytest.raises(InvalidRegion):
+        Region.parse("chr1:500-200:17")
+    with pytest.raises(InvalidRegion):
+        Region.parse("chr1:a-b")
 
 
 def test_haplotag_selected_regions(tmp_path):
