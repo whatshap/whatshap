@@ -287,6 +287,8 @@ class Region:
         Region("chr1", 100, None)
         >>> Region.parse("chr1:101-200")
         Region("chr1", 100, 200)
+        >>> Region.parse("chr1:101:200")  # for backwards compatibility
+        Region("chr1", 100, 200)
         """
         parts = spec.split(":", maxsplit=1)
         chromosome = parts[0]
@@ -294,7 +296,8 @@ class Region:
             start, end = 0, None
         else:
             try:
-                start_end = parts[1].split("-", maxsplit=1)
+                sep = ":" if ":" in parts[1] else "-"
+                start_end = parts[1].split(sep, maxsplit=1)
                 start = int(start_end[0]) - 1
                 if len(start_end) == 1 or not start_end[1]:
                     end = None
