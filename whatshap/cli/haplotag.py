@@ -265,6 +265,10 @@ def normalize_user_regions(user_regions, bam_references):
     return norm_regions
 
 
+class InvalidRegion(Exception):
+    pass
+
+
 @dataclass
 class Region:
     chromosome: str
@@ -287,6 +291,8 @@ class Region:
         Region("chr1", 100, None)
         >>> Region.parse("chr1:101-200")
         Region("chr1", 100, 200)
+        >>> Region.parse("chr1:101:200")  # for backwards compatibility
+        Region("chr1", 100, 200)
         """
         parts = spec.split(":", maxsplit=1)
         chromosome = parts[0]
@@ -294,14 +300,17 @@ class Region:
             start, end = 0, None
         else:
             try:
-                start_end = parts[1].split("-", maxsplit=1)
+                sep = ":" if ":" in parts[1] else "-"
+                start_end = parts[1].split(sep, maxsplit=1)
                 start = int(start_end[0]) - 1
                 if len(start_end) == 1 or not start_end[1]:
                     end = None
                 else:
                     end = int(start_end[1])
+                    if end <= start:
+                        raise InvalidRegion("end is before start in specified region")
             except ValueError:
-                raise ValueError("Region must be specified as chrom[:start[-end]])") from None
+                raise InvalidRegion("Region must be specified as chrom[:start[-end]])") from None
         return Region(chromosome, start, end)
 
 
