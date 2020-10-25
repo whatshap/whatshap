@@ -476,3 +476,75 @@ def draw_threading(
 
     except ImportError:
         logger.error("Plotting haplotype threading requires matplotlib to be installed")
+
+def draw_genetic_clustering(
+    clustering, num_vars, path,
+):
+    try:
+        import matplotlib
+
+        matplotlib.use("agg")
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as mpatches
+        from pylab import savefig
+
+        # Detect relevant clusters
+        c_list = list(range(len(clustering)))
+        num_c = len(c_list)
+
+        # Setup figure
+        fig = plt.figure(figsize=((num_vars+2) / 40, num_c / 4), dpi=100)
+        legend_handles = {}
+        x_scale = 1
+        y_margin = 0.1
+        y_offset = 0
+        c_height = 0.9
+
+        # Plot paths
+        for c in range(num_c):
+            legend_handles["C" + str(c)] = mpatches.Patch(
+                color="C" + str(c), label=("Clust " + str(c))
+            )
+            for pos in range(0, len(clustering[c])):
+                plt.hlines(
+                    y=c,
+                    xmin=x_scale * clustering[c][pos],
+                    xmax=x_scale * (clustering[c][pos]+1),
+                    color="C" + str(c),
+                    alpha=0.9,
+                )
+        # plt.legend(handles=legend_handles.values(), loc='lower center', ncol=len(legend_handles))
+        axes = plt.gca()
+        axes.set_xlim([0, num_vars - 1])
+        fig.savefig(path)
+        fig.clear()
+
+    except ImportError:
+        logger.error("Plotting haplotype threading requires matplotlib to be installed")
+
+        
+def create_histogram(path, same, diff, steps, dim, x_label, title, name1='same', name2='diff'):
+    try:
+        import matplotlib
+
+        matplotlib.use("agg")
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as mpatches
+        from pylab import savefig
+        
+        hist = {}
+        left_bound = dim[0]
+        right_bound = dim[1]
+        bins = [left_bound + i*(right_bound-left_bound)/steps for i in range(steps+1)]
+        plt.hist(same, bins, alpha=0.5, label=name1)
+        if len(diff) > 0:
+            plt.hist(diff, bins, alpha=0.5, label=name2)
+        plt.title(title)
+        plt.xlabel(x_label)
+        plt.ylabel("Frequency")
+        plt.legend(loc='upper center')
+        savefig(path, bbox_inches='tight')
+        plt.close()
+        
+    except ImportError:
+        logger.error("Plotting haplotype threading requires matplotlib to be installed")

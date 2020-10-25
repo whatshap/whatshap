@@ -21,6 +21,7 @@ from .core import (
     Genotype,
     binomial_coefficient,
     get_max_genotype_ploidy,
+    get_max_genotype_alleles,
 )
 from .utils import warn_once
 
@@ -57,7 +58,35 @@ class VariantCallPhase:
 class VcfVariant:
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
-    __slots__ = ("position", "reference_allele", "alternative_allele")
+    __slots__ = ("position", "reference_allele", "alternative_alleles")
+
+    @abstractmethod
+    def __repr__(self):
+        pass
+
+    @abstractmethod
+    def __hash__(self):
+        pass
+
+    @abstractmethod
+    def __eq__(self, other):
+        pass
+
+    @abstractmethod
+    def __lt__(self, other):
+        pass
+
+    @abstractmethod
+    def is_snv(self):
+        pass
+
+    @abstractmethod
+    def normalized(self):
+        pass
+
+
+class VcfBiallelicVariant(VcfVariant):
+    """A variant in a VCF file (not to be confused with core.Variant)"""
 
     def __init__(self, position: int, reference_allele: str, alternative_allele: str):
         """
@@ -68,7 +97,7 @@ class VcfVariant:
         self.alternative_allele = alternative_allele
 
     def __repr__(self):
-        return "VcfVariant({}, {!r}, {!r})".format(
+        return "VcfBiallelicVariant({}, {!r}, {!r})".format(
             self.position, self.reference_allele, self.alternative_allele
         )
 
@@ -94,7 +123,7 @@ class VcfVariant:
             len(self.reference_allele) == len(self.alternative_allele) == 1
         )
 
-    def normalized(self) -> "VcfVariant":
+    def normalized(self) -> "VcfBiallelicVariant":
         """
         Return a normalized version of this variant.
 
@@ -112,7 +141,75 @@ class VcfVariant:
             ref, alt = ref[1:], alt[1:]
             pos += 1
 
-        return VcfVariant(pos, ref, alt)
+        return VcfBiallelicVariant(pos, ref, alt)
+
+
+class VcfMultiallelicVariant(VcfVariant):
+    """A variant in a VCF file (not to be confused with core.Variant)"""
+
+    __slots__ = ("alternative_alleles")
+
+    def __init__(self, position: int, reference_allele: str, alternative_alleles: List[str]):
+        """
+        Multi-ALT sites are not modelled.
+        """
+        self.position = position
+        self.reference_allele = reference_allele
+        self.alternative_allele = alternative_alleles[0]
+        self.alternative_alleles = alternative_alleles
+
+    def __repr__(self):
+        return "VcfMultiallelicVariant({}, {!r}, {!r})".format(
+            self.position, self.reference_allele, self.alternative_alleles
+        )
+
+    def __hash__(self):
+        return hash((self.position, self.reference_allele, self.alternative_alleles))
+
+    def __eq__(self, other):
+        return (
+            (self.position == other.position)
+            and (self.reference_allele == other.reference_allele)
+            and (len(self.alternative_alleles) == len(other.alternative_alleles))
+            and all([self.alternative_alleles[i] == other.alternative_alleles[i] for i in range(len(self.alternative_alleles))])
+        )
+
+    def __lt__(self, other):
+        if len(self.alternative_alleles) != len(other.alternative_alleles):
+            return None
+        if (self.position, self.reference_allele) != (other.position, other.reference_allele):
+            return (self.position, self.reference_allele) < (other.position, other.reference_allele)
+        for alt_self, alt_other in zip(sorted(self.alternative_alleles), sorted(other.alternative_alleles)):
+            if alt_self != alt_other:
+                return alt_self < alt_other
+                
+        return False
+
+    def is_snv(self) -> bool:
+        return any([self.reference_allele != alt for alt in self.alternative_alleles]) and (
+            len(self.reference_allele) == 1 and
+            all([len(alt) == 1 for alt in self.alternative_alleles])
+        )
+
+    def normalized(self) -> "VcfMultiallelicVariant":
+        """
+        Return a normalized version of this variant.
+
+        Common prefixes and/or suffixes between the reference and alternative allele are removed,
+        and the position is adjusted as necessary.
+
+        >>> VcfVariant(100, 'GCTGTT', 'GCTAAATT').normalized()
+        VcfVariant(103, 'G', 'AAA')
+        """
+        pos, ref, alts = self.position, self.reference_allele, self.alternative_alleles
+        while len(ref) >= 1 and all([len(alt) >= 1 for alt in alts]) and all([ref[-1] == alt[-1] for alt in alts]):
+            ref, alts = ref[:-1], [alt[:-1] for alt in alts]
+
+        while len(ref) >= 1 and all([len(alt) >= 1 for alt in alts]) and all([ref[0] == alt[0] for alt in alts]):
+            ref, alts = ref[1:], [alt[1:] for alt in alts]
+            pos += 1
+
+        return VcfMultiallelicVariant(pos, ref, alts)
 
 
 class GenotypeLikelihoods:
@@ -350,6 +447,7 @@ class VcfReader:
         genotype_likelihoods: bool = False,
         ignore_genotypes: bool = False,
         ploidy: int = None,
+        mav: bool = False
     ):
         """
         path -- Path to VCF file
@@ -369,6 +467,7 @@ class VcfReader:
         self.samples = list(self._vcf_reader.header.samples)  # intentionally public
         self.contigs = self._vcf_reader.header.contigs
         self.ploidy = ploidy
+        self.mav = mav
         logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
     def __enter__(self):
@@ -468,10 +567,11 @@ class VcfReader:
             if len(record.alts) > 1:
                 # Multi-ALT sites are not supported, yet
                 n_multi += 1
-                continue
+                if not self.mav:
+                    continue
 
-            pos, ref, alt = record.start, str(record.ref), str(record.alts[0])
-            if len(ref) == len(alt) == 1:
+            pos, ref, alts = record.start, str(record.ref), [str(alt) for alt in record.alts]
+            if len(ref) == 1 and all([len(alt) == 1 for alt in alts]):
                 n_snvs += 1
             else:
                 n_other += 1
@@ -573,7 +673,10 @@ class VcfReader:
             else:
                 genotypes = [Genotype([]) for _ in self.samples]
                 phases = [None] * len(self.samples)
-            variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
+            if len(alts) == 1:
+                variant = VcfBiallelicVariant(position=pos, reference_allele=ref, alternative_allele=alts[0])
+            else:
+                variant = VcfMultiallelicVariant(position=pos, reference_allele=ref, alternative_alleles=alts)
             table.add_variant(variant, genotypes, phases, genotype_likelihoods)
 
         logger.debug(
@@ -1011,6 +1114,9 @@ class PhasedVcfWriter(VcfAugmenter):
             for sample in self.samples:
                 if sample in sample_superreads:
                     components = sample_components[sample]
+                    haploid_components = (
+                        sample_haploid_components[sample] if sample_haploid_components else None
+                    )
                     phases = sample_phases[sample]
                     if pos in components and pos in phases:
                         break
