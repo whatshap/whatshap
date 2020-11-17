@@ -477,6 +477,7 @@ def draw_threading(
     except ImportError:
         logger.error("Plotting haplotype threading requires matplotlib to be installed")
 
+
 def draw_genetic_clustering(
     clustering, num_vars, path,
 ):
@@ -493,7 +494,7 @@ def draw_genetic_clustering(
         num_c = len(c_list)
 
         # Setup figure
-        fig = plt.figure(figsize=((num_vars+2) / 40, num_c / 4), dpi=100)
+        fig = plt.figure(figsize=((num_vars + 2) / 40, num_c / 4), dpi=100)
         legend_handles = {}
         x_scale = 1
         y_margin = 0.1
@@ -509,7 +510,7 @@ def draw_genetic_clustering(
                 plt.hlines(
                     y=c,
                     xmin=x_scale * clustering[c][pos],
-                    xmax=x_scale * (clustering[c][pos]+1),
+                    xmax=x_scale * (clustering[c][pos] + 1),
                     color="C" + str(c),
                     alpha=0.9,
                 )
@@ -522,8 +523,8 @@ def draw_genetic_clustering(
     except ImportError:
         logger.error("Plotting haplotype threading requires matplotlib to be installed")
 
-        
-def create_histogram(path, same, diff, steps, dim, x_label, title, name1='same', name2='diff'):
+
+def create_histogram(path, same, diff, steps, dim, x_label, title, name1="same", name2="diff"):
     try:
         import matplotlib
 
@@ -531,20 +532,20 @@ def create_histogram(path, same, diff, steps, dim, x_label, title, name1='same',
         import matplotlib.pyplot as plt
         import matplotlib.patches as mpatches
         from pylab import savefig
-        
+
         hist = {}
         left_bound = dim[0]
         right_bound = dim[1]
-        bins = [left_bound + i*(right_bound-left_bound)/steps for i in range(steps+1)]
+        bins = [left_bound + i * (right_bound - left_bound) / steps for i in range(steps + 1)]
         plt.hist(same, bins, alpha=0.5, label=name1)
         if len(diff) > 0:
             plt.hist(diff, bins, alpha=0.5, label=name2)
         plt.title(title)
         plt.xlabel(x_label)
         plt.ylabel("Frequency")
-        plt.legend(loc='upper center')
-        savefig(path, bbox_inches='tight')
+        plt.legend(loc="upper center")
+        savefig(path, bbox_inches="tight")
         plt.close()
-        
+
     except ImportError:
         logger.error("Plotting haplotype threading requires matplotlib to be installed")

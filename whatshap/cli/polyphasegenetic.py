@@ -10,24 +10,16 @@ cut sensitivity to balance out length and accuracy of phased blocks.
 import sys
 import logging
 import platform
-import argparse
 
 from collections import namedtuple, defaultdict
-from copy import deepcopy
-from scipy.stats import binom_test
 
 from contextlib import ExitStack
 
 from whatshap import __version__
 from whatshap.core import (
-    Read,
-    ReadSet,
-    Genotype,
     ClusterEditingSolver,
-    NumericSampleIds,
-    compute_polyploid_genotypes,
 )
-from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
+from whatshap.cli import log_memory_usage, CommandLineError
 from whatshap.polyphaseplots import draw_genetic_clustering
 from whatshap.offspringscoring import get_variant_scoring
 from whatshap.timer import StageTimer
@@ -35,12 +27,7 @@ from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
 
 __author__ = "Sven Schrinner"
 
-PhasingParameter = namedtuple(
-    "PhasingParameter",
-    [
-        "ploidy",
-    ],
-)
+PhasingParameter = namedtuple("PhasingParameter", ["ploidy",],)
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +81,6 @@ def run_polyphasegenetic(
         __version__,
         platform.python_version(),
     )
-    numeric_sample_ids = NumericSampleIds()
     with ExitStack() as stack:
 
         if write_command_line_header:
@@ -116,54 +102,77 @@ def run_polyphasegenetic(
 
         vcf_reader = stack.enter_context(
             VcfReader(
-                variant_file, indels=indels, phases=True, genotype_likelihoods=False, ploidy=ploidy, mav=True,
+                variant_file,
+                indels=indels,
+                phases=True,
+                genotype_likelihoods=False,
+                ploidy=ploidy,
+                mav=True,
+                allele_depth=True,
             )
         )
-        
+
         # exit on non-tetraploid samples
         if ploidy != 4:
-            logger.error("Only ploidy 4 is supported. Detected was {}".format(ploidy))
-            raise CommandLineError(e)
-        
+            raise CommandLineError("Only ploidy 4 is supported. Detected was {}".format(ploidy))
+
         # determine pedigree
         parents, co_parent, offspring = dict(), dict(), defaultdict(list)
-        
+
         with open(pedigree_file, "r") as ped:
             for line in ped:
-                tokens = line.replace('\n', '').split(" ")
+                tokens = line.replace("\n", "").split(" ")
                 if len(tokens) != 3:
                     logger.error("Malformed pedigree file: {}".format(line))
                     raise CommandLineError(None)
                 for token in tokens:
                     if token not in vcf_reader.samples:
-                        logger.error("Sample {} from pedigree file is not present in VCF file".format(token))
+                        logger.error(
+                            "Sample {} from pedigree file is not present in VCF file".format(token)
+                        )
                         raise CommandLineError(None)
-                        
+
                 if tokens[2] in parents:
-                    logger.error("Sample {} from pedigree file is listed as offspring multiple times".format(tokens[2]))
+                    logger.error(
+                        "Sample {} from pedigree file is listed as offspring multiple times".format(
+                            tokens[2]
+                        )
+                    )
                     raise CommandLineError(None)
                 if tokens[0] in co_parent and co_parent[tokens[0]] != tokens[1]:
-                    logger.error("Sample {} from pedigree file has multiple co-parents".format(tokens[0]))
+                    logger.error(
+                        "Sample {} from pedigree file has multiple co-parents".format(tokens[0])
+                    )
                     raise CommandLineError(None)
                 if tokens[1] in co_parent and co_parent[tokens[1]] != tokens[0]:
-                    logger.error("Sample {} from pedigree file has multiple co-parents".format(tokens[1]))
+                    logger.error(
+                        "Sample {} from pedigree file has multiple co-parents".format(tokens[1])
+                    )
                     raise CommandLineError(None)
 
                 co_parent[tokens[0]] = tokens[1]
                 co_parent[tokens[1]] = tokens[0]
                 parents[tokens[2]] = (tokens[0], tokens[1])
                 offspring[(tokens[0], tokens[1])].append(tokens[2])
-                #print("trio: {} + {} = {}".format(tokens[0], tokens[1], tokens[2]))
+                # print("trio: {} + {} = {}".format(tokens[0], tokens[1], tokens[2]))
 
         if not samples:
             samples = [parent for parent in co_parent]
         else:
             for sample in samples:
                 if sample not in co_parent:
-                    logger.error("Sample {} does not have a co-parent for the pedigree phasing".format(sample))
+                    logger.error(
+                        "Sample {} does not have a co-parent for the pedigree phasing".format(
+                            sample
+                        )
+                    )
                     raise CommandLineError(None)
                 if len(offspring[(sample, co_parent[sample])]) == 0:
-                    logger.error("Sample {} does not have any offspring according to pedigree file".format(sample))
+                    logger.error(
+                        "Sample {} does not have any offspring according to pedigree file".format(
+                            sample
+                        )
+                    )
                     raise CommandLineError(None)
 
         vcf_sample_set = set(vcf_reader.samples)
@@ -176,9 +185,7 @@ def run_polyphasegenetic(
         samples = frozenset(samples)
 
         # Store phasing parameters in tuple to keep function signatures cleaner
-        phasing_param = PhasingParameter(
-            ploidy=ploidy,
-        )
+        phasing_param = PhasingParameter(ploidy=ploidy,)
 
         timers.start("parse_vcf")
         try:
@@ -198,41 +205,47 @@ def run_polyphasegenetic(
                     continue
 
                 # These two variables hold the phasing results for all samples
-                superreads, components, haploid_components = dict(), dict(), dict()
+                superreads, components = dict(), dict()
 
                 logger.info(
-                    "Number of variants among all samples: %d",
-                    len(variant_table),
+                    "Number of variants among all samples: %d", len(variant_table),
                 )
-                
+
                 # compute scoring matrices for parent samples
                 for sample in samples:
                     logger.info("---- Processing individual %s", sample)
                     timers.start("scoring")
-                    scoring, node_to_variant = get_variant_scoring(variant_table, sample, co_parent[sample], offspring[(sample, co_parent[sample])])
+                    scoring, node_to_variant = get_variant_scoring(
+                        variant_table,
+                        sample,
+                        co_parent[sample],
+                        offspring[(sample, co_parent[sample])],
+                        phasing_param,
+                    )
                     timers.stop("scoring")
-                    
+
                     timers.start("phasing")
                     solver = ClusterEditingSolver(scoring, False)
                     clustering = solver.run()
                     del solver
-                    
+
                     print(clustering)
                     timers.stop("phasing")
-                    
+
                     num_vars = max([max(c) for c in clustering])
-                    draw_genetic_clustering(clustering, num_vars, output + ".clusters.pdf",)
+                    draw_genetic_clustering(
+                        clustering, num_vars, output + ".clusters.pdf",
+                    )
 
                 with timers("write_vcf"):
                     logger.info("======== Writing VCF")
-                    '''
+                    """
                     vcf_writer.write(
                         chromosome,
                         superreads,
                         components,
-                        haploid_components if include_haploid_sets else None,
                     )
-                    '''
+                    """
                     # TODO: Use genotype information to polish results
                     # assert len(changed_genotypes) == 0
                     logger.info("Done writing VCF")
@@ -277,9 +290,7 @@ def add_arguments(parser):
         help="VCF file with variants to be phased (can be gzip-compressed)",
     )
     arg(
-        "pedigree_file",
-        metavar="PEDIGREE",
-        help="Pedigree file.",
+        "pedigree_file", metavar="PEDIGREE", help="Pedigree file.",
     )
     # arg('ploidy', metavar='PLOIDY', type=int,
     #    help='The ploidy of the sample(s).')

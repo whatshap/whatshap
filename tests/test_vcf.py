@@ -236,11 +236,19 @@ def test_normalize():
     assert VcfBiallelicVariant(100, "A", "").normalized() == VcfBiallelicVariant(100, "A", "")
     assert VcfBiallelicVariant(100, "A", "AC").normalized() == VcfBiallelicVariant(101, "", "C")
     assert VcfBiallelicVariant(100, "AC", "A").normalized() == VcfBiallelicVariant(101, "C", "")
-    assert VcfBiallelicVariant(100, "ACAGACC", "ACAGACT").normalized() == VcfBiallelicVariant(106, "C", "T")
-    assert VcfBiallelicVariant(100, "GCTG", "GCTAAA").normalized() == VcfBiallelicVariant(103, "G", "AAA")
+    assert VcfBiallelicVariant(100, "ACAGACC", "ACAGACT").normalized() == VcfBiallelicVariant(
+        106, "C", "T"
+    )
+    assert VcfBiallelicVariant(100, "GCTG", "GCTAAA").normalized() == VcfBiallelicVariant(
+        103, "G", "AAA"
+    )
     assert VcfBiallelicVariant(100, "ATTA", "ATA").normalized() == VcfBiallelicVariant(101, "T", "")
-    assert VcfBiallelicVariant(100, "ATTTC", "ATTTTTTC").normalized() == VcfBiallelicVariant(101, "", "TTT")
-    assert VcfBiallelicVariant(100, "GCTGTT", "GCTAAATT").normalized() == VcfBiallelicVariant(103, "G", "AAA")
+    assert VcfBiallelicVariant(100, "ATTTC", "ATTTTTTC").normalized() == VcfBiallelicVariant(
+        101, "", "TTT"
+    )
+    assert VcfBiallelicVariant(100, "GCTGTT", "GCTAAATT").normalized() == VcfBiallelicVariant(
+        103, "G", "AAA"
+    )
 
 
 def test_read_duplicate_position():
