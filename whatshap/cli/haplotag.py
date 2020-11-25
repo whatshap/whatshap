@@ -11,7 +11,6 @@ import pysam
 import hashlib
 from collections import defaultdict
 from typing import List
-from dataclasses import dataclass
 
 from xopen import xopen
 
