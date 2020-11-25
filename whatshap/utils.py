@@ -1,8 +1,13 @@
 import gzip
 import pyfaidx
+from dataclasses import dataclass
 
 
 class FastaNotIndexedError(Exception):
+    pass
+
+
+class InvalidRegion(Exception):
     pass
 
 
@@ -42,3 +47,48 @@ def IndexedFasta(path):
 
 def plural_s(n: int) -> str:
     return "" if n == 1 else "s"
+
+
+@dataclass
+class Region:
+    chromosome: str
+    start: int
+    end: int
+
+    def __repr__(self):
+        return f'Region("{self.chromosome}", {self.start}, {self.end})'
+
+    @staticmethod
+    def parse(spec: str):
+        """
+        >>> Region.parse("chr1")
+        Region("chr1", 0, None)
+        >>> Region.parse("chr1:")
+        Region("chr1", 0, None)
+        >>> Region.parse("chr1:101")
+        Region("chr1", 100, None)
+        >>> Region.parse("chr1:101-")
+        Region("chr1", 100, None)
+        >>> Region.parse("chr1:101-200")
+        Region("chr1", 100, 200)
+        >>> Region.parse("chr1:101:200")  # for backwards compatibility
+        Region("chr1", 100, 200)
+        """
+        parts = spec.split(":", maxsplit=1)
+        chromosome = parts[0]
+        if len(parts) == 1 or not parts[1]:
+            start, end = 0, None
+        else:
+            try:
+                sep = ":" if ":" in parts[1] else "-"
+                start_end = parts[1].split(sep, maxsplit=1)
+                start = int(start_end[0]) - 1
+                if len(start_end) == 1 or not start_end[1]:
+                    end = None
+                else:
+                    end = int(start_end[1])
+                    if end <= start:
+                        raise InvalidRegion("end is before start in specified region")
+            except ValueError:
+                raise InvalidRegion("Region must be specified as chrom[:start[-end]])") from None
+        return Region(chromosome, start, end)
