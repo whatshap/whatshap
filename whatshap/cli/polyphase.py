@@ -358,7 +358,7 @@ def run_polyphase(
 
     logger.info("\n== SUMMARY ==")
 
-    log_memory_usage()
+    log_memory_usage(multiprocessing=(threads > 1))
     logger.info(
         "Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"),
     )
@@ -992,12 +992,13 @@ def compute_linkage_based_block_starts(readset, pos_index, ploidy, single_linkag
             continue
         q = Queue()
         q.put(i)
+        merged_clust[i] = new_num_clust
         while not q.empty():
             cur = q.get()
-            merged_clust[cur] = new_num_clust
             for linked in link_coverage[cur]:
                 if merged_clust[linked] < 0 and link_coverage[cur][linked] >= cut_threshold:
                     q.put(linked)
+                    merged_clust[linked] = new_num_clust
         new_num_clust += 1
 
     # determine cut positions
