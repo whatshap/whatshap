@@ -6,7 +6,7 @@ from whatshap.utils import (
     IndexedFasta,
     FastaNotIndexedError,
     Region,
-    InvalidRegion
+    InvalidRegion,
 )
 
 
