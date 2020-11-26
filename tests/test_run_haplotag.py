@@ -3,7 +3,7 @@ import shutil
 import pysam
 import pytest
 
-from whatshap.cli.haplotag import run_haplotag, Region, InvalidRegion
+from whatshap.cli.haplotag import run_haplotag
 from whatshap.cli import CommandLineError
 
 
@@ -382,15 +382,6 @@ def test_haplotag_nonexisting_region():
             output=None,
             regions=["chr2"],
         )
-
-
-def test_haplotag_region_start_greater_than_end():
-    with pytest.raises(InvalidRegion):
-        Region.parse("chr1:500-200")
-    with pytest.raises(InvalidRegion):
-        Region.parse("chr1:500-200:17")
-    with pytest.raises(InvalidRegion):
-        Region.parse("chr1:a-b")
 
 
 def test_haplotag_selected_regions(tmp_path):
