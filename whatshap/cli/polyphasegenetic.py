@@ -16,9 +16,7 @@ from collections import namedtuple, defaultdict
 from contextlib import ExitStack
 
 from whatshap import __version__
-from whatshap.core import (
-    ClusterEditingSolver,
-)
+from whatshap.core import ClusterEditingSolver
 from whatshap.cli import log_memory_usage, CommandLineError
 from whatshap.polyphaseplots import draw_genetic_clustering
 from whatshap.offspringscoring import get_variant_scoring
@@ -154,6 +152,7 @@ def run_polyphasegenetic(
                 co_parent[tokens[1]] = tokens[0]
                 parents[tokens[2]] = (tokens[0], tokens[1])
                 offspring[(tokens[0], tokens[1])].append(tokens[2])
+                offspring[(tokens[1], tokens[0])].append(tokens[2])
                 # print("trio: {} + {} = {}".format(tokens[0], tokens[1], tokens[2]))
 
         if not samples:
