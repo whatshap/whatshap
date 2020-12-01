@@ -358,7 +358,7 @@ def run_polyphase(
 
     logger.info("\n== SUMMARY ==")
 
-    log_memory_usage(multiprocessing=(threads > 1))
+    log_memory_usage(include_children=(threads > 1))
     logger.info(
         "Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"),
     )

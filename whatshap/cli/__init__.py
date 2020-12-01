@@ -188,9 +188,9 @@ class PhasedInputReader:
         return readset, vcf_source_ids
 
 
-def log_memory_usage(multiprocessing=False):
+def log_memory_usage(include_children=False):
     if sys.platform == "linux":
-        if multiprocessing:
+        if include_children:
             memory_kb = (
                 resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
                 + resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
