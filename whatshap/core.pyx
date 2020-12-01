@@ -48,6 +48,14 @@ cdef class NumericSampleIds:
 	def inverse_mapping(self):
 		"""Returns a dict mapping numeric ids to sample names."""
 		return {numeric_id:name for name, numeric_id in self.mapping.items()}
+	
+	def __getstate__(self):
+		return (self.mapping, self.frozen)
+	
+	def __setstate__(self, state):
+		mapping, frozen = state
+		self.mapping = mapping
+		self.frozen = frozen
 
 
 cdef class Read:
@@ -156,6 +164,33 @@ cdef class Read:
 			if variant.position == position:
 				return True
 		return False
+	
+	def __getstate__(self):
+		mapqs = [mapq for mapq in self.mapqs]
+		variants = [(var.position, var.allele, var.quality) for var in self]
+		return (mapqs, self.name, self.source_id, self.sample_id, self.reference_start, self.BX_tag, variants)
+	
+	def __setstate__(self, state):
+		mapqs, name, source_id, sample_id, reference_start, BX_tag, variants = state
+		
+		# TODO: Duplicated code from __cinit__ is ugly, but cinit cannot be used here directly
+		cdef string _name = ''
+		cdef string _BX_tag = ''
+		if name is None:
+			self.thisptr = NULL
+			self.ownsptr = False
+		else:
+			# TODO: Is this the best way to handle string arguments?
+			_name = name.encode('UTF-8')
+			if BX_tag is not '' and BX_tag is not None:
+				_BX_tag = BX_tag.encode('UTF-8')
+			self.thisptr = new cpp.Read(_name, mapqs[0] if len(mapqs) > 0 else 0, source_id, sample_id, reference_start, _BX_tag)
+			self.ownsptr = True
+
+		for mapq in mapqs[1:]:
+			self.add_mapq(mapq)
+		for (pos, allele, quality) in variants:
+			self.add_variant(pos, allele, quality)
 
 	def add_variant(self, int position, int allele, int quality):
 		assert self.thisptr != NULL
@@ -223,6 +258,14 @@ cdef class ReadSet:
 		else:
 			assert False, 'Invalid key: {}'.format(key)
 		return read
+	
+	def __getstate__(self):
+		return ([read for read in self])
+	
+	def __setstate__(self, state):
+		self.thisptr = new cpp.ReadSet()
+		for read in state:
+			self.add(read)
 
 	#def get_by_name(self, name):
 		#cdef string _name = name.encode('UTF-8')

@@ -106,7 +106,7 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* reads
             windowStartPosition = posList[current];
         }
     }
-    windowStarts.push_back(posList.size()+1);
+    windowStarts.push_back(posList.size());
     
     // determine relative hamming distance for same and different haplotypes for each window
     for (uint32_t windowIdx = 0; windowIdx < windowStarts.size()-1; windowIdx++) {

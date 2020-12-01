@@ -89,3 +89,40 @@ def test_blockcut_sensitivities(tmp_path):
 
     for s in range(5):
         assert all(cut in results[s + 1] for cut in results[s])
+
+
+def test_polyphase_multithreaded(tmp_path):
+    outvcf_st = tmp_path / "output_st.vcf"
+    outvcf_mt = tmp_path / "output_mt.vcf"
+
+    run_polyphase(
+        phase_input_files=["tests/data/polyploid.chr22.42M.12k.bam"],
+        variant_file="tests/data/polyploid.chr22.42M.12k.vcf",
+        ploidy=4,
+        ignore_read_groups=True,
+        output=outvcf_st,
+    )
+    run_polyphase(
+        phase_input_files=["tests/data/polyploid.chr22.42M.12k.bam"],
+        variant_file="tests/data/polyploid.chr22.42M.12k.vcf",
+        ploidy=4,
+        ignore_read_groups=True,
+        output=outvcf_mt,
+        threads=4,
+    )
+    assert os.path.isfile(outvcf_st)
+    assert os.path.isfile(outvcf_mt)
+
+    tables_st = list(VcfReader(outvcf_st, phases=True))
+    table_st = tables_st[0]
+    tables_mt = list(VcfReader(outvcf_mt, phases=True))
+    table_mt = tables_mt[0]
+
+    assert table_st.chromosome == table_mt.chromosome
+    assert table_st.samples == table_mt.samples
+    assert all([st == mt for (st, mt) in zip(table_st.genotypes, table_mt.genotypes)])
+    assert all([st == mt for (st, mt) in zip(table_st.phases, table_mt.phases)])
+    assert all(
+        [st == mt for (st, mt) in zip(table_st.genotype_likelihoods, table_mt.genotype_likelihoods)]
+    )
+    assert all([st == mt for (st, mt) in zip(table_st.variants, table_mt.variants)])

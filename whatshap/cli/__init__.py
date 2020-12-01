@@ -188,7 +188,13 @@ class PhasedInputReader:
         return readset, vcf_source_ids
 
 
-def log_memory_usage():
+def log_memory_usage(include_children=False):
     if sys.platform == "linux":
-        memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        if include_children:
+            memory_kb = (
+                resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+                + resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss
+            )
+        else:
+            memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         logger.info("Maximum memory usage: %.3f GB", memory_kb / 1e6)
