@@ -9,6 +9,7 @@ development version
 * :issue:`241`: Fix some ``polyphase`` problems.
 * :issue:`249`: Fix crash in the ``haplotag`` command on reading a VCF with the
   ``PS`` tag set to ``.``.
+* The file created with ``--output-read-list`` was not correctly tab-separated.
 
 v1.0 (2020-06-24)
 -----------------

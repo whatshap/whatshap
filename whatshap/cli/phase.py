@@ -142,7 +142,7 @@ def select_reads(readset, max_coverage, preferred_source_ids):
 
 
 class ReadList:
-    """Write a list of reads that has been used for phasing to a file"""
+    """Write a list of reads that have been used for phasing to a file"""
 
     def __init__(self, path):
         self._path = path
@@ -197,6 +197,7 @@ class ReadList:
                 len(read),
                 read[0].position + 1,
                 read[-1].position + 1,
+                sep="\t",
                 file=self._file,
             )
 
