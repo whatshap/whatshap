@@ -2,17 +2,33 @@
 Pedigree-related functions
 """
 import math
-from collections import namedtuple, Counter, OrderedDict
-from collections import defaultdict
+from typing import Optional
+from collections import Counter, OrderedDict, defaultdict
+from dataclasses import dataclass
 import logging
 
 logger = logging.getLogger(__name__)
 
-RecombinationMapEntry = namedtuple("RecombinationMapEntry", ["position", "cum_distance"])
-
 
 class ParseError(Exception):
     pass
+
+
+@dataclass
+class RecombinationMapEntry:
+    position: int
+    cum_distance: int
+
+
+@dataclass
+class RecombinationEvent:
+    position1: int
+    position2: int
+    transmitted_hap_father1: int
+    transmitted_hap_father2: int
+    transmitted_hap_mother1: int
+    transmitted_hap_mother2: int
+    recombination_cost: float
 
 
 def _interpolate(point, start_pos, end_pos, start_value, end_value):
@@ -117,18 +133,6 @@ def find_recombination(transmission_vector, components, positions, recombcost):
     for position, block_id in components.items():
         blocks[block_id].append(position)
 
-    RecombinationEvent = namedtuple(
-        "RecombinationEvent",
-        [
-            "position1",
-            "position2",
-            "transmitted_hap_father1",
-            "transmitted_hap_father2",
-            "transmitted_hap_mother1",
-            "transmitted_hap_mother2",
-            "recombination_cost",
-        ],
-    )
     event_list = []
     cum_recomb_cost = 0
     for block_id, block in blocks.items():
@@ -225,10 +229,13 @@ class UniformRecombinationCostComputer:
         return self.uniform_recombination_map(self._recombination_rate, positions)
 
 
-Trio = namedtuple("Trio", ["child", "father", "mother"])
-Trio.__doc__ = """
-Relationships are modelled as a set of trios (mother, father, child).
-"""
+@dataclass
+class Trio:
+    """"Relationships are modelled as a set of trios (mother, father, child)."""
+
+    child: Optional[int]
+    father: Optional[int]
+    mother: Optional[int]
 
 
 class PedReader:

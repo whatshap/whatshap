@@ -2,19 +2,18 @@
 Functions for reading VCFs.
 """
 import sys
+import math
 import logging
 import itertools
-
-from whatshap.core import ReadSet
-
-import math
+from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from collections import namedtuple
+from typing import List, Sequence, Dict, Tuple
+
 from pysam import VariantFile
-from typing import List, Sequence, Dict
 
 from .core import (
     Read,
+    ReadSet,
     PhredGenotypeLikelihoods,
     Genotype,
     binomial_coefficient,
@@ -42,6 +41,13 @@ class VcfIndexMissing(VcfError):
 
 class VcfInvalidChromosome(VcfError):
     pass
+
+
+@dataclass
+class VariantCallPhase:
+    block_id: int  # numeric id of the phased block
+    phase: Tuple[int, int]  # alleles representing the phasing. (1, 0) is 1|0
+    quality: float
 
 
 class VcfVariant:
@@ -159,9 +165,9 @@ class VariantTable:
     def __init__(self, chromosome: str, samples: List[str]):
         self.chromosome = chromosome
         self.samples = samples
-        self.genotypes: List[Genotype] = [[] for _ in samples]
-        self.phases: List[List["VariantCallPhase"]] = [[] for _ in samples]
-        self.genotype_likelihoods: List[List["GenotypeLikelihoods"]] = [[] for _ in samples]
+        self.genotypes: List[List[Genotype]] = [[] for _ in samples]
+        self.phases: List[List[VariantCallPhase]] = [[] for _ in samples]
+        self.genotype_likelihoods: List[List[GenotypeLikelihoods]] = [[] for _ in samples]
         self.variants: List[VcfVariant] = []
         self._sample_to_index = {sample: index for index, sample in enumerate(samples)}
 
@@ -182,7 +188,7 @@ class VariantTable:
         self,
         variant: VcfVariant,
         genotypes: Sequence[Genotype],
-        phases: Sequence["VariantCallPhase"],
+        phases: Sequence[VariantCallPhase],
         genotype_likelihoods: Sequence[GenotypeLikelihoods],
     ):
         """
@@ -329,13 +335,6 @@ class VariantTable:
 
 class MixedPhasingError(Exception):
     pass
-
-
-VariantCallPhase = namedtuple("VariantCallPhase", ["block_id", "phase", "quality"])
-VariantCallPhase.__doc__ = """
-    block_id is a numeric id of the phased block and
-    phase is a tuple of alleles representing the phasing, i.e. 1|0 -> (1,0).
-    """
 
 
 class VcfReader:
@@ -513,7 +512,7 @@ class VcfReader:
                                     "Ploidies higher than {} are not supported."
                                     "".format(get_max_genotype_ploidy())
                                 )
-                            elif p is None or None in p:
+                            elif p is None or p.block_id is None or p.phase is None:
                                 pass
                             elif self.ploidy is None:
                                 self.ploidy = phase_ploidy
@@ -763,9 +762,13 @@ def missing_headers(path):
     return (missing_contigs, incorrect_formats + missing_formats, missing_infos)
 
 
-GenotypeChange = namedtuple(
-    "GenotypeChange", ["sample", "chromosome", "variant", "old_gt", "new_gt"]
-)
+@dataclass
+class GenotypeChange:
+    sample: str
+    chromosome: str
+    variant: VcfVariant
+    old_gt: Genotype
+    new_gt: Genotype
 
 
 class VcfAugmenter(ABC):
@@ -1028,7 +1031,7 @@ class PhasedVcfWriter(VcfAugmenter):
                     call["GT"] = sorted(call["GT"])
 
 
-def genotype_code(gt):
+def genotype_code(gt) -> Genotype:
     """Return genotype encoded as PyVCF-compatible number"""
     if gt is None:
         result = Genotype([])
