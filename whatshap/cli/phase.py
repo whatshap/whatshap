@@ -516,7 +516,6 @@ def run_whatshap(
                     phasable_variant_table,
                     trios,
                 )
-
                 recombination_costs = recombination_cost_computer.compute(accessible_positions)
 
                 # Finally, run phasing algorithm
@@ -541,42 +540,18 @@ def run_whatshap(
                         )
 
                     superreads_list, transmission_vector = dp_table.get_super_reads()
-                    optimal_cost = dp_table.get_optimal_cost()
-                    logger.info("%s cost: %d", problem_name, optimal_cost)
+                    logger.info("%s cost: %d", problem_name, dp_table.get_optimal_cost())
 
                 with timers("components"):
-                    master_block = None
-                    heterozygous_positions_by_sample = None
-                    # If we distrusted genotypes, we need to re-determine which sites are homo-/heterozygous after phasing
-                    if distrust_genotypes:
-                        hom_in_any_sample = set()
-                        heterozygous_positions_by_sample = {}
-                        heterozygous_gts = frozenset({(0, 1), (1, 0)})
-                        homozygous_gts = frozenset({(0, 0), (1, 1)})
-                        for sample, sample_superreads in zip(family, superreads_list):
-                            hets = set()
-                            for v1, v2 in zip(*sample_superreads):
-                                assert v1.position == v2.position
-                                if v1.position not in accessible_positions:
-                                    continue
-                                gt = (v1.allele, v2.allele)
-                                if gt in heterozygous_gts:
-                                    hets.add(v1.position)
-                                elif gt in homozygous_gts:
-                                    hom_in_any_sample.add(v1.position)
-                            heterozygous_positions_by_sample[numeric_sample_ids[sample]] = hets
-                        if len(family) > 1 and genetic_haplotyping:
-                            master_block = sorted(hom_in_any_sample)
-                    else:
-                        if len(family) > 1 and genetic_haplotyping:
-                            master_block = sorted(
-                                set(homozygous_positions).intersection(set(accessible_positions))
-                            )
-                    overall_components = find_components(
+                    overall_components = compute_overall_components(
                         accessible_positions,
                         all_reads,
-                        master_block,
-                        heterozygous_positions_by_sample,
+                        distrust_genotypes,
+                        family,
+                        genetic_haplotyping,
+                        homozygous_positions,
+                        numeric_sample_ids,
+                        superreads_list,
                     )
                     log_component_stats(overall_components, len(accessible_positions))
 
@@ -627,6 +602,46 @@ def run_whatshap(
             logger.debug("Chromosome %r finished", chromosome)
 
     log_time_and_memory_usage(timers, show_phase_vcfs=show_phase_vcfs)
+
+
+def compute_overall_components(
+    accessible_positions,
+    all_reads,
+    distrust_genotypes,
+    family,
+    genetic_haplotyping,
+    homozygous_positions,
+    numeric_sample_ids,
+    superreads_list,
+):
+    master_block = None
+    heterozygous_positions_by_sample = None
+    # If we distrusted genotypes, we need to re-determine which sites are homo-/heterozygous after phasing
+    if distrust_genotypes:
+        hom_in_any_sample = set()
+        heterozygous_positions_by_sample = {}
+        heterozygous_gts = frozenset({(0, 1), (1, 0)})
+        homozygous_gts = frozenset({(0, 0), (1, 1)})
+        for sample, sample_superreads in zip(family, superreads_list):
+            hets = set()
+            for v1, v2 in zip(*sample_superreads):
+                assert v1.position == v2.position
+                if v1.position not in accessible_positions:
+                    continue
+                gt = (v1.allele, v2.allele)
+                if gt in heterozygous_gts:
+                    hets.add(v1.position)
+                elif gt in homozygous_gts:
+                    hom_in_any_sample.add(v1.position)
+            heterozygous_positions_by_sample[numeric_sample_ids[sample]] = hets
+        if len(family) > 1 and genetic_haplotyping:
+            master_block = sorted(hom_in_any_sample)
+    else:
+        if len(family) > 1 and genetic_haplotyping:
+            master_block = sorted(set(homozygous_positions).intersection(set(accessible_positions)))
+    return find_components(
+        accessible_positions, all_reads, master_block, heterozygous_positions_by_sample,
+    )
 
 
 def recompute_variant_table_genotypes(variant_table, chromosome, phased_input_reader, samples):
