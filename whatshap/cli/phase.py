@@ -14,7 +14,7 @@ from collections import defaultdict
 from copy import deepcopy
 
 from contextlib import ExitStack
-from whatshap.vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods, VcfError
+from whatshap.vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods, VcfError, VariantTable
 from whatshap import __version__
 from whatshap.core import (
     ReadSet,
@@ -747,7 +747,7 @@ def setup_families(samples, ped, max_coverage):
     return families, family_trios
 
 
-def find_phaseable_variants(family, include_homozygous, trios, variant_table):
+def find_phaseable_variants(family, include_homozygous: bool, trios, variant_table: VariantTable):
     # variant indices with at least one missing genotype
     missing_genotypes = set()
     # variant indices with at least one heterozygous genotype
