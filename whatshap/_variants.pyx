@@ -1,4 +1,4 @@
-def _iterate_cigar(variants, int j, bam_read, cigartuples):
+def _iterate_cigar(variants, int j, bam_read, cigartuples) -> Iterable[Tuple[int, int, int, int]]:
 	"""
 	Iterate over the CIGAR of the given bam_read and variants[j:] in lockstep.
 

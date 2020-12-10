@@ -4,11 +4,14 @@ Functions for reading VCFs.
 import sys
 import logging
 import itertools
+
+from whatshap.core import ReadSet
+
 import math
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from pysam import VariantFile
-from typing import List
+from typing import List, Sequence, Dict
 
 from .core import (
     Read,
@@ -156,10 +159,10 @@ class VariantTable:
     def __init__(self, chromosome: str, samples: List[str]):
         self.chromosome = chromosome
         self.samples = samples
-        self.genotypes = [[] for _ in samples]
-        self.phases = [[] for _ in samples]
-        self.genotype_likelihoods = [[] for _ in samples]
-        self.variants = []
+        self.genotypes: List[Genotype] = [[] for _ in samples]
+        self.phases: List[List["VariantCallPhase"]] = [[] for _ in samples]
+        self.genotype_likelihoods: List[List["GenotypeLikelihoods"]] = [[] for _ in samples]
+        self.variants: List[VcfVariant] = []
         self._sample_to_index = {sample: index for index, sample in enumerate(samples)}
 
     def __len__(self):
@@ -175,7 +178,13 @@ class VariantTable:
     # self.genotypes.append(genotypes)
     # fmt: on
 
-    def add_variant(self, variant: VcfVariant, genotypes, phases, genotype_likelihoods):
+    def add_variant(
+        self,
+        variant: VcfVariant,
+        genotypes: Sequence[Genotype],
+        phases: Sequence["VariantCallPhase"],
+        genotype_likelihoods: Sequence[GenotypeLikelihoods],
+    ):
         """
         Add a row to the table
 
@@ -891,7 +900,11 @@ class PhasedVcfWriter(VcfAugmenter):
         call.phased = True
 
     def write(
-        self, chromosome: str, sample_superreads, sample_components, sample_haploid_components=None
+        self,
+        chromosome: str,
+        sample_superreads: Dict[str, ReadSet],
+        sample_components: Dict,
+        sample_haploid_components=None,
     ):
         """
         Add phasing information to all variants on a single chromosome.
@@ -912,8 +925,8 @@ class PhasedVcfWriter(VcfAugmenter):
         """
         genotype_changes = []
         # TODO
-        sample_phases = dict()
-        sample_genotypes = dict()
+        sample_phases: Dict[str, Dict] = dict()
+        sample_genotypes: Dict[str, Dict] = dict()
         for sample, superreads in sample_superreads.items():
             sample_phases[sample] = {}
             sample_genotypes[sample] = {}
