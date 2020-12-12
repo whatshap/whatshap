@@ -188,7 +188,7 @@ setup(
     use_scm_version={"write_to": "whatshap/_version.py"},
     author="WhatsHap authors",
     author_email="whatshap@cwi.nl",
-    url="https://bitbucket.org/whatshap/whatshap/",
+    url="https://github.com/whatshap/whatshap/",
     description="phase genomic variants using DNA sequencing reads",
     long_description=long_description,
     long_description_content_type="text/x-rst",
