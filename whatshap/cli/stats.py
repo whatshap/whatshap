@@ -2,7 +2,7 @@
 Print phasing statistics of a single VCF file
 """
 import logging
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from contextlib import ExitStack
 import dataclasses
 

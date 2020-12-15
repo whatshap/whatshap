@@ -3,10 +3,11 @@ Compare two or more phasings
 """
 import logging
 import math
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from contextlib import ExitStack
+import dataclasses
 from itertools import chain, permutations
-from typing import Set, List
+from typing import Set, List, Optional, DefaultDict, Dict
 
 from whatshap.vcf import VcfReader, VcfVariant, VariantTable, PloidyError
 from whatshap.core import Genotype, SwitchFlipCalculator
@@ -58,9 +59,9 @@ def validate(args, parser):
 
 
 class SwitchFlips:
-    def __init__(self, switches=0, flips=0):
-        self.switches = switches
-        self.flips = flips
+    def __init__(self, switches: int = 0, flips: int = 0):
+        self.switches: int = switches
+        self.flips: int = flips
 
     def __iadd__(self, other):
         self.switches += other.switches
@@ -75,13 +76,21 @@ class SwitchFlips:
 
 
 class PhasingErrors:
-    def __init__(self, switches=0, hamming=0, switch_flips=None, diff_genotypes=0):
+    def __init__(
+        self,
+        switches: int = 0,
+        hamming: int = 0,
+        switch_flips: Optional[SwitchFlips] = None,
+        diff_genotypes: int = 0,
+    ):
         self.switches = switches
         self.hamming = hamming
         self.switch_flips = SwitchFlips() if switch_flips is None else switch_flips
         self.diff_genotypes = diff_genotypes
 
-    def __iadd__(self, other):
+    def __iadd__(self, other: object) -> "PhasingErrors":
+        if not isinstance(other, PhasingErrors):
+            raise TypeError("Can only add to PhasingErrors")
         self.switches += other.switches
         self.hamming += other.hamming
         self.switch_flips += other.switch_flips
@@ -121,7 +130,7 @@ def switch_encoding(phasing):
     return "".join(("0" if phasing[i - 1] == phasing[i] else "1") for i in range(1, len(phasing)))
 
 
-def compute_switch_flips(phasing0, phasing1):
+def compute_switch_flips(phasing0, phasing1) -> SwitchFlips:
     assert len(phasing0) == len(phasing1)
     s0 = switch_encoding(phasing0)
     s1 = switch_encoding(phasing1)
@@ -190,7 +199,7 @@ def compute_switch_flips_poly(phasing0, phasing1, switch_cost=1, flip_cost=1):
     Computes the combined number of switches and flips, which are needed to transform phasing 0 into
     phasing 1 or vice versa.
     """
-    (result, switches_in_column, flips_in_column, poswise_config,) = compute_switch_flips_poly_bt(
+    (result, switches_in_column, flips_in_column, poswise_config) = compute_switch_flips_poly_bt(
         phasing0, phasing1, switch_cost=switch_cost, flip_cost=flip_cost
     )
     return result
@@ -212,10 +221,10 @@ def compute_switch_flips_poly_bt(
 
     num_pos = len(phasing0[0])
     if num_pos == 0:
-        return SwitchFlips(0.0, 0.0), None, None, None
+        return SwitchFlips(), None, None, None
     ploidy = len(phasing0)
     if ploidy == 0:
-        return SwitchFlips(0.0, 0.0), None, None, None
+        return SwitchFlips(), None, None, None
     for i in range(0, len(phasing1)):
         if len(phasing1[i]) != num_pos:
             logger.error(
@@ -368,33 +377,34 @@ def print_errors(errors, phased_pairs):
     )
 
 
-pairwise_comparison_results_fields = [
-    "intersection_blocks",
-    "covered_variants",
-    "all_assessed_pairs",
-    "all_switches",
-    "all_switch_rate",
-    "all_switchflips",
-    "all_switchflip_rate",
-    "blockwise_hamming",
-    "blockwise_hamming_rate",
-    "blockwise_diff_genotypes",
-    "blockwise_diff_genotypes_rate",
-    "largestblock_assessed_pairs",
-    "largestblock_switches",
-    "largestblock_switch_rate",
-    "largestblock_switchflips",
-    "largestblock_switchflip_rate",
-    "largestblock_hamming",
-    "largestblock_hamming_rate",
-    "largestblock_diff_genotypes",
-    "largestblock_diff_genotypes_rate",
-]
-PairwiseComparisonResults = namedtuple(
-    "PairwiseComparisonResults", pairwise_comparison_results_fields
-)
+@dataclasses.dataclass
+class PairwiseComparisonResults:
+    intersection_blocks: int
+    covered_variants: int
+    all_assessed_pairs: int
+    all_switches: int
+    all_switch_rate: float
+    all_switchflips: SwitchFlips
+    all_switchflip_rate: float
+    blockwise_hamming: int
+    blockwise_hamming_rate: int
+    blockwise_diff_genotypes: int
+    blockwise_diff_genotypes_rate: int
+    largestblock_assessed_pairs: int
+    largestblock_switches: int
+    largestblock_switch_rate: float
+    largestblock_switchflips: SwitchFlips
+    largestblock_switchflip_rate: float
+    largestblock_hamming: int
+    largestblock_hamming_rate: float
+    largestblock_diff_genotypes: int
+    largestblock_diff_genotypes_rate: float
 
-BlockStats = namedtuple("BlockStats", ["variant_count", "span"])
+
+@dataclasses.dataclass
+class BlockStats:
+    variant_count: int
+    span: int
 
 
 def collect_common_variants(variant_tables: List[VariantTable], sample) -> Set[VcfVariant]:
@@ -409,16 +419,18 @@ def collect_common_variants(variant_tables: List[VariantTable], sample) -> Set[V
             common_variants = set(het_variants)
         else:
             common_variants.intersection_update(het_variants)
+    assert common_variants is not None
     return common_variants
 
 
-def compare(variant_tables, sample: str, dataset_names, ploidy):
+def compare(variant_tables: List[VariantTable], sample: str, dataset_names: List[str], ploidy: int):
     """
     Return a PairwiseComparisonResults object if the variant_tables has a length of 2.
     """
     assert len(variant_tables) > 1
 
     common_variants = collect_common_variants(variant_tables, sample)
+    assert common_variants is not None
 
     print_stat("common heterozygous variants", len(common_variants))
     print_stat("(restricting to these below)")
@@ -435,7 +447,7 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
         phases.append(p)
 
     # blocks[variant_table_index][block_id] is a list of indices into common_variants
-    blocks = [defaultdict(list) for _ in variant_tables]
+    blocks: List[DefaultDict[int, List[int]]] = [defaultdict(list) for _ in variant_tables]
     block_intersection = defaultdict(list)
     for variant_index in range(len(common_variants)):
         any_none = False
@@ -446,22 +458,13 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
             else:
                 blocks[i][phase.block_id].append(variant_index)
         if not any_none:
-            joint_block_id = tuple(phases[i][variant_index].block_id for i in range(len(phases)))
+            joint_block_id = tuple(
+                phase[variant_index].block_id for phase in phases  # type: ignore
+            )
             block_intersection[joint_block_id].append(variant_index)
 
     # create statistics on each block in each data set
-    block_stats = []
-    for block in blocks:
-        l = []
-        for block_id, variant_indices in block.items():
-            if len(variant_indices) < 2:
-                continue
-            span = (
-                sorted_variants[variant_indices[-1]].position
-                - sorted_variants[variant_indices[0]].position
-            )
-            l.append(BlockStats(len(variant_indices), span))
-        block_stats.append(l)
+    block_stats = compute_block_stats(blocks, sorted_variants)
 
     for dataset_name, block in zip(dataset_names, blocks):
         print_stat(
@@ -633,6 +636,24 @@ def compare(variant_tables, sample: str, dataset_names, ploidy):
         return None, None, block_stats, None, None, multiway_results
 
 
+def compute_block_stats(
+    blocks: List[DefaultDict[int, List[int]]], sorted_variants: List[VcfVariant]
+):
+    block_stats = []
+    for block in blocks:
+        l = []
+        for block_id, variant_indices in block.items():
+            if len(variant_indices) < 2:
+                continue
+            span = (
+                sorted_variants[variant_indices[-1]].position
+                - sorted_variants[variant_indices[0]].position
+            )
+            l.append(BlockStats(len(variant_indices), span))
+        block_stats.append(l)
+    return block_stats
+
+
 def create_blocksize_histogram(filename, block_stats, names, use_weights=False):
     try:
         import matplotlib
@@ -726,31 +747,7 @@ def run_compare(
         dataset_names = ["file{}".format(i) for i in range(len(vcf))]
     longest_name = max(len(n) for n in dataset_names)
 
-    all_samples = set()
-    sample_intersection = None
-    for vcf_reader in vcf_readers:
-        if sample_intersection is None:
-            sample_intersection = set(vcf_reader.samples)
-        else:
-            sample_intersection.intersection_update(vcf_reader.samples)
-        all_samples.update(vcf_reader.samples)
-
-    if sample:
-        sample_intersection.intersection_update([sample])
-        if len(sample_intersection) == 0:
-            raise CommandLineError(
-                "Sample {!r} requested on command-line not found in all VCFs".format(sample)
-            )
-        sample = sample
-    else:
-        if len(sample_intersection) == 0:
-            raise CommandLineError("None of the samples is present in all VCFs")
-        elif len(sample_intersection) == 1:
-            sample = list(sample_intersection)[0]
-        else:
-            raise CommandLineError(
-                "More than one sample is present in all VCFs, please use --sample to specify which sample to work on."
-            )
+    sample = get_sample_to_work_on(vcf_readers, requested_sample=sample)
 
     with ExitStack() as stack:
         tsv_pairwise_file = tsv_multiway_file = longest_block_tsv_file = switch_error_bedfile = None
@@ -784,26 +781,11 @@ def run_compare(
 
         print("Comparing phasings for sample", sample)
 
-        chromosomes = None
-        vcfs = []
-        for reader, filename in zip(vcf_readers, vcf):
-            # create dict mapping chromosome names to VariantTables
-            m = dict()
-            logger.info("Reading phasing from %r", filename)
-            try:
-                for variant_table in reader:
-                    m[variant_table.chromosome] = variant_table
-            except PloidyError as e:
-                raise CommandLineError("Provided ploidy is invalid: {}. Aborting.".format(e))
-            vcfs.append(m)
-            if chromosomes is None:
-                chromosomes = set(m.keys())
-            else:
-                chromosomes.intersection_update(m.keys())
+        vcfs = get_variant_tables(vcf_readers, vcf)
+        chromosomes = get_common_chromosomes(vcfs)
         if len(chromosomes) == 0:
             raise CommandLineError("No chromosome is contained in all VCFs. Aborting.")
-
-        logger.info("Chromosomes present in all VCFs: %s", ", ".join(sorted(chromosomes)))
+        logger.info("Chromosomes present in all VCFs: %s", ", ".join(chromosomes))
 
         if tsv_pairwise_file:
             fields = [
@@ -814,7 +796,8 @@ def run_compare(
                 "file_name0",
                 "file_name1",
             ]
-            fields.extend(pairwise_comparison_results_fields)
+            field_names = [f.name for f in dataclasses.fields(PairwiseComparisonResults)]
+            fields.extend(field_names)
             fields.extend(["het_variants0", "only_snvs"])
             print(*fields, sep="\t", file=tsv_pairwise_file)
 
@@ -913,7 +896,7 @@ def run_compare(
                             vcf[i],
                             vcf[j],
                         ]
-                        fields.extend(results)
+                        fields.extend(dataclasses.astuple(results))
                         fields.extend([het_variants0, int(only_snvs)])
                         print(*fields, sep="\t", file=tsv_pairwise_file)
                     if longest_block_tsv_file:
@@ -970,6 +953,65 @@ def run_compare(
             create_blocksize_histogram(
                 plot_sum_of_blocksizes, all_block_stats, dataset_names, use_weights=True
             )
+
+
+def get_common_chromosomes(vcfs: List[Dict[str, VariantTable]]) -> List[str]:
+    common = None
+    for chrom_variant_table_map in vcfs:
+        chromosomes = chrom_variant_table_map.keys()
+        if common is None:
+            common = set(chromosomes)
+        else:
+            common.intersection_update(chromosomes)
+    return sorted(common)
+
+
+def get_variant_tables(
+    vcf_readers: List[VcfReader], vcf_filenames: List[str]
+) -> List[Dict[str, VariantTable]]:
+    vcfs = []
+    for reader, filename in zip(vcf_readers, vcf_filenames):
+        # create dict mapping chromosome names to VariantTables
+        m = dict()
+        logger.info("Reading phasing from %r", filename)
+        try:
+            for variant_table in reader:
+                m[variant_table.chromosome] = variant_table
+        except PloidyError as e:
+            raise CommandLineError("Provided ploidy is invalid: {}. Aborting.".format(e))
+        vcfs.append(m)
+    return vcfs
+
+
+def get_sample_to_work_on(vcf_readers: List[VcfReader], requested_sample: Optional[str]):
+    all_samples = set()
+    sample_intersection = None
+    for vcf_reader in vcf_readers:
+        if sample_intersection is None:
+            sample_intersection = set(vcf_reader.samples)
+        else:
+            sample_intersection.intersection_update(vcf_reader.samples)
+        all_samples.update(vcf_reader.samples)
+    if requested_sample:
+        sample_intersection.intersection_update([requested_sample])
+        if len(sample_intersection) == 0:
+            raise CommandLineError(
+                "Sample {!r} requested on command-line not found in all VCFs".format(
+                    requested_sample
+                )
+            )
+        requested_sample = requested_sample
+    else:
+        if len(sample_intersection) == 0:
+            raise CommandLineError("None of the samples is present in all VCFs")
+        elif len(sample_intersection) == 1:
+            requested_sample = list(sample_intersection)[0]
+        else:
+            raise CommandLineError(
+                "More than one sample is present in all VCFs, please use"
+                " --sample to specify which sample to work on."
+            )
+    return requested_sample
 
 
 def main(args):
