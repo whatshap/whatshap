@@ -650,7 +650,7 @@ haplotype blocks. With phasing results in ``phased.vcf``, run ::
 WhatsHap will print some statistics about the phasing in the VCF, and it
 will also create the file ``phased.gtf``.
 
-Now open both ``phased.vcf`` and ``phased.gtf`` in IGV in order to inspect the
+Open both ``phased.vcf`` and ``phased.gtf`` in IGV in order to inspect the
 haplotype block structure. In this example, there are four haplotype blocks and
 it is clear which variants they connect:
 
@@ -662,7 +662,8 @@ it is clear which variants they connect:
 
 Haplotype blocks can be interleaved or nested if mate-pair or paired-end reads
 are used for phasing. In the GTF track, you will note this because the blocks
-appear as “exons” connected with a horizontal line (not shown in the screenshot).
+appear as “exons” (thick segments) connected by thinner horizontal lines
+(not shown in the screenshot).
 
 
 Coloring reads
