@@ -2,8 +2,9 @@
 Print phasing statistics of a single VCF file
 """
 import logging
-from collections import defaultdict, namedtuple
+from collections import defaultdict
 from contextlib import ExitStack
+import dataclasses
 
 from ..math import median
 from ..vcf import VcfReader
@@ -100,28 +101,27 @@ class GtfWriter:
         )
 
 
-detailed_stats_fields = [
-    "variants",
-    "phased",
-    "unphased",
-    "singletons",
-    "blocks",
-    "variant_per_block_median",
-    "variant_per_block_avg",
-    "variant_per_block_min",
-    "variant_per_block_max",
-    "variant_per_block_sum",
-    "bp_per_block_median",
-    "bp_per_block_avg",
-    "bp_per_block_min",
-    "bp_per_block_max",
-    "bp_per_block_sum",
-    "heterozygous_variants",
-    "heterozygous_snvs",
-    "phased_snvs",
-    "block_n50",
-]
-DetailedStats = namedtuple("DetailedStats", detailed_stats_fields)
+@dataclasses.dataclass
+class DetailedStats:
+    variants: int
+    phased: int
+    unphased: int
+    singletons: int
+    blocks: int
+    variant_per_block_median: float
+    variant_per_block_avg: float
+    variant_per_block_min: int
+    variant_per_block_max: int
+    variant_per_block_sum: int
+    bp_per_block_median: float
+    bp_per_block_avg: float
+    bp_per_block_min: int
+    bp_per_block_max: int
+    bp_per_block_sum: int
+    heterozygous_variants: int
+    heterozygous_snvs: int
+    phased_snvs: int
+    block_n50: float
 
 
 def compute_n50(blocks, chr_lengths):
@@ -351,13 +351,9 @@ def run_stats(
             logger.info("Reporting results for sample {}".format(sample))
 
         if tsv_file:
+            field_names = [f.name for f in dataclasses.fields(DetailedStats)]
             print(
-                "#sample",
-                "chromosome",
-                "file_name",
-                *detailed_stats_fields,
-                sep="\t",
-                file=tsv_file,
+                "#sample", "chromosome", "file_name", *field_names, sep="\t", file=tsv_file,
             )
 
         if block_list_file:
@@ -448,7 +444,7 @@ def run_stats(
             stats.print(chr_lengths)
             if tsv_file:
                 print(sample, chromosome, vcf, sep="\t", end="\t", file=tsv_file)
-                print(*stats.get(chr_lengths), sep="\t", file=tsv_file)
+                print(*dataclasses.astuple(stats.get(chr_lengths)), sep="\t", file=tsv_file)
 
             total_stats += stats
 
@@ -457,7 +453,7 @@ def run_stats(
             total_stats.print(chr_lengths)
             if tsv_file:
                 print(sample, "ALL", vcf, sep="\t", end="\t", file=tsv_file)
-                print(*total_stats.get(chr_lengths), sep="\t", file=tsv_file)
+                print(*dataclasses.astuple(total_stats.get(chr_lengths)), sep="\t", file=tsv_file)
 
 
 def main(args):

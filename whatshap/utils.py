@@ -1,4 +1,6 @@
 import gzip
+from typing import Optional
+
 import pyfaidx
 from dataclasses import dataclass
 
@@ -53,7 +55,7 @@ def plural_s(n: int) -> str:
 class Region:
     chromosome: str
     start: int
-    end: int
+    end: Optional[int]
 
     def __repr__(self):
         return f'Region("{self.chromosome}", {self.start}, {self.end})'

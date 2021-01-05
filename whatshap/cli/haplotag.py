@@ -10,7 +10,7 @@ import sys
 import pysam
 import hashlib
 from collections import defaultdict
-from typing import List
+from typing import List, Optional
 
 from xopen import xopen
 
@@ -79,15 +79,15 @@ def get_variant_information(variant_table: VariantTable, sample: str):
     and variants is a list of all non-homozygous variants.
     """
     genotypes = variant_table.genotypes_of(sample)
-    phases = variant_table.phases_of(sample)  # type: List[VariantCallPhase]
+    phases = variant_table.phases_of(sample)  # type: List[Optional[VariantCallPhase]]
 
     vpos_to_phase_info = dict()
     variants = []
-    for idx, (v, gt) in enumerate(zip(variant_table.variants, genotypes)):
-        if phases[idx] is None or phases[idx].block_id is None:
+    for v, gt, phase in zip(variant_table.variants, genotypes, phases):
+        if phase is None or phase.block_id is None:
             continue
         # assuming ploidy = 2
-        phase_info = int(phases[idx].block_id), phases[idx].phase[0]
+        phase_info = int(phase.block_id), phase.phase[0]
         vpos_to_phase_info[v.position] = phase_info
         if not gt.is_homozygous():
             variants.append(v)
