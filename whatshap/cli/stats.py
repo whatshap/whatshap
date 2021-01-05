@@ -353,12 +353,7 @@ def run_stats(
         if tsv_file:
             field_names = [f.name for f in dataclasses.fields(DetailedStats)]
             print(
-                "#sample",
-                "chromosome",
-                "file_name",
-                *field_names,
-                sep="\t",
-                file=tsv_file,
+                "#sample", "chromosome", "file_name", *field_names, sep="\t", file=tsv_file,
             )
 
         if block_list_file:

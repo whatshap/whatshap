@@ -466,128 +466,36 @@ def compare(variant_tables: List[VariantTable], sample: str, dataset_names: List
     # create statistics on each block in each data set
     block_stats = compute_block_stats(blocks, sorted_variants)
 
-    for dataset_name, block in zip(dataset_names, blocks):
+    for dataset_name, blck in zip(dataset_names, blocks):
         print_stat(
             "non-singleton blocks in {}".format(dataset_name),
-            len([b for b in block.values() if len(b) > 1]),
+            len([b for b in blck.values() if len(b) > 1]),
         )
-        print_stat("--> covered variants", sum(len(b) for b in block.values() if len(b) > 1))
+        print_stat("--> covered variants", sum(len(b) for b in blck.values() if len(b) > 1))
 
     intersection_block_count = sum(1 for b in block_intersection.values() if len(b) > 1)
     intersection_block_variants = sum(len(b) for b in block_intersection.values() if len(b) > 1)
     print_stat("non-singleton intersection blocks", intersection_block_count)
     print_stat("--> covered variants", intersection_block_variants)
-    longest_block = 0
-    longest_block_errors = PhasingErrors()
-    longest_block_positions = []
-    longest_block_agreement = []
-    phased_pairs = 0
-    bed_records = []
     if len(variant_tables) == 2:
-        total_errors = PhasingErrors()
-        total_compared_variants = 0
-        for block in block_intersection.values():
-            if len(block) < 2:
-                continue
-            phasing0 = []
-            phasing1 = []
-            for j in range(ploidy):
-                p0 = "".join(str(phases[0][i].phase[j]) for i in block)
-                p1 = "".join(str(phases[1][i].phase[j]) for i in block)
-                phasing0.append(p0)
-                phasing1.append(p1)
-            block_positions = [sorted_variants[i].position for i in block]
-            errors = compare_block(phasing0, phasing1)
+        (
+            bed_records,
+            longest_block_agreement,
+            longest_block_positions,
+            pairwise_comparison,
+        ) = compare_pair(
+            block_intersection,
+            dataset_names,
+            intersection_block_count,
+            intersection_block_variants,
+            phases,
+            ploidy,
+            sorted_variants,
+            variant_tables,
+        )
 
-            # TODO: extend to polyploid
-            if ploidy == 2:
-                bed_records.extend(
-                    create_bed_records(
-                        variant_tables[0].chromosome,
-                        phasing0[0],
-                        phasing1[0],
-                        block_positions,
-                        "{}<-->{}".format(*dataset_names),
-                    )
-                )
-            total_errors += errors
-            phased_pairs += len(block) - 1
-            total_compared_variants += len(block)
-            if len(block) > longest_block:
-                longest_block = len(block)
-                longest_block_errors = errors
-                longest_block_positions = block_positions
-                # TODO: extend to polyploid
-                if ploidy == 2:
-                    if hamming(phasing0, phasing1) < hamming(phasing0[0], complement(phasing1[0])):
-                        longest_block_agreement = [
-                            1 * (p0 == p1) for p0, p1 in zip(phasing0[0], phasing1[0])
-                        ]
-                    else:
-                        longest_block_agreement = [
-                            1 * (p0 != p1) for p0, p1 in zip(phasing0[0], phasing1[0])
-                        ]
-        longest_block_assessed_pairs = max(longest_block - 1, 0)
-        print_stat("ALL INTERSECTION BLOCKS", "-")
-        print_errors(total_errors, phased_pairs)
-        print_stat("Block-wise Hamming distance", total_errors.hamming)
-        print_stat(
-            "Block-wise Hamming distance [%]",
-            fraction2percentstr(total_errors.hamming, total_compared_variants),
-        )
-        print_stat("Different genotypes", total_errors.diff_genotypes)
-        print_stat(
-            "Different genotypes [%]",
-            fraction2percentstr(total_errors.diff_genotypes, total_compared_variants),
-        )
-        print_stat("LARGEST INTERSECTION BLOCK", "-")
-        print_errors(longest_block_errors, longest_block_assessed_pairs)
-        print_stat("Hamming distance", longest_block_errors.hamming)
-        print_stat(
-            "Hamming distance [%]",
-            fraction2percentstr(longest_block_errors.hamming, longest_block),
-        )
-        print_stat("Different genotypes", longest_block_errors.diff_genotypes)
-        print_stat(
-            "Different genotypes [%]",
-            fraction2percentstr(longest_block_errors.diff_genotypes, longest_block),
-        )
         return (
-            PairwiseComparisonResults(
-                intersection_blocks=intersection_block_count,
-                covered_variants=intersection_block_variants,
-                all_assessed_pairs=phased_pairs,
-                all_switches=total_errors.switches,
-                all_switch_rate=safefraction(total_errors.switches, phased_pairs),
-                all_switchflips=total_errors.switch_flips,
-                all_switchflip_rate=safefraction(
-                    total_errors.switch_flips.switches + total_errors.switch_flips.flips,
-                    phased_pairs,
-                ),
-                blockwise_hamming=total_errors.hamming,
-                blockwise_hamming_rate=safefraction(total_errors.hamming, total_compared_variants),
-                blockwise_diff_genotypes=total_errors.diff_genotypes,
-                blockwise_diff_genotypes_rate=safefraction(
-                    total_errors.diff_genotypes, total_compared_variants
-                ),
-                largestblock_assessed_pairs=longest_block_assessed_pairs,
-                largestblock_switches=longest_block_errors.switches,
-                largestblock_switch_rate=safefraction(
-                    longest_block_errors.switches, longest_block_assessed_pairs
-                ),
-                largestblock_switchflips=longest_block_errors.switch_flips,
-                largestblock_switchflip_rate=safefraction(
-                    longest_block_errors.switch_flips.switches
-                    + longest_block_errors.switch_flips.flips,
-                    longest_block_assessed_pairs,
-                ),
-                largestblock_hamming=longest_block_errors.hamming,
-                largestblock_hamming_rate=safefraction(longest_block_errors.hamming, longest_block),
-                largestblock_diff_genotypes=longest_block_errors.diff_genotypes,
-                largestblock_diff_genotypes_rate=safefraction(
-                    longest_block_errors.diff_genotypes, longest_block
-                ),
-            ),
+            pairwise_comparison,
             bed_records,
             block_stats,
             longest_block_positions,
@@ -596,44 +504,166 @@ def compare(variant_tables: List[VariantTable], sample: str, dataset_names: List
         )
     else:
         assert ploidy == 2
-        histogram = defaultdict(int)
-        total_compared = 0
-        for block in block_intersection.values():
-            if len(block) < 2:
-                continue
-            total_compared += len(block) - 1
-            phasings = [
-                "".join(str(phases[j][i].phase[0]) for i in block) for j in range(len(phases))
-            ]
-            switch_encodings = [switch_encoding(p) for p in phasings]
-            for i in range(len(block) - 1):
-                s = "".join(switch_encodings[j][i] for j in range(len(switch_encodings)))
-                s = min(s, complement(s))
-                histogram[s] += 1
-        print_stat("Compared pairs of variants", total_compared)
-        bipartitions = list(histogram.keys())
-        bipartitions.sort()
-        multiway_results = {}  # (dataset_list0, dataset_list1) --> count
-        for i, s in enumerate(bipartitions):
-            count = histogram[s]
-            if i == 0:
-                assert set(c for c in s) == set("0")
-                print("ALL AGREE")
-            elif i == 1:
-                print("DISAGREEMENT")
-            left, right = [], []
-            for name, leftright in zip(dataset_names, s):
-                if leftright == "0":
-                    left.append(name)
-                else:
-                    right.append(name)
-            print_stat(
-                ("{%s} vs. {%s}" % (",".join(left), ",".join(right))),
-                count,
-                fraction2percentstr(count, total_compared),
-            )
-            multiway_results[(",".join(left), ",".join(right))] = count
+        multiway_results = compare_multiway(block_intersection, dataset_names, phases)
         return None, None, block_stats, None, None, multiway_results
+
+
+def compare_pair(
+    block_intersection,
+    dataset_names,
+    intersection_block_count,
+    intersection_block_variants,
+    phases,
+    ploidy,
+    sorted_variants,
+    variant_tables,
+):
+    longest_block = 0
+    longest_block_errors = PhasingErrors()
+    longest_block_positions = []
+    longest_block_agreement = []
+    phased_pairs = 0
+    bed_records = []
+    total_errors = PhasingErrors()
+    total_compared_variants = 0
+    for block in block_intersection.values():
+        if len(block) < 2:
+            continue
+        phasing0 = []
+        phasing1 = []
+        for j in range(ploidy):
+            p0 = "".join(str(phases[0][i].phase[j]) for i in block)
+            p1 = "".join(str(phases[1][i].phase[j]) for i in block)
+            phasing0.append(p0)
+            phasing1.append(p1)
+        block_positions = [sorted_variants[i].position for i in block]
+        errors = compare_block(phasing0, phasing1)
+
+        # TODO: extend to polyploid
+        if ploidy == 2:
+            bed_records.extend(
+                create_bed_records(
+                    variant_tables[0].chromosome,
+                    phasing0[0],
+                    phasing1[0],
+                    block_positions,
+                    "{}<-->{}".format(*dataset_names),
+                )
+            )
+        total_errors += errors
+        phased_pairs += len(block) - 1
+        total_compared_variants += len(block)
+        if len(block) > longest_block:
+            longest_block = len(block)
+            longest_block_errors = errors
+            longest_block_positions = block_positions
+            # TODO: extend to polyploid
+            if ploidy == 2:
+                if hamming(phasing0, phasing1) < hamming(phasing0[0], complement(phasing1[0])):
+                    longest_block_agreement = [
+                        1 * (p0 == p1) for p0, p1 in zip(phasing0[0], phasing1[0])
+                    ]
+                else:
+                    longest_block_agreement = [
+                        1 * (p0 != p1) for p0, p1 in zip(phasing0[0], phasing1[0])
+                    ]
+    longest_block_assessed_pairs = max(longest_block - 1, 0)
+    print_stat("ALL INTERSECTION BLOCKS", "-")
+    print_errors(total_errors, phased_pairs)
+    print_stat("Block-wise Hamming distance", total_errors.hamming)
+    print_stat(
+        "Block-wise Hamming distance [%]",
+        fraction2percentstr(total_errors.hamming, total_compared_variants),
+    )
+    print_stat("Different genotypes", total_errors.diff_genotypes)
+    print_stat(
+        "Different genotypes [%]",
+        fraction2percentstr(total_errors.diff_genotypes, total_compared_variants),
+    )
+    print_stat("LARGEST INTERSECTION BLOCK", "-")
+    print_errors(longest_block_errors, longest_block_assessed_pairs)
+    print_stat("Hamming distance", longest_block_errors.hamming)
+    print_stat(
+        "Hamming distance [%]", fraction2percentstr(longest_block_errors.hamming, longest_block),
+    )
+    print_stat("Different genotypes", longest_block_errors.diff_genotypes)
+    print_stat(
+        "Different genotypes [%]",
+        fraction2percentstr(longest_block_errors.diff_genotypes, longest_block),
+    )
+    pcr = PairwiseComparisonResults(
+        intersection_blocks=intersection_block_count,
+        covered_variants=intersection_block_variants,
+        all_assessed_pairs=phased_pairs,
+        all_switches=total_errors.switches,
+        all_switch_rate=safefraction(total_errors.switches, phased_pairs),
+        all_switchflips=total_errors.switch_flips,
+        all_switchflip_rate=safefraction(
+            total_errors.switch_flips.switches + total_errors.switch_flips.flips, phased_pairs,
+        ),
+        blockwise_hamming=total_errors.hamming,
+        blockwise_hamming_rate=safefraction(total_errors.hamming, total_compared_variants),
+        blockwise_diff_genotypes=total_errors.diff_genotypes,
+        blockwise_diff_genotypes_rate=safefraction(
+            total_errors.diff_genotypes, total_compared_variants
+        ),
+        largestblock_assessed_pairs=longest_block_assessed_pairs,
+        largestblock_switches=longest_block_errors.switches,
+        largestblock_switch_rate=safefraction(
+            longest_block_errors.switches, longest_block_assessed_pairs
+        ),
+        largestblock_switchflips=longest_block_errors.switch_flips,
+        largestblock_switchflip_rate=safefraction(
+            longest_block_errors.switch_flips.switches + longest_block_errors.switch_flips.flips,
+            longest_block_assessed_pairs,
+        ),
+        largestblock_hamming=longest_block_errors.hamming,
+        largestblock_hamming_rate=safefraction(longest_block_errors.hamming, longest_block),
+        largestblock_diff_genotypes=longest_block_errors.diff_genotypes,
+        largestblock_diff_genotypes_rate=safefraction(
+            longest_block_errors.diff_genotypes, longest_block
+        ),
+    )
+    return bed_records, longest_block_agreement, longest_block_positions, pcr
+
+
+def compare_multiway(block_intersection, dataset_names, phases):
+    histogram = defaultdict(int)
+    total_compared = 0
+    for block in block_intersection.values():
+        if len(block) < 2:
+            continue
+        total_compared += len(block) - 1
+        phasings = ["".join(str(phases[j][i].phase[0]) for i in block) for j in range(len(phases))]
+        switch_encodings = [switch_encoding(p) for p in phasings]
+        for i in range(len(block) - 1):
+            s = "".join(switch_encodings[j][i] for j in range(len(switch_encodings)))
+            s = min(s, complement(s))
+            histogram[s] += 1
+    print_stat("Compared pairs of variants", total_compared)
+    bipartitions = list(histogram.keys())
+    bipartitions.sort()
+    multiway_results = {}  # (dataset_list0, dataset_list1) --> count
+    for i, s in enumerate(bipartitions):
+        count = histogram[s]
+        if i == 0:
+            assert set(c for c in s) == set("0")
+            print("ALL AGREE")
+        elif i == 1:
+            print("DISAGREEMENT")
+        left, right = [], []
+        for name, leftright in zip(dataset_names, s):
+            if leftright == "0":
+                left.append(name)
+            else:
+                right.append(name)
+        print_stat(
+            ("{%s} vs. {%s}" % (",".join(left), ",".join(right))),
+            count,
+            fraction2percentstr(count, total_compared),
+        )
+        multiway_results[(",".join(left), ",".join(right))] = count
+    return multiway_results
 
 
 def compute_block_stats(
@@ -963,6 +993,8 @@ def get_common_chromosomes(vcfs: List[Dict[str, VariantTable]]) -> List[str]:
             common = set(chromosomes)
         else:
             common.intersection_update(chromosomes)
+    if common is None:
+        return []
     return sorted(common)
 
 
@@ -992,6 +1024,7 @@ def get_sample_to_work_on(vcf_readers: List[VcfReader], requested_sample: Option
         else:
             sample_intersection.intersection_update(vcf_reader.samples)
         all_samples.update(vcf_reader.samples)
+    assert sample_intersection is not None
     if requested_sample:
         sample_intersection.intersection_update([requested_sample])
         if len(sample_intersection) == 0:

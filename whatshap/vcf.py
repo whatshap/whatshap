@@ -7,7 +7,7 @@ import logging
 import itertools
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from typing import List, Sequence, Dict, Tuple, Iterable, Optional, Union, TextIO
+from typing import List, Sequence, Dict, Tuple, Iterable, Optional, Union, TextIO, Iterator
 
 from pysam import VariantFile, VariantHeader, VariantRecord
 from pysam.libcbcf import VariantRecordSample
@@ -419,7 +419,7 @@ class VcfReader:
             records.extend(list(self._fetch(chromosome, start=start, end=end)))
         return self._process_single_chromosome(chromosome, records)
 
-    def __iter__(self) -> Iterable[VariantTable]:
+    def __iter__(self) -> Iterator[VariantTable]:
         """
         Yield VariantTable objects for each chromosome.
 
