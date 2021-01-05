@@ -1,4 +1,6 @@
 import gzip
+import logging
+from collections import defaultdict
 from typing import Optional
 
 import pyfaidx
@@ -94,3 +96,14 @@ class Region:
             except ValueError:
                 raise InvalidRegion("Region must be specified as chrom[:start[-end]])") from None
         return Region(chromosome, start, end)
+
+
+_warning_count = defaultdict(int)
+
+
+def warn_once(logger, msg: str, *args):
+    if _warning_count[msg] == 0 and not logger.isEnabledFor(logging.DEBUG):
+        logger.warning(msg + " Hiding further warnings of this type, use --debug to show", *args)
+    else:
+        logger.debug(msg, *args)
+    _warning_count[msg] += 1

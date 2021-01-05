@@ -36,7 +36,7 @@ from whatshap.pedigree import (
     ParseError,
 )
 from whatshap.timer import StageTimer
-from whatshap.utils import plural_s
+from whatshap.utils import plural_s, warn_once
 from whatshap.cli import CommandLineError, log_memory_usage, PhasedInputReader
 from whatshap.merge import ReadMerger, DoNothingReadMerger
 
@@ -217,8 +217,9 @@ def setup_pedigree(ped_path, samples):
     pedigree_samples = set()
     for trio in PedReader(ped_path):
         if trio.child is None or trio.mother is None or trio.father is None:
-            logger.warning(
-                "Relationship %s/%s/%s ignored because at least one of the individuals is unknown",
+            warn_once(
+                logger,
+                "Relationship %s/%s/%s ignored because at least one of the individuals is unknown.",
                 trio.child,
                 trio.mother,
                 trio.father,
@@ -231,7 +232,8 @@ def setup_pedigree(ped_path, samples):
             or (trio.child not in samples)
         ):
             # happens in case --ped and --samples are used
-            logger.warning(
+            warn_once(
+                logger,
                 "Relationship %s/%s/%s ignored because at least one of the "
                 "individuals was not given by --samples.",
                 trio.child,
