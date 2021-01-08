@@ -20,6 +20,7 @@ from .core import (
     binomial_coefficient,
     get_max_genotype_ploidy,
 )
+from .utils import warn_once
 
 logger = logging.getLogger(__name__)
 
@@ -480,8 +481,8 @@ class VcfReader:
                 )
 
             if prev_position == pos:
-                logger.warning(
-                    "Skipping duplicated position %s on chromosome %r", pos + 1, chromosome
+                warn_once(
+                    logger, "Skipping duplicated position %s on chromosome %r", pos + 1, chromosome,
                 )
                 continue
             prev_position = pos
