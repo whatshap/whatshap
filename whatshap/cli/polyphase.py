@@ -29,6 +29,7 @@ from whatshap.core import (
     NumericSampleIds,
     compute_polyploid_genotypes,
     scoreReadsetLocal,
+    scoreReadsetBayesian,
 )
 from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
 from whatshap.polyphaseplots import draw_plots
@@ -52,6 +53,7 @@ PhasingParameter = namedtuple(
         "ploidy",
         "verify_genotypes",
         "ce_bundle_edges",
+        "bayesian_scoring",
         "min_overlap",
         "ce_refinements",
         "block_cut_sensitivity",
@@ -98,6 +100,7 @@ def run_polyphase(
     write_command_line_header=True,
     read_list_filename=None,
     ce_bundle_edges=False,
+    bayesian_scoring=False,
     min_overlap=2,
     plot_clusters=False,
     plot_threading=False,
@@ -202,6 +205,7 @@ def run_polyphase(
             ploidy=ploidy,
             verify_genotypes=verify_genotypes,
             ce_bundle_edges=ce_bundle_edges,
+            bayesian_scoring=bayesian_scoring,
             min_overlap=min_overlap,
             ce_refinements=ce_refinements,
             block_cut_sensitivity=block_cut_sensitivity,
@@ -718,7 +722,10 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
     # Compute similarity values for all read pairs
     timers.start("read_scoring")
     logger.debug("Computing similarities for read pairs ...")
-    similarities = scoreReadsetLocal(block_readset, phasing_param.min_overlap, phasing_param.ploidy)
+    if phasing_param.bayesian_scoring:
+        similarities = scoreReadsetBayesian(block_readset, phasing_param.min_overlap, phasing_param.ploidy)
+    else:
+        similarities = scoreReadsetLocal(block_readset, phasing_param.min_overlap, phasing_param.ploidy)
 
     # Run cluster editing
     logger.debug(
@@ -1148,6 +1155,12 @@ def add_arguments(parser):
         action="store_true",
         help=argparse.SUPPRESS,
     )  # help='Influences the cluster editing heuristic. Only for debug/developing purpose (default: %(default)s).')
+    arg(
+        "--bayesian-scoring",
+        default=False,
+        action="store_true",
+        help="Use a more sophisticated method for scoring read pairs.",
+    )
     arg(
         "--plot-clusters",
         dest="plot_clusters",
