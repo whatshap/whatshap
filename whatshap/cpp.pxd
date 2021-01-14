@@ -173,7 +173,7 @@ cdef extern from "../src/polyphase/readscoring.h":
         ReadScoring() except +
         void scoreReadsetGlobal(TriangleSparseMatrix* result, ReadSet* readset, uint32_t minOverlap,uint32_t ploidy) except +
         void scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* readset, vector[vector[uint32_t]] refHaplotypes, uint32_t minOverlap, uint32_t ploidy) except +
-        void scoreReadsetBayesian(TriangleSparseMatrix* result, ReadSet* readset, uint32_t minOverlap, uint32_t ploidy) except +
+        void scoreReadsetBayesian(TriangleSparseMatrix* result, ReadSet* readset, uint32_t minOverlap, uint32_t ploidy, double err) except +
 
 
 cdef extern from "../src/polyphase/haplothreader.h":

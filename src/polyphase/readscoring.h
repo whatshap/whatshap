@@ -15,12 +15,16 @@ public:
     void scoreReadsetGlobal(TriangleSparseMatrix *result, ReadSet *readset, const uint32_t minOverlap, const uint32_t ploidy) const;
     void scoreReadsetLocal(TriangleSparseMatrix *result, ReadSet *readset, const uint32_t minOverlap, const uint32_t ploidy) const;
     void scoreReadsetLocal(TriangleSparseMatrix *result, ReadSet *readset, std::vector<std::vector<uint32_t>>& refHaplotypes, const uint32_t minOverlap, const uint32_t ploidy) const;
-    void scoreReadsetBayesian(TriangleSparseMatrix *result, ReadSet *readset, const uint32_t minOverlap, const uint32_t ploidy) const;
+    void scoreReadsetBayesian(TriangleSparseMatrix *result, ReadSet *readset, const uint32_t minOverlap, const uint32_t ploidy, double err) const;
 
 private:
-    double estimateAlleleErrorRate() const;
+    double estimateAlleleErrorRate(std::vector<std::unordered_map<uint8_t, uint32_t>>& alleleDepths, uint32_t ploidy) const;
+    double evaluateGenotypeLikelihoods(std::vector<std::unordered_map<Genotype, double>>& gl) const;
     
-    std::unordered_map<Genotype, double> computeGenotypeLikelihoods (std::unordered_map<uint8_t, uint32_t> alleleDepths, uint32_t ploidy, const double err) const;
+    std::unordered_map<Genotype, double> computeGenotypeLikelihoods (std::unordered_map<uint8_t, uint32_t> alleleDepths,
+                                                                     const uint32_t ploidy,
+                                                                     const double err,
+                                                                     const bool normalize) const;
     
     void computeAllelePairLikelihoods(std::vector<Genotype>& genos,
                                       std::vector<double>& apls,

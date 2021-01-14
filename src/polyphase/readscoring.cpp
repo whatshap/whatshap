@@ -198,7 +198,7 @@ void ReadScoring::scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* reads
     }
 }
 
-void ReadScoring::scoreReadsetBayesian(TriangleSparseMatrix* result, ReadSet* readset, const uint32_t minOverlap, const uint32_t ploidy) const {
+void ReadScoring::scoreReadsetBayesian(TriangleSparseMatrix* result, ReadSet* readset, const uint32_t minOverlap, const uint32_t ploidy, double err) const {
     
     if (ploidy < 2) {
         std::cout<<"Error: Ploidy < 2!"<<std::endl;
@@ -239,12 +239,13 @@ void ReadScoring::scoreReadsetBayesian(TriangleSparseMatrix* result, ReadSet* re
         std::cout<<"]"<<std::endl;
     }*/
     
-    double err = estimateAlleleErrorRate();
+    if (err == 0.0)
+        err = estimateAlleleErrorRate(alleleDepths, ploidy);
     
     // compute genotype likelihoods
     std::vector<std::unordered_map<Genotype, double>> gl(posMap.size());
     for (uint32_t i = 0; i < posMap.size(); i++) {
-        std::unordered_map<Genotype, double> l = computeGenotypeLikelihoods(alleleDepths[i], ploidy, err);
+        std::unordered_map<Genotype, double> l = computeGenotypeLikelihoods(alleleDepths[i], ploidy, err, true);
         gl[i] = l;
         for (auto& g: l) {
             occGenotypesSet.insert(g.first);
@@ -306,14 +307,48 @@ void ReadScoring::scoreReadsetBayesian(TriangleSparseMatrix* result, ReadSet* re
     }
 }
 
-double ReadScoring::estimateAlleleErrorRate() const {
-    return 0.07;
+double ReadScoring::estimateAlleleErrorRate(std::vector<std::unordered_map<uint8_t, uint32_t>>& alleleDepths, uint32_t ploidy) const {  
+    
+    std::vector<std::unordered_map<Genotype, double>> gl(alleleDepths.size());
+    double bestErr = 0.0;
+    double bestSum = -std::numeric_limits<double>::infinity();
+    
+    for (double err = 0.01; err < 0.2; err += 0.01) {
+        for (uint32_t i = 0; i < alleleDepths.size(); i++) {
+            gl[i].clear();
+            gl[i] = computeGenotypeLikelihoods(alleleDepths[i], ploidy, err, true);
+        }
+        double sum = evaluateGenotypeLikelihoods(gl);
+        std::cout<<"Err="<<err<<" -> Sum="<<sum<<std::endl;
+        if (sum > bestSum) {
+            bestSum = sum;
+            bestErr = err;
+        }
+    }
+    std::cout<<"BestErr="<<bestErr<<std::endl;
+    return bestErr;
 }
 
-std::unordered_map<Genotype, double> ReadScoring::computeGenotypeLikelihoods (std::unordered_map<uint8_t, uint32_t> alleleDepth, uint32_t ploidy, const double err) const {
+double ReadScoring::evaluateGenotypeLikelihoods(std::vector<std::unordered_map<Genotype, double>>& gl) const {
+    double LogLikelihoodSum = 0.0;
+    for (uint32_t i = 0; i < gl.size(); i++) {
+        double max = 0.0;
+        for (auto& l: gl[i]) {
+            if (l.second > max)
+                max = l.second;
+        }
+        LogLikelihoodSum += std::log(max);
+    }
+    return LogLikelihoodSum;
+}
+
+std::unordered_map<Genotype, double> ReadScoring::computeGenotypeLikelihoods (std::unordered_map<uint8_t, uint32_t> alleleDepth,
+                                                                              const uint32_t ploidy,
+                                                                              const double err,
+                                                                              const bool normalize) const {
     std::unordered_map<Genotype, double> gl;
     uint32_t numAlleles = alleleDepth.size();
-    assert(numAlleles == 2);
+    assert(numAlleles <= 2);
     uint32_t numGenotypes = binomial_coefficient(ploidy+numAlleles-1, numAlleles-1);
     double weight = 0.0;
     
@@ -321,16 +356,23 @@ std::unordered_map<Genotype, double> ReadScoring::computeGenotypeLikelihoods (st
     for (uint32_t index = 0; index < numGenotypes; index++) {
         Genotype g(index, ploidy);
         // TODO: Make multi-allelic
-        double fracAlt = (double)index / (double)ploidy;
-        double l = binomPmf(alleleDepth[0]+alleleDepth[1], alleleDepth[1], (1-fracAlt)*err + fracAlt*(1-err));
-        weight += l;
-        gl[g] = l;
+        if (numAlleles == 1) {
+            weight += 1;
+            gl[g] = 1;
+        } else {
+            double fracAlt = (double)index / (double)ploidy;
+            double l = binomPmf(alleleDepth[0]+alleleDepth[1], alleleDepth[1], (1-fracAlt)*err + fracAlt*(1-err));
+            weight += l;
+            gl[g] = l;
+        }
     }
     
     // normalize
-    for (uint32_t index = 0; index < numGenotypes; index++) {
-        Genotype g(index, ploidy);
-        gl[g] /= weight;
+    if (normalize) {
+        for (uint32_t index = 0; index < numGenotypes; index++) {
+            Genotype g(index, ploidy);
+            gl[g] /= weight;
+        }
     }
     return gl;
 }

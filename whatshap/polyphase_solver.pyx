@@ -68,9 +68,9 @@ cdef class ReadScoring:
         self.thisptr.scoreReadsetLocal(sim.thisptr, readset.thisptr, refHaplotypes, minOverlap, ploidy)
         return sim
     
-    def scoreReadsetBayesian(self, ReadSet readset, uint32_t minOverlap, uint32_t ploidy):
+    def scoreReadsetBayesian(self, ReadSet readset, uint32_t minOverlap, uint32_t ploidy, double err):
         sim = TriangleSparseMatrix()
-        self.thisptr.scoreReadsetBayesian(sim.thisptr, readset.thisptr, minOverlap, ploidy)
+        self.thisptr.scoreReadsetBayesian(sim.thisptr, readset.thisptr, minOverlap, ploidy, err)
         return sim
     
     
@@ -88,9 +88,9 @@ def scoreReadsetLocal(readset, minOverlap, ploidy, refHaplotypes = []):
     return sim
 
 
-def scoreReadsetBayesian(readset, minOverlap, ploidy):
+def scoreReadsetBayesian(readset, minOverlap, ploidy, err=0.0):
     readscoring = ReadScoring()
-    sim = readscoring.scoreReadsetBayesian(readset, minOverlap, ploidy)
+    sim = readscoring.scoreReadsetBayesian(readset, minOverlap, ploidy, err)
     del readscoring
     return sim
     
