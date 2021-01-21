@@ -158,7 +158,9 @@ def scoreReadsetGlobal(readset: ReadSet, min_overlap: int, ploidy: int) -> Trian
 def scoreReadsetLocal(
     readset: ReadSet, ref_haplotypes: List[List[int]], min_overlap: int, ploidy: int
 ) -> TriangleSparseMatrix: ...
-def scoreReadsetBayesian(readset: ReadSet, min_overlap: int, ploidy: int) -> TriangleSparseMatrix: ...
+def scoreReadsetBayesian(
+    readset: ReadSet, min_overlap: int, ploidy: int
+) -> TriangleSparseMatrix: ...
 
 class HaploThreader:
     def __init__(

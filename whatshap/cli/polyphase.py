@@ -32,7 +32,7 @@ from whatshap.core import (
     scoreReadsetBayesian,
 )
 from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
-from whatshap.polyphaseplots import draw_plots, get_phase
+from whatshap.polyphaseplots import draw_plots
 from whatshap.threading import (
     run_threading,
     get_local_cluster_consensus_withfrac,
@@ -458,7 +458,7 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
 
         assert len(block_readset.get_positions()) == block_num_vars
         genotype_slices.append(genotype_list[block_start:block_end])
-        
+
     processed_non_singleton_blocks = 0
     # use process pool for multiple threads
     if phasing_param.threads == 1:
@@ -476,8 +476,8 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
                         block_num_vars,
                     )
                 )
-                
-            '''
+
+            """
             if block_num_vars > 1:
                 print("========= BLOCK {} ========".format(processed_non_singleton_blocks))
                 print("Reads")
@@ -490,7 +490,7 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
                         s += str(var.allele)
                         marker = index[var.position]+1
                     print(s)
-            '''
+            """
 
             clustering, path, haplotypes, cut_positions, haploid_cuts = phase_single_block(
                 block_readset, genotype_slices[block_id], phasing_param, timers
@@ -738,9 +738,13 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
     timers.start("read_scoring")
     logger.debug("Computing similarities for read pairs ...")
     if phasing_param.bayesian_scoring:
-        similarities = scoreReadsetBayesian(block_readset, phasing_param.min_overlap, phasing_param.ploidy, 0.07)
+        similarities = scoreReadsetBayesian(
+            block_readset, phasing_param.min_overlap, phasing_param.ploidy, 0.07
+        )
     else:
-        similarities = scoreReadsetLocal(block_readset, phasing_param.min_overlap, phasing_param.ploidy)
+        similarities = scoreReadsetLocal(
+            block_readset, phasing_param.min_overlap, phasing_param.ploidy
+        )
 
     # Run cluster editing
     logger.debug(
