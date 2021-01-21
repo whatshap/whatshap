@@ -241,8 +241,7 @@ public:
      */
     std::vector<std::vector<GlobalClusterId>> computePaths (const std::vector<Position>& blockStarts,
                     const std::vector<std::vector<GlobalClusterId>>& covMap,
-                    const std::vector<std::vector<double>>& coverage, 
-                    const std::vector<std::vector<uint32_t>>& consensus,
+                    const std::vector<std::vector<std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
                     const std::vector<std::unordered_map<uint32_t, uint32_t>>& genotypes
                    ) const;
                   
@@ -259,8 +258,7 @@ public:
      */
     std::vector<std::vector<GlobalClusterId>> computePaths (Position start, Position end,
                     const std::vector<std::vector<GlobalClusterId>>& covMap,
-                    const std::vector<std::vector<double>>& coverage, 
-                    const std::vector<std::vector<uint32_t>>& consensus,
+                    const std::vector<std::vector<std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
                     const std::vector<std::unordered_map<uint32_t, uint32_t>>& genotypes,
                     Position displayedEnd = 0
                    ) const;
@@ -276,7 +274,7 @@ private:
      * Computes the coverage cost of a tuple, considering the following coverage distribution. All cluster
      * indices are local.
      */
-    Score getCoverageCost(ClusterTuple tuple, const std::vector<double>& coverage) const;
+    Score getCoverageCost(ClusterTuple tuple, const uint32_t coverage, const std::vector<uint32_t>& clusterCoverage) const;
 
     /**
      * Computes the switch cost between one tuple and all permutations of another tuple. The tuples must have global cluster ids,
@@ -289,21 +287,35 @@ private:
      * by which they must be sorted in ascending order. Writes residual positions (positions in either tuple, which could not be
      * matched to the other one) into the provided vectors.
      */
-    Score getSwitchCostAllPerms(const std::vector<GlobalClusterId>& prevTuple, const std::vector<GlobalClusterId>& curTuple,
-                                std::vector<uint32_t>& residualPosPrev, std::vector<uint32_t>& residualPosCur) const;
+    Score getSwitchCostAllPerms(const std::vector<GlobalClusterId>& prevTuple, 
+                                const std::vector<GlobalClusterId>& curTuple,
+                                std::vector<uint32_t>& residualPosPrev, 
+                                std::vector<uint32_t>& residualPosCur) const;
     
     
     std::vector<ClusterTuple> computeGenotypeConformTuples (const std::vector<GlobalClusterId>& covMap,
+                                                            const std::vector<std::unordered_map<uint32_t, uint32_t>>& alleleDepths,
                                                             const std::vector<uint32_t>& consensus, 
-                                                            const std::unordered_map<uint32_t, uint32_t>& genotype) const;
+                                                            const std::unordered_map<uint32_t, uint32_t>& genotype,
+                                                            const std::vector<uint32_t>& clusterCoverage,
+                                                            const uint32_t coverage) const;
                                                             
     /**
      * Computes all sets of clusters having are have a genotype, which is exactly distance away from the specified genotype.
      * Result is returned as a vector of tuples over the local index space, i.e. from 0 to size of clusters - 1. No tuple
      * is a permutation of another one (they have to be extended if required).
      */
-    std::vector<ClusterTuple> getGenotypeConformTuples (const std::vector<GlobalClusterId>& clusters, const std::vector<uint32_t>& consensus, 
+    std::vector<ClusterTuple> getGenotypeConformTuples (const std::vector<GlobalClusterId>& clusters,
+                                                        const std::vector<uint32_t>& consensus,
                                                         const std::unordered_map<uint32_t, uint32_t>& genotype) const;
+
+    /**
+     * Computes the position-wise coverage (total and per-cluster) based on the allele counts for each cluster and position.
+     */
+    void computeCoverage(const std::vector<std::vector<std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
+                         std::vector<uint32_t>& coverage,
+                         std::vector<std::vector<uint32_t>>& clusterCoverage,
+                         std::vector<std::vector<uint32_t>>& clusterConsensus) const;
 };
 
 #endif

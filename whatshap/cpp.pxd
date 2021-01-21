@@ -181,13 +181,11 @@ cdef extern from "../src/polyphase/haplothreader.h":
         HaploThreader(uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit) except +
         vector[vector[uint32_t]] computePaths(uint32_t start, uint32_t end,
                     vector[vector[uint32_t]]& covMap,
-                    vector[vector[double]]& coverage, 
-                    vector[vector[uint32_t]]& consensus,
+                    vector[vector[unordered_map[uint32_t, uint32_t]]]& alleleDepths,
                     vector[unordered_map[uint32_t, uint32_t]]& genotypes) except +
         vector[vector[uint32_t]] computePaths(vector[uint32_t]& blockStarts,
                     vector[vector[uint32_t]]& covMap,
-                    vector[vector[double]]& coverage, 
-                    vector[vector[uint32_t]]& consensus,
+                    vector[vector[unordered_map[uint32_t, uint32_t]]]& alleleDepths,
                     vector[unordered_map[uint32_t, uint32_t]]& genotypes) except +
         
 cdef extern from "../src/polyphase/switchflipcalculator.h":

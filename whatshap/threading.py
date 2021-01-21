@@ -29,10 +29,11 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
     coverage = get_coverage(readset, clustering, index)
     cov_map = get_pos_to_clusters_map(coverage, ploidy)
     consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
+    allele_depths, cons = get_allele_depths(readset, clustering, cov_map)
 
     # compute threading through the clusters
     path = compute_threading_path(
-        readset, clustering, num_vars, coverage, cov_map, consensus, ploidy, genotypes
+        readset, num_vars, cov_map, allele_depths, ploidy, genotypes
     )
 
     # we can look at the sequences again to use the most likely continuation, when two or more clusters switch at the same position
@@ -70,11 +71,9 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
 
 def compute_threading_path(
     readset,
-    clustering,
     num_vars,
-    coverage,
     cov_map,
-    consensus,
+    allele_depths,
     ploidy,
     genotypes,
     switch_cost=32.0,
@@ -90,28 +89,15 @@ def compute_threading_path(
 
     logger.debug("Computing threading paths ..")
 
-    # arrange data
-    compressed_coverage = (
-        []
-    )  # rearrange the content of "coverage" in a position-wise way, such that the i-th coverage refers to the i-th cluster in cov_map
-    compressed_consensus = (
-        []
-    )  # for every position, give a list of consensi, such that the i-th consensus refers to the i-th cluster in cov_map
-    for pos in range(num_vars):
-        coverage_list = []
-        consensus_list = []
-        for i in range(len(cov_map[pos])):
-            coverage_list.append(coverage[pos][cov_map[pos][i]])
-            consensus_list.append(consensus[pos][cov_map[pos][i]])
-        compressed_coverage.append(coverage_list)
-        compressed_consensus.append(consensus_list)
-
     # run threader
     threader = HaploThreader(
         ploidy, switch_cost, affine_switch_cost, True, 16 * 2**ploidy if ploidy > 6 else 0
     )
+    #path = threader.computePathsBlockwise(
+    #    [0], cov_map, compressed_coverage, compressed_consensus, genotypes
+    #)
     path = threader.computePathsBlockwise(
-        [0], cov_map, compressed_coverage, compressed_consensus, genotypes
+        [0], cov_map, allele_depths, genotypes
     )
     assert len(path) == num_vars
 
@@ -506,6 +492,54 @@ def get_cluster_start_end_positions(readset, clustering, pos_index):
         positions[c_id] = (start, end)
     assert len(positions) == num_clusters
     return positions
+
+
+def get_allele_depths(readset, clustering, cov_map):
+    """
+    Returns a list, which for every position contains a list (representing the clusters) of dictionaries containing the allele depths.
+    ad[pos][c_id][al] = number of reads in cluster cov_map[pos][c_id] having allele al at position pos
+    Indices are local, i.e. the i-th entry of ad is the entry for the i-th position that occurs in the readset.
+    """
+     # Map genome positions to [0,l)
+    index = {}
+    rev_index = []
+    num_vars = 0
+    for position in readset.get_positions():
+        index[position] = num_vars
+        rev_index.append(position)
+        num_vars += 1
+        
+    ad = [[dict() for c_id in cov_map[pos]] for pos in range(num_vars)]
+    
+    # Create reverse map of the used clusters for every position
+    rev_cov_map = [dict() for _ in range(num_vars)]
+    for i, m in enumerate(cov_map):
+        for j in range(len(m)):
+            rev_cov_map[i][cov_map[i][j]] = j
+    
+    for c_id, cluster in enumerate(clustering):
+        for read in cluster:
+            for var in readset[read]:
+                pos = index[var.position]
+                if c_id in rev_cov_map[pos]:
+                    al = var.allele
+                    if al not in ad[pos][rev_cov_map[pos][c_id]]:
+                        ad[pos][rev_cov_map[pos][c_id]][al] = 0
+                    ad[pos][rev_cov_map[pos][c_id]][al] += 1
+                    
+    cons = [[-1 for c_id in cov_map[pos]] for pos in range(num_vars)]
+    for pos in range(num_vars):
+        for c_id in range(len(cov_map[pos])):
+            max_cnt = 0
+            max_al = -1
+            for al in ad[pos][c_id]:
+                cnt = ad[pos][c_id][al]
+                if cnt > max_cnt:
+                    max_cnt = cnt
+                    max_al = al
+            cons[pos][c_id] = max_al
+    
+    return ad, cons
 
 
 def get_local_cluster_consensus(readset, clustering, cov_map, positions):
