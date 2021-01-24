@@ -228,7 +228,13 @@ def run_polyphasegenetic(
                     clustering = solver.run()
                     del solver
 
-                    print(clustering)
+                    with open(output+".clusters.txt", "w") as out:
+                        var_to_position = [var.position+1 for var in variant_table.variants]
+
+                        for i, cluster in enumerate(sorted(clustering, key=lambda x: -len(x))):
+                            out.write("Cluster {}: {}".format(i, " ".join(list(map(lambda x: str(var_to_position[node_to_variant[x]]), cluster)))))
+                            out.write("\n")
+                    
                     timers.stop("phasing")
 
                     num_vars = max([max(c) for c in clustering])

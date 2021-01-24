@@ -142,7 +142,13 @@ def run_polyphase(
 
         vcf_reader = stack.enter_context(
             VcfReader(
-                variant_file, indels=indels, phases=True, genotype_likelihoods=False, ploidy=ploidy
+                variant_file,
+                indels=indels,
+                phases=True,
+                genotype_likelihoods=False,
+                ploidy=ploidy,
+                mav=False,
+                allele_depth=False,
             )
         )
 

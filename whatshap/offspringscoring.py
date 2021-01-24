@@ -75,8 +75,8 @@ def get_variant_scoring(
             continue
 
         print(
-            "scoring node {}: ref={}, alt={}, count = {} / {}".format(
-                i, ref[ni], alt[ni], alt_count[ni], alt_count_co[ni]
+            "scoring node {}/{}: ref={}, alt={}, count = {} / {}".format(
+                i, num_nodes, ref[ni], alt[ni], alt_count[ni], alt_count_co[ni]
             )
         )
         # iterate over next max_dist relevant positions
@@ -205,11 +205,13 @@ def compute_gt_likelihood_priors(ploidy):
                     * binom_coeff(num_alts, num_drawn_alts)
                     / binom_coeff(ploidy, max_alts)
                 )
+            '''
             print(
                 "prior[{}][{}] = {}".format(
                     num_alts, num_drawn_alts, prior_single[num_alts][num_drawn_alts]
                 )
             )
+            '''
 
     prior_dual = [[[0.0] * (ploidy + 1) for _ in range(ploidy + 1)] for _ in range(ploidy + 1)]
     for num_alts_parent in range(0, ploidy + 1):
@@ -220,6 +222,7 @@ def compute_gt_likelihood_priors(ploidy):
                     prior_dual[num_alts_parent][num_alts_coparent][num_alts_offspring] += (
                         prior_single[num_alts_parent][i] * prior_single[num_alts_coparent][j]
                     )
+            '''
             for num_alts_offspring in range(0, ploidy + 1):
                 print(
                     "prior[{},{}][{}] = {}".format(
@@ -229,6 +232,7 @@ def compute_gt_likelihood_priors(ploidy):
                         prior_dual[num_alts_parent][num_alts_coparent][num_alts_offspring],
                     )
                 )
+            '''
     return prior_dual
 
 
