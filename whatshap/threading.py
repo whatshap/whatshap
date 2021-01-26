@@ -32,9 +32,7 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
     allele_depths, cons = get_allele_depths(readset, clustering, cov_map)
 
     # compute threading through the clusters
-    path = compute_threading_path(
-        readset, num_vars, cov_map, allele_depths, ploidy, genotypes
-    )
+    path = compute_threading_path(readset, num_vars, cov_map, allele_depths, ploidy, genotypes)
 
     # we can look at the sequences again to use the most likely continuation, when two or more clusters switch at the same position
     num_clusters = len(clustering)
@@ -93,12 +91,7 @@ def compute_threading_path(
     threader = HaploThreader(
         ploidy, switch_cost, affine_switch_cost, True, 16 * 2**ploidy if ploidy > 6 else 0
     )
-    #path = threader.computePathsBlockwise(
-    #    [0], cov_map, compressed_coverage, compressed_consensus, genotypes
-    #)
-    path = threader.computePathsBlockwise(
-        [0], cov_map, allele_depths, genotypes
-    )
+    path = threader.computePathsBlockwise([0], cov_map, allele_depths, genotypes)
     assert len(path) == num_vars
 
     return path
@@ -500,7 +493,7 @@ def get_allele_depths(readset, clustering, cov_map):
     ad[pos][c_id][al] = number of reads in cluster cov_map[pos][c_id] having allele al at position pos
     Indices are local, i.e. the i-th entry of ad is the entry for the i-th position that occurs in the readset.
     """
-     # Map genome positions to [0,l)
+    # Map genome positions to [0,l)
     index = {}
     rev_index = []
     num_vars = 0
@@ -508,15 +501,15 @@ def get_allele_depths(readset, clustering, cov_map):
         index[position] = num_vars
         rev_index.append(position)
         num_vars += 1
-        
+
     ad = [[dict() for c_id in cov_map[pos]] for pos in range(num_vars)]
-    
+
     # Create reverse map of the used clusters for every position
     rev_cov_map = [dict() for _ in range(num_vars)]
     for i, m in enumerate(cov_map):
         for j in range(len(m)):
             rev_cov_map[i][cov_map[i][j]] = j
-    
+
     for c_id, cluster in enumerate(clustering):
         for read in cluster:
             for var in readset[read]:
@@ -526,7 +519,7 @@ def get_allele_depths(readset, clustering, cov_map):
                     if al not in ad[pos][rev_cov_map[pos][c_id]]:
                         ad[pos][rev_cov_map[pos][c_id]][al] = 0
                     ad[pos][rev_cov_map[pos][c_id]][al] += 1
-                    
+
     cons = [[-1 for c_id in cov_map[pos]] for pos in range(num_vars)]
     for pos in range(num_vars):
         for c_id in range(len(cov_map[pos])):
@@ -538,7 +531,7 @@ def get_allele_depths(readset, clustering, cov_map):
                     max_cnt = cnt
                     max_al = al
             cons[pos][c_id] = max_al
-    
+
     return ad, cons
 
 

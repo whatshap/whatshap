@@ -361,7 +361,7 @@ std::unordered_map<Genotype, double> ReadScoring::computeGenotypeLikelihoods (st
             gl[g] = 1;
         } else {
             double fracAlt = (double)index / (double)ploidy;
-            double l = binomPmf(alleleDepth[0]+alleleDepth[1], alleleDepth[1], (1-fracAlt)*err + fracAlt*(1-err));
+            double l = binom_pmf(alleleDepth[0]+alleleDepth[1], alleleDepth[1], (1-fracAlt)*err + fracAlt*(1-err));
             weight += l;
             gl[g] = l;
         }
