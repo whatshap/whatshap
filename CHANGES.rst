@@ -9,7 +9,10 @@ development version
 * :issue:`241`: Fix some ``polyphase`` problems.
 * :issue:`249`: Fix crash in the ``haplotag`` command on reading a VCF with the
   ``PS`` tag set to ``.``.
+* :issue:`251`: Allow ``haplotag`` to correctly write to standard output.
+* :issue:`207`: Allow multiple ``--chromosome`` arguments to ``stats``.
 * The file created with ``--output-read-list`` was not correctly tab-separated.
+* :pr:`265`: ``polyphase`` can now work in parallel
 
 v1.0 (2020-06-24)
 -----------------
