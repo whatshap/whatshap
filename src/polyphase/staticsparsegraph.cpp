@@ -286,9 +286,9 @@ RankId StaticSparseGraph::findIndex(const Edge e) const {
 }
 
 RankId StaticSparseGraph::findIndex(const EdgeId id) const {
-    u_int64_t block1 = id / 4096;
-    u_int64_t block2 = (id/64) % 64;
-    u_int64_t bitv = rank1[block1] >> (63 - block2);
+    uint64_t block1 = id / 4096;
+    uint64_t block2 = (id/64) % 64;
+    uint64_t bitv = rank1[block1] >> (63 - block2);
     
     // check if corresponding bit in rank block is unset
     if ((bitv & 1UL) == 0) {
@@ -296,7 +296,7 @@ RankId StaticSparseGraph::findIndex(const EdgeId id) const {
     }
     
     block2 = offset1[block1] + popcount(bitv) - 1;
-    u_int64_t block3 = id % 64;
+    uint64_t block3 = id % 64;
     bitv = rank2[block2] >> (63 - block3);
     
     if ((bitv & 1UL) == 0) {
