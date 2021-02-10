@@ -20,6 +20,7 @@ quartet2_bamfile = "tests/data/quartet2.bam"
 short_bamfile = "tests/data/short-genome/short.bam"
 short_duplicate_bamfile = "tests/data/short-genome/short-one-read-duplicate.bam"
 indels_bamfile = "tests/data/indels.bam"
+dist_geno_bamfile = "tests/data/test_dist_geno.bam"
 
 bam_files = [
     trio_bamfile,
@@ -30,6 +31,7 @@ bam_files = [
     short_bamfile,
     short_duplicate_bamfile,
     indels_bamfile,
+    dist_geno_bamfile,
 ]
 
 
@@ -972,3 +974,20 @@ def test_vcf_with_missing_headers(algorithm):
             output="/dev/null",
             algorithm=algorithm,
         )
+
+
+def test_distrust_genotypes_assertion(tmp_path):
+    outvcf = tmp_path / "output.vcf"
+    run_whatshap(
+        indels=False,
+        phase_input_files=[dist_geno_bamfile],
+        variant_file="tests/data/test_dist_geno.vcf",
+        output=outvcf,
+    )
+    assert os.path.isfile(outvcf)
+    tables = list(VcfReader(outvcf, phases=True))
+    assert len(tables) == 1
+    table = tables[0]
+    assert table.chromosome == "chr1"
+    phase0 = VariantCallPhase(23824647, (0, 1), None)
+    assert_phasing(table.phases_of("NA12878"), [None, phase0, None, phase0])
