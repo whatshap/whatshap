@@ -856,6 +856,7 @@ class PhasedVcfWriter(VcfAugmenter):
         tag: str = "PS",
         ploidy: int = 2,
         include_haploid_sets: bool = False,
+        indels: bool = False,
     ):
         """
         in_path -- Path to input VCF, used as template.
@@ -872,6 +873,7 @@ class PhasedVcfWriter(VcfAugmenter):
         super().__init__(in_path, command_line, out_file, include_haploid_sets)
         self._phase_tag_found_warned = False
         self._set_phasing_tags = self._set_HP if tag == "HP" else self._set_PS
+        self._indels = indels
 
     def setup_header(self, header: VariantHeader):
         """Called by baseclass constructor"""
@@ -966,12 +968,14 @@ class PhasedVcfWriter(VcfAugmenter):
         for record in self._iterrecords(chromosome):
             self._remove_existing_phasing(record, list(sample_superreads))
             pos = record.start
-
+            is_indel = len(str(record.ref)) > 1 or len(str(record.alts[0])) > 1
             if len(record.alts) > 1:
                 # we do not phase multiallelic sites currently
                 is_phased = False
             elif pos == prev_pos:
                 # duplicate position, skip it
+                is_phased = False
+            elif not self._indels and is_indel:
                 is_phased = False
             else:
                 # Determine whether the variant is phased in any sample
@@ -1036,8 +1040,8 @@ class PhasedVcfWriter(VcfAugmenter):
                     else:
                         # Unphased
                         call[self.tag] = None
+                prev_pos = pos
             self._writer.write(record)
-            prev_pos = pos
         return genotype_changes
 
     def _remove_existing_phasing(self, record: VariantRecord, samples: Iterable[str]):

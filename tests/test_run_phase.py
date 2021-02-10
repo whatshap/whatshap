@@ -976,15 +976,18 @@ def test_vcf_with_missing_headers(algorithm):
         )
 
 
-def test_distrust_genotypes(tmp_path):
+def test_distrust_genotypes_assertion(tmp_path):
     outvcf = tmp_path / "output.vcf"
-    run_whatshap(phase_input_files=[dist_geno_bamfile], variant_file='tests/data/test_dist_geno.vcf', output=outvcf)
+    run_whatshap(
+        indels=False,
+        phase_input_files=[dist_geno_bamfile],
+        variant_file="tests/data/test_dist_geno.vcf",
+        output=outvcf,
+    )
     assert os.path.isfile(outvcf)
-
     tables = list(VcfReader(outvcf, phases=True))
     assert len(tables) == 1
     table = tables[0]
-    assert table.chromosome == 'chr1'
-    phase0 = VariantCallPhase(23824647, 0, None)
-    phase1 = VariantCallPhase(23824647, 1, None)
-    assert_phasing(table.phases_of('NA12878'), [phase0, phase0])
+    assert table.chromosome == "chr1"
+    phase0 = VariantCallPhase(23824647, (0, 1), None)
+    assert_phasing(table.phases_of("NA12878"), [None, phase0, None, phase0])

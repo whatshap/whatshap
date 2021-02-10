@@ -342,7 +342,11 @@ def run_whatshap(
         try:
             vcf_writer = stack.enter_context(
                 PhasedVcfWriter(
-                    command_line=command_line, in_path=variant_file, out_file=output, tag=tag,
+                    command_line=command_line,
+                    in_path=variant_file,
+                    out_file=output,
+                    tag=tag,
+                    indels=indels,
                 )
             )
         except (OSError, VcfError) as e:
