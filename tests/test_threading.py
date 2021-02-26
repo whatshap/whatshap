@@ -8,6 +8,7 @@ from whatshap.threading import (
     get_coverage,
     get_coverage_absolute,
     get_cluster_start_end_positions,
+    get_allele_depths,
     compute_cut_positions,
     improve_path_on_multiswitches,
     compute_threading_path,
@@ -294,14 +295,13 @@ def test_path_no_affine():
     coverage = get_coverage(readset, clustering, index)
     cov_map = get_pos_to_clusters_map(coverage, ploidy)
     consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
+    allele_depths, cons = get_allele_depths(readset, clustering, cov_map)
 
     path = compute_threading_path(
         readset,
-        clustering,
         num_vars,
-        coverage,
         cov_map,
-        consensus,
+        allele_depths,
         ploidy,
         genotypes,
         affine_switch_cost=0.0,
@@ -329,9 +329,10 @@ def test_path_with_affine():
     coverage = get_coverage(readset, clustering, index)
     cov_map = get_pos_to_clusters_map(coverage, ploidy)
     consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
+    allele_depths, cons = get_allele_depths(readset, clustering, cov_map)
 
     path = compute_threading_path(
-        readset, clustering, num_vars, coverage, cov_map, consensus, ploidy, genotypes
+        readset, num_vars, cov_map, allele_depths, ploidy, genotypes
     )
     cluster_paths = ["".join([str(path[i][j]) for i in range(len(path))]) for j in range(3)]
 

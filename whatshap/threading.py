@@ -33,7 +33,16 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
 
     # compute threading through the clusters
     affine_switch_cost = ceil(compute_readlength_snp_distance_ratio(readset) / 4.0)
-    path = compute_threading_path(readset, num_vars, cov_map, allele_depths, ploidy, genotypes, switch_cost = 4*affine_switch_cost, affine_switch_cost = affine_switch_cost)
+    path = compute_threading_path(
+        readset,
+        num_vars,
+        cov_map,
+        allele_depths,
+        ploidy,
+        genotypes,
+        switch_cost=4 * affine_switch_cost,
+        affine_switch_cost=affine_switch_cost,
+    )
 
     # we can look at the sequences again to use the most likely continuation, when two or more clusters switch at the same position
     num_clusters = len(clustering)
@@ -72,7 +81,7 @@ def compute_readlength_snp_distance_ratio(readset):
     length = 0
     for read in readset:
         length += len(read)
-    return (length / len(readset))# / len(readset.get_positions())
+    return length / len(readset)  # / len(readset.get_positions())
 
 
 def compute_threading_path(
@@ -98,7 +107,7 @@ def compute_threading_path(
     # run threader
     row_limit = 16 * 2 ** ploidy if ploidy > 6 else 0
     threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, True, True, row_limit)
-    
+
     path = threader.computePathsBlockwise([0], cov_map, allele_depths, genotypes)
     assert len(path) == num_vars
 
@@ -334,8 +343,8 @@ def improve_path_on_collapsedswitches(path, num_clusters, cluster_sim):
 
         for h_group in changed:
             # for every group of haplotypes coming from a collapsed cluster:
-            
-            ''' # before new07
+
+            """ # before new07
             collapsed_cid = path[i - 1][h_group[0]]
             # find last cluster before collapsed one for every haplotype (or use collapsed one if this does not exist)
             left_c = []
@@ -354,7 +363,7 @@ def improve_path_on_collapsedswitches(path, num_clusters, cluster_sim):
             right_c = [path[i][j] for j in h_group]
 
             # we need to catch the case, where we compare a cluster with itself
-            
+
             ident_sim = 0
             for c1 in left_c:
                 for c2 in right_c:
@@ -384,8 +393,8 @@ def improve_path_on_collapsedswitches(path, num_clusters, cluster_sim):
                 if score > best_score:
                     best_score = score
                     best_perm = perm
-            '''
-            
+            """
+
             # find the position, where each of the cluster joined the collapsing one (introduced in new07)
             collapsed_cid = path[i - 1][h_group[0]]
             joined = []
@@ -403,14 +412,14 @@ def improve_path_on_collapsedswitches(path, num_clusters, cluster_sim):
                     joined.append(pos)
                     left_c.append(collapsed_cid)
             next_c = [path[i][j] for j in h_group]
-            
+
             best_score = 0
             best_perm = tuple(range(len(h_group)))
             for perm in it.permutations(range(len(h_group))):
                 score = 0
                 for j, (pos, left) in enumerate(zip(joined, left_c)):
                     if collapsed_cid != next_c[perm[j]]:
-                        score += 2*joined[j]
+                        score += 2 * joined[j]
                         if left == next_c[perm[j]]:
                             score += 1
                 if score > best_score:
