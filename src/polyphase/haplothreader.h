@@ -225,8 +225,11 @@ public:
      * @param ploidy The number of paths, which have to be threaded through the clusters
      * @param switchCost The factor how much a single cluster switches is penalized over a wrong copy number of a cluster (compared to its coverage)
      * @param affineSwitchCost Penalty for a position, in which a cluster switch occurs
+     * @param symmetryOptimization Include speed optimizations regarding symmetry elimination. Should always be used if not for debugging
+     * @param normalizeAlleleDepths Position-wise allele counts of the clusters are normalized with respect to the genotype
+     * @param rowLimit Keeps at most this number of cluster tuples as candidates for each position. 0 means no limit
      */
-    HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit);
+    HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, bool normalizeAlleleDepths, uint32_t rowLimit);
     
     /**
      * Computes a number of paths (depending on the provided ploidy), which run through the provided clusters. For each variant the result
@@ -268,14 +271,17 @@ private:
     double switchCost;
     double affineSwitchCost;
     bool symmetryOptimization;
+    bool normalizeAlleleDepths;
     uint32_t rowLimit;
     
     /**
      * Computes the coverage cost of a tuple, considering the following coverage distribution. All cluster
      * indices are local.
      */
-    Score getCoverageCost(ClusterTuple tuple, const uint32_t coverage, const std::vector<uint32_t>& clusterCoverage) const;
-
+    Score getCoverageCost(ClusterTuple tuple,
+                          const uint32_t coverage,
+                          const std::vector<uint32_t>& clusterCoverage) const;
+    
     /**
      * Computes the switch cost between one tuple and all permutations of another tuple. The tuples must have global cluster ids,
      * by which they must be sorted in ascending order.

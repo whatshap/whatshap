@@ -9,11 +9,12 @@
 constexpr uint64_t ClusterTuple::TUPLE_MASKS[];
 const ClusterTuple ClusterTuple::INVALID_TUPLE = ClusterTuple((TupleCode)-1);
 
-HaploThreader::HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit) :
+HaploThreader::HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, bool normalizeAlleleDepths, uint32_t rowLimit) :
     ploidy(ploidy),
     switchCost(switchCost),
     affineSwitchCost(affineSwitchCost),
     symmetryOptimization(symmetryOptimization),
+    normalizeAlleleDepths(normalizeAlleleDepths),
     rowLimit(rowLimit)
 {
 }
@@ -360,22 +361,26 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
     return path;
 }
 
-Score HaploThreader::getCoverageCost(ClusterTuple tuple, const uint32_t coverage, const std::vector<uint32_t>& clusterCoverage) const {
+Score HaploThreader::getCoverageCost(ClusterTuple tuple, 
+                                     const uint32_t coverage, 
+                                     const std::vector<uint32_t>& clusterCoverage) const {
     // tuple contains local cluster ids, which have to be translated with covMap to get the global ids
     Score cost = 0.0;
     
     for (uint32_t i = 0; i < ploidy; i++) {
-        double cov = (double)clusterCoverage[tuple.get(i)] / coverage;
+        uint32_t cid = tuple.get(i);
+        double cov = (double)clusterCoverage[cid] / coverage;
         if (cov == 0) {
             return std::numeric_limits<double>::infinity();
         } else {
             uint32_t expCount = std::round(cov*(double)ploidy);
-            uint32_t realCount = tuple.count(tuple.get(i), ploidy);
+            uint32_t realCount = tuple.count(cid, ploidy);
             if (realCount != expCount) {
                 cost += 1.0;
             }
         }
     }
+    
     return cost;
 }
 
@@ -429,7 +434,30 @@ std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vecto
                                                                 const std::unordered_map<uint32_t, uint32_t>& genotype,
                                                                 const std::vector<uint32_t>& clusterCoverage,
                                                                 const uint32_t coverage) const {
-                                                                           
+                                                                    
+    
+    std::vector<std::unordered_map<uint32_t, uint32_t>> normalizedDepths(alleleDepths.size(), std::unordered_map<uint32_t, uint32_t>());
+    std::unordered_map<uint32_t, uint32_t> alleleCounts;
+    std::unordered_map<uint32_t, double> alleleCountsExp;
+    for (LocalClusterId cid = 0; cid < clusters.size(); cid++) {
+        for (auto& ad : alleleDepths[cid]) {
+            alleleCounts[ad.first] = 0;
+        }
+    }
+    for (LocalClusterId cid = 0; cid < clusters.size(); cid++) {
+        for (auto& ad : alleleDepths[cid]) {
+            alleleCounts[ad.first] += ad.second;
+        }
+    }
+    for (auto& ad : genotype) {
+        alleleCountsExp[ad.first] = (double)(ad.second * coverage) / ploidy;
+    }
+    for (LocalClusterId cid = 0; cid < clusters.size(); cid++) {
+        for (auto& ad : alleleDepths[cid]) {
+            normalizedDepths[cid][ad.first] = (uint32_t)std::round(ad.second * alleleCountsExp[ad.first] / alleleCounts[ad.first]);
+        }
+    }
+
     /*
     * If a cluster has an ambiguous consensus (e.g. because it consists of two haplotypes with a SNP on one of them),
     * we have to manage it manually, because if we just take the consensus for each time this cluster is selected
@@ -449,7 +477,7 @@ std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vecto
     for (LocalClusterId cid = 0; cid < clusters.size() & snpClusters.size() < 2; cid++) {
         if (clusterCoverage[cid] >= thrshld) {
             uint32_t noncons = 0;
-            for (auto& ad : alleleDepths[cid]) {
+            for (auto& ad : normalizedDepths[cid]) {
                 if (ad.first != consensus[cid])
                     noncons += ad.second;
             }
@@ -458,16 +486,15 @@ std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vecto
         }
     }
     
-    std::vector<ClusterTuple> perfectMatches = computeGenotypeConformTuples(clusters, alleleDepths, consensus, genotype, snpClusters);
+    std::vector<ClusterTuple> matches = computeGenotypeConformTuples(clusters, normalizedDepths, consensus, genotype, snpClusters);
     
-    if (perfectMatches.size() > 0) {
-        return perfectMatches;
+    if (matches.size() > 0 && false) {
+        return matches;
     } else {
         /*
          * If there are matches for the provided genotype, then iterate over all genotypes with minimal deviation and
          * take all matches for them.
          */
-        std::vector<ClusterTuple> deviatingMatches;
         for (std::pair<uint32_t, uint32_t> a : genotype) {
             if (a.second >= ploidy)
                continue;
@@ -477,13 +504,13 @@ std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vecto
                 std::unordered_map<uint32_t, uint32_t> tempGenotype(genotype);
                 tempGenotype[a.first]++;
                 tempGenotype[b.first]--;
-                for (ClusterTuple t : computeGenotypeConformTuples(clusters, alleleDepths, consensus, tempGenotype, snpClusters))
-                    deviatingMatches.push_back(t);
+                for (ClusterTuple t : computeGenotypeConformTuples(clusters, normalizedDepths, consensus, tempGenotype, snpClusters))
+                    matches.push_back(t);
             }
         }
         
-        if (deviatingMatches.size() > 0) {
-            return deviatingMatches;
+        if (matches.size() > 0) {
+            return matches;
         } else {
             /*
              * If there are also no deviating Matches, just return any tuple, disregarding of genotype.
@@ -538,9 +565,9 @@ std::vector<ClusterTuple> HaploThreader::computeGenotypeConformTuples (const std
         for (auto& ac: genotype)
             for (uint32_t i = 0; i < ac.second; i++)
                 genoVec.push_back(ac.first);
-        for (auto& ad: alleleDepths[snpClusters[0]])
-            std::cout<<ad.first<<": "<<ad.second<<" ";
-        std::cout<<std::endl;
+        //for (auto& ad: alleleDepths[snpClusters[0]])
+        //    std::cout<<ad.first<<": "<<ad.second<<" ";
+        //std::cout<<std::endl;
         
         while (genotypeValid) {
             // compute tuples based on remaining genotype and excluding the SNP cluster
