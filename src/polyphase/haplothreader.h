@@ -280,7 +280,9 @@ private:
      */
     Score getCoverageCost(ClusterTuple tuple,
                           const uint32_t coverage,
-                          const std::vector<uint32_t>& clusterCoverage) const;
+                          const std::vector<uint32_t>& clusterCoverage,
+                          const std::vector<std::vector<uint32_t>>& alleleLists,
+                          const std::unordered_map<uint32_t, uint32_t>& genotype) const;
     
     /**
      * Computes the switch cost between one tuple and all permutations of another tuple. The tuples must have global cluster ids,
@@ -298,6 +300,11 @@ private:
                                 std::vector<uint32_t>& residualPosPrev, 
                                 std::vector<uint32_t>& residualPosCur) const;
     
+    
+    std::vector<std::unordered_map<uint32_t, uint32_t>> computeNormalizeDepths(const std::vector<std::unordered_map<uint32_t, uint32_t>>& alleleDepths,
+                                                                               const std::unordered_map<uint32_t, uint32_t>& genotype) const;
+    
+    std::vector<std::vector<uint32_t>> computeAlleleOrder(const std::vector<std::unordered_map<uint32_t, uint32_t>>& alleleDepths) const;
     
     std::vector<ClusterTuple> computeRelevantTuples (const std::vector<GlobalClusterId>& covMap,
                                                      const std::vector<std::unordered_map<uint32_t, uint32_t>>& alleleDepths,
