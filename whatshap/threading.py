@@ -29,7 +29,7 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
     coverage = get_coverage(readset, clustering, index)
     cov_map = get_pos_to_clusters_map(coverage, ploidy)
     consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
-    allele_depths, cons = get_allele_depths(readset, clustering, cov_map)
+    allele_depths, normalized_depths, cons_lists = get_allele_depths(readset, clustering, cov_map, ploidy, genotypes=genotypes)
 
     # compute threading through the clusters
     affine_switch_cost = ceil(compute_readlength_snp_distance_ratio(readset) / 4.0)
@@ -61,18 +61,25 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
         logger.debug("Cut positions on phase {}: {}".format(i, haploid_cuts[i]))
 
     # compute haplotypes
-    haplotypes = []
-    for i in range(ploidy):
-        hap = ""
-        alleles_as_strings = []
-        for pos in range(len(path)):
-            c_id = path[pos][i]
-            allele = consensus[pos][c_id] if c_id in consensus[pos] else -1
+    haplotypes = [[] for _ in range(ploidy)]
+    rev_cov_map = [dict() for _ in range(num_vars)]
+    for i, m in enumerate(cov_map):
+        for j in range(len(m)):
+            rev_cov_map[i][cov_map[i][j]] = j
+    
+    for pos in range(len(path)):
+        cnts = defaultdict(int)
+        for i in range(ploidy):
+            cid = path[pos][i]
+            allele = cons_lists[pos][rev_cov_map[pos][cid]][cnts[cid]]
+            cnts[cid] += 1
             if allele == -1:
-                alleles_as_strings.append("n")
+                haplotypes[i].append("n")
             else:
-                alleles_as_strings.append(str(allele))
-        haplotypes.append(hap.join(alleles_as_strings))
+                haplotypes[i].append(str(allele))
+                
+    for i in range(ploidy):
+        haplotypes[i] = "".join(haplotypes[i])
 
     return (cut_positions, haploid_cuts, path, haplotypes)
 
@@ -81,7 +88,7 @@ def compute_readlength_snp_distance_ratio(readset):
     length = 0
     for read in readset:
         length += len(read)
-    return length / len(readset)  # / len(readset.get_positions())
+    return length / len(readset)
 
 
 def compute_threading_path(
@@ -540,11 +547,16 @@ def get_cluster_start_end_positions(readset, clustering, pos_index):
     return positions
 
 
-def get_allele_depths(readset, clustering, cov_map):
+def get_allele_depths(readset, clustering, cov_map, ploidy, genotypes=None):
     """
     Returns a list, which for every position contains a list (representing the clusters) of dictionaries containing the allele depths.
+    Additionally computes a consensus list per position per cluster, such that the first k elements represent the alleles of this
+    cluster, if it was selected with multiplicity k.
     ad[pos][c_id][al] = number of reads in cluster cov_map[pos][c_id] having allele al at position pos
     Indices are local, i.e. the i-th entry of ad is the entry for the i-th position that occurs in the readset.
+    
+    If genotypes are provided, the allele depths are normalized per position, such that the ratio between alleles is (roughly) the
+    same as according to the genotypes.
     """
     # Map genome positions to [0,l)
     index = {}
@@ -555,7 +567,11 @@ def get_allele_depths(readset, clustering, cov_map):
         rev_index.append(position)
         num_vars += 1
 
+    # stores allele depth per position and cluster
     ad = [[dict() for c_id in cov_map[pos]] for pos in range(num_vars)]
+    nad = [[dict() for c_id in cov_map[pos]] for pos in range(num_vars)]
+    # store depths per position (over all clusters)
+    ad_per_pos = [dict() for pos in range(num_vars)]
 
     # Create reverse map of the used clusters for every position
     rev_cov_map = [dict() for _ in range(num_vars)]
@@ -563,6 +579,7 @@ def get_allele_depths(readset, clustering, cov_map):
         for j in range(len(m)):
             rev_cov_map[i][cov_map[i][j]] = j
 
+    # count alleles
     for c_id, cluster in enumerate(clustering):
         for read in cluster:
             for var in readset[read]:
@@ -572,20 +589,36 @@ def get_allele_depths(readset, clustering, cov_map):
                     if al not in ad[pos][rev_cov_map[pos][c_id]]:
                         ad[pos][rev_cov_map[pos][c_id]][al] = 0
                     ad[pos][rev_cov_map[pos][c_id]][al] += 1
+                    if al not in ad_per_pos[pos]:
+                        ad_per_pos[pos][al] = 0
+                    ad_per_pos[pos][al] += 1
 
-    cons = [[-1 for c_id in cov_map[pos]] for pos in range(num_vars)]
+    # normalize if genotypes provided
+    if genotypes:
+        assert len(genotypes) == len(ad)
+        for pos in range(len(ad)):
+            coverage = sum(cnt for cnt in ad_per_pos[pos].values())
+            exp_ad = {al: genotypes[pos][al] * coverage / ploidy for al in ad_per_pos[pos]}
+            for cid in range(len(ad[pos])):
+                for al in ad[pos][cid]:
+                    nad[pos][cid][al] = round(ad[pos][cid][al] * exp_ad[al] / ad_per_pos[pos][al])
+
+    # compute allele lists
+    cons_lists = [[[] for c_id in cov_map[pos]] for pos in range(num_vars)]
     for pos in range(num_vars):
         for c_id in range(len(cov_map[pos])):
-            max_cnt = 0
-            max_al = -1
-            for al in ad[pos][c_id]:
-                cnt = ad[pos][c_id][al]
-                if cnt > max_cnt:
-                    max_cnt = cnt
-                    max_al = al
-            cons[pos][c_id] = max_al
+            cnts = defaultdict(int)
+            for i in range(ploidy):
+                max_cnt = 0
+                max_al = 0
+                for al in nad[pos][c_id]:
+                    cnt = nad[pos][c_id][al] / (1+cnts[al])
+                    if cnt > max_cnt:
+                        max_cnt = cnt
+                        max_al = al
+                cons_lists[pos][c_id].append(max_al)
 
-    return ad, cons
+    return ad, nad, cons_lists
 
 
 def get_local_cluster_consensus(readset, clustering, cov_map, positions):
