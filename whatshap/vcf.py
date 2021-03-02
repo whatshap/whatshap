@@ -460,6 +460,8 @@ class VcfReader:
         table = VariantTable(chromosome, self.samples)
         prev_position = None
         for record in records:
+            if not record.alts:
+                continue
             if len(record.alts) > 1:
                 # Multi-ALT sites are not supported, yet
                 n_multi += 1
@@ -823,6 +825,11 @@ class VcfAugmenter(ABC):
     def samples(self) -> List[str]:
         return list(self._reader.header.samples)
 
+    def _record_modifier(self, chromosome: str):
+        for record in self._iterrecords(chromosome):
+            yield record
+            self._writer.write(record)
+
     def _iterrecords(self, chromosome: str) -> Iterable[VariantRecord]:
         """Yield all records for the target chromosome"""
         n = 0
@@ -976,13 +983,15 @@ class PhasedVcfWriter(VcfAugmenter):
         for record in self._record_modifier(chromosome):
             self._remove_existing_phasing(record, list(sample_superreads))
             pos = record.start
-            is_indel = len(str(record.ref)) > 1 or len(str(record.alts[0])) > 1
+            if not record.alts:
+                continue
             if len(record.alts) > 1:
                 # we do not phase multiallelic sites currently
                 continue
             if pos == prev_pos:
                 # duplicate position, skip it
                 continue
+            is_indel = len(str(record.ref)) > 1 or len(str(record.alts[0])) > 1
             if not self._indels and is_indel:
                 continue
 
@@ -1046,11 +1055,6 @@ class PhasedVcfWriter(VcfAugmenter):
                     call[self.tag] = None
             prev_pos = pos
         return genotype_changes
-
-    def _record_modifier(self, chromosome: str):
-        for record in self._iterrecords(chromosome):
-            yield record
-            self._writer.write(record)
 
     def _remove_existing_phasing(self, record: VariantRecord, samples: Iterable[str]):
         if self.tag == "PS":
@@ -1122,13 +1126,14 @@ class GenotypeVcfWriter(VcfAugmenter):
 
         # INT_TO_UNPHASED_GT = {0: (0, 0), 1: (0, 1), 2: (1, 1), -1: None}
         GT_GL_GQ = frozenset(["GT", "GL", "GQ"])
-        for record in self._iterrecords(chromosome):
+        for record in self._record_modifier(chromosome):
             pos = record.start
+            if not record.alts:
+                continue
 
-            # if current chromosome was genotyped, write this new information to VCF
             for sample, call in record.samples.items():
                 geno = Genotype([])
-                n_alleles = len(record.alts) + 1
+                n_alleles = 1 + len(record.alts)
                 n_genotypes = binomial_coefficient(ploidy + n_alleles - 1, n_alleles - 1)
                 geno_l = [1 / n_genotypes] * int(n_genotypes)
                 geno_q = None
@@ -1174,5 +1179,3 @@ class GenotypeVcfWriter(VcfAugmenter):
                 # delete all other genotype information that might have been present before
                 for tag in set(call.keys()) - GT_GL_GQ:
                     del call[tag]
-
-            self._writer.write(record)

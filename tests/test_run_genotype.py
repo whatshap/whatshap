@@ -102,7 +102,10 @@ def test_no_indels(tmpdir, priors):
         default_l = math.log10(1 / 3.0)
 
         for record in vcf_reader:
-            if len(record.alts[0]) != len(record.ref):
+            if record.alts is None:
+                for call in record.samples.values():
+                    assert set(call) == {"GT"}
+            elif len(record.alts[0]) != len(record.ref):
                 for call in record.samples.values():
                     for v in call["GL"]:
                         assert pytest.approx(default_l) == v

@@ -14,6 +14,7 @@ development version
 * The file created with ``--output-read-list`` was not correctly tab-separated.
 * :issue:`248`: Remove ``phase --full-genotyping`` option. Instead, use ``whatshap genotype``
   followed by ``whatshap phase``.
+* :issue:`289`: Fix parsing of GVCFs (with dots in the ALT column)
 * :pr:`265`: ``polyphase`` can now work in parallel
 
 v1.0 (2020-06-24)
