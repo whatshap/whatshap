@@ -216,11 +216,9 @@ def run_genotype(
                     "Leaving chromosome %r unchanged (present in VCF but not requested by option --chromosome)",
                     chromosome,
                 )
-                vcf_writer.write_genotypes(chromosome, variant_table, indels, leave_unchanged=True)
+                vcf_writer.write_unchanged(chromosome)
                 if prioroutput is not None:
-                    prior_vcf_writer.write_genotypes(
-                        chromosome, variant_table, indels, leave_unchanged=True
-                    )
+                    prior_vcf_writer.write_unchanged(chromosome)
                 continue
 
             positions = [v.position for v in variant_table.variants]

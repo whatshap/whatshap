@@ -839,6 +839,14 @@ class VcfAugmenter(ABC):
                 return
             yield record
 
+    def write_unchanged(self, chromosome: str) -> None:
+        """
+        Write all variants on one chromosome unchanged to output VCF
+        chromosome -- name of chromosome
+        """
+        for record in self._iterrecords(chromosome):
+            self._writer.write(record)
+
 
 class PhasedVcfWriter(VcfAugmenter):
     """
@@ -1097,12 +1105,7 @@ class GenotypeVcfWriter(VcfAugmenter):
         )
 
     def write_genotypes(
-        self,
-        chromosome: str,
-        variant_table: VariantTable,
-        indels,
-        leave_unchanged: bool = False,
-        ploidy: int = 2,
+        self, chromosome: str, variant_table: VariantTable, indels, ploidy: int = 2,
     ) -> None:
         """
         Add genotyping information to all variants on a single chromosome.
@@ -1123,54 +1126,53 @@ class GenotypeVcfWriter(VcfAugmenter):
             pos = record.start
 
             # if current chromosome was genotyped, write this new information to VCF
-            if not leave_unchanged:
-                for sample, call in record.samples.items():
-                    geno = Genotype([])
-                    n_alleles = len(record.alts) + 1
-                    n_genotypes = binomial_coefficient(ploidy + n_alleles - 1, n_alleles - 1)
-                    geno_l = [1 / n_genotypes] * int(n_genotypes)
-                    geno_q = None
+            for sample, call in record.samples.items():
+                geno = Genotype([])
+                n_alleles = len(record.alts) + 1
+                n_genotypes = binomial_coefficient(ploidy + n_alleles - 1, n_alleles - 1)
+                geno_l = [1 / n_genotypes] * int(n_genotypes)
+                geno_q = None
 
-                    # for genotyped variants, get computed likelihoods/genotypes (for all others, give uniform likelihoods)
-                    if pos in genotyped_variants:
-                        likelihoods = variant_table.genotype_likelihoods_of(sample)[
-                            genotyped_variants[pos]
-                        ]
-                        # likelihoods can be 'None' if position was not accessible
-                        if likelihoods is not None:
-                            geno_l = [l for l in likelihoods]  # type: ignore
-                            geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
+                # for genotyped variants, get computed likelihoods/genotypes (for all others, give uniform likelihoods)
+                if pos in genotyped_variants:
+                    likelihoods = variant_table.genotype_likelihoods_of(sample)[
+                        genotyped_variants[pos]
+                    ]
+                    # likelihoods can be 'None' if position was not accessible
+                    if likelihoods is not None:
+                        geno_l = [l for l in likelihoods]  # type: ignore
+                        geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
 
-                    # Compute GQ
-                    geno_index = geno.get_index()
-                    geno_q = sum(geno_l[i] for i in range(n_genotypes) if i != geno_index)
+                # Compute GQ
+                geno_index = geno.get_index()
+                geno_q = sum(geno_l[i] for i in range(n_genotypes) if i != geno_index)
 
+                # TODO default value ok?
+                # store likelihoods log10-scaled
+
+                # Temporarily overwrite the GT field with a (fake) genotype that indicates a
+                # diploid sample. Otherwise, if the GT field happens to be empty, pysam
+                # complains that we are setting an incorrect number of GL values.
+                call["GT"] = tuple([0] * ploidy)
+
+                call["GL"] = [max(math.log10(j), -1000) if j > 0 else -1000 for j in geno_l]
+                call["GT"] = tuple(geno.as_vector())
+
+                # store quality as phred score
+                if not geno.is_none():
                     # TODO default value ok?
-                    # store likelihoods log10-scaled
-
-                    # Temporarily overwrite the GT field with a (fake) genotype that indicates a
-                    # diploid sample. Otherwise, if the GT field happens to be empty, pysam
-                    # complains that we are setting an incorrect number of GL values.
-                    call["GT"] = tuple(0 for i in range(ploidy))
-
-                    call["GL"] = [max(math.log10(j), -1000) if j > 0 else -1000 for j in geno_l]
-                    call["GT"] = tuple(geno.as_vector())
-
-                    # store quality as phred score
-                    if not geno.is_none():
-                        # TODO default value ok?
-                        assert geno_q is not None
-                        if geno_q > 0:
-                            call["GQ"] = min(round(-10.0 * math.log10(geno_q)), 10000)
-                        else:
-                            call["GQ"] = 10000
+                    assert geno_q is not None
+                    if geno_q > 0:
+                        call["GQ"] = min(round(-10.0 * math.log10(geno_q)), 10000)
                     else:
-                        call["GQ"] = None
+                        call["GQ"] = 10000
+                else:
+                    call["GQ"] = None
 
-                    record.qual = None
+                record.qual = None
 
-                    # delete all other genotype information that might have been present before
-                    for tag in set(call.keys()) - GT_GL_GQ:
-                        del call[tag]
+                # delete all other genotype information that might have been present before
+                for tag in set(call.keys()) - GT_GL_GQ:
+                    del call[tag]
 
             self._writer.write(record)
