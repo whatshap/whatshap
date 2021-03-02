@@ -973,7 +973,7 @@ class PhasedVcfWriter(VcfAugmenter):
                     sample_genotypes[sample][variants[0].position] = Genotype(list(phasing))
 
         prev_pos = None
-        for record in self._iterrecords(chromosome):
+        for record in self._record_modifier(chromosome):
             self._remove_existing_phasing(record, list(sample_superreads))
             pos = record.start
             is_indel = len(str(record.ref)) > 1 or len(str(record.alts[0])) > 1
@@ -1049,8 +1049,12 @@ class PhasedVcfWriter(VcfAugmenter):
                         # Unphased
                         call[self.tag] = None
                 prev_pos = pos
-            self._writer.write(record)
         return genotype_changes
+
+    def _record_modifier(self, chromosome: str):
+        for record in self._iterrecords(chromosome):
+            yield record
+            self._writer.write(record)
 
     def _remove_existing_phasing(self, record: VariantRecord, samples: Iterable[str]):
         if self.tag == "PS":
