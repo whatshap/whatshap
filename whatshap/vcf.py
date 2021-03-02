@@ -979,76 +979,72 @@ class PhasedVcfWriter(VcfAugmenter):
             is_indel = len(str(record.ref)) > 1 or len(str(record.alts[0])) > 1
             if len(record.alts) > 1:
                 # we do not phase multiallelic sites currently
-                is_phased = False
-            elif pos == prev_pos:
+                continue
+            if pos == prev_pos:
                 # duplicate position, skip it
-                is_phased = False
-            elif not self._indels and is_indel:
-                is_phased = False
-            else:
-                # Determine whether the variant is phased in any sample
-                is_phased = True
-                for sample in self.samples:
-                    if sample in sample_superreads:
-                        components = sample_components[sample]
-                        phases = sample_phases[sample]
-                        if pos in components and pos in phases:
-                            break
-                else:
-                    is_phased = False
+                continue
+            if not self._indels and is_indel:
+                continue
 
-            if is_phased:
-                # Set phase tag for all target samples
-                for sample in sample_superreads:
-                    call: VariantRecordSample = record.samples[sample]
+            # Determine whether the variant is phased in any sample
+            for sample in self.samples:
+                if sample in sample_superreads:
                     components = sample_components[sample]
-                    haploid_components = (
-                        sample_haploid_components[sample] if sample_haploid_components else None
-                    )
                     phases = sample_phases[sample]
-                    genotypes = sample_genotypes[sample]
+                    if pos in components and pos in phases:
+                        break
+            else:
+                continue
 
-                    if (
-                        self.tag in call
-                        and call[self.tag] is not None
-                        and not self._phase_tag_found_warned
-                    ):
-                        logger.warning(
-                            "Ignoring existing phasing information "
-                            "found in input VCF ({} tag exists).".format(self.tag)
-                        )
-                        self._phase_tag_found_warned = True
+            # Set phase tag for all target samples
+            for sample in sample_superreads:
+                call: VariantRecordSample = record.samples[sample]
+                components = sample_components[sample]
+                haploid_components = (
+                    sample_haploid_components[sample] if sample_haploid_components else None
+                )
+                phases = sample_phases[sample]
+                genotypes = sample_genotypes[sample]
 
-                    gt_type = genotype_code(call["GT"])
-                    is_het = not gt_type.is_homozygous()
+                if (
+                    self.tag in call
+                    and call[self.tag] is not None
+                    and not self._phase_tag_found_warned
+                ):
+                    logger.warning(
+                        "Ignoring existing phasing information "
+                        "found in input VCF ({} tag exists).".format(self.tag)
+                    )
+                    self._phase_tag_found_warned = True
 
-                    # is genotype to be changed?
-                    if pos in genotypes and genotypes[pos] != gt_type:
-                        # call['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
-                        call["GT"] = tuple(genotypes[pos].as_vector())
-                        variant = VcfVariant(record.start, record.ref, record.alts[0])
-                        genotype_changes.append(
-                            GenotypeChange(sample, chromosome, variant, gt_type, genotypes[pos])
-                        )
-                        is_het = not genotypes[pos].is_homozygous()
+                gt_type = genotype_code(call["GT"])
+                is_het = not gt_type.is_homozygous()
 
-                    if pos in components and pos in phases and is_het:
-                        haploid_component = (
-                            phases[pos]
-                            if (
-                                haploid_components
-                                and pos in haploid_components
-                                and len(haploid_components[pos]) == self.ploidy
-                            )
-                            else None
+                # is genotype to be changed?
+                if pos in genotypes and genotypes[pos] != gt_type:
+                    # call['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
+                    call["GT"] = tuple(genotypes[pos].as_vector())
+                    variant = VcfVariant(record.start, record.ref, record.alts[0])
+                    genotype_changes.append(
+                        GenotypeChange(sample, chromosome, variant, gt_type, genotypes[pos])
+                    )
+                    is_het = not genotypes[pos].is_homozygous()
+
+                if pos in components and pos in phases and is_het:
+                    haploid_component = (
+                        phases[pos]
+                        if (
+                            haploid_components
+                            and pos in haploid_components
+                            and len(haploid_components[pos]) == self.ploidy
                         )
-                        self._set_phasing_tags(
-                            call, components[pos], phases[pos], haploid_component
-                        )
-                    else:
-                        # Unphased
-                        call[self.tag] = None
-                prev_pos = pos
+                        else None
+                    )
+                    self._set_phasing_tags(call, components[pos], phases[pos], haploid_component)
+                else:
+                    # Unphased
+                    call[self.tag] = None
+            prev_pos = pos
         return genotype_changes
 
     def _record_modifier(self, chromosome: str):
