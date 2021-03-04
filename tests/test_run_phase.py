@@ -944,16 +944,6 @@ def test_indel_phasing(algorithm, tmp_path):
     assert_phasing(table.phases_of("sample1"), [phase0, phase1, phase0, phase1])
 
 
-def test_full_genotyping(algorithm):
-    run_whatshap(
-        phase_input_files=["tests/data/oneread.bam"],
-        variant_file="tests/data/onevariant.vcf",
-        output="/dev/null",
-        full_genotyping=True,
-        algorithm=algorithm,
-    )
-
-
 def test_with_read_merging(algorithm):
     run_whatshap(
         phase_input_files=["tests/data/pacbio/pacbio.bam"],
