@@ -81,6 +81,11 @@ class PhasedInputReader:
     def has_vcfs(self):
         return bool(self._vcf_paths)
 
+    @property
+    def has_alignments(self) -> bool:
+        """Whether any of the input files are BAM or CRAM"""
+        return bool(self._bam_paths)
+
     @staticmethod
     def _split_input_file_list(paths):
         bams = []

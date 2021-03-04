@@ -253,7 +253,7 @@ def setup_pedigree(ped_path, samples):
 def run_whatshap(
     phase_input_files,
     variant_file,
-    reference=None,
+    reference=False,
     output=sys.stdout,
     samples=None,
     chromosomes=None,
@@ -288,7 +288,7 @@ def run_whatshap(
 
     phase_input_files -- list of paths to BAM/CRAM/VCF files
     variant_file -- path to input VCF
-    reference -- path to reference FASTA
+    reference -- path to reference FASTA. If False: skip realignment. If None: complain if reference needed.
     output -- path to output VCF or a file-like object
     samples -- names of samples to phase. an empty list means: phase all samples
     chromosomes -- names of chromosomes to phase. an empty list means: phase all chromosomes
@@ -355,7 +355,7 @@ def run_whatshap(
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
                 phase_input_files,
-                reference,
+                None if reference is False else reference,
                 numeric_sample_ids,
                 ignore_read_groups,
                 mapq_threshold=mapping_quality,
@@ -363,6 +363,12 @@ def run_whatshap(
             )
         )
         show_phase_vcfs = phased_input_reader.has_vcfs
+
+        if phased_input_reader.has_alignments and reference is None:
+            raise CommandLineError(
+                "A reference FASTA needs to be provided with -r/--reference; "
+                "or use --no-reference at the expense of phasing quality."
+            )
 
         # Only read genotype likelihoods from VCFs when distrusting genotypes
         vcf_reader = stack.enter_context(
@@ -1090,11 +1096,6 @@ def add_arguments(parser):
 
 
 def validate(args, parser):
-    if args.reference is None and not args.no_reference:
-        parser.error(
-            "A reference FASTA needs to be provided with -r/--reference; "
-            "or use --no-reference at the expense of phasing quality."
-        )
     if args.reference is not None and args.no_reference:
         parser.error("Options --reference and --no-reference cannot be used together")
     if args.ignore_read_groups and args.ped:
@@ -1127,6 +1128,8 @@ def validate(args, parser):
 
 
 def main(args):
-    del args.max_coverage_was_used
+    if args.no_reference:
+        args.reference = False
     del args.no_reference
+    del args.max_coverage_was_used
     run_whatshap(**vars(args))
