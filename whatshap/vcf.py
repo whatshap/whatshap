@@ -460,6 +460,8 @@ class VcfReader:
         table = VariantTable(chromosome, self.samples)
         prev_position = None
         for record in records:
+            if not record.alts:
+                continue
             if len(record.alts) > 1:
                 # Multi-ALT sites are not supported, yet
                 n_multi += 1
@@ -823,6 +825,11 @@ class VcfAugmenter(ABC):
     def samples(self) -> List[str]:
         return list(self._reader.header.samples)
 
+    def _record_modifier(self, chromosome: str):
+        for record in self._iterrecords(chromosome):
+            yield record
+            self._writer.write(record)
+
     def _iterrecords(self, chromosome: str) -> Iterable[VariantRecord]:
         """Yield all records for the target chromosome"""
         n = 0
@@ -838,6 +845,14 @@ class VcfAugmenter(ABC):
                 assert n != 1
                 return
             yield record
+
+    def write_unchanged(self, chromosome: str) -> None:
+        """
+        Write all variants on one chromosome unchanged to output VCF
+        chromosome -- name of chromosome
+        """
+        for record in self._iterrecords(chromosome):
+            self._writer.write(record)
 
 
 class PhasedVcfWriter(VcfAugmenter):
@@ -965,83 +980,80 @@ class PhasedVcfWriter(VcfAugmenter):
                     sample_genotypes[sample][variants[0].position] = Genotype(list(phasing))
 
         prev_pos = None
-        for record in self._iterrecords(chromosome):
+        for record in self._record_modifier(chromosome):
             self._remove_existing_phasing(record, list(sample_superreads))
             pos = record.start
-            is_indel = len(str(record.ref)) > 1 or len(str(record.alts[0])) > 1
+            if not record.alts:
+                continue
             if len(record.alts) > 1:
                 # we do not phase multiallelic sites currently
-                is_phased = False
-            elif pos == prev_pos:
+                continue
+            if pos == prev_pos:
                 # duplicate position, skip it
-                is_phased = False
-            elif not self._indels and is_indel:
-                is_phased = False
-            else:
-                # Determine whether the variant is phased in any sample
-                is_phased = True
-                for sample in self.samples:
-                    if sample in sample_superreads:
-                        components = sample_components[sample]
-                        phases = sample_phases[sample]
-                        if pos in components and pos in phases:
-                            break
-                else:
-                    is_phased = False
+                continue
+            is_indel = len(str(record.ref)) > 1 or len(str(record.alts[0])) > 1
+            if not self._indels and is_indel:
+                continue
 
-            if is_phased:
-                # Set phase tag for all target samples
-                for sample in sample_superreads:
-                    call: VariantRecordSample = record.samples[sample]
+            # Determine whether the variant is phased in any sample
+            for sample in self.samples:
+                if sample in sample_superreads:
                     components = sample_components[sample]
-                    haploid_components = (
-                        sample_haploid_components[sample] if sample_haploid_components else None
-                    )
                     phases = sample_phases[sample]
-                    genotypes = sample_genotypes[sample]
+                    if pos in components and pos in phases:
+                        break
+            else:
+                continue
 
-                    if (
-                        self.tag in call
-                        and call[self.tag] is not None
-                        and not self._phase_tag_found_warned
-                    ):
-                        logger.warning(
-                            "Ignoring existing phasing information "
-                            "found in input VCF ({} tag exists).".format(self.tag)
-                        )
-                        self._phase_tag_found_warned = True
+            # Set phase tag for all target samples
+            for sample in sample_superreads:
+                call: VariantRecordSample = record.samples[sample]
+                components = sample_components[sample]
+                haploid_components = (
+                    sample_haploid_components[sample] if sample_haploid_components else None
+                )
+                phases = sample_phases[sample]
+                genotypes = sample_genotypes[sample]
 
-                    gt_type = genotype_code(call["GT"])
-                    is_het = not gt_type.is_homozygous()
+                if (
+                    self.tag in call
+                    and call[self.tag] is not None
+                    and not self._phase_tag_found_warned
+                ):
+                    logger.warning(
+                        "Ignoring existing phasing information "
+                        "found in input VCF ({} tag exists).".format(self.tag)
+                    )
+                    self._phase_tag_found_warned = True
 
-                    # is genotype to be changed?
-                    if pos in genotypes and genotypes[pos] != gt_type:
-                        # call['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
-                        call["GT"] = tuple(genotypes[pos].as_vector())
-                        variant = VcfVariant(record.start, record.ref, record.alts[0])
-                        genotype_changes.append(
-                            GenotypeChange(sample, chromosome, variant, gt_type, genotypes[pos])
-                        )
-                        is_het = not genotypes[pos].is_homozygous()
+                gt_type = genotype_code(call["GT"])
+                is_het = not gt_type.is_homozygous()
 
-                    if pos in components and pos in phases and is_het:
-                        haploid_component = (
-                            phases[pos]
-                            if (
-                                haploid_components
-                                and pos in haploid_components
-                                and len(haploid_components[pos]) == self.ploidy
-                            )
-                            else None
+                # is genotype to be changed?
+                if pos in genotypes and genotypes[pos] != gt_type:
+                    # call['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
+                    call["GT"] = tuple(genotypes[pos].as_vector())
+                    variant = VcfVariant(record.start, record.ref, record.alts[0])
+                    genotype_changes.append(
+                        GenotypeChange(sample, chromosome, variant, gt_type, genotypes[pos])
+                    )
+                    is_het = not genotypes[pos].is_homozygous()
+
+                if pos in components and pos in phases and is_het:
+                    haploid_component = (
+                        phases[pos]
+                        if (
+                            haploid_components
+                            and pos in haploid_components
+                            and len(haploid_components[pos]) == self.ploidy
                         )
-                        self._set_phasing_tags(
-                            call, components[pos], phases[pos], haploid_component
-                        )
-                    else:
-                        # Unphased
-                        call[self.tag] = None
-                prev_pos = pos
-            self._writer.write(record)
+                        else None
+                    )
+                    self._set_phasing_tags(call, components[pos], phases[pos], haploid_component)
+                else:
+                    # Unphased
+                    call[self.tag] = None
+            prev_pos = pos
         return genotype_changes
 
     def _remove_existing_phasing(self, record: VariantRecord, samples: Iterable[str]):
@@ -1097,12 +1109,7 @@ class GenotypeVcfWriter(VcfAugmenter):
         )
 
     def write_genotypes(
-        self,
-        chromosome: str,
-        variant_table: VariantTable,
-        indels,
-        leave_unchanged: bool = False,
-        ploidy: int = 2,
+        self, chromosome: str, variant_table: VariantTable, indels, ploidy: int = 2,
     ) -> None:
         """
         Add genotyping information to all variants on a single chromosome.
@@ -1119,58 +1126,56 @@ class GenotypeVcfWriter(VcfAugmenter):
 
         # INT_TO_UNPHASED_GT = {0: (0, 0), 1: (0, 1), 2: (1, 1), -1: None}
         GT_GL_GQ = frozenset(["GT", "GL", "GQ"])
-        for record in self._iterrecords(chromosome):
+        for record in self._record_modifier(chromosome):
             pos = record.start
+            if not record.alts:
+                continue
 
-            # if current chromosome was genotyped, write this new information to VCF
-            if not leave_unchanged:
-                for sample, call in record.samples.items():
-                    geno = Genotype([])
-                    n_alleles = len(record.alts) + 1
-                    n_genotypes = binomial_coefficient(ploidy + n_alleles - 1, n_alleles - 1)
-                    geno_l = [1 / n_genotypes] * int(n_genotypes)
-                    geno_q = None
+            for sample, call in record.samples.items():
+                geno = Genotype([])
+                n_alleles = 1 + len(record.alts)
+                n_genotypes = binomial_coefficient(ploidy + n_alleles - 1, n_alleles - 1)
+                geno_l = [1 / n_genotypes] * int(n_genotypes)
+                geno_q = None
 
-                    # for genotyped variants, get computed likelihoods/genotypes (for all others, give uniform likelihoods)
-                    if pos in genotyped_variants:
-                        likelihoods = variant_table.genotype_likelihoods_of(sample)[
-                            genotyped_variants[pos]
-                        ]
-                        # likelihoods can be 'None' if position was not accessible
-                        if likelihoods is not None:
-                            geno_l = [l for l in likelihoods]  # type: ignore
-                            geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
+                # for genotyped variants, get computed likelihoods/genotypes (for all others, give uniform likelihoods)
+                if pos in genotyped_variants:
+                    likelihoods = variant_table.genotype_likelihoods_of(sample)[
+                        genotyped_variants[pos]
+                    ]
+                    # likelihoods can be 'None' if position was not accessible
+                    if likelihoods is not None:
+                        geno_l = [l for l in likelihoods]  # type: ignore
+                        geno = variant_table.genotypes_of(sample)[genotyped_variants[pos]]
 
-                    # Compute GQ
-                    geno_index = geno.get_index()
-                    geno_q = sum(geno_l[i] for i in range(n_genotypes) if i != geno_index)
+                # Compute GQ
+                geno_index = geno.get_index()
+                geno_q = sum(geno_l[i] for i in range(n_genotypes) if i != geno_index)
 
+                # TODO default value ok?
+                # store likelihoods log10-scaled
+
+                # Temporarily overwrite the GT field with a (fake) genotype that indicates a
+                # diploid sample. Otherwise, if the GT field happens to be empty, pysam
+                # complains that we are setting an incorrect number of GL values.
+                call["GT"] = tuple([0] * ploidy)
+
+                call["GL"] = [max(math.log10(j), -1000) if j > 0 else -1000 for j in geno_l]
+                call["GT"] = tuple(geno.as_vector())
+
+                # store quality as phred score
+                if not geno.is_none():
                     # TODO default value ok?
-                    # store likelihoods log10-scaled
-
-                    # Temporarily overwrite the GT field with a (fake) genotype that indicates a
-                    # diploid sample. Otherwise, if the GT field happens to be empty, pysam
-                    # complains that we are setting an incorrect number of GL values.
-                    call["GT"] = tuple(0 for i in range(ploidy))
-
-                    call["GL"] = [max(math.log10(j), -1000) if j > 0 else -1000 for j in geno_l]
-                    call["GT"] = tuple(geno.as_vector())
-
-                    # store quality as phred score
-                    if not geno.is_none():
-                        # TODO default value ok?
-                        assert geno_q is not None
-                        if geno_q > 0:
-                            call["GQ"] = min(round(-10.0 * math.log10(geno_q)), 10000)
-                        else:
-                            call["GQ"] = 10000
+                    assert geno_q is not None
+                    if geno_q > 0:
+                        call["GQ"] = min(round(-10.0 * math.log10(geno_q)), 10000)
                     else:
-                        call["GQ"] = None
+                        call["GQ"] = 10000
+                else:
+                    call["GQ"] = None
 
-                    record.qual = None
+                record.qual = None
 
-                    # delete all other genotype information that might have been present before
-                    for tag in set(call.keys()) - GT_GL_GQ:
-                        del call[tag]
-
-            self._writer.write(record)
+                # delete all other genotype information that might have been present before
+                for tag in set(call.keys()) - GT_GL_GQ:
+                    del call[tag]
