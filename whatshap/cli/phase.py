@@ -14,7 +14,7 @@ from collections import defaultdict
 from copy import deepcopy
 
 from contextlib import ExitStack
-from whatshap.vcf import VcfReader, PhasedVcfWriter, GenotypeLikelihoods, VcfError, VariantTable
+from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VariantTable
 from whatshap import __version__
 from whatshap.core import (
     ReadSet,
@@ -23,7 +23,6 @@ from whatshap.core import (
     PedigreeDPTable,
     NumericSampleIds,
     PhredGenotypeLikelihoods,
-    compute_genotypes,
     HapChatCore,
 )
 from whatshap.graph import ComponentFinder
@@ -266,7 +265,6 @@ def run_whatshap(
     read_merging_positive_threshold=1000000,
     read_merging_negative_threshold=1000,
     max_coverage=15,
-    full_genotyping=False,
     distrust_genotypes=False,
     include_homozygous=False,
     ped=None,
@@ -300,7 +298,6 @@ def run_whatshap(
     read_merging_positive_threshold -- threshold on the ratio of the two probabilities
     read_merging_negative_threshold -- threshold on the opposite ratio of positive threshold
     max_coverage
-    full_genotyping
     distrust_genotypes
     include_homozygous
     genetic_haplotyping -- in ped mode, merge disconnected blocks based on genotype status
@@ -319,9 +316,6 @@ def run_whatshap(
 
     timers = StageTimer()
     logger.info(f"This is WhatsHap {__version__} running under Python {platform.python_version()}")
-    if full_genotyping:
-        distrust_genotypes = True
-        include_homozygous = True
     numeric_sample_ids = NumericSampleIds()
     if write_command_line_header:
         command_line = "(whatshap {}) {}".format(__version__, " ".join(sys.argv[1:]))
@@ -434,13 +428,6 @@ def run_whatshap(
                     superreads, components = dict(), dict()
                     vcf_writer.write(chromosome, superreads, components)
                 continue
-
-            if full_genotyping:
-                with timers("read_bam"):
-                    # This modifies variant_table
-                    recompute_variant_table_genotypes(
-                        variant_table, chromosome, phased_input_reader, samples
-                    )
 
             # These two variables hold the phasing results for all samples
             superreads, components = dict(), dict()
@@ -654,23 +641,6 @@ def compute_overall_components(
     return find_components(
         accessible_positions, all_reads, master_block, heterozygous_positions_by_sample,
     )
-
-
-def recompute_variant_table_genotypes(variant_table, chromosome, phased_input_reader, samples):
-    """Compute genotypes using reads from phased_input_reader and update variant_table in place"""
-
-    positions = [v.position for v in variant_table.variants]
-    for sample in samples:
-        logger.info("---- Initial genotyping of %s", sample)
-        readset, vcf_source_ids = phased_input_reader.read(
-            chromosome, variant_table.variants, sample, read_vcf=False,
-        )
-        readset.sort()  # TODO can be removed
-        genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
-        variant_table.set_genotypes_of(sample, genotypes)
-        variant_table.set_genotype_likelihoods_of(
-            sample, [GenotypeLikelihoods(gl) for gl in genotype_likelihoods],
-        )
 
 
 def log_component_stats(components, n_accessible_positions):
@@ -1047,12 +1017,8 @@ def add_arguments(parser):
         "read merging model (default: %(default)s).")
 
     arg = parser.add_argument_group("Genotyping",
-        "The options in this section require that either --distrust-genotypes or "
-        "--full-genotyping is used").add_argument
-    arg("--full-genotyping", dest="full_genotyping",
-        action="store_true", default=False,
-        help="Completely re-genotype all variants based on read data, ignores all genotype "
-        "data that might be present in the VCF (EXPERIMENTAL FEATURE).")
+        "These options are only used when --distrust-genotypes is used").add_argument
+    arg("--full-genotyping", action="store_true", default=False, help=SUPPRESS)
     arg("--distrust-genotypes", dest="distrust_genotypes",
         action="store_true", default=False,
         help="Allow switching variants from hetero- to homozygous in an "
@@ -1125,6 +1091,11 @@ def validate(args, parser):
             "*exponentially* while possibly improving phasing quality marginally. "
             "Avoid using this in the normal case!"
         )
+    if args.full_genotyping:
+        parser.error(
+            "The experimental --full-genotyping option has been removed. Instead, please run "
+            "'whatshap genotype' prior to running 'whatshap phase'"
+        )
 
 
 def main(args):
@@ -1132,4 +1103,5 @@ def main(args):
         args.reference = False
     del args.no_reference
     del args.max_coverage_was_used
+    del args.full_genotyping
     run_whatshap(**vars(args))

@@ -12,6 +12,8 @@ development version
 * :issue:`251`: Allow ``haplotag`` to correctly write to standard output.
 * :issue:`207`: Allow multiple ``--chromosome`` arguments to ``stats``.
 * The file created with ``--output-read-list`` was not correctly tab-separated.
+* :issue:`248`: Remove ``phase --full-genotyping`` option. Instead, use ``whatshap genotype``
+  followed by ``whatshap phase``.
 * :pr:`265`: ``polyphase`` can now work in parallel
 
 v1.0 (2020-06-24)
