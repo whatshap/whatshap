@@ -29,7 +29,7 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
     coverage = get_coverage(readset, clustering, index)
     cov_map = get_pos_to_clusters_map(coverage, ploidy)
     consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
-    allele_depths, normalized_depths, cons_lists = get_allele_depths(readset, clustering, cov_map, ploidy, genotypes=genotypes)
+    allele_depths, normalized_depths, consensus_lists = get_allele_depths(readset, clustering, cov_map, ploidy, genotypes=genotypes)
 
     # compute threading through the clusters
     affine_switch_cost = ceil(compute_readlength_snp_distance_ratio(readset) / 4.0)
@@ -38,6 +38,7 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
         num_vars,
         cov_map,
         allele_depths,
+        consensus_lists, 
         ploidy,
         genotypes,
         switch_cost=4 * affine_switch_cost,
@@ -71,7 +72,7 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
         cnts = defaultdict(int)
         for i in range(ploidy):
             cid = path[pos][i]
-            allele = cons_lists[pos][rev_cov_map[pos][cid]][cnts[cid]]
+            allele = consensus_lists[pos][rev_cov_map[pos][cid]][cnts[cid]]
             cnts[cid] += 1
             if allele == -1:
                 haplotypes[i].append("n")
@@ -96,6 +97,7 @@ def compute_threading_path(
     num_vars,
     cov_map,
     allele_depths,
+    consensus_lists, 
     ploidy,
     genotypes,
     switch_cost=32.0,
@@ -113,9 +115,9 @@ def compute_threading_path(
 
     # run threader
     row_limit = 16 * 2 ** ploidy if ploidy > 6 else 0
-    threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, True, True, row_limit)
+    threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, True, row_limit)
 
-    path = threader.computePathsBlockwise([0], cov_map, allele_depths, genotypes)
+    path = threader.computePathsBlockwise([0], cov_map, allele_depths, consensus_lists, genotypes)
     assert len(path) == num_vars
 
     return path
@@ -617,6 +619,7 @@ def get_allele_depths(readset, clustering, cov_map, ploidy, genotypes=None):
                         max_cnt = cnt
                         max_al = al
                 cons_lists[pos][c_id].append(max_al)
+                cnts[max_al] += 1
 
     return ad, nad, cons_lists
 

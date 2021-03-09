@@ -226,10 +226,9 @@ public:
      * @param switchCost The factor how much a single cluster switches is penalized over a wrong copy number of a cluster (compared to its coverage)
      * @param affineSwitchCost Penalty for a position, in which a cluster switch occurs
      * @param symmetryOptimization Include speed optimizations regarding symmetry elimination. Should always be used if not for debugging
-     * @param normalizeAlleleDepths Position-wise allele counts of the clusters are normalized with respect to the genotype
      * @param rowLimit Keeps at most this number of cluster tuples as candidates for each position. 0 means no limit
      */
-    HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, bool normalizeAlleleDepths, uint32_t rowLimit);
+    HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit);
     
     /**
      * Computes a number of paths (depending on the provided ploidy), which run through the provided clusters. For each variant the result
@@ -245,6 +244,7 @@ public:
     std::vector<std::vector<GlobalClusterId>> computePaths (const std::vector<Position>& blockStarts,
                     const std::vector<std::vector<GlobalClusterId>>& covMap,
                     const std::vector<std::vector<std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
+                    const std::vector<std::vector<std::vector<uint32_t>>>& consensusLists,
                     const std::vector<std::unordered_map<uint32_t, uint32_t>>& genotypes
                    ) const;
                   
@@ -262,6 +262,7 @@ public:
     std::vector<std::vector<GlobalClusterId>> computePaths (Position start, Position end,
                     const std::vector<std::vector<GlobalClusterId>>& covMap,
                     const std::vector<std::vector<std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
+                    const std::vector<std::vector<std::vector<uint32_t>>>& consensusLists,
                     const std::vector<std::unordered_map<uint32_t, uint32_t>>& genotypes,
                     Position displayedEnd = 0
                    ) const;
@@ -271,7 +272,6 @@ private:
     double switchCost;
     double affineSwitchCost;
     bool symmetryOptimization;
-    bool normalizeAlleleDepths;
     uint32_t rowLimit;
     
     /**
@@ -299,33 +299,16 @@ private:
                                 const std::vector<GlobalClusterId>& curTuple,
                                 std::vector<uint32_t>& residualPosPrev, 
                                 std::vector<uint32_t>& residualPosCur) const;
-    
-    
-    std::vector<std::unordered_map<uint32_t, uint32_t>> computeNormalizeDepths(const std::vector<std::unordered_map<uint32_t, uint32_t>>& alleleDepths,
-                                                                               const std::unordered_map<uint32_t, uint32_t>& genotype) const;
-    
-    std::vector<std::vector<uint32_t>> computeAlleleOrder(const std::vector<std::unordered_map<uint32_t, uint32_t>>& alleleDepths) const;
-    
-    std::vector<ClusterTuple> computeRelevantTuples (const std::vector<GlobalClusterId>& covMap,
-                                                     const std::vector<std::unordered_map<uint32_t, uint32_t>>& alleleDepths,
-                                                     const std::vector<uint32_t>& consensus, 
-                                                     const std::unordered_map<uint32_t, uint32_t>& genotype,
-                                                     const std::vector<uint32_t>& clusterCoverage,
-                                                     const uint32_t coverage) const;
-                                                            
-    std::vector<ClusterTuple> computeGenotypeConformTuples (const std::vector<GlobalClusterId>& covMap,
-                                                            const std::vector<std::unordered_map<uint32_t, uint32_t>>& alleleDepths,
-                                                            const std::vector<uint32_t>& consensus, 
-                                                            const std::unordered_map<uint32_t, uint32_t>& genotype,
-                                                            const std::vector<uint32_t>& snpClusters) const;
-                                                            
+
+    std::vector<ClusterTuple> computeRelevantTuples (const std::vector<std::vector<uint32_t>>& consensusLists,
+                                                     const std::unordered_map<uint32_t, uint32_t>& genotype) const;
+
     /**
      * Computes all sets of clusters having are have a genotype, which is exactly distance away from the specified genotype.
      * Result is returned as a vector of tuples over the local index space, i.e. from 0 to size of clusters - 1. No tuple
      * is a permutation of another one (they have to be extended if required).
      */
-    std::vector<ClusterTuple> assembleTuples (const std::vector<GlobalClusterId>& clusters,
-                                              const std::vector<uint32_t>& consensus,
+    std::vector<ClusterTuple> assembleTuples (const std::vector<std::vector<uint32_t>>& consensusLists,
                                               const std::unordered_map<uint32_t, uint32_t>& genotype) const;
 
     /**
@@ -333,8 +316,7 @@ private:
      */
     void computeCoverage(const std::vector<std::vector<std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
                          std::vector<uint32_t>& coverage,
-                         std::vector<std::vector<uint32_t>>& clusterCoverage,
-                         std::vector<std::vector<uint32_t>>& clusterConsensus) const;
+                         std::vector<std::vector<uint32_t>>& clusterCoverage) const;
                          
     /**
      * Computes the smallest k, such that the one-sided hypothesis of a distribution being B(n,p)-distributed can be rejected

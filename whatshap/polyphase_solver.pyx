@@ -96,12 +96,12 @@ def scoreReadsetBayesian(readset, minOverlap, ploidy, err=0.0):
     
     
 cdef class HaploThreader:
-    def __cinit__(self, ploidy, switchCost, affineSwitchCost, symmetryOptimization, normalizeAlleleDepths, rowLimit):
-        self.thisptr = new cpp.HaploThreader(ploidy, switchCost, affineSwitchCost, symmetryOptimization, normalizeAlleleDepths, rowLimit)
+    def __cinit__(self, ploidy, switchCost, affineSwitchCost, symmetryOptimization, rowLimit):
+        self.thisptr = new cpp.HaploThreader(ploidy, switchCost, affineSwitchCost, symmetryOptimization, rowLimit)
         
-    def computePathsBlockwise(self, vector[uint32_t]& blockStarts, vector[vector[uint32_t]]& covMap, vector[vector[unordered_map[uint32_t, uint32_t]]]& alleleDepths, vector[unordered_map[uint32_t, uint32_t]]& genotypes):
+    def computePathsBlockwise(self, vector[uint32_t]& blockStarts, vector[vector[uint32_t]]& covMap, vector[vector[unordered_map[uint32_t, uint32_t]]]& alleleDepths, vector[vector[vector[uint32_t]]]& consensusLists, vector[unordered_map[uint32_t, uint32_t]]& genotypes):
         cdef vector[vector[uint32_t]] path
-        path = self.thisptr.computePaths(blockStarts, covMap, alleleDepths, genotypes)
+        path = self.thisptr.computePaths(blockStarts, covMap, alleleDepths, consensusLists, genotypes)
         
         # convert to python data structure
         py_path = []
@@ -116,9 +116,9 @@ cdef class HaploThreader:
         
         return py_path
 
-    def computePaths(self, uint32_t start, uint32_t end, vector[vector[uint32_t]]& covMap, vector[vector[unordered_map[uint32_t, uint32_t]]]& alleleDepths, vector[unordered_map[uint32_t, uint32_t]]& genotypes):
+    def computePaths(self, uint32_t start, uint32_t end, vector[vector[uint32_t]]& covMap, vector[vector[unordered_map[uint32_t, uint32_t]]]& alleleDepths, vector[vector[vector[uint32_t]]]& consensusLists, vector[unordered_map[uint32_t, uint32_t]]& genotypes):
         cdef vector[vector[uint32_t]] path
-        path = self.thisptr.computePaths(start, end, covMap, alleleDepths, genotypes)
+        path = self.thisptr.computePaths(start, end, covMap, alleleDepths, consensusLists, genotypes)
         
         # convert to python data structure
         py_path = []
