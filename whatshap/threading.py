@@ -485,6 +485,16 @@ def get_pos_to_clusters_map(coverage, ploidy):
                 cut_off = i
                 break
         cov_map[pos] = sorted_cids[:cut_off]
+
+
+    # re-add clusters with 1-position-deletion
+    for pos in range(1, len(cov_map)-1):
+        for cid in cov_map[pos-1]:
+            if cid in cov_map[pos+1] and cid not in cov_map[pos]:
+                if len(cov_map[pos]) > cut_off:
+                    break
+                cov_map[pos].append(cid)
+    
     return cov_map
 
 
@@ -495,7 +505,7 @@ def get_coverage(readset, clustering, pos_index):
     """
     num_vars = len(pos_index)
     num_clusters = len(clustering)
-    coverage = [dict() for pos in range(num_vars)]
+    coverage = [defaultdict(int) for pos in range(num_vars)]
     coverage_sum = [0 for pos in range(num_vars)]
     for c_id in range(num_clusters):
         for read in clustering[c_id]:
@@ -519,7 +529,7 @@ def get_coverage_absolute(readset, clustering, pos_index):
     """
     num_vars = len(pos_index)
     num_clusters = len(clustering)
-    coverage = [dict() for pos in range(num_vars)]
+    coverage = [defaultdict(int) for pos in range(num_vars)]
     for c_id in range(num_clusters):
         for read in clustering[c_id]:
             for pos in [pos_index[var.position] for var in readset[read]]:
@@ -658,7 +668,7 @@ def get_local_cluster_consensus_withfrac(readset, clustering, cov_map, positions
     ]
     whole_consensus = []
     for pos in range(num_vars):
-        newdict = defaultdict()
+        newdict = defaultdict(int)
         for c in cov_map[pos]:
             newdict[c] = clusterwise_consensus[c][pos]
         whole_consensus.append(newdict)

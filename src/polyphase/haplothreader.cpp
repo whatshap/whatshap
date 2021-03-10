@@ -158,7 +158,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         minimumPredTupleInColumn = ClusterTuple::INVALID_TUPLE;
         
         // compute genotype conform tuples
-        std::cout<<"Position "<<pos<<":"<<std::endl;
+//         std::cout<<"Position "<<pos<<":"<<std::endl;
         confTuples = computeRelevantTuples(consensusLists[pos], 
                                            genotypes[pos]);
         
@@ -365,14 +365,14 @@ Score HaploThreader::getCoverageCost(ClusterTuple tuple,
     for (uint32_t i = 0; i < ploidy; i++) {
         uint32_t cid = tuple.get(i);
         double cov = (double)clusterCoverage[cid] / coverage;
-        if (cov == 0) {
-            return std::numeric_limits<double>::infinity();
-        } else {
+//         if (cov == 0) {
+//             return std::numeric_limits<double>::infinity();
+//         } else {
             uint32_t expCount = std::round(cov*(double)ploidy);
             uint32_t realCount = tuple.count(cid, ploidy);
             if (realCount != expCount) {
                 cost += 1.0;
-            }
+//             }
         }
     }
     
@@ -385,7 +385,7 @@ Score HaploThreader::getCoverageCost(ClusterTuple tuple,
     }
     
     for (auto& ad: genotype) {
-        cost += std::abs((Score)ad.second - (Score)computedGenotype[ad.first]);
+        cost += 2*std::abs((Score)ad.second - (Score)computedGenotype[ad.first]);
     }
     
     return cost;
@@ -438,7 +438,7 @@ Score HaploThreader::getSwitchCostAllPerms(const std::vector<GlobalClusterId>& p
 std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vector<std::vector<uint32_t>>& consensusLists,
                                                                 const std::unordered_map<uint32_t, uint32_t>& genotype) const {
 
-    std::cout<<"0-Matches..."<<std::endl;
+//     std::cout<<"0-Matches..."<<std::endl;
     std::vector<ClusterTuple> matches = assembleTuples(consensusLists, genotype);
     
     if (matches.size() > 0 && false) {
@@ -448,7 +448,7 @@ std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vecto
          * If there are matches for the provided genotype, then iterate over all genotypes with minimal deviation and
          * take all matches for them.
          */
-        std::cout<<"1-Matches..."<<std::endl;
+//         std::cout<<"1-Matches..."<<std::endl;
         for (std::pair<uint32_t, uint32_t> a : genotype) {
             if (a.second >= ploidy)
                continue;
@@ -469,7 +469,7 @@ std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vecto
             /*
              * If there are also no deviating Matches, just return any tuple, disregarding of genotype.
              */
-            std::cout<<"n-Matches..."<<std::endl;
+//             std::cout<<"n-Matches..."<<std::endl;
             const std::vector<std::vector<uint32_t>> dummyConsensusLists(consensusLists.size(), std::vector<uint32_t>(ploidy, 0));
             const std::unordered_map<uint32_t, uint32_t> dummyGenotype({ {0, ploidy} });
             std::vector<ClusterTuple> noMatch = assembleTuples(dummyConsensusLists, dummyGenotype);
@@ -484,19 +484,19 @@ std::vector<ClusterTuple> HaploThreader::assembleTuples (const std::vector<std::
     std::vector<ClusterTuple> conformTuples;
     uint32_t numClust = consensusList.size();
     
-    std::cout<<"Genotype: ( ";
-    for (auto& a: genotype) {
-        std::cout<<a.first<<":"<<a.second<<" ";
-    }
-    std::cout<<")"<<std::endl;
-    std::cout<<"Consensus lists:"<<std::endl;
-    for (LocalClusterId i = 0; i < numClust; i++) {
-        std::cout<<"[ ";
-        for (uint32_t j = 0; j < ploidy; j++) {
-            std::cout<<consensusList[i][j]<<" ";
-        }
-        std::cout<<" ]"<<std::endl;
-    }
+//     std::cout<<"Genotype: ( ";
+//     for (auto& a: genotype) {
+//         std::cout<<a.first<<":"<<a.second<<" ";
+//     }
+//     std::cout<<")"<<std::endl;
+//     std::cout<<"Consensus lists:"<<std::endl;
+//     for (LocalClusterId i = 0; i < numClust; i++) {
+//         std::cout<<"[ ";
+//         for (uint32_t j = 0; j < ploidy; j++) {
+//             std::cout<<consensusList[i][j]<<" ";
+//         }
+//         std::cout<<" ]"<<std::endl;
+//     }
     
     // convert genotype map to vector
     uint32_t maxAllele = 0;
@@ -516,7 +516,6 @@ std::vector<ClusterTuple> HaploThreader::assembleTuples (const std::vector<std::
     // if genotype is empty, return a list with the empty tuple as result
     if (numRequiredAlleles == 0) {
         conformTuples.push_back(ClusterTuple(0));
-        std::cout<<"No conform tuples"<<std::endl;
         return conformTuples;
     }
     
@@ -543,7 +542,7 @@ std::vector<ClusterTuple> HaploThreader::assembleTuples (const std::vector<std::
     // if genotype not reachable: return empty vector
     for (uint32_t allele = 0; allele < maxAllele; allele++) {
         if (genotypeVec[allele] > 0 && clusterGroups[allele].size() == 0) {
-            std::cout<<"No conform tuples"<<std::endl;
+//             std::cout<<"No conform tuples"<<std::endl;
             return conformTuples;
         }
     }
@@ -663,10 +662,10 @@ std::vector<ClusterTuple> HaploThreader::assembleTuples (const std::vector<std::
             conformTuples.push_back(t);
     }
     
-    std::cout<<"Conform tuples:"<<std::endl;
-    for (ClusterTuple t: conformTuples) {
-        std::cout<<t.asString(ploidy)<<std::endl;
-    }
+//     std::cout<<"Conform tuples:"<<std::endl;
+//     for (ClusterTuple t: conformTuples) {
+//         std::cout<<t.asString(ploidy)<<std::endl;
+//     }
     
     return conformTuples;
 }
