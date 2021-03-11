@@ -29,7 +29,9 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
     coverage = get_coverage(readset, clustering, index)
     cov_map = get_pos_to_clusters_map(coverage, ploidy)
     consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
-    allele_depths, normalized_depths, consensus_lists = get_allele_depths(readset, clustering, cov_map, ploidy, genotypes=genotypes)
+    allele_depths, normalized_depths, consensus_lists = get_allele_depths(
+        readset, clustering, cov_map, ploidy, genotypes=genotypes
+    )
 
     # compute threading through the clusters
     affine_switch_cost = ceil(compute_readlength_snp_distance_ratio(readset) / 4.0)
@@ -38,7 +40,7 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
         num_vars,
         cov_map,
         allele_depths,
-        consensus_lists, 
+        consensus_lists,
         ploidy,
         genotypes,
         switch_cost=4 * affine_switch_cost,
@@ -67,7 +69,7 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
     for i, m in enumerate(cov_map):
         for j in range(len(m)):
             rev_cov_map[i][cov_map[i][j]] = j
-    
+
     for pos in range(len(path)):
         cnts = defaultdict(int)
         for i in range(ploidy):
@@ -78,7 +80,7 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
                 haplotypes[i].append("n")
             else:
                 haplotypes[i].append(str(allele))
-                
+
     for i in range(ploidy):
         haplotypes[i] = "".join(haplotypes[i])
 
@@ -97,7 +99,7 @@ def compute_threading_path(
     num_vars,
     cov_map,
     allele_depths,
-    consensus_lists, 
+    consensus_lists,
     ploidy,
     genotypes,
     switch_cost=32.0,
@@ -486,15 +488,14 @@ def get_pos_to_clusters_map(coverage, ploidy):
                 break
         cov_map[pos] = sorted_cids[:cut_off]
 
-
     # re-add clusters with 1-position-deletion
-    for pos in range(1, len(cov_map)-1):
-        for cid in cov_map[pos-1]:
-            if cid in cov_map[pos+1] and cid not in cov_map[pos]:
+    for pos in range(1, len(cov_map) - 1):
+        for cid in cov_map[pos - 1]:
+            if cid in cov_map[pos + 1] and cid not in cov_map[pos]:
                 if len(cov_map[pos]) > cut_off:
                     break
                 cov_map[pos].append(cid)
-    
+
     return cov_map
 
 
@@ -566,7 +567,7 @@ def get_allele_depths(readset, clustering, cov_map, ploidy, genotypes=None):
     cluster, if it was selected with multiplicity k.
     ad[pos][c_id][al] = number of reads in cluster cov_map[pos][c_id] having allele al at position pos
     Indices are local, i.e. the i-th entry of ad is the entry for the i-th position that occurs in the readset.
-    
+
     If genotypes are provided, the allele depths are normalized per position, such that the ratio between alleles is (roughly) the
     same as according to the genotypes.
     """
@@ -624,7 +625,7 @@ def get_allele_depths(readset, clustering, cov_map, ploidy, genotypes=None):
                 max_cnt = 0
                 max_al = 0
                 for al in nad[pos][c_id]:
-                    cnt = nad[pos][c_id][al] / (1+cnts[al])
+                    cnt = nad[pos][c_id][al] / (1 + cnts[al])
                     if cnt > max_cnt:
                         max_cnt = cnt
                         max_al = al
