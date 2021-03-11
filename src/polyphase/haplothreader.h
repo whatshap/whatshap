@@ -301,7 +301,9 @@ private:
                                 std::vector<uint32_t>& residualPosCur) const;
 
     std::vector<ClusterTuple> computeRelevantTuples (const std::vector<std::vector<uint32_t>>& consensusLists,
-                                                     const std::unordered_map<uint32_t, uint32_t>& genotype) const;
+                                                     const std::unordered_map<uint32_t, uint32_t>& genotype,
+                                                     const std::unordered_map<ClusterTuple, std::vector<GlobalClusterId>>& globalPrevTuples,
+                                                     const std::vector<GlobalClusterId>& clusterIds) const;
 
     /**
      * Computes all sets of clusters having are have a genotype, which is exactly distance away from the specified genotype.
@@ -317,19 +319,6 @@ private:
     void computeCoverage(const std::vector<std::vector<std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
                          std::vector<uint32_t>& coverage,
                          std::vector<std::vector<uint32_t>>& clusterCoverage) const;
-                         
-    /**
-     * Computes the smallest k, such that the one-sided hypothesis of a distribution being B(n,p)-distributed can be rejected
-     * with confidence alpha. p is assumed to (mul-1)/ploidy, because this is the assumed relative coverage that is intended to be
-     * rejected. Every number of successes greater or equal to the returned result indicates that the true parameter
-     * p' (success probability) must be greater than the provided parameter p with confidence alpha.
-     * 
-     * @param n Number of attempts (total coverage)
-     * @param mul Multiplicity to be tested, i.e. we want to know what evidence we need to savely assume that a cluster contains
-     *            this many haplotypes
-     * @param alpha The confidence to achieve
-     */
-    uint32_t getHypothesisThreshold(const uint32_t n, const uint32_t mul, const double alpha) const;
 };
 
 #endif
