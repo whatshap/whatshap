@@ -181,6 +181,7 @@ else:
         "scipy",
         "xopen",
         "dataclasses; python_version<'3.7'",
+        "pulp>=2",
     ]
 
 setup(

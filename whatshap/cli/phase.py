@@ -39,6 +39,8 @@ from whatshap.utils import plural_s, warn_once
 from whatshap.cli import CommandLineError, log_memory_usage, PhasedInputReader
 from whatshap.merge import ReadMerger, DoNothingReadMerger
 
+from whatshap.mecilp import solve_mec
+
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
 logger = logging.getLogger(__name__)
@@ -314,6 +316,9 @@ def run_whatshap(
     if algorithm == "hapchat" and ped is not None:
         raise CommandLineError("The hapchat algorithm cannot do pedigree phasing")
 
+    if algorithm in ["ilpcompact", "ilpfast", "ilpfast-general"] and ped is not None:
+        raise CommandLineError("The ILP implementations cannot do pedigree phasing")
+
     timers = StageTimer()
     logger.info(f"This is WhatsHap {__version__} running under Python {platform.python_version()}")
     numeric_sample_ids = NumericSampleIds()
@@ -527,8 +532,14 @@ def run_whatshap(
                         problem_name,
                     )
 
-                    if algorithm == "hapchat":
+                    if algorithm in ["ilpcompact", "ilpfast", "ilpfast-general"]:
+                        superreads_list, transmission_vector = solve_mec(
+                            all_reads, accessible_positions, algorithm
+                        )
+                    elif algorithm == "hapchat":
                         dp_table = HapChatCore(all_reads)
+                        superreads_list, transmission_vector = dp_table.get_super_reads()
+                        logger.info("%s cost: %d", problem_name, dp_table.get_optimal_cost())
                     else:
                         dp_table = PedigreeDPTable(
                             all_reads,
@@ -537,9 +548,8 @@ def run_whatshap(
                             distrust_genotypes,
                             accessible_positions,
                         )
-
-                    superreads_list, transmission_vector = dp_table.get_super_reads()
-                    logger.info("%s cost: %d", problem_name, dp_table.get_optimal_cost())
+                        superreads_list, transmission_vector = dp_table.get_super_reads()
+                        logger.info("%s cost: %d", problem_name, dp_table.get_optimal_cost())
 
                 with timers("components"):
                     overall_components = compute_overall_components(
