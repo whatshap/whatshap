@@ -1,4 +1,12 @@
-from pulp import LpProblem, LpMinimize, LpVariable, LpContinuous, LpInteger, value
+from pulp import (
+    LpProblem,
+    LpMinimize,
+    LpVariable,
+    LpContinuous,
+    LpInteger,
+    value,
+    COIN_CMD,
+)
 
 
 from whatshap.core import (
@@ -23,7 +31,7 @@ def solve_mec(all_reads, accessible_positions, algorithm):
 
     reduce = True
     if algorithm == "ilpcompact":
-        haplotypes, optimal_cost = mec_ilp_allhet_compact(readlist, reduce)
+        haplotypes, optimal_cost = mec_ilp_allhet_compact(readlist)
     elif algorithm == "ilpfast":
         haplotypes, optimal_cost = mec_ilp_allhet_fast(readlist, reduce)
     elif algorithm == "ilpfast-general":
@@ -119,7 +127,8 @@ def mec_ilp_allhet_compact(M):
         print("{} variable pairs attached.".format(attached))
     """
 
-    model.solve()
+    solver = COIN_CMD(msg=0)
+    model.solve(solver)
     # model.solve(solvers.CPLEX_CMD(path="/opt/ibm/ILOG/CPLEX_Studio129/cplex/bin/x86-64_linux/cplex",msg=0))
     for xi in x:
         if xi.varValue is None or 0.001 < xi.varValue < 0.999:
@@ -204,7 +213,8 @@ def mec_ilp_allhet_fast(M, reduce=False):
                     attached += 1
         print("{} variable pairs attached.".format(attached))
 
-    model.solve()
+    solver = COIN_CMD(msg=0)
+    model.solve(solver)
     for xi in x:
         if 0.001 < xi.varValue < 0.999:
             print("Warning: {} had non-integer assignment of {}.".format(xi, xi.varValue))
@@ -299,7 +309,9 @@ def mec_ilp_general_fast(M, reduce=False):
                     attached += 1
         print("{} variable pairs attached.".format(attached))
 
-    model.solve()
+    solver = COIN_CMD(msg=0)
+    model.solve(solver)
+
     for xi in x:
         if 0.001 < xi.varValue < 0.999:
             print("Warning: {} had non-integer assignment of {}.".format(xi, xi.varValue))

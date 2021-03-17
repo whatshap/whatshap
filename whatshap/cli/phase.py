@@ -978,7 +978,7 @@ def add_arguments(parser):
             "HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)")
     arg("--output-read-list", metavar="FILE", default=None, dest="read_list_filename",
         help="Write reads that have been used for phasing to FILE.")
-    arg("--algorithm", choices=("whatshap", "hapchat"), default="whatshap",
+    arg("--algorithm", choices=('whatshap', 'hapchat', 'ilpcompact', 'ilpfast', 'ilpfast-general'), default="whatshap",
         help="Phasing algorithm to use (default: %(default)s)")
 
     arg = parser.add_argument_group("Input pre-processing, selection and filtering").add_argument
