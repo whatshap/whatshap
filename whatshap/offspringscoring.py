@@ -17,7 +17,7 @@ def get_variant_scoring(
     variant_table: VariantTable, parent: str, co_parent: str, offspring: List[str], phasing_param
 ):
     scoring = TriangleSparseMatrix()
-    max_dist = 160
+    max_dist = phasing_param.scoring_window
 
     if phasing_param.ploidy % 2 != 0:
         logger.error("Odd ploidy not supported!")
@@ -27,10 +27,13 @@ def get_variant_scoring(
 
     num_nodes = 0
     node_to_variant = dict()
+    type_of_node = []
     node_positions = []
     simplex_nulliplex_nodes = []
-    allowed_pairs = [(1, 0), (2, 0), (1, 1)]
-    allowed_pairs = [(1, 0)]
+    if phasing_param.simplex:
+        allowed_pairs = [(1, 0)]
+    else:
+        allowed_pairs = [(1, 0), (2, 0), (1, 1)]
     for i in range(len(variant_table)):
         if alt[i] is None:
             continue
@@ -41,6 +44,7 @@ def get_variant_scoring(
         for j in range(alt_count[i]):
             node_to_variant[num_nodes] = i
             node_positions.append(i)
+            type_of_node.append((alt_count[i], alt_count_co[i]))
             num_nodes += 1
 
     logger.info("Number of nodes to cluster: %d", num_nodes)
@@ -64,27 +68,32 @@ def get_variant_scoring(
             alt_count_co,
             gt_gl_priors,
             phasing_param.ploidy,
-            0.01,
+            0.06,
         )
         covs.extend(coverages)
 
     for i in range(num_nodes):
         ni = node_to_variant[i]
-        # skip if position i is not simplex-nulliplex
-        if alt_count[ni] != 1 or alt_count_co[ni] != 0:
-            continue
 
+        if i % 50 == 0:
+            print("scored {}/{} nodes".format(i, num_nodes))
+        '''
         print(
             "scoring node {}/{}: ref={}, alt={}, count = {} / {}".format(
                 i, num_nodes, ref[ni], alt[ni], alt_count[ni], alt_count_co[ni]
             )
         )
+        '''
         # iterate over next max_dist relevant positions
         for j in range(i + 1, min(i + max_dist + 1, num_nodes)):
             nj = node_to_variant[j]
-            if node_to_variant[i] == node_to_variant[j]:
+            if ni == nj:
                 score = -float("inf")
             else:
+                # skip if pair (i, j) if i is not simplex-nulliplex
+                if alt_count[ni] != 1 or alt_count_co[ni] != 0:
+                    continue
+
                 off_gts = []
                 off_ad = []
                 for off in offspring:
@@ -110,6 +119,7 @@ def get_variant_scoring(
             if score != -float("inf"):
                 scores.append(score)
 
+    """
     create_histogram(
         "scores{}.pdf".format(len(variant_table)),
         scores,
@@ -121,7 +131,7 @@ def get_variant_scoring(
         name1="score",
         name2="n/a",
     )
-    """
+
     create_histogram(
         "coverages{}.pdf".format(len(variant_table)),
         covs,
@@ -135,7 +145,7 @@ def get_variant_scoring(
     )
     """
 
-    return scoring, node_to_variant
+    return scoring, node_positions, type_of_node
 
 
 def classify_variants(variant_table: VariantTable, parent: str, co_parent: str):

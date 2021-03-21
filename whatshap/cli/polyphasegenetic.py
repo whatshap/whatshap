@@ -18,14 +18,15 @@ from contextlib import ExitStack
 from whatshap import __version__
 from whatshap.core import ClusterEditingSolver
 from whatshap.cli import log_memory_usage, CommandLineError
-from whatshap.polyphaseplots import draw_genetic_clustering
+from whatshap.polyphaseplots import draw_genetic_clustering, draw_genetic_clustering_arrangement
 from whatshap.offspringscoring import get_variant_scoring
 from whatshap.timer import StageTimer
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
+from whatshap.clusterarrangement import arrange_clusters
 
 __author__ = "Sven Schrinner"
 
-PhasingParameter = namedtuple("PhasingParameter", ["ploidy",],)
+PhasingParameter = namedtuple("PhasingParameter", ["ploidy", "scoring_window", "simplex",],)
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,9 @@ def run_polyphasegenetic(
     variant_file,
     pedigree_file,
     ploidy,
+    scoring_window=160,
+    simplex=False,
+    skip_clustering=False,
     output=sys.stdout,
     samples=None,
     chromosomes=None,
@@ -112,79 +116,22 @@ def run_polyphasegenetic(
 
         # exit on non-tetraploid samples
         if ploidy != 4:
-            raise CommandLineError("Only ploidy 4 is supported. Detected was {}".format(ploidy))
+            raise CommandLineError("Only ploidy 4 is supported at the moment. Detected was {}".format(ploidy))
 
         # determine pedigree
-        parents, co_parent, offspring = dict(), dict(), defaultdict(list)
+        parents, co_parent, offspring = determine_pedigree(pedigree_file, samples, vcf_reader.samples)
 
-        with open(pedigree_file, "r") as ped:
-            for line in ped:
-                tokens = line.replace("\n", "").split(" ")
-                if len(tokens) != 3:
-                    logger.error("Malformed pedigree file: {}".format(line))
-                    raise CommandLineError(None)
-                for token in tokens:
-                    if token not in vcf_reader.samples:
-                        logger.error(
-                            "Sample {} from pedigree file is not present in VCF file".format(token)
-                        )
-                        raise CommandLineError(None)
-
-                if tokens[2] in parents:
-                    logger.error(
-                        "Sample {} from pedigree file is listed as offspring multiple times".format(
-                            tokens[2]
-                        )
-                    )
-                    raise CommandLineError(None)
-                if tokens[0] in co_parent and co_parent[tokens[0]] != tokens[1]:
-                    logger.error(
-                        "Sample {} from pedigree file has multiple co-parents".format(tokens[0])
-                    )
-                    raise CommandLineError(None)
-                if tokens[1] in co_parent and co_parent[tokens[1]] != tokens[0]:
-                    logger.error(
-                        "Sample {} from pedigree file has multiple co-parents".format(tokens[1])
-                    )
-                    raise CommandLineError(None)
-
-                co_parent[tokens[0]] = tokens[1]
-                co_parent[tokens[1]] = tokens[0]
-                parents[tokens[2]] = (tokens[0], tokens[1])
-                offspring[(tokens[0], tokens[1])].append(tokens[2])
-                offspring[(tokens[1], tokens[0])].append(tokens[2])
-                # print("trio: {} + {} = {}".format(tokens[0], tokens[1], tokens[2]))
-
-        if not samples:
-            samples = [parent for parent in co_parent]
-        else:
-            for sample in samples:
-                if sample not in co_parent:
-                    logger.error(
-                        "Sample {} does not have a co-parent for the pedigree phasing".format(
-                            sample
-                        )
-                    )
-                    raise CommandLineError(None)
-                if len(offspring[(sample, co_parent[sample])]) == 0:
-                    logger.error(
-                        "Sample {} does not have any offspring according to pedigree file".format(
-                            sample
-                        )
-                    )
-                    raise CommandLineError(None)
-
+        # validate samples
         vcf_sample_set = set(vcf_reader.samples)
         for sample in samples:
             if sample not in vcf_sample_set:
                 raise CommandLineError(
                     "Sample {!r} requested on command-line not found in VCF".format(sample)
                 )
-
         samples = frozenset(samples)
 
         # Store phasing parameters in tuple to keep function signatures cleaner
-        phasing_param = PhasingParameter(ploidy=ploidy,)
+        phasing_param = PhasingParameter(ploidy=ploidy, scoring_window=scoring_window, simplex=simplex)
 
         timers.start("parse_vcf")
         try:
@@ -213,33 +160,68 @@ def run_polyphasegenetic(
                 # compute scoring matrices for parent samples
                 for sample in samples:
                     logger.info("---- Processing individual %s", sample)
+                    
+                    # compute scoring for variant pairs
                     timers.start("scoring")
-                    scoring, node_to_variant = get_variant_scoring(
-                        variant_table,
-                        sample,
-                        co_parent[sample],
-                        offspring[(sample, co_parent[sample])],
-                        phasing_param,
-                    )
+                    if not skip_clustering:
+                        logger.info("Scoring marker variants ...")
+                        scoring, node_to_variant, type_of_node = get_variant_scoring(
+                            variant_table,
+                            sample,
+                            co_parent[sample],
+                            offspring[(sample, co_parent[sample])],
+                            phasing_param,
+                        )
+
                     timers.stop("scoring")
 
-                    timers.start("phasing")
-                    solver = ClusterEditingSolver(scoring, False)
-                    clustering = solver.run()
-                    del solver
+                    # cluster variants based on scores
+                    timers.start("clustering")
+                    if not skip_clustering:
+                        logger.info("Clustering marker variants ...")
+                        solver = ClusterEditingSolver(scoring, False)
+                        clustering = solver.run()
+                        del solver
 
+                    # validate clustering
+                    for clust in clustering:
+                        positions = [node_to_variant[x] for x in clust]
+                        if len(set(positions)) != len(clust):
+                            print(positions)
+                        assert len(set(positions)) == len(clust)
+
+                    '''
                     with open(output+".clusters.txt", "w") as out:
                         var_to_position = [var.position+1 for var in variant_table.variants]
 
                         for i, cluster in enumerate(sorted(clustering, key=lambda x: -len(x))):
                             out.write("Cluster {}: {}".format(i, " ".join(list(map(lambda x: str(var_to_position[node_to_variant[x]]), cluster)))))
                             out.write("\n")
+                    '''
+                    '''
+                    print("Clustering:")
+                    print(clustering)
+                    print("Node to variant")
+                    print(node_to_variant)
+                    print("Node types")
+                    print(type_of_node)
+                    '''
+                    timers.stop("clustering")
                     
-                    timers.stop("phasing")
+                    # arrange clusters to haplotypes
+                    timers.start("arrangement")
+                    logger.info("Arranging clusters ...")
+                    haplo_skeletons = arrange_clusters(clustering, node_to_variant, (phasing_param.scoring_window+1)//2, ploidy)
+                    timers.stop("arrangement")
 
+                    # create plots
                     num_vars = max([max(c) for c in clustering])
                     draw_genetic_clustering(
                         clustering, num_vars, output + ".clusters.pdf",
+                    )
+                    
+                    draw_genetic_clustering_arrangement(
+                        clustering, node_to_variant, haplo_skeletons, type_of_node, (phasing_param.scoring_window+1)//2, num_vars, output + ".arrangement.pdf",
                     )
 
                 with timers("write_vcf"):
@@ -251,8 +233,6 @@ def run_polyphasegenetic(
                         components,
                     )
                     """
-                    # TODO: Use genotype information to polish results
-                    # assert len(changed_genotypes) == 0
                     logger.info("Done writing VCF")
                 logger.debug("Chromosome %r finished", chromosome)
                 timers.start("parse_vcf")
@@ -273,7 +253,10 @@ def run_polyphasegenetic(
         "Time spent for genetic scoring:              %6.1f s", timers.elapsed("scoring"),
     )
     logger.info(
-        "Time spent for genetic phasing:              %6.1f s", timers.elapsed("phasing"),
+        "Time spent for clustering:                   %6.1f s", timers.elapsed("clustering"),
+    )
+    logger.info(
+        "Time spent for cluster arrangement:          %6.1f s", timers.elapsed("arrangement"),
     )
     logger.info(
         "Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"),
@@ -285,6 +268,68 @@ def run_polyphasegenetic(
         "Total elapsed time:                          %6.1f s", timers.total(),
     )
 
+
+def determine_pedigree(pedigree_file, samples, vcf_samples):
+
+    parents, co_parent, offspring = dict(), dict(), defaultdict(list)
+    with open(pedigree_file, "r") as ped:
+        for line in ped:
+            tokens = line.replace("\n", "").split(" ")
+            if len(tokens) != 3:
+                logger.error("Malformed pedigree file: {}".format(line))
+                raise CommandLineError(None)
+            for token in tokens:
+                if token not in vcf_samples:
+                    logger.error(
+                        "Sample {} from pedigree file is not present in VCF file".format(token)
+                    )
+                    raise CommandLineError(None)
+
+            if tokens[2] in parents:
+                logger.error(
+                    "Sample {} from pedigree file is listed as offspring multiple times".format(
+                        tokens[2]
+                    )
+                )
+                raise CommandLineError(None)
+            if tokens[0] in co_parent and co_parent[tokens[0]] != tokens[1]:
+                logger.error(
+                    "Sample {} from pedigree file has multiple co-parents".format(tokens[0])
+                )
+                raise CommandLineError(None)
+            if tokens[1] in co_parent and co_parent[tokens[1]] != tokens[0]:
+                logger.error(
+                    "Sample {} from pedigree file has multiple co-parents".format(tokens[1])
+                )
+                raise CommandLineError(None)
+
+            co_parent[tokens[0]] = tokens[1]
+            co_parent[tokens[1]] = tokens[0]
+            parents[tokens[2]] = (tokens[0], tokens[1])
+            offspring[(tokens[0], tokens[1])].append(tokens[2])
+            offspring[(tokens[1], tokens[0])].append(tokens[2])
+            # print("trio: {} + {} = {}".format(tokens[0], tokens[1], tokens[2]))
+
+    if not samples:
+        samples = [parent for parent in co_parent]
+    else:
+        for sample in samples:
+            if sample not in co_parent:
+                logger.error(
+                    "Sample {} does not have a co-parent for the pedigree phasing".format(
+                        sample
+                    )
+                )
+                raise CommandLineError(None)
+            if len(offspring[(sample, co_parent[sample])]) == 0:
+                logger.error(
+                    "Sample {} does not have any offspring according to pedigree file".format(
+                        sample
+                    )
+                )
+                raise CommandLineError(None)
+                
+    return parents, co_parent, offspring
 
 def add_arguments(parser):
     arg = parser.add_argument
@@ -351,6 +396,29 @@ def add_arguments(parser):
         type=int,
         required=True,
         help="The ploidy of the sample(s). Argument is required.",
+    )
+    arg(
+        "--scoring-window",
+        metavar="SCORINGWINDOW",
+        dest="scoring_window",
+        type=int,
+        default=160,
+        required=False,
+        help="Size of the window (in variants) for statistical offspring scoring.",
+    )
+    arg(
+        "--simplex",
+        dest="simplex",
+        default=False,
+        action="store_true",
+        help="Reduce offspring scoring to simplex-nulliplex variants only.",
+    )
+    arg(
+        "--skip-clustering",
+        dest="skip_clustering",
+        default=False,
+        action="store_true",
+        help="Debug purpose. Skips time consuming clustering step and uses hard-coded old results instead.",
     )
 
 

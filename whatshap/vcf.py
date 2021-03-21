@@ -780,7 +780,7 @@ PREDEFINED_FORMATS = {
         " called genotype for each possible genotype generated from the"
         " reference and alternate alleles given the sample ploidy",
     ),
-    "GQ": VcfHeader("FORMAT", "GQ", 1, "Integer", "Phred-scaled genotype quality"),
+    "GQ": VcfHeader("FORMAT", "GQ", 1, "Float", "Phred-scaled genotype quality"),
     "GT": VcfHeader("FORMAT", "GT", 1, "String", "Genotype"),
     "HP": VcfHeader("FORMAT", "HP", ".", "String", "Phasing haplotype identifier"),
     "PQ": VcfHeader("FORMAT", "PQ", 1, "Float", "Phasing quality"),

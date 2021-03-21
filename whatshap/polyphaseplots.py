@@ -2,6 +2,7 @@
 import itertools as it
 from math import ceil
 from copy import deepcopy
+from collections import defaultdict
 
 import logging
 from whatshap.core import ReadSet
@@ -481,7 +482,7 @@ def draw_threading(
 
 
 def draw_genetic_clustering(
-    clustering, num_vars, path,
+    clustering_original, num_vars, path,
 ):
     try:
         import matplotlib
@@ -492,7 +493,7 @@ def draw_genetic_clustering(
         from pylab import savefig
 
         # Detect relevant clusters
-        clustering.sort(key=lambda x: -len(x))
+        clustering = sorted(clustering_original, key=lambda x: -len(x))
         c_list = list(range(len(clustering)))
         num_c = len(c_list)
 
@@ -520,6 +521,94 @@ def draw_genetic_clustering(
         # plt.legend(handles=legend_handles.values(), loc='lower center', ncol=len(legend_handles))
         axes = plt.gca()
         axes.set_xlim([0, num_vars - 1])
+        fig.savefig(path)
+        fig.clear()
+
+    except ImportError:
+        logger.error("Plotting haplotype threading requires matplotlib to be installed")
+        
+        
+def draw_genetic_clustering_arrangement(
+    clustering, node_to_allvariant, arrangement, type_of_node, padding, num_nodes, path,
+):
+    try:
+        import matplotlib
+
+        matplotlib.use("agg")
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as mpatches
+        from pylab import savefig
+        
+        # convert node type to color
+        color = {(1, 0): 'tab:blue', (1, 1): 'tab:orange', (2, 0): 'tab:red', (3, 0): 'tab:green', (2, 1): 'tab:purple'}
+
+        # Setup figure
+        variants = set()
+        node_to_variant = dict()
+        for node in range(len(node_to_allvariant)):
+            variants.add(node_to_allvariant[node])
+            node_to_variant[node] = len(variants)-1
+        num_vars = len(variants)+1
+        
+        fig = plt.figure(figsize=((num_vars + 2) / 40, len(arrangement)), dpi=100)
+        legend_handles = {}
+        x_scale = 1.0
+        h_height = 10.0
+        y_margin = 2.0
+        axes = plt.gca()
+        axes.set_xlim([0, num_vars*x_scale])
+        
+        # plot arrangement
+        for i, hap in enumerate(arrangement):
+            for cid in hap:
+                first = node_to_variant[min(clustering[cid])]
+                last = node_to_variant[max(clustering[cid])]
+                left = node_to_variant[max(0, min(clustering[cid]) - padding)]
+                right = node_to_variant[min(num_nodes-1, max(clustering[cid]) + padding)]
+                
+                x1 = x_scale*left
+                y1 = i*h_height
+                w1 = x_scale*(first-left+1)
+                h1 = h_height-y_margin
+                
+                x2 = x_scale*first
+                y2 = i*h_height
+                w2 = x_scale*(last-first+1)
+                h2 = h_height-y_margin
+                
+                x3 = x_scale*last
+                y3 = i*h_height
+                w3 = x_scale*(right-last+1)
+                h3 = h_height-y_margin
+                
+                axes.add_patch(mpatches.Polygon([[x1,y1+h1/2],[x1+w1,y1],[x1+w1,y1+h1]], color='lightgray', alpha=0.7, closed=True, fill=True))
+                axes.add_patch(mpatches.Rectangle((x_scale*first, i*h_height), x_scale*(last-first+1), h_height-y_margin, linewidth=1, fill=True, alpha=1.0, edgecolor='lightgray', facecolor='lightgray'))
+                axes.add_patch(mpatches.Polygon([[x3,y3],[x3+w3,y3+h3/2],[x3,y3+h3]], color='lightgray', alpha=0.7, closed=True, fill=True))
+                
+                for node in clustering[cid]:
+                    var = node_to_variant[node]
+                    plt.vlines(x=x_scale*(var+0.5), ymin=i * h_height, ymax=(i + 1) * h_height - y_margin, color=color[type_of_node[node]], alpha=0.5)
+
+                    
+        plt.hlines(y=-h_height/2, xmin=5 * x_scale,  xmax=(num_vars - 5) * x_scale, color='black', alpha=1.0)
+        
+        # plot residuals
+        res = defaultdict(int)
+        res_color = dict()
+        for clust in clustering:
+            for node in clust:
+                var = node_to_variant[node]
+                res[var] += 1
+                res_color[var] = color[type_of_node[node]]
+        for hap in arrangement:
+            for cid in hap:
+                for node in clustering[cid]:
+                    var = node_to_variant[node]
+                    res[var] -= 1
+        for var in res:
+            if res[var] > 0:
+                plt.vlines(x=x_scale*(var+0.5), ymin= -(1+res[var]) * h_height, ymax= -h_height - y_margin, color=res_color[var], alpha=0.5)
+            
         fig.savefig(path)
         fig.clear()
 
