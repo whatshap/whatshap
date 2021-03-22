@@ -357,8 +357,16 @@ class VariantTable:
         )
 
     def allele_depths_of(self, sample: str):
-        """Retrieve genotypes by sample name"""
-        return self.allele_depths[self._sample_to_index[sample]]
+        """Retrieve allele depths by sample name"""
+        depths = []
+        for depth_code in self.allele_depths[self._sample_to_index[sample]]:
+            c = depth_code
+            depth = []
+            while c > 0:
+                depth.append(c & 1023)
+                c = c >> 10
+            depths.append(tuple(depth))
+        return depths
 
     def id_of(self, sample: str) -> int:
         """Return a unique int id of a sample given by name"""
@@ -583,11 +591,14 @@ class VcfReader:
     @staticmethod
     def _extract_AD_depth(call) -> Dict[str, int]:
         depths = call["AD"]
-        dic = defaultdict(int)
+        depth_code = 0
         if depths is not None and len(depths) > 0 and None not in depths:
-            for allele, depth in enumerate(depths):
-                dic[allele] = int(depth)
-        return dic
+            for i in range(len(depths) - 1, -1, -1):
+                cnt = min(1023, depths[i])
+                depth_code = depth_code << 10
+                depth_code += cnt
+
+        return depth_code
 
     def _process_single_chromosome(self, chromosome: str, records) -> VariantTable:
         phase_detected = None
@@ -724,7 +735,7 @@ class VcfReader:
             table.add_variant(variant, genotypes, phases, genotype_likelihoods)
 
         logger.debug(
-            "Parsed %s SNVs and %s non-SNVs. Also skipped %s multi-ALTs.", n_snvs, n_other, n_multi
+            "Parsed %s SNVs and %s non-SNVs. Also found %s multi-ALTs.", n_snvs, n_other, n_multi
         )
 
         # TODO remove overlapping variants

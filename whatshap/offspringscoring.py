@@ -1,4 +1,5 @@
 import logging
+import time
 
 from math import log
 from collections import defaultdict
@@ -47,18 +48,19 @@ def get_variant_scoring(
             type_of_node.append((alt_count[i], alt_count_co[i]))
             num_nodes += 1
 
-    logger.info("Number of nodes to cluster: %d", num_nodes)
-    logger.info("Number of simplex-nulliplex variants: %d", len(simplex_nulliplex_nodes))
+    logger.info("   Number of nodes to cluster: %d", num_nodes)
+    logger.info("   Number of simplex-nulliplex variants: %d", len(simplex_nulliplex_nodes))
 
     # compute genotype likelihoods for offspring per variant
+    t = time.time()
+    logger.info("   Computing genotype likelihoods for offspring ...")
     gt_gl_priors = compute_gt_likelihood_priors(phasing_param.ploidy)
-
-    scores = []
-    covs = []
     off_gl = dict()
     for i, off in enumerate(offspring):
-        print("Compute GL for offspring {} out of {}".format(i, len(offspring)))
-        off_gl[off], coverages = compute_gt_likelihoods(
+        if time.time() - t > 5.0:
+            print("      Processed offspring {}/{}".format(i, len(offspring)))
+            t = time.time()
+        off_gl[off] = compute_gt_likelihoods(
             variant_table,
             off,
             node_positions,
@@ -70,20 +72,21 @@ def get_variant_scoring(
             phasing_param.ploidy,
             0.06,
         )
-        covs.extend(coverages)
 
+    logger.info("   Compute scores for makers ...")
     for i in range(num_nodes):
         ni = node_to_variant[i]
 
-        if i % 50 == 0:
-            print("scored {}/{} nodes".format(i, num_nodes))
-        '''
+        if time.time() - t > 5.0:
+            print("      Scored {}/{} markers".format(i, num_nodes))
+            t = time.time()
+        """
         print(
-            "scoring node {}/{}: ref={}, alt={}, count = {} / {}".format(
+            "      Scoring marker {}/{}: ref={}, alt={}, count = {} / {}".format(
                 i, num_nodes, ref[ni], alt[ni], alt_count[ni], alt_count_co[ni]
             )
         )
-        '''
+        """
         # iterate over next max_dist relevant positions
         for j in range(i + 1, min(i + max_dist + 1, num_nodes)):
             nj = node_to_variant[j]
@@ -94,30 +97,14 @@ def get_variant_scoring(
                 if alt_count[ni] != 1 or alt_count_co[ni] != 0:
                     continue
 
-                off_gts = []
-                off_ad = []
-                for off in offspring:
-                    gt = variant_table.genotypes_of(off)
-                    ad = variant_table.allele_depths_of(off)
-                    if gt[ni].is_none() or gt[nj].is_none():
-                        continue
-                    else:
-                        off_gts.append((gt[ni], gt[nj]))
-                        off_ad.append((ad[ni], ad[nj]))
-
-                score = 0.0
-
-                if len(off_gts) > 0 or len(off_ad) > 0:
-                    if alt_count[nj] == 1 and alt_count_co[nj] == 0:
-                        score = score_simplex_nulliplex_tetra(off_gl, i, j)
-                    elif alt_count[nj] == 2 and alt_count_co[nj] == 0:
-                        score = score_duplex_nulliplex_tetra(off_gl, i, j)
-                    elif alt_count[nj] == 1 and alt_count_co[nj] == 1:
-                        score = score_simplex_simplex_tetra(off_gl, i, j)
+                if alt_count[nj] == 1 and alt_count_co[nj] == 0:
+                    score = score_simplex_nulliplex_tetra(off_gl, i, j)
+                elif alt_count[nj] == 2 and alt_count_co[nj] == 0:
+                    score = score_duplex_nulliplex_tetra(off_gl, i, j)
+                elif alt_count[nj] == 1 and alt_count_co[nj] == 1:
+                    score = score_simplex_simplex_tetra(off_gl, i, j)
 
             scoring.set(i, j, score)
-            if score != -float("inf"):
-                scores.append(score)
 
     """
     create_histogram(
@@ -129,18 +116,6 @@ def get_variant_scoring(
         "scores",
         "Scores among Simplex-Nulliplex variant pairs",
         name1="score",
-        name2="n/a",
-    )
-
-    create_histogram(
-        "coverages{}.pdf".format(len(variant_table)),
-        covs,
-        [],
-        100,
-        [0, 100],
-        "coverages",
-        "Offspring coverages among Simplex-Nulliplex variant pairs",
-        name1="coverage",
         name2="n/a",
     )
     """
@@ -215,13 +190,6 @@ def compute_gt_likelihood_priors(ploidy):
                     * binom_coeff(num_alts, num_drawn_alts)
                     / binom_coeff(ploidy, max_alts)
                 )
-            '''
-            print(
-                "prior[{}][{}] = {}".format(
-                    num_alts, num_drawn_alts, prior_single[num_alts][num_drawn_alts]
-                )
-            )
-            '''
 
     prior_dual = [[[0.0] * (ploidy + 1) for _ in range(ploidy + 1)] for _ in range(ploidy + 1)]
     for num_alts_parent in range(0, ploidy + 1):
@@ -232,17 +200,7 @@ def compute_gt_likelihood_priors(ploidy):
                     prior_dual[num_alts_parent][num_alts_coparent][num_alts_offspring] += (
                         prior_single[num_alts_parent][i] * prior_single[num_alts_coparent][j]
                     )
-            '''
-            for num_alts_offspring in range(0, ploidy + 1):
-                print(
-                    "prior[{},{}][{}] = {}".format(
-                        num_alts_parent,
-                        num_alts_coparent,
-                        num_alts_offspring,
-                        prior_dual[num_alts_parent][num_alts_coparent][num_alts_offspring],
-                    )
-                )
-            '''
+
     return prior_dual
 
 
@@ -259,29 +217,34 @@ def compute_gt_likelihoods(
     err: float,
 ):
     gt_likelihoods = []
-    coverages = []
     allele_depths = variant_table.allele_depths_of(offspring)
+
+    binom_cache = [dict() for _ in range(ploidy + 1)]
+
     for pos in positions:
         gl = defaultdict(float)
         ref = ref_alleles[pos]
         alt = alt_alleles[pos]
-        ref_dp = allele_depths[pos][ref]
-        alt_dp = allele_depths[pos][alt]
+        ref_dp = allele_depths[pos][ref] if len(allele_depths[pos]) > ref else 0
+        alt_dp = allele_depths[pos][alt] if len(allele_depths[pos]) > alt else 0
         num_alts_parent = alt_counts[pos]
         num_alts_coparent = alt_co_counts[pos]
-        coverages.append(ref_dp + alt_dp)
         if ref_dp + alt_dp >= ploidy:
             gl = defaultdict(float)
             for i in range(0, ploidy + 1):
-                gl[i] = (
-                    binom.pmf(
+                if (alt_dp, ref_dp + alt_dp) not in binom_cache[i]:
+                    binom_cache[i][(alt_dp, ref_dp + alt_dp)] = binom.pmf(
                         alt_dp, ref_dp + alt_dp, (1 - i / ploidy) * err + (i / ploidy) * (1 - err)
                     )
+                gl[i] = (
+                    binom_cache[i][(alt_dp, ref_dp + alt_dp)]
                     * gt_priors[num_alts_parent][num_alts_coparent][i]
                 )
 
         gt_likelihoods.append(gl)
-    return gt_likelihoods, coverages
+    del allele_depths
+    del binom_cache
+    return gt_likelihoods
 
 
 def score_simplex_nulliplex_tetra(off_gl, pos1, pos2):
@@ -314,7 +277,7 @@ def score_simplex_simplex_tetra(off_gl, pos1, pos2):
     )
 
 
-def score_variant_pair_tetra(off_gl, pos1, pos2, gt_combinations, gt_frequencies):
+def score_variant_pair_tetra(off_gl, pos1, pos2, gt_combinations, gt_probabilities):
     # initialize with prior probabilities for each phasing
     log_likelihood_cooccur = log(1 / 4)
     log_likelihood_disjoint = log(3 / 4)
@@ -326,7 +289,7 @@ def score_variant_pair_tetra(off_gl, pos1, pos2, gt_combinations, gt_frequencies
 
             # P(co-occur|GT) = P(GT|co-occur)*P(co-occur)/P(GT)
             # P(disjoint|GT) = P(GT|disjoint)*P(disjoint)/P(GT)
-            for gt, exp in zip(gt_combinations, gt_frequencies):
+            for gt, exp in zip(gt_combinations, gt_probabilities):
                 gl = off_gl[offspring][pos1][gt[0]] * off_gl[offspring][pos2][gt[1]]
                 likelihood_cooccur += gl * exp[0]
                 likelihood_disjoint += gl * exp[1]

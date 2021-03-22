@@ -26,7 +26,7 @@ from whatshap.clusterarrangement import arrange_clusters
 
 __author__ = "Sven Schrinner"
 
-PhasingParameter = namedtuple("PhasingParameter", ["ploidy", "scoring_window", "simplex",],)
+PhasingParameter = namedtuple("PhasingParameter", ["ploidy", "scoring_window", "simplex"])
 
 logger = logging.getLogger(__name__)
 
@@ -116,10 +116,14 @@ def run_polyphasegenetic(
 
         # exit on non-tetraploid samples
         if ploidy != 4:
-            raise CommandLineError("Only ploidy 4 is supported at the moment. Detected was {}".format(ploidy))
+            raise CommandLineError(
+                "Only ploidy 4 is supported at the moment. Detected was {}".format(ploidy)
+            )
 
         # determine pedigree
-        parents, co_parent, offspring = determine_pedigree(pedigree_file, samples, vcf_reader.samples)
+        parents, co_parent, offspring = determine_pedigree(
+            pedigree_file, samples, vcf_reader.samples
+        )
 
         # validate samples
         vcf_sample_set = set(vcf_reader.samples)
@@ -131,7 +135,9 @@ def run_polyphasegenetic(
         samples = frozenset(samples)
 
         # Store phasing parameters in tuple to keep function signatures cleaner
-        phasing_param = PhasingParameter(ploidy=ploidy, scoring_window=scoring_window, simplex=simplex)
+        phasing_param = PhasingParameter(
+            ploidy=ploidy, scoring_window=scoring_window, simplex=simplex
+        )
 
         timers.start("parse_vcf")
         try:
@@ -153,14 +159,12 @@ def run_polyphasegenetic(
                 # These two variables hold the phasing results for all samples
                 superreads, components = dict(), dict()
 
-                logger.info(
-                    "Number of variants among all samples: %d", len(variant_table),
-                )
+                logger.info("Number of variants among all samples: %d", len(variant_table))
 
                 # compute scoring matrices for parent samples
                 for sample in samples:
                     logger.info("---- Processing individual %s", sample)
-                    
+
                     # compute scoring for variant pairs
                     timers.start("scoring")
                     if not skip_clustering:
@@ -190,38 +194,44 @@ def run_polyphasegenetic(
                             print(positions)
                         assert len(set(positions)) == len(clust)
 
-                    '''
+                    """
                     with open(output+".clusters.txt", "w") as out:
                         var_to_position = [var.position+1 for var in variant_table.variants]
 
                         for i, cluster in enumerate(sorted(clustering, key=lambda x: -len(x))):
                             out.write("Cluster {}: {}".format(i, " ".join(list(map(lambda x: str(var_to_position[node_to_variant[x]]), cluster)))))
                             out.write("\n")
-                    '''
-                    '''
+                    """
+                    """
                     print("Clustering:")
                     print(clustering)
                     print("Node to variant")
                     print(node_to_variant)
                     print("Node types")
                     print(type_of_node)
-                    '''
+                    """
                     timers.stop("clustering")
-                    
+
                     # arrange clusters to haplotypes
                     timers.start("arrangement")
                     logger.info("Arranging clusters ...")
-                    haplo_skeletons = arrange_clusters(clustering, node_to_variant, (phasing_param.scoring_window+1)//2, ploidy)
+                    haplo_skeletons = arrange_clusters(
+                        clustering, node_to_variant, (phasing_param.scoring_window + 1) // 2, ploidy
+                    )
                     timers.stop("arrangement")
 
                     # create plots
                     num_vars = max([max(c) for c in clustering])
-                    draw_genetic_clustering(
-                        clustering, num_vars, output + ".clusters.pdf",
-                    )
-                    
+                    draw_genetic_clustering(clustering, num_vars, output + ".clusters.pdf")
+
                     draw_genetic_clustering_arrangement(
-                        clustering, node_to_variant, haplo_skeletons, type_of_node, (phasing_param.scoring_window+1)//2, num_vars, output + ".arrangement.pdf",
+                        clustering,
+                        node_to_variant,
+                        haplo_skeletons,
+                        type_of_node,
+                        (phasing_param.scoring_window + 1) // 2,
+                        num_vars,
+                        output + ".arrangement.pdf",
                     )
 
                 with timers("write_vcf"):
@@ -243,30 +253,20 @@ def run_polyphasegenetic(
     logger.info("\n== SUMMARY ==")
 
     log_memory_usage()
+    logger.info("Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"))
+    logger.info("Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"))
+    logger.info("Time spent for genetic scoring:              %6.1f s", timers.elapsed("scoring"))
     logger.info(
-        "Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"),
+        "Time spent for clustering:                   %6.1f s", timers.elapsed("clustering")
     )
     logger.info(
-        "Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"),
+        "Time spent for cluster arrangement:          %6.1f s", timers.elapsed("arrangement")
     )
+    logger.info("Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"))
     logger.info(
-        "Time spent for genetic scoring:              %6.1f s", timers.elapsed("scoring"),
+        "Time spent on rest:                          %6.1f s", timers.total() - timers.sum()
     )
-    logger.info(
-        "Time spent for clustering:                   %6.1f s", timers.elapsed("clustering"),
-    )
-    logger.info(
-        "Time spent for cluster arrangement:          %6.1f s", timers.elapsed("arrangement"),
-    )
-    logger.info(
-        "Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"),
-    )
-    logger.info(
-        "Time spent on rest:                          %6.1f s", timers.total() - timers.sum(),
-    )
-    logger.info(
-        "Total elapsed time:                          %6.1f s", timers.total(),
-    )
+    logger.info("Total elapsed time:                          %6.1f s", timers.total())
 
 
 def determine_pedigree(pedigree_file, samples, vcf_samples):
@@ -316,9 +316,7 @@ def determine_pedigree(pedigree_file, samples, vcf_samples):
         for sample in samples:
             if sample not in co_parent:
                 logger.error(
-                    "Sample {} does not have a co-parent for the pedigree phasing".format(
-                        sample
-                    )
+                    "Sample {} does not have a co-parent for the pedigree phasing".format(sample)
                 )
                 raise CommandLineError(None)
             if len(offspring[(sample, co_parent[sample])]) == 0:
@@ -328,8 +326,9 @@ def determine_pedigree(pedigree_file, samples, vcf_samples):
                     )
                 )
                 raise CommandLineError(None)
-                
+
     return parents, co_parent, offspring
+
 
 def add_arguments(parser):
     arg = parser.add_argument
@@ -339,9 +338,7 @@ def add_arguments(parser):
         metavar="VCF",
         help="VCF file with variants to be phased (can be gzip-compressed)",
     )
-    arg(
-        "pedigree_file", metavar="PEDIGREE", help="Pedigree file.",
-    )
+    arg("pedigree_file", metavar="PEDIGREE", help="Pedigree file.")
     # arg('ploidy', metavar='PLOIDY', type=int,
     #    help='The ploidy of the sample(s).')
 
