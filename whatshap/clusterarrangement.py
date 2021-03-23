@@ -8,12 +8,20 @@ logger = logging.getLogger(__name__)
 
 
 def arrange_clusters(clustering, node_to_variant, padding, ploidy):
+    
+    # filter out singleton clusters
+    filtered_to_real = []
+    fclustering = []
+    for i, clust in enumerate(clustering):
+        if len(clust) > 1:
+            filtered_to_real.append(i)
+            fclustering.append(clust)
 
     # determine start and end of clusters (including padding) and worth (=number of covered variants)
     c_start = []
     c_end = []
     c_worth = []
-    for clust in clustering:
+    for clust in fclustering:
         # variants = [node_to_variant[v] for v in clust]
         variants = [v for v in clust]
         c_worth.append(len(variants))
@@ -21,7 +29,7 @@ def arrange_clusters(clustering, node_to_variant, padding, ploidy):
         c_end.append(max(variants) + padding)
 
     n = max(c_end)
-    c = len(clustering)
+    c = len(fclustering)
 
     # setup model
     model = LpProblem("Cluster_Arrangement_c{}_n{}_p{}".format(c, n, ploidy), LpMaximize)
@@ -62,7 +70,7 @@ def arrange_clusters(clustering, node_to_variant, padding, ploidy):
     )
 
     for i in range(ploidy):
-        selected.append([j for j in range(c) if x[i][j].varValue > 0.999])
+        selected.append([filtered_to_real[j] for j in range(c) if x[i][j].varValue > 0.999])
         print("   h{}: {}".format(i, selected[-1]))
 
     return selected

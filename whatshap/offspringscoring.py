@@ -55,29 +55,31 @@ def get_variant_scoring(
     t = time.time()
     logger.info("   Computing genotype likelihoods for offspring ...")
     gt_gl_priors = compute_gt_likelihood_priors(phasing_param.ploidy)
-    off_gl = dict()
+    off_gl = []
     for i, off in enumerate(offspring):
-        if time.time() - t > 5.0:
+        if time.time() - t > 10.0:
             print("      Processed offspring {}/{}".format(i, len(offspring)))
             t = time.time()
-        off_gl[off] = compute_gt_likelihoods(
-            variant_table,
-            off,
-            node_positions,
-            ref,
-            alt,
-            alt_count,
-            alt_count_co,
-            gt_gl_priors,
-            phasing_param.ploidy,
-            0.06,
+        off_gl.append(
+            compute_gt_likelihoods(
+                variant_table,
+                off,
+                node_positions,
+                ref,
+                alt,
+                alt_count,
+                alt_count_co,
+                gt_gl_priors,
+                phasing_param.ploidy,
+                0.06,
+            )
         )
 
-    logger.info("   Compute scores for makers ...")
+    logger.info("   Compute scores for markers ...")
     for i in range(num_nodes):
         ni = node_to_variant[i]
 
-        if time.time() - t > 5.0:
+        if time.time() - t > 10.0:
             print("      Scored {}/{} markers".format(i, num_nodes))
             t = time.time()
         """
@@ -88,6 +90,9 @@ def get_variant_scoring(
         )
         """
         # iterate over next max_dist relevant positions
+        prev_variant = -1
+        prev_score = 0
+        
         for j in range(i + 1, min(i + max_dist + 1, num_nodes)):
             nj = node_to_variant[j]
             if ni == nj:
@@ -96,13 +101,20 @@ def get_variant_scoring(
                 # skip if pair (i, j) if i is not simplex-nulliplex
                 if alt_count[ni] != 1 or alt_count_co[ni] != 0:
                     continue
-
-                if alt_count[nj] == 1 and alt_count_co[nj] == 0:
-                    score = score_simplex_nulliplex_tetra(off_gl, i, j)
-                elif alt_count[nj] == 2 and alt_count_co[nj] == 0:
-                    score = score_duplex_nulliplex_tetra(off_gl, i, j)
-                elif alt_count[nj] == 1 and alt_count_co[nj] == 1:
-                    score = score_simplex_simplex_tetra(off_gl, i, j)
+                    
+                if nj == prev_variant:
+                    # if j has same position as previous node, if must be multiplex-nulliplex
+                    # then the score is identical to the previous node
+                    score = prev_score
+                else:
+                    if alt_count[nj] == 1 and alt_count_co[nj] == 0:
+                        score = score_simplex_nulliplex_tetra(off_gl, i, j)
+                    elif alt_count[nj] == 2 and alt_count_co[nj] == 0:
+                        score = score_duplex_nulliplex_tetra(off_gl, i, j)
+                    elif alt_count[nj] == 1 and alt_count_co[nj] == 1:
+                        score = score_simplex_simplex_tetra(off_gl, i, j)
+                    prev_score = score
+                    prev_variant = nj
 
             scoring.set(i, j, score)
 
@@ -220,9 +232,14 @@ def compute_gt_likelihoods(
     allele_depths = variant_table.allele_depths_of(offspring)
 
     binom_cache = [dict() for _ in range(ploidy + 1)]
+    prev_pos = -1
 
     for pos in positions:
+        if pos == prev_pos:
+            gt_likelihoods.append(gt_likelihoods[-1])
+            continue
         gl = defaultdict(float)
+        gl = [0.0 for _ in range(0, ploidy+1)]
         ref = ref_alleles[pos]
         alt = alt_alleles[pos]
         ref_dp = allele_depths[pos][ref] if len(allele_depths[pos]) > ref else 0
@@ -230,7 +247,6 @@ def compute_gt_likelihoods(
         num_alts_parent = alt_counts[pos]
         num_alts_coparent = alt_co_counts[pos]
         if ref_dp + alt_dp >= ploidy:
-            gl = defaultdict(float)
             for i in range(0, ploidy + 1):
                 if (alt_dp, ref_dp + alt_dp) not in binom_cache[i]:
                     binom_cache[i][(alt_dp, ref_dp + alt_dp)] = binom.pmf(
@@ -240,8 +256,11 @@ def compute_gt_likelihoods(
                     binom_cache[i][(alt_dp, ref_dp + alt_dp)]
                     * gt_priors[num_alts_parent][num_alts_coparent][i]
                 )
-
+        else:
+            gl = None
         gt_likelihoods.append(gl)
+        prev_pos = pos
+        
     del allele_depths
     del binom_cache
     return gt_likelihoods
@@ -282,15 +301,15 @@ def score_variant_pair_tetra(off_gl, pos1, pos2, gt_combinations, gt_probabiliti
     log_likelihood_cooccur = log(1 / 4)
     log_likelihood_disjoint = log(3 / 4)
 
-    for offspring in off_gl:
-        if len(off_gl[offspring][pos1]) > 0 and len(off_gl[offspring][pos2]) > 0:
+    for off in off_gl:
+        if off[pos1] and off[pos2]:
             likelihood_cooccur = 0.0
             likelihood_disjoint = 0.0
 
             # P(co-occur|GT) = P(GT|co-occur)*P(co-occur)/P(GT)
             # P(disjoint|GT) = P(GT|disjoint)*P(disjoint)/P(GT)
             for gt, exp in zip(gt_combinations, gt_probabilities):
-                gl = off_gl[offspring][pos1][gt[0]] * off_gl[offspring][pos2][gt[1]]
+                gl = off[pos1][gt[0]] * off[pos2][gt[1]]
                 likelihood_cooccur += gl * exp[0]
                 likelihood_disjoint += gl * exp[1]
             log_likelihood_cooccur += log(likelihood_cooccur)
