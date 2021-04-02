@@ -1,6 +1,7 @@
 #ifndef TRIANGLESPARSEMATRIX_H
 #define TRIANGLESPARSEMATRIX_H
 
+#include <cstdint>
 #include <unordered_map>
 #include <set>
 #include <vector>
