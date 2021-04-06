@@ -34,17 +34,17 @@ def add_arguments(parser):
         help='Output file. If omitted, use standard output.')
     arg('--reference', '-r', metavar='FASTA',
         help='Reference file. Provide this to detect alleles through re-alignment. '
-            'If no index (.fai) exists, it will be created')
+        'If no index (.fai) exists, it will be created')
     arg('--regions', dest='regions', metavar='REGION', default=None, action='append',
         help='Specify region(s) of interest to limit the tagging to reads/variants '
-             'overlapping those regions. You can specify a space-separated list of '
-             'regions in the form of chrom:start-end, chrom (consider entire chromosome), '
-             'or chrom:start (consider region from this start to end of chromosome).')
+        'overlapping those regions. You can specify a space-separated list of '
+        'regions in the form of chrom:start-end, chrom (consider entire chromosome), '
+        'or chrom:start (consider region from this start to end of chromosome).')
     arg('--ignore-linked-read', default=False, action='store_true',
         help='Ignore linkage information stored in BX tags of the reads.')
     arg('--linked-read-distance-cutoff', '-d', metavar='LINKEDREADDISTANCE', default=50000, type=int,
         help='Assume reads with identical BX tags belong to different read clouds if their '
-            'distance is larger than LINKEDREADDISTANCE (default: %(default)s).')
+        'distance is larger than LINKEDREADDISTANCE (default: %(default)s).')
     arg('--ignore-read-groups', default=False, action='store_true',
         help='Ignore read groups in BAM/CRAM header and assume all reads come '
         'from the same sample.')
@@ -56,7 +56,7 @@ def add_arguments(parser):
         'output file. If filename ends in .gz, then output is gzipped.')
     arg('--tag-supplementary', default=False, action='store_true',
         help='Also tag supplementary alignments. Supplementary alignments are assigned to the same '
-            'haplotype the primary alignment has been assigned to (default: only tag primary alignments).')
+        'haplotype the primary alignment has been assigned to (default: only tag primary alignments).')
     arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
     arg('alignment_file', metavar='ALIGNMENTS',
         help='File (BAM/CRAM) with read alignments to be tagged by haplotype')

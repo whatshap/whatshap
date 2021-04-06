@@ -23,9 +23,9 @@ count_width = 9
 def add_arguments(parser):
     add = parser.add_argument
     add('--sample', metavar='SAMPLE', default=None, help='Name of the sample '
-            'to process. If not given, use first sample found in VCF.')
+        'to process. If not given, use first sample found in VCF.')
     add('--names', metavar='NAMES', default=None, help='Comma-separated list '
-            'of data set names to be used in the report (in same order as VCFs).')
+        'of data set names to be used in the report (in same order as VCFs).')
     add('--tsv-pairwise', metavar='TSVPAIRWISE', default=None, help='Filename to write '
         'comparison results from pair-wise comparison to (tab-separated).')
     add('--tsv-multiway', metavar='TSVMULTIWAY', default=None, help='Filename to write '

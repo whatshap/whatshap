@@ -952,20 +952,20 @@ def add_arguments(parser):
         help="VCF or BCF file with variants to be phased (can be gzip-compressed)")
     arg("phase_input_files", nargs="*", metavar="PHASEINPUT",
         help="BAM, CRAM, VCF or BCF file(s) with phase information, either through "
-            "sequencing reads (BAM, CRAM) or through phased blocks (VCF, BCF)")
+        "sequencing reads (BAM, CRAM) or through phased blocks (VCF, BCF)")
 
     arg("-o", "--output", default=sys.stdout,
         help="Output VCF file. Add .gz to the file name to get compressed output. "
-            "If omitted, use standard output.")
+        "If omitted, use standard output.")
     arg("--reference", "-r", metavar="FASTA",
         help="Reference file. Provide this to detect alleles through re-alignment. "
-            "If no index (.fai) exists, it will be created")
+        "If no index (.fai) exists, it will be created")
     arg("--no-reference", action="store_true", default=False,
         help="Detect alleles without requiring a reference, at the expense of phasing quality "
-             "(in particular for long reads)")
+        "(in particular for long reads)")
     arg("--tag", choices=("PS", "HP"), default="PS",
         help="Store phasing information with PS tag (standardized) or "
-            "HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)")
+        "HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)")
     arg("--output-read-list", metavar="FILE", default=None, dest="read_list_filename",
         help="Write reads that have been used for phasing to FILE.")
     arg("--algorithm", choices=("whatshap", "hapchat"), default="whatshap",
@@ -979,8 +979,8 @@ def add_arguments(parser):
         dest="max_coverage_was_used", help=SUPPRESS)
     arg("--internal-downsampling", metavar="COVERAGE", dest="max_coverage", default=15, type=int,
         help="Coverage reduction parameter in the internal core phasing algorithm. "
-            "Higher values increase runtime *exponentially* while possibly improving phasing "
-            "quality marginally. Avoid using this in the normal case! (default: %(default)s)")
+        "Higher values increase runtime *exponentially* while possibly improving phasing "
+        "quality marginally. Avoid using this in the normal case! (default: %(default)s)")
     arg("--mapping-quality", "--mapq", metavar="QUAL",
         default=20, type=int, help="Minimum mapping quality (default: %(default)s)")
     arg("--indels", dest="indels", default=False, action="store_true",
@@ -1000,7 +1000,7 @@ def add_arguments(parser):
     arg("--error-rate", dest="read_merging_error_rate",
         type=float, default=0.15,
         help="The probability that a nucleotide is wrong in read merging model "
-            "(default: %(default)s).")
+        "(default: %(default)s).")
     arg("--maximum-error-rate", dest="read_merging_max_error_rate",
         type=float, default=0.25,
         help="The maximum error rate of any edge of the read merging graph "

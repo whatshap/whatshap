@@ -41,19 +41,19 @@ def add_arguments(parser):
         'phased block (in terms of read count) on their respective chromosome')
     arg('--discard-unknown-reads', default=False, action='store_true',
         help='Only check the haplotype of reads listed in the haplotag list file. '
-            'Reads (read names) not contained in this file will be discarded. '
-            'In the default case (= keep unknown reads), those reads would be '
-            'considered untagged and end up in the respective output file. '
-            'Please be sure that the read names match between the input FASTQ/BAM '
-            'and the haplotag list file.')
+        'Reads (read names) not contained in this file will be discarded. '
+        'In the default case (= keep unknown reads), those reads would be '
+        'considered untagged and end up in the respective output file. '
+        'Please be sure that the read names match between the input FASTQ/BAM '
+        'and the haplotag list file.')
     arg('--read-lengths-histogram', default=None,
         help='Output file to write read lengths histogram to in tab separated format.')
     arg('reads_file', metavar='READS', help='Input FASTQ/BAM file with reads (FASTQ can be gzipped)')
     arg('list_file', metavar='LIST',
         help='Tab-separated list with (at least) two columns <readname> and <haplotype> (can be gzipped). '
-            'Currently, the two haplotypes have to be named H1 and H2 (or none). Alternatively, the '
-            'output of the "haplotag" command can be used (4 columns), and this is required for using '
-            'the "--only-largest-block" option (need phaseset and chromosome info).')
+        'Currently, the two haplotypes have to be named H1 and H2 (or none). Alternatively, the '
+        'output of the "haplotag" command can be used (4 columns), and this is required for using '
+        'the "--only-largest-block" option (need phaseset and chromosome info).')
 # fmt: on
 
 

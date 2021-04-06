@@ -416,10 +416,10 @@ def add_arguments(parser):
 
     arg('-o', '--output', default=sys.stdout,
         help='Output VCF file. Add .gz to the file name to get compressed output. '
-            'If omitted, use standard output.')
+        'If omitted, use standard output.')
     arg('--reference', '-r', metavar='FASTA',
         help='Reference file. Provide this to detect alleles through re-alignment. '
-            'If no index (.fai) exists, it will be created')
+        'If no index (.fai) exists, it will be created')
 
     arg = parser.add_argument_group('Input pre-processing, selection and filtering').add_argument
     arg('--max-coverage', '-H', metavar='MAXCOV', default=15, type=int,
