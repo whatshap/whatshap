@@ -24,7 +24,7 @@ def string_to_readset(s, w=None, sample_ids=None, source_id=0, scale_quality=Non
             q = 1
             if w is not None:
                 q = int(w[index][pos])
-            if not scale_quality == None:
+            if scale_quality is not None:
                 read.add_variant(position=(pos + 1) * 10, allele=int(c), quality=q * scale_quality)
             else:
                 read.add_variant(position=(pos + 1) * 10, allele=int(c), quality=q)
