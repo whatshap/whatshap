@@ -28,14 +28,16 @@ def add_arguments(parser):
         help='Put this sample column into VCF (default: output sites-only VCF).')
     add('--chromosome', dest='chromosome', metavar='CHROMOSOME', default=None,
         help='Name of chromosome to process. If not given, all chromosomes are processed.')
-    add('-o', '--output', default=sys.stdout,
-        help='Output VCF file.')
+    add('-o', '--output', default=sys.stdout, help='Output VCF file.')
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--pacbio', dest='datatype', action='store_const', const='pacbio',
-         help='Input is PacBio. Sets minrel=0.25 and minabs=3.')
-    group.add_argument('--nanopore', dest='datatype', action='store_const', const='nanopore',
+    group.add_argument(
+        '--pacbio', dest='datatype', action='store_const', const='pacbio',
+        help='Input is PacBio. Sets minrel=0.25 and minabs=3.')
+    group.add_argument(
+        '--nanopore', dest='datatype', action='store_const', const='nanopore',
         help='Input is Nanopore. Sets minrel=0.4 and minabs=3.')
-    group.add_argument('--illumina', dest='datatype', action='store_const', const='illumina',
+    group.add_argument(
+        '--illumina', dest='datatype', action='store_const', const='illumina',
         help='Input is Illumina. Sets minrel=0.25 and minabs=3.')
 # fmt: on
 

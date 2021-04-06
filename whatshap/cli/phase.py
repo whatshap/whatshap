@@ -995,8 +995,10 @@ def add_arguments(parser):
         help="Name of chromosome to phase. If not given, all chromosomes in the "
         "input VCF are phased. Can be used multiple times.")
 
-    arg = parser.add_argument_group("Read merging",
-        "The options in this section are only active when --merge-reads is used").add_argument
+    arg = parser.add_argument_group(
+        "Read merging",
+        "The options in this section are only active when --merge-reads is used"
+    ).add_argument
     arg("--error-rate", dest="read_merging_error_rate",
         type=float, default=0.15,
         help="The probability that a nucleotide is wrong in read merging model "
@@ -1016,8 +1018,10 @@ def add_arguments(parser):
         "of reads come from different haplotypes and the same haplotype in the "
         "read merging model (default: %(default)s).")
 
-    arg = parser.add_argument_group("Genotyping",
-        "These options are only used when --distrust-genotypes is used").add_argument
+    arg = parser.add_argument_group(
+        "Genotyping",
+        "These options are only used when --distrust-genotypes is used"
+    ).add_argument
     arg("--full-genotyping", action="store_true", default=False, help=SUPPRESS)
     arg("--distrust-genotypes", dest="distrust_genotypes",
         action="store_true", default=False,
