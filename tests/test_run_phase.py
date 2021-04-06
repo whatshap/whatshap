@@ -420,7 +420,7 @@ def test_phase_trio_use_ped_samples(ped_samples, tmpdir):
 
 @mark.parametrize(
     "sample_set",
-    [["HG002"], ["HG003"], ["HG004"], ["HG002", "HG003"], ["HG002", "HG004"], ["HG003", "HG004"],],
+    [["HG002"], ["HG003"], ["HG004"], ["HG002", "HG003"], ["HG002", "HG004"], ["HG003", "HG004"]],
 )
 def test_phase_ped_sample(tmpdir, sample_set):
     # running with --ped and --sample on subset of trio, should give same results as running with only --sample
@@ -829,7 +829,7 @@ def test_quartet2():
 
 @mark.parametrize(
     "algorithm,expected_blocks",
-    [("whatshap", [10, 10, None, 200, 200]), ("hapchat", [10, 10, 10, 10, 10]),],
+    [("whatshap", [10, 10, None, 200, 200]), ("hapchat", [10, 10, 10, 10, 10])],
 )
 def test_phased_blocks(algorithm, expected_blocks, tmp_path):
     # This test involves a simple example on a pair of reads which
@@ -876,7 +876,7 @@ def test_phased_blocks(algorithm, expected_blocks, tmp_path):
 
 @mark.parametrize(
     "algorithm,expected_block",
-    [("whatshap", [10, 10, None, None, None]), ("hapchat", [10, 10, 10, None, None]),],
+    [("whatshap", [10, 10, None, None, None]), ("hapchat", [10, 10, 10, None, None])],
 )
 def test_duplicate_read(algorithm, expected_block, tmp_path):
     # This test is very similar to the previous test_phased_blocks

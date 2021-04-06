@@ -229,7 +229,7 @@ def test_use_ped_samples(tmp_path):
 
 @pytest.mark.parametrize(
     "sample_set",
-    [["HG002"], ["HG003"], ["HG004"], ["HG002", "HG003"], ["HG002", "HG004"], ["HG003", "HG004"],],
+    [["HG002"], ["HG003"], ["HG004"], ["HG002", "HG003"], ["HG002", "HG004"], ["HG003", "HG004"]],
 )
 def test_ped_sample(sample_set, tmp_path):
     # running with --ped and --sample on subset of trio,

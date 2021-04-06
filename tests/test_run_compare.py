@@ -224,7 +224,7 @@ def test_compare_only_snvs(tmp_path):
 
 def test_compare_unphased():
     run_compare(
-        vcf=["tests/data/unphased.vcf", "tests/data/unphased.vcf", "tests/data/unphased.vcf",],
+        vcf=["tests/data/unphased.vcf", "tests/data/unphased.vcf", "tests/data/unphased.vcf"],
         ploidy=2,
         sample="sample1",
     )

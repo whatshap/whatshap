@@ -199,7 +199,7 @@ setup(
     entry_points={"console_scripts": ["whatshap = whatshap.__main__:main"]},
     setup_requires=["setuptools_scm"],  # Support pip versions that don't know about pyproject.toml
     install_requires=install_requires,
-    extras_require={"dev": ["Cython", "pytest", "sphinx", "sphinx_issues"],},
+    extras_require={"dev": ["Cython", "pytest", "sphinx", "sphinx_issues"]},
     python_requires=">=3.6",
     classifiers=[
         "Development Status :: 4 - Beta",
