@@ -172,7 +172,7 @@ def brute_force_phase(read_set, all_heterozygous):
 
 
 def canonic_index_to_biallelic_gt(num_alt, ploidy=2):
-    """ Takes the numeric VCF representation of a biallelic genotpyte and given ploidy
+    """Takes the numeric VCF representation of a biallelic genotpyte and given ploidy
     Diploid:
     0 -> 0/0
     1 -> 0/1
@@ -195,7 +195,7 @@ def canonic_index_to_biallelic_gt(num_alt, ploidy=2):
 
 
 def canonic_index_list_to_biallelic_gt_list(list_int, ploidy=2):
-    """ Returns a list of diploid, biallelic genotype objects
+    """Returns a list of diploid, biallelic genotype objects
     according to the provided integer representation
 
     See this link for further explanation:

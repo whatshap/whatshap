@@ -37,7 +37,7 @@ def test_phase_empty_readset(algorithm):
 
 
 def compare_phasing_brute_force(
-    superreads, cost, partition, readset, all_heterozygous, weights=None, algorithm="whatshap",
+    superreads, cost, partition, readset, all_heterozygous, weights=None, algorithm="whatshap"
 ):
     """Compares DPTable based phasing to brute force phasing and returns string representation of superreads."""
     assert len(superreads) == 2

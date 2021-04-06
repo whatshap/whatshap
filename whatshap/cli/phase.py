@@ -127,7 +127,7 @@ def best_case_blocks(reads):
 
 def select_reads(readset, max_coverage, preferred_source_ids):
     logger.info(
-        "Reducing coverage to at most %dX by selecting most informative reads ...", max_coverage,
+        "Reducing coverage to at most %dX by selecting most informative reads ...", max_coverage
     )
     selected_indices = readselection(readset, max_coverage, preferred_source_ids)
     selected_reads = readset.subset(selected_indices)
@@ -454,7 +454,7 @@ def run_whatshap(
                 for sample in family:
                     with timers("read_bam"):
                         readset, vcf_source_ids = phased_input_reader.read(
-                            chromosome, phasable_variant_table.variants, sample,
+                            chromosome, phasable_variant_table.variants, sample
                         )
 
                     # TODO: Read selection done w.r.t. all variants, where using heterozygous
@@ -464,7 +464,7 @@ def run_whatshap(
                             [i for i, read in enumerate(readset) if len(read) >= 2]
                         )
                         logger.info(
-                            "Kept %d reads that cover at least two variants each", len(readset),
+                            "Kept %d reads that cover at least two variants each", len(readset)
                         )
                         merged_reads = read_merger.merge(readset)
                         selected_reads = select_reads(
@@ -639,7 +639,7 @@ def compute_overall_components(
         if len(family) > 1 and genetic_haplotyping:
             master_block = sorted(set(homozygous_positions).intersection(set(accessible_positions)))
     return find_components(
-        accessible_positions, all_reads, master_block, heterozygous_positions_by_sample,
+        accessible_positions, all_reads, master_block, heterozygous_positions_by_sample
     )
 
 
@@ -657,10 +657,8 @@ def log_component_stats(components, n_accessible_positions):
 
 
 def log_best_case_phasing_info(readset, selected_reads):
-    (n_best_case_blocks, n_best_case_nonsingleton_blocks,) = best_case_blocks(readset)
-    (n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov,) = best_case_blocks(
-        selected_reads
-    )
+    (n_best_case_blocks, n_best_case_nonsingleton_blocks) = best_case_blocks(readset)
+    (n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov) = best_case_blocks(selected_reads)
     logger.info(
         "Best-case phasing would result in %d non-singleton phased blocks (%d in total)",
         n_best_case_nonsingleton_blocks,
@@ -768,9 +766,7 @@ def find_phaseable_variants(family, include_homozygous: bool, trios, variant_tab
     phasable_variant_table = deepcopy(variant_table)
     # Remove calls to be discarded from variant table
     phasable_variant_table.remove_rows_by_index(to_discard)
-    logger.info(
-        "Number of variants skipped due to missing genotypes: %d", len(missing_genotypes),
-    )
+    logger.info("Number of variants skipped due to missing genotypes: %d", len(missing_genotypes))
     if len(family) == 1:
         logger.info(
             "Number of remaining%s variants: %d",
@@ -779,7 +775,7 @@ def find_phaseable_variants(family, include_homozygous: bool, trios, variant_tab
         )
     else:
         logger.info(
-            "Number of variants skipped due to Mendelian conflicts: %d", len(mendelian_conflicts),
+            "Number of variants skipped due to Mendelian conflicts: %d", len(mendelian_conflicts)
         )
         logger.info(
             "Number of remaining variants heterozygous in at least one individual: %d",
@@ -872,7 +868,7 @@ def find_mendelian_conflicts(trios, variant_table):
 def write_changed_genotypes(gtchange_list_filename, changed_genotypes):
     with open(gtchange_list_filename, "w") as f:
         print(
-            "#sample", "chromosome", "position", "REF", "ALT", "old_gt", "new_gt", sep="\t", file=f,
+            "#sample", "chromosome", "position", "REF", "ALT", "old_gt", "new_gt", sep="\t", file=f
         )
         for changed_genotype in changed_genotypes:
             print(

@@ -28,10 +28,7 @@ from whatshap.pedigree import (
 )
 from whatshap.timer import StageTimer
 from whatshap.cli import log_memory_usage
-from whatshap.cli.phase import (
-    select_reads,
-    setup_families,
-)
+from whatshap.cli.phase import select_reads, setup_families
 from whatshap.cli import CommandLineError, PhasedInputReader
 
 
@@ -148,7 +145,7 @@ def run_genotype(
         # remove all likelihoods that may already be present
         vcf_reader = stack.enter_context(
             VcfReader(
-                variant_file, indels=indels, genotype_likelihoods=False, ignore_genotypes=True,
+                variant_file, indels=indels, genotype_likelihoods=False, ignore_genotypes=True
             )
         )
 
@@ -178,9 +175,7 @@ def run_genotype(
                 )
 
         if ped and genmap:
-            logger.info(
-                "Using region-specific recombination rates from genetic map %s.", genmap,
-            )
+            logger.info("Using region-specific recombination rates from genetic map %s.", genmap)
             recombination_cost_computer = GeneticMapRecombinationCostComputer(genmap)
         else:
             if ped:
@@ -228,7 +223,7 @@ def run_genotype(
                     logger.info("---- Initial genotyping of %s", sample)
                     with timers("read_bam"):
                         readset, vcf_source_ids = phased_input_reader.read(
-                            chromosome, variant_table.variants, sample, read_vcf=False,
+                            chromosome, variant_table.variants, sample, read_vcf=False
                         )
                         readset.sort()
                         genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
@@ -261,7 +256,7 @@ def run_genotype(
                 # use uniform genotype likelihoods for all individuals
                 for sample in samples:
                     variant_table.set_genotype_likelihoods_of(
-                        sample, [PhredGenotypeLikelihoods([1 / 3, 1 / 3, 1 / 3])] * len(positions),
+                        sample, [PhredGenotypeLikelihoods([1 / 3, 1 / 3, 1 / 3])] * len(positions)
                     )
 
             # if desired, output the priors in separate vcf
@@ -285,7 +280,7 @@ def run_genotype(
                 for sample in family:
                     with timers("read_bam"):
                         readset, vcf_source_ids = phased_input_reader.read(
-                            chromosome, variant_table.variants, sample,
+                            chromosome, variant_table.variants, sample
                         )
 
                     with timers("select"):
@@ -293,10 +288,10 @@ def run_genotype(
                             [i for i, read in enumerate(readset) if len(read) >= 2]
                         )
                         logger.info(
-                            "Kept %d reads that cover at least two variants each", len(readset),
+                            "Kept %d reads that cover at least two variants each", len(readset)
                         )
                         selected_reads = select_reads(
-                            readset, max_coverage_per_sample, preferred_source_ids=vcf_source_ids,
+                            readset, max_coverage_per_sample, preferred_source_ids=vcf_source_ids
                         )
                     readsets[sample] = selected_reads
 
@@ -328,13 +323,11 @@ def run_genotype(
                         all_genotype_likelihoods[var_to_pos[a_p]] for a_p in accessible_positions
                     ]
                     pedigree.add_individual(
-                        sample,
-                        [Genotype([]) for i in range(len(accessible_positions))],
-                        genotype_l,
+                        sample, [Genotype([]) for i in range(len(accessible_positions))], genotype_l
                     )
                 for trio in trios:
                     pedigree.add_relationship(
-                        father_id=trio.father, mother_id=trio.mother, child_id=trio.child,
+                        father_id=trio.father, mother_id=trio.mother, child_id=trio.child
                     )
 
                 recombination_costs = recombination_cost_computer.compute(accessible_positions)
@@ -382,12 +375,8 @@ def run_genotype(
     logger.info("\n== SUMMARY ==")
     total_time = timers.total()
     log_memory_usage()
-    logger.info(
-        "Time spent reading BAM:                      %6.1f s", timers.elapsed("read_bam"),
-    )
-    logger.info(
-        "Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"),
-    )
+    logger.info("Time spent reading BAM:                      %6.1f s", timers.elapsed("read_bam"))
+    logger.info("Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"))
     if show_phase_vcfs:
         logger.info(
             "Time spent parsing input phasings from VCFs: %6.1f s",
@@ -395,14 +384,10 @@ def run_genotype(
         )
     logger.info("Time spent selecting reads:                  %6.1f s", timers.elapsed("select"))
     logger.info(
-        "Time spent genotyping:                          %6.1f s", timers.elapsed("genotyping"),
+        "Time spent genotyping:                          %6.1f s", timers.elapsed("genotyping")
     )
-    logger.info(
-        "Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"),
-    )
-    logger.info(
-        "Time spent on rest:                          %6.1f s", total_time - timers.sum(),
-    )
+    logger.info("Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"))
+    logger.info("Time spent on rest:                          %6.1f s", total_time - timers.sum())
     logger.info("Total elapsed time:                          %6.1f s", total_time)
 
 

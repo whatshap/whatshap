@@ -1,14 +1,5 @@
-from whatshap.core import (
-    PedigreeDPTable,
-    Pedigree,
-    NumericSampleIds,
-    PhredGenotypeLikelihoods,
-)
-from whatshap.testhelpers import (
-    string_to_readset,
-    matrix_to_readset,
-    canonic_index_to_biallelic_gt,
-)
+from whatshap.core import PedigreeDPTable, Pedigree, NumericSampleIds, PhredGenotypeLikelihoods
+from whatshap.testhelpers import string_to_readset, matrix_to_readset, canonic_index_to_biallelic_gt
 from whatshap.verification import verify_mec_score_and_partitioning
 
 

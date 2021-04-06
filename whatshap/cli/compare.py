@@ -337,12 +337,7 @@ def create_bed_records(chromosome, phasing0, phasing1, positions, annotation_str
     switch_encoding1 = switch_encoding(phasing1)
     for i, (sw0, sw1) in enumerate(zip(switch_encoding0, switch_encoding1)):
         if sw0 != sw1:
-            yield (
-                chromosome,
-                positions[i] + 1,
-                positions[i + 1] + 1,
-                annotation_string,
-            )
+            yield (chromosome, positions[i] + 1, positions[i + 1] + 1, annotation_string)
 
 
 def print_stat(text: str, value=None, value2=None, text_width=37):
@@ -584,7 +579,7 @@ def compare_pair(
     print_errors(longest_block_errors, longest_block_assessed_pairs)
     print_stat("Hamming distance", longest_block_errors.hamming)
     print_stat(
-        "Hamming distance [%]", fraction2percentstr(longest_block_errors.hamming, longest_block),
+        "Hamming distance [%]", fraction2percentstr(longest_block_errors.hamming, longest_block)
     )
     print_stat("Different genotypes", longest_block_errors.diff_genotypes)
     print_stat(
@@ -599,7 +594,7 @@ def compare_pair(
         all_switch_rate=safefraction(total_errors.switches, phased_pairs),
         all_switchflips=total_errors.switch_flips,
         all_switchflip_rate=safefraction(
-            total_errors.switch_flips.switches + total_errors.switch_flips.flips, phased_pairs,
+            total_errors.switch_flips.switches + total_errors.switch_flips.flips, phased_pairs
         ),
         blockwise_hamming=total_errors.hamming,
         blockwise_hamming_rate=safefraction(total_errors.hamming, total_compared_variants),
@@ -966,7 +961,7 @@ def run_compare(
                 ) = compare(variant_tables, sample, dataset_names, ploidy)
                 add_block_stats(block_stats)
                 if tsv_multiway_file:
-                    for ((dataset_list0, dataset_list1), count,) in multiway_results.items():
+                    for ((dataset_list0, dataset_list1), count) in multiway_results.items():
                         print(
                             sample,
                             chromosome,

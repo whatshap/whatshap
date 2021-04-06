@@ -49,7 +49,7 @@ class PhasedInputReader:
         numeric_sample_ids,
         ignore_read_groups,
         indels,
-        **kwargs  # passed to ReadSetReader constructor
+        **kwargs,  # passed to ReadSetReader constructor
     ):
         self._bam_paths, self._vcf_paths = self._split_input_file_list(bam_or_vcf_paths)
 
@@ -63,7 +63,7 @@ class PhasedInputReader:
         self._ignore_read_groups = ignore_read_groups
 
         self._readset_reader = open_readset_reader(
-            self._bam_paths, reference, numeric_sample_ids, **kwargs,
+            self._bam_paths, reference, numeric_sample_ids, **kwargs
         )
         if not self._vcf_readers:
             self._vcfs = []
@@ -188,7 +188,7 @@ class PhasedInputReader:
         readset.sort()
 
         logger.info(
-            "Found %d reads covering %d variants", len(readset), len(readset.get_positions()),
+            "Found %d reads covering %d variants", len(readset), len(readset.get_positions())
         )
         return readset, vcf_source_ids
 

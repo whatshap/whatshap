@@ -488,7 +488,7 @@ def run_haplotag(
 
         bam_writer = stack.enter_context(
             open_output_alignment_file(
-                output, reference, md5_of(variant_file), bam_reader.header.to_dict(),
+                output, reference, md5_of(variant_file), bam_reader.header.to_dict()
             )
         )
         haplotag_writer = stack.enter_context(open_haplotag_writer(haplotag_list))

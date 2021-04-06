@@ -506,10 +506,10 @@ def test_phase_trio_merged_blocks(tmpdir):
     phase0 = VariantCallPhase(752566, (0, 1), None)
     phase1 = VariantCallPhase(752566, (1, 0), None)
     assert_phasing(
-        table.phases_of("HG004"), [phase1, phase1, phase1, None, phase1, phase1, phase1, phase1],
+        table.phases_of("HG004"), [phase1, phase1, phase1, None, phase1, phase1, phase1, phase1]
     )
     assert_phasing(
-        table.phases_of("HG003"), [None, None, None, None, phase0, phase0, phase0, phase1],
+        table.phases_of("HG003"), [None, None, None, None, phase0, phase0, phase0, phase1]
     )
     assert_phasing(table.phases_of("HG002"), [None, None, None, None, None, None, None, phase1])
 
@@ -544,7 +544,7 @@ def test_phase_trio_dont_merge_blocks(tmpdir):
         [phase1, phase1, phase1, None, phase2_1, phase2_1, phase2_1, phase2_1],
     )
     assert_phasing(
-        table.phases_of("HG003"), [None, None, None, None, phase2_0, phase2_0, phase2_0, phase2_1],
+        table.phases_of("HG003"), [None, None, None, None, phase2_0, phase2_0, phase2_0, phase2_1]
     )
     assert_phasing(table.phases_of("HG002"), [None, None, None, None, None, None, None, phase2_1])
 
@@ -641,9 +641,7 @@ def test_phase_specific_chromosome(chromosome, tmp_path):
         assert table.samples == ["HG004", "HG003", "HG002"]
         if table.chromosome == "1" == chromosome:
             phase0 = VariantCallPhase(60906167, (0, 1), None)
-            assert_phasing(
-                table.phases_of("HG004"), [phase0, phase0, phase0, phase0, phase0],
-            )
+            assert_phasing(table.phases_of("HG004"), [phase0, phase0, phase0, phase0, phase0])
             assert_phasing(table.phases_of("HG003"), [phase0, None, phase0, phase0, phase0])
             assert_phasing(table.phases_of("HG002"), [None, phase0, None, None, None])
         elif table.chromosome == "2" == chromosome:

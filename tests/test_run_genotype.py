@@ -48,7 +48,7 @@ def test_one_variant():
 def test_default_output():
     """Output to stdout"""
     run_genotype(
-        phase_input_files=["tests/data/oneread.bam"], variant_file="tests/data/onevariant.vcf",
+        phase_input_files=["tests/data/oneread.bam"], variant_file="tests/data/onevariant.vcf"
     )
 
 
@@ -259,7 +259,7 @@ def test_ped_sample(sample_set, tmp_path):
 
     for individual in sample_set:
         for var1, var2 in zip(
-            table1.genotype_likelihoods_of(individual), table2.genotype_likelihoods_of(individual),
+            table1.genotype_likelihoods_of(individual), table2.genotype_likelihoods_of(individual)
         ):
             print(var1, var2)
             assert var1.log10_probs() == var2.log10_probs()

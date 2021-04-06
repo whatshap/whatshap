@@ -87,7 +87,7 @@ def test_phase_empty_trio():
     pedigree.add_individual("individual2", [])
     pedigree.add_relationship("individual0", "individual1", "individual2")
     dp_table = PedigreeDPTable(rs, recombcost, pedigree)
-    ((superreadsm, superreadsf, superreadsc), transmission_vector,) = dp_table.get_super_reads()
+    ((superreadsm, superreadsf, superreadsc), transmission_vector) = dp_table.get_super_reads()
 
 
 def test_phase_trio1():
@@ -464,10 +464,10 @@ def test_phase_trio_genotype_likelihoods():
         genotype_likelihoods_mother,
     )
     pedigree.add_individual(
-        "individual1", canonic_index_list_to_biallelic_gt_list([0, 0, 0]), genotype_likelihoods0,
+        "individual1", canonic_index_list_to_biallelic_gt_list([0, 0, 0]), genotype_likelihoods0
     )
     pedigree.add_individual(
-        "individual2", canonic_index_list_to_biallelic_gt_list([0, 0, 0]), genotype_likelihoods0,
+        "individual2", canonic_index_list_to_biallelic_gt_list([0, 0, 0]), genotype_likelihoods0
     )
     pedigree.add_relationship("individual0", "individual1", "individual2")
     recombcost = [10, 10, 10]

@@ -35,7 +35,7 @@ def compare_to_expected(dp_forward_backward, positions, expected=None, genotypes
                 max_geno = genotype
 
         print(
-            "genotype likelihoods for position", i, likelihoods, " likeliest genotype: ", max_geno,
+            "genotype likelihoods for position", i, likelihoods, " likeliest genotype: ", max_geno
         )
 
         if genotypes is not None:
@@ -54,7 +54,7 @@ def test_genotyping_empty_readset():
 
 
 def check_genotyping_single_individual(
-    reads, weights=None, expected=None, genotypes=None, scaling=None, genotype_priors=None,
+    reads, weights=None, expected=None, genotypes=None, scaling=None, genotype_priors=None
 ):
     # 0) set up read set
     readset = string_to_readset(s=reads, w=weights, scale_quality=scaling)

@@ -40,7 +40,7 @@ def add_arguments(parser):
 
 
 HapCutVariant = namedtuple(
-    "HapCutVariant", ["chromosome", "position", "haplotype1", "haplotype2", "component_id"],
+    "HapCutVariant", ["chromosome", "position", "haplotype1", "haplotype2", "component_id"]
 )
 
 

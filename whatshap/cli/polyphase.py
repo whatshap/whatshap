@@ -160,7 +160,7 @@ def run_polyphase(
 
         vcf_reader = stack.enter_context(
             VcfReader(
-                variant_file, indels=indels, phases=True, genotype_likelihoods=False, ploidy=ploidy,
+                variant_file, indels=indels, phases=True, genotype_likelihoods=False, ploidy=ploidy
             )
         )
 
@@ -256,14 +256,13 @@ def run_polyphase(
                         len(missing_genotypes),
                     )
                     logger.info(
-                        "Number of remaining heterozygous variants: %d",
-                        len(phasable_variant_table),
+                        "Number of remaining heterozygous variants: %d", len(phasable_variant_table)
                     )
 
                     # Get the reads belonging to this sample
                     timers.start("read_bam")
                     readset, vcf_source_ids = phased_input_reader.read(
-                        chromosome, phasable_variant_table.variants, sample,
+                        chromosome, phasable_variant_table.variants, sample
                     )
                     readset.sort()
                     timers.stop("read_bam")
@@ -306,7 +305,7 @@ def run_polyphase(
 
                         # Re-read the readset to remove discarded variants
                         readset, vcf_source_ids = phased_input_reader.read(
-                            chromosome, phasable_variant_table.variants, sample,
+                            chromosome, phasable_variant_table.variants, sample
                         )
                         readset.sort()
                         timers.stop("verify_genotypes")
@@ -315,9 +314,7 @@ def run_polyphase(
                     readset = readset.subset(
                         [i for i, read in enumerate(readset) if len(read) >= max(2, min_overlap)]
                     )
-                    logger.info(
-                        "Kept %d reads that cover at least two variants each", len(readset),
-                    )
+                    logger.info("Kept %d reads that cover at least two variants each", len(readset))
 
                     # Adapt the variant table to the subset of reads
                     phasable_variant_table.subset_rows_by_position(readset.get_positions())
@@ -359,30 +356,26 @@ def run_polyphase(
     logger.info("\n== SUMMARY ==")
 
     log_memory_usage(include_children=(threads > 1))
-    logger.info(
-        "Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"),
-    )
-    logger.info(
-        "Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"),
-    )
+    logger.info("Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"))
+    logger.info("Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"))
     if verify_genotypes:
         logger.info(
             "Time spent verifying genotypes:              %6.1f s",
             timers.elapsed("verify_genotypes"),
         )
     logger.info(
-        "Time spent detecting blocks:                 %6.1f s", timers.elapsed("detecting_blocks"),
+        "Time spent detecting blocks:                 %6.1f s", timers.elapsed("detecting_blocks")
     )
     if threads == 1:
         logger.info(
-            "Time spent scoring reads:                    %6.1f s", timers.elapsed("read_scoring"),
+            "Time spent scoring reads:                    %6.1f s", timers.elapsed("read_scoring")
         )
         logger.info(
             "Time spent solving cluster editing:          %6.1f s",
             timers.elapsed("solve_clusterediting"),
         )
         logger.info(
-            "Time spent threading haplotypes:             %6.1f s", timers.elapsed("threading"),
+            "Time spent threading haplotypes:             %6.1f s", timers.elapsed("threading")
         )
     else:
         """
@@ -391,21 +384,17 @@ def run_polyphase(
         Workaround is to only report the total phasing time.
         """
         logger.info(
-            "Time spent phasing blocks:                   %6.1f s", timers.elapsed("phase_blocks"),
+            "Time spent phasing blocks:                   %6.1f s", timers.elapsed("phase_blocks")
         )
     if plot_clusters or plot_threading:
         logger.info(
-            "Time spent creating plots:                   %6.1f s", timers.elapsed("create_plots"),
+            "Time spent creating plots:                   %6.1f s", timers.elapsed("create_plots")
         )
+    logger.info("Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"))
     logger.info(
-        "Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"),
+        "Time spent on rest:                          %6.1f s", timers.total() - timers.sum()
     )
-    logger.info(
-        "Time spent on rest:                          %6.1f s", timers.total() - timers.sum(),
-    )
-    logger.info(
-        "Total elapsed time:                          %6.1f s", timers.total(),
-    )
+    logger.info("Total elapsed time:                          %6.1f s", timers.total())
 
 
 def phase_single_individual(readset, phasable_variant_table, sample, phasing_param, output, timers):

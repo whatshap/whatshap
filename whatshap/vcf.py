@@ -117,8 +117,8 @@ class GenotypeLikelihoods:
     __slots__ = "log_prob_genotypes"
 
     def __init__(self, log_prob_genotypes: List[float]):
-        """ Likelihoods of all genotypes to be given as log10 of
-        the original probability. """
+        """Likelihoods of all genotypes to be given as log10 of
+        the original probability."""
         self.log_prob_genotypes = log_prob_genotypes
 
     def __repr__(self):
@@ -484,7 +484,7 @@ class VcfReader:
 
             if prev_position == pos:
                 warn_once(
-                    logger, "Skipping duplicated position %s on chromosome %r", pos + 1, chromosome,
+                    logger, "Skipping duplicated position %s on chromosome %r", pos + 1, chromosome
                 )
                 continue
             prev_position = pos
@@ -1109,7 +1109,7 @@ class GenotypeVcfWriter(VcfAugmenter):
         )
 
     def write_genotypes(
-        self, chromosome: str, variant_table: VariantTable, indels, ploidy: int = 2,
+        self, chromosome: str, variant_table: VariantTable, indels, ploidy: int = 2
     ) -> None:
         """
         Add genotyping information to all variants on a single chromosome.

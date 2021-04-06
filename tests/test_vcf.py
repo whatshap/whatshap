@@ -400,7 +400,7 @@ def test_read_tetraploid_phased():
 def test_read_tetraploid_genotype_likelihoods():
     tables = list(
         VcfReader(
-            "tests/data/polyploid.chr22.unphased.vcf", phases=False, genotype_likelihoods=True,
+            "tests/data/polyploid.chr22.unphased.vcf", phases=False, genotype_likelihoods=True
         )
     )
     assert len(tables) == 1

@@ -266,12 +266,7 @@ def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, exit_
     :param exit_stack:
     :return:
     """
-    potential_fastq_extensions = [
-        "fastq",
-        "fastq.gz",
-        "fastq.gzip" "fq",
-        "fq.gz" "fq.gzip",
-    ]
+    potential_fastq_extensions = ["fastq", "fastq.gz", "fastq.gzip" "fq", "fq.gz" "fq.gzip"]
     input_format = detect_file_format(reads_file)
     if input_format is None:
         # TODO: this is a heuristic, need to extend utils::detect_file_format
@@ -309,7 +304,7 @@ def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, exit_
         for hap, outfile in enumerate([output_untagged, output_h1, output_h2]):
             output_writers[hap] = exit_stack.enter_context(
                 pysam.AlignmentFile(
-                    os.devnull if outfile is None else outfile, mode="wb", template=input_reader,
+                    os.devnull if outfile is None else outfile, mode="wb", template=input_reader
                 )
             )
     elif input_format == "FASTQ":
@@ -384,7 +379,7 @@ def run_split(
         timers.start("split-process-haplotag-list")
 
         readname_to_haplotype, known_reads = process_haplotag_list_file(
-            haplo_list, line_parser, haplotype_to_int, only_largest_block, discard_unknown_reads,
+            haplo_list, line_parser, haplotype_to_int, only_largest_block, discard_unknown_reads
         )
         if discard_unknown_reads:
             logger.debug(
@@ -401,7 +396,7 @@ def run_split(
         timers.stop("split-process-haplotag-list")
 
         input_reader, input_iterator, output_writers = initialize_io_files(
-            reads_file, output_h1, output_h2, output_untagged, stack,
+            reads_file, output_h1, output_h2, output_untagged, stack
         )
 
         timers.stop("split-init")

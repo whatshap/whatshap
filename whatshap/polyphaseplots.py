@@ -175,7 +175,7 @@ def draw_plots_dissimilarity(readset, path, min_overlap=5, steps=100):
 
 
 def draw_plots_scoring(
-    readset, similarities, path, ploidy, error_rate, min_overlap=5, steps=120, dim=[-60, 60],
+    readset, similarities, path, ploidy, error_rate, min_overlap=5, steps=120, dim=[-60, 60]
 ):
     try:
         import matplotlib
@@ -198,13 +198,7 @@ def draw_plots_scoring(
                 else:
                     dissims_diff.append(d)
         create_histogram(
-            path,
-            dissims_same,
-            dissims_diff,
-            steps,
-            dim,
-            "Similarity score",
-            "Read-pair comparison",
+            path, dissims_same, dissims_diff, steps, dim, "Similarity score", "Read-pair comparison"
         )
     except ImportError:
         logger.error("Plotting read scores requires matplotlib to be installed")
@@ -320,9 +314,7 @@ def draw_clustering(readset, clustering, var_table, path, genome_space=False):
             plt.hlines(y=y_offset, xmin=min_pos, xmax=max_pos, color=(0.5, 0.5, 0.5, 0.5))
             y_offset += y_margin
 
-        plt.legend(
-            handles=legend_handles.values(), loc="lower center", ncol=len(legend_handles),
-        )
+        plt.legend(handles=legend_handles.values(), loc="lower center", ncol=len(legend_handles))
         axes = plt.gca()
         axes.set_xlim([min_pos, max_pos])
         fig.savefig(path)
@@ -333,7 +325,7 @@ def draw_clustering(readset, clustering, var_table, path, genome_space=False):
 
 
 def plot_haplotype_dissimilarity(
-    legend_handles, y_offset, y_margin, index, rev_index, readset, var_table, genome_space=False,
+    legend_handles, y_offset, y_margin, index, rev_index, readset, var_table, genome_space=False
 ):
     try:
         import matplotlib
@@ -380,7 +372,7 @@ def plot_haplotype_dissimilarity(
             plt.hlines(y=y_offset, xmin=min_pos, xmax=max_pos, color="black", lw=1)
             plt.hlines(y=y_offset + 104, xmin=min_pos, xmax=max_pos, color="black", lw=1)
             plt.plot(
-                dens_pos, [100 * x / max_dens + y_offset for x in dens_list], lw=1, color="blue",
+                dens_pos, [100 * x / max_dens + y_offset for x in dens_list], lw=1, color="blue"
             )
 
         # determines for each position, over which interval of positions the average must be taken
@@ -414,9 +406,7 @@ def plot_haplotype_dissimilarity(
                 if genome_space:
                     plt.plot(rev_index[start:end], dist[start:end], lw=1, color=colors[k % 2])
                 else:
-                    plt.plot(
-                        list(range(start, end)), dist[start:end], lw=1, color=colors[k % 2],
-                    )
+                    plt.plot(list(range(start, end)), dist[start:end], lw=1, color=colors[k % 2])
 
     except ImportError:
         logger.error("Plotting haplotype dissimilarities requires matplotlib to be installed")
@@ -443,7 +433,7 @@ def relative_hamming_dist(seq1, seq2):
 
 
 def draw_threading(
-    readset, clustering, coverage, paths, cut_positions, haplotypes, var_table, genotypes, path,
+    readset, clustering, coverage, paths, cut_positions, haplotypes, var_table, genotypes, path
 ):
     try:
         import matplotlib
@@ -483,7 +473,7 @@ def draw_threading(
         cut_pos = cut_positions + [num_vars]
         for pos in cut_pos:
             plt.vlines(
-                x=pos, ymin=0, ymax=num_c * (c_height + y_margin), color="lightgray", alpha=0.3,
+                x=pos, ymin=0, ymax=num_c * (c_height + y_margin), color="lightgray", alpha=0.3
             )
 
         # Plot cluster coverage

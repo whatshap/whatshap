@@ -15,9 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class ReadMerger:
-    def __init__(
-        self, error_rate, max_error_rate, positive_threshold, negative_threshold,
-    ):
+    def __init__(self, error_rate, max_error_rate, positive_threshold, negative_threshold):
         self._error_rate = error_rate
         self._max_error_rate = max_error_rate
         self._positive_threshold = positive_threshold
@@ -235,7 +233,7 @@ class ReadMerger:
 
         logger.debug("Finished merging reads.")
         logger.info(
-            "... after merging: merged %d reads into %d reads", len(readset), len(merged_reads),
+            "... after merging: merged %d reads into %d reads", len(readset), len(merged_reads)
         )
 
         return merged_reads
