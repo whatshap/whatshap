@@ -345,7 +345,7 @@ def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, outpu
         )
 
     output_file_names = [output_untagged, output_h1, output_h2]
-    if output_folder == None:
+    if output_folder is None:
         output_folder = os.path.dirname(reads_file)
     if split_by == 'cluster':
         output_prefix, ext = os.path.basename(reads_file).split('.')
@@ -487,11 +487,11 @@ def run_split(
         for read_name, read_length, record in input_iterator(input_reader):
             if type(read_name) != list:
                 read_name = [read_name]
-            if read_length != None: # for skipping non-node lines in a gfa file
+            if read_length is not None: # for skipping non-node lines in a gfa file
                 read_counter["total_reads"] += 1
 
             if discard_unknown_reads and any([read not in known_reads for read in read_name]):
-                if read_length != None:
+                if read_length is not None:
                     read_counter['unknown_reads'] += 1
                 continue
             read_haplotype = [readname_to_haplotype[read] for read in read_name]
@@ -502,10 +502,10 @@ def run_split(
             read_haplotype = max(read_haplotype)
 
             if split_by == "haplotype" and not process_haplotype[read_haplotype]:
-                if read_length != None:
+                if read_length is not None:
                     read_counter['skipped_reads'] += 1
                 continue
-            if split_by == "haplotype" and read_length != None:
+            if split_by == "haplotype" and read_length is not None:
                 histogram_data[read_haplotype][read_length] += 1
                 read_counter[read_haplotype] += 1
 
