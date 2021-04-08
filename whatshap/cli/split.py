@@ -485,7 +485,7 @@ def run_split(
         timers.start("split-iter-input")
 
         for read_name, read_length, record in input_iterator(input_reader):
-            if type(read_name) != list:
+            if isinstance(read_name, list):
                 read_name = [read_name]
             if read_length is not None: # for skipping non-node lines in a gfa file
                 read_counter["total_reads"] += 1
