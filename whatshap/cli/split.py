@@ -315,7 +315,7 @@ def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, outpu
     :return:
     """
     potential_fastq_extensions = ["fastq", "fastq.gz", "fastq.gzip" "fq", "fq.gz" "fq.gzip"]
-    potential_fasta_extensions = [".fasta", ".fa"]
+    potential_fasta_extensions = [".fasta", ".fasta.gz", ".fasta.gzip", ".fa", ".fa.gz" ".fa.gzip"]
     input_format = detect_file_format(reads_file)
     if input_format is None:
         # TODO: this is a heuristic, need to extend utils::detect_file_format
