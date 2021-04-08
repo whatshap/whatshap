@@ -2,8 +2,8 @@
 Changes
 =======
 
-development version
--------------------
+v1.1 (2021-04-08)
+-----------------
 
 * :issue:`223`: Fix ``haplotag --ignore-linked-reads`` not working
 * :issue:`241`: Fix some ``polyphase`` problems.
