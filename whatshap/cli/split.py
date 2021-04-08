@@ -255,12 +255,20 @@ def _gfa_file_iterator(gfa_file):
         if line.strip() == "":
             return
         sp = line.split()
+        assert(
+                sp[0] in ['#', 'H', 'S', 'L', 'C', 'P', 'A']
+                ), "The line should start with one of these characters: #, H, S, L, C, P, A"
+        if sp[0] in ["#",'H']:
+            # skip comment and header lines
+            continue
         nodes = [sp[1]]
         node_len = None
-        if sp[0]=='L': # edge line
-            nodes.append(sp[3])
-        if sp[0]=='S':
+        if sp[0] == 'S' and sp[2] != "*":
             node_len = len(sp[2])
+        if sp[0] in ['C','L']: # edge/containment line
+            nodes.append(sp[3])
+        if sp[0] == 'P':
+            nodes = [name[:-1] for name in sp[2].split(",")]
         yield nodes, node_len, line
 
 
@@ -485,22 +493,25 @@ def run_split(
         timers.start("split-iter-input")
 
         for read_name, read_length, record in input_iterator(input_reader):
-            if isinstance(read_name, list):
+            if not isinstance(read_name, list):
                 read_name = [read_name]
-            if read_length is not None: # for skipping non-node lines in a gfa file
-                read_counter["total_reads"] += 1
+            read_counter["total_reads"] += 1
 
             if discard_unknown_reads and any([read not in known_reads for read in read_name]):
                 if read_length is not None:
                     read_counter['unknown_reads'] += 1
                 continue
-            read_haplotype = [readname_to_haplotype[read] for read in read_name]
+            read_haplotype = []
+            for read in read_name:
+                read_haplo = readname_to_haplotype[read] if read in readname_to_haplotype else 0
+                read_haplotype.append(read_haplo)
             if len(set(read_haplotype)) > 1 and 0 not in read_haplotype:
                 # the two ends of the edge have different not-none haplotypes/clusters
                 continue
 
             read_haplotype = max(read_haplotype)
-
+            if split_by == "cluster" and read_haplotype == 0:
+                continue
             if split_by == "haplotype" and not process_haplotype[read_haplotype]:
                 if read_length is not None:
                     read_counter['skipped_reads'] += 1
