@@ -134,7 +134,7 @@ def process_split_list_file(
             continue
 
         readname, haplo_name, phaseset, chromosome = line_parser(line)
-        
+
         try:
             haplo_num = haplotype_to_int[haplo_name]
         except KeyError:
@@ -188,7 +188,7 @@ def process_split_list_file(
 
     clusters = list(clusters)
     clusters.sort()
-    
+
     return readname_to_haplotype, known_reads, clusters
 
 
@@ -284,7 +284,7 @@ def check_split_list_information(split_file, exit_stack, split_by = "haplotype")
     if split_by == 'cluster':
         line_parser = _three_column_parser
         return split_list, has_chrom_info, line_parser
-    
+
     try:
         _, _, _, _ = first_line.split("\t")[:4]
         line_parser = _four_column_parser
@@ -371,7 +371,7 @@ def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, outpu
     elif input_format in ['FASTQ', 'FASTA', 'GFA']:
         input_reader = exit_stack.enter_context(open(reads_file, 'r')) if input_format == "GFA" else \
         exit_stack.enter_context(pysam.FastxFile(reads_file))
-        
+
         input_mode = "wb"
         if not (reads_file.endswith(".gz") or reads_file.endswith(".gzip")):
             input_mode = "w"
