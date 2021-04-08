@@ -3,22 +3,13 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  build:
-    timeout-minutes: 15
+  lint:
+    timeout-minutes: 10
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.6, 3.7, 3.8]
-        toxenv: [py]
-        include:
-        - python-version: 3.7
-          toxenv: flake8
-        - python-version: 3.7
-          toxenv: docs
-        - python-version: 3.7
-          toxenv: twinecheck
-        - python-version: 3.7
-          toxenv: black
+        python-version: [3.7]
+        toxenv: [flake8, docs, twinecheck, black]
     steps:
     - uses: actions/checkout@v2
     - name: Set up Python ${{ matrix.python-version }}
@@ -26,9 +17,23 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        python -m pip install tox
+      run: python -m pip install tox
+    - name: Run tox ${{ matrix.toxenv }}
+      run: tox -e ${{ matrix.toxenv }}
+
+  test:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.6, 3.7, 3.8]
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: python -m pip install tox
     - name: Test with tox
-      run: |
-        tox -e ${{ matrix.toxenv }}
+      run: tox -e py
