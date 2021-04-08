@@ -51,13 +51,25 @@ jobs:
       uses: actions/setup-python@v2
       with:
         python-version: 3.7
-    - name: Make distributions
+    - name: Build wheels
+      uses: joerick/cibuildwheel@v1.10.0
+      with:
+        output-dir: dist/
+      env:
+        CIBW_BUILD: "cp3*-*"
+        CIBW_SKIP: "*-manylinux_i686"
+        CIBW_TEST_SKIP: "cp39-*"  # pysam wheel missing
+        CIBW_TEST_REQUIRES: "pytest"
+        CIBW_TEST_COMMAND: |
+            cd {project}
+            pytest tests/test_run_phase.py
+    - name: Make sdist
       run: |
         python -m pip install Cython
         python setup.py sdist
         ls -l dist/
     - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@v1.4.1
+      uses: pypa/gh-action-pypi-publish@v1.4.2
       with:
         user: __token__
         #password: ${{ secrets.pypi_password }}
