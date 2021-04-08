@@ -57,6 +57,9 @@ def add_arguments(parser):
         help='Tab-separated list with (at least) two columns <readname> and <haplotype>, or at least '
             'three columns <readname>, <chromosome-direction cluster>, and <chromosome cluster> (can be gzipped). '
             'Currently, the two haplotypes have to be named H1 and H2 (or none), and clusters must be integer. '
+            'Chromosome/direction clusters indicate the original chromosome and forward/backward direction of reads. '
+            'Each of these cluster columns should be a set of integers in the range [1:n], where n is the number of clusters. '
+            'For example in female human genome, the range of second and third columns are [1:46] and [1:23], respectively. '
             'For haplotype list file, the output of the "haplotag" command can be used alternatively (4 columns), '
             'and this is required for using the "--only-largest-block" option (need phaseset and chromosome info).')
 # fmt: on
