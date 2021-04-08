@@ -173,63 +173,37 @@ used is a bit different from the one used on Read the Docs.
 Making a release
 ----------------
 
-If this is the first time you attempt to upload a distribution to PyPI, create a
-configuration file named ``.pypirc`` in your home directory with the following
-contents::
-
-    [distutils]
-    index-servers =
-        pypi
-
-    [pypi]
-    username=my-user-name
-    password=my-password
-
-See also `this blog post about getting started with
-PyPI <http://peterdowns.com/posts/first-time-with-pypi.html>`_. In particular,
-note that a ``%`` in your password needs to be doubled and that the password
-must *not* be put between quotation marks even if it contains spaces.
-
-#. Set the correct version number in the changelog. Ensure that the list of changes is up-to-date.
+#. Update ``CHANGES.rst``: Set the correct version number and ensure that
+   all nontrivial, user-visible changes are listed.
 
 #. Ensure you have no uncommitted changes in the working copy.
 
-#. Run ``tox``, ensuring all tests pass.
+#. Run ``tox``.
 
 #. Tag the current commit with the version number (there must be a ``v`` prefix)::
 
-       git tag v0.1
+       git tag -a -m "Version 0.1" v0.1
 
-#. Create a distribution (``.tar.gz`` file), ensuring that the auto-generated version number in
-   the tarball is as you expect it::
+   To release a development version, use a ``dev`` version number such as
+   ``v0.17.dev1``.
+   Users will only get these when they use ``pip install --pre``.
 
-       python3 setup.py sdist
-
-#. Build wheels (``.whl`` files). Docker needs to be installed for this::
-
-       ./buildwheels.sh
-
-#. Upload the distribution to PyPI::
-
-       twine upload dist/whatshap-x.yz{.tar.gz,-*.whl}
-
-   You may need to install the ``twine`` tool to run this command.
 #. Push the tag::
 
        git push --tags
 
-#. Update the `bioconda recipe <https://github.com/bioconda/bioconda-recipes/blob/master/recipes/whatshap/meta.yaml>`_.
-   It is probly easiest to edit the recipe via the web interface and send in a
-   pull request. Ensure that the list of dependencies (the ``requirements:``
-   section in the recipe) is in sync with the ``setup.py`` file.
+#. Wait for the GitHub Action to finish. It will deploy the sdist and wheels to
+   PyPI if everything worked correctly.
 
-   Since this is just a version bump, the pull request does not need a
-   review by other bioconda developers. As soon as the tests pass and if you
-   have the proper permissions, it can be merged directly.
+#. Update the `Bioconda recipe <https://github.com/bioconda/bioconda-recipes/blob/master/recipes/whatshap/meta.yaml>`_. It is easiest to wait for the Bioconda bot to open a PR. Ensure
+   that the list of dependencies (the ``requirements:``
+   section in the recipe) is in sync with the ``setup.py`` file. If changes are
+   necessary to the bot-generated PR, just add your own commits to that PR.
 
 If something went wrong, fix the problem and follow the above instructions again,
 but with an incremented revision in the version number. That is, go from version
-x.y to x.y.1. Do not change a version that has already been uploaded.
+x.y to x.y.1. PyPI will not allow you to change a version that has already been
+uploaded.
 
 
 Adding a new subcommand
