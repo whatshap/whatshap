@@ -1,4 +1,4 @@
-.. image:: https://img.shields.io/pypi/v/whatshap.svg?branch=master
+.. image:: https://img.shields.io/pypi/v/whatshap.svg?branch=main
     :target: https://pypi.python.org/pypi/whatshap
 
 .. image:: https://github.com/whatshap/whatshap/workflows/CI/badge.svg
@@ -8,7 +8,7 @@
 
 |
 
-.. image:: https://github.com/whatshap/whatshap/raw/master/logo/whatshap_logo.png
+.. image:: https://github.com/whatshap/whatshap/raw/main/logo/whatshap_logo.png
 
 |
 
