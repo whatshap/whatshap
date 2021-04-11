@@ -358,8 +358,10 @@ def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, outpu
     output_file_names = [output_untagged, output_h1, output_h2]
     if output_folder is None:
         output_folder = os.path.dirname(reads_file)
-    if split_by == 'cluster':
-        output_prefix, ext = os.path.basename(reads_file).split('.')
+    if split_by == "cluster":
+        base_name = os.path.basename(reads_file)
+        ext_idx = base_name.rindex(".")
+        output_prefix, ext = base_name[:ext_idx], base_name[ext_idx+1:]
         output_suffix = ['_'+str(x) for x in clusters]
         output_file_names = [os.path.join(output_folder, output_prefix+suffix+'.'+ext) for suffix in output_suffix]
 
@@ -581,3 +583,4 @@ def run_split(
 
 def main(args):
     run_split(**vars(args))
+
