@@ -504,12 +504,15 @@ def run_split(
 
             if discard_unknown_reads and any([read not in known_reads for read in read_name]):
                 if read_length is not None:
-                    read_counter['unknown_reads'] += 1
+                    read_counter["unknown_reads"] += 1
                 continue
             read_haplotype = []
             for read in read_name:
                 read_haplo = readname_to_haplotype[read] if read in readname_to_haplotype else 0
                 read_haplotype.append(read_haplo)
+            if split_by == "cluster" and 0 in read_haplotype:
+                # skip reads with none clusters
+                continue
             if len(set(read_haplotype)) > 1 and 0 not in read_haplotype:
                 # the two ends of the edge have different not-none haplotypes/clusters
                 continue
@@ -583,4 +586,3 @@ def run_split(
 
 def main(args):
     run_split(**vars(args))
-
