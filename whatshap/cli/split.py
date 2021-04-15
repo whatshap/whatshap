@@ -360,10 +360,12 @@ def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, outpu
         output_folder = os.path.dirname(reads_file)
     if split_by == "cluster":
         base_name = os.path.basename(reads_file)
+        gz_ext = ""
+        if base_name.endswith('.gz'):
+            base_name, gz_ext = base_name[:-3], ".gz"
         ext_idx = base_name.rindex(".")
-        output_prefix, ext = base_name[:ext_idx], base_name[ext_idx+1:]
-        output_suffix = ['_'+str(x) for x in clusters]
-        output_file_names = [os.path.join(output_folder, output_prefix+suffix+'.'+ext) for suffix in output_suffix]
+        output_prefix, ext = base_name[:ext_idx], base_name[ext_idx:]
+        output_file_names = [os.path.join(output_folder, output_prefix+'_'+str(x)+ext+gz_ext) for x in clusters]
 
     if input_format == "BAM":
         input_reader = exit_stack.enter_context(
