@@ -377,8 +377,9 @@ def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, outpu
         )
         input_iter = _bam_iterator
         output_writers = dict()
-        for hap, outfile in enumerate([output_untagged, output_h1, output_h2]):
-            output_writers[hap] = exit_stack.enter_context(
+        for hap, outfile in enumerate(output_file_names):
+            output_idx = hap if split_by == "haplotype" else hap+1
+            output_writers[output_idx] = exit_stack.enter_context(
                 pysam.AlignmentFile(
                     os.devnull if outfile is None else outfile, mode="wb", template=input_reader
                 )
