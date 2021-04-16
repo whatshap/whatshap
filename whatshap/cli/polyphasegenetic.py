@@ -16,7 +16,7 @@ from collections import namedtuple, defaultdict
 from contextlib import ExitStack
 
 from whatshap import __version__
-from whatshap.core import ClusterEditingSolver
+from whatshap.core import ClusterEditingSolver, Read, ReadSet
 from whatshap.cli import log_memory_usage, CommandLineError
 from whatshap.polyphaseplots import draw_genetic_clustering, draw_genetic_clustering_arrangement
 from whatshap.offspringscoring import get_variant_scoring
@@ -52,6 +52,7 @@ def run_polyphasegenetic(
     variant_file,
     pedigree_file,
     ploidy,
+    progeny_file=None,
     scoring_window=160,
     simplex=False,
     skip_clustering=False,
@@ -113,6 +114,18 @@ def run_polyphasegenetic(
                 allele_depth=True,
             )
         )
+        if progeny_file:
+            progeny_reader = stack.enter_context(
+                VcfReader(
+                    progeny_file,
+                    indels=indels,
+                    phases=True,
+                    genotype_likelihoods=False,
+                    ploidy=ploidy,
+                    mav=True,
+                    allele_depth=True,
+                )
+            )
 
         # exit on non-tetraploid samples
         if ploidy != 4:
@@ -122,7 +135,7 @@ def run_polyphasegenetic(
 
         # determine pedigree
         parents, co_parent, offspring = determine_pedigree(
-            pedigree_file, samples, vcf_reader.samples
+            pedigree_file, samples, vcf_reader.samples, progeny_reader.samples if progeny_file else vcf_reader.samples
         )
 
         # validate samples
@@ -143,6 +156,15 @@ def run_polyphasegenetic(
         try:
             for variant_table in vcf_reader:
                 chromosome = variant_table.chromosome
+                
+                # if progeny file provided, extract region, else just reuse main table
+                if progeny_file:
+                    main_positions = [v.position for v in variant_table.variants]
+                    progeny_table = progeny_reader.fetch(chromosome, main_positions[0], main_positions[-1])
+                    progeny_table.subset_rows_by_position(main_positions)
+                else:
+                    progeny_table = variant_table
+                
                 timers.stop("parse_vcf")
                 if (not chromosomes) or (chromosome in chromosomes):
                     logger.info("======== Working on chromosome %r", chromosome)
@@ -169,8 +191,9 @@ def run_polyphasegenetic(
                     timers.start("scoring")
                     if not skip_clustering:
                         logger.info("Scoring marker variants ...")
-                        scoring, node_to_variant, type_of_node = get_variant_scoring(
+                        scoring, node_to_variant, type_of_node, ref, alt = get_variant_scoring(
                             variant_table,
+                            progeny_table,
                             sample,
                             co_parent[sample],
                             offspring[(sample, co_parent[sample])],
@@ -219,6 +242,40 @@ def run_polyphasegenetic(
                         clustering, node_to_variant, (phasing_param.scoring_window + 1) // 2, ploidy
                     )
                     timers.stop("arrangement")
+                    
+                    # determine haplotypes
+                    accessible_positions = sorted([v.position for v in variant_table.variants])
+
+                    # for information:
+                    # accessible_position maps position (index) of variant_table to genome position
+                    # node_to_variant maps a node id of the clustering to a position (index) of the variant_table
+                    # ref and alt contain the ref- and alt-allele for a position (index) of the variant_table
+                    # haplo_skeletons contains ploidy many lists of nodes, which belong to the same haplotype
+                    
+                    components[sample] = {}
+                    superreads[sample] = ReadSet()
+                    for i in range(phasing_param.ploidy):
+                        superreads[sample].add(Read("superread {}".format(i + 1), 0, 0))
+                        
+                    signals_per_pos = defaultdict(list)
+                    for i, hap in enumerate(haplo_skeletons):
+                        for clust in hap:
+                            for node in clustering[clust]:
+                                signals_per_pos[node_to_variant[node]].append(i)
+                                
+                    phased_positions = set([pos for pos in node_to_variant])
+
+                    for pos in range(len(variant_table)):
+                        if pos not in phased_positions:
+                            continue
+                        #print("pos = {} ({}): signals = {}, alt = {}, ref = {}".format(pos, accessible_positions[pos], len(signals_per_pos[pos]), alt[pos], ref[pos]))
+                        for i in range(phasing_param.ploidy):
+                            if i in signals_per_pos[pos]:
+                                allele = alt[pos]
+                            else:
+                                allele = ref[pos]
+                            superreads[sample][i].add_variant(accessible_positions[pos], allele, 0)
+                            components[sample][accessible_positions[pos]] = accessible_positions[0]
 
                     # create plots
                     num_vars = max([max(c) for c in clustering])
@@ -236,13 +293,11 @@ def run_polyphasegenetic(
 
                 with timers("write_vcf"):
                     logger.info("======== Writing VCF")
-                    """
                     vcf_writer.write(
                         chromosome,
                         superreads,
                         components,
                     )
-                    """
                     logger.info("Done writing VCF")
                 logger.debug("Chromosome %r finished", chromosome)
                 timers.start("parse_vcf")
@@ -269,7 +324,7 @@ def run_polyphasegenetic(
     logger.info("Total elapsed time:                          %6.1f s", timers.total())
 
 
-def determine_pedigree(pedigree_file, samples, vcf_samples):
+def determine_pedigree(pedigree_file, samples, vcf_samples, progeny_samples):
 
     parents, co_parent, offspring = dict(), dict(), defaultdict(list)
     with open(pedigree_file, "r") as ped:
@@ -278,12 +333,17 @@ def determine_pedigree(pedigree_file, samples, vcf_samples):
             if len(tokens) != 3:
                 logger.error("Malformed pedigree file: {}".format(line))
                 raise CommandLineError(None)
-            for token in tokens:
+            for token in tokens[:2]:
                 if token not in vcf_samples:
                     logger.error(
-                        "Sample {} from pedigree file is not present in VCF file".format(token)
+                        "Parent sample {} from pedigree file is not present in main VCF file".format(token)
                     )
                     raise CommandLineError(None)
+            if tokens[2] not in progeny_samples:
+                logger.error(
+                    "Progeny sample {} from pedigree file is not present in progeny (or main) VCF file".format(token)
+                )
+                raise CommandLineError(None)
 
             if tokens[2] in parents:
                 logger.error(
@@ -339,9 +399,12 @@ def add_arguments(parser):
         help="VCF file with variants to be phased (can be gzip-compressed)",
     )
     arg("pedigree_file", metavar="PEDIGREE", help="Pedigree file.")
-    # arg('ploidy', metavar='PLOIDY', type=int,
-    #    help='The ploidy of the sample(s).')
-
+    arg(
+        "-P",
+        "--progeny_file",
+        required=False,
+        help="File with progeny genotypes. If not specified, information is taken from main input file."
+    )
     arg(
         "-o",
         "--output",

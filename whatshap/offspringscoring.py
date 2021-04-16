@@ -3,7 +3,7 @@ import time
 
 from math import log
 from collections import defaultdict
-from typing import List
+from typing import List, Iterable, Tuple
 from scipy.stats import binom
 from scipy.special import binom as binom_coeff
 
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def get_variant_scoring(
-    variant_table: VariantTable, parent: str, co_parent: str, offspring: List[str], phasing_param
+    variant_table: VariantTable, progeny_table: VariantTable, parent: str, co_parent: str, offspring: List[str], phasing_param
 ):
     scoring = TriangleSparseMatrix()
     max_dist = phasing_param.scoring_window
@@ -24,27 +24,39 @@ def get_variant_scoring(
         logger.error("Odd ploidy not supported!")
         return scoring
 
-    ref, alt, alt_count, alt_count_co = classify_variants(variant_table, parent, co_parent)
+    # create map to find genetic positions in progeny table
+    genpos_to_progenypos = dict()
+    for i in range(len(progeny_table)):
+        genpos = progeny_table.variants[i].position
+        if genpos:
+            genpos_to_progenypos[genpos] = i
 
+    # determine phasable variants
+    ref, alt, alt_count, alt_count_co = classify_variants(variant_table, parent, co_parent)
     num_nodes = 0
     node_to_variant = dict()
     type_of_node = []
     node_positions = []
+    progeny_positions = []
     simplex_nulliplex_nodes = []
     if phasing_param.simplex:
         allowed_pairs = [(1, 0)]
     else:
         allowed_pairs = [(1, 0), (2, 0), (1, 1)]
     for i in range(len(variant_table)):
+        genpos = variant_table.variants[i].position
+        if genpos not in genpos_to_progenypos:
+            continue
         if alt[i] is None:
+            continue
+        if (alt_count[i], alt_count_co[i]) not in allowed_pairs:
             continue
         if alt_count[i] == 1 and alt_count_co[i] == 0:
             simplex_nulliplex_nodes.append(num_nodes)
-        if (alt_count[i], alt_count_co[i]) not in allowed_pairs:
-            continue
         for j in range(alt_count[i]):
             node_to_variant[num_nodes] = i
             node_positions.append(i)
+            progeny_positions.append(genpos_to_progenypos[genpos])
             type_of_node.append((alt_count[i], alt_count_co[i]))
             num_nodes += 1
 
@@ -62,9 +74,9 @@ def get_variant_scoring(
             t = time.time()
         off_gl.append(
             compute_gt_likelihoods(
-                variant_table,
+                progeny_table,
                 off,
-                node_positions,
+                zip(node_positions, progeny_positions),
                 ref,
                 alt,
                 alt_count,
@@ -132,7 +144,7 @@ def get_variant_scoring(
     )
     """
 
-    return scoring, node_positions, type_of_node
+    return scoring, node_positions, type_of_node, ref, alt
 
 
 def classify_variants(variant_table: VariantTable, parent: str, co_parent: str):
@@ -217,9 +229,9 @@ def compute_gt_likelihood_priors(ploidy):
 
 
 def compute_gt_likelihoods(
-    variant_table: VariantTable,
+    progeny_table: VariantTable,
     offspring: str,
-    positions: List[int],
+    position_pairs: Iterable[Tuple[int,int]],
     ref_alleles: List[int],
     alt_alleles: List[int],
     alt_counts: List[int],
@@ -229,23 +241,23 @@ def compute_gt_likelihoods(
     err: float,
 ):
     gt_likelihoods = []
-    allele_depths = variant_table.allele_depths_of(offspring)
+    allele_depths = progeny_table.allele_depths_of(offspring)
 
     binom_cache = [dict() for _ in range(ploidy + 1)]
     prev_pos = -1
 
-    for pos in positions:
-        if pos == prev_pos:
+    for parent_pos, progeny_pos in position_pairs:
+        if progeny_pos == prev_pos:
             gt_likelihoods.append(gt_likelihoods[-1])
             continue
         gl = defaultdict(float)
         gl = [0.0 for _ in range(0, ploidy+1)]
-        ref = ref_alleles[pos]
-        alt = alt_alleles[pos]
-        ref_dp = allele_depths[pos][ref] if len(allele_depths[pos]) > ref else 0
-        alt_dp = allele_depths[pos][alt] if len(allele_depths[pos]) > alt else 0
-        num_alts_parent = alt_counts[pos]
-        num_alts_coparent = alt_co_counts[pos]
+        ref = ref_alleles[parent_pos]
+        alt = alt_alleles[parent_pos]
+        ref_dp = allele_depths[progeny_pos][ref] if len(allele_depths[progeny_pos]) > ref else 0
+        alt_dp = allele_depths[progeny_pos][alt] if len(allele_depths[progeny_pos]) > alt else 0
+        num_alts_parent = alt_counts[parent_pos]
+        num_alts_coparent = alt_co_counts[parent_pos]
         if ref_dp + alt_dp >= ploidy:
             for i in range(0, ploidy + 1):
                 if (alt_dp, ref_dp + alt_dp) not in binom_cache[i]:
@@ -259,7 +271,7 @@ def compute_gt_likelihoods(
         else:
             gl = None
         gt_likelihoods.append(gl)
-        prev_pos = pos
+        prev_pos = progeny_pos
         
     del allele_depths
     del binom_cache
