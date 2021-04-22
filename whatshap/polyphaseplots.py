@@ -355,7 +355,7 @@ def plot_haplotype_dissimilarity(
 
         chunk = 24
         padding = int(
-            readlen // 2
+            readlen // 6
         )  # dissimilarity of position i is averaged over interval of 2*padding base pairs (not positions)
 
         if genome_space:
