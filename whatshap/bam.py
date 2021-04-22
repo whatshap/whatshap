@@ -44,12 +44,12 @@ class SampleBamReader:
     (bai/crai).
     """
 
-    def __init__(self, path, *, source_id=0, reference=None):
+    def __init__(self, path: str, *, source_id: int = 0, reference: Optional[str] = None):
         """
         path -- URL or path to BAM or CRAM file
         reference -- optional path to FASTA reference for CRAM
         """
-        self.source_id = source_id
+        self.source_id: int = source_id
         if reference:
             reference = os.path.abspath(reference)
 
@@ -72,10 +72,10 @@ class SampleBamReader:
         self._references = frozenset(self._samfile.references)
         self._initialize_sample_to_group_ids()
 
-    def has_reference(self, name):
+    def has_reference(self, name: str) -> bool:
         return name in self._references
 
-    def _initialize_sample_to_group_ids(self):
+    def _initialize_sample_to_group_ids(self) -> None:
         """
         Create a dictionary that maps a sample name to a set of read group ids.
         """
@@ -93,11 +93,11 @@ class SampleBamReader:
                 )
         self._sample_to_group_ids = {id: frozenset(values) for id, values in samples.items()}
 
-    def has_sample(self, sample):
+    def has_sample(self, sample: str) -> bool:
         """Return whether this file contains reads for the given sample"""
         return sample in self._sample_to_group_ids
 
-    def fetch(self, reference, sample, start=0, end=None):
+    def fetch(self, reference: str, sample: str, start: int = 0, end: Optional[int] = None):
         """
         Yield instances of AlignmentWithSourceID, with source_id value given
         at construction time.
@@ -125,7 +125,7 @@ class SampleBamReader:
                 if bam_read.opt("RG") in read_groups:
                     yield AlignmentWithSourceID(self.source_id, bam_read)
 
-    def close(self):
+    def close(self) -> None:
         self._samfile.close()
 
 
@@ -135,11 +135,11 @@ class ComparableAlignedSegment:
     AlignedSegment instances do not support this.
     """
 
-    def __init__(self, aligned_segment, source_id):
-        self.segment = aligned_segment
-        self.source_id = source_id
+    def __init__(self, aligned_segment: pysam.AlignedSegment, source_id: int):
+        self.segment: pysam.AlignedSegment = aligned_segment
+        self.source_id: int = source_id
 
-    def __lt__(self, other):
+    def __lt__(self, other) -> bool:
         self_pos = self.segment.reference_start
         other_pos = other.segment.reference_start
         return (self_pos < other_pos) or (
@@ -156,12 +156,18 @@ class MultiBamReader:
     is much easier.
     """
 
-    def __init__(self, paths, *, reference=None):
+    def __init__(self, paths: Iterable[str], *, reference: Optional[str] = None):
         self._readers = []
         for source_id, path in enumerate(paths):
             self._readers.append(SampleBamReader(path, source_id=source_id, reference=reference))
 
-    def fetch(self, reference=None, sample=None, start=0, end=None):
+    def fetch(
+        self,
+        reference: Optional[str] = None,
+        sample: Optional[str] = None,
+        start: int = 0,
+        end: Optional[int] = None,
+    ):
         """
         Yield reads from the specified region in all the opened CRAM/BAM files,
         merging them on the fly. Each CRAM/BAM file must be indexed.
@@ -187,9 +193,9 @@ class MultiBamReader:
         for it in heapq.merge(*iterators):
             yield AlignmentWithSourceID(it.source_id, it.segment)
 
-    def has_reference(self, name):
+    def has_reference(self, name: str) -> bool:
         return all(reader.has_reference(name) for reader in self._readers)
 
-    def close(self):
+    def close(self) -> None:
         for f in self._readers:
             f.close()

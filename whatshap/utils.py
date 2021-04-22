@@ -1,7 +1,7 @@
 import gzip
 import logging
 from collections import defaultdict
-from typing import Optional
+from typing import Optional, DefaultDict
 
 import pyfaidx
 from dataclasses import dataclass
@@ -98,10 +98,10 @@ class Region:
         return Region(chromosome, start, end)
 
 
-_warning_count = defaultdict(int)
+_warning_count: DefaultDict[str, int] = defaultdict(int)
 
 
-def warn_once(logger, msg: str, *args):
+def warn_once(logger, msg: str, *args) -> None:
     if _warning_count[msg] == 0 and not logger.isEnabledFor(logging.DEBUG):
         logger.warning(msg + " Hiding further warnings of this type, use --debug to show", *args)
     else:
