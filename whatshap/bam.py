@@ -1,15 +1,20 @@
 import os
 from urllib.parse import urlparse
+from typing import Optional, Iterable
 
 import pysam
 import logging
 import heapq
-from collections import defaultdict, namedtuple
-
+from collections import defaultdict
+from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-AlignmentWithSourceID = namedtuple("AlignmentWithSourceID", ["source_id", "bam_alignment"])
+
+@dataclass
+class AlignmentWithSourceID:
+    source_id: int
+    bam_alignment: pysam.AlignedSegment
 
 
 class AlignmentFileNotIndexedError(Exception):
