@@ -2,6 +2,7 @@ import itertools as it
 import logging
 from collections import defaultdict
 from .core import HaploThreader
+from math import ceil, log
 
 logger = logging.getLogger(__name__)
 
@@ -56,18 +57,10 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
     # phase cluster snps
     haplotypes = phase_cluster_snps(path, haplotypes, cwise_snps, clustering, readset, index, window_size=5)
 
-    # we can look at the sequences again to use the most likely continuation, when two or more clusters switch at the same position
-    num_clusters = len(clustering)
-    c_to_c_global = compute_cluster_to_cluster_similarity(
-        readset, clustering, index, consensus, cov_map
-    )
-    path, haplotypes = improve_path_on_multiswitches(path, haplotypes, num_clusters, c_to_c_global)
+    # we can look at the sequences again to use the most likely continuation for ambiguous haplotype switches
+    path, haplotypes = improve_path_on_ambiguous_switches(path, haplotypes, clustering, readset, index)
 
-    # we can look at the sequences again to use the most likely continuation, when a haplotype leaves a collapsed cluster (currently inactive)
-    #path, haplotypes = improve_path_on_collapsedswitches_new(path, haplotypes, clustering, readset, index)
-    path, haplotypes = improve_path_on_collapsedswitches(path, haplotypes, num_clusters, c_to_c_global)
-
-    cut_positions, haploid_cuts = compute_cut_positions(path, block_cut_sensitivity, num_clusters)
+    cut_positions, haploid_cuts = compute_cut_positions(path, block_cut_sensitivity, len(clustering))
 
     logger.debug("Cut positions: {}".format(cut_positions))
     for i in range(ploidy):
@@ -337,247 +330,7 @@ def compute_cut_positions(path, block_cut_sensitivity, num_clusters):
     return cut_positions, haploid_cut_positions
 
 
-def compute_cluster_to_cluster_similarity(readset, clustering, index, consensus, cov_map):
-    """
-    For every position p, compute the similarity between present clusters at position p-1 and
-    clusters at position p. Format is: c_to_c_sim[position][(cluster_p-1, cluster_p)]
-    """
-    num_vars = len(consensus)
-    num_clusters = len(clustering)
-    coverage_abs = get_coverage_absolute(readset, clustering, index)
-    c_to_c_sim = [defaultdict(float) for _ in range(num_vars)]
-
-    cluster_zeroes = [dict() for c_id in range(num_clusters)]
-    cluster_ones = [dict() for c_id in range(num_clusters)]
-    for pos in range(num_vars):
-        for c_id in consensus[pos]:
-            cluster_zeroes[c_id][pos] = coverage_abs[pos][c_id] * (1 - consensus[pos][c_id])
-            cluster_ones[c_id][pos] = coverage_abs[pos][c_id] * consensus[pos][c_id]
-
-    for var in range(1, num_vars):
-        for i, c1 in enumerate(cov_map[var - 1]):
-            for j, c2 in enumerate(cov_map[var]):
-                same = 0
-                diff = 0
-                # Use a sliding window of positions as basis for consensus similarity
-                for pos in range(max(0, var - 10), min(num_vars - 1, var + 9)):
-                    if pos in cluster_zeroes[c1] and pos in cluster_zeroes[c2]:
-                        same += (
-                            cluster_zeroes[c1][pos] * cluster_zeroes[c2][pos]
-                            + cluster_ones[c1][pos] * cluster_ones[c2][pos]
-                        )
-                        diff += (
-                            cluster_zeroes[c1][pos] * cluster_ones[c2][pos]
-                            + cluster_ones[c1][pos] * cluster_zeroes[c2][pos]
-                        )
-                c_to_c_sim[var][(c1, c2)] = same / (same + diff) if same > 0 else 0
-
-    return c_to_c_sim
-
-
-def improve_path_on_multiswitches(path, haplotypes, num_clusters, cluster_sim):
-    """
-    Post processing step after the threading. If two or more haplotypes switch clusters on the same position, we could use
-    the similarity scores between the clusters to find the most likely continuation of the switching haplotypes. See the
-    description of the compute_cut_positions method for more details about block cuts.
-    """
-
-    if len(path) == 0:
-        return []
-
-    ploidy = len(path[0])
-    corrected_path = []
-    corrected_path.append(path[0])
-    corrected_haplotypes = [[haplotypes[i][0]] for i in range(ploidy)]
-    current_perm = tuple(range(ploidy))
-    inverse_perm = [i for i in range(ploidy)]
-
-    for i in range(1, len(path)):
-        changed = []  # set of haplotypes, that changed cluster at current position
-        for j in range(0, ploidy):
-            old_c = path[i - 1][j]
-            new_c = path[i][j]
-            if old_c != new_c:
-                # count general switches
-                changed.append(j)
-
-        if len(changed) >= 2:
-            # if at least two threads changed cluster: find optimal permutation of changed clusters
-            left_c = [path[i - 1][j] for j in changed]
-            right_c = [path[i][j] for j in changed]
-            actual_score = sum(
-                [cluster_sim[i][(left_c[j], right_c[j])] for j in range(len(changed))]
-            )
-            best_score = actual_score
-            best_perm = tuple(range(len(changed)))
-            for perm in it.permutations(range(len(changed))):
-                score = 0
-                for j, left in enumerate(left_c):
-                    score += cluster_sim[i][(left, right_c[perm[j]])]
-                if score > best_score:
-                    best_score = score
-                    best_perm = perm
-
-            # apply local best permutation to current global permutation
-            current_perm_copy = list(current_perm)
-            for j in range(len(changed)):
-                current_perm_copy[changed[j]] = current_perm[changed[best_perm[j]]]
-            current_perm = tuple(current_perm_copy)
-            for j in range(ploidy):
-                inverse_perm[current_perm[j]] = j
-
-        # apply current optimal permutation to local cluster config and add to corrected path
-        corrected_path.append([path[i][j] for j in inverse_perm])
-        for j in range(len(inverse_perm)):
-            corrected_haplotypes[j].append(haplotypes[inverse_perm[j]][i])
-
-    return corrected_path, corrected_haplotypes
-
-
-def improve_path_on_collapsedswitches(path, haplotypes, num_clusters, cluster_sim):
-    """
-    Post processing step after the threading. If a haplotype leaves a cluster on a collapsed region, we could use the
-    similarity scores between the clusters to find the most likely continuation of the switching haplotypes. See the
-    description of the compute_cut_positions method for more details about block cuts.
-    """
-    if len(path) == 0:
-        return []
-
-    ploidy = len(path[0])
-    corrected_path = []
-    corrected_path.append(path[0])
-    corrected_haplotypes = [[haplotypes[i][0]] for i in range(ploidy)]
-    current_perm = tuple(range(ploidy))
-    inverse_perm = [i for i in range(ploidy)]
-
-    copynrs = []
-    for i in range(0, len(path)):
-        copynr = defaultdict(int)
-        for j in range(0, ploidy):
-            if path[i][j] not in copynr:
-                copynr[path[i][j]] = 0
-            copynr[path[i][j]] += 1
-        copynrs.append(copynr)
-
-    for i in range(1, len(path)):
-        changed = []
-        # iterate over present cluster ids
-        for c_id in copynrs[i]:
-            if copynrs[i - 1][c_id] >= 2:
-                # for all collapsed clusters: find haplotypes, which go through and check whether one of them exits
-                outgoing_c = False
-                affected = []
-                for j in range(ploidy):
-                    if path[i - 1][j] == c_id:
-                        affected.append(j)
-                        if path[i][j] != c_id:
-                            outgoing_c = True
-                # if haplotypes leaves collapsed cluster, all other might be equally suited, so add them
-                if outgoing_c:
-                    changed.append(affected)
-
-        for h_group in changed:
-            # for every group of haplotypes coming from a collapsed cluster:
-
-            """ # before new07
-            collapsed_cid = path[i - 1][h_group[0]]
-            # find last cluster before collapsed one for every haplotype (or use collapsed one if this does not exist)
-            left_c = []
-
-            # find last cluster before collapsed one for every haplotype (or use collapsed one if this does not exist)
-            for j in h_group:
-                pos = i - 1
-                while pos >= 0:
-                    if path[pos][j] != collapsed_cid:
-                        left_c.append(path[pos][j])
-                        break
-                    else:
-                        pos -= 1
-                if pos == -1:
-                    left_c.append(collapsed_cid)
-            right_c = [path[i][j] for j in h_group]
-
-            # we need to catch the case, where we compare a cluster with itself
-
-            ident_sim = 0
-            for c1 in left_c:
-                for c2 in right_c:
-                    if c1 != c2:
-                        ident_sim = max(ident_sim, cluster_sim[i][(c1, c2)])
-            ident_sim = ident_sim * 2 + 1
-
-            for j in range(len(h_group)):
-                actual_score = sum(
-                    [
-                        cluster_sim[i][(left_c[j], right_c[j])]
-                        if left_c[j] != right_c[j]
-                        else ident_sim
-                        for j in range(len(h_group))
-                    ]
-                )
-            best_score = actual_score
-            best_perm = tuple(range(len(h_group)))
-            for perm in it.permutations(range(len(h_group))):
-                score = 0
-                for j, left in enumerate(left_c):
-                    score += (
-                        cluster_sim[i][(left, right_c[perm[j]])]
-                        if left != right_c[perm[j]]
-                        else ident_sim
-                    )
-                if score > best_score:
-                    best_score = score
-                    best_perm = perm
-            """
-
-            # find the position, where each of the cluster joined the collapsing one (introduced in new07)
-            collapsed_cid = path[i - 1][h_group[0]]
-            joined = []
-            left_c = []
-            for j in h_group:
-                pos = i - 1
-                while pos >= 0:
-                    if path[pos][j] != collapsed_cid:
-                        joined.append(pos)
-                        left_c.append(path[pos][j])
-                        break
-                    else:
-                        pos -= 1
-                if pos == -1:
-                    joined.append(pos)
-                    left_c.append(collapsed_cid)
-            next_c = [path[i][j] for j in h_group]
-
-            best_score = 0
-            best_perm = tuple(range(len(h_group)))
-            for perm in it.permutations(range(len(h_group))):
-                score = 0
-                for j, (pos, left) in enumerate(zip(joined, left_c)):
-                    if collapsed_cid != next_c[perm[j]]:
-                        score += 2 * joined[j]
-                        if left == next_c[perm[j]]:
-                            score += 1
-                if score > best_score:
-                    best_score = score
-                    best_perm = perm
-
-            # apply local best permutation to current global permutation
-            current_perm_copy = list(current_perm)
-            for j in range(len(h_group)):
-                current_perm_copy[h_group[j]] = current_perm[h_group[best_perm[j]]]
-            current_perm = tuple(current_perm_copy)
-            for j in range(ploidy):
-                inverse_perm[current_perm[j]] = j
-
-        # apply current optimal permutation to local cluster config and add to corrected path
-        corrected_path.append([path[i][j] for j in inverse_perm])
-        for j in range(len(inverse_perm)):
-            corrected_haplotypes[j].append(haplotypes[inverse_perm[j]][i])
-
-    return corrected_path, corrected_haplotypes
-
-
-def improve_path_on_collapsedswitches_new(path, haplotypes, clustering, readset, index):
+def improve_path_on_ambiguous_switches(path, haplotypes, clustering, readset, index, error_rate=0.07, window_size=10):
     """
     Post processing step after the threading. If a haplotype leaves a cluster on a collapsed region, we could use
     read information to find the most likely continuation of the switching haplotypes.
@@ -599,103 +352,181 @@ def improve_path_on_collapsedswitches_new(path, haplotypes, clustering, readset,
     for i in range(0, len(path)):
         copynr = defaultdict(int)
         for j in range(0, ploidy):
-            if path[i][j] not in copynr:
-                copynr[path[i][j]] = 0
             copynr[path[i][j]] += 1
         copynrs.append(copynr)
 
     for i in range(1, len(path)):
-        changed = []
+        # append next position using current permutation
+        corrected_path.append([path[i][j] for j in inverse_perm])
+        for j in range(len(inverse_perm)):
+            corrected_haplotypes[j].append(haplotypes[inverse_perm[j]][i])
+        
         # iterate over present cluster ids
+        changed = set()
         for c_id in copynrs[i]:
             if copynrs[i - 1][c_id] >= 2:
                 # for all collapsed clusters: find haplotypes, which go through and check whether one of them exits
                 outgoing_c = False
                 affected = []
                 for j in range(ploidy):
-                    if path[i - 1][j] == c_id:
+                    if corrected_path[i - 1][j] == c_id:
                         affected.append(j)
-                        if path[i][j] != c_id:
+                        if corrected_path[i][j] != c_id:
                             outgoing_c = True
                 # if haplotypes leaves collapsed cluster, all other might be equally suited, so add them
                 if outgoing_c:
-                    changed.append(affected)
+                    for h in affected:
+                        changed.add(h)
 
-        for h_group in changed:
-            # for every group of haplotypes coming from a collapsed cluster:
-            # find the position, where each of the cluster joined the collapsing one (introduced in new07)
-            collapsed_cid = path[i - 1][h_group[0]]
-            next_c = [path[i][j] for j in h_group]
-            
-            print("Collapsed cut on position {} on haplotypes {}:".format(i, h_group))
-            print("   Cluster {} continued on {}:".format(collapsed_cid, next_c))
-            
-            # determine relevant reads for clusters at next position
-            relevant_reads = defaultdict(list)
-            for cid in set(next_c):
-                for rid in clustering[cid]:
-                    read = readset[rid]
-                    covered_before, covered_after = 0, 0
-                    for j in range(len(read)):
-                        if index[read[j].position] < i:
-                            covered_before += 1
-                        else:
-                            break
-                    if covered_before < 2:
-                        continue
-                    for j in range(len(read) - 1, 0, -1):
-                        if index[read[j].position] >= i:
-                            covered_after += 1
-                        else:
-                            break
-                    if covered_after < 2:
-                        continue
-                    relevant_reads[cid].append(rid)
-                print("   Cluster {} has {} relevant reads".format(cid, len(relevant_reads[cid])))
-            
-            # determine number of matches for upcoming clusters against haplotypes in collapsed clusters
-            matches = defaultdict(int)
-            for h in h_group:
-                for cid in set(next_c):
-                    score = 0
-                    for rid in relevant_reads[cid]:
-                        for variant in readset[rid]:
-                            pos = index[variant.position]
-                            if pos >= i:
-                                break
-                            if corrected_haplotypes[current_perm[h]][pos] == variant.allele:
-                                score += 1
-                            else:
-                                score -= 1
-                    matches[(h, cid)] = score
-                    print("   {} matches for cluster {} on haplotype {}".format(score, cid, h))
-                    
-            # find permutations of haplotypes and clusters with the highest overall score
-            best_score = 0
-            best_perm = tuple(range(len(h_group)))
-            for perm in it.permutations(range(len(h_group))):
-                score = 0
-                for j, k in enumerate(perm):
-                    score += matches[(h_group[j], next_c[k])]
-                if score > best_score:
-                    best_score = score
-                    best_perm = perm
+        for j in range(ploidy):
+            if corrected_path[i - 1][j] != corrected_path[i][j]:
+                changed.add(j)
 
-            print("   Best permutation is {} with score {}".format(best_perm, best_score))
-            # apply local best permutation to current global permutation
-            current_perm_copy = list(current_perm)
-            for j in range(len(h_group)):
-                current_perm_copy[h_group[j]] = current_perm[h_group[best_perm[j]]]
-            current_perm = tuple(current_perm_copy)
-            for j in range(ploidy):
-                inverse_perm[current_perm[j]] = j
+        # if only haplotype switched cluster and only from non-collapsed cluster: skip
+        if len(changed) < 2:
+            continue
 
-        # apply current optimal permutation to local cluster config and add to corrected path
-        corrected_path.append([path[i][j] for j in inverse_perm])
+        # compute the optimal permutation of changing haplotypes, according to read information
+        h_group = list(changed)
+        configs = solve_single_ambiguous_site(corrected_path, haplotypes, corrected_haplotypes, inverse_perm, clustering, readset, index, i, h_group, error_rate, window_size)
+        
+        # if multiple optimal configs exist: let the most recently haplotypes switch
+        opt_perms = [config[0] for config in configs if config[1] == configs[0][1]]
+        if len(opt_perms) > 1:
+            best_perm = tie_break_optimal_permutations(corrected_path, i, h_group, opt_perms)
+        else:
+            best_perm = configs[0][0]
+
+        #print("   Best permutation is {} with score {}".format(best_perm, configs[0][1]))
+        #print("   Second best permutation is {} with score {}".format(configs[1][0] if best_perm == configs[0][0] else configs[0][0], configs[1][1]))
+            
+        # apply local best permutation to current global permutation
+        current_perm_copy = list(current_perm)
+        for j in range(len(h_group)):
+            #current_perm_copy[h_group[j]] = current_perm[h_group[best_perm[j]]]
+            current_perm_copy[inverse_perm[h_group[j]]] = h_group[best_perm[j]]
+        current_perm = tuple(current_perm_copy)
+        for j in range(ploidy):
+            inverse_perm[current_perm[j]] = j
+
+        # correct current position according to updated permutation
         for j in range(len(inverse_perm)):
-            corrected_haplotypes[j].append(haplotypes[inverse_perm[j]][i])
+            corrected_path[i][j] = path[i][inverse_perm[j]]
+            corrected_haplotypes[j][i] = haplotypes[inverse_perm[j]][i]
 
+    assert len(path) == len(corrected_path)
+    assert len(haplotypes[0]) == len(corrected_haplotypes[0])
     return corrected_path, corrected_haplotypes
+
+
+def solve_single_ambiguous_site(corrected_path, haplotypes, corrected_haplotypes, hap_perm, clustering, readset, index, pos, h_group, error_rate, window_size):
+    # for every group of haplotypes coming from a collapsed cluster:
+    # find the position, where each of the cluster joined the collapsing one (introduced in new07)
+    present_c = [corrected_path[pos - 1][j] for j in h_group]
+    next_c = [corrected_path[pos][j] for j in h_group]
+    all_c = set(present_c + next_c)
+
+    #print("Collapsed cut on position {} on haplotypes {}:".format(pos, h_group))
+    #print("   h_group = {}, present_c = {}, next_c = {}".format(h_group, present_c, next_c))
+
+    het_pos_before = []
+    het_pos_after = []
+
+    j, w = pos - 1, 0
+    while w < window_size and j >= 0:
+        if any([corrected_haplotypes[h_group[0]][j] != corrected_haplotypes[h_group[k]][j] for k in range(1, len(h_group))]):
+            het_pos_before.append(j)
+            w += 1
+        j -= 1
+    j, w = pos, 0
+    het_pos_before = het_pos_before[::-1]
+    while w < window_size and j < len(haplotypes[0]):
+        if any([haplotypes[hap_perm[h_group[0]]][j] != haplotypes[hap_perm[h_group[k]]][j] for k in range(1, len(h_group))]):
+            het_pos_after.append(j)
+            w += 1
+        j += 1
+
+    het_pos = het_pos_before + het_pos_after
+    #print("   het_before = {}, het_after = {}".format(het_pos_before, het_pos_after))
+
+    # store the allele of every cluster-read for the relevant positions
+    rmat = dict()
+
+    # for each position store the supporting reads
+    readlist = []
+
+    # go over all reads and determine which snp positions they are defined on
+    if len(het_pos_before) > 0 and len(het_pos_after) > 0:
+        for cid in all_c:
+            for rid in clustering[cid]:
+                read = readset[rid]
+                if len(read) < 2:
+                    continue
+                if index[read[0].position] > het_pos_before[-1]:
+                    continue
+                if index[read[-1].position] < het_pos_after[0]:
+                    continue
+                rmat[rid] = dict()
+                j, k, b, t = 0, 0, 0, 0
+                while j < len(read) and k < len(het_pos):
+                    read_pos = index[read[j].position]
+                    if read_pos == het_pos[k]:
+                        rmat[rid][het_pos[k]] = read[j].allele
+                        b += 1 if k < len(het_pos_before) else 0
+                        t, j, k = t + 1, j + 1, k + 1
+                    elif read_pos < het_pos[k]:
+                        j += 1
+                    else:
+                        k += 1
+
+                if b > 0 and t > b:
+                    readlist.append(rid)
+
+    # reconstruct cluster phasing
+    #print("   Found {} relevant reads".format(len(readlist)))
+    configs = []
+    # enumerate all permutations of haplotypes at current positions
+    for perm in it.permutations(range(len(h_group))):
+        score = 0.0
+        # for each read: determine number of errors for best fit
+        for rid in readlist:
+            likelihood = 0.0
+            a_priori = 1 / len(h_group)
+            for slot in range(len(h_group)):
+                overlap = len(rmat[rid])
+                errors = 0
+                for j in het_pos_before:
+                    if j in rmat[rid] and corrected_haplotypes[h_group[slot]][j] != rmat[rid][j]:
+                        errors += 1
+                for j in het_pos_after:
+                    if j in rmat[rid] and haplotypes[hap_perm[h_group[perm[slot]]]][j] != rmat[rid][j]:
+                        errors += 1
+                likelihood += a_priori * ((1 - error_rate)**(overlap - errors)) * (error_rate**errors)
+            score += log(likelihood)
+        configs.append((perm, score))
+            
+    configs.sort(key=lambda x: -x[1])
+    #print("   Configs = {}".format(configs))
+    return configs
+
+
+def tie_break_optimal_permutations(corrected_path, pos, h_group, opt_perms):
+    best_perm = opt_perms[0]
+    best_score = len(corrected_path) * len(h_group) + 1
+    for perm in opt_perms:
+        score = 0
+        for j in range(len(h_group)):
+            old = h_group[j]
+            new = h_group[perm[j]]
+            i = pos - 1
+            while i >= 0 and corrected_path[i][old] != corrected_path[pos][new]:
+                i -= 1
+            score += pos - 1 - i
+        if score < best_score:
+            best_score = score
+            best_perm = perm
+            
+    return best_perm
 
 
 def get_position_map(readset):
