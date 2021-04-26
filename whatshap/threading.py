@@ -58,7 +58,7 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
     haplotypes = phase_cluster_snps(path, haplotypes, cwise_snps, clustering, readset, index, window_size=5)
 
     # we can look at the sequences again to use the most likely continuation for ambiguous haplotype switches
-    path, haplotypes = improve_path_on_ambiguous_switches(path, haplotypes, clustering, readset, index)
+    path, haplotypes = improve_path_on_ambiguous_switches(path, haplotypes, clustering, readset, index, error_rate=0.05, window_size=20)
 
     cut_positions, haploid_cuts = compute_cut_positions(path, block_cut_sensitivity, len(clustering))
 
@@ -403,7 +403,6 @@ def improve_path_on_ambiguous_switches(path, haplotypes, clustering, readset, in
         # apply local best permutation to current global permutation
         current_perm_copy = list(current_perm)
         for j in range(len(h_group)):
-            #current_perm_copy[h_group[j]] = current_perm[h_group[best_perm[j]]]
             current_perm_copy[inverse_perm[h_group[j]]] = h_group[best_perm[j]]
         current_perm = tuple(current_perm_copy)
         for j in range(ploidy):
@@ -496,10 +495,10 @@ def solve_single_ambiguous_site(corrected_path, haplotypes, corrected_haplotypes
                 overlap = len(rmat[rid])
                 errors = 0
                 for j in het_pos_before:
-                    if j in rmat[rid] and corrected_haplotypes[h_group[slot]][j] != rmat[rid][j]:
+                    if j in rmat[rid] and corrected_haplotypes[h_group[perm[slot]]][j] != rmat[rid][j]:
                         errors += 1
                 for j in het_pos_after:
-                    if j in rmat[rid] and haplotypes[hap_perm[h_group[perm[slot]]]][j] != rmat[rid][j]:
+                    if j in rmat[rid] and haplotypes[hap_perm[h_group[slot]]][j] != rmat[rid][j]:
                         errors += 1
                 likelihood += a_priori * ((1 - error_rate)**(overlap - errors)) * (error_rate**errors)
             score += log(likelihood)
@@ -516,8 +515,8 @@ def tie_break_optimal_permutations(corrected_path, pos, h_group, opt_perms):
     for perm in opt_perms:
         score = 0
         for j in range(len(h_group)):
-            old = h_group[j]
-            new = h_group[perm[j]]
+            old = h_group[perm[j]]
+            new = h_group[j]
             i = pos - 1
             while i >= 0 and corrected_path[i][old] != corrected_path[pos][new]:
                 i -= 1
