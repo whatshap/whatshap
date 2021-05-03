@@ -1,4 +1,7 @@
 import logging
+from abc import ABC, abstractmethod
+from typing import Dict
+
 from math import log
 
 from networkx import (
@@ -14,26 +17,37 @@ from whatshap.core import Read, ReadSet
 logger = logging.getLogger(__name__)
 
 
-class ReadMerger:
+class ReadMergerBase(ABC):
+    @abstractmethod
+    def merge(self, readset: ReadSet) -> ReadSet:
+        pass
+
+
+class ReadMerger(ReadMergerBase):
     def __init__(self, error_rate, max_error_rate, positive_threshold, negative_threshold):
         self._error_rate = error_rate
         self._max_error_rate = max_error_rate
         self._positive_threshold = positive_threshold
         self._negative_threshold = negative_threshold
 
-    def merge(self, readset):
+    def merge(self, readset: ReadSet) -> ReadSet:
         """
         Return a set of reads after merging together subsets of reads
         (into super reads) from an input readset according to a
         probabilistic model of how likely sets of reads are to appear
         together on one haplotype and on opposite haplotypes.
+
         readset -- the input .core.ReadSet object
+
         error_rate -- the probability that a nucleotide is wrong
+
         max_error_rate -- the maximum error rate of any edge of the read
         merging graph allowed before we discard it
+
         threshold -- the threshold of the ratio between the probabilities
-        that a pair ' 'of reads come from the same haplotype and different
+        that a pair of reads come from the same haplotype and different
         haplotypes
+
         neg_threshold -- The threshold of the ratio between the
         probabilities that a pair of reads come from the same haplotype
         and different haplotypes.
@@ -86,7 +100,6 @@ class ReadMerger:
             snps = []
             orgn = []
             for variant in read:
-
                 site = variant[0]
                 zyg = variant[1]
                 qual = variant[2]
@@ -107,7 +120,7 @@ class ReadMerger:
             gnotred.add_node(id, begin=begin, end=end, sites="".join(snps))
             queue[id] = {"begin": begin, "end": end, "sites": snps}
             reads[id] = {"begin": begin, "end": end, "sites": snps}
-            for x in [id for id in queue.keys() if queue[id]["end"] <= begin]:
+            for x in [id for id in queue.keys() if queue[id]["end"] <= begin]:  # type: ignore
                 del queue[x]
             for id1 in queue.keys():
                 if id == id1:
@@ -190,7 +203,7 @@ class ReadMerger:
 
         # Merge blue components (somehow)
         logger.debug("Started Merging Reads...")
-        superreads = {}  # superreads given by the clusters (if clustering)
+        superreads: Dict = {}  # superreads given by the clusters (if clustering)
         rep = {}  # cluster representative of a read in a cluster
 
         for cc in connected_components(gblue):
@@ -239,9 +252,8 @@ class ReadMerger:
         return merged_reads
 
 
-class DoNothingReadMerger:
-    @staticmethod
-    def merge(readset):
+class DoNothingReadMerger(ReadMergerBase):
+    def merge(self, readset):
         return readset
 
 

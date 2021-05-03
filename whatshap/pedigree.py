@@ -1,6 +1,8 @@
 """
 Pedigree-related functions
 """
+from abc import ABC, abstractmethod
+
 import math
 from typing import Optional
 from collections import Counter, OrderedDict, defaultdict
@@ -161,7 +163,13 @@ def find_recombination(transmission_vector, components, positions, recombcost):
     return event_list
 
 
-class GeneticMapRecombinationCostComputer:
+class RecombinationCostComputer(ABC):
+    @abstractmethod
+    def compute(self, positions):
+        pass
+
+
+class GeneticMapRecombinationCostComputer(RecombinationCostComputer):
     def __init__(self, genetic_map_path):
         self._genetic_map = self.load_genetic_map(genetic_map_path)
 
@@ -208,7 +216,7 @@ class GeneticMapRecombinationCostComputer:
         return recombination_cost_map(self._genetic_map, positions)
 
 
-class UniformRecombinationCostComputer:
+class UniformRecombinationCostComputer(RecombinationCostComputer):
     def __init__(self, recombination_rate):
         self._recombination_rate = recombination_rate
 

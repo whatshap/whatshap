@@ -1,4 +1,5 @@
 import os
+from abc import ABC
 from urllib.parse import urlparse
 from typing import Optional, Iterable
 
@@ -37,7 +38,11 @@ def is_local(path):
     return urlparse(path).scheme == ""
 
 
-class SampleBamReader:
+class BamReader(ABC):
+    pass
+
+
+class SampleBamReader(BamReader):
     """
     A wrapper for Samfile that provides only those reads from a BAM or CRAM file
     that belong to a specified sample. The BAM/CRAM file must have an index
@@ -147,7 +152,7 @@ class ComparableAlignedSegment:
         )
 
 
-class MultiBamReader:
+class MultiBamReader(BamReader):
     """
     Read multiple sorted CRAM/BAM files and merge them on the fly.
 

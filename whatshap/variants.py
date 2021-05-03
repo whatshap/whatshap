@@ -3,10 +3,10 @@ Detect variants in reads.
 """
 import logging
 from collections import defaultdict, Counter
-from typing import Iterable, Iterator, List
+from typing import Iterable, Iterator, List, Optional
 
-from .core import Read, ReadSet
-from .bam import SampleBamReader, MultiBamReader
+from .core import Read, ReadSet, NumericSampleIds
+from .bam import SampleBamReader, MultiBamReader, BamReader
 from .align import edit_distance, edit_distance_affine_gap
 from ._variants import _iterate_cigar
 
@@ -30,15 +30,15 @@ class ReadSetReader:
 
     def __init__(
         self,
-        paths,
-        reference,
-        numeric_sample_ids,
-        mapq_threshold=20,
-        overhang=10,
-        affine=False,
-        gap_start=10,
-        gap_extend=7,
-        default_mismatch=15,
+        paths: List[str],
+        reference: Optional[str],
+        numeric_sample_ids: NumericSampleIds,
+        mapq_threshold: int = 20,
+        overhang: int = 10,
+        affine: int = False,
+        gap_start: int = 10,
+        gap_extend: int = 7,
+        default_mismatch: int = 15,
     ):
         """
         paths -- list of BAM paths
@@ -57,6 +57,7 @@ class ReadSetReader:
         self._default_mismatch = default_mismatch
         self._overhang = overhang
         self._paths = paths
+        self._reader: BamReader
         if len(paths) == 1:
             self._reader = SampleBamReader(paths[0], reference=reference)
         else:

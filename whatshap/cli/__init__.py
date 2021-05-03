@@ -19,8 +19,6 @@ logger = logging.getLogger(__name__)
 class CommandLineError(Exception):
     """An anticipated command-line error occurred. This ends up as a user-visible error message"""
 
-    pass
-
 
 def open_readset_reader(*args, **kwargs):
     try:

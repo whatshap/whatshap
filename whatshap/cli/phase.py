@@ -14,6 +14,8 @@ from collections import defaultdict
 from copy import deepcopy
 
 from contextlib import ExitStack
+from typing import Optional, List, TextIO, Union, Dict
+
 from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VariantTable
 from whatshap import __version__
 from whatshap.core import (
@@ -33,11 +35,12 @@ from whatshap.pedigree import (
     GeneticMapRecombinationCostComputer,
     find_recombination,
     ParseError,
+    RecombinationCostComputer,
 )
 from whatshap.timer import StageTimer
 from whatshap.utils import plural_s, warn_once
 from whatshap.cli import CommandLineError, log_memory_usage, PhasedInputReader
-from whatshap.merge import ReadMerger, DoNothingReadMerger
+from whatshap.merge import ReadMerger, DoNothingReadMerger, ReadMergerBase
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -250,36 +253,36 @@ def setup_pedigree(ped_path, samples):
 
 
 def run_whatshap(
-    phase_input_files,
-    variant_file,
-    reference=False,
-    output=sys.stdout,
-    samples=None,
-    chromosomes=None,
-    ignore_read_groups=False,
-    indels=True,
-    mapping_quality=20,
-    read_merging=False,
-    read_merging_error_rate=0.15,
-    read_merging_max_error_rate=0.25,
-    read_merging_positive_threshold=1000000,
-    read_merging_negative_threshold=1000,
-    max_coverage=15,
-    distrust_genotypes=False,
-    include_homozygous=False,
-    ped=None,
-    recombrate=1.26,
-    genmap=None,
-    genetic_haplotyping=True,
-    recombination_list_filename=None,
-    tag="PS",
-    read_list_filename=None,
-    gl_regularizer=None,
-    gtchange_list_filename=None,
-    default_gq=30,
-    write_command_line_header=True,
-    use_ped_samples=False,
-    algorithm="whatshap",
+    phase_input_files: List[str],
+    variant_file: str,
+    reference: Union[None, bool, str] = False,
+    output: TextIO = sys.stdout,
+    samples: List[str] = None,
+    chromosomes: Optional[List[str]] = None,
+    ignore_read_groups: bool = False,
+    indels: bool = True,
+    mapping_quality: int = 20,
+    read_merging: bool = False,
+    read_merging_error_rate: float = 0.15,
+    read_merging_max_error_rate: float = 0.25,
+    read_merging_positive_threshold: int = 1000000,
+    read_merging_negative_threshold: int = 1000,
+    max_coverage: int = 15,
+    distrust_genotypes: bool = False,
+    include_homozygous: bool = False,
+    ped: Optional[str] = None,
+    recombrate: float = 1.26,
+    genmap: Optional[str] = None,
+    genetic_haplotyping: bool = True,
+    recombination_list_filename: Optional[str] = None,
+    tag: str = "PS",
+    read_list_filename: Optional[str] = None,
+    gl_regularizer: Optional[float] = None,
+    gtchange_list_filename: Optional[str] = None,
+    default_gq: int = 30,
+    write_command_line_header: bool = True,
+    use_ped_samples: bool = False,
+    algorithm: str = "whatshap",
 ):
     """
     Run WhatsHap.
@@ -317,11 +320,13 @@ def run_whatshap(
     timers = StageTimer()
     logger.info(f"This is WhatsHap {__version__} running under Python {platform.python_version()}")
     numeric_sample_ids = NumericSampleIds()
+    command_line: Optional[str]
     if write_command_line_header:
         command_line = "(whatshap {}) {}".format(__version__, " ".join(sys.argv[1:]))
     else:
         command_line = None
 
+    read_merger: ReadMergerBase
     if read_merging:
         read_merger = ReadMerger(
             read_merging_error_rate,
@@ -383,19 +388,10 @@ def run_whatshap(
 
         raise_if_any_sample_not_in_vcf(vcf_reader, samples)
 
-        if ped and genmap:
-            logger.info("Using region-specific recombination rates from genetic map %s.", genmap)
-            try:
-                recombination_cost_computer = GeneticMapRecombinationCostComputer(genmap)
-            except ParseError as e:
-                raise CommandLineError(e)
-        else:
-            if ped:
-                logger.info("Using uniform recombination rate of %g cM/Mb.", recombrate)
-            recombination_cost_computer = UniformRecombinationCostComputer(recombrate)
+        recombination_cost_computer = make_recombination_cost_computer(ped, genmap, recombrate)
 
-        samples = frozenset(samples)
         families, family_trios = setup_families(samples, ped, max_coverage)
+        del samples
         for trios in family_trios.values():
             for trio in trios:
                 # Ensure that all mentioned individuals have a numeric id
@@ -415,6 +411,8 @@ def run_whatshap(
             # TODO should this be done in PhasedInputReader.__init__?
             phased_input_reader.read_vcfs()
 
+        superreads: Dict[str, ReadSet]
+        components: Dict
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
             chromosome = variant_table.chromosome
             if (not chromosomes) or (chromosome in chromosomes):
@@ -527,6 +525,7 @@ def run_whatshap(
                         problem_name,
                     )
 
+                    dp_table: Union[HapChatCore, PedigreeDPTable]
                     if algorithm == "hapchat":
                         dp_table = HapChatCore(all_reads)
                     else:
@@ -725,6 +724,21 @@ def setup_families(samples, ped, max_coverage):
             "WhatsHap may take a long time to finish and require a huge amount of memory."
         )
     return families, family_trios
+
+
+def make_recombination_cost_computer(
+    ped: Optional[str], genmap: Optional[str], recombrate: float
+) -> RecombinationCostComputer:
+    if ped and genmap:
+        logger.info("Using region-specific recombination rates from genetic map %s.", genmap)
+        try:
+            return GeneticMapRecombinationCostComputer(genmap)
+        except ParseError as e:
+            raise CommandLineError(e)
+    else:
+        if ped:
+            logger.info("Using uniform recombination rate of %g cM/Mb.", recombrate)
+        return UniformRecombinationCostComputer(recombrate)
 
 
 def find_phaseable_variants(family, include_homozygous: bool, trios, variant_table: VariantTable):
@@ -1027,10 +1041,10 @@ def add_arguments(parser):
         action="store_true", default=False,
         help="Also work on homozygous variants, which might be turned to "
         "heterozygous")
-    arg("--default-gq", dest="default_gq", type=int, default=30,
+    arg("--default-gq", type=int, default=30,
         help="Default genotype quality used as cost of changing a genotype "
         "when no genotype likelihoods are available (default %(default)s)")
-    arg("--gl-regularizer", dest="gl_regularizer", type=float, default=None,
+    arg("--gl-regularizer", type=float, default=None,
         help="Constant (float) to be used to regularize genotype likelihoods read "
         "from input VCF (default %(default)s).")
     arg("--changed-genotype-list", metavar="FILE", dest="gtchange_list_filename", default=None,
