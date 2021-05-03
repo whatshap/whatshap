@@ -130,20 +130,6 @@ def get_variant_scoring(
 
             scoring.set(i, j, score)
 
-    """
-    create_histogram(
-        "scores{}.pdf".format(len(variant_table)),
-        scores,
-        [],
-        100,
-        [min(scores), max(scores)],
-        "scores",
-        "Scores among Simplex-Nulliplex variant pairs",
-        name1="score",
-        name2="n/a",
-    )
-    """
-
     return scoring, node_positions, type_of_node, ref, alt
 
 
@@ -268,6 +254,11 @@ def compute_gt_likelihoods(
                     binom_cache[i][(alt_dp, ref_dp + alt_dp)]
                     * gt_priors[num_alts_parent][num_alts_coparent][i]
                 )
+            # normalizing likelihoods to sum up to 1 is not necessary, because we compute likelihood
+            # ratios later anyways. otherwise it would be done here
+            #sum_gl = sum(gl)
+            #for i in range(0, ploidy + 1):
+            #    gl[i] = gl[i] / sum_gl
         else:
             gl = None
         gt_likelihoods.append(gl)
@@ -317,7 +308,6 @@ def score_variant_pair_tetra(off_gl, pos1, pos2, gt_combinations, gt_probabiliti
         if off[pos1] and off[pos2]:
             likelihood_cooccur = 0.0
             likelihood_disjoint = 0.0
-
             # P(co-occur|GT) = P(GT|co-occur)*P(co-occur)/P(GT)
             # P(disjoint|GT) = P(GT|disjoint)*P(disjoint)/P(GT)
             for gt, exp in zip(gt_combinations, gt_probabilities):

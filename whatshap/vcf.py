@@ -378,6 +378,8 @@ class VariantTable:
             del self.variants[i]
             for gt in self.genotypes:
                 del gt[i]
+            for ad in self.allele_depths:
+                del ad[i]
             for ph in self.phases:
                 del ph[i]
             for gl in self.genotype_likelihoods:

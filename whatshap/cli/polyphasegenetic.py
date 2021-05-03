@@ -26,7 +26,7 @@ from whatshap.clusterarrangement import arrange_clusters
 
 __author__ = "Sven Schrinner"
 
-PhasingParameter = namedtuple("PhasingParameter", ["ploidy", "scoring_window", "simplex"])
+PhasingParameter = namedtuple("PhasingParameter", ["ploidy", "scoring_window", "simplex", "allow_homozyguous"])
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +55,7 @@ def run_polyphasegenetic(
     progeny_file=None,
     scoring_window=160,
     simplex=False,
+    allow_homozyguous=False,
     skip_clustering=False,
     output=sys.stdout,
     samples=None,
@@ -149,7 +150,7 @@ def run_polyphasegenetic(
 
         # Store phasing parameters in tuple to keep function signatures cleaner
         phasing_param = PhasingParameter(
-            ploidy=ploidy, scoring_window=scoring_window, simplex=simplex
+            ploidy=ploidy, scoring_window=scoring_window, simplex=simplex, allow_homozyguous=allow_homozyguous
         )
 
         timers.start("parse_vcf")
@@ -160,7 +161,7 @@ def run_polyphasegenetic(
                 # if progeny file provided, extract region, else just reuse main table
                 if progeny_file:
                     main_positions = [v.position for v in variant_table.variants]
-                    progeny_table = progeny_reader.fetch(chromosome, main_positions[0], main_positions[-1])
+                    progeny_table = progeny_reader.fetch(chromosome, main_positions[0], main_positions[-1]+1)
                     progeny_table.subset_rows_by_position(main_positions)
                 else:
                     progeny_table = variant_table
@@ -269,6 +270,8 @@ def run_polyphasegenetic(
                         if pos not in phased_positions:
                             continue
                         #print("pos = {} ({}): signals = {}, alt = {}, ref = {}".format(pos, accessible_positions[pos], len(signals_per_pos[pos]), alt[pos], ref[pos]))
+                        if not phasing_param.allow_homozyguous and len(signals_per_pos[pos]) == 0:
+                            continue
                         for i in range(phasing_param.ploidy):
                             if i in signals_per_pos[pos]:
                                 allele = alt[pos]
@@ -472,6 +475,13 @@ def add_arguments(parser):
         default=False,
         action="store_true",
         help="Reduce offspring scoring to simplex-nulliplex variants only.",
+    )
+    arg(
+        "--allow-homozyguous",
+        dest="allow_homozyguous",
+        default=False,
+        action="store_true",
+        help="Writes sides which are phased as homozyguous into output instead of old genotype.",
     )
     arg(
         "--skip-clustering",
