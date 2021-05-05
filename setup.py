@@ -56,6 +56,7 @@ extensions = [
             "src/polyphase/clustereditingsolver.cpp",
             "src/polyphase/edgeheap.cpp",
             "src/polyphase/inducedcostheuristic.cpp",
+			"src/polyphase/progenygenotypelikelihoods.cpp",
             "src/polyphase/staticsparsegraph.cpp",
             "src/polyphase/switchflipcalculator.cpp",
             "src/polyphase/trianglesparsematrix.cpp",

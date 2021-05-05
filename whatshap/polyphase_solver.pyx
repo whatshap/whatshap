@@ -169,3 +169,40 @@ def compute_polyploid_genotypes(ReadSet readset, ploidy, positions=None):
     genotypes = list([ gt.as_vector() for gt in genotypes_vector[0] ])
     del genotypes_vector
     return genotypes
+
+
+cdef class ProgenyGenotypeLikelihoods:
+    def __cinit__(self, ploidy, numSamples, numPositions):
+        self.thisptr = new cpp.ProgenyGenotypeLikelihoods(ploidy, numSamples, numPositions)
+
+    def __dealloc__(self):
+        del self.thisptr
+
+    def getGl(self, uint32_t pos, uint32_t sample, uint32_t genotype):
+        return self.thisptr.getGl(pos, sample, genotype)
+    
+    def getGlv(self, uint32_t pos, uint32_t sample):
+        return self.thisptr.getGlv(pos, sample)
+    
+    def setGl(self, uint32_t pos, uint32_t sample, uint32_t genotype, double l):
+        self.thisptr.setGl(pos, sample, genotype, l)
+    
+    def setGlv(self, uint32_t pos, uint32_t sample, vector[double] l):
+        self.thisptr.setGlv(pos, sample, l)
+
+    def getPloidy(self):
+        return self.thisptr.getPloidy()
+    
+    def getNumSamples(self):
+        return self.thisptr.getNumSamples()
+    
+    def getNumPositions(self):
+        return self.thisptr.getNumPositions()
+    
+    def getLogLikelihoodDifference(self, uint32_t pos1, uint32_t pos2, vector[pair[uint32_t, uint32_t]] genotypePairs, vector[pair[double, double]] likelihoodPairs):
+        return self.thisptr.getLogLikelihoodDifference(pos1, pos2, genotypePairs, likelihoodPairs)
+
+    def __len__(self):
+        return self.thisptr.getNumPositions()
+
+

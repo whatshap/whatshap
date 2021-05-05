@@ -23,3 +23,7 @@ cdef class HaploThreader:
 cdef class SwitchFlipCalculator:
 	cdef cpp.SwitchFlipCalculator *thisptr
 	cdef uint32_t ploidy
+
+
+cdef class ProgenyGenotypeLikelihoods:
+	cdef cpp.ProgenyGenotypeLikelihoods *thisptr

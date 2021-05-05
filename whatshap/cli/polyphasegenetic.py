@@ -19,7 +19,7 @@ from whatshap import __version__
 from whatshap.core import ClusterEditingSolver, Read, ReadSet
 from whatshap.cli import log_memory_usage, CommandLineError
 from whatshap.polyphaseplots import draw_genetic_clustering, draw_genetic_clustering_arrangement
-from whatshap.offspringscoring import get_variant_scoring
+from whatshap.offspringscoring import get_variant_scoring, get_phasable_parent_variants, get_offspring_gl
 from whatshap.timer import StageTimer
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
 from whatshap.clusterarrangement import arrange_clusters
@@ -56,7 +56,6 @@ def run_polyphasegenetic(
     scoring_window=160,
     simplex=False,
     allow_homozyguous=False,
-    skip_clustering=False,
     output=sys.stdout,
     samples=None,
     chromosomes=None,
@@ -65,6 +64,7 @@ def run_polyphasegenetic(
     tag="PS",
     write_command_line_header=True,
     read_list_filename=None,
+    plot=False
 ):
     """
     Run Polyploid Phasing.
@@ -157,16 +157,8 @@ def run_polyphasegenetic(
         try:
             for variant_table in vcf_reader:
                 chromosome = variant_table.chromosome
-                
-                # if progeny file provided, extract region, else just reuse main table
-                if progeny_file:
-                    main_positions = [v.position for v in variant_table.variants]
-                    progeny_table = progeny_reader.fetch(chromosome, main_positions[0], main_positions[-1]+1)
-                    progeny_table.subset_rows_by_position(main_positions)
-                else:
-                    progeny_table = variant_table
-                
                 timers.stop("parse_vcf")
+                
                 if (not chromosomes) or (chromosome in chromosomes):
                     logger.info("======== Working on chromosome %r", chromosome)
                 else:
@@ -187,29 +179,51 @@ def run_polyphasegenetic(
                 # compute scoring matrices for parent samples
                 for sample in samples:
                     logger.info("---- Processing individual %s", sample)
+                    
+                    # compute phasable parent variants
+                    varinfo, phasable_indices = get_phasable_parent_variants(variant_table, sample, co_parent[sample], phasing_param)
+                    
+                    # if progeny file provided, extract region, else just reuse main table
+                    timers.start("parse_vcf")
+                    if progeny_file:
+                        main_positions = [variant_table.variants[i].position for i in phasable_indices]
+                        regions = [(main_positions[i], main_positions[i]+1) for i in range(len(main_positions))]
+                        progeny_table = progeny_reader.fetch_regions(chromosome, regions)
+                    else:
+                        progeny_table = variant_table
+                    timers.stop("parse_vcf")
 
-                    # compute scoring for variant pairs
+                    # compute offspring genotype likelihoods
                     timers.start("scoring")
-                    if not skip_clustering:
-                        logger.info("Scoring marker variants ...")
-                        scoring, node_to_variant, type_of_node, ref, alt = get_variant_scoring(
-                            variant_table,
-                            progeny_table,
-                            sample,
-                            co_parent[sample],
-                            offspring[(sample, co_parent[sample])],
-                            phasing_param,
-                        )
+                    logger.info("Computing genotype likelihoods for offspring ...")
+                    off_gl, node_to_variant, type_of_node = get_offspring_gl(
+                        variant_table, 
+                        progeny_table, 
+                        offspring[(sample, co_parent[sample])], 
+                        varinfo, 
+                        phasable_indices, 
+                        phasing_param, 
+                        0.06)
+                    
+                    # delete progeny table if dedicated
+                    if progeny_file:
+                        del progeny_table
+                    
+                    # compute scoring for variant pairs
+                    logger.info("Compute scores for markers ...")
+                    scoring = get_variant_scoring(varinfo, off_gl, node_to_variant, phasing_param)
+                    
+                    # delete genotype likelihoods
+                    del off_gl
 
                     timers.stop("scoring")
 
                     # cluster variants based on scores
                     timers.start("clustering")
-                    if not skip_clustering:
-                        logger.info("Clustering marker variants ...")
-                        solver = ClusterEditingSolver(scoring, False)
-                        clustering = solver.run()
-                        del solver
+                    logger.info("Clustering marker variants ...")
+                    solver = ClusterEditingSolver(scoring, False)
+                    clustering = solver.run()
+                    del solver
 
                     # validate clustering
                     for clust in clustering:
@@ -217,23 +231,6 @@ def run_polyphasegenetic(
                         if len(set(positions)) != len(clust):
                             print(positions)
                         assert len(set(positions)) == len(clust)
-
-                    """
-                    with open(output+".clusters.txt", "w") as out:
-                        var_to_position = [var.position+1 for var in variant_table.variants]
-
-                        for i, cluster in enumerate(sorted(clustering, key=lambda x: -len(x))):
-                            out.write("Cluster {}: {}".format(i, " ".join(list(map(lambda x: str(var_to_position[node_to_variant[x]]), cluster)))))
-                            out.write("\n")
-                    """
-                    """
-                    print("Clustering:")
-                    print(clustering)
-                    print("Node to variant")
-                    print(node_to_variant)
-                    print("Node types")
-                    print(type_of_node)
-                    """
                     timers.stop("clustering")
 
                     # arrange clusters to haplotypes
@@ -242,7 +239,6 @@ def run_polyphasegenetic(
                     haplo_skeletons = arrange_clusters(
                         clustering, node_to_variant, (phasing_param.scoring_window + 1) // 2, ploidy
                     )
-                    timers.stop("arrangement")
                     
                     # determine haplotypes
                     accessible_positions = sorted([v.position for v in variant_table.variants])
@@ -250,7 +246,7 @@ def run_polyphasegenetic(
                     # for information:
                     # accessible_position maps position (index) of variant_table to genome position
                     # node_to_variant maps a node id of the clustering to a position (index) of the variant_table
-                    # ref and alt contain the ref- and alt-allele for a position (index) of the variant_table
+                    # varinfo contains the ref- and alt-allele for a position (index) of the variant_table
                     # haplo_skeletons contains ploidy many lists of nodes, which belong to the same haplotype
                     
                     components[sample] = {}
@@ -269,30 +265,33 @@ def run_polyphasegenetic(
                     for pos in range(len(variant_table)):
                         if pos not in phased_positions:
                             continue
-                        #print("pos = {} ({}): signals = {}, alt = {}, ref = {}".format(pos, accessible_positions[pos], len(signals_per_pos[pos]), alt[pos], ref[pos]))
+                        #print("pos = {} ({}): signals = {}, alt = {}, ref = {}".format(pos, accessible_positions[pos], len(signals_per_pos[pos]), varinfo[pos].alt, varinfo[pos].ref))
                         if not phasing_param.allow_homozyguous and len(signals_per_pos[pos]) == 0:
                             continue
                         for i in range(phasing_param.ploidy):
                             if i in signals_per_pos[pos]:
-                                allele = alt[pos]
+                                allele = varinfo[pos].alt
                             else:
-                                allele = ref[pos]
+                                allele = varinfo[pos].ref
                             superreads[sample][i].add_variant(accessible_positions[pos], allele, 0)
                             components[sample][accessible_positions[pos]] = accessible_positions[0]
+                            
+                    timers.stop("arrangement")
 
                     # create plots
-                    num_vars = max([max(c) for c in clustering])
-                    draw_genetic_clustering(clustering, num_vars, output + ".clusters.pdf")
+                    if plot:
+                        num_vars = max([max(c) for c in clustering])
+                        draw_genetic_clustering(clustering, num_vars, output + ".clusters.pdf")
 
-                    draw_genetic_clustering_arrangement(
-                        clustering,
-                        node_to_variant,
-                        haplo_skeletons,
-                        type_of_node,
-                        (phasing_param.scoring_window + 1) // 2,
-                        num_vars,
-                        output + ".arrangement.pdf",
-                    )
+                        draw_genetic_clustering_arrangement(
+                            clustering,
+                            node_to_variant,
+                            haplo_skeletons,
+                            type_of_node,
+                            (phasing_param.scoring_window + 1) // 2,
+                            num_vars,
+                            output + ".arrangement.pdf",
+                        )
 
                 with timers("write_vcf"):
                     logger.info("======== Writing VCF")
@@ -311,20 +310,14 @@ def run_polyphasegenetic(
     logger.info("\n== SUMMARY ==")
 
     log_memory_usage()
-    logger.info("Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"))
-    logger.info("Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"))
-    logger.info("Time spent for genetic scoring:              %6.1f s", timers.elapsed("scoring"))
-    logger.info(
-        "Time spent for clustering:                   %6.1f s", timers.elapsed("clustering")
-    )
-    logger.info(
-        "Time spent for cluster arrangement:          %6.1f s", timers.elapsed("arrangement")
-    )
-    logger.info("Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"))
-    logger.info(
-        "Time spent on rest:                          %6.1f s", timers.total() - timers.sum()
-    )
-    logger.info("Total elapsed time:                          %6.1f s", timers.total())
+    #logger.info("Time spent reading BAM/CRAM:              %6.1f s", timers.elapsed("read_bam"))
+    logger.info("Time spent parsing VCF:                   %6.1f s", timers.elapsed("parse_vcf"))
+    logger.info("Time spent for genetic scoring:           %6.1f s", timers.elapsed("scoring"))
+    logger.info("Time spent for clustering:                %6.1f s", timers.elapsed("clustering"))
+    logger.info("Time spent for cluster arrangement:       %6.1f s", timers.elapsed("arrangement"))
+    logger.info("Time spent writing VCF:                   %6.1f s", timers.elapsed("write_vcf"))
+    logger.info("Time spent on rest:                       %6.1f s", timers.total() - timers.sum())
+    logger.info("Total elapsed time:                       %6.1f s", timers.total())
 
 
 def determine_pedigree(pedigree_file, samples, vcf_samples, progeny_samples):
@@ -484,11 +477,11 @@ def add_arguments(parser):
         help="Writes sides which are phased as homozyguous into output instead of old genotype.",
     )
     arg(
-        "--skip-clustering",
-        dest="skip_clustering",
+        "--plot",
+        dest="plot",
         default=False,
         action="store_true",
-        help="Debug purpose. Skips time consuming clustering step and uses hard-coded old results instead.",
+        help="Plots the variant clustering and arrangement.",
     )
 
 
