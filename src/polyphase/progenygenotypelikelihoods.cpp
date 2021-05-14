@@ -19,9 +19,9 @@ GenotypeLikelihood ProgenyGenotypeLikelihoods::getGl(uint32_t pos, uint32_t samp
 
 std::vector<GenotypeLikelihood> ProgenyGenotypeLikelihoods::getGlv(uint32_t pos, uint32_t sampleId) const {
     if (pos >= numPositions)
-        return std::vector<GenotypeLikelihood>(ploidy, 0.0);
+        return std::vector<GenotypeLikelihood>(ploidy+1, 0.0);
     uint32_t index = getIndex(pos, sampleId, 0);
-    return std::vector<GenotypeLikelihood>(gl.begin()+index, gl.begin()+(index+ploidy));
+    return std::vector<GenotypeLikelihood>(gl.begin()+index, gl.begin()+(index+ploidy+1));
 }
 
 uint32_t ProgenyGenotypeLikelihoods::getPloidy() const {
@@ -47,7 +47,7 @@ void ProgenyGenotypeLikelihoods::setGlv(uint32_t pos, uint32_t sampleId, std::ve
         setNumPositions(pos);
     }
     uint32_t start = getIndex(pos, sampleId, 0);
-    for (uint32_t i = 0; i < ploidy; i++)
+    for (uint32_t i = 0; i <= ploidy; i++)
         gl[start+i] = l[i];
 }
 
@@ -76,5 +76,5 @@ double ProgenyGenotypeLikelihoods::getLogLikelihoodDifference(uint32_t pos1, uin
 
 
 uint32_t ProgenyGenotypeLikelihoods::getIndex(uint32_t pos, u_int32_t sampleId, uint32_t genotype) const {
-    return pos*numSamples*ploidy + sampleId*ploidy + genotype;
+    return pos*numSamples*(ploidy+1) + sampleId*(ploidy+1) + genotype;
 }

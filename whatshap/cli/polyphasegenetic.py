@@ -19,7 +19,7 @@ from whatshap import __version__
 from whatshap.core import ClusterEditingSolver, Read, ReadSet
 from whatshap.cli import log_memory_usage, CommandLineError
 from whatshap.polyphaseplots import draw_genetic_clustering, draw_genetic_clustering_arrangement
-from whatshap.offspringscoring import get_variant_scoring, get_phasable_parent_variants, get_offspring_gl
+from whatshap.offspringscoring import get_variant_scoring, get_phasable_parent_variants, get_offspring_gl, add_corrected_variant_types
 from whatshap.timer import StageTimer
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
 from whatshap.clusterarrangement import arrange_clusters
@@ -56,6 +56,7 @@ def run_polyphasegenetic(
     scoring_window=160,
     simplex=False,
     allow_homozyguous=False,
+    distrust_parent_genotypes=False,
     output=sys.stdout,
     samples=None,
     chromosomes=None,
@@ -196,6 +197,15 @@ def run_polyphasegenetic(
                     # compute offspring genotype likelihoods
                     timers.start("scoring")
                     logger.info("Computing genotype likelihoods for offspring ...")
+                    if distrust_parent_genotypes:
+                        varinfo = add_corrected_variant_types(
+                            variant_table, 
+                            progeny_table, 
+                            offspring[(sample, co_parent[sample])], 
+                            varinfo, 
+                            phasable_indices, 
+                            phasing_param, 
+                            0.06)
                     off_gl, node_to_variant, type_of_node = get_offspring_gl(
                         variant_table, 
                         progeny_table, 
@@ -475,6 +485,13 @@ def add_arguments(parser):
         default=False,
         action="store_true",
         help="Writes sides which are phased as homozyguous into output instead of old genotype.",
+    )
+    arg(
+        "--distrust-parent-genotypes",
+        dest="distrust_parent_genotypes",
+        default=False,
+        action="store_true",
+        help="Uses progeny genotypes to double-check parental genotypes.",
     )
     arg(
         "--plot",
