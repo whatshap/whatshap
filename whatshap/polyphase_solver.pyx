@@ -96,8 +96,8 @@ def scoreReadsetBayesian(readset, minOverlap, ploidy, err=0.0):
     
     
 cdef class HaploThreader:
-    def __cinit__(self, ploidy, switchCost, affineSwitchCost, symmetryOptimization, rowLimit):
-        self.thisptr = new cpp.HaploThreader(ploidy, switchCost, affineSwitchCost, symmetryOptimization, rowLimit)
+    def __cinit__(self, ploidy, switchCost, affineSwitchCost, symmetryOptimization, carryOverPreviousTuples, rowLimit):
+        self.thisptr = new cpp.HaploThreader(ploidy, switchCost, affineSwitchCost, carryOverPreviousTuples, symmetryOptimization, rowLimit)
         
     def computePathsBlockwise(self, vector[uint32_t]& blockStarts, vector[vector[uint32_t]]& covMap, vector[vector[unordered_map[uint32_t, uint32_t]]]& alleleDepths, vector[vector[vector[uint32_t]]]& consensusLists, vector[unordered_map[uint32_t, uint32_t]]& genotypes):
         cdef vector[vector[uint32_t]] path

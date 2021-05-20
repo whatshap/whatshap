@@ -9,11 +9,12 @@
 constexpr uint64_t ClusterTuple::TUPLE_MASKS[];
 const ClusterTuple ClusterTuple::INVALID_TUPLE = ClusterTuple((TupleCode)-1);
 
-HaploThreader::HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit) :
+HaploThreader::HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, bool carryOverPreviousTuples, uint32_t rowLimit) :
     ploidy(ploidy),
     switchCost(switchCost),
     affineSwitchCost(affineSwitchCost),
     symmetryOptimization(symmetryOptimization),
+    carryOverPreviousTuples(carryOverPreviousTuples),
     rowLimit(rowLimit)
 {
 }
@@ -83,17 +84,18 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
      * in order to retrieve global cluster ids. The local ids make for a compact representation, but the global
      * ids are necessary to compare tuples from different column.
      */
-    std::vector<ClusterTuple> confTuples = computeRelevantTuples(consensusLists[start], 
+    std::vector<ClusterTuple> relevantTuples = computeRelevantTuples(consensusLists[start], 
                                                                  genotypes[start],
                                                                  sortedGlobalTuples,
                                                                  covMap[start]);
-    if (confTuples.size() == 0) {
+    std::unordered_set<ClusterTuple> carriedTuples;
+    if (relevantTuples.size() == 0) {
         std::cout<<"First variant has no clusters!"<<std::endl;
         return path;
     }
 
     // fill first column by only using the coverage cost of each candidate tuple
-    for (ClusterTuple t : confTuples) {
+    for (ClusterTuple t : relevantTuples) {
         column[t] = ClusterEntry(getCoverageCost(t, coverage[start], clusterCoverage[start], consensusLists[start], genotypes[start]), ClusterTuple::INVALID_TUPLE);
         firstUnthreadedPosition = start + 1;
         if (column[t].score < minimumInColumn) {
@@ -149,28 +151,35 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
     for (Position pos = start + 1; pos < end; pos++) {
 
         // reset variables
-        confTuples.clear();
+        carriedTuples.clear();
+        relevantTuples.clear();
         permedTuples.clear();
         column.clear();
         Score minimum = std::numeric_limits<Score>::infinity();
         ClusterTuple minimumPred = ClusterTuple::INVALID_TUPLE;
-        bool minExists = false;
         minimumInColumn = std::numeric_limits<Score>::infinity();
         minimumTupleInColumn = ClusterTuple::INVALID_TUPLE;
         minimumPredTupleInColumn = ClusterTuple::INVALID_TUPLE;
         
         // compute genotype conform tuples
-//         std::cout<<"Position "<<pos<<":"<<std::endl;
-        confTuples = computeRelevantTuples(consensusLists[pos], 
-                                           genotypes[pos],
-                                           sortedGlobalTuples,
-                                           covMap[pos]);
+        relevantTuples = computeRelevantTuples(consensusLists[pos], 
+                                               genotypes[pos],
+                                               sortedGlobalTuples,
+                                               covMap[pos]);
+        
+        if (carryOverPreviousTuples)
+            carriedTuples = addCarriedTuples(relevantTuples, sortedGlobalTuples, covMap[pos]);
+        for (ClusterTuple cTup : carriedTuples) {
+            relevantTuples.push_back(cTup);
+        }
         
         // iterate over generated tuples
-        for (ClusterTuple rowTuple : confTuples) {
+        std::cout<<"Position "<<pos<<": "<<relevantTuples.size()<<" tuples ("<<(carriedTuples.size())<<" carried) on "<<covMap[pos].size()<<" clusters. "<<std::endl;
+        for (ClusterTuple rowTuple : relevantTuples) {
             // variables to store best score and backtracking direction
             minimum = std::numeric_limits<Score>::infinity();
             minimumPred = ClusterTuple::INVALID_TUPLE;
+            bool minExists = false;
             
             // auxiliary data, is precomputed once here
             std::vector<GlobalClusterId> rowTupleGlobal = rowTuple.asVector(ploidy, covMap[pos]);
@@ -272,7 +281,8 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
             profitableTuples.push_back(minimumTupleInColumn);
             pivotTuples.push_back(minimumTupleInColumn);
             
-            uint32_t rounds = 2;
+            uint32_t rounds = 10;
+            std::cout<<"Removing: "<<column.size();
             for (uint32_t i = 0; i < rounds; i++) {
                 for (ClusterTuple t : permedTuples) {
                     bool profitable = true;
@@ -299,7 +309,9 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
                         column.erase(t);
                     }
                 }
+                std::cout<<" -> "<<column.size();
             }
+            std::cout<<std::endl;
         }
         
         // cut down rows if parameter is set
@@ -481,6 +493,19 @@ std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vecto
         }
     }
     
+    return matches;
+}
+
+std::unordered_set<ClusterTuple> HaploThreader::addCarriedTuples (const std::vector<ClusterTuple> conformTuples,
+                                                                  const std::unordered_map<ClusterTuple, std::vector<GlobalClusterId>>& globalPrevTuples,
+                                                                  const std::vector<GlobalClusterId>& clusterIds) const {
+
+    std::unordered_set<ClusterTuple> carried;
+    std::unordered_set<ClusterTuple> matchSet;
+    for (ClusterTuple t : conformTuples) {
+        matchSet.insert(t);
+    }
+    
     // take tuples from previous column and reinsert them (unless the used clusters are not available anymore)
     std::unordered_map<GlobalClusterId, LocalClusterId> idMap;
     for (LocalClusterId c = 0; c < clusterIds.size(); c++) {
@@ -496,12 +521,12 @@ std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vecto
         if (v.size() == ploidy) {
             ClusterTuple t(v);
             if (matchSet.find(t) == matchSet.end())
-                matches.push_back(t);
+                carried.insert(t);
             
         }
     }
     
-    return matches;
+    return carried;
 }
 
 std::vector<ClusterTuple> HaploThreader::assembleTuples (const std::vector<std::vector<uint32_t>>& consensusList,

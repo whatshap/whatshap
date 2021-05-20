@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
 #include <cmath>
 #include <iostream>
 #include <string> 
@@ -48,6 +49,32 @@ struct ClusterTuple {
         tuple = 0;
         for (uint32_t i = 0; i < clusters.size(); i++) {
             tuple += (((TupleCode)clusters[i]) << (i*BITS_PER_CLUSTER));
+        }
+    }
+    
+    /**
+     * Initialize by global ids using mapping from local to global ids.
+     */
+    ClusterTuple(const std::vector<GlobalClusterId>& clusters, const std::vector<GlobalClusterId>& covMap) {
+        std::vector<LocalClusterId> v;
+        for (uint32_t i = 0; i < clusters.size(); i++) {
+            LocalClusterId c = MAX_CLUSTERS_PER_COLUMN+1;
+            for (LocalClusterId j = 0; j < covMap.size(); j++) {
+                if (covMap[j] == clusters[i]) {
+                    c = j;
+                    break;
+                }
+            }
+            if (c > MAX_CLUSTERS_PER_COLUMN) {
+                tuple = -1;
+                return;
+            } else {
+                v.push_back(c);
+            }
+        }
+        tuple = 0;
+        for (uint32_t i = 0; i < v.size(); i++) {
+            tuple += (((TupleCode)v[i]) << (i*BITS_PER_CLUSTER));
         }
     }
     
@@ -226,9 +253,10 @@ public:
      * @param switchCost The factor how much a single cluster switches is penalized over a wrong copy number of a cluster (compared to its coverage)
      * @param affineSwitchCost Penalty for a position, in which a cluster switch occurs
      * @param symmetryOptimization Include speed optimizations regarding symmetry elimination. Should always be used if not for debugging
+     * @param carryOverPreviousTuples All tuples from the previous column are considered as genotype conform for the next column, if clusters still exist
      * @param rowLimit Keeps at most this number of cluster tuples as candidates for each position. 0 means no limit
      */
-    HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit);
+    HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, bool carryOverPreviousTuples, uint32_t rowLimit);
     
     /**
      * Computes a number of paths (depending on the provided ploidy), which run through the provided clusters. For each variant the result
@@ -272,6 +300,7 @@ private:
     double switchCost;
     double affineSwitchCost;
     bool symmetryOptimization;
+    bool carryOverPreviousTuples;
     uint32_t rowLimit;
     
     /**
@@ -304,6 +333,10 @@ private:
                                                      const std::unordered_map<uint32_t, uint32_t>& genotype,
                                                      const std::unordered_map<ClusterTuple, std::vector<GlobalClusterId>>& globalPrevTuples,
                                                      const std::vector<GlobalClusterId>& clusterIds) const;
+                                                     
+    std::unordered_set<ClusterTuple> addCarriedTuples (const std::vector<ClusterTuple> conformTuples,
+                                                       const std::unordered_map<ClusterTuple, std::vector<GlobalClusterId>>& globalPrevTuples,
+                                                       const std::vector<GlobalClusterId>& clusterIds) const;
 
     /**
      * Computes all sets of clusters having are have a genotype, which is exactly distance away from the specified genotype.
