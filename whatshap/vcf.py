@@ -7,6 +7,7 @@ import logging
 import itertools
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
+from os import PathLike
 from typing import List, Sequence, Dict, Tuple, Iterable, Optional, Union, TextIO, Iterator
 
 from pysam import VariantFile, VariantHeader, VariantRecord
@@ -49,7 +50,7 @@ class VcfInvalidChromosome(VcfError):
 class VariantCallPhase:
     block_id: int  # numeric id of the phased block
     phase: Tuple[int, ...]  # alleles representing the phasing. (1, 0) is 1|0
-    quality: int
+    quality: Optional[int]
 
 
 class VcfVariant:
@@ -344,7 +345,7 @@ class VcfReader:
 
     def __init__(
         self,
-        path: str,
+        path: Union[str, PathLike],
         indels: bool = False,
         phases: bool = False,
         genotype_likelihoods: bool = False,

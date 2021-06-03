@@ -267,7 +267,6 @@ def test_do_not_phase_duplicate_position(algorithm, tmpdir):
         output=tmpvcf,
         algorithm=algorithm,
     )
-
     seen_positions = set()
     records = list(pysam.VariantFile(tmpvcf))
     assert len(records) == 4
