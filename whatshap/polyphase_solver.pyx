@@ -1,12 +1,15 @@
+# cython: language_level=3
+
 from collections import defaultdict
 import itertools as it
+
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libcpp.unordered_map cimport unordered_map
 from libc.stdint cimport uint32_t
-cimport cpp
+from . cimport cpp
 cimport cython
 
 

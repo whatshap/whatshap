@@ -1,6 +1,9 @@
+# cython: language_level=3
+
 from libcpp cimport bool
 from libc.stdint cimport uint32_t, uint64_t
-cimport cpp
+from . cimport cpp
+
 
 cdef class NumericSampleIds:
 	cdef dict mapping

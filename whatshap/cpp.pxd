@@ -1,4 +1,5 @@
-# kate: syntax python
+# cython: language_level=3
+
 """
 Declarations for all C++ classes that are wrapped from Cython.
 """

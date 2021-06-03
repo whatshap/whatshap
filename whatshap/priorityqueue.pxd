@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 from libcpp.vector cimport vector
 from libcpp.unordered_map cimport unordered_map
 from libcpp.pair cimport pair

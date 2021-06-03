@@ -1,4 +1,5 @@
-# kate: syntax Python;
+# cython: language_level=3
+
 """
 Edit distance computation.
 

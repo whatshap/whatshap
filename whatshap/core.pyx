@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 """
 Wrappers for core C++ classes.
 """
@@ -10,7 +12,7 @@ from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libc.stdint cimport uint32_t, uint64_t
-cimport cpp
+from . cimport cpp
 
 from collections import namedtuple
 from cython.operator cimport dereference as deref
@@ -60,8 +62,8 @@ cdef class NumericSampleIds:
 
 cdef class Read:
 	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int sample_id = 0, int reference_start = -1, str BX_tag = None):
-		cdef string _name = ''
-		cdef string _BX_tag = ''
+		cdef string _name = b''
+		cdef string _BX_tag = b''
 		if name is None:
 			self.thisptr = NULL
 			self.ownsptr = False
@@ -174,15 +176,15 @@ cdef class Read:
 		mapqs, name, source_id, sample_id, reference_start, BX_tag, variants = state
 		
 		# TODO: Duplicated code from __cinit__ is ugly, but cinit cannot be used here directly
-		cdef string _name = ''
-		cdef string _BX_tag = ''
+		cdef string _name = b''
+		cdef string _BX_tag = b''
 		if name is None:
 			self.thisptr = NULL
 			self.ownsptr = False
 		else:
 			# TODO: Is this the best way to handle string arguments?
 			_name = name.encode('UTF-8')
-			if BX_tag is not '' and BX_tag is not None:
+			if BX_tag is not b'' and BX_tag is not None:
 				_BX_tag = BX_tag.encode('UTF-8')
 			self.thisptr = new cpp.Read(_name, mapqs[0] if len(mapqs) > 0 else 0, source_id, sample_id, reference_start, _BX_tag)
 			self.ownsptr = True
@@ -240,7 +242,7 @@ cdef class ReadSet:
 	def __getitem__(self, key):
 		if isinstance(key, slice):
 			raise NotImplementedError('ReadSet does not support slices')
-		cdef string name = ''
+		cdef string name = b''
 		cdef cpp.Read* cread = NULL
 		cdef Read read = Read()
 		if isinstance(key, int):

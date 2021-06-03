@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 def _iterate_cigar(variants, int j, bam_read, cigartuples):
 	"""
 	Iterate over the CIGAR of the given bam_read and variants[j:] in lockstep.

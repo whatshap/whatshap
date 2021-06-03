@@ -1,3 +1,5 @@
+# cython: language_level=3
+
 import math
 import logging
 from collections import defaultdict
@@ -8,8 +10,8 @@ from .priorityqueue import PriorityQueue
 
 from libcpp.unordered_set cimport unordered_set
 from .priorityqueue cimport priority_type, priority_type_ptr, queue_entry_type, PriorityQueue
-from core cimport ReadSet
-cimport cpp
+from .core cimport ReadSet
+from . cimport cpp
 
 logger = logging.getLogger(__name__)
 
