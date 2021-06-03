@@ -287,7 +287,12 @@ def assert_genotype_likelihoods(actual, expected):
         assert actual is None
         return
     for i in range(2):
-        assert expected.log10_prob_of(i) == approx(actual.log10_prob_of(i), rel=1e-6)
+        e = expected.log10_prob_of(i)
+        a = actual.log10_prob_of(i)
+        if e is None or a is None:
+            assert a is None and e is None
+        else:
+            assert e == approx(a, rel=1e-6)
 
 
 def test_read_genotype_likelihoods():
@@ -304,7 +309,7 @@ def test_read_genotype_likelihoods():
 
     gl0 = GenotypeLikelihoods([-2.1206, -0.8195, -0.07525])
     gl1 = GenotypeLikelihoods([-10.3849, 0, -5.99143])
-    gl2 = GenotypeLikelihoods([-2.1, -0.8, -0.8])
+    gl2 = GenotypeLikelihoods([-2.1, None, -0.8])
     gl3 = GenotypeLikelihoods([0, -10.0, -0.6])
 
     assert len(table.genotype_likelihoods_of("sample1")) == 4

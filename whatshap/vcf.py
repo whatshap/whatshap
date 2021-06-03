@@ -540,7 +540,8 @@ class VcfReader:
                     if GL is not None:
                         genotype_likelihoods.append(GenotypeLikelihoods(GL))
                     elif PL is not None:
-                        genotype_likelihoods.append(GenotypeLikelihoods([pl / -10 for pl in PL]))
+                        likelihoods = [(pl / -10) if pl is not None else None for pl in PL]
+                        genotype_likelihoods.append(GenotypeLikelihoods(likelihoods))
                     else:
                         genotype_likelihoods.append(None)
             else:
