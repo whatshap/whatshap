@@ -300,7 +300,7 @@ def relative_hamming_dist(seq1, seq2):
 
 
 def draw_threading(
-    readset, clustering, coverage, paths, cut_positions, haplotypes, var_table, path
+    readset, clustering, coverage, paths, cut_positions, haplotypes, var_table, genotypes, path
 ):
     try:
         import matplotlib
@@ -638,6 +638,122 @@ def create_histogram(path, same, diff, steps, dim, x_label, title, name1="same",
         plt.legend(loc="upper center")
         savefig(path, bbox_inches="tight")
         plt.close()
+
+    except ImportError:
+        logger.error("Plotting haplotype threading requires matplotlib to be installed")
+
+
+def draw_phase_comparison(
+    haplotypes, phased_positions, parent_table, ground_truth_table, path
+):
+    try:
+        import matplotlib
+
+        matplotlib.use("agg")
+        import matplotlib.pyplot as plt
+        import matplotlib.patches as mpatches
+        from pylab import savefig
+        ploidy = len(haplotypes)
+        assert ploidy >= 2
+        num_vars = len(haplotypes[0])
+        
+        # convert node type to color
+        color = {(1, 0): 'tab:blue', (1, 1): 'tab:orange', (2, 0): 'tab:red', (3, 0): 'tab:green', (2, 1): 'tab:purple'}
+        colors = ['tab:blue', 'tab:red', 'tab:orange', 'tab:green', 'tab:purple']
+        
+        # Read ground truth phasing
+        phase_rows = []
+        phased_truth_variants = []
+        for i, variant in enumerate(ground_truth_table.phases[0]):
+            if not variant is None:
+                phase_rows.append(variant.phase)
+                phased_truth_variants.append(ground_truth_table.variants[i])
+        truth_block = [[row[i] for row in phase_rows] for i in range(ploidy)]
+        
+        compared_positions = set([v.position for v in phased_truth_variants])
+        compared_to_phased_pos = []
+        for i in range(num_vars):
+            if phased_positions[i] in compared_positions:
+                compared_to_phased_pos.append(i)
+        compared_positions = sorted(list(compared_positions))
+
+        # Setup figure
+        x_margin = 0.3
+        y_margin = 0.15
+        x_scale = 1.0 / (1.0+x_margin)
+        y_scale = 1.0
+        fig = plt.figure(figsize=((compared_to_phased_pos[-1] + 2)*0.8, 2*ploidy), dpi=100)
+        axes = plt.gca()
+        axes.set_xlim([0, (compared_to_phased_pos[-1]+x_margin)*x_scale])
+        axes.set_ylim([-ploidy*y_scale, (ploidy)*y_scale])
+        
+        # Draw error height lines
+        for i in range(1, ploidy):
+            axes.add_patch(mpatches.Polygon([[0, -i * y_scale], [compared_to_phased_pos[-1], -i * y_scale]], color='black', closed=False, fill=False, ls='-', lw=1.0))
+
+        # Compute switch flip errors
+        phase_block = [[haplotypes[h][pos] for pos in compared_to_phased_pos] for h in range(ploidy)]
+        switchflips, switches_in_column, flips_in_column, poswise_config = compute_switch_flips_poly_bt(
+            truth_block,
+            phase_block,
+            report_error_positions=True,
+            switch_cost=1 + 1 / (num_vars * ploidy),
+        )
+        
+        # Plot ground truth boxes
+        for i, pos in enumerate(compared_to_phased_pos):
+            x1 = x_scale*(pos+x_margin)
+            x2 = x_scale*(pos+1)
+            y1 = y_scale*0
+            y2 = y_scale*ploidy
+            axes.add_patch(mpatches.Polygon([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], color='lightgray', alpha=1.0, closed=True, fill=True))
+            for h in range(ploidy):
+                if truth_block[h][i] == 1:
+                    y3 = y1 + y_scale*h
+                    y4 = y1 + y_scale*(h+1)
+                    axes.add_patch(mpatches.Polygon([[x1, y3], [x2, y3], [x2, y4], [x1, y4]], color='gray', alpha=1.0, closed=True, fill=True))
+            
+            flips = len(flips_in_column[i])
+            switches = switches_in_column[i]
+            if flips > 0:
+                x = (x1+x2)/2
+                y1 = -y_margin * y_scale
+                y2 = -flips * y_scale
+                axes.add_patch(mpatches.Polygon([[x, y1], [x, y2]], color='tab:orange', closed=False, fill=False, ls='-', lw=10.0))
+            if switches > 0:
+                x = x1 - (x_margin * x_scale * 0.5)
+                y1 = -y_margin * y_scale
+                y2 = -switches * y_scale
+                axes.add_patch(mpatches.Polygon([[x, y1], [x, y2]], color='tab:blue', closed=False, fill=False, ls='-', lw=10.0))
+                
+        # Plot phasings
+        compare_idx = 0
+        prev_comp_idx = 0
+        for pos in range(compared_to_phased_pos[-1]):
+            if pos == compared_to_phased_pos[compare_idx+1]:
+                compare_idx += 1
+            x2 = x_scale * (pos * 2 + x_margin + 1) / 2
+            x1 = x_scale * (pos * 2 + x_margin - 1) / 2
+            for h in range(ploidy):
+                y2 = y_scale * (2 * poswise_config[compare_idx][h] + 1) / 2
+                y1 = y_scale * (2 * poswise_config[prev_comp_idx][h] + 1) / 2
+                if pos > 0:
+                    axes.add_patch(mpatches.Polygon([[x1, y1], [x2, y2]], color=colors[h], closed=False, fill=False, ls='-', lw=8.0))
+            prev_comp_idx = compare_idx
+
+        compare_idx = 0
+        for pos in range(compared_to_phased_pos[-1]):
+            if pos == compared_to_phased_pos[compare_idx+1]:
+                compare_idx += 1
+            x2 = x_scale * (pos * 2 + x_margin + 1) / 2
+            for h in range(ploidy):
+                y2 = y_scale * (2 * poswise_config[compare_idx][h] + 1) / 2
+                color = 'gray' if haplotypes[h][pos] == 1 else 'lightgray'
+                axes.add_patch(plt.Circle((x2, y2), x_scale*0.25, color='black'))
+                axes.add_patch(plt.Circle((x2, y2), x_scale*0.22, color=color))
+        
+        fig.savefig(path)
+        fig.clear()
 
     except ImportError:
         logger.error("Plotting haplotype threading requires matplotlib to be installed")

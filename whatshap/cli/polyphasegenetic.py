@@ -18,7 +18,7 @@ from contextlib import ExitStack
 from whatshap import __version__
 from whatshap.core import ClusterEditingSolver, Read, ReadSet
 from whatshap.cli import log_memory_usage, CommandLineError
-from whatshap.polyphaseplots import draw_genetic_clustering, draw_genetic_clustering_arrangement
+from whatshap.polyphaseplots import draw_genetic_clustering, draw_genetic_clustering_arrangement, draw_phase_comparison
 from whatshap.offspringscoring import get_variant_scoring, get_phasable_parent_variants, get_offspring_gl, add_corrected_variant_types
 from whatshap.timer import StageTimer
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
@@ -53,6 +53,7 @@ def run_polyphasegenetic(
     pedigree_file,
     ploidy,
     progeny_file=None,
+    ground_truth_file=None,
     scoring_window=160,
     simplex=False,
     allow_homozyguous=False,
@@ -126,6 +127,18 @@ def run_polyphasegenetic(
                     ploidy=ploidy,
                     mav=True,
                     allele_depth=True,
+                )
+            )
+        if ground_truth_file:
+            ground_truth_reader = stack.enter_context(
+                VcfReader(
+                    ground_truth_file,
+                    indels=indels,
+                    phases=True,
+                    genotype_likelihoods=False,
+                    ploidy=ploidy,
+                    mav=True,
+                    allele_depth=False,
                 )
             )
 
@@ -270,13 +283,12 @@ def run_polyphasegenetic(
                             for node in clustering[clust]:
                                 signals_per_pos[node_to_variant[node]].append(i)
                                 
-                    phased_positions = set([pos for pos in node_to_variant])
+                    phased_positions = []
+                    haplotypes = [[] for _ in range(phasing_param.ploidy)]
 
                     for pos in range(len(variant_table)):
-                        if pos not in phased_positions:
-                            continue
-                        #print("pos = {} ({}): signals = {}, alt = {}, ref = {}".format(pos, accessible_positions[pos], len(signals_per_pos[pos]), varinfo[pos].alt, varinfo[pos].ref))
                         if not phasing_param.allow_homozyguous and len(signals_per_pos[pos]) == 0:
+                            #print("pos = {} ({}): signals = {}, alt = {}, ref = {}".format(pos, accessible_positions[pos], len(signals_per_pos[pos]), varinfo[pos].alt, varinfo[pos].ref))
                             continue
                         for i in range(phasing_param.ploidy):
                             if i in signals_per_pos[pos]:
@@ -285,8 +297,16 @@ def run_polyphasegenetic(
                                 allele = varinfo[pos].ref
                             superreads[sample][i].add_variant(accessible_positions[pos], allele, 0)
                             components[sample][accessible_positions[pos]] = accessible_positions[0]
+                            haplotypes[i].append(allele)
+                        phased_positions.append(accessible_positions[pos])
                             
                     timers.stop("arrangement")
+                    
+                    timers.start("parse_vcf")
+                    if ground_truth_file:
+                        regions = [(phased_positions[i], phased_positions[i]+1) for i in range(len(phased_positions))]
+                        ground_truth_table = ground_truth_reader.fetch_regions(chromosome, regions)
+                    timers.stop("parse_vcf")
 
                     # create plots
                     if plot:
@@ -302,6 +322,9 @@ def run_polyphasegenetic(
                             num_vars,
                             output + ".arrangement.pdf",
                         )
+                        
+                        if ground_truth_file:
+                            draw_phase_comparison(haplotypes, phased_positions, variant_table, ground_truth_table, output + ".comparison.pdf")
 
                 with timers("write_vcf"):
                     logger.info("======== Writing VCF")
@@ -347,7 +370,7 @@ def determine_pedigree(pedigree_file, samples, vcf_samples, progeny_samples):
                     raise CommandLineError(None)
             if tokens[2] not in progeny_samples:
                 logger.error(
-                    "Progeny sample {} from pedigree file is not present in progeny (or main) VCF file".format(token)
+                    "Progeny sample {} from pedigree file is not present in progeny (or main) VCF file".format(token[2])
                 )
                 raise CommandLineError(None)
 
@@ -462,6 +485,12 @@ def add_arguments(parser):
         type=int,
         required=True,
         help="The ploidy of the sample(s). Argument is required.",
+    )
+    arg(
+        "--ground-truth-file",
+        "-g",
+        required=False,
+        help="File containing a ground truth phasing. Only used for plotting.",
     )
     arg(
         "--scoring-window",
