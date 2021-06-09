@@ -14,12 +14,9 @@ from libcpp.vector cimport vector
 from libc.stdint cimport uint32_t, uint64_t
 from . cimport cpp
 
+from .variant import Variant
 from collections import namedtuple
 from cython.operator cimport dereference as deref
-
-
-# A single variant on a read.
-Variant = namedtuple('Variant', 'position allele quality')
 
 
 cdef class NumericSampleIds:

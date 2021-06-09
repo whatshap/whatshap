@@ -96,13 +96,13 @@ class ReadMerger(ReadMergerBase):
         reads = {}
         for read in readset:
             id += 1
-            begin_str = read[0][0]
+            begin_str = read[0].position
             snps = []
             orgn = []
             for variant in read:
-                site = variant[0]
-                zyg = variant[1]
-                qual = variant[2]
+                site = variant.position
+                zyg = variant.allele
+                qual = variant.quality
 
                 orgn.append([str(site), str(zyg), str(qual)])
                 if int(zyg) == 0:
