@@ -27,10 +27,8 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
     # compute auxiliary data
     index, rev_index = get_position_map(readset)
     num_vars = len(rev_index)
-    positions = get_cluster_start_end_positions(readset, clustering, index)
     coverage = get_coverage(readset, clustering, index)
     cov_map = get_pos_to_clusters_map(coverage, ploidy)
-    consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
     allele_depths, normalized_depths, consensus_lists = get_allele_depths(
         readset, clustering, cov_map, ploidy, genotypes=genotypes
     )
@@ -49,7 +47,7 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
         switch_cost=4 * affine_switch_cost,
         affine_switch_cost=affine_switch_cost,
     )
-    print("Path computation: {} seconds".format((time()-t)))
+    print("Path computation: {} seconds".format((time() - t)))
 
     # determine haplotypes/alleles for each position
     haplotypes = compute_haplotypes(path, cov_map, consensus_lists, ploidy)
@@ -58,12 +56,18 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
     cwise_snps = find_cluster_snps(path, haplotypes)
 
     # phase cluster snps
-    haplotypes = phase_cluster_snps(path, haplotypes, cwise_snps, clustering, readset, index, error_rate=0.05, window_size=20)
+    haplotypes = phase_cluster_snps(
+        path, haplotypes, cwise_snps, clustering, readset, index, error_rate=0.05, window_size=20
+    )
 
     # we can look at the sequences again to use the most likely continuation for ambiguous haplotype switches
-    path, haplotypes = improve_path_on_ambiguous_switches(path, haplotypes, clustering, readset, index, error_rate=0.05, window_size=20)
+    path, haplotypes = improve_path_on_ambiguous_switches(
+        path, haplotypes, clustering, readset, index, error_rate=0.05, window_size=20
+    )
 
-    cut_positions, haploid_cuts = compute_cut_positions(path, block_cut_sensitivity, len(clustering))
+    cut_positions, haploid_cuts = compute_cut_positions(
+        path, block_cut_sensitivity, len(clustering)
+    )
 
     logger.debug("Cut positions: {}".format(cut_positions))
     for i in range(ploidy):
@@ -154,16 +158,20 @@ def find_cluster_snps(path, haplotypes):
     return cwise_snps
 
 
-def phase_cluster_snps(path, haplotypes, cwise_snps, clustering, readset, index, error_rate=0.05, window_size=20):
+def phase_cluster_snps(
+    path, haplotypes, cwise_snps, clustering, readset, index, error_rate=0.05, window_size=20
+):
     """
     For clusters with multiplicity >= 2 on multiple positions: Bring the alleles of the
     precomputed haplotypes in order by using read information.
     The window size determines how many previous positions are taken into account when resolving
     the next one.
     """
-    
+
     # sort clusters by position of first haplotype
-    collapsed = sorted([(cid, sorted(snps)) for cid, snps in cwise_snps.items()], key=lambda x: x[1][0])
+    collapsed = sorted(
+        [(cid, sorted(snps)) for cid, snps in cwise_snps.items()], key=lambda x: x[1][0]
+    )
 
     # iterate cluster-wise
     for cid, snps in collapsed:
@@ -172,19 +180,24 @@ def phase_cluster_snps(path, haplotypes, cwise_snps, clustering, readset, index,
         het_pos = []
         i, w = snps[0] - 1, 0
         while w < window_size and i >= 0:
-            if any([haplotypes[c_slots[0]][i] != haplotypes[c_slots[j]][i] for j in range(1, len(c_slots))]):
+            if any(
+                [
+                    haplotypes[c_slots[0]][i] != haplotypes[c_slots[j]][i]
+                    for j in range(1, len(c_slots))
+                ]
+            ):
                 het_pos.append(i)
                 w += 1
             i -= 1
         het_pos = het_pos[::-1] + snps
         # w = number of preceding het positions, can be lower than window_size close to chr start
-        
+
         # store the allele of every cluster-read for the relevant positions
         rmat = dict()
-        
+
         # for each position store the supporting reads
         readlist = defaultdict(list)
-        
+
         # go over all reads and determine which snp positions they are defined on
         for rid in clustering[cid]:
             read = readset[rid]
@@ -203,13 +216,11 @@ def phase_cluster_snps(path, haplotypes, cwise_snps, clustering, readset, index,
                     j += 1
 
         # reconstruct cluster phasing
-        #print("SNP resolving in cluster {}".format(cid))
         for i in range(len(snps)):
             pos = snps[i]
             het_idx = i + w
             c_slots = [j for j in range(len(path[pos])) if path[pos][j] == cid]
-            #print("   Pos={}, haplotypes={}".format(pos, c_slots))
-            
+
             configs = []
             # enumerate all permutations of haplotypes at current positions
             for perm in it.permutations(c_slots):
@@ -231,17 +242,21 @@ def phase_cluster_snps(path, haplotypes, cwise_snps, clustering, readset, index,
                                 overlap += 1
                                 if haplotypes[c_slots[slot]][het_pos[j]] != rmat[rid][j]:
                                     errors += 1
-                        likelihood += a_priori * ((1 - error_rate)**(overlap - errors)) * (error_rate**errors)
+                        likelihood += (
+                            a_priori
+                            * ((1 - error_rate) ** (overlap - errors))
+                            * (error_rate ** errors)
+                        )
                     score += log(likelihood)
                 configs.append((perm, score))
-                
+
             configs.sort(key=lambda x: -x[1])
             best_perm = configs[0][0]
-            
-            #print("   Best permutation is {} with score {}".format(best_perm, configs[0][1]))
-            #print("   Second best permutation is {} with score {}".format(configs[1][0] if best_perm == configs[0][0] else configs[0][0], configs[1][1]))
-            #print("   {}".format(configs))
-            
+
+            # print("   Best permutation is {} with score {}".format(best_perm, configs[0][1]))
+            # print("   Second best permutation is {} with score {}".format(configs[1][0] if best_perm == configs[0][0] else configs[0][0], configs[1][1]))
+            # print("   {}".format(configs))
+
             # switch alleles at current position, needed as input for next position(s)
             alleles = [haplotypes[best_perm[j]][pos] for j in range(len(best_perm))]
             for j in range(len(c_slots)):
@@ -342,7 +357,9 @@ def compute_cut_positions(path, block_cut_sensitivity, num_clusters):
     return cut_positions, haploid_cut_positions
 
 
-def improve_path_on_ambiguous_switches(path, haplotypes, clustering, readset, index, error_rate=0.07, window_size=10):
+def improve_path_on_ambiguous_switches(
+    path, haplotypes, clustering, readset, index, error_rate=0.07, window_size=10
+):
     """
     Post processing step after the threading. If a haplotype leaves a cluster on a collapsed region, we could use
     read information to find the most likely continuation of the switching haplotypes.
@@ -354,7 +371,7 @@ def improve_path_on_ambiguous_switches(path, haplotypes, clustering, readset, in
     corrected_path = []
     corrected_path.append(path[0])
     corrected_haplotypes = [[haplotypes[i][0]] for i in range(ploidy)]
-    
+
     # keeps track of how the input haplotype is mapped to corrected one at current position i
     current_perm = tuple(range(ploidy))
     # the invers permutation from above, maps corrected haplotype to original one
@@ -372,7 +389,7 @@ def improve_path_on_ambiguous_switches(path, haplotypes, clustering, readset, in
         corrected_path.append([path[i][j] for j in inverse_perm])
         for j in range(len(inverse_perm)):
             corrected_haplotypes[j].append(haplotypes[inverse_perm[j]][i])
-        
+
         # iterate over present cluster ids
         changed = set()
         for c_id in copynrs[i]:
@@ -400,8 +417,20 @@ def improve_path_on_ambiguous_switches(path, haplotypes, clustering, readset, in
 
         # compute the optimal permutation of changing haplotypes, according to read information
         h_group = list(changed)
-        configs = solve_single_ambiguous_site(corrected_path, haplotypes, corrected_haplotypes, inverse_perm, clustering, readset, index, i, h_group, error_rate, window_size)
-        
+        configs = solve_single_ambiguous_site(
+            corrected_path,
+            haplotypes,
+            corrected_haplotypes,
+            inverse_perm,
+            clustering,
+            readset,
+            index,
+            i,
+            h_group,
+            error_rate,
+            window_size,
+        )
+
         # if multiple optimal configs exist: let the most recently haplotypes switch
         opt_perms = [config[0] for config in configs if config[1] == configs[0][1]]
         if len(opt_perms) > 1:
@@ -409,9 +438,9 @@ def improve_path_on_ambiguous_switches(path, haplotypes, clustering, readset, in
         else:
             best_perm = configs[0][0]
 
-        #print("   Best permutation is {} with score {}".format(best_perm, configs[0][1]))
-        #print("   Second best permutation is {} with score {}".format(configs[1][0] if best_perm == configs[0][0] else configs[0][0], configs[1][1]))
-            
+        # print("   Best permutation is {} with score {}".format(best_perm, configs[0][1]))
+        # print("   Second best permutation is {} with score {}".format(configs[1][0] if best_perm == configs[0][0] else configs[0][0], configs[1][1]))
+
         # apply local best permutation to current global permutation
         current_perm_copy = list(current_perm)
         for j in range(len(h_group)):
@@ -430,35 +459,57 @@ def improve_path_on_ambiguous_switches(path, haplotypes, clustering, readset, in
     return corrected_path, corrected_haplotypes
 
 
-def solve_single_ambiguous_site(corrected_path, haplotypes, corrected_haplotypes, hap_perm, clustering, readset, index, pos, h_group, error_rate, window_size):
+def solve_single_ambiguous_site(
+    corrected_path,
+    haplotypes,
+    corrected_haplotypes,
+    hap_perm,
+    clustering,
+    readset,
+    index,
+    pos,
+    h_group,
+    error_rate,
+    window_size,
+):
     # for every group of haplotypes coming from a collapsed cluster:
     # find the position, where each of the cluster joined the collapsing one (introduced in new07)
     present_c = [corrected_path[pos - 1][j] for j in h_group]
     next_c = [corrected_path[pos][j] for j in h_group]
     all_c = set(present_c + next_c)
 
-    #print("Collapsed cut on position {} on haplotypes {}:".format(pos, h_group))
-    #print("   h_group = {}, present_c = {}, next_c = {}".format(h_group, present_c, next_c))
+    # print("Collapsed cut on position {} on haplotypes {}:".format(pos, h_group))
+    # print("   h_group = {}, present_c = {}, next_c = {}".format(h_group, present_c, next_c))
 
     het_pos_before = []
     het_pos_after = []
 
     j, w = pos - 1, 0
     while w < window_size and j >= 0:
-        if any([corrected_haplotypes[h_group[0]][j] != corrected_haplotypes[h_group[k]][j] for k in range(1, len(h_group))]):
+        if any(
+            [
+                corrected_haplotypes[h_group[0]][j] != corrected_haplotypes[h_group[k]][j]
+                for k in range(1, len(h_group))
+            ]
+        ):
             het_pos_before.append(j)
             w += 1
         j -= 1
     j, w = pos, 0
     het_pos_before = het_pos_before[::-1]
     while w < window_size and j < len(haplotypes[0]):
-        if any([haplotypes[hap_perm[h_group[0]]][j] != haplotypes[hap_perm[h_group[k]]][j] for k in range(1, len(h_group))]):
+        if any(
+            [
+                haplotypes[hap_perm[h_group[0]]][j] != haplotypes[hap_perm[h_group[k]]][j]
+                for k in range(1, len(h_group))
+            ]
+        ):
             het_pos_after.append(j)
             w += 1
         j += 1
 
     het_pos = het_pos_before + het_pos_after
-    #print("   het_before = {}, het_after = {}".format(het_pos_before, het_pos_after))
+    # print("   het_before = {}, het_after = {}".format(het_pos_before, het_pos_after))
 
     # store the allele of every cluster-read for the relevant positions
     rmat = dict()
@@ -494,7 +545,7 @@ def solve_single_ambiguous_site(corrected_path, haplotypes, corrected_haplotypes
                     readlist.append(rid)
 
     # reconstruct cluster phasing
-    #print("   Found {} relevant reads".format(len(readlist)))
+    # print("   Found {} relevant reads".format(len(readlist)))
     configs = []
     # enumerate all permutations of haplotypes at current positions
     for perm in it.permutations(range(len(h_group))):
@@ -507,17 +558,22 @@ def solve_single_ambiguous_site(corrected_path, haplotypes, corrected_haplotypes
                 overlap = len(rmat[rid])
                 errors = 0
                 for j in het_pos_before:
-                    if j in rmat[rid] and corrected_haplotypes[h_group[perm[slot]]][j] != rmat[rid][j]:
+                    if (
+                        j in rmat[rid]
+                        and corrected_haplotypes[h_group[perm[slot]]][j] != rmat[rid][j]
+                    ):
                         errors += 1
                 for j in het_pos_after:
                     if j in rmat[rid] and haplotypes[hap_perm[h_group[slot]]][j] != rmat[rid][j]:
                         errors += 1
-                likelihood += a_priori * ((1 - error_rate)**(overlap - errors)) * (error_rate**errors)
+                likelihood += (
+                    a_priori * ((1 - error_rate) ** (overlap - errors)) * (error_rate ** errors)
+                )
             score += log(likelihood)
         configs.append((perm, score))
-            
+
     configs.sort(key=lambda x: -x[1])
-    #print("   Configs = {}".format(configs))
+    # print("   Configs = {}".format(configs))
     return configs
 
 
@@ -536,7 +592,7 @@ def tie_break_optimal_permutations(corrected_path, pos, h_group, opt_perms):
         if score < best_score:
             best_score = score
             best_perm = perm
-            
+
     return best_perm
 
 
