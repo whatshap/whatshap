@@ -178,8 +178,7 @@ def prepare_haplotag_information(
         for read in read_set:
             if read.has_BX_tag() and not ignore_linked_read:
                 bx_tag_to_readlist[read.BX_tag].append(read)
-            if read.has_BX_tag() and not ignore_linked_read:
-                bx_tag_to_readlist[read.BX_tag].append(read)
+
         # all reads processed so far
         processed_reads = set()
         for read in read_set:
