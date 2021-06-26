@@ -1,6 +1,7 @@
 #ifndef PROGENYGENOTYPELIKELIHOODS_H
 #define PROGENYGENOTYPELIKELIHOODS_H
 
+#include <cstdint>
 #include <vector>
 #include <unordered_map>
 
@@ -31,7 +32,7 @@ private:
      uint32_t ploidy;
      uint32_t numPositions;
      
-     uint32_t getIndex(uint32_t pos, u_int32_t sampleId, uint32_t genotype) const;
+     uint32_t getIndex(uint32_t pos, uint32_t sampleId, uint32_t genotype) const;
 };
 
 #endif // PROGENYGENOTYPELIKELIHOODS_H

@@ -1,13 +1,14 @@
 # flake8: noqa
 import itertools as it
-from math import ceil
+from math import ceil, floor
 from copy import deepcopy
 from collections import defaultdict
 
 import logging
-from whatshap.core import ReadSet
+from whatshap.core import Read, ReadSet
 from whatshap.cli.compare import compute_switch_flips_poly_bt
 from whatshap.polyphaseutil import get_coverage
+from collections import defaultdict
 
 """
 This class is exclusively used for debugging and development.
@@ -644,7 +645,7 @@ def create_histogram(path, same, diff, steps, dim, x_label, title, name1="same",
 
 
 def draw_phase_comparison(
-    haplotypes, phased_positions, parent_table, ground_truth_table, path
+    haplotypes, phased_positions, coverage, parent_table, ground_truth_table, path
 ):
     try:
         import matplotlib
@@ -660,6 +661,7 @@ def draw_phase_comparison(
         # convert node type to color
         color = {(1, 0): 'tab:blue', (1, 1): 'tab:orange', (2, 0): 'tab:red', (3, 0): 'tab:green', (2, 1): 'tab:purple'}
         colors = ['tab:blue', 'tab:red', 'tab:orange', 'tab:green', 'tab:purple']
+        background_colors = ['lightgray', 'darkgray', 'dimgray', 'black']
         
         # Read ground truth phasing
         phase_rows = []
@@ -682,10 +684,10 @@ def draw_phase_comparison(
         y_margin = 0.15
         x_scale = 1.0 / (1.0+x_margin)
         y_scale = 1.0
-        fig = plt.figure(figsize=((compared_to_phased_pos[-1] + 2)*0.8, 2*ploidy), dpi=100)
+        fig = plt.figure(figsize=((compared_to_phased_pos[-1] + 2)*0.8, 2.5*ploidy), dpi=100)
         axes = plt.gca()
         axes.set_xlim([0, (compared_to_phased_pos[-1]+x_margin)*x_scale])
-        axes.set_ylim([-ploidy*y_scale, (ploidy)*y_scale])
+        axes.set_ylim([-ploidy*y_scale, (1.5*ploidy)*y_scale])
         
         # Draw error height lines
         for i in range(1, ploidy):
@@ -700,18 +702,43 @@ def draw_phase_comparison(
             switch_cost=1 + 1 / (num_vars * ploidy),
         )
         
-        # Plot ground truth boxes
+        # Plot coverage
+        max_coverage = max(coverage)
+        med_coverage = list(sorted(coverage))[len(coverage)//2]
+        print(max_coverage)
+        print(med_coverage)
+        #points = [[0, ploidy + y_margin], [0, ploidy + y_margin + 2 * coverage[0] / max_coverage]]
+        points = [[0, ploidy + y_margin + 2 * coverage[0] / max_coverage]]
+        for pos in range(compared_to_phased_pos[-1]):
+            x1 = x_scale*(pos+x_margin)
+            x2 = x_scale*(pos+1)
+            points.append([(x1 + x2) / 2, ploidy + y_margin + 2 * coverage[pos] / max_coverage])
+        points.append([x_scale*(compared_to_phased_pos[-1]+1), ploidy + y_margin + 2 * coverage[-1] / max_coverage])
+        for i in range(0, len(points), 50):
+            point_set = [[points[i][0], ploidy + y_margin]] + points[i:min(i+51,len(points))] + [[points[min(i+50, len(points)-1)][0], ploidy + y_margin]]
+            axes.add_patch(mpatches.Polygon(point_set, color='tab:purple', alpha=0.5, closed=True, fill=True))
+        axes.add_patch(mpatches.Polygon([[0, ploidy + y_margin + 2 * med_coverage / max_coverage], [compared_to_phased_pos[-1], ploidy + y_margin + 2 * med_coverage / max_coverage]], color='tab:purple', closed=False, fill=False, ls='-', lw=0.5))
+        
+        # Add genome positions
+        try:
+            for pos in range(0, compared_to_phased_pos[-1], 1):
+                x = x_scale * (pos + 1 - 2 * x_margin)
+                axes.text(x, ploidy + 2 * y_margin, phased_positions[pos] + 1, fontsize=15, rotation='vertical')
+        except:
+            pass
+        
+        # Plot ground truth boxes and errors
         for i, pos in enumerate(compared_to_phased_pos):
             x1 = x_scale*(pos+x_margin)
             x2 = x_scale*(pos+1)
             y1 = y_scale*0
             y2 = y_scale*ploidy
-            axes.add_patch(mpatches.Polygon([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], color='lightgray', alpha=1.0, closed=True, fill=True))
+            axes.add_patch(mpatches.Polygon([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], color=background_colors[0], alpha=1.0, closed=True, fill=True))
             for h in range(ploidy):
-                if truth_block[h][i] == 1:
-                    y3 = y1 + y_scale*h
-                    y4 = y1 + y_scale*(h+1)
-                    axes.add_patch(mpatches.Polygon([[x1, y3], [x2, y3], [x2, y4], [x1, y4]], color='gray', alpha=1.0, closed=True, fill=True))
+                y3 = y1 + y_scale*h
+                y4 = y1 + y_scale*(h+1)
+                if truth_block[h][i] >= 1:
+                    axes.add_patch(mpatches.Polygon([[x1, y3], [x2, y3], [x2, y4], [x1, y4]], color=background_colors[truth_block[h][i]], alpha=1.0, closed=True, fill=True))
             
             flips = len(flips_in_column[i])
             switches = switches_in_column[i]
@@ -748,7 +775,7 @@ def draw_phase_comparison(
             x2 = x_scale * (pos * 2 + x_margin + 1) / 2
             for h in range(ploidy):
                 y2 = y_scale * (2 * poswise_config[compare_idx][h] + 1) / 2
-                color = 'gray' if haplotypes[h][pos] == 1 else 'lightgray'
+                color = background_colors[haplotypes[h][pos]]
                 axes.add_patch(plt.Circle((x2, y2), x_scale*0.25, color='black'))
                 axes.add_patch(plt.Circle((x2, y2), x_scale*0.22, color=color))
         

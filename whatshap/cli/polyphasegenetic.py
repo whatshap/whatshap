@@ -26,7 +26,7 @@ from whatshap.clusterarrangement import arrange_clusters
 
 __author__ = "Sven Schrinner"
 
-PhasingParameter = namedtuple("PhasingParameter", ["ploidy", "scoring_window", "simplex", "allow_homozyguous"])
+PhasingParameter = namedtuple("PhasingParameter", ["ploidy", "scoring_window", "simplex", "allow_homozyguous", "allow_deletions"])
 
 logger = logging.getLogger(__name__)
 
@@ -164,7 +164,7 @@ def run_polyphasegenetic(
 
         # Store phasing parameters in tuple to keep function signatures cleaner
         phasing_param = PhasingParameter(
-            ploidy=ploidy, scoring_window=scoring_window, simplex=simplex, allow_homozyguous=allow_homozyguous
+            ploidy=ploidy, scoring_window=scoring_window, simplex=simplex, allow_homozyguous=allow_homozyguous, allow_deletions=indels,
         )
 
         timers.start("parse_vcf")
@@ -228,6 +228,21 @@ def run_polyphasegenetic(
                         phasing_param, 
                         0.06)
                     
+                    # store progeny coverage
+                    progeny_coverage_all = [0 for _ in range(len(variant_table))]
+                    for off in offspring[(sample, co_parent[sample])]:
+                        parent_pos = 0
+                        progeny_pos = 0
+                        allele_depths = progeny_table.allele_depths_of(off)
+                        assert len(allele_depths) == len(progeny_table)
+                        while progeny_pos < len(allele_depths) and parent_pos < len(variant_table):
+                            if variant_table.variants[parent_pos].position == progeny_table.variants[progeny_pos].position:
+                                progeny_coverage_all[parent_pos] += sum(allele_depths[progeny_pos])
+                                progeny_pos += 1
+                            else:
+                                assert variant_table.variants[parent_pos].position < progeny_table.variants[progeny_pos].position
+                            parent_pos += 1
+                    
                     # delete progeny table if dedicated
                     if progeny_file:
                         del progeny_table
@@ -285,6 +300,9 @@ def run_polyphasegenetic(
                                 
                     phased_positions = []
                     haplotypes = [[] for _ in range(phasing_param.ploidy)]
+                    sample_coverage = []
+                    progeny_coverage = []
+                    allele_depths = variant_table.allele_depths_of(sample)
 
                     for pos in range(len(variant_table)):
                         if not phasing_param.allow_homozyguous and len(signals_per_pos[pos]) == 0:
@@ -299,6 +317,8 @@ def run_polyphasegenetic(
                             components[sample][accessible_positions[pos]] = accessible_positions[0]
                             haplotypes[i].append(allele)
                         phased_positions.append(accessible_positions[pos])
+                        sample_coverage.append(sum(allele_depths[pos]))
+                        progeny_coverage.append(progeny_coverage_all[pos])
                             
                     timers.stop("arrangement")
                     
@@ -324,7 +344,7 @@ def run_polyphasegenetic(
                         )
                         
                         if ground_truth_file:
-                            draw_phase_comparison(haplotypes, phased_positions, variant_table, ground_truth_table, output + ".comparison.pdf")
+                            draw_phase_comparison(haplotypes, phased_positions, progeny_coverage, variant_table, ground_truth_table, output + ".comparison.pdf")
 
                 with timers("write_vcf"):
                     logger.info("======== Writing VCF")
