@@ -8,7 +8,6 @@ import logging
 import itertools
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from collections import defaultdict
 from os import PathLike
 from typing import List, Sequence, Dict, Set, Tuple, Iterable, Optional, Union, TextIO, Iterator
 
@@ -59,7 +58,7 @@ class VariantCallPhase:
 class VcfVariant:
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
-    __slots__ = ("position", "reference_allele", "alternative_alleles")
+    __slots__ = ("position", "reference_allele", "alternative_allele")
 
     @abstractmethod
     def __repr__(self):
@@ -306,7 +305,7 @@ class VariantTable:
         genotypes: Sequence[Genotype],
         phases: Sequence[Optional[VariantCallPhase]],
         genotype_likelihoods: Sequence[Optional[GenotypeLikelihoods]],
-        allele_depths: Sequence[Dict[int, Read]],
+        allele_depths: Sequence[Optional[Dict[int, Read]]],
     ) -> None:
         """Add a row to the table"""
         if len(genotypes) != len(self.genotypes):
@@ -482,7 +481,7 @@ class VcfReader:
         ignore_genotypes: bool = False,
         ploidy: int = None,
         mav: bool = False,
-        allele_depth: bool = False
+        allele_depth: bool = False,
     ):
         """
         path -- Path to VCF file
@@ -615,7 +614,7 @@ class VcfReader:
             if len(record.alts) > 1:
                 # Multi-ALT sites are not supported, yet
                 n_multi += 1
-                if not self.mav:
+                if not self.mav or len(record.alts) >= get_max_genotype_alleles():
                     continue
 
             pos, ref, alts = record.start, str(record.ref), [str(alt) for alt in record.alts]
@@ -731,10 +730,14 @@ class VcfReader:
                 depths = [None] * len(record.samples)
 
             if len(alts) == 1:
-                variant = VcfBiallelicVariant(position=pos, reference_allele=ref, alternative_allele=alts[0])
+                variant = VcfBiallelicVariant(
+                    position=pos, reference_allele=ref, alternative_allele=alts[0]
+                )
             else:
-                variant = VcfMultiallelicVariant(position=pos, reference_allele=ref, alternative_alleles=alts)
-            table.add_variant(variant, genotypes, phases, genotype_likelihoods)
+                variant = VcfMultiallelicVariant(
+                    position=pos, reference_allele=ref, alternative_alleles=alts
+                )
+            table.add_variant(variant, genotypes, phases, genotype_likelihoods, depths)
 
         logger.debug(
             "Parsed %s SNVs and %s non-SNVs. Also found %s multi-ALTs.", n_snvs, n_other, n_multi
@@ -793,7 +796,7 @@ PREDEFINED_FORMATS = {
         " called genotype for each possible genotype generated from the"
         " reference and alternate alleles given the sample ploidy",
     ),
-    "GQ": VcfHeader("FORMAT", "GQ", 1, "Float", "Phred-scaled genotype quality"),
+    "GQ": VcfHeader("FORMAT", "GQ", 1, "Integer", "Phred-scaled genotype quality"),
     "GT": VcfHeader("FORMAT", "GT", 1, "String", "Genotype"),
     "HP": VcfHeader("FORMAT", "HP", ".", "String", "Phasing haplotype identifier"),
     "PQ": VcfHeader("FORMAT", "PQ", 1, "Float", "Phasing quality"),
@@ -1209,7 +1212,7 @@ class PhasedVcfWriter(VcfAugmenter):
                 if pos in genotypes and genotypes[pos] != gt_type:
                     # call['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
                     call["GT"] = tuple(genotypes[pos].as_vector())
-                    variant = VcfVariant(record.start, record.ref, record.alts[0])
+                    variant = VcfBiallelicVariant(record.start, record.ref, record.alts[0])
                     genotype_changes.append(
                         GenotypeChange(sample, chromosome, variant, gt_type, genotypes[pos])
                     )

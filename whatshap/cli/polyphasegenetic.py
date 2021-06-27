@@ -18,15 +18,27 @@ from contextlib import ExitStack
 from whatshap import __version__
 from whatshap.core import ClusterEditingSolver, Read, ReadSet
 from whatshap.cli import log_memory_usage, CommandLineError
-from whatshap.polyphaseplots import draw_genetic_clustering, draw_genetic_clustering_arrangement, draw_phase_comparison
-from whatshap.offspringscoring import get_variant_scoring, get_phasable_parent_variants, get_offspring_gl, add_corrected_variant_types
+from whatshap.polyphaseplots import (
+    draw_genetic_clustering,
+    draw_genetic_clustering_arrangement,
+    draw_phase_comparison,
+)
+from whatshap.offspringscoring import (
+    get_variant_scoring,
+    get_phasable_parent_variants,
+    get_offspring_gl,
+    add_corrected_variant_types,
+)
 from whatshap.timer import StageTimer
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
 from whatshap.clusterarrangement import arrange_clusters
 
 __author__ = "Sven Schrinner"
 
-PhasingParameter = namedtuple("PhasingParameter", ["ploidy", "scoring_window", "simplex", "allow_homozyguous", "allow_deletions"])
+PhasingParameter = namedtuple(
+    "PhasingParameter",
+    ["ploidy", "scoring_window", "simplex", "allow_homozyguous", "allow_deletions"],
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +78,7 @@ def run_polyphasegenetic(
     tag="PS",
     write_command_line_header=True,
     read_list_filename=None,
-    plot=False
+    plot=False,
 ):
     """
     Run Polyploid Phasing.
@@ -150,7 +162,10 @@ def run_polyphasegenetic(
 
         # determine pedigree
         parents, co_parent, offspring = determine_pedigree(
-            pedigree_file, samples, vcf_reader.samples, progeny_reader.samples if progeny_file else vcf_reader.samples
+            pedigree_file,
+            samples,
+            vcf_reader.samples,
+            progeny_reader.samples if progeny_file else vcf_reader.samples,
         )
 
         # validate samples
@@ -164,7 +179,11 @@ def run_polyphasegenetic(
 
         # Store phasing parameters in tuple to keep function signatures cleaner
         phasing_param = PhasingParameter(
-            ploidy=ploidy, scoring_window=scoring_window, simplex=simplex, allow_homozyguous=allow_homozyguous, allow_deletions=indels,
+            ploidy=ploidy,
+            scoring_window=scoring_window,
+            simplex=simplex,
+            allow_homozyguous=allow_homozyguous,
+            allow_deletions=indels,
         )
 
         timers.start("parse_vcf")
@@ -172,7 +191,7 @@ def run_polyphasegenetic(
             for variant_table in vcf_reader:
                 chromosome = variant_table.chromosome
                 timers.stop("parse_vcf")
-                
+
                 if (not chromosomes) or (chromosome in chromosomes):
                     logger.info("======== Working on chromosome %r", chromosome)
                 else:
@@ -193,15 +212,22 @@ def run_polyphasegenetic(
                 # compute scoring matrices for parent samples
                 for sample in samples:
                     logger.info("---- Processing individual %s", sample)
-                    
+
                     # compute phasable parent variants
-                    varinfo, phasable_indices = get_phasable_parent_variants(variant_table, sample, co_parent[sample], phasing_param)
-                    
+                    varinfo, phasable_indices = get_phasable_parent_variants(
+                        variant_table, sample, co_parent[sample], phasing_param
+                    )
+
                     # if progeny file provided, extract region, else just reuse main table
                     timers.start("parse_vcf")
                     if progeny_file:
-                        main_positions = [variant_table.variants[i].position for i in phasable_indices]
-                        regions = [(main_positions[i], main_positions[i]+1) for i in range(len(main_positions))]
+                        main_positions = [
+                            variant_table.variants[i].position for i in phasable_indices
+                        ]
+                        regions = [
+                            (main_positions[i], main_positions[i] + 1)
+                            for i in range(len(main_positions))
+                        ]
                         progeny_table = progeny_reader.fetch_regions(chromosome, regions)
                     else:
                         progeny_table = variant_table
@@ -212,22 +238,24 @@ def run_polyphasegenetic(
                     logger.info("Computing genotype likelihoods for offspring ...")
                     if distrust_parent_genotypes:
                         varinfo = add_corrected_variant_types(
-                            variant_table, 
-                            progeny_table, 
-                            offspring[(sample, co_parent[sample])], 
-                            varinfo, 
-                            phasable_indices, 
-                            phasing_param, 
-                            0.06)
+                            variant_table,
+                            progeny_table,
+                            offspring[(sample, co_parent[sample])],
+                            varinfo,
+                            phasable_indices,
+                            phasing_param,
+                            0.06,
+                        )
                     off_gl, node_to_variant, type_of_node = get_offspring_gl(
-                        variant_table, 
-                        progeny_table, 
-                        offspring[(sample, co_parent[sample])], 
-                        varinfo, 
-                        phasable_indices, 
-                        phasing_param, 
-                        0.06)
-                    
+                        variant_table,
+                        progeny_table,
+                        offspring[(sample, co_parent[sample])],
+                        varinfo,
+                        phasable_indices,
+                        phasing_param,
+                        0.06,
+                    )
+
                     # store progeny coverage
                     progeny_coverage_all = [0 for _ in range(len(variant_table))]
                     for off in offspring[(sample, co_parent[sample])]:
@@ -236,21 +264,27 @@ def run_polyphasegenetic(
                         allele_depths = progeny_table.allele_depths_of(off)
                         assert len(allele_depths) == len(progeny_table)
                         while progeny_pos < len(allele_depths) and parent_pos < len(variant_table):
-                            if variant_table.variants[parent_pos].position == progeny_table.variants[progeny_pos].position:
+                            if (
+                                variant_table.variants[parent_pos].position
+                                == progeny_table.variants[progeny_pos].position
+                            ):
                                 progeny_coverage_all[parent_pos] += sum(allele_depths[progeny_pos])
                                 progeny_pos += 1
                             else:
-                                assert variant_table.variants[parent_pos].position < progeny_table.variants[progeny_pos].position
+                                assert (
+                                    variant_table.variants[parent_pos].position
+                                    < progeny_table.variants[progeny_pos].position
+                                )
                             parent_pos += 1
-                    
+
                     # delete progeny table if dedicated
                     if progeny_file:
                         del progeny_table
-                    
+
                     # compute scoring for variant pairs
                     logger.info("Compute scores for markers ...")
                     scoring = get_variant_scoring(varinfo, off_gl, node_to_variant, phasing_param)
-                    
+
                     # delete genotype likelihoods
                     del off_gl
 
@@ -277,7 +311,7 @@ def run_polyphasegenetic(
                     haplo_skeletons = arrange_clusters(
                         clustering, node_to_variant, (phasing_param.scoring_window + 1) // 2, ploidy
                     )
-                    
+
                     # determine haplotypes
                     accessible_positions = sorted([v.position for v in variant_table.variants])
 
@@ -286,18 +320,18 @@ def run_polyphasegenetic(
                     # node_to_variant maps a node id of the clustering to a position (index) of the variant_table
                     # varinfo contains the ref- and alt-allele for a position (index) of the variant_table
                     # haplo_skeletons contains ploidy many lists of nodes, which belong to the same haplotype
-                    
+
                     components[sample] = {}
                     superreads[sample] = ReadSet()
                     for i in range(phasing_param.ploidy):
                         superreads[sample].add(Read("superread {}".format(i + 1), 0, 0))
-                        
+
                     signals_per_pos = defaultdict(list)
                     for i, hap in enumerate(haplo_skeletons):
                         for clust in hap:
                             for node in clustering[clust]:
                                 signals_per_pos[node_to_variant[node]].append(i)
-                                
+
                     phased_positions = []
                     haplotypes = [[] for _ in range(phasing_param.ploidy)]
                     sample_coverage = []
@@ -306,7 +340,6 @@ def run_polyphasegenetic(
 
                     for pos in range(len(variant_table)):
                         if not phasing_param.allow_homozyguous and len(signals_per_pos[pos]) == 0:
-                            #print("pos = {} ({}): signals = {}, alt = {}, ref = {}".format(pos, accessible_positions[pos], len(signals_per_pos[pos]), varinfo[pos].alt, varinfo[pos].ref))
                             continue
                         for i in range(phasing_param.ploidy):
                             if i in signals_per_pos[pos]:
@@ -319,12 +352,15 @@ def run_polyphasegenetic(
                         phased_positions.append(accessible_positions[pos])
                         sample_coverage.append(sum(allele_depths[pos]))
                         progeny_coverage.append(progeny_coverage_all[pos])
-                            
+
                     timers.stop("arrangement")
-                    
+
                     timers.start("parse_vcf")
                     if ground_truth_file:
-                        regions = [(phased_positions[i], phased_positions[i]+1) for i in range(len(phased_positions))]
+                        regions = [
+                            (phased_positions[i], phased_positions[i] + 1)
+                            for i in range(len(phased_positions))
+                        ]
                         ground_truth_table = ground_truth_reader.fetch_regions(chromosome, regions)
                     timers.stop("parse_vcf")
 
@@ -342,9 +378,16 @@ def run_polyphasegenetic(
                             num_vars,
                             output + ".arrangement.pdf",
                         )
-                        
+
                         if ground_truth_file:
-                            draw_phase_comparison(haplotypes, phased_positions, progeny_coverage, variant_table, ground_truth_table, output + ".comparison.pdf")
+                            draw_phase_comparison(
+                                haplotypes,
+                                phased_positions,
+                                progeny_coverage,
+                                variant_table,
+                                ground_truth_table,
+                                output + ".comparison.pdf",
+                            )
 
                 with timers("write_vcf"):
                     logger.info("======== Writing VCF")
@@ -363,7 +406,6 @@ def run_polyphasegenetic(
     logger.info("\n== SUMMARY ==")
 
     log_memory_usage()
-    #logger.info("Time spent reading BAM/CRAM:              %6.1f s", timers.elapsed("read_bam"))
     logger.info("Time spent parsing VCF:                   %6.1f s", timers.elapsed("parse_vcf"))
     logger.info("Time spent for genetic scoring:           %6.1f s", timers.elapsed("scoring"))
     logger.info("Time spent for clustering:                %6.1f s", timers.elapsed("clustering"))
@@ -385,12 +427,16 @@ def determine_pedigree(pedigree_file, samples, vcf_samples, progeny_samples):
             for token in tokens[:2]:
                 if token not in vcf_samples:
                     logger.error(
-                        "Parent sample {} from pedigree file is not present in main VCF file".format(token)
+                        "Parent sample {} from pedigree file is not present in main VCF file".format(
+                            token
+                        )
                     )
                     raise CommandLineError(None)
             if tokens[2] not in progeny_samples:
                 logger.error(
-                    "Progeny sample {} from pedigree file is not present in progeny (or main) VCF file".format(token[2])
+                    "Progeny sample {} from pedigree file is not present in progeny (or main) VCF file".format(
+                        token[2]
+                    )
                 )
                 raise CommandLineError(None)
 
@@ -452,7 +498,7 @@ def add_arguments(parser):
         "-P",
         "--progeny_file",
         required=False,
-        help="File with progeny genotypes. If not specified, information is taken from main input file."
+        help="File with progeny genotypes. If not specified, information is taken from main input file.",
     )
     arg(
         "-o",

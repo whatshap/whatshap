@@ -196,13 +196,13 @@ cdef extern from "../src/polyphase/switchflipcalculator.h":
 
 
 cdef extern from "../src/polyphase/progenygenotypelikelihoods.h":
-	cdef cppclass ProgenyGenotypeLikelihoods:
-		ProgenyGenotypeLikelihoods(uint32_t ploidy, uint32_t numSamples, uint32_t numPositions) except +
-		double getGl(uint32_t pos, uint32_t sampleId, uint32_t genotype) except +
-		vector[double] getGlv(uint32_t pos, uint32_t sampleId) except +
- 		void setGl(uint32_t pos, uint32_t sampleId, uint32_t genotype, double l) except +
-		void setGlv(uint32_t pos, uint32_t sampleId, vector[double] l) except +
-		uint32_t getPloidy() except +
-		uint32_t getNumSamples() except +
-		uint32_t getNumPositions() except +
-		double getLogLikelihoodDifference(uint32_t pos1, uint32_t pos2, vector[pair[uint32_t, uint32_t]] genotypePairs, vector[pair[double, double]] likelihoodPairs) except +
+    cdef cppclass ProgenyGenotypeLikelihoods:
+        ProgenyGenotypeLikelihoods(uint32_t ploidy, uint32_t numSamples, uint32_t numPositions) except +
+        double getGl(uint32_t pos, uint32_t sampleId, uint32_t genotype) except +
+        vector[double] getGlv(uint32_t pos, uint32_t sampleId) except +
+        void setGl(uint32_t pos, uint32_t sampleId, uint32_t genotype, double l) except +
+        void setGlv(uint32_t pos, uint32_t sampleId, vector[double] l) except +
+        uint32_t getPloidy() except +
+        uint32_t getNumSamples() except +
+        uint32_t getNumPositions() except +
+        double getLogLikelihoodDifference(uint32_t pos1, uint32_t pos2, vector[pair[uint32_t, uint32_t]] genotypePairs, vector[pair[double, double]] likelihoodPairs) except +

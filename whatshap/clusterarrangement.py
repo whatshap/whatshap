@@ -1,6 +1,6 @@
 import logging
 
-from pulp import LpProblem, LpVariable, LpMaximize, LpContinuous, LpInteger, value, COIN_CMD
+from pulp import LpProblem, LpVariable, LpMaximize, LpInteger, value, COIN_CMD
 
 # from whatshap.vcf import VariantTable
 
@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def arrange_clusters(clustering, node_to_variant, padding, ploidy):
-    
+
     # filter out singleton clusters
     filtered_to_real = []
     fclustering = []

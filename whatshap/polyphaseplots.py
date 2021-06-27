@@ -483,7 +483,9 @@ def draw_threading(
 
 
 def draw_genetic_clustering(
-    clustering_original, num_vars, path,
+    clustering_original,
+    num_vars,
+    path,
 ):
     try:
         import matplotlib
@@ -527,10 +529,16 @@ def draw_genetic_clustering(
 
     except ImportError:
         logger.error("Plotting haplotype threading requires matplotlib to be installed")
-        
-        
+
+
 def draw_genetic_clustering_arrangement(
-    clustering, node_to_allvariant, arrangement, type_of_node, padding, num_nodes, path,
+    clustering,
+    node_to_allvariant,
+    arrangement,
+    type_of_node,
+    padding,
+    num_nodes,
+    path,
 ):
     try:
         import matplotlib
@@ -539,60 +547,104 @@ def draw_genetic_clustering_arrangement(
         import matplotlib.pyplot as plt
         import matplotlib.patches as mpatches
         from pylab import savefig
-        
+
         # convert node type to color
-        color = {(1, 0): 'tab:blue', (1, 1): 'tab:orange', (2, 0): 'tab:red', (3, 0): 'tab:green', (2, 1): 'tab:purple'}
+        color = {
+            (1, 0): "tab:blue",
+            (1, 1): "tab:orange",
+            (2, 0): "tab:red",
+            (3, 0): "tab:green",
+            (2, 1): "tab:purple",
+        }
 
         # Setup figure
         variants = set()
         node_to_variant = dict()
         for node in range(len(node_to_allvariant)):
             variants.add(node_to_allvariant[node])
-            node_to_variant[node] = len(variants)-1
-        num_vars = len(variants)+1
-        
+            node_to_variant[node] = len(variants) - 1
+        num_vars = len(variants) + 1
+
         fig = plt.figure(figsize=((num_vars + 2) / 40, len(arrangement)), dpi=100)
         legend_handles = {}
         x_scale = 1.0
         h_height = 10.0
         y_margin = 2.0
         axes = plt.gca()
-        axes.set_xlim([0, num_vars*x_scale])
-        
+        axes.set_xlim([0, num_vars * x_scale])
+
         # plot arrangement
         for i, hap in enumerate(arrangement):
             for cid in hap:
                 first = node_to_variant[min(clustering[cid])]
                 last = node_to_variant[max(clustering[cid])]
                 left = node_to_variant[max(0, min(clustering[cid]) - padding)]
-                right = node_to_variant[min(num_nodes-1, max(clustering[cid]) + padding)]
-                
-                x1 = x_scale*left
-                y1 = i*h_height
-                w1 = x_scale*(first-left+1)
-                h1 = h_height-y_margin
-                
-                x2 = x_scale*first
-                y2 = i*h_height
-                w2 = x_scale*(last-first+1)
-                h2 = h_height-y_margin
-                
-                x3 = x_scale*last
-                y3 = i*h_height
-                w3 = x_scale*(right-last+1)
-                h3 = h_height-y_margin
-                
-                axes.add_patch(mpatches.Polygon([[x1,y1+h1/2],[x1+w1,y1],[x1+w1,y1+h1]], color='lightgray', alpha=0.7, closed=True, fill=True))
-                axes.add_patch(mpatches.Rectangle((x_scale*first, i*h_height), x_scale*(last-first+1), h_height-y_margin, linewidth=1, fill=True, alpha=1.0, edgecolor='lightgray', facecolor='lightgray'))
-                axes.add_patch(mpatches.Polygon([[x3,y3],[x3+w3,y3+h3/2],[x3,y3+h3]], color='lightgray', alpha=0.7, closed=True, fill=True))
-                
+                right = node_to_variant[min(num_nodes - 1, max(clustering[cid]) + padding)]
+
+                x1 = x_scale * left
+                y1 = i * h_height
+                w1 = x_scale * (first - left + 1)
+                h1 = h_height - y_margin
+
+                x2 = x_scale * first
+                y2 = i * h_height
+                w2 = x_scale * (last - first + 1)
+                h2 = h_height - y_margin
+
+                x3 = x_scale * last
+                y3 = i * h_height
+                w3 = x_scale * (right - last + 1)
+                h3 = h_height - y_margin
+
+                axes.add_patch(
+                    mpatches.Polygon(
+                        [[x1, y1 + h1 / 2], [x1 + w1, y1], [x1 + w1, y1 + h1]],
+                        color="lightgray",
+                        alpha=0.7,
+                        closed=True,
+                        fill=True,
+                    )
+                )
+                axes.add_patch(
+                    mpatches.Rectangle(
+                        (x_scale * first, i * h_height),
+                        x_scale * (last - first + 1),
+                        h_height - y_margin,
+                        linewidth=1,
+                        fill=True,
+                        alpha=1.0,
+                        edgecolor="lightgray",
+                        facecolor="lightgray",
+                    )
+                )
+                axes.add_patch(
+                    mpatches.Polygon(
+                        [[x3, y3], [x3 + w3, y3 + h3 / 2], [x3, y3 + h3]],
+                        color="lightgray",
+                        alpha=0.7,
+                        closed=True,
+                        fill=True,
+                    )
+                )
+
                 for node in clustering[cid]:
                     var = node_to_variant[node]
-                    plt.vlines(x=x_scale*(var+0.5), ymin=i * h_height, ymax=(i + 1) * h_height - y_margin, color=color[type_of_node[node]], alpha=0.5)
+                    plt.vlines(
+                        x=x_scale * (var + 0.5),
+                        ymin=i * h_height,
+                        ymax=(i + 1) * h_height - y_margin,
+                        color=color[type_of_node[node]],
+                        alpha=0.5,
+                    )
 
-                    
-        plt.hlines(y=-h_height/2, xmin=5 * x_scale,  xmax=(num_vars - 5) * x_scale, color='black', alpha=1.0)
-        
+        plt.hlines(
+            y=-h_height / 2,
+            xmin=5 * x_scale,
+            xmax=(num_vars - 5) * x_scale,
+            color="black",
+            alpha=1.0,
+        )
+
         # plot residuals
         res = defaultdict(int)
         res_color = dict()
@@ -608,8 +660,14 @@ def draw_genetic_clustering_arrangement(
                     res[var] -= 1
         for var in res:
             if res[var] > 0:
-                plt.vlines(x=x_scale*(var+0.5), ymin= -(1+res[var]) * h_height, ymax= -h_height - y_margin, color=res_color[var], alpha=0.5)
-            
+                plt.vlines(
+                    x=x_scale * (var + 0.5),
+                    ymin=-(1 + res[var]) * h_height,
+                    ymax=-h_height - y_margin,
+                    color=res_color[var],
+                    alpha=0.5,
+                )
+
         fig.savefig(path)
         fig.clear()
 
@@ -654,15 +712,22 @@ def draw_phase_comparison(
         import matplotlib.pyplot as plt
         import matplotlib.patches as mpatches
         from pylab import savefig
+
         ploidy = len(haplotypes)
         assert ploidy >= 2
         num_vars = len(haplotypes[0])
-        
+
         # convert node type to color
-        color = {(1, 0): 'tab:blue', (1, 1): 'tab:orange', (2, 0): 'tab:red', (3, 0): 'tab:green', (2, 1): 'tab:purple'}
-        colors = ['tab:blue', 'tab:red', 'tab:orange', 'tab:green', 'tab:purple']
-        background_colors = ['lightgray', 'darkgray', 'dimgray', 'black']
-        
+        color = {
+            (1, 0): "tab:blue",
+            (1, 1): "tab:orange",
+            (2, 0): "tab:red",
+            (3, 0): "tab:green",
+            (2, 1): "tab:purple",
+        }
+        colors = ["tab:blue", "tab:red", "tab:orange", "tab:green", "tab:purple"]
+        background_colors = ["lightgray", "darkgray", "dimgray", "black"]
+
         # Read ground truth phasing
         phase_rows = []
         phased_truth_variants = []
@@ -671,7 +736,7 @@ def draw_phase_comparison(
                 phase_rows.append(variant.phase)
                 phased_truth_variants.append(ground_truth_table.variants[i])
         truth_block = [[row[i] for row in phase_rows] for i in range(ploidy)]
-        
+
         compared_positions = set([v.position for v in phased_truth_variants])
         compared_to_phased_pos = []
         for i in range(num_vars):
@@ -682,82 +747,164 @@ def draw_phase_comparison(
         # Setup figure
         x_margin = 0.3
         y_margin = 0.15
-        x_scale = 1.0 / (1.0+x_margin)
+        x_scale = 1.0 / (1.0 + x_margin)
         y_scale = 1.0
-        fig = plt.figure(figsize=((compared_to_phased_pos[-1] + 2)*0.8, 2.5*ploidy), dpi=100)
+        fig = plt.figure(figsize=((compared_to_phased_pos[-1] + 2) * 0.8, 2.5 * ploidy), dpi=100)
         axes = plt.gca()
-        axes.set_xlim([0, (compared_to_phased_pos[-1]+x_margin)*x_scale])
-        axes.set_ylim([-ploidy*y_scale, (1.5*ploidy)*y_scale])
-        
+        axes.set_xlim([0, (compared_to_phased_pos[-1] + x_margin) * x_scale])
+        axes.set_ylim([-ploidy * y_scale, (1.5 * ploidy) * y_scale])
+
         # Draw error height lines
         for i in range(1, ploidy):
-            axes.add_patch(mpatches.Polygon([[0, -i * y_scale], [compared_to_phased_pos[-1], -i * y_scale]], color='black', closed=False, fill=False, ls='-', lw=1.0))
+            axes.add_patch(
+                mpatches.Polygon(
+                    [[0, -i * y_scale], [compared_to_phased_pos[-1], -i * y_scale]],
+                    color="black",
+                    closed=False,
+                    fill=False,
+                    ls="-",
+                    lw=1.0,
+                )
+            )
 
         # Compute switch flip errors
-        phase_block = [[haplotypes[h][pos] for pos in compared_to_phased_pos] for h in range(ploidy)]
-        switchflips, switches_in_column, flips_in_column, poswise_config = compute_switch_flips_poly_bt(
+        phase_block = [
+            [haplotypes[h][pos] for pos in compared_to_phased_pos] for h in range(ploidy)
+        ]
+        (
+            switchflips,
+            switches_in_column,
+            flips_in_column,
+            poswise_config,
+        ) = compute_switch_flips_poly_bt(
             truth_block,
             phase_block,
             report_error_positions=True,
             switch_cost=1 + 1 / (num_vars * ploidy),
         )
-        
+
         # Plot coverage
         max_coverage = max(coverage)
-        med_coverage = list(sorted(coverage))[len(coverage)//2]
+        med_coverage = list(sorted(coverage))[len(coverage) // 2]
         print(max_coverage)
         print(med_coverage)
-        #points = [[0, ploidy + y_margin], [0, ploidy + y_margin + 2 * coverage[0] / max_coverage]]
+        # points = [[0, ploidy + y_margin], [0, ploidy + y_margin + 2 * coverage[0] / max_coverage]]
         points = [[0, ploidy + y_margin + 2 * coverage[0] / max_coverage]]
         for pos in range(compared_to_phased_pos[-1]):
-            x1 = x_scale*(pos+x_margin)
-            x2 = x_scale*(pos+1)
+            x1 = x_scale * (pos + x_margin)
+            x2 = x_scale * (pos + 1)
             points.append([(x1 + x2) / 2, ploidy + y_margin + 2 * coverage[pos] / max_coverage])
-        points.append([x_scale*(compared_to_phased_pos[-1]+1), ploidy + y_margin + 2 * coverage[-1] / max_coverage])
+        points.append(
+            [
+                x_scale * (compared_to_phased_pos[-1] + 1),
+                ploidy + y_margin + 2 * coverage[-1] / max_coverage,
+            ]
+        )
         for i in range(0, len(points), 50):
-            point_set = [[points[i][0], ploidy + y_margin]] + points[i:min(i+51,len(points))] + [[points[min(i+50, len(points)-1)][0], ploidy + y_margin]]
-            axes.add_patch(mpatches.Polygon(point_set, color='tab:purple', alpha=0.5, closed=True, fill=True))
-        axes.add_patch(mpatches.Polygon([[0, ploidy + y_margin + 2 * med_coverage / max_coverage], [compared_to_phased_pos[-1], ploidy + y_margin + 2 * med_coverage / max_coverage]], color='tab:purple', closed=False, fill=False, ls='-', lw=0.5))
-        
+            point_set = (
+                [[points[i][0], ploidy + y_margin]]
+                + points[i : min(i + 51, len(points))]
+                + [[points[min(i + 50, len(points) - 1)][0], ploidy + y_margin]]
+            )
+            axes.add_patch(
+                mpatches.Polygon(point_set, color="tab:purple", alpha=0.5, closed=True, fill=True)
+            )
+        axes.add_patch(
+            mpatches.Polygon(
+                [
+                    [0, ploidy + y_margin + 2 * med_coverage / max_coverage],
+                    [
+                        compared_to_phased_pos[-1],
+                        ploidy + y_margin + 2 * med_coverage / max_coverage,
+                    ],
+                ],
+                color="tab:purple",
+                closed=False,
+                fill=False,
+                ls="-",
+                lw=0.5,
+            )
+        )
+
         # Add genome positions
         try:
             for pos in range(0, compared_to_phased_pos[-1], 1):
                 x = x_scale * (pos + 1 - 2 * x_margin)
-                axes.text(x, ploidy + 2 * y_margin, phased_positions[pos] + 1, fontsize=15, rotation='vertical')
+                axes.text(
+                    x,
+                    ploidy + 2 * y_margin,
+                    phased_positions[pos] + 1,
+                    fontsize=15,
+                    rotation="vertical",
+                )
         except:
             pass
-        
+
         # Plot ground truth boxes and errors
         for i, pos in enumerate(compared_to_phased_pos):
-            x1 = x_scale*(pos+x_margin)
-            x2 = x_scale*(pos+1)
-            y1 = y_scale*0
-            y2 = y_scale*ploidy
-            axes.add_patch(mpatches.Polygon([[x1, y1], [x2, y1], [x2, y2], [x1, y2]], color=background_colors[0], alpha=1.0, closed=True, fill=True))
+            x1 = x_scale * (pos + x_margin)
+            x2 = x_scale * (pos + 1)
+            y1 = y_scale * 0
+            y2 = y_scale * ploidy
+            axes.add_patch(
+                mpatches.Polygon(
+                    [[x1, y1], [x2, y1], [x2, y2], [x1, y2]],
+                    color=background_colors[0],
+                    alpha=1.0,
+                    closed=True,
+                    fill=True,
+                )
+            )
             for h in range(ploidy):
-                y3 = y1 + y_scale*h
-                y4 = y1 + y_scale*(h+1)
+                y3 = y1 + y_scale * h
+                y4 = y1 + y_scale * (h + 1)
                 if truth_block[h][i] >= 1:
-                    axes.add_patch(mpatches.Polygon([[x1, y3], [x2, y3], [x2, y4], [x1, y4]], color=background_colors[truth_block[h][i]], alpha=1.0, closed=True, fill=True))
-            
+                    axes.add_patch(
+                        mpatches.Polygon(
+                            [[x1, y3], [x2, y3], [x2, y4], [x1, y4]],
+                            color=background_colors[truth_block[h][i]],
+                            alpha=1.0,
+                            closed=True,
+                            fill=True,
+                        )
+                    )
+
             flips = len(flips_in_column[i])
             switches = switches_in_column[i]
             if flips > 0:
-                x = (x1+x2)/2
+                x = (x1 + x2) / 2
                 y1 = -y_margin * y_scale
                 y2 = -flips * y_scale
-                axes.add_patch(mpatches.Polygon([[x, y1], [x, y2]], color='tab:orange', closed=False, fill=False, ls='-', lw=10.0))
+                axes.add_patch(
+                    mpatches.Polygon(
+                        [[x, y1], [x, y2]],
+                        color="tab:orange",
+                        closed=False,
+                        fill=False,
+                        ls="-",
+                        lw=10.0,
+                    )
+                )
             if switches > 0:
                 x = x1 - (x_margin * x_scale * 0.5)
                 y1 = -y_margin * y_scale
                 y2 = -switches * y_scale
-                axes.add_patch(mpatches.Polygon([[x, y1], [x, y2]], color='tab:blue', closed=False, fill=False, ls='-', lw=10.0))
-                
+                axes.add_patch(
+                    mpatches.Polygon(
+                        [[x, y1], [x, y2]],
+                        color="tab:blue",
+                        closed=False,
+                        fill=False,
+                        ls="-",
+                        lw=10.0,
+                    )
+                )
+
         # Plot phasings
         compare_idx = 0
         prev_comp_idx = 0
         for pos in range(compared_to_phased_pos[-1]):
-            if pos == compared_to_phased_pos[compare_idx+1]:
+            if pos == compared_to_phased_pos[compare_idx + 1]:
                 compare_idx += 1
             x2 = x_scale * (pos * 2 + x_margin + 1) / 2
             x1 = x_scale * (pos * 2 + x_margin - 1) / 2
@@ -765,20 +912,29 @@ def draw_phase_comparison(
                 y2 = y_scale * (2 * poswise_config[compare_idx][h] + 1) / 2
                 y1 = y_scale * (2 * poswise_config[prev_comp_idx][h] + 1) / 2
                 if pos > 0:
-                    axes.add_patch(mpatches.Polygon([[x1, y1], [x2, y2]], color=colors[h], closed=False, fill=False, ls='-', lw=8.0))
+                    axes.add_patch(
+                        mpatches.Polygon(
+                            [[x1, y1], [x2, y2]],
+                            color=colors[h],
+                            closed=False,
+                            fill=False,
+                            ls="-",
+                            lw=8.0,
+                        )
+                    )
             prev_comp_idx = compare_idx
 
         compare_idx = 0
         for pos in range(compared_to_phased_pos[-1]):
-            if pos == compared_to_phased_pos[compare_idx+1]:
+            if pos == compared_to_phased_pos[compare_idx + 1]:
                 compare_idx += 1
             x2 = x_scale * (pos * 2 + x_margin + 1) / 2
             for h in range(ploidy):
                 y2 = y_scale * (2 * poswise_config[compare_idx][h] + 1) / 2
                 color = background_colors[haplotypes[h][pos]]
-                axes.add_patch(plt.Circle((x2, y2), x_scale*0.25, color='black'))
-                axes.add_patch(plt.Circle((x2, y2), x_scale*0.22, color=color))
-        
+                axes.add_patch(plt.Circle((x2, y2), x_scale * 0.25, color="black"))
+                axes.add_patch(plt.Circle((x2, y2), x_scale * 0.22, color=color))
+
         fig.savefig(path)
         fig.clear()
 
