@@ -84,7 +84,7 @@ class SampleBamReader(BamReader):
         """
         Create a dictionary that maps a sample name to a set of read group ids.
         """
-        read_groups = self._samfile.header.get("RG", [])  # a list of dicts
+        read_groups = self._samfile.header.to_dict().get("RG", [])  # a list of dicts
         logger.debug("Read groups in CRAM/BAM header: %s", read_groups)
         samples = defaultdict(list)
         for read_group in read_groups:
@@ -127,7 +127,7 @@ class SampleBamReader(BamReader):
             for bam_read in self._samfile.fetch(
                 reference, multiple_iterators=True, start=start, stop=end
             ):
-                if bam_read.opt("RG") in read_groups:
+                if bam_read.get_tag("RG") in read_groups:
                     yield AlignmentWithSourceID(self.source_id, bam_read)
 
     def close(self) -> None:

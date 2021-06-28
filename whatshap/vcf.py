@@ -1,6 +1,7 @@
 """
 Functions for reading VCFs.
 """
+import os
 import sys
 import math
 import logging
@@ -10,8 +11,7 @@ from abc import ABC, abstractmethod
 from os import PathLike
 from typing import List, Sequence, Dict, Tuple, Iterable, Optional, Union, TextIO, Iterator
 
-from pysam import VariantFile, VariantHeader, VariantRecord
-from pysam.libcbcf import VariantRecordSample
+from pysam import VariantFile, VariantHeader, VariantRecord, VariantRecordSample
 
 from .core import (
     Read,
@@ -362,7 +362,7 @@ class VcfReader:
         """
         # TODO Always include deletions since they can 'overlap' other variants
         self._indels = indels
-        self._vcf_reader = VariantFile(path)
+        self._vcf_reader = VariantFile(os.fspath(path))
         self._path = path
         self._phases = phases
         self._genotype_likelihoods = genotype_likelihoods
@@ -807,7 +807,7 @@ class VcfAugmenter(ABC):
             self._reader.header.add_meta("commandline", command_line)
         self.setup_header(self._reader.header)
         self._writer = VariantFile(out_file, mode="w", header=self._reader.header)
-        self._unprocessed_record = None
+        self._unprocessed_record: Optional[VariantRecord] = None
         self._reader_iter = iter(self._reader)
 
     @abstractmethod
