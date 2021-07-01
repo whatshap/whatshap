@@ -271,7 +271,7 @@ def run_polyphasegenetic(
                     haplo_skeletons = arrange_clusters(
                         clustering,
                         node_to_variant,
-                        int(phasing_param.scoring_window * 1.875 + 1),
+                        int(phasing_param.scoring_window * 3.0 + 1),
                         phasing_param.ploidy,
                     )
 
@@ -521,7 +521,7 @@ def create_plots(
         node_to_variant,
         haplo_skeletons,
         type_of_node,
-        int(phasing_param.scoring_window * 1.875 + 1),
+        int(phasing_param.scoring_window * 3.0 + 1),
         num_vars,
         output + ".arrangement.pdf",
     )

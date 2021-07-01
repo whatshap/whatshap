@@ -229,13 +229,23 @@ def get_variant_scoring(varinfo, off_gl, node_to_variant, phasing_param):
 
     num_nodes = len(node_to_variant)
     scoring = TriangleSparseMatrix()
+
+    # create a stride pattern for the scoring:
+    # 25% of samples are direct neighbours, 25% neighbours with stride 3, 7 and 13 each
+    w = phasing_param.scoring_window
+    w3, w7, w13 = w // 4, w // 2, 3 * w // 4
+    strides = [i for i in range(1, w3 + 1)]
+    strides += [strides[-1] + 3 * i for i in range(1, w7 - w3 + 1)]
+    strides += [strides[-1] + 7 * i for i in range(1, w13 - w7 + 1)]
+    strides += [strides[-1] + 13 * i for i in range(1, w - w13 + 1)]
+
     for i in range(num_nodes):
         ni = node_to_variant[i]
 
         # iterate over next max_dist relevant positions
         prev_variant = -1
         prev_score = 0
-        for j in range(i + 1, min(i + phasing_param.scoring_window + 1, num_nodes)):
+        for j in [i + s for s in strides if i + s < num_nodes]:
             nj = node_to_variant[j]
             if ni == nj:
                 score = -float("inf")
