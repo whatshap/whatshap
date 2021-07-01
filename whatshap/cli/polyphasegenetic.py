@@ -22,6 +22,7 @@ from whatshap.polyphaseplots import (
     draw_genetic_clustering,
     draw_genetic_clustering_arrangement,
     draw_phase_comparison,
+    create_histogram,
 )
 from whatshap.offspringscoring import (
     get_variant_scoring,
@@ -37,27 +38,17 @@ __author__ = "Sven Schrinner"
 
 PhasingParameter = namedtuple(
     "PhasingParameter",
-    ["ploidy", "scoring_window", "simplex", "allow_homozyguous", "allow_deletions"],
+    [
+        "ploidy",
+        "scoring_window",
+        "allele_error_rate",
+        "simplex",
+        "allow_homozyguous",
+        "allow_deletions",
+    ],
 )
 
 logger = logging.getLogger(__name__)
-
-
-def print_readset(readset):
-    result = ""
-    positions = readset.get_positions()
-    for read in readset:
-        result += read.name + "\t" + "\t" + "\t"
-        for pos in positions:
-            if pos in read:
-                # get corresponding variant
-                for var in read:
-                    if var.position == pos:
-                        result += str(var.allele)
-            else:
-                result += " "
-        result += "\n"
-    print(result)
 
 
 def run_polyphasegenetic(
@@ -67,6 +58,7 @@ def run_polyphasegenetic(
     progeny_file=None,
     ground_truth_file=None,
     scoring_window=160,
+    allele_error_rate=0.06,
     simplex=False,
     allow_homozyguous=False,
     distrust_parent_genotypes=False,
@@ -74,10 +66,8 @@ def run_polyphasegenetic(
     samples=None,
     chromosomes=None,
     indels=True,
-    mapping_quality=20,
     tag="PS",
     write_command_line_header=True,
-    read_list_filename=None,
     plot=False,
 ):
     """
@@ -89,7 +79,6 @@ def run_polyphasegenetic(
     samples -- names of samples to phase. An empty list means: phase all samples
     chromosomes -- names of chromosomes to phase. An empty list means: phase all chromosomes
     ignore_read_groups
-    mapping_quality -- discard reads below this mapping quality
     tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
     write_command_line_header -- whether to add a ##commandline header to the output VCF
     """
@@ -154,12 +143,6 @@ def run_polyphasegenetic(
                 )
             )
 
-        # exit on non-tetraploid samples
-        if ploidy != 4:
-            raise CommandLineError(
-                "Only ploidy 4 is supported at the moment. Detected was {}".format(ploidy)
-            )
-
         # determine pedigree
         parents, co_parent, offspring = determine_pedigree(
             pedigree_file,
@@ -181,6 +164,7 @@ def run_polyphasegenetic(
         phasing_param = PhasingParameter(
             ploidy=ploidy,
             scoring_window=scoring_window,
+            allele_error_rate=allele_error_rate,
             simplex=simplex,
             allow_homozyguous=allow_homozyguous,
             allow_deletions=indels,
@@ -244,7 +228,6 @@ def run_polyphasegenetic(
                             varinfo,
                             phasable_indices,
                             phasing_param,
-                            0.06,
                         )
                     off_gl, node_to_variant, type_of_node = get_offspring_gl(
                         variant_table,
@@ -253,31 +236,14 @@ def run_polyphasegenetic(
                         varinfo,
                         phasable_indices,
                         phasing_param,
-                        0.06,
                     )
 
                     # store progeny coverage
-                    progeny_coverage_all = [0 for _ in range(len(variant_table))]
-                    for off in offspring[(sample, co_parent[sample])]:
-                        parent_pos = 0
-                        progeny_pos = 0
-                        allele_depths = progeny_table.allele_depths_of(off)
-                        assert len(allele_depths) == len(progeny_table)
-                        while progeny_pos < len(allele_depths) and parent_pos < len(variant_table):
-                            if (
-                                variant_table.variants[parent_pos].position
-                                == progeny_table.variants[progeny_pos].position
-                            ):
-                                progeny_coverage_all[parent_pos] += sum(allele_depths[progeny_pos])
-                                progeny_pos += 1
-                            else:
-                                assert (
-                                    variant_table.variants[parent_pos].position
-                                    < progeny_table.variants[progeny_pos].position
-                                )
-                            parent_pos += 1
+                    progeny_coverage_all = get_progeny_coverage(
+                        offspring[(sample, co_parent[sample])], variant_table, progeny_table
+                    )
 
-                    # delete progeny table if dedicated
+                    # delete progeny table if dedicated to reduce memory footprint
                     if progeny_file:
                         del progeny_table
 
@@ -285,7 +251,7 @@ def run_polyphasegenetic(
                     logger.info("Compute scores for markers ...")
                     scoring = get_variant_scoring(varinfo, off_gl, node_to_variant, phasing_param)
 
-                    # delete genotype likelihoods
+                    # delete genotype likelihoods to reduce memory footprint
                     del off_gl
 
                     timers.stop("scoring")
@@ -295,21 +261,18 @@ def run_polyphasegenetic(
                     logger.info("Clustering marker variants ...")
                     solver = ClusterEditingSolver(scoring, False)
                     clustering = solver.run()
+                    validate_clustering(clustering, node_to_variant)
                     del solver
-
-                    # validate clustering
-                    for clust in clustering:
-                        positions = [node_to_variant[x] for x in clust]
-                        if len(set(positions)) != len(clust):
-                            print(positions)
-                        assert len(set(positions)) == len(clust)
                     timers.stop("clustering")
 
                     # arrange clusters to haplotypes
                     timers.start("arrangement")
                     logger.info("Arranging clusters ...")
                     haplo_skeletons = arrange_clusters(
-                        clustering, node_to_variant, (phasing_param.scoring_window + 1) // 2, ploidy
+                        clustering,
+                        node_to_variant,
+                        int(phasing_param.scoring_window * 1.875 + 1),
+                        phasing_param.ploidy,
                     )
 
                     # determine haplotypes
@@ -355,39 +318,27 @@ def run_polyphasegenetic(
 
                     timers.stop("arrangement")
 
-                    timers.start("parse_vcf")
-                    if ground_truth_file:
-                        regions = [
-                            (phased_positions[i], phased_positions[i] + 1)
-                            for i in range(len(phased_positions))
-                        ]
-                        ground_truth_table = ground_truth_reader.fetch_regions(chromosome, regions)
-                    timers.stop("parse_vcf")
-
                     # create plots
                     if plot:
-                        num_vars = max([max(c) for c in clustering])
-                        draw_genetic_clustering(clustering, num_vars, output + ".clusters.pdf")
-
-                        draw_genetic_clustering_arrangement(
+                        timers.start("plots")
+                        create_plots(
+                            output,
+                            chromosome,
+                            sample,
+                            variant_table,
+                            ground_truth_file,
+                            ground_truth_reader if ground_truth_file else None,
                             clustering,
                             node_to_variant,
                             haplo_skeletons,
                             type_of_node,
-                            (phasing_param.scoring_window + 1) // 2,
-                            num_vars,
-                            output + ".arrangement.pdf",
+                            haplotypes,
+                            phased_positions,
+                            sample_coverage,
+                            progeny_coverage,
+                            phasing_param,
                         )
-
-                        if ground_truth_file:
-                            draw_phase_comparison(
-                                haplotypes,
-                                phased_positions,
-                                progeny_coverage,
-                                variant_table,
-                                ground_truth_table,
-                                output + ".comparison.pdf",
-                            )
+                        timers.stop("plots")
 
                 with timers("write_vcf"):
                     logger.info("======== Writing VCF")
@@ -411,6 +362,8 @@ def run_polyphasegenetic(
     logger.info("Time spent for clustering:                %6.1f s", timers.elapsed("clustering"))
     logger.info("Time spent for cluster arrangement:       %6.1f s", timers.elapsed("arrangement"))
     logger.info("Time spent writing VCF:                   %6.1f s", timers.elapsed("write_vcf"))
+    if plot:
+        logger.info("Time spent creating plots:                %6.1f s", timers.elapsed("plots"))
     logger.info("Time spent on rest:                       %6.1f s", timers.total() - timers.sum())
     logger.info("Total elapsed time:                       %6.1f s", timers.total())
 
@@ -463,7 +416,6 @@ def determine_pedigree(pedigree_file, samples, vcf_samples, progeny_samples):
             parents[tokens[2]] = (tokens[0], tokens[1])
             offspring[(tokens[0], tokens[1])].append(tokens[2])
             offspring[(tokens[1], tokens[0])].append(tokens[2])
-            # print("trio: {} + {} = {}".format(tokens[0], tokens[1], tokens[2]))
 
     if not samples:
         samples = [parent for parent in co_parent]
@@ -483,6 +435,112 @@ def determine_pedigree(pedigree_file, samples, vcf_samples, progeny_samples):
                 raise CommandLineError(None)
 
     return parents, co_parent, offspring
+
+
+def get_progeny_coverage(offspring_samples, parent_table, progeny_table):
+    # store progeny coverage
+    progeny_coverage_all = [0 for _ in range(len(parent_table))]
+    for off in offspring_samples:
+        parent_pos = 0
+        progeny_pos = 0
+        allele_depths = progeny_table.allele_depths_of(off)
+        assert len(allele_depths) == len(progeny_table)
+        while progeny_pos < len(allele_depths) and parent_pos < len(parent_table):
+            if (
+                parent_table.variants[parent_pos].position
+                == progeny_table.variants[progeny_pos].position
+            ):
+                progeny_coverage_all[parent_pos] += sum(allele_depths[progeny_pos])
+                progeny_pos += 1
+            else:
+                assert (
+                    parent_table.variants[parent_pos].position
+                    < progeny_table.variants[progeny_pos].position
+                )
+            parent_pos += 1
+    return progeny_coverage_all
+
+
+def validate_clustering(clustering, node_to_variant):
+    for clust in clustering:
+        positions = [node_to_variant[x] for x in clust]
+        if len(set(positions)) != len(clust):
+            print(positions)
+        assert len(set(positions)) == len(clust)
+
+
+def create_plots(
+    output,
+    chromosome,
+    sample,
+    variant_table,
+    ground_truth_file,
+    ground_truth_reader,
+    clustering,
+    node_to_variant,
+    haplo_skeletons,
+    type_of_node,
+    haplotypes,
+    phased_positions,
+    sample_cov,
+    progeny_cov,
+    phasing_param,
+):
+    logger.info("Plotting coverage distribution ...")
+    p = 10  # padding
+    sample_cov_avg = [
+        10
+        * sum(sample_cov[max(0, i - p) : min(i + p + 1, len(sample_cov))])
+        / (min(i + p + 1, len(sample_cov)) - max(0, i - p))
+        for i in range(len(sample_cov))
+    ]
+    progeny_cov_avg = [
+        sum(progeny_cov[max(0, i - p) : min(i + p + 1, len(progeny_cov))])
+        / (min(i + p + 1, len(progeny_cov)) - max(0, i - p))
+        for i in range(len(progeny_cov))
+    ]
+    create_histogram(
+        output + ".coverage-dist.pdf",
+        sample_cov_avg,
+        progeny_cov_avg,
+        400,
+        [0, max(10 * max(sample_cov), max(progeny_cov))],
+        "Coverage",
+        "Coverage distribution",
+        name1=sample,
+        name2="progeny",
+    )
+
+    logger.info("Plotting clustering ...")
+    num_vars = max([max(c) for c in clustering])
+    draw_genetic_clustering(clustering, num_vars, output + ".clusters.pdf")
+
+    logger.info("Plotting cluster arrangements ...")
+    draw_genetic_clustering_arrangement(
+        clustering,
+        node_to_variant,
+        haplo_skeletons,
+        type_of_node,
+        int(phasing_param.scoring_window * 1.875 + 1),
+        num_vars,
+        output + ".arrangement.pdf",
+    )
+
+    if ground_truth_file:
+        logger.info("Plotting phasing comparison ...")
+        regions = [
+            (phased_positions[i], phased_positions[i] + 1) for i in range(len(phased_positions))
+        ]
+        ground_truth_table = ground_truth_reader.fetch_regions(chromosome, regions)
+        draw_phase_comparison(
+            haplotypes,
+            phased_positions,
+            sample_cov,
+            progeny_cov,
+            variant_table,
+            ground_truth_table,
+            output + ".comparison.pdf",
+        )
 
 
 def add_arguments(parser):
@@ -565,7 +623,16 @@ def add_arguments(parser):
         type=int,
         default=160,
         required=False,
-        help="Size of the window (in variants) for statistical offspring scoring.",
+        help="Size of the window (in variants) for statistical progeny scoring.",
+    )
+    arg(
+        "--allele-error-rate",
+        metavar="ALLELEERRORRATE",
+        dest="allele_error_rate",
+        type=float,
+        default=0.06,
+        required=False,
+        help="Assumed error rate for observed alleles among parents and progeny.",
     )
     arg(
         "--simplex",
@@ -586,7 +653,7 @@ def add_arguments(parser):
         dest="distrust_parent_genotypes",
         default=False,
         action="store_true",
-        help="Uses progeny genotypes to double-check parental genotypes.",
+        help="Internally retypes the reported parent genotypes based on allele distribution in progeny samples.",
     )
     arg(
         "--plot",
@@ -598,7 +665,12 @@ def add_arguments(parser):
 
 
 def validate(args, parser):
-    pass
+    if args.allele_error_rate > 0.5 or args.allele_error_rate < 0.01:
+        parser.error("Allele error rate must be between 0.01 and 0.5.")
+    if args.scoring_window < 1:
+        parser.error("Scoring window must be a positive integer.")
+    if args.ploidy != 4:
+        parser.error("Ploidies other than 4 are currently not supported.")
 
 
 def main(args):

@@ -96,7 +96,6 @@ def add_corrected_variant_types(
     varinfo: List[VariantInfo],
     phasable_indices: List[int],
     phasing_param,
-    allele_error_rate=0.06,
 ):
     # compute unbiased progeny genotype likelihoods
     off_gl, node_to_variant, type_of_node = get_offspring_gl(
@@ -106,8 +105,6 @@ def add_corrected_variant_types(
         varinfo,
         phasable_indices,
         phasing_param,
-        allele_error_rate,
-        biased_gl=True,
     )
     correction = dict()
 
@@ -149,8 +146,6 @@ def get_offspring_gl(
     varinfo: List[VariantInfo],
     phasable_indices: List[int],
     phasing_param,
-    allele_error_rate=0.06,
-    biased_gl=True,
 ):
 
     if phasing_param.ploidy != 4:
@@ -198,12 +193,9 @@ def get_offspring_gl(
     logger.info("   Number of simplex-nulliplex variants: %d", simplex_nulliplex_nodes)
 
     # compute genotype likelihoods for offspring per variant
-    if biased_gl:
-        gt_gl_priors = compute_gt_likelihood_priors(phasing_param.ploidy)
-    else:
-        gt_gl_priors = None
+    gt_gl_priors = compute_gt_likelihood_priors(phasing_param.ploidy)
     off_gl = ProgenyGenotypeLikelihoods(phasing_param.ploidy, len(offspring), len(node_positions))
-    binom_calc = CachedBinomialCalculator(phasing_param.ploidy, allele_error_rate)
+    binom_calc = CachedBinomialCalculator(phasing_param.ploidy, phasing_param.allele_error_rate)
     for i, off in enumerate(offspring):
         gls = compute_gt_likelihoods(
             progeny_table,

@@ -703,7 +703,7 @@ def create_histogram(path, same, diff, steps, dim, x_label, title, name1="same",
 
 
 def draw_phase_comparison(
-    haplotypes, phased_positions, coverage, parent_table, ground_truth_table, path
+    haplotypes, phased_positions, sample_cov, progeny_cov, parent_table, ground_truth_table, path
 ):
     try:
         import matplotlib
@@ -784,47 +784,49 @@ def draw_phase_comparison(
         )
 
         # Plot coverage
-        max_coverage = max(coverage)
-        med_coverage = list(sorted(coverage))[len(coverage) // 2]
-        print(max_coverage)
-        print(med_coverage)
-        # points = [[0, ploidy + y_margin], [0, ploidy + y_margin + 2 * coverage[0] / max_coverage]]
-        points = [[0, ploidy + y_margin + 2 * coverage[0] / max_coverage]]
-        for pos in range(compared_to_phased_pos[-1]):
-            x1 = x_scale * (pos + x_margin)
-            x2 = x_scale * (pos + 1)
-            points.append([(x1 + x2) / 2, ploidy + y_margin + 2 * coverage[pos] / max_coverage])
-        points.append(
-            [
-                x_scale * (compared_to_phased_pos[-1] + 1),
-                ploidy + y_margin + 2 * coverage[-1] / max_coverage,
-            ]
-        )
-        for i in range(0, len(points), 50):
-            point_set = (
-                [[points[i][0], ploidy + y_margin]]
-                + points[i : min(i + 51, len(points))]
-                + [[points[min(i + 50, len(points) - 1)][0], ploidy + y_margin]]
-            )
-            axes.add_patch(
-                mpatches.Polygon(point_set, color="tab:purple", alpha=0.5, closed=True, fill=True)
-            )
-        axes.add_patch(
-            mpatches.Polygon(
+        cov_ratio = [p / s if s > 0 else 0 for p, s in zip(progeny_cov, sample_cov)]
+        for coverage, color in zip([cov_ratio, sample_cov], ["tab:purple", "tab:cyan"]):
+            max_coverage = max(coverage)
+            med_coverage = list(sorted(coverage))[len(coverage) // 2]
+            print(max_coverage)
+            print(med_coverage)
+            max_coverage = min(max_coverage, 3 * med_coverage)
+            points = [[0, ploidy + y_margin + 2 * coverage[0] / max_coverage]]
+            for pos in range(compared_to_phased_pos[-1]):
+                x1 = x_scale * (pos + x_margin)
+                x2 = x_scale * (pos + 1)
+                points.append([(x1 + x2) / 2, ploidy + y_margin + 2 * coverage[pos] / max_coverage])
+            points.append(
                 [
-                    [0, ploidy + y_margin + 2 * med_coverage / max_coverage],
-                    [
-                        compared_to_phased_pos[-1],
-                        ploidy + y_margin + 2 * med_coverage / max_coverage,
-                    ],
-                ],
-                color="tab:purple",
-                closed=False,
-                fill=False,
-                ls="-",
-                lw=0.5,
+                    x_scale * (compared_to_phased_pos[-1] + 1),
+                    ploidy + y_margin + 2 * coverage[-1] / max_coverage,
+                ]
             )
-        )
+            for i in range(0, len(points), 50):
+                point_set = (
+                    [[points[i][0], ploidy + y_margin]]
+                    + points[i : min(i + 51, len(points))]
+                    + [[points[min(i + 50, len(points) - 1)][0], ploidy + y_margin]]
+                )
+                axes.add_patch(
+                    mpatches.Polygon(point_set, color=color, alpha=0.4, closed=True, fill=True)
+                )
+            axes.add_patch(
+                mpatches.Polygon(
+                    [
+                        [0, ploidy + y_margin + 2 * med_coverage / max_coverage],
+                        [
+                            compared_to_phased_pos[-1],
+                            ploidy + y_margin + 2 * med_coverage / max_coverage,
+                        ],
+                    ],
+                    color=color,
+                    closed=False,
+                    fill=False,
+                    ls="-",
+                    lw=0.5,
+                )
+            )
 
         # Add genome positions
         try:
