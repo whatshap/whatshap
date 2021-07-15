@@ -27,6 +27,7 @@ from whatshap.polyphaseplots import (
 from whatshap.offspringscoring import (
     get_variant_scoring,
     get_phasable_parent_variants,
+    filter_phasable_variants,
     get_offspring_gl,
     add_corrected_variant_types,
 )
@@ -57,8 +58,9 @@ def run_polyphasegenetic(
     ploidy,
     progeny_file=None,
     ground_truth_file=None,
-    scoring_window=160,
+    scoring_window=250,
     allele_error_rate=0.06,
+    ratio_cutoff=2.0,
     simplex=False,
     allow_homozyguous=False,
     distrust_parent_genotypes=False,
@@ -217,6 +219,27 @@ def run_polyphasegenetic(
                         progeny_table = variant_table
                     timers.stop("parse_vcf")
 
+                    # store progeny coverage
+                    parent_cov, co_parent_cov, progeny_cov = get_parent_progeny_coverage(
+                        sample, co_parent[sample], offspring, variant_table, progeny_table
+                    )
+
+                    # filter variants based on coverage ratio between parent, co-parent and progeny
+                    if ratio_cutoff > 1.0:
+                        logger.info("Filtering variant positions based on coverage ratios ...")
+                        old_num = len(phasable_indices)
+                        phasable_indices = filter_phasable_variants(
+                            varinfo,
+                            phasable_indices,
+                            parent_cov,
+                            co_parent_cov,
+                            progeny_cov,
+                            ratio_cutoff,
+                        )
+                        logger.info(
+                            "Kept {} out of {} variants.".format(len(phasable_indices), old_num)
+                        )
+
                     # compute offspring genotype likelihoods
                     timers.start("scoring")
                     logger.info("Computing genotype likelihoods for offspring ...")
@@ -236,11 +259,6 @@ def run_polyphasegenetic(
                         varinfo,
                         phasable_indices,
                         phasing_param,
-                    )
-
-                    # store progeny coverage
-                    progeny_coverage_all = get_progeny_coverage(
-                        offspring[(sample, co_parent[sample])], variant_table, progeny_table
                     )
 
                     # delete progeny table if dedicated to reduce memory footprint
@@ -297,9 +315,9 @@ def run_polyphasegenetic(
 
                     phased_positions = []
                     haplotypes = [[] for _ in range(phasing_param.ploidy)]
-                    sample_coverage = []
+                    parent_coverage = []
+                    co_parent_coverage = []
                     progeny_coverage = []
-                    allele_depths = variant_table.allele_depths_of(sample)
 
                     for pos in range(len(variant_table)):
                         if not phasing_param.allow_homozyguous and len(signals_per_pos[pos]) == 0:
@@ -313,8 +331,9 @@ def run_polyphasegenetic(
                             components[sample][accessible_positions[pos]] = accessible_positions[0]
                             haplotypes[i].append(allele)
                         phased_positions.append(accessible_positions[pos])
-                        sample_coverage.append(sum(allele_depths[pos]))
-                        progeny_coverage.append(progeny_coverage_all[pos])
+                        parent_coverage.append(parent_cov[pos])
+                        co_parent_coverage.append(co_parent_cov[pos])
+                        progeny_coverage.append(progeny_cov[pos])
 
                     timers.stop("arrangement")
 
@@ -334,7 +353,8 @@ def run_polyphasegenetic(
                             type_of_node,
                             haplotypes,
                             phased_positions,
-                            sample_coverage,
+                            parent_coverage,
+                            co_parent_coverage,
                             progeny_coverage,
                             phasing_param,
                         )
@@ -437,10 +457,14 @@ def determine_pedigree(pedigree_file, samples, vcf_samples, progeny_samples):
     return parents, co_parent, offspring
 
 
-def get_progeny_coverage(offspring_samples, parent_table, progeny_table):
+def get_parent_progeny_coverage(parent, co_parent, offspring, parent_table, progeny_table):
     # store progeny coverage
-    progeny_coverage_all = [0 for _ in range(len(parent_table))]
-    for off in offspring_samples:
+    parent_depths = parent_table.allele_depths_of(parent)
+    co_parent_depths = parent_table.allele_depths_of(co_parent)
+    parent_cov = [sum(parent_depths[pos]) for pos in range(len(parent_table))]
+    co_parent_cov = [sum(co_parent_depths[pos]) for pos in range(len(parent_table))]
+    progeny_cov = [0 for _ in range(len(parent_table))]
+    for off in offspring[(parent, co_parent)]:
         parent_pos = 0
         progeny_pos = 0
         allele_depths = progeny_table.allele_depths_of(off)
@@ -450,7 +474,7 @@ def get_progeny_coverage(offspring_samples, parent_table, progeny_table):
                 parent_table.variants[parent_pos].position
                 == progeny_table.variants[progeny_pos].position
             ):
-                progeny_coverage_all[parent_pos] += sum(allele_depths[progeny_pos])
+                progeny_cov[parent_pos] += sum(allele_depths[progeny_pos])
                 progeny_pos += 1
             else:
                 assert (
@@ -458,7 +482,7 @@ def get_progeny_coverage(offspring_samples, parent_table, progeny_table):
                     < progeny_table.variants[progeny_pos].position
                 )
             parent_pos += 1
-    return progeny_coverage_all
+    return parent_cov, co_parent_cov, progeny_cov
 
 
 def validate_clustering(clustering, node_to_variant):
@@ -483,6 +507,7 @@ def create_plots(
     haplotypes,
     phased_positions,
     sample_cov,
+    co_parent_cov,
     progeny_cov,
     phasing_param,
 ):
@@ -536,6 +561,7 @@ def create_plots(
             haplotypes,
             phased_positions,
             sample_cov,
+            co_parent_cov,
             progeny_cov,
             variant_table,
             ground_truth_table,
@@ -621,7 +647,7 @@ def add_arguments(parser):
         metavar="SCORINGWINDOW",
         dest="scoring_window",
         type=int,
-        default=160,
+        default=250,
         required=False,
         help="Size of the window (in variants) for statistical progeny scoring.",
     )
@@ -633,6 +659,15 @@ def add_arguments(parser):
         default=0.06,
         required=False,
         help="Assumed error rate for observed alleles among parents and progeny.",
+    )
+    arg(
+        "--ratio-cutoff",
+        metavar="RATIOCUTOFF",
+        dest="ratio_cutoff",
+        type=float,
+        default=2.0,
+        required=False,
+        help="Cutoff threshold for deviation of coverage ratio between parent, co-parent and progeny compared to median.",
     )
     arg(
         "--simplex",

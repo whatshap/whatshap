@@ -702,8 +702,22 @@ def create_histogram(path, same, diff, steps, dim, x_label, title, name1="same",
         logger.error("Plotting haplotype threading requires matplotlib to be installed")
 
 
+def diff_ratio(ratio):
+    if ratio and 0.0 < ratio < 1.0:
+        return 1.0 / ratio
+    else:
+        return ratio
+
+
 def draw_phase_comparison(
-    haplotypes, phased_positions, sample_cov, progeny_cov, parent_table, ground_truth_table, path
+    haplotypes,
+    phased_positions,
+    sample_cov,
+    co_parent_cov,
+    progeny_cov,
+    parent_table,
+    ground_truth_table,
+    path,
 ):
     try:
         import matplotlib
@@ -784,12 +798,13 @@ def draw_phase_comparison(
         )
 
         # Plot coverage
-        cov_ratio = [p / s if s > 0 else 0 for p, s in zip(progeny_cov, sample_cov)]
-        for coverage, color in zip([cov_ratio, sample_cov], ["tab:purple", "tab:cyan"]):
+        co_parent_ratio = [p / s if s > 0 else 0 for p, s in zip(co_parent_cov, sample_cov)]
+        progeny_ratio = [p / s if s > 0 else 0 for p, s in zip(progeny_cov, sample_cov)]
+        for coverage, color in zip([progeny_ratio, co_parent_ratio], ["tab:purple", "tab:cyan"]):
             max_coverage = max(coverage)
             med_coverage = list(sorted(coverage))[len(coverage) // 2]
-            print(max_coverage)
-            print(med_coverage)
+            # print(max_coverage)
+            # print(med_coverage)
             max_coverage = min(max_coverage, 3 * med_coverage)
             points = [[0, ploidy + y_margin + 2 * coverage[0] / max_coverage]]
             for pos in range(compared_to_phased_pos[-1]):
@@ -843,6 +858,8 @@ def draw_phase_comparison(
             pass
 
         # Plot ground truth boxes and errors
+        non_error_positions = []
+        error_positions = []
         for i, pos in enumerate(compared_to_phased_pos):
             x1 = x_scale * (pos + x_margin)
             x2 = x_scale * (pos + 1)
@@ -901,6 +918,10 @@ def draw_phase_comparison(
                         lw=10.0,
                     )
                 )
+            if switches + flips == 0:
+                non_error_positions.append(pos)
+            else:
+                error_positions.append(pos)
 
         # Plot phasings
         compare_idx = 0
@@ -939,6 +960,199 @@ def draw_phase_comparison(
 
         fig.savefig(path)
         fig.clear()
+
+        # Create histrograms over (non-)errors and coverage ratios
+        progeny_ratio_non = sorted([progeny_ratio[i] for i in non_error_positions])
+        progeny_ratio_err = sorted([progeny_ratio[i] for i in error_positions])
+        median = sorted(progeny_ratio_non + progeny_ratio_err)[
+            (len(progeny_ratio_non) + len(progeny_ratio_err)) // 2
+        ]
+        progeny_ratio_non = sorted([(x / median) for x in progeny_ratio_non])
+        progeny_ratio_err = sorted([(x / median) for x in progeny_ratio_err])
+        # progeny_ratio_non = sorted([diff_ratio(x / median) for x in progeny_ratio_non])
+        # progeny_ratio_err = sorted([diff_ratio(x / median) for x in progeny_ratio_err])
+
+        co_parent_ratio_non = sorted([co_parent_ratio[i] for i in non_error_positions])
+        co_parent_ratio_err = sorted([co_parent_ratio[i] for i in error_positions])
+        median = sorted(co_parent_ratio_non + co_parent_ratio_err)[
+            (len(co_parent_ratio_non) + len(co_parent_ratio_err)) // 2
+        ]
+        co_parent_ratio_non = sorted([(x / median) for x in co_parent_ratio_non])
+        co_parent_ratio_err = sorted([(x / median) for x in co_parent_ratio_err])
+        # co_parent_ratio_non = sorted([diff_ratio(x / median) for x in co_parent_ratio_non])
+        # co_parent_ratio_err = sorted([diff_ratio(x / median) for x in co_parent_ratio_err])
+
+        product_ratio_non = sorted(
+            [progeny_ratio[i] * co_parent_ratio[i] for i in non_error_positions]
+        )
+        product_ratio_err = sorted([progeny_ratio[i] * co_parent_ratio[i] for i in error_positions])
+        median = sorted(product_ratio_non + product_ratio_err)[
+            (len(product_ratio_non) + len(product_ratio_err)) // 2
+        ]
+        product_ratio_non = sorted([(x / median) for x in product_ratio_non])
+        product_ratio_err = sorted([(x / median) for x in product_ratio_err])
+        # product_ratio_non = sorted([diff_ratio(x / median) for x in product_ratio_non])
+        # product_ratio_err = sorted([diff_ratio(x / median) for x in product_ratio_err])
+
+        fig = plt.figure(figsize=(12, 9), dpi=100)
+        create_histogram(
+            path[:-4] + ".progeny-ratio.pdf",
+            progeny_ratio_non,
+            progeny_ratio_err,
+            200,
+            [0, 10],
+            "Normalized ratio (progeny to parent, 1 = median ratio)",
+            "Ratio distribution",
+            name1="non-error positions",
+            name2="error positions",
+        )
+        fig = plt.figure(figsize=(12, 9), dpi=100)
+        create_histogram(
+            path[:-4] + ".co-parent-ratio.pdf",
+            co_parent_ratio_non,
+            co_parent_ratio_err,
+            200,
+            [0, 10],
+            "Normalized ratio (co-parent to parent, 1 = median ratio)",
+            "Ratio distribution",
+            name1="non-error positions",
+            name2="error positions",
+        )
+        fig = plt.figure(figsize=(12, 9), dpi=100)
+        create_histogram(
+            path[:-4] + ".product-ratio.pdf",
+            product_ratio_non,
+            product_ratio_err,
+            200,
+            [0, 10],
+            "Normalized ratio (progeny and co-parent (product) to parent, 1 = median ratio)",
+            "Ratio distribution",
+            name1="non-error positions",
+            name2="error positions",
+        )
+
+        # Create percentile plots of covered (non-)error positions
+        steps = 100
+        x_lim = 10
+        covered_progeny_non = [0 for _ in range(steps)]
+        covered_progeny_err = [0 for _ in range(steps)]
+        covered_co_parent_non = [0 for _ in range(steps)]
+        covered_co_parent_err = [0 for _ in range(steps)]
+        covered_product_non = [0 for _ in range(steps)]
+        covered_product_err = [0 for _ in range(steps)]
+        for v, s in zip(
+            [
+                covered_progeny_non,
+                covered_progeny_err,
+                covered_co_parent_non,
+                covered_co_parent_err,
+                covered_product_non,
+                covered_product_err,
+            ],
+            [
+                progeny_ratio_non,
+                progeny_ratio_err,
+                co_parent_ratio_non,
+                co_parent_ratio_err,
+                product_ratio_non,
+                product_ratio_err,
+            ],
+        ):
+            last_idx = 0
+            for r in s:
+                idx = int(r * steps / x_lim)
+                if idx >= len(v):
+                    break
+                for i in range(last_idx + 1, idx):
+                    v[i] = v[last_idx]
+                v[idx] = v[last_idx] + 1
+                last_idx = idx
+            for i in range(last_idx + 1, steps):
+                v[i] = v[last_idx]
+
+        fig = plt.figure(figsize=(12, 9), dpi=100)
+        axes = plt.gca()
+        axes.set_xlim([0, x_lim])
+        axes.set_ylim([0, 1])
+        axes.plot(
+            progeny_ratio_non,
+            [(i + 1) / len(progeny_ratio_non) for i in range(len(progeny_ratio_non))],
+            color="tab:cyan",
+        )
+        axes.plot(
+            progeny_ratio_err,
+            [(i + 1) / len(progeny_ratio_err) for i in range(len(progeny_ratio_err))],
+            color="tab:orange",
+        )
+        axes.plot(
+            [x / x_lim for x in range(0, steps)],
+            [
+                b / (a + b) if a + b != 0 else 0
+                for a, b in zip(covered_progeny_non, covered_progeny_err)
+            ],
+            color="tab:green",
+        )
+        plt.title("Ratio percentiles (progeny)")
+        plt.xlabel("Normalized ratio (1 = median ratio)")
+        plt.ylabel("Percentile")
+        savefig(path[:-4] + ".progeny-percentile.pdf", bbox_inches="tight")
+        plt.close()
+
+        fig = plt.figure(figsize=(12, 9), dpi=100)
+        axes = plt.gca()
+        axes.set_xlim([0, x_lim])
+        axes.set_ylim([0, 1])
+        axes.plot(
+            co_parent_ratio_non,
+            [(i + 1) / len(co_parent_ratio_non) for i in range(len(co_parent_ratio_non))],
+            color="tab:cyan",
+        )
+        axes.plot(
+            co_parent_ratio_err,
+            [(i + 1) / len(co_parent_ratio_err) for i in range(len(co_parent_ratio_err))],
+            color="tab:orange",
+        )
+        axes.plot(
+            [x / x_lim for x in range(0, steps)],
+            [
+                b / (a + b) if a + b != 0 else 0
+                for a, b in zip(covered_co_parent_non, covered_co_parent_err)
+            ],
+            color="tab:green",
+        )
+        plt.title("Ratio percentiles (co-parent)")
+        plt.xlabel("Normalized ratio (1 = median ratio)")
+        plt.ylabel("Percentile")
+        savefig(path[:-4] + ".co-parent-percentile.pdf", bbox_inches="tight")
+        plt.close()
+
+        fig = plt.figure(figsize=(12, 9), dpi=100)
+        axes = plt.gca()
+        axes.set_xlim([0, x_lim])
+        axes.set_ylim([0, 1])
+        axes.plot(
+            product_ratio_non,
+            [(i + 1) / len(product_ratio_non) for i in range(len(product_ratio_non))],
+            color="tab:cyan",
+        )
+        axes.plot(
+            product_ratio_err,
+            [(i + 1) / len(product_ratio_err) for i in range(len(product_ratio_err))],
+            color="tab:orange",
+        )
+        axes.plot(
+            [x / x_lim for x in range(0, steps)],
+            [
+                b / (a + b) if a + b != 0 else 0
+                for a, b in zip(covered_product_non, covered_product_err)
+            ],
+            color="tab:green",
+        )
+        plt.title("Ratio percentiles (product of progeny and co-parent)")
+        plt.xlabel("Normalized ratio (1 = median ratio)")
+        plt.ylabel("Percentile")
+        savefig(path[:-4] + ".product-percentile.pdf", bbox_inches="tight")
+        plt.close()
 
     except ImportError:
         logger.error("Plotting haplotype threading requires matplotlib to be installed")

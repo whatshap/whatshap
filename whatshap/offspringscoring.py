@@ -89,6 +89,30 @@ def get_phasable_parent_variants(
     return varinfo, phasable_indices
 
 
+def diff_ratio(ratio):
+    if ratio and 0.0 < ratio < 1.0:
+        return 1.0 / ratio
+    else:
+        return ratio
+
+
+def filter_phasable_variants(
+    varinfo, phasable_indices, parent_cov, co_parent_cov, progeny_cov, cutoff
+):
+    co_parent_ratio = [p / s if s > 0 else 0 for p, s in zip(co_parent_cov, parent_cov)]
+    progeny_ratio = [p / s if s > 0 else 0 for p, s in zip(progeny_cov, parent_cov)]
+
+    product_ratio = [progeny_ratio[i] * co_parent_ratio[i] for i in phasable_indices]
+    median = sorted(product_ratio)[len(product_ratio) // 2]
+    product_ratio = [diff_ratio(x / median) for x in product_ratio]
+
+    new_indices = []
+    for i in range(len(phasable_indices)):
+        if product_ratio[i] <= cutoff:
+            new_indices.append(phasable_indices[i])
+    return new_indices
+
+
 def add_corrected_variant_types(
     variant_table: VariantTable,
     progeny_table: VariantTable,
