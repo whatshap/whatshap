@@ -11,7 +11,8 @@ from abc import ABC, abstractmethod
 from os import PathLike
 from typing import List, Sequence, Dict, Tuple, Iterable, Optional, Union, TextIO, Iterator
 
-from pysam import VariantFile, VariantHeader, VariantRecord, VariantRecordSample
+from pysam import VariantFile, VariantHeader, VariantRecord
+from pysam.libcbcf import VariantRecordSample
 
 from .core import (
     Read,
