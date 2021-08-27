@@ -52,7 +52,7 @@ jobs:
       with:
         python-version: 3.7
     - name: Build wheels
-      uses: joerick/cibuildwheel@v1.10.0
+      uses: pypa/cibuildwheel@v2.1.1
       with:
         output-dir: dist/
       env:
