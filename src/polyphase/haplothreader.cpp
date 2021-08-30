@@ -174,7 +174,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         }
         
         // iterate over generated tuples
-        std::cout<<"Position "<<pos<<": "<<relevantTuples.size()<<" tuples ("<<(carriedTuples.size())<<" carried) on "<<covMap[pos].size()<<" clusters. "<<std::endl;
+        //std::cout<<"Position "<<pos<<": "<<relevantTuples.size()<<" tuples ("<<(carriedTuples.size())<<" carried) on "<<covMap[pos].size()<<" clusters. "<<std::endl;
         for (ClusterTuple rowTuple : relevantTuples) {
             // variables to store best score and backtracking direction
             minimum = std::numeric_limits<Score>::infinity();
@@ -282,7 +282,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
             pivotTuples.push_back(minimumTupleInColumn);
             
             uint32_t rounds = 10;
-            std::cout<<"Removing: "<<column.size();
+            //std::cout<<"Removing: "<<column.size();
             for (uint32_t i = 0; i < rounds; i++) {
                 for (ClusterTuple t : permedTuples) {
                     bool profitable = true;
@@ -309,9 +309,9 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
                         column.erase(t);
                     }
                 }
-                std::cout<<" -> "<<column.size();
+                //std::cout<<" -> "<<column.size();
             }
-            std::cout<<std::endl;
+            //std::cout<<std::endl;
         }
         
         // cut down rows if parameter is set

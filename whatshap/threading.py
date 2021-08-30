@@ -51,6 +51,9 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
 
     # determine haplotypes/alleles for each position
     haplotypes = compute_haplotypes(path, cov_map, consensus_lists, ploidy)
+    
+    # enforce genotypes
+    haplotypes = enforce_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_depths)
 
     # determine snp positions inside clusters
     cwise_snps = find_cluster_snps(path, haplotypes)
@@ -261,6 +264,94 @@ def phase_cluster_snps(
             alleles = [haplotypes[best_perm[j]][pos] for j in range(len(best_perm))]
             for j in range(len(c_slots)):
                 haplotypes[c_slots[j]][pos] = alleles[j]
+
+    return haplotypes
+
+
+def enforce_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_depths):
+    num_vars = len(path)
+    for pos in range(num_vars):
+        # count allele occurences
+        alleles = set([a for a in genotypes[pos]])
+        present = defaultdict(int)
+        for h in haplotypes:
+            present[h[pos]] += 1
+            alleles.add(h[pos])
+
+        # detect abundances and shortages
+        abundant_alleles = dict()
+        lacking_alleles = dict()
+        alleles_to_insert = []
+        affected_positions = []
+        for a in genotypes[pos]:
+            diff = present[a] - genotypes[pos][a]
+            if diff > 0:
+                # slots with abundant allele could change, in total we want the lower count
+                abundant_alleles[a] = diff
+                alleles_to_insert += [a for _ in range(genotypes[pos][a])]
+                for p in range(len(path[pos])):
+                    if haplotypes[p][pos] == a:
+                        affected_positions.append(p)
+            elif diff < 0:
+                # slots with short alleles can stay, we need to insert the missing amount
+                lacking_alleles[a] = -diff
+                alleles_to_insert += [a for _ in range(-diff)]
+
+        affected_positions.sort()
+        alleles_to_insert.sort()
+
+        if len(abundant_alleles) == 0:
+            continue
+        #else:
+        #    print("Pos {}: Abundant: {}, Lacking: {}, Insert: {}, Affected: {}".format(pos, abundant_alleles, lacking_alleles, alleles_to_insert, affected_positions))
+
+        # for all clusters, compute desired fraction for each allele
+        clusts = cov_map[pos]
+        clust_to_id = dict()
+        for i, cid in enumerate(clusts):
+            clust_to_id[cid] = i
+        desired_fraction = [defaultdict(float) for _ in range(len(clusts))]
+        for i in range(len(clusts)):
+            total_depth = sum(allele_depths[pos][i].values())
+            for a in allele_depths[pos][i]:
+                desired_fraction[i][a] = allele_depths[pos][i][a] / total_depth
+
+        # for all permutations, pick the one best fitting to allele depths of clusters
+        given_config = [haplotypes[h][pos] for h in range(len(haplotypes))]
+        best_config = given_config
+        best_deviation = float("inf")
+        for perm in it.permutations(alleles_to_insert):
+            # build next config (given + affected slots permuted)
+            newconfig = given_config[:]
+            for i in range(len(perm)):
+                newconfig[affected_positions[i]] = perm[i]
+            
+            # compute allele depth fraction for each cluster
+            ad = [{a: 0 for a in alleles} for _ in range(len(clusts))]
+            for i, cid in enumerate(path[pos]):
+                ad[clust_to_id[cid]][newconfig[i]] += 1
+            for i in range(len(ad)):
+                total_depth = sum(ad[i].values())
+                if total_depth > 0:
+                    for a in ad[i]:
+                        ad[i][a] = ad[i][a] / total_depth
+                    
+            # compute deviation to desired fraction
+            total_deviation = 0
+            for cid in path[pos]:
+                i = clust_to_id[cid]
+                for a in alleles:
+                    total_deviation += abs(ad[i][a] - desired_fraction[i][a])
+                    
+            #print("    {} -> {}".format(newconfig, total_deviation))
+                    
+            if total_deviation < best_deviation:
+                best_deviation = total_deviation
+                best_config = newconfig
+                
+        #print("    Best: {} with deviation {}".format(best_config, best_deviation))
+        for h in range(len(haplotypes)):
+            haplotypes[h][pos] = best_config[h]
 
     return haplotypes
 
