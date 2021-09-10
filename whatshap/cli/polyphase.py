@@ -54,6 +54,7 @@ PhasingParameter = namedtuple(
         "verify_genotypes",
         "ce_bundle_edges",
         "bayesian_scoring",
+        "distrust_genotypes",
         "min_overlap",
         "ce_refinements",
         "block_cut_sensitivity",
@@ -97,6 +98,7 @@ def run_polyphase(
     mapping_quality=20,
     tag="PS",
     include_haploid_sets=False,
+    distrust_genotypes=False,
     write_command_line_header=True,
     read_list_filename=None,
     ce_bundle_edges=False,
@@ -206,6 +208,7 @@ def run_polyphase(
             verify_genotypes=verify_genotypes,
             ce_bundle_edges=ce_bundle_edges,
             bayesian_scoring=bayesian_scoring,
+            distrust_genotypes=distrust_genotypes,
             min_overlap=min_overlap,
             ce_refinements=ce_refinements,
             block_cut_sensitivity=block_cut_sensitivity,
@@ -806,6 +809,8 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
         phasing_param.ploidy,
         genotype_slice,
         phasing_param.block_cut_sensitivity,
+        not phasing_param.distrust_genotypes,
+        error_rate=0.05,
     )
     timers.stop("threading")
 
@@ -1123,6 +1128,13 @@ def add_arguments(parser):
         default=False,
         action="store_true",
         help="Verify input genotypes by re-typing them using the given reads.",
+    )
+    arg(
+        "--distrust-genotypes",
+        dest="distrust_genotypes",
+        action="store_true",
+        default=False,
+        help="Allows the phaser to change genotypes if beneficial for the internal model.",
     )
 
     # add polyphase specific arguments

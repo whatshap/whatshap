@@ -3,12 +3,20 @@ import logging
 from collections import defaultdict
 from .core import HaploThreader
 from math import ceil, log
-from time import time
+from scipy.stats import binom
 
 logger = logging.getLogger(__name__)
 
 
-def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity):
+def run_threading(
+    readset,
+    clustering,
+    ploidy,
+    genotypes,
+    block_cut_sensitivity,
+    force_genotypes=True,
+    error_rate=0.05,
+):
     """
     Main method for the threading stage of the polyploid phasing algorithm. Takes the following input:
 
@@ -34,7 +42,6 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
     )
 
     # compute threading through the clusters
-    t = time()
     affine_switch_cost = ceil(compute_readlength_snp_distance_ratio(readset) / 4.0)
     path = compute_threading_path(
         readset,
@@ -47,25 +54,27 @@ def run_threading(readset, clustering, ploidy, genotypes, block_cut_sensitivity)
         switch_cost=4 * affine_switch_cost,
         affine_switch_cost=affine_switch_cost,
     )
-    print("Path computation: {} seconds".format((time() - t)))
 
     # determine haplotypes/alleles for each position
     haplotypes = compute_haplotypes(path, cov_map, consensus_lists, ploidy)
-    
+
     # enforce genotypes
-    haplotypes = enforce_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_depths)
+    if force_genotypes:
+        haplotypes = enforce_genotypes(
+            path, haplotypes, genotypes, clustering, cov_map, allele_depths, error_rate
+        )
 
     # determine snp positions inside clusters
     cwise_snps = find_cluster_snps(path, haplotypes)
 
     # phase cluster snps
     haplotypes = phase_cluster_snps(
-        path, haplotypes, cwise_snps, clustering, readset, index, error_rate=0.05, window_size=20
+        path, haplotypes, cwise_snps, clustering, readset, index, error_rate, window_size=20
     )
 
     # we can look at the sequences again to use the most likely continuation for ambiguous haplotype switches
     path, haplotypes = improve_path_on_ambiguous_switches(
-        path, haplotypes, clustering, readset, index, error_rate=0.05, window_size=20
+        path, haplotypes, clustering, readset, index, error_rate, window_size=20
     )
 
     cut_positions, haploid_cuts = compute_cut_positions(
@@ -268,7 +277,7 @@ def phase_cluster_snps(
     return haplotypes
 
 
-def enforce_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_depths):
+def enforce_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_depths, error_rate):
     num_vars = len(path)
     for pos in range(num_vars):
         # count allele occurences
@@ -279,10 +288,8 @@ def enforce_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_d
             alleles.add(h[pos])
 
         # detect abundances and shortages
-        abundant_alleles = dict()
-        lacking_alleles = dict()
-        alleles_to_insert = []
-        affected_positions = []
+        abundant_alleles, lacking_alleles = dict(), dict()
+        alleles_to_insert, affected_positions = [], []
         for a in genotypes[pos]:
             diff = present[a] - genotypes[pos][a]
             if diff > 0:
@@ -302,54 +309,48 @@ def enforce_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_d
 
         if len(abundant_alleles) == 0:
             continue
-        #else:
-        #    print("Pos {}: Abundant: {}, Lacking: {}, Insert: {}, Affected: {}".format(pos, abundant_alleles, lacking_alleles, alleles_to_insert, affected_positions))
-
-        # for all clusters, compute desired fraction for each allele
-        clusts = cov_map[pos]
-        clust_to_id = dict()
-        for i, cid in enumerate(clusts):
-            clust_to_id[cid] = i
-        desired_fraction = [defaultdict(float) for _ in range(len(clusts))]
-        for i in range(len(clusts)):
-            total_depth = sum(allele_depths[pos][i].values())
-            for a in allele_depths[pos][i]:
-                desired_fraction[i][a] = allele_depths[pos][i][a] / total_depth
 
         # for all permutations, pick the one best fitting to allele depths of clusters
+        clusts = cov_map[pos]
         given_config = [haplotypes[h][pos] for h in range(len(haplotypes))]
         best_config = given_config
-        best_deviation = float("inf")
+        best_likelihood = -float("inf")
         for perm in it.permutations(alleles_to_insert):
             # build next config (given + affected slots permuted)
             newconfig = given_config[:]
             for i in range(len(perm)):
                 newconfig[affected_positions[i]] = perm[i]
-            
+
+            # compute likelihood how well newconfig explains the observed allele depths of the clusters
+            log_likelihood = 0
+
             # compute allele depth fraction for each cluster
-            ad = [{a: 0 for a in alleles} for _ in range(len(clusts))]
-            for i, cid in enumerate(path[pos]):
-                ad[clust_to_id[cid]][newconfig[i]] += 1
-            for i in range(len(ad)):
-                total_depth = sum(ad[i].values())
-                if total_depth > 0:
-                    for a in ad[i]:
-                        ad[i][a] = ad[i][a] / total_depth
-                    
-            # compute deviation to desired fraction
-            total_deviation = 0
-            for cid in path[pos]:
-                i = clust_to_id[cid]
-                for a in alleles:
-                    total_deviation += abs(ad[i][a] - desired_fraction[i][a])
-                    
-            #print("    {} -> {}".format(newconfig, total_deviation))
-                    
-            if total_deviation < best_deviation:
-                best_deviation = total_deviation
+            for i in range(len(clusts)):
+                allele_mult = {a: 0 for a in alleles}
+                clust_mult = 0
+                for slot in range(len(path[pos])):
+                    if path[pos][slot] == clusts[i]:
+                        allele_mult[newconfig[slot]] += 1
+                        clust_mult += 1
+                if clust_mult > 0:
+                    # compute likelihood that observed allel depth was produced by assigned alleles pro cluster
+                    total_depth = sum(allele_depths[pos][i].values())
+                    for a in alleles:
+                        allele_mult[a] /= clust_mult
+                        allele_mult[a] = (
+                            allele_mult[a] * (1 - error_rate) + (1 - allele_mult[a]) * error_rate
+                        )
+                        observed_depth = (
+                            0 if a not in allele_depths[pos][i] else allele_depths[pos][i][a]
+                        )
+                        log_likelihood += log(
+                            binom.pmf(observed_depth, total_depth, allele_mult[a])
+                        )
+
+            if log_likelihood > best_likelihood:
+                best_likelihood = log_likelihood
                 best_config = newconfig
-                
-        #print("    Best: {} with deviation {}".format(best_config, best_deviation))
+
         for h in range(len(haplotypes)):
             haplotypes[h][pos] = best_config[h]
 
