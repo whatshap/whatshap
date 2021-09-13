@@ -10,9 +10,16 @@ Installation of WhatsHap is easiest if you use Conda.
 Installation with Conda
 -----------------------
 
-First, ensure you have Conda (miniconda or Anaconda) installed and made the
-proper settings to enable the “bioconda” channel. For that, follow
-`the bioconda installation instructions <https://bioconda.github.io/#install-conda>`_.
+If you do not have Conda, follow the `the Bioconda installation
+instructions <https://bioconda.github.io/user/install.html#getting-started>`_.
+
+If you already have Conda (for example, miniconda or Anaconda) installed,
+ensure you have enabled both the “bioconda” and “conda-forge” channels::
+
+    conda config --add channels defaults
+    conda config --add channels bioconda
+    conda config --add channels conda-forge
+
 
 Then WhatsHap can be installed with this command::
 
@@ -51,7 +58,7 @@ are familiar with that.
 Installing an unreleased development version
 --------------------------------------------
 
-If you for some reason want to use the most recent development version of
+If you for want to use the most recent development version of
 WhatsHap, you can install it in the following way. These instructions will
 create a virtual environment in the directory ``whatshap-env`` that contains
 WhatsHap. Simply delete that directory to uninstall the software. Other WhatsHap
