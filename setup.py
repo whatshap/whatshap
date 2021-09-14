@@ -9,8 +9,8 @@ import os
 import os.path
 from setuptools import setup, Extension, find_packages
 from distutils.version import LooseVersion
-from distutils.command.sdist import sdist as _sdist
-from distutils.command.build_ext import build_ext as _build_ext
+from distutils.command.sdist import sdist
+from distutils.command.build_ext import build_ext
 from distutils.sysconfig import customize_compiler
 
 MIN_CYTHON_VERSION = "0.29"
@@ -120,13 +120,13 @@ extensions = [
 ]
 
 
-class BuildExt(_build_ext):
+class BuildExt(build_ext):
     def run(self):
         # If we encounter a PKG-INFO file, then this is likely a .tar.gz/.zip
         # file retrieved from PyPI that already includes the pre-cythonized
         # extension modules, and then we do not need to run cythonize().
         if os.path.exists("PKG-INFO"):
-            no_cythonize(extensions)
+            no_cythonize(self.extensions)
         else:
             # Otherwise, this is a 'developer copy' of the code, and then the
             # only sensible thing is to require Cython to be installed.
@@ -151,13 +151,13 @@ class BuildExt(_build_ext):
         super().build_extensions()
 
 
-class SDist(_sdist):
+class SDist(sdist):
     def run(self):
         # Make sure the compiled Cython files in the distribution are up-to-date
         from Cython.Build import cythonize
 
         check_cython_version()
-        cythonize(extensions)
+        cythonize(self.distribution.ext_modules)
         super().run()
 
 
