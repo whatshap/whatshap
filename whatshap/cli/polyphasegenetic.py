@@ -672,7 +672,7 @@ def add_arguments(parser):
     arg(
         "--complexity-support",
         "-C",
-        dest="complexity-support",
+        dest="complexity_support",
         type=int,
         default=0,
         required=False,
