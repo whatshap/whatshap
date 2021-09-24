@@ -69,8 +69,10 @@ def get_phasable_parent_variants(
 
     # determine unbiased progeny genotype likelihoods
     phasable_indices = []
-    if phasing_param.simplex:
+    if phasing_param.complexity_support == 0:
         allowed_pairs = [(1, 0)]
+    elif phasing_param.complexity_support == 1:
+        allowed_pairs = [(1, 0), (1, 1)]
     else:
         allowed_pairs = [(1, 0), (2, 0), (1, 1)]
     for i in range(len(variant_table)):

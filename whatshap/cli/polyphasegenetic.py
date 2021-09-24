@@ -43,7 +43,7 @@ PhasingParameter = namedtuple(
         "ploidy",
         "scoring_window",
         "allele_error_rate",
-        "simplex",
+        "complexity_support",
         "allow_homozyguous",
         "allow_deletions",
     ],
@@ -61,7 +61,7 @@ def run_polyphasegenetic(
     scoring_window=250,
     allele_error_rate=0.06,
     ratio_cutoff=2.0,
-    simplex=False,
+    complexity_support=0,
     allow_homozyguous=False,
     distrust_parent_genotypes=False,
     output=sys.stdout,
@@ -167,7 +167,7 @@ def run_polyphasegenetic(
             ploidy=ploidy,
             scoring_window=scoring_window,
             allele_error_rate=allele_error_rate,
-            simplex=simplex,
+            complexity_support=complexity_support,
             allow_homozyguous=allow_homozyguous,
             allow_deletions=indels,
         )
@@ -670,11 +670,13 @@ def add_arguments(parser):
         help="Cutoff threshold for deviation of coverage ratio between parent, co-parent and progeny compared to median.",
     )
     arg(
-        "--simplex",
-        dest="simplex",
-        default=False,
-        action="store_true",
-        help="Reduce offspring scoring to simplex-nulliplex variants only.",
+        "--complexity-support",
+        "-C",
+        dest="complexity-support",
+        type=int,
+        default=0,
+        required=False,
+        help="Indicates what level of genotype complexity is allowed for phased variants. 0 = simplex-nulliplex only, 1 = simplex-simplex on top, 2 = duplex-nulliplex on top. Default is 0.",
     )
     arg(
         "--allow-homozyguous",
@@ -704,6 +706,8 @@ def validate(args, parser):
         parser.error("Allele error rate must be between 0.01 and 0.5.")
     if args.scoring_window < 1:
         parser.error("Scoring window must be a positive integer.")
+    if args.complexity_support not in [0, 1, 2]:
+        parser.error("Complexity support level must be either 0, 1 or 2.")
     if args.ploidy != 4:
         parser.error("Ploidies other than 4 are currently not supported.")
 
