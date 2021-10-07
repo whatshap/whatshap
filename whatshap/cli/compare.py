@@ -1028,7 +1028,6 @@ def get_sample_to_work_on(vcf_readers: List[VcfReader], requested_sample: Option
                     requested_sample
                 )
             )
-        requested_sample = requested_sample
     else:
         if len(sample_intersection) == 0:
             raise CommandLineError("None of the samples is present in all VCFs")
