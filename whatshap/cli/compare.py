@@ -280,8 +280,6 @@ def compare_block(phasing0, phasing1):
         total_hamming /= float(ploidy)
         minimum_hamming_distance = min(minimum_hamming_distance, total_hamming)
 
-    switches = float("inf")
-    switch_flips = SwitchFlips(float("inf"), float("inf"))
     matching_pos = compute_matching_genotype_pos(phasing0, phasing1)
 
     if ploidy == 2:
