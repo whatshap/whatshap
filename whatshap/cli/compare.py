@@ -16,7 +16,7 @@ from whatshap.cli import CommandLineError
 
 logger = logging.getLogger(__name__)
 
-count_width = 9
+COUNT_WIDTH = 9
 
 
 # fmt: off
@@ -339,13 +339,13 @@ def print_stat(text: str, value=None, value2=None, text_width=37):
         print(text)
     else:
         if value == "-":
-            value = "-" * count_width
+            value = "-" * COUNT_WIDTH
         else:
-            value = str(value).rjust(count_width)
+            value = str(value).rjust(COUNT_WIDTH)
         if value2 is None:
             print(text + ":", value)
         else:
-            print(text + ":", value, str(value2).rjust(count_width))
+            print(text + ":", value, str(value2).rjust(COUNT_WIDTH))
 
 
 def print_errors(errors, phased_pairs):
@@ -859,21 +859,21 @@ def run_compare(
                 het_variant_sets.append(set(het_variants))
                 print(
                     "{}:".format(name).rjust(width),
-                    str(len(het_variants)).rjust(count_width),
+                    str(len(het_variants)).rjust(COUNT_WIDTH),
                     "/",
-                    str(len(variant_table.variants)).rjust(count_width),
+                    str(len(variant_table.variants)).rjust(COUNT_WIDTH),
                 )
             print(
                 "UNION:".rjust(width),
-                str(len(het_variants_union)).rjust(count_width),
+                str(len(het_variants_union)).rjust(COUNT_WIDTH),
                 "/",
-                str(len(all_variants_union)).rjust(count_width),
+                str(len(all_variants_union)).rjust(COUNT_WIDTH),
             )
             print(
                 "INTERSECTION:".rjust(width),
-                str(len(het_variants_intersection)).rjust(count_width),
+                str(len(het_variants_intersection)).rjust(COUNT_WIDTH),
                 "/",
-                str(len(all_variants_intersection)).rjust(count_width),
+                str(len(all_variants_intersection)).rjust(COUNT_WIDTH),
             )
 
             for i in range(len(vcfs)):
