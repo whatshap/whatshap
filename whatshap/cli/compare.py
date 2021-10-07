@@ -755,7 +755,6 @@ def run_compare(
             )
     else:
         dataset_names = ["file{}".format(i) for i in range(len(vcf))]
-    longest_name = max(len(n) for n in dataset_names)
 
     sample = get_sample_to_work_on(vcf_readers, requested_sample=sample)
 
@@ -789,14 +788,6 @@ def run_compare(
                 file=longest_block_tsv_file,
             )
 
-        print("Comparing phasings for sample", sample)
-
-        vcfs = get_variant_tables(vcf_readers, vcf)
-        chromosomes = get_common_chromosomes(vcfs)
-        if len(chromosomes) == 0:
-            raise CommandLineError("No chromosome is contained in all VCFs. Aborting.")
-        logger.info("Chromosomes present in all VCFs: %s", ", ".join(chromosomes))
-
         if tsv_pairwise_file:
             fields = [
                 "#sample",
@@ -814,7 +805,16 @@ def run_compare(
         if switch_error_bed:
             switch_error_bedfile = stack.enter_context(open(switch_error_bed, "w"))
 
+        print("Comparing phasings for sample", sample)
+
+        vcfs = get_variant_tables(vcf_readers, vcf)
+        chromosomes = get_common_chromosomes(vcfs)
+        if len(chromosomes) == 0:
+            raise CommandLineError("No chromosome is contained in all VCFs. Aborting.")
+        logger.info("Chromosomes present in all VCFs: %s", ", ".join(chromosomes))
+
         print("FILENAMES")
+        longest_name = max(len(n) for n in dataset_names)
         for name, filename in zip(dataset_names, vcf):
             print(name.rjust(longest_name + 2), "=", filename)
 
