@@ -211,11 +211,8 @@ def compute_switch_flips_poly_bt(
     # Check input
     if len(phasing0) != len(phasing1):
         logger.error(
-            "Incompatible phasings. Number of haplotypes is not equal ("
-            + str(len(phasing0))
-            + " != "
-            + str(len(phasing1))
-            + ")."
+            "Incompatible phasings. Number of haplotypes is not equal "
+            f"({len(phasing0)} != {len(phasing1)})."
         )
     assert len(phasing0) == len(phasing1)
 
@@ -228,24 +225,14 @@ def compute_switch_flips_poly_bt(
     for i in range(0, len(phasing1)):
         if len(phasing1[i]) != num_pos:
             logger.error(
-                "Inconsistent input for phasing. Haplotypes have different lengths ( len(phasing1[0]="
-                + str(num_pos)
-                + " != len(phasing1["
-                + str(i)
-                + "]="
-                + str(len(phasing1[i]))
-                + "."
+                "Inconsistent input for phasing. Haplotypes have different lengths "
+                f"( len(phasing1[0]={num_pos} != len(phasing1[{i}]={len(phasing1[i])}."
             )
         assert len(phasing1[i]) == num_pos
         if len(phasing0[i]) != num_pos:
             logger.error(
-                "Inconsistent input for phasing. Haplotypes have different lengths ( len(phasing1[0]="
-                + str(num_pos)
-                + " != len(phasing0["
-                + str(i)
-                + "]="
-                + str(len(phasing0[i]))
-                + "."
+                "Inconsistent input for phasing. Haplotypes have different lengths "
+                f"( len(phasing1[0]={num_pos} != len(phasing0[{i}]={len(phasing0[i])}."
             )
         assert len(phasing1[i]) == num_pos
     if ploidy > 6:
