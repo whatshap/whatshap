@@ -26,6 +26,8 @@ def add_arguments(parser):
         'to process. If not given, use first sample found in VCF.')
     add('--names', metavar='NAMES', default=None, help='Comma-separated list '
         'of data set names to be used in the report (in same order as VCFs).')
+    add('--ignore-sample-name', default=False, action='store_true', help='For single '
+        'sample VCFs, ignore sample name and assume all samples are the same.')
     add('--tsv-pairwise', metavar='TSVPAIRWISE', default=None, help='Filename to write '
         'comparison results from pair-wise comparison to (tab-separated).')
     add('--tsv-multiway', metavar='TSVMULTIWAY', default=None, help='Filename to write '
@@ -387,9 +389,11 @@ class BlockStats:
     span: int
 
 
-def collect_common_variants(variant_tables: List[VariantTable], sample) -> Set[VcfVariant]:
+def collect_common_variants(
+    variant_tables: List[VariantTable], sample_names: List[str]
+) -> Set[VcfVariant]:
     common_variants = None
-    for variant_table in variant_tables:
+    for variant_table, sample in zip(variant_tables, sample_names):
         het_variants = [
             v
             for v, gt in zip(variant_table.variants, variant_table.genotypes_of(sample))
@@ -403,20 +407,25 @@ def collect_common_variants(variant_tables: List[VariantTable], sample) -> Set[V
     return common_variants
 
 
-def compare(variant_tables: List[VariantTable], sample: str, dataset_names: List[str], ploidy: int):
+def compare(
+    variant_tables: List[VariantTable],
+    sample_names: List[str],
+    dataset_names: List[str],
+    ploidy: int,
+):
     """
     Return a PairwiseComparisonResults object if the variant_tables has a length of 2.
     """
     assert len(variant_tables) > 1
 
-    common_variants = collect_common_variants(variant_tables, sample)
+    common_variants = collect_common_variants(variant_tables, sample_names)
     assert common_variants is not None
 
     print_stat("common heterozygous variants", len(common_variants))
     print_stat("(restricting to these below)")
     phases = []
     sorted_variants = sorted(common_variants, key=lambda v: v.position)
-    for variant_table in variant_tables:
+    for variant_table, sample in zip(variant_tables, sample_names):
         p = [
             phase
             for variant, phase in zip(variant_table.variants, variant_table.phases_of(sample))
@@ -738,6 +747,7 @@ def run_compare(
     ploidy,
     names=None,
     sample=None,
+    ignore_sample_name=False,
     tsv_pairwise=None,
     tsv_multiway=None,
     only_snvs=False,
@@ -756,7 +766,9 @@ def run_compare(
     else:
         dataset_names = ["file{}".format(i) for i in range(len(vcf))]
 
-    sample = get_sample_to_work_on(vcf_readers, requested_sample=sample)
+    sample_names = get_sample_names(
+        vcf_readers, requested_sample=sample, ignore_name=ignore_sample_name
+    )
 
     with ExitStack() as stack:
         tsv_pairwise_file = tsv_multiway_file = longest_block_tsv_file = switch_error_bedfile = None
@@ -805,7 +817,14 @@ def run_compare(
         if switch_error_bed:
             switch_error_bedfile = stack.enter_context(open(switch_error_bed, "w"))
 
-        print("Comparing phasings for sample", sample)
+        if len(set(sample_names)) > 1 and ignore_sample_name:
+            print(
+                "Comparing phasings for samples:",
+                ", ".join(sample_names),
+                " (--ignore-sample-names selected)",
+            )
+        else:
+            print("Comparing phasings for sample", sample_names[0])
 
         vcfs = get_variant_tables(vcf_readers, vcf)
         chromosomes = get_common_chromosomes(vcfs)
@@ -838,7 +857,7 @@ def run_compare(
             het_variant_sets = []
             het_variants0 = None
             print("VARIANT COUNTS (heterozygous / all): ")
-            for variant_table, name in zip(variant_tables, dataset_names):
+            for variant_table, name, sample in zip(variant_tables, dataset_names, sample_names):
                 all_variants_union.update(variant_table.variants)
                 het_variants = [
                     v
@@ -890,16 +909,21 @@ def run_compare(
                         multiway_results,
                     ) = compare(
                         [variant_tables[i], variant_tables[j]],
-                        sample,
+                        [sample_names[i], sample_names[j]],
                         [dataset_names[i], dataset_names[j]],
                         ploidy,
                     )
                     if len(vcfs) == 2:
                         add_block_stats(block_stats)
                     all_bed_records.extend(bed_records)
+                    sample_name = (
+                        f"{sample_names[i]}_{sample_names[j]}"
+                        if ignore_sample_name
+                        else sample_names[i]
+                    )
                     if tsv_pairwise_file:
                         fields = [
-                            sample,
+                            sample_name,
                             chromosome,
                             dataset_names[i],
                             dataset_names[j],
@@ -918,7 +942,7 @@ def run_compare(
                             print(
                                 dataset_names[i],
                                 dataset_names[j],
-                                sample,
+                                sample_name,
                                 chromosome,
                                 position,
                                 phase_agreeing,
@@ -943,12 +967,15 @@ def run_compare(
                     longest_block_positions,
                     longest_block_agreement,
                     multiway_results,
-                ) = compare(variant_tables, sample, dataset_names, ploidy)
+                ) = compare(variant_tables, sample_names, dataset_names, ploidy)
                 add_block_stats(block_stats)
                 if tsv_multiway_file:
+                    sample_name = (
+                        "_".join(set(sample_names)) if ignore_sample_name else sample_names[0]
+                    )
                     for ((dataset_list0, dataset_list1), count) in multiway_results.items():
                         print(
-                            sample,
+                            sample_name,
                             chromosome,
                             "{" + dataset_list0 + "}",
                             "{" + dataset_list1 + "}",
@@ -995,15 +1022,24 @@ def get_variant_tables(
     return vcfs
 
 
-def get_sample_to_work_on(vcf_readers: List[VcfReader], requested_sample: Optional[str]):
-    all_samples = set()
+def get_sample_names(
+    vcf_readers: List[VcfReader], requested_sample: Optional[str], ignore_name: bool = False
+) -> List[str]:
+    first_samples = []
     sample_intersection = None
     for vcf_reader in vcf_readers:
         if sample_intersection is None:
             sample_intersection = set(vcf_reader.samples)
         else:
             sample_intersection.intersection_update(vcf_reader.samples)
-        all_samples.update(vcf_reader.samples)
+
+        if ignore_name and len(vcf_reader.samples) > 1:
+            raise CommandLineError(
+                "File {!r} contains multiple samples, option --ignore-sample-name not available.".format(
+                    vcf_reader.path
+                )
+            )
+        first_samples.append(vcf_reader.samples[0])
     assert sample_intersection is not None
     if requested_sample:
         sample_intersection.intersection_update([requested_sample])
@@ -1013,17 +1049,20 @@ def get_sample_to_work_on(vcf_readers: List[VcfReader], requested_sample: Option
                     requested_sample
                 )
             )
+        sample_names = [requested_sample] * len(vcf_readers)
+    elif ignore_name:
+        sample_names = first_samples
     else:
         if len(sample_intersection) == 0:
             raise CommandLineError("None of the samples is present in all VCFs")
         elif len(sample_intersection) == 1:
-            requested_sample = list(sample_intersection)[0]
+            sample_names = [list(sample_intersection)[0]] * len(vcf_readers)
         else:
             raise CommandLineError(
                 "More than one sample is present in all VCFs, please use"
                 " --sample to specify which sample to work on."
             )
-    return requested_sample
+    return sample_names
 
 
 def main(args):

@@ -322,3 +322,29 @@ def test_compare_block():
     assert phasing_errors.hamming == 2.0
     switch_flips = phasing_errors.switch_flips
     assert switch_flips.switches == 0.0
+
+
+def test_compare_ignore_sample_name(tmp_path):
+    outtsv = tmp_path / "output.tsv"
+    run_compare(
+        vcf=["tests/data/phased_single_sample1.vcf", "tests/data/phased_single_sample2.vcf"],
+        ploidy=2,
+        names="p1,p2",
+        tsv_pairwise=outtsv,
+        sample=None,
+        ignore_sample_name=True,
+    )
+    lines = [l.split("\t") for l in open(outtsv)]
+    assert len(lines) == 2
+    Fields = namedtuple("Fields", [f.strip("#\n") for f in lines[0]])
+    entry = Fields(*lines[1])
+
+    assert entry.chromosome == "chrA"
+    assert entry.sample == "sample1_nr1"
+    assert entry.all_assessed_pairs == "3"
+    assert entry.all_switches == "2"
+    assert entry.all_switchflips == "2/0"
+    assert entry.blockwise_hamming == "2"
+    assert entry.largestblock_assessed_pairs == "2"
+    assert entry.largestblock_switches == "1"
+    assert entry.largestblock_hamming == "1"

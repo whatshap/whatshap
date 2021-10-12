@@ -1,0 +1,7 @@
+##fileformat=VCFv4.1
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample1
+chrA	100	.	A	T	500.0	.	.	GT:PS	0|1:150
+chrA	150	.	C	GGGG	500.0	.	.	GT:PS	1|0:150
+chrA	300	.	G	T	500.0	.	.	GT:PS	1|0:150
+chrA	350	.	GAG	T	500.0	.	.	GT:PS	1|0:150
+chrA	500	.	C	T	500.0	.	.	GT:PS	1|0:150
