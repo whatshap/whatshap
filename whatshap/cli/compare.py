@@ -1035,8 +1035,8 @@ def get_sample_names(
 
         if ignore_name and len(vcf_reader.samples) > 1:
             raise CommandLineError(
-                "File {!r} contains multiple samples, option --ignore-sample-name not available.".format(
-                    vcf_reader.path
+                "File '{file}' contains multiple samples, option --ignore-sample-name not available.".format(
+                    file=vcf_reader.path
                 )
             )
         first_samples.append(vcf_reader.samples[0])
