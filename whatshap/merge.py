@@ -4,14 +4,8 @@ from typing import Dict
 
 from math import log
 
-from networkx import (
-    Graph,
-    number_of_nodes,
-    number_of_edges,
-    connected_components,
-    node_connected_component,
-    shortest_path,
-)
+import networkx as nx
+
 from whatshap.core import Read, ReadSet
 
 logger = logging.getLogger(__name__)
@@ -59,16 +53,15 @@ class ReadMerger(ReadMergerBase):
             self._negative_threshold,
         )
         logger.debug("Merging started.")
-        gblue = Graph()
-        gnotblue = Graph()
+        gblue = nx.Graph()
+        gnotblue = nx.Graph()
 
         # Probability that any nucleotide is wrong
         error_rate = self._error_rate
         logger.debug("Error Rate: %s", error_rate)
 
         # If an edge has too many errors, we discard it since it is not reliable
-        max_error_rate = self._max_error_rate
-        logger.debug("Max Error Rate: %s", max_error_rate)
+        logger.debug("Max Error Rate: %s", self._max_error_rate)
 
         # Threshold of the ratio between the probabilities that the two reads come from
         # the same side or from different sides
@@ -121,7 +114,7 @@ class ReadMerger(ReadMergerBase):
                 match, mismatch = eval_overlap(queue[id1], queue[id])
                 if (
                     match + mismatch >= thr_neg_diff
-                    and min(match, mismatch) / (match + mismatch) <= max_error_rate
+                    and min(match, mismatch) / (match + mismatch) <= self._max_error_rate
                     and match - mismatch >= thr_diff
                 ):
                     gblue.add_edge(id1, id, match=match, mismatch=mismatch)
@@ -133,16 +126,16 @@ class ReadMerger(ReadMergerBase):
         logger.debug("Blue Graph")
         logger.debug(
             "Nodes: %s - Edges: %s - ConnComp: %s",
-            number_of_nodes(gblue),
-            number_of_edges(gblue),
-            len(list(connected_components(gblue))),
+            nx.number_of_nodes(gblue),
+            nx.number_of_edges(gblue),
+            len(list(nx.connected_components(gblue))),
         )
         logger.debug("Non-Blue Graph")
         logger.debug(
             "Nodes: %s - Edges: %s - ConnComp: %s",
-            number_of_nodes(gnotblue),
-            number_of_edges(gnotblue),
-            len(list(connected_components(gnotblue))),
+            nx.number_of_nodes(gnotblue),
+            nx.number_of_edges(gnotblue),
+            len(list(nx.connected_components(gnotblue))),
         )
 
         # We consider the notblue edges as an evidence that two reads
@@ -154,7 +147,7 @@ class ReadMerger(ReadMergerBase):
 
         blue_component = {}
         current_component = 0
-        for conncomp in connected_components(gblue):
+        for conncomp in nx.connected_components(gblue):
             for v in conncomp:
                 blue_component[v] = current_component
             current_component += 1
@@ -165,8 +158,8 @@ class ReadMerger(ReadMergerBase):
         ]
 
         for (u, v) in good_notblue_edges:
-            while v in node_connected_component(gblue, u):
-                path = shortest_path(gblue, source=u, target=v)
+            while v in nx.node_connected_component(gblue, u):
+                path = nx.shortest_path(gblue, source=u, target=v)
                 # Remove the edge with the smallest support
                 # A better strategy is to weight each edge with -log p
                 # and remove the minimum (u,v)-cut
@@ -181,7 +174,7 @@ class ReadMerger(ReadMergerBase):
         superreads: Dict = {}  # superreads given by the clusters (if clustering)
         rep = {}  # cluster representative of a read in a cluster
 
-        for cc in connected_components(gblue):
+        for cc in nx.connected_components(gblue):
             if len(cc) > 1:
                 r = min(cc)
                 superreads[r] = {}
