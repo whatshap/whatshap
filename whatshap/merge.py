@@ -78,10 +78,9 @@ class ReadMerger(ReadMergerBase):
         logger.debug("Thr. Diff.: %s - Thr. Neg. Diff.: %s", thr_diff, thr_neg_diff)
 
         logger.debug("Start reading the reads...")
-        id = 0
         orig_reads = []
         queue = {}
-        for read in readset:
+        for i, read in enumerate(readset):
             snps = []
             orgn = []
             for variant in read:
@@ -97,27 +96,26 @@ class ReadMerger(ReadMergerBase):
             end = begin + len(snps)
             orig_reads.append(orgn)
 
-            gblue.add_node(id, begin=begin, end=end)
-            gnotblue.add_node(id, begin=begin, end=end)
-            queue[id] = {"begin": begin, "end": end, "sites": snps}
+            gblue.add_node(i, begin=begin, end=end)
+            gnotblue.add_node(i, begin=begin, end=end)
+            queue[i] = {"begin": begin, "end": end, "sites": snps}
             for x in [id for id in queue.keys() if queue[id]["end"] <= begin]:  # type: ignore
                 del queue[x]
-            for id1 in queue.keys():
-                if id == id1:
+            for j in queue.keys():
+                if i == j:
                     continue
-                match, mismatch = eval_overlap(queue[id1], queue[id])
+                match, mismatch = eval_overlap(queue[j], queue[i])
                 if (
                     match + mismatch >= thr_neg_diff
                     and min(match, mismatch) / (match + mismatch) <= self._max_error_rate
                     and match - mismatch >= thr_diff
                 ):
-                    gblue.add_edge(id1, id, match=match, mismatch=mismatch)
+                    gblue.add_edge(j, i, match=match, mismatch=mismatch)
                     if mismatch - match >= thr_neg_diff:
-                        gnotblue.add_edge(id1, id, match=match, mismatch=mismatch)
-            id += 1
+                        gnotblue.add_edge(j, i, match=match, mismatch=mismatch)
 
         logger.debug("Finished reading the reads.")
-        logger.debug("Number of reads: %s", id)
+        logger.debug("Number of reads: %s", len(orig_reads))
         logger.debug("Blue Graph")
         logger.debug(
             "Nodes: %s - Edges: %s - ConnComp: %s",
@@ -168,11 +166,12 @@ class ReadMerger(ReadMergerBase):
         representative = {}  # cluster representative of a read in a cluster
 
         for cc in nx.connected_components(gblue):
-            if len(cc) > 1:
-                r = min(cc)
-                superreads[r] = {}
-                for id in cc:
-                    representative[id] = r
+            if len(cc) == 1:
+                continue
+            r = min(cc)
+            superreads[r] = {}
+            for i in cc:
+                representative[i] = r
 
         for id in range(len(orig_reads)):
             if id in representative:
