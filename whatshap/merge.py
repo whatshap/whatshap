@@ -25,6 +25,16 @@ class ReadMergerBase(ABC):
 
 class ReadMerger(ReadMergerBase):
     def __init__(self, error_rate, max_error_rate, positive_threshold, negative_threshold):
+        """
+        error_rate: the probability that a nucleotide is wrong
+        max_error_rate: the maximum error rate of any edge of the read
+            merging graph allowed before we discard it
+        positive_threshold: The threshold of the ratio between the probabilities
+            that a pair of reads come from the same haplotype and different
+            haplotypes
+        negative_threshold: The threshold of the ratio between the probabilities
+            that a pair of reads come from the same haplotype and different haplotypes.
+        """
         self._error_rate = error_rate
         self._max_error_rate = max_error_rate
         self._positive_threshold = positive_threshold
@@ -38,19 +48,6 @@ class ReadMerger(ReadMergerBase):
         together on one haplotype and on opposite haplotypes.
 
         readset -- the input .core.ReadSet object
-
-        error_rate -- the probability that a nucleotide is wrong
-
-        max_error_rate -- the maximum error rate of any edge of the read
-        merging graph allowed before we discard it
-
-        threshold -- the threshold of the ratio between the probabilities
-        that a pair of reads come from the same haplotype and different
-        haplotypes
-
-        neg_threshold -- The threshold of the ratio between the
-        probabilities that a pair of reads come from the same haplotype
-        and different haplotypes.
         """
         logger.info(
             "Merging %d reads with error rate %.2f, maximum error rate %.2f, "
