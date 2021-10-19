@@ -81,7 +81,6 @@ class ReadMerger(ReadMergerBase):
         id = 0
         orig_reads = []
         queue = {}
-        reads = {}
         for read in readset:
             snps = []
             orgn = []
@@ -101,7 +100,6 @@ class ReadMerger(ReadMergerBase):
             gblue.add_node(id, begin=begin, end=end)
             gnotblue.add_node(id, begin=begin, end=end)
             queue[id] = {"begin": begin, "end": end, "sites": snps}
-            reads[id] = {"begin": begin, "end": end, "sites": snps}
             for x in [id for id in queue.keys() if queue[id]["end"] <= begin]:  # type: ignore
                 del queue[x]
             for id1 in queue.keys():
