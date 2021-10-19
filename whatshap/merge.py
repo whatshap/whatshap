@@ -81,7 +81,7 @@ class ReadMerger(ReadMergerBase):
         reads = []
         queue = {}
         for i, read in enumerate(readset):
-            snps = []
+            alleles = []
             orgn = []
             for variant in read:
                 position = variant.position
@@ -90,15 +90,14 @@ class ReadMerger(ReadMergerBase):
 
                 orgn.append((position, allele, quality))
                 assert allele in (0, 1)
-                snps.append(allele)
-
+                alleles.append(allele)
             reads.append(orgn)
 
             begin = read[0].position
-            end = begin + len(snps)
+            end = begin + len(alleles)
             gblue.add_node(i, begin=begin, end=end)
             gnotblue.add_node(i, begin=begin, end=end)
-            queue[i] = {"begin": begin, "end": end, "sites": snps}
+            queue[i] = {"begin": begin, "end": end, "alleles": alleles}
             for x in [id for id in queue.keys() if queue[id]["end"] <= begin]:  # type: ignore
                 del queue[x]
             for j in queue.keys():
@@ -217,7 +216,7 @@ def eval_overlap(n1, n2):
     mismatches) between a pair (n1,n2) of overlapping reads
     """
     hang1 = n2["begin"] - n1["begin"]
-    overlap = zip(n1["sites"][hang1:], n2["sites"])
+    overlap = zip(n1["alleles"][hang1:], n2["alleles"])
     match = mismatch = 0
     for (c1, c2) in overlap:
         if c1 == c2:
