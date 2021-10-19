@@ -193,11 +193,8 @@ class ReadMerger(ReadMergerBase):
                     if id == representative[id]:
                         for site in sorted(superreads[id]):
                             z = superreads[id][site]
-                            if z[0] >= z[1]:
-                                read.add_variant(site, 0, z[0] - z[1])
-
-                            elif z[1] > z[0]:
-                                read.add_variant(site, 1, z[1] - z[0])
+                            allele = 0 if z[0] >= z[1] else 1
+                            read.add_variant(site, allele, abs(z[1] - z[0]))
                         merged_reads.add(read)
                 else:
                     for site, zyg, qual in orig_reads[id]:
