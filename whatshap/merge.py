@@ -171,22 +171,22 @@ class ReadMerger(ReadMergerBase):
         # Merge blue components (somehow)
         logger.debug("Started Merging Reads...")
         superreads: Dict = {}  # superreads given by the clusters (if clustering)
-        rep = {}  # cluster representative of a read in a cluster
+        representative = {}  # cluster representative of a read in a cluster
 
         for cc in nx.connected_components(gblue):
             if len(cc) > 1:
                 r = min(cc)
                 superreads[r] = {}
                 for id in cc:
-                    rep[id] = r
+                    representative[id] = r
 
         for id in orig_reads:
-            if id in rep:
+            if id in representative:
                 for tok in orig_reads[id]:
                     site = int(tok[0])
                     zyg = int(tok[1])
                     qual = int(tok[2])
-                    r = rep[id]
+                    r = representative[id]
                     if site not in superreads[r]:
                         superreads[r][site] = [0, 0]
                     superreads[r][site][zyg] += qual
@@ -196,8 +196,8 @@ class ReadMerger(ReadMergerBase):
             for id in orig_reads:
                 read = Read("read" + str(readn))
                 readn += 1
-                if id in rep:
-                    if id == rep[id]:
+                if id in representative:
+                    if id == representative[id]:
                         for site in sorted(superreads[id]):
                             z = superreads[id][site]
                             if z[0] >= z[1]:
