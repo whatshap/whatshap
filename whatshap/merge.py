@@ -149,12 +149,10 @@ class ReadMerger(ReadMergerBase):
                 blue_component[v] = current_component
             current_component += 1
 
-        # Keep only the notblue edges that are inside a blue connected component
-        good_notblue_edges = [
-            (v, w) for (v, w) in gnotblue.edges() if blue_component[v] == blue_component[w]
-        ]
-
-        for (u, v) in good_notblue_edges:
+        for (u, v) in gnotblue.edges():
+            if blue_component[u] != blue_component[v]:
+                # Keep only the notblue edges that are inside a blue connected component
+                continue
             while v in nx.node_connected_component(gblue, u):
                 path = nx.shortest_path(gblue, source=u, target=v)
                 # Remove the edge with the smallest support
