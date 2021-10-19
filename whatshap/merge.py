@@ -101,8 +101,8 @@ class ReadMerger(ReadMergerBase):
             end = begin + len(snps)
             orig_reads[id] = orgn
 
-            gblue.add_node(id, begin=begin, end=end, sites="".join(snps))
-            gnotblue.add_node(id, begin=begin, end=end, sites="".join(snps))
+            gblue.add_node(id, begin=begin, end=end)
+            gnotblue.add_node(id, begin=begin, end=end)
             queue[id] = {"begin": begin, "end": end, "sites": snps}
             reads[id] = {"begin": begin, "end": end, "sites": snps}
             for x in [id for id in queue.keys() if queue[id]["end"] <= begin]:  # type: ignore
