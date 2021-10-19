@@ -18,7 +18,7 @@ class ReadMergerBase(ABC):
 
 
 class ReadMerger(ReadMergerBase):
-    def __init__(self, error_rate, max_error_rate, positive_threshold, negative_threshold):
+    def __init__(self, error_rate: float, max_error_rate: float, positive_threshold, negative_threshold):
         """
         error_rate: the probability that a nucleotide is wrong
         max_error_rate: the maximum error rate of any edge of the read
@@ -84,7 +84,6 @@ class ReadMerger(ReadMergerBase):
         reads = {}
         for read in readset:
             id += 1
-            begin_str = read[0].position
             snps = []
             orgn = []
             for variant in read:
@@ -93,12 +92,12 @@ class ReadMerger(ReadMergerBase):
                 qual = variant.quality
 
                 orgn.append([str(site), str(zyg), str(qual)])
-                if int(zyg) == 0:
+                if zyg == 0:
                     snps.append("G")
                 else:
                     snps.append("C")
 
-            begin = int(begin_str)
+            begin = read[0].position
             end = begin + len(snps)
             orig_reads[id] = orgn
 
