@@ -78,24 +78,24 @@ class ReadMerger(ReadMergerBase):
         logger.debug("Thr. Diff.: %s - Thr. Neg. Diff.: %s", thr_diff, thr_neg_diff)
 
         logger.debug("Start reading the reads...")
-        orig_reads = []
+        reads = []
         queue = {}
         for i, read in enumerate(readset):
             snps = []
             orgn = []
             for variant in read:
-                site = variant.position
-                zyg = variant.allele
-                qual = variant.quality
+                position = variant.position
+                allele = variant.allele
+                quality = variant.quality
 
-                orgn.append((site, zyg, qual))
-                assert zyg in (0, 1)
-                snps.append(zyg)
+                orgn.append((position, allele, quality))
+                assert allele in (0, 1)
+                snps.append(allele)
+
+            reads.append(orgn)
 
             begin = read[0].position
             end = begin + len(snps)
-            orig_reads.append(orgn)
-
             gblue.add_node(i, begin=begin, end=end)
             gnotblue.add_node(i, begin=begin, end=end)
             queue[i] = {"begin": begin, "end": end, "sites": snps}
@@ -115,7 +115,7 @@ class ReadMerger(ReadMergerBase):
                         gnotblue.add_edge(j, i, match=match, mismatch=mismatch)
 
         logger.debug("Finished reading the reads.")
-        logger.debug("Number of reads: %s", len(orig_reads))
+        logger.debug("Number of reads: %s", len(reads))
         logger.debug("Blue Graph")
         logger.debug(
             "Nodes: %s - Edges: %s - ConnComp: %s",
@@ -173,29 +173,29 @@ class ReadMerger(ReadMergerBase):
             for i in cc:
                 representative[i] = r
 
-        for id in range(len(orig_reads)):
+        for id in range(len(reads)):
             if id in representative:
-                for site, zyg, qual in orig_reads[id]:
+                for position, allele, quality in reads[id]:
                     r = representative[id]
-                    if site not in superreads[r]:
-                        superreads[r][site] = [0, 0]
-                    superreads[r][site][zyg] += qual
+                    if position not in superreads[r]:
+                        superreads[r][position] = [0, 0]
+                    superreads[r][position][allele] += quality
 
             merged_reads = ReadSet()
             readn = 0
-            for id in range(len(orig_reads)):
+            for id in range(len(reads)):
                 read = Read(f"read{readn}")
                 readn += 1
                 if id in representative:
                     if id == representative[id]:
-                        for site in sorted(superreads[id]):
-                            z = superreads[id][site]
+                        for position in sorted(superreads[id]):
+                            z = superreads[id][position]
                             allele = 0 if z[0] >= z[1] else 1
-                            read.add_variant(site, allele, abs(z[1] - z[0]))
+                            read.add_variant(position, allele, abs(z[1] - z[0]))
                         merged_reads.add(read)
                 else:
-                    for site, zyg, qual in orig_reads[id]:
-                        read.add_variant(site, zyg, qual)
+                    for position, allele, quality in reads[id]:
+                        read.add_variant(position, allele, quality)
                     merged_reads.add(read)
 
         logger.debug("Finished merging reads.")
