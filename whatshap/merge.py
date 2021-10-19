@@ -63,9 +63,7 @@ class ReadMerger(ReadMergerBase):
         )
         logger.debug("Merging started.")
         gblue = Graph()
-        gred = Graph()
         gnotblue = Graph()
-        gnotred = Graph()
 
         # Probability that any nucleotide is wrong
         error_rate = self._error_rate
@@ -116,8 +114,6 @@ class ReadMerger(ReadMergerBase):
 
             gblue.add_node(id, begin=begin, end=end, sites="".join(snps))
             gnotblue.add_node(id, begin=begin, end=end, sites="".join(snps))
-            gred.add_node(id, begin=begin, end=end, sites="".join(snps))
-            gnotred.add_node(id, begin=begin, end=end, sites="".join(snps))
             queue[id] = {"begin": begin, "end": end, "sites": snps}
             reads[id] = {"begin": begin, "end": end, "sites": snps}
             for x in [id for id in queue.keys() if queue[id]["end"] <= begin]:  # type: ignore
@@ -132,10 +128,6 @@ class ReadMerger(ReadMergerBase):
                     and match - mismatch >= thr_diff
                 ):
                     gblue.add_edge(id1, id, match=match, mismatch=mismatch)
-                    if mismatch - match >= thr_diff:
-                        gred.add_edge(id1, id, match=match, mismatch=mismatch)
-                    if match - mismatch >= thr_neg_diff:
-                        gnotred.add_edge(id1, id, match=match, mismatch=mismatch)
                     if mismatch - match >= thr_neg_diff:
                         gnotblue.add_edge(id1, id, match=match, mismatch=mismatch)
 
@@ -154,20 +146,6 @@ class ReadMerger(ReadMergerBase):
             number_of_nodes(gnotblue),
             number_of_edges(gnotblue),
             len(list(connected_components(gnotblue))),
-        )
-        logger.debug("Red Graph")
-        logger.debug(
-            "Nodes: %s - Edges: %s - ConnComp: %s",
-            number_of_nodes(gred),
-            number_of_edges(gred),
-            len(list(connected_components(gred))),
-        )
-        logger.debug("Non-Red Graph")
-        logger.debug(
-            "Nodes: %s - Edges: %s - ConnComp: %s",
-            number_of_nodes(gnotred),
-            number_of_edges(gnotred),
-            len(list(connected_components(gnotred))),
         )
 
         # We consider the notblue edges as an evidence that two reads
