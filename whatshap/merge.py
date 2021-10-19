@@ -92,10 +92,8 @@ class ReadMerger(ReadMergerBase):
                 qual = variant.quality
 
                 orgn.append((site, zyg, qual))
-                if zyg == 0:
-                    snps.append("G")
-                else:
-                    snps.append("C")
+                assert zyg in (0, 1)
+                snps.append(zyg)
 
             begin = read[0].position
             end = begin + len(snps)
@@ -228,11 +226,10 @@ def eval_overlap(n1, n2):
     """
     hang1 = n2["begin"] - n1["begin"]
     overlap = zip(n1["sites"][hang1:], n2["sites"])
-    match, mismatch = (0, 0)
+    match = mismatch = 0
     for (c1, c2) in overlap:
-        if c1 in ["A", "C", "G", "T"] and c2 in ["A", "C", "G", "T"]:
-            if c1 == c2:
-                match += 1
-            else:
-                mismatch += 1
-    return (match, mismatch)
+        if c1 == c2:
+            match += 1
+        else:
+            mismatch += 1
+    return match, mismatch
