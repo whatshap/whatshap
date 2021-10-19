@@ -79,11 +79,10 @@ class ReadMerger(ReadMergerBase):
 
         logger.debug("Start reading the reads...")
         id = 0
-        orig_reads = {}
+        orig_reads = []
         queue = {}
         reads = {}
         for read in readset:
-            id += 1
             snps = []
             orgn = []
             for variant in read:
@@ -97,7 +96,7 @@ class ReadMerger(ReadMergerBase):
 
             begin = read[0].position
             end = begin + len(snps)
-            orig_reads[id] = orgn
+            orig_reads.append(orgn)
 
             gblue.add_node(id, begin=begin, end=end)
             gnotblue.add_node(id, begin=begin, end=end)
@@ -117,6 +116,7 @@ class ReadMerger(ReadMergerBase):
                     gblue.add_edge(id1, id, match=match, mismatch=mismatch)
                     if mismatch - match >= thr_neg_diff:
                         gnotblue.add_edge(id1, id, match=match, mismatch=mismatch)
+            id += 1
 
         logger.debug("Finished reading the reads.")
         logger.debug("Number of reads: %s", id)
@@ -176,7 +176,7 @@ class ReadMerger(ReadMergerBase):
                 for id in cc:
                     representative[id] = r
 
-        for id in orig_reads:
+        for id in range(len(orig_reads)):
             if id in representative:
                 for site, zyg, qual in orig_reads[id]:
                     r = representative[id]
@@ -186,8 +186,8 @@ class ReadMerger(ReadMergerBase):
 
             merged_reads = ReadSet()
             readn = 0
-            for id in orig_reads:
-                read = Read("read" + str(readn))
+            for id in range(len(orig_reads)):
+                read = Read(f"read{readn}")
                 readn += 1
                 if id in representative:
                     if id == representative[id]:
