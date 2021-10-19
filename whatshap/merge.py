@@ -91,7 +91,7 @@ class ReadMerger(ReadMergerBase):
                 zyg = variant.allele
                 qual = variant.quality
 
-                orgn.append([str(site), str(zyg), str(qual)])
+                orgn.append((site, zyg, qual))
                 if zyg == 0:
                     snps.append("G")
                 else:
@@ -182,10 +182,7 @@ class ReadMerger(ReadMergerBase):
 
         for id in orig_reads:
             if id in representative:
-                for tok in orig_reads[id]:
-                    site = int(tok[0])
-                    zyg = int(tok[1])
-                    qual = int(tok[2])
+                for site, zyg, qual in orig_reads[id]:
                     r = representative[id]
                     if site not in superreads[r]:
                         superreads[r][site] = [0, 0]
@@ -207,8 +204,8 @@ class ReadMerger(ReadMergerBase):
                                 read.add_variant(site, 1, z[1] - z[0])
                         merged_reads.add(read)
                 else:
-                    for tok in orig_reads[id]:
-                        read.add_variant(int(tok[0]), int(tok[1]), int(tok[2]))
+                    for site, zyg, qual in orig_reads[id]:
+                        read.add_variant(site, zyg, qual)
                     merged_reads.add(read)
 
         logger.debug("Finished merging reads.")
