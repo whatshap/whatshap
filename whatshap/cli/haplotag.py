@@ -286,22 +286,25 @@ def compute_variant_file_samples_to_use(vcf_samples, user_given_samples, ignore_
             'be specified via the "--sample" parameter.'
         )
 
-    given_samples = user_given_samples if user_given_samples is not None else samples_in_vcf
-    missing_samples = set(given_samples) - samples_in_vcf
-    if len(missing_samples) > 0:
-        raise VcfError(
-            "The following samples were specified via the "
-            '"--sample" parameter, but are not part of the '
-            "input VCF: {}".format(sorted(missing_samples))
-        )
+    if user_given_samples is None:
+        samples_to_use = samples_in_vcf
+    else:
+        given_samples = user_given_samples
+        missing_samples = set(given_samples) - samples_in_vcf
+        if len(missing_samples) > 0:
+            raise VcfError(
+                "The following samples were specified via the "
+                '"--sample" parameter, but are not part of the '
+                "input VCF: {}".format(sorted(missing_samples))
+            )
 
-    samples_to_use = samples_in_vcf.intersection(given_samples)
-    logger.info("Keeping {} sample(s) for haplo-tagging".format(len(samples_to_use)))
-    logger.debug(
-        "Keeping the following samples for haplo-tagging: {}".format(
-            " - ".join(sorted(samples_to_use))
+        samples_to_use = samples_in_vcf.intersection(given_samples)
+        logger.info("Keeping {} sample(s) for haplo-tagging".format(len(samples_to_use)))
+        logger.debug(
+            "Keeping the following samples for haplo-tagging: {}".format(
+                " - ".join(sorted(samples_to_use))
+            )
         )
-    )
     return samples_to_use
 
 
