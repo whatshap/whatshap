@@ -56,10 +56,10 @@ jobs:
       with:
         output-dir: dist/
       env:
-        CIBW_BUILD: "cp3*-*"
+        CIBW_BUILD: "cp3[6789]*-*"  # pysam wheel for 3.10 is missing
         CIBW_SKIP: "*-manylinux_i686"
         CIBW_ENVIRONMENT: "CFLAGS=-g0"
-        CIBW_TEST_SKIP: "cp39-*"  # pysam wheel missing
+        CIBW_TEST_SKIP: "cp310-*"  # pysam wheel missing
         CIBW_TEST_REQUIRES: "pytest"
         CIBW_TEST_COMMAND: |
             cd {project}
