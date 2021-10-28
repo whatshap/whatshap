@@ -586,7 +586,7 @@ def run_haplotag(
     logger.info("Total alignments processed:              %12d", n_alignments)
     logger.info("Alignments that could be tagged:         %12d", n_tagged)
     logger.info("Alignments spanning multiple phase sets: %12d", n_multiple_phase_sets)
-    logger.info("haplotag - total processing time: {}".format(timers.elapsed("haplotag-run")))
+    logger.info("Finished in %.1f s", timers.elapsed("haplotag-run"))
 
 
 def main(args):
