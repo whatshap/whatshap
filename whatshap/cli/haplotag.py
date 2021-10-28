@@ -452,6 +452,11 @@ def run_haplotag(
     timers = StageTimer()
     timers.start("haplotag-run")
 
+    if output in (None, sys.stdout) and sys.stdout.isatty():
+        raise CommandLineError(
+            "Refusing to write BAM to the terminal. Either use the '-o' option or redirect "
+            "standard output with '>'."
+        )
     with ExitStack() as stack:
         timers.start("haplotag-init")
         try:
