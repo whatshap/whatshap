@@ -17,7 +17,7 @@ from xopen import xopen
 from contextlib import ExitStack
 from whatshap import __version__
 from whatshap.cli import PhasedInputReader, CommandLineError
-from whatshap.vcf import VcfReader, VcfError, VariantTable, VariantCallPhase
+from whatshap.vcf import VcfReader, VcfError, VariantTable, VariantCallPhase, VcfInvalidChromosome
 from whatshap.core import NumericSampleIds
 from whatshap.timer import StageTimer
 from whatshap.utils import Region
@@ -57,6 +57,8 @@ def add_arguments(parser):
     arg('--tag-supplementary', default=False, action='store_true',
         help='Also tag supplementary alignments. Supplementary alignments are assigned to the same '
         'haplotype the primary alignment has been assigned to (default: only tag primary alignments).')
+    arg('--skip-missing-contigs', default=False, action='store_true',
+        help='Skip reads that map to a contig that does not exist in the VCF')
     arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
     arg('alignment_file', metavar='ALIGNMENTS',
         help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
@@ -286,22 +288,25 @@ def compute_variant_file_samples_to_use(vcf_samples, user_given_samples, ignore_
             'be specified via the "--sample" parameter.'
         )
 
-    given_samples = user_given_samples if user_given_samples is not None else samples_in_vcf
-    missing_samples = set(given_samples) - samples_in_vcf
-    if len(missing_samples) > 0:
-        raise VcfError(
-            "The following samples were specified via the "
-            '"--sample" parameter, but are not part of the '
-            "input VCF: {}".format(sorted(missing_samples))
-        )
+    if user_given_samples is None:
+        samples_to_use = samples_in_vcf
+    else:
+        given_samples = user_given_samples
+        missing_samples = set(given_samples) - samples_in_vcf
+        if len(missing_samples) > 0:
+            raise VcfError(
+                "The following samples were specified via the "
+                '"--sample" parameter, but are not part of the '
+                "input VCF: {}".format(sorted(missing_samples))
+            )
 
-    samples_to_use = samples_in_vcf.intersection(given_samples)
-    logger.info("Keeping {} sample(s) for haplo-tagging".format(len(samples_to_use)))
-    logger.debug(
-        "Keeping the following samples for haplo-tagging: {}".format(
-            " - ".join(sorted(samples_to_use))
+        samples_to_use = samples_in_vcf.intersection(given_samples)
+        logger.info("Keeping {} sample(s) for haplo-tagging".format(len(samples_to_use)))
+        logger.debug(
+            "Keeping the following samples for haplo-tagging: {}".format(
+                " - ".join(sorted(samples_to_use))
+            )
         )
-    )
     return samples_to_use
 
 
@@ -447,11 +452,17 @@ def run_haplotag(
     ignore_read_groups=False,
     haplotag_list=None,
     tag_supplementary=False,
+    skip_missing_contigs=False,
 ):
 
     timers = StageTimer()
     timers.start("haplotag-run")
 
+    if output in (None, sys.stdout) and sys.stdout.isatty():
+        raise CommandLineError(
+            "Refusing to write BAM to the terminal. Either use the '-o' option or redirect "
+            "standard output with '>'."
+        )
     with ExitStack() as stack:
         timers.start("haplotag-init")
         try:
@@ -516,6 +527,17 @@ def run_haplotag(
                 continue
             try:
                 variant_table = load_chromosome_variants(vcf_reader, chrom, regions)
+            except VcfInvalidChromosome:
+                if skip_missing_contigs:
+                    logger.info(
+                        f"Skipping reads on '{chrom}' because the contig does not exist in the VCF"
+                    )
+                else:
+                    raise CommandLineError(
+                        f"Input BAM/CRAM contains reads on contig '{chrom}', but that contig does "
+                        "not exist in the VCF header. To bypass this check, use "
+                        "--skip-missing-contigs"
+                    )
             except VcfError as e:
                 raise CommandLineError(str(e))
             if variant_table is not None:
@@ -581,7 +603,7 @@ def run_haplotag(
     logger.info("Total alignments processed:              %12d", n_alignments)
     logger.info("Alignments that could be tagged:         %12d", n_tagged)
     logger.info("Alignments spanning multiple phase sets: %12d", n_multiple_phase_sets)
-    logger.info("haplotag - total processing time: {}".format(timers.elapsed("haplotag-run")))
+    logger.info("Finished in %.1f s", timers.elapsed("haplotag-run"))
 
 
 def main(args):

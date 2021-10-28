@@ -164,6 +164,25 @@ def test_haplotag_missing_chromosome(tmp_path):
     assert ps_count > 0
 
 
+def test_contig_exists_in_bam_but_not_in_vcf_header(tmp_path):
+    outbam = tmp_path / "output.bam"
+
+    with pytest.raises(CommandLineError) as e:
+        run_haplotag(
+            variant_file="tests/data/haplotag.without_chr2.vcf.gz",
+            alignment_file="tests/data/haplotag.large.bam",  # has reads mapped to chr2
+            output=outbam,
+        )
+    assert "contig does not exist" in e.value.args[0]
+
+    run_haplotag(
+        variant_file="tests/data/haplotag.without_chr2.vcf.gz",
+        alignment_file="tests/data/haplotag.large.bam",  # has reads mapped to chr2
+        output=outbam,
+        skip_missing_contigs=True,
+    )
+
+
 def test_haplotag_no_readgroups1(tmp_path):
     outbam1 = tmp_path / "output1.bam"
     outbam2 = tmp_path / "output2.bam"
