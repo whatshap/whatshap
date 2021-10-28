@@ -17,7 +17,7 @@ from xopen import xopen
 from contextlib import ExitStack
 from whatshap import __version__
 from whatshap.cli import PhasedInputReader, CommandLineError
-from whatshap.vcf import VcfReader, VcfError, VariantTable, VariantCallPhase
+from whatshap.vcf import VcfReader, VcfError, VariantTable, VariantCallPhase, VcfInvalidChromosome
 from whatshap.core import NumericSampleIds
 from whatshap.timer import StageTimer
 from whatshap.utils import Region
@@ -57,6 +57,8 @@ def add_arguments(parser):
     arg('--tag-supplementary', default=False, action='store_true',
         help='Also tag supplementary alignments. Supplementary alignments are assigned to the same '
         'haplotype the primary alignment has been assigned to (default: only tag primary alignments).')
+    arg('--skip-missing-contigs', default=False, action='store_true',
+        help='Skip reads that map to a contig that does not exist in the VCF')
     arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
     arg('alignment_file', metavar='ALIGNMENTS',
         help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
@@ -450,6 +452,7 @@ def run_haplotag(
     ignore_read_groups=False,
     haplotag_list=None,
     tag_supplementary=False,
+    skip_missing_contigs=False,
 ):
 
     timers = StageTimer()
@@ -524,6 +527,17 @@ def run_haplotag(
                 continue
             try:
                 variant_table = load_chromosome_variants(vcf_reader, chrom, regions)
+            except VcfInvalidChromosome:
+                if skip_missing_contigs:
+                    logger.info(
+                        f"Skipping reads on '{chrom}' because the contig does not exist in the VCF"
+                    )
+                else:
+                    raise CommandLineError(
+                        f"Input BAM/CRAM contains reads on contig '{chrom}', but that contig does "
+                        "not exist in the VCF header. To bypass this check, use "
+                        "--skip-missing-contigs"
+                    )
             except VcfError as e:
                 raise CommandLineError(str(e))
             if variant_table is not None:
