@@ -18,7 +18,9 @@ class ReadMergerBase(ABC):
 
 
 class ReadMerger(ReadMergerBase):
-    def __init__(self, error_rate: float, max_error_rate: float, positive_threshold, negative_threshold):
+    def __init__(
+        self, error_rate: float, max_error_rate: float, positive_threshold, negative_threshold
+    ):
         """
         error_rate: the probability that a nucleotide is wrong
         max_error_rate: the maximum error rate of any edge of the read
@@ -180,22 +182,22 @@ class ReadMerger(ReadMergerBase):
                         superreads[r][position] = [0, 0]
                     superreads[r][position][allele] += quality
 
-            merged_reads = ReadSet()
-            readn = 0
-            for id in range(len(reads)):
-                read = Read(f"read{readn}")
-                readn += 1
-                if id in representative:
-                    if id == representative[id]:
-                        for position in sorted(superreads[id]):
-                            z = superreads[id][position]
-                            allele = 0 if z[0] >= z[1] else 1
-                            read.add_variant(position, allele, abs(z[1] - z[0]))
-                        merged_reads.add(read)
-                else:
-                    for position, allele, quality in reads[id]:
-                        read.add_variant(position, allele, quality)
+        merged_reads = ReadSet()
+        readn = 0
+        for id in range(len(reads)):
+            read = Read(f"read{readn}")
+            readn += 1
+            if id in representative:
+                if id == representative[id]:
+                    for position in sorted(superreads[id]):
+                        z = superreads[id][position]
+                        allele = 0 if z[0] >= z[1] else 1
+                        read.add_variant(position, allele, abs(z[1] - z[0]))
                     merged_reads.add(read)
+            else:
+                for position, allele, quality in reads[id]:
+                    read.add_variant(position, allele, quality)
+                merged_reads.add(read)
 
         logger.debug("Finished merging reads.")
         logger.info(
