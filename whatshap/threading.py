@@ -710,7 +710,7 @@ def get_pos_to_clusters_map(coverage, ploidy):
     For every position, computes a list of relevant clusters for the threading
     algorithm. Relevant means, that the relative coverage is at least 1/8 of
     what a single haplotype is expected to have for the given ploidy. Apart
-    from that, at least <ploidy> and at most <2*ploidy> many clusters are
+    from that, at least <ploidy> and at most <ploidy + 2> many clusters are
     selected to avoid exponential blow-up.
     """
     cov_map = [[] for _ in range(len(coverage))]
@@ -718,8 +718,8 @@ def get_pos_to_clusters_map(coverage, ploidy):
         sorted_cids = sorted(
             [cid for cid in coverage[pos]], key=lambda x: coverage[pos][x], reverse=True
         )
-        cut_off = min(len(sorted_cids), 2 * ploidy)
-        for i in range(ploidy, min(len(sorted_cids), 2 * ploidy)):
+        cut_off = min(len(sorted_cids), ploidy + 2)
+        for i in range(ploidy, min(len(sorted_cids), ploidy + 2)):
             if coverage[pos][sorted_cids[i]] < (1.0 / (8.0 * ploidy)):
                 cut_off = i
                 break
