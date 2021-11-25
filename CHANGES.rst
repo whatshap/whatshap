@@ -2,6 +2,15 @@
 Changes
 =======
 
+development version
+-------------------
+
+* :issue:`208`: Fix ``phase --merge-reads``. This option has never worked correctly and just led to
+  ``whatshap phase`` taking a very long time and in some cases even crashing. With the fix, the
+  option should work as intended, but we have not evaluated how much it improves phasing results.
+* :issue:`337`: Add ``--skip-missing-contigs`` option to ``whatshap haplotag``
+* :pr:`335`: Add option ``--ignore-sample-name`` to ``whatshap compare`` (thanks to Pontus Höjer)
+
 v1.1 (2021-04-08)
 -----------------
 
