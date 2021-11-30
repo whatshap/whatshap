@@ -496,7 +496,7 @@ class VcfReader:
             # if requested
             if self._phases:
                 phases = []
-                for sample_name, call in record.samples.items():
+                for call in record.samples.values():
                     phase = None
                     for extract_phase, phase_name in [
                         (self._extract_HP_phase, "HP"),
@@ -571,7 +571,7 @@ class VcfReader:
 
                 genotypes = [genotype_code(geno_list) for geno_list in genotype_lists]
             else:
-                genotypes = [Genotype([]) for i in range(len(self.samples))]
+                genotypes = [Genotype([]) for _ in self.samples]
                 phases = [None] * len(self.samples)
             variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
             table.add_variant(variant, genotypes, phases, genotype_likelihoods)
