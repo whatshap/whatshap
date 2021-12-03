@@ -50,7 +50,7 @@ class VcfInvalidChromosome(VcfError):
 @dataclass
 class VariantCallPhase:
     block_id: int  # numeric id of the phased block
-    phase: Tuple[int, ...]  # alleles representing the phasing. (1, 0) is 1|0
+    phase: Tuple[Optional[int], ...]  # alleles representing the phasing. (1, 0) is 1|0
     quality: Optional[int]
 
 
@@ -315,7 +315,7 @@ class VariantTable:
                 continue
             if genotype.is_homozygous():
                 continue
-            if phase is None:
+            if phase is None or phase.phase[0] is None:
                 continue
             if phase.quality is None:
                 quality = default_quality

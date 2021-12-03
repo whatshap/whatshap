@@ -10,6 +10,8 @@ development version
   option should work as intended, but we have not evaluated how much it improves phasing results.
 * :issue:`337`: Add ``--skip-missing-contigs`` option to ``whatshap haplotag``
 * :pr:`335`: Add option ``--ignore-sample-name`` to ``whatshap compare`` (thanks to Pontus Höjer)
+* :issue:`342`: Fix ``whatshap compare`` crashing on VCFs with genotypes with an unknown allele
+  (where ``GT`` is ``1|.`` or similar).
 
 v1.1 (2021-04-08)
 -----------------
