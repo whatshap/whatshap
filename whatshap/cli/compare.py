@@ -316,9 +316,11 @@ def safefraction(nominator, denominator):
 
 
 def create_bed_records(chromosome, phasing0, phasing1, positions, annotation_string):
-    """Determines positions of switch errors between two phasings
+    """
+    Determines positions of switch errors between two phasings
     and yields one BED record per switch error (encoded as a tuple).
-    The annotation_string is added to each record."""
+    The annotation_string is added to each record.
+    """
     assert len(phasing0) == len(phasing1) == len(positions)
     switch_encoding0 = switch_encoding(phasing0)
     switch_encoding1 = switch_encoding(phasing1)
@@ -480,7 +482,7 @@ def compare(
             phases,
             ploidy,
             sorted_variants,
-            variant_tables,
+            variant_tables[0].chromosome,
         )
 
         return (
@@ -505,7 +507,7 @@ def compare_pair(
     phases,
     ploidy,
     sorted_variants,
-    variant_tables,
+    chromosome: str,
 ):
     longest_block = 0
     longest_block_errors = PhasingErrors()
@@ -532,7 +534,7 @@ def compare_pair(
         if ploidy == 2:
             bed_records.extend(
                 create_bed_records(
-                    variant_tables[0].chromosome,
+                    chromosome,
                     phasing0[0],
                     phasing1[0],
                     block_positions,
