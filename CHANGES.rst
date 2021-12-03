@@ -12,6 +12,8 @@ development version
 * :pr:`335`: Add option ``--ignore-sample-name`` to ``whatshap compare`` (thanks to Pontus Höjer)
 * :issue:`342`: Fix ``whatshap compare`` crashing on VCFs with genotypes with an unknown allele
   (where ``GT`` is ``1|.`` or similar).
+* :issue:`343`: ``whatshap stats`` now reads the chromosome lengths (for N50 computation) from
+  the VCF header, no need to use ``--chr-lengths``.
 
 v1.1 (2021-04-08)
 -----------------

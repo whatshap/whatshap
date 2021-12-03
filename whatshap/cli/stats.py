@@ -19,8 +19,8 @@ def add_arguments(parser):
     add("--sample", metavar="SAMPLE", help="Name of the sample "
         "to process. If not given, use first sample found in VCF.")
     add("--chr-lengths", metavar="FILE",
-        help="Read chromosome lengths from FILE (one line per chromosome, "
-        "tab separated '<chr> <length>'). Needed to compute N50 values.")
+        help="Override chromosome lengths in VCF with those from FILE (one line per chromosome, "
+        "tab separated '<chr> <length>'). Lengths are used to compute N50 values.")
     add("--tsv", metavar="FILE", help="Write statistics in tab-separated value format to FILE")
     add("--only-snvs", default=False, action="store_true", help="Only process SNVs "
         "and ignore all other variants.")
@@ -318,12 +318,6 @@ def run_stats(
             tsv_file = stack.enter_context(open(tsv, "w"))
         if block_list:
             block_list_file = stack.enter_context(open(block_list, "w"))
-        ##
-        if chr_lengths:
-            chr_lengths = parse_chr_lengths(chr_lengths)
-            logger.info("Read length of %d chromosomes from %s", len(chr_lengths), chr_lengths)
-        else:
-            chr_lengths = None
 
         vcf_reader = VcfReader(vcf, phases=True, indels=not only_snvs)
         if len(vcf_reader.samples) == 0:
@@ -340,6 +334,21 @@ def run_stats(
         else:
             sample = vcf_reader.samples[0]
             logger.info("Reporting results for sample {}".format(sample))
+
+        if chr_lengths:
+            chr_lengths = parse_chr_lengths(chr_lengths)
+            logger.info("Read length of %d chromosomes from %s", len(chr_lengths), chr_lengths)
+        else:
+            chr_lengths = {
+                chrom: contig.length
+                for chrom, contig in vcf_reader.contigs.items()
+                if contig.length is not None
+            }
+            if not chr_lengths:
+                logger.warning(
+                    "VCF header does not contain contig lengths, cannot compute N50. "
+                    "Consider using --chr-lengths"
+                )
 
         if tsv_file:
             field_names = [f.name for f in dataclasses.fields(DetailedStats)]

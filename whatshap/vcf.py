@@ -369,6 +369,7 @@ class VcfReader:
         self._genotype_likelihoods = genotype_likelihoods
         self._ignore_genotypes = ignore_genotypes
         self.samples = list(self._vcf_reader.header.samples)  # intentionally public
+        self.contigs = self._vcf_reader.header.contigs
         self.ploidy = ploidy
         logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
 
