@@ -587,6 +587,16 @@ block_n50
     The NG50 value of the distribution of the block lengths.
     Interleaved blocks are cut in order to avoid artificially inflating this value.
 
+    Note that this is an "NG50" (not "N50"), that is, the threshold of 50% is
+    relative to the true length of the contig as reported in the VCF header.
+    (For an N50, the length would be the sum of the length of all blocks).
+    It is thus possible that the sum of all block lengths does not reach 50% of
+    the length of the contig. In this case, the value in this column is set to 0.
+
+    If no contig lengths are available, this is set to ``nan``. Use `--chr-lengths``
+    to provide an external table with contig lengths in case the VCF header does not
+    contain this information.
+
 
 Writing haplotype blocks in TSV format
 --------------------------------------
