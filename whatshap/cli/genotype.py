@@ -50,7 +50,7 @@ def bin_coeff(n, k):
         result *= (n-i)
         result /= (i+1)
 	
-    return result
+    return int(result)
 
 
 def int_to_diploid_multiallelic_gt(numeric_repr):
@@ -232,9 +232,9 @@ def run_genotype(
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
 
             # create a mapping of genome positions to indices
-            var_to_pos = dict()
+            var_pos_to_ind = dict()
             for i in range(len(variant_table.variants)):
-                var_to_pos[variant_table.variants[i].position] = i
+                var_pos_to_ind[variant_table.variants[i].position] = i
 
             chromosome = variant_table.chromosome
             if (not chromosomes) or (chromosome in chromosomes):
@@ -250,13 +250,11 @@ def run_genotype(
                 continue
             
             positions = []
-            n_allele_position_list = []
             n_allele_position = dict()
             allele_references = dict()
             for v in variant_table.variants:
                 positions.append(v.position)    ##Contains the positions of the variants in the variant table
-                n_allele_position_list.append(len(v.alternative_alleles)+1)
-                n_allele_position[v.position] = len(v.alternative_alleles)+1      ##Contains the number of alleles at every variant position
+                n_allele_position[v.position] = len(v.alternative_allele)+1      ##Contains the number of alleles at every variant position
                 allele_references[v.position] = v.allele_origin
             if not nopriors:
                 # compute prior genotype likelihoods based on all reads
@@ -267,7 +265,7 @@ def run_genotype(
                             chromosome, variant_table.variants, sample, read_vcf=False
                         )
                         readset.sort()
-                        genotypes, genotype_likelihoods = compute_genotypes(readset, positions, n_allele_position_list)
+                        genotypes, genotype_likelihoods = compute_genotypes(readset, positions, [n_allele_position[position] for position in n_allele_position])
                         # recompute genotypes based on given threshold`
                         reg_genotype_likelihoods = []
                         ## How to handle this constant here?
@@ -278,7 +276,7 @@ def run_genotype(
                             for likelihood in gl:
                                 phred_gl.append((likelihood + constant)/norm_sum)
                             regularized = PhredGenotypeLikelihoods(phred_gl, 2, n_allele)
-                            genotypes[ix] = determine_genotype(regularized, gt_prob)
+                            genotypes[ix] = determine_genotype(regularized, gt_prob, n_allele)
                             assert isinstance(genotypes[ix], Genotype)
                             reg_genotype_likelihoods.append(regularized)
                         variant_table.set_genotype_likelihoods_of(
@@ -291,7 +289,7 @@ def run_genotype(
                 # use uniform genotype likelihoods for all individuals
                 for sample in samples:
                     variant_table.set_genotype_likelihoods_of(
-                        sample, [PhredGenotypeLikelihoods([1/(bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1))] * (bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1)) , 2, bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1)) for pos in positions]
+                        sample, [PhredGenotypeLikelihoods([1/(bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1))] * (bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1)) , 2, n_allele_position[pos]) for pos in positions]
                     )
 
             # if desired, output the priors in separate vcf
@@ -361,7 +359,7 @@ def run_genotype(
                     # might already be present in the input vcf
                     all_genotype_likelihoods = variant_table.genotype_likelihoods_of(sample)
                     genotype_l = [
-                        all_genotype_likelihoods[var_to_pos[a_p]] for a_p in accessible_positions
+                        all_genotype_likelihoods[var_pos_to_ind[a_p]] for a_p in accessible_positions
                     ]
                     pedigree.add_individual(
                         sample, [Genotype([]) for i in range(len(accessible_positions))], genotype_l
@@ -413,8 +411,8 @@ def run_genotype(
                             # compute genotypes from likelihoods and store information
                             geno = determine_genotype(likelihoods, gt_prob, accessible_positions_n_allele[pos])
                             assert isinstance(geno, Genotype)
-                            genotypes_list[var_to_pos[accessible_positions[pos]]] = geno
-                            likelihood_list[var_to_pos[accessible_positions[pos]]] = likelihoods
+                            genotypes_list[var_pos_to_ind[accessible_positions[pos]]] = geno
+                            likelihood_list[var_pos_to_ind[accessible_positions[pos]]] = likelihoods
 
                         variant_table.set_genotypes_of(s, genotypes_list)
                         variant_table.set_genotype_likelihoods_of(s, likelihood_list)

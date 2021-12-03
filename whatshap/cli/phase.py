@@ -42,7 +42,7 @@ from whatshap.merge import ReadMerger, DoNothingReadMerger, ReadMergerBase
 
 # __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
-# logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 
 # def find_components(phased_positions, reads, master_block=None, heterozygous_positions=None):

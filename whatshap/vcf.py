@@ -57,7 +57,7 @@ class VariantCallPhase:
 class VcfVariant:
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
-    __slots__ = ("position", "reference_allele", "alternative_allele")
+    __slots__ = ("position", "reference_allele", "alternative_allele","allele_origin")
 
     def __init__(self, position: int, reference_allele: str, alternative_allele: tuple, allele_origin: list):
         """
@@ -69,8 +69,8 @@ class VcfVariant:
         self.allele_origin = allele_origin
 
     def __repr__(self):
-        return "VcfVariant({}, {!r}, {!r})".format(
-            self.position, self.reference_allele, self.alternative_allele
+        return "VcfVariant({}, {!r}, {!r}, {!r})".format(
+            self.position, self.reference_allele, self.alternative_allele, self.allele_origin
         )
 
     def __hash__(self):
