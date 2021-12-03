@@ -315,18 +315,23 @@ def safefraction(nominator, denominator):
         return nominator / denominator
 
 
-def create_bed_records(chromosome, phasing0, phasing1, positions, annotation_string):
-    """
-    Determines positions of switch errors between two phasings
-    and yields one BED record per switch error (encoded as a tuple).
-    The annotation_string is added to each record.
-    """
-    assert len(phasing0) == len(phasing1) == len(positions)
-    switch_encoding0 = switch_encoding(phasing0)
-    switch_encoding1 = switch_encoding(phasing1)
-    for i, (sw0, sw1) in enumerate(zip(switch_encoding0, switch_encoding1)):
-        if sw0 != sw1:
-            yield (chromosome, positions[i] + 1, positions[i + 1] + 1, annotation_string)
+class BedCreator:
+    def __init__(self, chromosome: str, dataset_names: List[str]):
+        self._chromosome = chromosome
+        self._annotation = "{}<-->{}".format(*dataset_names)
+
+    def records(self, phasing0, phasing1, positions):
+        """
+        Determine positions of switch errors between two phasings
+        and yield one BED record per switch error (encoded as a tuple).
+        The annotation_string is added to each record.
+        """
+        assert len(phasing0) == len(phasing1) == len(positions)
+        switch_encoding0 = switch_encoding(phasing0)
+        switch_encoding1 = switch_encoding(phasing1)
+        for i, (sw0, sw1) in enumerate(zip(switch_encoding0, switch_encoding1)):
+            if sw0 != sw1:
+                yield (self._chromosome, positions[i] + 1, positions[i + 1] + 1, self._annotation)
 
 
 def print_stat(text: str, value=None, value2=None, text_width=37):
@@ -476,13 +481,12 @@ def compare(
             pairwise_comparison,
         ) = compare_pair(
             block_intersection,
-            dataset_names,
             intersection_block_count,
             intersection_block_variants,
             phases,
             ploidy,
             sorted_variants,
-            variant_tables[0].chromosome,
+            BedCreator(variant_tables[0].chromosome, dataset_names),
         )
 
         return (
@@ -501,13 +505,12 @@ def compare(
 
 def compare_pair(
     block_intersection,
-    dataset_names,
     intersection_block_count,
     intersection_block_variants,
     phases,
     ploidy,
     sorted_variants,
-    chromosome: str,
+    bed_creator: Optional[BedCreator],
 ):
     longest_block = 0
     longest_block_errors = PhasingErrors()
@@ -531,16 +534,8 @@ def compare_pair(
         errors = compare_block(phasing0, phasing1)
 
         # TODO: extend to polyploid
-        if ploidy == 2:
-            bed_records.extend(
-                create_bed_records(
-                    chromosome,
-                    phasing0[0],
-                    phasing1[0],
-                    block_positions,
-                    "{}<-->{}".format(*dataset_names),
-                )
-            )
+        if ploidy == 2 and bed_creator is not None:
+            bed_records.extend(bed_creator.records(phasing0[0], phasing1[0], block_positions))
         total_errors += errors
         phased_pairs += len(block) - 1
         total_compared_variants += len(block)
