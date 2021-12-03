@@ -239,7 +239,7 @@ class UniformRecombinationCostComputer(RecombinationCostComputer):
 
 @dataclass
 class Trio:
-    """"Relationships are modelled as a set of trios (mother, father, child)."""
+    """Relationships are modelled as a set of trios (mother, father, child)."""
 
     child: Optional[int]
     father: Optional[int]

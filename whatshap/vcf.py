@@ -234,7 +234,7 @@ class VariantTable:
         return self.phases[self._sample_to_index[sample]]
 
     def num_of_blocks_of(self, sample: str) -> int:
-        """ Retrieve the number of blocks of the sample"""
+        """Retrieve the number of blocks of the sample"""
         return len(
             set(i.block_id for i in self.phases[self._sample_to_index[sample]] if i is not None)
         )
