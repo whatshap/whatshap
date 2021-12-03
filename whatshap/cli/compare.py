@@ -268,7 +268,7 @@ def poly_num_switches(perm0, perm1):
 
 
 def compare_block(phasing0, phasing1):
-    """ Input are two lists of haplotype sequences over {0,1}. """
+    """Input are two lists of haplotype sequences over {0,1}."""
     assert len(phasing0) == len(phasing1)
     ploidy = len(phasing0)
 
@@ -449,7 +449,7 @@ def compare(
         any_none = False
         for i in range(len(phases)):
             phase = phases[i][variant_index]
-            if phase is None:
+            if phase is None or any(p is None for p in phase.phase):
                 any_none = True
             else:
                 blocks[i][phase.block_id].append(variant_index)
