@@ -381,8 +381,9 @@ def run_stats(
                 if genotype.is_homozygous():
                     continue
                 stats.add_heterozygous_variants(1)
-                if variant.is_snv():
-                    stats.add_heterozygous_snvs(1)
+                for ix in len(variant.alternative_allele):
+                    if variant.is_snv(ix):
+                        stats.add_heterozygous_snvs(1)
                 if phase is None:
                     stats.add_unphased()
                 else:

@@ -8,7 +8,7 @@ import logging
 import itertools
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
-from os import PathLike
+from os import PathLike, spawnl
 from typing import List, Sequence, Dict, Tuple, Iterable, Optional, Union, TextIO, Iterator
 
 from pysam import VariantFile, VariantHeader, VariantRecord
@@ -59,13 +59,14 @@ class VcfVariant:
 
     __slots__ = ("position", "reference_allele", "alternative_allele")
 
-    def __init__(self, position: int, reference_allele: str, alternative_allele: str):
+    def __init__(self, position: int, reference_allele: str, alternative_allele: tuple, allele_origin: list):
         """
         Multi-ALT sites are not modelled.
         """
         self.position = position
         self.reference_allele = reference_allele
         self.alternative_allele = alternative_allele
+        self.allele_origin = allele_origin
 
     def __repr__(self):
         return "VcfVariant({}, {!r}, {!r})".format(
@@ -89,30 +90,11 @@ class VcfVariant:
             other.alternative_allele,
         )
 
-    def is_snv(self) -> bool:
-        return (self.reference_allele != self.alternative_allele) and (
-            len(self.reference_allele) == len(self.alternative_allele) == 1
+    def is_snv(self, ix) -> bool:
+        return (self.reference_allele != self.alternative_allele[ix]) and (
+            len(self.reference_allele) == len(self.alternative_allele[ix]) == 1
         )
-
-    def normalized(self) -> "VcfVariant":
-        """
-        Return a normalized version of this variant.
-
-        Common prefixes and/or suffixes between the reference and alternative allele are removed,
-        and the position is adjusted as necessary.
-
-        >>> VcfVariant(100, 'GCTGTT', 'GCTAAATT').normalized()
-        VcfVariant(103, 'G', 'AAA')
-        """
-        pos, ref, alt = self.position, self.reference_allele, self.alternative_allele
-        while len(ref) >= 1 and len(alt) >= 1 and ref[-1] == alt[-1]:
-            ref, alt = ref[:-1], alt[:-1]
-
-        while len(ref) >= 1 and len(alt) >= 1 and ref[0] == alt[0]:
-            ref, alt = ref[1:], alt[1:]
-            pos += 1
-
-        return VcfVariant(pos, ref, alt)
+       
 
 
 class GenotypeLikelihoods:
@@ -426,8 +408,10 @@ class VcfReader:
         """
         Yield VariantTable objects for each chromosome.
 
-        Multi-ALT sites are skipped.
+        Multi-ALT sites are skipped. (TODO Have to fix that.)
         """
+        ## self._vcf_reader is VariantFile object
+        ## So it records is a list of VariantRecord objects
         for chromosome, records in itertools.groupby(self._vcf_reader, lambda record: record.chrom):
             yield self._process_single_chromosome(chromosome, records)
 
@@ -461,21 +445,26 @@ class VcfReader:
         n_multi = 0
         table = VariantTable(chromosome, self.samples)
         prev_position = None
+        ## records is a list of VariantRecord objects
         for record in records:
             if not record.alts:
                 continue
             if len(record.alts) > 1:
                 # Multi-ALT sites are not supported, yet
+                ## Have to make them support it now.
                 n_multi += 1
-                continue
+                ###continue
 
-            pos, ref, alt = record.start, str(record.ref), str(record.alts[0])
-            if len(ref) == len(alt) == 1:
-                n_snvs += 1
-            else:
-                n_other += 1
-                if not self._indels:
-                    continue
+            ###pos, ref, alt = record.start, str(record.ref), str(record.alts[0])
+            pos, ref = record.start, str(record.ref)
+            alts = record.alts
+            allele_origin = [x.split("|") for x in record.__str__().split()[-len(self.samples):]]
+            
+            for alt in alts:
+                if len(ref) == len(alt) == 1:
+                    n_snvs += 1
+                else:
+                    n_other += 1
 
             if (prev_position is not None) and (prev_position > pos):
                 raise VcfNotSortedError(
@@ -572,7 +561,7 @@ class VcfReader:
             else:
                 genotypes = [Genotype([]) for i in range(len(self.samples))]
                 phases = [None] * len(self.samples)
-            variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alt)
+            variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alts, allele_origin=allele_origin)
             table.add_variant(variant, genotypes, phases, genotype_likelihoods)
 
         logger.debug(

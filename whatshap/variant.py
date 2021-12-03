@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Iterable
 
 
 @dataclass
@@ -7,4 +8,5 @@ class Variant:
 
     position: int
     allele: int
+    emission: Iterable[float]
     quality: int

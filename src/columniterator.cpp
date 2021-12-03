@@ -126,14 +126,14 @@ unique_ptr<vector<const Entry*> > ColumnIterator::get_next() {
 		// Does read cover the current position?
 		if (read->getPosition(list_it->active_entry) == next_pos) {
 			result->push_back(read->getEntry(list_it->active_entry));
-		} else {
+		} 
+		else {
 			// if not, generate a blank entry
-			Entry* e = new Entry(read->getID(), Entry::BLANK, 0);
+			Entry* e = new Entry(read->getID(), -1);
 			blank_entries.push_back(e);
 			result->push_back(e);
 		}
 	}
-
 	n += 1;
 	return result;
 }

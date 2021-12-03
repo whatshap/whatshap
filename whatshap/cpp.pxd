@@ -16,7 +16,7 @@ cdef extern from "../src/read.h":
 		Read(string, int, int, int, int, string) except +
 		Read(Read) except +
 		string toString() except +
-		void addVariant(int, int, int) except +
+		void addVariant(int, int, vector[float], int) except +
 		string getName() except +
 		vector[int] getMapqs() except +
 		void addMapq(int) except +
@@ -24,8 +24,6 @@ cdef extern from "../src/read.h":
 		void setPosition(int, int)  except +
 		int getAllele(int) except +
 		void setAllele(int, int) except +
-		int getVariantQuality(int) except +
-		void setVariantQuality(int, int) except +
 		int getVariantCount() except +
 		void sortVariants() except +
 		bool isSorted() except +
@@ -34,6 +32,11 @@ cdef extern from "../src/read.h":
 		int getReferenceStart() except +
 		string getBXTag() except +
 		bool hasBXTag() except +
+		vector[float] getEmissionProbability(int) except +
+		void setEmissionProbability(int, vector[float]) except +
+		int getQuality(int) except +
+		void setQuality(int, int) except +
+
 
 
 cdef extern from "../src/indexset.h":
@@ -72,12 +75,12 @@ cdef extern from "../src/pedigree.h":
 		unsigned int triple_count() except +
 
 
-cdef extern from "../src/pedigreedptable.h":
-	cdef cppclass PedigreeDPTable:
-		PedigreeDPTable(ReadSet*, vector[unsigned int], Pedigree* pedigree, bool distrust_genotypes, vector[unsigned int]* positions) except +
-		void get_super_reads(vector[ReadSet*]*, vector[unsigned int]* transmission_vector) except +
-		int get_optimal_score() except +
-		vector[bool]* get_optimal_partitioning()
+# cdef extern from "../src/pedigreedptable.h":
+# 	cdef cppclass PedigreeDPTable:
+# 		PedigreeDPTable(ReadSet*, vector[unsigned int], Pedigree* pedigree, bool distrust_genotypes, vector[unsigned int]* positions) except +
+# 		void get_super_reads(vector[ReadSet*]*, vector[unsigned int]* transmission_vector) except +
+# 		int get_optimal_score() except +
+# 		vector[bool]* get_optimal_partitioning()
 		
 		
 cdef extern from "../src/binomial.h":
@@ -103,10 +106,9 @@ cdef extern from "../src/genotype.h":
 	cdef uint32_t get_max_genotype_ploidy() except +
 	cdef uint32_t get_max_genotype_alleles() except +
 
-
-cdef extern from "../src/genotypedptable.h":
-	cdef cppclass GenotypeDPTable:
-		GenotypeDPTable(ReadSet*, vector[unsigned int], Pedigree* pedigree, vector[unsigned int]* positions) except +
+cdef extern from "../src/genotypehmm.h":
+	cdef cppclass GenotypeHMM:
+		GenotypeHMM(ReadSet* readset, vector[float] recombcost, Pedigree* pedigree, unsigned int n_references, vector[unsigned int]* positions, vector[unsigned int]* n_allele_positions, vector[vector[unsigned int]]*) except +
 		vector[long double] get_genotype_likelihoods(unsigned int individual, unsigned int position) except +
 
 cdef extern from "../src/phredgenotypelikelihoods.h":
@@ -124,76 +126,80 @@ cdef extern from "../src/phredgenotypelikelihoods.h":
 
 cdef extern from "../src/genotypedistribution.h":
 	cdef cppclass GenotypeDistribution:
-		GenotypeDistribution(double hom_ref_prob, double het_prob, double hom_alt_prob) except +
+		GenotypeDistribution() except +
+		GenotypeDistribution(unsigned int nr_allele) except +
+		GenotypeDistribution(vector[vector[double]] p_wrong_vector, int allele) except +
+		GenotypeDistribution(vector[double] d, int nr_allele) except +
 		double probabilityOf(unsigned int genotype) except +
+		int getSize() except +
 
 
 cdef extern from "../src/genotyper.h":
-	void compute_genotypes(ReadSet, vector[Genotype]* genotypes, vector[GenotypeDistribution]* genotype_likelihoods, vector[unsigned int]* positions)  except +
-	void compute_polyploid_genotypes(ReadSet, size_t ploidy, vector[Genotype]* genotypes, vector[unsigned int]* positions)  except +
+	void compute_genotypes(ReadSet, vector[Genotype]*, vector[GenotypeDistribution]*, vector[unsigned int]*, vector[unsigned int]*)  except +
+	# void compute_polyploid_genotypes(ReadSet, size_t ploidy, vector[Genotype]* genotypes, vector[unsigned int]* positions)  except +
 
 
-cdef extern from "../src/hapchat/hapchatcore.cpp":
-	cdef cppclass HapChatCore:
-		HapChatCore(ReadSet*)
-		void get_super_reads(vector[ReadSet*]*)
-		vector[bool]* get_optimal_partitioning()
-		int get_length()
-		int get_optimal_cost()
+# cdef extern from "../src/hapchat/hapchatcore.cpp":
+# 	cdef cppclass HapChatCore:
+# 		HapChatCore(ReadSet*)
+# 		void get_super_reads(vector[ReadSet*]*)
+# 		vector[bool]* get_optimal_partitioning()
+# 		int get_length()
+# 		int get_optimal_cost()
 
 
-cdef extern from "../src/polyphase/clustereditingsolver.h":
-	cdef cppclass ClusterEditingSolver:
-		ClusterEditingSolver(TriangleSparseMatrix m, bool bundleEdges) except +
-		ClusterEditingSolution run() except +
+# cdef extern from "../src/polyphase/clustereditingsolver.h":
+# 	cdef cppclass ClusterEditingSolver:
+# 		ClusterEditingSolver(TriangleSparseMatrix m, bool bundleEdges) except +
+# 		ClusterEditingSolution run() except +
 
 
-cdef extern from "../src/polyphase/clustereditingsolution.h":
-	cdef cppclass ClusterEditingSolution:
-		ClusterEditingSolution() except +
-		ClusterEditingSolution(ClusterEditingSolution) except +
-		ClusterEditingSolution(double pTotalCost, vector[vector[int]] pClusters) except +
-		vector[unsigned int] getCluster(int i) except +
-		double getTotalCost() except +
-		int getNumClusters() except +
+# cdef extern from "../src/polyphase/clustereditingsolution.h":
+# 	cdef cppclass ClusterEditingSolution:
+# 		ClusterEditingSolution() except +
+# 		ClusterEditingSolution(ClusterEditingSolution) except +
+# 		ClusterEditingSolution(double pTotalCost, vector[vector[int]] pClusters) except +
+# 		vector[unsigned int] getCluster(int i) except +
+# 		double getTotalCost() except +
+# 		int getNumClusters() except +
 
 
-cdef extern from "../src/polyphase/trianglesparsematrix.h":
-	cdef cppclass TriangleSparseMatrix:
-		TriangleSparseMatrix() except +
-		unsigned int entryToIndex(unsigned int i, unsigned int j) except +
-		unsigned int size() except +
-		float get(unsigned int i, unsigned int j) except +
-		void set(unsigned int i, unsigned int j, float v) except +
-		vector[pair[uint32_t, uint32_t]] getEntries() except +
+# cdef extern from "../src/polyphase/trianglesparsematrix.h":
+# 	cdef cppclass TriangleSparseMatrix:
+# 		TriangleSparseMatrix() except +
+# 		unsigned int entryToIndex(unsigned int i, unsigned int j) except +
+# 		unsigned int size() except +
+# 		float get(unsigned int i, unsigned int j) except +
+# 		void set(unsigned int i, unsigned int j, float v) except +
+# 		vector[pair[uint32_t, uint32_t]] getEntries() except +
 
 
-cdef extern from "../src/polyphase/readscoring.h":
-	cdef cppclass ReadScoring:
-		ReadScoring() except +
-		void scoreReadsetGlobal(TriangleSparseMatrix* result, ReadSet* readset, uint32_t minOverlap,uint32_t ploidy) except +
-		void scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* readset, vector[vector[uint32_t]] refHaplotypes, uint32_t minOverlap, uint32_t ploidy) except +
+# cdef extern from "../src/polyphase/readscoring.h":
+# 	cdef cppclass ReadScoring:
+# 		ReadScoring() except +
+# 		void scoreReadsetGlobal(TriangleSparseMatrix* result, ReadSet* readset, uint32_t minOverlap,uint32_t ploidy) except +
+# 		void scoreReadsetLocal(TriangleSparseMatrix* result, ReadSet* readset, vector[vector[uint32_t]] refHaplotypes, uint32_t minOverlap, uint32_t ploidy) except +
 
 
-cdef extern from "../src/polyphase/haplothreader.h":
-	cdef cppclass HaploThreader:
-		HaploThreader(uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit) except +
-		vector[vector[uint32_t]] computePaths(uint32_t start, uint32_t end,
-					vector[vector[uint32_t]]& covMap,
-                    vector[vector[double]]& coverage, 
-                    vector[vector[uint32_t]]& consensus,
-                    vector[unordered_map[uint32_t, uint32_t]]& genotypes) except +
-		vector[vector[uint32_t]] computePaths(vector[uint32_t]& blockStarts,
-					vector[vector[uint32_t]]& covMap,
-                    vector[vector[double]]& coverage, 
-                    vector[vector[uint32_t]]& consensus,
-                    vector[unordered_map[uint32_t, uint32_t]]& genotypes) except +
+# cdef extern from "../src/polyphase/haplothreader.h":
+# 	cdef cppclass HaploThreader:
+# 		HaploThreader(uint32_t ploidy, double switchCost, double affineSwitchCost, bool symmetryOptimization, uint32_t rowLimit) except +
+# 		vector[vector[uint32_t]] computePaths(uint32_t start, uint32_t end,
+# 					vector[vector[uint32_t]]& covMap,
+#                     vector[vector[double]]& coverage, 
+#                     vector[vector[uint32_t]]& consensus,
+#                     vector[unordered_map[uint32_t, uint32_t]]& genotypes) except +
+# 		vector[vector[uint32_t]] computePaths(vector[uint32_t]& blockStarts,
+# 					vector[vector[uint32_t]]& covMap,
+#                     vector[vector[double]]& coverage, 
+#                     vector[vector[uint32_t]]& consensus,
+#                     vector[unordered_map[uint32_t, uint32_t]]& genotypes) except +
 		
-cdef extern from "../src/polyphase/switchflipcalculator.h":
-	cdef cppclass SwitchFlipCalculator:
-		SwitchFlipCalculator(uint32_t ploidy, double switchCost, double flipCost) except +
-		pair[double, double] compare(vector[vector[uint32_t]]& phasing0,
-                    vector[vector[uint32_t]]& phasing1,
-                    vector[uint32_t]& switchesInColumn,
-                    vector[vector[uint32_t]]& flippedHapsInColumn,
-                    vector[vector[uint32_t]]& permInColumn) except +
+# cdef extern from "../src/polyphase/switchflipcalculator.h":
+# 	cdef cppclass SwitchFlipCalculator:
+# 		SwitchFlipCalculator(uint32_t ploidy, double switchCost, double flipCost) except +
+# 		pair[double, double] compare(vector[vector[uint32_t]]& phasing0,
+#                     vector[vector[uint32_t]]& phasing1,
+#                     vector[uint32_t]& switchesInColumn,
+#                     vector[vector[uint32_t]]& flippedHapsInColumn,
+#                     vector[vector[uint32_t]]& permInColumn) except +

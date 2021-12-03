@@ -8,14 +8,20 @@
 class GenotypeDistribution {
 private:
 	std::vector<double> distribution;
+	int n_allele;
 public:
 	
-	GenotypeDistribution() : distribution(3, 1.0/3.0) {}
-	GenotypeDistribution(double hom_ref_prob, double het_prob, double hom_alt_prob);
+	GenotypeDistribution() : distribution() {}
+	GenotypeDistribution(unsigned int nr_allele);
+	GenotypeDistribution(std::vector<std::vector<double> > p_wrong_vector, int allele);
+	GenotypeDistribution(std::vector<double> d, int nr_allele);
 
 	double probabilityOf(size_t genotype) const {
-		assert(genotype <= 2);
 		return distribution[genotype];
+	}
+
+	int getSize() const {
+		return distribution.size();
 	}
 
 	/** Normalize distribution such that it sums to one. */

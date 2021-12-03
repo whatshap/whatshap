@@ -11,6 +11,13 @@ class Vector2D {
 public:
 	Vector2D(size_t size0 = 0, size_t size1 = 0, const T& initial_value = T() ) : size0(size0), size1(size1), v(size0*size1, initial_value) {}
 
+	void remake(size_t size0 = 0, size_t size1 = 0, const T& initial_value = T() ) {
+		this->size0 = size0;
+		this->size1 = size1;
+		v.clear();
+		v.resize(size0*size1); 
+	}
+
 	const T& at(size_t index0, size_t index1) const {
 		return v[index0*size1 + index1];
 	}

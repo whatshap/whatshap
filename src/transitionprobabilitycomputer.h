@@ -3,26 +3,26 @@
 
 #include <map>
 #include "vector2d.h"
-#include "pedigree.h"
-#include "pedigreepartitions.h"
+#include "column.h"
 
 class TransitionProbabilityComputer {
 private:
-    unsigned int transmission_configurations;
-    unsigned int allele_assignments;
-    Vector2D<long double> transitions_transmissions;
-    size_t popcount(size_t& x);
+    double pr;
+    double qr;
+    std::vector<Vector2D<double> > transition_probability_matrices;
 
-    const Pedigree* pedigree;
-    const std::vector<PedigreePartitions*>& pedigree_partitions;
-    // transitions to allele assignments
-    Vector2D<long double> transitions_allele_assignments;
+    /* Maps the values in the group of states (representing one allele pair) to the r_indices values.
+    So reordering_map[allele_index] contains the r_index values of the states which have the alleles given by allele_index.
+    The r_index values are ordered which means that the first r_index value is the r_index of the first alpha value calculated in the matrix multiplication.
+    */ 
+    std::vector<std::vector<unsigned int> > reordering_map;
 
 public:
-    TransitionProbabilityComputer(size_t column_index, unsigned int recombcost, const Pedigree* pedigree, const std::vector<PedigreePartitions*>& pedigree_partitions);
-    // get the transision probability for change of transmission vector t1 to t2
-    long double get_prob_transmission(unsigned int t1, unsigned int t2);
-    long double get_prob_allele_assignment(unsigned int t, unsigned int a);
+    TransitionProbabilityComputer(const unsigned int& recombcost, Column& column, const std::vector<unsigned int>& allele_reference);
+
+    Vector2D<double> * get_transition_matrix(unsigned int a1, unsigned int a2);
+
+    std::vector<unsigned int> * get_reordering_map(unsigned int a1, unsigned int a2);
 };
 
 #endif // TRANSITIONPROBABILITYCOMPUTER_H

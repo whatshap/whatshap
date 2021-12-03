@@ -2,8 +2,11 @@
 Detect variants in reads.
 """
 import logging
+import numpy as np
 from collections import defaultdict, Counter
 from typing import Iterable, Iterator, List, Optional
+
+from numpy.core.fromnumeric import shape
 
 from .core import Read, ReadSet, NumericSampleIds
 from .bam import SampleBamReader, MultiBamReader, BamReader
@@ -166,7 +169,7 @@ class ReadSetReader:
             reference = reference[:]
             normalized_variants = variants
         else:
-            normalized_variants = [variant.normalized() for variant in variants]
+            normalized_variants = variants
 
         i = 0  # index into variants
         for alignment in alignments:
@@ -204,8 +207,8 @@ class ReadSetReader:
                     self._gap_extend,
                     self._default_mismatch,
                 )
-            for j, allele, quality in detected:
-                read.add_variant(variants[j].position, allele, quality)
+            for j, allele, em, quality in detected:
+                read.add_variant(variants[j].position, allele, em, quality)
             if read:  # At least one variant covered and detected
                 yield read
 
@@ -460,7 +463,7 @@ class ReadSetReader:
         default_mismatch -- if affine_gap=true, use this as mismatch cost in case no base qualities are in bam
         """
         # Do not process symbolic alleles like <DEL>, <DUP>, etc.
-        if variant.alternative_allele.startswith("<"):
+        if any([alt.startswith("<") for alt in variant.alternative_allele]):
             return None, None
 
         left_cigar, right_cigar = ReadSetReader.split_cigar(cigartuples, i, consumed)
@@ -479,15 +482,20 @@ class ReadSetReader:
             query_pos - left_query_bases : query_pos + right_query_bases
         ]
         ref = reference[variant.position - left_ref_bases : variant.position + right_ref_bases]
-        alt = (
-            reference[variant.position - left_ref_bases : variant.position]
-            + variant.alternative_allele
-            + reference[
-                variant.position
-                + len(variant.reference_allele) : variant.position
-                + right_ref_bases
-            ]
-        )
+        
+        ### Change this to support multiple alternate alleles
+        alts = []
+        for alt_allele in variant.alternative_allele:
+            alt = (
+                reference[variant.position - left_ref_bases : variant.position]
+                + alt_allele
+                + reference[
+                    variant.position
+                    + len(variant.reference_allele) : variant.position
+                    + right_ref_bases
+                ]
+            )
+            alts.append(alt)
 
         if use_affine:
             assert gap_start is not None
@@ -503,19 +511,23 @@ class ReadSetReader:
             distance_ref = edit_distance_affine_gap(
                 query, ref, base_qualities, gap_start, gap_extend
             )
-            distance_alt = edit_distance_affine_gap(
-                query, alt, base_qualities, gap_start, gap_extend
-            )
-            base_qual_score = abs(distance_ref - distance_alt)
+            distance_alts = []
+            for alt in alts:
+                distance_alt = edit_distance_affine_gap(query, alt, base_qualities, gap_start, gap_extend)
+                distance_alts.append(distance_alt) 
         else:
-            base_qual_score = 30
             distance_ref = edit_distance(query, ref)
-            distance_alt = edit_distance(query, alt)
-
-        if distance_ref < distance_alt:
-            return 0, base_qual_score  # detected REF
-        elif distance_ref > distance_alt:
-            return 1, base_qual_score  # detected ALT
+            distance_alts = []
+            for alt in alts:
+                distance_alts.append(edit_distance(query, alt))
+        sorted_distance_alts = distance_alts.sort()
+        base_qual_score = 30
+        distances = [distance_ref] + distance_alts
+        distance_norm = [float(i)/sum(distances) for i in distances]
+        if distance_ref < sorted_distance_alts[0]:
+            return 0, distance_norm, base_qual_score  # detected REF
+        elif distance_ref > sorted_distance_alts[0] and sorted_distance_alts[0] != sorted_distance_alts[1]:
+            return distance_alts.index(min(distance_alts))+1, distance_norm, base_qual_score  # detected ALT
         else:
             return None, None  # cannot decide
 
@@ -549,7 +561,7 @@ class ReadSetReader:
             return
 
         for index, i, consumed, query_pos in _iterate_cigar(variants, j, bam_read, cigartuples):
-            allele, quality = ReadSetReader.realign(
+            allele, emission, quality = ReadSetReader.realign(
                 variants[index],
                 bam_read,
                 cigartuples,
@@ -563,8 +575,11 @@ class ReadSetReader:
                 gap_extend,
                 default_mismatch,
             )
-            if allele in (0, 1):
-                yield (index, allele, quality)  # TODO quality???
+            ### Here it supports only biallelic variants. HAVE TO CHANGE. PROBABLY DONT NEED THIS CHECK
+            #if allele in (0, 1):
+                #yield (index, allele, quality)  # TODO quality???
+            if allele is not None:
+                yield (index, allele, emission, quality)
 
     def __enter__(self):
         return self

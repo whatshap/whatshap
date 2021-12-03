@@ -30,8 +30,8 @@ string Read::toString() {
 }
 
 
-void Read::addVariant(int position, int allele, int quality) {
-	variants.push_back(enriched_entry_t(position, allele, quality));
+void Read::addVariant(int position, int allele, vector<float> em, int quality) {
+	variants.push_back(enriched_entry_t(position, allele, em, quality));
 }
 
 
@@ -100,21 +100,31 @@ int Read::getAllele(size_t variant_idx) const {
 
 void Read::setAllele(size_t variant_idx, int allele) {
 	assert(variant_idx < variants.size());
-	variants[variant_idx].entry.set_allele_type((Entry::allele_t)allele);
+	variants[variant_idx].entry.set_allele_type(allele);
 }
 
 
-int Read::getVariantQuality(size_t variant_idx) const {
+std::vector<float> Read::getEmissionProbability(size_t variant_idx) const {
 	assert(variant_idx < variants.size());
-	return variants[variant_idx].entry.get_phred_score();
+	return variants[variant_idx].entry.get_emission_score();
 }
 
 
-void Read::setVariantQuality(size_t variant_idx, int quality) {
+void Read::setEmissionProbability(size_t variant_idx, std::vector<float> emission) {
 	assert(variant_idx < variants.size());
-	variants[variant_idx].entry.set_phred_score(quality);
+	variants[variant_idx].entry.set_emission_score(emission);
 }
 
+int Read::getQuality(size_t variant_idx) const {
+	assert(variant_idx < variants.size());
+	return variants[variant_idx].entry.get_quality();
+}
+
+
+void Read::setQuality(size_t variant_idx, int quality) {
+	assert(variant_idx < variants.size());
+	variants[variant_idx].entry.set_quality(quality);
+}
 
 const Entry* Read::getEntry(size_t variant_idx) const {
 	return &(variants[variant_idx].entry);

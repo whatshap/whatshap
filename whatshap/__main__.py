@@ -57,6 +57,8 @@ def main(argv=sys.argv[1:]):
     # It needs to implement an add_arguments() and a main() function.
     modules = pkgutil.iter_modules(cli_package.__path__)
     for _, module_name, _ in modules:
+        if module_name != "genotype":
+            continue
         module = importlib.import_module("." + module_name, cli_package.__name__)
         subparser = subparsers.add_parser(
             module_name,

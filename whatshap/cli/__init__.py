@@ -119,7 +119,7 @@ class PhasedInputReader:
         # Read phase information provided as VCF files, if provided.
         # TODO: do this chromosome- and/or sample-wise on demand to save memory.
         self._vcfs = []
-        for reader in self._vcf_readers:
+        for reader in self._vcf_readers: ## VcfReader.__iter__ yields VariantTable objects.
             # create dict mapping chromosome names to VariantTables
             m = dict()
             logger.info("Reading phased blocks from %r", reader.path)

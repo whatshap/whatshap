@@ -10,7 +10,7 @@
 
 using namespace std;
 
-void compute_genotypes(const ReadSet& readset, std::vector<Genotype>* genotypes, std::vector<GenotypeDistribution>* genotype_likelihoods, std::vector<unsigned int>* positions) {
+void compute_genotypes(const ReadSet& readset, std::vector<Genotype>* genotypes, std::vector<GenotypeDistribution>* genotype_likelihoods, std::vector<unsigned int>* positions, std::vector<unsigned int>* n_allele_position) {
 	assert(genotypes != nullptr);
 	assert(genotype_likelihoods != nullptr);
 	genotypes->clear();
@@ -19,29 +19,27 @@ void compute_genotypes(const ReadSet& readset, std::vector<Genotype>* genotypes,
 		positions = readset.get_positions();
 		assert(positions != nullptr);
 	}
+	assert (n_allele_position != nullptr);
 	ColumnIterator column_iterator(readset, positions);
 	size_t column_index = 0;
 	while (column_iterator.has_next()) {
 // 		cerr << "  working in column " << column_index << ", position " << positions->at(column_index) << endl;
 		std::unique_ptr<std::vector<const Entry*> > column = column_iterator.get_next();
-		GenotypeDistribution distribution;
+		unsigned int n_allele = n_allele_position->at(column_index);
+		GenotypeDistribution distribution(n_allele);
 		for (const Entry* e : *column) {
 // 			cerr << "    " << (*e) << endl;
-			double p_wrong = max(0.05, pow(10.0,-((double)e->get_phred_score())/10.0));
-			switch (e->get_allele_type()) {
-				case Entry::REF_ALLELE:
-					distribution = distribution * GenotypeDistribution(2.0/3.0-1.0/3.0*p_wrong, 1.0/3.0, 1.0/3.0*p_wrong);
-					break;
-				case Entry::ALT_ALLELE:
-					distribution = distribution * GenotypeDistribution(1.0/3.0*p_wrong, 1.0/3.0, 2.0/3.0-1.0/3.0*p_wrong);
-					break;
-				default:
-					break;
+			std::vector<std::vector<double>> p_wrong_vector(e->get_emission_score().size(), std::vector<double>(e->get_emission_score().size()));
+			for (int i=0; i < e->get_emission_score().size(); i++) {
+				for (int j=0; j < e->get_emission_score().size(); j++) {
+					p_wrong_vector[i][j] = max(0.05, pow(10.0,-(abs(e->get_emission_score()[i] - e->get_emission_score()[j]))/10.0));
+				}
 			}
-			
+			distribution = distribution * GenotypeDistribution(p_wrong_vector, e->get_allele_type());
 		}
 		distribution.normalize();
 		Genotype genotype;
+		// Have to change this hardcoded error probability threshold
 		if (distribution.errorProbability() < 0.1) {
 			genotype = Genotype(distribution.likeliestGenotype(), Genotype::DIPLOID);
 		}
@@ -70,10 +68,10 @@ void compute_polyploid_genotypes(const ReadSet& readset, size_t ploidy, std::vec
 		size_t alt_count = 0;
 		for (const Entry* e : *column) {
 			switch (e->get_allele_type()){
-				case Entry::REF_ALLELE:
+				case 0:
 					ref_count += 1;
 					break;
-				case Entry::ALT_ALLELE:
+				case 1:
 					alt_count += 1;
 					break;
 				default:

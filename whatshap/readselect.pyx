@@ -68,7 +68,7 @@ cdef priority_type_ptr _compute_score_for_read(cpp.ReadSet* readset, int index, 
 	cdef int pos = -1
 	covered_variants = []
 	for i in range(read.getVariantCount()):
-		quality = read.getVariantQuality(i)
+		quality = read.getQuality(i)
 		pos = read.getPosition(i)
 		if i == 0:
 			min_quality = quality

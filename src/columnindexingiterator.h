@@ -2,18 +2,20 @@
 #define COLUMN_INDEXING_ITERATOR_H
 
 #include "graycodes.h"
+#include "column.h"
 
-class ColumnIndexingScheme;
+class Column;
 
 class ColumnIndexingIterator {
 private:
-	const ColumnIndexingScheme* parent;
+	const Column* parent;
 	GrayCodes* graycodes;
-	unsigned int index;
-	unsigned int forward_projection;
-
+	unsigned int r_index;
+	unsigned int b_index;
+	std::vector<int> binaryVector;
+	
 public:
-	ColumnIndexingIterator(const ColumnIndexingScheme* parent);
+	ColumnIndexingIterator(Column* parent);
 	virtual ~ColumnIndexingIterator();
 
 	bool has_next();
@@ -27,23 +29,11 @@ public:
 	  */
 	void advance(int* bit_changed = 0);
 
-	/** Index of the projection of the current read set onto the intersection between current and next read set. */
-	unsigned int get_forward_projection();
+	unsigned int get_r_index();
 
-	/** Index of the projection of the current read set onto the intersection between previous and the current read set. */
-	unsigned int get_backward_projection();
+	unsigned int get_b_index();
 
-	/** Row index in the DP table (within the current column). */
-	unsigned int get_index();
-
-	/** Bit-wise representation of the partitioning corresponding to the current index. */
-	unsigned int get_partition();
-
-	/** get index's backward projection (given index i), so that we don't have to iterate up to it, just to get it */
-	unsigned int index_backward_projection(unsigned int i);
-
-	/** get index's forward projection */
-	unsigned int index_forward_projection(unsigned int i);
+	std::vector<int> get_binary_vector();
 };
 
 #endif

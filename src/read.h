@@ -12,7 +12,7 @@ public:
 	Read(const std::string& name, int mapq, int source_id, int sample_id, int reference_start = -1, const std::string& BX_tag = "");
 	virtual ~Read() {}
 	std::string toString();
-	void addVariant(int position, int allele, int quality);
+	void addVariant(int position, int allele, std::vector<float> em, int quality);
 	void sortVariants();
 	/** Returns the position of the first variant. **/
 	int firstPosition() const;
@@ -26,8 +26,10 @@ public:
 	void setPosition(size_t variant_idx, int position);
 	int getAllele(size_t variant_idx) const;
 	void setAllele(size_t variant_idx, int allele);
-	int getVariantQuality(size_t variant_idx) const;
-	void setVariantQuality(size_t variant_idx, int quality);
+	std::vector<float> getEmissionProbability(size_t variant_idx) const;
+	void setEmissionProbability(size_t variant_idx, std::vector<float> emission);
+	int getQuality(size_t variant_idx) const;
+	void setQuality(size_t variant_idx, int quality);
 	const Entry* getEntry(size_t variant_idx) const;
 	int getVariantCount() const;
 	const std::string& getName() const;
@@ -43,8 +45,8 @@ private:
 	typedef struct enriched_entry_t {
 		Entry entry;
 		int position;
-		enriched_entry_t(int position, int allele, int quality) :
-			entry(0,Entry::allele_t(allele),quality), position(position) {}
+		enriched_entry_t(int position, int allele, std::vector<float> em, int quality) :
+			entry(0,allele,em,quality), position(position) {}
 	} enriched_entry_t;
 	
 	typedef struct entry_comparator_t {

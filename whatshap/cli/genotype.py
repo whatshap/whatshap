@@ -10,14 +10,18 @@ import platform
 from typing import Sequence
 
 from contextlib import ExitStack
+
+from networkx.algorithms.structuralholes import effective_size
+from six import indexbytes
 from whatshap import __version__
+from whatshap import vcf
 from whatshap.vcf import VcfReader, GenotypeVcfWriter
 from whatshap.core import (
+    GenotypeHMM,
     ReadSet,
     Pedigree,
     NumericSampleIds,
     PhredGenotypeLikelihoods,
-    GenotypeDPTable,
     compute_genotypes,
     Genotype,
 )
@@ -34,36 +38,62 @@ from whatshap.cli import CommandLineError, PhasedInputReader
 
 logger = logging.getLogger(__name__)
 
+def bin_coeff(n, k):
+    if (k < 0) or (n < 0) or (n < k):
+        return 0
+	
+    result = 1.0
+    if (k > n-k):
+        k = n-k
+	
+    for i in range(k):
+        result *= (n-i)
+        result /= (i+1)
+	
+    return result
 
-def int_to_diploid_biallelic_gt(numeric_repr):
-    """Converts the classic numeric representation of biallelic, diploid genotypes
+
+def int_to_diploid_multiallelic_gt(numeric_repr):
+    """Converts the classic numeric representation of multi-allelic, diploid genotypes
     into a genotype object
     """
-    if numeric_repr == 0:
-        return Genotype([0, 0])
-    elif numeric_repr == 1:
-        return Genotype([0, 1])
-    elif numeric_repr == 2:
-        return Genotype([1, 1])
-    else:
+    if numeric_repr == -1:
         return Genotype([])
+    ploidy = 2
+    genotype = [-1,-1]
+    pth = ploidy
+    max_allele_index = numeric_repr
+    leftover_genotype_index = numeric_repr
+
+    while (pth > 0):
+        for allele_index in range(max_allele_index+1):
+            i = bin_coeff(pth + allele_index - 1, pth)
+            if (i >= leftover_genotype_index) or (allele_index == max_allele_index):
+                if (i > leftover_genotype_index):
+                    allele_index -= 1
+                leftover_genotype_index -= bin_coeff(pth + allele_index - 1, pth)
+                pth -= 1
+                max_allele_index = allele_index
+                genotype[pth] = allele_index
+                break
+    
+    return Genotype(genotype)
 
 
-def determine_genotype(likelihoods: Sequence[float], threshold_prob: float) -> float:
+def determine_genotype(likelihoods: Sequence[float], threshold_prob: float, n_allele: int) -> float:
     """given genotype likelihoods for 0/0, 0/1, 1/1, determines likeliest genotype"""
 
-    to_sort = [
-        (likelihoods[int_to_diploid_biallelic_gt(0)], 0),
-        (likelihoods[int_to_diploid_biallelic_gt(1)], 1),
-        (likelihoods[int_to_diploid_biallelic_gt(2)], 2),
-    ]
+    assert bin_coeff(n_allele + 1, n_allele - 1) == len(likelihoods)
+    to_sort = []
+    for i in range(len(likelihoods)):
+        to_sort.append(likelihoods[int_to_diploid_multiallelic_gt(i)], i)
     to_sort.sort(key=lambda x: x[0])
 
     # make sure there is a unique maximum which is greater than the threshold
-    if (to_sort[2][0] > to_sort[1][0]) and (to_sort[2][0] > threshold_prob):
-        return int_to_diploid_biallelic_gt(to_sort[2][1])
+    if (to_sort[-1][0] > to_sort[-2][0]) and (to_sort[-1][0] > threshold_prob):
+        return int_to_diploid_multiallelic_gt(to_sort[-1][1])
     else:
-        return int_to_diploid_biallelic_gt(-1)
+        return int_to_diploid_multiallelic_gt(-1)
 
 
 def run_genotype(
@@ -91,6 +121,7 @@ def run_genotype(
     mismatch=15,
     write_command_line_header=True,
     use_ped_samples=False,
+    eff_pop_size = 10
 ):
     """
     For now: this function only runs the genotyping algorithm. Genotype likelihoods for
@@ -180,7 +211,7 @@ def run_genotype(
         else:
             if ped:
                 logger.info("Using uniform recombination rate of %g cM/Mb.", recombrate)
-            recombination_cost_computer = UniformRecombinationCostComputer(recombrate)
+            recombination_cost_computer = UniformRecombinationCostComputer(recombrate, eff_pop_size)
 
         samples = frozenset(samples)
         families, family_trios = setup_families(samples, ped, max_coverage)
@@ -195,6 +226,8 @@ def run_genotype(
 
         # compute genotype likelihood threshold
         gt_prob = 1.0 - (10 ** (-gt_qual_threshold / 10.0))
+
+        n_samples = len(list(vcf_reader.samples))
 
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
 
@@ -215,8 +248,16 @@ def run_genotype(
                 if prioroutput is not None:
                     prior_vcf_writer.write_unchanged(chromosome)
                 continue
-
-            positions = [v.position for v in variant_table.variants]
+            
+            positions = []
+            n_allele_position_list = []
+            n_allele_position = dict()
+            allele_references = dict()
+            for v in variant_table.variants:
+                positions.append(v.position)    ##Contains the positions of the variants in the variant table
+                n_allele_position_list.append(len(v.alternative_alleles)+1)
+                n_allele_position[v.position] = len(v.alternative_alleles)+1      ##Contains the number of alleles at every variant position
+                allele_references[v.position] = v.allele_origin
             if not nopriors:
                 # compute prior genotype likelihoods based on all reads
                 for sample in samples:
@@ -226,25 +267,19 @@ def run_genotype(
                             chromosome, variant_table.variants, sample, read_vcf=False
                         )
                         readset.sort()
-                        genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
-                        # recompute genotypes based on given threshold
+                        genotypes, genotype_likelihoods = compute_genotypes(readset, positions, n_allele_position_list)
+                        # recompute genotypes based on given threshold`
                         reg_genotype_likelihoods = []
-                        for gl in range(len(genotype_likelihoods)):
-                            norm_sum = (
-                                genotype_likelihoods[gl][0]
-                                + genotype_likelihoods[gl][1]
-                                + genotype_likelihoods[gl][2]
-                                + 3 * constant
-                            )
-                            regularized = PhredGenotypeLikelihoods(
-                                [
-                                    (genotype_likelihoods[gl][0] + constant) / norm_sum,
-                                    (genotype_likelihoods[gl][1] + constant) / norm_sum,
-                                    (genotype_likelihoods[gl][2] + constant) / norm_sum,
-                                ]
-                            )
-                            genotypes[gl] = determine_genotype(regularized, gt_prob)
-                            assert isinstance(genotypes[gl], Genotype)
+                        ## How to handle this constant here?
+                        for ix, gl in enumerate(genotype_likelihoods):
+                            norm_sum = sum(gl) + constant*len(gl)
+                            n_allele = n_allele_position[positions[ix]]
+                            phred_gl = []
+                            for likelihood in gl:
+                                phred_gl.append((likelihood + constant)/norm_sum)
+                            regularized = PhredGenotypeLikelihoods(phred_gl, 2, n_allele)
+                            genotypes[ix] = determine_genotype(regularized, gt_prob)
+                            assert isinstance(genotypes[ix], Genotype)
                             reg_genotype_likelihoods.append(regularized)
                         variant_table.set_genotype_likelihoods_of(
                             sample,
@@ -256,7 +291,7 @@ def run_genotype(
                 # use uniform genotype likelihoods for all individuals
                 for sample in samples:
                     variant_table.set_genotype_likelihoods_of(
-                        sample, [PhredGenotypeLikelihoods([1 / 3, 1 / 3, 1 / 3])] * len(positions)
+                        sample, [PhredGenotypeLikelihoods([1/(bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1))] * (bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1)) , 2, bin_coeff(n_allele_position[pos] + 1, n_allele_position[pos] - 1)) for pos in positions]
                     )
 
             # if desired, output the priors in separate vcf
@@ -307,6 +342,12 @@ def run_genotype(
 
                 # Determine which variants can (in principle) be phased
                 accessible_positions = sorted(all_reads.get_positions())
+                accessible_positions_n_allele = []
+                accessible_positions_allele_references = []
+                for position in accessible_positions:
+                    accessible_positions_n_allele.append(n_allele_position[position])
+                    accessible_positions_allele_references.append(allele_references[position])
+
                 logger.info(
                     "Variants covered by at least one phase-informative "
                     "read in at least one individual after read selection: %d",
@@ -341,12 +382,25 @@ def run_genotype(
                         "s" if len(family) > 1 else "",
                         problem_name,
                     )
-                    forward_backward_table = GenotypeDPTable(
+                    # MAKE SURE THAT THE NUMBER OF REFERENCES PASSED IS 2 X NUMBER OF SAMPLES SINCE EACH SAMPLE HAS 2 HAPLOTYPES
+                    
+                    # forward_backward_table = GenotypeDPTable(
+                    #     numeric_sample_ids,
+                    #     all_reads,
+                    #     recombination_costs,
+                    #     pedigree,
+                    #     accessible_positions, 
+                    # )
+                    
+                    forward_backward_table = GenotypeHMM(
                         numeric_sample_ids,
                         all_reads,
                         recombination_costs,
                         pedigree,
+                        2*n_samples,
                         accessible_positions,
+                        accessible_positions_n_allele,
+                        accessible_positions_allele_references
                     )
                     # store results
                     for s in family:
@@ -357,7 +411,7 @@ def run_genotype(
                             likelihoods = forward_backward_table.get_genotype_likelihoods(s, pos)
 
                             # compute genotypes from likelihoods and store information
-                            geno = determine_genotype(likelihoods, gt_prob)
+                            geno = determine_genotype(likelihoods, gt_prob, accessible_positions_n_allele[pos])
                             assert isinstance(geno, Genotype)
                             genotypes_list[var_to_pos[accessible_positions[pos]]] = geno
                             likelihood_list[var_to_pos[accessible_positions[pos]]] = likelihoods
@@ -441,6 +495,8 @@ def add_arguments(parser):
         help='gap extend penalty in case affine gap costs are used (default: %(default)s).')
     arg('--mismatch', metavar='MISMATCH', default=15, type=float,
         help='mismatch cost in case affine gap costs are used (default: %(default)s)')
+    arg('--eff-pop-size', metavar='EFFPOPSIZE', default = 10, type = int,
+        help="Parameter for transition probability computing (default: %(default)s)")
 
     arg = parser.add_argument_group('Pedigree genotyping').add_argument
     arg('--ped', metavar='PED/FAM',
@@ -457,6 +513,7 @@ def add_arguments(parser):
     arg('--use-ped-samples', dest='use_ped_samples',
         action='store_true', default=False,
         help='Only work on samples mentioned in the provided PED file.')
+    
 # fmt: on
 
 

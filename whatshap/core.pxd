@@ -24,9 +24,9 @@ cdef class Pedigree:
 	cdef NumericSampleIds numeric_sample_ids
 
 
-cdef class PedigreeDPTable:
-	cdef cpp.PedigreeDPTable *thisptr
-	cdef Pedigree pedigree
+# cdef class PedigreeDPTable:
+# 	cdef cpp.PedigreeDPTable *thisptr
+# 	cdef Pedigree pedigree
 
 
 cdef class PhredGenotypeLikelihoods:
@@ -39,32 +39,31 @@ cdef class Genotype:
 	cdef uint32_t ploidy
 
 
-cdef class GenotypeDPTable:
-	cdef cpp.GenotypeDPTable *thisptr
+cdef class GenotypeHMM:
+	cdef cpp.GenotypeHMM *thisptr
 	cdef Pedigree pedigree
 	cdef NumericSampleIds numeric_sample_ids
 
-
-cdef class HapChatCore:
-	cdef cpp.HapChatCore *thisptr
-
-
-cdef class ClusterEditingSolver:
-	cdef cpp.ClusterEditingSolver *thisptr
-	cdef TriangleSparseMatrix m
+# cdef class HapChatCore:
+# 	cdef cpp.HapChatCore *thisptr
 
 
-cdef class TriangleSparseMatrix:
-	cdef cpp.TriangleSparseMatrix *thisptr
+# cdef class ClusterEditingSolver:
+# 	cdef cpp.ClusterEditingSolver *thisptr
+# 	cdef TriangleSparseMatrix m
 
 
-cdef class ReadScoring:
-	cdef cpp.ReadScoring *thisptr
+# cdef class TriangleSparseMatrix:
+# 	cdef cpp.TriangleSparseMatrix *thisptr
 
 
-cdef class HaploThreader:
-	cdef cpp.HaploThreader *thisptr
+# cdef class ReadScoring:
+# 	cdef cpp.ReadScoring *thisptr
+
+
+# cdef class HaploThreader:
+# 	cdef cpp.HaploThreader *thisptr
 	
-cdef class SwitchFlipCalculator:
-	cdef cpp.SwitchFlipCalculator *thisptr
-	cdef uint32_t ploidy
+# cdef class SwitchFlipCalculator:
+# 	cdef cpp.SwitchFlipCalculator *thisptr
+# 	cdef uint32_t ploidy

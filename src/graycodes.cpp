@@ -41,3 +41,13 @@ GrayCodes::int_t GrayCodes::get_next(int* changed_bit) {
 	}
 	return result;
 }
+
+vector<int> GrayCodes::toBinary(int n) {
+    vector<int> binaryVector;
+    binaryVector.resize(length);
+    for (int i = 0; i < length; i++) {
+        binaryVector[length - 1 - i] = n % 2;
+        n = n / 2;
+    }
+	return binaryVector;
+}

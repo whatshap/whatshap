@@ -137,7 +137,8 @@ cdef class Read:
 		return Variant(
 			position=self.thisptr.getPosition(key),
 			allele=self.thisptr.getAllele(key),
-			quality=self.thisptr.getVariantQuality(key)
+			emission=self.thisptr.getEmissionProbability(key),
+			quality=self.thisptr.getQuality(key)
 		)
 
 	def __setitem__(self, index, variant):
@@ -151,7 +152,8 @@ cdef class Read:
 			raise ValueError('Expected instance of Variant, but found {}'.format(type(variant)))
 		self.thisptr.setPosition(index, variant.position)
 		self.thisptr.setAllele(index, variant.allele)
-		self.thisptr.setVariantQuality(index, variant.quality)
+		self.thisptr.setEmissionProbability(index, variant.emission)
+		self.thisptr.setQuality(index, variant.quality)
 
 	def __contains__(self, position):
 		"""Return whether this read contains a variant at the given position.
@@ -166,7 +168,7 @@ cdef class Read:
 	
 	def __getstate__(self):
 		mapqs = [mapq for mapq in self.mapqs]
-		variants = [(var.position, var.allele, var.quality) for var in self]
+		variants = [(var.position, var.allele, var.emission, var.quality) for var in self]
 		return (mapqs, self.name, self.source_id, self.sample_id, self.reference_start, self.BX_tag, variants)
 	
 	def __setstate__(self, state):
@@ -188,12 +190,16 @@ cdef class Read:
 
 		for mapq in mapqs[1:]:
 			self.add_mapq(mapq)
-		for (pos, allele, quality) in variants:
-			self.add_variant(pos, allele, quality)
+		for (pos, allele, emission, quality) in variants:
+			self.add_variant(pos, allele, emission, quality)
 
-	def add_variant(self, int position, int allele, int quality):
+	def add_variant(self, int position, int allele, em, int quality):
 		assert self.thisptr != NULL
-		self.thisptr.addVariant(position, allele, quality)
+		cdef vector[float] emProb
+		emProb.resize(len(em))
+		for i in range(len(em)):
+			emProb.push_back(em[i]) 
+		self.thisptr.addVariant(position, allele, emProb, quality)
 
 	def add_mapq(self, int mapq):
 		assert self.thisptr != NULL
@@ -301,59 +307,59 @@ cdef class ReadSet:
 		return result
 
 
-cdef class PedigreeDPTable:
-	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree, bool distrust_genotypes = False, positions = None):
-		"""Build the DP table from the given read set which is assumed to be sorted;
-		that is, the variants in each read must be sorted by position and the reads
-		in the read set must also be sorted (by position of their left-most variant).
-		"""
-		cdef vector[unsigned int]* c_positions = NULL
-		if positions is not None:
-			c_positions = new vector[unsigned int]()
-			for pos in positions:
-				c_positions.push_back(pos)
-		self.thisptr = new cpp.PedigreeDPTable(readset.thisptr, recombcost, pedigree.thisptr, distrust_genotypes, c_positions)
-		self.pedigree = pedigree
+# cdef class PedigreeDPTable:
+# 	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree, bool distrust_genotypes = False, positions = None):
+# 		"""Build the DP table from the given read set which is assumed to be sorted;
+# 		that is, the variants in each read must be sorted by position and the reads
+# 		in the read set must also be sorted (by position of their left-most variant).
+# 		"""
+# 		cdef vector[unsigned int]* c_positions = NULL
+# 		if positions is not None:
+# 			c_positions = new vector[unsigned int]()
+# 			for pos in positions:
+# 				c_positions.push_back(pos)
+# 		self.thisptr = new cpp.PedigreeDPTable(readset.thisptr, recombcost, pedigree.thisptr, distrust_genotypes, c_positions)
+# 		self.pedigree = pedigree
 
-	def __dealloc__(self):
-		del self.thisptr
+# 	def __dealloc__(self):
+# 		del self.thisptr
 
-	def get_super_reads(self):
-		"""Obtain optimal-score haplotypes. Returns a triple (mother, father, child)
-		IMPORTANT: The ReadSet given at construction time must not have been altered.
-		DPTable retained a pointer to this set and will access it again. If it has
-		been altered, behavior is undefined.
-		TODO: Change that.
-		"""
-		cdef vector[cpp.ReadSet*]* read_sets = new vector[cpp.ReadSet*]()
+# 	def get_super_reads(self):
+# 		"""Obtain optimal-score haplotypes. Returns a triple (mother, father, child)
+# 		IMPORTANT: The ReadSet given at construction time must not have been altered.
+# 		DPTable retained a pointer to this set and will access it again. If it has
+# 		been altered, behavior is undefined.
+# 		TODO: Change that.
+# 		"""
+# 		cdef vector[cpp.ReadSet*]* read_sets = new vector[cpp.ReadSet*]()
 
-		for i in range(len(self.pedigree)):
-			read_sets.push_back(new cpp.ReadSet())
-		transmission_vector_ptr = new vector[unsigned int]()
-		self.thisptr.get_super_reads(read_sets, transmission_vector_ptr)
+# 		for i in range(len(self.pedigree)):
+# 			read_sets.push_back(new cpp.ReadSet())
+# 		transmission_vector_ptr = new vector[unsigned int]()
+# 		self.thisptr.get_super_reads(read_sets, transmission_vector_ptr)
 		
-		results = []
-		for i in range(read_sets.size()):
-			rs = ReadSet()
-			del rs.thisptr
-			rs.thisptr = deref(read_sets)[i]
-			results.append(rs)
+# 		results = []
+# 		for i in range(read_sets.size()):
+# 			rs = ReadSet()
+# 			del rs.thisptr
+# 			rs.thisptr = deref(read_sets)[i]
+# 			results.append(rs)
 
-		python_transmission_vector = list(transmission_vector_ptr[0])
-		del transmission_vector_ptr
-		return results, python_transmission_vector
+# 		python_transmission_vector = list(transmission_vector_ptr[0])
+# 		del transmission_vector_ptr
+# 		return results, python_transmission_vector
 
-	def get_optimal_cost(self):
-		"""Returns the cost resulting from solving the Minimum Error Correction (MEC) problem."""
-		return self.thisptr.get_optimal_score()
+# 	def get_optimal_cost(self):
+# 		"""Returns the cost resulting from solving the Minimum Error Correction (MEC) problem."""
+# 		return self.thisptr.get_optimal_score()
 
-	def get_optimal_partitioning(self):
-		"""Returns a list of the same size as the read set, where each entry is either 0 or 1,
-		telling whether the corresponding read is in partition 0 or in partition 1,"""
-		cdef vector[bool]* p = self.thisptr.get_optimal_partitioning()
-		result = [0 if x else 1 for x in p[0]]
-		del p
-		return result
+# 	def get_optimal_partitioning(self):
+# 		"""Returns a list of the same size as the read set, where each entry is either 0 or 1,
+# 		telling whether the corresponding read is in partition 0 or in partition 1,"""
+# 		cdef vector[bool]* p = self.thisptr.get_optimal_partitioning()
+# 		result = [0 if x else 1 for x in p[0]]
+# 		del p
+# 		return result
 
 
 cdef class Pedigree:
@@ -513,18 +519,32 @@ def get_max_genotype_alleles():
 	return cpp.get_max_genotype_alleles()
 
 
-cdef class GenotypeDPTable:
-	def __cinit__(self, numeric_sample_ids, ReadSet readset, recombcost, Pedigree pedigree, positions = None):
+cdef class GenotypeHMM:
+	def __cinit__(self, numeric_sample_ids, ReadSet readset, recombcost, Pedigree pedigree, n_samples, positions = None, n_allele_positions = None, allele_references = None):
 		"""Build the DP table from the given read set which is assumed to be sorted;
 		that is, the variants in each read must be sorted by position and the reads
 		in the read set must also be sorted (by position of their left-most variant).
 		"""
 		cdef vector[unsigned int]* c_positions = NULL
+		cdef vector[unsigned int]* c_n_allele_positions = NULL
+		cdef vector[vector[unsigned int]]* c_allele_references = NULL
+		cdef unsigned int n_references = n_samples
 		if positions is not None:
 			c_positions = new vector[unsigned int]()
 			for pos in positions:
 				c_positions.push_back(pos)
-		self.thisptr = new cpp.GenotypeDPTable(readset.thisptr, recombcost, pedigree.thisptr, c_positions)
+		if n_allele_positions is not None:
+			c_n_allele_positions = new vector[unsigned int]()
+			for pos in n_allele_positions:
+				c_n_allele_positions.push_back(pos)
+		if allele_references is not None:
+			c_allele_references = new vector[vector[unsigned int]]()
+			c_allele_references.resize(len(allele_references))
+			for ix, pos in enumerate(allele_references):
+				for reference_sample in pos:
+					for chr in reference_sample:
+						c_allele_references[ix].push_back(int(chr))
+		self.thisptr = new cpp.GenotypeHMM(readset.thisptr, recombcost, pedigree.thisptr,  n_references, c_positions, c_n_allele_positions, c_allele_references)
 		self.pedigree = pedigree
 		self.numeric_sample_ids = numeric_sample_ids
 
@@ -535,67 +555,81 @@ cdef class GenotypeDPTable:
 		return PhredGenotypeLikelihoods(self.thisptr.get_genotype_likelihoods(self.numeric_sample_ids[sample_id],pos))
 
 
-def compute_genotypes(ReadSet readset, positions = None):
+def compute_genotypes(ReadSet readset, positions = None, n_allele_position_list = None):
 	cdef vector[cpp.Genotype]* genotypes_vector = new vector[cpp.Genotype]()
 	cdef vector[cpp.GenotypeDistribution]* gl_vector = new vector[cpp.GenotypeDistribution]()
 	cdef vector[unsigned int]* c_positions = NULL
+	cdef vector[unsigned int]* c_n_allele_positions = NULL
 	if positions is not None:
 		c_positions = new vector[unsigned int]()
 		for pos in positions:
 			c_positions.push_back(pos)
-	cpp.compute_genotypes(readset.thisptr[0], genotypes_vector, gl_vector, c_positions)
+	if n_allele_position_list is not None:
+		c_n_allele_positions = new vector[unsigned int]()
+		for pos in n_allele_position_list:
+			c_n_allele_positions.push_back(pos)
+	cpp.compute_genotypes(readset.thisptr[0], genotypes_vector, gl_vector, c_positions, c_n_allele_positions)
 	# TODO: Inefficient
 	genotypes = [Genotype(genotype.as_vector()) for genotype in genotypes_vector[0]]
 	#genotypes = list(genotypes_vector[0])
-	gls = [(gl_vector[0][i].probabilityOf(0), gl_vector[0][i].probabilityOf(1), gl_vector[0][i].probabilityOf(2)) for i in range(gl_vector[0].size())]
+	gls = []
+	for i in range(gl_vector[0].size()):
+		tmp = []
+		for j in range(gl_vector[0][i].getSize()):
+			tmp.append(gl_vector[0][i].probabilityOf(j))
+		gls.append(tmp)
 	del genotypes_vector
 	del gl_vector
+	if positions is not None:
+		del c_positions
+	if n_allele_position_list is not None:
+		del c_n_allele_positions
 	return genotypes, gls
 
 
-def compute_polyploid_genotypes(ReadSet readset, ploidy, positions=None):
-	cdef vector[cpp.Genotype]* genotypes_vector = new vector[cpp.Genotype]()
-	cdef vector[unsigned int]* c_positions = NULL
-	if positions is not None:
-		c_positions = new vector[unsigned int]()
-		for pos in positions:
-			c_positions.push_back(pos)
-	cpp.compute_polyploid_genotypes(readset.thisptr[0], ploidy, genotypes_vector, c_positions)
-	genotypes = list([ gt.as_vector() for gt in genotypes_vector[0] ])
-	del genotypes_vector
-	return genotypes
+# def compute_polyploid_genotypes(ReadSet readset, ploidy, positions=None):
+# 	cdef vector[cpp.Genotype]* genotypes_vector = new vector[cpp.Genotype]()
+# 	cdef vector[unsigned int]* c_positions = NULL
+# 	if positions is not None:
+# 		c_positions = new vector[unsigned int]()
+# 		for pos in positions:
+# 			c_positions.push_back(pos)
+# 	cpp.compute_polyploid_genotypes(readset.thisptr[0], ploidy, genotypes_vector, c_positions)
+# 	genotypes = list([ gt.as_vector() for gt in genotypes_vector[0] ])
+# 	del genotypes_vector
+# 	return genotypes
 
 
-cdef class HapChatCore:
-	def __cinit__(self, ReadSet readset):
-		self.thisptr = new cpp.HapChatCore(readset.thisptr)
-	def __dealloc__(self):
-		del self.thisptr
-	def get_length(self):
-		return self.thisptr.get_length()
-	def get_super_reads(self):
-		cdef vector[cpp.ReadSet*]* read_sets = new vector[cpp.ReadSet*]()
-		leng=self.thisptr.get_length()
-		for i in range(leng):
-			read_sets.push_back(new cpp.ReadSet())
-		self.thisptr.get_super_reads(read_sets)
+# cdef class HapChatCore:
+# 	def __cinit__(self, ReadSet readset):
+# 		self.thisptr = new cpp.HapChatCore(readset.thisptr)
+# 	def __dealloc__(self):
+# 		del self.thisptr
+# 	def get_length(self):
+# 		return self.thisptr.get_length()
+# 	def get_super_reads(self):
+# 		cdef vector[cpp.ReadSet*]* read_sets = new vector[cpp.ReadSet*]()
+# 		leng=self.thisptr.get_length()
+# 		for i in range(leng):
+# 			read_sets.push_back(new cpp.ReadSet())
+# 		self.thisptr.get_super_reads(read_sets)
 		
-		results = []
-		for i in range(read_sets.size()):
-			rs = ReadSet()
-			del rs.thisptr
-			rs.thisptr = deref(read_sets)[i]
-			results.append(rs)
+# 		results = []
+# 		for i in range(read_sets.size()):
+# 			rs = ReadSet()
+# 			del rs.thisptr
+# 			rs.thisptr = deref(read_sets)[i]
+# 			results.append(rs)
 		
-		return results, None
-	def get_optimal_cost(self):
-		return self.thisptr.get_optimal_cost()
-	def get_optimal_partitioning(self):
-		cdef vector[bool]* p = self.thisptr.get_optimal_partitioning()
-		result = ['*' for x in p[0]]
-		del p
-		return result
+# 		return results, None
+# 	def get_optimal_cost(self):
+# 		return self.thisptr.get_optimal_cost()
+# 	def get_optimal_partitioning(self):
+# 		cdef vector[bool]* p = self.thisptr.get_optimal_partitioning()
+# 		result = ['*' for x in p[0]]
+# 		del p
+# 		return result
 
 
 include 'readselect.pyx'
-include 'polyphase_solver.pyx'
+# include 'polyphase_solver.pyx'

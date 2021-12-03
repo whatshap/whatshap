@@ -7,98 +7,64 @@
 
 using namespace std;
 
-TransitionProbabilityComputer::TransitionProbabilityComputer(size_t column_index, unsigned int recombcost, const Pedigree* pedigree, const std::vector<PedigreePartitions*>& pedigree_partitions)
-    :transmission_configurations(pow(4, pedigree->triple_count())),
-     allele_assignments(1<<pedigree_partitions[0]->count()),
-     transitions_transmissions(transmission_configurations,transmission_configurations,0.0L),
-     pedigree(pedigree),
-     pedigree_partitions(pedigree_partitions),
-     transitions_allele_assignments(transmission_configurations,allele_assignments)
-{
-    size_t trio_count = pedigree->triple_count();
-
-    // precompute bernoulli distribution
-    long double recomb_prob = pow(10,-(long double)(recombcost)/10.0L);
-    std::vector<long double> bernoulli;
-    bernoulli.reserve(2*trio_count);
-    for(unsigned int i=0; i <= 2*trio_count; ++i){
-      bernoulli.emplace_back(pow(recomb_prob,i)*pow(1-recomb_prob,2*trio_count-i));
-    }
-
-    for(size_t i = 0; i < transmission_configurations; ++i){
-        // each row must sum up to 1 and consider also all genotype combinations
-        long double normalization_sum = 0.0L;
-        for(size_t j = 0; j < transmission_configurations; ++j){
-            size_t x = i ^ j;
-            // count how many bits are set
-            x = popcount(x);
-            long double prob = bernoulli[x];
-            transitions_transmissions.set(i,j, prob);
-            normalization_sum += prob;
+TransitionProbabilityComputer::TransitionProbabilityComputer(const unsigned int& recombcost, Column& column, const vector<unsigned int>& allele_reference) {
+    pr = (1 - exp(-recombcost/allele_reference.size()))/allele_reference.size();
+    qr = exp(-recombcost/allele_reference.size()) + pr;
+    vector<unsigned int>* read_ids = column.get_read_ids();
+    vector<unsigned int>* next_read_ids = column.get_next_read_ids();
+    vector<unsigned int>* active_nonterminating_read_ids = column.get_active_nonterminating_read_ids();
+    vector<unsigned int>* active_terminating_read_ids = column.get_active_terminating_read_ids();
+    vector<vector<unsigned int> > allele_to_reference(allele_reference.size());
+    unsigned int n_alleles = 0;
+    for (int i = 0; i < allele_reference.size(); i++) {
+        if (n_alleles < allele_reference[i]) {
+            n_alleles = allele_reference[i];
         }
-        // normalize row
-        for(size_t j = 0; j < transmission_configurations; ++j){
-            transitions_transmissions.at(i,j) /= normalization_sum;
-        }
+        allele_to_reference[allele_reference[i]].push_back(i);
     }
-
-    // compute transition probabilities corresponding to allele assignments
-    for(size_t i = 0; i < transmission_configurations; ++i){
-        // maps genotype vectors to the number of possible allele assignments
-        std::map< std::vector<Genotype>, size_t > genotypes_to_haplotype_counts;
-        // maps a haplotype to the corresponding genotype
-        std::vector< std::vector<Genotype> > haplotypes_to_genotypes(allele_assignments);
-        for(unsigned int a = 0; a < allele_assignments; ++a){
-            long double prob = 1.0L;
-            vector<Genotype> genotype_vector;
-            for (size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index) {
-                unsigned int partition0 = pedigree_partitions[i]->haplotype_to_partition(individuals_index,0);
-                unsigned int partition1 = pedigree_partitions[i]->haplotype_to_partition(individuals_index,1);
-                unsigned int allele0 = (a >> partition0) & 1;
-                unsigned int allele1 = (a >> partition1) & 1;
-
-                Genotype genotype(vector<unsigned int>{allele0, allele1});
-                const PhredGenotypeLikelihoods* gls = pedigree->get_genotype_likelihoods(individuals_index, column_index);
-                assert(gls != nullptr);
-                prob *= gls->get(genotype);
-                genotype_vector.push_back(genotype);
+    n_alleles++;
+    allele_to_reference.resize(n_alleles);
+    transition_probability_matrices.resize(n_alleles*n_alleles);
+    reordering_map.resize(n_alleles*n_alleles);
+    vector<unsigned int> paths_i;
+    vector<unsigned int> paths_j;
+    vector<unsigned int> previous_references;
+    unsigned int matrix_index;
+    unsigned int count;
+    double value;
+    vector<unsigned int>::iterator reference_i;
+    vector<unsigned int>::iterator reference_j;
+    
+    // Takes n_haplotype_path^4 to make the transition matrix. Have to work on decreasing this as it affects scalability.
+    for (int i = 0; i < n_alleles; i++) {
+        paths_i = allele_to_reference[i];
+        for (int j = 0; j < n_alleles; j++) {
+            paths_j = allele_to_reference[j];
+            matrix_index = i*n_alleles + j;
+            transition_probability_matrices[matrix_index].remake(pow(allele_reference.size(),2), paths_i.size()*paths_j.size(), 0.0);
+            for (unsigned int p_index = 0; p_index < pow(allele_reference.size(),2); p_index++) {
+                count = 0;
+                previous_references = column.index_to_reference_allele(p_index, 0);
+                for (reference_i = paths_i.begin(); reference_i < paths_i.end(); reference_i++) {
+                    for (reference_j = paths_j.begin(); reference_j < paths_j.end(); reference_j++) {
+                        if ((*reference_i == previous_references[0]) && (*reference_j == previous_references[1])) value = qr*qr;
+                        if ((*reference_i != previous_references[0]) && (*reference_j == previous_references[1])) value = pr*qr;
+                        if ((*reference_i == previous_references[0]) && (*reference_j != previous_references[1])) value = pr*qr;
+                        if ((*reference_i != previous_references[0]) && (*reference_j != previous_references[1])) value = pr*pr;
+                        reordering_map[matrix_index].push_back(column.reference_allele_to_index(*reference_i, *reference_j));
+                        transition_probability_matrices[matrix_index].set(p_index, count, value);
+                        count++;
+                    }
+                }
             }
-
-            // keep the results
-            genotypes_to_haplotype_counts[genotype_vector] += 1;
-            transitions_allele_assignments.set(i,a,prob);
-            haplotypes_to_genotypes[a] = genotype_vector;
-        }
-
-        // divide each probability by the number of times the genotype vector occurs
-        long double normalization_sum = 0.0L;
-        for(unsigned int a = 0; a < allele_assignments; ++a){
-            transitions_allele_assignments.at(i,a) /= genotypes_to_haplotype_counts[haplotypes_to_genotypes[a]];
-            normalization_sum += transitions_allele_assignments.at(i,a);
-        }
-
-        // normalize the probabilities
-        for(unsigned int a = 0; a < allele_assignments; ++a){
-            transitions_allele_assignments.at(i,a) /= normalization_sum;
         }
     }
 }
 
-long double TransitionProbabilityComputer::get_prob_transmission(unsigned int t1, unsigned int t2)
-{
-    assert(t1 < transmission_configurations);
-    assert(t2 < transmission_configurations);
-    return transitions_transmissions.at(t1,t2);
+Vector2D<double> * TransitionProbabilityComputer::get_transition_matrix(unsigned int a1, unsigned int a2) {
+    return &(this->transition_probability_matrices[a1*(int)(sqrt(transition_probability_matrices.size()))+a2]);
 }
 
-long double TransitionProbabilityComputer::get_prob_allele_assignment(unsigned int t, unsigned int a){
-    return transitions_allele_assignments.at(t,a);
-}
-
-size_t TransitionProbabilityComputer::popcount(size_t& x) {
-    unsigned int count = 0;
-    for (;x; x >>= 1) {
-        count += x & 1;
-    }
-    return count;
+vector<unsigned int> * TransitionProbabilityComputer::get_reordering_map(unsigned int a1, unsigned int a2) {
+    return &(this->reordering_map[a1*(int)(sqrt(reordering_map.size()))+a2]);
 }

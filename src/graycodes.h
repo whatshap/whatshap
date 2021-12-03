@@ -2,6 +2,7 @@
 #define GRAYCODES_H
 
 #include <iostream>
+#include <vector>
 
 /** A class to generate Gray codes. 
   * Implementation is based on
@@ -20,6 +21,10 @@ class GrayCodes {
 		  *                    returned via this variable.
 		  */
 		int_t get_next(int* changed_bit = 0);
+
+		// Returns the binary form of bipartiton based on number of active reads.
+		std::vector<int> toBinary(int n);
+
 	private:
 		int length;
 		int i;
