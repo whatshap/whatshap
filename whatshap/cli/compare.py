@@ -158,15 +158,12 @@ def compute_matching_genotype_pos(phasing0, phasing1):
     assert len(phasing0[0]) == len(phasing1[0])
     assert all(len(phasing0[i]) == len(phasing0[0]) for i in range(1, len(phasing0)))
     num_vars = len(phasing0[0])
-    matching_pos = []
-    for i in range(num_vars):
-        try:
-            p0 = [int(hap[i]) for hap in phasing0]
-            p1 = [int(hap[i]) for hap in phasing1]
-        except ValueError:
-            continue
-        if Genotype(p0) == Genotype(p1):
-            matching_pos.append(i)
+    matching_pos = [
+        i
+        for i in range(num_vars)
+        if Genotype([int(hap[i]) for hap in phasing0])
+        == Genotype([int(hap[i]) for hap in phasing1])
+    ]
     return matching_pos
 
 
@@ -271,7 +268,7 @@ def poly_num_switches(perm0, perm1):
 
 
 def compare_block(phasing0, phasing1):
-    """Input are two lists of haplotype sequences over {0,1}."""
+    """ Input are two lists of haplotype sequences over {0,1}. """
     assert len(phasing0) == len(phasing1)
     ploidy = len(phasing0)
 
@@ -523,27 +520,14 @@ def compare_pair(
     bed_records = []
     total_errors = PhasingErrors()
     total_compared_variants = 0
-    phase_to_str = {
-        0: "0",
-        1: "1",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5",
-        6: "6",
-        7: "7",
-        8: "8",
-        9: "9",
-        None: ".",
-    }
     for block in block_intersection.values():
         if len(block) < 2:
             continue
         phasing0 = []
         phasing1 = []
         for j in range(ploidy):
-            p0 = "".join(phase_to_str[phases[0][i].phase[j]] for i in block)
-            p1 = "".join(phase_to_str[phases[1][i].phase[j]] for i in block)
+            p0 = "".join(str(phases[0][i].phase[j]) for i in block)
+            p1 = "".join(str(phases[1][i].phase[j]) for i in block)
             phasing0.append(p0)
             phasing1.append(p1)
         block_positions = [sorted_variants[i].position for i in block]
