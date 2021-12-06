@@ -174,12 +174,12 @@ else:
     cmdclass = {"build_ext": BuildExt, "sdist": SDist}
     ext_modules = extensions
     install_requires = [
-        "pysam~=0.17.0",
+        "pysam>=0.18.0",
         "pyfaidx>=0.5.5.2",
         "networkx",
         "biopython>=1.73",  # pyfaidx needs this for reading bgzipped FASTA files
         "scipy",
-        "xopen",
+        "xopen>=1.2.0",
         "dataclasses; python_version<'3.7'",
     ]
 
