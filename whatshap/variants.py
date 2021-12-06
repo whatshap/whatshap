@@ -13,7 +13,6 @@ from .bam import SampleBamReader, MultiBamReader, BamReader
 from .align import edit_distance, edit_distance_affine_gap
 from ._variants import _iterate_cigar
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -520,17 +519,17 @@ class ReadSetReader:
             distance_alts = []
             for alt in alts:
                 distance_alts.append(edit_distance(query, alt))
-        sorted_distance_alts = distance_alts.sort()
         base_qual_score = 30
         distances = [distance_ref] + distance_alts
+        sorted_distance = sorted(distances)
         distance_norm = [float(i)/sum(distances) for i in distances]
-        if distance_ref < sorted_distance_alts[0]:
+        if sorted_distance[0] == sorted_distance[1]:
+            return None, None, None # Can't decide
+        if distance_ref == sorted_distance[0]:
             return 0, distance_norm, base_qual_score  # detected REF
-        elif distance_ref > sorted_distance_alts[0] and sorted_distance_alts[0] != sorted_distance_alts[1]:
-            return distance_alts.index(min(distance_alts))+1, distance_norm, base_qual_score  # detected ALT
         else:
-            return None, None  # cannot decide
-
+            return distance_alts.index(min(distance_alts))+1, distance_norm, base_qual_score  # detected ALT
+        
     @staticmethod
     def detect_alleles_by_alignment(
         variants,

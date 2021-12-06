@@ -344,8 +344,11 @@ def run_genotype(
                 accessible_positions_allele_references = []
                 for position in accessible_positions:
                     accessible_positions_n_allele.append(n_allele_position[position])
-                    accessible_positions_allele_references.append(allele_references[position])
-
+                    allele_reference_to_list = []
+                    for ref_sample in allele_references[position]:
+                        for hap in ref_sample:
+                            allele_reference_to_list.append(int(hap))
+                    accessible_positions_allele_references.append(allele_reference_to_list)
                 logger.info(
                     "Variants covered by at least one phase-informative "
                     "read in at least one individual after read selection: %d",

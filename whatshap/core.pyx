@@ -541,9 +541,8 @@ cdef class GenotypeHMM:
 			c_allele_references = new vector[vector[unsigned int]]()
 			c_allele_references.resize(len(allele_references))
 			for ix, pos in enumerate(allele_references):
-				for reference_sample in pos:
-					for chr in reference_sample:
-						c_allele_references[ix].push_back(int(chr))
+				for hap in pos:
+					c_allele_references.at(ix).push_back(hap)
 		self.thisptr = new cpp.GenotypeHMM(readset.thisptr, recombcost, pedigree.thisptr,  n_references, c_positions, c_n_allele_positions, c_allele_references)
 		self.pedigree = pedigree
 		self.numeric_sample_ids = numeric_sample_ids
