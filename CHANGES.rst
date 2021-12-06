@@ -2,8 +2,8 @@
 Changes
 =======
 
-development version
--------------------
+v1.2 (2021-12-08)
+-----------------
 
 * :issue:`208`: Fix ``phase --merge-reads``. This option has never worked correctly and just led to
   ``whatshap phase`` taking a very long time and in some cases even crashing. With the fix, the
