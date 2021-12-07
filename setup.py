@@ -1,36 +1,8 @@
-"""
-While we use Cython as programming language for the extension modules, we
-follow Cython's recommendation to distribute pre-generated .c/.cpp files.
-Thus, Cython does not need to be installed on the machine of the user installing
-WhatsHap.
-"""
-import sys
 import os
-import os.path
 from setuptools import setup, Extension, find_packages
-from setuptools.command.sdist import sdist
-from setuptools.command.build_ext import build_ext
 from distutils.sysconfig import customize_compiler
-
-
-def no_cythonize(extensions, **_ignore):
-    """
-    Change file extensions from .pyx to .c or .cpp.
-
-    Copied from Cython documentation
-    """
-    for extension in extensions:
-        sources = []
-        for sfile in extension.sources:
-            path, ext = os.path.splitext(sfile)
-            if ext in (".pyx", ".py"):
-                if extension.language == "c++":
-                    ext = ".cpp"
-                else:
-                    ext = ".c"
-                sfile = path + ext
-            sources.append(sfile)
-        extension.sources[:] = sources
+import Cython.Build
+from Cython.Build import cythonize
 
 
 def CppExtension(name, sources):
@@ -91,21 +63,7 @@ extensions = [
 ]
 
 
-class BuildExt(build_ext):
-    def run(self):
-        # If we encounter a PKG-INFO file, then this is likely a .tar.gz/.zip
-        # file retrieved from PyPI that already includes the pre-cythonized
-        # extension modules, and then we do not need to run cythonize().
-        if os.path.exists("PKG-INFO"):
-            no_cythonize(self.extensions)
-        else:
-            # Otherwise, this is a 'developer copy' of the code, and then the
-            # only sensible thing is to require Cython to be installed.
-            from Cython.Build import cythonize
-
-            self.extensions = cythonize(self.extensions)
-        super().run()
-
+class BuildExt(Cython.Build.build_ext):
     def build_extensions(self):
         # Remove the warning about “-Wstrict-prototypes” not being valid for C++,
         # see http://stackoverflow.com/a/36293331/715090
@@ -121,15 +79,6 @@ class BuildExt(build_ext):
         super().build_extensions()
 
 
-class SDist(sdist):
-    def run(self):
-        # Make sure the compiled Cython files in the distribution are up-to-date
-        from Cython.Build import cythonize
-
-        cythonize(self.distribution.ext_modules)
-        super().run()
-
-
 with open("doc/README.rst", encoding="utf-8") as f:
     long_description = f.read()
 
@@ -140,7 +89,7 @@ if os.environ.get("READTHEDOCS") == "True":
     ext_modules = []
     install_requires = []
 else:
-    cmdclass = {"build_ext": BuildExt, "sdist": SDist}
+    cmdclass = {"build_ext": BuildExt}
     ext_modules = extensions
     install_requires = [
         "pysam>=0.18.0",
@@ -163,7 +112,7 @@ setup(
     long_description_content_type="text/x-rst",
     license="MIT",
     cmdclass=cmdclass,
-    ext_modules=ext_modules,
+    ext_modules=cythonize(ext_modules),
     packages=find_packages(),
     entry_points={"console_scripts": ["whatshap = whatshap.__main__:main"]},
     install_requires=install_requires,
