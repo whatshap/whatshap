@@ -8,12 +8,9 @@ import sys
 import os
 import os.path
 from setuptools import setup, Extension, find_packages
-from distutils.version import LooseVersion
 from setuptools.command.sdist import sdist
 from setuptools.command.build_ext import build_ext
 from distutils.sysconfig import customize_compiler
-
-MIN_CYTHON_VERSION = "0.29"
 
 
 def no_cythonize(extensions, **_ignore):
@@ -34,28 +31,6 @@ def no_cythonize(extensions, **_ignore):
                 sfile = path + ext
             sources.append(sfile)
         extension.sources[:] = sources
-
-
-def check_cython_version():
-    """exit if Cython not found or out of date"""
-    try:
-        from Cython import __version__ as cyversion
-    except ImportError:
-        sys.stdout.write(
-            "ERROR: Cython is not installed. Install at least Cython version "
-            + str(MIN_CYTHON_VERSION)
-            + " to continue.\n"
-        )
-        sys.exit(1)
-    if LooseVersion(cyversion) < LooseVersion(MIN_CYTHON_VERSION):
-        sys.stdout.write(
-            "ERROR: Your Cython is at version '"
-            + str(cyversion)
-            + "', but at least version "
-            + str(MIN_CYTHON_VERSION)
-            + " is required.\n"
-        )
-        sys.exit(1)
 
 
 def CppExtension(name, sources):
@@ -126,7 +101,6 @@ class BuildExt(build_ext):
         else:
             # Otherwise, this is a 'developer copy' of the code, and then the
             # only sensible thing is to require Cython to be installed.
-            check_cython_version()
             from Cython.Build import cythonize
 
             self.extensions = cythonize(self.extensions)
@@ -152,7 +126,6 @@ class SDist(sdist):
         # Make sure the compiled Cython files in the distribution are up-to-date
         from Cython.Build import cythonize
 
-        check_cython_version()
         cythonize(self.distribution.ext_modules)
         super().run()
 
