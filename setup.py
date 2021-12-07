@@ -193,7 +193,6 @@ setup(
     ext_modules=ext_modules,
     packages=find_packages(),
     entry_points={"console_scripts": ["whatshap = whatshap.__main__:main"]},
-    setup_requires=["setuptools_scm"],  # Support pip versions that don't know about pyproject.toml
     install_requires=install_requires,
     extras_require={"dev": ["Cython", "pytest", "sphinx", "sphinx_issues", "pysam-stubs"]},
     python_requires=">=3.6",
