@@ -5,6 +5,7 @@ name: monthly macOS
 on:
   schedule:
   - cron: "0 8 7 * *"
+  workflow_dispatch:
 
 jobs:
   test:
