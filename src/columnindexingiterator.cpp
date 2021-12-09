@@ -37,6 +37,6 @@ unsigned int ColumnIndexingIterator::get_b_index() {
 	return this->b_index;
 }
 
-vector<int> ColumnIndexingIterator::get_binary_vector() {
+vector<int> ColumnIndexingIterator::get_binary_vector() const {
 	return this->binaryVector;
 }

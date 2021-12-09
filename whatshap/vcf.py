@@ -329,6 +329,7 @@ class VcfReader:
     def __init__(
         self,
         path: Union[str, PathLike],
+        bam_samples: List[str] = None,
         indels: bool = False,
         phases: bool = False,
         genotype_likelihoods: bool = False,
@@ -350,9 +351,9 @@ class VcfReader:
         self._phases = phases
         self._genotype_likelihoods = genotype_likelihoods
         self._ignore_genotypes = ignore_genotypes
-        self.samples = list(self._vcf_reader.header.samples)  # intentionally public
+        self.samples = bam_samples  # intentionally public   # Make them into BAM File samples
         self.ploidy = ploidy
-        logger.debug("Found %d sample(s) in the VCF file.", len(self.samples))
+        logger.debug("Found %d sample(s) in the BAM file.", len(self.samples))      # BAM File samples
 
     def __enter__(self):
         return self
@@ -443,7 +444,7 @@ class VcfReader:
         n_snvs = 0
         n_other = 0
         n_multi = 0
-        table = VariantTable(chromosome, self.samples)
+        table = VariantTable(chromosome, self.samples)      # BAM Samples
         prev_position = None
         ## records is a list of VariantRecord objects
         for record in records:
@@ -458,7 +459,7 @@ class VcfReader:
             ###pos, ref, alt = record.start, str(record.ref), str(record.alts[0])
             pos, ref = record.start, str(record.ref)
             alts = record.alts
-            allele_origin = [x.split("|") for x in record.__str__().split()[-len(self.samples):]]
+            allele_origin = [x.split("|") for x in record.__str__().split()[-len(list(self._vcf_reader.header.samples)):]]       # VCF samples (reference)
             
             for alt in alts:
                 if len(ref) == len(alt) == 1:
@@ -479,6 +480,10 @@ class VcfReader:
                 )
                 continue
             prev_position = pos
+
+            #-----------------------------------------------------------------------------------------------------------------------------
+            # FIGURE THIS PART OUT. HOW TO DISTINGUISH BETWEEN INPUT VARIANT FILE AND PHASED INPUT VCFs FOR PHASES OF GENOTYPE LIKELIHOODS
+            #-----------------------------------------------------------------------------------------------------------------------------
 
             # Read phasing information (allow GT/PS or HP phase information, but not both),
             # if requested
@@ -519,7 +524,7 @@ class VcfReader:
                                 )
                     phases.append(phase)
             else:
-                phases = [None] * len(record.samples)
+                phases = [None] * len(self.samples)
 
             # Read genotype likelihoods, if requested
             if self._genotype_likelihoods:
@@ -536,7 +541,7 @@ class VcfReader:
                     else:
                         genotype_likelihoods.append(None)
             else:
-                genotype_likelihoods = [None] * len(record.samples)
+                genotype_likelihoods = [None] * len(self.samples)
 
             if not self._ignore_genotypes:
                 # check for ploidy consistency and limits
@@ -559,8 +564,8 @@ class VcfReader:
 
                 genotypes = [genotype_code(geno_list) for geno_list in genotype_lists]
             else:
-                genotypes = [Genotype([]) for i in range(len(self.samples))]
-                phases = [None] * len(self.samples)
+                genotypes = [Genotype([]) for i in range(len(self.samples))]        #BAM Samples
+                phases = [None] * len(self.samples)         #BAM Samples
             variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alts, allele_origin=allele_origin)
             table.add_variant(variant, genotypes, phases, genotype_likelihoods)
 

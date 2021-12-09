@@ -32,28 +32,28 @@ GenotypeHMM::GenotypeHMM(ReadSet* read_set, const vector<float>& recombcost, con
      allele_references(allele_references)
 {
    
-   genotype_likelihood_table = Vector2D<genotype_likelihood_t>(pedigree->size(),input_column_iterator.get_column_count());
-   assert (pedigree->size() == 1);
-   for (size_t i = 0; i < pedigree->size(); i ++) {
-       for (size_t j = 0; j < input_column_iterator.get_column_count(); j++) {
-           genotype_likelihood_table.set(i, j, genotype_likelihood_t(binomial_coefficient(n_allele_positions->at(j)+1, n_allele_positions->at(j)-1)));
-       }
-   }
-   read_set->reassignReadIds();
+    genotype_likelihood_table = Vector2D<genotype_likelihood_t>(pedigree->size(),input_column_iterator.get_column_count());
+    assert (pedigree->size() == 1);
+    for (size_t i = 0; i < pedigree->size(); i ++) {
+        for (size_t j = 0; j < input_column_iterator.get_column_count(); j++) {
+            genotype_likelihood_table.set(i, j, genotype_likelihood_t(binomial_coefficient(n_allele_positions->at(j)+1, n_allele_positions->at(j)-1)));
+        }
+    }
+    read_set->reassignReadIds();
 
-   assert(input_column_iterator.get_column_count() == backward_input_column_iterator.get_column_count());
+    assert(input_column_iterator.get_column_count() == backward_input_column_iterator.get_column_count());
 
-   // translate all individual ids to individual indices
-   for(size_t i = 0; i<read_set->size(); ++i)
-   {
-       read_sources.push_back(pedigree->id_to_index(read_set->get(i)->getSampleID()));
-   }
+    // translate all individual ids to individual indices
+    for(size_t i = 0; i<read_set->size(); ++i)
+    {
+        read_sources.push_back(pedigree->id_to_index(read_set->get(i)->getSampleID()));
+    }
 
-   //compute forward and backward probabilities
-   compute_index();
-   compute_backward_prob();
-   compute_forward_prob();
-
+    //compute forward and backward probabilities
+    compute_index();            // This is working
+    compute_backward_prob();    // This is working
+    exit(1);
+    compute_forward_prob();     // This is not working
 }
 
 GenotypeHMM::~GenotypeHMM()
@@ -79,7 +79,7 @@ void GenotypeHMM::clear_backward_table()
 
 unique_ptr<vector<unsigned int> > GenotypeHMM::extract_read_ids(const vector<const Entry *>& entries) {
     unique_ptr<vector<unsigned int> > read_ids(new vector<unsigned int>());
-    for (size_t i=0; i<entries.size(); ++i) {
+    for (int i=0; i < entries.size(); i++) {
         read_ids->push_back(entries[i]->get_read_id());
     }
     return read_ids;
@@ -97,7 +97,7 @@ void GenotypeHMM::compute_index(){
     unique_ptr<vector<unsigned int> > next_read_ids;
     Column* current_column = nullptr;
     next_input_column = input_column_iterator.get_next();
-    next_read_ids = extract_read_ids(*current_input_column);
+    next_read_ids = extract_read_ids(*next_input_column);
     
     for(size_t column_index=0; column_index < input_column_iterator.get_column_count(); ++column_index){
         
@@ -250,14 +250,11 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
         iterator->advance(&bit_changed);
         // Update the emission probability based on the bipartition defined by the iterator
         update_emission_probability(&emission_probability_computer, bit_changed, *iterator, *current_input_column);
-
         // Determine the indices that are compatible with with the bipartition at position column_index
         long double backward_prob = 1.0L;
         int b_index = iterator->get_b_index();
         vector<unsigned int> compatible_bipartitions = hmm_columns[column_index-1]->get_backward_compatible_bipartitions(b_index);
-
         // UPDATING THE BETA VALUES
-
         // Iterating over the allele pairs
         for (int allele_1 = 0; allele_1 < n_alleles; allele_1++) {
             for (int allele_2 = 0; allele_2 < n_alleles; allele_2++) {
@@ -454,7 +451,7 @@ vector<long double> GenotypeHMM::get_genotype_likelihoods(unsigned int individua
 
 }
 
-void GenotypeHMM::update_emission_probability(Vector2D<long double>* em_prob, const int bit_changed, ColumnIndexingIterator iterator, vector<const Entry *> entries) {
+void GenotypeHMM::update_emission_probability(Vector2D<long double>* em_prob, const int bit_changed, const ColumnIndexingIterator& iterator, vector<const Entry *>& entries) {
     int n_alleles = em_prob->get_size0();
     if (bit_changed >= 0) {
         int newBit = iterator.get_binary_vector()[bit_changed];
@@ -464,14 +461,15 @@ void GenotypeHMM::update_emission_probability(Vector2D<long double>* em_prob, co
         if (newBit == 1) {
             for (int i = 0; i < n_alleles; i++) {
                 for (int j = 0; j < n_alleles; j++) {
-                    em_prob->set(i, j, em_prob->at(i, j) * (entries.at(bit_changed)->get_emission_score()[j]/entries.at(bit_changed)->get_emission_score()[i]));
-                }
+                    long double new_value = em_prob->at(i, j) * (entries.at(bit_changed)->get_emission_score()[j]/entries.at(bit_changed)->get_emission_score()[i]);
+                    em_prob->set(i, j, new_value);}
             }
         }
         else {
             for (int i = 0; i < n_alleles; i++) {
                 for (int j = 0; j < n_alleles; j++) {
-                    em_prob->set(i, j, em_prob->at(i, j) * (entries.at(bit_changed)->get_emission_score()[i]/entries.at(bit_changed)->get_emission_score()[j]));
+                    long double new_value = em_prob->at(i, j) * (entries.at(bit_changed)->get_emission_score()[i]/entries.at(bit_changed)->get_emission_score()[j]);
+                    em_prob->set(i, j, new_value);
                 }
             }
         }

@@ -176,7 +176,7 @@ def run_genotype(
         # remove all likelihoods that may already be present
         vcf_reader = stack.enter_context(
             VcfReader(
-                variant_file, indels=indels, genotype_likelihoods=False, ignore_genotypes=True
+                variant_file, bam_samples=["HG002"], indels=indels, genotype_likelihoods=False, ignore_genotypes=True
             )
         )
 
@@ -227,7 +227,7 @@ def run_genotype(
         # compute genotype likelihood threshold
         gt_prob = 1.0 - (10 ** (-gt_qual_threshold / 10.0))
 
-        n_samples = len(list(vcf_reader.samples))
+        n_samples = len(list(vcf_reader._vcf_reader.header.samples))
 
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
 
@@ -285,7 +285,6 @@ def run_genotype(
                         )
                         variant_table.set_genotypes_of(sample, genotypes)
             else:
-
                 # use uniform genotype likelihoods for all individuals
                 for sample in samples:
                     variant_table.set_genotype_likelihoods_of(
@@ -403,6 +402,7 @@ def run_genotype(
                         accessible_positions_n_allele,
                         accessible_positions_allele_references
                     )
+                    
                     # store results
                     for s in family:
                         likelihood_list = variant_table.genotype_likelihoods_of(s)

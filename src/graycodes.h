@@ -10,7 +10,6 @@
   */
 class GrayCodes {
 	public:
-		typedef unsigned int int_t;
 
 		GrayCodes(int length);
 
@@ -20,7 +19,7 @@ class GrayCodes {
 		  * @param changed_bit If not null, the index of the changed bit is
 		  *                    returned via this variable.
 		  */
-		int_t get_next(int* changed_bit = 0);
+		unsigned int get_next(int* changed_bit = 0);
 
 		// Returns the binary form of bipartiton based on number of active reads.
 		std::vector<int> toBinary(int n);
@@ -28,8 +27,8 @@ class GrayCodes {
 	private:
 		int length;
 		int i;
-		int_t s;
-		int_t c;
+		unsigned int s;
+		unsigned int c;
 		int changed_bit;
 };
 

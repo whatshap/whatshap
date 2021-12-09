@@ -13,7 +13,7 @@ next_read_ids(next_read_ids) {
 
 	bool read_found;
 	n_references = *n_ref; // each reference sample has 2 haplotype paths.
-	column_size = pow(2,read_ids.size())*pow(n_references,2);
+	column_size = pow(2 ,read_ids.size()) * pow(n_references,2);
 	for (auto read = begin(read_ids); read != end(read_ids); read++) {
 		read_found = false;
 		for (auto next_read = begin(next_read_ids); next_read != end(next_read_ids); next_read++){
@@ -97,7 +97,7 @@ vector<unsigned int> Column::index_to_reference_allele(unsigned int& index, int 
 	vector<unsigned int>* ri;
 	if (column_type == 0) {
 		ri = &read_ids;
-		c_size = column_size;
+		c_size = pow(2, ri->size())*pow(n_references, 2);
 	}
 	else {
 		ri = &act_nonterminating_read_ids;

@@ -29,11 +29,9 @@ public:
 	  */
 	void advance(int* bit_changed = 0);
 
-	unsigned int get_r_index();
-
 	unsigned int get_b_index();
 
-	std::vector<int> get_binary_vector();
+	std::vector<int> get_binary_vector() const;
 };
 
 #endif

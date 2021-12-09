@@ -122,7 +122,7 @@ private:
   long double compute_transition_prob(size_t t1, size_t t2, size_t length, unsigned int r);
 
   // updates the emission probabilities
-  void update_emission_probability(Vector2D<long double>* em_prob, const int bit_changed, ColumnIndexingIterator iterator, std::vector<const Entry *> entries);
+  void update_emission_probability(Vector2D<long double>* em_prob, const int bit_changed, const ColumnIndexingIterator& iterator, std::vector<const Entry *>& entries);
 
   // used to initialize/clear tables
   template<class T>
