@@ -58,7 +58,9 @@ def main(argv=None):
     parser.add_argument("--debug", action="store_true", default=False, help="Print debug messages")
     subparsers = parser.add_subparsers()
     subparser = subparsers.add_parser(
-        subcommand_name, help=module.__doc__.split("\n", maxsplit=1)[1], description=module.__doc__
+        subcommand_name,
+        help=module.__doc__.strip().split("\n", maxsplit=1)[0],
+        description=module.__doc__,
     )
     module.add_arguments(subparser)
     args = parser.parse_args(argv)
@@ -93,7 +95,7 @@ def get_subcommand_name(arguments) -> str:
     subparsers = parser.add_subparsers()
 
     for module_name, docstring in cli_modules(cli_package):
-        help = docstring.split("\n", maxsplit=1)[1]
+        help = docstring.strip().split("\n", maxsplit=1)[0]
         subparser = subparsers.add_parser(
             module_name, help=help, description=docstring, add_help=False
         )
