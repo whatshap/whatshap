@@ -116,7 +116,10 @@ setup(
     packages=find_packages(),
     entry_points={"console_scripts": ["whatshap = whatshap.__main__:main"]},
     install_requires=install_requires,
-    extras_require={"dev": ["Cython", "pytest", "sphinx", "sphinx_issues", "pysam-stubs"]},
+    extras_require={
+        "dev": ["Cython", "pytest", "sphinx", "sphinx_issues", "pysam-stubs"],
+        "docs": ["sphinx-issues"],
+    },
     python_requires=">=3.6",
     classifiers=[
         "Development Status :: 4 - Beta",
