@@ -409,7 +409,7 @@ PED file format
 ---------------
 
 WhatsHap recognizes `PLINK-compatible PED
-files <http://pngu.mgh.harvard.edu/~purcell/plink/data.shtml>`_.
+files <https://zzz.bwh.harvard.edu/plink/data.shtml>`_.
 A PED file is a white-space (space or tab) delimited file with at least six
 columns. WhatsHap checks the column count, but uses only
 
