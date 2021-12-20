@@ -543,7 +543,8 @@ unphased
 
 phased
     The number of biallelic, heterozygous variants that *are* marked as phased in the input VCF.
-    This is again a subset of *heterozygous_variants*. Also, phased + unphased = heterozygous_variants.
+    This is again a subset of *heterozygous_variants*.
+    Also, phased + unphased + singletons = heterozygous_variants.
 
 phased_snvs
     The number of biallelic, heterozygous SNVs that are marked as phased in the input VCF.
