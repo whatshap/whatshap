@@ -20,7 +20,7 @@ def add_arguments(parser):
         "to process. If not given, use first sample found in VCF.")
     add("--chr-lengths", metavar="FILE",
         help="Override chromosome lengths in VCF with those from FILE (one line per chromosome, "
-        "tab separated '<chr> <length>'). Lengths are used to compute N50 values.")
+        "tab separated '<chr> <length>'). Lengths are used to compute NG50 values.")
     add("--tsv", metavar="FILE", help="Write statistics in tab-separated value format to FILE")
     add("--only-snvs", default=False, action="store_true", help="Only process SNVs "
         "and ignore all other variants.")
@@ -124,7 +124,7 @@ class DetailedStats:
     block_n50: float
 
 
-def compute_n50(blocks, chr_lengths):
+def compute_ng50(blocks, chr_lengths):
     chromosomes = set(b.chromosome for b in blocks)
     target_length = 0
     for chromosome in sorted(chromosomes):
@@ -132,11 +132,11 @@ def compute_n50(blocks, chr_lengths):
             target_length += chr_lengths[chromosome]
         except KeyError:
             logger.warning(
-                "Not able to compute N50 because chromosome length of %s not available", chromosome
+                "Not able to compute NG50 because length of contig '%s' not available", chromosome
             )
             return float("nan")
 
-    # Cut interleaved blocks to avoid inflating N50 in this case
+    # Cut interleaved blocks to avoid inflating NG50 in this case
     pos_sorted = sorted(blocks, key=lambda b: (b.chromosome, b.leftmost_variant.position))
     block_lengths = []
     for i, block in enumerate(pos_sorted):
@@ -221,7 +221,7 @@ class PhasingStats:
                 heterozygous_variants=self.heterozygous_variants,
                 heterozygous_snvs=self.heterozygous_snvs,
                 phased_snvs=phased_snvs,
-                block_n50=compute_n50(self.blocks, chr_lengths)
+                block_n50=compute_ng50(self.blocks, chr_lengths)
                 if chr_lengths is not None
                 else float("nan"),
             )
@@ -285,7 +285,7 @@ class PhasingStats:
         print("Average block length:".rjust(WIDTH), "{:11.2f} bp".format(stats.bp_per_block_avg))
         print("Longest block:".rjust(WIDTH), "{:8d}    bp".format(stats.bp_per_block_max))
         print("Shortest block:".rjust(WIDTH), "{:8d}    bp".format(stats.bp_per_block_min))
-        print("Block N50:".rjust(WIDTH), "{:8.0f}    bp".format(stats.block_n50))
+        print("Block NG50:".rjust(WIDTH), "{:8.0f}    bp".format(stats.block_n50))
         assert stats.phased + stats.unphased + stats.singletons == stats.heterozygous_variants
 
 
@@ -346,7 +346,7 @@ def run_stats(
             }
             if not chr_lengths:
                 logger.warning(
-                    "VCF header does not contain contig lengths, cannot compute N50. "
+                    "VCF header does not contain contig lengths, cannot compute NG50. "
                     "Consider using --chr-lengths"
                 )
 
@@ -415,7 +415,7 @@ def run_stats(
                             prev_block_fragment_end = variant.position + 1
 
             # Add chromosome information to each block. This is needed to
-            # sort blocks later when we compute N50s
+            # sort blocks later when we compute NG50s
             for block_id, block in blocks.items():
                 block.chromosome = chromosome
 
