@@ -532,6 +532,7 @@ def run_haplotag(
                     logger.info(
                         f"Skipping reads on '{chrom}' because the contig does not exist in the VCF"
                     )
+                    continue
                 else:
                     raise CommandLineError(
                         f"Input BAM/CRAM contains reads on contig '{chrom}', but that contig does "
