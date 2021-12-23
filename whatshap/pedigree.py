@@ -229,7 +229,7 @@ class UniformRecombinationCostComputer(RecombinationCostComputer):
         # results[i] is the phred-scaled recombination probability between
         # positions[i-1] and positions[i].
         
-        return [(positions[i] - positions[i - 1])*recombrate*eff_pop_size*(4/(10^6)) for i in range(1, len(positions))]
+        return [(positions[i] - positions[i - 1])*recombrate*eff_pop_size*(4/(pow(10,6))) for i in range(1, len(positions))]
 
     def compute(self, positions):
         return self.uniform_recombination_map(self._recombination_rate, self._eff_pop_size, positions)

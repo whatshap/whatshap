@@ -7,7 +7,7 @@
 class Entry {
 public:
 	
-	Entry(unsigned int r, int m, std::vector<float> e, int q);
+	Entry(unsigned int r, int m, std::vector<unsigned int> e, int q);
 	
 	// For blank entries.
 	Entry(unsigned int r, int m);
@@ -19,7 +19,7 @@ public:
 
 	void set_read_id(unsigned int r);
 	void set_allele_type(int m);
-	void set_emission_score(std::vector<float> e);
+	void set_emission_score(std::vector<unsigned int> e);
 	void set_quality(int q);
 
 	friend std::ostream& operator<<(std::ostream& out, const Entry& e);

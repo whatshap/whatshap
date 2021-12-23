@@ -8,5 +8,5 @@ class Variant:
 
     position: int
     allele: int
-    emission: Iterable[float]
+    emission: Iterable[int]
     quality: int

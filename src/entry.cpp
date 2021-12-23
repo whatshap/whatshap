@@ -1,12 +1,13 @@
 #include <cassert>
-
+#include <bits/stdc++.h>
+using namespace std;
 
 #include "entry.h"
 
-Entry::Entry(unsigned int r, int m, std::vector<float> e, int q) {
+Entry::Entry(unsigned int r, int m, std::vector<unsigned int> e, int q) {
 	read_id = r;
 	allele = m;
-	emission_score = e;
+	set_emission_score(e);
 	quality = q;
 }
 
@@ -43,8 +44,17 @@ void Entry::set_allele_type(int m) {
 }
 
 
-void Entry::set_emission_score(std::vector<float> e) {
-	emission_score = e;
+void Entry::set_emission_score(std::vector<unsigned int> e) {
+	emission_score.resize(e.size());
+	unsigned int d_max = *max_element(e.begin(), e.end());
+	unsigned int d_min = *min_element(e.begin(), e.end());
+	float normalization = 0.0;
+	int i = 0;
+	for (auto it = e.begin(); it != e.end(); it++, i++) {
+		emission_score[i] = pow(0.1, (*it - d_min)) * pow (0.9, (d_max - *it));
+		normalization += emission_score[i];
+	}
+	transform((emission_score).begin(), (emission_score).end(), (emission_score).begin(), std::bind2nd(std::divides<float>(), normalization));
 }
 
 void Entry::set_quality(int q) {
@@ -53,6 +63,10 @@ void Entry::set_quality(int q) {
 
 std::ostream& operator<<(std::ostream& out, const Entry& e) {
 	out << "Entry(" << e.read_id ;
-	out << ","<< e.allele << ",";
+	out << ","<< e.allele << ",(";
+	for (auto i : e.emission_score) {
+		out << i << ",";
+	}
+	out << ")," << e.quality << ")" << std::endl;
 	return out;
 }

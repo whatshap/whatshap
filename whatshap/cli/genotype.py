@@ -86,7 +86,7 @@ def determine_genotype(likelihoods: Sequence[float], threshold_prob: float, n_al
     assert bin_coeff(n_allele + 1, n_allele - 1) == len(likelihoods)
     to_sort = []
     for i in range(len(likelihoods)):
-        to_sort.append(likelihoods[int_to_diploid_multiallelic_gt(i)], i)
+        to_sort.append((likelihoods[int_to_diploid_multiallelic_gt(i)], i))
     to_sort.sort(key=lambda x: x[0])
 
     # make sure there is a unique maximum which is greater than the threshold
@@ -159,7 +159,7 @@ def run_genotype(
 
         # vcf writer for final genotype likelihoods
         vcf_writer = stack.enter_context(
-            GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=output)
+            GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=output, bam_samples = samples)
         )
         # vcf writer for only the prior likelihoods (if output is desired)
         prior_vcf_writer = None
@@ -409,7 +409,7 @@ def run_genotype(
                         genotypes_list = variant_table.genotypes_of(s)
 
                         for pos in range(len(accessible_positions)):
-                            likelihoods = forward_backward_table.get_genotype_likelihoods(s, pos)
+                            likelihoods = forward_backward_table.get_genotype_likelihoods(s, pos, accessible_positions_n_allele[pos])
 
                             # compute genotypes from likelihoods and store information
                             geno = determine_genotype(likelihoods, gt_prob, accessible_positions_n_allele[pos])

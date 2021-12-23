@@ -195,10 +195,10 @@ cdef class Read:
 
 	def add_variant(self, int position, int allele, em, int quality):
 		assert self.thisptr != NULL
-		cdef vector[float] emProb
+		cdef vector[unsigned int] emProb
 		emProb.resize(len(em))
 		for i in range(len(em)):
-			emProb.push_back(em[i]) 
+			emProb[i] = em[i]
 		self.thisptr.addVariant(position, allele, emProb, quality)
 
 	def add_mapq(self, int mapq):
@@ -424,7 +424,7 @@ cdef class PhredGenotypeLikelihoods:
 
 	def __getitem__(self, Genotype genotype):
 		assert self.thisptr != NULL
-		assert genotype.is_diploid_and_biallelic()
+		# assert genotype.is_diploid_and_biallelic()
 		return self.thisptr.get(genotype.thisptr[0])
 
 	def __len__(self):
@@ -550,8 +550,8 @@ cdef class GenotypeHMM:
 	def __dealloc__(self):
 		del self.thisptr
 
-	def get_genotype_likelihoods(self, sample_id, unsigned int pos):
-		return PhredGenotypeLikelihoods(self.thisptr.get_genotype_likelihoods(self.numeric_sample_ids[sample_id],pos))
+	def get_genotype_likelihoods(self, sample_id, unsigned int pos, unsigned int nr_allele):
+		return PhredGenotypeLikelihoods(self.thisptr.get_genotype_likelihoods(self.numeric_sample_ids[sample_id],pos), nr_alleles = nr_allele)
 
 
 def compute_genotypes(ReadSet readset, positions = None, n_allele_position_list = None):

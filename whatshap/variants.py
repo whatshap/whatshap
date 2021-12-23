@@ -507,28 +507,25 @@ class ReadSetReader:
             #    base_qualities = bam_read.query_qualities[query_pos-left_query_bases:query_pos+right_query_bases]
 
             # compute edit dist. with affine gap costs using base qual. as mismatch cost
-            distance_ref = edit_distance_affine_gap(
-                query, ref, base_qualities, gap_start, gap_extend
-            )
+            distance_ref = int(edit_distance_affine_gap(query, ref, base_qualities, gap_start, gap_extend))
             distance_alts = []
             for alt in alts:
-                distance_alt = edit_distance_affine_gap(query, alt, base_qualities, gap_start, gap_extend)
+                distance_alt = int(edit_distance_affine_gap(query, alt, base_qualities, gap_start, gap_extend))
                 distance_alts.append(distance_alt) 
         else:
-            distance_ref = edit_distance(query, ref)
+            distance_ref = int(edit_distance(query, ref))
             distance_alts = []
             for alt in alts:
-                distance_alts.append(edit_distance(query, alt))
+                distance_alts.append(int(edit_distance(query, alt)))
         base_qual_score = 30
         distances = [distance_ref] + distance_alts
         sorted_distance = sorted(distances)
-        distance_norm = [float(i)/sum(distances) for i in distances]
         if sorted_distance[0] == sorted_distance[1]:
             return None, None, None # Can't decide
         if distance_ref == sorted_distance[0]:
-            return 0, distance_norm, base_qual_score  # detected REF
+            return 0, distances, base_qual_score  # detected REF
         else:
-            return distance_alts.index(min(distance_alts))+1, distance_norm, base_qual_score  # detected ALT
+            return distance_alts.index(min(distance_alts))+1, distances, base_qual_score  # detected ALT
         
     @staticmethod
     def detect_alleles_by_alignment(

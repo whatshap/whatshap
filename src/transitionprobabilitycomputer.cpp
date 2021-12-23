@@ -7,9 +7,11 @@
 
 using namespace std;
 
-TransitionProbabilityComputer::TransitionProbabilityComputer(const unsigned int& recombcost, Column& column, const vector<unsigned int>& allele_reference) {
-    pr = (1 - exp(-recombcost/allele_reference.size()))/allele_reference.size();
-    qr = exp(-recombcost/allele_reference.size()) + pr;
+TransitionProbabilityComputer::TransitionProbabilityComputer(const float& recombcost, Column& column, const vector<unsigned int>& allele_reference) {
+    int s = allele_reference.size();
+    float r = recombcost;
+    double pr = (1.0 - exp(-(r/s))) / s;
+    double qr = exp(-(r/s)) + pr;
     vector<unsigned int>* read_ids = column.get_read_ids();
     vector<unsigned int>* next_read_ids = column.get_next_read_ids();
     vector<unsigned int>* active_nonterminating_read_ids = column.get_active_nonterminating_read_ids();

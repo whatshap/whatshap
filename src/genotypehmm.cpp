@@ -50,10 +50,9 @@ GenotypeHMM::GenotypeHMM(ReadSet* read_set, const vector<float>& recombcost, con
     }
 
     //compute forward and backward probabilities
-    compute_index();            // This is working
-    compute_backward_prob();    // This is working
-    exit(1);
-    compute_forward_prob();     // This is not working
+    compute_index();
+    compute_backward_prob();
+    compute_forward_prob();
 }
 
 GenotypeHMM::~GenotypeHMM()
@@ -194,14 +193,18 @@ void GenotypeHMM::compute_forward_prob()
             assert(next_input_column.get() == 0);
             assert(next_read_ids.get() == 0);
         }
-
         // compute forward probabilities for the current column
         compute_forward_column(column_index,std::move(current_input_column));
     }
 }
 
 void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector<const Entry*>> current_input_column) {
-        
+
+    // IMPORTANT: The backward_pass_column_table[column_index - 1] is filled and not backward_pass_column_table[column_index].
+    //            It uses backward_pass_column_table[column_index] to calculate the next column!
+
+    // NOTE: Need column_index = 0 since we need to store the scaling parameter for the column.
+
     assert(column_index < backward_input_column_iterator.get_column_count());
 
     // check if column already exists
@@ -232,10 +235,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
     if(column_index > 0){
         current_projection_column = new vector<long double>(hmm_columns[column_index-1]->get_column_size(), 0.0L);
     }
-    else {
-        return;
-    }
-
+    
     int n_alleles = variant_n_allele_positions->at(column_index);
     Vector2D<long double> emission_probability_computer = Vector2D<long double>(n_alleles, n_alleles);
 
@@ -244,46 +244,52 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
 
     // iterate over all bipartitions of the column on the right. So we are calculating the values in column current_index - 1
     
-    unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
-    while (iterator->has_next()){
-        int bit_changed = -1;
-        iterator->advance(&bit_changed);
-        // Update the emission probability based on the bipartition defined by the iterator
-        update_emission_probability(&emission_probability_computer, bit_changed, *iterator, *current_input_column);
-        // Determine the indices that are compatible with with the bipartition at position column_index
-        long double backward_prob = 1.0L;
-        int b_index = iterator->get_b_index();
-        vector<unsigned int> compatible_bipartitions = hmm_columns[column_index-1]->get_backward_compatible_bipartitions(b_index);
-        // UPDATING THE BETA VALUES
-        // Iterating over the allele pairs
-        for (int allele_1 = 0; allele_1 < n_alleles; allele_1++) {
-            for (int allele_2 = 0; allele_2 < n_alleles; allele_2++) {
-                // Extract the beta values having (allele_1, allele_2) pair in proper ordering (based on the transition probability matrix)
-                vector<long double> beta_values;
-                Vector2D<double> * transition_matrix = current_transition_table->get_transition_matrix(allele_1, allele_2);
-                vector<unsigned int> * reordering_map = current_transition_table->get_reordering_map(allele_1, allele_2);
-                for (int i = 0; i < reordering_map->size(); i++) {
-                    int r_index = reordering_map->at(i);
-                    int index = current_indexer->get_index(b_index, r_index);
-                    if (column_index + 1 < backward_input_column_iterator.get_column_count()) {
-                        beta_values.push_back(previous_projection_column->at(index));
-                        scaling_sum += previous_projection_column->at(index);
+    if (column_index > 0) {
+        unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
+        while (iterator->has_next()){
+            int bit_changed = -1;
+            iterator->advance(&bit_changed);
+            // Update the emission probability based on the bipartition defined by the iterator
+            update_emission_probability(&emission_probability_computer, bit_changed, *iterator, *current_input_column);
+            // Determine the indices that are compatible with with the bipartition at position column_index
+            long double backward_prob = 1.0L;
+            int b_index = iterator->get_b_index();
+            vector<unsigned int> compatible_bipartitions = hmm_columns[column_index-1]->get_backward_compatible_bipartitions(b_index);
+            // UPDATING THE BETA VALUES
+            // Iterating over the allele pairs
+            for (int allele_1 = 0; allele_1 < n_alleles; allele_1++) {
+                for (int allele_2 = 0; allele_2 < n_alleles; allele_2++) {
+                    // Extract the beta values having (allele_1, allele_2) pair in proper ordering (based on the transition probability matrix)
+                    vector<long double> beta_values;
+                    Vector2D<double> * transition_matrix = current_transition_table->get_transition_matrix(allele_1, allele_2);
+                    vector<unsigned int> * reordering_map = current_transition_table->get_reordering_map(allele_1, allele_2);
+                    for (int i = 0; i < reordering_map->size(); i++) {
+                        int r_index = reordering_map->at(i);
+                        int index = current_indexer->get_index(b_index, r_index);
+                        if (column_index + 1 < backward_input_column_iterator.get_column_count()) {
+                            beta_values.push_back(previous_projection_column->at(index));
+                            scaling_sum += previous_projection_column->at(index);
+                        }
+                        else {
+                            beta_values.push_back(1.0L/current_indexer->get_column_size());
+                            scaling_sum += 1.0L/current_indexer->get_column_size();
+                        }
                     }
-                    else {
-                        beta_values.push_back(1.0L);
-                        scaling_sum += 1.0L;
-                    }
-                }
-                vector<long double> result = MatMul(beta_values, *transition_matrix, true);
-                // Update the beta values in the current_projection_matrix
-                for (int i = 0; i < compatible_bipartitions.size(); i++) {
-                    int index = compatible_bipartitions[i] * pow(n_references,2);
-                    for (unsigned int j = 0; j < pow(n_references, 2); j++) {
-                        current_projection_column->at(index+j) = current_projection_column->at(index+j) + result[j]*emission_probability_computer.at(allele_1, allele_2);   
+                    vector<long double> result = MatMul(beta_values, *transition_matrix, true);
+                    // Update the beta values in the current_projection_matrix
+                    for (int i = 0; i < compatible_bipartitions.size(); i++) {
+                        int index = compatible_bipartitions[i] * pow(n_references,2);
+                        for (unsigned int j = 0; j < pow(n_references, 2); j++) {
+                            current_projection_column->at(index+j) = current_projection_column->at(index+j) + result[j]*emission_probability_computer.at(allele_1, allele_2);   
+                        }
                     }
                 }
             }
         }
+    }
+    else {
+        // Code block to calculate the sum of previous_projection_column and normalise backward_pass_column_table[0]
+        for (int index = 0; index < previous_projection_column->size(); index++) scaling_sum += previous_projection_column->at(index);
     }
     
     // go through (old) projection column to scale the values -> when we lookup betas later, they will sum up to 1
@@ -300,6 +306,7 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
 // given the current matrix column, compute the forward probability table
 void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<const Entry*>> current_input_column)
 {
+    // IMPORTANT: Here we are calculating the forward_column at column_index (and not column_index - 1 like with backward pass)!
     assert(column_index < input_column_iterator.get_column_count());
 
     Column* current_indexer = hmm_columns[column_index];
@@ -335,14 +342,21 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
             // last column just computed still needs to be scaled
             std::transform((*backward_pass_column_table[column_index]).begin(), (*backward_pass_column_table[column_index]).end(), (*backward_pass_column_table[column_index]).begin(), std::bind2nd(std::divides<long double>(), scaling_parameters[column_index]));
         }
+
         backward_probabilities = backward_pass_column_table[column_index];
         assert(backward_probabilities != nullptr);
     }
+    else {
+        backward_pass_column_table[column_index] = new vector<long double>(current_indexer->get_column_size(), 1/current_indexer->get_column_size());
+        backward_probabilities = backward_pass_column_table[column_index];
+    }
+    // cout << scaling_parameters[column_index] << endl;
+    // cout << backward_probabilities->at(0) << endl;
 
     // initialize the new projection column (2D: has entry for every bipartition and transmission value)
     vector<long double>* current_projection_column = nullptr;
     // CHECK!!!!!
-    if(column_index + 1 < input_column_iterator.get_column_count()){
+    if(column_index < input_column_iterator.get_column_count()){
         current_projection_column = new vector<long double>(current_indexer->get_column_size(), 0.0L);
     }
 
@@ -355,7 +369,8 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
 
     // sum of alpha*beta, used to normalize the likelihoods
     long double normalization = 0.0L;
-
+    long double scaling_sum = 0.0L;
+    long double sum = 0.0L;
     // iterate over all bipartitions
     unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
     while (iterator->has_next()) {
@@ -369,7 +384,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
         int b_index = iterator->get_b_index();
         // Calculating the current_projection_column
         if (column_index == 0) {
-            long double tr_prb = 1/current_indexer->get_column_size();
+            long double tr_prb = 1.0L;
             for (unsigned int i = 0; i < allele_references->at(column_index).size(); i++) {
                 int allele_1 = allele_references->at(column_index).at(i);
                 for (unsigned int j = 0; j < allele_references->at(column_index).size(); j++) {
@@ -397,33 +412,36 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
                         // Taking the alpha values from the result array and then mapping them to the current_projection_column based on reordering_map.
                         for (unsigned int pos_index = 0; pos_index < reordering_map->size(); pos_index++) {
                             unsigned int r_index = reordering_map->at(pos_index);
-                            current_projection_column->at((n_references * n_references * b_index) + r_index) += result.at(pos_index)*emission_probability_computer.at(allele_1, allele_2);
+                            current_projection_column->at((n_references * n_references * b_index) + r_index) += result.at(pos_index)*emission_probability_computer.at(allele_1, allele_2);                            
                         }
                     }
                 }
             }
         }
-        long double forward_backward;
-        long double forward;
-        assert (current_projection_column->size() == backward_probabilities->size());
-
-        for (unsigned int i = 0; i < backward_probabilities->size(); i++) {
-            vector<unsigned int> ref = current_indexer->index_to_reference_allele(i, 0);
-            vector<unsigned int> alleles;
-            alleles.push_back(allele_references->at(column_index).at(ref.at(0)));
-            alleles.push_back(allele_references->at(column_index).at(ref.at(1)));
-            // Get the genotype index
-            unsigned int g_index = 0;
-            for (int allele = 0; allele < 2; allele++) {
-                g_index += binomial_coefficient(allele + alleles.at(allele), alleles.at(allele) - 1);
-            }
-            forward = current_projection_column->at(i) / scaling_parameters[column_index];
-            forward_backward = forward * backward_probabilities->at(i);
-            
-            // HARDCODED FOR A PEDIGREE SIZE OF 1.
-            genotype_likelihood_table.at(0, column_index).likelihoods[g_index] += forward_backward;
-        }
     }
+    long double forward_backward = 0.0L;
+    long double forward = 0.0L;
+    
+    assert (current_projection_column->size() == backward_probabilities->size());
+    for (unsigned int i = 0; i < backward_probabilities->size(); i++) {
+        vector<unsigned int> ref = current_indexer->index_to_reference_allele(i, 0);
+        vector<unsigned int> alleles;
+        alleles.push_back(allele_references->at(column_index).at(ref.at(0)));
+        alleles.push_back(allele_references->at(column_index).at(ref.at(1)));
+        // Get the genotype index
+        unsigned int g_index = 0;
+        for (int allele = 0; allele < 2; allele++) {
+            g_index += binomial_coefficient(allele + alleles.at(allele), alleles.at(allele) - 1);
+        }
+        forward = current_projection_column->at(i) / scaling_parameters[column_index];
+        sum += forward;
+        forward_backward = forward * backward_probabilities->at(i);
+        normalization += forward_backward;
+        
+        // HARDCODED FOR A PEDIGREE SIZE OF 1.
+        genotype_likelihood_table.at(0, column_index).likelihoods[g_index] += forward_backward;
+    }
+    
     // store the computed projection column (in case there is one)
     if(current_projection_column != 0){
         delete forward_pass_column_table[0];

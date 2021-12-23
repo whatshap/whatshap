@@ -776,6 +776,7 @@ class VcfAugmenter(ABC):
     def __init__(
         self,
         in_path: str,
+        bam_samples: Iterable[str],
         command_line: Optional[str],
         out_file: TextIO = sys.stdout,
         include_haploid_phase_sets: bool = False,
@@ -800,8 +801,11 @@ class VcfAugmenter(ABC):
         if command_line is not None:
             command_line = '"' + command_line.replace('"', "") + '"'
             self._reader.header.add_meta("commandline", command_line)
-        self.setup_header(self._reader.header)
-        self._writer = VariantFile(out_file, mode="w", header=self._reader.header)
+        self._writer = VariantFile(out_file, mode="w", header=VariantHeader())
+        self.setup_header(self._writer.header)
+        for sample in bam_samples:
+            self._writer.header.add_sample(sample)
+        print(list(self._writer.header.samples))
         self._unprocessed_record: Optional[VariantRecord] = None
         self._reader_iter = iter(self._reader)
 
@@ -824,8 +828,9 @@ class VcfAugmenter(ABC):
 
     def _record_modifier(self, chromosome: str):
         for record in self._iterrecords(chromosome):
-            yield record
-            self._writer.write(record)
+            new_record = self._writer.new_record(contig = record.contig, start = record.start, alleles = record.alleles, id = record.id, qual = record.qual, filter = record.filter, info = record.info)
+            yield new_record
+            self._writer.write(new_record)
 
     def _iterrecords(self, chromosome: str) -> Iterable[VariantRecord]:
         """Yield all records for the target chromosome"""
@@ -876,7 +881,7 @@ class PhasedVcfWriter(VcfAugmenter):
             (use None to not add this to the VCF header)
         out_file -- Open file-like object to which VCF is written.
         tag -- which type of tag to write, either 'PS' or 'HP'. 'PS' is standardized;
-            'HP' is compatible with GATK’s ReadBackedPhasing.
+            'HP' is compatible with GATK's ReadBackedPhasing.
         """
         if tag not in ("HP", "PS"):
             raise ValueError('Tag must be either "HP" or "PS"')
@@ -1085,13 +1090,13 @@ class GenotypeVcfWriter(VcfAugmenter):
     multi-sample VCFs.
     """
 
-    def __init__(self, in_path: str, command_line: Optional[str], out_file: TextIO = sys.stdout):
+    def __init__(self, in_path: str, bam_samples: Iterable[str], command_line: Optional[str], out_file: TextIO = sys.stdout):
         """
         in_path -- Path to input VCF, used as template.
         command_line -- A string that will be added as a VCF header entry.
         out_file -- Open file-like object to which VCF is written.
         """
-        super().__init__(in_path, command_line, out_file)
+        super().__init__(in_path, bam_samples, command_line, out_file)
 
     def setup_header(self, header: VariantHeader):
         """Called by baseclass constructor"""
@@ -1104,6 +1109,11 @@ class GenotypeVcfWriter(VcfAugmenter):
         header.add_line(
             '##FORMAT=<ID=GL,Number=G,Type=Float,Description="Log10-scaled likelihoods for genotypes: 0/0, 0/1, 1/1, computed by WhatsHap genotyping algorithm">'
         )
+
+        for fmt, v in self._reader.header.info.items():
+            header.info.add(fmt,v.number, v.type, v.description)
+        for contig in list(self._reader.header.contigs):
+            header.contigs.add(contig)
 
     def write_genotypes(
         self, chromosome: str, variant_table: VariantTable, indels, ploidy: int = 2
