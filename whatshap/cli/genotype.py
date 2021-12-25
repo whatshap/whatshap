@@ -157,6 +157,16 @@ def run_genotype(
         )
         show_phase_vcfs = phased_input_reader.has_vcfs
 
+        bam_samples = list(phased_input_reader._readset_reader._reader._sample_to_group_ids)
+
+        if ignore_read_groups and not samples and len(bam_samples) > 1:
+            raise CommandLineError(
+                "When using --ignore-read-groups on a VCF with "
+                "multiple samples, --sample must also be used."
+            )
+        if not samples:
+            samples = bam_samples
+
         # vcf writer for final genotype likelihoods
         vcf_writer = stack.enter_context(
             GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=output, bam_samples = samples)
@@ -176,17 +186,9 @@ def run_genotype(
         # remove all likelihoods that may already be present
         vcf_reader = stack.enter_context(
             VcfReader(
-                variant_file, bam_samples=["HG002"], indels=indels, genotype_likelihoods=False, ignore_genotypes=True
+                variant_file, bam_samples=samples, indels=indels, genotype_likelihoods=False, ignore_genotypes=True
             )
         )
-
-        if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
-            raise CommandLineError(
-                "When using --ignore-read-groups on a VCF with "
-                "multiple samples, --sample must also be used."
-            )
-        if not samples:
-            samples = vcf_reader.samples
 
         # if --use-ped-samples is set, use only samples from PED file
         if ped and use_ped_samples:

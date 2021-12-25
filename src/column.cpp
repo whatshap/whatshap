@@ -138,13 +138,12 @@ unsigned int Column::reference_allele_to_index(unsigned int& r1, unsigned int& r
 vector<unsigned int> Column::get_backward_compatible_bipartitions(int b_index) {
 	vector<int> free_positions;
     vector<unsigned int> compatible_bipartition = {0};
-    int base = 0;
+	int base = 0;
     int count = 0;
     for (int i = 0; i < next_read_ids.size(); i++) {
         int ri = next_read_ids.at(i);
-        if (count >= read_ids.size()) {
-            break;
-        }
+		// This break statement if the last count++ step happened outside the while loop
+		if (count >= read_ids.size()) break;
         while (ri > read_ids.at(count)) {
             free_positions.push_back(count);
             compatible_bipartition.resize(2*compatible_bipartition.size());
@@ -152,7 +151,11 @@ vector<unsigned int> Column::get_backward_compatible_bipartitions(int b_index) {
                 compatible_bipartition.at((compatible_bipartition.size()/2)+j) = compatible_bipartition.at(j) + pow(2, count);
             }
             count++;
+			// Break out of while loop (otherwise read_ids.at(count) is not defined)
+			if (count >= read_ids.size()) break;
         }
+		// This break statement if the last count++ step happened inside the while loop and we don't want the base value to increase.
+		if (count >= read_ids.size()) break;
         base = base + (pow(2,count)*(b_index%2));
         b_index = b_index/2;
         count++;

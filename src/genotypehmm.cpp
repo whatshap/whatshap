@@ -31,7 +31,6 @@ GenotypeHMM::GenotypeHMM(ReadSet* read_set, const vector<float>& recombcost, con
      n_references(n_references),
      allele_references(allele_references)
 {
-   
     genotype_likelihood_table = Vector2D<genotype_likelihood_t>(pedigree->size(),input_column_iterator.get_column_count());
     assert (pedigree->size() == 1);
     for (size_t i = 0; i < pedigree->size(); i ++) {
@@ -40,7 +39,6 @@ GenotypeHMM::GenotypeHMM(ReadSet* read_set, const vector<float>& recombcost, con
         }
     }
     read_set->reassignReadIds();
-
     assert(input_column_iterator.get_column_count() == backward_input_column_iterator.get_column_count());
 
     // translate all individual ids to individual indices
@@ -48,7 +46,6 @@ GenotypeHMM::GenotypeHMM(ReadSet* read_set, const vector<float>& recombcost, con
     {
         read_sources.push_back(pedigree->id_to_index(read_set->get(i)->getSampleID()));
     }
-
     //compute forward and backward probabilities
     compute_index();
     compute_backward_prob();
@@ -129,13 +126,11 @@ void GenotypeHMM::compute_backward_prob()
 
     // do backward pass, start at rightmost column
     backward_input_column_iterator.jump_to_column(column_count-1);
-
     // get the next column (which is left of current one)
     unique_ptr<vector<const Entry*> > current_input_column;
     unique_ptr<vector<unsigned int> > current_read_ids;
     unique_ptr<vector<const Entry*> > next_input_column = backward_input_column_iterator.get_next();
     unique_ptr<vector<unsigned int> > next_read_ids = extract_read_ids(*next_input_column);
-
     // backward pass: create sparse table
     size_t k = (size_t)sqrt(column_count);
     for(int column_index = column_count-1; column_index >= 0; --column_index){
@@ -150,10 +145,8 @@ void GenotypeHMM::compute_backward_prob()
             assert(next_input_column.get() == 0);
             assert(next_read_ids.get() == 0);
         }
-
         // compute the backward probabilities
         compute_backward_column(column_index, std::move(current_input_column));
-
         // check whether to delete the previous column
         if ((k>1) && (column_index < column_count-1) && (((column_index+1)%k) != 0)) {
             delete backward_pass_column_table[column_index+1];
@@ -243,7 +236,6 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
     long double scaling_sum = 0.0L;
 
     // iterate over all bipartitions of the column on the right. So we are calculating the values in column current_index - 1
-    
     if (column_index > 0) {
         unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
         while (iterator->has_next()){
