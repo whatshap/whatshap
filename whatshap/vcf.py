@@ -787,7 +787,7 @@ class VcfAugmenter(ABC):
             (use None to not add this to the VCF header)
         out_file -- Open file-like object to which VCF is written.
         tag -- which type of tag to write, either 'PS' or 'HP'. 'PS' is standardized;
-            'HP' is compatible with GATK’s ReadBackedPhasing.
+            'HP' is compatible with GATKs ReadBackedPhasing.
         """
         # TODO This is slow because it reads in the entire VCF one extra time
         contigs, formats, infos = missing_headers(in_path)
@@ -805,7 +805,6 @@ class VcfAugmenter(ABC):
         self.setup_header(self._writer.header)
         for sample in bam_samples:
             self._writer.header.add_sample(sample)
-        print(list(self._writer.header.samples))
         self._unprocessed_record: Optional[VariantRecord] = None
         self._reader_iter = iter(self._reader)
 
@@ -1137,7 +1136,6 @@ class GenotypeVcfWriter(VcfAugmenter):
             pos = record.start
             if not record.alts:
                 continue
-
             for sample, call in record.samples.items():
                 geno = Genotype([])
                 n_alleles = 1 + len(record.alts)
@@ -1158,7 +1156,6 @@ class GenotypeVcfWriter(VcfAugmenter):
                 # Compute GQ
                 geno_index = geno.get_index()
                 geno_q = sum(geno_l[i] for i in range(n_genotypes) if i != geno_index)
-
                 # TODO default value ok?
                 # store likelihoods log10-scaled
 

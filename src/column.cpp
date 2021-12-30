@@ -135,6 +135,8 @@ unsigned int Column::reference_allele_to_index(unsigned int& r1, unsigned int& r
 }
 
 // Gives the compatible bipartitions in the left column (at position index) given the bipartition index of a bipartition of the right column (at position index + 1)
+
+// TODO: You can precompute the free positions and use it somehow?
 vector<unsigned int> Column::get_backward_compatible_bipartitions(int b_index) {
 	vector<int> free_positions;
     vector<unsigned int> compatible_bipartition = {0};

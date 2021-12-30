@@ -87,9 +87,6 @@ private:
   // stores the transmission probability computers for each column. object at index i contains the probability computer between index i and i+1.
   std::vector<TransitionProbabilityComputer*> transition_probability_table;
   
-  // stores the emission probability computers for each column
-  std::vector<EmissionProbabilityComputer*> emission_probability_table;
-  
   // scaling parameters
   std::vector<long double> scaling_parameters;
 

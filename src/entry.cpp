@@ -51,7 +51,7 @@ void Entry::set_emission_score(std::vector<unsigned int> e) {
 	float normalization = 0.0;
 	int i = 0;
 	for (auto it = e.begin(); it != e.end(); it++, i++) {
-		emission_score[i] = pow(0.1, (*it - d_min)) * pow (0.9, (d_max - *it));
+		emission_score[i] = max(pow(0.1, (*it - d_min)) * pow (0.9, (d_max - *it)), pow(10,-10));
 		normalization += emission_score[i];
 	}
 	transform((emission_score).begin(), (emission_score).end(), (emission_score).begin(), std::bind2nd(std::divides<float>(), normalization));
