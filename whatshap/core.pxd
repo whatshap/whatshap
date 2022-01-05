@@ -68,3 +68,6 @@ cdef class HaploThreader:
 cdef class SwitchFlipCalculator:
 	cdef cpp.SwitchFlipCalculator *thisptr
 	cdef uint32_t ploidy
+
+cdef class Caller:
+	cdef cpp.Caller *thisptr

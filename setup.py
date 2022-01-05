@@ -112,6 +112,7 @@ extensions = [
             "src/polyphase/trianglesparsematrix.cpp",
             "src/polyphase/readscoring.cpp",
             "src/polyphase/haplothreader.cpp",
+            "src/caller.cpp",
         ],
     ),
     CppExtension("whatshap.priorityqueue", sources=["whatshap/priorityqueue.pyx"]),

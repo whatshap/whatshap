@@ -17,6 +17,8 @@ from . cimport cpp
 from .variant import Variant
 from collections import namedtuple
 from cython.operator cimport dereference as deref
+from libcpp.deque cimport deque
+from libcpp.pair cimport pair
 
 
 cdef class NumericSampleIds:
@@ -595,6 +597,28 @@ cdef class HapChatCore:
 		result = ['*' for x in p[0]]
 		del p
 		return result
+		
+cdef class Caller:
+	def __cinit__(self, string reference, int k, double epsilon, int window ):
+		self.thisptr = new cpp.Caller(reference, k, epsilon, window)
+	def __dealloc__(self):
+		del self.thisptr
+	def all_variants(self, vector[pair[int,int]] variants_list):
+		cdef deque[pair[int,int]] v_list
+		for v in variants_list:
+			v_list.push_back(v)
+		self.thisptr.all_variants(v_list)
+
+	def add_read(self, int bam_alignment_pos, vector[vector[int]]  bam_alignment_cigartuples, string bam_alignment_query):
+		self.thisptr.add_read(bam_alignment_pos, bam_alignment_cigartuples, bam_alignment_query)
+	
+	def final_pop(self):
+		self.thisptr.final_pop()
+	def calc_probs(self):
+		self.thisptr.calc_probs()
+		
+	def finish(self):
+		pass
 
 
 include 'readselect.pyx'

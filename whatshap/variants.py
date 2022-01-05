@@ -7,7 +7,7 @@ from typing import Iterable, Iterator, List, Optional
 
 from .core import Read, ReadSet, NumericSampleIds
 from .bam import SampleBamReader, MultiBamReader, BamReader
-from .align import edit_distance, edit_distance_affine_gap
+from .align import edit_distance, edit_distance_affine_gap, needle, split
 from ._variants import _iterate_cigar
 
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class ReadSetError(Exception):
     pass
 
-
+seen_scores=dict()
 class ReadSetReader:
     """
     Associate VCF variants with BAM reads.
@@ -33,12 +33,16 @@ class ReadSetReader:
         paths: List[str],
         reference: Optional[str],
         numeric_sample_ids: NumericSampleIds,
+        probabilities,
+        kmersize,
+        gappenalty,
         mapq_threshold: int = 20,
         overhang: int = 10,
         affine: int = False,
         gap_start: int = 10,
         gap_extend: int = 7,
         default_mismatch: int = 15,
+        
     ):
         """
         paths -- list of BAM paths
@@ -62,12 +66,15 @@ class ReadSetReader:
             self._reader = SampleBamReader(paths[0], reference=reference)
         else:
             self._reader = MultiBamReader(paths, reference=reference)
+        self.probabilities= probabilities
+        self.kmersize= kmersize
+        self.gappenalty= gappenalty
 
     @property
     def n_paths(self):
         return len(self._paths)
 
-    def read(self, chromosome, variants, sample, reference, regions=None) -> ReadSet:
+    def read(self, chromosome, variants, sample, reference,  probabilities, kmersize, gappenalty,regions=None) -> ReadSet:
         """
         Detect alleles and return a ReadSet object containing reads representing
         the given variants.
@@ -93,7 +100,7 @@ class ReadSetReader:
             assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
 
         alignments = self._usable_alignments(chromosome, sample, regions)
-        reads = self._alignments_to_reads(alignments, variants, sample, reference)
+        reads = self._alignments_to_reads(alignments, variants, sample, reference, probabilities, kmersize, gappenalty)
         grouped_reads = self._group_paired_reads(reads)
         readset = self._make_readset_from_grouped_reads(grouped_reads)
         return readset
@@ -151,7 +158,7 @@ class ReadSetReader:
     def has_reference(self, chromosome):
         return self._reader.has_reference(chromosome)
 
-    def _alignments_to_reads(self, alignments, variants, sample, reference):
+    def _alignments_to_reads(self, alignments, variants, sample, reference, probabilities, kmersize,gappenalty):
         """
         Convert BAM alignments to Read objects.
 
@@ -198,6 +205,9 @@ class ReadSetReader:
                     i,
                     alignment.bam_alignment,
                     reference,
+                    probabilities,
+                    kmersize,
+                    gappenalty,
                     self._overhang,
                     self._use_affine,
                     self._gap_start,
@@ -438,10 +448,13 @@ class ReadSetReader:
         query_pos,
         reference,
         overhang,
+        gappenalty,
+        probabilities,
+        kmersize,
         use_affine,
         gap_start,
         gap_extend,
-        default_mismatch,
+        default_mismatch
     ):
         """
         Realign a read to the two alleles of a single variant.
@@ -475,11 +488,11 @@ class ReadSetReader:
         assert variant.position - left_ref_bases >= 0
         assert variant.position + right_ref_bases <= len(reference)
 
-        query = bam_read.query_sequence[
+        query = split(bam_read.query_sequence[
             query_pos - left_query_bases : query_pos + right_query_bases
-        ]
-        ref = reference[variant.position - left_ref_bases : variant.position + right_ref_bases]
-        alt = (
+        ], int(kmersize))
+        ref = split(reference[variant.position - left_ref_bases : variant.position + right_ref_bases], int(kmersize))
+        alt = split((
             reference[variant.position - left_ref_bases : variant.position]
             + variant.alternative_allele
             + reference[
@@ -487,7 +500,7 @@ class ReadSetReader:
                 + len(variant.reference_allele) : variant.position
                 + right_ref_bases
             ]
-        )
+        ),int(kmersize))
 
         if use_affine:
             assert gap_start is not None
@@ -509,8 +522,20 @@ class ReadSetReader:
             base_qual_score = abs(distance_ref - distance_alt)
         else:
             base_qual_score = 30
-            distance_ref = edit_distance(query, ref)
-            distance_alt = edit_distance(query, alt)
+            distance_ref = 0
+            distance_alt = 0
+            #distance_ref = edit_distance(query, ref)
+            #distance_alt = edit_distance(query, alt)
+            if tuple((tuple(ref),tuple(query))) in seen_scores:
+                distance_ref= seen_scores[tuple((tuple(ref),tuple(query)))]
+            else:
+                distance_ref = needle(ref, query, probabilities, int(gappenalty))
+                seen_scores[tuple((tuple(ref),tuple(query)))]= distance_ref
+            if tuple((tuple(alt),tuple(query))) in seen_scores:
+                distance_alt= seen_scores[tuple((tuple(alt),tuple(query)))]
+            else:
+                distance_alt = needle(alt, query, probabilities, int(gappenalty))
+                seen_scores[tuple((tuple(alt),tuple(query)))]=distance_alt
 
         if distance_ref < distance_alt:
             return 0, base_qual_score  # detected REF
@@ -525,6 +550,9 @@ class ReadSetReader:
         j,
         bam_read,
         reference,
+        probabilities,
+        kmersize,
+        gappenalty,
         overhang=10,
         use_affine=False,
         gap_start=None,
@@ -558,6 +586,9 @@ class ReadSetReader:
                 query_pos,
                 reference,
                 overhang,
+                gappenalty,
+                probabilities,
+                kmersize,
                 use_affine,
                 gap_start,
                 gap_extend,

@@ -7,6 +7,7 @@ forward backward algorithm.
 import logging
 import sys
 import platform
+import csv
 from typing import Sequence
 
 from contextlib import ExitStack
@@ -65,10 +66,12 @@ def determine_genotype(likelihoods: Sequence[float], threshold_prob: float) -> f
     else:
         return int_to_diploid_biallelic_gt(-1)
 
-
 def run_genotype(
     phase_input_files,
     variant_file,
+    prob_file,
+    kmersize,
+    gappenalty,
     reference=None,
     output=sys.stdout,
     samples=None,
@@ -90,7 +93,7 @@ def run_genotype(
     gap_extend=7,
     mismatch=15,
     write_command_line_header=True,
-    use_ped_samples=False,
+    use_ped_samples=False
 ):
     """
     For now: this function only runs the genotyping algorithm. Genotype likelihoods for
@@ -106,6 +109,11 @@ def run_genotype(
         command_line = "(whatshap {}) {}".format(__version__, " ".join(sys.argv[1:]))
     else:
         command_line = None
+    probabilities=dict()
+    with open(prob_file) as probs_file:
+    	probs_reader=csv.reader(probs_file, delimiter='\t')
+    	for line in probs_reader:
+    		probabilities[(line[0],line[1])]= line[2]
     with ExitStack() as stack:
         # read the given input files (BAMs, VCFs, ref...)
         numeric_sample_ids = NumericSampleIds()
@@ -114,6 +122,9 @@ def run_genotype(
                 phase_input_files,
                 reference,
                 numeric_sample_ids,
+                probabilities,
+                kmersize,
+                gappenalty,
                 ignore_read_groups,
                 indels=indels,
                 mapq_threshold=mapping_quality,
@@ -223,7 +234,7 @@ def run_genotype(
                     logger.info("---- Initial genotyping of %s", sample)
                     with timers("read_bam"):
                         readset, vcf_source_ids = phased_input_reader.read(
-                            chromosome, variant_table.variants, sample, read_vcf=False
+                            chromosome, variant_table.variants, sample, probabilities, kmersize, gappenalty, read_vcf=False
                         )
                         readset.sort()
                         genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
@@ -280,7 +291,7 @@ def run_genotype(
                 for sample in family:
                     with timers("read_bam"):
                         readset, vcf_source_ids = phased_input_reader.read(
-                            chromosome, variant_table.variants, sample
+                            chromosome, variant_table.variants, sample,  probabilities, kmersize, gappenalty,
                         )
 
                     with timers("select"):
@@ -441,6 +452,9 @@ def add_arguments(parser):
         help='gap extend penalty in case affine gap costs are used (default: %(default)s).')
     arg('--mismatch', metavar='MISMATCH', default=15, type=float,
         help='mismatch cost in case affine gap costs are used (default: %(default)s)')
+    arg('-b', '--prob_file',metavar='PROB', help='Probabilities file', required=True)
+    arg('-k', '--kmersize',metavar='KMERSIZE', help='the kmer size to be used during scoring', required=True)
+    arg('-g', '--gappenalty',metavar='GAPPENALTY', help='gap penalty to be used during alignment', required=True)
 
     arg = parser.add_argument_group('Pedigree genotyping').add_argument
     arg('--ped', metavar='PED/FAM',

@@ -8,6 +8,7 @@ blocks) and phase the variants. The phased VCF is written to standard output.
 import logging
 import sys
 import platform
+import csv
 
 from argparse import SUPPRESS
 from collections import defaultdict
@@ -255,6 +256,9 @@ def setup_pedigree(ped_path, samples):
 def run_whatshap(
     phase_input_files: List[str],
     variant_file: str,
+    prob_file,
+    kmersize,
+    gappenalty,
     reference: Union[None, bool, str] = False,
     output: TextIO = sys.stdout,
     samples: List[str] = None,
@@ -325,7 +329,11 @@ def run_whatshap(
         command_line = "(whatshap {}) {}".format(__version__, " ".join(sys.argv[1:]))
     else:
         command_line = None
-
+    probabilities=dict()
+    with open(prob_file) as probs_file:
+    	probs_reader=csv.reader(probs_file, delimiter='\t')
+    	for line in probs_reader:
+    		probabilities[(line[0],line[1])]= line[2]
     read_merger: ReadMergerBase
     if read_merging:
         read_merger = ReadMerger(
@@ -356,6 +364,9 @@ def run_whatshap(
                 phase_input_files,
                 None if reference is False else reference,
                 numeric_sample_ids,
+                probabilities,
+                kmersize,
+                gappenalty,
                 ignore_read_groups,
                 mapq_threshold=mapping_quality,
                 indels=indels,
@@ -452,7 +463,7 @@ def run_whatshap(
                 for sample in family:
                     with timers("read_bam"):
                         readset, vcf_source_ids = phased_input_reader.read(
-                            chromosome, phasable_variant_table.variants, sample
+                            chromosome, phasable_variant_table.variants, sample, probabilities, kmersize, gappenalty
                         )
 
                     # TODO: Read selection done w.r.t. all variants, where using heterozygous
@@ -980,6 +991,9 @@ def add_arguments(parser):
         help="Write reads that have been used for phasing to FILE.")
     arg("--algorithm", choices=("whatshap", "hapchat"), default="whatshap",
         help="Phasing algorithm to use (default: %(default)s)")
+    arg('-b', '--prob_file',metavar='PROB', help='Probabilities file', required=True)
+    arg('-k', '--kmersize',metavar='KMERSIZE', help='the kmer size to be used during scoring', required=True)
+    arg('-g', '--gappenalty',metavar='GAPPENALTY', help='gap penalty to be used during alignment', required=True)
 
     arg = parser.add_argument_group("Input pre-processing, selection and filtering").add_argument
     arg("--merge-reads", dest="read_merging", default=False, action="store_true",
@@ -1072,6 +1086,7 @@ def add_arguments(parser):
     arg("--use-ped-samples", dest="use_ped_samples",
         action="store_true", default=False,
         help="Only work on samples mentioned in the provided PED file.")
+    
 # fmt: on
 
 

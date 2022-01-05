@@ -15,3 +15,4 @@ include src/*.h
 include src/hapchat/*.cpp
 include src/hapchat/*.h
 include src/polyphase/*.h
+include src/caller.h

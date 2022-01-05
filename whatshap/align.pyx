@@ -8,8 +8,78 @@ Copied from https://bitbucket.org/marcelm/sqt/src/af255d54a21815cb9a3e0b279b431a
 from cython.view cimport array as cvarray
 import cython
 from libc cimport limits
+from libc.math cimport log10
 
 @cython.boundscheck(False)
+def match_score(str alpha, str beta, float mismatch_penalty):
+	cdef float matching = 0
+	if alpha == beta:
+		return matching
+	else:
+		return mismatch_penalty
+def needle(seq1, seq2, dictionary, int gap_penalty):
+	cdef int i,j
+	cdef int m = len(seq1)
+	cdef int n = len(seq2)
+	cdef int[:,:] score = cvarray(shape=(m+1,n+1), itemsize=sizeof(int), format="i")
+	#cdef score= zeros((m+1,n+1))
+	cdef float mismatching
+	cdef tuple lookup
+	#global seen_scores
+	#try:
+	#    seen_scores
+	#except NameError:
+	#    seen_scores={}
+	#if tuple((tuple(seq1),tuple(seq2))) in seen_scores:
+	#    return seen_scores[tuple((tuple(seq1),tuple(seq2)))]
+	#else:
+	# Calculate DP table
+	for i in range(0, m + 1):
+		score[i][0] = gap_penalty * i
+	for j in range(0, n + 1):
+		score[0][j] = gap_penalty *j
+	for i in range(1, m + 1):
+		for j in range (1,n+1):
+			lookup= (seq1[i-1],seq2[j-1])
+			if lookup in dictionary:
+				mismatching = -10 * log10(float(dictionary[lookup]))
+			elif (seq1[i-1],'epsilon') in dictionary:
+				mismatching= -10 * log10(float(dictionary[(seq1[i-1],'epsilon')]))
+			else:
+				mismatching= 100
+            #print(mismatching)
+			match = score[i - 1][j - 1] + match_score(seq1[i-1], seq2[j-1], mismatching)
+			delete = score[i - 1][j] + gap_penalty
+			insert = score[i][j - 1] + gap_penalty
+			score[i][j] = min(match, delete, insert)
+	return score[m][n]
+
+def split(sequence, int size):
+	cdef:
+		kmer_list= []
+		int index=0
+		int count=0
+		shortstring= ""
+		int s=0
+	if len(sequence) <= size:
+		kmer_list.append(sequence)
+		return kmer_list
+	else:
+		while count<=size and s<=len(sequence):
+			if len(sequence)-index > size-1:
+				if count< size:
+					shortstring+=sequence[s]
+					count+=1
+					s+=1
+				elif count== size:
+					kmer_list.append(shortstring)
+					shortstring=""
+					index+=1
+					count=0
+					s= index
+			else:
+				return kmer_list
+				break
 def edit_distance(s, t, int maxdiff=-1):
 	"""
 	Return the edit distance between the strings s and t.
