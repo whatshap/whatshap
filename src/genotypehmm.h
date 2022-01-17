@@ -45,7 +45,7 @@ private:
   unsigned int n_references;
   
   // what allele each reference sample in the vcf file has {{<alleles in position 1>},{<alleles in position 2>},{<alleles in position 3>},....}
-  const std::vector<std::vector<unsigned int> >* allele_references;
+  const std::vector<std::vector<int> >* allele_references;
   
   // position of the variants
   const std::vector<unsigned int>* variant_positions;
@@ -142,7 +142,7 @@ public:
    * @param positions positions to work on. If 0, all positions given in the read_set are used.
    * 		      caller retains ownership.
    */
-  GenotypeHMM(ReadSet* read_set, const std::vector<float>& recombcost, const Pedigree* pedigree, const unsigned int& n_references, const std::vector<unsigned int>* positions = nullptr, const std::vector<unsigned int>* n_allele_positions = nullptr, const std::vector<std::vector<unsigned int> >* allele_references = nullptr);
+  GenotypeHMM(ReadSet* read_set, const std::vector<float>& recombcost, const Pedigree* pedigree, const unsigned int& n_references, const std::vector<unsigned int>* positions = nullptr, const std::vector<unsigned int>* n_allele_positions = nullptr, const std::vector<std::vector<int> >* allele_references = nullptr);
   ~GenotypeHMM();
 
   // returns the computed genotype likelihoods for a given individual and a given SNP position

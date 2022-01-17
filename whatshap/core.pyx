@@ -527,7 +527,7 @@ cdef class GenotypeHMM:
 		"""
 		cdef vector[unsigned int]* c_positions = NULL
 		cdef vector[unsigned int]* c_n_allele_positions = NULL
-		cdef vector[vector[unsigned int]]* c_allele_references = NULL
+		cdef vector[vector[int]]* c_allele_references = NULL
 		cdef unsigned int n_references = n_samples
 		if positions is not None:
 			c_positions = new vector[unsigned int]()
@@ -538,7 +538,7 @@ cdef class GenotypeHMM:
 			for pos in n_allele_positions:
 				c_n_allele_positions.push_back(pos)
 		if allele_references is not None:
-			c_allele_references = new vector[vector[unsigned int]]()
+			c_allele_references = new vector[vector[int]]()
 			c_allele_references.resize(len(allele_references))
 			for ix, pos in enumerate(allele_references):
 				for hap in pos:

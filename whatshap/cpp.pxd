@@ -108,7 +108,7 @@ cdef extern from "../src/genotype.h":
 
 cdef extern from "../src/genotypehmm.h":
 	cdef cppclass GenotypeHMM:
-		GenotypeHMM(ReadSet* readset, vector[float] recombcost, Pedigree* pedigree, unsigned int n_references, vector[unsigned int]* positions, vector[unsigned int]* n_allele_positions, vector[vector[unsigned int]]*) except +
+		GenotypeHMM(ReadSet* readset, vector[float] recombcost, Pedigree* pedigree, unsigned int n_references, vector[unsigned int]* positions, vector[unsigned int]* n_allele_positions, vector[vector[int]]*) except +
 		vector[long double] get_genotype_likelihoods(unsigned int individual, unsigned int position) except +
 
 cdef extern from "../src/phredgenotypelikelihoods.h":

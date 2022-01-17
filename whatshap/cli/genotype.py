@@ -348,7 +348,10 @@ def run_genotype(
                     allele_reference_to_list = []
                     for ref_sample in allele_references[position]:
                         for hap in ref_sample:
-                            allele_reference_to_list.append(int(hap))
+                            try:
+                                allele_reference_to_list.append(int(hap))
+                            except ValueError:
+                                allele_reference_to_list.append(-1)
                     accessible_positions_allele_references.append(allele_reference_to_list)
                 logger.info(
                     "Variants covered by at least one phase-informative "
@@ -385,14 +388,6 @@ def run_genotype(
                         problem_name,
                     )
                     # MAKE SURE THAT THE NUMBER OF REFERENCES PASSED IS 2 X NUMBER OF SAMPLES SINCE EACH SAMPLE HAS 2 HAPLOTYPES
-                    
-                    # forward_backward_table = GenotypeDPTable(
-                    #     numeric_sample_ids,
-                    #     all_reads,
-                    #     recombination_costs,
-                    #     pedigree,
-                    #     accessible_positions, 
-                    # )
                     
                     forward_backward_table = GenotypeHMM(
                         numeric_sample_ids,

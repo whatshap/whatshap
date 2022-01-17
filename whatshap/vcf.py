@@ -851,9 +851,11 @@ class VcfAugmenter(ABC):
         """
         Write all variants on one chromosome unchanged to output VCF
         chromosome -- name of chromosome
+
+        [Samar] Not writing anything in my case.
         """
-        for record in self._iterrecords(chromosome):
-            self._writer.write(record)
+        # for record in self._iterrecords(chromosome):
+        #     self._writer.write(record)
 
 
 class PhasedVcfWriter(VcfAugmenter):
