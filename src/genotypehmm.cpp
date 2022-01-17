@@ -103,7 +103,6 @@ void GenotypeHMM::compute_index(){
             next_read_ids = extract_read_ids(*next_input_column);
             current_column = new Column(column_index, &n_references, *current_read_ids, *next_read_ids);
             hmm_columns[column_index] = current_column;
-            transition_probability_table[column_index] = new TransitionProbabilityComputer(recombcost[column_index], *current_column, allele_references->at(column_index), allele_references->at(column_index+1));
         } 
         else {
             assert (column_index == input_column_iterator.get_column_count() - 1);
@@ -145,7 +144,14 @@ void GenotypeHMM::compute_backward_prob()
             assert(next_read_ids.get() == 0);
         }
         // compute the backward probabilities
-        compute_backward_column(column_index, std::move(current_input_column));
+        if (column_index > 0) {
+            transition_probability_table[column_index - 1] = new TransitionProbabilityComputer(recombcost[column_index-1], *hmm_columns[column_index-1], allele_references->at(column_index-1), allele_references->at(column_index));
+        }
+        compute_backward_column(column_index,std::move(current_input_column));
+        if (column_index > 0) {
+            delete transition_probability_table[column_index-1];
+            transition_probability_table[column_index-1] = nullptr;
+        }
         // check whether to delete the previous column
         if ((k>1) && (column_index < column_count-1) && (((column_index+1)%k) != 0)) {
             delete backward_pass_column_table[column_index+1];
@@ -186,7 +192,14 @@ void GenotypeHMM::compute_forward_prob()
             assert(next_read_ids.get() == 0);
         }
         // compute forward probabilities for the current column
+        if (column_index > 0 && transition_probability_table[column_index - 1] == nullptr) {
+            transition_probability_table[column_index - 1] = new TransitionProbabilityComputer(recombcost[column_index-1], *hmm_columns[column_index-1], allele_references->at(column_index-1), allele_references->at(column_index));
+        }
         compute_forward_column(column_index,std::move(current_input_column));
+        if (column_index > 0) {
+            delete transition_probability_table[column_index-1];
+            transition_probability_table[column_index-1] = nullptr;
+        }
     }
 }
 
@@ -198,16 +211,16 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
     // NOTE: Need column_index = 0 since we need to store the scaling parameter for the column.
 
     assert(column_index < backward_input_column_iterator.get_column_count());
-
+    Column* current_indexer;
+    TransitionProbabilityComputer* current_transition_table;
     // check if column already exists
     if(column_index > 0){
         if (backward_pass_column_table[column_index-1] != nullptr) return;
+        current_indexer = hmm_columns[column_index];
+        current_transition_table = transition_probability_table[column_index-1];
+        assert(current_indexer != nullptr);
+        assert (current_transition_table != nullptr);
     }
-
-    Column* current_indexer = hmm_columns[column_index];
-    TransitionProbabilityComputer* current_transition_table = transition_probability_table[column_index-1];
-    assert(current_indexer != nullptr);
-    assert (current_transition_table != nullptr);
 
     // if current input column was not provided, create it
     if(current_input_column.get() == nullptr) {
@@ -331,6 +344,7 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
         // compute index of next column that has been stored
         size_t next = std::min((unsigned int) ( ((column_index + k) / k) * k ), input_column_iterator.get_column_count()-1);
         for(size_t i = next; i > column_index; --i){
+            transition_probability_table[i-1] = new TransitionProbabilityComputer(recombcost[i-1], *hmm_columns[i-1], allele_references->at(i-1), allele_references->at(i));
             compute_backward_column(i);
         }
         // last column just computed still needs to be scaled

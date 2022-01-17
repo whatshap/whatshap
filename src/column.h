@@ -9,20 +9,14 @@ class ColumnIndexingIterator;
 
 class Column {
 private:
-	unsigned int column_size;
 	std::vector<unsigned int> read_ids;
 	std::vector<unsigned int> next_read_ids;
 	std::vector<unsigned int> act_nonterminating_read_ids;
 	std::vector<unsigned int> act_terminating_read_ids;
 	unsigned int n_references;
-	const Column* previous_column;
-	const Column* next_column;
 	
 public:
 
-	/** Constructor.
-	 * @param previousReadIDs IDs of reads active
-	 */
 	Column(const unsigned int index, const unsigned int* n_ref, const std::vector<unsigned int>& read_ids, const std::vector<unsigned int>& next_read_ids);
 	
 	// returns the column size
@@ -65,7 +59,7 @@ public:
 	std::vector<unsigned int> get_backward_compatible_bipartitions(int b_index);
 
 	// returns the compatible bipartitions in forward pass
-	std::vector<unsigned int> get_forward_compatible_bipartitions(const int b_index);
+	// std::vector<unsigned int> get_forward_compatible_bipartitions(const int b_index);
 };
 
 #endif

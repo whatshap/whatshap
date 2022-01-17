@@ -13,7 +13,6 @@ next_read_ids(next_read_ids) {
 
 	bool read_found;
 	n_references = *n_ref; // each reference sample has 2 haplotype paths.
-	column_size = pow(2 ,read_ids.size()) * pow(n_references,2);
 	for (auto read = begin(read_ids); read != end(read_ids); read++) {
 		read_found = false;
 		for (auto next_read = begin(next_read_ids); next_read != end(next_read_ids); next_read++){
@@ -32,13 +31,13 @@ next_read_ids(next_read_ids) {
 
 unsigned int Column::get_index(vector<unsigned int>& b1, vector<unsigned int>& b2, unsigned int& r1, unsigned int& r2) {
 	unsigned int index = (n_references*n_references*bipartition_to_index(b1,b2))+reference_allele_to_index(r1, r2);
-	assert (index < column_size);
+	assert (index < this->get_column_size());
 	return index;
 }
 
 unsigned int Column::get_index(unsigned int b_index, unsigned int r_index) {
 	unsigned int index = (n_references*n_references*b_index)+r_index;
-	assert (index < column_size);
+	assert (index < this->get_column_size());
 	return index;
 }
 
@@ -47,7 +46,7 @@ unique_ptr<ColumnIndexingIterator> Column::get_iterator() {
 }
 
 unsigned int Column::get_column_size() {
-	return column_size;
+	return pow(2 ,read_ids.size()) * pow(n_references,2);
 }
 
 vector<unsigned int> * Column::get_read_ids() {
@@ -71,7 +70,7 @@ vector<vector<unsigned int>> Column::index_to_bipartition(unsigned int& index, i
 	vector<unsigned int>* ri;
 	if (column_type == 0) {
 		ri = &read_ids;
-		c_size = column_size;
+		c_size = this->get_column_size();
 	}
 	else {
 		ri = &act_nonterminating_read_ids;
@@ -97,7 +96,7 @@ vector<unsigned int> Column::index_to_reference_allele(unsigned int& index, int 
 	vector<unsigned int>* ri;
 	if (column_type == 0) {
 		ri = &read_ids;
-		c_size = pow(2, ri->size())*pow(n_references, 2);
+		c_size = this->get_column_size();
 	}
 	else {
 		ri = &act_nonterminating_read_ids;
@@ -168,28 +167,28 @@ vector<unsigned int> Column::get_backward_compatible_bipartitions(int b_index) {
 	return compatible_bipartition;
 }
 
-// Gives the compatible bipartitions in the right column (at position index + 1) given the bipartition index of a bipartition of the left column (at position index)
-vector<unsigned int> Column::get_forward_compatible_bipartitions(int b_index) {
-	vector<unsigned int> compatible_bipartition = {0};
-    int base = 0;
-    int count = 0;
-	// Determining the bipartition of the non terminating reads
-    for (int i = 0; i < read_ids.size(); i++) {
-        int ri = read_ids.at(i);
-        if (ri == next_read_ids.at(count)) {
-            base = base + (pow(2,count)*(b_index%2));
-            count++;
-        }
-        b_index = b_index/2;
-    }
-    compatible_bipartition.at(0) = base;
-	// Iterating over the new reads and accordingly getting the compatible bipartition indices
-    while (count < next_read_ids.size()) {
-        compatible_bipartition.resize(2*compatible_bipartition.size());
-        for (int j = 0; j < compatible_bipartition.size()/2; j++) {
-            compatible_bipartition.at((compatible_bipartition.size()/2)+j) = compatible_bipartition.at(j) + pow(2, count);
-        }
-        count++;
-    }
-	return compatible_bipartition;
-}
+// // Gives the compatible bipartitions in the right column (at position index + 1) given the bipartition index of a bipartition of the left column (at position index)
+// vector<unsigned int> Column::get_forward_compatible_bipartitions(int b_index) {
+// 	vector<unsigned int> compatible_bipartition = {0};
+//     int base = 0;
+//     int count = 0;
+// 	// Determining the bipartition of the non terminating reads
+//     for (int i = 0; i < read_ids.size(); i++) {
+//         int ri = read_ids.at(i);
+//         if (ri == next_read_ids.at(count)) {
+//             base = base + (pow(2,count)*(b_index%2));
+//             count++;
+//         }
+//         b_index = b_index/2;
+//     }
+//     compatible_bipartition.at(0) = base;
+// 	// Iterating over the new reads and accordingly getting the compatible bipartition indices
+//     while (count < next_read_ids.size()) {
+//         compatible_bipartition.resize(2*compatible_bipartition.size());
+//         for (int j = 0; j < compatible_bipartition.size()/2; j++) {
+//             compatible_bipartition.at((compatible_bipartition.size()/2)+j) = compatible_bipartition.at(j) + pow(2, count);
+//         }
+//         count++;
+//     }
+// 	return compatible_bipartition;
+// }
