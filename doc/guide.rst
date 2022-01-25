@@ -834,6 +834,55 @@ To improve readibility, option ``--names`` is used to assign the name "truth" to
 input file and "whatshap" to the second one. Without this option, the input files are given
 names "file0", "file1" etc.
 
+``whatshap compare`` asseses differences mainly in terms of *switch errors*,
+but it also computes *flip errors* and *Hamming distance*.
+
+For switch errors, assume there are two variant files A and B and the two phase
+sets have these phased genotypes::
+
+    A   B
+    0|1 0|1
+    0|1 0|1
+    0|1 1|0
+    1|0 0|1
+    1|0 0|1
+
+The first haplotype of file A can be written as 00011 and the first haplotype of
+file B as 00100 (and the second haplotype of A as 11100 and the second of B as
+11011). When counting the errors between them, ``whatshap compare`` detects one
+switch error between the second and third position because the first haplotype
+in A matches the first haplotye in B at positions one and two, but then the
+first haplotype matches the second haplotype from position three onwards.
+
+In other words: We can turn 00011 into 00100 by inverting all bits from position
+three onwards.
+
+The Hamming distance counts the positions at which the haplotypes differ.
+For example, comparing 00000 to 00011 gives a Hamming distance of 2 because the
+haplotypes differ (in the last two alleles). On the other hand, comparing these
+two haplotypes incurs only one switch error.
+
+Finally, two switch errors in a row are also counted as a *flip error*.
+``whatshap compare`` counts normal switch errors (which count any switches,
+even those that can be seen as part of a flip error, but it also shows the
+"switch/flip" decomposition, where the switches are broken down into
+1) switches that are not part of a flip and 2) flip errors.
+
+Any comparisons whatshap compare makes allow the roles of "first' and "second" haplotype to be reversed. For example, when the first haplotype of A is 00000 and the first haplotype of B is 01111, you might guess that the Hamming distance would be 4, but that is not the case because whatshap compare notices that it is better to instead compare against the second haplotype of file B (which is 10000), resulting in Hamming distance of just 1.
+
+
+Switch and flip example::
+
+    A   B   C
+    0|1 0|1 0|1
+    0|1 0|1 0|1
+    0|1 1|0 1|0
+    1|0 0|1 1|0
+    1|0 0|1 1|0
+
+The A to B comparison contains one switch, whereas A vs C contains one flip
+(two switches).
+
 
 Example output::
 
@@ -877,38 +926,94 @@ Example output::
                       Different genotypes:         0
                   Different genotypes [%]:     0.00%
 
+The file written by ``--tsv-pairwise`` is in tab-separated values format and
+has the following columns (example values are shown in parentheses).
 
-switch/flip decomposition:      284+2*1110 = 2504
-switch/flip rate:    (284+1110)/28573 = 4.88%
+sample (NA12878)
+    Sample name as in the variant file header
 
-The file written by ``--tsv-pairwise`` is in tab-separated values format and has the following
-columns.
+chromosome (chr1)
+    Chromosome name
 
-* sample NA12878
-* chromosome chr1
-* dataset_name0 truth
-* dataset_name1 whatshap
-* file_name0 truth.chr1.vcf
-* file_name1 phased.chr1.vcf
-* intersection_blocks 191
-* covered_variants 28764
-* all_assessed_pairs 28573
-* all_switches 2504
-* all_switch_rate 0.0876
-* all_switchflips 284/1110
-* all_switchflip_rate 0.0488
-* blockwise_hamming 3365
-* blockwise_hamming_rate 0.1170
-* blockwise_diff_genotypes 0
-* blockwise_diff_genotypes_rate 0.0
-* largestblock_assessed_pairs 1740
-* largestblock_switches 179
-* largestblock_switch_rate 0.1029
-* largestblock_switchflips 21/79
-* largestblock_switchflip_rate 0.0575
-* largestblock_hamming 505
-* largestblock_hamming_rate 0.2901
-* largestblock_diff_genotypes 0
-* largestblock_diff_genotypes_rate 0.0
-* het_variants0 183135
-* only_snvs 0
+dataset_name0 (truth)
+    The name of the first dataset as specified by ``--names``
+
+dataset_name1 (whatshap)
+    The name of the second dataset as specified by ``--names``
+
+file_name0 (truth.chr1.vcf)
+    The file name of the first variant file
+
+file_name1 (phased.chr1.vcf)
+    The file name of the second variant file
+
+intersection_blocks (191)
+    The number of intersection blocks. Blocks of the (phase sets) of the first
+    and second variant file are split where necessary to make them cover the
+    same set of variants. This is the number of these smaller blocks.
+
+covered_variants (28764)
+
+all_assessed_pairs (28573)
+
+all_switches (2504)
+    The number of switch errors, summed up over all intersection blocks.
+
+all_switch_rate (0.0876)
+    Switch error rate of all intersection blocks. Computed as all_switches
+    divided by all_assessed_pairs.
+
+all_switchflips (284/1110)
+    Switch/flip decomposition (sum over all intersection blocks) as
+    nonflip_switches/flips. The first number is the number of switches that are
+    not part of a flip; the second is the number of flip errors.
+
+    nonflip_switches + 2 * flips = all_switches
+
+    (284+2*1110 = 2504 in the example)
+
+all_switchflip_rate 0.0488
+    Switches and flips from the switch/flip decomposition added up, then
+    divided by all_switches.
+
+    Example: (284 + 1110) / 28573 = 4.88%
+
+blockwise_hamming (3365)
+
+blockwise_hamming_rate (0.1170)
+
+blockwise_diff_genotypes (0)
+
+blockwise_diff_genotypes_rate (0.0)
+
+largestblock_assessed_pairs (1740)
+
+largestblock_switches (179)
+    Number of switch errors in the largest intersection block.
+
+largestblock_switch_rate (0.1029)
+    Switch error rate of the largest intersection block.
+
+largestblock_switchflips 21/79
+    Switch/flip decompositon of the largest intersection block.
+
+largestblock_switchflip_rate 0.0575
+
+largestblock_hamming (505)
+
+largestblock_hamming_rate (0.2901)
+
+largestblock_diff_genotypes (0)
+
+largestblock_diff_genotypes_rate (0.0)
+
+het_variants0 (183135)
+
+only_snvs (0)
+
+Notes
+
+* `whatshap compare` only looks at identical variants when it compares two
+  files. For example, if there is a variant at a position and it is A→C in one
+  file and it is A→G in the other file (at the same position), then these are
+  considered different variants, and they are excluded from comparisons.
