@@ -1,5 +1,5 @@
 import os
-from setuptools import setup, Extension, find_packages
+from setuptools import setup, Extension
 from distutils.sysconfig import customize_compiler
 import Cython.Build
 from Cython.Build import cythonize
@@ -79,10 +79,6 @@ class BuildExt(Cython.Build.build_ext):
         super().build_extensions()
 
 
-with open("doc/README.rst", encoding="utf-8") as f:
-    long_description = f.read()
-
-
 # Avoid compilation if we are being installed within Read The Docs
 if os.environ.get("READTHEDOCS") == "True":
     cmdclass = {}
@@ -102,34 +98,8 @@ else:
     ]
 
 setup(
-    name="whatshap",
     use_scm_version={"write_to": "whatshap/_version.py"},
-    author="WhatsHap authors",
-    author_email="whatshap@cwi.nl",
-    url="https://github.com/whatshap/whatshap/",
-    description="phase genomic variants using DNA sequencing reads",
-    long_description=long_description,
-    long_description_content_type="text/x-rst",
-    license="MIT",
     cmdclass=cmdclass,
     ext_modules=cythonize(ext_modules),
-    packages=find_packages(),
-    entry_points={"console_scripts": ["whatshap = whatshap.__main__:main"]},
     install_requires=install_requires,
-    extras_require={
-        "dev": ["Cython", "pytest", "sphinx", "sphinx_issues", "pysam-stubs"],
-        "docs": ["sphinx-issues"],
-    },
-    python_requires=">=3.6",
-    classifiers=[
-        "Development Status :: 4 - Beta",
-        "Environment :: Console",
-        "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: MIT License",
-        "Natural Language :: English",
-        "Programming Language :: Cython",
-        "Programming Language :: Python",
-        "Programming Language :: Python :: 3",
-        "Topic :: Scientific/Engineering :: Bio-Informatics",
-    ],
 )
