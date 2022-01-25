@@ -38,18 +38,9 @@ def setup_logging(debug):
     root.setLevel(logging.DEBUG if debug else logging.INFO)
 
 
-def ensure_pysam_version():
-    from pysam import __version__ as pysam_version
-    from distutils.version import LooseVersion
-
-    if LooseVersion(pysam_version) < LooseVersion("0.8.1"):
-        sys.exit("WhatsHap requires pysam >= 0.8.1")
-
-
 def main(argv=None):
     if argv is None:
         argv = sys.argv[1:]
-    ensure_pysam_version()
     subcommand_name = get_subcommand_name(argv)
     module = importlib.import_module("." + subcommand_name, cli_package.__name__)
 
