@@ -133,6 +133,14 @@ def switch_encoding(phasing):
 
 
 def compute_switch_flips(phasing0, phasing1) -> SwitchFlips:
+    """
+    >>> compute_switch_flips("00011", "00100")
+    SwitchFlips(switches=1, flips=0)
+    >>> compute_switch_flips("00011", "00111")
+    SwitchFlips(switches=0, flips=1)
+    >>> compute_switch_flips("000", "001")
+    SwitchFlips(switches=1, flips=0)
+    """
     assert len(phasing0) == len(phasing1)
     s0 = switch_encoding(phasing0)
     s1 = switch_encoding(phasing1)
