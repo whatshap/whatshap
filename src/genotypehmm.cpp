@@ -46,8 +46,11 @@ GenotypeHMM::GenotypeHMM(ReadSet* read_set, const vector<float>& recombcost, con
         read_sources.push_back(pedigree->id_to_index(read_set->get(i)->getSampleID()));
     }
     //compute forward and backward probabilities
+    cout << "\nComputing Index\n\n";
     compute_index();
+    cout << "\nComputing Backward Probabilities\n\n";
     compute_backward_prob();
+    cout << "\nComputing Forward Probabilities\n\n";
     compute_forward_prob();
 }
 
@@ -96,6 +99,7 @@ void GenotypeHMM::compute_index(){
     
     for(size_t column_index=0; column_index < input_column_iterator.get_column_count(); ++column_index){
         
+        if (column_index % 10 == 0) cout << "CI: " << column_index << endl;
         current_input_column = std::move(next_input_column);
         current_read_ids = std::move(next_read_ids);
         if (input_column_iterator.has_next()) {
@@ -133,6 +137,7 @@ void GenotypeHMM::compute_backward_prob()
     size_t k = (size_t)sqrt(column_count);
     for(int column_index = column_count-1; column_index >= 0; --column_index){
         // make former next column the current one
+        if (column_index % 10 == 0) cout << "BP: " << column_index << endl;
         current_input_column = std::move(next_input_column);
         current_read_ids = std::move(next_read_ids);
         // peek ahead and get the next column
@@ -180,6 +185,7 @@ void GenotypeHMM::compute_forward_prob()
 
     // forward pass: create a sparse table, storing values at every sqrt(#columns)-th position
     for (size_t column_index=0; column_index < input_column_iterator.get_column_count(); ++column_index) {
+        if (column_index % 10 == 0) cout << "FP: " << column_index << endl;
         // make former next column the current one
         current_input_column = std::move(next_input_column);
         unique_ptr<vector<unsigned int> > current_read_ids = std::move(next_read_ids);
@@ -209,7 +215,6 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
     //            It uses backward_pass_column_table[column_index] to calculate the next column!
 
     // NOTE: Need column_index = 0 since we need to store the scaling parameter for the column.
-
     assert(column_index < backward_input_column_iterator.get_column_count());
     Column* current_indexer;
     TransitionProbabilityComputer* current_transition_table;
@@ -221,13 +226,11 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
         assert(current_indexer != nullptr);
         assert (current_transition_table != nullptr);
     }
-
     // if current input column was not provided, create it
     if(current_input_column.get() == nullptr) {
         backward_input_column_iterator.jump_to_column(column_index);
         current_input_column = backward_input_column_iterator.get_next();
     }
-
     vector<long double>* previous_projection_column = nullptr;
 
     // check if there is a projection column
@@ -238,19 +241,15 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
         backward_pass_column_table[column_index] = new vector<long double>(hmm_columns[column_index]->get_column_size(), 0.0L);
         previous_projection_column = backward_pass_column_table[column_index];
     }
-
     // initialize the new projection column (= current index-1)
     vector<long double>* current_projection_column = nullptr;
     if(column_index > 0){
         current_projection_column = new vector<long double>(hmm_columns[column_index-1]->get_column_size(), 0.0L);
     }
-    
     int n_alleles = variant_n_allele_positions->at(column_index);
     Vector2D<long double> emission_probability_computer = Vector2D<long double>(n_alleles, n_alleles);
-
     // for scaled version of forward backward alg, keep track of the sum of backward
     long double scaling_sum = 0.0L;
-    
     // iterate over all bipartitions of the column on the right. So we are calculating the values in column current_index - 1
     if (column_index > 0) {
         unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
@@ -347,27 +346,28 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
             transition_probability_table[i-1] = new TransitionProbabilityComputer(recombcost[i-1], *hmm_columns[i-1], allele_references->at(i-1), allele_references->at(i));
             compute_backward_column(i);
         }
+        if (backward_pass_column_table[column_index] ==  nullptr) {
+            compute_backward_column(next);
+            delete backward_pass_column_table[next-1];
+            backward_pass_column_table[next-1] = nullptr;
+        }
+        assert (backward_pass_column_table[column_index] != nullptr);
         // last column just computed still needs to be scaled
         std::transform((*backward_pass_column_table[column_index]).begin(), (*backward_pass_column_table[column_index]).end(), (*backward_pass_column_table[column_index]).begin(), std::bind2nd(std::divides<long double>(), scaling_parameters[column_index]));
     }
-
     backward_probabilities = backward_pass_column_table[column_index];
     assert(backward_probabilities != nullptr);
-
     // initialize the new projection column (2D: has entry for every bipartition and transmission value)
     vector<long double>* current_projection_column = nullptr;
-    // CHECK!!!!!
     if(column_index < input_column_iterator.get_column_count()){
         current_projection_column = new vector<long double>(current_indexer->get_column_size(), 0.0L);
     }
-
     int n_alleles = variant_n_allele_positions->at(column_index);
     Vector2D<long double> emission_probability_computer = Vector2D<long double>(n_alleles, n_alleles);
     TransitionProbabilityComputer* current_transition_table;
     if (column_index > 0) {
         current_transition_table = transition_probability_table[column_index - 1];
     }
-
     // sum of alpha*beta, used to normalize the likelihoods
     long double normalization = 0.0L;
     long double scaling_sum = 0.0L;
@@ -446,19 +446,16 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
         // HARDCODED FOR A PEDIGREE SIZE OF 1.
         genotype_likelihood_table.at(0, column_index).likelihoods[g_index] += forward_backward;
     }
-    
     // store the computed projection column (in case there is one)
     if(current_projection_column != 0){
         delete forward_pass_column_table[0];
         forward_pass_column_table[0] = current_projection_column;
     }
-
     // we can remove the backward-probability column
     if(backward_pass_column_table[column_index] != nullptr){
         delete backward_pass_column_table[column_index];
         backward_pass_column_table[column_index] = nullptr;
     }
-
     // scale the likelihoods
     for(size_t individuals_index = 0; individuals_index < pedigree->size(); ++individuals_index){
         genotype_likelihood_table.at(individuals_index,column_index).divide_likelihoods_by(normalization);

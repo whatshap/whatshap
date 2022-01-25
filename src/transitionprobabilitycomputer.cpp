@@ -16,7 +16,8 @@ TransitionProbabilityComputer::TransitionProbabilityComputer(const float& recomb
     vector<unsigned int>* next_read_ids = column.get_next_read_ids();
     vector<unsigned int>* active_nonterminating_read_ids = column.get_active_nonterminating_read_ids();
     vector<unsigned int>* active_terminating_read_ids = column.get_active_terminating_read_ids();
-    vector<vector<unsigned int> > allele_to_reference(next_allele_reference.size());
+    // The +1 is to account for cases where all the samples have different alleles and none of them are ref allele
+    vector<vector<unsigned int> > allele_to_reference(next_allele_reference.size()+1);
     int n_alleles = 0;
     for (int i = 0; i < next_allele_reference.size(); i++) {
         if (n_alleles < next_allele_reference[i]) {

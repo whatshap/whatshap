@@ -444,6 +444,7 @@ class VcfReader:
         n_snvs = 0
         n_other = 0
         n_multi = 0
+        n_skip = 0  #To count the number of records that need to be skipped since they have more alleles than can be handled by WhatsHap
         table = VariantTable(chromosome, self.samples)      # BAM Samples
         prev_position = None
         ## records is a list of VariantRecord objects
@@ -459,8 +460,12 @@ class VcfReader:
             ###pos, ref, alt = record.start, str(record.ref), str(record.alts[0])
             pos, ref = record.start, str(record.ref)
             alts = record.alts
-            allele_origin = [x.split("|") for x in record.__str__().split()[-len(list(self._vcf_reader.header.samples)):]]       # VCF samples (reference)
-            
+            if len(alts) > 15:
+                n_skip += 1
+                continue
+            allele_origin = []
+            for _, call in record.samples.items():
+                allele_origin.append(call["GT"])
             for alt in alts:
                 if len(ref) == len(alt) == 1:
                     n_snvs += 1
@@ -569,8 +574,8 @@ class VcfReader:
             variant = VcfVariant(position=pos, reference_allele=ref, alternative_allele=alts, allele_origin=allele_origin)
             table.add_variant(variant, genotypes, phases, genotype_likelihoods)
 
-        logger.debug(
-            "Parsed %s SNVs and %s non-SNVs. Also skipped %s multi-ALTs.", n_snvs, n_other, n_multi
+        logger.info(
+            "Processing Chromosome %s. Parsed %s SNVs, %s non-SNVs and %s multi-ALTs. Also skipped %s records exceeding max allele caparacity.", chromosome, n_snvs, n_other, n_multi, n_skip
         )
 
         # TODO remove overlapping variants

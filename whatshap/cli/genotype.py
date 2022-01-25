@@ -350,7 +350,7 @@ def run_genotype(
                         for hap in ref_sample:
                             try:
                                 allele_reference_to_list.append(int(hap))
-                            except ValueError:
+                            except TypeError:
                                 allele_reference_to_list.append(-1)
                     accessible_positions_allele_references.append(allele_reference_to_list)
                 logger.info(
