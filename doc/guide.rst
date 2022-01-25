@@ -49,9 +49,7 @@ The VCF file can also be gzip-compressed.
 Features and limitations
 ========================
 
-WhatsHap supports phasing of variants in diploid genomes.
-
-Supported variant types are SNVs (single-nucleotide variants), insertions,
+WhatsHap can phase SNVs (single-nucleotide variants), insertions,
 deletions, MNPs (multiple adjacent SNVs) and “complex” variants. Complex
 variants are those that do not fall in any of the other categories, but
 are not structural variants. An example is the variant TGCA → AAC.
@@ -67,7 +65,7 @@ phased, that information will be added to the variant in the output VCF.
 
 Variants can be left unphased for two reasons: Either the variant type is
 not supported or the phasing algorithm could not make a phasing decision.
-In both cases, the information from the input VCF is simply copied to output
+In both cases, the information from the input VCF is simply copied to the output
 VCF unchanged.
 
 
@@ -76,18 +74,18 @@ Subcommands
 
 WhatsHap comes with the following subcommands.
 
-========== ===================================================
-Subcommand Description
-========== ===================================================
-phase      Phase diploid variants
-polyphase  Phase polyploid variants
-stats      Print phasing statistics
-compare    Compare two or more phasings
-hapcut2vcf Convert hapCUT output format to VCF
-unphase    Remove phasing information from a VCF file
-haplotag   Tag reads by haplotype
-genotype   Genotype variants
-========== ===================================================
+===================================== ===================================================
+Subcommand                            Description
+===================================== ===================================================
+phase                                 Phase diploid variants
+:ref:`polyphase <whatshap-polyphase>` Phase polyploid variants
+:ref:`stats <whatshap-stats>`         Print phasing statistics
+:ref:`compare <whatshap-compare>`     Compare two or more phasings
+hapcut2vcf                            Convert hapCUT output format to VCF
+unphase                               Remove phasing information from a VCF file
+:ref:`haplotag <whatshap-haplotag>`   Tag reads by haplotype
+:ref:`genotype <whatshap-genotype>`   Genotype variants
+===================================== ===================================================
 
 Not all are fully documented in this manual, yet. To get help for a
 subcommand named ``SUBCOMMAND``, run ::
@@ -499,8 +497,10 @@ will contain the two haplotypes.
     reference FASTA.
 
 
-``whatshap stats``
-==================
+.. _whatshap-stats:
+
+whatshap stats: Computing phasing statistics
+============================================
 
 The ``stats`` subcommand prints phasing statistics for a single VCF file::
 
@@ -676,9 +676,10 @@ are used for phasing. In the GTF track, you will note this because the blocks
 appear as “exons” (thick segments) connected by thinner horizontal lines
 (not shown in the screenshot).
 
+.. _whatshap-haplotag:
 
-Coloring reads
---------------
+whatshap haplotag: Tagging reads by haplotype for visualization
+---------------------------------------------------------------
 
 It is often a lot more interesting to also show the reads along with the
 variants.
@@ -739,8 +740,10 @@ heterozygous variants.
 
 |
 
-Genotyping Variants
-===================
+.. _whatshap-genotype:
+
+whatshap genotype: Genotyping Variants
+======================================
 
 Besides phasing them, WhatsHap can also re-genotype variants. Given a VCF file
 containing variant positions, it computes genotype likelihoods for all three
@@ -763,8 +766,11 @@ an input to the above mentioned genotyping commands. This can be done by running
 
 If Nanopore reads are used for calling SNPs, it is recommended to add option --nanopore to the above command.
 
-Polyploid Phasing
-=================
+
+.. _whatshap-polyphase:
+
+whatshap polyphase: Polyploid Phasing
+=====================================
 
 In addition to diploid phasing, WhatsHap also supports polyploid phasing 
 through a different algorithm. The ``whatshap polyphase`` command works 
@@ -813,3 +819,96 @@ field in the VCF, if the ``--include-haploid-sets`` flag is set. This is a
 custom field, which is only used to provide this information. It is not
 supported by other tools and also the ``compare`` and ``stats`` modules of
 WhatsHap will still use the common ``PS`` field to consider block borders.
+
+
+.. _whatshap-compare:
+
+whatshap compare: Comparing variant files
+=========================================
+
+Compare ``truth.chr1.vcf`` to ``phased.chr1.vcf``::
+
+    whatshap compare --names truth,whatshap --tsv-pairwise eval.tsv truth.chr1.vcf phased.chr1.vcf
+
+To improve readibility, option ``--names`` is used to assign the name "truth" to the first
+input file and "whatshap" to the second one. Without this option, the input files are given
+names "file0", "file1" etc.
+
+
+Example output::
+
+    Comparing phasings for sample NA12878
+    FILENAMES
+                truth = truth.chr1.vcf
+             whatshap = phased.chr1.vcf
+    ---------------- Chromosome chr1 ----------------
+    VARIANT COUNTS (heterozygous / all):
+                  truth:    183135 /    314053
+               whatshap:    183135 /    314053
+                  UNION:    183135 /    314053
+           INTERSECTION:    183135 /    314053
+    PAIRWISE COMPARISON: truth <--> whatshap:
+             common heterozygous variants:    183135
+             (restricting to these below)
+            non-singleton blocks in truth:         1
+                     --> covered variants:    183135
+    non-singleton blocks in whatshap:       191
+                     --> covered variants:     28764
+        non-singleton intersection blocks:       191
+                     --> covered variants:     28764
+                  ALL INTERSECTION BLOCKS: ---------
+        phased pairs of variants assessed:     28573
+                            switch errors:      2504
+                        switch error rate:     8.76%
+                switch/flip decomposition:  284/1110
+                         switch/flip rate:     4.88%
+              Block-wise Hamming distance:      3365
+          Block-wise Hamming distance [%]:    11.70%
+                      Different genotypes:         0
+                  Different genotypes [%]:     0.00%
+               LARGEST INTERSECTION BLOCK: ---------
+        phased pairs of variants assessed:      1740
+                            switch errors:       179
+                        switch error rate:    10.29%
+                switch/flip decomposition:     21/79
+                         switch/flip rate:     5.75%
+                         Hamming distance:       505
+                     Hamming distance [%]:    29.01%
+                      Different genotypes:         0
+                  Different genotypes [%]:     0.00%
+
+
+switch/flip decomposition:      284+2*1110 = 2504
+switch/flip rate:    (284+1110)/28573 = 4.88%
+
+The file written by ``--tsv-pairwise`` is in tab-separated values format and has the following
+columns.
+
+* sample NA12878
+* chromosome chr1
+* dataset_name0 truth
+* dataset_name1 whatshap
+* file_name0 truth.chr1.vcf
+* file_name1 phased.chr1.vcf
+* intersection_blocks 191
+* covered_variants 28764
+* all_assessed_pairs 28573
+* all_switches 2504
+* all_switch_rate 0.0876
+* all_switchflips 284/1110
+* all_switchflip_rate 0.0488
+* blockwise_hamming 3365
+* blockwise_hamming_rate 0.1170
+* blockwise_diff_genotypes 0
+* blockwise_diff_genotypes_rate 0.0
+* largestblock_assessed_pairs 1740
+* largestblock_switches 179
+* largestblock_switch_rate 0.1029
+* largestblock_switchflips 21/79
+* largestblock_switchflip_rate 0.0575
+* largestblock_hamming 505
+* largestblock_hamming_rate 0.2901
+* largestblock_diff_genotypes 0
+* largestblock_diff_genotypes_rate 0.0
+* het_variants0 183135
+* only_snvs 0

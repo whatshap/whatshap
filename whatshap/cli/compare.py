@@ -1,5 +1,5 @@
 """
-Compare two or more phasings
+Compare two or more phased variant files
 """
 import logging
 import math
@@ -31,19 +31,19 @@ def add_arguments(parser):
     add('--tsv-pairwise', metavar='TSVPAIRWISE', default=None, help='Filename to write '
         'comparison results from pair-wise comparison to (tab-separated).')
     add('--tsv-multiway', metavar='TSVMULTIWAY', default=None, help='Filename to write '
-        'comparison results from multiway comparison to (tab-separated). Only for diploid vcfs.')
+        'comparison results from multiway comparison to (tab-separated). Only for diploid VCFs.')
     add('--only-snvs', default=False, action="store_true", help='Only process SNVs '
         'and ignore all other variants.')
     add('--switch-error-bed', default=None, help='Write BED file with switch error positions '
-        'to given filename. Only for diploid vcfs.')
+        'to given filename. Only for diploid VCFs.')
     add('--plot-blocksizes', default=None, help='Write PDF file with a block length histogram '
         'to given filename (requires matplotlib).')
     add('--plot-sum-of-blocksizes', default=None, help='Write PDF file with a block length histogram in which the height of each bar corresponds to the sum of lengths.')
     add('--longest-block-tsv', default=None, help='Write position-wise agreement of longest '
-        'joint blocks in each chromosome to tab-separated file. Only for diploid vcfs.')
+        'joint blocks in each chromosome to tab-separated file. Only for diploid VCFs.')
     add('--ploidy', '-p', metavar='PLOIDY', type=int, default=2, help='The ploidy of the sample(s) (default: %(default)s).')
     # TODO: what's the best way to request "two or more" VCFs?
-    add('vcf', nargs='+', metavar='VCF', help='At least two phased VCF files to be compared.')
+    add('vcf', nargs='+', metavar='VCF/BCF', help='At least two phased variant files (VCF or BCF) to be compared.')
 # fmt: on
 
 
