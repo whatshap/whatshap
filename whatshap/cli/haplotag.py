@@ -60,7 +60,8 @@ def add_arguments(parser):
     arg('--skip-missing-contigs', default=False, action='store_true',
         help='Skip reads that map to a contig that does not exist in the VCF')
     arg('--out-threads', default=1, type=int,
-        help='Number of threads to use for output writing (passed to pysam).')
+        help='Number of threads to use for output file writing (passed to pysam). '
+        'For optimal performance, instead write output to stdout and use `samtools view` to compress.')
     arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
     arg('alignment_file', metavar='ALIGNMENTS',
         help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
@@ -380,8 +381,11 @@ def open_output_alignment_file(aln_output, reference, vcf_md5, bam_header, threa
             )
         kwargs = dict(mode="wc", reference_filename=reference)
     else:
-        # Write BAM
-        kwargs = dict(mode="wb", threads=threads)
+        # Write BAM, disable compression for stdout
+        if aln_output is sys.stdout:
+            kwargs = dict(mode="wb0", threads=threads)
+        else:
+            kwargs = dict(mode="wb", threads=threads)
     try:
         bam_writer = pysam.AlignmentFile(
             aln_output, header=pysam.AlignmentHeader.from_dict(bam_header), **kwargs
