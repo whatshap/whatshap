@@ -459,7 +459,7 @@ def run_haplotag(
     haplotag_list=None,
     tag_supplementary=False,
     skip_missing_contigs=False,
-    out_threads=1
+    out_threads=1,
 ):
 
     timers = StageTimer()
@@ -505,7 +505,11 @@ def run_haplotag(
 
         bam_writer = stack.enter_context(
             open_output_alignment_file(
-                output, reference, md5_of(variant_file), bam_reader.header.to_dict(), threads=out_threads
+                output,
+                reference,
+                md5_of(variant_file),
+                bam_reader.header.to_dict(),
+                threads=out_threads,
             )
         )
         haplotag_writer = stack.enter_context(open_haplotag_writer(haplotag_list))
