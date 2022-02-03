@@ -2,6 +2,13 @@
 Changes
 =======
 
+development version
+-------------------
+
+* :pr:`352`: ``whatshap haplotag`` has gained option ``--output-threads`` for setting the
+  number of compression threads, significantly reducing wall-clock time. Also, if output
+  is sent to a pipe, uncompressed BAM is written.
+
 v1.2 (2021-12-08)
 -----------------
 
