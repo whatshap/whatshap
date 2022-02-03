@@ -1,7 +1,10 @@
+from collections import defaultdict
 import gzip
 import logging
-from collections import defaultdict
 from typing import Optional, DefaultDict
+import os
+import stat
+import sys
 
 import pyfaidx
 from dataclasses import dataclass
@@ -39,6 +42,16 @@ def detect_file_format(path):
                 return "VCF"
 
     return None
+
+
+def stdout_is_regular_file() -> bool:
+    """
+    Detect if standard output is a regular file (or say a pipe).
+
+    :return: True if stdout is a regular file, else False.
+    """
+    mode = os.fstat(sys.stdout.buffer.fileno()).st_mode
+    return stat.S_ISREG(mode)
 
 
 def IndexedFasta(path):

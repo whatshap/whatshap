@@ -20,7 +20,7 @@ from whatshap.cli import PhasedInputReader, CommandLineError
 from whatshap.vcf import VcfReader, VcfError, VariantTable, VariantCallPhase, VcfInvalidChromosome
 from whatshap.core import NumericSampleIds
 from whatshap.timer import StageTimer
-from whatshap.utils import Region
+from whatshap.utils import Region, stdout_is_regular_file
 
 
 logger = logging.getLogger(__name__)
@@ -59,6 +59,9 @@ def add_arguments(parser):
         'haplotype the primary alignment has been assigned to (default: only tag primary alignments).')
     arg('--skip-missing-contigs', default=False, action='store_true',
         help='Skip reads that map to a contig that does not exist in the VCF')
+    arg('--out-threads', default=1, type=int,
+        help='Number of threads to use for output file writing (passed to pysam). '
+        'For optimal performance, instead write output to stdout and use "samtools view" to compress.')
     arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
     arg('alignment_file', metavar='ALIGNMENTS',
         help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
@@ -345,7 +348,7 @@ def compute_shared_samples(bam_reader, ignore_read_groups, vcf_samples):
     return shared_samples
 
 
-def open_output_alignment_file(aln_output, reference, vcf_md5, bam_header):
+def open_output_alignment_file(aln_output, reference, vcf_md5, bam_header, threads=1):
     """
     :param aln_output:
     :param reference:
@@ -378,8 +381,11 @@ def open_output_alignment_file(aln_output, reference, vcf_md5, bam_header):
             )
         kwargs = dict(mode="wc", reference_filename=reference)
     else:
-        # Write BAM
-        kwargs = dict(mode="wb")
+        # Write BAM, disable compression when piping
+        if aln_output is sys.stdout and not stdout_is_regular_file():
+            kwargs = dict(mode="wb0", threads=threads)
+        else:
+            kwargs = dict(mode="wb", threads=threads)
     try:
         bam_writer = pysam.AlignmentFile(
             aln_output, header=pysam.AlignmentHeader.from_dict(bam_header), **kwargs
@@ -453,6 +459,7 @@ def run_haplotag(
     haplotag_list=None,
     tag_supplementary=False,
     skip_missing_contigs=False,
+    out_threads=1,
 ):
 
     timers = StageTimer()
@@ -498,7 +505,11 @@ def run_haplotag(
 
         bam_writer = stack.enter_context(
             open_output_alignment_file(
-                output, reference, md5_of(variant_file), bam_reader.header.to_dict()
+                output,
+                reference,
+                md5_of(variant_file),
+                bam_reader.header.to_dict(),
+                threads=out_threads,
             )
         )
         haplotag_writer = stack.enter_context(open_haplotag_writer(haplotag_list))
