@@ -59,7 +59,7 @@ def add_arguments(parser):
         'haplotype the primary alignment has been assigned to (default: only tag primary alignments).')
     arg('--skip-missing-contigs', default=False, action='store_true',
         help='Skip reads that map to a contig that does not exist in the VCF')
-    arg('--out-threads', default=1, type=int,
+    arg('--output-threads', '--out-threads', default=1, type=int,
         help='Number of threads to use for output file writing (passed to pysam). '
         'For optimal performance, instead write output to stdout and use "samtools view" to compress.')
     arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
@@ -459,7 +459,7 @@ def run_haplotag(
     haplotag_list=None,
     tag_supplementary=False,
     skip_missing_contigs=False,
-    out_threads=1,
+    output_threads=1,
 ):
 
     timers = StageTimer()
@@ -509,7 +509,7 @@ def run_haplotag(
                 reference,
                 md5_of(variant_file),
                 bam_reader.header.to_dict(),
-                threads=out_threads,
+                threads=output_threads,
             )
         )
         haplotag_writer = stack.enter_context(open_haplotag_writer(haplotag_list))
