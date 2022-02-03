@@ -511,7 +511,11 @@ The TSV statistics format
 -------------------------
 
 With ``--tsv=FILENAME``, statistics are written in tab-separated value format
-to a file. The following columns are written.
+to a file. If you use `MultiQC <https://multiqc.info/docs/#whatshap>`_, the
+file is automatically found and parsed and the key statistics are included in
+its generated report.
+
+The following columns are included in the TSV file.
 
 sample
     The name of the sample the numbers in this row refer to.
