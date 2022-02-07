@@ -64,8 +64,6 @@ private:
   
   // the pedigree containing all the individuals
   const Pedigree* pedigree;
-  std::vector<PedigreePartitions*> pedigree_partitions;
-  
   // indexing schemes
   std::vector<Column*> hmm_columns;
   

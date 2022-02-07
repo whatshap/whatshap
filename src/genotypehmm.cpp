@@ -59,7 +59,6 @@ GenotypeHMM::~GenotypeHMM()
     init(forward_pass_column_table,0);
     init(backward_pass_column_table, 0);
     init(hmm_columns,0);
-    init(pedigree_partitions,0);
     init(transition_probability_table,0);
 }
 
@@ -99,7 +98,6 @@ void GenotypeHMM::compute_index(){
     
     for(size_t column_index=0; column_index < input_column_iterator.get_column_count(); ++column_index){
         
-        if (column_index % 10 == 0) cout << "CI: " << column_index << endl;
         current_input_column = std::move(next_input_column);
         current_read_ids = std::move(next_read_ids);
         if (input_column_iterator.has_next()) {
@@ -137,7 +135,7 @@ void GenotypeHMM::compute_backward_prob()
     size_t k = (size_t)sqrt(column_count);
     for(int column_index = column_count-1; column_index >= 0; --column_index){
         // make former next column the current one
-        if (column_index % 10 == 0) cout << "BP: " << column_index << endl;
+        if (column_index % 100 == 0) cout << "BP: " << column_index << endl;
         current_input_column = std::move(next_input_column);
         current_read_ids = std::move(next_read_ids);
         // peek ahead and get the next column
@@ -185,7 +183,7 @@ void GenotypeHMM::compute_forward_prob()
 
     // forward pass: create a sparse table, storing values at every sqrt(#columns)-th position
     for (size_t column_index=0; column_index < input_column_iterator.get_column_count(); ++column_index) {
-        if (column_index % 10 == 0) cout << "FP: " << column_index << endl;
+        if (column_index % 100 == 0) cout << "FP: " << column_index << endl;
         // make former next column the current one
         current_input_column = std::move(next_input_column);
         unique_ptr<vector<unsigned int> > current_read_ids = std::move(next_read_ids);
@@ -425,7 +423,6 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
         }
     }
     long double forward_backward = 0.0L;
-    long double forward = 0.0L;
     
     assert (current_projection_column->size() == backward_probabilities->size());
     for (unsigned int i = 0; i < backward_probabilities->size(); i++) {
@@ -438,14 +435,15 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
         for (int allele = 0; allele < 2; allele++) {
             g_index += binomial_coefficient(allele + alleles.at(allele), alleles.at(allele) - 1);
         }
-        forward = current_projection_column->at(i) / scaling_parameters[column_index];
-        sum += forward;
-        forward_backward = forward * backward_probabilities->at(i);
+        current_projection_column->at(i) = current_projection_column->at(i) / scaling_parameters[column_index];
+        sum += current_projection_column->at(i);
+        forward_backward = current_projection_column->at(i) * backward_probabilities->at(i);
         normalization += forward_backward;
         
         // HARDCODED FOR A PEDIGREE SIZE OF 1.
         genotype_likelihood_table.at(0, column_index).likelihoods[g_index] += forward_backward;
     }
+    std::transform((*current_projection_column).begin(), (*current_projection_column).end(), (*current_projection_column).begin(), std::bind2nd(std::divides<long double>(), sum));
     // store the computed projection column (in case there is one)
     if(current_projection_column != 0){
         delete forward_pass_column_table[0];
