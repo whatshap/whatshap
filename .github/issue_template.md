@@ -5,7 +5,8 @@ When reporting an issue, please include this information unless you are absolute
 - How you installed the tool (conda, pip)
 - Which command-line parameters you used
 
-If you want to show an error message, please avoid screenshots and copy and paste the actual text instead.
+If you want to show an error message, please copy and paste the text.
+Avoid pasting a screenshot.
 
 Feel free to delete this text before submitting your issue.
 -->
