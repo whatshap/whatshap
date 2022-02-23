@@ -53,13 +53,12 @@ void Entry::set_emission_score(std::vector<unsigned int> e) {
 	int i = 0;
 	for (auto it = e.begin(); it != e.end(); it++, i++) {
 		// emission_score[i] = (long double)max((long double)pow(0.1, (*it - d_min)) * pow (0.9, (d_max - *it)), 10e-10L);
-		emission_score[i] = (long double)pow(0.1, (*it - d_min)) * pow (0.9, (d_max - *it));
+		emission_score[i] = (long double)max((long double)pow(0.1, (*it - d_min)) * pow (0.9, (d_max - *it)), 10e-50L);
 		normalization += emission_score[i];
 	}
-	assert(normalization != 0.0L);
 	transform((emission_score).begin(), (emission_score).end(), (emission_score).begin(), std::bind2nd(std::divides<long double>(), normalization));
 	for (auto it = emission_score.begin(); it != emission_score.end(); it++) {
-		if (*it < 10e-20L) *it = 10e-50L;
+		if (*it < 10e-50L) *it = 10e-50L;
 	}
 }
 
