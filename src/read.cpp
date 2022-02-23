@@ -104,7 +104,7 @@ void Read::setAllele(size_t variant_idx, int allele) {
 }
 
 
-std::vector<float> Read::getEmissionProbability(size_t variant_idx) const {
+std::vector<long double> Read::getEmissionProbability(size_t variant_idx) const {
 	assert(variant_idx < variants.size());
 	return variants[variant_idx].entry.get_emission_score();
 }

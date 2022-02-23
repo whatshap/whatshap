@@ -32,7 +32,7 @@ void compute_genotypes(const ReadSet& readset, std::vector<Genotype>* genotypes,
 			std::vector<std::vector<double>> p_wrong_vector(e->get_emission_score().size(), std::vector<double>(e->get_emission_score().size()));
 			for (int i=0; i < e->get_emission_score().size(); i++) {
 				for (int j=0; j < e->get_emission_score().size(); j++) {
-					p_wrong_vector[i][j] = max(0.05, pow(10.0,-(abs(e->get_emission_score()[i] - e->get_emission_score()[j]))/10.0));
+					p_wrong_vector[i][j] = max(0.05L, pow(10.0,-(abs(e->get_emission_score()[i] - e->get_emission_score()[j]))/10.0));
 				}
 			}
 			distribution = distribution * GenotypeDistribution(p_wrong_vector, e->get_allele_type());

@@ -32,7 +32,7 @@ cdef extern from "../src/read.h":
 		int getReferenceStart() except +
 		string getBXTag() except +
 		bool hasBXTag() except +
-		vector[float] getEmissionProbability(int) except +
+		vector[long double] getEmissionProbability(int) except +
 		void setEmissionProbability(int, vector[unsigned int]) except +
 		int getQuality(int) except +
 		void setQuality(int, int) except +

@@ -494,7 +494,7 @@ void GenotypeHMM::update_emission_probability(Vector2D<long double>* em_prob, co
     }
     else {
         for (int i = 0; i < n_alleles; i++) {
-            long double value = 1.0;
+            long double value = 1.0L;
             for (int entry_index = 0; entry_index < entries.size(); entry_index++) {
                 if (entries.at(entry_index)->get_allele_type() == -1) {
                     continue;

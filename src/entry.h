@@ -14,7 +14,7 @@ public:
 
 	unsigned int get_read_id() const;
 	int get_allele_type() const;
-	std::vector<float> get_emission_score() const;
+	std::vector<long double> get_emission_score() const;
 	int get_quality() const;
 
 	void set_read_id(unsigned int r);
@@ -27,7 +27,7 @@ public:
 private:
 	unsigned int read_id;
 	int allele;
-	std::vector<float> emission_score;
+	std::vector<long double> emission_score;
 	int quality;
 };
 

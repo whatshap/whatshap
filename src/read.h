@@ -26,7 +26,7 @@ public:
 	void setPosition(size_t variant_idx, int position);
 	int getAllele(size_t variant_idx) const;
 	void setAllele(size_t variant_idx, int allele);
-	std::vector<float> getEmissionProbability(size_t variant_idx) const;
+	std::vector<long double> getEmissionProbability(size_t variant_idx) const;
 	void setEmissionProbability(size_t variant_idx, std::vector<unsigned int> emission);
 	int getQuality(size_t variant_idx) const;
 	void setQuality(size_t variant_idx, int quality);

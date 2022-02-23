@@ -1,5 +1,6 @@
 #include <cassert>
 #include <bits/stdc++.h>
+#include <cmath>
 using namespace std;
 
 #include "entry.h"
@@ -26,7 +27,7 @@ int Entry::get_allele_type() const {
 }
 
 
-std::vector<float> Entry::get_emission_score() const {
+std::vector<long double> Entry::get_emission_score() const {
 	return emission_score;
 }
 
@@ -48,13 +49,18 @@ void Entry::set_emission_score(std::vector<unsigned int> e) {
 	emission_score.resize(e.size());
 	unsigned int d_max = *max_element(e.begin(), e.end());
 	unsigned int d_min = *min_element(e.begin(), e.end());
-	float normalization = 0.0;
+	long double normalization = 0.0L;
 	int i = 0;
 	for (auto it = e.begin(); it != e.end(); it++, i++) {
-		emission_score[i] = max(pow(0.1, (*it - d_min)) * pow (0.9, (d_max - *it)), pow(10,-10));
+		// emission_score[i] = (long double)max((long double)pow(0.1, (*it - d_min)) * pow (0.9, (d_max - *it)), 10e-10L);
+		emission_score[i] = (long double)pow(0.1, (*it - d_min)) * pow (0.9, (d_max - *it));
 		normalization += emission_score[i];
 	}
-	transform((emission_score).begin(), (emission_score).end(), (emission_score).begin(), std::bind2nd(std::divides<float>(), normalization));
+	assert(normalization != 0.0L);
+	transform((emission_score).begin(), (emission_score).end(), (emission_score).begin(), std::bind2nd(std::divides<long double>(), normalization));
+	for (auto it = emission_score.begin(); it != emission_score.end(); it++) {
+		if (*it < 10e-20L) *it = 10e-50L;
+	}
 }
 
 void Entry::set_quality(int q) {
