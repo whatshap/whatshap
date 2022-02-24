@@ -552,16 +552,16 @@ class VcfReader:
 
             if not self._ignore_genotypes:
                 # check for ploidy consistency and limits
-                genotype_lists = [call["GT"] for call in record.samples.values()]
+                genotype_lists = [call.get("GT", None) for call in record.samples.values()]
                 for geno in genotype_lists:
+                    if geno is None or None in geno:
+                        continue
                     geno_ploidy = len(geno)
                     if geno_ploidy > get_max_genotype_ploidy():
                         raise PloidyError(
                             "Ploidies higher than {} are not supported."
                             "".format(get_max_genotype_ploidy())
                         )
-                    elif geno is None or None in geno:
-                        pass
                     elif self.ploidy is None:
                         self.ploidy = geno_ploidy
                     elif geno_ploidy != self.ploidy:
@@ -1068,6 +1068,8 @@ class PhasedVcfWriter(VcfAugmenter):
         if self.tag == "PS":
             for sample in samples:
                 call = record.samples[sample]
+                if "GT" not in call:
+                    continue
                 call.phased = False
                 if call["GT"] is not None and all(allele is not None for allele in call["GT"]):
                     call["GT"] = sorted(call["GT"])
