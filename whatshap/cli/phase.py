@@ -968,8 +968,7 @@ def add_arguments(parser):
         help="Output VCF file. Add .gz to the file name to get compressed output. "
         "If omitted, use standard output.")
     arg("--reference", "-r", metavar="FASTA",
-        help="Reference file. Provide this to detect alleles through re-alignment. "
-        "If no index (.fai) exists, it will be created")
+        help="Reference file. Must be accompanied by .fai index (create with samtools faidx)")
     arg("--no-reference", action="store_true", default=False,
         help="Detect alleles without requiring a reference, at the expense of phasing quality "
         "(in particular for long reads)")
