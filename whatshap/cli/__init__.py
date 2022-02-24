@@ -106,12 +106,12 @@ class PhasedInputReader:
         try:
             indexed_fasta = IndexedFasta(path)
         except OSError as e:
-            raise CommandLineError("Error while opening FASTA reference file: {}".format(e))
+            raise CommandLineError(f"Error while opening FASTA reference file: {e}")
         except FastaNotIndexedError as e:
             raise CommandLineError(
-                "An index file (.fai) for the reference FASTA {!r} "
+                f"An index file (.fai) for the reference FASTA '{e.args[0]}' "
                 "could not be found. Please create one with "
-                '"samtools faidx".'.format(e)
+                "'samtools faidx'."
             )
         return indexed_fasta
 
