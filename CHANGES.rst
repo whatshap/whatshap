@@ -5,6 +5,7 @@ Changes
 development version
 -------------------
 
+* :issue:`356`: Fixed crash when reading VCF variants without ``GT`` fields (happens in GVCFs).
 * :pr:`352`: ``whatshap haplotag`` has gained option ``--output-threads`` for setting the
   number of compression threads, significantly reducing wall-clock time. Also, if output
   is sent to a pipe, uncompressed BAM is written. Thanks to @cjw85.
