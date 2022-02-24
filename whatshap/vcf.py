@@ -446,10 +446,10 @@ class VcfReader:
 
     @staticmethod
     def _extract_GT_PS_phase(call) -> Optional[VariantCallPhase]:
+        if not call.phased:
+            return None
         is_het = not all(x == call["GT"][0] for x in call["GT"])
         if not is_het:
-            return None
-        if not call.phased:
             return None
         block_id = call.get("PS", 0)
         phase = call["GT"]
