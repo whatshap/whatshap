@@ -711,7 +711,8 @@ def missing_headers(path: str) -> Tuple[List[str], List[str], List[str]]:
             h = PREDEFINED_FORMATS[fmt]
             if v.number != h.number or (
                 # "Float" instead of "Integer" is ok
-                v.type != h.typ and not (v.type == "Float" and h.typ == "Integer")
+                v.type != h.typ
+                and not (v.type == "Float" and h.typ == "Integer")
             ):
                 if fmt == "PS" and v.type != h.typ:
                     raise VcfError(
