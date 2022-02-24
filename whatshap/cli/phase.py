@@ -338,19 +338,7 @@ def run_whatshap(
         read_merger = DoNothingReadMerger()
 
     with ExitStack() as stack:
-        try:
-            vcf_writer = stack.enter_context(
-                PhasedVcfWriter(
-                    command_line=command_line,
-                    in_path=variant_file,
-                    out_file=output,
-                    tag=tag,
-                    indels=indels,
-                )
-            )
-        except (OSError, VcfError) as e:
-            raise CommandLineError(e)
-
+        logger.debug("Creating PhasedInputReader")
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
                 phase_input_files,
@@ -368,6 +356,20 @@ def run_whatshap(
                 "A reference FASTA needs to be provided with -r/--reference; "
                 "or use --no-reference at the expense of phasing quality."
             )
+
+        logger.debug("Creating PhasedVcfWriter")
+        try:
+            vcf_writer = stack.enter_context(
+                PhasedVcfWriter(
+                    command_line=command_line,
+                    in_path=variant_file,
+                    out_file=output,
+                    tag=tag,
+                    indels=indels,
+                )
+            )
+        except (OSError, VcfError) as e:
+            raise CommandLineError(e)
 
         # Only read genotype likelihoods from VCFs when distrusting genotypes
         vcf_reader = stack.enter_context(

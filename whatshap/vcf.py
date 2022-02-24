@@ -796,6 +796,7 @@ class VcfAugmenter(ABC):
             'HP' is compatible with GATK’s ReadBackedPhasing.
         """
         # TODO This is slow because it reads in the entire VCF one extra time
+        logger.debug("Reading the input VCF to find possibly missing headers")
         contigs, formats, infos = missing_headers(in_path)
         # TODO It would actually look nicer if the custom HS header was directly below PS
         if include_haploid_phase_sets and "HS" not in formats:
