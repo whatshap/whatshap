@@ -135,7 +135,11 @@ class PhasedInputReader:
         """
         readset_reader = self._readset_reader
         for_sample = "for sample {!r} ".format(sample) if not self._ignore_read_groups else ""
-        logger.info("Reading alignments %sand detecting alleles ...", for_sample)
+        logger.info(
+            "Reading alignments %son chromosome %s and detecting alleles ...",
+            for_sample,
+            chromosome,
+        )
         try:
             reference = self._fasta[chromosome] if self._fasta else None
         except KeyError:
