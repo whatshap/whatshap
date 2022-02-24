@@ -58,20 +58,22 @@ are familiar with that.
 Installing an unreleased development version
 --------------------------------------------
 
-If you for want to use the most recent development version of
-WhatsHap, you can install it in the following way. These instructions will
-create a virtual environment in the directory ``whatshap-env`` that contains
-WhatsHap. Simply delete that directory to uninstall the software. Other WhatsHap
-versions you may have installed in other locations remain unaffected. ::
+If you want to use the most recent development version of WhatsHap,
+you can install it in the following way into a separate Conda environment.
+This way, other WhatsHap versions you may have installed in other locations
+remain unaffected. Make sure you have installed Conda. Then run::
 
-    python3 -m venv whatshap-env
-    whatshap-env/bin/pip install --upgrade pip
-    whatshap-env/bin/pip install git+https://github.com/whatshap/whatshap
+    conda create -n whatshap-tmp python pip gxx
+    conda activate whatshap-tmp
+    pip install git+https://github.com/whatshap/whatshap
 
-You can then run WhatsHap like this::
+Then check whether you are using the development::
 
-    whatshap-env/bin/whatshap --version
+    whatshap --version
 
 You should see a version number like ``0.18.dev119+g5ba23de``, which means that
 this is going to become version 0.18, with 119 commits ahead of the previous
 version (0.17).
+
+To get rid of the development installation, just run
+``conda env remove -n whatshap-tmp``.
