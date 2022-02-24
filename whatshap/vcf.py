@@ -709,7 +709,10 @@ def missing_headers(path: str) -> Tuple[List[str], List[str], List[str]]:
             if fmt not in PREDEFINED_FORMATS:
                 continue
             h = PREDEFINED_FORMATS[fmt]
-            if v.number != h.number or v.type != h.typ:
+            if v.number != h.number or (
+                # "Float" instead of "Integer" is ok
+                v.type != h.typ and not (v.type == "Float" and h.typ == "Integer")
+            ):
                 if fmt == "PS" and v.type != h.typ:
                     raise VcfError(
                         "The input VCF/BCF contains phase set ('PS') tags that are of the"
