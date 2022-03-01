@@ -147,7 +147,7 @@ class GenotypeLikelihoods:
                 [round((prob - m) * -10) for prob in self.log_prob_genotypes], ploidy=ploidy
             )
         else:
-            p = [10**x for x in self.log_prob_genotypes]
+            p = [10 ** x for x in self.log_prob_genotypes]
             s = sum(p)
             p = [x / s + regularizer for x in p]
             m = max(p)
@@ -1053,7 +1053,7 @@ class PhasedVcfWriter(VcfAugmenter):
 
                 if pos in components and pos in phases and is_het:
                     haploid_component = (
-                        phases[pos]
+                        haploid_components[pos]
                         if (
                             haploid_components
                             and pos in haploid_components
