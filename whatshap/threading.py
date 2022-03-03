@@ -42,7 +42,7 @@ def run_threading(
     )
 
     # compute threading through the clusters
-    affine_switch_cost = ceil(compute_readlength_snp_distance_ratio(readset) / 4.0)
+    affine_switch_cost = ceil(compute_readlength_snp_distance_ratio(readset) / 1.0)
     path = compute_threading_path(
         readset,
         num_vars,
@@ -121,9 +121,9 @@ def compute_threading_path(
 
     # run threader
     row_limit = 16 * 2 ** ploidy if ploidy > 6 else 0
-    threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, True, False, row_limit)
+    threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, False, row_limit)
 
-    path = threader.computePathsBlockwise([0], cov_map, allele_depths, consensus_lists, genotypes)
+    path = threader.computePathsBlockwise([0], cov_map, allele_depths)
     assert len(path) == num_vars
 
     return path
@@ -565,7 +565,7 @@ def solve_single_ambiguous_site(
     window_size,
 ):
     # for every group of haplotypes coming from a collapsed cluster:
-    # find the position, where each of the cluster joined the collapsing one (introduced in new07)
+    # find the position, where each of the haplotypes joined the collapsing one
     present_c = [corrected_path[pos - 1][j] for j in h_group]
     next_c = [corrected_path[pos][j] for j in h_group]
     all_c = set(present_c + next_c)
@@ -576,6 +576,8 @@ def solve_single_ambiguous_site(
     het_pos_before = []
     het_pos_after = []
 
+    # find the last window_size positions (starting from pos - 1), 
+    # which are heterozyguous among the haplotype group
     j, w = pos - 1, 0
     while w < window_size and j >= 0:
         if any(
@@ -587,6 +589,9 @@ def solve_single_ambiguous_site(
             het_pos_before.append(j)
             w += 1
         j -= 1
+        
+    # find the next window_size positions (starting from pos), 
+    # which are heterozyguous among the haplotype group
     j, w = pos, 0
     het_pos_before = het_pos_before[::-1]
     while w < window_size and j < len(haplotypes[0]):
@@ -726,6 +731,7 @@ def get_pos_to_clusters_map(coverage, ploidy):
         cov_map[pos] = sorted_cids[:cut_off]
 
     # re-add clusters with 1-position-deletion
+    cut_off = ploidy + 2
     for pos in range(1, len(cov_map) - 1):
         for cid in cov_map[pos - 1]:
             if cid in cov_map[pos + 1] and cid not in cov_map[pos]:
