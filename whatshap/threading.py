@@ -120,7 +120,7 @@ def compute_threading_path(
     logger.debug("Computing threading paths ..")
 
     # run threader
-    row_limit = 16 * 2 ** ploidy if ploidy > 6 else 0
+    row_limit = 16 * 2**ploidy if ploidy > 6 else 0
     threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, False, row_limit)
 
     path = threader.computePathsBlockwise([0], cov_map, allele_depths)
@@ -257,7 +257,7 @@ def phase_cluster_snps(
                         likelihood += (
                             a_priori
                             * ((1 - error_rate) ** (overlap - errors))
-                            * (error_rate ** errors)
+                            * (error_rate**errors)
                         )
                     score += log(likelihood)
                 configs.append((perm, score))
@@ -576,7 +576,7 @@ def solve_single_ambiguous_site(
     het_pos_before = []
     het_pos_after = []
 
-    # find the last window_size positions (starting from pos - 1), 
+    # find the last window_size positions (starting from pos - 1),
     # which are heterozyguous among the haplotype group
     j, w = pos - 1, 0
     while w < window_size and j >= 0:
@@ -589,8 +589,8 @@ def solve_single_ambiguous_site(
             het_pos_before.append(j)
             w += 1
         j -= 1
-        
-    # find the next window_size positions (starting from pos), 
+
+    # find the next window_size positions (starting from pos),
     # which are heterozyguous among the haplotype group
     j, w = pos, 0
     het_pos_before = het_pos_before[::-1]
@@ -664,7 +664,7 @@ def solve_single_ambiguous_site(
                     if j in rmat[rid] and haplotypes[hap_perm[h_group[slot]]][j] != rmat[rid][j]:
                         errors += 1
                 likelihood += (
-                    a_priori * ((1 - error_rate) ** (overlap - errors)) * (error_rate ** errors)
+                    a_priori * ((1 - error_rate) ** (overlap - errors)) * (error_rate**errors)
                 )
             score += log(likelihood)
         configs.append((perm, score))
