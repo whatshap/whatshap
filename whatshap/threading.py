@@ -120,7 +120,7 @@ def compute_threading_path(
     logger.debug("Computing threading paths ..")
 
     # run threader
-    row_limit = 16 * 2**ploidy if ploidy > 6 else 0
+    row_limit = 16 * 2 ** ploidy if ploidy > 6 else 0
     threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, False, row_limit)
 
     path = threader.computePathsBlockwise([0], cov_map, allele_depths)
@@ -257,7 +257,7 @@ def phase_cluster_snps(
                         likelihood += (
                             a_priori
                             * ((1 - error_rate) ** (overlap - errors))
-                            * (error_rate**errors)
+                            * (error_rate ** errors)
                         )
                     score += log(likelihood)
                 configs.append((perm, score))
@@ -664,7 +664,7 @@ def solve_single_ambiguous_site(
                     if j in rmat[rid] and haplotypes[hap_perm[h_group[slot]]][j] != rmat[rid][j]:
                         errors += 1
                 likelihood += (
-                    a_priori * ((1 - error_rate) ** (overlap - errors)) * (error_rate**errors)
+                    a_priori * ((1 - error_rate) ** (overlap - errors)) * (error_rate ** errors)
                 )
             score += log(likelihood)
         configs.append((perm, score))

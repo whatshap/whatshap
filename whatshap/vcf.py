@@ -147,7 +147,7 @@ class GenotypeLikelihoods:
                 [round((prob - m) * -10) for prob in self.log_prob_genotypes], ploidy=ploidy
             )
         else:
-            p = [10**x for x in self.log_prob_genotypes]
+            p = [10 ** x for x in self.log_prob_genotypes]
             s = sum(p)
             p = [x / s + regularizer for x in p]
             m = max(p)
