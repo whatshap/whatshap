@@ -28,20 +28,11 @@ from whatshap.core import (
     ClusterEditingSolver,
     NumericSampleIds,
     compute_polyploid_genotypes,
-    scoreReadsetLocal,
-    scoreReadsetBayesian,
+    scoreReadset,
 )
 from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
 from whatshap.polyphaseplots import draw_plots
-from whatshap.threading import (
-    run_threading,
-    get_local_cluster_consensus_withfrac,
-    get_position_map,
-    get_pos_to_clusters_map,
-    get_cluster_start_end_positions,
-    get_coverage,
-    get_coverage_absolute,
-)
+from whatshap.threading import run_threading, get_position_map
 from whatshap.timer import StageTimer
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
 
@@ -53,10 +44,8 @@ PhasingParameter = namedtuple(
         "ploidy",
         "verify_genotypes",
         "ce_bundle_edges",
-        "bayesian_scoring",
         "distrust_genotypes",
         "min_overlap",
-        "ce_refinements",
         "block_cut_sensitivity",
         "plot_clusters",
         "plot_threading",
@@ -65,23 +54,6 @@ PhasingParameter = namedtuple(
 )
 
 logger = logging.getLogger(__name__)
-
-
-def print_readset(readset):
-    result = ""
-    positions = readset.get_positions()
-    for read in readset:
-        result += read.name + "\t" + "\t" + "\t"
-        for pos in positions:
-            if pos in read:
-                # get corresponding variant
-                for var in read:
-                    if var.position == pos:
-                        result += str(var.allele)
-            else:
-                result += " "
-        result += "\n"
-    print(result)
 
 
 def run_polyphase(
@@ -102,11 +74,9 @@ def run_polyphase(
     write_command_line_header=True,
     read_list_filename=None,
     ce_bundle_edges=False,
-    bayesian_scoring=False,
     min_overlap=2,
     plot_clusters=False,
     plot_threading=False,
-    ce_refinements=5,
     block_cut_sensitivity=4,
     threads=1,
 ):
@@ -207,10 +177,8 @@ def run_polyphase(
             ploidy=ploidy,
             verify_genotypes=verify_genotypes,
             ce_bundle_edges=ce_bundle_edges,
-            bayesian_scoring=bayesian_scoring,
             distrust_genotypes=distrust_genotypes,
             min_overlap=min_overlap,
-            ce_refinements=ce_refinements,
             block_cut_sensitivity=block_cut_sensitivity,
             plot_clusters=plot_clusters,
             plot_threading=plot_threading,
@@ -287,9 +255,6 @@ def run_polyphase(
                         given_genotypes = phasable_variant_table.genotypes_of(sample)
                         matching_genotypes = []
                         missing_genotypes = set()
-                        print(computed_genotypes, len(computed_genotypes))
-                        print(given_genotypes, len(given_genotypes))
-                        print(len(positions))
                         for i, g in enumerate(given_genotypes):
                             c_g = computed_genotypes[i]
                             if (g == c_g) or (c_g is None):
@@ -348,8 +313,6 @@ def run_polyphase(
                         components,
                         haploid_components if include_haploid_sets else None,
                     )
-                    # TODO: Use genotype information to polish results
-                    # assert len(changed_genotypes) == 0
                     logger.info("Done writing VCF")
                 logger.debug("Chromosome %r finished", chromosome)
                 timers.start("parse_vcf")
@@ -363,45 +326,29 @@ def run_polyphase(
     logger.info("\n== SUMMARY ==")
 
     log_memory_usage(include_children=(threads > 1))
-    logger.info("Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"))
-    logger.info("Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"))
+    logger.info("Time spent reading BAM/CRAM:         %6.1f s", timers.elapsed("read_bam"))
+    logger.info("Time spent parsing VCF:              %6.1f s", timers.elapsed("parse_vcf"))
     if verify_genotypes:
-        logger.info(
-            "Time spent verifying genotypes:              %6.1f s",
-            timers.elapsed("verify_genotypes"),
-        )
-    logger.info(
-        "Time spent detecting blocks:                 %6.1f s", timers.elapsed("detecting_blocks")
-    )
+        logger.info("Time spent verifying genotypes:      %6.1f s", timers.elapsed("verify_genotypes"))
+    logger.info("Time spent detecting blocks:         %6.1f s", timers.elapsed("detecting_blocks"))
     if threads == 1:
-        logger.info(
-            "Time spent scoring reads:                    %6.1f s", timers.elapsed("read_scoring")
-        )
-        logger.info(
-            "Time spent solving cluster editing:          %6.1f s",
-            timers.elapsed("solve_clusterediting"),
-        )
-        logger.info(
-            "Time spent threading haplotypes:             %6.1f s", timers.elapsed("threading")
-        )
+        logger.info("Time spent scoring reads:            %6.1f s", timers.elapsed("read_scoring"))
+        logger.info("Time spent solving cluster editing:  %6.1f s", timers.elapsed("clusterediting"))
+        logger.info("Time spent threading haplotypes:     %6.1f s", timers.elapsed("threading"))
     else:
         """
         TODO: The runtime measurement for the different stages does not properly for multithreading,
         because the global timer is not visible from within the phase_single_block_mt method.
         Workaround is to only report the total phasing time.
         """
-        logger.info(
-            "Time spent phasing blocks:                   %6.1f s", timers.elapsed("phase_blocks")
-        )
+        logger.info("Time spent phasing blocks:           %6.1f s", timers.elapsed("phase_blocks"))
     if plot_clusters or plot_threading:
-        logger.info(
-            "Time spent creating plots:                   %6.1f s", timers.elapsed("create_plots")
-        )
-    logger.info("Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"))
+        logger.info("Time spent creating plots:           %6.1f s", timers.elapsed("create_plots"))
+    logger.info("Time spent writing VCF:              %6.1f s", timers.elapsed("write_vcf"))
     logger.info(
-        "Time spent on rest:                          %6.1f s", timers.total() - timers.sum()
+        "Time spent on rest:                  %6.1f s", timers.total() - timers.sum()
     )
-    logger.info("Total elapsed time:                          %6.1f s", timers.total())
+    logger.info("Total elapsed time:                  %6.1f s", timers.total())
 
 
 def phase_single_individual(readset, phasable_variant_table, sample, phasing_param, output, timers):
@@ -479,21 +426,6 @@ def phase_single_individual(readset, phasable_variant_table, sample, phasing_par
                         block_num_vars,
                     )
                 )
-
-            """
-            if block_num_vars > 1:
-                print("========= BLOCK {} ========".format(processed_non_singleton_blocks))
-                print("Reads")
-                for r in block_readset:
-                    s = ""
-                    marker = index[block_readset.get_positions()[0]]
-                    for var in r:
-                        for p in range(marker, index[var.position]):
-                            s += " "
-                        s += str(var.allele)
-                        marker = index[var.position]+1
-                    print(s)
-            """
 
             clustering, path, haplotypes, cut_positions, haploid_cuts = phase_single_block(
                 block_readset, genotype_slices[block_id], phasing_param, timers
@@ -740,14 +672,7 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
     # Compute similarity values for all read pairs
     timers.start("read_scoring")
     logger.debug("Computing similarities for read pairs ...")
-    if phasing_param.bayesian_scoring:
-        similarities = scoreReadsetBayesian(
-            block_readset, phasing_param.min_overlap, phasing_param.ploidy, 0.07
-        )
-    else:
-        similarities = scoreReadsetLocal(
-            block_readset, phasing_param.min_overlap, phasing_param.ploidy
-        )
+    similarities = scoreReadset(block_readset, phasing_param.min_overlap, phasing_param.ploidy, 0.07)
 
     # Run cluster editing
     logger.debug(
@@ -756,35 +681,10 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
         )
     )
     timers.stop("read_scoring")
-    timers.start("solve_clusterediting")
+    timers.start("clusterediting")
     solver = ClusterEditingSolver(similarities, phasing_param.ce_bundle_edges)
     clustering = solver.run()
     del solver
-
-    # Refine clusters by solving inconsistencies in consensus
-    runs_remaining = phasing_param.ce_refinements
-    last_inc_count = len(clustering) * (block_num_vars)  # worst case number
-    refine = True
-    while refine and runs_remaining > 0:
-        """
-        Inconsistencies are positions, whre a cluster has a very ambiguous consensus, indicating that it contains reads from
-        two or more haplotypes, which differ on some SNP variants
-        """
-        refine = False
-        runs_remaining -= 1
-        new_inc_count, seperated_reads = find_inconsistencies(
-            block_readset, clustering, phasing_param.ploidy
-        )
-        for (r0, r1) in seperated_reads:
-            similarities.set(r0, r1, -float("inf"))
-
-        if 0 < new_inc_count < last_inc_count:
-            logger.debug(
-                "{} inconsistent variants found. Refining clusters ..\r".format(new_inc_count)
-            )
-            solver = ClusterEditingSolver(similarities, phasing_param.ce_bundle_edges)
-            clustering = solver.run()
-            del solver
 
     # Deallocate big datastructures, which are not needed anymore
     del similarities
@@ -794,7 +694,7 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
     for i in range(nodes_in_c, len(block_readset)):
         clustering.append([i])
 
-    timers.stop("solve_clusterediting")
+    timers.stop("clusterediting")
 
     # Phase II: Threading
 
@@ -886,54 +786,6 @@ def aggregate_phasing_blocks(
                 haploid_cuts[j].append(cut_pos + block_starts[i])
 
     return clustering, threading, haplotypes, cut_positions, haploid_cuts
-
-
-def find_inconsistencies(readset, clustering, ploidy):
-    # Returns the number of cluster positions with inconsistencies
-    # (counts position multiple times, if multiple clusters are inconsistent there)
-    # Also returns a list of read pairs, which need to be seperated
-    num_inconsistent_positions = 0
-    separated_pairs = []
-    exp_error = 0.05
-    p_val_threshold = 0.02
-
-    # Compute consensus and coverage
-    index, rev_index = get_position_map(readset)
-    num_vars = len(rev_index)
-
-    coverage = get_coverage(readset, clustering, index)
-    cov_map = get_pos_to_clusters_map(coverage, ploidy)
-    positions = get_cluster_start_end_positions(readset, clustering, index)
-    abs_coverage = get_coverage_absolute(readset, clustering, index)
-    consensus = get_local_cluster_consensus_withfrac(readset, clustering, cov_map, positions)
-
-    # Search for positions in clusters with ambivalent consensus
-    for pos in range(num_vars):
-        # print(str(pos)+" -> "+str(len(coverage[pos]))+" , "+str(len(consensus[pos])))
-        for c_id in coverage[pos]:
-            if c_id not in consensus[pos]:
-                continue
-            # do binomial hypothesis test, whether the deviations from majority allele is significant enough for splitting
-            abs_count = abs_coverage[pos][c_id]
-            abs_deviations = int(abs_count * (1 - consensus[pos][c_id][1]))
-            p_val = binom_test(abs_deviations, abs_count, exp_error, alternative="greater")
-            if p_val < p_val_threshold:
-                # print("   inconsistency in cluster "+str(c_id)+" at position"+str(pos)+" with coverage "+str(coverage[pos][c_id])+" and consensus "+str(consensus[pos][c_id]))
-                num_inconsistent_positions += 1
-                zero_reads = []
-                one_reads = []
-                for read in clustering[c_id]:
-                    for var in readset[read]:
-                        if index[var.position] == pos:
-                            if var.allele == 0:
-                                zero_reads.append(read)
-                            else:
-                                one_reads.append(read)
-                for r0 in zero_reads:
-                    for r1 in one_reads:
-                        separated_pairs.append((r0, r1))
-
-    return num_inconsistent_positions, separated_pairs
 
 
 def compute_linkage_based_block_starts(readset, pos_index, ploidy, single_linkage=False):
@@ -1044,9 +896,6 @@ def add_arguments(parser):
         metavar="PHASEINPUT",
         help="BAM or CRAM with sequencing reads.",
     )
-    # arg('ploidy', metavar='PLOIDY', type=int,
-    #    help='The ploidy of the sample(s).')
-
     arg(
         "-o",
         "--output",
@@ -1068,13 +917,13 @@ def add_arguments(parser):
         help="Store phasing information with PS tag (standardized) or "
         "HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)",
     )
-    arg(
-        "--output-read-list",
-        metavar="FILE",
-        default=None,
-        dest="read_list_filename",
-        help="Write reads that have been used for phasing to FILE.",
-    )
+    #arg(
+    #    "--output-read-list",
+    #    metavar="FILE",
+    #    default=None,
+    #    dest="read_list_filename",
+    #    help="Write reads that have been used for phasing to FILE.",
+    #)
 
     arg = parser.add_argument_group("Input pre-processing, selection, and filtering").add_argument
     arg(
@@ -1124,12 +973,6 @@ def add_arguments(parser):
         "input VCF are phased. Can be used multiple times.",
     )
     arg(
-        "--verify-genotypes",
-        default=False,
-        action="store_true",
-        help="Verify input genotypes by re-typing them using the given reads.",
-    )
-    arg(
         "--distrust-genotypes",
         dest="distrust_genotypes",
         action="store_true",
@@ -1153,13 +996,6 @@ def add_arguments(parser):
         type=int,
         default=2,
         help="Minimum required read overlap for internal read clustering stage (default: %(default)s).",
-    )
-    arg(
-        "--ce-refinements",
-        metavar="REFINEMENTS",
-        type=int,
-        default=1,
-        help="Maximum number of refinement steps for internal read clustering stage (default: %(default)s).",
     )
     arg(
         "--block-cut-sensitivity",
@@ -1187,12 +1023,6 @@ def add_arguments(parser):
         help=argparse.SUPPRESS,
     )  # help='Influences the cluster editing heuristic. Only for debug/developing purpose (default: %(default)s).')
     arg(
-        "--bayesian-scoring",
-        default=False,
-        action="store_true",
-        help="Use a more sophisticated method for scoring read pairs.",
-    )
-    arg(
         "--plot-clusters",
         dest="plot_clusters",
         default=False,
@@ -1206,6 +1036,12 @@ def add_arguments(parser):
         action="store_true",
         help=argparse.SUPPRESS,
     )  # help='Plot the haplotypes\' threading through the read clusters (default: %(default)s).')
+    arg(
+        "--verify-genotypes",
+        default=False,
+        action="store_true",
+        help=argparse.SUPPRESS,
+    ) # help="Verify input genotypes by re-typing them using the given reads.",
 
 
 def validate(args, parser):

@@ -57,40 +57,16 @@ cdef class TriangleSparseMatrix:
 cdef class ReadScoring:
     def __cinit__(self):
         self.thisptr = new cpp.ReadScoring()
-
-    def scoreReadsetGlobal(self, ReadSet readset, uint32_t minOverlap, uint32_t ploidy):
+    
+    def scoreReadset(self, ReadSet readset, uint32_t minOverlap, uint32_t ploidy, double err):
         sim = TriangleSparseMatrix()
-        self.thisptr.scoreReadsetGlobal(sim.thisptr, readset.thisptr, minOverlap, ploidy)
+        self.thisptr.scoreReadset(sim.thisptr, readset.thisptr, minOverlap, ploidy, err)
         return sim
-    
-    def scoreReadsetLocal(self, ReadSet readset, vector[vector[uint32_t]] refHaplotypes, uint32_t minOverlap, uint32_t ploidy):
-        sim = TriangleSparseMatrix()
-        self.thisptr.scoreReadsetLocal(sim.thisptr, readset.thisptr, refHaplotypes, minOverlap, ploidy)
-        return sim
-    
-    def scoreReadsetBayesian(self, ReadSet readset, uint32_t minOverlap, uint32_t ploidy, double err):
-        sim = TriangleSparseMatrix()
-        self.thisptr.scoreReadsetBayesian(sim.thisptr, readset.thisptr, minOverlap, ploidy, err)
-        return sim
-    
-    
-def scoreReadsetGlobal(readset, minOverlap, ploidy):
+
+
+def scoreReadset(readset, minOverlap, ploidy, err=0.0):
     readscoring = ReadScoring()
-    sim = readscoring.scoreReadsetGlobal(readset, minOverlap, ploidy)
-    del readscoring
-    return sim
-
-
-def scoreReadsetLocal(readset, minOverlap, ploidy, refHaplotypes = []):
-    readscoring = ReadScoring()
-    sim = readscoring.scoreReadsetLocal(readset, refHaplotypes, minOverlap, ploidy)
-    del readscoring
-    return sim
-
-
-def scoreReadsetBayesian(readset, minOverlap, ploidy, err=0.0):
-    readscoring = ReadScoring()
-    sim = readscoring.scoreReadsetBayesian(readset, minOverlap, ploidy, err)
+    sim = readscoring.scoreReadset(readset, minOverlap, ploidy, err)
     del readscoring
     return sim
     
