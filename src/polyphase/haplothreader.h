@@ -74,7 +74,7 @@ public:
      */
     std::vector<std::vector<GlobalClusterId>> computePaths (const std::vector<Position>& blockStarts,
                     const std::vector<std::vector<GlobalClusterId>>& covMap,
-                    const std::vector<std::vector<std::unordered_map<uint32_t, uint32_t>>>& alleleDepths
+                    const std::vector<std::unordered_map<GlobalClusterId, std::unordered_map<uint32_t, uint32_t>>>& alleleDepths
                    ) const;
                   
     /**
@@ -90,7 +90,7 @@ public:
      */
     std::vector<std::vector<GlobalClusterId>> computePaths (Position start, Position end,
                     const std::vector<std::vector<GlobalClusterId>>& covMap,
-                    const std::vector<std::vector<std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
+                    const std::vector<std::unordered_map<GlobalClusterId, std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
                     Position displayedEnd = 0
                    ) const;
 
@@ -142,7 +142,7 @@ private:
     /**
      * Computes the position-wise coverage (total and per-cluster) based on the allele counts for each cluster and position.
      */
-    void computeCoverage(const std::vector<std::vector<std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
+    void computeCoverage(const std::vector<std::unordered_map<GlobalClusterId, std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
                          const std::vector<std::vector<GlobalClusterId>>& covMap,
                          std::vector<uint32_t>& coverage,
                          std::vector<std::vector<uint32_t>>& clusterCoverage) const;

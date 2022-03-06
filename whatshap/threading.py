@@ -35,25 +35,20 @@ def run_threading(
     # compute auxiliary data
     index, rev_index = get_position_map(readset)
     num_vars = len(rev_index)
-    coverage = get_coverage(readset, clustering, index)
-    cov_map = get_pos_to_clusters_map(coverage, ploidy)
-    allele_depths, normalized_depths, consensus_lists = get_allele_depths(
-        readset, clustering, cov_map, ploidy, genotypes=genotypes
-    )
+    allele_depths, consensus_lists = get_allele_depths(readset, clustering, ploidy)
+    cov_map = get_pos_to_clusters_map(allele_depths, ploidy)
 
     # compute threading through the clusters
     affine_switch_cost = ceil(compute_readlength_snp_distance_ratio(readset) / 1.0)
     path = compute_threading_path(
         readset,
-        num_vars,
         cov_map,
         allele_depths,
-        consensus_lists,
         ploidy,
-        genotypes,
         switch_cost=4 * affine_switch_cost,
         affine_switch_cost=affine_switch_cost,
     )
+    assert len(path) == num_vars
 
     # determine haplotypes/alleles for each position
     haplotypes = compute_haplotypes(path, cov_map, consensus_lists, ploidy)
@@ -100,12 +95,9 @@ def compute_readlength_snp_distance_ratio(readset):
 
 def compute_threading_path(
     readset,
-    num_vars,
     cov_map,
     allele_depths,
-    consensus_lists,
     ploidy,
-    genotypes,
     switch_cost=32.0,
     affine_switch_cost=8.0,
 ):
@@ -124,7 +116,6 @@ def compute_threading_path(
     threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, False, row_limit)
 
     path = threader.computePathsBlockwise([0], cov_map, allele_depths)
-    assert len(path) == num_vars
 
     return path
 
@@ -135,16 +126,16 @@ def compute_haplotypes(path, cov_map, consensus_lists, ploidy):
     """
     num_vars = len(cov_map)
     haplotypes = [[] for _ in range(ploidy)]
-    rev_cov_map = [dict() for _ in range(num_vars)]
-    for i, m in enumerate(cov_map):
-        for j in range(len(m)):
-            rev_cov_map[i][cov_map[i][j]] = j
 
     for pos in range(len(path)):
         cnts = defaultdict(int)
         for i in range(ploidy):
             cid = path[pos][i]
-            allele = consensus_lists[pos][rev_cov_map[pos][cid]][cnts[cid]]
+            if consensus_lists[pos][cid]:
+                allele = consensus_lists[pos][cid][cnts[cid]]
+            else:
+                #TODO: Handle non-present haplotype
+                allele = 0
             cnts[cid] += 1
             haplotypes[i].append(allele)
 
@@ -333,7 +324,7 @@ def enforce_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_d
                         allele_mult[newconfig[slot]] += 1
                         clust_mult += 1
                 if clust_mult > 0:
-                    # compute likelihood that observed allel depth was produced by assigned alleles pro cluster
+                    # compute likelihood that observed allele depth was produced by assigned alleles per cluster
                     total_depth = sum(allele_depths[pos][i].values())
                     for a in alleles:
                         allele_mult[a] /= clust_mult
@@ -710,7 +701,7 @@ def get_position_map(readset):
     return index, rev_index
 
 
-def get_pos_to_clusters_map(coverage, ploidy):
+def get_pos_to_clusters_map(allele_depths, ploidy, max_gap=3):
     """
     For every position, computes a list of relevant clusters for the threading
     algorithm. Relevant means, that the relative coverage is at least 1/8 of
@@ -718,64 +709,41 @@ def get_pos_to_clusters_map(coverage, ploidy):
     from that, at least <ploidy> and at most <ploidy + 2> many clusters are
     selected to avoid exponential blow-up.
     """
-    cov_map = [[] for _ in range(len(coverage))]
-    for pos in range(len(coverage)):
-        sorted_cids = sorted(
-            [cid for cid in coverage[pos]], key=lambda x: coverage[pos][x], reverse=True
-        )
+    cov_map = [[] for _ in range(len(allele_depths))]
+    for pos in range(len(allele_depths)):
+        sorted_cids = sorted([(cid, sum(allele_depths[pos][cid].values())) for cid in allele_depths[pos]], key=lambda x: x[1], reverse=True)
+        total_cov = sum([e[1] for e in sorted_cids])
         cut_off = min(len(sorted_cids), ploidy + 2)
-        for i in range(ploidy, min(len(sorted_cids), ploidy + 2)):
-            if coverage[pos][sorted_cids[i]] < (1.0 / (8.0 * ploidy)):
-                cut_off = i
+        for (cid, cov) in sorted_cids[:cut_off]:
+            if cov / total_cov < (1.0 / (8.0 * ploidy)):
                 break
-        cov_map[pos] = sorted_cids[:cut_off]
+            else:
+                cov_map[pos].append(cid)
 
-    # re-add clusters with 1-position-deletion
+    # re-add clusters missing on at most max_gap intermediate positions
     cut_off = ploidy + 2
     for pos in range(1, len(cov_map) - 1):
         for cid in cov_map[pos - 1]:
-            if cid in cov_map[pos + 1] and cid not in cov_map[pos]:
-                if len(cov_map[pos]) > cut_off:
-                    break
+            if len(cov_map[pos]) >= cut_off:
+                break
+            if cid in cov_map[pos]:
+                continue
+            if any([cid in cov_map[pos + k + 1] for k in range(min(max_gap, len(cov_map) - pos - 1))]):
                 cov_map[pos].append(cid)
+                
+    for sub in cov_map:
+        sub.sort()
 
     return cov_map
 
 
-def get_coverage(readset, clustering, pos_index):
-    """
-    Returns a list, which for every position contains a dictionary, mapping a cluster id to
-    a relative coverage on this position.
-    """
-    num_vars = len(pos_index)
-    num_clusters = len(clustering)
-    coverage = [defaultdict(int) for pos in range(num_vars)]
-    coverage_sum = [0 for pos in range(num_vars)]
-    for c_id in range(num_clusters):
-        for read in clustering[c_id]:
-            for pos in [pos_index[var.position] for var in readset[read]]:
-                if c_id not in coverage[pos]:
-                    coverage[pos][c_id] = 0
-                coverage[pos][c_id] += 1
-                coverage_sum[pos] += 1
-
-    for pos in range(num_vars):
-        for c_id in coverage[pos]:
-            coverage[pos][c_id] = coverage[pos][c_id] / coverage_sum[pos]
-
-    return coverage
-
-
-def get_allele_depths(readset, clustering, cov_map, ploidy, genotypes=None):
+def get_allele_depths(readset, clustering, ploidy):
     """
     Returns a list, which for every position contains a list (representing the clusters) of dictionaries containing the allele depths.
     Additionally computes a consensus list per position per cluster, such that the first k elements represent the alleles of this
     cluster, if it was selected with multiplicity k.
-    ad[pos][c_id][al] = number of reads in cluster cov_map[pos][c_id] having allele al at position pos
+    ad[pos][c_id][al] = number of reads in cluster c_id having allele al at position pos
     Indices are local, i.e. the i-th entry of ad is the entry for the i-th position that occurs in the readset.
-
-    If genotypes are provided, the allele depths are normalized per position, such that the ratio between alleles is (roughly) the
-    same as according to the genotypes.
     """
     # Map genome positions to [0,l)
     index = {}
@@ -787,55 +755,34 @@ def get_allele_depths(readset, clustering, cov_map, ploidy, genotypes=None):
         num_vars += 1
 
     # stores allele depth per position and cluster
-    ad = [[dict() for c_id in cov_map[pos]] for pos in range(num_vars)]
-    nad = [[dict() for c_id in cov_map[pos]] for pos in range(num_vars)]
-    # store depths per position (over all clusters)
-    ad_per_pos = [dict() for pos in range(num_vars)]
-
-    # Create reverse map of the used clusters for every position
-    rev_cov_map = [dict() for _ in range(num_vars)]
-    for i, m in enumerate(cov_map):
-        for j in range(len(m)):
-            rev_cov_map[i][cov_map[i][j]] = j
+    ad = [dict() for pos in range(num_vars)]
+    cons_lists = [dict() for pos in range(num_vars)]
 
     # count alleles
     for c_id, cluster in enumerate(clustering):
         for read in cluster:
             for var in readset[read]:
                 pos = index[var.position]
-                if c_id in rev_cov_map[pos]:
-                    al = var.allele
-                    if al not in ad[pos][rev_cov_map[pos][c_id]]:
-                        ad[pos][rev_cov_map[pos][c_id]][al] = 0
-                    ad[pos][rev_cov_map[pos][c_id]][al] += 1
-                    if al not in ad_per_pos[pos]:
-                        ad_per_pos[pos][al] = 0
-                    ad_per_pos[pos][al] += 1
-
-    # normalize if genotypes provided
-    if genotypes:
-        assert len(genotypes) == len(ad)
-        for pos in range(len(ad)):
-            coverage = sum(cnt for cnt in ad_per_pos[pos].values())
-            exp_ad = {al: genotypes[pos][al] * coverage / ploidy for al in ad_per_pos[pos]}
-            for cid in range(len(ad[pos])):
-                for al in ad[pos][cid]:
-                    nad[pos][cid][al] = round(ad[pos][cid][al] * exp_ad[al] / ad_per_pos[pos][al])
+                if c_id not in ad[pos]:
+                    ad[pos][c_id] = dict()
+                if var.allele not in ad[pos][c_id]:
+                    ad[pos][c_id][var.allele] = 0
+                ad[pos][c_id][var.allele] += 1
 
     # compute allele lists
-    cons_lists = [[[] for c_id in cov_map[pos]] for pos in range(num_vars)]
     for pos in range(num_vars):
-        for c_id in range(len(cov_map[pos])):
+        for c_id in ad[pos]:
+            cons_lists[pos][c_id] = []
             cnts = defaultdict(int)
             for i in range(ploidy):
                 max_cnt = 0
                 max_al = 0
-                for al in nad[pos][c_id]:
-                    cnt = nad[pos][c_id][al] / (1 + cnts[al])
+                for al in ad[pos][c_id]:
+                    cnt = ad[pos][c_id][al] / (1 + cnts[al])
                     if cnt > max_cnt:
                         max_cnt = cnt
                         max_al = al
                 cons_lists[pos][c_id].append(max_al)
                 cnts[max_al] += 1
 
-    return ad, nad, cons_lists
+    return ad, cons_lists

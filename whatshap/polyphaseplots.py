@@ -6,13 +6,37 @@ from copy import deepcopy
 import logging
 from whatshap.core import Read, ReadSet
 from whatshap.cli.compare import compute_switch_flips_poly_bt
-from whatshap.threading import get_position_map, get_coverage
+from whatshap.threading import get_position_map
 
 """
 This class is exclusively used for debugging and development.
 """
 
 logger = logging.getLogger(__name__)
+
+
+def get_coverage(readset, clustering, pos_index):
+    """
+    Returns a list, which for every position contains a dictionary, mapping a cluster id to
+    a relative coverage on this position.
+    """
+    num_vars = len(pos_index)
+    num_clusters = len(clustering)
+    coverage = [defaultdict(int) for pos in range(num_vars)]
+    coverage_sum = [0 for pos in range(num_vars)]
+    for c_id in range(num_clusters):
+        for read in clustering[c_id]:
+            for pos in [pos_index[var.position] for var in readset[read]]:
+                if c_id not in coverage[pos]:
+                    coverage[pos][c_id] = 0
+                coverage[pos][c_id] += 1
+                coverage_sum[pos] += 1
+
+    for pos in range(num_vars):
+        for c_id in coverage[pos]:
+            coverage[pos][c_id] = coverage[pos][c_id] / coverage_sum[pos]
+
+    return coverage
 
 
 def draw_plots(

@@ -21,7 +21,7 @@ HaploThreader::HaploThreader (uint32_t ploidy, double switchCost, double affineS
 
 std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (const std::vector<Position>& blockStarts, 
                     const std::vector<std::vector<GlobalClusterId>>& covMap,
-                    const std::vector<std::vector<std::unordered_map<uint32_t, uint32_t>>>& alleleDepths) const {
+                    const std::vector<std::unordered_map<GlobalClusterId, std::unordered_map<uint32_t, uint32_t>>>& alleleDepths) const {
     Position numVars = covMap.size();
     std::vector<std::vector<GlobalClusterId>> path;
     for (uint32_t i = 0; i < blockStarts.size(); i++) {
@@ -39,7 +39,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (const std
 
 std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position start, Position end, 
                     const std::vector<std::vector<GlobalClusterId>>& covMap,
-                    const std::vector<std::vector<std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
+                    const std::vector<std::unordered_map<GlobalClusterId, std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
                     Position displayedEnd) const {
     
     //  compute coverage and consensus based on allele depths
@@ -410,21 +410,22 @@ void HaploThreader::addCarriedTuples (std::vector<ClusterTuple>& relevantTuples,
     }
 }
 
-void HaploThreader::computeCoverage (const std::vector<std::vector<std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
+void HaploThreader::computeCoverage (const std::vector<std::unordered_map<GlobalClusterId, std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
                                      const std::vector<std::vector<GlobalClusterId>>& covMap,
                                      std::vector<uint32_t>& coverage,
                                      std::vector<std::vector<uint32_t>>& clusterCoverage) const {
     for (Position pos = 0; pos < alleleDepths.size(); pos++) {
         uint32_t total = 0;
-        for (uint32_t cid = 0; cid < alleleDepths[pos].size(); cid++) {
+        for (uint32_t i = 0; i < covMap[pos].size(); i++) {
             uint32_t local = 0;
-            for (auto& ad: alleleDepths[pos][cid])
-                local += ad.second;
+            if (alleleDepths[pos].find(covMap[pos][i]) == alleleDepths[pos].end())
+                local = 0;
+            else
+                for (auto& a: alleleDepths[pos].at(covMap[pos][i]))
+                    local += a.second;
             total += local;
             clusterCoverage[pos].push_back(local);
         }
-        for (uint32_t cid = alleleDepths[pos].size() + 1; cid < covMap[pos].size(); cid++)
-            clusterCoverage[pos].push_back(0);
         coverage[pos] = total;
     }
 }

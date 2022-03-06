@@ -75,7 +75,7 @@ cdef class HaploThreader:
     def __cinit__(self, ploidy, switchCost, affineSwitchCost, carryOverPreviousTuples, rowLimit):
         self.thisptr = new cpp.HaploThreader(ploidy, switchCost, affineSwitchCost, carryOverPreviousTuples, rowLimit)
         
-    def computePathsBlockwise(self, vector[uint32_t]& blockStarts, vector[vector[uint32_t]]& covMap, vector[vector[unordered_map[uint32_t, uint32_t]]]& alleleDepths):
+    def computePathsBlockwise(self, vector[uint32_t]& blockStarts, vector[vector[uint32_t]]& covMap, vector[unordered_map[uint32_t, unordered_map[uint32_t, uint32_t]]]& alleleDepths):
         cdef vector[vector[uint32_t]] path
         path = self.thisptr.computePaths(blockStarts, covMap, alleleDepths)
         
@@ -92,7 +92,7 @@ cdef class HaploThreader:
         
         return py_path
 
-    def computePaths(self, uint32_t start, uint32_t end, vector[vector[uint32_t]]& covMap, vector[vector[unordered_map[uint32_t, uint32_t]]]& alleleDepths):
+    def computePaths(self, uint32_t start, uint32_t end, vector[vector[uint32_t]]& covMap, vector[unordered_map[uint32_t, unordered_map[uint32_t, uint32_t]]]& alleleDepths):
         cdef vector[vector[uint32_t]] path
         path = self.thisptr.computePaths(start, end, covMap, alleleDepths)
         
