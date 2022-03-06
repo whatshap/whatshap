@@ -14,7 +14,6 @@ import argparse
 
 from collections import namedtuple
 from copy import deepcopy
-from scipy.stats import binom_test
 from queue import Queue
 from multiprocessing import Pool
 
@@ -329,11 +328,15 @@ def run_polyphase(
     logger.info("Time spent reading BAM/CRAM:         %6.1f s", timers.elapsed("read_bam"))
     logger.info("Time spent parsing VCF:              %6.1f s", timers.elapsed("parse_vcf"))
     if verify_genotypes:
-        logger.info("Time spent verifying genotypes:      %6.1f s", timers.elapsed("verify_genotypes"))
+        logger.info(
+            "Time spent verifying genotypes:      %6.1f s", timers.elapsed("verify_genotypes")
+        )
     logger.info("Time spent detecting blocks:         %6.1f s", timers.elapsed("detecting_blocks"))
     if threads == 1:
         logger.info("Time spent scoring reads:            %6.1f s", timers.elapsed("read_scoring"))
-        logger.info("Time spent solving cluster editing:  %6.1f s", timers.elapsed("clusterediting"))
+        logger.info(
+            "Time spent solving cluster editing:  %6.1f s", timers.elapsed("clusterediting")
+        )
         logger.info("Time spent threading haplotypes:     %6.1f s", timers.elapsed("threading"))
     else:
         """
@@ -345,9 +348,7 @@ def run_polyphase(
     if plot_clusters or plot_threading:
         logger.info("Time spent creating plots:           %6.1f s", timers.elapsed("create_plots"))
     logger.info("Time spent writing VCF:              %6.1f s", timers.elapsed("write_vcf"))
-    logger.info(
-        "Time spent on rest:                  %6.1f s", timers.total() - timers.sum()
-    )
+    logger.info("Time spent on rest:                  %6.1f s", timers.total() - timers.sum())
     logger.info("Total elapsed time:                  %6.1f s", timers.total())
 
 
@@ -672,7 +673,9 @@ def phase_single_block(block_readset, genotype_slice, phasing_param, timers):
     # Compute similarity values for all read pairs
     timers.start("read_scoring")
     logger.debug("Computing similarities for read pairs ...")
-    similarities = scoreReadset(block_readset, phasing_param.min_overlap, phasing_param.ploidy, 0.07)
+    similarities = scoreReadset(
+        block_readset, phasing_param.min_overlap, phasing_param.ploidy, 0.07
+    )
 
     # Run cluster editing
     logger.debug(
@@ -917,13 +920,13 @@ def add_arguments(parser):
         help="Store phasing information with PS tag (standardized) or "
         "HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)",
     )
-    #arg(
+    # arg(
     #    "--output-read-list",
     #    metavar="FILE",
     #    default=None,
     #    dest="read_list_filename",
     #    help="Write reads that have been used for phasing to FILE.",
-    #)
+    # )
 
     arg = parser.add_argument_group("Input pre-processing, selection, and filtering").add_argument
     arg(
@@ -1041,7 +1044,7 @@ def add_arguments(parser):
         default=False,
         action="store_true",
         help=argparse.SUPPRESS,
-    ) # help="Verify input genotypes by re-typing them using the given reads.",
+    )  # help="Verify input genotypes by re-typing them using the given reads.",
 
 
 def validate(args, parser):
