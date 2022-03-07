@@ -7,6 +7,7 @@ import logging
 from whatshap.core import Read, ReadSet
 from whatshap.cli.compare import compute_switch_flips_poly_bt
 from whatshap.threading import get_position_map
+from collections import defaultdict
 
 """
 This class is exclusively used for debugging and development.

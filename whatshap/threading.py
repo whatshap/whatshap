@@ -124,18 +124,16 @@ def compute_haplotypes(path, cov_map, consensus_lists, ploidy):
     """
     Fills each haplotypes using the computed clusters and their consensus lists
     """
-    num_vars = len(cov_map)
     haplotypes = [[] for _ in range(ploidy)]
 
     for pos in range(len(path)):
         cnts = defaultdict(int)
         for i in range(ploidy):
             cid = path[pos][i]
-            if consensus_lists[pos][cid]:
+            if cid in consensus_lists[pos]:
                 allele = consensus_lists[pos][cid][cnts[cid]]
             else:
-                #TODO: Handle non-present haplotype
-                allele = 0
+                allele = -1
             cnts[cid] += 1
             haplotypes[i].append(allele)
 
@@ -281,7 +279,9 @@ def enforce_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_d
         # detect abundances and shortages
         abundant_alleles, lacking_alleles = dict(), dict()
         alleles_to_insert, affected_positions = [], []
-        for a in genotypes[pos]:
+        for a in alleles:
+            if a not in genotypes[pos]:
+                genotypes[pos][a] = 0
             diff = present[a] - genotypes[pos][a]
             if diff > 0:
                 # slots with abundant allele could change, in total we want the lower count
@@ -316,23 +316,25 @@ def enforce_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_d
             log_likelihood = 0
 
             # compute allele depth fraction for each cluster
-            for i in range(len(clusts)):
+            for clust in clusts:
                 allele_mult = {a: 0 for a in alleles}
                 clust_mult = 0
                 for slot in range(len(path[pos])):
-                    if path[pos][slot] == clusts[i]:
+                    if path[pos][slot] == clust:
                         allele_mult[newconfig[slot]] += 1
                         clust_mult += 1
                 if clust_mult > 0:
                     # compute likelihood that observed allele depth was produced by assigned alleles per cluster
-                    total_depth = sum(allele_depths[pos][i].values())
+                    total_depth = sum(allele_depths[pos][clust].values())
                     for a in alleles:
                         allele_mult[a] /= clust_mult
                         allele_mult[a] = (
                             allele_mult[a] * (1 - error_rate) + (1 - allele_mult[a]) * error_rate
                         )
                         observed_depth = (
-                            0 if a not in allele_depths[pos][i] else allele_depths[pos][i][a]
+                            0
+                            if a not in allele_depths[pos][clust]
+                            else allele_depths[pos][clust][a]
                         )
                         log_likelihood += log(
                             binom.pmf(observed_depth, total_depth, allele_mult[a])
@@ -711,7 +713,11 @@ def get_pos_to_clusters_map(allele_depths, ploidy, max_gap=3):
     """
     cov_map = [[] for _ in range(len(allele_depths))]
     for pos in range(len(allele_depths)):
-        sorted_cids = sorted([(cid, sum(allele_depths[pos][cid].values())) for cid in allele_depths[pos]], key=lambda x: x[1], reverse=True)
+        sorted_cids = sorted(
+            [(cid, sum(allele_depths[pos][cid].values())) for cid in allele_depths[pos]],
+            key=lambda x: x[1],
+            reverse=True,
+        )
         total_cov = sum([e[1] for e in sorted_cids])
         cut_off = min(len(sorted_cids), ploidy + 2)
         for (cid, cov) in sorted_cids[:cut_off]:
@@ -728,9 +734,12 @@ def get_pos_to_clusters_map(allele_depths, ploidy, max_gap=3):
                 break
             if cid in cov_map[pos]:
                 continue
-            if any([cid in cov_map[pos + k + 1] for k in range(min(max_gap, len(cov_map) - pos - 1))]):
+            if any(
+                [cid in cov_map[pos + k + 1] for k in range(min(max_gap, len(cov_map) - pos - 1))]
+            ):
                 cov_map[pos].append(cid)
-                
+                allele_depths[pos][cid] = dict()
+
     for sub in cov_map:
         sub.sort()
 
