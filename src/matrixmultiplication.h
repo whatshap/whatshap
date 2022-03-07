@@ -7,7 +7,7 @@
 #include <cassert>
 using namespace std;
 
-vector<long double> MatMul(vector<long double> &A, Vector2D<double> &B, bool transpose = false) {
+vector<long double> MatMul(vector<long double> &A, Vector2D<long double> &B, bool transpose) {
     
     vector<long double> res;
     if (!transpose) {

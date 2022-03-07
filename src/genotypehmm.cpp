@@ -248,6 +248,15 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
     Vector2D<long double> emission_probability_computer = Vector2D<long double>(n_alleles, n_alleles);
     // for scaled version of forward backward alg, keep track of the sum of backward
     long double scaling_sum = 0.0L;
+    Vector2D<long double>* transition_matrix;
+    vector<unsigned int>* reordering_map;
+    vector<unsigned int> compatible_bipartitions;
+    vector<long double> result;
+    unsigned int allele_1;
+    unsigned int allele_2;
+    unsigned int b_index;
+    unsigned int r_index;
+    unsigned int index;
     // iterate over all bipartitions of the column on the right. So we are calculating the values in column current_index - 1
     if (column_index > 0) {
         unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
@@ -257,20 +266,19 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
             // Update the emission probability based on the bipartition defined by the iterator
             update_emission_probability(&emission_probability_computer, bit_changed, *iterator, *current_input_column);
             // Determine the indices that are compatible with with the bipartition at position column_index
-            long double backward_prob = 1.0L;
-            int b_index = iterator->get_b_index();
-            vector<unsigned int> compatible_bipartitions = hmm_columns[column_index-1]->get_backward_compatible_bipartitions(b_index);
+            b_index = iterator->get_b_index();
+            compatible_bipartitions = hmm_columns[column_index-1]->get_backward_compatible_bipartitions(b_index);
             // UPDATING THE BETA VALUES
             // Iterating over the allele pairs
-            for (int allele_1 = 0; allele_1 < n_alleles; allele_1++) {
-                for (int allele_2 = 0; allele_2 < n_alleles; allele_2++) {
+            for (allele_1 = 0; allele_1 < n_alleles; allele_1++) {
+                for (allele_2 = 0; allele_2 < n_alleles; allele_2++) {
                     // Extract the beta values having (allele_1, allele_2) pair in proper ordering (based on the transition probability matrix)
                     vector<long double> beta_values;
-                    Vector2D<double> * transition_matrix = current_transition_table->get_transition_matrix(allele_1, allele_2);
-                    vector<unsigned int> * reordering_map = current_transition_table->get_reordering_map(allele_1, allele_2);
+                    transition_matrix = current_transition_table->get_transition_matrix(allele_1, allele_2);
+                    reordering_map = current_transition_table->get_reordering_map(allele_1, allele_2);
                     for (int i = 0; i < reordering_map->size(); i++) {
-                        int r_index = reordering_map->at(i);
-                        unsigned int index = current_indexer->get_index(b_index, r_index);
+                        r_index = reordering_map->at(i);
+                        index = current_indexer->get_index(b_index, r_index);
                         if (column_index + 1 < backward_input_column_iterator.get_column_count()) {
                             beta_values.push_back(previous_projection_column->at(index));
                             scaling_sum += previous_projection_column->at(index);
@@ -281,10 +289,10 @@ void GenotypeHMM::compute_backward_column(size_t column_index, unique_ptr<vector
                             scaling_sum += 1.0L;
                         }
                     }
-                    vector<long double> result = MatMul(beta_values, *transition_matrix, true);
+                    result = MatMul(beta_values, *transition_matrix, true);
                     // Update the beta values in the current_projection_matrix
                     for (int i = 0; i < compatible_bipartitions.size(); i++) {
-                        int index = compatible_bipartitions[i] * pow(n_references,2);
+                        index = compatible_bipartitions[i] * pow(n_references,2);
                         for (unsigned int j = 0; j < pow(n_references, 2); j++) {
                             current_projection_column->at(index+j) = current_projection_column->at(index+j) + result[j]*emission_probability_computer.at(allele_1, allele_2);   
                         }
@@ -370,6 +378,15 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
     long double normalization = 0.0L;
     long double scaling_sum = 0.0L;
     long double sum = 0.0L;
+    int b_index;
+    int allele_1;
+    int allele_2;
+    unsigned int r_index;
+    unsigned int index;
+    vector<unsigned int> compatible_bipartitions;
+    Vector2D<long double>* transition_matrix = nullptr;
+    vector<unsigned int>* reordering_map = nullptr;
+    vector<long double> result;
     // iterate over all bipartitions
     unique_ptr<ColumnIndexingIterator> iterator = current_indexer->get_iterator();
     while (iterator->has_next()) {
@@ -379,42 +396,40 @@ void GenotypeHMM::compute_forward_column(size_t column_index, unique_ptr<vector<
         update_emission_probability(&emission_probability_computer, bit_changed, *iterator, *current_input_column);
 
         // Determine the indices that are compatible with with the bipartition at position column_index
-        long double backward_prob = 1.0L;
-        int b_index = iterator->get_b_index();
+        b_index = iterator->get_b_index();
         // Calculating the current_projection_column
         if (column_index == 0) {
-            long double tr_prb = 1.0L;
             for (unsigned int i = 0; i < allele_references->at(column_index).size(); i++) {
-                int allele_1 = allele_references->at(column_index).at(i);
+                allele_1 = allele_references->at(column_index).at(i);
                 for (unsigned int j = 0; j < allele_references->at(column_index).size(); j++) {
-                    int allele_2 = allele_references->at(column_index).at(j);
-                    unsigned int r_index = current_indexer->reference_allele_to_index(i, j);
-                    unsigned int index = current_indexer->get_index(b_index, r_index);
+                    allele_2 = allele_references->at(column_index).at(j);
+                    r_index = current_indexer->reference_allele_to_index(i, j);
+                    index = current_indexer->get_index(b_index, r_index);
                     if ((allele_1 == -1) || (allele_2 == -1)) {
                         current_projection_column->at(index) = 0.0;
                         continue;    
                     }
-                    current_projection_column->at(index) = tr_prb * emission_probability_computer.at(allele_1, allele_2);
+                    current_projection_column->at(index) = emission_probability_computer.at(allele_1, allele_2);
                 }
             }
         }
         else {
-            vector<unsigned int> compatible_bipartitions = hmm_columns[column_index-1]->get_backward_compatible_bipartitions(b_index);
+            compatible_bipartitions = hmm_columns[column_index-1]->get_backward_compatible_bipartitions(b_index);
             for (unsigned int b : compatible_bipartitions) {
                 // Get the alpha values from the compatible bipartition b
                 vector<long double> alpha_values;
-                for (int r_index = 0; r_index < pow(n_references, 2); r_index++) {
+                for (r_index = 0; r_index < pow(n_references, 2); r_index++) {
                     alpha_values.push_back(previous_projection_column->at((n_references*n_references*b)+r_index));
                 }
                 // Iterating over the groups to calculate the alpha values.
-                for (int allele_1 = 0; allele_1 < n_alleles; allele_1++) {
-                    for (int allele_2 = 0; allele_2 < n_alleles; allele_2++) {
-                        Vector2D<double> * transition_matrix = current_transition_table->get_transition_matrix(allele_1, allele_2);
-                        vector<unsigned int> * reordering_map = current_transition_table->get_reordering_map(allele_1, allele_2);
-                        vector<long double> result = MatMul(alpha_values, *transition_matrix);
+                for (allele_1 = 0; allele_1 < n_alleles; allele_1++) {
+                    for (allele_2 = 0; allele_2 < n_alleles; allele_2++) {
+                        transition_matrix = current_transition_table->get_transition_matrix(allele_1, allele_2);
+                        reordering_map = current_transition_table->get_reordering_map(allele_1, allele_2);
+                        result = MatMul(alpha_values, *transition_matrix, false);
                         // Taking the alpha values from the result array and then mapping them to the current_projection_column based on reordering_map.
                         for (unsigned int pos_index = 0; pos_index < reordering_map->size(); pos_index++) {
-                            unsigned int r_index = reordering_map->at(pos_index);
+                            r_index = reordering_map->at(pos_index);
                             current_projection_column->at((n_references * n_references * b_index) + r_index) += result.at(pos_index)*emission_probability_computer.at(allele_1, allele_2);                            
                         }
                     }

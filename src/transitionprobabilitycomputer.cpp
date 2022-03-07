@@ -35,7 +35,7 @@ TransitionProbabilityComputer::TransitionProbabilityComputer(const float& recomb
     vector<unsigned int> previous_references;
     unsigned int matrix_index;
     unsigned int f_index;
-    double value;
+    long double value;
     vector<unsigned int>::iterator reference_i;
     vector<unsigned int>::iterator reference_j;
     // Iterating over the alleles present at the position for the first haplotype
@@ -71,7 +71,7 @@ TransitionProbabilityComputer::TransitionProbabilityComputer(const float& recomb
     }
 }
 
-Vector2D<double> * TransitionProbabilityComputer::get_transition_matrix(unsigned int a1, unsigned int a2) {
+Vector2D<long double> * TransitionProbabilityComputer::get_transition_matrix(unsigned int a1, unsigned int a2) {
     return &(this->transition_probability_matrices[a1*(int)(sqrt(transition_probability_matrices.size()))+a2]);
 }
 

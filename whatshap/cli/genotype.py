@@ -377,7 +377,6 @@ def run_genotype(
                     )
 
                 recombination_costs = recombination_cost_computer.compute(accessible_positions)
-
                 # Finally, run genotyping algorithm
                 with timers("genotyping"):
                     problem_name = "genotyping"
@@ -387,8 +386,7 @@ def run_genotype(
                         "s" if len(family) > 1 else "",
                         problem_name,
                     )
-                    # MAKE SURE THAT THE NUMBER OF REFERENCES PASSED IS 2 X NUMBER OF SAMPLES SINCE EACH SAMPLE HAS 2 HAPLOTYPES
-                    
+                    # MAKE SURE THAT THE NUMBER OF REFERENCES PASSED IS 2 X NUMBER OF SAMPLES SINCE EACH SAMPLE HAS 2 HAPLOTYPES    
                     forward_backward_table = GenotypeHMM(
                         numeric_sample_ids,
                         all_reads,
@@ -427,20 +425,19 @@ def run_genotype(
     logger.info("\n== SUMMARY ==")
     total_time = timers.total()
     log_memory_usage()
-    logger.info("Time spent reading BAM:                      %6.1f s", timers.elapsed("read_bam"))
-    logger.info("Time spent parsing VCF:                      %6.1f s", timers.elapsed("parse_vcf"))
+    logger.info("Time spent reading BAM:                      %9.2f s", timers.elapsed("read_bam"))
+    logger.info("Time spent parsing VCF:                      %9.2f s", timers.elapsed("parse_vcf"))
     if show_phase_vcfs:
         logger.info(
-            "Time spent parsing input phasings from VCFs: %6.1f s",
-            timers.elapsed("parse_phasing_vcfs"),
-        )
-    logger.info("Time spent selecting reads:                  %6.1f s", timers.elapsed("select"))
+            "Time spent parsing input phasings from VCFs: %9.1f s",            timers.elapsed("parse_phasing_vcfs"))
+    logger.info("Time spent selecting reads:                  %9.2f s", timers.elapsed("select"))
     logger.info(
-        "Time spent genotyping:                          %6.1f s", timers.elapsed("genotyping")
+        "Time spent genotyping:                          %9.2f s", timers.elapsed("genotyping")
     )
-    logger.info("Time spent writing VCF:                      %6.1f s", timers.elapsed("write_vcf"))
-    logger.info("Time spent on rest:                          %6.1f s", total_time - timers.sum())
-    logger.info("Total elapsed time:                          %6.1f s", total_time)
+    logger.info("Time spent writing VCF:                      %9.2f s", timers.elapsed("write_vcf"))
+    logger.info("Time spent on rest:                          %9.2f s", total_time - timers.sum())
+    logger.info("Total elapsed time:                          %9.2f s", total_time)
+    logger.info("Total elapsed time:                          %9.2f hr", total_time/3600)
 
 
 # fmt: off
