@@ -1,7 +1,8 @@
 <!--
-When reporting an issue, please include this information unless you are absolutely sure it is irrelevant:
+When reporting a bug or unexpected behavior,
+please include this information unless you are absolutely sure it is irrelevant:
 
-- WhatsHap and Python version
+- WhatsHap and Python version (`python -V` and `whatshap --version`)
 - How you installed the tool (conda, pip)
 - Which command-line parameters you used
 
