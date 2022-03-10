@@ -16,6 +16,7 @@ def run_threading(
     block_cut_sensitivity,
     force_genotypes=True,
     error_rate=0.05,
+    max_cluster_gap=10,
 ):
     """
     Main method for the threading stage of the polyploid phasing algorithm. Takes the following input:
@@ -36,7 +37,7 @@ def run_threading(
     index, rev_index = get_position_map(readset)
     num_vars = len(rev_index)
     allele_depths, consensus_lists = get_allele_depths(readset, clustering, ploidy)
-    cov_map = get_pos_to_clusters_map(allele_depths, ploidy)
+    cov_map = get_pos_to_clusters_map(allele_depths, ploidy, max_cluster_gap)
 
     # compute threading through the clusters
     affine_switch_cost = ceil(compute_readlength_snp_distance_ratio(readset) / 1.0)
@@ -47,6 +48,7 @@ def run_threading(
         ploidy,
         switch_cost=4 * affine_switch_cost,
         affine_switch_cost=affine_switch_cost,
+        max_cluster_gap=max_cluster_gap,
     )
     assert len(path) == num_vars
 
@@ -100,6 +102,7 @@ def compute_threading_path(
     ploidy,
     switch_cost=32.0,
     affine_switch_cost=8.0,
+    max_cluster_gap=10,
 ):
     """
     Runs the threading algorithm for the haplotypes using the given costs for switches. The normal switch cost is the
@@ -113,7 +116,9 @@ def compute_threading_path(
 
     # run threader
     row_limit = 16 * 2 ** ploidy if ploidy > 6 else 0
-    threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, False, row_limit)
+    threader = HaploThreader(
+        ploidy, switch_cost, affine_switch_cost, False, max_cluster_gap, row_limit
+    )
 
     path = threader.computePathsBlockwise([0], cov_map, allele_depths)
 
@@ -703,7 +708,7 @@ def get_position_map(readset):
     return index, rev_index
 
 
-def get_pos_to_clusters_map(allele_depths, ploidy, max_gap=3):
+def get_pos_to_clusters_map(allele_depths, ploidy, max_gap):
     """
     For every position, computes a list of relevant clusters for the threading
     algorithm. Relevant means, that the relative coverage is at least 1/8 of

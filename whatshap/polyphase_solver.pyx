@@ -72,8 +72,8 @@ def scoreReadset(readset, minOverlap, ploidy, err=0.0):
     
     
 cdef class HaploThreader:
-    def __cinit__(self, ploidy, switchCost, affineSwitchCost, carryOverPreviousTuples, rowLimit):
-        self.thisptr = new cpp.HaploThreader(ploidy, switchCost, affineSwitchCost, carryOverPreviousTuples, rowLimit)
+    def __cinit__(self, ploidy, switchCost, affineSwitchCost, carryOverPreviousTuples, maxClusterGap, rowLimit):
+        self.thisptr = new cpp.HaploThreader(ploidy, switchCost, affineSwitchCost, carryOverPreviousTuples, maxClusterGap, rowLimit)
         
     def computePathsBlockwise(self, vector[uint32_t]& blockStarts, vector[vector[uint32_t]]& covMap, vector[unordered_map[uint32_t, unordered_map[uint32_t, uint32_t]]]& alleleDepths):
         cdef vector[vector[uint32_t]] path

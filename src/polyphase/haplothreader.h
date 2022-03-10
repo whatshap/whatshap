@@ -57,9 +57,10 @@ public:
      * @param switchCost The factor how much a single cluster switches is penalized over a wrong copy number of a cluster (compared to its coverage)
      * @param affineSwitchCost Penalty for a position, in which a cluster switch occurs
      * @param carryOverPreviousTuples All tuples from the previous column are considered as genotype conform for the next column, if clusters still exist
+     * @param maxClusterGap Maximum allowed number of consecutive zero-coverage positions until cluster is not considered anymore
      * @param rowLimit Keeps at most this number of cluster tuples as candidates for each position. 0 means no limit
      */
-    HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool carryOverPreviousTuples, uint32_t rowLimit);
+    HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool carryOverPreviousTuples, uint32_t maxClusterGap, uint32_t rowLimit);
     
     /**
      * Computes a number of paths (depending on the provided ploidy), which run through the provided clusters. For each variant the result
@@ -99,6 +100,7 @@ private:
     double switchCost;
     double affineSwitchCost;
     bool carryOverPreviousTuples;
+    uint32_t maxClusterGap;
     uint32_t rowLimit;
     
     /**

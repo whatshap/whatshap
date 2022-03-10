@@ -10,11 +10,12 @@
 constexpr uint64_t ClusterTuple::TUPLE_MASKS[];
 const ClusterTuple ClusterTuple::INVALID_TUPLE = ClusterTuple((TupleCode)-1);
 
-HaploThreader::HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool carryOverPreviousTuples, uint32_t rowLimit) :
+HaploThreader::HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool carryOverPreviousTuples, uint32_t maxClusterGap, uint32_t rowLimit) :
     ploidy(ploidy),
     switchCost(switchCost),
     affineSwitchCost(affineSwitchCost),
     carryOverPreviousTuples(carryOverPreviousTuples),
+    maxClusterGap(maxClusterGap),
     rowLimit(rowLimit)
 {
 }
@@ -125,7 +126,23 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
             break;
         }
         
+        // compute coverage costs and prune unpromising tuples
+        std::vector<ThreadScore> coverageCosts;
+        ThreadScore minCovCost = std::numeric_limits<ThreadScore>::infinity();
         for (ClusterTuple tuple : relevantTuples) {
+            ThreadScore coverageCost = getCoverageCost(tuple, coverage[pos], clusterCoverage[pos]);
+            coverageCosts.push_back(coverageCost);
+            if (coverageCost < minCovCost)
+                minCovCost = coverageCost;
+        }
+        
+        for (uint32_t tid = 0; tid < relevantTuples.size(); tid++) {
+            // if coverage cost too high compared to best tuple, prune this
+            ClusterTuple tuple = relevantTuples[tid];
+            ThreadScore coverageCost = coverageCosts[tid];
+            if (coverageCost > 4 * minCovCost)
+                continue;
+            
             // variables to store best score and backtracking direction
             minimumSwitchCost = std::numeric_limits<ThreadScore>::infinity();
             
@@ -163,7 +180,6 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
             
             // in addition to best score over all predecessors, we need the best permutation of tuple to achieve this
             ClusterTuple bestPerm = tc.permuteAgainstOld(tuple, optPredTuple);
-            ThreadScore coverageCost = getCoverageCost(tuple, coverage[pos], clusterCoverage[pos]);
 //             ThreadScore coverageCost2 = getCoverageCost(bestPerm, coverage[pos], clusterCoverage[pos]);
 //             if (coverageCost != coverageCost2)  {
 //                 std::cout<<"   Inconsistent coverage cost: "<<coverageCost<<" != "<<coverageCost2<<std::endl;
@@ -183,6 +199,8 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
             std::sort(tupleGlobal.begin(), tupleGlobal.end());
             sortedGlobalTuples[a.first] = tupleGlobal;
         }
+        
+        std::cout<<"   Unpruned tuples: "<<column.size()<<std::endl;
         
         // cut down rows if parameter is set
         if (rowLimit > 0 && column.size() >= rowLimit) {
@@ -242,16 +260,15 @@ ThreadScore HaploThreader::getCoverageCost(ClusterTuple tuple,
                                      const std::vector<uint32_t>& clusterCoverage
                                     ) const {
     // tuple contains local cluster ids, which have to be translated with covMap to get the global ids
-    double cost = 1.0;
-    double opt = 1.0;
-    double count = 0.0;
+    double llh = 1.0;
+    //double opt = 1.0;
     uint32_t unthreadedReads = 0;
     
     std::vector<uint32_t> clustMult(clusterCoverage.size(), 0);
     for (uint32_t i = 0; i < ploidy; i++) {
         uint32_t cid = tuple.get(i);
         clustMult[cid] += 1;
-        opt *= binom_pmf(coverage, ((double)coverage)/ploidy, 1.0/ploidy);
+        //opt *= binom_pmf(coverage, ((double)coverage)/ploidy, 1.0/ploidy);
     }
     
     uint32_t cov = 0;
@@ -264,17 +281,14 @@ ThreadScore HaploThreader::getCoverageCost(ClusterTuple tuple,
             unthreadedReads += clusterCoverage[cid];
         } else {
             double p = (0.95*clustMult[cid])/ploidy;
-            cost *= binom_pmf(coverage, clusterCoverage[cid], p);
+            llh *= binom_pmf(coverage, clusterCoverage[cid], p);
         }
-        uint32_t expMult = (uint32_t)(0.5 + ploidy * ((ThreadScore)clusterCoverage[cid] / (ThreadScore)cov));
-        if (expMult != clustMult[cid])
-            count += 1.0;
     }
     
-    cost *= binom_pmf(coverage, unthreadedReads, 0.05);
+    llh *= binom_pmf(coverage, unthreadedReads, 0.05);
 
-    return std::log(opt/cost);
-//     return count;
+    return -std::log(llh);
+    //return std::log(opt/cost);
 }
 
 ThreadScore HaploThreader::getSwitchCostAllPerms(const std::vector<GlobalClusterId>& prevTuple, const std::vector<GlobalClusterId>& curTuple) const {
@@ -306,18 +320,14 @@ std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vecto
     
     std::vector<LocalClusterId> relevantClusters;
     std::vector<std::vector<uint32_t>> consensusLists;
-    std::cout<<"   relevant ("<<coverage<<"):";
+    std::cout<<"Position "<<pos<<": relevant ("<<coverage<<"):";
     for (uint32_t cid = 0; cid < clusterCoverage[pos].size(); cid++) {
-        uint32_t smoothedCov = clusterCoverage[pos][cid];
-        if (pos > 0)
-            smoothedCov = std::max(clusterCoverage[pos - 1][cid], smoothedCov);
-        if (pos < clusterCoverage.size() - 1)
-            smoothedCov = std::max(clusterCoverage[pos + 1][cid], smoothedCov);
-        if (4 * ploidy * smoothedCov >= coverage) {
+        uint32_t cov = clusterCoverage[pos][cid];
+        if (4 * ploidy * cov >= coverage) {
             relevantClusters.push_back(cid);
-            std::cout<<" ["<<cid<<","<<smoothedCov<<"]";
+            std::cout<<" ["<<cid<<","<<cov<<"]";
         } else {
-            std::cout<<" ("<<cid<<","<<smoothedCov<<")";
+            std::cout<<" ("<<cid<<","<<cov<<")";
         }
     }
     std::cout<<std::endl;
@@ -414,17 +424,46 @@ void HaploThreader::computeCoverage (const std::vector<std::unordered_map<Global
                                      const std::vector<std::vector<GlobalClusterId>>& covMap,
                                      std::vector<uint32_t>& coverage,
                                      std::vector<std::vector<uint32_t>>& clusterCoverage) const {
-    for (Position pos = 0; pos < alleleDepths.size(); pos++) {
-        uint32_t total = 0;
+    Position numPos = alleleDepths.size();
+    std::vector<std::unordered_map<GlobalClusterId, uint32_t>> clusterCoverageGlobal(numPos, std::unordered_map<GlobalClusterId, uint32_t>());
+    for (Position pos = 0; pos < numPos; pos++) {
+//         std::cout<<"Pos Raw "<<pos<<std::endl;
         for (uint32_t i = 0; i < covMap[pos].size(); i++) {
+//             std::cout<<"   i="<<i<<" //";
             uint32_t local = 0;
-            if (alleleDepths[pos].find(covMap[pos][i]) == alleleDepths[pos].end())
-                local = 0;
-            else
-                for (auto& a: alleleDepths[pos].at(covMap[pos][i]))
-                    local += a.second;
-            total += local;
-            clusterCoverage[pos].push_back(local);
+            GlobalClusterId cid = covMap[pos][i];
+            for (auto& a: alleleDepths[pos].at(covMap[pos][i])) {
+                local += a.second;
+//                 std::cout<<" "<<a.first<<":"<<a.second;
+            }
+//             std::cout<<std::endl;
+            clusterCoverageGlobal[pos][cid] = local;
+        }
+    }
+    for (Position pos = 0; pos < numPos; pos++) {
+        uint32_t total = 0;
+//         std::cout<<"Pos Avg "<<pos<<std::endl;
+        for (uint32_t i = 0; i < covMap[pos].size(); i++) {
+//             std::cout<<"   i="<<i<<" //";
+            GlobalClusterId cid = covMap[pos][i];
+            uint32_t smoothedCov = 0;
+            uint32_t numNonZero = 0;
+            Position min = pos - maxClusterGap / 2;
+            Position max = std::min(numPos - 1, pos + (maxClusterGap + 1) / 2);
+            min *= min < max;
+            for (Position p = min; p <= max; p++) {
+                uint32_t cov = clusterCoverageGlobal[p][cid];
+//                 std::cout<<" "<<cov;
+                if (cov > 0) {
+                    smoothedCov += cov;
+                    numNonZero++;
+                }
+            }
+//             std::cout<<" = "<<smoothedCov<<" / "<<numNonZero<<std::endl;
+            if (numNonZero == 0)
+                numNonZero = 1;
+            clusterCoverage[pos].push_back(smoothedCov / numNonZero);
+            total += clusterCoverage[pos][i];
         }
         coverage[pos] = total;
     }
