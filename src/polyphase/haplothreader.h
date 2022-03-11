@@ -18,26 +18,26 @@ typedef float ThreadScore;
 
 struct TupleEntry {
     ThreadScore score;
-    ThreadScore covCost;
     ClusterTuple pred;
     
     TupleEntry() :
     score(std::numeric_limits<ThreadScore>::infinity()),
     pred(ClusterTuple::INVALID_TUPLE) {}
     
-    TupleEntry(const ThreadScore score, const ThreadScore covCost, const ClusterTuple pred) :
+    TupleEntry(const ThreadScore score, const ClusterTuple pred) :
     score(score),
-    covCost(covCost),
     pred(pred){}
     
     bool operator==(const TupleEntry& other) const {
-        return pred == other.pred && covCost == other.covCost && score == other.score;
+        return pred == other.pred && score == other.score;
     }
     
     bool operator!=(const TupleEntry& other) const {
-        return pred != other.pred || covCost != other.covCost || score != other.score;
+        return pred != other.pred || score != other.score;
     }
 };
+
+typedef std::pair<ClusterTuple, TupleEntry> ColumnEntry;
 
 /**
  * ===
@@ -118,28 +118,6 @@ private:
     ThreadScore getSwitchCostAllPerms(const std::vector<GlobalClusterId>& prevTuple, const std::vector<GlobalClusterId>& curTuple) const;
 
     std::vector<ClusterTuple> computeRelevantTuples (const std::vector<std::vector<uint32_t>>& clusterCoverage, Position pos) const;
-    
-    /**
-     * Takes the currently conform vector of tuples as input and does three things:
-     * 1. Add all tuples which are not present at the previous position to enteringTuples
-     * 2. Add all tuples from the previous position which are not present anymore to leftTuples
-     * 3. For all tuples carried over from the previous position: Bring them the cluster ids in relevantTuples into the
-     *    same order as they were on the previous position.
-     * 
-     * @param relevantTuples The vector containing all relevant tuples for the current position
-     * @param enteringTuples Write back target for newly entered tuples
-     * @param leftTuples Write back target for dropped tuples
-     * @param curClusterIds Global cluster ids for current position
-     * @param prevClusterIds Global cluster ids for previous position
-     * @param prevColumn Previous column of DP table, containing a mapping between tuples (cluster ids are local!) of
-     *                   previous position to their respective score
-     */
-    void addCarriedTuples (std::vector<ClusterTuple>& relevantTuples,
-                           std::unordered_set<ClusterTuple>& enteringTuples,
-                           std::unordered_set<ClusterTuple>& leftTuples,
-                           const std::vector<GlobalClusterId>& curClusterIds,
-                           const std::vector<GlobalClusterId>& prevClusterIds,
-                           const std::unordered_map<ClusterTuple, TupleEntry>& prevColumn) const;
 
     /**
      * Computes the position-wise coverage (total and per-cluster) based on the allele counts for each cluster and position.
@@ -151,9 +129,8 @@ private:
                          
     void printStartOfColumn(Position pos,
                             const std::vector<ClusterTuple>& relevantTuples,
-                            const std::unordered_set<ClusterTuple>& enteringTuples,
                             const std::vector<GlobalClusterId>& gIds) const {
-        std::cout<<"Position "<<pos<<": "<<(relevantTuples.size()+enteringTuples.size())<<" tuples ("<<(enteringTuples.size())<<" new) on "<<gIds.size()<<" clusters (";
+        std::cout<<"Position "<<pos<<": "<<(relevantTuples.size())<<" tuples on "<<gIds.size()<<" clusters (";
         for (GlobalClusterId gid : gIds)
             std::cout<<" "<<gid;
         std::cout<< " ). "<<std::endl;

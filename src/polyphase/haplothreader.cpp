@@ -51,9 +51,6 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
     // the actual DP table with sparse columns
     std::vector<std::unordered_map<ClusterTuple, TupleEntry>> m;
     
-    // data structure to store the final result
-    std::vector<std::vector<GlobalClusterId>> path;
-
     // initialize first column
     if (displayedEnd == 0)
         displayedEnd = end;
@@ -61,72 +58,59 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
     
     // auxiliary vector to store a vector for each tuple of a column. This vector contains the global cluster ids, sorted in ascending order
     std::unordered_map<ClusterTuple, std::vector<GlobalClusterId>> sortedGlobalTuples;
+
+    // auxiliary vector to sort previous column entries by score. map to efficiently find tuples from current column in previous one
+    std::vector<ColumnEntry> scoreSortedPreds;
+    std::unordered_map<TupleCode, ClusterTuple> fpToTuple;
     
     // allocated space to store the current column, before it is stored in the DP table
     std::unordered_map<ClusterTuple, TupleEntry> column;
     
     /*
      * The basic idea of this algorithm is, that for every position we generate candidate tuples, which represent
-     * the multiset of clusters, through which the haplotypes are threaded at this exact position. Therefore, for
-     * every candidate we have to compute the coverage costs and the best predecessor tuple from the last column.
-     * The best predecessor is the tuple, which minimizes the sum over its own total cost, plus the switch costs
-     * to the candidate of the current column.
-     * 
+     * the multiset of clusters, through which the haplotypes are threaded at this exact position. The algorithm
+     * is designed as a DP, where each column stands for one position and contains all candidate cluster multisets
+     * (represented as cluster tuples). An entry m[t][i] contains the best threading ending in position i on
+     * tuple t. The recursion is defined as
+     *
+     * m[0][t] = cov_cost(t)
+     * m[i][t] = cov_cost(t) + {switch_cost(t') + m[i-1][t'] for all t' in m[i-1]}
+     *
      * There is heavy symmetry optimization included in this algorithm. First, for a completely computed column
-     * there is no point in having two tuples t1 and t2, which are permutations of each other. Since we consider
-     * all genotype conform tuples in the next column anyways, we only need to store the better of the two t1 and
-     * t2. This elimination of permutations is mainly done by the candidate generation and by the switch cost
-     * functions:
+     * there is no point in having two tuples t1 and t2, which are permutations of each other. Since we can
+     * reorder the tuples in the next column anyways, we only need to store the best permutations:
      * 
      * 1. The candidate generator avoids permutations by construction.
-     * 2. The advanced switch cost function is able to compute the minimal switch costs between a tuple t1 and all
-     *    permutations of a tuple t2. If one candidate for the current column is processed, all of its
-     *    permutations are actually processed as well. We only keep the permutation of t2 with the lowest switch
-     *    cost, since all other permutations have equal coverage costs and can thus be discarded.
+     * 2. The switch cost function computes the minimal switch cost for a tuple t and all permutations of a
+     *    second tuple t' simultaneously. The minimizing permutation is reported and taken for the DP column.
      * 
-     * After a column is computed, it is optionally pruned by removing non-profitable tuples. Let t1 and t2 be
-     * tuples in the current column. Then t2 is non-profitable if it holds that
-     * 
-     * total_cost(t2) >= total_cost(t1) + switch_cost(t1, t2)
-     * 
+     * For each column we only consider candidate tuples with coverage cost less than 4 times the best coverage
+     * cost to not waste too much time on non-promising tuples.
      */
     
     std::vector<ClusterTuple> relevantTuples;
-    std::unordered_set<ClusterTuple> enteringTuples;
-    std::unordered_set<ClusterTuple> leftTuples;
     
     for (Position pos = start; pos < end; pos++) {
         // reset variables
-        enteringTuples.clear();
-        leftTuples.clear();
         relevantTuples.clear();
+        fpToTuple.clear();
+        scoreSortedPreds.clear();
         column.clear();
-        ThreadScore minimumSwitchCost = std::numeric_limits<ThreadScore>::infinity();
-        ThreadScore optPredScore = std::numeric_limits<ThreadScore>::infinity();
-        ClusterTuple optPredTuple = ClusterTuple::INVALID_TUPLE;
-        Position offset = 1;
+        Position offset = pos > start;
         
         // compute genotype conform tuples
         relevantTuples = computeRelevantTuples(clusterCoverage, pos);
-        if (pos > start) {
-            addCarriedTuples(relevantTuples, enteringTuples, leftTuples, covMap[pos], covMap[pos-1], m[pos-1]);
-        } else {
-            offset = 0;
-            for (ClusterTuple t : relevantTuples)
-                enteringTuples.insert(t);
-        }
         
         // create translater between tuples of new and old position
         TupleConverter tc(covMap[pos - offset], covMap[pos], ploidy);
-        
-        // iterate over generated tuples
-        printStartOfColumn(pos, relevantTuples, enteringTuples, covMap[pos]);
-        if (relevantTuples.size()+enteringTuples.size() == 0) {
+
+        //printStartOfColumn(pos, relevantTuples, covMap[pos]);
+        if (relevantTuples.size() == 0) {
             std::cout<<"No tuples for this position. Aborting ..."<<std::endl;
             break;
         }
-        
-        // compute coverage costs and prune unpromising tuples
+
+        // precompute coverage costs for all tuples
         std::vector<ThreadScore> coverageCosts;
         ThreadScore minCovCost = std::numeric_limits<ThreadScore>::infinity();
         for (ClusterTuple tuple : relevantTuples) {
@@ -135,41 +119,55 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
             if (coverageCost < minCovCost)
                 minCovCost = coverageCost;
         }
-        
+
+        // precompute fingerprints for previous column and list sorted by score
+        if (pos > start) {
+            for (ColumnEntry predEntry : m[pos - 1 - start]) {
+                fpToTuple[predEntry.first.fingerprint(ploidy)] = predEntry.first;
+                scoreSortedPreds.push_back(predEntry);
+            }
+            std::sort(scoreSortedPreds.begin(), scoreSortedPreds.end(), [] (const ColumnEntry& a, const ColumnEntry& b) { return a.second.score < b.second.score; });
+        }
+
+        // compute full score for each tuple
         for (uint32_t tid = 0; tid < relevantTuples.size(); tid++) {
-            // if coverage cost too high compared to best tuple, prune this
+            // prune tuples with too high coverage cost
             ClusterTuple tuple = relevantTuples[tid];
             ThreadScore coverageCost = coverageCosts[tid];
-            if (coverageCost > 4 * minCovCost)
+            if (coverageCost > 30 + minCovCost)
                 continue;
-            
+
             // variables to store best score and backtracking direction
-            minimumSwitchCost = std::numeric_limits<ThreadScore>::infinity();
+            ThreadScore optPredScore = std::numeric_limits<ThreadScore>::infinity();
+            ClusterTuple optPredTuple = ClusterTuple::INVALID_TUPLE;
             
             // auxiliary data, is precomputed once here
             std::vector<GlobalClusterId> tupleGlobal = tuple.asVector(ploidy, covMap[pos]);
             std::sort(tupleGlobal.begin(), tupleGlobal.end());
-            
-            //TODO: For non-entering tuples, just compute the identical predecessor
-            
-            // compare each new tuple with every tuple from previous column
-            if (pos > start) {
-                for (std::pair<ClusterTuple, TupleEntry> predEntry : m[pos-1-start]) {
-                    
+
+            // use recursion over previous column for position >= 1
+            if (fpToTuple.size() > 0) {
+                // retrieve equivalent tuple from previous position and its score (if exists)
+                TupleCode c = tc.convertNewToOld(tuple).fingerprint(ploidy);
+                if (fpToTuple.find(c) != fpToTuple.end()) {
+                    optPredTuple = fpToTuple[c];
+                    if (m[pos - 1 -start].find(optPredTuple) != m[pos - 1 -start].end()) {
+                        optPredScore = m[pos - 1 - start][optPredTuple].score;
+                    }
+                }
+
+                // compare each new tuple with every tuple from previous column
+                for (uint32_t pid = 0; pid < scoreSortedPreds.size(); pid++) {
+                    ColumnEntry predEntry = scoreSortedPreds[pid];
+                    // stop if costs cannot improve anymore
+                    if (predEntry.second.score + switchCost + affineSwitchCost >= optPredScore)
+                        break;
+
                     // retrieve precomputed sorted vector over global ids and compute optimal switch cost
                     std::vector<GlobalClusterId> predTupleGlobal = sortedGlobalTuples[predEntry.first];
                     ThreadScore s = predEntry.second.score + getSwitchCostAllPerms(predTupleGlobal, tupleGlobal);
-//                     std::cout<<"   switch [ ";
-//                     for (auto& a: predTupleGlobal)
-//                         std::cout<<a<<" ";
-//                     std::cout<<"] -> [ ";
-//                     for (auto& a: tupleGlobal)
-//                         std::cout<<a<<" ";
-//                     std::cout<<"] = "<<s<<std::endl;
-                    
-                    if (s < minimumSwitchCost) {
-                        minimumSwitchCost = s;
-                        optPredScore = predEntry.second.score;
+                    if (s < optPredScore) {
+                        optPredScore = s;
                         optPredTuple = predEntry.first;
                     }
                 }
@@ -177,19 +175,12 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
                 optPredScore = 0.0;
                 optPredTuple = tuple;
             }
-            
+
             // in addition to best score over all predecessors, we need the best permutation of tuple to achieve this
             ClusterTuple bestPerm = tc.permuteAgainstOld(tuple, optPredTuple);
-//             ThreadScore coverageCost2 = getCoverageCost(bestPerm, coverage[pos], clusterCoverage[pos]);
-//             if (coverageCost != coverageCost2)  {
-//                 std::cout<<"   Inconsistent coverage cost: "<<coverageCost<<" != "<<coverageCost2<<std::endl;
-//                 std::cout<<"   "<<tuple.asString(ploidy)<<std::endl;
-//                 std::cout<<"   "<<bestPerm.asString(ploidy)<<std::endl;
-//             }
 
-            column[bestPerm] = TupleEntry(optPredScore + coverageCost, coverageCost, optPredTuple);
+            column[bestPerm] = TupleEntry(optPredScore + coverageCost, optPredTuple);
             firstUnthreadedPosition = pos+1;
-//             std::cout<<"   "<<bestPerm.asString(ploidy, covMap[pos])<<" -> "<<column[bestPerm].score<<" via "<<optPredTuple.asString(ploidy, covMap[pos - offset])<<std::endl;
         }
         
         // precompute the sorted vectors with global cluster ids for this column (will be reused in next column)
@@ -200,12 +191,12 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
             sortedGlobalTuples[a.first] = tupleGlobal;
         }
         
-        std::cout<<"   Unpruned tuples: "<<column.size()<<std::endl;
+        //std::cout<<"   Unpruned tuples: "<<column.size()<<std::endl;
         
         // cut down rows if parameter is set
         if (rowLimit > 0 && column.size() >= rowLimit) {
-            std::vector<std::pair<ClusterTuple, TupleEntry>> tuplePairs(column.begin(), column.end());
-            std::sort(tuplePairs.begin(), tuplePairs.end(), [] (const std::pair<ClusterTuple, TupleEntry>& a, const std::pair<ClusterTuple, TupleEntry>& b) { return a.second.score < b.second.score; });
+            std::vector<ColumnEntry> tuplePairs(column.begin(), column.end());
+            std::sort(tuplePairs.begin(), tuplePairs.end(), [] (const ColumnEntry& a, const ColumnEntry& b) { return a.second.score < b.second.score; });
             for (uint32_t i = rowLimit; i < tuplePairs.size(); i++) {
                 column.erase(tuplePairs[i].first);
             }
@@ -218,10 +209,18 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
     // discard auxiliary data
     sortedGlobalTuples.clear();
     
-    // backtracking start
+    /*
+     * ==================
+     * backtracking start
+     * ==================
+     */
+
+    // data structure to store the final result
+    std::vector<std::vector<GlobalClusterId>> path;
+    
     ClusterTuple currentRow = ClusterTuple::INVALID_TUPLE;
     ThreadScore minimum = std::numeric_limits<ThreadScore>::infinity();
-    for (std::pair<ClusterTuple, TupleEntry> entry : m[firstUnthreadedPosition - 1 - start]) {
+    for (ColumnEntry entry : m[firstUnthreadedPosition - 1 - start]) {
         if (entry.second.score < minimum) {
             minimum = entry.second.score;
             currentRow = entry.first;
@@ -261,14 +260,12 @@ ThreadScore HaploThreader::getCoverageCost(ClusterTuple tuple,
                                     ) const {
     // tuple contains local cluster ids, which have to be translated with covMap to get the global ids
     double llh = 1.0;
-    //double opt = 1.0;
     uint32_t unthreadedReads = 0;
     
     std::vector<uint32_t> clustMult(clusterCoverage.size(), 0);
     for (uint32_t i = 0; i < ploidy; i++) {
         uint32_t cid = tuple.get(i);
         clustMult[cid] += 1;
-        //opt *= binom_pmf(coverage, ((double)coverage)/ploidy, 1.0/ploidy);
     }
     
     uint32_t cov = 0;
@@ -288,7 +285,6 @@ ThreadScore HaploThreader::getCoverageCost(ClusterTuple tuple,
     llh *= binom_pmf(coverage, unthreadedReads, 0.05);
 
     return -std::log(llh);
-    //return std::log(opt/cost);
 }
 
 ThreadScore HaploThreader::getSwitchCostAllPerms(const std::vector<GlobalClusterId>& prevTuple, const std::vector<GlobalClusterId>& curTuple) const {
@@ -320,17 +316,17 @@ std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vecto
     
     std::vector<LocalClusterId> relevantClusters;
     std::vector<std::vector<uint32_t>> consensusLists;
-    std::cout<<"Position "<<pos<<": relevant ("<<coverage<<"):";
+    //std::cout<<"Position "<<pos<<": relevant ("<<coverage<<"):";
     for (uint32_t cid = 0; cid < clusterCoverage[pos].size(); cid++) {
         uint32_t cov = clusterCoverage[pos][cid];
         if (4 * ploidy * cov >= coverage) {
             relevantClusters.push_back(cid);
-            std::cout<<" ["<<cid<<","<<cov<<"]";
-        } else {
-            std::cout<<" ("<<cid<<","<<cov<<")";
+            //std::cout<<" ["<<cid<<","<<cov<<"]";
+        //} else {
+        //    std::cout<<" ("<<cid<<","<<cov<<")";
         }
     }
-    std::cout<<std::endl;
+    //std::cout<<std::endl;
     
     // create vector of combinations
     std::vector<ClusterTuple> relevantTuples;
@@ -348,7 +344,6 @@ std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vecto
         for (uint32_t i = 0; i < ploidy; i++)
             c[i] = relevantClusters[v[i]];
         relevantTuples.push_back(ClusterTuple(c));
-//         std::cout<<"      "<<ClusterTuple(c).asString(ploidy)<<std::endl;
         
         // increment like a counter
         v[0]++;
@@ -367,59 +362,6 @@ std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vecto
     return relevantTuples;
 }
 
-void HaploThreader::addCarriedTuples (std::vector<ClusterTuple>& relevantTuples,
-                                      std::unordered_set<ClusterTuple>& enteringTuples,
-                                      std::unordered_set<ClusterTuple>& leftTuples,
-                                      const std::vector<GlobalClusterId>& curClusterIds,
-                                      const std::vector<GlobalClusterId>& prevClusterIds,
-                                      const std::unordered_map<ClusterTuple, TupleEntry>& prevColumn) const {
-
-    std::unordered_set<uint32_t> matchedIndices;
-    std::unordered_map<ClusterTuple, uint32_t> matchSet;
-    for (uint32_t i = 0; i < relevantTuples.size(); i++) {
-        matchSet[relevantTuples[i].fingerprint(ploidy)] = i;
-    }
-    
-    // compute mapping betweem local cluster ids from previous to current position
-    std::unordered_map<GlobalClusterId, LocalClusterId> idMap;
-    std::unordered_map<LocalClusterId, LocalClusterId> directMap;
-    for (LocalClusterId c = 0; c < curClusterIds.size(); c++)
-        idMap[curClusterIds[c]] = c;
-    for (LocalClusterId c = 0; c < prevClusterIds.size(); c++) {
-        GlobalClusterId g = prevClusterIds[c];
-        if (idMap.find(g) != idMap.end())
-            directMap[c] = idMap[g];
-    }
-
-    // for all tuples from previous position: either add them to leftTuples or bring the currently used tuple into right order
-    for (auto& a : prevColumn) {
-        std::vector<LocalClusterId> v;
-        for (uint32_t i = 0; i < ploidy; i++) {
-            LocalClusterId c = a.first.get(i);
-            if (idMap.find(c) != directMap.end())
-                v.push_back(directMap[c]);
-        }
-        if (v.size() == ploidy) {
-            ClusterTuple t(v);
-            TupleCode fp = t.fingerprint(ploidy);
-            if (matchSet.find(fp) != matchSet.end()) {
-                relevantTuples[matchSet[fp]] = t;
-                matchedIndices.insert(matchSet[fp]);
-            } else {
-                leftTuples.insert(a.first);
-            }
-        } else {
-            leftTuples.insert(a.first);
-        }
-    }
-    
-    // for all current tuples not matched by a previous one: add to enteringTuples
-    for (uint32_t i = 0; i < relevantTuples.size(); i++) {
-        if (matchedIndices.find(i) != matchedIndices.end())
-            enteringTuples.insert(relevantTuples[i]);
-    }
-}
-
 void HaploThreader::computeCoverage (const std::vector<std::unordered_map<GlobalClusterId, std::unordered_map<uint32_t, uint32_t>>>& alleleDepths,
                                      const std::vector<std::vector<GlobalClusterId>>& covMap,
                                      std::vector<uint32_t>& coverage,
@@ -427,24 +369,18 @@ void HaploThreader::computeCoverage (const std::vector<std::unordered_map<Global
     Position numPos = alleleDepths.size();
     std::vector<std::unordered_map<GlobalClusterId, uint32_t>> clusterCoverageGlobal(numPos, std::unordered_map<GlobalClusterId, uint32_t>());
     for (Position pos = 0; pos < numPos; pos++) {
-//         std::cout<<"Pos Raw "<<pos<<std::endl;
         for (uint32_t i = 0; i < covMap[pos].size(); i++) {
-//             std::cout<<"   i="<<i<<" //";
             uint32_t local = 0;
             GlobalClusterId cid = covMap[pos][i];
             for (auto& a: alleleDepths[pos].at(covMap[pos][i])) {
                 local += a.second;
-//                 std::cout<<" "<<a.first<<":"<<a.second;
             }
-//             std::cout<<std::endl;
             clusterCoverageGlobal[pos][cid] = local;
         }
     }
     for (Position pos = 0; pos < numPos; pos++) {
         uint32_t total = 0;
-//         std::cout<<"Pos Avg "<<pos<<std::endl;
         for (uint32_t i = 0; i < covMap[pos].size(); i++) {
-//             std::cout<<"   i="<<i<<" //";
             GlobalClusterId cid = covMap[pos][i];
             uint32_t smoothedCov = 0;
             uint32_t numNonZero = 0;
@@ -453,13 +389,11 @@ void HaploThreader::computeCoverage (const std::vector<std::unordered_map<Global
             min *= min < max;
             for (Position p = min; p <= max; p++) {
                 uint32_t cov = clusterCoverageGlobal[p][cid];
-//                 std::cout<<" "<<cov;
                 if (cov > 0) {
                     smoothedCov += cov;
                     numNonZero++;
                 }
             }
-//             std::cout<<" = "<<smoothedCov<<" / "<<numNonZero<<std::endl;
             if (numNonZero == 0)
                 numNonZero = 1;
             clusterCoverage[pos].push_back(smoothedCov / numNonZero);
