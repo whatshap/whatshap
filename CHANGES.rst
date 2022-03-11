@@ -2,8 +2,8 @@
 Changes
 =======
 
-development version
--------------------
+v1.3 (2022-03-11)
+-----------------
 
 * :issue:`353`: Fix incorrect HS tags in ``whatshap polyphase``
 * :issue:`356`: Fixed crash when reading VCF variants without ``GT`` fields (happens in GVCFs).
