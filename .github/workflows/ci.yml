@@ -65,7 +65,7 @@ jobs:
       with:
         python-version: 3.7
     - name: Build wheels
-      uses: pypa/cibuildwheel@v2.1.2
+      uses: pypa/cibuildwheel@v2.3.1
       with:
         output-dir: dist/
       env:
@@ -83,14 +83,14 @@ jobs:
         python -m build --sdist
         ls -l dist/
     - name: Publish dev release to test PyPI
-      if: contains(github.ref, '.dev')
+      if: contains(github.ref, 'rc')
       uses: pypa/gh-action-pypi-publish@v1.4.2
       with:
         user: __token__
         password: ${{ secrets.test_pypi_password }}
         repository_url: https://test.pypi.org/legacy/
     - name: Publish to PyPI
-      if: "!contains(github.ref, '.dev')"
+      if: "!contains(github.ref, 'rc')"
       uses: pypa/gh-action-pypi-publish@v1.4.2
       with:
         user: __token__
