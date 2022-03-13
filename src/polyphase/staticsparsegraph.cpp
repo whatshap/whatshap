@@ -77,7 +77,7 @@ void StaticSparseGraph::compile(TriangleSparseMatrix& m) {
             offset2.push_back(weightv.size());
         }
         
-        block2 = offset1[block1] + popcount(bitv) - 1; //only count ones BEFORE current position
+        block2 = offset1[block1] + __builtin_popcountll(bitv) - 1; //only count ones BEFORE current position
         uint64_t block3 = id % 64UL;
         bitv = rank2[block2] >> (63 - block3);
         
@@ -88,8 +88,8 @@ void StaticSparseGraph::compile(TriangleSparseMatrix& m) {
         rank2[block2] |= (1UL << (63 - block3));
         bitv |= 1UL;
         
-        if(offset2[block2] + popcount(bitv) - 1 != weightv.size()) {
-            std::cout<<"Assertion violated (Weight vector incorrect size): "<<u<<" "<<v<<" "<<(offset2[block2] + popcount(bitv) - 1)<<" "<<(weightv.size())<<std::endl;
+        if(offset2[block2] + __builtin_popcountll(bitv) - 1 != weightv.size()) {
+            std::cout<<"Assertion violated (Weight vector incorrect size): "<<u<<" "<<v<<" "<<(offset2[block2] + __builtin_popcountll(bitv) - 1)<<" "<<(weightv.size())<<std::endl;
         }
         weightv.push_back(w);
         if (w == StaticSparseGraph::Forbidden)
@@ -286,22 +286,22 @@ RankId StaticSparseGraph::findIndex(const Edge e) const {
 }
 
 RankId StaticSparseGraph::findIndex(const EdgeId id) const {
-    uint64_t block1 = id / 4096;
-    uint64_t block2 = (id/64) % 64;
-    uint64_t bitv = rank1[block1] >> (63 - block2);
+    u_int64_t block1 = id / 4096;
+    u_int64_t block2 = (id/64) % 64;
+    u_int64_t bitv = rank1[block1] >> (63 - block2);
     
     // check if corresponding bit in rank block is unset
     if ((bitv & 1UL) == 0) {
         return 0;
     }
     
-    block2 = offset1[block1] + popcount(bitv) - 1;
-    uint64_t block3 = id % 64;
+    block2 = offset1[block1] + __builtin_popcountll(bitv) - 1;
+    u_int64_t block3 = id % 64;
     bitv = rank2[block2] >> (63 - block3);
     
     if ((bitv & 1UL) == 0) {
         return 0;
     }
     
-    return offset2[block2] + popcount(bitv) - 1;
+    return offset2[block2] + __builtin_popcountll(bitv) - 1;
 }

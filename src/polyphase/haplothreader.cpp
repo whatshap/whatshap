@@ -10,11 +10,10 @@
 constexpr uint64_t ClusterTuple::TUPLE_MASKS[];
 const ClusterTuple ClusterTuple::INVALID_TUPLE = ClusterTuple((TupleCode)-1);
 
-HaploThreader::HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, bool carryOverPreviousTuples, uint32_t maxClusterGap, uint32_t rowLimit) :
+HaploThreader::HaploThreader (uint32_t ploidy, double switchCost, double affineSwitchCost, uint32_t maxClusterGap, uint32_t rowLimit) :
     ploidy(ploidy),
     switchCost(switchCost),
     affineSwitchCost(affineSwitchCost),
-    carryOverPreviousTuples(carryOverPreviousTuples),
     maxClusterGap(maxClusterGap),
     rowLimit(rowLimit)
 {
