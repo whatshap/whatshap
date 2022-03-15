@@ -642,10 +642,14 @@ def aggregate_results(results, ploidy):
         for hap_cut, ext in zip(hap_cuts, r.hap_cuts):
             hap_cut += [pos_offset + h for h in ext]
         for hap, ext in zip(haplotypes, r.haplotypes):
-            hap += [pos_offset + a for a in ext]
+            hap += ext
         rid_offset = max([rid for clust in clustering for rid in clust])
         cid_offset = len(clustering)
         pos_offset = len(haplotypes[0])
+        # print("####")
+        # print(clustering)
+        # print(paths)
+        # print(haplotypes)
 
     return clustering, paths, haplotypes, cuts, hap_cuts
 
