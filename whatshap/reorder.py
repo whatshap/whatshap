@@ -10,6 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class ReorderType(Enum):
+    NONE = 0
     MULTI = 1
     COLLAPSED = 2
     COLLAPSED_PRE = 3
