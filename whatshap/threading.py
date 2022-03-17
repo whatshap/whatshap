@@ -91,7 +91,7 @@ def compute_threading_path(
     logger.debug("Computing threading paths ..")
 
     # run threader
-    row_limit = 16 * 2 ** ploidy if ploidy > 6 else 0
+    row_limit = 16 * 2**ploidy if ploidy > 6 else 0
     threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, max_cluster_gap, row_limit)
 
     path = threader.computePathsBlockwise([0], cov_map, ad)

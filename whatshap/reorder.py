@@ -189,7 +189,7 @@ def phase_cluster_snps(
                         likelihood += (
                             a_priori
                             * ((1 - error_rate) ** (overlap - errors))
-                            * (error_rate ** errors)
+                            * (error_rate**errors)
                         )
                     score += log(likelihood)
                 configs.append((perm, score))
@@ -365,7 +365,7 @@ def solve_single_ambiguous_site(
                     if cmp != rmat[rid][p]:
                         errors += 1
                 likelihood = max(
-                    likelihood, ((1 - error_rate) ** (overlap - errors)) * (error_rate ** errors)
+                    likelihood, ((1 - error_rate) ** (overlap - errors)) * (error_rate**errors)
                 )
             num_factors += overlap
             score += log(likelihood)
