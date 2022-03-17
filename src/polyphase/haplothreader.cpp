@@ -276,12 +276,12 @@ ThreadScore HaploThreader::getCoverageCost(ClusterTuple tuple,
         if (clustMult[cid] == 0) {
             unthreadedReads += clusterCoverage[cid];
         } else {
-            double p = (0.95*clustMult[cid])/ploidy;
+            double p = (0.975*clustMult[cid])/ploidy;
             llh *= binom_pmf(coverage, clusterCoverage[cid], p);
         }
     }
     
-    llh *= binom_pmf(coverage, unthreadedReads, 0.05);
+    llh *= binom_pmf(coverage, unthreadedReads, 0.025);
 
     return -std::log(llh);
 }

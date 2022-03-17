@@ -59,6 +59,8 @@ def draw_plots(
 This method only works for a test dataset, for which the true haplotype of read was encoded
 into its name. For any other read name, it just returns -1 for unknown haplotype
 """
+
+
 def parse_haplotype(name):
     try:
         tokens = name.split("_")
@@ -436,7 +438,6 @@ def draw_threading(
                             for j in range(ploidy)
                             if poswise_config[pos][j] != poswise_config[pos - 1][j]
                         ]
-                        print("Switch({}) at {}".format(e, pos))
                         for h in switches:
                             c_id = c_map[paths[cut_pos[i] + pos][h]]
                             plt.vlines(

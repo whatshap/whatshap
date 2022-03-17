@@ -533,7 +533,6 @@ def phase_single_block(block_id, block_readset, genotype_slice, param, timers):
                 paths[0].append(allele_to_id[allele])
                 haps.append([allele])
 
-        print(block_id, clusts, paths, [0], [[0] for _ in range(param.ploidy)], haps)
         return SingleBlockResult(
             block_id, clusts, paths, [0], [[0] for _ in range(param.ploidy)], haps
         )

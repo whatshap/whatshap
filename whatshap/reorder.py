@@ -10,17 +10,18 @@ logger = logging.getLogger(__name__)
 
 
 class ReorderType(Enum):
-    SNP = 1
-    EXIT = 2
-    MULTI = 3
+    MULTI = 1
+    COLLAPSED = 2
+    COLLAPSED_PRE = 3
 
 
 class ReorderEvent:
-    def __init(self, position, event_type, llh_diff, haplotypes):
+    def __init__(self, position, event_type, best_prob, second_prob, haplotypes):
         self.position = position
         self.event_type = event_type
-        self.confidence = 1 - exp(-llh_diff)
-        self.haplotypes = haplotypes[:]
+        ratio = best_prob / (best_prob + second_prob) if best_prob + second_prob > 0 else 0
+        self.confidence = ratio
+        self.haplotypes = sorted(haplotypes[:])
 
 
 def run_reordering(
@@ -29,7 +30,7 @@ def run_reordering(
     path,
     haplotypes,
     block_cut_sensitivity,
-    error_rate=0.05,
+    error_rate=0.025,
 ):
     """
     Main method for the reordering stage of the polyploid phasing algorithm. Input:
@@ -69,17 +70,15 @@ def run_reordering(
 
     # phase cluster snps
     phase_cluster_snps(
-        path, haplotypes, cwise_snps, clustering, readset, index, error_rate, window_size=20
+        path, haplotypes, cwise_snps, clustering, readset, index, error_rate, window_size=32
     )
 
-    # we can look at the sequences again to use the most likely continuation for ambiguous haplotype switches
-    improve_path_on_ambiguous_switches(
-        path, haplotypes, clustering, readset, index, error_rate, window_size=20
+    # select most likely continuation for ambiguous haplotype switches
+    events = resolve_ambiguous_switches(
+        path, haplotypes, clustering, readset, index, error_rate, window_size=32
     )
 
-    cut_positions, haploid_cuts = compute_cut_positions(
-        path, block_cut_sensitivity, len(clustering)
-    )
+    cut_positions, haploid_cuts = compute_cut_positions(path, block_cut_sensitivity, events)
 
     logger.debug("Cut positions: {}".format(cut_positions))
     ploidy = len(haplotypes)
@@ -91,8 +90,8 @@ def run_reordering(
 
 def find_cluster_snps(path, haplotypes):
     """
-    For each cluster, finds the positions, where it has a multiplicity of at least 2 with at least 2 different alleles.
-    These positions have to be phased within the clusters.
+    For each cluster, finds the positions, where it has a multiplicity of at least 2 with at least
+    2 different alleles. These positions have to be phased within the clusters.
     """
     cwise_snps = defaultdict(list)
     for pos in range(len(path)):
@@ -117,9 +116,6 @@ def phase_cluster_snps(
     The window size determines how many previous positions are taken into account when resolving
     the next one.
     """
-
-    # events = []
-
     # sort clusters by position of first haplotype
     collapsed = sorted(
         [(cid, sorted(snps)) for cid, snps in cwise_snps.items()], key=lambda x: x[1][0]
@@ -200,29 +196,25 @@ def phase_cluster_snps(
             configs.sort(key=lambda x: -x[1])
             best_perm = configs[0][0]
 
-            # print("   Best permutation is {} with score {}".format(best_perm, configs[0][1]))
-            # print("   Second best permutation is {} with score {}".format(configs[1][0] if best_perm == configs[0][0] else configs[0][0], configs[1][1]))
-            # print("   {}".format(configs))
-
             # switch alleles at current position, needed as input for next position(s)
             alleles = [haplotypes[best_perm[j]][pos] for j in range(len(best_perm))]
             for j in range(len(c_slots)):
                 haplotypes[c_slots[j]][pos] = alleles[j]
 
-            # events.append(ReorderEvent(pos, ReorderType.SNP, configs[0][1] - configs[1][1], set([cid])))
 
-
-def improve_path_on_ambiguous_switches(
+def resolve_ambiguous_switches(
     path, haplotypes, clustering, readset, index, error_rate, window_size
 ):
     """
-    Post processing step after the threading. If a haplotype leaves a cluster on a collapsed region, we could use
-    read information to find the most likely continuation of the switching haplotypes.
+    Post processing step after the threading. If a haplotype leaves a cluster on a collapsed region,
+    we could use read information to find the most likely continuation of the switching haplotypes.
     """
     if len(path) == 0:
         return []
 
     ploidy = len(path[0])
+    events = []
+    event_type = ReorderType.NONE
 
     # maps the haplotype slot of the corrected version to the original (and in reverse)
     current_perm, inverse_perm = list(range(ploidy)), list(range(ploidy))
@@ -242,21 +234,30 @@ def improve_path_on_ambiguous_switches(
             continue
 
         # compute the optimal permutation of changing haplotypes, according to read information
-        configs = solve_single_ambiguous_site(
-            haplotypes,
-            inverse_perm,
-            clustering,
-            readset,
-            index,
-            i,
-            h_group,
-            c_group,
-            False,
-            error_rate,
-            window_size,
-        )
-        best_perm = configs[0][0]
-        #print("Reorder {}: {} vs {} = {}".format(i, configs[0][1], configs[1][1], 1 - exp(configs[1][1] - configs[0][1])))
+        for b in [True, False]:
+            configs = solve_single_ambiguous_site(
+                haplotypes,
+                inverse_perm,
+                clustering,
+                readset,
+                index,
+                i,
+                path,
+                h_group,
+                c_group,
+                b,
+                error_rate,
+                window_size,
+            )
+            if len(c_group) == 1:
+                event_type = ReorderType.COLLAPSED_PRE if b else ReorderType.COLLAPSED
+            else:
+                event_type = ReorderType.MULTI
+            best_perm = configs[0][0]
+            if configs[0][1] > configs[1][1] + 0.5:
+                break
+        event = ReorderEvent(i, event_type, exp(configs[0][1]), exp(configs[1][1]), h_group)
+        events.append(event)
 
         # apply local best permutation to current global permutation
         current_perm_copy = list(current_perm)
@@ -272,6 +273,8 @@ def improve_path_on_ambiguous_switches(
         for j in range(ploidy):
             haplotypes[j][i] = reord[j]
 
+    return events
+
 
 def solve_single_ambiguous_site(
     haplotypes,
@@ -280,9 +283,10 @@ def solve_single_ambiguous_site(
     readset,
     index,
     pos,
+    path,
     h_group,
     c_group,
-    exclude_collapsed_cluster
+    exclude_collapsed_cluster,
     error_rate,
     window_size,
 ):
@@ -291,8 +295,9 @@ def solve_single_ambiguous_site(
     het_pos_before, het_pos_after = [], []
     j = pos - 1
     if exclude_collapsed_cluster:
-        pass
-        
+        while len(set([path[j][h] for h in h_group])) < 2 and j > 0:
+            j -= 1
+
     while len(het_pos_before) < window_size and j >= 0:
         if len(set([haplotypes[h][j] for h in h_group])) > 1:
             het_pos_before.append(j)
@@ -304,9 +309,7 @@ def solve_single_ambiguous_site(
         if len(set([haplotypes[hap_perm[h]][j] for h in h_group])) > 1:
             het_pos_after.append(j)
         j += 1
-
     het_pos = het_pos_before + het_pos_after
-    # print("   het_before = {}, het_after = {}".format(het_pos_before, het_pos_after))
 
     # store the allele of every cluster-read for the relevant positions
     rmat = dict()
@@ -315,7 +318,7 @@ def solve_single_ambiguous_site(
     readlist = []
 
     # go over all reads and determine which snp positions they are defined on
-    if len(het_pos_before) > 0 and len(het_pos_after) > 0:
+    if len(het_pos_before) >= 2 and len(het_pos_after) >= 2:
         for cid in c_group:
             for rid in clustering[cid]:
                 read = readset[rid]
@@ -342,7 +345,6 @@ def solve_single_ambiguous_site(
                     readlist.append(rid)
 
     # reconstruct cluster phasing
-    # print("   Found {} relevant reads".format(len(readlist)))
     configs = []
     # enumerate all permutations of haplotypes at current positions
     for perm in it.permutations(range(len(h_group))):
@@ -351,7 +353,6 @@ def solve_single_ambiguous_site(
         # for each read: determine number of errors for best fit
         for rid in readlist:
             likelihood = 0.0
-            a_priori = 1 / len(h_group)
             for slot in range(len(h_group)):
                 overlap = len(rmat[rid])
                 errors = 0
@@ -362,106 +363,60 @@ def solve_single_ambiguous_site(
                         cmp = haplotypes[hap_perm[h_group[slot]]][p]
                     if cmp != rmat[rid][p]:
                         errors += 1
-                #likelihood += (
-                #    a_priori * ((1 - error_rate) ** (overlap - errors)) * (error_rate ** errors)
-                #)
-                likelihood = max(likelihood, ((1 - error_rate) ** (overlap - errors)) * (error_rate ** errors))
+                likelihood = max(
+                    likelihood, ((1 - error_rate) ** (overlap - errors)) * (error_rate ** errors)
+                )
             num_factors += overlap
             score += log(likelihood)
         configs.append((perm, score / num_factors if num_factors > 0 else 0))
 
     configs.sort(key=lambda x: -x[1])
-    # print("   Configs = {}".format(configs))
     return configs
 
 
-def compute_cut_positions(path, block_cut_sensitivity, num_clusters):
+def compute_cut_positions(path, block_cut_sensitivity, events):
     """
-    Takes a threading as input and computes on which positions a cut should be made according the cut sensitivity. The levels mean:
+    Takes a threading as input and computes on which positions a cut should be made according the
+    cut sensitivity. The levels mean:
 
     0 -- No cuts at all, even if regions are not connected by any reads
-    1 -- Only cut, when regions are not connected by any reads (is already done in advance, so nothing to do here)
-    2 -- Only cut, when regions are not connected by a sufficient number of reads (also lready done in advance)
-    3 -- Cut between two positions, if at least two haplotypes switch their cluster on this transition. In this case it is ambiguous,
-         how the haplotype are continued and we might get switch errors if we choose arbitrarily.
-    4 -- Additionally to 3, cut every time a haplotype leaves a collapsed region. Collapsed regions are positions, where multiple
-         haplotypes go through the same cluster. If one cluster leaves (e.g. due to decline in cluster coverage), we do not know
-         which to pick, so we are conservative here. Exception: If a cluster contains a set of multiple haplotypes since the start of
-         the current block and hap wants to leave, we do not need a cut, since it does not matter which haps leaves. Default option.
-    5 -- Cut every time a haplotype switches clusters. Most conservative, but also very short blocks.
+    1 -- Only cut, when regions are not connected by any reads (already done in advance)
+    2 -- Only cut, when regions are not connected by a sufficient number of reads (also done)
+    3-5 -- Cut on reordering events, depending on confidence values and types.
 
-    The list of cut positions contains the first position of every block. Therefore, position 0 is always in the cut list. The second
-    return value is a list of cut positions for every haplotype individually.
+    The list of cut positions contains the first position of every block. Therefore, position 0 is
+    always in the cut list. The second return value is a list of cut positions for every haplotype
+    individually.
     """
 
-    cut_positions = [0]
-    haploid_cut_positions = []
+    cuts = [0]
+    hap_cuts = [[0] for _ in range(len(path[0]) if path else 0)]
 
-    if len(path) == 0:
-        return cut_positions
-
-    ploidy = len(path[0])
-    haploid_cut_positions = [[0] for _ in range(ploidy)]
-
-    dissim_threshold = 1
-    rise_fall_dissim = 0
     if block_cut_sensitivity >= 3:
         if block_cut_sensitivity >= 5:
-            # cut every time a haplotype jumps
-            dissim_threshold = 1
-            rise_fall_dissim = ploidy + 1
+            pre_thrshld = 0.9
+            mul_thrshld = 1.0
+            gen_thrshld = 1.0
         elif block_cut_sensitivity == 4:
-            # cut for every multi-switch and for every rise-fall-ploidy change
-            dissim_threshold = 2
-            rise_fall_dissim = ploidy + 1
+            pre_thrshld = 0.7
+            mul_thrshld = 0.9
+            gen_thrshld = 0.9
         else:
-            # cut for every multi-jump
-            dissim_threshold = 2
-            rise_fall_dissim = 0
+            pre_thrshld = 0.5
+            mul_thrshld = 0.8
+            gen_thrshld = 0.8
 
-    if block_cut_sensitivity >= 3:
-        copynrs = []
-        for i in range(0, len(path)):
-            copynr = defaultdict(int)
-            for j in range(0, ploidy):
-                if path[i][j] not in copynr:
-                    copynr[path[i][j]] = 0
-                copynr[path[i][j]] += 1
-            copynrs.append(copynr)
+        for e in events:
+            cut = False
+            if e.event_type is ReorderType.COLLAPSED_PRE and e.confidence <= pre_thrshld:
+                cut = True
+            elif e.event_type is ReorderType.MULTI and e.confidence <= mul_thrshld:
+                cut = True
+            elif e.event_type is ReorderType.COLLAPSED and e.confidence <= gen_thrshld:
+                cut = True
+            if cut:
+                cuts.append(e.position)
+                for h in e.haplotypes:
+                    hap_cuts[h].append(e.position)
 
-        cpn_rising = [False for c_id in range(num_clusters)]
-
-        for i in range(1, len(path)):
-            dissim = 0
-            clusters_cut = set()
-            for j in range(0, ploidy):
-                old_c = path[i - 1][j]
-                new_c = path[i][j]
-                if old_c != new_c:
-                    clusters_cut.add(old_c)
-                    rise_fall = False
-                    # check if previous cluster went down from copy number >= 2 to a smaller one >= 1
-                    if copynrs[i - 1][old_c] > copynrs[i][old_c] >= 1:
-                        if cpn_rising[old_c]:
-                            rise_fall = True
-                    # check if new cluster went up from copy number >= 1 to a greater one >= 2
-                    if copynrs[i][new_c] > copynrs[i - 1][new_c] >= 1:
-                        cpn_rising[new_c] = True
-                    # check if one cluster has been rising and then falling in the current block
-                    if rise_fall:
-                        dissim += rise_fall_dissim
-
-                    # count general switches
-                    dissim += 1
-
-            # TODO: Avoid deep indentation by using functions
-            if dissim >= dissim_threshold:
-                cpn_rising = [False] * num_clusters
-                cut_positions.append(i)
-
-                # get all cut threads
-                threads_cut = [j for j in range(ploidy) if path[i - 1][j] in clusters_cut]
-                for thread in threads_cut:
-                    haploid_cut_positions[thread].append(i)
-
-    return cut_positions, haploid_cut_positions
+    return cuts, hap_cuts
