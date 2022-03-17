@@ -576,7 +576,7 @@ def phase_single_block(block_id, block_readset, genotype_slice, param, timers):
         block_readset,
         clustering,
         param.ploidy,
-        genotypes=genotype_slice,
+        genotypes=None if param.distrust_genotypes else genotype_slice,
     )
     timers.stop("threading")
 
