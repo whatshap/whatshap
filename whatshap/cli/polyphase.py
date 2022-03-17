@@ -489,7 +489,6 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
             threading,
             haplotypes,
             cuts[:-1],
-            genotype_list,
             phasable_variant_table,
             param.plot_clusters,
             param.plot_threading,
@@ -630,14 +629,13 @@ def aggregate_results(results, ploidy):
     """
 
     clustering, cuts = [], []
-    paths = [[] for _ in range(ploidy)]
+    paths = []
     hap_cuts = [[] for _ in range(ploidy)]
     haplotypes = [[] for _ in range(ploidy)]
     rid_offset, cid_offset, pos_offset = 0, 0, 0
     for r in results:
         clustering += [[rid_offset + rid for rid in clust] for clust in r.clustering]
-        for path, ext in zip(paths, r.paths):
-            path += [cid_offset + cid for cid in ext]
+        paths += [[cid_offset + cid for cid in p] for p in r.paths]
         cuts += [pos_offset + c for c in r.cuts]
         for hap_cut, ext in zip(hap_cuts, r.hap_cuts):
             hap_cut += [pos_offset + h for h in ext]
@@ -646,10 +644,6 @@ def aggregate_results(results, ploidy):
         rid_offset = max([rid for clust in clustering for rid in clust])
         cid_offset = len(clustering)
         pos_offset = len(haplotypes[0])
-        # print("####")
-        # print(clustering)
-        # print(paths)
-        # print(haplotypes)
 
     return clustering, paths, haplotypes, cuts, hap_cuts
 

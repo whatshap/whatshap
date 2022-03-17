@@ -251,10 +251,12 @@ def improve_path_on_ambiguous_switches(
             i,
             h_group,
             c_group,
+            False,
             error_rate,
             window_size,
         )
         best_perm = configs[0][0]
+        #print("Reorder {}: {} vs {} = {}".format(i, configs[0][1], configs[1][1], 1 - exp(configs[1][1] - configs[0][1])))
 
         # apply local best permutation to current global permutation
         current_perm_copy = list(current_perm)
@@ -280,38 +282,27 @@ def solve_single_ambiguous_site(
     pos,
     h_group,
     c_group,
+    exclude_collapsed_cluster
     error_rate,
     window_size,
 ):
-    # for every group of haplotypes coming from a collapsed cluster:
-    # find the position, where each of the haplotypes joined the collapsing one
-    # present_c = [corrected_path[pos - 1][j] for j in h_group]
-    # next_c = [corrected_path[pos][j] for j in h_group]
-    # all_c = set(present_c + next_c)
-
-    # print("Collapsed cut on position {} on haplotypes {}:".format(pos, h_group))
-    # print("   h_group = {}, present_c = {}, next_c = {}".format(h_group, present_c, next_c))
-
-    het_pos_before = []
-    het_pos_after = []
-
     # find the last window_size positions (starting from pos - 1),
     # which are heterozyguous among the haplotype group
-    j, w = pos - 1, 0
-    while w < window_size and j >= 0:
+    het_pos_before, het_pos_after = [], []
+    j = pos - 1
+    if exclude_collapsed_cluster:
+        pass
+        
+    while len(het_pos_before) < window_size and j >= 0:
         if len(set([haplotypes[h][j] for h in h_group])) > 1:
             het_pos_before.append(j)
-            w += 1
         j -= 1
-
-    # find the next window_size positions (starting from pos),
-    # which are heterozyguous among the haplotype group
-    j, w = pos, 0
     het_pos_before = het_pos_before[::-1]
-    while w < window_size and j < len(haplotypes[0]):
+    # same for the next window_size positions (starting from pos)
+    j = pos
+    while len(het_pos_after) < window_size and j < len(haplotypes[0]):
         if len(set([haplotypes[hap_perm[h]][j] for h in h_group])) > 1:
             het_pos_after.append(j)
-            w += 1
         j += 1
 
     het_pos = het_pos_before + het_pos_after
@@ -356,6 +347,7 @@ def solve_single_ambiguous_site(
     # enumerate all permutations of haplotypes at current positions
     for perm in it.permutations(range(len(h_group))):
         score = 0.0
+        num_factors = 0
         # for each read: determine number of errors for best fit
         for rid in readlist:
             likelihood = 0.0
@@ -370,34 +362,17 @@ def solve_single_ambiguous_site(
                         cmp = haplotypes[hap_perm[h_group[slot]]][p]
                     if cmp != rmat[rid][p]:
                         errors += 1
-                likelihood += (
-                    a_priori * ((1 - error_rate) ** (overlap - errors)) * (error_rate ** errors)
-                )
+                #likelihood += (
+                #    a_priori * ((1 - error_rate) ** (overlap - errors)) * (error_rate ** errors)
+                #)
+                likelihood = max(likelihood, ((1 - error_rate) ** (overlap - errors)) * (error_rate ** errors))
+            num_factors += overlap
             score += log(likelihood)
-        configs.append((perm, score))
+        configs.append((perm, score / num_factors if num_factors > 0 else 0))
 
     configs.sort(key=lambda x: -x[1])
     # print("   Configs = {}".format(configs))
     return configs
-
-
-def tie_break_optimal_permutations(path, pos, h_group, opt_perms):
-    best_perm = opt_perms[0]
-    best_score = len(path) * len(h_group) + 1
-    for perm in opt_perms:
-        score = 0
-        for j in range(len(h_group)):
-            old = h_group[perm[j]]
-            new = h_group[j]
-            i = pos - 1
-            while i >= 0 and path[i][old] != path[pos][new]:
-                i -= 1
-            score += pos - 1 - i
-        if score < best_score:
-            best_score = score
-            best_perm = perm
-
-    return best_perm
 
 
 def compute_cut_positions(path, block_cut_sensitivity, num_clusters):
