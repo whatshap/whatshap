@@ -37,7 +37,7 @@ def run_threading(
     index, rev_index = get_position_map(readset)
     num_vars = len(rev_index)
     ad, cons_lists = get_allele_depths(readset, clustering, ploidy)
-    cov_map = get_pos_to_clusters_map(ad, ploidy, max_cluster_gap)
+    cov_map = select_clusters(ad, ploidy, max_cluster_gap)
 
     # compute threading through the clusters
     affine_switch_cost = ceil(compute_readlength_snp_distance_ratio(readset) / 1.0)
@@ -203,7 +203,7 @@ def force_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_dep
     return haplotypes
 
 
-def get_pos_to_clusters_map(allele_depths, ploidy, max_gap):
+def select_clusters(allele_depths, ploidy, max_gap):
     """
     For every position, computes a list of relevant clusters for the threading
     algorithm. Relevant means, that the relative coverage is at least 1/8 of
