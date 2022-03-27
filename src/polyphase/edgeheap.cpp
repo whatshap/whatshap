@@ -133,14 +133,10 @@ Edge EdgeHeap::getMaxIcpEdge() const {
 }
 
 EdgeWeight EdgeHeap::getIcf(const Edge e) const {
-//     if (graph.findIndex(e) == 0)
-//         std::cout<<"getIcf on edge with rank 0"<<std::endl;
     return icf[edgeToBundle[graph.findIndex(e)]];
 }
 
 EdgeWeight EdgeHeap::getIcp(const Edge e) const {
-//     if (graph.findIndex(e) == 0)
-//         std::cout<<"getIcf on edge with rank 0"<<std::endl;
     return icp[edgeToBundle[graph.findIndex(e)]];
 }
 
@@ -247,26 +243,17 @@ void EdgeHeap::updateHeap(std::vector<RankId>& heap, const RankId e, const EdgeW
             parent = (pos-1)/2;
         }
     } else {
-        // value decreased -> move edge downwards in heap
-        uint64_t lChild = 2*pos+1;
-        uint64_t rChild = 2*pos+2;
-        while((lChild < heap.size() && score[heap[pos]] < score[heap[lChild]])
-            | (rChild < heap.size() && score[heap[pos]] < score[heap[rChild]]) ) {
-            if (rChild < heap.size() && score[heap[lChild]] < score[heap[rChild]]) {
-                // right child exists and is larger than left child -> swap pos with right child
-                std::swap(heap[pos], heap[rChild]);
-                index[heap[pos]] = pos;
-                index[heap[rChild]] = rChild;
-                pos = rChild;
-            } else {
-                // else swap with left child
-                std::swap(heap[pos], heap[lChild]);
-                index[heap[pos]] = pos;
-                index[heap[lChild]] = lChild;
-                pos = lChild;
-            }
-            lChild = 2*pos+1;
-            rChild = 2*pos+2;
+        uint64_t lChild = pos + (pos + 1) * ((2*pos + 1) < heap.size());
+        uint64_t rChild = pos + (pos + 2) * ((2*pos + 2) < heap.size());
+        uint64_t next = lChild * (score[heap[rChild]] <= score[heap[lChild]]) + rChild * (score[heap[lChild]] < score[heap[rChild]]);
+        while (score[heap[pos]] < score[heap[next]]) {
+            std::swap(heap[pos], heap[next]);
+            index[heap[pos]] = pos;
+            index[heap[next]] = next;
+            pos = next;
+            lChild = pos + (pos + 1) * ((2*pos + 1) < heap.size());
+            rChild = pos + (pos + 2) * ((2*pos + 2) < heap.size());
+            next = lChild * (score[heap[rChild]] <= score[heap[lChild]]) + rChild * (score[heap[lChild]] < score[heap[rChild]]);
         }
     }
 }
