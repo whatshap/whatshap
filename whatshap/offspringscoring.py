@@ -7,7 +7,7 @@ from scipy.stats import binom
 from scipy.special import binom as binom_coeff
 
 from whatshap.core import TriangleSparseMatrix, ProgenyGenotypeLikelihoods
-from whatshap.vcf import VariantTable, PloidyError, VcfMultiallelicVariant
+from whatshap.vcf import VariantTable, PloidyError
 
 logger = logging.getLogger(__name__)
 
@@ -81,10 +81,7 @@ def get_phasable_parent_variants(
         if (varinfo[i].alt_count, varinfo[i].co_alt_count) not in allowed_pairs:
             continue
         if not phasing_param.allow_deletions:
-            v = variant_table.variants[i]
-            if isinstance(v, VcfMultiallelicVariant) and "*" in v.alternative_alleles:
-                continue
-            elif "*" == v.alternative_allele:
+            if "*" in variant_table.variants[i].get_alt_allele_list():
                 continue
         phasable_indices.append(i)
 

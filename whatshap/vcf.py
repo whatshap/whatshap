@@ -58,8 +58,6 @@ class VariantCallPhase:
 class VcfVariant:
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
-    __slots__ = ("position", "reference_allele", "alternative_allele")
-
     @abstractmethod
     def __repr__(self):
         pass
@@ -77,6 +75,22 @@ class VcfVariant:
         pass
 
     @abstractmethod
+    def get_position(self):
+        pass
+
+    @abstractmethod
+    def get_ref_allele(self):
+        pass
+
+    @abstractmethod
+    def get_alt_allele(self):
+        pass
+
+    @abstractmethod
+    def get_alt_allele_list(self):
+        pass
+
+    @abstractmethod
     def is_snv(self):
         pass
 
@@ -86,7 +100,9 @@ class VcfVariant:
 
 
 class VcfBiallelicVariant(VcfVariant):
-    """A variant in a VCF file (not to be confused with core.Variant)"""
+    """Bi-allelic implementation of VcfVariant"""
+
+    __slots__ = ("position", "reference_allele", "alternative_allele")
 
     def __init__(self, position: int, reference_allele: str, alternative_allele: str):
         """
@@ -118,6 +134,18 @@ class VcfBiallelicVariant(VcfVariant):
             other.alternative_allele,
         )
 
+    def get_position(self):
+        return self.position
+
+    def get_ref_allele(self):
+        return self.reference_allele
+
+    def get_alt_allele(self):
+        return self.alternative_allele
+
+    def get_alt_allele_list(self):
+        return [self.alternative_allele]
+
     def is_snv(self) -> bool:
         return (self.reference_allele != self.alternative_allele) and (
             len(self.reference_allele) == len(self.alternative_allele) == 1
@@ -145,17 +173,13 @@ class VcfBiallelicVariant(VcfVariant):
 
 
 class VcfMultiallelicVariant(VcfVariant):
-    """A variant in a VCF file (not to be confused with core.Variant)"""
+    """Multi-allelic implementation of VcfVariant"""
 
-    __slots__ = "alternative_alleles"
+    __slots__ = ("position", "reference_allele", "alternative_alleles")
 
     def __init__(self, position: int, reference_allele: str, alternative_alleles: List[str]):
-        """
-        Multi-ALT sites are not modelled.
-        """
         self.position = position
         self.reference_allele = reference_allele
-        self.alternative_allele = alternative_alleles[0]
         self.alternative_alleles = alternative_alleles
 
     def __repr__(self):
@@ -180,10 +204,10 @@ class VcfMultiallelicVariant(VcfVariant):
         )
 
     def __lt__(self, other):
-        if len(self.alternative_alleles) != len(other.alternative_alleles):
-            return None
         if (self.position, self.reference_allele) != (other.position, other.reference_allele):
             return (self.position, self.reference_allele) < (other.position, other.reference_allele)
+        if len(self.alternative_alleles) != len(other.alternative_alleles):
+            return len(self.alternative_alleles) < len(other.alternative_alleles)
         for alt_self, alt_other in zip(
             sorted(self.alternative_alleles), sorted(other.alternative_alleles)
         ):
@@ -191,6 +215,18 @@ class VcfMultiallelicVariant(VcfVariant):
                 return alt_self < alt_other
 
         return False
+
+    def get_position(self):
+        return self.position
+
+    def get_ref_allele(self):
+        return self.reference_allele
+
+    def get_alt_allele(self):
+        return self.alternative_alleles[0]
+
+    def get_alt_allele_list(self):
+        return self.alternative_alleles
 
     def is_snv(self) -> bool:
         return any([self.reference_allele != alt for alt in self.alternative_alleles]) and (
@@ -362,8 +398,8 @@ class VariantTable:
             c = depth_code
             depth = []
             while c > 0:
-                depth.append(c & 1023)
-                c = c >> 10
+                depth.append(c & 4095)
+                c = c >> 12
             depths.append(tuple(depth))
         return depths
 
@@ -590,13 +626,22 @@ class VcfReader:
         return VariantCallPhase(block_id=block_id, phase=phase, quality=call.get("PQ", None))
 
     @staticmethod
-    def _extract_AD_depth(call) -> Dict[str, int]:
+    def _extract_AD_depth(call) -> int:
+        """
+        Allele depth of sample are coded into a single integer to save space in memory.
+        Encoding: Lowest 12 bits = depth of allele 0, next 12 bits = depth of allele 1, etc.
+        Alleles with depth 0 are included. Maximum allele depths is 4095 (2^12 - 1).
+        """
         depths = call["AD"]
         depth_code = 0
         if depths is not None and len(depths) > 0 and None not in depths:
             for i in range(len(depths) - 1, -1, -1):
-                cnt = min(1023, depths[i])
-                depth_code = depth_code << 10
+                if depths[i] > 4095:
+                    warn_once(
+                        logger, "Allele depths of 4096 or higher detected. Cutting them off to 4095"
+                    )
+                cnt = min(4095, depths[i])
+                depth_code = depth_code << 12
                 depth_code += cnt
 
         return depth_code
