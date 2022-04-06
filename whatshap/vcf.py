@@ -9,7 +9,7 @@ import itertools
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from os import PathLike
-from typing import List, Sequence, Dict, Tuple, Iterable, Optional, Union, TextIO, Iterator
+from typing import List, Sequence, Dict, Set, Tuple, Iterable, Optional, Union, TextIO, Iterator
 
 from pysam import VariantFile, VariantHeader, VariantRecord
 from pysam.libcbcf import VariantRecordSample
@@ -730,7 +730,7 @@ def missing_headers(path: str) -> Tuple[List[str], List[str], List[str]]:
         seen_contigs = set()
         formats = []  # FORMATs encountered, in the proper order
         seen_formats = set()
-        seen_infos = set()  # INFOs encountered
+        seen_infos: Set[str] = set()  # INFOs encountered
 
         for record in variant_file:
             seen_infos.update(record.info)
