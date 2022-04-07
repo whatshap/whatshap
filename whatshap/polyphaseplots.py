@@ -6,7 +6,8 @@ from copy import deepcopy
 import logging
 from whatshap.core import Read, ReadSet
 from whatshap.cli.compare import compute_switch_flips_poly_bt
-from whatshap.threading import get_position_map, get_coverage
+from whatshap.polyphaseutil import get_coverage
+from collections import defaultdict
 
 """
 This class is exclusively used for debugging and development.
@@ -21,7 +22,6 @@ def draw_plots(
     threading,
     haplotypes,
     cut_positions,
-    genotype_list_multi,
     phasable_variant_table,
     plot_clusters,
     plot_threading,
@@ -42,8 +42,7 @@ def draw_plots(
             genome_space=False,
         )
     if plot_threading:
-        index, rev_index = get_position_map(combined_readset)
-        coverage = get_coverage(combined_readset, clustering, index)
+        coverage = get_coverage(combined_readset, clustering)
         draw_threading(
             combined_readset,
             clustering,
@@ -52,7 +51,6 @@ def draw_plots(
             cut_positions,
             haplotypes,
             phasable_variant_table,
-            genotype_list_multi,
             output + ".threading.pdf",
         )
 
@@ -99,135 +97,6 @@ def get_phase(readset, var_table):
     except AttributeError as e:
         return None
     return [[row[i] for row in phase_rows] for i in range(len(phase_rows[0]))]
-
-
-def calc_overlap_and_diffs(readset):
-    num_reads = len(readset)
-    overlap = SparseTriangleMatrix()
-    diffs = SparseTriangleMatrix()
-
-    # Copy information from readset into lists, because direct access is very slow
-    begins = [readset[i][0].position for i in range(num_reads)]
-    ends = [readset[i][-1].position for i in range(num_reads)]
-    positions = [[read[k].position for k in range(len(read))] for read in readset]
-    alleles = [[read[k].allele for k in range(len(read))] for read in readset]
-
-    # Iterate over read pairs
-    for i in range(num_reads):
-        for j in range(i + 1, num_reads):
-            # if reads do not overlap, leave overlap and differences at 0 and skip
-            if ends[i] < begins[j] or ends[j] < begins[i]:
-                continue
-
-            # perform a zigzag search over the variants of both reads
-            ov = 0
-            di = 0
-            k, l = 0, 0
-            while k < len(positions[i]) and l < len(positions[j]):
-                if positions[i][k] == positions[j][l]:
-                    ov += 1
-                    if alleles[i][k] != alleles[j][l]:
-                        di += 1
-                    k += 1
-                    l += 1
-                elif positions[i][k] < positions[j][l]:
-                    k += 1
-                else:
-                    l += 1
-            overlap.set(i, j, ov)
-            diffs.set(i, j, di)
-    return overlap, diffs
-
-
-def draw_plots_dissimilarity(readset, path, min_overlap=5, steps=100):
-    try:
-        import matplotlib
-
-        matplotlib.use("agg")
-        import matplotlib.pyplot as plt
-        import matplotlib.patches as mpatches
-
-        num_reads = len(readset)
-        overlap, diffs = calc_overlap_and_diffs(readset)
-        haps = [parse_haplotype(readset[i].name) for i in range(num_reads)]
-        dissims_same = []
-        dissims_diff = []
-
-        for i, j in it.combinations(range(num_reads), 2):
-            if overlap.get(i, j) >= min_overlap:
-                d = diffs.get(i, j) / overlap.get(i, j)
-                if haps[i] == haps[j]:
-                    dissims_same.append(d)
-                else:
-                    dissims_diff.append(d)
-        create_histogram(
-            path,
-            dissims_same,
-            dissims_diff,
-            steps,
-            [0.0, 1.0],
-            "Dissimilarity",
-            "Read-pair comparison",
-        )
-    except ImportError:
-        logger.error("Plotting read dissimilarity requires matplotlib to be installed")
-        return
-
-
-def draw_plots_scoring(
-    readset, similarities, path, ploidy, error_rate, min_overlap=5, steps=120, dim=[-60, 60]
-):
-    try:
-        import matplotlib
-
-        matplotlib.use("agg")
-        import matplotlib.pyplot as plt
-        import matplotlib.patches as mpatches
-
-        num_reads = len(readset)
-        overlap, diffs = calc_overlap_and_diffs(readset)
-        haps = [parse_haplotype(readset[i].name) for i in range(num_reads)]
-        dissims_same = []
-        dissims_diff = []
-
-        for i, j in it.combinations(range(num_reads), 2):
-            if overlap.get(i, j) >= min_overlap:
-                d = similarities.get(i, j)
-                if haps[i] == haps[j]:
-                    dissims_same.append(d)
-                else:
-                    dissims_diff.append(d)
-        create_histogram(
-            path, dissims_same, dissims_diff, steps, dim, "Similarity score", "Read-pair comparison"
-        )
-    except ImportError:
-        logger.error("Plotting read scores requires matplotlib to be installed")
-
-
-def create_histogram(path, same, diff, steps, dim, x_label, title, name1="same", name2="diff"):
-    try:
-        import matplotlib
-
-        matplotlib.use("agg")
-        import matplotlib.pyplot as plt
-        import matplotlib.patches as mpatches
-        from pylab import savefig
-
-        hist = {}
-        left_bound = dim[0]
-        right_bound = dim[1]
-        bins = [left_bound + i * (right_bound - left_bound) / steps for i in range(steps + 1)]
-        plt.hist(same, bins, alpha=0.5, label=name1)
-        if len(diff) > 0:
-            plt.hist(diff, bins, alpha=0.5, label=name2)
-        plt.title(title)
-        plt.xlabel(x_label)
-        plt.ylabel("Frequency")
-        plt.legend(loc="upper center")
-        savefig(path, bbox_inches="tight")
-        plt.close()
-    except ImportError:
-        logger.error("Plotting histrograms requires matplotlib to be installed")
 
 
 def draw_clustering(readset, clustering, var_table, path, genome_space=False):
@@ -344,10 +213,6 @@ def plot_haplotype_dissimilarity(
         y_margin = 5
 
         # Plot haplotype dissimilarity
-        # tmp_table = deepcopy(var_table)
-        # tmp_table.subset_rows_by_position(readset.get_positions())
-        # phase_rows = [variant.phase for variant in tmp_table.phases[0]]
-        # phase_vectors = [[row[i] for row in phase_rows] for i in range(len(phase_rows[0]))]
         phase_vectors = get_phase(readset, var_table)
         if not phase_vectors:
             # No phasing information available
@@ -355,7 +220,7 @@ def plot_haplotype_dissimilarity(
 
         chunk = 24
         padding = int(
-            readlen // 2
+            readlen // 6
         )  # dissimilarity of position i is averaged over interval of 2*padding base pairs (not positions)
 
         if genome_space:
@@ -433,7 +298,7 @@ def relative_hamming_dist(seq1, seq2):
 
 
 def draw_threading(
-    readset, clustering, coverage, paths, cut_positions, haplotypes, var_table, genotypes, path
+    readset, clustering, coverage, paths, cut_positions, haplotypes, var_table, path
 ):
     try:
         import matplotlib

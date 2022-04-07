@@ -1,7 +1,7 @@
 import itertools
 import math
 
-from whatshap.core import ClusterEditingSolver, scoreReadsetGlobal
+from whatshap.core import ClusterEditingSolver, scoreReadset
 from whatshap.testhelpers import string_to_readset
 
 
@@ -29,7 +29,7 @@ def test_clusterediting1():
     readset = string_to_readset(reads)
 
     # compute similarities
-    similarities = scoreReadsetGlobal(readset, 5, 4)
+    similarities = scoreReadset(readset, 5, 4)
 
     # run cluster editing
     clusterediting = ClusterEditingSolver(similarities, False)
@@ -62,7 +62,7 @@ def test_clusterediting2():
     readset = string_to_readset(reads)
 
     # compute similarities
-    similarities = scoreReadsetGlobal(readset, 5, 2)
+    similarities = scoreReadset(readset, 5, 2)
     print(similarities)
 
     # run cluster editing
@@ -94,7 +94,7 @@ def test_clusterediting3():
     readset = string_to_readset(reads)
 
     # compute similarities
-    similarities = scoreReadsetGlobal(readset, 5, 3)
+    similarities = scoreReadset(readset, 5, 3)
     print(similarities)
 
     # run cluster editing
@@ -110,7 +110,7 @@ def test_similarities1():
     110101
     """
     readset = string_to_readset(reads)
-    similarities = scoreReadsetGlobal(readset, 4, 2)
+    similarities = scoreReadset(readset, 4, 2)
     # computed similarity is 'nan'
     print("computed similarities:", similarities)
     assert not math.isnan(similarities.get(0, 1))
@@ -128,5 +128,5 @@ def test_similarities2():
     10101
     """
     readset = string_to_readset(reads)
-    similarities = scoreReadsetGlobal(readset, 4, 4)
+    similarities = scoreReadset(readset, 4, 4)
     print("computed similarities:", similarities)

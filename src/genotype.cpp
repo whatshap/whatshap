@@ -137,6 +137,10 @@ uint32_t Genotype::get_ploidy() const {
 	return get_position(MAX_PLOIDY);
 }
 
+uint64_t Genotype::get_code() const {
+	return gt;
+}
+
 bool operator== (const Genotype &g1, const Genotype &g2) {
 	if (g1.get_index() == g2.get_index()) {
 		if (g1.gt ^ g2.gt) {

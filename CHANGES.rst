@@ -2,6 +2,13 @@
 Changes
 =======
 
+v1.4 (2022-04-07)
+-----------------
+
+* :pr:`362`: ``whatshap polyphase`` received extensive algorithmic updates. The compatiblity with
+  different data sets (species and sequencing technology) has been improved. The wall-clock time
+  has been reduced by about 20-30%, depending on the input data.
+
 v1.3 (2022-03-11)
 -----------------
 

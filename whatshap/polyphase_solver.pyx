@@ -57,39 +57,27 @@ cdef class TriangleSparseMatrix:
 cdef class ReadScoring:
     def __cinit__(self):
         self.thisptr = new cpp.ReadScoring()
-
-    def scoreReadsetGlobal(self, ReadSet readset, uint32_t minOverlap, uint32_t ploidy):
+    
+    def scoreReadset(self, ReadSet readset, uint32_t minOverlap, uint32_t ploidy, double err):
         sim = TriangleSparseMatrix()
-        self.thisptr.scoreReadsetGlobal(sim.thisptr, readset.thisptr, minOverlap, ploidy)
+        self.thisptr.scoreReadset(sim.thisptr, readset.thisptr, minOverlap, ploidy, err)
         return sim
-    
-    def scoreReadsetLocal(self, ReadSet readset, vector[vector[uint32_t]] refHaplotypes, uint32_t minOverlap, uint32_t ploidy):
-        sim = TriangleSparseMatrix()
-        self.thisptr.scoreReadsetLocal(sim.thisptr, readset.thisptr, refHaplotypes, minOverlap, ploidy)
-        return sim
-    
-    
-def scoreReadsetGlobal(readset, minOverlap, ploidy):
-    readscoring = ReadScoring()
-    sim = readscoring.scoreReadsetGlobal(readset, minOverlap, ploidy)
-    del readscoring
-    return sim
 
 
-def scoreReadsetLocal(readset, minOverlap, ploidy, refHaplotypes = []):
+def scoreReadset(readset, minOverlap, ploidy, err=0.0):
     readscoring = ReadScoring()
-    sim = readscoring.scoreReadsetLocal(readset, refHaplotypes, minOverlap, ploidy)
+    sim = readscoring.scoreReadset(readset, minOverlap, ploidy, err)
     del readscoring
     return sim
     
     
 cdef class HaploThreader:
-    def __cinit__(self, ploidy, switchCost, affineSwitchCost, symmetryOptimization, rowLimit):
-        self.thisptr = new cpp.HaploThreader(ploidy, switchCost, affineSwitchCost, symmetryOptimization, rowLimit)
+    def __cinit__(self, ploidy, switchCost, affineSwitchCost, maxClusterGap, rowLimit):
+        self.thisptr = new cpp.HaploThreader(ploidy, switchCost, affineSwitchCost, maxClusterGap, rowLimit)
         
-    def computePathsBlockwise(self, vector[uint32_t]& blockStarts, vector[vector[uint32_t]]& covMap, vector[vector[double]]& coverage, vector[vector[uint32_t]]& consensus, vector[unordered_map[uint32_t, uint32_t]]& genotypes):
+    def computePathsBlockwise(self, vector[uint32_t]& blockStarts, vector[vector[uint32_t]]& covMap, vector[unordered_map[uint32_t, unordered_map[uint32_t, uint32_t]]]& alleleDepths):
         cdef vector[vector[uint32_t]] path
-        path = self.thisptr.computePaths(blockStarts, covMap, coverage, consensus, genotypes)
+        path = self.thisptr.computePaths(blockStarts, covMap, alleleDepths)
         
         # convert to python data structure
         py_path = []
@@ -104,9 +92,9 @@ cdef class HaploThreader:
         
         return py_path
 
-    def computePaths(self, uint32_t start, uint32_t end, vector[vector[uint32_t]]& covMap, vector[vector[double]]& coverage, vector[vector[uint32_t]]& consensus, vector[unordered_map[uint32_t, uint32_t]]& genotypes):
+    def computePaths(self, uint32_t start, uint32_t end, vector[vector[uint32_t]]& covMap, vector[unordered_map[uint32_t, unordered_map[uint32_t, uint32_t]]]& alleleDepths):
         cdef vector[vector[uint32_t]] path
-        path = self.thisptr.computePaths(start, end, covMap, coverage, consensus, genotypes)
+        path = self.thisptr.computePaths(start, end, covMap, alleleDepths)
         
         # convert to python data structure
         py_path = []

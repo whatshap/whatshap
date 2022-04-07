@@ -110,6 +110,11 @@ class Genotype{
 		 * Returns the ploidy of the genotype.
 		 */
 		uint32_t get_ploidy() const;
+        
+        /**
+         * Returns the internal representation.
+         */
+        uint64_t get_code() const;
 	
 		// operators
 		friend bool operator== (const Genotype &g1, const Genotype &g2);
@@ -144,5 +149,17 @@ uint32_t get_max_genotype_ploidy();
  * Returns the maximum supported number of alleles per variant for genotypes
  */
 uint32_t get_max_genotype_alleles();
+
+/**
+ * Provide hash function to use Genotypes as keys for maps.
+ */
+namespace std {
+    template <>
+    struct hash<Genotype> {
+        size_t operator()(const Genotype& g) const {
+            return hash<uint64_t>()(g.get_code());
+        }
+    };
+}
 
 #endif // GENOTYPE_H
