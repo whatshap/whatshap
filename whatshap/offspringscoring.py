@@ -282,11 +282,14 @@ def get_variant_scoring(varinfo, off_gl, node_to_variant, phasing_param):
                     score = prev_score
                 else:
                     if varinfo[nj].alt_count == 1 and varinfo[nj].co_alt_count == 0:
-                        score = score_simplex_nulliplex_tetra(off_gl, i, j)
+                        score = off_gl.getSimplexNulliplexScore(i, j)
+                        #score = score_simplex_nulliplex_tetra(off_gl, i, j)
                     elif varinfo[nj].alt_count == 2 and varinfo[nj].co_alt_count == 0:
-                        score = score_duplex_nulliplex_tetra(off_gl, i, j)
+                        score = off_gl.getDuplexNulliplexScore(i, j)
+                        #score = score_duplex_nulliplex_tetra(off_gl, i, j)
                     elif varinfo[nj].alt_count == 1 and varinfo[nj].co_alt_count == 1:
-                        score = score_simplex_simplex_tetra(off_gl, i, j)
+                        score = off_gl.getSimplexSimplexScore(i, j)
+                        #score = score_simplex_simplex_tetra(off_gl, i, j)
                     prev_score = score
                     prev_variant = nj
 
@@ -457,7 +460,7 @@ def compute_gt_likelihoods(
     del allele_depths
     return gt_likelihoods
 
-
+'''
 def score_simplex_nulliplex_tetra(off_gl, pos1, pos2):
     return off_gl.getLogLikelihoodDifference(
         pos1,
@@ -483,3 +486,4 @@ def score_simplex_simplex_tetra(off_gl, pos1, pos2):
         [(0, 0), (0, 1), (1, 0), (1, 1), (0, 2), (1, 2)],
         [(1 / 4, 1 / 12), (1 / 4, 1 / 4), (0, 1 / 6), (1 / 4, 1 / 4), (0, 1 / 6), (1 / 4, 1 / 12)],
     )
+'''

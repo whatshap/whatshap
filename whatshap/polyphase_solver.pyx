@@ -199,8 +199,14 @@ cdef class ProgenyGenotypeLikelihoods:
     def getNumPositions(self):
         return self.thisptr.getNumPositions()
     
-    def getLogLikelihoodDifference(self, uint32_t pos1, uint32_t pos2, vector[pair[uint32_t, uint32_t]] genotypePairs, vector[pair[double, double]] likelihoodPairs):
-        return self.thisptr.getLogLikelihoodDifference(pos1, pos2, genotypePairs, likelihoodPairs)
+    def getSimplexNulliplexScore(self, uint32_t pos1, uint32_t pos2):
+        return self.thisptr.getSimplexNulliplexScore(pos1, pos2)
+    
+    def getSimplexSimplexScore(self, uint32_t pos1, uint32_t pos2):
+        return self.thisptr.getSimplexSimplexScore(pos1, pos2)
+    
+    def getDuplexNulliplexScore(self, uint32_t pos1, uint32_t pos2):
+        return self.thisptr.getDuplexNulliplexScore(pos1, pos2)
 
     def __len__(self):
         return self.thisptr.getNumPositions()

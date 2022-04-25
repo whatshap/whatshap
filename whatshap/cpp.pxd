@@ -205,4 +205,6 @@ cdef extern from "../src/polyphase/progenygenotypelikelihoods.h":
         uint32_t getPloidy() except +
         uint32_t getNumSamples() except +
         uint32_t getNumPositions() except +
-        double getLogLikelihoodDifference(uint32_t pos1, uint32_t pos2, vector[pair[uint32_t, uint32_t]] genotypePairs, vector[pair[double, double]] likelihoodPairs) except +
+        double getSimplexNulliplexScore(uint32_t pos1, uint32_t pos2) except +
+        double getSimplexSimplexScore(uint32_t pos1, uint32_t pos2) except +
+        double getDuplexNulliplexScore(uint32_t pos1, uint32_t pos2) except +

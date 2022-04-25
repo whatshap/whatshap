@@ -23,7 +23,6 @@ def draw_plots(
     threading,
     haplotypes,
     cut_positions,
-    genotype_list_multi,
     phasable_variant_table,
     plot_clusters,
     plot_threading,
@@ -53,7 +52,6 @@ def draw_plots(
             cut_positions,
             haplotypes,
             phasable_variant_table,
-            genotype_list_multi,
             output + ".threading.pdf",
         )
 
@@ -301,7 +299,7 @@ def relative_hamming_dist(seq1, seq2):
 
 
 def draw_threading(
-    readset, clustering, coverage, paths, cut_positions, haplotypes, var_table, genotypes, path
+    readset, clustering, coverage, paths, cut_positions, haplotypes, var_table, path
 ):
     try:
         import matplotlib
