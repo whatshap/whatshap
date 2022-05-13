@@ -125,11 +125,7 @@ bool StaticSparseGraph::isPermanent(const Edge e) {
 bool StaticSparseGraph::isForbidden(const Edge e) {
     NodeId cu = cliqueOfNode[e.u];
     NodeId cv = cliqueOfNode[e.v];
-    if (forbidden[cu].size() * forbidden[cv].size() == 0) {
-        return false;
-    } else {
-        return (forbidden[cu].size() < forbidden[cv].size() && forbidden[cu].find(cv) != forbidden[cu].end()) || forbidden[cv].find(cu) != forbidden[cv].end();
-    }
+    return forbidden[cu].find(cv) != forbidden[cu].end();
 }
 
 void StaticSparseGraph::setPermanent(const Edge e) {
@@ -244,21 +240,17 @@ const std::vector<NodeId>& StaticSparseGraph::getNonZeroNeighbours(const NodeId 
 }
 
 void StaticSparseGraph::refreshEdgeMetaData(const Edge e, const EdgeWeight oldW, const EdgeWeight newW) {
-    bool oldPruned = (oldW == StaticSparseGraph::Forbidden) | (oldW == StaticSparseGraph::Permanent) | (oldW == 0.0);
-    bool newPruned = (newW == StaticSparseGraph::Forbidden) | (newW == StaticSparseGraph::Permanent) | (newW == 0.0);
-    bool oldZero = (oldW == 0.0);
-    bool newZero = (newW == 0.0);
-    if (oldPruned & !newPruned) {
+    if ((oldW == StaticSparseGraph::Forbidden || oldW == StaticSparseGraph::Permanent || (oldW == 0.0)) && ((newW != 0.0) && newW != StaticSparseGraph::Forbidden && newW != StaticSparseGraph::Permanent)) {
         unprunedNeighbours[e.u].push_back(e.v);
         unprunedNeighbours[e.v].push_back(e.u);
-    } else if (!oldPruned & newPruned) {
+    } else if (oldW != StaticSparseGraph::Forbidden && oldW != StaticSparseGraph::Permanent && (oldW != 0.0) && ((newW == 0.0) || newW == StaticSparseGraph::Forbidden || newW == StaticSparseGraph::Permanent)) {
         removeFromVector(unprunedNeighbours[e.u], e.v);
         removeFromVector(unprunedNeighbours[e.v], e.u);
     }
-    if (oldZero & !newZero) {
+    if (oldW == 0.0 && newW != 0.0) {
         nonzeroNeighbours[e.u].push_back(e.v);
         nonzeroNeighbours[e.v].push_back(e.u);
-    } else if (!oldZero & newZero) {
+    } else if (oldW != 0.0 && newW == 0.0) {
         removeFromVector(nonzeroNeighbours[e.u], e.v);
         removeFromVector(nonzeroNeighbours[e.v], e.u);
     }
@@ -283,7 +275,7 @@ RankId StaticSparseGraph::findIndex(const Edge e) const {
 
 RankId StaticSparseGraph::findIndex(const EdgeId id) const {
     u_int64_t block1 = id / 4096;
-    u_int64_t block2 = (id / 64) % 64;
+    u_int64_t block2 = (id/64) % 64;
     u_int64_t bitv = rank1[block1] >> (63 - block2);
     
     // check if corresponding bit in rank block is unset
