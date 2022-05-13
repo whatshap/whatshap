@@ -1,10 +1,11 @@
 #ifndef TRIANGLESPARSEMATRIX_H
 #define TRIANGLESPARSEMATRIX_H
 
-#include <cstdint>
 #include <unordered_map>
 #include <set>
 #include <vector>
+#include <cmath>
+#include <stdint.h>
 
 /**
  * A simple storage class, to sparsely store float values for pairs of non-negative integers.
