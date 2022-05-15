@@ -235,7 +235,7 @@ def check_haplotag_list_information(haplotag_list, exit_stack):
     :param exit_stack:
     :return:
     """
-    haplo_list = exit_stack.enter_context(xopen(haplotag_list))
+    haplo_list = exit_stack.enter_context(xopen(haplotag_list, threads=0))
     first_line = haplo_list.readline().strip()
     # rewind to make sure a header-less file is processed correctly
     haplo_list.seek(0)
