@@ -54,6 +54,9 @@ hairs.txt: reference.fasta variants.vcf pacbio.bam pacbio.bam.bai
 hapcut.txt: hairs.txt variants.vcf
 	HAPCUT --fragments hairs.txt --VCF variants.vcf --output hapcut.txt
 
+haplotags.txt: reference.fasta phased.vcf.gz pacbio.bam
+	whatshap haplotag -o /dev/null --output-haplotag-list $@ -r $*
+
 %.bam.bai: %.bam
 	samtools index $<
 

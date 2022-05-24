@@ -1,6 +1,23 @@
 from xopen import xopen
+import pysam
 
 from whatshap.cli.split import run_split
+
+
+def test_split_bam(tmp_path):
+    h1 = tmp_path / "h1.bam"
+    h2 = tmp_path / "h2.bam"
+
+    run_split(
+        "tests/data/pacbio/pacbio.bam",
+        "tests/data/pacbio/haplotags.txt",
+        output_h1=h1,
+        output_h2=h2,
+    )
+    with pysam.AlignmentFile(h1) as f:
+        assert 15 == len(list(f))
+    with pysam.AlignmentFile(h2) as f:
+        assert 10 == len(list(f))
 
 
 def test_split_bam_no_sequence(tmp_path):
