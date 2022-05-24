@@ -291,6 +291,7 @@ def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, exit_
             "Expecting BAM or FASTQ (gzipped)".format(input_format)
         )
 
+    output_writers = []
     if input_format == "BAM":
         input_reader = exit_stack.enter_context(
             pysam.AlignmentFile(
@@ -300,26 +301,28 @@ def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, exit_
             )
         )
         input_iter = _bam_iterator
-        output_writers = dict()
-        for hap, outfile in enumerate([output_untagged, output_h1, output_h2]):
-            output_writers[hap] = exit_stack.enter_context(
-                pysam.AlignmentFile(
-                    os.devnull if outfile is None else outfile, mode="wb", template=input_reader
+
+        for outfile in [output_untagged, output_h1, output_h2]:
+            output_writers.append(
+                exit_stack.enter_context(
+                    pysam.AlignmentFile(
+                        os.devnull if outfile is None else outfile, mode="wb", template=input_reader
+                    )
                 )
             )
     elif input_format == "FASTQ":
         # raw or gzipped is both handled by PySam
         input_reader = exit_stack.enter_context(pysam.FastxFile(reads_file))
-        input_mode = "wb"
+        output_mode = "wb"
         if not (reads_file.endswith(".gz") or reads_file.endswith(".gzip")):
-            input_mode = "w"
+            output_mode = "w"
         input_iter = _fastq_string_iterator
-        output_writers = dict()
-        for hap, outfile in enumerate([output_untagged, output_h1, output_h2]):
-            open_handle = exit_stack.enter_context(xopen(outfile, "w"))
-            if open_handle is None:
-                open_handle = exit_stack.enter_context(open(os.devnull, input_mode))
-            output_writers[hap] = open_handle
+        for outfile in [output_untagged, output_h1, output_h2]:
+            output_writers.append(
+                exit_stack.enter_context(
+                    open(os.devnull, output_mode) if outfile is None else xopen(outfile, "w")
+                )
+            )
     else:
         # and this means I overlooked something...
         raise ValueError("Unhandled file format for input reads: {}".format(input_format))
