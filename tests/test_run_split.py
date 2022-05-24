@@ -1,3 +1,5 @@
+from xopen import xopen
+
 from whatshap.cli.split import run_split
 
 
@@ -35,3 +37,17 @@ def test_split_bam_no_sequence(tmp_path):
         produced_output = dump.readlines()[1:]  # skip header line
         for e, p in zip(expected_output, produced_output):
             assert e == p
+
+
+def test_split_fastq(tmp_path):
+    fastq_path = tmp_path / "reads.fastq.gz"
+    list_path = tmp_path / "readlist.txt"
+    with xopen(fastq_path, "w") as f:
+        f.write("@r\nACGT\n+\n####\n")
+    list_path.write_text("hello\tH1")
+    run_split(
+        str(fastq_path),
+        str(list_path),
+        output_h1="/dev/null",
+        output_h2="/dev/null",
+    )
