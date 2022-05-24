@@ -57,6 +57,7 @@ def test_split_bam_no_sequence(tmp_path):
 
 
 def test_split_fastq(tmp_path):
+    # issue #371
     fastq_path = tmp_path / "reads.fastq.gz"
     list_path = tmp_path / "readlist.txt"
     with xopen(fastq_path, "w") as f:
