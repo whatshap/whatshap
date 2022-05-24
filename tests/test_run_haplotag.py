@@ -88,12 +88,18 @@ def test_haplotag_cli_parser(tmp_path):
     outbam = tmp_path / "output.bam"
     parser = argp.ArgumentParser(description="haplotag_test_parser", prog="whatshap_pytest")
     haplotag_add_arguments(parser)
-    haplotag_args = vars(
-        parser.parse_args(
-            ["--output", str(outbam), "tests/data/haplotag_2.vcf.gz", "tests/data/haplotag.bam"]
-        )
+    haplotag_args = parser.parse_args(
+        [
+            "--no-reference",
+            "--output",
+            str(outbam),
+            "tests/data/haplotag_2.vcf.gz",
+            "tests/data/haplotag.bam",
+        ]
     )
-    run_haplotag(**haplotag_args)
+    haplotag_args.reference = False
+    del haplotag_args.no_reference
+    run_haplotag(**vars(haplotag_args))
     ps_count = 0
     for alignment in pysam.AlignmentFile(outbam):
         if alignment.has_tag("PS"):

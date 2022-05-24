@@ -10,7 +10,7 @@ import sys
 import pysam
 import hashlib
 from collections import defaultdict
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from xopen import xopen
 
@@ -32,9 +32,11 @@ def add_arguments(parser):
     arg('-o', '--output',
         default=sys.stdout,
         help='Output file. If omitted, use standard output.')
-    arg('--reference', '-r', metavar='FASTA',
-        help='Reference file. Provide this to detect alleles through re-alignment. '
-        'If no index (.fai) exists, it will be created')
+    arg("--reference", "-r", metavar="FASTA",
+        help="Reference file. Must be accompanied by .fai index (create with samtools faidx)")
+    arg("--no-reference", action="store_true", default=False,
+        help="Detect alleles without requiring a reference, at the expense of phasing quality "
+        "(in particular for long reads)")
     arg('--regions', dest='regions', metavar='REGION', default=None, action='append',
         help='Specify region(s) of interest to limit the tagging to reads/variants '
         'overlapping those regions. You can specify a space-separated list of '
@@ -69,7 +71,8 @@ def add_arguments(parser):
 
 
 def validate(args, parser):
-    pass
+    if args.reference is not None and args.no_reference:
+        parser.error("Options --reference and --no-reference cannot be used together")
 
 
 def md5_of(filename):
@@ -450,7 +453,7 @@ def run_haplotag(
     variant_file,
     alignment_file,
     output=None,
-    reference=None,
+    reference: Union[None, bool, str] = False,
     regions=None,
     ignore_linked_read=False,
     given_samples=None,
@@ -499,9 +502,18 @@ def run_haplotag(
 
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
-                [alignment_file], reference, NumericSampleIds(), ignore_read_groups, indels=False
+                [alignment_file],
+                None if reference is False else reference,
+                NumericSampleIds(),
+                ignore_read_groups,
+                indels=False,
             )
         )
+        if phased_input_reader.has_alignments and reference is None:
+            raise CommandLineError(
+                "A reference FASTA needs to be provided with -r/--reference; "
+                "or use --no-reference at the expense of phasing quality."
+            )
 
         bam_writer = stack.enter_context(
             open_output_alignment_file(
@@ -619,4 +631,7 @@ def run_haplotag(
 
 
 def main(args):
+    if args.no_reference:
+        args.reference = False
+    del args.no_reference
     run_haplotag(**vars(args))

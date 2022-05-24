@@ -2,6 +2,17 @@
 Changes
 =======
 
+development version
+-------------------
+
+* Providing a reference FASTA (with ``--reference`` or ``-r``)
+  is now mandatory even for  ``whatshap haplotag``. It was already
+  mandatory for ``whatshap phase``. In both cases, this is to prevent
+  accidentally getting bad results because allele detection through
+  realignment (which usually performs better) is only possible if a
+  reference is provided. Use ``--no-reference`` explicitly to fall
+  back to the less accurate algorithm.
+
 v1.4 (2022-04-07)
 -----------------
 
