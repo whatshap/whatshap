@@ -85,6 +85,7 @@ hapcut2vcf                            Convert hapCUT output format to VCF
 unphase                               Remove phasing information from a VCF file
 :ref:`haplotag <whatshap-haplotag>`   Tag reads by haplotype
 :ref:`genotype <whatshap-genotype>`   Genotype variants
+:ref:`split <whatshap-split>`         Split reads by haplotype
 ===================================== ===================================================
 
 Not all are fully documented in this manual, yet. To get help for a
@@ -746,6 +747,30 @@ heterozygous variants.
 .. image:: _static/haplotagged-HP.png
 
 |
+
+
+.. _whatshap-split:
+
+whatshap split: Splitting reads according to haplotype
+------------------------------------------------------
+
+The ``whatshap split`` subcommand splits a set of unmapped reads from a FASTQ or BAM input file
+according to their haplotype and produces one output file for each haplotype.
+The haplotype for each read must be provided through a separate file, typically
+created by ``whatshap haplotag`` with the ``--output-haplotag-list`` option.
+
+This file must be in tab-separated values (TSV) format and must have at least two columns with
+*read name* and *haplotype*. Two additional columns *phase set* and *contig* are required
+if the command-line option ``--only-largest-block`` was used. A header line is optional.
+
+Input reads are provided as either BAM or FASTQ. The output format is the same as the input format.
+That is, reading BAM but writing FASTQ (or vice versa) is not possible.
+
+Examples::
+
+    whatshap split --output-h1 h1.fastq.gz  --output-h2 h2.fastq.gz reads.fastq.gz haplotypes.tsv
+    whatshap split --output-h1 h1.bam --output-h2 h2.bam reads.bam haplotypes.tsv
+
 
 .. _whatshap-genotype:
 
