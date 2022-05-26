@@ -752,7 +752,7 @@ heterozygous variants.
 .. _whatshap-split:
 
 whatshap split: Splitting reads according to haplotype
-------------------------------------------------------
+======================================================
 
 The ``whatshap split`` subcommand splits a set of unmapped reads from a FASTQ or BAM input file
 according to their haplotype and produces one output file for each haplotype.
