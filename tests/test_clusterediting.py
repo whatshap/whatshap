@@ -30,7 +30,7 @@ def test_similarities2():
     """
     readset = string_to_readset(reads)
     similarities = scoreReadset(readset, 4, 4, 0.06)
-    
+
     assert similarities.get(0, 1) > 1.0
     assert similarities.get(0, 1) == similarities.get(0, 2) == similarities.get(0, 3)
     assert similarities.get(0, 1) == similarities.get(1, 2) == similarities.get(1, 3)
@@ -40,7 +40,8 @@ def test_similarities2():
     assert similarities.get(0, 7) < -1.0
     assert similarities.get(4, 5) > 1.0
     assert similarities.get(4, 6) < -1.0
-    
+
+
 def test_similarities3():
     reads = """
     00000
@@ -54,7 +55,7 @@ def test_similarities3():
     """
     readset = string_to_readset(reads)
     similarities = scoreReadset(readset, 4, 2, 0.06)
-    
+
     assert similarities.get(0, 1) > 5.0
     assert similarities.get(0, 1) == similarities.get(0, 2) == similarities.get(0, 3)
     assert similarities.get(0, 1) == similarities.get(1, 2) == similarities.get(1, 3)
@@ -65,44 +66,47 @@ def test_similarities3():
     assert similarities.get(4, 5) > 1.0
     assert similarities.get(4, 6) > 1.0
 
+
 def test_similarities4():
     reads = """
     000
      000
       000
-    111  
-     111 
+    111
+     111
       101
-     110 
+     110
     """
     readset = string_to_readset(reads)
     similarities = scoreReadset(readset, 2, 2, 0.06)
-    
+
     assert similarities.get(0, 1) > 2.0
     assert similarities.get(0, 2) == 0.0
     assert similarities.get(1, 2) > 2.0
     assert similarities.get(0, 3) < -5.0 < similarities.get(1, 3) < 0.0 == similarities.get(2, 3)
     assert similarities.get(4, 6) > similarities.get(4, 5) > 0.0
-    
+
+
 def test_similarities5():
     reads = """
     000
      000
       000
-    111  
-     111 
+    111
+     111
       101
-     110 
+     110
     """
     readset = string_to_readset(reads)
     similarities = scoreReadset(readset, 2, 3, 0.06)
-    
+
     assert similarities.get(0, 1) > 1.0
     assert similarities.get(0, 2) == 0.0
     assert similarities.get(1, 2) > 0.5
     assert similarities.get(0, 3) < -5.0 < similarities.get(1, 3) < 0.0 == similarities.get(2, 3)
     assert 0.0 > similarities.get(4, 6) > similarities.get(4, 5)
-    
+
+
 def test_clusterediting1():
 
     reads = """
@@ -139,7 +143,7 @@ def test_clusterediting1():
     read_ids = list(itertools.chain.from_iterable(readpartitioning))
     duplicates = set([r for r in read_ids if read_ids.count(r) > 1])
     assert len(duplicates) == 0
-    
+
     assert any(all(x in c for x in [0, 1, 2, 4, 9, 11, 13]) for c in readpartitioning)
     assert any(all(x in c for x in [3, 7, 10, 14]) for c in readpartitioning)
     assert any(all(x in c for x in [5, 8]) for c in readpartitioning)
@@ -161,18 +165,18 @@ def test_clusterediting2():
 
     # construct a ReadSet
     readset = string_to_readset(reads)
-    
+
     # compute similarities
     similarities = scoreReadset(readset, 3, 2, 0.06)
 
     # run cluster editing
     clusterediting = ClusterEditingSolver(similarities, False)
     readpartitioning = clusterediting.run()
-    
+
     assert any(all(x in c for x in [0, 2, 4, 5]) for c in readpartitioning)
     assert any(all(x in c for x in [1, 3, 6, 7, 8]) for c in readpartitioning)
-    
-    
+
+
 def test_clusterediting3():
 
     reads = """
@@ -189,14 +193,14 @@ def test_clusterediting3():
 
     # construct a ReadSet
     readset = string_to_readset(reads)
-    
+
     # compute similarities
     similarities = scoreReadset(readset, 3, 2, 0.06)
 
     # run cluster editing
     clusterediting = ClusterEditingSolver(similarities, False)
     readpartitioning = clusterediting.run()
-    
+
     assert any(all(x in c for x in [0, 2, 4, 5]) for c in readpartitioning)
     assert any(all(x in c for x in [1, 3, 6, 7, 8]) for c in readpartitioning)
 
@@ -227,7 +231,7 @@ def test_clusterediting4():
     assert any(all(x in c for x in [0, 2, 3, 6, 8, 9]) for c in readpartitioning)
     assert any(all(x in c for x in [1, 4, 5, 7]) for c in readpartitioning)
 
-    
+
 def test_clusterediting5():
     reads = """
     0010111110111111111001111
