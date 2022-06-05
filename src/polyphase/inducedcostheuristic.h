@@ -45,7 +45,7 @@ private:
      * All implications are resolved then.
      */
     void choosePermanentEdge(const StaticSparseGraph::Edge eIcf);
-        
+
     /**
      * Invoked, when the heuristic decides the make the specified edge forbidden.
      * All implications are resolved then.
