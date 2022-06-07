@@ -14,6 +14,8 @@ development version
   back to the less accurate algorithm.
 * :issue:`371`: ``whatshap split`` crashed when attempting to split
   reads in a FASTQ file by haplotype.
+* :pr:`377`: Speed-up of about 20-30% for ``whatshap polyphase`` via
+  some optimizations in the read clustering algorithm.
 
 v1.4 (2022-04-07)
 -----------------

@@ -125,11 +125,7 @@ bool StaticSparseGraph::isPermanent(const Edge e) {
 bool StaticSparseGraph::isForbidden(const Edge e) {
     NodeId cu = cliqueOfNode[e.u];
     NodeId cv = cliqueOfNode[e.v];
-    if (forbidden[cu].size() * forbidden[cv].size() == 0) {
-        return false;
-    } else {
-        return (forbidden[cu].size() < forbidden[cv].size() && forbidden[cu].find(cv) != forbidden[cu].end()) || forbidden[cv].find(cu) != forbidden[cv].end();
-    }
+    return forbidden[cu].find(cv) != forbidden[cu].end();
 }
 
 void StaticSparseGraph::setPermanent(const Edge e) {
