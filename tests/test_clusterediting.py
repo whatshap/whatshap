@@ -1,7 +1,7 @@
 import itertools
 import math
 
-from whatshap.polyphase_solver import ClusterEditingSolver, scoreReadset
+from whatshap.core import ClusterEditingSolver, scoreReadset, TriangleSparseMatrix
 from whatshap.testhelpers import string_to_readset
 
 
@@ -258,3 +258,29 @@ def test_clusterediting5():
     assert any(all(x in c for x in [0, 3, 6]) for c in readpartitioning)
     assert any(all(x in c for x in [1, 4, 5, 7]) for c in readpartitioning)
     assert any(all(x in c for x in [2, 8, 9]) for c in readpartitioning)
+
+
+def test_infinity_edges1():
+    sim = TriangleSparseMatrix()
+    sim.set(0, 1, 1.0)
+    sim.set(0, 2, 2.0)
+    sim.set(1, 2, -float("inf"))
+
+    ce = ClusterEditingSolver(sim, False)
+    clustering = ce.run()
+
+    assert [0, 2] in clustering
+    assert [1] in clustering
+
+
+def test_infinity_edges2():
+    sim = TriangleSparseMatrix()
+    sim.set(0, 1, -1.0)
+    sim.set(0, 2, -2.0)
+    sim.set(1, 2, float("inf"))
+
+    ce = ClusterEditingSolver(sim, False)
+    clustering = ce.run()
+
+    assert [1, 2] in clustering
+    assert [0] in clustering

@@ -19,10 +19,10 @@ InducedCostHeuristic::InducedCostHeuristic(StaticSparseGraph& param_graph, bool 
     /* Preprocessing: Find all forbidden and permanent edges, which are already in the graph. These
      * edges may either imply other edges to be permanent or forbidden or they might cause
      * contradictions, i.e. the cost the make it a clique graph is infinity.*/
-    if (!resolvePermanentForbidden()) {
+    edgeHeap.initInducedCosts();
+		if (!resolvePermanentForbidden()) {
         totalCost = std::numeric_limits<EdgeWeight>::infinity();
     }
-    edgeHeap.initInducedCosts();
     totalEdges = edgeHeap.numUnprocessed();
 }
 
@@ -225,7 +225,6 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
     // make cliques by connecting all nodes with inf path between them
     std::vector<bool> processed(graph.numNodes(), false);
     std::vector<std::vector<NodeId>> cliques;
-    std::vector<std::vector<NodeId>> moreThanOneCliques;
     for (NodeId u = 0; u < graph.numNodes(); u++) {
         if (processed[u]) {
             continue;
@@ -246,52 +245,50 @@ bool InducedCostHeuristic::resolvePermanentForbidden() {
             }
         }
         cliques.push_back(clique);
-        if (clique.size() > 1) {
-            moreThanOneCliques.push_back(clique);
-        }
-        for (NodeId x : clique) {
-            for (NodeId y : clique) {
-                if (x != y) {
-                    Edge e (x,y);
-                    EdgeWeight w = graph.getWeight(e);
-                    if (w == StaticSparseGraph::Forbidden)
-                        return false;
-                    else if (w != StaticSparseGraph::Permanent) {
-                        if (w < 0.0)
-                            totalCost -= w;
-                        graph.setPermanent(Edge(x,y));
-                    }
+        for (uint32_t i = 0; i < clique.size(); i++) {
+            for (uint32_t j = i + 1; j < clique.size(); j++) {
+                Edge e (clique[i], clique[j]);
+                EdgeWeight w = graph.getWeight(e);
+                if (w == StaticSparseGraph::Forbidden)
+                    return false;
+                else {
+                    edgeHeap.removeEdge(e);
+                    if (w < 0.0)
+                        totalCost -= w;
+                    if (w != StaticSparseGraph::Permanent)
+                        graph.setPermanent(e);
                 }
             }
         }
     }
     
     // disconnect all cliques which have a forbidden edge between them
-    if (cliques.size() > 0) {
-        for (unsigned int k = 0; k < cliques.size(); k++) {
-            for (unsigned int l = 0; l < moreThanOneCliques.size(); l++) {
-                // search for forbidden edge between
-                bool found = false;
-                for (NodeId u : cliques[k]) {
-                    if (found) break;
-                    for (NodeId v : moreThanOneCliques[l]) {
-                        if (u == v)
-                            continue;
-                        if (graph.getWeight(Edge(u, v)) == StaticSparseGraph::Forbidden) {
-                            found = true;
-                            break;
-                        }
+    for (unsigned int k = 0; k < cliques.size(); k++) {
+        for (unsigned int l = k + 1; l < cliques.size(); l++) {
+            // search for forbidden edge between
+            bool found = false;
+            for (NodeId u : cliques[k]) {
+                if (found) break;
+                for (NodeId v : cliques[l]) {
+                    if (u == v)
+                        continue;
+                    if (graph.getWeight(Edge(u, v)) == StaticSparseGraph::Forbidden) {
+                        found = true;
+                        break;
                     }
                 }
-                // make all edges forbidden, if one forbidden edge was found
-                if (found) {
-                    for (NodeId u : cliques[k]) {
-                        for (NodeId v : moreThanOneCliques[l]) {
-                            Edge e(u,v);
-                            if (graph.getWeight(e) != StaticSparseGraph::Forbidden) {
-                                graph.setForbidden(e);
-                            }
-                        }
+            }
+            // make all edges forbidden, if one forbidden edge was found
+            if (found) {
+                for (NodeId u : cliques[k]) {
+                    for (NodeId v : cliques[l]) {
+                        Edge e(u, v);
+                        edgeHeap.removeEdge(e);
+                        EdgeWeight w = graph.getWeight(e);
+                        if (w > 0.0)
+                            totalCost += w;
+                        if (w != StaticSparseGraph::Forbidden)
+                            graph.setForbidden(e);
                     }
                 }
             }
