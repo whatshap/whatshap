@@ -708,8 +708,10 @@ def validate(args, parser):
         parser.error("Scoring window must be a positive integer.")
     if args.complexity_support not in [0, 1, 2]:
         parser.error("Complexity support level must be either 0, 1 or 2.")
-    if args.ploidy != 4:
-        parser.error("Ploidies other than 4 are currently not supported.")
+    if args.ploidy % 2 > 0:
+        parser.error("Odd ploidies are not supported.")
+    if args.ploidy < 2:
+        parser.error("Ploidy must be at least 2.")
 
 
 def main(args):

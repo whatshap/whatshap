@@ -7,7 +7,7 @@ from scipy.stats import binom
 from scipy.special import binom as binom_coeff
 
 from whatshap.core import TriangleSparseMatrix, ProgenyGenotypeLikelihoods
-from whatshap.vcf import VariantTable, PloidyError
+from whatshap.vcf import VariantTable
 
 logger = logging.getLogger(__name__)
 
@@ -57,13 +57,13 @@ class VariantInfo:
         self.co_alt_count_corrected = co_alt_count_corrected
 
 
+def hyp(N, M, n, k):
+    return binom_coeff(M, k) * binom_coeff(N - M, n - k) / binom_coeff(N, n)
+
+
 def get_phasable_parent_variants(
     variant_table: VariantTable, parent: str, co_parent: str, phasing_param
 ):
-    if phasing_param.ploidy % 2 != 0:
-        logger.error("Odd ploidy not supported!")
-        raise PloidyError("Odd ploidy not supported!")
-
     # determine phasable variants
     varinfo = classify_variants(variant_table, parent, co_parent)
 
@@ -131,11 +131,23 @@ def add_corrected_variant_types(
     )
     correction = dict()
 
+    # precompute dosage distributions for every variant type
+    k = phasing_param.ploidy
+    dosages = []
+    for i in range(k + 1):
+        for j in range(i + 1):
+            d = [
+                sum([hyp(k, i, k // 2, l) * hyp(k, j, k // 2, m - l) for l in range(m + 1)])
+                for m in range(k + 1)
+            ]
+            dosages.append(((i, j), tuple(d)))
+            print("{}+{} = {}".format(i, j, tuple(d)))
+
     # compute best fitting variant type based on progeny genotypes
     for node_id in range(off_gl.getNumPositions()):
         var_id = node_to_variant[node_id]
         genpos = variant_table.variants[var_id].position
-        gt = get_most_likely_variant_type(genpos, varinfo[var_id], off_gl, node_id)
+        gt = get_most_likely_variant_type(dosages, genpos, varinfo[var_id], off_gl, node_id)
         varinfo[var_id].alt_count_corrected = gt[0]
         varinfo[var_id].co_alt_count_corrected = gt[1]
         if (varinfo[var_id].alt_count, varinfo[var_id].co_alt_count) not in correction:
@@ -170,10 +182,6 @@ def get_offspring_gl(
     phasable_indices: List[int],
     phasing_param,
 ):
-
-    if phasing_param.ploidy != 4:
-        logger.error("Only ploidy 4 is supported!")
-        raise PloidyError("Only ploidy 4 is supported!")
 
     # create map to find genetic positions in progeny table
     genpos_to_progenypos = dict()
@@ -283,13 +291,10 @@ def get_variant_scoring(varinfo, off_gl, node_to_variant, phasing_param):
                 else:
                     if varinfo[nj].alt_count == 1 and varinfo[nj].co_alt_count == 0:
                         score = off_gl.getSimplexNulliplexScore(i, j)
-                        # score = score_simplex_nulliplex_tetra(off_gl, i, j)
                     elif varinfo[nj].alt_count == 2 and varinfo[nj].co_alt_count == 0:
                         score = off_gl.getDuplexNulliplexScore(i, j)
-                        # score = score_duplex_nulliplex_tetra(off_gl, i, j)
                     elif varinfo[nj].alt_count == 1 and varinfo[nj].co_alt_count == 1:
                         score = off_gl.getSimplexSimplexScore(i, j)
-                        # score = score_simplex_simplex_tetra(off_gl, i, j)
                     prev_score = score
                     prev_variant = nj
 
@@ -346,24 +351,8 @@ def classify_variants(variant_table: VariantTable, parent: str, co_parent: str):
     return varinfo
 
 
-def get_most_likely_variant_type(genpos, varinfo, off_gl, pos):
-    dosages = [
-        ((0, 0), (1.0, 0, 0, 0, 0)),
-        ((1, 0), (0.5, 0.5, 0, 0, 0)),
-        ((1, 1), (0.25, 0.5, 0.25, 0, 0)),
-        ((2, 0), (1 / 6, 4 / 6, 1 / 6, 0, 0)),
-        ((2, 1), (1 / 12, 5 / 12, 5 / 12, 1 / 12, 0)),
-        ((2, 2), (1 / 36, 2 / 9, 0.5, 2 / 9, 1 / 36)),
-        ((3, 0), (0, 0.5, 0.5, 0, 0)),
-        ((3, 1), (0, 0.25, 0.5, 0.25, 0)),
-        ((3, 2), (0, 1 / 12, 5 / 12, 5 / 12, 1 / 12)),
-        ((3, 3), (0, 0, 0.25, 0.5, 0.25)),
-        ((4, 0), (0, 0, 1.0, 0, 0)),
-        ((4, 1), (0, 0, 0.5, 0.5, 0)),
-        ((4, 2), (0, 0, 1 / 6, 4 / 6, 1 / 6)),
-        ((4, 3), (0, 0, 0, 0.5, 0.5)),
-        ((4, 4), (0, 0, 0, 0, 1.0)),
-    ]
+def get_most_likely_variant_type(dosages, genpos, varinfo, off_gl, pos):
+
     best_gts = dosages[0][0]
     best_llh = -float("inf")
     for gts, dosage in dosages:
@@ -459,32 +448,3 @@ def compute_gt_likelihoods(
 
     del allele_depths
     return gt_likelihoods
-
-
-"""
-def score_simplex_nulliplex_tetra(off_gl, pos1, pos2):
-    return off_gl.getLogLikelihoodDifference(
-        pos1,
-        pos2,
-        [(0, 0), (0, 1), (1, 0), (1, 1)],
-        [(1 / 2, 1 / 6), (0, 1 / 3), (0, 1 / 3), (1 / 2, 1 / 6)],
-    )
-
-
-def score_duplex_nulliplex_tetra(off_gl, pos1, pos2):
-    return off_gl.getLogLikelihoodDifference(
-        pos1,
-        pos2,
-        [(0, 0), (0, 1), (1, 0), (1, 1), (0, 2), (1, 2)],
-        [(1 / 6, 0), (1 / 3, 1 / 3), (0, 1 / 6), (1 / 3, 1 / 3), (0, 1 / 6), (1 / 6, 0)],
-    )
-
-
-def score_simplex_simplex_tetra(off_gl, pos1, pos2):
-    return off_gl.getLogLikelihoodDifference(
-        pos1,
-        pos2,
-        [(0, 0), (0, 1), (1, 0), (1, 1), (0, 2), (1, 2)],
-        [(1 / 4, 1 / 12), (1 / 4, 1 / 4), (0, 1 / 6), (1 / 4, 1 / 4), (0, 1 / 6), (1 / 4, 1 / 12)],
-    )
-"""
