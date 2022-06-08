@@ -2,8 +2,6 @@ import logging
 
 from pulp import LpProblem, LpVariable, LpMaximize, LpInteger, value, COIN_CMD
 
-# from whatshap.vcf import VariantTable
-
 logger = logging.getLogger(__name__)
 
 

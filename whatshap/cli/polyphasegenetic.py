@@ -60,7 +60,7 @@ def run_polyphasegenetic(
     ground_truth_file=None,
     scoring_window=250,
     allele_error_rate=0.06,
-    ratio_cutoff=2.0,
+    ratio_cutoff=0.0,
     complexity_support=0,
     allow_homozyguous=False,
     distrust_parent_genotypes=False,
@@ -279,7 +279,7 @@ def run_polyphasegenetic(
                     logger.info("Clustering marker variants ...")
                     solver = ClusterEditingSolver(scoring, False)
                     clustering = solver.run()
-                    validate_clustering(clustering, node_to_variant)
+                    # validate_clustering(clustering, node_to_variant)
                     del solver
                     timers.stop("clustering")
 
@@ -665,7 +665,7 @@ def add_arguments(parser):
         metavar="RATIOCUTOFF",
         dest="ratio_cutoff",
         type=float,
-        default=2.0,
+        default=0.0,
         required=False,
         help="Cutoff threshold for deviation of coverage ratio between parent, co-parent and progeny compared to median.",
     )

@@ -143,7 +143,7 @@ def add_corrected_variant_types(
         correction[(varinfo[var_id].alt_count, varinfo[var_id].co_alt_count)][gt] += 1
 
     # show variant corrections:
-    logger.info("      Variant type corrections:")
+    logger.info("      Correcting variant type based on progenies:")
     for old_gt in correction:
         total = sum([correction[old_gt][new_gt] for new_gt in correction[old_gt]])
         if total == 0:
@@ -193,7 +193,7 @@ def get_offspring_gl(
         genpos = variant_table.variants[i].position
         if genpos not in genpos_to_progenypos:
             continue
-        if varinfo[i].alt_count_corrected:
+        if varinfo[i].alt_count_corrected is not None:
             alt = varinfo[i].alt_count_corrected
             co_alt = varinfo[i].co_alt_count_corrected
             if not check_variant_compatibility(
@@ -283,13 +283,13 @@ def get_variant_scoring(varinfo, off_gl, node_to_variant, phasing_param):
                 else:
                     if varinfo[nj].alt_count == 1 and varinfo[nj].co_alt_count == 0:
                         score = off_gl.getSimplexNulliplexScore(i, j)
-                        #score = score_simplex_nulliplex_tetra(off_gl, i, j)
+                        # score = score_simplex_nulliplex_tetra(off_gl, i, j)
                     elif varinfo[nj].alt_count == 2 and varinfo[nj].co_alt_count == 0:
                         score = off_gl.getDuplexNulliplexScore(i, j)
-                        #score = score_duplex_nulliplex_tetra(off_gl, i, j)
+                        # score = score_duplex_nulliplex_tetra(off_gl, i, j)
                     elif varinfo[nj].alt_count == 1 and varinfo[nj].co_alt_count == 1:
                         score = off_gl.getSimplexSimplexScore(i, j)
-                        #score = score_simplex_simplex_tetra(off_gl, i, j)
+                        # score = score_simplex_simplex_tetra(off_gl, i, j)
                     prev_score = score
                     prev_variant = nj
 
@@ -460,7 +460,8 @@ def compute_gt_likelihoods(
     del allele_depths
     return gt_likelihoods
 
-'''
+
+"""
 def score_simplex_nulliplex_tetra(off_gl, pos1, pos2):
     return off_gl.getLogLikelihoodDifference(
         pos1,
@@ -486,4 +487,4 @@ def score_simplex_simplex_tetra(off_gl, pos1, pos2):
         [(0, 0), (0, 1), (1, 0), (1, 1), (0, 2), (1, 2)],
         [(1 / 4, 1 / 12), (1 / 4, 1 / 4), (0, 1 / 6), (1 / 4, 1 / 4), (0, 1 / 6), (1 / 4, 1 / 12)],
     )
-'''
+"""
