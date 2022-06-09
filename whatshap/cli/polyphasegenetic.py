@@ -109,7 +109,7 @@ def run_polyphasegenetic(
         except OSError as e:
             raise CommandLineError(e)
 
-        vcf_reader = stack.enter_context(
+        parent_reader = stack.enter_context(
             VcfReader(
                 variant_file,
                 indels=indels,
@@ -146,17 +146,17 @@ def run_polyphasegenetic(
             )
 
         # determine pedigree
-        parents, co_parent, offspring = determine_pedigree(
+        sample_to_coparent, sample_to_progeny = determine_pedigree(
             pedigree_file,
             samples,
-            vcf_reader.samples,
-            progeny_reader.samples if progeny_file else vcf_reader.samples,
+            parent_reader.samples,
+            progeny_reader.samples if progeny_file else parent_reader.samples,
         )
 
         # validate samples
-        vcf_sample_set = set(vcf_reader.samples)
+        parent_sample_set = set(parent_reader.samples)
         for sample in samples:
-            if sample not in vcf_sample_set:
+            if sample not in parent_sample_set:
                 raise CommandLineError(
                     "Sample {!r} requested on command-line not found in VCF".format(sample)
                 )
@@ -174,7 +174,7 @@ def run_polyphasegenetic(
 
         timers.start("parse_vcf")
         try:
-            for variant_table in vcf_reader:
+            for variant_table in parent_reader:
                 chromosome = variant_table.chromosome
                 timers.stop("parse_vcf")
 
@@ -198,10 +198,13 @@ def run_polyphasegenetic(
                 # compute scoring matrices for parent samples
                 for sample in samples:
                     logger.info("---- Processing individual %s", sample)
+                    coparent = sample_to_coparent[sample]
+                    progeny_list = sample_to_progeny[sample]
+                    logger.info("Detected {} as co-parent for {}.".format(coparent, sample))
 
                     # compute phasable parent variants
                     varinfo, phasable_indices = get_phasable_parent_variants(
-                        variant_table, sample, co_parent[sample], phasing_param
+                        variant_table, sample, coparent, phasing_param
                     )
 
                     # if progeny file provided, extract region, else just reuse main table
@@ -221,7 +224,7 @@ def run_polyphasegenetic(
 
                     # store progeny coverage
                     parent_cov, co_parent_cov, progeny_cov = get_parent_progeny_coverage(
-                        sample, co_parent[sample], offspring, variant_table, progeny_table
+                        sample, coparent, progeny_list, variant_table, progeny_table
                     )
 
                     # filter variants based on coverage ratio between parent, co-parent and progeny
@@ -247,7 +250,7 @@ def run_polyphasegenetic(
                         varinfo = add_corrected_variant_types(
                             variant_table,
                             progeny_table,
-                            offspring[(sample, co_parent[sample])],
+                            progeny_list,
                             varinfo,
                             phasable_indices,
                             phasing_param,
@@ -255,7 +258,7 @@ def run_polyphasegenetic(
                     off_gl, node_to_variant, type_of_node = get_offspring_gl(
                         variant_table,
                         progeny_table,
-                        offspring[(sample, co_parent[sample])],
+                        progeny_list,
                         varinfo,
                         phasable_indices,
                         phasing_param,
@@ -388,83 +391,84 @@ def run_polyphasegenetic(
     logger.info("Total elapsed time:                       %6.1f s", timers.total())
 
 
-def determine_pedigree(pedigree_file, samples, vcf_samples, progeny_samples):
+def determine_pedigree(pedigree_file, samples, parent_samples, progeny_samples):
 
-    parents, co_parent, offspring = dict(), dict(), defaultdict(list)
+    parents = dict()
+    sample_to_coparent = dict()
+    sample_to_progeny = dict()
+    # store information from pedigree file in datastructure:
+    # for each parent, store a dictionary that maps co-parents to a list of progeny
     with open(pedigree_file, "r") as ped:
-        for line in ped:
+        for i, line in enumerate(ped):
             tokens = line.replace("\n", "").split(" ")
             if len(tokens) != 3:
-                logger.error("Malformed pedigree file: {}".format(line))
-                raise CommandLineError(None)
-            for token in tokens[:2]:
-                if token not in vcf_samples:
-                    logger.error(
-                        "Parent sample {} from pedigree file is not present in main VCF file".format(
-                            token
-                        )
-                    )
-                    raise CommandLineError(None)
-            if tokens[2] not in progeny_samples:
                 logger.error(
-                    "Progeny sample {} from pedigree file is not present in progeny (or main) VCF file".format(
-                        token[2]
-                    )
+                    "Line {} in pedfile contains {} values instead of 3.".format(i, len(tokens))
                 )
                 raise CommandLineError(None)
+            parent = tokens[0]
+            co_parent = tokens[1]
+            progeny = tokens[2]
+            for parent, co_parent in zip(tokens[:2], tokens[-2::-1]):
+                if parent not in parents:
+                    parents[parent] = dict()
+                if co_parent not in parents[parent]:
+                    parents[parent][co_parent] = []
+                if progeny in parents[parent][co_parent]:
+                    logger.warn("Duplicate trio for sample {} in pedfile line {}".format(parent, i))
+                else:
+                    parents[parent][co_parent].append(progeny)
 
-            if tokens[2] in parents:
-                logger.error(
-                    "Sample {} from pedigree file is listed as offspring multiple times".format(
-                        tokens[2]
+    # Validate:
+    # 1: Each requested phasable sample must occur as parent in pediegree file
+    # 2: Each parent must have exactly one co-parent occuring in pedigree file AND parental VCF
+    for sample in samples:
+        if sample not in parents:
+            msg = "Requested parent sample {} does not occur in pedfile.".format(sample)
+            logger.error(msg)
+            raise CommandLineError(msg)
+        match = None
+        multiple = False
+        if len(parents[sample]) > 1:
+            multiple = True
+        for co_parent in parents[sample]:
+            if co_parent in parent_samples:
+                if match is None:
+                    match = co_parent
+                else:
+                    msg = "Requested parent sample {} has multiple co-parents in pedfile and parental VCF.".format(
+                        sample
                     )
-                )
-                raise CommandLineError(None)
-            if tokens[0] in co_parent and co_parent[tokens[0]] != tokens[1]:
-                logger.error(
-                    "Sample {} from pedigree file has multiple co-parents".format(tokens[0])
-                )
-                raise CommandLineError(None)
-            if tokens[1] in co_parent and co_parent[tokens[1]] != tokens[0]:
-                logger.error(
-                    "Sample {} from pedigree file has multiple co-parents".format(tokens[1])
-                )
-                raise CommandLineError(None)
-
-            co_parent[tokens[0]] = tokens[1]
-            co_parent[tokens[1]] = tokens[0]
-            parents[tokens[2]] = (tokens[0], tokens[1])
-            offspring[(tokens[0], tokens[1])].append(tokens[2])
-            offspring[(tokens[1], tokens[0])].append(tokens[2])
-
-    if not samples:
-        samples = [parent for parent in co_parent]
-    else:
-        for sample in samples:
-            if sample not in co_parent:
-                logger.error(
-                    "Sample {} does not have a co-parent for the pedigree phasing".format(sample)
-                )
-                raise CommandLineError(None)
-            if len(offspring[(sample, co_parent[sample])]) == 0:
-                logger.error(
-                    "Sample {} does not have any offspring according to pedigree file".format(
+                    logger.error(msg)
+                    raise CommandLineError(msg)
+        if match is None:
+            msg = "No matching co-parent for {} found in both pedfile and parental VCF.".format(
+                sample
+            )
+            logger.error(msg)
+            raise CommandLineError(msg)
+        else:
+            # Append matching co-parent to result
+            sample_to_coparent[sample] = match
+            sample_to_progeny[sample] = parents[sample][match]
+            if multiple:
+                logger.warn(
+                    "Pedfile contains more co-parent candidates for {} than found in parental VCF.".format(
                         sample
                     )
                 )
-                raise CommandLineError(None)
 
-    return parents, co_parent, offspring
+    return sample_to_coparent, sample_to_progeny
 
 
-def get_parent_progeny_coverage(parent, co_parent, offspring, parent_table, progeny_table):
+def get_parent_progeny_coverage(parent, co_parent, progeny_list, parent_table, progeny_table):
     # store progeny coverage
     parent_depths = parent_table.allele_depths_of(parent)
     co_parent_depths = parent_table.allele_depths_of(co_parent)
     parent_cov = [sum(parent_depths[pos]) for pos in range(len(parent_table))]
     co_parent_cov = [sum(co_parent_depths[pos]) for pos in range(len(parent_table))]
     progeny_cov = [0 for _ in range(len(parent_table))]
-    for off in offspring[(parent, co_parent)]:
+    for off in progeny_list:
         parent_pos = 0
         progeny_pos = 0
         allele_depths = progeny_table.allele_depths_of(off)

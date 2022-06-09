@@ -141,7 +141,6 @@ def add_corrected_variant_types(
                 for m in range(k + 1)
             ]
             dosages.append(((i, j), tuple(d)))
-            print("{}+{} = {}".format(i, j, tuple(d)))
 
     # compute best fitting variant type based on progeny genotypes
     for node_id in range(off_gl.getNumPositions()):
