@@ -8,6 +8,7 @@ import logging
 from whatshap.core import Read, ReadSet
 from whatshap.cli.compare import compute_switch_flips_poly_bt
 from whatshap.polyphaseutil import get_coverage
+from whatshap.vcf import VcfReader
 from collections import defaultdict
 
 """
@@ -713,7 +714,6 @@ def draw_phase_comparison(
     sample_cov,
     co_parent_cov,
     progeny_cov,
-    parent_table,
     ground_truth_table,
     path,
 ):
@@ -1160,9 +1160,7 @@ def create_genetic_plots(
     output,
     chromosome,
     sample,
-    variant_table,
     ground_truth_file,
-    ground_truth_reader,
     clustering,
     node_to_variant,
     haplo_skeletons,
@@ -1219,6 +1217,15 @@ def create_genetic_plots(
         regions = [
             (phased_positions[i], phased_positions[i] + 1) for i in range(len(phased_positions))
         ]
+        ground_truth_reader = VcfReader(
+            ground_truth_file,
+            indels=True,
+            phases=True,
+            genotype_likelihoods=False,
+            ploidy=phasing_param.ploidy,
+            mav=True,
+            allele_depth=False,
+        )
         ground_truth_table = ground_truth_reader.fetch_regions(chromosome, regions)
         draw_phase_comparison(
             haplotypes,
@@ -1226,7 +1233,6 @@ def create_genetic_plots(
             sample_cov,
             co_parent_cov,
             progeny_cov,
-            variant_table,
             ground_truth_table,
             output + ".comparison.pdf",
         )

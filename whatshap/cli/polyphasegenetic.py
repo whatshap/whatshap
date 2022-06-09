@@ -39,8 +39,12 @@ PhasingParameter = namedtuple(
         "scoring_window",
         "allele_error_rate",
         "complexity_support",
+        "ratio_cutoff",
+        "distrust_parent_genotypes",
         "allow_homozyguous",
         "allow_deletions",
+        "plot",
+        "output",
     ],
 )
 
@@ -115,6 +119,7 @@ def run_polyphasegenetic(
                 allele_depth=True,
             )
         )
+        progeny_reader = None
         if progeny_file:
             progeny_reader = stack.enter_context(
                 VcfReader(
@@ -125,18 +130,6 @@ def run_polyphasegenetic(
                     ploidy=ploidy,
                     mav=True,
                     allele_depth=True,
-                )
-            )
-        if ground_truth_file:
-            ground_truth_reader = stack.enter_context(
-                VcfReader(
-                    ground_truth_file,
-                    indels=indels,
-                    phases=True,
-                    genotype_likelihoods=False,
-                    ploidy=ploidy,
-                    mav=True,
-                    allele_depth=False,
                 )
             )
 
@@ -163,8 +156,12 @@ def run_polyphasegenetic(
             scoring_window=scoring_window,
             allele_error_rate=allele_error_rate,
             complexity_support=complexity_support,
+            ratio_cutoff=ratio_cutoff,
+            distrust_parent_genotypes=distrust_parent_genotypes,
             allow_homozyguous=allow_homozyguous,
             allow_deletions=indels,
+            plot=plot,
+            output=output,
         )
 
         timers.start("parse_vcf")
@@ -190,172 +187,24 @@ def run_polyphasegenetic(
 
                 logger.info("Number of variants among all samples: %d", len(variant_table))
 
-                # compute scoring matrices for parent samples
+                # Phase one sample at a time
                 for sample in samples:
                     logger.info("---- Processing individual %s", sample)
                     coparent = sample_to_coparent[sample]
                     progeny_list = sample_to_progeny[sample]
                     logger.info("Detected {} as co-parent for {}.".format(coparent, sample))
 
-                    # compute phasable parent variants
-                    varinfo, phasable_indices = get_phasable_parent_variants(
-                        variant_table, sample, coparent, phasing_param
-                    )
-
-                    # if progeny file provided, extract region, else just reuse main table
-                    timers.start("parse_vcf")
-                    if progeny_file:
-                        main_positions = [
-                            variant_table.variants[i].position for i in phasable_indices
-                        ]
-                        regions = [
-                            (main_positions[i], main_positions[i] + 1)
-                            for i in range(len(main_positions))
-                        ]
-                        progeny_table = progeny_reader.fetch_regions(chromosome, regions)
-                    else:
-                        progeny_table = variant_table
-                    timers.stop("parse_vcf")
-
-                    # store progeny coverage
-                    parent_cov, co_parent_cov, progeny_cov = get_parent_progeny_coverage(
-                        sample, coparent, progeny_list, variant_table, progeny_table
-                    )
-
-                    # filter variants based on coverage ratio between parent, co-parent and progeny
-                    if ratio_cutoff > 1.0:
-                        logger.info("Filtering variant positions based on coverage ratios ...")
-                        old_num = len(phasable_indices)
-                        phasable_indices = filter_phasable_variants(
-                            varinfo,
-                            phasable_indices,
-                            parent_cov,
-                            co_parent_cov,
-                            progeny_cov,
-                            ratio_cutoff,
-                        )
-                        logger.info(
-                            "Kept {} out of {} variants.".format(len(phasable_indices), old_num)
-                        )
-
-                    # compute offspring genotype likelihoods
-                    timers.start("scoring")
-                    logger.info("Computing genotype likelihoods for offspring ...")
-                    if distrust_parent_genotypes:
-                        varinfo = add_corrected_variant_types(
-                            variant_table,
-                            progeny_table,
-                            progeny_list,
-                            varinfo,
-                            phasable_indices,
-                            phasing_param,
-                        )
-                    off_gl, node_to_variant, type_of_node = get_offspring_gl(
-                        variant_table,
-                        progeny_table,
+                    superreads[sample], components[sample] = phase_single_sample(
+                        chromosome,
+                        progeny_reader,
+                        ground_truth_file,
+                        sample,
+                        coparent,
                         progeny_list,
-                        varinfo,
-                        phasable_indices,
+                        variant_table,
+                        timers,
                         phasing_param,
                     )
-
-                    # delete progeny table if dedicated to reduce memory footprint
-                    if progeny_file:
-                        del progeny_table
-
-                    # compute scoring for variant pairs
-                    logger.info("Compute scores for markers ...")
-                    scoring = get_variant_scoring(varinfo, off_gl, node_to_variant, phasing_param)
-
-                    # delete genotype likelihoods to reduce memory footprint
-                    del off_gl
-
-                    timers.stop("scoring")
-
-                    # cluster variants based on scores
-                    timers.start("clustering")
-                    logger.info("Clustering marker variants ...")
-                    solver = ClusterEditingSolver(scoring, False)
-                    clustering = solver.run()
-                    del solver
-                    timers.stop("clustering")
-
-                    # arrange clusters to haplotypes
-                    timers.start("arrangement")
-                    logger.info("Arranging clusters ...")
-                    haplo_skeletons = arrange_clusters(
-                        clustering,
-                        node_to_variant,
-                        int(phasing_param.scoring_window * 3.0 + 1),
-                        phasing_param.ploidy,
-                    )
-
-                    # determine haplotypes
-                    accessible_positions = sorted([v.position for v in variant_table.variants])
-
-                    # for information:
-                    # accessible_position maps position (index) of variant_table to genome position
-                    # node_to_variant maps a node id of the clustering to a position (index) of the variant_table
-                    # varinfo contains the ref- and alt-allele for a position (index) of the variant_table
-                    # haplo_skeletons contains ploidy many lists of nodes, which belong to the same haplotype
-
-                    components[sample] = {}
-                    superreads[sample] = ReadSet()
-                    for i in range(phasing_param.ploidy):
-                        superreads[sample].add(Read("superread {}".format(i + 1), 0, 0))
-
-                    signals_per_pos = defaultdict(list)
-                    for i, hap in enumerate(haplo_skeletons):
-                        for clust in hap:
-                            for node in clustering[clust]:
-                                signals_per_pos[node_to_variant[node]].append(i)
-
-                    phased_positions = []
-                    haplotypes = [[] for _ in range(phasing_param.ploidy)]
-                    parent_coverage = []
-                    co_parent_coverage = []
-                    progeny_coverage = []
-
-                    for pos in range(len(variant_table)):
-                        if not phasing_param.allow_homozyguous and len(signals_per_pos[pos]) == 0:
-                            continue
-                        for i in range(phasing_param.ploidy):
-                            if i in signals_per_pos[pos]:
-                                allele = varinfo[pos].alt
-                            else:
-                                allele = varinfo[pos].ref
-                            superreads[sample][i].add_variant(accessible_positions[pos], allele, 0)
-                            components[sample][accessible_positions[pos]] = accessible_positions[0]
-                            haplotypes[i].append(allele)
-                        phased_positions.append(accessible_positions[pos])
-                        parent_coverage.append(parent_cov[pos])
-                        co_parent_coverage.append(co_parent_cov[pos])
-                        progeny_coverage.append(progeny_cov[pos])
-
-                    timers.stop("arrangement")
-
-                    # create plots
-                    if plot:
-                        timers.start("plots")
-                        create_genetic_plots(
-                            output,
-                            chromosome,
-                            sample,
-                            variant_table,
-                            ground_truth_file,
-                            ground_truth_reader if ground_truth_file else None,
-                            clustering,
-                            node_to_variant,
-                            haplo_skeletons,
-                            type_of_node,
-                            haplotypes,
-                            phased_positions,
-                            parent_coverage,
-                            co_parent_coverage,
-                            progeny_coverage,
-                            phasing_param,
-                        )
-                        timers.stop("plots")
 
                 with timers("write_vcf"):
                     logger.info("======== Writing VCF")
@@ -383,6 +232,169 @@ def run_polyphasegenetic(
         logger.info("Time spent creating plots:                %6.1f s", timers.elapsed("plots"))
     logger.info("Time spent on rest:                       %6.1f s", timers.total() - timers.sum())
     logger.info("Total elapsed time:                       %6.1f s", timers.total())
+
+
+def phase_single_sample(
+    chromosome,
+    progeny_reader,
+    ground_truth_reader,
+    sample,
+    coparent,
+    progeny_list,
+    variant_table,
+    timers,
+    param,
+):
+    # compute phasable parent variants
+    varinfo, phasable_indices = get_phasable_parent_variants(variant_table, sample, coparent, param)
+
+    # if progeny file provided, extract region, else just reuse main table
+    timers.start("parse_vcf")
+    if progeny_reader:
+        main_positions = [variant_table.variants[i].position for i in phasable_indices]
+        regions = [(main_positions[i], main_positions[i] + 1) for i in range(len(main_positions))]
+        progeny_table = progeny_reader.fetch_regions(chromosome, regions)
+    else:
+        progeny_table = variant_table
+    timers.stop("parse_vcf")
+
+    # store progeny coverage
+    parent_cov, co_parent_cov, progeny_cov = get_parent_progeny_coverage(
+        sample, coparent, progeny_list, variant_table, progeny_table
+    )
+
+    # filter variants based on coverage ratio between parent, co-parent and progeny
+    if param.ratio_cutoff > 1.0:
+        logger.info("Filtering variant positions based on coverage ratios ...")
+        old_num = len(phasable_indices)
+        phasable_indices = filter_phasable_variants(
+            varinfo,
+            phasable_indices,
+            parent_cov,
+            co_parent_cov,
+            progeny_cov,
+            param.ratio_cutoff,
+        )
+        logger.info("Kept {} out of {} variants.".format(len(phasable_indices), old_num))
+
+    # compute offspring genotype likelihoods
+    timers.start("scoring")
+    logger.info("Computing genotype likelihoods for offspring ...")
+    if param.distrust_parent_genotypes:
+        varinfo = add_corrected_variant_types(
+            variant_table,
+            progeny_table,
+            progeny_list,
+            varinfo,
+            phasable_indices,
+            param,
+        )
+    off_gl, node_to_variant, type_of_node = get_offspring_gl(
+        variant_table,
+        progeny_table,
+        progeny_list,
+        varinfo,
+        phasable_indices,
+        param,
+    )
+
+    # delete progeny table if dedicated to reduce memory footprint
+    if progeny_reader:
+        del progeny_table
+
+    # compute scoring for variant pairs
+    logger.info("Compute scores for markers ...")
+    scoring = get_variant_scoring(varinfo, off_gl, node_to_variant, param)
+
+    # delete genotype likelihoods to reduce memory footprint
+    del off_gl
+
+    timers.stop("scoring")
+
+    # cluster variants based on scores
+    timers.start("clustering")
+    logger.info("Clustering marker variants ...")
+    solver = ClusterEditingSolver(scoring, False)
+    clustering = solver.run()
+    del solver
+    timers.stop("clustering")
+
+    # arrange clusters to haplotypes
+    timers.start("arrangement")
+    logger.info("Arranging clusters ...")
+    haplo_skeletons = arrange_clusters(
+        clustering,
+        node_to_variant,
+        int(param.scoring_window * 3.0 + 1),
+        param.ploidy,
+    )
+
+    # determine haplotypes
+    accessible_positions = sorted([v.position for v in variant_table.variants])
+
+    # for information:
+    # accessible_position maps position (index) of variant_table to genome position
+    # node_to_variant maps a node id of the clustering to a position (index) of the variant_table
+    # varinfo contains the ref- and alt-allele for a position (index) of the variant_table
+    # haplo_skeletons contains ploidy many lists of nodes, which belong to the same haplotype
+
+    components = {}
+    superreads = ReadSet()
+    for i in range(param.ploidy):
+        superreads.add(Read("superread {}".format(i + 1), 0, 0))
+
+    signals_per_pos = defaultdict(list)
+    for i, hap in enumerate(haplo_skeletons):
+        for clust in hap:
+            for node in clustering[clust]:
+                signals_per_pos[node_to_variant[node]].append(i)
+
+    phased_positions = []
+    haplotypes = [[] for _ in range(param.ploidy)]
+    parent_coverage = []
+    co_parent_coverage = []
+    progeny_coverage = []
+
+    for pos in range(len(variant_table)):
+        if not param.allow_homozyguous and len(signals_per_pos[pos]) == 0:
+            continue
+        for i in range(param.ploidy):
+            if i in signals_per_pos[pos]:
+                allele = varinfo[pos].alt
+            else:
+                allele = varinfo[pos].ref
+            superreads[i].add_variant(accessible_positions[pos], allele, 0)
+            components[accessible_positions[pos]] = accessible_positions[0]
+            haplotypes[i].append(allele)
+        phased_positions.append(accessible_positions[pos])
+        parent_coverage.append(parent_cov[pos])
+        co_parent_coverage.append(co_parent_cov[pos])
+        progeny_coverage.append(progeny_cov[pos])
+
+    timers.stop("arrangement")
+
+    # create plots
+    if param.plot:
+        timers.start("plots")
+        create_genetic_plots(
+            param.output,
+            chromosome,
+            sample,
+            ground_truth_reader,
+            clustering,
+            node_to_variant,
+            haplo_skeletons,
+            type_of_node,
+            haplotypes,
+            phased_positions,
+            parent_coverage,
+            co_parent_coverage,
+            progeny_coverage,
+            param,
+        )
+        timers.stop("plots")
+
+    return superreads, components
 
 
 def determine_pedigree(pedigree_file, samples, parent_samples, progeny_samples):
