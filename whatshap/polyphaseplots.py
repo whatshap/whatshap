@@ -1154,3 +1154,79 @@ def draw_phase_comparison(
 
     except ImportError:
         logger.error("Plotting haplotype threading requires matplotlib to be installed")
+
+
+def create_genetic_plots(
+    output,
+    chromosome,
+    sample,
+    variant_table,
+    ground_truth_file,
+    ground_truth_reader,
+    clustering,
+    node_to_variant,
+    haplo_skeletons,
+    type_of_node,
+    haplotypes,
+    phased_positions,
+    sample_cov,
+    co_parent_cov,
+    progeny_cov,
+    phasing_param,
+):
+    logger.info("Plotting coverage distribution ...")
+    p = 10  # padding
+    sample_cov_avg = [
+        10
+        * sum(sample_cov[max(0, i - p) : min(i + p + 1, len(sample_cov))])
+        / (min(i + p + 1, len(sample_cov)) - max(0, i - p))
+        for i in range(len(sample_cov))
+    ]
+    progeny_cov_avg = [
+        sum(progeny_cov[max(0, i - p) : min(i + p + 1, len(progeny_cov))])
+        / (min(i + p + 1, len(progeny_cov)) - max(0, i - p))
+        for i in range(len(progeny_cov))
+    ]
+    create_histogram(
+        output + ".coverage-dist.pdf",
+        sample_cov_avg,
+        progeny_cov_avg,
+        400,
+        [0, max(10 * max(sample_cov), max(progeny_cov))],
+        "Coverage",
+        "Coverage distribution",
+        name1=sample,
+        name2="progeny",
+    )
+
+    logger.info("Plotting clustering ...")
+    num_vars = max([max(c) for c in clustering])
+    draw_genetic_clustering(clustering, num_vars, output + ".clusters.pdf")
+
+    logger.info("Plotting cluster arrangements ...")
+    draw_genetic_clustering_arrangement(
+        clustering,
+        node_to_variant,
+        haplo_skeletons,
+        type_of_node,
+        int(phasing_param.scoring_window * 3.0 + 1),
+        num_vars,
+        output + ".arrangement.pdf",
+    )
+
+    if ground_truth_file:
+        logger.info("Plotting phasing comparison ...")
+        regions = [
+            (phased_positions[i], phased_positions[i] + 1) for i in range(len(phased_positions))
+        ]
+        ground_truth_table = ground_truth_reader.fetch_regions(chromosome, regions)
+        draw_phase_comparison(
+            haplotypes,
+            phased_positions,
+            sample_cov,
+            co_parent_cov,
+            progeny_cov,
+            variant_table,
+            ground_truth_table,
+            output + ".comparison.pdf",
+        )

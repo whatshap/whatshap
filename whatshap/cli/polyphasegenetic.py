@@ -18,12 +18,7 @@ from contextlib import ExitStack
 from whatshap import __version__
 from whatshap.core import ClusterEditingSolver, Read, ReadSet
 from whatshap.cli import log_memory_usage, CommandLineError
-from whatshap.polyphaseplots import (
-    draw_genetic_clustering,
-    draw_genetic_clustering_arrangement,
-    draw_phase_comparison,
-    create_histogram,
-)
+from whatshap.polyphaseplots import create_genetic_plots
 from whatshap.offspringscoring import (
     get_variant_scoring,
     get_phasable_parent_variants,
@@ -282,7 +277,6 @@ def run_polyphasegenetic(
                     logger.info("Clustering marker variants ...")
                     solver = ClusterEditingSolver(scoring, False)
                     clustering = solver.run()
-                    # validate_clustering(clustering, node_to_variant)
                     del solver
                     timers.stop("clustering")
 
@@ -343,7 +337,7 @@ def run_polyphasegenetic(
                     # create plots
                     if plot:
                         timers.start("plots")
-                        create_plots(
+                        create_genetic_plots(
                             output,
                             chromosome,
                             sample,
@@ -487,90 +481,6 @@ def get_parent_progeny_coverage(parent, co_parent, progeny_list, parent_table, p
                 )
             parent_pos += 1
     return parent_cov, co_parent_cov, progeny_cov
-
-
-def validate_clustering(clustering, node_to_variant):
-    for clust in clustering:
-        positions = [node_to_variant[x] for x in clust]
-        if len(set(positions)) != len(clust):
-            print(positions)
-        assert len(set(positions)) == len(clust)
-
-
-def create_plots(
-    output,
-    chromosome,
-    sample,
-    variant_table,
-    ground_truth_file,
-    ground_truth_reader,
-    clustering,
-    node_to_variant,
-    haplo_skeletons,
-    type_of_node,
-    haplotypes,
-    phased_positions,
-    sample_cov,
-    co_parent_cov,
-    progeny_cov,
-    phasing_param,
-):
-    logger.info("Plotting coverage distribution ...")
-    p = 10  # padding
-    sample_cov_avg = [
-        10
-        * sum(sample_cov[max(0, i - p) : min(i + p + 1, len(sample_cov))])
-        / (min(i + p + 1, len(sample_cov)) - max(0, i - p))
-        for i in range(len(sample_cov))
-    ]
-    progeny_cov_avg = [
-        sum(progeny_cov[max(0, i - p) : min(i + p + 1, len(progeny_cov))])
-        / (min(i + p + 1, len(progeny_cov)) - max(0, i - p))
-        for i in range(len(progeny_cov))
-    ]
-    create_histogram(
-        output + ".coverage-dist.pdf",
-        sample_cov_avg,
-        progeny_cov_avg,
-        400,
-        [0, max(10 * max(sample_cov), max(progeny_cov))],
-        "Coverage",
-        "Coverage distribution",
-        name1=sample,
-        name2="progeny",
-    )
-
-    logger.info("Plotting clustering ...")
-    num_vars = max([max(c) for c in clustering])
-    draw_genetic_clustering(clustering, num_vars, output + ".clusters.pdf")
-
-    logger.info("Plotting cluster arrangements ...")
-    draw_genetic_clustering_arrangement(
-        clustering,
-        node_to_variant,
-        haplo_skeletons,
-        type_of_node,
-        int(phasing_param.scoring_window * 3.0 + 1),
-        num_vars,
-        output + ".arrangement.pdf",
-    )
-
-    if ground_truth_file:
-        logger.info("Plotting phasing comparison ...")
-        regions = [
-            (phased_positions[i], phased_positions[i] + 1) for i in range(len(phased_positions))
-        ]
-        ground_truth_table = ground_truth_reader.fetch_regions(chromosome, regions)
-        draw_phase_comparison(
-            haplotypes,
-            phased_positions,
-            sample_cov,
-            co_parent_cov,
-            progeny_cov,
-            variant_table,
-            ground_truth_table,
-            output + ".comparison.pdf",
-        )
 
 
 def add_arguments(parser):
