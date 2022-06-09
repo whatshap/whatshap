@@ -61,14 +61,14 @@ def arrange_clusters(clustering, node_to_variant, padding, ploidy):
     selected = []
 
     objVal = value(model.objective)
-    print(
+    logger.info(
         "Arranged {} variants out of a total of {}".format(
-            objVal, sum([len(clust) for clust in clustering])
+            int(objVal), sum([len(clust) for clust in clustering])
         )
     )
 
     for i in range(ploidy):
         selected.append([filtered_to_real[j] for j in range(c) if x[i][j].varValue > 0.999])
-        print("   h{}: {}".format(i, selected[-1]))
+        logger.info("   h{}: {}".format(i, selected[-1]))
 
     return selected

@@ -31,61 +31,120 @@ class CachedBinomialCalculator:
 
 
 class VariantInfo:
-    __slots__ = (
-        "ref",
-        "alt",
-        "alt_count",
-        "co_alt_count",
-        "alt_count_corrected",
-        "co_alt_count_corrected",
-    )
+    def __init__(self, allowed_types):
+        self.allowed_types = allowed_types
+        self.phasable = set()
+        self.variants = []
 
-    def __init__(
-        self,
-        ref,
-        alt,
-        alt_count,
-        co_alt_count,
-        alt_count_corrected=None,
-        co_alt_count_corrected=None,
-    ):
+    def __getitem__(self, key):
+        if isinstance(key, slice):
+            raise NotImplementedError("VariantInfo does not support slices")
+        assert isinstance(key, int)
+        size = len(self.variants)
+        if not (-size <= key < size):
+            raise IndexError("Index out of bounds: {}".format(key))
+        if key < 0:
+            key = size + key
+        return self.variants[key]
+
+    def append(self, ref, alt, alt_count, co_alt_count, skip=False):
+        self.variants.append(ParentVariant(ref, alt, alt_count, co_alt_count))
+        if not skip and alt is not None and (alt_count, co_alt_count) in self.allowed_types:
+            self.phasable.add(len(self.variants) - 1)
+
+    def correct_type(self, index, alt_count=None, co_alt_count=None):
+        if alt_count is not None:
+            if alt_count < 0:
+                raise ValueError("Cannot set alt count of variant to {}".format(alt_count))
+            self.variants[index].alt_count = alt_count
+        if co_alt_count is not None:
+            if co_alt_count < 0:
+                raise ValueError("Cannot set alt count of variant to {}".format(co_alt_count))
+            self.variants[index].co_alt_count = co_alt_count
+
+    def get_phasable(self):
+        return sorted(list(self.phasable))
+
+    def remove_phasable(self, pos):
+        if pos in self.phasable:
+            self.phasable.remove(pos)
+        else:
+            logger.warn("Made variant {} unphasable, but it was already before".format(pos))
+
+
+class ParentVariant:
+    __slots__ = ("ref", "alt", "alt_count", "co_alt_count")
+
+    def __init__(self, ref, alt, alt_count, co_alt_count):
         self.ref = ref
         self.alt = alt
         self.alt_count = alt_count
         self.co_alt_count = co_alt_count
-        self.alt_count_corrected = alt_count_corrected
-        self.co_alt_count_corrected = co_alt_count_corrected
 
 
 def hyp(N, M, n, k):
     return binom_coeff(M, k) * binom_coeff(N - M, n - k) / binom_coeff(N, n)
 
 
-def get_phasable_parent_variants(
+def compute_phasable_variants(
     variant_table: VariantTable, parent: str, co_parent: str, phasing_param
 ):
     # determine phasable variants
-    varinfo = classify_variants(variant_table, parent, co_parent)
-
-    # determine unbiased progeny genotype likelihoods
-    phasable_indices = []
     if phasing_param.complexity_support == 0:
         allowed_pairs = [(1, 0)]
     elif phasing_param.complexity_support == 1:
         allowed_pairs = [(1, 0), (1, 1)]
     else:
         allowed_pairs = [(1, 0), (2, 0), (1, 1)]
-    for i in range(len(variant_table)):
-        if varinfo[i].alt is None:
-            continue
-        if (varinfo[i].alt_count, varinfo[i].co_alt_count) not in allowed_pairs:
-            continue
-        if not phasing_param.allow_deletions:
-            if "*" in variant_table.variants[i].get_alt_allele_list():
-                continue
-        phasable_indices.append(i)
+    varinfo = VariantInfo(allowed_pairs)
 
-    return varinfo, phasable_indices
+    gts1 = variant_table.genotypes_of(parent)
+    gts2 = variant_table.genotypes_of(co_parent)
+
+    for i, var in enumerate(variant_table.variants):
+        gt1 = gts1[i]
+        gt2 = gts2[i]
+        gt1v = gt1.as_vector()
+        gt2v = gt2.as_vector()
+
+        if gt1.is_none() or gt2.is_none():
+            varinfo.append(None, None, 0, 0)
+            continue
+
+        # check homozygosity
+        if gt1.is_homozygous():
+            varinfo.append(gt1v[0], None, 0, 0)
+            continue
+
+        # count different alleles
+        alleles = set()
+        for gt in [gt1v, gt2v]:
+            for a in gt:
+                alleles.add(a)
+
+        alleles = sorted(list(alleles))
+
+        if len(alleles) > 2:
+            # genotypes are not bi-allelic
+            varinfo.append(None, None, 0, 0)
+            continue
+
+        assert len(alleles) == 2
+
+        # determine majority allele and its multiplicity
+        gt1v.sort()
+        ref = gt1v[int(len(gt1v) / 2 - 1)]
+        alt = gt1v[0] if gt1v[0] != ref else gt1v[-1]
+        alt_count = sum([1 if a == alt else 0 for a in gt1v])
+        co_alt_count = sum([1 if a == alt else 0 for a in gt2v])
+
+        skip = False
+        if not phasing_param.allow_deletions:
+            if "*" in var.get_alt_allele_list():
+                skip = True
+        varinfo.append(ref, alt, alt_count, co_alt_count, skip)
+
+    return varinfo
 
 
 def diff_ratio(ratio):
@@ -95,9 +154,14 @@ def diff_ratio(ratio):
         return ratio
 
 
-def filter_phasable_variants(
-    varinfo, phasable_indices, parent_cov, co_parent_cov, progeny_cov, cutoff
+def filter_variants(
+    varinfo: VariantInfo,
+    parent_cov: List[int],
+    co_parent_cov: List[int],
+    progeny_cov: List[int],
+    cutoff: float,
 ):
+    phasable_indices = varinfo.get_phasable()
     co_parent_ratio = [p / s if s > 0 else 0 for p, s in zip(co_parent_cov, parent_cov)]
     progeny_ratio = [p / s if s > 0 else 0 for p, s in zip(progeny_cov, parent_cov)]
 
@@ -105,19 +169,16 @@ def filter_phasable_variants(
     median = sorted(product_ratio)[len(product_ratio) // 2]
     product_ratio = [diff_ratio(x / median) for x in product_ratio]
 
-    new_indices = []
-    for i in range(len(phasable_indices)):
-        if product_ratio[i] <= cutoff:
-            new_indices.append(phasable_indices[i])
-    return new_indices
+    for i, n in enumerate(phasable_indices):
+        if product_ratio[i] > cutoff:
+            varinfo.remove_phasable(n)
 
 
-def add_corrected_variant_types(
+def correct_variant_types(
     variant_table: VariantTable,
     progeny_table: VariantTable,
     offspring: List[str],
-    varinfo: List[VariantInfo],
-    phasable_indices: List[int],
+    varinfo: VariantInfo,
     phasing_param,
 ):
     # compute unbiased progeny genotype likelihoods
@@ -126,7 +187,6 @@ def add_corrected_variant_types(
         progeny_table,
         offspring,
         varinfo,
-        phasable_indices,
         phasing_param,
     )
     correction = dict()
@@ -146,23 +206,26 @@ def add_corrected_variant_types(
     for node_id in range(off_gl.getNumPositions()):
         var_id = node_to_variant[node_id]
         genpos = variant_table.variants[var_id].position
-        gt = get_most_likely_variant_type(dosages, genpos, varinfo[var_id], off_gl, node_id)
-        varinfo[var_id].alt_count_corrected = gt[0]
-        varinfo[var_id].co_alt_count_corrected = gt[1]
-        if (varinfo[var_id].alt_count, varinfo[var_id].co_alt_count) not in correction:
-            correction[(varinfo[var_id].alt_count, varinfo[var_id].co_alt_count)] = defaultdict(int)
-        correction[(varinfo[var_id].alt_count, varinfo[var_id].co_alt_count)][gt] += 1
+        gt = get_most_likely_variant_type(dosages, genpos, off_gl, node_id)
+        alt = varinfo[var_id].alt_count
+        co_alt = varinfo[var_id].co_alt_count
+        varinfo.correct_type(var_id, gt[0], gt[1])
+        if (alt, co_alt) not in correction:
+            correction[(alt, co_alt)] = defaultdict(int)
+        correction[(alt, co_alt)][gt] += 1
+        if not check_variant_compatibility(alt, co_alt, gt[0], gt[1]):
+            varinfo.remove_phasable(var_id)
 
     # show variant corrections:
-    logger.info("      Correcting variant type based on progenies:")
+    logger.info("  Correcting variant type based on progenies:")
     for old_gt in correction:
         total = sum([correction[old_gt][new_gt] for new_gt in correction[old_gt]])
         if total == 0:
             continue
-        logger.info("      {}/{} ({})".format(old_gt[0], old_gt[1], total))
+        logger.info("  {}/{} ({})".format(old_gt[0], old_gt[1], total))
         for new_gt in correction[old_gt]:
             logger.info(
-                "         -> {}/{}: {} ({:2.1f}%)".format(
+                "     -> {}/{}: {} ({:2.1f}%)".format(
                     new_gt[0],
                     new_gt[1],
                     correction[old_gt][new_gt],
@@ -170,15 +233,12 @@ def add_corrected_variant_types(
                 )
             )
 
-    return varinfo
-
 
 def get_offspring_gl(
     variant_table: VariantTable,
     progeny_table: VariantTable,
     offspring: List[str],
-    varinfo: List[VariantInfo],
-    phasable_indices: List[int],
+    varinfo: VariantInfo,
     phasing_param,
 ):
 
@@ -196,20 +256,12 @@ def get_offspring_gl(
     node_positions = []
     progeny_positions = []
     simplex_nulliplex_nodes = 0
-    for i in phasable_indices:
+    for i in varinfo.get_phasable():
         genpos = variant_table.variants[i].position
         if genpos not in genpos_to_progenypos:
             continue
-        if varinfo[i].alt_count_corrected is not None:
-            alt = varinfo[i].alt_count_corrected
-            co_alt = varinfo[i].co_alt_count_corrected
-            if not check_variant_compatibility(
-                varinfo[i].alt_count, varinfo[i].co_alt_count, alt, co_alt
-            ):
-                continue
-        else:
-            alt = varinfo[i].alt_count
-            co_alt = varinfo[i].co_alt_count
+        alt = varinfo[i].alt_count
+        co_alt = varinfo[i].co_alt_count
         if alt == 1 and co_alt == 0:
             simplex_nulliplex_nodes += 1
         for j in range(alt):
@@ -235,7 +287,6 @@ def get_offspring_gl(
             phasing_param.ploidy,
             binom_calc,
             gt_gl_priors,
-            use_corrected_counts=not (varinfo[0].alt_count_corrected is None),
         )
         for pos, gl in enumerate(gls):
             if gl:
@@ -302,55 +353,7 @@ def get_variant_scoring(varinfo, off_gl, node_to_variant, phasing_param):
     return scoring
 
 
-def classify_variants(variant_table: VariantTable, parent: str, co_parent: str):
-
-    # ref, alt, alt_count, alt_count_co = dict(), dict(), dict(), dict()
-    gts1 = variant_table.genotypes_of(parent)
-    gts2 = variant_table.genotypes_of(co_parent)
-    varinfo = []
-
-    for i in range(len(variant_table)):
-        gt1 = gts1[i]
-        gt2 = gts2[i]
-        gt1v = gt1.as_vector()
-        gt2v = gt2.as_vector()
-
-        if gt1.is_none() or gt2.is_none():
-            varinfo.append(VariantInfo(None, None, 0, 0))
-            continue
-
-        # check homozygosity
-        if gt1.is_homozygous():
-            varinfo.append(VariantInfo(gt1v[0], None, 0, 0))
-            continue
-
-        # count different alleles
-        alleles = set()
-        for gt in [gt1v, gt2v]:
-            for a in gt:
-                alleles.add(a)
-
-        alleles = sorted(list(alleles))
-
-        if len(alleles) > 2:
-            # genotypes are not bi-allelic
-            varinfo.append(VariantInfo(None, None, 0, 0))
-            continue
-
-        assert len(alleles) == 2
-
-        # determine majority allele and its multiplicity
-        gt1v.sort()
-        ref = gt1v[int(len(gt1v) / 2 - 1)]
-        alt = gt1v[0] if gt1v[0] != ref else gt1v[-1]
-        alt_count = sum([1 if a == alt else 0 for a in gt1v])
-        co_alt_count = sum([1 if a == alt else 0 for a in gt2v])
-        varinfo.append(VariantInfo(ref, alt, alt_count, co_alt_count))
-
-    return varinfo
-
-
-def get_most_likely_variant_type(dosages, genpos, varinfo, off_gl, pos):
+def get_most_likely_variant_type(dosages, genpos, off_gl, pos):
 
     best_gts = dosages[0][0]
     best_llh = -float("inf")
@@ -403,11 +406,10 @@ def compute_gt_likelihoods(
     progeny_table: VariantTable,
     offspring: str,
     position_pairs: Iterable[Tuple[int, int]],
-    varinfo: List[VariantInfo],
+    varinfo: VariantInfo,
     ploidy: int,
     binom_calc: CachedBinomialCalculator,
     gt_priors=None,
-    use_corrected_counts=False,
 ):
     gt_likelihoods = []
     allele_depths = progeny_table.allele_depths_of(offspring)
@@ -424,12 +426,8 @@ def compute_gt_likelihoods(
         alt = varinfo[parent_pos].alt
         ref_dp = allele_depths[progeny_pos][ref] if len(allele_depths[progeny_pos]) > ref else 0
         alt_dp = allele_depths[progeny_pos][alt] if len(allele_depths[progeny_pos]) > alt else 0
-        if varinfo[parent_pos].alt_count_corrected and varinfo[parent_pos].co_alt_count_corrected:
-            num_alts_parent = varinfo[parent_pos].alt_count_corrected
-            num_alts_coparent = varinfo[parent_pos].co_alt_count_corrected
-        else:
-            num_alts_parent = varinfo[parent_pos].alt_count
-            num_alts_coparent = varinfo[parent_pos].co_alt_count
+        num_alts_parent = varinfo[parent_pos].alt_count
+        num_alts_coparent = varinfo[parent_pos].co_alt_count
         if ref_dp + alt_dp >= ploidy:
             for i in range(0, ploidy + 1):
                 gl[i] = binom_calc.get_binom_pmf(ref_dp + alt_dp, alt_dp, i)

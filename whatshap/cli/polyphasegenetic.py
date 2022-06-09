@@ -21,10 +21,10 @@ from whatshap.cli import log_memory_usage, CommandLineError
 from whatshap.polyphaseplots import create_genetic_plots
 from whatshap.offspringscoring import (
     get_variant_scoring,
-    get_phasable_parent_variants,
-    filter_phasable_variants,
+    compute_phasable_variants,
+    filter_variants,
     get_offspring_gl,
-    add_corrected_variant_types,
+    correct_variant_types,
 )
 from whatshap.timer import StageTimer
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
@@ -246,13 +246,14 @@ def phase_single_sample(
     param,
 ):
     # compute phasable parent variants
-    varinfo, phasable_indices = get_phasable_parent_variants(variant_table, sample, coparent, param)
+    varinfo = compute_phasable_variants(variant_table, sample, coparent, param)
 
     # if progeny file provided, extract region, else just reuse main table
     timers.start("parse_vcf")
+    logger.info("Extracting progeny allele depths ...")
     if progeny_reader:
-        main_positions = [variant_table.variants[i].position for i in phasable_indices]
-        regions = [(main_positions[i], main_positions[i] + 1) for i in range(len(main_positions))]
+        positions = [variant_table.variants[i].position for i in varinfo.get_phasable()]
+        regions = [(positions[i], positions[i] + 1) for i in range(len(positions))]
         progeny_table = progeny_reader.fetch_regions(chromosome, regions)
     else:
         progeny_table = variant_table
@@ -266,35 +267,20 @@ def phase_single_sample(
     # filter variants based on coverage ratio between parent, co-parent and progeny
     if param.ratio_cutoff > 1.0:
         logger.info("Filtering variant positions based on coverage ratios ...")
-        old_num = len(phasable_indices)
-        phasable_indices = filter_phasable_variants(
-            varinfo,
-            phasable_indices,
-            parent_cov,
-            co_parent_cov,
-            progeny_cov,
-            param.ratio_cutoff,
-        )
-        logger.info("Kept {} out of {} variants.".format(len(phasable_indices), old_num))
+        old_num = len(varinfo.get_phasable())
+        filter_variants(varinfo, parent_cov, co_parent_cov, progeny_cov, param.ratio_cutoff)
+        logger.info("Kept {} out of {} variants.".format(len(varinfo.get_phasable()), old_num))
 
     # compute offspring genotype likelihoods
     timers.start("scoring")
-    logger.info("Computing genotype likelihoods for offspring ...")
+    logger.info("Computing progeny genotype likelihoods ...")
     if param.distrust_parent_genotypes:
-        varinfo = add_corrected_variant_types(
-            variant_table,
-            progeny_table,
-            progeny_list,
-            varinfo,
-            phasable_indices,
-            param,
-        )
+        correct_variant_types(variant_table, progeny_table, progeny_list, varinfo, param)
     off_gl, node_to_variant, type_of_node = get_offspring_gl(
         variant_table,
         progeny_table,
         progeny_list,
         varinfo,
-        phasable_indices,
         param,
     )
 
@@ -313,7 +299,7 @@ def phase_single_sample(
 
     # cluster variants based on scores
     timers.start("clustering")
-    logger.info("Clustering marker variants ...")
+    logger.info("Clustering marker alleles ...")
     solver = ClusterEditingSolver(scoring, False)
     clustering = solver.run()
     del solver
