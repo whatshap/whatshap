@@ -35,6 +35,8 @@ class VariantInfo:
         self.allowed_types = allowed_types
         self.phasable = set()
         self.variants = []
+        self.node_positions = []
+        self.nodes_modified = True
 
     def __getitem__(self, key):
         if isinstance(key, slice):
@@ -51,6 +53,7 @@ class VariantInfo:
         self.variants.append(ParentVariant(ref, alt, alt_count, co_alt_count))
         if not skip and alt is not None and (alt_count, co_alt_count) in self.allowed_types:
             self.phasable.add(len(self.variants) - 1)
+            self.nodes_modified = True
 
     def correct_type(self, index, alt_count=None, co_alt_count=None):
         if alt_count is not None:
@@ -68,8 +71,28 @@ class VariantInfo:
     def remove_phasable(self, pos):
         if pos in self.phasable:
             self.phasable.remove(pos)
+            self.nodes_modified = True
         else:
-            logger.warn("Made variant {} unphasable, but it was already before".format(pos))
+            raise ValueError(
+                "Marked variant {} as unphasable, but it was already before".format(pos)
+            )
+
+    def update_node_positions(self):
+        self.node_positions = []
+        for p in self.get_phasable():
+            for i in range(self.variants[p].alt_count):
+                self.node_positions.append(p)
+        self.nodes_modified = False
+
+    def node_to_variant(self, node_id):
+        if self.nodes_modified:
+            self.update_node_positions()
+        return self.node_positions[node_id]
+
+    def get_node_positions(self):
+        if self.nodes_modified:
+            self.update_node_positions()
+        return self.node_positions[:]
 
 
 class ParentVariant:
@@ -182,13 +205,7 @@ def correct_variant_types(
     phasing_param,
 ):
     # compute unbiased progeny genotype likelihoods
-    off_gl, node_to_variant, type_of_node = get_offspring_gl(
-        variant_table,
-        progeny_table,
-        offspring,
-        varinfo,
-        phasing_param,
-    )
+    off_gl = get_offspring_gl(variant_table, progeny_table, offspring, varinfo, phasing_param)
     correction = dict()
 
     # precompute dosage distributions for every variant type
@@ -202,9 +219,13 @@ def correct_variant_types(
             ]
             dosages.append(((i, j), tuple(d)))
 
+    var_id = -1
     # compute best fitting variant type based on progeny genotypes
+    removing = []
     for node_id in range(off_gl.getNumPositions()):
-        var_id = node_to_variant[node_id]
+        if var_id == varinfo.node_to_variant(node_id):
+            continue
+        var_id = varinfo.node_to_variant(node_id)
         genpos = variant_table.variants[var_id].position
         gt = get_most_likely_variant_type(dosages, genpos, off_gl, node_id)
         alt = varinfo[var_id].alt_count
@@ -214,18 +235,22 @@ def correct_variant_types(
             correction[(alt, co_alt)] = defaultdict(int)
         correction[(alt, co_alt)][gt] += 1
         if not check_variant_compatibility(alt, co_alt, gt[0], gt[1]):
-            varinfo.remove_phasable(var_id)
+            removing.append(var_id)
+
+    # remove changed variants incompatible to old type (do this after!)
+    for var_id in removing:
+        varinfo.remove_phasable(var_id)
 
     # show variant corrections:
-    logger.info("  Correcting variant type based on progenies:")
+    logger.info("   Correcting variant type based on progenies:")
     for old_gt in correction:
         total = sum([correction[old_gt][new_gt] for new_gt in correction[old_gt]])
         if total == 0:
             continue
-        logger.info("  {}/{} ({})".format(old_gt[0], old_gt[1], total))
+        logger.info("   {}/{} ({})".format(old_gt[0], old_gt[1], total))
         for new_gt in correction[old_gt]:
             logger.info(
-                "     -> {}/{}: {} ({:2.1f}%)".format(
+                "      -> {}/{}: {} ({:2.1f}%)".format(
                     new_gt[0],
                     new_gt[1],
                     correction[old_gt][new_gt],
@@ -251,24 +276,21 @@ def get_offspring_gl(
 
     # determine phasable progeny variants
     num_nodes = 0
-    node_to_variant = dict()
-    type_of_node = []
-    node_positions = []
     progeny_positions = []
     simplex_nulliplex_nodes = 0
-    for i in varinfo.get_phasable():
-        genpos = variant_table.variants[i].position
+    for i, p in enumerate(varinfo.get_phasable()):
+        genpos = variant_table.variants[p].position
         if genpos not in genpos_to_progenypos:
-            continue
-        alt = varinfo[i].alt_count
-        co_alt = varinfo[i].co_alt_count
+            varinfo.remove_phasable(p)
+
+    for p in varinfo.get_phasable():
+        genpos = variant_table.variants[p].position
+        alt = varinfo[p].alt_count
+        co_alt = varinfo[p].co_alt_count
         if alt == 1 and co_alt == 0:
             simplex_nulliplex_nodes += 1
         for j in range(alt):
-            node_to_variant[num_nodes] = i
-            node_positions.append(i)
             progeny_positions.append(genpos_to_progenypos[genpos])
-            type_of_node.append((alt, co_alt))
             num_nodes += 1
 
     logger.info("   Number of nodes to cluster: %d", num_nodes)
@@ -276,13 +298,15 @@ def get_offspring_gl(
 
     # compute genotype likelihoods for offspring per variant
     gt_gl_priors = compute_gt_likelihood_priors(phasing_param.ploidy)
-    off_gl = ProgenyGenotypeLikelihoods(phasing_param.ploidy, len(offspring), len(node_positions))
+    off_gl = ProgenyGenotypeLikelihoods(
+        phasing_param.ploidy, len(offspring), len(varinfo.get_node_positions())
+    )
     binom_calc = CachedBinomialCalculator(phasing_param.ploidy, phasing_param.allele_error_rate)
     for i, off in enumerate(offspring):
         gls = compute_gt_likelihoods(
             progeny_table,
             off,
-            zip(node_positions, progeny_positions),
+            zip(varinfo.get_node_positions(), progeny_positions),
             varinfo,
             phasing_param.ploidy,
             binom_calc,
@@ -293,7 +317,7 @@ def get_offspring_gl(
                 off_gl.setGlv(pos, i, gl)
     del binom_calc
 
-    return off_gl, node_to_variant, type_of_node
+    return off_gl
 
 
 def check_variant_compatibility(old_alt, old_co_alt, new_alt, new_co_alt):
@@ -306,9 +330,9 @@ def check_variant_compatibility(old_alt, old_co_alt, new_alt, new_co_alt):
     return False
 
 
-def get_variant_scoring(varinfo, off_gl, node_to_variant, phasing_param):
+def get_variant_scoring(varinfo, off_gl, phasing_param):
 
-    num_nodes = len(node_to_variant)
+    num_nodes = len(varinfo.get_node_positions())
     scoring = TriangleSparseMatrix()
 
     # create a stride pattern for the scoring:
@@ -321,13 +345,13 @@ def get_variant_scoring(varinfo, off_gl, node_to_variant, phasing_param):
     strides += [strides[-1] + 13 * i for i in range(1, w - w13 + 1)]
 
     for i in range(num_nodes):
-        ni = node_to_variant[i]
+        ni = varinfo.node_to_variant(i)
 
         # iterate over next max_dist relevant positions
         prev_variant = -1
         prev_score = 0
         for j in [i + s for s in strides if i + s < num_nodes]:
-            nj = node_to_variant[j]
+            nj = varinfo.node_to_variant(j)
             if ni == nj:
                 score = -float("inf")
             else:

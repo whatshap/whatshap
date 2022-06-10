@@ -5,7 +5,7 @@ from pulp import LpProblem, LpVariable, LpMaximize, LpInteger, value, COIN_CMD
 logger = logging.getLogger(__name__)
 
 
-def arrange_clusters(clustering, node_to_variant, padding, ploidy):
+def arrange_clusters(clustering, padding, ploidy):
 
     # filter out singleton clusters
     filtered_to_real = []
@@ -20,7 +20,6 @@ def arrange_clusters(clustering, node_to_variant, padding, ploidy):
     c_end = []
     c_worth = []
     for clust in fclustering:
-        # variants = [node_to_variant[v] for v in clust]
         variants = [v for v in clust]
         c_worth.append(len(variants))
         c_start.append(max(0, min(variants) - padding))

@@ -276,13 +276,7 @@ def phase_single_sample(
     logger.info("Computing progeny genotype likelihoods ...")
     if param.distrust_parent_genotypes:
         correct_variant_types(variant_table, progeny_table, progeny_list, varinfo, param)
-    off_gl, node_to_variant, type_of_node = get_offspring_gl(
-        variant_table,
-        progeny_table,
-        progeny_list,
-        varinfo,
-        param,
-    )
+    off_gl = get_offspring_gl(variant_table, progeny_table, progeny_list, varinfo, param)
 
     # delete progeny table if dedicated to reduce memory footprint
     if progeny_reader:
@@ -290,7 +284,7 @@ def phase_single_sample(
 
     # compute scoring for variant pairs
     logger.info("Compute scores for markers ...")
-    scoring = get_variant_scoring(varinfo, off_gl, node_to_variant, param)
+    scoring = get_variant_scoring(varinfo, off_gl, param)
 
     # delete genotype likelihoods to reduce memory footprint
     del off_gl
@@ -308,19 +302,15 @@ def phase_single_sample(
     # arrange clusters to haplotypes
     timers.start("arrangement")
     logger.info("Arranging clusters ...")
-    haplo_skeletons = arrange_clusters(
-        clustering,
-        node_to_variant,
-        int(param.scoring_window * 3.0 + 1),
-        param.ploidy,
-    )
+    padding = int(param.scoring_window * 3.0 + 1)
+    haplo_skeletons = arrange_clusters(clustering, padding, param.ploidy)
 
     # determine haplotypes
     accessible_positions = sorted([v.position for v in variant_table.variants])
 
     # for information:
     # accessible_position maps position (index) of variant_table to genome position
-    # node_to_variant maps a node id of the clustering to a position (index) of the variant_table
+    # varinfo.node_to_variant() maps a node id to a position (index) of the variant_table
     # varinfo contains the ref- and alt-allele for a position (index) of the variant_table
     # haplo_skeletons contains ploidy many lists of nodes, which belong to the same haplotype
 
@@ -329,11 +319,11 @@ def phase_single_sample(
     for i in range(param.ploidy):
         superreads.add(Read("superread {}".format(i + 1), 0, 0))
 
-    signals_per_pos = defaultdict(list)
+    marker_per_pos = defaultdict(list)
     for i, hap in enumerate(haplo_skeletons):
         for clust in hap:
             for node in clustering[clust]:
-                signals_per_pos[node_to_variant[node]].append(i)
+                marker_per_pos[varinfo.node_to_variant(node)].append(i)
 
     phased_positions = []
     haplotypes = [[] for _ in range(param.ploidy)]
@@ -342,10 +332,10 @@ def phase_single_sample(
     progeny_coverage = []
 
     for pos in range(len(variant_table)):
-        if not param.allow_homozyguous and len(signals_per_pos[pos]) == 0:
+        if not param.allow_homozyguous and len(marker_per_pos[pos]) == 0:
             continue
         for i in range(param.ploidy):
-            if i in signals_per_pos[pos]:
+            if i in marker_per_pos[pos]:
                 allele = varinfo[pos].alt
             else:
                 allele = varinfo[pos].ref
@@ -367,10 +357,9 @@ def phase_single_sample(
             chromosome,
             sample,
             ground_truth_reader,
+            varinfo,
             clustering,
-            node_to_variant,
             haplo_skeletons,
-            type_of_node,
             haplotypes,
             phased_positions,
             parent_coverage,

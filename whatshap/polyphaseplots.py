@@ -531,10 +531,9 @@ def draw_genetic_clustering(
 
 
 def draw_genetic_clustering_arrangement(
+    varinfo,
     clustering,
-    node_to_allvariant,
     arrangement,
-    type_of_node,
     padding,
     num_nodes,
     path,
@@ -548,7 +547,14 @@ def draw_genetic_clustering_arrangement(
         from pylab import savefig
 
         # convert node type to color
+        type_of_node = []
+        phasable = varinfo.get_phasable()
+        for node_id, var_id in enumerate(varinfo.get_node_positions()):
+            x = phasable[var_id]
+            type_of_node.append((varinfo[x].alt_count, varinfo[x].co_alt_count))
+
         color = {
+            (0, 0): "tab:brown",
             (1, 0): "tab:blue",
             (1, 1): "tab:orange",
             (2, 0): "tab:red",
@@ -559,8 +565,8 @@ def draw_genetic_clustering_arrangement(
         # Setup figure
         variants = set()
         node_to_variant = dict()
-        for node in range(len(node_to_allvariant)):
-            variants.add(node_to_allvariant[node])
+        for node in range(len(varinfo.get_node_positions())):
+            variants.add(varinfo.node_to_variant(node))
             node_to_variant[node] = len(variants) - 1
         num_vars = len(variants) + 1
 
@@ -1161,10 +1167,9 @@ def create_genetic_plots(
     chromosome,
     sample,
     ground_truth_file,
+    varinfo,
     clustering,
-    node_to_variant,
     haplo_skeletons,
-    type_of_node,
     haplotypes,
     phased_positions,
     sample_cov,
@@ -1203,10 +1208,9 @@ def create_genetic_plots(
 
     logger.info("Plotting cluster arrangements ...")
     draw_genetic_clustering_arrangement(
+        varinfo,
         clustering,
-        node_to_variant,
         haplo_skeletons,
-        type_of_node,
         int(phasing_param.scoring_window * 3.0 + 1),
         num_vars,
         output + ".arrangement.pdf",
