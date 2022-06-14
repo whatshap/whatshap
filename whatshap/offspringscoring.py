@@ -4,6 +4,7 @@ from math import log
 from collections import defaultdict
 from typing import List, Iterable, Tuple
 from scipy.stats import binom
+from scipy.stats import hypergeom as hyp
 from scipy.special import binom as binom_coeff
 
 from whatshap.core import TriangleSparseMatrix, ProgenyGenotypeLikelihoods
@@ -31,7 +32,7 @@ class CachedBinomialCalculator:
         return self.binom_cache[g][(n, k)]
 
 
-def hyp(N, M, n, k):
+def hyp2(N, M, n, k):
     return binom_coeff(M, k) * binom_coeff(N - M, n - k) / binom_coeff(N, n)
 
 
@@ -43,41 +44,33 @@ def correct_variant_types(
     phasing_param,
 ):
     # compute unbiased progeny genotype likelihoods
+    priors = compute_gt_likelihood_priors(phasing_param.ploidy)
     off_gl = get_offspring_gl(variant_table, progeny_table, offspring, varinfo, phasing_param)
     correction = dict()
 
-    # precompute dosage distributions for every variant type
-    k = phasing_param.ploidy
-    dosages = []
-    for i in range(k + 1):
-        for j in range(i + 1):
-            d = [
-                sum([hyp(k, i, k // 2, l) * hyp(k, j, k // 2, m - l) for l in range(m + 1)])
-                for m in range(k + 1)
-            ]
-            dosages.append(((i, j), tuple(d)))
-
-    var_id = -1
     # compute best fitting variant type based on progeny genotypes
-    removing = []
+    var_id = -1
+    correcting = []
     for node_id in range(off_gl.getNumPositions()):
         if var_id == varinfo.node_to_variant(node_id):
             continue
+
+        # determine best fit
         var_id = varinfo.node_to_variant(node_id)
         genpos = variant_table.variants[var_id].position
-        gt = get_most_likely_variant_type(dosages, genpos, off_gl, node_id)
+        gt = get_most_likely_variant_type(priors, genpos, off_gl, node_id)
+        correcting.append((var_id, gt))
+
+        # count for statistics
         alt = varinfo[var_id].alt_count
         co_alt = varinfo[var_id].co_alt_count
-        varinfo.correct_type(var_id, gt[0], gt[1])
         if (alt, co_alt) not in correction:
             correction[(alt, co_alt)] = defaultdict(int)
         correction[(alt, co_alt)][gt] += 1
-        if not check_variant_compatibility(alt, co_alt, gt[0], gt[1]):
-            removing.append(var_id)
 
-    # remove changed variants incompatible to old type (do this after!)
-    for var_id in removing:
-        varinfo.remove_phasable(var_id)
+    # apply changes afterwards (do not inside the loop above!)
+    for var_id, gt in correcting:
+        varinfo.correct_type(var_id, gt[0], gt[1])
 
     # show variant corrections:
     logger.info("   Correcting variant type based on progenies:")
@@ -87,14 +80,9 @@ def correct_variant_types(
             continue
         logger.info("   {}/{} ({})".format(old_gt[0], old_gt[1], total))
         for new_gt in correction[old_gt]:
-            logger.info(
-                "      -> {}/{}: {} ({:2.1f}%)".format(
-                    new_gt[0],
-                    new_gt[1],
-                    correction[old_gt][new_gt],
-                    100 * correction[old_gt][new_gt] / total,
-                )
-            )
+            num = correction[old_gt][new_gt]
+            perc = 100 * correction[old_gt][new_gt] / total
+            logger.info("      -> {}/{}: {} ({:2.1f}%)".format(new_gt[0], new_gt[1], num, perc))
 
 
 def get_offspring_gl(
@@ -158,16 +146,6 @@ def get_offspring_gl(
     return off_gl
 
 
-def check_variant_compatibility(old_alt, old_co_alt, new_alt, new_co_alt):
-    if old_alt == 1 and old_co_alt == 0:
-        return (new_alt, new_co_alt) in [(1, 0), (1, 1), (2, 0)]
-    elif old_alt == 1 and old_co_alt == 1:
-        return (new_alt, new_co_alt) in [(1, 1)]
-    elif old_alt == 2 and old_co_alt == 0:
-        return (new_alt, new_co_alt) in [(1, 0), (1, 1), (2, 0)]
-    return False
-
-
 def get_variant_scoring(varinfo, off_gl, phasing_param):
 
     num_nodes = len(varinfo.get_node_positions())
@@ -215,53 +193,46 @@ def get_variant_scoring(varinfo, off_gl, phasing_param):
     return scoring
 
 
-def get_most_likely_variant_type(dosages, genpos, off_gl, pos):
+def get_most_likely_variant_type(priors, genpos, off_gl, pos):
 
-    best_gts = dosages[0][0]
+    best_gts = (0, 0)
     best_llh = -float("inf")
-    for gts, dosage in dosages:
-        llh = 1.0
-        for i in range(off_gl.getNumSamples()):
-            if off_gl.getGl(pos, i, 0) < 0.0:
-                continue
-            likelihood = 0.0
-            for g in range(len(dosage)):
-                likelihood += dosage[g] * off_gl.getGl(pos, i, g)
-            if likelihood <= 0.0:
-                llh -= float("inf")
-            else:
-                llh += log(likelihood)
-        if llh > best_llh:
-            best_gts = gts
-            best_llh = llh
-
+    k = len(priors)
+    for g0 in range(k):
+        for g1 in range(g0 + 1):
+            llh = 1.0
+            for i in range(off_gl.getNumSamples()):
+                if off_gl.getGl(pos, i, 0) < 0.0:
+                    continue
+                likelihood = 0.0
+                for g in range(k):
+                    likelihood += priors[g0][g1][g] * off_gl.getGl(pos, i, g)
+                if likelihood <= 0.0:
+                    llh -= float("inf")
+                else:
+                    llh += log(likelihood)
+            if llh > best_llh:
+                best_gts = (g0, g1)
+                best_llh = llh
     return best_gts
 
 
 def compute_gt_likelihood_priors(ploidy):
-    # auxiliary table for prior probailities
-    max_alts = ploidy // 2  # max. alleles inherited from one parent
-    prior_single = [[0.0] * (max_alts + 1) for _ in range(ploidy + 1)]
-    for num_alts in range(0, ploidy + 1):
-        for num_drawn_alts in range(0, max_alts + 1):
-            if ploidy - num_alts >= max_alts - num_drawn_alts and num_alts >= num_drawn_alts:
-                prior_single[num_alts][num_drawn_alts] = (
-                    binom_coeff(ploidy - num_alts, max_alts - num_drawn_alts)
-                    * binom_coeff(num_alts, num_drawn_alts)
-                    / binom_coeff(ploidy, max_alts)
-                )
+    # Semantic: priors[i][j][l] = Prior probability that a progeny inherits l alternative alleles
+    # from the parents under the assumption that first parent has i out of k alt. alleles and
+    # the second parent has j out of k.
+    k = ploidy
+    priors = [[[] for _ in range(k + 1)] for _ in range(k + 1)]
+    for i in range(k + 1):
+        for j in range(i + 1):
+            d = [
+                sum([hyp.pmf(l, k, i, k // 2) * hyp.pmf(m - l, k, j, k // 2) for l in range(m + 1)])
+                for m in range(k + 1)
+            ]
+            priors[i][j] = d
+            priors[j][i] = d
 
-    prior_dual = [[[0.0] * (ploidy + 1) for _ in range(ploidy + 1)] for _ in range(ploidy + 1)]
-    for num_alts_parent in range(0, ploidy + 1):
-        for num_alts_coparent in range(0, ploidy + 1):
-            for i in range(max_alts + 1):
-                for j in range(max_alts + 1):
-                    num_alts_offspring = i + j
-                    prior_dual[num_alts_parent][num_alts_coparent][num_alts_offspring] += (
-                        prior_single[num_alts_parent][i] * prior_single[num_alts_coparent][j]
-                    )
-
-    return prior_dual
+    return priors
 
 
 def compute_gt_likelihoods(

@@ -35,6 +35,9 @@ class VariantInfo:
             key = size + key
         return self.variants[key]
 
+    def __len__(self):
+        return len(self.variants)
+
     def append(self, ref, alt, alt_count, co_alt_count, skip=False):
         self.variants.append(self.ParentVariant(ref, alt, alt_count, co_alt_count))
         if not skip and alt is not None and (alt_count, co_alt_count) in self.allowed_types:
@@ -42,14 +45,23 @@ class VariantInfo:
             self.nodes_modified = True
 
     def correct_type(self, index, alt_count=None, co_alt_count=None):
-        if alt_count is not None:
+        old_alt = self.variants[index].alt_count
+        old_co_alt = self.variants[index].co_alt_count
+        changed = False
+        if alt_count is not None and old_alt != alt_count:
+            changed = True
             if alt_count < 0:
                 raise ValueError("Cannot set alt count of variant to {}".format(alt_count))
             self.variants[index].alt_count = alt_count
-        if co_alt_count is not None:
+        if co_alt_count is not None and old_co_alt != co_alt_count:
+            changed = True
             if co_alt_count < 0:
                 raise ValueError("Cannot set alt count of variant to {}".format(co_alt_count))
             self.variants[index].co_alt_count = co_alt_count
+        if changed:
+            if not self.check_variant_compatibility(old_alt, old_co_alt, alt_count, co_alt_count):
+                self.remove_phasable(index)
+            self.nodes_modified = True
 
     def get_phasable(self):
         return sorted(list(self.phasable))
@@ -79,6 +91,16 @@ class VariantInfo:
         if self.nodes_modified:
             self.update_node_positions()
         return self.node_positions[:]
+
+    @staticmethod
+    def check_variant_compatibility(old_alt, old_co_alt, new_alt, new_co_alt):
+        if old_alt == 1 and old_co_alt == 0:
+            return (new_alt, new_co_alt) in [(1, 0), (1, 1), (2, 0)]
+        elif old_alt == 1 and old_co_alt == 1:
+            return (new_alt, new_co_alt) in [(1, 1)]
+        elif old_alt == 2 and old_co_alt == 0:
+            return (new_alt, new_co_alt) in [(1, 0), (1, 1), (2, 0)]
+        return False
 
 
 def compute_phasable_variants(
