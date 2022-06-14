@@ -112,7 +112,7 @@ def test_variantinfo_3():
 
     assert vi.get_phasable() == [0, 2]
     vi.correct_type(2, 0, 0)
-    assert vi.get_phasable() == [0, 2]
+    assert vi.get_phasable() == [0]
     assert vi[2].alt_count == 0
 
 
