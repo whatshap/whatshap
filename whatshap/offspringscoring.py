@@ -4,7 +4,6 @@ from math import log
 from collections import defaultdict
 from typing import List, Iterable, Tuple
 from scipy.stats import binom
-from scipy.stats import hypergeom as hyp
 from scipy.special import binom as binom_coeff
 
 from whatshap.core import TriangleSparseMatrix, ProgenyGenotypeLikelihoods
@@ -32,7 +31,7 @@ class CachedBinomialCalculator:
         return self.binom_cache[g][(n, k)]
 
 
-def hyp2(N, M, n, k):
+def hyp(k, N, M, n):
     return binom_coeff(M, k) * binom_coeff(N - M, n - k) / binom_coeff(N, n)
 
 
@@ -226,7 +225,7 @@ def compute_gt_likelihood_priors(ploidy):
     for i in range(k + 1):
         for j in range(i + 1):
             d = [
-                sum([hyp.pmf(l, k, i, k // 2) * hyp.pmf(m - l, k, j, k // 2) for l in range(m + 1)])
+                sum([hyp(l, k, i, k // 2) * hyp(m - l, k, j, k // 2) for l in range(m + 1)])
                 for m in range(k + 1)
             ]
             priors[i][j] = d
