@@ -1,14 +1,12 @@
 from scipy.special import binom as binom_coeff
 
 from whatshap.cli.polyphasegenetic import PhasingParameter
-from whatshap.variantselection import VariantInfo, compute_phasable_variants
+from whatshap.variantselection import compute_phasable_variants
 from whatshap.offspringscoring import (
     compute_gt_likelihood_priors,
     compute_gt_likelihoods,
-    get_offspring_gl,
     correct_variant_types,
-    get_variant_scoring,
-    hyp,
+    CachedBinomialCalculator,
 )
 from whatshap.vcf import VcfReader
 
@@ -80,9 +78,79 @@ def test_correct_variant_types():
     true_new_np = [18, 21, 30, 35, 37, 51, 69, 71, 98, 107, 110]
     true_new_np += [111, 112, 113, 114, 115, 126, 127, 128]
     assert new_np == true_new_np
-    
+
     ptable_positions = [v.position for v in ptable.variants]
     for pos in new_np:
         g0 = vi[pos].alt_count
         g1 = vi[pos].co_alt_count
         assert (g0, g1) != (1, 0) or table.variants[pos].position not in ptable_positions
+
+
+def test_compute_gt_likelihoods():
+    table = list(
+        VcfReader(
+            "tests/data/polyphasegenetic.test.parents.vcf",
+            indels=True,
+            genotype_likelihoods=False,
+            ploidy=4,
+            mav=True,
+        )
+    )[0]
+    ptable = list(
+        VcfReader(
+            "tests/data/polyphasegenetic.test.progeny.vcf.gz",
+            indels=True,
+            genotype_likelihoods=False,
+            ploidy=4,
+            mav=True,
+            allele_depth=True,
+        )
+    )[0]
+
+    param = PhasingParameter(4, 20, 0.06, 0, 0, True, False, True, False, "")
+    vi = compute_phasable_variants(table, "Parent_A", "Parent_B", param)
+    binom_calc = CachedBinomialCalculator(param.ploidy, param.allele_error_rate)
+    priors = compute_gt_likelihood_priors(param.ploidy)
+
+    genpos_to_progenypos = dict()
+    for i in range(len(ptable)):
+        genpos = ptable.variants[i].position
+        if genpos:
+            genpos_to_progenypos[genpos] = i
+
+    progeny_positions = []
+    for i, p in enumerate(vi.get_phasable()):
+        genpos = table.variants[p].position
+        if genpos not in genpos_to_progenypos:
+            vi.remove_phasable(p)
+
+    for p in vi.get_phasable():
+        genpos = table.variants[p].position
+        alt = vi[p].alt_count
+        for j in range(alt):
+            progeny_positions.append(genpos_to_progenypos[genpos])
+
+    gls = compute_gt_likelihoods(
+        ptable,
+        ptable.samples[0],
+        zip(vi.get_node_positions(), progeny_positions),
+        vi,
+        param.ploidy,
+        binom_calc,
+        priors,
+    )
+
+    assert gls[0][1] == max(gls[0])
+    assert gls[1][1] == max(gls[1])
+    assert gls[2][0] == max(gls[2])
+    assert gls[3][1] == max(gls[3])
+    assert gls[4][1] == max(gls[4])
+    assert gls[5][1] == max(gls[5])
+    assert gls[6][1] == max(gls[6])
+    assert gls[7][1] == max(gls[7])
+    assert gls[8][0] == max(gls[8])
+    assert gls[15][1] == max(gls[15])
+    assert gls[16] is None
+    assert gls[17] is None
+    assert gls[18][0] == max(gls[18])
+    assert gls[-2] == gls[-1]
