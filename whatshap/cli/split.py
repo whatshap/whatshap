@@ -6,7 +6,7 @@ This subcommand reads either a FASTQ or a BAM file and a list of haplotype assig
 FASTQ or BAM per haplotype.
 
 1. BAM mode is intended for unmapped BAMs (such as provided by PacBio).
-2. The output format is going to be the same as the input format (FASTQ or BAM).
+2. The output format is the same as the input format (FASTQ or BAM).
   (Reading BAM but writing FASTQ or vice versa is not possible.)
 
 Examples:
@@ -219,16 +219,6 @@ def _fastq_string_iterator(fastq_file):
     """
     for record in fastq_file:
         yield record.name, len(record.sequence), str(record) + "\n"
-
-
-def _fastq_binary_iterator(fastq_file):
-    """
-    This one just exists for the pigz dependency
-    :param fastq_file:
-    :return:
-    """
-    for record in fastq_file:
-        yield record.name, len(record.sequence), (str(record) + "\n").encode("utf-8")
 
 
 def check_haplotag_list_information(haplotag_list, exit_stack):
