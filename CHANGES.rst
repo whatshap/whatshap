@@ -16,6 +16,7 @@ development version
   reads in a FASTQ file by haplotype.
 * :pr:`377`: Speed-up of about 20-30% for ``whatshap polyphase`` via
   some optimizations in the read clustering algorithm.
+* Removed the deprecated ``--pigz`` option for ``whatshap split``
 
 v1.4 (2022-04-07)
 -----------------

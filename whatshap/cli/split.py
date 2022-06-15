@@ -19,7 +19,6 @@ import os
 import pysam
 from collections import defaultdict, Counter
 import itertools
-from argparse import SUPPRESS
 
 from xopen import xopen
 
@@ -44,7 +43,6 @@ def add_arguments(parser):
         'create gzipped file.')
     arg('--add-untagged', default=False, action='store_true',
         help='Add reads without tag to both H1 and H2 output streams.')
-    arg('--pigz', dest='pigz_deprecated', action='store_true', help=SUPPRESS)
     arg('--only-largest-block', default=False, action='store_true',
         help='Only consider reads to be tagged if they belong to the largest '
         'phased block (in terms of read count) on their respective chromosome')
@@ -356,13 +354,10 @@ def run_split(
     output_h2=None,
     output_untagged=None,
     add_untagged=False,
-    pigz_deprecated=False,
     only_largest_block=False,
     discard_unknown_reads=False,
     read_lengths_histogram=None,
 ):
-    if pigz_deprecated:
-        logger.warning("Ignoring deprecated --pigz option")
     timers = StageTimer()
     timers.start("split-run")
 
