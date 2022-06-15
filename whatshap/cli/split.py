@@ -11,7 +11,7 @@ FASTQ or BAM per haplotype.
 
 Examples:
 
-    whatshap split --output-h1 h1.fastq.gz  --output-h2 h2.fastq.gz reads.fastq.gz haplotypes.txt
+    whatshap split --output-h1 h1.fastq.gz --output-h2 h2.fastq.gz reads.fastq.gz haplotypes.txt
     whatshap split --output-h1 h1.bam --output-h2 h2.bam reads.bam haplotypes.txt
 """
 import logging
@@ -107,8 +107,7 @@ def process_haplotag_list_file(
     :return:
     """
 
-    is_header = haplolist.readline().startswith("#")
-    if not is_header:
+    if not haplolist.readline().startswith("#"):
         haplolist.seek(0)
 
     # needed to determine largest phased block
@@ -123,6 +122,8 @@ def process_haplotag_list_file(
     known_reads = set()
 
     readname_to_haplotype = defaultdict(int)
+
+    # No. of reads in the file
     total_reads = 0
 
     for line in haplolist:
@@ -135,12 +136,17 @@ def process_haplotag_list_file(
                 "Mapping the haplotype name to the corresponding haplotype "
                 "number failed. Currently, the haplotype name in the haplotag "
                 "list file has to be one of: none, H1, H2. The value that triggered "
-                "the error was: {}".format(haplo_name)
+                f"the error was: {haplo_name}"
             )
             raise
         if haplo_num == 0:
             if discard_unknown_reads:
                 known_reads.add(readname)
+
+            # TODO the below does not save any memory because
+            # the moment a nonexisting key in the defaultdict is accessed
+            # it is added, so it’ll just use the momery later.
+
             # Some "trickery" here:
             # Haplotype 0 means untagged;
             # the return value of a defaultdict(int)
@@ -153,19 +159,19 @@ def process_haplotag_list_file(
             block_sizes[chromosome][phaseset] += 1
             blocks_to_readnames[(chromosome, phaseset)].add(readname)
 
+    # No. of reads that were tagged with H1 or H2
     tagged_reads = len(readname_to_haplotype)
     untagged_reads = total_reads - tagged_reads
-    logger.info("Total number of reads in haplotag list: {}".format(total_reads))
-    logger.info("Total number of haplo-tagged reads: {}".format(tagged_reads))
-    logger.info("Total number of untagged reads: {}".format(untagged_reads))
+    logger.info("Total number of reads in haplotag list: %d", total_reads)
+    logger.info("Total number of haplo-tagged reads: %d", tagged_reads)
+    logger.info("Total number of untagged reads: %d", untagged_reads)
 
     if discard_unknown_reads:
-        known_reads = known_reads.union(set(readname_to_haplotype.keys()))
+        known_reads.update(readname_to_haplotype)
         num_known_reads = len(known_reads)
-        assert (
-            total_reads == num_known_reads
-        ), "Mismatch between total number of reads and known reads: {} vs {}".format(
-            total_reads, num_known_reads
+        assert total_reads == num_known_reads, (
+            "Total number of reads is not equal to number of known reads:"
+            f" {total_reads} != {num_known_reads}"
         )
 
     if only_largest_blocks:
@@ -175,8 +181,8 @@ def process_haplotag_list_file(
         )
         num_removed_reads = total_reads - len(readname_to_haplotype)
         logger.info(
-            "Number of reads removed / "
-            "reads not overlapping largest phased blocks: {}".format(num_removed_reads)
+            "Number of reads removed / reads not overlapping largest phased blocks: %d",
+            num_removed_reads,
         )
 
     return readname_to_haplotype, known_reads
@@ -267,7 +273,7 @@ def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, exit_
     input_format = detect_file_format(reads_file)
     if input_format is None:
         # TODO: this is a heuristic, need to extend utils::detect_file_format
-        if any([reads_file.endswith(ext) for ext in potential_fastq_extensions]):
+        if any(reads_file.endswith(ext) for ext in potential_fastq_extensions):
             input_format = "FASTQ"
         else:
             raise ValueError(
