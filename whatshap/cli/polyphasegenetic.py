@@ -129,7 +129,9 @@ def run_polyphasegenetic(
             )
 
         # determine pedigree
-        sample_to_coparent, sample_to_progeny = determine_pedigree(pedigree_file, samples, parent_reader.samples)
+        sample_to_coparent, sample_to_progeny = determine_pedigree(
+            pedigree_file, samples, parent_reader.samples
+        )
 
         # validate samples
         parent_sample_set = set(parent_reader.samples)
@@ -387,7 +389,9 @@ def determine_pedigree(pedigree_file, samples, parent_samples):
                 if co_parent not in parents[parent]:
                     parents[parent][co_parent] = []
                 if progeny in parents[parent][co_parent]:
-                    logger.warning("Duplicate trio for sample {} in pedfile line {}".format(parent, i))
+                    logger.warning(
+                        "Duplicate trio for sample {} in pedfile line {}".format(parent, i)
+                    )
                 else:
                     parents[parent][co_parent].append(progeny)
 
