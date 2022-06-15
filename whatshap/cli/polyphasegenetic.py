@@ -129,12 +129,7 @@ def run_polyphasegenetic(
             )
 
         # determine pedigree
-        sample_to_coparent, sample_to_progeny = determine_pedigree(
-            pedigree_file,
-            samples,
-            parent_reader.samples,
-            progeny_reader.samples if progeny_file else parent_reader.samples,
-        )
+        sample_to_coparent, sample_to_progeny = determine_pedigree(pedigree_file, samples, parent_reader.samples)
 
         # validate samples
         parent_sample_set = set(parent_reader.samples)
@@ -367,9 +362,10 @@ def phase_single_sample(
     return superreads, components
 
 
-def determine_pedigree(pedigree_file, samples, parent_samples, progeny_samples):
+def determine_pedigree(pedigree_file, samples, parent_samples):
 
     parents = dict()
+    print(samples)
     sample_to_coparent = dict()
     sample_to_progeny = dict()
     # store information from pedigree file in datastructure:
@@ -391,13 +387,15 @@ def determine_pedigree(pedigree_file, samples, parent_samples, progeny_samples):
                 if co_parent not in parents[parent]:
                     parents[parent][co_parent] = []
                 if progeny in parents[parent][co_parent]:
-                    logger.warn("Duplicate trio for sample {} in pedfile line {}".format(parent, i))
+                    logger.warning("Duplicate trio for sample {} in pedfile line {}".format(parent, i))
                 else:
                     parents[parent][co_parent].append(progeny)
 
     # Validate:
     # 1: Each requested phasable sample must occur as parent in pediegree file
     # 2: Each parent must have exactly one co-parent occuring in pedigree file AND parental VCF
+    print(samples)
+    print(parents)
     for sample in samples:
         if sample not in parents:
             msg = "Requested parent sample {} does not occur in pedfile.".format(sample)
@@ -428,7 +426,7 @@ def determine_pedigree(pedigree_file, samples, parent_samples, progeny_samples):
             sample_to_coparent[sample] = match
             sample_to_progeny[sample] = parents[sample][match]
             if multiple:
-                logger.warn(
+                logger.warning(
                     "Pedfile contains more co-parent candidates for {} than found in parental VCF.".format(
                         sample
                     )
