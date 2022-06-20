@@ -18,3 +18,7 @@ module = [
     "networkx",
 ]
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules"
+testpaths = ["tests", "whatshap"]
