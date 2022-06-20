@@ -10,6 +10,7 @@ cut sensitivity to balance out length and accuracy of phased blocks.
 import sys
 import logging
 import platform
+import argparse
 
 from collections import namedtuple, defaultdict
 
@@ -56,8 +57,7 @@ def run_polyphasegenetic(
     allele_error_rate=0.06,
     ratio_cutoff=0.0,
     complexity_support=0,
-    allow_homozyguous=False,
-    distrust_parent_genotypes=False,
+    distrust_genotypes=False,
     output=sys.stdout,
     samples=None,
     chromosomes=None,
@@ -149,8 +149,7 @@ def run_polyphasegenetic(
             allele_error_rate=allele_error_rate,
             complexity_support=complexity_support,
             ratio_cutoff=ratio_cutoff,
-            distrust_parent_genotypes=distrust_parent_genotypes,
-            allow_homozyguous=allow_homozyguous,
+            distrust_genotypes=distrust_genotypes,
             allow_deletions=indels,
             plot=plot,
             output=output,
@@ -266,7 +265,7 @@ def phase_single_sample(
     # compute offspring genotype likelihoods
     timers.start("scoring")
     logger.info("Computing progeny genotype likelihoods ...")
-    if param.distrust_parent_genotypes:
+    if param.distrust_genotypes:
         correct_variant_types(variant_table, progeny_table, progeny_list, varinfo, param)
     off_gl = get_offspring_gl(variant_table, progeny_table, progeny_list, varinfo, param)
 
@@ -324,7 +323,7 @@ def phase_single_sample(
     progeny_coverage = []
 
     for pos in range(len(variant_table)):
-        if not param.allow_homozyguous and len(marker_per_pos[pos]) == 0:
+        if len(marker_per_pos[pos]) == 0:
             continue
         for i in range(param.ploidy):
             if i in marker_per_pos[pos]:
@@ -535,12 +534,6 @@ def add_arguments(parser):
         help="The ploidy of the sample(s). Argument is required.",
     )
     arg(
-        "--ground-truth-file",
-        "-g",
-        required=False,
-        help="File containing a ground truth phasing. Only used for plotting.",
-    )
-    arg(
         "--scoring-window",
         metavar="SCORINGWINDOW",
         dest="scoring_window",
@@ -548,24 +541,6 @@ def add_arguments(parser):
         default=250,
         required=False,
         help="Size of the window (in variants) for statistical progeny scoring.",
-    )
-    arg(
-        "--allele-error-rate",
-        metavar="ALLELEERRORRATE",
-        dest="allele_error_rate",
-        type=float,
-        default=0.06,
-        required=False,
-        help="Assumed error rate for observed alleles among parents and progeny.",
-    )
-    arg(
-        "--ratio-cutoff",
-        metavar="RATIOCUTOFF",
-        dest="ratio_cutoff",
-        type=float,
-        default=0.0,
-        required=False,
-        help="Cutoff threshold for deviation of coverage ratio between parent, co-parent and progeny compared to median.",
     )
     arg(
         "--complexity-support",
@@ -584,19 +559,45 @@ def add_arguments(parser):
         help="Writes sides which are phased as homozyguous into output instead of old genotype.",
     )
     arg(
-        "--distrust-parent-genotypes",
-        dest="distrust_parent_genotypes",
+        "--distrust-genotypes",
+        dest="distrust_genotypes",
         default=False,
         action="store_true",
         help="Internally retypes the reported parent genotypes based on allele distribution in progeny samples.",
     )
+
+    # more arguments, which are experimental or for debugging and should not be presented to the user
+    arg(
+        "--ratio-cutoff",
+        metavar="RATIOCUTOFF",
+        dest="ratio_cutoff",
+        type=float,
+        default=0.0,
+        required=False,
+        help=argparse.SUPPRESS,
+    )  # help="Cutoff threshold for deviation of coverage ratio between parent, co-parent and progeny compared to median."
+    arg(
+        "--allele-error-rate",
+        metavar="ALLELEERRORRATE",
+        dest="allele_error_rate",
+        type=float,
+        default=0.06,
+        required=False,
+        help=argparse.SUPPRESS,
+    )  # help="Assumed error rate for observed alleles among parents and progeny."
     arg(
         "--plot",
         dest="plot",
         default=False,
         action="store_true",
-        help="Plots the variant clustering and arrangement.",
-    )
+        help=argparse.SUPPRESS,
+    )  # help="Plots the variant clustering and arrangement."
+    arg(
+        "--ground-truth-file",
+        "-g",
+        required=False,
+        help=argparse.SUPPRESS,
+    )  # help="File containing a ground truth phasing. Only used for plotting."
 
 
 def validate(args, parser):
