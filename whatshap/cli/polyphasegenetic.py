@@ -36,8 +36,7 @@ PhasingParameter = namedtuple(
         "allele_error_rate",
         "complexity_support",
         "ratio_cutoff",
-        "distrust_parent_genotypes",
-        "allow_homozyguous",
+        "distrust_genotypes",
         "allow_deletions",
         "plot",
         "output",
@@ -366,7 +365,6 @@ def phase_single_sample(
 def determine_pedigree(pedigree_file, samples, parent_samples):
 
     parents = dict()
-    print(samples)
     sample_to_coparent = dict()
     sample_to_progeny = dict()
     # store information from pedigree file in datastructure:
@@ -397,8 +395,6 @@ def determine_pedigree(pedigree_file, samples, parent_samples):
     # Validate:
     # 1: Each requested phasable sample must occur as parent in pediegree file
     # 2: Each parent must have exactly one co-parent occuring in pedigree file AND parental VCF
-    print(samples)
-    print(parents)
     for sample in samples:
         if sample not in parents:
             msg = "Requested parent sample {} does not occur in pedfile.".format(sample)
@@ -550,13 +546,6 @@ def add_arguments(parser):
         default=0,
         required=False,
         help="Indicates what level of genotype complexity is allowed for phased variants. 0 = simplex-nulliplex only, 1 = simplex-simplex on top, 2 = duplex-nulliplex on top. Default is 0.",
-    )
-    arg(
-        "--allow-homozyguous",
-        dest="allow_homozyguous",
-        default=False,
-        action="store_true",
-        help="Writes sides which are phased as homozyguous into output instead of old genotype.",
     )
     arg(
         "--distrust-genotypes",

@@ -68,7 +68,7 @@ def test_correct_variant_types():
         )
     )[0]
 
-    param = PhasingParameter(4, 20, 0.06, 0, 0, True, False, True, False, "")
+    param = PhasingParameter(4, 20, 0.06, 0, 0, True, True, False, "")
 
     vi = compute_phasable_variants(table, "Parent_A", "Parent_B", param)
     p1 = set(vi.get_phasable())
@@ -107,7 +107,7 @@ def test_compute_gt_likelihoods():
         )
     )[0]
 
-    param = PhasingParameter(4, 20, 0.06, 0, 0, True, False, True, False, "")
+    param = PhasingParameter(4, 20, 0.06, 0, 0, True, True, False, "")
     vi = compute_phasable_variants(table, "Parent_A", "Parent_B", param)
     binom_calc = CachedBinomialCalculator(param.ploidy, param.allele_error_rate)
     priors = compute_gt_likelihood_priors(param.ploidy)
