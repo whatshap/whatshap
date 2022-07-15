@@ -5,6 +5,7 @@ from collections import defaultdict
 from typing import List, Iterable, Tuple
 from scipy.stats import binom
 from scipy.special import binom as binom_coeff
+from functools import cache
 
 from whatshap.core import TriangleSparseMatrix, ProgenyGenotypeLikelihoods
 from whatshap.vcf import VariantTable
@@ -13,22 +14,11 @@ from whatshap.variantselection import VariantInfo
 logger = logging.getLogger(__name__)
 
 
-class CachedBinomialCalculator:
-    def __init__(self, ploidy, error_rate):
-        self.binom_cache = [dict() for _ in range(ploidy + 1)]
-        self.ploidy = ploidy
-        self.error_rate = error_rate
-        self.prob = [
-            (1 - g / ploidy) * error_rate + (g / ploidy) * (1 - error_rate)
-            for g in range(ploidy + 1)
-        ]
-
-    def get_binom_pmf(self, n, k, g):
-        if g < 0 or g > self.ploidy or not isinstance(g, int):
-            raise ValueError("Invalid genotype alt-count ({}).".format(g))
-        if (n, k) not in self.binom_cache[g]:
-            self.binom_cache[g][(n, k)] = binom.pmf(k, n, self.prob[g])
-        return self.binom_cache[g][(n, k)]
+@cache
+def get_binom_pmf(n, k, g, ploidy, error_rate):
+    if g < 0 or g > ploidy or not isinstance(g, int):
+        raise ValueError("Invalid genotype alt-count ({}).".format(g))
+    return binom.pmf(k, n, (1 - g / ploidy) * error_rate + (g / ploidy) * (1 - error_rate))
 
 
 def hyp(k, N, M, n):
@@ -126,21 +116,18 @@ def get_offspring_gl(
     off_gl = ProgenyGenotypeLikelihoods(
         phasing_param.ploidy, len(offspring), len(varinfo.get_node_positions())
     )
-    binom_calc = CachedBinomialCalculator(phasing_param.ploidy, phasing_param.allele_error_rate)
     for i, off in enumerate(offspring):
         gls = compute_gt_likelihoods(
             progeny_table,
             off,
             zip(varinfo.get_node_positions(), progeny_positions),
             varinfo,
-            phasing_param.ploidy,
-            binom_calc,
+            phasing_param,
             gt_gl_priors,
         )
         for pos, gl in enumerate(gls):
             if gl:
                 off_gl.setGlv(pos, i, gl)
-    del binom_calc
 
     return off_gl
 
@@ -239,8 +226,7 @@ def compute_gt_likelihoods(
     offspring: str,
     position_pairs: Iterable[Tuple[int, int]],
     varinfo: VariantInfo,
-    ploidy: int,
-    binom_calc: CachedBinomialCalculator,
+    param,
     gt_priors=None,
 ):
     gt_likelihoods = []
@@ -253,22 +239,24 @@ def compute_gt_likelihoods(
             gt_likelihoods.append(gt_likelihoods[-1])
             continue
         gl = defaultdict(float)
-        gl = [0.0 for _ in range(0, ploidy + 1)]
+        gl = [0.0 for _ in range(0, param.ploidy + 1)]
         ref = varinfo[parent_pos].ref
         alt = varinfo[parent_pos].alt
         ref_dp = allele_depths[progeny_pos][ref] if len(allele_depths[progeny_pos]) > ref else 0
         alt_dp = allele_depths[progeny_pos][alt] if len(allele_depths[progeny_pos]) > alt else 0
         num_alts_parent = varinfo[parent_pos].alt_count
         num_alts_coparent = varinfo[parent_pos].co_alt_count
-        if ref_dp + alt_dp >= ploidy:
-            for i in range(0, ploidy + 1):
-                gl[i] = binom_calc.get_binom_pmf(ref_dp + alt_dp, alt_dp, i)
+        if ref_dp + alt_dp >= param.ploidy:
+            for i in range(0, param.ploidy + 1):
+                gl[i] = get_binom_pmf(
+                    ref_dp + alt_dp, alt_dp, i, param.ploidy, param.allele_error_rate
+                )
                 if gt_priors:
                     gl[i] *= gt_priors[num_alts_parent][num_alts_coparent][i]
             # normalizing likelihoods to sum up to 1 is not necessary, because we compute likelihood
             # ratios later anyways. otherwise it would be done here
             sum_gl = sum(gl)
-            for i in range(0, ploidy + 1):
+            for i in range(0, param.ploidy + 1):
                 gl[i] = gl[i] / sum_gl
         else:
             gl = None

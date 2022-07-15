@@ -6,7 +6,6 @@ from whatshap.offspringscoring import (
     compute_gt_likelihood_priors,
     compute_gt_likelihoods,
     correct_variant_types,
-    CachedBinomialCalculator,
 )
 from whatshap.vcf import VcfReader
 
@@ -109,7 +108,6 @@ def test_compute_gt_likelihoods():
 
     param = PhasingParameter(4, 20, 0.06, 0, 0, True, True, False, "")
     vi = compute_phasable_variants(table, "Parent_A", "Parent_B", param)
-    binom_calc = CachedBinomialCalculator(param.ploidy, param.allele_error_rate)
     priors = compute_gt_likelihood_priors(param.ploidy)
 
     genpos_to_progenypos = dict()
@@ -135,8 +133,7 @@ def test_compute_gt_likelihoods():
         ptable.samples[0],
         zip(vi.get_node_positions(), progeny_positions),
         vi,
-        param.ploidy,
-        binom_calc,
+        param,
         priors,
     )
 
