@@ -161,7 +161,7 @@ def compute_ng50(blocks, chr_lengths):
             )
             return float("nan")
 
-    block_lengths = [b.rightmost_variant.position-b.leftmost_variant.position for b in blocks]
+    block_lengths = [b.rightmost_variant.position - b.leftmost_variant.position for b in blocks]
     return n50(block_lengths, target_length=target_length)
 
 
