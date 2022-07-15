@@ -1,0 +1,18 @@
+##fileformat=VCFv4.1
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PS,Number=1,Type=Integer,Description="Phase set">
+##contig=<ID=chrA,length=1000>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample1
+chrA	100	.	A	T	500.0	.	.	GT:PS	0|1:1
+chrA	150	.	C	GGG	500.0	.	.	GT:PS	1|0:1
+chrA	300	.	G	T	500.0	.	.	GT:PS	1|0:1
+chrA	350	.	GAG	T	500.0	.	.	GT:PS	1|0:1
+chrA	410	.	C	T	500.0	.	.	GT:PS	0|1:2
+chrA	460	.	G	T	500.0	.	.	GT:PS	0|1:2
+chrA	470	.	G 	A	500.0	.	.	GT:PS	0|1:2
+chrA	500	.	C	T	500.0	.	.	GT:PS	0|1:1
+chrA	600	.	T	T	500.0	.	.	GT:PS	0|1:1
+chrA	700	.	GA	TC	500.0	.	.	GT:PS	0|1:1
+chrA	800	.	C	G	500.0	.	.	GT:PS	0|1:3
+chrA	900	.	C	T	500.0	.	.	GT:PS	0|1:3
+chrA	950	.	G	TA	500.0	.	.	GT:PS	0|1:3

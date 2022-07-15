@@ -6,6 +6,7 @@ from collections import defaultdict
 from contextlib import ExitStack
 import dataclasses
 from statistics import median
+from typing import List, Tuple
 
 from ..vcf import VcfReader
 
@@ -63,6 +64,17 @@ class PhasedBlock:
 
     def count_snvs(self):
         return sum(int(variant.is_snv()) for variant in self.phases)
+
+    def split(self, split_left: int, split_right: int) -> Tuple["PhasedBlock", "PhasedBlock"]:
+        """Split a phaseblock in two based on given positions"""
+        left_block = PhasedBlock(chromosome=self.chromosome)
+        right_block = PhasedBlock(chromosome=self.chromosome)
+        for variant, phase in self.phases.items():
+            if variant.position < split_left:
+                left_block.add(variant, phase)
+            elif variant.position > split_right:
+                right_block.add(variant, phase)
+        return left_block, right_block
 
     def __repr__(self):
         return "PhasedBlock({})".format(str(self.phases))
@@ -124,6 +136,19 @@ class DetailedStats:
     block_n50: float
 
 
+def n50(lengths: List[int], target_length: int = None) -> int:
+    if target_length is None:
+        target_length = sum(lengths)
+
+    lengths.sort(reverse=True)
+    total = 0
+    for length in lengths:
+        total += length
+        if total >= 0.5 * target_length:
+            return length
+    return 0
+
+
 def compute_ng50(blocks, chr_lengths):
     chromosomes = set(b.chromosome for b in blocks)
     target_length = 0
@@ -136,29 +161,8 @@ def compute_ng50(blocks, chr_lengths):
             )
             return float("nan")
 
-    # Cut interleaved blocks to avoid inflating NG50 in this case
-    pos_sorted = sorted(blocks, key=lambda b: (b.chromosome, b.leftmost_variant.position))
-    block_lengths = []
-    for i, block in enumerate(pos_sorted):
-        if len(block) < 2:
-            continue
-        start, end = block.leftmost_variant.position, block.rightmost_variant.position
-        if i + 1 < len(pos_sorted):
-            next_block = pos_sorted[i + 1]
-            if (end > next_block.leftmost_variant.position) and (
-                block.chromosome == next_block.chromosome
-            ):
-                # logger.warning('Blocks are interleaved, cutting first block: end=%s --> %s',  end, next_block.leftmost_variant.position)
-                end = next_block.leftmost_variant.position
-        block_lengths.append(end - start)
-    block_lengths.sort(reverse=True)
-    s = 0
-    for l in block_lengths:
-        s += l
-        if s >= 0.5 * target_length:
-            return l
-
-    return 0
+    block_lengths = [b.rightmost_variant.position-b.leftmost_variant.position for b in blocks]
+    return n50(block_lengths, target_length=target_length)
 
 
 class PhasingStats:
@@ -194,6 +198,46 @@ class PhasingStats:
     def add_heterozygous_snvs(self, snvs: int):
         self.heterozygous_snvs += snvs
 
+    def get_nonoverlapping_blocks(self) -> List[PhasedBlock]:
+        """Split phase blocks into nonoverlapping subblocks"""
+        split_blocks = []
+        pos_sorted_blocks = sorted(
+            self.blocks, key=lambda b: (b.chromosome, b.leftmost_variant.position), reverse=True
+        )
+
+        # filter out blocks with only one variant
+        pos_sorted_blocks = [b for b in pos_sorted_blocks if len(b) > 1]
+
+        # iterate over blocks and split if overlapping until no blocks remain. non-overlapping
+        # blocks appended to split_blocks
+        while pos_sorted_blocks:
+            block = pos_sorted_blocks.pop()
+            if pos_sorted_blocks:
+                start, end = block.leftmost_variant.position, block.rightmost_variant.position
+                next_block = pos_sorted_blocks[-1]
+                next_block_start = next_block.leftmost_variant.position
+                next_block_end = next_block.rightmost_variant.position
+
+                # Check if next block overlapps current. If so split the current block.
+                if (end > next_block_start) and (block.chromosome == next_block.chromosome):
+                    block, new_block = block.split(next_block_start, next_block_end)
+
+                    # Update sorting if right-side block is added.
+                    if len(new_block) > 1:
+                        pos_sorted_blocks.append(new_block)
+                        pos_sorted_blocks = sorted(
+                            pos_sorted_blocks,
+                            key=lambda b: (b.chromosome, b.leftmost_variant.position),
+                            reverse=True,
+                        )
+
+                    # Skip the left-side block is it too short after splitting
+                    if len(block) < 2:
+                        continue
+            split_blocks.append(block)
+
+        return split_blocks
+
     def get(self, chr_lengths=None):
         """Return DetailedStats"""
         block_sizes = sorted(len(block) for block in self.blocks)
@@ -202,6 +246,8 @@ class PhasingStats:
         block_lengths = sorted(block.span() for block in self.blocks if len(block) > 1)
         phased_snvs = sum(block.count_snvs() for block in self.blocks if len(block) > 1)
         if block_sizes:
+            # Split interleaved blocks to avoid inflating NG50
+            split_blocks = self.get_nonoverlapping_blocks()
             return DetailedStats(
                 variants=self.variants,
                 phased=sum(block_sizes),
@@ -221,7 +267,7 @@ class PhasingStats:
                 heterozygous_variants=self.heterozygous_variants,
                 heterozygous_snvs=self.heterozygous_snvs,
                 phased_snvs=phased_snvs,
-                block_n50=compute_ng50(self.blocks, chr_lengths)
+                block_n50=compute_ng50(split_blocks, chr_lengths)
                 if chr_lengths is not None
                 else float("nan"),
             )
