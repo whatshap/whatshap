@@ -213,13 +213,13 @@ class PhasingStats:
         while pos_sorted_blocks:
             block = pos_sorted_blocks.pop()
             if pos_sorted_blocks:
-                start, end = block.leftmost_variant.position, block.rightmost_variant.position
+                block_end = block.rightmost_variant.position
                 next_block = pos_sorted_blocks[-1]
                 next_block_start = next_block.leftmost_variant.position
                 next_block_end = next_block.rightmost_variant.position
 
                 # Check if next block overlapps current. If so split the current block.
-                if (end > next_block_start) and (block.chromosome == next_block.chromosome):
+                if (block_end > next_block_start) and (block.chromosome == next_block.chromosome):
                     block, new_block = block.split(next_block_start, next_block_end)
 
                     # Update sorting if right-side block is added.
