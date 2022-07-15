@@ -382,8 +382,10 @@ def run_stats(
         total_stats = PhasingStats()
         chromosome_count = 0
         given_chromosomes = chromosomes
+        seen_chromosomes = set()
         for variant_table in parse_variant_tables(vcf_reader, given_chromosomes):
             if given_chromosomes:
+                seen_chromosomes.add(variant_table.chromosome)
                 if variant_table.chromosome not in given_chromosomes:
                     continue
             chromosome_count += 1
@@ -457,6 +459,9 @@ def run_stats(
                 print(*dataclasses.astuple(stats.get(chr_lengths)), sep="\t", file=tsv_file)
 
             total_stats += stats
+
+            if given_chromosomes and all(c in seen_chromosomes for c in given_chromosomes):
+                break
 
         if chromosome_count > 1:
             print("---------------- ALL chromosomes (aggregated) ----------------")
