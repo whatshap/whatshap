@@ -387,6 +387,10 @@ class VcfReader:
     def path(self) -> str:
         return self._vcf_reader.filename.decode()
 
+    def index_exists(self) -> bool:
+        """ "Check if VCF is indexed (.tbi or .csi)"""
+        return os.path.isfile(f"{self.path}.tbi") or os.path.isfile(f"{self.path}.csi")
+
     def _fetch(self, chromosome: str, start: int = 0, end: Optional[int] = None):
         try:
             records = self._vcf_reader.fetch(chromosome, start=start, stop=end)

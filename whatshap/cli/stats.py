@@ -299,6 +299,18 @@ def parse_chr_lengths(filename):
     return chr_lengths
 
 
+def parse_variant_tables(vcf_reader, chromosomes=None):
+    """
+    Parse variant_tables from vcf_reader. If chromosomes are given and VCF is indexed,
+    theses are accessed by direct lookup.
+    """
+    if chromosomes and vcf_reader.index_exists():
+        for chromosome in chromosomes:
+            yield vcf_reader.fetch(chromosome)
+    else:
+        yield from vcf_reader
+
+
 def run_stats(
     vcf,
     sample=None,
@@ -370,7 +382,7 @@ def run_stats(
         total_stats = PhasingStats()
         chromosome_count = 0
         given_chromosomes = chromosomes
-        for variant_table in vcf_reader:
+        for variant_table in parse_variant_tables(vcf_reader, given_chromosomes):
             if given_chromosomes:
                 if variant_table.chromosome not in given_chromosomes:
                     continue
