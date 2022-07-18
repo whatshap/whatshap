@@ -170,12 +170,7 @@ class VcfMultiallelicVariant(VcfVariant):
             (self.position == other.position)
             and (self.reference_allele == other.reference_allele)
             and (len(self.alternative_alleles) == len(other.alternative_alleles))
-            and all(
-                [
-                    self.alternative_alleles[i] == other.alternative_alleles[i]
-                    for i in range(len(self.alternative_alleles))
-                ]
-            )
+            and all(a == b for a, b in zip(self.alternative_alleles, other.alternative_alleles))
         )
 
     def __lt__(self, other):
@@ -201,9 +196,9 @@ class VcfMultiallelicVariant(VcfVariant):
         return self.alternative_alleles
 
     def is_snv(self) -> bool:
-        return any([self.reference_allele != alt for alt in self.alternative_alleles]) and (
+        return any(self.reference_allele != alt for alt in self.alternative_alleles) and (
             len(self.reference_allele) == 1
-            and all([len(alt) == 1 for alt in self.alternative_alleles])
+            and all(len(alt) == 1 for alt in self.alternative_alleles)
         )
 
     def normalized(self) -> "VcfMultiallelicVariant":
@@ -215,18 +210,10 @@ class VcfMultiallelicVariant(VcfVariant):
 
         """
         pos, ref, alts = self.position, self.reference_allele, self.alternative_alleles
-        while (
-            len(ref) >= 1
-            and all([len(alt) >= 1 for alt in alts])
-            and all([ref[-1] == alt[-1] for alt in alts])
-        ):
+        while ref and all(alts) and all(ref[-1] == alt[-1] for alt in alts):
             ref, alts = ref[:-1], [alt[:-1] for alt in alts]
 
-        while (
-            len(ref) >= 1
-            and all([len(alt) >= 1 for alt in alts])
-            and all([ref[0] == alt[0] for alt in alts])
-        ):
+        while ref and all(alts) and all(ref[0] == alt[0] for alt in alts):
             ref, alts = ref[1:], [alt[1:] for alt in alts]
             pos += 1
 
@@ -607,14 +594,13 @@ class VcfReader:
         depths = call["AD"]
         depth_code = 0
         if depths and None not in depths:
-            for i in range(len(depths) - 1, -1, -1):
-                if depths[i] > 4095:
+            for depth in reversed(depths):
+                if depth > 4095:
                     warn_once(
                         logger, "Allele depths of 4096 or higher detected. Cutting them off to 4095"
                     )
-                cnt = min(4095, depths[i])
-                depth_code = depth_code << 12
-                depth_code += cnt
+                cnt = min(4095, depth)
+                depth_code = (depth_code << 12) + cnt
 
         return depth_code
 
