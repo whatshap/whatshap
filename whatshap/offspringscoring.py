@@ -67,11 +67,11 @@ def correct_variant_types(
         total = sum([correction[old_gt][new_gt] for new_gt in correction[old_gt]])
         if total == 0:
             continue
-        logger.info("   {}/{} ({})".format(old_gt[0], old_gt[1], total))
+        logger.info(f"   {old_gt[0]}/{old_gt[1]} ({total})")
         for new_gt in correction[old_gt]:
             num = correction[old_gt][new_gt]
             perc = 100 * correction[old_gt][new_gt] / total
-            logger.info("      -> {}/{}: {} ({:2.1f}%)".format(new_gt[0], new_gt[1], num, perc))
+            logger.info("%s", f"      -> {new_gt[0]}/{new_gt[1]}: {num} ({perc:2.1f}%)")
 
 
 def get_offspring_gl(

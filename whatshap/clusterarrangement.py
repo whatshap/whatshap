@@ -61,13 +61,13 @@ def arrange_clusters(clustering, padding, ploidy):
 
     objVal = value(model.objective)
     logger.info(
-        "Arranged {} variants out of a total of {}".format(
-            int(objVal), sum([len(clust) for clust in clustering])
-        )
+        "Arranged %i variants out of a total of %i",
+        int(objVal),
+        sum([len(clust) for clust in clustering]),
     )
 
     for i in range(ploidy):
         selected.append([filtered_to_real[j] for j in range(c) if x[i][j].varValue > 0.999])
-        logger.info("   h{}: {}".format(i, selected[-1]))
+        logger.info("   h%i: %s", i, selected[-1])
 
     return selected

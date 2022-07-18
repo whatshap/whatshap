@@ -182,7 +182,7 @@ def run_polyphasegenetic(
                     logger.info("---- Processing individual %s", sample)
                     coparent = sample_to_coparent[sample]
                     progeny_list = sample_to_progeny[sample]
-                    logger.info("Detected {} as co-parent for {}.".format(coparent, sample))
+                    logger.info("Detected %s as co-parent for %s.", coparent, sample)
 
                     superreads[sample], components[sample] = phase_single_sample(
                         chromosome,
@@ -259,7 +259,7 @@ def phase_single_sample(
         logger.info("Filtering variant positions based on coverage ratios ...")
         old_num = len(varinfo.get_phasable())
         filter_variants(varinfo, parent_cov, co_parent_cov, progeny_cov, param.ratio_cutoff)
-        logger.info("Kept {} out of {} variants.".format(len(varinfo.get_phasable()), old_num))
+        logger.info("Kept %i out of %i variants.", len(varinfo.get_phasable()), old_num)
 
     # compute offspring genotype likelihoods
     timers.start("scoring")
@@ -373,9 +373,7 @@ def determine_pedigree(pedigree_file, samples, parent_samples):
         for i, line in enumerate(ped):
             tokens = line.replace("\n", "").split(" ")
             if len(tokens) != 3:
-                logger.error(
-                    "Line {} in pedfile contains {} values instead of 3.".format(i, len(tokens))
-                )
+                logger.error("Line %i in pedfile contains %i values instead of 3.", i, len(tokens))
                 raise CommandLineError(None)
             parent = tokens[0]
             co_parent = tokens[1]
@@ -386,9 +384,7 @@ def determine_pedigree(pedigree_file, samples, parent_samples):
                 if co_parent not in parents[parent]:
                     parents[parent][co_parent] = []
                 if progeny in parents[parent][co_parent]:
-                    logger.warning(
-                        "Duplicate trio for sample {} in pedfile line {}".format(parent, i)
-                    )
+                    logger.warning("Duplicate trio for sample %s in pedfile line %i", parent, i)
                 else:
                     parents[parent][co_parent].append(progeny)
 
