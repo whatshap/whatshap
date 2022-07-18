@@ -59,26 +59,6 @@ class VcfVariant(ABC):
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
     @abstractmethod
-    def __repr__(self):
-        pass
-
-    @abstractmethod
-    def __hash__(self):
-        pass
-
-    @abstractmethod
-    def __eq__(self, other):
-        pass
-
-    @abstractmethod
-    def __lt__(self, other):
-        pass
-
-    @abstractmethod
-    def get_position(self):
-        pass
-
-    @abstractmethod
     def get_ref_allele(self):
         pass
 
@@ -100,7 +80,6 @@ class VcfVariant(ABC):
 
 
 class VcfBiallelicVariant(VcfVariant):
-    """Bi-allelic implementation of VcfVariant"""
 
     __slots__ = ("position", "reference_allele", "alternative_allele")
 
@@ -133,9 +112,6 @@ class VcfBiallelicVariant(VcfVariant):
             other.reference_allele,
             other.alternative_allele,
         )
-
-    def get_position(self):
-        return self.position
 
     def get_ref_allele(self):
         return self.reference_allele
@@ -173,7 +149,6 @@ class VcfBiallelicVariant(VcfVariant):
 
 
 class VcfMultiallelicVariant(VcfVariant):
-    """Multi-allelic implementation of VcfVariant"""
 
     __slots__ = ("position", "reference_allele", "alternative_alleles")
 
@@ -215,9 +190,6 @@ class VcfMultiallelicVariant(VcfVariant):
                 return alt_self < alt_other
 
         return False
-
-    def get_position(self):
-        return self.position
 
     def get_ref_allele(self):
         return self.reference_allele
@@ -1217,9 +1189,6 @@ class PhasedVcfWriter(VcfAugmenter):
             for sample in self.samples:
                 if sample in sample_superreads:
                     components = sample_components[sample]
-                    haploid_components = (
-                        sample_haploid_components[sample] if sample_haploid_components else None
-                    )
                     phases = sample_phases[sample]
                     if pos in components and pos in phases:
                         break

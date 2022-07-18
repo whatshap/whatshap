@@ -20,7 +20,7 @@ InducedCostHeuristic::InducedCostHeuristic(StaticSparseGraph& param_graph, bool 
      * edges may either imply other edges to be permanent or forbidden or they might cause
      * contradictions, i.e. the cost the make it a clique graph is infinity.*/
     edgeHeap.initInducedCosts();
-		if (!resolvePermanentForbidden()) {
+	if (!resolvePermanentForbidden()) {
         totalCost = std::numeric_limits<EdgeWeight>::infinity();
     }
     totalEdges = edgeHeap.numUnprocessed();
