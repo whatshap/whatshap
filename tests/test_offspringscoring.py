@@ -1,6 +1,6 @@
 from scipy.special import binom as binom_coeff
 
-from whatshap.cli.polyphasegenetic import PhasingParameter
+from whatshap.cli.polyphasegenetic import PolyphaseGeneticParameter
 from whatshap.variantselection import compute_phasable_variants
 from whatshap.offspringscoring import (
     compute_gt_likelihood_priors,
@@ -67,7 +67,7 @@ def test_correct_variant_types():
         )
     )[0]
 
-    param = PhasingParameter(4, 20, 0.06, 0, 0, True, True, False, "")
+    param = PolyphaseGeneticParameter(4, 20, 0.06, 0, 0, True, True, False, "")
 
     vi = compute_phasable_variants(table, "Parent_A", "Parent_B", param)
     p1 = set(vi.get_phasable())
@@ -106,7 +106,7 @@ def test_compute_gt_likelihoods():
         )
     )[0]
 
-    param = PhasingParameter(4, 20, 0.06, 0, 0, True, True, False, "")
+    param = PolyphaseGeneticParameter(4, 20, 0.06, 0, 0, True, True, False, "")
     vi = compute_phasable_variants(table, "Parent_A", "Parent_B", param)
     priors = compute_gt_likelihood_priors(param.ploidy)
 

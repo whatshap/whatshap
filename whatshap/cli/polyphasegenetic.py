@@ -12,7 +12,8 @@ import logging
 import platform
 import argparse
 
-from collections import namedtuple, defaultdict
+from collections import defaultdict
+from dataclasses import dataclass
 
 from contextlib import ExitStack
 
@@ -28,20 +29,19 @@ from whatshap.clusterarrangement import arrange_clusters
 
 __author__ = "Sven Schrinner"
 
-PhasingParameter = namedtuple(
-    "PhasingParameter",
-    [
-        "ploidy",
-        "scoring_window",
-        "allele_error_rate",
-        "complexity_support",
-        "ratio_cutoff",
-        "distrust_genotypes",
-        "allow_deletions",
-        "plot",
-        "output",
-    ],
-)
+
+@dataclass
+class PolyphaseGeneticParameter:
+    ploidy: int
+    scoring_window: int
+    allele_error_rate: float
+    complexity_support: int
+    ratio_cutoff: float
+    distrust_genotypes: bool
+    allow_deletions: bool
+    plot: bool
+    output: str
+
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +142,7 @@ def run_polyphasegenetic(
         samples = frozenset(samples)
 
         # Store phasing parameters in tuple to keep function signatures cleaner
-        phasing_param = PhasingParameter(
+        phasing_param = PolyphaseGeneticParameter(
             ploidy=ploidy,
             scoring_window=scoring_window,
             allele_error_rate=allele_error_rate,

@@ -1,4 +1,4 @@
-from whatshap.cli.polyphasegenetic import PhasingParameter
+from whatshap.cli.polyphasegenetic import PolyphaseGeneticParameter
 from whatshap.variantselection import VariantInfo, compute_phasable_variants
 from whatshap.vcf import VcfReader
 
@@ -80,7 +80,7 @@ def test_compute_phasable_variants_1():
     )
     table = tables[0]
 
-    param = PhasingParameter(4, 20, 0.06, 0, 0, True, True, False, "")
+    param = PolyphaseGeneticParameter(4, 20, 0.06, 0, 0, True, True, False, "")
 
     vi = compute_phasable_variants(table, "Parent_A", "Parent_B", param)
     non_phasable = [
@@ -149,7 +149,7 @@ def test_compute_phasable_variants_2():
     )
     table = tables[0]
 
-    param = PhasingParameter(4, 20, 0.06, 1, 0, True, True, False, "")
+    param = PolyphaseGeneticParameter(4, 20, 0.06, 1, 0, True, True, False, "")
 
     vi = compute_phasable_variants(table, "Parent_A", "Parent_B", param)
     non_phasable = [
@@ -217,7 +217,7 @@ def test_compute_phasable_variants_3():
     )
     table = tables[0]
 
-    param = PhasingParameter(4, 20, 0.06, 2, 0, True, True, False, "")
+    param = PolyphaseGeneticParameter(4, 20, 0.06, 2, 0, True, True, False, "")
 
     vi = compute_phasable_variants(table, "Parent_A", "Parent_B", param)
     non_phasable = [33, 34, 36, 38, 96, 99, 106]
