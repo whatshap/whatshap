@@ -55,7 +55,7 @@ class VariantCallPhase:
     quality: Optional[int]
 
 
-class VcfVariant:
+class VcfVariant(ABC):
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
     @abstractmethod
@@ -634,7 +634,7 @@ class VcfReader:
         """
         depths = call["AD"]
         depth_code = 0
-        if depths is not None and len(depths) > 0 and None not in depths:
+        if depths and None not in depths:
             for i in range(len(depths) - 1, -1, -1):
                 if depths[i] > 4095:
                     warn_once(
@@ -663,7 +663,7 @@ class VcfReader:
                     continue
 
             pos, ref, alts = record.start, str(record.ref), [str(alt) for alt in record.alts]
-            if len(ref) == 1 and all([len(alt) == 1 for alt in alts]):
+            if len(ref) == 1 and all(len(alt) == 1 for alt in alts):
                 n_snvs += 1
             else:
                 n_other += 1
@@ -767,10 +767,7 @@ class VcfReader:
                 phases = [None] * len(self.samples)
 
             if self.allele_depth:
-                depths = []
-                for sample_name, call in record.samples.items():
-                    depth = self._extract_AD_depth(call)
-                    depths.append(depth)
+                depths = [self._extract_AD_depth(call) for call in record.samples.values()]
             else:
                 depths = [None] * len(record.samples)
 
