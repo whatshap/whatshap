@@ -79,7 +79,7 @@ class VcfVariant(ABC):
         pass
 
 
-class VcfBiallelicVariant(VcfVariant):
+class BiallelicVcfVariant(VcfVariant):
 
     __slots__ = ("position", "reference_allele", "alternative_allele")
 
@@ -92,7 +92,7 @@ class VcfBiallelicVariant(VcfVariant):
         self.alternative_allele = alternative_allele
 
     def __repr__(self):
-        return "VcfBiallelicVariant({}, {!r}, {!r})".format(
+        return "BiallelicVcfVariant({}, {!r}, {!r})".format(
             self.position, self.reference_allele, self.alternative_allele
         )
 
@@ -127,15 +127,15 @@ class VcfBiallelicVariant(VcfVariant):
             len(self.reference_allele) == len(self.alternative_allele) == 1
         )
 
-    def normalized(self) -> "VcfBiallelicVariant":
+    def normalized(self) -> "BiallelicVcfVariant":
         """
         Return a normalized version of this variant.
 
         Common prefixes and/or suffixes between the reference and alternative allele are removed,
         and the position is adjusted as necessary.
 
-        >>> VcfBiallelicVariant(100, 'GCTGTT', 'GCTAAATT').normalized()
-        VcfBiallelicVariant(103, 'G', 'AAA')
+        >>> BiallelicVcfVariant(100, 'GCTGTT', 'GCTAAATT').normalized()
+        BiallelicVcfVariant(103, 'G', 'AAA')
         """
         pos, ref, alt = self.position, self.reference_allele, self.alternative_allele
         while len(ref) >= 1 and len(alt) >= 1 and ref[-1] == alt[-1]:
@@ -145,10 +145,10 @@ class VcfBiallelicVariant(VcfVariant):
             ref, alt = ref[1:], alt[1:]
             pos += 1
 
-        return VcfBiallelicVariant(pos, ref, alt)
+        return BiallelicVcfVariant(pos, ref, alt)
 
 
-class VcfMultiallelicVariant(VcfVariant):
+class MultiallelicVcfVariant(VcfVariant):
 
     __slots__ = ("position", "reference_allele", "alternative_alleles")
 
@@ -158,7 +158,7 @@ class VcfMultiallelicVariant(VcfVariant):
         self.alternative_alleles = alternative_alleles
 
     def __repr__(self):
-        return "VcfMultiallelicVariant({}, {!r}, {!r})".format(
+        return "MultiallelicVcfVariant({}, {!r}, {!r})".format(
             self.position, self.reference_allele, self.alternative_alleles
         )
 
@@ -201,7 +201,7 @@ class VcfMultiallelicVariant(VcfVariant):
             and all(len(alt) == 1 for alt in self.alternative_alleles)
         )
 
-    def normalized(self) -> "VcfMultiallelicVariant":
+    def normalized(self) -> "MultiallelicVcfVariant":
         """
         Return a normalized version of this variant.
 
@@ -217,7 +217,7 @@ class VcfMultiallelicVariant(VcfVariant):
             ref, alts = ref[1:], [alt[1:] for alt in alts]
             pos += 1
 
-        return VcfMultiallelicVariant(pos, ref, alts)
+        return MultiallelicVcfVariant(pos, ref, alts)
 
 
 class GenotypeLikelihoods:
@@ -730,11 +730,11 @@ class VcfReader:
                 depths = [None] * len(record.samples)
 
             if len(alts) == 1:
-                variant = VcfBiallelicVariant(
+                variant = BiallelicVcfVariant(
                     position=pos, reference_allele=ref, alternative_allele=alts[0]
                 )
             else:
-                variant = VcfMultiallelicVariant(
+                variant = MultiallelicVcfVariant(
                     position=pos, reference_allele=ref, alternative_alleles=alts
                 )
             table.add_variant(variant, genotypes, phases, genotype_likelihoods, depths)
@@ -1209,7 +1209,7 @@ class PhasedVcfWriter(VcfAugmenter):
                 if pos in genotypes and genotypes[pos] != gt_type:
                     # call['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
                     call["GT"] = tuple(genotypes[pos].as_vector())
-                    variant = VcfBiallelicVariant(record.start, record.ref, record.alts[0])
+                    variant = BiallelicVcfVariant(record.start, record.ref, record.alts[0])
                     genotype_changes.append(
                         GenotypeChange(sample, chromosome, variant, gt_type, genotypes[pos])
                     )
