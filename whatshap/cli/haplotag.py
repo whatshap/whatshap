@@ -234,7 +234,10 @@ def prepare_haplotag_information(
             if quality == 0:
                 continue
             haplotype = 0 if quality > 0 else 1
-            BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, haplotype, phaseset))
+
+            if not ignore_linked_read and read.has_BX_tag():
+                BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, haplotype, phaseset))
+
             for r in reads_to_consider:
                 read_to_haplotype[r.name] = (haplotype, abs(quality), phaseset)
                 logger.debug(
