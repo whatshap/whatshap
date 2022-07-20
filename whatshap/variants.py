@@ -177,9 +177,10 @@ class ReadSetReader:
             ):
                 i += 1
 
-            barcode = ""
-            if alignment.bam_alignment.has_tag("BX"):
+            try:
                 barcode = alignment.bam_alignment.get_tag("BX")
+            except KeyError:
+                barcode = ""
 
             read = Read(
                 alignment.bam_alignment.qname,
