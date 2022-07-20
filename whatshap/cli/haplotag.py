@@ -188,9 +188,10 @@ def prepare_haplotag_information(
 
         # map BX tag to list of reads
         bx_tag_to_readlist = defaultdict(list)
-        for read in read_set:
-            if read.has_BX_tag() and not ignore_linked_read:
-                bx_tag_to_readlist[read.BX_tag].append(read)
+        if not ignore_linked_read:
+            for read in read_set:
+                if read.has_BX_tag():
+                    bx_tag_to_readlist[read.BX_tag].append(read)
 
         # all reads processed so far
         processed_reads = set()
@@ -204,12 +205,13 @@ def prepare_haplotag_information(
             reads_to_consider = {read}
 
             # reads with same BX tag need to be considered too (unless --ignore-linked-read is set)
-            if read.has_BX_tag() and not ignore_linked_read:
+            if not ignore_linked_read and read.has_BX_tag():
                 for r in bx_tag_to_readlist[read.BX_tag]:
                     if r.name not in processed_reads:
                         # only select reads close to current one
                         if abs(read.reference_start - r.reference_start) <= linked_read_cutoff:
                             reads_to_consider.add(r)
+
             for r in reads_to_consider:
                 processed_reads.add(r.name)
                 for v in r:
