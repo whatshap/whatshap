@@ -135,6 +135,7 @@ def attempt_add_phase_information(
                 if abs(reference_start - alignment.reference_start) <= linked_read_cutoff:
                     haplotype_name = "H{}".format(haplotype + 1)
                     alignment.set_tag("HP", haplotype + 1)
+                    alignment.set_tag("PC", value=None)
                     alignment.set_tag("PS", phaseset)
                     is_tagged = 1
                     break
@@ -590,15 +591,16 @@ def run_haplotag(
                     n_alignments += 1
                     haplotype_name = "none"
                     phaseset = "none"
-                    alignment.set_tag("HP", value=None)
-                    alignment.set_tag("PC", value=None)
-                    alignment.set_tag("PS", value=None)
+
                     if variant_table is None or ignore_read(alignment, tag_supplementary):
                         # - If no variants in VCF for this chromosome,
                         # alignments just get written to output
                         # - Ignored reads are simply
                         # written to the output BAM
-                        pass
+                        # Existing tags HP, PC and PS are removed
+                        alignment.set_tag("HP", value=None)
+                        alignment.set_tag("PC", value=None)
+                        alignment.set_tag("PS", value=None)
                     else:
                         (is_tagged, haplotype_name, phaseset) = attempt_add_phase_information(
                             alignment,
@@ -608,6 +610,13 @@ def run_haplotag(
                             ignore_linked_read,
                         )
                         n_tagged += is_tagged
+
+                        if not is_tagged:
+                            # Remove any existing tags HP, PC and PS if the aligment does
+                            # not have phasing information
+                            alignment.set_tag("HP", value=None)
+                            alignment.set_tag("PC", value=None)
+                            alignment.set_tag("PS", value=None)
 
                     bam_writer.write(alignment)
                     if haplotag_list is not None and not (alignment.is_secondary or alignment.is_supplementary):
