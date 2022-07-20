@@ -610,7 +610,7 @@ def run_haplotag(
                         n_tagged += is_tagged
 
                     bam_writer.write(alignment)
-                    if not (alignment.is_secondary or alignment.is_supplementary):
+                    if haplotag_list is not None and not (alignment.is_secondary or alignment.is_supplementary):
                         print(
                             alignment.query_name,
                             haplotype_name,
