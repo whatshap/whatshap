@@ -190,17 +190,15 @@ class GeneticMapRecombinationCostComputer(RecombinationCostComputer):
                     continue
                 if len(fields) != 3:
                     raise ParseError(
-                        "Error at line {} of genetic map file '{}': "
-                        "Found {} fields instead of 3".format(line_number, filename, len(fields))
+                        f"Error at line {line_number} of genetic map file '{filename}': "
+                        f"Found {len(fields)} fields instead of 3"
                     )
                 try:
                     position = int(fields[0])
                     cum_distance = float(fields[2])
                 except ValueError as e:
                     raise ParseError(
-                        "Error at line {} of genetic map file '{}': {}".format(
-                            line_number, filename, e
-                        )
+                        f"Error at line {line_number} of genetic map file '{filename}': {e}"
                     )
                 genetic_map.append(
                     RecombinationMapEntry(position=position, cum_distance=cum_distance)
