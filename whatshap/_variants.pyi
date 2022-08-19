@@ -1,5 +1,4 @@
-from collections import Sequence
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Sequence
 
 from pysam import AlignedSegment
 

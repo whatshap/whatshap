@@ -4,7 +4,9 @@ Pedigree-related functions
 from abc import ABC, abstractmethod
 
 import math
-from typing import Optional
+from pathlib import Path
+
+from typing import Optional, Union
 from collections import Counter, OrderedDict, defaultdict
 from dataclasses import dataclass
 import logging
@@ -33,7 +35,7 @@ class RecombinationEvent:
     recombination_cost: float
 
 
-def _interpolate(point, start_pos, end_pos, start_value, end_value):
+def _interpolate(point: int, start_pos: int, end_pos: int, start_value: int, end_value: int):
     assert start_pos <= point <= end_pos
     if start_pos == point == end_pos:
         assert start_value == end_value
@@ -41,7 +43,7 @@ def _interpolate(point, start_pos, end_pos, start_value, end_value):
     return start_value + ((point - start_pos) * (end_value - start_value) / (end_pos - start_pos))
 
 
-MINIMUM_GENETIC_DISTANCE = 1e-10  # cM
+MINIMUM_GENETIC_DISTANCE: float = 1e-10  # cM
 
 
 def recombination_cost_map(genetic_map, positions):
@@ -174,7 +176,7 @@ class GeneticMapRecombinationCostComputer(RecombinationCostComputer):
         self._genetic_map = self.load_genetic_map(genetic_map_path)
 
     @staticmethod
-    def load_genetic_map(filename):
+    def load_genetic_map(filename: Union[str, Path]):
         genetic_map = []
 
         warned_zero_distance = False
