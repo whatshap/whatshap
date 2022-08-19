@@ -118,7 +118,7 @@ def attempt_add_phase_information(
     phaseset = "none"
     try:
         haplotype, quality, phaseset = read_to_haplotype[alignment.query_name]
-        haplotype_name = "H{}".format(haplotype + 1)
+        haplotype_name = f"H{haplotype + 1}"
         alignment.set_tag("HP", haplotype + 1)
         alignment.set_tag("PC", quality)
         alignment.set_tag("PS", phaseset)
@@ -129,7 +129,7 @@ def attempt_add_phase_information(
             read_clouds = bxtag_to_haplotype[alignment.get_tag("BX")]
             for (reference_start, haplotype, phaseset) in read_clouds:
                 if abs(reference_start - alignment.reference_start) <= linked_read_cutoff:
-                    haplotype_name = "H{}".format(haplotype + 1)
+                    haplotype_name = f"H{haplotype + 1}"
                     alignment.set_tag("HP", haplotype + 1)
                     alignment.set_tag("PS", phaseset)
                     is_tagged = 1
@@ -145,11 +145,9 @@ def load_chromosome_variants(vcf_reader, chromosome, regions):
     :return:
     """
     try:
-        logger.debug("Loading variants from {} distinct region(s)".format(len(regions)))
+        logger.debug(f"Loading variants from {len(regions)} distinct region(s)")
         variant_table = vcf_reader.fetch_regions(chromosome, regions)
-        logger.debug(
-            "Loaded {} variants for chromosome {} in VCF".format(len(variant_table), chromosome)
-        )
+        logger.debug(f"Loaded {len(variant_table)} variants for chromosome {chromosome} in VCF")
     except OSError as err:
         # not entirely clear to me why this could raise
         # an OSError at this point?
@@ -282,7 +280,7 @@ def compute_variant_file_samples_to_use(vcf_samples, user_given_samples, ignore_
     samples_in_vcf = set(vcf_samples)
     if len(samples_in_vcf) < 1:
         raise VcfError("No samples detected in VCF file; cannot perform haplotagging")
-    logger.info("Found {} sample(s) in input VCF".format(len(samples_in_vcf)))
+    logger.info(f"Found {len(samples_in_vcf)} sample(s) in input VCF")
     logger.debug(
         "Found the following samples in input VCF: {}".format(" - ".join(sorted(samples_in_vcf)))
     )
@@ -307,7 +305,7 @@ def compute_variant_file_samples_to_use(vcf_samples, user_given_samples, ignore_
             )
 
         samples_to_use = samples_in_vcf.intersection(given_samples)
-        logger.info("Keeping {} sample(s) for haplo-tagging".format(len(samples_to_use)))
+        logger.info(f"Keeping {len(samples_to_use)} sample(s) for haplo-tagging")
         logger.debug(
             "Keeping the following samples for haplo-tagging: {}".format(
                 " - ".join(sorted(samples_to_use))
@@ -321,9 +319,9 @@ def compute_shared_samples(bam_reader, ignore_read_groups, vcf_samples):
     Return final samples to use for haplo-tagging
     """
     read_groups = bam_reader.header.get("RG", [])
-    bam_samples = set((rg["SM"] if "SM" in rg else "") for rg in read_groups)
+    bam_samples = {(rg["SM"] if "SM" in rg else "") for rg in read_groups}
 
-    logger.info("Found {} sample(s) in BAM file".format(len(bam_samples)))
+    logger.info(f"Found {len(bam_samples)} sample(s) in BAM file")
     logger.debug(
         "Found the following samples in BAM file: {}".format(",".join(sorted(bam_samples)))
     )
@@ -395,7 +393,7 @@ def open_output_alignment_file(aln_output, reference, vcf_md5, bam_header, threa
         )
     except OSError as err:
         raise CommandLineError(
-            "Error while initializing alignment output file at path: {}\n{}".format(aln_output, err)
+            f"Error while initializing alignment output file at path: {aln_output}\n{err}"
         )
 
     return bam_writer
@@ -408,7 +406,7 @@ def open_haplotag_writer(path):
         writer = xopen(path, "wt")
     except OSError as err:
         raise CommandLineError(
-            "Error while initializing haplotag list output at path: {}\n{}".format(path, err)
+            f"Error while initializing haplotag list output at path: {path}\n{err}"
         )
     logger.debug("Writing header line to haplotag list output file")
     print("#readname", "haplotype", "phaseset", "chromosome", sep="\t", file=writer)
@@ -478,9 +476,7 @@ def run_haplotag(
         try:
             vcf_reader = stack.enter_context(VcfReader(variant_file, indels=True, phases=True))
         except OSError as err:
-            raise CommandLineError(
-                "Error while loading variant file {}: {}".format(variant_file, err)
-            )
+            raise CommandLineError(f"Error while loading variant file {variant_file}: {err}")
 
         use_vcf_samples = compute_variant_file_samples_to_use(
             vcf_reader.samples, given_samples, ignore_read_groups
@@ -491,9 +487,7 @@ def run_haplotag(
                 pysam.AlignmentFile(alignment_file, "rb", require_index=True)
             )
         except OSError as err:
-            raise CommandLineError(
-                "Error while loading alignment file {}: {}".format(alignment_file, err)
-            )
+            raise CommandLineError(f"Error while loading alignment file {alignment_file}: {err}")
         # This checks also sample compatibility with VCF
         shared_samples = compute_shared_samples(bam_reader, ignore_read_groups, use_vcf_samples)
 
@@ -537,7 +531,7 @@ def run_haplotag(
         n_multiple_phase_sets = 0
 
         for chrom, regions in user_regions.items():
-            logger.debug("Processing chromosome {}".format(chrom))
+            logger.debug(f"Processing chromosome {chrom}")
 
             # If there are no alignments for this chromosome, skip it. This allows to have
             # extra chromosomes in the BAM compared to the VCF as long as they are not actually
@@ -617,7 +611,7 @@ def run_haplotag(
                         )
 
                     if n_alignments % 100000 == 0:
-                        logger.debug("Processed {} alignment records.".format(n_alignments))
+                        logger.debug(f"Processed {n_alignments} alignment records.")
         timers.stop("haplotag-process")
         logger.debug("Processing complete (time: {})".format(timers.elapsed("haplotag-process")))
 

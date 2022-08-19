@@ -124,7 +124,7 @@ class GenotypeLikelihoods:
         self.log_prob_genotypes = log_prob_genotypes
 
     def __repr__(self):
-        return "GenotypeLikelihoods({})".format(self.log_prob_genotypes)
+        return f"GenotypeLikelihoods({self.log_prob_genotypes})"
 
     def __eq__(self, other):
         if other is None:
@@ -236,7 +236,7 @@ class VariantTable:
     def num_of_blocks_of(self, sample: str) -> int:
         """Retrieve the number of blocks of the sample"""
         return len(
-            set(i.block_id for i in self.phases[self._sample_to_index[sample]] if i is not None)
+            {i.block_id for i in self.phases[self._sample_to_index[sample]] if i is not None}
         )
 
     def id_of(self, sample: str) -> int:
@@ -324,9 +324,7 @@ class VariantTable:
             if phase.block_id in read_map:
                 read_map[phase.block_id].add_variant(variant.position, phase.phase[0], quality)
             else:
-                r = Read(
-                    "{}_block_{}".format(sample, phase.block_id), mapq, source_id, numeric_sample_id
-                )
+                r = Read(f"{sample}_block_{phase.block_id}", mapq, source_id, numeric_sample_id)
                 r.add_variant(variant.position, phase.phase[0], quality)
                 read_map[phase.block_id] = r
         for key, read in read_map.items():
@@ -394,9 +392,7 @@ class VcfReader:
             if "invalid contig" in e.args[0]:
                 raise VcfInvalidChromosome(e.args[0]) from None
             elif "fetch requires an index" in e.args[0]:
-                raise VcfIndexMissing(
-                    "{} is missing an index (.tbi or .csi)".format(self._path)
-                ) from None
+                raise VcfIndexMissing(f"{self._path} is missing an index (.tbi or .csi)") from None
             else:
                 raise
         return records
@@ -524,7 +520,7 @@ class VcfReader:
                             elif self.ploidy is None:
                                 self.ploidy = phase_ploidy
                             elif phase_ploidy != self.ploidy:
-                                print("phase= {}".format(phase))
+                                print(f"phase= {phase}")
                                 raise PloidyError(
                                     "Phasing information contains inconsistent ploidy ({} and "
                                     "{})".format(self.ploidy, phase_ploidy)
@@ -677,14 +673,14 @@ def augment_header(header: VariantHeader, contigs: List[str], formats: List[str]
         try:
             h = PREDEFINED_FORMATS[fmt]
         except KeyError:
-            raise VcfError("FORMAT {!r} not defined in VCF header".format(fmt)) from None
+            raise VcfError(f"FORMAT {fmt!r} not defined in VCF header") from None
         header.add_line(h.line())
 
     for info in infos:
         try:
             h = PREDEFINED_INFOS[info]
         except KeyError:
-            raise VcfError("INFO {!r} not defined in VCF header".format(info)) from None
+            raise VcfError(f"INFO {info!r} not defined in VCF header") from None
         header.add_line(h.line())
 
 
@@ -926,7 +922,7 @@ class PhasedVcfWriter(VcfAugmenter):
         phase -- tuple of alleles
         """
         assert all(allele in [0, 1] for allele in phase)
-        call["HP"] = ",".join("{}-{}".format(component + 1, allele + 1) for allele in phase)
+        call["HP"] = ",".join(f"{component + 1}-{allele + 1}" for allele in phase)
         if haploid_component:
             call["HS"] = [comp + 1 for comp in haploid_component]
 

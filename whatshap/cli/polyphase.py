@@ -156,7 +156,7 @@ def run_polyphase(
         for sample in samples:
             if sample not in vcf_sample_set:
                 raise CommandLineError(
-                    "Sample {!r} requested on command-line not found in VCF".format(sample)
+                    f"Sample {sample!r} requested on command-line not found in VCF"
                 )
 
         samples = frozenset(samples)
@@ -472,7 +472,7 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
 
     superreads = ReadSet()
     for i in range(ploidy):
-        read = Read("superread {}".format(i + 1), 0, 0)
+        read = Read(f"superread {i + 1}", 0, 0)
         # insert alleles
         for j, allele in enumerate(haplotypes[i]):
             if allele < 0:
@@ -559,7 +559,7 @@ def phase_single_block(block_id, block_readset, genotype_slice, param, timers):
     del sim
 
     # Add trailing isolated nodes to single-ton clusters, if missing
-    nodes_in_c = sum([len(c) for c in clustering])
+    nodes_in_c = sum(len(c) for c in clustering)
     for i in range(nodes_in_c, len(block_readset)):
         clustering.append([i])
 
@@ -568,7 +568,7 @@ def phase_single_block(block_id, block_readset, genotype_slice, param, timers):
     # Phase II: Threading
 
     # Assemble clusters to haplotypes
-    logger.debug("Threading haplotypes through {} clusters ..\r".format(len(clustering)))
+    logger.debug(f"Threading haplotypes through {len(clustering)} clusters ..\r")
     timers.start("threading")
 
     # Add dynamic programming for finding the most likely subset of clusters
@@ -617,7 +617,7 @@ def phase_single_block_mt(
     result = phase_single_block(block_id, block_readset, genotype_slice, param, timers)
     del block_readset
     if block_vars > 1:
-        logger.info("Finished block {}.".format(job_id + 1))
+        logger.info(f"Finished block {job_id + 1}.")
     return result
 
 
@@ -640,7 +640,7 @@ def aggregate_results(results, ploidy):
             hap_cut += [pos_offset + h for h in ext]
         for hap, ext in zip(haplotypes, r.haplotypes):
             hap += ext
-        rid_offset = max([rid for clust in clustering for rid in clust])
+        rid_offset = max(rid for clust in clustering for rid in clust)
         cid_offset = len(clustering)
         pos_offset = len(haplotypes[0])
 

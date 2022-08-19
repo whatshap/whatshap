@@ -98,7 +98,7 @@ class PhasedInputReader:
             elif file_format == "VCF":
                 vcfs.append(path)
             else:
-                raise CommandLineError("Unable to determine type of input file {!r}".format(path))
+                raise CommandLineError(f"Unable to determine type of input file {path!r}")
         return bams, vcfs
 
     @staticmethod
@@ -134,7 +134,7 @@ class PhasedInputReader:
         Set read_vcf to False to not read phased blocks from the VCFs
         """
         readset_reader = self._readset_reader
-        for_sample = "for sample {!r} ".format(sample) if not self._ignore_read_groups else ""
+        for_sample = f"for sample {sample!r} " if not self._ignore_read_groups else ""
         logger.info(
             "Reading alignments %son chromosome %s and detecting alleles ...",
             for_sample,
@@ -162,9 +162,9 @@ class PhasedInputReader:
                 alternative = chromosome[3:]
             else:
                 alternative = "chr" + chromosome
-            message = "The chromosome {!r} was not found in the BAM/CRAM file.".format(chromosome)
+            message = f"The chromosome {chromosome!r} was not found in the BAM/CRAM file."
             if readset_reader.has_reference(alternative):
-                message += " Found {!r} instead".format(alternative)
+                message += f" Found {alternative!r} instead"
             raise CommandLineError(message)
 
         vcf_source_ids = set()

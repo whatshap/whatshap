@@ -328,7 +328,7 @@ def initialize_io_files(reads_file, output_h1, output_h2, output_untagged, exit_
             )
     else:
         # and this means I overlooked something...
-        raise ValueError("Unhandled file format for input reads: {}".format(input_format))
+        raise ValueError(f"Unhandled file format for input reads: {input_format}")
     return input_reader, input_iter, output_writers
 
 
@@ -455,9 +455,9 @@ def run_split(
 
     logger.info("\n== SUMMARY ==")
     logger.info("Total reads processed: {}".format(read_counter["total_reads"]))
-    logger.info('Number of output reads "untagged": {}'.format(read_counter[0]))
-    logger.info("Number of output reads haplotype 1: {}".format(read_counter[1]))
-    logger.info("Number of output reads haplotype 2: {}".format(read_counter[2]))
+    logger.info(f'Number of output reads "untagged": {read_counter[0]}')
+    logger.info(f"Number of output reads haplotype 1: {read_counter[1]}")
+    logger.info(f"Number of output reads haplotype 2: {read_counter[2]}")
     logger.info("Number of unknown (dropped) reads: {}".format(read_counter["unknown_reads"]))
     logger.info(
         "Number of skipped reads (per user request): {}".format(read_counter["skipped_reads"])

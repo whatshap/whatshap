@@ -9,7 +9,7 @@ class Node:
         self.parent = parent
 
     def __repr__(self):
-        return "Node(value={}, parent={})".format(self.value, self.parent)
+        return f"Node(value={self.value}, parent={self.parent})"
 
 
 class ComponentFinder:

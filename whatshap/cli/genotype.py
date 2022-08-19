@@ -171,7 +171,7 @@ def run_genotype(
         for sample in samples:
             if sample not in vcf_sample_set:
                 raise CommandLineError(
-                    "Sample {!r} requested on command-line not found in VCF".format(sample)
+                    f"Sample {sample!r} requested on command-line not found in VCF"
                 )
 
         if ped and genmap:

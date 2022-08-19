@@ -23,7 +23,7 @@ class NiceFormatter(logging.Formatter):
 
     def format(self, record):
         if record.levelno != logging.INFO:
-            record.msg = "{}: {}".format(record.levelname, record.msg)
+            record.msg = f"{record.levelname}: {record.msg}"
         return super().format(record)
 
 

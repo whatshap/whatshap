@@ -90,7 +90,7 @@ class ReadSetReader:
         if __debug__ and variants:
             varposc = Counter(variant.position for variant in variants)
             pos, count = varposc.most_common()[0]
-            assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
+            assert count == 1, f"Position {pos} occurs more than once in variant list."
 
         alignments = self._usable_alignments(chromosome, sample, regions)
         reads = self._alignments_to_reads(alignments, variants, sample, reference)
@@ -121,7 +121,7 @@ class ReadSetReader:
         for group in groups.values():
             if len(group) > 2:
                 raise ReadSetError(
-                    "Read name {!r} occurs more than twice in the input file".format(group[0].name)
+                    f"Read name {group[0].name!r} occurs more than twice in the input file"
                 )
             yield group
 
@@ -297,7 +297,7 @@ class ReadSetReader:
                                 j += 1
                             # One additional j += 1 is done below
                     else:
-                        assert False, "Strange variant: {}".format(variants[j])
+                        assert False, f"Strange variant: {variants[j]}"
                     j += 1
                 query_pos += length
                 ref_pos += length
@@ -351,7 +351,7 @@ class ReadSetReader:
                 pass
             else:
                 logger.error("Unsupported CIGAR operation: %d", cigar_op)
-                raise ValueError("Unsupported CIGAR operation: {}".format(cigar_op))
+                raise ValueError(f"Unsupported CIGAR operation: {cigar_op}")
 
     @staticmethod
     def split_cigar(cigar, i, consumed):

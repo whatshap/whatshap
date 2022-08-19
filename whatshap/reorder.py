@@ -81,10 +81,10 @@ def run_reordering(
 
     cut_positions, haploid_cuts = compute_cut_positions(path, block_cut_sensitivity, events)
 
-    logger.debug("Cut positions: {}".format(cut_positions))
+    logger.debug(f"Cut positions: {cut_positions}")
     ploidy = len(haplotypes)
     for i in range(ploidy):
-        logger.debug("Cut positions on phase {}: {}".format(i, haploid_cuts[i]))
+        logger.debug(f"Cut positions on phase {i}: {haploid_cuts[i]}")
 
     return (cut_positions, haploid_cuts, path, haplotypes)
 
@@ -119,7 +119,7 @@ def phase_cluster_snps(
     """
     # sort clusters by position of first haplotype
     collapsed = sorted(
-        [(cid, sorted(snps)) for cid, snps in cwise_snps.items()], key=lambda x: x[1][0]
+        ((cid, sorted(snps)) for cid, snps in cwise_snps.items()), key=lambda x: x[1][0]
     )
 
     # iterate cluster-wise
@@ -129,7 +129,7 @@ def phase_cluster_snps(
         het_pos = []
         i, w = snps[0] - 1, 0
         while w < window_size and i >= 0:
-            if len(set([haplotypes[s][i] for s in c_slots])) > 1:
+            if len({haplotypes[s][i] for s in c_slots}) > 1:
                 het_pos.append(i)
                 w += 1
             i -= 1
@@ -222,9 +222,9 @@ def resolve_ambiguous_switches(
 
     for i in range(1, len(path)):
         # find slots affected by cluster changes
-        changed_h = set([j for j in range(ploidy) if path[i - 1][j] != path[i][inverse_perm[j]]])
-        c_group = set([path[i - 1][j] for j in changed_h])
-        h_group = sorted([j for j in range(ploidy) if path[i - 1][j] in c_group])
+        changed_h = {j for j in range(ploidy) if path[i - 1][j] != path[i][inverse_perm[j]]}
+        c_group = {path[i - 1][j] for j in changed_h}
+        h_group = sorted(j for j in range(ploidy) if path[i - 1][j] in c_group)
 
         # if only one slot involved -> just write current permutation to haplotype object
         if len(h_group) < 2:
@@ -296,18 +296,18 @@ def solve_single_ambiguous_site(
     het_pos_before, het_pos_after = [], []
     j = pos - 1
     if exclude_collapsed_cluster:
-        while len(set([path[j][h] for h in h_group])) < 2 and j > 0:
+        while len({path[j][h] for h in h_group}) < 2 and j > 0:
             j -= 1
 
     while len(het_pos_before) < window_size and j >= 0:
-        if len(set([haplotypes[h][j] for h in h_group])) > 1:
+        if len({haplotypes[h][j] for h in h_group}) > 1:
             het_pos_before.append(j)
         j -= 1
     het_pos_before = het_pos_before[::-1]
     # same for the next window_size positions (starting from pos)
     j = pos
     while len(het_pos_after) < window_size and j < len(haplotypes[0]):
-        if len(set([haplotypes[hap_perm[h]][j] for h in h_group])) > 1:
+        if len({haplotypes[hap_perm[h]][j] for h in h_group}) > 1:
             het_pos_after.append(j)
         j += 1
     het_pos = het_pos_before + het_pos_after

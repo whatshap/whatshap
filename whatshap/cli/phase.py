@@ -676,9 +676,7 @@ def raise_if_any_sample_not_in_vcf(vcf_reader, samples):
     vcf_sample_set = set(vcf_reader.samples)
     for sample in samples:
         if sample not in vcf_sample_set:
-            raise CommandLineError(
-                "Sample {!r} requested on command-line not found in VCF".format(sample)
-            )
+            raise CommandLineError(f"Sample {sample!r} requested on command-line not found in VCF")
 
 
 def setup_families(samples, ped, max_coverage):

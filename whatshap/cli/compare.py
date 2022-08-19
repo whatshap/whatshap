@@ -71,10 +71,10 @@ class SwitchFlips:
         return self
 
     def __repr__(self):
-        return "SwitchFlips(switches={}, flips={})".format(self.switches, self.flips)
+        return f"SwitchFlips(switches={self.switches}, flips={self.flips})"
 
     def __str__(self):
-        return "{}/{}".format(self.switches, self.flips)
+        return f"{self.switches}/{self.flips}"
 
 
 class PhasingErrors:
@@ -313,7 +313,7 @@ def fraction2percentstr(nominator, denominator):
     if denominator == 0:
         return "--"
     else:
-        return "{:.2f}%".format(nominator * 100.0 / denominator)
+        return f"{nominator * 100.0 / denominator:.2f}%"
 
 
 def safefraction(nominator, denominator):
@@ -472,7 +472,7 @@ def compare(
 
     for dataset_name, blck in zip(dataset_names, blocks):
         print_stat(
-            "non-singleton blocks in {}".format(dataset_name),
+            f"non-singleton blocks in {dataset_name}",
             len([b for b in blck.values() if len(b) > 1]),
         )
         print_stat("--> covered variants", sum(len(b) for b in blck.values() if len(b) > 1))
@@ -641,7 +641,7 @@ def compare_multiway(block_intersection, dataset_names, phases):
     for i, s in enumerate(bipartitions):
         count = histogram[s]
         if i == 0:
-            assert set(c for c in s) == set("0")
+            assert {c for c in s} == set("0")
             print("ALL AGREE")
         elif i == 1:
             print("DISAGREEMENT")
@@ -652,7 +652,7 @@ def compare_multiway(block_intersection, dataset_names, phases):
             else:
                 right.append(name)
         print_stat(
-            ("{%s} vs. {%s}" % (",".join(left), ",".join(right))),
+            ("{{{}}} vs. {{{}}}".format(",".join(left), ",".join(right))),
             count,
             fraction2percentstr(count, total_compared),
         )
@@ -769,7 +769,7 @@ def run_compare(
                 "Number of names given with --names does not equal number of VCFs."
             )
     else:
-        dataset_names = ["file{}".format(i) for i in range(len(vcf))]
+        dataset_names = [f"file{i}" for i in range(len(vcf))]
 
     sample_names = get_sample_names(
         vcf_readers, requested_sample=sample, ignore_name=ignore_sample_name
@@ -852,7 +852,7 @@ def run_compare(
                 big_list.extend(new_list)
 
         for chromosome in sorted(chromosomes):
-            print("---------------- Chromosome {} ----------------".format(chromosome))
+            print(f"---------------- Chromosome {chromosome} ----------------")
             all_bed_records = []
             variant_tables = [vcf[chromosome] for vcf in vcfs]
             all_variants_union = set()
@@ -880,7 +880,7 @@ def run_compare(
                     het_variants_intersection.intersection_update(het_variants)
                 het_variant_sets.append(set(het_variants))
                 print(
-                    "{}:".format(name).rjust(width),
+                    f"{name}:".rjust(width),
                     str(len(het_variants)).rjust(COUNT_WIDTH),
                     "/",
                     str(len(variant_table.variants)).rjust(COUNT_WIDTH),
@@ -1022,7 +1022,7 @@ def get_variant_tables(
             for variant_table in reader:
                 m[variant_table.chromosome] = variant_table
         except PloidyError as e:
-            raise CommandLineError("Provided ploidy is invalid: {}. Aborting.".format(e))
+            raise CommandLineError(f"Provided ploidy is invalid: {e}. Aborting.")
         vcfs.append(m)
     return vcfs
 

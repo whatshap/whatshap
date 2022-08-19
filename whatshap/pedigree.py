@@ -307,7 +307,7 @@ class PedReader:
             return
         id, count = Counter(children).most_common()[0]
         if count > 1:
-            raise ParseError("Individual {!r} occurs more than once in PED file".format(id))
+            raise ParseError(f"Individual {id!r} occurs more than once in PED file")
 
     def __iter__(self):
         return iter(self.trios)
@@ -359,9 +359,7 @@ class Graph:
                 if colors[neighbor] == "white":
                     visit(neighbor)
                 elif colors[neighbor] == "gray":
-                    raise CyclicGraphError(
-                        "Cycle involving {!r} and {!r} detected".format(node, neighbor)
-                    )
+                    raise CyclicGraphError(f"Cycle involving {node!r} and {neighbor!r} detected")
             order.append(node)
             colors[node] = "black"
 

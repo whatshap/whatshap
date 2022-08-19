@@ -88,7 +88,7 @@ def compute_threading_path(
     into one big switch.
     """
 
-    logger.debug("Computing threading paths with switch cost {} ..".format(switch_cost))
+    logger.debug(f"Computing threading paths with switch cost {switch_cost} ..")
 
     # run threader
     row_limit = 16 * 2**ploidy if ploidy > 6 else 0
@@ -123,7 +123,7 @@ def force_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_dep
     num_vars = len(path)
     for pos in range(num_vars):
         # count allele occurences
-        alleles = set([a for a in genotypes[pos]])
+        alleles = {a for a in genotypes[pos]}
         present = defaultdict(int)
         for h in haplotypes:
             present[h[pos]] += 1
@@ -214,11 +214,11 @@ def select_clusters(allele_depths, ploidy, max_gap):
     cov_map = [[] for _ in range(len(allele_depths))]
     for pos in range(len(allele_depths)):
         sorted_cids = sorted(
-            [(cid, sum(allele_depths[pos][cid].values())) for cid in allele_depths[pos]],
+            ((cid, sum(allele_depths[pos][cid].values())) for cid in allele_depths[pos]),
             key=lambda x: x[1],
             reverse=True,
         )
-        total_cov = sum([e[1] for e in sorted_cids])
+        total_cov = sum(e[1] for e in sorted_cids)
         cut_off = min(len(sorted_cids), ploidy + 2)
         cov_map[pos].append(sorted_cids[0][0])
         for (cid, cov) in sorted_cids[1:cut_off]:

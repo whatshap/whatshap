@@ -84,7 +84,7 @@ def parse_haplotype(name):
 def avg_readlength(readset):
     # Estiamtes the average read length in base pairs
     if len(readset) > 0:
-        return sum([read[-1].position - read[0].position for read in readset]) / len(readset)
+        return sum(read[-1].position - read[0].position for read in readset) / len(readset)
     else:
         return 0
 
@@ -111,7 +111,7 @@ def draw_clustering(readset, clustering, var_table, path, genome_space=False):
         # Sort a deep copy of clustering
         clusters = sorted(
             deepcopy(clustering),
-            key=lambda x: min([readset[i][0].position for i in x]) if len(x) > 0 else 0,
+            key=lambda x: min(readset[i][0].position for i in x) if len(x) > 0 else 0,
         )
 
         # Construct real and predicted haplotype per read
@@ -294,7 +294,7 @@ def relative_hamming_dist(seq1, seq2):
     if len(seq1) != len(seq2):
         return -1
     else:
-        return sum([1 for i in range(len(seq1)) if seq1[i] != seq2[i]]) / len(seq1)
+        return sum(1 for i in range(len(seq1)) if seq1[i] != seq2[i]) / len(seq1)
 
 
 def draw_threading(
