@@ -132,12 +132,16 @@ class HapChatCore:
     def get_optimal_cost(self) -> int: ...
     def get_optimal_partitioning(self) -> List[int]: ...
 
+# From included readselect.pyx
+
 def readselection(
     readset: ReadSet,
     max_cov: int,
     preferred_source_ids: Optional[Set[int]] = ...,
     bridging: bool = ...,
 ) -> Set[int]: ...
+
+# From included polyphase_solver.pyx
 
 class ClusterEditingSolver:
     def __init__(self, m: TriangleSparseMatrix, bundle_edges: bool): ...
@@ -154,12 +158,8 @@ class TriangleSparseMatrix:
 
 # class ReadScoring:
 #     def __init__(self): ...
-def scoreReadsetGlobal(readset: ReadSet, min_overlap: int, ploidy: int) -> TriangleSparseMatrix: ...
-def scoreReadsetLocal(
-    readset: ReadSet, ref_haplotypes: List[List[int]], min_overlap: int, ploidy: int
-) -> TriangleSparseMatrix: ...
-def scoreReadsetBayesian(
-    readset: ReadSet, min_overlap: int, ploidy: int
+def scoreReadset(
+    readset: ReadSet, min_overlap: int, ploidy: int, err: float = ...
 ) -> TriangleSparseMatrix: ...
 
 class HaploThreader:

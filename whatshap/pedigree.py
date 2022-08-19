@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 import math
 from pathlib import Path
 
-from typing import Optional, Union
+from typing import Optional, Union, Sequence, List, IO, Iterator
 from collections import Counter, OrderedDict, defaultdict
 from dataclasses import dataclass
 import logging
@@ -21,7 +21,7 @@ class ParseError(Exception):
 @dataclass
 class RecombinationMapEntry:
     position: int
-    cum_distance: int
+    cum_distance: float
 
 
 @dataclass
@@ -35,7 +35,7 @@ class RecombinationEvent:
     recombination_cost: float
 
 
-def _interpolate(point: int, start_pos: int, end_pos: int, start_value: int, end_value: int):
+def _interpolate(point: int, start_pos: int, end_pos: int, start_value: float, end_value: float):
     assert start_pos <= point <= end_pos
     if start_pos == point == end_pos:
         assert start_value == end_value
@@ -46,17 +46,17 @@ def _interpolate(point: int, start_pos: int, end_pos: int, start_value: int, end
 MINIMUM_GENETIC_DISTANCE: float = 1e-10  # cM
 
 
-def recombination_cost_map(genetic_map, positions):
+def recombination_cost_map(genetic_map: Sequence[RecombinationMapEntry], positions: Sequence[int]):
 
     assert len(genetic_map) > 0
 
     # Step 1: compute cumulative genetic distances from start of chromosome
     #         to each position.
-    cumulative_distances = []
+    cumulative_distances: List[float] = []
     # i and j are such that genetic_map[i].position <= position <= genetic_map[j].position
     # i and j are None if no such values exist (because we are at the end of the list)
-    i = None
-    j = 0
+    i: Optional[int] = None
+    j: Optional[int] = 0
 
     for position in positions:
         # update i to meet the invariant
@@ -105,18 +105,18 @@ def recombination_cost_map(genetic_map, positions):
     return result
 
 
-def centimorgen_to_phred(distance):
+def centimorgen_to_phred(distance: float) -> float:
     assert distance >= 0
     if distance == 0:
         raise ValueError("Cannot convert genetic distance of zero to phred.")
     elif distance < 1e-10:
-        return -10 * (math.log10(distance) - 2)
+        return -10.0 * (math.log10(distance) - 2.0)
     else:
-        p = (1.0 - math.exp(-(2.0 * distance) / 100)) / 2.0
-        return -10 * math.log10(p)
+        p = (1.0 - math.exp(-(2.0 * distance) / 100.0)) / 2.0
+        return -10.0 * math.log10(p)
 
 
-def mendelian_conflict(genotypem, genotypef, genotypec):
+def mendelian_conflict(genotypem, genotypef, genotypec) -> bool:
     # TODO: Maybe inefficient
     alleles_m = genotypem.as_vector()
     alleles_f = genotypef.as_vector()
@@ -167,7 +167,7 @@ def find_recombination(transmission_vector, components, positions, recombcost):
 
 class RecombinationCostComputer(ABC):
     @abstractmethod
-    def compute(self, positions):
+    def compute(self, positions: Sequence[int]):
         pass
 
 
@@ -176,9 +176,14 @@ class GeneticMapRecombinationCostComputer(RecombinationCostComputer):
         self._genetic_map = self.load_genetic_map(genetic_map_path)
 
     @staticmethod
-    def load_genetic_map(filename: Union[str, Path]):
+    def load_genetic_map(filename: Union[str, Path]) -> Sequence[RecombinationMapEntry]:
+        # Example:
+        #
+        # position COMBINED_rate(cM/Mb) Genetic_Map(cM)
+        # 55550 0 0
+        # 721290 2.685807669 0.410292036939447
+        #
         genetic_map = []
-
         warned_zero_distance = False
         with open(filename) as fid:
             for line_number, line in enumerate(fid, 1):
@@ -212,7 +217,7 @@ class GeneticMapRecombinationCostComputer(RecombinationCostComputer):
 
         return genetic_map
 
-    def compute(self, positions):
+    def compute(self, positions: Sequence[int]):
         return recombination_cost_map(self._genetic_map, positions)
 
 
@@ -233,7 +238,7 @@ class UniformRecombinationCostComputer(RecombinationCostComputer):
             for i in range(1, len(positions))
         ]
 
-    def compute(self, positions):
+    def compute(self, positions: Sequence[int]):
         return self.uniform_recombination_map(self._recombination_rate, positions)
 
 
@@ -241,9 +246,9 @@ class UniformRecombinationCostComputer(RecombinationCostComputer):
 class Trio:
     """Relationships are modelled as a set of trios (mother, father, child)."""
 
-    child: Optional[int]
-    father: Optional[int]
-    mother: Optional[int]
+    child: Optional[str]
+    father: Optional[str]
+    mother: Optional[str]
 
 
 class PedReader:
@@ -264,15 +269,15 @@ class PedReader:
     this class. The entire file is read upon construction.
     """
 
-    def __init__(self, file):
-        if isinstance(file, str):
+    def __init__(self, file: Union[str, Path, IO]):
+        if isinstance(file, (str, Path)):
             with open(file) as f:
                 self.trios = self._parse(f)
         else:
             self.trios = self._parse(file)
 
     @staticmethod
-    def _parse_record(line):
+    def _parse_record(line: str) -> Trio:
         """
         Parse a single non-comment line of a PED or FAM file.
         """
@@ -280,13 +285,13 @@ class PedReader:
         if len(fields) < 6:
             raise ParseError("Less than six fields found in PED/FAM file")
         individual_id, paternal_id, maternal_id = fields[1:4]
-        if paternal_id == "0":
-            paternal_id = None
-        if maternal_id == "0":
-            maternal_id = None
-        return Trio(child=individual_id, father=paternal_id, mother=maternal_id)
+        return Trio(
+            child=individual_id,
+            father=paternal_id if paternal_id != "0" else None,
+            mother=maternal_id if maternal_id != "0" else None,
+        )
 
-    def _parse(self, file):
+    def _parse(self, file: IO) -> List[Trio]:
         trios = []
         for line in file:
             if line.startswith("#") or line == "\n":
@@ -296,7 +301,7 @@ class PedReader:
         return trios
 
     @staticmethod
-    def _sanity_check(trios):
+    def _sanity_check(trios: List[Trio]) -> None:
         """
         Ensure that each individual occurs only once in the file.
         """
@@ -307,10 +312,10 @@ class PedReader:
         if count > 1:
             raise ParseError(f"Individual {id!r} occurs more than once in PED file")
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Trio]:
         return iter(self.trios)
 
-    def samples(self):
+    def samples(self) -> List[str]:
         """Return a list of all mentioned individuals"""
         samples = set()
         for trio in self.trios:

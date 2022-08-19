@@ -14,7 +14,7 @@ from collections import defaultdict
 from copy import deepcopy
 
 from contextlib import ExitStack
-from typing import Optional, List, TextIO, Union, Dict
+from typing import Optional, List, TextIO, Union, Dict, Sequence, Mapping, Tuple, Set
 
 from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VariantTable
 from whatshap import __version__
@@ -36,6 +36,7 @@ from whatshap.pedigree import (
     find_recombination,
     ParseError,
     RecombinationCostComputer,
+    Trio,
 )
 from whatshap.timer import StageTimer
 from whatshap.utils import plural_s, warn_once
@@ -204,7 +205,7 @@ class ReadList:
             )
 
 
-def setup_pedigree(ped_path, samples):
+def setup_pedigree(ped_path: str, samples: List[str]) -> Tuple[List[Trio], Set[str]]:
     """
     Read in PED file to set up list of relationships.
 
@@ -257,7 +258,7 @@ def run_whatshap(
     variant_file: str,
     reference: Union[None, bool, str] = False,
     output: TextIO = sys.stdout,
-    samples: List[str] = None,
+    samples: Optional[List[str]] = None,
     chromosomes: Optional[List[str]] = None,
     ignore_read_groups: bool = False,
     indels: bool = True,
@@ -316,6 +317,8 @@ def run_whatshap(
 
     if algorithm == "hapchat" and ped is not None:
         raise CommandLineError("The hapchat algorithm cannot do pedigree phasing")
+    if samples is None:
+        samples = []
 
     timers = StageTimer()
     logger.info(f"This is WhatsHap {__version__} running under Python {platform.python_version()}")
@@ -381,13 +384,15 @@ def run_whatshap(
                 "When using --ignore-read-groups on a VCF with "
                 "multiple samples, --sample must also be used."
             )
+
         if not samples:
             samples = vcf_reader.samples
 
         # if --use-ped-samples is set, use only samples from PED file
-        if ped and use_ped_samples:
+        if ped is not None and use_ped_samples:
             samples = PedReader(ped).samples()
 
+        assert samples is not None
         raise_if_any_sample_not_in_vcf(vcf_reader, samples)
 
         recombination_cost_computer = make_recombination_cost_computer(ped, genmap, recombrate)
@@ -397,7 +402,8 @@ def run_whatshap(
         for trios in family_trios.values():
             for trio in trios:
                 # Ensure that all mentioned individuals have a numeric id
-                _ = numeric_sample_ids[trio.child]
+                if trio.child is not None:
+                    _ = numeric_sample_ids[trio.child]
 
         read_list = None
         if read_list_filename:
@@ -672,14 +678,16 @@ def log_best_case_phasing_info(readset, selected_reads):
     )
 
 
-def raise_if_any_sample_not_in_vcf(vcf_reader, samples):
+def raise_if_any_sample_not_in_vcf(vcf_reader: VcfReader, samples: List[str]) -> None:
     vcf_sample_set = set(vcf_reader.samples)
     for sample in samples:
         if sample not in vcf_sample_set:
             raise CommandLineError(f"Sample {sample!r} requested on command-line not found in VCF")
 
 
-def setup_families(samples, ped, max_coverage):
+def setup_families(
+    samples: List[str], ped, max_coverage
+) -> Tuple[Mapping[str, List[str]], Mapping[str, List[Trio]]]:
     """
     Return families, family_trios pair.
 
@@ -689,24 +697,24 @@ def setup_families(samples, ped, max_coverage):
     """
 
     # list of all trios across all families
-    all_trios = dict()
 
     # Keep track of connected components (aka families) in the pedigree
     family_finder = ComponentFinder(samples)
-
     if ped:
         all_trios, pedigree_samples = setup_pedigree(ped, samples)
         for trio in all_trios:
             family_finder.merge(trio.father, trio.child)
             family_finder.merge(trio.mother, trio.child)
+    else:
+        all_trios = []
 
     # map family representatives to lists of family members
-    families = defaultdict(list)
+    families: Dict[str, List[str]] = defaultdict(list)
     for sample in samples:
         families[family_finder.find(sample)].append(sample)
 
     # map family representatives to lists of trios for this family
-    family_trios = defaultdict(list)
+    family_trios: Mapping[str, List[Trio]] = defaultdict(list)
     for trio in all_trios:
         family_trios[family_finder.find(trio.child)].append(trio)
     logger.info(
