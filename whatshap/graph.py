@@ -1,10 +1,21 @@
 """
 Find connected components.
 """
+from abc import abstractmethod
+from typing import TypeVar, Generic, Optional, Iterable, Protocol
+
+T = TypeVar("T")
+C = TypeVar("C", bound="Comparable")
 
 
-class Node:
-    def __init__(self, value, parent):
+class Comparable(Protocol):
+    @abstractmethod
+    def __lt__(self: C, other: C) -> bool:
+        pass
+
+
+class Node(Generic[T]):
+    def __init__(self, value: T, parent: Optional["Node"]):
         self.value = value
         self.parent = parent
 
