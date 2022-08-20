@@ -56,7 +56,7 @@ class PedigreeDPTable:
     def __init__(
         self,
         readset: ReadSet,
-        recombcost: int,
+        recombcost: Sequence[int],
         pedigree: Pedigree,
         distrust_genotypes: bool = ...,
         positions: Optional[Iterable[int]] = ...,

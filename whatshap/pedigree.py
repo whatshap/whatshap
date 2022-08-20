@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 import math
 from pathlib import Path
 
-from typing import Optional, Union, Sequence, List, IO, Iterator
+from typing import Optional, Union, Sequence, List, IO, Iterator, Mapping
 from collections import Counter, OrderedDict, defaultdict
 from dataclasses import dataclass
 import logging
@@ -37,7 +37,10 @@ class RecombinationEvent:
     recombination_cost: float
 
 
-def _interpolate(point: int, start_pos: int, end_pos: int, start_value: float, end_value: float):
+def _interpolate(
+    point: int, start_pos: int, end_pos: int, start_value: float, end_value: float
+) -> float:
+
     assert start_pos <= point <= end_pos
     if start_pos == point == end_pos:
         assert start_value == end_value
@@ -48,7 +51,9 @@ def _interpolate(point: int, start_pos: int, end_pos: int, start_value: float, e
 MINIMUM_GENETIC_DISTANCE: float = 1e-10  # cM
 
 
-def recombination_cost_map(genetic_map: Sequence[RecombinationMapEntry], positions: Sequence[int]):
+def recombination_cost_map(
+    genetic_map: Sequence[RecombinationMapEntry], positions: Sequence[int]
+) -> Sequence[int]:
 
     assert len(genetic_map) > 0
 
@@ -118,7 +123,7 @@ def centimorgen_to_phred(distance: float) -> float:
         return -10.0 * math.log10(p)
 
 
-def mendelian_conflict(genotypem: Genotype, genotypef: Genotype, genotypec) -> bool:
+def mendelian_conflict(genotypem: Genotype, genotypef: Genotype, genotypec: Genotype) -> bool:
     # TODO: Maybe inefficient
     alleles_m = genotypem.as_vector()
     alleles_f = genotypef.as_vector()
@@ -131,7 +136,13 @@ def mendelian_conflict(genotypem: Genotype, genotypef: Genotype, genotypec) -> b
         return True
 
 
-def find_recombination(transmission_vector, components, positions, recombcost):
+def find_recombination(
+    transmission_vector: Sequence[int],
+    components: Mapping[int, int],
+    positions: Sequence[int],
+    recombcost: Sequence[int],
+) -> Sequence[RecombinationEvent]:
+
     assert len(transmission_vector) == len(positions) == len(recombcost)
     assert set(components.keys()).issubset(set(positions))
     position_to_index = {pos: i for i, pos in enumerate(positions)}
@@ -139,7 +150,7 @@ def find_recombination(transmission_vector, components, positions, recombcost):
     for position, block_id in components.items():
         blocks[block_id].append(position)
 
-    event_list = []
+    events = []
     cum_recomb_cost = 0
     for block_id, block in blocks.items():
         block.sort()
@@ -149,7 +160,7 @@ def find_recombination(transmission_vector, components, positions, recombcost):
             continue
         for i in range(2, len(block)):
             if block_transmission_vector[i - 1] != block_transmission_vector[i]:
-                event_list.append(
+                events.append(
                     RecombinationEvent(
                         block[i - 1],
                         block[i],
@@ -163,13 +174,13 @@ def find_recombination(transmission_vector, components, positions, recombcost):
                 cum_recomb_cost += block_recomb_cost[i]
 
     logger.info("Cost accounted for by recombination events: %d", cum_recomb_cost)
-    event_list.sort()
-    return event_list
+    events.sort()
+    return events
 
 
 class RecombinationCostComputer(ABC):
     @abstractmethod
-    def compute(self, positions: Sequence[int]):
+    def compute(self, positions: Sequence[int]) -> Sequence[int]:
         pass
 
 
@@ -219,16 +230,16 @@ class GeneticMapRecombinationCostComputer(RecombinationCostComputer):
 
         return genetic_map
 
-    def compute(self, positions: Sequence[int]):
+    def compute(self, positions: Sequence[int]) -> Sequence[int]:
         return recombination_cost_map(self._genetic_map, positions)
 
 
 class UniformRecombinationCostComputer(RecombinationCostComputer):
-    def __init__(self, recombination_rate):
+    def __init__(self, recombination_rate: float):
         self._recombination_rate = recombination_rate
 
     @staticmethod
-    def uniform_recombination_map(recombrate, positions):
+    def uniform_recombination_map(recombrate: float, positions) -> Sequence[int]:
         """
         For a list of positions and a constant recombination rate (in cM/Mb),
         return a list "results" of the same length as "positions" such that
@@ -240,7 +251,7 @@ class UniformRecombinationCostComputer(RecombinationCostComputer):
             for i in range(1, len(positions))
         ]
 
-    def compute(self, positions: Sequence[int]):
+    def compute(self, positions: Sequence[int]) -> Sequence[int]:
         return self.uniform_recombination_map(self._recombination_rate, positions)
 
 
@@ -293,7 +304,7 @@ class PedReader:
             mother=maternal_id if maternal_id != "0" else None,
         )
 
-    def _parse(self, file: IO) -> List[Trio]:
+    def _parse(self, file: IO) -> Sequence[Trio]:
         trios = []
         for line in file:
             if line.startswith("#") or line == "\n":
@@ -303,7 +314,7 @@ class PedReader:
         return trios
 
     @staticmethod
-    def _sanity_check(trios: List[Trio]) -> None:
+    def _sanity_check(trios: Sequence[Trio]) -> None:
         """
         Ensure that each individual occurs only once in the file.
         """
@@ -317,7 +328,7 @@ class PedReader:
     def __iter__(self) -> Iterator[Trio]:
         return iter(self.trios)
 
-    def samples(self) -> List[str]:
+    def samples(self) -> Sequence[str]:
         """Return a list of all mentioned individuals"""
         samples = set()
         for trio in self.trios:

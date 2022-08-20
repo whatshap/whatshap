@@ -948,14 +948,14 @@ def write_recombination_list(
     path: Union[str, Path],
     chromosome: str,
     accessible_positions: Sequence[int],
-    overall_components,
-    recombination_costs,
-    transmission_vector,
-    trios,
+    overall_components: Mapping[int, int],
+    recombination_costs: Sequence[int],
+    transmission_vector: Sequence[int],
+    trios: Sequence[Trio],
 ) -> int:
     """Return total number of recombinations"""
 
-    transmission_vector_trio = defaultdict(list)
+    transmission_vector_trio: Mapping[str, MutableSequence[int]] = defaultdict(list)
     for transmission_vector_value in transmission_vector:
         for trio in trios:
             value = transmission_vector_value % 4
@@ -995,7 +995,6 @@ def write_recombination_list(
                     e.recombination_cost,
                     file=f,
                 )
-
             n += len(recombination_events)
     return n
 
