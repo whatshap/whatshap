@@ -14,7 +14,20 @@ from collections import defaultdict
 from copy import deepcopy
 
 from contextlib import ExitStack
-from typing import Optional, List, TextIO, Union, Dict, Sequence, Mapping, Tuple, Set
+from pathlib import Path
+from typing import (
+    Optional,
+    List,
+    TextIO,
+    Union,
+    Dict,
+    Sequence,
+    Mapping,
+    Tuple,
+    Set,
+    MutableSequence,
+    IO,
+)
 
 from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VariantTable
 from whatshap import __version__
@@ -48,7 +61,12 @@ __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel M
 logger = logging.getLogger(__name__)
 
 
-def find_components(phased_positions, reads, master_block=None, heterozygous_positions=None):
+def find_components(
+    phased_positions: Sequence[int],
+    reads: ReadSet,
+    master_block: Optional[Sequence[int]] = None,
+    heterozygous_positions: Optional[Mapping[int, Set[int]]] = None,
+) -> Mapping[int, int]:
     """
     Return a dict that maps each variant position to the component it is in.
     Variants are considered to be in the same component if a read exists that
@@ -58,7 +76,7 @@ def find_components(phased_positions, reads, master_block=None, heterozygous_pos
                     any of these positions are merged into one block.
     heterozygous_positions -- A dictionary mapping numeric sample ids to sets of
                               positions. Component building is then restricted to variants
-                              at these positions. If none, all variants are used.
+                              at these positions. If None, all variants are used.
     """
     logger.debug("Finding connected components ...")
     assert phased_positions == sorted(phased_positions)
@@ -66,17 +84,17 @@ def find_components(phased_positions, reads, master_block=None, heterozygous_pos
     # Find connected components.
     # A component is identified by the position of its leftmost variant.
     component_finder = ComponentFinder(phased_positions)
-    phased_positions = set(phased_positions)
+    phased_positions_set = set(phased_positions)
     for read in reads:
         if heterozygous_positions is None:
             positions = [
-                variant.position for variant in read if variant.position in phased_positions
+                variant.position for variant in read if variant.position in phased_positions_set
             ]
         else:
             positions = [
                 variant.position
                 for variant in read
-                if (variant.position in phased_positions)
+                if (variant.position in phased_positions_set)
                 and (variant.position in heterozygous_positions[read.sample_id])
             ]
         for position in positions[1:]:
@@ -84,20 +102,20 @@ def find_components(phased_positions, reads, master_block=None, heterozygous_pos
     if master_block is not None:
         for position in master_block[1:]:
             component_finder.merge(master_block[0], position)
-    components = {position: component_finder.find(position) for position in phased_positions}
+    components = {position: component_finder.find(position) for position in phased_positions_set}
     return components
 
 
-def find_largest_component(components):
+def find_largest_component(components: Mapping[int, int]) -> Sequence[int]:
     """
     Determine the largest component and return a sorted list of positions
     contained in it.
-    components -- dictionary mapping positin to block_id as returned by find_components.
+    components -- dictionary mapping position to block_id as returned by find_components.
     """
     blocks = defaultdict(list)
     for position, block_id in components.items():
         blocks[block_id].append(position)
-    largest = []
+    largest: List[int] = []
     for block in blocks.values():
         if len(block) > len(largest):
             largest = block
@@ -105,7 +123,7 @@ def find_largest_component(components):
     return largest
 
 
-def best_case_blocks(reads):
+def best_case_blocks(reads: ReadSet) -> Tuple[int, int]:
     """
     Given a list of core reads, determine the number of phased blocks that
     would result if each variant were actually phased.
@@ -122,14 +140,16 @@ def best_case_blocks(reads):
         for position in read_positions[1:]:
             component_finder.merge(read_positions[0], position)
     # A dict that maps each component to the number of variants it contains
-    component_sizes = defaultdict(int)
+    component_sizes: Dict[int, int] = defaultdict(int)
     for position in positions:
         component_sizes[component_finder.find(position)] += 1
     non_singletons = [component for component, size in component_sizes.items() if size > 1]
     return len(component_sizes), len(non_singletons)
 
 
-def select_reads(readset, max_coverage, preferred_source_ids):
+def select_reads(
+    readset: ReadSet, max_coverage: int, preferred_source_ids: Optional[Set[int]]
+) -> ReadSet:
     logger.info(
         "Reducing coverage to at most %dX by selecting most informative reads ...", max_coverage
     )
@@ -147,9 +167,9 @@ def select_reads(readset, max_coverage, preferred_source_ids):
 class ReadList:
     """Write a list of reads that have been used for phasing to a file"""
 
-    def __init__(self, path):
+    def __init__(self, path: str):
         self._path = path
-        self._file = None
+        self._file: Optional[IO] = None
 
     def __enter__(self):
         self._file = open(self._path, "w")
@@ -171,10 +191,16 @@ class ReadList:
         self._file.close()
         self._file = None
 
-    def write(self, readset, bipartition, sample_components, numeric_sample_ids):
+    def write(
+        self,
+        readset: ReadSet,
+        bipartition: Sequence[int],
+        sample_components: Mapping[str, Sequence[int]],
+        numeric_sample_ids: NumericSampleIds,
+    ) -> None:
         """
-        readset -- core.ReadSet object with reads to be written
-        bipartition -- bipartition of reads, i.e. iterable with one entry from {0,1} for each read in readset
+        readset -- reads to be written
+        bipartition -- bipartition of reads, i.e. sequence with one entry from {0,1} for each read in readset
         sample_components -- a dictionary that maps each sample to its connected components
 
                 Each component in turn is a dict that maps each variant position to a
@@ -205,7 +231,7 @@ class ReadList:
             )
 
 
-def setup_pedigree(ped_path: str, samples: List[str]) -> Tuple[List[Trio], Set[str]]:
+def setup_pedigree(ped_path: str, samples: Sequence[str]) -> Tuple[Sequence[Trio], Set[str]]:
     """
     Read in PED file to set up list of relationships.
 
@@ -254,11 +280,11 @@ def setup_pedigree(ped_path: str, samples: List[str]) -> Tuple[List[Trio], Set[s
 
 
 def run_whatshap(
-    phase_input_files: List[str],
+    phase_input_files: Sequence[str],
     variant_file: str,
     reference: Union[None, bool, str] = False,
     output: TextIO = sys.stdout,
-    samples: Optional[List[str]] = None,
+    samples: Optional[Sequence[str]] = None,
     chromosomes: Optional[List[str]] = None,
     ignore_read_groups: bool = False,
     indels: bool = True,
@@ -284,7 +310,7 @@ def run_whatshap(
     write_command_line_header: bool = True,
     use_ped_samples: bool = False,
     algorithm: str = "whatshap",
-):
+) -> None:
     """
     Run WhatsHap.
 
@@ -611,17 +637,19 @@ def run_whatshap(
 
 
 def compute_overall_components(
-    accessible_positions,
-    all_reads,
-    distrust_genotypes,
-    family,
-    genetic_haplotyping,
-    homozygous_positions,
-    numeric_sample_ids,
-    superreads_list,
-):
+    accessible_positions: Sequence[int],
+    all_reads: ReadSet,
+    distrust_genotypes: bool,
+    family: Sequence[str],
+    genetic_haplotyping: bool,
+    homozygous_positions: Sequence[int],
+    numeric_sample_ids: NumericSampleIds,
+    superreads_list: Sequence[ReadSet],
+) -> Mapping[int, int]:
+
     master_block = None
-    heterozygous_positions_by_sample = None
+    heterozygous_positions_by_sample: Optional[Dict[int, Set[int]]] = None
+    accessible_positions_set = set(accessible_positions)
     # If we distrusted genotypes, we need to re-determine which sites are homo-/heterozygous after phasing
     if distrust_genotypes:
         hom_in_any_sample = set()
@@ -632,7 +660,7 @@ def compute_overall_components(
             hets = set()
             for v1, v2 in zip(*sample_superreads):
                 assert v1.position == v2.position
-                if v1.position not in accessible_positions:
+                if v1.position not in accessible_positions_set:
                     continue
                 gt = (v1.allele, v2.allele)
                 if gt in heterozygous_gts:
@@ -644,13 +672,13 @@ def compute_overall_components(
             master_block = sorted(hom_in_any_sample)
     else:
         if len(family) > 1 and genetic_haplotyping:
-            master_block = sorted(set(homozygous_positions).intersection(set(accessible_positions)))
+            master_block = sorted(set(homozygous_positions).intersection(accessible_positions_set))
     return find_components(
         accessible_positions, all_reads, master_block, heterozygous_positions_by_sample
     )
 
 
-def log_component_stats(components, n_accessible_positions):
+def log_component_stats(components: Mapping[int, int], n_accessible_positions: int) -> None:
     n_phased_blocks = len(set(components.values()))
     logger.info(f"No. of phased blocks: {n_phased_blocks}")
     largest = find_largest_component(components)
@@ -663,7 +691,7 @@ def log_component_stats(components, n_accessible_positions):
     )
 
 
-def log_best_case_phasing_info(readset, selected_reads):
+def log_best_case_phasing_info(readset: ReadSet, selected_reads: ReadSet) -> None:
     (n_best_case_blocks, n_best_case_nonsingleton_blocks) = best_case_blocks(readset)
     (n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov) = best_case_blocks(selected_reads)
     logger.info(
@@ -678,7 +706,7 @@ def log_best_case_phasing_info(readset, selected_reads):
     )
 
 
-def raise_if_any_sample_not_in_vcf(vcf_reader: VcfReader, samples: List[str]) -> None:
+def raise_if_any_sample_not_in_vcf(vcf_reader: VcfReader, samples: Sequence[str]) -> None:
     vcf_sample_set = set(vcf_reader.samples)
     for sample in samples:
         if sample not in vcf_sample_set:
@@ -686,8 +714,8 @@ def raise_if_any_sample_not_in_vcf(vcf_reader: VcfReader, samples: List[str]) ->
 
 
 def setup_families(
-    samples: List[str], ped, max_coverage
-) -> Tuple[Mapping[str, List[str]], Mapping[str, List[Trio]]]:
+    samples: Sequence[str], ped_path: Optional[str], max_coverage: int
+) -> Tuple[Mapping[str, Sequence[str]], Mapping[str, Sequence[Trio]]]:
     """
     Return families, family_trios pair.
 
@@ -700,21 +728,23 @@ def setup_families(
 
     # Keep track of connected components (aka families) in the pedigree
     family_finder = ComponentFinder(samples)
-    if ped:
-        all_trios, pedigree_samples = setup_pedigree(ped, samples)
+    if ped_path is not None:
+        all_trios, pedigree_samples = setup_pedigree(ped_path, samples)
         for trio in all_trios:
-            family_finder.merge(trio.father, trio.child)
-            family_finder.merge(trio.mother, trio.child)
+            if trio.father is not None:
+                family_finder.merge(trio.father, trio.child)
+            if trio.mother is not None:
+                family_finder.merge(trio.mother, trio.child)
     else:
         all_trios = []
 
     # map family representatives to lists of family members
-    families: Dict[str, List[str]] = defaultdict(list)
+    families: Mapping[str, MutableSequence[str]] = defaultdict(list)
     for sample in samples:
         families[family_finder.find(sample)].append(sample)
 
     # map family representatives to lists of trios for this family
-    family_trios: Mapping[str, List[Trio]] = defaultdict(list)
+    family_trios: Mapping[str, MutableSequence[Trio]] = defaultdict(list)
     for trio in all_trios:
         family_trios[family_finder.find(trio.child)].append(trio)
     logger.info(
@@ -749,7 +779,13 @@ def make_recombination_cost_computer(
         return UniformRecombinationCostComputer(recombrate)
 
 
-def find_phaseable_variants(family, include_homozygous: bool, trios, variant_table: VariantTable):
+def find_phaseable_variants(
+    family: Sequence[str],
+    include_homozygous: bool,
+    trios: Sequence[Trio],
+    variant_table: VariantTable,
+) -> Tuple[Sequence[int], VariantTable]:
+
     # variant indices with at least one missing genotype
     missing_genotypes = set()
     # variant indices with at least one heterozygous genotype
@@ -781,7 +817,7 @@ def find_phaseable_variants(family, include_homozygous: bool, trios, variant_tab
     to_discard = set(range(len(variant_table))).difference(to_retain)
     # Determine positions of selected variants that are homozygous in at least one individual.
     # These are used later to merge blocks containing these variants into one block (since
-    # the are connected by "genetic haplotyping").
+    # they are connected by "genetic haplotyping").
     homozygous_positions = [
         variant_table.variants[i].position for i in to_retain.intersection(homozygous)
     ]
@@ -871,9 +907,11 @@ def create_pedigree(
     return pedigree
 
 
-def find_mendelian_conflicts(trios, variant_table):
+def find_mendelian_conflicts(trios: Sequence[Trio], variant_table: VariantTable) -> Set[int]:
     mendelian_conflicts = set()
     for trio in trios:
+        if trio.mother is None or trio.father is None:
+            continue
         genotypes_mother = variant_table.genotypes_of(trio.mother)
         genotypes_father = variant_table.genotypes_of(trio.father)
         genotypes_child = variant_table.genotypes_of(trio.child)
@@ -907,14 +945,14 @@ def write_changed_genotypes(gtchange_list_filename, changed_genotypes):
 
 
 def write_recombination_list(
-    path,
-    chromosome,
-    accessible_positions,
+    path: Union[str, Path],
+    chromosome: str,
+    accessible_positions: Sequence[int],
     overall_components,
     recombination_costs,
     transmission_vector,
     trios,
-):
+) -> int:
     """Return total number of recombinations"""
 
     transmission_vector_trio = defaultdict(list)

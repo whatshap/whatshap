@@ -11,6 +11,8 @@ from collections import Counter, OrderedDict, defaultdict
 from dataclasses import dataclass
 import logging
 
+from whatshap.core import Genotype
+
 logger = logging.getLogger(__name__)
 
 
@@ -116,7 +118,7 @@ def centimorgen_to_phred(distance: float) -> float:
         return -10.0 * math.log10(p)
 
 
-def mendelian_conflict(genotypem, genotypef, genotypec) -> bool:
+def mendelian_conflict(genotypem: Genotype, genotypef: Genotype, genotypec) -> bool:
     # TODO: Maybe inefficient
     alleles_m = genotypem.as_vector()
     alleles_f = genotypef.as_vector()
@@ -246,7 +248,7 @@ class UniformRecombinationCostComputer(RecombinationCostComputer):
 class Trio:
     """Relationships are modelled as a set of trios (mother, father, child)."""
 
-    child: Optional[str]
+    child: str
     father: Optional[str]
     mother: Optional[str]
 

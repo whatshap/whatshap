@@ -2,7 +2,14 @@
 Find connected components.
 """
 from abc import abstractmethod
-from typing import TypeVar, Generic, Optional, Iterable, Protocol
+from typing import TypeVar, Generic, Optional, Iterable
+import typing
+
+if typing.TYPE_CHECKING:
+    from typing_extensions import Protocol
+else:
+    Protocol = object
+
 
 T = TypeVar("T")
 C = TypeVar("C", bound="Comparable")
@@ -14,8 +21,8 @@ class Comparable(Protocol):
         pass
 
 
-class Node(Generic[T]):
-    def __init__(self, value: T, parent: Optional["Node"]):
+class Node(Generic[C]):
+    def __init__(self, value: C, parent: Optional["Node"]):
         self.value = value
         self.parent = parent
 
@@ -23,7 +30,7 @@ class Node(Generic[T]):
         return f"Node(value={self.value}, parent={self.parent})"
 
 
-class ComponentFinder:
+class ComponentFinder(Generic[C]):
     """
     Find connected components. A ComponentFinder is initialized with a list of
     values. These are initially partitioned such that each value is in a
@@ -38,10 +45,10 @@ class ComponentFinder:
     the current bottleneck.
     """
 
-    def __init__(self, values):
-        self.nodes = {x: Node(x, None) for x in values}
+    def __init__(self, values: Iterable[C]):
+        self.nodes = {value: Node(value, None) for value in values}
 
-    def merge(self, x, y):
+    def merge(self, x: C, y: C) -> None:
         assert x != y
         x_root = self._find_node(x)
         y_root = self._find_node(y)
@@ -56,8 +63,8 @@ class ComponentFinder:
         else:
             x_root.parent = y_root
 
-    def _find_node(self, x):
-        node = root = self.nodes[x]
+    def _find_node(self, value: C) -> Node[C]:
+        node = root = self.nodes[value]
         while root.parent is not None:
             root = root.parent
 
@@ -66,11 +73,11 @@ class ComponentFinder:
             node.parent, node = root, node.parent
         return root
 
-    def find(self, x):
+    def find(self, value: C) -> C:
         """
         Return which component x belongs to, identified by the smallest value.
         """
-        return self._find_node(x).value
+        return self._find_node(value).value
 
     def print(self):
         for x in sorted(self.nodes):
