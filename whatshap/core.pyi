@@ -69,7 +69,7 @@ class Pedigree:
     def __init__(self, numeric_sample_ids: NumericSampleIds): ...
     def add_individual(
         self,
-        id: int,
+        id: str,
         genotypes: Iterable[Genotype],
         genotype_likelihoods: Optional[Iterable[PhredGenotypeLikelihoods]] = ...,
     ) -> None: ...
