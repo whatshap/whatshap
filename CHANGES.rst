@@ -2,8 +2,8 @@
 Changes
 =======
 
-development version
--------------------
+v1.5 (2022-08-23)
+-----------------
 
 * Providing a reference FASTA (with ``--reference`` or ``-r``)
   is now mandatory even for  ``whatshap haplotag``. It was already
