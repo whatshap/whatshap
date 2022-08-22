@@ -58,6 +58,7 @@ extensions = [
             "src/polyphase/tupleconverter.cpp",
         ],
     ),
+    CppExtension("whatshap.readselect", sources=["whatshap/readselect.pyx"]),
     CppExtension("whatshap.priorityqueue", sources=["whatshap/priorityqueue.pyx"]),
     CppExtension("whatshap.align", sources=["whatshap/align.pyx"]),
     CppExtension("whatshap._variants", sources=["whatshap/_variants.pyx"]),

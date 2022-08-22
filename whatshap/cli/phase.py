@@ -33,13 +33,13 @@ from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VariantTable
 from whatshap import __version__
 from whatshap.core import (
     ReadSet,
-    readselection,
     Pedigree,
     PedigreeDPTable,
     NumericSampleIds,
     PhredGenotypeLikelihoods,
     HapChatCore,
 )
+from whatshap.readselect import readselection
 from whatshap.graph import ComponentFinder
 from whatshap.pedigree import (
     PedReader,

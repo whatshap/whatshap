@@ -597,5 +597,4 @@ cdef class HapChatCore:
 		return result
 
 
-include 'readselect.pyx'
 include 'polyphase_solver.pyx'

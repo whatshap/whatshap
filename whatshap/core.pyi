@@ -132,15 +132,6 @@ class HapChatCore:
     def get_optimal_cost(self) -> int: ...
     def get_optimal_partitioning(self) -> List[int]: ...
 
-# From included readselect.pyx
-
-def readselection(
-    readset: ReadSet,
-    max_cov: int,
-    preferred_source_ids: Optional[Set[int]] = ...,
-    bridging: bool = ...,
-) -> Set[int]: ...
-
 # From included polyphase_solver.pyx
 
 class ClusterEditingSolver:
