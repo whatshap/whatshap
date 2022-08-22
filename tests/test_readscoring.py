@@ -2,7 +2,8 @@
 Test ReadScoring
 """
 
-from whatshap.core import Read, ReadSet, scoreReadset
+from whatshap.core import Read, ReadSet
+from whatshap.polyphase_solver import scoreReadset
 
 
 def test_readscoring_toy():

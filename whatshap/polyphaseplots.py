@@ -1,13 +1,12 @@
 # flake8: noqa
 import itertools as it
-from math import ceil, floor
+from math import ceil
 from copy import deepcopy
 
 import logging
-from whatshap.core import Read, ReadSet
+from whatshap.core import ReadSet
 from whatshap.cli.compare import compute_switch_flips_poly_bt
 from whatshap.polyphaseutil import get_coverage
-from collections import defaultdict
 
 """
 This class is exclusively used for debugging and development.

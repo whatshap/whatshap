@@ -1,7 +1,7 @@
-import itertools as it
+import itertools
 import logging
 from collections import defaultdict
-from .core import HaploThreader
+from .polyphase_solver import HaploThreader
 from math import ceil, log
 from scipy.stats import binom
 
@@ -159,7 +159,7 @@ def force_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_dep
         given_config = [haplotypes[h][pos] for h in range(len(haplotypes))]
         best_config = given_config
         best_likelihood = -float("inf")
-        for perm in set(list(it.permutations(alleles_to_insert))):
+        for perm in set(list(itertools.permutations(alleles_to_insert))):
             # build next config (given + affected slots permuted)
             newconfig = given_config[:]
             for i in range(len(perm)):

@@ -1,22 +1,20 @@
 # cython: language_level=3
 
-from collections import defaultdict
-import itertools as it
-
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libcpp.unordered_map cimport unordered_map
 from libc.stdint cimport uint32_t
-from . cimport cpp
-cimport cython
 
+from . cimport cpp
+from .core cimport ReadSet
 
 cdef class ClusterEditingSolver:
     def __cinit__(self, TriangleSparseMatrix m, bundleEdges):
         self.thisptr = new cpp.ClusterEditingSolver(m.thisptr[0], bundleEdges)
         self.m = m
+
     def run(self):
         cdef cpp.ClusterEditingSolution solution = self.thisptr.run()
         clusters = []
@@ -158,3 +156,16 @@ cdef class SwitchFlipCalculator:
                 py_perm_in_column.append(perm)
 
         return result.first, result.second, py_switches_in_column, py_flips_in_column, py_perm_in_column
+
+
+def compute_polyploid_genotypes(ReadSet readset, ploidy, positions=None):
+    cdef vector[cpp.Genotype]* genotypes_vector = new vector[cpp.Genotype]()
+    cdef vector[unsigned int]* c_positions = NULL
+    if positions is not None:
+        c_positions = new vector[unsigned int]()
+        for pos in positions:
+            c_positions.push_back(pos)
+    cpp.compute_polyploid_genotypes(readset.thisptr[0], ploidy, genotypes_vector, c_positions)
+    genotypes = list([ gt.as_vector() for gt in genotypes_vector[0] ])
+    del genotypes_vector
+    return genotypes

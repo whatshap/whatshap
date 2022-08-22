@@ -23,8 +23,10 @@ from whatshap.core import (
     Read,
     ReadSet,
     Genotype,
-    ClusterEditingSolver,
     NumericSampleIds,
+)
+from whatshap.polyphase_solver import (
+    ClusterEditingSolver,
     compute_polyploid_genotypes,
     scoreReadset,
 )

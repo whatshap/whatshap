@@ -46,6 +46,12 @@ extensions = [
             "src/hapchat/binomialcoefficient.cpp",
             "src/hapchat/hapchatcore.cpp",
             "src/hapchat/hapchatcolumniterator.cpp",
+        ],
+    ),
+    CppExtension(
+        "whatshap.polyphase_solver",
+        sources=[
+            "whatshap/polyphase_solver.pyx",
             "src/polyphase/clustereditingsolution.cpp",
             "src/polyphase/clustereditingsolver.cpp",
             "src/polyphase/edgeheap.cpp",
