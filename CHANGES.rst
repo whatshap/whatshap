@@ -12,6 +12,8 @@ development version
   realignment (which usually performs better) is only possible if a
   reference is provided. Use ``--no-reference`` explicitly to fall
   back to the less accurate algorithm.
+* :issue:`394`: Fixed ``whatshap phase`` option ``--recombination--list``
+  not working.
 * :issue:`371`: ``whatshap split`` crashed when attempting to split
   reads in a FASTQ file by haplotype.
 * :pr:`377`: Speed-up of about 20-30% for ``whatshap polyphase`` via

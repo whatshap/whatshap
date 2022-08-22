@@ -26,7 +26,7 @@ class RecombinationMapEntry:
     cum_distance: float
 
 
-@dataclass
+@dataclass(order=True)
 class RecombinationEvent:
     position1: int
     position2: int

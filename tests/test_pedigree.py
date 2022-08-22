@@ -1,4 +1,6 @@
 from whatshap.core import Pedigree, PhredGenotypeLikelihoods, NumericSampleIds
+
+from whatshap.pedigree import find_recombination, RecombinationEvent
 from whatshap.testhelpers import canonic_index_list_to_biallelic_gt_list
 
 
@@ -46,3 +48,31 @@ def test_pedigree_with_gls():
         assert list(ped.genotype_likelihoods("sample1", i)) == list(gls1[i])
         assert ped.genotype("sample5", i) == genotypes5[i]
         assert list(ped.genotype_likelihoods("sample5", i)) == list(gls5[i])
+
+
+def test_find_recombination():
+    transmission_vector = [0, 0, 1, 1, 0]
+    positions = [5303, 5432, 8307, 9000, 9500]
+    recombcost = [0, 3, 3, 1, 1]
+    components = {5303: 5303, 5432: 5303, 8307: 5303, 9000: 5303, 9500: 5303}
+    events = find_recombination(transmission_vector, components, positions, recombcost)
+    assert events == [
+        RecombinationEvent(
+            position1=5432,
+            position2=8307,
+            transmitted_hap_father1=0,
+            transmitted_hap_father2=1,
+            transmitted_hap_mother1=0,
+            transmitted_hap_mother2=0,
+            recombination_cost=3,
+        ),
+        RecombinationEvent(
+            position1=9000,
+            position2=9500,
+            transmitted_hap_father1=1,
+            transmitted_hap_father2=0,
+            transmitted_hap_mother1=0,
+            transmitted_hap_mother2=0,
+            recombination_cost=1,
+        ),
+    ]
