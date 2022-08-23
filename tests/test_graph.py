@@ -1,5 +1,5 @@
 from pytest import raises
-from whatshap.pedigree import Graph, CyclicGraphError
+from whatshap.graph import Graph, CyclicGraphError
 
 
 def assert_toposort(tuples):

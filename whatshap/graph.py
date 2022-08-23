@@ -2,6 +2,7 @@
 Find connected components.
 """
 from abc import abstractmethod
+from collections import OrderedDict
 from typing import TypeVar, Generic, Optional, Iterable
 import typing
 
@@ -82,3 +83,48 @@ class ComponentFinder(Generic[C]):
     def print(self):
         for x in sorted(self.nodes):
             print(x, ":", self.nodes[x], "is represented by", self._find_node(x))
+
+
+class CyclicGraphError(Exception):
+    pass
+
+
+class Graph:
+    """Directed graph that can sort topologically"""
+
+    def __init__(self):
+        # map node to a list of neighbors
+        self._neighbors = OrderedDict()
+
+    def add_edge(self, node1, node2):
+        """The edge is directed from node1 to node2"""
+        if node1 not in self._neighbors:
+            self._neighbors[node1] = []
+        self._neighbors[node1].append(node2)
+        if node2 not in self._neighbors:
+            self._neighbors[node2] = []
+
+    def toposorted(self):
+        """
+        Return nodes of the graph sorted topologically.
+        For all edges u -> v that the graph has, node v will appear
+        before node u.
+        """
+        order = []
+        colors = {node: "white" for node in self._neighbors}
+
+        def visit(node):
+            assert colors[node] == "white"
+            colors[node] = "gray"
+            for neighbor in self._neighbors[node]:
+                if colors[neighbor] == "white":
+                    visit(neighbor)
+                elif colors[neighbor] == "gray":
+                    raise CyclicGraphError(f"Cycle involving {node!r} and {neighbor!r} detected")
+            order.append(node)
+            colors[node] = "black"
+
+        for node in self._neighbors:
+            if colors[node] == "white":
+                visit(node)
+        return order
