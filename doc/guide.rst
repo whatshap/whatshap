@@ -599,7 +599,7 @@ block_n50
     It is thus possible that the sum of all block lengths does not reach 50% of
     the length of the contig. In this case, the value in this column is set to 0.
 
-    If no contig lengths are available, this is set to ``nan``. Use `--chr-lengths``
+    If no contig lengths are available, this is set to ``nan``. Use ``--chr-lengths``
     to provide an external table with contig lengths in case the VCF header does not
     contain this information.
 
