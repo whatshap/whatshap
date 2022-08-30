@@ -135,7 +135,7 @@ class PhasedInputReader:
         """
         readset_reader = self._readset_reader
         for_sample = f"for sample {sample!r} " if not self._ignore_read_groups else ""
-        logger.info(
+        logger.debug(
             "Reading alignments %son chromosome %s and detecting alleles ...",
             for_sample,
             chromosome,
@@ -144,11 +144,9 @@ class PhasedInputReader:
             reference = self._fasta[chromosome] if self._fasta else None
         except KeyError:
             raise CommandLineError(
-                "Chromosome {!r} present in VCF file, but not in the reference FASTA {!r}".format(
-                    chromosome, self._fasta.filename
-                )
+                f"Chromosome {chromosome!r} present in VCF file, "
+                f"but not in the reference FASTA {self._fasta.filename!r}"
             )
-
         bam_sample = None if self._ignore_read_groups else sample
         try:
             readset = readset_reader.read(chromosome, variants, bam_sample, reference, regions)

@@ -150,17 +150,16 @@ def best_case_blocks(reads: ReadSet) -> Tuple[int, int]:
 def select_reads(
     readset: ReadSet, max_coverage: int, preferred_source_ids: Optional[Set[int]]
 ) -> ReadSet:
-    logger.info(
+    logger.debug(
         "Reducing coverage to at most %dX by selecting most informative reads ...", max_coverage
     )
     selected_indices = readselection(readset, max_coverage, preferred_source_ids)
     selected_reads = readset.subset(selected_indices)
     logger.info(
-        "Selected %d reads covering %d variants",
+        "Selected %d most phase-informative reads covering %d variants",
         len(selected_reads),
         len(selected_reads.get_positions()),
     )
-
     return selected_reads
 
 
@@ -449,11 +448,10 @@ def run_whatshap(
         components: Dict
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
             chromosome = variant_table.chromosome
-            if (not chromosomes) or (chromosome in chromosomes):
-                logger.info("======== Working on chromosome %r", chromosome)
-            else:
+            if chromosomes and chromosome not in chromosomes:
                 logger.info(
-                    "Leaving chromosome %r unchanged (present in VCF but not requested by option --chromosome)",
+                    "Leaving chromosome %r unchanged "
+                    "(present in VCF but not requested by --chromosome)",
                     chromosome,
                 )
                 with timers("write_vcf"):
@@ -468,12 +466,19 @@ def run_whatshap(
             # for each family.
             # TODO: Can the body of this loop be factored out into a phase_family function?
             for representative_sample, family in sorted(families.items()):
+                logger.info("")
                 if len(family) == 1:
-                    logger.info("---- Processing individual %s", representative_sample)
+                    logger.info(
+                        "# Working on contig %s in individual %s", chromosome, representative_sample
+                    )
                 else:
-                    logger.info("---- Processing family with individuals: %s", ",".join(family))
+                    logger.info(
+                        "# Working on contig %s in family individuals %s",
+                        chromosome,
+                        ",".join(family),
+                    )
                 max_coverage_per_sample = max(1, max_coverage // len(family))
-                logger.info("Using maximum coverage per sample of %dX", max_coverage_per_sample)
+                logger.debug("Using maximum coverage per sample of %dX", max_coverage_per_sample)
                 trios = family_trios[representative_sample]
                 assert len(family) == 1 or len(trios) > 0
 
@@ -517,7 +522,7 @@ def run_whatshap(
 
                 # Determine which variants can (in principle) be phased
                 accessible_positions = sorted(all_reads.get_positions())
-                logger.info(
+                logger.debug(
                     "Variants covered by at least one phase-informative "
                     "read in at least one individual after read selection: %d",
                     len(accessible_positions),
@@ -572,7 +577,7 @@ def run_whatshap(
                         )
 
                     superreads_list, transmission_vector = dp_table.get_super_reads()
-                    logger.info("%s cost: %d", problem_name, dp_table.get_optimal_cost())
+                    logger.debug("%s cost: %d", problem_name, dp_table.get_optimal_cost())
 
                 with timers("components"):
                     overall_components = compute_overall_components(
@@ -620,9 +625,8 @@ def run_whatshap(
                     )
 
             with timers("write_vcf"):
-                logger.info("======== Writing VCF")
+                logger.debug("Writing phasing result to output VCF")
                 changed_genotypes = vcf_writer.write(chromosome, superreads, components)
-                logger.info("Done writing VCF")
                 if changed_genotypes:
                     assert distrust_genotypes
                     logger.info("Changed %d genotypes while writing VCF", len(changed_genotypes))
@@ -680,29 +684,30 @@ def compute_overall_components(
 
 def log_component_stats(components: Mapping[int, int], n_accessible_positions: int) -> None:
     n_phased_blocks = len(set(components.values()))
-    logger.info(f"No. of phased blocks: {n_phased_blocks}")
     largest = find_largest_component(components)
-    if not largest:
-        return
-    logger.info(
-        f"Largest block contains {len(largest)} variants"
-        f" ({len(largest) / n_accessible_positions:.1%} of accessible variants)"
-        f" between position {largest[0] + 1} and {largest[-1] + 1}"
-    )
+    if largest:
+        logger.info(
+            "%s",
+            f"Largest block contains {len(largest)} variants"
+            f" ({len(largest) / n_accessible_positions:.1%} of accessible variants)"
+            f" between position {largest[0] + 1} and {largest[-1] + 1}",
+        )
+    else:
+        logger.info(f"No. of phased blocks: {n_phased_blocks}")
 
 
 def log_best_case_phasing_info(readset: ReadSet, selected_reads: ReadSet) -> None:
     (n_best_case_blocks, n_best_case_nonsingleton_blocks) = best_case_blocks(readset)
     (n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov) = best_case_blocks(selected_reads)
     logger.info(
-        "Best-case phasing would result in %d non-singleton phased blocks (%d in total)",
-        n_best_case_nonsingleton_blocks,
-        n_best_case_blocks,
-    )
-    logger.info(
-        "... after read selection: %d non-singleton phased blocks (%d in total)",
+        "Best-case phasing would result in %d non-singleton phased block%s (%d singletons). ",
         n_best_case_nonsingleton_blocks_cov,
-        n_best_case_blocks_cov,
+        plural_s(n_best_case_nonsingleton_blocks_cov),
+        n_best_case_blocks_cov - n_best_case_nonsingleton_blocks_cov,
+    )
+    logger.debug(
+        "... would be %d non-singleton phased blocks without read selection",
+        n_best_case_nonsingleton_blocks,
     )
 
 
@@ -748,7 +753,7 @@ def setup_families(
     for trio in all_trios:
         family_trios[family_finder.find(trio.child)].append(trio)
     logger.info(
-        "Working on %d%s samples from %d famil%s",
+        "Working on %d sample%s from %d famil%s",
         len(samples),
         plural_s(len(samples)),
         len(families),
@@ -824,27 +829,26 @@ def find_phaseable_variants(
     phasable_variant_table = deepcopy(variant_table)
     # Remove calls to be discarded from variant table
     phasable_variant_table.remove_rows_by_index(to_discard)
-    logger.info("Number of variants skipped due to missing genotypes: %d", len(missing_genotypes))
+
     if len(family) == 1:
         logger.info(
-            "Number of remaining%s variants: %d",
-            "" if include_homozygous else " heterozygous",
+            "Found %d usable%s variants (%d skipped due to missing genotypes)",
             len(phasable_variant_table),
+            "" if include_homozygous else " heterozygous",
+            len(missing_genotypes),
         )
     else:
         logger.info(
-            "Number of variants skipped due to Mendelian conflicts: %d", len(mendelian_conflicts)
-        )
-        logger.info(
-            "Number of remaining variants heterozygous in at least one individual: %d",
+            "Found %d usable variants (%d skipped due to Mendelian conflicts)",
             len(phasable_variant_table),
+            len(mendelian_conflicts),
         )
     return homozygous_positions, phasable_variant_table
 
 
 def log_time_and_memory_usage(timers, show_phase_vcfs):
     total_time = timers.total()
-    logger.info("\n== SUMMARY ==")
+    logger.info("\n# Resource usage")
     log_memory_usage()
     # fmt: off
     logger.info("Time spent reading BAM/CRAM:                 %6.1f s", timers.elapsed("read_bam"))
