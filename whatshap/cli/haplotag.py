@@ -504,6 +504,7 @@ def run_haplotag(
         # Check if user has specified a subset of regions per chromosome
         user_regions = normalize_user_regions(regions, bam_reader.references)
 
+        include_unmapped = regions is None
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
                 [alignment_file],
@@ -581,6 +582,7 @@ def run_haplotag(
                 BX_tag_to_haplotype = None
                 read_to_haplotype = None
 
+            assert not include_unmapped or len(regions) == 1
             for start, end in regions:
                 logger.debug("Working on %s:%d-%d", chrom, start, end)
                 for alignment in bam_reader.fetch(contig=chrom, start=start, stop=end):
@@ -619,6 +621,9 @@ def run_haplotag(
 
                     if n_alignments % 100000 == 0:
                         logger.debug(f"Processed {n_alignments} alignment records.")
+        if include_unmapped:
+            for alignment in bam_reader.fetch(until_eof=True):
+                bam_writer.write(alignment)
         timers.stop("haplotag-process")
         logger.debug("Processing complete (time: {})".format(timers.elapsed("haplotag-process")))
 
