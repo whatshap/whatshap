@@ -10,7 +10,7 @@ import sys
 import pysam
 import hashlib
 from collections import defaultdict
-from typing import List, Optional, Union, Dict, Tuple
+from typing import List, Optional, Union, Dict, Tuple, FrozenSet
 
 from xopen import xopen
 
@@ -448,6 +448,15 @@ def ignore_read(alignment, tag_supplementary):
     return ignore
 
 
+def contigs_with_alignments(af: pysam.AlignmentFile) -> FrozenSet[str]:
+    has_alignments = []
+    for contig in af.references:
+        for _ in af.fetch(contig=contig):
+            has_alignments.append(contig)
+            break
+    return frozenset(has_alignments)
+
+
 def run_haplotag(
     variant_file,
     alignment_file,
@@ -531,17 +540,14 @@ def run_haplotag(
         n_tagged = 0
         n_multiple_phase_sets = 0
 
+        has_alignments = contigs_with_alignments(bam_reader)
+
         for chrom, regions in user_regions.items():
             logger.debug(f"Processing chromosome {chrom}")
 
-            # If there are no alignments for this chromosome, skip it. This allows to have
-            # extra chromosomes in the BAM compared to the VCF as long as they are not actually
-            # used.
-            has_any_alignments = False
-            for _ in bam_reader.fetch(contig=chrom):
-                has_any_alignments = True
-                break
-            if not has_any_alignments:
+            if chrom not in has_alignments:
+                # Skip chromosomes without alignments. This allows to have extra chromosomes in the
+                # BAM header compared to the VCF.
                 continue
             try:
                 variant_table = load_chromosome_variants(vcf_reader, chrom, regions)
@@ -576,7 +582,7 @@ def run_haplotag(
                 read_to_haplotype = None
 
             for start, end in regions:
-                logger.debug("Iterating chromosome regions")
+                logger.debug("Working on %s:%d-%d", chrom, start, end)
                 for alignment in bam_reader.fetch(contig=chrom, start=start, stop=end):
                     n_alignments += 1
                     haplotype_name = "none"
