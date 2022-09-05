@@ -10,7 +10,7 @@ import sys
 import pysam
 import hashlib
 from collections import defaultdict
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict, Tuple
 
 from xopen import xopen
 
@@ -237,7 +237,9 @@ def prepare_haplotag_information(
     return BX_tag_to_haplotype, read_to_haplotype, n_multiple_phase_sets
 
 
-def normalize_user_regions(user_regions, bam_references):
+def normalize_user_regions(
+    user_regions, bam_references
+) -> Dict[str, List[Tuple[int, Optional[int]]]]:
     """
     Process and accept user input of the following forms:
 
@@ -253,21 +255,20 @@ def normalize_user_regions(user_regions, bam_references):
     :param bam_references: references of BAM file
     :return: dict of lists containing normalized regions per chromosome
     """
-    norm_regions = defaultdict(list)
+    regions = defaultdict(list)
     if user_regions is None:
         for reference in bam_references:
-            norm_regions[reference].append((0, None))
+            regions[reference].append((0, None))
     else:
         bam_references = set(bam_references)
         for region_spec in user_regions:
             region = Region.parse(region_spec)
             if region.chromosome not in bam_references:
                 raise ValueError(
-                    "Specified chromosome/reference is not contained "
-                    "in input BAM file: {}".format(region.chromosome)
+                    "Requested reference '{region.chromosome}' not found in input BAM/CRAM"
                 )
-            norm_regions[region.chromosome].append((region.start, region.end))
-    return norm_regions
+            regions[region.chromosome].append((region.start, region.end))
+    return regions
 
 
 def compute_variant_file_samples_to_use(vcf_samples, user_given_samples, ignore_read_groups):
