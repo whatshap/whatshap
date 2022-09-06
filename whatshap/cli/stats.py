@@ -6,7 +6,7 @@ from collections import defaultdict
 from contextlib import ExitStack
 import dataclasses
 from statistics import median
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 from ..vcf import VcfReader
 
@@ -66,7 +66,9 @@ class PhasedBlock:
         return sum(int(variant.is_snv()) for variant in self.phases)
 
     def split(self, split_left: int, split_right: int) -> Tuple["PhasedBlock", "PhasedBlock"]:
-        """Split a phaseblock in two based on given positions"""
+        """Split this phaseblock in two, based on given positions. The first phaseblock will contain
+        the variants to the left of split_left and the second the variants to the right of split_right."""
+        assert split_left <= split_right
         left_block = PhasedBlock(chromosome=self.chromosome)
         right_block = PhasedBlock(chromosome=self.chromosome)
         for variant, phase in self.phases.items():
@@ -136,7 +138,7 @@ class DetailedStats:
     block_n50: float
 
 
-def n50(lengths: List[int], target_length: int = None) -> int:
+def n50(lengths: List[int], target_length: Optional[int] = None) -> int:
     if target_length is None:
         target_length = sum(lengths)
 
@@ -200,7 +202,6 @@ class PhasingStats:
 
     def get_nonoverlapping_blocks(self) -> List[PhasedBlock]:
         """Split phase blocks into nonoverlapping subblocks"""
-        split_blocks = []
         pos_sorted_blocks = sorted(
             self.blocks, key=lambda b: (b.chromosome, b.leftmost_variant.position), reverse=True
         )
@@ -208,8 +209,8 @@ class PhasingStats:
         # filter out blocks with only one variant
         pos_sorted_blocks = [b for b in pos_sorted_blocks if len(b) > 1]
 
-        # iterate over blocks and split if overlapping until no blocks remain. non-overlapping
-        # blocks appended to split_blocks
+        # iterate over blocks and split if overlapping until no blocks remain.
+        split_blocks = []
         while pos_sorted_blocks:
             block = pos_sorted_blocks.pop()
             if pos_sorted_blocks:
@@ -231,7 +232,7 @@ class PhasingStats:
                             reverse=True,
                         )
 
-                    # Skip the left-side block is it too short after splitting
+                    # Skip the left-side block if is it too short after splitting
                     if len(block) < 2:
                         continue
             split_blocks.append(block)

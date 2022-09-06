@@ -13,7 +13,8 @@ def test_stats1(tmp_path):
         sample="sample1",
         chr_lengths="tests/data/chr-lengths.txt",
     )
-    lines = [l.split("\t") for l in open(outtsv)]
+    with open(outtsv) as f:
+        lines = [l.split("\t") for l in f]
     assert len(lines) == 4
     Fields = namedtuple("Fields", [f.strip("#\n") for f in lines[0]])
     entry_chrA, entry_chrB, entry_all = [Fields(*l) for l in lines[1:]]
@@ -54,7 +55,8 @@ def test_stats2(tmp_path):
         sample="sample1",
         chr_lengths="tests/data/chr-lengths.txt",
     )
-    lines = [l.split("\t") for l in open(outtsv)]
+    with open(outtsv) as f:
+        lines = [l.split("\t") for l in f]
     assert len(lines) == 4
     Fields = namedtuple("Fields", [f.strip("#\n") for f in lines[0]])
     entry_chrA, entry_chrB, entry_all = [Fields(*l) for l in lines[1:]]
@@ -119,7 +121,8 @@ def test_overlapping_phaseblocks(tmp_path):
         tsv=outtsv,
         sample="sample1",
     )
-    lines = [l.split("\t") for l in open(outtsv)]
+    with open(outtsv) as f:
+        lines = [l.split("\t") for l in f]
     assert len(lines) == 2
     Fields = namedtuple("Fields", [f.strip("#\n") for f in lines[0]])
     entry = Fields(*lines[1])
