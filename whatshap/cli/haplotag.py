@@ -127,9 +127,11 @@ def attempt_add_phase_information(
         # check if reads with same tag have been assigned
         if not ignore_linked_read:
             try:
-                read_clouds = bxtag_to_haplotype[alignment.get_tag("BX")]
+                tag = alignment.get_tag("BX")
             except KeyError:
                 read_clouds = []
+            else:  # alignment has BX tag
+                read_clouds = bxtag_to_haplotype[tag]
 
             for (reference_start, haplotype, phaseset) in read_clouds:
                 if abs(reference_start - alignment.reference_start) <= linked_read_cutoff:
