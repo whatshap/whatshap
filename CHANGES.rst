@@ -5,6 +5,8 @@ Changes
 development version
 -------------------
 
+* :pr:`387`: ``whatshap haplotag`` got some optimizations and is now about 20% faster.
+  Thanks to @pontushojer.
 * :issue:`397`: Fixed ``whatshap haplotag`` to now write unmapped reads to the
   output file (unless the ``--region`` option was used).
 
