@@ -1,7 +1,7 @@
 """
 Tag reads by haplotype
 
-Sequencing reads are read from file ALIGNMENTS (in BAM format) and tagged reads
+Sequencing reads are read from file ALIGNMENTS (in BAM or CRAM format) and tagged reads
 are written to stdout.
 """
 import logging
@@ -10,7 +10,7 @@ import sys
 import pysam
 import hashlib
 from collections import defaultdict
-from typing import List, Optional, Union, Dict, Tuple, FrozenSet
+from typing import List, Optional, Union, Dict, Tuple, FrozenSet, Sequence
 
 from xopen import xopen
 
@@ -29,44 +29,46 @@ logger = logging.getLogger(__name__)
 # fmt: off
 def add_arguments(parser):
     arg = parser.add_argument
-    arg('-o', '--output',
+    arg("-o", "--output",
         default=sys.stdout,
-        help='Output file. If omitted, use standard output.')
+        help="Output file. If omitted, use standard output.")
     arg("--reference", "-r", metavar="FASTA",
         help="Reference file. Must be accompanied by .fai index (create with samtools faidx)")
     arg("--no-reference", action="store_true", default=False,
         help="Detect alleles without requiring a reference, at the expense of phasing quality "
         "(in particular for long reads)")
-    arg('--regions', dest='regions', metavar='REGION', default=None, action='append',
-        help='Specify region(s) of interest to limit the tagging to reads/variants '
-        'overlapping those regions. You can specify a space-separated list of '
-        'regions in the form of chrom:start-end, chrom (consider entire chromosome), '
-        'or chrom:start (consider region from this start to end of chromosome).')
-    arg('--ignore-linked-read', default=False, action='store_true',
-        help='Ignore linkage information stored in BX tags of the reads.')
-    arg('--linked-read-distance-cutoff', '-d', metavar='LINKEDREADDISTANCE', default=50000, type=int,
-        help='Assume reads with identical BX tags belong to different read clouds if their '
-        'distance is larger than LINKEDREADDISTANCE (default: %(default)s).')
-    arg('--ignore-read-groups', default=False, action='store_true',
-        help='Ignore read groups in BAM/CRAM header and assume all reads come '
-        'from the same sample.')
-    arg('--sample', dest='given_samples', metavar='SAMPLE', default=None, action='append',
-        help='Name of a sample to phase. If not given, all samples in the '
-        'input VCF are phased. Can be used multiple times.')
-    arg('--output-haplotag-list', dest='haplotag_list', metavar='HAPLOTAG_LIST', default=None,
-        help='Write assignments of read names to haplotypes (tab separated) to given '
-        'output file. If filename ends in .gz, then output is gzipped.')
-    arg('--tag-supplementary', default=False, action='store_true',
-        help='Also tag supplementary alignments. Supplementary alignments are assigned to the same '
-        'haplotype the primary alignment has been assigned to (default: only tag primary alignments).')
-    arg('--skip-missing-contigs', default=False, action='store_true',
-        help='Skip reads that map to a contig that does not exist in the VCF')
-    arg('--output-threads', '--out-threads', default=1, type=int,
-        help='Number of threads to use for output file writing (passed to pysam). '
-        'For optimal performance, instead write output to stdout and use "samtools view" to compress.')
-    arg('variant_file', metavar='VCF', help='VCF file with phased variants (must be gzip-compressed and indexed)')
-    arg('alignment_file', metavar='ALIGNMENTS',
-        help='File (BAM/CRAM) with read alignments to be tagged by haplotype')
+    arg("--regions", dest="regions", metavar="REGION", default=None, action="append",
+        help="Specify region(s) of interest to limit the tagging to reads/variants "
+        "overlapping those regions. You can specify a space-separated list of "
+        "regions in the form of chrom:start-end, chrom (consider entire chromosome), "
+        "or chrom:start (consider region from this start to end of chromosome).")
+    arg("--ignore-linked-read", default=False, action="store_true",
+        help="Ignore linkage information stored in BX tags of the reads.")
+    arg("--linked-read-distance-cutoff", "-d", metavar="LINKEDREADDISTANCE",
+        default=50000, type=int,
+        help="Assume reads with identical BX tags belong to different read clouds if their "
+        "distance is larger than LINKEDREADDISTANCE (default: %(default)s).")
+    arg("--ignore-read-groups", default=False, action="store_true",
+        help="Ignore read groups in BAM/CRAM header and assume all reads come "
+        "from the same sample.")
+    arg("--sample", dest="given_samples", metavar="SAMPLE", default=None, action="append",
+        help="Name of a sample to phase. If not given, all samples in the "
+        "input VCF are phased. Can be used multiple times.")
+    arg("--output-haplotag-list", dest="haplotag_list", metavar="HAPLOTAG_LIST", default=None,
+        help="Write assignments of read names to haplotypes (tab separated) to given "
+        "output file. If filename ends in .gz, then output is gzipped.")
+    arg("--tag-supplementary", default=False, action="store_true",
+        help="Also tag supplementary alignments. Supplementary alignments are assigned to the "
+        "same haplotype as the primary alignment (default: only tag primary alignments).")
+    arg("--skip-missing-contigs", default=False, action="store_true",
+        help="Skip reads that map to a contig that does not exist in the VCF")
+    arg("--output-threads", "--out-threads", default=1, type=int,
+        help="Number of threads to use for output file writing (passed to pysam). "
+        "For optimal performance, instead pipe output into 'samtools view' to compress.")
+    arg("variant_file", metavar="VCF", help="VCF file with phased variants "
+        "(must be gzip-compressed and indexed)")
+    arg("alignment_file", metavar="ALIGNMENTS",
+        help="BAM/CRAM file with alignments to be tagged by haplotype")
 # fmt: on
 
 
@@ -87,7 +89,7 @@ def get_variant_information(variant_table: VariantTable, sample: str):
     and variants is a list of all non-homozygous variants.
     """
     genotypes = variant_table.genotypes_of(sample)
-    phases = variant_table.phases_of(sample)  # type: List[Optional[VariantCallPhase]]
+    phases: List[Optional[VariantCallPhase]] = variant_table.phases_of(sample)
 
     vpos_to_phase_info = dict()
     variants = []
@@ -106,13 +108,6 @@ def get_variant_information(variant_table: VariantTable, sample: str):
 def attempt_add_phase_information(
     alignment, read_to_haplotype, bxtag_to_haplotype, linked_read_cutoff, ignore_linked_read
 ):
-    """
-    :param alignment:
-    :param read_to_haplotype:
-    :param bxtag_to_haplotype:
-    :param linked_read_cutoff:
-    :return:
-    """
     is_tagged = 0
     haplotype_name = "none"
     phaseset = "none"
@@ -144,13 +139,9 @@ def attempt_add_phase_information(
     return is_tagged, haplotype_name, phaseset
 
 
-def load_chromosome_variants(vcf_reader, chromosome, regions):
-    """
-    :param vcf_reader:
-    :param chromosome:
-    :param regions:
-    :return:
-    """
+def load_chromosome_variants(
+    vcf_reader: VcfReader, chromosome: str, regions: Sequence[Tuple[int, Optional[int]]]
+) -> VariantTable:
     try:
         logger.debug(f"Loading variants from {len(regions)} distinct region(s)")
         variant_table = vcf_reader.fetch_regions(chromosome, regions)
@@ -250,7 +241,7 @@ def prepare_haplotag_information(
 
 
 def normalize_user_regions(
-    user_regions, bam_references
+    user_regions: Optional[Sequence[str]], bam_references: List[str]
 ) -> Dict[str, List[Tuple[int, Optional[int]]]]:
     """
     Process and accept user input of the following forms:
@@ -263,11 +254,14 @@ def normalize_user_regions(
     In pysam, coordinates are treated as 0-based half-open,
     so convert user input chr1:1-100 into chr1:0-100
 
-    :param user_regions: list of user input regions
-    :param bam_references: references of BAM file
-    :return: dict of lists containing normalized regions per chromosome
+    Args:
+        user_regions: list of user input regions
+        bam_references: references of BAM file
+
+    Returns:
+        dict of lists containing normalized regions per chromosome
     """
-    regions = defaultdict(list)
+    regions: Dict[str, List[Tuple[int, Optional[int]]]] = defaultdict(list)
     if user_regions is None:
         for reference in bam_references:
             regions[reference].append((0, None))
