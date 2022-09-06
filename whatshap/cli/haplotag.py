@@ -125,12 +125,19 @@ def attempt_add_phase_information(
         is_tagged = 1
     except KeyError:
         # check if reads with same tag have been assigned
-        if alignment.has_tag("BX") and not ignore_linked_read:
-            read_clouds = bxtag_to_haplotype[alignment.get_tag("BX")]
+        if not ignore_linked_read:
+            try:
+                tag = alignment.get_tag("BX")
+            except KeyError:
+                read_clouds = []
+            else:  # alignment has BX tag
+                read_clouds = bxtag_to_haplotype[tag]
+
             for (reference_start, haplotype, phaseset) in read_clouds:
                 if abs(reference_start - alignment.reference_start) <= linked_read_cutoff:
                     haplotype_name = f"H{haplotype + 1}"
                     alignment.set_tag("HP", haplotype + 1)
+                    alignment.set_tag("PC", value=None)
                     alignment.set_tag("PS", phaseset)
                     is_tagged = 1
                     break
@@ -181,9 +188,10 @@ def prepare_haplotag_information(
 
         # map BX tag to list of reads
         bx_tag_to_readlist = defaultdict(list)
-        for read in read_set:
-            if read.has_BX_tag() and not ignore_linked_read:
-                bx_tag_to_readlist[read.BX_tag].append(read)
+        if not ignore_linked_read:
+            for read in read_set:
+                if read.has_BX_tag():
+                    bx_tag_to_readlist[read.BX_tag].append(read)
 
         # all reads processed so far
         processed_reads = set()
@@ -197,12 +205,13 @@ def prepare_haplotag_information(
             reads_to_consider = {read}
 
             # reads with same BX tag need to be considered too (unless --ignore-linked-read is set)
-            if read.has_BX_tag() and not ignore_linked_read:
+            if not ignore_linked_read and read.has_BX_tag():
                 for r in bx_tag_to_readlist[read.BX_tag]:
                     if r.name not in processed_reads:
                         # only select reads close to current one
                         if abs(read.reference_start - r.reference_start) <= linked_read_cutoff:
                             reads_to_consider.add(r)
+
             for r in reads_to_consider:
                 processed_reads.add(r.name)
                 for v in r:
@@ -225,7 +234,10 @@ def prepare_haplotag_information(
             if quality == 0:
                 continue
             haplotype = 0 if quality > 0 else 1
-            BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, haplotype, phaseset))
+
+            if not ignore_linked_read and read.has_BX_tag():
+                BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, haplotype, phaseset))
+
             for r in reads_to_consider:
                 read_to_haplotype[r.name] = (haplotype, abs(quality), phaseset)
                 logger.debug(
@@ -589,15 +601,16 @@ def run_haplotag(
                     n_alignments += 1
                     haplotype_name = "none"
                     phaseset = "none"
-                    alignment.set_tag("HP", value=None)
-                    alignment.set_tag("PC", value=None)
-                    alignment.set_tag("PS", value=None)
+
                     if variant_table is None or ignore_read(alignment, tag_supplementary):
                         # - If no variants in VCF for this chromosome,
                         # alignments just get written to output
                         # - Ignored reads are simply
                         # written to the output BAM
-                        pass
+                        # Existing tags HP, PC and PS are removed
+                        alignment.set_tag("HP", value=None)
+                        alignment.set_tag("PC", value=None)
+                        alignment.set_tag("PS", value=None)
                     else:
                         (is_tagged, haplotype_name, phaseset) = attempt_add_phase_information(
                             alignment,
@@ -608,8 +621,17 @@ def run_haplotag(
                         )
                         n_tagged += is_tagged
 
+                        if not is_tagged:
+                            # Remove any existing tags HP, PC and PS if the aligment does
+                            # not have phasing information
+                            alignment.set_tag("HP", value=None)
+                            alignment.set_tag("PC", value=None)
+                            alignment.set_tag("PS", value=None)
+
                     bam_writer.write(alignment)
-                    if not (alignment.is_secondary or alignment.is_supplementary):
+                    if haplotag_list is not None and not (
+                        alignment.is_secondary or alignment.is_supplementary
+                    ):
                         print(
                             alignment.query_name,
                             haplotype_name,
