@@ -2,8 +2,8 @@
 Changes
 =======
 
-development version
--------------------
+v1.6 (2022-09-06)
+-----------------
 
 * :pr:`384`: Fixed how interleaved phase blocks in ``whatshap stats`` are split
   when computing NG50 values. This allows NG50 values to be larger than before.
