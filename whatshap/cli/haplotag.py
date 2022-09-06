@@ -10,7 +10,7 @@ import sys
 import pysam
 import hashlib
 from collections import defaultdict
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Dict, Tuple, FrozenSet
 
 from xopen import xopen
 
@@ -237,7 +237,9 @@ def prepare_haplotag_information(
     return BX_tag_to_haplotype, read_to_haplotype, n_multiple_phase_sets
 
 
-def normalize_user_regions(user_regions, bam_references):
+def normalize_user_regions(
+    user_regions, bam_references
+) -> Dict[str, List[Tuple[int, Optional[int]]]]:
     """
     Process and accept user input of the following forms:
 
@@ -253,21 +255,20 @@ def normalize_user_regions(user_regions, bam_references):
     :param bam_references: references of BAM file
     :return: dict of lists containing normalized regions per chromosome
     """
-    norm_regions = defaultdict(list)
+    regions = defaultdict(list)
     if user_regions is None:
         for reference in bam_references:
-            norm_regions[reference].append((0, None))
+            regions[reference].append((0, None))
     else:
         bam_references = set(bam_references)
         for region_spec in user_regions:
             region = Region.parse(region_spec)
             if region.chromosome not in bam_references:
                 raise ValueError(
-                    "Specified chromosome/reference is not contained "
-                    "in input BAM file: {}".format(region.chromosome)
+                    "Requested reference '{region.chromosome}' not found in input BAM/CRAM"
                 )
-            norm_regions[region.chromosome].append((region.start, region.end))
-    return norm_regions
+            regions[region.chromosome].append((region.start, region.end))
+    return regions
 
 
 def compute_variant_file_samples_to_use(vcf_samples, user_given_samples, ignore_read_groups):
@@ -447,6 +448,15 @@ def ignore_read(alignment, tag_supplementary):
     return ignore
 
 
+def contigs_with_alignments(af: pysam.AlignmentFile) -> FrozenSet[str]:
+    has_alignments = []
+    for contig in af.references:
+        for _ in af.fetch(contig=contig):
+            has_alignments.append(contig)
+            break
+    return frozenset(has_alignments)
+
+
 def run_haplotag(
     variant_file,
     alignment_file,
@@ -494,6 +504,7 @@ def run_haplotag(
         # Check if user has specified a subset of regions per chromosome
         user_regions = normalize_user_regions(regions, bam_reader.references)
 
+        include_unmapped = regions is None
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
                 [alignment_file],
@@ -530,17 +541,14 @@ def run_haplotag(
         n_tagged = 0
         n_multiple_phase_sets = 0
 
+        has_alignments = contigs_with_alignments(bam_reader)
+
         for chrom, regions in user_regions.items():
             logger.debug(f"Processing chromosome {chrom}")
 
-            # If there are no alignments for this chromosome, skip it. This allows to have
-            # extra chromosomes in the BAM compared to the VCF as long as they are not actually
-            # used.
-            has_any_alignments = False
-            for _ in bam_reader.fetch(contig=chrom):
-                has_any_alignments = True
-                break
-            if not has_any_alignments:
+            if chrom not in has_alignments:
+                # Skip chromosomes without alignments. This allows to have extra chromosomes in the
+                # BAM header compared to the VCF.
                 continue
             try:
                 variant_table = load_chromosome_variants(vcf_reader, chrom, regions)
@@ -574,8 +582,9 @@ def run_haplotag(
                 BX_tag_to_haplotype = None
                 read_to_haplotype = None
 
+            assert not include_unmapped or len(regions) == 1
             for start, end in regions:
-                logger.debug("Iterating chromosome regions")
+                logger.debug("Working on %s:%d-%d", chrom, start, end)
                 for alignment in bam_reader.fetch(contig=chrom, start=start, stop=end):
                     n_alignments += 1
                     haplotype_name = "none"
@@ -612,6 +621,9 @@ def run_haplotag(
 
                     if n_alignments % 100000 == 0:
                         logger.debug(f"Processed {n_alignments} alignment records.")
+        if include_unmapped:
+            for alignment in bam_reader.fetch(until_eof=True):
+                bam_writer.write(alignment)
         timers.stop("haplotag-process")
         logger.debug("Processing complete (time: {})".format(timers.elapsed("haplotag-process")))
 

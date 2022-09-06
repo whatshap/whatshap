@@ -461,3 +461,18 @@ def test_cram_output(tmp_path):
     )
     with pysam.AlignmentFile(outcram) as f:
         assert f.is_cram
+
+
+def test_haplotag_unmapped_reads(tmp_path):
+    outbam = tmp_path / "output.bam"
+    run_haplotag(
+        variant_file="tests/data/haplotag.10X.vcf.gz",
+        alignment_file="tests/data/unmapped.bam",
+        output=outbam,
+    )
+    pysam.index(str(outbam))
+    with pysam.AlignmentFile(outbam) as af:
+        alignments = list(af.fetch(until_eof=True))
+    assert len(alignments) == 6
+    assert not alignments[4].is_unmapped
+    assert alignments[5].is_unmapped

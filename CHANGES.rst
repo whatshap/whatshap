@@ -2,6 +2,12 @@
 Changes
 =======
 
+development version
+-------------------
+
+* :issue:`397`: Fixed ``whatshap haplotag`` to now write unmapped reads to the
+  output file (unless the ``--region`` option was used).
+
 v1.5 (2022-08-23)
 -----------------
 
