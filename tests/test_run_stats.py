@@ -13,7 +13,8 @@ def test_stats1(tmp_path):
         sample="sample1",
         chr_lengths="tests/data/chr-lengths.txt",
     )
-    lines = [l.split("\t") for l in open(outtsv)]
+    with open(outtsv) as f:
+        lines = [l.split("\t") for l in f]
     assert len(lines) == 4
     Fields = namedtuple("Fields", [f.strip("#\n") for f in lines[0]])
     entry_chrA, entry_chrB, entry_all = [Fields(*l) for l in lines[1:]]
@@ -54,7 +55,8 @@ def test_stats2(tmp_path):
         sample="sample1",
         chr_lengths="tests/data/chr-lengths.txt",
     )
-    lines = [l.split("\t") for l in open(outtsv)]
+    with open(outtsv) as f:
+        lines = [l.split("\t") for l in f]
     assert len(lines) == 4
     Fields = namedtuple("Fields", [f.strip("#\n") for f in lines[0]])
     entry_chrA, entry_chrB, entry_all = [Fields(*l) for l in lines[1:]]
@@ -85,3 +87,47 @@ def test_stats2(tmp_path):
     assert entry_all.variant_per_block_sum == "8"
     assert entry_all.bp_per_block_sum == "750"
     assert entry_all.block_n50[:-1] == "350"
+
+
+def test_overlapping_phaseblocks(tmp_path):
+    """
+    We have three phaseblocks on chrA which is 1000 bp
+
+        chrA:100-700 --> 600 bp
+        chrA:410-470 --> 60 bp
+        chrA:800-950 --> 150 bp
+
+    Total block sum should be 600 + 60 + 150 = 810 bp
+
+    For NG50 the first block is split since the second block overlaps, now we have four blocks
+
+        chrA:100-350 --> 250 bp
+        chrA:410-470 --> 60 bp
+        chrA:500-700 --> 200 bp
+        chrA:800-950 --> 150 bp
+
+    Half of the total length is 1000 * 0.5 = 500 bp.
+    Let's calculate NG50 by adding block lengths in descending order until we exceed 500 bp
+
+        block   length  total   >500
+        1       250     250     no
+        2       200     450     no
+        3       150     600     yes ->  NG50 = 150 bp
+    """
+
+    outtsv = tmp_path / "output.tsv"
+    run_stats(
+        vcf="tests/data/phased_overlapping.vcf",
+        tsv=outtsv,
+        sample="sample1",
+    )
+    with open(outtsv) as f:
+        lines = [l.split("\t") for l in f]
+    assert len(lines) == 2
+    Fields = namedtuple("Fields", [f.strip("#\n") for f in lines[0]])
+    entry = Fields(*lines[1])
+
+    assert entry.chromosome == "chrA"
+    assert entry.blocks == "3"
+    assert entry.bp_per_block_sum == "810"
+    assert entry.block_n50[:-1] == "150"
