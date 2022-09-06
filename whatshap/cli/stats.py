@@ -460,7 +460,7 @@ def run_stats(
 
             total_stats += stats
 
-            if given_chromosomes and all(c in seen_chromosomes for c in given_chromosomes):
+            if given_chromosomes and set(given_chromosomes) <= seen_chromosomes:
                 break
 
         if chromosome_count > 1:
