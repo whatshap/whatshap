@@ -5,10 +5,12 @@ Changes
 development version
 -------------------
 
+* :pr:`385`: Sped up ``whatshap stats`` when used with ``--chromosomes`` by avoiding to
+  read in the entire VCF. Thanks to @pontushojer.
 * :pr:`387`: ``whatshap haplotag`` got some optimizations and is now about 20% faster.
   Thanks to @pontushojer.
-* :issue:`397`: Fixed ``whatshap haplotag`` to now write unmapped reads to the
-  output file (unless the ``--region`` option was used).
+* :issue:`397`: Fixed ``whatshap haplotag`` to include reads not assigned to a contig
+  (unmapped) in the output (unless the ``--region`` option is used).
 
 v1.5 (2022-08-23)
 -----------------
