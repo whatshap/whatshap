@@ -1,7 +1,7 @@
 import itertools
 import math
 
-from whatshap.core import ClusterEditingSolver, scoreReadset, TriangleSparseMatrix
+from whatshap.polyphase_solver import ClusterEditingSolver, scoreReadset, TriangleSparseMatrix
 from whatshap.testhelpers import string_to_readset
 
 

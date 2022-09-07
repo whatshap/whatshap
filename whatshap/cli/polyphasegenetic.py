@@ -18,9 +18,10 @@ from dataclasses import dataclass
 from contextlib import ExitStack
 
 from whatshap import __version__
-from whatshap.core import ClusterEditingSolver, Read, ReadSet
+from whatshap.core import Read, ReadSet
 from whatshap.cli import log_memory_usage, CommandLineError
 from whatshap.polyphaseplots import create_genetic_plots
+from whatshap.polyphase_solver import ClusterEditingSolver
 from whatshap.variantselection import compute_phasable_variants, filter_variants
 from whatshap.offspringscoring import get_offspring_gl, correct_variant_types, get_variant_scoring
 from whatshap.timer import StageTimer
