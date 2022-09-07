@@ -298,35 +298,52 @@ class PhasingStats:
     def print(self, chr_lengths=None):
         stats = self.get(chr_lengths)
         WIDTH = 21
-        print("Variants in VCF:".rjust(WIDTH), f"{stats.variants:8d}")
+
+        # Parameters for value formatting
+        max_integer_width = max(len(str(int(value))) for value in vars(stats).values())
+        value_width = max(max_integer_width, 8)
+        format_int = f"{value_width}d"
+        format_float = f"{value_width + 3}.2f"
+
+        print("Variants in VCF:".rjust(WIDTH), f"{stats.variants:{format_int}}")
         print(
             "Heterozygous:".rjust(WIDTH),
-            f"{stats.heterozygous_variants:8d} ({stats.heterozygous_snvs:8d} SNVs)",
+            f"{stats.heterozygous_variants:{format_int}} ({stats.heterozygous_snvs:{format_int}} SNVs)",
         )
-        print("Phased:".rjust(WIDTH), f"{stats.phased:8d} ({stats.phased_snvs:8d} SNVs)")
-        print("Unphased:".rjust(WIDTH), f"{stats.unphased:8d}", "(not considered below)")
-        print("Singletons:".rjust(WIDTH), f"{stats.singletons:8d}", "(not considered below)")
-        print("Blocks:".rjust(WIDTH), f"{stats.blocks:8d}")
+        print(
+            "Phased:".rjust(WIDTH),
+            f"{stats.phased:{format_int}} ({stats.phased_snvs:{format_int}} SNVs)",
+        )
+        print("Unphased:".rjust(WIDTH), f"{stats.unphased:{format_int}}", "(not considered below)")
+        print(
+            "Singletons:".rjust(WIDTH), f"{stats.singletons:{format_int}}", "(not considered below)"
+        )
+        print("Blocks:".rjust(WIDTH), f"{stats.blocks:{format_int}}")
         print()
         print("Block sizes (no. of variants)")
         print(
             "Median block size:".rjust(WIDTH),
-            f"{stats.variant_per_block_median:11.2f} variants",
+            f"{stats.variant_per_block_median:{format_float}} variants",
         )
         print(
             "Average block size:".rjust(WIDTH),
-            f"{stats.variant_per_block_avg:11.2f} variants",
+            f"{stats.variant_per_block_avg:{format_float}} variants",
         )
-        print("Largest block:".rjust(WIDTH), f"{stats.variant_per_block_max:8d}    variants")
-        print("Smallest block:".rjust(WIDTH), f"{stats.variant_per_block_min:8d}    variants")
+        print(
+            "Largest block:".rjust(WIDTH), f"{stats.variant_per_block_max:{format_int}}    variants"
+        )
+        print(
+            "Smallest block:".rjust(WIDTH),
+            f"{stats.variant_per_block_min:{format_int}}    variants",
+        )
         print()
         print("Block lengths (basepairs)")
-        print("Sum of lengths:".rjust(WIDTH), f"{stats.bp_per_block_sum:8d}    bp")
-        print("Median block length:".rjust(WIDTH), f"{stats.bp_per_block_median:11.2f} bp")
-        print("Average block length:".rjust(WIDTH), f"{stats.bp_per_block_avg:11.2f} bp")
-        print("Longest block:".rjust(WIDTH), f"{stats.bp_per_block_max:8d}    bp")
-        print("Shortest block:".rjust(WIDTH), f"{stats.bp_per_block_min:8d}    bp")
-        print("Block NG50:".rjust(WIDTH), f"{stats.block_n50:8.0f}    bp")
+        print("Sum of lengths:".rjust(WIDTH), f"{stats.bp_per_block_sum:{format_int}}    bp")
+        print("Median block length:".rjust(WIDTH), f"{stats.bp_per_block_median:{format_float}} bp")
+        print("Average block length:".rjust(WIDTH), f"{stats.bp_per_block_avg:{format_float}} bp")
+        print("Longest block:".rjust(WIDTH), f"{stats.bp_per_block_max:{format_int}}    bp")
+        print("Shortest block:".rjust(WIDTH), f"{stats.bp_per_block_min:{format_int}}    bp")
+        print("Block NG50:".rjust(WIDTH), f"{stats.block_n50:{format_int}}    bp")
         assert stats.phased + stats.unphased + stats.singletons == stats.heterozygous_variants
 
 
