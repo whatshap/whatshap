@@ -1,3 +1,13 @@
+"""
+Manages phasable variants for genetic polyploid phasing.
+
+The genetic version of Whatshap polyphase is able to phase certain types of variants only,
+depending on the genotype. For a given variant table, computes the set of phasable variants
+for the specified parents. Can also filter variants if the coverage and coverage rations
+between parents and progenies (derived from the allele depths in the variant table) deviate too
+much from the average.
+"""
+
 import logging
 
 from typing import List
@@ -8,6 +18,12 @@ logger = logging.getLogger(__name__)
 
 
 class VariantInfo:
+    """
+    Stores phasable variants in an easily accessible way. Each variant specifies which allele (as a
+    number) is the reference (= majority) and which is the alternative (= minority) allele and how
+    often the alt allele occurs on the parent and co-parent sample.
+    """
+
     class ParentVariant:
         __slots__ = ("ref", "alt", "alt_count", "co_alt_count")
 

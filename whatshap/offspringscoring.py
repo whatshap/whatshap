@@ -1,3 +1,12 @@
+"""
+Computes allele co-occurence scores for genetic polyploid phasing.
+
+For a set of phasable variants the genetic polyphase algorithm computes scores to quantify how
+likely the marker alleles (= minority alleles) of two variants origin from the same of from
+different haplotypes. The computation is done in several steps, as described in the
+`polyphasegenetic` module.
+"""
+
 import logging
 
 from math import log

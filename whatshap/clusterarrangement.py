@@ -1,3 +1,9 @@
+"""
+For a clustering of marker alleles in the context of polyploid genetic phasing, this module
+computes an assignment of these alleles to a set of haplotypes in order to obtain a (partial)
+phasing of the variants to which these alleles belong.
+"""
+
 import logging
 
 from pulp import LpProblem, LpVariable, LpMaximize, LpInteger, value, COIN_CMD
