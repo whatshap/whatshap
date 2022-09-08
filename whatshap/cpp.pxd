@@ -193,3 +193,18 @@ cdef extern from "../src/polyphase/switchflipcalculator.h":
                     vector[uint32_t]& switchesInColumn,
                     vector[vector[uint32_t]]& flippedHapsInColumn,
                     vector[vector[uint32_t]]& permInColumn) except +
+
+
+cdef extern from "../src/polyphase/progenygenotypelikelihoods.h":
+    cdef cppclass ProgenyGenotypeLikelihoods:
+        ProgenyGenotypeLikelihoods(uint32_t ploidy, uint32_t numSamples, uint32_t numPositions) except +
+        double getGl(uint32_t pos, uint32_t sampleId, uint32_t genotype) except +
+        vector[double] getGlv(uint32_t pos, uint32_t sampleId) except +
+        void setGl(uint32_t pos, uint32_t sampleId, uint32_t genotype, double l) except +
+        void setGlv(uint32_t pos, uint32_t sampleId, vector[double] l) except +
+        uint32_t getPloidy() except +
+        uint32_t getNumSamples() except +
+        uint32_t getNumPositions() except +
+        double getSimplexNulliplexScore(uint32_t pos1, uint32_t pos2) except +
+        double getSimplexSimplexScore(uint32_t pos1, uint32_t pos2) except +
+        double getDuplexNulliplexScore(uint32_t pos1, uint32_t pos2) except +

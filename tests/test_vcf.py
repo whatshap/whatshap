@@ -8,7 +8,7 @@ from whatshap.vcf import (
     MixedPhasingError,
     PloidyError,
     VariantCallPhase,
-    VcfVariant,
+    BiallelicVcfVariant,
     GenotypeLikelihoods,
     VcfIndexMissing,
 )
@@ -133,12 +133,12 @@ def test_mixed_phasing_vcf():
 
 def test_vcf_variant_hashability():
     v = [
-        VcfVariant(10, "A", "TC"),
-        VcfVariant(10, "A", "TCA"),
-        VcfVariant(10, "C", "TC"),
-        VcfVariant(20, "A", "TC"),
-        VcfVariant(10, "A", "TCA"),
-        VcfVariant(20, "A", "TC"),
+        BiallelicVcfVariant(10, "A", "TC"),
+        BiallelicVcfVariant(10, "A", "TCA"),
+        BiallelicVcfVariant(10, "C", "TC"),
+        BiallelicVcfVariant(20, "A", "TC"),
+        BiallelicVcfVariant(10, "A", "TCA"),
+        BiallelicVcfVariant(20, "A", "TC"),
     ]
     assert len(set(v)) == 4
 
@@ -198,10 +198,10 @@ def test_phasing_to_reads():
         assert read2[1].quality == 91
 
         variants = [
-            VcfVariant(350 - 1, "G", "T"),
-            VcfVariant(300 - 1, "G", "T"),
-            VcfVariant(17, "A", "TTC"),
-            VcfVariant(1000, "C", "G"),
+            BiallelicVcfVariant(350 - 1, "G", "T"),
+            BiallelicVcfVariant(300 - 1, "G", "T"),
+            BiallelicVcfVariant(17, "A", "TTC"),
+            BiallelicVcfVariant(1000, "C", "G"),
         ]
         phase_reads_sample2 = list(
             table_a.phased_blocks_as_reads(
@@ -231,16 +231,24 @@ def test_unknown_genotype():
 
 
 def test_normalize():
-    assert VcfVariant(100, "A", "C").normalized() == VcfVariant(100, "A", "C")
-    assert VcfVariant(100, "", "A").normalized() == VcfVariant(100, "", "A")
-    assert VcfVariant(100, "A", "").normalized() == VcfVariant(100, "A", "")
-    assert VcfVariant(100, "A", "AC").normalized() == VcfVariant(101, "", "C")
-    assert VcfVariant(100, "AC", "A").normalized() == VcfVariant(101, "C", "")
-    assert VcfVariant(100, "ACAGACC", "ACAGACT").normalized() == VcfVariant(106, "C", "T")
-    assert VcfVariant(100, "GCTG", "GCTAAA").normalized() == VcfVariant(103, "G", "AAA")
-    assert VcfVariant(100, "ATTA", "ATA").normalized() == VcfVariant(101, "T", "")
-    assert VcfVariant(100, "ATTTC", "ATTTTTTC").normalized() == VcfVariant(101, "", "TTT")
-    assert VcfVariant(100, "GCTGTT", "GCTAAATT").normalized() == VcfVariant(103, "G", "AAA")
+    assert BiallelicVcfVariant(100, "A", "C").normalized() == BiallelicVcfVariant(100, "A", "C")
+    assert BiallelicVcfVariant(100, "", "A").normalized() == BiallelicVcfVariant(100, "", "A")
+    assert BiallelicVcfVariant(100, "A", "").normalized() == BiallelicVcfVariant(100, "A", "")
+    assert BiallelicVcfVariant(100, "A", "AC").normalized() == BiallelicVcfVariant(101, "", "C")
+    assert BiallelicVcfVariant(100, "AC", "A").normalized() == BiallelicVcfVariant(101, "C", "")
+    assert BiallelicVcfVariant(100, "ACAGACC", "ACAGACT").normalized() == BiallelicVcfVariant(
+        106, "C", "T"
+    )
+    assert BiallelicVcfVariant(100, "GCTG", "GCTAAA").normalized() == BiallelicVcfVariant(
+        103, "G", "AAA"
+    )
+    assert BiallelicVcfVariant(100, "ATTA", "ATA").normalized() == BiallelicVcfVariant(101, "T", "")
+    assert BiallelicVcfVariant(100, "ATTTC", "ATTTTTTC").normalized() == BiallelicVcfVariant(
+        101, "", "TTT"
+    )
+    assert BiallelicVcfVariant(100, "GCTGTT", "GCTAAATT").normalized() == BiallelicVcfVariant(
+        103, "G", "AAA"
+    )
 
 
 def test_read_duplicate_position():

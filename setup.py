@@ -56,6 +56,7 @@ extensions = [
             "src/polyphase/clustereditingsolver.cpp",
             "src/polyphase/edgeheap.cpp",
             "src/polyphase/inducedcostheuristic.cpp",
+            "src/polyphase/progenygenotypelikelihoods.cpp",
             "src/polyphase/staticsparsegraph.cpp",
             "src/polyphase/switchflipcalculator.cpp",
             "src/polyphase/trianglesparsematrix.cpp",
@@ -102,6 +103,7 @@ else:
         "biopython>=1.73",  # pyfaidx needs this for reading bgzipped FASTA files
         "scipy",
         "xopen>=1.2.0",
+        "pulp>=2",
     ]
 
 setup(
