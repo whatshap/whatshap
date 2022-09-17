@@ -5,8 +5,8 @@ Test Threading
 from whatshap.core import Read, ReadSet
 
 # from collections import defaultdict
-from whatshap.threading import get_allele_depths, select_clusters
-from whatshap.polyphaseutil import get_position_map, get_coverage
+from whatshap.polyphase.threading import get_allele_depths, select_clusters
+from whatshap.polyphase import get_position_map, get_coverage
 
 # from whatshap.reorder import compute_cut_positions
 

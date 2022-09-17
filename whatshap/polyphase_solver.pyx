@@ -7,8 +7,8 @@ from libcpp.pair cimport pair
 from libcpp.unordered_map cimport unordered_map
 from libc.stdint cimport uint32_t
 
-from . cimport cpp
-from .core cimport ReadSet
+from whatshap cimport cpp
+from whatshap.core cimport ReadSet
 
 cdef class ClusterEditingSolver:
     def __cinit__(self, TriangleSparseMatrix m, bundleEdges):

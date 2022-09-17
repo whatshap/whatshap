@@ -17,8 +17,8 @@ from scipy.special import binom as binom_coeff
 from functools import lru_cache
 
 from whatshap.polyphase_solver import TriangleSparseMatrix, ProgenyGenotypeLikelihoods
+from whatshap.polyphase.variantselection import VariantInfo
 from whatshap.vcf import VariantTable
-from whatshap.variantselection import VariantInfo
 
 logger = logging.getLogger(__name__)
 

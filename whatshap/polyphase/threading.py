@@ -1,11 +1,11 @@
 import itertools
 import logging
 from collections import defaultdict
-from .polyphase_solver import HaploThreader
+from whatshap.polyphase_solver import HaploThreader
 from math import ceil, log
 from scipy.stats import binom
 
-from whatshap.polyphaseutil import get_position_map
+from whatshap.polyphase import get_position_map
 
 logger = logging.getLogger(__name__)
 

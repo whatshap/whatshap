@@ -1,10 +1,35 @@
 import logging
 
 from collections import defaultdict
-from .core import Read, ReadSet
+from dataclasses import dataclass
+from whatshap.core import Read, ReadSet
 from queue import Queue
+from typing import List
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class PolyphaseParameter:
+    ploidy: int
+    verify_genotypes: bool
+    ce_bundle_edges: bool
+    distrust_genotypes: bool
+    min_overlap: int
+    block_cut_sensitivity: int
+    plot_clusters: bool
+    plot_threading: bool
+    threads: int
+
+
+@dataclass
+class PolyphaseBlockResult:
+    block_id: int
+    clustering: List[List[int]]
+    paths: List[List[int]]
+    cuts: List[int]
+    hap_cuts: List[List[int]]
+    haplotypes: List[int]
 
 
 def get_position_map(readset):
@@ -144,7 +169,7 @@ def compute_block_starts(readset, ploidy, single_linkage=False):
             if ploidy * pow((ploidy - 2) / ploidy, i) < 0.02:
                 cut_threshold = i
                 break
-    logger.debug(f"Cut position threshold: coverage >= {cut_threshold}")
+    logger.debug("Cut position threshold: coverage >= {}".format(cut_threshold))
 
     # start by looking at neighbouring
     link_to_next = [0 for i in range(num_vars)]
@@ -169,7 +194,7 @@ def compute_block_starts(readset, ploidy, single_linkage=False):
     # find linkage between clusters
     link_coverage = [dict() for i in range(num_clust)]
     for i, (start, end) in enumerate(zip(starts, ends)):
-        covered_pos_clusts = {pos_clust[pos_index[var.position]] for var in readset[i]}
+        covered_pos_clusts = set([pos_clust[pos_index[var.position]] for var in readset[i]])
         for p1 in covered_pos_clusts:
             for p2 in covered_pos_clusts:
                 if p2 not in link_coverage[p1]:

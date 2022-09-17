@@ -1,8 +1,8 @@
 from scipy.special import binom as binom_coeff
 
 from whatshap.cli.polyphasegenetic import PolyphaseGeneticParameter
-from whatshap.variantselection import compute_phasable_variants
-from whatshap.offspringscoring import (
+from whatshap.polyphase.variantselection import compute_phasable_variants
+from whatshap.polyphase.offspringscoring import (
     compute_gt_likelihood_priors,
     compute_gt_likelihoods,
     correct_variant_types,

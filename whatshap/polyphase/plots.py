@@ -14,7 +14,7 @@ from collections import defaultdict
 import logging
 from whatshap.core import Read, ReadSet
 from whatshap.cli.compare import compute_switch_flips_poly_bt
-from whatshap.polyphaseutil import get_coverage
+from whatshap.polyphase import get_coverage
 from whatshap.vcf import VcfReader
 from collections import defaultdict
 
@@ -1178,7 +1178,7 @@ def create_genetic_plots(
         ]
         ground_truth_reader = VcfReader(
             ground_truth_file,
-            indels=True,
+            indels=False,
             phases=True,
             genotype_likelihoods=False,
             ploidy=phasing_param.ploidy,
