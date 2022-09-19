@@ -8,14 +8,7 @@ import logging
 
 from multiprocessing import Pool
 
-from whatshap.core import Read, ReadSet
-
-from whatshap.polyphase import (
-    PolyphaseParameter,
-    PolyphaseBlockResult,
-    compute_block_starts,
-    split_readset,
-)
+from whatshap.polyphase import PolyphaseBlockResult, compute_block_starts, split_readset
 from whatshap.polyphase.reorder import run_reordering
 from whatshap.polyphase_solver import ClusterEditingSolver, scoreReadset
 from whatshap.polyphase.threading import run_threading

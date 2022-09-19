@@ -3,8 +3,6 @@ import logging
 from collections import defaultdict
 from math import log, exp
 from enum import Enum
-from dataclasses import dataclass
-from typing import List
 
 from whatshap.polyphase import get_position_map
 
