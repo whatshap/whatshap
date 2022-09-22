@@ -1,5 +1,6 @@
 #include "readscoring.h"
 #include "../binomial.h"
+#include "../multinomial.h"
 #include <vector>
 #include <unordered_set>
 #include <unordered_map>
@@ -120,20 +121,34 @@ std::unordered_map<Genotype, double> ReadScoring::computeGenotypeLikelihoods (st
                                                                               const bool normalize) const {
     std::unordered_map<Genotype, double> gl;
     uint32_t numAlleles = alleleDepth.size();
-    assert(numAlleles <= 2);
     uint32_t numGenotypes = binomial_coefficient(ploidy+numAlleles-1, numAlleles-1);
     double weight = 0.0;
     
     // generate all possible genotypes
     for (uint32_t index = 0; index < numGenotypes; index++) {
         Genotype g(index, ploidy);
-        // TODO: Make multi-allelic
         if (numAlleles == 1) {
             weight += 1;
             gl[g] = 1;
-        } else {
+        } else if (numAlleles == 2) {
             double fracAlt = (double)index / (double)ploidy;
-            double l = binom_pmf(alleleDepth[0]+alleleDepth[1], alleleDepth[1], (1-fracAlt)*err + fracAlt*(1-err));
+            double l = binom_pmf(alleleDepth[0] + alleleDepth[1], alleleDepth[1], (1 - fracAlt) * err + fracAlt * (1 - err));
+            weight += l;
+            gl[g] = l;
+        } else {
+            std::vector<uint32_t> gv = g.as_vector();
+            std::vector<double> p(numAlleles);
+            std::vector<uint32_t> n(numAlleles);
+            for (uint32_t a = 0; a < numAlleles; a++) {
+                double num = 0;
+                for (uint32_t i = 0; i < gv.size(); i++)
+                    if (gv[i] == a)
+                        num += 1.0;
+                double freq = num / ploidy;
+                p[a] = freq * (1 - err * (numAlleles - 1)) + (1 - freq) * err;
+                n[a] = alleleDepth[a];
+            }
+            double l = multinom_pmf(n, p);
             weight += l;
             gl[g] = l;
         }
