@@ -6,6 +6,7 @@ TODO: More description
 """
 import logging
 
+from itertools import chain
 from multiprocessing import Pool
 
 from whatshap.polyphase import PolyphaseBlockResult, compute_block_starts, split_readset
@@ -35,13 +36,11 @@ def solve_polyphase_instance(readset, genotype_list, param, timers, quiet=False)
 
     # Set block borders and split readset
     block_starts.append(num_vars)
-    num_non_singleton_blocks = len(
-        [i for i in range(len(block_starts) - 1) if block_starts[i] < block_starts[i + 1] - 1]
-    )
+    num_blocks = sum(1 for i, j in zip(block_starts[:-1], block_starts[1:]) if j > i + 1)
     if not quiet:
         logger.info(
             "Split heterozygous variants into {} blocks (and {} singleton blocks).".format(
-                num_non_singleton_blocks, len(block_starts) - num_non_singleton_blocks - 1
+                num_blocks, len(block_starts) - num_blocks - 1
             )
         )
 
@@ -61,7 +60,7 @@ def solve_polyphase_instance(readset, genotype_list, param, timers, quiet=False)
         assert len(block_readset.get_positions()) == block_num_vars
         gt_slices.append(genotype_list[block_start:block_end])
 
-    processed_non_singleton_blocks = 0
+    processed_blocks = 0
 
     """
     Python's multiprocessing makes hard copies of the passed arguments, which is not trivial for
@@ -77,12 +76,12 @@ def solve_polyphase_instance(readset, genotype_list, param, timers, quiet=False)
         for block_id, block_readset in enumerate(block_readsets):
             block_num_vars = block_starts[block_id + 1] - block_starts[block_id]
             if block_num_vars > 1:
-                processed_non_singleton_blocks += 1
+                processed_blocks += 1
                 if not quiet:
                     logger.info(
                         "Processing block {} of {} with {} reads and {} variants.".format(
-                            processed_non_singleton_blocks,
-                            num_non_singleton_blocks,
+                            processed_blocks,
+                            num_blocks,
                             len(block_readset),
                             block_num_vars,
                         )
@@ -108,7 +107,7 @@ def solve_polyphase_instance(readset, genotype_list, param, timers, quiet=False)
                         param,
                         timers,
                         job_id,
-                        num_non_singleton_blocks,
+                        num_blocks,
                     ),
                 )
                 for job_id, (block_id, block_readset) in enumerate(joblist)
@@ -141,24 +140,11 @@ def phase_single_block(block_id, block_readset, genotype_slice, param, timers, q
     if block_num_vars == 1:
 
         # construct trivial solution for singleton blocks, by using the genotype as phasing
-        allele_to_id = dict()
-        for allele in genotype_slice[0]:
-            if allele not in allele_to_id:
-                allele_to_id[allele] = len(allele_to_id)
-        clusts = [[] for _ in range(len(allele_to_id))]
-        for i, read in enumerate(block_readset):
-            clusts[allele_to_id[read[0].allele]].append(i)
-
-        paths = [[]]
-        haps = []
-        for allele in genotype_slice[0]:
-            for i in range(genotype_slice[0][allele]):
-                paths[0].append(allele_to_id[allele])
-                haps.append([allele])
-
-        return PolyphaseBlockResult(
-            block_id, clusts, paths, [0], [[0] for _ in range(param.ploidy)], haps
-        )
+        g = genotype_slice[0]
+        clusts = [[i for i, r in enumerate(block_readset) if r[0].allele == a] for a in g]
+        paths = [sorted(list(chain(*[[i] * g[a] for i, a in enumerate(g)])))]
+        haps = sorted(list(chain(*[[[a]] * g[a] for a in g])))
+        return PolyphaseBlockResult(block_id, clusts, paths, [0], [[0]] * param.ploidy, haps)
 
     # Block is non-singleton here, so run the normal routine
     # Phase I: Cluster Editing
