@@ -4,8 +4,8 @@ from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
+from libc.stdint cimport int8_t, uint32_t, uint64_t
 from libcpp.unordered_map cimport unordered_map
-from libc.stdint cimport uint32_t
 
 from whatshap cimport cpp
 from whatshap.core cimport ReadSet
@@ -22,6 +22,56 @@ cdef class ClusterEditingSolver:
         for i in range(n_clusters):
             clusters.append(solution.getCluster(i))
         return clusters
+
+
+cdef class AlleleMatrix:
+    def __cinit__(self, ReadSet rs):
+        self.thisptr = new cpp.AlleleMatrix(rs.thisptr)
+
+    def __dealloc__(self):
+        del self.thisptr
+        
+    def geNumPositions(self):
+        return self.thisptr.getNumPositions()
+        
+    def getPositions(self):
+        return self.thisptr.getPositions()
+
+    def getAllele(self, uint32_t readId, uint32_t position):
+        return self.thisptr.getAllele(readId, position)
+
+    def getAlleleGlobal(self, uint32_t readId, uint32_t position):
+        return self.thisptr.getAlleleGlobal(readId, position)
+
+    def getRead(self, uint32_t readId):
+        return self.thisptr.getRead(readId)
+
+    def getFirstPos(self, uint32_t readId):
+        return self.thisptr.getFirstPos(readId)
+
+    def getLastPos(self, uint32_t readId):
+        return self.thisptr.getLastPos(readId)
+
+    def globalToLocal(self, uint32_t position):
+        return self.thisptr.globalToLocal(position)
+        
+    def localToGlobal(self, uint32_t position):
+        return self.thisptr.localToGlobal(position)
+    
+    def getAlleleDepths(self, uint32_t position):
+        return self.thisptr.getAlleleDepths(position)
+        
+    def extractInterval(self, uint32_t start, uint32_t end, bool removeEmpty=True):
+        cdef AlleleMatrix mx = AlleleMatrix.__new__(AlleleMatrix)
+        mx.thisptr = self.thisptr.extractInterval(start, end, removeEmpty)
+        return mx
+
+    def __iter__(self):
+        for i in range(self.thisptr.size()):
+            yield self.getRead(i)
+
+    def __len__(self):
+        return self.thisptr.size()
 
 
 cdef class TriangleSparseMatrix:
@@ -56,15 +106,15 @@ cdef class ReadScoring:
     def __cinit__(self):
         self.thisptr = new cpp.ReadScoring()
     
-    def scoreReadset(self, ReadSet readset, uint32_t minOverlap, uint32_t ploidy, double err):
+    def scoreReadset(self, AlleleMatrix am, uint32_t minOverlap, uint32_t ploidy, double err):
         sim = TriangleSparseMatrix()
-        self.thisptr.scoreReadset(sim.thisptr, readset.thisptr, minOverlap, ploidy, err)
+        self.thisptr.scoreReadset(sim.thisptr, am.thisptr, minOverlap, ploidy, err)
         return sim
 
 
-def scoreReadset(readset, minOverlap, ploidy, err=0.0):
+def scoreReadset(am, minOverlap, ploidy, err=0.0):
     readscoring = ReadScoring()
-    sim = readscoring.scoreReadset(readset, minOverlap, ploidy, err)
+    sim = readscoring.scoreReadset(am, minOverlap, ploidy, err)
     del readscoring
     return sim
     

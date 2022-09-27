@@ -53,6 +53,7 @@ extensions = [
         "whatshap.polyphase_solver",
         sources=[
             "whatshap/polyphase_solver.pyx",
+            "src/polyphase/allelematrix.cpp",
             "src/polyphase/clustereditingsolution.cpp",
             "src/polyphase/clustereditingsolver.cpp",
             "src/polyphase/edgeheap.cpp",

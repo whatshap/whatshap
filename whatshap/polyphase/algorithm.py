@@ -11,7 +11,7 @@ from multiprocessing import Pool
 
 from whatshap.polyphase import PolyphaseBlockResult, compute_block_starts, split_readset
 from whatshap.polyphase.reorder import run_reordering
-from whatshap.polyphase_solver import ClusterEditingSolver, scoreReadset
+from whatshap.polyphase_solver import AlleleMatrix, ClusterEditingSolver, scoreReadset
 from whatshap.polyphase.threading import run_threading
 
 __author__ = "Sven Schrinner"
@@ -152,7 +152,8 @@ def phase_single_block(block_id, block_readset, genotype_slice, param, timers, q
     # Compute similarity values for all read pairs
     timers.start("read_scoring")
     logger.debug("Computing similarities for read pairs ..")
-    sim = scoreReadset(block_readset, param.min_overlap, param.ploidy, 0.07)
+    am = AlleleMatrix(block_readset)
+    sim = scoreReadset(am, param.min_overlap, param.ploidy, 0.07)
 
     # Run cluster editing
     logger.debug(
@@ -197,6 +198,8 @@ def phase_single_block(block_id, block_readset, genotype_slice, param, timers, q
         block_readset, clustering, paths, haplotypes, param.block_cut_sensitivity
     )
     timers.stop("reordering")
+
+    del am
 
     # collect results from threading
     return PolyphaseBlockResult(

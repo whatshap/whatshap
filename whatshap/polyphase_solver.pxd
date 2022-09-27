@@ -8,6 +8,10 @@ cdef class ClusterEditingSolver:
 	cdef TriangleSparseMatrix m
 
 
+cdef class AlleleMatrix:
+	cdef cpp.AlleleMatrix *thisptr
+	
+	
 cdef class TriangleSparseMatrix:
 	cdef cpp.TriangleSparseMatrix *thisptr
 

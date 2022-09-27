@@ -7,7 +7,7 @@ from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
-from libc.stdint cimport uint32_t, uint64_t
+from libc.stdint cimport int8_t, uint32_t, uint64_t
 from libcpp.unordered_map cimport unordered_map
 
 
@@ -158,6 +158,24 @@ cdef extern from "../src/polyphase/clustereditingsolution.h":
         int getNumClusters() except +
 
 
+cdef extern from "../src/polyphase/allelematrix.h":
+    cdef cppclass AlleleMatrix:
+        AlleleMatrix(ReadSet* rs) except +
+        uint64_t size() except +
+        uint64_t getNumPositions() except +
+        vector[uint32_t] getPositions() except +
+        int8_t getAllele(uint32_t readId, uint32_t position) except +
+        int8_t getAlleleGlobal(uint32_t readId, uint32_t genPosition) except +
+        vector[pair[uint32_t, int8_t]] getRead(uint32_t readId) except +
+        uint32_t getFirstPos(uint32_t readId) except +
+        uint32_t getLastPos(uint32_t readId) except +
+        uint32_t globalToLocal(uint32_t genPosition) except +
+        uint32_t localToGlobal(uint32_t position) except +
+        vector[uint32_t] getAlleleDepths(uint32_t position) except +
+        AlleleMatrix* extractInterval(uint32_t start, uint32_t end, bool removeEmpty) except +
+        AlleleMatrix* extractPositions(vector[uint32_t] positions, bool removeEmpty) except +
+
+
 cdef extern from "../src/polyphase/trianglesparsematrix.h":
     cdef cppclass TriangleSparseMatrix:
         TriangleSparseMatrix() except +
@@ -171,7 +189,7 @@ cdef extern from "../src/polyphase/trianglesparsematrix.h":
 cdef extern from "../src/polyphase/readscoring.h":
     cdef cppclass ReadScoring:
         ReadScoring() except +
-        void scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, uint32_t minOverlap, uint32_t ploidy, double err) except +
+        void scoreReadset(TriangleSparseMatrix* result, AlleleMatrix* readset, uint32_t minOverlap, uint32_t ploidy, double err) except +
 
 
 cdef extern from "../src/polyphase/haplothreader.h":
