@@ -452,8 +452,6 @@ cdef class Genotype:
 	
 	def __cinit__(self, vector[uint32_t] alleles):
 		self.thisptr = new cpp.Genotype(alleles)
-		self.ploidy = self.thisptr.get_ploidy()
-		self.index = self.thisptr.get_index()
 
 	def __dealloc__(self):
 		del self.thisptr
@@ -494,15 +492,22 @@ cdef class Genotype:
 	
 	def __lt__(self, Genotype g):
 		return self.thisptr[0] < g.thisptr[0]
-	
+
+	def __getstate__(self):
+		return (self.thisptr.get_index(), self.thisptr.get_ploidy())
+
+	def __setstate__(self, state):
+		index, ploidy = state
+		cdef vector[uint32_t] alleles = cpp.convert_index_to_alleles(index, ploidy)
+		if self.thisptr != NULL:
+			del self.thisptr
+		self.thisptr = new cpp.Genotype(alleles)
+
+	def __deepcopy__(self, memo):
+		return Genotype.__new__(Genotype, self.as_vector())
+
 	def __hash__(self):
-		return hash(tuple(self.alleles))
-	
-	def __reduce__(self):
-		# a tuple as specified in the pickle docs - (class_or_constructor, 
-		# (tuple, of, args, to, constructor))
-		cdef vector[uint32_t] alleles = cpp.convert_index_to_alleles(self.index, self.ploidy)
-		return (self.__class__, tuple([alleles]))
+		return hash(self.thisptr.get_index())
 	
 	
 def get_max_genotype_ploidy():
