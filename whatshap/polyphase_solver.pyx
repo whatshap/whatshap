@@ -25,13 +25,17 @@ cdef class ClusterEditingSolver:
 
 
 cdef class AlleleMatrix:
-    def __cinit__(self, ReadSet rs):
-        self.thisptr = new cpp.AlleleMatrix(rs.thisptr)
+    def __cinit__(self, ReadSet rs=None):
+        if rs:
+            self.thisptr = new cpp.AlleleMatrix(rs.thisptr)
+        else:
+            self.thisptr = NULL
 
     def __dealloc__(self):
-        del self.thisptr
+        if self.thisptr != NULL:
+            del self.thisptr
         
-    def geNumPositions(self):
+    def getNumPositions(self):
         return self.thisptr.getNumPositions()
         
     def getPositions(self):
@@ -51,6 +55,9 @@ cdef class AlleleMatrix:
 
     def getLastPos(self, uint32_t readId):
         return self.thisptr.getLastPos(readId)
+    
+    def getGlobalId(self, uint32_t readId):
+        return self.thisptr.getGlobalId(readId)
 
     def globalToLocal(self, uint32_t position):
         return self.thisptr.globalToLocal(position)
@@ -64,6 +71,11 @@ cdef class AlleleMatrix:
     def extractInterval(self, uint32_t start, uint32_t end, bool removeEmpty=True):
         cdef AlleleMatrix mx = AlleleMatrix.__new__(AlleleMatrix)
         mx.thisptr = self.thisptr.extractInterval(start, end, removeEmpty)
+        return mx
+    
+    def extractPositions(self, vector[uint32_t] positions, bool removeEmpty=True):
+        cdef AlleleMatrix mx = AlleleMatrix.__new__(AlleleMatrix)
+        mx.thisptr = self.thisptr.extractPositions(positions, removeEmpty)
         return mx
 
     def __iter__(self):

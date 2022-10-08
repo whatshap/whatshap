@@ -7,6 +7,7 @@ from whatshap.core import Read, ReadSet
 # from collections import defaultdict
 from whatshap.polyphase.threading import get_allele_depths, select_clusters
 from whatshap.polyphase import get_position_map, get_coverage
+from whatshap.polyphase_solver import AlleleMatrix
 
 # from whatshap.reorder import compute_cut_positions
 
@@ -226,9 +227,10 @@ def test_relative_coverage():
 def test_allele_depths():
     for f in [create_testinstance1, create_testinstance2, create_testinstance3]:
         readset, var_pos, clustering, genotypes = f()
+        allele_matrix = AlleleMatrix(readset)
         index, rev_index = get_position_map(readset)
         ploidy = sum(genotypes[0].values())
-        ad, cons_lists = get_allele_depths(readset, clustering, ploidy=ploidy)
+        ad, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=ploidy)
         for pos in range(len(rev_index)):
             for cid in range(len(clustering)):
                 for al in [0, 1, 2, 3]:
@@ -240,11 +242,13 @@ def test_allele_depths():
                         ]
                     )
                     assert cid not in ad[pos] or al not in ad[pos][cid] or ad[pos][cid][al] == val
+        del allele_matrix
 
 
 def test_cluster_selection1():
     readset, var_pos, clustering, genotypes = create_testinstance1()
-    ad, cons_lists = get_allele_depths(readset, clustering, ploidy=3)
+    allele_matrix = AlleleMatrix(readset)
+    ad, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=3)
     c = select_clusters(ad, ploidy=3, max_gap=0)
     assert c[0] == [0, 1]
     assert c[1] == c[2] == c[3] == c[4] == c[5] == c[6] == [0, 1, 4]
@@ -256,19 +260,23 @@ def test_cluster_selection1():
     assert c[16] == c[17] == c[18] == c[19] == [2, 3, 5, 6, 7]
     assert c[20] == c[21] == [5, 6, 7]
     assert c == select_clusters(ad, ploidy=3, max_gap=1)
+    del allele_matrix
 
 
 def test_cluster_selection2():
     readset, var_pos, clustering, genotypes = create_testinstance2()
-    ad, cons_lists = get_allele_depths(readset, clustering, ploidy=4)
+    allele_matrix = AlleleMatrix(readset)
+    ad, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=4)
     c = select_clusters(ad, ploidy=4, max_gap=0)
     assert all([c[i] == [0, 1, 2, 3] for i in range(10)])
     assert c == select_clusters(ad, ploidy=3, max_gap=1)
+    del allele_matrix
 
 
 def test_cluster_selection3():
     readset, var_pos, clustering, genotypes = create_testinstance3()
-    ad, cons_lists = get_allele_depths(readset, clustering, ploidy=2)
+    allele_matrix = AlleleMatrix(readset)
+    ad, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=2)
     c = select_clusters(ad, ploidy=2, max_gap=0)
     assert c[0] == c[3] == c[4] == c[5] == [0, 1, 2]
     assert c[1] == c[2] == [0, 2, 3]
@@ -289,6 +297,7 @@ def test_cluster_selection3():
     assert c[7] == c[8] == c[9] == [0, 1]
 
     assert c == select_clusters(ad, ploidy=2, max_gap=4)
+    del allele_matrix
 
 
 """

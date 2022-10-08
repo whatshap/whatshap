@@ -4,8 +4,6 @@ from collections import defaultdict
 from math import log, exp
 from enum import Enum
 
-from whatshap.polyphase import get_position_map
-
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +24,7 @@ class ReorderEvent:
 
 
 def run_reordering(
-    readset,
+    allele_matrix,
     clustering,
     path,
     haplotypes,
@@ -36,7 +34,7 @@ def run_reordering(
     """
     Main method for the reordering stage of the polyploid phasing algorithm. Input:
 
-    readset -- The fragment matrix to phase
+    allele_matrix -- The fragment matrix to phase
     clustering -- A list of clusters. Each cluster is a list of read ids, indicating which reads it
                   contains. Every read can only be present in one cluster.
     path -- The computed cluster paths from the threading stage
@@ -63,20 +61,17 @@ def run_reordering(
 
     """
 
-    # compute auxiliary data
-    index, rev_index = get_position_map(readset)
-
     # determine snp positions inside clusters
     cwise_snps = find_cluster_snps(path, haplotypes)
 
     # phase cluster snps
     phase_cluster_snps(
-        path, haplotypes, cwise_snps, clustering, readset, index, error_rate, window_size=32
+        path, haplotypes, cwise_snps, clustering, allele_matrix, error_rate, window_size=32
     )
 
     # select most likely continuation for ambiguous haplotype switches
     events = resolve_ambiguous_switches(
-        path, haplotypes, clustering, readset, index, error_rate, window_size=32
+        path, haplotypes, clustering, allele_matrix, error_rate, window_size=32
     )
 
     cut_positions, haploid_cuts = compute_cut_positions(path, block_cut_sensitivity, events)
@@ -109,7 +104,7 @@ def find_cluster_snps(path, haplotypes):
 
 
 def phase_cluster_snps(
-    path, haplotypes, cwise_snps, clustering, readset, index, error_rate, window_size
+    path, haplotypes, cwise_snps, clustering, allele_matrix, error_rate, window_size
 ):
     """
     For clusters with multiplicity >= 2 on multiple positions: Bring the alleles of the
@@ -144,13 +139,13 @@ def phase_cluster_snps(
 
         # go over all reads and determine which snp positions they are defined on
         for rid in clustering[cid]:
-            read = readset[rid]
+            read = allele_matrix.getRead(rid)
             rmat[rid] = dict()
             i, j = 0, 0
             while i < len(read) and j < len(het_pos):
-                read_pos = index[read[i].position]
+                read_pos, allele = read[i]
                 if read_pos == het_pos[j]:
-                    rmat[rid][j] = read[i].allele
+                    rmat[rid][j] = allele
                     readlist[j].append(rid)
                     i += 1
                     j += 1
@@ -204,7 +199,7 @@ def phase_cluster_snps(
 
 
 def resolve_ambiguous_switches(
-    path, haplotypes, clustering, readset, index, error_rate, window_size
+    path, haplotypes, clustering, allele_matrix, error_rate, window_size
 ):
     """
     Post processing step after the threading. If a haplotype leaves a cluster on a collapsed region,
@@ -240,8 +235,7 @@ def resolve_ambiguous_switches(
                 haplotypes,
                 inverse_perm,
                 clustering,
-                readset,
-                index,
+                allele_matrix,
                 i,
                 path,
                 h_group,
@@ -281,8 +275,7 @@ def solve_single_ambiguous_site(
     haplotypes,
     hap_perm,
     clustering,
-    readset,
-    index,
+    allele_matrix,
     pos,
     path,
     h_group,
@@ -322,19 +315,19 @@ def solve_single_ambiguous_site(
     if len(het_pos_before) >= 2 and len(het_pos_after) >= 2:
         for cid in c_group:
             for rid in clustering[cid]:
-                read = readset[rid]
+                read = allele_matrix.getRead(rid)
                 if len(read) < 2:
                     continue
-                if index[read[0].position] > het_pos_before[-1]:
+                if allele_matrix.getFirstPos(rid) > het_pos_before[-1]:
                     continue
-                if index[read[-1].position] < het_pos_after[0]:
+                if allele_matrix.getLastPos(rid) < het_pos_after[0]:
                     continue
                 rmat[rid] = dict()
                 j, k, b, t = 0, 0, 0, 0
                 while j < len(read) and k < len(het_pos):
-                    read_pos = index[read[j].position]
+                    read_pos, allele = read[j]
                     if read_pos == het_pos[k]:
-                        rmat[rid][het_pos[k]] = read[j].allele
+                        rmat[rid][het_pos[k]] = allele
                         b += 1 if k < len(het_pos_before) else 0
                         t, j, k = t + 1, j + 1, k + 1
                     elif read_pos < het_pos[k]:

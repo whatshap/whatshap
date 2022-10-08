@@ -129,14 +129,14 @@ def split_readset(readset, ext_block_starts):
     return block_readsets
 
 
-def compute_block_starts(readset, ploidy, single_linkage=False):
+def compute_block_starts(am, ploidy, single_linkage=False):
     """
     Based on the connectivity of the reads, we want to divide the phasing input, as non- or poorly
     connected regions can be phased independently. This is done based on how pairs of variants are
     connected. There are two modes how to decide whether two variants are connected:
 
-    single_linkage=True -- If there exists a read in the readset, which covers both variants, they
-                           are connected
+    single_linkage=True -- If there exists a read in the allele matrix, which covers both variants,
+                           they count as connected
     single_linkage=False -- In order to connect two variants, we need at least reads from ploidy-1
                             different haplotypes. Two variants count as connected, if there
                             sufficiently many reads covering both variants, with "sufficient"
@@ -151,8 +151,7 @@ def compute_block_starts(readset, ploidy, single_linkage=False):
     to be intervals with no "holes" inside them.
     """
 
-    pos_index, rev_index = get_position_map(readset)
-    num_vars = len(pos_index)
+    num_vars = am.getNumPositions()
 
     # special case
     if num_vars == 0:
@@ -173,12 +172,8 @@ def compute_block_starts(readset, ploidy, single_linkage=False):
 
     # start by looking at neighbouring
     link_to_next = [0 for i in range(num_vars)]
-    starts = []
-    ends = []
-    for read in readset:
-        pos_list = [pos_index[var.position] for var in read]
-        starts.append(pos_list[0])
-        ends.append(pos_list[-1])
+    for read in am:
+        pos_list = [pos for (pos, allele) in read]
         for i in range(len(pos_list) - 1):
             if pos_list[i] + 1 == pos_list[i + 1]:
                 link_to_next[pos_list[i]] += 1
@@ -192,13 +187,11 @@ def compute_block_starts(readset, ploidy, single_linkage=False):
     num_clust = pos_clust[-1] + 1
 
     # find linkage between clusters
-    link_coverage = [dict() for i in range(num_clust)]
-    for i, (start, end) in enumerate(zip(starts, ends)):
-        covered_pos_clusts = set([pos_clust[pos_index[var.position]] for var in readset[i]])
+    link_coverage = [defaultdict(int) for i in range(num_clust)]
+    for i, read in enumerate(am):
+        covered_pos_clusts = set([pos_clust[pos] for (pos, allele) in read])
         for p1 in covered_pos_clusts:
             for p2 in covered_pos_clusts:
-                if p2 not in link_coverage[p1]:
-                    link_coverage[p1][p2] = 0
                 link_coverage[p1][p2] += 1
 
     # merge clusters

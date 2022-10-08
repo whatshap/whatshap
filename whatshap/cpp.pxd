@@ -169,6 +169,7 @@ cdef extern from "../src/polyphase/allelematrix.h":
         vector[pair[uint32_t, int8_t]] getRead(uint32_t readId) except +
         uint32_t getFirstPos(uint32_t readId) except +
         uint32_t getLastPos(uint32_t readId) except +
+        uint32_t getGlobalId(uint32_t readId) except +
         uint32_t globalToLocal(uint32_t genPosition) except +
         uint32_t localToGlobal(uint32_t position) except +
         vector[uint32_t] getAlleleDepths(uint32_t position) except +

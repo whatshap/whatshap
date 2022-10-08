@@ -27,8 +27,9 @@ public:
      *
      * @param readList the list of reads with allele information.
      * @param posList sorted (!) list of global positions.
+     * @param idList list of global read ids.
      */
-    AlleleMatrix(const std::vector<AlleleRow>& readList, const std::vector<uint32_t>& posList);
+    AlleleMatrix(const std::vector<AlleleRow>& readList, const std::vector<uint32_t>& posList, const std::vector<uint32_t>& idList);
 
     /**
      * Creates a new allele matrix from a ReadSet.
@@ -92,6 +93,13 @@ public:
      * @param readId index of read
      */
     Position getLastPos(const uint32_t readId) const;
+    
+    /**
+     * Returns the global id of a read.
+     *
+     * @param readId index of read
+     */
+    Position getGlobalId(const uint32_t readId) const;
 
     /**
      * Converts a genome position to its variant id. Returns -1U if position refers
@@ -115,14 +123,36 @@ public:
      */
     std::vector<uint32_t> getAlleleDepths(const Position position) const;
 
+    /**
+     * Constructs a submatrix containing only positions of the specified interval. Interval is
+     * left-including and right-excluding. Reads without variants can be removed with an
+     * additional flag. Global read ids and global positions will be kept, but local indices
+     * for reads and positions will change according to the remaining matrix.
+     * 
+     * @param start first position in the matrix (including)
+     * @param end first position NOT in the matrix
+     * @param removeEmpty set to true to remove empty reads
+     */
     AlleleMatrix* extractInterval(Position start, Position end, bool removeEmpty) const;
 
+    /**
+     * Constructs a submatrix containing only the specified positions. Reads without variants
+     * can be removed with an additional flag. Global read ids and global positions will be kept,
+     * but local indices for reads and positions will change according to the remaining matrix.
+     * 
+     * @param positions positions for the new matrix
+     * @param removeEmpty set to true to remove empty reads
+     */
     AlleleMatrix* extractPositions(std::vector<Position>& positions, bool removeEmpty) const;
 
 private:
+    // data per read
 	std::vector<AlleleRow> m;
     std::vector<Position> starts;
     std::vector<Position> ends;
+    std::vector<uint32_t> globalReadIds;
+    
+    // data per position
     std::vector<std::vector<uint32_t>> depths;
     std::vector<Position> genPos;
     std::unordered_map<Position, Position> posIdx;
