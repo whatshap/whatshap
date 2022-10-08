@@ -85,6 +85,16 @@ cdef class AlleleMatrix:
     def __len__(self):
         return self.thisptr.size()
 
+    def __getstate__(self):
+        read_list = [{pos: allele for pos, allele in read} for read in self]
+        pos_list = self.getPositions()
+        id_list = [self.getGlobalId(i) for i in range(len(self))]
+        return read_list, pos_list, id_list
+
+    def __setstate__(self, state):
+        read_list, pos_list, id_list = state
+        self.thisptr = new cpp.AlleleMatrix(read_list, pos_list, id_list)
+
 
 cdef class TriangleSparseMatrix:
     def __cinit__(self):

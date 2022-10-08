@@ -161,6 +161,7 @@ cdef extern from "../src/polyphase/clustereditingsolution.h":
 cdef extern from "../src/polyphase/allelematrix.h":
     cdef cppclass AlleleMatrix:
         AlleleMatrix(ReadSet* rs) except +
+        AlleleMatrix(vector[unordered_map[uint32_t, int8_t]]& readList, vector[uint32_t]& posList, vector[uint32_t]& idList) except +
         uint64_t size() except +
         uint64_t getNumPositions() except +
         vector[uint32_t] getPositions() except +

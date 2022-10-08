@@ -74,7 +74,7 @@ def solve_polyphase_instance(allele_matrix, genotype_list, param, timers, quiet=
     and the main readset must also never be passed as argument to the workers.
     """
     # TODO: Reimplement multithreading with allele matrices
-    if param.threads == 1 or True:
+    if param.threads == 1:
         # for single-threading, process everything individually to minimize memory footprint
         for block_id, submatrix in enumerate(submatrices):
             block_num_vars = block_starts[block_id + 1] - block_starts[block_id]
