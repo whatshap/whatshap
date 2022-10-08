@@ -25,7 +25,7 @@ from whatshap.core import (
 )
 from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
 
-from whatshap.polyphase import PolyphaseParameter, create_genotype_list, split_readset
+from whatshap.polyphase import PolyphaseParameter, create_genotype_list
 from whatshap.polyphase.algorithm import solve_polyphase_instance
 from whatshap.polyphase.plots import draw_plots
 from whatshap.polyphase_solver import AlleleMatrix, compute_polyploid_genotypes
@@ -371,7 +371,7 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
     if param.plot_clusters or param.plot_threading:
         timers.start("create_plots")
         draw_plots(
-            split_readset(readset, [0, num_vars]),
+            readset,
             clustering,
             threading,
             haplotypes,

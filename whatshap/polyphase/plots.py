@@ -15,6 +15,7 @@ import logging
 from whatshap.core import Read, ReadSet
 from whatshap.cli.compare import compute_switch_flips_poly_bt
 from whatshap.polyphase import get_coverage
+from whatshap.polyphase_solver import AlleleMatrix
 from whatshap.vcf import VcfReader
 from collections import defaultdict
 
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 
 def draw_plots(
-    block_readsets,
+    readset,
     clustering,
     threading,
     haplotypes,
@@ -35,22 +36,20 @@ def draw_plots(
 ):
     # Plot options
     logger.info("Generating plots ...")
-    combined_readset = ReadSet()
-    for block_readset in block_readsets:
-        for read in block_readset:
-            combined_readset.add(read)
     if plot_clusters:
         draw_clustering(
-            combined_readset,
+            readset,
             clustering,
             phasable_variant_table,
             output + ".clusters.pdf",
             genome_space=False,
         )
     if plot_threading:
-        coverage = get_coverage(combined_readset, clustering)
+        allele_matrix = AlleleMatrix(readset)
+        coverage = get_coverage(allele_matrix, clustering)
+        del allele_matrix
         draw_threading(
-            combined_readset,
+            readset,
             clustering,
             coverage,
             threading,

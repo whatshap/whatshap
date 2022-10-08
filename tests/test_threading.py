@@ -6,7 +6,7 @@ from whatshap.core import Read, ReadSet
 
 # from collections import defaultdict
 from whatshap.polyphase.threading import get_allele_depths, select_clusters
-from whatshap.polyphase import get_position_map, get_coverage
+from whatshap.polyphase import get_coverage
 from whatshap.polyphase_solver import AlleleMatrix
 
 # from whatshap.reorder import compute_cut_positions
@@ -188,18 +188,11 @@ def create_testinstance3():
     return readset, var_pos, clustering, genotypes
 
 
-def test_position_map():
-    for f in [create_testinstance1, create_testinstance2, create_testinstance3]:
-        readset, var_pos, _, _ = f()
-        index, rev_index = get_position_map(readset)
-        for i, pos in enumerate(var_pos):
-            assert index[pos] == i
-            assert rev_index[i] == pos
-
-
 def test_relative_coverage():
     readset, var_pos, clustering, _ = create_testinstance1()
-    cov = get_coverage(readset, clustering)
+    allele_matrix = AlleleMatrix(readset)
+    cov = get_coverage(allele_matrix, clustering)
+    del allele_matrix
     assert cov[0] == {0: 0.5, 1: 0.5}
     assert cov[1] == {0: 0.25, 1: 0.5, 4: 0.25}
     assert cov[2] == {0: 1 / 3, 1: 1 / 3, 4: 1 / 3}
@@ -228,19 +221,19 @@ def test_allele_depths():
     for f in [create_testinstance1, create_testinstance2, create_testinstance3]:
         readset, var_pos, clustering, genotypes = f()
         allele_matrix = AlleleMatrix(readset)
-        index, rev_index = get_position_map(readset)
         ploidy = sum(genotypes[0].values())
         ad, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=ploidy)
-        for pos in range(len(rev_index)):
+        for pos in range(allele_matrix.getNumPositions()):
             for cid in range(len(clustering)):
                 for al in [0, 1, 2, 3]:
                     val = sum(
                         [
-                            1 if var.allele == al and var.position == rev_index[pos] else 0
+                            1 if var[1] == al and var[0] == pos else 0
                             for rid in clustering[cid]
-                            for var in readset[rid]
+                            for var in allele_matrix.getRead(rid)
                         ]
                     )
+                    print(pos, cid, al)
                     assert cid not in ad[pos] or al not in ad[pos][cid] or ad[pos][cid][al] == val
         del allele_matrix
 
