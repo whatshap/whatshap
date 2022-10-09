@@ -126,4 +126,3 @@ def test_polyphase_multithreaded(tmp_path):
         [st == mt for (st, mt) in zip(table_st.genotype_likelihoods, table_mt.genotype_likelihoods)]
     )
     assert all([st == mt for (st, mt) in zip(table_st.variants, table_mt.variants)])
-
