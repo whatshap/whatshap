@@ -5,12 +5,11 @@ Sequencing reads are read from file ALIGNMENTS (in BAM or CRAM format) and tagge
 are written to stdout.
 """
 import logging
-import os
 import sys
 import pysam
 import hashlib
 from collections import defaultdict
-from typing import List, Optional, Union, Dict, Tuple, FrozenSet, Sequence
+from typing import List, Optional, Union, Dict, Tuple, FrozenSet, Sequence, TextIO
 
 from xopen import xopen
 
@@ -406,11 +405,9 @@ def open_output_alignment_file(aln_output, reference, vcf_md5, bam_header, threa
     return bam_writer
 
 
-def open_haplotag_writer(path):
-    if path is None:
-        path = os.devnull
+def open_haplotag_writer(path: str) -> TextIO:
     try:
-        writer = xopen(path, "wt")
+        writer = xopen(path, mode="wt")
     except OSError as err:
         raise CommandLineError(
             f"Error while initializing haplotag list output at path: {path}\n{err}"
@@ -535,7 +532,10 @@ def run_haplotag(
                 threads=output_threads,
             )
         )
-        haplotag_writer = stack.enter_context(open_haplotag_writer(haplotag_list))
+        if haplotag_list is not None:
+            haplotag_writer = stack.enter_context(open_haplotag_writer(haplotag_list))
+        else:
+            haplotag_writer = None
 
         timers.stop("haplotag-init")
         logger.debug(
@@ -623,7 +623,7 @@ def run_haplotag(
                             alignment.set_tag("PS", value=None)
 
                     bam_writer.write(alignment)
-                    if haplotag_list is not None and not (
+                    if haplotag_writer is not None and not (
                         alignment.is_secondary or alignment.is_supplementary
                     ):
                         print(
