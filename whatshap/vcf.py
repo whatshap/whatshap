@@ -58,6 +58,8 @@ class VariantCallPhase:
 class VcfVariant(ABC):
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
+    position: int
+
     @abstractmethod
     def get_ref_allele(self):
         pass
@@ -276,7 +278,7 @@ class VariantTable:
         self.samples = samples
         self.genotypes: List[List[Genotype]] = [[] for _ in samples]
         self.phases: List[List[Optional[VariantCallPhase]]] = [[] for _ in samples]
-        self.allele_depths: List[List[Dict[int, Read]]] = [[] for _ in samples]
+        self.allele_depths: List[List[Optional[int]]] = [[] for _ in samples]
         self.genotype_likelihoods: List[List[Optional[GenotypeLikelihoods]]] = [[] for _ in samples]
         self.variants: List[VcfVariant] = []
         self._sample_to_index = {sample: index for index, sample in enumerate(samples)}
@@ -300,7 +302,7 @@ class VariantTable:
         genotypes: Sequence[Genotype],
         phases: Sequence[Optional[VariantCallPhase]],
         genotype_likelihoods: Sequence[Optional[GenotypeLikelihoods]],
-        allele_depths: Sequence[Optional[Dict[int, Read]]],
+        allele_depths: Sequence[Optional[int]],
     ) -> None:
         """Add a row to the table"""
         if len(genotypes) != len(self.genotypes):
@@ -317,8 +319,8 @@ class VariantTable:
             self.phases[i].append(phase)
         for i, gl in enumerate(genotype_likelihoods):
             self.genotype_likelihoods[i].append(gl)
-        for i, depths in enumerate(allele_depths):
-            self.allele_depths[i].append(depths)
+        for i, depth in enumerate(allele_depths):
+            self.allele_depths[i].append(depth)
 
     def genotypes_of(self, sample: str) -> List[Genotype]:
         """Retrieve genotypes by sample name"""
@@ -350,10 +352,11 @@ class VariantTable:
             {i.block_id for i in self.phases[self._sample_to_index[sample]] if i is not None}
         )
 
-    def allele_depths_of(self, sample: str):
+    def allele_depths_of(self, sample: str) -> List[Tuple[int, ...]]:
         """Retrieve allele depths by sample name"""
-        depths = []
+        depths: List[Tuple[int, ...]] = []
         for depth_code in self.allele_depths[self._sample_to_index[sample]]:
+            assert depth_code is not None
             c = depth_code
             depth = []
             while c > 0:
@@ -725,12 +728,14 @@ class VcfReader:
                 phases = [None] * len(self.samples)
 
             if self.allele_depth:
-                depths = [self._extract_AD_depth(call) for call in record.samples.values()]
+                depths: List[Optional[int]] = [
+                    self._extract_AD_depth(call) for call in record.samples.values()
+                ]
             else:
                 depths = [None] * len(record.samples)
 
             if len(alts) == 1:
-                variant = BiallelicVcfVariant(
+                variant: VcfVariant = BiallelicVcfVariant(
                     position=pos, reference_allele=ref, alternative_allele=alts[0]
                 )
             else:

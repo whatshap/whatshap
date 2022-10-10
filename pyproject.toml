@@ -15,7 +15,9 @@ module = [
     "matplotlib.*",
     "pylab",
     "scipy.stats",
+    "scipy.special",
     "networkx",
+    "pulp",
 ]
 ignore_missing_imports = true
 

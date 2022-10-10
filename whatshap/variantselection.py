@@ -150,12 +150,12 @@ def compute_phasable_variants(
             continue
 
         # count different alleles
-        alleles = set()
+        alleles_set = set()
         for gt in [gt1v, gt2v]:
             for a in gt:
-                alleles.add(a)
+                alleles_set.add(a)
 
-        alleles = sorted(list(alleles))
+        alleles = sorted(list(alleles_set))
 
         if len(alleles) > 2:
             # genotypes are not bi-allelic

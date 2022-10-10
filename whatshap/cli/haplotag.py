@@ -469,11 +469,11 @@ def run_haplotag(
     ignore_linked_read=False,
     given_samples=None,
     linked_read_distance_cutoff=50000,
-    ignore_read_groups=False,
-    haplotag_list=None,
-    tag_supplementary=False,
-    skip_missing_contigs=False,
-    output_threads=1,
+    ignore_read_groups: bool = False,
+    haplotag_list: Optional[List[str]] = None,
+    tag_supplementary: bool = False,
+    skip_missing_contigs: bool = False,
+    output_threads: int = 1,
 ):
 
     timers = StageTimer()
