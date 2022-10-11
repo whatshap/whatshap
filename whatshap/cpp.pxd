@@ -175,7 +175,7 @@ cdef extern from "../src/polyphase/allelematrix.h":
         uint32_t localToGlobal(uint32_t position) except +
         vector[uint32_t] getAlleleDepths(uint32_t position) except +
         AlleleMatrix* extractInterval(uint32_t start, uint32_t end, bool removeEmpty) except +
-        AlleleMatrix* extractPositions(vector[uint32_t] positions, bool removeEmpty) except +
+        AlleleMatrix* extractSubMatrix(vector[uint32_t] positions, vector[uint32_t] readIds, bool removeEmpty) except +
 
 
 cdef extern from "../src/polyphase/trianglesparsematrix.h":

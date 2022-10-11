@@ -84,7 +84,7 @@ def solve_polyphase_instance(allele_matrix, genotype_list, param, timers, quiet=
                         "Processing block {} of {} with {} reads and {} variants.".format(
                             processed_blocks,
                             num_blocks,
-                            submatrix.getNumPositions(),
+                            len(submatrix),
                             block_num_vars,
                         )
                     )

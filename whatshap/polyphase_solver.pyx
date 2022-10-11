@@ -73,9 +73,9 @@ cdef class AlleleMatrix:
         mx.thisptr = self.thisptr.extractInterval(start, end, removeEmpty)
         return mx
     
-    def extractPositions(self, vector[uint32_t] positions, bool removeEmpty=True):
+    def extractSubMatrix(self, vector[uint32_t] positions, vector[uint32_t] readIds, bool removeEmpty=True):
         cdef AlleleMatrix mx = AlleleMatrix.__new__(AlleleMatrix)
-        mx.thisptr = self.thisptr.extractPositions(positions, removeEmpty)
+        mx.thisptr = self.thisptr.extractSubMatrix(positions, readIds, removeEmpty)
         return mx
 
     def __iter__(self):

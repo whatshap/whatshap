@@ -141,9 +141,12 @@ public:
      * but local indices for reads and positions will change according to the remaining matrix.
      * 
      * @param positions positions for the new matrix
+     * @param readIds local read ids to consider
      * @param removeEmpty set to true to remove empty reads
      */
-    AlleleMatrix* extractPositions(std::vector<Position>& positions, bool removeEmpty) const;
+    AlleleMatrix* extractSubMatrix(const std::vector<Position>& positions,
+                                   const std::vector<uint32_t>& readIds,
+                                   bool removeEmpty) const;
 
 private:
     // data per read

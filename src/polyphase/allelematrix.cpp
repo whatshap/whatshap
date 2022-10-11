@@ -170,33 +170,37 @@ AlleleMatrix* AlleleMatrix::extractInterval(Position start, Position end, bool r
     return new AlleleMatrix(newReads, posList, idList);
 }
 
-AlleleMatrix* AlleleMatrix::extractPositions(std::vector<Position>& positions, bool removeEmpty) const {
+AlleleMatrix* AlleleMatrix::extractSubMatrix(const std::vector<Position>& positions,
+                                             const std::vector<uint32_t>& readIds,
+                                             bool removeEmpty) const {
     std::vector<AlleleRow> newReads;
-    std::unordered_set<uint32_t> defPos;
+    std::vector<uint32_t> posList;
     std::vector<uint32_t> idList;
-    std::unordered_set<Position> posSet(positions.begin(), positions.end());
+    std::unordered_map<Position, Position> projPos;
+    for (uint32_t i = 0; i < positions.size() && positions[i] < this->getNumPositions(); i++) {
+        projPos[positions[i]] = i;
+        posList.push_back(this->localToGlobal(positions[i]));
+    }
     Position start = -1;
     Position end = 0;
     if (positions.size() > 0) {
         start = *std::min_element(positions.begin(), positions.end());
         end = *std::max_element(positions.begin(), positions.end());
     }
-    for (uint32_t i = 0; i < m.size(); i++) {
-        AlleleRow newRead;
+    for (uint32_t i : readIds) {
+        if (i >= this->size())
+            continue;
         if (removeEmpty && (starts[i] >= end || ends[i] < start))
             continue;
-        for (auto& entry : m[i]) {
-            if (posSet.find(entry.first) != posSet.end()) {
-                newRead[entry.first] = entry.second;
-                defPos.insert(entry.first);
-            }
-        }
+        AlleleRow newRead;
+        for (auto& entry : m[i])
+            if (projPos.find(entry.first) != projPos.end())
+                newRead[projPos[entry.first]] = entry.second;
         if (removeEmpty && newRead.empty())
             continue;
         idList.push_back(globalReadIds[i]);
         newReads.push_back(newRead);
     }
-    std::vector<uint32_t> posList(defPos.begin(), defPos.end());
     std::sort(posList.begin(), posList.end());
     return new AlleleMatrix(newReads, posList, idList);
 }
