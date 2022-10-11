@@ -10,27 +10,27 @@ Installation of WhatsHap is easiest if you use Conda.
 Installation with Conda
 -----------------------
 
-If you do not have Conda, follow the `the Bioconda installation
-instructions <https://bioconda.github.io/user/install.html#getting-started>`_.
+First, follow `the Bioconda installation instructions <https://bioconda.github.io/>`_.
 
-If you already have Conda (for example, miniconda or Anaconda) installed,
-ensure you have enabled both the “bioconda” and “conda-forge” channels::
+Make sure you configured the ``bioconda`` and ``conda-forge`` channels as stated in
+those instructions. Even if you have previously set up those channels, you can
+repeat the ``conda config add --channels ...`` commands to ensure your
+configuration is correct.
 
-    conda config --add channels defaults
-    conda config --add channels bioconda
-    conda config --add channels conda-forge
+Then install WhatsHap into a new Conda environment (here named ``whatshap-env``)::
 
+    conda create -n whatshap-env whatshap
 
-Then WhatsHap can be installed with this command::
+Then activate the environment. Whenever you start a new shell and want to use
+WhatsHap, you need to repeat this step::
 
-    conda install whatshap
+    conda activate whatshap-env
 
-For a smaller download and installation size, add ``nomkl`` to this command.
-This will avoid installing the (quite large) “Intel Math Kernel Library”,
-which WhatsHap does not use anyway::
+Finally, check whether you got the most recent WhatsHap version::
 
-    conda install whatshap nomkl
+    whatshap --version
 
+The most recent version is listed at the top of the :ref:`changelog <changes>`.
 
 Installation with pip
 ---------------------
