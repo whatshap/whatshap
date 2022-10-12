@@ -131,32 +131,11 @@ def phase_cluster_snps(
         het_pos = het_pos[::-1] + snps
         # w = number of preceding het positions, can be lower than window_size close to chr start
 
-        # store the allele of every cluster-read for the relevant positions
-        rmat = dict()
-
-        # for each position store the supporting reads
-        readlist = defaultdict(list)
-
-        # go over all reads and determine which snp positions they are defined on
-        for rid in clustering[cid]:
-            read = allele_matrix.getRead(rid)
-            rmat[rid] = dict()
-            i, j = 0, 0
-            while i < len(read) and j < len(het_pos):
-                read_pos, allele = read[i]
-                if read_pos == het_pos[j]:
-                    rmat[rid][j] = allele
-                    readlist[j].append(rid)
-                    i += 1
-                    j += 1
-                elif read_pos < het_pos[j]:
-                    i += 1
-                else:
-                    j += 1
+        # use submatrix of relevant reads and positions
+        submatrix = allele_matrix.extractSubMatrix(het_pos, clustering[cid], True)
 
         # reconstruct cluster phasing
-        for i in range(len(snps)):
-            pos = snps[i]
+        for i, pos in enumerate(snps):
             het_idx = i + w
             c_slots = [j for j in range(len(path[pos])) if path[pos][j] == cid]
 
@@ -165,22 +144,25 @@ def phase_cluster_snps(
             for perm in it.permutations(c_slots):
                 score = 0
                 # for each read: determine number of errors for best fit
-                for rid in readlist[het_idx]:
-                    if len(rmat[rid]) < 2:
+                for rid in range(len(submatrix)):
+                    if submatrix.getAllele(rid, het_idx) < 0:
+                        continue
+                    if submatrix.getFirstPos(rid) >= het_idx:
                         continue
                     likelihood = 0.0
                     a_priori = 1 / len(c_slots)
                     for slot in range(len(c_slots)):
                         overlap, errors = 0, 0
                         # skip if read has different allele at current pos than tested config
-                        if haplotypes[perm[slot]][pos] != rmat[rid][het_idx]:
-                            errors += 1
+                        if haplotypes[perm[slot]][pos] != submatrix.getAllele(rid, het_idx):
+                            continue
                         # else, compare to window_size many previous positions
-                        for j in range(max(0, het_idx - window_size), het_idx):
-                            if j in rmat[rid]:
-                                overlap += 1
-                                if haplotypes[c_slots[slot]][het_pos[j]] != rmat[rid][j]:
-                                    errors += 1
+                        for (j, a) in submatrix.getRead(rid):
+                            if j >= het_idx:
+                                break
+                            overlap += 1
+                            if haplotypes[c_slots[slot]][het_pos[j]] != a:
+                                errors += 1
                         likelihood += (
                             a_priori
                             * ((1 - error_rate) ** (overlap - errors))
@@ -196,6 +178,7 @@ def phase_cluster_snps(
             alleles = [haplotypes[best_perm[j]][pos] for j in range(len(best_perm))]
             for j in range(len(c_slots)):
                 haplotypes[c_slots[j]][pos] = alleles[j]
+        del submatrix
 
 
 def resolve_ambiguous_switches(
@@ -305,38 +288,12 @@ def solve_single_ambiguous_site(
         j += 1
     het_pos = het_pos_before + het_pos_after
 
-    # store the allele of every cluster-read for the relevant positions
-    rmat = dict()
-
-    # for each position store the supporting reads
-    readlist = []
-
-    # go over all reads and determine which snp positions they are defined on
-    if len(het_pos_before) >= 2 and len(het_pos_after) >= 2:
-        for cid in c_group:
-            for rid in clustering[cid]:
-                read = allele_matrix.getRead(rid)
-                if len(read) < 2:
-                    continue
-                if allele_matrix.getFirstPos(rid) > het_pos_before[-1]:
-                    continue
-                if allele_matrix.getLastPos(rid) < het_pos_after[0]:
-                    continue
-                rmat[rid] = dict()
-                j, k, b, t = 0, 0, 0, 0
-                while j < len(read) and k < len(het_pos):
-                    read_pos, allele = read[j]
-                    if read_pos == het_pos[k]:
-                        rmat[rid][het_pos[k]] = allele
-                        b += 1 if k < len(het_pos_before) else 0
-                        t, j, k = t + 1, j + 1, k + 1
-                    elif read_pos < het_pos[k]:
-                        j += 1
-                    else:
-                        k += 1
-
-                if b > 0 and t > b:
-                    readlist.append(rid)
+    # use submatrix of relevant reads and positions
+    rids = filter(
+        lambda r: allele_matrix.getFirstPos(r) < pos <= allele_matrix.getLastPos(r),
+        [r for cid in c_group for r in clustering[cid]],
+    )
+    submatrix = allele_matrix.extractSubMatrix(het_pos, list(rids), True)
 
     # reconstruct cluster phasing
     configs = []
@@ -345,17 +302,19 @@ def solve_single_ambiguous_site(
         score = 0.0
         num_factors = 0
         # for each read: determine number of errors for best fit
-        for rid in readlist:
+        for rid in range(len(submatrix)):
             likelihood = 0.0
+            read = submatrix.getRead(rid)
+            overlap = len(read)
             for slot in range(len(h_group)):
-                overlap = len(rmat[rid])
                 errors = 0
-                for p in rmat[rid]:
-                    if p < het_pos_after[0]:
+                for (j, a) in read:
+                    p = het_pos[j]
+                    if j < len(het_pos_before):
                         cmp = haplotypes[h_group[perm[slot]]][p]
                     else:
                         cmp = haplotypes[hap_perm[h_group[slot]]][p]
-                    if cmp != rmat[rid][p]:
+                    if cmp != a:
                         errors += 1
                 likelihood = max(
                     likelihood, ((1 - error_rate) ** (overlap - errors)) * (error_rate**errors)
@@ -364,6 +323,7 @@ def solve_single_ambiguous_site(
             score += log(likelihood)
         configs.append((perm, score / num_factors if num_factors > 0 else 0))
 
+    del submatrix
     configs.sort(key=lambda x: -x[1])
     return configs
 
