@@ -1,8 +1,7 @@
 """
-Algorithmic core of whatshap polyphase
-
-TODO: More description
-
+Algorithmic core of whatshap polyphase. Split inputs into independent blocks if possible and can be
+executed in parallel on a block level. Each block is processed in three phases: Read clustering,
+haplotype threading and reordering.
 """
 import logging
 
@@ -20,7 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 def solve_polyphase_instance(allele_matrix, genotype_list, param, timers, quiet=False):
-
+    """
+    Entry point for polyploid phasing instances. Inputs are an allele matrix and genotypes for each
+    position, among some parameters.
+    """
     # Precompute block borders based on read coverage and linkage between variants
     if not quiet:
         logger.info("Detecting connected components with weak interconnect ..")
@@ -44,40 +46,24 @@ def solve_polyphase_instance(allele_matrix, genotype_list, param, timers, quiet=
             )
         )
 
-    submatrices = [
-        allele_matrix.extractInterval(s, e) for s, e in zip(block_starts[:-1], block_starts[1:])
-    ]
-    timers.stop("detecting_blocks")
-
     # Process blocks independently
     results = []
-
-    # Create genotype slices for blocks
-    gt_slices = []
-    for block_id, submatrix in enumerate(submatrices):
-        block_start = block_starts[block_id]
-        block_end = block_starts[block_id + 1]
-        block_num_vars = block_end - block_start
-
-        assert submatrix.getNumPositions() == block_num_vars
-        gt_slices.append(genotype_list[block_start:block_end])
-
     processed_blocks = 0
+    timers.stop("detecting_blocks")
 
     """
     Python's multiprocessing makes hard copies of the passed arguments, which is not trivial for
     cython objects, especially when they contain pointers to other cython objects. Any passed
     object must be (de)serializable (in Python: pickle). All other objects created in the main
     thread are also accessible by the workers, but they are handled via the copy-on-write policy.
-    This means, that e.g. the large main readset is not hardcopied for every thread, as long as it
-    is not modified there. Since this would cause a massive waste of memory, this must not be done
-    and the main readset must also never be passed as argument to the workers.
+    This means, that e.g. the large main matrix is not hardcopied for every thread, as long as it
+    is not modified there. This must be ensured to prevent a massive waste of memory consumption.
     """
     if param.threads == 1:
         # for single-threading, process everything individually to minimize memory footprint
-        for block_id, submatrix in enumerate(submatrices):
-            block_num_vars = block_starts[block_id + 1] - block_starts[block_id]
-            if block_num_vars > 1:
+        for block_id, (start, end) in enumerate(zip(block_starts[:-1], block_starts[1:])):
+            submatrix = allele_matrix.extractInterval(start, end)
+            if end - start > 1:
                 processed_blocks += 1
                 if not quiet:
                     logger.info(
@@ -85,44 +71,43 @@ def solve_polyphase_instance(allele_matrix, genotype_list, param, timers, quiet=
                             processed_blocks,
                             num_blocks,
                             len(submatrix),
-                            block_num_vars,
+                            end - start,
                         )
                     )
             results.append(
-                phase_single_block(block_id, submatrix, gt_slices[block_id], param, timers)
+                phase_single_block(block_id, submatrix, genotype_list[start:end], param, timers)
             )
+            del submatrix
 
     else:
         # sort block by descending size (4/3-approximation for scheduling problem)
-        joblist = [(i, sub) for i, sub in enumerate(submatrices)]
-        joblist.sort(key=lambda x: -len(x[1]))
-
         timers.start("phase_blocks")
+        joblist = list(zip(range(len(block_starts)), block_starts[:-1], block_starts[1:]))
+        joblist.sort(key=lambda x: x[1] - x[2])
+
         with Pool(processes=param.threads) as pool:
             process_results = [
                 pool.apply_async(
                     phase_single_block_mt,
                     (
+                        allele_matrix,
                         block_id,
-                        submatrices[block_id],
-                        gt_slices[block_id],
+                        start,
+                        end,
+                        genotype_list[start:end],
                         param,
                         timers,
                         job_id,
                         num_blocks,
                     ),
                 )
-                for job_id, (block_id, submatrix) in enumerate(joblist)
+                for job_id, (block_id, start, end) in enumerate(joblist)
             ]
             # collect all blockwise results
             blockwise_results = [res.get() for res in process_results]
             results = sorted(blockwise_results, key=lambda x: x.block_id)
 
         timers.stop("phase_blocks")
-
-    # Free memory
-    for sub in submatrices:
-        del sub
 
     # Aggregate blockwise results
     return aggregate_results(results, ploidy)
@@ -216,20 +201,32 @@ def phase_single_block(block_id, allele_matrix, genotype_slice, param, timers, q
 
 
 def phase_single_block_mt(
-    block_id, allele_matrix, genotype_slice, param, timers, job_id, num_blocks, quiet=False
+    allele_matrix,
+    block_id,
+    start,
+    end,
+    genotype_slice,
+    param,
+    timers,
+    job_id,
+    num_blocks,
+    quiet=False,
 ):
     """
-    Wrapper for the phase_single_block() function. Carries a block_id through to the results
-    and unpythonizes the given readset, because cython objects are very troublesome to hardcopy.
+    Wrapper for the phase_single_block() function. Carries a block_id through to the results.
+    Creates a local submatrix without modifying the given allele matrix
     """
-    block_vars = allele_matrix.getNumPositions()
+    submatrix = allele_matrix.extractInterval(start, end)
+    block_vars = submatrix.getNumPositions()
     if block_vars > 1 and not quiet:
         logger.info(
             "Phasing block {} of {} with {} reads and {} variants.".format(
-                job_id + 1, num_blocks, len(allele_matrix), block_vars
+                job_id + 1, num_blocks, len(submatrix), block_vars
             )
         )
-    result = phase_single_block(block_id, allele_matrix, genotype_slice, param, timers)
+
+    result = phase_single_block(block_id, submatrix, genotype_slice, param, timers)
+    del submatrix
     if block_vars > 1 and not quiet:
         logger.info("Finished block {}.".format(job_id + 1))
     return result
@@ -240,7 +237,6 @@ def aggregate_results(results, ploidy):
     Collects all blockwise phasing results and aggregates them into one list for each type of
     information. Local ids and indices are converted to globals ones in this step.
     """
-
     clustering, cuts = [], []
     paths = []
     hap_cuts = [[] for _ in range(ploidy)]
