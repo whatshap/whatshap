@@ -33,14 +33,14 @@ def run_threading(
 
     # compute auxiliary data
     num_vars = allele_matrix.getNumPositions()
-    ad, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy)
-    cov_map = select_clusters(ad, ploidy, max_cluster_gap)
+    allele_depths, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy)
+    cov_map = select_clusters(allele_depths, ploidy, max_cluster_gap)
 
     # compute threading through the clusters
     affine_switch_cost = ceil(compute_readlength_snp_distance_ratio(allele_matrix) / 1.0)
     paths = compute_threading_path(
         cov_map,
-        ad,
+        allele_depths,
         ploidy,
         switch_cost=4 * affine_switch_cost,
         affine_switch_cost=affine_switch_cost,
@@ -54,7 +54,7 @@ def run_threading(
     # enforce genotypes
     if genotypes:
         haplotypes = force_genotypes(
-            paths, haplotypes, genotypes, clustering, cov_map, ad, error_rate
+            paths, haplotypes, genotypes, clustering, cov_map, allele_depths, error_rate
         )
 
     return (paths, haplotypes)
@@ -69,7 +69,7 @@ def compute_readlength_snp_distance_ratio(allele_matrix):
 
 def compute_threading_path(
     cov_map,
-    ad,
+    allele_depths,
     ploidy,
     switch_cost=32.0,
     affine_switch_cost=8.0,
@@ -89,7 +89,7 @@ def compute_threading_path(
     row_limit = 16 * 2**ploidy if ploidy > 6 else 0
     threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, max_cluster_gap, row_limit)
 
-    path = threader.computePathsBlockwise([0], cov_map, ad)
+    path = threader.computePathsBlockwise([0], cov_map, allele_depths)
 
     return path
 
@@ -260,8 +260,7 @@ def get_allele_depths(allele_matrix, clustering, ploidy):
     # count alleles
     for c_id, cluster in enumerate(clustering):
         for read in cluster:
-            for var in allele_matrix.getRead(read):
-                pos, allele = var
+            for pos, allele in allele_matrix.getRead(read):
                 if c_id not in ad[pos]:
                     ad[pos][c_id] = dict()
                 if allele not in ad[pos][c_id]:

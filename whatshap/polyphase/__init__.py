@@ -55,13 +55,6 @@ def get_coverage(allele_matrix, clustering):
     return coverage
 
 
-def haplotypes_to_strings(haplotypes):
-    haplostrings = []
-    for i, h in enumerate(haplotypes):
-        haplostrings.append("".join(map(lambda x: str(x) if x >= 0 else "n", h)))
-    return haplostrings
-
-
 def compute_block_starts(am, ploidy, single_linkage=False):
     """
     Based on the connectivity of the reads, we want to divide the phasing input, as non- or poorly
