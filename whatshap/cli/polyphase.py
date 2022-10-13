@@ -20,7 +20,6 @@ from whatshap import __version__
 from whatshap.core import (
     Read,
     ReadSet,
-    Genotype,
     NumericSampleIds,
 )
 from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
@@ -28,7 +27,7 @@ from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
 from whatshap.polyphase import PolyphaseParameter, create_genotype_list
 from whatshap.polyphase.algorithm import solve_polyphase_instance
 from whatshap.polyphase.plots import draw_plots
-from whatshap.polyphase_solver import AlleleMatrix, compute_polyploid_genotypes
+from whatshap.polyphase_solver import AlleleMatrix
 
 from whatshap.timer import StageTimer
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
@@ -137,6 +136,9 @@ def run_polyphase(
                     "Sample {!r} requested on command-line not found in VCF".format(sample)
                 )
 
+        if verify_genotypes:
+            logger.warn("Option --verify-genotypes is deprecated. It will be ignored.")
+
         samples = frozenset(samples)
 
         read_list_file = None
@@ -147,7 +149,6 @@ def run_polyphase(
         # Store phasing parameters in tuple to keep function signatures cleaner
         phasing_param = PolyphaseParameter(
             ploidy=ploidy,
-            verify_genotypes=verify_genotypes,
             ce_bundle_edges=ce_bundle_edges,
             distrust_genotypes=distrust_genotypes,
             min_overlap=min_overlap,
@@ -213,46 +214,6 @@ def run_polyphase(
                     )
                     readset.sort()
                     timers.stop("read_bam")
-
-                    # Verify genotypes
-                    if verify_genotypes:
-                        timers.start("verify_genotypes")
-                        logger.info("Verify genotyping of %s", sample)
-                        positions = [v.position for v in phasable_variant_table.variants]
-                        computed_genotypes = [
-                            Genotype(gt)
-                            for gt in compute_polyploid_genotypes(readset, ploidy, positions)
-                        ]
-                        # skip all positions at which genotypes do not match
-                        given_genotypes = phasable_variant_table.genotypes_of(sample)
-                        matching_genotypes = []
-                        missing_genotypes = set()
-                        for i, g in enumerate(given_genotypes):
-                            c_g = computed_genotypes[i]
-                            if (g == c_g) or (c_g is None):
-                                matching_genotypes.append(g)
-                            else:
-                                matching_genotypes.append(Genotype([]))
-                                missing_genotypes.add(i)
-                        phasable_variant_table.set_genotypes_of(sample, matching_genotypes)
-
-                        # Remove variants with deleted genotype
-                        phasable_variant_table.remove_rows_by_index(missing_genotypes)
-                        logger.info(
-                            "Number of variants removed due to inconsistent genotypes: %d",
-                            len(missing_genotypes),
-                        )
-                        logger.info(
-                            "Number of remaining heterozygous variants: %d",
-                            len(phasable_variant_table),
-                        )
-
-                        # Re-read the readset to remove discarded variants
-                        readset, vcf_source_ids = phased_input_reader.read(
-                            chromosome, phasable_variant_table.variants, sample
-                        )
-                        readset.sort()
-                        timers.stop("verify_genotypes")
 
                     # Remove reads with insufficient variants
                     readset = readset.subset(

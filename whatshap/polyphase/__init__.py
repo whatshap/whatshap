@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PolyphaseParameter:
     ploidy: int
-    verify_genotypes: bool
     ce_bundle_edges: bool
     distrust_genotypes: bool
     min_overlap: int

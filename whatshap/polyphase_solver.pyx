@@ -230,19 +230,6 @@ cdef class SwitchFlipCalculator:
         return result.first, result.second, py_switches_in_column, py_flips_in_column, py_perm_in_column
 
 
-def compute_polyploid_genotypes(ReadSet readset, ploidy, positions=None):
-    cdef vector[cpp.Genotype]* genotypes_vector = new vector[cpp.Genotype]()
-    cdef vector[unsigned int]* c_positions = NULL
-    if positions is not None:
-        c_positions = new vector[unsigned int]()
-        for pos in positions:
-            c_positions.push_back(pos)
-    cpp.compute_polyploid_genotypes(readset.thisptr[0], ploidy, genotypes_vector, c_positions)
-    genotypes = list([ gt.as_vector() for gt in genotypes_vector[0] ])
-    del genotypes_vector
-    return genotypes
-
-
 cdef class ProgenyGenotypeLikelihoods:
     def __cinit__(self, ploidy, numSamples, numPositions):
         self.thisptr = new cpp.ProgenyGenotypeLikelihoods(ploidy, numSamples, numPositions)

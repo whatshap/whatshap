@@ -130,7 +130,6 @@ cdef extern from "../src/genotypedistribution.h":
 
 cdef extern from "../src/genotyper.h":
     void compute_genotypes(ReadSet, vector[Genotype]* genotypes, vector[GenotypeDistribution]* genotype_likelihoods, vector[unsigned int]* positions)  except +
-    void compute_polyploid_genotypes(ReadSet, size_t ploidy, vector[Genotype]* genotypes, vector[unsigned int]* positions)  except +
 
 
 cdef extern from "../src/hapchat/hapchatcore.cpp":
