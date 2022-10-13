@@ -272,11 +272,6 @@ def run_polyphase(
         logger.info("Time spent threading haplotypes:     %6.1f s", timers.elapsed("threading"))
         logger.info("Time spent reordering haplotypes:    %6.1f s", timers.elapsed("reordering"))
     else:
-        """
-        TODO: The runtime measurement for the different stages does not properly for multithreading,
-        because the global timer is not visible from within the phase_single_block_mt method.
-        Workaround is to only report the total phasing time.
-        """
         logger.info("Time spent phasing blocks:           %6.1f s", timers.elapsed("phase_blocks"))
     if plot_clusters or plot_threading:
         logger.info("Time spent creating plots:           %6.1f s", timers.elapsed("create_plots"))
