@@ -104,6 +104,7 @@ else:
         "scipy",
         "xopen>=1.2.0",
         "pulp>=2",
+        "typing_extensions; python_version<'3.8'",
     ]
 
 setup(

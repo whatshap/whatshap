@@ -341,7 +341,7 @@ def test_haplotag_supplementary(tmp_path):
         variant_file="tests/data/haplotag.supplementary.vcf.gz",
         alignment_file="tests/data/haplotag.supplementary.bam",
         output=outbam2,
-        tag_supplementary=True,
+        supplementary="same",
         ignore_read_groups=True,
     )
     # map name->haplotype

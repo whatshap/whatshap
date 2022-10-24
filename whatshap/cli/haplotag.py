@@ -21,6 +21,11 @@ from whatshap.core import NumericSampleIds
 from whatshap.timer import StageTimer
 from whatshap.utils import Region, stdout_is_regular_file
 
+try:
+    from typing import Literal
+except ImportError:
+    from typing_extensions import Literal
+
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +61,18 @@ def add_arguments(parser):
     arg("--output-haplotag-list", dest="haplotag_list", metavar="HAPLOTAG_LIST", default=None,
         help="Write assignments of read names to haplotypes (tab separated) to given "
         "output file. If filename ends in .gz, then output is gzipped.")
-    arg("--tag-supplementary", default=False, action="store_true",
-        help="Also tag supplementary alignments. Supplementary alignments are assigned to the "
-        "same haplotype as the primary alignment (default: only tag primary alignments).")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--supplementary", choices=("no", "same", "separate"), default="no",
+        help="How to tag supplementary alignments. 'no': Do not tag; 'separate': Treat as if "
+        "they were separate reads; 'same': Assign to same haplotype as the main "
+        "(non-supplementary) alignment. Default: %(default)s")
+    group.add_argument(
+        "--tag-supplementary", dest="supplementary", action="store_const", const="same",
+        help="(Deprecated: Use --supplementary=same instead.) "
+        "Also tag supplementary alignments. Supplementary alignments are assigned to the "
+        "same haplotype as the non-supplementary alignment (default: only tag non-supplementary "
+        "alignments).")
     arg("--skip-missing-contigs", default=False, action="store_true",
         help="Skip reads that map to a contig that does not exist in the VCF")
     arg("--output-threads", "--out-threads", default=1, type=int,
@@ -428,9 +442,6 @@ def ignore_read(alignment, tag_supplementary):
     - IF tag_supplementary AND aln is_secondary
     - IF not tag_supplementary AND is_supplementary
 
-    :param alignment:
-    :param tag_supplementary:
-    :return:
     """
     # TODO: could be that some checks here are not needed
     # due to default filtering in ReadSetReader::_usableAlignments
@@ -471,11 +482,10 @@ def run_haplotag(
     linked_read_distance_cutoff=50000,
     ignore_read_groups: bool = False,
     haplotag_list: Optional[List[str]] = None,
-    tag_supplementary: bool = False,
+    supplementary: Literal["no", "same", "separate"] = "no",
     skip_missing_contigs: bool = False,
     output_threads: int = 1,
 ):
-
     timers = StageTimer()
     timers.start("haplotag-run")
 
@@ -484,6 +494,7 @@ def run_haplotag(
             "Refusing to write BAM to the terminal. Either use the '-o' option or redirect "
             "standard output with '>'."
         )
+    assert supplementary in ("no", "same")
     with ExitStack() as stack:
         timers.start("haplotag-init")
         try:
@@ -596,7 +607,7 @@ def run_haplotag(
                     haplotype_name = "none"
                     phaseset = "none"
 
-                    if variant_table is None or ignore_read(alignment, tag_supplementary):
+                    if variant_table is None or ignore_read(alignment, supplementary == "same"):
                         # - If no variants in VCF for this chromosome,
                         # alignments just get written to output
                         # - Ignored reads are simply
