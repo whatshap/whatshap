@@ -215,7 +215,6 @@ def phase_single_block_mt(
         )
 
     result = phase_single_block(block_id, submatrix, genotype_slice, param, timers)
-    del submatrix
     if block_vars > 1 and not quiet:
         logger.info(f"Finished block {job_id + 1}.")
     return result

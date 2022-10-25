@@ -60,7 +60,7 @@ def compute_block_starts(am, ploidy, single_linkage=False):
     connected regions can be phased independently. This is done based on how pairs of variants are
     connected. There are two modes how to decide whether two variants are connected:
 
-    single_linkage=True -- If there exists a read in the allele matrix, which covers both variants,
+    single_linkage=True -- If there exists a read in the allele matrix which covers both variants,
                            they count as connected
     single_linkage=False -- In order to connect two variants, we need at least reads from ploidy-1
                             different haplotypes. Two variants count as connected, if there

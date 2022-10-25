@@ -15,7 +15,6 @@ def test_get_allele1():
     assert am.getAllele(0, 6) == -1
     assert am.getAllele(1, 0) == 1
     assert am.getAllele(1, 6) == -1
-    del am
 
 
 def test_get_allele2():
@@ -39,7 +38,6 @@ def test_get_allele2():
     assert am.getAllele(1, 3) == -1
     assert am.getAllele(1, 6) == 1
     assert am.getAllele(1, 7) == -1
-    del am
 
 
 def test_get_read1():
@@ -55,7 +53,6 @@ def test_get_read1():
     assert am.getFirstPos(0) == 0 < 5 == am.getLastPos(0)
     assert am.getFirstPos(1) == 1 < 6 == am.getLastPos(1)
     assert am.getFirstPos(2) == 2 < 7 == am.getLastPos(2)
-    del am
 
 
 def test_get_positions1():
@@ -70,7 +67,6 @@ def test_get_positions1():
     for pos, genpos in enumerate(gen_positions):
         assert am.globalToLocal(genpos) == pos
         assert am.localToGlobal(pos) == genpos
-    del am
 
 
 def test_get_alleledepths1():
@@ -84,7 +80,6 @@ def test_get_alleledepths1():
     ad = [[0, 1], [1, 1], [2, 1], [1, 2], [2, 1], [3, 1], [1, 1], [0, 2]]
     for i in range(am.getNumPositions()):
         assert am.getAlleleDepths(i) == ad[i]
-    del am
 
 
 def test_get_alleledepths2():
@@ -98,7 +93,6 @@ def test_get_alleledepths2():
     ad = [[0, 1, 0], [1, 1, 0], [2, 1, 0], [1, 2, 0], [2, 1, 0], [3, 1, 0], [1, 1, 0], [0, 1, 1]]
     for i in range(am.getNumPositions()):
         assert am.getAlleleDepths(i) == ad[i]
-    del am
 
 
 def test_get_alleledepths3():
@@ -112,7 +106,6 @@ def test_get_alleledepths3():
     ad = [[0, 1, 0], [1, 1, 0], [2, 1, 0], [1, 2, 0], [2, 1, 0], [3, 1, 0], [1, 1, 0], [0, 1, 1]]
     for i in range(am.getNumPositions()):
         assert am.getAlleleDepths(i) == ad[i]
-    del am
 
 
 def test_sub_interval1():
@@ -133,7 +126,6 @@ def test_sub_interval1():
             assert am.getAlleleDepths(j) == s1.getAlleleDepths(j)
             assert am.localToGlobal(j) == s1.localToGlobal(j)
 
-    del s1
     s2 = am.extractInterval(2, 13)
     assert len(s2) == 5
     assert s2.getNumPositions() == 11
@@ -143,8 +135,6 @@ def test_sub_interval1():
             assert am.getAlleleDepths(j + 2) == s2.getAlleleDepths(j)
             assert am.localToGlobal(j + 2) == s2.localToGlobal(j)
     assert s2.getRead(0) == [(0, 0), (1, 1), (3, 0), (4, 1), (5, 0), (6, 0), (7, 1)]
-    del s2
-    del am
 
 
 def test_sub_interval2():
@@ -172,11 +162,6 @@ def test_sub_interval2():
             assert am.localToGlobal(j + 10) == s3.localToGlobal(j)
     assert s4.getRead(0) == []
     assert s2.getRead(3) == s2.getRead(4) == []
-    del s1
-    del s2
-    del s3
-    del s4
-    del am
 
 
 def test_sub_matrix1():
@@ -203,9 +188,6 @@ def test_sub_matrix1():
     assert s1.getRead(1) == s2.getRead(2)
     assert s1.getRead(2) == s2.getRead(3)
     assert s1.getRead(3) == s2.getRead(4)
-    del s1
-    del s2
-    del am
 
 
 def test_sub_matrix2():
@@ -232,6 +214,3 @@ def test_sub_matrix2():
     for i in range(len(s2)):
         for j in range(s2.getNumPositions()):
             assert am.getAllele(i + 2, pos2[j]) == s2.getAllele(i, j)
-    del s1
-    del s2
-    del am
