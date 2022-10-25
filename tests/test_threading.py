@@ -7,7 +7,7 @@ from whatshap.core import Read, ReadSet
 # from collections import defaultdict
 from whatshap.polyphase.threading import get_allele_depths, select_clusters
 from whatshap.polyphase import get_coverage
-from whatshap.polyphase_solver import AlleleMatrix
+from whatshap.polyphase.solver import AlleleMatrix
 
 # from whatshap.reorder import compute_cut_positions
 

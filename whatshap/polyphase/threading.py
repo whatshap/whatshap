@@ -1,7 +1,7 @@
 import itertools
 import logging
 from collections import defaultdict
-from whatshap.polyphase_solver import HaploThreader
+from .solver import HaploThreader
 from math import ceil, log
 from scipy.stats import binom
 

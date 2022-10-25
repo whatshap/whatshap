@@ -51,9 +51,9 @@ extensions = [
         ],
     ),
     CppExtension(
-        "whatshap.polyphase_solver",
+        "whatshap.polyphase.solver",
         sources=[
-            "whatshap/polyphase_solver.pyx",
+            "whatshap/polyphase/solver.pyx",
             "src/polyphase/allelematrix.cpp",
             "src/polyphase/clustereditingsolution.cpp",
             "src/polyphase/clustereditingsolver.cpp",

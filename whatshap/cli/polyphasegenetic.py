@@ -22,7 +22,7 @@ from whatshap.core import Read, ReadSet
 from whatshap.cli import log_memory_usage, CommandLineError
 from whatshap.polyphase.clusterarrangement import arrange_clusters
 from whatshap.polyphase.plots import create_genetic_plots
-from whatshap.polyphase_solver import ClusterEditingSolver
+from whatshap.polyphase.solver import ClusterEditingSolver
 from whatshap.polyphase.variantselection import compute_phasable_variants, filter_variants
 from whatshap.polyphase.offspringscoring import (
     get_offspring_gl,

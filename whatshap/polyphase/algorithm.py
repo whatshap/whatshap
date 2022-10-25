@@ -10,7 +10,7 @@ from multiprocessing import Pool
 
 from whatshap.polyphase import PolyphaseBlockResult, compute_block_starts
 from whatshap.polyphase.reorder import run_reordering
-from whatshap.polyphase_solver import ClusterEditingSolver, scoreReadset
+from whatshap.polyphase.solver import ClusterEditingSolver, scoreReadset
 from whatshap.polyphase.threading import run_threading
 
 __author__ = "Sven Schrinner"

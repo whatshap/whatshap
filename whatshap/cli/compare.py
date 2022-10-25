@@ -11,7 +11,7 @@ from typing import Set, List, Optional, DefaultDict, Dict
 
 from whatshap.vcf import VcfReader, VcfVariant, VariantTable, PloidyError
 from whatshap.core import Genotype
-from whatshap.polyphase_solver import SwitchFlipCalculator
+from whatshap.polyphase.solver import SwitchFlipCalculator
 from whatshap.cli import CommandLineError
 
 

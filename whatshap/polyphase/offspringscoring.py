@@ -16,7 +16,7 @@ from scipy.stats import binom
 from scipy.special import binom as binom_coeff
 from functools import lru_cache
 
-from whatshap.polyphase_solver import TriangleSparseMatrix, ProgenyGenotypeLikelihoods
+from whatshap.polyphase.solver import TriangleSparseMatrix, ProgenyGenotypeLikelihoods
 from whatshap.polyphase.variantselection import VariantInfo
 from whatshap.vcf import VariantTable
 

@@ -1,7 +1,7 @@
 import itertools
 import math
 
-from whatshap.polyphase_solver import (
+from whatshap.polyphase.solver import (
     AlleleMatrix,
     ClusterEditingSolver,
     scoreReadset,

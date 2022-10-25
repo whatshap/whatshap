@@ -27,7 +27,7 @@ from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
 from whatshap.polyphase import PolyphaseParameter, create_genotype_list
 from whatshap.polyphase.algorithm import solve_polyphase_instance
 from whatshap.polyphase.plots import draw_plots
-from whatshap.polyphase_solver import AlleleMatrix
+from whatshap.polyphase.solver import AlleleMatrix
 
 from whatshap.timer import StageTimer
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError

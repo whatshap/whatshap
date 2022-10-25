@@ -15,7 +15,7 @@ import logging
 from whatshap.core import Read, ReadSet
 from whatshap.cli.compare import compute_switch_flips_poly_bt
 from whatshap.polyphase import get_coverage
-from whatshap.polyphase_solver import AlleleMatrix
+from whatshap.polyphase.solver import AlleleMatrix
 from whatshap.vcf import VcfReader
 from collections import defaultdict
 

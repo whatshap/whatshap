@@ -3,7 +3,7 @@ Test ReadScoring
 """
 
 from whatshap.core import Read, ReadSet
-from whatshap.polyphase_solver import AlleleMatrix, scoreReadset
+from whatshap.polyphase.solver import AlleleMatrix, scoreReadset
 
 
 def test_readscoring_toy():

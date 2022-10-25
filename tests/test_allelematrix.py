@@ -1,4 +1,4 @@
-from whatshap.polyphase_solver import AlleleMatrix
+from whatshap.polyphase.solver import AlleleMatrix
 from whatshap.testhelpers import string_to_readset
 
 
