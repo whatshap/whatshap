@@ -41,9 +41,7 @@ def solve_polyphase_instance(allele_matrix, genotype_list, param, timers, quiet=
     num_blocks = sum(1 for i, j in zip(block_starts[:-1], block_starts[1:]) if j > i + 1)
     if not quiet:
         logger.info(
-            "Split heterozygous variants into {} blocks (and {} singleton blocks).".format(
-                num_blocks, len(block_starts) - num_blocks - 1
-            )
+            f"Split heterozygous variants into {num_blocks} blocks (and {len(block_starts) - num_blocks - 1} singleton blocks)."
         )
 
     # Process blocks independently
@@ -67,12 +65,7 @@ def solve_polyphase_instance(allele_matrix, genotype_list, param, timers, quiet=
                 processed_blocks += 1
                 if not quiet:
                     logger.info(
-                        "Processing block {} of {} with {} reads and {} variants.".format(
-                            processed_blocks,
-                            num_blocks,
-                            len(submatrix),
-                            end - start,
-                        )
+                        f"Processing block {processed_blocks} of {num_blocks} with {len(submatrix)} reads and {end - start} variants."
                     )
             results.append(
                 phase_single_block(block_id, submatrix, genotype_list[start:end], param, timers)
@@ -149,9 +142,7 @@ def phase_single_block(block_id, allele_matrix, genotype_slice, param, timers, q
     # Run cluster editing
     timers.start("clustering")
     logger.debug(
-        "Solving cluster editing instance with {} nodes and {} edges ..".format(
-            len(allele_matrix), len(sim)
-        )
+        f"Solving cluster editing instance with {len(allele_matrix)} nodes and {len(sim)} edges .."
     )
     solver = ClusterEditingSolver(sim, param.ce_bundle_edges)
     clustering = solver.run()
@@ -159,7 +150,7 @@ def phase_single_block(block_id, allele_matrix, genotype_slice, param, timers, q
     del sim
 
     # Add trailing isolated nodes to single-ton clusters, if missing
-    nodes_in_c = sum([len(c) for c in clustering])
+    nodes_in_c = sum(len(c) for c in clustering)
     for i in range(nodes_in_c, len(allele_matrix)):
         clustering.append([i])
 
@@ -168,7 +159,7 @@ def phase_single_block(block_id, allele_matrix, genotype_slice, param, timers, q
     # Phase II: Threading
 
     # Assemble clusters to haplotypes
-    logger.debug("Threading haplotypes through {} clusters ..\r".format(len(clustering)))
+    logger.debug(f"Threading haplotypes through {len(clustering)} clusters ..\r")
     timers.start("threading")
 
     # Add dynamic programming for finding the most likely subset of clusters
@@ -220,15 +211,13 @@ def phase_single_block_mt(
     block_vars = submatrix.getNumPositions()
     if block_vars > 1 and not quiet:
         logger.info(
-            "Phasing block {} of {} with {} reads and {} variants.".format(
-                job_id + 1, num_blocks, len(submatrix), block_vars
-            )
+            f"Phasing block {job_id + 1} of {num_blocks} with {len(submatrix)} reads and {block_vars} variants."
         )
 
     result = phase_single_block(block_id, submatrix, genotype_slice, param, timers)
     del submatrix
     if block_vars > 1 and not quiet:
-        logger.info("Finished block {}.".format(job_id + 1))
+        logger.info(f"Finished block {job_id + 1}.")
     return result
 
 

@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 @lru_cache(maxsize=None)
 def get_binom_pmf(n, k, g, ploidy, error_rate):
     if g < 0 or g > ploidy or not isinstance(g, int):
-        raise ValueError("Invalid genotype alt-count ({}).".format(g))
+        raise ValueError(f"Invalid genotype alt-count ({g}).")
     return binom.pmf(k, n, (1 - g / ploidy) * error_rate + (g / ploidy) * (1 - error_rate))
 
 

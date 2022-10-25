@@ -133,7 +133,7 @@ def run_polyphase(
         for sample in samples:
             if sample not in vcf_sample_set:
                 raise CommandLineError(
-                    "Sample {!r} requested on command-line not found in VCF".format(sample)
+                    f"Sample {sample!r} requested on command-line not found in VCF"
                 )
 
         if verify_genotypes:
@@ -315,7 +315,7 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
 
     superreads = ReadSet()
     for i in range(param.ploidy):
-        read = Read("superread {}".format(i + 1), 0, 0)
+        read = Read(f"superread {i + 1}", 0, 0)
         # insert alleles
         for j, allele in enumerate(haplotypes[i]):
             if allele < 0:

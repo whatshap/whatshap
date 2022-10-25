@@ -93,7 +93,7 @@ def compute_block_starts(am, ploidy, single_linkage=False):
             if ploidy * pow((ploidy - 2) / ploidy, i) < 0.02:
                 cut_threshold = i
                 break
-    logger.debug("Cut position threshold: coverage >= {}".format(cut_threshold))
+    logger.debug(f"Cut position threshold: coverage >= {cut_threshold}")
 
     # start by looking at neighbouring
     link_to_next = [0 for i in range(num_vars)]
@@ -114,7 +114,7 @@ def compute_block_starts(am, ploidy, single_linkage=False):
     # find linkage between clusters
     link_coverage = [defaultdict(int) for i in range(num_clust)]
     for i, read in enumerate(am):
-        covered_pos_clusts = set([pos_clust[pos] for (pos, allele) in read])
+        covered_pos_clusts = {pos_clust[pos] for (pos, allele) in read}
         for p1 in covered_pos_clusts:
             for p2 in covered_pos_clusts:
                 link_coverage[p1][p2] += 1
