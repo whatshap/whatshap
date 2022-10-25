@@ -11,6 +11,7 @@ def CppExtension(name, sources):
         sources=sources,
         language="c++",
         extra_compile_args=["-std=c++11", "-Werror=return-type", "-Werror=narrowing"],
+        include_dirs=["src/"],
         undef_macros=["NDEBUG"],
     )
 
