@@ -192,7 +192,6 @@ def test_relative_coverage():
     readset, var_pos, clustering, _ = create_testinstance1()
     allele_matrix = AlleleMatrix(readset)
     cov = get_coverage(allele_matrix, clustering)
-    del allele_matrix
     assert cov[0] == {0: 0.5, 1: 0.5}
     assert cov[1] == {0: 0.25, 1: 0.5, 4: 0.25}
     assert cov[2] == {0: 1 / 3, 1: 1 / 3, 4: 1 / 3}
@@ -235,7 +234,6 @@ def test_allele_depths():
                     )
                     print(pos, cid, al)
                     assert cid not in ad[pos] or al not in ad[pos][cid] or ad[pos][cid][al] == val
-        del allele_matrix
 
 
 def test_cluster_selection1():
@@ -253,7 +251,6 @@ def test_cluster_selection1():
     assert c[16] == c[17] == c[18] == c[19] == [2, 3, 5, 6, 7]
     assert c[20] == c[21] == [5, 6, 7]
     assert c == select_clusters(ad, ploidy=3, max_gap=1)
-    del allele_matrix
 
 
 def test_cluster_selection2():
@@ -263,7 +260,6 @@ def test_cluster_selection2():
     c = select_clusters(ad, ploidy=4, max_gap=0)
     assert all([c[i] == [0, 1, 2, 3] for i in range(10)])
     assert c == select_clusters(ad, ploidy=3, max_gap=1)
-    del allele_matrix
 
 
 def test_cluster_selection3():
@@ -290,7 +286,6 @@ def test_cluster_selection3():
     assert c[7] == c[8] == c[9] == [0, 1]
 
     assert c == select_clusters(ad, ploidy=2, max_gap=4)
-    del allele_matrix
 
 
 """
