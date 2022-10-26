@@ -11,6 +11,7 @@ def CppExtension(name, sources):
         sources=sources,
         language="c++",
         extra_compile_args=["-std=c++11", "-Werror=return-type", "-Werror=narrowing"],
+        include_dirs=["src/"],
         undef_macros=["NDEBUG"],
     )
 
@@ -33,6 +34,7 @@ extensions = [
             "src/indexset.cpp",
             "src/genotype.cpp",
             "src/binomial.cpp",
+            "src/multinomial.cpp",
             "src/pedigreepartitions.cpp",
             "src/phredgenotypelikelihoods.cpp",
             "src/genotyper.cpp",
@@ -49,9 +51,10 @@ extensions = [
         ],
     ),
     CppExtension(
-        "whatshap.polyphase_solver",
+        "whatshap.polyphase.solver",
         sources=[
-            "whatshap/polyphase_solver.pyx",
+            "whatshap/polyphase/solver.pyx",
+            "src/polyphase/allelematrix.cpp",
             "src/polyphase/clustereditingsolution.cpp",
             "src/polyphase/clustereditingsolver.cpp",
             "src/polyphase/edgeheap.cpp",

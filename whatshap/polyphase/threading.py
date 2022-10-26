@@ -1,17 +1,15 @@
 import itertools
 import logging
 from collections import defaultdict
-from .polyphase_solver import HaploThreader
+from .solver import HaploThreader
 from math import ceil, log
 from scipy.stats import binom
-
-from whatshap.polyphaseutil import get_position_map
 
 logger = logging.getLogger(__name__)
 
 
 def run_threading(
-    readset,
+    allele_matrix,
     clustering,
     ploidy,
     max_cluster_gap=10,
@@ -21,7 +19,7 @@ def run_threading(
     """
     Main method for the threading stage of the polyploid phasing algorithm. Takes the following input:
 
-    readset -- The fragment matrix to phase
+    allele_matrix -- The fragment matrix to phase
     clustering -- A list of clusters. Each cluster is a list of read ids, indicating which reads it contains. Every read can
                   only be present in one cluster.
     ploidy -- Number of haplotypes to phase
@@ -34,17 +32,15 @@ def run_threading(
     """
 
     # compute auxiliary data
-    index, rev_index = get_position_map(readset)
-    num_vars = len(rev_index)
-    ad, cons_lists = get_allele_depths(readset, clustering, ploidy)
-    cov_map = select_clusters(ad, ploidy, max_cluster_gap)
+    num_vars = allele_matrix.getNumPositions()
+    allele_depths, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy)
+    cov_map = select_clusters(allele_depths, ploidy, max_cluster_gap)
 
     # compute threading through the clusters
-    affine_switch_cost = ceil(compute_readlength_snp_distance_ratio(readset) / 1.0)
+    affine_switch_cost = ceil(compute_readlength_snp_distance_ratio(allele_matrix) / 1.0)
     paths = compute_threading_path(
-        readset,
         cov_map,
-        ad,
+        allele_depths,
         ploidy,
         switch_cost=4 * affine_switch_cost,
         affine_switch_cost=affine_switch_cost,
@@ -58,23 +54,22 @@ def run_threading(
     # enforce genotypes
     if genotypes:
         haplotypes = force_genotypes(
-            paths, haplotypes, genotypes, clustering, cov_map, ad, error_rate
+            paths, haplotypes, genotypes, clustering, cov_map, allele_depths, error_rate
         )
 
     return (paths, haplotypes)
 
 
-def compute_readlength_snp_distance_ratio(readset):
+def compute_readlength_snp_distance_ratio(allele_matrix):
     length = 0
-    for read in readset:
+    for read in allele_matrix:
         length += len(read)
-    return length / len(readset)
+    return length / len(allele_matrix)
 
 
 def compute_threading_path(
-    readset,
     cov_map,
-    ad,
+    allele_depths,
     ploidy,
     switch_cost=32.0,
     affine_switch_cost=8.0,
@@ -94,7 +89,7 @@ def compute_threading_path(
     row_limit = 16 * 2**ploidy if ploidy > 6 else 0
     threader = HaploThreader(ploidy, switch_cost, affine_switch_cost, max_cluster_gap, row_limit)
 
-    path = threader.computePathsBlockwise([0], cov_map, ad)
+    path = threader.computePathsBlockwise([0], cov_map, allele_depths)
 
     return path
 
@@ -247,22 +242,16 @@ def select_clusters(allele_depths, ploidy, max_gap):
     return cov_map
 
 
-def get_allele_depths(readset, clustering, ploidy):
+def get_allele_depths(allele_matrix, clustering, ploidy):
     """
     Returns a list, which for every position contains a list (representing the clusters) of dictionaries containing the allele depths.
     Additionally computes a consensus list per position per cluster, such that the first k elements represent the alleles of this
     cluster, if it was selected with multiplicity k.
     ad[pos][c_id][al] = number of reads in cluster c_id having allele al at position pos
-    Indices are local, i.e. the i-th entry of ad is the entry for the i-th position that occurs in the readset.
+    Indices are local, i.e. the i-th entry of ad is the entry for the i-th position that occurs in the allele_matrix.
     """
-    # Map genome positions to [0,l)
-    index = {}
-    rev_index = []
-    num_vars = 0
-    for position in readset.get_positions():
-        index[position] = num_vars
-        rev_index.append(position)
-        num_vars += 1
+
+    num_vars = allele_matrix.getNumPositions()
 
     # stores allele depth per position and cluster
     ad = [dict() for pos in range(num_vars)]
@@ -271,13 +260,12 @@ def get_allele_depths(readset, clustering, ploidy):
     # count alleles
     for c_id, cluster in enumerate(clustering):
         for read in cluster:
-            for var in readset[read]:
-                pos = index[var.position]
+            for pos, allele in allele_matrix.getRead(read):
                 if c_id not in ad[pos]:
                     ad[pos][c_id] = dict()
-                if var.allele not in ad[pos][c_id]:
-                    ad[pos][c_id][var.allele] = 0
-                ad[pos][c_id][var.allele] += 1
+                if allele not in ad[pos][c_id]:
+                    ad[pos][c_id][allele] = 0
+                ad[pos][c_id][allele] += 1
 
     # compute allele lists
     for pos in range(num_vars):

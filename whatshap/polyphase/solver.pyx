@@ -4,11 +4,11 @@ from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
+from libc.stdint cimport int8_t, uint32_t, uint64_t
 from libcpp.unordered_map cimport unordered_map
-from libc.stdint cimport uint32_t
 
-from . cimport cpp
-from .core cimport ReadSet
+from whatshap cimport cpp
+from whatshap.core cimport ReadSet
 
 cdef class ClusterEditingSolver:
     def __cinit__(self, TriangleSparseMatrix m, bundleEdges):
@@ -22,6 +22,78 @@ cdef class ClusterEditingSolver:
         for i in range(n_clusters):
             clusters.append(solution.getCluster(i))
         return clusters
+
+
+cdef class AlleleMatrix:
+    def __cinit__(self, ReadSet rs=None):
+        if rs:
+            self.thisptr = new cpp.AlleleMatrix(rs.thisptr)
+        else:
+            self.thisptr = NULL
+
+    def __dealloc__(self):
+        if self.thisptr != NULL:
+            del self.thisptr
+        
+    def getNumPositions(self):
+        return self.thisptr.getNumPositions()
+        
+    def getPositions(self):
+        return self.thisptr.getPositions()
+
+    def getAllele(self, uint32_t readId, uint32_t position):
+        return self.thisptr.getAllele(readId, position)
+
+    def getAlleleGlobal(self, uint32_t readId, uint32_t position):
+        return self.thisptr.getAlleleGlobal(readId, position)
+
+    def getRead(self, uint32_t readId):
+        return self.thisptr.getRead(readId)
+
+    def getFirstPos(self, uint32_t readId):
+        return self.thisptr.getFirstPos(readId)
+
+    def getLastPos(self, uint32_t readId):
+        return self.thisptr.getLastPos(readId)
+    
+    def getGlobalId(self, uint32_t readId):
+        return self.thisptr.getGlobalId(readId)
+
+    def globalToLocal(self, uint32_t position):
+        return self.thisptr.globalToLocal(position)
+        
+    def localToGlobal(self, uint32_t position):
+        return self.thisptr.localToGlobal(position)
+    
+    def getAlleleDepths(self, uint32_t position):
+        return self.thisptr.getAlleleDepths(position)
+        
+    def extractInterval(self, uint32_t start, uint32_t end, bool removeEmpty=True):
+        cdef AlleleMatrix mx = AlleleMatrix.__new__(AlleleMatrix)
+        mx.thisptr = self.thisptr.extractInterval(start, end, removeEmpty)
+        return mx
+    
+    def extractSubMatrix(self, vector[uint32_t] positions, vector[uint32_t] readIds, bool removeEmpty=True):
+        cdef AlleleMatrix mx = AlleleMatrix.__new__(AlleleMatrix)
+        mx.thisptr = self.thisptr.extractSubMatrix(positions, readIds, removeEmpty)
+        return mx
+
+    def __iter__(self):
+        for i in range(self.thisptr.size()):
+            yield self.getRead(i)
+
+    def __len__(self):
+        return self.thisptr.size()
+
+    def __getstate__(self):
+        read_list = [{pos: allele for pos, allele in read} for read in self]
+        pos_list = self.getPositions()
+        id_list = [self.getGlobalId(i) for i in range(len(self))]
+        return read_list, pos_list, id_list
+
+    def __setstate__(self, state):
+        read_list, pos_list, id_list = state
+        self.thisptr = new cpp.AlleleMatrix(read_list, pos_list, id_list)
 
 
 cdef class TriangleSparseMatrix:
@@ -56,15 +128,15 @@ cdef class ReadScoring:
     def __cinit__(self):
         self.thisptr = new cpp.ReadScoring()
     
-    def scoreReadset(self, ReadSet readset, uint32_t minOverlap, uint32_t ploidy, double err):
+    def scoreReadset(self, AlleleMatrix am, uint32_t minOverlap, uint32_t ploidy, double err):
         sim = TriangleSparseMatrix()
-        self.thisptr.scoreReadset(sim.thisptr, readset.thisptr, minOverlap, ploidy, err)
+        self.thisptr.scoreReadset(sim.thisptr, am.thisptr, minOverlap, ploidy, err)
         return sim
 
 
-def scoreReadset(readset, minOverlap, ploidy, err=0.0):
+def scoreReadset(am, minOverlap, ploidy, err=0.0):
     readscoring = ReadScoring()
-    sim = readscoring.scoreReadset(readset, minOverlap, ploidy, err)
+    sim = readscoring.scoreReadset(am, minOverlap, ploidy, err)
     del readscoring
     return sim
     
@@ -156,19 +228,6 @@ cdef class SwitchFlipCalculator:
                 py_perm_in_column.append(perm)
 
         return result.first, result.second, py_switches_in_column, py_flips_in_column, py_perm_in_column
-
-
-def compute_polyploid_genotypes(ReadSet readset, ploidy, positions=None):
-    cdef vector[cpp.Genotype]* genotypes_vector = new vector[cpp.Genotype]()
-    cdef vector[unsigned int]* c_positions = NULL
-    if positions is not None:
-        c_positions = new vector[unsigned int]()
-        for pos in positions:
-            c_positions.push_back(pos)
-    cpp.compute_polyploid_genotypes(readset.thisptr[0], ploidy, genotypes_vector, c_positions)
-    genotypes = list([ gt.as_vector() for gt in genotypes_vector[0] ])
-    del genotypes_vector
-    return genotypes
 
 
 cdef class ProgenyGenotypeLikelihoods:

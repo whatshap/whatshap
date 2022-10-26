@@ -35,8 +35,6 @@ cdef class PhredGenotypeLikelihoods:
 	
 cdef class Genotype:
 	cdef cpp.Genotype *thisptr
-	cdef uint64_t index
-	cdef uint32_t ploidy
 
 
 cdef class GenotypeDPTable:

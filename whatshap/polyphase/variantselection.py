@@ -46,7 +46,7 @@ class VariantInfo:
         assert isinstance(key, int)
         size = len(self.variants)
         if not (-size <= key < size):
-            raise IndexError("Index out of bounds: {}".format(key))
+            raise IndexError(f"Index out of bounds: {key}")
         if key < 0:
             key = size + key
         return self.variants[key]
@@ -67,12 +67,12 @@ class VariantInfo:
         if alt_count is not None and old_alt != alt_count:
             changed = True
             if alt_count < 0:
-                raise ValueError("Cannot set alt count of variant to {}".format(alt_count))
+                raise ValueError(f"Cannot set alt count of variant to {alt_count}")
             self.variants[index].alt_count = alt_count
         if co_alt_count is not None and old_co_alt != co_alt_count:
             changed = True
             if co_alt_count < 0:
-                raise ValueError("Cannot set alt count of variant to {}".format(co_alt_count))
+                raise ValueError(f"Cannot set alt count of variant to {co_alt_count}")
             self.variants[index].co_alt_count = co_alt_count
         if changed:
             if not self.check_variant_compatibility(old_alt, old_co_alt, alt_count, co_alt_count):
@@ -87,9 +87,7 @@ class VariantInfo:
             self.phasable.remove(pos)
             self.nodes_modified = True
         else:
-            raise ValueError(
-                "Marked variant {} as unphasable, but it was already before".format(pos)
-            )
+            raise ValueError(f"Marked variant {pos} as unphasable, but it was already before")
 
     def update_node_positions(self):
         self.node_positions = []

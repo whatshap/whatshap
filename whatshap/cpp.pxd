@@ -7,11 +7,11 @@ from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
-from libc.stdint cimport uint32_t, uint64_t
+from libc.stdint cimport int8_t, uint32_t, uint64_t
 from libcpp.unordered_map cimport unordered_map
 
 
-cdef extern from "../src/read.h":
+cdef extern from "read.h":
     cdef cppclass Read:
         Read(string, int, int, int, int, string) except +
         Read(Read) except +
@@ -36,7 +36,7 @@ cdef extern from "../src/read.h":
         bool hasBXTag() except +
 
 
-cdef extern from "../src/indexset.h":
+cdef extern from "indexset.h":
     cdef cppclass IndexSet:
         IndexSet() except +
         bool contains(int) except +
@@ -45,7 +45,7 @@ cdef extern from "../src/indexset.h":
         string toString() except +
 
 
-cdef extern from "../src/readset.h":
+cdef extern from "readset.h":
     cdef cppclass ReadSet:
         ReadSet() except +
         void add(Read*) except +
@@ -59,7 +59,7 @@ cdef extern from "../src/readset.h":
         vector[unsigned int]* get_positions()
 
 
-cdef extern from "../src/pedigree.h":
+cdef extern from "pedigree.h":
     cdef cppclass Pedigree:
         Pedigree() except +
         void addIndividual(unsigned int id, vector[Genotype*] genotypes, vector[PhredGenotypeLikelihoods*]) except +
@@ -72,7 +72,7 @@ cdef extern from "../src/pedigree.h":
         unsigned int triple_count() except +
 
 
-cdef extern from "../src/pedigreedptable.h":
+cdef extern from "pedigreedptable.h":
     cdef cppclass PedigreeDPTable:
         PedigreeDPTable(ReadSet*, vector[unsigned int], Pedigree* pedigree, bool distrust_genotypes, vector[unsigned int]* positions) except +
         void get_super_reads(vector[ReadSet*]*, vector[unsigned int]* transmission_vector) except +
@@ -80,11 +80,11 @@ cdef extern from "../src/pedigreedptable.h":
         vector[bool]* get_optimal_partitioning()
         
         
-cdef extern from "../src/binomial.h":
+cdef extern from "binomial.h":
     cdef int binomial_coefficient(int n, int k) except +
         
         
-cdef extern from "../src/genotype.h":
+cdef extern from "genotype.h":
     cdef cppclass Genotype:
         Genotype() except +
         Genotype(vector[uint32_t]) except +
@@ -104,12 +104,12 @@ cdef extern from "../src/genotype.h":
     cdef uint32_t get_max_genotype_alleles() except +
 
 
-cdef extern from "../src/genotypedptable.h":
+cdef extern from "genotypedptable.h":
     cdef cppclass GenotypeDPTable:
         GenotypeDPTable(ReadSet*, vector[unsigned int], Pedigree* pedigree, vector[unsigned int]* positions) except +
         vector[long double] get_genotype_likelihoods(unsigned int individual, unsigned int position) except +
 
-cdef extern from "../src/phredgenotypelikelihoods.h":
+cdef extern from "phredgenotypelikelihoods.h":
     cdef cppclass PhredGenotypeLikelihoods:
         PhredGenotypeLikelihoods(vector[double], unsigned int, unsigned int) except +
         PhredGenotypeLikelihoods(PhredGenotypeLikelihoods) except +
@@ -122,18 +122,17 @@ cdef extern from "../src/phredgenotypelikelihoods.h":
         void get_genotypes(vector[Genotype]&) except +
 
 
-cdef extern from "../src/genotypedistribution.h":
+cdef extern from "genotypedistribution.h":
     cdef cppclass GenotypeDistribution:
         GenotypeDistribution(double hom_ref_prob, double het_prob, double hom_alt_prob) except +
         double probabilityOf(unsigned int genotype) except +
 
 
-cdef extern from "../src/genotyper.h":
+cdef extern from "genotyper.h":
     void compute_genotypes(ReadSet, vector[Genotype]* genotypes, vector[GenotypeDistribution]* genotype_likelihoods, vector[unsigned int]* positions)  except +
-    void compute_polyploid_genotypes(ReadSet, size_t ploidy, vector[Genotype]* genotypes, vector[unsigned int]* positions)  except +
 
 
-cdef extern from "../src/hapchat/hapchatcore.cpp":
+cdef extern from "hapchat/hapchatcore.cpp":
     cdef cppclass HapChatCore:
         HapChatCore(ReadSet*)
         void get_super_reads(vector[ReadSet*]*)
@@ -142,13 +141,13 @@ cdef extern from "../src/hapchat/hapchatcore.cpp":
         int get_optimal_cost()
 
 
-cdef extern from "../src/polyphase/clustereditingsolver.h":
+cdef extern from "polyphase/clustereditingsolver.h":
     cdef cppclass ClusterEditingSolver:
         ClusterEditingSolver(TriangleSparseMatrix m, bool bundleEdges) except +
         ClusterEditingSolution run() except +
 
 
-cdef extern from "../src/polyphase/clustereditingsolution.h":
+cdef extern from "polyphase/clustereditingsolution.h":
     cdef cppclass ClusterEditingSolution:
         ClusterEditingSolution() except +
         ClusterEditingSolution(ClusterEditingSolution) except +
@@ -158,7 +157,27 @@ cdef extern from "../src/polyphase/clustereditingsolution.h":
         int getNumClusters() except +
 
 
-cdef extern from "../src/polyphase/trianglesparsematrix.h":
+cdef extern from "polyphase/allelematrix.h":
+    cdef cppclass AlleleMatrix:
+        AlleleMatrix(ReadSet* rs) except +
+        AlleleMatrix(vector[unordered_map[uint32_t, int8_t]]& readList, vector[uint32_t]& posList, vector[uint32_t]& idList) except +
+        uint64_t size() except +
+        uint64_t getNumPositions() except +
+        vector[uint32_t] getPositions() except +
+        int8_t getAllele(uint32_t readId, uint32_t position) except +
+        int8_t getAlleleGlobal(uint32_t readId, uint32_t genPosition) except +
+        vector[pair[uint32_t, int8_t]] getRead(uint32_t readId) except +
+        uint32_t getFirstPos(uint32_t readId) except +
+        uint32_t getLastPos(uint32_t readId) except +
+        uint32_t getGlobalId(uint32_t readId) except +
+        uint32_t globalToLocal(uint32_t genPosition) except +
+        uint32_t localToGlobal(uint32_t position) except +
+        vector[uint32_t] getAlleleDepths(uint32_t position) except +
+        AlleleMatrix* extractInterval(uint32_t start, uint32_t end, bool removeEmpty) except +
+        AlleleMatrix* extractSubMatrix(vector[uint32_t] positions, vector[uint32_t] readIds, bool removeEmpty) except +
+
+
+cdef extern from "polyphase/trianglesparsematrix.h":
     cdef cppclass TriangleSparseMatrix:
         TriangleSparseMatrix() except +
         unsigned int entryToIndex(unsigned int i, unsigned int j) except +
@@ -168,13 +187,13 @@ cdef extern from "../src/polyphase/trianglesparsematrix.h":
         vector[pair[uint32_t, uint32_t]] getEntries() except +
 
 
-cdef extern from "../src/polyphase/readscoring.h":
+cdef extern from "polyphase/readscoring.h":
     cdef cppclass ReadScoring:
         ReadScoring() except +
-        void scoreReadset(TriangleSparseMatrix* result, ReadSet* readset, uint32_t minOverlap, uint32_t ploidy, double err) except +
+        void scoreReadset(TriangleSparseMatrix* result, AlleleMatrix* readset, uint32_t minOverlap, uint32_t ploidy, double err) except +
 
 
-cdef extern from "../src/polyphase/haplothreader.h":
+cdef extern from "polyphase/haplothreader.h":
     cdef cppclass HaploThreader:
         HaploThreader(uint32_t ploidy, double switchCost, double affineSwitchCost, uint32_t maxClusterGap, uint32_t rowLimit) except +
         vector[vector[uint32_t]] computePaths(uint32_t start, uint32_t end,
@@ -185,7 +204,7 @@ cdef extern from "../src/polyphase/haplothreader.h":
                     vector[unordered_map[uint32_t, unordered_map[uint32_t, uint32_t]]]& alleleDepths) except +
 
 
-cdef extern from "../src/polyphase/switchflipcalculator.h":
+cdef extern from "polyphase/switchflipcalculator.h":
     cdef cppclass SwitchFlipCalculator:
         SwitchFlipCalculator(uint32_t ploidy, double switchCost, double flipCost) except +
         pair[double, double] compare(vector[vector[uint32_t]]& phasing0,
@@ -195,7 +214,7 @@ cdef extern from "../src/polyphase/switchflipcalculator.h":
                     vector[vector[uint32_t]]& permInColumn) except +
 
 
-cdef extern from "../src/polyphase/progenygenotypelikelihoods.h":
+cdef extern from "polyphase/progenygenotypelikelihoods.h":
     cdef cppclass ProgenyGenotypeLikelihoods:
         ProgenyGenotypeLikelihoods(uint32_t ploidy, uint32_t numSamples, uint32_t numPositions) except +
         double getGl(uint32_t pos, uint32_t sampleId, uint32_t genotype) except +

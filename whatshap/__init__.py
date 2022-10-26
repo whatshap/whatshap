@@ -10,7 +10,7 @@ def _load_cpp_classes():
     flags = sys.getdlopenflags()
     sys.setdlopenflags(os.RTLD_GLOBAL | os.RTLD_NOW)
     import whatshap.core  # noqa
-    import whatshap.polyphase_solver  # noqa
+    import whatshap.polyphase.solver  # noqa
 
     sys.setdlopenflags(flags)
 

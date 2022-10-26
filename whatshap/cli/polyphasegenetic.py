@@ -20,13 +20,17 @@ from contextlib import ExitStack
 from whatshap import __version__
 from whatshap.core import Read, ReadSet
 from whatshap.cli import log_memory_usage, CommandLineError
-from whatshap.polyphaseplots import create_genetic_plots
-from whatshap.polyphase_solver import ClusterEditingSolver
-from whatshap.variantselection import compute_phasable_variants, filter_variants
-from whatshap.offspringscoring import get_offspring_gl, correct_variant_types, get_variant_scoring
+from whatshap.polyphase.clusterarrangement import arrange_clusters
+from whatshap.polyphase.plots import create_genetic_plots
+from whatshap.polyphase.solver import ClusterEditingSolver
+from whatshap.polyphase.variantselection import compute_phasable_variants, filter_variants
+from whatshap.polyphase.offspringscoring import (
+    get_offspring_gl,
+    correct_variant_types,
+    get_variant_scoring,
+)
 from whatshap.timer import StageTimer
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
-from whatshap.clusterarrangement import arrange_clusters
 
 __author__ = "Sven Schrinner"
 
@@ -61,7 +65,7 @@ def run_polyphasegenetic(
     output=sys.stdout,
     samples=None,
     chromosomes=None,
-    indels=True,
+    indels=False,
     tag="PS",
     write_command_line_header=True,
     plot=False,

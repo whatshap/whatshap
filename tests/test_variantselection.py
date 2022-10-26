@@ -1,5 +1,5 @@
 from whatshap.cli.polyphasegenetic import PolyphaseGeneticParameter
-from whatshap.variantselection import VariantInfo, compute_phasable_variants
+from whatshap.polyphase.variantselection import VariantInfo, compute_phasable_variants
 from whatshap.vcf import VcfReader
 
 

@@ -1,7 +1,12 @@
 import itertools
 import math
 
-from whatshap.polyphase_solver import ClusterEditingSolver, scoreReadset, TriangleSparseMatrix
+from whatshap.polyphase.solver import (
+    AlleleMatrix,
+    ClusterEditingSolver,
+    scoreReadset,
+    TriangleSparseMatrix,
+)
 from whatshap.testhelpers import string_to_readset
 
 
@@ -11,7 +16,8 @@ def test_similarities1():
     110101
     """
     readset = string_to_readset(reads)
-    similarities = scoreReadset(readset, 4, 2, 0.06)
+    am = AlleleMatrix(readset)
+    similarities = scoreReadset(am, 4, 2, 0.06)
 
     assert not math.isnan(similarities.get(0, 1))
     assert similarities.get(0, 1) < -6.0
@@ -29,7 +35,8 @@ def test_similarities2():
     10101
     """
     readset = string_to_readset(reads)
-    similarities = scoreReadset(readset, 4, 4, 0.06)
+    am = AlleleMatrix(readset)
+    similarities = scoreReadset(am, 4, 4, 0.06)
 
     assert similarities.get(0, 1) > 1.0
     assert similarities.get(0, 1) == similarities.get(0, 2) == similarities.get(0, 3)
@@ -54,7 +61,8 @@ def test_similarities3():
     10101
     """
     readset = string_to_readset(reads)
-    similarities = scoreReadset(readset, 4, 2, 0.06)
+    am = AlleleMatrix(readset)
+    similarities = scoreReadset(am, 4, 2, 0.06)
 
     assert similarities.get(0, 1) > 5.0
     assert similarities.get(0, 1) == similarities.get(0, 2) == similarities.get(0, 3)
@@ -78,7 +86,8 @@ def test_similarities4():
      110
     """
     readset = string_to_readset(reads)
-    similarities = scoreReadset(readset, 2, 2, 0.06)
+    am = AlleleMatrix(readset)
+    similarities = scoreReadset(am, 2, 2, 0.06)
 
     assert similarities.get(0, 1) > 2.0
     assert similarities.get(0, 2) == 0.0
@@ -98,7 +107,8 @@ def test_similarities5():
      110
     """
     readset = string_to_readset(reads)
-    similarities = scoreReadset(readset, 2, 3, 0.06)
+    am = AlleleMatrix(readset)
+    similarities = scoreReadset(am, 2, 3, 0.06)
 
     assert similarities.get(0, 1) > 1.0
     assert similarities.get(0, 2) == 0.0
@@ -131,7 +141,8 @@ def test_clusterediting1():
     readset = string_to_readset(reads)
 
     # compute similarities
-    similarities = scoreReadset(readset, 3, 3, 0.06)
+    am = AlleleMatrix(readset)
+    similarities = scoreReadset(am, 3, 3, 0.06)
 
     # run cluster editing
     clusterediting = ClusterEditingSolver(similarities, False)
@@ -167,7 +178,8 @@ def test_clusterediting2():
     readset = string_to_readset(reads)
 
     # compute similarities
-    similarities = scoreReadset(readset, 3, 2, 0.06)
+    am = AlleleMatrix(readset)
+    similarities = scoreReadset(am, 3, 2, 0.06)
 
     # run cluster editing
     clusterediting = ClusterEditingSolver(similarities, False)
@@ -195,7 +207,8 @@ def test_clusterediting3():
     readset = string_to_readset(reads)
 
     # compute similarities
-    similarities = scoreReadset(readset, 3, 2, 0.06)
+    am = AlleleMatrix(readset)
+    similarities = scoreReadset(am, 3, 2, 0.06)
 
     # run cluster editing
     clusterediting = ClusterEditingSolver(similarities, False)
@@ -222,7 +235,8 @@ def test_clusterediting4():
     readset = string_to_readset(reads)
 
     # compute similarities
-    similarities = scoreReadset(readset, 5, 3, 0.06)
+    am = AlleleMatrix(readset)
+    similarities = scoreReadset(am, 5, 3, 0.06)
 
     # run cluster editing
     clusterediting = ClusterEditingSolver(similarities, False)
@@ -249,7 +263,8 @@ def test_clusterediting5():
     readset = string_to_readset(reads)
 
     # compute similarities
-    similarities = scoreReadset(readset, 5, 3, 0.01)
+    am = AlleleMatrix(readset)
+    similarities = scoreReadset(am, 5, 3, 0.01)
 
     # run cluster editing
     clusterediting = ClusterEditingSolver(similarities, False)

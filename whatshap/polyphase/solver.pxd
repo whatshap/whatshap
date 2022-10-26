@@ -1,13 +1,17 @@
 # cython: language_level=3
 
 from libc.stdint cimport uint32_t, uint64_t
-from . cimport cpp
+from whatshap cimport cpp
 
 cdef class ClusterEditingSolver:
 	cdef cpp.ClusterEditingSolver *thisptr
 	cdef TriangleSparseMatrix m
 
 
+cdef class AlleleMatrix:
+	cdef cpp.AlleleMatrix *thisptr
+	
+	
 cdef class TriangleSparseMatrix:
 	cdef cpp.TriangleSparseMatrix *thisptr
 

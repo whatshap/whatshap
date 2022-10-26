@@ -12,9 +12,7 @@ import logging
 import platform
 import argparse
 
-from collections import namedtuple
 from copy import deepcopy
-from multiprocessing import Pool
 
 from contextlib import ExitStack
 
@@ -22,43 +20,20 @@ from whatshap import __version__
 from whatshap.core import (
     Read,
     ReadSet,
-    Genotype,
     NumericSampleIds,
 )
-from whatshap.polyphase_solver import (
-    ClusterEditingSolver,
-    compute_polyploid_genotypes,
-    scoreReadset,
-)
 from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
-from whatshap.polyphaseplots import draw_plots
-from whatshap.polyphaseutil import create_genotype_list, compute_block_starts, split_readset
-from whatshap.reorder import run_reordering
-from whatshap.threading import run_threading
+
+from whatshap.polyphase import PolyphaseParameter, create_genotype_list
+from whatshap.polyphase.algorithm import solve_polyphase_instance
+from whatshap.polyphase.plots import draw_plots
+from whatshap.polyphase.solver import AlleleMatrix
+
 from whatshap.timer import StageTimer
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
 
 __author__ = "Jana Ebler, Sven Schrinner"
 
-PhasingParameter = namedtuple(
-    "PhasingParameter",
-    [
-        "ploidy",
-        "verify_genotypes",
-        "ce_bundle_edges",
-        "distrust_genotypes",
-        "min_overlap",
-        "block_cut_sensitivity",
-        "plot_clusters",
-        "plot_threading",
-        "threads",
-    ],
-)
-
-SingleBlockResult = namedtuple(
-    "SingleBlockResult",
-    ["block_id", "clustering", "paths", "cuts", "hap_cuts", "haplotypes"],
-)
 
 logger = logging.getLogger(__name__)
 
@@ -142,13 +117,7 @@ def run_polyphase(
 
         vcf_reader = stack.enter_context(
             VcfReader(
-                variant_file,
-                indels=indels,
-                phases=True,
-                genotype_likelihoods=False,
-                ploidy=ploidy,
-                mav=False,
-                allele_depth=False,
+                variant_file, indels=indels, phases=True, genotype_likelihoods=False, ploidy=ploidy
             )
         )
 
@@ -167,6 +136,9 @@ def run_polyphase(
                     f"Sample {sample!r} requested on command-line not found in VCF"
                 )
 
+        if verify_genotypes:
+            logger.warn("Option --verify-genotypes is deprecated. It will be ignored.")
+
         samples = frozenset(samples)
 
         read_list_file = None
@@ -175,9 +147,8 @@ def run_polyphase(
             # read_list_file = create_read_list_file(read_list_filename)
 
         # Store phasing parameters in tuple to keep function signatures cleaner
-        phasing_param = PhasingParameter(
+        phasing_param = PolyphaseParameter(
             ploidy=ploidy,
-            verify_genotypes=verify_genotypes,
             ce_bundle_edges=ce_bundle_edges,
             distrust_genotypes=distrust_genotypes,
             min_overlap=min_overlap,
@@ -244,46 +215,6 @@ def run_polyphase(
                     readset.sort()
                     timers.stop("read_bam")
 
-                    # Verify genotypes
-                    if verify_genotypes:
-                        timers.start("verify_genotypes")
-                        logger.info("Verify genotyping of %s", sample)
-                        positions = [v.position for v in phasable_variant_table.variants]
-                        computed_genotypes = [
-                            Genotype(gt)
-                            for gt in compute_polyploid_genotypes(readset, ploidy, positions)
-                        ]
-                        # skip all positions at which genotypes do not match
-                        given_genotypes = phasable_variant_table.genotypes_of(sample)
-                        matching_genotypes = []
-                        missing_genotypes = set()
-                        for i, g in enumerate(given_genotypes):
-                            c_g = computed_genotypes[i]
-                            if (g == c_g) or (c_g is None):
-                                matching_genotypes.append(g)
-                            else:
-                                matching_genotypes.append(Genotype([]))
-                                missing_genotypes.add(i)
-                        phasable_variant_table.set_genotypes_of(sample, matching_genotypes)
-
-                        # Remove variants with deleted genotype
-                        phasable_variant_table.remove_rows_by_index(missing_genotypes)
-                        logger.info(
-                            "Number of variants removed due to inconsistent genotypes: %d",
-                            len(missing_genotypes),
-                        )
-                        logger.info(
-                            "Number of remaining heterozygous variants: %d",
-                            len(phasable_variant_table),
-                        )
-
-                        # Re-read the readset to remove discarded variants
-                        readset, vcf_source_ids = phased_input_reader.read(
-                            chromosome, phasable_variant_table.variants, sample
-                        )
-                        readset.sort()
-                        timers.stop("verify_genotypes")
-
                     # Remove reads with insufficient variants
                     readset = readset.subset(
                         [i for i, read in enumerate(readset) if len(read) >= max(2, min_overlap)]
@@ -341,11 +272,6 @@ def run_polyphase(
         logger.info("Time spent threading haplotypes:     %6.1f s", timers.elapsed("threading"))
         logger.info("Time spent reordering haplotypes:    %6.1f s", timers.elapsed("reordering"))
     else:
-        """
-        TODO: The runtime measurement for the different stages does not properly for multithreading,
-        because the global timer is not visible from within the phase_single_block_mt method.
-        Workaround is to only report the total phasing time.
-        """
         logger.info("Time spent phasing blocks:           %6.1f s", timers.elapsed("phase_blocks"))
     if plot_clusters or plot_threading:
         logger.info("Time spent creating plots:           %6.1f s", timers.elapsed("create_plots"))
@@ -359,119 +285,28 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
     # Compute the genotypes that belong to the variant table and create a list of all genotypes
     genotype_list = create_genotype_list(phasable_variant_table, sample)
 
-    # Precompute block borders based on read coverage and linkage between variants
-    logger.info("Detecting connected components with weak interconnect ..")
-    timers.start("detecting_blocks")
-    num_vars = len(readset.get_positions())
-    ploidy = param.ploidy
-    if param.block_cut_sensitivity == 0:
-        block_starts = [0]
-    elif param.block_cut_sensitivity == 1:
-        block_starts = compute_block_starts(readset, ploidy, single_linkage=True)
-    else:
-        block_starts = compute_block_starts(readset, ploidy, single_linkage=False)
-
-    # Set block borders and split readset
-    block_starts.append(num_vars)
-    num_non_singleton_blocks = len(
-        [i for i in range(len(block_starts) - 1) if block_starts[i] < block_starts[i + 1] - 1]
+    # Retrieve solution
+    allele_matrix = AlleleMatrix(readset)
+    clustering, threading, haplotypes, cuts, hap_cuts = solve_polyphase_instance(
+        allele_matrix, genotype_list, param, timers
     )
-    logger.info(
-        "Split heterozygous variants into {} blocks (and {} singleton blocks).".format(
-            num_non_singleton_blocks, len(block_starts) - num_non_singleton_blocks - 1
-        )
-    )
-
-    block_readsets = split_readset(readset, block_starts)
-    timers.stop("detecting_blocks")
-
-    # Process blocks independently
-    results = []
-
-    # Create genotype slices for blocks
-    gt_slices = []
-    for block_id, block_readset in enumerate(block_readsets):
-        block_start = block_starts[block_id]
-        block_end = block_starts[block_id + 1]
-        block_num_vars = block_end - block_start
-
-        assert len(block_readset.get_positions()) == block_num_vars
-        gt_slices.append(genotype_list[block_start:block_end])
-
-    processed_non_singleton_blocks = 0
-
-    """
-    Python's multiprocessing makes hard copies of the passed arguments, which is not trivial for
-    cython objects, especially when they contain pointers to other cython objects. Any passed
-    object must be (de)serializable (in Python: pickle). All other objects created in the main
-    thread are also accessible by the workers, but they are handled via the copy-on-write policy.
-    This means, that e.g. the large main readset is not hardcopied for every thread, as long as it
-    is not modified there. Since this would cause a massive waste of memory, this must not be done
-    and the main readset must also never be passed as argument to the workers.
-    """
-    if param.threads == 1:
-        # for single-threading, process everything individually to minimize memory footprint
-        for block_id, block_readset in enumerate(block_readsets):
-            block_num_vars = block_starts[block_id + 1] - block_starts[block_id]
-            if block_num_vars > 1:
-                processed_non_singleton_blocks += 1
-                logger.info(
-                    "Processing block {} of {} with {} reads and {} variants.".format(
-                        processed_non_singleton_blocks,
-                        num_non_singleton_blocks,
-                        len(block_readset),
-                        block_num_vars,
-                    )
-                )
-            results.append(
-                phase_single_block(block_id, block_readset, gt_slices[block_id], param, timers)
-            )
-
-    else:
-        # sort block by descending size (4/3-approximation for scheduling problem)
-        joblist = [(i, len(block_readsets[i])) for i in range(len(block_readsets))]
-        joblist.sort(key=lambda x: -x[1])
-
-        timers.start("phase_blocks")
-        with Pool(processes=param.threads) as pool:
-            process_results = [
-                pool.apply_async(
-                    phase_single_block_mt,
-                    (
-                        block_id,
-                        block_readsets[block_id],
-                        gt_slices[block_id],
-                        param,
-                        timers,
-                        job_id,
-                        num_non_singleton_blocks,
-                    ),
-                )
-                for job_id, (block_id, block_readset) in enumerate(joblist)
-            ]
-            # collect all blockwise results
-            blockwise_results = [res.get() for res in process_results]
-            results = sorted(blockwise_results, key=lambda x: x.block_id)
-
-        timers.stop("phase_blocks")
-
-    # Aggregate blockwise results
-    clustering, threading, haplotypes, cuts, hap_cuts = aggregate_results(results, ploidy)
+    del allele_matrix
 
     # Summarize data for VCF file
     accessible_pos = sorted(readset.get_positions())
     components = {}
     haploid_components = {}
 
+    num_vars = len(readset.get_positions())
     cuts = cuts + [num_vars]
     for i, cut_pos in enumerate(cuts[:-1]):
         for pos in range(cuts[i], cuts[i + 1]):
             components[accessible_pos[pos]] = accessible_pos[cuts[i]]
             components[accessible_pos[pos] + 1] = accessible_pos[cuts[i]]
-            haploid_components[accessible_pos[pos]] = [0] * ploidy
-            haploid_components[accessible_pos[pos] + 1] = [0] * ploidy
+            haploid_components[accessible_pos[pos]] = [0] * param.ploidy
+            haploid_components[accessible_pos[pos] + 1] = [0] * param.ploidy
 
-    for j in range(ploidy):
+    for j in range(param.ploidy):
         hap_cuts[j] = hap_cuts[j] + [num_vars]
         for i, cut_pos in enumerate(hap_cuts[j][:-1]):
             for pos in range(hap_cuts[j][i], hap_cuts[j][i + 1]):
@@ -479,7 +314,7 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
                 haploid_components[accessible_pos[pos] + 1][j] = accessible_pos[hap_cuts[j][i]]
 
     superreads = ReadSet()
-    for i in range(ploidy):
+    for i in range(param.ploidy):
         read = Read(f"superread {i + 1}", 0, 0)
         # insert alleles
         for j, allele in enumerate(haplotypes[i]):
@@ -492,7 +327,7 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
     if param.plot_clusters or param.plot_threading:
         timers.start("create_plots")
         draw_plots(
-            block_readsets,
+            readset,
             clustering,
             threading,
             haplotypes,
@@ -506,153 +341,6 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
 
     # Return results
     return components, haploid_components, superreads
-
-
-def phase_single_block(block_id, block_readset, genotype_slice, param, timers):
-    """
-    Takes as input data the reads from a single (pre-computed) block and the genotypes for all
-    variants inside the block. Runs a three-phase algorithm to compute a phasing for this isolated
-    block. Input are four objects:
-
-    block_readset -- Input reads
-    genotype_slice -- Genotype (as dictionary) for every position
-    param -- Object containing phasing parameters
-    timers -- Timer object to measure time
-    """
-
-    block_num_vars = len(block_readset.get_positions())
-
-    # Check for singleton blocks and handle them differently (for efficiency reasons)
-    if block_num_vars == 1:
-
-        # construct trivial solution for singleton blocks, by using the genotype as phasing
-        allele_to_id = dict()
-        for allele in genotype_slice[0]:
-            if allele not in allele_to_id:
-                allele_to_id[allele] = len(allele_to_id)
-        clusts = [[] for _ in range(len(allele_to_id))]
-        for i, read in enumerate(block_readset):
-            clusts[allele_to_id[read[0].allele]].append(i)
-
-        paths = [[]]
-        haps = []
-        for allele in genotype_slice[0]:
-            for i in range(genotype_slice[0][allele]):
-                paths[0].append(allele_to_id[allele])
-                haps.append([allele])
-
-        return SingleBlockResult(
-            block_id, clusts, paths, [0], [[0] for _ in range(param.ploidy)], haps
-        )
-
-    # Block is non-singleton here, so run the normal routine
-    # Phase I: Cluster Editing
-
-    # Compute similarity values for all read pairs
-    timers.start("read_scoring")
-    logger.debug("Computing similarities for read pairs ..")
-    sim = scoreReadset(block_readset, param.min_overlap, param.ploidy, 0.07)
-
-    # Run cluster editing
-    logger.debug(
-        "Solving cluster editing instance with {} nodes and {} edges ..".format(
-            len(block_readset), len(sim)
-        )
-    )
-    timers.stop("read_scoring")
-    timers.start("clustering")
-    solver = ClusterEditingSolver(sim, param.ce_bundle_edges)
-    clustering = solver.run()
-    del solver
-    del sim
-
-    # Add trailing isolated nodes to single-ton clusters, if missing
-    nodes_in_c = sum(len(c) for c in clustering)
-    for i in range(nodes_in_c, len(block_readset)):
-        clustering.append([i])
-
-    timers.stop("clustering")
-
-    # Phase II: Threading
-
-    # Assemble clusters to haplotypes
-    logger.debug(f"Threading haplotypes through {len(clustering)} clusters ..\r")
-    timers.start("threading")
-
-    # Add dynamic programming for finding the most likely subset of clusters
-    paths, haplotypes = run_threading(
-        block_readset,
-        clustering,
-        param.ploidy,
-        genotypes=None if param.distrust_genotypes else genotype_slice,
-    )
-    timers.stop("threading")
-
-    # Phase III: Reordering
-
-    logger.debug("Reordering ambiguous sites ..\r")
-    timers.start("reordering")
-    cut_positions, haploid_cuts, path, haplotypes = run_reordering(
-        block_readset, clustering, paths, haplotypes, param.block_cut_sensitivity
-    )
-    timers.stop("reordering")
-
-    # collect results from threading
-    return SingleBlockResult(
-        block_id=block_id,
-        clustering=clustering,
-        paths=paths,
-        cuts=cut_positions,
-        hap_cuts=haploid_cuts,
-        haplotypes=haplotypes,
-    )
-
-
-def phase_single_block_mt(
-    block_id, block_readset, genotype_slice, param, timers, job_id, num_blocks
-):
-    """
-    Wrapper for the phase_single_block() function. Carries a block_id through to the results
-    and unpythonizes the given readset, because cython objects are very troublesome to hardcopy.
-    """
-    block_vars = len(block_readset.get_positions())
-    if block_vars > 1:
-        logger.info(
-            "Phasing block {} of {} with {} reads and {} variants.".format(
-                job_id + 1, num_blocks, len(block_readset), block_vars
-            )
-        )
-    result = phase_single_block(block_id, block_readset, genotype_slice, param, timers)
-    del block_readset
-    if block_vars > 1:
-        logger.info(f"Finished block {job_id + 1}.")
-    return result
-
-
-def aggregate_results(results, ploidy):
-    """
-    Collects all blockwise phasing results and aggregates them into one list for each type of
-    information. Local ids and indices are converted to globals ones in this step.
-    """
-
-    clustering, cuts = [], []
-    paths = []
-    hap_cuts = [[] for _ in range(ploidy)]
-    haplotypes = [[] for _ in range(ploidy)]
-    rid_offset, cid_offset, pos_offset = 0, 0, 0
-    for r in results:
-        clustering += [[rid_offset + rid for rid in clust] for clust in r.clustering]
-        paths += [[cid_offset + cid for cid in p] for p in r.paths]
-        cuts += [pos_offset + c for c in r.cuts]
-        for hap_cut, ext in zip(hap_cuts, r.hap_cuts):
-            hap_cut += [pos_offset + h for h in ext]
-        for hap, ext in zip(haplotypes, r.haplotypes):
-            hap += ext
-        rid_offset = max(rid for clust in clustering for rid in clust)
-        cid_offset = len(clustering)
-        pos_offset = len(haplotypes[0])
-
-    return clustering, paths, haplotypes, cuts, hap_cuts
 
 
 def add_arguments(parser):
