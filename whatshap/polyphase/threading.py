@@ -12,21 +12,23 @@ def run_threading(
     allele_matrix,
     clustering,
     ploidy,
+    genotypes,
+    distrust_genotypes=False,
     max_cluster_gap=10,
-    genotypes=None,
     error_rate=0.05,
 ):
     """
-    Main method for the threading stage of the polyploid phasing algorithm. Takes the following input:
+    Main method for the threading stage of the polyploid phasing algorithm. Taken inputs:
 
     allele_matrix -- The fragment matrix to phase
-    clustering -- A list of clusters. Each cluster is a list of read ids, indicating which reads it contains. Every read can
-                  only be present in one cluster.
+    clustering -- A list of clusters. Each cluster is a list of read ids, indicating which reads it
+                  contains. Every read can only be present in one cluster.
     ploidy -- Number of haplotypes to phase
+    genotypes -- Desired genotype as dictionary (allele -> multiplicity), as list over positions.
+    distrust_genotypes -- If False, forces computed genotypes into given ones with least amount of
+                          changes. Otherwise, genotypes will only be used to fill missing alleles.
     max_cluster_gap -- Number of allowed consecutive zero-coverage positions for a cluster to still
                        be considered for the threading
-    genotypes -- Desired genotype as dictionary (allele -> multiplicity), as list over positions.
-                 None, to not force genotypes
     error_rate -- Estimation of allele error rate for the reads. Only relevant when forcing genotypes
 
     """
@@ -49,12 +51,12 @@ def run_threading(
     assert len(paths) == num_vars
 
     # determine haplotypes/alleles for each position
-    haplotypes = compute_haplotypes(paths, cov_map, cons_lists, ploidy)
+    haplotypes = compute_haplotypes(paths, cons_lists, ploidy)
 
     # enforce genotypes
-    if genotypes:
+    if not distrust_genotypes:
         haplotypes = force_genotypes(
-            paths, haplotypes, genotypes, clustering, cov_map, allele_depths, error_rate
+            paths, haplotypes, genotypes, cov_map, allele_depths, error_rate
         )
 
     return (paths, haplotypes)
@@ -94,7 +96,7 @@ def compute_threading_path(
     return path
 
 
-def compute_haplotypes(path, cov_map, consensus_lists, ploidy):
+def compute_haplotypes(path, consensus_lists, ploidy):
     """
     Fills each haplotypes using the computed clusters and their consensus lists
     """
@@ -114,7 +116,7 @@ def compute_haplotypes(path, cov_map, consensus_lists, ploidy):
     return haplotypes
 
 
-def force_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_depths, error_rate):
+def force_genotypes(path, haplotypes, genotypes, cov_map, allele_depths, error_rate):
     num_vars = len(path)
     for pos in range(num_vars):
         # count allele occurences
@@ -123,6 +125,10 @@ def force_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_dep
         for h in haplotypes:
             present[h[pos]] += 1
             alleles.add(h[pos])
+
+        # skip positions with undetermined allele
+        if -1 in present:
+            continue
 
         # detect abundances and shortages
         abundant_alleles, lacking_alleles = dict(), dict()
@@ -184,9 +190,8 @@ def force_genotypes(path, haplotypes, genotypes, clustering, cov_map, allele_dep
                             if a not in allele_depths[pos][clust]
                             else allele_depths[pos][clust][a]
                         )
-                        log_likelihood += log(
-                            binom.pmf(observed_depth, total_depth, allele_mult[a])
-                        )
+                        prob = binom.pmf(observed_depth, total_depth, allele_mult[a])
+                        log_likelihood += log(prob) if prob > 0 else -float("inf")
 
             if log_likelihood > best_likelihood:
                 best_likelihood = log_likelihood
