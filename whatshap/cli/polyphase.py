@@ -313,14 +313,13 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
                 haploid_components[accessible_pos[pos]][j] = accessible_pos[hap_cuts[j][i]]
                 haploid_components[accessible_pos[pos] + 1][j] = accessible_pos[hap_cuts[j][i]]
 
+    # insert alleles
     superreads = ReadSet()
+    phased_pos = [i for i in range(num_vars) if -1 not in [h[i] for h in haplotypes]]
     for i in range(param.ploidy):
         read = Read(f"superread {i + 1}", 0, 0)
-        # insert alleles
-        for j, allele in enumerate(haplotypes[i]):
-            if allele < 0:
-                continue
-            read.add_variant(accessible_pos[j], allele, 0)
+        for j in phased_pos:
+            read.add_variant(accessible_pos[j], haplotypes[i][j], 0)
         superreads.add(read)
 
     # Plot option

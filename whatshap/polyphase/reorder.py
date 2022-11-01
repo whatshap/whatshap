@@ -168,7 +168,7 @@ def phase_cluster_snps(
                             * ((1 - error_rate) ** (overlap - errors))
                             * (error_rate**errors)
                         )
-                    score += log(likelihood)
+                    score += log(likelihood) if likelihood > 0 else -float("inf")
                 configs.append((perm, score))
 
             configs.sort(key=lambda x: -x[1])

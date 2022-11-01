@@ -167,7 +167,8 @@ def phase_single_block(block_id, allele_matrix, genotype_slice, param, timers, q
         allele_matrix,
         clustering,
         param.ploidy,
-        genotypes=None if param.distrust_genotypes else genotype_slice,
+        genotype_slice,
+        distrust_genotypes=param.distrust_genotypes,
     )
     timers.stop("threading")
 
