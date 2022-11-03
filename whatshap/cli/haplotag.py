@@ -59,6 +59,7 @@ def add_arguments(parser):
     arg("--tag-supplementary", default=False, action="store_true",
         help="Also tag supplementary alignments. Supplementary alignments are assigned to the "
         "same haplotype as the primary alignment (default: only tag primary alignments).")
+    arg('--ploidy', metavar='PLOIDY', default=2, type=int, help="Ploidy (default: %(default)s).")
     arg("--skip-missing-contigs", default=False, action="store_true",
         help="Skip reads that map to a contig that does not exist in the VCF")
     arg("--output-threads", "--out-threads", default=1, type=int,
@@ -95,8 +96,8 @@ def get_variant_information(variant_table: VariantTable, sample: str):
     for v, gt, phase in zip(variant_table.variants, genotypes, phases):
         if phase is None or phase.block_id is None:
             continue
-        # assuming ploidy = 2
-        phase_info = int(phase.block_id), phase.phase[0]
+        # map block_id to tuple of phases
+        phase_info = int(phase.block_id), phase.phase
         vpos_to_phase_info[v.position] = phase_info
         if not gt.is_homozygous():
             variants.append(v)
@@ -160,6 +161,7 @@ def prepare_haplotag_information(
     regions,
     ignore_linked_read,
     linked_read_cutoff,
+    ploidy
 ):
     """
     Read all reads for this chromosome once to create one core.ReadSet per sample.
@@ -188,8 +190,8 @@ def prepare_haplotag_information(
         for read in read_set:
             if read.name in processed_reads:
                 continue
-            # mapping: phaseset --> phred scaled difference between costs of assigning reads to haplotype 0 or 1
-            haplotype_costs = defaultdict(int)
+            # mapping: phaseset --> costs of assigning reads to haplotypes
+            haplotype_costs = defaultdict(lambda: [0] * ploidy)
 
             processed_reads.add(read.name)
             reads_to_consider = {read}
@@ -206,34 +208,43 @@ def prepare_haplotag_information(
                 processed_reads.add(r.name)
                 for v in r:
                     assert v.allele in [0, 1]
-                    phaseset, allele = variantpos_to_phaseinfo[v.position]
-                    if v.allele == allele:
-                        haplotype_costs[phaseset] += v.quality
-                    else:
-                        haplotype_costs[phaseset] -= v.quality
+                    phaseset, phasing = variantpos_to_phaseinfo[v.position]
+                    for hap_index, hap_allele in enumerate(phasing):
+                        if v.allele == hap_allele:
+                            haplotype_costs[phaseset][hap_index] += v.quality
+
 
             l = list(haplotype_costs.items())
-            l.sort(key=lambda t: -abs(t[1]))
+            # sort by maximum quality score
+            l.sort(key=lambda t:max(t[1]), reverse=True)
             # logger.info('Read %s: %s', read.name, str(l))
 
             if len(l) == 0:
                 continue
             if len(l) > 1:
                 n_multiple_phase_sets += 1
-            phaseset, quality = l[0]
+            phaseset, scores = l[0]
+
+            # find best and second best haplotype scores for this phaseset
+            scores_list = [s for s in enumerate(scores)]
+            scores_list.sort(key=lambda t:t[1], reverse=True)
+            first_ht, first_score = scores_list[0]
+            second_ht, second_score = scores_list[1]
+            quality = first_score - second_score
+
             if quality == 0:
                 continue
             haplotype = 0 if quality > 0 else 1
 
             if not ignore_linked_read and read.has_BX_tag():
-                BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, haplotype, phaseset))
+                BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, first_ht, phaseset))
 
             for r in reads_to_consider:
-                read_to_haplotype[r.name] = (haplotype, abs(quality), phaseset)
+                read_to_haplotype[r.name] = (first_ht, quality, phaseset)
                 logger.debug(
                     "Assigned read {} to haplotype {} with a "
                     "quality of {} based on {} covered variants".format(
-                        r.name, haplotype, quality, len(r)
+                        r.name, first_ht, quality, len(r)
                     )
                 )
     return BX_tag_to_haplotype, read_to_haplotype, n_multiple_phase_sets
@@ -474,6 +485,7 @@ def run_haplotag(
     tag_supplementary: bool = False,
     skip_missing_contigs: bool = False,
     output_threads: int = 1,
+    ploidy: int = 2,
 ):
 
     timers = StageTimer()
@@ -487,7 +499,7 @@ def run_haplotag(
     with ExitStack() as stack:
         timers.start("haplotag-init")
         try:
-            vcf_reader = stack.enter_context(VcfReader(variant_file, indels=True, phases=True))
+            vcf_reader = stack.enter_context(VcfReader(variant_file, indels=True, phases=True, ploidy=ploidy))
         except OSError as err:
             raise CommandLineError(f"Error while loading variant file {variant_file}: {err}")
 
@@ -581,6 +593,7 @@ def run_haplotag(
                     regions,
                     ignore_linked_read,
                     linked_read_distance_cutoff,
+                    ploidy,
                 )
                 n_multiple_phase_sets += n_mult
             else:
