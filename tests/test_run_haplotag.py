@@ -487,7 +487,35 @@ def test_haplotag_unmapped_reads(tmp_path):
     assert alignments[5].is_unmapped
 
 
-def test_haplotag_polyploid(tmp_path):
+def test_haplotag_triploid(tmp_path):
+    outbam = tmp_path / "output.bam"
+    run_haplotag(
+        variant_file="tests/data/haplotag_triploid.vcf.gz",
+        alignment_file="tests/data/haplotag_triploid.bam",
+        ploidy=3,
+        output=outbam,
+    )
+
+    # manually computed haplotag scores and haplotype assignments
+    readname_to_score = {
+        "S1_31286_NA19240_HAP2": 23,
+        "S1_248595_HG00514_HAP1": 18,
+        "S1_103518_HG00514_HAP2": 29,
+    }
+    readname_to_haplotype = {
+        "S1_31286_NA19240_HAP2": 3,
+        "S1_248595_HG00514_HAP1": 1,
+        "S1_103518_HG00514_HAP2": 2,
+    }
+    count = 0
+    for alignment in pysam.AlignmentFile(outbam):
+        count += 1
+        assert readname_to_score[alignment.query_name] == alignment.get_tag("PC")
+        assert readname_to_haplotype[alignment.query_name] == alignment.get_tag("HP")
+    assert count == 3
+
+
+def test_haplotag_tetraploid(tmp_path):
     outbam = tmp_path / "output.bam"
     run_haplotag(
         variant_file="tests/data/haplotag_poly.vcf.gz",
