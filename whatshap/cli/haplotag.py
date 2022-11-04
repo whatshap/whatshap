@@ -20,7 +20,11 @@ from whatshap.vcf import VcfReader, VcfError, VariantTable, VariantCallPhase, Vc
 from whatshap.core import NumericSampleIds
 from whatshap.timer import StageTimer
 from whatshap.utils import Region, stdout_is_regular_file
-
+from whatshap.bam import SampleBamReader
+from whatshap.core import Read
+from whatshap.utils import IndexedFasta
+from whatshap._variants import _iterate_cigar
+from whatshap.variants import ReadSetReader
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +63,6 @@ def add_arguments(parser):
     arg("--tag-supplementary", default=False, action="store_true",
         help="Also tag supplementary alignments. Supplementary alignments are assigned to the "
         "same haplotype as the primary alignment (default: only tag primary alignments).")
-    arg("--ploidy", metavar="PLOIDY", default=2, type=int, help="Ploidy (default: %(default)s).")
     arg("--skip-missing-contigs", default=False, action="store_true",
         help="Skip reads that map to a contig that does not exist in the VCF")
     arg("--output-threads", "--out-threads", default=1, type=int,
@@ -96,47 +99,13 @@ def get_variant_information(variant_table: VariantTable, sample: str):
     for v, gt, phase in zip(variant_table.variants, genotypes, phases):
         if phase is None or phase.block_id is None:
             continue
-        # map block_id to tuple of phases
-        phase_info = int(phase.block_id), phase.phase
+        # assuming ploidy = 2
+        phase_info = int(phase.block_id), phase.phase[0]
         vpos_to_phase_info[v.position] = phase_info
         if not gt.is_homozygous():
             variants.append(v)
 
     return vpos_to_phase_info, variants
-
-
-def attempt_add_phase_information(
-    alignment, read_to_haplotype, bxtag_to_haplotype, linked_read_cutoff, ignore_linked_read
-):
-    is_tagged = 0
-    haplotype_name = "none"
-    phaseset = "none"
-    try:
-        haplotype, quality, phaseset = read_to_haplotype[alignment.query_name]
-        haplotype_name = f"H{haplotype + 1}"
-        alignment.set_tag("HP", haplotype + 1)
-        alignment.set_tag("PC", quality)
-        alignment.set_tag("PS", phaseset)
-        is_tagged = 1
-    except KeyError:
-        # check if reads with same tag have been assigned
-        if not ignore_linked_read:
-            try:
-                tag = alignment.get_tag("BX")
-            except KeyError:
-                read_clouds = []
-            else:  # alignment has BX tag
-                read_clouds = bxtag_to_haplotype[tag]
-
-            for (reference_start, haplotype, phaseset) in read_clouds:
-                if abs(reference_start - alignment.reference_start) <= linked_read_cutoff:
-                    haplotype_name = f"H{haplotype + 1}"
-                    alignment.set_tag("HP", haplotype + 1)
-                    alignment.set_tag("PC", value=None)
-                    alignment.set_tag("PS", phaseset)
-                    is_tagged = 1
-                    break
-    return is_tagged, haplotype_name, phaseset
 
 
 def load_chromosome_variants(
@@ -154,98 +123,38 @@ def load_chromosome_variants(
     return variant_table
 
 
-def prepare_haplotag_information(
-    variant_table,
-    shared_samples,
-    phased_input_reader,
-    regions,
-    ignore_linked_read,
-    linked_read_cutoff,
-    ploidy,
+def get_haplotag_information(
+    read,
+    variantpos_to_phaseinfo,
 ):
     """
     Read all reads for this chromosome once to create one core.ReadSet per sample.
     This allows to assign phase to paired-end reads based on both reads
     """
-    n_multiple_phase_sets = 0
-    BX_tag_to_haplotype = defaultdict(list)
-    # maps read name to (haplotype, quality, phaseset)
-    read_to_haplotype = {}
+    haplotype_costs = defaultdict(int)
 
-    for sample in shared_samples:
-        variantpos_to_phaseinfo, variants = get_variant_information(variant_table, sample)
-        read_set, _ = phased_input_reader.read(
-            variant_table.chromosome, variants, sample, regions=regions
-        )
+    for v in read:
+        assert v.allele in [0, 1]
+        phaseset, allele = variantpos_to_phaseinfo[v.position]
+        if v.allele == allele:
+            haplotype_costs[phaseset] += v.quality
+        else:
+            haplotype_costs[phaseset] -= v.quality
 
-        # map BX tag to list of reads
-        bx_tag_to_readlist = defaultdict(list)
-        if not ignore_linked_read:
-            for read in read_set:
-                if read.has_BX_tag():
-                    bx_tag_to_readlist[read.BX_tag].append(read)
+    l = list(haplotype_costs.items())
+    l.sort(key=lambda t: -abs(t[1]))
+    # logger.info('Read %s: %s', read.name, str(l))
 
-        # all reads processed so far
-        processed_reads = set()
-        for read in read_set:
-            if read.name in processed_reads:
-                continue
-            # mapping: phaseset --> costs of assigning reads to haplotypes
-            haplotype_costs = defaultdict(lambda: [0] * ploidy)
+    if len(l) == 0:
+        return
 
-            processed_reads.add(read.name)
-            reads_to_consider = {read}
+    phaseset, quality = l[0]
+    if quality == 0:
+        return
 
-            # reads with same BX tag need to be considered too (unless --ignore-linked-read is set)
-            if not ignore_linked_read and read.has_BX_tag():
-                for r in bx_tag_to_readlist[read.BX_tag]:
-                    if r.name not in processed_reads:
-                        # only select reads close to current one
-                        if abs(read.reference_start - r.reference_start) <= linked_read_cutoff:
-                            reads_to_consider.add(r)
+    haplotype = 0 if quality > 0 else 1
 
-            for r in reads_to_consider:
-                processed_reads.add(r.name)
-                for v in r:
-                    assert v.allele in [0, 1]
-                    phaseset, phasing = variantpos_to_phaseinfo[v.position]
-                    for hap_index, hap_allele in enumerate(phasing):
-                        if v.allele == hap_allele:
-                            haplotype_costs[phaseset][hap_index] += v.quality
-
-            l = list(haplotype_costs.items())
-            # sort by maximum quality score
-            l.sort(key=lambda t: max(t[1]), reverse=True)
-            # logger.info('Read %s: %s', read.name, str(l))
-
-            if len(l) == 0:
-                continue
-            if len(l) > 1:
-                n_multiple_phase_sets += 1
-            phaseset, scores = l[0]
-
-            # find best and second best haplotype scores for this phaseset
-            scores_list = list(enumerate(scores))
-            scores_list.sort(key=lambda t: t[1], reverse=True)
-            first_ht, first_score = scores_list[0]
-            second_ht, second_score = scores_list[1]
-            quality = first_score - second_score
-
-            if quality == 0:
-                continue
-
-            if not ignore_linked_read and read.has_BX_tag():
-                BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, first_ht, phaseset))
-
-            for r in reads_to_consider:
-                read_to_haplotype[r.name] = (first_ht, quality, phaseset)
-                logger.debug(
-                    "Assigned read {} to haplotype {} with a "
-                    "quality of {} based on {} covered variants".format(
-                        r.name, first_ht, quality, len(r)
-                    )
-                )
-    return BX_tag_to_haplotype, read_to_haplotype, n_multiple_phase_sets
+    return haplotype, abs(quality), phaseset
 
 
 def normalize_user_regions(
@@ -426,40 +335,6 @@ def open_haplotag_writer(path: str) -> TextIO:
     return writer
 
 
-def ignore_read(alignment, tag_supplementary):
-    """
-    If supplementary alignments should also be tagged,
-    this should only take the haplo-tag of the primary
-    alignment into account - this leads to:
-
-    We ignore an alignment [aln]:
-    - IF aln is_unmapped OR is_secondary
-    - IF tag_supplementary AND aln is_secondary
-    - IF not tag_supplementary AND is_supplementary
-
-    :param alignment:
-    :param tag_supplementary:
-    :return:
-    """
-    # TODO: could be that some checks here are not needed
-    # due to default filtering in ReadSetReader::_usableAlignments
-
-    if alignment.is_unmapped or alignment.is_secondary:
-        # unmapped or secondary alignments are never tagged
-        ignore = True
-    elif tag_supplementary and alignment.is_supplementary:
-        # from the previous if, we know
-        # the alignment to be primary
-        ignore = False
-    elif alignment.is_supplementary:
-        # tag_supplementary is False, so discard
-        ignore = True
-    else:
-        # whatever is left should be good
-        ignore = False
-    return ignore
-
-
 def contigs_with_alignments(af: pysam.AlignmentFile) -> FrozenSet[str]:
     has_alignments = []
     for contig in af.references:
@@ -467,6 +342,53 @@ def contigs_with_alignments(af: pysam.AlignmentFile) -> FrozenSet[str]:
             has_alignments.append(contig)
             break
     return frozenset(has_alignments)
+
+
+def detect_alleles_by_alignment(
+    variants,
+    j,
+    bam_read,
+    reference,
+    overhang=10,
+    use_affine=False,
+    gap_start=None,
+    gap_extend=None,
+    default_mismatch=None,
+):
+    """
+    Detect which alleles the given bam_read covers. Detect the correct
+    alleles of the variants that are covered by the given bam_read.
+
+    Yield tuples (position, allele, quality).
+
+    variants -- list of variants (VcfVariant objects)
+    j -- index of the first variant (in the variants list) to check
+    """
+    # Accessing bam_read.cigartuples is expensive, do it only once
+    cigartuples = bam_read.cigartuples
+
+    # For the same reason, the following check is here instad of
+    # in the _usable_alignments method
+    if not cigartuples:
+        return
+
+    for index, i, consumed, query_pos in _iterate_cigar(variants, j, bam_read, cigartuples):
+        allele, quality = ReadSetReader.realign(
+            variants[index],
+            bam_read,
+            cigartuples,
+            i,
+            consumed,
+            query_pos,
+            reference,
+            overhang,
+            use_affine,
+            gap_start,
+            gap_extend,
+            default_mismatch,
+        )
+        if allele in (0, 1):
+            yield (index, allele, quality)  # TODO quality???
 
 
 def run_haplotag(
@@ -483,7 +405,6 @@ def run_haplotag(
     tag_supplementary: bool = False,
     skip_missing_contigs: bool = False,
     output_threads: int = 1,
-    ploidy: int = 2,
 ):
 
     timers = StageTimer()
@@ -497,9 +418,7 @@ def run_haplotag(
     with ExitStack() as stack:
         timers.start("haplotag-init")
         try:
-            vcf_reader = stack.enter_context(
-                VcfReader(variant_file, indels=True, phases=True, ploidy=ploidy)
-            )
+            vcf_reader = stack.enter_context(VcfReader(variant_file, indels=True, phases=True))
         except OSError as err:
             raise CommandLineError(f"Error while loading variant file {variant_file}: {err}")
 
@@ -513,27 +432,15 @@ def run_haplotag(
             )
         except OSError as err:
             raise CommandLineError(f"Error while loading alignment file {alignment_file}: {err}")
-        # This checks also sample compatibility with VCF
-        shared_samples = compute_shared_samples(bam_reader, ignore_read_groups, use_vcf_samples)
+
+        sample = list(compute_shared_samples(bam_reader, ignore_read_groups, use_vcf_samples))
+        assert len(sample) == 1
+        sample = sample[0]
 
         # Check if user has specified a subset of regions per chromosome
         user_regions = normalize_user_regions(regions, bam_reader.references)
 
         include_unmapped = regions is None
-        phased_input_reader = stack.enter_context(
-            PhasedInputReader(
-                [alignment_file],
-                None if reference is False else reference,
-                NumericSampleIds(),
-                ignore_read_groups,
-                indels=False,
-            )
-        )
-        if phased_input_reader.has_alignments and reference is None:
-            raise CommandLineError(
-                "A reference FASTA needs to be provided with -r/--reference; "
-                "or use --no-reference at the expense of phasing quality."
-            )
 
         bam_writer = stack.enter_context(
             open_output_alignment_file(
@@ -561,6 +468,7 @@ def run_haplotag(
 
         has_alignments = contigs_with_alignments(bam_reader)
 
+        bam_reader = SampleBamReader(alignment_file, reference=reference)
         for chrom, regions in user_regions.items():
             logger.debug(f"Processing chromosome {chrom}")
 
@@ -584,63 +492,72 @@ def run_haplotag(
                     )
             except VcfError as e:
                 raise CommandLineError(str(e))
-            if variant_table is not None:
-                logger.debug("Preparing haplotype information")
-                (BX_tag_to_haplotype, read_to_haplotype, n_mult) = prepare_haplotag_information(
-                    variant_table,
-                    shared_samples,
-                    phased_input_reader,
-                    regions,
-                    ignore_linked_read,
-                    linked_read_distance_cutoff,
-                    ploidy,
-                )
-                n_multiple_phase_sets += n_mult
-            else:
-                # avoid uninitialized variables
-                BX_tag_to_haplotype = None
-                read_to_haplotype = None
 
-            assert not include_unmapped or len(regions) == 1
+            variantpos_to_phaseinfo, variants = get_variant_information(variant_table, sample)
+
             for start, end in regions:
                 logger.debug("Working on %s:%d-%d", chrom, start, end)
-                for alignment in bam_reader.fetch(contig=chrom, start=start, stop=end):
+
+                for alignment in bam_reader.fetch(reference=chrom, sample=None, start=start, end=end):
                     n_alignments += 1
                     haplotype_name = "none"
-                    phaseset = "none"
 
-                    if variant_table is None or ignore_read(alignment, tag_supplementary):
-                        # - If no variants in VCF for this chromosome,
-                        # alignments just get written to output
-                        # - Ignored reads are simply
-                        # written to the output BAM
-                        # Existing tags HP, PC and PS are removed
-                        alignment.set_tag("HP", value=None)
-                        alignment.set_tag("PC", value=None)
-                        alignment.set_tag("PS", value=None)
+                    if (
+                        alignment.bam_alignment.mapping_quality < 20
+                        or alignment.bam_alignment.is_secondary
+                        or alignment.bam_alignment.is_unmapped
+                        or alignment.bam_alignment.is_duplicate
+                    ):
+                        bam_writer.write(alignment.bam_alignment)
+                        continue
+
+                    try:
+                        barcode = alignment.bam_alignment.get_tag("BX")
+                    except KeyError:
+                        barcode = ""
+
+                    read = Read(
+                        alignment.bam_alignment.qname,
+                        alignment.bam_alignment.mapq,
+                        alignment.source_id,
+                        0,
+                        alignment.bam_alignment.reference_start,
+                        barcode,
+                    )
+
+                    detected = detect_alleles_by_alignment(
+                        variants,
+                        0,
+                        alignment.bam_alignment,
+                        IndexedFasta(reference)[chrom],
+                        10,
+                        False,
+                        10, 7, 15
+                    )
+
+                    for j, allele, quality in detected:
+                        read.add_variant(variants[j].position, allele, quality)
+
+                    hap_info = get_haplotag_information(read, variantpos_to_phaseinfo)
+
+                    if hap_info is None:
+                        alignment.bam_alignment.set_tag("HP", value=None)
+                        alignment.bam_alignment.set_tag("PC", value=None)
+                        alignment.bam_alignment.set_tag("PS", value=None)
                     else:
-                        (is_tagged, haplotype_name, phaseset) = attempt_add_phase_information(
-                            alignment,
-                            read_to_haplotype,
-                            BX_tag_to_haplotype,
-                            linked_read_distance_cutoff,
-                            ignore_linked_read,
-                        )
-                        n_tagged += is_tagged
+                        haplotype, quality, phaseset = hap_info
+                        alignment.bam_alignment.set_tag("HP", value=haplotype + 1)
+                        alignment.bam_alignment.set_tag("PC", value=quality)
+                        alignment.bam_alignment.set_tag("PS", value=phaseset)
 
-                        if not is_tagged:
-                            # Remove any existing tags HP, PC and PS if the aligment does
-                            # not have phasing information
-                            alignment.set_tag("HP", value=None)
-                            alignment.set_tag("PC", value=None)
-                            alignment.set_tag("PS", value=None)
+                    n_tagged += 1
 
-                    bam_writer.write(alignment)
+                    bam_writer.write(alignment.bam_alignment)
                     if haplotag_writer is not None and not (
-                        alignment.is_secondary or alignment.is_supplementary
+                        alignment.bam_alignment.is_secondary or alignment.bam_alignment.is_supplementary
                     ):
                         print(
-                            alignment.query_name,
+                            alignment.bam_alignment.query_name,
                             haplotype_name,
                             phaseset,
                             chrom,
@@ -650,9 +567,11 @@ def run_haplotag(
 
                     if n_alignments % 100000 == 0:
                         logger.debug(f"Processed {n_alignments} alignment records.")
+
         if include_unmapped:
-            for alignment in bam_reader.fetch(until_eof=True):
+            for alignment in bam_reader._samfile.fetch(until_eof=True):
                 bam_writer.write(alignment)
+
         timers.stop("haplotag-process")
         logger.debug("Processing complete (time: {})".format(timers.elapsed("haplotag-process")))
 
