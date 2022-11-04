@@ -205,11 +205,14 @@ def test_haplotag_no_readgroups1(tmp_path):
         output=outbam2,
         ignore_read_groups=True,
     )
+    count = 0
     for a1, a2 in zip(pysam.AlignmentFile(outbam1), pysam.AlignmentFile(outbam2)):
         assert a1.query_name == a2.query_name
         if a1.has_tag("HP"):
             assert a2.has_tag("HP")
             assert a1.get_tag("HP") == a2.get_tag("HP")
+            count += 1
+    assert count > 0
 
 
 def test_haplotag_no_readgroups2():
@@ -253,11 +256,14 @@ def haplotag_different_sorting(tmp_path):
         alignment_file="tests/data/haplotag.large.bam",
         output=outbam2,
     )
+    count = 0
     for a1, a2 in zip(pysam.AlignmentFile(outbam1), pysam.AlignmentFile(outbam2)):
         assert a1.query_name == a2.query_name
         if a1.has_tag("HP"):
             assert a2.has_tag("HP")
             assert a1.get_tag("HP") == a2.get_tag("HP")
+            count += 1
+    assert count > 0
 
 
 def test_haplotag_10X(tmp_path):
@@ -286,12 +292,15 @@ def test_haplotag_10X_2(tmp_path):
         alignment_file="tests/data/haplotag.10X.bam",
         output=outbam,
     )
+    count = 0
     for a1, a2 in zip(
         pysam.AlignmentFile("tests/data/haplotag.10X.bam"), pysam.AlignmentFile(outbam)
     ):
         assert a1.query_name == a2.query_name
         if a1.has_tag("HP") and a2.has_tag("HP"):
             assert a1.get_tag("HP") == a2.get_tag("HP")
+            count += 1
+    assert count > 0
 
 
 def test_haplotag_10X_ignore_linked_read(tmp_path):
