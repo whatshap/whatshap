@@ -213,10 +213,9 @@ def prepare_haplotag_information(
                         if v.allele == hap_allele:
                             haplotype_costs[phaseset][hap_index] += v.quality
 
-
             l = list(haplotype_costs.items())
             # sort by maximum quality score
-            l.sort(key=lambda t:max(t[1]), reverse=True)
+            l.sort(key=lambda t : max(t[1]), reverse=True)
             # logger.info('Read %s: %s', read.name, str(l))
 
             if len(l) == 0:
@@ -227,14 +226,13 @@ def prepare_haplotag_information(
 
             # find best and second best haplotype scores for this phaseset
             scores_list = [s for s in enumerate(scores)]
-            scores_list.sort(key=lambda t:t[1], reverse=True)
+            scores_list.sort(key=lambda t : t[1], reverse=True)
             first_ht, first_score = scores_list[0]
             second_ht, second_score = scores_list[1]
             quality = first_score - second_score
 
             if quality == 0:
                 continue
-            haplotype = 0 if quality > 0 else 1
 
             if not ignore_linked_read and read.has_BX_tag():
                 BX_tag_to_haplotype[read.BX_tag].append((read.reference_start, first_ht, phaseset))
