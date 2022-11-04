@@ -479,30 +479,30 @@ def test_haplotag_unmapped_reads(tmp_path):
 
 
 def test_haplotag_polyploid(tmp_path):
-    outbam = tmp_path / 'output.bam'
+    outbam = tmp_path / "output.bam"
     run_haplotag(
-        variant_file='tests/data/haplotag_poly.vcf.gz',
-        alignment_file='tests/data/haplotag_poly.bam',
+        variant_file="tests/data/haplotag_poly.vcf.gz",
+        alignment_file="tests/data/haplotag_poly.bam",
         ploidy=4,
         output=outbam,
     )
 
     # manually computed haplotag scores and haplotype assignments
     readname_to_score = {
-        'S1_31286_NA19240_HAP2': 6,
-        'S1_248595_HG00514_HAP1': 4,
-        'S1_284251_NA19240_HAP1': 14,
-        'S1_103518_HG00514_HAP2': 16,
-        }
+        "S1_31286_NA19240_HAP2": 6,
+        "S1_248595_HG00514_HAP1": 4,
+        "S1_284251_NA19240_HAP1": 14,
+        "S1_103518_HG00514_HAP2": 16,
+    }
     readname_to_haplotype = {
-        'S1_31286_NA19240_HAP2': 4,
-        'S1_248595_HG00514_HAP1': 1,
-        'S1_284251_NA19240_HAP1': 3,
-        'S1_103518_HG00514_HAP2': 2,
-        }
+        "S1_31286_NA19240_HAP2": 4,
+        "S1_248595_HG00514_HAP1": 1,
+        "S1_284251_NA19240_HAP1": 3,
+        "S1_103518_HG00514_HAP2": 2,
+    }
     count = 0
     for alignment in pysam.AlignmentFile(outbam):
         count += 1
-        assert readname_to_score[alignment.query_name] == alignment.get_tag('PC')
-        assert readname_to_haplotype[alignment.query_name] == alignment.get_tag('HP')
+        assert readname_to_score[alignment.query_name] == alignment.get_tag("PC")
+        assert readname_to_haplotype[alignment.query_name] == alignment.get_tag("HP")
     assert count == 4

@@ -161,7 +161,7 @@ def prepare_haplotag_information(
     regions,
     ignore_linked_read,
     linked_read_cutoff,
-    ploidy
+    ploidy,
 ):
     """
     Read all reads for this chromosome once to create one core.ReadSet per sample.
@@ -215,7 +215,7 @@ def prepare_haplotag_information(
 
             l = list(haplotype_costs.items())
             # sort by maximum quality score
-            l.sort(key=lambda t : max(t[1]), reverse=True)
+            l.sort(key=lambda t: max(t[1]), reverse=True)
             # logger.info('Read %s: %s', read.name, str(l))
 
             if len(l) == 0:
@@ -226,7 +226,7 @@ def prepare_haplotag_information(
 
             # find best and second best haplotype scores for this phaseset
             scores_list = [s for s in enumerate(scores)]
-            scores_list.sort(key=lambda t : t[1], reverse=True)
+            scores_list.sort(key=lambda t: t[1], reverse=True)
             first_ht, first_score = scores_list[0]
             second_ht, second_score = scores_list[1]
             quality = first_score - second_score
@@ -497,7 +497,9 @@ def run_haplotag(
     with ExitStack() as stack:
         timers.start("haplotag-init")
         try:
-            vcf_reader = stack.enter_context(VcfReader(variant_file, indels=True, phases=True, ploidy=ploidy))
+            vcf_reader = stack.enter_context(
+                VcfReader(variant_file, indels=True, phases=True, ploidy=ploidy)
+            )
         except OSError as err:
             raise CommandLineError(f"Error while loading variant file {variant_file}: {err}")
 
