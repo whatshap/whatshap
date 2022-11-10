@@ -434,10 +434,6 @@ def run_stats(
         if gtf:
             gtf_file = stack.enter_context(open(gtf, "wt"))
             gtfwriter = GtfWriter(gtf_file)
-        if tsv:
-            tsv_file = stack.enter_context(open(tsv, "w"))
-        if block_list:
-            block_list_file = stack.enter_context(open(block_list, "w"))
 
         vcf_reader = VcfReader(vcf, phases=True, indels=not only_snvs)
         if len(vcf_reader.samples) == 0:
@@ -470,11 +466,13 @@ def run_stats(
                     "Consider using --chr-lengths"
                 )
 
-        if tsv_file:
+        if tsv:
+            tsv_file = stack.enter_context(open(tsv, "w"))
             field_names = [f.name for f in dataclasses.fields(DetailedStats)]
             print("#sample", "chromosome", "file_name", *field_names, sep="\t", file=tsv_file)
 
-        if block_list_file:
+        if block_list:
+            block_list_file = stack.enter_context(open(block_list, "w"))
             print(
                 "#sample",
                 "chromosome",
