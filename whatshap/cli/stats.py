@@ -117,25 +117,25 @@ class GtfWriter:
 
 @dataclasses.dataclass
 class DetailedStats:
-    variants: int
-    phased: int
-    unphased: int
-    singletons: int
-    blocks: int
-    variant_per_block_median: float
-    variant_per_block_avg: float
-    variant_per_block_min: int
-    variant_per_block_max: int
-    variant_per_block_sum: int
-    bp_per_block_median: float
-    bp_per_block_avg: float
-    bp_per_block_min: int
-    bp_per_block_max: int
-    bp_per_block_sum: int
-    heterozygous_variants: int
-    heterozygous_snvs: int
-    phased_snvs: int
-    block_n50: float
+    variants: int = 0
+    phased: int = 0
+    unphased: int = 0
+    singletons: int = 0
+    blocks: int = 0
+    variant_per_block_median: float = float("nan")
+    variant_per_block_avg: float = float("nan")
+    variant_per_block_min: int = 0
+    variant_per_block_max: int = 0
+    variant_per_block_sum: int = 0
+    bp_per_block_median: float = float("nan")
+    bp_per_block_avg: float = float("nan")
+    bp_per_block_min: int = 0
+    bp_per_block_max: int = 0
+    bp_per_block_sum: int = 0
+    heterozygous_variants: int = 0
+    heterozygous_snvs: int = 0
+    phased_snvs: int = 0
+    block_n50: float = float("nan")
 
     def print(self, width: int = 21):
         # Parameters for value formatting
@@ -325,24 +325,10 @@ class PhasingStats:
         else:
             return DetailedStats(
                 variants=self.variants,
-                phased=0,
                 unphased=self.unphased,
                 singletons=n_singletons,
-                blocks=0,
-                variant_per_block_median=float("nan"),
-                variant_per_block_avg=float("nan"),
-                variant_per_block_min=0,
-                variant_per_block_max=0,
-                variant_per_block_sum=0,
-                bp_per_block_median=float("nan"),
-                bp_per_block_avg=float("nan"),
-                bp_per_block_min=0,
-                bp_per_block_max=0,
-                bp_per_block_sum=0,
                 heterozygous_variants=self.heterozygous_variants,
                 heterozygous_snvs=self.heterozygous_snvs,
-                phased_snvs=0,
-                block_n50=float("nan"),
             )
 
 
