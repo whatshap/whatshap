@@ -8,7 +8,7 @@ import dataclasses
 from statistics import median
 from typing import List, Tuple, Optional, Dict, Sequence
 
-from ..vcf import VcfReader
+from ..vcf import VcfReader, VcfVariant
 
 logger = logging.getLogger(__name__)
 
@@ -368,6 +368,57 @@ def parse_variant_tables(vcf_reader, chromosomes=None):
         yield from vcf_reader
 
 
+@dataclasses.dataclass
+class GtfBlock:
+    start: int = 0
+    end: int = 0
+    id: str = None
+
+    def add(self, variant: VcfVariant):
+        self.end = variant.position + 1
+
+
+def get_phase_blocks(chromosome, gtfwriter, sample, stats, variant_table):
+    genotypes = variant_table.genotypes_of(sample)
+    phases = variant_table.phases_of(sample)
+    assert len(genotypes) == len(phases) == len(variant_table.variants)
+
+    blocks = defaultdict(PhasedBlock)
+    prev_block = GtfBlock()
+    for variant, genotype, phase in zip(variant_table.variants, genotypes, phases):
+        stats.add_variants(1)
+        if genotype.is_homozygous():
+            continue
+        stats.add_heterozygous_variants(1)
+        if variant.is_snv():
+            stats.add_heterozygous_snvs(1)
+
+        if phase is None:
+            stats.add_unphased()
+            continue
+
+        blocks[phase.block_id].add(variant, phase)
+        if gtfwriter:
+            if prev_block.id is None:
+                prev_block = GtfBlock(variant.position, variant.position + 1, phase.block_id)
+            else:
+                if prev_block.id != phase.block_id:
+                    gtfwriter.write(chromosome, prev_block.start, prev_block.end, prev_block.id)
+                    prev_block = GtfBlock(variant.position, variant.position + 1, phase.block_id)
+
+                prev_block.add(variant)
+
+    # Add chromosome information to each block. This is needed to
+    # sort blocks later when we compute NG50s
+    for block_id, block in blocks.items():
+        block.chromosome = chromosome
+
+    if gtfwriter and prev_block.id is not None:
+        gtfwriter.write(chromosome, prev_block.start, prev_block.end, prev_block.id)
+
+    return blocks
+
+
 def run_stats(
     vcf,
     sample=None,
@@ -449,51 +500,7 @@ def run_stats(
             chromosome = variant_table.chromosome
             stats = PhasingStats()
             print(f"---------------- Chromosome {chromosome} ----------------")
-            genotypes = variant_table.genotypes_of(sample)
-            phases = variant_table.phases_of(sample)
-            assert len(genotypes) == len(phases) == len(variant_table.variants)
-            blocks = defaultdict(PhasedBlock)
-            prev_block_id = None
-            prev_block_fragment_start = None
-            prev_block_fragment_end = None
-            for variant, genotype, phase in zip(variant_table.variants, genotypes, phases):
-                stats.add_variants(1)
-                if genotype.is_homozygous():
-                    continue
-                stats.add_heterozygous_variants(1)
-                if variant.is_snv():
-                    stats.add_heterozygous_snvs(1)
-                if phase is None:
-                    stats.add_unphased()
-                else:
-                    # a phased variant
-                    blocks[phase.block_id].add(variant, phase)
-                    if gtfwriter:
-                        if prev_block_id is None:
-                            prev_block_fragment_start = variant.position
-                            prev_block_fragment_end = variant.position + 1
-                            prev_block_id = phase.block_id
-                        else:
-                            if prev_block_id != phase.block_id:
-                                gtfwriter.write(
-                                    chromosome,
-                                    prev_block_fragment_start,
-                                    prev_block_fragment_end,
-                                    prev_block_id,
-                                )
-                                prev_block_fragment_start = variant.position
-                                prev_block_id = phase.block_id
-                            prev_block_fragment_end = variant.position + 1
-
-            # Add chromosome information to each block. This is needed to
-            # sort blocks later when we compute NG50s
-            for block_id, block in blocks.items():
-                block.chromosome = chromosome
-
-            if gtfwriter and prev_block_id is not None:
-                gtfwriter.write(
-                    chromosome, prev_block_fragment_start, prev_block_fragment_end, prev_block_id
-                )
+            blocks = get_phase_blocks(chromosome, gtfwriter, sample, stats, variant_table)
 
             if block_list_file:
                 block_ids = sorted(blocks.keys())
