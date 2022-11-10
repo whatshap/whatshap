@@ -6,7 +6,7 @@ from collections import defaultdict
 from contextlib import ExitStack
 import dataclasses
 from statistics import median
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict, Sequence
 
 from ..vcf import VcfReader
 
@@ -170,6 +170,7 @@ def compute_ng50(blocks, chr_lengths):
 class PhasingStats:
     def __init__(self):
         self.blocks = []
+        self.split_blocks = []
         self.unphased = 0
         self.variants = 0
         self.heterozygous_variants = 0
@@ -178,6 +179,7 @@ class PhasingStats:
 
     def __iadd__(self, other):
         self.blocks.extend(other.blocks)
+        self.split_blocks.extend(other.split_blocks)
         self.unphased += other.unphased
         self.variants += other.variants
         self.heterozygous_variants += other.heterozygous_variants
@@ -185,8 +187,9 @@ class PhasingStats:
         self.phased_snvs += other.phased_snvs
         return self
 
-    def add_blocks(self, blocks):
+    def add_blocks(self, blocks: Sequence[PhasedBlock]):
         self.blocks.extend(blocks)
+        self.split_blocks.extend(self.get_nonoverlapping_blocks())
 
     def add_unphased(self, unphased: int = 1):
         self.unphased += unphased
@@ -244,11 +247,10 @@ class PhasingStats:
         block_sizes = sorted(len(block) for block in self.blocks)
         n_singletons = sum(1 for size in block_sizes if size == 1)
         block_sizes = [size for size in block_sizes if size > 1]
-        block_lengths = sorted(block.span() for block in self.blocks if len(block) > 1)
+        # Block length stats calculated from split interleaved blocks to avoid inflating values
+        block_lengths = sorted([block.span() for block in self.split_blocks if len(block) > 1])
         phased_snvs = sum(block.count_snvs() for block in self.blocks if len(block) > 1)
         if block_sizes:
-            # Split interleaved blocks to avoid inflating NG50
-            split_blocks = self.get_nonoverlapping_blocks()
             return DetailedStats(
                 variants=self.variants,
                 phased=sum(block_sizes),
@@ -268,7 +270,7 @@ class PhasingStats:
                 heterozygous_variants=self.heterozygous_variants,
                 heterozygous_snvs=self.heterozygous_snvs,
                 phased_snvs=phased_snvs,
-                block_n50=compute_ng50(split_blocks, chr_lengths)
+                block_n50=compute_ng50(self.split_blocks, chr_lengths)
                 if chr_lengths is not None
                 else float("nan"),
             )
