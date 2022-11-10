@@ -368,6 +368,24 @@ def parse_variant_tables(vcf_reader, chromosomes=None):
         yield from vcf_reader
 
 
+def get_chr_lengths(chr_lengths_file, vcf_reader):
+    if chr_lengths_file:
+        chr_lengths = parse_chr_lengths(chr_lengths_file)
+        logger.info("Read length of %d chromosomes from %s", len(chr_lengths), chr_lengths_file)
+    else:
+        chr_lengths = {
+            chrom: contig.length
+            for chrom, contig in vcf_reader.contigs.items()
+            if contig.length is not None
+        }
+        if not chr_lengths:
+            logger.warning(
+                "VCF header does not contain contig lengths, cannot compute NG50. "
+                "Consider using --chr-lengths"
+            )
+    return chr_lengths
+
+
 @dataclasses.dataclass
 class GtfBlock:
     start: int = 0
@@ -451,20 +469,7 @@ def run_stats(
             sample = vcf_reader.samples[0]
             logger.info(f"Reporting results for sample {sample}")
 
-        if chr_lengths:
-            chr_lengths = parse_chr_lengths(chr_lengths)
-            logger.info("Read length of %d chromosomes from %s", len(chr_lengths), chr_lengths)
-        else:
-            chr_lengths = {
-                chrom: contig.length
-                for chrom, contig in vcf_reader.contigs.items()
-                if contig.length is not None
-            }
-            if not chr_lengths:
-                logger.warning(
-                    "VCF header does not contain contig lengths, cannot compute NG50. "
-                    "Consider using --chr-lengths"
-                )
+        chr_lengths = get_chr_lengths(chr_lengths, vcf_reader)
 
         if tsv:
             tsv_file = stack.enter_context(open(tsv, "w"))
