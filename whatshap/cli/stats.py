@@ -386,6 +386,21 @@ def get_chr_lengths(chr_lengths_file, vcf_reader):
     return chr_lengths
 
 
+def write_to_block_list(block_list_file, blocks, chromosome, sample):
+    block_ids = sorted(blocks.keys())
+    for block_id in block_ids:
+        print(
+            sample,
+            chromosome,
+            block_id,
+            blocks[block_id].leftmost_variant.position + 1,
+            blocks[block_id].rightmost_variant.position + 1,
+            len(blocks[block_id]),
+            sep="\t",
+            file=block_list_file,
+        )
+
+
 @dataclasses.dataclass
 class GtfBlock:
     start: int = 0
@@ -506,18 +521,7 @@ def run_stats(
             blocks = get_phase_blocks(chromosome, gtfwriter, sample, stats, variant_table)
 
             if block_list_file:
-                block_ids = sorted(blocks.keys())
-                for block_id in block_ids:
-                    print(
-                        sample,
-                        chromosome,
-                        block_id,
-                        blocks[block_id].leftmost_variant.position + 1,
-                        blocks[block_id].rightmost_variant.position + 1,
-                        len(blocks[block_id]),
-                        sep="\t",
-                        file=block_list_file,
-                    )
+                write_to_block_list(block_list_file, blocks, chromosome, sample)
 
             stats.add_blocks(blocks.values())
 
