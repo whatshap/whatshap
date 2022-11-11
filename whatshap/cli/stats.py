@@ -296,7 +296,7 @@ class PhasingStats:
         n_singletons = sum(1 for size in block_sizes if size == 1)
         block_sizes = [size for size in block_sizes if size > 1]
         # Block length stats calculated from split interleaved blocks to avoid inflating values
-        block_lengths = sorted([block.span() for block in self.split_blocks if len(block) > 1])
+        block_lengths = sorted(block.span() for block in self.split_blocks if len(block) > 1)
         phased_snvs = sum(block.count_snvs() for block in self.blocks if len(block) > 1)
         if block_sizes:
             return DetailedStats(

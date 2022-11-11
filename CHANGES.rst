@@ -2,13 +2,18 @@
 Changes
 =======
 
+development version
+-------------------
+
+* :issue:`400`: Fixed artificial overinflation of block length stats in ``whatshap stats``.
+
 v1.6 (2022-09-06)
 -----------------
 
 * :pr:`384`: Fixed how interleaved phase blocks in ``whatshap stats`` are split
   when computing NG50 values. This allows NG50 values to be larger than before.
   Thanks to @pontushojer.
-* :pr:`385`: Sped up ``whatshap stats`` when used with ``--chromosomes`` by avoiding to
+* :pr:`385`: Speed up ``whatshap stats`` when used with ``--chromosomes`` by avoiding to
   read in the entire VCF. Thanks to @pontushojer.
 * :pr:`387`: ``whatshap haplotag`` got some optimizations and is now about 20% faster.
   Thanks to @pontushojer.
