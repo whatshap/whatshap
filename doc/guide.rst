@@ -577,21 +577,26 @@ variant_per_block_sum
     Median number of variants, average (mean) number of variants, minimum number of variants, maximum number of variants, sum of the number of variants.
     (To Do: It should be the case that singletons + variant_per_block_sum = phased)
 
+The following columns describe the distribution of non-singleton block lengths, where the length of a block is the *number of basepairs* it covers minus
+1. That is, a block with two variants at positions 2 and 5 has length 3. Interleaved blocks are cut in order to avoid artificially inflating this value.
+
 bp_per_block_median
+    Median block length.
 
 bp_per_block_avg
+    Average (mean) block length.
 
 bp_per_block_min
+    Minimum block length.
 
 bp_per_block_max
+    Maximum block length.
 
 bp_per_block_sum
-    Description of the distribution of non-singleton block lengths, where the length of a block is the *number of basepairs* it covers minus 1. That is, a block with two variants at positions 2 and 5 has length 3.
-    Median length, average (mean) length minimum length, maximum length, sum of lengths.
+    Total sum of block lengths.
 
 block_n50
     The NG50 value of the distribution of the block lengths.
-    Interleaved blocks are cut in order to avoid artificially inflating this value.
 
     Note that this is an "NG50" (not "N50"), that is, the threshold of 50% is
     relative to the true length of the contig as reported in the VCF header.

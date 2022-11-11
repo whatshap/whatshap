@@ -6,7 +6,7 @@ from collections import defaultdict
 from contextlib import ExitStack
 import dataclasses
 from statistics import median
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict, Sequence
 
 from ..vcf import VcfReader
 
@@ -137,6 +137,54 @@ class DetailedStats:
     phased_snvs: int
     block_n50: float
 
+    def print(self, width: int = 21):
+        # Parameters for value formatting
+        max_integer_width = max(len(str(int(value))) for value in vars(self).values())
+        value_width = max(max_integer_width, 8)
+        format_int = f"{value_width}d"
+        format_float = f"{value_width + 3}.2f"
+
+        print("Variants in VCF:".rjust(width), f"{self.variants:{format_int}}")
+        print(
+            "Heterozygous:".rjust(width),
+            f"{self.heterozygous_variants:{format_int}} ({self.heterozygous_snvs:{format_int}} SNVs)",
+        )
+        print(
+            "Phased:".rjust(width),
+            f"{self.phased:{format_int}} ({self.phased_snvs:{format_int}} SNVs)",
+        )
+        print("Unphased:".rjust(width), f"{self.unphased:{format_int}}", "(not considered below)")
+        print(
+            "Singletons:".rjust(width), f"{self.singletons:{format_int}}", "(not considered below)"
+        )
+        print("Blocks:".rjust(width), f"{self.blocks:{format_int}}")
+        print()
+        print("Block sizes (no. of variants)")
+        print(
+            "Median block size:".rjust(width),
+            f"{self.variant_per_block_median:{format_float}} variants",
+        )
+        print(
+            "Average block size:".rjust(width),
+            f"{self.variant_per_block_avg:{format_float}} variants",
+        )
+        print(
+            "Largest block:".rjust(width), f"{self.variant_per_block_max:{format_int}}    variants"
+        )
+        print(
+            "Smallest block:".rjust(width),
+            f"{self.variant_per_block_min:{format_int}}    variants",
+        )
+        print()
+        print("Block lengths (basepairs)")
+        print("Sum of lengths:".rjust(width), f"{self.bp_per_block_sum:{format_int}}    bp")
+        print("Median block length:".rjust(width), f"{self.bp_per_block_median:{format_float}} bp")
+        print("Average block length:".rjust(width), f"{self.bp_per_block_avg:{format_float}} bp")
+        print("Longest block:".rjust(width), f"{self.bp_per_block_max:{format_int}}    bp")
+        print("Shortest block:".rjust(width), f"{self.bp_per_block_min:{format_int}}    bp")
+        print("Block NG50:".rjust(width), f"{self.block_n50:{format_int}}    bp")
+        assert self.phased + self.unphased + self.singletons == self.heterozygous_variants
+
 
 def n50(lengths: List[int], target_length: Optional[int] = None) -> int:
     if target_length is None:
@@ -170,6 +218,7 @@ def compute_ng50(blocks, chr_lengths):
 class PhasingStats:
     def __init__(self):
         self.blocks = []
+        self.split_blocks = []
         self.unphased = 0
         self.variants = 0
         self.heterozygous_variants = 0
@@ -178,6 +227,7 @@ class PhasingStats:
 
     def __iadd__(self, other):
         self.blocks.extend(other.blocks)
+        self.split_blocks.extend(other.split_blocks)
         self.unphased += other.unphased
         self.variants += other.variants
         self.heterozygous_variants += other.heterozygous_variants
@@ -185,8 +235,9 @@ class PhasingStats:
         self.phased_snvs += other.phased_snvs
         return self
 
-    def add_blocks(self, blocks):
+    def add_blocks(self, blocks: Sequence[PhasedBlock]):
         self.blocks.extend(blocks)
+        self.split_blocks.extend(self.get_nonoverlapping_blocks())
 
     def add_unphased(self, unphased: int = 1):
         self.unphased += unphased
@@ -239,16 +290,15 @@ class PhasingStats:
 
         return split_blocks
 
-    def get(self, chr_lengths=None):
+    def get_detailed_stats(self, chr_lengths: Optional[Dict[str, int]] = None) -> DetailedStats:
         """Return DetailedStats"""
         block_sizes = sorted(len(block) for block in self.blocks)
         n_singletons = sum(1 for size in block_sizes if size == 1)
         block_sizes = [size for size in block_sizes if size > 1]
-        block_lengths = sorted(block.span() for block in self.blocks if len(block) > 1)
+        # Block length stats calculated from split interleaved blocks to avoid inflating values
+        block_lengths = sorted(block.span() for block in self.split_blocks if len(block) > 1)
         phased_snvs = sum(block.count_snvs() for block in self.blocks if len(block) > 1)
         if block_sizes:
-            # Split interleaved blocks to avoid inflating NG50
-            split_blocks = self.get_nonoverlapping_blocks()
             return DetailedStats(
                 variants=self.variants,
                 phased=sum(block_sizes),
@@ -268,7 +318,7 @@ class PhasingStats:
                 heterozygous_variants=self.heterozygous_variants,
                 heterozygous_snvs=self.heterozygous_snvs,
                 phased_snvs=phased_snvs,
-                block_n50=compute_ng50(split_blocks, chr_lengths)
+                block_n50=compute_ng50(self.split_blocks, chr_lengths)
                 if chr_lengths is not None
                 else float("nan"),
             )
@@ -294,57 +344,6 @@ class PhasingStats:
                 phased_snvs=0,
                 block_n50=float("nan"),
             )
-
-    def print(self, chr_lengths=None):
-        stats = self.get(chr_lengths)
-        WIDTH = 21
-
-        # Parameters for value formatting
-        max_integer_width = max(len(str(int(value))) for value in vars(stats).values())
-        value_width = max(max_integer_width, 8)
-        format_int = f"{value_width}d"
-        format_float = f"{value_width + 3}.2f"
-
-        print("Variants in VCF:".rjust(WIDTH), f"{stats.variants:{format_int}}")
-        print(
-            "Heterozygous:".rjust(WIDTH),
-            f"{stats.heterozygous_variants:{format_int}} ({stats.heterozygous_snvs:{format_int}} SNVs)",
-        )
-        print(
-            "Phased:".rjust(WIDTH),
-            f"{stats.phased:{format_int}} ({stats.phased_snvs:{format_int}} SNVs)",
-        )
-        print("Unphased:".rjust(WIDTH), f"{stats.unphased:{format_int}}", "(not considered below)")
-        print(
-            "Singletons:".rjust(WIDTH), f"{stats.singletons:{format_int}}", "(not considered below)"
-        )
-        print("Blocks:".rjust(WIDTH), f"{stats.blocks:{format_int}}")
-        print()
-        print("Block sizes (no. of variants)")
-        print(
-            "Median block size:".rjust(WIDTH),
-            f"{stats.variant_per_block_median:{format_float}} variants",
-        )
-        print(
-            "Average block size:".rjust(WIDTH),
-            f"{stats.variant_per_block_avg:{format_float}} variants",
-        )
-        print(
-            "Largest block:".rjust(WIDTH), f"{stats.variant_per_block_max:{format_int}}    variants"
-        )
-        print(
-            "Smallest block:".rjust(WIDTH),
-            f"{stats.variant_per_block_min:{format_int}}    variants",
-        )
-        print()
-        print("Block lengths (basepairs)")
-        print("Sum of lengths:".rjust(WIDTH), f"{stats.bp_per_block_sum:{format_int}}    bp")
-        print("Median block length:".rjust(WIDTH), f"{stats.bp_per_block_median:{format_float}} bp")
-        print("Average block length:".rjust(WIDTH), f"{stats.bp_per_block_avg:{format_float}} bp")
-        print("Longest block:".rjust(WIDTH), f"{stats.bp_per_block_max:{format_int}}    bp")
-        print("Shortest block:".rjust(WIDTH), f"{stats.bp_per_block_min:{format_int}}    bp")
-        print("Block NG50:".rjust(WIDTH), f"{stats.block_n50:{format_int}}    bp")
-        assert stats.phased + stats.unphased + stats.singletons == stats.heterozygous_variants
 
 
 def parse_chr_lengths(filename):
@@ -511,10 +510,12 @@ def run_stats(
                     )
 
             stats.add_blocks(blocks.values())
-            stats.print(chr_lengths)
+
+            detailed_stats = stats.get_detailed_stats(chr_lengths)
+            detailed_stats.print()
             if tsv_file:
                 print(sample, chromosome, vcf, sep="\t", end="\t", file=tsv_file)
-                print(*dataclasses.astuple(stats.get(chr_lengths)), sep="\t", file=tsv_file)
+                print(*dataclasses.astuple(detailed_stats), sep="\t", file=tsv_file)
 
             total_stats += stats
 
@@ -523,10 +524,11 @@ def run_stats(
 
         if chromosome_count > 1:
             print("---------------- ALL chromosomes (aggregated) ----------------")
-            total_stats.print(chr_lengths)
+            detailed_stats = total_stats.get_detailed_stats(chr_lengths)
+            detailed_stats.print()
             if tsv_file:
                 print(sample, "ALL", vcf, sep="\t", end="\t", file=tsv_file)
-                print(*dataclasses.astuple(total_stats.get(chr_lengths)), sep="\t", file=tsv_file)
+                print(*dataclasses.astuple(detailed_stats), sep="\t", file=tsv_file)
 
 
 def main(args):

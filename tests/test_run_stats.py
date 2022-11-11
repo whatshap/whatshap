@@ -106,6 +106,7 @@ def test_overlapping_phaseblocks(tmp_path):
         chrA:500-700 --> 200 bp
         chrA:800-950 --> 150 bp
 
+    Total block sum is now 250 + 60 + 200 + 150 = 660 bp
     Half of the total length is 1000 * 0.5 = 500 bp.
     Let's calculate NG50 by adding block lengths in descending order until we exceed 500 bp
 
@@ -129,5 +130,5 @@ def test_overlapping_phaseblocks(tmp_path):
 
     assert entry.chromosome == "chrA"
     assert entry.blocks == "3"
-    assert entry.bp_per_block_sum == "810"
+    assert entry.bp_per_block_sum == "660"
     assert entry.block_n50[:-1] == "150"
