@@ -333,7 +333,9 @@ def parse_chr_lengths(filename) -> Dict[str, int]:
     return chr_lengths
 
 
-def parse_variant_tables(vcf_reader: VcfReader, chromosomes: Optional[Sequence[str]] = None) -> Iterator[VariantTable]:
+def parse_variant_tables(
+    vcf_reader: VcfReader, chromosomes: Optional[Sequence[str]] = None
+) -> Iterator[VariantTable]:
     """
     Parse variant_tables from vcf_reader. If chromosomes are given and VCF is indexed,
     theses are accessed by direct lookup.
@@ -345,7 +347,9 @@ def parse_variant_tables(vcf_reader: VcfReader, chromosomes: Optional[Sequence[s
         yield from vcf_reader
 
 
-def get_chr_lengths(vcf_reader: VcfReader, chr_lengths_file: Optional[str] = None) -> Dict[str, int]:
+def get_chr_lengths(
+    vcf_reader: VcfReader, chr_lengths_file: Optional[str] = None
+) -> Dict[str, int]:
     """
     Try to map chromosome length to its name. Use chr_lengths_file if it exists.
     Otherwice look in VCF header for chromosomes.
@@ -367,7 +371,9 @@ def get_chr_lengths(vcf_reader: VcfReader, chr_lengths_file: Optional[str] = Non
     return chr_lengths
 
 
-def write_to_block_list(block_list_file, blocks: Dict[int, PhasedBlock], chromosome: str, sample: str):
+def write_to_block_list(
+    block_list_file, blocks: Dict[int, PhasedBlock], chromosome: str, sample: str
+):
     """
     Write phase blocks for chromosome to block_list_file.
     """
@@ -395,7 +401,13 @@ class GtfBlock:
         self.end = variant.position + 1
 
 
-def get_phase_blocks(chromosome: str, gtfwriter: GtfWriter, sample: str, stats: PhasingStats, variant_table: VariantTable) -> Dict[int, PhasedBlock]:
+def get_phase_blocks(
+    chromosome: str,
+    gtfwriter: GtfWriter,
+    sample: str,
+    stats: PhasingStats,
+    variant_table: VariantTable,
+) -> Dict[int, PhasedBlock]:
     """
     Parse phase blocks from variant_table for sample. Returns map of block ids to phaseblocks.
     """
