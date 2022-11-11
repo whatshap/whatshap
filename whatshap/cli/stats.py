@@ -6,9 +6,9 @@ from collections import defaultdict
 from contextlib import ExitStack
 import dataclasses
 from statistics import median
-from typing import List, Tuple, Optional, Dict, Sequence
+from typing import List, Tuple, Optional, Dict, Sequence, Iterator
 
-from ..vcf import VcfReader, VcfVariant
+from ..vcf import VcfReader, VcfVariant, VariantTable
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +187,7 @@ def n50(lengths: List[int], target_length: Optional[int] = None) -> int:
     return 0
 
 
-def compute_ng50(blocks, chr_lengths):
+def compute_ng50(blocks: List[PhasedBlock], chr_lengths: Dict[str, int]):
     chromosomes = {b.chromosome for b in blocks}
     target_length = 0
     for chromosome in sorted(chromosomes):
@@ -319,7 +319,11 @@ class PhasingStats:
             )
 
 
-def parse_chr_lengths(filename):
+def parse_chr_lengths(filename) -> Dict[str, int]:
+    """
+    Parse chromosome lengths from file filename. File should have two columns with
+    chromsome names and lengths respectively.
+    """
     chr_lengths = {}
     with open(filename) as f:
         for line in f:
@@ -329,7 +333,7 @@ def parse_chr_lengths(filename):
     return chr_lengths
 
 
-def parse_variant_tables(vcf_reader, chromosomes=None):
+def parse_variant_tables(vcf_reader: VcfReader, chromosomes: Optional[Sequence[str]] = None) -> Iterator[VariantTable]:
     """
     Parse variant_tables from vcf_reader. If chromosomes are given and VCF is indexed,
     theses are accessed by direct lookup.
@@ -341,13 +345,17 @@ def parse_variant_tables(vcf_reader, chromosomes=None):
         yield from vcf_reader
 
 
-def get_chr_lengths(chr_lengths_file, vcf_reader):
+def get_chr_lengths(vcf_reader: VcfReader, chr_lengths_file: Optional[str] = None) -> Dict[str, int]:
+    """
+    Try to map chromosome length to its name. Use chr_lengths_file if it exists.
+    Otherwice look in VCF header for chromosomes.
+    """
     if chr_lengths_file:
         chr_lengths = parse_chr_lengths(chr_lengths_file)
         logger.info("Read length of %d chromosomes from %s", len(chr_lengths), chr_lengths_file)
     else:
         chr_lengths = {
-            chrom: contig.length
+            str(chrom): contig.length
             for chrom, contig in vcf_reader.contigs.items()
             if contig.length is not None
         }
@@ -359,7 +367,10 @@ def get_chr_lengths(chr_lengths_file, vcf_reader):
     return chr_lengths
 
 
-def write_to_block_list(block_list_file, blocks, chromosome, sample):
+def write_to_block_list(block_list_file, blocks: Dict[int, PhasedBlock], chromosome: str, sample: str):
+    """
+    Write phase blocks for chromosome to block_list_file.
+    """
     block_ids = sorted(blocks.keys())
     for block_id in block_ids:
         print(
@@ -376,20 +387,23 @@ def write_to_block_list(block_list_file, blocks, chromosome, sample):
 
 @dataclasses.dataclass
 class GtfBlock:
-    start: int = 0
-    end: int = 0
-    id: str = None
+    start: Optional[int] = 0
+    end: Optional[int] = 0
+    id: Optional[int] = None
 
     def add(self, variant: VcfVariant):
         self.end = variant.position + 1
 
 
-def get_phase_blocks(chromosome, gtfwriter, sample, stats, variant_table):
+def get_phase_blocks(chromosome: str, gtfwriter: GtfWriter, sample: str, stats: PhasingStats, variant_table: VariantTable) -> Dict[int, PhasedBlock]:
+    """
+    Parse phase blocks from variant_table for sample. Returns map of block ids to phaseblocks.
+    """
     genotypes = variant_table.genotypes_of(sample)
     phases = variant_table.phases_of(sample)
     assert len(genotypes) == len(phases) == len(variant_table.variants)
 
-    blocks = defaultdict(PhasedBlock)
+    blocks: Dict[int, PhasedBlock] = defaultdict(PhasedBlock)
     prev_block = GtfBlock()
     for variant, genotype, phase in zip(variant_table.variants, genotypes, phases):
         stats.add_variants(1)
@@ -457,7 +471,7 @@ def run_stats(
             sample = vcf_reader.samples[0]
             logger.info(f"Reporting results for sample {sample}")
 
-        chr_lengths = get_chr_lengths(chr_lengths, vcf_reader)
+        chr_lengths = get_chr_lengths(vcf_reader, chr_lengths)
 
         if tsv:
             tsv_file = stack.enter_context(open(tsv, "w"))
