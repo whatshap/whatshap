@@ -164,7 +164,7 @@ and documentation for the most recent released version should be visible at
 `https://whatshap.readthedocs.io/en/stable/ <https://whatshap.readthedocs.io/en/stable/>`_.
 
 To generate documentation locally, ensure that you installed sphinx and the
-add-ons necessary to build documentation (running ``pip install -e .[dev]`` will
+add-ons necessary to build documentation (running ``pip install -e .[docs]`` will
 take care of this). Then go into the ``doc/`` directory and run ``make``. You can
 then open ``doc/_build/html/index.html`` in your browser. The theme that is
 used is a bit different from the one used on Read the Docs.
