@@ -161,6 +161,9 @@ class DetailedStats:
         print()
         print("Block sizes (no. of variants)")
         print(
+            "Sum of sizes:".rjust(width), f"{self.variant_per_block_sum:{format_int}}    variants"
+        )
+        print(
             "Median block size:".rjust(width),
             f"{self.variant_per_block_median:{format_float}} variants",
         )
