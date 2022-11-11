@@ -493,16 +493,14 @@ def run_stats(
 
         print(f"Phasing statistics for sample {sample} from file {vcf}")
         total_stats = PhasingStats()
-        chromosome_count = 0
         given_chromosomes = chromosomes
         seen_chromosomes = set()
         for variant_table in parse_variant_tables(vcf_reader, given_chromosomes):
-            if given_chromosomes:
-                seen_chromosomes.add(variant_table.chromosome)
-                if variant_table.chromosome not in given_chromosomes:
-                    continue
-            chromosome_count += 1
             chromosome = variant_table.chromosome
+            seen_chromosomes.add(chromosome)
+            if given_chromosomes and chromosome not in given_chromosomes:
+                continue
+
             stats = PhasingStats()
             print(f"---------------- Chromosome {chromosome} ----------------")
             blocks = get_phase_blocks(chromosome, gtfwriter, sample, stats, variant_table)
@@ -523,7 +521,7 @@ def run_stats(
             if given_chromosomes and set(given_chromosomes) <= seen_chromosomes:
                 break
 
-        if chromosome_count > 1:
+        if len(seen_chromosomes) > 1:
             print("---------------- ALL chromosomes (aggregated) ----------------")
             detailed_stats = total_stats.get_detailed_stats(chr_lengths)
             detailed_stats.print()
