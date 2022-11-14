@@ -59,7 +59,7 @@ def add_arguments(parser):
     arg("--tag-supplementary", default=False, action="store_true",
         help="Also tag supplementary alignments. Supplementary alignments are assigned to the "
         "same haplotype as the primary alignment (default: only tag primary alignments).")
-    arg('--ploidy', metavar='PLOIDY', default=2, type=int, help="Ploidy (default: %(default)s).")
+    arg("--ploidy", metavar="PLOIDY", default=2, type=int, help="Ploidy (default: %(default)s).")
     arg("--skip-missing-contigs", default=False, action="store_true",
         help="Skip reads that map to a contig that does not exist in the VCF")
     arg("--output-threads", "--out-threads", default=1, type=int,
@@ -225,7 +225,7 @@ def prepare_haplotag_information(
             phaseset, scores = l[0]
 
             # find best and second best haplotype scores for this phaseset
-            scores_list = [s for s in enumerate(scores)]
+            scores_list = list(enumerate(scores))
             scores_list.sort(key=lambda t: t[1], reverse=True)
             first_ht, first_score = scores_list[0]
             second_ht, second_score = scores_list[1]

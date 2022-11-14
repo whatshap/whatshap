@@ -508,10 +508,11 @@ def test_haplotag_triploid(tmp_path):
         "S1_103518_HG00514_HAP2": 2,
     }
     count = 0
-    for alignment in pysam.AlignmentFile(outbam):
-        count += 1
-        assert readname_to_score[alignment.query_name] == alignment.get_tag("PC")
-        assert readname_to_haplotype[alignment.query_name] == alignment.get_tag("HP")
+    with pysam.AlignmentFile(outbam) as af:
+        for alignment in af:
+            count += 1
+            assert readname_to_score[alignment.query_name] == alignment.get_tag("PC")
+            assert readname_to_haplotype[alignment.query_name] == alignment.get_tag("HP")
     assert count == 3
 
 
@@ -538,8 +539,9 @@ def test_haplotag_tetraploid(tmp_path):
         "S1_103518_HG00514_HAP2": 2,
     }
     count = 0
-    for alignment in pysam.AlignmentFile(outbam):
-        count += 1
-        assert readname_to_score[alignment.query_name] == alignment.get_tag("PC")
-        assert readname_to_haplotype[alignment.query_name] == alignment.get_tag("HP")
+    with pysam.AlignmentFile(outbam) as af:
+        for alignment in af:
+            count += 1
+            assert readname_to_score[alignment.query_name] == alignment.get_tag("PC")
+            assert readname_to_haplotype[alignment.query_name] == alignment.get_tag("HP")
     assert count == 4
