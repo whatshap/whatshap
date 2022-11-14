@@ -143,7 +143,7 @@ class DetailedStats:
         value_width = max(max_integer_width, 8)
         format_int = f"{value_width}d"
         format_float = f"{value_width + 3}.2f"
-        format_param = f">21"
+        format_param = ">21"
 
         # fmt: off
         print(
@@ -321,8 +321,8 @@ class PhasingStats:
 
 def parse_chr_lengths(filename) -> Dict[str, int]:
     """
-    Parse chromosome lengths from file filename. File should have two columns with
-    chromsome names and lengths respectively.
+    Parse chromosome lengths from file filename. The file should have two columns with
+    chromosome names and lengths respectively.
     """
     chr_lengths = {}
     with open(filename) as f:
@@ -351,16 +351,16 @@ def get_chr_lengths(
     vcf_reader: VcfReader, chr_lengths_file: Optional[str] = None
 ) -> Dict[str, int]:
     """
-    Try to map chromosome length to its name. Use chr_lengths_file if it exists.
-    Otherwice look in VCF header for chromosomes.
+    Return a dictionary that maps a chromosome name to the chromosome’s length. The
+    mapping is read from chr_lengths_file if provided, and from the VCF header otherwise.
     """
     if chr_lengths_file:
         chr_lengths = parse_chr_lengths(chr_lengths_file)
         logger.info("Read length of %d chromosomes from %s", len(chr_lengths), chr_lengths_file)
     else:
         chr_lengths = {
-            str(chrom): contig.length
-            for chrom, contig in vcf_reader.contigs.items()
+            contig.name: contig.length
+            for contig in vcf_reader.contigs.values()
             if contig.length is not None
         }
         if not chr_lengths:
