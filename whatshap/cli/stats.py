@@ -6,9 +6,9 @@ from collections import defaultdict
 from contextlib import ExitStack
 import dataclasses
 from statistics import median
-from typing import List, Tuple, Optional, Dict, Sequence
+from typing import List, Tuple, Optional, Dict, Sequence, Iterator
 
-from ..vcf import VcfReader
+from ..vcf import VcfReader, VcfVariant, VariantTable
 
 logger = logging.getLogger(__name__)
 
@@ -117,72 +117,60 @@ class GtfWriter:
 
 @dataclasses.dataclass
 class DetailedStats:
-    variants: int
-    phased: int
-    unphased: int
-    singletons: int
-    blocks: int
-    variant_per_block_median: float
-    variant_per_block_avg: float
-    variant_per_block_min: int
-    variant_per_block_max: int
-    variant_per_block_sum: int
-    bp_per_block_median: float
-    bp_per_block_avg: float
-    bp_per_block_min: int
-    bp_per_block_max: int
-    bp_per_block_sum: int
-    heterozygous_variants: int
-    heterozygous_snvs: int
-    phased_snvs: int
-    block_n50: float
+    variants: int = 0
+    phased: int = 0
+    unphased: int = 0
+    singletons: int = 0
+    blocks: int = 0
+    variant_per_block_median: float = float("nan")
+    variant_per_block_avg: float = float("nan")
+    variant_per_block_min: int = 0
+    variant_per_block_max: int = 0
+    variant_per_block_sum: int = 0
+    bp_per_block_median: float = float("nan")
+    bp_per_block_avg: float = float("nan")
+    bp_per_block_min: int = 0
+    bp_per_block_max: int = 0
+    bp_per_block_sum: int = 0
+    heterozygous_variants: int = 0
+    heterozygous_snvs: int = 0
+    phased_snvs: int = 0
+    block_n50: float = float("nan")
 
-    def print(self, width: int = 21):
+    def print(self):
         # Parameters for value formatting
         max_integer_width = max(len(str(int(value))) for value in vars(self).values())
         value_width = max(max_integer_width, 8)
         format_int = f"{value_width}d"
         format_float = f"{value_width + 3}.2f"
+        format_param = ">21"
 
-        print("Variants in VCF:".rjust(width), f"{self.variants:{format_int}}")
+        # fmt: off
         print(
-            "Heterozygous:".rjust(width),
-            f"{self.heterozygous_variants:{format_int}} ({self.heterozygous_snvs:{format_int}} SNVs)",
+            f"{'Variants in VCF':{format_param}}: {self.variants:{format_int}}",
+            f"{'Heterozygous':{format_param}}: {self.heterozygous_variants:{format_int}} ({self.heterozygous_snvs:{format_int}} SNVs)",
+            f"{'Phased':{format_param}}: {self.phased:{format_int}} ({self.phased_snvs:{format_int}} SNVs)",
+            f"{'Unphased':{format_param}}: {self.unphased:{format_int}} (not considered below)",
+            f"{'Singletons':{format_param}}: {self.singletons:{format_int}} (not considered below)",
+            f"{'Blocks':{format_param}}: {self.blocks:{format_int}}",
+            "",
+            "Block sizes (no. of variants)",
+            f"{'Sum of sizes':{format_param}}: {self.variant_per_block_sum:{format_int}}    variants",
+            f"{'Median block size':{format_param}}: {self.variant_per_block_median:{format_float}} variants",
+            f"{'Average block size':{format_param}}: {self.variant_per_block_avg:{format_float}} variants",
+            f"{'Largest block':{format_param}}: {self.variant_per_block_max:{format_int}}    variants",
+            f"{'Smallest block':{format_param}}: {self.variant_per_block_min:{format_int}}    variants",
+            "",
+            "Block lengths (basepairs)",
+            f"{'Sum of lengths':{format_param}}: {self.bp_per_block_sum:{format_int}}    bp",
+            f"{'Median block length':{format_param}}: {self.bp_per_block_median:{format_float}} bp",
+            f"{'Average block length':{format_param}}: {self.bp_per_block_avg:{format_float}} bp",
+            f"{'Longest block':{format_param}}: {self.bp_per_block_max:{format_int}}    bp",
+            f"{'Shortest block':{format_param}}: {self.bp_per_block_min:{format_int}}    bp",
+            f"{'Block NG50':{format_param}}: {self.block_n50:{format_int}}    bp",
+            sep="\n"
         )
-        print(
-            "Phased:".rjust(width),
-            f"{self.phased:{format_int}} ({self.phased_snvs:{format_int}} SNVs)",
-        )
-        print("Unphased:".rjust(width), f"{self.unphased:{format_int}}", "(not considered below)")
-        print(
-            "Singletons:".rjust(width), f"{self.singletons:{format_int}}", "(not considered below)"
-        )
-        print("Blocks:".rjust(width), f"{self.blocks:{format_int}}")
-        print()
-        print("Block sizes (no. of variants)")
-        print(
-            "Median block size:".rjust(width),
-            f"{self.variant_per_block_median:{format_float}} variants",
-        )
-        print(
-            "Average block size:".rjust(width),
-            f"{self.variant_per_block_avg:{format_float}} variants",
-        )
-        print(
-            "Largest block:".rjust(width), f"{self.variant_per_block_max:{format_int}}    variants"
-        )
-        print(
-            "Smallest block:".rjust(width),
-            f"{self.variant_per_block_min:{format_int}}    variants",
-        )
-        print()
-        print("Block lengths (basepairs)")
-        print("Sum of lengths:".rjust(width), f"{self.bp_per_block_sum:{format_int}}    bp")
-        print("Median block length:".rjust(width), f"{self.bp_per_block_median:{format_float}} bp")
-        print("Average block length:".rjust(width), f"{self.bp_per_block_avg:{format_float}} bp")
-        print("Longest block:".rjust(width), f"{self.bp_per_block_max:{format_int}}    bp")
-        print("Shortest block:".rjust(width), f"{self.bp_per_block_min:{format_int}}    bp")
-        print("Block NG50:".rjust(width), f"{self.block_n50:{format_int}}    bp")
+        # fmt: on
         assert self.phased + self.unphased + self.singletons == self.heterozygous_variants
 
 
@@ -199,7 +187,7 @@ def n50(lengths: List[int], target_length: Optional[int] = None) -> int:
     return 0
 
 
-def compute_ng50(blocks, chr_lengths):
+def compute_ng50(blocks: List[PhasedBlock], chr_lengths: Dict[str, int]):
     chromosomes = {b.chromosome for b in blocks}
     target_length = 0
     for chromosome in sorted(chromosomes):
@@ -211,7 +199,7 @@ def compute_ng50(blocks, chr_lengths):
             )
             return float("nan")
 
-    block_lengths = [b.rightmost_variant.position - b.leftmost_variant.position for b in blocks]
+    block_lengths = [b.span() for b in blocks]
     return n50(block_lengths, target_length=target_length)
 
 
@@ -292,9 +280,8 @@ class PhasingStats:
 
     def get_detailed_stats(self, chr_lengths: Optional[Dict[str, int]] = None) -> DetailedStats:
         """Return DetailedStats"""
-        block_sizes = sorted(len(block) for block in self.blocks)
-        n_singletons = sum(1 for size in block_sizes if size == 1)
-        block_sizes = [size for size in block_sizes if size > 1]
+        block_sizes = sorted(len(block) for block in self.blocks if len(block) > 1)
+        n_singletons = sum(1 for block in self.blocks if len(block) == 1)
         # Block length stats calculated from split interleaved blocks to avoid inflating values
         block_lengths = sorted(block.span() for block in self.split_blocks if len(block) > 1)
         phased_snvs = sum(block.count_snvs() for block in self.blocks if len(block) > 1)
@@ -325,28 +312,18 @@ class PhasingStats:
         else:
             return DetailedStats(
                 variants=self.variants,
-                phased=0,
                 unphased=self.unphased,
                 singletons=n_singletons,
-                blocks=0,
-                variant_per_block_median=float("nan"),
-                variant_per_block_avg=float("nan"),
-                variant_per_block_min=0,
-                variant_per_block_max=0,
-                variant_per_block_sum=0,
-                bp_per_block_median=float("nan"),
-                bp_per_block_avg=float("nan"),
-                bp_per_block_min=0,
-                bp_per_block_max=0,
-                bp_per_block_sum=0,
                 heterozygous_variants=self.heterozygous_variants,
                 heterozygous_snvs=self.heterozygous_snvs,
-                phased_snvs=0,
-                block_n50=float("nan"),
             )
 
 
-def parse_chr_lengths(filename):
+def parse_chr_lengths(filename) -> Dict[str, int]:
+    """
+    Parse chromosome lengths from file filename. The file should have two columns with
+    chromosome names and lengths respectively.
+    """
     chr_lengths = {}
     with open(filename) as f:
         for line in f:
@@ -356,7 +333,9 @@ def parse_chr_lengths(filename):
     return chr_lengths
 
 
-def parse_variant_tables(vcf_reader, chromosomes=None):
+def parse_variant_tables(
+    vcf_reader: VcfReader, chromosomes: Optional[Sequence[str]] = None
+) -> Iterator[VariantTable]:
     """
     Parse variant_tables from vcf_reader. If chromosomes are given and VCF is indexed,
     theses are accessed by direct lookup.
@@ -366,6 +345,110 @@ def parse_variant_tables(vcf_reader, chromosomes=None):
             yield vcf_reader.fetch(chromosome)
     else:
         yield from vcf_reader
+
+
+def get_chr_lengths(
+    vcf_reader: VcfReader, chr_lengths_file: Optional[str] = None
+) -> Dict[str, int]:
+    """
+    Return a dictionary that maps a chromosome name to the chromosome’s length. The
+    mapping is read from chr_lengths_file if provided, and from the VCF header otherwise.
+    """
+    if chr_lengths_file:
+        chr_lengths = parse_chr_lengths(chr_lengths_file)
+        logger.info("Read length of %d chromosomes from %s", len(chr_lengths), chr_lengths_file)
+    else:
+        chr_lengths = {
+            contig.name: contig.length
+            for contig in vcf_reader.contigs.values()
+            if contig.length is not None
+        }
+        if not chr_lengths:
+            logger.warning(
+                "VCF header does not contain contig lengths, cannot compute NG50. "
+                "Consider using --chr-lengths"
+            )
+    return chr_lengths
+
+
+def write_to_block_list(
+    block_list_file, blocks: Dict[int, PhasedBlock], chromosome: str, sample: str
+):
+    """
+    Write phase blocks for chromosome to block_list_file.
+    """
+    block_ids = sorted(blocks.keys())
+    for block_id in block_ids:
+        print(
+            sample,
+            chromosome,
+            block_id,
+            blocks[block_id].leftmost_variant.position + 1,
+            blocks[block_id].rightmost_variant.position + 1,
+            len(blocks[block_id]),
+            sep="\t",
+            file=block_list_file,
+        )
+
+
+@dataclasses.dataclass
+class GtfBlock:
+    start: Optional[int] = 0
+    end: Optional[int] = 0
+    id: Optional[int] = None
+
+    def add(self, variant: VcfVariant):
+        self.end = variant.position + 1
+
+
+def get_phase_blocks(
+    chromosome: str,
+    gtfwriter: GtfWriter,
+    sample: str,
+    stats: PhasingStats,
+    variant_table: VariantTable,
+) -> Dict[int, PhasedBlock]:
+    """
+    Parse phase blocks from variant_table for sample. Returns map of block ids to phaseblocks.
+    """
+    genotypes = variant_table.genotypes_of(sample)
+    phases = variant_table.phases_of(sample)
+    assert len(genotypes) == len(phases) == len(variant_table.variants)
+
+    blocks: Dict[int, PhasedBlock] = defaultdict(PhasedBlock)
+    prev_block = GtfBlock()
+    for variant, genotype, phase in zip(variant_table.variants, genotypes, phases):
+        stats.add_variants(1)
+        if genotype.is_homozygous():
+            continue
+        stats.add_heterozygous_variants(1)
+        if variant.is_snv():
+            stats.add_heterozygous_snvs(1)
+
+        if phase is None:
+            stats.add_unphased()
+            continue
+
+        blocks[phase.block_id].add(variant, phase)
+        if gtfwriter:
+            if prev_block.id is None:
+                prev_block = GtfBlock(variant.position, variant.position + 1, phase.block_id)
+            else:
+                if prev_block.id != phase.block_id:
+                    gtfwriter.write(chromosome, prev_block.start, prev_block.end, prev_block.id)
+                    prev_block = GtfBlock(variant.position, variant.position + 1, phase.block_id)
+
+                prev_block.add(variant)
+
+    # Add chromosome information to each block. This is needed to
+    # sort blocks later when we compute NG50s
+    for block_id, block in blocks.items():
+        block.chromosome = chromosome
+
+    if gtfwriter and prev_block.id is not None:
+        gtfwriter.write(chromosome, prev_block.start, prev_block.end, prev_block.id)
+
+    return blocks
 
 
 def run_stats(
@@ -383,10 +466,6 @@ def run_stats(
         if gtf:
             gtf_file = stack.enter_context(open(gtf, "wt"))
             gtfwriter = GtfWriter(gtf_file)
-        if tsv:
-            tsv_file = stack.enter_context(open(tsv, "w"))
-        if block_list:
-            block_list_file = stack.enter_context(open(block_list, "w"))
 
         vcf_reader = VcfReader(vcf, phases=True, indels=not only_snvs)
         if len(vcf_reader.samples) == 0:
@@ -404,26 +483,15 @@ def run_stats(
             sample = vcf_reader.samples[0]
             logger.info(f"Reporting results for sample {sample}")
 
-        if chr_lengths:
-            chr_lengths = parse_chr_lengths(chr_lengths)
-            logger.info("Read length of %d chromosomes from %s", len(chr_lengths), chr_lengths)
-        else:
-            chr_lengths = {
-                chrom: contig.length
-                for chrom, contig in vcf_reader.contigs.items()
-                if contig.length is not None
-            }
-            if not chr_lengths:
-                logger.warning(
-                    "VCF header does not contain contig lengths, cannot compute NG50. "
-                    "Consider using --chr-lengths"
-                )
+        chr_lengths = get_chr_lengths(vcf_reader, chr_lengths)
 
-        if tsv_file:
+        if tsv:
+            tsv_file = stack.enter_context(open(tsv, "w"))
             field_names = [f.name for f in dataclasses.fields(DetailedStats)]
             print("#sample", "chromosome", "file_name", *field_names, sep="\t", file=tsv_file)
 
-        if block_list_file:
+        if block_list:
+            block_list_file = stack.enter_context(open(block_list, "w"))
             print(
                 "#sample",
                 "chromosome",
@@ -437,77 +505,20 @@ def run_stats(
 
         print(f"Phasing statistics for sample {sample} from file {vcf}")
         total_stats = PhasingStats()
-        chromosome_count = 0
         given_chromosomes = chromosomes
         seen_chromosomes = set()
         for variant_table in parse_variant_tables(vcf_reader, given_chromosomes):
-            if given_chromosomes:
-                seen_chromosomes.add(variant_table.chromosome)
-                if variant_table.chromosome not in given_chromosomes:
-                    continue
-            chromosome_count += 1
             chromosome = variant_table.chromosome
+            seen_chromosomes.add(chromosome)
+            if given_chromosomes and chromosome not in given_chromosomes:
+                continue
+
             stats = PhasingStats()
             print(f"---------------- Chromosome {chromosome} ----------------")
-            genotypes = variant_table.genotypes_of(sample)
-            phases = variant_table.phases_of(sample)
-            assert len(genotypes) == len(phases) == len(variant_table.variants)
-            blocks = defaultdict(PhasedBlock)
-            prev_block_id = None
-            prev_block_fragment_start = None
-            prev_block_fragment_end = None
-            for variant, genotype, phase in zip(variant_table.variants, genotypes, phases):
-                stats.add_variants(1)
-                if genotype.is_homozygous():
-                    continue
-                stats.add_heterozygous_variants(1)
-                if variant.is_snv():
-                    stats.add_heterozygous_snvs(1)
-                if phase is None:
-                    stats.add_unphased()
-                else:
-                    # a phased variant
-                    blocks[phase.block_id].add(variant, phase)
-                    if gtfwriter:
-                        if prev_block_id is None:
-                            prev_block_fragment_start = variant.position
-                            prev_block_fragment_end = variant.position + 1
-                            prev_block_id = phase.block_id
-                        else:
-                            if prev_block_id != phase.block_id:
-                                gtfwriter.write(
-                                    chromosome,
-                                    prev_block_fragment_start,
-                                    prev_block_fragment_end,
-                                    prev_block_id,
-                                )
-                                prev_block_fragment_start = variant.position
-                                prev_block_id = phase.block_id
-                            prev_block_fragment_end = variant.position + 1
-
-            # Add chromosome information to each block. This is needed to
-            # sort blocks later when we compute NG50s
-            for block_id, block in blocks.items():
-                block.chromosome = chromosome
-
-            if gtfwriter and prev_block_id is not None:
-                gtfwriter.write(
-                    chromosome, prev_block_fragment_start, prev_block_fragment_end, prev_block_id
-                )
+            blocks = get_phase_blocks(chromosome, gtfwriter, sample, stats, variant_table)
 
             if block_list_file:
-                block_ids = sorted(blocks.keys())
-                for block_id in block_ids:
-                    print(
-                        sample,
-                        chromosome,
-                        block_id,
-                        blocks[block_id].leftmost_variant.position + 1,
-                        blocks[block_id].rightmost_variant.position + 1,
-                        len(blocks[block_id]),
-                        sep="\t",
-                        file=block_list_file,
-                    )
+                write_to_block_list(block_list_file, blocks, chromosome, sample)
 
             stats.add_blocks(blocks.values())
 
@@ -522,7 +533,7 @@ def run_stats(
             if given_chromosomes and set(given_chromosomes) <= seen_chromosomes:
                 break
 
-        if chromosome_count > 1:
+        if len(seen_chromosomes) > 1:
             print("---------------- ALL chromosomes (aggregated) ----------------")
             detailed_stats = total_stats.get_detailed_stats(chr_lengths)
             detailed_stats.print()
