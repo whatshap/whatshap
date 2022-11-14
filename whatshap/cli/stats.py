@@ -27,8 +27,8 @@ def add_arguments(parser):
         "and ignore all other variants.")
     add("--block-list", metavar="FILE", help="Write list of all blocks to FILE (one block per line)")
     add("--chromosome", dest="chromosomes", metavar="CHROMOSOME", default=[], action="append",
-        help="Name of chromosome to process. If not given, all chromosomes in the "
-        "input VCF are considered. Can be used multiple times")
+        help="Name of chromosome(s) to process. If not given, all chromosomes in the "
+        "input VCF are considered. Accepts multiple inputs or a comma-separated list.")
     add("vcf", metavar="VCF", help="Phased VCF file")
 # fmt: on
 
@@ -319,6 +319,12 @@ class PhasingStats:
             )
 
 
+def unpack_chromosomes(chromosomes: List[str]) -> List[str]:
+    """Unpack list chromosomes by splitting comma-separete entries."""
+    unpacked = (chromosome for entry in chromosomes for chromosome in entry.split(","))
+    return [chromosome for chromosome in unpacked if chromosome != ""]
+
+
 def parse_chr_lengths(filename) -> Dict[str, int]:
     """
     Parse chromosome lengths from file filename. The file should have two columns with
@@ -462,6 +468,10 @@ def run_stats(
     chr_lengths=None,
 ):
     gtfwriter = tsv_file = block_list_file = None
+
+    if chromosomes is not None:
+        chromosomes = unpack_chromosomes(chromosomes)
+
     with ExitStack() as stack:
         if gtf:
             gtf_file = stack.enter_context(open(gtf, "wt"))

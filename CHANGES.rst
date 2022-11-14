@@ -6,6 +6,7 @@ development version
 -------------------
 
 * :issue:`400`: Fixed artificial overinflation of block length stats in ``whatshap stats``.
+* :issue:`207`: Enable comma-separated chromosomes as argument to ``whatshap stats``.
 
 v1.6 (2022-09-06)
 -----------------
