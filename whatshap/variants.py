@@ -298,7 +298,12 @@ class ReadSetReader:
                                 j += 1
                             # One additional j += 1 is done below
                     else:
-                        assert False, f"Strange variant: {variants[j]}"
+                        v = variants[j]
+                        raise ValueError(
+                            f"The variant at position {v.position} "
+                            f"({v.reference_allele} -> {v.alternative_allele}) cannot be processed "
+                            f"by the --no-reference allele detector. A reference sequence is needed."
+                        )
                     j += 1
                 query_pos += length
                 ref_pos += length
