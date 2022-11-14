@@ -547,9 +547,9 @@ unphased
     This is also a subset of *heterozygous_variants*.
 
 phased
-    The number of biallelic, heterozygous variants that *are* marked as phased in the input VCF.
-    This is again a subset of *heterozygous_variants*.
-    Also, phased + unphased + singletons = heterozygous_variants.
+    The number of biallelic, heterozygous variants that *are* marked as phased in the input VCF, excluding singletons.
+    This is again a subset of *heterozygous_variants*. Add *singletons* to get the total number of variants marked as phased in the VCF.
+    Also note that the following is true: *phased* + *unphased* + *singletons* = *heterozygous_variants*.
 
 phased_snvs
     The number of biallelic, heterozygous SNVs that are marked as phased in the input VCF.
@@ -579,7 +579,7 @@ variant_per_block_max
     Maximum number of variants.
 
 variant_per_block_sum
-    Sum of the number of variants. It should be the case that *singletons* + *variant_per_block_sum* = *phased*.
+    Sum of the number of variants. Note that this value should be the same as *phased*.
 
 The following columns describe the distribution of non-singleton block lengths, where the length of a block is the *number of basepairs* it covers minus
 1. That is, a block with two variants at positions 2 and 5 has length 3. Interleaved blocks are cut in order to avoid artificially inflating this value.
