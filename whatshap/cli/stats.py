@@ -145,17 +145,17 @@ class DetailedStats:
         value_width = max(max_integer_width, 8)
         format_int = f"{value_width}d"
         format_float = f"{value_width + 3}.2f"
-        format_pct = f"{value_width + 2}.1%"
+        format_pct = f"{value_width + 3}.1%"
         format_param = ">21"
 
         # fmt: off
         print(
             f"{'Variants in VCF':{format_param}}: {self.variants:{format_int}}",
-            f"{'Heterozygous':{format_param}}: {self.heterozygous_variants:{format_int}}   ({self.heterozygous_snvs:{format_int}}   SNVs)",
-            f"{'Phased':{format_param}}: {self.phased:{format_int}}   ({self.phased_snvs:{format_int}}   SNVs)",
+            f"{'Heterozygous':{format_param}}: {self.heterozygous_variants:{format_int}}    ({self.heterozygous_snvs:{format_int}}    SNVs)",
+            f"{'Phased':{format_param}}: {self.phased:{format_int}}    ({self.phased_snvs:{format_int}}    SNVs)",
             f"{'Heterozygous phased':{format_param}}: {self.pct_phased:{format_pct}} ({self.pct_phased_snvs:{format_pct}} SNVs)",
-            f"{'Unphased':{format_param}}: {self.unphased:{format_int}}   (not considered below)",
-            f"{'Singletons':{format_param}}: {self.singletons:{format_int}}   (not considered below)",
+            f"{'Unphased':{format_param}}: {self.unphased:{format_int}}    (not considered below)",
+            f"{'Singletons':{format_param}}: {self.singletons:{format_int}}    (not considered below)",
             f"{'Blocks':{format_param}}: {self.blocks:{format_int}}",
             "",
             "Block sizes (no. of variants)",
