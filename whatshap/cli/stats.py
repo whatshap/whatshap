@@ -140,7 +140,9 @@ class DetailedStats:
 
     def print(self):
         # Parameters for value formatting
-        max_integer_width = max(len(str(int(value))) for value in vars(self).values() if not isnan(value))
+        max_integer_width = max(
+            len(str(int(value))) for value in vars(self).values() if not isnan(value)
+        )
         value_width = max(max_integer_width, 8)
         format_int = f"{value_width}.0f"
         format_float = f"{value_width + 3}.2f"
