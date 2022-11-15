@@ -135,6 +135,8 @@ class DetailedStats:
     heterozygous_variants: int = 0
     heterozygous_snvs: int = 0
     phased_snvs: int = 0
+    pct_phased: float = 0.0
+    pct_phased_snvs: float = 0.0
     block_n50: float = float("nan")
 
     def print(self):
@@ -143,15 +145,17 @@ class DetailedStats:
         value_width = max(max_integer_width, 8)
         format_int = f"{value_width}d"
         format_float = f"{value_width + 3}.2f"
+        format_pct = f"{value_width + 2}.1%"
         format_param = ">21"
 
         # fmt: off
         print(
             f"{'Variants in VCF':{format_param}}: {self.variants:{format_int}}",
-            f"{'Heterozygous':{format_param}}: {self.heterozygous_variants:{format_int}} ({self.heterozygous_snvs:{format_int}} SNVs)",
-            f"{'Phased':{format_param}}: {self.phased:{format_int}} ({self.phased_snvs:{format_int}} SNVs)",
-            f"{'Unphased':{format_param}}: {self.unphased:{format_int}} (not considered below)",
-            f"{'Singletons':{format_param}}: {self.singletons:{format_int}} (not considered below)",
+            f"{'Heterozygous':{format_param}}: {self.heterozygous_variants:{format_int}}   ({self.heterozygous_snvs:{format_int}}   SNVs)",
+            f"{'Phased':{format_param}}: {self.phased:{format_int}}   ({self.phased_snvs:{format_int}}   SNVs)",
+            f"{'Heterozygous phased':{format_param}}: {self.pct_phased:{format_pct}} ({self.pct_phased_snvs:{format_pct}} SNVs)",
+            f"{'Unphased':{format_param}}: {self.unphased:{format_int}}   (not considered below)",
+            f"{'Singletons':{format_param}}: {self.singletons:{format_int}}   (not considered below)",
             f"{'Blocks':{format_param}}: {self.blocks:{format_int}}",
             "",
             "Block sizes (no. of variants)",
@@ -305,6 +309,8 @@ class PhasingStats:
                 heterozygous_variants=self.heterozygous_variants,
                 heterozygous_snvs=self.heterozygous_snvs,
                 phased_snvs=phased_snvs,
+                pct_phased=sum(block_sizes) / self.heterozygous_variants,
+                pct_phased_snvs=phased_snvs / self.heterozygous_snvs,
                 block_n50=compute_ng50(self.split_blocks, chr_lengths)
                 if chr_lengths is not None
                 else float("nan"),
