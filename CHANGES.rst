@@ -6,6 +6,8 @@ development version
 -------------------
 
 * :issue:`400`: Fixed artificial overinflation of block length stats in ``whatshap stats``.
+* :pr:`410`: ``haplotag`` gained support for tagging data with ploidy greater
+  than two (use option ``--ploidy``).
 
 v1.6 (2022-09-06)
 -----------------
