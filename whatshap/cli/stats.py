@@ -7,6 +7,7 @@ from contextlib import ExitStack
 import dataclasses
 from statistics import median
 from typing import List, Tuple, Optional, Dict, Sequence, Iterator
+from math import isnan
 
 from ..vcf import VcfReader, VcfVariant, VariantTable
 
@@ -139,9 +140,9 @@ class DetailedStats:
 
     def print(self):
         # Parameters for value formatting
-        max_integer_width = max(len(str(int(value))) for value in vars(self).values())
+        max_integer_width = max(len(str(int(value))) for value in vars(self).values() if not isnan(value))
         value_width = max(max_integer_width, 8)
-        format_int = f"{value_width}d"
+        format_int = f"{value_width}.0f"
         format_float = f"{value_width + 3}.2f"
         format_param = ">21"
 

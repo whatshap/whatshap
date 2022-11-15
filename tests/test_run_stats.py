@@ -132,3 +132,25 @@ def test_overlapping_phaseblocks(tmp_path):
     assert entry.blocks == "3"
     assert entry.bp_per_block_sum == "660"
     assert entry.block_n50[:-1] == "150"
+
+
+def test_unphased_vcf(tmp_path):
+    outtsv = tmp_path / "output.tsv"
+    run_stats(
+        vcf="tests/data/unphased.vcf",
+        tsv=outtsv,
+        sample="sample1",
+        chromosomes=["chrA"],
+    )
+    with open(outtsv) as f:
+        lines = [l.strip().split("\t") for l in f]
+    assert len(lines) == 2
+    Fields = namedtuple("Fields", [f.strip("#\n") for f in lines[0]])
+    entry = Fields(*lines[1])
+
+    assert entry.variants == "4"
+    assert entry.heterozygous_variants == "3"
+    assert entry.phased == "0"
+    assert entry.unphased == "3"
+    assert entry.bp_per_block_avg == "nan"
+    assert entry.block_n50 == "nan"
