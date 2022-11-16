@@ -555,11 +555,11 @@ phased_snvs
     The number of biallelic, heterozygous SNVs that are marked as phased in the input VCF.
     This is a subset of *phased*.
 
-pct_phased
-    The percentage of heterozygous variants that are phased. Same as *phased* / *heterozygous_variants*.
+phased_fraction
+    The fraction of heterozygous variants that are phased. Same as *phased* / *heterozygous_variants*.
 
-pct_phased_snvs
-    The percentage of heterozygous SNVs that are phased. Same as *phased_snvs* / *heterozygous_snvs*.
+phased_snvs_fraction
+    The fraction of heterozygous SNVs that are phased. Same as *phased_snvs* / *heterozygous_snvs*.
 
 Each phased variant is part of exactly one *phase set* (stored in the PS tag in VCF) or *block*.
 The numbers in the following columns describe these blocks.
