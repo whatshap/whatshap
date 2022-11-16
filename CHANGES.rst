@@ -7,6 +7,9 @@ development version
 
 * :issue:`400`: Fixed artificial overinflation of block length stats in ``whatshap stats``.
 * :issue:`143`: ``whatshap stats`` now outputs the fraction of heterozygous variants that are phased.
+* :issue:`207`: Enable comma-separated chromosomes as argument to ``whatshap stats``.
+* :pr:`410`: ``haplotag`` gained support for tagging data with ploidy greater
+  than two (use option ``--ploidy``).
 
 v1.6 (2022-09-06)
 -----------------
