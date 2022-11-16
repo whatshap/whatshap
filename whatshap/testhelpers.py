@@ -134,7 +134,7 @@ def brute_force_phase(read_set, all_heterozygous):
     best_haplotypes = None
     solution_count = 0
     for partition in range(2 ** len(read_set)):
-        print(f"Looking at partition {{:0>{len(read_set)}b}}".format(partition))
+        print(f"Looking at partition {partition:0>{len(read_set)}b}")
         # compute cost induced by that partition
         cost = 0
         haplotypes = []

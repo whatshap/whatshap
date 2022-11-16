@@ -2,7 +2,7 @@
 Tests for 'whatshap stats'
 """
 from collections import namedtuple
-from whatshap.cli.stats import run_stats
+from whatshap.cli.stats import run_stats, unpack_chromosomes
 
 
 def test_stats1(tmp_path):
@@ -154,3 +154,13 @@ def test_unphased_vcf(tmp_path):
     assert entry.unphased == "3"
     assert entry.bp_per_block_avg == "nan"
     assert entry.block_n50 == "nan"
+
+
+def test_unpack_chromosomes_comma():
+    unpack_comma = unpack_chromosomes(["chrA,chrB,chrC"])
+    assert unpack_comma == ["chrA", "chrB", "chrC"]
+
+
+def test_unpack_chromosomes_mixed():
+    unpack_comma = unpack_chromosomes(["chrA,chrB,", "chrC"])
+    assert unpack_comma == ["chrA", "chrB", "chrC"]
