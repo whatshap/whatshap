@@ -6,6 +6,7 @@ development version
 -------------------
 
 * :issue:`400`: Fixed artificial overinflation of block length stats in ``whatshap stats``.
+* :issue:`143`: ``whatshap stats`` now outputs the fraction of heterozygous variants that are phased.
 
 v1.6 (2022-09-06)
 -----------------
