@@ -3,6 +3,8 @@ import logging
 from collections import defaultdict
 from math import log, exp
 from enum import Enum
+from copy import deepcopy
+from pulp import LpProblem, LpVariable, LpMaximize, LpInteger, COIN_CMD
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +79,9 @@ def run_reordering(
         path, haplotypes, breakpoints, clustering, allele_matrix, error_rate
     )
     assert len(lllh) == len(breakpoints)
+
+    # compute optimal permutation of threads for each block
+    # events = permute_blocks(path, haplotypes, breakpoints, lllh)
 
     # select most likely continuation for ambiguous haplotype switches
     events = resolve_ambiguous_switches(
@@ -402,16 +407,17 @@ def compute_link_likelihoods(
         # compute likelihoods per possible link
         llh = [0 for _ in range(ploidy * ploidy)]
         for t1 in range(ploidy):
-            for t2 in range(t1 + 1, ploidy):
+            for t2 in range(ploidy):
                 # if both threads are not affected: always link them (log = 0)
                 if t1 not in affected and t2 not in affected:
-                    llh[t1 * ploidy + t2] = 0
-                    llh[t2 * ploidy + t1] = 0
+                    if t1 == t2:
+                        llh[t1 * ploidy + t2] = float("inf")
+                    else:
+                        llh[t1 * ploidy + t2] = -float("inf")
                     continue
                 # if one the threads is not affected: never link them (log = -infty)
                 if t1 not in affected or t2 not in affected:
                     llh[t1 * ploidy + t2] = -float("inf")
-                    llh[t2 * ploidy + t1] = -float("inf")
                     continue
 
                 score = 0.0
@@ -437,12 +443,115 @@ def compute_link_likelihoods(
                     score += log(likelihood) if likelihood > 0 else -float("inf")
                 # score = score / num_factors if num_factors > 0 else 0
                 llh[t1 * ploidy + t2] = score
-                llh[t2 * ploidy + t1] = score
 
         # add to result list
         lllh.append(llh)
 
     return lllh
+
+
+def permute_blocks(threads, haplotypes, breakpoints, lllh):
+
+    ploidy = len(threads[0])
+    P = list(range(ploidy))
+    B = list(range(len(breakpoints)))
+    BE = list(range(len(breakpoints) + 1))
+    ext_bp = [0] + list(breakpoints.keys()) + [len(threads)]
+
+    # setup ILP model
+    model = LpProblem("PermuteBlocks_p{}_m{}".format(ploidy, len(threads)), LpMaximize)
+
+    # x[i][j][k] = 1 if thread t is placed on haplotype h for block b
+    x = [
+        [[LpVariable("x_{}_{}_{}".format(b, t, h), 0, 1, LpInteger) for h in P] for t in P]
+        for b in BE
+    ]
+
+    # for now: fix first permutation
+    for t in P:
+        model += x[0][t][t] == 1
+
+    # y[i][j][k] = 1 if thread t1 is linked to thread t2 over breakpoint i
+    y = [
+        [[LpVariable("y_{}_{}_{}".format(b, t1, t2), 0, 1, LpInteger) for t2 in P] for t1 in P]
+        for b in B
+    ]
+
+    # for each block there must be one-to-one-relationship between threads and haplotypes
+    for i in BE:
+        for j in P:
+            model += sum([x[i][j][k] for k in P]) == 1
+            model += sum([x[i][k][j] for k in P]) == 1
+
+    # iff t1 and t2 both cover haplotype h on blocks b and b+1, set relationship
+    y_weights = dict()
+    for b in B:
+        print(
+            "Breakpoint {}: start={} affected={}".format(
+                b, ext_bp[b + 1], breakpoints[ext_bp[b + 1]]
+            )
+        )
+        for t1 in P:
+            for t2 in P:
+                if lllh[b][t1 * ploidy + t2] == -float("inf"):
+                    # if two threads must not be linked over a breakpoint (llh = -inf), force y to 0
+                    model += y[b][t1][t2] == 0
+                    print("Block {}: Disallowed link {} -> {}".format(b, t1, t2))
+                elif lllh[b][t1 * ploidy + t2] == float("inf"):
+                    # if two threads have to linked (llh = inf), force y to 1
+                    model += y[b][t1][t2] == 1
+                    print("Block {}: Forced link {} -> {}".format(b, t1, t2))
+                else:
+                    y_weights[y[b][t1][t2]] = lllh[b][t1 * ploidy + t2]
+                for h in P:
+                    model += x[b][h][t1] + x[b + 1][h][t2] - 1 <= y[b][t1][t2]
+            # every thread must be linked to exactly one other thread over every breakpoint
+            model += sum([y[b][t1][t2] for t2 in P]) == 1
+            model += sum([y[b][t2][t1] for t2 in P]) == 1
+
+    # add link likelihoods for taken thread links as objective
+    model += sum([var * weight for (var, weight) in y_weights.items()])
+
+    # solve model
+    # solver = COIN_CMD(msg=0)
+    solver = COIN_CMD()
+    model.solve(solver)
+
+    assignments = [[0 for _ in P] for _ in BE]
+    for b in BE:
+        for t in P:
+            for h in P:
+                if x[b][t][h].varValue > 0.999:
+                    assignments[b][t] = h
+                    print("Block {}: Assign {} -> {}".format(b, t, h))
+                    break
+            else:
+                assert False
+
+    for b in B:
+        for t1 in P:
+            for t2 in P:
+                if y[b][t1][t2].varValue > 0.999:
+                    print("Breakpoint {}: Link {} -> {}".format(b, t1, t2))
+
+    # shuffle threads and haplotypes according to optimal assignments
+    threads_copy = deepcopy(threads)
+    haplotypes_copy = deepcopy(haplotypes)
+    for i, (s, e) in enumerate(zip(ext_bp[:-1], ext_bp[1:])):
+        print("Block {}: {}-{}".format(i, s, e))
+        for t in P:
+            print("   {} -> {}".format(t, assignments[i][t]))
+        for p in range(s, e):
+            for t in P:
+                threads[p][assignments[i][t]] = threads_copy[p][t]
+                haplotypes[assignments[i][t]][p] = haplotypes_copy[t][p]
+
+    # TODO: Dummy events
+    events = []
+    for pos, affected in breakpoints.items():
+        events.append(ReorderEvent(pos, ReorderType.COLLAPSED, 0.5, 0.25, affected))
+
+    return events
 
 
 def compute_cut_positions(path, block_cut_sensitivity, events):
