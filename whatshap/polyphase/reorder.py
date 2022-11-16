@@ -69,6 +69,15 @@ def run_reordering(
         path, haplotypes, cwise_snps, clustering, allele_matrix, error_rate, window_size=32
     )
 
+    # find breakpoints where blocks have to be reordered
+    breakpoints = find_breakpoints(path)
+
+    # compute link log likelihoods between consecutive blocks
+    lllh = compute_link_likelihoods(
+        path, haplotypes, breakpoints, clustering, allele_matrix, error_rate
+    )
+    assert len(lllh) == len(breakpoints)
+
     # select most likely continuation for ambiguous haplotype switches
     events = resolve_ambiguous_switches(
         path, haplotypes, clustering, allele_matrix, error_rate, window_size=32
@@ -326,6 +335,114 @@ def solve_single_ambiguous_site(
     del submatrix
     configs.sort(key=lambda x: -x[1])
     return configs
+
+
+def find_breakpoints(threads):
+    """
+    Finds positions p such that between p-1 and p there is an ambiguous switch in the haplotype
+    threads. Ambiguous means that two or more threads switch clusters simultaneously or that
+    two or more threads were on the same cluster c at position p-1 and one of them is on another
+    cluster at position p. Returns a dictionary that for each positions returns the indices of
+    affected threads.
+    """
+    ploidy = len(threads[0])
+    breakpoints = dict()
+
+    for i in range(1, len(threads)):
+        changed_idx = {j for j in range(ploidy) if threads[i - 1][j] != threads[i][j]}
+        affected_clusts = {threads[i - 1][j] for j in changed_idx}
+        affected_idx = sorted(j for j in range(ploidy) if threads[i - 1][j] in affected_clusts)
+
+        # ambiguous, if at least two affected
+        if len(affected_idx) >= 2:
+            breakpoints[i] = affected_idx
+
+    return breakpoints
+
+
+def compute_link_likelihoods(
+    threads, haplotypes, breakpoints, clustering, allele_matrix, error_rate
+):
+    """
+    For each breakpoint and for each pair of threads t1 and t2, computes a log likelihood that the
+    left side of t1 is linked to the right side of t2 (left/right = before/after the breakpoint).
+    Returns a 2D-list, where the first dimension one entry for each breakpoint and the second
+    dimension contains ploidy^2 entries, representing the pairwise linkage likelihoods.
+    """
+    ploidy = len(threads[0])
+    lllh = []
+    window_size = 32
+    for pos, affected in breakpoints.items():
+        # find the last window_size positions (starting from pos - 1),
+        # which are heterozyguous among the haplotype group
+        het_pos_before, het_pos_after = [], []
+        j = pos - 1
+
+        while len(het_pos_before) < window_size and j >= 0:
+            if len({haplotypes[h][j] for h in affected}) > 1:
+                het_pos_before.append(j)
+            j -= 1
+        het_pos_before = het_pos_before[::-1]
+        # same for the next window_size positions (starting from pos)
+        j = pos
+        while len(het_pos_after) < window_size and j < len(haplotypes[0]):
+            if len({haplotypes[h][j] for h in affected}) > 1:
+                het_pos_after.append(j)
+            j += 1
+        het_pos = het_pos_before + het_pos_after
+
+        # use submatrix of relevant reads and positions
+        affected_clusts = {threads[pos][h] for h in affected}
+        rids = filter(
+            lambda r: allele_matrix.getFirstPos(r) < pos <= allele_matrix.getLastPos(r),
+            [r for cid in affected_clusts for r in clustering[cid]],
+        )
+        submatrix = allele_matrix.extractSubMatrix(het_pos, list(rids), True)
+
+        # compute likelihoods per possible link
+        llh = [0 for _ in range(ploidy * ploidy)]
+        for t1 in range(ploidy):
+            for t2 in range(t1 + 1, ploidy):
+                # if both threads are not affected: always link them (log = 0)
+                if t1 not in affected and t2 not in affected:
+                    llh[t1 * ploidy + t2] = 0
+                    llh[t2 * ploidy + t1] = 0
+                    continue
+                # if one the threads is not affected: never link them (log = -infty)
+                if t1 not in affected or t2 not in affected:
+                    llh[t1 * ploidy + t2] = -float("inf")
+                    llh[t2 * ploidy + t1] = -float("inf")
+                    continue
+
+                score = 0.0
+                num_factors = 0
+                # for each read: determine number of errors for best fit
+                for read in submatrix:
+                    likelihood = 0.0
+                    overlap = len(read)
+                    errors = 0
+                    for (j, a) in read:
+                        p = het_pos[j]
+                        if j < len(het_pos_before):
+                            cmp = haplotypes[t1][p]
+                        else:
+                            cmp = haplotypes[t2][p]
+                        if cmp != a:
+                            errors += 1
+                    likelihood = max(
+                        likelihood,
+                        ((1 - error_rate) ** (overlap - errors)) * (error_rate**errors),
+                    )
+                    num_factors += overlap
+                    score += log(likelihood) if likelihood > 0 else -float("inf")
+                # score = score / num_factors if num_factors > 0 else 0
+                llh[t1 * ploidy + t2] = score
+                llh[t2 * ploidy + t1] = score
+
+        # add to result list
+        lllh.append(llh)
+
+    return lllh
 
 
 def compute_cut_positions(path, block_cut_sensitivity, events):
