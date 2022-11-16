@@ -28,7 +28,7 @@ class ReorderEvent:
 def run_reordering(
     allele_matrix,
     clustering,
-    path,
+    threads,
     haplotypes,
     block_cut_sensitivity,
     error_rate=0.025,
@@ -39,7 +39,7 @@ def run_reordering(
     allele_matrix -- The fragment matrix to phase
     clustering -- A list of clusters. Each cluster is a list of read ids, indicating which reads it
                   contains. Every read can only be present in one cluster.
-    path -- The computed cluster paths from the threading stage
+    threads -- The computed cluster paths from the threading stage
     haplotypes -- The computed haplotype sequences (as numeric alleles) from the threading stage
     block_cut_sensitivity -- Policy how conversative the block cuts have to be done. 0 is one
                              phasing block no matter what, 5 is very short blocks
@@ -64,50 +64,50 @@ def run_reordering(
     """
 
     # determine snp positions inside clusters
-    cwise_snps = find_cluster_snps(path, haplotypes)
+    cwise_snps = find_cluster_snps(threads, haplotypes)
 
     # phase cluster snps
     phase_cluster_snps(
-        path, haplotypes, cwise_snps, clustering, allele_matrix, error_rate, window_size=32
+        threads, haplotypes, cwise_snps, clustering, allele_matrix, error_rate, window_size=32
     )
 
     # find breakpoints where blocks have to be reordered
-    breakpoints = find_breakpoints(path)
+    breakpoints = find_breakpoints(threads)
 
     # compute link log likelihoods between consecutive blocks
     lllh = compute_link_likelihoods(
-        path, haplotypes, breakpoints, clustering, allele_matrix, error_rate
+        threads, haplotypes, breakpoints, clustering, allele_matrix, error_rate
     )
     assert len(lllh) == len(breakpoints)
 
     # compute optimal permutation of threads for each block
-    # events = permute_blocks(path, haplotypes, breakpoints, lllh)
+    # events = permute_blocks(threads, haplotypes, breakpoints, lllh)
 
     # select most likely continuation for ambiguous haplotype switches
     events = resolve_ambiguous_switches(
-        path, haplotypes, clustering, allele_matrix, error_rate, window_size=32
+        threads, haplotypes, clustering, allele_matrix, error_rate, window_size=32
     )
 
-    cut_positions, haploid_cuts = compute_cut_positions(path, block_cut_sensitivity, events)
+    cut_positions, haploid_cuts = compute_cut_positions(threads, block_cut_sensitivity, events)
 
     logger.debug(f"Cut positions: {cut_positions}")
     ploidy = len(haplotypes)
     for i in range(ploidy):
         logger.debug(f"Cut positions on phase {i}: {haploid_cuts[i]}")
 
-    return (cut_positions, haploid_cuts, path, haplotypes)
+    return (cut_positions, haploid_cuts, threads, haplotypes)
 
 
-def find_cluster_snps(path, haplotypes):
+def find_cluster_snps(threads, haplotypes):
     """
     For each cluster, finds the positions, where it has a multiplicity of at least 2 with at least
     2 different alleles. These positions have to be phased within the clusters.
     """
     cwise_snps = defaultdict(list)
-    for pos in range(len(path)):
+    for pos in range(len(threads)):
         clusters = set()
         alleles = defaultdict(set)
-        for i, cid in enumerate(path[pos]):
+        for i, cid in enumerate(threads[pos]):
             clusters.add(cid)
             alleles[cid].add(haplotypes[i][pos])
         for cid in clusters:
@@ -118,7 +118,7 @@ def find_cluster_snps(path, haplotypes):
 
 
 def phase_cluster_snps(
-    path, haplotypes, cwise_snps, clustering, allele_matrix, error_rate, window_size
+    threads, haplotypes, cwise_snps, clustering, allele_matrix, error_rate, window_size
 ):
     """
     For clusters with multiplicity >= 2 on multiple positions: Bring the alleles of the
@@ -134,7 +134,7 @@ def phase_cluster_snps(
     # iterate cluster-wise
     for cid, snps in collapsed:
         # determine the last window_size many heterozyguous positions on the threads of the first snp
-        c_slots = [j for j in range(len(path[snps[0]])) if path[snps[0]][j] == cid]
+        c_slots = [j for j in range(len(threads[snps[0]])) if threads[snps[0]][j] == cid]
         het_pos = []
         i, w = snps[0] - 1, 0
         while w < window_size and i >= 0:
@@ -151,7 +151,7 @@ def phase_cluster_snps(
         # reconstruct cluster phasing
         for i, pos in enumerate(snps):
             het_idx = i + w
-            c_slots = [j for j in range(len(path[pos])) if path[pos][j] == cid]
+            c_slots = [j for j in range(len(threads[pos])) if threads[pos][j] == cid]
 
             configs = []
             # enumerate all permutations of haplotypes at current positions
