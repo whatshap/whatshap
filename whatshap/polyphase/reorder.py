@@ -486,21 +486,14 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh):
     # iff t1 and t2 both cover haplotype h on blocks b and b+1, set relationship
     y_weights = dict()
     for b in B:
-        print(
-            "Breakpoint {}: start={} affected={}".format(
-                b, ext_bp[b + 1], breakpoints[ext_bp[b + 1]]
-            )
-        )
         for t1 in P:
             for t2 in P:
                 if lllh[b][t1 * ploidy + t2] == -float("inf"):
                     # if two threads must not be linked over a breakpoint (llh = -inf), force y to 0
                     model += y[b][t1][t2] == 0
-                    print("Block {}: Disallowed link {} -> {}".format(b, t1, t2))
                 elif lllh[b][t1 * ploidy + t2] == float("inf"):
                     # if two threads have to linked (llh = inf), force y to 1
                     model += y[b][t1][t2] == 1
-                    print("Block {}: Forced link {} -> {}".format(b, t1, t2))
                 else:
                     y_weights[y[b][t1][t2]] = lllh[b][t1 * ploidy + t2]
                 for h in P:
@@ -513,8 +506,7 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh):
     model += sum([var * weight for (var, weight) in y_weights.items()])
 
     # solve model
-    # solver = COIN_CMD(msg=0)
-    solver = COIN_CMD()
+    solver = COIN_CMD(msg=0)
     model.solve(solver)
 
     assignments = [[0 for _ in P] for _ in BE]
@@ -523,28 +515,18 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh):
             for h in P:
                 if x[b][t][h].varValue > 0.999:
                     assignments[b][t] = h
-                    print("Block {}: Assign {} -> {}".format(b, t, h))
                     break
             else:
                 assert False
-
-    for b in B:
-        for t1 in P:
-            for t2 in P:
-                if y[b][t1][t2].varValue > 0.999:
-                    print("Breakpoint {}: Link {} -> {}".format(b, t1, t2))
 
     # shuffle threads and haplotypes according to optimal assignments
     threads_copy = deepcopy(threads)
     haplotypes_copy = deepcopy(haplotypes)
     for i, (s, e) in enumerate(zip(ext_bp[:-1], ext_bp[1:])):
-        print("Block {}: {}-{}".format(i, s, e))
-        for t in P:
-            print("   {} -> {}".format(t, assignments[i][t]))
         for p in range(s, e):
             for t in P:
-                threads[p][assignments[i][t]] = threads_copy[p][t]
-                haplotypes[assignments[i][t]][p] = haplotypes_copy[t][p]
+                threads[p][t] = threads_copy[p][assignments[i][t]]
+                haplotypes[t][p] = haplotypes_copy[assignments[i][t]][p]
 
     # TODO: Dummy events
     events = []
