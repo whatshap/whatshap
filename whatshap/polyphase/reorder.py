@@ -376,25 +376,11 @@ def compute_link_likelihoods(
     """
     ploidy = len(threads[0])
     lllh = []
-    window_size = 32
     for pos, affected in breakpoints.items():
         # find the last window_size positions (starting from pos - 1),
         # which are heterozyguous among the haplotype group
-        het_pos_before, het_pos_after = [], []
-        j = pos - 1
-
-        while len(het_pos_before) < window_size and j >= 0:
-            if len({haplotypes[h][j] for h in affected}) > 1:
-                het_pos_before.append(j)
-            j -= 1
-        het_pos_before = het_pos_before[::-1]
-        # same for the next window_size positions (starting from pos)
-        j = pos
-        while len(het_pos_after) < window_size and j < len(haplotypes[0]):
-            if len({haplotypes[h][j] for h in affected}) > 1:
-                het_pos_after.append(j)
-            j += 1
-        het_pos = het_pos_before + het_pos_after
+        left_pos, right_pos = get_heterozygous_pos_for_haps(haplotypes, affected, pos, 32)
+        both_pos = sorted(left_pos + right_pos)
 
         # use submatrix of relevant reads and positions
         affected_clusts = {threads[pos][h] for h in affected}
@@ -402,7 +388,31 @@ def compute_link_likelihoods(
             lambda r: allele_matrix.getFirstPos(r) < pos <= allele_matrix.getLastPos(r),
             [r for cid in affected_clusts for r in clustering[cid]],
         )
-        submatrix = allele_matrix.extractSubMatrix(het_pos, list(rids), True)
+        submatrix = allele_matrix.extractSubMatrix(both_pos, list(rids), True)
+
+        # per read, per haplotype and per side (left/right): compute originating likelihood
+        left_llh, right_llh = [], []
+        for read in submatrix:
+            left_l, right_l = [], []
+            for h in range(ploidy):
+                l_olp, r_olp, l_err, r_err = 0, 0, 0, 0
+                for (j, a) in read:
+                    p = both_pos[j]
+                    error = 0 if a == haplotypes[h][p] else 1
+                    if p < pos:
+                        l_olp += 1
+                        l_err += error
+                    else:
+                        r_olp += 1
+                        r_err += error
+                prob = ((1 - error_rate) ** (l_olp - l_err)) * (error_rate**l_err)
+                llh = log(prob) if prob > 0 else -float("inf")
+                left_l.append(llh)
+                prob = ((1 - error_rate) ** (r_olp - r_err)) * (error_rate**r_err)
+                llh = log(prob) if prob > 0 else -float("inf")
+                right_l.append(llh)
+            left_llh.append(left_l)
+            right_llh.append(right_l)
 
         # compute likelihoods per possible link
         llh = [0 for _ in range(ploidy * ploidy)]
@@ -428,8 +438,8 @@ def compute_link_likelihoods(
                     overlap = len(read)
                     errors = 0
                     for (j, a) in read:
-                        p = het_pos[j]
-                        if j < len(het_pos_before):
+                        p = both_pos[j]
+                        if j < len(left_pos):
                             cmp = haplotypes[t1][p]
                         else:
                             cmp = haplotypes[t2][p]
@@ -448,6 +458,32 @@ def compute_link_likelihoods(
         lllh.append(llh)
 
     return lllh
+
+
+def get_heterozygous_pos_for_haps(haplotypes, subset, pivot_pos, limit=0):
+    """
+    For a subset of given haplotypes, returns two lists of positions on which these haplotypes
+    contain at least two different alleles. The first list contains positions left to the
+    provided pivot position (excluding the pivot itself). The second list contains the positions
+    right of the pivot (including the pivot itself if heterozygous). If a limit is provided,
+    computes at most so many positions per list.
+    """
+
+    left, right = [], []
+    j = pivot_pos - 1
+
+    while len(left) < limit and j >= 0:
+        if len({haplotypes[h][j] for h in subset}) > 1:
+            left.append(j)
+        j -= 1
+    left = left[::-1]
+
+    j = pivot_pos
+    while len(right) < limit and j < len(haplotypes[0]):
+        if len({haplotypes[h][j] for h in subset}) > 1:
+            right.append(j)
+        j += 1
+    return left, right
 
 
 def permute_blocks(threads, haplotypes, breakpoints, lllh):
