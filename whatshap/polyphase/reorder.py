@@ -81,12 +81,7 @@ def run_reordering(
     assert len(lllh) == len(breakpoints)
 
     # compute optimal permutation of threads for each block
-    # events = permute_blocks(threads, haplotypes, breakpoints, lllh)
-
-    # select most likely continuation for ambiguous haplotype switches
-    events = resolve_ambiguous_switches(
-        threads, haplotypes, clustering, allele_matrix, error_rate, window_size=32
-    )
+    events = permute_blocks(threads, haplotypes, breakpoints, lllh)
 
     cut_positions, haploid_cuts = compute_cut_positions(threads, block_cut_sensitivity, events)
 
@@ -414,48 +409,20 @@ def compute_link_likelihoods(
             left_llh.append(left_l)
             right_llh.append(right_l)
 
-        # compute likelihoods per possible link
-        llh = [0 for _ in range(ploidy * ploidy)]
-        for t1 in range(ploidy):
-            for t2 in range(ploidy):
-                # if both threads are not affected: always link them (log = 0)
-                if t1 not in affected and t2 not in affected:
-                    if t1 == t2:
-                        llh[t1 * ploidy + t2] = float("inf")
-                    else:
-                        llh[t1 * ploidy + t2] = -float("inf")
-                    continue
-                # if one the threads is not affected: never link them (log = -infty)
-                if t1 not in affected or t2 not in affected:
-                    llh[t1 * ploidy + t2] = -float("inf")
-                    continue
+        # per permutation of connections, compute combined likelihood over all reads
+        perm_llhs = dict()
+        for perm in it.permutations(affected):
+            left_h = list(range(ploidy))
+            right_h = [perm[affected.index(i)] if i in affected else i for i in range(ploidy)]
+            perm_llh = 0
+            for i, read in enumerate(submatrix):
+                read_llh = 0
+                for left, right in zip(left_h, right_h):
+                    read_llh = max(read_llh, left_llh[i][left] + right_llh[i][right])
+                perm_llh += read_llh
+            perm_llhs[perm] = perm_llh
 
-                score = 0.0
-                num_factors = 0
-                # for each read: determine number of errors for best fit
-                for read in submatrix:
-                    likelihood = 0.0
-                    overlap = len(read)
-                    errors = 0
-                    for (j, a) in read:
-                        p = both_pos[j]
-                        if j < len(left_pos):
-                            cmp = haplotypes[t1][p]
-                        else:
-                            cmp = haplotypes[t2][p]
-                        if cmp != a:
-                            errors += 1
-                    likelihood = max(
-                        likelihood,
-                        ((1 - error_rate) ** (overlap - errors)) * (error_rate**errors),
-                    )
-                    num_factors += overlap
-                    score += log(likelihood) if likelihood > 0 else -float("inf")
-                # score = score / num_factors if num_factors > 0 else 0
-                llh[t1 * ploidy + t2] = score
-
-        # add to result list
-        lllh.append(llh)
+        lllh.append(perm_llhs)
 
     return lllh
 
@@ -497,7 +464,7 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh):
     # setup ILP model
     model = LpProblem("PermuteBlocks_p{}_m{}".format(ploidy, len(threads)), LpMaximize)
 
-    # x[i][j][k] = 1 if thread t is placed on haplotype h for block b
+    # x[b][t][h] = 1 if thread t is placed on haplotype h for block b
     x = [
         [[LpVariable("x_{}_{}_{}".format(b, t, h), 0, 1, LpInteger) for h in P] for t in P]
         for b in BE
@@ -507,9 +474,15 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh):
     for t in P:
         model += x[0][t][t] == 1
 
-    # y[i][j][k] = 1 if thread t1 is linked to thread t2 over breakpoint i
+    # y[b][t1][t2] = 1 if thread t1 is linked to thread t2 over breakpoint b
     y = [
         [[LpVariable("y_{}_{}_{}".format(b, t1, t2), 0, 1, LpInteger) for t2 in P] for t1 in P]
+        for b in B
+    ]
+
+    # z[b][i] = 1 if i-th combination is used to connect haplotypes over breakpoint b
+    z = [
+        [LpVariable("z_{}_{}".format(b, i), 0, 1, LpInteger) for i in range(len(lllh[b]))]
         for b in B
     ]
 
@@ -520,26 +493,45 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh):
             model += sum([x[i][k][j] for k in P]) == 1
 
     # iff t1 and t2 both cover haplotype h on blocks b and b+1, set relationship
-    y_weights = dict()
     for b in B:
+        affected = breakpoints[ext_bp[b + 1]]
         for t1 in P:
             for t2 in P:
-                if lllh[b][t1 * ploidy + t2] == -float("inf"):
-                    # if two threads must not be linked over a breakpoint (llh = -inf), force y to 0
+                if (t1 in affected) != (t2 in affected):
+                    # if one of two threads is not affected by the breakpoint, never link these
                     model += y[b][t1][t2] == 0
-                elif lllh[b][t1 * ploidy + t2] == float("inf"):
-                    # if two threads have to linked (llh = inf), force y to 1
-                    model += y[b][t1][t2] == 1
-                else:
-                    y_weights[y[b][t1][t2]] = lllh[b][t1 * ploidy + t2]
+                elif t1 not in affected:  # and t2 not in affected
+                    # unaffected threads only link to themselves
+                    if t1 == t2:
+                        model += y[b][t1][t2] == 1
+                    else:
+                        model += y[b][t1][t2] == 0
                 for h in P:
                     model += x[b][h][t1] + x[b + 1][h][t2] - 1 <= y[b][t1][t2]
             # every thread must be linked to exactly one other thread over every breakpoint
             model += sum([y[b][t1][t2] for t2 in P]) == 1
             model += sum([y[b][t2][t1] for t2 in P]) == 1
 
-    # add link likelihoods for taken thread links as objective
-    model += sum([var * weight for (var, weight) in y_weights.items()])
+    # ensure correct setting of z-variables, depending on choice of y-variables
+    z_weights = dict()
+    for b in B:
+        left = breakpoints[ext_bp[b + 1]]
+        assert left == sorted(left)
+        # iterate over all permutations of "left" as given by the keys of lllh for breakpoint b
+        for i, right in enumerate(lllh[b].keys()):
+            # z[b][i] represents a left-to-right mapping for the haplotypes at b
+            z_weights[z[b][i]] = lllh[b][right]
+            assert set(left) == set(right)
+            # if all y-variables of this permutation are set, force z-variable to 1
+            model += z[b][i] >= sum(y[b][l][r] for l, r in zip(left, right)) - len(left) + 1
+            # if any of the v-variables is unset, force z-variable to 0
+            for l, r in zip(left, right):
+                model += z[b][i] <= y[b][l][r]
+        # exactly one z-variable must be 1 (should be implied by the above equations anyways)
+        model += sum(z[b]) == 1
+
+    # add permutation likelihoods for taken thread links as objective
+    model += sum([var * weight for (var, weight) in z_weights.items()])
 
     # solve model
     solver = COIN_CMD(msg=0)
