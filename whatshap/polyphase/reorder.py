@@ -1,7 +1,7 @@
 import itertools as it
 import logging
 from collections import defaultdict
-from math import log, exp
+from math import log
 from enum import Enum
 from copy import deepcopy
 from pulp import LpProblem, LpVariable, LpMaximize, LpInteger, COIN_CMD
@@ -190,153 +190,6 @@ def phase_cluster_snps(
         del submatrix
 
 
-def resolve_ambiguous_switches(
-    path, haplotypes, clustering, allele_matrix, error_rate, window_size
-):
-    """
-    Post processing step after the threading. If a haplotype leaves a cluster on a collapsed region,
-    we could use read information to find the most likely continuation of the switching haplotypes.
-    """
-    if len(path) == 0:
-        return []
-
-    ploidy = len(path[0])
-    events = []
-    event_type = ReorderType.NONE
-
-    # maps the haplotype slot of the corrected version to the original (and in reverse)
-    current_perm, inverse_perm = list(range(ploidy)), list(range(ploidy))
-
-    for i in range(1, len(path)):
-        # find slots affected by cluster changes
-        changed_h = {j for j in range(ploidy) if path[i - 1][j] != path[i][inverse_perm[j]]}
-        c_group = {path[i - 1][j] for j in changed_h}
-        h_group = sorted(j for j in range(ploidy) if path[i - 1][j] in c_group)
-
-        # if only one slot involved -> just write current permutation to haplotype object
-        if len(h_group) < 2:
-            path[i] = [path[i][j] for j in inverse_perm]
-            reord = [haplotypes[inverse_perm[j]][i] for j in range(ploidy)]
-            for j in range(ploidy):
-                haplotypes[j][i] = reord[j]
-            continue
-
-        # compute the optimal permutation of changing haplotypes, according to read information
-        for b in [True, False]:
-            configs = solve_single_ambiguous_site(
-                haplotypes,
-                inverse_perm,
-                clustering,
-                allele_matrix,
-                i,
-                path,
-                h_group,
-                c_group,
-                b,
-                error_rate,
-                window_size,
-            )
-            if len(c_group) == 1:
-                event_type = ReorderType.COLLAPSED_PRE if b else ReorderType.COLLAPSED
-            else:
-                event_type = ReorderType.MULTI
-            best_perm = configs[0][0]
-            if configs[0][1] > configs[1][1] + 0.5:
-                break
-        event = ReorderEvent(i, event_type, exp(configs[0][1]), exp(configs[1][1]), h_group)
-        events.append(event)
-
-        # apply local best permutation to current global permutation
-        current_perm_copy = list(current_perm)
-        for j in range(len(h_group)):
-            current_perm_copy[inverse_perm[h_group[j]]] = h_group[best_perm[j]]
-        current_perm = current_perm_copy
-        for j in range(ploidy):
-            inverse_perm[current_perm[j]] = j
-
-        # correct current position according to updated permutation
-        path[i] = [path[i][j] for j in inverse_perm]
-        reord = [haplotypes[inverse_perm[j]][i] for j in range(ploidy)]
-        for j in range(ploidy):
-            haplotypes[j][i] = reord[j]
-
-    return events
-
-
-def solve_single_ambiguous_site(
-    haplotypes,
-    hap_perm,
-    clustering,
-    allele_matrix,
-    pos,
-    path,
-    h_group,
-    c_group,
-    exclude_collapsed_cluster,
-    error_rate,
-    window_size,
-):
-    # find the last window_size positions (starting from pos - 1),
-    # which are heterozyguous among the haplotype group
-    het_pos_before, het_pos_after = [], []
-    j = pos - 1
-    if exclude_collapsed_cluster:
-        while len({path[j][h] for h in h_group}) < 2 and j > 0:
-            j -= 1
-
-    while len(het_pos_before) < window_size and j >= 0:
-        if len({haplotypes[h][j] for h in h_group}) > 1:
-            het_pos_before.append(j)
-        j -= 1
-    het_pos_before = het_pos_before[::-1]
-    # same for the next window_size positions (starting from pos)
-    j = pos
-    while len(het_pos_after) < window_size and j < len(haplotypes[0]):
-        if len({haplotypes[hap_perm[h]][j] for h in h_group}) > 1:
-            het_pos_after.append(j)
-        j += 1
-    het_pos = het_pos_before + het_pos_after
-
-    # use submatrix of relevant reads and positions
-    rids = filter(
-        lambda r: allele_matrix.getFirstPos(r) < pos <= allele_matrix.getLastPos(r),
-        [r for cid in c_group for r in clustering[cid]],
-    )
-    submatrix = allele_matrix.extractSubMatrix(het_pos, list(rids), True)
-
-    # reconstruct cluster phasing
-    configs = []
-    # enumerate all permutations of haplotypes at current positions
-    for perm in it.permutations(range(len(h_group))):
-        score = 0.0
-        num_factors = 0
-        # for each read: determine number of errors for best fit
-        for rid in range(len(submatrix)):
-            likelihood = 0.0
-            read = submatrix.getRead(rid)
-            overlap = len(read)
-            for slot in range(len(h_group)):
-                errors = 0
-                for (j, a) in read:
-                    p = het_pos[j]
-                    if j < len(het_pos_before):
-                        cmp = haplotypes[h_group[perm[slot]]][p]
-                    else:
-                        cmp = haplotypes[hap_perm[h_group[slot]]][p]
-                    if cmp != a:
-                        errors += 1
-                likelihood = max(
-                    likelihood, ((1 - error_rate) ** (overlap - errors)) * (error_rate**errors)
-                )
-            num_factors += overlap
-            score += log(likelihood)
-        configs.append((perm, score / num_factors if num_factors > 0 else 0))
-
-    del submatrix
-    configs.sort(key=lambda x: -x[1])
-    return configs
-
-
 def find_breakpoints(threads):
     """
     Finds positions p such that between p-1 and p there is an ambiguous switch in the haplotype
@@ -421,7 +274,7 @@ def compute_link_likelihoods(
                     read_llh = max(read_llh, left_llh[i][left] + right_llh[i][right])
                 perm_llh += read_llh
             perm_llhs[perm] = perm_llh
-            
+
         # if all permutations infeasible, set a dummy score of 0 to avoid -inf as ILP objective
         if max(perm_llhs) == -float("inf"):
             for perm in perm_llhs:
@@ -539,7 +392,7 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh):
     model += sum([var * weight for (var, weight) in z_weights.items()])
 
     # solve model
-    solver = COIN_CMD(msg=0)
+    solver = COIN_CMD(msg=1)
     model.solve(solver)
 
     assignments = [[0 for _ in P] for _ in BE]
