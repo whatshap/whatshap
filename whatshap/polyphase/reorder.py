@@ -416,11 +416,16 @@ def compute_link_likelihoods(
             right_h = [perm[affected.index(i)] if i in affected else i for i in range(ploidy)]
             perm_llh = 0
             for i, read in enumerate(submatrix):
-                read_llh = 0
+                read_llh = -float("inf")
                 for left, right in zip(left_h, right_h):
                     read_llh = max(read_llh, left_llh[i][left] + right_llh[i][right])
                 perm_llh += read_llh
             perm_llhs[perm] = perm_llh
+            
+        # if all permutations infeasible, set a dummy score of 0 to avoid -inf as ILP objective
+        if max(perm_llhs) == -float("inf"):
+            for perm in perm_llhs:
+                perm_llhs[perm] = 0
 
         lllh.append(perm_llhs)
 
