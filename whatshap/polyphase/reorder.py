@@ -1,7 +1,7 @@
 import itertools as it
 import logging
 from collections import defaultdict
-from math import log
+from math import log, exp
 from enum import Enum
 from copy import deepcopy
 from pulp import LpProblem, LpVariable, LpMaximize, LpInteger, PULP_CBC_CMD
@@ -17,11 +17,10 @@ class ReorderType(Enum):
 
 
 class ReorderEvent:
-    def __init__(self, position, event_type, best_prob, second_prob, haplotypes):
+    def __init__(self, position, event_type, confidence, haplotypes):
         self.position = position
         self.event_type = event_type
-        ratio = best_prob / (best_prob + second_prob) if best_prob + second_prob > 0 else 0
-        self.confidence = ratio
+        self.confidence = confidence
         self.haplotypes = sorted(haplotypes[:])
 
 
@@ -56,13 +55,14 @@ def run_reordering(
        to leave, even though the coverage-based threading does not distinguish. Alternatively, two
        (or more) haplotypes on different clusters switch to a new one simultaneously. Here it again
        matters which haplotype goes to which, but all combinations have been equally good in the
-       threading stage. These two types of ambiguities are resolved in ascending genome position
-       order.
+       threading stage. These two types of ambiguities are resolved via an ILP model based on read
+       supporting for every possible configuration.
     3. Based on uncertainty from the previous two steps and the selected block cut sensitivity,
        the clustering must eventually be split into blocks.
 
     """
 
+    ploidy = len(haplotypes)
     # determine snp positions inside clusters
     cwise_snps = find_cluster_snps(threads, haplotypes)
 
@@ -78,15 +78,16 @@ def run_reordering(
     lllh = compute_link_likelihoods(
         threads, haplotypes, breakpoints, clustering, allele_matrix, error_rate
     )
-    assert len(lllh) == len(breakpoints)
 
     # compute optimal permutation of threads for each block
-    events = permute_blocks(threads, haplotypes, breakpoints, lllh)
+    perms = get_optimal_permutations(breakpoints, lllh, ploidy)
+
+    # permute blocks and derive confidences
+    events = permute_blocks(threads, haplotypes, breakpoints, lllh, perms)
 
     cut_positions, haploid_cuts = compute_cut_positions(threads, block_cut_sensitivity, events)
 
     logger.debug(f"Cut positions: {cut_positions}")
-    ploidy = len(haplotypes)
     for i in range(ploidy):
         logger.debug(f"Cut positions on phase {i}: {haploid_cuts[i]}")
 
@@ -282,6 +283,7 @@ def compute_link_likelihoods(
 
         lllh.append(perm_llhs)
 
+    assert len(lllh) == len(breakpoints)
     return lllh
 
 
@@ -311,38 +313,34 @@ def get_heterozygous_pos_for_haps(haplotypes, subset, pivot_pos, limit=0):
     return left, right
 
 
-def permute_blocks(threads, haplotypes, breakpoints, lllh):
+def get_optimal_permutations(breakpoints, lllh, ploidy):
+    """
+    Computes optimal permutations of haplotypes within blocks determined by breakpoints. Result
+    is a list with one permutation (list) per block.
+    """
 
-    ploidy = len(threads[0])
+    if not breakpoints:
+        return [list(range(ploidy))]
+
     P = list(range(ploidy))
     B = list(range(len(breakpoints)))
     BE = list(range(len(breakpoints) + 1))
-    ext_bp = [0] + list(breakpoints.keys()) + [len(threads)]
 
     # setup ILP model
-    model = LpProblem("PermuteBlocks_p{}_m{}".format(ploidy, len(threads)), LpMaximize)
+    model = LpProblem(f"PermuteBlocks_p{ploidy}_b{len(breakpoints)}", LpMaximize)
 
     # x[b][t][h] = 1 if thread t is placed on haplotype h for block b
-    x = [
-        [[LpVariable("x_{}_{}_{}".format(b, t, h), 0, 1, LpInteger) for h in P] for t in P]
-        for b in BE
-    ]
+    x = [[[LpVariable(f"x_{b}_{t}_{h}", 0, 1, LpInteger) for h in P] for t in P] for b in BE]
+
+    # y[b][t1][t2] = 1 if thread t1 is linked to thread t2 over breakpoint b
+    y = [[[LpVariable(f"y_{b}_{t1}_{t2}", 0, 1, LpInteger) for t2 in P] for t1 in P] for b in B]
+
+    # z[b][i] = 1 if i-th combination is used to connect haplotypes over breakpoint b
+    z = [[LpVariable(f"z_{b}_{i}", 0, 1, LpInteger) for i in range(len(lllh[b]))] for b in B]
 
     # for now: fix first permutation
     for t in P:
         model += x[0][t][t] == 1
-
-    # y[b][t1][t2] = 1 if thread t1 is linked to thread t2 over breakpoint b
-    y = [
-        [[LpVariable("y_{}_{}_{}".format(b, t1, t2), 0, 1, LpInteger) for t2 in P] for t1 in P]
-        for b in B
-    ]
-
-    # z[b][i] = 1 if i-th combination is used to connect haplotypes over breakpoint b
-    z = [
-        [LpVariable("z_{}_{}".format(b, i), 0, 1, LpInteger) for i in range(len(lllh[b]))]
-        for b in B
-    ]
 
     # for each block there must be one-to-one-relationship between threads and haplotypes
     for i in BE:
@@ -351,8 +349,7 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh):
             model += sum([x[i][k][j] for k in P]) == 1
 
     # iff t1 and t2 both cover haplotype h on blocks b and b+1, set relationship
-    for b in B:
-        affected = breakpoints[ext_bp[b + 1]]
+    for b, affected in enumerate(breakpoints.values()):
         for t1 in P:
             for t2 in P:
                 if (t1 in affected) != (t2 in affected):
@@ -372,8 +369,7 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh):
 
     # ensure correct setting of z-variables, depending on choice of y-variables
     z_weights = dict()
-    for b in B:
-        left = breakpoints[ext_bp[b + 1]]
+    for b, left in enumerate(breakpoints.values()):
         assert left == sorted(left)
         # iterate over all permutations of "left" as given by the keys of lllh for breakpoint b
         for i, right in enumerate(lllh[b].keys()):
@@ -405,19 +401,36 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh):
             else:
                 assert False
 
+    return assignments
+
+
+def permute_blocks(threads, haplotypes, breakpoints, lllh, perms):
+
     # shuffle threads and haplotypes according to optimal assignments
+    ploidy = len(haplotypes)
     threads_copy = deepcopy(threads)
     haplotypes_copy = deepcopy(haplotypes)
+    ext_bp = [0] + list(breakpoints.keys()) + [len(threads)]
     for i, (s, e) in enumerate(zip(ext_bp[:-1], ext_bp[1:])):
         for p in range(s, e):
-            for t in P:
-                threads[p][t] = threads_copy[p][assignments[i][t]]
-                haplotypes[t][p] = haplotypes_copy[assignments[i][t]][p]
+            for t in list(range(ploidy)):
+                threads[p][t] = threads_copy[p][perms[i][t]]
+                haplotypes[t][p] = haplotypes_copy[perms[i][t]][p]
 
-    # TODO: Dummy events
+    # collect reorder events
     events = []
-    for pos, affected in breakpoints.items():
-        events.append(ReorderEvent(pos, ReorderType.COLLAPSED, 0.5, 0.25, affected))
+    for i, (pos, affected) in enumerate(breakpoints.items()):
+        # compute confidence of decision
+        assert len(lllh[i].values()) >= 2
+        best_llh = max(lllh[i].values())
+        norm_factor = 1 / sum([exp(v + best_llh) for v in lllh[i].values()])
+        reduced = [j for j in perms[i + 1] if j in affected]
+        link = tuple(affected[reduced.index(j)] for j in perms[i] if j in affected)
+        confidence = norm_factor * exp(lllh[i][link] + best_llh)
+
+        # compute type of breakpoint
+        bp_type = ReorderType.COLLAPSED  # TODO: Actually determine
+        events.append(ReorderEvent(pos, bp_type.COLLAPSED, confidence, affected))
 
     return events
 
