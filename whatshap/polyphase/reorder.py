@@ -4,7 +4,7 @@ from collections import defaultdict
 from math import log
 from enum import Enum
 from copy import deepcopy
-from pulp import LpProblem, LpVariable, LpMaximize, LpInteger, COIN_CMD
+from pulp import LpProblem, LpVariable, LpMaximize, LpInteger, PULP_CBC_CMD
 
 logger = logging.getLogger(__name__)
 
@@ -392,7 +392,7 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh):
     model += sum([var * weight for (var, weight) in z_weights.items()])
 
     # solve model
-    solver = COIN_CMD(msg=1)
+    solver = PULP_CBC_CMD(msg=0)
     model.solve(solver)
 
     assignments = [[0 for _ in P] for _ in BE]
