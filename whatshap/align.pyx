@@ -17,23 +17,15 @@ def match_score(str alpha, str beta, float mismatch_penalty):
 		return matching
 	else:
 		return mismatch_penalty
-def needle(seq1, seq2, dictionary, int gap_penalty):
+def needle(sequence1, sequence2, dictionary, int gap_penalty, int k):
 	cdef int i,j
+	seq1= split(sequence1, k)
+	seq2= split(sequence2, k)
 	cdef int m = len(seq1)
 	cdef int n = len(seq2)
 	cdef int[:,:] score = cvarray(shape=(m+1,n+1), itemsize=sizeof(int), format="i")
-	#cdef score= zeros((m+1,n+1))
 	cdef float mismatching
 	cdef tuple lookup
-	#global seen_scores
-	#try:
-	#    seen_scores
-	#except NameError:
-	#    seen_scores={}
-	#if tuple((tuple(seq1),tuple(seq2))) in seen_scores:
-	#    return seen_scores[tuple((tuple(seq1),tuple(seq2)))]
-	#else:
-	# Calculate DP table
 	for i in range(0, m + 1):
 		score[i][0] = gap_penalty * i
 	for j in range(0, n + 1):
@@ -46,40 +38,28 @@ def needle(seq1, seq2, dictionary, int gap_penalty):
 			elif (seq1[i-1],'epsilon') in dictionary:
 				mismatching= -10 * log10(float(dictionary[(seq1[i-1],'epsilon')]))
 			else:
-				mismatching= 100
-            #print(mismatching)
+				mismatching= float('inf')
 			match = score[i - 1][j - 1] + match_score(seq1[i-1], seq2[j-1], mismatching)
 			delete = score[i - 1][j] + gap_penalty
 			insert = score[i][j - 1] + gap_penalty
 			score[i][j] = min(match, delete, insert)
 	return score[m][n]
-
-def split(sequence, int size):
+	
+def split(sequence, int k):
 	cdef:
 		kmer_list= []
-		int index=0
-		int count=0
+		int i=0
 		shortstring= ""
-		int s=0
-	if len(sequence) <= size:
+	if len(sequence) <= k:
 		kmer_list.append(sequence)
 		return kmer_list
 	else:
-		while count<=size and s<=len(sequence):
-			if len(sequence)-index > size-1:
-				if count< size:
-					shortstring+=sequence[s]
-					count+=1
-					s+=1
-				elif count== size:
-					kmer_list.append(shortstring)
-					shortstring=""
-					index+=1
-					count=0
-					s= index
-			else:
-				return kmer_list
-				break
+		while i<=len(sequence)-k:
+			shortstring=sequence[i:i+k]
+			kmer_list.append(shortstring)
+			i+=1
+		return kmer_list
+
 def edit_distance(s, t, int maxdiff=-1):
 	"""
 	Return the edit distance between the strings s and t.

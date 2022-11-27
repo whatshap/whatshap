@@ -45,7 +45,7 @@ class PhasedInputReader:
         bam_or_vcf_paths,
         reference,
         numeric_sample_ids,
-        probabilities,
+        probs_path,
         kmersize,
         gappenalty,
         ignore_read_groups,
@@ -53,7 +53,9 @@ class PhasedInputReader:
         **kwargs,  # passed to ReadSetReader constructor
     ):
         self._bam_paths, self._vcf_paths = self._split_input_file_list(bam_or_vcf_paths)
-
+        self._probs_path=probs_path
+        self._kmersize=kmersize
+        self._gappenalty=gappenalty
         # TODO exit stack!
         self._numeric_sample_ids = numeric_sample_ids
         self._fasta = self._open_reference(reference) if reference else None
@@ -64,7 +66,7 @@ class PhasedInputReader:
         self._ignore_read_groups = ignore_read_groups
 
         self._readset_reader = open_readset_reader(
-            self._bam_paths, reference, numeric_sample_ids, probabilities, kmersize, gappenalty, **kwargs
+            self._bam_paths, reference, numeric_sample_ids,self._probs_path, self._kmersize, self._gappenalty, **kwargs
         )
         if not self._vcf_readers:
             self._vcfs = []
@@ -130,7 +132,7 @@ class PhasedInputReader:
                 m[variant_table.chromosome] = variant_table
             self._vcfs.append(m)
 
-    def read(self, chromosome, variants, sample, probabilities, kmersize, gappenalty, *, read_vcf=True, regions=None):
+    def read(self, chromosome, variants, sample, *, read_vcf=True, regions=None):
         """
         Return a pair (readset, vcf_source_ids) where readset is a sorted ReadSet.
 
@@ -150,7 +152,7 @@ class PhasedInputReader:
 
         bam_sample = None if self._ignore_read_groups else sample
         try:
-            readset = readset_reader.read(chromosome, variants, bam_sample, reference, probabilities, kmersize, gappenalty, regions)
+            readset = readset_reader.read(chromosome, variants, bam_sample, reference, regions)
         except SampleNotFoundError:
             logger.warning("Sample %r not found in any BAM/CRAM file.", bam_sample)
             readset = ReadSet()

@@ -87,7 +87,7 @@ def run_genotype(
     gt_qual_threshold=0,
     prioroutput=None,
     constant=0.0,
-    overhang=10,
+    overhang=25,
     affine_gap=False,
     gap_start=10,
     gap_extend=7,
@@ -109,11 +109,6 @@ def run_genotype(
         command_line = "(whatshap {}) {}".format(__version__, " ".join(sys.argv[1:]))
     else:
         command_line = None
-    probabilities=dict()
-    with open(prob_file) as probs_file:
-    	probs_reader=csv.reader(probs_file, delimiter='\t')
-    	for line in probs_reader:
-    		probabilities[(line[0],line[1])]= line[2]
     with ExitStack() as stack:
         # read the given input files (BAMs, VCFs, ref...)
         numeric_sample_ids = NumericSampleIds()
@@ -122,7 +117,7 @@ def run_genotype(
                 phase_input_files,
                 reference,
                 numeric_sample_ids,
-                probabilities,
+                prob_file,
                 kmersize,
                 gappenalty,
                 ignore_read_groups,
@@ -234,7 +229,7 @@ def run_genotype(
                     logger.info("---- Initial genotyping of %s", sample)
                     with timers("read_bam"):
                         readset, vcf_source_ids = phased_input_reader.read(
-                            chromosome, variant_table.variants, sample, probabilities, kmersize, gappenalty, read_vcf=False
+                            chromosome, variant_table.variants, sample, read_vcf=False
                         )
                         readset.sort()
                         genotypes, genotype_likelihoods = compute_genotypes(readset, positions)
@@ -291,7 +286,7 @@ def run_genotype(
                 for sample in family:
                     with timers("read_bam"):
                         readset, vcf_source_ids = phased_input_reader.read(
-                            chromosome, variant_table.variants, sample,  probabilities, kmersize, gappenalty,
+                            chromosome, variant_table.variants, sample
                         )
 
                     with timers("select"):
@@ -440,7 +435,7 @@ def add_arguments(parser):
         help='Skip initial prior genotyping and use uniform priors (default: %(default)s).')
     arg('-p', '--prioroutput', default=None,
         help='output prior genotype likelihoods to the given file.')
-    arg('--overhang', metavar='OVERHANG', default=10, type=int,
+    arg('--overhang', metavar='OVERHANG', default=25, type=int,
         help='When --reference is used, extend alignment by this many bases to left and right when realigning (default: %(default)s).')
     arg('--constant', metavar='CONSTANT', default=0, type=float,
         help='This constant is used to regularize the priors (default: %(default)s).')

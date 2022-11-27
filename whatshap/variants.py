@@ -2,6 +2,7 @@
 Detect variants in reads.
 """
 import logging
+import csv
 from collections import defaultdict, Counter
 from typing import Iterable, Iterator, List, Optional
 
@@ -18,6 +19,8 @@ class ReadSetError(Exception):
     pass
 
 seen_scores=dict()
+seen_splits=dict()
+probabilities=dict()
 class ReadSetReader:
     """
     Associate VCF variants with BAM reads.
@@ -33,16 +36,16 @@ class ReadSetReader:
         paths: List[str],
         reference: Optional[str],
         numeric_sample_ids: NumericSampleIds,
-        probabilities,
+        probabilities_path,
         kmersize,
         gappenalty,
         mapq_threshold: int = 20,
-        overhang: int = 10,
+        overhang: int = 25,
         affine: int = False,
         gap_start: int = 10,
         gap_extend: int = 7,
         default_mismatch: int = 15,
-        
+
     ):
         """
         paths -- list of BAM paths
@@ -66,15 +69,20 @@ class ReadSetReader:
             self._reader = SampleBamReader(paths[0], reference=reference)
         else:
             self._reader = MultiBamReader(paths, reference=reference)
-        self.probabilities= probabilities
-        self.kmersize= kmersize
-        self.gappenalty= gappenalty
-
+        self._kmersize= kmersize
+        self._gappenalty= gappenalty
+        if not probabilities:
+            with open(probabilities_path) as probs_file:
+                probs_reader=csv.reader(probs_file, delimiter='\t')
+                for line in probs_reader:
+                    probabilities[(line[0],line[1])]= line[2]
+        else:
+            pass
     @property
     def n_paths(self):
         return len(self._paths)
 
-    def read(self, chromosome, variants, sample, reference,  probabilities, kmersize, gappenalty,regions=None) -> ReadSet:
+    def read(self, chromosome, variants, sample, reference,regions=None) -> ReadSet:
         """
         Detect alleles and return a ReadSet object containing reads representing
         the given variants.
@@ -100,7 +108,7 @@ class ReadSetReader:
             assert count == 1, "Position {} occurs more than once in variant list.".format(pos)
 
         alignments = self._usable_alignments(chromosome, sample, regions)
-        reads = self._alignments_to_reads(alignments, variants, sample, reference, probabilities, kmersize, gappenalty)
+        reads = self._alignments_to_reads(alignments, variants, sample, reference)
         grouped_reads = self._group_paired_reads(reads)
         readset = self._make_readset_from_grouped_reads(grouped_reads)
         return readset
@@ -158,7 +166,7 @@ class ReadSetReader:
     def has_reference(self, chromosome):
         return self._reader.has_reference(chromosome)
 
-    def _alignments_to_reads(self, alignments, variants, sample, reference, probabilities, kmersize,gappenalty):
+    def _alignments_to_reads(self, alignments, variants, sample, reference):
         """
         Convert BAM alignments to Read objects.
 
@@ -205,9 +213,9 @@ class ReadSetReader:
                     i,
                     alignment.bam_alignment,
                     reference,
-                    probabilities,
-                    kmersize,
-                    gappenalty,
+                    #self._probabilities_path,
+                    self._kmersize,
+                    self._gappenalty,
                     self._overhang,
                     self._use_affine,
                     self._gap_start,
@@ -449,7 +457,7 @@ class ReadSetReader:
         reference,
         overhang,
         gappenalty,
-        probabilities,
+        #probabilities_path,
         kmersize,
         use_affine,
         gap_start,
@@ -488,11 +496,22 @@ class ReadSetReader:
         assert variant.position - left_ref_bases >= 0
         assert variant.position + right_ref_bases <= len(reference)
 
-        query = split(bam_read.query_sequence[
+        query_temp = bam_read.query_sequence[
             query_pos - left_query_bases : query_pos + right_query_bases
-        ], int(kmersize))
-        ref = split(reference[variant.position - left_ref_bases : variant.position + right_ref_bases], int(kmersize))
-        alt = split((
+        ]
+        #if query_temp in seen_splits:
+        #    query=seen_splits[query_temp]
+        #else:
+        #    query=split(query_temp,int(kmersize))
+        #    seen_splits[query_temp]= query
+        ref_temp = reference[variant.position - left_ref_bases : variant.position + right_ref_bases]
+        #if ref_temp in seen_splits:
+        #    ref=seen_splits[ref_temp]
+        #else:
+        #    ref =split(ref_temp,int(kmersize))
+        #    seen_splits[ref_temp]=ref
+
+        alt_temp = (
             reference[variant.position - left_ref_bases : variant.position]
             + variant.alternative_allele
             + reference[
@@ -500,8 +519,7 @@ class ReadSetReader:
                 + len(variant.reference_allele) : variant.position
                 + right_ref_bases
             ]
-        ),int(kmersize))
-
+        )
         if use_affine:
             assert gap_start is not None
             assert gap_extend is not None
@@ -526,17 +544,16 @@ class ReadSetReader:
             distance_alt = 0
             #distance_ref = edit_distance(query, ref)
             #distance_alt = edit_distance(query, alt)
-            if tuple((tuple(ref),tuple(query))) in seen_scores:
-                distance_ref= seen_scores[tuple((tuple(ref),tuple(query)))]
+            if (ref_temp,query_temp) in seen_scores:
+                distance_ref= seen_scores[(ref_temp,query_temp)]
             else:
-                distance_ref = needle(ref, query, probabilities, int(gappenalty))
-                seen_scores[tuple((tuple(ref),tuple(query)))]= distance_ref
-            if tuple((tuple(alt),tuple(query))) in seen_scores:
-                distance_alt= seen_scores[tuple((tuple(alt),tuple(query)))]
+                distance_ref = needle(ref_temp, query_temp, probabilities, int(gappenalty), int(kmersize))
+                seen_scores[(ref_temp,query_temp)]= distance_ref
+            if (alt_temp,query_temp) in seen_scores:
+                distance_alt= seen_scores[(alt_temp,query_temp)]
             else:
-                distance_alt = needle(alt, query, probabilities, int(gappenalty))
-                seen_scores[tuple((tuple(alt),tuple(query)))]=distance_alt
-
+                distance_alt = needle(alt_temp, query_temp, probabilities, int(gappenalty), int(kmersize))
+                seen_scores[(alt_temp,query_temp)]=distance_alt
         if distance_ref < distance_alt:
             return 0, base_qual_score  # detected REF
         elif distance_ref > distance_alt:
@@ -550,10 +567,10 @@ class ReadSetReader:
         j,
         bam_read,
         reference,
-        probabilities,
+        #probabilities_path,
         kmersize,
         gappenalty,
-        overhang=10,
+        overhang=25,
         use_affine=False,
         gap_start=None,
         gap_extend=None,
@@ -587,7 +604,7 @@ class ReadSetReader:
                 reference,
                 overhang,
                 gappenalty,
-                probabilities,
+                #probabilities_path,
                 kmersize,
                 use_affine,
                 gap_start,
