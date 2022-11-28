@@ -18,7 +18,9 @@ __author__ = "Sven Schrinner"
 logger = logging.getLogger(__name__)
 
 
-def solve_polyphase_instance(allele_matrix, genotype_list, param, timers, quiet=False):
+def solve_polyphase_instance(
+    allele_matrix, genotype_list, param, timers, quiet=False, partial_phasing=None
+):
     """
     Entry point for polyploid phasing instances. Inputs are an allele matrix and genotypes for each
     position, among some parameters.

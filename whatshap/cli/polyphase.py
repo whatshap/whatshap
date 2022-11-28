@@ -24,7 +24,7 @@ from whatshap.core import (
 )
 from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
 
-from whatshap.polyphase import PolyphaseParameter, create_genotype_list
+from whatshap.polyphase import PolyphaseParameter, create_genotype_list, extract_partial_phasing
 from whatshap.polyphase.algorithm import solve_polyphase_instance
 from whatshap.polyphase.plots import draw_plots
 from whatshap.polyphase.solver import AlleleMatrix
@@ -61,6 +61,7 @@ def run_polyphase(
     plot_threading=False,
     block_cut_sensitivity=4,
     threads=1,
+    ignore_phasings=False,
 ):
     """
     Run Polyploid Phasing.
@@ -157,6 +158,7 @@ def run_polyphase(
             plot_clusters=plot_clusters,
             plot_threading=plot_threading,
             threads=threads,
+            ignore_phasings=ignore_phasings,
         )
 
         timers.start("parse_vcf")
@@ -286,10 +288,15 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
     # Compute the genotypes that belong to the variant table and create a list of all genotypes
     genotype_list = create_genotype_list(phasable_variant_table, sample)
 
+    # Optional: Extract partial phasing from variant table
+    partial_phasing = None
+    if not param.ignore_phasings:
+        partial_phasing = extract_partial_phasing(phasable_variant_table, sample)
+
     # Retrieve solution
     allele_matrix = AlleleMatrix(readset)
     clustering, threading, haplotypes, cuts, hap_cuts = solve_polyphase_instance(
-        allele_matrix, genotype_list, param, timers
+        allele_matrix, genotype_list, param, timers, partial_phasing=partial_phasing
     )
     del allele_matrix
 
@@ -450,6 +457,13 @@ def add_arguments(parser):
         type=int,
         required=True,
         help="The ploidy of the sample(s). Argument is required.",
+    )
+    arg(
+        "--ignore-phasings",
+        dest="ignore_phasings",
+        action="store_true",
+        default=False,
+        help="Ignores any pre-phased positions in the input VCF.",
     )
     arg(
         "--min-overlap",

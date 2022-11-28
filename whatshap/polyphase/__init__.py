@@ -1,9 +1,11 @@
 import logging
-
 from collections import defaultdict
 from dataclasses import dataclass
 from queue import Queue
 from typing import List
+
+from whatshap.core import ReadSet
+from whatshap.polyphase.solver import AlleleMatrix
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +20,7 @@ class PolyphaseParameter:
     plot_clusters: bool
     plot_threading: bool
     threads: int
+    ignore_phasings: bool
 
 
 @dataclass
@@ -145,12 +148,12 @@ def compute_block_starts(am, ploidy, single_linkage=False):
     return cuts
 
 
-def create_genotype_list(phasable_variant_table, sample):
+def create_genotype_list(variant_table, sample):
     """
     Creates a list, which stores a dictionary for every position. The dictionary maps every allele
     to its frequency in the genotype of the respective position.
     """
-    all_genotypes = phasable_variant_table.genotypes_of(sample)
+    all_genotypes = variant_table.genotypes_of(sample)
     genotype_list = []
     for pos in range(len(all_genotypes)):
         allele_count = dict()
@@ -160,3 +163,12 @@ def create_genotype_list(phasable_variant_table, sample):
             allele_count[allele] += 1
         genotype_list.append(allele_count)
     return genotype_list
+
+
+def extract_partial_phasing(variant_table, sample):
+    readset = ReadSet()
+    vars = variant_table.variants
+    for read in variant_table.phased_blocks_as_reads(sample, vars, 0, 0, allow_polyploid=True):
+        readset.add(read)
+
+    return AlleleMatrix(readset)

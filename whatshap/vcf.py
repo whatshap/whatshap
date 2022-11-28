@@ -401,7 +401,6 @@ class VariantTable:
         to_discard = [i for i, v in enumerate(self.variants) if v.position not in positions]
         self.remove_rows_by_index(to_discard)
 
-    # TODO: extend this to polyploid case
     def phased_blocks_as_reads(
         self,
         sample: str,
@@ -410,6 +409,7 @@ class VariantTable:
         numeric_sample_id: int,
         default_quality: int = 20,
         mapq: int = 100,
+        allow_polyploid: bool = False,
     ):
         """
         Yields one sorted core.Read object per phased block, encoding the phase information as
@@ -427,7 +427,7 @@ class VariantTable:
         except KeyError:
             return
         input_variant_set = set(input_variants)
-        read_map: Dict[int, Read] = {}  # maps block_id core.Read objects
+        read_map: Dict[int, List[Read]] = {}  # maps block_id to list of core.Read objects
         assert (
             len(self.variants)
             == len(self.genotypes[sample_index])
@@ -436,7 +436,7 @@ class VariantTable:
         for variant, genotype, phase in zip(
             self.variants, self.genotypes[sample_index], self.phases[sample_index]
         ):
-            if len(genotype.as_vector()) > 2:
+            if not allow_polyploid and len(genotype.as_vector()) > 2:
                 # only use diploid variants
                 continue
             if variant not in input_variant_set:
@@ -450,15 +450,26 @@ class VariantTable:
             else:
                 quality = phase.quality
             if phase.block_id in read_map:
-                read_map[phase.block_id].add_variant(variant.position, phase.phase[0], quality)
+                p = len(read_map[phase.block_id])
+                if len(phase.phase) != p:
+                    raise PloidyError(
+                        f"Found inconsistent ploidies {len(phase.phase)} and {p} in phasing block with id {phase.block_id}."
+                    )
+                for i, allele in enumerate(phase.phase):
+                    read_map[phase.block_id][i].add_variant(variant.position, allele, quality)
             else:
-                r = Read(f"{sample}_block_{phase.block_id}", mapq, source_id, numeric_sample_id)
-                r.add_variant(variant.position, phase.phase[0], quality)
-                read_map[phase.block_id] = r
-        for key, read in read_map.items():
-            read.sort()
-            if len(read) > 1:
-                yield read
+                read_map[phase.block_id] = []
+                for i, allele in enumerate(phase.phase):
+                    r = Read(f"{sample}_block_{phase.block_id}", mapq, source_id, numeric_sample_id)
+                    r.add_variant(variant.position, allele, quality)
+                    read_map[phase.block_id].append(r)
+        for key, read_list in read_map.items():
+            # TODO: Legacy diploid implementation only wants the first phase
+            limit = len(read_list) if len(read_list) > 2 else 1
+            for read in read_list[:limit]:
+                if len(read) > 1:
+                    read.sort()
+                    yield read
 
 
 class MixedPhasingError(Exception):
