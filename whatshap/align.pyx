@@ -9,6 +9,9 @@ from cython.view cimport array as cvarray
 import cython
 from libc cimport limits
 from libc.math cimport log10
+from libcpp.string cimport string
+import collections
+
 
 @cython.boundscheck(False)
 def match_score(str alpha, str beta, float mismatch_penalty):
@@ -17,35 +20,117 @@ def match_score(str alpha, str beta, float mismatch_penalty):
 		return matching
 	else:
 		return mismatch_penalty
-def needle(sequence1, sequence2, dictionary, int gap_penalty, int k):
+def needle(seq1, seq2, dictionary, int gap_penalty, int k):
 	cdef int i,j
-	seq1= split(sequence1, k)
-	seq2= split(sequence2, k)
 	cdef int m = len(seq1)
 	cdef int n = len(seq2)
-	cdef int[:,:] score = cvarray(shape=(m+1,n+1), itemsize=sizeof(int), format="i")
+	cdef int[:,:] score
 	cdef float mismatching
-	cdef tuple lookup
+	#if seq1==seq2:
+	#	#print (seq1, '=', seq2)
+	#	return 0
+	#else:	
+	print(seq1,' ' ,seq2)
+	# Skip identical prefixes
+	while m > 0 and n > 0 and seq1[0] == seq2[0]:
+
+		print(seq1.popleft())
+		print(seq2.popleft())
+		m -= 1
+		n -= 1
+		print(seq1,' ',seq2)
+		print(m,' ',n)
+	# Skip identical suffixes
+	while m > 0 and n > 0 and seq1[m-1] == seq2[n-1]:
+		#print('matching suffixes')
+		
+		m -= 1
+		n -= 1
+	#	print(m, ' ',n)
+	score = cvarray(shape=(m+1,n+1), itemsize=sizeof(int), format="i")
+
 	for i in range(0, m + 1):
 		score[i][0] = gap_penalty * i
 	for j in range(0, n + 1):
 		score[0][j] = gap_penalty *j
 	for i in range(1, m + 1):
 		for j in range (1,n+1):
-			lookup= (seq1[i-1],seq2[j-1])
-			if lookup in dictionary:
-				mismatching = -10 * log10(float(dictionary[lookup]))
-			elif (seq1[i-1],'epsilon') in dictionary:
-				mismatching= -10 * log10(float(dictionary[(seq1[i-1],'epsilon')]))
+
+			if (seq1[i-1],seq2[j-1]) in dictionary:
+
+				mismatching = float(dictionary[(seq1[i-1],seq2[j-1])])
+			elif (seq1[i-1],-5) in dictionary:
+
+				mismatching= float(dictionary[(seq1[i-1],-5)])
 			else:
+
 				mismatching= float('inf')
-			match = score[i - 1][j - 1] + match_score(seq1[i-1], seq2[j-1], mismatching)
+			if seq1[i-1]==seq2[j-1]:
+				match = score[i - 1][j - 1] #no penalty
+			else:
+				match = score[i - 1][j - 1] + mismatching
+
 			delete = score[i - 1][j] + gap_penalty
 			insert = score[i][j - 1] + gap_penalty
 			score[i][j] = min(match, delete, insert)
 	return score[m][n]
+
+
+
+
+def needle_temp(sv, tv, dictionary, int gap_penalty, int k):
+
+	cdef int m = len(sv)  # index: i
+	cdef int n = len(tv)  # index: j
+	cdef bint match
+	cdef int i,j
+	cdef int[:] costs
+	if sv==tv:
+		return 0
+	else:	
+		#print(sv, ' ',tv)
+		# Skip identical prefixes
+		while m > 0 and n > 0 and sv[0] == tv[0]:
+			sv.pop(0)
+			tv.pop(0)
+			m -= 1
+			n -= 1
+
+		# Skip identical suffixes
+		while m > 0 and n > 0 and sv[m-1] == tv[n-1]:
+			m -= 1
+			n -= 1
+
+		costs = cvarray(shape=(m+1,), itemsize=sizeof(int), format="i")
+		# Regular (unbanded) global alignment
+		for i in range(m + 1):
+			costs[i] = i*gap_penalty
+
+		# compute columns of the alignment matrix (using unit costs)
+		prev = 0
+		for j in range(1, n+1):
+			prev = costs[0]
+			costs[0] += gap_penalty
+			for i in range(1, m+1):
+				if (sv[i-1], tv[j-1]) in dictionary:
+					mismatching = float(dictionary[(sv[i-1], tv[j-1])])
+				elif (sv[i-1],-5) in dictionary:
+					mismatching= float(dictionary[(sv[i-1],-5)])
+				else:
+					mismatching= float('inf')
+				if sv[i-1] == tv[j-1]:
+					match = 0 #no penalty
+				else:
+					match = prev + mismatching
+					c = min(
+						prev + match,
+						costs[i] + gap_penalty,
+						costs[i-1] + gap_penalty)
+					prev = costs[i]
+					costs[i] = c
+		return costs[m]
 	
-def split(sequence, int k):
+def split_temp(sequence, int k):
 	cdef:
 		kmer_list= []
 		int i=0
@@ -54,12 +139,40 @@ def split(sequence, int k):
 		kmer_list.append(sequence)
 		return kmer_list
 	else:
+		shortstring=sequence[i:i+k]
+		kmer_list.append(shortstring)
+		i+=1
 		while i<=len(sequence)-k:
-			shortstring=sequence[i:i+k]
+			shortstring=shortstring[1:]+sequence[i+k-1]
 			kmer_list.append(shortstring)
 			i+=1
 		return kmer_list
 
+def enumerate_all_kmers(string reference, int k):
+	cdef int A = ord('A')
+	cdef int C = ord('C')
+	cdef int G = ord('G')
+	cdef int T = ord('T')
+	cdef c = 0
+	cdef int h = 0
+	cdef int mask = (1 << (2*k)) - 1
+	cdef int i = 0
+	cdef kmer_list= collections.deque([])
+	for i in range(len(reference)):
+		c = reference[i]
+		if c == A:
+			h = ((h << 2) | 0) & mask
+		elif c == C:
+			h = ((h << 2) | 1) & mask
+		elif c == G:
+			h = ((h << 2) | 2) & mask
+		elif c == T:
+			h = ((h << 2) | 3) & mask
+		if i >= k-1:
+			kmer_list.append(h)
+
+	return kmer_list
+                
 def edit_distance(s, t, int maxdiff=-1):
 	"""
 	Return the edit distance between the strings s and t.

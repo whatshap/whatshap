@@ -8,7 +8,7 @@ from typing import Iterable, Iterator, List, Optional
 
 from .core import Read, ReadSet, NumericSampleIds
 from .bam import SampleBamReader, MultiBamReader, BamReader
-from .align import edit_distance, edit_distance_affine_gap, needle, split
+from .align import edit_distance, edit_distance_affine_gap, needle, enumerate_all_kmers
 from ._variants import _iterate_cigar
 
 
@@ -21,6 +21,7 @@ class ReadSetError(Exception):
 seen_scores=dict()
 seen_splits=dict()
 probabilities=dict()
+DNA_TO_HASH = {'A':0, 'C':1, 'G':2, 'T':3}
 class ReadSetReader:
     """
     Associate VCF variants with BAM reads.
@@ -75,7 +76,7 @@ class ReadSetReader:
             with open(probabilities_path) as probs_file:
                 probs_reader=csv.reader(probs_file, delimiter='\t')
                 for line in probs_reader:
-                    probabilities[(line[0],line[1])]= line[2]
+                    probabilities[(int(line[0]),int(line[1]))]= line[2]
         else:
             pass
     @property
@@ -499,17 +500,17 @@ class ReadSetReader:
         query_temp = bam_read.query_sequence[
             query_pos - left_query_bases : query_pos + right_query_bases
         ]
-        #if query_temp in seen_splits:
-        #    query=seen_splits[query_temp]
-        #else:
-        #    query=split(query_temp,int(kmersize))
-        #    seen_splits[query_temp]= query
+        if query_temp in seen_splits:
+            query=seen_splits[query_temp]
+        else:
+            query=enumerate_all_kmers(str(query_temp).encode('UTF-8'),int(kmersize))
+            seen_splits[query_temp]= query
         ref_temp = reference[variant.position - left_ref_bases : variant.position + right_ref_bases]
-        #if ref_temp in seen_splits:
-        #    ref=seen_splits[ref_temp]
-        #else:
-        #    ref =split(ref_temp,int(kmersize))
-        #    seen_splits[ref_temp]=ref
+        if ref_temp in seen_splits:
+            ref=seen_splits[ref_temp]
+        else:
+            ref =enumerate_all_kmers(str(ref_temp).encode('UTF-8'),int(kmersize))
+            seen_splits[ref_temp]=ref
 
         alt_temp = (
             reference[variant.position - left_ref_bases : variant.position]
@@ -517,9 +518,13 @@ class ReadSetReader:
             + reference[
                 variant.position
                 + len(variant.reference_allele) : variant.position
-                + right_ref_bases
-            ]
-        )
+                + right_ref_bases])
+                
+        if alt_temp in seen_splits:
+            alt=seen_splits[alt_temp]
+        else:
+            alt=enumerate_all_kmers(str(alt_temp).encode('UTF-8'),int(kmersize))
+            seen_splits[alt_temp]= alt
         if use_affine:
             assert gap_start is not None
             assert gap_extend is not None
@@ -542,17 +547,17 @@ class ReadSetReader:
             base_qual_score = 30
             distance_ref = 0
             distance_alt = 0
-            #distance_ref = edit_distance(query, ref)
-            #distance_alt = edit_distance(query, alt)
             if (ref_temp,query_temp) in seen_scores:
                 distance_ref= seen_scores[(ref_temp,query_temp)]
             else:
-                distance_ref = needle(ref_temp, query_temp, probabilities, int(gappenalty), int(kmersize))
+                print('ref alignment')
+                distance_ref = needle(ref, query, probabilities, int(gappenalty), int(kmersize))
                 seen_scores[(ref_temp,query_temp)]= distance_ref
             if (alt_temp,query_temp) in seen_scores:
                 distance_alt= seen_scores[(alt_temp,query_temp)]
             else:
-                distance_alt = needle(alt_temp, query_temp, probabilities, int(gappenalty), int(kmersize))
+                print('alt alignment')
+                distance_alt = needle(alt, query, probabilities, int(gappenalty), int(kmersize))
                 seen_scores[(alt_temp,query_temp)]=distance_alt
         if distance_ref < distance_alt:
             return 0, base_qual_score  # detected REF
@@ -624,6 +629,18 @@ class ReadSetReader:
         self._reader.close()
 
 
+def enumerate_kmers(reference, k):
+	h = 0
+	mask = (1 << (2*k)) - 1
+	i = 0
+	kmer_list=[]
+	for i in range(len(reference)):
+		## update hash
+		h = ((h << 2) | DNA_TO_HASH[reference[i]]) & mask
+		if i >= k-1:
+			kmer_list.append(h)
+	print (reference, 'has kmers', kmer_list)
+	return kmer_list
 def merge_two_reads(read1: Read, read2: Read) -> Read:
     """
     Merge two reads *that belong to the same haplotype* (such as the two
