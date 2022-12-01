@@ -2,14 +2,20 @@
 Changes
 =======
 
-development version
--------------------
+v1.7 (2022-12-01)
+-----------------
 
-* :issue:`400`: Fixed artificial overinflation of block length stats in ``whatshap stats``.
+* :pr:`379`: Added the ability to do polyploid phasing with pedigree information.
+  This is implemented in a new ``polyphasegenetic`` subcommand.
 * :issue:`143`: ``whatshap stats`` now outputs the fraction of heterozygous variants that are phased.
-* :issue:`207`: Enable comma-separated chromosomes as argument to ``whatshap stats``.
 * :pr:`410`: ``haplotag`` gained support for tagging data with ploidy greater
   than two (use option ``--ploidy``).
+* :issue:`400`: Fixed artificial overinflation of block length stats in ``whatshap stats``.
+* :pr:`418`: Fixed problem in ``stats`` where NaN values caused ValuError
+* :pr:`416`: Clarified in the docs what ``stats`` considers as "phased".
+* :issue:`207`: Enable comma-separated chromosomes as argument to ``whatshap stats``.
+* :pr:`412`: Changed ``stats`` to compute all length statistics on split blocks
+* :pr:`399`: Formatted ``stats`` output so that long values are right-aligned with all other values.
 
 v1.6 (2022-09-06)
 -----------------
