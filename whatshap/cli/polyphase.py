@@ -292,6 +292,8 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
     if not param.ignore_phasings:
         partial_phasing = extract_partial_phasing(phasable_variant_table, sample)
 
+    assert partial_phasing is None or len(partial_phasing) == param.ploidy
+
     # Retrieve solution
     allele_matrix = AlleleMatrix(readset)
     clustering, threading, haplotypes, cuts, hap_cuts = solve_polyphase_instance(
