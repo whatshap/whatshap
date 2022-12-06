@@ -63,6 +63,7 @@ def solve_polyphase_instance(
         # for single-threading, process everything individually to minimize memory footprint
         for block_id, (start, end) in enumerate(zip(block_starts[:-1], block_starts[1:])):
             submatrix = allele_matrix.extractInterval(start, end)
+            subphasing = partial_phasing.extractInterval(start, end) if partial_phasing else None
             if end - start > 1:
                 processed_blocks += 1
                 if not quiet:
@@ -70,7 +71,9 @@ def solve_polyphase_instance(
                         f"Processing block {processed_blocks} of {num_blocks} with {len(submatrix)} reads and {end - start} variants."
                     )
             results.append(
-                phase_single_block(block_id, submatrix, genotype_list[start:end], param, timers)
+                phase_single_block(
+                    block_id, submatrix, genotype_list[start:end], subphasing, param, timers
+                )
             )
             del submatrix
 
@@ -86,6 +89,7 @@ def solve_polyphase_instance(
                     phase_single_block_mt,
                     (
                         allele_matrix,
+                        partial_phasing,
                         block_id,
                         start,
                         end,
@@ -108,16 +112,18 @@ def solve_polyphase_instance(
     return aggregate_results(results, ploidy)
 
 
-def phase_single_block(block_id, allele_matrix, genotype_slice, param, timers, quiet=False):
+def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, timers, quiet=False):
     """
     Takes as input data the reads from a single (pre-computed) block and the genotypes for all
     variants inside the block. Runs a three-phase algorithm to compute a phasing for this isolated
     block. Input are four objects:
 
     allele_matrix -- Input reads
-    genotype_slice -- Genotype (as dictionary) for every position
+    genotypes -- Genotype (as dictionary) for every position
+    prephasing -- Positions for which a phasing already exists, encoded as reads
     param -- Object containing phasing parameters
     timers -- Timer object to measure time
+    quiet -- If set, suppresses logger info output
     """
 
     block_num_vars = allele_matrix.getNumPositions()
@@ -126,7 +132,7 @@ def phase_single_block(block_id, allele_matrix, genotype_slice, param, timers, q
     if block_num_vars == 1:
 
         # construct trivial solution for singleton blocks, by using the genotype as phasing
-        g = genotype_slice[0]
+        g = genotypes[0]
         clusts = [[i for i, r in enumerate(allele_matrix) if r and r[0][1] == a] for a in g]
         paths = [sorted(list(chain(*[[i] * g[a] for i, a in enumerate(g)])))]
         haps = sorted(list(chain(*[[[a]] * g[a] for a in g])))
@@ -169,7 +175,7 @@ def phase_single_block(block_id, allele_matrix, genotype_slice, param, timers, q
         allele_matrix,
         clustering,
         param.ploidy,
-        genotype_slice,
+        genotypes,
         distrust_genotypes=param.distrust_genotypes,
     )
     timers.stop("threading")
@@ -179,7 +185,7 @@ def phase_single_block(block_id, allele_matrix, genotype_slice, param, timers, q
     logger.debug("Reordering ambiguous sites ..\r")
     timers.start("reordering")
     cut_positions, haploid_cuts, path, haplotypes = run_reordering(
-        allele_matrix, clustering, paths, haplotypes, param.block_cut_sensitivity
+        allele_matrix, clustering, paths, haplotypes, prephasing, param.block_cut_sensitivity
     )
     timers.stop("reordering")
 
@@ -196,6 +202,7 @@ def phase_single_block(block_id, allele_matrix, genotype_slice, param, timers, q
 
 def phase_single_block_mt(
     allele_matrix,
+    partial_phasing,
     block_id,
     start,
     end,
@@ -211,13 +218,14 @@ def phase_single_block_mt(
     Creates a local submatrix without modifying the given allele matrix
     """
     submatrix = allele_matrix.extractInterval(start, end)
+    subphasing = partial_phasing.extractInterval(start, end) if partial_phasing else None
     block_vars = submatrix.getNumPositions()
     if block_vars > 1 and not quiet:
         logger.info(
             f"Phasing block {job_id + 1} of {num_blocks} with {len(submatrix)} reads and {block_vars} variants."
         )
 
-    result = phase_single_block(block_id, submatrix, genotype_slice, param, timers)
+    result = phase_single_block(block_id, submatrix, genotype_slice, subphasing, param, timers)
     if block_vars > 1 and not quiet:
         logger.info(f"Finished block {job_id + 1}.")
     return result
