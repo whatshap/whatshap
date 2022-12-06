@@ -170,5 +170,7 @@ def extract_partial_phasing(variant_table, sample):
     vars = variant_table.variants
     for read in variant_table.phased_blocks_as_reads(sample, vars, 0, 0, allow_polyploid=True):
         readset.add(read)
-
-    return AlleleMatrix(readset)
+    if len(readset) > 0:
+        return AlleleMatrix(readset)
+    else:
+        return None
