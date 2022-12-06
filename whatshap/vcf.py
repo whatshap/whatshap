@@ -460,12 +460,17 @@ class VariantTable:
             else:
                 read_map[phase.block_id] = []
                 for i, allele in enumerate(phase.phase):
-                    r = Read(f"{sample}_block_{phase.block_id}", mapq, source_id, numeric_sample_id)
+                    # TODO: Remove compatibility with old diploid implemenation
+                    if i == 0:
+                        name = f"{sample}_block_{phase.block_id}"
+                    else:
+                        name = f"{sample}_phase{i}_block_{phase.block_id}"
+                    r = Read(name, mapq, source_id, numeric_sample_id)
                     r.add_variant(variant.position, allele, quality)
                     read_map[phase.block_id].append(r)
         for key, read_list in read_map.items():
             # TODO: Legacy diploid implementation only wants the first phase
-            limit = len(read_list) if len(read_list) > 2 else 1
+            limit = len(read_list) if len(read_list) > 2 or allow_polyploid else 1
             for read in read_list[:limit]:
                 if len(read) > 1:
                     read.sort()
