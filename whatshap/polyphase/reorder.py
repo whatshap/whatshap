@@ -1,6 +1,7 @@
 import itertools as it
 import logging
 from collections import defaultdict
+from bisect import bisect_left
 from math import log, exp
 from enum import Enum
 from copy import deepcopy
@@ -29,8 +30,9 @@ def run_reordering(
     clustering,
     threads,
     haplotypes,
+    prephasing,
     block_cut_sensitivity,
-    error_rate=0.025,
+    error_rate=0.05,
 ):
     """
     Main method for the reordering stage of the polyploid phasing algorithm. Input:
@@ -40,6 +42,7 @@ def run_reordering(
                   contains. Every read can only be present in one cluster.
     threads -- The computed cluster paths from the threading stage
     haplotypes -- The computed haplotype sequences (as numeric alleles) from the threading stage
+    prephasing -- Positions for which a phasing already exists, encoded as reads
     block_cut_sensitivity -- Policy how conversative the block cuts have to be done. 0 is one
                              phasing block no matter what, 5 is very short blocks
 
@@ -61,7 +64,6 @@ def run_reordering(
        the clustering must eventually be split into blocks.
 
     """
-
     ploidy = len(haplotypes)
     # determine snp positions inside clusters
     cwise_snps = find_cluster_snps(threads, haplotypes)
@@ -79,8 +81,15 @@ def run_reordering(
         threads, haplotypes, breakpoints, clustering, allele_matrix, error_rate
     )
 
+    if prephasing:
+        aff = compute_phase_affiliation(
+            allele_matrix, haplotypes, breakpoints, prephasing, error_rate
+        )
+    else:
+        aff = None
+
     # compute optimal permutation of threads for each block
-    perms = get_optimal_permutations(breakpoints, lllh, ploidy)
+    perms = get_optimal_permutations(breakpoints, lllh, ploidy, aff)
 
     # permute blocks and derive confidences
     events = permute_blocks(threads, haplotypes, breakpoints, lllh, perms)
@@ -287,6 +296,62 @@ def compute_link_likelihoods(
     return lllh
 
 
+def compute_phase_affiliation(allele_matrix, haplotypes, breakpoints, prephasing, error_rate):
+    """
+    For each thread in each block computes the affiliation to each phase as given by the
+    prephasing. Result is 3D-list, with dimensions being block id, thread inside block and phase
+    of the prephasing, respectively.
+    """
+    ploidy = len(haplotypes)
+    genpos = allele_matrix.getPositions()
+    genpos_to_happos = {pos: i for i, pos in enumerate(genpos)}
+    num_blocks = len(breakpoints) + 1
+    block_starts = list(sorted(breakpoints.keys()))
+
+    # aff[b][t][p] = affinity of t-th thread in block b to p-th prephase
+    aff = [[[0 for _ in range(ploidy)] for _ in range(ploidy)] for _ in range(num_blocks)]
+    olp = [[[0 for _ in range(ploidy)] for _ in range(ploidy)] for _ in range(num_blocks)]
+    err = [[[0 for _ in range(ploidy)] for _ in range(ploidy)] for _ in range(num_blocks)]
+
+    # count overlaps and errors between block-threads and prephasings
+    for i, pos in enumerate(prephasing.getPositions()):
+        if pos not in genpos_to_happos:
+            continue
+        hap_pos = genpos_to_happos[pos]
+        block_id = bisect_left(block_starts, hap_pos)
+        for thread_id in range(ploidy):
+            h_allele = haplotypes[thread_id][hap_pos]
+            if h_allele < 0:
+                continue
+            for phase_id in range(ploidy):
+                p_allele = prephasing.getAllele(phase_id, i)
+                if p_allele < 0:
+                    continue
+                olp[block_id][thread_id][phase_id] += 1
+                err[block_id][thread_id][phase_id] += 1 if h_allele != p_allele else 0
+
+    for b in range(num_blocks):
+        print(f"Block {b}:")
+        valid_hap = [False] * ploidy
+        for t in range(ploidy):
+            print(f"   Thread {t}:")
+            for p in range(ploidy):
+                print(f"      Phase {p}: {err[b][t][p]} / {olp[b][t][p]}")
+                prob = (1 - error_rate) ** (olp[b][t][p] - err[b][t][p])
+                prob *= error_rate ** err[b][t][p]
+                if prob > 0:
+                    aff[b][t][p] = log(prob)
+                    valid_hap[t] = True
+                else:
+                    aff[b][t][p] = -float("inf")
+        # special case: if one (or more) threads have -inf affiliation to all haps, nullify all
+        if not all(valid_hap):
+            for t in range(ploidy):
+                for p in range(ploidy):
+                    aff[b][t][p] = 0
+    return aff
+
+
 def get_heterozygous_pos_for_haps(haplotypes, subset, pivot_pos, limit=0):
     """
     For a subset of given haplotypes, returns two lists of positions on which these haplotypes
@@ -313,7 +378,7 @@ def get_heterozygous_pos_for_haps(haplotypes, subset, pivot_pos, limit=0):
     return left, right
 
 
-def get_optimal_permutations(breakpoints, lllh, ploidy):
+def get_optimal_permutations(breakpoints, lllh, ploidy, affiliations):
     """
     Computes optimal permutations of haplotypes within blocks determined by breakpoints. Result
     is a list with one permutation (list) per block.
@@ -338,9 +403,22 @@ def get_optimal_permutations(breakpoints, lllh, ploidy):
     # z[b][i] = 1 if i-th combination is used to connect haplotypes over breakpoint b
     z = [[LpVariable(f"z_{b}_{i}", 0, 1, LpInteger) for i in range(len(lllh[b]))] for b in B]
 
-    # for now: fix first permutation
-    for t in P:
-        model += x[0][t][t] == 1
+    aff_scores = []
+    if affiliations is None:
+        # just fix first permutation if not prephasing exists
+        for t in P:
+            model += x[0][t][t] == 1
+    else:
+        # collect all assignment-affiliation-score pairs (or force 0 if assignment not allowed)
+        for b in BE:
+            for t in P:
+                for h in P:
+                    aff = affiliations[b][t][h]
+                    if aff == -float("inf"):
+                        model += x[b][t][h] == 0
+                        print(f"Forbidden: Block {b}, Thread {t} -> {h}")
+                    else:
+                        aff_scores.append(x[b][t][h] * aff)
 
     # for each block there must be one-to-one-relationship between threads and haplotypes
     for i in BE:
@@ -385,10 +463,10 @@ def get_optimal_permutations(breakpoints, lllh, ploidy):
         model += sum(z[b]) == 1
 
     # add permutation likelihoods for taken thread links as objective
-    model += sum([var * weight for (var, weight) in z_weights.items()])
+    model += sum([var * weight for (var, weight) in z_weights.items()]) + sum(aff_scores)
 
     # solve model
-    solver = PULP_CBC_CMD(msg=0)
+    solver = PULP_CBC_CMD(msg=1)
     model.solve(solver)
 
     assignments = [[0 for _ in P] for _ in BE]
@@ -423,7 +501,8 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh, perms):
         # compute confidence of decision
         assert len(lllh[i].values()) >= 2
         best_llh = max(lllh[i].values())
-        norm_factor = 1 / sum([exp(v + best_llh) for v in lllh[i].values()])
+        # TODO: Temporarily disable until division by zero fixed
+        norm_factor = 1  # / sum([exp(v + best_llh) for v in lllh[i].values()])
         reduced = [j for j in perms[i + 1] if j in affected]
         link = tuple(affected[reduced.index(j)] for j in perms[i] if j in affected)
         confidence = norm_factor * exp(lllh[i][link] + best_llh)
