@@ -168,10 +168,11 @@ def phase_cluster_snps(
                         continue
                     if submatrix.getFirstPos(rid) >= het_idx:
                         continue
-                    likelihood = 0.0
                     a_priori = 1 / len(c_slots)
+                    # count overlaps and errors first
+                    hits, errors = [], []
                     for slot in range(len(c_slots)):
-                        overlap, errors = 0, 0
+                        overlap, error = 0, 0
                         # skip if read has different allele at current pos than tested config
                         if haplotypes[perm[slot]][pos] != submatrix.getAllele(rid, het_idx):
                             continue
@@ -181,13 +182,25 @@ def phase_cluster_snps(
                                 break
                             overlap += 1
                             if haplotypes[c_slots[slot]][het_pos[j]] != a:
-                                errors += 1
+                                error += 1
+                        hits.append(overlap - error)
+                        errors.append(error)
+                    # use log-space as early as possible to avoid float underflow
+                    hit_min, err_min = min(hits), min(errors)
+                    likelihood = 0.0
+                    for hit, error in zip(hits, errors):
                         likelihood += (
                             a_priori
-                            * ((1 - error_rate) ** (overlap - errors))
-                            * (error_rate**errors)
+                            * ((1 - error_rate) ** (hit - hit_min))
+                            * (error_rate ** (error - err_min))
                         )
+                    """
+                    log(w_1 * x^(y_1) + w_2 * x^(y_2)) =
+                    log(w_1 * x^(y_1 - y_min) + w_2 * x^(y_2 - y_min)) + y_min * log(x)
+                    for w_1 + w_2 = 1
+                    """
                     score += log(likelihood) if likelihood > 0 else -float("inf")
+                    score += hit_min * log(1 - error_rate) + err_min * log(error_rate)
                 configs.append((perm, score))
 
             configs.sort(key=lambda x: -x[1])
@@ -263,11 +276,9 @@ def compute_link_likelihoods(
                     else:
                         r_olp += 1
                         r_err += error
-                prob = ((1 - error_rate) ** (l_olp - l_err)) * (error_rate**l_err)
-                llh = log(prob) if prob > 0 else -float("inf")
+                llh = log(1 - error_rate) * (l_olp - l_err) + log(error_rate) * l_err
                 left_l.append(llh)
-                prob = ((1 - error_rate) ** (r_olp - r_err)) * (error_rate**r_err)
-                llh = log(prob) if prob > 0 else -float("inf")
+                llh = log(1 - error_rate) * (r_olp - r_err) + log(error_rate) * r_err
                 right_l.append(llh)
             left_llh.append(left_l)
             right_llh.append(right_l)
@@ -331,24 +342,11 @@ def compute_phase_affiliation(allele_matrix, haplotypes, breakpoints, prephasing
                 err[block_id][thread_id][phase_id] += 1 if h_allele != p_allele else 0
 
     for b in range(num_blocks):
-        print(f"Block {b}:")
-        valid_hap = [False] * ploidy
         for t in range(ploidy):
-            print(f"   Thread {t}:")
             for p in range(ploidy):
-                print(f"      Phase {p}: {err[b][t][p]} / {olp[b][t][p]}")
-                prob = (1 - error_rate) ** (olp[b][t][p] - err[b][t][p])
-                prob *= error_rate ** err[b][t][p]
-                if prob > 0:
-                    aff[b][t][p] = log(prob)
-                    valid_hap[t] = True
-                else:
-                    aff[b][t][p] = -float("inf")
-        # special case: if one (or more) threads have -inf affiliation to all haps, nullify all
-        if not all(valid_hap):
-            for t in range(ploidy):
-                for p in range(ploidy):
-                    aff[b][t][p] = 0
+                logprob = log(1 - error_rate) * (olp[b][t][p] - err[b][t][p])
+                logprob += log(error_rate) * err[b][t][p]
+                aff[b][t][p] = logprob
     return aff
 
 
@@ -413,12 +411,7 @@ def get_optimal_permutations(breakpoints, lllh, ploidy, affiliations):
         for b in BE:
             for t in P:
                 for h in P:
-                    aff = affiliations[b][t][h]
-                    if aff == -float("inf"):
-                        model += x[b][t][h] == 0
-                        print(f"Forbidden: Block {b}, Thread {t} -> {h}")
-                    else:
-                        aff_scores.append(x[b][t][h] * aff)
+                    aff_scores.append(x[b][t][h] * affiliations[b][t][h])
 
     # for each block there must be one-to-one-relationship between threads and haplotypes
     for i in BE:
@@ -466,7 +459,7 @@ def get_optimal_permutations(breakpoints, lllh, ploidy, affiliations):
     model += sum([var * weight for (var, weight) in z_weights.items()]) + sum(aff_scores)
 
     # solve model
-    solver = PULP_CBC_CMD(msg=1)
+    solver = PULP_CBC_CMD(msg=0)
     model.solve(solver)
 
     assignments = [[0 for _ in P] for _ in BE]
