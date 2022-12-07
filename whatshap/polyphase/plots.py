@@ -306,6 +306,9 @@ def draw_threading(
     assert num_c > ploidy
     num_vars = len(coverage)
 
+    f = max([max(h) for h in haplotypes]) + 1
+    haplotypes_filled = [[h[i] if h[i] >= 0 else f for i in range(num_vars)] for h in haplotypes]
+
     # Detect relevant clusters
     c_map = {}
     all_threaded = set()
@@ -380,10 +383,6 @@ def draw_threading(
         )
 
     # Plot switch flip errors
-    # print(cut_positions)
-    # print(cut_pos)
-    # print(haplotypes)
-
     # If we have ground truth, retrieve it
     compare = True
     try:
@@ -398,7 +397,7 @@ def draw_threading(
     if compare:
         for i in range(len(cut_pos) - 1):
             block1 = [h[cut_pos[i] : min(len(paths), cut_pos[i + 1])] for h in truth]
-            block2 = [h[cut_pos[i] : min(len(paths), cut_pos[i + 1])] for h in haplotypes]
+            block2 = [h[cut_pos[i] : min(len(paths), cut_pos[i + 1])] for h in haplotypes_filled]
 
             (
                 switchflips,
