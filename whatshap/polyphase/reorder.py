@@ -411,7 +411,7 @@ def get_optimal_permutations(breakpoints, lllh, ploidy, affiliations):
         for b in BE:
             for t in P:
                 for h in P:
-                    aff_scores.append(x[b][t][h] * affiliations[b][t][h])
+                    aff_scores.append(x[b][t][h] * affiliations[b][h][t])
 
     # for each block there must be one-to-one-relationship between threads and haplotypes
     for i in BE:
