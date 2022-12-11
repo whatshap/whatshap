@@ -186,21 +186,22 @@ def phase_cluster_snps(
                         hits.append(overlap - error)
                         errors.append(error)
                     # use log-space as early as possible to avoid float underflow
-                    hit_min, err_min = min(hits), min(errors)
+                    err_pivot = min(errors)
+                    hit_pivot = hits[errors.index(err_pivot)]
                     likelihood = 0.0
                     for hit, error in zip(hits, errors):
                         likelihood += (
                             a_priori
-                            * ((1 - error_rate) ** (hit - hit_min))
-                            * (error_rate ** (error - err_min))
+                            * ((1 - error_rate) ** (hit - hit_pivot))
+                            * (error_rate ** (error - err_pivot))
                         )
                     """
                     log(w_1 * x^(y_1) + w_2 * x^(y_2)) =
-                    log(w_1 * x^(y_1 - y_min) + w_2 * x^(y_2 - y_min)) + y_min * log(x)
+                    log(w_1 * x^(y_1 - y) + w_2 * x^(y_2 - y)) + y * log(x)
                     for w_1 + w_2 = 1
                     """
                     score += log(likelihood) if likelihood > 0 else -float("inf")
-                    score += hit_min * log(1 - error_rate) + err_min * log(error_rate)
+                    score += hit_pivot * log(1 - error_rate) + err_pivot * log(error_rate)
                 configs.append((perm, score))
 
             configs.sort(key=lambda x: -x[1])
@@ -296,11 +297,7 @@ def compute_link_likelihoods(
                 perm_llh += read_llh
             perm_llhs[perm] = perm_llh
 
-        # if all permutations infeasible, set a dummy score of 0 to avoid -inf as ILP objective
-        if max(perm_llhs) == -float("inf"):
-            for perm in perm_llhs:
-                perm_llhs[perm] = 0
-
+        assert max(perm_llhs.values()) > -float("inf")
         lllh.append(perm_llhs)
 
     assert len(lllh) == len(breakpoints)
@@ -494,8 +491,7 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh, perms):
         # compute confidence of decision
         assert len(lllh[i].values()) >= 2
         best_llh = max(lllh[i].values())
-        # TODO: Temporarily disable until division by zero fixed
-        norm_factor = 1  # / sum([exp(v + best_llh) for v in lllh[i].values()])
+        norm_factor = 1 / sum([exp(v + best_llh) for v in lllh[i].values()])
         reduced = [j for j in perms[i + 1] if j in affected]
         link = tuple(affected[reduced.index(j)] for j in perms[i] if j in affected)
         confidence = norm_factor * exp(lllh[i][link] + best_llh)
