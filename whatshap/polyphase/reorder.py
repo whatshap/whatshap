@@ -490,11 +490,10 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh, perms):
     for i, (pos, affected) in enumerate(breakpoints.items()):
         # compute confidence of decision
         assert len(lllh[i].values()) >= 2
-        best_llh = max(lllh[i].values())
-        norm_factor = 1 / sum([exp(v + best_llh) for v in lllh[i].values()])
+        best = max(lllh[i].values())
         reduced = [j for j in perms[i + 1] if j in affected]
         link = tuple(affected[reduced.index(j)] for j in perms[i] if j in affected)
-        confidence = norm_factor * exp(lllh[i][link] + best_llh)
+        confidence = exp(lllh[i][link] - best) / sum([exp(v - best) for v in lllh[i].values()])
 
         # compute type of breakpoint
         bp_type = ReorderType.COLLAPSED  # TODO: Actually determine
