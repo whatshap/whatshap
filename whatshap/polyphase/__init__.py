@@ -6,6 +6,7 @@ from typing import List
 
 from whatshap.core import ReadSet
 from whatshap.polyphase.solver import AlleleMatrix
+from whatshap.polyphase.reorder import PhaseBreakpoint
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +28,9 @@ class PolyphaseParameter:
 class PolyphaseBlockResult:
     block_id: int
     clustering: List[List[int]]
-    paths: List[List[int]]
-    cuts: List[int]
-    hap_cuts: List[List[int]]
+    threads: List[List[int]]
     haplotypes: List[int]
+    breakpoints: List[PhaseBreakpoint]
 
 
 def get_coverage(allele_matrix, clustering):

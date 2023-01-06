@@ -25,7 +25,7 @@ from whatshap.core import (
 from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
 
 from whatshap.polyphase import PolyphaseParameter, create_genotype_list, extract_partial_phasing
-from whatshap.polyphase.algorithm import solve_polyphase_instance
+from whatshap.polyphase.algorithm import solve_polyphase_instance, compute_cut_positions
 from whatshap.polyphase.plots import draw_plots
 from whatshap.polyphase.solver import AlleleMatrix
 
@@ -297,10 +297,11 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
 
     # Retrieve solution
     allele_matrix = AlleleMatrix(readset)
-    clustering, threading, haplotypes, cuts, hap_cuts = solve_polyphase_instance(
+    clustering, threading, haplotypes, breakpoints = solve_polyphase_instance(
         allele_matrix, genotype_list, param, timers, partial_phasing=partial_phasing
     )
     del allele_matrix
+    cuts, hap_cuts = compute_cut_positions(breakpoints, param.ploidy, param.block_cut_sensitivity)
 
     # Summarize data for VCF file
     accessible_pos = sorted(readset.get_positions())

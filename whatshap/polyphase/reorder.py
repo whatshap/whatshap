@@ -17,12 +17,11 @@ class ReorderType(Enum):
     COLLAPSED_PRE = 3
 
 
-class ReorderEvent:
-    def __init__(self, position, event_type, confidence, haplotypes):
+class PhaseBreakpoint:
+    def __init__(self, position, haplotypes, confidence):
         self.position = position
-        self.event_type = event_type
-        self.confidence = confidence
         self.haplotypes = sorted(haplotypes[:])
+        self.confidence = confidence
 
 
 def run_reordering(
@@ -90,17 +89,9 @@ def run_reordering(
 
     # compute optimal permutation of threads for each block
     perms = get_optimal_permutations(breakpoints, lllh, ploidy, aff)
+    permute_blocks(threads, haplotypes, breakpoints, lllh, perms)
 
-    # permute blocks and derive confidences
-    events = permute_blocks(threads, haplotypes, breakpoints, lllh, perms)
-
-    cut_positions, haploid_cuts = compute_cut_positions(threads, block_cut_sensitivity, events)
-
-    logger.debug(f"Cut positions: {cut_positions}")
-    for i in range(ploidy):
-        logger.debug(f"Cut positions on phase {i}: {haploid_cuts[i]}")
-
-    return (cut_positions, haploid_cuts, threads, haplotypes)
+    return threads, haplotypes, breakpoints
 
 
 def find_cluster_snps(threads, haplotypes):
@@ -223,16 +214,16 @@ def find_breakpoints(threads):
     affected threads.
     """
     ploidy = len(threads[0])
-    breakpoints = dict()
+    breakpoints = []
 
     for i in range(1, len(threads)):
         changed_idx = {j for j in range(ploidy) if threads[i - 1][j] != threads[i][j]}
         affected_clusts = {threads[i - 1][j] for j in changed_idx}
-        affected_idx = sorted(j for j in range(ploidy) if threads[i - 1][j] in affected_clusts)
+        affected_haps = sorted(j for j in range(ploidy) if threads[i - 1][j] in affected_clusts)
 
         # ambiguous, if at least two affected
-        if len(affected_idx) >= 2:
-            breakpoints[i] = affected_idx
+        if len(affected_haps) >= 2:
+            breakpoints.append(PhaseBreakpoint(i, affected_haps, 0.0))
 
     return breakpoints
 
@@ -248,7 +239,7 @@ def compute_link_likelihoods(
     """
     ploidy = len(threads[0])
     lllh = []
-    for pos, affected in breakpoints.items():
+    for pos, affected in [(b.position, b.haplotypes) for b in breakpoints]:  # breakpoints.items():
         # find the last window_size positions (starting from pos - 1),
         # which are heterozyguous among the haplotype group
         left_pos, right_pos = get_heterozygous_pos_for_haps(haplotypes, affected, pos, 32)
@@ -314,7 +305,8 @@ def compute_phase_affiliation(allele_matrix, haplotypes, breakpoints, prephasing
     genpos = allele_matrix.getPositions()
     genpos_to_happos = {pos: i for i, pos in enumerate(genpos)}
     num_blocks = len(breakpoints) + 1
-    block_starts = list(sorted(breakpoints.keys()))
+    block_starts = [b.position for b in breakpoints]  # list(sorted(breakpoints.keys()))
+    assert block_starts == sorted(block_starts)
 
     # aff[b][t][p] = affinity of t-th thread in block b to p-th prephase
     aff = [[[0 for _ in range(ploidy)] for _ in range(ploidy)] for _ in range(num_blocks)]
@@ -417,7 +409,9 @@ def get_optimal_permutations(breakpoints, lllh, ploidy, affiliations):
             model += sum([x[i][k][j] for k in P]) == 1
 
     # iff t1 and t2 both cover haplotype h on blocks b and b+1, set relationship
-    for b, affected in enumerate(breakpoints.values()):
+    for b, affected in enumerate(
+        [b.haplotypes for b in breakpoints]
+    ):  # enumerate(breakpoints.values()):
         for t1 in P:
             for t2 in P:
                 if (t1 in affected) != (t2 in affected):
@@ -437,7 +431,7 @@ def get_optimal_permutations(breakpoints, lllh, ploidy, affiliations):
 
     # ensure correct setting of z-variables, depending on choice of y-variables
     z_weights = dict()
-    for b, left in enumerate(breakpoints.values()):
+    for b, left in enumerate([b.haplotypes for b in breakpoints]):
         assert left == sorted(left)
         # iterate over all permutations of "left" as given by the keys of lllh for breakpoint b
         for i, right in enumerate(lllh[b].keys()):
@@ -478,7 +472,7 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh, perms):
     ploidy = len(haplotypes)
     threads_copy = deepcopy(threads)
     haplotypes_copy = deepcopy(haplotypes)
-    ext_bp = [0] + list(breakpoints.keys()) + [len(threads)]
+    ext_bp = [0] + [b.position for b in breakpoints] + [len(threads)]
     for i, (s, e) in enumerate(zip(ext_bp[:-1], ext_bp[1:])):
         for p in range(s, e):
             for t in list(range(ploidy)):
@@ -486,65 +480,11 @@ def permute_blocks(threads, haplotypes, breakpoints, lllh, perms):
                 haplotypes[t][p] = haplotypes_copy[perms[i][t]][p]
 
     # collect reorder events
-    events = []
-    for i, (pos, affected) in enumerate(breakpoints.items()):
+    for i, bp in enumerate(breakpoints):
         # compute confidence of decision
+        affected = bp.haplotypes
         assert len(lllh[i].values()) >= 2
         best = max(lllh[i].values())
         reduced = [j for j in perms[i + 1] if j in affected]
         link = tuple(affected[reduced.index(j)] for j in perms[i] if j in affected)
-        confidence = exp(lllh[i][link] - best) / sum([exp(v - best) for v in lllh[i].values()])
-
-        # compute type of breakpoint
-        bp_type = ReorderType.COLLAPSED  # TODO: Actually determine
-        events.append(ReorderEvent(pos, bp_type.COLLAPSED, confidence, affected))
-
-    return events
-
-
-def compute_cut_positions(path, block_cut_sensitivity, events):
-    """
-    Takes a threading as input and computes on which positions a cut should be made according the
-    cut sensitivity. The levels mean:
-
-    0 -- No cuts at all, even if regions are not connected by any reads
-    1 -- Only cut, when regions are not connected by any reads (already done in advance)
-    2 -- Only cut, when regions are not connected by a sufficient number of reads (also done)
-    3-5 -- Cut on reordering events, depending on confidence values and types.
-
-    The list of cut positions contains the first position of every block. Therefore, position 0 is
-    always in the cut list. The second return value is a list of cut positions for every haplotype
-    individually.
-    """
-
-    cuts = [0]
-    hap_cuts = [[0] for _ in range(len(path[0]) if path else 0)]
-
-    if block_cut_sensitivity >= 3:
-        if block_cut_sensitivity >= 5:
-            pre_thrshld = 0.9
-            mul_thrshld = 1.0
-            gen_thrshld = 1.0
-        elif block_cut_sensitivity == 4:
-            pre_thrshld = 0.7
-            mul_thrshld = 0.9
-            gen_thrshld = 0.9
-        else:
-            pre_thrshld = 0.5
-            mul_thrshld = 0.8
-            gen_thrshld = 0.8
-
-        for e in events:
-            cut = False
-            if e.event_type is ReorderType.COLLAPSED_PRE and e.confidence <= pre_thrshld:
-                cut = True
-            elif e.event_type is ReorderType.MULTI and e.confidence <= mul_thrshld:
-                cut = True
-            elif e.event_type is ReorderType.COLLAPSED and e.confidence <= gen_thrshld:
-                cut = True
-            if cut:
-                cuts.append(e.position)
-                for h in e.haplotypes:
-                    hap_cuts[h].append(e.position)
-
-    return cuts, hap_cuts
+        bp.confidence = exp(lllh[i][link] - best) / sum([exp(v - best) for v in lllh[i].values()])
