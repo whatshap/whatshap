@@ -7,9 +7,11 @@ import logging
 
 from itertools import chain
 from multiprocessing import Pool
+from math import log
+from typing import List
 
 from whatshap.polyphase import PolyphaseBlockResult, compute_block_starts
-from whatshap.polyphase.reorder import run_reordering
+from whatshap.polyphase.reorder import run_reordering, PhaseBreakpoint
 from whatshap.polyphase.solver import ClusterEditingSolver, scoreReadset
 from whatshap.polyphase.threading import run_threading
 
@@ -134,9 +136,9 @@ def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, ti
         # construct trivial solution for singleton blocks, by using the genotype as phasing
         g = genotypes[0]
         clusts = [[i for i, r in enumerate(allele_matrix) if r and r[0][1] == a] for a in g]
-        paths = [sorted(list(chain(*[[i] * g[a] for i, a in enumerate(g)])))]
+        threads = [sorted(list(chain(*[[i] * g[a] for i, a in enumerate(g)])))]
         haps = sorted(list(chain(*[[[a]] * g[a] for a in g])))
-        return PolyphaseBlockResult(block_id, clusts, paths, [0], [[0]] * param.ploidy, haps)
+        return PolyphaseBlockResult(block_id, clusts, threads, haps, [])
 
     # Block is non-singleton here, so run the normal routine
     # Phase I: Cluster Editing
@@ -171,7 +173,7 @@ def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, ti
     timers.start("threading")
 
     # Add dynamic programming for finding the most likely subset of clusters
-    paths, haplotypes = run_threading(
+    threads, haplotypes = run_threading(
         allele_matrix,
         clustering,
         param.ploidy,
@@ -184,8 +186,8 @@ def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, ti
 
     logger.debug("Reordering ambiguous sites ..\r")
     timers.start("reordering")
-    cut_positions, haploid_cuts, path, haplotypes = run_reordering(
-        allele_matrix, clustering, paths, haplotypes, prephasing, param.block_cut_sensitivity
+    threads, haplotypes, breakpoints = run_reordering(
+        allele_matrix, clustering, threads, haplotypes, prephasing, param.block_cut_sensitivity
     )
     timers.stop("reordering")
 
@@ -193,10 +195,9 @@ def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, ti
     return PolyphaseBlockResult(
         block_id=block_id,
         clustering=clustering,
-        paths=paths,
-        cuts=cut_positions,
-        hap_cuts=haploid_cuts,
+        threads=threads,
         haplotypes=haplotypes,
+        breakpoints=breakpoints,
     )
 
 
@@ -231,26 +232,62 @@ def phase_single_block_mt(
     return result
 
 
-def aggregate_results(results, ploidy):
+def aggregate_results(results: List[PhaseBreakpoint], ploidy: int):
     """
     Collects all blockwise phasing results and aggregates them into one list for each type of
     information. Local ids and indices are converted to globals ones in this step.
     """
-    clustering, cuts = [], []
-    paths = []
-    hap_cuts = [[] for _ in range(ploidy)]
+    clustering, threads, breakpoints = [], [], []
     haplotypes = [[] for _ in range(ploidy)]
     rid_offset, cid_offset, pos_offset = 0, 0, 0
     for r in results:
         clustering += [[rid_offset + rid for rid in clust] for clust in r.clustering]
-        paths += [[cid_offset + cid for cid in p] for p in r.paths]
-        cuts += [pos_offset + c for c in r.cuts]
-        for hap_cut, ext in zip(hap_cuts, r.hap_cuts):
-            hap_cut += [pos_offset + h for h in ext]
+        threads += [[cid_offset + cid for cid in p] for p in r.threads]
         for hap, ext in zip(haplotypes, r.haplotypes):
             hap += ext
+        breakpoints.append(PhaseBreakpoint(pos_offset, list(range(ploidy)), 0.0))
+        breakpoints += [
+            PhaseBreakpoint(b.position + pos_offset, b.haplotypes, b.confidence)
+            for b in r.breakpoints
+        ]
         rid_offset = max([rid for clust in clustering for rid in clust])
         cid_offset = len(clustering)
         pos_offset = len(haplotypes[0])
 
-    return clustering, paths, haplotypes, cuts, hap_cuts
+    return clustering, threads, haplotypes, breakpoints
+
+
+def compute_cut_positions(
+    breakpoints: List[PhaseBreakpoint], ploidy: int, block_cut_sensitivity: int
+):
+    """
+    Computes the cut positions for phasing blocks, based on the computed breakpoints of the
+    reordering stage and the requeted block cut sensitivity.
+    """
+
+    cuts = []
+    hap_cuts = [[] for _ in range(ploidy)]
+    thresholds = [-float("inf"), -float("inf"), log(0.25), log(0.99), log(0.999999), 0]
+    threshold = thresholds[block_cut_sensitivity]
+
+    cum_error = 0.0
+    for b in breakpoints:
+        # avoid duplicate cut positions
+        if cuts and cuts[-1] == b.position:
+            continue
+        # for zero confidence, always cut
+        if b.confidence == 0.0:
+            cuts.append(b.position)
+            cum_error = 0.0
+            for h in range(ploidy):
+                hap_cuts[h].append(b.position)
+            continue
+        else:
+            cum_error += log(b.confidence)
+        if cum_error <= threshold:
+            cuts.append(b.position)
+            cum_error = 0.0
+            for h in b.haplotypes:
+                hap_cuts[h].append(b.position)
+
+    return cuts, hap_cuts
