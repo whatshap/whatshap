@@ -296,11 +296,13 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
 
     # Retrieve solution
     allele_matrix = AlleleMatrix(readset)
-    clustering, threading, haplotypes, breakpoints = solve_polyphase_instance(
+    result = solve_polyphase_instance(
         allele_matrix, genotype_list, param, timers, partial_phasing=partial_phasing
     )
     del allele_matrix
-    cuts, hap_cuts = compute_cut_positions(breakpoints, param.ploidy, param.block_cut_sensitivity)
+    cuts, hap_cuts = compute_cut_positions(
+        result.breakpoints, param.ploidy, param.block_cut_sensitivity
+    )
 
     # Summarize data for VCF file
     accessible_pos = sorted(readset.get_positions())
@@ -325,11 +327,11 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
 
     # insert alleles
     superreads = ReadSet()
-    phased_pos = [i for i in range(num_vars) if -1 not in [h[i] for h in haplotypes]]
+    phased_pos = [i for i in range(num_vars) if -1 not in [h[i] for h in result.haplotypes]]
     for i in range(param.ploidy):
         read = Read(f"superread {i + 1}", 0, 0)
         for j in phased_pos:
-            read.add_variant(accessible_pos[j], haplotypes[i][j], 0)
+            read.add_variant(accessible_pos[j], result.haplotypes[i][j], 0)
         superreads.add(read)
 
     # Plot option
@@ -337,9 +339,7 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
         timers.start("create_plots")
         draw_plots(
             readset,
-            clustering,
-            threading,
-            haplotypes,
+            result,
             cuts[:-1],
             phasable_variant_table,
             param.plot_clusters,

@@ -2,26 +2,123 @@ import itertools as it
 import logging
 from collections import defaultdict
 from bisect import bisect_left
-from math import log, exp
-from enum import Enum
+from typing import List
+from math import log, exp, prod
 from copy import deepcopy
 from pulp import LpProblem, LpVariable, LpMaximize, LpInteger, PULP_CBC_CMD
+
+from whatshap.polyphase import PolyphaseBlockResult, PhaseBreakpoint
 
 logger = logging.getLogger(__name__)
 
 
-class ReorderType(Enum):
-    NONE = 0
-    MULTI = 1
-    COLLAPSED = 2
-    COLLAPSED_PRE = 3
+def find_subinstances(allele_matrix, clustering, threads, haplotypes):
+    """
+    Scans clusters for heterozygous positions, i.e. the cluster contains at least 2 threads,
+    but the alleles are different. Returns a list of triplets, containing of a cluster id,
+    a set of affected threads and a submatrix with only the heterozygous positions and reads
+    covering them.
+    Each triplet represents a sub-instance to phase to determine allele order inside the cluster.
+    A cluster can be present in multiple sub-instances if the set of threads inside the cluster
+    changed. In this case, the results of both regions cannot be combined in a meaningful way.
+    """
+
+    # iterate over positions, keep a ploidy and list of found positions for each cluster
+    cwise_snps = defaultdict(list)
+    last_thread_set = defaultdict(list)
+    collapsed = []
+    for pos in range(len(threads)):
+        clusters = set()
+        alleles = defaultdict(set)
+        thread_set = defaultdict(list)
+        for i, cid in enumerate(threads[pos]):
+            clusters.add(cid)
+            alleles[cid].add(haplotypes[i][pos])
+            thread_set[cid].append(i)
+        for cid in clusters:
+            if len(alleles[cid]) >= 2:
+                # if thread-set changed: write old list to results and start new one
+                if last_thread_set[cid] != thread_set[cid]:
+                    if cwise_snps[cid]:
+                        collapsed.append((cid, last_thread_set[cid], cwise_snps[cid]))
+                    last_thread_set[cid] = thread_set[cid]
+                    cwise_snps[cid] = []
+                cwise_snps[cid].append(pos)
+
+    # write remaining lists into collapsed
+    for cid, snps in cwise_snps.items():
+        if snps:
+            assert len(last_thread_set[cid]) > 0
+            collapsed.append((cid, last_thread_set[cid], snps))
+
+    sub_instances = []
+    num_vars = len(allele_matrix.getPositions())
+    ploidy = len(haplotypes)
+    for cid, thread_set, snps in collapsed:
+        if len(snps) == num_vars and len(thread_set) == ploidy:
+            continue
+        subm = allele_matrix.extractSubMatrix(snps, clustering[cid], True)
+        if len(subm) > 0:
+            sub_instances.append((cid, thread_set, subm))
+
+    return sub_instances
 
 
-class PhaseBreakpoint:
-    def __init__(self, position, haplotypes, confidence):
-        self.position = position
-        self.haplotypes = sorted(haplotypes[:])
-        self.confidence = confidence
+# def integrate_sub_results(allele_matrix, sub_instances, sub_results, threads, haplotypes):
+def integrate_sub_results(
+    allele_matrix,
+    sub_instances,
+    sub_results: List[PolyphaseBlockResult],
+    threads: List[List[int]],
+    haplotypes,
+):
+    """
+    Does two things:
+    1. Update haplotype strings inside the collapsed regions according to the solved sub-instances
+    2. Collect breakpoints of global threading and integrate breakpoints of sub-instances
+    """
+
+    breakpoints = find_breakpoints(threads)
+    for (cid, thread_set, subm), res in zip(sub_instances, sub_results):
+        snps = [allele_matrix.globalToLocal(gpos) for gpos in subm.getPositions()]
+        assert all([0 <= pos < allele_matrix.getNumPositions() for pos in snps])
+
+        # reorder haplotype alleles according to subresults, but only on SNP positions
+        for i, pos in enumerate(snps):
+            for j, hap in enumerate(thread_set):
+                haplotypes[hap][pos] = res.haplotypes[j][i]
+
+        # copy breakpoints, but map positions and haplotype ids from sub-instance to global one
+        for bp in res.breakpoints:
+            pos = allele_matrix.globalToLocal(subm.localToGlobal(bp.position))
+            haps = [thread_set[i] for i in bp.haplotypes]
+            print(f"Found BP from cluster {cid}: Pos {bp.position}, Haps {bp.haplotypes}")
+            breakpoints.append(PhaseBreakpoint(pos, haps, bp.confidence))
+            print(f"Copied BP to global: Pos {pos}, Haps {haps}")
+
+    # Join duplicate breakpoints
+    breakpoints.sort(key=lambda x: x.position)
+    i = 0
+    while i < len(breakpoints):
+        print(f"Read BP: Pos {breakpoints[i].position}, Haps {breakpoints[i].haplotypes}")
+        j = i + 1
+        while j < len(breakpoints) and breakpoints[i].position == breakpoints[j].position:
+            print(f"   Duplicate BP: Pos {pos}, Haps {haps}")
+            j += 1
+        if i + 1 == j:
+            i += 1
+            continue
+        # breakpoints[i:j] have same position with |j - i| >= 2
+        haps = sorted(list({h for k in range(i, j) for h in breakpoints[k].haplotypes}))
+        conf = prod([breakpoints[k].confidence for k in range(i, j)])
+        breakpoints[i].haplotypes = haps
+        breakpoints[i].confidence = conf
+        print(f"Modified BP: Pos {breakpoints[i].position}, Haps {breakpoints[i].haplotypes}")
+        del breakpoints[i + 1 : j]
+        assert i + 1 >= len(breakpoints) or breakpoints[i].position != breakpoints[i + 1]
+        i += 1
+
+    return breakpoints
 
 
 def run_reordering(
@@ -29,8 +126,8 @@ def run_reordering(
     clustering,
     threads,
     haplotypes,
+    breakpoints,
     prephasing,
-    block_cut_sensitivity,
     error_rate=0.05,
 ):
     """
@@ -63,17 +160,6 @@ def run_reordering(
        the clustering must eventually be split into blocks.
 
     """
-    ploidy = len(haplotypes)
-    # determine snp positions inside clusters
-    cwise_snps = find_cluster_snps(threads, haplotypes)
-
-    # phase cluster snps
-    phase_cluster_snps(
-        threads, haplotypes, cwise_snps, clustering, allele_matrix, error_rate, window_size=32
-    )
-
-    # find breakpoints where blocks have to be reordered
-    breakpoints = find_breakpoints(threads)
 
     # compute link log likelihoods between consecutive blocks
     lllh = compute_link_likelihoods(
@@ -88,121 +174,9 @@ def run_reordering(
         aff = None
 
     # compute optimal permutation of threads for each block
+    ploidy = len(haplotypes)
     perms = get_optimal_permutations(breakpoints, lllh, ploidy, aff)
     permute_blocks(threads, haplotypes, breakpoints, lllh, perms)
-
-    return threads, haplotypes, breakpoints
-
-
-def find_cluster_snps(threads, haplotypes):
-    """
-    For each cluster, finds the positions, where it has a multiplicity of at least 2 with at least
-    2 different alleles. These positions have to be phased within the clusters.
-    """
-    cwise_snps = defaultdict(list)
-    for pos in range(len(threads)):
-        clusters = set()
-        alleles = defaultdict(set)
-        for i, cid in enumerate(threads[pos]):
-            clusters.add(cid)
-            alleles[cid].add(haplotypes[i][pos])
-        for cid in clusters:
-            if len(alleles[cid]) >= 2:
-                cwise_snps[cid].append(pos)
-
-    return cwise_snps
-
-
-def phase_cluster_snps(
-    threads, haplotypes, cwise_snps, clustering, allele_matrix, error_rate, window_size
-):
-    """
-    For clusters with multiplicity >= 2 on multiple positions: Bring the alleles of the
-    precomputed haplotypes in order by using read information.
-    The window size determines how many previous positions are taken into account when resolving
-    the next one.
-    """
-    # sort clusters by position of first haplotype
-    collapsed = sorted(
-        ((cid, sorted(snps)) for cid, snps in cwise_snps.items()), key=lambda x: x[1][0]
-    )
-
-    # iterate cluster-wise
-    for cid, snps in collapsed:
-        # determine the last window_size many heterozyguous positions on the threads of the first snp
-        c_slots = [j for j in range(len(threads[snps[0]])) if threads[snps[0]][j] == cid]
-        het_pos = []
-        i, w = snps[0] - 1, 0
-        while w < window_size and i >= 0:
-            if len({haplotypes[s][i] for s in c_slots}) > 1:
-                het_pos.append(i)
-                w += 1
-            i -= 1
-        het_pos = het_pos[::-1] + snps
-        # w = number of preceding het positions, can be lower than window_size close to chr start
-
-        # use submatrix of relevant reads and positions
-        submatrix = allele_matrix.extractSubMatrix(het_pos, clustering[cid], True)
-
-        # reconstruct cluster phasing
-        for i, pos in enumerate(snps):
-            het_idx = i + w
-            c_slots = [j for j in range(len(threads[pos])) if threads[pos][j] == cid]
-
-            configs = []
-            # enumerate all permutations of haplotypes at current positions
-            for perm in it.permutations(c_slots):
-                score = 0
-                # for each read: determine number of errors for best fit
-                for rid in range(len(submatrix)):
-                    if submatrix.getAllele(rid, het_idx) < 0:
-                        continue
-                    if submatrix.getFirstPos(rid) >= het_idx:
-                        continue
-                    a_priori = 1 / len(c_slots)
-                    # count overlaps and errors first
-                    hits, errors = [], []
-                    for slot in range(len(c_slots)):
-                        overlap, error = 0, 0
-                        # skip if read has different allele at current pos than tested config
-                        if haplotypes[perm[slot]][pos] != submatrix.getAllele(rid, het_idx):
-                            continue
-                        # else, compare to window_size many previous positions
-                        for (j, a) in submatrix.getRead(rid):
-                            if j >= het_idx:
-                                break
-                            overlap += 1
-                            if haplotypes[c_slots[slot]][het_pos[j]] != a:
-                                error += 1
-                        hits.append(overlap - error)
-                        errors.append(error)
-                    # use log-space as early as possible to avoid float underflow
-                    err_pivot = min(errors)
-                    hit_pivot = hits[errors.index(err_pivot)]
-                    likelihood = 0.0
-                    for hit, error in zip(hits, errors):
-                        likelihood += (
-                            a_priori
-                            * ((1 - error_rate) ** (hit - hit_pivot))
-                            * (error_rate ** (error - err_pivot))
-                        )
-                    """
-                    log(w_1 * x^(y_1) + w_2 * x^(y_2)) =
-                    log(w_1 * x^(y_1 - y) + w_2 * x^(y_2 - y)) + y * log(x)
-                    for w_1 + w_2 = 1
-                    """
-                    score += log(likelihood) if likelihood > 0 else -float("inf")
-                    score += hit_pivot * log(1 - error_rate) + err_pivot * log(error_rate)
-                configs.append((perm, score))
-
-            configs.sort(key=lambda x: -x[1])
-            best_perm = configs[0][0]
-
-            # switch alleles at current position, needed as input for next position(s)
-            alleles = [haplotypes[best_perm[j]][pos] for j in range(len(best_perm))]
-            for j in range(len(c_slots)):
-                haplotypes[c_slots[j]][pos] = alleles[j]
-        del submatrix
 
 
 def find_breakpoints(threads):
@@ -224,6 +198,7 @@ def find_breakpoints(threads):
         # ambiguous, if at least two affected
         if len(affected_haps) >= 2:
             breakpoints.append(PhaseBreakpoint(i, affected_haps, 0.0))
+            print(f"Found BP in global: Pos {i}, Haps {affected_haps}")
 
     return breakpoints
 
