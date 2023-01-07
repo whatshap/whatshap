@@ -25,9 +25,7 @@ logger = logging.getLogger(__name__)
 
 def draw_plots(
     readset,
-    clustering,
-    threading,
-    haplotypes,
+    result,
     cut_positions,
     phasable_variant_table,
     plot_clusters,
@@ -39,22 +37,22 @@ def draw_plots(
     if plot_clusters:
         draw_clustering(
             readset,
-            clustering,
+            result.clustering,
             phasable_variant_table,
             output + ".clusters.pdf",
             genome_space=False,
         )
     if plot_threading:
         allele_matrix = AlleleMatrix(readset)
-        coverage = get_coverage(allele_matrix, clustering)
+        coverage = get_coverage(allele_matrix, result.clustering)
         del allele_matrix
         draw_threading(
             readset,
-            clustering,
+            result.clustering,
             coverage,
-            threading,
+            result.threads,
             cut_positions,
-            haplotypes,
+            result.haplotypes,
             phasable_variant_table,
             output + ".threading.pdf",
         )

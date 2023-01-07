@@ -6,7 +6,6 @@ from typing import List
 
 from whatshap.core import ReadSet
 from whatshap.polyphase.solver import AlleleMatrix
-from whatshap.polyphase.reorder import PhaseBreakpoint
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +23,24 @@ class PolyphaseParameter:
     ignore_phasings: bool
 
 
+class PhaseBreakpoint:
+    def __init__(self, position, haplotypes, confidence):
+        self.position = position
+        self.haplotypes = sorted(haplotypes[:])
+        self.confidence = confidence
+
+
 @dataclass
 class PolyphaseBlockResult:
     block_id: int
+    clustering: List[List[int]]
+    threads: List[List[int]]
+    haplotypes: List[int]
+    breakpoints: List[PhaseBreakpoint]
+
+
+@dataclass
+class PolyphaseResult:
     clustering: List[List[int]]
     threads: List[List[int]]
     haplotypes: List[int]

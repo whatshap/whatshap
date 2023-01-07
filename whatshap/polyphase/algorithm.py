@@ -9,9 +9,15 @@ from itertools import chain
 from multiprocessing import Pool
 from math import log
 from typing import List
+from copy import copy
 
-from whatshap.polyphase import PolyphaseBlockResult, compute_block_starts
-from whatshap.polyphase.reorder import run_reordering, PhaseBreakpoint
+from whatshap.polyphase import (
+    PolyphaseResult,
+    PolyphaseBlockResult,
+    PhaseBreakpoint,
+    compute_block_starts,
+)
+from whatshap.polyphase.reorder import find_subinstances, integrate_sub_results, run_reordering
 from whatshap.polyphase.solver import ClusterEditingSolver, scoreReadset
 from whatshap.polyphase.threading import run_threading
 
@@ -27,11 +33,15 @@ def solve_polyphase_instance(
     Entry point for polyploid phasing instances. Inputs are an allele matrix and genotypes for each
     position, among some parameters.
     """
+    num_vars = len(allele_matrix.getPositions())
+    logger.info(
+        f"Solving polyphase instance with {len(allele_matrix)} reads, {num_vars} variants and ploidy {param.ploidy}."
+    )
     # Precompute block borders based on read coverage and linkage between variants
     if not quiet:
         logger.info("Detecting connected components with weak interconnect ..")
     timers.start("detecting_blocks")
-    num_vars = len(allele_matrix.getPositions())
+
     ploidy = param.ploidy
     if param.block_cut_sensitivity == 0:
         block_starts = [0]
@@ -186,9 +196,34 @@ def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, ti
 
     logger.debug("Reordering ambiguous sites ..\r")
     timers.start("reordering")
-    threads, haplotypes, breakpoints = run_reordering(
-        allele_matrix, clustering, threads, haplotypes, prephasing, param.block_cut_sensitivity
+
+    # Recursively resolve collapsed regions in clusters
+    sub_instances = find_subinstances(allele_matrix, clustering, threads, haplotypes)
+    sub_results = []
+    sub_param = copy(param)
+    sub_param.ignore_phasings = True
+    sub_param.threads = 1
+    for cid, thread_set, subm in sub_instances:
+        snps = [allele_matrix.globalToLocal(gpos) for gpos in subm.getPositions()]
+        assert all([0 <= pos < allele_matrix.getNumPositions() for pos in snps])
+        subhaps = [[haplotypes[i][pos] for i in thread_set] for pos in snps]
+        subgeno = [{a: h.count(a) for a in h} for h in subhaps]
+        sub_param.ploidy = len(thread_set)
+        timers.stop("reordering")
+        res = solve_polyphase_instance(subm, subgeno, sub_param, timers, quiet=False)
+        timers.start("reordering")
+        sub_results.append(res)
+
+    # collect breakpoints of sub-instances and overall instance. Update threads/haplotypes
+    breakpoints = integrate_sub_results(
+        allele_matrix, sub_instances, sub_results, threads, haplotypes
     )
+    del sub_instances
+    del sub_results
+
+    # reorder pieces
+    run_reordering(allele_matrix, clustering, threads, haplotypes, breakpoints, prephasing)
+
     timers.stop("reordering")
 
     # collect results from threading
@@ -254,7 +289,7 @@ def aggregate_results(results: List[PhaseBreakpoint], ploidy: int):
         cid_offset = len(clustering)
         pos_offset = len(haplotypes[0])
 
-    return clustering, threads, haplotypes, breakpoints
+    return PolyphaseResult(clustering, threads, haplotypes, breakpoints)
 
 
 def compute_cut_positions(
@@ -267,7 +302,7 @@ def compute_cut_positions(
 
     cuts = []
     hap_cuts = [[] for _ in range(ploidy)]
-    thresholds = [-float("inf"), -float("inf"), log(0.25), log(0.99), log(0.999999), 0]
+    thresholds = [-float("inf"), -float("inf"), log(0.25), log(0.9), log(0.99), 0]
     threshold = thresholds[block_cut_sensitivity]
 
     cum_error = 0.0
