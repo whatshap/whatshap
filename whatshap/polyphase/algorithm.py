@@ -302,10 +302,12 @@ def compute_cut_positions(
 
     cuts = []
     hap_cuts = [[] for _ in range(ploidy)]
-    thresholds = [-float("inf"), -float("inf"), log(0.25), log(0.9), log(0.99), 0]
+    thresholds = [-float("inf"), -float("inf"), log(0.5), log(0.5), log(0.99), 0]
+    thresholds_num = [ploidy, ploidy, min(ploidy, 3), 2, 2, 0]
     threshold = thresholds[block_cut_sensitivity]
+    threshold_num = thresholds_num[block_cut_sensitivity]
 
-    cum_error = 0.0
+    remaining_conf = [0.0 for _ in range(ploidy)]
     for b in breakpoints:
         # avoid duplicate cut positions
         if cuts and cuts[-1] == b.position:
@@ -313,16 +315,17 @@ def compute_cut_positions(
         # for zero confidence, always cut
         if b.confidence == 0.0:
             cuts.append(b.position)
-            cum_error = 0.0
             for h in range(ploidy):
                 hap_cuts[h].append(b.position)
+            remaining_conf = [0.0 for _ in range(ploidy)]
             continue
         else:
-            cum_error += log(b.confidence)
-        if cum_error <= threshold:
+            for h in b.haplotypes:
+                remaining_conf[h] += log(b.confidence)
+        if sum([1 for i in range(ploidy) if remaining_conf[i] <= threshold]) >= threshold_num:
             cuts.append(b.position)
-            cum_error = 0.0
             for h in b.haplotypes:
                 hap_cuts[h].append(b.position)
+            remaining_conf = [0.0 for _ in range(ploidy)]
 
     return cuts, hap_cuts
