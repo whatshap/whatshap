@@ -92,18 +92,14 @@ def integrate_sub_results(
         for bp in res.breakpoints:
             pos = allele_matrix.globalToLocal(subm.localToGlobal(bp.position))
             haps = [thread_set[i] for i in bp.haplotypes]
-            print(f"Found BP from cluster {cid}: Pos {bp.position}, Haps {bp.haplotypes}")
             breakpoints.append(PhaseBreakpoint(pos, haps, bp.confidence))
-            print(f"Copied BP to global: Pos {pos}, Haps {haps}")
 
     # Join duplicate breakpoints
     breakpoints.sort(key=lambda x: x.position)
     i = 0
     while i < len(breakpoints):
-        print(f"Read BP: Pos {breakpoints[i].position}, Haps {breakpoints[i].haplotypes}")
         j = i + 1
         while j < len(breakpoints) and breakpoints[i].position == breakpoints[j].position:
-            print(f"   Duplicate BP: Pos {pos}, Haps {haps}")
             j += 1
         if i + 1 == j:
             i += 1
@@ -113,7 +109,6 @@ def integrate_sub_results(
         conf = prod([breakpoints[k].confidence for k in range(i, j)])
         breakpoints[i].haplotypes = haps
         breakpoints[i].confidence = conf
-        print(f"Modified BP: Pos {breakpoints[i].position}, Haps {breakpoints[i].haplotypes}")
         del breakpoints[i + 1 : j]
         assert i + 1 >= len(breakpoints) or breakpoints[i].position != breakpoints[i + 1]
         i += 1
@@ -198,7 +193,6 @@ def find_breakpoints(threads):
         # ambiguous, if at least two affected
         if len(affected_haps) >= 2:
             breakpoints.append(PhaseBreakpoint(i, affected_haps, 0.0))
-            print(f"Found BP in global: Pos {i}, Haps {affected_haps}")
 
     return breakpoints
 

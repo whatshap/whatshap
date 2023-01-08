@@ -34,9 +34,7 @@ def solve_polyphase_instance(
     position, among some parameters.
     """
     num_vars = len(allele_matrix.getPositions())
-    logger.info(
-        f"Solving polyphase instance with {len(allele_matrix)} reads, {num_vars} variants and ploidy {param.ploidy}."
-    )
+    
     # Precompute block borders based on read coverage and linkage between variants
     if not quiet:
         logger.info("Detecting connected components with weak interconnect ..")
@@ -210,7 +208,7 @@ def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, ti
         subgeno = [{a: h.count(a) for a in h} for h in subhaps]
         sub_param.ploidy = len(thread_set)
         timers.stop("reordering")
-        res = solve_polyphase_instance(subm, subgeno, sub_param, timers, quiet=False)
+        res = solve_polyphase_instance(subm, subgeno, sub_param, timers, quiet=True)
         timers.start("reordering")
         sub_results.append(res)
 
