@@ -3,7 +3,9 @@ import logging
 from collections import defaultdict
 from bisect import bisect_left
 from typing import List
-from math import log, exp, prod
+from math import log, exp
+from functools import reduce
+from operator import mul
 from copy import deepcopy
 from pulp import LpProblem, LpVariable, LpMaximize, LpInteger, PULP_CBC_CMD
 
@@ -106,7 +108,7 @@ def integrate_sub_results(
             continue
         # breakpoints[i:j] have same position with |j - i| >= 2
         haps = sorted(list({h for k in range(i, j) for h in breakpoints[k].haplotypes}))
-        conf = prod([breakpoints[k].confidence for k in range(i, j)])
+        conf = reduce(mul, [breakpoints[k].confidence for k in range(i, j)])
         breakpoints[i].haplotypes = haps
         breakpoints[i].confidence = conf
         del breakpoints[i + 1 : j]
