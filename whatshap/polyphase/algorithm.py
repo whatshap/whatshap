@@ -34,7 +34,7 @@ def solve_polyphase_instance(
     position, among some parameters.
     """
     num_vars = len(allele_matrix.getPositions())
-    
+
     # Precompute block borders based on read coverage and linkage between variants
     if not quiet:
         logger.info("Detecting connected components with weak interconnect ..")
