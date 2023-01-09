@@ -506,10 +506,13 @@ def run_haplotag(
         use_vcf_samples = compute_variant_file_samples_to_use(
             vcf_reader.samples, given_samples, ignore_read_groups
         )
-
         try:
             bam_reader = stack.enter_context(
-                pysam.AlignmentFile(alignment_file, "rb", require_index=True)
+                pysam.AlignmentFile(
+                    alignment_file,
+                    reference_filename=reference if reference else None,
+                    require_index=True,
+                )
             )
         except OSError as err:
             raise CommandLineError(f"Error while loading alignment file {alignment_file}: {err}")

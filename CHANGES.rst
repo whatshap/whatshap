@@ -2,6 +2,12 @@
 Changes
 =======
 
+development version
+-------------------
+
+* :issue:`425`: Haplotagging CRAM files should now work in more cases with
+  ``haplotag``.
+
 v1.7 (2022-12-01)
 -----------------
 
