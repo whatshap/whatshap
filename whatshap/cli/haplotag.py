@@ -567,58 +567,61 @@ def run_haplotag(
 
         n_alignments = 0
         n_tagged = 0
-        n_multiple_phase_sets = 0
 
-        has_alignments = contigs_with_alignments(bam_reader)
+        def chromosome_iterator(bam_reader: pysam.AlignmentFile):
+            n_multiple_phase_sets = 0
+            has_alignments = contigs_with_alignments(bam_reader)
+            for chrom, regions in user_regions.items():
+                logger.debug(f"Processing chromosome {chrom}")
 
-        for chrom, regions in user_regions.items():
-            logger.debug(f"Processing chromosome {chrom}")
-
-            if chrom not in has_alignments:
-                # Skip chromosomes without alignments. This allows to have extra chromosomes in the
-                # BAM header compared to the VCF.
-                continue
-            try:
-                variant_table = load_chromosome_variants(vcf_reader, chrom, regions)
-            except VcfInvalidChromosome:
-                if skip_missing_contigs:
-                    logger.info(
-                        f"Skipping reads on '{chrom}' because the contig does not exist in the VCF"
-                    )
+                if chrom not in has_alignments:
+                    # Skip chromosomes without alignments. This allows to have extra chromosomes in the
+                    # BAM header compared to the VCF.
                     continue
-                else:
-                    raise CommandLineError(
-                        f"Input BAM/CRAM contains reads on contig '{chrom}', but that contig does "
-                        "not exist in the VCF header. To bypass this check, use "
-                        "--skip-missing-contigs"
+                try:
+                    variant_table = load_chromosome_variants(vcf_reader, chrom, regions)
+                except VcfInvalidChromosome:
+                    if skip_missing_contigs:
+                        logger.info(
+                            f"Skipping reads on '{chrom}' because the contig does not exist in the VCF"
+                        )
+                        continue
+                    else:
+                        raise CommandLineError(
+                            f"Input BAM/CRAM contains reads on contig '{chrom}', but that contig does "
+                            "not exist in the VCF header. To bypass this check, use "
+                            "--skip-missing-contigs"
+                        )
+                except VcfError as e:
+                    raise CommandLineError(str(e))
+                if variant_table is not None:
+                    logger.debug("Preparing haplotype information")
+                    (BX_tag_to_haplotype, read_to_haplotype, n_mult) = prepare_haplotag_information(
+                        variant_table,
+                        shared_samples,
+                        phased_input_reader,
+                        regions,
+                        ignore_linked_read,
+                        linked_read_distance_cutoff,
+                        ploidy,
                     )
-            except VcfError as e:
-                raise CommandLineError(str(e))
-            if variant_table is not None:
-                logger.debug("Preparing haplotype information")
-                (BX_tag_to_haplotype, read_to_haplotype, n_mult) = prepare_haplotag_information(
-                    variant_table,
-                    shared_samples,
-                    phased_input_reader,
-                    regions,
-                    ignore_linked_read,
-                    linked_read_distance_cutoff,
-                    ploidy,
-                )
-                n_multiple_phase_sets += n_mult
-            else:
-                # avoid uninitialized variables
-                BX_tag_to_haplotype = None
-                read_to_haplotype = None
+                    n_multiple_phase_sets += n_mult
+                else:
+                    # avoid uninitialized variables
+                    BX_tag_to_haplotype = None
+                    read_to_haplotype = None
 
-            assert not include_unmapped or len(regions) == 1
+                assert not include_unmapped or len(regions) == 1
 
-            def regions_iterator():
-                for start, end in regions:
-                    logger.debug("Working on %s:%s-%s", chrom, start, end)
-                    for alignment in bam_reader.fetch(contig=chrom, start=start, stop=end):
-                        yield alignment
+                def regions_iterator():
+                    for start, end in regions:
+                        logger.debug("Working on %s:%s-%s", chrom, start, end)
+                        for alignment in bam_reader.fetch(contig=chrom, start=start, stop=end):
+                            yield alignment
 
+                yield variant_table, chrom, read_to_haplotype, BX_tag_to_haplotype, regions_iterator
+
+        for variant_table, chrom, read_to_haplotype, BX_tag_to_haplotype, regions_iterator in chromosome_iterator(bam_reader):
             for alignment in regions_iterator():
                 n_alignments += 1
                 haplotype_name = "none"
@@ -677,7 +680,7 @@ def run_haplotag(
     logger.info("\n== SUMMARY ==")
     logger.info("Total alignments processed:              %12d", n_alignments)
     logger.info("Alignments that could be tagged:         %12d", n_tagged)
-    logger.info("Alignments spanning multiple phase sets: %12d", n_multiple_phase_sets)
+    # logger.info("Alignments spanning multiple phase sets: %12d", n_multiple_phase_sets)
     logger.info("Finished in %.1f s", timers.elapsed("haplotag-run"))
 
 
