@@ -612,54 +612,59 @@ def run_haplotag(
                 read_to_haplotype = None
 
             assert not include_unmapped or len(regions) == 1
-            for start, end in regions:
-                logger.debug("Working on %s:%s-%s", chrom, start, end)
-                for alignment in bam_reader.fetch(contig=chrom, start=start, stop=end):
-                    n_alignments += 1
-                    haplotype_name = "none"
-                    phaseset = "none"
 
-                    if variant_table is None or ignore_read(alignment, tag_supplementary):
-                        # - If no variants in VCF for this chromosome,
-                        # alignments just get written to output
-                        # - Ignored reads are simply
-                        # written to the output BAM
-                        # Existing tags HP, PC and PS are removed
+            def regions_iterator():
+                for start, end in regions:
+                    logger.debug("Working on %s:%s-%s", chrom, start, end)
+                    for alignment in bam_reader.fetch(contig=chrom, start=start, stop=end):
+                        yield alignment
+
+            for alignment in regions_iterator():
+                n_alignments += 1
+                haplotype_name = "none"
+                phaseset = "none"
+
+                if variant_table is None or ignore_read(alignment, tag_supplementary):
+                    # - If no variants in VCF for this chromosome,
+                    # alignments just get written to output
+                    # - Ignored reads are simply
+                    # written to the output BAM
+                    # Existing tags HP, PC and PS are removed
+                    alignment.set_tag("HP", value=None)
+                    alignment.set_tag("PC", value=None)
+                    alignment.set_tag("PS", value=None)
+                else:
+                    (is_tagged, haplotype_name, phaseset) = attempt_add_phase_information(
+                        alignment,
+                        read_to_haplotype,
+                        BX_tag_to_haplotype,
+                        linked_read_distance_cutoff,
+                        ignore_linked_read,
+                    )
+                    n_tagged += is_tagged
+
+                    if not is_tagged:
+                        # Remove any existing tags HP, PC and PS if the aligment does
+                        # not have phasing information
                         alignment.set_tag("HP", value=None)
                         alignment.set_tag("PC", value=None)
                         alignment.set_tag("PS", value=None)
-                    else:
-                        (is_tagged, haplotype_name, phaseset) = attempt_add_phase_information(
-                            alignment,
-                            read_to_haplotype,
-                            BX_tag_to_haplotype,
-                            linked_read_distance_cutoff,
-                            ignore_linked_read,
-                        )
-                        n_tagged += is_tagged
 
-                        if not is_tagged:
-                            # Remove any existing tags HP, PC and PS if the aligment does
-                            # not have phasing information
-                            alignment.set_tag("HP", value=None)
-                            alignment.set_tag("PC", value=None)
-                            alignment.set_tag("PS", value=None)
+                bam_writer.write(alignment)
+                if haplotag_writer is not None and not (
+                    alignment.is_secondary or alignment.is_supplementary
+                ):
+                    print(
+                        alignment.query_name,
+                        haplotype_name,
+                        phaseset,
+                        chrom,
+                        sep="\t",
+                        file=haplotag_writer,
+                    )
 
-                    bam_writer.write(alignment)
-                    if haplotag_writer is not None and not (
-                        alignment.is_secondary or alignment.is_supplementary
-                    ):
-                        print(
-                            alignment.query_name,
-                            haplotype_name,
-                            phaseset,
-                            chrom,
-                            sep="\t",
-                            file=haplotag_writer,
-                        )
-
-                    if n_alignments % 100_000 == 0:
-                        logger.debug(f"Processed {n_alignments} alignment records.")
+                if n_alignments % 100_000 == 0:
+                    logger.debug(f"Processed {n_alignments} alignment records.")
         if include_unmapped:
             logger.debug("Copying unmapped reads to output")
             for alignment in bam_reader.fetch(until_eof=True):
