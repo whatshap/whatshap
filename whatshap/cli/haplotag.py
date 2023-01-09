@@ -603,7 +603,7 @@ def run_haplotag(
 
             assert not include_unmapped or len(regions) == 1
             for start, end in regions:
-                logger.debug("Working on %s:%d-%d", chrom, start, end)
+                logger.debug("Working on %s:%s-%s", chrom, start, end)
                 for alignment in bam_reader.fetch(contig=chrom, start=start, stop=end):
                     n_alignments += 1
                     haplotype_name = "none"
@@ -648,9 +648,10 @@ def run_haplotag(
                             file=haplotag_writer,
                         )
 
-                    if n_alignments % 100000 == 0:
+                    if n_alignments % 100_000 == 0:
                         logger.debug(f"Processed {n_alignments} alignment records.")
         if include_unmapped:
+            logger.debug("Copying unmapped reads to output")
             for alignment in bam_reader.fetch(until_eof=True):
                 bam_writer.write(alignment)
         timers.stop("haplotag-process")
