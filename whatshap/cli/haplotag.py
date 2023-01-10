@@ -525,10 +525,6 @@ def run_haplotag(
         # This checks also sample compatibility with VCF
         shared_samples = compute_shared_samples(bam_reader, ignore_read_groups, use_vcf_samples)
 
-        # Check if user has specified a subset of regions per chromosome
-        user_regions = normalize_user_regions(regions, bam_reader.references)
-
-        include_unmapped = regions is None
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
                 [alignment_file],
@@ -569,7 +565,7 @@ def run_haplotag(
         n_tagged = 0
         for variant_table, chrom, read_to_haplotype, BX_tag_to_haplotype, regions_iterator in chromosome_iterator(
             bam_reader,
-            user_regions,
+            regions,
             skip_missing_contigs,
             vcf_reader,
             shared_samples,
@@ -577,7 +573,6 @@ def run_haplotag(
             ignore_linked_read,
             linked_read_distance_cutoff,
             ploidy,
-            include_unmapped,
         ):
             for alignment in regions_iterator():
                 n_alignments += 1
@@ -625,7 +620,7 @@ def run_haplotag(
 
                 if n_alignments % 100_000 == 0:
                     logger.debug(f"Processed {n_alignments} alignment records.")
-        if include_unmapped:
+        if regions is None:
             logger.debug("Copying unmapped reads to output")
             for alignment in bam_reader.fetch(until_eof=True):
                 bam_writer.write(alignment)
@@ -643,7 +638,7 @@ def run_haplotag(
 
 def chromosome_iterator(
     bam_reader: pysam.AlignmentFile,
-    user_regions,
+    regions,
     skip_missing_contigs: bool,
     vcf_reader: VcfReader,
     shared_samples,
@@ -651,8 +646,8 @@ def chromosome_iterator(
     ignore_linked_read: bool,
     linked_read_distance_cutoff: int,
     ploidy: int,
-    include_unmapped: bool,
 ):
+    user_regions = normalize_user_regions(regions, bam_reader.references)
     n_multiple_phase_sets = 0
     has_alignments = contigs_with_alignments(bam_reader)
     for chrom, regions in user_regions.items():
@@ -695,7 +690,7 @@ def chromosome_iterator(
             BX_tag_to_haplotype = None
             read_to_haplotype = None
 
-        assert not include_unmapped or len(regions) == 1
+        assert regions is not None or len(regions) == 1
 
         def regions_iterator():
             for start, end in regions:
