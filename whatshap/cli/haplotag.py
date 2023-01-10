@@ -9,7 +9,8 @@ import sys
 import pysam
 import hashlib
 from collections import defaultdict
-from typing import List, Optional, Union, Dict, Tuple, FrozenSet, Sequence, TextIO
+from itertools import groupby
+from typing import List, Optional, Union, Dict, Tuple, FrozenSet, Sequence, TextIO, Iterator, Any
 
 from xopen import xopen
 
@@ -155,9 +156,9 @@ def load_chromosome_variants(
 
 
 def prepare_haplotag_information(
-    variant_table,
+    variant_table: VariantTable,
     shared_samples,
-    phased_input_reader,
+    phased_input_reader: PhasedInputReader,
     regions,
     ignore_linked_read,
     linked_read_cutoff,
@@ -561,19 +562,32 @@ def run_haplotag(
         )
         timers.start("haplotag-process")
 
+        if regions is None:
+            iterator = all_contigs_iterator(
+                bam_reader,
+                skip_missing_contigs,
+                vcf_reader,
+                shared_samples,
+                phased_input_reader,
+                ignore_linked_read,
+                linked_read_distance_cutoff,
+                ploidy,
+            )
+        else:
+            iterator = contigs_iterator(
+                bam_reader,
+                regions,
+                skip_missing_contigs,
+                vcf_reader,
+                shared_samples,
+                phased_input_reader,
+                ignore_linked_read,
+                linked_read_distance_cutoff,
+                ploidy,
+            )
         n_alignments = 0
         n_tagged = 0
-        for variant_table, chrom, read_to_haplotype, BX_tag_to_haplotype, regions_iterator in chromosome_iterator(
-            bam_reader,
-            regions,
-            skip_missing_contigs,
-            vcf_reader,
-            shared_samples,
-            phased_input_reader,
-            ignore_linked_read,
-            linked_read_distance_cutoff,
-            ploidy,
-        ):
+        for variant_table, chrom, read_to_haplotype, BX_tag_to_haplotype, regions_iterator in iterator:
             for alignment in regions_iterator():
                 n_alignments += 1
                 haplotype_name = "none"
@@ -636,9 +650,9 @@ def run_haplotag(
     logger.info("Finished in %.1f s", timers.elapsed("haplotag-run"))
 
 
-def chromosome_iterator(
+def contigs_iterator(
     bam_reader: pysam.AlignmentFile,
-    regions,
+    regions: Optional[Sequence[str]],
     skip_missing_contigs: bool,
     vcf_reader: VcfReader,
     shared_samples,
@@ -646,7 +660,8 @@ def chromosome_iterator(
     ignore_linked_read: bool,
     linked_read_distance_cutoff: int,
     ploidy: int,
-):
+) -> Iterator[Tuple[VariantTable, str, Dict[Any, Any], Dict[Any, Any], Iterator[pysam.AlignedSegment]]]:
+
     user_regions = normalize_user_regions(regions, bam_reader.references)
     n_multiple_phase_sets = 0
     has_alignments = contigs_with_alignments(bam_reader)
@@ -695,8 +710,82 @@ def chromosome_iterator(
         def regions_iterator():
             for start, end in regions:
                 logger.debug("Working on %s:%s-%s", chrom, start, end)
-                for alignment in bam_reader.fetch(contig=chrom, start=start, stop=end):
-                    yield alignment
+                yield from bam_reader.fetch(contig=chrom, start=start, stop=end)
+
+        yield variant_table, chrom, read_to_haplotype, BX_tag_to_haplotype, regions_iterator
+
+
+def group_by_contig(
+    bam_reader: pysam.AlignmentFile
+) -> Tuple[Optional[str], Iterator[pysam.AlignedSegment]]:
+
+    grouped = groupby(bam_reader.fetch(until_eof=True, multiple_iterators=True), key=lambda a: a.reference_id)
+    for reference_id, alignments in grouped:
+        if reference_id == -1:  # unmapped
+            assert False
+            contig = None
+        else:
+            contig = bam_reader.references[reference_id]
+        yield contig, alignments
+
+
+def all_contigs_iterator(
+    bam_reader: pysam.AlignmentFile,
+    skip_missing_contigs: bool,
+    vcf_reader: VcfReader,
+    shared_samples,
+    phased_input_reader: PhasedInputReader,
+    ignore_linked_read: bool,
+    linked_read_distance_cutoff: int,
+    ploidy: int,
+) -> Iterator[Tuple[VariantTable, str, Dict[Any, Any], Dict[Any, Any], Iterator[pysam.AlignedSegment]]]:
+
+    n_multiple_phase_sets = 0
+    has_alignments = contigs_with_alignments(bam_reader)
+    for chrom, alignments in group_by_contig(bam_reader):
+        if chrom is None:
+            assert False
+        logger.debug(f"Processing chromosome {chrom}")
+        if chrom not in has_alignments:
+            # Skip chromosomes without alignments. This allows to have extra chromosomes in the
+            # BAM header compared to the VCF.
+            continue
+        try:
+            variant_table = vcf_reader.fetch(chrom)
+        except VcfInvalidChromosome:
+            if skip_missing_contigs:
+                logger.info(
+                    f"Skipping reads on '{chrom}' because the contig does not exist in the VCF"
+                )
+                continue
+            else:
+                raise CommandLineError(
+                    f"Input BAM/CRAM contains reads on contig '{chrom}', but that contig does "
+                    "not exist in the VCF header. To bypass this check, use "
+                    "--skip-missing-contigs"
+                )
+        except VcfError as e:
+            raise CommandLineError(str(e))
+        if variant_table is not None:
+            logger.debug("Preparing haplotype information")
+            (BX_tag_to_haplotype, read_to_haplotype, n_mult) = prepare_haplotag_information(
+                variant_table,
+                shared_samples,
+                phased_input_reader,
+                None,
+                ignore_linked_read,
+                linked_read_distance_cutoff,
+                ploidy,
+            )
+            n_multiple_phase_sets += n_mult
+        else:
+            # avoid uninitialized variables
+            BX_tag_to_haplotype = None
+            read_to_haplotype = None
+
+        def regions_iterator():
+            logger.debug("Working on %s", chrom)
+            yield from alignments
 
         yield variant_table, chrom, read_to_haplotype, BX_tag_to_haplotype, regions_iterator
 
