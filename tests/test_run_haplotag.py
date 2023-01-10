@@ -460,6 +460,15 @@ def test_haplotag_selected_regions(tmp_path):
                 assert aln.has_tag("HP")
 
 
+def test_cram_input(tmp_path):
+    run_haplotag(
+        variant_file="tests/data/pacbio/phased.vcf.gz",
+        alignment_file="tests/data/pacbio/pacbio.cram",
+        reference="tests/data/pacbio/reference.fasta",
+        output=tmp_path / "output.bam",
+    )
+
+
 def test_cram_output(tmp_path):
     outcram = tmp_path / "output.cram"
     run_haplotag(
