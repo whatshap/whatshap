@@ -425,10 +425,13 @@ def run_haplotag(
         use_vcf_samples = compute_variant_file_samples_to_use(
             vcf_reader.samples, given_samples, ignore_read_groups
         )
-
         try:
             bam_reader = stack.enter_context(
-                pysam.AlignmentFile(alignment_file, "rb", require_index=True)
+                pysam.AlignmentFile(
+                    alignment_file,
+                    reference_filename=reference if reference else None,
+                    require_index=True,
+                )
             )
         except OSError as err:
             raise CommandLineError(f"Error while loading alignment file {alignment_file}: {err}")
@@ -496,8 +499,7 @@ def run_haplotag(
             variantpos_to_phaseinfo, variants = get_variant_information(variant_table, sample)
 
             for start, end in regions:
-                logger.debug("Working on %s:%d-%d", chrom, start, end)
-
+                logger.debug("Working on %s:%s-%s", chrom, start, end)
                 for alignment in bam_reader.fetch(reference=chrom, sample=None, start=start, end=end):
                     n_alignments += 1
                     haplotype_name = "none"
@@ -565,10 +567,11 @@ def run_haplotag(
                             file=haplotag_writer,
                         )
 
-                    if n_alignments % 100000 == 0:
+                    if n_alignments % 100_000 == 0:
                         logger.debug(f"Processed {n_alignments} alignment records.")
 
         if include_unmapped:
+            logger.debug("Copying unmapped reads to output")
             for alignment in bam_reader._samfile.fetch(until_eof=True):
                 bam_writer.write(alignment)
 
