@@ -126,3 +126,40 @@ def test_polyphase_multithreaded(tmp_path):
         [st == mt for (st, mt) in zip(table_st.genotype_likelihoods, table_mt.genotype_likelihoods)]
     )
     assert all([st == mt for (st, mt) in zip(table_st.variants, table_mt.variants)])
+
+
+def test_polyphase_indels(tmp_path):
+    outvcf = tmp_path / "output.vcf"
+    outvcf_indel = tmp_path / "output_indel.vcf"
+
+    run_polyphase(
+        phase_input_files=["tests/data/polyploid.indels.bam"],
+        variant_file="tests/data/polyploid.indels.vcf",
+        ploidy=4,
+        ignore_read_groups=True,
+        output=outvcf,
+    )
+    assert os.path.isfile(outvcf)
+    tables = list(VcfReader(outvcf, phases=True, indels=True))
+    table = tables[0]
+
+    run_polyphase(
+        phase_input_files=["tests/data/polyploid.indels.bam"],
+        variant_file="tests/data/polyploid.indels.vcf",
+        ploidy=4,
+        ignore_read_groups=True,
+        output=outvcf_indel,
+        indels=True,
+    )
+    assert os.path.isfile(outvcf_indel)
+    tables_indel = list(VcfReader(outvcf_indel, phases=True, indels=True))
+    table_indel = tables_indel[0]
+
+    sample = "Test_Indel"
+    assert len([p for p in table.phases_of(sample) if p]) == 2
+    assert len([p for p in table_indel.phases_of(sample) if p]) == 4
+    assert table.variants[0] == table_indel.variants[0]
+    assert table.variants[-1] == table_indel.variants[-1]
+
+    ph = table_indel.phases_of(sample)
+    assert {(a, b) for a, b in zip(ph[1].phase, ph[2].phase)} == {(0, 0), (0, 1), (1, 0), (1, 1)}

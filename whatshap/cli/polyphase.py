@@ -48,7 +48,7 @@ def run_polyphase(
     chromosomes=None,
     verify_genotypes=False,
     ignore_read_groups=False,
-    indels=True,
+    indels=False,
     mapping_quality=20,
     tag="PS",
     include_haploid_sets=False,
@@ -109,6 +109,7 @@ def run_polyphase(
                     out_file=output,
                     tag=tag,
                     ploidy=ploidy,
+                    indels=indels,
                     include_haploid_sets=include_haploid_sets,
                 )
             )
