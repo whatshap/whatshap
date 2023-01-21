@@ -291,16 +291,11 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
     # Optional: Extract partial phasing from variant table
     partial_phasing = None
     if not param.ignore_phasings:
-        partial_phasing = extract_partial_phasing(phasable_variant_table, sample)
-
-    assert partial_phasing is None or len(partial_phasing) == param.ploidy
+        partial_phasing = extract_partial_phasing(phasable_variant_table, sample, param.ploidy)
 
     # Retrieve solution
     allele_matrix = AlleleMatrix(readset)
-    result = solve_polyphase_instance(
-        allele_matrix, genotype_list, param, timers, partial_phasing=partial_phasing
-    )
-    del allele_matrix
+    result = solve_polyphase_instance(allele_matrix, genotype_list, param, timers, partial_phasing)
     cuts, hap_cuts = compute_cut_positions(
         result.breakpoints, param.ploidy, param.block_cut_sensitivity
     )

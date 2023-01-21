@@ -125,7 +125,7 @@ def run_reordering(
     haplotypes,
     breakpoints,
     prephasing,
-    error_rate=0.05,
+    error_rate=0.07,
 ):
     """
     Main method for the reordering stage of the polyploid phasing algorithm. Input:
@@ -285,21 +285,27 @@ def compute_phase_affiliation(allele_matrix, haplotypes, breakpoints, prephasing
     err = [[[0 for _ in range(ploidy)] for _ in range(ploidy)] for _ in range(num_blocks)]
 
     # count overlaps and errors between block-threads and prephasings
-    for i, pos in enumerate(prephasing.getPositions()):
-        if pos not in genpos_to_happos:
-            continue
-        hap_pos = genpos_to_happos[pos]
-        block_id = bisect_left(block_starts, hap_pos)
-        for thread_id in range(ploidy):
-            h_allele = haplotypes[thread_id][hap_pos]
-            if h_allele < 0:
+    prephasing_pos = prephasing.getPositions()
+    phaseblock_starts = sorted(list({prephasing.getFirstPos(i) for i in range(len(prephasing))}))
+    phaseblock_starts.append(len(prephasing_pos))
+    for phb, (start, end) in enumerate(zip(phaseblock_starts[:-1], phaseblock_starts[1:])):
+        for i in range(start, end):
+            pos = prephasing_pos[i]
+            if pos not in genpos_to_happos:
                 continue
-            for phase_id in range(ploidy):
-                p_allele = prephasing.getAllele(phase_id, i)
-                if p_allele < 0:
+            hap_pos = genpos_to_happos[pos]
+            block_id = bisect_left(block_starts, hap_pos)
+            for thread_id in range(ploidy):
+                h_allele = haplotypes[thread_id][hap_pos]
+                if h_allele < 0:
                     continue
-                olp[block_id][thread_id][phase_id] += 1
-                err[block_id][thread_id][phase_id] += 1 if h_allele != p_allele else 0
+                for phase_id in range(phb * ploidy, (phb + 1) * ploidy):
+                    # accessing read set (of ploidy many reads) for current phase block
+                    p_allele = prephasing.getAllele(phase_id, i)
+                    if p_allele < 0:
+                        continue
+                    olp[block_id][thread_id][phase_id] += 1
+                    err[block_id][thread_id][phase_id] += 1 if h_allele != p_allele else 0
 
     for b in range(num_blocks):
         for t in range(ploidy):
@@ -437,7 +443,7 @@ def get_optimal_permutations(breakpoints, lllh, ploidy, affiliations):
     return assignments
 
 
-def permute_blocks(threads, haplotypes, breakpoints, lllh, perms):
+def permute_blocks(threads, haplotypes, breakpoints, lllh, perms, affiliations=None):
 
     # shuffle threads and haplotypes according to optimal assignments
     ploidy = len(haplotypes)
