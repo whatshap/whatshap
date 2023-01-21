@@ -16,7 +16,6 @@ def test_polyphase_short_chr22(tmp_path):
         ploidy=4,
         ignore_read_groups=True,
         output=outvcf,
-        ignore_phasings=True,
     )
     assert os.path.isfile(outvcf)
 
@@ -39,7 +38,6 @@ def test_polyphase_multiple_bam(tmp_path):
         ploidy=2,
         ignore_read_groups=False,
         output=outvcf,
-        ignore_phasings=True,
     )
     assert os.path.isfile(outvcf)
 
@@ -62,7 +60,6 @@ def test_wrong_ploidy(tmp_path):
             ploidy=3,
             ignore_read_groups=True,
             output=outvcf,
-            ignore_phasings=True,
         )
 
 
@@ -79,7 +76,6 @@ def test_blockcut_sensitivities(tmp_path):
             ignore_read_groups=True,
             block_cut_sensitivity=s,
             output=outvcf,
-            ignore_phasings=True,
         )
         assert os.path.isfile(outvcf)
 
@@ -105,7 +101,6 @@ def test_polyphase_multithreaded(tmp_path):
         ploidy=4,
         ignore_read_groups=True,
         output=outvcf_st,
-        ignore_phasings=True,
     )
     run_polyphase(
         phase_input_files=["tests/data/polyploid.chr22.42M.12k.bam"],
@@ -114,7 +109,6 @@ def test_polyphase_multithreaded(tmp_path):
         ignore_read_groups=True,
         output=outvcf_mt,
         threads=4,
-        ignore_phasings=True,
     )
     assert os.path.isfile(outvcf_st)
     assert os.path.isfile(outvcf_mt)
