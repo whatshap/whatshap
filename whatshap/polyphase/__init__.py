@@ -179,12 +179,17 @@ def create_genotype_list(variant_table, sample):
     return genotype_list
 
 
-def extract_partial_phasing(variant_table, sample):
+def extract_partial_phasing(variant_table, sample, ploidy):
     readset = ReadSet()
     vars = variant_table.variants
     for read in variant_table.phased_blocks_as_reads(sample, vars, 0, 0, allow_polyploid=True):
         readset.add(read)
     if len(readset) > 0:
-        return AlleleMatrix(readset)
+        am = AlleleMatrix(readset)
+        assert len(am) % ploidy == 0
+        for i in range(0, len(am), ploidy):
+            assert all([am.getFirstPos(i) == am.getFirstPos(i + j) for j in range(1, ploidy)])
+            assert all([am.getLastPos(i) == am.getLastPos(i + j) for j in range(1, ploidy)])
+        return am
     else:
         return None

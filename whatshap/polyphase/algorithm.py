@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 def solve_polyphase_instance(
-    allele_matrix, genotype_list, param, timers, quiet=False, partial_phasing=None
+    allele_matrix, genotype_list, param, timers, partial_phasing=None, quiet=False
 ):
     """
     Entry point for polyploid phasing instances. Inputs are an allele matrix and genotypes for each
@@ -41,12 +41,8 @@ def solve_polyphase_instance(
     timers.start("detecting_blocks")
 
     ploidy = param.ploidy
-    if param.block_cut_sensitivity == 0:
-        block_starts = [0]
-    elif param.block_cut_sensitivity == 1:
-        block_starts = compute_block_starts(allele_matrix, ploidy, single_linkage=True)
-    else:
-        block_starts = compute_block_starts(allele_matrix, ploidy, single_linkage=False)
+    sl = param.block_cut_sensitivity <= 1
+    block_starts = compute_block_starts(allele_matrix, ploidy, single_linkage=sl)
 
     # Set block borders and split readset
     block_starts.append(num_vars)
@@ -119,7 +115,13 @@ def solve_polyphase_instance(
         timers.stop("phase_blocks")
 
     # Aggregate blockwise results
-    return aggregate_results(results, ploidy)
+    if partial_phasing and param.block_cut_sensitivity == 0:
+        # For lowest sensitivity, do not add block starts to global breakpoint list
+        # (unless the partial phasing is also interrupted there)
+        borders = {partial_phasing.getFirstPos(i) for i in range(len(partial_phasing))}
+    else:
+        borders = []
+    return aggregate_results(results, ploidy, borders)
 
 
 def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, timers, quiet=False):
@@ -265,7 +267,7 @@ def phase_single_block_mt(
     return result
 
 
-def aggregate_results(results: List[PhaseBreakpoint], ploidy: int):
+def aggregate_results(results: List[PolyphaseBlockResult], ploidy: int, borders: List[int]):
     """
     Collects all blockwise phasing results and aggregates them into one list for each type of
     information. Local ids and indices are converted to globals ones in this step.
@@ -278,7 +280,9 @@ def aggregate_results(results: List[PhaseBreakpoint], ploidy: int):
         threads += [[cid_offset + cid for cid in p] for p in r.threads]
         for hap, ext in zip(haplotypes, r.haplotypes):
             hap += ext
-        breakpoints.append(PhaseBreakpoint(pos_offset, list(range(ploidy)), 0.0))
+        # Add the start of a block as breakpoint, unless a partial phasing bridges the blocks
+        if not borders or pos_offset in borders or pos_offset == 0:
+            breakpoints.append(PhaseBreakpoint(pos_offset, list(range(ploidy)), 0.0))
         breakpoints += [
             PhaseBreakpoint(b.position + pos_offset, b.haplotypes, b.confidence)
             for b in r.breakpoints
