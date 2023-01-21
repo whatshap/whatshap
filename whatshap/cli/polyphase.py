@@ -61,7 +61,7 @@ def run_polyphase(
     plot_threading=False,
     block_cut_sensitivity=4,
     threads=1,
-    ignore_phasings=False,
+    use_prephasing=False,
 ):
     """
     Run Polyploid Phasing.
@@ -141,6 +141,11 @@ def run_polyphase(
         if verify_genotypes:
             logger.warn("Option --verify-genotypes is deprecated. It will be ignored.")
 
+        if use_prephasing and block_cut_sensitivity > 1:
+            logger.info(
+                "Consider using '-B 0' or '-B 1' when adding pre-phasings from another source."
+            )
+
         samples = frozenset(samples)
 
         read_list_file = None
@@ -158,7 +163,7 @@ def run_polyphase(
             plot_clusters=plot_clusters,
             plot_threading=plot_threading,
             threads=threads,
-            ignore_phasings=ignore_phasings,
+            use_prephasing=use_prephasing,
         )
 
         timers.start("parse_vcf")
@@ -289,13 +294,18 @@ def phase_single_individual(readset, phasable_variant_table, sample, param, outp
     genotype_list = create_genotype_list(phasable_variant_table, sample)
 
     # Optional: Extract partial phasing from variant table
-    partial_phasing = None
-    if not param.ignore_phasings:
-        partial_phasing = extract_partial_phasing(phasable_variant_table, sample, param.ploidy)
+    prephasing = None
+    if param.use_prephasing:
+        prephasing = extract_partial_phasing(phasable_variant_table, sample, param.ploidy)
+        if prephasing is None:
+            logger.warning(
+                f"Input VCF does not contain any phased blocks for {sample}. "
+                "No pre-phasing will be used for this sample."
+            )
 
     # Retrieve solution
     allele_matrix = AlleleMatrix(readset)
-    result = solve_polyphase_instance(allele_matrix, genotype_list, param, timers, partial_phasing)
+    result = solve_polyphase_instance(allele_matrix, genotype_list, param, timers, prephasing)
     cuts, hap_cuts = compute_cut_positions(
         result.breakpoints, param.ploidy, param.block_cut_sensitivity
     )
@@ -457,11 +467,11 @@ def add_arguments(parser):
         help="The ploidy of the sample(s). Argument is required.",
     )
     arg(
-        "--ignore-phasings",
-        dest="ignore_phasings",
+        "--use-prephasing",
+        dest="use_prephasing",
         action="store_true",
         default=False,
-        help="Ignores any pre-phased positions in the input VCF.",
+        help="Uses existing phase set blocks in the input to increase contiguity of phasing output.",
     )
     arg(
         "--min-overlap",
