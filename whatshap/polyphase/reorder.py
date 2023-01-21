@@ -304,8 +304,8 @@ def compute_phase_affiliation(allele_matrix, haplotypes, breakpoints, prephasing
                     p_allele = prephasing.getAllele(phase_id, i)
                     if p_allele < 0:
                         continue
-                    olp[block_id][thread_id][phase_id] += 1
-                    err[block_id][thread_id][phase_id] += 1 if h_allele != p_allele else 0
+                    olp[block_id][thread_id][phase_id % ploidy] += 1
+                    err[block_id][thread_id][phase_id % ploidy] += 1 if h_allele != p_allele else 0
 
     for b in range(num_blocks):
         for t in range(ploidy):
