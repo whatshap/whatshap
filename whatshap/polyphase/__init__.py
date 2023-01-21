@@ -20,7 +20,7 @@ class PolyphaseParameter:
     plot_clusters: bool
     plot_threading: bool
     threads: int
-    ignore_phasings: bool
+    use_prephasing: bool
 
 
 class PhaseBreakpoint:
