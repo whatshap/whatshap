@@ -1,7 +1,7 @@
 import itertools as it
 import logging
 from collections import defaultdict
-from bisect import bisect_left
+from bisect import bisect_right
 from typing import List
 from math import log, exp
 from functools import reduce
@@ -206,7 +206,8 @@ def compute_link_likelihoods(
     For each breakpoint and for each pair of threads t1 and t2, computes a log likelihood that the
     left side of t1 is linked to the right side of t2 (left/right = before/after the breakpoint).
     Returns a 2D-list, where the first dimension one entry for each breakpoint and the second
-    dimension contains ploidy^2 entries, representing the pairwise linkage likelihoods.
+    dimension contains k! entries, representing the linkage likelihoods for every possible
+    permutation of the k affected haplotypes.
     """
     ploidy = len(threads[0])
     lllh = []
@@ -218,6 +219,8 @@ def compute_link_likelihoods(
 
         # use submatrix of relevant reads and positions
         affected_clusts = {threads[pos][h] for h in affected}
+        if pos > 0:
+            affected_clusts = affected_clusts.union({threads[pos - 1][h] for h in affected})
         rids = filter(
             lambda r: allele_matrix.getFirstPos(r) < pos <= allele_matrix.getLastPos(r),
             [r for cid in affected_clusts for r in clustering[cid]],
@@ -249,8 +252,8 @@ def compute_link_likelihoods(
         # per permutation of connections, compute combined likelihood over all reads
         perm_llhs = dict()
         for perm in it.permutations(affected):
-            left_h = list(range(ploidy))
-            right_h = [perm[affected.index(i)] if i in affected else i for i in range(ploidy)]
+            left_h = list(affected)
+            right_h = [perm[affected.index(i)] for i in affected]
             perm_llh = 0
             for i, read in enumerate(submatrix):
                 read_llh = -float("inf")
@@ -294,7 +297,7 @@ def compute_phase_affiliation(allele_matrix, haplotypes, breakpoints, prephasing
             if pos not in genpos_to_happos:
                 continue
             hap_pos = genpos_to_happos[pos]
-            block_id = bisect_left(block_starts, hap_pos)
+            block_id = bisect_right(block_starts, hap_pos)
             for thread_id in range(ploidy):
                 h_allele = haplotypes[thread_id][hap_pos]
                 if h_allele < 0:
@@ -443,7 +446,7 @@ def get_optimal_permutations(breakpoints, lllh, ploidy, affiliations):
     return assignments
 
 
-def permute_blocks(threads, haplotypes, breakpoints, lllh, perms, affiliations=None):
+def permute_blocks(threads, haplotypes, breakpoints, lllh, perms):
 
     # shuffle threads and haplotypes according to optimal assignments
     ploidy = len(haplotypes)
