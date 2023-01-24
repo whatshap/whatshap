@@ -1,6 +1,14 @@
-from whatshap.polyphase import PolyphaseBlockResult
+from whatshap.polyphase import PolyphaseBlockResult, PhaseBreakpoint
 from whatshap.polyphase.solver import AlleleMatrix
-from whatshap.polyphase.reorder import find_subinstances, integrate_sub_results, find_breakpoints
+from whatshap.polyphase.reorder import (
+    find_subinstances,
+    integrate_sub_results,
+    find_breakpoints,
+    get_heterozygous_pos_for_haps,
+    compute_link_likelihoods,
+    compute_phase_affiliation,
+    get_optimal_permutations,
+)
 from whatshap.testhelpers import string_to_readset
 
 
@@ -240,3 +248,141 @@ def test_integrate_subresults3():
     assert breakpoints[0].haplotypes == [0, 1]
     assert haplotypes[0] == [0, 0, 0, 0, 0, 0, 0, 0, 0]
     assert haplotypes[1] == [1, 1, 0, 1, 0, 1, 0, 1, 1]
+
+
+def get_test_instance4():
+    return [
+        [0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0],
+        [0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0],
+        [0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0],
+    ]
+
+
+def test_get_heterozygous_pos_for_haps1():
+    haplotypes = get_test_instance4()
+    l, r = get_heterozygous_pos_for_haps(haplotypes, [0, 1], 6, limit=1)
+    assert l == [3]
+    assert r == [7]
+    l, r = get_heterozygous_pos_for_haps(haplotypes, [0, 1], 6, limit=2)
+    assert l == [2, 3]
+    assert r == [7, 9]
+
+
+def test_get_heterozygous_pos_for_haps2():
+    haplotypes = get_test_instance4()
+    l, r = get_heterozygous_pos_for_haps(haplotypes, [0, 1], 7, limit=2)
+    assert l == [2, 3]
+    assert r == [7, 9]
+    l, r = get_heterozygous_pos_for_haps(haplotypes, [0, 1], 7, limit=3)
+    assert l == [2, 3]
+    assert r == [7, 9]
+
+
+def test_get_heterozygous_pos_for_haps3():
+    haplotypes = get_test_instance4()
+    l, r = get_heterozygous_pos_for_haps(haplotypes, [0, 2], 3, limit=2)
+    assert l == [1]
+    assert r == []
+    l, r = get_heterozygous_pos_for_haps(haplotypes, [0, 1, 2], 3, limit=2)
+    assert l == [1, 2]
+    assert r == [3, 7]
+
+
+def test_compute_link_likelihoods():
+    am, clustering, threads, haplotypes = get_instance2()
+    bp = [
+        PhaseBreakpoint(3, [0, 1, 2], 0),
+        PhaseBreakpoint(6, [0, 1, 2], 0),
+        PhaseBreakpoint(9, [0, 1], 0),
+    ]
+    llh = compute_link_likelihoods(threads, haplotypes, bp, clustering, am, 0.07)
+    assert llh[0][(0, 2, 1)] > llh[0][(0, 1, 2)]
+    assert llh[0][(1, 0, 2)] <= llh[0][(0, 1, 2)]
+    assert llh[0][(1, 2, 0)] < llh[0][(0, 2, 1)]
+    assert llh[0][(2, 0, 1)] < llh[0][(0, 2, 1)]
+    assert llh[0][(2, 1, 0)] < llh[0][(0, 1, 2)]
+
+    assert llh[1][(0, 1, 2)] == max(llh[1].values())
+
+    assert llh[2][(0, 1)] == max(llh[2].values())
+
+
+def test_compute_phase_affiliation():
+    am, clustering, threads, haplotypes = get_instance2()
+    bp = [
+        PhaseBreakpoint(3, [0, 1, 2], 0),
+        PhaseBreakpoint(6, [0, 1, 2], 0),
+        PhaseBreakpoint(9, [0, 1], 0),
+    ]
+    superreads = """
+    0  01  0   0
+    0  00  2   1
+    1  00  0   1
+    0  11  1   0
+    """
+    pp = AlleleMatrix(string_to_readset(superreads))
+    aff = compute_phase_affiliation(am, haplotypes, bp, pp, 0.07)
+
+    assert len(aff) == 4
+    assert aff[0][0][0] == max(aff[0][0])
+    assert aff[0][1][1] == max(aff[0][1])
+    assert aff[0][2][2] == max(aff[0][2])
+    assert aff[0][3][3] == max(aff[0][3])
+
+    assert aff[1][0][0] == max(aff[1][0])
+    assert aff[1][1][0] == max(aff[1][1])
+    assert aff[1][2][2] == max(aff[1][2])
+    assert aff[1][3][3] == max(aff[1][3])
+
+    assert aff[2][0][0] == max(aff[2][0])
+    assert aff[2][1][2] == max(aff[2][1])
+    assert aff[2][2][1] == max(aff[2][2])
+    assert aff[2][3][3] == max(aff[2][3])
+
+    assert aff[3][0][1] == max(aff[3][0])
+    assert aff[3][1][2] == max(aff[3][1])
+    assert aff[3][2][0] == max(aff[3][2])
+    assert aff[3][3][3] == max(aff[3][3])
+
+
+def test_get_optimal_permutations1():
+    am, clustering, threads, haplotypes = get_instance2()
+    bp = [
+        PhaseBreakpoint(3, [0, 1, 2], 0),
+        PhaseBreakpoint(6, [0, 1, 2], 0),
+        PhaseBreakpoint(9, [0, 1], 0),
+    ]
+    lllh = compute_link_likelihoods(threads, haplotypes, bp, clustering, am, 0.07)
+    asmnts = get_optimal_permutations(bp, lllh, 4, None)
+    assert asmnts[0] == [0, 1, 2, 3]
+    assert asmnts[1] in [[0, 1, 2, 3], [0, 2, 1, 3], [1, 0, 2, 3], [2, 0, 1, 3]]
+    assert (asmnts[2] in [[0, 2, 1, 3], [2, 0, 1, 3]]) or (
+        asmnts[3] in [[1, 2, 0, 3], [1, 2, 3, 0], [2, 1, 0, 3], [2, 1, 3, 0]]
+    )
+    assert asmnts[2][2:] == asmnts[3][2:]
+
+
+def test_get_optimal_permutations2():
+    am, clustering, threads, haplotypes = get_instance2()
+    bp = [
+        PhaseBreakpoint(3, [0, 1, 2], 0),
+        PhaseBreakpoint(6, [0, 1, 2], 0),
+        PhaseBreakpoint(9, [0, 1], 0),
+    ]
+    lllh = compute_link_likelihoods(threads, haplotypes, bp, clustering, am, 0.07)
+    superreads = """
+    0  01  0   0
+    0  00  2   1
+    1  00  0   1
+    0  11  1   0
+    """
+
+    pp = AlleleMatrix(string_to_readset(superreads))
+    aff = compute_phase_affiliation(am, haplotypes, bp, pp, 0.07)
+    asmnts = get_optimal_permutations(bp, lllh, 4, aff)
+    assert asmnts[0] == [0, 1, 2, 3]
+    assert asmnts[1] in [[0, 1, 2, 3], [0, 2, 1, 3], [1, 0, 2, 3], [2, 0, 1, 3]]
+    assert (asmnts[2] in [[0, 2, 1, 3], [2, 0, 1, 3]]) or (
+        asmnts[3] in [[1, 2, 0, 3], [1, 2, 3, 0], [2, 1, 0, 3], [2, 1, 3, 0]]
+    )
+    assert asmnts[2][2:] == asmnts[3][2:]
