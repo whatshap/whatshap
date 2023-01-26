@@ -229,7 +229,7 @@ def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, ti
     # collect results from threading
     return PolyphaseBlockResult(
         block_id=block_id,
-        clustering=clustering,
+        clustering=[[allele_matrix.getGlobalId(r) for r in c] for c in clustering],
         threads=threads,
         haplotypes=haplotypes,
         breakpoints=breakpoints,
@@ -276,7 +276,7 @@ def aggregate_results(results: List[PolyphaseBlockResult], ploidy: int, borders:
     haplotypes = [[] for _ in range(ploidy)]
     rid_offset, cid_offset, pos_offset = 0, 0, 0
     for r in results:
-        clustering += [[rid_offset + rid for rid in clust] for clust in r.clustering]
+        clustering += [clust for clust in r.clustering]
         threads += [[cid_offset + cid for cid in p] for p in r.threads]
         for hap, ext in zip(haplotypes, r.haplotypes):
             hap += ext
@@ -287,7 +287,6 @@ def aggregate_results(results: List[PolyphaseBlockResult], ploidy: int, borders:
             PhaseBreakpoint(b.position + pos_offset, b.haplotypes, b.confidence)
             for b in r.breakpoints
         ]
-        rid_offset = max([rid for clust in clustering for rid in clust])
         cid_offset = len(clustering)
         pos_offset = len(haplotypes[0])
 
