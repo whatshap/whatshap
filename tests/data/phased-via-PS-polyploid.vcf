@@ -1,0 +1,13 @@
+##fileformat=VCFv4.1
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=PS,Number=1,Type=Integer,Description="Phase set">
+##FORMAT=<ID=PQ,Number=1,Type=Float,Description="Phasing quality">
+##contig=<ID=chrA>
+##contig=<ID=chrB>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample1	sample2
+chrA	100	.	A	T	500.0	.	.	GT:PS:PQ	0/0/0/1:.	0|0|1|1:100:10
+chrA	150	.	C	G	500.0	.	.	GT:PS:PQ	1/1/1/1:.	1|0|1|0:100:20
+chrA	300	.	G	T	500.0	.	.	GT:PS:PQ	0|0|1|1:300:23	0|0|0|1:300:30
+chrA	350	.	G	T,A	500.0	.	.	GT:PS:PQ	0|0|1|0:300:42	1|0|2|1:300:.
+chrB	110	.	C	T	500.0	.	.	GT	0/0/0/0	0/0/1/1
+chrB	160	.	C	T	500.0	.	.	GT	0/0/0/1	1/1/1/1
