@@ -28,7 +28,7 @@ To refer to the pedigree-phasing algorithm and the PedMEC problem:
 WhatsHap's genotyping algorithm is described here:
 
     | Jana Ebler, Marina Haukness, Trevor Pesout, Tobias Marschall, Benedict Paten.
-    | Haplotype-aware genotyping from noisy long reads
+    | *Haplotype-aware genotyping from noisy long reads*
     | bioRxiv
     | doi: `10.1101/293944 <https://doi.org/10.1101/293944>`_
 
