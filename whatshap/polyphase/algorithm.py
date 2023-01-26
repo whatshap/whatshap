@@ -274,7 +274,7 @@ def aggregate_results(results: List[PolyphaseBlockResult], ploidy: int, borders:
     """
     clustering, threads, breakpoints = [], [], []
     haplotypes = [[] for _ in range(ploidy)]
-    rid_offset, cid_offset, pos_offset = 0, 0, 0
+    cid_offset, pos_offset = 0, 0
     for r in results:
         clustering += [clust for clust in r.clustering]
         threads += [[cid_offset + cid for cid in p] for p in r.threads]
