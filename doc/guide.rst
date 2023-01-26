@@ -897,7 +897,7 @@ algorithm that is more specialized for the diploid case.
 .. _whatshap-polyphaseg:
 
 whatshap polyphaseg: Polyploid Phasing with progeny information
-=====================================
+===============================================================
 
 In addition to the purely read-based method, the ``whatshap polyphasegenetic``
 command runs on genotype data, derived from two parent samples and an arbitrary
