@@ -182,7 +182,7 @@ def create_genotype_list(variant_table, sample):
 def extract_partial_phasing(variant_table, sample, ploidy):
     readset = ReadSet()
     vars = variant_table.variants
-    for read in variant_table.phased_blocks_as_reads(sample, vars, 0, 0, allow_polyploid=True):
+    for read in variant_table.phased_blocks_as_reads(sample, vars, 0, 0, target_ploidy=ploidy):
         readset.add(read)
     if len(readset) > 0:
         am = AlleleMatrix(readset)
