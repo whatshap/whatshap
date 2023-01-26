@@ -157,7 +157,7 @@ class MultiallelicVcfVariant(VcfVariant):
     def __init__(self, position: int, reference_allele: str, alternative_alleles: List[str]):
         self.position = position
         self.reference_allele = reference_allele
-        self.alternative_alleles = alternative_alleles
+        self.alternative_alleles = tuple(alternative_alleles)
 
     def __repr__(self):
         return "MultiallelicVcfVariant({}, {!r}, {!r})".format(
@@ -578,7 +578,9 @@ class VcfReader:
         for i in range(len(fields)):
             assert fields[0][0] == fields[i][0]
         block_id = fields[0][0]
-        phase = tuple(field[1] - 1 for field in fields)
+        order = [field[1] - 1 for field in fields]
+        phase = call["GT"]
+        phase = tuple(phase[order.index(i)] for i in range(len(order)))
         return VariantCallPhase(block_id=block_id, phase=phase, quality=call.get("PQ", None))
 
     @staticmethod
