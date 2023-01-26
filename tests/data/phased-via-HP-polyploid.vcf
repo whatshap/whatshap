@@ -1,0 +1,13 @@
+##fileformat=VCFv4.1
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=HP,Number=.,Type=String,Description="Phasing haplotype identifier">
+##FORMAT=<ID=PQ,Number=1,Type=Float,Description="Phasing quality">
+##contig=<ID=chrA>
+##contig=<ID=chrB>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample1	sample2
+chrA	100	.	A	T	500.0	.	.	GT:HP:PQ	0/0/0/1:.	0/0/1/1:100-1,100-2,100-3,100-4:10
+chrA	150	.	C	G	500.0	.	.	GT:HP:PQ	1/1/1/1:.	0/0/1/1:100-2,100-4,100-1,100-3:20
+chrA	300	.	G	T	500.0	.	.	GT:HP:PQ	0/0/1/1:300-2,300-1,300-3,300-4:23	0/0/0/1:300-1,300-3,300-2,300-4:30
+chrA	350	.	G	T,A	500.0	.	.	GT:HP:PQ	0/0/0/1:300-1,300-2,300-4,300-3:42	0/1/1/2:300-2,300-4,300-1,300-3:.
+chrB	110	.	C	T	500.0	.	.	GT	0/0/0/0	0/0/1/1
+chrB	160	.	C	T	500.0	.	.	GT	0/0/0/1	1/1/1/1
