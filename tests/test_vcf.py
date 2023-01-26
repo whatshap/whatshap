@@ -154,10 +154,10 @@ def test_phasing_to_reads():
             )
         )
         print(phase_reads_sample1)
-        assert len(phase_reads_sample1) == 1
+        assert len(phase_reads_sample1) == 2
         read = phase_reads_sample1[0]
         assert len(read) == 2
-        assert read.name == "sample1_block_300"
+        assert read.name == "sample1_phase_0_block_300"
         assert read.source_id == 17
         assert read.mapqs == (101,)
         assert read[0].position == 300 - 1
@@ -173,12 +173,12 @@ def test_phasing_to_reads():
             )
         )
         print(phase_reads_sample2)
-        assert len(phase_reads_sample2) == 2
-        read1, read2 = phase_reads_sample2
+        assert len(phase_reads_sample2) == 4
+        read1, _, read2, _ = phase_reads_sample2
         assert len(read1) == len(read2) == 2
         if read1[0].position > read2[0].position:
             read1, read2 = read2, read1
-        assert read1.name == "sample2_block_100"
+        assert read1.name == "sample2_phase_0_block_100"
         assert read1.source_id == 11
         assert read1.mapqs == (102,)
         assert read1[0].position == 100 - 1
@@ -187,7 +187,7 @@ def test_phasing_to_reads():
         assert read1[1].position == 150 - 1
         assert read1[1].allele == 1
         assert read1[1].quality == 20
-        assert read2.name == "sample2_block_300"
+        assert read2.name == "sample2_phase_0_block_300"
         assert read2.source_id == 11
         assert read2.mapqs == (102,)
         assert read2[0].position == 300 - 1
@@ -209,10 +209,10 @@ def test_phasing_to_reads():
             )
         )
         print(phase_reads_sample2)
-        assert len(phase_reads_sample2) == 1
+        assert len(phase_reads_sample2) == 2
         read = phase_reads_sample2[0]
         assert len(read) == 2
-        assert read.name == "sample2_block_300"
+        assert read.name == "sample2_phase_0_block_300"
         assert read.source_id == 11
         assert read.mapqs == (102,)
         assert read[0].position == 300 - 1
