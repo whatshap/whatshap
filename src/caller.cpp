@@ -128,7 +128,7 @@ void Caller::pop_column(){
 	int variantposition=var.first;
 	int var_length= var.second-1;
 	int varstart= variantposition-window;
-	int varend= variantposition+window;
+	int varend= variantposition+var_length+window;
 	std::pair<int,int> next_var= variantslist[1];
 	int next_variantposition= next_var.first;
 	int next_var_length= next_var.second-1;
