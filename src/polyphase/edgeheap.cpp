@@ -21,68 +21,65 @@ EdgeHeap::EdgeHeap(StaticSparseGraph& param_graph) :
 {}
 
 void EdgeHeap::initInducedCosts() {
-    uint64_t numNodes = graph.numNodes();
-    // compute array: edge -> icf/icp
-    for (NodeId u = 0; u < numNodes; u++) {
+    // for each node: sorted list of all non-zero neighbours with higher index
+    std::vector<std::vector<NodeId>> higherNeighbour(graph.numNodes(), std::vector<NodeId>(0));
+    // compute initial icp/icf values
+    for (NodeId u = 0; u < graph.numNodes(); u++) {
         for (NodeId v : graph.getNonZeroNeighbours(u)) {
             if (v < u)
                 continue;
-            
-            // iterate over all edges uv
-            Edge uv(u,v);
-            EdgeId id = uv.id();
-            RankId rId = graph.findIndex(id);
-            
-            // Zero edges have no icp/icf
-            if (rId == 0) {
-                continue;
-            } else {
-                edges[rId] = uv;
-            }
-            
-            EdgeWeight w_uv = graph.getWeight(rId);
 
-            if (w_uv == 0.0 || w_uv == StaticSparseGraph::Forbidden || w_uv == StaticSparseGraph::Permanent) {
+            // iterate over all edges uv with u < v
+            Edge uv(u,v);
+            RankId rId = graph.findIndex(uv);
+            edges[rId] = uv;
+            icf[rId] = 0.0;
+            icp[rId] = 0.0;
+
+            EdgeWeight w_uv = graph.getWeight(rId);
+            if (w_uv == 0.0 || w_uv == StaticSparseGraph::Forbidden || w_uv == StaticSparseGraph::Permanent)
                 continue;
-            } else {
-                icf[rId] = 0.0;
-                icp[rId] = 0.0;
-                unprocessed++;
-            }
-            
+
+            unprocessed++;
+            higherNeighbour[u].push_back(v);
+
             // costs for the edge uv itself
-            if (w_uv >= 0) {	
+            if (w_uv >= 0)
                 icf[rId] += w_uv;	// costs for removing uv
-            } else {
+            else
                 icp[rId] += -w_uv;	// costs for adding uv
-            }
+        }
+        std::sort(higherNeighbour[u].begin(), higherNeighbour[u].end());
+    }
+    // compute contributions of common neighbors for each edge (u,v)
+    for (NodeId u = 0; u < graph.numNodes(); u++) {
+        for (uint32_t i = 0; i < higherNeighbour[u].size(); i++) {
+            NodeId v = higherNeighbour[u][i];
+            Edge uv(u,v);
+            RankId rUV = graph.findIndex(uv);
+            EdgeWeight w_uv = graph.getWeight(rUV);
             
             // look at all triangles uvw containing uv. Triangles with a zero edge can be ignored
             std::vector<NodeId> w_vec;
-            std::set_union(graph.getNonZeroNeighbours(u).begin(), graph.getNonZeroNeighbours(u).end(), 
-                                  graph.getNonZeroNeighbours(v).begin(), graph.getNonZeroNeighbours(v).end(), back_inserter(w_vec));
+            std::set_intersection(higherNeighbour[u].begin() + i, higherNeighbour[u].end(),
+                                  higherNeighbour[v].begin(), higherNeighbour[v].end(),
+                                  back_inserter(w_vec));
 
             for (NodeId w : w_vec) {
-                if (u == w || v == w)
-                    continue;
+                // to avoid too many getWeight calls, increase icf/icp for each edge in the triple, but process triple only once
                 Edge uw(u,w);
                 Edge vw(v,w);
-                EdgeWeight w_uw = graph.getWeight(uw);
-                EdgeWeight w_vw = graph.getWeight(vw);
-                icf[rId] += getIcf(w_uw, w_vw);
-                icp[rId] += getIcp(w_uw, w_vw);
+                RankId rUW = graph.findIndex(uw);
+                RankId rVW = graph.findIndex(vw);
+                EdgeWeight w_uw = graph.getWeight(rUW);
+                EdgeWeight w_vw = graph.getWeight(rVW);
+                icf[rUV] += getIcf(w_uw, w_vw);
+                icp[rUV] += getIcp(w_uw, w_vw);
+                icf[rUW] += getIcf(w_uv, w_vw);
+                icp[rUW] += getIcp(w_uv, w_vw);
+                icf[rVW] += getIcf(w_uv, w_uw);
+                icp[rVW] += getIcp(w_uv, w_uw);
             }
-        }
-    }
-    
-    for (unsigned int i = 0; i < icf.size(); i++){
-        if(std::isnan(icf[graph.findIndex(i)])) {
-            std::cout<<"NaN! in icf"<<std::endl;
-            break;
-        }
-        if(std::isnan(icp[graph.findIndex(i)])) {
-            std::cout<<"NaN! in icp"<<std::endl;
-            break;
         }
     }
     
@@ -133,31 +130,27 @@ Edge EdgeHeap::getMaxIcpEdge() const {
 }
 
 EdgeWeight EdgeHeap::getIcf(const Edge e) const {
-//     if (graph.findIndex(e) == 0)
-//         std::cout<<"getIcf on edge with rank 0"<<std::endl;
     return icf[edgeToBundle[graph.findIndex(e)]];
 }
 
 EdgeWeight EdgeHeap::getIcp(const Edge e) const {
-//     if (graph.findIndex(e) == 0)
-//         std::cout<<"getIcf on edge with rank 0"<<std::endl;
     return icp[edgeToBundle[graph.findIndex(e)]];
 }
 
 void EdgeHeap::increaseIcf(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
-    if (rId > 0 && w != 0 && icf[edgeToBundle[rId]] >= 0) {
+    if (rId > 0 && icf[edgeToBundle[rId]] >= 0) {
         RankId eb = edgeToBundle[rId];
-        icf[eb] = std::max(icf[eb]+w, 0.0f);
+        icf[eb] = std::max(icf[eb] + w, 0.0f);
         updateHeap(forb_rank2edge, eb, w, edge2forb_rank, icf);
     }
 }
 
 void EdgeHeap::increaseIcp(const Edge e, const EdgeWeight w) {
     RankId rId = graph.findIndex(e);
-    if (rId > 0 && w != 0 && icp[edgeToBundle[rId]] >= 0) {
+    if (rId > 0 && icp[edgeToBundle[rId]] >= 0) {
         RankId eb = edgeToBundle[rId];
-        icp[eb] = std::max(icp[eb]+w, 0.0f);
+        icp[eb] = std::max(icp[eb] + w, 0.0f);
         updateHeap(perm_rank2edge, eb, w, edge2perm_rank, icp);
     }
 }
@@ -247,26 +240,17 @@ void EdgeHeap::updateHeap(std::vector<RankId>& heap, const RankId e, const EdgeW
             parent = (pos-1)/2;
         }
     } else {
-        // value decreased -> move edge downwards in heap
-        uint64_t lChild = 2*pos+1;
-        uint64_t rChild = 2*pos+2;
-        while((lChild < heap.size() && score[heap[pos]] < score[heap[lChild]])
-            | (rChild < heap.size() && score[heap[pos]] < score[heap[rChild]]) ) {
-            if (rChild < heap.size() && score[heap[lChild]] < score[heap[rChild]]) {
-                // right child exists and is larger than left child -> swap pos with right child
-                std::swap(heap[pos], heap[rChild]);
-                index[heap[pos]] = pos;
-                index[heap[rChild]] = rChild;
-                pos = rChild;
-            } else {
-                // else swap with left child
-                std::swap(heap[pos], heap[lChild]);
-                index[heap[pos]] = pos;
-                index[heap[lChild]] = lChild;
-                pos = lChild;
-            }
-            lChild = 2*pos+1;
-            rChild = 2*pos+2;
+        uint64_t lChild = pos + (pos + 1) * ((2*pos + 1) < heap.size());
+        uint64_t rChild = pos + (pos + 2) * ((2*pos + 2) < heap.size());
+        uint64_t next = lChild * (score[heap[rChild]] <= score[heap[lChild]]) + rChild * (score[heap[lChild]] < score[heap[rChild]]);
+        while (score[heap[pos]] < score[heap[next]]) {
+            std::swap(heap[pos], heap[next]);
+            index[heap[pos]] = pos;
+            index[heap[next]] = next;
+            pos = next;
+            lChild = pos + (pos + 1) * ((2*pos + 1) < heap.size());
+            rChild = pos + (pos + 2) * ((2*pos + 2) < heap.size());
+            next = lChild * (score[heap[rChild]] <= score[heap[lChild]]) + rChild * (score[heap[lChild]] < score[heap[rChild]]);
         }
     }
 }

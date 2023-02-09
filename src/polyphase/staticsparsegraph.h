@@ -219,15 +219,6 @@ private:
      * Removes a specific node id from the vector.
      */
     bool removeFromVector(std::vector<NodeId>& vec, NodeId v);
-    
-    std::string int2bin(uint64_t u) {
-        std::string s(64, '0');
-        uint64_t mask = (1UL << 63); // fill in values right-to-left
-        for (int i = 0; i < 64; i++, mask >>= 1)
-            if ((u & mask) != 0)
-                s[i] = '1';
-        return s;
-    }
 };
 
 #endif

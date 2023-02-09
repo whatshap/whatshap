@@ -8,7 +8,8 @@
 #include <string> 
 #include <sstream>
 #include <algorithm>
-    
+#include <limits>
+
 typedef uint32_t Position;
 typedef uint32_t Haplotype;
 typedef double Score;

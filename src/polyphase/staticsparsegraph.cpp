@@ -125,11 +125,7 @@ bool StaticSparseGraph::isPermanent(const Edge e) {
 bool StaticSparseGraph::isForbidden(const Edge e) {
     NodeId cu = cliqueOfNode[e.u];
     NodeId cv = cliqueOfNode[e.v];
-    if (forbidden[cu].size() * forbidden[cv].size() == 0) {
-        return false;
-    } else {
-        return (forbidden[cu].size() < forbidden[cv].size() && forbidden[cu].find(cv) != forbidden[cu].end()) || forbidden[cv].find(cu) != forbidden[cv].end();
-    }
+    return forbidden[cu].find(cv) != forbidden[cu].end();
 }
 
 void StaticSparseGraph::setPermanent(const Edge e) {
@@ -244,27 +240,23 @@ const std::vector<NodeId>& StaticSparseGraph::getNonZeroNeighbours(const NodeId 
 }
 
 void StaticSparseGraph::refreshEdgeMetaData(const Edge e, const EdgeWeight oldW, const EdgeWeight newW) {
-    if ((oldW == StaticSparseGraph::Forbidden || oldW == StaticSparseGraph::Permanent || (oldW == 0.0)) && ((newW != 0.0) && newW != StaticSparseGraph::Forbidden && newW != StaticSparseGraph::Permanent)) {
+    bool oldPruned = (oldW == StaticSparseGraph::Forbidden) | (oldW == StaticSparseGraph::Permanent) | (oldW == 0.0);
+    bool newPruned = (newW == StaticSparseGraph::Forbidden) | (newW == StaticSparseGraph::Permanent) | (newW == 0.0);
+    bool oldZero = (oldW == 0.0);
+    bool newZero = (newW == 0.0);
+    if (oldPruned & !newPruned) {
         unprunedNeighbours[e.u].push_back(e.v);
         unprunedNeighbours[e.v].push_back(e.u);
-    } else if (oldW != StaticSparseGraph::Forbidden && oldW != StaticSparseGraph::Permanent && (oldW != 0.0) && ((newW == 0.0) || newW == StaticSparseGraph::Forbidden || newW == StaticSparseGraph::Permanent)) {
-        if (!removeFromVector(unprunedNeighbours[e.u], e.v))
-            std::cout<<"Error: Non-zero real neighbour "<<e.v<<" of "<<e.u<<" not found. Weight was set from "<<oldW<<" to "<<newW<<std::endl;
-        if (!removeFromVector(unprunedNeighbours[e.v], e.u))
-            std::cout<<"Error: Non-zero real neighbour "<<e.u<<" of "<<e.v<<" not found. Weight was set from "<<oldW<<" to "<<newW<<std::endl;
-        if (std::find(unprunedNeighbours[e.u].begin(), unprunedNeighbours[e.u].end(), e.v) != unprunedNeighbours[e.u].end())
-            std::cout<<"Removed unpruned neighbour "<<e.v<<" from "<<e.u<<", but is still there"<<std::endl;
-        if (std::find(unprunedNeighbours[e.v].begin(), unprunedNeighbours[e.v].end(), e.u) != unprunedNeighbours[e.v].end())
-            std::cout<<"Removed unpruned neighbour "<<e.u<<" from "<<e.v<<", but is still there"<<std::endl;
+    } else if (!oldPruned & newPruned) {
+        removeFromVector(unprunedNeighbours[e.u], e.v);
+        removeFromVector(unprunedNeighbours[e.v], e.u);
     }
-    if (oldW == 0.0 && newW != 0.0) {
+    if (oldZero & !newZero) {
         nonzeroNeighbours[e.u].push_back(e.v);
         nonzeroNeighbours[e.v].push_back(e.u);
-    } else if (oldW != 0.0 && newW == 0.0) {
-        if (!removeFromVector(nonzeroNeighbours[e.u], e.v))
-            std::cout<<"Error: Non-zero neighbour "<<e.v<<" of "<<e.u<<" not found. Weight was set from "<<oldW<<" to "<<newW<<std::endl;
-        if (!removeFromVector(nonzeroNeighbours[e.v], e.u))
-            std::cout<<"Error: Non-zero neighbour "<<e.u<<" of "<<e.v<<" not found. Weight was set from "<<oldW<<" to "<<newW<<std::endl;
+    } else if (!oldZero & newZero) {
+        removeFromVector(nonzeroNeighbours[e.u], e.v);
+        removeFromVector(nonzeroNeighbours[e.v], e.u);
     }
 }
 
@@ -286,9 +278,9 @@ RankId StaticSparseGraph::findIndex(const Edge e) const {
 }
 
 RankId StaticSparseGraph::findIndex(const EdgeId id) const {
-    uint64_t block1 = id / 4096;
-    uint64_t block2 = (id/64) % 64;
-    uint64_t bitv = rank1[block1] >> (63 - block2);
+    u_int64_t block1 = id / 4096;
+    u_int64_t block2 = (id / 64) % 64;
+    u_int64_t bitv = rank1[block1] >> (63 - block2);
     
     // check if corresponding bit in rank block is unset
     if ((bitv & 1UL) == 0) {
@@ -296,7 +288,7 @@ RankId StaticSparseGraph::findIndex(const EdgeId id) const {
     }
     
     block2 = offset1[block1] + popcount(bitv) - 1;
-    uint64_t block3 = id % 64;
+    u_int64_t block3 = id % 64;
     bitv = rank2[block2] >> (63 - block3);
     
     if ((bitv & 1UL) == 0) {

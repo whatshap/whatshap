@@ -314,9 +314,9 @@ def test_phase_one_of_three_individuals(algorithm, tmpdir):
     assert_phasing(table.phases_of("HG002"), [None, None, None, None, None])
 
 
-def test_phase_with_phased_blocks(tmpdir):
-    outvcf1 = str(tmpdir.join("output1.vcf"))
-    outvcf2 = str(tmpdir.join("output2.vcf"))
+def test_phase_with_phased_blocks(tmp_path):
+    outvcf1 = tmp_path / "output1.vcf"
+    outvcf2 = tmp_path / "output2.vcf"
     # run whatshap without --ignore-read-groups option
     run_whatshap(
         phase_input_files=[
@@ -337,8 +337,10 @@ def test_phase_with_phased_blocks(tmpdir):
         ignore_read_groups=True,
     )
     # the results should be identical
-    lines1 = [line for line in open(outvcf1, "r") if line[0] != "#"]
-    lines2 = [line for line in open(outvcf2, "r") if line[0] != "#"]
+    with open(outvcf1) as f:
+        lines1 = [line for line in f if line[0] != "#"]
+    with open(outvcf2) as f:
+        lines2 = [line for line in f if line[0] != "#"]
 
     for l1, l2 in zip(lines1, lines2):
         assert l1 == l2
@@ -728,11 +730,11 @@ def test_phase_quartet_recombination_breakpoints(expect_recombination, parameter
         assert_phasing(table.phases_of("HG003"), [phase0, phase0, None, phase0])
     assert_phasing(table.phases_of("HG004"), [None, None, None, None])
 
-    lines = open(outlist).readlines()
+    lines = outlist.read_text().splitlines()
     if expect_recombination:
         assert len(lines) == 3
-        assert lines[1] == "HG002 1 68735433 68738308 0 1 0 0 3\n"
-        assert lines[2] == "HG005 1 68735433 68738308 0 1 0 0 3\n"
+        assert lines[1] == "HG002 1 68735433 68738308 0 1 0 0 3"
+        assert lines[2] == "HG005 1 68735433 68738308 0 1 0 0 3"
     else:
         assert len(lines) == 1
 
@@ -802,7 +804,7 @@ def test_genetic_haplotyping(tmp_path):
     assert_phasing(table.phases_of("sampleD"), [phase0, None, phase1])
     assert_phasing(table.phases_of("sampleE"), [phase0, phase0, None])
 
-    lines = [l.split() for l in open(outrecomb)]
+    lines = [line.split() for line in outrecomb.read_text().splitlines()]
     assert len(lines) == 2
     Fields = namedtuple("Fields", [f.strip("#\n") for f in lines[0]])
     recomb = Fields(*lines[1])

@@ -129,9 +129,9 @@ def test_multiallelic(tmpdir):
 
 
 def likeliest_genotype(a, b, c, thres):
-    prob_a = 10 ** a
-    prob_b = 10 ** b
-    prob_c = 10 ** c
+    prob_a = 10**a
+    prob_b = 10**b
+    prob_c = 10**c
 
     prob = sorted([(prob_a, 0), (prob_b, 1), (prob_c, 2)])
 
@@ -429,7 +429,7 @@ def test_wrong_chromosome(tmp_path):
 
 
 def extract_likelihoods(record):
-    return [10.0 ** gl for gl in record.samples[0]["GL"]]
+    return [10.0**gl for gl in record.samples[0]["GL"]]
 
 
 @pytest.mark.parametrize("constant", [0.1, 0.2, 0.3, 0.5, 0.7, 1, 2, 5, 10, 20, 100])

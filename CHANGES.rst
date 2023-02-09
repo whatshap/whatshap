@@ -5,6 +5,74 @@ Changes
 development version
 -------------------
 
+* :issue:`425`: Haplotagging CRAM files should now work in more cases with
+  ``haplotag``.
+
+v1.7 (2022-12-01)
+-----------------
+
+* :pr:`379`: Added the ability to do polyploid phasing with pedigree information.
+  This is implemented in a new ``polyphasegenetic`` subcommand.
+* :issue:`143`: ``whatshap stats`` now outputs the fraction of heterozygous variants that are phased.
+* :pr:`410`: ``haplotag`` gained support for tagging data with ploidy greater
+  than two (use option ``--ploidy``).
+* :issue:`400`: Fixed artificial overinflation of block length stats in ``whatshap stats``.
+* :pr:`418`: Fixed problem in ``stats`` where NaN values caused ValuError
+* :pr:`416`: Clarified in the docs what ``stats`` considers as "phased".
+* :issue:`207`: Enable comma-separated chromosomes as argument to ``whatshap stats``.
+* :pr:`412`: Changed ``stats`` to compute all length statistics on split blocks
+* :pr:`399`: Formatted ``stats`` output so that long values are right-aligned with all other values.
+
+v1.6 (2022-09-06)
+-----------------
+
+* :pr:`384`: Fixed how interleaved phase blocks in ``whatshap stats`` are split
+  when computing NG50 values. This allows NG50 values to be larger than before.
+  Thanks to @pontushojer.
+* :pr:`385`: Speed up ``whatshap stats`` when used with ``--chromosomes`` by avoiding to
+  read in the entire VCF. Thanks to @pontushojer.
+* :pr:`387`: ``whatshap haplotag`` got some optimizations and is now about 20% faster.
+  Thanks to @pontushojer.
+* :issue:`397`: Fixed ``whatshap haplotag`` to include reads not assigned to a contig
+  (unmapped) in the output (unless the ``--region`` option is used).
+
+v1.5 (2022-08-23)
+-----------------
+
+* Providing a reference FASTA (with ``--reference`` or ``-r``)
+  is now mandatory even for  ``whatshap haplotag``. It was already
+  mandatory for ``whatshap phase``. In both cases, this is to prevent
+  accidentally getting bad results because allele detection through
+  realignment (which usually performs better) is only possible if a
+  reference is provided. Use ``--no-reference`` explicitly to fall
+  back to the less accurate algorithm.
+* :issue:`394`: Fixed ``whatshap phase`` option ``--recombination--list``
+  not working.
+* :issue:`371`: ``whatshap split`` crashed when attempting to split
+  reads in a FASTQ file by haplotype.
+* :pr:`377`: Speed-up of about 20-30% for ``whatshap polyphase`` via
+  some optimizations in the read clustering algorithm.
+* Removed the deprecated ``--pigz`` option for ``whatshap split``
+
+v1.4 (2022-04-07)
+-----------------
+
+* :pr:`362`: ``whatshap polyphase`` received extensive algorithmic updates. The compatiblity with
+  different data sets (species and sequencing technology) has been improved. The wall-clock time
+  has been reduced by about 20-30%, depending on the input data.
+
+v1.3 (2022-03-11)
+-----------------
+
+* :issue:`353`: Fix incorrect HS tags in ``whatshap polyphase``
+* :issue:`356`: Fixed crash when reading VCF variants without ``GT`` fields (happens in GVCFs).
+* :pr:`352`: ``whatshap haplotag`` has gained option ``--output-threads`` for setting the
+  number of compression threads, significantly reducing wall-clock time. Also, if output
+  is sent to a pipe, uncompressed BAM is written. Thanks to @cjw85.
+
+v1.2 (2021-12-08)
+-----------------
+
 * :issue:`208`: Fix ``phase --merge-reads``. This option has never worked correctly and just led to
   ``whatshap phase`` taking a very long time and in some cases even crashing. With the fix, the
   option should work as intended, but we have not evaluated how much it improves phasing results.
@@ -12,6 +80,8 @@ development version
 * :pr:`335`: Add option ``--ignore-sample-name`` to ``whatshap compare`` (thanks to Pontus Höjer)
 * :issue:`342`: Fix ``whatshap compare`` crashing on VCFs with genotypes with an unknown allele
   (where ``GT`` is ``1|.`` or similar).
+* :issue:`343`: ``whatshap stats`` now reads the chromosome lengths (for N50 computation) from
+  the VCF header, no need to use ``--chr-lengths``.
 
 v1.1 (2021-04-08)
 -----------------

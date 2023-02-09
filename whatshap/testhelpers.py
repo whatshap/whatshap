@@ -15,9 +15,9 @@ def string_to_readset(s, w=None, sample_ids=None, source_id=0, scale_quality=Non
         if len(line) == 0:
             continue
         if sample_ids is None:
-            read = Read("Read {}".format(index + 1), 50, source_id)
+            read = Read(f"Read {index + 1}", 50, source_id)
         else:
-            read = Read("Read {}".format(index + 1), 50, source_id, sample_ids[index])
+            read = Read(f"Read {index + 1}", 50, source_id, sample_ids[index])
         for pos, c in enumerate(line):
             if c == " ":
                 continue
@@ -63,7 +63,7 @@ def matrix_to_readset(lines):
         index_tracker += 1
         assert index == index_tracker, "Not in matrix format."
 
-        read = Read("Read {}".format(index), 50)
+        read = Read(f"Read {index}", 50)
         for i in range(int(len(s) / 2)):
 
             offset = int(s[2 * i + 1])
@@ -134,7 +134,7 @@ def brute_force_phase(read_set, all_heterozygous):
     best_haplotypes = None
     solution_count = 0
     for partition in range(2 ** len(read_set)):
-        print("Looking at partition {{:0>{}b}}".format(len(read_set)).format(partition))
+        print(f"Looking at partition {partition:0>{len(read_set)}b}")
         # compute cost induced by that partition
         cost = 0
         haplotypes = []
@@ -147,7 +147,7 @@ def brute_force_phase(read_set, all_heterozygous):
                     if variant.position == p:
                         variants[i].append(variant)
             c, assignment = column_cost(variants, possible_assignments)
-            print("    position: {}, variants: {} --> cost = {}".format(p, str(variants), c))
+            print(f"    position: {p}, variants: {str(variants)} --> cost = {c}")
             cost += c
             haplotypes.append(assignment)
         print("  --> cost for this partitioning:", cost)

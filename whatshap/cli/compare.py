@@ -1,5 +1,5 @@
 """
-Compare two or more phasings
+Compare two or more phased variant files
 """
 import logging
 import math
@@ -10,7 +10,8 @@ from itertools import chain, permutations
 from typing import Set, List, Optional, DefaultDict, Dict
 
 from whatshap.vcf import VcfReader, VcfVariant, VariantTable, PloidyError
-from whatshap.core import Genotype, SwitchFlipCalculator
+from whatshap.core import Genotype
+from whatshap.polyphase.solver import SwitchFlipCalculator
 from whatshap.cli import CommandLineError
 
 
@@ -31,19 +32,19 @@ def add_arguments(parser):
     add('--tsv-pairwise', metavar='TSVPAIRWISE', default=None, help='Filename to write '
         'comparison results from pair-wise comparison to (tab-separated).')
     add('--tsv-multiway', metavar='TSVMULTIWAY', default=None, help='Filename to write '
-        'comparison results from multiway comparison to (tab-separated). Only for diploid vcfs.')
+        'comparison results from multiway comparison to (tab-separated). Only for diploid VCFs.')
     add('--only-snvs', default=False, action="store_true", help='Only process SNVs '
         'and ignore all other variants.')
     add('--switch-error-bed', default=None, help='Write BED file with switch error positions '
-        'to given filename. Only for diploid vcfs.')
+        'to given filename. Only for diploid VCFs.')
     add('--plot-blocksizes', default=None, help='Write PDF file with a block length histogram '
         'to given filename (requires matplotlib).')
     add('--plot-sum-of-blocksizes', default=None, help='Write PDF file with a block length histogram in which the height of each bar corresponds to the sum of lengths.')
     add('--longest-block-tsv', default=None, help='Write position-wise agreement of longest '
-        'joint blocks in each chromosome to tab-separated file. Only for diploid vcfs.')
+        'joint blocks in each chromosome to tab-separated file. Only for diploid VCFs.')
     add('--ploidy', '-p', metavar='PLOIDY', type=int, default=2, help='The ploidy of the sample(s) (default: %(default)s).')
     # TODO: what's the best way to request "two or more" VCFs?
-    add('vcf', nargs='+', metavar='VCF', help='At least two phased VCF files to be compared.')
+    add('vcf', nargs='+', metavar='VCF/BCF', help='At least two phased variant files (VCF or BCF) to be compared.')
 # fmt: on
 
 
@@ -71,10 +72,10 @@ class SwitchFlips:
         return self
 
     def __repr__(self):
-        return "SwitchFlips(switches={}, flips={})".format(self.switches, self.flips)
+        return f"SwitchFlips(switches={self.switches}, flips={self.flips})"
 
     def __str__(self):
-        return "{}/{}".format(self.switches, self.flips)
+        return f"{self.switches}/{self.flips}"
 
 
 class PhasingErrors:
@@ -133,6 +134,14 @@ def switch_encoding(phasing):
 
 
 def compute_switch_flips(phasing0, phasing1) -> SwitchFlips:
+    """
+    >>> compute_switch_flips("00011", "00100")
+    SwitchFlips(switches=1, flips=0)
+    >>> compute_switch_flips("00011", "00111")
+    SwitchFlips(switches=0, flips=1)
+    >>> compute_switch_flips("000", "001")
+    SwitchFlips(switches=1, flips=0)
+    """
     assert len(phasing0) == len(phasing1)
     s0 = switch_encoding(phasing0)
     s1 = switch_encoding(phasing1)
@@ -158,15 +167,12 @@ def compute_matching_genotype_pos(phasing0, phasing1):
     assert len(phasing0[0]) == len(phasing1[0])
     assert all(len(phasing0[i]) == len(phasing0[0]) for i in range(1, len(phasing0)))
     num_vars = len(phasing0[0])
-    matching_pos = []
-    for i in range(num_vars):
-        try:
-            p0 = [int(hap[i]) for hap in phasing0]
-            p1 = [int(hap[i]) for hap in phasing1]
-        except ValueError:
-            continue
-        if Genotype(p0) == Genotype(p1):
-            matching_pos.append(i)
+    matching_pos = [
+        i
+        for i in range(num_vars)
+        if Genotype([int(hap[i]) for hap in phasing0])
+        == Genotype([int(hap[i]) for hap in phasing1])
+    ]
     return matching_pos
 
 
@@ -308,7 +314,7 @@ def fraction2percentstr(nominator, denominator):
     if denominator == 0:
         return "--"
     else:
-        return "{:.2f}%".format(nominator * 100.0 / denominator)
+        return f"{nominator * 100.0 / denominator:.2f}%"
 
 
 def safefraction(nominator, denominator):
@@ -452,7 +458,7 @@ def compare(
         any_none = False
         for i in range(len(phases)):
             phase = phases[i][variant_index]
-            if phase is None:
+            if phase is None or any(p is None for p in phase.phase):
                 any_none = True
             else:
                 blocks[i][phase.block_id].append(variant_index)
@@ -467,7 +473,7 @@ def compare(
 
     for dataset_name, blck in zip(dataset_names, blocks):
         print_stat(
-            "non-singleton blocks in {}".format(dataset_name),
+            f"non-singleton blocks in {dataset_name}",
             len([b for b in blck.values() if len(b) > 1]),
         )
         print_stat("--> covered variants", sum(len(b) for b in blck.values() if len(b) > 1))
@@ -523,27 +529,14 @@ def compare_pair(
     bed_records = []
     total_errors = PhasingErrors()
     total_compared_variants = 0
-    phase_to_str = {
-        0: "0",
-        1: "1",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5",
-        6: "6",
-        7: "7",
-        8: "8",
-        9: "9",
-        None: ".",
-    }
     for block in block_intersection.values():
         if len(block) < 2:
             continue
         phasing0 = []
         phasing1 = []
         for j in range(ploidy):
-            p0 = "".join(phase_to_str[phases[0][i].phase[j]] for i in block)
-            p1 = "".join(phase_to_str[phases[1][i].phase[j]] for i in block)
+            p0 = "".join(str(phases[0][i].phase[j]) for i in block)
+            p1 = "".join(str(phases[1][i].phase[j]) for i in block)
             phasing0.append(p0)
             phasing1.append(p1)
         block_positions = [sorted_variants[i].position for i in block]
@@ -649,7 +642,7 @@ def compare_multiway(block_intersection, dataset_names, phases):
     for i, s in enumerate(bipartitions):
         count = histogram[s]
         if i == 0:
-            assert set(c for c in s) == set("0")
+            assert {c for c in s} == set("0")
             print("ALL AGREE")
         elif i == 1:
             print("DISAGREEMENT")
@@ -660,7 +653,7 @@ def compare_multiway(block_intersection, dataset_names, phases):
             else:
                 right.append(name)
         print_stat(
-            ("{%s} vs. {%s}" % (",".join(left), ",".join(right))),
+            ("{{{}}} vs. {{{}}}".format(",".join(left), ",".join(right))),
             count,
             fraction2percentstr(count, total_compared),
         )
@@ -777,7 +770,7 @@ def run_compare(
                 "Number of names given with --names does not equal number of VCFs."
             )
     else:
-        dataset_names = ["file{}".format(i) for i in range(len(vcf))]
+        dataset_names = [f"file{i}" for i in range(len(vcf))]
 
     sample_names = get_sample_names(
         vcf_readers, requested_sample=sample, ignore_name=ignore_sample_name
@@ -860,7 +853,7 @@ def run_compare(
                 big_list.extend(new_list)
 
         for chromosome in sorted(chromosomes):
-            print("---------------- Chromosome {} ----------------".format(chromosome))
+            print(f"---------------- Chromosome {chromosome} ----------------")
             all_bed_records = []
             variant_tables = [vcf[chromosome] for vcf in vcfs]
             all_variants_union = set()
@@ -888,7 +881,7 @@ def run_compare(
                     het_variants_intersection.intersection_update(het_variants)
                 het_variant_sets.append(set(het_variants))
                 print(
-                    "{}:".format(name).rjust(width),
+                    f"{name}:".rjust(width),
                     str(len(het_variants)).rjust(COUNT_WIDTH),
                     "/",
                     str(len(variant_table.variants)).rjust(COUNT_WIDTH),
@@ -1030,7 +1023,7 @@ def get_variant_tables(
             for variant_table in reader:
                 m[variant_table.chromosome] = variant_table
         except PloidyError as e:
-            raise CommandLineError("Provided ploidy is invalid: {}. Aborting.".format(e))
+            raise CommandLineError(f"Provided ploidy is invalid: {e}. Aborting.")
         vcfs.append(m)
     return vcfs
 

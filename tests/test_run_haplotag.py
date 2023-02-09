@@ -88,12 +88,18 @@ def test_haplotag_cli_parser(tmp_path):
     outbam = tmp_path / "output.bam"
     parser = argp.ArgumentParser(description="haplotag_test_parser", prog="whatshap_pytest")
     haplotag_add_arguments(parser)
-    haplotag_args = vars(
-        parser.parse_args(
-            ["--output", str(outbam), "tests/data/haplotag_2.vcf.gz", "tests/data/haplotag.bam"]
-        )
+    haplotag_args = parser.parse_args(
+        [
+            "--no-reference",
+            "--output",
+            str(outbam),
+            "tests/data/haplotag_2.vcf.gz",
+            "tests/data/haplotag.bam",
+        ]
     )
-    run_haplotag(**haplotag_args)
+    haplotag_args.reference = False
+    del haplotag_args.no_reference
+    run_haplotag(**vars(haplotag_args))
     ps_count = 0
     for alignment in pysam.AlignmentFile(outbam):
         if alignment.has_tag("PS"):
@@ -199,11 +205,14 @@ def test_haplotag_no_readgroups1(tmp_path):
         output=outbam2,
         ignore_read_groups=True,
     )
+    count = 0
     for a1, a2 in zip(pysam.AlignmentFile(outbam1), pysam.AlignmentFile(outbam2)):
         assert a1.query_name == a2.query_name
         if a1.has_tag("HP"):
             assert a2.has_tag("HP")
             assert a1.get_tag("HP") == a2.get_tag("HP")
+            count += 1
+    assert count > 0
 
 
 def test_haplotag_no_readgroups2():
@@ -247,11 +256,14 @@ def haplotag_different_sorting(tmp_path):
         alignment_file="tests/data/haplotag.large.bam",
         output=outbam2,
     )
+    count = 0
     for a1, a2 in zip(pysam.AlignmentFile(outbam1), pysam.AlignmentFile(outbam2)):
         assert a1.query_name == a2.query_name
         if a1.has_tag("HP"):
             assert a2.has_tag("HP")
             assert a1.get_tag("HP") == a2.get_tag("HP")
+            count += 1
+    assert count > 0
 
 
 def test_haplotag_10X(tmp_path):
@@ -280,12 +292,15 @@ def test_haplotag_10X_2(tmp_path):
         alignment_file="tests/data/haplotag.10X.bam",
         output=outbam,
     )
+    count = 0
     for a1, a2 in zip(
         pysam.AlignmentFile("tests/data/haplotag.10X.bam"), pysam.AlignmentFile(outbam)
     ):
         assert a1.query_name == a2.query_name
         if a1.has_tag("HP") and a2.has_tag("HP"):
             assert a1.get_tag("HP") == a2.get_tag("HP")
+            count += 1
+    assert count > 0
 
 
 def test_haplotag_10X_ignore_linked_read(tmp_path):
@@ -455,3 +470,78 @@ def test_cram_output(tmp_path):
     )
     with pysam.AlignmentFile(outcram) as f:
         assert f.is_cram
+
+
+def test_haplotag_unmapped_reads(tmp_path):
+    outbam = tmp_path / "output.bam"
+    run_haplotag(
+        variant_file="tests/data/haplotag.10X.vcf.gz",
+        alignment_file="tests/data/unmapped.bam",
+        output=outbam,
+    )
+    pysam.index(str(outbam))
+    with pysam.AlignmentFile(outbam) as af:
+        alignments = list(af.fetch(until_eof=True))
+    assert len(alignments) == 6
+    assert not alignments[4].is_unmapped
+    assert alignments[5].is_unmapped
+
+
+def test_haplotag_triploid(tmp_path):
+    outbam = tmp_path / "output.bam"
+    run_haplotag(
+        variant_file="tests/data/haplotag_triploid.vcf.gz",
+        alignment_file="tests/data/haplotag_triploid.bam",
+        ploidy=3,
+        output=outbam,
+    )
+
+    # manually computed haplotag scores and haplotype assignments
+    readname_to_score = {
+        "S1_31286_NA19240_HAP2": 23,
+        "S1_248595_HG00514_HAP1": 18,
+        "S1_103518_HG00514_HAP2": 29,
+    }
+    readname_to_haplotype = {
+        "S1_31286_NA19240_HAP2": 3,
+        "S1_248595_HG00514_HAP1": 1,
+        "S1_103518_HG00514_HAP2": 2,
+    }
+    count = 0
+    with pysam.AlignmentFile(outbam) as af:
+        for alignment in af:
+            count += 1
+            assert readname_to_score[alignment.query_name] == alignment.get_tag("PC")
+            assert readname_to_haplotype[alignment.query_name] == alignment.get_tag("HP")
+    assert count == 3
+
+
+def test_haplotag_tetraploid(tmp_path):
+    outbam = tmp_path / "output.bam"
+    run_haplotag(
+        variant_file="tests/data/haplotag_poly.vcf.gz",
+        alignment_file="tests/data/haplotag_poly.bam",
+        ploidy=4,
+        output=outbam,
+    )
+
+    # manually computed haplotag scores and haplotype assignments
+    readname_to_score = {
+        "S1_31286_NA19240_HAP2": 6,
+        "S1_248595_HG00514_HAP1": 4,
+        "S1_284251_NA19240_HAP1": 14,
+        "S1_103518_HG00514_HAP2": 16,
+    }
+    readname_to_haplotype = {
+        "S1_31286_NA19240_HAP2": 4,
+        "S1_248595_HG00514_HAP1": 1,
+        "S1_284251_NA19240_HAP1": 3,
+        "S1_103518_HG00514_HAP2": 2,
+    }
+    count = 0
+    with pysam.AlignmentFile(outbam) as af:
+        for alignment in af:
+            count += 1
+            assert readname_to_score[alignment.query_name] == alignment.get_tag("PC")
+            assert readname_to_haplotype[alignment.query_name] == alignment.get_tag("HP")
+    assert count == 4

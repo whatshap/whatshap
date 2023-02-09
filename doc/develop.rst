@@ -19,8 +19,8 @@ GitHub account)::
     source venv/bin/activate
     pip install -e .[dev]
 
-The last command installs also all the development dependencies, such as Cython.
-Omit the ``[dev]`` (write only ``pip install -e .``) to leave them out.
+The last command installs also all the development dependencies.
+Omit the ``[dev]`` to leave them out.
 
 Next, you can run WhatsHap like this::
 
@@ -30,22 +30,21 @@ Next, you can run WhatsHap like this::
 Development installation when using Conda
 -----------------------------------------
 
-If you are using `Bioconda <https://bioconda.github.io/>`_, it is convenient to develop WhatsHap in a separate environment::
+If you are familiar with `Conda <https://docs.conda.io/en/latest/>`_, you can
+also use a Conda environment for developing WhatsHap. We recommend that you
+use Conda only to install Python itself and let the rest of the dependencies
+be handled by ``pip``::
 
-    conda create -n whatshap-dev python=3.6 pysam PyVCF pyfaidx xopen Cython pytest sphinx-issues
-    source activate whatshap-dev
-    git clone git@github.com:whatshap/whatshap.git
-    cd whatshap
-    pip install -e .
-
-The last command installs WhatsHap into your Conda environment named ``whatshap-dev``. So when
-executing ``whatshap`` you will run the latest version you just cloned.
+    conda create -n whatshap-dev python=3.10
+    conda activate whatshap-dev
+    pip install -e .[dev]
 
 
 Running tests
 -------------
 
-While in the virtual environment, you can run the tests for the current Python version like this::
+While in the virtual (or Conda) environment, you can run the tests for the
+current Python version like this::
 
     pytest
 
@@ -64,8 +63,8 @@ However, you need to have all tested Python versions installed on the system! Se
 below for how to do this on Ubuntu.
 
 
-Coding style
-------------
+Code style
+----------
 
 Python code needs to be formatted with `Black <https://github.com/psf/black>`_.
 Either run `black whatshap tests` manually before you commit or use the
@@ -83,10 +82,10 @@ After you have done so, ensure you have the following packages::
     sudo apt install build-essential python-software-properties
 
 Then get and install the desired Python versions. Make sure you install the ``-dev`` package.
-For example, for Python 3.4::
+For example, for Python 3.10::
 
     sudo apt update
-    sudo apt install python3.4-dev
+    sudo apt install python3.10-dev
 
 
 Debugging
@@ -164,7 +163,7 @@ and documentation for the most recent released version should be visible at
 `https://whatshap.readthedocs.io/en/stable/ <https://whatshap.readthedocs.io/en/stable/>`_.
 
 To generate documentation locally, ensure that you installed sphinx and the
-add-ons necessary to build documentation (running ``pip install -e .[dev]`` will
+add-ons necessary to build documentation (running ``pip install -e .[docs]`` will
 take care of this). Then go into the ``doc/`` directory and run ``make``. You can
 then open ``doc/_build/html/index.html`` in your browser. The theme that is
 used is a bit different from the one used on Read the Docs.

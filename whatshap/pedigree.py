@@ -4,10 +4,14 @@ Pedigree-related functions
 from abc import ABC, abstractmethod
 
 import math
-from typing import Optional
-from collections import Counter, OrderedDict, defaultdict
+from pathlib import Path
+
+from typing import Optional, Union, Sequence, List, IO, Iterator, Mapping
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 import logging
+
+from whatshap.core import Genotype
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +23,10 @@ class ParseError(Exception):
 @dataclass
 class RecombinationMapEntry:
     position: int
-    cum_distance: int
+    cum_distance: float
 
 
-@dataclass
+@dataclass(order=True)
 class RecombinationEvent:
     position1: int
     position2: int
@@ -33,7 +37,10 @@ class RecombinationEvent:
     recombination_cost: float
 
 
-def _interpolate(point, start_pos, end_pos, start_value, end_value):
+def _interpolate(
+    point: int, start_pos: int, end_pos: int, start_value: float, end_value: float
+) -> float:
+
     assert start_pos <= point <= end_pos
     if start_pos == point == end_pos:
         assert start_value == end_value
@@ -41,20 +48,22 @@ def _interpolate(point, start_pos, end_pos, start_value, end_value):
     return start_value + ((point - start_pos) * (end_value - start_value) / (end_pos - start_pos))
 
 
-MINIMUM_GENETIC_DISTANCE = 1e-10  # cM
+MINIMUM_GENETIC_DISTANCE: float = 1e-10  # cM
 
 
-def recombination_cost_map(genetic_map, positions):
+def recombination_cost_map(
+    genetic_map: Sequence[RecombinationMapEntry], positions: Sequence[int]
+) -> Sequence[int]:
 
     assert len(genetic_map) > 0
 
     # Step 1: compute cumulative genetic distances from start of chromosome
     #         to each position.
-    cumulative_distances = []
+    cumulative_distances: List[float] = []
     # i and j are such that genetic_map[i].position <= position <= genetic_map[j].position
     # i and j are None if no such values exist (because we are at the end of the list)
-    i = None
-    j = 0
+    i: Optional[int] = None
+    j: Optional[int] = 0
 
     for position in positions:
         # update i to meet the invariant
@@ -103,18 +112,18 @@ def recombination_cost_map(genetic_map, positions):
     return result
 
 
-def centimorgen_to_phred(distance):
+def centimorgen_to_phred(distance: float) -> float:
     assert distance >= 0
     if distance == 0:
         raise ValueError("Cannot convert genetic distance of zero to phred.")
     elif distance < 1e-10:
-        return -10 * (math.log10(distance) - 2)
+        return -10.0 * (math.log10(distance) - 2.0)
     else:
-        p = (1.0 - math.exp(-(2.0 * distance) / 100)) / 2.0
-        return -10 * math.log10(p)
+        p = (1.0 - math.exp(-(2.0 * distance) / 100.0)) / 2.0
+        return -10.0 * math.log10(p)
 
 
-def mendelian_conflict(genotypem, genotypef, genotypec):
+def mendelian_conflict(genotypem: Genotype, genotypef: Genotype, genotypec: Genotype) -> bool:
     # TODO: Maybe inefficient
     alleles_m = genotypem.as_vector()
     alleles_f = genotypef.as_vector()
@@ -127,7 +136,13 @@ def mendelian_conflict(genotypem, genotypef, genotypec):
         return True
 
 
-def find_recombination(transmission_vector, components, positions, recombcost):
+def find_recombination(
+    transmission_vector: Sequence[int],
+    components: Mapping[int, int],
+    positions: Sequence[int],
+    recombcost: Sequence[int],
+) -> Sequence[RecombinationEvent]:
+
     assert len(transmission_vector) == len(positions) == len(recombcost)
     assert set(components.keys()).issubset(set(positions))
     position_to_index = {pos: i for i, pos in enumerate(positions)}
@@ -135,7 +150,7 @@ def find_recombination(transmission_vector, components, positions, recombcost):
     for position, block_id in components.items():
         blocks[block_id].append(position)
 
-    event_list = []
+    events = []
     cum_recomb_cost = 0
     for block_id, block in blocks.items():
         block.sort()
@@ -145,7 +160,7 @@ def find_recombination(transmission_vector, components, positions, recombcost):
             continue
         for i in range(2, len(block)):
             if block_transmission_vector[i - 1] != block_transmission_vector[i]:
-                event_list.append(
+                events.append(
                     RecombinationEvent(
                         block[i - 1],
                         block[i],
@@ -159,13 +174,13 @@ def find_recombination(transmission_vector, components, positions, recombcost):
                 cum_recomb_cost += block_recomb_cost[i]
 
     logger.info("Cost accounted for by recombination events: %d", cum_recomb_cost)
-    event_list.sort()
-    return event_list
+    events.sort()
+    return events
 
 
 class RecombinationCostComputer(ABC):
     @abstractmethod
-    def compute(self, positions):
+    def compute(self, positions: Sequence[int]) -> Sequence[int]:
         pass
 
 
@@ -174,9 +189,14 @@ class GeneticMapRecombinationCostComputer(RecombinationCostComputer):
         self._genetic_map = self.load_genetic_map(genetic_map_path)
 
     @staticmethod
-    def load_genetic_map(filename):
+    def load_genetic_map(filename: Union[str, Path]) -> Sequence[RecombinationMapEntry]:
+        # Example:
+        #
+        # position COMBINED_rate(cM/Mb) Genetic_Map(cM)
+        # 55550 0 0
+        # 721290 2.685807669 0.410292036939447
+        #
         genetic_map = []
-
         warned_zero_distance = False
         with open(filename) as fid:
             for line_number, line in enumerate(fid, 1):
@@ -188,17 +208,15 @@ class GeneticMapRecombinationCostComputer(RecombinationCostComputer):
                     continue
                 if len(fields) != 3:
                     raise ParseError(
-                        "Error at line {} of genetic map file '{}': "
-                        "Found {} fields instead of 3".format(line_number, filename, len(fields))
+                        f"Error at line {line_number} of genetic map file '{filename}': "
+                        f"Found {len(fields)} fields instead of 3"
                     )
                 try:
                     position = int(fields[0])
                     cum_distance = float(fields[2])
                 except ValueError as e:
                     raise ParseError(
-                        "Error at line {} of genetic map file '{}': {}".format(
-                            line_number, filename, e
-                        )
+                        f"Error at line {line_number} of genetic map file '{filename}': {e}"
                     )
                 genetic_map.append(
                     RecombinationMapEntry(position=position, cum_distance=cum_distance)
@@ -212,16 +230,16 @@ class GeneticMapRecombinationCostComputer(RecombinationCostComputer):
 
         return genetic_map
 
-    def compute(self, positions):
+    def compute(self, positions: Sequence[int]) -> Sequence[int]:
         return recombination_cost_map(self._genetic_map, positions)
 
 
 class UniformRecombinationCostComputer(RecombinationCostComputer):
-    def __init__(self, recombination_rate):
+    def __init__(self, recombination_rate: float):
         self._recombination_rate = recombination_rate
 
     @staticmethod
-    def uniform_recombination_map(recombrate, positions):
+    def uniform_recombination_map(recombrate: float, positions) -> Sequence[int]:
         """
         For a list of positions and a constant recombination rate (in cM/Mb),
         return a list "results" of the same length as "positions" such that
@@ -233,17 +251,17 @@ class UniformRecombinationCostComputer(RecombinationCostComputer):
             for i in range(1, len(positions))
         ]
 
-    def compute(self, positions):
+    def compute(self, positions: Sequence[int]) -> Sequence[int]:
         return self.uniform_recombination_map(self._recombination_rate, positions)
 
 
 @dataclass
 class Trio:
-    """"Relationships are modelled as a set of trios (mother, father, child)."""
+    """Relationships are modelled as a set of trios (mother, father, child)."""
 
-    child: Optional[int]
-    father: Optional[int]
-    mother: Optional[int]
+    child: str
+    father: Optional[str]
+    mother: Optional[str]
 
 
 class PedReader:
@@ -264,15 +282,15 @@ class PedReader:
     this class. The entire file is read upon construction.
     """
 
-    def __init__(self, file):
-        if isinstance(file, str):
+    def __init__(self, file: Union[str, Path, IO]):
+        if isinstance(file, (str, Path)):
             with open(file) as f:
                 self.trios = self._parse(f)
         else:
             self.trios = self._parse(file)
 
     @staticmethod
-    def _parse_record(line):
+    def _parse_record(line: str) -> Trio:
         """
         Parse a single non-comment line of a PED or FAM file.
         """
@@ -280,13 +298,13 @@ class PedReader:
         if len(fields) < 6:
             raise ParseError("Less than six fields found in PED/FAM file")
         individual_id, paternal_id, maternal_id = fields[1:4]
-        if paternal_id == "0":
-            paternal_id = None
-        if maternal_id == "0":
-            maternal_id = None
-        return Trio(child=individual_id, father=paternal_id, mother=maternal_id)
+        return Trio(
+            child=individual_id,
+            father=paternal_id if paternal_id != "0" else None,
+            mother=maternal_id if maternal_id != "0" else None,
+        )
 
-    def _parse(self, file):
+    def _parse(self, file: IO) -> Sequence[Trio]:
         trios = []
         for line in file:
             if line.startswith("#") or line == "\n":
@@ -296,7 +314,7 @@ class PedReader:
         return trios
 
     @staticmethod
-    def _sanity_check(trios):
+    def _sanity_check(trios: Sequence[Trio]) -> None:
         """
         Ensure that each individual occurs only once in the file.
         """
@@ -305,12 +323,12 @@ class PedReader:
             return
         id, count = Counter(children).most_common()[0]
         if count > 1:
-            raise ParseError("Individual {!r} occurs more than once in PED file".format(id))
+            raise ParseError(f"Individual {id!r} occurs more than once in PED file")
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Trio]:
         return iter(self.trios)
 
-    def samples(self):
+    def samples(self) -> Sequence[str]:
         """Return a list of all mentioned individuals"""
         samples = set()
         for trio in self.trios:
@@ -320,50 +338,3 @@ class PedReader:
             samples.add(trio.mother)
             samples.add(trio.child)
         return list(samples)
-
-
-class CyclicGraphError(Exception):
-    pass
-
-
-class Graph:
-    """Directed graph that can sort topologically"""
-
-    def __init__(self):
-        # map node to a list of neighbors
-        self._neighbors = OrderedDict()
-
-    def add_edge(self, node1, node2):
-        """The edge is directed from node1 to node2"""
-        if node1 not in self._neighbors:
-            self._neighbors[node1] = []
-        self._neighbors[node1].append(node2)
-        if node2 not in self._neighbors:
-            self._neighbors[node2] = []
-
-    def toposorted(self):
-        """
-        Return nodes of the graph sorted topologically.
-        For all edges u -> v that the graph has, node v will appear
-        before node u.
-        """
-        order = []
-        colors = {node: "white" for node in self._neighbors}
-
-        def visit(node):
-            assert colors[node] == "white"
-            colors[node] = "gray"
-            for neighbor in self._neighbors[node]:
-                if colors[neighbor] == "white":
-                    visit(neighbor)
-                elif colors[neighbor] == "gray":
-                    raise CyclicGraphError(
-                        "Cycle involving {!r} and {!r} detected".format(node, neighbor)
-                    )
-            order.append(node)
-            colors[node] = "black"
-
-        for node in self._neighbors:
-            if colors[node] == "white":
-                visit(node)
-        return order

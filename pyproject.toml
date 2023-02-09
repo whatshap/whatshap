@@ -1,7 +1,26 @@
 [build-system]
-requires = ["setuptools", "wheel", "setuptools_scm", "cython"]
+requires = ["setuptools>=60", "setuptools_scm", "cython~=0.29.20"]
 build-backend = "setuptools.build_meta"
 
 [tool.black]
 line-length = 100
-target-version = ['py36']
+target-version = ["py37"]
+
+[tool.mypy]
+warn_unused_configs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "pyfaidx",
+    "matplotlib.*",
+    "pylab",
+    "scipy.stats",
+    "scipy.special",
+    "networkx",
+    "pulp",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules"
+testpaths = ["tests", "whatshap"]

@@ -2,19 +2,14 @@
 Test Threading
 """
 
-from collections import defaultdict
-from whatshap.threading import (
-    get_position_map,
-    get_coverage,
-    get_coverage_absolute,
-    get_cluster_start_end_positions,
-    compute_cut_positions,
-    improve_path_on_multiswitches,
-    compute_threading_path,
-    get_pos_to_clusters_map,
-    get_local_cluster_consensus,
-)
 from whatshap.core import Read, ReadSet
+
+# from collections import defaultdict
+from whatshap.polyphase.threading import get_allele_depths, select_clusters
+from whatshap.polyphase import get_coverage
+from whatshap.polyphase.solver import AlleleMatrix
+
+# from whatshap.reorder import compute_cut_positions
 
 
 def create_testinstance1():
@@ -42,9 +37,7 @@ def create_testinstance1():
         478,
         492,
     ]
-
     readset = ReadSet()
-
     matrix = [
         "0011000",
         "11010100",
@@ -66,14 +59,12 @@ def create_testinstance1():
         "                101100",
         "                111010",
     ]
-
     for i in range(len(matrix)):
         read = Read(name="read" + str(i), mapq=15)
         for j in range(len(matrix[i])):
             if matrix[i][j] != " ":
                 read.add_variant(var_pos[j], int(matrix[i][j]), 0)
         readset.add(read)
-
     clustering = [
         [0, 4, 6],
         [1, 2],
@@ -108,30 +99,99 @@ def create_testinstance1():
         {0: 2, 1: 1},
         {0: 2, 1: 1},
     ]
-
     return readset, var_pos, clustering, genotypes
 
 
-def test_auxiliary_datastructures():
-    # test postion map
-    readset, var_pos, _, _ = create_testinstance1()
-    index, rev_index = get_position_map(readset)
-    for i in range(len(var_pos)):
-        assert index[var_pos[i]] == i
-    assert rev_index == var_pos
-
-    # test relative coverage
-    clustering = [
-        [0, 4, 6],
-        [1, 2],
-        [7, 10, 13],
-        [9, 12, 14],
-        [3, 5, 8, 11],
-        [15, 16],
-        [17],
-        [18],
+def create_testinstance2():
+    var_pos = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55]
+    readset = ReadSet()
+    matrix = [
+        "0010020000",
+        "0000021000",
+        "0010021000",
+        "1020100010",
+        "1020200010",
+        "1020100010",
+        "0101000002",
+        "0101000112",
+        "0101000002",
+        "2000030100",
+        "2001030100",
+        "2000030100",
     ]
-    cov = get_coverage(readset, clustering, index)
+    for i in range(len(matrix)):
+        read = Read(name="read" + str(i), mapq=15)
+        for j in range(len(matrix[i])):
+            if matrix[i][j] != " ":
+                read.add_variant(var_pos[j], int(matrix[i][j]), 0)
+        readset.add(read)
+    clustering = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [9, 10, 11]]
+    genotypes = [
+        {0: 2, 1: 1, 2: 2},
+        {0: 3, 1: 1},
+        {0: 2, 1: 1, 2: 2},
+        {0: 3, 1: 1},
+        {0: 3, 1: 1},
+        {0: 2, 2: 1, 3: 1},
+        {0: 3, 1: 1},
+        {0: 3, 1: 1},
+        {0: 3, 2: 1},
+        {0: 3, 1: 1},
+    ]
+    return readset, var_pos, clustering, genotypes
+
+
+def create_testinstance3():
+    var_pos = [0, 1, 2, 3, 5, 8, 13, 21, 34, 55]
+    readset = ReadSet()
+    matrix = [
+        "011010 110",
+        "011010 110",
+        "011010 110",
+        "011010 110",
+        "011010 110",
+        "011010 110",
+        "011010 110",
+        "011010 110",
+        "011010 110",
+        "0  1010001",
+        "0  1010001",
+        "0  1010001",
+        "0  1010001",
+        "0  1010001",
+        "0  1010001",
+        "0  1010001",
+        "0  1010001",
+        "1000000000",
+        "1  0000",
+        "0000000000",
+    ]
+    for i in range(len(matrix)):
+        read = Read(name="read" + str(i), mapq=15)
+        for j in range(len(matrix[i])):
+            if matrix[i][j] != " ":
+                read.add_variant(var_pos[j], int(matrix[i][j]), 0)
+        readset.add(read)
+    clustering = [list(range(9)), list(range(9, 17)), [17, 18], [19]]
+    genotypes = [
+        {0: 2},
+        {1: 1},
+        {1: 1},
+        {0: 1, 1: 1},
+        {0: 1, 1: 1},
+        {0: 1, 1: 1},
+        {0: 1},
+        {0: 1, 1: 1},
+        {0: 1, 1: 1},
+        {0: 1, 1: 1},
+    ]
+    return readset, var_pos, clustering, genotypes
+
+
+def test_relative_coverage():
+    readset, var_pos, clustering, _ = create_testinstance1()
+    allele_matrix = AlleleMatrix(readset)
+    cov = get_coverage(allele_matrix, clustering)
     assert cov[0] == {0: 0.5, 1: 0.5}
     assert cov[1] == {0: 0.25, 1: 0.5, 4: 0.25}
     assert cov[2] == {0: 1 / 3, 1: 1 / 3, 4: 1 / 3}
@@ -155,48 +215,80 @@ def test_auxiliary_datastructures():
     assert cov[20] == {5: 2 / 4, 6: 1 / 4, 7: 1 / 4}
     assert cov[21] == {5: 2 / 4, 6: 1 / 4, 7: 1 / 4}
 
-    # test absolute coverage
-    abs_cov = get_coverage_absolute(readset, clustering, index)
-    assert abs_cov[0] == {0: 1, 1: 1}
-    assert abs_cov[1] == {0: 1, 1: 2, 4: 1}
-    assert abs_cov[2] == {0: 2, 1: 2, 4: 2}
-    assert abs_cov[3] == {0: 3, 1: 2, 4: 2}
-    assert abs_cov[4] == {0: 3, 1: 2, 4: 3}
-    assert abs_cov[5] == {0: 3, 1: 2, 4: 4}
-    assert abs_cov[6] == {0: 3, 1: 2, 4: 4}
-    assert abs_cov[7] == {0: 2, 1: 2, 2: 1, 4: 4}
-    assert abs_cov[8] == {0: 2, 1: 1, 2: 2, 3: 1, 4: 4}
-    assert abs_cov[9] == {0: 2, 1: 1, 2: 2, 3: 2, 4: 4}
-    assert abs_cov[10] == {0: 1, 2: 3, 3: 3, 4: 4}
-    assert abs_cov[11] == {0: 1, 2: 3, 3: 3, 4: 3}
-    assert abs_cov[12] == {2: 3, 3: 3, 4: 2}
-    assert abs_cov[13] == {2: 3, 3: 3, 4: 1}
-    assert abs_cov[14] == {2: 3, 3: 3, 5: 2}
-    assert abs_cov[15] == {2: 3, 3: 3, 5: 2}
-    assert abs_cov[16] == {2: 3, 3: 3, 5: 2, 6: 1, 7: 1}
-    assert abs_cov[17] == {2: 2, 3: 3, 5: 2, 6: 1, 7: 1}
-    assert abs_cov[18] == {2: 1, 3: 2, 5: 2, 6: 1, 7: 1}
-    assert abs_cov[19] == {2: 1, 3: 1, 5: 2, 6: 1, 7: 1}
-    assert abs_cov[20] == {5: 2, 6: 1, 7: 1}
-    assert abs_cov[21] == {5: 2, 6: 1, 7: 1}
+
+def test_allele_depths():
+    for f in [create_testinstance1, create_testinstance2, create_testinstance3]:
+        readset, var_pos, clustering, genotypes = f()
+        allele_matrix = AlleleMatrix(readset)
+        ploidy = sum(genotypes[0].values())
+        ad, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=ploidy)
+        for pos in range(allele_matrix.getNumPositions()):
+            for cid in range(len(clustering)):
+                for al in [0, 1, 2, 3]:
+                    val = sum(
+                        [
+                            1 if var[1] == al and var[0] == pos else 0
+                            for rid in clustering[cid]
+                            for var in allele_matrix.getRead(rid)
+                        ]
+                    )
+                    print(pos, cid, al)
+                    assert cid not in ad[pos] or al not in ad[pos][cid] or ad[pos][cid][al] == val
 
 
-def test_clusterbased_structures():
-    readset, var_pos, clustering, _ = create_testinstance1()
-    index, rev_index = get_position_map(readset)
+def test_cluster_selection1():
+    readset, var_pos, clustering, genotypes = create_testinstance1()
+    allele_matrix = AlleleMatrix(readset)
+    ad, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=3)
+    c = select_clusters(ad, ploidy=3, max_gap=0)
+    assert c[0] == [0, 1]
+    assert c[1] == c[2] == c[3] == c[4] == c[5] == c[6] == [0, 1, 4]
+    assert c[7] == [0, 1, 2, 4]
+    assert c[8] == c[9] == [0, 1, 2, 3, 4]
+    assert c[10] == c[11] == [0, 2, 3, 4]
+    assert c[12] == c[13] == [2, 3, 4]
+    assert c[14] == c[15] == [2, 3, 5]
+    assert c[16] == c[17] == c[18] == c[19] == [2, 3, 5, 6, 7]
+    assert c[20] == c[21] == [5, 6, 7]
+    assert c == select_clusters(ad, ploidy=3, max_gap=1)
 
-    # clustering bounds
-    cluster_start_ends = get_cluster_start_end_positions(readset, clustering, index)
-    assert cluster_start_ends[0] == (0, 11)
-    assert cluster_start_ends[1] == (0, 9)
-    assert cluster_start_ends[2] == (7, 19)
-    assert cluster_start_ends[3] == (8, 19)
-    assert cluster_start_ends[4] == (1, 13)
-    assert cluster_start_ends[5] == (14, 21)
-    assert cluster_start_ends[6] == (16, 21)
-    assert cluster_start_ends[7] == (16, 21)
+
+def test_cluster_selection2():
+    readset, var_pos, clustering, genotypes = create_testinstance2()
+    allele_matrix = AlleleMatrix(readset)
+    ad, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=4)
+    c = select_clusters(ad, ploidy=4, max_gap=0)
+    assert all([c[i] == [0, 1, 2, 3] for i in range(10)])
+    assert c == select_clusters(ad, ploidy=3, max_gap=1)
 
 
+def test_cluster_selection3():
+    readset, var_pos, clustering, genotypes = create_testinstance3()
+    allele_matrix = AlleleMatrix(readset)
+    ad, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=2)
+    c = select_clusters(ad, ploidy=2, max_gap=0)
+    assert c[0] == c[3] == c[4] == c[5] == [0, 1, 2]
+    assert c[1] == c[2] == [0, 2, 3]
+    assert c[6] == [1, 2, 3]
+    assert c[7] == c[8] == c[9] == [0, 1]
+    c = select_clusters(ad, ploidy=2, max_gap=1)
+    assert c[0] == c[3] == c[4] == c[5] == [0, 1, 2]
+    assert c[1] == c[2] == [0, 2, 3]
+    assert c[6] == [0, 1, 2, 3]
+    assert c[7] == c[8] == c[9] == [0, 1]
+    c = select_clusters(ad, ploidy=2, max_gap=2)
+    assert c[0] == c[3] == c[4] == c[5] == [0, 1, 2]
+    assert c[1] == c[2] == c[6] == [0, 1, 2, 3]
+    assert c[7] == c[8] == c[9] == [0, 1]
+    c = select_clusters(ad, ploidy=2, max_gap=3)
+    assert c[0] == [0, 1, 2]
+    assert c[1] == c[2] == c[3] == c[4] == c[5] == c[6] == [0, 1, 2, 3]
+    assert c[7] == c[8] == c[9] == [0, 1]
+
+    assert c == select_clusters(ad, ploidy=2, max_gap=4)
+
+
+"""
 def test_cut_positions():
     path = [
         [2, 3, 5, 1],
@@ -294,17 +386,10 @@ def test_path_no_affine():
     coverage = get_coverage(readset, clustering, index)
     cov_map = get_pos_to_clusters_map(coverage, ploidy)
     consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
+    allele_depths, cons = get_allele_depths(readset, clustering, cov_map)
 
     path = compute_threading_path(
-        readset,
-        clustering,
-        num_vars,
-        coverage,
-        cov_map,
-        consensus,
-        ploidy,
-        genotypes,
-        affine_switch_cost=0.0,
+        readset, num_vars, cov_map, allele_depths, ploidy, genotypes, affine_switch_cost=0.0,
     )
     cluster_paths = ["".join([str(path[i][j]) for i in range(len(path))]) for j in range(3)]
 
@@ -329,10 +414,9 @@ def test_path_with_affine():
     coverage = get_coverage(readset, clustering, index)
     cov_map = get_pos_to_clusters_map(coverage, ploidy)
     consensus = get_local_cluster_consensus(readset, clustering, cov_map, positions)
+    allele_depths, cons = get_allele_depths(readset, clustering, cov_map)
 
-    path = compute_threading_path(
-        readset, clustering, num_vars, coverage, cov_map, consensus, ploidy, genotypes
-    )
+    path = compute_threading_path(readset, num_vars, cov_map, allele_depths, ploidy, genotypes)
     cluster_paths = ["".join([str(path[i][j]) for i in range(len(path))]) for j in range(3)]
 
     first_block = set([cluster_paths[0][:9], cluster_paths[1][:9], cluster_paths[2][:9]])
@@ -347,3 +431,4 @@ def test_path_with_affine():
     assert first_block == first_truth
     assert second_block == second_truth
     assert third_block == third_truth
+    """

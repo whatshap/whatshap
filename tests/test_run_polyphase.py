@@ -64,7 +64,7 @@ def test_wrong_ploidy(tmp_path):
 
 
 def test_blockcut_sensitivities(tmp_path):
-    """ Ensure that the block cut sets are monotone to the sensitivity"""
+    """Ensure that the block cut sets are monotone to the sensitivity"""
 
     results = []
     for s in range(6):

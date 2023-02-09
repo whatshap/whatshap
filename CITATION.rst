@@ -28,7 +28,7 @@ To refer to the pedigree-phasing algorithm and the PedMEC problem:
 WhatsHap's genotyping algorithm is described here:
 
     | Jana Ebler, Marina Haukness, Trevor Pesout, Tobias Marschall, Benedict Paten.
-    | Haplotype-aware genotyping from noisy long reads
+    | *Haplotype-aware genotyping from noisy long reads*
     | bioRxiv
     | doi: `10.1101/293944 <https://doi.org/10.1101/293944>`_
 
@@ -61,3 +61,12 @@ If you use the polyploid phasing algorithm (``whatshap polyphase``), please refe
     | *Haplotype threading: accurate polyploid phasing from long reads*
     | Genome Biology
     | doi: `10.1186/s13059-020-02158-1 <https://doi.org/10.1186/s13059-020-02158-1>`_
+
+If you use the polyploid phasing algorithm that takes pedigree information into account
+(``whatshap geneticpolyphase``), plese refer to
+
+    | Sven Schrinner, Rebecca Serra Mari, Richard Finkers, Paul Arens,
+    | Björn Usadel, Tobias Marschall, Gunnar W. Klau.
+    | *Genetic polyploid phasing from low-depth progeny samples*.
+    | iScience 25(6), 2022.
+    | doi: `10.1016/j.isci.2022.104461 <https://doi.org/10.1016/j.isci.2022.104461>`_

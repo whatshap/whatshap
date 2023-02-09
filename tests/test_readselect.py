@@ -1,4 +1,4 @@
-from whatshap.core import readselection
+from whatshap.readselect import readselection
 from whatshap.testhelpers import string_to_readset
 
 

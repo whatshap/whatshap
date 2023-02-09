@@ -137,16 +137,11 @@ uint32_t Genotype::get_ploidy() const {
 	return get_position(MAX_PLOIDY);
 }
 
+uint64_t Genotype::get_code() const {
+	return gt;
+}
+
 bool operator== (const Genotype &g1, const Genotype &g2) {
-	if (g1.get_index() == g2.get_index()) {
-		if (g1.gt ^ g2.gt) {
-			std::cout<<"index: "<<g1.get_index()<<" vs "<<g2.get_index()<<std::endl;
-			for (uint32_t i = 0; i < 16; i++) {
-				std::cout<<"pos "<<i<<": "<<g1.get_position(i)<<" vs "<<g2.get_position(i)<<std::endl;
-			}
-			throw std::runtime_error("Error: Equality inconsistent");
-		}
-	}
 	return !(g1.gt ^ g2.gt);
 }
 
