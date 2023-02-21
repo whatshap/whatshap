@@ -214,6 +214,7 @@ class ReadSetReader:
                 detected = list(detected)
                 print(f"====== OLD v1 ({alignment.bam_alignment.qname}) ======")
                 detected_v1 = list(detect_alleles_v1(normalized_variants, i, alignment.bam_alignment))
+                print(detected)
                 if detected != detected_v1:
                     print("Unequal alleles:")
                     print(detected)
@@ -278,7 +279,12 @@ class ReadSetReader:
 
             # Queue all variants that start within the ref span of the cigar operation
             ref_end = ref_pos + length
-            while j < len(variants) and variants[j].position < ref_end and j not in skipped_vars:
+            while j < len(variants) and variants[j].position < ref_end:
+                # Skip overlapped variants
+                if j in skipped_vars:
+                    j += 1
+                    continue
+
                 # Skip duplicate positions (TODO: At least for now)
                 if variants[j].position in seen:
                     print(
@@ -368,15 +374,17 @@ class ReadSetReader:
             # Yield resolved variants from left, pop inresolvable variants
             while vqueue:
                 var_entry = vqueue.popleft()
-                remaining = [i for i, a in enumerate(var_entry[2]) if a.progress >= 0]
+                pending = [i for i, a in enumerate(var_entry[2]) if a.progress >= 0]
                 resolved = [i for i, a in enumerate(var_entry[2]) if a.progress == a.length]
-                if len(resolved) == 1:
+                if len(resolved) == 1 and len(pending) == 0:
                     # allele is resolved: yield and continue
                     print(f"Resolved: {var_entry[0]} with alleles {resolved}.")
                     a = var_entry[2][resolved[0]]
-                    q = a.quality if a.length > 0 else 30  # TODO: Corner case empty ref allele
+                    q = (
+                        a.quality // a.length if a.length > 0 else 30
+                    )  # TODO: Corner case empty ref allele
                     yield var_entry[0], resolved[0], q
-                elif len(resolved) > 1:
+                elif len(resolved) > 1 and len(pending) == 0:
                     # multiple alleles possible: yield longest
                     lengths = [var_entry[2][r].length for r in resolved]
                     i = lengths.index(max(lengths))
@@ -384,9 +392,11 @@ class ReadSetReader:
                         f"Resolved: {var_entry[0]} with alleles {resolved}. Picked {i} out of lengths {lengths}"
                     )
                     a = var_entry[2][i]
-                    q = a.quality if a.length > 0 else 30  # TODO: Corner case empty ref allele
+                    q = (
+                        a.quality // a.length if a.length > 0 else 30
+                    )  # TODO: Corner case empty ref allele
                     yield var_entry[0], i, q
-                elif len(remaining) > 0:
+                elif len(pending) > 0:
                     # allele is not resolved: re-queue
                     vqueue.appendleft(var_entry)
                     break
@@ -395,14 +405,17 @@ class ReadSetReader:
         # After last cigar operation, yield ALL resolved variants, pop unresolved variants
         while vqueue:
             var_entry = vqueue.popleft()
+            pending = [i for i, a in enumerate(var_entry[2]) if 0 <= a.progress < a.length]
             resolved = [i for i, a in enumerate(var_entry[2]) if a.progress == a.length]
-            if len(resolved) == 1:
+            if len(resolved) == 1 and len(pending) == 0:
                 # allele is resolved: yield and continue
                 print(f"Post-Resolved: {var_entry[0]} with alleles {resolved}.")
                 a = var_entry[2][resolved[0]]
-                q = a.quality if a.length > 0 else 30  # TODO: Corner case empty ref allele
+                q = (
+                    a.quality // a.length if a.length > 0 else 30
+                )  # TODO: Corner case empty ref allele
                 yield var_entry[0], resolved[0], q
-            elif len(resolved) > 1:
+            elif len(resolved) > 1 and len(pending) == 0:
                 # multiple alleles possible: yield longest
                 lengths = [var_entry[2][r].length for r in resolved]
                 i = lengths.index(max(lengths))
@@ -410,7 +423,9 @@ class ReadSetReader:
                     f"Resolved: {var_entry[0]} with alleles {resolved}. Picked {i} out of lengths {lengths}"
                 )
                 a = var_entry[2][i]
-                q = a.quality if a.length > 0 else 30  # TODO: Corner case empty ref allele
+                q = (
+                    a.quality // a.length if a.length > 0 else 30
+                )  # TODO: Corner case empty ref allele
                 yield var_entry[0], i, q
 
     def detect_alleles_match(self, variant, entry, bam_read, ref_pos, query_pos, length):
@@ -430,13 +445,13 @@ class ReadSetReader:
                 qbase = bam_read.query_sequence[query_start + a.matched + a.inserted]
                 vbase = allele_seq[a.matched + a.inserted]
                 if qbase == vbase:
+                    ops_consumed += 1
                     if bam_read.query_qualities:
                         a.quality += bam_read.query_qualities[query_start + a.matched + a.inserted]
                     else:
                         a.quality += 30  # TODO
                     a.matched += 1
                     a.progress += 1
-                    ops_consumed += 1
                     print(
                         f"    Variant {entry[0]}: Allele {i} added match {qbase}: {a.progress}/{a.length} and query_pos {query_start + a.matched + a.inserted}."
                     )
@@ -467,6 +482,7 @@ class ReadSetReader:
             ops_consumed = 0
             allele_seq = variant.get_allele(i)
             while a.inserted < a.insert_target and ops_consumed < length:
+                ops_consumed += 1
                 qbase = bam_read.query_sequence[query_start + a.matched + a.inserted]
                 vbase = allele_seq[a.matched + a.inserted]
                 if qbase == vbase:
@@ -501,6 +517,7 @@ class ReadSetReader:
             # Process remaining delete ops:
             ops_consumed = 0
             while a.deleted < a.delete_target and ops_consumed < length:
+                ops_consumed += 1
                 a.deleted += 1
                 a.progress += 1
                 a.quality += 30  # TODO

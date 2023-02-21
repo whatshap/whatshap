@@ -95,9 +95,9 @@ def test_merge_many_reads():
 
 
 def test_allele_dection_01():
-    path = "tests/data/alleledetection.biallelic.01"
+    path = "tests/data/alleledetection.biallelic"
     bam_reader = PhasedInputReader(
-        [f"{path}.bam"],
+        [f"{path}.01.bam"],
         reference=None,
         numeric_sample_ids=NumericSampleIds(),
         ignore_read_groups=True,
@@ -109,5 +109,109 @@ def test_allele_dection_01():
     table = list(vcf_reader)[0]
     chromosome = table.chromosome
     readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
-    readset.sort()
-    # assert [(v.position, v.allele) for v in readset[0]] == [(102, 0), (105, 0)]
+    expected = dict()
+    expected["Read01"] = [(102, 0), (105, 0)]
+    expected["Read02"] = [(102, 0), (105, 1)]
+    expected["Read03"] = [(102, 1), (105, 1)]
+    expected["Read04"] = [(102, 0), (105, 1)]
+    expected["Read05"] = [(102, 0), (105, 1)]
+    expected["Read06"] = [(102, 0)]
+    for read in readset:
+        assert expected[read.name] == [(v.position, v.allele) for v in read]
+
+def test_allele_dection_02():
+    path = "tests/data/alleledetection.biallelic"
+    bam_reader = PhasedInputReader(
+        [f"{path}.02.bam"],
+        reference=None,
+        numeric_sample_ids=NumericSampleIds(),
+        ignore_read_groups=True,
+        indels=True,
+        mapq_threshold=20,
+    )
+    vcf_reader = VcfReader(f"{path}.vcf", phases=False, indels=True)
+    sample = vcf_reader.samples[0]
+    table = list(vcf_reader)[0]
+    chromosome = table.chromosome
+    readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
+    expected = dict()
+    expected["Read11"] = [(105, 0), (108, 0)]
+    expected["Read12"] = [(105, 0), (108, 1)]
+    expected["Read13"] = [(105, 0), (108, 0)]
+    expected["Read14"] = [(105, 0), (108, 1)]
+    expected["Read15"] = [(105, 0), (108, 1)]
+    expected["Read16"] = [(105, 0), (108, 0)]
+    expected["Read17"] = [(105, 0), (108, 0)]
+    for read in readset:
+        assert expected[read.name] == [(v.position, v.allele) for v in read]
+
+
+def test_allele_dection_03():
+    path = "tests/data/alleledetection.biallelic"
+    bam_reader = PhasedInputReader(
+        [f"{path}.03.bam"],
+        reference=None,
+        numeric_sample_ids=NumericSampleIds(),
+        ignore_read_groups=True,
+        indels=True,
+        mapq_threshold=20,
+    )
+    vcf_reader = VcfReader(f"{path}.vcf", phases=False, indels=True)
+    sample = vcf_reader.samples[0]
+    table = list(vcf_reader)[0]
+    chromosome = table.chromosome
+    readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
+    expected = dict()
+    expected["Read20"] = [(111, 0), (112, 0), (114, 0)]
+    expected["Read21"] = [(111, 0), (112, 0), (114, 1)]
+    expected["Read22"] = [(111, 1), (112, 0), (114, 0)]
+    expected["Read23"] = [(111, 1), (112, 1), (114, 0)]
+    expected["Read24"] = [(111, 0), (112, 0), (114, 0)]
+    expected["Read25"] = [(111, 1), (112, 0), (114, 1)]
+    expected["Read26"] = [(111, 1), (114, 1)]
+    expected["Read27"] = [(117, 0)]
+    expected["Read28"] = [(117, 1)]
+    expected["Read29"] = []
+    for read in readset:
+        assert expected[read.name] == [(v.position, v.allele) for v in read]
+
+
+def xtest_allele_dection_04():
+    path = "tests/data/alleledetection.biallelic"
+    bam_reader = PhasedInputReader(
+        [f"{path}.04.bam"],
+        reference=None,
+        numeric_sample_ids=NumericSampleIds(),
+        ignore_read_groups=True,
+        indels=True,
+        mapq_threshold=20,
+    )
+    vcf_reader = VcfReader(f"{path}.vcf", phases=False, indels=True)
+    sample = vcf_reader.samples[0]
+    table = list(vcf_reader)[0]
+    chromosome = table.chromosome
+    readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
+    expected = dict()
+    expected["Read31"] = [(122, 0), (123, 0), (124, 0), (127, 0), (128, 0)]
+    for read in readset:
+        assert expected[read.name] == [(v.position, v.allele) for v in read]
+
+
+def xtest_allele_dection_05():
+    path = "tests/data/alleledetection.biallelic"
+    bam_reader = PhasedInputReader(
+        [f"{path}.05.bam"],
+        reference=None,
+        numeric_sample_ids=NumericSampleIds(),
+        ignore_read_groups=True,
+        indels=True,
+        mapq_threshold=20,
+    )
+    vcf_reader = VcfReader(f"{path}.vcf", phases=False, indels=True)
+    sample = vcf_reader.samples[0]
+    table = list(vcf_reader)[0]
+    chromosome = table.chromosome
+    readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
+    expected = dict()
+    for read in readset:
+        assert expected[read.name] == [(v.position, v.allele) for v in read]
