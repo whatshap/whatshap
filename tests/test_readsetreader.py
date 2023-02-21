@@ -1,7 +1,9 @@
 import pytest
 
-from whatshap.core import Read, Variant
+from whatshap.core import Read, Variant, NumericSampleIds
 from whatshap.variants import merge_two_reads, merge_reads
+from whatshap.cli import PhasedInputReader
+from whatshap.vcf import VcfReader
 
 
 @pytest.mark.parametrize("merge", [merge_two_reads, merge_reads])
@@ -90,3 +92,22 @@ def test_merge_many_reads():
     # TODO merging should not depend on the order of reads
     expected[1] = Variant(200, 0, 51)
     assert expected == list(merge_reads(*reads[::-1]))
+
+
+def test_allele_dection_01():
+    path = "tests/data/alleledetection.biallelic.01"
+    bam_reader = PhasedInputReader(
+        [f"{path}.bam"],
+        reference=None,
+        numeric_sample_ids=NumericSampleIds(),
+        ignore_read_groups=True,
+        indels=True,
+        mapq_threshold=20,
+    )
+    vcf_reader = VcfReader(f"{path}.vcf", phases=False, indels=True)
+    sample = vcf_reader.samples[0]
+    table = list(vcf_reader)[0]
+    chromosome = table.chromosome
+    readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
+    readset.sort()
+    # assert [(v.position, v.allele) for v in readset[0]] == [(102, 0), (105, 0)]

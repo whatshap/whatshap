@@ -4,6 +4,7 @@ Detect variants in reads.
 import logging
 from collections import defaultdict, Counter, deque
 from typing import Iterable, Iterator, List, Optional
+from dataclasses import dataclass
 
 from .core import Read, ReadSet, NumericSampleIds
 from .bam import SampleBamReader, MultiBamReader, BamReader
@@ -16,6 +17,19 @@ logger = logging.getLogger(__name__)
 
 class ReadSetError(Exception):
     pass
+
+
+@dataclass
+class AlleleProgress:
+    progress: int = 0
+    length: int = 0
+    matched: int = 0
+    match_target: int = 0
+    inserted: int = 0
+    insert_target: int = 0
+    deleted: int = 0
+    delete_target: int = 0
+    quality: int = 0
 
 
 class ReadSetReader:
@@ -193,9 +207,19 @@ class ReadSetReader:
 
             if reference is None:
                 detected = self.detect_alleles(normalized_variants, i, alignment.bam_alignment)
-                detected_old = self.detect_alleles_old(
-                    normalized_variants, i, alignment.bam_alignment
-                )
+
+                """ # ONLY FOR DEBUG PURPOSE!
+                from .variants_legacy import detect_alleles_v1
+                print(f"====== NEW ({alignment.bam_alignment.qname}) ======")
+                detected = list(detected)
+                print(f"====== OLD v1 ({alignment.bam_alignment.qname}) ======")
+                detected_v1 = list(detect_alleles_v1(normalized_variants, i, alignment.bam_alignment))
+                if detected != detected_v1:
+                    print("Unequal alleles:")
+                    print(detected)
+                    print(detected_v1)
+                    assert False
+                """
             else:
                 detected = self.detect_alleles_by_alignment(
                     variants,
@@ -208,27 +232,8 @@ class ReadSetReader:
                     self._gap_extend,
                     self._default_mismatch,
                 )
-                detected_old = self.detect_alleles_by_alignment(
-                    variants,
-                    i,
-                    alignment.bam_alignment,
-                    reference,
-                    self._overhang,
-                    self._use_affine,
-                    self._gap_start,
-                    self._gap_extend,
-                    self._default_mismatch,
-                )
-            print("====== NEW ======")
-            new = list(detected)
-            print("====== OLD ======")
-            old = list(detected_old)
-            if new != old:
-                print("Unequal alleles:")
-                print(new)
-                print(old)
-                assert False
-            for j, allele, quality in new:
+
+            for j, allele, quality in detected:
                 read.add_variant(variants[j].position, allele, quality)
             if read:  # At least one variant covered and detected
                 yield read
@@ -250,8 +255,8 @@ class ReadSetReader:
         while j < len(variants) and variants[j].position < ref_pos:
             j += 1
 
-        seen_positions = set()
         vqueue = deque()  # buffer for pending variants to keep them in positional order
+        seen = set()  # seen variant positions
 
         # Mark overlapping variants before to make later variant handling more modular
         skipped_vars = self.detect_overlapping_variants(variants, j)
@@ -272,194 +277,241 @@ class ReadSetReader:
                 continue
 
             # Queue all variants that start within the ref span of the cigar operation
-            ref_end = ref_pos + (length if cigar_op != 1 else 1)
+            ref_end = ref_pos + length
             while j < len(variants) and variants[j].position < ref_end and j not in skipped_vars:
-                # Entry = [var_id, quality, for each allele: remaining characters (-1 if invalid)]
-                var_entry = [j, 0, len(variants[j].reference_allele)]
-                for i, alt in enumerate(variants[j].get_alt_allele_list()):
-                    var_entry.append(len(alt))
-                vqueue.append(var_entry)
+                # Skip duplicate positions (TODO: At least for now)
+                if variants[j].position in seen:
+                    print(
+                        f"Cigar: {cigar_op}, {length} at {ref_pos}, {query_pos}. Skip variant {j} at pos {variants[j].position} because it has been seen before"
+                    )
+                    j += 1
+                    continue
+
+                ref_len = len(variants[j].reference_allele)
+                # Special case: If a non-insertion variant is seen by I-Op, continue with next Op
+                # It is an insertion in front of a non-insertion variant, that must be ignored
+                # We cannot skip I-Op in general, because this might overlook insertion variants
+                if cigar_op == 1 and ref_len > 0:
+                    print(
+                        f"Cigar: {cigar_op}, {length} at {ref_pos}, {query_pos}. Skip variant Op, because non-insertion is following."
+                    )
+                    break
+                # Special case: If a D-Op sees an insertion variant, skip this variant to be conform
+                # with old implementation. Actually, it would be correct to assume ref allele here,
+                # if the preivous base matched. This seems to be an artifact of normalized variants.
+                seen.add(variants[j].position)
+                if cigar_op == 2 and ref_len == 0:
+                    print(
+                        f"Cigar: {cigar_op}, {length} at {ref_pos}, {query_pos}. Skip variant {j} at pos {variants[j].position} because it is deletion before insertion"
+                    )
+                    j += 1
+                    continue
+
+                # Entry = [var_id, query_start_pos, for each allele: AlleleProgress object]
                 print(
                     f"Cigar: {cigar_op}, {length} at {ref_pos}, {query_pos}. Found variant {j} at pos {variants[j].position}"
                 )
+                query_start = (
+                    query_pos + variants[j].position - ref_pos if cigar_op != 2 else query_pos
+                )
+                ref_progress = AlleleProgress(0, ref_len, 0, ref_len, 0, 0, 0, 0)
+                var_entry = [j, query_start, [ref_progress]]
+
+                print(
+                    f"    Ref: {var_entry[2][-1].length}, {var_entry[2][-1].match_target}, {var_entry[2][-1].insert_target}, {var_entry[2][-1].delete_target}"
+                )
+                for i, alt in enumerate(variants[j].get_alt_allele_list()):
+                    alt_len = len(alt)
+                    match_target = min(ref_len, alt_len)
+                    ins_target = max(0, len(alt) - ref_len)
+                    del_target = max(0, ref_len - len(alt))
+                    var_entry[2].append(
+                        AlleleProgress(
+                            length=match_target + ins_target + del_target,
+                            match_target=match_target,
+                            insert_target=ins_target,
+                            delete_target=del_target,
+                        )
+                    )
+                    print(
+                        f"    Alt: {var_entry[2][-1].length}, {var_entry[2][-1].match_target}, {var_entry[2][-1].insert_target}, {var_entry[2][-1].delete_target}"
+                    )
+                vqueue.append(var_entry)
                 j += 1
 
-            # Progress pending variants using current cigar operation
+            # Handle detection and positional progress depending on cigar op
+            ref_end = ref_pos
+            query_end = query_pos
             if cigar_op in (0, 7, 8):  # M, X, = operators (match)
-                for var_entry in vqueue:
-                    self.detect_alleles_match(
-                        variants[var_entry[0]],
-                        var_entry,
-                        bam_read,
-                        ref_pos,
-                        query_pos,
-                        length,
-                        seen_positions,
-                    )
-                query_pos += length
-                ref_pos += length
+                handler = self.detect_alleles_match
+                ref_end += length
+                query_end += length
             elif cigar_op == 1:  # I operator (insertion)
-                for var_entry in vqueue:
-                    self.detect_alleles_insertion(
-                        variants[var_entry[0]],
-                        var_entry,
-                        bam_read,
-                        ref_pos,
-                        query_pos,
-                        length,
-                        seen_positions,
-                    )
-                query_pos += length
+                handler = self.detect_alleles_insertion
+                query_end += length
             elif cigar_op == 2:  # D operator (deletion)
-                for var_entry in vqueue:
-                    self.detect_alleles_deletion(
-                        variants[var_entry[0]],
-                        var_entry,
-                        bam_read,
-                        ref_pos,
-                        query_pos,
-                        length,
-                        seen_positions,
-                    )
-                ref_pos += length
+                handler = self.detect_alleles_deletion
+                ref_end += length
             else:
                 logger.error("Unsupported CIGAR operation: %d", cigar_op)
                 raise ValueError(f"Unsupported CIGAR operation: {cigar_op}")
 
+            # Progress pending variants using current cigar operation
+            for var_entry in vqueue:
+                print(
+                    f"Process variant {var_entry[0]} with cigar {cigar_op}, {length} at pos {ref_pos}/{variants[var_entry[0]].position}"
+                )
+                handler(variants[var_entry[0]], var_entry, bam_read, ref_pos, query_pos, length)
+            ref_pos = ref_end
+            query_pos = query_end
+
             # Yield resolved variants from left, pop inresolvable variants
             while vqueue:
                 var_entry = vqueue.popleft()
-                remaining = [i - 2 for i in range(2, len(var_entry)) if var_entry[i] >= 0]
-                if len(remaining) > 1:
-                    # allele is ambiguous: re-append and go to next cigar op
+                remaining = [i for i, a in enumerate(var_entry[2]) if a.progress >= 0]
+                resolved = [i for i, a in enumerate(var_entry[2]) if a.progress == a.length]
+                if len(resolved) == 1:
+                    # allele is resolved: yield and continue
+                    print(f"Resolved: {var_entry[0]} with alleles {resolved}.")
+                    a = var_entry[2][resolved[0]]
+                    q = a.quality if a.length > 0 else 30  # TODO: Corner case empty ref allele
+                    yield var_entry[0], resolved[0], q
+                elif len(resolved) > 1:
+                    # multiple alleles possible: yield longest
+                    lengths = [var_entry[2][r].length for r in resolved]
+                    i = lengths.index(max(lengths))
+                    print(
+                        f"Resolved: {var_entry[0]} with alleles {resolved}. Picked {i} out of lengths {lengths}"
+                    )
+                    a = var_entry[2][i]
+                    q = a.quality if a.length > 0 else 30  # TODO: Corner case empty ref allele
+                    yield var_entry[0], i, q
+                elif len(remaining) > 0:
+                    # allele is not resolved: re-queue
                     vqueue.appendleft(var_entry)
                     break
-                elif len(remaining) == 1:
-                    # allele is resolved: yield and continue
-                    yield (var_entry[0], remaining[0], var_entry[1])
                 # else: allele does match. discard and continue
 
         # After last cigar operation, yield ALL resolved variants, pop unresolved variants
         while vqueue:
             var_entry = vqueue.popleft()
-            remaining = [i - 2 for i in range(2, len(var_entry)) if var_entry[i] >= 0]
-            if len(remaining) == 1:
-                print(f"After yield: {var_entry}")
-                yield (var_entry[0], remaining[0], var_entry[1])
+            resolved = [i for i, a in enumerate(var_entry[2]) if a.progress == a.length]
+            if len(resolved) == 1:
+                # allele is resolved: yield and continue
+                print(f"Post-Resolved: {var_entry[0]} with alleles {resolved}.")
+                a = var_entry[2][resolved[0]]
+                q = a.quality if a.length > 0 else 30  # TODO: Corner case empty ref allele
+                yield var_entry[0], resolved[0], q
+            elif len(resolved) > 1:
+                # multiple alleles possible: yield longest
+                lengths = [var_entry[2][r].length for r in resolved]
+                i = lengths.index(max(lengths))
+                print(
+                    f"Resolved: {var_entry[0]} with alleles {resolved}. Picked {i} out of lengths {lengths}"
+                )
+                a = var_entry[2][i]
+                q = a.quality if a.length > 0 else 30  # TODO: Corner case empty ref allele
+                yield var_entry[0], i, q
 
-    def detect_alleles_match(self, variant, entry, bam_read, ref_pos, query_pos, length, seen):
-        if len(variant.reference_allele) == len(variant.alternative_allele) == 1:
-            # Variant is a SNV
-            offset = variant.position - ref_pos
-            base = bam_read.query_sequence[query_pos + offset]
-            if base == variant.reference_allele:
-                allele = 0
-            elif base == variant.alternative_allele:
-                allele = 1
-            else:
-                allele = None
-            if allele is not None and offset >= 0:
-                # TODO
-                # Fix this: we can actually have indel and SNV
-                # calls at identical positions. For now, ignore the
-                # second variant.
-                if variant.position in seen:
-                    logger.debug(
-                        "Found two variants at identical positions." " Ignoring the second one: %s",
-                        variant,
+    def detect_alleles_match(self, variant, entry, bam_read, ref_pos, query_pos, length):
+        query_start = entry[1]
+        print(
+            f"Process variant {entry[0]} with cigar MX, {length} at pos {ref_pos}/{variant.position}"
+        )
+        for i, a in enumerate(entry[2]):
+            # Skip already failed alleles
+            if a.progress < 0:
+                continue
+
+            # Process remaining match-bases:
+            ops_consumed = 0
+            allele_seq = variant.get_allele(i)
+            while a.matched < a.match_target and ops_consumed < length:
+                qbase = bam_read.query_sequence[query_start + a.matched + a.inserted]
+                vbase = allele_seq[a.matched + a.inserted]
+                if qbase == vbase:
+                    if bam_read.query_qualities:
+                        a.quality += bam_read.query_qualities[query_start + a.matched + a.inserted]
+                    else:
+                        a.quality += 30  # TODO
+                    a.matched += 1
+                    a.progress += 1
+                    ops_consumed += 1
+                    print(
+                        f"    Variant {entry[0]}: Allele {i} added match {qbase}: {a.progress}/{a.length} and query_pos {query_start + a.matched + a.inserted}."
                     )
                 else:
-                    # Do not use bam_read.qual here as it is extremely slow.
-                    # If we ever decide to be compatible with older pysam
-                    # versions, cache bam_read.qual somewhere - do not
-                    # access it within this loop (3x slower otherwise).
-                    if bam_read.query_qualities:
-                        qual = bam_read.query_qualities[query_pos + offset]
-                    else:
-                        qual = 30  # TODO
-                    entry[1] = qual
-                    for i in range(2, len(entry)):
-                        entry[i] = 0 if i - 2 == allele else -1
-                    print(f"   Add SNP: {entry} with quality from pos {query_pos} + {offset}")
-                    seen.add(variant.position)
-            else:
-                for i in range(2, len(entry)):
-                    entry[i] = -1
-                print(f"   Discard SNP: {entry}")
-        elif len(variant.reference_allele) == 0:
-            assert len(variant.alternative_allele) > 0
-            # This variant is an insertion. Since we are in a region of
-            # matches, the insertion was *not* observed (reference allele).
-            qual = 30  # TODO average qualities of "not inserted" bases?
-            allele = 0
-            entry[1] = qual
-            for i in range(2, len(entry)):
-                entry[i] = 0 if allele == i - 2 else -1
-            print(f"   Add In: {entry}")
-            seen.add(variant.position)
-        elif len(variant.alternative_allele) == 0:
-            assert len(variant.reference_allele) > 0
-            # This variant is a deletion that was not observed.
-            # Overlapping variants have been resolved before, so no need to check here
-            assert variant.position not in seen
-            qual = 30  # TODO
-            allele = 0
-            entry[1] = qual
-            for i in range(2, len(entry)):
-                entry[i] = 0 if allele == i - 2 else -1
-            print(f"   Add Del: {entry}")
-            seen.add(variant.position)
-        else:
-            v = variant
-            logger.warn(
-                f"The variant at position {v.position} "
-                f"({v.reference_allele} -> {v.alternative_allele}) cannot be processed "
-                f"by the --no-reference allele detector. A reference sequence is needed."
-            )
-            for i in range(2, len(entry)):
-                entry[i] = -1
+                    print(
+                        f"    Variant {entry[0]}: Allele {i} mismatched {qbase} vs {vbase} at {a.progress}/{a.length} and query_pos {query_start + a.matched + a.inserted}."
+                    )
+                    break
 
-    def detect_alleles_insertion(self, variant, entry, bam_read, ref_pos, query_pos, length, seen):
-        if len(variant.reference_allele) == 0 and len(variant.alternative_allele) > 0:
-            # Variant is an insertion. Check whether the insertion allele can be taken
-            if (
-                variant.position == ref_pos
-                and variant.alternative_allele
-                == bam_read.query_sequence[query_pos : query_pos + length]
-            ):
-                # Insertion allele matches cigar operation
-                assert variant.position not in seen
-                qual = 30  # TODO
-                allele = 1
-                entry[1] = qual
-                for i in range(2, len(entry)):
-                    entry[i] = 0 if allele == i - 2 else -1
-                print(f"   Add In: {entry}")
-                seen.add(variant.position)
-            else:
-                # Insertion allele does not match. Mark as invalid
-                entry[2 + 1] = -1
+            # If allele has non-matches left, but did not consume all match ops -> Fail allele
+            if ops_consumed < length and a.progress < a.length:
+                print(
+                    f"    Variant {entry[0]}: Allele {i} failed after {a.progress}/{a.length} bases for unused MX"
+                )
+                a.progress = -1
 
-    def detect_alleles_deletion(self, variant, entry, bam_read, ref_pos, query_pos, length, seen):
-        # We only check the length of the deletion, not the sequence
-        # that gets deleted since we don’t have the reference available.
-        # (We could parse the MD tag if it exists.)
-        if (
-            variant.position == ref_pos
-            and 0 == len(variant.alternative_allele) < len(variant.reference_allele) == length
-        ):
-            # Overlapping variants have been resolved before, so no need to check here
-            assert variant.position not in seen
-            qual = 30  # TODO
-            allele = 1
-            entry[1] = qual
-            for i in range(2, len(entry)):
-                entry[i] = 0 if allele == i - 2 else -1
-            print(f"   Add Del: {entry}")
-            seen.add(variant.position)
-        else:
-            for i in range(2, len(entry)):
-                entry[i] = -1
+    def detect_alleles_insertion(self, variant, entry, bam_read, ref_pos, query_pos, length):
+        print(
+            f"Process variant {entry[0]} with cigar I, {length} at pos {ref_pos}/{variant.position}"
+        )
+        query_start = entry[1]
+        for i, a in enumerate(entry[2]):
+            # Skip already failed alleles
+            if a.progress < 0:
+                continue
+
+            # Process remaining insert ops:
+            ops_consumed = 0
+            allele_seq = variant.get_allele(i)
+            while a.inserted < a.insert_target and ops_consumed < length:
+                qbase = bam_read.query_sequence[query_start + a.matched + a.inserted]
+                vbase = allele_seq[a.matched + a.inserted]
+                if qbase == vbase:
+                    a.inserted += 1
+                    a.progress += 1
+                    a.quality += 30  # TODO
+                    print(
+                        f"    Variant {entry[0]}: Allele {i} added insert: {a.progress}/{a.length}."
+                    )
+                else:
+                    print(
+                        f"    Variant {entry[0]}: Allele {i} mismatched insert {qbase} vs {vbase} at {a.progress}/{a.length} and query_pos {query_start + a.matched + a.inserted}."
+                    )
+                    break
+
+            # If allele has non-inserts left, but did not consume all insert ops -> Fail allele
+            if ops_consumed < length and 0 < a.progress < a.length:
+                print(
+                    f"    Variant {entry[0]}: Allele {i} failed after {a.progress}/{a.length} bases for unused I"
+                )
+                a.progress = -1
+
+    def detect_alleles_deletion(self, variant, entry, bam_read, ref_pos, query_pos, length):
+        print(
+            f"Process variant {entry[0]} with cigar D, {length} at pos {ref_pos}/{variant.position}"
+        )
+        for i, a in enumerate(entry[2]):
+            # Skip already failed alleles
+            if a.progress < 0:
+                continue
+
+            # Process remaining delete ops:
+            ops_consumed = 0
+            while a.deleted < a.delete_target and ops_consumed < length:
+                a.deleted += 1
+                a.progress += 1
+                a.quality += 30  # TODO
+                print(f"    Variant {entry[0]}: Allele {i} added delete: {a.progress}/{a.length}.")
+
+            # If allele has non-deletions left, but did not consume all delete ops -> Fail allele
+            if ops_consumed < length and a.progress < a.length:
+                print(
+                    f"    Variant {entry[0]}: Allele {i} failed after {a.progress}/{a.length} bases for unused D"
+                )
+                a.progress = -1
 
     def detect_overlapping_variants(self, variants, j):
         """
@@ -485,185 +537,6 @@ class ReadSetReader:
                         conflicting.add(j)
             j += 1
         return conflicting
-
-    @staticmethod
-    def detect_alleles_old(variants, j, bam_read):
-        """
-        Detect the correct alleles of the variants that are covered by the
-        given bam_read.
-
-        Yield tuples (index, allele, quality), where index is into the variants list.
-
-        variants -- list of variants (VcfVariant objects)
-        j -- index of the first variant (in the variants list) to check
-        """
-        ref_pos = bam_read.reference_start  # position relative to reference
-        query_pos = 0  # position relative to read
-
-        seen_positions = set()
-        x, y = 0, 0
-        for cigar_op, length in bam_read.cigartuples:
-            # Skip variants that come before this region
-            while j < len(variants) and variants[j].position < ref_pos:
-                print(
-                    f"Skipped variant {j} (pos {variants[j].position}, but ref already at {ref_pos}) on previous cigar {x}, {y}"
-                )
-                j += 1
-            x, y = cigar_op, length
-
-            # The mapping of CIGAR operators to numbers is:
-            # MIDNSHPX= => 012345678
-            if cigar_op in (0, 7, 8):  # M, X, = operators (match)
-                # Iterate over all variants that are in this region
-                while j < len(variants) and variants[j].position < ref_pos + length:
-                    print(
-                        f"Cigar: {cigar_op}, {length} at {ref_pos}, {query_pos}. Found variant {j} at pos {variants[j].position}"
-                    )
-                    if (
-                        len(variants[j].reference_allele)
-                        == len(variants[j].alternative_allele)
-                        == 1
-                    ):
-                        # Variant is a SNV
-                        offset = variants[j].position - ref_pos
-                        base = bam_read.query_sequence[query_pos + offset]
-                        if base == variants[j].reference_allele:
-                            allele = 0
-                        elif base == variants[j].alternative_allele:
-                            allele = 1
-                        else:
-                            allele = None
-                        if allele is not None:
-                            # TODO
-                            # Fix this: we can actually have indel and SNV
-                            # calls at identical positions. For now, ignore the
-                            # second variant.
-                            if variants[j].position in seen_positions:
-                                logger.debug(
-                                    "Found two variants at identical positions."
-                                    " Ignoring the second one: %s",
-                                    variants[j],
-                                )
-                            else:
-                                # Do not use bam_read.qual here as it is extremely slow.
-                                # If we ever decide to be compatible with older pysam
-                                # versions, cache bam_read.qual somewhere - do not
-                                # access it within this loop (3x slower otherwise).
-                                if bam_read.query_qualities:
-                                    qual = bam_read.query_qualities[query_pos + offset]
-                                else:
-                                    qual = 30  # TODO
-                                print(
-                                    f"   Add SNP* {j}: {[j, qual, allele]} with quality from pos {query_pos} + {offset}"
-                                )
-                                yield (j, allele, qual)
-                                seen_positions.add(variants[j].position)
-                        else:
-                            print(f"No match found for variant {j}")
-                    elif len(variants[j].reference_allele) == 0:
-                        assert len(variants[j].alternative_allele) > 0
-                        # This variant is an insertion. Since we are in a region of
-                        # matches, the insertion was *not* observed (reference allele).
-                        qual = 30  # TODO average qualities of "not inserted" bases?
-                        print(f"   Add In* {j}: {[j, qual, 0]}")
-                        yield (j, 0, qual)
-                        seen_positions.add(variants[j].position)
-                    elif len(variants[j].alternative_allele) == 0:
-                        assert len(variants[j].reference_allele) > 0
-                        # This variant is a deletion that was not observed.
-                        # Add it only if the next variant is not located 'within'
-                        # the deletion.
-                        deletion_end = variants[j].position + len(variants[j].reference_allele)
-                        if not (j + 1 < len(variants) and variants[j + 1].position < deletion_end):
-                            qual = 30  # TODO
-                            print(f"   Add Del* {j}: {[j, qual, 0]}")
-                            yield (j, 0, qual)
-                            seen_positions.add(variants[j].position)
-                        else:
-                            logger.info(
-                                "Skipped a deletion overlapping another variant at pos. %d",
-                                variants[j].position,
-                            )
-                            # Also skip all variants that this deletion overlaps
-                            while j + 1 < len(variants) and variants[j + 1].position < deletion_end:
-                                j += 1
-                            # One additional j += 1 is done below
-                    else:
-                        v = variants[j]
-                        raise ValueError(
-                            f"The variant at position {v.position} "
-                            f"({v.reference_allele} -> {v.alternative_allele}) cannot be processed "
-                            f"by the --no-reference allele detector. A reference sequence is needed."
-                        )
-                    j += 1
-                query_pos += length
-                ref_pos += length
-            elif cigar_op == 1:  # I operator (insertion)
-                if (
-                    j < len(variants)
-                    and variants[j].position == ref_pos
-                    and len(variants[j].reference_allele) == 0
-                    and variants[j].alternative_allele
-                    == bam_read.query_sequence[query_pos : query_pos + length]
-                ):
-                    print(
-                        f"Cigar: {cigar_op}, {length} at {ref_pos}, {query_pos}. Found variant {j} at pos {variants[j].position}"
-                    )
-                    qual = 30  # TODO
-                    assert variants[j].position not in seen_positions
-                    print(f"   Add In* {j}: {[j, qual, 1]}")
-                    yield (j, 1, qual)
-                    seen_positions.add(variants[j].position)
-                    j += 1
-                query_pos += length
-            elif cigar_op == 2:  # D operator (deletion)
-                # We only check the length of the deletion, not the sequence
-                # that gets deleted since we don’t have the reference available.
-                # (We could parse the MD tag if it exists.)
-                if (
-                    j < len(variants)
-                    and variants[j].position == ref_pos
-                    and len(variants[j].alternative_allele) == 0
-                    and len(variants[j].reference_allele) == length
-                ):
-                    print(
-                        f"Cigar: {cigar_op}, {length} at {ref_pos}, {query_pos}. Found variant {j} at pos {variants[j].position}"
-                    )
-                    qual = 30  # TODO
-                    deletion_end = variants[j].position + len(variants[j].reference_allele)
-                    if not (j + 1 < len(variants) and variants[j + 1].position < deletion_end):
-                        qual = 30  # TODO
-                        assert variants[j].position not in seen_positions
-                        print(f"   Add Del* {j}: {[j, qual, 1]}")
-                        yield (j, 1, qual)
-                        seen_positions.add(variants[j].position)
-                    else:
-                        logger.info(
-                            "Skipped a deletion overlapping another variant at pos. %d",
-                            variants[j].position,
-                        )
-                        # Also skip all variants that this deletion overlaps
-                        while j + 1 < len(variants) and variants[j + 1].position < deletion_end:
-                            print(f"Skipped variant {j} for overlapping indel")
-                            j += 1
-                        # One additional j += 1 is done below
-                    j += 1
-                else:
-                    if j < len(variants):
-                        print(
-                            f"   Deletion Op skipped: {ref_pos} with cigar {cigar_op}, {length} on variant {variants[j].position}: {variants[j].reference_allele}, {variants[j].alternative_allele}"
-                        )
-                ref_pos += length
-            elif cigar_op == 3:  # N operator (reference skip)
-                ref_pos += length
-            elif cigar_op == 4:  # S operator (soft clipping)
-                print(f"Soft clip: {length} {ref_pos} {query_pos}")
-                query_pos += length
-            elif cigar_op == 5 or cigar_op == 6:  # H or P (hard clipping or padding)
-                pass
-            else:
-                logger.error("Unsupported CIGAR operation: %d", cigar_op)
-                raise ValueError(f"Unsupported CIGAR operation: {cigar_op}")
 
     @staticmethod
     def split_cigar(cigar, i, consumed):
