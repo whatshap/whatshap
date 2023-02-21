@@ -48,6 +48,10 @@ class VcfInvalidChromosome(VcfError):
     pass
 
 
+class VcfInvalidAllele(VcfError):
+    pass
+
+
 @dataclass
 class VariantCallPhase:
     block_id: int  # numeric id of the phased block
@@ -124,6 +128,14 @@ class BiallelicVcfVariant(VcfVariant):
     def get_alt_allele_list(self):
         return [self.alternative_allele]
 
+    def get_allele(self, a):
+        if a == 0:
+            return self.reference_allele
+        elif a == 1:
+            return self.alternative_allele
+        else:
+            raise VcfInvalidAllele(f"Querying invalid allele {a} (highest id was 1")
+
     def is_snv(self) -> bool:
         return (self.reference_allele != self.alternative_allele) and (
             len(self.reference_allele) == len(self.alternative_allele) == 1
@@ -196,6 +208,15 @@ class MultiallelicVcfVariant(VcfVariant):
 
     def get_alt_allele_list(self):
         return self.alternative_alleles
+
+    def get_allele(self, a):
+        num_alt = len(self.alternative_alleles)
+        if a == 0:
+            return self.reference_allele
+        elif a <= num_alt:
+            return self.alternative_alleles[a - 1]
+        else:
+            raise VcfInvalidAllele(f"Querying invalid allele {a} (highest id was {num_alt - 1}")
 
     def is_snv(self) -> bool:
         return any(self.reference_allele != alt for alt in self.alternative_alleles) and (
