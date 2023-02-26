@@ -20,4 +20,8 @@ chrA	127	.	AC	A	.	.	AN=4;AC=2	GT	0/0/0/1
 chrA	129	.	A	C	.	.	AN=4;AC=2	GT	0/0/0/1
 chrA	203	.	A	CA	.	.	AN=4;AC=2	GT	0/0/0/1
 chrA	206	.	A	CC	.	.	AN=4;AC=2	GT	0/0/0/1
-chrA	209	.	AA	CC	.	.	AN=4;AC=2	GT	0/0/0/1
+chrA	209	.	AAA	CCC	.	.	AN=4;AC=2	GT	0/0/0/1
+chrA	303	.	A	C,G	.	.	AN=4;AC=2	GT	0/0/1/2
+chrA	307	.	A	C,G,T	.	.	AN=4;AC=2	GT	0/1/2/3
+chrA	312	.	A	C,AC	.	.	AN=4;AC=2	GT	0/0/1/2
+chrA	316	.	A	AC,AAAC	.	.	AN=4;AC=2	GT	0/0/1/2
