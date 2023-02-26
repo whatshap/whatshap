@@ -119,6 +119,7 @@ def test_allele_dection_01():
     for read in readset:
         assert expected[read.name] == [(v.position, v.allele) for v in read]
 
+
 def test_allele_dection_02():
     path = "tests/data/alleledetection.biallelic"
     bam_reader = PhasedInputReader(

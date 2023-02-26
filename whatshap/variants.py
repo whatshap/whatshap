@@ -5,6 +5,7 @@ import logging
 from collections import defaultdict, Counter, deque
 from typing import Iterable, Iterator, List, Optional
 from dataclasses import dataclass
+from copy import deepcopy
 
 from .core import Read, ReadSet, NumericSampleIds
 from .bam import SampleBamReader, MultiBamReader, BamReader
@@ -183,6 +184,17 @@ class ReadSetReader:
             normalized_variants = [variant.normalized() for variant in variants]
 
         i = 0  # index into variants
+
+        # Mark overlapping variants before to make later variant handling more modular
+        conflict_vars = self.detect_overlapping_variants(normalized_variants)
+
+        # Create allele progress trackers once, instead of doing it for every read again
+        if reference is None:
+            trackers = {
+                j: self.build_allele_tracker(normalized_variants, j)
+                for j in range(i, len(normalized_variants))
+            }
+
         for alignment in alignments:
             # Skip variants that are to the left of this read
             while (
@@ -206,7 +218,10 @@ class ReadSetReader:
             )
 
             if reference is None:
-                detected = self.detect_alleles(normalized_variants, i, alignment.bam_alignment)
+
+                detected = self.detect_alleles(
+                    normalized_variants, conflict_vars, trackers, i, alignment.bam_alignment
+                )
 
                 """ # ONLY FOR DEBUG PURPOSE!
                 from .variants_legacy import detect_alleles_v2
@@ -239,7 +254,7 @@ class ReadSetReader:
             if read:  # At least one variant covered and detected
                 yield read
 
-    def detect_alleles(self, variants, j, bam_read):
+    def detect_alleles(self, variants, conflict_vars, trackers, j, bam_read):
         """
         Detect the correct alleles of the variants that are covered by the
         given bam_read.
@@ -259,12 +274,9 @@ class ReadSetReader:
         vqueue = deque()  # buffer for pending variants to keep them in positional order
         seen = set()  # seen variant positions
 
-        # Mark overlapping variants before to make later variant handling more modular
-        skipped_vars = self.detect_overlapping_variants(variants, j)
-
         for cigar_op, length in bam_read.cigartuples:
             # Skip variants that come before this region
-            while j < len(variants) and (variants[j].position < ref_pos or j in skipped_vars):
+            while j < len(variants) and (variants[j].position < ref_pos or j in conflict_vars):
                 j += 1
 
             # MIDNSHPX= => 012345678. Skip for soft clipping/padding, etc.
@@ -281,13 +293,12 @@ class ReadSetReader:
             ref_end = ref_pos + length
             while j < len(variants) and variants[j].position < ref_end:
                 # Skip overlapped variants
-                if j in skipped_vars:
+                if j in conflict_vars:
                     j += 1
                     continue
 
                 # Skip duplicate positions (TODO: At least for now)
                 if variants[j].position in seen:
-                    #print(f"Cigar: {cigar_op}, {length} at {ref_pos}, {query_pos}. Skip variant {j} at pos {variants[j].position} because it has been seen before")
                     j += 1
                     continue
 
@@ -296,14 +307,12 @@ class ReadSetReader:
                 # It is an insertion in front of a non-insertion variant, that must be ignored
                 # We cannot skip I-Op in general, because this might overlook insertion variants
                 if cigar_op == 1 and ref_len > 0:
-                    #print(f"Cigar: {cigar_op}, {length} at {ref_pos}, {query_pos}. Skip variant Op, because non-insertion is following.")
                     break
                 # Special case: If a D-Op sees an insertion variant, skip this variant to be conform
                 # with old implementation. Actually, it would be correct to assume ref allele here,
                 # if the preivous base matched. This seems to be an artifact of normalized variants.
                 seen.add(variants[j].position)
                 if cigar_op == 2 and ref_len == 0:
-                    #print(f"Cigar: {cigar_op}, {length} at {ref_pos}, {query_pos}. Skip variant {j} at pos {variants[j].position} because it is deletion before insertion")
                     j += 1
                     continue
 
@@ -311,25 +320,8 @@ class ReadSetReader:
                 query_start = (
                     query_pos + variants[j].position - ref_pos if cigar_op != 2 else query_pos
                 )
-                #print(f"Cigar: {cigar_op}, {length} at {ref_pos}, {query_pos}. Found variant {j} at pos {variants[j].position} with start {query_start}")
-                ref_progress = AlleleProgress(0, ref_len, 0, ref_len, 0, 0, 0, 0)
-                var_entry = [j, query_start, [ref_progress]]
-
-                #print(f"    Ref: {var_entry[2][-1].length}, {var_entry[2][-1].match_target}, {var_entry[2][-1].insert_target}, {var_entry[2][-1].delete_target}")
-                for i, alt in enumerate(variants[j].get_alt_allele_list()):
-                    alt_len = len(alt)
-                    match_target = min(ref_len, alt_len)
-                    ins_target = max(0, len(alt) - ref_len)
-                    del_target = max(0, ref_len - len(alt))
-                    var_entry[2].append(
-                        AlleleProgress(
-                            length=match_target + ins_target + del_target,
-                            match_target=match_target,
-                            insert_target=ins_target,
-                            delete_target=del_target,
-                        )
-                    )
-                    #print(f"    Alt: {var_entry[2][-1].length}, {var_entry[2][-1].match_target}, {var_entry[2][-1].insert_target}, {var_entry[2][-1].delete_target}")
+                var_entry = deepcopy(trackers[j])
+                var_entry[1] = query_start
                 vqueue.append(var_entry)
                 j += 1
 
@@ -352,7 +344,6 @@ class ReadSetReader:
 
             # Progress pending variants using current cigar operation
             for var_entry in vqueue:
-                #print(f"Process variant {var_entry[0]} with cigar {cigar_op}, {length} at pos {ref_pos}/{variants[var_entry[0]].position}")
                 handler(variants[var_entry[0]], var_entry, bam_read, ref_pos, query_pos, length)
             ref_pos = ref_end
             query_pos = query_end
@@ -360,27 +351,25 @@ class ReadSetReader:
             # Yield resolved variants from left, pop inresolvable variants
             while vqueue:
                 var_entry = vqueue.popleft()
-                pending = [i for i, a in enumerate(var_entry[2]) if a.progress >= 0]
+                num_pending = sum(0 <= a.progress < a.length for i, a in enumerate(var_entry[2]))
                 resolved = [i for i, a in enumerate(var_entry[2]) if a.progress == a.length]
-                if len(resolved) == 1 and len(pending) == 0:
+                if len(resolved) == 1 and num_pending == 0:
                     # allele is resolved: yield and continue
-                    +print(f"Resolved: {var_entry[0]} with alleles {resolved}.")
                     a = var_entry[2][resolved[0]]
                     q = (
                         a.quality // a.length if a.length > 0 else 30
-                    )  # TODO: Corner case empty ref allele
+                    )  # Corner case empty ref allele
                     yield var_entry[0], resolved[0], q
-                elif len(resolved) > 1 and len(pending) == 0:
+                elif len(resolved) > 1 and num_pending == 0:
                     # multiple alleles possible: yield longest
                     lengths = [var_entry[2][r].length for r in resolved]
                     i = resolved[lengths.index(max(lengths))]
-                    #print(f"Resolved: {var_entry[0]} with alleles {resolved}. Picked {i} out of lengths {lengths}")
                     a = var_entry[2][i]
                     q = (
                         a.quality // a.length if a.length > 0 else 30
-                    )  # TODO: Corner case empty ref allele
+                    )  # Corner case empty ref allele
                     yield var_entry[0], i, q
-                elif len(pending) > 0:
+                elif num_pending > 0:
                     # allele is not resolved: re-queue
                     vqueue.appendleft(var_entry)
                     break
@@ -389,62 +378,52 @@ class ReadSetReader:
         # After last cigar operation, yield ALL resolved variants, pop unresolved variants
         while vqueue:
             var_entry = vqueue.popleft()
-            pending = [i for i, a in enumerate(var_entry[2]) if 0 <= a.progress < a.length]
+            num_pending = sum(0 <= a.progress < a.length for i, a in enumerate(var_entry[2]))
             resolved = [i for i, a in enumerate(var_entry[2]) if a.progress == a.length]
-            if len(resolved) == 1 and len(pending) == 0:
+            if len(resolved) == 1 and num_pending == 0:
                 # allele is resolved: yield and continue
-                #print(f"Post-Resolved: {var_entry[0]} with alleles {resolved}.")
                 a = var_entry[2][resolved[0]]
-                q = (
-                    a.quality // a.length if a.length > 0 else 30
-                )  # TODO: Corner case empty ref allele
+                q = a.quality // a.length if a.length > 0 else 30  # Corner case empty ref allele
                 yield var_entry[0], resolved[0], q
-            elif len(resolved) > 1 and len(pending) == 0:
+            elif len(resolved) > 1 and num_pending == 0:
                 # multiple alleles possible: yield longest
                 lengths = [var_entry[2][r].length for r in resolved]
                 i = resolved[lengths.index(max(lengths))]
-                #print(f"Resolved: {var_entry[0]} with alleles {resolved}. Picked {i} out of lengths {lengths}")
                 a = var_entry[2][i]
-                q = (
-                    a.quality // a.length if a.length > 0 else 30
-                )  # TODO: Corner case empty ref allele
+                q = a.quality // a.length if a.length > 0 else 30  # Corner case empty ref allele
                 yield var_entry[0], i, q
 
     def detect_alleles_match(self, variant, entry, bam_read, ref_pos, query_pos, length):
         query_start = entry[1]
-        #print(f"Process variant {entry[0]} with cigar MX, {length} at pos {ref_pos}/{variant.position}")
+        op_start = max(0, query_start - query_pos)
         for i, a in enumerate(entry[2]):
             # Skip already failed alleles
             if a.progress < 0:
                 continue
 
             # Process remaining match-bases:
-            ops_consumed = max(0, query_start - query_pos)
-            #print(f"    Variant {entry[0]}: Allele {i} start op consumption {ops_consumed}")
+            ops_consumed = op_start
             allele_seq = variant.get_allele(i)
+            query_pos = query_start + a.matched + a.inserted
             while a.matched < a.match_target and ops_consumed < length:
-                qbase = bam_read.query_sequence[query_start + a.matched + a.inserted]
+                qbase = bam_read.query_sequence[query_pos]
                 vbase = allele_seq[a.matched + a.inserted]
                 if qbase == vbase:
                     ops_consumed += 1
                     if bam_read.query_qualities:
-                        a.quality += bam_read.query_qualities[query_start + a.matched + a.inserted]
+                        a.quality += bam_read.query_qualities[query_pos]
                     else:
                         a.quality += 30  # TODO
                     a.matched += 1
                     a.progress += 1
-                    #print(f"    Variant {entry[0]}: Allele {i} added match {qbase}: {a.progress}/{a.length} and query_pos {query_start + a.matched + a.inserted}.")
                 else:
-                    #print(f"    Variant {entry[0]}: Allele {i} mismatched {qbase} vs {vbase} at {a.progress}/{a.length} and query_pos {query_start + a.matched + a.inserted}.")
                     break
 
             # If allele has non-matches left, but did not consume all match ops -> Fail allele
             if ops_consumed < length and a.progress < a.length:
-                #print(f"    Variant {entry[0]}: Allele {i} failed after {a.progress}/{a.length} bases for unused MX")
                 a.progress = -1
 
     def detect_alleles_insertion(self, variant, entry, bam_read, ref_pos, query_pos, length):
-        #print(f"Process variant {entry[0]} with cigar I, {length} at pos {ref_pos}/{variant.position}")
         query_start = entry[1]
         for i, a in enumerate(entry[2]):
             # Skip already failed alleles
@@ -462,18 +441,14 @@ class ReadSetReader:
                     a.inserted += 1
                     a.progress += 1
                     a.quality += 30  # TODO
-                    #print(f"    Variant {entry[0]}: Allele {i} added insert: {a.progress}/{a.length}.")
                 else:
-                    #print(f"    Variant {entry[0]}: Allele {i} mismatched insert {qbase} vs {vbase} at {a.progress}/{a.length} and query_pos {query_start + a.matched + a.inserted}.")
                     break
 
             # If allele has non-inserts left, but did not consume all insert ops -> Fail allele
             if ops_consumed < length and 0 < a.progress < a.length:
-                #print(f"    Variant {entry[0]}: Allele {i} failed after {a.progress}/{a.length} bases for unused I")
                 a.progress = -1
 
     def detect_alleles_deletion(self, variant, entry, bam_read, ref_pos, query_pos, length):
-        #print(f"Process variant {entry[0]} with cigar D, {length} at pos {ref_pos}/{variant.position}")
         for i, a in enumerate(entry[2]):
             # Skip already failed alleles
             if a.progress < 0:
@@ -486,21 +461,19 @@ class ReadSetReader:
                 a.deleted += 1
                 a.progress += 1
                 a.quality += 30  # TODO
-                #print(f"    Variant {entry[0]}: Allele {i} added delete: {a.progress}/{a.length}.")
 
             # If allele has non-deletions left, but did not consume all delete ops -> Fail allele
             if ops_consumed < length and a.progress < a.length:
-                #print(f"    Variant {entry[0]}: Allele {i} failed after {a.progress}/{a.length} bases for unused D")
                 a.progress = -1
 
-    def detect_overlapping_variants(self, variants, j):
+    def detect_overlapping_variants(self, variants):
         """
         Checks for deletion variants overlapping other variants. Returns a set of variant indices,
         which are conflict with one another.
 
         variants -- list of variants (VcfVariant objects)
-        j -- index of the first variant (in the variants list) to check
         """
+        j = 0
         conflicting = set()
         while j < len(variants):
             v = variants[j]
@@ -517,6 +490,26 @@ class ReadSetReader:
                         conflicting.add(j)
             j += 1
         return conflicting
+
+    def build_allele_tracker(self, variants, j):
+        ref_len = len(variants[j].reference_allele)
+        ref_progress = AlleleProgress(0, ref_len, 0, ref_len, 0, 0, 0, 0)
+        var_entry = [j, -1, [ref_progress]]
+
+        for i, alt in enumerate(variants[j].get_alt_allele_list()):
+            alt_len = len(alt)
+            match_target = min(ref_len, alt_len)
+            ins_target = max(0, len(alt) - ref_len)
+            del_target = max(0, ref_len - len(alt))
+            var_entry[2].append(
+                AlleleProgress(
+                    length=match_target + ins_target + del_target,
+                    match_target=match_target,
+                    insert_target=ins_target,
+                    delete_target=del_target,
+                )
+            )
+        return var_entry
 
     @staticmethod
     def split_cigar(cigar, i, consumed):
