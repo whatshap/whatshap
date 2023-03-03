@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from .core import Read, ReadSet, NumericSampleIds
 from .bam import SampleBamReader, MultiBamReader, BamReader
 from .align import edit_distance, edit_distance_affine_gap
-from ._variants import _iterate_cigar
+from ._variants import _iterate_cigar, _detect_alleles
 
 
 logger = logging.getLogger(__name__)
@@ -215,14 +215,16 @@ class ReadSetReader:
         i = 0  # index into variants
 
         # Mark overlapping variants before to make later variant handling more modular
-        conflict_vars = self.detect_overlapping_variants(normalized_variants)
+        valid_variant_ids = self.detect_non_overlapping_variants(normalized_variants)
+        valid_positions = [normalized_variants[j].position for j in valid_variant_ids]
 
         # Create allele progress trackers once, instead of doing it for every read again
         if reference is None:
-            var_progress = {
-                j: self.build_var_progress(normalized_variants, j)
-                for j in range(i, len(normalized_variants))  # if j not in conflict_vars
-            }
+            var_progress = [
+                self.build_var_progress(normalized_variants, j) for j in valid_variant_ids
+            ]
+            var_progress.sort(key=lambda x: x.variant_id)
+            v = 0
 
         for alignment in alignments:
             # Skip variants that are to the left of this read
@@ -247,8 +249,13 @@ class ReadSetReader:
             )
 
             if reference is None:
-                detected = self.detect_alleles(
-                    normalized_variants, conflict_vars, var_progress, i, alignment.bam_alignment
+                while (
+                    v < len(valid_variant_ids)
+                    and valid_positions[v] < alignment.bam_alignment.reference_start
+                ):
+                    v += 1
+                detected = _detect_alleles(
+                    normalized_variants, var_progress, v, alignment.bam_alignment
                 )
             else:
                 detected = self.detect_alleles_by_alignment(
@@ -268,7 +275,7 @@ class ReadSetReader:
             if read:  # At least one variant covered and detected
                 yield read
 
-    def detect_alleles(self, variants, conflict_vars, var_progress, j, bam_read):
+    def detect_alleles(self, variants, var_progress, valid_positions, j, bam_read):
         """
         Detect the correct alleles of the variants that are covered by the
         given bam_read.
@@ -282,15 +289,14 @@ class ReadSetReader:
         query_pos = 0  # position relative to read
 
         # Skip variants that come before this region
-        while j < len(variants) and variants[j].position < ref_pos:
+        while j < len(valid_positions) and valid_positions[j] < ref_pos:
             j += 1
 
         vqueue = deque()  # buffer for pending variants to keep them in positional order
-        seen = set()  # seen variant positions
 
         for cigar_op, length in bam_read.cigartuples:
             # Skip variants that come before this region
-            while j < len(variants) and (variants[j].position < ref_pos or j in conflict_vars):
+            while j < len(valid_positions) and (valid_positions[j] < ref_pos):
                 j += 1
 
             # MIDNSHPX= => 012345678. Skip for soft clipping/padding, etc.
@@ -305,19 +311,8 @@ class ReadSetReader:
 
             # Queue all variants that start within the ref span of the cigar operation
             ref_end = ref_pos + length
-            while j < len(variants) and variants[j].position < ref_end:
-                # Skip overlapped variants
-                if j in conflict_vars:
-                    j += 1
-                    continue
-
-                # Skip duplicate positions (TODO: At least for now)
-                if variants[j].position in seen:
-                    j += 1
-                    assert False
-                    continue
-
-                ref_len = len(variants[j].reference_allele)
+            while j < len(valid_positions) and valid_positions[j] < ref_end:
+                ref_len = len(variants[var_progress[j].variant_id].reference_allele)
                 # Special case: If a non-insertion variant is seen by I-Op, continue with next Op
                 # It is an insertion in front of a non-insertion variant, that must be ignored
                 # We cannot skip I-Op in general, because this might overlook insertion variants
@@ -326,14 +321,13 @@ class ReadSetReader:
                 # Special case: If a D-Op sees an insertion variant, skip this variant to be conform
                 # with old implementation. Actually, it would be correct to assume ref allele here,
                 # if the preivous base matched. This seems to be an artifact of normalized variants.
-                seen.add(variants[j].position)
                 if cigar_op == 2 and ref_len == 0:
                     j += 1
                     continue
 
                 # Entry = [var_id, query_start_pos, for each allele: AlleleProgress object]
                 query_start = (
-                    query_pos + variants[j].position - ref_pos if cigar_op != 2 else query_pos
+                    query_pos + valid_positions[j] - ref_pos if cigar_op != 2 else query_pos
                 )
                 var_progress[j].reset(query_start)
                 vqueue.append(var_progress[j])
@@ -483,7 +477,7 @@ class ReadSetReader:
             if ops_consumed < length and a.progress < a.length:
                 a.progress = -1
 
-    def detect_overlapping_variants(self, variants):
+    def detect_non_overlapping_variants(self, variants):
         """
         Checks for deletion variants overlapping other variants and for variants with duplicate
         positions. Returns a set of variant indices, which are conflict with another variant and
@@ -514,7 +508,7 @@ class ReadSetReader:
                         j += 1
                         conflicting.add(j)
             j += 1
-        return conflicting
+        return [j for j in range(len(variants)) if j not in conflicting]
 
     def build_var_progress(self, variants, j):
         """
