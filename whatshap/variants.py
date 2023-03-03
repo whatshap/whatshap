@@ -5,7 +5,6 @@ import logging
 from collections import defaultdict, Counter, deque
 from typing import Iterable, Iterator, List, Optional
 from dataclasses import dataclass
-from copy import deepcopy
 
 from .core import Read, ReadSet, NumericSampleIds
 from .bam import SampleBamReader, MultiBamReader, BamReader
@@ -24,13 +23,43 @@ class ReadSetError(Exception):
 class AlleleProgress:
     progress: int = 0
     length: int = 0
+    quality: int = 0
     matched: int = 0
     match_target: int = 0
     inserted: int = 0
     insert_target: int = 0
     deleted: int = 0
     delete_target: int = 0
-    quality: int = 0
+
+
+class VariantProgress:
+    def __init__(self, variant_id):
+        self.variant_id = variant_id
+        self.query_start = 0
+        self.alleles = []
+
+    def __iter__(self):
+        for a in self.alleles:
+            yield a
+
+    def __len__(self):
+        return len(self.alleles)
+
+    def add_allele(self, matches, insertions, deletions):
+        l = matches + insertions + deletions
+        a = AlleleProgress(0, l, 0, 0, matches, 0, insertions, 0, deletions)
+        self.alleles.append(a)
+
+    def reset(self, query_start):
+        self.query_start = query_start
+        for a in self.alleles:
+            a.progress, a.matched, a.inserted, a.deleted, a.quality = 0, 0, 0, 0, 0
+
+    def get_resolved(self):
+        return [i for i, a in enumerate(self.alleles) if a.progress == a.length]
+
+    def get_pending(self):
+        return [i for i, a in enumerate(self.alleles) if 0 <= a.progress < a.length]
 
 
 class ReadSetReader:
@@ -190,9 +219,9 @@ class ReadSetReader:
 
         # Create allele progress trackers once, instead of doing it for every read again
         if reference is None:
-            trackers = {
-                j: self.build_allele_tracker(normalized_variants, j)
-                for j in range(i, len(normalized_variants))
+            var_progress = {
+                j: self.build_var_progress(normalized_variants, j)
+                for j in range(i, len(normalized_variants))  # if j not in conflict_vars
             }
 
         for alignment in alignments:
@@ -218,24 +247,9 @@ class ReadSetReader:
             )
 
             if reference is None:
-
                 detected = self.detect_alleles(
-                    normalized_variants, conflict_vars, trackers, i, alignment.bam_alignment
+                    normalized_variants, conflict_vars, var_progress, i, alignment.bam_alignment
                 )
-
-                """ # ONLY FOR DEBUG PURPOSE!
-                from .variants_legacy import detect_alleles_v2
-                print(f"====== NEW ({alignment.bam_alignment.qname}) ======")
-                detected = list(detected)
-                print(f"====== OLD v1 ({alignment.bam_alignment.qname}) ======")
-                detected_v2 = list(detect_alleles_v2(normalized_variants, i, alignment.bam_alignment))
-                print(detected)
-                if detected != detected_v2:
-                    print("Unequal alleles:")
-                    print(detected)
-                    print(detected_v2)
-                    assert False
-                """
             else:
                 detected = self.detect_alleles_by_alignment(
                     variants,
@@ -254,7 +268,7 @@ class ReadSetReader:
             if read:  # At least one variant covered and detected
                 yield read
 
-    def detect_alleles(self, variants, conflict_vars, trackers, j, bam_read):
+    def detect_alleles(self, variants, conflict_vars, var_progress, j, bam_read):
         """
         Detect the correct alleles of the variants that are covered by the
         given bam_read.
@@ -300,6 +314,7 @@ class ReadSetReader:
                 # Skip duplicate positions (TODO: At least for now)
                 if variants[j].position in seen:
                     j += 1
+                    assert False
                     continue
 
                 ref_len = len(variants[j].reference_allele)
@@ -320,9 +335,8 @@ class ReadSetReader:
                 query_start = (
                     query_pos + variants[j].position - ref_pos if cigar_op != 2 else query_pos
                 )
-                var_entry = deepcopy(trackers[j])
-                var_entry[1] = query_start
-                vqueue.append(var_entry)
+                var_progress[j].reset(query_start)
+                vqueue.append(var_progress[j])
                 j += 1
 
             # Handle detection and positional progress depending on cigar op
@@ -344,31 +358,33 @@ class ReadSetReader:
 
             # Progress pending variants using current cigar operation
             for var_entry in vqueue:
-                handler(variants[var_entry[0]], var_entry, bam_read, ref_pos, query_pos, length)
+                variant = variants[var_entry.variant_id]
+                handler(variant, var_entry, bam_read, ref_pos, query_pos, length)
             ref_pos = ref_end
             query_pos = query_end
 
             # Yield resolved variants from left, pop inresolvable variants
             while vqueue:
                 var_entry = vqueue.popleft()
-                num_pending = sum(0 <= a.progress < a.length for i, a in enumerate(var_entry[2]))
-                resolved = [i for i, a in enumerate(var_entry[2]) if a.progress == a.length]
-                if len(resolved) == 1 and num_pending == 0:
+                resolved = list(var_entry.get_resolved())
+                num_resolved = len(resolved)
+                num_pending = len(var_entry.get_pending())
+                if num_resolved == 1 and num_pending == 0:
                     # allele is resolved: yield and continue
-                    a = var_entry[2][resolved[0]]
+                    a = var_entry.alleles[resolved[0]]
                     q = (
                         a.quality // a.length if a.length > 0 else 30
                     )  # Corner case empty ref allele
-                    yield var_entry[0], resolved[0], q
-                elif len(resolved) > 1 and num_pending == 0:
+                    yield var_entry.variant_id, resolved[0], q
+                elif num_resolved > 1 and num_pending == 0:
                     # multiple alleles possible: yield longest
-                    lengths = [var_entry[2][r].length for r in resolved]
+                    lengths = [var_entry.alleles[r].length for r in resolved]
                     i = resolved[lengths.index(max(lengths))]
-                    a = var_entry[2][i]
+                    a = var_entry.alleles[i]
                     q = (
                         a.quality // a.length if a.length > 0 else 30
                     )  # Corner case empty ref allele
-                    yield var_entry[0], i, q
+                    yield var_entry.variant_id, i, q
                 elif num_pending > 0:
                     # allele is not resolved: re-queue
                     vqueue.appendleft(var_entry)
@@ -378,25 +394,26 @@ class ReadSetReader:
         # After last cigar operation, yield ALL resolved variants, pop unresolved variants
         while vqueue:
             var_entry = vqueue.popleft()
-            num_pending = sum(0 <= a.progress < a.length for i, a in enumerate(var_entry[2]))
-            resolved = [i for i, a in enumerate(var_entry[2]) if a.progress == a.length]
-            if len(resolved) == 1 and num_pending == 0:
+            resolved = list(var_entry.get_resolved())
+            num_resolved = len(resolved)
+            num_pending = len(var_entry.get_pending())
+            if num_resolved == 1 and num_pending == 0:
                 # allele is resolved: yield and continue
-                a = var_entry[2][resolved[0]]
+                a = var_entry.alleles[resolved[0]]
                 q = a.quality // a.length if a.length > 0 else 30  # Corner case empty ref allele
-                yield var_entry[0], resolved[0], q
-            elif len(resolved) > 1 and num_pending == 0:
+                yield var_entry.variant_id, resolved[0], q
+            elif num_resolved > 1 and num_pending == 0:
                 # multiple alleles possible: yield longest
-                lengths = [var_entry[2][r].length for r in resolved]
+                lengths = [var_entry.alleles[r].length for r in resolved]
                 i = resolved[lengths.index(max(lengths))]
-                a = var_entry[2][i]
+                a = var_entry.alleles[i]
                 q = a.quality // a.length if a.length > 0 else 30  # Corner case empty ref allele
-                yield var_entry[0], i, q
+                yield var_entry.variant_id, i, q
 
     def detect_alleles_match(self, variant, entry, bam_read, ref_pos, query_pos, length):
-        query_start = entry[1]
-        op_start = max(0, query_start - query_pos)
-        for i, a in enumerate(entry[2]):
+        query_start = entry.query_start
+        op_start = max(0, entry.query_start - query_pos)
+        for i, a in enumerate(entry):
             # Skip already failed alleles
             if a.progress < 0:
                 continue
@@ -424,8 +441,8 @@ class ReadSetReader:
                 a.progress = -1
 
     def detect_alleles_insertion(self, variant, entry, bam_read, ref_pos, query_pos, length):
-        query_start = entry[1]
-        for i, a in enumerate(entry[2]):
+        query_start = entry.query_start
+        for i, a in enumerate(entry):
             # Skip already failed alleles
             if a.progress < 0:
                 continue
@@ -449,7 +466,7 @@ class ReadSetReader:
                 a.progress = -1
 
     def detect_alleles_deletion(self, variant, entry, bam_read, ref_pos, query_pos, length):
-        for i, a in enumerate(entry[2]):
+        for i, a in enumerate(entry):
             # Skip already failed alleles
             if a.progress < 0:
                 continue
@@ -468,15 +485,23 @@ class ReadSetReader:
 
     def detect_overlapping_variants(self, variants):
         """
-        Checks for deletion variants overlapping other variants. Returns a set of variant indices,
-        which are conflict with one another.
+        Checks for deletion variants overlapping other variants and for variants with duplicate
+        positions. Returns a set of variant indices, which are conflict with another variant and
+        should not be considered for allele detection.
 
         variants -- list of variants (VcfVariant objects)
         """
         j = 0
         conflicting = set()
+        seen_pos = set()
         while j < len(variants):
             v = variants[j]
+            if v.position in seen_pos:
+                conflicting.add(j)
+                j += 1
+                continue
+            else:
+                seen_pos.add(v.position)
             ref = len(v.reference_allele)
             max_del = max(ref - len(alt) for alt in v.get_alt_allele_list())
             if max_del > 0:
@@ -491,25 +516,21 @@ class ReadSetReader:
             j += 1
         return conflicting
 
-    def build_allele_tracker(self, variants, j):
+    def build_var_progress(self, variants, j):
+        """
+        Creates an object for tracking match progress of the j-th variant. Each object contains
+        the variant id and lengths for every allele.
+        """
+        v = VariantProgress(j)
         ref_len = len(variants[j].reference_allele)
-        ref_progress = AlleleProgress(0, ref_len, 0, ref_len, 0, 0, 0, 0)
-        var_entry = [j, -1, [ref_progress]]
-
+        v.add_allele(len(variants[j].reference_allele), 0, 0)
         for i, alt in enumerate(variants[j].get_alt_allele_list()):
             alt_len = len(alt)
             match_target = min(ref_len, alt_len)
             ins_target = max(0, len(alt) - ref_len)
             del_target = max(0, ref_len - len(alt))
-            var_entry[2].append(
-                AlleleProgress(
-                    length=match_target + ins_target + del_target,
-                    match_target=match_target,
-                    insert_target=ins_target,
-                    delete_target=del_target,
-                )
-            )
-        return var_entry
+            v.add_allele(match_target, ins_target, del_target)
+        return v
 
     @staticmethod
     def split_cigar(cigar, i, consumed):
