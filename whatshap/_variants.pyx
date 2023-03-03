@@ -89,42 +89,43 @@ def _detect_alleles(variants, var_progress, first, bam_read):
     Yield tuples (index, allele, quality), where index is into the variants list.
 
     variants -- list of variants (VcfVariant objects)
-    j -- index of the first variant (in the variants list) to check
+    var_progress -- list of VariantProgress objects, also representing non-conflict variant ids
+    first -- index of the first variant (in the var_progress list) to check
+    bam_read -- alignment object to query sequence and qualities
     """
-    cdef int ref_pos = bam_read.reference_start  # position relative to reference
-    cdef int query_pos = 0  # position relative to read
-    cdef int ref_end
-    cdef int query_end
-    cdef int ref_len
-    cdef int j = first
-    cdef int var_id
-    cdef int var_pos
-    cdef int num_pos = len(var_progress)
-    cdef int cigar_op
-    cdef int length
+    cdef:
+        int ref_pos = bam_read.reference_start  # position relative to reference
+        int query_pos = 0                       # position relative to read
+        int ref_end                             # end of ref span for cigar op
+        int query_end                           # end of query span for cigar op
+        int ref_len
+        int j = first                           # index into var_progress
+        int var_id                              # index into variants
+        int var_pos                             # position of var_id-th variant
+        int n = len(var_progress)
+        int cigar_op                            # copy python vars here ...
+        int length                              # ... for runtime optimization
 
     # Skip variants that come before this region
-    while j < num_pos:
+    while j < n:
         var_id = var_progress[j].variant_id
         var_pos = variants[var_id].position
         if var_pos >= ref_pos:
             break
         j += 1
-        
 
     vqueue = deque()  # buffer for pending variants to keep them in positional order
 
     for py_cigar_op, py_length in bam_read.cigartuples:
-        cigar_op = py_cigar_op
-        length = py_length
+        cigar_op, length = py_cigar_op, py_length  # much faster when using typed cython variables
+
         # Skip variants that come before this region
-        while j < num_pos:
+        while j < n:
             var_id = var_progress[j].variant_id
             var_pos = variants[var_id].position
             if var_pos >= ref_pos:
                 break
             j += 1
-            
 
         # MIDNSHPX= => 012345678. Skip for soft clipping/padding, etc.
         if cigar_op == 3:  # N operator (reference skip)
@@ -138,7 +139,7 @@ def _detect_alleles(variants, var_progress, first, bam_read):
 
         # Queue all variants that start within the ref span of the cigar operation
         ref_end = ref_pos + length
-        while j < num_pos:
+        while j < n:
             var_id = var_progress[j].variant_id
             var_pos = variants[var_id].position
             # Stop when exceeding end of cigar op span
@@ -194,21 +195,12 @@ def _detect_alleles(variants, var_progress, first, bam_read):
             resolved = list(var_entry.get_resolved())
             num_resolved = len(resolved)
             num_pending = len(var_entry.get_pending())
-            if num_resolved == 1 and num_pending == 0:
-                # allele is resolved: yield and continue
-                a = var_entry.alleles[resolved[0]]
-                q = (
-                    a.quality // a.length if a.length > 0 else 30
-                )  # Corner case empty ref allele
-                yield var_entry.variant_id, resolved[0], q
-            elif num_resolved > 1 and num_pending == 0:
+            if num_resolved >= 1 and num_pending == 0:
                 # multiple alleles possible: yield longest
                 lengths = [var_entry.alleles[r].length for r in resolved]
                 i = resolved[lengths.index(max(lengths))]
                 a = var_entry.alleles[i]
-                q = (
-                    a.quality // a.length if a.length > 0 else 30
-                )  # Corner case empty ref allele
+                q = a.quality // a.length if a.length > 0 else 30  # Corner case empty ref allele
                 yield var_entry.variant_id, i, q
             elif num_pending > 0:
                 # allele is not resolved: re-queue
@@ -217,17 +209,11 @@ def _detect_alleles(variants, var_progress, first, bam_read):
             # else: allele does match. discard and continue
 
     # After last cigar operation, yield ALL resolved variants, pop unresolved variants
-    while vqueue:
-        var_entry = vqueue.popleft()
+    for var_entry in vqueue:
         resolved = list(var_entry.get_resolved())
         num_resolved = len(resolved)
         num_pending = len(var_entry.get_pending())
-        if num_resolved == 1 and num_pending == 0:
-            # allele is resolved: yield and continue
-            a = var_entry.alleles[resolved[0]]
-            q = a.quality // a.length if a.length > 0 else 30  # Corner case empty ref allele
-            yield var_entry.variant_id, resolved[0], q
-        elif num_resolved > 1 and num_pending == 0:
+        if num_resolved >= 1 and num_pending == 0:
             # multiple alleles possible: yield longest
             lengths = [var_entry.alleles[r].length for r in resolved]
             i = resolved[lengths.index(max(lengths))]
