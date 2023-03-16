@@ -1,5 +1,4 @@
 from whatshap.cli.polyphasegenetic import determine_pedigree
-from whatshap.cli import CommandLineError
 from whatshap.vcf import VcfReader
 
 
@@ -107,6 +106,7 @@ def test_pedigree_4():
     samples, sam_to_cop, sam_to_prog = determine_pedigree(file, samples, parents)
     assert sam_to_cop["Parent_C"] == "Parent_D"
     assert sam_to_prog["Parent_C"] == ["p4", "p5"]
+
 
 def test_pedigree_5():
     file = "tests/data/polyphasegenetic.ped1.txt"

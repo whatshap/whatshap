@@ -9,7 +9,7 @@ different haplotypes. The computation is done in several steps, as described in 
 
 import logging
 
-from math import log
+from math import log, isnan
 from collections import defaultdict
 from typing import List, Iterable, Tuple
 from scipy.stats import binom
@@ -183,6 +183,8 @@ def get_variant_scoring(varinfo, off_gl, phasing_param):
                     prev_score = score
                     prev_variant = nj
 
+            assert score != float("inf")
+            assert not isnan(score)
             scoring.set(i, j, score)
 
     return scoring
