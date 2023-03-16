@@ -107,3 +107,25 @@ def test_pedigree_4():
     samples, sam_to_cop, sam_to_prog = determine_pedigree(file, samples, parents)
     assert sam_to_cop["Parent_C"] == "Parent_D"
     assert sam_to_prog["Parent_C"] == ["p4", "p5"]
+
+def test_pedigree_5():
+    file = "tests/data/polyphasegenetic.ped1.txt"
+    samples = ["Parent_A"]
+    parents = ["Parent_A", "Parent_B", "p1", "p2"]
+    samples, sam_to_cop, sam_to_prog = determine_pedigree(file, samples, parents)
+    assert sam_to_cop["Parent_A"] == "Parent_B"
+    assert sam_to_prog["Parent_A"] == ["p1", "p2"]
+    assert "Parent_B" not in sam_to_cop
+    assert "Parent_B" not in sam_to_prog
+
+
+def test_pedigree_6():
+    file = "tests/data/polyphasegenetic.ped1.txt"
+    samples = ["Parent_A"]
+    parents = ["Parent_A", "Parent_B", "p1", "p2"]
+    progeny = ["p3", "p4"]
+    samples, sam_to_cop, sam_to_prog = determine_pedigree(file, samples, parents, progeny)
+    assert sam_to_cop["Parent_A"] == "Parent_B"
+    assert sam_to_prog["Parent_A"] == ["p3", "p4"]
+    assert "Parent_B" not in sam_to_cop
+    assert "Parent_B" not in sam_to_prog
