@@ -294,6 +294,8 @@ def phase_single_sample(
     solver = ClusterEditingSolver(scoring, False)
     clustering = solver.run()
     del solver
+    assert clustering
+    assert any(len(c) > 1 for c in clustering)
     timers.stop("clustering")
 
     # arrange clusters to haplotypes
