@@ -133,8 +133,10 @@ def run_polyphasegenetic(
             )
 
         # determine pedigree
-        sample_to_coparent, sample_to_progeny = determine_pedigree(
-            pedigree_file, samples, parent_reader.samples
+        parent_file_samples = parent_reader.samples
+        progeny_file_samples = progeny_reader.samples if progeny_reader else None
+        samples, sample_to_coparent, sample_to_progeny = determine_pedigree(
+            pedigree_file, samples, parent_file_samples, progeny_file_samples
         )
 
         # validate samples
@@ -367,72 +369,110 @@ def phase_single_sample(
     return superreads, components
 
 
-def determine_pedigree(pedigree_file, samples, parent_samples):
+def determine_pedigree(pedigree_file, samples, parent_samples, progeny_samples=None):
+    """
+    Evaluates the pedigree file and returns:
+    1.  The final set of samples to phase (Only different from input when empty)
+    2.  Dictionary that maps samples to co-parents
+    3.  Dictionary that maps samples to list of progenies
 
-    parents = dict()
-    sample_to_coparent = dict()
-    sample_to_progeny = dict()
-    # store information from pedigree file in datastructure:
-    # for each parent, store a dictionary that maps co-parents to a list of progeny
+    Progenies are only accounted for when defined as trio in pedigree file and present in
+    progeny VCF if present or in arental/primary VCF otherwise.
+
+    pedigree_file -- Input pedigree file
+    samples -- User defined samples to phase. If None, will be inferred from input
+    parent_samples -- List of samples in parental/primary VCF
+    progeny_samples -- List of samples in progeny VCF. None if no progeny VCF given
+    """
+
+    # For each parent, store co-parent and list of progenies
+    coparents = dict()
+    progenies = dict()
     with open(pedigree_file, "r") as ped:
         for i, line in enumerate(ped):
             tokens = line.replace("\n", "").split(" ")
             if len(tokens) != 3:
-                logger.error("Line %i in pedfile contains %i values instead of 3.", i, len(tokens))
+                logger.error(f"Line {i} in pedfile contains {len(tokens)} values instead of 3.")
                 raise CommandLineError(None)
-            parent = tokens[0]
-            co_parent = tokens[1]
+            # parent = tokens[0]
+            # co_parent = tokens[1]
             progeny = tokens[2]
+            if progeny in tokens[:2]:
+                logger.warning(f"Ignore: Sample {progeny} defined as its own parent in line {i}.")
+                continue
             for parent, co_parent in zip(tokens[:2], tokens[-2::-1]):
-                if parent not in parents:
-                    parents[parent] = dict()
-                if co_parent not in parents[parent]:
-                    parents[parent][co_parent] = []
-                if progeny in parents[parent][co_parent]:
-                    logger.warning("Duplicate trio for sample %s in pedfile line %i", parent, i)
+                if parent in coparents and coparents[parent] != co_parent:
+                    other = coparents[parent]
+                    msg = f"Pedfile assigns multiple partners ({co_parent}, {other}) to {parent}. Currently only one partner per sample is supported."
+                    logger.error(msg)
+                    raise CommandLineError(msg)
+                coparents[parent] = co_parent
+                if parent not in progenies:
+                    progenies[parent] = []
+                if progeny in progenies[parent]:
+                    logger.warning(
+                        f"Ignore: Duplicate trio ({parent}, {co_parent}, {progeny}) in pedfile line {i}"
+                    )
                 else:
-                    parents[parent][co_parent].append(progeny)
+                    progenies[parent].append(progeny)
 
     # Validate:
     # 1: Each requested phasable sample must occur as parent in pediegree file
     # 2: Each parent must have exactly one co-parent occuring in pedigree file AND parental VCF
-    for sample in samples:
-        if sample not in parents:
-            msg = "Requested parent sample {} does not occur in pedfile.".format(sample)
+    if samples:
+        # Check every requested sample to have co-parent and both be defined in parent VCF
+        for sample in samples:
+            if sample not in coparents:
+                msg = f"Requested parent sample {sample} does not occur as parent in pedfile."
+                logger.error(msg)
+                raise CommandLineError(msg)
+            if sample not in parent_samples:
+                msg = f"Requested parent sample {sample} is not present in primary VCF file."
+                logger.error(msg)
+                raise CommandLineError(msg)
+            if coparents[parent] not in parent_samples:
+                msg = f"Partner {coparents[parent]} of requested parent sample {sample} is not present in primary VCF file."
+                logger.error(msg)
+                raise CommandLineError(msg)
+    else:
+        # If not specified, find all phasable parents. Raise error if no sample applicable
+        samples = []
+        if not coparents:
+            msg = "Pedfile does not contain any trios."
             logger.error(msg)
             raise CommandLineError(msg)
-        match = None
-        multiple = False
-        if len(parents[sample]) > 1:
-            multiple = True
-        for co_parent in parents[sample]:
-            if co_parent in parent_samples:
-                if match is None:
-                    match = co_parent
-                else:
-                    msg = "Requested parent sample {} has multiple co-parents in pedfile and parental VCF.".format(
-                        sample
-                    )
-                    logger.error(msg)
-                    raise CommandLineError(msg)
-        if match is None:
-            msg = "No matching co-parent for {} found in both pedfile and parental VCF.".format(
-                sample
-            )
+        for sample in coparents:
+            if sample in parent_samples:
+                samples.append(sample)
+        if not samples:
+            msg = "No prospect parent sample from the pedfile is present in primary VCF file"
             logger.error(msg)
             raise CommandLineError(msg)
-        else:
-            # Append matching co-parent to result
-            sample_to_coparent[sample] = match
-            sample_to_progeny[sample] = parents[sample][match]
-            if multiple:
-                logger.warning(
-                    "Pedfile contains more co-parent candidates for {} than found in parental VCF.".format(
-                        sample
-                    )
-                )
 
-    return sample_to_coparent, sample_to_progeny
+    # filter out progeny samples unpresent in VCFs and unrequested parent samples
+    fprogenies = dict()
+    fcoparents = dict()
+    for sample in samples:
+        fprogenies[sample] = []
+        fcoparents[sample] = coparents[sample]
+        for progeny in progenies[sample]:
+            # if progeny file given: use only this and ignore progeny samples from primary VCF
+            if progeny_samples:
+                if progeny in progeny_samples:
+                    fprogenies[sample].append(progeny)
+                elif progeny in parent_samples:
+                    logger.warning(
+                        f"Ignore: Progeny {progeny} present in primary VCF instead of progeny VCF."
+                    )
+                else:
+                    logger.warning(f"Ignore: Progeny {progeny} not present in progeny VCF.")
+            else:
+                if progeny in parent_samples:
+                    fprogenies[sample].append(progeny)
+                else:
+                    logger.warning(f"Ignore: Progeny {progeny} not present in primary VCF.")
+
+    return samples, fcoparents, fprogenies
 
 
 def get_parent_progeny_coverage(parent, co_parent, progeny_list, parent_table, progeny_table):
