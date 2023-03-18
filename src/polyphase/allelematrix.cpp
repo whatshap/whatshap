@@ -101,7 +101,7 @@ std::vector<Position> AlleleMatrix::getPositions() const {
 }
 
 Allele AlleleMatrix::getMaxNumAllele() const {
-    return maxAllele + 1;
+    return maxAllele;
 }
 
 Allele AlleleMatrix::getAllele(const uint32_t readId, const Position position) const {

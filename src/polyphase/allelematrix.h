@@ -53,6 +53,9 @@ public:
      */
     std::vector<Position> getPositions() const;
 
+    /**
+     * Returns the highest number of different alleles for any variant.
+     */
     Allele getMaxNumAllele() const;
     
     /**
