@@ -78,7 +78,7 @@ def solve_polyphase_instance(
                     )
             results.append(
                 phase_single_block(
-                    block_id, submatrix, genotype_list[start:end], subphasing, param, timers
+                    block_id, submatrix, genotype_list[start:end], subphasing, param, timers, quiet
                 )
             )
             del submatrix
@@ -104,6 +104,7 @@ def solve_polyphase_instance(
                         timers,
                         job_id,
                         num_blocks,
+                        quiet,
                     ),
                 )
                 for job_id, (block_id, start, end) in enumerate(joblist)
@@ -261,7 +262,9 @@ def phase_single_block_mt(
             f"Phasing block {job_id + 1} of {num_blocks} with {len(submatrix)} reads and {block_vars} variants."
         )
 
-    result = phase_single_block(block_id, submatrix, genotype_slice, subphasing, param, timers)
+    result = phase_single_block(
+        block_id, submatrix, genotype_slice, subphasing, param, timers, quiet
+    )
     if block_vars > 1 and not quiet:
         logger.info(f"Finished block {job_id + 1}.")
     return result
