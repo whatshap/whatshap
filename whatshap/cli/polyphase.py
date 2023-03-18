@@ -62,6 +62,7 @@ def run_polyphase(
     block_cut_sensitivity=4,
     threads=1,
     use_prephasing=False,
+    no_mav=False,
 ):
     """
     Run Polyploid Phasing.
@@ -119,7 +120,12 @@ def run_polyphase(
 
         vcf_reader = stack.enter_context(
             VcfReader(
-                variant_file, indels=indels, phases=True, genotype_likelihoods=False, ploidy=ploidy
+                variant_file,
+                indels=indels,
+                phases=True,
+                genotype_likelihoods=False,
+                ploidy=ploidy,
+                mav=not no_mav,
             )
         )
 
@@ -526,6 +532,12 @@ def add_arguments(parser):
         action="store_true",
         help=argparse.SUPPRESS,
     )  # help="Verify input genotypes by re-typing them using the given reads.",
+    arg(
+        "--no-mav",
+        default=False,
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )  # help="Disables phasing of multi-allelic variants.",
 
 
 def validate(args, parser):
