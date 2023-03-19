@@ -113,6 +113,7 @@ def run_polyphase(
                     ploidy=ploidy,
                     indels=indels,
                     include_haploid_sets=include_haploid_sets,
+                    mav=not no_mav,
                 )
             )
         except OSError as e:

@@ -1081,6 +1081,7 @@ class PhasedVcfWriter(VcfAugmenter):
         ploidy: int = 2,
         include_haploid_sets: bool = False,
         indels: bool = False,
+        mav: bool = False,
     ):
         """
         in_path -- Path to input VCF, used as template.
@@ -1098,6 +1099,7 @@ class PhasedVcfWriter(VcfAugmenter):
         self._phase_tag_found_warned = False
         self._set_phasing_tags = self._set_HP if tag == "HP" else self._set_PS
         self._indels = indels
+        self._mav = mav
 
     def setup_header(self, header: VariantHeader):
         """Called by baseclass constructor"""
@@ -1122,7 +1124,7 @@ class PhasedVcfWriter(VcfAugmenter):
         component -- name of the component
         phase -- tuple of alleles
         """
-        assert all(allele in [0, 1] for allele in phase)
+        assert all(allele in [0, 1] or self._mav for allele in phase)
         call["HP"] = ",".join(f"{component + 1}-{allele + 1}" for allele in phase)
         if haploid_component:
             call["HS"] = [comp + 1 for comp in haploid_component]
@@ -1139,7 +1141,7 @@ class PhasedVcfWriter(VcfAugmenter):
         component -- name of the component
         phase -- tuple of alleles
         """
-        assert all(allele in [0, 1] for allele in phase)
+        assert all(allele in [0, 1] or self._mav for allele in phase)
         call["PS"] = component + 1
         call["GT"] = phase
         if haploid_component:
@@ -1181,7 +1183,7 @@ class PhasedVcfWriter(VcfAugmenter):
                 phasing = tuple(v.allele for v in variants)
                 allowed_alleles = True
                 for allele in phasing:
-                    if allele not in [0, 1]:
+                    if allele not in [0, 1] and not self._mav:
                         allowed_alleles = False
                         break
                 if allowed_alleles:
@@ -1194,8 +1196,8 @@ class PhasedVcfWriter(VcfAugmenter):
             pos = record.start
             if not record.alts:
                 continue
-            if len(record.alts) > 1:
-                # we do not phase multiallelic sites currently
+            if len(record.alts) > 1 and not self._mav:
+                # we do not phase multiallelic sites unless requested
                 continue
             if pos == prev_pos:
                 # duplicate position, skip it
@@ -1242,7 +1244,10 @@ class PhasedVcfWriter(VcfAugmenter):
                 if pos in genotypes and genotypes[pos] != gt_type:
                     # call['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
                     call["GT"] = tuple(genotypes[pos].as_vector())
-                    variant = BiallelicVcfVariant(record.start, record.ref, record.alts[0])
+                    if len(record.alts) > 1:
+                        variant = MultiallelicVcfVariant(record.start, record.ref, record.alts)
+                    else:
+                        variant = BiallelicVcfVariant(record.start, record.ref, record.alts[0])
                     genotype_changes.append(
                         GenotypeChange(sample, chromosome, variant, gt_type, genotypes[pos])
                     )
