@@ -429,7 +429,7 @@ class ReadSetReader:
         default_mismatch -- if affine_gap=true, use this as mismatch cost in case no base qualities are in bam
         """
         # Do not process symbolic alleles like <DEL>, <DUP>, etc.
-        if variant.alternative_allele.startswith("<"):
+        if any(alt.startswith("<") for alt in variant.get_alt_allele_list()):
             return None, None
 
         left_cigar, right_cigar = ReadSetReader.split_cigar(cigartuples, i, consumed)
@@ -447,16 +447,12 @@ class ReadSetReader:
         query = bam_read.query_sequence[
             query_pos - left_query_bases : query_pos + right_query_bases
         ]
-        ref = reference[variant.position - left_ref_bases : variant.position + right_ref_bases]
-        alt = (
-            reference[variant.position - left_ref_bases : variant.position]
-            + variant.alternative_allele
-            + reference[
-                variant.position
-                + len(variant.reference_allele) : variant.position
-                + right_ref_bases
-            ]
-        )
+        pos = variant.position
+        left_pad = reference[pos - left_ref_bases : pos]
+        right_pad = reference[pos + len(variant.reference_allele) : pos + right_ref_bases]
+        padded_alleles = [reference[pos - left_ref_bases : pos + right_ref_bases]]
+        for alt in variant.get_alt_allele_list():
+            padded_alleles.append(left_pad + alt + right_pad)
 
         if use_affine:
             assert gap_start is not None
@@ -469,22 +465,21 @@ class ReadSetReader:
             #    base_qualities = bam_read.query_qualities[query_pos-left_query_bases:query_pos+right_query_bases]
 
             # compute edit dist. with affine gap costs using base qual. as mismatch cost
-            distance_ref = edit_distance_affine_gap(
-                query, ref, base_qualities, gap_start, gap_extend
-            )
-            distance_alt = edit_distance_affine_gap(
-                query, alt, base_qualities, gap_start, gap_extend
-            )
-            base_qual_score = abs(distance_ref - distance_alt)
+            distances = [
+                (i, edit_distance_affine_gap(query, allele, base_qualities, gap_start, gap_extend))
+                for i, allele in enumerate(padded_alleles)
+            ]
+            distances.sort(key=lambda x: x[1])
+            base_qual_score = distances[0][1] - distances[1][1]
         else:
+            distances = [
+                (i, edit_distance(query, allele)) for i, allele in enumerate(padded_alleles)
+            ]
+            distances.sort(key=lambda x: x[1])
             base_qual_score = 30
-            distance_ref = edit_distance(query, ref)
-            distance_alt = edit_distance(query, alt)
 
-        if distance_ref < distance_alt:
-            return 0, base_qual_score  # detected REF
-        elif distance_ref > distance_alt:
-            return 1, base_qual_score  # detected ALT
+        if distances[0][1] < distances[1][1]:
+            return distances[0][0], base_qual_score  # detected REF
         else:
             return None, None  # cannot decide
 
