@@ -102,6 +102,7 @@ def run_polyphasegenetic(
                     out_file=output,
                     tag=tag,
                     ploidy=ploidy,
+                    mav=False,
                 )
             )
         except OSError as e:
