@@ -91,6 +91,74 @@ def test_blockcut_sensitivities(tmp_path):
         assert all(cut in results[s + 1] for cut in results[s])
 
 
+def test_blockcut_sensitivities2(tmp_path):
+    """More detailled check for the different sensitivities using a manually created instance"""
+
+    results = []
+    for s in range(6):
+        outvcf = tmp_path / "output{}.vcf".format(s)
+        run_polyphase(
+            phase_input_files=["tests/data/polyploid.cuts.bam"],
+            variant_file="tests/data/polyploid.cuts.vcf",
+            ploidy=4,
+            ignore_read_groups=True,
+            block_cut_sensitivity=s,
+            output=outvcf,
+        )
+        assert os.path.isfile(outvcf)
+
+        tables = list(VcfReader(outvcf, phases=True))
+        assert len(tables) == 1
+        block_starts = set([i.block_id for i in tables[0].phases_of("Test_Cuts") if i is not None])
+        results.append(block_starts)
+        print(block_starts)
+
+    for s in range(5):
+        assert all(cut in results[s + 1] for cut in results[s])
+
+    assert results[0] == results[1]
+    assert results[1] == {3, 18}
+    assert results[2] == {3, 9, 18}
+    assert results[3] in [{3, 9, 18, 27}, {3, 9, 18}]
+    assert results[4] == {3, 9, 18, 27}
+    assert results[5] == {3, 9, 18, 27}
+
+
+def test_blockcut_sensitivities3(tmp_path):
+    """Ensure that the block cuts stay consistent with pre-phasing and that
+    lowest sensitivity allows prephasings to bridge unconnected (by reads) blocks"""
+
+    results = []
+    for s in range(6):
+        outvcf = tmp_path / "output{}.vcf".format(s)
+        run_polyphase(
+            phase_input_files=["tests/data/polyploid.cuts.bam"],
+            variant_file="tests/data/polyploid.cuts.vcf",
+            ploidy=4,
+            ignore_read_groups=True,
+            block_cut_sensitivity=s,
+            output=outvcf,
+            use_prephasing=True,
+        )
+        assert os.path.isfile(outvcf)
+
+        tables = list(VcfReader(outvcf, phases=True))
+        assert len(tables) == 1
+        block_starts = set([i.block_id for i in tables[0].phases_of("Test_Cuts") if i is not None])
+        results.append(block_starts)
+        print(block_starts)
+
+    for s in range(5):
+        assert all(cut in results[s + 1] for cut in results[s])
+
+    assert results[0] == {3}
+    assert results[1] == {3, 18}
+    assert results[2] in [{3, 9, 18, 27}, {3, 9, 18}]
+    assert results[3] in [{3, 9, 18, 27}, {3, 9, 18}]
+    assert results[4] == {3, 9, 18, 27}
+    assert results[5] == {3, 9, 18, 27}
+
+
 def test_polyphase_multithreaded(tmp_path):
     outvcf_st = tmp_path / "output_st.vcf"
     outvcf_mt = tmp_path / "output_mt.vcf"
@@ -126,3 +194,40 @@ def test_polyphase_multithreaded(tmp_path):
         [st == mt for (st, mt) in zip(table_st.genotype_likelihoods, table_mt.genotype_likelihoods)]
     )
     assert all([st == mt for (st, mt) in zip(table_st.variants, table_mt.variants)])
+
+
+def test_polyphase_indels(tmp_path):
+    outvcf = tmp_path / "output.vcf"
+    outvcf_indel = tmp_path / "output_indel.vcf"
+
+    run_polyphase(
+        phase_input_files=["tests/data/polyploid.indels.bam"],
+        variant_file="tests/data/polyploid.indels.vcf",
+        ploidy=4,
+        ignore_read_groups=True,
+        output=outvcf,
+    )
+    assert os.path.isfile(outvcf)
+    tables = list(VcfReader(outvcf, phases=True, indels=True))
+    table = tables[0]
+
+    run_polyphase(
+        phase_input_files=["tests/data/polyploid.indels.bam"],
+        variant_file="tests/data/polyploid.indels.vcf",
+        ploidy=4,
+        ignore_read_groups=True,
+        output=outvcf_indel,
+        indels=True,
+    )
+    assert os.path.isfile(outvcf_indel)
+    tables_indel = list(VcfReader(outvcf_indel, phases=True, indels=True))
+    table_indel = tables_indel[0]
+
+    sample = "Test_Indel"
+    assert len([p for p in table.phases_of(sample) if p]) == 2
+    assert len([p for p in table_indel.phases_of(sample) if p]) == 4
+    assert table.variants[0] == table_indel.variants[0]
+    assert table.variants[-1] == table_indel.variants[-1]
+
+    ph = table_indel.phases_of(sample)
+    assert {(a, b) for a, b in zip(ph[1].phase, ph[2].phase)} == {(0, 0), (0, 1), (1, 0), (1, 1)}

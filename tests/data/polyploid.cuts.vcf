@@ -1,0 +1,17 @@
+##fileformat=VCFv4.1
+##contig=<ID=chrA>
+##FILTER=<ID=PASS,Description="All filters passed">
+##INFO=<ID=AC,Number=A,Type=Integer,Description="Allele count in genotypes">
+##INFO=<ID=AN,Number=1,Type=Integer,Description="Total number of alleles in called genotypes">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Test_Cuts
+chrA	3	.	A	C	.	.	AN=4;AC=2	GT	1|0|0|0
+chrA	6	.	A	C	.	.	AN=4;AC=2	GT	1|1|0|0
+chrA	9	.	A	C	.	.	AN=4;AC=2	GT	0|0|0|1
+chrA	12	.	A	C	.	.	AN=4;AC=2	GT	0|0|1|0
+chrA	15	.	A	C	.	.	AN=4;AC=2	GT	0|1|1|0
+chrA	18	.	A	C	.	.	AN=4;AC=2	GT	1|0|0|1
+chrA	21	.	A	C	.	.	AN=4;AC=2	GT	0|0|1|1
+chrA	24	.	A	C	.	.	AN=4;AC=2	GT	0|1|1|1
+chrA	27	.	A	C	.	.	AN=4;AC=2	GT	0|0|1|1
+chrA	30	.	A	C	.	.	AN=4;AC=2	GT	1|0|1|0

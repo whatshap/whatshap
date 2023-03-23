@@ -1,9 +1,11 @@
 import logging
-
 from collections import defaultdict
 from dataclasses import dataclass
 from queue import Queue
 from typing import List
+
+from whatshap.core import ReadSet
+from whatshap.polyphase.solver import AlleleMatrix
 
 logger = logging.getLogger(__name__)
 
@@ -18,16 +20,31 @@ class PolyphaseParameter:
     plot_clusters: bool
     plot_threading: bool
     threads: int
+    use_prephasing: bool
+
+
+class PhaseBreakpoint:
+    def __init__(self, position, haplotypes, confidence):
+        self.position = position
+        self.haplotypes = sorted(haplotypes[:])
+        self.confidence = confidence
 
 
 @dataclass
 class PolyphaseBlockResult:
     block_id: int
     clustering: List[List[int]]
-    paths: List[List[int]]
-    cuts: List[int]
-    hap_cuts: List[List[int]]
+    threads: List[List[int]]
     haplotypes: List[int]
+    breakpoints: List[PhaseBreakpoint]
+
+
+@dataclass
+class PolyphaseResult:
+    clustering: List[List[int]]
+    threads: List[List[int]]
+    haplotypes: List[int]
+    breakpoints: List[PhaseBreakpoint]
 
 
 def get_coverage(allele_matrix, clustering):
@@ -145,12 +162,12 @@ def compute_block_starts(am, ploidy, single_linkage=False):
     return cuts
 
 
-def create_genotype_list(phasable_variant_table, sample):
+def create_genotype_list(variant_table, sample):
     """
     Creates a list, which stores a dictionary for every position. The dictionary maps every allele
     to its frequency in the genotype of the respective position.
     """
-    all_genotypes = phasable_variant_table.genotypes_of(sample)
+    all_genotypes = variant_table.genotypes_of(sample)
     genotype_list = []
     for pos in range(len(all_genotypes)):
         allele_count = dict()
@@ -160,3 +177,19 @@ def create_genotype_list(phasable_variant_table, sample):
             allele_count[allele] += 1
         genotype_list.append(allele_count)
     return genotype_list
+
+
+def extract_partial_phasing(variant_table, sample, ploidy):
+    readset = ReadSet()
+    vars = variant_table.variants
+    for read in variant_table.phased_blocks_as_reads(sample, vars, 0, 0, target_ploidy=ploidy):
+        readset.add(read)
+    if len(readset) > 0:
+        am = AlleleMatrix(readset)
+        assert len(am) % ploidy == 0
+        for i in range(0, len(am), ploidy):
+            assert all([am.getFirstPos(i) == am.getFirstPos(i + j) for j in range(1, ploidy)])
+            assert all([am.getLastPos(i) == am.getLastPos(i + j) for j in range(1, ploidy)])
+        return am
+    else:
+        return None

@@ -23,9 +23,9 @@ def test_read_parent_vcf():
     assert table.variants[0].reference_allele == "C"
     assert table.variants[0].alternative_allele == "T"
     assert table.variants[33].reference_allele == "ACC"
-    assert table.variants[33].alternative_alleles == ["A", "AC"]
+    assert table.variants[33].alternative_alleles == ("A", "AC")
     assert table.variants[34].reference_allele == "C"
-    assert table.variants[34].alternative_alleles == ["*", "T"]
+    assert table.variants[34].alternative_alleles == ("*", "T")
 
 
 def test_read_progeny_vcf():
@@ -50,9 +50,9 @@ def test_read_progeny_vcf():
     assert table.variants[0].reference_allele == "C"
     assert table.variants[0].alternative_allele == "T"
     assert table.variants[19].reference_allele == "T"
-    assert table.variants[19].alternative_alleles == ["C", "A"]
+    assert table.variants[19].alternative_alleles == ("C", "A")
     assert table.variants[71].reference_allele == "AGT"
-    assert table.variants[71].alternative_alleles == ["AGGT", "*"]
+    assert table.variants[71].alternative_alleles == ("AGGT", "*")
 
     ad1 = table.allele_depths_of("Progeny_1")
     ad2 = table.allele_depths_of("Progeny_2")

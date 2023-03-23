@@ -157,7 +157,7 @@ class MultiallelicVcfVariant(VcfVariant):
     def __init__(self, position: int, reference_allele: str, alternative_alleles: List[str]):
         self.position = position
         self.reference_allele = reference_allele
-        self.alternative_alleles = alternative_alleles
+        self.alternative_alleles = tuple(alternative_alleles)
 
     def __repr__(self):
         return "MultiallelicVcfVariant({}, {!r}, {!r})".format(
@@ -401,7 +401,6 @@ class VariantTable:
         to_discard = [i for i, v in enumerate(self.variants) if v.position not in positions]
         self.remove_rows_by_index(to_discard)
 
-    # TODO: extend this to polyploid case
     def phased_blocks_as_reads(
         self,
         sample: str,
@@ -410,6 +409,7 @@ class VariantTable:
         numeric_sample_id: int,
         default_quality: int = 20,
         mapq: int = 100,
+        target_ploidy: int = 2,
     ):
         """
         Yields one sorted core.Read object per phased block, encoding the phase information as
@@ -427,7 +427,7 @@ class VariantTable:
         except KeyError:
             return
         input_variant_set = set(input_variants)
-        read_map: Dict[int, Read] = {}  # maps block_id core.Read objects
+        read_map: Dict[int, List[Read]] = {}  # maps block_id to list of core.Read objects
         assert (
             len(self.variants)
             == len(self.genotypes[sample_index])
@@ -436,8 +436,8 @@ class VariantTable:
         for variant, genotype, phase in zip(
             self.variants, self.genotypes[sample_index], self.phases[sample_index]
         ):
-            if len(genotype.as_vector()) > 2:
-                # only use diploid variants
+            if len(genotype.as_vector()) != target_ploidy:
+                # skip wrong ploidy
                 continue
             if variant not in input_variant_set:
                 continue
@@ -450,15 +450,20 @@ class VariantTable:
             else:
                 quality = phase.quality
             if phase.block_id in read_map:
-                read_map[phase.block_id].add_variant(variant.position, phase.phase[0], quality)
+                for i, allele in enumerate(phase.phase):
+                    read_map[phase.block_id][i].add_variant(variant.position, allele, quality)
             else:
-                r = Read(f"{sample}_block_{phase.block_id}", mapq, source_id, numeric_sample_id)
-                r.add_variant(variant.position, phase.phase[0], quality)
-                read_map[phase.block_id] = r
-        for key, read in read_map.items():
-            read.sort()
-            if len(read) > 1:
-                yield read
+                read_map[phase.block_id] = []
+                for i, allele in enumerate(phase.phase):
+                    name = f"{sample}_phase_{i}_block_{phase.block_id}"
+                    r = Read(name, mapq, source_id, numeric_sample_id)
+                    r.add_variant(variant.position, allele, quality)
+                    read_map[phase.block_id].append(r)
+        for key, read_list in read_map.items():
+            for read in read_list:
+                if len(read) > 1:
+                    read.sort()
+                    yield read
 
 
 class MixedPhasingError(Exception):
@@ -573,7 +578,9 @@ class VcfReader:
         for i in range(len(fields)):
             assert fields[0][0] == fields[i][0]
         block_id = fields[0][0]
-        phase = tuple(field[1] - 1 for field in fields)
+        order = [field[1] - 1 for field in fields]
+        phase = call["GT"]
+        phase = tuple(phase[order.index(i)] for i in range(len(order)))
         return VariantCallPhase(block_id=block_id, phase=phase, quality=call.get("PQ", None))
 
     @staticmethod

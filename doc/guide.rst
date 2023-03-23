@@ -74,19 +74,20 @@ Subcommands
 
 WhatsHap comes with the following subcommands.
 
-===================================== ===================================================
-Subcommand                            Description
-===================================== ===================================================
-phase                                 Phase diploid variants
-:ref:`polyphase <whatshap-polyphase>` Phase polyploid variants
-:ref:`stats <whatshap-stats>`         Print phasing statistics
-:ref:`compare <whatshap-compare>`     Compare two or more phasings
-hapcut2vcf                            Convert hapCUT output format to VCF
-unphase                               Remove phasing information from a VCF file
-:ref:`haplotag <whatshap-haplotag>`   Tag reads by haplotype
-:ref:`genotype <whatshap-genotype>`   Genotype variants
-:ref:`split <whatshap-split>`         Split reads by haplotype
-===================================== ===================================================
+============================================= ===========================================
+Subcommand                                    Description
+============================================= ===========================================
+phase                                         Phase diploid variants
+:ref:`polyphase <whatshap-polyphase>`         Phase polyploid variants
+:ref:`polyphasegenetic <whatshap-polyphaseg>` Phase polyploid variants
+:ref:`stats <whatshap-stats>`                 Print phasing statistics
+:ref:`compare <whatshap-compare>`             Compare two or more phasings
+hapcut2vcf                                    Convert hapCUT output format to VCF
+unphase                                       Remove phasing information from a VCF file
+:ref:`haplotag <whatshap-haplotag>`           Tag reads by haplotype
+:ref:`genotype <whatshap-genotype>`           Genotype variants
+:ref:`split <whatshap-split>`                 Split reads by haplotype
+============================================= ===========================================
 
 Not all are fully documented in this manual, yet. To get help for a
 subcommand named ``SUBCOMMAND``, run ::
@@ -821,42 +822,59 @@ whatshap polyphase: Polyploid Phasing
 
 In addition to diploid phasing, WhatsHap also supports polyploid phasing 
 through a different algorithm. The ``whatshap polyphase`` command works 
-almost the same as the ``phase`` command with a few restrictions:
+similarly to the ``phase`` command::
+
+    whatshap polyphase input.vcf input.bam --ploidy p --reference ref.fasta -o output.vcf
+
+Some details differ from the diploid command:
 
 1. An additional integer argument ``--ploidy`` must be specified. This ploidy
 must match the ploidy in the provided VCF file(s). The ploidy also greatly
 impacts the running time as the phasing becomes more complex. Ploidies
 higher than 6 may take very long to process.
 
-2. WhatsHap will use available genotype information from the VCF file(s), but
-the computed haplotypes are not guaranteed to follow these genotypes, if they
-deviate too much from the allele distribution among the aligned reads.
-Therefore the output genotypes can be different than the input genotypes.
+2. WhatsHap will use available genotype information from the VCF file(s) and
+output phasings that strictly follow these inputs. However, when using the
+``--distrust-genotypes`` flag, the provided genotypes will be overwritten with
+what the phasing algorithm thinks is the most likely (phased) genotype.
 
 3. Polyploid phasing on pedigrees is not supported yet.
 
-4. The phasing algorithm does not consider copy number variants and always 
-produces the provided number of haplotypes at any location.
+4. Specifying a reference genome is optional, like for the diploid case.
+However, available reference genomes for plant species usually fall behind in
+accuracy when compared to a human one. We observed both improvements and
+regressions in phasing accuracy when providing the phaser with a reference
+sequence, so there is no clear recommendation whether to use it or not.
 
 There is no strict limitation regarding the coverage of the input reads. 
-However, the running time grows quadratically with the coverage. For that
-reason and we do not recommend to use more than 120X. In principle it is
-possible to phase diploid samples via the ``polyphase`` command, but the
-results will likely be less accurate than the diploid phasing mode, as the
-latter is more specialized for the diploid case.
+However, the running time grows quadratically with the coverage, so be aware
+that very deep sequencing data might take a long time.
 
-To achieve reliable phasing, as many haplotypes as possible should be
-represented in the input reads. In case of unrepresented haplotypes, phasing 
-can become impossible and the output haplotypes are broken into phased blocks.
-As a result, every phased variant will receive a phased block ID, such that
-all variants with the same ID belong to the same haplotype block. By default
-WhatsHap is very conservative with these blocks and splits them whenever it 
-could not resolve ambiguity between consecutive variants. This behavior can be
-adjusted via the ``--block-cut-sensitivity`` parameter. Valid values range from
-0 to 5 (including) with a default of 4. A lower sensitivity will produce longer
-phasing blocks, which might contain more switch errors, though. A sensitivity
-of 1 means that haplotypes are only cut at positions where there was no read 
-connecting two consecutive variants (in any haplotype).
+Since polyploid phasing is inherently more difficult than diploid phasing,
+the phased blocks are expected to be much shorter than a diploid phasing with
+the same input quality. A major problem are long intervals, where two or more
+haplotypes look (almost) completely identical. For these intervals, the output
+must contain the same haplotype sequence multiple times. While the multiplicity
+of such a sequence might be derived from allele coverages, it becomes
+impossible to connect the haplotype sequences before and after such an
+interval, unless there are sufficiently many reads that completely span the
+entire interval.
+
+By default, WhatsHap will cut the phasing on such ambiguous sites. The same
+applies for regions with very low heterozygosity, where only very few or even
+no reads connect two consecutive variants. The parameter
+``--block-cut-sensitivity`` (or short ``-B``) controls how conservatively the
+phaser will cut the phasing. Valid values range from 0 to 5 with a default of
+4. A lower sensitivity will produce longer phasing blocks, but keep in mind
+that this will lead to more switch errors when haplotype sequences become
+(almost) identical. 
+
+The optional flag ``--use-prephasing`` reads existing phasing information in
+the input VCF and adds them to the phasing process. Unlike for the ``phase``
+command, phased blocks are not interpreted as additional reads, but as
+scaffolding information to increase the continuity of phasing blocks produced
+by the polyphase algorithm. Depending on the density of pre-phased variants you
+might consider reducing the block cut sensitivity to lower levels.
 
 In VCF format, it is common to specifiy the block IDs in the 
 ``Phase set identifier`` field (``PS``). Since this ID refers to the variant
@@ -867,6 +885,64 @@ custom field, which is only used to provide this information. It is not
 supported by other tools and also the ``compare`` and ``stats`` modules of
 WhatsHap will still use the common ``PS`` field to consider block borders.
 
+WhatsHap does not support diverging ploidy for the same input files. All
+provided chromosomes will be assumed to follow the input ploidy. This can lead
+to unexpected results for organisms with different ploidies per chromosome, but
+also for very large deletions on one of the haplotypes.
+
+It is possible to phase diploid samples via the ``polyphase`` command, but the
+we recommend to use the ``phase`` command instead, because it uses a different
+algorithm that is more specialized for the diploid case.
+
+.. _whatshap-polyphaseg:
+
+whatshap polyphaseg: Polyploid Phasing with progeny information
+===============================================================
+
+In addition to the purely read-based method, the ``whatshap polyphasegenetic``
+command runs on genotype data, derived from two parent samples and an arbitrary
+number of progeny samples. The scope of this command is to phase one parent at
+a time by using a high number of progeny samples with low-depth phasing
+information. The Mendelian rules for allele heritage allow to determine the
+co-occurence of marker alleles in the target parental sample. These marker
+alleles occur, when one parent is homozygous in some allele ``A`` and the other
+parent has exactly one allele that is different from ``A``. This limits the
+phasing capabilities to variants following such a pattern and to autopolyploid
+species with an even ploidy. During development, it turned out that a
+population of at least 50 is recommended when using an average sequencing depth
+of 6 per progeny sample.
+
+Since no read data is used here, the workflow differs from ``whatshap polyphase``::
+
+    whatshap polyphasegenetic parent.vcf ped.txt [-P progeny.vcf] --ploidy p --sample s -o output.vcf
+    
+The parental VCF file must contain genotype information of both parent samples
+and may contain genotype information for the progeny samples. If the progeny
+genotypes are not present in the parental VCF, they must be provided in a
+separate VCF, preceeded by the ``--progeny-file`` (or short ``-P``) identifier.
+As of now the progeny samples are required to have an ``AD`` field to provide
+the allele depths per sample per variant. An example of such a file would be::
+
+    ##fileformat=VCFv4.1
+    #CHROM  POS  ID  REF  ALT  QUAL   FILTER  INFO FORMAT  parent1    parent2    progeny1    ...
+    chr1    100  .   A    T    50.0   .       .    GT:AD   0/0/0/1:.  0/0/0/0:.  0/0/0/1:75,21
+    chr1    200  .   C    G,A  50.0   .       .    GT:AD   0/0/0/2:.  0/0/0/1:.  0/0/1/2:53,18,22
+    ...
+
+The relationship between the samples has to be specified in a pedigree file
+using three whitespace-separated columns to specify all trios to be
+considered::
+
+    parent_1 parent_2 progeny_1
+    parent_1 parent_2 progeny_2
+    parent_1 parent_2 progeny_3
+    ...
+
+The phasing output is formed from the co-occurence information of the
+previously described marker alleles. This yields a sparse phasing, where only
+selected variants are phased for the target sample, but since the continuity of
+the phasing is not limited by any read lengths, it will be one phasing block
+per chromosome.
 
 .. _whatshap-compare:
 
