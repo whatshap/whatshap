@@ -4,10 +4,15 @@ from dataclasses import dataclass
 from queue import Queue
 from typing import List
 
+from pulp import listSolvers, getSolver
 from whatshap.core import ReadSet
 from whatshap.polyphase.solver import AlleleMatrix
 
 logger = logging.getLogger(__name__)
+
+
+class SolverError(Exception):
+    pass
 
 
 @dataclass
@@ -193,3 +198,18 @@ def extract_partial_phasing(variant_table, sample, ploidy):
         return am
     else:
         return None
+
+
+def get_ilp_solver():
+    """
+    Sets up a solver object with suppressed cmd output from available solvers.
+    """
+    solvers = listSolvers(onlyAvailable=True)
+    prio = ["GUROBI_CMD", "GUROBI", "COIN_CMD", "PULP_CBC_CMD"]
+    for name in prio:
+        if name in solvers:
+            return getSolver(name, msg=0)
+    if len(solvers) > 0:
+        return getSolver(solvers[0], msg=0)
+    else:
+        raise SolverError("No ILP solver is available for PuLP.")

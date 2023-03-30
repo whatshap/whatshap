@@ -7,9 +7,9 @@ from math import log, exp
 from functools import reduce
 from operator import mul
 from copy import deepcopy
-from pulp import LpProblem, LpVariable, LpMaximize, LpInteger, PULP_CBC_CMD
+from pulp import LpProblem, LpVariable, LpMaximize, LpInteger
 
-from whatshap.polyphase import PolyphaseBlockResult, PhaseBreakpoint
+from whatshap.polyphase import PolyphaseBlockResult, PhaseBreakpoint, get_ilp_solver
 
 logger = logging.getLogger(__name__)
 
@@ -430,7 +430,7 @@ def get_optimal_permutations(breakpoints, lllh, ploidy, affiliations):
     model += sum([var * weight for (var, weight) in z_weights.items()]) + sum(aff_scores)
 
     # solve model
-    solver = PULP_CBC_CMD(msg=0)
+    solver = solver = get_ilp_solver()
     model.solve(solver)
 
     assignments = [[0 for _ in P] for _ in BE]
