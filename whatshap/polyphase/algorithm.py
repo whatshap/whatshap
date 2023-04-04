@@ -138,7 +138,7 @@ def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, ti
     quiet -- If set, suppresses logger info output
     """
 
-    block_num_vars = allele_matrix.getNumPositions()
+    block_num_vars = len(genotypes)
 
     # Check for singleton blocks and handle them differently (for efficiency reasons)
     if block_num_vars == 1:
