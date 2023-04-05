@@ -249,7 +249,6 @@ def compute_gt_likelihoods(
         if progeny_pos == prev_pos:
             gt_likelihoods.append(gt_likelihoods[-1])
             continue
-        gl = defaultdict(float)
         gl = [0.0 for _ in range(0, param.ploidy + 1)]
         ref = varinfo[parent_pos].ref
         alt = varinfo[parent_pos].alt
