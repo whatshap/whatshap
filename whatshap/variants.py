@@ -527,7 +527,8 @@ class ReadSetReader:
                 gap_extend,
                 default_mismatch,
             )
-            if allele in (0, 1):
+            num_alts = len(variants[index].get_alt_allele_list())
+            if allele in range(num_alts + 1):
                 yield (index, allele, quality)  # TODO quality???
 
     def __enter__(self):
