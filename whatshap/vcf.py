@@ -210,13 +210,10 @@ class MultiallelicVcfVariant(VcfVariant):
         return self.alternative_alleles
 
     def get_allele(self, a):
-        num_alt = len(self.alternative_alleles)
         if a == 0:
             return self.reference_allele
-        elif a <= num_alt:
-            return self.alternative_alleles[a - 1]
         else:
-            raise VcfInvalidAllele(f"Querying invalid allele {a} (highest id was {num_alt - 1}")
+            return self.alternative_alleles[a - 1]
 
     def is_snv(self) -> bool:
         return any(self.reference_allele != alt for alt in self.alternative_alleles) and (

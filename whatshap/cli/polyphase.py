@@ -62,7 +62,7 @@ def run_polyphase(
     block_cut_sensitivity=4,
     threads=1,
     use_prephasing=False,
-    no_mav=False,
+    mav=True,
 ):
     """
     Run Polyploid Phasing.
@@ -113,7 +113,7 @@ def run_polyphase(
                     ploidy=ploidy,
                     indels=indels,
                     include_haploid_sets=include_haploid_sets,
-                    mav=not no_mav,
+                    mav=mav,
                 )
             )
         except OSError as e:
@@ -126,7 +126,7 @@ def run_polyphase(
                 phases=True,
                 genotype_likelihoods=False,
                 ploidy=ploidy,
-                mav=not no_mav,
+                mav=mav,
             )
         )
 
@@ -504,6 +504,13 @@ def add_arguments(parser):
         default=1,
         help="Maximum number of CPU threads used (default: %(default)s).",
     )
+    arg(
+        "--no-mav",
+        dest="mav",
+        default=True,
+        action="store_false",
+        help="Disables phasing of multi-allelic variants.",
+    )
 
     # more arguments, which are experimental or for debugging and should not be presented to the user
     arg(
@@ -533,12 +540,6 @@ def add_arguments(parser):
         action="store_true",
         help=argparse.SUPPRESS,
     )  # help="Verify input genotypes by re-typing them using the given reads.",
-    arg(
-        "--no-mav",
-        default=False,
-        action="store_true",
-        help=argparse.SUPPRESS,
-    )  # help="Disables phasing of multi-allelic variants.",
 
 
 def validate(args, parser):
