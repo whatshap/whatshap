@@ -79,7 +79,6 @@ def integrate_sub_results(
     1. Update haplotype strings inside the collapsed regions according to the solved sub-instances
     2. Collect breakpoints of global threading and integrate breakpoints of sub-instances
     """
-
     breakpoints = find_breakpoints(threads)
     for (cid, thread_set, subm), res in zip(sub_instances, sub_results):
         snps = [allele_matrix.globalToLocal(gpos) for gpos in subm.getPositions()]
@@ -157,7 +156,6 @@ def run_reordering(
        the clustering must eventually be split into blocks.
 
     """
-
     # compute link log likelihoods between consecutive blocks
     lllh = compute_link_likelihoods(
         threads, haplotypes, breakpoints, clustering, allele_matrix, error_rate
@@ -172,7 +170,7 @@ def run_reordering(
 
     # compute optimal permutation of threads for each block
     ploidy = len(haplotypes)
-    perms = get_optimal_permutations(breakpoints, lllh, ploidy, aff)
+    perms = get_optimal_assignments(breakpoints, lllh, ploidy, aff)
     permute_blocks(threads, haplotypes, breakpoints, lllh, perms)
 
 
@@ -345,18 +343,30 @@ def get_heterozygous_pos_for_haps(haplotypes, subset, pivot_pos, limit=0):
     return left, right
 
 
-def get_optimal_permutations(breakpoints, lllh, ploidy, affiliations):
+def get_optimal_assignments(breakpoints, lllh, ploidy, affiliations):
     """
     Computes optimal permutations of haplotypes within blocks determined by breakpoints. Result
     is a list with one permutation (list) per block.
     """
+    P = list(range(ploidy))
+    B = list(range(len(breakpoints)))
+    BE = list(range(len(breakpoints) + 1))
 
     if not breakpoints:
         return [list(range(ploidy))]
 
-    P = list(range(ploidy))
-    B = list(range(len(breakpoints)))
-    BE = list(range(len(breakpoints) + 1))
+    # Only solve ILP if pre-phasing affiliations are given. Otherwise, take local optima
+    if not affiliations:
+        assignments = [[i for i in P] for _ in BE]
+        for b in B:
+            for i in P:
+                assignments[b + 1][i] = assignments[b][i]
+            perm = max(lllh[b], key=lllh[b].get)
+            affected = sorted(perm)
+            for left, right in zip(affected, perm):
+                assignments[b + 1][assignments[b].index(left)] = right
+
+        return assignments
 
     # setup ILP model
     model = LpProblem(f"PermuteBlocks_p{ploidy}_b{len(breakpoints)}", LpMaximize)
