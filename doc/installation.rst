@@ -17,6 +17,15 @@ those instructions. Even if you have previously set up those channels, you can
 repeat the ``conda config add --channels ...`` commands to ensure your
 configuration is correct.
 
+.. note::
+   It is *not* sufficient to only add ``-c bioconda`` to the ``conda create``
+   or ``conda install`` commands as both the ``bioconda`` *and* the
+   ``conda-forge`` channels are required and must be listed in the correct
+   order. Refer to the `Bioconda instructions for using command-line options
+   instead of modifying the Conda
+   configuration <http://bioconda.github.io/#do-not-modify-condarc>`_.
+
+
 Then install WhatsHap into a new Conda environment (here named ``whatshap-env``)::
 
     conda create -n whatshap-env whatshap
