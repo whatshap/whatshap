@@ -77,12 +77,14 @@ class ReadSetReader:
         paths: List[str],
         reference: Optional[str],
         numeric_sample_ids: NumericSampleIds,
+        *,
         mapq_threshold: int = 20,
         overhang: int = 10,
         affine: int = False,
         gap_start: int = 10,
         gap_extend: int = 7,
         default_mismatch: int = 15,
+        duplicates: bool = False,
     ):
         """
         paths -- list of BAM paths
@@ -92,6 +94,7 @@ class ReadSetReader:
         overhang -- extend alignment by this many bases to left and right
         affine -- use affine gap costs
         gap_start, gap_extend, default_mismatch -- parameters for affine gap cost alignment
+        duplicates -- read alignments marked as duplicate
         """
         self._mapq_threshold = mapq_threshold
         self._numeric_sample_ids = numeric_sample_ids
@@ -100,6 +103,7 @@ class ReadSetReader:
         self._gap_extend = gap_extend
         self._default_mismatch = default_mismatch
         self._overhang = overhang
+        self._duplicates = duplicates
         self._paths = paths
         self._reader: BamReader
         if len(paths) == 1:
@@ -187,7 +191,7 @@ class ReadSetReader:
                     or alignment.bam_alignment.mapping_quality < self._mapq_threshold
                     or alignment.bam_alignment.is_secondary
                     or alignment.bam_alignment.is_unmapped
-                    or alignment.bam_alignment.is_duplicate
+                    or (not self._duplicates and alignment.bam_alignment.is_duplicate)
                 ):
                     continue
                 yield alignment

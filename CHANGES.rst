@@ -7,6 +7,7 @@ development version
 
 * :issue:`425`: Haplotagging CRAM files should now work in more cases with
   ``haplotag``.
+* :issue:`457`: ``haplotag`` now also tags alignments marked as duplicate.
 
 v1.7 (2022-12-01)
 -----------------
@@ -165,7 +166,7 @@ v0.16 (2018-05-22)
 v0.15 (2018-04-07)
 ------------------
 
-* New subcommand ``genotype`` for haplotype-aware genotyping 
+* New subcommand ``genotype`` for haplotype-aware genotyping
   (see https://doi.org/10.1101/293944 for details on the method).
 * Support CRAM files in addition to BAM.
 * :issue:`133`:
