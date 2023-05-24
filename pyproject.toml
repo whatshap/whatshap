@@ -70,3 +70,8 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 addopts = "--doctest-modules"
 testpaths = ["tests", "whatshap"]
+
+[tool.cibuildwheel]
+environment = "CFLAGS=-g0"
+test-requires = "pytest"
+test-command = ["cd {project} ; pytest tests/test_run_phase.py"]
