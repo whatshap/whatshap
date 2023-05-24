@@ -1,6 +1,52 @@
 [build-system]
-requires = ["setuptools>=60", "setuptools_scm", "cython~=0.29.20"]
+requires = ["setuptools>=63", "setuptools_scm[toml]", "cython~=0.29.20"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "whatshap"
+authors = [
+    {name = "WhatsHap authors"}
+]
+description = "phase genomic variants using DNA sequencing reads"
+readme = "doc/README.rst"
+license = {text = "MIT"}
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Cython",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Bio-Informatics"
+]
+requires-python = ">=3.7"
+dynamic = ["version", "dependencies"]
+
+[project.scripts]
+whatshap = "whatshap.__main__:main"
+
+[project.optional-dependencies]
+dev = [
+    "Cython",
+    "pytest",
+    "sphinx>=4.4",
+    "sphinx-issues",
+    "pysam-stubs"
+]
+docs = [
+    "sphinx-issues",
+    "sphinx_better_subsection"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/whatshap/whatshap"
+"Changelog" = "https://whatshap.readthedocs.io/en/latest/changes.html"
+
+[tool.setuptools.packages]
+find = {}
+
+[tool.setuptools_scm]
+write_to = "whatshap/_version.py"
 
 [tool.black]
 line-length = 100
