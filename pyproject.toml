@@ -34,6 +34,7 @@ dev = [
     "pysam-stubs"
 ]
 docs = [
+    "sphinx<7", "sphinx_rtd_theme",  # https://github.com/readthedocs/readthedocs.org/issues/10279#issuecomment-1544411815
     "sphinx-issues",
     "sphinx_better_subsection"
 ]
