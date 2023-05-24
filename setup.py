@@ -110,7 +110,6 @@ else:
     ]
 
 setup(
-    use_scm_version={"write_to": "whatshap/_version.py"},
     cmdclass=cmdclass,
     ext_modules=cythonize(ext_modules),
     install_requires=install_requires,
