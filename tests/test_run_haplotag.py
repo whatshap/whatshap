@@ -545,3 +545,36 @@ def test_haplotag_tetraploid(tmp_path):
             assert readname_to_score[alignment.query_name] == alignment.get_tag("PC")
             assert readname_to_haplotype[alignment.query_name] == alignment.get_tag("HP")
     assert count == 4
+
+
+def test_haplotag_duplicates_are_tagged(tmp_path):
+    # Create a version of the BAM file where all reads are marked as duplicates
+    inbam_dup = tmp_path / "haplotag-duplicates.bam"
+    with pysam.AlignmentFile("tests/data/haplotag.bam") as infile:
+        with pysam.AlignmentFile(inbam_dup, mode="wb", template=infile) as outfile:
+            for record in infile:
+                record.is_duplicate = True
+                outfile.write(record)
+    pysam.index(str(inbam_dup))
+    outbam_dup = tmp_path / "output-nodup.bam"
+    outbam_nodup = tmp_path / "output-dup.bam"
+
+    # Run haplotag twice and compare results
+    run_haplotag(
+        variant_file="tests/data/haplotag_1.vcf.gz",
+        alignment_file="tests/data/haplotag.bam",
+        output=outbam_nodup,
+    )
+    run_haplotag(
+        variant_file="tests/data/haplotag_1.vcf.gz",
+        alignment_file=inbam_dup,
+        output=outbam_dup,
+    )
+    count = 0
+    for r1, r2 in zip(pysam.AlignmentFile(outbam_nodup), pysam.AlignmentFile(outbam_dup)):
+        assert r1.query_name == r2.query_name
+        if r1.has_tag("PS"):
+            assert r2.has_tag("PS")
+            assert r1.get_tag("PS") == r2.get_tag("PS")
+            count += 1
+    assert count > 0

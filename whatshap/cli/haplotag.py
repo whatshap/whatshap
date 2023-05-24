@@ -530,6 +530,7 @@ def run_haplotag(
                 NumericSampleIds(),
                 ignore_read_groups,
                 indels=False,
+                duplicates=True,
             )
         )
         if phased_input_reader.has_alignments and reference is None:
