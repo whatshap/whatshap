@@ -4,6 +4,8 @@ import os
 import sys
 import time
 
+from setuptools_scm import get_version
+
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -29,15 +31,13 @@ copyright = "2014-{}, {}".format(time.gmtime().tm_year, authors)
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
-from pkg_resources import get_distribution
 
-release = get_distribution("whatshap").version
+version = get_version(root='..', relative_to=__file__)
+
 # Read The Docs modifies the conf.py script and we therefore get
 # version numbers like 0.12+0.g27d0d31
 if os.environ.get("READTHEDOCS") == "True":
-    version = ".".join(release.split(".")[:2])
-else:
-    version = release
+    version = ".".join(version.split(".")[:2])
 
 release = version
 
