@@ -8,6 +8,8 @@ development version
 * :issue:`425`: Haplotagging CRAM files should now work in more cases with
   ``haplotag``.
 * :issue:`457`: ``haplotag`` now also tags alignments marked as duplicate.
+* :issue:`466`: Inconsistent runtime measurements now lead to a warning and
+  no longer to a crash.
 
 v1.7 (2022-12-01)
 -----------------
