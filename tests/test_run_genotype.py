@@ -80,7 +80,7 @@ def test_with_reference():
 
 
 @pytest.mark.parametrize("priors", [True, False])
-def test_no_indels(tmpdir, priors):
+def test_only_snvs(tmpdir, priors):
     prioroutput = str(tmpdir.join("priors.vcf")) if priors else None
     outvcf = str(tmpdir.join("output_gl.vcf"))
     run_genotype(
@@ -88,7 +88,7 @@ def test_no_indels(tmpdir, priors):
         variant_file="tests/data/pacbio/variants.vcf",
         reference="tests/data/pacbio/reference.fasta",
         output=outvcf,
-        indels=False,
+        only_snvs=True,
         nopriors=not priors,
         prioroutput=prioroutput,
     )
@@ -118,7 +118,7 @@ def test_multiallelic(tmpdir):
         variant_file="tests/data/multiallelic.vcf",
         reference="tests/data/pacbio/reference.fasta",
         output=outvcf,
-        indels=False,
+        only_snvs=True,
     )
     vcf_reader = VariantFile(outvcf)
     for record in vcf_reader:
@@ -152,7 +152,7 @@ def test_gt_quality_threshold(threshold, tmpdir):
         variant_file="tests/data/trio.vcf",
         output=out_vcf,
         gt_qual_threshold=threshold,
-        indels=False,
+        only_snvs=True,
         prioroutput=priors_vcf,
     )
 
@@ -445,7 +445,7 @@ def test_adding_constant(constant, tmpdir):
         variant_file="tests/data/trio.vcf",
         prioroutput=priors_raw_vcf,
         output=outvcf_raw_vcf,
-        indels=False,
+        only_snvs=True,
     )
 
     # run genotyping with modified priors
@@ -454,7 +454,7 @@ def test_adding_constant(constant, tmpdir):
         variant_file="tests/data/trio.vcf",
         prioroutput=priors_const_vcf,
         output=outvcf_const_vcf,
-        indels=False,
+        only_snvs=True,
         constant=constant,
     )
 

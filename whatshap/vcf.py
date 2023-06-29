@@ -496,7 +496,7 @@ class VcfReader:
     def __init__(
         self,
         path: Union[str, PathLike],
-        indels: bool = False,
+        only_snvs: bool = False,
         phases: bool = False,
         genotype_likelihoods: bool = False,
         ignore_genotypes: bool = False,
@@ -506,14 +506,13 @@ class VcfReader:
     ):
         """
         path -- Path to VCF file
-        indels -- Whether to include also insertions and deletions in the list of
-            variants.
+        only_snvs -- Whether to only include SNVs in the list of variants.
         ignore_genotypes -- In case of genotyping algorithm, no genotypes may be given in
                                 vcf, so ignore all genotypes
         ploidy -- Ploidy of the samples
         """
         # TODO Always include deletions since they can 'overlap' other variants
-        self._indels = indels
+        self._only_snvs = only_snvs
         self._vcf_reader = VariantFile(os.fspath(path))
         self._path = path
         self._phases = phases
@@ -653,7 +652,7 @@ class VcfReader:
                 n_snvs += 1
             else:
                 n_other += 1
-                if not self._indels:
+                if self._only_snvs:
                     continue
 
             if (prev_position is not None) and (prev_position > pos):
@@ -1077,7 +1076,7 @@ class PhasedVcfWriter(VcfAugmenter):
         tag: str = "PS",
         ploidy: int = 2,
         include_haploid_sets: bool = False,
-        indels: bool = False,
+        only_snvs: bool = False,
         mav: bool = False,
     ):
         """
@@ -1095,7 +1094,7 @@ class PhasedVcfWriter(VcfAugmenter):
         super().__init__(in_path, command_line, out_file, include_haploid_sets)
         self._phase_tag_found_warned = False
         self._set_phasing_tags = self._set_HP if tag == "HP" else self._set_PS
-        self._indels = indels
+        self._only_snvs = only_snvs
         self._mav = mav
 
     def setup_header(self, header: VariantHeader):
@@ -1199,8 +1198,8 @@ class PhasedVcfWriter(VcfAugmenter):
             if pos == prev_pos:
                 # duplicate position, skip it
                 continue
-            is_indel = len(str(record.ref)) > 1 or len(str(record.alts[0])) > 1
-            if not self._indels and is_indel:
+            is_snv = len(str(record.ref)) == 1 and len(str(record.alts[0])) == 1
+            if self._only_snvs and not is_snv:
                 continue
 
             # Determine whether the variant is phased in any sample
@@ -1322,7 +1321,7 @@ class GenotypeVcfWriter(VcfAugmenter):
         )
 
     def write_genotypes(
-        self, chromosome: str, variant_table: VariantTable, indels, ploidy: int = 2
+        self, chromosome: str, variant_table: VariantTable, only_snvs, ploidy: int = 2
     ) -> None:
         """
         Add genotyping information to all variants on a single chromosome.

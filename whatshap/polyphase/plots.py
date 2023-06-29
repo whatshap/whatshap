@@ -1174,7 +1174,7 @@ def create_genetic_plots(
         ]
         ground_truth_reader = VcfReader(
             ground_truth_file,
-            indels=False,
+            only_snvs=False,
             phases=True,
             genotype_likelihoods=False,
             ploidy=phasing_param.ploidy,

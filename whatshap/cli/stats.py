@@ -486,7 +486,7 @@ def run_stats(
             gtf_file = stack.enter_context(open(gtf, "wt"))
             gtfwriter = GtfWriter(gtf_file)
 
-        vcf_reader = VcfReader(vcf, phases=True, indels=not only_snvs)
+        vcf_reader = VcfReader(vcf, phases=True, only_snvs=only_snvs)
         if len(vcf_reader.samples) == 0:
             logger.error("Input VCF does not contain any sample")
             return 1

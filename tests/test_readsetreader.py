@@ -101,10 +101,10 @@ def test_allele_dection_01():
         reference=None,
         numeric_sample_ids=NumericSampleIds(),
         ignore_read_groups=True,
-        indels=True,
+        only_snvs=False,
         mapq_threshold=20,
     )
-    vcf_reader = VcfReader(f"{path}.vcf", phases=False, indels=True)
+    vcf_reader = VcfReader(f"{path}.vcf", phases=False, only_snvs=False)
     sample = vcf_reader.samples[0]
     table = list(vcf_reader)[0]
     chromosome = table.chromosome
@@ -127,10 +127,10 @@ def test_allele_dection_02():
         reference=None,
         numeric_sample_ids=NumericSampleIds(),
         ignore_read_groups=True,
-        indels=True,
+        only_snvs=False,
         mapq_threshold=20,
     )
-    vcf_reader = VcfReader(f"{path}.vcf", phases=False, indels=True)
+    vcf_reader = VcfReader(f"{path}.vcf", phases=False, only_snvs=False)
     sample = vcf_reader.samples[0]
     table = list(vcf_reader)[0]
     chromosome = table.chromosome
@@ -154,10 +154,10 @@ def test_allele_dection_03():
         reference=None,
         numeric_sample_ids=NumericSampleIds(),
         ignore_read_groups=True,
-        indels=True,
+        only_snvs=False,
         mapq_threshold=20,
     )
-    vcf_reader = VcfReader(f"{path}.vcf", phases=False, indels=True)
+    vcf_reader = VcfReader(f"{path}.vcf", phases=False, only_snvs=False)
     sample = vcf_reader.samples[0]
     table = list(vcf_reader)[0]
     chromosome = table.chromosome
@@ -184,10 +184,10 @@ def test_allele_dection_04():
         reference=None,
         numeric_sample_ids=NumericSampleIds(),
         ignore_read_groups=True,
-        indels=True,
+        only_snvs=False,
         mapq_threshold=20,
     )
-    vcf_reader = VcfReader(f"{path}.vcf", phases=False, indels=True)
+    vcf_reader = VcfReader(f"{path}.vcf", phases=False, only_snvs=False)
     sample = vcf_reader.samples[0]
     table = list(vcf_reader)[0]
     chromosome = table.chromosome
@@ -212,10 +212,10 @@ def test_allele_dection_05():
             reference=ref,
             numeric_sample_ids=NumericSampleIds(),
             ignore_read_groups=True,
-            indels=True,
+            only_snvs=False,
             mapq_threshold=20,
         )
-        vcf_reader = VcfReader(f"{path}.vcf", phases=False, indels=True)
+        vcf_reader = VcfReader(f"{path}.vcf", phases=False, only_snvs=False)
         sample = vcf_reader.samples[0]
         table = list(vcf_reader)[0]
         chromosome = table.chromosome
@@ -242,10 +242,10 @@ def test_allele_dection_multi_01():
         reference=None,
         numeric_sample_ids=NumericSampleIds(),
         ignore_read_groups=True,
-        indels=True,
+        only_snvs=False,
         mapq_threshold=20,
     )
-    vcf_reader = VcfReader(f"{path}.vcf", phases=False, indels=True, mav=True)
+    vcf_reader = VcfReader(f"{path}.vcf", phases=False, only_snvs=False, mav=True)
     sample = vcf_reader.samples[0]
     table = list(vcf_reader)[0]
     chromosome = table.chromosome
@@ -266,10 +266,10 @@ def test_allele_dection_multi_02():
         reference="tests/data/alleledetection.fasta",
         numeric_sample_ids=NumericSampleIds(),
         ignore_read_groups=True,
-        indels=True,
+        only_snvs=False,
         mapq_threshold=20,
     )
-    vcf_reader = VcfReader(f"{path}.vcf", phases=False, indels=True, mav=True)
+    vcf_reader = VcfReader(f"{path}.vcf", phases=False, only_snvs=False, mav=True)
     sample = vcf_reader.samples[0]
     table = list(vcf_reader)[0]
     chromosome = table.chromosome

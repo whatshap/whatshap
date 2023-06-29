@@ -6,7 +6,7 @@ def test_read_parent_vcf():
     tables = list(
         VcfReader(
             "tests/data/polyphasegenetic.test.parents.vcf",
-            indels=True,
+            only_snvs=False,
             genotype_likelihoods=False,
             ploidy=4,
             mav=True,
@@ -31,7 +31,7 @@ def test_read_progeny_vcf():
     tables = list(
         VcfReader(
             "tests/data/polyphasegenetic.test.progeny.vcf.gz",
-            indels=True,
+            only_snvs=False,
             genotype_likelihoods=False,
             ploidy=4,
             mav=True,

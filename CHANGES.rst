@@ -5,6 +5,16 @@ Changes
 development version
 -------------------
 
+* :issue:`346`: Phasing of indels (and other non-SNVs) is now enabled by
+  default. This previously required specifying the ``--indels`` option,
+  which not all users knew about and were thus unnecessarily getting
+  suboptimal phasing results. The option is now ignored and leads to a
+  warning. An ``--only-snvs`` option was added that restores the old behavior.
+  This change applies to the following subcommands: ``phase``, ``haplotype``,
+  ``polyphase``, ``polyphasegenetic``.
+
+  Since this is a backwards incompatible change (when not using ``--indels``
+  already), the major version has been increased.
 * :issue:`425`: Haplotagging CRAM files should now work in more cases with
   ``haplotag``.
 * :issue:`457`: ``haplotag`` now also tags alignments marked as duplicate.
