@@ -2,8 +2,8 @@
 Changes
 =======
 
-development version
--------------------
+v2.0 (2023-06-30)
+-----------------
 
 * :issue:`346`: Phasing of indels (and other non-SNVs) is now enabled by
   default. This previously required specifying the ``--indels`` option,
@@ -20,6 +20,7 @@ development version
 * :issue:`457`: ``haplotag`` now also tags alignments marked as duplicate.
 * :issue:`466`: Inconsistent runtime measurements now lead to a warning and
   no longer to a crash.
+* This is the last WhatsHap release to support Python 3.7.
 
 v1.7 (2022-12-01)
 -----------------
