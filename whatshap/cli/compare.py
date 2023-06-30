@@ -763,7 +763,7 @@ def run_compare(
     longest_block_tsv=None,
 ):
     vcf_readers = [
-        VcfReader(f, indels=not only_snvs, phases=True, ploidy=ploidy, mav=True) for f in vcf
+        VcfReader(f, only_snvs=only_snvs, phases=True, ploidy=ploidy, mav=True) for f in vcf
     ]
     if names:
         dataset_names = names.split(",")

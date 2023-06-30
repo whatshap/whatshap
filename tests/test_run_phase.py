@@ -172,7 +172,7 @@ def test_with_reference_and_indels(algorithm):
         phase_input_files=["tests/data/pacbio/pacbio.bam"],
         variant_file="tests/data/pacbio/variants.vcf",
         reference="tests/data/pacbio/reference.fasta",
-        indels=True,
+        only_snvs=False,
         algorithm=algorithm,
     )
 
@@ -558,11 +558,11 @@ def test_genetic_phasing_symbolic_alt(tmpdir):
         variant_file="tests/data/trio-symbolic-alt.vcf",
         output=outvcf,
         ped="tests/data/trio.ped",
-        indels=True,
+        only_snvs=False,
     )
     assert os.path.isfile(outvcf)
 
-    tables = list(VcfReader(outvcf, phases=True, indels=True))
+    tables = list(VcfReader(outvcf, phases=True, only_snvs=False))
     assert len(tables) == 1
     table = tables[0]
     assert table.chromosome == "1"
@@ -924,7 +924,7 @@ def test_indel_phasing(algorithm, tmp_path):
     outvcf = tmp_path / "output.vcf"
     run_whatshap(
         phase_input_files=[indels_bamfile],
-        indels=True,
+        only_snvs=False,
         variant_file="tests/data/indels.vcf",
         reference="tests/data/random0.fasta",
         output=outvcf,
@@ -932,7 +932,7 @@ def test_indel_phasing(algorithm, tmp_path):
     )
     assert os.path.isfile(outvcf)
 
-    tables = list(VcfReader(outvcf, indels=True, phases=True))
+    tables = list(VcfReader(outvcf, only_snvs=False, phases=True))
     assert len(tables) == 1
     table = tables[0]
     assert table.chromosome == "random0"
@@ -969,13 +969,13 @@ def test_vcf_with_missing_headers(algorithm):
 def test_distrust_genotypes_assertion(tmp_path):
     outvcf = tmp_path / "output.vcf"
     run_whatshap(
-        indels=False,
+        only_snvs=True,
         phase_input_files=[dist_geno_bamfile],
         variant_file="tests/data/test_dist_geno.vcf",
         output=outvcf,
     )
     assert os.path.isfile(outvcf)
-    tables = list(VcfReader(outvcf, phases=True))
+    tables = list(VcfReader(outvcf, phases=True, only_snvs=True))
     assert len(tables) == 1
     table = tables[0]
     assert table.chromosome == "chr1"

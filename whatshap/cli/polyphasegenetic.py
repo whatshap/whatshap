@@ -65,7 +65,7 @@ def run_polyphasegenetic(
     output=sys.stdout,
     samples=None,
     chromosomes=None,
-    indels=False,
+    only_snvs=False,
     tag="PS",
     write_command_line_header=True,
     plot=False,
@@ -111,7 +111,7 @@ def run_polyphasegenetic(
         parent_reader = stack.enter_context(
             VcfReader(
                 variant_file,
-                indels=indels,
+                only_snvs=only_snvs,
                 phases=True,
                 genotype_likelihoods=False,
                 ploidy=ploidy,
@@ -124,7 +124,7 @@ def run_polyphasegenetic(
             progeny_reader = stack.enter_context(
                 VcfReader(
                     progeny_file,
-                    indels=indels,
+                    only_snvs=only_snvs,
                     phases=True,
                     genotype_likelihoods=False,
                     ploidy=ploidy,
@@ -157,7 +157,7 @@ def run_polyphasegenetic(
             complexity_support=complexity_support,
             ratio_cutoff=ratio_cutoff,
             distrust_genotypes=distrust_genotypes,
-            allow_deletions=indels,
+            allow_deletions=not only_snvs,
             plot=plot,
             output=output,
         )
@@ -537,13 +537,8 @@ def add_arguments(parser):
     )
 
     arg = parser.add_argument_group("Input pre-processing, selection, and filtering").add_argument
-    arg(
-        "--indels",
-        dest="indels",
-        default=False,
-        action="store_true",
-        help="Also phase indels (default: do not phase indels)",
-    )
+    arg("--indels", dest="indels_used", action="store_true", help=argparse.SUPPRESS)
+    arg("--only-snvs", action="store_true", help="Phase only SNVs")
     arg(
         "--sample",
         dest="samples",
@@ -644,6 +639,8 @@ def validate(args, parser):
         parser.error("Odd ploidies are not supported.")
     if args.ploidy < 2:
         parser.error("Ploidy must be at least 2.")
+    if args.indels_used:
+        logger.warning("Ignoring --indels as indel phasing is default in WhatsHap 2.0+")
 
 
 def main(args):

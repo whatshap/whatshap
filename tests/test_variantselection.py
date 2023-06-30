@@ -72,7 +72,7 @@ def test_compute_phasable_variants_1():
     tables = list(
         VcfReader(
             "tests/data/polyphasegenetic.test.parents.vcf",
-            indels=True,
+            only_snvs=False,
             genotype_likelihoods=False,
             ploidy=4,
             mav=True,
@@ -141,7 +141,7 @@ def test_compute_phasable_variants_2():
     tables = list(
         VcfReader(
             "tests/data/polyphasegenetic.test.parents.vcf",
-            indels=True,
+            only_snvs=False,
             genotype_likelihoods=False,
             ploidy=4,
             mav=True,
@@ -209,7 +209,7 @@ def test_compute_phasable_variants_3():
     tables = list(
         VcfReader(
             "tests/data/polyphasegenetic.test.parents.vcf",
-            indels=True,
+            only_snvs=False,
             genotype_likelihoods=False,
             ploidy=4,
             mav=True,
