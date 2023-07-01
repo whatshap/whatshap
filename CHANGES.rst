@@ -17,6 +17,14 @@ v2.0 (2023-06-30)
   already), the major version has been increased.
 * :issue:`425`: Haplotagging CRAM files should now work in more cases with
   ``haplotag``.
+* :issue:`427`: ``polyphase`` did not phase indels, even if explicitly told.
+* :pr:`432`: ``polyphase`` can use existing phasing information in VCF when
+  using the ``--use-prephasing`` flag. Still very experimental.
+* :issue:`439`: ``polyphasegenetic`` now handles pedigree information more
+  robustly and properly detects available ILP solvers.
+* :issue:`449`: Fixed runtime issues for ploidies above 4, if no pre-phasing
+  is used.
+* :pr:`450`: ``polyphase`` now supports multi-allelic variants.
 * :issue:`457`: ``haplotag`` now also tags alignments marked as duplicate.
 * :issue:`466`: Inconsistent runtime measurements now lead to a warning and
   no longer to a crash.
