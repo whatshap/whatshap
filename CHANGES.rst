@@ -2,6 +2,12 @@
 Changes
 =======
 
+development version
+-------------------
+
+* :issue:`470`: Avoid ZeroDivisionError in ``whatshap stats`` when there 
+  are no heterozygous or no phased variants.
+
 v2.0 (2023-06-30)
 -----------------
 
