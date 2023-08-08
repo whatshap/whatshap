@@ -65,7 +65,7 @@ def run_call(reference, bam, vcf, kmer_size, window_size, epsilon):
                 pass
             caller.add_read(bam_alignment.pos, bam_alignment.cigartuples, str(bam_alignment.query_alignment_sequence).encode('UTF-8'))
     caller.final_pop()
-    caller.calc_probs()
+    #caller.calc_probs()
          
 
 

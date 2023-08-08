@@ -8,7 +8,6 @@
 using namespace std;
 std::unordered_map<int,int> empty_dict;
 std::unordered_map<int,int> none_dict= {{-1, -1}};
-std::unordered_map<int,string> hashed_already;
 std::deque<std::pair<int,int>> variantslist;
 std::deque<std::pair<int,int>> enum_refkmers;
 std::deque<std::pair<int,int>> enum_kmers;
@@ -126,9 +125,9 @@ void Caller::pop_column(){
 	this->ref_pos += 1;
 	std::pair<int,int> var=variantslist.front();
 	int variantposition=var.first;
-	int var_length= var.second-1;
+	//int var_length= var.second-1;
 	int varstart= variantposition-window;
-	int varend= variantposition+var_length+window;
+	int varend= variantposition+window;
 	std::pair<int,int> next_var= variantslist[1];
 	int next_variantposition= next_var.first;
 	int next_var_length= next_var.second-1;
@@ -147,15 +146,8 @@ void Caller::pop_column(){
 		for(std::unordered_map<int,int> ::iterator it = result_pileup_kmers.begin(); it != result_pileup_kmers.end(); ++it){
 			result_kmer=it->first;
 			result_count=it->second;
-			if (ref_read_counts.find(std::pair<int,int>(result_ref_kmer,result_kmer))==ref_read_counts.end()){
-				ref_read_counts[std::pair<int,int> (result_ref_kmer,result_kmer)]=result_count;
-				//if the comb didn't exist in the ref_read_counts it needs to be added to the seen_comb
-				seen_comb[result_ref_kmer]+=1;
-				}
-			else{
-				ref_read_counts[std::pair<int,int> (result_ref_kmer,result_kmer)]+=result_count;
-			}
-			comb_count[result_ref_kmer]+= result_count;
+		  cout<<result_ref_pos<<"\t"<<result_ref_kmer<<"\t"<<result_kmer<<"\t"<<result_count<<endl;
+
 	}}}}
  void Caller::process_complete_columns(int target_pos){
 	/*
@@ -371,36 +363,36 @@ std::string Caller::hash_to_dna(int h, int k){
 }
 
 void Caller::calc_probs(){
-	std::string hashed_ref_kmer;
-	std::string hashed_kmer;
-	int total_comb=  pow(4,k);
-	double probability;
-	std::vector<int> seen_refkmers;
-	for(std::unordered_map<std::pair<int,int>,int> ::iterator s = ref_read_counts.begin(); s != ref_read_counts.end(); ++s){
-		std::pair <int, int> ref_read_key= s->first;
-		int ref_kmer_cout=ref_read_key.first;
-		int read_kmer_cout=ref_read_key.second;
-		int final_count= s->second;
-		probability= ref_read_counts[ref_read_key]/ (comb_count[ref_read_key.first] + ((total_comb - seen_comb[ref_read_key.first])*epsilon));
-		double e_probability= epsilon / (comb_count[ref_kmer_cout] + ((total_comb -seen_comb[ref_kmer_cout])*epsilon));
-		if (hashed_already.find(ref_kmer_cout)==hashed_already.end()){
-			hashed_ref_kmer= hash_to_dna(ref_kmer_cout,k);
-			hashed_already[ref_kmer_cout]=hashed_ref_kmer;
-		}
-		else{
-			hashed_ref_kmer= hashed_already[ref_kmer_cout];
-		}
-		if (hashed_already.find(read_kmer_cout)==hashed_already.end()){
-			hashed_kmer=hash_to_dna(read_kmer_cout, k);
-			hashed_already[read_kmer_cout]=hashed_kmer;
-		}
-		else{
-			hashed_kmer=hashed_already[read_kmer_cout];
-		}
-		if (std::find(seen_refkmers.begin(), seen_refkmers.end(), ref_kmer_cout) == seen_refkmers.end()){
-			seen_refkmers.push_back(ref_kmer_cout);
-			cout<<hashed_ref_kmer<<'\t'<<"epsilon"<<'\t'<<e_probability<<'\n';
-		}
-		cout<<hashed_ref_kmer<<'\t'<<hashed_kmer<<'\t'<<probability<<'\n';
-}
+// 	std::string hashed_ref_kmer;
+// 	std::string hashed_kmer;
+// 	int total_comb=  pow(4,k);
+// 	double probability;
+// 	std::vector<int> seen_refkmers;
+// 	for(std::unordered_map<std::pair<int,int>,int> ::iterator s = ref_read_counts.begin(); s != ref_read_counts.end(); ++s){
+// 		std::pair <int, int> ref_read_key= s->first;
+// 		int ref_kmer_cout=ref_read_key.first;
+// 		int read_kmer_cout=ref_read_key.second;
+// 		int final_count= s->second;
+// 		probability= ref_read_counts[ref_read_key]/ (comb_count[ref_read_key.first] + ((total_comb - seen_comb[ref_read_key.first])*epsilon));
+// 		double e_probability= epsilon / (comb_count[ref_kmer_cout] + ((total_comb -seen_comb[ref_kmer_cout])*epsilon));
+// 		if (hashed_already.find(ref_kmer_cout)==hashed_already.end()){
+// 			hashed_ref_kmer= hash_to_dna(ref_kmer_cout,k);
+// 			hashed_already[ref_kmer_cout]=hashed_ref_kmer;
+// 		}
+// 		else{
+// 			hashed_ref_kmer= hashed_already[ref_kmer_cout];
+// 		}
+// 		if (hashed_already.find(read_kmer_cout)==hashed_already.end()){
+// 			hashed_kmer=hash_to_dna(read_kmer_cout, k);
+// 			hashed_already[read_kmer_cout]=hashed_kmer;
+// 		}
+// 		else{
+// 			hashed_kmer=hashed_already[read_kmer_cout];
+// 		}
+// 		if (std::find(seen_refkmers.begin(), seen_refkmers.end(), ref_kmer_cout) == seen_refkmers.end()){
+// 			seen_refkmers.push_back(ref_kmer_cout);
+// 			cout<<hashed_ref_kmer<<'\t'<<"epsilon"<<'\t'<<e_probability<<'\n';
+// 		}
+// 		cout<<hashed_ref_kmer<<'\t'<<hashed_kmer<<'\t'<<probability<<'\n';
+// }
 }
