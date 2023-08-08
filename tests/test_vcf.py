@@ -328,7 +328,7 @@ def test_read_duplicate_position():
     # As soon as we can actually work with multiple such rows, this test
     # needs to be updated since it currently just checks whether the second of
     # the positions is skipped.
-    table = list(VcfReader("tests/data/duplicate-positions.vcf", indels=True))[0]
+    table = list(VcfReader("tests/data/duplicate-positions.vcf", only_snvs=False))[0]
     assert len(table.variants) == 2
     assert table.variants[0].position == 1
     assert table.variants[0].reference_allele == "A"
@@ -420,7 +420,7 @@ def test_read_region():
 
 def test_read_region_subsets():
     regions = [(1069570, 1070690), (1074910, 1076152)]
-    vcf_reader = VcfReader("tests/data/haplotag_1.vcf.gz", indels=True)
+    vcf_reader = VcfReader("tests/data/haplotag_1.vcf.gz", only_snvs=False)
     table = vcf_reader.fetch_regions("chr1", regions)
     assert table.chromosome == "chr1"
     assert len(table.variants) == 8

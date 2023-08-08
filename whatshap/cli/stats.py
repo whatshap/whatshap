@@ -300,20 +300,28 @@ class PhasingStats:
                 singletons=n_singletons,
                 blocks=len(block_sizes),
                 variant_per_block_median=median(block_sizes),
-                variant_per_block_avg=sum(block_sizes) / len(block_sizes),
+                variant_per_block_avg=sum(block_sizes) / len(block_sizes)
+                if len(block_sizes)
+                else float("nan"),
                 variant_per_block_min=block_sizes[0],
                 variant_per_block_max=block_sizes[-1],
                 variant_per_block_sum=sum(block_sizes),
                 bp_per_block_median=median(block_lengths),
-                bp_per_block_avg=sum(block_lengths) / len(block_lengths),
+                bp_per_block_avg=sum(block_lengths) / len(block_lengths)
+                if len(block_lengths)
+                else float("nan"),
                 bp_per_block_min=block_lengths[0],
                 bp_per_block_max=block_lengths[-1],
                 bp_per_block_sum=sum(block_lengths),
                 heterozygous_variants=self.heterozygous_variants,
                 heterozygous_snvs=self.heterozygous_snvs,
                 phased_snvs=phased_snvs,
-                phased_fraction=sum(block_sizes) / self.heterozygous_variants,
-                phased_snvs_fraction=phased_snvs / self.heterozygous_snvs,
+                phased_fraction=sum(block_sizes) / self.heterozygous_variants
+                if self.heterozygous_variants
+                else float("nan"),
+                phased_snvs_fraction=phased_snvs / self.heterozygous_snvs
+                if self.heterozygous_snvs
+                else float("nan"),
                 block_n50=compute_ng50(self.split_blocks, chr_lengths)
                 if chr_lengths is not None
                 else float("nan"),
@@ -486,7 +494,7 @@ def run_stats(
             gtf_file = stack.enter_context(open(gtf, "wt"))
             gtfwriter = GtfWriter(gtf_file)
 
-        vcf_reader = VcfReader(vcf, phases=True, indels=not only_snvs)
+        vcf_reader = VcfReader(vcf, phases=True, only_snvs=only_snvs)
         if len(vcf_reader.samples) == 0:
             logger.error("Input VCF does not contain any sample")
             return 1

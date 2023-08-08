@@ -41,7 +41,7 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, AlleleMatrix* am, c
     }
     
     // precompute allele-pair likelihood ratios for existing genotypes
-    // aplp[g][a1][a2] = P(a1, a2 | g and alleles from same haplotype)
+    // apls[g][a1][a2] = P(a1, a2 | g and alleles from same haplotype)
     // apld[g][a1][a2] = P(a1, a2 | g and alleles from different haplotypes)
     std::vector<Genotype> occGenotypes(occGenotypesSet.begin(), occGenotypesSet.end());
     std::unordered_map<Genotype, uint32_t> gMap;
@@ -115,30 +115,43 @@ std::unordered_map<Genotype, double> ReadScoring::computeGenotypeLikelihoods (st
     uint32_t numAlleles = alleleDepth.size();
     uint32_t numGenotypes = binomial_coefficient(ploidy + numAlleles - 1, numAlleles - 1);
     double weight = 0.0;
+    std::vector<Allele> alleles;
+    uint32_t numExAlleles = 0;
+    for (uint32_t i = 0; i < numAlleles; i++)
+        if (alleleDepth[i] > 0) {
+            alleles.push_back(i);
+            numExAlleles++;
+        }
     
     // generate all possible genotypes
     for (uint32_t index = 0; index < numGenotypes; index++) {
         Genotype g(index, ploidy);
-        if (numAlleles == 1) {
+        bool reachable = true;
+        // skip genotypes containing alleles with zero support
+        for (uint32_t a : g.as_vector())
+            reachable &= (alleleDepth[a] > 0);
+        if (!reachable) {
+            continue;
+        } else if (numExAlleles == 1) {
             weight += 1;
             gl[g] = 1;
-        } else if (numAlleles == 2) {
+        } else if (numExAlleles == 2) {
             double fracAlt = (double)index / (double)ploidy;
-            double l = binom_pmf(alleleDepth[0] + alleleDepth[1], alleleDepth[1], (1 - fracAlt) * err + fracAlt * (1 - err));
+            double l = binom_pmf(alleleDepth[alleles[0]] + alleleDepth[alleles[1]], alleleDepth[alleles[1]], (1 - fracAlt) * err + fracAlt * (1 - err));
             weight += l;
             gl[g] = l;
         } else {
             std::vector<uint32_t> gv = g.as_vector();
-            std::vector<double> p(numAlleles);
-            std::vector<uint32_t> n(numAlleles);
-            for (uint32_t a = 0; a < numAlleles; a++) {
+            std::vector<double> p(numExAlleles);
+            std::vector<uint32_t> n(numExAlleles);
+            for (uint32_t a = 0; a < numExAlleles; a++) {
                 double num = 0;
                 for (uint32_t i = 0; i < gv.size(); i++)
-                    if (gv[i] == (uint32_t)a)
+                    if (gv[i] == (uint32_t)alleles[a])
                         num += 1.0;
                 double freq = num / ploidy;
-                p[a] = freq * (1 - err * (numAlleles - 1)) + (1 - freq) * err;
-                n[a] = alleleDepth[a];
+                p[a] = freq * (1 - err * (numExAlleles - 1)) + (1 - freq) * err;
+                n[a] = alleleDepth[alleles[a]];
             }
             double l = multinom_pmf(n, p);
             weight += l;
@@ -146,12 +159,14 @@ std::unordered_map<Genotype, double> ReadScoring::computeGenotypeLikelihoods (st
         }
     }
     
-    // normalize
-    if (normalize) {
-        for (uint32_t index = 0; index < numGenotypes; index++) {
-            Genotype g(index, ploidy);
-            gl[g] /= weight;
-        }
+    if (weight == 0.0) {
+        uint32_t g = gl.size();
+        for (std::pair<Genotype, double> p : gl)
+            gl[p.first] = 1 / g;
+    } else if (normalize) {
+        uint32_t g = gl.size();
+        for (std::pair<Genotype, double> p : gl)
+            gl[p.first] = p.second / weight;
     }
     return gl;
 }
@@ -203,11 +218,12 @@ float ReadScoring::computeLogScore (AlleleMatrix* am,
     double logScore = 0.0;
     uint32_t k = 0;
     uint32_t l = 0;
+    uint32_t numAlleles = am->getMaxNumAllele();
     std::vector<AlleleItem> read1 = am->getRead(readId1);
     std::vector<AlleleItem> read2 = am->getRead(readId2);
     while (k < read1.size() && l < read2.size()) {
         if (read1[k].first == read2[l].first) {
-            logScore += computeLogScoreSinglePos(read1[k].second, read2[l].second, am->getMaxNumAllele(), gl[read1[k].first], gMap, apls, apld);
+            logScore += computeLogScoreSinglePos(read1[k].second, read2[l].second, numAlleles, gl[read1[k].first], gMap, apls, apld);
             ov += 1;
             k++; l++;
         } else if (read1[k].first < read2[l].first) {

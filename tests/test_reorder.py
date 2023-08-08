@@ -7,7 +7,7 @@ from whatshap.polyphase.reorder import (
     get_heterozygous_pos_for_haps,
     compute_link_likelihoods,
     compute_phase_affiliation,
-    get_optimal_permutations,
+    get_optimal_assignments,
 )
 from whatshap.testhelpers import string_to_readset
 
@@ -353,7 +353,7 @@ def test_get_optimal_permutations1():
         PhaseBreakpoint(9, [0, 1], 0),
     ]
     lllh = compute_link_likelihoods(threads, haplotypes, bp, clustering, am, 0.07)
-    asmnts = get_optimal_permutations(bp, lllh, 4, None)
+    asmnts = get_optimal_assignments(bp, lllh, 4, None)
     assert asmnts[0] == [0, 1, 2, 3]
     assert asmnts[1] in [[0, 1, 2, 3], [0, 2, 1, 3], [1, 0, 2, 3], [2, 0, 1, 3]]
     assert (asmnts[2] in [[0, 2, 1, 3], [2, 0, 1, 3]]) or (
@@ -379,7 +379,7 @@ def test_get_optimal_permutations2():
 
     pp = AlleleMatrix(string_to_readset(superreads))
     aff = compute_phase_affiliation(am, haplotypes, bp, pp, 0.07)
-    asmnts = get_optimal_permutations(bp, lllh, 4, aff)
+    asmnts = get_optimal_assignments(bp, lllh, 4, aff)
     assert asmnts[0] == [0, 1, 2, 3]
     assert asmnts[1] in [[0, 1, 2, 3], [0, 2, 1, 3], [1, 0, 2, 3], [2, 0, 1, 3]]
     assert (asmnts[2] in [[0, 2, 1, 3], [2, 0, 1, 3]]) or (

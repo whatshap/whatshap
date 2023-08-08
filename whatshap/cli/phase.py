@@ -290,7 +290,7 @@ def run_whatshap(
     samples: Optional[Sequence[str]] = None,
     chromosomes: Optional[List[str]] = None,
     ignore_read_groups: bool = False,
-    indels: bool = True,
+    only_snvs: bool = False,
     mapping_quality: int = 20,
     read_merging: bool = False,
     read_merging_error_rate: float = 0.15,
@@ -385,7 +385,7 @@ def run_whatshap(
                 gappenalty,
                 ignore_read_groups,
                 mapq_threshold=mapping_quality,
-                indels=indels,
+                only_snvs=only_snvs,
             )
         )
         show_phase_vcfs = phased_input_reader.has_vcfs
@@ -404,7 +404,7 @@ def run_whatshap(
                     in_path=variant_file,
                     out_file=output,
                     tag=tag,
-                    indels=indels,
+                    only_snvs=only_snvs,
                 )
             )
         except (OSError, VcfError) as e:
@@ -412,7 +412,7 @@ def run_whatshap(
 
         # Only read genotype likelihoods from VCFs when distrusting genotypes
         vcf_reader = stack.enter_context(
-            VcfReader(variant_file, indels=indels, genotype_likelihoods=distrust_genotypes)
+            VcfReader(variant_file, only_snvs=only_snvs, genotype_likelihoods=distrust_genotypes)
         )
 
         if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
@@ -1055,8 +1055,8 @@ def add_arguments(parser):
         "quality marginally. Avoid using this in the normal case! (default: %(default)s)")
     arg("--mapping-quality", "--mapq", metavar="QUAL",
         default=20, type=int, help="Minimum mapping quality (default: %(default)s)")
-    arg("--indels", dest="indels", default=False, action="store_true",
-        help="Also phase indels (default: do not phase indels)")
+    arg("--indels", dest="indels_used", action="store_true", help=SUPPRESS)
+    arg("--only-snvs", default=False, action="store_true", help="Phase only SNVs")
     arg("--ignore-read-groups", default=False, action="store_true",
         help="Ignore read groups in BAM/CRAM header and assume all reads come "
         "from the same sample.")
@@ -1173,6 +1173,8 @@ def validate(args, parser):
             "The experimental --full-genotyping option has been removed. Instead, please run "
             "'whatshap genotype' prior to running 'whatshap phase'"
         )
+    if args.indels_used:
+        logger.warning("Ignoring --indels as indel phasing is default in WhatsHap 2.0+")
 
 
 def main(args):
@@ -1181,4 +1183,5 @@ def main(args):
     del args.no_reference
     del args.max_coverage_was_used
     del args.full_genotyping
+    del args.indels_used
     run_whatshap(**vars(args))

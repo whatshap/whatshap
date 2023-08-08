@@ -498,7 +498,7 @@ def run_haplotag(
         timers.start("haplotag-init")
         try:
             vcf_reader = stack.enter_context(
-                VcfReader(variant_file, indels=True, phases=True, ploidy=ploidy)
+                VcfReader(variant_file, only_snvs=False, phases=True, ploidy=ploidy)
             )
         except OSError as err:
             raise CommandLineError(f"Error while loading variant file {variant_file}: {err}")
@@ -529,7 +529,8 @@ def run_haplotag(
                 None if reference is False else reference,
                 NumericSampleIds(),
                 ignore_read_groups,
-                indels=False,
+                only_snvs=False,
+                duplicates=True,
             )
         )
         if phased_input_reader.has_alignments and reference is None:

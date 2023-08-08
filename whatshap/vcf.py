@@ -48,6 +48,10 @@ class VcfInvalidChromosome(VcfError):
     pass
 
 
+class VcfInvalidAllele(VcfError):
+    pass
+
+
 @dataclass
 class VariantCallPhase:
     block_id: int  # numeric id of the phased block
@@ -124,6 +128,14 @@ class BiallelicVcfVariant(VcfVariant):
     def get_alt_allele_list(self):
         return [self.alternative_allele]
 
+    def get_allele(self, a):
+        if a == 0:
+            return self.reference_allele
+        elif a == 1:
+            return self.alternative_allele
+        else:
+            raise VcfInvalidAllele(f"Querying invalid allele {a} (highest id was 1")
+
     def is_snv(self) -> bool:
         return (self.reference_allele != self.alternative_allele) and (
             len(self.reference_allele) == len(self.alternative_allele) == 1
@@ -196,6 +208,12 @@ class MultiallelicVcfVariant(VcfVariant):
 
     def get_alt_allele_list(self):
         return self.alternative_alleles
+
+    def get_allele(self, a):
+        if a == 0:
+            return self.reference_allele
+        else:
+            return self.alternative_alleles[a - 1]
 
     def is_snv(self) -> bool:
         return any(self.reference_allele != alt for alt in self.alternative_alleles) and (
@@ -478,7 +496,7 @@ class VcfReader:
     def __init__(
         self,
         path: Union[str, PathLike],
-        indels: bool = False,
+        only_snvs: bool = False,
         phases: bool = False,
         genotype_likelihoods: bool = False,
         ignore_genotypes: bool = False,
@@ -488,14 +506,13 @@ class VcfReader:
     ):
         """
         path -- Path to VCF file
-        indels -- Whether to include also insertions and deletions in the list of
-            variants.
+        only_snvs -- Whether to only include SNVs in the list of variants.
         ignore_genotypes -- In case of genotyping algorithm, no genotypes may be given in
                                 vcf, so ignore all genotypes
         ploidy -- Ploidy of the samples
         """
         # TODO Always include deletions since they can 'overlap' other variants
-        self._indels = indels
+        self._only_snvs = only_snvs
         self._vcf_reader = VariantFile(os.fspath(path))
         self._path = path
         self._phases = phases
@@ -635,7 +652,7 @@ class VcfReader:
                 n_snvs += 1
             else:
                 n_other += 1
-                if not self._indels:
+                if self._only_snvs:
                     continue
 
             if (prev_position is not None) and (prev_position > pos):
@@ -1059,7 +1076,8 @@ class PhasedVcfWriter(VcfAugmenter):
         tag: str = "PS",
         ploidy: int = 2,
         include_haploid_sets: bool = False,
-        indels: bool = False,
+        only_snvs: bool = False,
+        mav: bool = False,
     ):
         """
         in_path -- Path to input VCF, used as template.
@@ -1076,7 +1094,8 @@ class PhasedVcfWriter(VcfAugmenter):
         super().__init__(in_path, command_line, out_file, include_haploid_sets)
         self._phase_tag_found_warned = False
         self._set_phasing_tags = self._set_HP if tag == "HP" else self._set_PS
-        self._indels = indels
+        self._only_snvs = only_snvs
+        self._mav = mav
 
     def setup_header(self, header: VariantHeader):
         """Called by baseclass constructor"""
@@ -1101,7 +1120,7 @@ class PhasedVcfWriter(VcfAugmenter):
         component -- name of the component
         phase -- tuple of alleles
         """
-        assert all(allele in [0, 1] for allele in phase)
+        assert all(allele in [0, 1] or self._mav for allele in phase)
         call["HP"] = ",".join(f"{component + 1}-{allele + 1}" for allele in phase)
         if haploid_component:
             call["HS"] = [comp + 1 for comp in haploid_component]
@@ -1118,7 +1137,7 @@ class PhasedVcfWriter(VcfAugmenter):
         component -- name of the component
         phase -- tuple of alleles
         """
-        assert all(allele in [0, 1] for allele in phase)
+        assert all(allele in [0, 1] or self._mav for allele in phase)
         call["PS"] = component + 1
         call["GT"] = phase
         if haploid_component:
@@ -1160,7 +1179,7 @@ class PhasedVcfWriter(VcfAugmenter):
                 phasing = tuple(v.allele for v in variants)
                 allowed_alleles = True
                 for allele in phasing:
-                    if allele not in [0, 1]:
+                    if allele not in [0, 1] and not self._mav:
                         allowed_alleles = False
                         break
                 if allowed_alleles:
@@ -1173,14 +1192,14 @@ class PhasedVcfWriter(VcfAugmenter):
             pos = record.start
             if not record.alts:
                 continue
-            if len(record.alts) > 1:
-                # we do not phase multiallelic sites currently
+            if len(record.alts) > 1 and not self._mav:
+                # we do not phase multiallelic sites unless requested
                 continue
             if pos == prev_pos:
                 # duplicate position, skip it
                 continue
-            is_indel = len(str(record.ref)) > 1 or len(str(record.alts[0])) > 1
-            if not self._indels and is_indel:
+            is_snv = len(str(record.ref)) == 1 and len(str(record.alts[0])) == 1
+            if self._only_snvs and not is_snv:
                 continue
 
             # Determine whether the variant is phased in any sample
@@ -1221,7 +1240,10 @@ class PhasedVcfWriter(VcfAugmenter):
                 if pos in genotypes and genotypes[pos] != gt_type:
                     # call['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
                     call["GT"] = tuple(genotypes[pos].as_vector())
-                    variant = BiallelicVcfVariant(record.start, record.ref, record.alts[0])
+                    if len(record.alts) > 1:
+                        variant = MultiallelicVcfVariant(record.start, record.ref, record.alts)
+                    else:
+                        variant = BiallelicVcfVariant(record.start, record.ref, record.alts[0])
                     genotype_changes.append(
                         GenotypeChange(sample, chromosome, variant, gt_type, genotypes[pos])
                     )
@@ -1299,7 +1321,7 @@ class GenotypeVcfWriter(VcfAugmenter):
         )
 
     def write_genotypes(
-        self, chromosome: str, variant_table: VariantTable, indels, ploidy: int = 2
+        self, chromosome: str, variant_table: VariantTable, only_snvs, ploidy: int = 2
     ) -> None:
         """
         Add genotyping information to all variants on a single chromosome.

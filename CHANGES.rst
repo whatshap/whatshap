@@ -5,8 +5,36 @@ Changes
 development version
 -------------------
 
+* :issue:`470`: Avoid ZeroDivisionError in ``whatshap stats`` when there 
+  are no heterozygous or no phased variants.
+
+v2.0 (2023-06-30)
+-----------------
+
+* :issue:`346`: Phasing of indels (and other non-SNVs) is now enabled by
+  default. This previously required specifying the ``--indels`` option,
+  which not all users knew about and were thus unnecessarily getting
+  suboptimal phasing results. The option is now ignored and leads to a
+  warning. An ``--only-snvs`` option was added that restores the old behavior.
+  This change applies to the following subcommands: ``phase``, ``haplotype``,
+  ``polyphase``, ``polyphasegenetic``.
+
+  Since this is a backwards incompatible change (when not using ``--indels``
+  already), the major version has been increased.
 * :issue:`425`: Haplotagging CRAM files should now work in more cases with
   ``haplotag``.
+* :issue:`427`: ``polyphase`` did not phase indels, even if explicitly told.
+* :pr:`432`: ``polyphase`` can use existing phasing information in VCF when
+  using the ``--use-prephasing`` flag. Still very experimental.
+* :issue:`439`: ``polyphasegenetic`` now handles pedigree information more
+  robustly and properly detects available ILP solvers.
+* :issue:`449`: Fixed runtime issues for ploidies above 4, if no pre-phasing
+  is used.
+* :pr:`450`: ``polyphase`` now supports multi-allelic variants.
+* :issue:`457`: ``haplotag`` now also tags alignments marked as duplicate.
+* :issue:`466`: Inconsistent runtime measurements now lead to a warning and
+  no longer to a crash.
+* This is the last WhatsHap release to support Python 3.7.
 
 v1.7 (2022-12-01)
 -----------------
@@ -165,7 +193,7 @@ v0.16 (2018-05-22)
 v0.15 (2018-04-07)
 ------------------
 
-* New subcommand ``genotype`` for haplotype-aware genotyping 
+* New subcommand ``genotype`` for haplotype-aware genotyping
   (see https://doi.org/10.1101/293944 for details on the method).
 * Support CRAM files in addition to BAM.
 * :issue:`133`:

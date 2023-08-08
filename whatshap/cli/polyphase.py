@@ -48,7 +48,7 @@ def run_polyphase(
     chromosomes=None,
     verify_genotypes=False,
     ignore_read_groups=False,
-    indels=False,
+    only_snvs=False,
     mapping_quality=20,
     tag="PS",
     include_haploid_sets=False,
@@ -62,6 +62,7 @@ def run_polyphase(
     block_cut_sensitivity=4,
     threads=1,
     use_prephasing=False,
+    mav=True,
 ):
     """
     Run Polyploid Phasing.
@@ -92,7 +93,7 @@ def run_polyphase(
                 reference,
                 numeric_sample_ids,
                 ignore_read_groups,
-                indels=indels,
+                only_snvs=only_snvs,
                 mapq_threshold=mapping_quality,
             )
         )
@@ -103,15 +104,16 @@ def run_polyphase(
         else:
             command_line = None
         try:
-            vcf_writer = stack.enter_context(
+            vcf_writer: PhasedVcfWriter = stack.enter_context(
                 PhasedVcfWriter(
                     command_line=command_line,
                     in_path=variant_file,
                     out_file=output,
                     tag=tag,
                     ploidy=ploidy,
-                    indels=indels,
+                    only_snvs=only_snvs,
                     include_haploid_sets=include_haploid_sets,
+                    mav=mav,
                 )
             )
         except OSError as e:
@@ -119,7 +121,12 @@ def run_polyphase(
 
         vcf_reader = stack.enter_context(
             VcfReader(
-                variant_file, indels=indels, phases=True, genotype_likelihoods=False, ploidy=ploidy
+                variant_file,
+                only_snvs=only_snvs,
+                phases=True,
+                genotype_likelihoods=False,
+                ploidy=ploidy,
+                mav=mav,
             )
         )
 
@@ -410,13 +417,8 @@ def add_arguments(parser):
         type=int,
         help="Minimum mapping quality (default: %(default)s)",
     )
-    arg(
-        "--indels",
-        dest="indels",
-        default=False,
-        action="store_true",
-        help="Also phase indels (default: do not phase indels)",
-    )
+    arg("--indels", dest="indels_used", action="store_true", help=argparse.SUPPRESS)
+    arg("--only-snvs", action="store_true", help="Only phase SNVs")
     arg(
         "--ignore-read-groups",
         default=False,
@@ -497,6 +499,13 @@ def add_arguments(parser):
         default=1,
         help="Maximum number of CPU threads used (default: %(default)s).",
     )
+    arg(
+        "--no-mav",
+        dest="mav",
+        default=True,
+        action="store_false",
+        help="Disables phasing of multi-allelic variants.",
+    )
 
     # more arguments, which are experimental or for debugging and should not be presented to the user
     arg(
@@ -531,7 +540,10 @@ def add_arguments(parser):
 def validate(args, parser):
     if args.block_cut_sensitivity > 5 or args.block_cut_sensitivity < 0:
         parser.error("Block cut sensitivity must be an integer value between 0 and 5.")
+    if args.indels_used:
+        logger.warning("Ignoring --indels as indel phasing is default in WhatsHap 2.0+")
 
 
 def main(args):
+    del args.indels_used
     run_polyphase(**vars(args))

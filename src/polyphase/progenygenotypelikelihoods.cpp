@@ -141,7 +141,8 @@ double ProgenyGenotypeLikelihoods::getLogLikelihoodDifference(uint32_t pos1, uin
             likelihoodCooccur += gl * likelihoodSame[j];
             likelihoodDisjoint += gl * likelihoodDiff[j];
         }
-        log_likelihood_difference += std::log(likelihoodCooccur / likelihoodDisjoint);
+        if (likelihoodCooccur * likelihoodDisjoint > 0)
+            log_likelihood_difference += std::log(likelihoodCooccur / likelihoodDisjoint);
     }
     
     return log_likelihood_difference;

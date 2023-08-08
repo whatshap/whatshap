@@ -12,12 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.7]
+        python-version: ["3.10"]
         toxenv: [flake8, docs, twinecheck, black]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
@@ -31,11 +31,11 @@ jobs:
       github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - name: Set up Python 3.7
-      uses: actions/setup-python@v2
+    - uses: actions/checkout@v3
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v4
       with:
-        python-version: 3.7
+        python-version: "3.10"
     - name: Install dependencies
       run: python -m pip install build
     - name: Build temporary sdist and wheel
@@ -49,11 +49,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
@@ -67,25 +67,19 @@ jobs:
     needs: [lint, build, test]
     if: startsWith(github.ref, 'refs/tags')
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
       with:
         fetch-depth: 0  # required for setuptools_scm
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
-        python-version: 3.7
+        python-version: "3.10"
     - name: Build wheels
-      uses: pypa/cibuildwheel@v2.3.1
+      uses: pypa/cibuildwheel@v2.13
       with:
         output-dir: dist/
       env:
         CIBW_BUILD: "cp3*-manylinux_x86_64*"
-        CIBW_SKIP: "cp36-*"
-        CIBW_ENVIRONMENT: "CFLAGS=-g0"
-        CIBW_TEST_REQUIRES: "pytest"
-        CIBW_TEST_COMMAND: |
-            cd {project}
-            pytest tests/test_run_phase.py
     - name: Make sdist
       run: |
         python -m pip install build
@@ -93,14 +87,14 @@ jobs:
         ls -l dist/
     - name: Publish dev release to test PyPI
       if: contains(github.ref, 'rc')
-      uses: pypa/gh-action-pypi-publish@v1.4.2
+      uses: pypa/gh-action-pypi-publish@v1.8.7
       with:
         user: __token__
         password: ${{ secrets.test_pypi_password }}
         repository_url: https://test.pypi.org/legacy/
     - name: Publish to PyPI
       if: "!contains(github.ref, 'rc')"
-      uses: pypa/gh-action-pypi-publish@v1.4.2
+      uses: pypa/gh-action-pypi-publish@v1.8.7
       with:
         user: __token__
         password: ${{ secrets.pypi_password }}

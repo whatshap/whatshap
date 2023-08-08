@@ -50,7 +50,7 @@ def test_correct_variant_types():
     table = list(
         VcfReader(
             "tests/data/polyphasegenetic.test.parents.vcf",
-            indels=True,
+            only_snvs=False,
             genotype_likelihoods=False,
             ploidy=4,
             mav=True,
@@ -59,7 +59,7 @@ def test_correct_variant_types():
     ptable = list(
         VcfReader(
             "tests/data/polyphasegenetic.test.progeny.vcf.gz",
-            indels=True,
+            only_snvs=False,
             genotype_likelihoods=False,
             ploidy=4,
             mav=True,
@@ -89,7 +89,7 @@ def test_compute_gt_likelihoods():
     table = list(
         VcfReader(
             "tests/data/polyphasegenetic.test.parents.vcf",
-            indels=True,
+            only_snvs=False,
             genotype_likelihoods=False,
             ploidy=4,
             mav=True,
@@ -98,7 +98,7 @@ def test_compute_gt_likelihoods():
     ptable = list(
         VcfReader(
             "tests/data/polyphasegenetic.test.progeny.vcf.gz",
-            indels=True,
+            only_snvs=False,
             genotype_likelihoods=False,
             ploidy=4,
             mav=True,

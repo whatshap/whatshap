@@ -204,11 +204,12 @@ def test_polyphase_indels(tmp_path):
         phase_input_files=["tests/data/polyploid.indels.bam"],
         variant_file="tests/data/polyploid.indels.vcf",
         ploidy=4,
+        only_snvs=True,
         ignore_read_groups=True,
         output=outvcf,
     )
     assert os.path.isfile(outvcf)
-    tables = list(VcfReader(outvcf, phases=True, indels=True))
+    tables = list(VcfReader(outvcf, phases=True, only_snvs=False))
     table = tables[0]
 
     run_polyphase(
@@ -217,10 +218,10 @@ def test_polyphase_indels(tmp_path):
         ploidy=4,
         ignore_read_groups=True,
         output=outvcf_indel,
-        indels=True,
+        only_snvs=False,
     )
     assert os.path.isfile(outvcf_indel)
-    tables_indel = list(VcfReader(outvcf_indel, phases=True, indels=True))
+    tables_indel = list(VcfReader(outvcf_indel, phases=True, only_snvs=False))
     table_indel = tables_indel[0]
 
     sample = "Test_Indel"

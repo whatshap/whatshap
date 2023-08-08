@@ -8,8 +8,8 @@ import logging
 import sys
 import platform
 import csv
-from typing import Sequence
-
+from argparse import SUPPRESS
+from typing import Sequence, Optional
 from contextlib import ExitStack
 from whatshap import __version__
 from whatshap.vcf import VcfReader, GenotypeVcfWriter
@@ -77,7 +77,7 @@ def run_genotype(
     samples=None,
     chromosomes=None,
     ignore_read_groups=False,
-    indels=True,
+    only_snvs=False,
     mapping_quality=20,
     max_coverage=15,
     nopriors=False,
@@ -121,7 +121,7 @@ def run_genotype(
                 kmersize,
                 gappenalty,
                 ignore_read_groups,
-                indels=indels,
+                only_snvs=only_snvs,
                 mapq_threshold=mapping_quality,
                 overhang=overhang,
                 affine=affine_gap,
@@ -137,7 +137,7 @@ def run_genotype(
             GenotypeVcfWriter(command_line=command_line, in_path=variant_file, out_file=output)
         )
         # vcf writer for only the prior likelihoods (if output is desired)
-        prior_vcf_writer = None
+        prior_vcf_writer: Optional[GenotypeVcfWriter] = None
         if prioroutput is not None:
             prior_vcf_writer = stack.enter_context(
                 GenotypeVcfWriter(
@@ -151,7 +151,7 @@ def run_genotype(
         # remove all likelihoods that may already be present
         vcf_reader = stack.enter_context(
             VcfReader(
-                variant_file, indels=indels, genotype_likelihoods=False, ignore_genotypes=True
+                variant_file, only_snvs=only_snvs, genotype_likelihoods=False, ignore_genotypes=True
             )
         )
 
@@ -267,7 +267,7 @@ def run_genotype(
 
             # if desired, output the priors in separate vcf
             if prioroutput is not None:
-                prior_vcf_writer.write_genotypes(chromosome, variant_table, indels)
+                prior_vcf_writer.write_genotypes(chromosome, variant_table, only_snvs)
 
             # Iterate over all families to process, i.e. a separate DP table is created
             # for each family.
@@ -373,7 +373,7 @@ def run_genotype(
 
             with timers("write_vcf"):
                 logger.info("======== Writing VCF")
-                vcf_writer.write_genotypes(chromosome, variant_table, indels)
+                vcf_writer.write_genotypes(chromosome, variant_table, only_snvs)
                 logger.info("Done writing VCF")
 
             logger.debug("Chromosome %r finished", chromosome)
@@ -417,8 +417,9 @@ def add_arguments(parser):
         help='Reduce coverage to at most MAXCOV (default: %(default)s).')
     arg('--mapping-quality', '--mapq', metavar='QUAL',
         default=20, type=int, help='Minimum mapping quality (default: %(default)s)')
-    arg('--indels', dest='indels', default=False, action='store_true',
-        help='Also genotype indels (default: genotype only SNPs)')
+    arg('--indels', dest='indels_used', action='store_true',
+        help=SUPPRESS)
+    arg('--only-snvs', action='store_true', help='Genotype only SNVs')
     arg('--ignore-read-groups', default=False, action='store_true',
         help='Ignore read groups in BAM header and assume all reads come '
         'from the same sample.')
@@ -492,7 +493,10 @@ def validate(args, parser):
         parser.error("Option --use-ped-samples can only be used when PED file is provided (--ped).")
     if args.use_ped_samples and args.samples:
         parser.error("Option --use-ped-samples cannot be used together with --samples")
+    if args.indels_used:
+        logger.warning("Ignoring --indels as indel genotyping is default in WhatsHap 2.0+")
 
 
 def main(args):
+    del args.indels_used
     run_genotype(**vars(args))

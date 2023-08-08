@@ -1,6 +1,9 @@
 import time
+import logging
 from collections import defaultdict
 from contextlib import contextmanager
+
+logger = logging.getLogger(__name__)
 
 
 class StageTimer:
@@ -18,7 +21,11 @@ class StageTimer:
     def stop(self, stage):
         """Stop measuring elapsed time for a stage."""
         t = time.time() - self._start[stage]
-        assert t > 0
+        if t <= 0:
+            logger.warning(
+                "Unreliable runtime measurements: Measured a runtime that is not positive"
+            )
+            t = 0
         self._elapsed[stage] += t
         del self._start[stage]
         return t

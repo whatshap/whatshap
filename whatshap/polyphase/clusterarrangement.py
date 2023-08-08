@@ -6,7 +6,8 @@ phasing of the variants to which these alleles belong.
 
 import logging
 
-from pulp import LpProblem, LpVariable, LpMaximize, LpInteger, value, COIN_CMD
+from pulp import LpProblem, LpVariable, LpMaximize, LpInteger, value
+from whatshap.polyphase import get_ilp_solver
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +61,7 @@ def arrange_clusters(clustering, padding, ploidy):
             old_covered = covered
 
     # solve model
-    solver = COIN_CMD(msg=0)
+    solver = get_ilp_solver()
     model.solve(solver)
 
     selected = []

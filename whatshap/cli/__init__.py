@@ -49,7 +49,7 @@ class PhasedInputReader:
         kmersize,
         gappenalty,
         ignore_read_groups,
-        indels,
+        only_snvs,
         **kwargs,  # passed to ReadSetReader constructor
     ):
         self._bam_paths, self._vcf_paths = self._split_input_file_list(bam_or_vcf_paths)
@@ -60,7 +60,7 @@ class PhasedInputReader:
         self._numeric_sample_ids = numeric_sample_ids
         self._fasta = self._open_reference(reference) if reference else None
 
-        vcf_readers = [VcfReader(f, indels=indels, phases=True) for f in self._vcf_paths]
+        vcf_readers = [VcfReader(f, only_snvs=only_snvs, phases=True) for f in self._vcf_paths]
 
         self._vcf_readers = vcf_readers
         self._ignore_read_groups = ignore_read_groups
