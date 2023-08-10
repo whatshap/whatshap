@@ -35,7 +35,7 @@ For installation, pelase follow the WhatsHap development version installation is
      whatshap genotype [options] --reference <reference_genome.fa> -o <genotyped_variants.vcf> <variant_to_genotype.vcf> <aligned_reads.bam> -b <phred_scores> -k <kmer_size> -g {gap_value_for_kmer_alignment}
     ```
     
-2) Use the **phase** module for _k_-merald phasing
+2) Use the **phase** module for _k_-merald based phasing
     ```bash
      whatshap phase [options] --reference <reference_genome.fa> -o <genotyped_variants.vcf> <variant_to_genotype.vcf> <aligned_reads.bam> -b <phred_scores> -k <kmer_size> -g {gap_value_for_kmer_alignment}
     ```
