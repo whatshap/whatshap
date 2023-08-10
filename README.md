@@ -24,7 +24,7 @@ For installation, pelase follow the WhatsHap development version installation is
      For window_size, you need to specify the window length you require on each side of the variant i.e. half of your required total window size. 
      **Note**: It is suggested to perform this training step in parallel on chromosome specific reads to save time, however, it is not mandatory.
 
-   ii) Generate phred-scores using the kmer-pair counts
+   ii) Generate phred-scores using the kmer pair counts
      ```bash
      python3 whatshap/phred_scores.py -i <ref-read_kmer_counts_dir> -o <phred_scores> -k <kmer_size> -e <pseudocount_value_for_unobserved_kmer_pairs>
      ```
