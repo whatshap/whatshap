@@ -30,12 +30,12 @@ For installation, pelase follow the WhatsHap development version installation is
      ```
      **Note**: <ref-read_kmer_counts_dir> is the path of the folder containg all the output files from multiple chromosome specific iterations of step (i).
 
-2) For genotyping use the **genotype** module 
+2) Use the **genotype** module for _k_-merald based genotyping  
     ```bash
      whatshap genotype [options] --reference <reference_genome.fa> -o <genotyped_variants.vcf> <variant_to_genotype.vcf> <aligned_reads.bam> -b <phred_scores> -k <kmer_size> -g {gap_value_for_kmer_alignment}
     ```
     
-2) For phasing use the **phase** module 
+2) Use the **phase** module for _k_-merald phasing
     ```bash
      whatshap phase [options] --reference <reference_genome.fa> -o <genotyped_variants.vcf> <variant_to_genotype.vcf> <aligned_reads.bam> -b <phred_scores> -k <kmer_size> -g {gap_value_for_kmer_alignment}
     ```
