@@ -28,7 +28,7 @@ For installation, pelase follow the WhatsHap development version installation is
      ```bash
      python3 whatshap/phred_scores.py -i <ref-read_kmer_counts_dir> -o <phred_scores> -k <kmer_size> -e <pseudocount_value_for_unobserved_kmer_pairs>
      ```
-     **Note**: This script takes the path of the folder containg all the output files from multiple chromosome specific iterations of step (i).
+     **Note**: <ref-read_kmer_counts_dir> is the path of the folder containg all the output files from multiple chromosome specific iterations of step (i).
 
 2) For genotyping use the **genotype** module 
     ```bash
