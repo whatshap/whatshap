@@ -45,3 +45,6 @@ cdef class GenotypeDPTable:
 
 cdef class HapChatCore:
 	cdef cpp.HapChatCore *thisptr
+	
+cdef class Caller:
+	cdef cpp.Caller *thisptr

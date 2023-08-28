@@ -8,6 +8,9 @@ Copied from https://bitbucket.org/marcelm/sqt/src/af255d54a21815cb9a3e0b279b431a
 from cython.view cimport array as cvarray
 import cython
 from libc cimport limits
+import collections
+from libc.math cimport log10
+from libcpp.string cimport string
 
 @cython.boundscheck(False)
 def edit_distance(s, t, int maxdiff=-1):
@@ -191,3 +194,78 @@ def edit_distance_affine_gap(query,ref, mismatch_cost, int gap_start=1, int gap_
 			b[i] = c_b
 			c[i] = c_c
 	return int(min(a[m], b[m], c[m]))
+
+def kmer_align(seq1, seq2, costs, float gap_penalty):
+	cdef int i,j,x
+	cdef int m = len(seq1)
+	cdef int n = len(seq2)
+	cdef float[:,:] score
+	cdef float mismatching
+	if seq1==seq2:
+	
+		return 0
+	else:	
+		x=0 
+		# Skip identical prefixes
+		while x < m and x < n and seq1[x] == seq2[x]:
+			x+=1       #recording where the suffix match stopped
+
+		# Skip identical suffixes
+		while m > x and n > x and seq1[m-1] == seq2[n-1]:
+			m -= 1
+			n -= 1
+		#now remove the suffix indices that we already have seen
+		m-=x 
+		n-=x
+		score = cvarray(shape=(m+1,n+1), itemsize=sizeof(float), format="f")
+
+		for i in range(0, m + 1):
+			score[i][0] = gap_penalty * i
+		for j in range(0, n + 1):
+			score[0][j] = gap_penalty *j
+		for i in range(1, m + 1):
+			for j in range (1,n+1):
+				if seq1[i-1+x]==seq2[j-1+x]:
+					match = score[i - 1][j - 1] #no penalty
+				else:
+					if (seq1[i-1+x],seq2[j-1+x]) in costs:
+						mismatching = float(costs[(seq1[i-1+x],seq2[j-1+x])])
+
+					elif (seq1[i-1+x],-5) in costs:
+						mismatching= float(costs[(seq1[i-1+x],-5)])
+
+					else:
+						mismatching= float('inf')
+
+					match = score[i - 1][j - 1] + mismatching
+
+				delete = score[i - 1][j] + gap_penalty
+				insert = score[i][j - 1] + gap_penalty
+				score[i][j] = min(match, delete, insert)
+
+		return score[m][n]
+		
+def enumerate_all_kmers(string reference, int k):
+	cdef int A = ord('A')
+	cdef int C = ord('C')
+	cdef int G = ord('G')
+	cdef int T = ord('T')
+	cdef c = 0
+	cdef int h = 0
+	cdef int mask = (1 << (2*k)) - 1
+	cdef int i = 0
+	cdef kmer_list= collections.deque([])
+	for i in range(len(reference)):
+		c = reference[i]
+		if c == A:
+			h = ((h << 2) | 0) & mask
+		elif c == C:
+			h = ((h << 2) | 1) & mask
+		elif c == G:
+			h = ((h << 2) | 2) & mask
+		elif c == T:
+			h = ((h << 2) | 3) & mask
+		if i >= k-1:
+			kmer_list.append(h)
+
+	return kmer_list
