@@ -48,6 +48,7 @@ extensions = [
             "src/hapchat/binomialcoefficient.cpp",
             "src/hapchat/hapchatcore.cpp",
             "src/hapchat/hapchatcolumniterator.cpp",
+            "src/caller.cpp",
         ],
     ),
     CppExtension(
