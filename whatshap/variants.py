@@ -120,18 +120,21 @@ class ReadSetReader:
             self._reader = SampleBamReader(paths[0], reference=reference)
         else:
             self._reader = MultiBamReader(paths, reference=reference)
+        
         if use_kmerald:
-            calculated_costs={}
-            splitted_strings={}
+            self._calculated_costs = {}
+            self._splitted_strings = {}
             costs = {}   
             with open(kmeralign_costs) as costs_file:
                 reader=csv.reader(costs_file, delimiter='\t')
                 for line in reader:
                     costs[(int(line[0]),int(line[1]))]= line[2]
-                self._kmerald_costs = costs
+            self._kmerald_costs = costs
             
         else:
             self._kmerald_costs = False
+            self._calculated_costs = False
+            self._splitted_strings = False
         
 
     @property
@@ -298,6 +301,8 @@ class ReadSetReader:
                     self._kmer_size,
                     self._kmerald_gappenalty,
                     self._kmerald_window,
+                    self._calculated_costs,
+                    self._splitted_strings
                 )
 
             for j, allele, quality in detected:
@@ -448,6 +453,8 @@ class ReadSetReader:
         kmer_size,
         kmerald_gappenalty,
         kmerald_window,
+        calculated_costs,
+        splitted_strings,
     ):
         """
         Realign a read to the two alleles of a single variant.
@@ -473,14 +480,13 @@ class ReadSetReader:
 
         if use_kmerald:
             left_ref_bases, left_query_bases = ReadSetReader.cigar_prefix_length(
-                left_cigar[::-1], kmerald_window
+                left_cigar[::-1], int(kmerald_window)
                 )
             right_ref_bases, right_query_bases = ReadSetReader.cigar_prefix_length(
-                right_cigar, len(variant.reference_allele) + kmerald_window
+                right_cigar, len(variant.reference_allele) + int(kmerald_window)
                 )
             assert variant.position - left_ref_bases >= 0
             assert variant.position + right_ref_bases <= len(reference)
-
             query_temp = bam_read.query_sequence[
                 query_pos - left_query_bases : query_pos + right_query_bases
                 ]
@@ -517,13 +523,13 @@ class ReadSetReader:
             if (ref_temp,query_temp) in calculated_costs:
                 distance_ref= calculated_costs[(ref_temp,query_temp)]
             else:
-                distance_ref = kmer_align(ref, query, kmerald_costs, kmerald_gappenalty, kmer_size)
+                distance_ref = kmer_align(ref, query, kmerald_costs, kmerald_gappenalty)
                 calculated_costs[(ref_temp,query_temp)]= distance_ref
                 
             if (alt_temp,query_temp) in calculated_costs:
                 distance_alt= calculated_costs[(alt_temp,query_temp)]
             else:
-                distance_alt = needle(alt, query, kmerald_costs, kmerald_gappenalty, kmer_size)
+                distance_alt = kmer_align(alt, query, kmerald_costs, kmerald_gappenalty)
                 calculated_costs[(alt_temp,query_temp)]=distance_alt
     
             if distance_ref < distance_alt:
@@ -599,6 +605,8 @@ class ReadSetReader:
         kmer_size=7,
         kmerald_gappenalty=40,
         kmerald_window=25,
+        calculated_costs=False,
+        splitted_strings=False
     ):
         """
         Detect which alleles the given bam_read covers. Detect the correct
@@ -636,6 +644,8 @@ class ReadSetReader:
                 kmer_size,
                 kmerald_gappenalty,
                 kmerald_window,
+                calculated_costs,
+                splitted_strings,
             )
             num_alts = len(variants[index].get_alt_allele_list())
             if allele in range(num_alts + 1):
