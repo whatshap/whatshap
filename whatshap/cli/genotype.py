@@ -208,7 +208,6 @@ def run_genotype(
         gt_prob = 1.0 - (10 ** (-gt_qual_threshold / 10.0))
 
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
-
             # create a mapping of genome positions to indices
             var_to_pos = dict()
             for i in range(len(variant_table.variants)):
@@ -263,7 +262,6 @@ def run_genotype(
                         )
                         variant_table.set_genotypes_of(sample, genotypes)
             else:
-
                 # use uniform genotype likelihoods for all individuals
                 for sample in samples:
                     variant_table.set_genotype_likelihoods_of(
@@ -510,7 +508,9 @@ def validate(args, parser):
     if args.indels_used:
         logger.warning("Ignoring --indels as indel genotyping is default in WhatsHap 2.0+")
     if args.use_kmerald and not args.kmeralign_costs:
-        parser.error("Option --use_kmerald can only be used when the costs to be used for kmer alignment --kmeralign_costs are provided.")
+        parser.error(
+            "Option --use_kmerald can only be used when the costs to be used for kmer alignment --kmeralign_costs are provided."
+        )
 
 
 def main(args):

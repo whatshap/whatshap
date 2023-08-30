@@ -13,11 +13,16 @@ logger = logging.getLogger(__name__)
 
 def add_arguments(parser):
     arg = parser.add_argument
-    arg('--reference', metavar='FASTA', help='Reference genome', required=True)
-    arg('--bam', metavar='BAM', help='Aligned reads', required=True)
-    arg('--vcf', metavar='VCF', help='Variants', required=True)
-    arg('--kmer', metavar='KMER', help='kmer size', required=True)
-    arg('--window', metavar='WINDOW', help='Ignore this many bases on the left and right of each variant position', required=True)
+    arg("--reference", metavar="FASTA", help="Reference genome", required=True)
+    arg("--bam", metavar="BAM", help="Aligned reads", required=True)
+    arg("--vcf", metavar="VCF", help="Variants", required=True)
+    arg("--kmer", metavar="KMER", help="kmer size", required=True)
+    arg(
+        "--window",
+        metavar="WINDOW",
+        help="Ignore this many bases on the left and right of each variant position",
+        required=True,
+    )
 
 
 def learn(reference, bam, vcf, kmer, window):
@@ -39,14 +44,18 @@ def learn(reference, bam, vcf, kmer, window):
                     caller = Caller(encoded_references[chromosome], int(kmer), int(window))
                 else:
                     ref = fasta[chromosome]
-                    encoded_references[chromosome] = str(ref).encode('UTF-8')
+                    encoded_references[chromosome] = str(ref).encode("UTF-8")
                     caller = Caller(encoded_references[chromosome], int(kmer), int(window))
             if call == 0:
                 caller.all_variants(variantslist)
                 call = 1
             else:
                 pass
-            caller.add_read(bam_alignment.pos, bam_alignment.cigartuples, str(bam_alignment.query_alignment_sequence).encode('UTF-8'))
+            caller.add_read(
+                bam_alignment.pos,
+                bam_alignment.cigartuples,
+                str(bam_alignment.query_alignment_sequence).encode("UTF-8"),
+            )
     caller.final_pop()
 
 
