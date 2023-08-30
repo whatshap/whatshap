@@ -1,6 +1,6 @@
 """
 Takes as input the chromosome wise ref-read kmer pair counts from whatshap learn,
-calculates the probability for observing each ref-read kmer pair across the whole genome 
+calculates the probability for observing each ref-read kmer pair across the whole genome
 and outputs a table with corresponding phred-scores
 """
 
@@ -26,7 +26,6 @@ def phred(inputfile, outputfile, epsilon_value, kmer_size):
         counts_file = open(file, "r")
         reader = csv.reader(counts_file, delimiter="\t")
         for line in reader:
-            pos = line[0]
             ref = line[1]
             read = line[2]
             count = int(line[3])
