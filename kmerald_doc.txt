@@ -1,0 +1,31 @@
+k-merald is an allele detection approach using k-mer based sequencing error profiles, and is now available as an alternative to the edit distance based allele detection implemented in the original WhatsHap version.
+For installation, please follow the WhatsHap development version installation istructions available at [WhatsHap Homepage](https://whatshap.readthedocs.io/)
+## Usage
+
+1) Train the model on non-variant regions of the genome:
+   
+   i) Get reference-read kmer pair counts using the **learn** module
+     
+     whatshap learn --reference <reference_genome.fa> --bam <aligned_reads.bam> --vcf <variants.vcf> --kmer <kmer_size> --window <window_size/2> > <ref-read_kmer_pair_counts>
+     
+     For window_size, you need to specify the number of bases you want to ignore on each side of the variant position i.e. half of your required total window size. 
+     **Note**: It is suggested to perform this training step in parallel on chromosome specific reads to save time, however, it is not mandatory.
+
+   ii) Generate phred-scores using the kmer pair counts
+ 
+     python3 whatshap/phred_scores.py -i <ref-read_kmer_counts_dir> -o <phred_scores> -k <kmer_size> -e <pseudocount_value_for_unobserved_kmer_pairs>
+    
+     **Note**: <ref-read_kmer_counts_dir> is the path of the folder containg all the output files from multiple chromosome specific iterations of step (i).
+
+2) Use the **genotype** module for k-merald based genotyping  
+    
+     whatshap genotype [options] --use_kmerald --reference <reference_genome.fa> -o <genotyped_variants.vcf> <variant_to_genotype.vcf> <aligned_reads.bam> --kmeralign_costs <phred_scores> --kmer_size <kmer_size> --kmerald_gappenalty {gap_value_for_kmer_alignment} --kmerald_window <window_size/2>
+    
+
+    
+
+   
+
+
+   
+     
