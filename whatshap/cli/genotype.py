@@ -468,8 +468,8 @@ def add_arguments(parser):
         'rate, i.e. overrides option --recombrate.')
     arg('--use-ped-samples', dest='use_ped_samples',
         action='store_true', default=False,
-        help='Only work on samples mentioned in the provided PED file.')
-        
+        help='Only work on samples mentioned in the provided PED file.')     
+
     arg = parser.add_argument_group('kmerald based genotyping').add_argument
     arg('--use_kmerald', default=False, action='store_true',
         help='Use kmerald for detecting alleles through re-alignment.')

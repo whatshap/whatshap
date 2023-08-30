@@ -4,8 +4,6 @@ Generate sequencing technology specific error profiles
 import logging
 import pysam
 import pyfaidx
-from collections import defaultdict, namedtuple, deque
-from contextlib import ExitStack
 from whatshap.core import Caller
 from pysam import VariantFile
 
@@ -14,36 +12,35 @@ logger = logging.getLogger(__name__)
 
 
 def add_arguments(parser):
-	arg = parser.add_argument
-	arg('--reference', metavar='FASTA', help='Reference genome', required =True)
-	arg('--bam', metavar='BAM', help='Aligned reads', required =True)
-	arg('--vcf', metavar='VCF', help='Variants', required =True)
-	arg('--kmer', metavar='KMER', help='kmer size', required =True)
-	arg('--window', metavar='WINDOW', help='Ignore this many bases on the left and right of each variant position', required =True)
+    arg = parser.add_argument
+    arg('--reference', metavar='FASTA', help='Reference genome', required =True)
+    arg('--bam', metavar='BAM', help='Aligned reads', required =True)
+    arg('--vcf', metavar='VCF', help='Variants', required =True)
+    arg('--kmer', metavar='KMER', help='kmer size', required =True)
+    arg('--window', metavar='WINDOW', help='Ignore this many bases on the left and right of each variant position', required =True)
 
 
 def learn(reference, bam, vcf, kmer, window):
-    fasta = pyfaidx.Fasta(reference, as_raw=True)
-    bamfile = pysam.AlignmentFile(bam)
+    fasta=pyfaidx.Fasta(reference, as_raw=True)
+    bamfile=pysam.AlignmentFile(bam)
     variantslist=[]
     call=0
-    vcf_in = VariantFile(vcf)
+    vcf_in=VariantFile(vcf)
     for variant in vcf_in.fetch():
         variantslist.append((variant.pos, len(variant.ref)))
     variant=0
     encoded_references={}
-    chromosome = None
+    chromosome=None
     for bam_alignment in bamfile:
         if not bam_alignment.is_unmapped and not bam_alignment.query_alignment_sequence==None:
             if bam_alignment.reference_name != chromosome:
-                chromosome = bam_alignment.reference_name
+                chromosome=bam_alignment.reference_name
                 if chromosome in encoded_references:
-                    caller = Caller(encoded_references[chromosome], int(kmer), int(window))
+                    caller=Caller(encoded_references[chromosome], int(kmer), int(window))
                 else:
-                    ref = fasta[chromosome]
-                    encoded_references[chromosome]= str(ref).encode('UTF-8')
-
-                    caller = Caller(encoded_references[chromosome], int(kmer), int(window))
+                    ref=fasta[chromosome]
+                    encoded_references[chromosome]=str(ref).encode('UTF-8')
+                    caller=Caller(encoded_references[chromosome], int(kmer), int(window))
             if call==0:
                 caller.all_variants(variantslist)
                 call=1
@@ -55,5 +52,5 @@ def learn(reference, bam, vcf, kmer, window):
 
 
 def main(args):
-	learn(**vars(args))
+    learn(**vars(args))
 	
