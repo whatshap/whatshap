@@ -32,7 +32,7 @@ def learn(reference, bam, vcf, kmer, window):
     encoded_references = {}
     chromosome = None
     for bam_alignment in bamfile:
-        if not bam_alignment.is_unmapped and not bam_alignment.query_alignment_sequence==None:
+        if not bam_alignment.is_unmapped and bam_alignment.query_alignment_sequence is not None:
             if bam_alignment.reference_name != chromosome:
                 chromosome = bam_alignment.reference_name
                 if chromosome in encoded_references:
@@ -41,16 +41,14 @@ def learn(reference, bam, vcf, kmer, window):
                     ref = fasta[chromosome]
                     encoded_references[chromosome] = str(ref).encode('UTF-8')
                     caller = Caller(encoded_references[chromosome], int(kmer), int(window))
-            if call==0:
+            if call == 0:
                 caller.all_variants(variantslist)
                 call = 1
             else:
                 pass
             caller.add_read(bam_alignment.pos, bam_alignment.cigartuples, str(bam_alignment.query_alignment_sequence).encode('UTF-8'))
     caller.final_pop()
-         
 
 
 def main(args):
     learn(**vars(args))
-	
