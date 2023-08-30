@@ -74,9 +74,9 @@ Subcommands
 
 WhatsHap comes with the following subcommands.
 
-============================================= ===========================================
+============================================= ======================================================
 Subcommand                                    Description
-============================================= ===========================================
+============================================= ======================================================
 phase                                         Phase diploid variants
 :ref:`polyphase <whatshap-polyphase>`         Phase polyploid variants
 :ref:`polyphasegenetic <whatshap-polyphaseg>` Phase polyploid variants
@@ -87,7 +87,8 @@ unphase                                       Remove phasing information from a 
 :ref:`haplotag <whatshap-haplotag>`           Tag reads by haplotype
 :ref:`genotype <whatshap-genotype>`           Genotype variants
 :ref:`split <whatshap-split>`                 Split reads by haplotype
-============================================= ===========================================
+:ref:`learn <whatshap-learn>`                 Generate sequencing technology specific error profiles
+============================================= ======================================================
 
 Not all are fully documented in this manual, yet. To get help for a
 subcommand named ``SUBCOMMAND``, run ::
@@ -1140,3 +1141,38 @@ Notes
   files. For example, if there is a variant at a position and it is A→C in one
   file and it is A→G in the other file (at the same position), then these are
   considered different variants, and they are excluded from comparisons.
+
+.. _whatshap-learn:
+
+whatshap learn: Generate sequencing technology specific error profiles
+======================================================================
+
+Given the aligned sequencing reads and a set of variants,
+Whatshap can be used to generate sequencing error profile for a specific technology.
+It can be run using the following command:
+
+    whatshap learn --reference ref.fasta --bam reads.bam --vcf variants.vcf --kmer kmer_size --window window_size > kmer_pair_counts
+
+The output 'kmer_pair_counts' contains for each non-variant position in the reference genome, the observed count for each reference-read kmer pair.
+Notes
+* For window_size, you need to specify the number of bases you want to ignore on each side of the variant i.e. half of your required window size.
+* It is recommended to run <whatshap-learn> in parallel on different chromosomes to save time, however, it is not mandatory.
+
+*k*-merald
+==========
+*k*-merald is an allele detection approach using *k*-mer based sequencing error profiles, and is now available as an alternative to the edit distance based allele detection in WhatsHap.
+
+It can be used as follows:
+
+1. Learn the error model
+    a. Get reference-read kmer_pair_counts using <whatshap-learn>
+    b. Convert the kmer_pair_counts into phred-scores as follows:
+
+       python3 whatshap/phred_scores.py -i kmer_pair_counts_dir -o phred_scores.txt -k kmer_size -e pseudocount_value_for_unobserved_kmer_pairs
+    
+Note
+* kmer_pair_counts_dir is the path to the directory containing the output from single whole genome or multiple chromosome specific iterations of <whatshap-learn>.
+
+2. Use <whatshap-genotype> with additional arguments for *k*-merald based genotyping  
+    
+     whatshap genotype [options] --use_kmerald --reference ref.fasta variants.vcf reads.bam --kmeralign_costs phred_scores.txt --kmer_size kmer_size --kmerald_gappenalty gap_cost --kmerald_window window_size -o genotyped_variants.vcf
