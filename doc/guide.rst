@@ -1145,7 +1145,7 @@ Notes
 .. _whatshap-learn:
 
 whatshap learn: Generate sequencing technology specific error profiles
-======================================
+======================================================================
 
 Given the aligned sequencing reads and a set of variants,
 Whatshap can be used to generate sequencing error profile for a specific technology.
@@ -1159,7 +1159,7 @@ Notes
 * It is recommended to run <whatshap-learn> in parallel on different chromosomes to save time, however, it is not mandatory.
 
 *k*-merald
-===========================
+==========
 *k*-merald is an allele detection approach using *k*-mer based sequencing error profiles, and is now available as an alternative to the edit distance based allele detection in WhatsHap.
 
 It can be used as follows:
