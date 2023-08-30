@@ -510,7 +510,7 @@ def validate(args, parser):
     if args.indels_used:
         logger.warning("Ignoring --indels as indel genotyping is default in WhatsHap 2.0+")
     if args.use_kmerald and not args.kmeralign_costs:
-        parser.error("Option --use_kmerald can only be used when the costs to be used for kmer alignment --kmeralign_costs are provided.")   
+        parser.error("Option --use_kmerald can only be used when the costs to be used for kmer alignment --kmeralign_costs are provided.")
 
 
 def main(args):
