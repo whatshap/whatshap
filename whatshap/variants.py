@@ -120,22 +120,21 @@ class ReadSetReader:
             self._reader = SampleBamReader(paths[0], reference=reference)
         else:
             self._reader = MultiBamReader(paths, reference=reference)
-        
+
         if use_kmerald:
             self._calculated_costs = {}
             self._splitted_strings = {}
-            costs = {}   
+            costs = {}
             with open(kmeralign_costs) as costs_file:
-                reader=csv.reader(costs_file, delimiter='\t')
+                reader = csv.reader(costs_file, delimiter="\t")
                 for line in reader:
-                    costs[(int(line[0]),int(line[1]))]= line[2]
+                    costs[(int(line[0]), int(line[1]))] = line[2]
             self._kmerald_costs = costs
-            
+
         else:
             self._kmerald_costs = False
             self._calculated_costs = False
             self._splitted_strings = False
-        
 
     @property
     def n_paths(self):
@@ -302,7 +301,7 @@ class ReadSetReader:
                     self._kmerald_gappenalty,
                     self._kmerald_window,
                     self._calculated_costs,
-                    self._splitted_strings
+                    self._splitted_strings,
                 )
 
             for j, allele, quality in detected:
@@ -481,57 +480,61 @@ class ReadSetReader:
         if use_kmerald:
             left_ref_bases, left_query_bases = ReadSetReader.cigar_prefix_length(
                 left_cigar[::-1], int(kmerald_window)
-                )
+            )
             right_ref_bases, right_query_bases = ReadSetReader.cigar_prefix_length(
                 right_cigar, len(variant.reference_allele) + int(kmerald_window)
-                )
+            )
             assert variant.position - left_ref_bases >= 0
             assert variant.position + right_ref_bases <= len(reference)
             query_temp = bam_read.query_sequence[
                 query_pos - left_query_bases : query_pos + right_query_bases
-                ]
+            ]
             if query_temp in splitted_strings:
-                query=splitted_strings[query_temp]
+                query = splitted_strings[query_temp]
             else:
-                query=enumerate_all_kmers(str(query_temp).encode('UTF-8'),int(kmer_size))
-                splitted_strings[query_temp]= query
-		    
-            ref_temp = reference[variant.position - left_ref_bases : variant.position + right_ref_bases]
+                query = enumerate_all_kmers(str(query_temp).encode("UTF-8"), int(kmer_size))
+                splitted_strings[query_temp] = query
+
+            ref_temp = reference[
+                variant.position - left_ref_bases : variant.position + right_ref_bases
+            ]
             if ref_temp in splitted_strings:
-                ref=splitted_strings[ref_temp]
+                ref = splitted_strings[ref_temp]
             else:
-                ref =enumerate_all_kmers(str(ref_temp).encode('UTF-8'),int(kmer_size))
-                splitted_strings[ref_temp]=ref
+                ref = enumerate_all_kmers(str(ref_temp).encode("UTF-8"), int(kmer_size))
+                splitted_strings[ref_temp] = ref
 
             alt_temp = (
                 reference[variant.position - left_ref_bases : variant.position]
                 + variant.alternative_allele
                 + reference[
-                  variant.position
-                  + len(variant.reference_allele) : variant.position
-                  + right_ref_bases])
-        
+                    variant.position
+                    + len(variant.reference_allele) : variant.position
+                    + right_ref_bases
+                ]
+            )
+
             if alt_temp in splitted_strings:
-                alt=splitted_strings[alt_temp]
+                alt = splitted_strings[alt_temp]
             else:
-                alt=enumerate_all_kmers(str(alt_temp).encode('UTF-8'),int(kmer_size))
-                splitted_strings[alt_temp]= alt
-    
+                alt = enumerate_all_kmers(str(alt_temp).encode("UTF-8"), int(kmer_size))
+                splitted_strings[alt_temp] = alt
+
             base_qual_score = 30
             distance_ref = 0
             distance_alt = 0
-            if (ref_temp,query_temp) in calculated_costs:
-                distance_ref= calculated_costs[(ref_temp,query_temp)]
+            if (ref_temp, query_temp) in calculated_costs:
+                distance_ref = calculated_costs[(ref_temp, query_temp)]
             else:
                 distance_ref = kmer_align(ref, query, kmerald_costs, kmerald_gappenalty)
-                calculated_costs[(ref_temp,query_temp)]= distance_ref
-                
-            if (alt_temp,query_temp) in calculated_costs:
-                distance_alt= calculated_costs[(alt_temp,query_temp)]
+                calculated_costs[(ref_temp, query_temp)] = distance_ref
+
+            if (alt_temp, query_temp) in calculated_costs:
+                distance_alt = calculated_costs[(alt_temp, query_temp)]
             else:
                 distance_alt = kmer_align(alt, query, kmerald_costs, kmerald_gappenalty)
-                calculated_costs[(alt_temp,query_temp)]=distance_alt
-    
+                calculated_costs[(alt_temp, query_temp)] = distance_alt
+
             if distance_ref < distance_alt:
                 return 0, base_qual_score  # detected REF
             elif distance_ref > distance_alt:
@@ -539,20 +542,19 @@ class ReadSetReader:
             else:
                 return None, None  # cannot decide
         else:
-        
             left_ref_bases, left_query_bases = ReadSetReader.cigar_prefix_length(
                 left_cigar[::-1], overhang
-               )
+            )
             right_ref_bases, right_query_bases = ReadSetReader.cigar_prefix_length(
                 right_cigar, len(variant.reference_allele) + overhang
-               )
+            )
 
             assert variant.position - left_ref_bases >= 0
             assert variant.position + right_ref_bases <= len(reference)
 
             query = bam_read.query_sequence[
-                 query_pos - left_query_bases : query_pos + right_query_bases
-              ]
+                query_pos - left_query_bases : query_pos + right_query_bases
+            ]
             pos = variant.position
             left_pad = reference[pos - left_ref_bases : pos]
             right_pad = reference[pos + len(variant.reference_allele) : pos + right_ref_bases]
@@ -572,22 +574,22 @@ class ReadSetReader:
 
             # compute edit dist. with affine gap costs using base qual. as mismatch cost
             distances = [
-            (i, edit_distance_affine_gap(query, allele, base_qualities, gap_start, gap_extend))
-            for i, allele in enumerate(padded_alleles)
+                (i, edit_distance_affine_gap(query, allele, base_qualities, gap_start, gap_extend))
+                for i, allele in enumerate(padded_alleles)
             ]
             distances.sort(key=lambda x: x[1])
             base_qual_score = distances[0][1] - distances[1][1]
         else:
-             distances = [
-                 (i, edit_distance(query, allele)) for i, allele in enumerate(padded_alleles)
-             ]
-             distances.sort(key=lambda x: x[1])
-             base_qual_score = 30
+            distances = [
+                (i, edit_distance(query, allele)) for i, allele in enumerate(padded_alleles)
+            ]
+            distances.sort(key=lambda x: x[1])
+            base_qual_score = 30
 
         if distances[0][1] < distances[1][1]:
-             return distances[0][0], base_qual_score  # detected REF
+            return distances[0][0], base_qual_score  # detected REF
         else:
-             return None, None  # cannot decide
+            return None, None  # cannot decide
 
     @staticmethod
     def detect_alleles_by_alignment(
@@ -606,7 +608,7 @@ class ReadSetReader:
         kmerald_gappenalty=40,
         kmerald_window=25,
         calculated_costs=False,
-        splitted_strings=False
+        splitted_strings=False,
     ):
         """
         Detect which alleles the given bam_read covers. Detect the correct
