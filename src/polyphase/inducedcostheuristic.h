@@ -1,6 +1,7 @@
 #ifndef INDUCEDCOSTHEURISTIC_H
 #define INDUCEDCOSTHEURISTIC_H
 
+#include <cstdint>
 #include "edgeheap.h"
 #include "clustereditingsolution.h"
 

@@ -1,6 +1,7 @@
 #ifndef READSCORING_H
 #define READSCORING_H
 
+#include <cstdint>
 #include "../readset.h"
 #include "../read.h"
 #include "../genotype.h"

@@ -1,6 +1,7 @@
 #ifndef HAPLOTHREADER_H
 #define HAPLOTHREADER_H
 
+#include <cstdint>
 #include "tuple.h"
 #include "tupleconverter.h"
 #include <vector>

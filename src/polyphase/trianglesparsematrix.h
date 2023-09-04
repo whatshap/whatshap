@@ -5,7 +5,7 @@
 #include <set>
 #include <vector>
 #include <cmath>
-#include <stdint.h>
+#include <cstdint>
 
 /**
  * A simple storage class, to sparsely store float values for pairs of non-negative integers.

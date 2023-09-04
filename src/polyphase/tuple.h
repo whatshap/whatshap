@@ -1,6 +1,7 @@
 #ifndef TUPLE_H
 #define TUPLE_H
 
+#include <cstdint>
 #include <vector>
 #include <cmath>
 #include <iostream>

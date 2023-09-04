@@ -1,6 +1,7 @@
 #ifndef STATICSPARSEGRAPH_H
 #define STATICSPARSEGRAPH_H
 
+#include <cstdint>
 #include <vector>
 #include <map>
 #include <iostream>
