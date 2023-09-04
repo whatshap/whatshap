@@ -1,6 +1,7 @@
 #ifndef SWITCHFLIP_H
 #define SWITCHFLIP_H
 
+#include <cstdint>
 #include <vector>
 #include <unordered_map>
 #include <cmath>

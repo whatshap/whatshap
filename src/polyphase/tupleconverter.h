@@ -20,6 +20,7 @@
 #define TUPLECONVERTER_H
 
 #include "tuple.h"
+#include <cstdint>
 #include <vector>
 #include <unordered_map>
 #include <cmath>

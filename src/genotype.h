@@ -1,6 +1,7 @@
 #ifndef GENOTYPE_H
 #define GENOTYPE_H
 
+#include<cstdint>
 #include<vector>
 #include<set>
 #include<string>

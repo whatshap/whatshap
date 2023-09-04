@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 #include <cmath>
-#include <stdint.h>
+#include <cstdint>
 #include "../readset.h"
 #include "../read.h"
 
