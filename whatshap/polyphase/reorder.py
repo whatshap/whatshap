@@ -60,6 +60,7 @@ def find_subinstances(allele_matrix, clustering, threads, haplotypes):
         if len(snps) == num_vars and len(thread_set) == ploidy:
             continue
         subm = allele_matrix.extractSubMatrix(snps, clustering[cid], True)
+        assert len(subm.getPositions()) > 0
         if len(subm) > 0:
             sub_instances.append((cid, thread_set, subm))
 
