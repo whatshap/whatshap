@@ -35,6 +35,9 @@ def solve_polyphase_instance(
     """
     num_vars = len(allele_matrix.getPositions())
 
+    assert num_vars > 0
+    assert len(allele_matrix) > 0
+
     # Precompute block borders based on read coverage and linkage between variants
     if not quiet:
         logger.info("Detecting connected components with weak interconnect ..")
@@ -46,6 +49,7 @@ def solve_polyphase_instance(
 
     # Set block borders and split readset
     block_starts.append(num_vars)
+    assert block_starts == sorted(list(set(block_starts)))
     num_blocks = sum(1 for i, j in zip(block_starts[:-1], block_starts[1:]) if j > i + 1)
     if not quiet:
         logger.info(
@@ -139,10 +143,9 @@ def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, ti
     quiet -- If set, suppresses logger info output
     """
 
+    # Check for empty/singleton blocks and handle them differently (for efficiency reasons)
     block_num_vars = allele_matrix.getNumPositions()
-
-    # Check for singleton blocks and handle them differently (for efficiency reasons)
-    if block_num_vars == 1:
+    if block_num_vars < 2:
         # construct trivial solution for singleton blocks, by using the genotype as phasing
         g = genotypes[0]
         clusts = [[i for i, r in enumerate(allele_matrix) if r and r[0][1] == a] for a in g]
@@ -154,6 +157,7 @@ def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, ti
     # Phase I: Cluster Editing
 
     # Compute similarity values for all read pairs
+    assert len(allele_matrix) > 0
     timers.start("read_scoring")
     logger.debug("Computing similarities for read pairs ..")
     sim = scoreReadset(allele_matrix, param.min_overlap, param.ploidy, 0.07)
@@ -204,6 +208,7 @@ def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, ti
     sub_param.ignore_phasings = True
     sub_param.threads = 1
     for cid, thread_set, subm in sub_instances:
+        assert len(subm) > 0
         snps = [allele_matrix.globalToLocal(gpos) for gpos in subm.getPositions()]
         assert all([0 <= pos < allele_matrix.getNumPositions() for pos in snps])
         subhaps = [[haplotypes[i][pos] for i in thread_set] for pos in snps]
