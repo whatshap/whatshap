@@ -86,7 +86,6 @@ class VcfVariant(ABC):
 
 
 class BiallelicVcfVariant(VcfVariant):
-
     __slots__ = ("position", "reference_allele", "alternative_allele")
 
     def __init__(self, position: int, reference_allele: str, alternative_allele: str):
@@ -163,7 +162,6 @@ class BiallelicVcfVariant(VcfVariant):
 
 
 class MultiallelicVcfVariant(VcfVariant):
-
     __slots__ = ("position", "reference_allele", "alternative_alleles")
 
     def __init__(self, position: int, reference_allele: str, alternative_alleles: List[str]):

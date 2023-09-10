@@ -296,7 +296,6 @@ def run_polyphase(
 
 
 def phase_single_individual(readset, phasable_variant_table, sample, param, output, timers):
-
     # Compute the genotypes that belong to the variant table and create a list of all genotypes
     genotype_list = create_genotype_list(phasable_variant_table, sample)
 

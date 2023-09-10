@@ -146,7 +146,7 @@ class ReadMerger(ReadMergerBase):
                 blue_component[v] = current_component
             current_component += 1
 
-        for (u, v) in gnotblue.edges():
+        for u, v in gnotblue.edges():
             if blue_component[u] != blue_component[v]:
                 # Keep only the notblue edges that are inside a blue connected component
                 continue
@@ -220,7 +220,7 @@ def eval_overlap(n1, n2):
     hang1 = n2["begin"] - n1["begin"]
     overlap = zip(n1["alleles"][hang1:], n2["alleles"])
     match = mismatch = 0
-    for (c1, c2) in overlap:
+    for c1, c2 in overlap:
         if c1 == c2:
             match += 1
         else:

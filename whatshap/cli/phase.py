@@ -650,7 +650,6 @@ def compute_overall_components(
     numeric_sample_ids: NumericSampleIds,
     superreads_list: Sequence[ReadSet],
 ) -> Mapping[int, int]:
-
     master_block = None
     heterozygous_positions_by_sample: Optional[Dict[int, Set[int]]] = None
     accessible_positions_set = set(accessible_positions)
@@ -790,7 +789,6 @@ def find_phaseable_variants(
     trios: Sequence[Trio],
     variant_table: VariantTable,
 ) -> Tuple[Sequence[int], VariantTable]:
-
     # variant indices with at least one missing genotype
     missing_genotypes = set()
     # variant indices with at least one heterozygous genotype

@@ -51,11 +51,9 @@ def string_to_readset_pedigree(s, w=None, scaling_quality=None):
 
 
 def matrix_to_readset(lines):
-
     rs = ReadSet()
     index_tracker = 0
     for line in lines:
-
         s = line.split()
         assert len(s) % 2 == 1, "Not in matrix format."
 
@@ -65,7 +63,6 @@ def matrix_to_readset(lines):
 
         read = Read(f"Read {index}", 50)
         for i in range(int(len(s) / 2)):
-
             offset = int(s[2 * i + 1])
             for pos, c in enumerate(s[2 * i + 2]):
                 read.add_variant(position=(offset + pos) * 10, allele=int(c), quality=1)

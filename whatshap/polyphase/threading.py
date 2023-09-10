@@ -221,7 +221,7 @@ def select_clusters(allele_depths, ploidy, max_gap):
         total_cov = sum(e[1] for e in sorted_cids)
         cut_off = min(len(sorted_cids), ploidy + 2)
         cov_map[pos].append(sorted_cids[0][0])
-        for (cid, cov) in sorted_cids[1:cut_off]:
+        for cid, cov in sorted_cids[1:cut_off]:
             if cov / total_cov < (1.0 / (8.0 * ploidy)) and cov_map[pos]:
                 break
             else:

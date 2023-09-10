@@ -13,7 +13,6 @@ logger = logging.getLogger(__name__)
 
 
 def arrange_clusters(clustering, padding, ploidy):
-
     # filter out singleton clusters
     filtered_to_real = []
     fclustering = []

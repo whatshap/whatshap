@@ -231,7 +231,7 @@ def compute_link_likelihoods(
             left_l, right_l = [], []
             for h in range(ploidy):
                 l_olp, r_olp, l_err, r_err = 0, 0, 0, 0
-                for (j, a) in read:
+                for j, a in read:
                     p = both_pos[j]
                     error = 0 if a == haplotypes[h][p] else 1
                     if p < pos:
@@ -457,7 +457,6 @@ def get_optimal_assignments(breakpoints, lllh, ploidy, affiliations):
 
 
 def permute_blocks(threads, haplotypes, breakpoints, lllh, perms):
-
     # shuffle threads and haplotypes according to optimal assignments
     ploidy = len(haplotypes)
     threads_copy = deepcopy(threads)

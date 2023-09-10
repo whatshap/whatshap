@@ -68,7 +68,8 @@ class PhasedBlock:
 
     def split(self, split_left: int, split_right: int) -> Tuple["PhasedBlock", "PhasedBlock"]:
         """Split this phaseblock in two, based on given positions. The first phaseblock will contain
-        the variants to the left of split_left and the second the variants to the right of split_right."""
+        the variants to the left of split_left and the second the variants to the right of split_right.
+        """
         assert split_left <= split_right
         left_block = PhasedBlock(chromosome=self.chromosome)
         right_block = PhasedBlock(chromosome=self.chromosome)

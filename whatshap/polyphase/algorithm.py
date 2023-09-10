@@ -143,7 +143,6 @@ def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, ti
 
     # Check for singleton blocks and handle them differently (for efficiency reasons)
     if block_num_vars == 1:
-
         # construct trivial solution for singleton blocks, by using the genotype as phasing
         g = genotypes[0]
         clusts = [[i for i, r in enumerate(allele_matrix) if r and r[0][1] == a] for a in g]

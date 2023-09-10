@@ -90,7 +90,6 @@ def get_offspring_gl(
     varinfo: VariantInfo,
     phasing_param,
 ):
-
     # create map to find genetic positions in progeny table
     genpos_to_progenypos = dict()
     for i in range(len(progeny_table)):
@@ -142,7 +141,6 @@ def get_offspring_gl(
 
 
 def get_variant_scoring(varinfo, off_gl, phasing_param):
-
     num_nodes = len(varinfo.get_node_positions())
     scoring = TriangleSparseMatrix()
 
@@ -191,7 +189,6 @@ def get_variant_scoring(varinfo, off_gl, phasing_param):
 
 
 def get_most_likely_variant_type(priors, genpos, off_gl, pos):
-
     best_gts = (0, 0)
     best_llh = -float("inf")
     k = len(priors)

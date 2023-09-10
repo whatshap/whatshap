@@ -198,7 +198,6 @@ def run_genotype(
         gt_prob = 1.0 - (10 ** (-gt_qual_threshold / 10.0))
 
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
-
             # create a mapping of genome positions to indices
             var_to_pos = dict()
             for i in range(len(variant_table.variants)):
@@ -253,7 +252,6 @@ def run_genotype(
                         )
                         variant_table.set_genotypes_of(sample, genotypes)
             else:
-
                 # use uniform genotype likelihoods for all individuals
                 for sample in samples:
                     variant_table.set_genotype_likelihoods_of(

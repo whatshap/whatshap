@@ -40,7 +40,6 @@ class RecombinationEvent:
 def _interpolate(
     point: int, start_pos: int, end_pos: int, start_value: float, end_value: float
 ) -> float:
-
     assert start_pos <= point <= end_pos
     if start_pos == point == end_pos:
         assert start_value == end_value
@@ -54,7 +53,6 @@ MINIMUM_GENETIC_DISTANCE: float = 1e-10  # cM
 def recombination_cost_map(
     genetic_map: Sequence[RecombinationMapEntry], positions: Sequence[int]
 ) -> Sequence[int]:
-
     assert len(genetic_map) > 0
 
     # Step 1: compute cumulative genetic distances from start of chromosome
@@ -142,7 +140,6 @@ def find_recombination(
     positions: Sequence[int],
     recombcost: Sequence[int],
 ) -> Sequence[RecombinationEvent]:
-
     assert len(transmission_vector) == len(positions) == len(recombcost)
     assert set(components.keys()).issubset(set(positions))
     position_to_index = {pos: i for i, pos in enumerate(positions)}

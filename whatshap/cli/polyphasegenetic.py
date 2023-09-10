@@ -89,7 +89,6 @@ def run_polyphasegenetic(
         platform.python_version(),
     )
     with ExitStack() as stack:
-
         if write_command_line_header:
             command_line = "(whatshap {}) {}".format(__version__, " ".join(sys.argv[1:]))
         else:

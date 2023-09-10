@@ -981,7 +981,7 @@ def run_compare(
                     sample_name = (
                         "_".join(set(sample_names)) if ignore_sample_name else sample_names[0]
                     )
-                    for ((dataset_list0, dataset_list1), count) in multiway_results.items():
+                    for (dataset_list0, dataset_list1), count in multiway_results.items():
                         print(
                             sample_name,
                             chromosome,

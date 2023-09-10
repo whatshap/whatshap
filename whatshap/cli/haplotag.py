@@ -128,7 +128,7 @@ def attempt_add_phase_information(
             else:  # alignment has BX tag
                 read_clouds = bxtag_to_haplotype[tag]
 
-            for (reference_start, haplotype, phaseset) in read_clouds:
+            for reference_start, haplotype, phaseset in read_clouds:
                 if abs(reference_start - alignment.reference_start) <= linked_read_cutoff:
                     haplotype_name = f"H{haplotype + 1}"
                     alignment.set_tag("HP", haplotype + 1)
@@ -485,7 +485,6 @@ def run_haplotag(
     output_threads: int = 1,
     ploidy: int = 2,
 ):
-
     timers = StageTimer()
     timers.start("haplotag-run")
 

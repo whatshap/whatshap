@@ -118,7 +118,6 @@ def test_similarities5():
 
 
 def test_clusterediting1():
-
     reads = """
         110000010111
         1100000101
@@ -161,7 +160,6 @@ def test_clusterediting1():
 
 
 def test_clusterediting2():
-
     reads = """
         000000 00 0 00000 0000 0
              1111 11111
@@ -190,7 +188,6 @@ def test_clusterediting2():
 
 
 def test_clusterediting3():
-
     reads = """
         000000 00 0 00000 0000 0
              1111 11111
