@@ -1168,7 +1168,7 @@ It can be used as follows:
     a. Get reference-read kmer_pair_counts using <whatshap-learn>
     b. Convert the kmer_pair_counts into phred-scores as follows:
 
-       python3 whatshap/phred_scores.py -i kmer_pair_counts_dir -o phred_scores.txt -k kmer_size -e pseudocount_value_for_unobserved_kmer_pairs
+       python3 -m whatshap.phred_scores -i kmer_pair_counts_dir -o phred_scores.txt -k kmer_size -e pseudocount_value_for_unobserved_kmer_pairs
     
 Note
 * kmer_pair_counts_dir is the path to the directory containing the output from single whole genome or multiple chromosome specific iterations of <whatshap-learn>.
