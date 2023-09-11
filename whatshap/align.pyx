@@ -255,8 +255,7 @@ def enumerate_all_kmers(string reference, int k):
 	cdef int mask = (1 << (2*k)) - 1
 	cdef int i = 0
 	cdef kmer_list= collections.deque([])
-	for i in range(len(reference)):
-		c = reference[i]
+	for i, c in enumerate(reference):
 		if c == A:
 			h = ((h << 2) | 0) & mask
 		elif c == C:
