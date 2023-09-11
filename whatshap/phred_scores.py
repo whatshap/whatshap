@@ -34,11 +34,15 @@ def phred(inputfile, outputfile, epsilon_value, kmer_size):
     for every_key in counts:
         seen_comb[every_key[0]] += 1
         comb_count[every_key[0]] += counts[every_key]
-        
+
     with open(outputfile, "w") as writer:
         for s in counts:
-            probability = counts[s] / (comb_count[s[0]] + ((total_comb - seen_comb[s[0]]) * epsilon))
-            e_probability = epsilon / (comb_count[s[0]] + ((total_comb - seen_comb[s[0]]) * epsilon))
+            probability = counts[s] / (
+                comb_count[s[0]] + ((total_comb - seen_comb[s[0]]) * epsilon)
+            )
+            e_probability = epsilon / (
+                comb_count[s[0]] + ((total_comb - seen_comb[s[0]]) * epsilon)
+            )
             phred_score = -10 * math.log10(float(probability))
             e_phred_score = -10 * math.log10(float(e_probability))
             if s[0] not in probabilities:
