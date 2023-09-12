@@ -122,7 +122,6 @@ class ReadSetReader:
         else:
             self._reader = MultiBamReader(paths, reference=reference)
 
-
     @property
     def n_paths(self):
         return len(self._paths)
@@ -252,7 +251,7 @@ class ReadSetReader:
             kmerald_costs = None
             calculated_costs = None
             splitted_strings = None
-            
+
         for alignment in alignments:
             try:
                 barcode = alignment.bam_alignment.get_tag("BX")
