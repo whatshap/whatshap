@@ -87,7 +87,7 @@ class ReadSetReader:
         default_mismatch: int = 15,
         duplicates: bool = False,
         use_kmerald: bool = False,
-        kmeralign_costs: str = False,
+        kmeralign_costs: str = None,
         kmer_size: int = 7,
         kmerald_gappenalty: float = 40,
         kmerald_window: int = 25,
@@ -111,6 +111,7 @@ class ReadSetReader:
         self._overhang = overhang
         self._duplicates = duplicates
         self._use_kmerald = use_kmerald
+        self._kmeralign_costs = kmeralign_costs
         self._kmer_size = kmer_size
         self._kmerald_gappenalty = kmerald_gappenalty
         self._kmerald_window = kmerald_window
@@ -121,20 +122,6 @@ class ReadSetReader:
         else:
             self._reader = MultiBamReader(paths, reference=reference)
 
-        if use_kmerald:
-            self._calculated_costs = {}
-            self._splitted_strings = {}
-            costs = {}
-            with open(kmeralign_costs) as costs_file:
-                reader = csv.reader(costs_file, delimiter="\t")
-                for line in reader:
-                    costs[(int(line[0]), int(line[1]))] = line[2]
-            self._kmerald_costs = costs
-
-        else:
-            self._kmerald_costs = False
-            self._calculated_costs = False
-            self._splitted_strings = False
 
     @property
     def n_paths(self):
@@ -253,6 +240,19 @@ class ReadSetReader:
 
         i = 0  # index into variants (reference) or variant progresses (no reference)
 
+        if self._use_kmerald:
+            calculated_costs = {}
+            splitted_strings = {}
+            kmerald_costs = {}
+            with open(self._kmeralign_costs) as costs_file:
+                reader = csv.reader(costs_file, delimiter="\t")
+                for line in reader:
+                    kmerald_costs[(int(line[0]), int(line[1]))] = line[2]
+        else:
+            kmerald_costs = None
+            calculated_costs = None
+            splitted_strings = None
+            
         for alignment in alignments:
             try:
                 barcode = alignment.bam_alignment.get_tag("BX")
@@ -296,12 +296,12 @@ class ReadSetReader:
                     self._gap_extend,
                     self._default_mismatch,
                     self._use_kmerald,
-                    self._kmerald_costs,
+                    kmerald_costs,
                     self._kmer_size,
                     self._kmerald_gappenalty,
                     self._kmerald_window,
-                    self._calculated_costs,
-                    self._splitted_strings,
+                    calculated_costs,
+                    splitted_strings,
                 )
 
             for j, allele, quality in detected:
@@ -603,12 +603,12 @@ class ReadSetReader:
         gap_extend=None,
         default_mismatch=None,
         use_kmerald=False,
-        kmerald_costs=False,
+        kmerald_costs=None,
         kmer_size=7,
         kmerald_gappenalty=40,
         kmerald_window=25,
-        calculated_costs=False,
-        splitted_strings=False,
+        calculated_costs=None,
+        splitted_strings=None,
     ):
         """
         Detect which alleles the given bam_read covers. Detect the correct
