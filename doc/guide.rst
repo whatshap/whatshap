@@ -1154,9 +1154,11 @@ It can be run using the following command::
     whatshap learn --reference ref.fasta --bam reads.bam --vcf variants.vcf --kmer kmer_size --window window_size > kmer_pair_counts
 
 The ``kmer_pair_counts`` output file contains for each non-variant position in the reference genome, the observed count for each reference-read kmer pair.
-Notes
-* For window_size, you need to specify the number of bases you want to ignore on each side of the variant i.e. half of your required window size.
-* It is recommended to run <whatshap-learn> in parallel on different chromosomes to save time, however, it is not mandatory.
+
+A few notes:
+
+* For ``window``, the number of bases you want to ignore on each side of the variant, should be specified.
+* It is recommended to run ``whatshap-learn`` in parallel on different chromosomes to save time, however, it is not mandatory.
 
 *k*-merald
 ==========
@@ -1165,14 +1167,14 @@ Notes
 It can be used as follows:
 
 1. Learn the error model
-    a. Get reference-read kmer_pair_counts using `whatshap-learn`
-    b. Convert the kmer_pair_counts into phred-scores as follows:
 
-       python3 -m whatshap.phred_scores -i kmer_pair_counts_dir -o phred_scores.txt -k kmer_size -e pseudocount_value_for_unobserved_kmer_pairs
+* Get reference-read ``kmer_pair_counts`` using ``whatshap-learn``
+* Convert the ``kmer_pair_counts`` into phred-scores as follows::
     
-Note
-* kmer_pair_counts_dir is the path to the directory containing the output from single whole genome or multiple chromosome specific iterations of <whatshap-learn>.
+    python3 -m whatshap.phred_scores -i kmer_pair_counts_dir -o phred_scores.txt -k kmer_size -e pseudocount_value_for_unobserved_kmer_pairs
+    
+  Note that ``kmer_pair_counts_dir`` is the path to the directory containing the output from single whole genome or multiple chromosome specific iterations of ``whatshap-learn``.
 
-2. Use ``whatshap-genotype`` with additional arguments for *k*-merald based genotyping  
+2. Use ``whatshap-genotype`` with additional arguments for *k*-merald based genotyping::
     
-     whatshap genotype [options] --use-kmerald --reference ref.fasta variants.vcf reads.bam --kmeralign-costs phred_scores.txt --kmer-size kmer_size --kmerald-gappenalty gap_cost --kmerald-window window_size -o genotyped_variants.vcf
+    whatshap genotype [options] --use-kmerald --reference ref.fasta variants.vcf reads.bam --kmeralign-costs phred_scores.txt --kmer-size kmer_size --kmerald-gappenalty gap_cost --kmerald-window window_size -o genotyped_variants.vcf
