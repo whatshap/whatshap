@@ -264,7 +264,7 @@ def enumerate_all_kmers(string reference, int k):
 			h = ((h << 2) | 2) & mask
 		elif c == T:
 			h = ((h << 2) | 3) & mask
-		if i >= k-1:
+		if i >= k-1 and h != 0:
 			kmer_list.append(h)
 
 	return kmer_list
