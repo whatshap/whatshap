@@ -4,7 +4,6 @@ Tests for whatshap learn module
 """
 
 from whatshap.cli.learn import learn
-from whatshap.core import Caller
 import filecmp
 
 
