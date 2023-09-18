@@ -26,7 +26,7 @@ def add_arguments(parser):
     arg("--output", metavar="OUT", help="The output file with kmer-pair counts", required=True)
 
 
-def learn(reference, bam, vcf, kmer, window, output):
+def run_learn(reference, bam, vcf, kmer, window, output):
     fasta = pyfaidx.Fasta(reference, as_raw=True)
     bamfile = pysam.AlignmentFile(bam)
     variantslist = []
@@ -64,4 +64,4 @@ def learn(reference, bam, vcf, kmer, window, output):
 
 
 def main(args):
-    learn(**vars(args))
+    run_learn(**vars(args))

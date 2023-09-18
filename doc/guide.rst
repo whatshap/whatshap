@@ -1151,7 +1151,7 @@ Given the aligned sequencing reads and a set of variants,
 Whatshap can be used to generate sequencing error profiles for a specific technology.
 It can be run using the following command::
 
-    whatshap learn --reference ref.fasta --bam reads.bam --vcf variants.vcf --kmer kmer_size --window window_size > kmer_pair_counts
+    whatshap learn --reference ref.fasta --bam reads.bam --vcf variants.vcf --kmer kmer_size --window window_size --output kmer_pair_counts
 
 The ``kmer_pair_counts`` output file contains for each non-variant position in the reference genome, the observed count for each reference-read kmer pair.
 
