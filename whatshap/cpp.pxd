@@ -237,12 +237,12 @@ cdef extern from "../src/caller.h":
     cdef cppclass Caller:
         Caller(string&, int, int) except +
         void all_variants(deque[pair[int,int]]) except +
-        void add_read(int,vector[vector[int]], string) except +
+        void add_read(int,vector[vector[int]], string, string) except +
         void finish() except +
         pair[int,int] get_column(int) except +
         void pop_column() except +
-        void process_complete_columns(int) except +
+        void process_complete_columns(int, string) except +
         void advance_to(int) except +
         void enumerate_reference_kmers(string&, int) except +
-        void final_pop() except +
+        void final_pop(string) except +
         void enumerate_kmers(int, string, int, vector[vector[int]]) except +

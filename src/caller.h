@@ -12,16 +12,16 @@
 class Caller{
 public:
 	Caller(std::string &reference, int k, int window);
-	void add_read(int bam_alignment_pos,std::vector<std::vector<int>> &bam_alignment_cigartuples, std::string &bam_alignment_query);
+	void add_read(int bam_alignment_pos,std::vector<std::vector<int>> &bam_alignment_cigartuples, std::string &bam_alignment_query, const std::string outfile);
 	void all_variants(std::deque<std::pair<int,int>> &variant_list);
 	void finish();
 	std::pair<int, int> get_column(int pos);
 	void pop_column();
-	void process_complete_columns(int target_pos);
+	void process_complete_columns(int target_pos, const std::string outfile);
 	void advance_to(int target_pos);
  	void enumerate_reference_kmers(std::string &reference, int k);
 	void enumerate_kmers(int pos, std::string &query_string, int k, std::vector<std::vector<int>> &cigartuples);
-	void final_pop();
+	void final_pop(const std::string outfile);
 	int kmer;
 	int pos;
 	int k;

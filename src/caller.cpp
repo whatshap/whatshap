@@ -1,8 +1,8 @@
+#include <fstream>
 #include <cassert>
 #include<cmath>
 #include <unordered_map>
 #include "caller.h"
-
 
 using namespace std;
 std::unordered_map<int,int> empty_dict;
@@ -12,6 +12,7 @@ std::deque<std::pair<int,int>> enum_refkmers;
 std::deque<std::pair<int,int>> enum_kmers;
 std::unordered_map<int,int> seen_comb;
 std::unordered_map<int,int> comb_count;
+ofstream writer;
 Caller::Caller(std::string &reference, int k, int window){
 	this->k=k;
 	this->enumerate_reference_kmers(reference,k);
@@ -30,11 +31,11 @@ Caller::Caller(std::string &reference, int k, int window){
 void Caller::all_variants(std::deque<std::pair<int,int>> &variant_list){
 	variantslist =variant_list;
 }
-void Caller::final_pop(){
+void Caller::final_pop(const std::string outfile){
 	int final_ref_pos= (enum_refkmers[enum_refkmers.size()-1]).second;//final position in the reference
-	this->process_complete_columns(final_ref_pos);
+	this->process_complete_columns(final_ref_pos, outfile);
 }
-void Caller::add_read(int bam_alignment_pos, std::vector<std::vector<int>> &bam_alignment_cigartuples, std::string &bam_alignment_query){
+void Caller::add_read(int bam_alignment_pos, std::vector<std::vector<int>> &bam_alignment_cigartuples, std::string &bam_alignment_query, const std::string outfile){
 	this->target_pos_pre= bam_alignment_pos;//initially the target position is where the read maps to reference
 	this->enumerate_kmers(bam_alignment_pos,bam_alignment_query, this->k, bam_alignment_cigartuples);
 	this->kmer_generators.push_back(enum_kmers);//all the read kmers enumerated and pushed as a deque to a deque of all the previously generated read kmers
@@ -57,7 +58,7 @@ void Caller::add_read(int bam_alignment_pos, std::vector<std::vector<int>> &bam_
 		this->pileup_columns[index_getcolumn][temp_pair2.first]+=1;//increment the count for this readkmer mapping to the ref kmer we got above
 	}
 	int target_pos= this->target_pos_pre + this->k - 1;
-	this->process_complete_columns(target_pos);
+	this->process_complete_columns(target_pos, outfile);
 }
 
 void Caller::finish(){
@@ -124,7 +125,8 @@ void Caller::pop_column(){
 	int variantposition=var.first;
 	int var_length= var.second-1;
 	int varstart= variantposition-window;
-	int varend= variantposition+var_length+window;
+	int varend= variantposition+var_length+window+this->k-1;
+	//as kmer end positions are being recorded, we skip first k-1 kmers after the window as they would be starting inside
 	std::pair<int,int> next_var= variantslist[1];
 	int next_variantposition= next_var.first;
 	int next_var_length= next_var.second-1;
@@ -134,8 +136,7 @@ void Caller::pop_column(){
 	}
 	else if (int(variantslist.size())>0 and result_ref_pos>= (next_variantposition-window) and result_ref_pos<= (next_variantposition+next_var_length+window)){
 		//if reference position such that it is not inside the current variant window but is inside the next
-		 //it is safe to remove the first variant as we know all readkmers would be further to the right as we at each position pop
-		 //the whole read kmers column so everything on the left of where we stand is clean
+		 //it is safe to remove the first variant as we know all readkmers would be further to the right
 			variantslist.pop_front();
 	}
 	else{
@@ -143,21 +144,22 @@ void Caller::pop_column(){
 		for(std::unordered_map<int,int> ::iterator it = result_pileup_kmers.begin(); it != result_pileup_kmers.end(); ++it){
 			result_kmer=it->first;
 			result_count=it->second;
-		  cout<<result_ref_pos<<"\t"<<result_ref_kmer<<"\t"<<result_kmer<<"\t"<<result_count<<endl;
+		  writer<<result_ref_pos<<"\t"<<result_ref_kmer<<"\t"<<result_kmer<<"\t"<<result_count<<endl;
 
 	}}}}
- void Caller::process_complete_columns(int target_pos){
+ void Caller::process_complete_columns(int target_pos, const std::string outfile){
 	/*
 	Perform calling of columns that are complete, i.e. they cannot receive
 	more reads because subsequent reads are further to the right'''
 	# compute largest position for which k-mer pileup can safely be generated*/
 
-	//int target_pos= this->target_pos_pre + this->k - 1;//moving k positions forward from the ref position this read starts mapping from
 	std::vector<std::pair<std::pair<int,int>,std::unordered_map<int,int>>> complete_columns;
 	this->advance_to(target_pos);//get all readkmers from all reads read so far upto target pos and add their counts
-	while (this->ref_pos < target_pos){
+	writer.open(outfile, ios::app);
+	while (this->ref_pos <= target_pos){
 		this->pop_column();
 		}
+	writer.close();
 	}
 void Caller::advance_to(int target_pos){
 	/*
@@ -170,7 +172,7 @@ void Caller::advance_to(int target_pos){
 			temp_pair3 = this->current_kmers[i];//for the enum kmer deque we got above what was the kmer, pos we have read last
 			kmer = temp_pair3.first;
 			pos= temp_pair3.second;
-			while (pos < target_pos){//this would keep on popping read kmers until they are towards the left of our target position
+			while (pos <= target_pos){//this would keep on popping read kmers until they are towards the left of our target position
 				if(this->iterators[i]!= this->kmer_generators[i].end()){
 					temp_pair3= *this->iterators[i];//the read kmer and its position based on iterator index in each deque of enum kmers
 					kmer=temp_pair3.first;
@@ -228,9 +230,9 @@ void Caller::enumerate_reference_kmers(std::string &reference, int k){
 		else if (c == T){
 			h = ((h << 2) | 3) & mask;
 				}
-		else{
-			h = ((h << 2) | 0) & mask;
-				}
+		//else{
+		//	h = ((h << 2) | 0) & mask;
+		//		}
 		if (i >= k-1){
 			enum_refkmers.push_back(std::pair<int,int> (h,i+1));
 				}
@@ -242,7 +244,7 @@ void Caller::enumerate_kmers(int pos, std::string &query_string, int k, std::vec
 	//where kmer_hash is a binary representation of the kmer and postion is
 	//the reference position this kmer has been aligned to.
         int h = 0;
-        int n_kmer=0;
+        //int n_kmer=0;
         int mask = (1 << (2*k)) - 1;
         int cigar_index = 0;
         int cigar_op = cigartuples[cigar_index][0];
@@ -305,16 +307,16 @@ void Caller::enumerate_kmers(int pos, std::string &query_string, int k, std::vec
 					consecutive += 1;
 				}
 				else {
-					n_kmer=1;
+				//	n_kmer=1;
 					consecutive += 1;
 				}
 				if (consecutive >= k){
-					if (n_kmer ==0){
+					//if (n_kmer ==0){
 						enum_kmers.push_back(std::pair<int,int> (h,pos+1));
-						}
-					else if (n_kmer==1){
-						n_kmer=0;
-						}
+						//}
+					//else if (n_kmer==1){
+					//	n_kmer=0;
+					//	}
 				}
 				//consume one character of read
 				assert (cigar_length > 0);

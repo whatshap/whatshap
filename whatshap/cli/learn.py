@@ -23,9 +23,10 @@ def add_arguments(parser):
         help="Ignore this many bases on the left and right of each variant position",
         required=True,
     )
+    arg("--output", metavar="OUT", help="The output file with kmer-pair counts", required=True)
 
 
-def learn(reference, bam, vcf, kmer, window):
+def learn(reference, bam, vcf, kmer, window, output):
     fasta = pyfaidx.Fasta(reference, as_raw=True)
     bamfile = pysam.AlignmentFile(bam)
     variantslist = []
@@ -36,6 +37,8 @@ def learn(reference, bam, vcf, kmer, window):
     variant = 0
     encoded_references = {}
     chromosome = None
+    open(output, "w").close()
+    output_c = str(output).encode("UTF-8")
     for bam_alignment in bamfile:
         if not bam_alignment.is_unmapped and bam_alignment.query_alignment_sequence is not None:
             if bam_alignment.reference_name != chromosome:
@@ -55,8 +58,9 @@ def learn(reference, bam, vcf, kmer, window):
                 bam_alignment.pos,
                 bam_alignment.cigartuples,
                 str(bam_alignment.query_alignment_sequence).encode("UTF-8"),
+                output_c,
             )
-    caller.final_pop()
+    caller.final_pop(output_c)
 
 
 def main(args):

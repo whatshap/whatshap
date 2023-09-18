@@ -603,11 +603,12 @@ cdef class Caller:
 			v_list.push_back(v)
 		self.thisptr.all_variants(v_list)
 
-	def add_read(self, int bam_alignment_pos, vector[vector[int]]  bam_alignment_cigartuples, string bam_alignment_query):
-		self.thisptr.add_read(bam_alignment_pos, bam_alignment_cigartuples, bam_alignment_query)
+	def add_read(self, int bam_alignment_pos, vector[vector[int]]  bam_alignment_cigartuples, string bam_alignment_query, string outfile):
+		self.thisptr.add_read(bam_alignment_pos, bam_alignment_cigartuples, bam_alignment_query, outfile)
 	
-	def final_pop(self):
-		self.thisptr.final_pop()
+	def final_pop(self, string outfile):
+		self.thisptr.final_pop(outfile)
 		
 	def finish(self):
 		pass
+		
