@@ -92,6 +92,11 @@ def run_genotype(
     mismatch=15,
     write_command_line_header=True,
     use_ped_samples=False,
+    use_kmerald=False,
+    kmeralign_costs=False,
+    kmer_size=7,
+    kmerald_gappenalty=40,
+    kmerald_window=25,
 ):
     """
     For now: this function only runs the genotyping algorithm. Genotype likelihoods for
@@ -123,6 +128,11 @@ def run_genotype(
                 gap_start=gap_start,
                 gap_extend=gap_extend,
                 default_mismatch=mismatch,
+                use_kmerald=use_kmerald,
+                kmeralign_costs=kmeralign_costs,
+                kmer_size=kmer_size,
+                kmerald_gappenalty=kmerald_gappenalty,
+                kmerald_window=kmerald_window,
             )
         )
         show_phase_vcfs = phased_input_reader.has_vcfs
@@ -457,6 +467,18 @@ def add_arguments(parser):
     arg('--use-ped-samples', dest='use_ped_samples',
         action='store_true', default=False,
         help='Only work on samples mentioned in the provided PED file.')
+
+    arg = parser.add_argument_group('kmerald based genotyping').add_argument
+    arg('--use-kmerald', default=False, action='store_true',
+        help='Use kmerald for detecting alleles through re-alignment.')
+    arg('--kmeralign-costs', metavar='COSTS', default=None,
+        help='Error model based costs used by kmerald during re-alignment.')
+    arg('--kmer-size', metavar='KMER', type=int, default=None,
+        help='kmer size used by kmerald during re-alignment.')
+    arg('--kmerald-gappenalty', metavar='GAP', type=float, default=None,
+        help='Gap penalty used by kmerald during re-alignment.')
+    arg('--kmerald-window', metavar='WINDOW', type=float, default=None,
+        help='Consider this many bases on the left and side of a variant position for kmerald based re-alignment.')
 # fmt: on
 
 
@@ -485,6 +507,10 @@ def validate(args, parser):
         parser.error("Option --use-ped-samples cannot be used together with --samples")
     if args.indels_used:
         logger.warning("Ignoring --indels as indel genotyping is default in WhatsHap 2.0+")
+    if args.use_kmerald and not args.kmeralign_costs:
+        parser.error(
+            "Option --use-kmerald can only be used when the costs to be used for kmer alignment --kmeralign-costs are provided."
+        )
 
 
 def main(args):

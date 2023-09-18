@@ -9,6 +9,7 @@ from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 from libc.stdint cimport int8_t, uint32_t, uint64_t
 from libcpp.unordered_map cimport unordered_map
+from libcpp.deque cimport deque
 
 
 cdef extern from "read.h":
@@ -227,3 +228,21 @@ cdef extern from "polyphase/progenygenotypelikelihoods.h":
         double getSimplexNulliplexScore(uint32_t pos1, uint32_t pos2) except +
         double getSimplexSimplexScore(uint32_t pos1, uint32_t pos2) except +
         double getDuplexNulliplexScore(uint32_t pos1, uint32_t pos2) except +
+        
+    
+cdef extern from "../src/caller.h":
+    ctypedef pair[int,int] cpp_pair
+    ctypedef unordered_map[int,int] cpp_map
+    ctypedef pair[cpp_pair,cpp_map] cpp_Pair
+    cdef cppclass Caller:
+        Caller(string&, int, int) except +
+        void all_variants(deque[pair[int,int]]) except +
+        void add_read(int,vector[vector[int]], string, string) except +
+        void finish() except +
+        pair[int,int] get_column(int) except +
+        void pop_column() except +
+        void process_complete_columns(int, string) except +
+        void advance_to(int) except +
+        void enumerate_reference_kmers(string&, int) except +
+        void final_pop(string) except +
+        void enumerate_kmers(int, string, int, vector[vector[int]]) except +
