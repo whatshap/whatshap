@@ -1158,7 +1158,7 @@ The ``kmer_pair_counts`` output file contains for each non-variant position in t
 A few notes:
 
 * For ``window``, the number of bases you want to ignore on each side of the variant, should be specified.
-* It is recommended to run ``whatshap-learn`` in parallel on different chromosomes to save time, however, it is not mandatory.
+* It is recommended to run ``whatshap learn`` in parallel on different chromosomes to save time, however, it is not mandatory.
 
 *k*-merald
 ==========
@@ -1168,13 +1168,13 @@ It can be used as follows:
 
 1. Learn the error model
 
-* Get reference-read ``kmer_pair_counts`` using ``whatshap-learn``
+* Get reference-read ``kmer_pair_counts`` using ``whatshap learn``
 * Convert the ``kmer_pair_counts`` into phred-scores as follows::
     
     python3 -m whatshap.phred_scores -i kmer_pair_counts_dir -o phred_scores.txt -k kmer_size -e pseudocount_value_for_unobserved_kmer_pairs
     
-  Note that ``kmer_pair_counts_dir`` is the path to the directory containing the output from single whole genome or multiple chromosome specific iterations of ``whatshap-learn``.
+  Note that ``kmer_pair_counts_dir`` is the path to the directory containing the output from single whole genome or multiple chromosome specific iterations of ``whatshap learn``.
 
-2. Use ``whatshap-genotype`` with additional arguments for *k*-merald based genotyping::
+2. Use ``whatshap genotype`` with additional arguments for *k*-merald based genotyping::
     
     whatshap genotype [options] --use-kmerald --reference ref.fasta variants.vcf reads.bam --kmeralign-costs phred_scores.txt --kmer-size kmer_size --kmerald-gappenalty gap_cost --kmerald-window window_size -o genotyped_variants.vcf
