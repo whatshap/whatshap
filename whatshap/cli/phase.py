@@ -38,6 +38,7 @@ from whatshap.core import (
     NumericSampleIds,
     PhredGenotypeLikelihoods,
     HapChatCore,
+    MecHeuristic,
 )
 from whatshap.readselect import readselection
 from whatshap.graph import ComponentFinder
@@ -575,6 +576,11 @@ def run_whatshap(
                             distrust_genotypes,
                             accessible_positions,
                         )
+                        print("Running MEC heuristic")
+                        mh = MecHeuristic(1000, True, True)
+                        mh.computeHaplotypes()
+
+                        print("Finished MEC heuristic")
 
                     superreads_list, transmission_vector = dp_table.get_super_reads()
                     logger.debug("%s cost: %d", problem_name, dp_table.get_optimal_cost())

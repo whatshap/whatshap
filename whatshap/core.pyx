@@ -611,4 +611,14 @@ cdef class Caller:
 		
 	def finish(self):
 		pass
+
+
+cdef class MecHeuristic:
+	def __cinit__(self, uint32_t rowLimit, bool weighted, bool allHet):
+		self.thisptr = new cpp.MecHeuristic(rowLimit, weighted, allHet)
 		
+	def __dealloc__(self):
+		del self.thisptr
+		
+	def computeHaplotypes(self, ReadSet rs):
+		return self.thisptr.computeHaplotypes(rs.thisptr)
