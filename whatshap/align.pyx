@@ -195,56 +195,57 @@ def edit_distance_affine_gap(query,ref, mismatch_cost, int gap_start=1, int gap_
 			c[i] = c_c
 	return int(min(a[m], b[m], c[m]))
 
+
 def kmer_align(seq1, seq2, costs, float gap_penalty):
-	cdef int i,j,x
+	cdef int i, j, x
 	cdef int m = len(seq1)
 	cdef int n = len(seq2)
 	cdef float[:,:] score
 	cdef float mismatching
-	if seq1==seq2:
-	
+	if seq1 == seq2:
 		return 0
-	else:	
-		x=0 
-		# Skip identical prefixes
-		while x < m and x < n and seq1[x] == seq2[x]:
-			x+=1       #recording where the suffix match stopped
 
-		# Skip identical suffixes
-		while m > x and n > x and seq1[m-1] == seq2[n-1]:
-			m -= 1
-			n -= 1
-		#now remove the suffix indices that we already have seen
-		m-=x 
-		n-=x
-		score = cvarray(shape=(m+1,n+1), itemsize=sizeof(float), format="f")
+	x = 0
+	# Skip identical prefixes
+	while x < m and x < n and seq1[x] == seq2[x]:
+		x += 1
 
-		for i in range(0, m + 1):
-			score[i][0] = gap_penalty * i
-		for j in range(0, n + 1):
-			score[0][j] = gap_penalty *j
-		for i in range(1, m + 1):
-			for j in range (1,n+1):
-				if seq1[i-1+x]==seq2[j-1+x]:
-					match = score[i - 1][j - 1] #no penalty
+	# Skip identical suffixes
+	while m > x and n > x and seq1[m-1] == seq2[n-1]:
+		m -= 1
+		n -= 1
+	# now remove the suffix indices that we already have seen
+	m -= x
+	n -= x
+	score = cvarray(shape=(m+1,n+1), itemsize=sizeof(float), format="f")
+
+	for i in range(0, m + 1):
+		score[i][0] = gap_penalty * i
+	for j in range(0, n + 1):
+		score[0][j] = gap_penalty * j
+	for i in range(1, m + 1):
+		for j in range (1,n+1):
+			if seq1[i-1+x] == seq2[j-1+x]:
+				match = score[i - 1][j - 1] # no penalty
+			else:
+				if (seq1[i-1+x], seq2[j-1+x]) in costs:
+					mismatching = float(costs[(seq1[i-1+x], seq2[j-1+x])])
+
+				elif (seq1[i-1+x], -5) in costs:
+					mismatching = float(costs[(seq1[i-1+x], -5)])
+
 				else:
-					if (seq1[i-1+x],seq2[j-1+x]) in costs:
-						mismatching = float(costs[(seq1[i-1+x],seq2[j-1+x])])
+					mismatching = float('inf')
 
-					elif (seq1[i-1+x],-5) in costs:
-						mismatching= float(costs[(seq1[i-1+x],-5)])
+				match = score[i - 1][j - 1] + mismatching
 
-					else:
-						mismatching= float('inf')
+			delete = score[i - 1][j] + gap_penalty
+			insert = score[i][j - 1] + gap_penalty
+			score[i][j] = min(match, delete, insert)
 
-					match = score[i - 1][j - 1] + mismatching
+	return score[m][n]
 
-				delete = score[i - 1][j] + gap_penalty
-				insert = score[i][j - 1] + gap_penalty
-				score[i][j] = min(match, delete, insert)
 
-		return score[m][n]
-		
 def enumerate_all_kmers(string reference, int k):
 	cdef int A = ord('A')
 	cdef int C = ord('C')
