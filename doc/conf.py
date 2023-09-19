@@ -25,14 +25,14 @@ master_doc = "index"
 
 authors = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin and WhatsHap contributors"
 project = "whatshap"
-copyright = "2014-{}, {}".format(time.gmtime().tm_year, authors)
+copyright = "2014"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
 #
 
-version = get_version(root='..', relative_to=__file__)
+version = get_version(root="..", relative_to=__file__)
 
 # Read The Docs modifies the conf.py script and we therefore get
 # version numbers like 0.12+0.g27d0d31
