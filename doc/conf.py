@@ -38,6 +38,7 @@ version = get_version(root="..", relative_to=__file__)
 # version numbers like 0.12+0.g27d0d31
 if os.environ.get("READTHEDOCS") == "True":
     version = ".".join(version.split(".")[:2])
+    html_theme = "sphinx_rtd_theme"
 
 release = version
 
@@ -50,7 +51,5 @@ exclude_patterns = ["_build"]
 # default_role = None
 
 pygments_style = "sphinx"
-
-html_theme = "default"
 
 html_static_path = ["_static"]
