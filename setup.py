@@ -34,6 +34,7 @@ extensions = [
             "src/indexset.cpp",
             "src/genotype.cpp",
             "src/binomial.cpp",
+            "src/mecheuristic.cpp",
             "src/multinomial.cpp",
             "src/pedigreepartitions.cpp",
             "src/phredgenotypelikelihoods.cpp",

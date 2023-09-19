@@ -1,6 +1,6 @@
 # cython: language_level=3
 
-from libcpp cimport bool
+from libcpp	cimport	bool
 from libc.stdint cimport uint32_t, uint64_t
 from . cimport cpp
 
@@ -48,3 +48,6 @@ cdef class HapChatCore:
 	
 cdef class Caller:
 	cdef cpp.Caller *thisptr
+
+cdef class MecHeuristic:
+	cdef cpp.MecHeuristic *thisptr

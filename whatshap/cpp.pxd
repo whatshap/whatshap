@@ -246,3 +246,9 @@ cdef extern from "../src/caller.h":
         void enumerate_reference_kmers(string&, int) except +
         void final_pop(string) except +
         void enumerate_kmers(int, string, int, vector[vector[int]]) except +
+
+
+cdef extern from "../src/mecheuristic.h":
+    cdef cppclass MecHeuristic:
+        MecHeuristic(uint32_t rowLimit, bool weighted, bool allHet) except +
+        vector[vector[int8_t]] computeHaplotypes(ReadSet* rs) except +
