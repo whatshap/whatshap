@@ -93,7 +93,7 @@ def run_genotype(
     write_command_line_header=True,
     use_ped_samples=False,
     use_kmerald=False,
-    kmeralign_costs=False,
+    kmeralign_costs_path=False,
     kmer_size=7,
     kmerald_gappenalty=40,
     kmerald_window=25,
@@ -129,7 +129,7 @@ def run_genotype(
                 gap_extend=gap_extend,
                 default_mismatch=mismatch,
                 use_kmerald=use_kmerald,
-                kmeralign_costs=kmeralign_costs,
+                kmeralign_costs_path=kmeralign_costs_path,
                 kmer_size=kmer_size,
                 kmerald_gappenalty=kmerald_gappenalty,
                 kmerald_window=kmerald_window,
@@ -471,7 +471,7 @@ def add_arguments(parser):
     arg = parser.add_argument_group('kmerald based genotyping').add_argument
     arg('--use-kmerald', default=False, action='store_true',
         help='Use kmerald for detecting alleles through re-alignment.')
-    arg('--kmeralign-costs', metavar='COSTS', default=None,
+    arg('--kmeralign-costs', dest='kmeralign_costs_path', metavar='COSTS', default=None,
         help='Error model based costs used by kmerald during re-alignment.')
     arg('--kmer-size', metavar='KMER', type=int, default=None,
         help='kmer size used by kmerald during re-alignment.')
@@ -507,7 +507,7 @@ def validate(args, parser):
         parser.error("Option --use-ped-samples cannot be used together with --samples")
     if args.indels_used:
         logger.warning("Ignoring --indels as indel genotyping is default in WhatsHap 2.0+")
-    if args.use_kmerald and not args.kmeralign_costs:
+    if args.use_kmerald and not args.kmeralign_costs_path:
         parser.error(
             "Option --use-kmerald can only be used when the costs to be used for kmer alignment --kmeralign-costs are provided."
         )

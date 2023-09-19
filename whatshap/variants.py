@@ -7,6 +7,9 @@ from collections import defaultdict, Counter
 from typing import Iterable, Iterator, List, Optional
 from dataclasses import dataclass
 
+from pysam import AlignedSegment
+
+from .vcf import VcfVariant
 from .core import Read, ReadSet, NumericSampleIds
 from .bam import SampleBamReader, MultiBamReader, BamReader
 from .align import edit_distance, edit_distance_affine_gap, kmer_align, enumerate_all_kmers
@@ -87,7 +90,7 @@ class ReadSetReader:
         default_mismatch: int = 15,
         duplicates: bool = False,
         use_kmerald: bool = False,
-        kmeralign_costs: str = None,
+        kmeralign_costs_path: Optional[str] = None,
         kmer_size: int = 7,
         kmerald_gappenalty: float = 40,
         kmerald_window: int = 25,
@@ -111,7 +114,7 @@ class ReadSetReader:
         self._overhang = overhang
         self._duplicates = duplicates
         self._use_kmerald = use_kmerald
-        self._kmeralign_costs = kmeralign_costs
+        self._kmeralign_costs_path = kmeralign_costs_path
         self._kmer_size = kmer_size
         self._kmerald_gappenalty = kmerald_gappenalty
         self._kmerald_window = kmerald_window
@@ -123,7 +126,7 @@ class ReadSetReader:
             self._reader = MultiBamReader(paths, reference=reference)
 
     @property
-    def n_paths(self):
+    def n_paths(self) -> int:
         return len(self._paths)
 
     def read(self, chromosome, variants, sample, reference, regions=None) -> ReadSet:
@@ -243,7 +246,7 @@ class ReadSetReader:
             calculated_costs = {}
             splitted_strings = {}
             kmerald_costs = {}
-            with open(self._kmeralign_costs) as costs_file:
+            with open(self._kmeralign_costs_path) as costs_file:
                 reader = csv.reader(costs_file, delimiter="\t")
                 for line in reader:
                     kmerald_costs[(int(line[0]), int(line[1]))] = line[2]
@@ -308,7 +311,7 @@ class ReadSetReader:
             if read:  # At least one variant covered and detected
                 yield read
 
-    def detect_non_overlapping_variants(self, variants):
+    def detect_non_overlapping_variants(self, variants: List[VcfVariant]):
         """
         Checks for deletion variants overlapping other variants and for variants with duplicate
         positions. Returns a set of variant indices, which are conflict with another variant and
@@ -390,7 +393,7 @@ class ReadSetReader:
         return left, right
 
     @staticmethod
-    def cigar_prefix_length(cigar, reference_bases):
+    def cigar_prefix_length(cigar, reference_bases: int):
         """
         Given a prefix of length reference_bases relative to the reference, how
         long is the prefix of the read? In other words: If reference_bases on
@@ -434,8 +437,8 @@ class ReadSetReader:
 
     @staticmethod
     def realign(
-        variant,
-        bam_read,
+        variant: VcfVariant,
+        bam_read: AlignedSegment,
         cigartuples,
         i,
         consumed,
@@ -592,9 +595,9 @@ class ReadSetReader:
 
     @staticmethod
     def detect_alleles_by_alignment(
-        variants,
+        variants: List[VcfVariant],
         j,
-        bam_read,
+        bam_read: AlignedSegment,
         reference,
         overhang=10,
         use_affine=False,

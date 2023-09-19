@@ -63,6 +63,7 @@ class VcfVariant(ABC):
     """A variant in a VCF file (not to be confused with core.Variant)"""
 
     position: int
+    reference_allele: str
 
     @abstractmethod
     def get_ref_allele(self):
@@ -86,6 +87,7 @@ class VcfVariant(ABC):
 
 
 class BiallelicVcfVariant(VcfVariant):
+
     __slots__ = ("position", "reference_allele", "alternative_allele")
 
     def __init__(self, position: int, reference_allele: str, alternative_allele: str):
@@ -164,7 +166,7 @@ class BiallelicVcfVariant(VcfVariant):
 class MultiallelicVcfVariant(VcfVariant):
     __slots__ = ("position", "reference_allele", "alternative_alleles")
 
-    def __init__(self, position: int, reference_allele: str, alternative_alleles: List[str]):
+    def __init__(self, position: int, reference_allele: str, alternative_alleles: Sequence[str]):
         self.position = position
         self.reference_allele = reference_allele
         self.alternative_alleles = tuple(alternative_alleles)
@@ -229,10 +231,10 @@ class MultiallelicVcfVariant(VcfVariant):
         """
         pos, ref, alts = self.position, self.reference_allele, self.alternative_alleles
         while ref and all(alts) and all(ref[-1] == alt[-1] for alt in alts):
-            ref, alts = ref[:-1], [alt[:-1] for alt in alts]
+            ref, alts = ref[:-1], tuple(alt[:-1] for alt in alts)
 
         while ref and all(alts) and all(ref[0] == alt[0] for alt in alts):
-            ref, alts = ref[1:], [alt[1:] for alt in alts]
+            ref, alts = ref[1:], tuple(alt[1:] for alt in alts)
             pos += 1
 
         return MultiallelicVcfVariant(pos, ref, alts)
@@ -262,7 +264,9 @@ class GenotypeLikelihoods:
     def log10_prob_of(self, genotype_index: int) -> float:
         return self.log10_probs()[genotype_index]
 
-    def as_phred(self, ploidy: int = 2, regularizer: float = None) -> PhredGenotypeLikelihoods:
+    def as_phred(
+        self, ploidy: int = 2, regularizer: Optional[float] = None
+    ) -> PhredGenotypeLikelihoods:
         if regularizer is None:
             # shift log likelihoods such that the largest one is zero
             m = max(self.log_prob_genotypes)
@@ -498,7 +502,7 @@ class VcfReader:
         phases: bool = False,
         genotype_likelihoods: bool = False,
         ignore_genotypes: bool = False,
-        ploidy: int = None,
+        ploidy: Optional[int] = None,
         mav: bool = False,
         allele_depth: bool = False,
     ):
@@ -1238,6 +1242,7 @@ class PhasedVcfWriter(VcfAugmenter):
                 if pos in genotypes and genotypes[pos] != gt_type:
                     # call['GT'] = INT_TO_UNPHASED_GT[genotypes[pos]]
                     call["GT"] = tuple(genotypes[pos].as_vector())
+                    variant: Union[BiallelicVcfVariant, MultiallelicVcfVariant]
                     if len(record.alts) > 1:
                         variant = MultiallelicVcfVariant(record.start, record.ref, record.alts)
                     else:
