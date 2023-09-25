@@ -295,6 +295,7 @@ def run_whatshap(
     read_merging_positive_threshold: int = 1000000,
     read_merging_negative_threshold: int = 1000,
     max_coverage: int = 15,
+    row_limit: int = 100,
     distrust_genotypes: bool = False,
     include_homozygous: bool = False,
     ped: Optional[str] = None,
@@ -505,11 +506,14 @@ def run_whatshap(
                             "Kept %d reads that cover at least two variants each", len(readset)
                         )
                         merged_reads = read_merger.merge(readset)
-                        selected_reads = select_reads(
-                            merged_reads,
-                            max_coverage_per_sample,
-                            preferred_source_ids=vcf_source_ids,
-                        )
+                        if algorithm != "heuristic" or True:
+                            selected_reads = select_reads(
+                                merged_reads,
+                                max_coverage_per_sample,
+                                preferred_source_ids=vcf_source_ids,
+                            )
+                        else:
+                            selected_reads = merged_reads
 
                     readsets[sample] = selected_reads
                     if len(family) == 1 and not distrust_genotypes:
@@ -568,6 +572,14 @@ def run_whatshap(
                     dp_table: Union[HapChatCore, PedigreeDPTable]
                     if algorithm == "hapchat":
                         dp_table = HapChatCore(all_reads)
+                        superreads_list, transmission_vector = dp_table.get_super_reads()
+                        logger.debug("%s cost: %d", problem_name, dp_table.get_optimal_cost())
+                    elif algorithm == "heuristic":
+                        all_reads.sort()
+                        mh = MecHeuristic(row_limit, True, True)
+                        haps, sr = mh.computeHaplotypes(all_reads)
+                        superreads_list = [sr]
+                        transmission_vector = None
                     else:
                         dp_table = PedigreeDPTable(
                             all_reads,
@@ -576,14 +588,8 @@ def run_whatshap(
                             distrust_genotypes,
                             accessible_positions,
                         )
-                        print("Running MEC heuristic")
-                        mh = MecHeuristic(1000, True, True)
-                        mh.computeHaplotypes()
-
-                        print("Finished MEC heuristic")
-
-                    superreads_list, transmission_vector = dp_table.get_super_reads()
-                    logger.debug("%s cost: %d", problem_name, dp_table.get_optimal_cost())
+                        superreads_list, transmission_vector = dp_table.get_super_reads()
+                        logger.debug("%s cost: %d", problem_name, dp_table.get_optimal_cost())
 
                 with timers("components"):
                     overall_components = compute_overall_components(
@@ -598,7 +604,7 @@ def run_whatshap(
                     )
                     log_component_stats(overall_components, len(accessible_positions))
 
-                if recombination_list_filename:
+                if recombination_list_filename and algorithm != "heuristic":
                     n_recombinations = write_recombination_list(
                         recombination_list_filename,
                         chromosome,
@@ -622,7 +628,7 @@ def run_whatshap(
                     # identical for all samples
                     components[sample] = overall_components
 
-                if read_list:
+                if read_list and algorithm != "heuristic":
                     read_list.write(
                         all_reads,
                         dp_table.get_optimal_partitioning(),
@@ -1030,7 +1036,7 @@ def add_arguments(parser):
         "HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)")
     arg("--output-read-list", metavar="FILE", default=None, dest="read_list_filename",
         help="Write reads that have been used for phasing to FILE.")
-    arg("--algorithm", choices=("whatshap", "hapchat"), default="whatshap",
+    arg("--algorithm", choices=("whatshap", "hapchat", "heuristic"), default="whatshap",
         help="Phasing algorithm to use (default: %(default)s)")
 
     arg = parser.add_argument_group("Input pre-processing, selection and filtering").add_argument
@@ -1039,6 +1045,8 @@ def add_arguments(parser):
         "(default: do not merge reads)")
     arg("--max-coverage", "-H", metavar="MAXCOV", type=int,
         dest="max_coverage_was_used", help=SUPPRESS)
+    arg("--row-limit", "-L", metavar="ROWLIMIT", type=int,
+        dest="row_limit", help=SUPPRESS)
     arg("--internal-downsampling", metavar="COVERAGE", dest="max_coverage", default=15, type=int,
         help="Coverage reduction parameter in the internal core phasing algorithm. "
         "Higher values increase runtime *exponentially* while possibly improving phasing "

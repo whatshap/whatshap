@@ -42,7 +42,7 @@ class MecHeuristic {
 public:
 
     MecHeuristic(uint32_t rowLimit, bool weighted, bool allHet);
-    std::vector<std::vector<Allele>> computeHaplotypes(ReadSet* rs) const;
+    std::vector<std::vector<Allele>> computeHaplotypes(ReadSet* rs, ReadSet* output) const;
 
 private:
     uint32_t rowLimit;
@@ -54,8 +54,8 @@ private:
     std::vector<std::pair<Bipartition, MecScore>> generateExtensions(std::vector<Allele>& alleleList, bool reverse, uint32_t limit) const;
     std::vector<std::vector<uint32_t>> generateCombinations(const uint32_t n, const uint32_t k) const;
     bool bpEqual(Bipartition a, Bipartition b) const;
-    
-    void printColumnInfo(Position p, std::vector<ReadId> startIndex, std::vector<BipartitionItem> col) const;
+    Allele getAllele(ReadSet* rs, ReadId rid, uint32_t genPos) const;    
+    void printColumnInfo(Position p, std::vector<ReadId>& startIndex, std::vector<BipartitionItem>& col) const;
 };
 
 #endif

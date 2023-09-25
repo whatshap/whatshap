@@ -11,7 +11,7 @@ Wrappers for core C++ classes.
 from libcpp cimport bool
 from libcpp.string cimport string
 from libcpp.vector cimport vector
-from libc.stdint cimport uint32_t, uint64_t
+from libc.stdint cimport int8_t, uint32_t, uint64_t
 from . cimport cpp
 
 from .variant import Variant
@@ -621,4 +621,8 @@ cdef class MecHeuristic:
 		del self.thisptr
 		
 	def computeHaplotypes(self, ReadSet rs):
-		return self.thisptr.computeHaplotypes(rs.thisptr)
+		#cdef cpp.ReadSet* output = new cpp.ReadSet()
+		output = ReadSet()
+		cdef vector[vector[int8_t]] haps = self.thisptr.computeHaplotypes(rs.thisptr, output.thisptr)
+
+		return haps, output
