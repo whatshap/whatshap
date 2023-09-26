@@ -506,7 +506,7 @@ def run_whatshap(
                             "Kept %d reads that cover at least two variants each", len(readset)
                         )
                         merged_reads = read_merger.merge(readset)
-                        if algorithm != "heuristic" or True:
+                        if algorithm != "heuristic":
                             selected_reads = select_reads(
                                 merged_reads,
                                 max_coverage_per_sample,
