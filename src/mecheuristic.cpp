@@ -27,7 +27,8 @@ std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, Re
     std::vector<BipartitionItem> lastCol;
     std::vector<ReadId> active;
     std::vector<std::vector<RowIndex>> mBt (n, std::vector<RowIndex>());
-    std::vector<std::vector<Bipartition>> mBp (n, std::vector<Bipartition>());
+    // std::vector<std::vector<Bipartition>> mBp (n, std::vector<Bipartition>());
+    std::vector<std::pair<uint32_t, Bipartition>> mBp;
         
     // compute index of first read starting at position p (for p = 0, 1, ..., n - 1, n)
     startIndex.push_back(0);
@@ -45,12 +46,16 @@ std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, Re
         active.push_back(r);
     }
     std::vector<std::pair<Bipartition, MecScore>> extensions = generateExtensions(newAlleles, false);
+    Bipartition btVector;
     for (uint32_t i = 0; i < extensions.size(); i++) {
         auto a = extensions[i];
         lastCol.emplace_back(a.first, a.first, a.second, 0);
         mBt[0].push_back(0);
-        mBp[0].push_back(a.first);
+        // mBp[0].push_back(a.first);
+        btVector.insert(btVector.end(), a.first.begin(), a.first.end());
     }
+    mBp.emplace_back(newAlleles.size(), btVector);
+    btVector.clear();
     printColumnInfo(0, startIndex, lastCol);
     
     // DP recurrence
@@ -103,7 +108,7 @@ std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, Re
             newAlleles.push_back(getAllele(rs, r, positions[p]));
             ingoing.push_back(r);
         }
-        std::vector<std::pair<Bipartition, MecScore>> extensions = generateExtensions(newAlleles, false);
+        std::vector<std::pair<Bipartition, MecScore>> extensions = generateExtensions(newAlleles, true);
 
         // precompute allele distribution (0 = #0 in part. 0, 1 = #1 in part 0, 2 = #0 in part 1, 3 = #1 in part 1)
         std::vector<std::vector<MecScore>> distBp;
@@ -168,9 +173,12 @@ std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, Re
             if (candidates[i].score < tooHigh || candidates[i].score == candidates[0].score) {
                 lastCol.push_back(candidates[i]);
                 mBt[p].push_back(candidates[i].bt);
-                mBp[p].push_back(candidates[i].bpNew);
+                btVector.insert(btVector.end(), candidates[i].bpNew.begin(), candidates[i].bpNew.end());
+                // mBp[p].push_back(candidates[i].bpNew);
             }
         }
+        mBp.emplace_back(ingoing.size(), btVector);
+        btVector.clear();
         printColumnInfo(p, startIndex, lastCol);
     }
     
@@ -183,22 +191,18 @@ std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, Re
             ri = i;
         }
     }
-    // std::cout<<"Best score "<<s<<" in row "<<ri<<std::endl;
     
     // backtracking
     Bipartition full(m, false);
     for (Position p = n - 1;p < p + 1; p--) {
         ReadId offset = startIndex[p];
-        Bipartition current = mBp[p][ri];
+        // Bipartition current = mBp[p][ri];
+        ReadId newCount = mBp[p].first;
+        Bipartition current(mBp[p].second.begin() + newCount * ri, mBp[p].second.begin() + newCount * (ri + 1));
         for (uint32_t i = 0; i < current.size(); i++)
             full[offset + i] = current[i];
         ri = mBt[p][ri];
-        // std::cout<<"Backtracking to row "<<ri<<" in column "<<p<<std::endl;
     }
-    // std::cout<<"Global bipartition: ";
-    // for (uint32_t i = 0; i < full.size(); i++)
-    //     std::cout<<(full[i] ? 1 : 0);
-    // std::cout<<std::endl;
     
     // get allele votes
     std::vector<std::vector<uint32_t>> vote(n, std::vector<uint32_t>(4, 0));
@@ -224,14 +228,6 @@ std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, Re
         }
     }
     
-    // std::cout<<"Haplotypes: "<<std::endl;;
-    // for (uint32_t i = 0; i < n; i++)
-    //     std::cout<<(uint32_t)haps[0][i];
-    // std::cout<<std::endl;
-    // for (uint32_t i = 0; i < n; i++)
-    //     std::cout<<(uint32_t)haps[1][i];
-    // std::cout<<std::endl;
-    
     Read* read0 = new Read("superread_0_0", -1, -1, 0);
     Read* read1 = new Read("superread_1_0", -1, -1, 0);
     
@@ -248,11 +244,6 @@ std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, Re
 
 
 std::vector<std::pair<Bipartition, MecScore>> MecHeuristic::generateExtensions(std::vector<Allele>& alleleList, bool symmetric) const {
-    // std::cout<<"Generate extensions on [ ";
-    // for (Allele a : alleleList) {
-    //     std::cout<<(int)a<<" ";
-    // }
-    // std::cout<<"]"<<std::endl;
     if (symmetric && alleleList.size() > 0) {
         std::vector<std::pair<Bipartition, MecScore>> e1 = generateExtensions(alleleList, false, (rowLimit + 1) / 2);
         std::vector<std::pair<Bipartition, MecScore>> e2 = generateExtensions(alleleList, true, rowLimit / 2);
@@ -281,33 +272,21 @@ std::vector<std::pair<Bipartition, MecScore>> MecHeuristic::generateExtensions(s
         }
     }
     results.emplace_back(opt, 0);
-    // std::cout<<"Generated (opt) ";
-    // for (bool bi : opt)
-    //     std::cout<<(bi ? 1 : 0);
-    // std::cout<<std::endl;
     
     // generate all bipartitions, where exactly i elements are placed differently than in pivot
-    for (uint32_t i = 1; i < n; i++) {
+    for (uint32_t i = 1; i <= n; i++) {
         std::vector<std::vector<uint32_t>> candidates = generateCombinations(n, i);
         // if all combinations with i differences fit into row limit, add them all ...
         if (candidates.size() + results.size() <= limit) {
             for (std::vector<uint32_t>& changed : candidates) {
-                // std::cout<<"   Combination [ ";
-                // for (uint32_t c : changed)
-                //     std::cout<<c<<" ";
-                // std::cout<<"]"<<std::endl;
                 Bipartition b(opt);
                 for (uint32_t j : changed) {
                     assert(j < b.size());
                     b[j] = !b[j];
                 }
-                results.emplace_back(b, i); // this crashes if b is larger than 4
-                // std::cout<<"Generated ";
-                // for (bool bi : b)
-                //     std::cout<<(bi ? 1 : 0);
+                results.emplace_back(b, i);
             }
         } else { // ... otherwise stop
-            // std::cout<<"Limit reached"<<std::endl;
             break;
         }
     }    
@@ -326,24 +305,14 @@ std::vector<std::vector<uint32_t>> MecHeuristic::generateCombinations(const uint
     assert(k < v.size());
     while (v[k] == 0) {
         // report current combination
-        // std::cout<<"Intermediate v: ";
-        // for (uint32_t x : v)
-        //     std::cout<<x;
-        // std::cout<<std::endl;
         results.emplace_back(v.begin(), v.end() - 1);
         // increment first component
         uint32_t i = 0;
         v[0]++;
         // propagate overflows
-        //assert(i < v.size());
         while (i < k && v[i] >= n - i) {
             i++;
             v[i]++;
-            // std::cout<<"   while "<<i<<": ";
-            // for (uint32_t x : v)
-            //     std::cout<<x;
-            // std::cout<<std::endl;
-            //assert(i < v.size());
         }
         // i := first position without overflow. All preceeding indices are reset
         for (uint32_t j = i - 1; j < j + 1; j--) {
@@ -384,13 +353,6 @@ void MecHeuristic::printColumnInfo(Position p, std::vector<ReadId>& startIndex, 
             s = col[i].score;
     assert(p + 1 < startIndex.size());
     std::cout<<"Column "<<p<<": ["<<startIndex[p]<<": "<<startIndex[p + 1] - 1<<"] with "<<col.size()<<" bipartitions and score "<<s<<std::endl;
-    // for (RowIndex i = 0; i < col.size(); i++) {
-    //     std::cout<<"   "<<i<<": "<<col[i].score<<" (-> "<<col[i].bt<<") via (size = "<<col[i].bp.size()<<") ";
-    //     for (uint32_t j = 0; j < col[i].bp.size(); j++) {
-    //         std::cout<<(col[i].bp[j] ? 1 : 0);
-    //     }
-    //     std::cout<<std::endl;
-    // }
 }
 
 
