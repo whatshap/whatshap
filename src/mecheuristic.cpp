@@ -14,7 +14,7 @@ MecHeuristic::MecHeuristic(uint32_t rowLimit, bool weighted, bool allHet) :
 {
 }
 
-std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, ReadSet* output) const {
+std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, ReadSet* output) {
     ReadId m = rs->size();
     std::vector<uint32_t>* posptr = rs->get_positions();
     std::vector<uint32_t> positions(posptr->begin(), posptr->end());
@@ -27,7 +27,6 @@ std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, Re
     std::vector<BipartitionItem> lastCol;
     std::vector<ReadId> active;
     std::vector<std::vector<RowIndex>> mBt (n, std::vector<RowIndex>());
-    // std::vector<std::vector<Bipartition>> mBp (n, std::vector<Bipartition>());
     std::vector<std::pair<uint32_t, Bipartition>> mBp;
         
     // compute index of first read starting at position p (for p = 0, 1, ..., n - 1, n)
@@ -51,7 +50,6 @@ std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, Re
         auto a = extensions[i];
         lastCol.emplace_back(a.first, a.first, a.second, 0);
         mBt[0].push_back(0);
-        // mBp[0].push_back(a.first);
         btVector.insert(btVector.end(), a.first.begin(), a.first.end());
     }
     mBp.emplace_back(newAlleles.size(), btVector);
@@ -71,20 +69,29 @@ std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, Re
                 kept.push_back(i);
             }
         }
+        
         // copy bipartitions, but without the lost reads
         std::vector<MecScore> scoreTemp;
         std::vector<Bipartition> bpTemp;
+        std::unordered_map<uint64_t, std::vector<uint32_t>> buckets;
         std::vector<RowIndex> btTemp;
         // i := index of BP in last column
         // j := index of BP in current column (at least those that exist yet)
         for (uint32_t i = 0; i < lastCol.size(); i++) {     
             Bipartition lastBp = lastCol[i].bp;
             Bipartition b(kept.size(), false);
+            uint32_t bucket = 0;
             for (uint32_t a = 0; a < kept.size(); a++) {
-                b[a] = lastBp[kept[a]];
+                bool bo = lastBp[kept[a]];
+                b[a] = bo;
+                bucket = (bucket << 1) + bo;
             }
             bool duplicate = false;
-            for (uint32_t j = 0; j < bpTemp.size(); j++) {
+            
+            // use buckets (last 64 bits of bipartition bitvector) to avoid full pairwise check
+            if (buckets.find(bucket) == buckets.end())
+                buckets[bucket] = std::vector<uint32_t>();
+            for (uint32_t j : buckets[bucket]) {
                 if (bpEqual(b, bpTemp[j])) {
                     duplicate = true;
                     if (lastCol[i].score < lastCol[btTemp[j]].score) {
@@ -95,11 +102,13 @@ std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, Re
                 }
             }
             if (!duplicate) {
+                buckets[bucket].push_back(bpTemp.size());
                 bpTemp.push_back(b);
                 scoreTemp.push_back(lastCol[i].score);
                 btTemp.push_back(i);
             }
         }
+        buckets.clear();
         
         // precompute possible extensions based on new reads
         std::vector<Allele> newAlleles;
@@ -139,42 +148,46 @@ std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, Re
         }
         
         // combine all old bipartitions with all extensions
-        std::vector<BipartitionItem> candidates;
-        uint32_t s = active.size() + ingoing.size();
+        active.insert(active.end(), ingoing.begin(), ingoing.end());
+        std::vector<MecScore> candScores;
+        // only compute scores first ...
         for (uint32_t i = 0; i < bpTemp.size(); i++) {
             for (uint32_t j = 0; j < extensions.size(); j++) {
-                // construct combined bipartition
-                Bipartition e = extensions[j].first;
-                Bipartition b(bpTemp[i]);                
-                b.reserve(s);
-                b.insert(b.end(), e.begin(), e.end());
-                
                 // construct score (bt is taken from btTemp)
-                std::vector<MecScore> dist(4, 0.0);
-                for (uint32_t k = 0; k < 4; k++) {
-                    dist[k] += distBp[i][k];
-                    dist[k] += distExt[j][k];
-                }
+                MecScore dist00 = distBp[i][0] + distExt[j][0];
+                MecScore dist01 = distBp[i][1] + distExt[j][1];
+                MecScore dist10 = distBp[i][2] + distExt[j][2];
+                MecScore dist11 = distBp[i][3] + distExt[j][3];
                 MecScore sc = scoreTemp[i];
                 if (allHet)
-                    sc += std::min(dist[0] + dist[3], dist[1] + dist[2]);
+                    sc += std::min(dist00 + dist11, dist01 + dist10);
                 else
-                    sc += std::min(dist[0], dist[1]) + std::min(dist[2], dist[3]);
-                candidates.emplace_back(b, Bipartition(e), sc, btTemp[i]);
+                    sc += std::min(dist00, dist01) + std::min(dist10, dist11);
+                candScores.push_back(sc);
             }
         }
-        active.insert(active.end(), ingoing.begin(), ingoing.end());
-                
-        // sort by score and just save the rowLimit best
+        std::sort(candScores.begin(), candScores.end());
+        MecScore tooHigh = candScores.size() > rowLimit ? candScores[rowLimit] : std::numeric_limits<MecScore>::infinity();
+        
+        // .. and then construct solutions only if score is sufficient (performance reasons)
         lastCol.clear();
-        std::sort(candidates.begin(), candidates.end());
-        MecScore tooHigh = candidates.size() > rowLimit ? candidates[rowLimit].score : std::numeric_limits<MecScore>::infinity();
-        for (uint32_t i = 0; i < rowLimit && i < candidates.size(); i++) {
-            if (candidates[i].score < tooHigh || candidates[i].score == candidates[0].score) {
-                lastCol.push_back(candidates[i]);
-                mBt[p].push_back(candidates[i].bt);
-                btVector.insert(btVector.end(), candidates[i].bpNew.begin(), candidates[i].bpNew.end());
-                // mBp[p].push_back(candidates[i].bpNew);
+        for (uint32_t i = 0; i < bpTemp.size(); i++) {
+            for (uint32_t j = 0; j < extensions.size(); j++) {
+                // TODO: Avoid duplicate score calculation without using complex structs as candidates
+                MecScore dist00 = distBp[i][0] + distExt[j][0];
+                MecScore dist01 = distBp[i][1] + distExt[j][1];
+                MecScore dist10 = distBp[i][2] + distExt[j][2];
+                MecScore dist11 = distBp[i][3] + distExt[j][3];
+                MecScore sc = scoreTemp[i];
+                if (allHet)
+                    sc += std::min(dist00 + dist11, dist01 + dist10);
+                else
+                    sc += std::min(dist00, dist01) + std::min(dist10, dist11);
+                if (sc < tooHigh || sc == candScores[0]) {
+                    lastCol.emplace_back(bpTemp[i], extensions[j].first, sc, btTemp[i]);
+                    mBt[p].push_back(lastCol[lastCol.size() - 1].bt);
+                    btVector.insert(btVector.end(), extensions[j].first.begin(), extensions[j].first.end());
+                }
             }
         }
         mBp.emplace_back(ingoing.size(), btVector);
@@ -196,7 +209,6 @@ std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, Re
     Bipartition full(m, false);
     for (Position p = n - 1;p < p + 1; p--) {
         ReadId offset = startIndex[p];
-        // Bipartition current = mBp[p][ri];
         ReadId newCount = mBp[p].first;
         Bipartition current(mBp[p].second.begin() + newCount * ri, mBp[p].second.begin() + newCount * (ri + 1));
         for (uint32_t i = 0; i < current.size(); i++)
@@ -243,7 +255,7 @@ std::vector<std::vector<Allele>> MecHeuristic::computeHaplotypes(ReadSet* rs, Re
 }
 
 
-std::vector<std::pair<Bipartition, MecScore>> MecHeuristic::generateExtensions(std::vector<Allele>& alleleList, bool symmetric) const {
+std::vector<std::pair<Bipartition, MecScore>> MecHeuristic::generateExtensions(std::vector<Allele>& alleleList, bool symmetric) {
     if (symmetric && alleleList.size() > 0) {
         std::vector<std::pair<Bipartition, MecScore>> e1 = generateExtensions(alleleList, false, (rowLimit + 1) / 2);
         std::vector<std::pair<Bipartition, MecScore>> e2 = generateExtensions(alleleList, true, rowLimit / 2);
@@ -255,7 +267,7 @@ std::vector<std::pair<Bipartition, MecScore>> MecHeuristic::generateExtensions(s
 }
 
 
-std::vector<std::pair<Bipartition, MecScore>> MecHeuristic::generateExtensions(std::vector<Allele>& alleleList, bool reverse, uint32_t limit) const {
+std::vector<std::pair<Bipartition, MecScore>> MecHeuristic::generateExtensions(std::vector<Allele>& alleleList, bool reverse, uint32_t limit) {
     std::vector<std::pair<Bipartition, MecScore>> results;
     Bipartition opt(alleleList.size());
     uint32_t n = alleleList.size();
@@ -294,7 +306,7 @@ std::vector<std::pair<Bipartition, MecScore>> MecHeuristic::generateExtensions(s
 }
 
 
-std::vector<std::vector<uint32_t>> MecHeuristic::generateCombinations(const uint32_t n, const uint32_t k) const {
+std::vector<std::vector<uint32_t>> MecHeuristic::generateCombinations(const uint32_t n, const uint32_t k) {
     assert(n >= k);
     std::vector<std::vector<uint32_t>> results;
     std::vector<uint32_t> v(k + 1, 0);
@@ -325,7 +337,7 @@ std::vector<std::vector<uint32_t>> MecHeuristic::generateCombinations(const uint
 }
 
 
-bool MecHeuristic::bpEqual(Bipartition a, Bipartition b) const {
+bool MecHeuristic::bpEqual(Bipartition a, Bipartition b) {
     uint32_t m = a.size();
     if (m != b.size())
         return false;
@@ -336,7 +348,7 @@ bool MecHeuristic::bpEqual(Bipartition a, Bipartition b) const {
 }
 
 
-Allele MecHeuristic::getAllele(ReadSet* rs, ReadId rid, uint32_t genPos) const {
+Allele MecHeuristic::getAllele(ReadSet* rs, ReadId rid, uint32_t genPos) {
     assert(rid < rs->size());
     Read* r = rs->get(rid);
     for (int32_t i = 0; i < r->getVariantCount(); i++)
@@ -346,7 +358,7 @@ Allele MecHeuristic::getAllele(ReadSet* rs, ReadId rid, uint32_t genPos) const {
 }
 
 
-void MecHeuristic::printColumnInfo(Position p, std::vector<ReadId>& startIndex, std::vector<BipartitionItem>& col) const {
+void MecHeuristic::printColumnInfo(Position p, std::vector<ReadId>& startIndex, std::vector<BipartitionItem>& col) {
     MecScore s = col[0].score;
     for (uint32_t i = 1; i < col.size(); i++)
         if (col[i].score < s)
