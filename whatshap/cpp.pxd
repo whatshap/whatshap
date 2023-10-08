@@ -250,5 +250,5 @@ cdef extern from "../src/caller.h":
 
 cdef extern from "../src/mecheuristic.h":
     cdef cppclass MecHeuristic:
-        MecHeuristic(uint32_t rowLimit, bool weighted, bool allHet) except +
+        MecHeuristic(uint32_t rowLimit, bool allHet) except +
         vector[vector[int8_t]] computeHaplotypes(ReadSet* rs, ReadSet* output) except +
