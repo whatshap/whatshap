@@ -576,7 +576,7 @@ def run_whatshap(
                         logger.debug("%s cost: %d", problem_name, dp_table.get_optimal_cost())
                     elif algorithm == "heuristic":
                         all_reads.sort()
-                        mh = MecHeuristic(row_limit, True, True)
+                        mh = MecHeuristic(row_limit, True)
                         haps, sr = mh.computeHaplotypes(all_reads)
                         superreads_list = [sr]
                         transmission_vector = None
