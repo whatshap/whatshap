@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def add_arguments(parser):
     arg = parser.add_argument
-    arg("--reference", metavar="FASTA", help="Reference genome", required=True)
+    arg("--reference", "-r", metavar="FASTA", help="Reference genome", required=True)
     arg("--bam", metavar="BAM", help="Aligned reads", required=True)
     arg("--vcf", metavar="VCF", help="Variants", required=True)
     arg("-k", "--kmer", dest="k", metavar="K", help="k-mer size", type=int, required=True)
@@ -24,7 +24,7 @@ def add_arguments(parser):
         type=int,
         required=True,
     )
-    arg("--output", metavar="OUT", help="The output file with kmer-pair counts", required=True)
+    arg("--output", "-o", metavar="OUT", help="Output file with kmer-pair counts", required=True)
 
 
 def run_learn(reference, bam, vcf, k: int, window: int, output):
