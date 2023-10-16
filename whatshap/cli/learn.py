@@ -13,54 +13,50 @@ logger = logging.getLogger(__name__)
 
 def add_arguments(parser):
     arg = parser.add_argument
-    arg("--reference", metavar="FASTA", help="Reference genome", required=True)
-    arg("--bam", metavar="BAM", help="Aligned reads", required=True)
-    arg("--vcf", metavar="VCF", help="Variants", required=True)
-    arg("--kmer", metavar="KMER", help="kmer size", required=True)
+    arg("bam", metavar="BAM", help="Read alignments")
+    arg("vcf", metavar="VCF", help="List of variants")
+    arg("--reference", "-r", metavar="FASTA", help="Reference genome", required=True)
+    arg("-k", "--kmer", dest="k", metavar="K", help="k-mer size", type=int, default=7)
     arg(
         "--window",
+        "-w",
         metavar="WINDOW",
         help="Ignore this many bases on the left and right of each variant position",
-        required=True,
+        type=int,
+        default=25,
     )
-    arg("--output", metavar="OUT", help="The output file with kmer-pair counts", required=True)
+    arg("--output", "-o", metavar="OUT", help="Output file with kmer-pair counts", required=True)
 
 
-def run_learn(reference, bam, vcf, kmer, window, output):
-    fasta = pyfaidx.Fasta(reference, as_raw=True)
-    bamfile = pysam.AlignmentFile(bam)
-    variantslist = []
-    call = 0
-    vcf_in = VariantFile(vcf)
-    for variant in vcf_in.fetch():
-        variantslist.append((variant.pos, len(variant.ref)))
-    variant = 0
-    encoded_references = {}
-    chromosome = None
-    open(output, "w").close()
-    output_c = str(output).encode("UTF-8")
-    for bam_alignment in bamfile:
-        if not bam_alignment.is_unmapped and bam_alignment.query_alignment_sequence is not None:
-            if bam_alignment.reference_name != chromosome:
-                chromosome = bam_alignment.reference_name
-                if chromosome in encoded_references:
-                    caller = Caller(encoded_references[chromosome], int(kmer), int(window))
-                else:
+def run_learn(reference, bam, vcf, k: int, window: int, output):
+    with VariantFile(vcf) as vcf:
+        variants = [(variant.pos, len(variant.ref)) for variant in vcf.fetch()]
+
+    with pyfaidx.Fasta(reference, as_raw=True) as fasta, pysam.AlignmentFile(bam) as bamfile:
+        call = 0
+        encoded_references = {}
+        chromosome = None
+        open(output, "w").close()
+        output_c = str(output).encode("UTF-8")
+        for alignment in bamfile:
+            if alignment.is_unmapped or alignment.query_alignment_sequence is None:
+                continue
+            if alignment.reference_name != chromosome:
+                chromosome = alignment.reference_name
+                if chromosome not in encoded_references:
                     ref = fasta[chromosome]
                     encoded_references[chromosome] = str(ref).encode("UTF-8")
-                    caller = Caller(encoded_references[chromosome], int(kmer), int(window))
+                caller = Caller(encoded_references[chromosome], k, window)
             if call == 0:
-                caller.all_variants(variantslist)
+                caller.all_variants(variants)
                 call = 1
-            else:
-                pass
             caller.add_read(
-                bam_alignment.pos,
-                bam_alignment.cigartuples,
-                str(bam_alignment.query_alignment_sequence).encode("UTF-8"),
+                alignment.pos,
+                alignment.cigartuples,
+                str(alignment.query_alignment_sequence).encode("UTF-8"),
                 output_c,
             )
-    caller.final_pop(output_c)
+        caller.final_pop(output_c)
 
 
 def main(args):

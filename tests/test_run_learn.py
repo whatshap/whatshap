@@ -14,7 +14,7 @@ def test_run_learn(tmp_path):
         reference="tests/data/short-genome/learn-data/short_ref.fasta",
         bam="tests/data/short-genome/learn-data/short-reads.bam",
         vcf="tests/data/short-genome/learn-data/variant.vcf",
-        kmer=7,
+        k=7,
         window=25,
         output=observed,
     )
