@@ -188,6 +188,7 @@ def run_polyphase(
                     with timers("write_vcf"):
                         superreads, components = dict(), dict()
                         vcf_writer.write(chromosome, superreads, components)
+                    timers.start("parse_vcf")
                     continue
 
                 # These two variables hold the phasing results for all samples

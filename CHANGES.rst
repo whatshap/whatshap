@@ -14,6 +14,8 @@ development version
   specific technology using ``whatshap learn``.
 * :issue:`470`: Avoid ZeroDivisionError in ``whatshap stats`` when there
   are no heterozygous or no phased variants.
+* :issue:`485`: Fixed a KeyError: 'parse_vcf' in ``whatshap polyphase`` when a
+  full chromosome is skipped.
 
 v2.0 (2023-06-30)
 -----------------
