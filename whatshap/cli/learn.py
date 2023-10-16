@@ -40,11 +40,11 @@ def run_learn(reference, bam, vcf, k: int, window: int, output):
         chromosome = None
         open(output, "w").close()
         output_c = str(output).encode("UTF-8")
-        for bam_alignment in bamfile:
-            if bam_alignment.is_unmapped or bam_alignment.query_alignment_sequence is None:
+        for alignment in bamfile:
+            if alignment.is_unmapped or alignment.query_alignment_sequence is None:
                 continue
-            if bam_alignment.reference_name != chromosome:
-                chromosome = bam_alignment.reference_name
+            if alignment.reference_name != chromosome:
+                chromosome = alignment.reference_name
                 if chromosome in encoded_references:
                     caller = Caller(encoded_references[chromosome], k, window)
                 else:
@@ -57,9 +57,9 @@ def run_learn(reference, bam, vcf, k: int, window: int, output):
             else:
                 pass
             caller.add_read(
-                bam_alignment.pos,
-                bam_alignment.cigartuples,
-                str(bam_alignment.query_alignment_sequence).encode("UTF-8"),
+                alignment.pos,
+                alignment.cigartuples,
+                str(alignment.query_alignment_sequence).encode("UTF-8"),
                 output_c,
             )
         caller.final_pop(output_c)
