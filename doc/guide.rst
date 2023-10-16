@@ -400,8 +400,8 @@ relationships between samples and ``input.vcf`` is a multi-sample VCF
 with all individuals that should be phased. The reads for all individuals
 can be in one or more BAM/CRAM files. WhatsHap will match them based on sample
 names provided in the read groups (just like for the default single-individual
-mode). 
-In the resulting VCF file (``phased.vcf``), 
+mode).
+In the resulting VCF file (``phased.vcf``),
 haplotype alleles of a child are given as paternal|maternal, i.e.
 the first allele is the one inherited from the father and the second one
 the allele inherited from the mother.
@@ -725,7 +725,7 @@ how this is done, if you used ``--reference`` with your ``phase`` command, you
 should alse use ``--reference`` here.
 
 When using 10X Genomics BAM files, ``haplotag`` reads the BX tags and per default
-assigns reads that belong to the same read cloud to the same haplotype. 
+assigns reads that belong to the same read cloud to the same haplotype.
 This feature can be switched off using the ``--ignore-linked-read`` flag.
 
 The input VCF may have been phased by any program, not only WhatsHap, as long as
@@ -821,8 +821,8 @@ If Nanopore reads are used for calling SNPs, it is recommended to add option --n
 whatshap polyphase: Polyploid Phasing
 =====================================
 
-In addition to diploid phasing, WhatsHap also supports polyploid phasing 
-through a different algorithm. The ``whatshap polyphase`` command works 
+In addition to diploid phasing, WhatsHap also supports polyploid phasing
+through a different algorithm. The ``whatshap polyphase`` command works
 similarly to the ``phase`` command::
 
     whatshap polyphase input.vcf input.bam --ploidy p --reference ref.fasta -o output.vcf
@@ -847,7 +847,7 @@ accuracy when compared to a human one. We observed both improvements and
 regressions in phasing accuracy when providing the phaser with a reference
 sequence, so there is no clear recommendation whether to use it or not.
 
-There is no strict limitation regarding the coverage of the input reads. 
+There is no strict limitation regarding the coverage of the input reads.
 However, the running time grows quadratically with the coverage, so be aware
 that very deep sequencing data might take a long time.
 
@@ -868,7 +868,7 @@ no reads connect two consecutive variants. The parameter
 phaser will cut the phasing. Valid values range from 0 to 5 with a default of
 4. A lower sensitivity will produce longer phasing blocks, but keep in mind
 that this will lead to more switch errors when haplotype sequences become
-(almost) identical. 
+(almost) identical.
 
 The optional flag ``--use-prephasing`` reads existing phasing information in
 the input VCF and adds them to the phasing process. Unlike for the ``phase``
@@ -877,7 +877,7 @@ scaffolding information to increase the continuity of phasing blocks produced
 by the polyphase algorithm. Depending on the density of pre-phased variants you
 might consider reducing the block cut sensitivity to lower levels.
 
-In VCF format, it is common to specifiy the block IDs in the 
+In VCF format, it is common to specifiy the block IDs in the
 ``Phase set identifier`` field (``PS``). Since this ID refers to the variant
 itself, it is not possible to report which haplotypes should be cut and which
 ones could be phased through. This information can be accessed via the ``HS``
@@ -916,7 +916,7 @@ of 6 per progeny sample.
 Since no read data is used here, the workflow differs from ``whatshap polyphase``::
 
     whatshap polyphasegenetic parent.vcf ped.txt [-P progeny.vcf] --ploidy p --sample s -o output.vcf
-    
+
 The parental VCF file must contain genotype information of both parent samples
 and may contain genotype information for the progeny samples. If the progeny
 genotypes are not present in the parental VCF, they must be provided in a
@@ -1170,11 +1170,11 @@ It can be used as follows:
 
 * Get reference-read ``kmer_pair_counts`` using ``whatshap learn``
 * Convert the ``kmer_pair_counts`` into phred-scores as follows::
-    
+
     python3 -m whatshap.phred_scores -i kmer_pair_counts_dir -o phred_scores.txt -k kmer_size -e pseudocount_value_for_unobserved_kmer_pairs
-    
+
   Note that ``kmer_pair_counts_dir`` is the path to the directory containing the output from single whole genome or multiple chromosome specific iterations of ``whatshap learn``.
 
 2. Use ``whatshap genotype`` with additional arguments for *k*-merald based genotyping::
-    
+
     whatshap genotype [options] --use-kmerald --reference ref.fasta variants.vcf reads.bam --kmeralign-costs phred_scores.txt --kmer-size kmer_size --kmerald-gappenalty gap_cost --kmerald-window window_size -o genotyped_variants.vcf
