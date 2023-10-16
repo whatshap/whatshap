@@ -28,15 +28,14 @@ def add_arguments(parser):
 
 
 def run_learn(reference, bam, vcf, k: int, window: int, output):
+    with VariantFile(vcf) as vcf:
+        variants = [(variant.pos, len(variant.ref)) for variant in vcf.fetch()]
+
     with (
         pyfaidx.Fasta(reference, as_raw=True) as fasta,
         pysam.AlignmentFile(bam) as bamfile,
-        VariantFile(vcf) as vcf_in,
     ):
-        variantslist = []
         call = 0
-        for variant in vcf_in.fetch():
-            variantslist.append((variant.pos, len(variant.ref)))
         encoded_references = {}
         chromosome = None
         open(output, "w").close()
@@ -53,7 +52,7 @@ def run_learn(reference, bam, vcf, k: int, window: int, output):
                     encoded_references[chromosome] = str(ref).encode("UTF-8")
                     caller = Caller(encoded_references[chromosome], k, window)
             if call == 0:
-                caller.all_variants(variantslist)
+                caller.all_variants(variants)
                 call = 1
             else:
                 pass
