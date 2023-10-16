@@ -45,12 +45,10 @@ def run_learn(reference, bam, vcf, k: int, window: int, output):
                 continue
             if alignment.reference_name != chromosome:
                 chromosome = alignment.reference_name
-                if chromosome in encoded_references:
-                    caller = Caller(encoded_references[chromosome], k, window)
-                else:
+                if chromosome not in encoded_references:
                     ref = fasta[chromosome]
                     encoded_references[chromosome] = str(ref).encode("UTF-8")
-                    caller = Caller(encoded_references[chromosome], k, window)
+                caller = Caller(encoded_references[chromosome], k, window)
             if call == 0:
                 caller.all_variants(variants)
                 call = 1
