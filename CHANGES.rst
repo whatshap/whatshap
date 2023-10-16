@@ -2,8 +2,8 @@
 Changes
 =======
 
-development version
--------------------
+v2.1 (2023-10-16)
+-----------------
 
 * We added *k*-merald, a new method for allele detection
   based on *k*-mer alignment. Instead of using a fixed cost value,
