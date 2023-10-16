@@ -35,7 +35,6 @@ def run_learn(reference, bam, vcf, k: int, window: int, output):
     vcf_in = VariantFile(vcf)
     for variant in vcf_in.fetch():
         variantslist.append((variant.pos, len(variant.ref)))
-    variant = 0
     encoded_references = {}
     chromosome = None
     open(output, "w").close()
