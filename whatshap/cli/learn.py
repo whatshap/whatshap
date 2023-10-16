@@ -52,8 +52,6 @@ def run_learn(reference, bam, vcf, k: int, window: int, output):
             if call == 0:
                 caller.all_variants(variants)
                 call = 1
-            else:
-                pass
             caller.add_read(
                 alignment.pos,
                 alignment.cigartuples,
