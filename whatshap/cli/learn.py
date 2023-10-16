@@ -13,16 +13,17 @@ logger = logging.getLogger(__name__)
 
 def add_arguments(parser):
     arg = parser.add_argument
+    arg("bam", metavar="BAM", help="Read alignments")
+    arg("vcf", metavar="VCF", help="List of variants")
     arg("--reference", "-r", metavar="FASTA", help="Reference genome", required=True)
-    arg("--bam", metavar="BAM", help="Aligned reads", required=True)
-    arg("--vcf", metavar="VCF", help="Variants", required=True)
-    arg("-k", "--kmer", dest="k", metavar="K", help="k-mer size", type=int, required=True)
+    arg("-k", "--kmer", dest="k", metavar="K", help="k-mer size", type=int, default=7)
     arg(
         "--window",
+        "-w",
         metavar="WINDOW",
         help="Ignore this many bases on the left and right of each variant position",
         type=int,
-        required=True,
+        default=25,
     )
     arg("--output", "-o", metavar="OUT", help="Output file with kmer-pair counts", required=True)
 

@@ -1151,13 +1151,13 @@ Given the aligned sequencing reads and a set of variants,
 Whatshap can be used to generate sequencing error profiles for a specific technology.
 It can be run using the following command::
 
-    whatshap learn --reference ref.fasta --bam reads.bam --vcf variants.vcf -k kmer_size --window window_size --output kmer_pair_counts
+    whatshap learn reads.bam variants.vcf -r ref.fasta -k kmer_size -w window_size -o kmer_pair_counts
 
 The ``kmer_pair_counts`` output file contains for each non-variant position in the reference genome, the observed count for each reference-read kmer pair.
 
 A few notes:
 
-* For ``window``, the number of bases you want to ignore on each side of the variant, should be specified.
+* ``window`` specifies the number of bases you want to ignore on each side of the variant. The default value is 25, i.e. 25 bases on the left and right side of the variant position would be ignored.
 * It is recommended to run ``whatshap learn`` in parallel on different chromosomes to save time, however, it is not mandatory.
 
 *k*-merald
