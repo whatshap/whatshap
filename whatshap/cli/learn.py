@@ -31,10 +31,7 @@ def run_learn(reference, bam, vcf, k: int, window: int, output):
     with VariantFile(vcf) as vcf:
         variants = [(variant.pos, len(variant.ref)) for variant in vcf.fetch()]
 
-    with (
-        pyfaidx.Fasta(reference, as_raw=True) as fasta,
-        pysam.AlignmentFile(bam) as bamfile,
-    ):
+    with pyfaidx.Fasta(reference, as_raw=True) as fasta, pysam.AlignmentFile(bam) as bamfile:
         call = 0
         encoded_references = {}
         chromosome = None
