@@ -74,8 +74,10 @@ testpaths = ["tests", "whatshap"]
 
 [tool.cibuildwheel]
 environment = "CFLAGS=-g0"
-test-requires = "pytest"
-test-command = ["cd {project} ; pytest tests/test_run_phase.py"]
+# Disable tests for the moment because pip attempts to install pysam
+# from source for some reason although wheels exist.
+# test-requires = "pytest"
+# test-command = ["cd {project} ; pytest tests/test_run_phase.py"]
 
 [tool.ruff]
 line-length = 100
