@@ -16,7 +16,7 @@ def add_arguments(parser):
     arg("--reference", metavar="FASTA", help="Reference genome", required=True)
     arg("--bam", metavar="BAM", help="Aligned reads", required=True)
     arg("--vcf", metavar="VCF", help="Variants", required=True)
-    arg("--kmer", metavar="KMER", help="kmer size", required=True)
+    arg("-k", "--kmer", dest="k", metavar="K", help="k-mer size", required=True)
     arg(
         "--window",
         metavar="WINDOW",
@@ -26,7 +26,7 @@ def add_arguments(parser):
     arg("--output", metavar="OUT", help="The output file with kmer-pair counts", required=True)
 
 
-def run_learn(reference, bam, vcf, kmer, window, output):
+def run_learn(reference, bam, vcf, k, window, output):
     fasta = pyfaidx.Fasta(reference, as_raw=True)
     bamfile = pysam.AlignmentFile(bam)
     variantslist = []
@@ -44,11 +44,11 @@ def run_learn(reference, bam, vcf, kmer, window, output):
             if bam_alignment.reference_name != chromosome:
                 chromosome = bam_alignment.reference_name
                 if chromosome in encoded_references:
-                    caller = Caller(encoded_references[chromosome], int(kmer), int(window))
+                    caller = Caller(encoded_references[chromosome], int(k), int(window))
                 else:
                     ref = fasta[chromosome]
                     encoded_references[chromosome] = str(ref).encode("UTF-8")
-                    caller = Caller(encoded_references[chromosome], int(kmer), int(window))
+                    caller = Caller(encoded_references[chromosome], int(k), int(window))
             if call == 0:
                 caller.all_variants(variantslist)
                 call = 1
