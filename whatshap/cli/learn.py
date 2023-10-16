@@ -28,19 +28,22 @@ def add_arguments(parser):
 
 
 def run_learn(reference, bam, vcf, k: int, window: int, output):
-    fasta = pyfaidx.Fasta(reference, as_raw=True)
-    bamfile = pysam.AlignmentFile(bam)
-    variantslist = []
-    call = 0
-    vcf_in = VariantFile(vcf)
-    for variant in vcf_in.fetch():
-        variantslist.append((variant.pos, len(variant.ref)))
-    encoded_references = {}
-    chromosome = None
-    open(output, "w").close()
-    output_c = str(output).encode("UTF-8")
-    for bam_alignment in bamfile:
-        if not bam_alignment.is_unmapped and bam_alignment.query_alignment_sequence is not None:
+    with (
+        pyfaidx.Fasta(reference, as_raw=True) as fasta,
+        pysam.AlignmentFile(bam) as bamfile,
+        VariantFile(vcf) as vcf_in,
+    ):
+        variantslist = []
+        call = 0
+        for variant in vcf_in.fetch():
+            variantslist.append((variant.pos, len(variant.ref)))
+        encoded_references = {}
+        chromosome = None
+        open(output, "w").close()
+        output_c = str(output).encode("UTF-8")
+        for bam_alignment in bamfile:
+            if bam_alignment.is_unmapped or bam_alignment.query_alignment_sequence is None:
+                continue
             if bam_alignment.reference_name != chromosome:
                 chromosome = bam_alignment.reference_name
                 if chromosome in encoded_references:
@@ -60,7 +63,7 @@ def run_learn(reference, bam, vcf, k: int, window: int, output):
                 str(bam_alignment.query_alignment_sequence).encode("UTF-8"),
                 output_c,
             )
-    caller.final_pop(output_c)
+        caller.final_pop(output_c)
 
 
 def main(args):
