@@ -76,3 +76,7 @@ testpaths = ["tests", "whatshap"]
 environment = "CFLAGS=-g0"
 test-requires = "pytest"
 test-command = ["cd {project} ; pytest tests/test_run_phase.py"]
+
+[tool.ruff]
+line-length = 100
+ignore = ["E501"]  # line too long
