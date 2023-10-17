@@ -43,8 +43,11 @@ docs = [
 "Homepage" = "https://github.com/whatshap/whatshap"
 "Changelog" = "https://whatshap.readthedocs.io/en/latest/changes.html"
 
-[tool.setuptools.packages]
-find = {}
+[tool.setuptools.packages.find]
+include = ["whatshap*"]
+
+[tool.setuptools.exclude-package-data]
+whatshap = ["*.cpp"]
 
 [tool.setuptools_scm]
 write_to = "whatshap/_version.py"
