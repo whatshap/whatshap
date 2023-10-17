@@ -2,7 +2,7 @@
 Changes
 =======
 
-v2.1 (2023-10-16)
+v2.1 (2023-10-17)
 -----------------
 
 * We added *k*-merald, a new method for allele detection
