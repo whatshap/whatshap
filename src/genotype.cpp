@@ -85,7 +85,7 @@ uint64_t Genotype::get_index() const {
 	uint32_t index = 0;
 	uint32_t k = 1;
 	for (uint32_t i = 0; i < ploidy; i++) {
-		uint32_t allele = get_position(i);
+		uint32_t allele = get_position(ploidy-i-1);
 		index += binomial_coefficient(k + allele - 1, allele - 1);
 		k += 1;
 	}
