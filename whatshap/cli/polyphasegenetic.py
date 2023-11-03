@@ -161,11 +161,9 @@ def run_polyphasegenetic(
             output=output,
         )
 
-        timers.start("parse_vcf")
         try:
-            for variant_table in parent_reader:
+            for variant_table in timers.iterate("parse_vcf", parent_reader):
                 chromosome = variant_table.chromosome
-                timers.stop("parse_vcf")
 
                 if (not chromosomes) or (chromosome in chromosomes):
                     logger.info("======== Working on chromosome %r", chromosome)
@@ -212,8 +210,6 @@ def run_polyphasegenetic(
                     )
                     logger.info("Done writing VCF")
                 logger.debug("Chromosome %r finished", chromosome)
-                timers.start("parse_vcf")
-            timers.stop("parse_vcf")
         except PloidyError as e:
             raise CommandLineError(e)
 

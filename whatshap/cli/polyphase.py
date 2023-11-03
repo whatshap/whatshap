@@ -173,11 +173,9 @@ def run_polyphase(
             use_prephasing=use_prephasing,
         )
 
-        timers.start("parse_vcf")
         try:
-            for variant_table in vcf_reader:
+            for variant_table in timers.iterate("parse_vcf", vcf_reader):
                 chromosome = variant_table.chromosome
-                timers.stop("parse_vcf")
                 if (not chromosomes) or (chromosome in chromosomes):
                     logger.info("======== Working on chromosome %r", chromosome)
                 else:
@@ -188,7 +186,6 @@ def run_polyphase(
                     with timers("write_vcf"):
                         superreads, components = dict(), dict()
                         vcf_writer.write(chromosome, superreads, components)
-                    timers.start("parse_vcf")
                     continue
 
                 # These two variables hold the phasing results for all samples
@@ -272,8 +269,6 @@ def run_polyphase(
                     )
                     logger.info("Done writing VCF")
                 logger.debug("Chromosome %r finished", chromosome)
-                timers.start("parse_vcf")
-            timers.stop("parse_vcf")
         except PloidyError as e:
             raise CommandLineError(e)
 
