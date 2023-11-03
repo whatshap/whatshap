@@ -232,3 +232,12 @@ def test_polyphase_indels(tmp_path):
 
     ph = table_indel.phases_of(sample)
     assert {(a, b) for a, b in zip(ph[1].phase, ph[2].phase)} == {(0, 0), (0, 1), (1, 0), (1, 1)}
+
+
+def test_segfault_no_variants():
+    # Issue 441 and 496
+    run_polyphase(
+        variant_file="tests/data/onevariant.vcf",
+        phase_input_files=["tests/data/oneread.bam"],
+        ploidy=2,
+    )

@@ -223,6 +223,10 @@ def run_polyphase(
                         "Number of remaining heterozygous variants: %d", len(phasable_variant_table)
                     )
 
+                    if len(phasable_variant_table) < 2:
+                        logger.debug("Skipped phasing because there is only one variant")
+                        continue
+
                     # Get the reads belonging to this sample
                     timers.start("read_bam")
                     readset, vcf_source_ids = phased_input_reader.read(
@@ -235,6 +239,10 @@ def run_polyphase(
                     readset = readset.subset(
                         [i for i, read in enumerate(readset) if len(read) >= max(2, min_overlap)]
                     )
+                    if len(readset) == 0:
+                        logger.debug("Skipped phasing because no suitable reads remain")
+                        continue
+
                     logger.info("Kept %d reads that cover at least two variants each", len(readset))
 
                     # Adapt the variant table to the subset of reads
