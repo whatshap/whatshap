@@ -2,6 +2,11 @@
 Changes
 =======
 
+unreleased
+----------
+
+* :issue:`496`: Fixed a segmentation fault in polyphase.
+
 v2.1 (2023-10-17)
 -----------------
 
