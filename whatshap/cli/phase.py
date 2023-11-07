@@ -38,7 +38,7 @@ from whatshap.core import (
     NumericSampleIds,
     PhredGenotypeLikelihoods,
     HapChatCore,
-    MecHeuristic,
+    PedMecHeuristic,
 )
 from whatshap.readselect import readselection
 from whatshap.graph import ComponentFinder
@@ -576,10 +576,16 @@ def run_whatshap(
                         logger.debug("%s cost: %d", problem_name, dp_table.get_optimal_cost())
                     elif algorithm == "heuristic":
                         all_reads.sort()
-                        mh = MecHeuristic(row_limit, True)
-                        haps, sr = mh.computeHaplotypes(all_reads)
-                        superreads_list = [sr]
-                        transmission_vector = None
+                        mh = PedMecHeuristic(
+                            all_reads,
+                            recombination_costs,
+                            pedigree,
+                            distrust_genotypes,
+                            accessible_positions,
+                            row_limit,
+                            True,
+                        )
+                        superreads_list, transmission_vector = mh.get_super_reads()
                     else:
                         dp_table = PedigreeDPTable(
                             all_reads,
@@ -589,7 +595,7 @@ def run_whatshap(
                             accessible_positions,
                         )
                         superreads_list, transmission_vector = dp_table.get_super_reads()
-                        logger.debug("%s cost: %d", problem_name, dp_table.get_optimal_cost())
+                        logger.info("%s cost: %d", problem_name, dp_table.get_optimal_cost())
 
                 with timers("components"):
                     overall_components = compute_overall_components(

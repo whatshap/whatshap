@@ -613,15 +613,52 @@ cdef class Caller:
 		pass
 
 
-cdef class MecHeuristic:
-	def __cinit__(self, uint32_t rowLimit, bool allHet):
-		self.thisptr = new cpp.MecHeuristic(rowLimit, allHet)
+cdef class PedMecHeuristic:
+	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree, bool distrust_genotypes = False, positions = None, int row_limit = 1024, bool allow_mutations = True):
+		"""Build the DP table from the given read set which is assumed to be sorted;
+		that is, the variants in each read must be sorted by position and the reads
+		in the read set must also be sorted (by position of their left-most variant).
+		"""
+		cdef vector[unsigned int]* c_positions = NULL
+		if positions is not None:
+			c_positions = new vector[unsigned int]()
+			for pos in positions:
+				c_positions.push_back(pos)
+		self.thisptr = new cpp.PedMecHeuristic(readset.thisptr, recombcost, pedigree.thisptr, distrust_genotypes, c_positions, row_limit, allow_mutations)
+		self.pedigree = pedigree
 		
 	def __dealloc__(self):
 		del self.thisptr
-		
-	def computeHaplotypes(self, ReadSet rs):
-		output = ReadSet()
-		cdef vector[vector[int8_t]] haps = self.thisptr.computeHaplotypes(rs.thisptr, output.thisptr)
 
-		return haps, output
+	def get_super_reads(self):
+		#Interface is identical to PedigreeDPTable
+
+		cdef vector[cpp.ReadSet*]* readSets = new vector[cpp.ReadSet*]()
+		cdef vector[uint32_t]* opt_trans_ptr
+		self.thisptr.solve()
+
+		opt_trans_ptr = self.thisptr.getOptTransmission()
+		self.thisptr.getSuperReads(readSets)
+
+		results = []
+		for i in range(readSets.size()):
+			rs = ReadSet()
+			del rs.thisptr
+			rs.thisptr = deref(readSets)[i]
+			results.append(rs)
+
+		python_transmission_vector = list(opt_trans_ptr[0])
+		del opt_trans_ptr
+		return results, python_transmission_vector
+
+	def get_optimal_cost(self):
+		"""Returns the cost resulting from solving the Minimum Error Correction (MEC) problem."""
+		return self.thisptr.getOptScore()
+
+	def get_optimal_partitioning(self):
+		"""Returns a list of the same size as the read set, where each entry is either 0 or 1,
+		telling whether the corresponding read is in partition 0 or in partition 1,"""
+		cdef vector[bool]* p = self.thisptr.getOptBipartition()
+		result = [0 if x else 1 for x in p[0]]
+		del p
+		return result
