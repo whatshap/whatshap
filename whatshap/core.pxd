@@ -49,5 +49,6 @@ cdef class HapChatCore:
 cdef class Caller:
 	cdef cpp.Caller *thisptr
 
-cdef class MecHeuristic:
-	cdef cpp.MecHeuristic *thisptr
+cdef class PedMecHeuristic:
+	cdef cpp.PedMecHeuristic *thisptr
+	cdef Pedigree pedigree

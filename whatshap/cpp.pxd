@@ -248,7 +248,11 @@ cdef extern from "../src/caller.h":
         void enumerate_kmers(int, string, int, vector[vector[int]]) except +
 
 
-cdef extern from "../src/mecheuristic.h":
-    cdef cppclass MecHeuristic:
-        MecHeuristic(uint32_t rowLimit, bool allHet) except +
-        vector[vector[int8_t]] computeHaplotypes(ReadSet* rs, ReadSet* output) except +
+cdef extern from "../src/pedmecheuristic.h":
+    cdef cppclass PedMecHeuristic:
+        PedMecHeuristic(ReadSet* readset, vector[unsigned int], Pedigree* pedigree, bool distrust_genotypes, vector[unsigned int]* positions, uint32_t row_limit, bool allow_mutations) except +
+        void getSuperReads(vector[ReadSet*]*) except +
+        vector[unsigned int]* getOptTransmission() except +
+        int getOptScore() except +
+        vector[bool]* getOptBipartition() except +
+        void solve() except +
