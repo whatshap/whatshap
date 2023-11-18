@@ -97,7 +97,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         column.clear();
         Position offset = pos > start;
         
-        // compute genotype conform tuples
+        // compute tuples based on cluster coverage
         relevantTuples = computeRelevantTuples(clusterCoverage, pos);
         
         // create translater between tuples of new and old position
@@ -105,7 +105,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
 
         //printStartOfColumn(pos, relevantTuples, covMap[pos]);
         if (relevantTuples.size() == 0) {
-            std::cout<<"No tuples for this position. Aborting ..."<<std::endl;
+            std::cout<<"No tuples for position "<<pos<<". Aborting ..."<<std::endl;
             break;
         }
 
@@ -150,7 +150,7 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
                 TupleCode c = tc.convertNewToOld(tuple).fingerprint(ploidy);
                 if (fpToTuple.find(c) != fpToTuple.end()) {
                     optPredTuple = fpToTuple[c];
-                    if (m[pos - 1 -start].find(optPredTuple) != m[pos - 1 -start].end()) {
+                    if (m[pos - 1 - start].find(optPredTuple) != m[pos - 1 - start].end()) {
                         optPredScore = m[pos - 1 - start][optPredTuple].score;
                     }
                 }
@@ -177,9 +177,11 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
 
             // in addition to best score over all predecessors, we need the best permutation of tuple to achieve this
             ClusterTuple bestPerm = tc.permuteAgainstOld(tuple, optPredTuple);
+            if (optPredScore == std::numeric_limits<ThreadScore>::infinity() || std::isnan(optPredScore))
+                std::cout<<"Invalid pred score of "<<optPredScore<<" for tuple "<<tuple.asString(ploidy, covMap[pos])<<" at position "<<pos<<std::endl;
 
             column[bestPerm] = TupleEntry(optPredScore + coverageCost, optPredTuple);
-            firstUnthreadedPosition = pos+1;
+            firstUnthreadedPosition = pos + 1;
         }
         
         // precompute the sorted vectors with global cluster ids for this column (will be reused in next column)
@@ -189,8 +191,6 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
             std::sort(tupleGlobal.begin(), tupleGlobal.end());
             sortedGlobalTuples[a.first] = tupleGlobal;
         }
-        
-        //std::cout<<"   Unpruned tuples: "<<column.size()<<std::endl;
         
         // cut down rows if parameter is set
         if (rowLimit > 0 && column.size() >= rowLimit) {
@@ -226,18 +226,18 @@ std::vector<std::vector<GlobalClusterId>> HaploThreader::computePaths (Position 
         }
     }
     if (currentRow == ClusterTuple::INVALID_TUPLE) {
-        std::cout<<"No minimum in last threaded column!"<<std::endl;
+        std::cout<<"No minimum among "<<m[firstUnthreadedPosition - 1 - start].size()<<" entries in last threaded column!"<<std::endl;
     } else {
         if (currentRow.asVector(ploidy, covMap[firstUnthreadedPosition - 1]).size() == 0)
-            std::cout<<"Problem occured at position "<<(firstUnthreadedPosition - 1)<<" in row "<<currentRow.asString(ploidy, covMap[firstUnthreadedPosition-1])<<std::endl;
+            std::cout<<"Empty cluster tuple at position "<<(firstUnthreadedPosition - 1)<<" in row "<<currentRow.asString(ploidy, covMap[firstUnthreadedPosition - 1])<<std::endl;
         path.push_back(currentRow.asVector(ploidy, covMap[firstUnthreadedPosition - 1]));
     }
     
     // backtracking iteration
     for (Position pos = firstUnthreadedPosition - 1; pos > start; pos--) {
-        currentRow = m[pos-start][currentRow].pred;
+        currentRow = m[pos - start][currentRow].pred;
         if (currentRow.asVector(ploidy, covMap[pos - 1]).size() == 0) {
-            std::cout<<"Problem occured at position "<<(pos-1)<<" in row "<<currentRow.asString(ploidy, covMap[pos - 1])<<std::endl;
+            std::cout<<"Empty cluster tuple at position "<<(pos - 1)<<" in row "<<currentRow.asString(ploidy, covMap[pos - 1])<<std::endl;
             std::vector<GlobalClusterId> fallback;
             for (uint32_t i = 0; i < ploidy; i++)
                 fallback.push_back(0);
@@ -265,11 +265,6 @@ ThreadScore HaploThreader::getCoverageCost(ClusterTuple tuple,
     for (uint32_t i = 0; i < ploidy; i++) {
         uint32_t cid = tuple.get(i);
         clustMult[cid] += 1;
-    }
-    
-    uint32_t cov = 0;
-    for (uint32_t cid = 0; cid < clusterCoverage.size(); cid++) {
-        cov += clusterCoverage [cid];
     }
     
     for (uint32_t cid = 0; cid < clusterCoverage.size(); cid++) {
@@ -315,17 +310,10 @@ std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vecto
     
     std::vector<LocalClusterId> relevantClusters;
     std::vector<std::vector<uint32_t>> consensusLists;
-    //std::cout<<"Position "<<pos<<": relevant ("<<coverage<<"):";
-    for (uint32_t cid = 0; cid < clusterCoverage[pos].size(); cid++) {
-        uint32_t cov = clusterCoverage[pos][cid];
-        if (4 * ploidy * cov >= coverage) {
-            relevantClusters.push_back(cid);
-            //std::cout<<" ["<<cid<<","<<cov<<"]";
-        //} else {
-        //    std::cout<<" ("<<cid<<","<<cov<<")";
-        }
-    }
-    //std::cout<<std::endl;
+    //TODO: Why would we filter clusters here? It is already done outside the threader
+    for (uint32_t cid = 0; cid < clusterCoverage[pos].size(); cid++)
+//         if (4 * ploidy * clusterCoverage[pos][cid] >= coverage)
+        relevantClusters.push_back(cid);
     
     // create vector of combinations
     std::vector<ClusterTuple> relevantTuples;
@@ -334,8 +322,8 @@ std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vecto
     std::vector<uint32_t> v(ploidy, 0);
     
     /*
-     * store vector, until maxElem-1 is in the last field, because then we must just
-     * have stored the vector [maxElem-1, maxElem-1, ..., maxElem-1] and we are finished.
+     * store vector, until maxElem-1 is in the last field, because then we have
+     * stored the vector [maxElem-1, maxElem-1, ..., maxElem-1] and we are finished.
      */
     while (v[ploidy-1] < maxElem) {
         // translate to local cluster ids and store in combsOfAllele
@@ -349,11 +337,11 @@ std::vector<ClusterTuple> HaploThreader::computeRelevantTuples (const std::vecto
         
         // if element i-1 overflowed, increase element i by 1 (which then might also overflow and so on)
         for (uint32_t i = 1; i < ploidy; i++)
-            if (v[i-1] >= maxElem)
+            if (v[i - 1] >= maxElem)
                 v[i]++;
         
         // any element i-1 which overflowed will be set to its minimum, i.e. the value of element i
-        for (uint32_t i = ploidy-1; i > 0; i--)
+        for (uint32_t i = ploidy - 1; i > 0; i--)
             if (v[i-1] >= maxElem)
                 v[i-1] = v[i];
     }
