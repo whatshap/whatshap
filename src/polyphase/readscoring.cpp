@@ -58,14 +58,17 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, AlleleMatrix* am, c
     for (uint32_t i = 0; i < sortedReads.size(); i++)
         sortedReads[i] = i;
     std::sort(sortedReads.begin(), sortedReads.end(), [am] (const uint32_t a, const uint32_t b) { return am->getFirstPos(a) < am->getFirstPos(b); });
+
+    // multiply probability with (1/k) / ((1-1/k)) as prior probability for same/diff haplotype
     float offset = -std::log(ploidy * (1.0 - 1.0 / ploidy));
+
+    // compute score for each read
     for (uint32_t i = 0; i < am->size(); i++) {
         // iterate until start position of read is behind required start
         uint32_t terminal = am->getLastPos(sortedReads[i]) - minOverlap + 1;
         for (uint32_t j = i + 1; j < sortedReads.size() && am->getFirstPos(sortedReads[j]) <= terminal; j++) {
             float score = computeLogScore(am, sortedReads[i], sortedReads[j], gl, gMap, apls, apld, minOverlap);
-            if (score != 0.0) {
-                // multiply probability with (1/k) / ((1-1/k)) as prior probability for same/diff haplotype
+            if (!std::isnan(score)) {
                 result->set(sortedReads[i], sortedReads[j], score + offset);
             }
         }
@@ -164,7 +167,6 @@ std::unordered_map<Genotype, double> ReadScoring::computeGenotypeLikelihoods (st
         for (std::pair<Genotype, double> p : gl)
             gl[p.first] = 1 / g;
     } else if (normalize) {
-        uint32_t g = gl.size();
         for (std::pair<Genotype, double> p : gl)
             gl[p.first] = p.second / weight;
     }
@@ -191,15 +193,16 @@ void ReadScoring::computeAllelePairLikelihoods(std::vector<Genotype>& genos,
                         // for matching alleles, multiply with (1 - err), for non-matching with err
                         double l = (1 - err) * (gv[gv1] == a1) + err * (gv[gv1] != a1);
                         l *= (1 - err) * (gv[gv2] == a2) + err * (gv[gv2] != a2);
-                        // add to according sum and normalize to number of cases (prior probabilities are handles elsewhere)
+                        // add to according sum
                         if (gv1 == gv2)
-                            lEqual += l / gv.size();
+                            lEqual += l;
                         else
-                            lDiff += l / (gv.size() * (gv.size() - 1));
+                            lDiff += l;
                     }
                 }
-                apls[i1] = apls[i2] = lEqual;
-                apld[i1] = apld[i2] = lDiff;
+                // normalize to number of cases (prior probabilities are handles elsewhere)
+                apls[i1] = apls[i2] = lEqual / gv.size();
+                apld[i1] = apld[i2] = lDiff / (gv.size() * (gv.size() - 1));
             }
         }
     }
@@ -224,8 +227,7 @@ float ReadScoring::computeLogScore (AlleleMatrix* am,
     while (k < read1.size() && l < read2.size()) {
         if (read1[k].first == read2[l].first) {
             logScore += computeLogScoreSinglePos(read1[k].second, read2[l].second, numAlleles, gl[read1[k].first], gMap, apls, apld);
-            ov += 1;
-            k++; l++;
+            ov++; k++; l++;
         } else if (read1[k].first < read2[l].first) {
             k++;
         } else {
@@ -235,7 +237,7 @@ float ReadScoring::computeLogScore (AlleleMatrix* am,
     if (ov >= minOverlap)
         return logScore;
     else
-        return 0.0;
+        return std::nanf("");
 }
 
 float ReadScoring::computeLogScoreSinglePos (uint8_t allele1,
@@ -252,9 +254,8 @@ float ReadScoring::computeLogScoreSinglePos (uint8_t allele1,
         same += p.second * apls[i];
         diff += p.second * apld[i];
     }
-    if (same == 0.0 | diff == 0.0) {
+    if (same * diff <= 0.0)
         return 0.0;
-    } else {
+    else
         return (float)std::log(same / diff);
-    }
 }
