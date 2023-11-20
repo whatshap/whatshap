@@ -26,5 +26,9 @@ double binomial_coefficient_large(int n, int k){
 }
 
 double binom_pmf(int n, int k, double p) {
-    return binomial_coefficient_large(n, k) * pow(p, k) * pow(1-p, n-k);
+    return binomial_coefficient_large(n, k) * pow(p, k) * pow(1 - p, n - k);
+}
+
+double log_binom_pmf(int n, int k, double p) {
+    return std::log(binomial_coefficient_large(n, k)) + k * std::log(p) + (n - k) * std::log(1 - p);
 }

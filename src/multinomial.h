@@ -13,4 +13,6 @@ double multinomial_coefficient(std::vector<uint32_t>& n);
 
 double multinom_pmf(std::vector<uint32_t>& n, std::vector<double>& p);
 
+double log_multinom_pmf(std::vector<uint32_t>& n, std::vector<double>& p);
+
 # endif // MULTINOMIAL_H

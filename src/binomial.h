@@ -12,4 +12,6 @@ double binomial_coefficient_large(int n, int k);
 
 double binom_pmf(int n, int k, double p);
 
+double log_binom_pmf(int n, int k, double p);
+
 # endif // BINOMIAL_H

@@ -63,16 +63,20 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, AlleleMatrix* am, c
     float offset = -std::log(ploidy * (1.0 - 1.0 / ploidy));
 
     // compute score for each read
+    uint32_t nans = 0;
     for (uint32_t i = 0; i < am->size(); i++) {
         // iterate until start position of read is behind required start
         uint32_t terminal = am->getLastPos(sortedReads[i]) - minOverlap + 1;
         for (uint32_t j = i + 1; j < sortedReads.size() && am->getFirstPos(sortedReads[j]) <= terminal; j++) {
             float score = computeLogScore(am, sortedReads[i], sortedReads[j], gl, gMap, apls, apld, minOverlap);
-            if (!std::isnan(score)) {
+            if (!std::isnan(score))
                 result->set(sortedReads[i], sortedReads[j], score + offset);
-            }
+            else
+                nans++;
         }
     }
+    if (nans > 0)
+        std::cout<<"Warning: Found "<<nans<<" NaN scores during read scoring!"<<std::endl;
 }
 
 double ReadScoring::estimateAlleleErrorRate(AlleleMatrix *am, uint32_t ploidy) const {
@@ -118,6 +122,7 @@ std::unordered_map<Genotype, double> ReadScoring::computeGenotypeLikelihoods (st
     uint32_t numAlleles = alleleDepth.size();
     uint32_t numGenotypes = binomial_coefficient(ploidy + numAlleles - 1, numAlleles - 1);
     double weight = 0.0;
+    double lowest = 0.0;
     std::vector<Allele> alleles;
     uint32_t numExAlleles = 0;
     for (uint32_t i = 0; i < numAlleles; i++)
@@ -140,8 +145,8 @@ std::unordered_map<Genotype, double> ReadScoring::computeGenotypeLikelihoods (st
             gl[g] = 1;
         } else if (numExAlleles == 2) {
             double fracAlt = (double)index / (double)ploidy;
-            double l = binom_pmf(alleleDepth[alleles[0]] + alleleDepth[alleles[1]], alleleDepth[alleles[1]], (1 - fracAlt) * err + fracAlt * (1 - err));
-            weight += l;
+            double l = log_binom_pmf(alleleDepth[alleles[0]] + alleleDepth[alleles[1]], alleleDepth[alleles[1]], (1 - fracAlt) * err + fracAlt * (1 - err));
+            lowest = std::min(lowest, l);
             gl[g] = l;
         } else {
             std::vector<uint32_t> gv = g.as_vector();
@@ -156,10 +161,18 @@ std::unordered_map<Genotype, double> ReadScoring::computeGenotypeLikelihoods (st
                 p[a] = freq * (1 - err * (numExAlleles - 1)) + (1 - freq) * err;
                 n[a] = alleleDepth[alleles[a]];
             }
-            double l = multinom_pmf(n, p);
-            weight += l;
+            double l = log_multinom_pmf(n, p);
+            lowest = std::min(lowest, l);
             gl[g] = l;
         }
+    }
+    
+    /* for numerical reasons, we compute log-scaled values and
+     * exp them later (after normalization) */
+    for (std::pair<Genotype, double> p : gl) {
+        double l = std::exp(p.second - lowest);
+        gl[p.first] = l;
+        weight += l;
     }
     
     if (weight == 0.0) {
