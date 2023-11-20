@@ -258,7 +258,7 @@ ThreadScore HaploThreader::getCoverageCost(ClusterTuple tuple,
                                      const std::vector<uint32_t>& clusterCoverage
                                     ) const {
     // tuple contains local cluster ids, which have to be translated with covMap to get the global ids
-    double llh = 1.0;
+    double llh = 0.0;
     uint32_t unthreadedReads = 0;
     
     std::vector<uint32_t> clustMult(clusterCoverage.size(), 0);
@@ -271,14 +271,14 @@ ThreadScore HaploThreader::getCoverageCost(ClusterTuple tuple,
         if (clustMult[cid] == 0) {
             unthreadedReads += clusterCoverage[cid];
         } else {
-            double p = (0.975*clustMult[cid])/ploidy;
-            llh *= binom_pmf(coverage, clusterCoverage[cid], p);
+            double p = (0.975 * clustMult[cid])/ploidy;
+            llh += log_binom_pmf(coverage, clusterCoverage[cid], p);
         }
     }
     
-    llh *= binom_pmf(coverage, unthreadedReads, 0.025);
+    llh += log_binom_pmf(coverage, unthreadedReads, 0.025);
 
-    return -std::log(llh);
+    return -llh;
 }
 
 ThreadScore HaploThreader::getSwitchCostAllPerms(const std::vector<GlobalClusterId>& prevTuple, const std::vector<GlobalClusterId>& curTuple) const {

@@ -42,3 +42,19 @@ double multinom_pmf(std::vector<uint32_t>& n, std::vector<double>& p) {
         result *= p[i];
     return result;
 }
+
+double log_multinom_pmf(std::vector<uint32_t>& n, std::vector<double>& p) {
+    if (n.size() != p.size())
+        return 0;       // size of n and p must be identical
+    double sum = p[0];
+    for (uint32_t i = 1; i < p.size(); i++)
+        sum += p[i];
+    if (sum != 1.0)
+        return 0;       // sum of p must be one for valid input
+    if (n.size() == 2)
+        return log_binom_pmf(n[0] + n[1], n[0], p[0]);  // faster for binomial case
+    double result = std::log(multinomial_coefficient(n));
+    for (uint32_t i = 0; i < p.size(); i++)
+        result += std::log(p[i]);
+    return result;
+}
