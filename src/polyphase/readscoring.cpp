@@ -33,7 +33,7 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, AlleleMatrix* am, c
     // compute genotype likelihoods
     std::vector<std::unordered_map<Genotype, double>> gl(am->getNumPositions());
     for (uint32_t i = 0; i < gl.size(); i++) {
-        std::unordered_map<Genotype, double> l = computeGenotypeLikelihoods(am->getAlleleDepths(i), ploidy, err, true);
+        std::unordered_map<Genotype, double> l = computeGenotypeLikelihoods(am->getAlleleDepths(i), ploidy, err);
         gl[i] = l;
         for (auto& g: l) {
             occGenotypesSet.insert(g.first);
@@ -69,10 +69,12 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, AlleleMatrix* am, c
         uint32_t terminal = am->getLastPos(sortedReads[i]) - minOverlap + 1;
         for (uint32_t j = i + 1; j < sortedReads.size() && am->getFirstPos(sortedReads[j]) <= terminal; j++) {
             float score = computeLogScore(am, sortedReads[i], sortedReads[j], gl, gMap, apls, apld, minOverlap);
-            if (!std::isnan(score))
-                result->set(sortedReads[i], sortedReads[j], score + offset);
-            else
+            if (!std::isnan(score)) {
+                if (score != 0.0)
+                    result->set(sortedReads[i], sortedReads[j], score + offset);
+            } else {
                 nans++;
+            }
         }
     }
     if (nans > 0)
@@ -88,7 +90,7 @@ double ReadScoring::estimateAlleleErrorRate(AlleleMatrix *am, uint32_t ploidy) c
     for (double err = 0.01; err < 0.2; err += 0.01) {
         for (Position i = 0; i < am->getNumPositions(); i++) {
             gl[i].clear();
-            gl[i] = computeGenotypeLikelihoods(am->getAlleleDepths(i), ploidy, err, true);
+            gl[i] = computeGenotypeLikelihoods(am->getAlleleDepths(i), ploidy, err);
         }
         double sum = evaluateGenotypeLikelihoods(gl);
         std::cout<<"Err="<<err<<" -> Sum="<<sum<<std::endl;
@@ -116,8 +118,7 @@ double ReadScoring::evaluateGenotypeLikelihoods(std::vector<std::unordered_map<G
 
 std::unordered_map<Genotype, double> ReadScoring::computeGenotypeLikelihoods (std::vector<uint32_t> alleleDepth,
                                                                               const uint32_t ploidy,
-                                                                              const double err,
-                                                                              const bool normalize) const {
+                                                                              const double err) const {
     std::unordered_map<Genotype, double> gl;
     uint32_t numAlleles = alleleDepth.size();
     uint32_t numGenotypes = binomial_coefficient(ploidy + numAlleles - 1, numAlleles - 1);
@@ -169,17 +170,22 @@ std::unordered_map<Genotype, double> ReadScoring::computeGenotypeLikelihoods (st
     
     /* for numerical reasons, we compute log-scaled values and
      * exp them later (after normalization) */
+    bool underflow = false;
     for (std::pair<Genotype, double> p : gl) {
         double l = std::exp(p.second - lowest);
         gl[p.first] = l;
         weight += l;
+        if (l == 0.0)
+            underflow = true;
     }
     
-    if (weight == 0.0) {
-        uint32_t g = gl.size();
-        for (std::pair<Genotype, double> p : gl)
-            gl[p.first] = 1 / g;
-    } else if (normalize) {
+    if (underflow) {
+        // if likelihoods still underflow, cut allele depth in half and repeat
+        std::vector<uint32_t> ad;
+        for (uint32_t d : alleleDepth)
+            ad.push_back(d / 2);
+        return computeGenotypeLikelihoods(ad, ploidy, err);
+    } else {
         for (std::pair<Genotype, double> p : gl)
             gl[p.first] = p.second / weight;
     }
@@ -250,7 +256,7 @@ float ReadScoring::computeLogScore (AlleleMatrix* am,
     if (ov >= minOverlap)
         return logScore;
     else
-        return std::nanf("");
+        return 0.0;
 }
 
 float ReadScoring::computeLogScoreSinglePos (uint8_t allele1,

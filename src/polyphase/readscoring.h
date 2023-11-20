@@ -1,7 +1,6 @@
 #ifndef READSCORING_H
 #define READSCORING_H
 
-#include <cstdint>
 #include "../readset.h"
 #include "../read.h"
 #include "../genotype.h"
@@ -44,12 +43,10 @@ private:
      * @param alleleDepths The allele depths to base the calculation on
      * @param ploidy Ploidy of the genotypes
      * @param err Allele error rate, which should be assumed
-     * @param normalize If true, the likelihoods are normalized, such that they sum up to 1
      */
     std::unordered_map<Genotype, double> computeGenotypeLikelihoods (std::vector<uint32_t> alleleDepths,
                                                                      const uint32_t ploidy,
-                                                                     const double err,
-                                                                     const bool normalize) const;
+                                                                     const double err) const;
 
     /**
      * For genotype and each pair of alleles, computes the likelihood to observe this exact allele pair under this exact genotype, under the
