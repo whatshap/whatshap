@@ -390,7 +390,7 @@ def open_output_alignment_file(aln_output, reference, vcf_md5, bam_header, threa
         while PG_entry["ID"] in whatshap_ids:
             PG_entry["ID"] = f"whatshap.{nr}"
             nr += 1
- 
+
         bam_header["PG"].append(PG_entry)
     else:
         bam_header["PG"] = [PG_entry]

@@ -590,7 +590,7 @@ def test_haplotag_run_twice(tmp_path):
     )
     # Index bam file
     pysam.index(str(outbam))
-    
+
     outbam2 = tmp_path / "output2.bam"
     run_haplotag(
         variant_file="tests/data/haplotag_sample.vcf.gz",
@@ -602,6 +602,6 @@ def test_haplotag_run_twice(tmp_path):
     # Check that there are two PG unique entries for whatshap
     with pysam.AlignmentFile(outbam2) as f:
         pg_entries = f.header.get("PG")
-        whatshap_ids = [entry["ID"] for entry in pg_entries if entry["ID"].startswith("whatshap")]        
+        whatshap_ids = [entry["ID"] for entry in pg_entries if entry["ID"].startswith("whatshap")]
         assert len(whatshap_ids) == 2
         assert len(set(whatshap_ids)) == 2
