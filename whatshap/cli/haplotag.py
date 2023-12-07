@@ -384,6 +384,13 @@ def open_output_alignment_file(aln_output, reference, vcf_md5, bam_header, threa
         "m5": vcf_md5,
     }
     if "PG" in bam_header:
+        # Make sure we don't have duplicate PG entries
+        nr = 1
+        whatshap_ids = {pg["ID"] for pg in bam_header["PG"] if pg["ID"].startswith("whatshap")}
+        while PG_entry["ID"] in whatshap_ids:
+            PG_entry["ID"] = f"whatshap.{nr}"
+            nr += 1
+
         bam_header["PG"].append(PG_entry)
     else:
         bam_header["PG"] = [PG_entry]

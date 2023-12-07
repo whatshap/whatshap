@@ -578,3 +578,30 @@ def test_haplotag_duplicates_are_tagged(tmp_path):
             assert r1.get_tag("PS") == r2.get_tag("PS")
             count += 1
     assert count > 0
+
+
+def test_haplotag_run_twice(tmp_path):
+    outbam = tmp_path / "output.bam"
+    run_haplotag(
+        variant_file="tests/data/haplotag_sample.vcf.gz",
+        alignment_file="tests/data/haplotag_sample.bam",
+        given_samples=["mother"],
+        output=outbam,
+    )
+    # Index bam file
+    pysam.index(str(outbam))
+
+    outbam2 = tmp_path / "output2.bam"
+    run_haplotag(
+        variant_file="tests/data/haplotag_sample.vcf.gz",
+        alignment_file=outbam,
+        given_samples=["mother"],
+        output=outbam2,
+    )
+
+    # Check that there are two PG unique entries for whatshap
+    with pysam.AlignmentFile(outbam2) as f:
+        pg_entries = f.header.get("PG")
+        whatshap_ids = [entry["ID"] for entry in pg_entries if entry["ID"].startswith("whatshap")]
+        assert len(whatshap_ids) == 2
+        assert len(set(whatshap_ids)) == 2
