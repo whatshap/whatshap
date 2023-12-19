@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <string> 
 
-PedMecHeuristic::PedMecHeuristic(ReadSet* rs, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes, const std::vector<unsigned int>* positions, uint32_t rowLimit, bool allowMutations) :
+PedMecHeuristic::PedMecHeuristic(ReadSet* rs, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes, const std::vector<unsigned int>* positions, uint32_t rowLimit, bool allowMutations, uint32_t verbosity) :
     rs(rs),
     recombCost(recombcost.size(), 0.0),
     pedigree(pedigree),
@@ -13,6 +13,7 @@ PedMecHeuristic::PedMecHeuristic(ReadSet* rs, const std::vector<unsigned int>& r
     positions(0),
     rowLimit(std::min(rowLimit, MAX_ROW_LIMIT)),
     allowMutations(allowMutations),
+    verbosity(verbosity),
     solved(false),
     tmBits(2 * pedigree->triple_count()),
     numSamples(pedigree->size()),
@@ -79,8 +80,8 @@ std::vector<std::vector<std::vector<Allele>>> PedMecHeuristic::getOptHaplotypes(
 void PedMecHeuristic::getSuperReads(std::vector<ReadSet*>* superReads) const {
     uint32_t numSamples = optHaps.size();
     for (uint32_t sid = 0; sid < numSamples; sid++) {
-        Read* read0 = new Read("superread_0", -1, -1, 0);
-        Read* read1 = new Read("superread_1", -1, -1, 0);
+        Read* read0 = new Read("superread_0", -1, -1, sid);
+        Read* read1 = new Read("superread_1", -1, -1, sid);
         for (uint32_t p = 0; p < positions->size(); p++)  {
             read0->addVariant((*positions)[p], optHaps[sid][0][p], 30);
             read1->addVariant((*positions)[p], optHaps[sid][1][p], 30);
@@ -101,11 +102,11 @@ void PedMecHeuristic::solve() {
     // compute index of first read starting at position p (for p = 0, 1, ..., n - 1, n)
     std::vector<ReadId> startIndex;
     startIndex.push_back(0);
-    ReadId r = 0;
+    ReadId q = 0;
     for (Position p = 0; p < n; p++) {
-        while (r < m && posMap[rs->get(r)->firstPosition()] <= p)
-            r++;
-        startIndex.push_back(r);
+        while (q < m && posMap[rs->get(q)->firstPosition()] <= p)
+            q++;
+        startIndex.push_back(q);
     }
 
     // for yet unseen non-child samples, we want to put the first read always into partition 0
@@ -122,7 +123,7 @@ void PedMecHeuristic::solve() {
     
     // create empty biparition with any transmission as base for first column
     lastCol.emplace_back(Bipartition(), 0, 0, numSamples);
-    // since recombinations are free in first column, we don't care yet about transmissio vectors
+    // since recombinations are free in first column, we don't care yet about transmission vectors
     
     // DP recurrence
     Position right = 0;
@@ -139,7 +140,7 @@ void PedMecHeuristic::solve() {
             }
         }
         activeLast.clear();
-        
+
         // copy bipartitions, but without the lost reads
         std::vector<PedSolution> sols;
         std::unordered_map<uint64_t, std::vector<RowIndex>> buckets;
@@ -177,35 +178,85 @@ void PedMecHeuristic::solve() {
         // from here on, we have solsTemp available as basis for extensions
 
         // get last position of new reads and extend balance vectors
+        right = std::max(right, p);
         for (ReadId r = startIndex[p]; r < startIndex[p + 1];  r++)
             right = std::max(right, posMap[rs->get(r)->lastPosition()]);
         for (PedSolution& a: sols)
             for (auto& b: a.balances)
                 b.resize(right + 1 - p, 0);
-
-        // for every new read: generate two extensions for every solution and keep only rowLimit best
-        for (ReadId r = startIndex[p]; r < startIndex[p + 1];  r++) {
+        
+        // summarize equal reads
+        size_t numNew = startIndex[p + 1] - startIndex[p];
+        std::vector<int> equalTo(numNew, -1);
+        std::vector<Balance> balances;
+        std::vector<uint32_t> sampleIds;
+        for (size_t i = 0; i < numNew;  i++) {
+            ReadId r = startIndex[p] + i;
             active.push_back(r);
             // generate balance vector of read
-            Balance balance(right + 1 - p, 0);
-            uint32_t sampleId = rs->get(r)->getSampleID();
+            Balance b(right + 1 - p, 0);
+            sampleIds.push_back(rs->get(r)->getSampleID());
             for (int32_t i = 0; i < rs->get(r)->getVariantCount(); i++) {
                 Position o = posMap[rs->get(r)->getPosition(i)] - p;
                 Allele a = rs->get(r)->getAllele(i);
                 MecScore q = rs->get(r)->getVariantQuality(i);
-                balance[o] += q * a - q * (1 - a);
+                b[o] += q * a - q * (1 - a);
             }
+            // check all previous balances and merge if alleles identical
+            for (size_t j = 0; j < i; j++) {
+                if (equalTo[j] != -1 || sampleIds[j] != sampleIds[i])
+                    continue;
+                bool equal = true;
+                for (size_t k = 0; k < right + 1 - p; k++)
+                    if (balances[j][k] * b[k] < 0 || (balances[j][k] != 0.0) != (b[k] != 0.0)) {
+                        equal = false; break;
+                    }
+                if (equal) {
+                    equalTo[i] = j;
+                    for (size_t k = 0; k < right + 1 - p; k++)
+                        balances[j][k] += b[k];
+                    break;
+                }
+            }
+            balances.push_back(b);
+        }
+        
+        for (size_t i = 0; i < numNew;  i++) {
+            if (equalTo[i] >= 0)
+                continue;
+            if (verbosity >= 2) {
+                std::cout<<"  Read "<<i<<" ("<<sampleIds[i]<<"): ";
+                for (size_t k = 0; k < right + 1 - p; k++)
+                    std::cout<<balances[i][k]<<" ";
+                std::cout<<std::endl;
+            }
+        }
+
+        // for every new read: generate two extensions for every solution and keep only rowLimit best
+        for (size_t i = 0; i < numNew;  i++) {
+            Balance& balance = balances[i];
+            uint32_t sampleId = sampleIds[i];
             std::vector<int> target(genotypes[sampleId].begin() + p, genotypes[sampleId].begin() + right + 1);
-            
+
             uint32_t solEnd = sols.size();
             for (uint32_t sol = 0; sol < solEnd; sol++) {
+                /* if read is identical to previous one, just put it in same partition and continue*/
+                if (equalTo[i] >= 0) {
+                    sols[sol].bpNew.push_back(sols[sol].bpNew[equalTo[i]]);
+                    continue;
+                }
+                
                 /* if read only contributes to positions with equal consensus and does not change it:
                  * do not branch, just put read where it fits best */
                 bool useful = false;
-                for (uint32_t j = 0; j < balance.size() && !useful; j++) {
-                    MecScore s0 = sols[sol].balances[sampleId * 2][j], s1 = sols[sol].balances[sampleId * 2 + 1][j];
-                    useful |= (balance[j] != 0 && s0 * s1 <= 0) || balance[j] > std::abs(s0) || balance[j] > std::abs(s1);
-                }
+                if (distrustGenotypes)
+                    for (uint32_t j = 0; j < balance.size() && !useful; j++) {
+                        MecScore s0 = sols[sol].balances[sampleId * 2][j], s1 = sols[sol].balances[sampleId * 2 + 1][j];
+                        useful |= (balance[j] != 0 && s0 * s1 < 0) || ((balance[j] + s0) * s0 <= 0 && (balance[j] + s1) * s1 <= 0);
+                    }
+                else
+                    for (uint32_t j = 0; j < balance.size() && !useful; j++)
+                        useful |= (genotypes[sampleId][p + j] == 1 && balance[j] != 0);
                 
                 /* if sample seen before and read not identical to some previous one, 
                  * create new solution with read in partiton 1*/
@@ -221,9 +272,9 @@ void PedMecHeuristic::solve() {
                 sols[sol].score += addBalance(sols[sol].balances[2 * sampleId], sols[sol].balances[2 * sampleId + 1], balance, target);
                 sols[sol].mutationScore = getMutationCost(sols[sol].balances, sols[sol].trans, p, true, 5);
                 sols[sol].bpNew.push_back(false);
-                
-                // store both solutions if read was useful, otherwise only keep the better
+
                 if (sol1 && !useful) {
+                    // store both solutions if read was useful, otherwise only keep the better
                     if (sols[sol].score + sols[sol].mutationScore > sols[sol1].score + sols[sol1].mutationScore)
                         sols[sol] = sols[sol1];
                     sols.pop_back();
@@ -235,7 +286,6 @@ void PedMecHeuristic::solve() {
             if (sols.size() > rowLimit)
                 filterSolutions(sols);
         }
-        
         // extend transmissions
         size_t solEnd = sols.size();
         for (uint32_t i = 0; i < solEnd; i++)
@@ -244,8 +294,13 @@ void PedMecHeuristic::solve() {
             filterSolutions(sols);
         
         // add costs for mutations
-        for (uint32_t i = 0; i < sols.size(); i++)
-            sols[i].score += getMutationCost(sols[i].balances, sols[i].trans, p, false, 0) ;
+        for (uint32_t i = 0; i < sols.size(); i++) {
+            // sols[i].score += getMutationCost(sols[i].balances, sols[i].trans, p, false, 0);
+            std::vector<MecScore> firsts;
+            for (Balance& b: sols[i].balances)
+                firsts.push_back(b[0]);
+            sols[i].score += getOptPhasing(firsts, sols[i].trans, p, nullptr);
+        }
         
         // .. and then construct solutions only if score is sufficient (performance reasons)
         lastCol.clear();
@@ -261,7 +316,8 @@ void PedMecHeuristic::solve() {
         }
         mBp.emplace_back(startIndex[p + 1] - startIndex[p], btVector);
         mTm.push_back(tmVector);
-        printColumnInfo(p, startIndex, lastCol);
+        if (verbosity >= 1)
+            printColumnInfo(p, startIndex, lastCol);
     }
     
     // find best score in last column
@@ -290,7 +346,7 @@ void PedMecHeuristic::solve() {
     }
 
     // get allele votes
-    std::vector<std::vector<std::vector<MecScore>>> vote(numSamples, std::vector<std::vector<MecScore>>(n, std::vector<MecScore>(4, 0)));
+    std::vector<std::vector<MecScore>> balances(n, std::vector<MecScore>(2 * numSamples, 0));
     for (ReadId ri = 0; ri < m; ri++) {
         Read* r = rs->get(ri);
         for (int32_t i = 0; i < r->getVariantCount(); i++) {
@@ -298,59 +354,22 @@ void PedMecHeuristic::solve() {
             MecScore q = r->getVariantQuality(i);
             uint32_t sid = r->getSampleID();
             if (a >= 0)
-                vote[sid][posMap[r->getPosition(i)]][2 * optBipart[ri] + a] += q;
-        }
-    }
-
-    // compute consensus
-    for (uint32_t sid = 0; sid < numSamples; sid++) {
-        optHaps.emplace_back(2, std::vector<Allele>(n, -1));
-        for (Position p = 0; p < n; p++) {
-            // Important: Only set allele for clear choices. Others might be infered from pedigree data
-            if (distrustGenotypes) {
-                if (vote[sid][p][0] < vote[sid][p][1])
-                    optHaps[sid][0][p] = 1;
-                else if (vote[sid][p][0] > vote[sid][p][1])
-                    optHaps[sid][0][p] = 0;
-                if (vote[sid][p][2] < vote[sid][p][3])
-                    optHaps[sid][1][p] = 1;
-                else if (vote[sid][p][2] > vote[sid][p][3])
-                    optHaps[sid][1][p] = 0;
-            } else if (genotypes[sid][p] == 1) {
-                if (vote[sid][p][0] + vote[sid][p][3] < vote[sid][p][1] + vote[sid][p][2]) {
-                    optHaps[sid][0][p] = 1;
-                    optHaps[sid][1][p] = 0;
-                } else if (vote[sid][p][0] + vote[sid][p][3] > vote[sid][p][1] + vote[sid][p][2]) {
-                    optHaps[sid][0][p] = 0;
-                    optHaps[sid][1][p] = 1;
-                }
-            } else if (genotypes[sid][p] == 0) {
-                optHaps[sid][0][p] = optHaps[sid][1][p] = 0;
-            } else if (genotypes[sid][p] == 2) {
-                optHaps[sid][0][p] = optHaps[sid][1][p] = 1;
-            }
+                balances[posMap[r->getPosition(i)]][2 * sid + optBipart[ri]] += (2 * a - 1) * q;
         }
     }
     
-    // infer missing alleles with transmission information
-    for (uint32_t p = 0; p < n; p++)  {
-        bool changed = true;
-        while (changed) {
-            changed = false;
-            for (uint32_t k = 0; k < trios.size(); k++) {
-                auto& trio = trios[k];
-                for (uint32_t par = 0; par < 2; par++) {
-                    uint32_t p2c = (optTrans[p] >> (2 * k + par)) & 1;
-                    if (optHaps[trio[2]][par][p] < 0 && optHaps[trio[par]][p2c][p] >= 0) {
-                        optHaps[trio[2]][par][p] = optHaps[trio[par]][p2c][p];
-                        changed = true;
-                    } else if (optHaps[trio[2]][par][p] >= 0 && optHaps[trio[par]][p2c][p] < 0) {
-                        optHaps[trio[par]][p2c][p] = optHaps[trio[2]][par][p];
-                        changed = true;
-                    }
-                }
-            }
+    // compute optimal phasing per position
+    for (uint32_t sid = 0; sid < numSamples; sid++)
+        optHaps.emplace_back(2, std::vector<Allele>(n, -1));
+    for (uint32_t p = 0; p < n; p++) {
+        std::vector<Allele>* posPhasing = new std::vector<Allele>(2 * numSamples, 0);
+        // std::cout<<"=== POS: "<<p<<std::endl;
+        MecScore s = getOptPhasing(balances[p], optTrans[p], p, posPhasing);
+        for (uint32_t sid = 0; sid < numSamples; sid++) {
+            optHaps[sid][0][p] = (*posPhasing)[2 * sid];
+            optHaps[sid][1][p] = (*posPhasing)[2 * sid + 1];
         }
+        delete posPhasing;
     }
     solved = true;
 }
@@ -371,7 +390,10 @@ void PedMecHeuristic::updateSolution(PedSolution& newSol, const PedSolution& old
         newSol.btRow = oldIdx;
         newSol.balances.clear();
         for (auto& a: oldSol.balances)
-            newSol.balances.emplace_back(a.begin() + 1, a.end());
+            if (a.size() > 0)
+                newSol.balances.emplace_back(a.begin() + 1, a.end());
+            else
+                newSol.balances.emplace_back();
     }
 }
 
@@ -385,7 +407,7 @@ MecScore PedMecHeuristic::getMutationCost(const std::vector<Balance>& balances,
                                           bool allowFlips,
                                           size_t ahead) const {
     MecScore cost = 0.0;
-    size_t last = std::min(ahead, balances[0].size());
+    size_t last = std::min(ahead, balances[0].size() - 1);
     for (size_t i = 0; i <= last; i++) {
         for (uint32_t k = 0; k < trios.size(); k++) {
             auto& trio = trios[k];
@@ -409,6 +431,90 @@ MecScore PedMecHeuristic::getMutationCost(const std::vector<Balance>& balances,
     return cost;
 }
 
+
+MecScore PedMecHeuristic::getOptPhasing(const std::vector<MecScore>& balances,
+                                                 const Transmission& t,
+                                                 Position p,
+                                                 std::vector<Allele>* optPhasing) const {
+                                                     
+    // precompute corresponding cost based on balance vector
+    std::vector<std::vector<MecScore>> phaseCost(numSamples, std::vector<MecScore>(5));
+    for (size_t s = 0; s < numSamples; s++) {
+        MecScore a0 = balances[2 * s];
+        MecScore a1 = balances[2 * s + 1];
+        phaseCost[s][0] = (a0 * (a0 > 0) + a1 * (a1 > 0));
+        phaseCost[s][1] = (-a0 * (a0 < 0) + a1 * (a1 > 0));
+        phaseCost[s][2] = (a0 * (a0 > 0) - a1 * (a1 < 0));
+        phaseCost[s][3] = (-a0 * (a0 < 0) - a1 * (a1 < 0));
+        phaseCost[s][4] = *std::max_element(phaseCost[s].begin(), phaseCost[s].begin() + 4);
+    }
+    
+    /* enumerate all allowed phasings per sample
+     * 0 = 0|0, 1 = 0|1, 2 = 1|0, 3 = 1|1 */
+    std::vector<std::vector<int>> phases(numSamples);
+    if (distrustGenotypes) {
+        for (size_t s = 0; s < numSamples; s++)
+            for (size_t i = 0; i < 4; i++)
+                if (phaseCost[s][i] < phaseCost[s][4] + 2 * mutationCost[p])
+                    phases[s].push_back(i);
+    } else {
+        for (size_t s = 0; s < numSamples; s++) {
+            if (genotypes[s][p] == 0)
+                phases[s].push_back(0);
+            else if (genotypes[s][p] == 2)
+                phases[s].push_back(3);
+            else {
+                phases[s].push_back(1);
+                phases[s].push_back(2);
+            }
+        }
+    }
+    
+    // iterate over all allowed genotype combinations
+    MecScore minCost = std::numeric_limits<MecScore>::infinity();
+    std::vector<size_t> v(numSamples, 0);        
+    while (v[numSamples - 1] < phases[numSamples - 1].size()) {
+        MecScore cost = 0.0;
+        // iterate over trios to detect mutations
+        for (uint32_t k = 0; k < trios.size(); k++) {
+            auto& trio = trios[k];
+            uint32_t m2c = (t >> (2 * k)) & 1;
+            uint32_t f2c = (t >> (2 * k + 1)) & 1;
+            // extract alleles according to current genotype combination
+            Allele acm = phases[trio[2]][v[trio[2]]] & 1;
+            Allele acf = (phases[trio[2]][v[trio[2]]] & 2) >> 1;
+            Allele am = (phases[trio[0]][v[trio[0]]] & (1 + m2c)) >> m2c;
+            Allele af = (phases[trio[1]][v[trio[1]]] & (1 + f2c)) >> f2c;
+            // add costs for every violated inheritance rule
+            cost += (am != acm) * mutationCost[p];
+            cost += (af != acf) * mutationCost[p];
+        }
+        // iterate over samples to penalize deviating genotype and allele balances
+        for (uint32_t s = 0; s < numSamples; s++)
+            cost += phaseCost[s][phases[s][v[s]]];
+        
+        if (cost < minCost) {
+            minCost = cost;
+            if (optPhasing != nullptr)
+                for (uint32_t s = 0; s < numSamples; s++) {
+                    (*optPhasing)[2 * s] = phases[s][v[s]] & 1;
+                    (*optPhasing)[2 * s + 1] = (phases[s][v[s]] & 2) >> 1;
+                }
+        }
+        
+        // increment counters
+        v[0]++;
+        for (size_t j = 0; j < numSamples - 1; j++)
+            if (v[j] >= phases[j].size()) {
+                v[j] = 0;
+                v[j + 1]++;
+            }
+        
+    }
+    // report only cost for best genotype combination
+    return minCost;
+}
+
 MecScore PedMecHeuristic::addBalance(Balance& basis,
                                      const Balance& coBasis,
                                      const Balance& add,
@@ -425,7 +531,7 @@ MecScore PedMecHeuristic::addBalance(Balance& basis,
             else
                 penalty += std::min(add[i], std::max(coBasis[i] - basis[i], (MecScore)0));
         } else {
-            penalty += add[i] * (add[i] * (target[i] - 1) < 0);
+            penalty += std::abs(add[i]) * (add[i] * (target[i] - 1) < 0);
         }
         // update balance vector
         basis[i] += add[i];
@@ -479,5 +585,5 @@ void PedMecHeuristic::printColumnInfo(Position p, std::vector<ReadId>& startInde
     for (uint32_t i = 0; i < col.size(); i++)
         if (col[i].score < s)
             s = col[i].score;
-    std::cout<<"Column "<<p<<": ["<<startIndex[p]<<": "<<startIndex[p + 1] - 1<<"] with "<<col.size()<<" bipartitions and score "<<s<<std::endl;
+    std::cout<<"Column "<<p<<": ["<<startIndex[p]<<": "<<startIndex[p + 1] - 1<<"] with "<<col.size()<<" bipartitions and score "<<s<<" (costs "<<recombCost[p]<<", "<<mutationCost[p]<<")"<<std::endl;
 }
