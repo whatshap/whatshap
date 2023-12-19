@@ -73,8 +73,11 @@ public:
      *                  genomic variant position.
      * @param rowLimit Number of intermediate solutions to store. Higher means more accurarcy but 
      *                 also more time. Maximum is 65535, default is 1024.
+     * @param allowMutations Whether de-novo mutations are allowed in the result. If set to false,
+     *                       the input must not contain Mendelian conflicts. Default is true
+     * @param verbosity 0 (default) for no output, 1 for output per column, 2 for output per read
      */
-    PedMecHeuristic(ReadSet* rs, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes, const std::vector<unsigned int>* positions = nullptr, uint32_t rowLimit = 1024, bool allowMutations = true);
+    PedMecHeuristic(ReadSet* rs, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes, const std::vector<unsigned int>* positions = nullptr, uint32_t rowLimit = 1024, bool allowMutations = true, uint32_t verbosity = 0);
     ~PedMecHeuristic();
     /**
      * Solves the given input instance and stores the results.
@@ -108,6 +111,7 @@ private:
     std::vector<uint32_t>* positions;
     uint32_t rowLimit;
     bool allowMutations;
+    uint32_t verbosity;
     
     // computation
     bool solved;
@@ -161,6 +165,8 @@ private:
      *              Default is 0 (= just column p)
      */
     MecScore getMutationCost(const std::vector<Balance>& balances, const Transmission& t, Position p, bool allowFlips = false, size_t ahead = 0) const;
+    
+    MecScore getOptPhasing(const std::vector<MecScore>& balances, const Transmission& t, Position p, std::vector<Allele>* optPhasing = nullptr) const;
     
     /**
      * Adds a given allele balance vector to an existing one. Along the process, collects
