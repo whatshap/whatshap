@@ -1,6 +1,7 @@
 from xopen import xopen
-
+import pytest
 import pysam
+
 from whatshap.cli.haplotag import run_haplotag
 from whatshap.cli.split import run_split
 
@@ -72,7 +73,8 @@ def test_split_fastq(tmp_path):
     )
 
 
-def test_split_tetraploid(tmp_path):
+@pytest.mark.parametrize("add_untagged", (False, True))
+def test_split_tetraploid(tmp_path, add_untagged):
     outlist = tmp_path / "outlist.txt"
     outbam = tmp_path / "outbam.bam"
     # produce a list of read assignments using haplotag
@@ -84,27 +86,24 @@ def test_split_tetraploid(tmp_path):
         haplotag_list=outlist,
     )
     # use list as input for split
-    outbams = [
-        tmp_path / "outbamh1.bam",
-        tmp_path / "outbamh2.bam",
-        tmp_path / "outbamh3.bam",
-        tmp_path / "outbamh4.bam",
-    ]
+    outbams = [ tmp_path / f"outbamh{i}.bam" for i in (1, 2, 3, 4)]
     run_split(
         reads_file=outbam,
         list_file=outlist,
         outputs=outbams,
+        add_untagged=add_untagged,
     )
 
     expected_splits = {
-        3: "S1_31286_NA19240_HAP2",
         0: "S1_248595_HG00514_HAP1",
-        2: "S1_284251_NA19240_HAP1",
         1: "S1_103518_HG00514_HAP2",
+        2: "S1_284251_NA19240_HAP1",
+        3: "S1_31286_NA19240_HAP2",
     }
-    for hap, outfile in enumerate(outbams):
-        nr_reads = 0
-        for alignment in pysam.AlignmentFile(outfile):
-            assert expected_splits[hap] == alignment.query_name
-            nr_reads += 1
-        assert nr_reads == 1
+    for hap, bam in enumerate(outbams):
+        with pysam.AlignmentFile(bam) as af:
+            names = [record.query_name for record in af]
+        if add_untagged:
+            assert names == [expected_splits[hap], "chr1:2000000-2000099"]
+        else:
+            assert names == [expected_splits[hap]]

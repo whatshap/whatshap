@@ -46,7 +46,7 @@ def add_arguments(parser):
     arg('--output-untagged',
         help='Output file to write untagged reads to (.gz supported)')
     arg('--add-untagged', default=False, action='store_true',
-        help='Add reads without tag to all (H1, H2, H3, H4) output streams.')
+        help='Add reads without tag to all (H1, H2, ...) outputs.')
     arg('--only-largest-block', default=False, action='store_true',
         help='Only consider reads to be tagged if they belong to the largest '
         'phased block (in terms of read count) on their respective chromosome')
@@ -62,7 +62,7 @@ def add_arguments(parser):
     arg('reads_file', metavar='READS', help='Input FASTQ/BAM file with reads (FASTQ can be gzipped)')
     arg('list_file', metavar='LIST',
         help='Tab-separated list with (at least) two columns <readname> and <haplotype> (can be gzipped). '
-        'Currently, the haplotypes have to be named H1, H2, H3 etc. (or none). Alternatively, the '
+        'Currently, the haplotypes have to be named H1, H2, etc. (or none). Alternatively, the '
         'output of the "haplotag" command can be used (4 columns), and this is required for using '
         'the "--only-largest-block" option (need phaseset and chromosome info).')
 # fmt: on
