@@ -196,10 +196,6 @@ def _four_column_parser(line):
 
 
 def _bam_iterator(bam_file):
-    """
-    :param bam_file:
-    :return:
-    """
     for record in bam_file:
         qlen = record.query_length
         if qlen > 0:
@@ -217,9 +213,6 @@ def _fastq_string_iterator(fastq_file):
     Explicit casting to string because pysam does not seem to
     have a writer for FASTQ files - note that this relies
     on opening all compressed files in "text" mode
-
-    :param fastq_file:
-    :return:
     """
     for record in fastq_file:
         yield record.name, len(record.sequence), str(record) + "\n"
@@ -266,13 +259,13 @@ def initialize_io_files(reads_file, outputs, exit_stack):
         else:
             raise ValueError(
                 "Undetected file format for input reads. "
-                "Expecting BAM or FASTQ (gzipped): {}".format(reads_file)
+                f"Expecting BAM or FASTQ (gzipped): {reads_file}"
             )
     elif input_format == "BAM":
         pass
     elif input_format in ["VCF", "CRAM"]:
         raise ValueError(
-            "Input file format detected as: {}. Currently, only BAM and FASTQ is supported."
+            f"Input file format detected as: {input_format}. Currently, only BAM and FASTQ is supported."
         )
     else:
         # this means somebody changed utils::detect_file_format w/o
@@ -282,7 +275,6 @@ def initialize_io_files(reads_file, outputs, exit_stack):
             "Expecting BAM or FASTQ (gzipped)"
         )
 
-    output_writers = []
     if input_format == "BAM":
         input_reader = exit_stack.enter_context(
             pysam.AlignmentFile(
@@ -293,27 +285,26 @@ def initialize_io_files(reads_file, outputs, exit_stack):
         )
         input_iter = _bam_iterator
 
-        for outfile in outputs:
-            output_writers.append(
-                exit_stack.enter_context(
-                    pysam.AlignmentFile(
-                        os.devnull if outfile is None else outfile, mode="wb", template=input_reader
-                    )
+        output_writers = [
+            exit_stack.enter_context(
+                pysam.AlignmentFile(
+                    os.devnull if path is None else path, mode="wb", template=input_reader
                 )
             )
+            for path in outputs
+        ]
     elif input_format == "FASTQ":
         # raw or gzipped is both handled by PySam
         input_reader = exit_stack.enter_context(pysam.FastxFile(reads_file))
-        output_mode = "wb"
-        if not (reads_file.endswith(".gz") or reads_file.endswith(".gzip")):
-            output_mode = "w"
         input_iter = _fastq_string_iterator
-        for outfile in outputs:
-            output_writers.append(
-                exit_stack.enter_context(
-                    open(os.devnull, output_mode) if outfile is None else xopen(outfile, "w")
-                )
+        output_writers = [
+            exit_stack.enter_context(
+                open(os.devnull, "w")
+                if path is None
+                else xopen(path, "w", compresslevel=1, threads=0)
             )
+            for path in outputs
+        ]
     else:
         # and this means I overlooked something...
         raise ValueError(f"Unhandled file format for input reads: {input_format}")
