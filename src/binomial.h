@@ -8,7 +8,7 @@
 
 int binomial_coefficient(int n, int k);
 
-double binomial_coefficient_large(int n, int k);
+double binomial_coefficient_log(int n, int k);
 
 double binom_pmf(int n, int k, double p);
 
