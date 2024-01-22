@@ -250,9 +250,10 @@ cdef extern from "../src/caller.h":
 
 cdef extern from "../src/pedmecheuristic.h":
     cdef cppclass PedMecHeuristic:
-        PedMecHeuristic(ReadSet* readset, vector[unsigned int], Pedigree* pedigree, bool distrust_genotypes, vector[unsigned int]* positions, uint32_t row_limit, bool allow_mutations) except +
+        PedMecHeuristic(ReadSet* readset, vector[unsigned int], Pedigree* pedigree, bool distrust_genotypes, vector[unsigned int]* positions, uint32_t row_limit, bool allow_mutations, uint32_t verbosity) except +
         void getSuperReads(vector[ReadSet*]*) except +
         vector[unsigned int]* getOptTransmission() except +
         int getOptScore() except +
         vector[bool]* getOptBipartition() except +
+        vector[vector[pair[uint32_t, uint32_t]]]* getMutations() except +
         void solve() except +

@@ -25,6 +25,7 @@ PedMecHeuristic::PedMecHeuristic(ReadSet* rs, const std::vector<unsigned int>& r
     optScore(0),
     optBipart(0),
     optHaps(0),
+    mutations(0),
     optTrans(0) {
         // costs
         size_t n = recombcost.size();
@@ -91,6 +92,10 @@ void PedMecHeuristic::getSuperReads(std::vector<ReadSet*>* superReads) const {
         phasedSample->add(read1);
         superReads->push_back(phasedSample);
     }
+}
+
+std::vector<std::vector<std::pair<uint32_t, uint32_t>>>* PedMecHeuristic::getMutations() const {
+    return new std::vector<std::vector<std::pair<uint32_t, uint32_t>>>(mutations.begin(), mutations.end());
 }
 
 void PedMecHeuristic::solve() {
@@ -359,17 +364,24 @@ void PedMecHeuristic::solve() {
     }
     
     // compute optimal phasing per position
-    for (uint32_t sid = 0; sid < numSamples; sid++)
+    for (uint32_t sid = 0; sid < numSamples; sid++) {
         optHaps.emplace_back(2, std::vector<Allele>(n, -1));
+    }
+    mutations.resize(numSamples);
     for (uint32_t p = 0; p < n; p++) {
         std::vector<Allele>* posPhasing = new std::vector<Allele>(2 * numSamples, 0);
-        // std::cout<<"=== POS: "<<p<<std::endl;
-        MecScore s = getOptPhasing(balances[p], optTrans[p], p, posPhasing);
+        std::vector<bool>* mut = new std::vector<bool>(2 * numSamples, false);
+        MecScore s = getOptPhasing(balances[p], optTrans[p], p, posPhasing, mut);
         for (uint32_t sid = 0; sid < numSamples; sid++) {
             optHaps[sid][0][p] = (*posPhasing)[2 * sid];
             optHaps[sid][1][p] = (*posPhasing)[2 * sid + 1];
+            if ((*mut)[2 * sid])
+                mutations[sid].emplace_back(0, p);
+            if ((*mut)[2 * sid + 1])
+                mutations[sid].emplace_back(1, p);
         }
         delete posPhasing;
+        delete mut;
     }
     solved = true;
 }
@@ -435,7 +447,8 @@ MecScore PedMecHeuristic::getMutationCost(const std::vector<Balance>& balances,
 MecScore PedMecHeuristic::getOptPhasing(const std::vector<MecScore>& balances,
                                                  const Transmission& t,
                                                  Position p,
-                                                 std::vector<Allele>* optPhasing) const {
+                                                 std::vector<Allele>* optPhasing,
+                                                 std::vector<bool>* mutated) const {
                                                      
     // precompute corresponding cost based on balance vector
     std::vector<std::vector<MecScore>> phaseCost(numSamples, std::vector<MecScore>(5));
@@ -475,6 +488,7 @@ MecScore PedMecHeuristic::getOptPhasing(const std::vector<MecScore>& balances,
     std::vector<size_t> v(numSamples, 0);        
     while (v[numSamples - 1] < phases[numSamples - 1].size()) {
         MecScore cost = 0.0;
+        std::vector<bool> mut(numSamples * 2, false);
         // iterate over trios to detect mutations
         for (uint32_t k = 0; k < trios.size(); k++) {
             auto& trio = trios[k];
@@ -488,6 +502,8 @@ MecScore PedMecHeuristic::getOptPhasing(const std::vector<MecScore>& balances,
             // add costs for every violated inheritance rule
             cost += (am != acm) * mutationCost[p];
             cost += (af != acf) * mutationCost[p];
+            mut[2 * trio[2]] = (am != acm);
+            mut[2 * trio[2] + 1] = (af != acf);
         }
         // iterate over samples to penalize deviating genotype and allele balances
         for (uint32_t s = 0; s < numSamples; s++)
@@ -500,6 +516,9 @@ MecScore PedMecHeuristic::getOptPhasing(const std::vector<MecScore>& balances,
                     (*optPhasing)[2 * s] = phases[s][v[s]] & 1;
                     (*optPhasing)[2 * s + 1] = (phases[s][v[s]] & 2) >> 1;
                 }
+            if (mutated != nullptr)
+                for (uint32_t s = 0; s < 2 * numSamples; s++)
+                    (*mutated)[s] = mut[s];
         }
         
         // increment counters
