@@ -584,8 +584,23 @@ def run_whatshap(
                             accessible_positions,
                             row_limit,
                             True,
+                            2,
                         )
                         superreads_list, transmission_vector = mh.get_super_reads()
+                        """
+                        mutations = mh.get_mutations()
+                        for i, m in enumerate(mutations):
+                            if m:
+                                print(f"Mutations in sample {i}:")
+                            for h, p in m:
+                                print(
+                                    f"   {'Maternal' if h == 0 else 'Paternal'} for variant {p} at position {accessible_positions[p] + 1}"
+                                )
+                                for sample, sample_superreads in zip(family, superreads_list):
+                                    print(
+                                        f"   {sample}: {sample_superreads[0][p].allele}|{sample_superreads[1][p].allele}"
+                                    )
+                        """
                     else:
                         dp_table = PedigreeDPTable(
                             all_reads,
@@ -942,6 +957,9 @@ def find_mendelian_conflicts(trios: Sequence[Trio], variant_table: VariantTable)
             if (not gt_mother.is_none()) and (not gt_father.is_none()) and (not gt_child.is_none()):
                 if mendelian_conflict(gt_mother, gt_father, gt_child):
                     mendelian_conflicts.add(index)
+                    print(
+                        f"Mendelian conflict found for variant {index} at position {variant_table.variants[index].position + 1}"
+                    )
     return mendelian_conflicts
 
 

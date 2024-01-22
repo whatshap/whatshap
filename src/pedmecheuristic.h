@@ -93,7 +93,7 @@ public:
     /** Returns the computed bipartition of all reads. */
     Bipartition* getOptBipartition() const;
     
-    /** Returns the transmission of the optimal solution. */
+    /** Returns the transmission of the optimal solution. Caller inherits ownership of all pointers.*/
     std::vector<Transmission>* getOptTransmission() const;
     
     /** Returns the computed haplotypes. Access order: sample id, haplotype id, position id. */
@@ -101,6 +101,9 @@ public:
     
     /** Returns the computed haplotypes as a vector of read sets. Caller inherits ownership of all pointers. */
     void getSuperReads(std::vector<ReadSet*>* superReads) const;
+    
+    /** Returns a boolean representation of the haplotypes of all samples, indicating whether an allele was mutated. Caller inherits ownership of all pointers. */
+    std::vector<std::vector<std::pair<uint32_t, uint32_t>>>* getMutations() const;
 
 private:
     // input
@@ -127,6 +130,7 @@ private:
     MecScore optScore;
     Bipartition optBipart;
     std::vector<std::vector<std::vector<Allele>>> optHaps;
+    std::vector<std::vector<std::pair<uint32_t, uint32_t>>> mutations;
     std::vector<Transmission> optTrans;
     
     /**
@@ -166,7 +170,7 @@ private:
      */
     MecScore getMutationCost(const std::vector<Balance>& balances, const Transmission& t, Position p, bool allowFlips = false, size_t ahead = 0) const;
     
-    MecScore getOptPhasing(const std::vector<MecScore>& balances, const Transmission& t, Position p, std::vector<Allele>* optPhasing = nullptr) const;
+    MecScore getOptPhasing(const std::vector<MecScore>& balances, const Transmission& t, Position p, std::vector<Allele>* optPhasing = nullptr, std::vector<bool>* mutated = nullptr) const;
     
     /**
      * Adds a given allele balance vector to an existing one. Along the process, collects

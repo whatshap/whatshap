@@ -614,7 +614,7 @@ cdef class Caller:
 
 
 cdef class PedMecHeuristic:
-	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree, bool distrust_genotypes = False, positions = None, int row_limit = 1024, bool allow_mutations = True):
+	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree, bool distrust_genotypes = False, positions = None, int row_limit = 1024, bool allow_mutations = True, verbosity = 0):
 		"""Build the DP table from the given read set which is assumed to be sorted;
 		that is, the variants in each read must be sorted by position and the reads
 		in the read set must also be sorted (by position of their left-most variant).
@@ -624,7 +624,7 @@ cdef class PedMecHeuristic:
 			c_positions = new vector[unsigned int]()
 			for pos in positions:
 				c_positions.push_back(pos)
-		self.thisptr = new cpp.PedMecHeuristic(readset.thisptr, recombcost, pedigree.thisptr, distrust_genotypes, c_positions, row_limit, allow_mutations)
+		self.thisptr = new cpp.PedMecHeuristic(readset.thisptr, recombcost, pedigree.thisptr, distrust_genotypes, c_positions, row_limit, allow_mutations, verbosity)
 		self.pedigree = pedigree
 		
 	def __dealloc__(self):
@@ -661,4 +661,17 @@ cdef class PedMecHeuristic:
 		cdef vector[bool]* p = self.thisptr.getOptBipartition()
 		result = [0 if x else 1 for x in p[0]]
 		del p
+		return result
+
+	def get_mutations(self):
+		"""Returns a 2D-list indicating which alleles contain a mutation. The outer list contains
+		one sub-list for each sample and the sub-list contains <hap_id, position> pairs of alleles
+		not following their respective parent."""
+		cdef vector[vector[pair[uint32_t, uint32_t]]]* m = self.thisptr.getMutations()
+		result = list (m[0])
+		#result = [[] for _ in range(len(m))]
+		#for i in range(len(m)):
+		#	for pair in m[i]:
+		#		result[i].append(pair)
+		del m
 		return result
