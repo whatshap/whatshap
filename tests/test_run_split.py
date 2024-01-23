@@ -1,6 +1,8 @@
 from xopen import xopen
+import pytest
 import pysam
 
+from whatshap.cli.haplotag import run_haplotag
 from whatshap.cli.split import run_split
 
 
@@ -69,3 +71,59 @@ def test_split_fastq(tmp_path):
         output_h1="/dev/null",
         output_h2="/dev/null",
     )
+
+
+@pytest.mark.parametrize("format", ("bam", "fastq", "fastq.gz"))
+@pytest.mark.parametrize("add_untagged", (False, True))
+def test_split_tetraploid_bam(tmp_path, add_untagged, format):
+    outlist = tmp_path / "outlist.txt"
+    alignment_file = "tests/data/haplotag_poly.bam"
+    # produce a list of read assignments using haplotag
+    run_haplotag(
+        variant_file="tests/data/haplotag_poly.vcf.gz",
+        alignment_file=alignment_file,
+        ploidy=4,
+        output=tmp_path / "reads.bam",
+        haplotag_list=outlist,
+    )
+    reads_file = tmp_path / f"reads.{format}"
+    if format.startswith("fastq"):
+        bam_to_fastq(alignment_file, reads_file)
+
+    split_files = [tmp_path / f"split.{i}.{format}" for i in (1, 2, 3, 4)]
+    run_split(
+        reads_file=str(reads_file),
+        list_file=outlist,
+        outputs=split_files,
+        add_untagged=add_untagged,
+    )
+
+    expected_splits = {
+        0: "S1_248595_HG00514_HAP1",
+        1: "S1_103518_HG00514_HAP2",
+        2: "S1_284251_NA19240_HAP1",
+        3: "S1_31286_NA19240_HAP2",
+    }
+    for hap, path in enumerate(split_files):
+        if format == "bam":
+            with pysam.AlignmentFile(path) as af:
+                names = [record.query_name for record in af]
+        else:
+            names = fastq_names(path)
+        if add_untagged:
+            assert names == [expected_splits[hap], "chr1:2000000-2000099"]
+        else:
+            assert names == [expected_splits[hap]]
+
+
+def bam_to_fastq(bam_path, fastq_path):
+    with pysam.AlignmentFile(bam_path) as af:
+        with xopen(fastq_path, "w", compresslevel=1) as fastq:
+            for record in af:
+                fastq.write(f"@{record.query_name}\n{record.query_sequence}\n+\n{record.qual}\n")
+
+
+def fastq_names(fastq_path):
+    with xopen(fastq_path) as f:
+        names = [line[1:].rstrip() for i, line in enumerate(f) if i % 4 == 0]
+    return names

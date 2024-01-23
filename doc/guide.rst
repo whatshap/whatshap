@@ -785,8 +785,16 @@ That is, reading BAM but writing FASTQ (or vice versa) is not possible.
 
 Examples::
 
-    whatshap split --output-h1 h1.fastq.gz  --output-h2 h2.fastq.gz reads.fastq.gz haplotypes.tsv
+    whatshap split --output-h1 h1.fastq.gz --output-h2 h2.fastq.gz reads.fastq.gz haplotypes.tsv
     whatshap split --output-h1 h1.bam --output-h2 h2.bam reads.bam haplotypes.tsv
+
+When splitting files with ploidy greater two, an alternative syntax needs to be used:
+The option ``-o`` must be provided as many times as there are haplotypes.
+The first output file is used for the reads from the first haplotype,
+the second for the reads from the second haplotype etc.
+For example, to split a tetraploid file::
+
+    whatshap split -o h1.bam -o h2.bam -o h3.bam -o h4.bam reads.bam haplotypes.tsv
 
 
 .. _whatshap-genotype:
