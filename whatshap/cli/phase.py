@@ -295,7 +295,7 @@ def run_whatshap(
     read_merging_positive_threshold: int = 1000000,
     read_merging_negative_threshold: int = 1000,
     max_coverage: int = 15,
-    row_limit: int = 100,
+    row_limit: int = 256,
     distrust_genotypes: bool = False,
     include_homozygous: bool = False,
     ped: Optional[str] = None,
@@ -584,7 +584,7 @@ def run_whatshap(
                             accessible_positions,
                             row_limit,
                             True,
-                            2,
+                            0,
                         )
                         superreads_list, transmission_vector = mh.get_super_reads()
                         """
@@ -1069,7 +1069,7 @@ def add_arguments(parser):
         "(default: do not merge reads)")
     arg("--max-coverage", "-H", metavar="MAXCOV", type=int,
         dest="max_coverage_was_used", help=SUPPRESS)
-    arg("--row-limit", "-L", metavar="ROWLIMIT", type=int,
+    arg("--row-limit", "-L", metavar="ROWLIMIT", type=int, default=256,
         dest="row_limit", help=SUPPRESS)
     arg("--internal-downsampling", metavar="COVERAGE", dest="max_coverage", default=15, type=int,
         help="Coverage reduction parameter in the internal core phasing algorithm. "
