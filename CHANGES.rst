@@ -10,6 +10,12 @@ unreleased
   It could occur for variants with extremely high coverages (i.e. >200X).
 * :issue:`214`: Added support for ploidies greater than two to ``whatshap
   split``.
+* Added another algorithm for diploid phasing, which is a heuristic version of
+  the default algorithm. Since it has not been tested extensively, we recommend
+  the old algorithm for productive use, especially for pedigree phasing. Main
+  benefit is support for higher coverages and/or larger pedigrees at the cost
+  of not solving the underlying MEC model to optimality anymore. The heuristic
+  is accessible via the parameter ``--algorithm heuristic``.
 
 v2.1 (2023-10-17)
 -----------------
