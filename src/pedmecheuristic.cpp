@@ -4,6 +4,7 @@
 #include <limits>
 #include <algorithm>
 #include <string> 
+#include <set>
 
 PedMecHeuristic::PedMecHeuristic(ReadSet* rs, const std::vector<unsigned int>& recombcost, const Pedigree* pedigree, bool distrust_genotypes, const std::vector<unsigned int>* positions, uint32_t rowLimit, bool allowMutations, uint32_t verbosity) :
     rs(rs),
@@ -16,7 +17,9 @@ PedMecHeuristic::PedMecHeuristic(ReadSet* rs, const std::vector<unsigned int>& r
     verbosity(verbosity),
     solved(false),
     tmBits(2 * pedigree->triple_count()),
-    numSamples(pedigree->size()),
+    numSamples(0),
+    globalSampleIds(0),
+    sampleMap(0),
     trios(pedigree->get_triples()),
     genotypes(0),
     alleles(0),
@@ -45,6 +48,26 @@ PedMecHeuristic::PedMecHeuristic(ReadSet* rs, const std::vector<unsigned int>& r
         n = this->positions->size();
         for (uint32_t i = 0; i < n; i++)
             posMap[(*(this->positions))[i]] = i;
+        
+        // sample ids
+        std::set<uint32_t> sampleSet;
+        for (uint32_t i = 0; i < rs->size(); i++)
+            sampleSet.insert(rs->get(i)->getSampleID());
+        for (auto& trio: pedigree->get_triples())
+            for (size_t s: trio)
+                sampleSet.insert((uint32_t)s);
+            
+        globalSampleIds.insert(globalSampleIds.end(), sampleSet.begin(), sampleSet.end());
+        std::sort(globalSampleIds.begin(), globalSampleIds.end());
+        numSamples = globalSampleIds.size();
+        for (uint32_t i = 0; i < numSamples; i++)
+            sampleMap[globalSampleIds[i]] = i;
+        
+        for (auto& trio: trios) {
+            trio[0] = sampleMap[trio[0]];
+            trio[1] = sampleMap[trio[1]];
+            trio[2] = sampleMap[trio[2]];
+        }
         
         // genotypes
         for (uint32_t s = 0; s < numSamples; s++) {
@@ -79,10 +102,9 @@ std::vector<std::vector<std::vector<Allele>>> PedMecHeuristic::getOptHaplotypes(
 }
 
 void PedMecHeuristic::getSuperReads(std::vector<ReadSet*>* superReads) const {
-    uint32_t numSamples = optHaps.size();
     for (uint32_t sid = 0; sid < numSamples; sid++) {
-        Read* read0 = new Read("superread_0", -1, -1, sid);
-        Read* read1 = new Read("superread_1", -1, -1, sid);
+        Read* read0 = new Read("superread_0", -1, -1, globalSampleIds[sid]);
+        Read* read1 = new Read("superread_1", -1, -1, globalSampleIds[sid]);
         for (uint32_t p = 0; p < positions->size(); p++)  {
             read0->addVariant((*positions)[p], optHaps[sid][0][p], 30);
             read1->addVariant((*positions)[p], optHaps[sid][1][p], 30);
@@ -200,7 +222,7 @@ void PedMecHeuristic::solve() {
             active.push_back(r);
             // generate balance vector of read
             Balance b(right + 1 - p, 0);
-            sampleIds.push_back(rs->get(r)->getSampleID());
+            sampleIds.push_back(sampleMap[rs->get(r)->getSampleID()]);
             for (int32_t i = 0; i < rs->get(r)->getVariantCount(); i++) {
                 Position o = posMap[rs->get(r)->getPosition(i)] - p;
                 Allele a = rs->get(r)->getAllele(i);
@@ -357,7 +379,7 @@ void PedMecHeuristic::solve() {
         for (int32_t i = 0; i < r->getVariantCount(); i++) {
             Allele a = r->getAllele(i);
             MecScore q = r->getVariantQuality(i);
-            uint32_t sid = r->getSampleID();
+            uint32_t sid = sampleMap[r->getSampleID()];
             if (a >= 0)
                 balances[posMap[r->getPosition(i)]][2 * sid + optBipart[ri]] += (2 * a - 1) * q;
         }
