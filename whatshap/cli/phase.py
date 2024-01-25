@@ -587,20 +587,6 @@ def run_whatshap(
                             0,
                         )
                         superreads_list, transmission_vector = mh.get_super_reads()
-                        """
-                        mutations = mh.get_mutations()
-                        for i, m in enumerate(mutations):
-                            if m:
-                                print(f"Mutations in sample {i}:")
-                            for h, p in m:
-                                print(
-                                    f"   {'Maternal' if h == 0 else 'Paternal'} for variant {p} at position {accessible_positions[p] + 1}"
-                                )
-                                for sample, sample_superreads in zip(family, superreads_list):
-                                    print(
-                                        f"   {sample}: {sample_superreads[0][p].allele}|{sample_superreads[1][p].allele}"
-                                    )
-                        """
                     else:
                         dp_table = PedigreeDPTable(
                             all_reads,
