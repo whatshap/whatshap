@@ -35,7 +35,7 @@ bam_files = [
 ]
 
 
-@fixture(params=["whatshap", "hapchat"])
+@fixture(params=["whatshap", "hapchat", "heuristic"])
 def algorithm(request):
     return request.param
 
