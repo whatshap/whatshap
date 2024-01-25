@@ -120,7 +120,9 @@ private:
     bool solved;
     size_t tmBits;
     uint32_t numSamples;
-    const std::vector<Pedigree::triple_entry_t> trios;
+    std::vector<uint32_t> globalSampleIds;
+    std::unordered_map<uint32_t, uint32_t> sampleMap;
+    std::vector<Pedigree::triple_entry_t> trios;
     std::vector<std::vector<int>> genotypes; // per sample per position: 0=ref/ref, 1=ref/alt, 2=alt/alt
     std::vector<std::vector<std::pair<Allele, Allele>>> alleles; // per sample per position: ref and alt allele
     std::unordered_map<uint32_t, Position> posMap;
