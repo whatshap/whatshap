@@ -572,21 +572,18 @@ def run_whatshap(
                     dp_table: Union[HapChatCore, PedigreeDPTable]
                     if algorithm == "hapchat":
                         dp_table = HapChatCore(all_reads)
-                        superreads_list, transmission_vector = dp_table.get_super_reads()
-                        logger.debug("%s cost: %d", problem_name, dp_table.get_optimal_cost())
                     elif algorithm == "heuristic":
                         all_reads.sort()
-                        mh = PedMecHeuristic(
+                        dp_table = PedMecHeuristic(
                             all_reads,
                             recombination_costs,
                             pedigree,
-                            distrust_genotypes,
-                            accessible_positions,
                             row_limit,
-                            True,
-                            0,
+                            distrust_genotypes=distrust_genotypes,
+                            positions=accessible_positions,
+                            allow_mutations=True,
+                            verbosity=0,
                         )
-                        superreads_list, transmission_vector = mh.get_super_reads()
                     else:
                         dp_table = PedigreeDPTable(
                             all_reads,
@@ -595,8 +592,8 @@ def run_whatshap(
                             distrust_genotypes,
                             accessible_positions,
                         )
-                        superreads_list, transmission_vector = dp_table.get_super_reads()
-                        logger.info("%s cost: %d", problem_name, dp_table.get_optimal_cost())
+                    superreads_list, transmission_vector = dp_table.get_super_reads()
+                    logger.debug("%s cost: %d", problem_name, dp_table.get_optimal_cost())
 
                 with timers("components"):
                     overall_components = compute_overall_components(
@@ -611,7 +608,7 @@ def run_whatshap(
                     )
                     log_component_stats(overall_components, len(accessible_positions))
 
-                if recombination_list_filename and algorithm != "heuristic":
+                if recombination_list_filename:
                     n_recombinations = write_recombination_list(
                         recombination_list_filename,
                         chromosome,
@@ -635,7 +632,7 @@ def run_whatshap(
                     # identical for all samples
                     components[sample] = overall_components
 
-                if read_list and algorithm != "heuristic":
+                if read_list:
                     read_list.write(
                         all_reads,
                         dp_table.get_optimal_partitioning(),
@@ -943,9 +940,6 @@ def find_mendelian_conflicts(trios: Sequence[Trio], variant_table: VariantTable)
             if (not gt_mother.is_none()) and (not gt_father.is_none()) and (not gt_child.is_none()):
                 if mendelian_conflict(gt_mother, gt_father, gt_child):
                     mendelian_conflicts.add(index)
-                    print(
-                        f"Mendelian conflict found for variant {index} at position {variant_table.variants[index].position + 1}"
-                    )
     return mendelian_conflicts
 
 

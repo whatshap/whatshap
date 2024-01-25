@@ -614,7 +614,7 @@ cdef class Caller:
 
 
 cdef class PedMecHeuristic:
-	def __cinit__(self, ReadSet readset, recombcost, Pedigree pedigree, bool distrust_genotypes = False, positions = None, int row_limit = 1024, bool allow_mutations = True, int verbosity = 0):
+	def __cinit__(self, ReadSet readset, vector[unsigned int] recombcost, Pedigree pedigree, int row_limit = 256, bool distrust_genotypes = False, positions = None, bool allow_mutations = True, int verbosity = 0):
 		"""Build the DP table from the given read set which is assumed to be sorted;
 		that is, the variants in each read must be sorted by position and the reads
 		in the read set must also be sorted (by position of their left-most variant).
