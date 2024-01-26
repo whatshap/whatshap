@@ -2,8 +2,8 @@
 Changes
 =======
 
-unreleased
-----------
+v2.2 (2024-01-26)
+-----------------
 
 * :issue:`496`: Fixed a segmentation fault in ``polyphase``.
 * :issue:`498`: Fixed a numeric overflow in the scoring phase of ``polyphase``.
