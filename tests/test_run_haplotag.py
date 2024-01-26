@@ -531,20 +531,24 @@ def test_haplotag_tetraploid(tmp_path):
         "S1_248595_HG00514_HAP1": 4,
         "S1_284251_NA19240_HAP1": 14,
         "S1_103518_HG00514_HAP2": 16,
+        "chr1:2000000-2000099": None,
     }
     readname_to_haplotype = {
         "S1_31286_NA19240_HAP2": 4,
         "S1_248595_HG00514_HAP1": 1,
         "S1_284251_NA19240_HAP1": 3,
         "S1_103518_HG00514_HAP2": 2,
+        "chr1:2000000-2000099": None,
     }
     count = 0
     with pysam.AlignmentFile(outbam) as af:
         for alignment in af:
             count += 1
-            assert readname_to_score[alignment.query_name] == alignment.get_tag("PC")
-            assert readname_to_haplotype[alignment.query_name] == alignment.get_tag("HP")
-    assert count == 4
+            score = readname_to_score[alignment.query_name]
+            if score is not None:
+                assert score == alignment.get_tag("PC")
+                assert readname_to_haplotype[alignment.query_name] == alignment.get_tag("HP")
+    assert count == 5
 
 
 def test_haplotag_duplicates_are_tagged(tmp_path):

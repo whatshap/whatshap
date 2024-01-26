@@ -10,6 +10,8 @@ unreleased
   It could occur for variants with extremely high coverages (i.e. >200X).
 * :issue:`472`: Fixed various warnings and assertion violations when running
   ``polyphase``.
+* :issue:`214`: Added support for ploidies greater than two to ``whatshap
+  split``.
 
 v2.1 (2023-10-17)
 -----------------
