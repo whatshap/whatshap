@@ -8,6 +8,8 @@ unreleased
 * :issue:`496`: Fixed a segmentation fault in ``polyphase``.
 * :issue:`498`: Fixed a numeric overflow in the scoring phase of ``polyphase``.
   It could occur for variants with extremely high coverages (i.e. >200X).
+* :issue:`472`: Fixed various warnings and assertion violations when running
+  ``polyphase``.
 * :issue:`214`: Added support for ploidies greater than two to ``whatshap
   split``.
 * Added another algorithm for diploid phasing, which is a heuristic version of

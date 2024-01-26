@@ -35,9 +35,8 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, AlleleMatrix* am, c
     for (uint32_t i = 0; i < gl.size(); i++) {
         std::unordered_map<Genotype, double> l = computeGenotypeLikelihoods(am->getAlleleDepths(i), ploidy, err);
         gl[i] = l;
-        for (auto& g: l) {
+        for (auto& g: l)
             occGenotypesSet.insert(g.first);
-        }
     }
     
     // precompute allele-pair likelihood ratios for existing genotypes
@@ -175,7 +174,7 @@ std::unordered_map<Genotype, double> ReadScoring::computeGenotypeLikelihoods (st
         double l = std::exp(p.second - lowest);
         gl[p.first] = l;
         weight += l;
-        if (l == 0.0)
+        if (!(l <= std::numeric_limits<double>::max()))
             underflow = true;
     }
     
