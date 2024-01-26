@@ -506,14 +506,14 @@ def run_whatshap(
                             "Kept %d reads that cover at least two variants each", len(readset)
                         )
                         merged_reads = read_merger.merge(readset)
-                        if algorithm != "heuristic":
+                        if algorithm == "heuristic":
+                            selected_reads = merged_reads
+                        else:
                             selected_reads = select_reads(
                                 merged_reads,
                                 max_coverage_per_sample,
                                 preferred_source_ids=vcf_source_ids,
                             )
-                        else:
-                            selected_reads = merged_reads
 
                     readsets[sample] = selected_reads
                     if len(family) == 1 and not distrust_genotypes:
@@ -1049,8 +1049,10 @@ def add_arguments(parser):
         "(default: do not merge reads)")
     arg("--max-coverage", "-H", metavar="MAXCOV", type=int,
         dest="max_coverage_was_used", help=SUPPRESS)
-    arg("--row-limit", "-L", metavar="ROWLIMIT", type=int, default=256,
-        dest="row_limit", help=SUPPRESS)
+    arg("--row-limit", "-L", metavar="ROWLIMIT", type=int, default=256, dest="row_limit",
+        help="For the heuristic: Specifies the maximum number of memorized "
+        "intermediate solutions. Larger values increase runtime and memory consumption, but can "
+        "improve phasing quality. (default: %(default)s)")
     arg("--internal-downsampling", metavar="COVERAGE", dest="max_coverage", default=15, type=int,
         help="Coverage reduction parameter in the internal core phasing algorithm. "
         "Higher values increase runtime *exponentially* while possibly improving phasing "
@@ -1169,6 +1171,11 @@ def validate(args, parser):
             "*exponentially* while possibly improving phasing quality marginally. "
             "Avoid using this in the normal case!"
         )
+    if args.row_limit is not None:
+        if args.algorithm != "heuristic":
+            logger.warning("Ignoring --row-limit as heuristic is not used as algorithm.")
+        elif args.row_limit > 65535:
+            parser.error("Row limit paramter must not exceed 65535.")
     if args.full_genotyping:
         parser.error(
             "The experimental --full-genotyping option has been removed. Instead, please run "

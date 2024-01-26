@@ -15,7 +15,7 @@ unreleased
   the old algorithm for productive use, especially for pedigree phasing. Main
   benefit is support for higher coverages and/or larger pedigrees at the cost
   of not solving the underlying MEC model to optimality anymore. The heuristic
-  is accessible via the parameter ``--algorithm heuristic``.
+  is accessible via the parameter ``--algorithm=heuristic``.
 
 v2.1 (2023-10-17)
 -----------------
