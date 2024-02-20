@@ -8,6 +8,7 @@ from collections import defaultdict
 from contextlib import ExitStack
 from typing import List, Optional, Union, Dict, Tuple, FrozenSet, Sequence, TextIO
 
+import numpy
 import pysam
 from pysam import AlignedSegment
 
@@ -109,7 +110,7 @@ def run_extend(
             raise CommandLineError(e)
 
         vcf_reader = stack.enter_context(
-            VcfReader(variant_file)
+            VcfReader(variant_file, phases=True)
         )
 
         try:
@@ -128,9 +129,6 @@ def run_extend(
                 "When using --ignore-read-groups on a VCF with "
                 "multiple samples, --sample must also be used."
             )
-
-        with timers("parse_phasing_vcf"):
-            phased_input_reader.read_vcfs()
 
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
             chromosome = variant_table.chromosome
@@ -157,24 +155,28 @@ def run_extend(
                             )
                 # logger.info(f"reads = {reads}")
                 votes = dict()
-                phases = variant_table.genotypes_of(sample)
-                qual = dict()
+                phases = variant_table.phases_of(sample)
+                genotypes = variant_table.genotypes_of(sample)
+                # logger.info(f"phases: {phases}")
                 # logger.info(phases)
                 homozygous = dict()
+                phased = dict()
                 homozygous_number = 0
-                for variant, phase in zip(variant_table.variants, phases):
-                    # logger.info((variant.position, phase.is_homozygous()))
-                    # homozygous[variant.position] = False
-                    homozygous[variant.position] = phase.is_homozygous()
-                    homozygous_number += phase.is_homozygous()
-                logger.info(f'number of homozygous variants is {homozygous_number}')
+                phased_number = 0
+                for variant, (phase, genotype) in zip(variant_table.variants, zip(phases, genotypes)):
+                    homozygous[variant.position] = genotype.is_homozygous()
+                    phased[variant.position] = phase
+                    phased_number += phase is not None
+                    homozygous_number += genotype.is_homozygous()
+                logger.info(f'Number of homozygous variants is {homozygous_number}')
+                logger.info(f'Number of already phased variants is {phased_number}')
                 for read in reads:
                     # logger.info(read.name)
                     if read.name not in reads_to_ht:
                         continue
                     ps, ht = reads_to_ht[read.name]
                     for variant in read:
-                        if variant.position not in homozygous.keys() or homozygous[variant.position]:
+                        if homozygous[variant.position]:
                             continue
                         if variant.position not in votes:
                             votes[variant.position] = dict()
@@ -182,38 +184,26 @@ def run_extend(
                             votes[variant.position][(ps, 0)] = 0
                             votes[variant.position][(ps, 1)] = 0
                         votes[variant.position][(ps, ht ^ variant.allele)] += variant.quality
-                        qual[variant.quality] = qual.get(variant.quality, 0) + 1
-                # logger.info(qual)
+
                 super_reads = [[], []]
-                scores = dict()
+                counters = numpy.zeros(101, dtype=numpy.int32)
                 components = dict()
                 for pos, var in votes.items():
                     lst = list(var.items())
                     lst.sort(key=lambda x: x[-1], reverse=True)
-                    # logger.info(lst)
                     (ps1, al1), score1 = lst[0]
-                    _, score2 = lst[1]
+                    total = sum(e[-1] for e in lst)
                     components[pos] = ps1
-                    gap = abs(score1 - score2)
-                    scores[gap] = scores.get(gap, 0) + 1
-                    if gap <= gap_threshold:
-                        # logger.info(f'Tie for variant on position {pos} with gap {gap}')
-                        # super_reads[0].append(Variant(pos, allele=3, quality=0))
-                        # super_reads[1].append(Variant(pos, allele=3, quality=0))
+                    q = int(100 * score1 // total)
+                    counters[q] += 1
+                    if q < gap_threshold and phased[pos] is None:
                         continue
-                    # logger.info(f"{pos}, {al1}, {score1 - score2}")
-                    super_reads[0].append(Variant(pos, allele=al1, quality=score1 - score2))
-                    super_reads[1].append(Variant(pos, allele=al1 ^ 1, quality=score1 - score2))
+                    super_reads[0].append(Variant(pos, allele=al1, quality=score1))
+                    super_reads[1].append(Variant(pos, allele=al1 ^ 1, quality=score1))
+                logger.info(f'counters = {counters}')
                 for read in super_reads:
                     read.sort(key=lambda x: x.position)
-                # logger.info('scores counters:')
-                # logger.info(scores)
-                # lst = list(scores.items())
-                # lst.sort()
-                # for (k, v) in lst:
-                #     logger.info(f"({k},{v})")
-                # logger.info(super_reads[0])
-                # logger.info(super_reads[1])
+
                 vcf_writer.write(chromosome, {sample: super_reads}, {sample: components})
 
         # logger.info(f"Size of read_set = {len(read_set)}")
