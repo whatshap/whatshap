@@ -311,6 +311,8 @@ def run_whatshap(
     default_gq: int = 30,
     write_command_line_header: bool = True,
     use_ped_samples: bool = False,
+    use_supplementary: bool = False,
+    supplementary_distance_threshold: int = 100_000,
     algorithm: str = "whatshap",
 ) -> None:
     """
@@ -329,6 +331,9 @@ def run_whatshap(
     read_merging_max_error_rate -- max error rate on edge of merge graph considered
     read_merging_positive_threshold -- threshold on the ratio of the two probabilities
     read_merging_negative_threshold -- threshold on the opposite ratio of positive threshold
+    use_supplementary -- use supplementary alignments with primary
+    supplementary_distance_threshold -- distance threshold for filtering supplementary alignments
+
     max_coverage
     distrust_genotypes
     include_homozygous
@@ -347,7 +352,6 @@ def run_whatshap(
         raise CommandLineError("The hapchat algorithm cannot do pedigree phasing")
     if samples is None:
         samples = []
-
     timers = StageTimer()
     logger.info(f"This is WhatsHap {__version__} running under Python {platform.python_version()}")
     numeric_sample_ids = NumericSampleIds()
@@ -378,6 +382,8 @@ def run_whatshap(
                 ignore_read_groups,
                 mapq_threshold=mapping_quality,
                 only_snvs=only_snvs,
+                use_supplementary=use_supplementary,
+                supplementary_distance_threshold=supplementary_distance_threshold,
             )
         )
         show_phase_vcfs = phased_input_reader.has_vcfs
@@ -1140,6 +1146,12 @@ def add_arguments(parser):
     arg("--use-ped-samples", dest="use_ped_samples",
         action="store_true", default=False,
         help="Only work on samples mentioned in the provided PED file.")
+    arg("--use-supplementary", dest="use_supplementary", action="store_true", default=False,
+        help="Use also supplementary alignments (default: ignore supplementary_ alignments)")
+    arg("--supplementary-distance", metavar="DIST", dest="supplementary_distance_threshold", default=100_000,
+        help="Skip supplementary alignments further than DIST bp away from the primary alignment (default: %(default)s)")
+
+
 # fmt: on
 
 
