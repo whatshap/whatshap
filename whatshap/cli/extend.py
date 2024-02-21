@@ -31,7 +31,8 @@ def add_arguments(parser):
         help="Output file. If omitted, use standard output.")
     arg("--reference", "-r", metavar="FASTA",
         help="Reference file. Must be accompanied by .fai index (create with samtools faidx)")
-    arg("--gap-threshold", "-g", metavar="GAPTHRESHOLD", default=0, type=int)
+    arg("--gap-threshold", "-g", metavar="GAPTHRESHOLD", default=70, type=int,
+        help="Threshold percentage of qualities for assigning phase information to a variant.")
     # arg("--regions", dest="regions", metavar="REGION", default=None, action="append",
     #     help="Specify region(s) of interest to limit the tagging to reads/variants "
     #          "overlapping those regions. You can specify a space-separated list of "
@@ -73,7 +74,7 @@ def run_extend(
     reference: Union[None, bool, str] = False,
     ignore_read_groups: bool = False,
     chromosomes: Optional[List[str]] = None,
-    gap_threshold: int = 0,
+    gap_threshold: int = 70,
     # samples: Optional[Sequence[str]] = None,
     write_command_line_header: bool = True,
     tag: str = "PS",
@@ -153,12 +154,9 @@ def run_extend(
                                 int(alignment.get_tag('PS')) - 1,
                                 int(alignment.get_tag('HP')) - 1
                             )
-                # logger.info(f"reads = {reads}")
                 votes = dict()
                 phases = variant_table.phases_of(sample)
                 genotypes = variant_table.genotypes_of(sample)
-                # logger.info(f"phases: {phases}")
-                # logger.info(phases)
                 homozygous = dict()
                 phased = dict()
                 homozygous_number = 0
@@ -171,7 +169,6 @@ def run_extend(
                 logger.info(f'Number of homozygous variants is {homozygous_number}')
                 logger.info(f'Number of already phased variants is {phased_number}')
                 for read in reads:
-                    # logger.info(read.name)
                     if read.name not in reads_to_ht:
                         continue
                     ps, ht = reads_to_ht[read.name]
@@ -195,7 +192,8 @@ def run_extend(
                     total = sum(e[-1] for e in lst)
                     components[pos] = ps1
                     q = int(100 * score1 // total)
-                    counters[q] += 1
+                    if phased[pos] is not None:
+                        counters[q] += 1
                     if q < gap_threshold and phased[pos] is None:
                         continue
                     super_reads[0].append(Variant(pos, allele=al1, quality=score1))
