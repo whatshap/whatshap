@@ -15,6 +15,7 @@ from pysam import AlignedSegment
 from whatshap.cli import PhasedInputReader, CommandLineError
 from whatshap.core import NumericSampleIds, ReadSet, Read, Variant
 from whatshap.timer import StageTimer
+from whatshap.utils import IndexedFasta
 from whatshap.variants import ReadSetReader
 
 from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VariantTable
@@ -33,6 +34,8 @@ def add_arguments(parser):
         help="Reference file. Must be accompanied by .fai index (create with samtools faidx)")
     arg("--gap-threshold", "-g", metavar="GAPTHRESHOLD", default=70, type=int,
         help="Threshold percentage of qualities for assigning phase information to a variant.")
+    arg("--cut-poly", "-c", metavar="CUTPOLY", default=-1, type=int,
+        help="ignore polymers longer than the cut value.")
     # arg("--regions", dest="regions", metavar="REGION", default=None, action="append",
     #     help="Specify region(s) of interest to limit the tagging to reads/variants "
     #          "overlapping those regions. You can specify a space-separated list of "
@@ -75,7 +78,7 @@ def run_extend(
     ignore_read_groups: bool = False,
     chromosomes: Optional[List[str]] = None,
     gap_threshold: int = 70,
-    # samples: Optional[Sequence[str]] = None,
+    cut_poly: int = -1,
     write_command_line_header: bool = True,
     tag: str = "PS",
 ):
@@ -130,9 +133,10 @@ def run_extend(
                 "When using --ignore-read-groups on a VCF with "
                 "multiple samples, --sample must also be used."
             )
-
+        fasta = IndexedFasta(reference)
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
             chromosome = variant_table.chromosome
+            fasta_chr = fasta[chromosome]
             logger.info(f"Processing chromosome {chromosome}...")
             # logger.info(variant_table.variants)
             if chromosomes and chromosome not in chromosomes:
@@ -142,7 +146,6 @@ def run_extend(
                 with timers("write_vcf"):
                     vcf_writer.write_unchanged(chromosome)
                 continue
-
             for sample in vcf_reader.samples:
                 logger.info(f"process sample {sample}")
                 reads_to_ht: Dict[str, Tuple[int, int]] = dict()
@@ -157,7 +160,9 @@ def run_extend(
                 votes = dict()
                 phases = variant_table.phases_of(sample)
                 genotypes = variant_table.genotypes_of(sample)
+
                 homozygous = dict()
+                change = dict()
                 phased = dict()
                 homozygous_number = 0
                 phased_number = 0
@@ -166,6 +171,7 @@ def run_extend(
                     phased[variant.position] = phase
                     phased_number += phase is not None
                     homozygous_number += genotype.is_homozygous()
+                    change[variant.position] = variant
                 logger.info(f'Number of homozygous variants is {homozygous_number}')
                 logger.info(f'Number of already phased variants is {phased_number}')
                 for read in reads:
@@ -185,6 +191,8 @@ def run_extend(
                 super_reads = [[], []]
                 counters = numpy.zeros(101, dtype=numpy.int32)
                 components = dict()
+                # stat = dict()
+                # distr = {a: numpy.zeros(51, dtype=numpy.int32) for a in "ACGT"}
                 for pos, var in votes.items():
                     lst = list(var.items())
                     lst.sort(key=lambda x: x[-1], reverse=True)
@@ -192,18 +200,51 @@ def run_extend(
                     total = sum(e[-1] for e in lst)
                     components[pos] = ps1
                     q = int(100 * score1 // total)
-                    if phased[pos] is not None:
+
+                    if phased[pos] is None:
                         counters[q] += 1
-                    if q < gap_threshold and phased[pos] is None:
+                    ch = change[pos]
+                    l1 = len(ch.get_ref_allele())
+                    l2 = len(ch.get_alt_allele())
+                    if l1 + l2 > 3:
+                        # logger.info(f'skip with {q} variant {change[pos]}')
+                        # logger.info(f"{fasta_chr[max(0, pos-30):pos]}+{fasta_chr[pos:pos + 30]}")
                         continue
+                    if ch.is_snv() and phased[pos] is None:
+                        continue
+                    if q < gap_threshold and phased[pos] is None:
+                        # logger.info(f'skip with {q} variant {change[pos]}')
+                        # logger.info(f"{fasta_chr[max(0, pos-30):pos]}^{fasta_chr[pos:pos+30]}")
+                        # if q not in stat.keys():
+                        #     stat[q] = dict()
+                        # stat[q][(l1, l2)] = stat[q].get((l1, l2), 0) + 1
+                        continue
+                    if cut_poly > 0:
+                        j = 1
+                        while j < len(fasta_chr) and j < cut_poly and fasta_chr[pos + j + 1] == fasta_chr[pos + 1]:
+                            j = j + 1
+                        # distr[fasta_chr[pos + 1]][j] += 1
+                        if j >= cut_poly:
+                            continue
                     super_reads[0].append(Variant(pos, allele=al1, quality=score1))
                     super_reads[1].append(Variant(pos, allele=al1 ^ 1, quality=score1))
-                logger.info(f'counters = {counters}')
+                # logger.info(f'counters = {counters}')
+                # stat = sorted(stat.items())
+                # for c, d in distr.items():
+                #     logger.info(f'nucleotide = {c}')
+                #     logger.info(d)
+                    # lst = d.items()
+                    # sorted(lst)
+                    # logger.info(lst)
+                # for q, d in stat:
+                #     logger.info(f"q = {q}")
+                #     for k, v in d.items():
+                #         logger.info(f"{k} appears {v} times")
                 for read in super_reads:
                     read.sort(key=lambda x: x.position)
 
                 vcf_writer.write(chromosome, {sample: super_reads}, {sample: components})
-
+        fasta.close()
         # logger.info(f"Size of read_set = {len(read_set)}")
         # for read in read_set:
         #     logger.info(read)
