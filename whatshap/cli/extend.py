@@ -133,7 +133,7 @@ def run_extend(
                 "When using --ignore-read-groups on a VCF with "
                 "multiple samples, --sample must also be used."
             )
-        fasta = IndexedFasta(reference)
+        fasta = stack.enter_context(IndexedFasta(reference))
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
             chromosome = variant_table.chromosome
             fasta_chr = fasta[chromosome]
@@ -191,8 +191,6 @@ def run_extend(
                 super_reads = [[], []]
                 counters = numpy.zeros(101, dtype=numpy.int32)
                 components = dict()
-                # stat = dict()
-                # distr = {a: numpy.zeros(51, dtype=numpy.int32) for a in "ACGT"}
                 for pos, var in votes.items():
                     lst = list(var.items())
                     lst.sort(key=lambda x: x[-1], reverse=True)
@@ -207,47 +205,29 @@ def run_extend(
                     l1 = len(ch.get_ref_allele())
                     l2 = len(ch.get_alt_allele())
                     if l1 + l2 > 3:
-                        # logger.info(f'skip with {q} variant {change[pos]}')
-                        # logger.info(f"{fasta_chr[max(0, pos-30):pos]}+{fasta_chr[pos:pos + 30]}")
                         continue
                     if ch.is_snv() and phased[pos] is None:
                         continue
                     if q < gap_threshold and phased[pos] is None:
-                        # logger.info(f'skip with {q} variant {change[pos]}')
-                        # logger.info(f"{fasta_chr[max(0, pos-30):pos]}^{fasta_chr[pos:pos+30]}")
-                        # if q not in stat.keys():
-                        #     stat[q] = dict()
-                        # stat[q][(l1, l2)] = stat[q].get((l1, l2), 0) + 1
                         continue
                     if cut_poly > 0:
                         j = 1
-                        while j < len(fasta_chr) and j < cut_poly and fasta_chr[pos + j + 1] == fasta_chr[pos + 1]:
+                        while j + pos + 1 < len(fasta_chr) and j < cut_poly and fasta_chr[pos + j + 1] == fasta_chr[
+                            pos + 1]:
                             j = j + 1
-                        # distr[fasta_chr[pos + 1]][j] += 1
+                        if j >= cut_poly:
+                            continue
+                        j = 1
+                        while pos - j > 0 and j < cut_poly and fasta_chr[pos - j] == fasta_chr[pos]:
+                            j = j + 1
                         if j >= cut_poly:
                             continue
                     super_reads[0].append(Variant(pos, allele=al1, quality=score1))
                     super_reads[1].append(Variant(pos, allele=al1 ^ 1, quality=score1))
-                # logger.info(f'counters = {counters}')
-                # stat = sorted(stat.items())
-                # for c, d in distr.items():
-                #     logger.info(f'nucleotide = {c}')
-                #     logger.info(d)
-                    # lst = d.items()
-                    # sorted(lst)
-                    # logger.info(lst)
-                # for q, d in stat:
-                #     logger.info(f"q = {q}")
-                #     for k, v in d.items():
-                #         logger.info(f"{k} appears {v} times")
                 for read in super_reads:
                     read.sort(key=lambda x: x.position)
 
                 vcf_writer.write(chromosome, {sample: super_reads}, {sample: components})
-        fasta.close()
-        # logger.info(f"Size of read_set = {len(read_set)}")
-        # for read in read_set:
-        #     logger.info(read)
 
 
 def main(args):
