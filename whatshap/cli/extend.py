@@ -202,10 +202,10 @@ def run_extend(
                     if phased[pos] is None:
                         counters[q] += 1
                     ch = change[pos]
-                    l1 = len(ch.get_ref_allele())
-                    l2 = len(ch.get_alt_allele())
-                    if l1 + l2 > 3:
-                        continue
+                    # l1 = len(ch.get_ref_allele())
+                    # l2 = len(ch.get_alt_allele())
+                    # if l1 + l2 > 3:
+                    #     continue
                     if ch.is_snv() and phased[pos] is None:
                         continue
                     if q < gap_threshold and phased[pos] is None:
