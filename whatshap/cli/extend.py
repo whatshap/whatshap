@@ -34,8 +34,10 @@ def add_arguments(parser):
         help="Reference file. Must be accompanied by .fai index (create with samtools faidx)")
     arg("--gap-threshold", "-g", metavar="GAPTHRESHOLD", default=70, type=int,
         help="Threshold percentage of qualities for assigning phase information to a variant.")
-    arg("--cut-poly", "-c", metavar="CUTPOLY", default=15, type=int,
+    arg("--cut-poly", "-c", metavar="CUTPOLY", default=10, type=int,
         help="ignore polymers longer than the cut value.")
+    arg("--only-indels", "-i", default=False, action="store_true",
+        help="extend new phasing information only to indels.")
     arg("--ignore-read-groups", default=False, action="store_true",
         help="Ignore read groups in BAM/CRAM header and assume all reads come "
              "from the same sample.")
@@ -56,6 +58,7 @@ def run_extend(
     output=None,
     reference: Union[None, bool, str] = False,
     ignore_read_groups: bool = False,
+    only_indels: bool = False,
     chromosomes: Optional[List[str]] = None,
     gap_threshold: int = 70,
     cut_poly: int = -1,
@@ -169,7 +172,6 @@ def run_extend(
                         votes[variant.position][(ps, ht ^ variant.allele)] += variant.quality
 
                 super_reads = [[], []]
-                counters = numpy.zeros(101, dtype=numpy.int32)
                 components = dict()
                 for pos, var in votes.items():
                     lst = list(var.items())
@@ -178,10 +180,9 @@ def run_extend(
                     total = sum(e[-1] for e in lst)
                     components[pos] = ps1
                     q = int(100 * score1 // total)
-
-                    if phased[pos] is None:
-                        counters[q] += 1
                     if q < gap_threshold and phased[pos] is None:
+                        continue
+                    if only_indels and change[pos].is_snv() and phased[pos] is None:
                         continue
                     if cut_poly > 0:
                         j = 1
