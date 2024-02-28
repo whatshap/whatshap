@@ -34,31 +34,11 @@ def add_arguments(parser):
         help="Reference file. Must be accompanied by .fai index (create with samtools faidx)")
     arg("--gap-threshold", "-g", metavar="GAPTHRESHOLD", default=70, type=int,
         help="Threshold percentage of qualities for assigning phase information to a variant.")
-    arg("--cut-poly", "-c", metavar="CUTPOLY", default=-1, type=int,
+    arg("--cut-poly", "-c", metavar="CUTPOLY", default=15, type=int,
         help="ignore polymers longer than the cut value.")
-    # arg("--regions", dest="regions", metavar="REGION", default=None, action="append",
-    #     help="Specify region(s) of interest to limit the tagging to reads/variants "
-    #          "overlapping those regions. You can specify a space-separated list of "
-    #          "regions in the form of chrom:start-end, chrom (consider entire chromosome), "
-    #          "or chrom:start (consider region from this start to end of chromosome).")
-    # arg("--ignore-linked-read", default=False, action="store_true",
-    #     help="Ignore linkage information stored in BX tags of the reads.")
-    # arg("--linked-read-distance-cutoff", "-d", metavar="LINKEDREADDISTANCE",
-    #     default=50000, type=int,
-    #     help="Assume reads with identical BX tags belong to different read clouds if their "
-    #          "distance is larger than LINKEDREADDISTANCE (default: %(default)s).")
     arg("--ignore-read-groups", default=False, action="store_true",
         help="Ignore read groups in BAM/CRAM header and assume all reads come "
              "from the same sample.")
-    # arg("--sample", dest="given_samples", metavar="SAMPLE", default=None, action="append",
-    #     help="Name of a sample to phase. If not given, all samples in the "
-    #          "input VCF are phased. Can be used multiple times.")
-    # arg("--output-haplotag-list", dest="haplotag_list", metavar="HAPLOTAG_LIST", default=None,
-    #     help="Write assignments of read names to haplotypes (tab separated) to given "
-    #          "output file. If filename ends in .gz, then output is gzipped.")
-    # arg("--tag-supplementary", default=False, action="store_true",
-    #     help="Also tag supplementary alignments. Supplementary alignments are assigned to the "
-    #          "same haplotype as the primary alignment (default: only tag primary alignments).")
     arg("--chromosome", dest="chromosomes", metavar="CHROMOSOME", default=[], action="append",
         help="Name of chromosome to phase. If not given, all chromosomes in the "
              "input VCF are phased. Can be used multiple times.")
@@ -201,13 +181,6 @@ def run_extend(
 
                     if phased[pos] is None:
                         counters[q] += 1
-                    ch = change[pos]
-                    # l1 = len(ch.get_ref_allele())
-                    # l2 = len(ch.get_alt_allele())
-                    # if l1 + l2 > 3:
-                    #     continue
-                    if ch.is_snv() and phased[pos] is None:
-                        continue
                     if q < gap_threshold and phased[pos] is None:
                         continue
                     if cut_poly > 0:
