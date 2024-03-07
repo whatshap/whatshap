@@ -26,6 +26,7 @@ class PolyphaseParameter:
     plot_threading: bool
     threads: int
     use_prephasing: bool
+    ce_refinements: int
 
 
 class PhaseBreakpoint:

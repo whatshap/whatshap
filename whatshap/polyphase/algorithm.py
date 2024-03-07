@@ -21,6 +21,7 @@ from whatshap.polyphase import (
 from whatshap.polyphase.reorder import find_subinstances, integrate_sub_results, run_reordering
 from whatshap.polyphase.solver import ClusterEditingSolver, scoreReadset
 from whatshap.polyphase.threading import run_threading
+from whatshap.polyphase.legacy import find_inconsistencies
 
 __author__ = "Sven Schrinner"
 
@@ -172,6 +173,36 @@ def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, ti
     solver = ClusterEditingSolver(sim, param.ce_bundle_edges)
     clustering = solver.run()
     del solver
+
+    # Refine clusters by solving inconsistencies in consensus
+    runs_remaining = param.ce_refinements
+    last_inc_count = len(clustering) * block_num_vars  # worst case number
+    refine = True
+    while refine and runs_remaining > 0 and not quiet:
+        """
+        Inconsistencies are positions, whre a cluster has a very ambiguous consensus, indicating that it contains reads from
+        two or more haplotypes, which differ on some SNP variants
+        """
+        refine = False
+        runs_remaining -= 1
+        new_inc_count, separated_reads = find_inconsistencies(
+            allele_matrix, clustering, param.ploidy
+        )
+
+        if 0 < new_inc_count < last_inc_count:
+            logger.info(
+                "{} inconsistent variants found. Refining clusters ..\r".format(new_inc_count)
+            )
+            for (r0, r1) in separated_reads:
+                sim.set(r0, r1, -float("inf"))
+            del clustering
+            solver = ClusterEditingSolver(sim, param.ce_bundle_edges)
+            clustering = solver.run()
+            del solver
+            refine = True
+        else:
+            logger.info("No inconsistent variants remaining.")
+
     del sim
 
     # Add trailing isolated nodes to single-ton clusters, if missing

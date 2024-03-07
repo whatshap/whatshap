@@ -64,6 +64,7 @@ def run_polyphase(
     threads=1,
     use_prephasing=False,
     mav=True,
+    ce_refinements=0,
 ):
     """
     Run Polyploid Phasing.
@@ -172,6 +173,7 @@ def run_polyphase(
             plot_threading=plot_threading,
             threads=threads,
             use_prephasing=use_prephasing,
+            ce_refinements=ce_refinements,
         )
 
         try:
@@ -502,6 +504,14 @@ def add_arguments(parser):
         type=int,
         default=1,
         help="Maximum number of CPU threads used (default: %(default)s).",
+    )
+    arg(
+        "--ce-refinements",
+        dest="ce_refinements",
+        metavar="CEREFINEMENTS",
+        type=int,
+        default=0,
+        help="Maximum number of refinement iterations for cluster editing (default: %(default)s).",
     )
     arg(
         "--no-mav",
