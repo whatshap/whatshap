@@ -1,6 +1,7 @@
 """
 Detect variants in reads.
 """
+
 import logging
 import csv
 from collections import defaultdict, Counter
@@ -65,24 +66,27 @@ class VariantProgress:
         return [i for i, a in enumerate(self.alleles) if 0 <= a.progress < a.length]
 
 
-class ReadWithInfo:
-    def __init__(self, read, is_supplementary, is_reverse, reference_start, reference_end):
-        self.read = read
-        self.is_supplementary = is_supplementary
-        self.is_reverse = is_reverse
-        self.reference_start = reference_start
-        self.reference_end = reference_end
+@dataclass
+class AlignedRead:
+    read: Read
+    is_supplementary: bool
+    is_reverse: bool
+    reference_start: int
+    reference_end: int
 
     def __repr__(self):
-        return f"ReadWithInfo({repr(self.read)}, is_supplementary={self.is_supplementary}, is_reverse={self.is_reverse}, reference_start={self.reference_start}, reference_end={self.reference_end})"
+        return (
+            f"ReadWithInfo({self.read!r}, is_supplementary={self.is_supplementary}, "
+            f"is_reverse={self.is_reverse}, reference_start={self.reference_start}, "
+            f"reference_end={self.reference_end})"
+        )
 
-    def is_intersected(self, b) -> bool:
-        return b.reference_end >= self.reference_start and b.reference_start <= self.reference_end
-
-    def distance(self, b):
-        if self.is_intersected(b):
-            return 0
-        return min(abs(b.reference_end - self.reference_start), abs(b.reference_start - self.reference_end))
+    def distance(self, other) -> int:
+        return max(
+            other.reference_end - self.reference_start,
+            other.reference_start - self.reference_end,
+            0,
+        )
 
 
 class ReadSetReader:
@@ -179,7 +183,7 @@ class ReadSetReader:
 
         alignments = self._usable_alignments(chromosome, sample, regions)
         reads = self._alignments_to_reads(alignments, variants, sample, reference)
-        grouped_reads = self._group_paired_reads(reads, self._supplementary_distance_threshold)
+        grouped_reads = self._group_reads(reads, self._supplementary_distance_threshold)
         readset = self._make_readset_from_grouped_reads(grouped_reads)
         return readset
 
@@ -191,7 +195,7 @@ class ReadSetReader:
         return read_set
 
     @staticmethod
-    def _group_paired_reads(reads: Iterable[ReadWithInfo], distance_threshold) -> Iterator[List[Read]]:
+    def _group_reads(reads: Iterable[AlignedRead], distance_threshold: int) -> Iterator[List[Read]]:
         """
         Group reads into paired-end read pairs. Uses name, source_id and sample_id
         as grouping key.
@@ -206,54 +210,14 @@ class ReadSetReader:
         n_skipped = 0
         n_non_singleton = 0
         for group in groups.values():
-            if len(group) > 2:
+            if len(group) > 1:
                 n_non_singleton += 1
-                logger.info(f"Group of read {group[0].read.name!r} has {len(group)} items.")
-                primary: Optional[ReadWithInfo] = None
-                for read in group:
-                    if not read.is_supplementary:
-                        if primary is not None:
-                            raise ReadSetError(
-                                f"Read name {group[0].name!r} has more than two primary alignments.")
-                        primary = read
-                if primary is None:
-                    n_skipped += 1
-                    continue
-                reference_start = primary.reference_start
-                variants = dict()
-                skip = set()
-                for read in group:
-                    if read.is_reverse != primary.is_reverse:
-                        continue
-                    if primary.distance(read) > distance_threshold:
-                        continue
-                    reference_start = min(reference_start, read.reference_start)
-                    for variant in read.read:
-                        if variant.position in variants.keys():
-                            if variants[variant.position].allele != variant.allele:
-                                skip.add(variant.position)
-                        else:
-                            variants[variant.position] = variant
-                union_read = Read(primary.read.name,
-                                  primary.read.mapqs[0],
-                                  primary.read.source_id,
-                                  primary.read.sample_id,
-                                  reference_start,
-                                  primary.read.BX_tag, )
-                for k, v in variants.items():
-                    if k not in skip:
-                        union_read.add_variant(v.position, v.allele, v.quality)
-                union_read.sort()
-                if len(union_read) != len(primary.read):
-                    logger.info(
-                        f"Converted read {primary.read.name} with {len(primary.read)} variants"
-                        f" to read with {len(union_read)} variants.")
-                yield [union_read]
+            read = create_read_from_group(group, distance_threshold)
+            if read is not None:
+                n_skipped += 1
             else:
-                if not group[0].is_supplementary:
-                    yield [group[0].read]
-                else:
-                    n_skipped += 1
+                yield [read]
+
         logger.info(f"Number of non singleton groups: {n_non_singleton}")
         logger.info(f"Skipped {n_skipped} groups")
 
@@ -291,11 +255,10 @@ class ReadSetReader:
 
         Yield Read objects.
         """
-        logger.info("Starting alignments to reads")
         # FIXME hard-coded zero
+        numeric_sample_id = 0 if sample is None else self._numeric_sample_ids[sample]
         number_of_alignments = 0
         number_of_supplementary_alignments = 0
-        numeric_sample_id = 0 if sample is None else self._numeric_sample_ids[sample]
         if reference is not None:
             # Copy the pyfaidx.FastaRecord into a str for faster access
             reference = reference[:]
@@ -384,14 +347,15 @@ class ReadSetReader:
             if read:  # At least one variant covered and detected
                 number_of_alignments += 1
                 number_of_supplementary_alignments += alignment.bam_alignment.is_supplementary
-                yield ReadWithInfo(read,
-                                   alignment.bam_alignment.is_supplementary,
-                                   alignment.bam_alignment.is_reverse,
-                                   alignment.bam_alignment.reference_start,
-                                   alignment.bam_alignment.reference_end
-                                   )
+                yield AlignedRead(
+                    read,
+                    alignment.bam_alignment.is_supplementary,
+                    alignment.bam_alignment.is_reverse,
+                    alignment.bam_alignment.reference_start,
+                    alignment.bam_alignment.reference_end,
+                )
 
-        logger.info(f'Number of supplementary alignments: {number_of_supplementary_alignments}')
+        logger.info(f"Number of supplementary alignments: {number_of_supplementary_alignments}")
 
     def detect_non_overlapping_variants(self, variants: List[VcfVariant]):
         """
@@ -469,9 +433,9 @@ class ReadSetReader:
         else:
             left = cigar[:i]
         if consumed < middle_length:
-            right = [(middle_op, middle_length - consumed)] + cigar[i + 1:]
+            right = [(middle_op, middle_length - consumed)] + cigar[i + 1 :]
         else:
-            right = cigar[i + 1:]
+            right = cigar[i + 1 :]
         return left, right
 
     @staticmethod
@@ -571,8 +535,8 @@ class ReadSetReader:
             assert variant.position - left_ref_bases >= 0
             assert variant.position + right_ref_bases <= len(reference)
             query_temp = bam_read.query_sequence[
-                         query_pos - left_query_bases: query_pos + right_query_bases
-                         ]
+                query_pos - left_query_bases : query_pos + right_query_bases
+            ]
             if query_temp in splitted_strings:
                 query = splitted_strings[query_temp]
             else:
@@ -580,8 +544,8 @@ class ReadSetReader:
                 splitted_strings[query_temp] = query
 
             ref_temp = reference[
-                       variant.position - left_ref_bases: variant.position + right_ref_bases
-                       ]
+                variant.position - left_ref_bases : variant.position + right_ref_bases
+            ]
             if ref_temp in splitted_strings:
                 ref = splitted_strings[ref_temp]
             else:
@@ -589,13 +553,13 @@ class ReadSetReader:
                 splitted_strings[ref_temp] = ref
 
             alt_temp = (
-                reference[variant.position - left_ref_bases: variant.position]
+                reference[variant.position - left_ref_bases : variant.position]
                 + variant.alternative_allele
                 + reference[
-                  variant.position
-                  + len(variant.reference_allele): variant.position
-                                                   + right_ref_bases
-                  ]
+                    variant.position
+                    + len(variant.reference_allele) : variant.position
+                    + right_ref_bases
+                ]
             )
 
             if alt_temp in splitted_strings:
@@ -637,12 +601,12 @@ class ReadSetReader:
             assert variant.position + right_ref_bases <= len(reference)
 
             query = bam_read.query_sequence[
-                    query_pos - left_query_bases: query_pos + right_query_bases
-                    ]
+                query_pos - left_query_bases : query_pos + right_query_bases
+            ]
             pos = variant.position
-            left_pad = reference[pos - left_ref_bases: pos]
-            right_pad = reference[pos + len(variant.reference_allele): pos + right_ref_bases]
-            padded_alleles = [reference[pos - left_ref_bases: pos + right_ref_bases]]
+            left_pad = reference[pos - left_ref_bases : pos]
+            right_pad = reference[pos + len(variant.reference_allele) : pos + right_ref_bases]
+            padded_alleles = [reference[pos - left_ref_bases : pos + right_ref_bases]]
             for alt in variant.get_alt_allele_list():
                 padded_alleles.append(left_pad + alt + right_pad)
 
@@ -833,3 +797,60 @@ def merge_reads(*reads: Read) -> Read:
     for partner in it:
         read = merge_two_reads(read, partner)
     return read
+
+
+def create_read_from_group(group: List[AlignedRead], distance_threshold: int) -> Optional[Read]:
+    """
+    Convert group of AlignedReads into a Read.
+
+    Pick supplementary reads that have the same orientation with the primary and with
+    the distance at most distance_threshold from primary, find the set of variants are fully agreed
+    and return these variants as a read.
+
+    If the group does not contain primary reads, then return None.
+    If the group contains more than two primary alignments return None and report warning.
+    """
+    logger.debug(f"Group of read {group[0].read.name!r} has {len(group)} items.")
+    primary: Optional[AlignedRead] = None
+    for read in group:
+        if not read.is_supplementary:
+            if primary is not None:
+                logger.warning(
+                    f"Read name {group[0].read.name!r} has more than two primary alignments."
+                )
+                return None
+            primary = read
+
+    reference_start = primary.reference_start
+    variants = dict()
+    skip = set()
+    for read in group:
+        if read.is_reverse != primary.is_reverse:
+            continue
+        if primary.distance(read) > distance_threshold:
+            continue
+        reference_start = min(reference_start, read.reference_start)
+        for variant in read.read:
+            if variant.position in variants.keys():
+                if variants[variant.position].allele != variant.allele:
+                    skip.add(variant.position)
+            else:
+                variants[variant.position] = variant
+    union_read = Read(
+        primary.read.name,
+        primary.read.mapqs[0],
+        primary.read.source_id,
+        primary.read.sample_id,
+        reference_start,
+        primary.read.BX_tag,
+    )
+    for k, v in variants.items():
+        if k not in skip:
+            union_read.add_variant(v.position, v.allele, v.quality)
+    union_read.sort()
+    if len(union_read) != len(primary.read):
+        logger.debug(
+            f"Converted read {primary.read.name} with {len(primary.read)} variants"
+            f" to read with {len(union_read)} variants."
+        )
+    return union_read

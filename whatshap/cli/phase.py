@@ -96,7 +96,7 @@ def find_components(
                 variant.position
                 for variant in read
                 if (variant.position in phased_positions_set)
-                   and (variant.position in heterozygous_positions[read.sample_id])
+                and (variant.position in heterozygous_positions[read.sample_id])
             ]
         for position in positions[1:]:
             component_finder.merge(positions[0], position)
@@ -382,7 +382,7 @@ def run_whatshap(
                 mapq_threshold=mapping_quality,
                 only_snvs=only_snvs,
                 use_supplementary=use_supplementary,
-                supplementary_distance_threshold=supplementary_distance_threshold
+                supplementary_distance_threshold=supplementary_distance_threshold,
             )
         )
         show_phase_vcfs = phased_input_reader.has_vcfs
@@ -1031,19 +1031,19 @@ def add_arguments(parser):
         help="VCF or BCF file with variants to be phased (can be gzip-compressed)")
     arg("phase_input_files", nargs="*", metavar="PHASEINPUT",
         help="BAM, CRAM, VCF or BCF file(s) with phase information, either through "
-             "sequencing reads (BAM, CRAM) or through phased blocks (VCF, BCF)")
+        "sequencing reads (BAM, CRAM) or through phased blocks (VCF, BCF)")
 
     arg("-o", "--output", default=sys.stdout,
         help="Output VCF file. Add .gz to the file name to get compressed output. "
-             "If omitted, use standard output.")
+        "If omitted, use standard output.")
     arg("--reference", "-r", metavar="FASTA",
         help="Reference file. Must be accompanied by .fai index (create with samtools faidx)")
     arg("--no-reference", action="store_true", default=False,
         help="Detect alleles without requiring a reference, at the expense of phasing quality "
-             "(in particular for long reads)")
+        "(in particular for long reads)")
     arg("--tag", choices=("PS", "HP"), default="PS",
         help="Store phasing information with PS tag (standardized) or "
-             "HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)")
+        "HP tag (used by GATK ReadBackedPhasing) (default: %(default)s)")
     arg("--output-read-list", metavar="FILE", default=None, dest="read_list_filename",
         help="Write reads that have been used for phasing to FILE.")
     arg("--algorithm", choices=("whatshap", "hapchat", "heuristic"), default="whatshap",
@@ -1052,30 +1052,30 @@ def add_arguments(parser):
     arg = parser.add_argument_group("Input pre-processing, selection and filtering").add_argument
     arg("--merge-reads", dest="read_merging", default=False, action="store_true",
         help="Merge reads which are likely to come from the same haplotype "
-             "(default: do not merge reads)")
+        "(default: do not merge reads)")
     arg("--max-coverage", "-H", metavar="MAXCOV", type=int,
         dest="max_coverage_was_used", help=SUPPRESS)
     arg("--row-limit", "-L", metavar="ROWLIMIT", type=int, default=256, dest="row_limit",
         help="For the heuristic: Specifies the maximum number of memorized "
-             "intermediate solutions. Larger values increase runtime and memory consumption, but can "
-             "improve phasing quality. (default: %(default)s)")
+        "intermediate solutions. Larger values increase runtime and memory consumption, but can "
+        "improve phasing quality. (default: %(default)s)")
     arg("--internal-downsampling", metavar="COVERAGE", dest="max_coverage", default=15, type=int,
         help="Coverage reduction parameter in the internal core phasing algorithm. "
-             "Higher values increase runtime *exponentially* while possibly improving phasing "
-             "quality marginally. Avoid using this in the normal case! (default: %(default)s)")
+        "Higher values increase runtime *exponentially* while possibly improving phasing "
+        "quality marginally. Avoid using this in the normal case! (default: %(default)s)")
     arg("--mapping-quality", "--mapq", metavar="QUAL",
         default=20, type=int, help="Minimum mapping quality (default: %(default)s)")
     arg("--indels", dest="indels_used", action="store_true", help=SUPPRESS)
     arg("--only-snvs", default=False, action="store_true", help="Phase only SNVs")
     arg("--ignore-read-groups", default=False, action="store_true",
         help="Ignore read groups in BAM/CRAM header and assume all reads come "
-             "from the same sample.")
+        "from the same sample.")
     arg("--sample", dest="samples", metavar="SAMPLE", default=[], action="append",
         help="Name of a sample to phase. If not given, all samples in the "
-             "input VCF are phased. Can be used multiple times.")
+        "input VCF are phased. Can be used multiple times.")
     arg("--chromosome", dest="chromosomes", metavar="CHROMOSOME", default=[], action="append",
         help="Name of chromosome to phase. If not given, all chromosomes in the "
-             "input VCF are phased. Can be used multiple times.")
+        "input VCF are phased. Can be used multiple times.")
 
     arg = parser.add_argument_group(
         "Read merging",
@@ -1084,21 +1084,21 @@ def add_arguments(parser):
     arg("--error-rate", dest="read_merging_error_rate",
         type=float, default=0.15,
         help="The probability that a nucleotide is wrong in read merging model "
-             "(default: %(default)s).")
+        "(default: %(default)s).")
     arg("--maximum-error-rate", dest="read_merging_max_error_rate",
         type=float, default=0.25,
         help="The maximum error rate of any edge of the read merging graph "
-             "before discarding it (default: %(default)s).")
+        "before discarding it (default: %(default)s).")
     arg("--threshold", dest="read_merging_positive_threshold",
         type=int, default=1000000,
         help="The threshold of the ratio between the probabilities that a pair "
-             "of reads come from the same haplotype and different haplotypes in the "
-             "read merging model (default: %(default)s).")
+        "of reads come from the same haplotype and different haplotypes in the "
+        "read merging model (default: %(default)s).")
     arg("--negative-threshold", dest="read_merging_negative_threshold",
         type=int, default=1000,
         help="The threshold of the ratio between the probabilities that a pair "
-             "of reads come from different haplotypes and the same haplotype in the "
-             "read merging model (default: %(default)s).")
+        "of reads come from different haplotypes and the same haplotype in the "
+        "read merging model (default: %(default)s).")
 
     arg = parser.add_argument_group(
         "Genotyping",
@@ -1108,46 +1108,46 @@ def add_arguments(parser):
     arg("--distrust-genotypes", dest="distrust_genotypes",
         action="store_true", default=False,
         help="Allow switching variants from hetero- to homozygous in an "
-             "optimal solution (see documentation).")
+        "optimal solution (see documentation).")
     arg("--include-homozygous", dest="include_homozygous",
         action="store_true", default=False,
         help="Also work on homozygous variants, which might be turned to "
-             "heterozygous")
+        "heterozygous")
     arg("--default-gq", type=int, default=30,
         help="Default genotype quality used as cost of changing a genotype "
-             "when no genotype likelihoods are available (default %(default)s)")
+        "when no genotype likelihoods are available (default %(default)s)")
     arg("--gl-regularizer", type=float, default=None,
         help="Constant (float) to be used to regularize genotype likelihoods read "
-             "from input VCF (default %(default)s).")
+        "from input VCF (default %(default)s).")
     arg("--changed-genotype-list", metavar="FILE", dest="gtchange_list_filename", default=None,
         help="Write list of changed genotypes to FILE.")
 
     arg = parser.add_argument_group("Pedigree phasing").add_argument
     arg("--ped", metavar="PED/FAM",
         help="Use pedigree information in PED file to improve phasing "
-             "(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, "
-             "mother, and father sample names as used in the VCF and BAM/CRAM. "
-             "Other columns are ignored.")
+        "(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, "
+        "mother, and father sample names as used in the VCF and BAM/CRAM. "
+        "Other columns are ignored.")
     arg("--recombination-list", metavar="FILE", dest="recombination_list_filename", default=None,
         help="Write putative recombination events to FILE.")
     arg("--recombrate", metavar="RECOMBRATE", type=float, default=1.26,
         help="Recombination rate in cM/Mb (used with --ped). If given, a constant recombination "
-             "rate is assumed (default: %(default)gcM/Mb).")
+        "rate is assumed (default: %(default)gcM/Mb).")
     arg("--genmap", metavar="FILE",
         help="File with genetic map (used with --ped) to be used instead of constant recombination "
-             "rate, i.e. overrides option --recombrate.")
+        "rate, i.e. overrides option --recombrate.")
     arg("--no-genetic-haplotyping", dest="genetic_haplotyping",
         action="store_false", default=True,
         help="Do not merge blocks that are not connected by reads (i.e. solely based on genotype "
-             "status). Default: when in --ped mode, merge all blocks that contain at least one "
-             "homozygous genotype in at least one individual into one block.")
+        "status). Default: when in --ped mode, merge all blocks that contain at least one "
+        "homozygous genotype in at least one individual into one block.")
     arg("--use-ped-samples", dest="use_ped_samples",
         action="store_true", default=False,
         help="Only work on samples mentioned in the provided PED file.")
     arg("--use-supplementary", dest="use_supplementary", action="store_true", default=False,
         help="Include supplementary alignments into reads")
     arg("--supplementary-distance", dest="supplementary_distance_threshold", default=100_000,
-        help="Threshold for distance between primary and supplementary reads.")
+        help="Threshold for distance between primary and supplementary reads. (default: %(default)s)")
 
 
 # fmt: on
