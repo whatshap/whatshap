@@ -74,13 +74,6 @@ class AlignedRead:
     reference_start: int
     reference_end: int
 
-    def __repr__(self):
-        return (
-            f"ReadWithInfo({self.read!r}, is_supplementary={self.is_supplementary}, "
-            f"is_reverse={self.is_reverse}, reference_start={self.reference_start}, "
-            f"reference_end={self.reference_end})"
-        )
-
     def distance(self, other) -> int:
         return max(
             other.reference_end - self.reference_start,
