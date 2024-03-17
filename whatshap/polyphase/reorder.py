@@ -83,7 +83,7 @@ def integrate_sub_results(
     breakpoints = find_breakpoints(threads)
     for (cid, thread_set, subm), res in zip(sub_instances, sub_results):
         snps = [allele_matrix.globalToLocal(gpos) for gpos in subm.getPositions()]
-        assert all([0 <= pos < allele_matrix.getNumPositions() for pos in snps])
+        assert all(0 <= pos < allele_matrix.getNumPositions() for pos in snps)
 
         # reorder haplotype alleles according to subresults, but only on SNP positions
         for i, pos in enumerate(snps):
