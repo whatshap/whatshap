@@ -5,7 +5,7 @@ from whatshap.align import enumerate_all_kmers
 from whatshap.align import kmer_align
 
 
-non_enumerable = ["", "A", "AC", "ATCGC", "NNNNNNNNNNN", "BANANA", "MISSISSIPPI"]
+non_enumerable = [b"", b"A", b"AC", b"ATCGC", b"NNNNNNNNNNN", b"BANANA", b"MISSISSIPPI"]
 
 costs = {
     (53, 214): 2,
@@ -23,29 +23,30 @@ costs = {
     (378, -5): 5,
 }
 gap = 5
-SEQ_1 = ["AAACCCG", "AAACCCGG", "AAATTTCCCG", "AAAA", ""]
-SEQ_2 = ["GCCCAAA", "GGCCCAAA", "GCCCTTTAAA", "AAAA", ""]
+SEQ_1 = [b"AAACCCG", b"AAACCCGG", b"AAATTTCCCG", b"AAAA", b""]
+SEQ_2 = [b"GCCCAAA", b"GGCCCAAA", b"GCCCTTTAAA", b"AAAA", b""]
 
 
 def test_enumeration():
     for string in non_enumerable:
-        assert len(enumerate_all_kmers(str(string).encode("UTF-8"), 9)) == 0
-        assert len(enumerate_all_kmers(str(string).encode("UTF-8"), 7)) == 0
-        assert len(enumerate_all_kmers(str(string).encode("UTF-8"), 6)) == 0
-    assert list(enumerate_all_kmers(str("TAAATCCTGG").encode("UTF-8"), 7)) == [12341, 215, 862, 3450]
-    assert list(enumerate_all_kmers(str("TAAATCCTGG").encode("UTF-8"), 11)) == []
+        assert len(enumerate_all_kmers(string, 9)) == 0
+        assert len(enumerate_all_kmers(string, 7)) == 0
+        assert len(enumerate_all_kmers(string, 6)) == 0
+    assert list(enumerate_all_kmers(b"TAAATCCTGG", 7)) == [12341, 215, 862, 3450]
+    assert list(enumerate_all_kmers(b"TAAATCCTGG", 11)) == []
 
 
 def test_kmeralign():
-    seq1 = enumerate_all_kmers(str("AATCCTGG").encode("UTF-8"), 5)
-    seq2 = enumerate_all_kmers(str("AATCCGGG").encode("UTF-8"), 5)
+    seq1 = enumerate_all_kmers(b"AATCCTGG", 5)
+    seq2 = enumerate_all_kmers(b"AATCCGGG", 5)
     assert kmer_align(seq1, seq2, costs, 5) == 13
     assert kmer_align(seq2, seq1, costs, 5) == 30
     for s1 in SEQ_1:
         for s2 in SEQ_2:
-            e_s1 = enumerate_all_kmers(s1.encode("UTF-8"), 5)
-            e_s2 = enumerate_all_kmers(s2.encode("UTF-8"), 5)
+            e_s1 = enumerate_all_kmers(s1, 5)
+            e_s2 = enumerate_all_kmers(s2, 5)
             if e_s1 != e_s2:
-                assert kmer_align(e_s1, e_s2, costs, gap) == gap * (len(e_s1) + len(e_s2))
+                expected = gap * (len(e_s1) + len(e_s2))
             else:
-                assert kmer_align(e_s1, e_s2, costs, gap) == 0
+                expected = 0
+            assert kmer_align(e_s1, e_s2, costs, gap) == expected
