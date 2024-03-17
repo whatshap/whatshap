@@ -27,6 +27,7 @@ from typing import (
     Set,
     MutableSequence,
     IO,
+    Protocol,
 )
 
 from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VariantTable
