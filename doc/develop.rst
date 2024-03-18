@@ -15,14 +15,16 @@ GitHub account)::
 
     git clone git@github.com:whatshap/whatshap.git
     cd whatshap
-    python3 -m venv .venv
-    source .venv/bin/activate
+    python3 -m venv venv
+    source venv/bin/activate
     pip install -e .[dev]
 
 The last command installs also all the development dependencies.
 Omit the ``[dev]`` to leave them out.
 
-Install also `pre-commit <https://pre-commit.com/>`_ and run ``pre-commit install``.
+Next, you can run WhatsHap like this::
+
+    whatshap --help
 
 
 Development installation when using Conda
@@ -57,20 +59,17 @@ with ``sphinx``. Run it like this::
     tox
 
 If ``tox`` is installed on the system, you do not need to be inside a virtual environment for this.
-Run ``tox --skip-missing-interpreters`` if you do not have all tested Python versions installed.
-See one way below for how to install them on Ubuntu.
+However, you need to have all tested Python versions installed on the system! See the instructions
+below for how to do this on Ubuntu.
 
 
 Code style
 ----------
 
 Python code needs to be formatted with `Black <https://github.com/psf/black>`_.
-Either run ``black whatshap tests`` manually before you commit or use the
+Either run `black whatshap tests` manually before you commit or use the
 `pre-commit <https://pre-commit.com/>`_ framework to automate this.
 
-To check other style issues, run ::
-
-    tox -e flake8
 
 Installing other Python versions in Ubuntu
 ------------------------------------------
@@ -184,8 +183,8 @@ Making a release
 
        git tag -a -m "Version 0.1" v0.1
 
-   To release a development version, use an ``rc`` version number such as
-   ``v0.17rc1``.
+   To release a development version, use a ``dev`` version number such as
+   ``v0.17.dev1``.
    Users will only get these when they use ``pip install --pre``.
 
 #. Push the tag::
@@ -195,9 +194,8 @@ Making a release
 #. Wait for the GitHub Action to finish. It will deploy the sdist and wheels to
    PyPI if everything worked correctly.
 
-#. To update the `Bioconda recipe <https://github.com/bioconda/bioconda-recipes/blob/master/recipes/whatshap/meta.yaml>`_,
-   wait for the Bioconda bot to open a PR (in the ``bioconda-recipes`` repository).
-   Ensure that the list of dependencies (the ``requirements:``
+#. Update the `Bioconda recipe <https://github.com/bioconda/bioconda-recipes/blob/master/recipes/whatshap/meta.yaml>`_. It is easiest to wait for the Bioconda bot to open a PR. Ensure
+   that the list of dependencies (the ``requirements:``
    section in the recipe) is in sync with the ``setup.py`` file. If changes are
    necessary to the bot-generated PR, just add your own commits to that PR.
 
