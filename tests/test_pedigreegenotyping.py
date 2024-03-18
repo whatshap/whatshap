@@ -1,6 +1,7 @@
 """
 Test genotyping of pedigrees
 """
+
 import math
 
 from whatshap.core import (

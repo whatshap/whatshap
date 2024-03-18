@@ -1,6 +1,7 @@
 """
 Pedigree-related functions
 """
+
 from abc import ABC, abstractmethod
 
 import math

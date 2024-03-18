@@ -341,9 +341,11 @@ def draw_threading(
                 min_pos = min(min_pos, pos)
                 max_pos = max(max_pos, pos)
         ys = [
-            y_offset + c_height * coverage[pos][c_list[c_id]]
-            if c_list[c_id] in coverage[pos]
-            else y_offset
+            (
+                y_offset + c_height * coverage[pos][c_list[c_id]]
+                if c_list[c_id] in coverage[pos]
+                else y_offset
+            )
             for pos in range(min_pos, max_pos + 1)
         ]
         plt.fill_between(x=xs[min_pos : max_pos + 1], y1=ys, y2=y_offset, color="gray")

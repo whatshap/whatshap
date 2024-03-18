@@ -1,6 +1,7 @@
 """
 Compare two or more phased variant files
 """
+
 import logging
 import math
 from collections import defaultdict

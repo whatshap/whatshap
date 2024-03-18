@@ -1,6 +1,7 @@
 """
 Test phasing of pedigrees (PedMEC algorithm)
 """
+
 from collections import defaultdict
 from pytest import raises
 from whatshap.core import (

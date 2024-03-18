@@ -11,6 +11,7 @@ prints out the modified VCF to standard output. The modifications are:
 
 It is not an error if no phasing information was found.
 """
+
 import sys
 import logging
 from pysam import VariantFile

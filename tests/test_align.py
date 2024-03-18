@@ -3,6 +3,7 @@ Edit distance tests
 
 The initial version was copied from https://bitbucket.org/marcelm/sqt/src/af255d54a21815cb9a3e0b279b431a320d4626bd/tests/testalign.py
 """
+
 from whatshap.align import edit_distance as ed
 from whatshap.align import edit_distance_affine_gap as ed_aff
 from random import choice, seed, randint

@@ -1,6 +1,7 @@
 """
 Integration tests that use the command-line entry points run_whatshap, run_haplotag etc.
 """
+
 import os
 from collections import namedtuple
 

@@ -1,6 +1,7 @@
 """
 Generate sequencing technology specific error profiles
 """
+
 import logging
 import pysam
 import pyfaidx

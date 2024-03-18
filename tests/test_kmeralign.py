@@ -1,6 +1,7 @@
 """
 Tests for kmer-alignment performed by kmerald
 """
+
 from whatshap.align import enumerate_all_kmers
 from whatshap.align import kmer_align
 

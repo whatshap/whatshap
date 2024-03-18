@@ -1,6 +1,7 @@
 """
 Functions for reading VCFs.
 """
+
 import os
 import sys
 import math

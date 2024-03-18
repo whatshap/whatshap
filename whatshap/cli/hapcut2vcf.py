@@ -12,6 +12,7 @@ HapCUT’s output file format is explained at
 HapCUT2’s output format is documented at
 <https://github.com/pjedge/hapcut2#output-format>
 """
+
 import logging
 import re
 import sys
