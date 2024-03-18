@@ -22,9 +22,7 @@ GitHub account)::
 The last command installs also all the development dependencies.
 Omit the ``[dev]`` to leave them out.
 
-Next, you can run WhatsHap::
-
-    whatshap --help
+Install also `pre-commit <https://pre-commit.com/>`_ and run ``pre-commit install``.
 
 
 Development installation when using Conda
