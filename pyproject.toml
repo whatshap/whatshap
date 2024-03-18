@@ -84,4 +84,7 @@ environment = "CFLAGS=-g0"
 
 [tool.ruff]
 line-length = 100
-ignore = ["E501"]  # line too long
+lint.ignore = [
+    "E501",  # line too long
+    "E741",  # Ambiguous variable name
+]
