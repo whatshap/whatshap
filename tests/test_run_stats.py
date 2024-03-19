@@ -1,6 +1,7 @@
 """
 Tests for 'whatshap stats'
 """
+
 from collections import namedtuple
 from whatshap.cli.stats import run_stats, unpack_chromosomes
 

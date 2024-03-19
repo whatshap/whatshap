@@ -3,6 +3,7 @@ Algorithmic core of whatshap polyphase. Split inputs into independent blocks if 
 executed in parallel on a block level. Each block is processed in three phases: Read clustering,
 haplotype threading and reordering.
 """
+
 import logging
 
 from itertools import chain

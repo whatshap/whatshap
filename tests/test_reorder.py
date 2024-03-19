@@ -233,7 +233,7 @@ def test_integrate_subresults2():
     assert haplotypes == haplotypes_old
 
 
-def test_integrate_subresults3():
+def test_integrate_subresults3() -> None:
     am, clustering, threads, haplotypes = get_instance3()
     sub = find_subinstances(am, clustering, threads, haplotypes)
     sub_results = []

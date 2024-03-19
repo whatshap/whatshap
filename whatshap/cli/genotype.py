@@ -4,6 +4,7 @@ Genotype variants
 Runs only the genotyping algorithm. Genotype Likelihoods are computed using the
 forward backward algorithm.
 """
+
 import logging
 import sys
 import platform

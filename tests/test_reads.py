@@ -1,6 +1,7 @@
 """
 Test Read and ReadSet classes
 """
+
 from pytest import raises
 from whatshap.core import Read, ReadSet, Variant
 

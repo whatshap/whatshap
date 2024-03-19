@@ -4,6 +4,7 @@ Tag reads by haplotype
 Sequencing reads are read from file ALIGNMENTS (in BAM or CRAM format) and tagged reads
 are written to stdout.
 """
+
 import logging
 import sys
 import pysam
