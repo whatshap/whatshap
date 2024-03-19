@@ -188,6 +188,63 @@ class ReadSetReader:
         return read_set
 
     @staticmethod
+    def create_read_from_group(group: List[AlignedRead], distance_threshold: int) -> Optional[Read]:
+        """
+        Convert group of AlignedReads into a Read.
+
+        Pick supplementary reads that have the same orientation with the primary and with
+        the distance at most distance_threshold from primary, find the set of variants are fully agreed
+        and return these variants as a read.
+
+        If the group does not contain primary reads, then return None.
+        If the group contains more than two primary alignments return None and report warning.
+        """
+        logger.debug(f"Group of read {group[0].read.name!r} has {len(group)} items.")
+        primary: Optional[AlignedRead] = None
+        for read in group:
+            if not read.is_supplementary:
+                if primary is not None:
+                    logger.warning(
+                        f"Read name {group[0].read.name!r} has more than two primary alignments."
+                    )
+                    return None
+                primary = read
+
+        reference_start = primary.reference_start
+        variants = dict()
+        skip = set()
+        for read in group:
+            if read.is_reverse != primary.is_reverse:
+                continue
+            if primary.distance(read) > distance_threshold:
+                continue
+            reference_start = min(reference_start, read.reference_start)
+            for variant in read.read:
+                if variant.position in variants.keys():
+                    if variants[variant.position].allele != variant.allele:
+                        skip.add(variant.position)
+                else:
+                    variants[variant.position] = variant
+        union_read = Read(
+            primary.read.name,
+            primary.read.mapqs[0],
+            primary.read.source_id,
+            primary.read.sample_id,
+            reference_start,
+            primary.read.BX_tag,
+        )
+        for k, v in variants.items():
+            if k not in skip:
+                union_read.add_variant(v.position, v.allele, v.quality)
+        union_read.sort()
+        if len(union_read) != len(primary.read):
+            logger.debug(
+                f"Converted read {primary.read.name} with {len(primary.read)} variants"
+                f" to read with {len(union_read)} variants."
+            )
+        return union_read
+
+    @staticmethod
     def _group_reads(reads: Iterable[AlignedRead], distance_threshold: int) -> Iterator[List[Read]]:
         """
         Group reads into paired-end read pairs. Uses name, source_id and sample_id
@@ -205,8 +262,8 @@ class ReadSetReader:
         for group in groups.values():
             if len(group) > 1:
                 n_non_singleton += 1
-            read = create_read_from_group(group, distance_threshold)
-            if read is not None:
+            read = ReadSetReader.create_read_from_group(group, distance_threshold)
+            if read is None:
                 n_skipped += 1
             else:
                 yield [read]
@@ -790,60 +847,3 @@ def merge_reads(*reads: Read) -> Read:
     for partner in it:
         read = merge_two_reads(read, partner)
     return read
-
-
-def create_read_from_group(group: List[AlignedRead], distance_threshold: int) -> Optional[Read]:
-    """
-    Convert group of AlignedReads into a Read.
-
-    Pick supplementary reads that have the same orientation with the primary and with
-    the distance at most distance_threshold from primary, find the set of variants are fully agreed
-    and return these variants as a read.
-
-    If the group does not contain primary reads, then return None.
-    If the group contains more than two primary alignments return None and report warning.
-    """
-    logger.debug(f"Group of read {group[0].read.name!r} has {len(group)} items.")
-    primary: Optional[AlignedRead] = None
-    for read in group:
-        if not read.is_supplementary:
-            if primary is not None:
-                logger.warning(
-                    f"Read name {group[0].read.name!r} has more than two primary alignments."
-                )
-                return None
-            primary = read
-
-    reference_start = primary.reference_start
-    variants = dict()
-    skip = set()
-    for read in group:
-        if read.is_reverse != primary.is_reverse:
-            continue
-        if primary.distance(read) > distance_threshold:
-            continue
-        reference_start = min(reference_start, read.reference_start)
-        for variant in read.read:
-            if variant.position in variants.keys():
-                if variants[variant.position].allele != variant.allele:
-                    skip.add(variant.position)
-            else:
-                variants[variant.position] = variant
-    union_read = Read(
-        primary.read.name,
-        primary.read.mapqs[0],
-        primary.read.source_id,
-        primary.read.sample_id,
-        reference_start,
-        primary.read.BX_tag,
-    )
-    for k, v in variants.items():
-        if k not in skip:
-            union_read.add_variant(v.position, v.allele, v.quality)
-    union_read.sort()
-    if len(union_read) != len(primary.read):
-        logger.debug(
-            f"Converted read {primary.read.name} with {len(primary.read)} variants"
-            f" to read with {len(union_read)} variants."
-        )
-    return union_read
