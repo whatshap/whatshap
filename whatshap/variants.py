@@ -234,9 +234,9 @@ class ReadSetReader:
             reference_start,
             primary.read.BX_tag,
         )
-        for k, v in variants.items():
-            if k not in skip:
-                union_read.add_variant(v.position, v.allele, v.quality)
+        for position, variant in variants.items():
+            if position not in skip:
+                union_read.add_variant(variant.position, variant.allele, variant.quality)
         union_read.sort()
         if len(union_read) != len(primary.read):
             logger.debug(
