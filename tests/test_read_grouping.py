@@ -1,5 +1,3 @@
-import logging
-
 from whatshap.core import Read
 from whatshap.variants import ReadSetReader as Reader, AlignedRead
 
