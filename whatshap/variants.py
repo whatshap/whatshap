@@ -209,7 +209,8 @@ class ReadSetReader:
                     )
                     return None
                 primary = read
-
+        if primary is None:
+            return None
         reference_start = primary.reference_start
         variants = dict()
         skip = set()
