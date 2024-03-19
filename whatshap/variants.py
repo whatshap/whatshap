@@ -201,15 +201,17 @@ class ReadSetReader:
         """
         logger.debug(f"Group of read {group[0].read.name!r} has {len(group)} items.")
         primary: Optional[AlignedRead] = None
+        n_primary = 0
         for read in group:
             if not read.is_supplementary:
-                if primary is not None:
-                    logger.warning(
-                        f"Read name {group[0].read.name!r} has more than two primary alignments."
-                    )
-                    return None
+                n_primary += 1
                 primary = read
         if primary is None:
+            return None
+        if n_primary > 2:
+            logger.warning(
+                f"Read name {group[0].read.name!r} has more than two primary alignments."
+            )
             return None
         reference_start = primary.reference_start
         variants = dict()
