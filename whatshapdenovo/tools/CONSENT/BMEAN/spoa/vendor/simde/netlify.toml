@@ -1,0 +1,20 @@
+[build]
+  publish = 'web'
+  command = 'mkdir -p web/amalgamated/x86 && cd simde && for header in x86/*.h; do ../amalgamate.py "$header" > ../web/amalgamated/"$header"; done'
+
+[[headers]]
+  for = "/amalgamated/x86/*.h"
+  [headers.values]
+    Access-Control-Allow-Origin = "*"
+
+[[redirects]]
+  from = "/godbolt/simple"
+  to = "https://godbolt.org/z/Y3XexA"
+  status = 302
+  force = true
+
+[[redirects]]
+  from = "/godbolt/demo"
+  to = "https://godbolt.org/z/v9R-cP"
+  status = 302
+  force = true
