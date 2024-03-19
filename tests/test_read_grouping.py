@@ -16,6 +16,36 @@ def test_primary_alignment():
     assert len(ret) == 1
 
 
+def test_two_primary_alignment():
+    r1 = Read("P1", 60, 0, 0, 10)
+    r1.add_variant(10, 0, 60)
+    r2 = Read("P1", 60, 0, 0, 10)
+    r2.add_variant(15, 1, 60)
+    ret = Reader.create_read_from_group(
+        [AlignedRead(r1, False, False, 10, 20), AlignedRead(r2, False, False, 10, 20)],
+        distance_threshold=10,
+    )
+    assert len(ret) == 2
+
+
+def test_three_primary_alignment():
+    r1 = Read("P1", 60, 0, 0, 10)
+    r1.add_variant(10, 0, 60)
+    r2 = Read("P1", 60, 0, 0, 10)
+    r2.add_variant(15, 1, 60)
+    r3 = Read("P1", 60, 0, 0, 10)
+    r3.add_variant(20, 1, 60)
+    ret = Reader.create_read_from_group(
+        [
+            AlignedRead(r1, False, False, 10, 30),
+            AlignedRead(r2, False, False, 10, 30),
+            AlignedRead(r3, False, False, 10, 30),
+        ],
+        distance_threshold=10,
+    )
+    assert ret is None
+
+
 def test_two_alignments_same_orientation():
     primary = Read("P1", 60, 0, 0, 10)
     primary.add_variant(10, 0, 60)
