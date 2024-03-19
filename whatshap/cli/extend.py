@@ -4,22 +4,17 @@ Extend phasing information from haplotagged reads to variants
 
 import logging
 import sys
-from collections import defaultdict
 from contextlib import ExitStack
-from typing import List, Optional, Union, Dict, Tuple, FrozenSet, Sequence, TextIO
+from typing import List, Optional, Union, Dict, Tuple
 
-import numpy
 import pysam
-from pysam import AlignedSegment
 
+from whatshap import __version__
 from whatshap.cli import PhasedInputReader, CommandLineError
-from whatshap.core import NumericSampleIds, ReadSet, Read, Variant
+from whatshap.core import NumericSampleIds, Variant
 from whatshap.timer import StageTimer
 from whatshap.utils import IndexedFasta
-from whatshap.variants import ReadSetReader
-
-from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VariantTable
-from whatshap import __version__
+from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError
 
 logger = logging.getLogger(__name__)
 
@@ -39,18 +34,17 @@ def add_arguments(parser):
     arg("--only-indels", "-i", default=False, action="store_true",
         help="extend new phasing information only to indels.")
     arg("--ignore-read-groups", default=False, action="store_true",
-        help="Ignore read groups in BAM/CRAM header and assume all reads come "
-             "from the same sample.")
+        help="Ignore read groups in BAM/CRAM header and assume all reads come from the same sample.")
     arg("--chromosome", dest="chromosomes", metavar="CHROMOSOME", default=[], action="append",
-        help="Name of chromosome to phase. If not given, all chromosomes in the "
-             "input VCF are phased. Can be used multiple times.")
-    arg("variant_file", metavar="VCF", help="VCF file with phased variants "
-                                            "(must be gzip-compressed and indexed)")
+        help="Name of chromosome to phase. If not given, all chromosomes in the input VCF are phased. "
+        "Can be used multiple times.")
+    arg("variant_file", metavar="VCF", help="VCF file with phased variants (must be gzip-compressed and indexed)")
     arg("alignment_file", metavar="ALIGNMENTS",
         help="BAM/CRAM file with alignments to be tagged by haplotype")
 
 
 # fmt: on
+
 
 def run_extend(
     variant_file,
@@ -66,13 +60,13 @@ def run_extend(
     tag: str = "PS",
 ):
     timers = StageTimer()
-    timers.start('extend-run')
+    timers.start("extend-run")
     command_line: Optional[str]
     if write_command_line_header:
         command_line = "(whatshap {}) {}".format(__version__, " ".join(sys.argv[1:]))
     else:
         command_line = None
-    with (ExitStack() as stack):
+    with ExitStack() as stack:
         logger.debug("Creating PhasedInputReader")
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
@@ -96,9 +90,7 @@ def run_extend(
         except (OSError, VcfError) as e:
             raise CommandLineError(e)
 
-        vcf_reader = stack.enter_context(
-            VcfReader(variant_file, phases=True)
-        )
+        vcf_reader = stack.enter_context(VcfReader(variant_file, phases=True))
 
         try:
             bam_reader = stack.enter_context(
@@ -125,7 +117,8 @@ def run_extend(
             if chromosomes and chromosome not in chromosomes:
                 logger.info(
                     f"Leaving chromosome {chromosome} unchanged "
-                    "(present in VCF, but not requested by --chromosome)")
+                    "(present in VCF, but not requested by --chromosome)"
+                )
                 with timers("write_vcf"):
                     vcf_writer.write_unchanged(chromosome)
                 continue
@@ -135,10 +128,10 @@ def run_extend(
                 with timers("read_bam"):
                     reads, _ = phased_input_reader.read(chromosome, variant_table.variants, sample)
                     for alignment in bam_reader.fetch(chromosome):
-                        if alignment.has_tag('PS') and alignment.has_tag('HP'):
+                        if alignment.has_tag("PS") and alignment.has_tag("HP"):
                             reads_to_ht[alignment.qname] = (
-                                int(alignment.get_tag('PS')) - 1,
-                                int(alignment.get_tag('HP')) - 1
+                                int(alignment.get_tag("PS")) - 1,
+                                int(alignment.get_tag("HP")) - 1,
                             )
                 votes = dict()
                 phases = variant_table.phases_of(sample)
@@ -149,14 +142,16 @@ def run_extend(
                 phased = dict()
                 homozygous_number = 0
                 phased_number = 0
-                for variant, (phase, genotype) in zip(variant_table.variants, zip(phases, genotypes)):
+                for variant, (phase, genotype) in zip(
+                    variant_table.variants, zip(phases, genotypes)
+                ):
                     homozygous[variant.position] = genotype.is_homozygous()
                     phased[variant.position] = phase
                     phased_number += phase is not None
                     homozygous_number += genotype.is_homozygous()
                     change[variant.position] = variant
-                logger.info(f'Number of homozygous variants is {homozygous_number}')
-                logger.info(f'Number of already phased variants is {phased_number}')
+                logger.info(f"Number of homozygous variants is {homozygous_number}")
+                logger.info(f"Number of already phased variants is {phased_number}")
                 for read in reads:
                     if read.name not in reads_to_ht:
                         continue
@@ -186,8 +181,11 @@ def run_extend(
                         continue
                     if cut_poly > 0:
                         j = 1
-                        while j + pos + 1 < len(fasta_chr) and j < cut_poly and fasta_chr[pos + j + 1] == fasta_chr[
-                            pos + 1]:
+                        while (
+                            j + pos + 1 < len(fasta_chr)
+                            and j < cut_poly
+                            and fasta_chr[pos + j + 1] == fasta_chr[pos + 1]
+                        ):
                             j = j + 1
                         if j >= cut_poly:
                             continue
