@@ -223,7 +223,7 @@ class ReadSetReader:
                 continue
             reference_start = min(reference_start, read.reference_start)
             for variant in read.read:
-                if variant.position in variants.keys():
+                if variant.position in variants:
                     if variants[variant.position].allele != variant.allele:
                         skip.add(variant.position)
                 else:
