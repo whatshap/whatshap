@@ -1,13 +1,19 @@
 import logging
 from collections import defaultdict
-from scipy.stats import binom_test
 
-from whatshap.core import ReadSet
 from whatshap.polyphase.solver import AlleleMatrix
 
 logger = logging.getLogger(__name__)
 
-def find_inconsistencies(am : AlleleMatrix, clustering, ploidy):
+# Scipy renamed the binom_test method for version >=1.12. We avoid requirement bumping for this
+# legacy module
+try:
+    from scipy.stats import binom_test
+except ImportError:
+    from scipy.stats import binomtest
+
+
+def find_inconsistencies(am: AlleleMatrix, clustering, ploidy):
     # Returns the number of cluster positions with inconsistencies
     # (counts position multiple times, if multiple clusters are inconsistent there)
     # Also returns a list of read pairs, which need to be seperated
@@ -28,16 +34,18 @@ def find_inconsistencies(am : AlleleMatrix, clustering, ploidy):
 
     # Search for positions in clusters with ambivalent consensus
     for pos in range(num_vars):
-        # print(str(pos)+" -> "+str(len(coverage[pos]))+" , "+str(len(consensus[pos])))
         for c_id in coverage[pos]:
             if c_id not in consensus[pos]:
                 continue
             # do binomial hypothesis test, whether the deviations from majority allele is significant enough for splitting
             abs_count = abs_coverage[pos][c_id]
-            abs_deviations = int(abs_count * (1 - consensus[pos][c_id][1]))
-            p_val = binom_test(abs_deviations, abs_count, exp_error, alternative="greater")
+            abs_dev = int(abs_count * (1 - consensus[pos][c_id][1]))
+            # ugly, but found no more elegant way yet to detect which import was successful
+            try:
+                p_val = binom_test(abs_dev, abs_count, exp_error, alternative="greater")
+            except NameError:
+                p_val = binomtest(abs_dev, abs_count, exp_error, alternative="greater").pvalue
             if p_val < p_val_threshold:
-                # print("   inconsistency in cluster "+str(c_id)+" at position"+str(pos)+" with coverage "+str(coverage[pos][c_id])+" and consensus "+str(consensus[pos][c_id]))
                 num_inconsistent_positions += 1
                 zero_reads = []
                 one_reads = []
