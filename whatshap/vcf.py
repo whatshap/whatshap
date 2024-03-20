@@ -470,7 +470,7 @@ class VariantTable:
                     r = Read(name, mapq, source_id, numeric_sample_id)
                     r.add_variant(variant.position, allele, quality)
                     read_map[phase.block_id].append(r)
-        for key, read_list in read_map.items():
+        for read_list in read_map.values():
             for read in read_list:
                 if len(read) > 1:
                     read.sort()
