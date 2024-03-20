@@ -35,9 +35,9 @@ cdef extern from "read.h":
         int getReferenceStart() except +
         string getBXTag() except +
         bool hasBXTag() except +
-        string getHPTag() except +
+        int getHPTag() except +
         bool hasHPTag() except +
-        string getPSTag() except +
+        int getPSTag() except +
         bool hasPSTag() except +
 
 
