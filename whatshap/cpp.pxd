@@ -14,7 +14,7 @@ from libcpp.deque cimport deque
 
 cdef extern from "read.h":
     cdef cppclass Read:
-        Read(string, int, int, int, int, string) except +
+        Read(string, int, int, int, int, string, int, int) except +
         Read(Read) except +
         string toString() except +
         void addVariant(int, int, int) except +
@@ -35,6 +35,10 @@ cdef extern from "read.h":
         int getReferenceStart() except +
         string getBXTag() except +
         bool hasBXTag() except +
+        string getHPTag() except +
+        bool hasHPTag() except +
+        string getPSTag() except +
+        bool hasPSTag() except +
 
 
 cdef extern from "indexset.h":
