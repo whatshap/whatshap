@@ -261,6 +261,16 @@ class ReadSetReader:
                 barcode = alignment.bam_alignment.get_tag("BX")
             except KeyError:
                 barcode = ""
+                
+            try:
+                hp = alignment.bam_alignment.get_tag("HP")
+            except KeyError:
+                hp = -1
+            
+            try:
+                ps = int(alignment.bam_alignment.get_tag("PS"))
+            except KeyError:
+                ps = -1
 
             read = Read(
                 alignment.bam_alignment.qname,
@@ -269,6 +279,8 @@ class ReadSetReader:
                 numeric_sample_id,
                 alignment.bam_alignment.reference_start,
                 barcode,
+                hp,
+                ps,
             )
 
             if reference is None:

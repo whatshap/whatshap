@@ -8,7 +8,7 @@
 
 using namespace std;
 
-Read::Read(const std::string& name, int mapq, int source_id, int sample_id, int reference_start, const std::string& BX_tag, const std::string& HP_tag, const std::string& PS_tag) : name(name), mapqs(1, mapq), source_id(source_id), sample_id(sample_id), reference_start(reference_start), BX_tag(BX_tag), HP_tag(HP_tag), PS_tag(PS_tag) {
+Read::Read(const std::string& name, int mapq, int source_id, int sample_id, int reference_start, const std::string& BX_tag, int HP_tag, int PS_tag) : name(name), mapqs(1, mapq), source_id(source_id), sample_id(sample_id), reference_start(reference_start), BX_tag(BX_tag), HP_tag(HP_tag), PS_tag(PS_tag) {
 	this->id = -1;
 }
 
@@ -172,18 +172,18 @@ bool Read::hasBXTag() const {
 	return (BX_tag != "");
 }
 
-const std::string& Read::getHPTag() const {
+int Read::getHPTag() const {
 	return HP_tag; 
 }
 
 bool Read::hasHPTag() const {
-	return (HP_tag != "");
+	return (HP_tag > 0);
 }
 
-const std::string& Read::getPSTag() const {
+int Read::getPSTag() const {
 	return PS_tag; 
 }
 
-bool Read::hasHPTag() const {
-	return (PS_tag != "");
+bool Read::hasPSTag() const {
+	return (PS_tag > 0);
 }
