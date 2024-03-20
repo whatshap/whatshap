@@ -536,7 +536,9 @@ class VcfReader:
         """ "Check if VCF is indexed (.tbi or .csi)"""
         return self._vcf_reader.index is not None
 
-    def _fetch(self, chromosome: str, start: int = 0, end: Optional[int] = None):
+    def _fetch(
+        self, chromosome: str, start: int = 0, end: Optional[int] = None
+    ) -> Iterator[VariantRecord]:
         try:
             records = self._vcf_reader.fetch(chromosome, start=start, stop=end)
         except ValueError as e:
@@ -580,7 +582,7 @@ class VcfReader:
             yield self._process_single_chromosome(chromosome, records)
 
     @staticmethod
-    def _extract_HP_phase(call) -> Optional[VariantCallPhase]:
+    def _extract_HP_phase(call: VariantRecordSample) -> Optional[VariantCallPhase]:
         hp = call.get("HP")
         if hp is None or hp == (".",):
             return None
@@ -594,7 +596,7 @@ class VcfReader:
         return VariantCallPhase(block_id=block_id, phase=phase, quality=call.get("PQ", None))
 
     @staticmethod
-    def _extract_GT_PS_phase(call) -> Optional[VariantCallPhase]:
+    def _extract_GT_PS_phase(call: VariantRecordSample) -> Optional[VariantCallPhase]:
         if not call.phased:
             return None
         is_het = not all(x == call["GT"][0] for x in call["GT"])
@@ -605,7 +607,7 @@ class VcfReader:
         return VariantCallPhase(block_id=block_id, phase=phase, quality=call.get("PQ", None))
 
     @staticmethod
-    def _extract_AD_depth(call) -> int:
+    def _extract_AD_depth(call: VariantRecordSample) -> int:
         """
         Allele depth of sample are coded into a single integer to save space in memory.
         Encoding: Lowest 12 bits = depth of allele 0, next 12 bits = depth of allele 1, etc.
@@ -624,7 +626,9 @@ class VcfReader:
 
         return depth_code
 
-    def _process_single_chromosome(self, chromosome: str, records) -> VariantTable:
+    def _process_single_chromosome(
+        self, chromosome: str, records: Iterable[VariantRecord]
+    ) -> VariantTable:
         phase_detected = None
         n_snvs = 0
         n_other = 0
