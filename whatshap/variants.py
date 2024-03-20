@@ -1,6 +1,7 @@
 """
 Detect variants in reads.
 """
+
 import logging
 import csv
 from collections import defaultdict, Counter

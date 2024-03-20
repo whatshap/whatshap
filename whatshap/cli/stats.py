@@ -1,6 +1,7 @@
 """
 Print phasing statistics of a single VCF file
 """
+
 import logging
 from collections import defaultdict
 from contextlib import ExitStack
@@ -301,31 +302,35 @@ class PhasingStats:
                 singletons=n_singletons,
                 blocks=len(block_sizes),
                 variant_per_block_median=median(block_sizes),
-                variant_per_block_avg=sum(block_sizes) / len(block_sizes)
-                if len(block_sizes)
-                else float("nan"),
+                variant_per_block_avg=(
+                    sum(block_sizes) / len(block_sizes) if len(block_sizes) else float("nan")
+                ),
                 variant_per_block_min=block_sizes[0],
                 variant_per_block_max=block_sizes[-1],
                 variant_per_block_sum=sum(block_sizes),
                 bp_per_block_median=median(block_lengths),
-                bp_per_block_avg=sum(block_lengths) / len(block_lengths)
-                if len(block_lengths)
-                else float("nan"),
+                bp_per_block_avg=(
+                    sum(block_lengths) / len(block_lengths) if len(block_lengths) else float("nan")
+                ),
                 bp_per_block_min=block_lengths[0],
                 bp_per_block_max=block_lengths[-1],
                 bp_per_block_sum=sum(block_lengths),
                 heterozygous_variants=self.heterozygous_variants,
                 heterozygous_snvs=self.heterozygous_snvs,
                 phased_snvs=phased_snvs,
-                phased_fraction=sum(block_sizes) / self.heterozygous_variants
-                if self.heterozygous_variants
-                else float("nan"),
-                phased_snvs_fraction=phased_snvs / self.heterozygous_snvs
-                if self.heterozygous_snvs
-                else float("nan"),
-                block_n50=compute_ng50(self.split_blocks, chr_lengths)
-                if chr_lengths is not None
-                else float("nan"),
+                phased_fraction=(
+                    sum(block_sizes) / self.heterozygous_variants
+                    if self.heterozygous_variants
+                    else float("nan")
+                ),
+                phased_snvs_fraction=(
+                    phased_snvs / self.heterozygous_snvs if self.heterozygous_snvs else float("nan")
+                ),
+                block_n50=(
+                    compute_ng50(self.split_blocks, chr_lengths)
+                    if chr_lengths is not None
+                    else float("nan")
+                ),
             )
         else:
             return DetailedStats(

@@ -2,7 +2,6 @@
 
 import os
 import sys
-import time
 
 from setuptools_scm import get_version
 

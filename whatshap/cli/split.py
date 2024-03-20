@@ -18,6 +18,7 @@ Tetraploid:
 
     whatshap split -o h1.bam -o h2.bam -o h3.bam -o h4.bam reads.bam haplotypes.txt
 """
+
 import logging
 import os
 import pysam

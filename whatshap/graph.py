@@ -1,6 +1,7 @@
 """
 Find connected components.
 """
+
 from abc import abstractmethod
 from collections import OrderedDict
 from typing import TypeVar, Generic, Optional, Iterable

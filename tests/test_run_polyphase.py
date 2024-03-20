@@ -1,6 +1,7 @@
 """
 Integration tests that use the command-line entry point run_polyphase.
 """
+
 import os
 
 from pytest import raises

@@ -40,7 +40,7 @@ class PolyphaseBlockResult:
     block_id: int
     clustering: List[List[int]]
     threads: List[List[int]]
-    haplotypes: List[int]
+    haplotypes: List[List[int]]
     breakpoints: List[PhaseBreakpoint]
 
 

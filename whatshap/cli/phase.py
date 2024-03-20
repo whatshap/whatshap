@@ -56,6 +56,7 @@ from whatshap.timer import StageTimer
 from whatshap.utils import plural_s, warn_once
 from whatshap.cli import CommandLineError, log_memory_usage, PhasedInputReader
 from whatshap.merge import ReadMerger, DoNothingReadMerger, ReadMergerBase
+from whatshap.types import PhasingAlgorithm
 
 __author__ = "Murray Patterson, Alexander Schönhuth, Tobias Marschall, Marcel Martin"
 
@@ -569,7 +570,7 @@ def run_whatshap(
                         problem_name,
                     )
 
-                    dp_table: Union[HapChatCore, PedigreeDPTable]
+                    dp_table: PhasingAlgorithm
                     if algorithm == "hapchat":
                         dp_table = HapChatCore(all_reads)
                     elif algorithm == "heuristic":
@@ -609,6 +610,7 @@ def run_whatshap(
                     log_component_stats(overall_components, len(accessible_positions))
 
                 if recombination_list_filename:
+                    assert transmission_vector is not None
                     n_recombinations = write_recombination_list(
                         recombination_list_filename,
                         chromosome,
