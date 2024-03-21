@@ -640,4 +640,5 @@ def validate(args, parser):
 
 
 def main(args):
+    del args.indels_used
     run_polyphasegenetic(**vars(args))
