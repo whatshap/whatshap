@@ -296,6 +296,7 @@ def run_whatshap(
     read_merging_positive_threshold: int = 1000000,
     read_merging_negative_threshold: int = 1000,
     max_coverage: int = 15,
+    no_downsampling: bool = False,
     row_limit: int = 256,
     distrust_genotypes: bool = False,
     include_homozygous: bool = False,
@@ -335,6 +336,7 @@ def run_whatshap(
     supplementary_distance_threshold -- distance threshold for filtering supplementary alignments
 
     max_coverage
+    no_downsampling -- if true, do not apply downsampling
     distrust_genotypes
     include_homozygous
     genetic_haplotyping -- in ped mode, merge disconnected blocks based on genotype status
@@ -431,7 +433,9 @@ def run_whatshap(
 
         recombination_cost_computer = make_recombination_cost_computer(ped, genmap, recombrate)
 
-        families, family_trios = setup_families(samples, ped, max_coverage)
+        families, family_trios = setup_families(
+            samples, ped, max_coverage, algorithm != "heuristic"
+        )
         del samples
         for trios in family_trios.values():
             for trio in trios:
@@ -513,7 +517,7 @@ def run_whatshap(
                             "Kept %d reads that cover at least two variants each", len(readset)
                         )
                         merged_reads = read_merger.merge(readset)
-                        if algorithm == "heuristic":
+                        if no_downsampling:
                             selected_reads = merged_reads
                         else:
                             selected_reads = select_reads(
@@ -742,7 +746,7 @@ def raise_if_any_sample_not_in_vcf(vcf_reader: VcfReader, samples: Sequence[str]
 
 
 def setup_families(
-    samples: Sequence[str], ped_path: Optional[str], max_coverage: int
+    samples: Sequence[str], ped_path: Optional[str], max_coverage: int, warning: bool = True
 ) -> Tuple[Mapping[str, Sequence[str]], Mapping[str, Sequence[Trio]]]:
     """
     Return families, family_trios pair.
@@ -784,7 +788,7 @@ def setup_families(
     )
 
     largest_trio_count = max([0] + [len(trio_list) for trio_list in family_trios.values()])
-    if max_coverage + 2 * largest_trio_count > 23:
+    if warning and max_coverage + 2 * largest_trio_count > 23:
         logger.warning(
             "The maximum coverage is too high! "
             "WhatsHap may take a long time to finish and require a huge amount of memory."
@@ -1065,6 +1069,8 @@ def add_arguments(parser):
         help="Coverage reduction parameter in the internal core phasing algorithm. "
         "Higher values increase runtime *exponentially* while possibly improving phasing "
         "quality marginally. Avoid using this in the normal case! (default: %(default)s)")
+    arg("--no-downsampling", default=False, action="store_true",
+        help="Only works with heuristic as lgorithm. Disables internal downsampling.")
     arg("--mapping-quality", "--mapq", metavar="QUAL",
         default=20, type=int, help="Minimum mapping quality (default: %(default)s)")
     arg("--indels", dest="indels_used", action="store_true", help=SUPPRESS)
@@ -1175,7 +1181,9 @@ def validate(args, parser):
         parser.error("Option --use-ped-samples cannot be used together with --samples")
     if len(args.phase_input_files) == 0 and not args.ped:
         parser.error("Not providing any PHASEINPUT files only allowed in --ped mode.")
-    if args.max_coverage > 23:
+    if args.no_downsampling and args.algorithm != "heuristic":
+        parser.error("Coverage downsampling can only be disabled for heuristic.")
+    if args.max_coverage > 23 and args.algorithm != "heuristic":
         parser.error("Coverage downsampling parameter must not exceed 23.")
     if args.max_coverage_was_used is not None:
         logger.warning(
@@ -1185,7 +1193,10 @@ def validate(args, parser):
             "*exponentially* while possibly improving phasing quality marginally. "
             "Avoid using this in the normal case!"
         )
-    if args.row_limit is not None:
+    # TODO: How to determine whether argument was given, if it always has a default value?
+    if args.no_downsampling and args.max_coverage != 15:
+        parser.error("Coverage downsampling cannot be set and disabled at the same time.")
+    if args.row_limit != 256:
         if args.algorithm != "heuristic":
             logger.warning("Ignoring --row-limit as heuristic is not used as algorithm.")
         elif args.row_limit > 65535:
