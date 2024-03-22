@@ -2,6 +2,7 @@
 Extend phasing information from haplotagged reads to variants
 """
 
+import itertools
 import logging
 import sys
 from contextlib import ExitStack
@@ -11,7 +12,7 @@ import pysam
 
 from whatshap import __version__
 from whatshap.cli import PhasedInputReader, CommandLineError
-from whatshap.core import NumericSampleIds, Variant
+from whatshap.core import NumericSampleIds, Variant, Read
 from whatshap.timer import StageTimer
 from whatshap.utils import IndexedFasta
 from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError
@@ -55,7 +56,7 @@ def run_extend(
     only_indels: bool = False,
     chromosomes: Optional[List[str]] = None,
     gap_threshold: int = 70,
-    cut_poly: int = -1,
+    cut_poly: int = 10,
     write_command_line_header: bool = True,
     tag: str = "PS",
 ):
@@ -129,11 +130,10 @@ def run_extend(
                     reads, _ = phased_input_reader.read(chromosome, variant_table.variants, sample)
                     for alignment in bam_reader.fetch(chromosome):
                         if alignment.has_tag("PS") and alignment.has_tag("HP"):
-                            reads_to_ht[alignment.qname] = (
+                            reads_to_ht[alignment.query_name] = (
                                 int(alignment.get_tag("PS")) - 1,
                                 int(alignment.get_tag("HP")) - 1,
                             )
-                votes = dict()
                 phases = variant_table.phases_of(sample)
                 genotypes = variant_table.genotypes_of(sample)
 
@@ -152,47 +152,22 @@ def run_extend(
                     change[variant.position] = variant
                 logger.info(f"Number of homozygous variants is {homozygous_number}")
                 logger.info(f"Number of already phased variants is {phased_number}")
-                for read in reads:
-                    if read.name not in reads_to_ht:
-                        continue
-                    ps, ht = reads_to_ht[read.name]
-                    for variant in read:
-                        if homozygous[variant.position]:
-                            continue
-                        if variant.position not in votes:
-                            votes[variant.position] = dict()
-                        if (ps, 0) not in votes[variant.position].keys():
-                            votes[variant.position][(ps, 0)] = 0
-                            votes[variant.position][(ps, 1)] = 0
-                        votes[variant.position][(ps, ht ^ variant.allele)] += variant.quality
+                votes = compute_votes(homozygous, reads, reads_to_ht)
 
                 super_reads = [[], []]
                 components = dict()
                 for pos, var in votes.items():
-                    lst = list(var.items())
-                    lst.sort(key=lambda x: x[-1], reverse=True)
-                    (ps1, al1), score1 = lst[0]
-                    total = sum(e[-1] for e in lst)
-                    components[pos] = ps1
-                    q = int(100 * score1 // total)
-                    if q < gap_threshold and phased[pos] is None:
+                    al1, q, score1 = best_candidate(components, pos, var)
+                    if 100 * q < gap_threshold and phased[pos] is None:
                         continue
                     if only_indels and change[pos].is_snv() and phased[pos] is None:
                         continue
                     if cut_poly > 0:
-                        j = 1
-                        while (
-                            j + pos + 1 < len(fasta_chr)
-                            and j < cut_poly
-                            and fasta_chr[pos + j + 1] == fasta_chr[pos + 1]
-                        ):
-                            j = j + 1
-                        if j >= cut_poly:
-                            continue
-                        j = 1
-                        while pos - j > 0 and j < cut_poly and fasta_chr[pos - j] == fasta_chr[pos]:
-                            j = j + 1
-                        if j >= cut_poly:
+                        max_length = max(
+                            length_of_polymer(fasta_chr, pos + 1, 1, cut_poly),
+                            length_of_polymer(fasta_chr, pos, -1, cut_poly),
+                        )
+                        if max_length >= cut_poly:
                             continue
                     super_reads[0].append(Variant(pos, allele=al1, quality=score1))
                     super_reads[1].append(Variant(pos, allele=al1 ^ 1, quality=score1))
@@ -200,6 +175,48 @@ def run_extend(
                     read.sort(key=lambda x: x.position)
 
                 vcf_writer.write(chromosome, {sample: super_reads}, {sample: components})
+
+
+def best_candidate(components, pos, var):
+    lst = list(var.items())
+    lst.sort(key=lambda x: x[-1], reverse=True)
+    (ps1, al1), score1 = lst[0]
+    total = sum(e[-1] for e in lst)
+    components[pos] = ps1
+    q = score1 / total
+    return al1, q, score1
+
+
+def length_of_polymer(ref: str, start: int, step: int, threshold: int) -> int:
+    res = 0
+    for i in itertools.count(start, step):
+        if res < threshold and ref[i] == ref[start]:
+            res += 1
+        else:
+            break
+    return res
+
+
+def compute_votes(
+    homozygous: Dict[int, bool],
+    reads: List[Read],
+    reads_to_ht: Dict[str, Tuple[int, int]],
+) -> Dict[int, Dict[Tuple[int, int], int]]:
+    votes = dict()
+    for read in reads:
+        if read.name not in reads_to_ht:
+            continue
+        ps, ht = reads_to_ht[read.name]
+        for variant in read:
+            if homozygous[variant.position]:
+                continue
+            if variant.position not in votes:
+                votes[variant.position] = dict()
+            if (ps, 0) not in votes[variant.position]:
+                votes[variant.position][(ps, 0)] = 0
+                votes[variant.position][(ps, 1)] = 0
+            votes[variant.position][(ps, ht ^ variant.allele)] += variant.quality
+    return votes
 
 
 def main(args):
