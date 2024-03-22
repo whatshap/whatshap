@@ -697,7 +697,7 @@ def merge_two_reads(read1: Read, read2: Read) -> Read:
             read1.reference_start,
             read1.BX_tag,
             read1.HP_tag,
-            read1.PS_tag
+            read1.PS_tag,
         )
         result.add_mapq(read2.mapqs[0])
     else:
