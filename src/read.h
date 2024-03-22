@@ -65,8 +65,8 @@ private:
 	int id;
 	int reference_start;
 	std::string BX_tag;
-    int HP_tag;
-    int PS_tag;
+	int HP_tag;
+	int PS_tag;
 	std::vector<enriched_entry_t> variants;
 };
 
