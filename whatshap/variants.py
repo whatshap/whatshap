@@ -268,9 +268,17 @@ class ReadSetReader:
                 hp = -1
             
             try:
-                ps = int(alignment.bam_alignment.get_tag("PS"))
+                ps = alignment.bam_alignment.get_tag("PS")
             except KeyError:
                 ps = -1
+                
+            # Some 10X bams appear to use a Z type for the PS tag even when they are integers 
+            # so here we try to cast to an integer, but if that fails we raise an error
+            try:
+                ps = int(ps)
+            except ValueError:
+                raise ValueError(f"Invalid PS tag value ({ps}) in read {alignment.bam_alignment.qname}. PS must be an integer.")
+                
 
             read = Read(
                 alignment.bam_alignment.qname,
