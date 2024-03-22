@@ -2,6 +2,11 @@
 Changes
 =======
 
+unreleased
+-----------------
+
+* :issue:'516': Added support of supplementary alignments in ``phase``.
+
 v2.2 (2024-01-26)
 -----------------
 
