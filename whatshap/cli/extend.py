@@ -68,7 +68,6 @@ def run_extend(
     else:
         command_line = None
     with ExitStack() as stack:
-        logger.debug("Creating PhasedInputReader")
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
                 [alignment_file],
@@ -78,7 +77,7 @@ def run_extend(
                 only_snvs=False,
             )
         )
-        logger.debug("Creating PhasedVcfWriter")
+
         try:
             vcf_writer = stack.enter_context(
                 PhasedVcfWriter(
@@ -92,17 +91,6 @@ def run_extend(
             raise CommandLineError(e)
 
         vcf_reader = stack.enter_context(VcfReader(variant_file, phases=True))
-
-        try:
-            bam_reader = stack.enter_context(
-                pysam.AlignmentFile(
-                    alignment_file,
-                    reference_filename=reference if reference else None,
-                    require_index=True,
-                )
-            )
-        except OSError as err:
-            raise CommandLineError(f"Error while loading alignment file {alignment_file}: {err}")
 
         if ignore_read_groups and len(vcf_reader.samples) > 1:
             raise CommandLineError(
@@ -123,20 +111,12 @@ def run_extend(
                 with timers("write_vcf"):
                     vcf_writer.write_unchanged(chromosome)
                 continue
+            sample_to_super_reads, sample_to_components = (dict(), dict())
             for sample in vcf_reader.samples:
                 logger.info(f"process sample {sample}")
-                reads_to_ht: Dict[str, Tuple[int, int]] = dict()
-                with timers("read_bam"):
-                    reads, _ = phased_input_reader.read(chromosome, variant_table.variants, sample)
-                    for alignment in bam_reader.fetch(chromosome):
-                        if alignment.has_tag("PS") and alignment.has_tag("HP"):
-                            reads_to_ht[alignment.query_name] = (
-                                int(alignment.get_tag("PS")) - 1,
-                                int(alignment.get_tag("HP")) - 1,
-                            )
+                reads, _ = phased_input_reader.read(chromosome, variant_table.variants, sample)
                 phases = variant_table.phases_of(sample)
                 genotypes = variant_table.genotypes_of(sample)
-
                 homozygous = dict()
                 change = dict()
                 phased = dict()
@@ -152,7 +132,7 @@ def run_extend(
                     change[variant.position] = variant
                 logger.info(f"Number of homozygous variants is {homozygous_number}")
                 logger.info(f"Number of already phased variants is {phased_number}")
-                votes = compute_votes(homozygous, reads, reads_to_ht)
+                votes = compute_votes(homozygous, reads)
 
                 super_reads = [[], []]
                 components = dict()
@@ -173,8 +153,9 @@ def run_extend(
                     super_reads[1].append(Variant(pos, allele=al1 ^ 1, quality=score1))
                 for read in super_reads:
                     read.sort(key=lambda x: x.position)
-
-                vcf_writer.write(chromosome, {sample: super_reads}, {sample: components})
+                sample_to_components[sample] = components
+                sample_to_super_reads[sample] = super_reads
+            vcf_writer.write(chromosome, {sample: super_reads}, {sample: components})
 
 
 def best_candidate(components, pos, var):
@@ -200,13 +181,12 @@ def length_of_polymer(ref: str, start: int, step: int, threshold: int) -> int:
 def compute_votes(
     homozygous: Dict[int, bool],
     reads: List[Read],
-    reads_to_ht: Dict[str, Tuple[int, int]],
 ) -> Dict[int, Dict[Tuple[int, int], int]]:
     votes = dict()
     for read in reads:
-        if read.name not in reads_to_ht:
+        ps, ht = read.PS_tag(), read.HP_tag()
+        if ht < 0 or ps < 0:
             continue
-        ps, ht = reads_to_ht[read.name]
         for variant in read:
             if homozygous[variant.position]:
                 continue
