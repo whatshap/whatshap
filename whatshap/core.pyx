@@ -60,9 +60,10 @@ cdef class NumericSampleIds:
 
 
 cdef class Read:
-	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int sample_id = 0, int reference_start = -1, str BX_tag = None):
+	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int sample_id = 0, int reference_start = -1, str BX_tag = None, int HP_tag = -1, int PS_tag = -1):
 		cdef string _name = b''
 		cdef string _BX_tag = b''
+
 		if name is None:
 			self.thisptr = NULL
 			self.ownsptr = False
@@ -71,7 +72,7 @@ cdef class Read:
 			_name = name.encode('UTF-8')
 			if BX_tag is not '' and BX_tag is not None:
 				_BX_tag = BX_tag.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, mapq, source_id, sample_id, reference_start, _BX_tag)
+			self.thisptr = new cpp.Read(_name, mapq, source_id, sample_id, reference_start, _BX_tag, HP_tag, PS_tag)
 			self.ownsptr = True
 
 	def __dealloc__(self):
@@ -81,8 +82,8 @@ cdef class Read:
 
 	def __repr__(self):
 		assert self.thisptr != NULL
-		return 'Read(name={!r}, mapq={}, source_id={}, sample_id={}, reference_start={},  BX_tag={}, variants={})'.format(
-			self.name, self.mapqs, self.source_id, self.sample_id, self.reference_start, self.BX_tag, list(self))
+		return 'Read(name={!r}, mapq={}, source_id={}, sample_id={}, reference_start={},  BX_tag={}, HP_tag={}, PS_tag={}, variants={})'.format(
+			self.name, self.mapqs, self.source_id, self.sample_id, self.reference_start, self.BX_tag, self.HP_tag, self.PS_tag, list(self))
 
 	property mapqs:
 		def __get__(self):
@@ -113,6 +114,16 @@ cdef class Read:
 		def __get__(self):
 			assert self.thisptr != NULL
 			return self.thisptr.getBXTag().decode('utf-8')
+
+	property HP_tag:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getHPTag()
+
+	property PS_tag:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getPSTag()
 
 	def __iter__(self):
 		"""Iterate over all variants in this read"""
@@ -169,14 +180,15 @@ cdef class Read:
 	def __getstate__(self):
 		mapqs = [mapq for mapq in self.mapqs]
 		variants = [(var.position, var.allele, var.quality) for var in self]
-		return (mapqs, self.name, self.source_id, self.sample_id, self.reference_start, self.BX_tag, variants)
+		return (mapqs, self.name, self.source_id, self.sample_id, self.reference_start, self.BX_tag, self.HP_tag, self.PS_tag, variants)
 	
 	def __setstate__(self, state):
-		mapqs, name, source_id, sample_id, reference_start, BX_tag, variants = state
+		mapqs, name, source_id, sample_id, reference_start, BX_tag, HP_tag, PS_tag, variants = state
 		
 		# TODO: Duplicated code from __cinit__ is ugly, but cinit cannot be used here directly
 		cdef string _name = b''
 		cdef string _BX_tag = b''
+
 		if name is None:
 			self.thisptr = NULL
 			self.ownsptr = False
@@ -185,7 +197,7 @@ cdef class Read:
 			_name = name.encode('UTF-8')
 			if BX_tag is not b'' and BX_tag is not None:
 				_BX_tag = BX_tag.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, mapqs[0] if len(mapqs) > 0 else 0, source_id, sample_id, reference_start, _BX_tag)
+			self.thisptr = new cpp.Read(_name, mapqs[0] if len(mapqs) > 0 else 0, source_id, sample_id, reference_start, _BX_tag, HP_tag, PS_tag)
 			self.ownsptr = True
 
 		for mapq in mapqs[1:]:
@@ -213,6 +225,13 @@ cdef class Read:
 		assert self.thisptr != NULL
 		return self.thisptr.hasBXTag()
 
+	def has_HP_tag(self):
+		assert self.thisptr != NULL
+		return self.thisptr.hasBXTag()
+
+	def has_PS_tag(self):
+		assert self.thisptr != NULL
+		return self.thisptr.hasBXTag()
 
 cdef class ReadSet:
 	def __cinit__(self):
