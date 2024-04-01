@@ -8,10 +8,9 @@ import sys
 from contextlib import ExitStack
 from typing import List, Optional, Union, Dict, Tuple
 
-import pysam
 
 from whatshap import __version__
-from whatshap.cli import PhasedInputReader, CommandLineError
+from whatshap.cli import PhasedInputReader, CommandLineError, log_memory_usage
 from whatshap.core import NumericSampleIds, Variant, Read
 from whatshap.timer import StageTimer
 from whatshap.utils import IndexedFasta
@@ -60,6 +59,8 @@ def run_extend(
     write_command_line_header: bool = True,
     tag: str = "PS",
 ):
+    if reference is None:
+        raise CommandLineError("Option --reference should be specified")
     timers = StageTimer()
     timers.start("extend-run")
     command_line: Optional[str]
@@ -68,6 +69,7 @@ def run_extend(
     else:
         command_line = None
     with ExitStack() as stack:
+        logger.debug("Creating PhasedInputReader")
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
                 [alignment_file],
@@ -77,7 +79,7 @@ def run_extend(
                 only_snvs=False,
             )
         )
-
+        logger.debug("Creating PhasedVcfWriter")
         try:
             vcf_writer = stack.enter_context(
                 PhasedVcfWriter(
@@ -97,8 +99,9 @@ def run_extend(
                 "When using --ignore-read-groups on a VCF with "
                 "multiple samples, --sample must also be used."
             )
-        fasta = stack.enter_context(IndexedFasta(reference))
-        for variant_table in timers.iterate("parse_vcf", vcf_reader):
+        with timers("read-fasta"):
+            fasta = stack.enter_context(IndexedFasta(reference))
+        for variant_table in timers.iterate("parse-vcf", vcf_reader):
             chromosome = variant_table.chromosome
             fasta_chr = fasta[chromosome]
             logger.info(f"Processing chromosome {chromosome}...")
@@ -108,13 +111,14 @@ def run_extend(
                     f"Leaving chromosome {chromosome} unchanged "
                     "(present in VCF, but not requested by --chromosome)"
                 )
-                with timers("write_vcf"):
+                with timers("write-vcf"):
                     vcf_writer.write_unchanged(chromosome)
                 continue
             sample_to_super_reads, sample_to_components = (dict(), dict())
             for sample in vcf_reader.samples:
-                logger.info(f"process sample {sample}")
-                reads, _ = phased_input_reader.read(chromosome, variant_table.variants, sample)
+                logger.info(f"Processing sample {sample}")
+                with timers("read-bam"):
+                    reads, _ = phased_input_reader.read(chromosome, variant_table.variants, sample)
                 phases = variant_table.phases_of(sample)
                 genotypes = variant_table.genotypes_of(sample)
                 homozygous = dict()
@@ -132,30 +136,55 @@ def run_extend(
                     change[variant.position] = variant
                 logger.info(f"Number of homozygous variants is {homozygous_number}")
                 logger.info(f"Number of already phased variants is {phased_number}")
-                votes = compute_votes(homozygous, reads)
+                with timers("compute-votes"):
+                    votes = compute_votes(homozygous, reads)
+                with timers("compute-consensus"):
+                    sample_to_super_reads[sample], sample_to_components[sample] = consensus(
+                        only_indels, gap_threshold, cut_poly, fasta_chr, change, phased, votes
+                    )
+            with timers("write-vcf"):
+                vcf_writer.write(chromosome, sample_to_super_reads, sample_to_components)
+    timers.stop("extend-run")
+    log_time_and_memory_usage(timers)
 
-                super_reads = [[], []]
-                components = dict()
-                for pos, var in votes.items():
-                    al1, q, score1 = best_candidate(components, pos, var)
-                    if 100 * q < gap_threshold and phased[pos] is None:
-                        continue
-                    if only_indels and change[pos].is_snv() and phased[pos] is None:
-                        continue
-                    if cut_poly > 0:
-                        max_length = max(
-                            length_of_polymer(fasta_chr, pos + 1, 1, cut_poly),
-                            length_of_polymer(fasta_chr, pos, -1, cut_poly),
-                        )
-                        if max_length >= cut_poly:
-                            continue
-                    super_reads[0].append(Variant(pos, allele=al1, quality=score1))
-                    super_reads[1].append(Variant(pos, allele=al1 ^ 1, quality=score1))
-                for read in super_reads:
-                    read.sort(key=lambda x: x.position)
-                sample_to_components[sample] = components
-                sample_to_super_reads[sample] = super_reads
-            vcf_writer.write(chromosome, {sample: super_reads}, {sample: components})
+
+def log_time_and_memory_usage(timers):
+    logger.info("\n# Resource usage")
+    log_memory_usage()
+    # fmt: off
+    logger.info("Finished in :                              %6.1f s", timers.elapsed("extend-run"))
+    logger.info("Time spent reading reference:                  %6.1f s", timers.elapsed("read-fasta"))
+    logger.info("Time spent reading VCF:                    %6.1f s", timers.elapsed("parse-vcf"))
+    logger.info("Time spent writing VCF:                    %6.1f s", timers.elapsed("write-vcf"))
+    logger.info("Time spent reading BAM:                    %6.1f s", timers.elapsed("read-bam"))
+    logger.info("Time spent computing votes:                %6.1f s", timers.elapsed("compute-votes"))
+    logger.info("Time spent spent computing consensus:      %6.1f s", timers.elapsed("compute-consensus"))
+    # fmt: on
+
+
+def consensus(only_indels, gap_threshold, cut_poly, fasta_chr, change, phased, votes):
+    super_reads = [[], []]
+    components = dict()
+
+    for pos, var in votes.items():
+        al1, q, score1 = best_candidate(components, pos, var)
+        if phased[pos] is None:
+            if 100 * q < gap_threshold:
+                continue
+            if only_indels and change[pos].is_snv():
+                continue
+            if cut_poly > 0:
+                max_length = max(
+                    length_of_polymer(fasta_chr, pos + 1, 1, cut_poly),
+                    length_of_polymer(fasta_chr, pos, -1, cut_poly),
+                )
+                if max_length >= cut_poly:
+                    continue
+        super_reads[0].append(Variant(pos, allele=al1, quality=score1))
+        super_reads[1].append(Variant(pos, allele=al1 ^ 1, quality=score1))
+    for read in super_reads:
+        read.sort(key=lambda x: x.position)
+    return super_reads, components
 
 
 def best_candidate(components, pos, var):
@@ -184,7 +213,7 @@ def compute_votes(
 ) -> Dict[int, Dict[Tuple[int, int], int]]:
     votes = dict()
     for read in reads:
-        ps, ht = read.PS_tag(), read.HP_tag()
+        ps, ht = read.PS_tag - 1, read.HP_tag - 1
         if ht < 0 or ps < 0:
             continue
         for variant in read:
@@ -197,6 +226,11 @@ def compute_votes(
                 votes[variant.position][(ps, 1)] = 0
             votes[variant.position][(ps, ht ^ variant.allele)] += variant.quality
     return votes
+
+
+def validate(args, parser):
+    if args.reference is None:
+        parser.error("Option --reference should be specified")
 
 
 def main(args):
