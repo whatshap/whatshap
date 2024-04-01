@@ -300,6 +300,7 @@ def run_whatshap(
     row_limit: int = 256,
     distrust_genotypes: bool = False,
     include_homozygous: bool = False,
+    allow_mutations: bool = False,
     ped: Optional[str] = None,
     recombrate: float = 1.26,
     genmap: Optional[str] = None,
@@ -592,7 +593,7 @@ def run_whatshap(
                             row_limit,
                             distrust_genotypes=distrust_genotypes,
                             positions=accessible_positions,
-                            allow_mutations=True,
+                            allow_mutations=allow_mutations,
                             verbosity=0,
                         )
                     else:
@@ -1071,6 +1072,7 @@ def add_arguments(parser):
         "quality marginally. Avoid using this in the normal case! (default: %(default)s)")
     arg("--no-downsampling", default=False, action="store_true",
         help="Only works with heuristic as lgorithm. Disables internal downsampling.")
+    arg("--allow-mutations", action="store_true", default=False, help=SUPPRESS)
     arg("--mapping-quality", "--mapq", metavar="QUAL",
         default=20, type=int, help="Minimum mapping quality (default: %(default)s)")
     arg("--indels", dest="indels_used", action="store_true", help=SUPPRESS)

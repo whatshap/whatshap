@@ -34,11 +34,13 @@ PedMecHeuristic::PedMecHeuristic(ReadSet* rs, const std::vector<unsigned int>& r
         size_t n = recombcost.size();
         for (uint32_t i = 1; i < n; i++) {
             recombCost[i] = (MecScore)recombcost[i];
-            if (allowMutations)
-                mutationCost[i - 1] = 0.75 * (this->recombCost[i - 1] + this->recombCost[i]);
+            mutationCost[i - 1] = 0.75 * (this->recombCost[i - 1] + this->recombCost[i]);
+            if (!allowMutations)
+                mutationCost[i - 1] = 1000 * mutationCost[i - 1] + 1000;
         }
-        if (allowMutations)
-            mutationCost[n - 1] = recombCost[n - 1] * 1.5;
+        mutationCost[n - 1] = recombCost[n - 1] * 1.5;
+        if (!allowMutations)
+           mutationCost[n - 1] = 1000 * mutationCost[n - 1] + 1000;
         
         // positions
         if (positions == nullptr)
@@ -345,6 +347,9 @@ void PedMecHeuristic::solve() {
         mTm.push_back(tmVector);
         if (verbosity >= 1)
             printColumnInfo(p, startIndex, lastCol);
+        if (verbosity >= 2) {
+            std::cout<<"Genotype 0:"<<std::endl;
+        }
     }
     
     // find best score in last column
