@@ -35,12 +35,8 @@ PedMecHeuristic::PedMecHeuristic(ReadSet* rs, const std::vector<unsigned int>& r
         for (uint32_t i = 1; i < n; i++) {
             recombCost[i] = (MecScore)recombcost[i];
             mutationCost[i - 1] = 0.75 * (this->recombCost[i - 1] + this->recombCost[i]);
-            if (!allowMutations)
-                mutationCost[i - 1] = 1000 * mutationCost[i - 1] + 1000;
         }
         mutationCost[n - 1] = recombCost[n - 1] * 1.5;
-        if (!allowMutations)
-           mutationCost[n - 1] = 1000 * mutationCost[n - 1] + 1000;
         
         // positions
         if (positions == nullptr)
@@ -302,6 +298,17 @@ void PedMecHeuristic::solve() {
                 sols[sol].mutationScore = getMutationCost(sols[sol].balances, sols[sol].trans, p, true, 5);
                 sols[sol].bpNew.push_back(false);
 
+                if (sol1 && !allowMutations) {
+                    // if both solutions present, mutations are forbidden and one solutions contains a mutation, only keep the other
+                    if (sols[sol].mutationScore > 0 && sols[sol1].mutationScore == 0) {
+                        sols[sol] = sols[sol1];
+                        sol1 = 0;
+                        sols.pop_back();
+                    } else if (sols[sol].mutationScore > 0 && sols[sol1].mutationScore == 0) {
+                        sol1 = 0;
+                        sols.pop_back();
+                    }
+                }
                 if (sol1 && !useful) {
                     // store both solutions if read was useful, otherwise only keep the better
                     if (sols[sol].score + sols[sol].mutationScore > sols[sol1].score + sols[sol1].mutationScore)
@@ -495,7 +502,7 @@ MecScore PedMecHeuristic::getOptPhasing(const std::vector<MecScore>& balances,
     if (distrustGenotypes) {
         for (size_t s = 0; s < numSamples; s++)
             for (size_t i = 0; i < 4; i++)
-                if (phaseCost[s][i] < phaseCost[s][4] + 2 * mutationCost[p])
+                if (!allowMutations || phaseCost[s][i] < phaseCost[s][4] + 2 * mutationCost[p])
                     phases[s].push_back(i);
     } else {
         for (size_t s = 0; s < numSamples; s++) {
@@ -512,6 +519,7 @@ MecScore PedMecHeuristic::getOptPhasing(const std::vector<MecScore>& balances,
     
     // iterate over all allowed genotype combinations
     MecScore minCost = std::numeric_limits<MecScore>::infinity();
+    bool validSolFound = false;
     std::vector<size_t> v(numSamples, 0);        
     while (v[numSamples - 1] < phases[numSamples - 1].size()) {
         MecScore cost = 0.0;
@@ -532,11 +540,21 @@ MecScore PedMecHeuristic::getOptPhasing(const std::vector<MecScore>& balances,
             mut[2 * trio[2]] = (am != acm);
             mut[2 * trio[2] + 1] = (af != acf);
         }
+        // if mutation cost > 0 but mutations were not allowed: skip solution
+        bool skip = (cost > 0.0 && !allowMutations);
+        
         // iterate over samples to penalize deviating genotype and allele balances
         for (uint32_t s = 0; s < numSamples; s++)
             cost += phaseCost[s][phases[s][v[s]]];
         
-        if (cost < minCost) {
+        // when first valid solution found: reset minCost
+        if (!skip && !validSolFound) {
+            validSolFound = true;
+            minCost = std::numeric_limits<MecScore>::infinity();
+        }
+        
+        if ((!skip || !validSolFound) && cost < minCost) {
+            // as long as no valid solution was found, ignore skips and keep best invalid solution
             minCost = cost;
             if (optPhasing != nullptr)
                 for (uint32_t s = 0; s < numSamples; s++) {
