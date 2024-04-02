@@ -105,7 +105,6 @@ def run_extend(
             chromosome = variant_table.chromosome
             fasta_chr = fasta[chromosome]
             logger.info(f"Processing chromosome {chromosome}...")
-            # logger.info(variant_table.variants)
             if chromosomes and chromosome not in chromosomes:
                 logger.info(
                     f"Leaving chromosome {chromosome} unchanged "
@@ -153,7 +152,7 @@ def log_time_and_memory_usage(timers):
     log_memory_usage()
     # fmt: off
     logger.info("Finished in :                              %6.1f s", timers.elapsed("extend-run"))
-    logger.info("Time spent reading reference:                  %6.1f s", timers.elapsed("read-fasta"))
+    logger.info("Time spent reading reference:              %6.1f s", timers.elapsed("read-fasta"))
     logger.info("Time spent reading VCF:                    %6.1f s", timers.elapsed("parse-vcf"))
     logger.info("Time spent writing VCF:                    %6.1f s", timers.elapsed("write-vcf"))
     logger.info("Time spent reading BAM:                    %6.1f s", timers.elapsed("read-bam"))
@@ -212,10 +211,13 @@ def compute_votes(
     reads: List[Read],
 ) -> Dict[int, Dict[Tuple[int, int], int]]:
     votes = dict()
+    number_of_skipped = 0
     for read in reads:
         ps, ht = read.PS_tag - 1, read.HP_tag - 1
         if ht < 0 or ps < 0:
             continue
+        if ht > 1:
+            number_of_skipped += 1
         for variant in read:
             if homozygous[variant.position]:
                 continue
@@ -225,12 +227,11 @@ def compute_votes(
                 votes[variant.position][(ps, 0)] = 0
                 votes[variant.position][(ps, 1)] = 0
             votes[variant.position][(ps, ht ^ variant.allele)] += variant.quality
+    if number_of_skipped > 0:
+        logger.warning(
+            f"{number_of_skipped} reads were skipped due incorrect HP. The extend command supports only a diploid input"
+        )
     return votes
-
-
-def validate(args, parser):
-    if args.reference is None:
-        parser.error("Option --reference should be specified")
 
 
 def main(args):
