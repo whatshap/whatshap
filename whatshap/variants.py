@@ -235,6 +235,8 @@ class ReadSetReader:
             primary.read.sample_id,
             reference_start,
             primary.read.BX_tag,
+            primary.read.HP_tag,
+            primary.read.PS_tag,
         )
         for position, variant in variants.items():
             if position not in skip:
