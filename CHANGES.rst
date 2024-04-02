@@ -2,6 +2,13 @@
 Changes
 =======
 
+unreleased
+-----------------
+
+* :issue:`516`: Added ``--use-supplementary`` option to ``phase``. Use this to use supplementary
+  alignments for phasing (previously, supplementary alignments would be ignored).
+  Contributed by @nkkarpov.
+
 v2.2 (2024-01-26)
 -----------------
 
