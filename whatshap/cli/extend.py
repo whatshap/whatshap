@@ -14,7 +14,7 @@ from whatshap.cli import PhasedInputReader, CommandLineError, log_memory_usage
 from whatshap.core import NumericSampleIds, Variant, Read
 from whatshap.timer import StageTimer
 from whatshap.utils import IndexedFasta
-from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError
+from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VcfVariant, VariantCallPhase
 
 logger = logging.getLogger(__name__)
 
@@ -27,22 +27,21 @@ def add_arguments(parser):
         help="Output file. If omitted, use standard output.")
     arg("--reference", "-r", metavar="FASTA",
         help="Reference file. Must be accompanied by .fai index (create with samtools faidx)")
-    arg("--gap-threshold", "-g", metavar="GAPTHRESHOLD", default=70, type=int,
-        help="Threshold percentage of qualities for assigning phase information to a variant.")
-    arg("--cut-poly", "-c", metavar="CUTPOLY", default=10, type=int,
-        help="ignore polymers longer than the cut value.")
+    arg("--gap-threshold", "-g", metavar="PERCENT", default=70, type=int,
+        help="Threshold percentage for qualities. If the percentage of votes for the variant is less than this value, "
+        "the algorithm does not assign any information to the variant.")
+    arg("--cut-poly", "-c", metavar="LENGTH", default=10, type=int,
+        help="Ignore variants homopolymers  longer than the cut value.")
     arg("--only-indels", "-i", default=False, action="store_true",
-        help="extend new phasing information only to indels.")
+        help="Extend new phasing information only to indels.")
     arg("--ignore-read-groups", default=False, action="store_true",
         help="Ignore read groups in BAM/CRAM header and assume all reads come from the same sample.")
     arg("--chromosome", dest="chromosomes", metavar="CHROMOSOME", default=[], action="append",
         help="Name of chromosome to phase. If not given, all chromosomes in the input VCF are phased. "
         "Can be used multiple times.")
-    arg("variant_file", metavar="VCF", help="VCF file with phased variants (must be gzip-compressed and indexed)")
+    arg("variant_file", metavar="VCF", help="VCF file with variants to phase (must be gzip-compressed and indexed)")
     arg("alignment_file", metavar="ALIGNMENTS",
-        help="BAM/CRAM file with alignments to be tagged by haplotype")
-
-
+        help="BAM/CRAM file with alignments tagged by haplotype and phase set")
 # fmt: on
 
 
@@ -69,7 +68,6 @@ def run_extend(
     else:
         command_line = None
     with ExitStack() as stack:
-        logger.debug("Creating PhasedInputReader")
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
                 [alignment_file],
@@ -79,7 +77,6 @@ def run_extend(
                 only_snvs=False,
             )
         )
-        logger.debug("Creating PhasedVcfWriter")
         try:
             vcf_writer = stack.enter_context(
                 PhasedVcfWriter(
@@ -161,45 +158,110 @@ def log_time_and_memory_usage(timers):
     # fmt: on
 
 
-def consensus(only_indels, gap_threshold, cut_poly, fasta_chr, change, phased, votes):
+def consensus(
+    only_indels: bool,
+    gap_threshold: int,
+    cut_poly: int,
+    fasta_chr: str,
+    change: Dict[int, VcfVariant],
+    phased: Dict[int, Optional[VariantCallPhase]],
+    votes: Dict[int, Dict[Tuple[int, int], int]],
+) -> tuple[List[List[Read]], Dict[int, int]]:
+    """
+    Compute a consensus based on voting and filtering criteria.
+
+    This function processes variant votes to create two consensus sequences (super reads),
+    taking into account phasing information, indel preference, gap threshold, and homopolymer
+    length.
+
+    Args:
+        - only_indels (bool): If True, only consider indels for inclusion in the consensus. SNVs are ignored.
+        - gap_threshold (int): The minimum percentage of votes a variant must have to be included. Variants
+            with votes below this threshold are excluded.
+        - cut_poly (int): The cutoff length for homopolymers. Variants within homopolymers longer than this
+            length are excluded. A value of <=0 disables this filter.
+        - fasta_chr (str): The chromosome sequence from a reference FASTA.
+        - change (Dict[int, VcfVariant]): A dictionary mapping variant positions to variant.
+        - phased (Dict[int, Optional[VariantCallPhase]]): A dictionary indicating the phasing status of variants.
+            Variants with `None` are considered unphased.
+        - votes (Dict[int, Dict[Tuple[int, int], int]]): A dictionary of variant positions to their votes.
+            Each vote includes alleles and their corresponding quality scores.
+
+    Returns:
+        - tuple: A tuple containing two elements:
+            - super_reads (List[List[Read]]): Two lists of `Variant` objects representing the haplotypes.
+            - components (Dict[int, int]): A dictionary representing the ps.
+    """
     super_reads = [[], []]
     components = dict()
 
     for pos, var in votes.items():
-        al1, q, score1 = best_candidate(components, pos, var)
+        best_allele, phase_set, portion, score = best_candidate(var)
+        components[pos] = phase_set
         if phased[pos] is None:
-            if 100 * q < gap_threshold:
+            if 100 * portion < gap_threshold:
                 continue
             if only_indels and change[pos].is_snv():
                 continue
             if cut_poly > 0:
                 max_length = max(
-                    length_of_polymer(fasta_chr, pos + 1, 1, cut_poly),
-                    length_of_polymer(fasta_chr, pos, -1, cut_poly),
+                    length_of_homopolymer(fasta_chr, pos + 1, 1, cut_poly),
+                    length_of_homopolymer(fasta_chr, pos, -1, cut_poly),
                 )
                 if max_length >= cut_poly:
                     continue
-        super_reads[0].append(Variant(pos, allele=al1, quality=score1))
-        super_reads[1].append(Variant(pos, allele=al1 ^ 1, quality=score1))
+        super_reads[0].append(Variant(pos, allele=best_allele, quality=score))
+        super_reads[1].append(Variant(pos, allele=1 - best_allele, quality=score))
     for read in super_reads:
         read.sort(key=lambda x: x.position)
     return super_reads, components
 
 
-def best_candidate(components, pos, var):
+def best_candidate(var: Dict[Tuple[int, int], int]) -> Tuple[int, int, float, int]:
+    """
+    Compute the proportion of the best candidate's score relative to the total score of all candidates
+    and return this score with a candidate.
+
+    Args:
+        - var (Dict[Tuple[int, int], int]): A dictionary of candidate components, where keys are tuples containing a component identifier
+                    and an additional identifier, and values are the scores.
+
+    Returns:
+        - tuple containing four elements:
+            - (int) The allele associated with the best candidate component.
+            - (int) The phase set of the candidate
+            - (float) The quotient of the best candidate's score divided by the total score of all candidates, representing
+              the relative significance of the best candidate's score.
+            - (int) The score of the best candidate.
+    """
     lst = list(var.items())
     lst.sort(key=lambda x: x[-1], reverse=True)
-    (ps1, al1), score1 = lst[0]
+    (phase_set, allele), score = lst[0]
     total = sum(e[-1] for e in lst)
-    components[pos] = ps1
-    q = score1 / total
-    return al1, q, score1
+    q = score / total
+    return allele, phase_set, q, score
 
 
-def length_of_polymer(ref: str, start: int, step: int, threshold: int) -> int:
+def length_of_homopolymer(ref: str, start: int, step: int, threshold: int) -> int:
+    """
+    Compute the length of a homopolymer in a reference string.
+
+    Args:
+        - ref: The reference string.
+        - start: The starting index in `ref` for the homopolymer sequence.
+        - step: The step size to use when moving through `ref`. This can be used to control the direction
+            and step length for counting (e.g., a step of 1 for forward, -1 for backward).
+        - threshold: The maximum length to count up to. If the count of
+            consecutive repeating characters reaches this threshold,
+            the counting stops.
+
+    Returns:
+        - The length of the polymer, which is the count of consecutive repeating
+            characters from the start position, not exceeding the threshold.
+    """
     res = 0
     for i in itertools.count(start, step):
-        if res < threshold and ref[i] == ref[start]:
+        if res < threshold and i <= 0 <= len(ref) and ref[i] == ref[start]:
             res += 1
         else:
             break
@@ -210,6 +272,30 @@ def compute_votes(
     homozygous: Dict[int, bool],
     reads: List[Read],
 ) -> Dict[int, Dict[Tuple[int, int], int]]:
+    """
+    Compute votes for variants based on read information.
+
+    This function processes a list of reads to accumulate votes for heterozygous
+    variant positions. Each read contributes to the vote of a variant based on its
+    phasing set (PS) tag, haplotype (HP) tag, and the allele quality. Reads with
+    invalid HP tags or those representing more than a diploid configuration are
+    skipped and logged. The vote for each variant is a count of its observed alleles
+    weighted by their quality, differentiated by the read's phasing information.
+
+    Parameters:
+    - homozygous (Dict[int, bool]): A dictionary indicating whether a variant position
+                                    is homozygous (True) or not (False). Votes are only
+                                    accumulated for positions marked as False (heterozygous).
+    - reads (List[Read]): A list of Read objects, each containing information about
+                          variants observed in the read, including PS and HP tags,
+                          variant position, allele, and quality.
+
+    Returns:
+    - Dict[int, Dict[Tuple[int, int], int]]: A dictionary where keys are variant positions
+                                             and values are dictionaries. Each inner dictionary
+                                             maps a tuple of (phasing set index, haplotype) to
+                                             the total quality score accumulated for that variant.
+    """
     votes = dict()
     number_of_skipped = 0
     for read in reads:
