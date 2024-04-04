@@ -45,7 +45,7 @@ def add_arguments(parser):
 # fmt: on
 
 
-def run_extend(
+def run_haplotagphase(
     variant_file,
     alignment_file,
     output=None,
