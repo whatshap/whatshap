@@ -1,5 +1,5 @@
 """
-Extend phasing information from haplotagged reads to variants
+Phase variants in VCF based on information from haplotagged reads
 """
 
 import itertools
@@ -283,18 +283,14 @@ def compute_votes(
     weighted by their quality, differentiated by the read's phasing information.
 
     Parameters:
-    - homozygous (Dict[int, bool]): A dictionary indicating whether a variant position
-                                    is homozygous (True) or not (False). Votes are only
-                                    accumulated for positions marked as False (heterozygous).
-    - reads (List[Read]): A list of Read objects, each containing information about
-                          variants observed in the read, including PS and HP tags,
-                          variant position, allele, and quality.
+        - homozygous (Dict[int, bool]): A dictionary indicating whether a variant position is homozygous.
+        - reads (List[Read]): A list of Read objects, each containing information about variants observed in the read,
+            including PS and HP tags, variant position, allele, and quality.
 
     Returns:
-    - Dict[int, Dict[Tuple[int, int], int]]: A dictionary where keys are variant positions
-                                             and values are dictionaries. Each inner dictionary
-                                             maps a tuple of (phasing set index, haplotype) to
-                                             the total quality score accumulated for that variant.
+        - Dict[int, Dict[Tuple[int, int], int]]: A dictionary where keys are variant positions and
+            values are dictionaries. Each inner dictionary maps a tuple of (phasing set index, haplotype) to
+            the total quality score accumulated for that variant.
     """
     votes = dict()
     number_of_skipped = 0

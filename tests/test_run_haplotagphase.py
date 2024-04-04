@@ -3,7 +3,7 @@ Tests for whatshap extend module
 
 """
 
-from whatshap.cli.extend import run_extend
+from whatshap.cli.haplotagphase import run_extend
 
 
 def test_extend():
