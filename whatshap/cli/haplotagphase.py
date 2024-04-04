@@ -317,4 +317,4 @@ def compute_votes(
 
 
 def main(args):
-    run_extend(**vars(args))
+    run_haplotagphase(**vars(args))
