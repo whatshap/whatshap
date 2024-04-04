@@ -166,7 +166,7 @@ def consensus(
     change: Dict[int, VcfVariant],
     phased: Dict[int, Optional[VariantCallPhase]],
     votes: Dict[int, Dict[Tuple[int, int], int]],
-) -> tuple[List[List[Read]], Dict[int, int]]:
+) -> Tuple[List[List[Read]], Dict[int, int]]:
     """
     Compute a consensus based on voting and filtering criteria.
 
