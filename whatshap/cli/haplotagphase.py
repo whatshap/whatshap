@@ -191,6 +191,7 @@ def consensus(
         - tuple: A tuple containing two elements:
             - super_reads (List[List[Read]]): Two lists of `Variant` objects representing the haplotypes.
             - components (Dict[int, int]): A dictionary representing the ps.
+
     """
     super_reads = [[], []]
     components = dict()
@@ -233,6 +234,22 @@ def best_candidate(var: Dict[Tuple[int, int], int]) -> Tuple[int, int, float, in
             - (float) The quotient of the best candidate's score divided by the total score of all candidates, representing
               the relative significance of the best candidate's score.
             - (int) The score of the best candidate.
+
+    Examples:
+        >>> best_candidate({(1, 2): 50, (2, 3): 100, (3, 4): 75})
+        (3, 2, 0.4444444444444444, 100)
+        >>> best_candidate({(1, 1): 10, (2, 2): 20, (3, 3): 30, (4, 4): 40})
+        (4, 4, 0.4, 40)
+        >>> best_candidate({(0, 0): 2})
+        (0, 0, 1.0, 2)
+        >>> best_candidate({(1, 2): 100, (2, 2): 100, (3, 3): 100})
+        (2, 1, 0.3333333333333333, 100)
+        >>> best_candidate({(5, 5): 200, (6, 6): 300, (7, 7): 500})
+        (7, 7, 0.5, 500)
+        >>> best_candidate({(1, 2): 50, (2, 3): 100, (3, 4): 75})
+        (3, 2, 0.4444444444444444, 100)
+        >>> best_candidate({(1, 1): 10, (2, 2): 20, (3, 3): 30, (4, 4): 40})
+        (4, 4, 0.4, 40)
     """
     lst = list(var.items())
     lst.sort(key=lambda x: x[-1], reverse=True)
@@ -247,10 +264,11 @@ def length_of_homopolymer(ref: str, start: int, step: int, threshold: int) -> in
     Compute the length of a homopolymer in a reference string.
 
     Args:
-        - ref: The reference string.
-        - start: The starting index in `ref` for the homopolymer sequence.
-        - step: The step size to use when moving through `ref`. This can be used to control the direction
-            and step length for counting (e.g., a step of 1 for forward, -1 for backward).
+        - ref (str): The reference string.
+        - start (int): The starting index in `ref` for the homopolymer sequence.
+        - step (int): The step size to use when moving through `ref`.
+            This can be used to control the direction and step length for counting
+            (e.g., a step of 1 for forward, -1 for backward).
         - threshold: The maximum length to count up to. If the count of
             consecutive repeating characters reaches this threshold,
             the counting stops.
@@ -258,10 +276,23 @@ def length_of_homopolymer(ref: str, start: int, step: int, threshold: int) -> in
     Returns:
         - The length of the polymer, which is the count of consecutive repeating
             characters from the start position, not exceeding the threshold.
+    Examples:
+        >>> length_of_homopolymer("AAABBBCCC", 0, 1, 10)
+        3
+        >>> length_of_homopolymer("AAABBBCCC", 2, -1, 10)
+        3
+        >>> length_of_homopolymer("AAABBBCCC", 3, 1, 2)
+        2
+        >>> length_of_homopolymer("A", 0, 1, 1)
+        1
+        >>> length_of_homopolymer("AABBBCCCC", 5, 1, 5)
+        4
+        >>> length_of_homopolymer("", 0, 1, 10)
+        0
     """
     res = 0
     for i in itertools.count(start, step):
-        if res < threshold and i <= 0 <= len(ref) and ref[i] == ref[start]:
+        if res < threshold and 0 <= i < len(ref) and ref[i] == ref[start]:
             res += 1
         else:
             break
@@ -284,8 +315,8 @@ def compute_votes(
 
     Parameters:
         - homozygous (Dict[int, bool]): A dictionary indicating whether a variant position is homozygous.
-        - reads (List[Read]): A list of Read objects, each containing information about variants observed in the read,
-            including PS and HP tags, variant position, allele, and quality.
+        - reads (List[Read]): A list of Read objects, each containing information about variants
+            observed in the read, including PS and HP tags, variant position, allele, and quality.
 
     Returns:
         - Dict[int, Dict[Tuple[int, int], int]]: A dictionary where keys are variant positions and
