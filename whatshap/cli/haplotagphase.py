@@ -33,7 +33,7 @@ def add_arguments(parser):
     arg("--cut-poly", "-c", metavar="LENGTH", default=10, type=int,
         help="Ignore variants homopolymers  longer than the cut value.")
     arg("--only-indels", "-i", default=False, action="store_true",
-        help="Extend new phasing information only to indels.")
+        help="Add phasing information only to indels.")
     arg("--ignore-read-groups", default=False, action="store_true",
         help="Ignore read groups in BAM/CRAM header and assume all reads come from the same sample.")
     arg("--chromosome", dest="chromosomes", metavar="CHROMOSOME", default=[], action="append",
@@ -61,7 +61,7 @@ def run_haplotagphase(
     if reference is None:
         raise CommandLineError("Option --reference should be specified")
     timers = StageTimer()
-    timers.start("extend-run")
+    timers.start("haplotagphase-run")
     command_line: Optional[str]
     if write_command_line_header:
         command_line = "(whatshap {}) {}".format(__version__, " ".join(sys.argv[1:]))
@@ -140,7 +140,7 @@ def run_haplotagphase(
                     )
             with timers("write-vcf"):
                 vcf_writer.write(chromosome, sample_to_super_reads, sample_to_components)
-    timers.stop("extend-run")
+    timers.stop("haplotagphase-run")
     log_time_and_memory_usage(timers)
 
 
@@ -148,7 +148,7 @@ def log_time_and_memory_usage(timers):
     logger.info("\n# Resource usage")
     log_memory_usage()
     # fmt: off
-    logger.info("Finished in :                              %6.1f s", timers.elapsed("extend-run"))
+    logger.info("Finished in :                              %6.1f s", timers.elapsed("haplotagphase-run"))
     logger.info("Time spent reading reference:              %6.1f s", timers.elapsed("read-fasta"))
     logger.info("Time spent reading VCF:                    %6.1f s", timers.elapsed("parse-vcf"))
     logger.info("Time spent writing VCF:                    %6.1f s", timers.elapsed("write-vcf"))
@@ -342,7 +342,7 @@ def compute_votes(
             votes[variant.position][(ps, ht ^ variant.allele)] += variant.quality
     if number_of_skipped > 0:
         logger.warning(
-            f"{number_of_skipped} reads were skipped due incorrect HP. The extend command supports only a diploid input"
+            f"{number_of_skipped} reads were skipped due incorrect HP. The haplotagphase command supports only a diploid input"
         )
     return votes
 

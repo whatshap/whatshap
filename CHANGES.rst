@@ -5,6 +5,8 @@ Changes
 unreleased
 -----------------
 
+* :pr:`521`: Added ``haplotagphase`` command. The command adds a phase information to variants
+  based on haplotagged reads.
 * :issue:`516`: Added ``--use-supplementary`` option to ``phase``. Use this to use supplementary
   alignments for phasing (previously, supplementary alignments would be ignored).
   Contributed by @nkkarpov.
