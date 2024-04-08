@@ -88,7 +88,7 @@ unphase                                       Remove phasing information from a 
 :ref:`genotype <whatshap-genotype>`           Genotype variants
 :ref:`split <whatshap-split>`                 Split reads by haplotype
 :ref:`learn <whatshap-learn>`                 Generate sequencing technology specific error profiles
-:ref:`haplotagphase <whashap-haplotagphase>`  Phase VCF file using haplotagged BAM file
+:ref:`haplotagphase <whatshap-haplotagphase>`  Phase VCF file using haplotagged BAM file
 ============================================= ======================================================
 
 Not all are fully documented in this manual, yet. To get help for a
