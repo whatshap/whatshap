@@ -533,8 +533,8 @@ file_name
 The numbers in these following columns are computed on the variant level.
 
 variants
-    Number of biallelic variants in the input VCF, but excluding any non-SNV variants if
-    ``--only-snvs`` was used.
+    Number of biallelic variants in the input VCF excluding duplicate positions
+    and, if ``--only-snvs`` was used, also excluding any non-SNV variants.
 
 heterozygous_variants
     The number of biallelic, heterozygous variants in the input VCF.
