@@ -1188,7 +1188,6 @@ It can be used as follows:
 
     whatshap genotype [options] --use-kmerald --reference ref.fasta variants.vcf reads.bam --kmeralign-costs phred_scores.txt --kmer-size kmer_size --kmerald-gappenalty gap_cost --kmerald-window window_size -o genotyped_variants.vcf
 
-
 .. _whatshap-haplotagphase:
 
 whatshap haplotagphase: Phase VCF file using haplotagged BAM file
