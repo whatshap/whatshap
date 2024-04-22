@@ -31,7 +31,7 @@ def add_arguments(parser):
         help="Threshold percentage for qualities. If the percentage of votes for the variant is less than this value, "
         "the algorithm does not assign any information to the variant.")
     arg("--cut-poly", "-c", metavar="LENGTH", default=10, type=int,
-        help="Ignore variants homopolymers  longer than the cut value.")
+        help="Ignore variants within homopolymers longer than the cut value.")
     arg("--only-indels", "-i", default=False, action="store_true",
         help="Add phasing information only to indels.")
     arg("--ignore-read-groups", default=False, action="store_true",
@@ -161,8 +161,8 @@ def log_time_and_memory_usage(timers):
 def consensus(
     only_indels: bool,
     gap_threshold: int,
-    cut_poly: int,
-    fasta_chr: str,
+    cut_homopolymers: int,
+    refseq: str,
     change: Dict[int, VcfVariant],
     phased: Dict[int, Optional[VariantCallPhase]],
     votes: Dict[int, Dict[Tuple[int, int], int]],
@@ -171,45 +171,44 @@ def consensus(
     Compute a consensus based on voting and filtering criteria.
 
     This function processes variant votes to create two consensus sequences (super reads),
-    taking into account phasing information, indel preference, gap threshold, and homopolymer
+    taking into account phasing information, gap threshold, and homopolymer's cutoff
     length.
 
     Args:
-        - only_indels (bool): If True, only consider indels for inclusion in the consensus. SNVs are ignored.
-        - gap_threshold (int): The minimum percentage of votes a variant must have to be included. Variants
-            with votes below this threshold are excluded.
-        - cut_poly (int): The cutoff length for homopolymers. Variants within homopolymers longer than this
+        only_indels: If True, only consider non-SNVs for inclusion in the consensus. SNVs are ignored.
+        gap_threshold: The minimum percentage of votes a variant must have to be included.
+        cut_homopolymers: The cutoff length for homopolymers. Variants within homopolymers longer than this
             length are excluded. A value of <=0 disables this filter.
-        - fasta_chr (str): The chromosome sequence from a reference FASTA.
-        - change (Dict[int, VcfVariant]): A dictionary mapping variant positions to variant.
-        - phased (Dict[int, Optional[VariantCallPhase]]): A dictionary indicating the phasing status of variants.
+        reference_chr: The chromosome sequence from a reference FASTA.
+        change: A dictionary mapping variant positions to variant.
+        phased: A dictionary indicating the phasing status of variants.
             Variants with `None` are considered unphased.
-        - votes (Dict[int, Dict[Tuple[int, int], int]]): A dictionary of variant positions to their votes.
+        votes: A dictionary of variant positions to their votes.
             Each vote includes alleles and their corresponding quality scores.
 
     Returns:
-        - tuple: A tuple containing two elements:
-            - super_reads (List[List[Read]]): Two lists of `Variant` objects representing the haplotypes.
-            - components (Dict[int, int]): A dictionary representing the ps.
+        A tuple containing two elements:
+            - super_reads: Two lists of `Variant` objects representing the haplotypes.
+            - components: A dictionary representing the ps.
 
     """
     super_reads = [[], []]
     components = dict()
 
-    for pos, var in votes.items():
-        best_allele, phase_set, portion, score = best_candidate(var)
+    for pos, vote in votes.items():
+        best_allele, phase_set, fraction, score = best_candidate(vote)
         components[pos] = phase_set
         if phased[pos] is None:
-            if 100 * portion < gap_threshold:
+            if 100 * fraction < gap_threshold:
                 continue
             if only_indels and change[pos].is_snv():
                 continue
-            if cut_poly > 0:
+            if cut_homopolymers > 0:
                 max_length = max(
-                    length_of_homopolymer(fasta_chr, pos + 1, 1, cut_poly),
-                    length_of_homopolymer(fasta_chr, pos, -1, cut_poly),
+                    length_of_homopolymer(refseq, pos + 1, 1, cut_homopolymers),
+                    length_of_homopolymer(refseq, pos, -1, cut_homopolymers),
                 )
-                if max_length >= cut_poly:
+                if max_length > cut_homopolymers:
                     continue
         super_reads[0].append(Variant(pos, allele=best_allele, quality=score))
         super_reads[1].append(Variant(pos, allele=1 - best_allele, quality=score))
@@ -224,16 +223,16 @@ def best_candidate(var: Dict[Tuple[int, int], int]) -> Tuple[int, int, float, in
     and return this score with a candidate.
 
     Args:
-        - var (Dict[Tuple[int, int], int]): A dictionary of candidate components, where keys are tuples containing a component identifier
-                    and an additional identifier, and values are the scores.
+        var: A dictionary of candidate components, where keys are tuples containing a component identifier
+            and an additional identifier, and values are the scores.
 
     Returns:
-        - tuple containing four elements:
-            - (int) The allele associated with the best candidate component.
-            - (int) The phase set of the candidate
-            - (float) The quotient of the best candidate's score divided by the total score of all candidates, representing
+        Tuple containing four elements:
+            - The allele associated with the best candidate component.
+            - The phase set of the candidate
+            - The quotient of the best candidate's score divided by the total score of all candidates, representing
               the relative significance of the best candidate's score.
-            - (int) The score of the best candidate.
+            - The score of the best candidate.
 
     Examples:
         >>> best_candidate({(1, 2): 50, (2, 3): 100, (3, 4): 75})
@@ -264,18 +263,18 @@ def length_of_homopolymer(ref: str, start: int, step: int, threshold: int) -> in
     Compute the length of a homopolymer in a reference string.
 
     Args:
-        - ref (str): The reference string.
-        - start (int): The starting index in `ref` for the homopolymer sequence.
-        - step (int): The step size to use when moving through `ref`.
+        ref: The reference string.
+        start: The starting index in `ref` for the homopolymer sequence.
+        step: The step size to use when moving through `ref`.
             This can be used to control the direction and step length for counting
             (e.g., a step of 1 for forward, -1 for backward).
-        - threshold: The maximum length to count up to. If the count of
+        threshold: The maximum length to count up to. If the count of
             consecutive repeating characters reaches this threshold,
             the counting stops.
 
     Returns:
-        - The length of the polymer, which is the count of consecutive repeating
-            characters from the start position, not exceeding the threshold.
+        The length of the polymer, which is the count of consecutive repeating
+        characters from the start position, not exceeding the threshold.
     Examples:
         >>> length_of_homopolymer("AAABBBCCC", 0, 1, 10)
         3
@@ -300,7 +299,7 @@ def length_of_homopolymer(ref: str, start: int, step: int, threshold: int) -> in
 
 
 def compute_votes(
-    homozygous: Dict[int, bool],
+    is_homozygous: Dict[int, bool],
     reads: List[Read],
 ) -> Dict[int, Dict[Tuple[int, int], int]]:
     """
@@ -314,14 +313,14 @@ def compute_votes(
     weighted by their quality, differentiated by the read's phasing information.
 
     Parameters:
-        - homozygous (Dict[int, bool]): A dictionary indicating whether a variant position is homozygous.
-        - reads (List[Read]): A list of Read objects, each containing information about variants
+        is_homozygous: A dictionary indicating whether a variant position is homozygous.
+        reads: A list of Read objects, each containing information about variants
             observed in the read, including PS and HP tags, variant position, allele, and quality.
 
     Returns:
-        - Dict[int, Dict[Tuple[int, int], int]]: A dictionary where keys are variant positions and
-            values are dictionaries. Each inner dictionary maps a tuple of (phasing set index, haplotype) to
-            the total quality score accumulated for that variant.
+        A dictionary where keys are variant positions and
+        values are dictionaries. Each inner dictionary maps a tuple of (phasing set index, haplotype) to
+        the total quality score accumulated for that variant.
     """
     votes = dict()
     number_of_skipped = 0
@@ -331,8 +330,9 @@ def compute_votes(
             continue
         if ht > 1:
             number_of_skipped += 1
+            continue
         for variant in read:
-            if homozygous[variant.position]:
+            if is_homozygous[variant.position]:
                 continue
             if variant.position not in votes:
                 votes[variant.position] = dict()

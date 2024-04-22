@@ -1,13 +1,12 @@
 """
-Tests for whatshap extend module
-
+Tests for whatshap haplotagphase module
 """
 
 from whatshap.cli.haplotagphase import compute_votes, run_haplotagphase
 from whatshap.core import Read
 
 
-def test_extend():
+def test_haplotagphase():
     run_haplotagphase(
         variant_file="tests/data/pacbio/variants.vcf",
         alignment_file="tests/data/pacbio/haplotagged.bam",
@@ -41,5 +40,4 @@ def test_compute_votes():
         2: {(0, 0): 10, (0, 1): 30},
     }
     votes = compute_votes({1: False, 2: False, 3: True}, [a, b, c])
-    print(votes)
-    assert votes == expected_votes, f"Expected votes do not match: {votes}"
+    assert votes == expected_votes
