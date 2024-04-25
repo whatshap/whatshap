@@ -4,7 +4,6 @@ Tests for whatshap haplotagphase module
 
 from whatshap.cli.haplotagphase import compute_votes, run_haplotagphase
 from whatshap.core import Read
-import pytest
 
 from whatshap.vcf import VcfReader
 
