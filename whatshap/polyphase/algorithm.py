@@ -193,7 +193,7 @@ def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, ti
             logger.info(
                 "{} inconsistent variants found. Refining clusters ..\r".format(new_inc_count)
             )
-            for (r0, r1) in separated_reads:
+            for r0, r1 in separated_reads:
                 sim.set(r0, r1, -float("inf"))
             del clustering
             solver = ClusterEditingSolver(sim, param.ce_bundle_edges)

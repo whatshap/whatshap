@@ -50,7 +50,7 @@ def find_inconsistencies(am: AlleleMatrix, clustering, ploidy):
                 zero_reads = []
                 one_reads = []
                 for read in clustering[c_id]:
-                    for (rpos, allele) in am.getRead(read):
+                    for rpos, allele in am.getRead(read):
                         if rpos == pos:
                             if allele == 0:
                                 zero_reads.append(read)
@@ -113,7 +113,7 @@ def get_coverage(am, clustering):
     coverage_sum = [0 for pos in range(num_vars)]
     for c_id in range(num_clusters):
         for read in clustering[c_id]:
-            for (pos, allele) in am.getRead(read):
+            for pos, allele in am.getRead(read):
                 if c_id not in coverage[pos]:
                     coverage[pos][c_id] = 0
                 coverage[pos][c_id] += 1
@@ -136,7 +136,7 @@ def get_coverage_absolute(am, clustering):
     coverage = [dict() for pos in range(num_vars)]
     for c_id in range(num_clusters):
         for read in clustering[c_id]:
-            for (pos, allele) in am.getRead(read):
+            for pos, allele in am.getRead(read):
                 if c_id not in coverage[pos]:
                     coverage[pos][c_id] = 0
                 coverage[pos][c_id] += 1
@@ -184,7 +184,7 @@ def get_single_cluster_consensus_frac(am, cluster, relevant_pos):
     # Count zeroes and one for every position
     poswise_allelecount = dict()
     for read in cluster:
-        for (pos, allele) in am.getRead(read):
+        for pos, allele in am.getRead(read):
             if pos not in poswise_allelecount:
                 poswise_allelecount[pos] = dict()
             if allele not in poswise_allelecount[pos]:
