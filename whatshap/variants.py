@@ -235,6 +235,8 @@ class ReadSetReader:
             primary.read.sample_id,
             reference_start,
             primary.read.BX_tag,
+            primary.read.HP_tag,
+            primary.read.PS_tag,
         )
         for position, variant in variants.items():
             if position not in skip:
@@ -344,19 +346,34 @@ class ReadSetReader:
             calculated_costs = None
             splitted_strings = None
 
+        def get_tag_or_default(aln, tag, default):
+            if aln.bam_alignment.has_tag(tag):
+                return aln.bam_alignment.get_tag(tag)
+            else:
+                return default
+
         for alignment in alignments:
+            barcode = get_tag_or_default(alignment, "BX", "")
+            hp = get_tag_or_default(alignment, "HP", -1)
+            ps = get_tag_or_default(alignment, "PS", -1)
+            # Some 10X bams appear to use a Z type for the PS tag even when they are integers
+            # so here we try to cast to an integer, but if that fails we raise an error
             try:
-                barcode = alignment.bam_alignment.get_tag("BX")
-            except KeyError:
-                barcode = ""
+                ps = int(ps)
+            except ValueError:
+                raise ValueError(
+                    f"Invalid PS tag value ({ps}) in read {alignment.bam_alignment.query_name}. PS must be an integer."
+                )
 
             read = Read(
-                alignment.bam_alignment.qname,
+                alignment.bam_alignment.query_name,
                 alignment.bam_alignment.mapq,
                 alignment.source_id,
                 numeric_sample_id,
                 alignment.bam_alignment.reference_start,
                 barcode,
+                hp,
+                ps,
             )
 
             if reference is None:
@@ -779,6 +796,8 @@ def merge_two_reads(read1: Read, read2: Read) -> Read:
             read1.sample_id,
             read1.reference_start,
             read1.BX_tag,
+            read1.HP_tag,
+            read1.PS_tag,
         )
         result.add_mapq(read2.mapqs[0])
     else:

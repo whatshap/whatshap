@@ -88,6 +88,7 @@ unphase                                       Remove phasing information from a 
 :ref:`genotype <whatshap-genotype>`           Genotype variants
 :ref:`split <whatshap-split>`                 Split reads by haplotype
 :ref:`learn <whatshap-learn>`                 Generate sequencing technology specific error profiles
+:ref:`haplotagphase <whatshap-haplotagphase>`  Phase VCF file using haplotagged BAM file
 ============================================= ======================================================
 
 Not all are fully documented in this manual, yet. To get help for a
@@ -1186,3 +1187,24 @@ It can be used as follows:
 2. Use ``whatshap genotype`` with additional arguments for *k*-merald based genotyping::
 
     whatshap genotype [options] --use-kmerald --reference ref.fasta variants.vcf reads.bam --kmeralign-costs phred_scores.txt --kmer-size kmer_size --kmerald-gappenalty gap_cost --kmerald-window window_size -o genotyped_variants.vcf
+
+.. _whatshap-haplotagphase:
+
+whatshap haplotagphase: Phase VCF file using haplotagged BAM file
+=================================================================
+Given a haplotagged BAM file, a file with variants, and a reference, this command sequence outputs a phased VCF file::
+
+    tabix input.vcf.gz
+    samtools index haplotagged.bam
+    whatshap haplotagphase [options] -r reference.fasta input.vcf.gz haplotagged.bam -o output.vcf.gz
+
+It assigns phase information to a variant if the majority of reads containing this variant support the assignment. Additionally, it does not assign phase information to variants located within long homopolymers. The command supports the following options:
+
+``-g x``
+    Assigns information to the variant only if at least x percent of reads support the assignment (default value is 70).
+
+``-c x``
+    Ignores variants that lie inside homopolymers of length at least x (default value is 10).
+
+``--only-indels``
+    Assigns information only to indel events.
