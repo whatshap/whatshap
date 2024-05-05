@@ -2,7 +2,7 @@
 Changes
 =======
 
-unreleased
+v2.3 (2024-05-05)
 -----------------
 
 * :pr:`521`: Added ``haplotagphase`` command. The command adds phase information to variants
