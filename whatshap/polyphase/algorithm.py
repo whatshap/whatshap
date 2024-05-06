@@ -343,15 +343,20 @@ def compute_cut_positions(
     cuts = []
     hap_cuts = [[] for _ in range(ploidy)]
     thresholds = [-float("inf"), -float("inf"), log(0.5), log(0.5), log(0.99), 0]
-    thresholds_num = [ploidy, ploidy, min(ploidy, 3), 2, 2, 0]
+    thresholds_num = [ploidy + 1, ploidy, min(ploidy, 3), 2, 2, 0]
     threshold = thresholds[block_cut_sensitivity]
     threshold_num = thresholds_num[block_cut_sensitivity]
 
     remaining_conf = [0.0 for _ in range(ploidy)]
     for b in breakpoints:
-        # avoid duplicate cut positions
-        if cuts and cuts[-1] == b.position:
-            continue
+        if cuts:
+            if block_cut_sensitivity == 0:
+                # only use first cut sensitivity preset 0
+                break
+            elif cuts and cuts[-1] == b.position:
+                # avoid duplicate cut positions
+                continue
+
         # for zero confidence, always cut
         if b.confidence == 0.0:
             cuts.append(b.position)
