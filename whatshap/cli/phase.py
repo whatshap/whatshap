@@ -1057,8 +1057,8 @@ def add_arguments(parser):
         "(default: do not merge reads)")
     arg("--max-coverage", "-H", metavar="MAXCOV", type=int,
         dest="max_coverage_was_used", help=SUPPRESS)
-    arg("--row-limit", "-L", metavar="ROWLIMIT", type=int, default=256, dest="row_limit",
-        help="For the heuristic: Specifies the maximum number of memorized "
+    arg("--row-limit", "-L", metavar="ROWLIMIT", type=int, default=None, dest="row_limit",
+        help="For the heuristic: Maximum number of memorized "
         "intermediate solutions. Larger values increase runtime and memory consumption, but can "
         "improve phasing quality. (default: %(default)s)")
     arg("--internal-downsampling", metavar="COVERAGE", dest="max_coverage", default=15, type=int,
@@ -1185,11 +1185,13 @@ def validate(args, parser):
             "*exponentially* while possibly improving phasing quality marginally. "
             "Avoid using this in the normal case!"
         )
-    if args.row_limit is not None:
+    if args.row_limit is None:
+        args.row_limit = 256
+    else:
         if args.algorithm != "heuristic":
             logger.warning("Ignoring --row-limit as heuristic is not used as algorithm.")
         elif args.row_limit > 65535:
-            parser.error("Row limit paramter must not exceed 65535.")
+            parser.error("Row limit parameter must not exceed 65535.")
     if args.full_genotyping:
         parser.error(
             "The experimental --full-genotyping option has been removed. Instead, please run "
