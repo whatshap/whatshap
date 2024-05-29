@@ -2,6 +2,11 @@
 Changes
 =======
 
+development version
+-------------------
+
+* :issue:`537`: Fixed a crash when running `haplotag` on CRAM files.
+
 v2.3 (2024-05-05)
 -----------------
 

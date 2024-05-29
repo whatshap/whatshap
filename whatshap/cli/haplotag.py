@@ -663,7 +663,7 @@ def run_haplotag(
                         logger.debug(f"Processed {n_alignments} alignment records.")
         if include_unmapped:
             logger.debug("Copying unmapped reads to output")
-            for alignment in bam_reader.fetch(until_eof=True):
+            for alignment in bam_reader.fetch(contig="*"):
                 bam_writer.write(alignment)
         timers.stop("haplotag-process")
         logger.debug("Processing complete (time: {})".format(timers.elapsed("haplotag-process")))
