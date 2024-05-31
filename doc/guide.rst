@@ -715,7 +715,7 @@ run ::
 
     whatshap haplotag -o haplotagged.bam --reference reference.fasta phased.vcf.gz alignments.bam
 
-Add ``--output-threads=N`` with N greater than 1 to use multiple threads for compressing
+Add ``--output-threads N`` with N greater than 1 to use multiple threads for compressing
 the BAM file, which will speed up processing significantly.
 
 Currently, the ``haplotag`` command requires a ``.vcf.gz`` or ``.bcf`` input file
