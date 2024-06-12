@@ -1,0 +1,299 @@
+language: c
+dist: bionic
+cache: ccache
+branches:
+  except:
+    - master
+    - /^(wip\/)?(appveyor|drone|gh\-actions|azure|circleci)(\-.+)?$/
+
+env:
+  global:
+  - BUILD_TYPE="Coverage"
+  - ARCH_FLAGS="-march=native"
+  - BUILD_CPP_TESTS=ON
+  - CMAKE_GENERATOR='Ninja'
+  - RUN_TESTS=true
+  - OPTIMIZATION_FLAGS=''
+  - DIAGNOSTIC_FLAGS='-Wall -Wextra -Werror'
+
+jobs:
+  include:
+  - name: "gcc-9"
+    compiler: gcc-9
+    env:
+    - C_COMPILER=gcc-9
+    - CXX_COMPILER=g++-9
+    - COMPILER_FLAGS='-fsanitize=address,undefined'
+    - OPTIMIZATION_FLAGS=''
+    addons:
+      apt:
+        sources:
+        - sourceline: "ppa:ubuntu-toolchain-r/test"
+          key_url: https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x60c317803a41ba51845e371a1e9377a2ba9ef27f
+        packages:
+        - gcc-9
+        - g++-9
+
+  - name: "clang-10"
+    compiler: clang-10
+    env:
+    - C_COMPILER=clang-10
+    - CXX_COMPILER=clang++-10
+    - COMPILER_FLAGS='-fsanitize=address,undefined'
+    addons:
+      apt:
+        sources:
+        - sourceline: 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-10 main'
+          key_url: 'https://apt.llvm.org/llvm-snapshot.gpg.key'
+        packages:
+        - clang-10
+
+  - name: "gcc-8 x86"
+    arch: amd64
+    compiler: gcc-8
+    env:
+    - C_COMPILER=gcc-8
+    - CXX_COMPILER=g++-8
+    - ARCH_FLAGS="-m32"
+    addons:
+      apt:
+        packages:
+        - libc6:i386
+        - libc6-dev:i386
+        - gcc-8:i386
+        - g++-8:i386
+        - cpp-8:i386
+        - binutils:i386
+        - binutils-i686-linux-gnu:i386
+
+  - name: "aarch64"
+    arch: arm64
+
+  - name: "ppc64le"
+    arch: ppc64le
+    env:
+    - ARCH_FLAGS="-mcpu=native"
+    addons:
+      apt:
+        packages:
+        - gcc
+        - g++
+
+  - name: "-DSIMDE_NO_SHUFFLE_VECTOR"
+    env:
+    - COMPILER_FLAGS=-DSIMDE_NO_SHUFFLE_VECTOR
+    - OPTIMIZATION_FLAGS=''
+
+  - name: "armv8-a"
+    arch: arm64
+    env:
+    - C_COMPILER=arm-linux-gnueabihf-gcc
+    - CXX_COMPILER=arm-linux-gnueabihf-g++
+    - ARCH_FLAGS="-march=armv8-a"
+    install:
+    - sudo dpkg --add-architecture armhf
+    - sudo apt-get update
+    - sudo apt-get -y install crossbuild-essential-armhf libc6:armhf libstdc++6:armhf
+
+  - name: "armv7-a"
+    arch: arm64
+    env:
+    - C_COMPILER=arm-linux-gnueabihf-gcc
+    - CXX_COMPILER=arm-linux-gnueabihf-g++
+    - ARCH_FLAGS="-march=armv7-a"
+    install:
+    - sudo dpkg --add-architecture armhf
+    - sudo apt-get update
+    - sudo apt-get -y install crossbuild-essential-armhf libc6:armhf libstdc++6:armhf
+
+  - name: icc
+    compiler: icc
+    env:
+    - C_COMPILER=icc
+    - CXX_COMPILER=icpc
+    - DIAGNOSTIC_FLAGS='-wd13200 -wd13203'
+    install:
+    - source /opt/intel/inteloneapi/compiler/latest/env/vars.sh
+    addons:
+      apt:
+        sources:
+        - sourceline: 'deb https://apt.repos.intel.com/oneapi all main'
+          key_url: 'https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB'
+        packages:
+        - intel-oneapi-icc
+
+  - name: "pgcc"
+    env:
+    - C_COMPILER=pgcc
+    - CXX_COMPILER=pgc++
+    - ARCH_FLAGS="-m64"
+    - BUILD_CPP_TESTS=OFF
+    - DIAGNOSTIC_FLAGS=
+    install:
+    - curl 'https://raw.githubusercontent.com/nemequ/pgi-travis/master/install-pgi.sh' | /bin/sh
+
+  - name: "xlc"
+    arch: ppc64le
+    install:
+    - wget -q https://public.dhe.ibm.com/software/server/POWER/Linux/xl-compiler/eval/ppc64le/ubuntu/public.gpg -O- | sudo apt-key add -
+    - echo "deb https://public.dhe.ibm.com/software/server/POWER/Linux/xl-compiler/eval/ppc64le/ubuntu/ ${TRAVIS_DIST} main" >> /etc/apt/sources.list
+    - sudo apt-get update
+    - export XLC_VERSION="$(apt-cache search '^xlc\.[0-9]+\.[0-9]+\.[0-9]+$' | awk '{ print substr($1, 5) }')"
+    - sudo apt-get install "xlc.${XLC_VERSION}" "xlc-license-community.${XLC_VERSION}"
+    - sudo /opt/ibm/xlC/${XLC_VERSION}/bin/xlc_configure <<< 1 >/dev/null
+    env:
+    - ARCH_FLAGS=-qarch=auto
+    - C_COMPILER=xlc
+    - CXX_COMPILER=xlc++
+
+  - name: osx
+    os: osx
+
+  - name: msvc x86
+    os: windows
+    env:
+    - ARCH_FLAGS="/arch:AVX2"
+    - CMAKE_GENERATOR="Visual Studio 15 2017"
+    - OPTIMIZATION_FLAGS="/Ox"
+    - DIAGNOSTIC_FLAGS="/W4 /WX"
+
+  - name: msvc x86_64
+    os: windows
+    env:
+    - ARCH_FLAGS="/arch:AVX2"
+    - CMAKE_GENERATOR="Visual Studio 15 2017 Win64"
+    - OPTIMIZATION_FLAGS="/Ox"
+    - DIAGNOSTIC_FLAGS="/W4 /WX"
+
+  - name: msvc arm
+    os: windows
+    env:
+    - ARCH_FLAGS=""
+    - CMAKE_GENERATOR="Visual Studio 15 2017 ARM"
+    - RUN_TESTS=false
+    - OPTIMIZATION_FLAGS="/Ox"
+    - DIAGNOSTIC_FLAGS="/W4 /WX"
+
+  - name: "gcc-7 amd64"
+    compiler: gcc
+    arch: amd64
+
+  - name: "clang-7 amd64"
+    arch: amd64
+    compiler: clang
+
+  - name: gcc-4.8
+    dist: trusty
+    env:
+    # Lots of -Wunused-but-set-variable false positives
+    - DIAGNOSTIC_FLAGS='-Wall -Wextra -Wno-unused-but-set-variable -Werror'
+    addons:
+      apt:
+        packages:
+        - cmake
+        sources:
+        - kalakris-cmake
+
+  - name: s390x
+    arch: s390x
+
+  - name: amalgamate
+    if: branch = master AND type != pull_request
+    script:
+    - |
+      if [ ! -e amalgamated/x86 ]; then
+        mkdir -p amalgamated/x86;
+        (cd simde && for header in x86/*.h; do
+          ../amalgamate.py "$header" > ../amalgamated/"$header"
+        done);
+      fi
+    deploy:
+      provider: pages
+      target_branch: amalgamated
+      local_dir: amalgamated
+      github_token: $GITHUB_TOKEN
+      skip_cleanup: true
+
+  - name: emscripten
+    compiler: emcc
+    env:
+    - ARCH_FLAGS="-msimd128"
+    - C_COMPILER=emcc
+    - CXX_COMPILER=emcc
+    - CONFIGURE_WRAPPER=emcmake
+    - BUILD_WRAPPER=emmake
+    - EXECUTABLE_EXTENSION=.js
+    - TEST_WRAPPER="${HOME}/.jsvu/v8 --experimental-wasm-simd"
+    - OPTIMIZATION_FLAGS="-O3 -s SIMD=1"
+    addons:
+      apt:
+        packages:
+        - nodejs
+    install:
+    - |
+      git clone https://github.com/emscripten-core/emsdk.git
+      emsdk/emsdk update-tags
+      emsdk/emsdk install tot
+      emsdk/emsdk activate tot
+      source emsdk/emsdk_env.sh
+    - |
+      npm install jsvu -g
+      jsvu --os=linux64 --engines=v8
+
+  allow_failures:
+  # - name: emscripten    
+
+before_install:
+- |
+  if [ "${CMAKE_GENERATOR}" = "Ninja" ]; then
+    case "${TRAVIS_OS_NAME}" in
+      "linux")
+        sudo apt-get install -y ninja-build
+        ;;
+      "osx")
+        brew install ninja
+        ;;
+      "windows")
+        choco install ninja
+        ;;
+    esac
+  fi
+
+- cat /proc/cpuinfo || true
+- cat /proc/meminfo || true
+
+## If we use the matrix to set CC/CXX Travis overwrites the values,
+## so instead we use C/CXX_COMPILER, then copy the values to CC/CXX
+## here (after Travis has set CC/CXX).
+- |
+  if [ -n "${C_COMPILER}" ]; then
+    export CC="${C_COMPILER}"
+  fi
+  if [ -n "${CXX_COMPILER}" ]; then
+    export CXX="${CXX_COMPILER}"
+  fi
+
+script:
+- mkdir "${TRAVIS_BUILD_DIR}/test/build" && cd "${TRAVIS_BUILD_DIR}/test/build"
+- |
+  ${CONFIGURE_WRAPPER} cmake .. \
+    -G "${CMAKE_GENERATOR}" \
+    -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" \
+    -DBUILD_CPP_TESTS=${BUILD_CPP_TESTS} \
+    -DCMAKE_CROSSCOMPILING_EMULATOR="${TEST_WRAPPER}" \
+    -DCMAKE_VERBOSE_MAKEFILE:BOOL=ON \
+    -DCMAKE_C_FLAGS="${ARCH_FLAGS} ${OPTIMIZATION_FLAGS} ${DIAGNOSTIC_FLAGS} ${COMPILER_FLAGS} ${CFLAGS}" \
+    -DCMAKE_CXX_FLAGS="${ARCH_FLAGS} ${OPTIMIZATION_FLAGS} ${DIAGNOSTIC_FLAGS} ${COMPILER_FLAGS} ${CXXFLAGS}" \
+    ${CMAKE_ARGS} || (cat CMakeFiles/CMakeError.log && false) && \
+  ${BUILD_WRAPPER} cmake --build .
+- |
+  if [ "${RUN_TESTS}" = "true" ]; then
+    if [ "windows" != "${TRAVIS_OS_NAME}" ]; then
+      ${TEST_WRAPPER} ./run-tests${EXECUTABLE_EXTENSION}
+    else
+      ctest --output-on-failure --interactive-debug-mode 0 -C Debug -V
+    fi
+  fi
+
+notifications:
+  email: false

@@ -1,0 +1,206 @@
+#!/bin/bash
+set -e
+
+#Prints a help message
+function print_help {
+	echo "Usage: $0 [options] --in longReads.fast[a|q] --out result.fasta --type readsTechnology"
+	echo ""
+	echo "	Input:"
+	echo "	longReads.fast[a|q]:           fasta or fastq file of long reads to correct."
+	echo "	result.fasta:                  fasta file where to output the corrected long reads."
+	echo "	readsTechnology:               Indicate whether the long reads are from PacBio (--type PB) or Oxford Nanopore (--type ONT)"
+	echo ""
+	echo "	Options:"
+	echo "	--windowSize INT, -l INT:      Size of the windows to process. (default: 500)"
+	echo "	--minSupport INT, -s INT:      Minimum support to consider a window for correction. (default: 3)"
+	echo "	--maxSupport INT, -S INT:      Maximum number of overlaps to include in a pile. (default: 150)"
+	echo "	--merSize INT, -k INT:         k-mer size for chaining and polishing. (default: 9)"
+	echo "	--solid INT, -f INT:           Minimum number of occurrences to consider a k-mer as solid during polishing. (default: 4)"
+	echo "	--anchorSupport INT, -c INT:   Minimum number of sequences supporting (Ai) - (Ai+1) to keep the two anchors in the chaining. (default: 8)"
+	echo "	--minAnchors INT, -a INT:      Minimum number of anchors in a window to allow consensus computation. (default: 10)"
+	echo "	--windowOverlap INT, -o INT:   Overlap size between consecutive windows. (default: 50)"
+	echo "	--nproc INT, -j INT:           Number of processes to run in parallel (default: number of cores)."
+	echo "	--minimapIndex INT, -m INT:    Split minimap2 index every INT input bases (default: 500M)."
+	echo "	--tmpdir STRING, -t STRING:    Path where to store the temporary files (default: working directory)."
+	echo "	--help, -h:                    Print this help message."
+	echo "	--version, -v: 	               Print version information."
+	exit 1
+}
+
+#Prints version information
+function print_version {
+	echo "CONSENT v2.2.2"
+	exit 1
+}
+
+#Set options to default values
+reads=""
+proof=""
+nproc=$(nproc)
+tmpdir="."
+out=""
+minSupport=3
+maxSupport=150
+maxMSA=150
+windowSize=500
+merSize=9
+commonKMers=8
+minAnchors=2
+solid=4
+windowOverlap=50
+minimapOption=""
+minimapMemory="1G"
+
+#Print help if no argument specified
+if [[ "$1" == "" ]] ; then
+	print_help
+fi
+
+#Otions handling
+while [[ "$1" != "" ]] ; do
+	case "$1" in
+		"--help"|"-h")
+			print_help ;;
+		"--version"|"-v")
+			print_version ;;
+		"--in")
+			case "$2" in
+				"") echo "Error: $1 expects an argument" ; exit 1 ;;
+				*) reads="$2" ; shift 2 ;;
+			esac;;
+		"--out")
+			case "$2" in
+				"") echo "Error: $1 expects an argument" ; exit 1 ;;
+				*) out="$2" ; shift 2 ;;
+			esac ;;
+		"--type")
+			case "$2" in
+				"") echo "Error: $1 expects an argument" ; exit 1 ;;
+				*) if [[ "$2" == "PB" ]] ; then
+						minimapOptions="PB" ; shift 2 ;
+				   elif [[ "$2" == "ONT" ]] ; then
+				   		minimapOptions="ONT" ; shift 2 ;
+				   else
+				   		echo "Error: $1 must be either PB or ONT" ; exit 1 ;
+				   fi
+			esac ;;
+		"--minSupport"|"-s")
+			case "$2" in
+				"") echo "Error: $1 expects an argument" ; exit 1 ;;
+				*) minSupport="$2" ; shift 2 ;;
+			esac ;;
+		"--maxSupport"|"-S")
+			case "$2" in
+				"") echo "Error: $1 expects an argument" ; exit 1 ;;
+				*) maxSupport="$2" ; shift 2 ;;
+			esac ;;
+		"--maxMSA"|"-M")
+			case "$2" in
+				"") echo "Error: $1 expects an argument" ; exit 1 ;;
+				*) maxMSA="$2" ; shift 2 ;;
+			esac ;;
+		"--windowSize"|"-l")
+			case "$2" in
+				"") echo "Error: $1 expects an argument" ; exit 1 ;;
+				*) windowSize="$2" ; shift 2 ;;
+			esac ;;
+		"--merSize"|"-k")
+			case "$2" in
+				"") echo "Error: $1 expects an argument" ; exit 1 ;;
+				*) merSize="$2" ; shift 2 ;;
+			esac ;;
+		"--anchorSupport"|"-c")
+			case "$2" in
+				"") echo "Error: $1 expects an argument" ; exit 1 ;;
+				*) commonKMers="$2" ; shift 2 ;;
+			esac ;;
+		"--minAnchors"|"-a")
+			case "$2" in
+				"") echo "Error: $1 expects an argument" ; exit 1 ;;
+				*) minAnchors="$2" ; shift 2 ;;
+			esac ;;
+		"--solid"|"-f")
+			case "$2" in
+				"") echo "Error: $1 expects an argument" ; exit 1 ;;
+				*) solid="$2" ; shift 2 ;;
+			esac ;;
+		"--windowOverlap"|"-o")
+			case "$2" in
+				"") echo "Error: $1 expects an argument" ; exit 1 ;;
+				*) windowOverlap="$2" ; shift 2 ;;
+			esac ;;
+		"--nproc"|"-j")
+			case "$2" in
+				"") echo "Error: $1 expects an argument" ; exit 1 ;;
+				*) nproc="$2" ; shift 2 ;;
+			esac ;;
+		"--minimapIndex"|"-m")
+			case "$2" in
+				"") echo "Error: $1 expects an argument" ; exit 1 ;;
+				*) minimapMemory="$2" ; shift 2 ;;
+			esac ;;
+		"--tmpdir"|"-t")
+			case "$2" in
+				"") echo "Error: $1 expects an argument" ; exit 1 ;;
+				*) tmpdir="$2" ; shift 2 ;;
+			esac ;;
+    	--)
+			shift ; break ;;
+    		*) echo "Error: invalid option \"$1\"" ; exit 1 ;;
+  	esac
+done
+
+#Exit if no input or no output files have been specified
+if [[ $reads == "" ]] ; then
+	echo "Error: --in must be specified";
+	exit 1;
+fi
+if [[ $out == "" ]] ; then
+	echo "Error: --out must be specified";
+	exit 1;
+fi
+if [[ $minimapOptions == "" ]] ; then
+	echo "Error: --type must be specified";
+	exit 1;
+fi
+mkdir -p $tmpdir
+
+#Remove the output file if it already exists
+if [[ -f $out ]] ; then
+	rm $out
+fi
+
+#Temporary files names
+alignments="Alignments_"$$".paf"
+exploded="exploded_"$$
+minimapErrlog="minimap_"$$
+headers="headers_"$$
+
+#Get the path to LRSC's folder
+LRSCs=$(readlink -f "$0")
+LRSCf=$(dirname $LRSCs)
+
+echo "["$(date)"] Overlapping the long reads (minimap2)"
+if [[ $minimapOptions == "PB" ]] ; then
+	minimap2 --dual=yes -PD --no-long-join -w5 -g1000 -m30 -n1 -t"$nproc" -I"$minimapMemory" "$reads" "$reads" > $tmpdir/"$alignments" 2> $tmpdir/"$minimapErrlog"
+else
+	minimap2 -k15 -w5 -m100 -g10000 -r2000 --max-chain-skip 25 --dual=yes -PD --no-long-join -t"$nproc" -I"$minimapMemory" "$reads" "$reads" > $tmpdir/"$alignments" 2> $tmpdir/"$minimapErrlog"
+fi
+
+#If Minimap index had to be split, separate into different chunks, and merge so that all overlaps for a given read are in the same chunk
+if [[ $(grep "loaded/built the index" $tmpdir/"$minimapErrlog" -c) != "1" ]] ; then
+	echo "["$(date)"] Processing the overlaps"
+	$LRSCf/bin/explode $tmpdir/"$alignments" $tmpdir/$exploded
+	grep "^>\|^@" "$reads" > $tmpdir/"$headers"
+	$LRSCf/bin/merge $tmpdir/"$alignments" $tmpdir/"$headers" "$tmpdir/"$exploded*
+	rm "$tmpdir/"$exploded*
+	rm "$tmpdir"/$headers
+fi
+rm $tmpdir/"$minimapErrlog"
+
+echo "["$(date)"] Correcting the long reads"
+$LRSCf/bin/CONSENT-correction -a $tmpdir/"$alignments" -s "$minSupport" -S "$maxSupport" -l "$windowSize" -k "$merSize" -c "$commonKMers" -A "$minAnchors" -f "$solid" -m "$windowOverlap" -j "$nproc" -r "$reads" -M "$maxMSA" -p "$LRSCf" >> "$out"
+
+echo "["$(date)"] Removing the temporary files"
+rm $tmpdir/"$alignments"
+echo "["$(date)"] Exiting"
