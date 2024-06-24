@@ -49,10 +49,10 @@ cdef class NumericSampleIds:
 	def inverse_mapping(self):
 		"""Returns a dict mapping numeric ids to sample names."""
 		return {numeric_id:name for name, numeric_id in self.mapping.items()}
-	
+
 	def __getstate__(self):
 		return (self.mapping, self.frozen)
-	
+
 	def __setstate__(self, state):
 		mapping, frozen = state
 		self.mapping = mapping
@@ -60,9 +60,13 @@ cdef class NumericSampleIds:
 
 
 cdef class Read:
-	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int sample_id = 0, int reference_start = -1, str BX_tag = None, int HP_tag = -1, int PS_tag = -1):
+	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int sample_id = 0, int reference_start = -1,
+				  str BX_tag = None, int HP_tag = -1, int PS_tag = -1,
+				  str chromosome = None, str sub_alignment_id = None, bool is_supplementary = False):
 		cdef string _name = b''
 		cdef string _BX_tag = b''
+		cdef string _chromosome = b''
+		cdef string _sub_alignment_id = b''
 
 		if name is None:
 			self.thisptr = NULL
@@ -72,7 +76,11 @@ cdef class Read:
 			_name = name.encode('UTF-8')
 			if BX_tag is not '' and BX_tag is not None:
 				_BX_tag = BX_tag.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, mapq, source_id, sample_id, reference_start, _BX_tag, HP_tag, PS_tag)
+			if chromosome is not b'' and chromosome is not None:
+				_chromosome = chromosome.encode('UTF-8')
+			if sub_alignment_id is not b'' and sub_alignment_id is not None:
+				_sub_alignment_id = sub_alignment_id.encode('UTF-8')
+			self.thisptr = new cpp.Read(_name, mapq, source_id, sample_id, reference_start, _BX_tag, HP_tag, PS_tag, _chromosome, _sub_alignment_id, is_supplementary)
 			self.ownsptr = True
 
 	def __dealloc__(self):
@@ -82,8 +90,8 @@ cdef class Read:
 
 	def __repr__(self):
 		assert self.thisptr != NULL
-		return 'Read(name={!r}, mapq={}, source_id={}, sample_id={}, reference_start={},  BX_tag={}, HP_tag={}, PS_tag={}, variants={})'.format(
-			self.name, self.mapqs, self.source_id, self.sample_id, self.reference_start, self.BX_tag, self.HP_tag, self.PS_tag, list(self))
+		return 'Read(name={!r}, mapq={}, source_id={}, sample_id={}, reference_start={}, chromosome={}, is_supplementary={},  BX_tag={}, HP_tag={}, PS_tag={}, variants={})'.format(
+			self.name, self.mapqs, self.source_id, self.sample_id, self.chromosome, self.is_supplementary, self.reference_start, self.BX_tag, self.HP_tag, self.PS_tag, list(self))
 
 	property mapqs:
 		def __get__(self):
@@ -104,11 +112,26 @@ cdef class Read:
 		def __get__(self):
 			assert self.thisptr != NULL
 			return self.thisptr.getSampleID()
-	
+
 	property reference_start:
 		def __get__(self):
 			assert self.thisptr != NULL
 			return self.thisptr.getReferenceStart()
+
+	property chromosome:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getChromosome().decode('utf-8')
+
+	property sub_alignment_id:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getReadSubAlignmentId().decode('utf-8')
+
+	property is_supplementary:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.isSupplementary()
 
 	property BX_tag:
 		def __get__(self):
@@ -176,18 +199,20 @@ cdef class Read:
 			if variant.position == position:
 				return True
 		return False
-	
+
 	def __getstate__(self):
 		mapqs = [mapq for mapq in self.mapqs]
 		variants = [(var.position, var.allele, var.quality) for var in self]
-		return (mapqs, self.name, self.source_id, self.sample_id, self.reference_start, self.BX_tag, self.HP_tag, self.PS_tag, variants)
-	
+		return (mapqs, self.name, self.source_id, self.sample_id, self.reference_start, self.BX_tag, self.HP_tag, self.PS_tag, self.chromosome, self.sub_alignment_id, self.is_supplementary, variants)
+
 	def __setstate__(self, state):
-		mapqs, name, source_id, sample_id, reference_start, BX_tag, HP_tag, PS_tag, variants = state
-		
+		mapqs, name, source_id, sample_id, reference_start, BX_tag, HP_tag, PS_tag, chromosome, sub_alignment_id, is_supplementary, variants = state
+
 		# TODO: Duplicated code from __cinit__ is ugly, but cinit cannot be used here directly
 		cdef string _name = b''
 		cdef string _BX_tag = b''
+		cdef string _chromosome = b''
+		cdef string _sub_alignment_id = b''
 
 		if name is None:
 			self.thisptr = NULL
@@ -197,7 +222,11 @@ cdef class Read:
 			_name = name.encode('UTF-8')
 			if BX_tag is not b'' and BX_tag is not None:
 				_BX_tag = BX_tag.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, mapqs[0] if len(mapqs) > 0 else 0, source_id, sample_id, reference_start, _BX_tag, HP_tag, PS_tag)
+			if chromosome is not b'' and chromosome is not None:
+				_chromosome = chromosome.encode('UTF-8')
+			if sub_alignment_id is not b'' and sub_alignment_id is not None:
+				_sub_alignment_id = sub_alignment_id.encode('UTF-8')
+			self.thisptr = new cpp.Read(_name, mapqs[0] if len(mapqs) > 0 else 0, source_id, sample_id, reference_start, _BX_tag, HP_tag, PS_tag, _chromosome, _sub_alignment_id, is_supplementary)
 			self.ownsptr = True
 
 		for mapq in mapqs[1:]:
@@ -278,10 +307,10 @@ cdef class ReadSet:
 		else:
 			assert False, 'Invalid key: {}'.format(key)
 		return read
-	
+
 	def __getstate__(self):
 		return ([read for read in self])
-	
+
 	def __setstate__(self, state):
 		self.thisptr = new cpp.ReadSet()
 		for read in state:
@@ -352,7 +381,7 @@ cdef class PedigreeDPTable:
 			read_sets.push_back(new cpp.ReadSet())
 		transmission_vector_ptr = new vector[unsigned int]()
 		self.thisptr.get_super_reads(read_sets, transmission_vector_ptr)
-		
+
 		results = []
 		for i in range(read_sets.size()):
 			rs = ReadSet()
@@ -448,7 +477,7 @@ cdef class PhredGenotypeLikelihoods:
 	def __iter__(self):
 		for genotype in self.genotypes():
 			yield self[genotype]
-			
+
 	def __eq__(self, PhredGenotypeLikelihoods other):
 		if self.genotypes() != other.genotypes():
 			return False
@@ -456,21 +485,21 @@ cdef class PhredGenotypeLikelihoods:
 			if self[genotype] != other[genotype]:
 				return False
 		return True
-		
+
 	def genotypes(self):
 		cdef vector[cpp.Genotype]* genotypes = new vector[cpp.Genotype]()
 		self.thisptr.get_genotypes(deref(genotypes))
 		result = [Genotype(genotype.as_vector()) for genotype in genotypes[0]]
 		del genotypes
 		return result
-	
-	
+
+
 def binomial_coefficient(int n, int k):
 	return cpp.binomial_coefficient(n, k)
 
-			
+
 cdef class Genotype:
-	
+
 	def __cinit__(self, vector[uint32_t] alleles):
 		self.thisptr = new cpp.Genotype(alleles)
 
@@ -479,7 +508,7 @@ cdef class Genotype:
 
 	def __str__(self):
 		return self.thisptr.toString().decode('utf-8')
-	
+
 	def __repr__(self):
 		return self.thisptr.toString().decode('utf-8')
 
@@ -498,10 +527,10 @@ cdef class Genotype:
 
 	def is_homozygous(self):
 		return self.thisptr.is_homozygous()
-	
+
 	def is_diploid_and_biallelic(self):
 		return self.thisptr.is_diploid_and_biallelic()
-	
+
 	def get_ploidy(self):
 		return self.thisptr.get_ploidy()
 
@@ -510,7 +539,7 @@ cdef class Genotype:
 
 	def __ne__(self, Genotype g):
 		return self.thisptr[0] != g.thisptr[0]
-	
+
 	def __lt__(self, Genotype g):
 		return self.thisptr[0] < g.thisptr[0]
 
@@ -529,8 +558,8 @@ cdef class Genotype:
 
 	def __hash__(self):
 		return hash(self.thisptr.get_index())
-	
-	
+
+
 def get_max_genotype_ploidy():
 	return cpp.get_max_genotype_ploidy()
 
@@ -592,14 +621,14 @@ cdef class HapChatCore:
 		for i in range(leng):
 			read_sets.push_back(new cpp.ReadSet())
 		self.thisptr.get_super_reads(read_sets)
-		
+
 		results = []
 		for i in range(read_sets.size()):
 			rs = ReadSet()
 			del rs.thisptr
 			rs.thisptr = deref(read_sets)[i]
 			results.append(rs)
-		
+
 		return results, None
 	def get_optimal_cost(self):
 		return self.thisptr.get_optimal_cost()
@@ -608,14 +637,14 @@ cdef class HapChatCore:
 		result = ['*' for x in p[0]]
 		del p
 		return result
-		
+
 cdef class Caller:
 	def __cinit__(self, string reference, int k, int window ):
 		self.thisptr = new cpp.Caller(reference, k, window)
-		
+
 	def __dealloc__(self):
 		del self.thisptr
-		
+
 	def all_variants(self, vector[pair[int,int]] variants_list):
 		cdef deque[pair[int,int]] v_list
 		for v in variants_list:
@@ -624,10 +653,10 @@ cdef class Caller:
 
 	def add_read(self, int bam_alignment_pos, vector[vector[int]]  bam_alignment_cigartuples, string bam_alignment_query, string outfile):
 		self.thisptr.add_read(bam_alignment_pos, bam_alignment_cigartuples, bam_alignment_query, outfile)
-	
+
 	def final_pop(self, string outfile):
 		self.thisptr.final_pop(outfile)
-		
+
 	def finish(self):
 		pass
 
@@ -645,7 +674,7 @@ cdef class PedMecHeuristic:
 				c_positions.push_back(pos)
 		self.thisptr = new cpp.PedMecHeuristic(readset.thisptr, recombcost, pedigree.thisptr, distrust_genotypes, c_positions, row_limit, allow_mutations, verbosity)
 		self.pedigree = pedigree
-		
+
 	def __dealloc__(self):
 		del self.thisptr
 

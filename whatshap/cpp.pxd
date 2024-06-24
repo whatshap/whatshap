@@ -14,7 +14,7 @@ from libcpp.deque cimport deque
 
 cdef extern from "read.h":
     cdef cppclass Read:
-        Read(string, int, int, int, int, string, int, int) except +
+        Read(string, int, int, int, int, string, int, int, string, string, bool) except +
         Read(Read) except +
         string toString() except +
         void addVariant(int, int, int) except +
@@ -33,6 +33,9 @@ cdef extern from "read.h":
         int getSourceID() except +
         int getSampleID() except +
         int getReferenceStart() except +
+        string getChromosome() except +
+        string getReadSubAlignmentId() except +
+        bool isSupplementary() except +
         string getBXTag() except +
         bool hasBXTag() except +
         int getHPTag() except +
