@@ -11,7 +11,7 @@ from whatshap.vcf import VcfReader
 def test_haplotagphase(tmpdir):
     outvcf = tmpdir.join("output.vcf")
     run_haplotagphase(
-        variant_file="tests/data/pacbio/variants.vcf",
+        variant_file="tests/data/pacbio/variants_haplotagphase.vcf",
         alignment_file="tests/data/pacbio/haplotagged.bam",
         reference="tests/data/pacbio/reference.fasta",
         output=outvcf,
