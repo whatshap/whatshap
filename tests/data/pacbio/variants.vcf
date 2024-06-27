@@ -16,9 +16,9 @@
 ##FORMAT=<ID=QA,Number=A,Type=Integer,Description="Sum of quality of the alternate observations">
 ##FORMAT=<ID=MIN,Number=1,Type=Integer,Description="Minimum depth in gVCF output block.">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG004_250bp_All
-ref	10854	.	A	G	662.276	.	.	GT	0/1
+ref	10854	.	C	A,G	662.276	.	.	GT	1/2
 ref	11221	.	G	A	0.0010674	.	.	GT	0/1
-ref	11254	.	G	C	448.263	.	.	GT	0/1
+ref	11254	.	A	C,G	448.263	.	.	GT	1/2
 ref	11752	.	C	T	497.72	.	.	GT	0/1
 ref	11805	.	C	T	458.925	.	.	GT	0/1
 ref	11821	.	A	G	437.94	.	.	GT	0/1
