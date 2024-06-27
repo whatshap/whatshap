@@ -2,6 +2,7 @@
 Phase variants in VCF based on information from haplotagged reads
 """
 
+from collections import defaultdict
 import itertools
 import logging
 import sys
@@ -84,12 +85,13 @@ def run_haplotagphase(
                     in_path=variant_file,
                     out_file=output,
                     tag=tag,
+                    mav=True,
                 )
             )
         except (OSError, VcfError) as e:
             raise CommandLineError(e)
 
-        vcf_reader = stack.enter_context(VcfReader(variant_file, phases=True))
+        vcf_reader = stack.enter_context(VcfReader(variant_file, phases=True, mav=True))
 
         if ignore_read_groups and len(vcf_reader.samples) > 1:
             raise CommandLineError(
@@ -113,18 +115,27 @@ def run_haplotagphase(
             sample_to_super_reads, sample_to_components = (dict(), dict())
             for sample in vcf_reader.samples:
                 logger.info(f"Processing sample {sample}")
-                with timers("read-bam"):
-                    reads, _ = phased_input_reader.read(chromosome, variant_table.variants, sample)
-                phases = variant_table.phases_of(sample)
                 genotypes = variant_table.genotypes_of(sample)
+                with timers("read-bam"):
+                    reads, _ = phased_input_reader.read(
+                        chromosome, variant_table.variants, sample, genotypes=genotypes
+                    )
+                phases = variant_table.phases_of(sample)
+
                 homozygous = dict()
                 change = dict()
                 phased = dict()
+                al2id = defaultdict(dict)
+                id2al = defaultdict(dict)
                 homozygous_number = 0
                 phased_number = 0
                 for variant, (phase, genotype) in zip(
                     variant_table.variants, zip(phases, genotypes)
                 ):
+                    q = sorted(genotype.as_vector())
+                    for i, v in enumerate(q):
+                        al2id[variant.position][v] = i
+                        id2al[variant.position][i] = v
                     homozygous[variant.position] = genotype.is_homozygous()
                     phased[variant.position] = phase
                     phased_number += phase is not None
@@ -133,10 +144,17 @@ def run_haplotagphase(
                 logger.info(f"Number of homozygous variants is {homozygous_number}")
                 logger.info(f"Number of already phased variants is {phased_number}")
                 with timers("compute-votes"):
-                    votes = compute_votes(homozygous, reads)
+                    votes = compute_votes(homozygous, reads, al2id)
                 with timers("compute-consensus"):
                     sample_to_super_reads[sample], sample_to_components[sample] = consensus(
-                        only_indels, gap_threshold, cut_poly, fasta_chr, change, phased, votes
+                        only_indels,
+                        gap_threshold,
+                        cut_poly,
+                        fasta_chr,
+                        change,
+                        phased,
+                        votes,
+                        id2al,
                     )
             with timers("write-vcf"):
                 vcf_writer.write(chromosome, sample_to_super_reads, sample_to_components)
@@ -166,6 +184,7 @@ def consensus(
     change: Dict[int, VcfVariant],
     phased: Dict[int, Optional[VariantCallPhase]],
     votes: Dict[int, Dict[Tuple[int, int], int]],
+    id2al: Dict[int, Dict[int, int]],
 ) -> Tuple[List[List[Read]], Dict[int, int]]:
     """
     Compute a consensus based on voting and filtering criteria.
@@ -185,6 +204,7 @@ def consensus(
             Variants with `None` are considered unphased.
         votes: A dictionary of variant positions to their votes.
             Each vote includes alleles and their corresponding quality scores.
+        id2al: A dictionary mapping variant and positions to the allele.
 
     Returns:
         A tuple containing two elements:
@@ -210,8 +230,8 @@ def consensus(
                 )
                 if max_length > cut_homopolymers:
                     continue
-        super_reads[0].append(Variant(pos, allele=best_allele, quality=score))
-        super_reads[1].append(Variant(pos, allele=1 - best_allele, quality=score))
+        super_reads[0].append(Variant(pos, allele=id2al[pos][best_allele], quality=score))
+        super_reads[1].append(Variant(pos, allele=id2al[pos][1 - best_allele], quality=score))
     for read in super_reads:
         read.sort(key=lambda x: x.position)
     return super_reads, components
@@ -299,8 +319,7 @@ def length_of_homopolymer(ref: str, start: int, step: int, threshold: int) -> in
 
 
 def compute_votes(
-    is_homozygous: Dict[int, bool],
-    reads: List[Read],
+    is_homozygous: Dict[int, bool], reads: List[Read], al2id: Dict[int, Dict[int, int]]
 ) -> Dict[int, Dict[Tuple[int, int], int]]:
     """
     Compute votes for variants based on read information.
@@ -316,6 +335,7 @@ def compute_votes(
         is_homozygous: A dictionary indicating whether a variant position is homozygous.
         reads: A list of Read objects, each containing information about variants
             observed in the read, including PS and HP tags, variant position, allele, and quality.
+        al2id: A dictionary mapping allele positions and an id of an allele to 0/1 indices.
 
     Returns:
         A dictionary where keys are variant positions and
@@ -339,7 +359,9 @@ def compute_votes(
             if (ps, 0) not in votes[variant.position]:
                 votes[variant.position][(ps, 0)] = 0
                 votes[variant.position][(ps, 1)] = 0
-            votes[variant.position][(ps, ht ^ variant.allele)] += variant.quality
+            votes[variant.position][
+                (ps, ht ^ al2id[variant.position][variant.allele])
+            ] += variant.quality
     if number_of_skipped > 0:
         logger.warning(
             f"{number_of_skipped} reads were skipped due incorrect HP. The haplotagphase command supports only a diploid input"

@@ -47,5 +47,13 @@ def test_compute_votes():
         1: {(0, 0): 50, (0, 1): 0, (1, 1): 20, (1, 0): 0},
         2: {(0, 0): 10, (0, 1): 30},
     }
-    votes = compute_votes({1: False, 2: False, 3: True}, [a, b, c])
+    votes = compute_votes(
+        {1: False, 2: False, 3: True},
+        [a, b, c],
+        al2id={
+            1: {0: 0, 1: 1},
+            2: {0: 0, 1: 1},
+            3: {0: 0, 1: 1},
+        },
+    )
     assert votes == expected_votes
