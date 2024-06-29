@@ -766,6 +766,30 @@ heterozygous variants.
 
 |
 
+When working with long or ultra-long reads (e.g., nanopore reads) resulting alignment may contain
+both primary and supplementary alignments. Depending on the sample which reads are being haplotagged
+it is important to recognize that sometimes the data used for variants phasing (into Phase blocks and haplotypes
+within phase blocks). An example of such case can be working with Tumor / Normal cancer genomics.
+A matching normal sample N can be used for germline (heterozygous) SNP detection and phasing,
+producing the N.phased.vcf.gz file. Since tumor genome "inherits" all germline SNPs from the matching normal
+(loss is possible with LOH events), it becomes important to haplotag tumor reads based on germline SNPs
+and their phaseblocks/haplotype groupings.
+Because cancer genomes can be highly rearranged with somatic (i.e., non-germline/non-matching-normal)
+structural variations (e.g., translocations, long-range deletions/inversions) the reads that come from
+derived (rearranged) chromosomes can have both primary and supplementary alignments that can fall into rather
+distant regions of the genomes (even distinct chromosomes in case of translocations/chromoplexy/chromothripsis).
+Such primary/supplementary alignment regions may fall into phased regions (based on N.phased.vcf.gz info)
+with distinct phase block ids. In such cases it may beneficial to attempt to assign each alignment segment into
+respective phase block/haplotype based on spanned phased variants. This can help identify haplotype/ps groupings of
+somatic variants.
+
+Depending on the needs of ones setup, the following strategies for treating supplementary alignments of a single read
+using the ``--tag-supplementary`` CLI flag (and arguments for it enumerated below) and its values:
+
+* ``skip`` / no flag specified -- each supplementary alignment segment is skipped in assigning PS/HP SAM tags
+* ``copy-primary`` / flag without argument -- each supplementary alignment segment located in the same chromosome as the primary alignment segment get a copy of PS/HP SAM tags obtained for the primary alignment, if any obtained in haplotagging.
+* ``independent-or-skip`` -- each supplementary alignment is treated as an independent (i.e. as are primary alignments) case and and attempt is made to haploptag it based on spanned phased variants. If unsuccessful, no PS/HP assignment is made.
+* ``independent-or-copy-primary`` -- each supplementary alignment is treated as an independent (i.e. as are primary alignments) case and and attempt is made to haploptag it based on spanned phased variants. If unsuccessful, get a copy of PS/HP SAM tags obtained for the primary alignment, if any obtained in haplotagging and alignment segments located on the same chromosome.
 
 .. _whatshap-split:
 
