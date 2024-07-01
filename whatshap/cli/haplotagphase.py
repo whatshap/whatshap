@@ -61,7 +61,6 @@ def run_haplotagphase(
     ignore_mav: bool = False,
     tag: str = "PS",
 ):
-    logger.debug(f"{ignore_mav = }")
     if reference is None:
         raise CommandLineError("Option --reference should be specified")
     timers = StageTimer()
