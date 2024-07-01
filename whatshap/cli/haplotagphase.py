@@ -40,6 +40,7 @@ def add_arguments(parser):
     arg("--chromosome", dest="chromosomes", metavar="CHROMOSOME", default=[], action="append",
         help="Name of chromosome to phase. If not given, all chromosomes in the input VCF are phased. "
         "Can be used multiple times.")
+    arg("--no-mav", dest="ignore_mav", default=False, action="store_true", help="Ignore multiallelic variants.")
     arg("variant_file", metavar="VCF", help="VCF file with variants to phase (must be gzip-compressed and indexed)")
     arg("alignment_file", metavar="ALIGNMENTS",
         help="BAM/CRAM file with alignments tagged by haplotype and phase set")
@@ -57,8 +58,10 @@ def run_haplotagphase(
     gap_threshold: int = 70,
     cut_poly: int = 10,
     write_command_line_header: bool = True,
+    ignore_mav: bool = False,
     tag: str = "PS",
 ):
+    logger.debug(f"{ignore_mav = }")
     if reference is None:
         raise CommandLineError("Option --reference should be specified")
     timers = StageTimer()
@@ -85,13 +88,13 @@ def run_haplotagphase(
                     in_path=variant_file,
                     out_file=output,
                     tag=tag,
-                    mav=True,
+                    mav=not ignore_mav,
                 )
             )
         except (OSError, VcfError) as e:
             raise CommandLineError(e)
 
-        vcf_reader = stack.enter_context(VcfReader(variant_file, phases=True, mav=True))
+        vcf_reader = stack.enter_context(VcfReader(variant_file, phases=True, mav=not ignore_mav))
 
         if ignore_read_groups and len(vcf_reader.samples) > 1:
             raise CommandLineError(
