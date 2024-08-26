@@ -162,7 +162,7 @@ class ReadSetReader:
 
         If reference is None, alleles are detected by inspecting the
         existing alignment (via the CIGAR).
-        
+
         If the valid_alleles is not None, then only alleles from valid_alleles[i] will be considered for variant i.
 
         chromosome -- name of chromosome to work on

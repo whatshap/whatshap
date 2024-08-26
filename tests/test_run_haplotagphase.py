@@ -50,7 +50,7 @@ def test_compute_votes():
     votes = compute_votes(
         {1: False, 2: False, 3: True},
         [a, b, c],
-        al2id={
+        allele_to_id={
             1: {0: 0, 1: 1},
             2: {0: 0, 1: 1},
             3: {0: 0, 1: 1},
