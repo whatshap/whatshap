@@ -232,7 +232,9 @@ def consensus(
                 if max_length > cut_homopolymers:
                     continue
         super_reads[0].append(Variant(pos, allele=id_to_allele[pos][best_allele], quality=score))
-        super_reads[1].append(Variant(pos, allele=id_to_allele[pos][1 - best_allele], quality=score))
+        super_reads[1].append(
+            Variant(pos, allele=id_to_allele[pos][1 - best_allele], quality=score)
+        )
     for read in super_reads:
         read.sort(key=lambda x: x.position)
     return super_reads, components
