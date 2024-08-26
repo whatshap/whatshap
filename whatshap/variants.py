@@ -162,6 +162,8 @@ class ReadSetReader:
 
         If reference is None, alleles are detected by inspecting the
         existing alignment (via the CIGAR).
+        
+        If the valid_alleles is not None, then only alleles from valid_alleles[i] will be considered for variant i.
 
         chromosome -- name of chromosome to work on
         variants -- list of vcf.VcfVariant objects
@@ -169,7 +171,7 @@ class ReadSetReader:
             ignored and all reads in the file are used.
         reference -- reference sequence of the given chromosome (or None)
         regions -- list of start,end tuples (end can be None)
-        valid_alleles -- list of valid_alleles (or None if not available).
+        valid_alleles -- list of valid_alleles (or None if there is no reliable auxiliary information).
         """
         # Since variants are identified by position, positions must be unique.
         if __debug__ and variants:
@@ -580,12 +582,12 @@ class ReadSetReader:
         splitted_strings,
     ):
         """
-        Realign a read to the two alleles of a single variant.
+        Realign a read to the two alleles (or to the valid_alleles if it is not None) of a single variant.
         i and consumed describe where to split the cigar into a part before the
         variant position and into a part starting at the variant position, see split_cigar().
 
         variant -- VcfVariant
-        genotype -- Genotype
+        valid_alleles -- list of valid alleles
         bam_read -- the AlignedSegment
         cigartuples -- the AlignedSegment.cigartuples property (accessing it is expensive, so re-use it)
         i, consumed -- see split_cigar method

@@ -120,7 +120,7 @@ def run_haplotagphase(
                 genotypes = variant_table.genotypes_of(sample)
                 with timers("read-bam"):
                     reads, _ = phased_input_reader.read(
-                        chromosome, variant_table.variants, sample, genotypes=genotypes
+                        chromosome, variant_table.variants, sample, valid_alleles=genotypes
                     )
                 phases = variant_table.phases_of(sample)
 
@@ -134,8 +134,7 @@ def run_haplotagphase(
                 for variant, (phase, genotype) in zip(
                     variant_table.variants, zip(phases, genotypes)
                 ):
-                    q = sorted(genotype.as_vector())
-                    for i, v in enumerate(q):
+                    for i, v in enumerate(genotype.as_vector()):
                         allele_to_id[variant.position][v] = i
                         id_to_allele[variant.position][i] = v
                     homozygous[variant.position] = genotype.is_homozygous()
@@ -321,7 +320,7 @@ def length_of_homopolymer(ref: str, start: int, step: int, threshold: int) -> in
 
 
 def compute_votes(
-    is_homozygous: Dict[int, bool], reads: List[Read], al2id: Dict[int, Dict[int, int]]
+    is_homozygous: Dict[int, bool], reads: List[Read], allele_to_id: Dict[int, Dict[int, int]]
 ) -> Dict[int, Dict[Tuple[int, int], int]]:
     """
     Compute votes for variants based on read information.
@@ -337,7 +336,7 @@ def compute_votes(
         is_homozygous: A dictionary indicating whether a variant position is homozygous.
         reads: A list of Read objects, each containing information about variants
             observed in the read, including PS and HP tags, variant position, allele, and quality.
-        al2id: A dictionary mapping allele positions and an id of an allele to 0/1 indices.
+        allele_to_id: A dictionary mapping allele positions and an id of an allele to 0/1 indices.
 
     Returns:
         A dictionary where keys are variant positions and
@@ -362,7 +361,7 @@ def compute_votes(
                 votes[variant.position][(ps, 0)] = 0
                 votes[variant.position][(ps, 1)] = 0
             votes[variant.position][
-                (ps, ht ^ al2id[variant.position][variant.allele])
+                (ps, ht ^ allele_to_id[variant.position][variant.allele])
             ] += variant.quality
     if number_of_skipped > 0:
         logger.warning(

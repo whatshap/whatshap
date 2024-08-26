@@ -1208,3 +1208,6 @@ It assigns phase information to a variant if the majority of reads containing th
 
 ``--only-indels``
     Assigns information only to indel events.
+
+``--no-mav``
+    Ignore multiallelic variants.
