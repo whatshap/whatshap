@@ -127,7 +127,9 @@ class PhasedInputReader:
                 m[variant_table.chromosome] = variant_table
             self._vcfs.append(m)
 
-    def read(self, chromosome, variants, sample, *, read_vcf=True, regions=None, genotypes=None):
+    def read(
+        self, chromosome, variants, sample, *, read_vcf=True, regions=None, valid_alleles=None
+    ):
         """
         Return a pair (readset, vcf_source_ids) where readset is a sorted ReadSet.
 
@@ -150,7 +152,7 @@ class PhasedInputReader:
         bam_sample = None if self._ignore_read_groups else sample
         try:
             readset = readset_reader.read(
-                chromosome, variants, bam_sample, reference, regions, genotypes
+                chromosome, variants, bam_sample, reference, regions, valid_alleles
             )
         except SampleNotFoundError:
             logger.warning("Sample %r not found in any BAM/CRAM file.", bam_sample)
