@@ -127,6 +127,7 @@ def run_haplotagphase(
                 homozygous = dict()
                 change = dict()
                 phased = dict()
+                # mapping of detected variants to 0/1 and reversed mappings.
                 allele_to_id = defaultdict(dict)
                 id_to_allele = defaultdict(dict)
                 homozygous_number = 0
@@ -205,7 +206,7 @@ def consensus(
             Variants with `None` are considered unphased.
         votes: A dictionary of variant positions to their votes.
             Each vote includes alleles and their corresponding quality scores.
-        id_to_allele: A dictionary mapping variant and positions to the allele.
+        id_to_allele: A dictionary mapping variant id and positions to the actual allele.
 
     Returns:
         A tuple containing two elements:
