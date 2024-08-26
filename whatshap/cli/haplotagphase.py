@@ -127,8 +127,8 @@ def run_haplotagphase(
                 homozygous = dict()
                 change = dict()
                 phased = dict()
-                al2id = defaultdict(dict)
-                id2al = defaultdict(dict)
+                allele_to_id = defaultdict(dict)
+                id_to_allele = defaultdict(dict)
                 homozygous_number = 0
                 phased_number = 0
                 for variant, (phase, genotype) in zip(
@@ -136,8 +136,8 @@ def run_haplotagphase(
                 ):
                     q = sorted(genotype.as_vector())
                     for i, v in enumerate(q):
-                        al2id[variant.position][v] = i
-                        id2al[variant.position][i] = v
+                        allele_to_id[variant.position][v] = i
+                        id_to_allele[variant.position][i] = v
                     homozygous[variant.position] = genotype.is_homozygous()
                     phased[variant.position] = phase
                     phased_number += phase is not None
@@ -146,7 +146,7 @@ def run_haplotagphase(
                 logger.info(f"Number of homozygous variants is {homozygous_number}")
                 logger.info(f"Number of already phased variants is {phased_number}")
                 with timers("compute-votes"):
-                    votes = compute_votes(homozygous, reads, al2id)
+                    votes = compute_votes(homozygous, reads, allele_to_id)
                 with timers("compute-consensus"):
                     sample_to_super_reads[sample], sample_to_components[sample] = consensus(
                         only_indels,
@@ -156,7 +156,7 @@ def run_haplotagphase(
                         change,
                         phased,
                         votes,
-                        id2al,
+                        id_to_allele,
                     )
             with timers("write-vcf"):
                 vcf_writer.write(chromosome, sample_to_super_reads, sample_to_components)
@@ -186,7 +186,7 @@ def consensus(
     change: Dict[int, VcfVariant],
     phased: Dict[int, Optional[VariantCallPhase]],
     votes: Dict[int, Dict[Tuple[int, int], int]],
-    id2al: Dict[int, Dict[int, int]],
+    id_to_allele: Dict[int, Dict[int, int]],
 ) -> Tuple[List[List[Read]], Dict[int, int]]:
     """
     Compute a consensus based on voting and filtering criteria.
@@ -206,7 +206,7 @@ def consensus(
             Variants with `None` are considered unphased.
         votes: A dictionary of variant positions to their votes.
             Each vote includes alleles and their corresponding quality scores.
-        id2al: A dictionary mapping variant and positions to the allele.
+        id_to_allele: A dictionary mapping variant and positions to the allele.
 
     Returns:
         A tuple containing two elements:
@@ -232,8 +232,8 @@ def consensus(
                 )
                 if max_length > cut_homopolymers:
                     continue
-        super_reads[0].append(Variant(pos, allele=id2al[pos][best_allele], quality=score))
-        super_reads[1].append(Variant(pos, allele=id2al[pos][1 - best_allele], quality=score))
+        super_reads[0].append(Variant(pos, allele=id_to_allele[pos][best_allele], quality=score))
+        super_reads[1].append(Variant(pos, allele=id_to_allele[pos][1 - best_allele], quality=score))
     for read in super_reads:
         read.sort(key=lambda x: x.position)
     return super_reads, components
