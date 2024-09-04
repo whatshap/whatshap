@@ -9,6 +9,14 @@ If you use WhatsHap as a tool:
     | bioRxiv 085050
     | doi: `10.1101/085050 <https://doi.org/10.1101/085050>`_
 
+Or, if you found the book chapter (protocol) helpful:
+
+    | Marcel Martin, Peter Ebert, Tobias Marschall.
+    | *Read-Based Phasing and Analysis of Phased Variants with WhatsHap*
+    | In: Peters, B.A., Drmanac, R. (eds) Haplotyping.
+    | Methods in Molecular Biology, vol 2590.
+    | doi: `10.1007/978-1-0716-2819-5_8 <https://doi.org/10.1007/978-1-0716-2819-5_8>`_
+
 To refer to the core WhatsHap phasing algorithm:
 
     | Murray Patterson, Tobias Marschall, Nadia Pisanti, Leo van Iersel,

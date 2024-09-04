@@ -1,8 +1,15 @@
 .. _user-guide:
 
+
 ==========
 User guide
 ==========
+
+.. note::
+    If you are just starting to use WhatsHap, we recommend that you read
+    our book chapter `Read-Based Phasing and Analysis of Phased Variants
+    with WhatsHap <https://doi.org/10.1007/978-1-0716-2819-5_8>`_, which
+    is a more recent and concise introduction than this guide.
 
 WhatsHap is a read-based phasing tool. In the typical case, it expects
 1) a VCF file with variants of an individual and 2) a BAM or CRAM file with
