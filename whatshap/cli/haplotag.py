@@ -102,11 +102,15 @@ def add_arguments(parser):
         dest="supplementary_distance_threshold",
         type=int,
         default=100_000,
-        help="")
+        help="Maximum distance between supplementary alignment record and "
+             " a primary one for the tag copying onto the supplementary to be attempted. "
+             "Default: 100_000")
     arg("--supplementary-strand-match", action=argparse.BooleanOptionalAction,
         dest="supplementary_strand_match",
         default=True,
-        help="")
+        help="Requirement for strands between supplementary and "
+             " primary alignment records to match for the tag copying onto the supplementary to be attempted. "
+        )
     arg("--ploidy", metavar="PLOIDY", default=2, type=int, help="Ploidy (default: %(default)s).")
     arg("--skip-missing-contigs", default=False, action="store_true",
         help="Skip reads that map to a contig that does not exist in the VCF")

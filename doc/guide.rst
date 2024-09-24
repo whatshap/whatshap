@@ -791,6 +791,10 @@ using the ``--tag-supplementary`` CLI flag (and arguments for it enumerated belo
 * ``independent-or-skip`` -- each supplementary alignment is treated as an independent (i.e. as are primary alignments) case and and attempt is made to haploptag it based on spanned phased variants. If unsuccessful, no PS/HP assignment is made.
 * ``independent-or-copy-primary`` -- each supplementary alignment is treated as an independent (i.e. as are primary alignments) case and and attempt is made to haploptag it based on spanned phased variants. If unsuccessful, get a copy of PS/HP SAM tags obtained for the primary alignment, if any obtained in haplotagging and alignment segments located on the same chromosome.
 
+When haplotagging of a supplementary has a possibility of copying a tag from teh primary alignment (e.i., ``copy-primary`` or ``independent-or-copy-primary``) the following two flags come into play:
+
+* ``--supplementary-distance`` (default to ``100000``) -- the largest distance between closes primary and supplementary alignment positions when copy attempt is made, otherwise no supplementary tagging is performed
+* ``--supplementary-strand-match`` (Default) / ``--no-supplementary-strand-match`` -- whether the supplementary alignment needs to match in direction to the primary one for the tag copying to be performed.
 .. _whatshap-split:
 
 whatshap split: Splitting reads according to haplotype
