@@ -209,6 +209,71 @@ def test_haplotag_cli_parser_supplementary_strategy_flag_value(tmp_path):
     assert haplotag_args.supplementary_strategy == SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_COPY_PRIMARY
 
 
+def test_haplotag_cli_parser_supplementary_distance_threshold(tmp_path):
+    from whatshap.cli.haplotag import add_arguments as haplotag_add_arguments
+    import argparse as argp
+
+    outbam = tmp_path / "output.bam"
+    parser = argp.ArgumentParser(description="haplotag_test_parser", prog="whatshap_pytest")
+    haplotag_add_arguments(parser)
+    haplotag_args = parser.parse_args(
+        [
+            "--no-reference",
+            "--output",
+            str(outbam),
+            "tests/data/haplotag_2.vcf.gz",
+            "tests/data/haplotag.bam",
+            "--tag-supplementary=skip",
+        ]
+    )
+    assert haplotag_args.supplementary_distance_threshold == 100_000
+    haplotag_args = parser.parse_args(
+        [
+            "--no-reference",
+            "--output",
+            str(outbam),
+            "tests/data/haplotag_2.vcf.gz",
+            "tests/data/haplotag.bam",
+            "--tag-supplementary=skip",
+            "--supplementary-distance=100",
+        ]
+    )
+    assert haplotag_args.supplementary_distance_threshold == 100
+
+
+def test_haplotag_cli_parser_supplementary_strand_match_requirement(tmp_path):
+    from whatshap.cli.haplotag import add_arguments as haplotag_add_arguments
+    import argparse as argp
+
+    outbam = tmp_path / "output.bam"
+    parser = argp.ArgumentParser(description="haplotag_test_parser", prog="whatshap_pytest")
+    haplotag_add_arguments(parser)
+    haplotag_args = parser.parse_args(
+        [
+            "--no-reference",
+            "--output",
+            str(outbam),
+            "tests/data/haplotag_2.vcf.gz",
+            "tests/data/haplotag.bam",
+            "--tag-supplementary=skip",
+        ]
+    )
+    assert haplotag_args.supplementary_strand_match
+    haplotag_args = parser.parse_args(
+        [
+            "--no-reference",
+            "--output",
+            str(outbam),
+            "tests/data/haplotag_2.vcf.gz",
+            "tests/data/haplotag.bam",
+            "--tag-supplementary=skip",
+            "--supplementary-distance=100",
+            "--no-supplementary-strand-match"
+        ]
+    )
+    assert not haplotag_args.supplementary_strand_match
+
+
 """  
 The idea is cover the use case of having a vcf produced and/or phased with long reads in a matching normal sample
 and have derived tumor sample reads haplotagged with respective phased vcf. 
@@ -309,7 +374,7 @@ def test_run_haplotag_supplementary_skip(tmp_path):
             assert a1.get_tag("PS") == 16849384
 
 
-def test_run_haplotag_supplementary_copy_primary(tmp_path):
+def test_run_haplotag_supplementary_copy_primary_no_strand_match_permissive_distance(tmp_path):
     var_file = "tests/data/supplementary_strategy_test.grch38.vcf.gz"
     alignment_file = "tests/data/supplementary_strategy_test.grch38.bam"
 
@@ -319,7 +384,9 @@ def test_run_haplotag_supplementary_copy_primary(tmp_path):
                  alignment_file=alignment_file,
                  output=out_bam_copy_primary_strategy,
                  ignore_read_groups=True,
-                 supplementary_strategy=SupplementaryHaplotaggingStrategy.COPY_PRIMARY)
+                 supplementary_strategy=SupplementaryHaplotaggingStrategy.COPY_PRIMARY,
+                 supplementary_strand_match=False,
+                 supplementary_distance_threshold=1_000_000)
 
     a: pysam.AlignedSegment
     for a in pysam.AlignmentFile(out_bam_copy_primary_strategy):
@@ -328,6 +395,99 @@ def test_run_haplotag_supplementary_copy_primary(tmp_path):
             assert not a.has_tag("PS")
         if a.query_name == "R2":
             if a.reference_name == "chr2":
+                assert not a.has_tag("HP")
+                assert not a.has_tag("PS")
+            else:
+                assert a.has_tag("HP")
+                assert a.get_tag("HP") == 1
+                assert a.has_tag('PS')
+                assert a.get_tag("PS") == 16849384
+
+
+def test_run_haplotag_supplementary_copy_primary_strand_match_permissive_distance(tmp_path):
+    var_file = "tests/data/supplementary_strategy_test.grch38.vcf.gz"
+    alignment_file = "tests/data/supplementary_strategy_test.grch38.bam"
+
+    out_bam_copy_primary_strategy = tmp_path / "output..bam"
+
+    run_haplotag(variant_file=var_file,
+                 alignment_file=alignment_file,
+                 output=out_bam_copy_primary_strategy,
+                 ignore_read_groups=True,
+                 supplementary_strategy=SupplementaryHaplotaggingStrategy.COPY_PRIMARY,
+                 supplementary_strand_match=True,
+                 supplementary_distance_threshold=1_000_000)
+
+    a: pysam.AlignedSegment
+    for a in pysam.AlignmentFile(out_bam_copy_primary_strategy):
+        if a.query_name == "R1":
+            assert not a.has_tag("HP")
+            assert not a.has_tag("PS")
+        if a.query_name == "R2":
+            if a.reference_name == "chr2":
+                assert not a.has_tag("HP")
+                assert not a.has_tag("PS")
+            elif a.flag == 2064:
+                assert not a.has_tag("HP")
+                assert not a.has_tag("PS")
+            else:
+                assert a.has_tag("HP")
+                assert a.get_tag("HP") == 1
+                assert a.has_tag('PS')
+                assert a.get_tag("PS") == 16849384
+
+
+def test_run_haplotag_supplementary_copy_primary_strand_match_small_distance(tmp_path):
+    var_file = "tests/data/supplementary_strategy_test.grch38.vcf.gz"
+    alignment_file = "tests/data/supplementary_strategy_test.grch38.bam"
+
+    out_bam_copy_primary_strategy = tmp_path / "output.bam"
+
+    run_haplotag(variant_file=var_file,
+                 alignment_file=alignment_file,
+                 output=out_bam_copy_primary_strategy,
+                 ignore_read_groups=True,
+                 supplementary_strategy=SupplementaryHaplotaggingStrategy.COPY_PRIMARY,
+                 supplementary_strand_match=True,
+                 supplementary_distance_threshold=100)
+
+    a: pysam.AlignedSegment
+    for a in pysam.AlignmentFile(out_bam_copy_primary_strategy):
+        if a.query_name == "R1":
+            assert not a.has_tag("HP")
+            assert not a.has_tag("PS")
+        if a.query_name == "R2":
+            if a.is_supplementary:
+                assert not a.has_tag("HP")
+                assert not a.has_tag("PS")
+            else:
+                assert a.has_tag("HP")
+                assert a.get_tag("HP") == 1
+                assert a.has_tag('PS')
+                assert a.get_tag("PS") == 16849384
+
+
+def test_run_haplotag_supplementary_copy_primary_no_strand_match_small_distance(tmp_path):
+    var_file = "tests/data/supplementary_strategy_test.grch38.vcf.gz"
+    alignment_file = "tests/data/supplementary_strategy_test.grch38.bam"
+
+    out_bam_copy_primary_strategy = tmp_path / "output.bam"
+
+    run_haplotag(variant_file=var_file,
+                 alignment_file=alignment_file,
+                 output=out_bam_copy_primary_strategy,
+                 ignore_read_groups=True,
+                 supplementary_strategy=SupplementaryHaplotaggingStrategy.COPY_PRIMARY,
+                 supplementary_strand_match=False,
+                 supplementary_distance_threshold=100)
+
+    a: pysam.AlignedSegment
+    for a in pysam.AlignmentFile(out_bam_copy_primary_strategy):
+        if a.query_name == "R1":
+            assert not a.has_tag("HP")
+            assert not a.has_tag("PS")
+        if a.query_name == "R2":
+            if a.is_supplementary and a.cigarstring not in ["8452S2673M2D375M15947S", "2673M4D373M24401S"]:
                 assert not a.has_tag("HP")
                 assert not a.has_tag("PS")
             else:
@@ -764,6 +924,8 @@ def test_haplotag_supplementary(tmp_path):
         output=outbam2,
         supplementary_strategy=SupplementaryHaplotaggingStrategy.COPY_PRIMARY,  # switch from boolean to enum
         ignore_read_groups=True,
+        supplementary_strand_match=False,
+        supplementary_distance_threshold=1_000_000_000,
     )
     # map name->haplotype
     primary_to_tag = {}

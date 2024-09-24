@@ -4,9 +4,10 @@ Tag reads by haplotype
 Sequencing reads are read from file ALIGNMENTS (in BAM or CRAM format) and tagged reads
 are written to stdout.
 """
-
+import argparse
 import logging
 import sys
+from dataclasses import dataclass
 from enum import Enum
 
 import pysam
@@ -39,6 +40,9 @@ class SupplementaryHaplotaggingStrategy(Enum):
 
     def attempt_to_haplotag_each_supplementary(self):
         return self.value.startswith('independent')
+
+    def attempt_to_copy_primary(self):
+        return self.value.endswith("copy-primary")
 
     def __str__(self):
         return self.value
@@ -94,6 +98,15 @@ def add_arguments(parser):
              " If no assignment based on variants if possible, defaults to copying primary alignmtn assignment, "
              " if exists and on the same chromosome."
              " [default: with no flag -- skip, default with flag and no value -- copy-primary] ")
+    arg("--supplementary-distance",
+        dest="supplementary_distance_threshold",
+        type=int,
+        default=100_000,
+        help="")
+    arg("--supplementary-strand-match", action=argparse.BooleanOptionalAction,
+        dest="supplementary_strand_match",
+        default=True,
+        help="")
     arg("--ploidy", metavar="PLOIDY", default=2, type=int, help="Ploidy (default: %(default)s).")
     arg("--skip-missing-contigs", default=False, action="store_true",
         help="Skip reads that map to a contig that does not exist in the VCF")
@@ -140,6 +153,31 @@ def get_variant_information(variant_table: VariantTable, sample: str):
     return vpos_to_phase_info, variants
 
 
+@dataclass(frozen=True)
+class ReadAlignmentRepresentation:
+    read_name: str
+    chromosome: str
+    is_supplementary: bool
+    sub_alignment_id: str
+
+
+@dataclass(frozen=True)
+class PrimaryInfo:
+    reference_start: int
+    reference_end: int
+    is_reverse: bool
+
+
+def min_alignment_distance(first_start, first_end, second_start, second_end):
+    a, b = (first_start, first_end) if (first_start < first_end) else (first_end, first_start)
+    c, d = (second_start, second_end) if (second_start < second_end) else (second_end, second_start)
+    if a > d:
+        return a - d
+    if c > b:
+        return c - b
+    return 0
+
+
 def attempt_add_phase_information(
     alignment, read_to_haplotype, bxtag_to_haplotype, linked_read_cutoff, ignore_linked_read,
     # this default is set to COPY, rather than SKIP,
@@ -147,12 +185,17 @@ def attempt_add_phase_information(
     # that means that we wanted to tag supplementary alignment,
     # and first iteration of haplotagging had a default COPY-if-tagging strategy
     supplementary_strategy: SupplementaryHaplotaggingStrategy = SupplementaryHaplotaggingStrategy.COPY_PRIMARY,
+    primary_info_by_repr: Optional[Dict["ReadAlignmentRepresentation", "PrimaryInfo"]] = None,
+    supplementary_strand_match: bool = True,
+    supplementary_distance_threshold: int = 100_000,
 ):
+    primary_info_by_repr: Dict["ReadAlignmentRepresentation", "PrimaryInfo"] = primary_info_by_repr or {}
     is_tagged = 0
     haplotype_name = "none"
     phaseset = "none"
+    is_supplementary = alignment.is_supplementary
     # this should not really happen, but does not break reverse compatability and provides explicit logic here
-    if alignment.is_supplementary and supplementary_strategy == SupplementaryHaplotaggingStrategy.SKIP:
+    if is_supplementary and supplementary_strategy == SupplementaryHaplotaggingStrategy.SKIP:
         return is_tagged, haplotype_name, phaseset
     try:
         representations = [
@@ -176,6 +219,17 @@ def attempt_add_phase_information(
             # left here for clarity. Leaves both representations present with itself being first to consider,
             #   and as_primary being the second
             pass
+        if is_supplementary and supplementary_strategy.attempt_to_copy_primary():
+            primary_info = primary_info_by_repr.get(alignment_representation(alignment=alignment, as_primary=True), None)
+            if primary_info is not None:
+                remove_primary_repr = supplementary_distance_threshold < min_alignment_distance(primary_info.reference_start,
+                                                                                                primary_info.reference_end,
+                                                                                                alignment.reference_start,
+                                                                                                alignment.reference_end)
+                if supplementary_strand_match:
+                    remove_primary_repr |= primary_info.is_reverse != alignment.is_reverse
+                if remove_primary_repr:
+                    representations.pop()
         for repr in representations:
             if repr in read_to_haplotype:
                 haplotype, quality, phaseset = read_to_haplotype[repr]
@@ -227,7 +281,7 @@ def load_chromosome_variants(
     return variant_table
 
 
-def read_representation(read: Read, as_primary: bool = False) -> Tuple[str, str, bool, str]:
+def read_representation(read: Read, as_primary: bool = False) -> ReadAlignmentRepresentation:
     is_supplementary = False if as_primary else read.is_supplementary
     chromosome = read.chromosome
     sub_alignment_id = PRIMARY_DEFAULT_SUB_ALIGNMENT_ID if as_primary else read.sub_alignment_id
@@ -238,15 +292,20 @@ def read_representation(read: Read, as_primary: bool = False) -> Tuple[str, str,
     # here we come back to query name and sub-alignment id, if any, to be separate entities
     if read_name.endswith(sub_alignment_id):
         read_name = read_name[:-len(read.sub_alignment_id)]
-    return read_name, chromosome, is_supplementary, sub_alignment_id
+    return ReadAlignmentRepresentation(read_name=read_name,
+                                       chromosome=chromosome,
+                                       is_supplementary=is_supplementary,
+                                       sub_alignment_id=sub_alignment_id)
 
 
-def alignment_representation(alignment: pysam.AlignedSegment, as_primary: bool = False) -> Tuple[str, str, bool, str]:
+def alignment_representation(alignment: pysam.AlignedSegment, as_primary: bool = False) -> ReadAlignmentRepresentation:
     is_primary = True if as_primary else is_alignment_primary(alignment=alignment)
     is_supplementary = not is_primary
     chromosome = alignment.reference_name
     sub_alignment_id = get_sub_alignment_id(alignment, is_primary=(as_primary or is_primary))
-    return alignment.query_name, chromosome, is_supplementary, sub_alignment_id
+    return ReadAlignmentRepresentation(read_name=alignment.query_name, chromosome=chromosome,
+                                       is_supplementary=is_supplementary,
+                                       sub_alignment_id=sub_alignment_id)
 
 
 def prepare_haplotag_information(
@@ -267,6 +326,7 @@ def prepare_haplotag_information(
     BX_tag_to_haplotype = defaultdict(list)
     # maps read name to (haplotype, quality, phaseset)
     read_to_haplotype = {}
+    primary_info_by_repr = {}
 
     for sample in shared_samples:
         variantpos_to_phaseinfo, variants = get_variant_information(variant_table, sample)
@@ -280,6 +340,12 @@ def prepare_haplotag_information(
             for read in read_set:
                 if read.has_BX_tag():
                     bx_tag_to_readlist[read.BX_tag].append(read)
+
+        for read in read_set:
+            if not read.is_supplementary:
+                primary_info_by_repr[read_representation(read, as_primary=True)] = PrimaryInfo(reference_start=read.reference_start,
+                                                                                                reference_end=read.reference_end,
+                                                                                                is_reverse=read.is_reverse)
 
         # all reads processed so far
         processed_reads = set()
@@ -345,7 +411,7 @@ def prepare_haplotag_information(
                         r.name, first_ht, quality, len(r)
                     )
                 )
-    return BX_tag_to_haplotype, read_to_haplotype, n_multiple_phase_sets
+    return BX_tag_to_haplotype, read_to_haplotype, n_multiple_phase_sets, primary_info_by_repr
 
 
 def normalize_user_regions(
@@ -588,6 +654,8 @@ def run_haplotag(
     ignore_read_groups: bool = False,
     haplotag_list: Optional[str] = None,
     supplementary_strategy: SupplementaryHaplotaggingStrategy = SupplementaryHaplotaggingStrategy.SKIP,
+    supplementary_strand_match: bool = True,
+    supplementary_distance_threshold: int = 100_000,
     skip_missing_contigs: bool = False,
     output_threads: int = 1,
     ploidy: int = 2,
@@ -698,7 +766,7 @@ def run_haplotag(
                 raise CommandLineError(str(e))
             if variant_table is not None:
                 logger.debug("Preparing haplotype information")
-                (BX_tag_to_haplotype, read_to_haplotype, n_mult) = prepare_haplotag_information(
+                (BX_tag_to_haplotype, read_to_haplotype, n_mult, primary_info_by_repr) = prepare_haplotag_information(
                     variant_table,
                     shared_samples,
                     phased_input_reader,
@@ -713,6 +781,7 @@ def run_haplotag(
                 # avoid uninitialized variables
                 BX_tag_to_haplotype = None
                 read_to_haplotype = None
+                primary_info_by_repr = {}
 
             assert not include_unmapped or len(regions) == 1
             for start, end in regions:
@@ -740,6 +809,9 @@ def run_haplotag(
                             linked_read_distance_cutoff,
                             ignore_linked_read,
                             supplementary_strategy=supplementary_strategy,
+                            primary_info_by_repr=primary_info_by_repr,
+                            supplementary_strand_match=supplementary_strand_match,
+                            supplementary_distance_threshold=supplementary_distance_threshold,
                         )
                         n_tagged += is_tagged
 

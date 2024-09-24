@@ -58,11 +58,10 @@ cdef class NumericSampleIds:
 		self.mapping = mapping
 		self.frozen = frozen
 
-
 cdef class Read:
 	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int sample_id = 0, int reference_start = -1,
 				  str BX_tag = None, int HP_tag = -1, int PS_tag = -1,
-				  str chromosome = None, str sub_alignment_id = None, bool is_supplementary = False):
+				  str chromosome = None, str sub_alignment_id = None, bool is_supplementary = False, int reference_end = -1, bool is_reverse = False):
 		cdef string _name = b''
 		cdef string _BX_tag = b''
 		cdef string _chromosome = b''
@@ -80,7 +79,7 @@ cdef class Read:
 				_chromosome = chromosome.encode('UTF-8')
 			if sub_alignment_id is not b'' and sub_alignment_id is not None:
 				_sub_alignment_id = sub_alignment_id.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, mapq, source_id, sample_id, reference_start, _BX_tag, HP_tag, PS_tag, _chromosome, _sub_alignment_id, is_supplementary)
+			self.thisptr = new cpp.Read(_name, mapq, source_id, sample_id, reference_start, _BX_tag, HP_tag, PS_tag, _chromosome, _sub_alignment_id, is_supplementary, reference_end, is_reverse)
 			self.ownsptr = True
 
 	def __dealloc__(self):
@@ -90,8 +89,8 @@ cdef class Read:
 
 	def __repr__(self):
 		assert self.thisptr != NULL
-		return 'Read(name={!r}, mapq={}, source_id={}, sample_id={}, reference_start={}, chromosome={}, is_supplementary={},  BX_tag={}, HP_tag={}, PS_tag={}, variants={})'.format(
-			self.name, self.mapqs, self.source_id, self.sample_id, self.chromosome, self.is_supplementary, self.reference_start, self.BX_tag, self.HP_tag, self.PS_tag, list(self))
+		return 'Read(name={!r}, mapq={}, source_id={}, sample_id={}, reference_start={}, reference_end={}, chromosome={}, is_supplementary={}, is_reverse={},  BX_tag={}, HP_tag={}, PS_tag={}, variants={})'.format(
+			self.name, self.mapqs, self.source_id, self.sample_id, self.reference_start, self.reference_end, self.chromosome, self.is_supplementary, self.is_reverse, self.BX_tag, self.HP_tag, self.PS_tag, list(self))
 
 	property mapqs:
 		def __get__(self):
@@ -118,6 +117,11 @@ cdef class Read:
 			assert self.thisptr != NULL
 			return self.thisptr.getReferenceStart()
 
+	property reference_end:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.getReferenceEnd()
+
 	property chromosome:
 		def __get__(self):
 			assert self.thisptr != NULL
@@ -132,6 +136,11 @@ cdef class Read:
 		def __get__(self):
 			assert self.thisptr != NULL
 			return self.thisptr.isSupplementary()
+
+	property is_reverse:
+		def __get__(self):
+			assert self.thisptr != NULL
+			return self.thisptr.isReverse()
 
 	property BX_tag:
 		def __get__(self):
@@ -203,10 +212,10 @@ cdef class Read:
 	def __getstate__(self):
 		mapqs = [mapq for mapq in self.mapqs]
 		variants = [(var.position, var.allele, var.quality) for var in self]
-		return (mapqs, self.name, self.source_id, self.sample_id, self.reference_start, self.BX_tag, self.HP_tag, self.PS_tag, self.chromosome, self.sub_alignment_id, self.is_supplementary, variants)
+		return (mapqs, self.name, self.source_id, self.sample_id, self.reference_start, self.reference_end, self.BX_tag, self.HP_tag, self.PS_tag, self.chromosome, self.sub_alignment_id, self.is_supplementary, self.is_reverse, variants)
 
 	def __setstate__(self, state):
-		mapqs, name, source_id, sample_id, reference_start, BX_tag, HP_tag, PS_tag, chromosome, sub_alignment_id, is_supplementary, variants = state
+		mapqs, name, source_id, sample_id, reference_start, reference_end, BX_tag, HP_tag, PS_tag, chromosome, sub_alignment_id, is_supplementary, is_reverse, variants = state
 
 		# TODO: Duplicated code from __cinit__ is ugly, but cinit cannot be used here directly
 		cdef string _name = b''
@@ -226,7 +235,7 @@ cdef class Read:
 				_chromosome = chromosome.encode('UTF-8')
 			if sub_alignment_id is not b'' and sub_alignment_id is not None:
 				_sub_alignment_id = sub_alignment_id.encode('UTF-8')
-			self.thisptr = new cpp.Read(_name, mapqs[0] if len(mapqs) > 0 else 0, source_id, sample_id, reference_start, _BX_tag, HP_tag, PS_tag, _chromosome, _sub_alignment_id, is_supplementary)
+			self.thisptr = new cpp.Read(_name, mapqs[0] if len(mapqs) > 0 else 0, source_id, sample_id, reference_start, _BX_tag, HP_tag, PS_tag, _chromosome, _sub_alignment_id, is_supplementary, reference_end, is_reverse)
 			self.ownsptr = True
 
 		for mapq in mapqs[1:]:

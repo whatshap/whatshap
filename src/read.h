@@ -11,7 +11,7 @@ class Read {
 public:
 	Read(const std::string& name, int mapq, int source_id, int sample_id, int reference_start = -1,
 	    const std::string& BX_tag = "", int HP_tag = -1, int PS_tag = -1,
-	     const std::string& chromosome = "", const std::string& read_subAlignment_id = "", bool is_supplementary = false);
+	    const std::string& chromosome = "", const std::string& read_subAlignment_id = "", bool is_supplementary = false, int reference_end = -1, bool is_reverse = false);
 	virtual ~Read() {}
 	std::string toString();
 	void addVariant(int position, int allele, int quality);
@@ -41,6 +41,8 @@ public:
 	const std::string& getChromosome() const;
 	const std::string& getReadSubAlignmentId() const;
 	bool isSupplementary() const;
+	int getReferenceEnd() const;
+	bool isReverse() const;
 	const std::string& getBXTag() const;
 	bool isSorted() const;
 	bool hasBXTag() const;
@@ -72,6 +74,8 @@ private:
 	std::string chromosome;
 	std::string read_subAlignment_id;
 	bool is_supplementary;
+	int reference_end;
+	bool is_reverse;
 	std::string BX_tag;
 	int HP_tag;
 	int PS_tag;
