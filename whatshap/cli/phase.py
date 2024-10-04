@@ -460,7 +460,7 @@ def run_whatshap(
         included_chromosomes = ChromosomeSet(chromosomes, excluded_chromosomes)
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
             chromosome = variant_table.chromosome
-            if chromosome in included_chromosomes:
+            if chromosome not in included_chromosomes:
                 logger.info(
                     "Leaving chromosome %r unchanged "
                     "(present in VCF but not requested by --chromosome)",

@@ -130,7 +130,6 @@ class ChromosomeSet:
         self._excluded_chromosomes = [] if excluded_chromosomes is None else excluded_chromosomes
 
     def __contains__(self, chromosome):
-        return not (
-            (self._included_chromosomes and (chromosome not in self._included_chromosomes))
-            or (chromosome in self._excluded_chromosomes)
-        )
+        return (
+            (not self._included_chromosomes) or (chromosome in self._included_chromosomes)
+        ) and (chromosome not in self._excluded_chromosomes)
