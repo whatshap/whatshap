@@ -124,8 +124,7 @@ def warn_once(logger, msg: str, *args) -> None:
 
 class ChromosomeSet:
     """
-    ChromosomeSet wrapper class for checking of inclusion and exclusion of chromosomes.
-
+    ChromosomeSet is the wrapper class for checking of inclusion and exclusion of chromosomes.
 
     >>> cs1 = ChromosomeSet(['1', '2'], ['3'])
     >>> '4' in cs1
