@@ -1,7 +1,7 @@
 from collections import defaultdict
 import gzip
 import logging
-from typing import Optional, DefaultDict
+from typing import Optional, DefaultDict, List
 import os
 import stat
 import sys
@@ -120,3 +120,15 @@ def warn_once(logger, msg: str, *args) -> None:
     else:
         logger.debug(msg, *args)
     _warning_count[msg] += 1
+
+
+class ChromosomeSet:
+    def __init__(self, included_chromosomes: List[str], excluded_chromosomes: List[str]):
+        self._included_chromosomes = included_chromosomes
+        self._excluded_chromosomes = excluded_chromosomes
+
+    def __contains__(self, chromosome):
+        return not (
+            (self._included_chromosomes and (chromosome not in self._included_chromosomes))
+            or (chromosome in self._excluded_chromosomes)
+        )
