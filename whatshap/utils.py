@@ -1,7 +1,7 @@
 from collections import defaultdict
 import gzip
 import logging
-from typing import Optional, DefaultDict
+from typing import Optional, DefaultDict, List
 import os
 import stat
 import sys
@@ -120,3 +120,49 @@ def warn_once(logger, msg: str, *args) -> None:
     else:
         logger.debug(msg, *args)
     _warning_count[msg] += 1
+
+
+class ChromosomeFilter:
+    """
+    ChromosomeFilter is the wrapper class for checking of inclusion and exclusion of chromosomes.
+
+    >>> cs1 = ChromosomeFilter(['1', '2'], ['3'])
+    >>> '4' in cs1
+    False
+    >>> '5' not in cs1
+    True
+    >>> '1' in cs1
+    True
+    >>> '3' in cs1
+    False
+    >>> cs2 = ChromosomeFilter([], ['3'])
+    >>> '1' in cs2
+    True
+    >>> '3' in cs2
+    False
+    """
+
+    def __init__(
+        self, included_chromosomes: Optional[List[str]], excluded_chromosomes: Optional[List[str]]
+    ):
+        """
+        Initialize the ChromosomeFilter.
+
+        included_chromosomes: A list of chromosomes to include.
+            If None (default) or empty, all chromosomes are included.
+        excluded_chromosomes: A list of chromosomes to exclude.
+            If None, no chromosome is excluded.
+        """
+        self._included_chromosomes = [] if included_chromosomes is None else included_chromosomes
+        self._excluded_chromosomes = [] if excluded_chromosomes is None else excluded_chromosomes
+
+    def __contains__(self, chromosome):
+        """
+        Check if the ChromosomeFilter contains a given chromosome.
+
+        :param chromosome: The chromosome to check.
+        :return: True if the chromosome is in the set, False otherwise.
+        """
+        return (
+            (not self._included_chromosomes) or (chromosome in self._included_chromosomes)
+        ) and (chromosome not in self._excluded_chromosomes)

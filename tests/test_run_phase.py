@@ -659,6 +659,41 @@ def test_phase_specific_chromosome(chromosome, tmp_path):
             assert_phasing(table.phases_of("HG002"), [None, None, None, None, None])
 
 
+@mark.parametrize("chromosome", ["1", "2"])
+def test_exclude_chromosome(chromosome, tmp_path):
+    outvcf = tmp_path / "output.vcf"
+    run_whatshap(
+        phase_input_files=[trio_bamfile],
+        variant_file="tests/data/trio-two-chromosomes.vcf",
+        output=outvcf,
+        ped="tests/data/trio.ped",
+        genmap="tests/data/trio.map",
+        excluded_chromosomes=[chromosome],
+    )
+    assert os.path.isfile(outvcf)
+
+    tables = list(VcfReader(outvcf, phases=True))
+    assert len(tables) == 2
+    for table in tables:
+        assert len(table.variants) == 5
+        assert table.samples == ["HG004", "HG003", "HG002"]
+        if table.chromosome == "1" != chromosome:
+            phase0 = VariantCallPhase(60906167, (0, 1), None)
+            assert_phasing(table.phases_of("HG004"), [phase0, phase0, phase0, phase0, phase0])
+            assert_phasing(table.phases_of("HG003"), [phase0, None, phase0, phase0, phase0])
+            assert_phasing(table.phases_of("HG002"), [None, phase0, None, None, None])
+        elif table.chromosome == "2" != chromosome:
+            phase0 = VariantCallPhase(60906167, (0, 1), None)
+            phase1 = VariantCallPhase(60906167, (1, 0), None)
+            assert_phasing(table.phases_of("HG004"), [phase0, None, None, None, phase1])
+            assert_phasing(table.phases_of("HG003"), [phase0, None, None, None, None])
+            assert_phasing(table.phases_of("HG002"), [None, None, None, None, phase0])
+        else:
+            assert_phasing(table.phases_of("HG004"), [None, None, None, None, None])
+            assert_phasing(table.phases_of("HG003"), [None, None, None, None, None])
+            assert_phasing(table.phases_of("HG002"), [None, None, None, None, None])
+
+
 def test_phase_trio_paired_end_reads(tmp_path):
     outvcf = tmp_path / "output-paired_end.vcf"
     run_whatshap(
