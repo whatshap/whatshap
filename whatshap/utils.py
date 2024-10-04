@@ -123,9 +123,11 @@ def warn_once(logger, msg: str, *args) -> None:
 
 
 class ChromosomeSet:
-    def __init__(self, included_chromosomes: List[str], excluded_chromosomes: List[str]):
-        self._included_chromosomes = included_chromosomes
-        self._excluded_chromosomes = excluded_chromosomes
+    def __init__(
+        self, included_chromosomes: Optional[List[str]], excluded_chromosomes: Optional[List[str]]
+    ):
+        self._included_chromosomes = [] if included_chromosomes is None else included_chromosomes
+        self._excluded_chromosomes = [] if excluded_chromosomes is None else excluded_chromosomes
 
     def __contains__(self, chromosome):
         return not (
