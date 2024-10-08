@@ -11,7 +11,7 @@ from whatshap.vcf import VcfReader
 def test_haplotagphase(tmpdir):
     outvcf = tmpdir.join("output.vcf")
     run_haplotagphase(
-        variant_file="tests/data/pacbio/variants.vcf",
+        variant_file="tests/data/pacbio/variants_haplotagphase.vcf",
         alignment_file="tests/data/pacbio/haplotagged.bam",
         reference="tests/data/pacbio/reference.fasta",
         output=outvcf,
@@ -47,5 +47,13 @@ def test_compute_votes():
         1: {(0, 0): 50, (0, 1): 0, (1, 1): 20, (1, 0): 0},
         2: {(0, 0): 10, (0, 1): 30},
     }
-    votes = compute_votes({1: False, 2: False, 3: True}, [a, b, c])
+    votes = compute_votes(
+        {1: False, 2: False, 3: True},
+        [a, b, c],
+        allele_to_id={
+            1: {0: 0, 1: 1},
+            2: {0: 0, 1: 1},
+            3: {0: 0, 1: 1},
+        },
+    )
     assert votes == expected_votes
