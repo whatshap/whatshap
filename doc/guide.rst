@@ -777,7 +777,7 @@ heterozygous variants.
 
 |
 
-.. whatshap-haplotag-algorithm:
+.. _whatshap-haplotag-algorithm:
 
 How haplotagging works
 ----------------------
