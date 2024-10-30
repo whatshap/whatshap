@@ -4,7 +4,7 @@ Tag reads by haplotype
 Sequencing reads are read from file ALIGNMENTS (in BAM or CRAM format) and tagged reads
 are written to stdout.
 """
-import argparse
+
 import logging
 import sys
 from dataclasses import dataclass
@@ -24,22 +24,26 @@ from whatshap.vcf import VcfReader, VcfError, VariantTable, VariantCallPhase, Vc
 from whatshap.core import NumericSampleIds, Read
 from whatshap.timer import StageTimer
 from whatshap.utils import Region, stdout_is_regular_file
-from whatshap.variants import PRIMARY_DEFAULT_SUB_ALIGNMENT_ID, is_alignment_primary, get_sub_alignment_id
+from whatshap.variants import (
+    PRIMARY_DEFAULT_SUB_ALIGNMENT_ID,
+    is_alignment_primary,
+    get_sub_alignment_id,
+)
 
 logger = logging.getLogger(__name__)
 
 
 class SupplementaryHaplotaggingStrategy(Enum):
-    SKIP = 'skip'
-    COPY_PRIMARY = 'copy-primary'
-    INDEPENDENT_OR_SKIP = 'independent-or-skip'
-    INDEPENDENT_OR_COPY_PRIMARY = 'independent-or-copy-primary'
+    SKIP = "skip"
+    COPY_PRIMARY = "copy-primary"
+    INDEPENDENT_OR_SKIP = "independent-or-skip"
+    INDEPENDENT_OR_COPY_PRIMARY = "independent-or-copy-primary"
 
     def consider_supplementary(self):
-        return self.value != 'skip'
+        return self.value != "skip"
 
     def attempt_to_haplotag_each_supplementary(self):
-        return self.value.startswith('independent')
+        return self.value.startswith("independent")
 
     def attempt_to_copy_primary(self):
         return self.value.endswith("copy-primary")
@@ -85,31 +89,24 @@ def add_arguments(parser):
         choices=list(SupplementaryHaplotaggingStrategy),
         default=SupplementaryHaplotaggingStrategy.SKIP, const=SupplementaryHaplotaggingStrategy.COPY_PRIMARY,
         dest="supplementary_strategy",
-        help="Also tag supplementary alignments. "
-             "Depending on the strategy chosen supplementary alignments are assigned to: "
-             " (i) skip / no flag specified -- no assignment, skipped \n"
-             " (ii) copy-primary / flag without value -- assigned to the same phase block and haplotype, "
-             " as a primary alignment, if any (only for supplementary alignments on the same chromosome as a primary)"
-             " (iii) independent-or-skip -- each supplementary alignment treated as an independent alignment segment "
-             " and is assigned (if possible) to PS/HP based on spanned phased variants. "
-             " If no assignment based on variants is possible, not assignment is performed"
-             " (iv) independent-or-copy-primary -- each supplementary alignment treated as an independent alignment "
-             " segment and is assigned (if possible) to PS/HP based on spanned phased variants. "
-             " If no assignment based on variants if possible, defaults to copying primary alignmtn assignment, "
-             " if exists and on the same chromosome."
-             " [default: with no flag -- skip, default with flag and no value -- copy-primary] ")
+        help="Also tag supplementary alignments. Supplementary alignments are assigned to: "
+             "(i) skip -- no assignment; (ii) copy-primary -- assigned the same PS and HP as primary; "
+             "(iii) independent-or-skip -- each supplementary alignment treated as an independent alignment segment; "
+             "(iv) independent-or-copy-primary -- each supplementary alignment treated as an independent alignment "
+             "defaults to primary PS and HP tags;\n"
+             "(default: with no flag -- skip, default with flag and no value -- copy-primary)")
     arg("--supplementary-distance",
         dest="supplementary_distance_threshold",
         type=int,
         default=100_000,
         help="Maximum distance between supplementary alignment record and "
-             " a primary one for the tag copying onto the supplementary to be attempted. "
-             "Default: 100_000")
-    arg("--supplementary-strand-match", action=argparse.BooleanOptionalAction,
+             "a primary one for the tag copying onto the supplementary to be attempted.\n"
+             "(default: 100_000)")
+    arg("--no-supplementary-strand-match", action="store_false",
         dest="supplementary_strand_match",
         default=True,
-        help="Requirement for strands between supplementary and "
-             " primary alignment records to match for the tag copying onto the supplementary to be attempted. "
+        help="Allow for strands missmatch between supplementary and "
+             "primary alignment records during the tag copying onto the supplementary."
         )
     arg("--ploidy", metavar="PLOIDY", default=2, type=int, help="Ploidy (default: %(default)s).")
     arg("--skip-missing-contigs", default=False, action="store_true",
@@ -183,7 +180,11 @@ def min_alignment_distance(first_start, first_end, second_start, second_end):
 
 
 def attempt_add_phase_information(
-    alignment, read_to_haplotype, bxtag_to_haplotype, linked_read_cutoff, ignore_linked_read,
+    alignment,
+    read_to_haplotype,
+    bxtag_to_haplotype,
+    linked_read_cutoff,
+    ignore_linked_read,
     # this default is set to COPY, rather than SKIP,
     # as if when we arrive here with a supplementary alignment
     # that means that we wanted to tag supplementary alignment,
@@ -193,7 +194,9 @@ def attempt_add_phase_information(
     supplementary_strand_match: bool = True,
     supplementary_distance_threshold: int = 100_000,
 ):
-    primary_info_by_repr: Dict["ReadAlignmentRepresentation", "PrimaryInfo"] = primary_info_by_repr or {}
+    primary_info_by_repr: Dict["ReadAlignmentRepresentation", "PrimaryInfo"] = (
+        primary_info_by_repr or {}
+    )
     is_tagged = 0
     haplotype_name = "none"
     phaseset = "none"
@@ -207,7 +210,7 @@ def attempt_add_phase_information(
             alignment_representation(alignment=alignment, as_primary=False),
             # represented as primary. itself for primary alignment
             alignment_representation(alignment=alignment, as_primary=True),
-                           ]
+        ]
         if supplementary_strategy == SupplementaryHaplotaggingStrategy.COPY_PRIMARY:
             # itself representation would go, but a primary would stay.
             #   Works for both primary and supplementary alignments to retrieve data based on primary assignment
@@ -219,17 +222,23 @@ def attempt_add_phase_information(
             #   Works for both primary and supplementary alignments to retrieve data based on itself assignment
             # leaves only alignment_representation(alignment=alignment, as_primary=False), which is itself for both.
             representations.pop(1)
-        elif supplementary_strategy == SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_COPY_PRIMARY:
+        elif (
+            supplementary_strategy == SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_COPY_PRIMARY
+        ):
             # left here for clarity. Leaves both representations present with itself being first to consider,
             #   and as_primary being the second
             pass
         if is_supplementary and supplementary_strategy.attempt_to_copy_primary():
-            primary_info = primary_info_by_repr.get(alignment_representation(alignment=alignment, as_primary=True), None)
+            primary_info = primary_info_by_repr.get(
+                alignment_representation(alignment=alignment, as_primary=True), None
+            )
             if primary_info is not None:
-                remove_primary_repr = supplementary_distance_threshold < min_alignment_distance(primary_info.reference_start,
-                                                                                                primary_info.reference_end,
-                                                                                                alignment.reference_start,
-                                                                                                alignment.reference_end)
+                remove_primary_repr = supplementary_distance_threshold < min_alignment_distance(
+                    primary_info.reference_start,
+                    primary_info.reference_end,
+                    alignment.reference_start,
+                    alignment.reference_end,
+                )
                 if supplementary_strand_match:
                     remove_primary_repr |= primary_info.is_reverse != alignment.is_reverse
                 if remove_primary_repr:
@@ -295,21 +304,28 @@ def read_representation(read: Read, as_primary: bool = False) -> ReadAlignmentRe
     # with unique read sub-alignment id
     # here we come back to query name and sub-alignment id, if any, to be separate entities
     if read_name.endswith(sub_alignment_id):
-        read_name = read_name[:-len(read.sub_alignment_id)]
-    return ReadAlignmentRepresentation(read_name=read_name,
-                                       chromosome=chromosome,
-                                       is_supplementary=is_supplementary,
-                                       sub_alignment_id=sub_alignment_id)
+        read_name = read_name[: -len(read.sub_alignment_id)]
+    return ReadAlignmentRepresentation(
+        read_name=read_name,
+        chromosome=chromosome,
+        is_supplementary=is_supplementary,
+        sub_alignment_id=sub_alignment_id,
+    )
 
 
-def alignment_representation(alignment: pysam.AlignedSegment, as_primary: bool = False) -> ReadAlignmentRepresentation:
+def alignment_representation(
+    alignment: pysam.AlignedSegment, as_primary: bool = False
+) -> ReadAlignmentRepresentation:
     is_primary = True if as_primary else is_alignment_primary(alignment=alignment)
     is_supplementary = not is_primary
     chromosome = alignment.reference_name
     sub_alignment_id = get_sub_alignment_id(alignment, is_primary=(as_primary or is_primary))
-    return ReadAlignmentRepresentation(read_name=alignment.query_name, chromosome=chromosome,
-                                       is_supplementary=is_supplementary,
-                                       sub_alignment_id=sub_alignment_id)
+    return ReadAlignmentRepresentation(
+        read_name=alignment.query_name,
+        chromosome=chromosome,
+        is_supplementary=is_supplementary,
+        sub_alignment_id=sub_alignment_id,
+    )
 
 
 def prepare_haplotag_information(
@@ -347,9 +363,11 @@ def prepare_haplotag_information(
 
         for read in read_set:
             if not read.is_supplementary:
-                primary_info_by_repr[read_representation(read, as_primary=True)] = PrimaryInfo(reference_start=read.reference_start,
-                                                                                                reference_end=read.reference_end,
-                                                                                                is_reverse=read.is_reverse)
+                primary_info_by_repr[read_representation(read, as_primary=True)] = PrimaryInfo(
+                    reference_start=read.reference_start,
+                    reference_end=read.reference_end,
+                    is_reverse=read.is_reverse,
+                )
 
         # all reads processed so far
         processed_reads = set()
@@ -770,15 +788,17 @@ def run_haplotag(
                 raise CommandLineError(str(e))
             if variant_table is not None:
                 logger.debug("Preparing haplotype information")
-                (BX_tag_to_haplotype, read_to_haplotype, n_mult, primary_info_by_repr) = prepare_haplotag_information(
-                    variant_table,
-                    shared_samples,
-                    phased_input_reader,
-                    regions,
-                    ignore_linked_read,
-                    linked_read_distance_cutoff,
-                    ploidy,
-                    supplementary_strategy=supplementary_strategy,
+                (BX_tag_to_haplotype, read_to_haplotype, n_mult, primary_info_by_repr) = (
+                    prepare_haplotag_information(
+                        variant_table,
+                        shared_samples,
+                        phased_input_reader,
+                        regions,
+                        ignore_linked_read,
+                        linked_read_distance_cutoff,
+                        ploidy,
+                        supplementary_strategy=supplementary_strategy,
+                    )
                 )
                 n_multiple_phase_sets += n_mult
             else:
@@ -795,8 +815,10 @@ def run_haplotag(
                     haplotype_name = "none"
                     phaseset = "none"
 
-                    if variant_table is None or ignore_read(alignment,
-                                                            include_supplementary=supplementary_strategy.consider_supplementary()):
+                    if variant_table is None or ignore_read(
+                        alignment,
+                        include_supplementary=supplementary_strategy.consider_supplementary(),
+                    ):
                         # - If no variants in VCF for this chromosome,
                         # alignments just get written to output
                         # - Ignored reads are simply
@@ -828,8 +850,11 @@ def run_haplotag(
 
                     bam_writer.write(alignment)
                     if haplotag_writer is not None and not (
-                        alignment.is_secondary or
-                        (alignment.is_supplementary and not supplementary_strategy.consider_supplementary())
+                        alignment.is_secondary
+                        or (
+                            alignment.is_supplementary
+                            and not supplementary_strategy.consider_supplementary()
+                        )
                     ):
                         print(
                             alignment.query_name,

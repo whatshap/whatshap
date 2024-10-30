@@ -795,6 +795,7 @@ When haplotagging of a supplementary has a possibility of copying a tag from teh
 
 * ``--supplementary-distance`` (default to ``100000``) -- the largest distance between closes primary and supplementary alignment positions when copy attempt is made, otherwise no supplementary tagging is performed
 * ``--supplementary-strand-match`` (Default) / ``--no-supplementary-strand-match`` -- whether the supplementary alignment needs to match in direction to the primary one for the tag copying to be performed.
+
 .. _whatshap-split:
 
 whatshap split: Splitting reads according to haplotype

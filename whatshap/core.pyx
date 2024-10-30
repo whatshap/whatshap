@@ -58,6 +58,7 @@ cdef class NumericSampleIds:
 		self.mapping = mapping
 		self.frozen = frozen
 
+
 cdef class Read:
 	def __cinit__(self, str name = None, int mapq = 0, int source_id = 0, int sample_id = 0, int reference_start = -1,
 				  str BX_tag = None, int HP_tag = -1, int PS_tag = -1,
