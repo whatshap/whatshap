@@ -20,7 +20,7 @@ def test_haplotagphase(tmpdir):
     for table in tables:
         assert len(table.phases) == 1
         n_unphased = sum(1 for phase in table.phases[0] if phase is None)
-        assert n_unphased <= 4
+        assert n_unphased == 4
 
 
 def test_hapltotagphase(tmpdir):
@@ -36,7 +36,7 @@ def test_hapltotagphase(tmpdir):
     for table in tables:
         assert len(table.phases) == 1
         n_unphased = sum(1 for phase in table.phases[0] if phase is None)
-        assert n_unphased <= 6
+        assert n_unphased == 6
 
 
 def test_compute_votes():
