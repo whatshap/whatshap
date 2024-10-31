@@ -120,7 +120,7 @@ def run_haplotagphase(
                 genotypes = variant_table.genotypes_of(sample)
                 with timers("read-bam"):
                     reads, _ = phased_input_reader.read(
-                        chromosome, variant_table.variants, sample, valid_alleles=genotypes
+                        chromosome, variant_table.variants, sample, allowed_genotypes=genotypes
                     )
                 phases = variant_table.phases_of(sample)
 

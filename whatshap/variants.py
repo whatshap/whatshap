@@ -150,7 +150,13 @@ class ReadSetReader:
         return len(self._paths)
 
     def read(
-        self, chromosome, variants, sample, reference, regions=None, valid_alleles=None
+        self,
+        chromosome,
+        variants,
+        sample,
+        reference,
+        regions=None,
+        allowed_genotypes: Optional[List[Genotype]] = None,
     ) -> ReadSet:
         """
         Detect alleles and return a ReadSet object containing reads representing
@@ -163,7 +169,7 @@ class ReadSetReader:
         If reference is None, alleles are detected by inspecting the
         existing alignment (via the CIGAR).
 
-        If the valid_alleles is not None, then only alleles from valid_alleles[i] will be considered for variant i.
+        If the allowed_genotypes is not None, then only alleles from allowed_genotypes[i] will be considered for variant i. The length of allowed_genotypes should match the length of variants.
 
         chromosome -- name of chromosome to work on
         variants -- list of vcf.VcfVariant objects
@@ -171,7 +177,7 @@ class ReadSetReader:
             ignored and all reads in the file are used.
         reference -- reference sequence of the given chromosome (or None)
         regions -- list of start,end tuples (end can be None)
-        valid_alleles -- list of valid_alleles (or None if there is no reliable auxiliary information).
+        allowed_genotypes -- list of allowed genotypes (or None if there is no reliable auxiliary information).
         """
         # Since variants are identified by position, positions must be unique.
         if __debug__ and variants:
@@ -179,8 +185,11 @@ class ReadSetReader:
             pos, count = varposc.most_common()[0]
             assert count == 1, f"Position {pos} occurs more than once in variant list."
 
+        assert allowed_genotypes is None or len(allowed_genotypes) == len(variants)
         alignments = self._usable_alignments(chromosome, sample, regions)
-        reads = self._alignments_to_reads(alignments, variants, sample, reference, valid_alleles)
+        reads = self._alignments_to_reads(
+            alignments, variants, sample, reference, allowed_genotypes
+        )
         grouped_reads = self._group_reads(reads, self._supplementary_distance_threshold)
         readset = self._make_readset_from_grouped_reads(grouped_reads)
         return readset
@@ -308,7 +317,9 @@ class ReadSetReader:
     def has_reference(self, chromosome):
         return self._reader.has_reference(chromosome)
 
-    def _alignments_to_reads(self, alignments, variants, sample, reference, valid_alleles):
+    def _alignments_to_reads(
+        self, alignments, variants, sample, reference, allowed_genotypes: Optional[List[Genotype]]
+    ):
         """
         Convert BAM alignments to Read objects.
 
@@ -401,7 +412,7 @@ class ReadSetReader:
                     i += 1
                 detected = self.detect_alleles_by_alignment(
                     variants,
-                    valid_alleles,
+                    allowed_genotypes,
                     i,
                     alignment.bam_alignment,
                     reference,
@@ -561,7 +572,7 @@ class ReadSetReader:
     @staticmethod
     def realign(
         variant: VcfVariant,
-        valid_alleles: Optional[Genotype],
+        genotype: Optional[Genotype],
         bam_read: AlignedSegment,
         cigartuples,
         i,
@@ -587,7 +598,7 @@ class ReadSetReader:
         variant position and into a part starting at the variant position, see split_cigar().
 
         variant -- VcfVariant
-        valid_alleles -- list of valid alleles
+        genotype -- predicted genotype (or None if there is no such information)
         bam_read -- the AlignedSegment
         cigartuples -- the AlignedSegment.cigartuples property (accessing it is expensive, so re-use it)
         i, consumed -- see split_cigar method
@@ -703,7 +714,7 @@ class ReadSetReader:
             distances = [
                 (i, edit_distance_affine_gap(query, allele, base_qualities, gap_start, gap_extend))
                 for i, allele in enumerate(padded_alleles)
-                if valid_alleles is None or i in valid_alleles.as_vector()
+                if genotype is None or i in genotype.as_vector()
             ]
             distances.sort(key=lambda x: x[1])
             base_qual_score = (
@@ -713,7 +724,7 @@ class ReadSetReader:
             distances = [
                 (i, edit_distance(query, allele))
                 for i, allele in enumerate(padded_alleles)
-                if valid_alleles is None or i in valid_alleles.as_vector()
+                if genotype is None or i in genotype.as_vector()
             ]
             distances.sort(key=lambda x: x[1])
             base_qual_score = 30
@@ -726,7 +737,7 @@ class ReadSetReader:
     @staticmethod
     def detect_alleles_by_alignment(
         variants: List[VcfVariant],
-        valid_alleles: List[Genotype],
+        allowed_genotypes: Optional[List[Genotype]],
         j,
         bam_read: AlignedSegment,
         reference,
@@ -763,7 +774,7 @@ class ReadSetReader:
         for index, i, consumed, query_pos in _iterate_cigar(variants, j, bam_read, cigartuples):
             allele, quality = ReadSetReader.realign(
                 variants[index],
-                valid_alleles[index] if valid_alleles is not None else None,
+                allowed_genotypes[index] if allowed_genotypes is not None else None,
                 bam_read,
                 cigartuples,
                 i,
