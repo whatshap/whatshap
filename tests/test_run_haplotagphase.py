@@ -16,14 +16,14 @@ def test_haplotagphase(tmpdir):
         reference="tests/data/pacbio/reference.fasta",
         output=outvcf,
     )
-    tables = list(VcfReader(outvcf, phases=True))
+    tables = list(VcfReader(outvcf, phases=True, mav=True))
     for table in tables:
         assert len(table.phases) == 1
         n_unphased = sum(1 for phase in table.phases[0] if phase is None)
         assert n_unphased == 4
 
 
-def test_hapltotagphase(tmpdir):
+def test_nomav_hapltotagphase(tmpdir):
     outvcf = tmpdir.join("output.vcf")
     run_haplotagphase(
         variant_file="tests/data/pacbio/variants_haplotagphase.vcf",
@@ -32,9 +32,10 @@ def test_hapltotagphase(tmpdir):
         output=outvcf,
         ignore_mav=True,
     )
-    tables = list(VcfReader(outvcf, phases=True))
+    tables = list(VcfReader(outvcf, phases=True, mav=True))
     for table in tables:
         assert len(table.phases) == 1
+        print([phase for phase in table.phases[0]])
         n_unphased = sum(1 for phase in table.phases[0] if phase is None)
         assert n_unphased == 6
 
