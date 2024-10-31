@@ -13,7 +13,7 @@ from whatshap import __version__
 from whatshap.cli import PhasedInputReader, CommandLineError, log_memory_usage
 from whatshap.core import NumericSampleIds, Variant, Read
 from whatshap.timer import StageTimer
-from whatshap.utils import ChromosomeSet, IndexedFasta
+from whatshap.utils import ChromosomeFilter, IndexedFasta
 from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VcfVariant, VariantCallPhase
 
 logger = logging.getLogger(__name__)
@@ -101,7 +101,7 @@ def run_haplotagphase(
             )
         with timers("read-fasta"):
             fasta = stack.enter_context(IndexedFasta(reference))
-        included_chromosomes = ChromosomeSet(chromosomes, excluded_chromosomes)
+        included_chromosomes = ChromosomeFilter(chromosomes, excluded_chromosomes)
         for variant_table in timers.iterate("parse-vcf", vcf_reader):
             chromosome = variant_table.chromosome
             fasta_chr = fasta[chromosome]

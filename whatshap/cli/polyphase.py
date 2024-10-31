@@ -31,7 +31,7 @@ from whatshap.polyphase.plots import draw_plots
 from whatshap.polyphase.solver import AlleleMatrix
 
 from whatshap.timer import StageTimer
-from whatshap.utils import ChromosomeSet
+from whatshap.utils import ChromosomeFilter
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
 
 __author__ = "Jana Ebler, Sven Schrinner"
@@ -178,7 +178,7 @@ def run_polyphase(
         )
 
         try:
-            included_chromosomes = ChromosomeSet(chromosomes, excluded_chromosomes)
+            included_chromosomes = ChromosomeFilter(chromosomes, excluded_chromosomes)
             for variant_table in timers.iterate("parse_vcf", vcf_reader):
                 chromosome = variant_table.chromosome
                 if chromosome in included_chromosomes:

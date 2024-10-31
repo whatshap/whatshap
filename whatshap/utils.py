@@ -122,11 +122,11 @@ def warn_once(logger, msg: str, *args) -> None:
     _warning_count[msg] += 1
 
 
-class ChromosomeSet:
+class ChromosomeFilter:
     """
-    ChromosomeSet is the wrapper class for checking of inclusion and exclusion of chromosomes.
+    ChromosomeFilter is the wrapper class for checking of inclusion and exclusion of chromosomes.
 
-    >>> cs1 = ChromosomeSet(['1', '2'], ['3'])
+    >>> cs1 = ChromosomeFilter(['1', '2'], ['3'])
     >>> '4' in cs1
     False
     >>> '5' not in cs1
@@ -135,7 +135,7 @@ class ChromosomeSet:
     True
     >>> '3' in cs1
     False
-    >>> cs2 = ChromosomeSet([], ['3'])
+    >>> cs2 = ChromosomeFilter([], ['3'])
     >>> '1' in cs2
     True
     >>> '3' in cs2
@@ -146,7 +146,7 @@ class ChromosomeSet:
         self, included_chromosomes: Optional[List[str]], excluded_chromosomes: Optional[List[str]]
     ):
         """
-        Initialize the ChromosomeSet.
+        Initialize the ChromosomeFilter.
 
         included_chromosomes: A list of chromosomes to include.
             If None (default) or empty, all chromosomes are included.
@@ -158,7 +158,7 @@ class ChromosomeSet:
 
     def __contains__(self, chromosome):
         """
-        Check if the ChromosomeSet contains a given chromosome.
+        Check if the ChromosomeFilter contains a given chromosome.
 
         :param chromosome: The chromosome to check.
         :return: True if the chromosome is in the set, False otherwise.

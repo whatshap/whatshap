@@ -53,7 +53,7 @@ from whatshap.pedigree import (
     Trio,
 )
 from whatshap.timer import StageTimer
-from whatshap.utils import ChromosomeSet, plural_s, warn_once
+from whatshap.utils import ChromosomeFilter, plural_s, warn_once
 from whatshap.cli import CommandLineError, log_memory_usage, PhasedInputReader
 from whatshap.merge import ReadMerger, DoNothingReadMerger, ReadMergerBase
 from whatshap.types import PhasingAlgorithm
@@ -457,7 +457,7 @@ def run_whatshap(
 
         superreads: Dict[str, ReadSet]
         components: Dict
-        included_chromosomes = ChromosomeSet(chromosomes, excluded_chromosomes)
+        included_chromosomes = ChromosomeFilter(chromosomes, excluded_chromosomes)
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
             chromosome = variant_table.chromosome
             if chromosome not in included_chromosomes:

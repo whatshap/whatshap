@@ -13,7 +13,7 @@ from typing import Sequence, Optional
 
 from contextlib import ExitStack
 from whatshap import __version__
-from whatshap.utils import ChromosomeSet
+from whatshap.utils import ChromosomeFilter
 from whatshap.vcf import VcfReader, GenotypeVcfWriter
 from whatshap.core import (
     ReadSet,
@@ -210,7 +210,7 @@ def run_genotype(
         # compute genotype likelihood threshold
         gt_prob = 1.0 - (10 ** (-gt_qual_threshold / 10.0))
 
-        included_chromosomes = ChromosomeSet(chromosomes, excluded_chromosomes)
+        included_chromosomes = ChromosomeFilter(chromosomes, excluded_chromosomes)
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
             # create a mapping of genome positions to indices
             var_to_pos = dict()

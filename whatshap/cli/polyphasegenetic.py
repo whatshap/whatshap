@@ -31,7 +31,7 @@ from whatshap.polyphase.offspringscoring import (
     get_variant_scoring,
 )
 from whatshap.timer import StageTimer
-from whatshap.utils import ChromosomeSet
+from whatshap.utils import ChromosomeFilter
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
 
 __author__ = "Sven Schrinner"
@@ -168,7 +168,7 @@ def run_polyphasegenetic(
         try:
             for variant_table in timers.iterate("parse_vcf", parent_reader):
                 chromosome = variant_table.chromosome
-                included_chromosomes = ChromosomeSet(chromosomes, excluded_chromosomes)
+                included_chromosomes = ChromosomeFilter(chromosomes, excluded_chromosomes)
 
                 if chromosome in included_chromosomes:
                     logger.info("======== Working on chromosome %r", chromosome)
