@@ -23,6 +23,22 @@ def test_haplotagphase(tmpdir):
         assert n_unphased <= 4
 
 
+def test_hapltotagphase(tmpdir):
+    outvcf = tmpdir.join("output.vcf")
+    run_haplotagphase(
+        variant_file="tests/data/pacbio/variants_haplotagphase.vcf",
+        alignment_file="tests/data/pacbio/haplotagged.bam",
+        reference="tests/data/pacbio/reference.fasta",
+        output=outvcf,
+        ignore_mav=True,
+    )
+    tables = list(VcfReader(outvcf, phases=True))
+    for table in tables:
+        assert len(table.phases) == 1
+        n_unphased = sum(1 for phase in table.phases[0] if phase is None)
+        assert n_unphased <= 6
+
+
 def test_compute_votes():
     a = Read("a", 60, 0, 0, 0, "", 1, 1)
     a.add_variant(1, 0, 30)
