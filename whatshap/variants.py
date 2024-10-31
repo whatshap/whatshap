@@ -593,7 +593,7 @@ class ReadSetReader:
         splitted_strings,
     ):
         """
-        Realign a read to the two alleles (or to the valid_alleles if it is not None) of a single variant.
+        Realign a read to the two alleles (or to the alleles from genotype if it is not None) of a single variant.
         i and consumed describe where to split the cigar into a part before the
         variant position and into a part starting at the variant position, see split_cigar().
 
