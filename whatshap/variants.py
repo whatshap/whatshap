@@ -572,7 +572,7 @@ class ReadSetReader:
     @staticmethod
     def realign(
         variant: VcfVariant,
-        genotype: Optional[Genotype],
+        predicted_variants: Optional[Genotype],
         bam_read: AlignedSegment,
         cigartuples,
         i,
@@ -598,7 +598,7 @@ class ReadSetReader:
         variant position and into a part starting at the variant position, see split_cigar().
 
         variant -- VcfVariant
-        genotype -- predicted genotype (or None if there is no such information)
+        predicted_variants -- genotype with predicted variants (or None if there is no such information)
         bam_read -- the AlignedSegment
         cigartuples -- the AlignedSegment.cigartuples property (accessing it is expensive, so re-use it)
         i, consumed -- see split_cigar method
@@ -714,7 +714,7 @@ class ReadSetReader:
             distances = [
                 (i, edit_distance_affine_gap(query, allele, base_qualities, gap_start, gap_extend))
                 for i, allele in enumerate(padded_alleles)
-                if genotype is None or i in genotype.as_vector()
+                if predicted_variants is None or i in predicted_variants.as_vector()
             ]
             distances.sort(key=lambda x: x[1])
             base_qual_score = (
@@ -724,7 +724,7 @@ class ReadSetReader:
             distances = [
                 (i, edit_distance(query, allele))
                 for i, allele in enumerate(padded_alleles)
-                if genotype is None or i in genotype.as_vector()
+                if predicted_variants is None or i in predicted_variants.as_vector()
             ]
             distances.sort(key=lambda x: x[1])
             base_qual_score = 30
