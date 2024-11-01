@@ -112,7 +112,6 @@ def complement(s):
     >>> complement('01100')
     '10011'
     """
-    logger.debug(f"{s = }")
     t = {"0": "1", "1": "0"}
     return "".join(t[c] for c in s)
 
