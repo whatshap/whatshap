@@ -112,6 +112,7 @@ def complement(s):
     >>> complement('01100')
     '10011'
     """
+    logger.debug(f"{s = }")
     t = {"0": "1", "1": "0"}
     return "".join(t[c] for c in s)
 
@@ -764,7 +765,7 @@ def run_compare(
     longest_block_tsv=None,
 ):
     vcf_readers = [
-        VcfReader(f, only_snvs=only_snvs, phases=True, ploidy=ploidy, mav=True) for f in vcf
+        VcfReader(f, only_snvs=only_snvs, phases=True, ploidy=ploidy, mav=(ploidy > 2)) for f in vcf
     ]
     if names:
         dataset_names = names.split(",")
