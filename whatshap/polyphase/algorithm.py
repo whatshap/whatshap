@@ -321,6 +321,14 @@ def compute_cut_positions(
         # avoid duplicate cut positions
         if cuts and cuts[-1] == b.position:
             continue
+        if cuts:
+            if block_cut_sensitivity == 0:
+                # only use first cut sensitivity preset 0
+                break
+            elif cuts and cuts[-1] == b.position:
+                # avoid duplicate cut positions
+                continue
+
         # for zero confidence, always cut
         if b.confidence == 0.0:
             cuts.append(b.position)
