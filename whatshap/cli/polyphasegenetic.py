@@ -533,7 +533,6 @@ def add_arguments(parser):
     )
 
     arg = parser.add_argument_group("Input pre-processing, selection, and filtering").add_argument
-    arg("--indels", dest="indels_used", action="store_true", help=argparse.SUPPRESS)
     arg("--only-snvs", action="store_true", help="Phase only SNVs")
     arg(
         "--sample",
@@ -635,8 +634,6 @@ def validate(args, parser):
         parser.error("Odd ploidies are not supported.")
     if args.ploidy < 2:
         parser.error("Ploidy must be at least 2.")
-    if args.indels_used:
-        logger.warning("Ignoring --indels as indel phasing is default in WhatsHap 2.0+")
 
 
 def main(args):
