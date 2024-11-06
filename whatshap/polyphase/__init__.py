@@ -7,6 +7,7 @@ from typing import List
 from pulp import listSolvers, getSolver
 from whatshap.core import ReadSet
 from whatshap.polyphase.solver import AlleleMatrix
+from whatshap.vcf import VariantTable
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class PolyphaseParameter:
 
 
 class PhaseBreakpoint:
-    def __init__(self, position, haplotypes, confidence):
+    def __init__(self, position: int, haplotypes: List[int], confidence: float):
         self.position = position
         self.haplotypes = sorted(haplotypes[:])
         self.confidence = confidence
@@ -52,7 +53,7 @@ class PolyphaseResult:
     breakpoints: List[PhaseBreakpoint]
 
 
-def get_coverage(allele_matrix, clustering):
+def get_coverage(allele_matrix: AlleleMatrix, clustering: List[List[int]]):
     """
     Returns a list, which for every position contains a dictionary, mapping a cluster id to
     a relative coverage on this position.
@@ -76,7 +77,7 @@ def get_coverage(allele_matrix, clustering):
     return coverage
 
 
-def compute_block_starts(am, ploidy, single_linkage=False):
+def compute_block_starts(am: AlleleMatrix, ploidy: int, single_linkage: bool = False):
     """
     Based on the connectivity of the reads, we want to divide the phasing input, as non- or poorly
     connected regions can be phased independently. This is done based on how pairs of variants are
@@ -167,7 +168,7 @@ def compute_block_starts(am, ploidy, single_linkage=False):
     return cuts
 
 
-def create_genotype_list(variant_table, sample):
+def create_genotype_list(variant_table: VariantTable, sample: str):
     """
     Creates a list, which stores a dictionary for every position. The dictionary maps every allele
     to its frequency in the genotype of the respective position.
@@ -184,7 +185,7 @@ def create_genotype_list(variant_table, sample):
     return genotype_list
 
 
-def extract_partial_phasing(variant_table, sample, ploidy):
+def extract_partial_phasing(variant_table: VariantTable, sample: str, ploidy: int):
     readset = ReadSet()
     vars = variant_table.variants
     for read in variant_table.phased_blocks_as_reads(sample, vars, 0, 0, target_ploidy=ploidy):
