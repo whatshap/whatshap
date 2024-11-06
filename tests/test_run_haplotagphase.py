@@ -30,7 +30,7 @@ def test_nomav_haplototagphase(tmpdir):
         alignment_file="tests/data/pacbio/haplotagged.bam",
         reference="tests/data/pacbio/reference.fasta",
         output=outvcf,
-        ignore_mav=True,
+        mav=False,
     )
     tables = list(VcfReader(outvcf, phases=True, mav=True))
     for table in tables:
