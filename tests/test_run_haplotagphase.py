@@ -23,7 +23,7 @@ def test_haplotagphase(tmpdir):
         assert n_unphased == 4
 
 
-def test_nomav_hapltotagphase(tmpdir):
+def test_nomav_haplototagphase(tmpdir):
     outvcf = tmpdir.join("output.vcf")
     run_haplotagphase(
         variant_file="tests/data/pacbio/variants_haplotagphase.vcf",
