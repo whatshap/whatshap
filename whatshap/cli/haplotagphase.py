@@ -40,7 +40,7 @@ def add_arguments(parser):
     arg("--chromosome", dest="chromosomes", metavar="CHROMOSOME", default=[], action="append",
         help="Name of chromosome to phase. If not given, all chromosomes in the input VCF are phased. "
         "Can be used multiple times.")
-    arg("--no-mav", dest="ignore_mav", default=False, action="store_true", help="Ignore multiallelic variants.")
+    arg("--no-mav", dest="mav", default=True, action="store_false", help="Ignore multiallelic variants.")
     arg("variant_file", metavar="VCF", help="VCF file with variants to phase (must be gzip-compressed and indexed)")
     arg("alignment_file", metavar="ALIGNMENTS",
         help="BAM/CRAM file with alignments tagged by haplotype and phase set")
