@@ -58,7 +58,7 @@ def run_haplotagphase(
     gap_threshold: int = 70,
     cut_poly: int = 10,
     write_command_line_header: bool = True,
-    ignore_mav: bool = False,
+    mav: bool = True,
     tag: str = "PS",
 ):
     if reference is None:
@@ -87,13 +87,13 @@ def run_haplotagphase(
                     in_path=variant_file,
                     out_file=output,
                     tag=tag,
-                    mav=not ignore_mav,
+                    mav=mav,
                 )
             )
         except (OSError, VcfError) as e:
             raise CommandLineError(e)
 
-        vcf_reader = stack.enter_context(VcfReader(variant_file, phases=True, mav=not ignore_mav))
+        vcf_reader = stack.enter_context(VcfReader(variant_file, phases=True, mav=mav))
 
         if ignore_read_groups and len(vcf_reader.samples) > 1:
             raise CommandLineError(
@@ -120,7 +120,7 @@ def run_haplotagphase(
                 genotypes = variant_table.genotypes_of(sample)
                 with timers("read-bam"):
                     reads, _ = phased_input_reader.read(
-                        chromosome, variant_table.variants, sample, predicted_genotypes=genotypes
+                        chromosome, variant_table.variants, sample, restricted_genotypes=genotypes
                     )
                 phases = variant_table.phases_of(sample)
 

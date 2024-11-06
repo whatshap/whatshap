@@ -136,7 +136,7 @@ class PhasedInputReader:
         *,
         read_vcf=True,
         regions=None,
-        predicted_genotypes: Optional[List[Genotype]] = None,
+        restricted_genotypes: Optional[List[Genotype]] = None,
     ):
         """
         Return a pair (readset, vcf_source_ids) where readset is a sorted ReadSet.
@@ -160,7 +160,7 @@ class PhasedInputReader:
         bam_sample = None if self._ignore_read_groups else sample
         try:
             readset = readset_reader.read(
-                chromosome, variants, bam_sample, reference, regions, predicted_genotypes
+                chromosome, variants, bam_sample, reference, regions, restricted_genotypes
             )
         except SampleNotFoundError:
             logger.warning("Sample %r not found in any BAM/CRAM file.", bam_sample)
