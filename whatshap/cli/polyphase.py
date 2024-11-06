@@ -17,6 +17,13 @@ from copy import deepcopy
 
 from contextlib import ExitStack
 
+from typing import (
+    Optional,
+    List,
+    TextIO,
+    Sequence,
+)
+
 from whatshap import __version__
 from whatshap.core import (
     Read,
@@ -32,7 +39,7 @@ from whatshap.polyphase.solver import AlleleMatrix
 
 from whatshap.timer import StageTimer
 from whatshap.utils import ChromosomeFilter
-from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
+from whatshap.vcf import VcfReader, PhasedVcfWriter, VariantTable, PloidyError
 
 __author__ = "Jana Ebler, Sven Schrinner"
 
@@ -41,46 +48,59 @@ logger = logging.getLogger(__name__)
 
 
 def run_polyphase(
-    phase_input_files,
-    variant_file,
-    ploidy,
-    reference=None,
-    output=sys.stdout,
-    samples=None,
-    chromosomes=None,
-    excluded_chromosomes=None,
-    verify_genotypes=False,
-    ignore_read_groups=False,
-    only_snvs=False,
-    mapping_quality=20,
-    tag="PS",
-    include_haploid_sets=False,
-    distrust_genotypes=False,
-    write_command_line_header=True,
-    read_list_filename=None,
-    ce_bundle_edges=False,
-    min_overlap=2,
-    plot_clusters=False,
-    plot_threading=False,
+    phase_input_files: Sequence[str],
+    variant_file: str,
+    ploidy: int,
+    reference: Optional[str] = None,
+    output: TextIO = sys.stdout,
+    samples: Optional[Sequence[str]] = None,
+    chromosomes: Optional[List[str]] = None,
+    excluded_chromosomes: Optional[List[str]] = None,
+    ignore_read_groups: bool = False,
+    only_snvs: bool = False,
+    mapping_quality: int = 20,
+    distrust_genotypes: bool = False,
+    tag: str = "PS",
+    read_list_filename: Optional[str] = None,
+    write_command_line_header: bool = True,
+    include_haploid_sets: bool = False,
     block_cut_sensitivity=4,
-    threads=1,
-    use_prephasing=False,
-    mav=True,
+    min_overlap: int = 2,
+    mav: bool = True,
+    threads: int = 1,
+    use_prephasing: bool = False,
+    ce_bundle_edges: bool = False,
+    plot_clusters: bool = False,
+    plot_threading: bool = False,
+    verify_genotypes: bool = False,
 ):
     """
     Run Polyploid Phasing.
 
     phase_input_files -- list of paths to BAM/CRAM/VCF files
     variant-file -- path to input VCF
+    ploidy -- target ploidy for all chromosomes
     reference -- path to reference FASTA
     output -- path to output VCF or a file like object
     samples -- names of samples to phase. An empty list means: phase all samples
     chromosomes -- names of chromosomes to phase. An empty list means: phase all chromosomes
     excluded_chromosomes -- names of chromosomes not to phase.
-    ignore_read_groups
+    ignore_read_groups -- assigns all reads to one sample. Cannot be used for multi-sample VCF
     mapping_quality -- discard reads below this mapping quality
+    distrust_genotypes -- allows to override the provided genotypes from VCF in phasing output
     tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
+    read_list_filename -- name of file to write list of used reads to
     write_command_line_header -- whether to add a ##commandline header to the output VCF
+    include_haploid_sets -- writes independent phase block identifiers for each phase
+    block_cut_sensitivity -- policy for creating block cuts
+    min_overlap -- minimum number of common variants to of read pair for score computation
+    mav -- include multi-allelic variants
+    threads -- number of worker threads to process disconnected blocks
+    use_prephasing -- consider existing phasing in input VCF
+    ce_bundle_edges -- alternative edge contraction policy in cluster editing heuristic
+    plot_clusters -- add plot of cluster editing result
+    plot_threading -- add plot for threading result
+    verify_genotypes -- posterior genotype correction based on observed allele frequency
     """
     timers = StageTimer()
     logger.info(
@@ -150,7 +170,7 @@ def run_polyphase(
                 )
 
         if verify_genotypes:
-            logger.warn("Option --verify-genotypes is deprecated. It will be ignored.")
+            logger.warning("Option --verify-genotypes is deprecated. It will be ignored.")
 
         if use_prephasing and block_cut_sensitivity > 1:
             logger.info(
@@ -304,7 +324,14 @@ def run_polyphase(
     logger.info("Total elapsed time:                  %6.1f s", timers.total())
 
 
-def phase_single_individual(readset, phasable_variant_table, sample, param, output, timers):
+def phase_single_individual(
+    readset: ReadSet,
+    phasable_variant_table: VariantTable,
+    sample: str,
+    param: PolyphaseParameter,
+    output: str,
+    timers: StageTimer,
+):
     # Compute the genotypes that belong to the variant table and create a list of all genotypes
     genotype_list = create_genotype_list(phasable_variant_table, sample)
 
