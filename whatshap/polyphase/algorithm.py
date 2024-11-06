@@ -9,7 +9,7 @@ import logging
 from itertools import chain
 from multiprocessing import Pool
 from math import log
-from typing import List
+from typing import List, Mapping, Tuple
 from copy import copy
 
 from whatshap.polyphase import (
@@ -17,19 +17,27 @@ from whatshap.polyphase import (
     PolyphaseBlockResult,
     PhaseBreakpoint,
     compute_block_starts,
+    PolyphaseParameter,
 )
 from whatshap.polyphase.reorder import find_subinstances, integrate_sub_results, run_reordering
-from whatshap.polyphase.solver import ClusterEditingSolver, scoreReadset
+from whatshap.polyphase.solver import AlleleMatrix, ClusterEditingSolver, scoreReadset
 from whatshap.polyphase.threading import run_threading
 
 __author__ = "Sven Schrinner"
+
+from whatshap.timer import StageTimer
 
 logger = logging.getLogger(__name__)
 
 
 def solve_polyphase_instance(
-    allele_matrix, genotype_list, param, timers, partial_phasing=None, quiet=False
-):
+    allele_matrix: AlleleMatrix,
+    genotype_list: List[Mapping[int, int]],
+    param: PolyphaseParameter,
+    timers: StageTimer,
+    partial_phasing: bool = None,
+    quiet: bool = False,
+) -> PolyphaseResult:
     """
     Entry point for polyploid phasing instances. Inputs are an allele matrix and genotypes for each
     position, among some parameters.
@@ -130,7 +138,15 @@ def solve_polyphase_instance(
     return aggregate_results(results, ploidy, borders)
 
 
-def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, timers, quiet=False):
+def phase_single_block(
+    block_id: int,
+    allele_matrix: AlleleMatrix,
+    genotypes: [Mapping[int, int]],
+    prephasing: AlleleMatrix,
+    param: PolyphaseParameter,
+    timers: StageTimer,
+    quiet: bool = False,
+) -> PolyphaseBlockResult:
     """
     Takes as input data the reads from a single (pre-computed) block and the genotypes for all
     variants inside the block. Runs a three-phase algorithm to compute a phasing for this isolated
@@ -243,18 +259,18 @@ def phase_single_block(block_id, allele_matrix, genotypes, prephasing, param, ti
 
 
 def phase_single_block_mt(
-    allele_matrix,
-    partial_phasing,
-    block_id,
-    start,
-    end,
-    genotype_slice,
-    param,
-    timers,
-    job_id,
-    num_blocks,
-    quiet=False,
-):
+    allele_matrix: AlleleMatrix,
+    partial_phasing: AlleleMatrix,
+    block_id: int,
+    start: int,
+    end: int,
+    genotype_slice: [Mapping[int, int]],
+    param: PolyphaseParameter,
+    timers: StageTimer,
+    job_id: int,
+    num_blocks: int,
+    quiet: bool = False,
+) -> PolyphaseBlockResult:
     """
     Wrapper for the phase_single_block() function. Carries a block_id through to the results.
     Creates a local submatrix without modifying the given allele matrix
@@ -275,7 +291,9 @@ def phase_single_block_mt(
     return result
 
 
-def aggregate_results(results: List[PolyphaseBlockResult], ploidy: int, borders: List[int]):
+def aggregate_results(
+    results: List[PolyphaseBlockResult], ploidy: int, borders: List[int]
+) -> PolyphaseResult:
     """
     Collects all blockwise phasing results and aggregates them into one list for each type of
     information. Local ids and indices are converted to globals ones in this step.
@@ -303,7 +321,7 @@ def aggregate_results(results: List[PolyphaseBlockResult], ploidy: int, borders:
 
 def compute_cut_positions(
     breakpoints: List[PhaseBreakpoint], ploidy: int, block_cut_sensitivity: int
-):
+) -> Tuple[List[int], List[List[int]]]:
     """
     Computes the cut positions for phasing blocks, based on the computed breakpoints of the
     reordering stage and the requeted block cut sensitivity.
