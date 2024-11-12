@@ -64,20 +64,6 @@ class PolyphaseResult:
     breakpoints: List[PhaseBreakpoint]
 
 
-class HomologousSeqs:
-    def __init__(self, seq_lists: List[List[int]], position_wise: bool = False):
-        assert len(seq_lists) > 0
-        assert len(seq_lists[0]) > 0
-        if position_wise:
-            self.length = len(seq_lists)
-            self.ploidy = len(seq_lists[0])
-            self.seq = [seq_lists[i][pos] for pos in range(self.length) for i in range(self.ploidy)]
-        else:
-            self.ploidy = len(seq_lists)
-            self.length = len(seq_lists[0])
-            self.seq = [seq_lists[i][pos] for i in range(self.ploidy) for pos in range(self.length)]
-
-
 def get_coverage(allele_matrix: AlleleMatrix, clustering: List[List[int]]):
     """
     Returns a list, which for every position contains a dictionary, mapping a cluster id to
