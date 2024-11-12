@@ -2,25 +2,39 @@ import itertools as it
 import logging
 from collections import defaultdict
 from bisect import bisect_right
-from typing import List, Tuple, Mapping
+from typing import List, Tuple, Mapping, TypeAlias
 from math import log, exp
 from functools import reduce
 from operator import mul
 from copy import deepcopy
 from pulp import LpProblem, LpVariable, LpMaximize, LpInteger
 
-from whatshap.polyphase import PolyphaseBlockResult, PhaseBreakpoint, get_ilp_solver
+from whatshap.polyphase import (
+    Haplotype,
+    Cluster,
+    ClusterId,
+    Threading,
+    PolyphaseBlockResult,
+    PhaseBreakpoint,
+    get_ilp_solver,
+)
 from whatshap.polyphase.solver import AlleleMatrix
 
 logger = logging.getLogger(__name__)
 
 
+Position: TypeAlias = int
+ThreadId: TypeAlias = int
+SubInstance: TypeAlias = Tuple[ClusterId, List[ThreadId], AlleleMatrix]
+ThreadPermutation: TypeAlias = List[int]
+
+
 def find_subinstances(
     allele_matrix: AlleleMatrix,
-    clustering: List[List[int]],
-    threads: List[List[int]],
-    haplotypes: List[List[int]],
-) -> List[Tuple[int, Mapping[int, List[int]], AlleleMatrix]]:
+    clustering: List[Cluster],
+    threads: Threading,
+    haplotypes: List[Haplotype],
+) -> List[SubInstance]:
     """
     Scans clusters for heterozygous positions, i.e. the cluster contains at least 2 threads,
     but the alleles are different. Returns a list of triplets, containing of a cluster id,
@@ -76,10 +90,10 @@ def find_subinstances(
 # def integrate_sub_results(allele_matrix, sub_instances, sub_results, threads, haplotypes):
 def integrate_sub_results(
     allele_matrix: AlleleMatrix,
-    sub_instances: List[Tuple[int, Mapping[int, List[int]], AlleleMatrix]],
+    sub_instances: List[SubInstance],
     sub_results: List[PolyphaseBlockResult],
-    threads: List[List[int]],
-    haplotypes,
+    threads: Threading,
+    haplotypes: List[Haplotype],
 ) -> List[PhaseBreakpoint]:
     """
     Does two things:
@@ -126,9 +140,9 @@ def integrate_sub_results(
 
 def run_reordering(
     allele_matrix: AlleleMatrix,
-    clustering: List[List[int]],
-    threads: List[List[int]],
-    haplotypes: List[List[int]],
+    clustering: List[Cluster],
+    threads: Threading,
+    haplotypes: List[Haplotype],
     breakpoints: List[PhaseBreakpoint],
     prephasing: AlleleMatrix,
     error_rate=0.07,
@@ -181,7 +195,7 @@ def run_reordering(
     permute_blocks(threads, haplotypes, breakpoints, lllh, perms)
 
 
-def find_breakpoints(threads: List[List[int]]) -> List[PhaseBreakpoint]:
+def find_breakpoints(threads: Threading) -> List[PhaseBreakpoint]:
     """
     Finds positions p such that between p-1 and p there is an ambiguous switch in the haplotype
     threads. Ambiguous means that two or more threads switch clusters simultaneously or that
@@ -205,13 +219,13 @@ def find_breakpoints(threads: List[List[int]]) -> List[PhaseBreakpoint]:
 
 
 def compute_link_likelihoods(
-    threads: List[List[int]],
-    haplotypes: List[List[int]],
+    threads: Threading,
+    haplotypes: List[Haplotype],
     breakpoints: List[PhaseBreakpoint],
-    clustering: List[List[int]],
+    clustering: List[Cluster],
     allele_matrix: AlleleMatrix,
     error_rate: float,
-) -> List[Mapping[List[int], float]]:
+) -> List[Mapping[ThreadPermutation, float]]:
     """
     For each breakpoint and for each pair of threads t1 and t2, computes a log likelihood that the
     left side of t1 is linked to the right side of t2 (left/right = before/after the breakpoint).
@@ -281,7 +295,7 @@ def compute_link_likelihoods(
 
 def compute_phase_affiliation(
     allele_matrix: AlleleMatrix,
-    haplotypes: List[List[int]],
+    haplotypes: List[Haplotype],
     breakpoints: List[PhaseBreakpoint],
     prephasing: AlleleMatrix,
     error_rate: float,
@@ -336,8 +350,8 @@ def compute_phase_affiliation(
 
 
 def get_heterozygous_pos_for_haps(
-    haplotypes: List[List[int]], subset: List[int], pivot_pos: int, limit: int = 0
-) -> Tuple[List[int], List[int]]:
+    haplotypes: List[Haplotype], subset: List[ThreadId], pivot_pos: int, limit: int = 0
+) -> Tuple[List[Position], List[Position]]:
     """
     For a subset of given haplotypes, returns two lists of positions on which these haplotypes
     contain at least two different alleles. The first list contains positions left to the
@@ -365,10 +379,10 @@ def get_heterozygous_pos_for_haps(
 
 def get_optimal_assignments(
     breakpoints: List[PhaseBreakpoint],
-    lllh: List[Mapping[List[int], float]],
+    lllh: List[Mapping[ThreadPermutation, float]],
     ploidy: int,
     affiliations: List[List[List[float]]],
-) -> List[List[int]]:
+) -> List[ThreadPermutation]:
     """
     Computes optimal permutations of haplotypes within blocks determined by breakpoints. Result
     is a list with one permutation (list) per block.
@@ -482,11 +496,11 @@ def get_optimal_assignments(
 
 
 def permute_blocks(
-    threads: List[List[int]],
-    haplotypes: List[List[int]],
+    threads: Threading,
+    haplotypes: List[Haplotype],
     breakpoints: List[PhaseBreakpoint],
-    lllh: List[Mapping[List[int], float]],
-    perms: List[List[int]],
+    lllh: List[Mapping[ThreadPermutation, float]],
+    perms: List[ThreadPermutation],
 ):
     # shuffle threads and haplotypes according to optimal assignments
     ploidy = len(haplotypes)
