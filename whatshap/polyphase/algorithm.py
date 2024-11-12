@@ -9,7 +9,7 @@ import logging
 from itertools import chain
 from multiprocessing import Pool
 from math import log
-from typing import List, Mapping, Tuple
+from typing import List, Tuple
 from copy import copy
 
 from whatshap.polyphase import (
@@ -19,6 +19,7 @@ from whatshap.polyphase import (
     compute_block_starts,
     PolyphaseParameter,
 )
+from whatshap.polyphase import Genotype
 from whatshap.polyphase.reorder import find_subinstances, integrate_sub_results, run_reordering
 from whatshap.polyphase.solver import AlleleMatrix, ClusterEditingSolver, scoreReadset
 from whatshap.polyphase.threading import run_threading
@@ -32,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 def solve_polyphase_instance(
     allele_matrix: AlleleMatrix,
-    genotype_list: List[Mapping[int, int]],
+    genotype_list: List[Genotype],
     param: PolyphaseParameter,
     timers: StageTimer,
     partial_phasing: bool = None,
@@ -141,7 +142,7 @@ def solve_polyphase_instance(
 def phase_single_block(
     block_id: int,
     allele_matrix: AlleleMatrix,
-    genotypes: [Mapping[int, int]],
+    genotypes: List[Genotype],
     prephasing: AlleleMatrix,
     param: PolyphaseParameter,
     timers: StageTimer,
@@ -264,7 +265,7 @@ def phase_single_block_mt(
     block_id: int,
     start: int,
     end: int,
-    genotype_slice: [Mapping[int, int]],
+    genotype_slice: List[Genotype],
     param: PolyphaseParameter,
     timers: StageTimer,
     job_id: int,

@@ -7,6 +7,15 @@ from scipy.stats import binom
 
 from typing import List, Mapping, Tuple
 
+from whatshap.polyphase import (
+    Allele,
+    Genotype,
+    AlleleDepth,
+    Haplotype,
+    Cluster,
+    ClusterId,
+    Threading,
+)
 from whatshap.polyphase.solver import AlleleMatrix
 
 logger = logging.getLogger(__name__)
@@ -14,13 +23,13 @@ logger = logging.getLogger(__name__)
 
 def run_threading(
     allele_matrix: AlleleMatrix,
-    clustering: List[List[int]],
+    clustering: List[Cluster],
     ploidy: int,
-    genotypes: List[Mapping[int, int]],
+    genotypes: List[Genotype],
     distrust_genotypes: bool = False,
     max_cluster_gap: int = 10,
     error_rate: float = 0.05,
-) -> Tuple[List[List[int]], List[List[int]]]:
+) -> Tuple[Threading, List[Haplotype]]:
     """
     Main method for the threading stage of the polyploid phasing algorithm. Taken inputs:
 
@@ -63,7 +72,7 @@ def run_threading(
             paths, haplotypes, genotypes, cov_map, allele_depths, error_rate
         )
 
-    return (paths, haplotypes)
+    return paths, haplotypes
 
 
 def compute_readlength_snp_distance_ratio(allele_matrix: AlleleMatrix) -> float:
@@ -74,13 +83,13 @@ def compute_readlength_snp_distance_ratio(allele_matrix: AlleleMatrix) -> float:
 
 
 def compute_threading_path(
-    cov_map: List[List[int]],
-    allele_depths: List[Mapping[int, int]],
+    cov_map: List[List[ClusterId]],
+    allele_depths: List[AlleleDepth],
     ploidy: int,
     switch_cost: float = 32.0,
     affine_switch_cost: float = 8.0,
     max_cluster_gap: int = 10,
-) -> List[List[int]]:
+) -> Threading:
     """
     Runs the threading algorithm for the haplotypes using the given costs for switches. The normal switch cost is the
     cost per haplotype, that switches clusters from one position to another (non matching coverage on single position
@@ -101,8 +110,8 @@ def compute_threading_path(
 
 
 def compute_haplotypes(
-    path: List[List[int]], consensus_lists: List[Mapping[int, List[int]]], ploidy: int
-) -> List[List[int]]:
+    path: Threading, consensus_lists: List[Mapping[ClusterId, List[Allele]]], ploidy: int
+) -> List[Haplotype]:
     """
     Fills each haplotypes using the computed clusters and their consensus lists
     """
@@ -123,13 +132,13 @@ def compute_haplotypes(
 
 
 def force_genotypes(
-    path: List[List[int]],
-    haplotypes: List[List[int]],
-    genotypes: List[Mapping[int, int]],
-    cov_map: List[List[int]],
-    allele_depths: List[List[int]],
+    path: Threading,
+    haplotypes: List[Haplotype],
+    genotypes: List[Genotype],
+    cov_map: List[List[ClusterId]],
+    allele_depths: List[AlleleDepth],
     error_rate: float,
-) -> List[List[int]]:
+) -> List[Haplotype]:
     num_vars = len(path)
     for pos in range(num_vars):
         # count allele occurences
@@ -217,8 +226,8 @@ def force_genotypes(
 
 
 def select_clusters(
-    allele_depths: List[Mapping[int, int]], ploidy: int, max_gap: int
-) -> List[List[int]]:
+    allele_depths: List[AlleleDepth], ploidy: int, max_gap: int
+) -> List[List[ClusterId]]:
     """
     For every position, computes a list of relevant clusters for the threading
     algorithm. Relevant means, that the relative coverage is at least 1/8 of
@@ -263,8 +272,8 @@ def select_clusters(
 
 
 def get_allele_depths(
-    allele_matrix: AlleleMatrix, clustering: List[List[int]], ploidy: int
-) -> Tuple[List[Mapping[int, int]], List[Mapping[int, List[int]]]]:
+    allele_matrix: AlleleMatrix, clustering: List[Cluster], ploidy: int
+) -> Tuple[List[AlleleDepth], List[Mapping[ClusterId, List[Allele]]]]:
     """
     Returns a list, which for every position contains a list (representing the clusters) of dictionaries containing the allele depths.
     Additionally computes a consensus list per position per cluster, such that the first k elements represent the alleles of this
