@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from queue import Queue
-from typing import List
+from typing import List, Mapping, TypeAlias
 
 from pulp import listSolvers, getSolver
 from whatshap.core import ReadSet
@@ -10,6 +10,17 @@ from whatshap.polyphase.solver import AlleleMatrix
 from whatshap.vcf import VariantTable
 
 logger = logging.getLogger(__name__)
+
+
+Allele: TypeAlias = int
+Genotype: TypeAlias = Mapping[Allele, int]
+AlleleDepth: TypeAlias = Mapping[Allele, int]
+Haplotype: TypeAlias = List[Allele]
+ReadId: TypeAlias = int
+Cluster: TypeAlias = List[ReadId]
+Clustering: TypeAlias = List[Cluster]
+ClusterId: TypeAlias = int
+Threading: TypeAlias = List[List[ClusterId]]
 
 
 class SolverError(Exception):
@@ -51,6 +62,20 @@ class PolyphaseResult:
     threads: List[List[int]]
     haplotypes: List[int]
     breakpoints: List[PhaseBreakpoint]
+
+
+class HomologousSeqs:
+    def __init__(self, seq_lists: List[List[int]], position_wise: bool = False):
+        assert len(seq_lists) > 0
+        assert len(seq_lists[0]) > 0
+        if position_wise:
+            self.length = len(seq_lists)
+            self.ploidy = len(seq_lists[0])
+            self.seq = [seq_lists[i][pos] for pos in range(self.length) for i in range(self.ploidy)]
+        else:
+            self.ploidy = len(seq_lists)
+            self.length = len(seq_lists[0])
+            self.seq = [seq_lists[i][pos] for i in range(self.ploidy) for pos in range(self.length)]
 
 
 def get_coverage(allele_matrix: AlleleMatrix, clustering: List[List[int]]):
