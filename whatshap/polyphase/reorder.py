@@ -2,7 +2,7 @@ import itertools as it
 import logging
 from collections import defaultdict
 from bisect import bisect_right
-from typing import List, Tuple, Mapping, TypeAlias
+from typing import List, Tuple, Dict, TypeAlias
 from math import log, exp
 from functools import reduce
 from operator import mul
@@ -10,6 +10,7 @@ from copy import deepcopy
 from pulp import LpProblem, LpVariable, LpMaximize, LpInteger
 
 from whatshap.polyphase import (
+    Position,
     Haplotype,
     Cluster,
     ClusterId,
@@ -23,10 +24,9 @@ from whatshap.polyphase.solver import AlleleMatrix
 logger = logging.getLogger(__name__)
 
 
-Position: TypeAlias = int
 ThreadId: TypeAlias = int
 SubInstance: TypeAlias = Tuple[ClusterId, List[ThreadId], AlleleMatrix]
-ThreadPermutation: TypeAlias = List[int]
+ThreadPermutation: TypeAlias = Tuple[int]
 
 
 def find_subinstances(
@@ -225,7 +225,7 @@ def compute_link_likelihoods(
     clustering: List[Cluster],
     allele_matrix: AlleleMatrix,
     error_rate: float,
-) -> List[Mapping[ThreadPermutation, float]]:
+) -> List[Dict[ThreadPermutation, float]]:
     """
     For each breakpoint and for each pair of threads t1 and t2, computes a log likelihood that the
     left side of t1 is linked to the right side of t2 (left/right = before/after the breakpoint).
@@ -278,7 +278,7 @@ def compute_link_likelihoods(
         for perm in it.permutations(affected):
             left_h = list(affected)
             right_h = [perm[affected.index(i)] for i in affected]
-            perm_llh = 0
+            perm_llh = 0.0
             for i, read in enumerate(submatrix):
                 read_llh = -float("inf")
                 for left, right in zip(left_h, right_h):
@@ -379,7 +379,7 @@ def get_heterozygous_pos_for_haps(
 
 def get_optimal_assignments(
     breakpoints: List[PhaseBreakpoint],
-    lllh: List[Mapping[ThreadPermutation, float]],
+    lllh: List[Dict[ThreadPermutation, float]],
     ploidy: int,
     affiliations: List[List[List[float]]],
 ) -> List[ThreadPermutation]:
@@ -499,7 +499,7 @@ def permute_blocks(
     threads: Threading,
     haplotypes: List[Haplotype],
     breakpoints: List[PhaseBreakpoint],
-    lllh: List[Mapping[ThreadPermutation, float]],
+    lllh: List[Dict[ThreadPermutation, float]],
     perms: List[ThreadPermutation],
 ):
     # shuffle threads and haplotypes according to optimal assignments

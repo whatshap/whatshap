@@ -5,7 +5,7 @@ from .solver import HaploThreader
 from math import ceil, log
 from scipy.stats import binom
 
-from typing import List, Mapping, Tuple
+from typing import List, Dict, Tuple
 
 from whatshap.polyphase import (
     Allele,
@@ -84,7 +84,7 @@ def compute_readlength_snp_distance_ratio(allele_matrix: AlleleMatrix) -> float:
 
 def compute_threading_path(
     cov_map: List[List[ClusterId]],
-    allele_depths: List[AlleleDepth],
+    allele_depths: List[Dict[ClusterId, AlleleDepth]],
     ploidy: int,
     switch_cost: float = 32.0,
     affine_switch_cost: float = 8.0,
@@ -110,7 +110,7 @@ def compute_threading_path(
 
 
 def compute_haplotypes(
-    path: Threading, consensus_lists: List[Mapping[ClusterId, List[Allele]]], ploidy: int
+    path: Threading, consensus_lists: List[Dict[ClusterId, List[Allele]]], ploidy: int
 ) -> List[Haplotype]:
     """
     Fills each haplotypes using the computed clusters and their consensus lists
@@ -136,7 +136,7 @@ def force_genotypes(
     haplotypes: List[Haplotype],
     genotypes: List[Genotype],
     cov_map: List[List[ClusterId]],
-    allele_depths: List[AlleleDepth],
+    allele_depths: List[Dict[ClusterId, AlleleDepth]],
     error_rate: float,
 ) -> List[Haplotype]:
     num_vars = len(path)
@@ -193,7 +193,7 @@ def force_genotypes(
 
             # compute allele depth fraction for each cluster
             for clust in clusts:
-                allele_mult = {a: 0 for a in alleles}
+                allele_mult = {a: 0.0 for a in alleles}
                 clust_mult = 0
                 for slot in range(len(path[pos])):
                     if path[pos][slot] == clust:
@@ -226,7 +226,7 @@ def force_genotypes(
 
 
 def select_clusters(
-    allele_depths: List[AlleleDepth], ploidy: int, max_gap: int
+    allele_depths: List[Dict[ClusterId, AlleleDepth]], ploidy: int, max_gap: int
 ) -> List[List[ClusterId]]:
     """
     For every position, computes a list of relevant clusters for the threading
@@ -273,7 +273,7 @@ def select_clusters(
 
 def get_allele_depths(
     allele_matrix: AlleleMatrix, clustering: List[Cluster], ploidy: int
-) -> Tuple[List[AlleleDepth], List[Mapping[ClusterId, List[Allele]]]]:
+) -> Tuple[List[Dict[ClusterId, AlleleDepth]], List[Dict[ClusterId, List[Allele]]]]:
     """
     Returns a list, which for every position contains a list (representing the clusters) of dictionaries containing the allele depths.
     Additionally computes a consensus list per position per cluster, such that the first k elements represent the alleles of this
