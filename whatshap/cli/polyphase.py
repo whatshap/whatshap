@@ -329,7 +329,7 @@ def phase_single_individual(
     phasable_variant_table: VariantTable,
     sample: str,
     param: PolyphaseParameter,
-    output: str,
+    output: TextIO,
     timers: StageTimer,
 ):
     # Compute the genotypes that belong to the variant table and create a list of all genotypes
