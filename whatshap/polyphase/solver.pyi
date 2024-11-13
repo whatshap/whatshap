@@ -30,7 +30,7 @@ class HaploThreader:
         ploidy: int,
         switch_cost: float,
         affine_switch_cost: float,
-        symmetry_optimization: bool,
+        max_cluster_gap: int,
         row_limit: int,
     ): ...
     def computePathsBlockwise(
