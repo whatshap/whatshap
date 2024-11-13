@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from queue import Queue
-from typing import List, Mapping, TypeAlias
+from typing import List, Dict, TypeAlias
 
 from pulp import listSolvers, getSolver
 from whatshap.core import ReadSet
@@ -12,9 +12,10 @@ from whatshap.vcf import VariantTable
 logger = logging.getLogger(__name__)
 
 
+Position: TypeAlias = int
 Allele: TypeAlias = int
-Genotype: TypeAlias = Mapping[Allele, int]
-AlleleDepth: TypeAlias = Mapping[Allele, int]
+Genotype: TypeAlias = Dict[Allele, int]
+AlleleDepth: TypeAlias = Dict[Allele, int]
 Haplotype: TypeAlias = List[Allele]
 ReadId: TypeAlias = int
 Cluster: TypeAlias = List[ReadId]
@@ -64,14 +65,16 @@ class PolyphaseResult:
     breakpoints: List[PhaseBreakpoint]
 
 
-def get_coverage(allele_matrix: AlleleMatrix, clustering: List[List[int]]):
+def get_coverage(
+    allele_matrix: AlleleMatrix, clustering: List[Cluster]
+) -> List[Dict[ClusterId, float]]:
     """
     Returns a list, which for every position contains a dictionary, mapping a cluster id to
     a relative coverage on this position.
     """
     num_vars = allele_matrix.getNumPositions()
     num_clusters = len(clustering)
-    coverage = [defaultdict(int) for pos in range(num_vars)]
+    coverage = [defaultdict(float) for pos in range(num_vars)]
     coverage_sum = [0 for pos in range(num_vars)]
     for c_id in range(num_clusters):
         for read in clustering[c_id]:
@@ -88,7 +91,9 @@ def get_coverage(allele_matrix: AlleleMatrix, clustering: List[List[int]]):
     return coverage
 
 
-def compute_block_starts(am: AlleleMatrix, ploidy: int, single_linkage: bool = False):
+def compute_block_starts(
+    am: AlleleMatrix, ploidy: int, single_linkage: bool = False
+) -> List[Position]:
     """
     Based on the connectivity of the reads, we want to divide the phasing input, as non- or poorly
     connected regions can be phased independently. This is done based on how pairs of variants are
