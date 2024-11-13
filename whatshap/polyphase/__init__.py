@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from queue import Queue
-from typing import List, Dict, TypeAlias
+from typing import List, Dict
 
 from pulp import listSolvers, getSolver
 from whatshap.core import ReadSet
@@ -12,16 +12,16 @@ from whatshap.vcf import VariantTable
 logger = logging.getLogger(__name__)
 
 
-Position: TypeAlias = int
-Allele: TypeAlias = int
-Genotype: TypeAlias = Dict[Allele, int]
-AlleleDepth: TypeAlias = Dict[Allele, int]
-Haplotype: TypeAlias = List[Allele]
-ReadId: TypeAlias = int
-Cluster: TypeAlias = List[ReadId]
-Clustering: TypeAlias = List[Cluster]
-ClusterId: TypeAlias = int
-Threading: TypeAlias = List[List[ClusterId]]
+Position = int
+Allele = int
+Genotype = Dict[Allele, int]
+AlleleDepth = Dict[Allele, int]
+Haplotype = List[Allele]
+ReadId = int
+Cluster = List[ReadId]
+Clustering = List[Cluster]
+ClusterId = int
+Threading = List[List[ClusterId]]
 
 
 class SolverError(Exception):

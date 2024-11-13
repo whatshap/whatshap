@@ -2,7 +2,7 @@ import itertools as it
 import logging
 from collections import defaultdict
 from bisect import bisect_right
-from typing import List, Tuple, Dict, TypeAlias
+from typing import List, Tuple, Dict
 from math import log, exp
 from functools import reduce
 from operator import mul
@@ -24,9 +24,9 @@ from whatshap.polyphase.solver import AlleleMatrix
 logger = logging.getLogger(__name__)
 
 
-ThreadId: TypeAlias = int
-SubInstance: TypeAlias = Tuple[ClusterId, List[ThreadId], AlleleMatrix]
-ThreadPermutation: TypeAlias = Tuple[int]
+ThreadId = int
+SubInstance = Tuple[ClusterId, List[ThreadId], AlleleMatrix]
+ThreadPermutation = Tuple[int]
 
 
 def find_subinstances(
