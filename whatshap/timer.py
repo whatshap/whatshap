@@ -2,23 +2,26 @@ import time
 import logging
 from collections import defaultdict
 from contextlib import contextmanager
+from typing import TypeVar, Iterator, Iterable, DefaultDict, Dict
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 
 class StageTimer:
     """Measure run times of multiple non-overlapping stages of a program"""
 
-    def __init__(self):
-        self._start = dict()
-        self._elapsed = defaultdict(float)
+    def __init__(self) -> None:
+        self._start: Dict[str, float] = dict()
+        self._elapsed: DefaultDict[str, float] = defaultdict(float)
         self._overall_start_time = time.time()
 
     def start(self, stage):
         """Start measuring elapsed time for a stage"""
         self._start[stage] = time.time()
 
-    def stop(self, stage):
+    def stop(self, stage: str) -> float:
         """Stop measuring elapsed time for a stage."""
         t = time.time() - self._start[stage]
         if t <= 0:
@@ -30,7 +33,7 @@ class StageTimer:
         del self._start[stage]
         return t
 
-    def elapsed(self, stage):
+    def elapsed(self, stage: str) -> float:
         """
         Return total time spent in a stage, which is the sum of the time spans
         between calls to start() and stop(). If the timer is currently running,
@@ -38,20 +41,20 @@ class StageTimer:
         """
         return self._elapsed[stage]
 
-    def sum(self):
+    def sum(self) -> float:
         """Return sum of all times"""
         return sum(self._elapsed.values())
 
-    def total(self):
+    def total(self) -> float:
         return time.time() - self._overall_start_time
 
     @contextmanager
-    def __call__(self, stage):
+    def __call__(self, stage: str):
         self.start(stage)
         yield
         self.stop(stage)
 
-    def iterate(self, stage, iterator):
+    def iterate(self, stage: str, iterator: Iterable[T]) -> Iterator[T]:
         """Measure iterator runtime"""
 
         self.start(stage)

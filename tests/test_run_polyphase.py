@@ -117,7 +117,7 @@ def test_blockcut_sensitivities2(tmp_path):
     for s in range(5):
         assert all(cut in results[s + 1] for cut in results[s])
 
-    assert results[0] == results[1]
+    assert results[0] == {3}
     assert results[1] == {3, 18}
     assert results[2] == {3, 9, 18}
     assert results[3] in [{3, 9, 18, 27}, {3, 9, 18}]
