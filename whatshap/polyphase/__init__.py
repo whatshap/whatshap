@@ -2,7 +2,7 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from queue import Queue
-from typing import List, Dict
+from typing import List, Dict, Iterator
 
 from pulp import listSolvers, getSolver
 from whatshap.core import ReadSet
@@ -28,6 +28,13 @@ class SolverError(Exception):
     pass
 
 
+class Interval:
+    def __init__(self, start: Position, end: Position):
+        self.start = start
+        self.end = end
+        self.length = end - start
+
+
 @dataclass
 class PolyphaseParameter:
     ploidy: int
@@ -39,6 +46,14 @@ class PolyphaseParameter:
     plot_threading: bool
     threads: int
     use_prephasing: bool
+
+
+@dataclass
+class BlockContext:
+    block_id: int
+    job_id: int
+    total_blocks: int
+    recursion_level: int
 
 
 class PhaseBreakpoint:
@@ -91,9 +106,9 @@ def get_coverage(
     return coverage
 
 
-def compute_block_starts(
+def compute_block_bounds(
     am: AlleleMatrix, ploidy: int, single_linkage: bool = False
-) -> List[Position]:
+) -> Iterator[Interval]:
     """
     Based on the connectivity of the reads, we want to divide the phasing input, as non- or poorly
     connected regions can be phased independently. This is done based on how pairs of variants are
@@ -176,12 +191,12 @@ def compute_block_starts(
         new_num_clust += 1
 
     # determine cut positions
-    cuts = [0]
+    start = 0
     for i in range(1, num_vars):
         if merged_clust[pos_clust[i]] != merged_clust[pos_clust[i - 1]]:
-            cuts.append(i)
-
-    return cuts
+            yield Interval(start, i)
+            start = i
+    yield Interval(start, num_vars)
 
 
 def create_genotype_list(variant_table: VariantTable, sample: str):

@@ -202,9 +202,8 @@ def test_integrate_subresults1():
     am, clustering, threads, haplotypes = get_instance1()
     haplotypes_old = haplotypes[:]
     sub = find_subinstances(am, clustering, threads, haplotypes)
-    sub_results = []
-    sub_results.append(PolyphaseBlockResult(0, [[0], [1]], [[0, 1]], [[0], [1]], []))
-    breakpoints = integrate_sub_results(am, sub, sub_results, threads, haplotypes)
+    sub_results = [PolyphaseBlockResult(0, [[0], [1]], [[0, 1]], [[0], [1]], [])]
+    breakpoints = integrate_sub_results(am, threads, haplotypes, sub, sub_results)
     for bp in breakpoints:
         print(bp.position, bp.haplotypes, bp.confidence)
     assert len(breakpoints) == 2
@@ -221,7 +220,7 @@ def test_integrate_subresults2():
     sub_results = []
     sub_results.append(PolyphaseBlockResult(0, [[0], [1, 2]], [[0, 1, 1]], [[1], [0], [0]], []))
     sub_results.append(PolyphaseBlockResult(0, [[0], [1]], [[0, 1]], [[0], [2]], []))
-    breakpoints = integrate_sub_results(am, sub, sub_results, threads, haplotypes)
+    breakpoints = integrate_sub_results(am, threads, haplotypes, sub, sub_results)
     for bp in breakpoints:
         print(bp.position, bp.haplotypes, bp.confidence)
     assert len(breakpoints) == 3
@@ -240,7 +239,7 @@ def test_integrate_subresults3() -> None:
     sub_results.append(
         PolyphaseBlockResult(0, [[0, 1, 2], [3, 4]], [[0, 1], [0, 1]], [[0, 0], [1, 1]], [])
     )
-    breakpoints = integrate_sub_results(am, sub, sub_results, threads, haplotypes)
+    breakpoints = integrate_sub_results(am, threads, haplotypes, sub, sub_results)
     for bp in breakpoints:
         print(bp.position, bp.haplotypes, bp.confidence)
     assert len(breakpoints) == 1

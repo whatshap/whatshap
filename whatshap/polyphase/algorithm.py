@@ -16,8 +16,9 @@ from whatshap.polyphase import (
     PolyphaseResult,
     PolyphaseBlockResult,
     PhaseBreakpoint,
-    compute_block_starts,
+    compute_block_bounds,
     PolyphaseParameter,
+    BlockContext,
 )
 from whatshap.polyphase import Genotype
 from whatshap.polyphase.reorder import find_subinstances, integrate_sub_results, run_reordering
@@ -33,11 +34,11 @@ logger = logging.getLogger(__name__)
 
 def solve_polyphase_instance(
     allele_matrix: AlleleMatrix,
-    genotype_list: List[Genotype],
+    genotypes: List[Genotype],
     param: PolyphaseParameter,
     timers: StageTimer,
-    partial_phasing: bool = None,
-    quiet: bool = False,
+    partial_phasing: AlleleMatrix = None,
+    recurion_level: int = 0,
 ) -> PolyphaseResult:
     """
     Entry point for polyploid phasing instances. Inputs are an allele matrix and genotypes for each
@@ -49,25 +50,24 @@ def solve_polyphase_instance(
     assert len(allele_matrix) > 0
 
     # Precompute block borders based on read coverage and linkage between variants
-    if not quiet:
+    if recurion_level == 0:
         logger.info("Detecting connected components with weak interconnect ..")
     timers.start("detecting_blocks")
 
-    ploidy = param.ploidy
     sl = param.block_cut_sensitivity <= 1
-    block_starts = compute_block_starts(allele_matrix, ploidy, single_linkage=sl)
+    block_bounds = list(compute_block_bounds(allele_matrix, param.ploidy, single_linkage=sl))
 
     # Set block borders and split readset
-    block_starts.append(num_vars)
-    assert block_starts == sorted(list(set(block_starts)))
-    num_blocks = sum(1 for i, j in zip(block_starts[:-1], block_starts[1:]) if j > i + 1)
-    if not quiet:
+    # block_starts.append(num_vars)
+    # assert block_starts == sorted(list(set(block_starts)))
+    num_blocks = sum(1 for it in block_bounds if it.end > it.start + 1)
+    if recurion_level == 0:
         logger.info(
-            f"Split heterozygous variants into {num_blocks} blocks (and {len(block_starts) - num_blocks - 1} singleton blocks)."
+            f"Split variants into {num_blocks} blocks (and {len(block_bounds) - num_blocks} singleton blocks)."
         )
 
     # Process blocks independently
-    results = []
+    results: List[PolyphaseBlockResult] = []
     processed_blocks = 0
     timers.stop("detecting_blocks")
 
@@ -81,52 +81,51 @@ def solve_polyphase_instance(
     """
     if param.threads == 1:
         # for single-threading, process everything individually to minimize memory footprint
-        for block_id, (start, end) in enumerate(zip(block_starts[:-1], block_starts[1:])):
-            submatrix = allele_matrix.extractInterval(start, end)
-            subphasing = partial_phasing.extractInterval(start, end) if partial_phasing else None
-            if end - start > 1:
+        for block_id, block in enumerate(block_bounds):
+            if block.length > 1:
                 processed_blocks += 1
-                if not quiet:
-                    logger.info(
-                        f"Processing block {processed_blocks} of {num_blocks} with {len(submatrix)} reads and {end - start} variants."
-                    )
             results.append(
                 phase_single_block(
-                    block_id, submatrix, genotype_list[start:end], subphasing, param, timers, quiet
+                    allele_matrix.extractInterval(block.start, block.end),
+                    genotypes[block.start : block.end],
+                    (
+                        partial_phasing.extractInterval(block.start, block.end)
+                        if partial_phasing
+                        else None
+                    ),
+                    param,
+                    timers,
+                    BlockContext(block_id, processed_blocks, num_blocks, recurion_level),
                 )
             )
-            del submatrix
-
     else:
-        # sort block by descending size (4/3-approximation for scheduling problem)
         timers.start("phase_blocks")
-        joblist = list(zip(range(len(block_starts)), block_starts[:-1], block_starts[1:]))
-        joblist.sort(key=lambda x: x[1] - x[2])
+        # sort block by descending size (4/3-approximation for scheduling problem)
+        joblist = list(enumerate(block_bounds))
+        joblist.sort(key=lambda x: -x[1].length)
 
         with Pool(processes=param.threads) as pool:
             process_results = [
                 pool.apply_async(
-                    phase_single_block_mt,
+                    phase_single_block,
                     (
-                        allele_matrix,
-                        partial_phasing,
-                        block_id,
-                        start,
-                        end,
-                        genotype_list[start:end],
+                        allele_matrix.extractInterval(block.start, block.end),
+                        genotypes[block.start : block.end],
+                        (
+                            partial_phasing.extractInterval(block.start, block.end)
+                            if partial_phasing
+                            else None
+                        ),
                         param,
                         timers,
-                        job_id,
-                        num_blocks,
-                        quiet,
+                        BlockContext(block_id, job_id, num_blocks, recurion_level),
                     ),
                 )
-                for job_id, (block_id, start, end) in enumerate(joblist)
+                for job_id, (block_id, block) in enumerate(joblist)
             ]
             # collect all blockwise results
-            blockwise_results = [res.get() for res in process_results]
-            results = sorted(blockwise_results, key=lambda x: x.block_id)
-
+            results = [res.get() for res in process_results]
+        results.sort(key=lambda x: x.block_id)
         timers.stop("phase_blocks")
 
     # Aggregate blockwise results
@@ -136,17 +135,16 @@ def solve_polyphase_instance(
         borders = {partial_phasing.getFirstPos(i) for i in range(len(partial_phasing))}
     else:
         borders = []
-    return aggregate_results(results, ploidy, borders)
+    return aggregate_results(results, param.ploidy, borders)
 
 
 def phase_single_block(
-    block_id: int,
     allele_matrix: AlleleMatrix,
     genotypes: List[Genotype],
     prephasing: AlleleMatrix,
     param: PolyphaseParameter,
     timers: StageTimer,
-    quiet: bool = False,
+    context: BlockContext,
 ) -> PolyphaseBlockResult:
     """
     Takes as input data the reads from a single (pre-computed) block and the genotypes for all
@@ -162,14 +160,20 @@ def phase_single_block(
     """
 
     # Check for empty/singleton blocks and handle them differently (for efficiency reasons)
-    block_num_vars = allele_matrix.getNumPositions()
-    if block_num_vars < 2:
+    num_vars = allele_matrix.getNumPositions()
+    assert num_vars == len(genotypes)
+    if num_vars < 2:
         # construct trivial solution for singleton blocks, by using the genotype as phasing
         g = genotypes[0]
         clusts = [[i for i, r in enumerate(allele_matrix) if r and r[0][1] == a] for a in g]
         threads = [sorted(list(chain(*[[i] * g[a] for i, a in enumerate(g)])))]
         haps = sorted(list(chain(*[[[a]] * g[a] for a in g])))
-        return PolyphaseBlockResult(block_id, clusts, threads, haps, [])
+        return PolyphaseBlockResult(context.block_id, clusts, threads, haps, [])
+
+    if context.recursion_level == 0:
+        logger.info(
+            f"Processing block {context.job_id} of {context.total_blocks} with {len(allele_matrix)} reads and {num_vars} variants."
+        )
 
     # Block is non-singleton here, so run the normal routine
     # Phase I: Cluster Editing
@@ -223,7 +227,7 @@ def phase_single_block(
     sub_instances = find_subinstances(allele_matrix, clustering, threads, haplotypes)
     sub_results = []
     sub_param = copy(param)
-    sub_param.ignore_phasings = True
+    sub_param.use_prephasing = False
     sub_param.threads = 1
     for cid, thread_set, subm in sub_instances:
         assert len(subm) > 0
@@ -233,13 +237,15 @@ def phase_single_block(
         subgeno = [{a: h.count(a) for a in h} for h in subhaps]
         sub_param.ploidy = len(thread_set)
         timers.stop("reordering")
-        res = solve_polyphase_instance(subm, subgeno, sub_param, timers, quiet=True)
+        res = solve_polyphase_instance(
+            subm, subgeno, sub_param, timers, recurion_level=context.recursion_level + 1
+        )
         timers.start("reordering")
         sub_results.append(res)
 
     # collect breakpoints of sub-instances and overall instance. Update threads/haplotypes
     breakpoints = integrate_sub_results(
-        allele_matrix, sub_instances, sub_results, threads, haplotypes
+        allele_matrix, threads, haplotypes, sub_instances, sub_results
     )
     del sub_instances
     del sub_results
@@ -249,47 +255,17 @@ def phase_single_block(
 
     timers.stop("reordering")
 
+    if context.recursion_level == 0:
+        logger.info(f"Finished block {context.job_id}.")
+
     # collect results from threading
     return PolyphaseBlockResult(
-        block_id=block_id,
+        block_id=context.block_id,
         clustering=[[allele_matrix.getGlobalId(r) for r in c] for c in clustering],
         threads=threads,
         haplotypes=haplotypes,
         breakpoints=breakpoints,
     )
-
-
-def phase_single_block_mt(
-    allele_matrix: AlleleMatrix,
-    partial_phasing: AlleleMatrix,
-    block_id: int,
-    start: int,
-    end: int,
-    genotype_slice: List[Genotype],
-    param: PolyphaseParameter,
-    timers: StageTimer,
-    job_id: int,
-    num_blocks: int,
-    quiet: bool = False,
-) -> PolyphaseBlockResult:
-    """
-    Wrapper for the phase_single_block() function. Carries a block_id through to the results.
-    Creates a local submatrix without modifying the given allele matrix
-    """
-    submatrix = allele_matrix.extractInterval(start, end)
-    subphasing = partial_phasing.extractInterval(start, end) if partial_phasing else None
-    block_vars = submatrix.getNumPositions()
-    if block_vars > 1 and not quiet:
-        logger.info(
-            f"Phasing block {job_id + 1} of {num_blocks} with {len(submatrix)} reads and {block_vars} variants."
-        )
-
-    result = phase_single_block(
-        block_id, submatrix, genotype_slice, subphasing, param, timers, quiet
-    )
-    if block_vars > 1 and not quiet:
-        logger.info(f"Finished block {job_id + 1}.")
-    return result
 
 
 def aggregate_results(
