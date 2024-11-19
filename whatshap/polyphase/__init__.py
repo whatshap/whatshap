@@ -44,6 +44,7 @@ class PolyphaseParameter:
     block_cut_sensitivity: int
     plot_clusters: bool
     plot_threading: bool
+    plot_path: str
     threads: int
     use_prephasing: bool
 
