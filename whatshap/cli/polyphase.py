@@ -22,6 +22,9 @@ from typing import (
     List,
     TextIO,
     Sequence,
+    FrozenSet,
+    Dict,
+    Tuple,
 )
 
 from whatshap import __version__
@@ -32,7 +35,12 @@ from whatshap.core import (
 )
 from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
 
-from whatshap.polyphase import PolyphaseParameter, create_genotype_list, extract_partial_phasing
+from whatshap.polyphase import (
+    PolyphaseParameter,
+    create_genotype_list,
+    extract_partial_phasing,
+    Position,
+)
 from whatshap.polyphase.algorithm import solve_polyphase_instance, compute_cut_positions
 from whatshap.polyphase.plots import draw_plots
 from whatshap.polyphase.solver import AlleleMatrix
@@ -193,6 +201,7 @@ def run_polyphase(
             block_cut_sensitivity=block_cut_sensitivity,
             plot_clusters=plot_clusters,
             plot_threading=plot_threading,
+            plot_path=output.name,
             threads=threads,
             use_prephasing=use_prephasing,
         )
@@ -213,76 +222,10 @@ def run_polyphase(
                         vcf_writer.write(chromosome, superreads, components)
                     continue
 
-                # These two variables hold the phasing results for all samples
-                superreads, components, haploid_components = dict(), dict(), dict()
-
-                # Iterate over all samples to process
-                for sample in samples:
-                    logger.info("---- Processing individual %s", sample)
-
-                    # Process inputs for this sample
-                    missing_genotypes = set()
-                    heterozygous = set()
-
-                    genotypes = variant_table.genotypes_of(sample)
-                    for index, gt in enumerate(genotypes):
-                        if gt.is_none():
-                            missing_genotypes.add(index)
-                        elif not gt.is_homozygous():
-                            heterozygous.add(index)
-                        else:
-                            assert gt.is_homozygous()
-                    to_discard = set(range(len(variant_table))).difference(heterozygous)
-                    phasable_variant_table = deepcopy(variant_table)
-                    # Remove calls to be discarded from variant table
-                    phasable_variant_table.remove_rows_by_index(to_discard)
-
-                    logger.info(
-                        "Number of variants skipped due to missing genotypes: %d",
-                        len(missing_genotypes),
-                    )
-                    logger.info(
-                        "Number of remaining heterozygous variants: %d", len(phasable_variant_table)
-                    )
-
-                    if len(phasable_variant_table) < 2:
-                        logger.debug("Skipped phasing because there is only one variant")
-                        continue
-
-                    # Get the reads belonging to this sample
-                    timers.start("read_bam")
-                    readset, vcf_source_ids = phased_input_reader.read(
-                        chromosome, phasable_variant_table.variants, sample
-                    )
-                    readset.sort()
-                    timers.stop("read_bam")
-
-                    # Remove reads with insufficient variants
-                    readset = readset.subset(
-                        [i for i, read in enumerate(readset) if len(read) >= max(2, min_overlap)]
-                    )
-                    if len(readset) == 0:
-                        logger.debug("Skipped phasing because no suitable reads remain")
-                        continue
-
-                    logger.info("Kept %d reads that cover at least two variants each", len(readset))
-
-                    # Adapt the variant table to the subset of reads
-                    phasable_variant_table.subset_rows_by_position(readset.get_positions())
-
-                    # Run the actual phasing
-                    (
-                        sample_components,
-                        sample_haploid_components,
-                        sample_superreads,
-                    ) = phase_single_individual(
-                        readset, phasable_variant_table, sample, phasing_param, output, timers
-                    )
-
-                    # Collect results
-                    components[sample] = sample_components
-                    haploid_components[sample] = sample_haploid_components
-                    superreads[sample] = sample_superreads
+                # These three variables hold the phasing results for all samples
+                components, haploid_components, superreads = phase_single_chromosome(
+                    variant_table, phased_input_reader, samples, timers, phasing_param
+                )
 
                 with timers("write_vcf"):
                     logger.info("======== Writing VCF")
@@ -324,14 +267,92 @@ def run_polyphase(
     logger.info("Total elapsed time:                  %6.1f s", timers.total())
 
 
+def phase_single_chromosome(
+    variant_table: VariantTable,
+    phased_input_reader: PhasedInputReader,
+    samples: FrozenSet[str],
+    timers: StageTimer,
+    param: PolyphaseParameter,
+) -> Tuple[
+    Dict[str, Dict[Position, int]], Dict[str, Dict[Position, List[int]]], Dict[str, ReadSet]
+]:
+    chromosome = variant_table.chromosome
+    superreads, components, haploid_components = dict(), dict(), dict()
+
+    # Iterate over all samples to process
+    for sample in samples:
+        logger.info("---- Processing individual %s", sample)
+
+        # Process inputs for this sample
+        missing_genotypes = set()
+        heterozygous = set()
+
+        genotypes = variant_table.genotypes_of(sample)
+        for index, gt in enumerate(genotypes):
+            if gt.is_none():
+                missing_genotypes.add(index)
+            elif not gt.is_homozygous():
+                heterozygous.add(index)
+            else:
+                assert gt.is_homozygous()
+        to_discard = set(range(len(variant_table))).difference(heterozygous)
+        phasable_variant_table = deepcopy(variant_table)
+        # Remove calls to be discarded from variant table
+        phasable_variant_table.remove_rows_by_index(to_discard)
+
+        logger.info(
+            "Number of variants skipped due to missing genotypes: %d",
+            len(missing_genotypes),
+        )
+        logger.info("Number of remaining heterozygous variants: %d", len(phasable_variant_table))
+
+        if len(phasable_variant_table) < 2:
+            logger.debug("Skipped phasing because there is only one variant")
+            continue
+
+        # Get the reads belonging to this sample
+        timers.start("read_bam")
+        readset, vcf_source_ids = phased_input_reader.read(
+            chromosome, phasable_variant_table.variants, sample
+        )
+        readset.sort()
+        timers.stop("read_bam")
+
+        # Remove reads with insufficient variants
+        readset = readset.subset(
+            [i for i, read in enumerate(readset) if len(read) >= max(2, param.min_overlap)]
+        )
+        if len(readset) == 0:
+            logger.debug("Skipped phasing because no suitable reads remain")
+            continue
+
+        logger.info("Kept %d reads that cover at least two variants each", len(readset))
+
+        # Adapt the variant table to the subset of reads
+        phasable_variant_table.subset_rows_by_position(readset.get_positions())
+
+        # Run the actual phasing
+        (
+            sample_components,
+            sample_haploid_components,
+            sample_superreads,
+        ) = phase_single_individual(readset, phasable_variant_table, sample, param, timers)
+
+        # Collect results
+        components[sample] = sample_components
+        haploid_components[sample] = sample_haploid_components
+        superreads[sample] = sample_superreads
+
+    return components, haploid_components, superreads
+
+
 def phase_single_individual(
     readset: ReadSet,
     phasable_variant_table: VariantTable,
     sample: str,
     param: PolyphaseParameter,
-    output: TextIO,
     timers: StageTimer,
-):
+) -> Tuple[Dict[Position, int], Dict[Position, List[int]], ReadSet]:
     # Compute the genotypes that belong to the variant table and create a list of all genotypes
     genotype_list = create_genotype_list(phasable_variant_table, sample)
 
@@ -392,7 +413,7 @@ def phase_single_individual(
             phasable_variant_table,
             param.plot_clusters,
             param.plot_threading,
-            output,
+            param.plot_path,
         )
         timers.stop("create_plots")
 
