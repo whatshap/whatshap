@@ -78,7 +78,6 @@ def run_polyphase(
     ce_bundle_edges: bool = False,
     plot_clusters: bool = False,
     plot_threading: bool = False,
-    verify_genotypes: bool = False,
 ):
     """
     Run Polyploid Phasing.
@@ -175,9 +174,6 @@ def run_polyphase(
                     f"Sample {sample!r} requested on command-line not found in VCF"
                 )
 
-        if verify_genotypes:
-            logger.warning("Option --verify-genotypes is deprecated. It will be ignored.")
-
         if use_prephasing and block_cut_sensitivity > 1:
             logger.info(
                 "Consider using '-B 0' or '-B 1' when adding pre-phasings from another source."
@@ -247,10 +243,6 @@ def run_polyphase(
     log_memory_usage(include_children=(threads > 1))
     logger.info("Time spent reading BAM/CRAM:         %6.1f s", timers.elapsed("read_bam"))
     logger.info("Time spent parsing VCF:              %6.1f s", timers.elapsed("parse_vcf"))
-    if verify_genotypes:
-        logger.info(
-            "Time spent verifying genotypes:      %6.1f s", timers.elapsed("verify_genotypes")
-        )
     logger.info("Time spent detecting blocks:         %6.1f s", timers.elapsed("detecting_blocks"))
     if threads == 1:
         logger.info("Time spent scoring reads:            %6.1f s", timers.elapsed("read_scoring"))
@@ -603,8 +595,11 @@ def validate(args, parser):
         parser.error("Block cut sensitivity must be an integer value between 0 and 5.")
     if args.indels_used:
         logger.warning("Ignoring --indels as indel phasing is default in WhatsHap 2.0+")
+    if args.verify_genotypes:
+        logger.warning("Ignoring deprecated option --verify-genotypes.")
 
 
 def main(args):
     del args.indels_used
+    del args.verify_genotypes
     run_polyphase(**vars(args))
