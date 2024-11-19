@@ -13,8 +13,6 @@ import logging
 import platform
 import argparse
 
-from copy import deepcopy
-
 from contextlib import ExitStack
 
 from typing import (
@@ -201,7 +199,7 @@ def run_polyphase(
             block_cut_sensitivity=block_cut_sensitivity,
             plot_clusters=plot_clusters,
             plot_threading=plot_threading,
-            plot_path=output.name,
+            plot_path=output if type(output) is str else output.name,
             threads=threads,
             use_prephasing=use_prephasing,
         )
@@ -226,6 +224,7 @@ def run_polyphase(
                 components, haploid_components, superreads = phase_single_chromosome(
                     variant_table, phased_input_reader, samples, timers, phasing_param
                 )
+                # Unphasable variants are removed from input table from here!
 
                 with timers("write_vcf"):
                     logger.info("======== Writing VCF")
@@ -296,24 +295,23 @@ def phase_single_chromosome(
             else:
                 assert gt.is_homozygous()
         to_discard = set(range(len(variant_table))).difference(heterozygous)
-        phasable_variant_table = deepcopy(variant_table)
         # Remove calls to be discarded from variant table
-        phasable_variant_table.remove_rows_by_index(to_discard)
+        variant_table.remove_rows_by_index(to_discard)
 
         logger.info(
             "Number of variants skipped due to missing genotypes: %d",
             len(missing_genotypes),
         )
-        logger.info("Number of remaining heterozygous variants: %d", len(phasable_variant_table))
+        logger.info("Number of remaining heterozygous variants: %d", len(variant_table))
 
-        if len(phasable_variant_table) < 2:
+        if len(variant_table) < 2:
             logger.debug("Skipped phasing because there is only one variant")
             continue
 
         # Get the reads belonging to this sample
         timers.start("read_bam")
         readset, vcf_source_ids = phased_input_reader.read(
-            chromosome, phasable_variant_table.variants, sample
+            chromosome, variant_table.variants, sample
         )
         readset.sort()
         timers.stop("read_bam")
@@ -329,14 +327,14 @@ def phase_single_chromosome(
         logger.info("Kept %d reads that cover at least two variants each", len(readset))
 
         # Adapt the variant table to the subset of reads
-        phasable_variant_table.subset_rows_by_position(readset.get_positions())
+        variant_table.subset_rows_by_position(readset.get_positions())
 
         # Run the actual phasing
         (
             sample_components,
             sample_haploid_components,
             sample_superreads,
-        ) = phase_single_individual(readset, phasable_variant_table, sample, param, timers)
+        ) = phase_single_individual(readset, variant_table, sample, param, timers)
 
         # Collect results
         components[sample] = sample_components
