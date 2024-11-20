@@ -151,14 +151,14 @@ def compute_block_bounds(
     logger.debug(f"Cut position threshold: coverage >= {cut_threshold}")
 
     # start by looking at neighbouring
-    link_to_next = [0 for i in range(num_vars)]
+    link_to_next = [0 for _ in range(num_vars)]
     for read in am:
         pos_list = [pos for (pos, allele) in read]
         for i in range(len(pos_list) - 1):
             if pos_list[i] + 1 == pos_list[i + 1]:
                 link_to_next[pos_list[i]] += 1
 
-    pos_clust = [0 for i in range(num_vars)]
+    pos_clust = [0 for _ in range(num_vars)]
     for i in range(1, num_vars):
         if link_to_next[i - 1] >= cut_threshold:
             pos_clust[i] = pos_clust[i - 1]
@@ -168,7 +168,7 @@ def compute_block_bounds(
 
     # find linkage between clusters
     link_coverage = [defaultdict(int) for i in range(num_clust)]
-    for i, read in enumerate(am):
+    for read in am:
         covered_pos_clusts = {pos_clust[pos] for (pos, allele) in read}
         for p1 in covered_pos_clusts:
             for p2 in covered_pos_clusts:
