@@ -160,8 +160,7 @@ def phase_single_block(
     """
 
     # Check for empty/singleton blocks and handle them differently (for efficiency reasons)
-    num_vars = allele_matrix.getNumPositions()
-    assert num_vars == len(genotypes)
+    num_vars = len(genotypes)
     if num_vars < 2:
         # construct trivial solution for singleton blocks, by using the genotype as phasing
         g = genotypes[0]
@@ -180,6 +179,7 @@ def phase_single_block(
 
     # Compute similarity values for all read pairs
     assert len(allele_matrix) > 0
+    assert num_vars == allele_matrix.getNumPositions()
     timers.start("read_scoring")
     logger.debug("Computing similarities for read pairs ..")
     sim = scoreReadset(allele_matrix, param.min_overlap, param.ploidy, 0.07)
