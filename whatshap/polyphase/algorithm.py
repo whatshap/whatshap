@@ -255,7 +255,7 @@ def phase_single_block(
 
     timers.stop("reordering")
 
-    if context.recursion_level == 0:
+    if context.recursion_level == 0 and param.threads > 1:
         logger.info(f"Finished block {context.job_id}.")
 
     # collect results from threading
