@@ -500,7 +500,7 @@ class ReadSetReader:
         return v
 
     @staticmethod
-    def split_cigar(cigar, i, consumed):
+    def split_cigar_left(cigar, i, consumed):
         """
         Split a CIGAR into two parts. i and consumed describe the split position.
         i is the element of the cigar list that should be split, and consumed says
@@ -512,24 +512,34 @@ class ReadSetReader:
         consumed -- how many cigar ops at cigar[i] are to the *left* of the
             split position
 
-        Return a tuple (left, right).
-
         Example:
         Assume the cigar is 3M 1D 6M 2I 4M.
         With i == 2 and consumed == 5, the cigar is split into
         3M 1D 5M and 1M 2I 4M.
+
+        This function returns the left part of the split as an iterator that runs
+        from the split point to the beginning of the full cigar.
+        See split_cigar_right to obtain the right part.
         """
         middle_op, middle_length = cigar[i]
         assert consumed <= middle_length
         if consumed > 0:
-            left = cigar[:i] + [(middle_op, consumed)]
-        else:
-            left = cigar[:i]
+            yield middle_op, consumed
+        for j in range(i - 1, -1, -1):
+            yield cigar[j]
+
+    @staticmethod
+    def split_cigar_right(cigar, i, consumed):
+        """
+        Counterpart of split_cigar_left that returns an iterator for the right
+        part of the split, running from the split point to the end of the input
+        cigar.
+        """
+        middle_op, middle_length = cigar[i]
         if consumed < middle_length:
-            right = [(middle_op, middle_length - consumed)] + cigar[i + 1 :]
-        else:
-            right = cigar[i + 1 :]
-        return left, right
+            yield middle_op, middle_length - consumed
+        for j in range(i + 1, len(cigar)):
+            yield cigar[j]
 
     @staticmethod
     def cigar_prefix_length(cigar, reference_bases: int):
@@ -618,14 +628,15 @@ class ReadSetReader:
         if any(alt.startswith("<") for alt in variant.get_alt_allele_list()):
             return None, None
 
-        left_cigar, right_cigar = ReadSetReader.split_cigar(cigartuples, i, consumed)
+        left_cigar_iterator = ReadSetReader.split_cigar_left(cigartuples, i, consumed)
+        right_cigar_iterator = ReadSetReader.split_cigar_right(cigartuples, i, consumed)
 
         if use_kmerald:
             left_ref_bases, left_query_bases = ReadSetReader.cigar_prefix_length(
-                left_cigar[::-1], int(kmerald_window)
+                left_cigar_iterator, int(kmerald_window)
             )
             right_ref_bases, right_query_bases = ReadSetReader.cigar_prefix_length(
-                right_cigar, len(variant.reference_allele) + int(kmerald_window)
+                right_cigar_iterator, len(variant.reference_allele) + int(kmerald_window)
             )
             assert variant.position - left_ref_bases >= 0
             assert variant.position + right_ref_bases <= len(reference)
@@ -686,10 +697,10 @@ class ReadSetReader:
                 return None, None  # cannot decide
         else:
             left_ref_bases, left_query_bases = ReadSetReader.cigar_prefix_length(
-                left_cigar[::-1], overhang
+                left_cigar_iterator, overhang
             )
             right_ref_bases, right_query_bases = ReadSetReader.cigar_prefix_length(
-                right_cigar, len(variant.reference_allele) + overhang
+                right_cigar_iterator, len(variant.reference_allele) + overhang
             )
 
             assert variant.position - left_ref_bases >= 0
@@ -771,7 +782,7 @@ class ReadSetReader:
         # Accessing bam_read.cigartuples is expensive, do it only once
         cigartuples = bam_read.cigartuples
 
-        # For the same reason, the following check is here instad of
+        # For the same reason, the following check is here instead of
         # in the _usable_alignments method
         if not cigartuples:
             return
