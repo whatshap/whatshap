@@ -6,6 +6,7 @@ development version
 -------------------
 
 * :issue:`537`: Fixed a crash when running `haplotag` on CRAM files.
+* :pr:`545`: `haplotagphase` now supports multi-allelic variants.
 * Start supporting Python 3.13
 
 v2.3 (2024-05-05)
