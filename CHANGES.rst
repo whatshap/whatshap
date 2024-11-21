@@ -7,6 +7,7 @@ development version
 
 * :issue:`537`: Fixed a crash when running `haplotag` on CRAM files.
 * Start supporting Python 3.13
+* Reduced processing time of BAM files by about 33% when using realignment.
 
 v2.3 (2024-05-05)
 -----------------
