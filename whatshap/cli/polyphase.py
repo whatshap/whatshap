@@ -31,6 +31,7 @@ from whatshap.polyphase.plots import draw_plots
 from whatshap.polyphase.solver import AlleleMatrix
 
 from whatshap.timer import StageTimer
+from whatshap.utils import ChromosomeFilter
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
 
 __author__ = "Jana Ebler, Sven Schrinner"
@@ -47,6 +48,7 @@ def run_polyphase(
     output=sys.stdout,
     samples=None,
     chromosomes=None,
+    excluded_chromosomes=None,
     verify_genotypes=False,
     ignore_read_groups=False,
     only_snvs=False,
@@ -74,6 +76,7 @@ def run_polyphase(
     output -- path to output VCF or a file like object
     samples -- names of samples to phase. An empty list means: phase all samples
     chromosomes -- names of chromosomes to phase. An empty list means: phase all chromosomes
+    excluded_chromosomes -- names of chromosomes not to phase.
     ignore_read_groups
     mapping_quality -- discard reads below this mapping quality
     tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
@@ -175,9 +178,10 @@ def run_polyphase(
         )
 
         try:
+            included_chromosomes = ChromosomeFilter(chromosomes, excluded_chromosomes)
             for variant_table in timers.iterate("parse_vcf", vcf_reader):
                 chromosome = variant_table.chromosome
-                if (not chromosomes) or (chromosome in chromosomes):
+                if chromosome in included_chromosomes:
                     logger.info("======== Working on chromosome %r", chromosome)
                 else:
                     logger.info(
@@ -453,6 +457,13 @@ def add_arguments(parser):
         action="append",
         help="Name of chromosome to phase. If not given, all chromosomes in the "
         "input VCF are phased. Can be used multiple times.",
+    )
+    arg(
+        "--exclude-chromosome",
+        dest="excluded_chromosomes",
+        default=[],
+        action="append",
+        help="Name of chromosome not to phase.",
     )
     arg(
         "--distrust-genotypes",
