@@ -114,6 +114,18 @@ class PhasedInputReader:
                 "could not be found. Please create one with "
                 "'samtools faidx'."
             )
+        contig_names = list(indexed_fasta.keys())
+        if contig_names:
+            try:
+                indexed_fasta[contig_names[-1]][:1]
+            except ValueError as e:
+                if e.args[0].startswith("A BGZF (e.g. a BAM file) block should start with"):
+                    raise CommandLineError(
+                        "Error while opening compressed FASTA reference file: "
+                        "The file appears to have been compressed with gzip instead of bgzip. "
+                    )
+                else:
+                    raise
         return indexed_fasta
 
     def read_vcfs(self):

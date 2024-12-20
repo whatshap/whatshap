@@ -54,7 +54,7 @@ def stdout_is_regular_file() -> bool:
     return stat.S_ISREG(mode)
 
 
-def IndexedFasta(path):
+def IndexedFasta(path) -> pyfaidx.Fasta:
     try:
         f = pyfaidx.Fasta(path, as_raw=True, sequence_always_upper=True, build_index=False)
     except pyfaidx.IndexNotFoundError:
