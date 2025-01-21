@@ -7,6 +7,8 @@ development version
 
 * :issue:`537`: Fixed a crash when running `haplotag` on CRAM files.
 * :pr:`545`: `haplotagphase` now supports multi-allelic variants.
+* :issue:`579`: Fix ``--supplementary-distance`` option to ``phase`` not
+  working.
 * Start supporting Python 3.13
 * Reduced processing time of BAM files by about 33% when using realignment.
 

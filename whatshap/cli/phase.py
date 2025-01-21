@@ -1148,7 +1148,7 @@ def add_arguments(parser):
         help="Only work on samples mentioned in the provided PED file.")
     arg("--use-supplementary", dest="use_supplementary", action="store_true", default=False,
         help="Use also supplementary alignments (default: ignore supplementary_ alignments)")
-    arg("--supplementary-distance", metavar="DIST", dest="supplementary_distance_threshold", default=100_000,
+    arg("--supplementary-distance", metavar="DIST", type=int, dest="supplementary_distance_threshold", default=100_000,
         help="Skip supplementary alignments further than DIST bp away from the primary alignment (default: %(default)s)")
 
 
