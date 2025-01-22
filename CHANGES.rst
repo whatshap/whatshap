@@ -2,8 +2,8 @@
 Changes
 =======
 
-development version
--------------------
+v2.4 (2025-01-22)
+-----------------
 
 * :issue:`554`: Added ``--exclude-chromosome`` option (can be used multiple
   times) to most subcommands (``phase``, ``haplotag``, ``genotype`` etc.)
@@ -11,7 +11,6 @@ development version
 * :pr:`545`: `haplotagphase` now supports multi-allelic variants.
 * :issue:`579`: Fix ``--supplementary-distance`` option to ``phase`` not
   working.
-* Start supporting Python 3.13
 * Reduced processing time of BAM files by about 33% when using realignment.
 
 v2.3 (2024-05-05)
