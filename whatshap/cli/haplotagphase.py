@@ -14,7 +14,7 @@ from whatshap import __version__
 from whatshap.cli import PhasedInputReader, CommandLineError, log_memory_usage
 from whatshap.core import NumericSampleIds, Variant, Read
 from whatshap.timer import StageTimer
-from whatshap.utils import IndexedFasta
+from whatshap.utils import ChromosomeFilter, IndexedFasta
 from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VcfVariant, VariantCallPhase
 
 logger = logging.getLogger(__name__)
@@ -41,6 +41,8 @@ def add_arguments(parser):
         help="Name of chromosome to phase. If not given, all chromosomes in the input VCF are phased. "
         "Can be used multiple times.")
     arg("--no-mav", dest="mav", default=True, action="store_false", help="Ignore multiallelic variants.")
+    arg("--exclude-chromosome", dest="excluded_chromosomes", default=[], action="append",
+        help="Name of chromosome not to phase.")
     arg("variant_file", metavar="VCF", help="VCF file with variants to phase (must be gzip-compressed and indexed)")
     arg("alignment_file", metavar="ALIGNMENTS",
         help="BAM/CRAM file with alignments tagged by haplotype and phase set")
@@ -55,6 +57,7 @@ def run_haplotagphase(
     ignore_read_groups: bool = False,
     only_indels: bool = False,
     chromosomes: Optional[List[str]] = None,
+    excluded_chromosomes: Optional[List[str]] = None,
     gap_threshold: int = 70,
     cut_poly: int = 10,
     write_command_line_header: bool = True,
@@ -102,15 +105,13 @@ def run_haplotagphase(
             )
         with timers("read-fasta"):
             fasta = stack.enter_context(IndexedFasta(reference))
+        included_chromosomes = ChromosomeFilter(chromosomes, excluded_chromosomes)
         for variant_table in timers.iterate("parse-vcf", vcf_reader):
             chromosome = variant_table.chromosome
             fasta_chr = fasta[chromosome]
             logger.info(f"Processing chromosome {chromosome}...")
-            if chromosomes and chromosome not in chromosomes:
-                logger.info(
-                    f"Leaving chromosome {chromosome} unchanged "
-                    "(present in VCF, but not requested by --chromosome)"
-                )
+            if chromosome not in included_chromosomes:
+                logger.info(f"Leaving chromosome {chromosome} unchanged")
                 with timers("write-vcf"):
                     vcf_writer.write_unchanged(chromosome)
                 continue

@@ -5,6 +5,8 @@ Changes
 development version
 -------------------
 
+* :issue:`554`: Added ``--exclude-chromosome`` option (can be used multiple
+  times) to most subcommands (``phase``, ``haplotag``, ``genotype`` etc.)
 * :issue:`537`: Fixed a crash when running `haplotag` on CRAM files.
 * :pr:`545`: `haplotagphase` now supports multi-allelic variants.
 * :issue:`579`: Fix ``--supplementary-distance`` option to ``phase`` not
