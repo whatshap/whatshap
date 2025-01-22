@@ -48,7 +48,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
         os: [ubuntu-latest]
         include:
         - os: macos-13
@@ -84,7 +84,7 @@ jobs:
         output-dir: dist/
       env:
         CIBW_BUILD: "cp3*-manylinux_x86_64*"
-        #CIBW_SKIP: ""
+        CIBW_SKIP: "cp313-*"
     - name: Make sdist
       run: |
         python -m pip install build
