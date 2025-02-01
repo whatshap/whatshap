@@ -18,4 +18,4 @@ def test_run_learn(tmp_path):
         window=25,
         output=observed,
     )
-    assert filecmp.cmp(expected, observed, shallow=True)
+    assert filecmp.cmp(expected, observed, shallow=False)
