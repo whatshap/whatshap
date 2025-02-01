@@ -13,13 +13,24 @@ from whatshap.testhelpers import (
 )
 
 
+def likelihoods_equal(a: PhredGenotypeLikelihoods, b: PhredGenotypeLikelihoods):
+    for gt in a.genotypes():
+        if not math.isclose(a[gt], b[gt]):
+            return False
+    return True
+
+
 def compare_to_expected(dp_forward_backward, positions, expected=None, genotypes=None):
     # check if computed likelihoods are equal to expected ones (if given)
     if expected is not None:
         for i in range(len(positions)):
             likelihoods = dp_forward_backward.get_genotype_likelihoods("individual0", i)
-            print(likelihoods, expected[i], i)
-            assert likelihoods == expected[i]
+            print(f"Position {i}:")
+            print(f"Computed likelihoods: {likelihoods}")
+            print(f"Expected likelihoods: {expected[i]}")
+            assert likelihoods_equal(
+                likelihoods, expected[i]
+            ), f"Likelihood mismatch at position {i}: Expected {expected[i]} but got {likelihoods}"
 
     # check if likeliest genotype is equal to expected genotype
     for i in range(len(positions)):
@@ -39,7 +50,9 @@ def compare_to_expected(dp_forward_backward, positions, expected=None, genotypes
         )
 
         if genotypes is not None:
-            assert max_geno == genotypes[i]
+            assert (
+                max_geno == genotypes[i]
+            ), f"Mismatch at position {i}: {max_geno} != {genotypes[i]}"
 
 
 def test_genotyping_empty_readset():
