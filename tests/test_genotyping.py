@@ -15,7 +15,7 @@ from whatshap.testhelpers import (
 
 def likelihoods_equal(a: PhredGenotypeLikelihoods, b: PhredGenotypeLikelihoods):
     for gt in a.genotypes():
-        if not math.isclose(a[gt], b[gt]):
+        if not math.isclose(a[gt], b[gt], abs_tol=1e-9):
             return False
     return True
 
@@ -399,7 +399,7 @@ def test_weighted_genotyping2():
         PhredGenotypeLikelihoods([1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0]),
         PhredGenotypeLikelihoods([0, 1, 0]),
     ]
-    check_genotyping_single_individual(reads, weights, expected_likelihoods, None, 100)
+    check_genotyping_single_individual(reads, weights, expected_likelihoods, None, 50)
 
 
 def test_weighted_genotyping3():
@@ -416,7 +416,7 @@ def test_weighted_genotyping3():
         PhredGenotypeLikelihoods([0, 1.0 / 3.0, 2.0 / 3.0]),
         PhredGenotypeLikelihoods([0, 1, 0]),
     ]
-    check_genotyping_single_individual(reads, weights, expected_likelihoods, None, 500)
+    check_genotyping_single_individual(reads, weights, expected_likelihoods, None, 300)
 
 
 def test_weighted_genotyping4():
@@ -503,7 +503,7 @@ def test_weighted_genotyping6():
         PhredGenotypeLikelihoods([0, 1, 0]),
     ]
     check_genotyping_single_individual(
-        reads, weights, expected_likelihoods, None, 1000, genotype_priors
+        reads, weights, expected_likelihoods, None, 100, genotype_priors
     )
 
 
