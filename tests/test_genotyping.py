@@ -10,14 +10,8 @@ from whatshap.testhelpers import (
     string_to_readset,
     canonic_index_to_biallelic_gt,
     canonic_index_list_to_biallelic_gt_list,
+    likelihoods_equal,
 )
-
-
-def likelihoods_equal(a: PhredGenotypeLikelihoods, b: PhredGenotypeLikelihoods):
-    for gt in a.genotypes():
-        if not math.isclose(a[gt], b[gt], abs_tol=1e-9):
-            return False
-    return True
 
 
 def compare_to_expected(dp_forward_backward, positions, expected=None, genotypes=None):
