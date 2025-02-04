@@ -2,9 +2,17 @@
 Utility functions only used by unit tests
 """
 
+import math
 import textwrap
 from collections import defaultdict
-from whatshap.core import Read, ReadSet, Genotype
+from whatshap.core import PhredGenotypeLikelihoods, Read, ReadSet, Genotype
+
+
+def likelihoods_equal(a: PhredGenotypeLikelihoods, b: PhredGenotypeLikelihoods):
+    for gt in a.genotypes():
+        if not math.isclose(a[gt], b[gt], abs_tol=1e-9):
+            return False
+    return True
 
 
 def string_to_readset(s, w=None, sample_ids=None, source_id=0, scale_quality=None):

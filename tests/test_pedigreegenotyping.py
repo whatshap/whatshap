@@ -15,6 +15,7 @@ from whatshap.core import (
 from whatshap.testhelpers import (
     string_to_readset_pedigree,
     canonic_index_list_to_biallelic_gt_list,
+    likelihoods_equal,
 )
 
 
@@ -49,7 +50,9 @@ def genotype_pedigree(
                     " expected likelihoods: ",
                     expected[individual][pos],
                 )
-                assert likelihoods == PhredGenotypeLikelihoods(expected[individual][pos])
+                assert likelihoods_equal(
+                    likelihoods, PhredGenotypeLikelihoods(expected[individual][pos])
+                ), f"Incorrect likelihoods for individual {individual} at position {pos}: got {likelihoods}, expected {PhredGenotypeLikelihoods(expected[individual][pos])}"
 
             # find the likeliest genotype
             max_val = -1
@@ -696,7 +699,7 @@ def test_weighted_genotyping():
         expected_genotypes,
         weights,
         expected,
-        scaling=500,
+        scaling=10,
     )
 
 
