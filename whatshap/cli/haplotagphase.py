@@ -140,6 +140,7 @@ def run_haplotagphase(
                     )
                 phases = variant_table.phases_of(sample)
                 if sample not in samples:
+                    logger.info(f"Skipping sample {sample}")
                     continue
                 homozygous = dict()
                 change = dict()
