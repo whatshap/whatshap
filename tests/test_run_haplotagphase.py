@@ -35,8 +35,23 @@ def test_haplotagphase_multisample(tmpdir):
     tables = list(VcfReader(outvcf, phases=True, mav=True))
     for table in tables:
         print(f"{table.phases = }")
-        n_unphased = sum(1 for phase in table.phases[0] if phase is None)
-        assert n_unphased == 0
+        n_unphased = [sum(1 for phase in table.phases[x] if phase is None) for x in [0, 1]]
+        assert n_unphased == [0, 0]
+
+
+def test_haplotagphase_multisample_unphase(tmpdir):
+    outvcf = tmpdir.join("output.vcf")
+    run_haplotagphase(
+        variant_file="tests/data/pacbio/variants_haplotagphase_multisample.vcf",
+        alignment_file="tests/data/pacbio/haplotagged.bam",
+        reference="tests/data/pacbio/reference.fasta",
+        output=outvcf,
+        samples=["Sample"],
+    )
+    tables = list(VcfReader(outvcf, phases=True, mav=True))
+    for table in tables:
+        n_unphased = [sum(1 for phase in table.phases[x] if phase is None) for x in [0, 1]]
+        assert n_unphased == [0, 3]
 
 
 def test_nomav_haplototagphase(tmpdir):
