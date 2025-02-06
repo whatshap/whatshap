@@ -110,7 +110,7 @@ def run_haplotagphase(
                 "When using --ignore-read-groups on a VCF with "
                 "multiple samples, --sample must also be used."
             )
-        logger.info(f"{vcf_reader = }")
+
         if not samples:
             samples = vcf_reader.samples
 
