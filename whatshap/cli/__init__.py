@@ -1,7 +1,7 @@
 import sys
 import resource
 import logging
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 from whatshap.bam import (
     AlignmentFileNotIndexedError,
@@ -227,3 +227,10 @@ def log_memory_usage(include_children=False):
         else:
             memory_kb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         logger.info("Maximum memory usage: %.3f GB", memory_kb / 1e6)
+
+
+def raise_if_any_sample_not_in_vcf(vcf_reader: VcfReader, samples: Sequence[str]) -> None:
+    vcf_sample_set = set(vcf_reader.samples)
+    for sample in samples:
+        if sample not in vcf_sample_set:
+            raise CommandLineError(f"Sample {sample!r} requested on command-line not found in VCF")

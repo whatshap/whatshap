@@ -7,15 +7,21 @@ import itertools
 import logging
 import sys
 from contextlib import ExitStack
-from typing import List, Optional, Union, Dict, Tuple
+from typing import List, Optional, Sequence, Union, Dict, Tuple
 
 
 from whatshap import __version__
-from whatshap.cli import PhasedInputReader, CommandLineError, log_memory_usage
+from whatshap.cli import PhasedInputReader, CommandLineError, log_memory_usage, raise_if_any_sample_not_in_vcf
 from whatshap.core import NumericSampleIds, Variant, Read
 from whatshap.timer import StageTimer
 from whatshap.utils import ChromosomeFilter, IndexedFasta
-from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VcfVariant, VariantCallPhase
+from whatshap.vcf import (
+    VcfReader,
+    PhasedVcfWriter,
+    VcfError,
+    VcfVariant,
+    VariantCallPhase
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +41,9 @@ def add_arguments(parser):
         help="Ignore variants within homopolymers longer than the cut value.")
     arg("--only-indels", "-i", default=False, action="store_true",
         help="Add phasing information only to indels.")
+    arg("--sample", dest="samples", metavar="SAMPLE", default=[], action="append",
+        help="Name of a sample to phase. If not given, all samples in the "
+        "input VCF are phased. Can be used multiple times.")
     arg("--ignore-read-groups", default=False, action="store_true",
         help="Ignore read groups in BAM/CRAM header and assume all reads come from the same sample.")
     arg("--chromosome", dest="chromosomes", metavar="CHROMOSOME", default=[], action="append",
@@ -53,6 +62,7 @@ def run_haplotagphase(
     variant_file,
     alignment_file,
     output=None,
+    samples: Optional[Sequence[str]] = None,
     reference: Union[None, bool, str] = False,
     ignore_read_groups: bool = False,
     only_indels: bool = False,
@@ -64,6 +74,8 @@ def run_haplotagphase(
     mav: bool = True,
     tag: str = "PS",
 ):
+    if samples is None:
+        samples = []
     if reference is None:
         raise CommandLineError("Option --reference should be specified")
     timers = StageTimer()
@@ -98,11 +110,19 @@ def run_haplotagphase(
 
         vcf_reader = stack.enter_context(VcfReader(variant_file, phases=True, mav=mav))
 
-        if ignore_read_groups and len(vcf_reader.samples) > 1:
+        if ignore_read_groups and not samples and len(vcf_reader.samples) > 1:
             raise CommandLineError(
                 "When using --ignore-read-groups on a VCF with "
                 "multiple samples, --sample must also be used."
             )
+
+        if not samples:
+            samples = vcf_reader.samples
+
+        assert samples is not None
+
+        raise_if_any_sample_not_in_vcf(vcf_reader, samples)
+
         with timers("read-fasta"):
             fasta = stack.enter_context(IndexedFasta(reference))
         included_chromosomes = ChromosomeFilter(chromosomes, excluded_chromosomes)
@@ -124,7 +144,9 @@ def run_haplotagphase(
                         chromosome, variant_table.variants, sample, restricted_genotypes=genotypes
                     )
                 phases = variant_table.phases_of(sample)
-
+                if sample not in samples:
+                    logger.info(f"Skipping sample {sample}")
+                    continue
                 homozygous = dict()
                 change = dict()
                 phased = dict()

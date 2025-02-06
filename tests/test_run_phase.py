@@ -7,6 +7,7 @@ from collections import namedtuple
 
 from pytest import raises, fixture, mark
 import pysam
+
 from whatshap.cli.phase import run_whatshap
 from whatshap.cli import CommandLineError
 from whatshap.vcf import VcfReader, VariantCallPhase
