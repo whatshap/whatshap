@@ -381,9 +381,9 @@ def compute_votes(
             if (ps, 0) not in votes[variant.position]:
                 votes[variant.position][(ps, 0)] = 0
                 votes[variant.position][(ps, 1)] = 0
-            votes[variant.position][(ps, ht ^ allele_to_id[variant.position][variant.allele])] += (
-                variant.quality
-            )
+            votes[variant.position][
+                (ps, ht ^ allele_to_id[variant.position][variant.allele])
+            ] += variant.quality
     if number_of_skipped > 0:
         logger.warning(
             f"{number_of_skipped} reads were skipped due incorrect HP. The haplotagphase command supports only a diploid input"
