@@ -9,8 +9,9 @@ import sys
 import pyfaidx
 from dataclasses import dataclass
 
-from whatshap.cli import CommandLineError
-from whatshap.vcf import VcfReader
+
+class CommandLineError(Exception):
+    """An anticipated command-line error occurred. This ends up as a user-visible error message"""
 
 
 class FastaNotIndexedError(Exception):
@@ -171,7 +172,7 @@ class ChromosomeFilter:
         ) and (chromosome not in self._excluded_chromosomes)
 
 
-def raise_if_any_sample_not_in_vcf(vcf_reader: VcfReader, samples: Sequence[str]) -> None:
+def raise_if_any_sample_not_in_vcf(vcf_reader, samples: Sequence[str]) -> None:
     vcf_sample_set = set(vcf_reader.samples)
     for sample in samples:
         if sample not in vcf_sample_set:

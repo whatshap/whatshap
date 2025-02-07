@@ -10,15 +10,11 @@ from whatshap.bam import (
     ReferenceNotFoundError,
 )
 from whatshap.variants import ReadSetReader, ReadSetError
-from whatshap.utils import IndexedFasta, FastaNotIndexedError, detect_file_format
+from whatshap.utils import CommandLineError, IndexedFasta, FastaNotIndexedError, detect_file_format
 from whatshap.core import Genotype, ReadSet
 from whatshap.vcf import VcfReader
 
 logger = logging.getLogger(__name__)
-
-
-class CommandLineError(Exception):
-    """An anticipated command-line error occurred. This ends up as a user-visible error message"""
 
 
 def open_readset_reader(*args, **kwargs):
