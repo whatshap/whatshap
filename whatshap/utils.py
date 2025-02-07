@@ -1,13 +1,16 @@
 from collections import defaultdict
 import gzip
 import logging
-from typing import Optional, DefaultDict, List
+from typing import Optional, DefaultDict, List, Sequence
 import os
 import stat
 import sys
 
 import pyfaidx
 from dataclasses import dataclass
+
+from whatshap.cli import CommandLineError
+from whatshap.vcf import VcfReader
 
 
 class FastaNotIndexedError(Exception):
@@ -166,3 +169,10 @@ class ChromosomeFilter:
         return (
             (not self._included_chromosomes) or (chromosome in self._included_chromosomes)
         ) and (chromosome not in self._excluded_chromosomes)
+
+
+def raise_if_any_sample_not_in_vcf(vcf_reader: VcfReader, samples: Sequence[str]) -> None:
+    vcf_sample_set = set(vcf_reader.samples)
+    for sample in samples:
+        if sample not in vcf_sample_set:
+            raise CommandLineError(f"Sample {sample!r} requested on command-line not found in VCF")

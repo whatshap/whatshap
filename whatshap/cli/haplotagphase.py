@@ -12,10 +12,9 @@ from typing import List, Optional, Sequence, Union, Dict, Tuple
 
 from whatshap import __version__
 from whatshap.cli import PhasedInputReader, CommandLineError, log_memory_usage
-from whatshap.cli.phase import raise_if_any_sample_not_in_vcf
 from whatshap.core import NumericSampleIds, Variant, Read
 from whatshap.timer import StageTimer
-from whatshap.utils import ChromosomeFilter, IndexedFasta
+from whatshap.utils import ChromosomeFilter, IndexedFasta, raise_if_any_sample_not_in_vcf
 from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VcfVariant, VariantCallPhase
 
 logger = logging.getLogger(__name__)
