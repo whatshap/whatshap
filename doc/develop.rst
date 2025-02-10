@@ -1,5 +1,10 @@
-Developing
-==========
+.. include:: ../CONTRIBUTING.rst
+
+
+.. _developing:
+
+Developing WhatsHap
+-------------------
 
 The `WhatsHap source code is on GitHub <https://github.com/whatshap/whatshap/>`_.
 WhatsHap is developed in Python 3, Cython and C++.
@@ -22,7 +27,7 @@ GitHub account)::
 The last command installs also all the development dependencies.
 Omit the ``[dev]`` to leave them out.
 
-Install also `pre-commit <https://pre-commit.com/>`_ and run ``pre-commit install``.
+Install also `pre-commit <https://pre-commit.com/>`__ and run ``pre-commit install``.
 
 
 Development installation when using Conda
@@ -64,9 +69,9 @@ See one way below for how to install them on Ubuntu.
 Code style
 ----------
 
-Python code needs to be formatted with `Black <https://github.com/psf/black>`_.
+Python code needs to be formatted with `Black <https://github.com/psf/black>`__.
 Either run ``black whatshap tests`` manually before you commit or use the
-`pre-commit <https://pre-commit.com/>`_ framework to automate this.
+`pre-commit <https://pre-commit.com/>`__ framework to automate this.
 
 To check other style issues, run ::
 
@@ -158,7 +163,7 @@ and is translated by `Sphinx <http://www.sphinx-doc.org/>`_ into HTML format.
 
 Documentation is hosted on `Read the Docs <https://readthedocs.org/>`_.
 It is built automatically whenever a commit is made. The documentation in the
-``master`` branch should be visible at
+``main`` branch should be visible at
 `https://whatshap.readthedocs.io/en/latest/ <https://whatshap.readthedocs.io/en/latest/>`_
 and documentation for the most recent released version should be visible at
 `https://whatshap.readthedocs.io/en/stable/ <https://whatshap.readthedocs.io/en/stable/>`_.

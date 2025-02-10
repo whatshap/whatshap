@@ -31,6 +31,7 @@ from whatshap.polyphase.offspringscoring import (
     get_variant_scoring,
 )
 from whatshap.timer import StageTimer
+from whatshap.utils import ChromosomeFilter
 from whatshap.vcf import VcfReader, PhasedVcfWriter, PloidyError
 
 __author__ = "Sven Schrinner"
@@ -66,6 +67,7 @@ def run_polyphasegenetic(
     output=sys.stdout,
     samples=None,
     chromosomes=None,
+    excluded_chromosomes=None,
     only_snvs=False,
     tag="PS",
     write_command_line_header=True,
@@ -79,6 +81,7 @@ def run_polyphasegenetic(
     output -- path to output VCF or a file like object
     samples -- names of samples to phase. An empty list means: phase all samples
     chromosomes -- names of chromosomes to phase. An empty list means: phase all chromosomes
+    excluded_chromosomes -- names of chromosomes not to phase.
     ignore_read_groups
     tag -- How to store phasing info in the VCF, can be 'PS' or 'HP'
     write_command_line_header -- whether to add a ##commandline header to the output VCF
@@ -165,8 +168,9 @@ def run_polyphasegenetic(
         try:
             for variant_table in timers.iterate("parse_vcf", parent_reader):
                 chromosome = variant_table.chromosome
+                included_chromosomes = ChromosomeFilter(chromosomes, excluded_chromosomes)
 
-                if (not chromosomes) or (chromosome in chromosomes):
+                if chromosome in included_chromosomes:
                     logger.info("======== Working on chromosome %r", chromosome)
                 else:
                     logger.info(
@@ -533,7 +537,6 @@ def add_arguments(parser):
     )
 
     arg = parser.add_argument_group("Input pre-processing, selection, and filtering").add_argument
-    arg("--indels", dest="indels_used", action="store_true", help=argparse.SUPPRESS)
     arg("--only-snvs", action="store_true", help="Phase only SNVs")
     arg(
         "--sample",
@@ -552,6 +555,13 @@ def add_arguments(parser):
         action="append",
         help="Name of chromosome to phase. If not given, all chromosomes in the "
         "input VCF are phased. Can be used multiple times.",
+    )
+    arg(
+        "--exclude-chromosome",
+        dest="excluded_chromosomes",
+        default=[],
+        action="append",
+        help="Name of chromosome not to phase.",
     )
 
     # add polyphase specific arguments
@@ -635,8 +645,6 @@ def validate(args, parser):
         parser.error("Odd ploidies are not supported.")
     if args.ploidy < 2:
         parser.error("Ploidy must be at least 2.")
-    if args.indels_used:
-        logger.warning("Ignoring --indels as indel phasing is default in WhatsHap 2.0+")
 
 
 def main(args):

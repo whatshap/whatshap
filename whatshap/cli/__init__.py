@@ -1,6 +1,7 @@
 import sys
 import resource
 import logging
+from typing import List, Optional
 
 from whatshap.bam import (
     AlignmentFileNotIndexedError,
@@ -10,7 +11,7 @@ from whatshap.bam import (
 )
 from whatshap.variants import ReadSetReader, ReadSetError
 from whatshap.utils import IndexedFasta, FastaNotIndexedError, detect_file_format
-from whatshap.core import ReadSet
+from whatshap.core import Genotype, ReadSet
 from whatshap.vcf import VcfReader
 
 logger = logging.getLogger(__name__)
@@ -113,6 +114,18 @@ class PhasedInputReader:
                 "could not be found. Please create one with "
                 "'samtools faidx'."
             )
+        contig_names = list(indexed_fasta.keys())
+        if contig_names:
+            try:
+                indexed_fasta[contig_names[-1]][:1]
+            except ValueError as e:
+                if e.args[0].startswith("A BGZF (e.g. a BAM file) block should start with"):
+                    raise CommandLineError(
+                        "Error while opening compressed FASTA reference file: "
+                        "The file appears to have been compressed with gzip instead of bgzip. "
+                    )
+                else:
+                    raise
         return indexed_fasta
 
     def read_vcfs(self):
@@ -127,7 +140,16 @@ class PhasedInputReader:
                 m[variant_table.chromosome] = variant_table
             self._vcfs.append(m)
 
-    def read(self, chromosome, variants, sample, *, read_vcf=True, regions=None):
+    def read(
+        self,
+        chromosome,
+        variants,
+        sample,
+        *,
+        read_vcf=True,
+        regions=None,
+        restricted_genotypes: Optional[List[Genotype]] = None,
+    ):
         """
         Return a pair (readset, vcf_source_ids) where readset is a sorted ReadSet.
 
@@ -149,7 +171,9 @@ class PhasedInputReader:
             )
         bam_sample = None if self._ignore_read_groups else sample
         try:
-            readset = readset_reader.read(chromosome, variants, bam_sample, reference, regions)
+            readset = readset_reader.read(
+                chromosome, variants, bam_sample, reference, regions, restricted_genotypes
+            )
         except SampleNotFoundError:
             logger.warning("Sample %r not found in any BAM/CRAM file.", bam_sample)
             readset = ReadSet()

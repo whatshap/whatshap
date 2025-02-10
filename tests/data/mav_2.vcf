@@ -1,0 +1,61 @@
+##fileformat=VCFv4.2
+##FILTER=<ID=PASS,Description="All filters passed">
+##filedate=20231214
+##source="beagle.22Jul22.46e.jar"
+##INFO=<ID=AF,Number=A,Type=Float,Description="Estimated ALT Allele Frequencies">
+##INFO=<ID=DR2,Number=A,Type=Float,Description="Dosage R-Squared: estimated squared correlation between estimated REF dose [P(RA) + 2*P(RR)] and true REF dose">
+##INFO=<ID=IMP,Number=0,Type=Flag,Description="Imputed marker">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DS,Number=A,Type=Float,Description="estimated ALT dose [P(RA) + 2*P(AA)]">
+##contig=<ID=1>
+##contig=<ID=2>
+##contig=<ID=3>
+##contig=<ID=4>
+##contig=<ID=5>
+##contig=<ID=6>
+##contig=<ID=7>
+##contig=<ID=8>
+##contig=<ID=9>
+##contig=<ID=10>
+##contig=<ID=11>
+##contig=<ID=12>
+##contig=<ID=13>
+##contig=<ID=14>
+##contig=<ID=15>
+##contig=<ID=16>
+##contig=<ID=17>
+##contig=<ID=18>
+##contig=<ID=19>
+##contig=<ID=20>
+##contig=<ID=21>
+##contig=<ID=22>
+##contig=<ID=X>
+##bcftools_concatVersion=1.19+htslib-1.19
+##bcftools_concatCommand=concat -O z -o HG005.PacBio.concat.beagle.vcf.gz HG005.PacBio.chr1.beagle.vcf.gz HG005.PacBio.chr2.beagle.vcf.gz HG005.PacBio.chr3.beagle.vcf.gz HG005.PacBio.chr4.beagle.vcf.gz HG005.PacBio.chr5.beagle.vcf.gz HG005.PacBio.chr6.beagle.vcf.gz HG005.PacBio.chr7.beagle.vcf.gz HG005.PacBio.chr8.beagle.vcf.gz HG005.PacBio.chr9.beagle.vcf.gz HG005.PacBio.chr10.beagle.vcf.gz HG005.PacBio.chr11.beagle.vcf.gz HG005.PacBio.chr12.beagle.vcf.gz HG005.PacBio.chr13.beagle.vcf.gz HG005.PacBio.chr14.beagle.vcf.gz HG005.PacBio.chr15.beagle.vcf.gz HG005.PacBio.chr16.beagle.vcf.gz HG005.PacBio.chr17.beagle.vcf.gz HG005.PacBio.chr18.beagle.vcf.gz HG005.PacBio.chr19.beagle.vcf.gz HG005.PacBio.chr20.beagle.vcf.gz HG005.PacBio.chr21.beagle.vcf.gz HG005.PacBio.chr22.beagle.vcf.gz HG005.PacBio.chrX.beagle.vcf.gz; Date=Wed Dec 27 11:42:40 2023
+##bcftools_viewVersion=1.19+htslib-1.19
+##bcftools_viewCommand=view -e INFO/IMP=1 -O z -o HG005.PacBio.concat.filtered.beagle.vcf.gz HG005.PacBio.concat.beagle.vcf.gz; Date=Wed Dec 27 11:48:03 2023
+##bcftools_viewVersion=1.21+htslib-1.21
+##bcftools_viewCommand=view -r 4:189586751-189588233 -O b -o mav.test.vcf.gz HG005_beagle_pacbio.vcf.gz; Date=Fri Nov  1 12:54:22 2024
+##bcftools_viewCommand=view mav.test.vcf.gz; Date=Fri Nov  1 12:56:44 2024
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	HG005
+4	189586751	rs77429644	AG	A	.	PASS	DR2=1;AF=0.5	GT:DS	0|1:1
+4	189586973	rs7659048	G	A	.	PASS	DR2=0;AF=1	GT:DS	1|1:2
+4	189587068	rs7683594	T	G	.	PASS	DR2=0;AF=1	GT:DS	1|1:2
+4	189587079	rs7659062	C	T	.	PASS	DR2=1;AF=0.5	GT:DS	0|1:1
+4	189587310	rs7659474	C	T	.	PASS	DR2=0;AF=1	GT:DS	1|1:2
+4	189587353	rs7659502	C	T	.	PASS	DR2=0;AF=1	GT:DS	1|1:2
+4	189587367	rs7659814	G	A	.	PASS	DR2=1;AF=0.5	GT:DS	1|0:1
+4	189587417	rs7659515	A	T	.	PASS	DR2=0;AF=1	GT:DS	1|1:2
+4	189587515	rs6553218	C	T	.	PASS	DR2=0;AF=1	GT:DS	1|1:2
+4	189587721	rs4863370	T	C	.	PASS	DR2=0;AF=1	GT:DS	1|1:2
+4	189587802	rs6821752	A	C,G	.	PASS	DR2=1,1;AF=0.5,0.5	GT:DS	2|1:1,1
+4	189587827	rs150896312	G	GA	.	PASS	DR2=0;AF=1	GT:DS	1|1:2
+4	189587830	rs66484442	C	A	.	PASS	DR2=0;AF=1	GT:DS	1|1:2
+4	189587881	rs4863371	G	A	.	PASS	DR2=0;AF=1	GT:DS	1|1:2
+4	189587882	rs4863372	C	T	.	PASS	DR2=0;AF=1	GT:DS	1|1:2
+4	189587932	rs4863373	T	C	.	PASS	DR2=0;AF=1	GT:DS	1|1:2
+4	189587985	rs4863374	G	A	.	PASS	DR2=0;AF=1	GT:DS	1|1:2
+4	189588198	rs1817401	C	T	.	PASS	DR2=1;AF=0.5	GT:DS	1|0:1
+4	189588228	rs34536784	C	T	.	PASS	DR2=0;AF=1	GT:DS	1|1:2
+4	189588231	rs34876597	G	A	.	PASS	DR2=1;AF=0.5	GT:DS	1|0:1
+4	189588233	rs34334595	G	A	.	PASS	DR2=0;AF=1	GT:DS	1|1:2

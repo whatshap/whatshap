@@ -13,6 +13,7 @@ from typing import Sequence, Optional
 
 from contextlib import ExitStack
 from whatshap import __version__
+from whatshap.utils import ChromosomeFilter
 from whatshap.vcf import VcfReader, GenotypeVcfWriter
 from whatshap.core import (
     ReadSet,
@@ -75,6 +76,7 @@ def run_genotype(
     output=sys.stdout,
     samples=None,
     chromosomes=None,
+    excluded_chromosomes=None,
     ignore_read_groups=False,
     only_snvs=False,
     mapping_quality=20,
@@ -208,6 +210,7 @@ def run_genotype(
         # compute genotype likelihood threshold
         gt_prob = 1.0 - (10 ** (-gt_qual_threshold / 10.0))
 
+        included_chromosomes = ChromosomeFilter(chromosomes, excluded_chromosomes)
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
             # create a mapping of genome positions to indices
             var_to_pos = dict()
@@ -215,7 +218,7 @@ def run_genotype(
                 var_to_pos[variant_table.variants[i].position] = i
 
             chromosome = variant_table.chromosome
-            if (not chromosomes) or (chromosome in chromosomes):
+            if chromosome in included_chromosomes:
                 logger.info("======== Working on chromosome %r", chromosome)
             else:
                 logger.info(
@@ -433,6 +436,8 @@ def add_arguments(parser):
     arg('--chromosome', dest='chromosomes', metavar='CHROMOSOME', default=[], action='append',
         help='Name of chromosome to genotyped. If not given, all chromosomes in the '
         'input VCF are genotyped. Can be used multiple times.')
+    arg('--exclude-chromosome', dest='excluded_chromosomes', default=[], action='append',
+        help='Name of chromosome not to be genotyped.')
     arg('--gt-qual-threshold', metavar='GTQUALTHRESHOLD', type=float, default=0,
         help='Phred scaled error probability threshold used for genotyping (default: %(default)s). Must be at least 0. '
         'If error probability of genotype is higher, genotype ./. is output.')

@@ -41,10 +41,10 @@ Features
 Documentation
 -------------
 
+* We recommend you start with this book chapter for a concise introduction:
+  `Read-Based Phasing and Analysis of Phased Variants with WhatsHap <https://doi.org/10.1007/978-1-0716-2819-5_8>`_
+* `WhatsHap documentation online <https://whatshap.readthedocs.io/>`_
 * `GitHub repository <https://github.com/whatshap/whatshap/>`_
-* `Read the documentation online <https://whatshap.readthedocs.io/>`_.
-  Offline documentation is available in the ``doc/`` subdirectory in the
-  repository and in the downloaded tar distribution.
 
 
 Issue tracker

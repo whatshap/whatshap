@@ -11,16 +11,33 @@ from whatshap.vcf import VcfReader
 def test_haplotagphase(tmpdir):
     outvcf = tmpdir.join("output.vcf")
     run_haplotagphase(
-        variant_file="tests/data/pacbio/variants.vcf",
+        variant_file="tests/data/pacbio/variants_haplotagphase.vcf",
         alignment_file="tests/data/pacbio/haplotagged.bam",
         reference="tests/data/pacbio/reference.fasta",
         output=outvcf,
     )
-    tables = list(VcfReader(outvcf, phases=True))
+    tables = list(VcfReader(outvcf, phases=True, mav=True))
     for table in tables:
         assert len(table.phases) == 1
         n_unphased = sum(1 for phase in table.phases[0] if phase is None)
-        assert n_unphased <= 4
+        assert n_unphased == 4
+
+
+def test_nomav_haplototagphase(tmpdir):
+    outvcf = tmpdir.join("output.vcf")
+    run_haplotagphase(
+        variant_file="tests/data/pacbio/variants_haplotagphase.vcf",
+        alignment_file="tests/data/pacbio/haplotagged.bam",
+        reference="tests/data/pacbio/reference.fasta",
+        output=outvcf,
+        mav=False,
+    )
+    tables = list(VcfReader(outvcf, phases=True, mav=True))
+    for table in tables:
+        assert len(table.phases) == 1
+        print([phase for phase in table.phases[0]])
+        n_unphased = sum(1 for phase in table.phases[0] if phase is None)
+        assert n_unphased == 6
 
 
 def test_compute_votes():
@@ -47,5 +64,13 @@ def test_compute_votes():
         1: {(0, 0): 50, (0, 1): 0, (1, 1): 20, (1, 0): 0},
         2: {(0, 0): 10, (0, 1): 30},
     }
-    votes = compute_votes({1: False, 2: False, 3: True}, [a, b, c])
+    votes = compute_votes(
+        {1: False, 2: False, 3: True},
+        [a, b, c],
+        allele_to_id={
+            1: {0: 0, 1: 1},
+            2: {0: 0, 1: 1},
+            3: {0: 0, 1: 1},
+        },
+    )
     assert votes == expected_votes

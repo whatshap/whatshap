@@ -12,8 +12,8 @@ import pysam
 from pysam import AlignedSegment
 
 from .vcf import VcfVariant
-from .core import Read, ReadSet, NumericSampleIds
 from .bam import SampleBamReader, MultiBamReader, BamReader, AlignmentWithSourceID
+from .core import Genotype, Read, ReadSet, NumericSampleIds
 from .align import edit_distance, edit_distance_affine_gap, kmer_align, enumerate_all_kmers
 from ._variants import _iterate_cigar, _detect_alleles
 
@@ -198,7 +198,15 @@ class ReadSetReader:
     def n_paths(self) -> int:
         return len(self._paths)
 
-    def read(self, chromosome, variants, sample, reference, regions=None) -> ReadSet:
+    def read(
+        self,
+        chromosome,
+        variants,
+        sample,
+        reference,
+        regions=None,
+        restricted_genotypes: Optional[List[Genotype]] = None,
+    ) -> ReadSet:
         """
         Detect alleles and return a ReadSet object containing reads representing
         the given variants.
@@ -210,12 +218,15 @@ class ReadSetReader:
         If reference is None, alleles are detected by inspecting the
         existing alignment (via the CIGAR).
 
+        If the restricted_genotypes is not None, then only alleles from restricted_genotypes[i] will be considered for variant i. The length of restricted_genotypes should match the length of variants.
+
         chromosome -- name of chromosome to work on
         variants -- list of vcf.VcfVariant objects
         sample -- name of sample to work on. If None, read group information is
             ignored and all reads in the file are used.
         reference -- reference sequence of the given chromosome (or None)
         regions -- list of start,end tuples (end can be None)
+        restricted_genotypes -- list of restricted genotypes (or None if there is no reliable auxiliary information).
         """
         # Since variants are identified by position, positions must be unique.
         if __debug__ and variants:
@@ -223,8 +234,11 @@ class ReadSetReader:
             pos, count = varposc.most_common()[0]
             assert count == 1, f"Position {pos} occurs more than once in variant list."
 
+        assert restricted_genotypes is None or len(restricted_genotypes) == len(variants)
         alignments = self._usable_alignments(chromosome, sample, regions)
-        reads = self._alignments_to_reads(alignments, variants, sample, reference)
+        reads = self._alignments_to_reads(
+             alignments, variants, sample, reference, restricted_genotypes
+        )
         grouped_reads = self._group_reads(
             reads,
             self._supplementary_distance_threshold,
@@ -256,7 +270,8 @@ class ReadSetReader:
         If the list does not contain primary reads, then return None, unless supplementary only groups are allowed.
         If the list contains more than two primary alignments, return None and report a warning.
         """
-        logger.debug(f"Group of read {group[0].read.name!r} has {len(group)} items.")
+        if len(group) > 1:
+            logger.debug(f"Group of read {group[0].read.name!r} has {len(group)} items.")
         primary: Optional[AlignedRead] = None
         n_primary = 0
         for read in group:
@@ -390,7 +405,14 @@ class ReadSetReader:
     def has_reference(self, chromosome):
         return self._reader.has_reference(chromosome)
 
-    def _alignments_to_reads(self, alignments, variants, sample, reference):
+    def _alignments_to_reads(
+        self,
+        alignments,
+        variants,
+        sample,
+        reference,
+        restricted_genotypes: Optional[List[Genotype]],
+    ):
         """
         Convert BAM alignments to Read objects.
 
@@ -491,6 +513,7 @@ class ReadSetReader:
                     i += 1
                 detected = self.detect_alleles_by_alignment(
                     variants,
+                    restricted_genotypes,
                     i,
                     alignment.bam_alignment,
                     reference,
@@ -573,7 +596,7 @@ class ReadSetReader:
         return v
 
     @staticmethod
-    def split_cigar(cigar, i, consumed):
+    def split_cigar_left(cigar, i, consumed):
         """
         Split a CIGAR into two parts. i and consumed describe the split position.
         i is the element of the cigar list that should be split, and consumed says
@@ -585,24 +608,34 @@ class ReadSetReader:
         consumed -- how many cigar ops at cigar[i] are to the *left* of the
             split position
 
-        Return a tuple (left, right).
-
         Example:
         Assume the cigar is 3M 1D 6M 2I 4M.
         With i == 2 and consumed == 5, the cigar is split into
         3M 1D 5M and 1M 2I 4M.
+
+        This function returns the left part of the split as an iterator that runs
+        from the split point to the beginning of the full cigar.
+        See split_cigar_right to obtain the right part.
         """
         middle_op, middle_length = cigar[i]
         assert consumed <= middle_length
         if consumed > 0:
-            left = cigar[:i] + [(middle_op, consumed)]
-        else:
-            left = cigar[:i]
+            yield middle_op, consumed
+        for j in range(i - 1, -1, -1):
+            yield cigar[j]
+
+    @staticmethod
+    def split_cigar_right(cigar, i, consumed):
+        """
+        Counterpart of split_cigar_left that returns an iterator for the right
+        part of the split, running from the split point to the end of the input
+        cigar.
+        """
+        middle_op, middle_length = cigar[i]
         if consumed < middle_length:
-            right = [(middle_op, middle_length - consumed)] + cigar[i + 1 :]
-        else:
-            right = cigar[i + 1 :]
-        return left, right
+            yield middle_op, middle_length - consumed
+        for j in range(i + 1, len(cigar)):
+            yield cigar[j]
 
     @staticmethod
     def cigar_prefix_length(cigar, reference_bases: int):
@@ -650,6 +683,7 @@ class ReadSetReader:
     @staticmethod
     def realign(
         variant: VcfVariant,
+        restricted_variants: Optional[Genotype],
         bam_read: AlignedSegment,
         cigartuples,
         i,
@@ -670,11 +704,12 @@ class ReadSetReader:
         splitted_strings,
     ):
         """
-        Realign a read to the two alleles of a single variant.
+        Realign a read to the two alleles (or to the alleles from genotype if it is not None) of a single variant.
         i and consumed describe where to split the cigar into a part before the
         variant position and into a part starting at the variant position, see split_cigar().
 
         variant -- VcfVariant
+        restricted_variants -- genotype with restricted variants (or None if there is no such information)
         bam_read -- the AlignedSegment
         cigartuples -- the AlignedSegment.cigartuples property (accessing it is expensive, so re-use it)
         i, consumed -- see split_cigar method
@@ -689,14 +724,15 @@ class ReadSetReader:
         if any(alt.startswith("<") for alt in variant.get_alt_allele_list()):
             return None, None
 
-        left_cigar, right_cigar = ReadSetReader.split_cigar(cigartuples, i, consumed)
+        left_cigar_iterator = ReadSetReader.split_cigar_left(cigartuples, i, consumed)
+        right_cigar_iterator = ReadSetReader.split_cigar_right(cigartuples, i, consumed)
 
         if use_kmerald:
             left_ref_bases, left_query_bases = ReadSetReader.cigar_prefix_length(
-                left_cigar[::-1], int(kmerald_window)
+                left_cigar_iterator, int(kmerald_window)
             )
             right_ref_bases, right_query_bases = ReadSetReader.cigar_prefix_length(
-                right_cigar, len(variant.reference_allele) + int(kmerald_window)
+                right_cigar_iterator, len(variant.reference_allele) + int(kmerald_window)
             )
             assert variant.position - left_ref_bases >= 0
             assert variant.position + right_ref_bases <= len(reference)
@@ -757,10 +793,10 @@ class ReadSetReader:
                 return None, None  # cannot decide
         else:
             left_ref_bases, left_query_bases = ReadSetReader.cigar_prefix_length(
-                left_cigar[::-1], overhang
+                left_cigar_iterator, overhang
             )
             right_ref_bases, right_query_bases = ReadSetReader.cigar_prefix_length(
-                right_cigar, len(variant.reference_allele) + overhang
+                right_cigar_iterator, len(variant.reference_allele) + overhang
             )
 
             assert variant.position - left_ref_bases >= 0
@@ -790,17 +826,22 @@ class ReadSetReader:
             distances = [
                 (i, edit_distance_affine_gap(query, allele, base_qualities, gap_start, gap_extend))
                 for i, allele in enumerate(padded_alleles)
+                if restricted_variants is None or i in restricted_variants.as_vector()
             ]
             distances.sort(key=lambda x: x[1])
-            base_qual_score = distances[0][1] - distances[1][1]
+            base_qual_score = (
+                distances[0][1] - distances[1][1] if len(distances) > 1 else distances[0][1]
+            )
         else:
             distances = [
-                (i, edit_distance(query, allele)) for i, allele in enumerate(padded_alleles)
+                (i, edit_distance(query, allele))
+                for i, allele in enumerate(padded_alleles)
+                if restricted_variants is None or i in restricted_variants.as_vector()
             ]
             distances.sort(key=lambda x: x[1])
             base_qual_score = 30
 
-        if distances[0][1] < distances[1][1]:
+        if len(distances) == 1 or distances[0][1] < distances[1][1]:
             return distances[0][0], base_qual_score  # detected REF
         else:
             return None, None  # cannot decide
@@ -808,6 +849,7 @@ class ReadSetReader:
     @staticmethod
     def detect_alleles_by_alignment(
         variants: List[VcfVariant],
+        restricted_genotypes: Optional[List[Genotype]],
         j,
         bam_read: AlignedSegment,
         reference,
@@ -836,7 +878,7 @@ class ReadSetReader:
         # Accessing bam_read.cigartuples is expensive, do it only once
         cigartuples = bam_read.cigartuples
 
-        # For the same reason, the following check is here instad of
+        # For the same reason, the following check is here instead of
         # in the _usable_alignments method
         if not cigartuples:
             return
@@ -844,6 +886,7 @@ class ReadSetReader:
         for index, i, consumed, query_pos in _iterate_cigar(variants, j, bam_read, cigartuples):
             allele, quality = ReadSetReader.realign(
                 variants[index],
+                restricted_genotypes[index] if restricted_genotypes else None,
                 bam_read,
                 cigartuples,
                 i,

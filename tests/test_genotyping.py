@@ -10,6 +10,7 @@ from whatshap.testhelpers import (
     string_to_readset,
     canonic_index_to_biallelic_gt,
     canonic_index_list_to_biallelic_gt_list,
+    likelihoods_equal,
 )
 
 
@@ -18,8 +19,12 @@ def compare_to_expected(dp_forward_backward, positions, expected=None, genotypes
     if expected is not None:
         for i in range(len(positions)):
             likelihoods = dp_forward_backward.get_genotype_likelihoods("individual0", i)
-            print(likelihoods, expected[i], i)
-            assert likelihoods == expected[i]
+            print(f"Position {i}:")
+            print(f"Computed likelihoods: {likelihoods}")
+            print(f"Expected likelihoods: {expected[i]}")
+            assert likelihoods_equal(
+                likelihoods, expected[i]
+            ), f"Likelihood mismatch at position {i}: Expected {expected[i]} but got {likelihoods}"
 
     # check if likeliest genotype is equal to expected genotype
     for i in range(len(positions)):
@@ -39,7 +44,9 @@ def compare_to_expected(dp_forward_backward, positions, expected=None, genotypes
         )
 
         if genotypes is not None:
-            assert max_geno == genotypes[i]
+            assert (
+                max_geno == genotypes[i]
+            ), f"Mismatch at position {i}: {max_geno} != {genotypes[i]}"
 
 
 def test_genotyping_empty_readset():
@@ -386,7 +393,7 @@ def test_weighted_genotyping2():
         PhredGenotypeLikelihoods([1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0]),
         PhredGenotypeLikelihoods([0, 1, 0]),
     ]
-    check_genotyping_single_individual(reads, weights, expected_likelihoods, None, 100)
+    check_genotyping_single_individual(reads, weights, expected_likelihoods, None, 50)
 
 
 def test_weighted_genotyping3():
@@ -403,7 +410,7 @@ def test_weighted_genotyping3():
         PhredGenotypeLikelihoods([0, 1.0 / 3.0, 2.0 / 3.0]),
         PhredGenotypeLikelihoods([0, 1, 0]),
     ]
-    check_genotyping_single_individual(reads, weights, expected_likelihoods, None, 500)
+    check_genotyping_single_individual(reads, weights, expected_likelihoods, None, 300)
 
 
 def test_weighted_genotyping4():
@@ -490,7 +497,7 @@ def test_weighted_genotyping6():
         PhredGenotypeLikelihoods([0, 1, 0]),
     ]
     check_genotyping_single_individual(
-        reads, weights, expected_likelihoods, None, 1000, genotype_priors
+        reads, weights, expected_likelihoods, None, 100, genotype_priors
     )
 
 

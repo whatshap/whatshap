@@ -53,7 +53,7 @@ from whatshap.pedigree import (
     Trio,
 )
 from whatshap.timer import StageTimer
-from whatshap.utils import plural_s, warn_once
+from whatshap.utils import ChromosomeFilter, plural_s, warn_once
 from whatshap.cli import CommandLineError, log_memory_usage, PhasedInputReader
 from whatshap.merge import ReadMerger, DoNothingReadMerger, ReadMergerBase
 from whatshap.types import PhasingAlgorithm
@@ -287,6 +287,7 @@ def run_whatshap(
     output: TextIO = sys.stdout,
     samples: Optional[Sequence[str]] = None,
     chromosomes: Optional[List[str]] = None,
+    excluded_chromosomes: Optional[List[str]] = None,
     ignore_read_groups: bool = False,
     only_snvs: bool = False,
     mapping_quality: int = 20,
@@ -324,6 +325,7 @@ def run_whatshap(
     output -- path to output VCF or a file-like object
     samples -- names of samples to phase. an empty list means: phase all samples
     chromosomes -- names of chromosomes to phase. an empty list means: phase all chromosomes
+    excluded_chromosomes -- names of chromosomes excluded from phasing.
     ignore_read_groups
     mapping_quality -- discard reads below this mapping quality
     read_merging -- whether or not to merge reads
@@ -455,9 +457,10 @@ def run_whatshap(
 
         superreads: Dict[str, ReadSet]
         components: Dict
+        included_chromosomes = ChromosomeFilter(chromosomes, excluded_chromosomes)
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
             chromosome = variant_table.chromosome
-            if chromosomes and chromosome not in chromosomes:
+            if chromosome not in included_chromosomes:
                 logger.info(
                     "Leaving chromosome %r unchanged "
                     "(present in VCF but not requested by --chromosome)",
@@ -1078,7 +1081,8 @@ def add_arguments(parser):
     arg("--chromosome", dest="chromosomes", metavar="CHROMOSOME", default=[], action="append",
         help="Name of chromosome to phase. If not given, all chromosomes in the "
         "input VCF are phased. Can be used multiple times.")
-
+    arg("--exclude-chromosome", dest="excluded_chromosomes", default=[], action="append",
+        help="Name of chromosome not to phase.")
     arg = parser.add_argument_group(
         "Read merging",
         "The options in this section are only active when --merge-reads is used"
@@ -1148,7 +1152,7 @@ def add_arguments(parser):
         help="Only work on samples mentioned in the provided PED file.")
     arg("--use-supplementary", dest="use_supplementary", action="store_true", default=False,
         help="Use also supplementary alignments (default: ignore supplementary_ alignments)")
-    arg("--supplementary-distance", metavar="DIST", dest="supplementary_distance_threshold", default=100_000,
+    arg("--supplementary-distance", metavar="DIST", type=int, dest="supplementary_distance_threshold", default=100_000,
         help="Skip supplementary alignments further than DIST bp away from the primary alignment (default: %(default)s)")
 
 

@@ -1,8 +1,15 @@
 .. _user-guide:
 
+
 ==========
 User guide
 ==========
+
+.. note::
+    If you are just starting to use WhatsHap, we recommend that you read
+    our book chapter `Read-Based Phasing and Analysis of Phased Variants
+    with WhatsHap <https://doi.org/10.1007/978-1-0716-2819-5_8>`_, which
+    is a more recent and concise introduction than this guide.
 
 WhatsHap is a read-based phasing tool. In the typical case, it expects
 1) a VCF file with variants of an individual and 2) a BAM or CRAM file with
@@ -701,16 +708,19 @@ appear as “exons” (thick segments) connected by thinner horizontal lines
 
 .. _whatshap-haplotag:
 
-whatshap haplotag: Tagging reads by haplotype for visualization
----------------------------------------------------------------
+whatshap haplotag: Tagging reads by haplotype
+=============================================
 
-It is often a lot more interesting to also show the reads along with the
-variants.
+If you already have a phased VCF and would like to know which reads in an
+alignment file belong to which haplotype, you can use ``whatshap haplotag``.
+The tagged reads can then, for example, be visualized in IGV along with the
+variants (see below).
 
-For that, run the ``whatshap haplotag`` subcommand on your phased VCF file. It
-tags each read in a BAM file with ``HP:i:1`` or ``HP:i:2`` depending on which
-haplotype it belongs to, and also adds a ``PS`` tag that describes in which
-haplotype block the read is. With your aligned reads in ``alignments.bam``,
+The ``whatshap haplotag`` subcommand needs to be run on a phased VCF file.
+The command tags each read in the input alignment file with
+``HP:i:1``, ``HP:i:2`` etc. depending on which
+haplotype it belongs to, and it also adds a ``PS`` tag that describes in which
+haplotype block the read is. With the aligned reads in ``alignments.bam``,
 run ::
 
     whatshap haplotag -o haplotagged.bam --reference reference.fasta phased.vcf.gz alignments.bam
@@ -718,7 +728,7 @@ run ::
 Add ``--output-threads=N`` with N greater than 1 to use multiple threads for compressing
 the BAM file, which will speed up processing significantly.
 
-Currently, the ``haplotag`` command requires a ``.vcf.gz`` or ``.bcf`` input file
+The ``haplotag`` command requires a ``.vcf.gz`` or ``.bcf`` input file
 for which an index exists (use ``tabix`` to create one).
 The ``haplotag`` commands re-detects the alleles in the reads in the same way
 the main ``phase`` command does it. Since availability of a reference influences
@@ -739,8 +749,9 @@ haplotypes to an entirely different set of reads (but from the same sample).
 The command above creates a BAM file ``haplotagged.bam`` with the tagged reads,
 which you can open in IGV.
 
-To visualize the haplotype blocks, right click on the BAM track and choose
-*Color Alignments by* → *tag*. Then type in ``PS`` and click “Ok”. Here is an
+To visualize the haplotype blocks in IGV, open the BAM file in IGV,
+right click on the BAM track,
+and choose *Color Alignments by* → *tag*. Then type in ``PS`` and click “Ok”. Here is an
 example of how this can look like. From the colors of the reads alone,
 it is easy to see that there are four haplotype blocks.
 
@@ -765,6 +776,58 @@ heterozygous variants.
 .. image:: _static/haplotagged-HP.png
 
 |
+
+.. _whatshap-haplotag-algorithm:
+
+How haplotagging works
+----------------------
+
+``whatshap haplotag`` processes the reads in the input alignment file one by one.
+(Paired-end reads are treated as a single read with a "hole" in the middle.)
+
+If a read does not cover any heterozygous variants,
+nothing can be said about the haplotype, and the read remains untagged.
+
+If a read covers at least one heterozygous variant, ``haplotag`` detects which allele(s) the
+read supports. It uses the same method as ``whatshap phase``, that is, the read
+is locally re-aligned against both the reference allele and the alternative
+allele, and the allele with the better alignment score wins.
+
+Since allele detection is done separately for each variant, the detected
+alleles for a read do not necessarily have to agree perfectly with one of the
+haplotypes in the variant file. This can happen, for example, when there are
+sequencing errors or when the reads being haplotagged come from a different
+sample than the one that was used to obtain the phasing.
+
+To resolve this, ``haplotag`` compares the alleles of the two possible
+haplotypes with the alleles as found in the read. Each allele that does not
+match is assigned a cost equal to the variant quality
+(``QUAL`` column in the variant file). The haplotype that incurs the
+lowest sum of costs is chosen.
+Finally, the ``HP`` and ``PS`` tags are added to the read accordingly.
+
+For diploid genomes, ``HP`` can be either ``HP:i:1`` or ``HP:i:2``, denoting
+haplotype 1 and 2.
+
+Which haplotype is 1 and which is 2 is determined by the ``GT`` (genotype) field
+in the VCF. For example consider this VCF::
+
+    #CHROM  POS     ID  REF ALT QUAL FILTER INFO FORMAT  NA12878
+    chr1    1069577 .   G   A   .    PASS   .    GT:PS   1|0:1069577
+
+The reference allele is G, the alternative allele is A.
+In general, the ``GT`` field uses 0 to denote the reference allele and 1 for the
+(first) alternative allele (and 2, 3, etc. for additional alternative alleles).
+
+The ``|`` symbol in the ``GT`` field separates haplotypes, as in ``<haplotype1>|<haplotype2>``.
+Here, the first haplotype has allele 1 and the second has allele 0.
+Translated to actual nucleotides, this means that haplotype 1 has allele A
+and haplotype 2 has allele G.
+
+So overall, if ``haplotag`` detects a ``G`` for that variant, it would label
+the read as haplotype 2 (``HP:i:2``), and if it detects ``A``, it would label
+the read as haplotype 1 (``HP:i:1``) (assuming this is consistent with the alleles
+of the other variants on the read).
 
 When working with long or ultra-long reads (e.g., nanopore reads) resulting alignment may contain
 both primary and supplementary alignments. Depending on the sample which reads are being haplotagged
@@ -1237,3 +1300,6 @@ It assigns phase information to a variant if the majority of reads containing th
 
 ``--only-indels``
     Assigns information only to indel events.
+
+``--no-mav``
+    Ignore multiallelic variants.

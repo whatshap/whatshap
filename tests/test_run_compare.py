@@ -348,3 +348,14 @@ def test_compare_ignore_sample_name(tmp_path):
     assert entry.largestblock_assessed_pairs == "2"
     assert entry.largestblock_switches == "1"
     assert entry.largestblock_hamming == "1"
+
+
+def test_compare_mav(tmp_path):
+    output = tmp_path / "output.tsv"
+    run_compare(
+        vcf=["tests/data/mav_1.vcf", "tests/data/mav_2.vcf"],
+        ploidy=2,
+        tsv_pairwise=output,
+        sample=None,
+        ignore_sample_name=True,
+    )

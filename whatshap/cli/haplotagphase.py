@@ -2,6 +2,7 @@
 Phase variants in VCF based on information from haplotagged reads
 """
 
+from collections import defaultdict
 import itertools
 import logging
 import sys
@@ -13,7 +14,7 @@ from whatshap import __version__
 from whatshap.cli import PhasedInputReader, CommandLineError, log_memory_usage
 from whatshap.core import NumericSampleIds, Variant, Read
 from whatshap.timer import StageTimer
-from whatshap.utils import IndexedFasta
+from whatshap.utils import ChromosomeFilter, IndexedFasta
 from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VcfVariant, VariantCallPhase
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,9 @@ def add_arguments(parser):
     arg("--chromosome", dest="chromosomes", metavar="CHROMOSOME", default=[], action="append",
         help="Name of chromosome to phase. If not given, all chromosomes in the input VCF are phased. "
         "Can be used multiple times.")
+    arg("--no-mav", dest="mav", default=True, action="store_false", help="Ignore multiallelic variants.")
+    arg("--exclude-chromosome", dest="excluded_chromosomes", default=[], action="append",
+        help="Name of chromosome not to phase.")
     arg("variant_file", metavar="VCF", help="VCF file with variants to phase (must be gzip-compressed and indexed)")
     arg("alignment_file", metavar="ALIGNMENTS",
         help="BAM/CRAM file with alignments tagged by haplotype and phase set")
@@ -53,9 +57,11 @@ def run_haplotagphase(
     ignore_read_groups: bool = False,
     only_indels: bool = False,
     chromosomes: Optional[List[str]] = None,
+    excluded_chromosomes: Optional[List[str]] = None,
     gap_threshold: int = 70,
     cut_poly: int = 10,
     write_command_line_header: bool = True,
+    mav: bool = True,
     tag: str = "PS",
 ):
     if reference is None:
@@ -84,12 +90,13 @@ def run_haplotagphase(
                     in_path=variant_file,
                     out_file=output,
                     tag=tag,
+                    mav=mav,
                 )
             )
         except (OSError, VcfError) as e:
             raise CommandLineError(e)
 
-        vcf_reader = stack.enter_context(VcfReader(variant_file, phases=True))
+        vcf_reader = stack.enter_context(VcfReader(variant_file, phases=True, mav=mav))
 
         if ignore_read_groups and len(vcf_reader.samples) > 1:
             raise CommandLineError(
@@ -98,33 +105,40 @@ def run_haplotagphase(
             )
         with timers("read-fasta"):
             fasta = stack.enter_context(IndexedFasta(reference))
+        included_chromosomes = ChromosomeFilter(chromosomes, excluded_chromosomes)
         for variant_table in timers.iterate("parse-vcf", vcf_reader):
             chromosome = variant_table.chromosome
             fasta_chr = fasta[chromosome]
             logger.info(f"Processing chromosome {chromosome}...")
-            if chromosomes and chromosome not in chromosomes:
-                logger.info(
-                    f"Leaving chromosome {chromosome} unchanged "
-                    "(present in VCF, but not requested by --chromosome)"
-                )
+            if chromosome not in included_chromosomes:
+                logger.info(f"Leaving chromosome {chromosome} unchanged")
                 with timers("write-vcf"):
                     vcf_writer.write_unchanged(chromosome)
                 continue
             sample_to_super_reads, sample_to_components = (dict(), dict())
             for sample in vcf_reader.samples:
                 logger.info(f"Processing sample {sample}")
-                with timers("read-bam"):
-                    reads, _ = phased_input_reader.read(chromosome, variant_table.variants, sample)
-                phases = variant_table.phases_of(sample)
                 genotypes = variant_table.genotypes_of(sample)
+                with timers("read-bam"):
+                    reads, _ = phased_input_reader.read(
+                        chromosome, variant_table.variants, sample, restricted_genotypes=genotypes
+                    )
+                phases = variant_table.phases_of(sample)
+
                 homozygous = dict()
                 change = dict()
                 phased = dict()
+                # mapping of detected variants to 0/1 and reversed mappings.
+                allele_to_id = defaultdict(dict)
+                id_to_allele = defaultdict(dict)
                 homozygous_number = 0
                 phased_number = 0
                 for variant, (phase, genotype) in zip(
                     variant_table.variants, zip(phases, genotypes)
                 ):
+                    for i, v in enumerate(genotype.as_vector()):
+                        allele_to_id[variant.position][v] = i
+                        id_to_allele[variant.position][i] = v
                     homozygous[variant.position] = genotype.is_homozygous()
                     phased[variant.position] = phase
                     phased_number += phase is not None
@@ -133,10 +147,17 @@ def run_haplotagphase(
                 logger.info(f"Number of homozygous variants is {homozygous_number}")
                 logger.info(f"Number of already phased variants is {phased_number}")
                 with timers("compute-votes"):
-                    votes = compute_votes(homozygous, reads)
+                    votes = compute_votes(homozygous, reads, allele_to_id)
                 with timers("compute-consensus"):
                     sample_to_super_reads[sample], sample_to_components[sample] = consensus(
-                        only_indels, gap_threshold, cut_poly, fasta_chr, change, phased, votes
+                        only_indels,
+                        gap_threshold,
+                        cut_poly,
+                        fasta_chr,
+                        change,
+                        phased,
+                        votes,
+                        id_to_allele,
                     )
             with timers("write-vcf"):
                 vcf_writer.write(chromosome, sample_to_super_reads, sample_to_components)
@@ -166,6 +187,7 @@ def consensus(
     change: Dict[int, VcfVariant],
     phased: Dict[int, Optional[VariantCallPhase]],
     votes: Dict[int, Dict[Tuple[int, int], int]],
+    id_to_allele: Dict[int, Dict[int, int]],
 ) -> Tuple[List[List[Read]], Dict[int, int]]:
     """
     Compute a consensus based on voting and filtering criteria.
@@ -185,6 +207,7 @@ def consensus(
             Variants with `None` are considered unphased.
         votes: A dictionary of variant positions to their votes.
             Each vote includes alleles and their corresponding quality scores.
+        id_to_allele: A dictionary mapping variant id and positions to the actual allele.
 
     Returns:
         A tuple containing two elements:
@@ -210,8 +233,10 @@ def consensus(
                 )
                 if max_length > cut_homopolymers:
                     continue
-        super_reads[0].append(Variant(pos, allele=best_allele, quality=score))
-        super_reads[1].append(Variant(pos, allele=1 - best_allele, quality=score))
+        super_reads[0].append(Variant(pos, allele=id_to_allele[pos][best_allele], quality=score))
+        super_reads[1].append(
+            Variant(pos, allele=id_to_allele[pos][1 - best_allele], quality=score)
+        )
     for read in super_reads:
         read.sort(key=lambda x: x.position)
     return super_reads, components
@@ -299,8 +324,7 @@ def length_of_homopolymer(ref: str, start: int, step: int, threshold: int) -> in
 
 
 def compute_votes(
-    is_homozygous: Dict[int, bool],
-    reads: List[Read],
+    is_homozygous: Dict[int, bool], reads: List[Read], allele_to_id: Dict[int, Dict[int, int]]
 ) -> Dict[int, Dict[Tuple[int, int], int]]:
     """
     Compute votes for variants based on read information.
@@ -316,6 +340,7 @@ def compute_votes(
         is_homozygous: A dictionary indicating whether a variant position is homozygous.
         reads: A list of Read objects, each containing information about variants
             observed in the read, including PS and HP tags, variant position, allele, and quality.
+        allele_to_id: A dictionary mapping allele positions and an id of an allele to 0/1 indices.
 
     Returns:
         A dictionary where keys are variant positions and
@@ -339,7 +364,9 @@ def compute_votes(
             if (ps, 0) not in votes[variant.position]:
                 votes[variant.position][(ps, 0)] = 0
                 votes[variant.position][(ps, 1)] = 0
-            votes[variant.position][(ps, ht ^ variant.allele)] += variant.quality
+            votes[variant.position][
+                (ps, ht ^ allele_to_id[variant.position][variant.allele])
+            ] += variant.quality
     if number_of_skipped > 0:
         logger.warning(
             f"{number_of_skipped} reads were skipped due incorrect HP. The haplotagphase command supports only a diploid input"

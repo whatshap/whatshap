@@ -18,7 +18,10 @@ logger = logging.getLogger(__name__)
 # fmt: off
 def add_arguments(parser):
     add = parser.add_argument
-    add("--gtf", default=None, help="Write phased blocks to GTF file.")
+    add("--gtf", metavar="FILE", help="Write phased blocks as GTF with each block represented as a "
+        "'gene'. If blocks are interleaved or nested, they are split into multiple 'exons'.")
+    add("--block-list", metavar="FILE", help="Write list of all blocks to FILE (one block per "
+        "line). Nested/interleaved blocks are not split.")
     add("--sample", metavar="SAMPLE", help="Name of the sample "
         "to process. If not given, use first sample found in VCF.")
     add("--chr-lengths", metavar="FILE",
@@ -27,7 +30,6 @@ def add_arguments(parser):
     add("--tsv", metavar="FILE", help="Write statistics in tab-separated value format to FILE")
     add("--only-snvs", default=False, action="store_true", help="Only process SNVs "
         "and ignore all other variants.")
-    add("--block-list", metavar="FILE", help="Write list of all blocks to FILE (one block per line)")
     add("--chromosome", dest="chromosomes", metavar="CHROMOSOME", default=[], action="append",
         help="Name of chromosome(s) to process. If not given, all chromosomes in the "
         "input VCF are considered. Can be used multiple times and accepts a comma-separated list. ")
