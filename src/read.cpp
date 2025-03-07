@@ -8,12 +8,35 @@
 
 using namespace std;
 
-Read::Read(const std::string& name, int mapq, int source_id, int sample_id, int reference_start,
- 			const std::string& BX_tag, int HP_tag, int PS_tag,
- 			const std::string& chromosome, const std::string& read_subAlignment_id, bool is_supplementary, int reference_end, bool is_reverse) : name(name), mapqs(1, mapq), source_id(source_id), sample_id(sample_id), reference_start(reference_start),
- 				chromosome(chromosome), read_subAlignment_id(read_subAlignment_id), is_supplementary(is_supplementary),
- 				reference_end(reference_end), is_reverse(is_reverse),
- 			 	BX_tag(BX_tag), HP_tag(HP_tag), PS_tag(PS_tag) {
+Read::Read(
+ 	const std::string& name,
+ 	int mapq,
+ 	int source_id,
+ 	int sample_id,
+ 	int reference_start,
+ 	const std::string& BX_tag,
+ 	int HP_tag,
+ 	int PS_tag,
+ 	const std::string& chromosome,
+ 	const std::string& read_subAlignment_id,
+ 	bool is_supplementary,
+ 	int reference_end,
+ 	bool is_reverse
+)
+ 	: name(name)
+ 	, mapqs(1, mapq)
+ 	, source_id(source_id)
+ 	, sample_id(sample_id)
+ 	, reference_start(reference_start)
+ 	, chromosome(chromosome)
+ 	, read_subAlignment_id(read_subAlignment_id)
+ 	, is_supplementary(is_supplementary)
+ 	, is_reverse(is_reverse)
+ 	, reference_end(reference_end)
+ 	, BX_tag(BX_tag)
+ 	, HP_tag(HP_tag)
+ 	, PS_tag(PS_tag)
+{
 	this->id = -1;
 }
 

@@ -829,6 +829,8 @@ the read as haplotype 2 (``HP:i:2``), and if it detects ``A``, it would label
 the read as haplotype 1 (``HP:i:1``) (assuming this is consistent with the alleles
 of the other variants on the read).
 
+Haplotagging reads with supplementary alignments
+------------------------------------------------
 When working with long or ultra-long reads (e.g., nanopore reads) resulting alignment may contain
 both primary and supplementary alignments. Depending on the sample which reads are being haplotagged
 it is important to recognize that sometimes the data used for variants phasing (into Phase blocks and haplotypes

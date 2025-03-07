@@ -74,8 +74,8 @@ private:
 	std::string chromosome;
 	std::string read_subAlignment_id;
 	bool is_supplementary;
-	int reference_end;
 	bool is_reverse;
+	int reference_end;
 	std::string BX_tag;
 	int HP_tag;
 	int PS_tag;

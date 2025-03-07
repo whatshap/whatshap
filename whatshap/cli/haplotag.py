@@ -89,19 +89,18 @@ def add_arguments(parser):
         choices=list(SupplementaryHaplotaggingStrategy),
         default=SupplementaryHaplotaggingStrategy.SKIP, const=SupplementaryHaplotaggingStrategy.COPY_PRIMARY,
         dest="supplementary_strategy",
-        help="Also tag supplementary alignments. Supplementary alignments are assigned to: "
-             "(i) skip -- no assignment; (ii) copy-primary -- assigned the same PS and HP as primary; "
-             "(iii) independent-or-skip -- each supplementary alignment treated as an independent alignment segment; "
-             "(iv) independent-or-copy-primary -- each supplementary alignment treated as an independent alignment "
-             "defaults to primary PS and HP tags;\n"
-             "(default: with no flag -- skip, default with flag and no value -- copy-primary)")
+        help="How to tag supplementary alignments. "
+             "`skip`: do not tag; `copy-primary` or value omitted: tag same as primary; "
+             "`independent-or-skip`: treat as independent alignment; "
+             "`independent-or-copy-primary`: treat as independent alignment, but if fails, tag same as primary. \n"
+             "Default: skip")
     arg("--supplementary-distance",
         dest="supplementary_distance_threshold",
         type=int,
         default=100_000,
         help="Maximum distance between supplementary alignment record and "
              "a primary one for the tag copying onto the supplementary to be attempted.\n"
-             "(default: 100_000)")
+             "(default: 100,000)")
     arg("--no-supplementary-strand-match", action="store_false",
         dest="supplementary_strand_match",
         default=True,
@@ -629,8 +628,8 @@ def ignore_read(alignment, include_supplementary: bool):
 
     We ignore an alignment [aln]:
     - IF aln is_unmapped OR is_secondary
-    - IF tag_supplementary AND aln is_secondary
-    - IF not tag_supplementary AND is_supplementary
+    - IF include_supplementary AND aln is_secondary
+    - IF not include_supplementary AND is_supplementary
 
     :param alignment:
     :param include_supplementary:

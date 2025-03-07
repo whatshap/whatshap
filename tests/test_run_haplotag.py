@@ -1,3 +1,4 @@
+import os
 from collections import defaultdict
 import shutil
 import pysam
@@ -5,6 +6,7 @@ import pytest
 
 from whatshap.cli.haplotag import run_haplotag, SupplementaryHaplotaggingStrategy
 from whatshap.cli import CommandLineError
+import argparse
 
 
 def test_haplotag(tmp_path):
@@ -83,10 +85,9 @@ def test_haplotag_cli_parser(tmp_path):
     :return:
     """
     from whatshap.cli.haplotag import add_arguments as haplotag_add_arguments
-    import argparse as argp
 
     outbam = tmp_path / "output.bam"
-    parser = argp.ArgumentParser(description="haplotag_test_parser", prog="whatshap_pytest")
+    parser = argparse.ArgumentParser(description="haplotag_test_parser", prog="whatshap_pytest")
     haplotag_add_arguments(parser)
     haplotag_args = parser.parse_args(
         [
@@ -114,94 +115,99 @@ def test_haplotag_cli_parser(tmp_path):
 @pytest.mark.parametrize(
     "supplementary_strategy_cli_flag",
     [
-        "",
-        "--tag-supplementary",
-        "--tag-supplementary=skip",
-        "--tag-supplementary=copy-primary",
-        "--tag-supplementary=independent-or-skip",
-        "--tag-supplementary=independent-or-copy-primary",
+        ("", SupplementaryHaplotaggingStrategy.SKIP),
+        ("--tag-supplementary", SupplementaryHaplotaggingStrategy.COPY_PRIMARY),
+        ("--tag-supplementary=skip", SupplementaryHaplotaggingStrategy.SKIP),
+        ("--tag-supplementary=copy-primary", SupplementaryHaplotaggingStrategy.COPY_PRIMARY),
+        ("--tag-supplementary=independent-or-skip", SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_SKIP),
+        ("--tag-supplementary=independent-or-copy-primary", SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_COPY_PRIMARY),
     ],
 )
-@pytest.mark.parametrize(
-    "supplementary_distance_cli_flag",
-    [
-        "",
-        "--supplementary-distance=100",
-    ],
-)
-@pytest.mark.parametrize(
-    "supplementary_strands_cli_flag",
-    [
-        "",
-        "--no-supplementary-strand-match",
-    ],
-)
-def test_haplotag_cli_parser_supplementary(
+def test_haplotag_cli_parser_supplementary_strategy_strategy_cli_flag(
     tmp_path,
     supplementary_strategy_cli_flag,
-    supplementary_distance_cli_flag,
-    supplementary_strands_cli_flag,
 ):
     from whatshap.cli.haplotag import add_arguments as haplotag_add_arguments
-    import argparse as argp
 
     outbam = tmp_path / "output.bam"
-    parser = argp.ArgumentParser(description="haplotag_test_parser", prog="whatshap_pytest")
+    parser = argparse.ArgumentParser()
     haplotag_add_arguments(parser)
     haplotag_args = parser.parse_args(
-        [_ for _ in supplementary_strategy_cli_flag.split("=") if len(_) > 0]
-        + [_ for _ in supplementary_distance_cli_flag.split("=") if len(_) > 0]
-        + [_ for _ in supplementary_strands_cli_flag.split("=") if len(_) > 0]
+        [x for x in supplementary_strategy_cli_flag[0].split("=") if len(x) > 0]
         + [
             "--no-reference",
             "--output",
-            str(outbam),
+            os.devnull,
             "tests/data/haplotag_2.vcf.gz",
             "tests/data/haplotag.bam",
         ]
     )
-    if supplementary_strategy_cli_flag == "":
-        assert haplotag_args.supplementary_strategy == SupplementaryHaplotaggingStrategy.SKIP
-    elif supplementary_strategy_cli_flag == "--tag-supplementary":
-        assert (
-            haplotag_args.supplementary_strategy == SupplementaryHaplotaggingStrategy.COPY_PRIMARY
-        )
-    elif supplementary_strategy_cli_flag == "--tag-supplementary=skip":
-        assert haplotag_args.supplementary_strategy == SupplementaryHaplotaggingStrategy.SKIP
-    elif supplementary_strategy_cli_flag == "--tag-supplementary=copy-primary":
-        assert (
-            haplotag_args.supplementary_strategy == SupplementaryHaplotaggingStrategy.COPY_PRIMARY
-        )
-    elif supplementary_strategy_cli_flag == "--tag-supplementary=independent-or-skip":
-        assert (
-            haplotag_args.supplementary_strategy
-            == SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_SKIP
-        )
-    elif supplementary_strategy_cli_flag == "--tag-supplementary=independent-or-copy-primary":
-        assert (
-            haplotag_args.supplementary_strategy
-            == SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_COPY_PRIMARY
-        )
+    assert haplotag_args.supplementary_strategy == supplementary_strategy_cli_flag[1]
 
-    if supplementary_distance_cli_flag == "":
-        assert haplotag_args.supplementary_distance_threshold == 100_000
-    elif supplementary_distance_cli_flag == "--supplementary-distance=100":
-        assert haplotag_args.supplementary_distance_threshold == 100
 
-    if supplementary_strands_cli_flag == "":
-        assert haplotag_args.supplementary_strand_match
-    elif supplementary_strategy_cli_flag == "--supplementary-strand-match":
-        assert haplotag_args.supplementary_strand_match
-    elif supplementary_strategy_cli_flag == "--no-supplementary-strand-match":
-        assert not haplotag_args.supplementary_strand_match
+@pytest.mark.parametrize(
+    "supplementary_distance_cli_flag",
+    [
+        ("", 100_000),
+        ("--supplementary-distance=100", 100)
+    ],
+)
+def test_haplotag_cli_parser_supplementary_strategy_distance_cli_flag(
+    tmp_path,
+    supplementary_distance_cli_flag,
+):
+    from whatshap.cli.haplotag import add_arguments as haplotag_add_arguments
+
+    outbam = tmp_path / "output.bam"
+    parser = argparse.ArgumentParser()
+    haplotag_add_arguments(parser)
+    haplotag_args = parser.parse_args(
+        [x for x in supplementary_distance_cli_flag[0].split("=") if len(x) > 0]
+        + [
+            "--no-reference",
+            "--output",
+            os.devnull,
+            "tests/data/haplotag_2.vcf.gz",
+            "tests/data/haplotag.bam",
+        ]
+    )
+    assert haplotag_args.supplementary_distance_threshold == supplementary_distance_cli_flag[1]
+
+
+@pytest.mark.parametrize(
+    "supplementary_strands_cli_flag",
+    [
+        ("", True),
+        ("--no-supplementary-strand-match", False),
+    ],
+)
+def test_haplotag_cli_parser_supplementary_strategy_strands_cli_flag(
+    tmp_path,
+    supplementary_strands_cli_flag,
+):
+    from whatshap.cli.haplotag import add_arguments as haplotag_add_arguments
+
+    outbam = tmp_path / "output.bam"
+    parser = argparse.ArgumentParser()
+    haplotag_add_arguments(parser)
+    haplotag_args = parser.parse_args(
+        [x for x in supplementary_strands_cli_flag[0].split("=") if len(x) > 0]
+        + [
+            "--no-reference",
+            "--output",
+            os.devnull,
+            "tests/data/haplotag_2.vcf.gz",
+            "tests/data/haplotag.bam",
+        ]
+    )
+    assert haplotag_args.supplementary_strand_match == supplementary_strands_cli_flag[1]
 
 
 def test_haplotag_cli_parser_supplementary_distance_threshold(tmp_path):
     from whatshap.cli.haplotag import add_arguments as haplotag_add_arguments
-    import argparse as argp
 
     outbam = tmp_path / "output.bam"
-    parser = argp.ArgumentParser(description="haplotag_test_parser", prog="whatshap_pytest")
+    parser = argparse.ArgumentParser()
     haplotag_add_arguments(parser)
     haplotag_args = parser.parse_args(
         [
@@ -230,10 +236,9 @@ def test_haplotag_cli_parser_supplementary_distance_threshold(tmp_path):
 
 def test_haplotag_cli_parser_supplementary_strand_match_requirement(tmp_path):
     from whatshap.cli.haplotag import add_arguments as haplotag_add_arguments
-    import argparse as argp
 
     outbam = tmp_path / "output.bam"
-    parser = argp.ArgumentParser(description="haplotag_test_parser", prog="whatshap_pytest")
+    parser = argparse.ArgumentParser()
     haplotag_add_arguments(parser)
     haplotag_args = parser.parse_args(
         [
@@ -262,6 +267,7 @@ def test_haplotag_cli_parser_supplementary_strand_match_requirement(tmp_path):
 
 
 """
+For the following tests we cover cases of supplementary alignments haplotagging strategy 
 The idea is cover the use case of having a vcf produced and/or phased with long reads in a matching normal sample
 and have derived tumor sample reads haplotagged with respective phased vcf.
 Due to potential rearrangements in tumor, respective reads may have multiple supplementary alignments, that
@@ -341,32 +347,30 @@ def test_run_haplotag_supplementary_skip(tmp_path):
         ignore_read_groups=True,
         supplementary_strategy=SupplementaryHaplotaggingStrategy.SKIP,
     )
+    pairs = []
     a1: pysam.AlignedSegment
     a2: pysam.AlignedSegment
     with pysam.AlignmentFile(out_bam_default_strategy) as source1, pysam.AlignmentFile(
         out_bam_explicit_skip
     ) as source2:
-        for a1, a2 in zip(source1, source2):
-            assert a1.query_name == a2.query_name
-            if a1.is_supplementary:
-                assert not a1.has_tag("HP")
-                assert not a2.has_tag("HP")
-                assert not a1.has_tag("PS")
-                assert not a2.has_tag("PS")
-            if a1.query_name == "R1" and not a1.is_supplementary:
-                assert not a1.has_tag("HP")
-                assert not a2.has_tag("HP")
-                assert not a1.has_tag("PS")
-                assert not a2.has_tag("PS")
-            elif a1.query_name == "R2" and not a1.is_supplementary:
-                assert a1.has_tag("HP")
-                assert a2.has_tag("HP")
-                assert a1.get_tag("HP") == a2.get_tag("HP")
-                assert a1.get_tag("HP") == 1
-                assert a1.has_tag("PS")
-                assert a2.has_tag("PS")
-                assert a1.get_tag("PS") == a2.get_tag("PS")
-                assert a1.get_tag("PS") == 16849384
+        pairs = list(zip(source1, source2))
+    for a1, a2 in pairs:
+        assert a1.query_name == a2.query_name
+        if a1.is_supplementary:
+            assert not a1.has_tag("HP")
+            assert not a2.has_tag("HP")
+            assert not a1.has_tag("PS")
+            assert not a2.has_tag("PS")
+        if a1.query_name == "R1" and not a1.is_supplementary:
+            assert not a1.has_tag("HP")
+            assert not a2.has_tag("HP")
+            assert not a1.has_tag("PS")
+            assert not a2.has_tag("PS")
+        elif a1.query_name == "R2" and not a1.is_supplementary:
+            assert a1.get_tag("HP") == a2.get_tag("HP")
+            assert a1.get_tag("HP") == 1
+            assert a1.get_tag("PS") == a2.get_tag("PS")
+            assert a1.get_tag("PS") == 16849384
 
 
 def test_run_haplotag_supplementary_copy_primary_no_strand_match_permissive_distance(tmp_path):
@@ -396,9 +400,7 @@ def test_run_haplotag_supplementary_copy_primary_no_strand_match_permissive_dist
                     assert not a.has_tag("HP")
                     assert not a.has_tag("PS")
                 else:
-                    assert a.has_tag("HP")
                     assert a.get_tag("HP") == 1
-                    assert a.has_tag("PS")
                     assert a.get_tag("PS") == 16849384
 
 
@@ -432,9 +434,7 @@ def test_run_haplotag_supplementary_copy_primary_strand_match_permissive_distanc
                     assert not a.has_tag("HP")
                     assert not a.has_tag("PS")
                 else:
-                    assert a.has_tag("HP")
                     assert a.get_tag("HP") == 1
-                    assert a.has_tag("PS")
                     assert a.get_tag("PS") == 16849384
 
 
@@ -465,9 +465,7 @@ def test_run_haplotag_supplementary_copy_primary_strand_match_small_distance(tmp
                     assert not a.has_tag("HP")
                     assert not a.has_tag("PS")
                 else:
-                    assert a.has_tag("HP")
                     assert a.get_tag("HP") == 1
-                    assert a.has_tag("PS")
                     assert a.get_tag("PS") == 16849384
 
 
@@ -501,9 +499,7 @@ def test_run_haplotag_supplementary_copy_primary_no_strand_match_small_distance(
                     assert not a.has_tag("HP")
                     assert not a.has_tag("PS")
                 else:
-                    assert a.has_tag("HP")
                     assert a.get_tag("HP") == 1
-                    assert a.has_tag("PS")
                     assert a.get_tag("PS") == 16849384
 
 
@@ -531,8 +527,6 @@ def test_run_haplotag_supplementary_independent_or_skip(tmp_path):
                     and a.cigarstring == "3442M4D7991M49443S"
                     and a.flag == 2048
                 ):
-                    assert a.has_tag("HP")
-                    assert a.has_tag("PS")
                     assert a.get_tag("HP") == 1
                     assert a.get_tag("PS") == 16849384
                 # chr1_NPS_H1
@@ -549,8 +543,6 @@ def test_run_haplotag_supplementary_independent_or_skip(tmp_path):
                     and a.cigarstring == "30528S1424M4D655M28269S"
                     and a.flag == 2048
                 ):
-                    assert a.has_tag("HP")
-                    assert a.has_tag("PS")
                     assert a.get_tag("HP") == 1
                     assert a.get_tag("PS") == 18103117
                 # chr1_rcPS1_H2
@@ -559,8 +551,6 @@ def test_run_haplotag_supplementary_independent_or_skip(tmp_path):
                     and a.cigarstring == "16839S3442M2D6222M5D1768M32605S"
                     and a.flag == 2064
                 ):
-                    assert a.has_tag("HP")
-                    assert a.has_tag("PS")
                     assert a.get_tag("HP") == 2
                     assert a.get_tag("PS") == 16849384
                 # chr2_PS1_H1
@@ -569,8 +559,6 @@ def test_run_haplotag_supplementary_independent_or_skip(tmp_path):
                     and a.cigarstring == "44037S5406M11433S"
                     and a.flag == 2048
                 ):
-                    assert a.has_tag("HP")
-                    assert a.has_tag("PS")
                     assert a.get_tag("HP") == 1
                     assert a.get_tag("PS") == 26802880
                 # chr1_rcPS1_H1
@@ -579,8 +567,6 @@ def test_run_haplotag_supplementary_independent_or_skip(tmp_path):
                     and a.cigarstring == "3442M4D7991M49443S"
                     and a.flag == 2064
                 ):
-                    assert a.has_tag("HP")
-                    assert a.has_tag("PS")
                     assert a.get_tag("HP") == 1
                     assert a.get_tag("PS") == 16849384
                 # we should not get here to R1, so a failsafe
@@ -593,8 +579,6 @@ def test_run_haplotag_supplementary_independent_or_skip(tmp_path):
                     and a.cigarstring == "3442M4D7991M16014S"
                     and a.flag == 0
                 ):
-                    assert a.has_tag("HP")
-                    assert a.has_tag("PS")
                     assert a.get_tag("HP") == 1
                     assert a.get_tag("PS") == 16849384
                 # chr1_NPS_sub_H1
@@ -611,8 +595,6 @@ def test_run_haplotag_supplementary_independent_or_skip(tmp_path):
                     and a.cigarstring == "13868S1424M4D655M11500S"
                     and a.flag == 2048
                 ):
-                    assert a.has_tag("HP")
-                    assert a.has_tag("PS")
                     assert a.get_tag("HP") == 2
                     assert a.get_tag("PS") == 18103117
                 # chr1_rcPS1_sub_H2
@@ -621,8 +603,6 @@ def test_run_haplotag_supplementary_independent_or_skip(tmp_path):
                     and a.cigarstring == "8452S2673M2D375M15947S"
                     and a.flag == 2064
                 ):
-                    assert a.has_tag("HP")
-                    assert a.has_tag("PS")
                     assert a.get_tag("HP") == 2
                     assert a.get_tag("PS") == 16849384
                 # chr2_PS1_H1
@@ -631,8 +611,6 @@ def test_run_haplotag_supplementary_independent_or_skip(tmp_path):
                     and a.cigarstring == "18995S5407M3045S"
                     and a.flag == 2048
                 ):
-                    assert a.has_tag("HP")
-                    assert a.has_tag("PS")
                     assert a.get_tag("HP") == 1
                     assert a.get_tag("PS") == 26802880
                 # chr1_rPS1_sub_H1
@@ -641,8 +619,6 @@ def test_run_haplotag_supplementary_independent_or_skip(tmp_path):
                     and a.cigarstring == "2673M4D373M24401S"
                     and a.flag == 2064
                 ):
-                    assert a.has_tag("HP")
-                    assert a.has_tag("PS")
                     assert a.get_tag("HP") == 1
                     assert a.get_tag("PS") == 16849384
                 # we should not get here to R2, so a failsafe
@@ -825,7 +801,6 @@ def test_haplotag_missing_SM_tag(tmp_path):
         for a1, a2 in zip(source1, source2):
             assert a1.query_name == a2.query_name
             if a1.has_tag("HP"):
-                assert a2.has_tag("HP")
                 assert a1.get_tag("HP") == a2.get_tag("HP")
             for n, (line1, line2) in enumerate(zip(open(outlist1), open(outlist2))):
                 fields1 = line1.split(sep="\t")
@@ -896,7 +871,6 @@ def test_haplotag_no_readgroups1(tmp_path):
     for a1, a2 in zip(pysam.AlignmentFile(outbam1), pysam.AlignmentFile(outbam2)):
         assert a1.query_name == a2.query_name
         if a1.has_tag("HP"):
-            assert a2.has_tag("HP")
             assert a1.get_tag("HP") == a2.get_tag("HP")
             count += 1
     assert count > 0
@@ -947,7 +921,6 @@ def haplotag_different_sorting(tmp_path):
     for a1, a2 in zip(pysam.AlignmentFile(outbam1), pysam.AlignmentFile(outbam2)):
         assert a1.query_name == a2.query_name
         if a1.has_tag("HP"):
-            assert a2.has_tag("HP")
             assert a1.get_tag("HP") == a2.get_tag("HP")
             count += 1
     assert count > 0
@@ -1037,7 +1010,7 @@ def test_haplotag_supplementary(tmp_path):
         variant_file="tests/data/haplotag.supplementary.vcf.gz",
         alignment_file="tests/data/haplotag.supplementary.bam",
         output=outbam2,
-        supplementary_strategy=SupplementaryHaplotaggingStrategy.COPY_PRIMARY,  # switch from boolean to enum
+        supplementary_strategy=SupplementaryHaplotaggingStrategy.COPY_PRIMARY,
         ignore_read_groups=True,
         supplementary_strand_match=False,
         supplementary_distance_threshold=1_000_000_000,

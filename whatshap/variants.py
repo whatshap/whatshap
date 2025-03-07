@@ -320,8 +320,8 @@ class ReadSetReader:
             chromosome=primary.read.chromosome,
             sub_alignment_id=primary.read.sub_alignment_id,
             is_supplementary=primary.read.is_supplementary,
-            reference_end=primary.reference_end,
             is_reverse=primary.is_reverse,
+            reference_end=primary.reference_end,
         )
         for position, variant in variants.items():
             if position not in skip:
@@ -490,8 +490,8 @@ class ReadSetReader:
                 chromosome=alignment.bam_alignment.reference_name,
                 sub_alignment_id=sub_alignment_id,
                 is_supplementary=alignment.bam_alignment.is_supplementary,
-                reference_end=alignment.bam_alignment.reference_end,
                 is_reverse=alignment.bam_alignment.is_reverse,
+                reference_end=alignment.bam_alignment.reference_end,
             )
 
             if reference is None:
