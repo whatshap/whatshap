@@ -42,15 +42,20 @@ def reads():
     read1 = create_aligned_read("read1", 150, 250)
     read2 = create_aligned_read("read2", 300, 400)
     read3 = create_aligned_read("read3", 200, 250)
-    return read0, read1, read2, read3
+    read4 = create_aligned_read("read4", 110, 120)
+    return read0, read1, read2, read3, read4
 
 @pytest.mark.parametrize("index_a, index_b, expected_distance", [
     (0, 1, 0),
     (0, 2, 100),
     (0, 3, 0),
+    (0, 4, 0),
     (1, 2, 50),
     (1, 3, 0),
+    (1, 4, 30),
     (2, 3, 50),
+    (2, 4, 180),
+    (3, 4, 80),
 ])
 def test_distance(reads, index_a, index_b, expected_distance):
     assert reads[index_a].distance(reads[index_b]) == expected_distance
