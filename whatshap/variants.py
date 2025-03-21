@@ -74,7 +74,7 @@ class AlignedRead:
     reference_start: int
     reference_end: int
 
-    def distance(self, other : "AlignedRead") -> int:
+    def distance(self, other: "AlignedRead") -> int:
         return max(
             0,
             self.reference_start - other.reference_end,
