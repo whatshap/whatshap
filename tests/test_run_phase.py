@@ -993,7 +993,7 @@ def test_with_read_merging(algorithm):
 
 def test_vcf_with_missing_headers(algorithm):
     # Since pysam 0.16, this type of invalid VCF is no longer accepted
-    with raises(CommandLineError):
+    with raises(ValueError):
         run_whatshap(
             phase_input_files=["tests/data/oneread.bam"],
             variant_file="tests/data/missing-headers.vcf",
