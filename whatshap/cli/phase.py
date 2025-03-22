@@ -1132,7 +1132,7 @@ def add_arguments(parser):
     arg("--ped", metavar="PED/FAM",
         help="Use pedigree information in PED file to improve phasing "
         "(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, "
-        "mother, and father sample names as used in the VCF and BAM/CRAM. "
+        "father, and mother sample names as used in the VCF and BAM/CRAM. "
         "Other columns are ignored.")
     arg("--recombination-list", metavar="FILE", dest="recombination_list_filename", default=None,
         help="Write putative recombination events to FILE.")
