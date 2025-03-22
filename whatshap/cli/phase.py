@@ -265,7 +265,8 @@ def setup_pedigree(ped_path: str, samples: Sequence[str]) -> Tuple[Sequence[Trio
             warn_once(
                 logger,
                 "Relationship %s/%s/%s ignored because at least one of the "
-                "individuals was not given by --samples.",
+                "individuals was not among the samples to be phased "
+                "(either not in the input VCF or restricted by --sample).",
                 trio.child,
                 trio.mother,
                 trio.father,
