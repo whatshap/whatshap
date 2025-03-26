@@ -203,62 +203,56 @@ def attempt_add_phase_information(
     # this should not really happen, but does not break reverse compatability and provides explicit logic here
     if is_supplementary and supplementary_strategy == SupplementaryHaplotaggingStrategy.SKIP:
         return is_tagged, haplotype_name, phaseset
-    try:
-        representations = [
-            # represented as itself (as_primary=True would match result for as_primary=False for primary alignment)
-            alignment_representation(alignment=alignment, as_primary=False),
-            # represented as primary. itself for primary alignment
-            alignment_representation(alignment=alignment, as_primary=True),
-        ]
-        if supplementary_strategy == SupplementaryHaplotaggingStrategy.COPY_PRIMARY:
-            # itself representation would go, but a primary would stay.
-            #   Works for both primary and supplementary alignments to retrieve data based on primary assignment
-            # leaves only alignment_representation(alignment=alignment, as_primary=True),
-            #   which is itself for primary, and a fallback for supplementary to copy from
-            representations.pop(0)
-        elif supplementary_strategy == SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_SKIP:
-            # as_primary representation would go, but itself would stay.
-            #   Works for both primary and supplementary alignments to retrieve data based on itself assignment
-            # leaves only alignment_representation(alignment=alignment, as_primary=False), which is itself for both.
-            representations.pop(1)
-        elif (
-            supplementary_strategy == SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_COPY_PRIMARY
-        ):
-            # left here for clarity. Leaves both representations present with itself being first to consider,
-            #   and as_primary being the second
-            pass
-        if is_supplementary and supplementary_strategy.attempt_to_copy_primary():
-            primary_info = primary_info_by_repr.get(
-                alignment_representation(alignment=alignment, as_primary=True), None
+    representations = [
+        # represented as itself (as_primary=True would match result for as_primary=False for primary alignment)
+        alignment_representation(alignment=alignment, as_primary=False),
+        # represented as primary. itself for primary alignment
+        alignment_representation(alignment=alignment, as_primary=True),
+    ]
+    if supplementary_strategy == SupplementaryHaplotaggingStrategy.COPY_PRIMARY:
+        # itself representation would go, but a primary would stay.
+        #   Works for both primary and supplementary alignments to retrieve data based on primary assignment
+        # leaves only alignment_representation(alignment=alignment, as_primary=True),
+        #   which is itself for primary, and a fallback for supplementary to copy from
+        representations.pop(0)
+    elif supplementary_strategy == SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_SKIP:
+        # as_primary representation would go, but itself would stay.
+        #   Works for both primary and supplementary alignments to retrieve data based on itself assignment
+        # leaves only alignment_representation(alignment=alignment, as_primary=False), which is itself for both.
+        representations.pop(1)
+    elif (
+        supplementary_strategy == SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_COPY_PRIMARY
+    ):
+        # left here for clarity. Leaves both representations present with itself being first to consider,
+        #   and as_primary being the second
+        pass
+    if is_supplementary and supplementary_strategy.attempt_to_copy_primary():
+        primary_info = primary_info_by_repr.get(
+            alignment_representation(alignment=alignment, as_primary=True), None
+        )
+        if primary_info is not None:
+            remove_primary_repr = supplementary_distance_threshold < min_alignment_distance(
+                primary_info.reference_start,
+                primary_info.reference_end,
+                alignment.reference_start,
+                alignment.reference_end,
             )
-            if primary_info is not None:
-                remove_primary_repr = supplementary_distance_threshold < min_alignment_distance(
-                    primary_info.reference_start,
-                    primary_info.reference_end,
-                    alignment.reference_start,
-                    alignment.reference_end,
-                )
-                if supplementary_strand_match:
-                    remove_primary_repr |= primary_info.is_reverse != alignment.is_reverse
-                if remove_primary_repr:
-                    representations.pop()
-        for repr in representations:
-            if repr in read_to_haplotype:
-                haplotype, quality, phaseset = read_to_haplotype[repr]
-                haplotype_name = f"H{haplotype + 1}"
-                alignment.set_tag("HP", haplotype + 1)
-                alignment.set_tag("PC", quality)
-                alignment.set_tag("PS", phaseset)
-                is_tagged = 1
-                break
-        else:
-            # we arrive here if no representation (however many we consider based on haplotagging strategy)
-            #   were present in info.
-            # this would have equaled to have an alignment.query_name being present in read_to_haplotype data
-            #   in original logic where only COPY was present
-            raise KeyError
-    except KeyError:
-        # check if reads with same tag have been assigned
+            if supplementary_strand_match:
+                remove_primary_repr |= primary_info.is_reverse != alignment.is_reverse
+            if remove_primary_repr:
+                representations.pop()
+    for repr in representations:
+        if repr in read_to_haplotype:
+            haplotype, quality, phaseset = read_to_haplotype[repr]
+            haplotype_name = f"H{haplotype + 1}"
+            alignment.set_tag("HP", haplotype + 1)
+            alignment.set_tag("PC", quality)
+            alignment.set_tag("PS", phaseset)
+            is_tagged = 1
+            break
+    else:
+        # we arrive here if no representation (however many we consider based on haplotagging strategy)
+        #   were present in info.
         if not ignore_linked_read:
             try:
                 tag = alignment.get_tag("BX")
