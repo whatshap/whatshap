@@ -265,7 +265,8 @@ def setup_pedigree(ped_path: str, samples: Sequence[str]) -> Tuple[Sequence[Trio
             warn_once(
                 logger,
                 "Relationship %s/%s/%s ignored because at least one of the "
-                "individuals was not given by --samples.",
+                "individuals was not among the samples to be phased "
+                "(either not in the input VCF or restricted by --sample).",
                 trio.child,
                 trio.mother,
                 trio.father,
@@ -1132,7 +1133,7 @@ def add_arguments(parser):
     arg("--ped", metavar="PED/FAM",
         help="Use pedigree information in PED file to improve phasing "
         "(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, "
-        "mother, and father sample names as used in the VCF and BAM/CRAM. "
+        "father, and mother sample names as used in the VCF and BAM/CRAM. "
         "Other columns are ignored.")
     arg("--recombination-list", metavar="FILE", dest="recombination_list_filename", default=None,
         help="Write putative recombination events to FILE.")

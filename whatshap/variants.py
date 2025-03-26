@@ -75,11 +75,11 @@ class AlignedRead:
     reference_start: int
     reference_end: int
 
-    def distance(self, other) -> int:
+    def distance(self, other: "AlignedRead") -> int:
         return max(
-            other.reference_end - self.reference_start,
-            other.reference_start - self.reference_end,
             0,
+            self.reference_start - other.reference_end,
+            other.reference_start - self.reference_end,
         )
 
 
