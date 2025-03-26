@@ -220,9 +220,7 @@ def attempt_add_phase_information(
         #   Works for both primary and supplementary alignments to retrieve data based on itself assignment
         # leaves only alignment_representation(alignment=alignment, as_primary=False), which is itself for both.
         representations.pop(1)
-    elif (
-        supplementary_strategy == SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_COPY_PRIMARY
-    ):
+    elif supplementary_strategy == SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_COPY_PRIMARY:
         # left here for clarity. Leaves both representations present with itself being first to consider,
         #   and as_primary being the second
         pass

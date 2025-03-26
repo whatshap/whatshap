@@ -119,8 +119,14 @@ def test_haplotag_cli_parser(tmp_path):
         ("--tag-supplementary", SupplementaryHaplotaggingStrategy.COPY_PRIMARY),
         ("--tag-supplementary=skip", SupplementaryHaplotaggingStrategy.SKIP),
         ("--tag-supplementary=copy-primary", SupplementaryHaplotaggingStrategy.COPY_PRIMARY),
-        ("--tag-supplementary=independent-or-skip", SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_SKIP),
-        ("--tag-supplementary=independent-or-copy-primary", SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_COPY_PRIMARY),
+        (
+            "--tag-supplementary=independent-or-skip",
+            SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_SKIP,
+        ),
+        (
+            "--tag-supplementary=independent-or-copy-primary",
+            SupplementaryHaplotaggingStrategy.INDEPENDENT_OR_COPY_PRIMARY,
+        ),
     ],
 )
 def test_haplotag_cli_parser_supplementary_strategy_strategy_cli_flag(
@@ -147,10 +153,7 @@ def test_haplotag_cli_parser_supplementary_strategy_strategy_cli_flag(
 
 @pytest.mark.parametrize(
     "supplementary_distance_cli_flag",
-    [
-        ("", 100_000),
-        ("--supplementary-distance=100", 100)
-    ],
+    [("", 100_000), ("--supplementary-distance=100", 100)],
 )
 def test_haplotag_cli_parser_supplementary_strategy_distance_cli_flag(
     tmp_path,

@@ -237,7 +237,7 @@ class ReadSetReader:
         assert restricted_genotypes is None or len(restricted_genotypes) == len(variants)
         alignments = self._usable_alignments(chromosome, sample, regions)
         reads = self._alignments_to_reads(
-             alignments, variants, sample, reference, restricted_genotypes
+            alignments, variants, sample, reference, restricted_genotypes
         )
         grouped_reads = self._group_reads(
             reads,
