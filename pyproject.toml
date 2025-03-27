@@ -29,6 +29,7 @@ whatshap = "whatshap.__main__:main"
 dev = [
     "Cython",
     "pytest",
+    "hypothesis",
     "sphinx>=4.4",
     "sphinx-issues",
     "pysam-stubs"

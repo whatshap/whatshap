@@ -462,7 +462,7 @@ def add_arguments(parser):
     arg('--ped', metavar='PED/FAM',
         help='Use pedigree information in PED file to improve genotyping '
         '(switches to PedMEC algorithm). Columns 2, 3, 4 must refer to child, '
-        'mother, and father sample names as used in the VCF and BAM. Other '
+        'father, and mother sample names as used in the VCF and BAM. Other '
         'columns are ignored (EXPERIMENTAL).')
     arg('--recombrate', metavar='RECOMBRATE', type=float, default=1.26,
         help='Recombination rate in cM/Mb (used with --ped). If given, a constant recombination '
