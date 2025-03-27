@@ -24,7 +24,7 @@ from .core import (
     get_max_genotype_ploidy,
     get_max_genotype_alleles,
 )
-from .utils import warn_once
+from .utils import warn_once, CommandLineError
 
 logger = logging.getLogger(__name__)
 
@@ -1389,3 +1389,10 @@ class GenotypeVcfWriter(VcfAugmenter):
                 # delete all other genotype information that might have been present before
                 for tag in set(call.keys()) - GT_GL_GQ:
                     del call[tag]
+
+
+def raise_if_any_sample_not_in_vcf(vcf_reader: VcfReader, samples: Sequence[str]) -> None:
+    vcf_sample_set = set(vcf_reader.samples)
+    for sample in samples:
+        if sample not in vcf_sample_set:
+            raise CommandLineError(f"Sample {sample!r} requested on command-line not found in VCF")

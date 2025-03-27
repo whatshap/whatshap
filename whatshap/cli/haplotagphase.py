@@ -14,8 +14,15 @@ from whatshap import __version__
 from whatshap.cli import PhasedInputReader, CommandLineError, log_memory_usage
 from whatshap.core import NumericSampleIds, Variant, Read
 from whatshap.timer import StageTimer
-from whatshap.utils import ChromosomeFilter, IndexedFasta, raise_if_any_sample_not_in_vcf
-from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VcfVariant, VariantCallPhase
+from whatshap.utils import ChromosomeFilter, IndexedFasta
+from whatshap.vcf import (
+    VcfReader,
+    PhasedVcfWriter,
+    VcfError,
+    VcfVariant,
+    VariantCallPhase,
+    raise_if_any_sample_not_in_vcf,
+)
 
 logger = logging.getLogger(__name__)
 

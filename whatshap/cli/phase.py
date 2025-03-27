@@ -29,7 +29,13 @@ from typing import (
     IO,
 )
 
-from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VariantTable
+from whatshap.vcf import (
+    VcfReader,
+    PhasedVcfWriter,
+    VcfError,
+    VariantTable,
+    raise_if_any_sample_not_in_vcf,
+)
 from whatshap import __version__
 from whatshap.core import (
     ReadSet,
@@ -53,7 +59,7 @@ from whatshap.pedigree import (
     Trio,
 )
 from whatshap.timer import StageTimer
-from whatshap.utils import ChromosomeFilter, plural_s, raise_if_any_sample_not_in_vcf, warn_once
+from whatshap.utils import ChromosomeFilter, plural_s, warn_once
 from whatshap.cli import CommandLineError, log_memory_usage, PhasedInputReader
 from whatshap.merge import ReadMerger, DoNothingReadMerger, ReadMergerBase
 from whatshap.types import PhasingAlgorithm
