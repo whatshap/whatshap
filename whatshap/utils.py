@@ -10,6 +10,10 @@ import pyfaidx
 from dataclasses import dataclass
 
 
+class CommandLineError(Exception):
+    """An anticipated command-line error occurred. This ends up as a user-visible error message"""
+
+
 class FastaNotIndexedError(Exception):
     pass
 
