@@ -135,7 +135,6 @@ def test_haplotag_cli_parser_supplementary_strategy_strategy_cli_flag(
 ):
     from whatshap.cli.haplotag import add_arguments as haplotag_add_arguments
 
-    outbam = tmp_path / "output.bam"
     parser = argparse.ArgumentParser()
     haplotag_add_arguments(parser)
     haplotag_args = parser.parse_args(
@@ -161,7 +160,6 @@ def test_haplotag_cli_parser_supplementary_strategy_distance_cli_flag(
 ):
     from whatshap.cli.haplotag import add_arguments as haplotag_add_arguments
 
-    outbam = tmp_path / "output.bam"
     parser = argparse.ArgumentParser()
     haplotag_add_arguments(parser)
     haplotag_args = parser.parse_args(
@@ -190,7 +188,6 @@ def test_haplotag_cli_parser_supplementary_strategy_strands_cli_flag(
 ):
     from whatshap.cli.haplotag import add_arguments as haplotag_add_arguments
 
-    outbam = tmp_path / "output.bam"
     parser = argparse.ArgumentParser()
     haplotag_add_arguments(parser)
     haplotag_args = parser.parse_args(
@@ -270,7 +267,7 @@ def test_haplotag_cli_parser_supplementary_strand_match_requirement(tmp_path):
 
 
 """
-For the following tests we cover cases of supplementary alignments haplotagging strategy 
+For the following tests we cover cases of supplementary alignments haplotagging strategy
 The idea is cover the use case of having a vcf produced and/or phased with long reads in a matching normal sample
 and have derived tumor sample reads haplotagged with respective phased vcf.
 Due to potential rearrangements in tumor, respective reads may have multiple supplementary alignments, that
