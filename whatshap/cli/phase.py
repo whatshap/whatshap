@@ -29,7 +29,13 @@ from typing import (
     IO,
 )
 
-from whatshap.vcf import VcfReader, PhasedVcfWriter, VcfError, VariantTable
+from whatshap.vcf import (
+    VcfReader,
+    PhasedVcfWriter,
+    VcfError,
+    VariantTable,
+    raise_if_any_sample_not_in_vcf,
+)
 from whatshap import __version__
 from whatshap.core import (
     ReadSet,
@@ -736,13 +742,6 @@ def log_best_case_phasing_info(readset: ReadSet, selected_reads: ReadSet) -> Non
         "... would be %d non-singleton phased blocks without read selection",
         n_best_case_nonsingleton_blocks,
     )
-
-
-def raise_if_any_sample_not_in_vcf(vcf_reader: VcfReader, samples: Sequence[str]) -> None:
-    vcf_sample_set = set(vcf_reader.samples)
-    for sample in samples:
-        if sample not in vcf_sample_set:
-            raise CommandLineError(f"Sample {sample!r} requested on command-line not found in VCF")
 
 
 def setup_families(
