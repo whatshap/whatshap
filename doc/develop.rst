@@ -219,6 +219,20 @@ Use one of the modules in ``whatshap/cli/`` as a template. All modules in
 that directory are automatically used as subcommands.
 
 
+Structure
+---------
+
+The code is logically split into two parts:
+Everything in the ``cli`` submodule is the "application" code
+(or perhaps: "frontend") that implements the command-line interface.
+The other, non-``cli`` modules is the library (or "backend").
+
+Any errors occurring in the library part should raise specific exceptions that
+indicate what exactly the problem is (e.g. ``FastaNotIndexedError``).
+The frontend catches all the expected errors and converts them to
+``CommandLineError``, which end up as user-visible error messages.
+
+
 Download count statistics
 -------------------------
 
