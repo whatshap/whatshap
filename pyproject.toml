@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=64", "setuptools_scm[toml]", "cython~=3.0.11"]
+requires = ["setuptools>=77.0.3", "setuptools_scm[toml]", "cython~=3.0.11"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -9,12 +9,11 @@ authors = [
 ]
 description = "phase genomic variants using DNA sequencing reads"
 readme = "doc/README.rst"
-license = {text = "MIT"}
+license = "MIT"
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Cython",
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering :: Bio-Informatics"
