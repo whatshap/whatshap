@@ -77,7 +77,7 @@ addopts = "--doctest-modules"
 testpaths = ["tests", "whatshap"]
 
 [tool.cibuildwheel]
-environment = "CFLAGS=-g0"
+environment = "CFLAGS=-g0 CXXFLAGS=-g0"
 # Disable tests for the moment because pip attempts to install pysam
 # from source for some reason although wheels exist.
 # test-requires = "pytest"
