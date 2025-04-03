@@ -2,8 +2,8 @@
 Changes
 =======
 
-development version
--------------------
+v2.5 (2025-04-03)
+-----------------
 
 * :issue:`587`: Fixed bug when computing distances between aligned reads
   which could lead to some reads being ignored.
