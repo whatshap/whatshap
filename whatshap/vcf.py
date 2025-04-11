@@ -916,50 +916,35 @@ def missing_headers(path: str) -> Tuple[List[str], List[str], List[str]]:
 
         # Iterate through entire file and check which contigs, formats and
         # info fields are used
-        contigs = []  # contigs encountered, in the proper order
-        seen_contigs = set()
-        formats = []  # FORMATs encountered, in the proper order
-        seen_formats = set()
+        contigs = dict()  # contigs encountered, in the proper order
+        formats = dict()  # FORMATs encountered, in the proper order
         seen_infos: Set[str] = set()  # INFOs encountered
 
         try:
             for record in variant_file:
                 seen_infos.update(record.info)
-                if record.alts is not None:
-                    for alt in record.alts:
-                        # If there are "vague" ALT alleles such as <INS>, <DEL> etc, then
-                        # the header needs to contain a LEN info entry even if LEN
-                        # is never used
-                        if alt.startswith("<"):
-                            seen_infos.add("END")
+                # If there are "vague" ALT alleles such as <INS>, <DEL> etc, then
+                # the header needs to contain a END info entry even if END
+                # is never used
+                if any(alt.startswith("<") for alt in record.alts or []):
+                    seen_infos.add("END")
 
-                # For the contigs, we maintain a set *and* a list because we want to
-                # keep track of the order of the contigs.
-                if record.contig not in seen_contigs:
-                    contigs.append(record.contig)
-                seen_contigs.add(record.contig)
+                # For the contigs and formats, we use a dict because we want to
+                # preserve the order.
+                contigs[record.contig] = None
 
                 for fmt in record.format:
-                    if fmt not in seen_formats:
-                        formats.append(fmt)
-                    seen_formats.add(fmt)
+                    formats[fmt] = None
         except ValueError as e:
             raise VcfError(e)
 
     # Determine which contigs are missing from the header
     header_contigs = set(header.contigs)
-    missing_contigs = []
-    for contig in contigs:
-        if contig not in header_contigs:
-            missing_contigs.append(contig)
+    missing_contigs = [contig for contig in contigs if contig not in header_contigs]
 
     # Determine which FORMATs are missing from the header
     header_formats = set(header.formats)
-    missing_formats = []
-    for fmt in formats:
-        if fmt in header_formats:
-            continue
-        missing_formats.append(fmt)
+    missing_formats = [fmt for fmt in formats if fmt not in header_formats]
 
     # Determine which INFOs are missing from the header
     missing_infos = list(set(seen_infos) - set(header.info))
