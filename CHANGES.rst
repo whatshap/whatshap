@@ -2,6 +2,12 @@
 Changes
 =======
 
+v2.6 (2025-04-11)
+-----------------
+
+* :issue:`586`, :pr:`600`: Fixed bug where some paired-end reads were
+  incorrectly skipped, which could lead to fewer phased variants.
+
 v2.5 (2025-04-03)
 -----------------
 
