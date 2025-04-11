@@ -1,4 +1,3 @@
-import os
 from setuptools import setup, Extension
 from distutils.sysconfig import customize_compiler
 import Cython.Build
@@ -93,26 +92,7 @@ class BuildExt(Cython.Build.build_ext):
         super().build_extensions()
 
 
-# Avoid compilation if we are being installed within Read The Docs
-if os.environ.get("READTHEDOCS") == "True":
-    cmdclass = {}
-    ext_modules = []
-    install_requires = []
-else:
-    cmdclass = {"build_ext": BuildExt}
-    ext_modules = extensions
-    install_requires = [
-        "pysam>=0.18.0",
-        "pyfaidx>=0.5.5.2",
-        "networkx",
-        "biopython>=1.73",  # pyfaidx needs this for reading bgzipped FASTA files
-        "scipy",
-        "xopen>=1.2.0",
-        "pulp>=2",
-    ]
-
 setup(
-    cmdclass=cmdclass,
-    ext_modules=cythonize(ext_modules),
-    install_requires=install_requires,
+    cmdclass={"build_ext": BuildExt},
+    ext_modules=cythonize(extensions),
 )
