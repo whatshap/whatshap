@@ -19,7 +19,16 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Bio-Informatics"
 ]
 requires-python = ">=3.9"
-dynamic = ["version", "dependencies"]
+dependencies = [
+    "pysam >= 0.18.0",
+    "pyfaidx >= 0.5.5.2",
+    "networkx",
+    "biopython >= 1.73",  # pyfaidx needs this for reading bgzipped FASTA files
+    "scipy",
+    "xopen >= 1.2.0",
+    "pulp >= 2",
+]
+dynamic = ["version"]
 
 [project.scripts]
 whatshap = "whatshap.__main__:main"
