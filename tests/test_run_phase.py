@@ -1018,3 +1018,26 @@ def test_distrust_genotypes_assertion(tmp_path):
     assert table.chromosome == "chr1"
     phase0 = VariantCallPhase(23824647, (0, 1), None)
     assert_phasing(table.phases_of("NA12878"), [None, phase0, None, phase0])
+
+
+# issue-586
+def test_paired_end_phase(tmp_path):
+    outvcf = tmp_path / "output.vcf"
+    run_whatshap(
+        phase_input_files=["tests/data/issue-586/MUT011_S351.bam"],
+        variant_file="tests/data/issue-586/MUT011_S351_splitfromjoint.vcf.gz",
+        reference="tests/data/issue-586/sba_vgsc_mapping_ref_oneline.fa",
+        output=outvcf,
+    )
+    assert outvcf.is_file()
+    tables = list(VcfReader(outvcf, only_snvs=False, phases=True))
+    assert len(tables) == 1
+    table = tables[0]
+    phase = table.phases_of("MUT011_S351")
+    assert_phasing(
+        phase,
+        [
+            VariantCallPhase(block_id=76, phase=(0, 1), quality=None),
+            VariantCallPhase(block_id=76, phase=(1, 0), quality=None),
+        ],
+    )
