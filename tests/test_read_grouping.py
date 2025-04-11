@@ -1,5 +1,6 @@
 from whatshap.core import Read
 from whatshap.variants import ReadSetReader as Reader, AlignedRead
+import pytest
 
 
 def test_supplementary_alignment():
@@ -16,13 +17,14 @@ def test_primary_alignment():
     assert len(ret) == 1
 
 
-def test_two_primary_alignment():
+@pytest.mark.parametrize("rev1,rev2", [(False, False), (False, True), (True, False), (True, True)])
+def test_two_primary_alignment(rev1, rev2):
     r1 = Read("P1", 60, 0, 0, 10)
     r1.add_variant(10, 0, 60)
     r2 = Read("P1", 60, 0, 0, 10)
     r2.add_variant(15, 1, 60)
     ret = Reader.create_read_from_group(
-        [AlignedRead(r1, False, False, 10, 20), AlignedRead(r2, False, False, 10, 20)],
+        [AlignedRead(r1, False, rev1, 10, 20), AlignedRead(r2, False, rev2, 10, 20)],
         distance_threshold=10,
     )
     assert len(ret) == 2

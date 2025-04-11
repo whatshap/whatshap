@@ -232,10 +232,11 @@ class ReadSetReader:
         variants = dict()
         skip = set()
         for read in group:
-            if read.is_reverse != primary.is_reverse:
-                continue
-            if primary.distance(read) > distance_threshold:
-                continue
+            if read.is_supplementary:
+                if read.is_reverse != primary.is_reverse:
+                    continue
+                if primary.distance(read) > distance_threshold:
+                    continue
             reference_start = min(reference_start, read.reference_start)
             for variant in read.read:
                 if variant.position in variants:
