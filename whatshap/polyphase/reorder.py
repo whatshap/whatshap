@@ -505,10 +505,9 @@ def permute_blocks(
     ext_bp = [0] + [b.position for b in breakpoints] + [len(threads)]
     for i, (s, e) in enumerate(zip(ext_bp[:-1], ext_bp[1:])):
         for p in range(s, e):
-            for t in list(range(ploidy)):
-                thread_copy = threads[p][:]
-                threads[p][t] = thread_copy[perms[i][t]]
-                hap_copy = [h[p] for h in haplotypes]
+            threads[p] = [threads[p][perms[i][t]] for t in range(ploidy)]
+            hap_copy = [haplotypes[t][p] for t in range(ploidy)]
+            for t in range(ploidy):
                 haplotypes[t][p] = hap_copy[perms[i][t]]
 
 
