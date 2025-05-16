@@ -8,11 +8,12 @@ from collections import defaultdict, Counter
 from typing import Iterable, Iterator, List, Optional
 from dataclasses import dataclass
 
+import pysam
 from pysam import AlignedSegment
 
 from .vcf import VcfVariant
+from .bam import SampleBamReader, MultiBamReader, BamReader, AlignmentWithSourceID
 from .core import Genotype, Read, ReadSet, NumericSampleIds
-from .bam import SampleBamReader, MultiBamReader, BamReader
 from .align import edit_distance, edit_distance_affine_gap, kmer_align, enumerate_all_kmers
 from ._variants import _iterate_cigar, _detect_alleles
 
@@ -82,6 +83,51 @@ class AlignedRead:
         )
 
 
+def is_alignment_primary(alignment: pysam.AlignedSegment) -> bool:
+    non_primary: bool = False
+    non_primary |= alignment.is_supplementary
+    non_primary |= alignment.is_secondary
+    non_primary |= alignment.is_unmapped
+    return not non_primary
+
+
+def is_alignmentwsid_primary(alignment: AlignmentWithSourceID) -> bool:
+    return is_alignment_primary(alignment=alignment.bam_alignment)
+
+
+# some value that would very unlikely appear as a suffix of a genuine read id
+PRIMARY_DEFAULT_SUB_ALIGNMENT_ID = "____1"
+
+
+def get_sub_alignment_id(
+    alignment: pysam.AlignedSegment,
+    is_primary: bool,
+    primary_default: Optional[str] = PRIMARY_DEFAULT_SUB_ALIGNMENT_ID,
+) -> str:
+    """
+    For every alignment segment we want to have a unique alignment segment id, while allowing for a "guessable"
+     id for a primary alignment. The primary point here is to the have ability to differentiate between supplementary
+     alignments for a given read. CIGAR string provides, almost always, a unique differentiation between supplementary
+     alignments, except for an identical subalignment where the start/end of the reads aligns identically to the same
+     region of the reference. For such a case the flag is also considered for the id generation.
+    We are using the string representation vs int ones for cpp/python interop, as the python hash int values are too
+     large to handle in standard int type in cpp.
+    """
+    if not is_primary or primary_default is None:
+        return str(hash((alignment.cigarstring, alignment.flag)))
+    return primary_default
+
+
+def get_sub_alignmentw_id_wsid(
+    alignment: AlignmentWithSourceID,
+    is_primary: bool,
+    primary_default: Optional[str] = PRIMARY_DEFAULT_SUB_ALIGNMENT_ID,
+) -> str:
+    return get_sub_alignment_id(
+        alignment=alignment.bam_alignment, is_primary=is_primary, primary_default=primary_default
+    )
+
+
 class ReadSetReader:
     """
     Associate VCF variants with BAM reads.
@@ -112,6 +158,7 @@ class ReadSetReader:
         kmerald_window: int = 25,
         use_supplementary: bool = False,
         supplementary_distance_threshold: int = 100_000,
+        allow_supplementary_only_read_groups: bool = False,
     ):
         """
         paths -- list of BAM paths
@@ -122,6 +169,7 @@ class ReadSetReader:
         affine -- use affine gap costs
         gap_start, gap_extend, default_mismatch -- parameters for affine gap cost alignment
         duplicates -- read alignments marked as duplicate
+        allow_supplementary_only_read_groups - if we are allowing for independent supplementary alignments consideration
         """
         self._mapq_threshold = mapq_threshold
         self._numeric_sample_ids = numeric_sample_ids
@@ -140,6 +188,7 @@ class ReadSetReader:
         self._reader: BamReader
         self._use_supplementary = use_supplementary
         self._supplementary_distance_threshold = supplementary_distance_threshold
+        self._allow_supplementary_only_read_groups = allow_supplementary_only_read_groups
         if len(paths) == 1:
             self._reader = SampleBamReader(paths[0], reference=reference)
         else:
@@ -190,7 +239,11 @@ class ReadSetReader:
         reads = self._alignments_to_reads(
             alignments, variants, sample, reference, restricted_genotypes
         )
-        grouped_reads = self._group_reads(reads, self._supplementary_distance_threshold)
+        grouped_reads = self._group_reads(
+            reads,
+            self._supplementary_distance_threshold,
+            allow_supplementary_only_groups=self._allow_supplementary_only_read_groups,
+        )
         readset = self._make_readset_from_grouped_reads(grouped_reads)
         return readset
 
@@ -202,7 +255,11 @@ class ReadSetReader:
         return read_set
 
     @staticmethod
-    def create_read_from_group(group: List[AlignedRead], distance_threshold: int) -> Optional[Read]:
+    def create_read_from_group(
+        group: List[AlignedRead],
+        distance_threshold: int,
+        allow_supplementary_only_groups: bool = False,
+    ) -> Optional[Read]:
         """
         Merge multiple AlignedReads into a single Read.
 
@@ -210,7 +267,7 @@ class ReadSetReader:
         the distance at most distance_threshold from primary, find the set of variants that fully agree
         and return these variants as a read.
 
-        If the list does not contain primary reads, then return None.
+        If the list does not contain primary reads, then return None, unless supplementary only groups are allowed.
         If the list contains more than two primary alignments, return None and report a warning.
         """
         if len(group) > 1:
@@ -221,13 +278,18 @@ class ReadSetReader:
             if not read.is_supplementary:
                 n_primary += 1
                 primary = read
-        if primary is None:
+        if primary is None and not allow_supplementary_only_groups:
             return None
         if n_primary > 2:
             logger.warning(
                 f"Read name {group[0].read.name!r} has more than two primary alignments."
             )
             return None
+        if primary is None:
+            # we can only be here is we allow for supplementary only groups and there was no primary,
+            #  in that scenario we would expect a single-read group input
+            #  so we can assign any, i.e., the supplementary read in the group as a "primary"
+            primary = read
         reference_start = primary.reference_start
         variants = dict()
         skip = set()
@@ -245,7 +307,10 @@ class ReadSetReader:
                 else:
                     variants[variant.position] = variant
         union_read = Read(
-            primary.read.name,
+            # because of the way the ReadSet datastructure is utilized, we need to ensure that we can
+            #   store not only primary but supplementary read alignments in the same ReadSet datastructure
+            primary.read.name
+            + (primary.read.sub_alignment_id if allow_supplementary_only_groups else ""),
             primary.read.mapqs[0],
             primary.read.source_id,
             primary.read.sample_id,
@@ -253,6 +318,11 @@ class ReadSetReader:
             primary.read.BX_tag,
             primary.read.HP_tag,
             primary.read.PS_tag,
+            chromosome=primary.read.chromosome,
+            sub_alignment_id=primary.read.sub_alignment_id,
+            is_supplementary=primary.read.is_supplementary,
+            is_reverse=primary.is_reverse,
+            reference_end=primary.reference_end,
         )
         for position, variant in variants.items():
             if position not in skip:
@@ -266,7 +336,11 @@ class ReadSetReader:
         return union_read
 
     @staticmethod
-    def _group_reads(reads: Iterable[AlignedRead], distance_threshold: int) -> Iterator[List[Read]]:
+    def _group_reads(
+        reads: Iterable[AlignedRead],
+        distance_threshold: int,
+        allow_supplementary_only_groups: bool = False,
+    ) -> Iterator[List[Read]]:
         """
         Group reads into paired-end read pairs. Uses name, source_id and sample_id
         as grouping key.
@@ -277,13 +351,27 @@ class ReadSetReader:
         """
         groups = defaultdict(list)
         for read in reads:
-            groups[(read.read.source_id, read.read.name, read.read.sample_id)].append(read)
+            groups[
+                (
+                    read.read.source_id,
+                    read.read.name,
+                    # by using this sub-alignment-id trick
+                    # when allowing for supplementary only groups
+                    # we are guaranteed to have single-read only groups
+                    read.read.sub_alignment_id if allow_supplementary_only_groups else None,
+                    read.read.sample_id,
+                )
+            ].append(read)
         n_skipped = 0
         n_non_singleton = 0
         for group in groups.values():
             if len(group) > 1:
                 n_non_singleton += 1
-            read = ReadSetReader.create_read_from_group(group, distance_threshold)
+            read = ReadSetReader.create_read_from_group(
+                group,
+                distance_threshold,
+                allow_supplementary_only_groups=allow_supplementary_only_groups,
+            )
             if read is None:
                 n_skipped += 1
             else:
@@ -387,7 +475,10 @@ class ReadSetReader:
                 raise ValueError(
                     f"Invalid PS tag value ({ps}) in read {alignment.bam_alignment.query_name}. PS must be an integer."
                 )
-
+            primary: bool = is_alignmentwsid_primary(alignment)
+            sub_alignment_id: str = get_sub_alignment_id(
+                alignment.bam_alignment, is_primary=primary
+            )
             read = Read(
                 alignment.bam_alignment.query_name,
                 alignment.bam_alignment.mapq,
@@ -397,6 +488,11 @@ class ReadSetReader:
                 barcode,
                 hp,
                 ps,
+                chromosome=alignment.bam_alignment.reference_name,
+                sub_alignment_id=sub_alignment_id,
+                is_supplementary=alignment.bam_alignment.is_supplementary,
+                is_reverse=alignment.bam_alignment.is_reverse,
+                reference_end=alignment.bam_alignment.reference_end,
             )
 
             if reference is None:
