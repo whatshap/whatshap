@@ -42,6 +42,7 @@ class PolyphaseParameter:
     distrust_genotypes: bool
     min_overlap: int
     block_cut_sensitivity: int
+    no_read_fusion: bool
     plot_clusters: bool
     plot_threading: bool
     plot_path: str
@@ -152,11 +153,11 @@ def compute_block_bounds(
 
     # start by looking at neighbouring
     link_to_next = [0 for _ in range(num_vars)]
-    for read in am:
+    for r, read in enumerate(am):
         pos_list = [pos for (pos, allele) in read]
         for i in range(len(pos_list) - 1):
             if pos_list[i] + 1 == pos_list[i + 1]:
-                link_to_next[pos_list[i]] += 1
+                link_to_next[pos_list[i]] += am.getMultiplicity(r)
 
     pos_clust = [0 for _ in range(num_vars)]
     for i in range(1, num_vars):
@@ -168,11 +169,11 @@ def compute_block_bounds(
 
     # find linkage between clusters
     link_coverage = [defaultdict(int) for i in range(num_clust)]
-    for read in am:
+    for r, read in enumerate(am):
         covered_pos_clusts = {pos_clust[pos] for (pos, allele) in read}
         for p1 in covered_pos_clusts:
             for p2 in covered_pos_clusts:
-                link_coverage[p1][p2] += 1
+                link_coverage[p1][p2] += am.getMultiplicity(r)
 
     # merge clusters
     merged_clust = [-1 for i in range(num_clust)]

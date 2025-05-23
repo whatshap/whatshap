@@ -246,3 +246,24 @@ def test_readfusion2():
     sam = am.extractInterval(1, 4, True)
     assert len(sam) == 4
     assert sam.getMultiplicity(0) == sam.getMultiplicity(2) == 2
+
+
+def test_readfusion3():
+    reads = """
+    1100
+    1100
+    0100
+    0100
+    0000
+    0000
+    00
+      10
+    0010
+    """
+    am = AlleleMatrix(string_to_readset(reads), True)
+    assert len(am) == 6
+    assert all(am.getMultiplicity(i) == 2 for i in range(3))
+    assert all(am.getMultiplicity(i) == 1 for i in range(3, 6))
+    assert len(am.getRead(3)) == 2
+    assert len(am.getRead(4)) == 2
+    assert len(am.getRead(5)) == 4

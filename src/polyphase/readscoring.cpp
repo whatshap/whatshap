@@ -70,7 +70,7 @@ void ReadScoring::scoreReadset(TriangleSparseMatrix* result, AlleleMatrix* am, c
             float score = computeLogScore(am, sortedReads[i], sortedReads[j], gl, gMap, apls, apld, minOverlap);
             if (!std::isnan(score)) {
                 if (score != 0.0)
-                    result->set(sortedReads[i], sortedReads[j], score + offset);
+                    result->set(sortedReads[i], sortedReads[j], (score + offset) * am->getMultiplicity(sortedReads[i]) * am->getMultiplicity(sortedReads[j]));
             } else {
                 nans++;
             }

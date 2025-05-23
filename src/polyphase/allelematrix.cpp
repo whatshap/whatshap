@@ -114,6 +114,8 @@ AlleleMatrix::AlleleMatrix(ReadSet* rs, bool readFusion) :
                 startIndex[starts[j]].insert(j);
                 multiplicities[j] = 1;
                 j++;
+            } else {
+                m[j].clear();
             }
         }
         

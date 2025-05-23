@@ -76,6 +76,7 @@ def run_polyphase(
     threads: int = 1,
     use_prephasing: bool = False,
     ce_bundle_edges: bool = False,
+    no_read_fusion: bool = False,
     plot_clusters: bool = False,
     plot_threading: bool = False,
 ):
@@ -193,6 +194,7 @@ def run_polyphase(
             distrust_genotypes=distrust_genotypes,
             min_overlap=min_overlap,
             block_cut_sensitivity=block_cut_sensitivity,
+            no_read_fusion=no_read_fusion,
             plot_clusters=plot_clusters,
             plot_threading=plot_threading,
             plot_path=output if type(output) is str else output.name,
@@ -357,7 +359,7 @@ def phase_single_individual(
             )
 
     # Retrieve solution
-    allele_matrix = AlleleMatrix(readset)
+    allele_matrix = AlleleMatrix(readset, readFusion=not param.no_read_fusion)
     result = solve_polyphase_instance(allele_matrix, genotype_list, param, timers, prephasing)
     cuts, hap_cuts = compute_cut_positions(
         result.breakpoints, param.ploidy, param.block_cut_sensitivity
@@ -568,6 +570,13 @@ def add_arguments(parser):
         action="store_true",
         help=argparse.SUPPRESS,
     )  # help='Influences the cluster editing heuristic. Only for debug/developing purpose (default: %(default)s).')
+    arg(
+        "--no-read-fusion",
+        dest="no_read_fusion",
+        default=False,
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )  # help='Disables the fusion of identical reads inside the allele matrix')
     arg(
         "--plot-clusters",
         dest="plot_clusters",
