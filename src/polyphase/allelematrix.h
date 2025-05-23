@@ -30,7 +30,7 @@ public:
      * @param posList sorted (!) list of global positions.
      * @param idList list of global read ids.
      */
-    AlleleMatrix(const std::vector<AlleleRow>& readList, const std::vector<uint32_t> multiplicities, const std::vector<uint32_t>& posList, const std::vector<uint32_t>& idList);
+    AlleleMatrix(const std::vector<AlleleRow>& readList, const std::vector<uint32_t> multiplicityList, const std::vector<uint32_t>& posList, const std::vector<uint32_t>& idList);
 
     /**
      * Creates a new allele matrix from a ReadSet.

@@ -7,12 +7,12 @@ using Position = AlleleMatrix::Position;
 using AlleleRow = AlleleMatrix::AlleleRow;
 using AlleleItem = AlleleMatrix::AlleleItem;
 
-AlleleMatrix::AlleleMatrix(const std::vector<AlleleRow>& readList, const std::vector<uint32_t> multiplicities, const std::vector<uint32_t>& posList, const std::vector<uint32_t>& idList) :
+AlleleMatrix::AlleleMatrix(const std::vector<AlleleRow>& readList, const std::vector<uint32_t> multiplicityList, const std::vector<uint32_t>& posList, const std::vector<uint32_t>& idList) :
     m(readList.size()),
     starts(readList.size()),
     ends(readList.size()),
     globalReadIds(readList.size()),
-    multiplicities(readList.size()),
+    multiplicities(multiplicityList),
     depths(posList.size()),
     genPos(posList.size()),
     maxAllele(0)
@@ -97,9 +97,14 @@ AlleleMatrix::AlleleMatrix(ReadSet* rs, bool readFusion) :
                 for (uint32_t k : startIndex[starts[j]]) {
                     if (ends[j] != ends[k])
                         continue;
+                    bool match = true;
                     for (auto& p2a: m[j])
-                        if (m[k][p2a.first] != p2a.second)
-                            continue;
+                        if (m[k][p2a.first] != p2a.second) {
+                            match = false;
+                            break;
+                        }
+                    if (!match)
+                        continue;
                     fused = true;
                     multiplicities[k]++;
                     break;

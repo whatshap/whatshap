@@ -214,3 +214,35 @@ def test_sub_matrix2():
     for i in range(len(s2)):
         for j in range(s2.getNumPositions()):
             assert am.getAllele(i + 2, pos2[j]) == s2.getAllele(i, j)
+
+
+def test_readfusion1():
+    reads = """
+    0000
+    0010
+     0000
+     1111
+    00000
+    0000
+    """
+    am = AlleleMatrix(string_to_readset(reads), True)
+    assert len(am) == 5
+    assert am.getMultiplicity(0) == 2
+    assert all(am.getMultiplicity(i) == 1 for i in range(1, 5))
+
+
+def test_readfusion2():
+    reads = """
+    0000
+    0010
+    0000
+     0000
+     0000
+     1111
+    """
+    am = AlleleMatrix(string_to_readset(reads), True)
+    assert len(am) == 4
+    assert am.getMultiplicity(0) == am.getMultiplicity(2) == 2
+    sam = am.extractInterval(1, 4, True)
+    assert len(sam) == 4
+    assert sam.getMultiplicity(0) == sam.getMultiplicity(2) == 2
