@@ -2,7 +2,6 @@
 Test ReadScoring
 """
 
-from whatshap.core import Read, ReadSet
 from whatshap.polyphase.solver import AlleleMatrix, scoreReadset
 from whatshap.testhelpers import string_to_readset
 
@@ -42,6 +41,7 @@ def test_readscoring1():
     assert sim.get(4, 6) > 0.0
     assert sim.get(5, 6) < 0.0
 
+
 def test_readscoring2():
     reads = """
     0001
@@ -56,9 +56,6 @@ def test_readscoring2():
     am2 = AlleleMatrix(rs, True)
     sim1 = scoreReadset(am1, 2, 2)
     sim2 = scoreReadset(am2, 2, 2)
-
-    print("sim1", sorted([(p, sim1.get(*p)) for p in sim1], key=lambda x: x[0][0] + .001 * x[0][1]))
-    print("sim2", sorted([(p, sim2.get(*p)) for p in sim2], key=lambda x: x[0][0] + .001 * x[0][1]))
 
     assert len(am2) == 4
 
