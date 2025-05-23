@@ -7,11 +7,12 @@ using Position = AlleleMatrix::Position;
 using AlleleRow = AlleleMatrix::AlleleRow;
 using AlleleItem = AlleleMatrix::AlleleItem;
 
-AlleleMatrix::AlleleMatrix(const std::vector<AlleleRow>& readList, const std::vector<uint32_t>& posList, const std::vector<uint32_t>& idList) :
+AlleleMatrix::AlleleMatrix(const std::vector<AlleleRow>& readList, const std::vector<uint32_t> multiplicities, const std::vector<uint32_t>& posList, const std::vector<uint32_t>& idList) :
     m(readList.size()),
     starts(readList.size()),
     ends(readList.size()),
     globalReadIds(readList.size()),
+    multiplicities(readList.size()),
     depths(posList.size()),
     genPos(posList.size()),
     maxAllele(0)
@@ -52,11 +53,12 @@ AlleleMatrix::AlleleMatrix(const std::vector<AlleleRow>& readList, const std::ve
         }
     }
 
-AlleleMatrix::AlleleMatrix(ReadSet* rs) :
+AlleleMatrix::AlleleMatrix(ReadSet* rs, bool readFusion) :
     m(rs->size()),
     starts(rs->size()),
     ends(rs->size()),
     globalReadIds(rs->size()),
+    multiplicities(rs->size()),
     depths(rs->get_positions()->size()),
     maxAllele(0)
     {
@@ -68,16 +70,20 @@ AlleleMatrix::AlleleMatrix(ReadSet* rs) :
         for (uint32_t i = 0; i < genPos.size(); i++) {
             posIdx[genPos[i]] = i;
         }
+        
+        // if fusing reads: index start positions to find duplicates faster
+        std::unordered_map<Position, std::unordered_set<uint32_t>> startIndex;
 
         // copy read information
+        uint32_t j = 0;
         for (uint32_t i = 0; i < rs->size(); i++) {
-            starts[i] = posIdx[rs->get(i)->firstPosition()];
-            ends[i] = posIdx[rs->get(i)->lastPosition()];
-            globalReadIds[i] = i;
+            starts[j] = posIdx[rs->get(i)->firstPosition()];
+            ends[j] = posIdx[rs->get(i)->lastPosition()];
+            globalReadIds[j] = i;
             for (int k = 0; k < rs->get(i)->getVariantCount(); k++) {
                 Allele a = (Allele)(rs->get(i)->getAllele(k));
                 Position p = this->globalToLocal(rs->get(i)->getPosition(k));
-                m[i][p] = a;
+                m[j][p] = a;
                 if (a >= maxAllele) {
                     maxAllele = a + 1;
                     for (auto& d: depths)
@@ -85,7 +91,33 @@ AlleleMatrix::AlleleMatrix(ReadSet* rs) :
                 }
                 depths[p][a] += 1;
             }
+            // detect duplicate reads and fuse them if requested
+            bool fused = false;
+            if (readFusion)
+                for (uint32_t k : startIndex[starts[j]]) {
+                    if (ends[j] != ends[k])
+                        continue;
+                    for (auto& p2a: m[j])
+                        if (m[k][p2a.first] != p2a.second)
+                            continue;
+                    fused = true;
+                    multiplicities[k]++;
+                    break;
+                }
+
+            if (!fused) {
+                startIndex[starts[j]].insert(j);
+                multiplicities[j] = 1;
+                j++;
+            }
         }
+        
+        // shorten data structures
+        m.resize(j); m.shrink_to_fit();
+        starts.resize(j); starts.shrink_to_fit();
+        ends.resize(j); ends.shrink_to_fit();
+        globalReadIds.resize(j); globalReadIds.shrink_to_fit();
+        multiplicities.resize(j); multiplicities.shrink_to_fit();
     }
     
 uint64_t AlleleMatrix::size() const {
@@ -114,6 +146,10 @@ Allele AlleleMatrix::getAlleleGlobal(const uint32_t readId, const Position genPo
     if (posIdx.find(genPosition) == posIdx.end())
         return -1;
     return getAllele(readId, posIdx.at(genPosition));
+}
+
+uint32_t AlleleMatrix::getMultiplicity(const uint32_t readId) const {
+    return multiplicities[readId];
 }
 
 std::vector<AlleleItem> AlleleMatrix::getRead(const uint32_t readId) const {
@@ -150,6 +186,7 @@ std::vector<uint32_t> AlleleMatrix::getAlleleDepths(const Position position) con
 
 AlleleMatrix* AlleleMatrix::extractInterval(Position start, Position end, bool removeEmpty) const {
     std::vector<AlleleRow> newReads;
+    std::vector<uint32_t> newMultis;
     std::unordered_set<uint32_t> defPos;
     std::vector<uint32_t> idList;
     for (uint32_t i = 0; i < m.size(); i++) {
@@ -162,18 +199,20 @@ AlleleMatrix* AlleleMatrix::extractInterval(Position start, Position end, bool r
                 defPos.insert(localToGlobal(entry.first));
             }
         }
+        newMultis.push_back(multiplicities[i]);
         idList.push_back(globalReadIds[i]);
         newReads.push_back(newRead);
     }
     std::vector<uint32_t> posList(defPos.begin(), defPos.end());
     std::sort(posList.begin(), posList.end());
-    return new AlleleMatrix(newReads, posList, idList);
+    return new AlleleMatrix(newReads, newMultis, posList, idList);
 }
 
 AlleleMatrix* AlleleMatrix::extractSubMatrix(const std::vector<Position>& positions,
                                              const std::vector<uint32_t>& readIds,
                                              bool removeEmpty) const {
     std::vector<AlleleRow> newReads;
+    std::vector<uint32_t> newMultis;
     std::vector<uint32_t> posList;
     std::vector<uint32_t> idList;
     std::unordered_map<Position, Position> projPos;
@@ -198,9 +237,10 @@ AlleleMatrix* AlleleMatrix::extractSubMatrix(const std::vector<Position>& positi
                 newRead[projPos[entry.first]] = entry.second;
         if (removeEmpty && newRead.empty())
             continue;
+        newMultis.push_back(multiplicities[i]);
         idList.push_back(globalReadIds[i]);
         newReads.push_back(newRead);
     }
     std::sort(posList.begin(), posList.end());
-    return new AlleleMatrix(newReads, posList, idList);
+    return new AlleleMatrix(newReads, newMultis, posList, idList);
 }

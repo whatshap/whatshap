@@ -4,7 +4,7 @@
 #include <unordered_map>
 #include <vector>
 #include <cmath>
-#include <cstdint>
+#include <stdint.h>
 #include "../readset.h"
 #include "../read.h"
 
@@ -26,17 +26,19 @@ public:
      * Creates a new allele matrix from a list of reads and list of positions.
      *
      * @param readList the list of reads with allele information.
+     * @param multiplicities the number of times each read occurs
      * @param posList sorted (!) list of global positions.
      * @param idList list of global read ids.
      */
-    AlleleMatrix(const std::vector<AlleleRow>& readList, const std::vector<uint32_t>& posList, const std::vector<uint32_t>& idList);
+    AlleleMatrix(const std::vector<AlleleRow>& readList, const std::vector<uint32_t> multiplicities, const std::vector<uint32_t>& posList, const std::vector<uint32_t>& idList);
 
     /**
      * Creates a new allele matrix from a ReadSet.
      *
      * @param rs the ReadSet to encode.
+     * @param readFusion if true, identical reads will be merged and into one with the corresponding multiplicity set
      */
-	AlleleMatrix(ReadSet* rs);
+	AlleleMatrix(ReadSet* rs, bool readFusion);
     
     /**
      * Returns the number of reads (rows) inside the matrix.
@@ -53,6 +55,7 @@ public:
      */
     std::vector<Position> getPositions() const;
 
+    
     /**
      * Returns the highest number of different alleles for any variant.
      */
@@ -75,6 +78,13 @@ public:
      * @param genPosition genome position
      */
     Allele getAlleleGlobal(const uint32_t readId, const Position genPosition) const;
+    
+    /**
+     * Returns the multiplicity of the specified read.
+     * 
+     * @param readId index of read
+     */
+    uint32_t getMultiplicity(const uint32_t readId) const;
 
     /**
      * Returns the entire read as dictionary from variant id to allele.
@@ -157,6 +167,7 @@ private:
     std::vector<Position> starts;
     std::vector<Position> ends;
     std::vector<uint32_t> globalReadIds;
+    std::vector<uint32_t> multiplicities;
     
     // data per position
     std::vector<std::vector<uint32_t>> depths;

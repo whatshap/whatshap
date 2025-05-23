@@ -25,9 +25,9 @@ cdef class ClusterEditingSolver:
 
 
 cdef class AlleleMatrix:
-    def __cinit__(self, ReadSet rs=None):
+    def __cinit__(self, ReadSet rs=None, bool readFusion=False):
         if rs:
-            self.thisptr = new cpp.AlleleMatrix(rs.thisptr)
+            self.thisptr = new cpp.AlleleMatrix(rs.thisptr, readFusion)
         else:
             self.thisptr = NULL
 
@@ -46,6 +46,9 @@ cdef class AlleleMatrix:
 
     def getAlleleGlobal(self, uint32_t readId, uint32_t position):
         return self.thisptr.getAlleleGlobal(readId, position)
+    
+    def getMultiplicity(self, uint32_t readId):
+        return self.thisptr.getMultiplicity(readId)
 
     def getRead(self, uint32_t readId):
         return self.thisptr.getRead(readId)
@@ -87,13 +90,14 @@ cdef class AlleleMatrix:
 
     def __getstate__(self):
         read_list = [{pos: allele for pos, allele in read} for read in self]
+        multiplicities = [self.getMultiplicity(i) for i in range(len(self))]
         pos_list = self.getPositions()
         id_list = [self.getGlobalId(i) for i in range(len(self))]
-        return read_list, pos_list, id_list
+        return read_list, multiplicities, pos_list, id_list
 
     def __setstate__(self, state):
-        read_list, pos_list, id_list = state
-        self.thisptr = new cpp.AlleleMatrix(read_list, pos_list, id_list)
+        read_list, multiplicities, pos_list, id_list = state
+        self.thisptr = new cpp.AlleleMatrix(read_list, multiplicities, pos_list, id_list)
 
 
 cdef class TriangleSparseMatrix:

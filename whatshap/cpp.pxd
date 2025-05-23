@@ -164,13 +164,14 @@ cdef extern from "polyphase/clustereditingsolution.h":
 
 cdef extern from "polyphase/allelematrix.h":
     cdef cppclass AlleleMatrix:
-        AlleleMatrix(ReadSet* rs) except +
-        AlleleMatrix(vector[unordered_map[uint32_t, int8_t]]& readList, vector[uint32_t]& posList, vector[uint32_t]& idList) except +
+        AlleleMatrix(ReadSet* rs, bool readFusion) except +
+        AlleleMatrix(vector[unordered_map[uint32_t, int8_t]]& readList, vector[uint32_t]& multiplicities, vector[uint32_t]& posList, vector[uint32_t]& idList) except +
         uint64_t size() except +
         uint64_t getNumPositions() except +
         vector[uint32_t] getPositions() except +
         int8_t getAllele(uint32_t readId, uint32_t position) except +
         int8_t getAlleleGlobal(uint32_t readId, uint32_t genPosition) except +
+        uint32_t getMultiplicity(uint32_t readId) except +
         vector[pair[uint32_t, int8_t]] getRead(uint32_t readId) except +
         uint32_t getFirstPos(uint32_t readId) except +
         uint32_t getLastPos(uint32_t readId) except +
