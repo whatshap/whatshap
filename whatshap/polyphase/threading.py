@@ -77,11 +77,9 @@ def run_threading(
 
 def compute_readlength_snp_distance_ratio(allele_matrix: AlleleMatrix) -> float:
     length = 0
-    num_reads = 0
     for i, read in enumerate(allele_matrix):
         length += len(read)
-        num_reads += allele_matrix.getMultiplicity(i)
-    return length / num_reads
+    return length / len(allele_matrix)
 
 
 def compute_threading_path(
