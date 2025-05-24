@@ -252,18 +252,19 @@ def compute_link_likelihoods(
 
         # per read, per haplotype and per side (left/right): compute originating likelihood
         left_llh, right_llh = [], []
-        for read in submatrix:
+        for i, read in enumerate(submatrix):
             left_l, right_l = [], []
+            mult = submatrix.getMultiplicity(i)
             for h in range(ploidy):
                 l_olp, r_olp, l_err, r_err = 0, 0, 0, 0
                 for j, a in read:
                     p = both_pos[j]
-                    error = 0 if a == haplotypes[h][p] else 1
+                    error = 0 if a == haplotypes[h][p] else mult
                     if p < pos:
-                        l_olp += 1
+                        l_olp += mult
                         l_err += error
                     else:
-                        r_olp += 1
+                        r_olp += mult
                         r_err += error
                 llh = log(1 - error_rate) * (l_olp - l_err) + log(error_rate) * l_err
                 left_l.append(llh)

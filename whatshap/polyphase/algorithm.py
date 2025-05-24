@@ -38,7 +38,7 @@ def solve_polyphase_instance(
     param: PolyphaseParameter,
     timers: StageTimer,
     partial_phasing: AlleleMatrix = None,
-    recurion_level: int = 0,
+    recursion_level: int = 0,
 ) -> PolyphaseResult:
     """
     Entry point for polyploid phasing instances. Inputs are an allele matrix and genotypes for each
@@ -50,7 +50,7 @@ def solve_polyphase_instance(
     assert len(allele_matrix) > 0
 
     # Precompute block borders based on read coverage and linkage between variants
-    if recurion_level == 0:
+    if recursion_level == 0:
         logger.info("Detecting connected components with weak interconnect ..")
     timers.start("detecting_blocks")
 
@@ -61,7 +61,7 @@ def solve_polyphase_instance(
     # block_starts.append(num_vars)
     # assert block_starts == sorted(list(set(block_starts)))
     num_blocks = sum(1 for it in block_bounds if it.end > it.start + 1)
-    if recurion_level == 0:
+    if recursion_level == 0:
         logger.info(
             f"Split variants into {num_blocks} blocks (and {len(block_bounds) - num_blocks} singleton blocks)."
         )
@@ -95,7 +95,7 @@ def solve_polyphase_instance(
                     ),
                     param,
                     timers,
-                    BlockContext(block_id, processed_blocks, num_blocks, recurion_level),
+                    BlockContext(block_id, processed_blocks, num_blocks, recursion_level),
                 )
             )
     else:
@@ -118,7 +118,7 @@ def solve_polyphase_instance(
                         ),
                         param,
                         timers,
-                        BlockContext(block_id, job_id, num_blocks, recurion_level),
+                        BlockContext(block_id, job_id, num_blocks, recursion_level),
                     ),
                 )
                 for job_id, (block_id, block) in enumerate(joblist)
@@ -169,9 +169,12 @@ def phase_single_block(
         haps = sorted(list(chain(*[[[a]] * g[a] for a in g])))
         return PolyphaseBlockResult(context.block_id, clusts, threads, haps, [])
 
+    positions = allele_matrix.getPositions()
     if context.recursion_level == 0:
         logger.info(
-            f"Processing block {context.job_id} of {context.total_blocks} with {len(allele_matrix)} reads and {num_vars} variants."
+            f"Processing block {context.job_id}/{context.total_blocks} "
+            f"({positions[0]}-{positions[-1]}) "
+            f"with {len(allele_matrix)} reads and {num_vars} variants."
         )
 
     # Block is non-singleton here, so run the normal routine
@@ -238,7 +241,7 @@ def phase_single_block(
         sub_param.ploidy = len(thread_set)
         timers.stop("reordering")
         res = solve_polyphase_instance(
-            subm, subgeno, sub_param, timers, recurion_level=context.recursion_level + 1
+            subm, subgeno, sub_param, timers, recursion_level=context.recursion_level + 1
         )
         timers.start("reordering")
         sub_results.append(res)
