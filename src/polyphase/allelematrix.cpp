@@ -70,9 +70,6 @@ AlleleMatrix::AlleleMatrix(ReadSet* rs, bool readFusion) :
         for (uint32_t i = 0; i < genPos.size(); i++) {
             posIdx[genPos[i]] = i;
         }
-        
-        // if fusing reads: index start positions to find duplicates faster
-        std::unordered_map<Position, std::unordered_set<uint32_t>> startIndex;
 
         // copy read information
         uint32_t j = 0;
@@ -94,7 +91,8 @@ AlleleMatrix::AlleleMatrix(ReadSet* rs, bool readFusion) :
             // detect duplicate reads and fuse them if requested
             bool fused = false;
             if (readFusion)
-                for (uint32_t k : startIndex[starts[j]]) {
+                // assumes sorted reads!
+                for (uint32_t k = j - 1; k < k + 1 && starts[k] == starts[j]; k--) {
                     if (ends[j] != ends[k])
                         continue;
                     bool match = true;
@@ -111,7 +109,6 @@ AlleleMatrix::AlleleMatrix(ReadSet* rs, bool readFusion) :
                 }
 
             if (!fused) {
-                startIndex[starts[j]].insert(j);
                 multiplicities[j] = 1;
                 j++;
             } else {

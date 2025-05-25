@@ -220,10 +220,10 @@ def test_readfusion1():
     reads = """
     0000
     0010
-     0000
-     1111
     00000
     0000
+     0000
+     1111
     """
     am = AlleleMatrix(string_to_readset(reads), True)
     assert len(am) == 5
@@ -257,13 +257,13 @@ def test_readfusion3():
     0000
     0000
     00
-      10
     0010
+      10
     """
     am = AlleleMatrix(string_to_readset(reads), True)
     assert len(am) == 6
     assert all(am.getMultiplicity(i) == 2 for i in range(3))
     assert all(am.getMultiplicity(i) == 1 for i in range(3, 6))
     assert len(am.getRead(3)) == 2
-    assert len(am.getRead(4)) == 2
-    assert len(am.getRead(5)) == 4
+    assert len(am.getRead(4)) == 4
+    assert len(am.getRead(5)) == 2
