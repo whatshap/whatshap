@@ -2,6 +2,13 @@
 Changes
 =======
 
+v2.7 (2025-05-27)
+-----------------
+
+* Fixed build configuration, which due to changes in setuptoools, made
+  the wheels much slower (because they were compiled without optimization).
+  This only affected the wheels, not the Bioconda packages.
+
 v2.6 (2025-04-11)
 -----------------
 
