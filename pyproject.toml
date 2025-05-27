@@ -85,9 +85,10 @@ addopts = "--doctest-modules"
 testpaths = ["tests", "whatshap"]
 
 [tool.cibuildwheel]
-# Setting CFLAGS like this *disables* optimizations
-# since setuptools 75.7, see https://github.com/pypa/setuptools/issues/4836
-#environment = "CFLAGS=-g0 CXXFLAGS=-g0"
+# Set CFLAGS explicitly so that we get builds without debug info (-g),
+# which otherwise increases wheel size a lot
+environment = "CFLAGS=-O3 CXXFLAGS=-O3"
+build-verbosity = 1
 # Disable tests for the moment because pip attempts to install pysam
 # from source for some reason although wheels exist.
 # test-requires = "pytest"
