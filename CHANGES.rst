@@ -2,6 +2,11 @@
 Changes
 =======
 
+development version
+-------------------
+
+* Extended support for supplementary alignments to the `polyphase` module.
+
 v2.7 (2025-05-27)
 -----------------
 

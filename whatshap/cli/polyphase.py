@@ -74,6 +74,8 @@ def run_polyphase(
     min_overlap: int = 2,
     mav: bool = True,
     threads: int = 1,
+    use_supplementary: bool = False,
+    supplementary_distance_threshold: int = 100_000,
     use_prephasing: bool = False,
     ce_bundle_edges: bool = False,
     plot_clusters: bool = False,
@@ -101,6 +103,8 @@ def run_polyphase(
     min_overlap -- minimum number of common variants to of read pair for score computation
     mav -- include multi-allelic variants
     threads -- number of worker threads to process disconnected blocks
+    use_supplementary -- use supplementary alignments with primary
+    supplementary_distance_threshold -- distance threshold for filtering supplementary alignments
     use_prephasing -- consider existing phasing in input VCF
     ce_bundle_edges -- alternative edge contraction policy in cluster editing heuristic
     plot_clusters -- add plot of cluster editing result
@@ -124,6 +128,8 @@ def run_polyphase(
                 ignore_read_groups,
                 only_snvs=only_snvs,
                 mapq_threshold=mapping_quality,
+                use_supplementary=use_supplementary,
+                supplementary_distance_threshold=supplementary_distance_threshold,
             )
         )
         assert not phased_input_reader.has_vcfs
@@ -558,6 +564,21 @@ def add_arguments(parser):
         default=True,
         action="store_false",
         help="Disables phasing of multi-allelic variants.",
+    )
+    arg(
+        "--use-supplementary",
+        dest="use_supplementary",
+        action="store_true",
+        default=False,
+        help="Use also supplementary alignments (default: ignore supplementary_ alignments)",
+    )
+    arg(
+        "--supplementary-distance",
+        metavar="DIST",
+        type=int,
+        dest="supplementary_distance_threshold",
+        default=100_000,
+        help="Skip supplementary alignments further than DIST bp away from the primary alignment (default: %(default)s)",
     )
 
     # more arguments, which are experimental or for debugging and should not be presented to the user
