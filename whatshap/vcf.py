@@ -7,6 +7,7 @@ import sys
 import math
 import logging
 import itertools
+from copy import deepcopy
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 from os import PathLike
@@ -411,6 +412,20 @@ class VariantTable:
         positions = frozenset(positions)
         to_discard = [i for i, v in enumerate(self.variants) if v.position not in positions]
         self.remove_rows_by_index(to_discard)
+
+    def create_subtable(self, samples: List[str]):
+        """Keep only samples and rows given in positions, discard the rest and return as new table"""
+        subtable = VariantTable(self.chromosome, samples)
+        # overwrite class members with deep copies of selected samples
+        subtable.variants = deepcopy(self.variants)
+        subtable._sample_to_index = {sample: index for index, sample in enumerate(samples)}
+        for i, sample in enumerate(samples):
+            subtable.genotypes[i] = deepcopy(self.genotypes_of(sample))
+            subtable.phases[i] = deepcopy(self.phases_of(sample))
+            subtable.genotype_likelihoods[i] = deepcopy(self.genotype_likelihoods_of(sample))
+            subtable.allele_depths[i] = deepcopy(self.allele_depths[self._sample_to_index[sample]])
+
+        return subtable
 
     def phased_blocks_as_reads(
         self,

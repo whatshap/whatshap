@@ -294,22 +294,23 @@ def phase_single_chromosome(
                 assert gt.is_homozygous()
         to_discard = set(range(len(variant_table))).difference(heterozygous)
         # Remove calls to be discarded from variant table
-        variant_table.remove_rows_by_index(to_discard)
+        phasable_variant_table = variant_table.create_subtable([sample])
+        phasable_variant_table.remove_rows_by_index(to_discard)
 
         logger.info(
             "Number of variants skipped due to missing genotypes: %d",
             len(missing_genotypes),
         )
-        logger.info("Number of remaining heterozygous variants: %d", len(variant_table))
+        logger.info("Number of remaining heterozygous variants: %d", len(phasable_variant_table))
 
-        if len(variant_table) < 2:
+        if len(phasable_variant_table) < 2:
             logger.debug("Skipped phasing because there is only one variant")
             continue
 
         # Get the reads belonging to this sample
         timers.start("read_bam")
         readset, vcf_source_ids = phased_input_reader.read(
-            chromosome, variant_table.variants, sample
+            chromosome, phasable_variant_table.variants, sample
         )
         readset.sort()
         timers.stop("read_bam")
@@ -325,14 +326,15 @@ def phase_single_chromosome(
         logger.info("Kept %d reads that cover at least two variants each", len(readset))
 
         # Adapt the variant table to the subset of reads
-        variant_table.subset_rows_by_position(readset.get_positions())
+        phasable_variant_table.subset_rows_by_position(readset.get_positions())
 
         # Run the actual phasing
         (
             sample_components,
             sample_haploid_components,
             sample_superreads,
-        ) = phase_single_individual(readset, variant_table, sample, param, timers)
+        ) = phase_single_individual(readset, phasable_variant_table, sample, param, timers)
+        del phasable_variant_table
 
         # Collect results
         components[sample] = sample_components

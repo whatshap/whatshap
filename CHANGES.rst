@@ -6,6 +6,8 @@ development version
 -------------------
 
 * Extended support for supplementary alignments to the `polyphase` module.
+* :issue:`608`: Fixed bug in `polyphase` that could lead to phasable variants
+  not being phased in multi-sample VCFs.
 
 v2.7 (2025-05-27)
 -----------------
