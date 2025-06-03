@@ -77,6 +77,7 @@ def run_polyphase(
     use_prephasing: bool = False,
     ce_bundle_edges: bool = False,
     no_read_fusion: bool = False,
+    no_coverage_filter: bool = False,
     plot_clusters: bool = False,
     plot_threading: bool = False,
 ):
@@ -195,6 +196,7 @@ def run_polyphase(
             min_overlap=min_overlap,
             block_cut_sensitivity=block_cut_sensitivity,
             no_read_fusion=no_read_fusion,
+            no_coverage_filter=no_coverage_filter,
             plot_clusters=plot_clusters,
             plot_threading=plot_threading,
             plot_path=output if type(output) is str else output.name,
@@ -345,6 +347,27 @@ def phase_single_individual(
     param: PolyphaseParameter,
     timers: StageTimer,
 ) -> Tuple[Dict[Position, int], Dict[Position, List[int]], ReadSet]:
+
+    # Construct allele matrix
+    allele_matrix = AlleleMatrix(readset, readFusion=not param.no_read_fusion)
+
+    # Filter variants with abnormal coverage
+    accessible_pos = sorted(readset.get_positions())
+    if not param.no_coverage_filter:
+        filtered_positions = set([1,4,7,12])
+        if filtered_positions:
+            phasable_variant_table.remove_rows_by_index(filtered_positions)
+            kept_positions = [i for i in range(allele_matrix.getNumPositions()) if i not in filtered_positions]
+            accessible_pos = sorted([p for i, p in enumerate(accessible_pos) if i not in filtered_positions])
+            f_matrix = allele_matrix.extractSubMatrix(kept_positions, list(range(len(allele_matrix))), removeEmpty=True)
+            logger.info(
+                f"Omitting {len(filtered_positions)} variants due to abnormal coverage. "
+                f"This leads to {len(allele_matrix) - len(f_matrix)} out of {len(allele_matrix)} reads being discarded."
+            )
+            del allele_matrix
+            allele_matrix = f_matrix
+
+
     # Compute the genotypes that belong to the variant table and create a list of all genotypes
     genotype_list = create_genotype_list(phasable_variant_table, sample)
 
@@ -359,18 +382,16 @@ def phase_single_individual(
             )
 
     # Retrieve solution
-    allele_matrix = AlleleMatrix(readset, readFusion=not param.no_read_fusion)
     result = solve_polyphase_instance(allele_matrix, genotype_list, param, timers, prephasing)
     cuts, hap_cuts = compute_cut_positions(
         result.breakpoints, param.ploidy, param.block_cut_sensitivity
     )
 
     # Summarize data for VCF file
-    accessible_pos = sorted(readset.get_positions())
     components = {}
     haploid_components = {}
 
-    num_vars = len(readset.get_positions())
+    num_vars = len(accessible_pos)
     cuts = cuts + [num_vars]
     for i, cut_pos in enumerate(cuts[:-1]):
         for pos in range(cuts[i], cuts[i + 1]):
@@ -577,6 +598,13 @@ def add_arguments(parser):
         action="store_true",
         help=argparse.SUPPRESS,
     )  # help='Disables the fusion of identical reads inside the allele matrix')
+    arg(
+        "--no-coverage-filter",
+        dest="no_coverage_filter",
+        default=False,
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )  # help='Disables filtering of variants with abnormal coverage')
     arg(
         "--plot-clusters",
         dest="plot_clusters",

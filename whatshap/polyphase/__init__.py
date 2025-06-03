@@ -43,6 +43,7 @@ class PolyphaseParameter:
     min_overlap: int
     block_cut_sensitivity: int
     no_read_fusion: bool
+    no_coverage_filter: bool
     plot_clusters: bool
     plot_threading: bool
     plot_path: str
