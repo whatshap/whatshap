@@ -5,6 +5,7 @@ from queue import Queue
 from typing import List, Dict, Iterator
 
 from pulp import listSolvers, getSolver
+from scipy.stats import binomtest
 from whatshap.core import ReadSet
 from whatshap.polyphase.solver import AlleleMatrix
 from whatshap.vcf import VariantTable
@@ -81,6 +82,20 @@ class PolyphaseResult:
     threads: List[List[int]]
     haplotypes: List[int]
     breakpoints: List[PhaseBreakpoint]
+
+
+def find_abnormal_coverages(allele_matrix: AlleleMatrix, alpha: float = 10e-6):
+    coverages = [
+        sum(allele_matrix.getAlleleDepths(pos)) for pos in range(allele_matrix.getNumPositions())
+    ]
+    n = sum(allele_matrix.getMultiplicity(rid) for rid in range(len(allele_matrix)))
+    p = sum(coverages) / (n * len(coverages))
+    p_vals = [
+        binomtest(n=n, p=p, k=coverage, alternative="greater").pvalue for coverage in coverages
+    ]
+    for e in sorted(zip(coverages, p_vals), key=lambda x: x[1]):
+        print(e)
+    return [i for i, p_val in enumerate(p_vals) if p_val < alpha]
 
 
 def get_coverage(

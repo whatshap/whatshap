@@ -38,6 +38,7 @@ from whatshap.polyphase import (
     create_genotype_list,
     extract_partial_phasing,
     Position,
+    find_abnormal_coverages,
 )
 from whatshap.polyphase.algorithm import solve_polyphase_instance, compute_cut_positions
 from whatshap.polyphase.plots import draw_plots
@@ -362,19 +363,25 @@ def phase_single_individual(
     # Filter variants with abnormal coverage
     accessible_pos = sorted(readset.get_positions())
     if not param.no_coverage_filter:
-        filtered_positions = set([1,4,7,12])
+        # breakpoint()
+        filtered_positions = find_abnormal_coverages(allele_matrix)
         if filtered_positions:
             phasable_variant_table.remove_rows_by_index(filtered_positions)
-            kept_positions = [i for i in range(allele_matrix.getNumPositions()) if i not in filtered_positions]
-            accessible_pos = sorted([p for i, p in enumerate(accessible_pos) if i not in filtered_positions])
-            f_matrix = allele_matrix.extractSubMatrix(kept_positions, list(range(len(allele_matrix))), removeEmpty=True)
+            kept_positions = [
+                i for i in range(allele_matrix.getNumPositions()) if i not in filtered_positions
+            ]
+            accessible_pos = sorted(
+                [p for i, p in enumerate(accessible_pos) if i not in filtered_positions]
+            )
+            f_matrix = allele_matrix.extractSubMatrix(
+                kept_positions, list(range(len(allele_matrix))), removeEmpty=True
+            )
             logger.info(
                 f"Omitting {len(filtered_positions)} variants due to abnormal coverage. "
                 f"This leads to {len(allele_matrix) - len(f_matrix)} out of {len(allele_matrix)} reads being discarded."
             )
             del allele_matrix
             allele_matrix = f_matrix
-
 
     # Compute the genotypes that belong to the variant table and create a list of all genotypes
     genotype_list = create_genotype_list(phasable_variant_table, sample)
