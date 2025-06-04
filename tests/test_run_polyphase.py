@@ -48,8 +48,26 @@ def test_polyphase_multiple_bam(tmp_path):
     assert table.chromosome == "chr22"
     assert len(table.variants) == 9
     assert set(table.samples) == set(["HG00514", "NA19240"])
-    assert not all(p is None for p in table.phases_of("HG00514"))
-    assert not all(p is None for p in table.phases_of("NA19240"))
+    assert sum(1 for p in table.phases_of("HG00514") if p is not None) == 2
+    assert sum(1 for p in table.phases_of("NA19240") if p is not None) == 9
+
+
+def test_polyphase_multiple_bam2(tmp_path):
+    outvcf = tmp_path / "output.vcf"
+    run_polyphase(
+        phase_input_files=[
+            "tests/data/polyploid.human2.chr22.42M.5k.bam",
+            "tests/data/polyploid.human1.chr22.42M.5k.bam",
+        ],
+        variant_file="tests/data/polyploid.multisample.chr22.42M.5k.vcf",
+        ploidy=2,
+        ignore_read_groups=False,
+        output=outvcf,
+    )
+    table = list(VcfReader(outvcf, phases=True))[0]
+    # test with reverse input order to check whether samples influence each other
+    assert sum(1 for p in table.phases_of("HG00514") if p is not None) == 2
+    assert sum(1 for p in table.phases_of("NA19240") if p is not None) == 9
 
 
 def test_wrong_ploidy(tmp_path):

@@ -2,6 +2,20 @@
 Changes
 =======
 
+development version
+-------------------
+
+* Extended support for supplementary alignments to the `polyphase` module.
+* :issue:`608`: Fixed bug in `polyphase` that could lead to phasable variants
+  not being phased in multi-sample VCFs.
+
+v2.7 (2025-05-27)
+-----------------
+
+* Fixed build configuration, which due to changes in setuptoools, made
+  the wheels much slower (because they were compiled without optimization).
+  This only affected the wheels, not the Bioconda packages.
+
 v2.6 (2025-04-11)
 -----------------
 

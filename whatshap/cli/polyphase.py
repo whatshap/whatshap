@@ -74,6 +74,8 @@ def run_polyphase(
     min_overlap: int = 2,
     mav: bool = True,
     threads: int = 1,
+    use_supplementary: bool = False,
+    supplementary_distance_threshold: int = 100_000,
     use_prephasing: bool = False,
     ce_bundle_edges: bool = False,
     no_read_fusion: bool = False,
@@ -103,6 +105,8 @@ def run_polyphase(
     min_overlap -- minimum number of common variants to of read pair for score computation
     mav -- include multi-allelic variants
     threads -- number of worker threads to process disconnected blocks
+    use_supplementary -- use supplementary alignments with primary
+    supplementary_distance_threshold -- distance threshold for filtering supplementary alignments
     use_prephasing -- consider existing phasing in input VCF
     ce_bundle_edges -- alternative edge contraction policy in cluster editing heuristic
     plot_clusters -- add plot of cluster editing result
@@ -126,6 +130,8 @@ def run_polyphase(
                 ignore_read_groups,
                 only_snvs=only_snvs,
                 mapq_threshold=mapping_quality,
+                use_supplementary=use_supplementary,
+                supplementary_distance_threshold=supplementary_distance_threshold,
             )
         )
         assert not phased_input_reader.has_vcfs
@@ -292,22 +298,23 @@ def phase_single_chromosome(
                 assert gt.is_homozygous()
         to_discard = set(range(len(variant_table))).difference(heterozygous)
         # Remove calls to be discarded from variant table
-        variant_table.remove_rows_by_index(to_discard)
+        phasable_variant_table = variant_table.create_subtable([sample])
+        phasable_variant_table.remove_rows_by_index(to_discard)
 
         logger.info(
             "Number of variants skipped due to missing genotypes: %d",
             len(missing_genotypes),
         )
-        logger.info("Number of remaining heterozygous variants: %d", len(variant_table))
+        logger.info("Number of remaining heterozygous variants: %d", len(phasable_variant_table))
 
-        if len(variant_table) < 2:
+        if len(phasable_variant_table) < 2:
             logger.debug("Skipped phasing because there is only one variant")
             continue
 
         # Get the reads belonging to this sample
         timers.start("read_bam")
         readset, vcf_source_ids = phased_input_reader.read(
-            chromosome, variant_table.variants, sample
+            chromosome, phasable_variant_table.variants, sample
         )
         readset.sort()
         timers.stop("read_bam")
@@ -323,14 +330,15 @@ def phase_single_chromosome(
         logger.info("Kept %d reads that cover at least two variants each", len(readset))
 
         # Adapt the variant table to the subset of reads
-        variant_table.subset_rows_by_position(readset.get_positions())
+        phasable_variant_table.subset_rows_by_position(readset.get_positions())
 
         # Run the actual phasing
         (
             sample_components,
             sample_haploid_components,
             sample_superreads,
-        ) = phase_single_individual(readset, variant_table, sample, param, timers)
+        ) = phase_single_individual(readset, phasable_variant_table, sample, param, timers)
+        del phasable_variant_table
 
         # Collect results
         components[sample] = sample_components
@@ -581,6 +589,21 @@ def add_arguments(parser):
         default=True,
         action="store_false",
         help="Disables phasing of multi-allelic variants.",
+    )
+    arg(
+        "--use-supplementary",
+        dest="use_supplementary",
+        action="store_true",
+        default=False,
+        help="Use also supplementary alignments (default: ignore supplementary_ alignments)",
+    )
+    arg(
+        "--supplementary-distance",
+        metavar="DIST",
+        type=int,
+        dest="supplementary_distance_threshold",
+        default=100_000,
+        help="Skip supplementary alignments further than DIST bp away from the primary alignment (default: %(default)s)",
     )
 
     # more arguments, which are experimental or for debugging and should not be presented to the user
