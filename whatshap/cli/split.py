@@ -81,6 +81,11 @@ def validate(args, parser):
         )
     if ((args.output_h1 is not None) or (args.output_h2 is not None)) and args.outputs is not None:
         parser.error("--output-h1/-h2 cannot be used together with --outputs/-o")
+    if (args.output_h1 is not None) or (args.output_h2 is not None):
+        logger.warning(
+            "The arguments '--output-h1' and '--output-h2' are deprecated and might not be supported "
+            "in future versions. Use the '--output' argument instead."
+        )
 
 
 def select_reads_in_largest_phased_blocks(block_sizes, block_to_readnames):
