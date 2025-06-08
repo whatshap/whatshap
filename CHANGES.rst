@@ -4,7 +4,15 @@ Changes
 
 development version
 -------------------
-
+* :pr:`546`, :issue:`406`: `haplotag` can now be used to tag supplementary
+  alignments independently of the primary alignment. For this, the option
+  ``--tag-supplementary`` was changed to accept a haplotagging strategy,
+  such as ``--tag-supplementary=independent-or-skip`` and
+  ``--tag-supplementary=independent-or-copy-primary``. The change is backwards
+  compatible, that is, using only ``--tag-supplementary`` is equivalent to
+  ``--tag-supplementary=copy-primary`` and sets the strategy to the previous
+  one of tagging supplementary alignments the same as the primary alignment.
+  See `the haplotag documentation <https://whatshap.readthedocs.io/en/latest/guide.html#haplotagging-reads-with-supplementary-alignments>`_.
 * Extended support for supplementary alignments to the `polyphase` module.
 * :issue:`608`: Fixed bug in `polyphase` that could lead to phasable variants
   not being phased in multi-sample VCFs.
