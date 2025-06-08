@@ -2,9 +2,10 @@
 Changes
 =======
 
-development version
--------------------
-* :pr:`546`, :issue:`406`: `haplotag` can now be used to tag supplementary
+v2.8 (2025-06-08)
+-----------------
+
+* :pr:`546`, :issue:`406`: ``haplotag`` can now be used to tag supplementary
   alignments independently of the primary alignment. For this, the option
   ``--tag-supplementary`` was changed to accept a haplotagging strategy,
   such as ``--tag-supplementary=independent-or-skip`` and
@@ -13,8 +14,8 @@ development version
   ``--tag-supplementary=copy-primary`` and sets the strategy to the previous
   one of tagging supplementary alignments the same as the primary alignment.
   See `the haplotag documentation <https://whatshap.readthedocs.io/en/latest/guide.html#haplotagging-reads-with-supplementary-alignments>`_.
-* Extended support for supplementary alignments to the `polyphase` module.
-* :issue:`608`: Fixed bug in `polyphase` that could lead to phasable variants
+* Extended support for supplementary alignments to the ``polyphase`` module.
+* :issue:`608`: Fixed bug in ``polyphase`` that could lead to phasable variants
   not being phased in multi-sample VCFs.
 
 v2.7 (2025-05-27)
@@ -41,8 +42,8 @@ v2.4 (2025-01-22)
 
 * :issue:`554`: Added ``--exclude-chromosome`` option (can be used multiple
   times) to most subcommands (``phase``, ``haplotag``, ``genotype`` etc.)
-* :issue:`537`: Fixed a crash when running `haplotag` on CRAM files.
-* :pr:`545`: `haplotagphase` now supports multi-allelic variants.
+* :issue:`537`: Fixed a crash when running ``haplotag`` on CRAM files.
+* :pr:`545`: ``haplotagphase`` now supports multi-allelic variants.
 * :issue:`579`: Fix ``--supplementary-distance`` option to ``phase`` not
   working.
 * Reduced processing time of BAM files by about 33% when using realignment.
