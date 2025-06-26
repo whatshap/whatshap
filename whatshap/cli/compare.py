@@ -113,7 +113,7 @@ def complement(s):
     '10011'
     """
     t = {"0": "1", "1": "0"}
-    return "".join(t[c] for c in s)
+    return "".join(t.get(c, c) for c in s)
 
 
 def hamming(s0, s1):

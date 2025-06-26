@@ -3,8 +3,7 @@ Tests for 'whatshap compare'
 """
 
 from collections import namedtuple
-from whatshap.cli.compare import run_compare, compute_switch_flips_poly, compare_block
-
+from whatshap.cli.compare import run_compare, compute_switch_flips_poly, compare_block, complement
 
 def test_compare1(tmp_path):
     outtsv = tmp_path / "output.tsv"
@@ -359,3 +358,9 @@ def test_compare_mav(tmp_path):
         sample=None,
         ignore_sample_name=True,
     )
+
+def test_complement():
+    """Test that complement() handles all genotype values."""
+    assert complement("01100") == "10011"
+    assert complement("01200") == "10211"
+    assert complement("0123456789") == "1023456789"
