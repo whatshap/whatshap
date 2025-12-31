@@ -8,49 +8,106 @@ cut sensitivity to balance out length and accuracy of phased blocks.
 
 """
 
-import sys
+import argparse
 import logging
 import platform
-import argparse
-
+import sys
 from contextlib import ExitStack
-
+from dataclasses import dataclass
+from multiprocessing import Pool
 from typing import (
-    Optional,
-    List,
-    TextIO,
-    Sequence,
-    FrozenSet,
     Dict,
+    FrozenSet,
+    List,
+    Optional,
+    Sequence,
+    TextIO,
     Tuple,
 )
 
 from whatshap import __version__
+from whatshap.cli import CommandLineError, PhasedInputReader, log_memory_usage
 from whatshap.core import (
+    NumericSampleIds,
     Read,
     ReadSet,
-    NumericSampleIds,
 )
-from whatshap.cli import log_memory_usage, PhasedInputReader, CommandLineError
-
 from whatshap.polyphase import (
     PolyphaseParameter,
+    Position,
     create_genotype_list,
     extract_partial_phasing,
-    Position,
 )
-from whatshap.polyphase.algorithm import solve_polyphase_instance, compute_cut_positions
+from whatshap.polyphase.algorithm import compute_cut_positions, solve_polyphase_instance
 from whatshap.polyphase.plots import draw_plots
 from whatshap.polyphase.solver import AlleleMatrix
-
 from whatshap.timer import StageTimer
 from whatshap.utils import ChromosomeFilter
-from whatshap.vcf import VcfReader, PhasedVcfWriter, VariantTable, PloidyError
+from whatshap.variants import merge_readsets
+from whatshap.vcf import PhasedVcfWriter, PloidyError, VariantTable, VcfReader
 
 __author__ = "Jana Ebler, Sven Schrinner"
 
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class PhasedInputReaderFactory:
+    phase_input_files: Sequence[str]
+    reference: Optional[str]
+    numeric_sample_ids: NumericSampleIds
+    ignore_read_groups: bool
+    only_snvs: bool
+    mapping_quality: int
+    use_supplementary: bool
+    supplementary_distance_threshold: int
+
+    def create_reader(self):
+        return PhasedInputReader(
+            self.phase_input_files,
+            self.reference,
+            self.numeric_sample_ids,
+            self.ignore_read_groups,
+            only_snvs=self.only_snvs,
+            mapq_threshold=self.mapping_quality,
+            use_supplementary=self.use_supplementary,
+            supplementary_distance_threshold=self.supplementary_distance_threshold,
+        )
+
+
+class PhasedInputReaderFactory2:
+    def __init__(
+        self,
+        phase_input_files,
+        reference,
+        numeric_sample_ids,
+        ignore_read_groups,
+        only_snvs,
+        mapping_quality,
+        use_supplementary,
+        supplementary_distance_threshold,
+    ):
+        self._phase_input_files = phase_input_files
+        self._reference = reference
+        self._numeric_sample_ids = numeric_sample_ids
+        self._ignore_read_groups = ignore_read_groups
+        self._only_snvs = only_snvs
+        self._mapq_threshold = mapping_quality
+        self._use_supplementary = use_supplementary
+        self._supplementary_distance_threshold = supplementary_distance_threshold
+
+    def create_reader(self):
+        return PhasedInputReader(
+            self._phase_input_files,
+            self._reference,
+            self._numeric_sample_ids,
+            self._ignore_read_groups,
+            only_snvs=self._only_snvs,
+            mapq_threshold=self._mapq_threshold,
+            use_supplementary=self._use_supplementary,
+            supplementary_distance_threshold=self._supplementary_distance_threshold,
+        )
 
 
 def run_polyphase(
@@ -120,19 +177,17 @@ def run_polyphase(
     numeric_sample_ids = NumericSampleIds()
     with ExitStack() as stack:
         assert phase_input_files
-        phased_input_reader = stack.enter_context(
-            PhasedInputReader(
-                phase_input_files,
-                reference,
-                numeric_sample_ids,
-                ignore_read_groups,
-                only_snvs=only_snvs,
-                mapq_threshold=mapping_quality,
-                use_supplementary=use_supplementary,
-                supplementary_distance_threshold=supplementary_distance_threshold,
-            )
+
+        phased_input_reader_factory = PhasedInputReaderFactory(
+            phase_input_files,
+            reference,
+            numeric_sample_ids,
+            ignore_read_groups,
+            only_snvs,
+            mapping_quality,
+            use_supplementary,
+            supplementary_distance_threshold,
         )
-        assert not phased_input_reader.has_vcfs
 
         if write_command_line_header:
             command_line = "(whatshap {}) {}".format(__version__, " ".join(sys.argv[1:]))
@@ -224,7 +279,7 @@ def run_polyphase(
 
                 # These three variables hold the phasing results for all samples
                 components, haploid_components, superreads = phase_single_chromosome(
-                    variant_table, phased_input_reader, samples, timers, phasing_param
+                    variant_table, phased_input_reader_factory, samples, timers, phasing_param
                 )
                 # Unphasable variants are removed from input table from here!
 
@@ -266,7 +321,7 @@ def run_polyphase(
 
 def phase_single_chromosome(
     variant_table: VariantTable,
-    phased_input_reader: PhasedInputReader,
+    phased_input_reader_factory: PhasedInputReaderFactory,  #: PhasedInputReader,
     samples: FrozenSet[str],
     timers: StageTimer,
     param: PolyphaseParameter,
@@ -309,9 +364,40 @@ def phase_single_chromosome(
 
         # Get the reads belonging to this sample
         timers.start("read_bam")
-        readset, vcf_source_ids = phased_input_reader.read(
-            chromosome, phasable_variant_table.variants, sample
-        )
+
+        # Split the variant table into t equally sized chunks
+        n = len(phasable_variant_table)
+        t = param.threads
+        region_list = [(int(i * n / t), int((i + 1) * n / t)) for i in range(t)]
+
+        # Read input files in parallel with t readers, each resolving their chunk of variants
+        if t == 1:
+            logger.info("Processing reads from input files ...")
+            readset, _ = read_readset(
+                phased_input_reader_factory,
+                chromosome,
+                phasable_variant_table.variants,
+                sample,
+            )
+        else:
+            logger.info(f"Processing reads from input files with {t} parallel readers ...")
+            with Pool(processes=param.threads) as pool:
+                process_results = [
+                    pool.apply_async(
+                        read_readset,
+                        (
+                            phased_input_reader_factory,
+                            chromosome,
+                            phasable_variant_table.variants[first_var:last_var],
+                            sample,
+                        ),
+                    )
+                    for (first_var, last_var) in region_list
+                ]
+                results = [res.get() for res in process_results]
+            readset = merge_readsets(*[result[0] for result in results])
+            del results
+
         readset.sort()
         timers.stop("read_bam")
 
@@ -342,6 +428,14 @@ def phase_single_chromosome(
         superreads[sample] = sample_superreads
 
     return components, haploid_components, superreads
+
+
+def read_readset(phased_input_reader_factory, chromosome, variants, sample):
+    phased_input_reader = phased_input_reader_factory.create_reader()
+    assert not phased_input_reader.has_vcfs
+    start = variants[0].position
+    end = variants[-1].position
+    return phased_input_reader.read(chromosome, variants, sample, regions=[(start, end)])
 
 
 def phase_single_individual(

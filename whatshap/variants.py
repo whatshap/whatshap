@@ -2,20 +2,20 @@
 Detect variants in reads.
 """
 
-import logging
 import csv
-from collections import defaultdict, Counter
-from typing import Iterable, Iterator, List, Optional
+import logging
+from collections import Counter, defaultdict
 from dataclasses import dataclass
+from typing import Iterable, Iterator, List, Optional
 
 import pysam
 from pysam import AlignedSegment
 
+from ._variants import _detect_alleles, _iterate_cigar
+from .align import edit_distance, edit_distance_affine_gap, enumerate_all_kmers, kmer_align
+from .bam import AlignmentWithSourceID, BamReader, MultiBamReader, SampleBamReader
+from .core import Genotype, NumericSampleIds, Read, ReadSet
 from .vcf import VcfVariant
-from .bam import SampleBamReader, MultiBamReader, BamReader, AlignmentWithSourceID
-from .core import Genotype, Read, ReadSet, NumericSampleIds
-from .align import edit_distance, edit_distance_affine_gap, kmer_align, enumerate_all_kmers
-from ._variants import _iterate_cigar, _detect_alleles
 
 logger = logging.getLogger(__name__)
 
@@ -1009,3 +1009,29 @@ def merge_reads(*reads: Read) -> Read:
     for partner in it:
         read = merge_two_reads(read, partner)
     return read
+
+
+def merge_readsets(*readsets: ReadSet) -> ReadSet:
+    """
+    Merge multiple readsets into a single one, such that reads with the same
+    name occurring in multiple readsets are also merged into a single read.
+    """
+    reads = dict()
+    for readset in readsets:
+        for read in readset:
+            name = read.name
+            if name in reads:
+                old = reads[name]
+                new = merge_two_reads(old, read)
+                reads[name] = new
+                del old
+                del read
+            else:
+                reads[name] = read
+
+    result = ReadSet()
+    for read in reads.values():
+        result.add(read)
+        del read
+
+    return result
