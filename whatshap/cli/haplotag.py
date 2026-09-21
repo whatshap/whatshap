@@ -512,7 +512,7 @@ def compute_shared_samples(bam_reader, ignore_read_groups, vcf_samples):
     Return final samples to use for haplo-tagging
     """
     read_groups = bam_reader.header.get("RG", [])
-    bam_samples = {(rg["SM"] if "SM" in rg else "") for rg in read_groups}
+    bam_samples = {(rg.get("SM", "")) for rg in read_groups}
 
     logger.info(f"Found {len(bam_samples)} sample(s) in BAM file")
     logger.debug(

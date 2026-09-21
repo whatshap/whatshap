@@ -205,11 +205,7 @@ def force_genotypes(
                         allele_mult[a] = (
                             allele_mult[a] * (1 - error_rate) + (1 - allele_mult[a]) * error_rate
                         )
-                        observed_depth = (
-                            0
-                            if a not in allele_depths[pos][clust]
-                            else allele_depths[pos][clust][a]
-                        )
+                        observed_depth = allele_depths[pos][clust].get(a, 0)
                         prob = binom.pmf(observed_depth, total_depth, allele_mult[a])
                         log_likelihood += log(prob) if prob > 0 else -float("inf")
 
