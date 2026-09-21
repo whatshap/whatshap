@@ -328,7 +328,7 @@ def test_read_duplicate_position():
     # As soon as we can actually work with multiple such rows, this test
     # needs to be updated since it currently just checks whether the second of
     # the positions is skipped.
-    table = list(VcfReader("tests/data/duplicate-positions.vcf", only_snvs=False))[0]
+    table = next(iter(VcfReader("tests/data/duplicate-positions.vcf", only_snvs=False)))
     assert len(table.variants) == 2
     assert table.variants[0].position == 1
     assert table.variants[0].reference_allele == "A"
@@ -357,7 +357,7 @@ def test_do_not_phase_duplicate_position(algorithm, tmpdir):
 
 def test_multi_alt():
     """Skip multi-ALT in VCF"""
-    table = list(VcfReader("tests/data/unknown-genotype.vcf"))[0]
+    table = next(iter(VcfReader("tests/data/unknown-genotype.vcf")))
     assert [variant.position for variant in table.variants] == [1, 4]
 
 

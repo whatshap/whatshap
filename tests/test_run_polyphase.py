@@ -64,7 +64,7 @@ def test_polyphase_multiple_bam2(tmp_path):
         ignore_read_groups=False,
         output=outvcf,
     )
-    table = list(VcfReader(outvcf, phases=True))[0]
+    table = next(iter(VcfReader(outvcf, phases=True)))
     # test with reverse input order to check whether samples influence each other
     assert sum(1 for p in table.phases_of("HG00514") if p is not None) == 2
     assert sum(1 for p in table.phases_of("NA19240") if p is not None) == 9

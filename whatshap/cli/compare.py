@@ -1057,7 +1057,7 @@ def get_sample_names(
         if len(sample_intersection) == 0:
             raise CommandLineError("None of the samples is present in all VCFs")
         elif len(sample_intersection) == 1:
-            sample_names = [list(sample_intersection)[0]] * len(vcf_readers)
+            sample_names = [next(iter(sample_intersection))] * len(vcf_readers)
         else:
             raise CommandLineError(
                 "More than one sample is present in all VCFs, please use"

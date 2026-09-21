@@ -106,7 +106,7 @@ def test_allele_dection_01():
     )
     vcf_reader = VcfReader(f"{path}.vcf", phases=False, only_snvs=False)
     sample = vcf_reader.samples[0]
-    table = list(vcf_reader)[0]
+    table = next(iter(vcf_reader))
     chromosome = table.chromosome
     readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
     expected = {}
@@ -132,7 +132,7 @@ def test_allele_dection_02():
     )
     vcf_reader = VcfReader(f"{path}.vcf", phases=False, only_snvs=False)
     sample = vcf_reader.samples[0]
-    table = list(vcf_reader)[0]
+    table = next(iter(vcf_reader))
     chromosome = table.chromosome
     readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
     expected = {}
@@ -159,7 +159,7 @@ def test_allele_dection_03():
     )
     vcf_reader = VcfReader(f"{path}.vcf", phases=False, only_snvs=False)
     sample = vcf_reader.samples[0]
-    table = list(vcf_reader)[0]
+    table = next(iter(vcf_reader))
     chromosome = table.chromosome
     readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
     expected = {}
@@ -189,7 +189,7 @@ def test_allele_dection_04():
     )
     vcf_reader = VcfReader(f"{path}.vcf", phases=False, only_snvs=False)
     sample = vcf_reader.samples[0]
-    table = list(vcf_reader)[0]
+    table = next(iter(vcf_reader))
     chromosome = table.chromosome
     readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
     expected = {}
@@ -217,7 +217,7 @@ def test_allele_dection_05():
         )
         vcf_reader = VcfReader(f"{path}.vcf", phases=False, only_snvs=False)
         sample = vcf_reader.samples[0]
-        table = list(vcf_reader)[0]
+        table = next(iter(vcf_reader))
         chromosome = table.chromosome
         readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
         expected = {}
@@ -247,7 +247,7 @@ def test_allele_dection_multi_01():
     )
     vcf_reader = VcfReader(f"{path}.vcf", phases=False, only_snvs=False, mav=True)
     sample = vcf_reader.samples[0]
-    table = list(vcf_reader)[0]
+    table = next(iter(vcf_reader))
     chromosome = table.chromosome
     readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
     expected = {}
@@ -271,7 +271,7 @@ def test_allele_dection_multi_02():
     )
     vcf_reader = VcfReader(f"{path}.vcf", phases=False, only_snvs=False, mav=True)
     sample = vcf_reader.samples[0]
-    table = list(vcf_reader)[0]
+    table = next(iter(vcf_reader))
     chromosome = table.chromosome
     readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
     expected = {}
