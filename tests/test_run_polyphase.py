@@ -100,9 +100,9 @@ def test_blockcut_sensitivities(tmp_path):
 
         tables = list(VcfReader(outvcf, phases=True))
         assert len(tables) == 1
-        block_starts = set(
-            [i.block_id for i in tables[0].phases_of("HG00514_NA19240") if i is not None]
-        )
+        block_starts = {
+            i.block_id for i in tables[0].phases_of("HG00514_NA19240") if i is not None
+        }
         results.append(block_starts)
         print(block_starts)
 
@@ -128,7 +128,7 @@ def test_blockcut_sensitivities2(tmp_path):
 
         tables = list(VcfReader(outvcf, phases=True))
         assert len(tables) == 1
-        block_starts = set([i.block_id for i in tables[0].phases_of("Test_Cuts") if i is not None])
+        block_starts = {i.block_id for i in tables[0].phases_of("Test_Cuts") if i is not None}
         results.append(block_starts)
         print(block_starts)
 
@@ -163,7 +163,7 @@ def test_blockcut_sensitivities3(tmp_path):
 
         tables = list(VcfReader(outvcf, phases=True))
         assert len(tables) == 1
-        block_starts = set([i.block_id for i in tables[0].phases_of("Test_Cuts") if i is not None])
+        block_starts = {i.block_id for i in tables[0].phases_of("Test_Cuts") if i is not None}
         results.append(block_starts)
         print(block_starts)
 

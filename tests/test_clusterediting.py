@@ -151,7 +151,7 @@ def test_clusterediting1():
 
     # make sure each read occurs only once
     read_ids = list(itertools.chain.from_iterable(readpartitioning))
-    duplicates = set([r for r in read_ids if read_ids.count(r) > 1])
+    duplicates = {r for r in read_ids if read_ids.count(r) > 1}
     assert len(duplicates) == 0
 
     assert any(all(x in c for x in [0, 1, 2, 4, 9, 11, 13]) for c in readpartitioning)
