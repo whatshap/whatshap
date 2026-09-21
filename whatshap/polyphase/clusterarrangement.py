@@ -35,13 +35,10 @@ def arrange_clusters(clustering, padding, ploidy):
     c = len(fclustering)
 
     # setup model
-    model = LpProblem("Cluster_Arrangement_c{}_n{}_p{}".format(c, n, ploidy), LpMaximize)
+    model = LpProblem(f"Cluster_Arrangement_c{c}_n{n}_p{ploidy}", LpMaximize)
 
     # x[i][j] = 1 if cluster j is put on haplotype i, else 0
-    x = [
-        [LpVariable("x_{}_{}".format(i, j), 0, 1, LpInteger) for j in range(c)]
-        for i in range(ploidy)
-    ]
+    x = [[LpVariable(f"x_{i}_{j}", 0, 1, LpInteger) for j in range(c)] for i in range(ploidy)]
 
     # maximize worth of picked clusters (= maximize number of explained variants)
     model += sum([c_worth[j] * x[i][j] for j in range(c) for i in range(ploidy)])

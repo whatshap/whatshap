@@ -102,9 +102,7 @@ class BiallelicVcfVariant(VcfVariant):
         self.alternative_allele = alternative_allele
 
     def __repr__(self):
-        return "BiallelicVcfVariant({}, {!r}, {!r})".format(
-            self.position, self.reference_allele, self.alternative_allele
-        )
+        return f"BiallelicVcfVariant({self.position}, {self.reference_allele!r}, {self.alternative_allele!r})"
 
     def __hash__(self):
         return hash((self.position, self.reference_allele, self.alternative_allele))
@@ -175,9 +173,7 @@ class MultiallelicVcfVariant(VcfVariant):
         self.alternative_alleles = tuple(alternative_alleles)
 
     def __repr__(self):
-        return "MultiallelicVcfVariant({}, {!r}, {!r})".format(
-            self.position, self.reference_allele, self.alternative_alleles
-        )
+        return f"MultiallelicVcfVariant({self.position}, {self.reference_allele!r}, {self.alternative_alleles!r})"
 
     def __hash__(self):
         return hash((self.position, self.reference_allele, self.alternative_alleles))
@@ -670,9 +666,7 @@ class VcfReader:
 
             if (prev_position is not None) and (prev_position > pos):
                 raise VcfNotSortedError(
-                    "VCF not ordered: {}:{} appears before {}:{}".format(
-                        chromosome, prev_position + 1, chromosome, pos + 1
-                    )
+                    f"VCF not ordered: {chromosome}:{prev_position + 1} appears before {chromosome}:{pos + 1}"
                 )
 
             if prev_position == pos:
@@ -706,8 +700,7 @@ class VcfReader:
                             phase_ploidy = len(p.phase)
                             if phase_ploidy > get_max_genotype_ploidy():
                                 raise PloidyError(
-                                    "Ploidies higher than {} are not supported."
-                                    "".format(get_max_genotype_ploidy())
+                                    f"Ploidies higher than {get_max_genotype_ploidy()} are not supported."
                                 )
                             elif p is None or p.block_id is None or p.phase is None:
                                 pass
@@ -716,8 +709,8 @@ class VcfReader:
                             elif phase_ploidy != self.ploidy:
                                 print(f"phase= {phase}")
                                 raise PloidyError(
-                                    "Phasing information contains inconsistent ploidy ({} and "
-                                    "{})".format(self.ploidy, phase_ploidy)
+                                    f"Phasing information contains inconsistent ploidy ({self.ploidy} and "
+                                    f"{phase_ploidy})"
                                 )
                     phases.append(phase)
             else:
@@ -749,14 +742,13 @@ class VcfReader:
                     geno_ploidy = len(geno)
                     if geno_ploidy > get_max_genotype_ploidy():
                         raise PloidyError(
-                            "Ploidies higher than {} are not supported."
-                            "".format(get_max_genotype_ploidy())
+                            f"Ploidies higher than {get_max_genotype_ploidy()} are not supported."
                         )
                     elif self.ploidy is None:
                         self.ploidy = geno_ploidy
                     elif geno_ploidy != self.ploidy:
                         raise PloidyError(
-                            "Inconsistent ploidy ({} and " "{})".format(self.ploidy, geno_ploidy)
+                            f"Inconsistent ploidy ({self.ploidy} and " f"{geno_ploidy})"
                         )
 
                 genotypes = [genotype_code(geno_list) for geno_list in genotype_lists]
@@ -817,14 +809,8 @@ class VcfHeader:
 
     def line(self):
         return (
-            "##{format_or_info}=<ID={id},Number={number},Type={typ},"
-            'Description="{description}">'.format(
-                format_or_info=self.format_or_info,
-                id=self.id,
-                number=self.number,
-                typ=self.typ,
-                description=self.description,
-            )
+            f"##{self.format_or_info}=<ID={self.id},Number={self.number},Type={self.typ},"
+            f'Description="{self.description}">'
         )
 
 
@@ -923,10 +909,10 @@ def missing_headers(path: str) -> tuple[list[str], list[str], list[str]]:
                 if fmt == "PS" and v.type != h.typ:
                     raise VcfError(
                         "The input VCF/BCF contains phase set ('PS') tags that are of the"
-                        " non-standard type '{}' instead of 'Integer'. WhatsHap cannot"
+                        f" non-standard type '{v.type}' instead of 'Integer'. WhatsHap cannot"
                         " overwrite these as it could produce inconsistent files."
                         " To proceed, you can use 'whatshap unphase' to remove phasing"
-                        " information from the input file".format(v.type)
+                        " information from the input file"
                     )
                 incorrect_formats.append(fmt)
 
@@ -1230,7 +1216,7 @@ class PhasedVcfWriter(VcfAugmenter):
                 ):
                     logger.warning(
                         "Ignoring existing phasing information "
-                        "found in input VCF ({} tag exists).".format(self.tag)
+                        f"found in input VCF ({self.tag} tag exists)."
                     )
                     self._phase_tag_found_warned = True
 

@@ -420,10 +420,8 @@ def prepare_haplotag_information(
                 read_repr = read_representation(r, as_primary=False)
                 read_to_haplotype[read_repr] = (first_ht, quality, phaseset)
                 logger.debug(
-                    "Assigned read {} to haplotype {} with a "
-                    "quality of {} based on {} covered variants".format(
-                        r.name, first_ht, quality, len(r)
-                    )
+                    f"Assigned read {r.name} to haplotype {first_ht} with a "
+                    f"quality of {quality} based on {len(r)} covered variants"
                 )
     return BX_tag_to_haplotype, read_to_haplotype, n_multiple_phase_sets, primary_info_by_repr
 
@@ -496,7 +494,7 @@ def compute_variant_file_samples_to_use(vcf_samples, user_given_samples, ignore_
             raise VcfError(
                 "The following samples were specified via the "
                 '"--sample" parameter, but are not part of the '
-                "input VCF: {}".format(sorted(missing_samples))
+                f"input VCF: {sorted(missing_samples)}"
             )
 
         samples_to_use = samples_in_vcf.intersection(given_samples)
@@ -534,7 +532,7 @@ def compute_shared_samples(bam_reader, ignore_read_groups, vcf_samples):
             logger.warning(
                 "Ignoring the following sample(s) for haplo-tagging "
                 "because they are not part of the VCF or "
-                'were not requested via "--sample": {}'.format(missing_samples)
+                f'were not requested via "--sample": {missing_samples}'
             )
         else:
             # situation is ok

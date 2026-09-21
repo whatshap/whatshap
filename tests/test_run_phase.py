@@ -241,7 +241,7 @@ def test_ps_tag(algorithm, expected_lines, tmpdir):
 
 def assert_phasing(phases, expected_phases):
     # TODO: this code is not "block aware". Would be useful to extend it to compare phasings per block
-    print("assert_phasing({}, {})".format(phases, expected_phases))
+    print(f"assert_phasing({phases}, {expected_phases})")
     assert len(phases) == len(expected_phases)
     haplotypes = []
     expected_haplotypes = []

@@ -102,9 +102,7 @@ class PhasingErrors:
         return self
 
     def __repr__(self):
-        return "PhasingErrors(switches={}, hamming={}, switch_flips={}, diff_genotypes={})".format(
-            self.switches, self.hamming, self.switch_flips, self.diff_genotypes
-        )
+        return f"PhasingErrors(switches={self.switches}, hamming={self.hamming}, switch_flips={self.switch_flips}, diff_genotypes={self.diff_genotypes})"
 
 
 def complement(s):
@@ -904,11 +902,7 @@ def run_compare(
 
             for i in range(len(vcfs)):
                 for j in range(i + 1, len(vcfs)):
-                    print(
-                        "PAIRWISE COMPARISON: {} <--> {}:".format(
-                            dataset_names[i], dataset_names[j]
-                        )
-                    )
+                    print(f"PAIRWISE COMPARISON: {dataset_names[i]} <--> {dataset_names[j]}:")
                     (
                         results,
                         bed_records,
@@ -1044,9 +1038,7 @@ def get_sample_names(
 
         if ignore_name and len(vcf_reader.samples) > 1:
             raise CommandLineError(
-                "File '{file}' contains multiple samples, option --ignore-sample-name not available.".format(
-                    file=vcf_reader.path
-                )
+                f"File '{vcf_reader.path}' contains multiple samples, option --ignore-sample-name not available."
             )
         first_samples.append(vcf_reader.samples[0])
     assert sample_intersection is not None
@@ -1054,9 +1046,7 @@ def get_sample_names(
         sample_intersection.intersection_update([requested_sample])
         if len(sample_intersection) == 0:
             raise CommandLineError(
-                "Sample {!r} requested on command-line not found in all VCFs".format(
-                    requested_sample
-                )
+                f"Sample {requested_sample!r} requested on command-line not found in all VCFs"
             )
         sample_names = [requested_sample] * len(vcf_readers)
     elif ignore_name:

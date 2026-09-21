@@ -87,7 +87,7 @@ def test_blockcut_sensitivities(tmp_path):
 
     results = []
     for s in range(6):
-        outvcf = tmp_path / "output{}.vcf".format(s)
+        outvcf = tmp_path / f"output{s}.vcf"
         run_polyphase(
             phase_input_files=["tests/data/polyploid.chr22.42M.12k.bam"],
             variant_file="tests/data/polyploid.chr22.42M.12k.vcf",
@@ -115,7 +115,7 @@ def test_blockcut_sensitivities2(tmp_path):
 
     results = []
     for s in range(6):
-        outvcf = tmp_path / "output{}.vcf".format(s)
+        outvcf = tmp_path / f"output{s}.vcf"
         run_polyphase(
             phase_input_files=["tests/data/polyploid.cuts.bam"],
             variant_file="tests/data/polyploid.cuts.vcf",
@@ -149,7 +149,7 @@ def test_blockcut_sensitivities3(tmp_path):
 
     results = []
     for s in range(6):
-        outvcf = tmp_path / "output{}.vcf".format(s)
+        outvcf = tmp_path / f"output{s}.vcf"
         run_polyphase(
             phase_input_files=["tests/data/polyploid.cuts.bam"],
             variant_file="tests/data/polyploid.cuts.vcf",

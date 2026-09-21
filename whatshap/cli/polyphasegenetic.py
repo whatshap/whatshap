@@ -148,7 +148,7 @@ def run_polyphasegenetic(
         for sample in samples:
             if sample not in parent_sample_set:
                 raise CommandLineError(
-                    "Sample {!r} requested on command-line not found in VCF".format(sample)
+                    f"Sample {sample!r} requested on command-line not found in VCF"
                 )
         samples = frozenset(samples)
 
@@ -317,7 +317,7 @@ def phase_single_sample(
     components = {}
     superreads = ReadSet()
     for i in range(param.ploidy):
-        superreads.add(Read("superread {}".format(i + 1), 0, 0))
+        superreads.add(Read(f"superread {i + 1}", 0, 0))
 
     marker_per_pos = defaultdict(list)
     for i, hap in enumerate(haplo_skeletons):

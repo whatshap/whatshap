@@ -42,9 +42,5 @@ def verify_mec_score_and_partitioning(dp_table, reads):
             else:
                 assert False
         n += 1
-    print(
-        "Expected MEC score: {}, obtained MEC score: {}".format(
-            mec_score, dp_table.get_optimal_cost()
-        )
-    )
+    print(f"Expected MEC score: {mec_score}, obtained MEC score: {dp_table.get_optimal_cost()}")
     assert mec_score == dp_table.get_optimal_cost()

@@ -138,5 +138,4 @@ lint.ignore = [
     "UP007",   # Use `X | Y` for type annotations
     "UP028",   # Replace `yield` over `for` loop with `yield from`
     "UP031",   # Use format specifiers instead of percent format
-    "UP032",   # Use f-string instead of `format` call
 ]
