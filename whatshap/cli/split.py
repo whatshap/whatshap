@@ -247,7 +247,7 @@ def check_haplotag_list_information(haplotag_list, exit_stack):
 
 
 def initialize_io_files(reads_file, outputs, exit_stack):
-    potential_fastq_extensions = ["fastq", "fastq.gz", "fastq.gzip" "fq", "fq.gz" "fq.gzip"]
+    potential_fastq_extensions = ["fastq", "fastq.gz", "fastq.gzip", "fq", "fq.gz", "fq.gzip"]
     input_format = detect_file_format(reads_file)
     if input_format is None:
         # TODO: this is a heuristic, need to extend utils::detect_file_format
