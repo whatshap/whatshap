@@ -939,7 +939,7 @@ def test_haplotag_10X(tmp_path):
         if alignment.has_tag("BX") and alignment.has_tag("HP"):
             bx_tag_to_readlist[alignment.get_tag("BX")].append(alignment)
     # reads having same BX tag need to be assigned to same haplotype
-    for tag in bx_tag_to_readlist.keys():
+    for tag in bx_tag_to_readlist:
         haplotype = bx_tag_to_readlist[tag][0].get_tag("HP")
         for read in bx_tag_to_readlist[tag]:
             assert haplotype == read.get_tag("HP")

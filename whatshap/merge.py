@@ -99,9 +99,9 @@ class ReadMerger(ReadMergerBase):
             gblue.add_node(i, begin=begin, end=end)
             gnotblue.add_node(i, begin=begin, end=end)
             queue[i] = {"begin": begin, "end": end, "alleles": alleles}
-            for x in [id for id in queue.keys() if queue[id]["end"] <= begin]:  # type: ignore
+            for x in [id for id in queue if queue[id]["end"] <= begin]:  # type: ignore
                 del queue[x]
-            for j in queue.keys():
+            for j in queue:
                 if i == j:
                     continue
                 match, mismatch = eval_overlap(queue[j], queue[i])

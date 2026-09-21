@@ -131,5 +131,4 @@ lint.ignore = [
     "SIM114",  # Combine `if` branches using logical `or` operator
     "SIM115",  # Use a context manager for opening files
     "SIM117",  # Use a single `with` statement with multiple contexts instead of nested `with` statements
-    "SIM118",  # Use `key in dict` instead of `key in dict.keys()`
 ]
