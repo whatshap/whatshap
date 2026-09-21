@@ -282,7 +282,7 @@ def load_chromosome_variants(
         # not entirely clear to me why this could raise
         # an OSError at this point?
         logger.error(str(err))
-        raise err
+        raise
     return variant_table
 
 

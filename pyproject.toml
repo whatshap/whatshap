@@ -133,6 +133,4 @@ lint.ignore = [
     "SIM117",  # Use a single `with` statement with multiple contexts instead of nested `with` statements
     "SIM118",  # Use `key in dict` instead of `key in dict.keys()`
     "SIM401",  # Use `allele_depths[pos][clust].get(a, 0)` instead of an `if` block
-    "TRY201",  # Use `raise` without specifying exception name
-    "UP006",   # Use `collections.defaultdict` instead of `DefaultDict` for type annotation
 ]
