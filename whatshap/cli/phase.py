@@ -4,6 +4,7 @@ Phase variants in a VCF with the WhatsHap algorithm
 Read a VCF and one or more files with phase information (BAM/CRAM or VCF phased
 blocks) and phase the variants. The phased VCF is written to standard output.
 """
+
 import logging
 import sys
 import platform
@@ -466,12 +467,12 @@ def run_whatshap(
                     chromosome,
                 )
                 with timers("write_vcf"):
-                    superreads, components = dict(), dict()
+                    superreads, components = {}, {}
                     vcf_writer.write(chromosome, superreads, components)
                 continue
 
             # These two variables hold the phasing results for all samples
-            superreads, components = dict(), dict()
+            superreads, components = {}, {}
 
             # Iterate over all families to process, i.e. a separate DP table is created
             # for each family.
@@ -498,7 +499,7 @@ def run_whatshap(
                 )
 
                 # Get the reads belonging to each sample
-                readsets = dict()  # TODO this could become a list
+                readsets = {}  # TODO this could become a list
                 for sample in family:
                     with timers("read_bam"):
                         readset, vcf_source_ids = phased_input_reader.read(

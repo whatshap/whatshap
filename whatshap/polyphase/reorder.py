@@ -272,7 +272,7 @@ def compute_link_likelihoods(
             right_llh.append(right_l)
 
         # per permutation of connections, compute combined likelihood over all reads
-        perm_llhs = dict()
+        perm_llhs = {}
         for perm in it.permutations(affected):
             left_h = list(affected)
             right_h = [perm[affected.index(i)] for i in affected]
@@ -457,7 +457,7 @@ def get_optimal_assignments(
             model += sum([y[b][t2][t1] for t2 in P]) == 1
 
     # ensure correct setting of z-variables, depending on choice of y-variables
-    z_weights = dict()
+    z_weights = {}
     for b, left in enumerate([b.haplotypes for b in breakpoints]):
         assert left == sorted(left)
         # iterate over all permutations of "left" as given by the keys of lllh for breakpoint b

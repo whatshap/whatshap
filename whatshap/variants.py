@@ -291,7 +291,7 @@ class ReadSetReader:
             #  so we can assign any, i.e., the supplementary read in the group as a "primary"
             primary = read
         reference_start = primary.reference_start
-        variants = dict()
+        variants = {}
         skip = set()
         for read in group:
             if read.is_supplementary:

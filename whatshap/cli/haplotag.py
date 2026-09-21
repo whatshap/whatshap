@@ -140,7 +140,7 @@ def get_variant_information(variant_table: VariantTable, sample: str):
     genotypes = variant_table.genotypes_of(sample)
     phases: list[Optional[VariantCallPhase]] = variant_table.phases_of(sample)
 
-    vpos_to_phase_info = dict()
+    vpos_to_phase_info = {}
     variants = []
     for v, gt, phase in zip(variant_table.variants, genotypes, phases):
         if phase is None or phase.block_id is None:
@@ -574,19 +574,19 @@ def open_output_alignment_file(aln_output, reference, vcf_md5, bam_header, threa
         bam_header["PG"] = [PG_entry]
     if aln_output is None:
         aln_output = "-"
-        kwargs = dict()
+        kwargs = {}
     elif str(aln_output).endswith(".cram"):  # FIXME hard-coded value
         if reference is None:
             raise ValueError(
                 'Writing CRAM output requires FASTA reference file given via "--reference"'
             )
-        kwargs = dict(mode="wc", reference_filename=reference)
+        kwargs = {"mode": "wc", "reference_filename": reference}
     else:
         # Write BAM, disable compression when piping
         if aln_output is sys.stdout and not stdout_is_regular_file():
-            kwargs = dict(mode="wb0", threads=threads)
+            kwargs = {"mode": "wb0", "threads": threads}
         else:
-            kwargs = dict(mode="wb", threads=threads)
+            kwargs = {"mode": "wb", "threads": threads}
     try:
         bam_writer = pysam.AlignmentFile(
             aln_output, header=pysam.AlignmentHeader.from_dict(bam_header), **kwargs

@@ -208,7 +208,7 @@ def create_genotype_list(variant_table: VariantTable, sample: str):
     all_genotypes = variant_table.genotypes_of(sample)
     genotype_list = []
     for pos in range(len(all_genotypes)):
-        allele_count = dict()
+        allele_count = {}
         for allele in all_genotypes[pos].as_vector():
             if allele not in allele_count:
                 allele_count[allele] = 0

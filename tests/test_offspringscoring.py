@@ -110,7 +110,7 @@ def test_compute_gt_likelihoods():
     vi = compute_phasable_variants(table, "Parent_A", "Parent_B", param)
     priors = compute_gt_likelihood_priors(param.ploidy)
 
-    genpos_to_progenypos = dict()
+    genpos_to_progenypos = {}
     for i in range(len(ptable)):
         genpos = ptable.variants[i].position
         if genpos:

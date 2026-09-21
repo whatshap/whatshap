@@ -44,7 +44,7 @@ def correct_variant_types(
     # compute unbiased progeny genotype likelihoods
     priors = compute_gt_likelihood_priors(phasing_param.ploidy)
     off_gl = get_offspring_gl(variant_table, progeny_table, offspring, varinfo, phasing_param)
-    correction = dict()
+    correction = {}
 
     # compute best fitting variant type based on progeny genotypes
     var_id = -1
@@ -91,7 +91,7 @@ def get_offspring_gl(
     phasing_param,
 ):
     # create map to find genetic positions in progeny table
-    genpos_to_progenypos = dict()
+    genpos_to_progenypos = {}
     for i in range(len(progeny_table)):
         genpos = progeny_table.variants[i].position
         if genpos:

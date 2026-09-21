@@ -135,7 +135,7 @@ def run_haplotagphase(
                 with timers("write-vcf"):
                     vcf_writer.write_unchanged(chromosome)
                 continue
-            sample_to_super_reads, sample_to_components = (dict(), dict())
+            sample_to_super_reads, sample_to_components = ({}, {})
             for sample in vcf_reader.samples:
                 logger.info(f"Processing sample {sample}")
                 genotypes = variant_table.genotypes_of(sample)
@@ -147,9 +147,9 @@ def run_haplotagphase(
                 if sample not in samples:
                     logger.info(f"Skipping sample {sample}")
                     continue
-                homozygous = dict()
-                change = dict()
-                phased = dict()
+                homozygous = {}
+                change = {}
+                phased = {}
                 # mapping of detected variants to 0/1 and reversed mappings.
                 allele_to_id = defaultdict(dict)
                 id_to_allele = defaultdict(dict)
@@ -238,7 +238,7 @@ def consensus(
 
     """
     super_reads = [[], []]
-    components = dict()
+    components = {}
 
     for pos, vote in votes.items():
         best_allele, phase_set, fraction, score = best_candidate(vote)
@@ -369,7 +369,7 @@ def compute_votes(
         values are dictionaries. Each inner dictionary maps a tuple of (phasing set index, haplotype) to
         the total quality score accumulated for that variant.
     """
-    votes = dict()
+    votes = {}
     number_of_skipped = 0
     for read in reads:
         ps, ht = read.PS_tag - 1, read.HP_tag - 1
@@ -382,7 +382,7 @@ def compute_votes(
             if is_homozygous[variant.position]:
                 continue
             if variant.position not in votes:
-                votes[variant.position] = dict()
+                votes[variant.position] = {}
             if (ps, 0) not in votes[variant.position]:
                 votes[variant.position][(ps, 0)] = 0
                 votes[variant.position][(ps, 1)] = 0

@@ -135,7 +135,7 @@ class PhasedInputReader:
         self._vcfs = []
         for reader in self._vcf_readers:
             # create dict mapping chromosome names to VariantTables
-            m = dict()
+            m = {}
             logger.info("Reading phased blocks from %r", reader.path)
             for variant_table in reader:
                 m[variant_table.chromosome] = variant_table

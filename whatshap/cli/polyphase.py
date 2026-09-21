@@ -214,7 +214,7 @@ def run_polyphase(
                         chromosome,
                     )
                     with timers("write_vcf"):
-                        superreads, components = dict(), dict()
+                        superreads, components = {}, {}
                         vcf_writer.write(chromosome, superreads, components)
                     continue
 
@@ -270,7 +270,7 @@ def phase_single_chromosome(
     dict[str, dict[Position, int]], dict[str, dict[Position, list[int]]], dict[str, ReadSet]
 ]:
     chromosome = variant_table.chromosome
-    superreads, components, haploid_components = dict(), dict(), dict()
+    superreads, components, haploid_components = {}, {}, {}
 
     # Iterate over all samples to process
     for sample in samples:

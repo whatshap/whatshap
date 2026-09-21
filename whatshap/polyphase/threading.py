@@ -151,7 +151,7 @@ def force_genotypes(
             continue
 
         # detect abundances and shortages
-        abundant_alleles, lacking_alleles = dict(), dict()
+        abundant_alleles, lacking_alleles = {}, {}
         alleles_to_insert, affected_positions = [], []
         for a in alleles:
             if a not in genotypes[pos]:
@@ -257,7 +257,7 @@ def select_clusters(
                 cid in cov_map[pos + k + 1] for k in range(min(max_gap, len(cov_map) - pos - 1))
             ):
                 cov_map[pos].append(cid)
-                allele_depths[pos][cid] = dict()
+                allele_depths[pos][cid] = {}
 
     for sub in cov_map:
         sub.sort()
@@ -279,15 +279,15 @@ def get_allele_depths(
     num_vars = allele_matrix.getNumPositions()
 
     # stores allele depth per position and cluster
-    ad = [dict() for pos in range(num_vars)]
-    cons_lists = [dict() for pos in range(num_vars)]
+    ad = [{} for pos in range(num_vars)]
+    cons_lists = [{} for pos in range(num_vars)]
 
     # count alleles
     for c_id, cluster in enumerate(clustering):
         for read in cluster:
             for pos, allele in allele_matrix.getRead(read):
                 if c_id not in ad[pos]:
-                    ad[pos][c_id] = dict()
+                    ad[pos][c_id] = {}
                 if allele not in ad[pos][c_id]:
                     ad[pos][c_id][allele] = 0
                 ad[pos][c_id][allele] += 1

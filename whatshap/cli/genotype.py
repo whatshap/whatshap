@@ -214,7 +214,7 @@ def run_genotype(
         included_chromosomes = ChromosomeFilter(chromosomes, excluded_chromosomes)
         for variant_table in timers.iterate("parse_vcf", vcf_reader):
             # create a mapping of genome positions to indices
-            var_to_pos = dict()
+            var_to_pos = {}
             for i in range(len(variant_table.variants)):
                 var_to_pos[variant_table.variants[i].position] = i
 
@@ -290,7 +290,7 @@ def run_genotype(
                 assert (len(family) == 1) or (len(trios) > 0)
 
                 # Get the reads belonging to each sample
-                readsets = dict()
+                readsets = {}
                 for sample in family:
                     with timers("read_bam"):
                         readset, vcf_source_ids = phased_input_reader.read(

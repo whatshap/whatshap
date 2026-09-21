@@ -918,8 +918,8 @@ def missing_headers(path: str) -> tuple[list[str], list[str], list[str]]:
 
         # Iterate through entire file and check which contigs, formats and
         # info fields are used
-        contigs = dict()  # contigs encountered, in the proper order
-        formats = dict()  # FORMATs encountered, in the proper order
+        contigs = {}  # contigs encountered, in the proper order
+        formats = {}  # FORMATs encountered, in the proper order
         seen_infos: set[str] = set()  # INFOs encountered
 
         try:
@@ -1157,8 +1157,8 @@ class PhasedVcfWriter(VcfAugmenter):
         """
         genotype_changes = []
         # TODO
-        sample_phases: dict[str, dict] = dict()
-        sample_genotypes: dict[str, dict] = dict()
+        sample_phases: dict[str, dict] = {}
+        sample_genotypes: dict[str, dict] = {}
         for sample, superreads in sample_superreads.items():
             sample_phases[sample] = {}
             sample_genotypes[sample] = {}
@@ -1320,7 +1320,7 @@ class GenotypeVcfWriter(VcfAugmenter):
         """
 
         # map positions to index
-        genotyped_variants = dict()
+        genotyped_variants = {}
         for i in range(len(variant_table)):
             genotyped_variants[variant_table.variants[i].position] = i
 

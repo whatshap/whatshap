@@ -1014,7 +1014,7 @@ def get_variant_tables(
     vcfs = []
     for reader, filename in zip(vcf_readers, vcf_filenames):
         # create dict mapping chromosome names to VariantTables
-        m = dict()
+        m = {}
         logger.info("Reading phasing from %r", filename)
         try:
             for variant_table in reader:

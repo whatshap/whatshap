@@ -109,7 +109,7 @@ def test_allele_dection_01():
     table = list(vcf_reader)[0]
     chromosome = table.chromosome
     readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
-    expected = dict()
+    expected = {}
     expected["Read01"] = [(102, 0), (105, 0)]
     expected["Read02"] = [(102, 0), (105, 1)]
     expected["Read03"] = [(102, 1), (105, 1)]
@@ -135,7 +135,7 @@ def test_allele_dection_02():
     table = list(vcf_reader)[0]
     chromosome = table.chromosome
     readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
-    expected = dict()
+    expected = {}
     expected["Read11"] = [(105, 0), (108, 0)]
     expected["Read12"] = [(105, 0), (108, 1)]
     expected["Read13"] = [(105, 0), (108, 0)]
@@ -162,7 +162,7 @@ def test_allele_dection_03():
     table = list(vcf_reader)[0]
     chromosome = table.chromosome
     readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
-    expected = dict()
+    expected = {}
     expected["Read20"] = [(111, 0), (112, 0), (114, 0)]
     expected["Read21"] = [(111, 0), (112, 0), (114, 1)]
     expected["Read22"] = [(111, 1), (112, 0), (114, 0)]
@@ -192,7 +192,7 @@ def test_allele_dection_04():
     table = list(vcf_reader)[0]
     chromosome = table.chromosome
     readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
-    expected = dict()
+    expected = {}
     expected["Read31"] = [(121, 0), (123, 0), (124, 0), (126, 0), (128, 0)]
     expected["Read32"] = [(121, 1), (123, 0), (124, 0), (126, 0), (128, 0)]
     expected["Read33"] = [(123, 0), (124, 0), (126, 0), (128, 0)]
@@ -220,7 +220,7 @@ def test_allele_dection_05():
         table = list(vcf_reader)[0]
         chromosome = table.chromosome
         readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
-        expected = dict()
+        expected = {}
         expected["Read41"] = [(202, 0), (205, 0)]
         expected["Read42"] = [(202, 1), (205, 0)]
         expected["Read43"] = [(202, 0), (205, 1)]
@@ -250,7 +250,7 @@ def test_allele_dection_multi_01():
     table = list(vcf_reader)[0]
     chromosome = table.chromosome
     readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
-    expected = dict()
+    expected = {}
     expected["Read61"] = [(102, 0), (106, 0)]
     expected["Read62"] = [(102, 1), (106, 0)]
     expected["Read63"] = [(102, 1), (106, 2)]
@@ -274,7 +274,7 @@ def test_allele_dection_multi_02():
     table = list(vcf_reader)[0]
     chromosome = table.chromosome
     readset, vcf_source_ids = bam_reader.read(chromosome, table.variants, sample)
-    expected = dict()
+    expected = {}
     expected["Read61"] = [(102, 0), (106, 0)]
     expected["Read62"] = [(102, 1), (106, 0)]
     expected["Read63"] = [(102, 1), (106, 2)]
