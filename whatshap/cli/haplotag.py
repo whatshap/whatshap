@@ -194,7 +194,7 @@ def attempt_add_phase_information(
     supplementary_strand_match: bool = True,
     supplementary_distance_threshold: int = 100_000,
 ):
-    primary_info_by_repr: dict["ReadAlignmentRepresentation", "PrimaryInfo"] = (
+    primary_info_by_repr: dict[ReadAlignmentRepresentation, PrimaryInfo] = (
         primary_info_by_repr or {}
     )
     is_tagged = 0

@@ -1,5 +1,4 @@
 from collections import namedtuple
-from typing import Optional
 from collections.abc import Iterable, Sequence, Iterator
 
 from whatshap.types import PhasingAlgorithm
@@ -16,19 +15,19 @@ class NumericSampleIds:
 class Read:
     def __init__(
         self,
-        name: Optional[str] = ...,
+        name: str | None = ...,
         mapq: int = ...,
         source_id: int = ...,
         sample_id: int = ...,
         reference_start: int = ...,
-        BX_tag: Optional[str] = ...,
-        HP_tag: Optional[int] = ...,
-        PS_tag: Optional[int] = ...,
-        chromosome: Optional[str] = ...,
-        sub_alignment_id: Optional[str] = ...,
-        is_supplementary: Optional[bool] = ...,
-        reference_end: Optional[int] = ...,
-        is_reverse: Optional[bool] = ...,
+        BX_tag: str | None = ...,
+        HP_tag: int | None = ...,
+        PS_tag: int | None = ...,
+        chromosome: str | None = ...,
+        sub_alignment_id: str | None = ...,
+        is_supplementary: bool | None = ...,
+        reference_end: int | None = ...,
+        is_reverse: bool | None = ...,
     ): ...
     @property
     def mapqs(self) -> tuple[int]: ...
@@ -85,7 +84,7 @@ class PedigreeDPTable(PhasingAlgorithm):
         recombcost: Sequence[int],
         pedigree: Pedigree,
         distrust_genotypes: bool = ...,
-        positions: Optional[Iterable[int]] = ...,
+        positions: Iterable[int] | None = ...,
     ): ...
     def get_super_reads(self) -> tuple[list[ReadSet], list[int]]: ...
     def get_optimal_cost(self) -> int: ...
@@ -97,7 +96,7 @@ class Pedigree:
         self,
         id: str,
         genotypes: Iterable[Genotype],
-        genotype_likelihoods: Optional[Iterable[PhredGenotypeLikelihoods]] = ...,
+        genotype_likelihoods: Iterable[PhredGenotypeLikelihoods] | None = ...,
     ) -> None: ...
     def add_relationship(self, father_id: int, mother_id: int, child_id: int) -> None: ...
     @property
@@ -105,7 +104,7 @@ class Pedigree:
     def genotype(self, sample_id: int, variant_index: int) -> Genotype: ...
     def genotype_likelihoods(
         self, sample_id: int, variant_index: int
-    ) -> Optional[PhredGenotypeLikelihoods]: ...
+    ) -> PhredGenotypeLikelihoods | None: ...
     def __len__(self) -> int: ...
 
 class PhredGenotypeLikelihoods:
@@ -140,18 +139,18 @@ class GenotypeDPTable:
         readset: ReadSet,
         recombcost: int,
         pedigree: Pedigree,
-        positions: Optional[Iterable[int]] = ...,
+        positions: Iterable[int] | None = ...,
     ): ...
     def get_genotype_likelihoods(self, sample_id: int, pos: int) -> PhredGenotypeLikelihoods: ...
 
 def compute_genotypes(
-    readset: ReadSet, positions: Optional[Iterable[int]] = ...
+    readset: ReadSet, positions: Iterable[int] | None = ...
 ) -> tuple[list[Genotype], list[tuple[float, float, float]]]: ...
 
 class HapChatCore(PhasingAlgorithm):
     def __init__(self, readset: ReadSet): ...
     def get_length(self) -> int: ...
-    def get_super_reads(self) -> tuple[list[ReadSet], Optional[list[int]]]: ...
+    def get_super_reads(self) -> tuple[list[ReadSet], list[int] | None]: ...
     def get_optimal_cost(self) -> int: ...
     def get_optimal_partitioning(self) -> list[int]: ...
 
@@ -174,13 +173,13 @@ class PedMecHeuristic(PhasingAlgorithm):
         readset: ReadSet,
         recombcost: Sequence[int],
         pedigree: Pedigree,
-        row_limit: Optional[int] = ...,
+        row_limit: int | None = ...,
         distrust_genotypes: bool = ...,
-        positions: Optional[Iterable[int]] = ...,
-        allow_mutations: Optional[bool] = ...,
-        verbosity: Optional[int] = ...,
+        positions: Iterable[int] | None = ...,
+        allow_mutations: bool | None = ...,
+        verbosity: int | None = ...,
     ): ...
-    def get_super_reads(self) -> tuple[list[ReadSet], Optional[list[int]]]: ...
+    def get_super_reads(self) -> tuple[list[ReadSet], list[int] | None]: ...
     def get_opt_transmission(self) -> list[int]: ...
     def get_optimal_cost(self) -> int: ...
     def get_optimal_partitioning(self) -> list[int]: ...
