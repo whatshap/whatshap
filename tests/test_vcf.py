@@ -147,7 +147,7 @@ def test_phasing_to_reads():
     for filename in ["tests/data/phased-via-HP.vcf", "tests/data/phased-via-PS.vcf"]:
         tables = list(VcfReader(filename, phases=True))
         assert len(tables) == 2
-        table_a, table_b = tables
+        table_a, _table_b = tables
         phase_reads_sample1 = list(
             table_a.phased_blocks_as_reads(
                 "sample1", table_a.variants, 17, 18, default_quality=90, mapq=101
@@ -231,7 +231,7 @@ def test_phasing_to_reads_polyploid():
     ]:
         tables = list(VcfReader(filename, phases=True, mav=True))
         assert len(tables) == 2
-        table_a, table_b = tables
+        table_a, _table_b = tables
         reads = list(
             table_a.phased_blocks_as_reads(
                 "sample1", table_a.variants, 17, 18, default_quality=90, mapq=101, target_ploidy=4

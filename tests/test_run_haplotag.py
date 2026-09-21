@@ -39,8 +39,8 @@ def test_haplotag(tmp_path):
         assert len(fields1) == len(fields2) == 4
         if n == 0:
             continue
-        queryname1, haplotype1, phaseset1, chromosome1 = fields1
-        queryname2, haplotype2, phaseset2, chromosome2 = fields2
+        queryname1, haplotype1, _phaseset1, chromosome1 = fields1
+        queryname2, haplotype2, _phaseset2, chromosome2 = fields2
         assert queryname1 == queryname2
         assert (haplotype1 == haplotype2 == "none") or (haplotype1 != haplotype2)
         assert chromosome1 == chromosome2
@@ -808,8 +808,8 @@ def test_haplotag_missing_SM_tag(tmp_path):
                 assert len(fields1) == len(fields2) == 4
                 if n == 0:
                     continue
-                queryname1, haplotype1, phaseset1, chromosome1 = fields1
-                queryname2, haplotype2, phaseset2, chromosome2 = fields2
+                queryname1, haplotype1, _phaseset1, chromosome1 = fields1
+                queryname2, haplotype2, _phaseset2, chromosome2 = fields2
                 assert queryname1 == queryname2
                 assert haplotype1 == haplotype2
                 assert chromosome1 == chromosome2

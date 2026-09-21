@@ -723,7 +723,7 @@ def log_component_stats(components: Mapping[int, int], n_accessible_positions: i
 
 
 def log_best_case_phasing_info(readset: ReadSet, selected_reads: ReadSet) -> None:
-    (n_best_case_blocks, n_best_case_nonsingleton_blocks) = best_case_blocks(readset)
+    (_n_best_case_blocks, n_best_case_nonsingleton_blocks) = best_case_blocks(readset)
     (n_best_case_blocks_cov, n_best_case_nonsingleton_blocks_cov) = best_case_blocks(selected_reads)
     logger.info(
         "Best-case phasing would result in %d non-singleton phased block%s (%d singletons). ",
@@ -753,7 +753,7 @@ def setup_families(
     # Keep track of connected components (aka families) in the pedigree
     family_finder = ComponentFinder(samples)
     if ped_path is not None:
-        all_trios, pedigree_samples = setup_pedigree(ped_path, samples)
+        all_trios, _pedigree_samples = setup_pedigree(ped_path, samples)
         for trio in all_trios:
             if trio.father is not None:
                 family_finder.merge(trio.father, trio.child)

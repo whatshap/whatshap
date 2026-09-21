@@ -105,7 +105,6 @@ lint.ignore = [
     "PLR0133", # Two constants compared in a comparison, consider replacing `0 < 5`
     "RUF023",  # `BiallelicVcfVariant.__slots__` is not sorted
 
-    "RUF059",  # Unpacked variable `alternative_allele` is never used
     "SIM102",  # Use a single `if` statement instead of nested `if` statements
     "SIM103",  # Return the negated condition directly
     "SIM113",  # Use `enumerate()` for index variable `current_component` in `for` loop

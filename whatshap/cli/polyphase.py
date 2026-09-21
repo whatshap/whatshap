@@ -305,7 +305,7 @@ def phase_single_chromosome(
 
         # Get the reads belonging to this sample
         timers.start("read_bam")
-        readset, vcf_source_ids = phased_input_reader.read(
+        readset, _vcf_source_ids = phased_input_reader.read(
             chromosome, phasable_variant_table.variants, sample
         )
         readset.sort()

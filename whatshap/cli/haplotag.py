@@ -407,7 +407,7 @@ def prepare_haplotag_information(
             scores_list = list(enumerate(scores))
             scores_list.sort(key=lambda t: t[1], reverse=True)
             first_ht, first_score = scores_list[0]
-            second_ht, second_score = scores_list[1]
+            _second_ht, second_score = scores_list[1]
             quality = first_score - second_score
 
             if quality == 0:

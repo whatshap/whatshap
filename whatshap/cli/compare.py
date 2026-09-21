@@ -210,7 +210,7 @@ def compute_switch_flips_poly(phasing0, phasing1, switch_cost=1, flip_cost=1):
     Computes the combined number of switches and flips, which are needed to transform phasing 0 into
     phasing 1 or vice versa.
     """
-    (result, switches_in_column, flips_in_column, poswise_config) = compute_switch_flips_poly_bt(
+    (result, _switches_in_column, _flips_in_column, _poswise_config) = compute_switch_flips_poly_bt(
         phasing0, phasing1, switch_cost=switch_cost, flip_cost=flip_cost
     )
     return result
@@ -710,7 +710,7 @@ def create_blocksize_histogram(filename, block_stats, names, use_weights=False):
             common_bins = numpy.logspace(0, math.ceil(math.log10(max_value)), 50)
             for l, name, color in zip(block_stats, names, colors):
                 x = [what(stats) for stats in l]
-                n, bins, patches = pyplot.hist(
+                pyplot.hist(
                     x,
                     bins=common_bins,
                     alpha=0.6,
@@ -730,7 +730,7 @@ def create_blocksize_histogram(filename, block_stats, names, use_weights=False):
             pyplot.figure(figsize=(10, 8))
             common_bins = numpy.logspace(0, math.ceil(math.log10(max_value)), 25)
             x = [[what(stats) for stats in l] for l in block_stats]
-            n, bins, patches = pyplot.hist(
+            _n, _bins, _patches = pyplot.hist(
                 x,
                 bins=common_bins,
                 alpha=0.6,

@@ -120,9 +120,9 @@ class HapCutParser:
                         haplotype_2,
                         chromosome,
                         position,
-                        reference_allele,
-                        alternative_allele,
-                        genotype,
+                        _reference_allele,
+                        _alternative_allele,
+                        _genotype,
                     ) = fields[:8]
 
                     if len(fields) == 9:  # hapCUT 1
