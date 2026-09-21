@@ -139,11 +139,9 @@ class ReadMerger(ReadMergerBase):
         # same blue connected component
 
         blue_component = {}
-        current_component = 0
-        for conncomp in nx.connected_components(gblue):
+        for current_component, conncomp in enumerate(nx.connected_components(gblue)):
             for v in conncomp:
                 blue_component[v] = current_component
-            current_component += 1
 
         for u, v in gnotblue.edges():
             if blue_component[u] != blue_component[v]:
@@ -182,10 +180,8 @@ class ReadMerger(ReadMergerBase):
                     superreads[r][position][allele] += quality
 
         merged_reads = ReadSet()
-        readn = 0
-        for id in range(len(reads)):
+        for readn, id in enumerate(range(len(reads))):
             read = Read(f"read{readn}")
-            readn += 1
             if id in representative:
                 if id == representative[id]:
                     for position in sorted(superreads[id]):
