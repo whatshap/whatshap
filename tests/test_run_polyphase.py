@@ -100,9 +100,7 @@ def test_blockcut_sensitivities(tmp_path):
 
         tables = list(VcfReader(outvcf, phases=True))
         assert len(tables) == 1
-        block_starts = {
-            i.block_id for i in tables[0].phases_of("HG00514_NA19240") if i is not None
-        }
+        block_starts = {i.block_id for i in tables[0].phases_of("HG00514_NA19240") if i is not None}
         results.append(block_starts)
         print(block_starts)
 
@@ -207,12 +205,12 @@ def test_polyphase_multithreaded(tmp_path):
 
     assert table_st.chromosome == table_mt.chromosome
     assert table_st.samples == table_mt.samples
-    assert all([st == mt for (st, mt) in zip(table_st.genotypes, table_mt.genotypes)])
-    assert all([st == mt for (st, mt) in zip(table_st.phases, table_mt.phases)])
+    assert all(st == mt for (st, mt) in zip(table_st.genotypes, table_mt.genotypes))
+    assert all(st == mt for (st, mt) in zip(table_st.phases, table_mt.phases))
     assert all(
-        [st == mt for (st, mt) in zip(table_st.genotype_likelihoods, table_mt.genotype_likelihoods)]
+        st == mt for (st, mt) in zip(table_st.genotype_likelihoods, table_mt.genotype_likelihoods)
     )
-    assert all([st == mt for (st, mt) in zip(table_st.variants, table_mt.variants)])
+    assert all(st == mt for (st, mt) in zip(table_st.variants, table_mt.variants))
 
 
 def test_polyphase_indels(tmp_path):

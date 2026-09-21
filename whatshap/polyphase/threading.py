@@ -180,7 +180,7 @@ def force_genotypes(
         given_config = [haplotypes[h][pos] for h in range(len(haplotypes))]
         best_config = given_config
         best_likelihood = -float("inf")
-        for perm in set(list(itertools.permutations(alleles_to_insert))):
+        for perm in set(itertools.permutations(alleles_to_insert)):
             # build next config (given + affected slots permuted)
             newconfig = given_config[:]
             for i in range(len(perm)):
@@ -254,7 +254,7 @@ def select_clusters(
             if cid in cov_map[pos]:
                 continue
             if any(
-                [cid in cov_map[pos + k + 1] for k in range(min(max_gap, len(cov_map) - pos - 1))]
+                cid in cov_map[pos + k + 1] for k in range(min(max_gap, len(cov_map) - pos - 1))
             ):
                 cov_map[pos].append(cid)
                 allele_depths[pos][cid] = dict()

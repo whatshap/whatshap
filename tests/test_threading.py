@@ -258,7 +258,7 @@ def test_cluster_selection2():
     allele_matrix = AlleleMatrix(readset)
     ad, cons_lists = get_allele_depths(allele_matrix, clustering, ploidy=4)
     c = select_clusters(ad, ploidy=4, max_gap=0)
-    assert all([c[i] == [0, 1, 2, 3] for i in range(10)])
+    assert all(c[i] == [0, 1, 2, 3] for i in range(10))
     assert c == select_clusters(ad, ploidy=3, max_gap=1)
 
 

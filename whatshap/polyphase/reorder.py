@@ -124,7 +124,7 @@ def integrate_sub_results(
             i += 1
             continue
         # breakpoints[i:j] have same position with |j - i| >= 2
-        haps = sorted(list({h for k in range(i, j) for h in breakpoints[k].haplotypes}))
+        haps = sorted({h for k in range(i, j) for h in breakpoints[k].haplotypes})
         conf = reduce(mul, [breakpoints[k].confidence for k in range(i, j)])
         breakpoints[i].haplotypes = haps
         breakpoints[i].confidence = conf
@@ -317,7 +317,7 @@ def compute_phase_affiliation(
 
     # count overlaps and errors between block-threads and prephasings
     prephasing_pos = prephasing.getPositions()
-    phaseblock_starts = sorted(list({prephasing.getFirstPos(i) for i in range(len(prephasing))}))
+    phaseblock_starts = sorted({prephasing.getFirstPos(i) for i in range(len(prephasing))})
     phaseblock_starts.append(len(prephasing_pos))
     for phb, (start, end) in enumerate(zip(phaseblock_starts[:-1], phaseblock_starts[1:])):
         for i in range(start, end):

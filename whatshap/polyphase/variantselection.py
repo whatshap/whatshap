@@ -78,7 +78,7 @@ class VariantInfo:
             self.nodes_modified = True
 
     def get_phasable(self):
-        return sorted(list(self.phasable))
+        return sorted(self.phasable)
 
     def remove_phasable(self, pos):
         if pos in self.phasable:
@@ -151,7 +151,7 @@ def compute_phasable_variants(
             for a in gt:
                 alleles_set.add(a)
 
-        alleles = sorted(list(alleles_set))
+        alleles = sorted(alleles_set)
 
         if len(alleles) > 2:
             # genotypes are not bi-allelic

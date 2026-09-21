@@ -100,9 +100,6 @@ lint.ignore = [
     "SIM115",  # Use a context manager for opening files
 
     "C408",    # Unnecessary `dict()` call (rewrite as a literal)
-    "C413",    # Unnecessary `list()` call around `sorted()`
-    "C414",    # Unnecessary `list()` call within `set()`
-    "C419",    # Unnecessary list comprehension
     "DTZ005",  # `datetime.datetime.now()` called without a `tz` argument
     "EXE001",  # Shebang is present but file is not executable
     "FA100",   # Add `from __future__ import annotations` to simplify `typing.Optional`

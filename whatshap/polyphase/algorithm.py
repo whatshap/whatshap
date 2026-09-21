@@ -164,8 +164,8 @@ def phase_single_block(
         # construct trivial solution for singleton blocks, by using the genotype as phasing
         g = genotypes[0]
         clusts = [[i for i, r in enumerate(allele_matrix) if r and r[0][1] == a] for a in g]
-        threads = [sorted(list(chain(*[[i] * g[a] for i, a in enumerate(g)])))]
-        haps = sorted(list(chain(*[[[a]] * g[a] for a in g])))
+        threads = [sorted(chain(*[[i] * g[a] for i, a in enumerate(g)]))]
+        haps = sorted(chain(*[[[a]] * g[a] for a in g]))
         return PolyphaseBlockResult(context.block_id, clusts, threads, haps, [])
 
     if context.recursion_level == 0:
@@ -231,7 +231,7 @@ def phase_single_block(
     for cid, thread_set, subm in sub_instances:
         assert len(subm) > 0
         snps = [allele_matrix.globalToLocal(gpos) for gpos in subm.getPositions()]
-        assert all([0 <= pos < allele_matrix.getNumPositions() for pos in snps])
+        assert all(0 <= pos < allele_matrix.getNumPositions() for pos in snps)
         subhaps = [[haplotypes[i][pos] for i in thread_set] for pos in snps]
         subgeno = [{a: h.count(a) for a in h} for h in subhaps]
         sub_param.ploidy = len(thread_set)

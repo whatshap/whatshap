@@ -65,7 +65,7 @@ class PhasedBlock:
         return self.rightmost_variant.position - self.leftmost_variant.position
 
     def variants(self):
-        return list(sorted(self.phases.keys()))
+        return sorted(self.phases.keys())
 
     def count_snvs(self):
         return sum(int(variant.is_snv()) for variant in self.phases)
