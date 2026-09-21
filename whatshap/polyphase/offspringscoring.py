@@ -14,7 +14,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from scipy.stats import binom
 from scipy.special import binom as binom_coeff
-from functools import lru_cache
+from functools import cache
 
 from whatshap.polyphase.solver import TriangleSparseMatrix, ProgenyGenotypeLikelihoods
 from whatshap.polyphase.variantselection import VariantInfo
@@ -23,7 +23,7 @@ from whatshap.vcf import VariantTable
 logger = logging.getLogger(__name__)
 
 
-@lru_cache(maxsize=None)
+@cache
 def get_binom_pmf(n, k, g, ploidy, error_rate):
     if g < 0 or g > ploidy or not isinstance(g, int):
         raise ValueError(f"Invalid genotype alt-count ({g}).")
