@@ -14,6 +14,7 @@ from whatshap.vcf import VcfReader, VcfVariant, VariantTable, PloidyError
 from whatshap.core import Genotype
 from whatshap.polyphase.solver import SwitchFlipCalculator
 from whatshap.cli import CommandLineError
+from typing_extensions import Self
 
 
 logger = logging.getLogger(__name__)
@@ -92,7 +93,7 @@ class PhasingErrors:
         self.switch_flips = SwitchFlips() if switch_flips is None else switch_flips
         self.diff_genotypes = diff_genotypes
 
-    def __iadd__(self, other: object) -> "PhasingErrors":
+    def __iadd__(self, other: object) -> Self:
         if not isinstance(other, PhasingErrors):
             raise TypeError("Can only add to PhasingErrors")
         self.switches += other.switches
