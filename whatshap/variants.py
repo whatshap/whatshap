@@ -45,8 +45,7 @@ class VariantProgress:
         self.alleles = []
 
     def __iter__(self):
-        for a in self.alleles:
-            yield a
+        yield from self.alleles
 
     def __len__(self):
         return len(self.alleles)
