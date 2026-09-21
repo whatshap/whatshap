@@ -135,5 +135,4 @@ lint.ignore = [
     "SIM401",  # Use `allele_depths[pos][clust].get(a, 0)` instead of an `if` block
     "TRY201",  # Use `raise` without specifying exception name
     "UP006",   # Use `collections.defaultdict` instead of `DefaultDict` for type annotation
-    "UP007",   # Use `X | Y` for type annotations
 ]
