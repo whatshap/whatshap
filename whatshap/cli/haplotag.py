@@ -709,6 +709,7 @@ def run_haplotag(
         user_regions = normalize_user_regions(regions, bam_reader.references)
 
         include_unmapped = regions is None
+        del regions
         phased_input_reader = stack.enter_context(
             PhasedInputReader(
                 [alignment_file],

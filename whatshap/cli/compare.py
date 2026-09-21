@@ -776,6 +776,7 @@ def run_compare(
     sample_names = get_sample_names(
         vcf_readers, requested_sample=sample, ignore_name=ignore_sample_name
     )
+    del sample
 
     with ExitStack() as stack:
         tsv_pairwise_file = tsv_multiway_file = longest_block_tsv_file = switch_error_bedfile = None
