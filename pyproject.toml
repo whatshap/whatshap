@@ -140,8 +140,6 @@ lint.ignore = [
     "UP031",   # Use format specifiers instead of percent format
     "UP032",   # Use f-string instead of `format` call
     "UP033",   # Use `@functools.cache` instead of `@functools.lru_cache(maxsize=None)`
-    "UP035",   # Import from `collections.abc` instead: `Iterable`
-    "UP035",   # `typing.DefaultDict` is deprecated, use `collections.defaultdict` instead
     "UP037",   # Remove quotes from type annotation
     "UP045",   # Use `X | None` for type annotations
 ]

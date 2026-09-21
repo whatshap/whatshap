@@ -8,7 +8,7 @@ from collections import defaultdict
 from contextlib import ExitStack
 import dataclasses
 from itertools import chain, permutations
-from typing import Set, List, Optional, DefaultDict, Dict
+from typing import Optional
 
 from whatshap.vcf import VcfReader, VcfVariant, VariantTable, PloidyError
 from whatshap.core import Genotype
@@ -326,7 +326,7 @@ def safefraction(nominator, denominator):
 
 
 class BedCreator:
-    def __init__(self, chromosome: str, dataset_names: List[str]):
+    def __init__(self, chromosome: str, dataset_names: list[str]):
         self._chromosome = chromosome
         self._annotation = "{}<-->{}".format(*dataset_names)
 
@@ -407,8 +407,8 @@ class BlockStats:
 
 
 def collect_common_variants(
-    variant_tables: List[VariantTable], sample_names: List[str]
-) -> Set[VcfVariant]:
+    variant_tables: list[VariantTable], sample_names: list[str]
+) -> set[VcfVariant]:
     common_variants = None
     for variant_table, sample in zip(variant_tables, sample_names):
         het_variants = [
@@ -425,9 +425,9 @@ def collect_common_variants(
 
 
 def compare(
-    variant_tables: List[VariantTable],
-    sample_names: List[str],
-    dataset_names: List[str],
+    variant_tables: list[VariantTable],
+    sample_names: list[str],
+    dataset_names: list[str],
     ploidy: int,
 ):
     """
@@ -453,7 +453,7 @@ def compare(
         phases.append(p)
 
     # blocks[variant_table_index][block_id] is a list of indices into common_variants
-    blocks: List[DefaultDict[int, List[int]]] = [defaultdict(list) for _ in variant_tables]
+    blocks: list[defaultdict[int, list[int]]] = [defaultdict(list) for _ in variant_tables]
     block_intersection = defaultdict(list)
     for variant_index in range(len(common_variants)):
         any_none = False
@@ -663,7 +663,7 @@ def compare_multiway(block_intersection, dataset_names, phases):
 
 
 def compute_block_stats(
-    blocks: List[DefaultDict[int, List[int]]], sorted_variants: List[VcfVariant]
+    blocks: list[defaultdict[int, list[int]]], sorted_variants: list[VcfVariant]
 ):
     block_stats = []
     for block in blocks:
@@ -1001,7 +1001,7 @@ def run_compare(
             )
 
 
-def get_common_chromosomes(vcfs: List[Dict[str, VariantTable]]) -> List[str]:
+def get_common_chromosomes(vcfs: list[dict[str, VariantTable]]) -> list[str]:
     common = None
     for chrom_variant_table_map in vcfs:
         chromosomes = chrom_variant_table_map.keys()
@@ -1015,8 +1015,8 @@ def get_common_chromosomes(vcfs: List[Dict[str, VariantTable]]) -> List[str]:
 
 
 def get_variant_tables(
-    vcf_readers: List[VcfReader], vcf_filenames: List[str]
-) -> List[Dict[str, VariantTable]]:
+    vcf_readers: list[VcfReader], vcf_filenames: list[str]
+) -> list[dict[str, VariantTable]]:
     vcfs = []
     for reader, filename in zip(vcf_readers, vcf_filenames):
         # create dict mapping chromosome names to VariantTables
@@ -1032,8 +1032,8 @@ def get_variant_tables(
 
 
 def get_sample_names(
-    vcf_readers: List[VcfReader], requested_sample: Optional[str], ignore_name: bool = False
-) -> List[str]:
+    vcf_readers: list[VcfReader], requested_sample: Optional[str], ignore_name: bool = False
+) -> list[str]:
     first_samples = []
     sample_intersection = None
     for vcf_reader in vcf_readers:

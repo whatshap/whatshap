@@ -1,6 +1,5 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict
 
 from math import log
 
@@ -163,7 +162,7 @@ class ReadMerger(ReadMergerBase):
 
         # Merge blue components (somehow)
         logger.debug("Started Merging Reads...")
-        superreads: Dict = {}  # superreads given by the clusters (if clustering)
+        superreads: dict = {}  # superreads given by the clusters (if clustering)
         representative = {}  # cluster representative of a read in a cluster
 
         for cc in nx.connected_components(gblue):

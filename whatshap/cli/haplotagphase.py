@@ -7,7 +7,8 @@ import itertools
 import logging
 import sys
 from contextlib import ExitStack
-from typing import List, Optional, Sequence, Union, Dict, Tuple
+from typing import Optional, Union
+from collections.abc import Sequence
 
 
 from whatshap import __version__
@@ -65,8 +66,8 @@ def run_haplotagphase(
     reference: Union[None, bool, str] = False,
     ignore_read_groups: bool = False,
     only_indels: bool = False,
-    chromosomes: Optional[List[str]] = None,
-    excluded_chromosomes: Optional[List[str]] = None,
+    chromosomes: Optional[list[str]] = None,
+    excluded_chromosomes: Optional[list[str]] = None,
     gap_threshold: int = 70,
     cut_poly: int = 10,
     write_command_line_header: bool = True,
@@ -205,11 +206,11 @@ def consensus(
     gap_threshold: int,
     cut_homopolymers: int,
     refseq: str,
-    change: Dict[int, VcfVariant],
-    phased: Dict[int, Optional[VariantCallPhase]],
-    votes: Dict[int, Dict[Tuple[int, int], int]],
-    id_to_allele: Dict[int, Dict[int, int]],
-) -> Tuple[List[List[Read]], Dict[int, int]]:
+    change: dict[int, VcfVariant],
+    phased: dict[int, Optional[VariantCallPhase]],
+    votes: dict[int, dict[tuple[int, int], int]],
+    id_to_allele: dict[int, dict[int, int]],
+) -> tuple[list[list[Read]], dict[int, int]]:
     """
     Compute a consensus based on voting and filtering criteria.
 
@@ -263,7 +264,7 @@ def consensus(
     return super_reads, components
 
 
-def best_candidate(var: Dict[Tuple[int, int], int]) -> Tuple[int, int, float, int]:
+def best_candidate(var: dict[tuple[int, int], int]) -> tuple[int, int, float, int]:
     """
     Compute the proportion of the best candidate's score relative to the total score of all candidates
     and return this score with a candidate.
@@ -345,8 +346,8 @@ def length_of_homopolymer(ref: str, start: int, step: int, threshold: int) -> in
 
 
 def compute_votes(
-    is_homozygous: Dict[int, bool], reads: List[Read], allele_to_id: Dict[int, Dict[int, int]]
-) -> Dict[int, Dict[Tuple[int, int], int]]:
+    is_homozygous: dict[int, bool], reads: list[Read], allele_to_id: dict[int, dict[int, int]]
+) -> dict[int, dict[tuple[int, int], int]]:
     """
     Compute votes for variants based on read information.
 

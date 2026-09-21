@@ -4,7 +4,8 @@ Find connected components.
 
 from abc import abstractmethod
 from collections import OrderedDict
-from typing import TypeVar, Generic, Optional, Iterable
+from typing import TypeVar, Generic, Optional
+from collections.abc import Iterable
 import typing
 
 if typing.TYPE_CHECKING:

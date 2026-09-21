@@ -1,7 +1,8 @@
 import os
 from abc import ABC
 from urllib.parse import urlparse
-from typing import Optional, Iterable
+from typing import Optional
+from collections.abc import Iterable
 
 import pysam
 import logging

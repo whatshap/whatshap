@@ -9,7 +9,6 @@ import logging
 from itertools import chain
 from multiprocessing import Pool
 from math import log
-from typing import List, Tuple
 from copy import copy
 
 from whatshap.polyphase import (
@@ -34,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 def solve_polyphase_instance(
     allele_matrix: AlleleMatrix,
-    genotypes: List[Genotype],
+    genotypes: list[Genotype],
     param: PolyphaseParameter,
     timers: StageTimer,
     partial_phasing: AlleleMatrix = None,
@@ -67,7 +66,7 @@ def solve_polyphase_instance(
         )
 
     # Process blocks independently
-    results: List[PolyphaseBlockResult] = []
+    results: list[PolyphaseBlockResult] = []
     processed_blocks = 0
     timers.stop("detecting_blocks")
 
@@ -140,7 +139,7 @@ def solve_polyphase_instance(
 
 def phase_single_block(
     allele_matrix: AlleleMatrix,
-    genotypes: List[Genotype],
+    genotypes: list[Genotype],
     prephasing: AlleleMatrix,
     param: PolyphaseParameter,
     timers: StageTimer,
@@ -269,7 +268,7 @@ def phase_single_block(
 
 
 def aggregate_results(
-    results: List[PolyphaseBlockResult], ploidy: int, borders: List[int]
+    results: list[PolyphaseBlockResult], ploidy: int, borders: list[int]
 ) -> PolyphaseResult:
     """
     Collects all blockwise phasing results and aggregates them into one list for each type of
@@ -297,8 +296,8 @@ def aggregate_results(
 
 
 def compute_cut_positions(
-    breakpoints: List[PhaseBreakpoint], ploidy: int, block_cut_sensitivity: int
-) -> Tuple[List[int], List[List[int]]]:
+    breakpoints: list[PhaseBreakpoint], ploidy: int, block_cut_sensitivity: int
+) -> tuple[list[int], list[list[int]]]:
     """
     Computes the cut positions for phasing blocks, based on the computed breakpoints of the
     reordering stage and the requeted block cut sensitivity.

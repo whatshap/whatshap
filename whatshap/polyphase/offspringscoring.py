@@ -11,7 +11,7 @@ import logging
 
 from math import log, isnan
 from collections import defaultdict
-from typing import List, Iterable, Tuple
+from collections.abc import Iterable
 from scipy.stats import binom
 from scipy.special import binom as binom_coeff
 from functools import lru_cache
@@ -37,7 +37,7 @@ def hyp(k, N, M, n):
 def correct_variant_types(
     variant_table: VariantTable,
     progeny_table: VariantTable,
-    offspring: List[str],
+    offspring: list[str],
     varinfo: VariantInfo,
     phasing_param,
 ):
@@ -86,7 +86,7 @@ def correct_variant_types(
 def get_offspring_gl(
     variant_table: VariantTable,
     progeny_table: VariantTable,
-    offspring: List[str],
+    offspring: list[str],
     varinfo: VariantInfo,
     phasing_param,
 ):
@@ -232,7 +232,7 @@ def compute_gt_likelihood_priors(ploidy):
 def compute_gt_likelihoods(
     progeny_table: VariantTable,
     offspring: str,
-    position_pairs: Iterable[Tuple[int, int]],
+    position_pairs: Iterable[tuple[int, int]],
     varinfo: VariantInfo,
     param,
     gt_priors=None,

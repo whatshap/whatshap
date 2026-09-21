@@ -1,7 +1,8 @@
 import sys
 import resource
 import logging
-from typing import List, Optional, Sequence
+from typing import Optional
+from collections.abc import Sequence
 
 from whatshap.bam import (
     AlignmentFileNotIndexedError,
@@ -148,7 +149,7 @@ class PhasedInputReader:
         *,
         read_vcf=True,
         regions=None,
-        restricted_genotypes: Optional[List[Genotype]] = None,
+        restricted_genotypes: Optional[list[Genotype]] = None,
     ):
         """
         Return a pair (readset, vcf_source_ids) where readset is a sorted ReadSet.

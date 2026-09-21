@@ -10,8 +10,6 @@ much from the average.
 
 import logging
 
-from typing import List
-
 from whatshap.vcf import VariantTable
 
 logger = logging.getLogger(__name__)
@@ -187,9 +185,9 @@ def diff_ratio(ratio):
 
 def filter_variants(
     varinfo: VariantInfo,
-    parent_cov: List[int],
-    co_parent_cov: List[int],
-    progeny_cov: List[int],
+    parent_cov: list[int],
+    co_parent_cov: list[int],
+    progeny_cov: list[int],
     cutoff: float,
 ):
     phasable_indices = varinfo.get_phasable()

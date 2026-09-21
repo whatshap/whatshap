@@ -2,7 +2,8 @@ import time
 import logging
 from collections import defaultdict
 from contextlib import contextmanager
-from typing import TypeVar, Iterator, Iterable, DefaultDict, Dict
+from typing import TypeVar
+from collections.abc import Iterator, Iterable
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +14,8 @@ class StageTimer:
     """Measure run times of multiple non-overlapping stages of a program"""
 
     def __init__(self) -> None:
-        self._start: Dict[str, float] = dict()
-        self._elapsed: DefaultDict[str, float] = defaultdict(float)
+        self._start: dict[str, float] = dict()
+        self._elapsed: defaultdict[str, float] = defaultdict(float)
         self._overall_start_time = time.time()
 
     def start(self, stage):

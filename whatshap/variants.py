@@ -5,7 +5,8 @@ Detect variants in reads.
 import logging
 import csv
 from collections import defaultdict, Counter
-from typing import Iterable, Iterator, List, Optional
+from typing import Optional
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 
 import pysam
@@ -140,7 +141,7 @@ class ReadSetReader:
 
     def __init__(
         self,
-        paths: List[str],
+        paths: list[str],
         reference: Optional[str],
         numeric_sample_ids: NumericSampleIds,
         *,
@@ -205,7 +206,7 @@ class ReadSetReader:
         sample,
         reference,
         regions=None,
-        restricted_genotypes: Optional[List[Genotype]] = None,
+        restricted_genotypes: Optional[list[Genotype]] = None,
     ) -> ReadSet:
         """
         Detect alleles and return a ReadSet object containing reads representing
@@ -248,7 +249,7 @@ class ReadSetReader:
         return readset
 
     @staticmethod
-    def _make_readset_from_grouped_reads(groups: Iterable[List[Read]]) -> ReadSet:
+    def _make_readset_from_grouped_reads(groups: Iterable[list[Read]]) -> ReadSet:
         read_set = ReadSet()
         for group in groups:
             read_set.add(merge_reads(*group))
@@ -256,7 +257,7 @@ class ReadSetReader:
 
     @staticmethod
     def create_read_from_group(
-        group: List[AlignedRead],
+        group: list[AlignedRead],
         distance_threshold: int,
         allow_supplementary_only_groups: bool = False,
     ) -> Optional[Read]:
@@ -340,7 +341,7 @@ class ReadSetReader:
         reads: Iterable[AlignedRead],
         distance_threshold: int,
         allow_supplementary_only_groups: bool = False,
-    ) -> Iterator[List[Read]]:
+    ) -> Iterator[list[Read]]:
         """
         Group reads into paired-end read pairs. Uses name, source_id and sample_id
         as grouping key.
@@ -412,7 +413,7 @@ class ReadSetReader:
         variants,
         sample,
         reference,
-        restricted_genotypes: Optional[List[Genotype]],
+        restricted_genotypes: Optional[list[Genotype]],
     ):
         """
         Convert BAM alignments to Read objects.
@@ -547,7 +548,7 @@ class ReadSetReader:
 
         logger.info(f"Number of supplementary alignments: {number_of_supplementary_alignments}")
 
-    def detect_non_overlapping_variants(self, variants: List[VcfVariant]):
+    def detect_non_overlapping_variants(self, variants: list[VcfVariant]):
         """
         Checks for deletion variants overlapping other variants and for variants with duplicate
         positions. Returns a set of variant indices, which are conflict with another variant and
@@ -849,8 +850,8 @@ class ReadSetReader:
 
     @staticmethod
     def detect_alleles_by_alignment(
-        variants: List[VcfVariant],
-        restricted_genotypes: Optional[List[Genotype]],
+        variants: list[VcfVariant],
+        restricted_genotypes: Optional[list[Genotype]],
         j,
         bam_read: AlignedSegment,
         reference,

@@ -9,7 +9,8 @@ import logging
 import sys
 import platform
 from argparse import SUPPRESS
-from typing import Sequence, Optional
+from typing import Optional
+from collections.abc import Sequence
 
 from contextlib import ExitStack
 from whatshap import __version__

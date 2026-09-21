@@ -1,10 +1,10 @@
-from typing import Optional, Set
+from typing import Optional
 
 from whatshap.core import ReadSet
 
 def readselection(
     readset: ReadSet,
     max_cov: int,
-    preferred_source_ids: Optional[Set[int]] = ...,
+    preferred_source_ids: Optional[set[int]] = ...,
     bridging: bool = ...,
-) -> Set[int]: ...
+) -> set[int]: ...

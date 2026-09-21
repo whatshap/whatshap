@@ -13,7 +13,8 @@ from enum import Enum
 import pysam
 import hashlib
 from collections import defaultdict
-from typing import List, Optional, Union, Dict, Tuple, FrozenSet, Sequence, TextIO
+from typing import Optional, Union, TextIO
+from collections.abc import Sequence
 
 from xopen import xopen
 
@@ -137,7 +138,7 @@ def get_variant_information(variant_table: VariantTable, sample: str):
     and variants is a list of all non-homozygous variants.
     """
     genotypes = variant_table.genotypes_of(sample)
-    phases: List[Optional[VariantCallPhase]] = variant_table.phases_of(sample)
+    phases: list[Optional[VariantCallPhase]] = variant_table.phases_of(sample)
 
     vpos_to_phase_info = dict()
     variants = []
@@ -189,11 +190,11 @@ def attempt_add_phase_information(
     # that means that we wanted to tag supplementary alignment,
     # and first iteration of haplotagging had a default COPY-if-tagging strategy
     supplementary_strategy: SupplementaryHaplotaggingStrategy = SupplementaryHaplotaggingStrategy.COPY_PRIMARY,
-    primary_info_by_repr: Optional[Dict["ReadAlignmentRepresentation", "PrimaryInfo"]] = None,
+    primary_info_by_repr: Optional[dict["ReadAlignmentRepresentation", "PrimaryInfo"]] = None,
     supplementary_strand_match: bool = True,
     supplementary_distance_threshold: int = 100_000,
 ):
-    primary_info_by_repr: Dict["ReadAlignmentRepresentation", "PrimaryInfo"] = (
+    primary_info_by_repr: dict["ReadAlignmentRepresentation", "PrimaryInfo"] = (
         primary_info_by_repr or {}
     )
     is_tagged = 0
@@ -271,7 +272,7 @@ def attempt_add_phase_information(
 
 
 def load_chromosome_variants(
-    vcf_reader: VcfReader, chromosome: str, regions: Sequence[Tuple[int, Optional[int]]]
+    vcf_reader: VcfReader, chromosome: str, regions: Sequence[tuple[int, Optional[int]]]
 ) -> VariantTable:
     try:
         logger.debug(f"Loading variants from {len(regions)} distinct region(s)")
@@ -428,8 +429,8 @@ def prepare_haplotag_information(
 
 
 def normalize_user_regions(
-    user_regions: Optional[Sequence[str]], bam_references: List[str]
-) -> Dict[str, List[Tuple[int, Optional[int]]]]:
+    user_regions: Optional[Sequence[str]], bam_references: list[str]
+) -> dict[str, list[tuple[int, Optional[int]]]]:
     """
     Process and accept user input of the following forms:
 
@@ -448,7 +449,7 @@ def normalize_user_regions(
     Returns:
         dict of lists containing normalized regions per chromosome
     """
-    regions: Dict[str, List[Tuple[int, Optional[int]]]] = defaultdict(list)
+    regions: dict[str, list[tuple[int, Optional[int]]]] = defaultdict(list)
     if user_regions is None:
         for reference in bam_references:
             regions[reference].append((0, None))
@@ -646,7 +647,7 @@ def ignore_read(alignment, include_supplementary: bool):
     return ignore
 
 
-def contigs_with_alignments(af: pysam.AlignmentFile) -> FrozenSet[str]:
+def contigs_with_alignments(af: pysam.AlignmentFile) -> frozenset[str]:
     has_alignments = []
     for contig in af.references:
         for _ in af.fetch(contig=contig):

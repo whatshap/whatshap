@@ -17,13 +17,9 @@ from contextlib import ExitStack
 
 from typing import (
     Optional,
-    List,
     TextIO,
-    Sequence,
-    FrozenSet,
-    Dict,
-    Tuple,
 )
+from collections.abc import Sequence
 
 from whatshap import __version__
 from whatshap.core import (
@@ -60,8 +56,8 @@ def run_polyphase(
     reference: Optional[str] = None,
     output: TextIO = sys.stdout,
     samples: Optional[Sequence[str]] = None,
-    chromosomes: Optional[List[str]] = None,
-    excluded_chromosomes: Optional[List[str]] = None,
+    chromosomes: Optional[list[str]] = None,
+    excluded_chromosomes: Optional[list[str]] = None,
     ignore_read_groups: bool = False,
     only_snvs: bool = False,
     mapping_quality: int = 20,
@@ -267,11 +263,11 @@ def run_polyphase(
 def phase_single_chromosome(
     variant_table: VariantTable,
     phased_input_reader: PhasedInputReader,
-    samples: FrozenSet[str],
+    samples: frozenset[str],
     timers: StageTimer,
     param: PolyphaseParameter,
-) -> Tuple[
-    Dict[str, Dict[Position, int]], Dict[str, Dict[Position, List[int]]], Dict[str, ReadSet]
+) -> tuple[
+    dict[str, dict[Position, int]], dict[str, dict[Position, list[int]]], dict[str, ReadSet]
 ]:
     chromosome = variant_table.chromosome
     superreads, components, haploid_components = dict(), dict(), dict()
@@ -350,7 +346,7 @@ def phase_single_individual(
     sample: str,
     param: PolyphaseParameter,
     timers: StageTimer,
-) -> Tuple[Dict[Position, int], Dict[Position, List[int]], ReadSet]:
+) -> tuple[dict[Position, int], dict[Position, list[int]], ReadSet]:
     # Compute the genotypes that belong to the variant table and create a list of all genotypes
     genotype_list = create_genotype_list(phasable_variant_table, sample)
 
