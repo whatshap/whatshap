@@ -99,7 +99,6 @@ line-length = 120
 lint.ignore = [
     "SIM115",  # Use a context manager for opening files
 
-    "C405",    # Unnecessary list literal (rewrite as a set literal)
     "C408",    # Unnecessary `dict()` call (rewrite as a literal)
     "C413",    # Unnecessary `list()` call around `sorted()`
     "C414",    # Unnecessary `list()` call within `set()`

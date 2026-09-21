@@ -47,7 +47,7 @@ def test_polyphase_multiple_bam(tmp_path):
     table = tables[0]
     assert table.chromosome == "chr22"
     assert len(table.variants) == 9
-    assert set(table.samples) == set(["HG00514", "NA19240"])
+    assert set(table.samples) == {"HG00514", "NA19240"}
     assert sum(1 for p in table.phases_of("HG00514") if p is not None) == 2
     assert sum(1 for p in table.phases_of("NA19240") if p is not None) == 9
 
