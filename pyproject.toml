@@ -102,7 +102,6 @@ lint.ignore = [
     "I001",    # Import block is un-sorted or un-formatted
     "FA100",   # Add `from __future__ import annotations` to simplify `typing.Optional`
 
-    "PIE808",  # Unnecessary `start` argument in `range`
     "PLC0205", # Class `__slots__` should be a non-string iterable
     "PLC0206", # Extracting value from dictionary without calling `.items()`
     "PLR0133", # Two constants compared in a comparison, consider replacing `0 < 5`

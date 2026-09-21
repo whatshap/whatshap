@@ -232,7 +232,7 @@ def compute_switch_flips_poly_bt(
     ploidy = len(phasing0)
     if ploidy == 0:
         return SwitchFlips(), None, None, None
-    for i in range(0, len(phasing1)):
+    for i in range(len(phasing1)):
         if len(phasing1[i]) != num_pos:
             logger.error(
                 "Inconsistent input for phasing. Haplotypes have different lengths "

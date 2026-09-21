@@ -246,7 +246,7 @@ def compute_gt_likelihoods(
         if progeny_pos == prev_pos:
             gt_likelihoods.append(gt_likelihoods[-1])
             continue
-        gl = [0.0 for _ in range(0, param.ploidy + 1)]
+        gl = [0.0 for _ in range(param.ploidy + 1)]
         ref = varinfo[parent_pos].ref
         alt = varinfo[parent_pos].alt
         ref_dp = allele_depths[progeny_pos][ref] if len(allele_depths[progeny_pos]) > ref else 0
@@ -254,7 +254,7 @@ def compute_gt_likelihoods(
         num_alts_parent = varinfo[parent_pos].alt_count
         num_alts_coparent = varinfo[parent_pos].co_alt_count
         if ref_dp + alt_dp >= param.ploidy:
-            for i in range(0, param.ploidy + 1):
+            for i in range(param.ploidy + 1):
                 gl[i] = get_binom_pmf(
                     ref_dp + alt_dp, alt_dp, i, param.ploidy, param.allele_error_rate
                 )
@@ -263,7 +263,7 @@ def compute_gt_likelihoods(
             # normalizing likelihoods to sum up to 1 is not necessary, because we compute likelihood
             # ratios later anyways. otherwise it would be done here
             sum_gl = sum(gl)
-            for i in range(0, param.ploidy + 1):
+            for i in range(param.ploidy + 1):
                 gl[i] = gl[i] / sum_gl
         else:
             gl = None

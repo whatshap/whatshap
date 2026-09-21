@@ -14,8 +14,8 @@ def old_likelihood_prior_function(ploidy):
     # auxiliary table for prior probailities
     max_alts = ploidy // 2  # max. alleles inherited from one parent
     prior_single = [[0.0] * (max_alts + 1) for _ in range(ploidy + 1)]
-    for num_alts in range(0, ploidy + 1):
-        for num_drawn_alts in range(0, max_alts + 1):
+    for num_alts in range(ploidy + 1):
+        for num_drawn_alts in range(max_alts + 1):
             if ploidy - num_alts >= max_alts - num_drawn_alts and num_alts >= num_drawn_alts:
                 prior_single[num_alts][num_drawn_alts] = (
                     binom_coeff(ploidy - num_alts, max_alts - num_drawn_alts)
@@ -24,8 +24,8 @@ def old_likelihood_prior_function(ploidy):
                 )
 
     prior_dual = [[[0.0] * (ploidy + 1) for _ in range(ploidy + 1)] for _ in range(ploidy + 1)]
-    for num_alts_parent in range(0, ploidy + 1):
-        for num_alts_coparent in range(0, ploidy + 1):
+    for num_alts_parent in range(ploidy + 1):
+        for num_alts_coparent in range(ploidy + 1):
             for i in range(max_alts + 1):
                 for j in range(max_alts + 1):
                     num_alts_offspring = i + j
