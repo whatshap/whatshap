@@ -12,5 +12,4 @@ class HelpfulArgumentParser(ArgumentParser):
 
     def error(self, message):
         self.print_help(sys.stderr)
-        args = {"prog": self.prog, "message": message}
-        self.exit(2, "%(prog)s: error: %(message)s\n" % args)
+        self.exit(2, f"{self.prog}: error: {message}")

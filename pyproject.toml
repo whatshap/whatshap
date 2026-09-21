@@ -137,5 +137,4 @@ lint.ignore = [
     "UP006",   # Use `collections.defaultdict` instead of `DefaultDict` for type annotation
     "UP007",   # Use `X | Y` for type annotations
     "UP028",   # Replace `yield` over `for` loop with `yield from`
-    "UP031",   # Use format specifiers instead of percent format
 ]
