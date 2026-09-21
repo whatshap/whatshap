@@ -666,7 +666,7 @@ def compute_block_stats(
     block_stats = []
     for block in blocks:
         l = []
-        for block_id, variant_indices in block.items():
+        for variant_indices in block.values():
             if len(variant_indices) < 2:
                 continue
             span = (

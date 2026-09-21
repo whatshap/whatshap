@@ -395,7 +395,7 @@ def test_empty_format_field(tmp_path):
     assert os.path.isfile(outvcf)
     vcf_reader = VariantFile(outvcf)
     for record in vcf_reader:
-        for sample, call in record.samples.items():
+        for call in record.samples.values():
             assert set(call) == {"GT", "GL", "GQ"}
 
 

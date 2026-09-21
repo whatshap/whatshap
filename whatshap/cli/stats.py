@@ -474,7 +474,7 @@ def get_phase_blocks(
 
     # Add chromosome information to each block. This is needed to
     # sort blocks later when we compute NG50s
-    for block_id, block in blocks.items():
+    for block in blocks.values():
         block.chromosome = chromosome
 
     if gtfwriter and prev_block.id is not None:

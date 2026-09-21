@@ -884,7 +884,7 @@ def log_time_and_memory_usage(timers, show_phase_vcfs):
 
 def merge_readsets(readsets) -> ReadSet:
     all_reads = ReadSet()
-    for sample, readset in readsets.items():
+    for readset in readsets.values():
         for read in readset:
             assert read.is_sorted(), "Add a read.sort() here"
             all_reads.add(read)
