@@ -99,11 +99,9 @@ line-length = 120
 lint.ignore = [
     "SIM115",  # Use a context manager for opening files
     "DTZ005",  # `datetime.datetime.now()` called without a `tz` argument
+    "I001",    # Import block is un-sorted or un-formatted
 
     "FA100",   # Add `from __future__ import annotations` to simplify `typing.Optional`
-    "FURB129", # Instead of calling `readlines()`, iterate over file object directly
-    "I001",    # Import block is un-sorted or un-formatted
-    "ISC004",  # Unparenthesized implicit string concatenation in collection
     "PERF102", # When using only the values of a dict use the `values()` method
     "PIE808",  # Unnecessary `start` argument in `range`
     "PLC0205", # Class `__slots__` should be a non-string iterable

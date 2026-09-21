@@ -214,7 +214,7 @@ def test_ps_tag(algorithm, expected_lines, tmpdir):
         algorithm=algorithm,
     )
     with open(out) as f:
-        lines = [line for line in f.readlines() if not line.startswith("#")]
+        lines = [line for line in f if not line.startswith("#")]
 
     # TODO This is quite an ugly way to test phased VCF writing (see parametrization)
     for i in range(5):
