@@ -54,10 +54,8 @@ class PhasedBlock:
             self.leftmost_variant = variant
             self.rightmost_variant = variant
         else:
-            if variant < self.leftmost_variant:
-                self.leftmost_variant = variant
-            if self.rightmost_variant < variant:
-                self.rightmost_variant = variant
+            self.leftmost_variant = min(self.leftmost_variant, variant)
+            self.rightmost_variant = max(self.rightmost_variant, variant)
         self.phases[variant] = phase
 
     def span(self):

@@ -103,7 +103,6 @@ lint.ignore = [
     "FA100",   # Add `from __future__ import annotations` to simplify `typing.Optional`
     "PLR0133", # Two constants compared in a comparison, consider replacing `0 < 5`
 
-    "PLR1730", # Replace `if` statement with `max` call
     "PLW0127", # Self-assignment of variable `sample`
     "PLW0128", # Redeclared variable `solver` in assignment
     "PYI029",  # Defining `__str__` in a stub is almost always redundant
