@@ -104,7 +104,6 @@ lint.ignore = [
     "FA100",   # Add `from __future__ import annotations` to simplify `typing.Optional`
     "PLR0133", # Two constants compared in a comparison, consider replacing `0 < 5`
 
-    "RUF010",  # Use explicit conversion flag
     "RUF015",  # Prefer `next(iter(sample_intersection))` over single element slice
     "RUF023",  # `BiallelicVcfVariant.__slots__` is not sorted
     "RUF059",  # Unpacked variable `alternative_allele` is never used

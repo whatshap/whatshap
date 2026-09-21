@@ -83,7 +83,7 @@ class PhasedBlock:
         return left_block, right_block
 
     def __repr__(self):
-        return f"PhasedBlock({str(self.phases)})"
+        return f"PhasedBlock({self.phases!s})"
 
     def __len__(self):
         return len(self.phases)
