@@ -101,10 +101,10 @@ class ReadMerger(ReadMergerBase):
             queue[i] = {"begin": begin, "end": end, "alleles": alleles}
             for x in [id for id in queue if queue[id]["end"] <= begin]:  # type: ignore
                 del queue[x]
-            for j in queue:
+            for j, queue_j in queue.items():
                 if i == j:
                     continue
-                match, mismatch = eval_overlap(queue[j], queue[i])
+                match, mismatch = eval_overlap(queue_j, queue[i])
                 if (
                     match + mismatch >= thr_neg_diff
                     and min(match, mismatch) / (match + mismatch) <= self._max_error_rate

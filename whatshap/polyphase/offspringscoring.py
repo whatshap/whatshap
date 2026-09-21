@@ -72,14 +72,14 @@ def correct_variant_types(
 
     # show variant corrections:
     logger.info("   Correcting variant type based on progenies:")
-    for old_gt in correction:
-        total = sum([correction[old_gt][new_gt] for new_gt in correction[old_gt]])
+    for old_gt, correction_old_gt in correction.items():
+        total = sum([correction_old_gt[new_gt] for new_gt in correction_old_gt])
         if total == 0:
             continue
         logger.info(f"   {old_gt[0]}/{old_gt[1]} ({total})")
-        for new_gt in correction[old_gt]:
-            num = correction[old_gt][new_gt]
-            perc = 100 * correction[old_gt][new_gt] / total
+        for new_gt in correction_old_gt:
+            num = correction_old_gt[new_gt]
+            perc = 100 * correction_old_gt[new_gt] / total
             logger.info("%s", f"      -> {new_gt[0]}/{new_gt[1]}: {num} ({perc:2.1f}%)")
 
 
