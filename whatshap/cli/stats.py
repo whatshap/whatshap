@@ -508,9 +508,7 @@ def run_stats(
         else:
             logger.info(f"Found {len(vcf_reader.samples)} sample(s) in input VCF")
         if sample:
-            if sample in vcf_reader.samples:
-                sample = sample
-            else:
+            if sample not in vcf_reader.samples:
                 logger.error(f"Requested sample ({sample}) not found")
                 return 1
         else:

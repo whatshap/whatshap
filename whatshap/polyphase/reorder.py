@@ -477,7 +477,7 @@ def get_optimal_assignments(
     model += sum([var * weight for (var, weight) in z_weights.items()]) + sum(aff_scores)
 
     # solve model
-    solver = solver = get_ilp_solver()
+    solver = get_ilp_solver()
     model.solve(solver)
 
     assignments = [[0 for _ in P] for _ in BE]

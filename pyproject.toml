@@ -103,8 +103,6 @@ lint.ignore = [
     "FA100",   # Add `from __future__ import annotations` to simplify `typing.Optional`
     "PLR0133", # Two constants compared in a comparison, consider replacing `0 < 5`
 
-    "PLW0127", # Self-assignment of variable `sample`
-    "PLW0128", # Redeclared variable `solver` in assignment
     "PYI029",  # Defining `__str__` in a stub is almost always redundant
     "PYI034",  # `__iadd__` methods in classes like `PhasingErrors` usually return `self` at runtime
     "RUF010",  # Use explicit conversion flag
