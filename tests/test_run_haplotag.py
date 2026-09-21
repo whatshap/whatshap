@@ -1216,11 +1216,13 @@ def test_haplotag_tetraploid(tmp_path):
 def test_haplotag_duplicates_are_tagged(tmp_path):
     # Create a version of the BAM file where all reads are marked as duplicates
     inbam_dup = tmp_path / "haplotag-duplicates.bam"
-    with pysam.AlignmentFile("tests/data/haplotag.bam") as infile:
-        with pysam.AlignmentFile(inbam_dup, mode="wb", template=infile) as outfile:
-            for record in infile:
-                record.is_duplicate = True
-                outfile.write(record)
+    with (
+        pysam.AlignmentFile("tests/data/haplotag.bam") as infile,
+        pysam.AlignmentFile(inbam_dup, mode="wb", template=infile) as outfile,
+    ):
+        for record in infile:
+            record.is_duplicate = True
+            outfile.write(record)
     pysam.index(str(inbam_dup))
     outbam_dup = tmp_path / "output-nodup.bam"
     outbam_nodup = tmp_path / "output-dup.bam"

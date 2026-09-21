@@ -117,10 +117,9 @@ def test_split_tetraploid_bam(tmp_path, add_untagged, format):
 
 
 def bam_to_fastq(bam_path, fastq_path):
-    with pysam.AlignmentFile(bam_path) as af:
-        with xopen(fastq_path, "w", compresslevel=1) as fastq:
-            for record in af:
-                fastq.write(f"@{record.query_name}\n{record.query_sequence}\n+\n{record.qual}\n")
+    with pysam.AlignmentFile(bam_path) as af, xopen(fastq_path, "w", compresslevel=1) as fastq:
+        for record in af:
+            fastq.write(f"@{record.query_name}\n{record.query_sequence}\n+\n{record.qual}\n")
 
 
 def fastq_names(fastq_path):

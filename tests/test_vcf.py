@@ -536,6 +536,5 @@ def test_vcf_without_index(tmp_path):
     import shutil
 
     shutil.copy("tests/data/haplotag_1.vcf.gz", vcf_path)
-    with raises(VcfIndexMissing):
-        with VcfReader(vcf_path) as vr:
-            list(vr.fetch("chr1"))
+    with raises(VcfIndexMissing), VcfReader(vcf_path) as vr:
+        list(vr.fetch("chr1"))
