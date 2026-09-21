@@ -130,7 +130,7 @@ def mendelian_conflict(genotypem: Genotype, genotypef: Genotype, genotypec: Geno
     alleles_c = genotypec.as_vector()
     if alleles_c[0] in alleles_m and alleles_c[1] in alleles_f:
         return False
-    elif alleles_c[1] in alleles_m and alleles_c[0] in alleles_f:
+    elif alleles_c[1] in alleles_m and alleles_c[0] in alleles_f:  # noqa: SIM103
         return False
     else:
         return True
