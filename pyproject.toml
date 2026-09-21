@@ -95,8 +95,53 @@ build-verbosity = 1
 # test-command = ["cd {project} ; pytest tests/test_run_phase.py"]
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 lint.ignore = [
-    "E501",  # line too long
-    "E741",  # Ambiguous variable name
+    "C403",    # Unnecessary list comprehension (rewrite as a set comprehension)
+    "C405",    # Unnecessary list literal (rewrite as a set literal)
+    "C408",    # Unnecessary `dict()` call (rewrite as a literal)
+    "C413",    # Unnecessary `list()` call around `sorted()`
+    "C414",    # Unnecessary `list()` call within `set()`
+    "C419",    # Unnecessary list comprehension
+    "DTZ005",  # `datetime.datetime.now()` called without a `tz` argument
+    "EXE001",  # Shebang is present but file is not executable
+    "FA100",   # Add `from __future__ import annotations` to simplify `typing.Optional`
+    "FURB129", # Instead of calling `readlines()`, iterate over file object directly
+    "I001",    # Import block is un-sorted or un-formatted
+    "ISC004",  # Unparenthesized implicit string concatenation in collection
+    "PERF102", # When using only the values of a dict use the `values()` method
+    "PIE808",  # Unnecessary `start` argument in `range`
+    "PLC0205", # Class `__slots__` should be a non-string iterable
+    "PLC0206", # Extracting value from dictionary without calling `.items()`
+    "PLR0133", # Two constants compared in a comparison, consider replacing `0 < 5`
+    "PLR1704", # Redefining argument with the local name `regions`
+    "PLR1730", # Replace `if` statement with `max` call
+    "PLW0127", # Self-assignment of variable `sample`
+    "PLW0128", # Redeclared variable `solver` in assignment
+    "PYI029",  # Defining `__str__` in a stub is almost always redundant
+    "PYI034",  # `__iadd__` methods in classes like `PhasingErrors` usually return `self` at runtime
+    "RUF010",  # Use explicit conversion flag
+    "RUF015",  # Prefer `next(iter(sample_intersection))` over single element slice
+    "RUF023",  # `BiallelicVcfVariant.__slots__` is not sorted
+    "RUF059",  # Unpacked variable `alternative_allele` is never used
+    "RUF100",  # Unused blanket `noqa` directive
+    "SIM102",  # Use a single `if` statement instead of nested `if` statements
+    "SIM103",  # Return the negated condition directly
+    "SIM113",  # Use `enumerate()` for index variable `current_component` in `for` loop
+    "SIM114",  # Combine `if` branches using logical `or` operator
+    "SIM115",  # Use a context manager for opening files
+    "SIM117",  # Use a single `with` statement with multiple contexts instead of nested `with` statements
+    "SIM118",  # Use `key in dict` instead of `key in dict.keys()`
+    "SIM401",  # Use `allele_depths[pos][clust].get(a, 0)` instead of an `if` block
+    "TRY201",  # Use `raise` without specifying exception name
+    "UP006",   # Use `collections.defaultdict` instead of `DefaultDict` for type annotation
+    "UP007",   # Use `X | Y` for type annotations
+    "UP028",   # Replace `yield` over `for` loop with `yield from`
+    "UP031",   # Use format specifiers instead of percent format
+    "UP032",   # Use f-string instead of `format` call
+    "UP033",   # Use `@functools.cache` instead of `@functools.lru_cache(maxsize=None)`
+    "UP035",   # Import from `collections.abc` instead: `Iterable`
+    "UP035",   # `typing.DefaultDict` is deprecated, use `collections.defaultdict` instead
+    "UP037",   # Remove quotes from type annotation
+    "UP045",   # Use `X | None` for type annotations
 ]
